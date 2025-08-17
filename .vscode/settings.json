@@ -1,0 +1,26 @@
+// .vscode/settings.json
+{
+  // Activa la extensión de Deno para este espacio de trabajo.
+  "deno.enable": true,
+  
+  // Habilita el 'linting' (análisis de código) de Deno.
+  "deno.lint": true,
+  
+  // Habilita características inestables que algunas librerías pueden usar.
+  "deno.unstable": true,
+  
+  // --- LA LÍNEA MÁS IMPORTANTE ---
+  // Le dice a la extensión que se active ÚNICAMENTE para los archivos
+  // que están dentro de la carpeta 'supabase/functions'.
+  // Esto previene conflictos con el resto de tu código de Next.js.
+  "deno.enablePaths": [
+    "supabase/functions"
+  ],
+
+  // (Opcional pero recomendado) Hacemos que Deno sea el formateador por defecto
+  // para los archivos de TypeScript, asegurando un estilo de código consistente.
+  "[typescript]": {
+    "editor.defaultFormatter": "denoland.vscode-deno",
+    "editor.formatOnSave": true
+  }
+}
