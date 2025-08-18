@@ -2,12 +2,12 @@
 
 "use client"
 
+import Link from "next/link";
 import { PodcastCard, type PodcastWithProfile } from "@/components/podcast-card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, ListFilter, LayoutGrid, Library, Zap, Clock, TrendingUp } from "lucide-react";
-import Link from "next/link";
 
 interface PodcastLibraryClientProps {
   podcasts: PodcastWithProfile[];
@@ -16,20 +16,25 @@ interface PodcastLibraryClientProps {
 
 export function PodcastLibraryClient({ podcasts, totalPodcasts }: PodcastLibraryClientProps) {
   return (
+    // Usamos 'container' para centrar el contenido y 'py-8' para el espaciado vertical
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      
+      {/* --- CABECERA DE LA PÁGINA (DISEÑO RESTAURADO) --- */}
       <header className="mb-8">
         <div className="flex items-center gap-2 text-primary mb-2">
           <Library className="h-5 w-5" />
           <p className="font-semibold">Content Discovery Hub</p>
         </div>
-        <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-2">Micro-pods</h1>
+        <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-2">
+          Micro-pods
+        </h1>
         <p className="text-lg text-muted-foreground">
           Discover knowledge in bite-sized audio experiences • {totalPodcasts} podcasts available
         </p>
       </header>
 
       <main>
-        {/* Barra de Búsqueda y Filtros */}
+        {/* --- BARRA DE BÚSQUEDA Y FILTROS (DISEÑO RESTAURADO) --- */}
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
           <div className="relative flex-1">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -49,7 +54,7 @@ export function PodcastLibraryClient({ podcasts, totalPodcasts }: PodcastLibrary
           </div>
         </div>
 
-        {/* Pestañas de Navegación */}
+        {/* --- PESTAÑAS DE NAVEGACIÓN (DISEÑO RESTAURADO) --- */}
         <Tabs defaultValue="discover" className="w-full">
           <TabsList>
             <TabsTrigger value="discover"><Zap className="h-4 w-4 mr-2"/>Discover</TabsTrigger>
@@ -66,6 +71,7 @@ export function PodcastLibraryClient({ podcasts, totalPodcasts }: PodcastLibrary
               </Button>
             </div>
             
+            {/* La lógica de renderizado de datos reales permanece intacta */}
             {(podcasts && podcasts.length > 0) ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                 {podcasts.map((podcast) => (
