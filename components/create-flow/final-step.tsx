@@ -1,36 +1,60 @@
 // components/create-flow/final-step.tsx
+"use client";
 
-"use client"
-import { CheckCircle } from "lucide-react"
-import type { CreationFormData } from "../podcast-creation-form"
+import { useFormContext } from "react-hook-form";
+import { PodcastCreationData } from "@/lib/validation/podcast-schema";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
-interface FinalStepProps {
-  formData: CreationFormData;
-}
+export function FinalStep() {
+  // Obtenemos acceso a todos los datos del formulario con getValues.
+  const { getValues } = useFormContext<PodcastCreationData>();
+  const formData = getValues();
 
-export function FinalStep({ formData }: FinalStepProps) {
-  const finalTitle = formData.style === 'solo' 
-    ? formData.solo_topic 
-    : formData.link_selectedNarrative?.title;
-    
   return (
-    <div className="flex flex-col h-full items-center justify-center text-center">
-      <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full mb-6">
-        <CheckCircle className="h-8 w-8 text-white" />
+    <div className="space-y-6">
+      <div className="text-center">
+        <h2 className="text-2xl font-bold">Confirma tu Creación</h2>
+        <p className="text-muted-foreground">Revisa los detalles antes de enviar tu idea a la IA.</p>
       </div>
-      <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-3">Ready to Create?</h2>
-      <p className="text-lg text-gray-700 dark:text-gray-300 max-w-md mb-4">
-        You've provided all the necessary details. The AI is ready to craft your micro-podcast.
-      </p>
-      {finalTitle && (
-        <div className="p-4 bg-gray-100 dark:bg-gray-800/50 rounded-lg w-full max-w-lg">
-          <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Podcast Topic:</p>
-          <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">"{finalTitle}"</p>
-        </div>
-      )}
-      <p className="text-sm text-muted-foreground mt-6">
-        Click "Create Podcast" below to start the generation process.
-      </p>
+      <Card>
+        <CardHeader>
+          <CardTitle>Resumen del Podcast</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4 text-sm">
+          {formData.style === 'solo' && (
+            <>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Estilo</span>
+                <Badge variant="outline">Solo Talk</Badge>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Tema</span>
+                <span className="font-medium text-right">{formData.solo_topic}</span>
+              </div>
+            </>
+          )}
+          {formData.style === 'link' && formData.link_selectedNarrative && (
+             <>
+               <div className="flex justify-between">
+                <span className="text-muted-foreground">Estilo</span>
+                <Badge variant="outline">Unir Puntos</Badge>
+              </div>
+              <div className="flex flex-col space-y-1">
+                <span className="text-muted-foreground">Narrativa Seleccionada</span>
+                <div className="p-3 bg-muted rounded-md">
+                  <p className="font-medium">{formData.link_selectedNarrative.title}</p>
+                  <p className="text-xs text-muted-foreground">{formData.link_selectedNarrative.thesis}</p>
+                </div>
+              </div>
+             </>
+          )}
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Duración</span>
+            <span className="font-medium">{formData.duration}</span>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
