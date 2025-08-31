@@ -1,0 +1,55 @@
+# ====================================================================================
+# ARCHIVO DE CONFIGURACIÓN MAESTRO PARA EL ENTORNO LOCAL DE NICEPOD
+# Versión: Final, Consolidada y 100% Compatible
+# Descripción: Este archivo contiene la configuración completa y probada para ejecutar
+# el stack de Supabase localmente en GitHub Codespaces.
+# ====================================================================================
+
+# VINCULACIÓN MANUAL:
+# Define el identificador único de tu proyecto. Esta línea es crucial
+# y reemplaza la necesidad de ejecutar el comando 'supabase link'.
+project_id = "pywbzkzoxbomqxelndy"
+
+
+# --- Configuración de Puertos para los Servicios Locales ---
+# Puertos reasignados a un rango alto para garantizar la compatibilidad con Codespaces
+# y evitar errores de "port is already allocated".
+[api]
+port = 8432
+schemas = ["public", "storage", "graphql"]
+max_rows = 1000
+
+[db]
+port = 8433
+major_version = 15
+
+[studio]
+port = 8437
+
+[inbucket]
+port = 8436
+
+
+# --- Configuración del Servicio de Autenticación ---
+# NOTA: El 'jwt_secret' se gestiona a través del comando 'supabase secrets set'
+# para asegurar la compatibilidad con esta versión de la CLI.
+
+# Configuración específica para el proveedor de autenticación de Google.
+[auth.external.google]
+enabled = true
+# Reemplaza estas credenciales con las que generaste en tu Google Cloud Console.
+client_id = "TU_ID_DE_CLIENTE_DE_GOOGLE_VA_AQUI"
+secret = "TU_SECRETO_DE_CLIENTE_DE_GOOGLE_VA_AQUI"
+# Necesario para que el flujo de desarrollo local con Google funcione correctamente.
+skip_nonce_check = true
+
+
+# --- Definición de las Edge Functions ---
+# Cada línea aquí le dice a Supabase que reconozca una carpeta de función
+# que se encuentra dentro del directorio 'supabase/functions'.
+[functions]
+generate-narratives = {}
+process-podcast-job = {}
+queue-podcast-job = {}
+# Añade aquí futuras funciones, como 'publish-podcast'.
+# publish-podcast = {}
