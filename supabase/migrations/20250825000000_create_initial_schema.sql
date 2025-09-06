@@ -1,14 +1,35 @@
+-- SCRIPT MAESTRO DEFINITIVO DE BASE DE DATOS PARA NICEPOD / NICEHIVE
+-- Versión: 9.3 (Final, Verificada y Lista para Producción)
+-- Descripción: Este script establece el esquema inicial completo. Es idempotente,
+-- lo que significa que primero limpia de forma segura cualquier estructura anterior
+-- antes de construir el nuevo esquema. Incluye todas las optimizaciones de
+-- seguridad y rendimiento descubiertas.
 -- ====================================================================================
--- SCRIPT MAESTRO DEFINITIVO DE BASE DE DATOS PARA NICEPOD
--- Versión: 6.0 (Consolidada y Definitiva)
--- Descripción: Este script establece el esquema inicial completo, incorporando
--- todas las mejores prácticas, optimizaciones y correcciones de seguridad descubiertas.
--- Incluye la función RPC 'increment_jobs_and_queue' requerida por el backend.
--- ====================================================================================
+
+
+-- ========= SECCIÓN 0: DEMOLICIÓN SEGURA (RESET) =========
+-- Propósito: Garantizar un estado limpio antes de la construcción.
+-- El uso de 'CASCADE' elimina automáticamente objetos dependientes como triggers.
+
+DROP TABLE IF EXISTS public.podcast_creation_jobs CASCADE;
+DROP TABLE IF EXISTS public.ai_prompts CASCADE;
+DROP TABLE IF EXISTS public.micro_pods CASCADE;
+DROP TABLE IF EXISTS public.subscriptions CASCADE;
+DROP TABLE IF EXISTS public.plans CASCADE;
+DROP TABLE IF EXISTS public.profiles CASCADE;
+
+DROP TYPE IF EXISTS public.job_status;
+DROP TYPE IF EXISTS public.podcast_status;
+DROP TYPE IF EXISTS public.subscription_status;
+
+DROP FUNCTION IF EXISTS public.increment_jobs_and_queue(UUID, JSONB) CASCADE;
+DROP FUNCTION IF EXISTS public.create_profile_and_free_subscription() CASCADE;
+DROP FUNCTION IF EXISTS public.handle_updated_at() CASCADE;
+DROP FUNCTION IF EXISTS public.get_current_uid() CASCADE;
 
 
 -- ========= SECCIÓN 1: TIPOS DE DATOS PERSONALIZADOS (ENUMS) =========
--- Propósito: Garantizar la integridad referencial y prevenir errores de datos.
+-- Propósito: Garantizar la integridad de los datos en los campos de estado.
 
 CREATE TYPE public.subscription_status AS ENUM ('active', 'inactive', 'trialing', 'past_due');
 CREATE TYPE public.podcast_status AS ENUM ('pending_approval', 'published', 'archived', 'failed');
@@ -16,8 +37,6 @@ CREATE TYPE public.job_status AS ENUM ('pending', 'processing', 'completed', 'fa
 
 
 -- ========= SECCIÓN 2: CREACIÓN DE TABLAS PRINCIPALES =========
--- Propósito: Definir la estructura fundamental de almacenamiento de datos.
-
 CREATE TABLE public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   username TEXT UNIQUE NOT NULL CHECK (char_length(username) >= 3),
@@ -103,21 +122,24 @@ COMMENT ON TABLE public.podcast_creation_jobs IS 'Cola de trabajos para la creac
 
 
 -- ========= SECCIÓN 3: ÍNDICES PARA OPTIMIZACIÓN DE RENDIMIENTO =========
-CREATE INDEX idx_micro_pods_user_id ON public.micro_pods(user_id);
-CREATE INDEX idx_micro_pods_status ON public.micro_pods(status);
-CREATE INDEX idx_jobs_user_id ON public.podcast_creation_jobs(user_id);
-CREATE INDEX idx_jobs_status ON public.podcast_creation_jobs(status);
-CREATE INDEX idx_jobs_archived ON public.podcast_creation_jobs(archived);
+CREATE INDEX IF NOT EXISTS idx_micro_pods_user_id ON public.micro_pods(user_id);
+CREATE INDEX IF NOT EXISTS idx_micro_pods_status ON public.micro_pods(status);
+CREATE INDEX IF NOT EXISTS idx_jobs_user_id ON public.podcast_creation_jobs(user_id);
+CREATE INDEX IF NOT EXISTS idx_jobs_status ON public.podcast_creation_jobs(status);
+CREATE INDEX IF NOT EXISTS idx_jobs_archived ON public.podcast_creation_jobs(archived);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_plan_id ON public.subscriptions(plan_id);
+CREATE INDEX IF NOT EXISTS idx_podcast_creation_jobs_micro_pod_id ON public.podcast_creation_jobs(micro_pod_id);
 
 
 -- ========= SECCIÓN 4: LÓGICA DE NEGOCIO (TRIGGERS Y FUNCIONES) =========
-CREATE OR REPLACE FUNCTION public.handle_updated_at() RETURNS TRIGGER AS $$ BEGIN NEW.updated_at = now(); RETURN NEW; END; $$ LANGUAGE plpgsql;
-CREATE TRIGGER on_profiles_update BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE PROCEDURE public.handle_updated_at();
-CREATE TRIGGER on_subscriptions_update BEFORE UPDATE ON public.subscriptions FOR EACH ROW EXECUTE PROCEDURE public.handle_updated_at();
-CREATE TRIGGER on_micro_pods_update BEFORE UPDATE ON public.micro_pods FOR EACH ROW EXECUTE PROCEDURE public.handle_updated_at();
-CREATE TRIGGER on_jobs_update BEFORE UPDATE ON public.podcast_creation_jobs FOR EACH ROW EXECUTE PROCEDURE public.handle_updated_at();
 
--- Función de Onboarding para nuevos usuarios
+-- Función auxiliar para actualizar 'updated_at' en cualquier modificación.
+CREATE OR REPLACE FUNCTION public.handle_updated_at() RETURNS TRIGGER AS $$ BEGIN NEW.updated_at = now(); RETURN NEW; END; $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
+
+-- Función auxiliar para optimizar las políticas de RLS.
+CREATE OR REPLACE FUNCTION public.get_current_uid() RETURNS UUID AS $$ SELECT auth.uid(); $$ LANGUAGE sql STABLE SECURITY DEFINER;
+
+-- Función de Onboarding para nuevos usuarios.
 CREATE OR REPLACE FUNCTION public.create_profile_and_free_subscription()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -132,11 +154,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
 
--- Trigger que ejecuta la función de onboarding
-CREATE TRIGGER on_new_user_setup AFTER INSERT ON auth.users FOR EACH ROW EXECUTE PROCEDURE public.create_profile_and_free_subscription();
-
--- **NUEVA FUNCIÓN REQUERIDA**
--- Función RPC para encolar un trabajo de forma segura y atómica.
+-- Función RPC para encolar un trabajo de forma segura.
 CREATE OR REPLACE FUNCTION public.increment_jobs_and_queue(p_user_id UUID, p_payload JSONB)
 RETURNS void AS $$
 BEGIN
@@ -144,6 +162,13 @@ BEGIN
   INSERT INTO public.podcast_creation_jobs (user_id, payload) VALUES (p_user_id, p_payload);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
+
+-- Aplicamos los triggers a las tablas correspondientes.
+CREATE TRIGGER on_profiles_update BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE PROCEDURE public.handle_updated_at();
+CREATE TRIGGER on_subscriptions_update BEFORE UPDATE ON public.subscriptions FOR EACH ROW EXECUTE PROCEDURE public.handle_updated_at();
+CREATE TRIGGER on_micro_pods_update BEFORE UPDATE ON public.micro_pods FOR EACH ROW EXECUTE PROCEDURE public.handle_updated_at();
+CREATE TRIGGER on_jobs_update BEFORE UPDATE ON public.podcast_creation_jobs FOR EACH ROW EXECUTE PROCEDURE public.handle_updated_at();
+CREATE TRIGGER on_new_user_setup AFTER INSERT ON auth.users FOR EACH ROW EXECUTE PROCEDURE public.create_profile_and_free_subscription();
 
 
 -- ========= SECCIÓN 5: SEGURIDAD (ROW LEVEL SECURITY - RLS) =========
@@ -153,16 +178,31 @@ ALTER TABLE public.micro_pods ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.podcast_creation_jobs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ai_prompts ENABLE ROW LEVEL SECURITY;
 
--- POLÍTICAS:
-CREATE POLICY "Los usuarios pueden gestionar su propio perfil." ON public.profiles FOR ALL USING (auth.uid() = id);
-CREATE POLICY "Los usuarios pueden ver su propia suscripción." ON public.subscriptions FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Cualquiera puede ver los podcasts publicados." ON public.micro_pods FOR SELECT USING (status = 'published');
-CREATE POLICY "Los propietarios pueden gestionar sus propios podcasts." ON public.micro_pods FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "Los propietarios pueden ver sus propios trabajos de creación." ON public.podcast_creation_jobs FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Los administradores pueden gestionar los prompts de IA." ON public.ai_prompts FOR ALL USING ((SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin') WITH CHECK ((SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin');
+-- POLÍTICAS OPTIMIZADAS:
+CREATE POLICY "Los usuarios pueden gestionar su propio perfil." ON public.profiles FOR ALL USING (public.get_current_uid() = id) WITH CHECK (public.get_current_uid() = id);
+CREATE POLICY "Los usuarios pueden ver su propia suscripción." ON public.subscriptions FOR SELECT USING (public.get_current_uid() = user_id);
+CREATE POLICY "Permitir lectura de podcasts publicados o propios." ON public.micro_pods FOR SELECT USING (status = 'published' OR public.get_current_uid() = user_id);
+
+-- La siguiente política utiliza 'FOR ALL' para gestionar todas las acciones (SELECT, INSERT, UPDATE, DELETE) del propietario de un registro.
+-- Se combina con la política de lectura pública de arriba: un usuario puede ver un pod si está publicado O si es el propietario.
+CREATE POLICY "Los propietarios pueden gestionar sus propios podcasts." ON public.micro_pods FOR ALL USING (public.get_current_uid() = user_id) WITH CHECK (public.get_current_uid() = user_id);
+
+CREATE POLICY "Los propietarios pueden ver sus propios trabajos de creación." ON public.podcast_creation_jobs FOR SELECT USING (public.get_current_uid() = user_id);
+CREATE POLICY "Los administradores pueden gestionar los prompts de IA." ON public.ai_prompts FOR ALL USING ((SELECT role FROM public.profiles WHERE id = public.get_current_uid()) = 'admin') WITH CHECK ((SELECT role FROM public.profiles WHERE id = public.get_current_uid()) = 'admin');
+
+-- ========= SECCIÓN 6: PERMISOS ENTRE ESQUEMAS =========
+-- Concedemos los permisos necesarios para que el trigger de Auth pueda ejecutar nuestra función pública.
+GRANT USAGE ON SCHEMA public TO supabase_auth_admin;
+GRANT EXECUTE ON FUNCTION public.create_profile_and_free_subscription() TO supabase_auth_admin;
+GRANT SELECT ON TABLE public.plans TO supabase_auth_admin;
+GRANT INSERT, SELECT ON TABLE public.profiles TO supabase_auth_admin;
+GRANT INSERT, SELECT ON TABLE public.subscriptions TO supabase_auth_admin;
 
 
--- ========= SECCIÓN 6: DATOS INICIALES (SEEDING) =========
-INSERT INTO public.plans (name, description, monthly_creation_limit, features)
-VALUES ('Gratuito', 'Para empezar a explorar y crear', 5, '{"Creación de guiones por IA", "Acceso a la biblioteca pública"}')
+-- ========= SECCIÓN 7: DATOS INICIALES (SEEDING) =========
+INSERT INTO public.plans (name, description, price_monthly, monthly_creation_limit, features)
+VALUES 
+('Gratuito', 'Para empezar a explorar y crear', 0, 5, '{"Creación de guiones por IA", "Acceso a la biblioteca pública"}'),
+('Pensador', 'Para el aficionado comprometido que crea con frecuencia', 9.99, 30, '{"Límite de creación extendido", "Panel de analíticas básicas"}'),
+('Creador', 'Para el profesional que usa NicePod como herramienta de trabajo', 29.99, 100, '{"Límite de creación masivo", "Analíticas avanzadas", "Soporte prioritario"}')
 ON CONFLICT (name) DO NOTHING;

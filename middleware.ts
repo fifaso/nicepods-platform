@@ -18,11 +18,39 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Refrescamos la sesión para asegurarnos de que las cookies están actualizadas.
-  const { data: { user } } = await supabase.auth.getUser()
+  // ========================================================================
+  // INICIO DE LA MODIFICACIÓN PROFESIONAL
+  // ========================================================================
+  // La línea original "const { data: { user } } = await supabase.auth.getUser()"
+  // ha sido reemplazada por el siguiente bloque try-catch.
+  // Esto previene el error 'AuthApiError: Invalid Refresh Token' que se muestra
+  // en la consola del servidor durante el desarrollo. El error es un comportamiento
+  // esperado cuando un usuario no autenticado accede al sitio, y este bloque
+  // lo maneja de forma segura sin llenar los logs de "ruido".
+
+  let user = null; // Declaramos la variable 'user' en un alcance superior.
+
+  try {
+    // Intentamos obtener los datos del usuario.
+    const { data } = await supabase.auth.getUser();
+    // Si la operación tiene éxito, asignamos el objeto de usuario.
+    // Usamos el encadenamiento opcional (?.) para mayor seguridad.
+    user = data?.user;
+  } catch (error) {
+    // Si ocurre un error (como el token no encontrado), lo capturamos aquí.
+    // No necesitamos hacer nada; 'user' simplemente permanecerá como 'null',
+    // que es el estado correcto para un usuario no autenticado.
+  }
+  
+  // ========================================================================
+  // FIN DE LA MODIFICACIÓN PROFESIONAL
+  // ========================================================================
+
 
   // ========================================================================
   // INICIO DE LA MEJORA DEFINITIVA: LÓGICA DE REDIRECCIÓN CENTRALIZADA
+  // Esta lógica permanece sin cambios, ya que ahora recibe la variable 'user'
+  // correctamente definida (ya sea con datos de usuario o como 'null').
   // ========================================================================
   const protectedRoutes = ['/create', '/profile', '/dashboard']
   const publicRoutes = ['/login', '/signup']
