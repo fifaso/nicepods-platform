@@ -21,14 +21,14 @@ port = 8437
 port = 8436
 
 # Configuración para el proveedor de autenticación de Google.
-[auth.external.google]
-enabled = true
+#[auth.external.google]
+#enabled = true
 # Las credenciales se cargan de forma segura desde variables de entorno.
 # Asegúrate de que GOOGLE_CLIENT_ID y GOOGLE_CLIENT_SECRET estén en tu archivo .env.local.
-client_id = "env(GOOGLE_CLIENT_ID)"
-secret = "env(GOOGLE_CLIENT_SECRET)"
+#client_id = "env(GOOGLE_CLIENT_ID)"
+#secret = "env(GOOGLE_CLIENT_SECRET)"
 # Requerido para que el flujo de autenticación de Google funcione en un entorno local.
-skip_nonce_check = true
+#skip_nonce_check = true
 
 # Definición de las Edge Functions del proyecto.
 [functions]
