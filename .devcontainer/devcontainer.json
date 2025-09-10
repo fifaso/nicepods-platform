@@ -1,11 +1,9 @@
 {
   "name": "NicePods Platform Development",
-  // Inyecta los secretos almacenados en GitHub directamente en el entorno del Codespace.
-  // Este es el método seguro y profesional.
   "remoteEnv": {
     "SUPABASE_AUTH_JWT_SECRET": "${codespaces.secrets.SUPABASE_AUTH_JWT_SECRET}",
     "GOOGLE_CLIENT_ID": "${codespaces.secrets.GOOGLE_CLIENT_ID}",
     "GOOGLE_CLIENT_SECRET": "${codespaces.secrets.GOOGLE_CLIENT_SECRET}"
-  }
-  // Puedes añadir otras configuraciones de Codespaces aquí si las necesitas.
+  },
+  "postCreateCommand": ".devcontainer/setup.sh"
 }

@@ -31,3 +31,5 @@ next-env.d.ts
 
 *.deb
 
+# Ignorar secretos del backend de Supabase
+supabase/.env
