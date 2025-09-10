@@ -1,0 +1,18 @@
+tasks:
+  - name: Setup & Start
+    init: |
+      # 1. Instalar PNPM
+      curl -fsSL https://get.pnpm.io/install.sh | sh -
+      source /home/gitpod/.bashrc
+      
+      # 2. Instalar la última Supabase CLI
+      sudo apt-get update && sudo apt-get install -y wget
+      wget https://github.com/supabase/cli/releases/download/v2.40.7/supabase_2.40.7_linux_amd64.deb
+      sudo dpkg -i supabase_2.40.7_linux_amd64.deb
+      rm supabase_2.40.7_linux_amd64.deb
+      
+      # 3. Instalar dependencias del proyecto
+      pnpm install
+    command: |
+      # 4. Iniciar Supabase
+      supabase start
