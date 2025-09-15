@@ -5,13 +5,20 @@ import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { useForm, FormProvider, SubmitHandler } from "react-hook-form";
+import { useForm, FormProvider, SubmitHandler, useFormContext } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PodcastCreationSchema, PodcastCreationData } from "@/lib/validation/podcast-schema";
+import { AgentOption, soloTalkAgents, linkPointsAgents } from "@/lib/agent-config"; // MODIFICACIÓN: Importamos la configuración de agentes
+
+// --- MODIFICACIÓN: Importamos componentes de UI adicionales de shadcn/ui ---
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChevronLeft, ChevronRight, Heart, Loader2 } from "lucide-react";
+import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+// --- FIN MODIFICACIÓN ---
+
 import { StyleSelectionStep } from "./create-flow/style-selection";
 import { SoloTalkStep } from "./create-flow/solo-talk-step";
 import { LinkPointsStep } from "./create-flow/link-points";
@@ -24,10 +31,51 @@ export interface NarrativeOption {
   thesis: string; 
 }
 
+// ========================================================================
+// NUEVO SUB-COMPONENTE REUTILIZABLE PARA LA SELECCIÓN DE AGENTES
+// ========================================================================
+function AgentSelector({ agents }: { agents: AgentOption[] }) {
+  const { control } = useFormContext<PodcastCreationData>();
+
+  return (
+    <div className="mt-8 pt-6 border-t border-border/40">
+      <h3 className="text-lg font-semibold mb-4 text-foreground">Elige tu Agente Especializado</h3>
+      <FormField
+        control={control}
+        name="selectedAgent"
+        render={({ field }) => (
+          <FormItem className="space-y-3">
+            <FormControl>
+              <RadioGroup
+                onValueChange={field.onChange}
+                defaultValue={field.value}
+                className="flex flex-col space-y-1"
+              >
+                {agents.map((agent) => (
+                  <FormItem key={agent.value} className="flex items-center space-x-3 space-y-0 p-4 rounded-lg border border-border/40 hover:bg-muted/50 transition-colors">
+                    <FormControl>
+                      <RadioGroupItem value={agent.value} />
+                    </FormControl>
+                    <FormLabel className="font-normal w-full cursor-pointer">
+                      <span className="font-semibold block text-foreground">{agent.label}</span>
+                      <span className="text-sm text-muted-foreground">{agent.description}</span>
+                    </FormLabel>
+                  </FormItem>
+                ))}
+              </RadioGroup>
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+    </div>
+  );
+}
+// ========================================================================
+
 export function PodcastCreationForm() {
   // ========================================================================
   // 1. INICIALIZACIÓN DE HOOKS Y ESTADOS
-  // Todas las variables y funciones deben estar aquí, en el nivel superior del componente.
   // ========================================================================
   
   const router = useRouter();
@@ -53,14 +101,16 @@ export function PodcastCreationForm() {
       duration: '',
       narrativeDepth: '',
       tags: [],
+      // MODIFICACIÓN: Añadimos el nuevo campo al estado por defecto del formulario.
+      selectedAgent: undefined,
     }
   });
 
-  const { handleSubmit, trigger, watch, getValues, setValue, formState: { isSubmitting } } = formMethods;
+  const { handleSubmit, trigger, watch, setValue } = formMethods;
+  const { isSubmitting } = formMethods.formState;
 
   // ========================================================================
   // 2. DEFINICIÓN DE FUNCIONES HANDLER
-  // Estas funciones manipulan el estado y la lógica del formulario.
   // ========================================================================
 
   const updateFormStyle = useCallback((data: Partial<PodcastCreationData>) => {
@@ -80,8 +130,9 @@ export function PodcastCreationForm() {
       if (style === 'link') fieldsToValidate = ['link_topicA', 'link_topicB'];
     } else if (currentStep === 3) {
       const style = watch('style');
-      if (style === 'solo') fieldsToValidate = ['duration', 'narrativeDepth'];
-      if (style === 'link') fieldsToValidate = ['link_selectedNarrative', 'link_selectedTone', 'duration', 'narrativeDepth'];
+      // MODIFICACIÓN: Añadimos la validación del agente seleccionado para poder avanzar.
+      if (style === 'solo') fieldsToValidate = ['duration', 'narrativeDepth', 'selectedAgent'];
+      if (style === 'link') fieldsToValidate = ['link_selectedNarrative', 'link_selectedTone', 'duration', 'narrativeDepth', 'selectedAgent'];
     }
     const isStepValid = await trigger(fieldsToValidate.length > 0 ? fieldsToValidate : undefined);
     if (isStepValid) {
@@ -107,12 +158,21 @@ export function PodcastCreationForm() {
 
   const handleFinalSubmit: SubmitHandler<PodcastCreationData> = useCallback(async (formData) => {
     let payload;
+    // MODIFICACIÓN: Actualizamos la construcción del payload para incluir el 'agentName'.
     if (formData.style === 'solo') {
-      const { style, solo_topic, solo_motivation, duration, narrativeDepth, tags } = formData;
-      payload = { style, inputs: { topic: solo_topic, motivation: solo_motivation, duration, narrativeDepth, tags } };
+      const { style, solo_topic, solo_motivation, duration, narrativeDepth, tags, selectedAgent } = formData;
+      payload = { 
+        style, 
+        agentName: selectedAgent, 
+        inputs: { topic: solo_topic, motivation: solo_motivation, duration, narrativeDepth, tags } 
+      };
     } else {
-      const { style, link_selectedNarrative, link_selectedTone, duration, narrativeDepth, tags } = formData;
-      payload = { style, inputs: { narrative: link_selectedNarrative, tone: link_selectedTone, duration, narrativeDepth, tags } };
+      const { style, link_selectedNarrative, link_selectedTone, duration, narrativeDepth, tags, selectedAgent } = formData;
+      payload = { 
+        style, 
+        agentName: selectedAgent, 
+        inputs: { narrative: link_selectedNarrative, tone: link_selectedTone, duration, narrativeDepth, tags } 
+      };
     }
     try {
       const { error } = await supabase.functions.invoke('queue-podcast-job', { body: payload });
@@ -129,7 +189,6 @@ export function PodcastCreationForm() {
   
   // ========================================================================
   // 3. RENDERIZADO DEL COMPONENTE
-  // La lógica de renderizado y el JSX final.
   // ========================================================================
   
   const renderCurrentStep = () => {
@@ -142,8 +201,19 @@ export function PodcastCreationForm() {
         if (currentStyle === 'link') return <LinkPointsStep />;
         return null;
       case 3:
-        if (currentStyle === 'solo') return <DetailsStep />;
-        if (currentStyle === 'link') return <NarrativeSelectionStep narrativeOptions={narrativeOptions} />;
+        // MODIFICACIÓN: En el paso 3, renderizamos los detalles Y el selector de agentes.
+        if (currentStyle === 'solo') return (
+          <>
+            <DetailsStep />
+            <AgentSelector agents={soloTalkAgents} />
+          </>
+        );
+        if (currentStyle === 'link') return (
+          <>
+            <NarrativeSelectionStep narrativeOptions={narrativeOptions} />
+            <AgentSelector agents={linkPointsAgents} />
+          </>
+        );
         return null;
       case 4: 
         return <FinalStep />;

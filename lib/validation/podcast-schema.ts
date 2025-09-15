@@ -26,6 +26,9 @@ const SoloPodcastSchema = z.object({
         "Por favor, selecciona una profundidad narrativa.",
     ),
     tags: z.array(z.string()).optional(),
+    // ================== MODIFICACIÓN QUIRÚRGICA ==================
+    selectedAgent: z.string().min(1, "Por favor, selecciona un agente especializado."),
+    // =============================================================
 });
 
 const LinkPodcastSchema = z.object({
@@ -57,6 +60,9 @@ const LinkPodcastSchema = z.object({
         "Por favor, selecciona una profundidad narrativa.",
     ),
     tags: z.array(z.string()).optional(),
+    // ================== MODIFICACIÓN QUIRÚRGICA ==================
+    selectedAgent: z.string().min(1, "Por favor, selecciona un agente especializado."),
+    // =============================================================
 });
 
 export const PodcastCreationSchema = z.discriminatedUnion("style", [
