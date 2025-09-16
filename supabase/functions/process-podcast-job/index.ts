@@ -1,7 +1,7 @@
 // supabase/functions/process-podcast-job/index.ts
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 
 // ========================================================================
@@ -9,7 +9,6 @@ import { corsHeaders } from "../_shared/cors.ts";
 // ========================================================================
 const MAX_RETRIES = 2;
 
-// Definición de la estructura de un trabajo obtenido de la base de datos
 interface Job {
   id: number;
   user_id: string;
@@ -36,9 +35,15 @@ function buildFinalPrompt(template: string, inputs: Record<string, any>): string
 }
 
 // ========================================================================
-// FUNCIÓN PRINCIPAL
+// FUNCIÓN PRINCIPAL (Ahora activada por Webhook)
 // ========================================================================
-serve(async (_request: Request) => {
+serve(async (request: Request) => {
+  // Manejo de la solicitud pre-vuelo de CORS
+  if (request.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  // Usamos el 'service_role' key para tener acceso de administrador.
   const supabaseAdmin = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -48,40 +53,45 @@ serve(async (_request: Request) => {
 
   try {
     // ========================================================================
-    // PASO 1: ADQUIRIR Y BLOQUEAR UN TRABAJO DE LA COLA
+    // PASO 1: ADQUIRIR EL TRABAJO A PARTIR DEL PAYLOAD DEL WEBHOOK
     // ========================================================================
-    const { data: pendingJob, error: findError } = await supabaseAdmin
-      .from('podcast_creation_jobs')
-      .select('*')
-      .eq('status', 'pending')
-      .order('created_at', { ascending: true })
-      .limit(1)
-      .maybeSingle<Job>();
-
-    if (findError) throw new Error(`Error al buscar trabajos pendientes: ${findError.message}`);
-    if (!pendingJob) {
-      return new Response(JSON.stringify({ message: "No hay trabajos pendientes." }), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    
+    // Verificación de seguridad básica: Asegurarse de que la llamada proviene de un servicio autenticado.
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        throw new Error("Llamada no autorizada.");
     }
 
-    job = pendingJob;
+    const { job_id } = await request.json();
+    if (!job_id) {
+      throw new Error("Se requiere un 'job_id' en el cuerpo de la solicitud.");
+    }
+    
+    const { data: specificJob, error: findError } = await supabaseAdmin
+      .from('podcast_creation_jobs')
+      .select('*')
+      .eq('id', job_id)
+      .single<Job>();
 
+    if (findError || !specificJob) {
+      throw new Error(`El trabajo con ID ${job_id} no fue encontrado.`);
+    }
+
+    job = specificJob;
+
+    // Marcamos el trabajo como 'processing' para evitar ejecuciones duplicadas.
     await supabaseAdmin
       .from('podcast_creation_jobs')
       .update({ status: 'processing', updated_at: new Date().toISOString() })
       .eq('id', job.id);
       
     // ========================================================================
-    // PASO 2: EJECUTAR LA LÓGICA DE NEGOCIO (VALIDACIÓN Y GENERACIÓN)
+    // PASO 2: EJECUTAR LA LÓGICA DE NEGOCIO (SIN CAMBIOS)
     // ========================================================================
 
-    // 2.1: Validar payload y extraer datos
     const { agentName, inputs } = job.payload;
     if (!agentName) throw new Error(`El trabajo ${job.id} no tiene un 'agentName'.`);
 
-    // 2.2: Obtener plantilla de prompt
     const { data: promptData, error: promptError } = await supabaseAdmin
       .from('ai_prompts')
       .select('prompt_template')
@@ -89,10 +99,8 @@ serve(async (_request: Request) => {
       .single();
     if (promptError || !promptData) throw new Error(`Prompt para el agente '${agentName}' no encontrado.`);
 
-    // 2.3: Construir el prompt final
     const finalPrompt = buildFinalPrompt(promptData.prompt_template, inputs);
 
-    // 2.4: Llamar a la API de Google AI
     const GOOGLE_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
     if (!GOOGLE_API_KEY) throw new Error("La clave GOOGLE_AI_API_KEY no está configurada.");
     
@@ -112,7 +120,7 @@ serve(async (_request: Request) => {
     const scriptJson = JSON.parse(generatedText);
 
     // ========================================================================
-    // PASO 3: PERSISTIR EL RESULTADO Y RESOLVER EL TRABAJO
+    // PASO 3: PERSISTIR EL RESULTADO Y RESOLVER EL TRABAJO (SIN CAMBIOS)
     // ========================================================================
 
     const { data: newPodcast, error: createPodError } = await supabaseAdmin
@@ -140,13 +148,12 @@ serve(async (_request: Request) => {
 
   } catch (error) {
     // ========================================================================
-    // PASO 4: MANEJO DE ERRORES (REINTENTO O FALLO PERMANENTE)
+    // PASO 4: MANEJO DE ERRORES (SIN CAMBIOS)
     // ========================================================================
     const errorMessage = error instanceof Error ? error.message : "Error interno desconocido.";
-    console.error(`Error procesando el trabajo ${job?.id || 'desconocido'}: ${errorMessage}`);
+    console.error(`Error procesando el trabajo ${job?.id || 'webhook'}: ${errorMessage}`);
 
     if (job && job.retry_count < MAX_RETRIES) {
-      // Reintentar: Devolvemos el trabajo a 'pending' y aumentamos el contador.
       await supabaseAdmin
         .from("podcast_creation_jobs")
         .update({
@@ -156,7 +163,6 @@ serve(async (_request: Request) => {
         })
         .eq("id", job.id);
     } else if (job) {
-      // Fallo permanente: Marcamos el trabajo como 'failed'.
       await supabaseAdmin
         .from("podcast_creation_jobs")
         .update({

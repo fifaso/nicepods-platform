@@ -1,39 +1,37 @@
 // components/podcast-card.tsx
 
-"use client"
-import Image from "next/image"
-import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Play, Clock, User, Pause } from "lucide-react"
-import { useAudio } from "@/contexts/audio-context"
-import { Tables } from "@/types/supabase"
+"use client";
 
-export type PodcastWithProfile = Tables<'micro_pods'> & {
-  profiles: Pick<Tables<'profiles'>, 'full_name' | 'avatar_url'> | null
-};
+import Image from "next/image";
+import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Play, Clock, Pause } from "lucide-react";
+import { useAudio } from "@/contexts/audio-context";
+import { PodcastWithProfile } from "@/types/podcast"; // MODIFICACIÓN: Importamos nuestro tipo centralizado
 
 interface PodcastCardProps {
-  podcast: PodcastWithProfile
+  podcast: PodcastWithProfile;
 }
 
 export function PodcastCard({ podcast }: PodcastCardProps) {
-  const { playPodcast, currentPodcast, isPlaying } = useAudio()
+  const { playPodcast, currentPodcast, isPlaying } = useAudio();
 
+  // ================== MODIFICACIÓN #3: ADAPTACIÓN A LA NUEVA LÓGICA ==================
   const handlePlay = () => {
+    // Creamos un objeto 'PlayablePodcast' con solo la información necesaria.
+    // El 'audioUrl' puede ser null, y nuestro nuevo AudioContext lo manejará.
     playPodcast({
       id: podcast.id.toString(),
       title: podcast.title,
-      description: podcast.description || "",
-      audioUrl: podcast.audio_url || "",
-      category: podcast.category || "General",
-      duration: podcast.duration_seconds ? `${podcast.duration_seconds}` : "0",
-    })
-  }
+      audioUrl: podcast.audio_url || '', // Pasamos la URL (o un string vacío si es null)
+    });
+  };
+  // =================================================================================
 
   const isCurrentlyPlaying = currentPodcast?.id === podcast.id.toString() && isPlaying;
-  const authorName = podcast.profiles?.full_name || "Anonymous Creator";
-  const authorImage = podcast.profiles?.avatar_url || "/images/authors/default-avatar.png";
+  const authorName = podcast.profiles?.full_name || "Creador Anónimo";
+  const authorImage = podcast.profiles?.avatar_url || "/images/placeholder.svg"; // Usamos un placeholder genérico
 
   return (
     <Card className="flex flex-col overflow-hidden transition-transform duration-300 hover:-translate-y-1 bg-card/50 shadow-md hover:shadow-xl border border-border/20">
@@ -71,5 +69,5 @@ export function PodcastCard({ podcast }: PodcastCardProps) {
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }

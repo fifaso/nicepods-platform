@@ -1,11 +1,13 @@
 // app/layout.tsx
 
 import { cookies } from 'next/headers';
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import type React from "react";
 import type { Metadata } from "next";
 import "./globals.css";
 import { Inter } from "next/font/google";
+// ================== MODIFICACIÓN QUIRÚRGICA #1: IMPORTACIÓN DEL CONSTRUCTOR ==================
+import { createClient } from '@/lib/supabase/server';
+// =========================================================================================
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/hooks/use-auth";
@@ -30,21 +32,20 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const cookieStore = cookies();
+  // ================== MODIFICACIÓN QUIRÚRGICA #2: USO DEL CONSTRUCTOR CENTRALIZADO ==================
+  // Reemplazamos la creación manual del cliente por nuestra función helper,
+  // asegurando consistencia y mantenibilidad en todo el proyecto.
+  const supabase = createClient(cookieStore);
+  // ==============================================================================================
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-      },
-    }
-  );
-
+  // ================== MODIFICACIÓN QUIRÚRGICA #3: OBTENCIÓN SEGURA DE LA SESIÓN ==================
+  // Reemplazamos 'getSession()' por 'getUser()' para obtener la sesión del servidor.
+  // 'getUser()' revalida la sesión con el servidor de Supabase, lo cual es la mejor práctica de seguridad.
+  // Esto eliminará la advertencia de la terminal.
   const { data: { user } } = await supabase.auth.getUser();
+  // Pasamos la sesión (que puede ser null) al AuthProvider.
   const session = user ? { user } : null;
+  // =============================================================================================
 
   return (
     <html lang="es" suppressHydrationWarning>

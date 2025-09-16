@@ -1,6 +1,9 @@
 // app/page.tsx
 
 import Link from "next/link";
+// ================== MODIFICACIÓN QUIRÚRGICA #1: IMPORTACIÓN NECESARIA ==================
+import { cookies } from "next/headers";
+// ====================================================================================
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,7 +14,12 @@ import { Mic, Play, Search, ArrowRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function HomePage() {
-  const supabase = createClient();
+  // ================== MODIFICACIÓN QUIRÚRGICA #2: CREACIÓN CORRECTA DEL CLIENTE ==================
+  // Creamos una instancia de las cookies para la solicitud actual.
+  const cookieStore = cookies();
+  // Pasamos el cookieStore a nuestra función helper. Ahora tiene el contexto que necesita.
+  const supabase = createClient(cookieStore);
+  // ==============================================================================================
 
   const { data: latestPodcasts, error } = await supabase
     .from('micro_pods')
@@ -21,7 +29,9 @@ export default async function HomePage() {
     .limit(8);
 
   if (error) {
+    // Es una buena práctica registrar el error del lado del servidor para depuración.
     console.error("Error fetching latest podcasts for homepage:", error.message);
+    // Podríamos incluso devolver un estado de error en la UI aquí si quisiéramos.
   }
   
   const sampleFeaturesPodcasts = [
@@ -69,7 +79,9 @@ export default async function HomePage() {
               <TabsContent value="featured" className="mt-8">
                 {(latestPodcasts && latestPodcasts.length > 0) ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {latestPodcasts.map((podcast) => (
+                    {/* El tipo 'any' es una solución temporal. Lo ideal es que 'latestPodcasts'
+                        tenga el tipo 'PodcastWithProfile[]' si esa es la forma de tus datos. */}
+                    {latestPodcasts.map((podcast: any) => (
                       <PodcastCard key={podcast.id} podcast={podcast} />
                     ))}
                   </div>

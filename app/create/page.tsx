@@ -1,12 +1,20 @@
 // app/create/page.tsx
 
+// ================== MODIFICACIÓN QUIRÚRGICA #1: IMPORTACIÓN NECESARIA ==================
+import { cookies } from "next/headers";
+// ====================================================================================
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { PodcastCreationForm } from "@/components/podcast-creation-form";
 import { Sparkles } from "lucide-react";
 
 export default async function CreatePage() {
-  const supabase = createClient();
+  // ================== MODIFICACIÓN QUIRÚRGICA #2: CREACIÓN CORRECTA DEL CLIENTE ==================
+  // Creamos una instancia de las cookies para la solicitud actual.
+  const cookieStore = cookies();
+  // Pasamos el cookieStore a nuestra función helper. Ahora tiene el contexto que necesita.
+  const supabase = createClient(cookieStore);
+  // ==============================================================================================
 
   // --- LÓGICA DE GUARDIÁN EN EL SERVIDOR ---
   // Verificamos si hay un usuario válido ANTES de renderizar la página.

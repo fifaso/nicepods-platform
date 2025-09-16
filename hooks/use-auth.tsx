@@ -6,7 +6,15 @@ import { useRouter } from 'next/navigation';
 import { createBrowserClient } from '@supabase/ssr';
 import type { Session, SupabaseClient, User } from '@supabase/supabase-js';
 
-// MEJORA: Simplificamos el contexto. Solo expondrá lo esencial.
+// --- MODIFICACIÓN #1: HACEMOS LA PROP DE ENTRADA MÁS FLEXIBLE ---
+// Definimos un tipo que puede aceptar la sesión completa O solo el objeto de usuario.
+// Esto hace que nuestro AuthProvider sea compatible con CUALQUIER método de obtención de sesión
+// del lado del servidor (getSession o getUser).
+type AuthProviderProps = {
+  children: React.ReactNode;
+  session: (Pick<Session, 'user'> & Partial<Omit<Session, 'user'>>) | null;
+};
+
 type SupabaseContextType = {
   supabase: SupabaseClient;
   user: User | null;
@@ -16,7 +24,7 @@ type SupabaseContextType = {
 
 const SupabaseContext = createContext<SupabaseContextType | null>(null);
 
-export const AuthProvider = ({ children, session }: { children: React.ReactNode; session: Session | null }) => {
+export const AuthProvider = ({ children, session }: AuthProviderProps) => {
   const [supabase] = useState(() =>
     createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -24,25 +32,32 @@ export const AuthProvider = ({ children, session }: { children: React.ReactNode;
     )
   );
   
+  // --- MODIFICACIÓN #2: LA LÓGICA DE INICIALIZACIÓN NO CAMBIA ---
+  // El estado interno 'user' se inicializa correctamente desde la prop 'session',
+  // ya sea que venga como un objeto Session completo o uno simplificado.
   const [user, setUser] = useState<User | null>(session?.user ?? null);
-  const [isLoading, setIsLoading] = useState(session === null); // La carga termina cuando la sesión inicial está confirmada.
+  
+  // La carga inicial ahora es más simple: solo está cargando si no hemos recibido una sesión del servidor.
+  const [isLoading, setIsLoading] = useState(session === undefined);
   const router = useRouter();
 
   useEffect(() => {
-    // Este useEffect ahora solo se preocupa de los cambios de estado de autenticación.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setUser(newSession?.user ?? null);
       setIsLoading(false);
-
-      if (event === 'SIGNED_OUT') {
-        router.refresh();
-      }
+      // Refrescamos la ruta en cambios de estado para re-ejecutar Server Components.
+      router.refresh(); 
     });
+
+    // Aseguramos que el estado de carga se resuelva si ya hay una sesión al montar.
+    if (session) {
+      setIsLoading(false);
+    }
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [supabase, router]);
+  }, [supabase, router, session]);
 
   const signOut = async () => {
     await supabase.auth.signOut();
