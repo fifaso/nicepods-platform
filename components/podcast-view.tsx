@@ -1,48 +1,37 @@
 // components/podcast-view.tsx
-
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import Image from "next/image";
-import type { User } from "@supabase/supabase-js";
+import { useState, useMemo } from 'react';
+import { User } from '@supabase/supabase-js';
+import Link from 'next/link';
+import Image from 'next/image';
 
 // --- Importaciones de Hooks y Tipos ---
-import { useAuth } from "@/hooks/use-auth";
-import { useAudio } from "@/contexts/audio-context";
-import { useToast } from "@/hooks/use-toast";
-import { PodcastWithProfile } from "@/types/podcast"; // MODIFICACIÓN: Importamos nuestro tipo unificado.
+import { useAuth } from '@/hooks/use-auth';
+import { useAudio, type PlayablePodcast } from '@/contexts/audio-context';
+import { useToast } from '@/hooks/use-toast';
+import { PodcastWithProfile } from '@/types/podcast';
 
 // --- Importaciones de Componentes de UI ---
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Heart, Download, CheckCircle, Copy, Clock, BookOpen, ChevronUp, ChevronDown, Loader2, Play, Pause } from "lucide-react";
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Separator } from '@/components/ui/separator';
+import { Heart, Play, Pause, Share2, Download, Bot, Calendar, Clock } from 'lucide-react';
 
 // =================================================================================
-// EL SCRIPT VIEWER AHORA VIVE AQUÍ (Componente Interno y Especializado)
+// EL SCRIPT VIEWER (Componente Interno y Especializado)
 // =================================================================================
-type ScriptLine = {
-  speaker: string;
-  line: string;
-};
-
-interface ScriptViewerProps {
-  scriptText: string | null;
-}
+type ScriptLine = { speaker: string; line: string; };
+interface ScriptViewerProps { scriptText: string | null; }
 
 function ScriptViewer({ scriptText }: ScriptViewerProps) {
   const parsedScript = useMemo(() => {
     if (!scriptText) return null;
     try {
       const scriptData = JSON.parse(scriptText);
-      if (Array.isArray(scriptData)) {
-        return scriptData as ScriptLine[];
-      }
-      return null;
+      return Array.isArray(scriptData) ? scriptData as ScriptLine[] : null;
     } catch (error) {
       console.error("Error al parsear el guion JSON:", error);
       return null;
@@ -50,11 +39,7 @@ function ScriptViewer({ scriptText }: ScriptViewerProps) {
   }, [scriptText]);
 
   if (!parsedScript) {
-    return (
-      <div className="prose prose-sm max-w-none dark:prose-invert text-destructive">
-        <p>El guion no se pudo cargar o tiene un formato incorrecto.</p>
-      </div>
-    );
+    return <p className="text-destructive">El guion no se pudo cargar o tiene un formato incorrecto.</p>;
   }
 
   return (
@@ -71,89 +56,121 @@ function ScriptViewer({ scriptText }: ScriptViewerProps) {
 // =================================================================================
 
 interface PodcastViewProps { 
-  podcastData: PodcastWithProfile; 
+  podcastData: PodcastWithProfile;
   user: User; 
   initialIsLiked: boolean; 
 }
 
-export function PodcastView({ podcastData: initialPodcastData, user, initialIsLiked }: PodcastViewProps) {
-  const router = useRouter();
-  const { playPodcast, currentPodcast, isPlaying, currentTime, duration, seekTo } = useAudio();
-  const { toast } = useToast();
+export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewProps) {
   const { supabase } = useAuth();
+  const { playPodcast, togglePlayPause, currentPodcast, isPlaying } = useAudio();
+  const { toast } = useToast();
   
-  const [podcastData, setPodcastData] = useState(initialPodcastData);
   const [isLiked, setIsLiked] = useState(initialIsLiked);
   const [likeCount, setLikeCount] = useState(podcastData.like_count || 0);
-  const [isLiking, setIsLiking] = useState(false);
-  const [isApproving, setIsApproving] = useState(false);
-  const [isScriptOpen, setIsScriptOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
 
-  useEffect(() => { setIsLiked(initialIsLiked); }, [initialIsLiked]);
-
-  const handleLikeToggle = async () => {
-    // ... (Tu lógica de 'like' es perfecta y permanece sin cambios)
-  };
-
-  const handlePlayPodcast = () => {
-    // ... (Tu lógica de 'play' es perfecta y permanece sin cambios)
-  };
-  
-  const handleCopyLink = async () => {
-    // ... (Tu lógica de 'copy' es perfecta y permanece sin cambios)
+  const handlePlay = () => {
+    const playablePodcast: PlayablePodcast = {
+      id: podcastData.id.toString(),
+      title: podcastData.title,
+      audioUrl: podcastData.audio_url || '',
+    };
+    playPodcast(playablePodcast);
   };
 
-  const formatTime = (time: number) => {
-    // ... (Tu lógica de 'formatTime' es perfecta y permanece sin cambios)
-  };
-  
-  const handleApprove = async () => {
-    // ... (Tu lógica de 'approve' es perfecta y permanece sin cambios)
-  };
-  
   const isCurrentlyPlaying = currentPodcast?.id === podcastData.id.toString() && isPlaying;
-  const canApprove = user.id === podcastData.user_id && podcastData.status === 'pending_approval';
 
   return (
-    <div className="min-h-screen gradient-mesh pt-0">
-      <div className="max-w-4xl mx-auto pt-24 pb-8 px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="text-center mb-8">
-          {/* ... (Tu cabecera es perfecta y permanece sin cambios) ... */}
-        </div>
-
-        <Card className="glass-card border-0 shadow-glass mb-8 overflow-hidden">
-          {/* ... (La cabecera y el reproductor de la tarjeta son perfectos y permanecen sin cambios) ... */}
-        </Card>
-
-        {podcastData.script_text && 
-          <Card className="glass-card border-0 shadow-glass mb-8">
-            <Collapsible open={isScriptOpen} onOpenChange={setIsScriptOpen}>
-              <CollapsibleTrigger asChild>
-                <CardHeader className="cursor-pointer hover:bg-white/50 dark:hover:bg-white/5 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-2"><BookOpen className="h-5 w-5 text-indigo-600" />Guion del Podcast</CardTitle>
-                    {isScriptOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-                  </div>
-                </CardHeader>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <CardContent className="pt-0">
-                  <ScrollArea className="h-64 w-full rounded-lg border bg-background/50 p-4">
-                    {/* ================== LA INTEGRACIÓN DEFINITIVA ================== */}
-                    {/* Reemplazamos el 'split' por nuestro componente profesional. */}
-                    <ScriptViewer scriptText={podcastData.script_text} />
-                    {/* ============================================================= */}
-                  </ScrollArea>
-                </CardContent>
-              </CollapsibleContent>
-            </Collapsible>
-          </Card>
-        }
+    <div className="container mx-auto max-w-4xl py-12">
+      <div className="grid lg:grid-cols-3 gap-8">
         
-        <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
-          {/* ... (Tus botones de acción son perfectos y permanecen sin cambios) ... */}
+        {/* Columna Principal: Guion y Reproductor */}
+        <div className="lg:col-span-2">
+          <Card className="bg-card/50 backdrop-blur-lg border-border/20 shadow-lg">
+            <CardHeader>
+              <Badge variant="secondary" className="mb-2 w-fit">{podcastData.status}</Badge>
+              <CardTitle className="text-3xl font-bold">{podcastData.title}</CardTitle>
+              <CardDescription className="pt-2">{podcastData.description}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Separator className="my-6" />
+              <h3 className="text-xl font-semibold mb-4">Guion del Podcast</h3>
+              <ScriptViewer scriptText={podcastData.script_text} />
+            </CardContent>
+          </Card>
         </div>
+
+        {/* Columna Lateral: Interacciones y Metadatos */}
+        <div className="lg:col-span-1 space-y-6">
+          
+          {/* Módulo de Reproductor y Acciones */}
+          <Card className="bg-card/50 backdrop-blur-lg border-border/20 shadow-lg">
+            <CardHeader>
+              <CardTitle>Reproductor</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    {/* El botón se deshabilita si no hay URL de audio */}
+                    <Button size="lg" className="w-full" onClick={handlePlay} disabled={!podcastData.audio_url}>
+                      {isCurrentlyPlaying ? <Pause className="mr-2 h-5 w-5" /> : <Play className="mr-2 h-5 w-5" />}
+                      {isCurrentlyPlaying ? 'Pausar' : 'Escuchar Ahora'}
+                    </Button>
+                  </TooltipTrigger>
+                  {/* Mostramos un tooltip explicativo si está deshabilitado */}
+                  {!podcastData.audio_url && (
+                    <TooltipContent>
+                      <p>El audio para este guion aún no ha sido generado.</p>
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              </TooltipProvider>
+
+              <div className="flex justify-around">
+                <Button variant="ghost" size="icon" onClick={() => setIsLiked(!isLiked)}>
+                  <Heart className={`h-5 w-5 ${isLiked ? 'text-red-500 fill-current' : 'text-muted-foreground'}`} />
+                </Button>
+                <Button variant="ghost" size="icon">
+                  <Share2 className="h-5 w-5 text-muted-foreground" />
+                </Button>
+                <Button variant="ghost" size="icon" disabled>
+                  <Download className="h-5 w-5 text-muted-foreground/50" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+          
+          {/* Módulo de Metadatos de Creación */}
+          <Card className="bg-card/50 backdrop-blur-lg border-border/20 shadow-lg">
+            <CardHeader>
+              <CardTitle>Metadatos</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm space-y-3">
+              <div className="flex items-center">
+                <Image src={podcastData.profiles?.avatar_url || '/images/placeholder.svg'} alt={podcastData.profiles?.full_name || 'Creador'} width={24} height={24} className="rounded-full mr-2" />
+                <span className="font-medium">{podcastData.profiles?.full_name || 'Creador Anónimo'}</span>
+              </div>
+              <div className="flex items-center text-muted-foreground">
+                <Calendar className="h-4 w-4 mr-2" />
+                <span>Creado el: {new Date(podcastData.created_at).toLocaleDateString()}</span>
+              </div>
+              {/* Aquí podrías mostrar el Agente de IA si lo añadieras a la tabla 'micro_pods' */}
+              <div className="flex items-center text-muted-foreground">
+                <Bot className="h-4 w-4 mr-2" />
+                <span>Agente de IA: Narrador Maestro</span>
+              </div>
+              {podcastData.duration_seconds && 
+                <div className="flex items-center text-muted-foreground">
+                  <Clock className="h-4 w-4 mr-2" />
+                  <span>Duración Aprox: {Math.floor(podcastData.duration_seconds / 60)} min</span>
+                </div>
+              }
+            </CardContent>
+          </Card>
+
+        </div>
+
       </div>
     </div>
   );
