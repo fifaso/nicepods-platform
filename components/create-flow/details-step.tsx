@@ -6,11 +6,12 @@ import { PodcastCreationData } from "@/lib/validation/podcast-schema";
 import { AgentOption } from "@/lib/agent-config";
 import { cn } from "@/lib/utils";
 
-// --- Importaciones de Componentes de UI ---
+// ================== MODIFICACIÓN QUIRÚRGICA: IMPORTACIONES CORREGIDAS ==================
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { CardDescription, CardTitle } from "@/components/ui/card"; // Solo necesitamos estos para el texto
-import { Label } from "@/components/ui/label";
+import { Label } from "@/components/ui/label"; // Importación de Label añadida
+import { CardDescription, CardTitle } from "@/components/ui/card"; // Importaciones específicas añadidas
+// ====================================================================================
 
 // Definimos los datos para nuestras tarjetas de selección visual.
 const durationOptions = [
@@ -35,8 +36,7 @@ export function DetailsStep({ agents }: { agents: AgentOption[] }) {
         <p className="text-muted-foreground">Ajusta los últimos parámetros clave para tu guion.</p>
       </div>
       
-      {/* ================== MODIFICACIÓN ESTRATÉGICA: EL MOSAICO 3x3 ================== */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-6">
         
         {/* --- Columna 1: Duración --- */}
         <FormField
@@ -46,24 +46,22 @@ export function DetailsStep({ agents }: { agents: AgentOption[] }) {
             <FormItem className="space-y-3">
               <FormLabel className="text-base font-semibold text-center block">Duración Deseada *</FormLabel>
               <FormControl>
-                <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-col space-y-2">
+                <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-col space-y-3">
                   {durationOptions.map((option, index) => (
-                    <FormItem key={`duration-${index}`}>
-                      <FormControl>
-                        <RadioGroupItem value={option.value} id={`duration-${index}`} className="sr-only" />
-                      </FormControl>
+                    <div key={`duration-${index}`}>
+                      <RadioGroupItem value={option.value} id={`duration-${index}`} className="sr-only" />
                       <Label
                         htmlFor={`duration-${index}`}
                         className={cn(
                           "flex flex-col items-center justify-center p-4 rounded-lg cursor-pointer transition-all duration-200",
-                          "border-2 border-transparent bg-muted/50 hover:bg-muted",
-                          "data-[state=checked]:bg-primary/10 data-[state=checked]:border-primary"
+                          "border-2 bg-muted/30 hover:bg-muted/60",
+                          field.value === option.value ? "border-primary" : "border-transparent"
                         )}
                       >
                         <CardTitle className="text-sm font-semibold">{option.label}</CardTitle>
                         <CardDescription className="text-xs">{option.description}</CardDescription>
                       </Label>
-                    </FormItem>
+                    </div>
                   ))}
                 </RadioGroup>
               </FormControl>
@@ -82,22 +80,20 @@ export function DetailsStep({ agents }: { agents: AgentOption[] }) {
               <FormControl>
                 <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-col space-y-2">
                   {depthOptions.map((option, index) => (
-                    <FormItem key={`depth-${index}`}>
-                      <FormControl>
-                        <RadioGroupItem value={option.value} id={`depth-${index}`} className="sr-only" />
-                      </FormControl>
+                    <div key={`depth-${index}`}>
+                      <RadioGroupItem value={option.value} id={`depth-${index}`} className="sr-only" />
                       <Label
                         htmlFor={`depth-${index}`}
                         className={cn(
                           "flex flex-col items-center justify-center p-4 rounded-lg cursor-pointer transition-all duration-200",
-                          "border-2 border-transparent bg-muted/50 hover:bg-muted",
-                          "data-[state=checked]:bg-primary/10 data-[state=checked]:border-primary"
+                          "border-2 bg-muted/30 hover:bg-muted/60",
+                          field.value === option.value ? "border-primary" : "border-transparent"
                         )}
                       >
                         <CardTitle className="text-sm font-semibold">{option.label}</CardTitle>
                         <CardDescription className="text-xs text-center">{option.description}</CardDescription>
                       </Label>
-                    </FormItem>
+                    </div>
                   ))}
                 </RadioGroup>
               </FormControl>
@@ -116,22 +112,20 @@ export function DetailsStep({ agents }: { agents: AgentOption[] }) {
               <FormControl>
                 <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-col space-y-2">
                   {agents.map((agent, index) => (
-                    <FormItem key={`agent-${index}`}>
-                      <FormControl>
-                        <RadioGroupItem value={agent.value} id={`agent-${index}`} className="sr-only" />
-                      </FormControl>
+                    <div key={`agent-${index}`}>
+                      <RadioGroupItem value={agent.value} id={`agent-${index}`} className="sr-only" />
                       <Label
                         htmlFor={`agent-${index}`}
                         className={cn(
                           "flex flex-col items-center justify-center p-4 rounded-lg cursor-pointer transition-all duration-200 text-center",
-                          "border-2 border-transparent bg-muted/50 hover:bg-muted",
-                          "data-[state=checked]:bg-primary/10 data-[state=checked]:border-primary"
+                          "border-2 bg-muted/30 hover:bg-muted/60",
+                          field.value === agent.value ? "border-primary" : "border-transparent"
                         )}
                       >
                         <CardTitle className="text-sm font-semibold">{agent.label}</CardTitle>
                         <CardDescription className="text-xs">{agent.description}</CardDescription>
                       </Label>
-                    </FormItem>
+                    </div>
                   ))}
                 </RadioGroup>
               </FormControl>
