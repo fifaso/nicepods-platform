@@ -1,4 +1,3 @@
-// components/podcast-creation-form.tsx
 "use client";
 
 import { useState, useCallback } from "react";
@@ -14,7 +13,7 @@ import { AgentOption, soloTalkAgents, linkPointsAgents } from "@/lib/agent-confi
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ChevronLeft, ChevronRight, Heart, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Wand2, Loader2 } from "lucide-react";
 
 // --- Importaciones de los Pasos del Flujo ---
 import { StyleSelectionStep } from "./create-flow/style-selection";
@@ -30,10 +29,9 @@ export interface NarrativeOption {
 }
 
 export function PodcastCreationForm() {
-  // La sección de inicialización y los handlers permanecen sin cambios.
   const router = useRouter();
   const { toast } = useToast();
-  const { supabase } = useAuth();
+  const { supabase, user } = useAuth();
   
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoadingNarratives, setIsLoadingNarratives] = useState(false);
@@ -58,88 +56,144 @@ export function PodcastCreationForm() {
     }
   });
 
-  const { handleSubmit, trigger, watch, setValue } = formMethods;
+  const { handleSubmit, trigger, watch, setValue, getValues } = formMethods;
   const { isSubmitting } = formMethods.formState;
+
+  const currentStyle = watch('style');
 
   const updateFormStyle = useCallback((data: Partial<PodcastCreationData>) => {
     for (const key in data) {
       setValue(key as keyof PodcastCreationData, data[key as keyof PodcastCreationData], { shouldValidate: true });
     }
+    setCurrentStep(1);
   }, [setValue]);
   
   const goToNextStep = () => setCurrentStep(previousStep => previousStep + 1);
   const goToPreviousStep = () => setCurrentStep(previousStep => previousStep - 1);
 
+  const totalSteps = currentStyle === 'link' ? 5 : 4;
+
   const handleStepNavigation = async () => {
     let fieldsToValidate: (keyof PodcastCreationData)[] = [];
-    if (currentStep === 2) {
-      const style = watch('style');
-      if (style === 'solo') fieldsToValidate = ['solo_topic', 'solo_motivation'];
-      if (style === 'link') fieldsToValidate = ['link_topicA', 'link_topicB', 'link_catalyst']; // Añadido catalyst que faltaba
-    } else if (currentStep === 3) {
-      const style = watch('style');
-      if (style === 'solo') fieldsToValidate = ['duration', 'narrativeDepth', 'selectedAgent'];
-      if (style === 'link') fieldsToValidate = ['link_selectedNarrative', 'link_selectedTone', 'duration', 'narrativeDepth', 'selectedAgent'];
+    const stepForValidation = currentStep;
+
+    if (stepForValidation === 1) fieldsToValidate = ['style'];
+    if (stepForValidation === 2) {
+      if (currentStyle === 'solo') fieldsToValidate = ['solo_topic', 'solo_motivation'];
+      if (currentStyle === 'link') fieldsToValidate = ['link_topicA', 'link_topicB', 'link_catalyst'];
     }
-    const isStepValid = await trigger(fieldsToValidate.length > 0 ? fieldsToValidate : undefined);
+    if (currentStyle === 'solo' && stepForValidation === 3) {
+      fieldsToValidate = ['duration', 'narrativeDepth', 'selectedAgent'];
+    }
+    if (currentStyle === 'link' && stepForValidation === 3) {
+      fieldsToValidate = ['link_selectedNarrative', 'link_selectedTone'];
+    }
+    if (currentStyle === 'link' && stepForValidation === 4) {
+      fieldsToValidate = ['duration', 'narrativeDepth', 'selectedAgent'];
+    }
+    
+    const isStepValid = await trigger(fieldsToValidate);
     if (isStepValid) {
       goToNextStep();
     }
   };
   
-  const handleGenerateNarratives: SubmitHandler<PodcastCreationData> = async (formData) => {
-    // ... (Esta función permanece sin cambios)
+  // ================== INTERVENCIÓN QUIRÚRGICA #1: LÓGICA DE GENERACIÓN DE NARRATIVAS ==================
+  //
+  // Se implementa la lógica de la función. Por ahora, simula una llamada a la IA,
+  // establece un estado de carga y devuelve datos de ejemplo para desbloquear el flujo.
+  //
+  const handleGenerateNarratives = useCallback(async () => {
+    setIsLoadingNarratives(true);
+    // En el futuro, aquí se haría la llamada a una Edge Function que use la IA.
+    // Por ahora, simulamos una demora y devolvemos datos de ejemplo.
+    await new Promise(resolve => setTimeout(resolve, 1500)); 
+    
+    setNarrativeOptions([
+      { title: "El Héroe Cotidiano", thesis: "Cómo los desafíos diarios son el verdadero campo de entrenamiento para la virtud estoica." },
+      { title: "La Fortaleza Tranquila", thesis: "Aplicando la serenidad estoica para navegar la incertidumbre de los retos modernos." },
+      { title: "De Obstáculo a Oportunidad", thesis: "Una perspectiva estoica que transforma cada desafío en un escalón para el crecimiento personal." },
+    ]);
+    
+    setIsLoadingNarratives(false);
+    toast({ title: "Narrativas generadas", description: "Hemos creado algunas perspectivas para conectar tus ideas. ¡Elige una!" });
+    goToNextStep();
+  }, [toast]);
+
+  // Esta nueva función orquesta la validación PARCIAL y la ejecución de la generación.
+  const handleGenerateNarrativesClick = async () => {
+    const fieldsToValidate: (keyof PodcastCreationData)[] = ['link_topicA', 'link_topicB', 'link_catalyst'];
+    const isStepValid = await trigger(fieldsToValidate);
+
+    if (isStepValid) {
+      await handleGenerateNarratives();
+    } else {
+      toast({ title: "Campos incompletos", description: "Por favor, rellena los temas y el catalizador para continuar.", variant: "destructive" });
+    }
   };
+  // ===================================================================================================
 
   const handleFinalSubmit: SubmitHandler<PodcastCreationData> = useCallback(async (formData) => {
-    // ... (Esta función permanece sin cambios)
-  }, [supabase, toast, router]);
+    if (!supabase || !user) {
+      toast({ title: "Error de Autenticación", description: "Por favor, inicia sesión de nuevo.", variant: "destructive" });
+      return;
+    }
 
-  const totalSteps = 4;
+    let jobInputs = {};
+    if (formData.style === 'solo') {
+      jobInputs = { topic: formData.solo_topic, motivation: formData.solo_motivation };
+    } else if (formData.style === 'link') {
+      jobInputs = { topicA: formData.link_topicA, topicB: formData.link_topicB, catalyst: formData.link_catalyst, narrative: formData.link_selectedNarrative, tone: formData.link_selectedTone };
+    }
+    
+    const payload = {
+      style: formData.style,
+      agentName: formData.selectedAgent,
+      inputs: { ...jobInputs, duration: formData.duration, depth: formData.narrativeDepth, tags: formData.tags },
+    };
+
+    const { error } = await supabase.functions.invoke('queue-podcast-job', { body: payload });
+
+    if (error) {
+      toast({ title: "Error al Enviar tu Idea", description: error.message, variant: "destructive" });
+      return;
+    }
+
+    toast({ title: "¡Éxito! Creando tu podcast...", description: "Tu idea está siendo procesada. Serás redirigido en breve." });
+    router.push('/podcasts?tab=library');
+  }, [supabase, user, toast, router]);
+  
   const progress = (currentStep / totalSteps) * 100;
   
-  // ================== MODIFICACIÓN QUIRÚRGICA: LA LÓGICA DE RENDERIZADO ==================
-  // Esta es la función que hemos corregido para que cumpla el "contrato" con DetailsStep.
   const renderCurrentStep = () => {
-    const currentStyle = watch('style');
     switch (currentStep) {
       case 1: 
         return <StyleSelectionStep updateFormData={updateFormStyle} onNext={goToNextStep} />;
       case 2:
         if (currentStyle === 'solo') return <SoloTalkStep />;
         if (currentStyle === 'link') return <LinkPointsStep />;
-        return null; // Renderiza nulo si el estilo no está definido.
+        return <p className="text-center text-muted-foreground">Por favor, selecciona un estilo para continuar.</p>;
       case 3:
-        // Aquí está la lógica corregida. Ahora pasamos la prop 'agents' que DetailsStep espera.
-        if (currentStyle === 'solo') {
-          return <DetailsStep agents={soloTalkAgents} />;
-        }
-        if (currentStyle === 'link') {
-          // Para el estilo 'link', seguimos mostrando primero la selección de narrativa.
-          // Y AHORA, también renderizamos DetailsStep con la lista de agentes correcta.
-          return (
-            <>
-              <NarrativeSelectionStep narrativeOptions={narrativeOptions} />
-              {/* Le pasamos la lista de agentes para el estilo 'link' */}
-              <DetailsStep agents={linkPointsAgents} />
-            </>
-          );
-        }
-        return null; // Renderiza nulo si el estilo no está definido.
-      case 4: 
-        return <FinalStep />;
+        if (currentStyle === 'solo') return <DetailsStep agents={soloTalkAgents} />;
+        if (currentStyle === 'link') return <NarrativeSelectionStep narrativeOptions={narrativeOptions} />;
+        return null;
+      case 4:
+        if (currentStyle === 'solo') return <FinalStep />;
+        if (currentStyle === 'link') return <DetailsStep agents={linkPointsAgents} />;
+        return null;
+      case 5:
+        if (currentStyle === 'link') return <FinalStep />;
+        return null;
       default: 
-        return <div>Error: Paso inválido.</div>;
+        return <div>Error: Paso inválido. Por favor, refresca la página.</div>;
     }
   };
-  // ====================================================================================
 
   return (
     <FormProvider {...formMethods}>
       <div className="bg-gradient-to-br from-purple-100/80 via-blue-100/80 to-indigo-100/80 dark:from-gray-900 dark:via-purple-900/20 dark:to-blue-900/20 py-4 rounded-xl shadow-lg">
           <form onSubmit={handleSubmit(handleFinalSubmit)}>
               <div className="max-w-4xl mx-auto px-4 flex flex-col">
-                  {/* ... (El resto del JSX del formulario permanece sin cambios) ... */}
                   <div className="mb-6 flex-shrink-0">
                       <div className="flex justify-between items-center mb-2">
                           <span className="text-sm font-medium text-gray-800 dark:text-gray-300">Paso {currentStep} de {totalSteps}</span>
@@ -153,12 +207,17 @@ export function PodcastCreationForm() {
                       </CardContent>
                   </Card>
                   <div className="flex justify-between items-center mt-6 flex-shrink-0">
-                      <Button type="button" variant="outline" onClick={goToPreviousStep} disabled={currentStep === 1}>
+                      <Button type="button" variant="outline" onClick={goToPreviousStep} disabled={currentStep === 1 || isSubmitting}>
                           <ChevronLeft className="mr-2 h-4 w-4" />Atrás
                       </Button>
                       <div className="ml-auto">
-                          {currentStep === 2 && watch('style') === 'link' ? (
-                              <Button type="button" size="lg" onClick={handleSubmit(handleGenerateNarratives)} disabled={isLoadingNarratives}>
+                          {/* ================== INTERVENCIÓN QUIRÚRGICA #2: BOTÓN DE GENERAR NARRATIVAS ================== */}
+                          {/* 
+                            Se cambia el 'onClick' para que llame a nuestra nueva función 'handleGenerateNarrativesClick'.
+                            Ya no usamos 'handleSubmit', desacoplando esta acción de la validación del formulario completo.
+                          */}
+                          {currentStep === 2 && currentStyle === 'link' ? (
+                              <Button type="button" size="lg" onClick={handleGenerateNarrativesClick} disabled={isLoadingNarratives}>
                                   {isLoadingNarratives ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Generando...</> : 'Generar Narrativas'}
                               </Button>
                           ) : currentStep < totalSteps ? (
@@ -167,9 +226,10 @@ export function PodcastCreationForm() {
                               </Button>
                           ) : (
                               <Button type="submit" disabled={isSubmitting}>
-                                  {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creando...</> : <><Heart className="mr-2 h-4 w-4" />Crear Podcast</>}
+                                  {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creando Guion...</> : <><Wand2 className="mr-2 h-4 w-4" />Crear Guion</>}
                               </Button>
                           )}
+                          {/* ================================================================================================ */}
                       </div>
                   </div>
               </div>

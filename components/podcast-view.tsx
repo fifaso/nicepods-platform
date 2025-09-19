@@ -1,4 +1,3 @@
-// components/podcast-view.tsx
 "use client";
 
 import { useState, useMemo } from 'react';
@@ -20,40 +19,49 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Separator } from '@/components/ui/separator';
 import { Heart, Play, Pause, Share2, Download, Bot, Calendar, Clock } from 'lucide-react';
 
-// =================================================================================
-// EL SCRIPT VIEWER (Componente Interno y Especializado)
-// =================================================================================
+// ================== INTERVENCIÓN QUIRÚRGICA: REFACTOR DEL SCRIPT VIEWER ==================
 type ScriptLine = { speaker: string; line: string; };
 interface ScriptViewerProps { scriptText: string | null; }
 
 function ScriptViewer({ scriptText }: ScriptViewerProps) {
-  const parsedScript = useMemo(() => {
+  // El hook useMemo sigue siendo una buena práctica para evitar recalcular en cada render.
+  const formattedScript = useMemo(() => {
     if (!scriptText) return null;
     try {
       const scriptData = JSON.parse(scriptText);
-      return Array.isArray(scriptData) ? scriptData as ScriptLine[] : null;
+      
+      // Verificamos que sea un array antes de procesarlo.
+      if (!Array.isArray(scriptData)) {
+        throw new Error("El formato del guion no es un array válido.");
+      }
+
+      // La lógica clave:
+      // 1. Mapeamos el array para extraer ÚNICAMENTE la propiedad 'line' de cada objeto.
+      // 2. Unimos todas las líneas en una única cadena de texto, separando cada una
+      //    con un doble salto de línea para crear párrafos distintos.
+      return scriptData.map((item: ScriptLine) => item.line).join('\n\n');
+
     } catch (error) {
-      console.error("Error al parsear el guion JSON:", error);
+      console.error("Error al parsear o formatear el guion JSON:", error);
       return null;
     }
   }, [scriptText]);
 
-  if (!parsedScript) {
+  if (formattedScript === null) {
     return <p className="text-destructive">El guion no se pudo cargar o tiene un formato incorrecto.</p>;
   }
 
+  // El renderizado ahora es mucho más simple.
+  // Las clases 'prose' de Tailwind se encargarán de formatear el bloque de texto
+  // con un espaciado y estilo de párrafo adecuados. La propiedad 'white-space-pre-wrap'
+  // asegura que los saltos de línea (\n\n) se respeten.
   return (
     <div className="prose prose-sm max-w-none dark:prose-invert font-serif">
-      {parsedScript.map((item, index) => (
-        <div key={index} className="mb-4 last:mb-0">
-          <p className="font-bold text-primary !mb-1">{item.speaker}:</p>
-          <p className="!mt-0">{item.line}</p>
-        </div>
-      ))}
+      <p style={{ whiteSpace: 'pre-wrap' }}>{formattedScript}</p>
     </div>
   );
 }
-// =================================================================================
+// =========================================================================================
 
 interface PodcastViewProps { 
   podcastData: PodcastWithProfile;
@@ -112,13 +120,11 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    {/* El botón se deshabilita si no hay URL de audio */}
                     <Button size="lg" className="w-full" onClick={handlePlay} disabled={!podcastData.audio_url}>
                       {isCurrentlyPlaying ? <Pause className="mr-2 h-5 w-5" /> : <Play className="mr-2 h-5 w-5" />}
                       {isCurrentlyPlaying ? 'Pausar' : 'Escuchar Ahora'}
                     </Button>
                   </TooltipTrigger>
-                  {/* Mostramos un tooltip explicativo si está deshabilitado */}
                   {!podcastData.audio_url && (
                     <TooltipContent>
                       <p>El audio para este guion aún no ha sido generado.</p>
@@ -155,7 +161,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
                 <Calendar className="h-4 w-4 mr-2" />
                 <span>Creado el: {new Date(podcastData.created_at).toLocaleDateString()}</span>
               </div>
-              {/* Aquí podrías mostrar el Agente de IA si lo añadieras a la tabla 'micro_pods' */}
               <div className="flex items-center text-muted-foreground">
                 <Bot className="h-4 w-4 mr-2" />
                 <span>Agente de IA: Narrador Maestro</span>
