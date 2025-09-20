@@ -1,15 +1,13 @@
 -- ====================================================================================
 -- SCRIPT MAESTRO DEFINITIVO DE BASE DE DATOS PARA NICEPOD / NICEHIVE
--- Versión: 13.0 (Producción, Idempotente y Auto-Contenido)
--- Descripción: Versión final que incluye una sección de demolición completa y explícita,
--- garantizando que se pueda ejecutar de forma segura en cualquier entorno.
+-- Versión: 15.0 (Robusta, Segura y Potenciada)
+-- Descripción: Versión consolidada que incluye lógica de negocio para límites de planes,
+-- políticas de RLS granulares y los prompts de IA v2.0 de alta calidad.
+-- Esta versión es la nueva "fuente de la verdad" para el proyecto.
 -- ====================================================================================
 
 
 -- ========= SECCIÓN 0: DEMOLICIÓN SEGURA Y COMPLETA (RESET) =========
--- Elimina todos los objetos en el orden de dependencia correcto para asegurar un estado limpio.
-
--- Paso 1: Eliminar las tablas. CASCADE se encarga de políticas, triggers e índices.
 DROP TABLE IF EXISTS public.podcast_creation_jobs CASCADE;
 DROP TABLE IF EXISTS public.ai_prompts CASCADE;
 DROP TABLE IF EXISTS public.micro_pods CASCADE;
@@ -17,13 +15,11 @@ DROP TABLE IF EXISTS public.subscriptions CASCADE;
 DROP TABLE IF EXISTS public.plans CASCADE;
 DROP TABLE IF EXISTS public.profiles CASCADE;
 
--- Paso 2: Eliminar las funciones personalizadas.
 DROP FUNCTION IF EXISTS public.increment_jobs_and_queue(UUID, JSONB) CASCADE;
 DROP FUNCTION IF EXISTS public.create_profile_and_free_subscription() CASCADE;
 DROP FUNCTION IF EXISTS public.handle_updated_at() CASCADE;
 DROP FUNCTION IF EXISTS public.get_current_uid() CASCADE;
 
--- Paso 3: Eliminar los tipos de datos personalizados (ENUMs).
 DROP TYPE IF EXISTS public.job_status;
 DROP TYPE IF EXISTS public.podcast_status;
 DROP TYPE IF EXISTS public.subscription_status;
@@ -59,7 +55,56 @@ CREATE INDEX IF NOT EXISTS idx_jobs_status ON public.podcast_creation_jobs(statu
 CREATE OR REPLACE FUNCTION public.handle_updated_at() RETURNS TRIGGER AS $$ BEGIN NEW.updated_at = now(); RETURN NEW; END; $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
 CREATE OR REPLACE FUNCTION public.get_current_uid() RETURNS UUID AS $$ SELECT auth.uid(); $$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '';
 CREATE OR REPLACE FUNCTION public.create_profile_and_free_subscription() RETURNS TRIGGER AS $$ DECLARE free_plan_id BIGINT; BEGIN SELECT id INTO free_plan_id FROM public.plans WHERE name = 'Gratuito' LIMIT 1; IF free_plan_id IS NULL THEN RAISE EXCEPTION 'Plan "Gratuito" no encontrado.'; END IF; INSERT INTO public.profiles (id, username, full_name, avatar_url, role) VALUES (NEW.id, COALESCE(NEW.raw_user_meta_data->>'user_name', NEW.id::text), NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'avatar_url', 'user'); INSERT INTO public.subscriptions (user_id, plan_id, status) VALUES (NEW.id, free_plan_id, 'active'); UPDATE auth.users SET raw_app_meta_data = raw_app_meta_data || jsonb_build_object('user_role', 'user') WHERE id = NEW.id; RETURN NEW; END; $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
-CREATE OR REPLACE FUNCTION public.increment_jobs_and_queue(p_user_id UUID, p_payload JSONB) RETURNS BIGINT LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$ DECLARE new_job_id BIGINT; BEGIN UPDATE public.profiles SET active_creation_jobs = active_creation_jobs + 1 WHERE id = p_user_id; INSERT INTO public.podcast_creation_jobs (user_id, payload) VALUES (p_user_id, p_payload) RETURNING podcast_creation_jobs.id INTO new_job_id; RETURN new_job_id; END; $$;
+
+-- --- v15.0: FUNCIÓN DE ENCOLAMIENTO BLINDADA ---
+-- Esta versión es la piedra angular de nuestra lógica de negocio.
+-- 1. Obtiene el límite del plan del usuario.
+-- 2. Compara el uso actual con el límite.
+-- 3. Lanza una excepción con un código de error específico si se excede el límite.
+-- 4. Si la validación pasa, procede con la creación del trabajo.
+-- Todo esto ocurre en una única transacción atómica.
+CREATE OR REPLACE FUNCTION public.increment_jobs_and_queue(p_user_id UUID, p_payload JSONB) 
+RETURNS BIGINT 
+LANGUAGE plpgsql 
+SECURITY DEFINER SET search_path = '' 
+AS $$
+DECLARE
+  current_jobs_count INT;
+  creation_limit INT;
+  new_job_id BIGINT;
+BEGIN
+  -- Obtener el recuento actual de trabajos activos y el límite del plan en una sola consulta
+  SELECT
+    p.active_creation_jobs,
+    pl.monthly_creation_limit
+  INTO
+    current_jobs_count,
+    creation_limit
+  FROM public.profiles p
+  JOIN public.subscriptions s ON p.id = s.user_id
+  JOIN public.plans pl ON s.plan_id = pl.id
+  WHERE p.id = p_user_id;
+
+  -- Validar si el usuario ha alcanzado su límite
+  IF current_jobs_count >= creation_limit THEN
+    -- Lanzar una excepción con un código de error personalizado para una fácil captura en el frontend
+    RAISE EXCEPTION 'Límite de creación mensual alcanzado.' USING ERRCODE = 'P0001', DETAIL = 'El usuario ha alcanzado su límite de creación de podcasts para este ciclo.';
+  END IF;
+
+  -- Si la validación pasa, proceder con la lógica original
+  UPDATE public.profiles
+  SET active_creation_jobs = active_creation_jobs + 1
+  WHERE id = p_user_id;
+
+  INSERT INTO public.podcast_creation_jobs (user_id, payload)
+  VALUES (p_user_id, p_payload)
+  RETURNING id INTO new_job_id;
+
+  RETURN new_job_id;
+END;
+$$;
+-- --- Fin de la sección v15.0 ---
+
 CREATE TRIGGER on_profiles_update BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE PROCEDURE public.handle_updated_at();
 CREATE TRIGGER on_subscriptions_update BEFORE UPDATE ON public.subscriptions FOR EACH ROW EXECUTE PROCEDURE public.handle_updated_at();
 CREATE TRIGGER on_micro_pods_update BEFORE UPDATE ON public.micro_pods FOR EACH ROW EXECUTE PROCEDURE public.handle_updated_at();
@@ -74,11 +119,18 @@ ALTER TABLE public.micro_pods ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.podcast_creation_jobs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ai_prompts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.plans ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Los usuarios pueden gestionar su propio perfil." ON public.profiles FOR ALL USING (public.get_current_uid() = id) WITH CHECK (public.get_current_uid() = id);
-CREATE POLICY "Los usuarios pueden ver su propia suscripción." ON public.subscriptions FOR SELECT USING (public.get_current_uid() = user_id);
-CREATE POLICY "Acceso general a micro_pods." ON public.micro_pods FOR ALL USING ( status = 'published' OR public.get_current_uid() = user_id ) WITH CHECK ( public.get_current_uid() = user_id );
-CREATE POLICY "Los propietarios pueden ver sus propios trabajos de creación." ON public.podcast_creation_jobs FOR SELECT USING (public.get_current_uid() = user_id);
-CREATE POLICY "Los usuarios autenticados pueden ver los planes." ON public.plans FOR SELECT USING (public.get_current_uid() IS NOT NULL);
+
+CREATE POLICY "Los usuarios pueden gestionar su propio perfil." ON public.profiles FOR ALL USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
+CREATE POLICY "Los usuarios pueden ver su propia suscripción." ON public.subscriptions FOR SELECT USING (auth.uid() = user_id);
+
+-- --- v15.0: POLÍTICAS DE RLS GRANULARES PARA MICRO_PODS ---
+DROP POLICY IF EXISTS "Acceso general a micro_pods." ON public.micro_pods;
+CREATE POLICY "Los usuarios pueden ver podcasts públicos o los suyos propios." ON public.micro_pods FOR SELECT USING (status = 'published' OR user_id = auth.uid());
+CREATE POLICY "Los usuarios solo pueden gestionar sus propios podcasts." ON public.micro_pods FOR ALL USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+-- --- Fin de la sección v15.0 ---
+
+CREATE POLICY "Los propietarios pueden ver sus propios trabajos de creación." ON public.podcast_creation_jobs FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Los usuarios autenticados pueden ver los planes." ON public.plans FOR SELECT USING (auth.uid() IS NOT NULL);
 CREATE POLICY "Los administradores pueden ver todos los perfiles." ON public.profiles FOR SELECT USING ((auth.jwt()->>'app_metadata')::jsonb->>'user_role' = 'admin');
 CREATE POLICY "Los administradores pueden ver todos los trabajos de creación." ON public.podcast_creation_jobs FOR SELECT USING ((auth.jwt()->>'app_metadata')::jsonb->>'user_role' = 'admin');
 CREATE POLICY "Los administradores pueden ver todos los micro-pods." ON public.micro_pods FOR SELECT USING ((auth.jwt()->>'app_metadata')::jsonb->>'user_role' = 'admin');
@@ -95,4 +147,139 @@ GRANT INSERT, SELECT ON TABLE public.subscriptions TO supabase_auth_admin;
 
 -- ========= SECCIÓN 8: DATOS INICIALES (SEEDING) =========
 INSERT INTO public.plans (name, description, price_monthly, monthly_creation_limit, features) VALUES ('Gratuito', 'Para empezar a explorar y crear', 0, 5, '{"Creación de guiones por IA", "Acceso a la biblioteca pública"}'), ('Pensador', 'Para el aficionado comprometido que crea con frecuencia', 9.99, 30, '{"Límite de creación extendido", "Panel de analíticas básicas"}'), ('Creador', 'Para el profesional que usa NicePod como herramienta de trabajo', 29.99, 100, '{"Límite de creación masivo", "Analíticas avanzadas", "Soporte prioritario"}') ON CONFLICT (name) DO NOTHING;
-INSERT INTO public.ai_prompts (agent_name, description, prompt_template) VALUES ('solo-talk-narrator', 'Un agente experto en storytelling que convierte un tema en una historia cautivadora.', 'Eres un guionista galardonado...'), ('solo-talk-analyst', 'Un agente experto en análisis que desglosa un tema de forma lógica y estructurada.', 'Eres un analista de sistemas y divulgador experto...'), ('link-points-synthesizer', 'Un agente que encuentra la conexión y la armonía entre dos ideas.', 'Eres un pensador de sistemas y un "sintetizador" de ideas...'), ('link-points-catalyst', 'Un agente que usa la tensión entre dos ideas para forjar una tercera.', 'Eres un estratega disruptivo y un experto en pensamiento dialéctico...') ON CONFLICT (agent_name) DO UPDATE SET description = EXCLUDED.description, prompt_template = EXCLUDED.prompt_template;
+
+-- --- v15.0: PROMPTS DE IA v2.0 DE ALTA CALIDAD ---
+-- Se actualizan todos los prompts para seguir los principios de ingeniería de prompts avanzados.
+-- Se utiliza Dollar Quoting ($$) para manejar las comillas sin problemas.
+UPDATE public.ai_prompts SET prompt_template = $$### MISIÓN ###
+Tu única función es actuar como un guionista galardonado y experto en storytelling. Debes transformar los datos proporcionados en un guion de micro-podcast conciso y cautivador.
+
+### CONTRATO DE SALIDA OBLIGATORIO ###
+Tu única respuesta debe ser un objeto JSON válido, sin texto introductorio, explicaciones o markdown. La estructura exacta debe ser:
+{
+  "title": "Un título generado por ti, que sea magnético y relevante.",
+  "script": [
+    { "speaker": "Narrador", "line": "La primera línea del guion." },
+    { "speaker": "Narrador", "line": "La segunda línea del guion." },
+    { "speaker": "Narrador", "line": "..." }
+  ]
+}
+
+### DATOS DE ENTRADA ###
+- Tema Principal: {{topic}}
+- Concepto a Explorar (Motivación): {{motivation}}
+- Duración Deseada: {{duration}}
+- Profundidad Narrativa: {{depth}}
+
+### DIRECTIVAS Y RESTRICCIONES ###
+1.  **Título:** Crea un título corto, potente y que genere curiosidad sobre el tema.
+2.  **Estructura del Guion:** El guion debe tener un arco narrativo claro:
+    - Un **gancho** inicial que atrape al oyente en los primeros 10 segundos.
+    - Un **desarrollo** que explore el concepto de forma interesante, alineado con la profundidad solicitada ({{depth}}).
+    - Un **clímax o conclusión** que deje al oyente con una idea clara o una reflexión potente.
+3.  **Longitud:** Ajusta la longitud del guion a la duración deseada ({{duration}}). Como referencia: "Corta" (aprox. 250-350 palabras), "Media" (aprox. 400-550 palabras).
+4.  **Tono:** El tono debe ser de un narrador experto: claro, seguro y envolvente.
+5.  **Formato:** Cumple estrictamente el contrato de salida JSON. NO uses saltos de línea (\n) dentro de los valores "line".
+$$ WHERE agent_name = 'solo-talk-narrator';
+
+UPDATE public.ai_prompts SET prompt_template = $$### MISIÓN ###
+Tu única función es actuar como un analista de sistemas y divulgador experto. Debes transformar los datos proporcionados en un guion de micro-podcast que sea claro, lógico y estructurado.
+
+### CONTRATO DE SALIDA OBLIGATORIO ###
+Tu única respuesta debe ser un objeto JSON válido, sin texto introductorio, explicaciones o markdown. La estructura exacta debe ser:
+{
+  "title": "Un título generado por ti, que sea descriptivo y preciso.",
+  "script": [
+    { "speaker": "Analista", "line": "La primera línea del guion." },
+    { "speaker": "Analista", "line": "La segunda línea del guion." },
+    { "speaker": "Analista", "line": "..." }
+  ]
+}
+
+### DATOS DE ENTRADA ###
+- Tema Principal: {{topic}}
+- Concepto a Explorar (Motivación): {{motivation}}
+- Duración Deseada: {{duration}}
+- Profundidad Narrativa: {{depth}}
+
+### DIRECTIVAS Y RESTRICCIONES ###
+1.  **Título:** Crea un título que resuma el análisis de forma clara y concisa.
+2.  **Estructura del Guion:** El guion debe seguir una estructura lógica impecable:
+    - Una **introducción** que presente el tema y la pregunta clave a responder.
+    - Un **desarrollo** que desglose el concepto en 2-3 puntos o argumentos clave. Cada punto debe ser explicado de forma sencilla.
+    - Una **conclusión** que resuma los puntos y ofrezca una síntesis final clara.
+3.  **Longitud:** Ajusta la longitud del guion a la duración deseada ({{duration}}). Como referencia: "Corta" (aprox. 250-350 palabras), "Media" (aprox. 400-550 palabras).
+4.  **Tono:** El tono debe ser analítico, objetivo y didáctico. Evita la opinión personal y céntrate en la explicación estructurada.
+5.  **Formato:** Cumple estrictamente el contrato de salida JSON. NO uses saltos de línea (\n) dentro de los valores "line".
+$$ WHERE agent_name = 'solo-talk-analyst';
+
+UPDATE public.ai_prompts SET prompt_template = $$### MISIÓN ###
+Tu única función es actuar como un pensador de sistemas y un "sintetizador" de ideas. Debes encontrar el hilo conductor entre dos temas aparentemente distintos, usando la narrativa proporcionada como guía para crear un guion de micro-podcast coherente y revelador.
+
+### CONTRATO DE SALIDA OBLIGATORIO ###
+Tu única respuesta debe ser un objeto JSON válido, sin texto introductorio, explicaciones o markdown. La estructura exacta debe ser:
+{
+  "title": "Un título generado por ti, que capture la esencia de la conexión encontrada.",
+  "script": [
+    { "speaker": "Sintetizador", "line": "La primera línea del guion." },
+    { "speaker": "Sintetizador", "line": "La segunda línea del guion." },
+    { "speaker": "Sintetizador", "line": "..." }
+  ]
+}
+
+### DATOS DE ENTRADA ###
+- Tema A: {{topicA}}
+- Tema B: {{topicB}}
+- Catalizador (Relación Sugerida): {{catalyst}}
+- Narrativa Seleccionada: {{narrative}}
+- Tono Deseado: {{tone}}
+- Duración Deseada: {{duration}}
+- Profundidad Narrativa: {{depth}}
+
+### DIRECTIVAS Y RESTRICCIONES ###
+1.  **Análisis:** Usa la 'Narrativa Seleccionada' como tu principal marco de referencia para conectar el Tema A y el Tema B.
+2.  **Título:** El título debe reflejar la síntesis, no solo los temas individuales.
+3.  **Estructura del Guion:**
+    - **Introducción:** Presenta ambos temas y la pregunta intrigante sobre su posible conexión.
+    - **Desarrollo:** Construye un puente entre los dos temas, explicando cómo se relacionan a través de la lente de la narrativa y el catalizador.
+    - **Conclusión:** Ofrece la "gran idea" o la síntesis final, la perspectiva unificada que emerge de la conexión.
+4.  **Longitud:** Ajusta la longitud del guion a la duración deseada ({{duration}}).
+5.  **Tono:** Adapta tu lenguaje al tono solicitado ({{tone}}).
+6.  **Formato:** Cumple estrictamente el contrato de salida JSON.
+$$ WHERE agent_name = 'link-points-synthesizer';
+
+UPDATE public.ai_prompts SET prompt_template = $$### MISIÓN ###
+Tu única función es actuar como un estratega disruptivo y un experto en pensamiento dialéctico. No busques la armonía; usa la tensión y el conflicto entre dos temas para catalizar una tercera idea completamente nueva y provocadora, basándote en la narrativa proporcionada.
+
+### CONTRATO DE SALIDA OBLIGATORIO ###
+Tu única respuesta debe ser un objeto JSON válido, sin texto introductorio, explicaciones o markdown. La estructura exacta debe ser:
+{
+  "title": "Un título generado por ti, que sea audaz y represente la nueva idea emergente.",
+  "script": [
+    { "speaker": "Catalizador", "line": "La primera línea del guion." },
+    { "speaker": "Catalizador", "line": "La segunda línea del guion." },
+    { "speaker": "Catalizador", "line": "..." }
+  ]
+}
+
+### DATOS DE ENTRADA ###
+- Tema A: {{topicA}}
+- Tema B: {{topicB}}
+- Catalizador (Relación Sugerida): {{catalyst}}
+- Narrativa Seleccionada: {{narrative}}
+- Tono Deseado: {{tone}}
+- Duración Deseada: {{duration}}
+- Profundidad Narrativa: {{depth}}
+
+### DIRECTIVAS Y RESTRICCIONES ###
+1.  **Análisis:** Usa la 'Narrativa Seleccionada' para explorar la tensión inherente entre el Tema A y el Tema B.
+2.  **Título:** El título debe ser provocador y nombrar o sugerir la nueva idea que has forjado, no los temas originales.
+3.  **Estructura del Guion:**
+    - **Introducción:** Presenta el Tema A y el Tema B como fuerzas en oposición o en un conflicto interesante.
+    - **Desarrollo:** Explora la fricción entre ellos. ¿Qué paradoja o contradicción revelan cuando se yuxtaponen?
+    - **Conclusión (La Catálisis):** Revela la "tercera idea", la solución o perspectiva innovadora que emerge de esa tensión. Esta es la parte más importante.
+4.  **Longitud:** Ajusta la longitud del guion a la duración deseada ({{duration}}).
+5.  **Tono:** Adapta tu lenguaje al tono solicitado ({{tone}}), manteniendo un aire disruptivo y visionario.
+6.  **Formato:** Cumple estrictamente el contrato de salida JSON.
+$$ WHERE agent_name = 'link-points-catalyst';
+-- --- Fin de la sección v15.0 ---

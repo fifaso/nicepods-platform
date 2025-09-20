@@ -7,13 +7,13 @@ import { useToast } from "@/hooks/use-toast";
 import { useForm, FormProvider, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PodcastCreationSchema, PodcastCreationData } from "@/lib/validation/podcast-schema";
-import { AgentOption, soloTalkAgents, linkPointsAgents } from "@/lib/agent-config";
+import { soloTalkAgents, linkPointsAgents } from "@/lib/agent-config";
 
 // --- Importaciones de Componentes de UI ---
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ChevronLeft, ChevronRight, Wand2, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Wand2, Loader2, Zap } from "lucide-react";
 
 // --- Importaciones de los Pasos del Flujo ---
 import { StyleSelectionStep } from "./create-flow/style-selection";
@@ -56,15 +56,12 @@ export function PodcastCreationForm() {
     }
   });
 
-  const { handleSubmit, trigger, watch, setValue, getValues } = formMethods;
+  const { handleSubmit, trigger, watch, setValue } = formMethods;
   const { isSubmitting } = formMethods.formState;
-
   const currentStyle = watch('style');
 
   const updateFormStyle = useCallback((data: Partial<PodcastCreationData>) => {
-    for (const key in data) {
-      setValue(key as keyof PodcastCreationData, data[key as keyof PodcastCreationData], { shouldValidate: true });
-    }
+    for (const key in data) { setValue(key as keyof PodcastCreationData, data[key as keyof PodcastCreationData], { shouldValidate: true }); }
     setCurrentStep(1);
   }, [setValue]);
   
@@ -76,62 +73,37 @@ export function PodcastCreationForm() {
   const handleStepNavigation = async () => {
     let fieldsToValidate: (keyof PodcastCreationData)[] = [];
     const stepForValidation = currentStep;
-
     if (stepForValidation === 1) fieldsToValidate = ['style'];
     if (stepForValidation === 2) {
       if (currentStyle === 'solo') fieldsToValidate = ['solo_topic', 'solo_motivation'];
       if (currentStyle === 'link') fieldsToValidate = ['link_topicA', 'link_topicB', 'link_catalyst'];
     }
-    if (currentStyle === 'solo' && stepForValidation === 3) {
-      fieldsToValidate = ['duration', 'narrativeDepth', 'selectedAgent'];
-    }
-    if (currentStyle === 'link' && stepForValidation === 3) {
-      fieldsToValidate = ['link_selectedNarrative', 'link_selectedTone'];
-    }
-    if (currentStyle === 'link' && stepForValidation === 4) {
-      fieldsToValidate = ['duration', 'narrativeDepth', 'selectedAgent'];
-    }
-    
+    if (currentStyle === 'solo' && stepForValidation === 3) { fieldsToValidate = ['duration', 'narrativeDepth', 'selectedAgent']; }
+    if (currentStyle === 'link' && stepForValidation === 3) { fieldsToValidate = ['link_selectedNarrative', 'link_selectedTone']; }
+    if (currentStyle === 'link' && stepForValidation === 4) { fieldsToValidate = ['duration', 'narrativeDepth', 'selectedAgent']; }
     const isStepValid = await trigger(fieldsToValidate);
-    if (isStepValid) {
-      goToNextStep();
-    }
+    if (isStepValid) { goToNextStep(); }
   };
   
-  // ================== INTERVENCIÓN QUIRÚRGICA #1: LÓGICA DE GENERACIÓN DE NARRATIVAS ==================
-  //
-  // Se implementa la lógica de la función. Por ahora, simula una llamada a la IA,
-  // establece un estado de carga y devuelve datos de ejemplo para desbloquear el flujo.
-  //
   const handleGenerateNarratives = useCallback(async () => {
     setIsLoadingNarratives(true);
-    // En el futuro, aquí se haría la llamada a una Edge Function que use la IA.
-    // Por ahora, simulamos una demora y devolvemos datos de ejemplo.
     await new Promise(resolve => setTimeout(resolve, 1500)); 
-    
     setNarrativeOptions([
       { title: "El Héroe Cotidiano", thesis: "Cómo los desafíos diarios son el verdadero campo de entrenamiento para la virtud estoica." },
       { title: "La Fortaleza Tranquila", thesis: "Aplicando la serenidad estoica para navegar la incertidumbre de los retos modernos." },
       { title: "De Obstáculo a Oportunidad", thesis: "Una perspectiva estoica que transforma cada desafío en un escalón para el crecimiento personal." },
     ]);
-    
     setIsLoadingNarratives(false);
     toast({ title: "Narrativas generadas", description: "Hemos creado algunas perspectivas para conectar tus ideas. ¡Elige una!" });
     goToNextStep();
   }, [toast]);
 
-  // Esta nueva función orquesta la validación PARCIAL y la ejecución de la generación.
   const handleGenerateNarrativesClick = async () => {
     const fieldsToValidate: (keyof PodcastCreationData)[] = ['link_topicA', 'link_topicB', 'link_catalyst'];
     const isStepValid = await trigger(fieldsToValidate);
-
-    if (isStepValid) {
-      await handleGenerateNarratives();
-    } else {
-      toast({ title: "Campos incompletos", description: "Por favor, rellena los temas y el catalizador para continuar.", variant: "destructive" });
-    }
+    if (isStepValid) { await handleGenerateNarratives(); } 
+    else { toast({ title: "Campos incompletos", description: "Por favor, rellena los temas y el catalizador para continuar.", variant: "destructive" }); }
   };
-  // ===================================================================================================
 
   const handleFinalSubmit: SubmitHandler<PodcastCreationData> = useCallback(async (formData) => {
     if (!supabase || !user) {
@@ -142,7 +114,7 @@ export function PodcastCreationForm() {
     let jobInputs = {};
     if (formData.style === 'solo') {
       jobInputs = { topic: formData.solo_topic, motivation: formData.solo_motivation };
-    } else if (formData.style === 'link') {
+    } else {
       jobInputs = { topicA: formData.link_topicA, topicB: formData.link_topicB, catalyst: formData.link_catalyst, narrative: formData.link_selectedNarrative, tone: formData.link_selectedTone };
     }
     
@@ -152,14 +124,28 @@ export function PodcastCreationForm() {
       inputs: { ...jobInputs, duration: formData.duration, depth: formData.narrativeDepth, tags: formData.tags },
     };
 
-    const { error } = await supabase.functions.invoke('queue-podcast-job', { body: payload });
+    const { data, error } = await supabase.functions.invoke('queue-podcast-job', { body: payload });
 
     if (error) {
-      toast({ title: "Error al Enviar tu Idea", description: error.message, variant: "destructive" });
+      toast({ title: "Error de Conexión", description: "No se pudo comunicar con el servidor. Por favor, revisa tu conexión e inténtalo de nuevo.", variant: "destructive" });
+      return;
+    }
+    
+    if (data && !data.success) {
+      if (data.error?.code === 'LIMIT_REACHED') {
+        toast({
+          title: "Límite de Creaciones Alcanzado",
+          description: "Has utilizado todas las creaciones de tu plan para este mes.",
+          variant: "destructive",
+          action: ( <Button variant="outline" size="sm" onClick={() => router.push('/pricing')}> <Zap className="mr-2 h-4 w-4" /> Ver Planes </Button> ),
+        });
+      } else {
+        toast({ title: "Error al Enviar tu Idea", description: data.error?.message || "Hubo un problema inesperado. Por favor, inténtalo de nuevo.", variant: "destructive" });
+      }
       return;
     }
 
-    toast({ title: "¡Éxito! Creando tu podcast...", description: "Tu idea está siendo procesada. Serás redirigido en breve." });
+    toast({ title: "¡Éxito! Tu idea está en la cola.", description: "Serás redirigido a tu biblioteca. Te notificaremos cuando el guion esté listo." });
     router.push('/podcasts?tab=library');
   }, [supabase, user, toast, router]);
   
@@ -167,8 +153,7 @@ export function PodcastCreationForm() {
   
   const renderCurrentStep = () => {
     switch (currentStep) {
-      case 1: 
-        return <StyleSelectionStep updateFormData={updateFormStyle} onNext={goToNextStep} />;
+      case 1: return <StyleSelectionStep updateFormData={updateFormStyle} onNext={goToNextStep} />;
       case 2:
         if (currentStyle === 'solo') return <SoloTalkStep />;
         if (currentStyle === 'link') return <LinkPointsStep />;
@@ -184,8 +169,7 @@ export function PodcastCreationForm() {
       case 5:
         if (currentStyle === 'link') return <FinalStep />;
         return null;
-      default: 
-        return <div>Error: Paso inválido. Por favor, refresca la página.</div>;
+      default: return <div>Error: Paso inválido. Por favor, refresca la página.</div>;
     }
   };
 
@@ -207,29 +191,33 @@ export function PodcastCreationForm() {
                       </CardContent>
                   </Card>
                   <div className="flex justify-between items-center mt-6 flex-shrink-0">
+                      {/* ================== INTERVENCIÓN QUIRÚRGICA #1 ================== */}
+                      {/* Se añade type="button" para prevenir que este botón envíe el formulario. */}
                       <Button type="button" variant="outline" onClick={goToPreviousStep} disabled={currentStep === 1 || isSubmitting}>
                           <ChevronLeft className="mr-2 h-4 w-4" />Atrás
                       </Button>
                       <div className="ml-auto">
-                          {/* ================== INTERVENCIÓN QUIRÚRGICA #2: BOTÓN DE GENERAR NARRATIVAS ================== */}
-                          {/* 
-                            Se cambia el 'onClick' para que llame a nuestra nueva función 'handleGenerateNarrativesClick'.
-                            Ya no usamos 'handleSubmit', desacoplando esta acción de la validación del formulario completo.
-                          */}
                           {currentStep === 2 && currentStyle === 'link' ? (
+                              // ================== INTERVENCIÓN QUIRÚRGICA #2 ==================
+                              // Se añade type="button" aquí también.
                               <Button type="button" size="lg" onClick={handleGenerateNarrativesClick} disabled={isLoadingNarratives}>
                                   {isLoadingNarratives ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Generando...</> : 'Generar Narrativas'}
                               </Button>
                           ) : currentStep < totalSteps ? (
+                              // ================== INTERVENCIÓN QUIRÚRGICA #3 ==================
+                              // Este es el cambio más importante. Al añadir type="button",
+                              // evitamos que el botón "Siguiente" active el 'onSubmit' del formulario.
                               <Button type="button" onClick={handleStepNavigation}>
                                   Siguiente <ChevronRight className="ml-2 h-4 w-4" />
                               </Button>
                           ) : (
+                              // Este es el único botón que DEBE ser de tipo "submit" (o no tener tipo).
+                              // Se mantiene como está para que envíe el formulario correctamente
+                              // solo cuando el usuario haga clic explícitamente en él.
                               <Button type="submit" disabled={isSubmitting}>
-                                  {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creando Guion...</> : <><Wand2 className="mr-2 h-4 w-4" />Crear Guion</>}
+                                  {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Encolando Idea...</> : <><Wand2 className="mr-2 h-4 w-4" />Crear Guion</>}
                               </Button>
                           )}
-                          {/* ================================================================================================ */}
                       </div>
                   </div>
               </div>
