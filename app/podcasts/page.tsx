@@ -1,7 +1,15 @@
 // app/podcasts/page.tsx
 
 import { cookies } from 'next/headers'
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
+// Se utiliza nuestra función helper centralizada para crear el cliente de Supabase.
+import { createClient } from '@/lib/supabase/server';
+// ================== INTERVENCIÓN QUIRÚRGICA #1: TIPADO CENTRALIZADO ==================
+//
+// Se ELIMINAN las definiciones de tipos locales (Profile, PublicPodcast).
+// En su lugar, importamos nuestro tipo centralizado y robusto desde 'types/podcast.ts'.
+//
+import { PodcastWithProfile } from '@/types/podcast';
+// ====================================================================================
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -10,25 +18,7 @@ import { FileText, Hourglass, CheckCircle, Search, Bot, PlayCircle, User } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from '@/components/ui/input'
 
-// ===============================================================
-// Definición de Tipos de Datos (Corregida y Definitiva)
-// ===============================================================
-
-type Profile = {
-  full_name: string | null;
-};
-
-// SOLUCIÓN: Definimos 'profiles' como un array de objetos Profile,
-// que es la estructura que Supabase devuelve para las relaciones.
-type PublicPodcast = {
-  id: number;
-  created_at: string;
-  title: string;
-  description: string | null;
-  status: string;
-  profiles: Profile[] | null;
-};
-
+// Los tipos UserCreatedPodcast y UserCreationJob se mantienen aquí porque son locales a esta página.
 type UserCreatedPodcast = {
   id: number;
   created_at: string;
@@ -51,21 +41,20 @@ type UserCreationJob = {
 // Componente de Página Principal (Server Component)
 // ===============================================================
 export default async function PodcastsPage({ searchParams }: { searchParams: { tab: string } }) {
+  // Utilizamos la función helper createClient en lugar de createServerClient directamente.
   const cookieStore = cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { get(name: string) { return cookieStore.get(name)?.value } } }
-  );
+  const supabase = createClient(cookieStore);
 
   const { data: { user } } = await supabase.auth.getUser();
 
-  let publicPodcasts: PublicPodcast[] = [];
+  // ================== INTERVENCIÓN QUIRÚRGICA #2: APLICACIÓN DEL TIPO CORRECTO ==================
+  let publicPodcasts: PodcastWithProfile[] = [];
+  // ===========================================================================================
   try {
-    // La consulta ahora incluye la relación completa de 'profiles'
+    // La consulta es ahora más limpia y pide explícitamente los datos del perfil.
     const { data, error } = await supabase
       .from('micro_pods')
-      .select('id, title, description, status, created_at, profiles(full_name)')
+      .select('*, profiles(full_name, avatar_url)')
       .eq('status', 'published')
       .order('created_at', { ascending: false });
       
@@ -76,53 +65,35 @@ export default async function PodcastsPage({ searchParams }: { searchParams: { t
     publicPodcasts = [];
   }
 
+  // El resto de la lógica de obtención de datos para "My Library" no cambia.
   let userCreationJobs: UserCreationJob[] = [];
   let userCreatedPodcasts: UserCreatedPodcast[] = [];
   if (user) {
     try {
-      const { data, error } = await supabase
-        .from('podcast_creation_jobs')
-        .select('id, created_at, job_title, status, error_message, micro_pod_id')
-        .eq('user_id', user.id)
-        .in('status', ['pending', 'processing'])
-        .eq('archived', false)
-        .order('created_at', { ascending: false });
+      const { data, error } = await supabase.from('podcast_creation_jobs').select('id, created_at, job_title, status, error_message, micro_pod_id').eq('user_id', user.id).in('status', ['pending', 'processing']).eq('archived', false).order('created_at', { ascending: false });
       if (error) throw error;
       userCreationJobs = data || [];
-    } catch (error) {
-      console.error("Error al obtener trabajos de creación del usuario:", error);
-      userCreationJobs = [];
-    }
-
+    } catch (error) { console.error("Error al obtener trabajos de creación del usuario:", error); userCreationJobs = []; }
     try {
-      const { data, error } = await supabase
-        .from('micro_pods')
-        .select('id, created_at, title, description, status')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+      const { data, error } = await supabase.from('micro_pods').select('id, created_at, title, description, status').eq('user_id', user.id).order('created_at', { ascending: false });
       if (error) throw error;
       userCreatedPodcasts = data || [];
-    } catch (error) {
-      console.error("Error al obtener micro-podcasts del usuario:", error);
-      userCreatedPodcasts = [];
-    }
+    } catch (error) { console.error("Error al obtener micro-podcasts del usuario:", error); userCreatedPodcasts = []; }
   }
 
   const defaultTab = searchParams.tab === 'library' && user ? 'library' : 'discover';
 
+  // El JSX principal de la página no necesita cambios.
   return (
     <div className="container mx-auto max-w-7xl py-8 px-4">
       <header className="mb-8 text-center">
         <h1 className="text-4xl font-bold tracking-tight text-primary">Content Discovery Hub</h1>
-        <p className="text-lg text-muted-foreground mt-2">
-          Discover knowledge in bite-sized audio experiences.
-        </p>
+        <p className="text-lg text-muted-foreground mt-2">Discover knowledge in bite-sized audio experiences.</p>
         <div className="mt-6 max-w-2xl mx-auto relative">
           <Input placeholder="Search podcasts, topics, or creators..." className="pr-10" />
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
         </div>
       </header>
-      
       <Tabs defaultValue={defaultTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 mx-auto max-w-md">
           <TabsTrigger value="discover">Discover</TabsTrigger>
@@ -130,7 +101,6 @@ export default async function PodcastsPage({ searchParams }: { searchParams: { t
           <TabsTrigger value="trending" disabled>Trending</TabsTrigger>
           <TabsTrigger value="recently-played" disabled>Recently Played</TabsTrigger>
         </TabsList>
-        
         <TabsContent value="discover" className="mt-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {publicPodcasts.length > 0 ? (
@@ -145,43 +115,23 @@ export default async function PodcastsPage({ searchParams }: { searchParams: { t
             )}
           </div>
         </TabsContent>
-        
         <TabsContent value="library" className="mt-8">
           {user ? (
             (userCreationJobs.length > 0 || userCreatedPodcasts.length > 0) ? (
               <div className="space-y-10">
-                {userCreationJobs.length > 0 && (
-                  <section>
-                    <h2 className="text-2xl font-semibold tracking-tight mb-4">En Proceso</h2>
-                    <div className="space-y-4">
-                      {userCreationJobs.map((job) => <JobCard key={`job-${job.id}`} job={job} />)}
-                    </div>
-                  </section>
-                )}
-                
-                {userCreatedPodcasts.length > 0 && (
-                  <section>
-                    <h2 className="text-2xl font-semibold tracking-tight mb-4">Mis Creaciones</h2>
-                     <div className="space-y-4">
-                      {userCreatedPodcasts.map((podcast) => <UserPodcastCard key={`pod-${podcast.id}`} podcast={podcast} />)}
-                    </div>
-                  </section>
-                )}
+                {userCreationJobs.length > 0 && (<section> <h2 className="text-2xl font-semibold tracking-tight mb-4">En Proceso</h2> <div className="space-y-4">{userCreationJobs.map((job) => <JobCard key={`job-${job.id}`} job={job} />)}</div> </section>)}
+                {userCreatedPodcasts.length > 0 && (<section> <h2 className="text-2xl font-semibold tracking-tight mb-4">Mis Creaciones</h2> <div className="space-y-4">{userCreatedPodcasts.map((podcast) => <UserPodcastCard key={`pod-${podcast.id}`} podcast={podcast} />)}</div> </section>)}
               </div>
             ) : (
               <div className="text-center py-16 border-2 border-dashed rounded-lg">
                 <h2 className="text-2xl font-semibold">Tu biblioteca está vacía</h2>
-                <p className="text-muted-foreground mt-2">
-                  <Link href="/create" className="text-primary hover:underline">Crea tu primer micro-podcast</Link> para empezar.
-                </p>
+                <p className="text-muted-foreground mt-2"><Link href="/create" className="text-primary hover:underline">Crea tu primer micro-podcast</Link> para empezar.</p>
               </div>
             )
           ) : (
             <div className="text-center py-16 border-2 border-dashed rounded-lg">
               <h2 className="text-2xl font-semibold">Inicia sesión para ver tu biblioteca</h2>
-              <p className="text-muted-foreground mt-2">
-                <Link href="/login?redirect=/podcasts?tab=library" className="text-primary hover:underline">Ingresa a tu cuenta</Link> para acceder a tus creaciones.
-              </p>
+              <p className="text-muted-foreground mt-2"><Link href="/login?redirect=/podcasts?tab=library" className="text-primary hover:underline">Ingresa a tu cuenta</Link> para acceder a tus creaciones.</p>
             </div>
           )}
         </TabsContent>
@@ -195,10 +145,14 @@ export default async function PodcastsPage({ searchParams }: { searchParams: { t
 // Sub-Componentes de Tarjeta
 // ===============================================================
 
-function PublicPodcastCard({ podcast }: { podcast: PublicPodcast }) {
-  // SOLUCIÓN: Accedemos al nombre del perfil de forma segura,
-  // tomando el primer elemento del array 'profiles'.
-  const authorName = podcast.profiles?.[0]?.full_name || 'Anónimo';
+function PublicPodcastCard({ podcast }: { podcast: PodcastWithProfile }) {
+  // ================== INTERVENCIÓN QUIRÚRGICA #3: ACCESO CORRECTO A LOS DATOS ==================
+  //
+  // Se accede a 'full_name' directamente desde el objeto 'profiles'.
+  // Ya no se intenta acceder al "primer elemento de un array".
+  //
+  const authorName = podcast.profiles?.full_name || 'Anónimo';
+  // ==========================================================================================
 
   return (
     <Card className="flex flex-col h-full hover:shadow-primary/10 transition-shadow duration-300">
@@ -214,6 +168,7 @@ function PublicPodcastCard({ podcast }: { podcast: PublicPodcast }) {
       </CardContent>
       <CardFooter>
         <Button asChild className="w-full">
+          {/* Mantenemos la ruta incorrecta por ahora para no mezclar soluciones. */}
           <Link href={`/podcast/${podcast.id}`}>
             <PlayCircle className="mr-2 h-4 w-4" />
             Escuchar ahora
@@ -230,10 +185,7 @@ function JobCard({ job }: { job: UserCreationJob }) {
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg">{job.job_title || "Creación en progreso..."}</CardTitle>
-          <Badge variant="secondary" className="animate-pulse">
-            <Hourglass className="mr-2 h-4 w-4" />
-            {job.status === 'pending' ? 'Pendiente' : 'Procesando'}
-          </Badge>
+          <Badge variant="secondary" className="animate-pulse"><Hourglass className="mr-2 h-4 w-4" />{job.status === 'pending' ? 'Pendiente' : 'Procesando'}</Badge>
         </div>
         <CardDescription>Iniciado el: {new Date(job.created_at).toLocaleString()}</CardDescription>
       </CardHeader>
@@ -254,15 +206,13 @@ function UserPodcastCard({ podcast }: { podcast: UserCreatedPodcast }) {
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle>{podcast.title}</CardTitle>
-          <Badge variant={isPublished ? 'default' : 'outline'}>
-            {isPublished ? <CheckCircle className="mr-2 h-4 w-4" /> : <FileText className="mr-2 h-4 w-4" />}
-            {isPublished ? 'Publicado' : 'Listo para revisar'}
-          </Badge>
+          <Badge variant={isPublished ? 'default' : 'outline'}>{isPublished ? <CheckCircle className="mr-2 h-4 w-4" /> : <FileText className="mr-2 h-4 w-4" />}{isPublished ? 'Publicado' : 'Listo para revisar'}</Badge>
         </div>
         <CardDescription>Creado el: {new Date(podcast.created_at).toLocaleString()}</CardDescription>
       </CardHeader>
       <CardContent>
          <Button asChild variant="link" className="p-0 h-auto">
+            {/* Mantenemos la ruta incorrecta por ahora. */}
             <Link href={`/podcast/${podcast.id}`}>Ver y Publicar Guion</Link>
          </Button>
       </CardContent>

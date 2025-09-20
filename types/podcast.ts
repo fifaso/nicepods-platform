@@ -1,9 +1,17 @@
 // types/podcast.ts
 
-import { Database } from './supabase'; // Asegúrate de que tu archivo de tipos generados de Supabase esté en 'types/supabase.ts'
+import { Database } from './supabase';
 
-// Esta es ahora la ÚNICA definición en este archivo.
-// Define la forma de un 'micro_pod' enriquecido con los datos del perfil de su creador.
+// Tipo auxiliar para definir la forma del perfil que queremos obtener.
+type Profile = Pick<Database['public']['Tables']['profiles']['Row'], 'full_name' | 'avatar_url'>;
+
+// ================== EL CONTRATO DE DATOS DEFINITIVO ==================
+//
+// Esta es ahora la fuente única de la verdad para un podcast con su creador.
+// Se define 'profiles' como un OBJETO 'Profile' o 'null', que es la estructura
+// real que Supabase devuelve para una relación uno-a-uno.
+//
 export type PodcastWithProfile = Database['public']['Tables']['micro_pods']['Row'] & {
-  profiles: Pick<Database['public']['Tables']['profiles']['Row'], 'full_name' | 'avatar_url'> | null;
+  profiles: Profile | null;
 };
+// ======================================================================
