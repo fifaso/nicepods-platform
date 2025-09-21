@@ -1,15 +1,13 @@
-// app/podcasts/page.tsx
-
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { PodcastWithProfile } from '@/types/podcast';
-import Link from 'next/link'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { FileText, Hourglass, CheckCircle, Search, Bot, PlayCircle, User } from 'lucide-react'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Input } from '@/components/ui/input'
+import Link from 'next/link';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { FileText, Hourglass, CheckCircle, Search, Bot, PlayCircle, User } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from '@/components/ui/input';
 
 type UserCreatedPodcast = {
   id: number;
@@ -146,11 +144,6 @@ export default async function PodcastsPage({ searchParams }: { searchParams: { t
     </div>
   );
 }
-
-
-// ===============================================================
-// Sub-Componentes de Tarjeta
-// ===============================================================
 
 function PublicPodcastCard({ podcast }: { podcast: PodcastWithProfile }) {
   const authorName = podcast.profiles?.full_name || 'Anónimo';
