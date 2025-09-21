@@ -1,26 +1,28 @@
-// hooks/use-auth.tsx
 "use client";
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createBrowserClient } from '@supabase/ssr';
 import type { Session, SupabaseClient, User } from '@supabase/supabase-js';
 
-// --- MODIFICACIÓN #1: HACEMOS LA PROP DE ENTRADA MÁS FLEXIBLE ---
-// Definimos un tipo que puede aceptar la sesión completa O solo el objeto de usuario.
-// Esto hace que nuestro AuthProvider sea compatible con CUALQUIER método de obtención de sesión
-// del lado del servidor (getSession o getUser).
 type AuthProviderProps = {
   children: React.ReactNode;
   session: (Pick<Session, 'user'> & Partial<Omit<Session, 'user'>>) | null;
 };
 
+// ================== INTERVENCIÓN QUIRÚRGICA #1: ENRIQUECER EL TIPO DEL CONTEXTO ==================
+//
+// Se añade la propiedad 'isAdmin' al tipo que define la "forma" de nuestro contexto.
+// Esto le informa a TypeScript que el hook 'useAuth' devolverá este valor booleano.
+//
 type SupabaseContextType = {
   supabase: SupabaseClient;
   user: User | null;
+  isAdmin: boolean; // Propiedad añadida
   isLoading: boolean;
   signOut: () => Promise<void>;
 };
+// ==============================================================================================
 
 const SupabaseContext = createContext<SupabaseContextType | null>(null);
 
@@ -32,24 +34,29 @@ export const AuthProvider = ({ children, session }: AuthProviderProps) => {
     )
   );
   
-  // --- MODIFICACIÓN #2: LA LÓGICA DE INICIALIZACIÓN NO CAMBIA ---
-  // El estado interno 'user' se inicializa correctamente desde la prop 'session',
-  // ya sea que venga como un objeto Session completo o uno simplificado.
   const [user, setUser] = useState<User | null>(session?.user ?? null);
-  
-  // La carga inicial ahora es más simple: solo está cargando si no hemos recibido una sesión del servidor.
   const [isLoading, setIsLoading] = useState(session === undefined);
   const router = useRouter();
+
+  // ================== INTERVENCIÓN QUIRÚRGICA #2: CÁLCULO DEL ESTADO DE ADMINISTRADOR ==================
+  //
+  // Se utiliza 'useMemo' para calcular de forma eficiente si el usuario actual es un administrador.
+  // La lógica lee el 'user_role' directamente del 'user_metadata' del objeto de usuario,
+  // que es donde nuestro trigger de base de datos inyecta el custom claim del JWT.
+  // Este valor se recalculará automáticamente solo si el objeto 'user' cambia.
+  //
+  const isAdmin = useMemo(() => {
+    return user?.user_metadata?.user_role === 'admin';
+  }, [user]);
+  // ================================================================================================
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setUser(newSession?.user ?? null);
       setIsLoading(false);
-      // Refrescamos la ruta en cambios de estado para re-ejecutar Server Components.
       router.refresh(); 
     });
 
-    // Aseguramos que el estado de carga se resuelva si ya hay una sesión al montar.
     if (session) {
       setIsLoading(false);
     }
@@ -63,12 +70,19 @@ export const AuthProvider = ({ children, session }: AuthProviderProps) => {
     await supabase.auth.signOut();
   };
 
+  // ================== INTERVENCIÓN QUIRÚRGICA #3: PROPORCIONAR EL NUEVO VALOR ==================
+  //
+  // Se añade la propiedad 'isAdmin' al objeto 'value' que se pasa al proveedor del contexto.
+  // Ahora, cualquier componente que consuma 'useAuth()' tendrá acceso a este booleano.
+  //
   const value: SupabaseContextType = {
     supabase,
     user,
+    isAdmin, // Propiedad añadida
     isLoading,
     signOut,
   };
+  // ==========================================================================================
 
   return (
     <SupabaseContext.Provider value={value}>

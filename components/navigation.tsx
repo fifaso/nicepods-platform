@@ -1,5 +1,3 @@
-// components/navigation.tsx
-
 "use client"
 
 import Link from "next/link";
@@ -9,6 +7,15 @@ import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ThemeToggle } from "@/components/theme-toggle";
+// ================== INTERVENCIÓN QUIRÚRGICA #1: IMPORTACIÓN DE COMPONENTES SHEET ==================
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+// =================================================================================================
 import { Mic, Menu, X, LogIn, LogOut, ShieldCheck, Loader } from "lucide-react";
 
 export function Navigation() {
@@ -16,7 +23,6 @@ export function Navigation() {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
-  // --- MODIFICACIÓN: Obtenemos el estado directamente del AuthProvider ---
   const { user, isAdmin, signOut, isLoading } = useAuth();
 
   const navItems = [
@@ -26,11 +32,16 @@ export function Navigation() {
   ];
 
   const isActive = (href: string) => pathname === href;
+
+  // Esta función ahora se usará tanto en escritorio como en móvil.
   const handleNavigation = (href: string) => {
+    // Cerramos el menú móvil antes de navegar
     setIsMobileMenuOpen(false);
+    // Llevamos al usuario al principio de la página
     window.scrollTo(0, 0);
     router.push(href);
   };
+
   const handleLogout = async () => {
     await signOut();
     setIsMobileMenuOpen(false);
@@ -38,55 +49,117 @@ export function Navigation() {
 
   return (
     <nav className="sticky top-0 z-50 bg-white/20 backdrop-blur-xl border-b border-white/30 shadow-glass dark:bg-gray-900/20 dark:border-gray-700/30">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative pt-4">
-        <div className="relative z-10 bg-white/20 backdrop-blur-xl rounded-2xl border border-white/30 shadow-glass mx-2 dark:bg-gray-900/20 dark:border-gray-700/30">
-          <div className="flex justify-between items-center h-16 px-4">
-            <button
-              onClick={() => handleNavigation("/")}
-              className="flex items-center space-x-2 group cursor-pointer"
-            >
-              <div className="p-1 rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 animate-glow">
-                <Mic className="h-6 w-6 text-white" />
-              </div>
-              <span className="text-2xl font-bold text-gradient">NicePod</span>
-            </button>
-            <div className="hidden md:flex items-center space-x-1">
-              {navItems.map((item) => (
-                <button
-                  key={item.href}
-                  onClick={() => handleNavigation(item.href)}
-                  className={`px-4 py-2 rounded-lg transition-all duration-300 ${isActive(item.href) ? "bg-white/30 backdrop-blur-sm text-purple-accessible-dark font-medium shadow-glass border border-white/40 dark:bg-white/20 dark:text-purple-accessible dark:border-white/30" : "text-gray-700 hover:bg-white/20 hover:backdrop-blur-sm hover:text-purple-accessible hover:border hover:border-white/30 dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-purple-accessible"}`}
-                >
-                  {item.label}
-                </button>
-              ))}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center h-16">
+          
+          {/* Logo y Nombre de la App */}
+          <Link href="/" className="flex items-center space-x-2 group">
+            <div className="p-1 rounded-lg bg-gradient-to-r from-purple-600 to-blue-600">
+              <Mic className="h-6 w-6 text-white" />
             </div>
-            <div className="flex items-center space-x-2">
-              <ThemeToggle />
-              
-              {/* --- LÓGICA DE RENDERIZADO MEJORADA --- */}
+            <span className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400">
+              NicePod
+            </span>
+          </Link>
+          
+          {/* Navegación de Escritorio */}
+          <div className="hidden md:flex items-center space-x-1">
+            {navItems.map((item) => (
+              <Button
+                key={item.href}
+                variant={isActive(item.href) ? "secondary" : "ghost"}
+                onClick={() => handleNavigation(item.href)}
+              >
+                {item.label}
+              </Button>
+            ))}
+          </div>
+
+          {/* Controles del Lado Derecho */}
+          <div className="flex items-center space-x-2">
+            <ThemeToggle />
+            
+            <div className="hidden md:flex items-center space-x-2">
               {isLoading ? (
-                <div className="w-24 h-8 flex items-center justify-center">
-                   <Loader className="h-5 w-5 animate-spin"/>
-                </div>
+                <div className="w-24 h-10 flex items-center justify-center"><Loader className="h-5 w-5 animate-spin"/></div>
               ) : user ? (
                 <>
-                  {isAdmin && (<Button onClick={() => handleNavigation("/admin/prompts")} variant="ghost" size="icon" title="Admin Panel" className="..."><ShieldCheck className="h-5 w-5 text-green-500" /></Button>)}
-                  <Button onClick={() => handleNavigation("/profile")} variant="ghost" size="icon" title="Profile" className="..."><Avatar className="h-7 w-7"><AvatarImage src={user.user_metadata?.avatar_url || '/images/authors/default-avatar.png'} alt={user.email ?? 'User Avatar'} /><AvatarFallback className="...">{user.email?.substring(0, 2).toUpperCase() ?? 'U'}</AvatarFallback></Avatar></Button>
-                  <Button onClick={handleLogout} variant="ghost" size="icon" title="Sign Out" className="..."><LogOut className="h-5 w-5" /></Button>
+                  {isAdmin && (<Button onClick={() => handleNavigation("/admin/prompts")} variant="ghost" size="icon" title="Admin Panel"><ShieldCheck className="h-5 w-5 text-green-500" /></Button>)}
+                  <Button onClick={() => handleNavigation("/profile")} variant="ghost" size="icon" title="Profile">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={user.user_metadata?.avatar_url} />
+                      <AvatarFallback>{user.email?.substring(0, 2).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                  </Button>
+                  <Button onClick={handleLogout} variant="ghost" size="icon" title="Sign Out"><LogOut className="h-5 w-5" /></Button>
                 </>
               ) : (
-                <Button onClick={() => handleNavigation('/login')} variant="ghost" className="hidden md:flex items-center space-x-2 ...">
-                  <LogIn className="h-5 w-5" />
-                  <span>Ingresar</span>
+                <Button onClick={() => handleNavigation('/login')} variant="ghost">
+                  <LogIn className="h-5 w-5 mr-2" /> Ingresar
                 </Button>
               )}
-              
-              <Button variant="ghost" size="icon" className="md:hidden ..." onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>{isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}</Button>
-              <div className="hidden sm:flex"><Button onClick={() => handleNavigation("/create")} className="..."><Mic className="mr-2 h-4 w-4" />Create New Podcast</Button></div>
+              <Button onClick={() => handleNavigation("/create")}><Mic className="mr-2 h-4 w-4" />Create New Podcast</Button>
             </div>
+
+            {/* ================== INTERVENCIÓN QUIRÚRGICA #2: IMPLEMENTACIÓN DEL MENÚ MÓVIL ================== */}
+            <div className="md:hidden">
+              <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <Menu className="h-6 w-6" />
+                    <span className="sr-only">Abrir menú</span>
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="right" className="w-full max-w-sm">
+                  <SheetHeader>
+                    <SheetTitle>
+                      <Link href="/" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-2 group">
+                        <div className="p-1 rounded-lg bg-gradient-to-r from-purple-600 to-blue-600">
+                          <Mic className="h-6 w-6 text-white" />
+                        </div>
+                        <span className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400">NicePod</span>
+                      </Link>
+                    </SheetTitle>
+                  </SheetHeader>
+                  <div className="flex flex-col space-y-4 mt-8">
+                    {navItems.map((item) => (
+                      <Button
+                        key={item.href}
+                        variant={isActive(item.href) ? "secondary" : "ghost"}
+                        onClick={() => handleNavigation(item.href)}
+                        className="justify-start text-lg py-6"
+                      >
+                        {item.label}
+                      </Button>
+                    ))}
+
+                    <hr className="border-border" />
+                    
+                    {isLoading ? (
+                      <div className="flex items-center justify-center p-4"><Loader className="h-6 w-6 animate-spin"/></div>
+                    ) : user ? (
+                      <>
+                        <Button variant="ghost" onClick={() => handleNavigation("/profile")} className="justify-start text-lg py-6">Perfil</Button>
+                        {isAdmin && <Button variant="ghost" onClick={() => handleNavigation("/admin/prompts")} className="justify-start text-lg py-6 text-green-500">Panel de Admin</Button>}
+                        <Button variant="ghost" onClick={handleLogout} className="justify-start text-lg py-6 text-red-500">Cerrar Sesión</Button>
+                      </>
+                    ) : (
+                      <Button variant="ghost" onClick={() => handleNavigation('/login')} className="justify-start text-lg py-6">
+                        <LogIn className="h-5 w-5 mr-2" /> Ingresar
+                      </Button>
+                    )}
+                    
+                    <hr className="border-border" />
+
+                    <Button onClick={() => handleNavigation("/create")} size="lg" className="w-full py-6 text-lg">
+                      <Mic className="mr-2 h-5 w-5" />Crear Nuevo Podcast
+                    </Button>
+                  </div>
+                </SheetContent>
+              </Sheet>
+            </div>
+             {/* ================================================================================================= */}
           </div>
-          {/* ... (El JSX del menú móvil no cambia) ... */}
         </div>
       </div>
     </nav>
