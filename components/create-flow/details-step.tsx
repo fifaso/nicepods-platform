@@ -1,19 +1,14 @@
-// components/create-flow/details-step.tsx
 "use client";
 
 import { useFormContext } from "react-hook-form";
 import { PodcastCreationData } from "@/lib/validation/podcast-schema";
 import { AgentOption } from "@/lib/agent-config";
 import { cn } from "@/lib/utils";
-
-// ================== MODIFICACIÓN QUIRÚRGICA: IMPORTACIONES CORREGIDAS ==================
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label"; // Importación de Label añadida
-import { CardDescription, CardTitle } from "@/components/ui/card"; // Importaciones específicas añadidas
-// ====================================================================================
+import { Label } from "@/components/ui/label";
+import { CardDescription, CardTitle } from "@/components/ui/card";
 
-// Definimos los datos para nuestras tarjetas de selección visual.
 const durationOptions = [
   { value: "Corta (1-2 minutos)", label: "Corta", description: "1-2 min" },
   { value: "Media (3-5 minutos)", label: "Media", description: "3-5 min" },
@@ -37,8 +32,6 @@ export function DetailsStep({ agents }: { agents: AgentOption[] }) {
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-6">
-        
-        {/* --- Columna 1: Duración --- */}
         <FormField
           control={control}
           name="duration"
@@ -52,11 +45,7 @@ export function DetailsStep({ agents }: { agents: AgentOption[] }) {
                       <RadioGroupItem value={option.value} id={`duration-${index}`} className="sr-only" />
                       <Label
                         htmlFor={`duration-${index}`}
-                        className={cn(
-                          "flex flex-col items-center justify-center p-4 rounded-lg cursor-pointer transition-all duration-200",
-                          "border-2 bg-muted/30 hover:bg-muted/60",
-                          field.value === option.value ? "border-primary" : "border-transparent"
-                        )}
+                        className={cn("flex flex-col items-center justify-center p-4 rounded-lg cursor-pointer transition-all duration-200", "border-2 bg-muted/30 hover:bg-muted/60", field.value === option.value ? "border-primary" : "border-transparent")}
                       >
                         <CardTitle className="text-sm font-semibold">{option.label}</CardTitle>
                         <CardDescription className="text-xs">{option.description}</CardDescription>
@@ -70,7 +59,6 @@ export function DetailsStep({ agents }: { agents: AgentOption[] }) {
           )}
         />
 
-        {/* --- Columna 2: Profundidad --- */}
         <FormField
           control={control}
           name="narrativeDepth"
@@ -84,11 +72,7 @@ export function DetailsStep({ agents }: { agents: AgentOption[] }) {
                       <RadioGroupItem value={option.value} id={`depth-${index}`} className="sr-only" />
                       <Label
                         htmlFor={`depth-${index}`}
-                        className={cn(
-                          "flex flex-col items-center justify-center p-4 rounded-lg cursor-pointer transition-all duration-200",
-                          "border-2 bg-muted/30 hover:bg-muted/60",
-                          field.value === option.value ? "border-primary" : "border-transparent"
-                        )}
+                        className={cn("flex flex-col items-center justify-center p-4 rounded-lg cursor-pointer transition-all duration-200", "border-2 bg-muted/30 hover:bg-muted/60", field.value === option.value ? "border-primary" : "border-transparent")}
                       >
                         <CardTitle className="text-sm font-semibold">{option.label}</CardTitle>
                         <CardDescription className="text-xs text-center">{option.description}</CardDescription>
@@ -102,7 +86,6 @@ export function DetailsStep({ agents }: { agents: AgentOption[] }) {
           )}
         />
         
-        {/* --- Columna 3: Agente Especializado --- */}
         <FormField
           control={control}
           name="selectedAgent"
@@ -116,11 +99,7 @@ export function DetailsStep({ agents }: { agents: AgentOption[] }) {
                       <RadioGroupItem value={agent.value} id={`agent-${index}`} className="sr-only" />
                       <Label
                         htmlFor={`agent-${index}`}
-                        className={cn(
-                          "flex flex-col items-center justify-center p-4 rounded-lg cursor-pointer transition-all duration-200 text-center",
-                          "border-2 bg-muted/30 hover:bg-muted/60",
-                          field.value === agent.value ? "border-primary" : "border-transparent"
-                        )}
+                        className={cn("flex flex-col items-center justify-center p-4 rounded-lg cursor-pointer transition-all duration-200 text-center", "border-2 bg-muted/30 hover:bg-muted/60", field.value === agent.value ? "border-primary" : "border-transparent")}
                       >
                         <CardTitle className="text-sm font-semibold">{agent.label}</CardTitle>
                         <CardDescription className="text-xs">{agent.description}</CardDescription>

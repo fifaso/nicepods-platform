@@ -1,4 +1,3 @@
-// components/create-flow/final-step.tsx
 "use client";
 
 import { useFormContext } from "react-hook-form";
@@ -6,13 +5,11 @@ import { PodcastCreationData } from "@/lib/validation/podcast-schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { FileText, Link2, Mic, Clock, Palette, BrainCircuit } from "lucide-react"; // Importamos más iconos para mayor claridad visual
+import { Link2, Mic, Clock, Palette, BrainCircuit } from "lucide-react";
 
 export function FinalStep() {
-  // MEJORA: Usamos `watch()` en lugar de `getValues()` para que el resumen sea reactivo
-  // a cualquier cambio en los datos del formulario, aunque sea improbable en este paso.
   const { watch } = useFormContext<PodcastCreationData>();
-  const formData = watch(); // 'watch()' sin argumentos observa todo el formulario.
+  const formData = watch();
 
   return (
     <div className="flex flex-col space-y-6 animate-fade-in">
@@ -29,7 +26,6 @@ export function FinalStep() {
         <CardContent className="space-y-4">
           <Separator />
           
-          {/* =========== Resumen para el Estilo "Solo Talk" =========== */}
           {formData.style === 'solo' && (
             <div className="space-y-4">
               <div className="flex justify-between items-center">
@@ -37,7 +33,7 @@ export function FinalStep() {
                   <Mic className="h-4 w-4 mr-2" />
                   <span>Estilo</span>
                 </div>
-                <Badge variant="secondary">Solo Talk</Badge>
+                <Badge variant="secondary">Monólogo</Badge>
               </div>
               <Separator />
               <div className="flex flex-col space-y-1">
@@ -51,7 +47,6 @@ export function FinalStep() {
             </div>
           )}
 
-          {/* =========== Resumen para el Estilo "Unir Puntos" =========== */}
           {formData.style === 'link' && (
              <div className="space-y-4">
                <div className="flex justify-between items-center">
@@ -59,7 +54,7 @@ export function FinalStep() {
                   <Link2 className="h-4 w-4 mr-2" />
                   <span>Estilo</span>
                 </div>
-                <Badge variant="secondary">Unir Puntos</Badge>
+                <Badge variant="secondary">Unir Ideas</Badge>
               </div>
               <Separator />
                <div className="flex flex-col space-y-1">
@@ -85,7 +80,6 @@ export function FinalStep() {
           
           <Separator />
 
-          {/* =========== Detalles Comunes para Ambos Estilos =========== */}
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <div className="flex items-center text-muted-foreground">

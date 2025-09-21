@@ -191,29 +191,19 @@ export function PodcastCreationForm() {
                       </CardContent>
                   </Card>
                   <div className="flex justify-between items-center mt-6 flex-shrink-0">
-                      {/* ================== INTERVENCIÓN QUIRÚRGICA #1 ================== */}
-                      {/* Se añade type="button" para prevenir que este botón envíe el formulario. */}
                       <Button type="button" variant="outline" onClick={goToPreviousStep} disabled={currentStep === 1 || isSubmitting}>
                           <ChevronLeft className="mr-2 h-4 w-4" />Atrás
                       </Button>
                       <div className="ml-auto">
                           {currentStep === 2 && currentStyle === 'link' ? (
-                              // ================== INTERVENCIÓN QUIRÚRGICA #2 ==================
-                              // Se añade type="button" aquí también.
                               <Button type="button" size="lg" onClick={handleGenerateNarrativesClick} disabled={isLoadingNarratives}>
                                   {isLoadingNarratives ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Generando...</> : 'Generar Narrativas'}
                               </Button>
                           ) : currentStep < totalSteps ? (
-                              // ================== INTERVENCIÓN QUIRÚRGICA #3 ==================
-                              // Este es el cambio más importante. Al añadir type="button",
-                              // evitamos que el botón "Siguiente" active el 'onSubmit' del formulario.
                               <Button type="button" onClick={handleStepNavigation}>
                                   Siguiente <ChevronRight className="ml-2 h-4 w-4" />
                               </Button>
                           ) : (
-                              // Este es el único botón que DEBE ser de tipo "submit" (o no tener tipo).
-                              // Se mantiene como está para que envíe el formulario correctamente
-                              // solo cuando el usuario haga clic explícitamente en él.
                               <Button type="submit" disabled={isSubmitting}>
                                   {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Encolando Idea...</> : <><Wand2 className="mr-2 h-4 w-4" />Crear Guion</>}
                               </Button>
