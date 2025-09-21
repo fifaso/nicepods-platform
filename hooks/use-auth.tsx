@@ -10,19 +10,13 @@ type AuthProviderProps = {
   session: (Pick<Session, 'user'> & Partial<Omit<Session, 'user'>>) | null;
 };
 
-// ================== INTERVENCIÓN QUIRÚRGICA #1: ENRIQUECER EL TIPO DEL CONTEXTO ==================
-//
-// Se añade la propiedad 'isAdmin' al tipo que define la "forma" de nuestro contexto.
-// Esto le informa a TypeScript que el hook 'useAuth' devolverá este valor booleano.
-//
 type SupabaseContextType = {
   supabase: SupabaseClient;
   user: User | null;
-  isAdmin: boolean; // Propiedad añadida
+  isAdmin: boolean;
   isLoading: boolean;
   signOut: () => Promise<void>;
 };
-// ==============================================================================================
 
 const SupabaseContext = createContext<SupabaseContextType | null>(null);
 
@@ -38,23 +32,27 @@ export const AuthProvider = ({ children, session }: AuthProviderProps) => {
   const [isLoading, setIsLoading] = useState(session === undefined);
   const router = useRouter();
 
-  // ================== INTERVENCIÓN QUIRÚRGICA #2: CÁLCULO DEL ESTADO DE ADMINISTRADOR ==================
-  //
-  // Se utiliza 'useMemo' para calcular de forma eficiente si el usuario actual es un administrador.
-  // La lógica lee el 'user_role' directamente del 'user_metadata' del objeto de usuario,
-  // que es donde nuestro trigger de base de datos inyecta el custom claim del JWT.
-  // Este valor se recalculará automáticamente solo si el objeto 'user' cambia.
-  //
   const isAdmin = useMemo(() => {
     return user?.user_metadata?.user_role === 'admin';
   }, [user]);
-  // ================================================================================================
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setUser(newSession?.user ?? null);
       setIsLoading(false);
-      router.refresh(); 
+      
+      // ================== INTERVENCIÓN QUIRÚRGICA: ELIMINACIÓN DEL LOOP ==================
+      //
+      // Se ha eliminado la llamada a `router.refresh()`.
+      //
+      // JUSTIFICACIÓN ESTRATÉGICA: Esta línea causaba un ciclo infinito de
+      // re-renderizado al hacer que el AuthProvider se desmontara y montara
+      // repetidamente en cada cambio de estado de autenticación. El estado local
+      // 'user' ya se actualiza a través de 'setUser', lo que es suficiente para
+      // que la UI reaccione. Eliminar esta línea rompe el ciclo y estabiliza la aplicación.
+      //
+      // router.refresh(); // LÍNEA CRÍTICA ELIMINADA
+      // ==================================================================================
     });
 
     if (session) {
@@ -64,25 +62,21 @@ export const AuthProvider = ({ children, session }: AuthProviderProps) => {
     return () => {
       subscription.unsubscribe();
     };
-  }, [supabase, router, session]);
+  }, [supabase.auth, session]); // Se elimina 'router' de las dependencias para evitar re-ejecuciones innecesarias.
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    // Se añade una redirección explícita al hacer logout para una mejor experiencia de usuario.
+    router.push('/');
   };
 
-  // ================== INTERVENCIÓN QUIRÚRGICA #3: PROPORCIONAR EL NUEVO VALOR ==================
-  //
-  // Se añade la propiedad 'isAdmin' al objeto 'value' que se pasa al proveedor del contexto.
-  // Ahora, cualquier componente que consuma 'useAuth()' tendrá acceso a este booleano.
-  //
   const value: SupabaseContextType = {
     supabase,
     user,
-    isAdmin, // Propiedad añadida
+    isAdmin,
     isLoading,
     signOut,
   };
-  // ==========================================================================================
 
   return (
     <SupabaseContext.Provider value={value}>
