@@ -162,7 +162,9 @@ function PublicPodcastCard({ podcast }: { podcast: PodcastWithProfile }) {
       </CardContent>
       <CardFooter>
         <Button asChild className="w-full">
-          <Link href={`/podcasts/${podcast.id}`}>
+          {/* ================== INTERVENCIÓN QUIRÚRGICA #1 ================== */}
+          <Link href={`/podcast/${podcast.id}`}>
+          {/* ================================================================ */}
             <PlayCircle className="mr-2 h-4 w-4" />
             Escuchar ahora
           </Link>
@@ -211,7 +213,11 @@ function UserPodcastCard({ podcast }: { podcast: UserCreatedPodcast }) {
       </CardHeader>
       <CardContent>
          <Button asChild variant="link" className="p-0 h-auto">
-            <Link href={`/podcasts/${podcast.id}`}>Ver Guion</Link>
+            {/* ================== INTERVENCIÓN QUIRÚRGICA #2 ================== */}
+            <Link href={`/podcast/${podcast.id}`}>
+            {/* ================================================================ */}
+              Ver Guion
+            </Link>
          </Button>
       </CardContent>
     </Card>
