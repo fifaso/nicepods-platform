@@ -42,25 +42,24 @@ export function Navigation() {
 
   return (
     <header className="sticky top-0 z-50 w-full p-4">
-      {/* ================== INTERVENCIÓN QUIRÚRGICA: REESTRUCTURACIÓN DE FLEXBOX ================== */}
-      {/* 
-        El contenedor principal ahora es 'relative' para servir como ancla para
-        el menú de navegación central, que será posicionado de forma absoluta.
-      */}
       <div className="relative max-w-screen-xl mx-auto flex h-16 items-center rounded-2xl border border-border/40 bg-background/80 px-4 shadow-lg shadow-black/5 backdrop-blur-lg supports-[backdrop-filter]:bg-background/60">
         
-        {/* Lado Izquierdo: Logo - Se le da un ancho fijo para balancear. */}
         <div className="flex-1 flex justify-start">
           <Link href="/" className="flex items-center space-x-2">
             <div className="p-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600">
               <Mic className="h-6 w-6 text-white" />
             </div>
-            <span className="font-bold text-xl hidden sm:inline-block">NicePod</span>
+            {/* ================== INTERVENCIÓN QUIRÚRGICA: CORRECCIÓN DE VISIBILIDAD ================== */}
+            {/* 
+              Se han eliminado las clases responsivas ('hidden', 'sm:inline-block')
+              que causaban que el nombre "NicePod" desapareciera en pantallas pequeñas.
+              Ahora, el span es 'inline-block' por defecto en todos los tamaños.
+            */}
+            <span className="font-bold text-xl inline-block">NicePod</span>
+            {/* ======================================================================================== */}
           </Link>
         </div>
 
-        {/* Centro: Navegación Principal (Desktop) - Ahora con posicionamiento absoluto. */}
-        {/* Esto garantiza un centrado matemático perfecto, independientemente del contenido a los lados. */}
         <nav className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
           <ul className="flex items-center space-x-2 rounded-full bg-muted/50 p-1">
             {navItems.map((item) => (
@@ -81,7 +80,6 @@ export function Navigation() {
           </ul>
         </nav>
 
-        {/* Lado Derecho: Acciones y Menú Móvil - Se le da un ancho fijo para balancear. */}
         <div className="flex-1 flex items-center justify-end space-x-2">
           <ThemeToggle />
           
@@ -105,7 +103,6 @@ export function Navigation() {
           
           <Link href="/create"><Button className="hidden lg:inline-flex"><Mic className="mr-2 h-4 w-4" />Crear Nuevo Podcast</Button></Link>
 
-          {/* Menú Móvil (Hamburguesa) - La lógica no cambia */}
           <div className="md:hidden">
             <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
               <SheetTrigger asChild>
