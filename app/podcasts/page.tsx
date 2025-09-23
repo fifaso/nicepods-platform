@@ -66,7 +66,8 @@ export default async function PodcastsPage({ searchParams }: { searchParams: { t
   const defaultTab = currentTab === 'library' && user ? 'library' : 'discover';
 
   return (
-    <div className="container mx-auto max-w-7xl py-8 px-4">
+    // ================== INTERVENCIÓN QUIRÚRGICA #2: ESTANDARIZACIÓN DEL LAYOUT ==================
+    <div className="container mx-auto max-w-7xl py-12 md:py-16 px-4">
       <header className="mb-8 text-center">
         <h1 className="text-4xl font-bold tracking-tight text-primary">Centro de Descubrimiento</h1>
         <p className="text-lg text-muted-foreground mt-2">
@@ -79,11 +80,11 @@ export default async function PodcastsPage({ searchParams }: { searchParams: { t
       </header>
       
       <Tabs defaultValue={defaultTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 mx-auto max-w-md">
+        {/* ================== INTERVENCIÓN QUIRÚRGICA #3: LIMPIEZA DE TABS ================== */}
+        {/* Se eliminan las pestañas no funcionales y se ajusta la rejilla a 2 columnas. */}
+        <TabsList className="grid w-full grid-cols-2 mx-auto max-w-xs">
           <TabsTrigger value="discover">Descubrir</TabsTrigger>
           <TabsTrigger value="library">Mi Biblioteca</TabsTrigger>
-          <TabsTrigger value="trending" disabled>Tendencias</TabsTrigger>
-          <TabsTrigger value="recently-played" disabled>Recientes</TabsTrigger>
         </TabsList>
         
         <TabsContent value="discover" className="mt-8">
@@ -162,9 +163,7 @@ function PublicPodcastCard({ podcast }: { podcast: PodcastWithProfile }) {
       </CardContent>
       <CardFooter>
         <Button asChild className="w-full">
-          {/* ================== INTERVENCIÓN QUIRÚRGICA #1 ================== */}
-          <Link href={`/podcast/${podcast.id}`}>
-          {/* ================================================================ */}
+          <Link href={`/podcasts/${podcast.id}`}>
             <PlayCircle className="mr-2 h-4 w-4" />
             Escuchar ahora
           </Link>
@@ -213,11 +212,7 @@ function UserPodcastCard({ podcast }: { podcast: UserCreatedPodcast }) {
       </CardHeader>
       <CardContent>
          <Button asChild variant="link" className="p-0 h-auto">
-            {/* ================== INTERVENCIÓN QUIRÚRGICA #2 ================== */}
-            <Link href={`/podcast/${podcast.id}`}>
-            {/* ================================================================ */}
-              Ver Guion
-            </Link>
+            <Link href={`/podcasts/${podcast.id}`}>Ver Guion</Link>
          </Button>
       </CardContent>
     </Card>
