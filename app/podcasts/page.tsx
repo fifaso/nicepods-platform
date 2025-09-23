@@ -34,12 +34,7 @@ export default async function PodcastsPage({ searchParams }: { searchParams: { t
 
   let publicPodcasts: PodcastWithProfile[] = [];
   try {
-    const { data, error } = await supabase
-      .from('micro_pods')
-      .select(`*, profiles(full_name, avatar_url)`)
-      .eq('status', 'published')
-      .order('created_at', { ascending: false });
-
+    const { data, error } = await supabase.from('micro_pods').select(`*, profiles(full_name, avatar_url)`).eq('status', 'published').order('created_at', { ascending: false });
     if (error) throw error;
     publicPodcasts = data || [];
   } catch (error) {
@@ -66,7 +61,6 @@ export default async function PodcastsPage({ searchParams }: { searchParams: { t
   const defaultTab = currentTab === 'library' && user ? 'library' : 'discover';
 
   return (
-    // ================== INTERVENCIÓN QUIRÚRGICA #2: ESTANDARIZACIÓN DEL LAYOUT ==================
     <div className="container mx-auto max-w-7xl py-12 md:py-16 px-4">
       <header className="mb-8 text-center">
         <h1 className="text-4xl font-bold tracking-tight text-primary">Centro de Descubrimiento</h1>
@@ -80,8 +74,6 @@ export default async function PodcastsPage({ searchParams }: { searchParams: { t
       </header>
       
       <Tabs defaultValue={defaultTab} className="w-full">
-        {/* ================== INTERVENCIÓN QUIRÚRGICA #3: LIMPIEZA DE TABS ================== */}
-        {/* Se eliminan las pestañas no funcionales y se ajusta la rejilla a 2 columnas. */}
         <TabsList className="grid w-full grid-cols-2 mx-auto max-w-xs">
           <TabsTrigger value="discover">Descubrir</TabsTrigger>
           <TabsTrigger value="library">Mi Biblioteca</TabsTrigger>
@@ -163,7 +155,9 @@ function PublicPodcastCard({ podcast }: { podcast: PodcastWithProfile }) {
       </CardContent>
       <CardFooter>
         <Button asChild className="w-full">
-          <Link href={`/podcasts/${podcast.id}`}>
+          {/* ================== INTERVENCIÓN QUIRÚRGICA #1: RUTA CORREGIDA ================== */}
+          <Link href={`/podcast/${podcast.id}`}>
+          {/* ============================================================================== */}
             <PlayCircle className="mr-2 h-4 w-4" />
             Escuchar ahora
           </Link>
@@ -212,7 +206,11 @@ function UserPodcastCard({ podcast }: { podcast: UserCreatedPodcast }) {
       </CardHeader>
       <CardContent>
          <Button asChild variant="link" className="p-0 h-auto">
-            <Link href={`/podcasts/${podcast.id}`}>Ver Guion</Link>
+            {/* ================== INTERVENCIÓN QUIRÚRGICA #2: RUTA CORREGIDA ================== */}
+            <Link href={`/podcast/${podcast.id}`}>
+            {/* ============================================================================== */}
+              Ver Guion
+            </Link>
          </Button>
       </CardContent>
     </Card>
