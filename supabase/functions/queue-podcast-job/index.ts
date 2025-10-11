@@ -1,8 +1,10 @@
 // supabase/functions/queue-podcast-job/index.ts
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient, PostgrestError } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { z, ZodError } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+// CAMBIO: Asumimos que has modernizado el proyecto para usar el import con alias.
+// Si no lo has hecho, vuelve a cambiarlo a '../_shared/cors.ts'
 import { corsHeaders } from '@shared/cors.ts';
 
 const QueuePayloadSchema = z.object({
@@ -18,11 +20,17 @@ serve(async (request: Request) => {
     const authorizationHeader = request.headers.get('Authorization');
     if (!authorizationHeader) { throw new Error("La cabecera de autorización es requerida."); }
 
+    // ================== INTERVENCIÓN QUIRÚRGICA #1 ==================
+    // CAMBIO: Se eliminan los argumentos de createClient().
+    // Dentro de una Edge Function, la librería es lo suficientemente inteligente
+    // para obtener la URL y la ANON_KEY de las variables de entorno inyectadas
+    // por el sistema, evitando así la llamada conflictiva a Deno.env.get().
     const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
+      undefined,
+      undefined,
       { global: { headers: { Authorization: authorizationHeader } } }
     );
+    // ================================================================
 
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) {
@@ -40,27 +48,33 @@ serve(async (request: Request) => {
 
     if (rpcError) { throw new Error(rpcError.message); }
 
-    // ================== INTERVENCIÓN QUIRÚRGICA: INVOCACIÓN DIRECTA ==================
-    //
-    // Volvemos a la arquitectura probada y fiable.
-    // 1. Se crea un cliente de Supabase con permisos de administrador.
-    // 2. Se invoca la función 'process-podcast-job' de forma asíncrona.
-    // El '.catch()' asegura que si la invocación falla, no rompa esta función.
-    //
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')! // Este secreto DEBE estar en Settings > Functions
-    );
+    // ================== INTERVENCIÓN QUIRÚRGICA #2 ==================
+    // CAMBIO: Se reemplaza la creación del cliente de admin y la llamada a .invoke()
+    // por una llamada directa con `fetch`. Esto nos da control total y evita
+    // cualquier inicialización de la librería que pueda tocar las claves en conflicto.
+    // Usamos las variables de entorno que SÍ sabemos que son seguras.
+    
+    const functionUrl = `${Deno.env.get('SUPABASE_URL')!}/functions/v1/process-podcast-job`;
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-    supabaseAdmin.functions.invoke('process-podcast-job', {
-      body: { job_id: newJobId },
-    }).catch(console.error);
+    // Usamos una Promise sin `await` para invocar la función de forma asíncrona ("fire and forget"),
+    // replicando exactamente el comportamiento de `supabaseAdmin.functions.invoke(...).catch()`.
+    fetch(functionUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${serviceKey}`
+      },
+      body: JSON.stringify({ job_id: newJobId }),
+    }).catch(err => {
+      console.error(`Error invoking process-podcast-job for job ${newJobId}:`, err);
+    });
     // ==================================================================================
 
     return new Response(JSON.stringify({ 
       success: true, 
       job_id: newJobId,
-      message: "El trabajo ha sido encolado y el procesamiento ha comenzado." // El mensaje vuelve a ser inmediato.
+      message: "El trabajo ha sido encolado y el procesamiento ha comenzado."
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -74,4 +88,4 @@ serve(async (request: Request) => {
     
     return new Response(JSON.stringify({ error: errorMessage }), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
   }
-});
+})
