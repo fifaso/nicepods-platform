@@ -4,7 +4,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"; // <--- CO
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { z, ZodError } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.11.3";
-import { corsHeaders } from '../_shared/cors.ts';
+import { corsHeaders } from '@shared/cors.ts';
 
 const NarrativesPayloadSchema = z.object({
   topicA: z.string().min(2, "El Tema A debe tener al menos 2 caracteres."),
