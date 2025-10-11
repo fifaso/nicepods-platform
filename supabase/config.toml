@@ -1,7 +1,7 @@
 # Archivo de configuración para el entorno local de Supabase.
 
 # Identificador del proyecto de Supabase en la nube.
-project_id = "pywbzkzoxbomqxelndy"
+project_id = "tufeojytxgbjjqjzlytv"
 
 # Configuración de puertos para los servicios locales.
 # Reasignados para evitar conflictos en entornos como GitHub Codespaces.
