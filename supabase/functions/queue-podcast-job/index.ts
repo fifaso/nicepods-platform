@@ -3,8 +3,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { z, ZodError } from "https://deno.land/x/zod@v3.22.4/mod.ts";
-// CAMBIO: Asumimos que has modernizado el proyecto para usar el import con alias.
-// Si no lo has hecho, vuelve a cambiarlo a '../_shared/cors.ts'
 import { corsHeaders } from '@shared/cors.ts';
 
 const QueuePayloadSchema = z.object({
@@ -20,17 +18,17 @@ serve(async (request: Request) => {
     const authorizationHeader = request.headers.get('Authorization');
     if (!authorizationHeader) { throw new Error("La cabecera de autorización es requerida."); }
 
-    // ================== INTERVENCIÓN QUIRÚRGICA #1 ==================
-    // CAMBIO: Se eliminan los argumentos de createClient().
-    // Dentro de una Edge Function, la librería es lo suficientemente inteligente
-    // para obtener la URL y la ANON_KEY de las variables de entorno inyectadas
-    // por el sistema, evitando así la llamada conflictiva a Deno.env.get().
+    // ================== CORRECCIÓN FINAL ==================
+    // CAMBIO: Volvemos a inicializar el cliente de forma explícita.
+    // Ahora que el entorno de la función está sano, puede manejar estas llamadas
+    // a Deno.env.get() sin romperse, ya que no hay un conflicto de despliegue.
+    // Esto resolverá el error "supabaseUrl is required.".
     const supabaseClient = createClient(
-      undefined,
-      undefined,
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
       { global: { headers: { Authorization: authorizationHeader } } }
     );
-    // ================================================================
+    // =======================================================
 
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) {
@@ -48,17 +46,10 @@ serve(async (request: Request) => {
 
     if (rpcError) { throw new Error(rpcError.message); }
 
-    // ================== INTERVENCIÓN QUIRÚRGICA #2 ==================
-    // CAMBIO: Se reemplaza la creación del cliente de admin y la llamada a .invoke()
-    // por una llamada directa con `fetch`. Esto nos da control total y evita
-    // cualquier inicialización de la librería que pueda tocar las claves en conflicto.
-    // Usamos las variables de entorno que SÍ sabemos que son seguras.
-    
+    // Mantenemos la invocación con fetch, que es más robusta y explícita.
     const functionUrl = `${Deno.env.get('SUPABASE_URL')!}/functions/v1/process-podcast-job`;
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-    // Usamos una Promise sin `await` para invocar la función de forma asíncrona ("fire and forget"),
-    // replicando exactamente el comportamiento de `supabaseAdmin.functions.invoke(...).catch()`.
     fetch(functionUrl, {
       method: 'POST',
       headers: {
@@ -69,7 +60,6 @@ serve(async (request: Request) => {
     }).catch(err => {
       console.error(`Error invoking process-podcast-job for job ${newJobId}:`, err);
     });
-    // ==================================================================================
 
     return new Response(JSON.stringify({ 
       success: true, 
@@ -88,4 +78,4 @@ serve(async (request: Request) => {
     
     return new Response(JSON.stringify({ error: errorMessage }), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
   }
-})
+});
