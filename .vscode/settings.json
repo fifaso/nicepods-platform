@@ -1,32 +1,28 @@
-// .vscode/settings.json
 {
-  // ========================================================================
-  // 1. CONFIGURACIÓN GLOBAL (Mentalidad Next.js / Node.js)
-  // ========================================================================
-  // Desactivamos Deno por defecto para todo el workspace.
-  // Esto asegura que los archivos .ts y .tsx de Next.js se analicen
-  // usando las reglas de TypeScript estándar, no las de Deno.
-  "deno.enable": false,
-  "deno.lint": false,
-  "deno.unstable": false,
-
-  // ========================================================================
-  // 2. CONFIGURACIÓN ESPECÍFICA PARA DENO (Reglas de Formato)
-  // ========================================================================
-  // Aquí le decimos a VS Code: "Para los archivos que SÍ usan Deno
-  // (los que activaremos abajo), quiero que uses 'deno fmt' como
-  // el formateador de código por defecto al presionar Shift+Alt+F".
+  "[typescript]": {
+    "editor.defaultFormatter": "denoland.vscode-deno"
+  },
   "[typescript][typescriptreact]": {
     "editor.defaultFormatter": "denoland.vscode-deno"
   },
-
-  // ========================================================================
-  // 3. LA REGLA MÁGICA (Activación Selectiva)
-  // ========================================================================
-  // Esta es la parte más importante. Le decimos a la extensión de Deno:
-  // "Ignora la regla global de 'deno.enable: false' y actívate
-  // ÚNICAMENTE para los archivos que se encuentren dentro de esta carpeta".
+  "deno.enable": false,
   "deno.enablePaths": [
-    "./supabase/functions"
+    "supabase/functions"
+  ],
+  "deno.lint": true,
+  "deno.unstable": [
+    "bare-node-builtins",
+    "byonm",
+    "sloppy-imports",
+    "unsafe-proto",
+    "webgpu",
+    "broadcast-channel",
+    "worker-options",
+    "cron",
+    "kv",
+    "ffi",
+    "fs",
+    "http",
+    "net"
   ]
 }

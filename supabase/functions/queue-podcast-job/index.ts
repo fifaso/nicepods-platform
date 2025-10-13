@@ -7,7 +7,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { z, ZodError } from "https://deno.land/x/zod@v3.22.4/mod.ts";
-import { corsHeaders } from '@shared/cors.ts';
+import { corsHeaders } from "../_shared/cors.ts";
 
 const QueuePayloadSchema = z.object({
   style: z.enum(['solo', 'link']),
