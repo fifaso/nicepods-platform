@@ -1,14 +1,17 @@
 // supabase/functions/process-podcast-job/index.ts
-// Estrategia: "Desacoplación Total" y Validación de Rol Profesional.
+// Estrategia: "Desacoplación Total" y Validación de Rol Profesional por JWT.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import * as djwt from "https://deno.land/x/djwt@v3.0.1/mod.ts"; // Librería para manejar JWTs en Deno
 import { corsHeaders } from "../_shared/cors.ts";
 
 const MAX_RETRIES = 2;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const GOOGLE_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY")!;
+// El secreto para firmar JWTs es inyectado automáticamente por Supabase.
+const JWT_SECRET = Deno.env.get("SUPABASE_JWT_SECRET")!;
 
 interface Job {
   id: number;
@@ -40,25 +43,23 @@ serve(async (request: Request) => {
   let job: Job | null = null;
 
   try {
-    // ================== INTERVENCIÓN QUIRÚRGICA: VALIDACIÓN DE ROL ==================
-    // En lugar de una comparación de strings, usamos la librería de Supabase
-    // para que inspeccione el JWT que llega y valide su rol.
+    // ================== INTERVENCIÓN QUIRÚRGICA: VALIDACIÓN DE ROL POR JWT ==================
     const authorizationHeader = request.headers.get('Authorization');
-    if (!authorizationHeader) throw new Error("Cabecera de autorización requerida.");
+    if (!authorizationHeader || !authorizationHeader.startsWith('Bearer ')) {
+      throw new Error("Cabecera de autorización inválida o faltante.");
+    }
+    const token = authorizationHeader.split(' ')[1];
 
-    const supabaseAdminClient = createClient(SUPABASE_URL, SERVICE_KEY, {
-      global: { headers: { Authorization: authorizationHeader } }
-    });
-    
-    // `getUser` con la service_role key inspecciona el token y devuelve el rol.
-    const { data: { user }, error: userError } = await supabaseAdminClient.auth.getUser();
-
-    // Si hay un error o el rol no es 'service_role', la llamada no es autorizada.
-    if (userError || user?.role !== 'service_role') {
-      console.error("Fallo de autorización:", userError?.message || "El rol no es service_role");
+    try {
+      const payload = await djwt.verify(token, JWT_SECRET);
+      if (payload.role !== 'service_role') {
+        throw new Error("El rol del token no es 'service_role'.");
+      }
+    } catch (err) {
+      console.error("Fallo de autorización:", err.message);
       throw new Error("Llamada no autorizada.");
     }
-    // ==============================================================================
+    // =====================================================================================
 
     const { job_id } = await request.json();
     if (!job_id) { throw new Error("Se requiere un 'job_id'."); }
@@ -90,7 +91,10 @@ serve(async (request: Request) => {
 
     const finalPrompt = buildFinalPrompt(promptData.prompt_template, inputs);
     
-    const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GOOGLE_API_KEY}`, {
+    // [INTERVENCIÓN QUIRÚRGICA] Se actualiza la URL para usar el modelo correcto.
+    const aiApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GOOGLE_API_KEY}`;
+
+    const aiResponse = await fetch(aiApiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ contents: [{ parts: [{ text: finalPrompt }] }] }),
@@ -146,7 +150,6 @@ serve(async (request: Request) => {
       });
     }
 
-    // Devolvemos 401 si el error es de autorización, 500 para todo lo demás.
     const status = errorMessage === "Llamada no autorizada." ? 401 : 500;
     return new Response(JSON.stringify({ error: errorMessage }), {
       status,
