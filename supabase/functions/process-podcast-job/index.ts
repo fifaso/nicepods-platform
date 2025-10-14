@@ -1,5 +1,5 @@
 // supabase/functions/process-podcast-job/index.ts
-// VERSIÓN DE PRODUCCIÓN FINAL (ARQUITECTURA DE TRIGGER TRANSACCIONAL)
+// VERSIÓN DE PRODUCCIÓN FINAL (ARQUITECTURA DE INVOCACIÓN DIRECTA Y CONTROL EXPLÍCITO)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
@@ -40,25 +40,27 @@ serve(async (request: Request) => {
   let job: Job | null = null;
 
   try {
-    // Validación de la llamada interna mediante un secreto compartido,
-    // que es enviado por el trigger de la base de datos.
+    // 1. AUTENTICACIÓN: Validación de la llamada interna mediante un secreto compartido.
+    // Este método es más rápido, simple y robusto que la validación de JWT para este caso de uso.
     const receivedSecret = request.headers.get('x-internal-secret');
     if (!receivedSecret || receivedSecret !== INTERNAL_WEBHOOK_SECRET) {
       console.error("Fallo de autorización: El secreto interno no coincide o falta.");
       throw new Error("Llamada no autorizada.");
     }
 
+    // 2. OBTENCIÓN DEL TRABAJO: Extraer el ID del trabajo y obtener sus detalles.
     const { job_id } = await request.json();
-    if (!job_id) { throw new Error("Se requiere un 'job_id'."); }
+    if (!job_id) { throw new Error("Se requiere un 'job_id' en el cuerpo de la solicitud."); }
 
     const getJobResponse = await fetch(`${SUPABASE_URL}/rest/v1/podcast_creation_jobs?id=eq.${job_id}&select=*`, {
       headers: ADMIN_AUTH_HEADERS
     });
-    if (!getJobResponse.ok) throw new Error("Fallo al buscar el trabajo.");
+    if (!getJobResponse.ok) throw new Error(`Fallo al buscar el trabajo. Status: ${getJobResponse.status}`);
     const jobs: Job[] = await getJobResponse.json();
     if (jobs.length === 0) throw new Error(`El trabajo con ID ${job_id} no fue encontrado.`);
     job = jobs[0];
 
+    // 3. BLOQUEO DEL TRABAJO: Marcar el trabajo como 'processing' para evitar ejecuciones duplicadas.
     await fetch(`${SUPABASE_URL}/rest/v1/podcast_creation_jobs?id=eq.${job.id}`, {
       method: 'PATCH',
       headers: { ...ADMIN_AUTH_HEADERS, 'Prefer': 'return=minimal' },
@@ -68,6 +70,7 @@ serve(async (request: Request) => {
     const { agentName, inputs } = job.payload;
     if (!agentName) throw new Error(`El trabajo ${job.id} no tiene un 'agentName'.`);
 
+    // 4. LÓGICA DE NEGOCIO: Obtener el prompt y llamar a la IA para generar el guion.
     const getPromptResponse = await fetch(`${SUPABASE_URL}/rest/v1/ai_prompts?agent_name=eq.${agentName}&select=prompt_template`, {
       headers: ADMIN_AUTH_HEADERS
     });
@@ -95,6 +98,7 @@ serve(async (request: Request) => {
     const generatedText = aiResult.candidates[0].content.parts[0].text.replace(/```json|```/g, '').trim();
     const scriptJson = JSON.parse(generatedText);
 
+    // 5. PERSISTENCIA: Guardar el guion generado en la tabla `micro_pods`.
     const insertPodResponse = await fetch(`${SUPABASE_URL}/rest/v1/micro_pods`, {
       method: 'POST',
       headers: { ...ADMIN_AUTH_HEADERS, 'Prefer': 'return=representation' },
@@ -105,9 +109,13 @@ serve(async (request: Request) => {
         status: 'published',
       })
     });
-    if (!insertPodResponse.ok) throw new Error("Fallo al guardar el podcast.");
+    if (!insertPodResponse.ok) {
+      const errorBody = await insertPodResponse.text();
+      throw new Error(`Fallo al guardar el podcast: ${errorBody}`);
+    }
     const newPodcast = (await insertPodResponse.json())[0];
 
+    // 6. FINALIZACIÓN: Marcar el trabajo como 'completed'.
     await fetch(`${SUPABASE_URL}/rest/v1/podcast_creation_jobs?id=eq.${job.id}`, {
       method: 'PATCH',
       headers: { ...ADMIN_AUTH_HEADERS, 'Prefer': 'return=minimal' },
@@ -120,6 +128,7 @@ serve(async (request: Request) => {
     });
 
   } catch (error) {
+    // 7. MANEJO DE ERRORES Y REINTENTOS: Si algo falla, se captura aquí.
     const errorMessage = error instanceof Error ? error.message : "Error interno desconocido.";
     console.error(`Error procesando el trabajo ${job?.id || 'webhook'}: ${errorMessage}`);
 

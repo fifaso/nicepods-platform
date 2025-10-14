@@ -1,5 +1,5 @@
 // supabase/functions/queue-podcast-job/index.ts
-// VERSIÓN DE PRODUCCIÓN FINAL (VALIDADA)
+// VERSIÓN DE PRODUCCIÓN FINAL (ARQUITECTURA DE INVOCACIÓN DIRECTA)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -29,11 +29,19 @@ serve(async (request: Request) => {
     const { data: newJobId, error: rpcError } = await supabaseClient
       .rpc('increment_jobs_and_queue', { p_user_id: user.id, p_payload: validatedPayload });
     if (rpcError) { throw new Error(rpcError.message); }
-    return new Response(JSON.stringify({ 
-      success: true, 
-      job_id: newJobId,
-      message: "El trabajo ha sido encolado y será procesado en breve."
-    }), {
+
+    const functionUrl = `${Deno.env.get('SUPABASE_URL')!}/functions/v1/process-podcast-job`;
+    const internalWebhookSecret = Deno.env.get('INTERNAL_WEBHOOK_SECRET')!;
+
+    fetch(functionUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-internal-secret': internalWebhookSecret },
+      body: JSON.stringify({ job_id: newJobId }),
+    }).catch(err => {
+      console.error(`Error crítico al invocar 'process-podcast-job' para el trabajo ${newJobId}:`, err);
+    });
+
+    return new Response(JSON.stringify({ success: true, job_id: newJobId, message: "El trabajo ha sido encolado y el procesamiento ha comenzado." }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
