@@ -1,5 +1,5 @@
 // supabase/functions/process-podcast-job/index.ts
-// VERSIÓN DE PRODUCCIÓN FINAL (ARQUITECTURA DE INVOCACIÓN DIRECTA Y CONTROL EXPLÍCITO)
+// Sincronización final de secretos - v1.2
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
