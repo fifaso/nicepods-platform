@@ -1,5 +1,5 @@
 // supabase/functions/process-podcast-job/index.ts
-// VERSIÓN DE PRODUCCIÓN FINAL
+// VERSIÓN DE PRODUCCIÓN FINAL (CON VALIDACIÓN DE SECRETO COMPARTIDO Y URL DE GOOGLE CORREGIDA)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
@@ -40,15 +40,12 @@ serve(async (request: Request) => {
   let job: Job | null = null;
 
   try {
-    // ================== VALIDACIÓN POR SECRETO COMPARTIDO ==================
-    // Se ignora el header `Authorization` y se valida únicamente nuestro
-    // secreto interno, que es más rápido, seguro y predecible.
+    // Validación de la llamada interna mediante un secreto compartido.
     const receivedSecret = request.headers.get('x-internal-secret');
     if (!receivedSecret || receivedSecret !== INTERNAL_WEBHOOK_SECRET) {
       console.error("Fallo de autorización: El secreto interno no coincide o falta.");
       throw new Error("Llamada no autorizada.");
     }
-    // ====================================================================
 
     const { job_id } = await request.json();
     if (!job_id) { throw new Error("Se requiere un 'job_id'."); }
@@ -89,7 +86,8 @@ serve(async (request: Request) => {
 
     if (!aiResponse.ok) {
       const errorBody = await aiResponse.text();
-      throw new Error(`La API de Google AI falló con el estado ${aiResponse.status}: ${errorBody}`);
+      console.error(`Error de la API de Google (${aiResponse.status}):`, errorBody);
+      throw new Error(`La API de Google AI falló con el estado ${aiResponse.status}.`);
     }
     
     const aiResult = await aiResponse.json();

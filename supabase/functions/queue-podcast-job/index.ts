@@ -1,5 +1,5 @@
 // supabase/functions/queue-podcast-job/index.ts
-// VERSIÓN DE PRODUCCIÓN FINAL
+// VERSIÓN DE PRODUCCIÓN FINAL (VALIDADA)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -41,10 +41,7 @@ serve(async (request: Request) => {
 
     if (rpcError) { throw new Error(rpcError.message); }
 
-    // ================== INTERVENCIÓN QUIRÚRGICA FINAL ==================
-    // En lugar de usar la `service_role_key` (que causa problemas de JWT),
-    // usamos un secreto compartido para una autenticación de servicio a servicio simple y robusta.
-
+    // Invocación asíncrona a la siguiente función usando un secreto compartido.
     const functionUrl = `${Deno.env.get('SUPABASE_URL')!}/functions/v1/process-podcast-job`;
     const internalWebhookSecret = Deno.env.get('INTERNAL_WEBHOOK_SECRET')!;
 
@@ -58,7 +55,6 @@ serve(async (request: Request) => {
     }).catch(err => {
       console.error(`Error crítico al invocar 'process-podcast-job' para el trabajo ${newJobId}:`, err);
     });
-    // ====================================================================
 
     return new Response(JSON.stringify({ 
       success: true, 
