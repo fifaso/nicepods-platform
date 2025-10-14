@@ -1,32 +1,14 @@
 // supabase/functions/process-podcast-job/index.ts
-// Estrategia: "Desacoplación Total" y Validación de Rol Profesional por JWT.
+// VERSIÓN DE PRODUCCIÓN FINAL
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import * as djwt from "https://deno.land/x/djwt@v3.0.1/mod.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 const MAX_RETRIES = 2;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const GOOGLE_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY")!;
-const JWT_SECRET = Deno.env.get("SUPABASE_JWT_SECRET")!;
-
-// ================== INTERVENCIÓN QUIRÚRGICA: PREPARACIÓN DE LA CLAVE ==================
-// La API de criptografía de Deno requiere que la clave para algoritmos simétricos (HS256)
-// sea un objeto `CryptoKey`, no un simple string.
-// Preparamos la clave una sola vez al iniciar la función para máxima eficiencia.
-
-const encoder = new TextEncoder();
-const keyData = encoder.encode(JWT_SECRET);
-const cryptoKey = await crypto.subtle.importKey(
-  "raw",
-  keyData,
-  { name: "HMAC", hash: "SHA-256" },
-  false, // La clave no es extraíble
-  ["verify"] // La clave solo se usará para verificar firmas
-);
-// =====================================================================================
+const INTERNAL_WEBHOOK_SECRET = Deno.env.get("INTERNAL_WEBHOOK_SECRET")!;
 
 interface Job {
   id: number;
@@ -36,7 +18,12 @@ interface Job {
 }
 
 function buildFinalPrompt(template: string, inputs: Record<string, any>): string {
-    // ... (sin cambios en esta función)
+  let finalPrompt = template;
+  for (const key in inputs) {
+    const value = typeof inputs[key] === 'object' ? JSON.stringify(inputs[key], null, 2) : String(inputs[key]);
+    finalPrompt = finalPrompt.replace(new RegExp(`{{${key}}}`, 'g'), value);
+  }
+  return finalPrompt;
 }
 
 const ADMIN_AUTH_HEADERS = {
@@ -53,24 +40,16 @@ serve(async (request: Request) => {
   let job: Job | null = null;
 
   try {
-    const authorizationHeader = request.headers.get('Authorization');
-    if (!authorizationHeader || !authorizationHeader.startsWith('Bearer ')) {
-      throw new Error("Cabecera de autorización inválida o faltante.");
-    }
-    const token = authorizationHeader.split(' ')[1];
-
-    try {
-      // [CORRECCIÓN] Ahora pasamos el objeto `cryptoKey` preparado en lugar del string.
-      const payload = await djwt.verify(token, cryptoKey);
-      if (payload.role !== 'service_role') {
-        throw new Error("El rol del token no es 'service_role'.");
-      }
-    } catch (err) {
-      console.error("Fallo de autorización:", err.message);
+    // ================== VALIDACIÓN POR SECRETO COMPARTIDO ==================
+    // Se ignora el header `Authorization` y se valida únicamente nuestro
+    // secreto interno, que es más rápido, seguro y predecible.
+    const receivedSecret = request.headers.get('x-internal-secret');
+    if (!receivedSecret || receivedSecret !== INTERNAL_WEBHOOK_SECRET) {
+      console.error("Fallo de autorización: El secreto interno no coincide o falta.");
       throw new Error("Llamada no autorizada.");
     }
-    
-    // ... (el resto del código de la función no necesita cambios)
+    // ====================================================================
+
     const { job_id } = await request.json();
     if (!job_id) { throw new Error("Se requiere un 'job_id'."); }
 
