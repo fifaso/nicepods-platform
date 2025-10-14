@@ -1,5 +1,5 @@
 // supabase/functions/process-podcast-job/index.ts
-// VERSIÓN DE PRODUCCIÓN FINAL (CON VALIDACIÓN DE SECRETO COMPARTIDO Y URL DE GOOGLE CORREGIDA)
+// VERSIÓN DE PRODUCCIÓN FINAL
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
