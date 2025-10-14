@@ -1,5 +1,5 @@
 // supabase/functions/process-podcast-job/index.ts
-// VERSIÓN DE PRODUCCIÓN FINAL
+// VERSIÓN DE PRODUCCIÓN FINAL (ARQUITECTURA DE TRIGGER TRANSACCIONAL)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
@@ -40,7 +40,8 @@ serve(async (request: Request) => {
   let job: Job | null = null;
 
   try {
-    // Validación de la llamada interna mediante un secreto compartido.
+    // Validación de la llamada interna mediante un secreto compartido,
+    // que es enviado por el trigger de la base de datos.
     const receivedSecret = request.headers.get('x-internal-secret');
     if (!receivedSecret || receivedSecret !== INTERNAL_WEBHOOK_SECRET) {
       console.error("Fallo de autorización: El secreto interno no coincide o falta.");

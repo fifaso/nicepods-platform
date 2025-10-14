@@ -1,5 +1,5 @@
 // supabase/functions/queue-podcast-job/index.ts
-// VERSIÓN DE PRODUCCIÓN FINAL (VALIDADA)
+// VERSIÓN DE PRODUCCIÓN FINAL (ARQUITECTURA DE TRIGGER TRANSACCIONAL)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -33,6 +33,7 @@ serve(async (request: Request) => {
     const payload = await request.json();
     const validatedPayload = QueuePayloadSchema.parse(payload);
 
+    // La única responsabilidad de esta función es llamar a la función de la base de datos.
     const { data: newJobId, error: rpcError } = await supabaseClient
       .rpc('increment_jobs_and_queue', {
         p_user_id: user.id,
@@ -41,25 +42,13 @@ serve(async (request: Request) => {
 
     if (rpcError) { throw new Error(rpcError.message); }
 
-    // Invocación asíncrona a la siguiente función usando un secreto compartido.
-    const functionUrl = `${Deno.env.get('SUPABASE_URL')!}/functions/v1/process-podcast-job`;
-    const internalWebhookSecret = Deno.env.get('INTERNAL_WEBHOOK_SECRET')!;
-
-    fetch(functionUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-internal-secret': internalWebhookSecret // Header de autenticación interno.
-      },
-      body: JSON.stringify({ job_id: newJobId }),
-    }).catch(err => {
-      console.error(`Error crítico al invocar 'process-podcast-job' para el trabajo ${newJobId}:`, err);
-    });
+    // El trigger `on_new_job_created` en la base de datos se encargará de invocar
+    // a `process-podcast-job` de forma asíncrona. No necesitamos hacer nada más aquí.
 
     return new Response(JSON.stringify({ 
       success: true, 
       job_id: newJobId,
-      message: "El trabajo ha sido encolado y el procesamiento ha comenzado."
+      message: "El trabajo ha sido encolado y será procesado en breve."
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
