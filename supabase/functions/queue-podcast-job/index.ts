@@ -1,5 +1,5 @@
 // supabase/functions/queue-podcast-job/index.ts
-// ARQUITECTURA: "TOKEN DE INVOCACIÓN DE UN SOLO USO" - EMISOR
+// ARQUITECTURA HÍBRIDA FINAL
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -18,19 +18,8 @@ serve(async (request: Request) => {
     const authorizationHeader = request.headers.get('Authorization');
     if (!authorizationHeader) { throw new Error("La cabecera de autorización es requerida."); }
     
-    // [CAMBIO ARQUITECTÓNICO #1] Se necesita un cliente de admin para poder
-    // actualizar la tabla de trabajos con el token de invocación.
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
-
-    // Se mantiene el cliente en el contexto del usuario para la autenticación y la llamada RPC.
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authorizationHeader } } }
-    );
+    const supabaseAdmin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+    const supabaseClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authorizationHeader } } });
 
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) { return new Response(JSON.stringify({ error: "No autorizado." }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }}); }
@@ -38,28 +27,29 @@ serve(async (request: Request) => {
     const payload = await request.json();
     const validatedPayload = QueuePayloadSchema.parse(payload);
     
-    // 1. Encolar el trabajo
-    const { data: newJobId, error: rpcError } = await supabaseClient
-      .rpc('increment_jobs_and_queue', { p_user_id: user.id, p_payload: validatedPayload });
+    const { data: newJobId, error: rpcError } = await supabaseClient.rpc('increment_jobs_and_queue', { p_user_id: user.id, p_payload: validatedPayload });
     if (rpcError) { throw new Error(rpcError.message); }
 
-    // [CAMBIO ARQUITECTÓNICO #2] Generar y guardar el token de invocación de un solo uso.
     const invocationToken = crypto.randomUUID();
-    const { error: updateError } = await supabaseAdmin
-      .from('podcast_creation_jobs')
-      .update({ invocation_token: invocationToken })
-      .eq('id', newJobId);
+    const { error: updateError } = await supabaseAdmin.from('podcast_creation_jobs').update({ invocation_token: invocationToken }).eq('id', newJobId);
     if (updateError) { throw new Error(`Fallo al guardar el token de invocación: ${updateError.message}`); }
 
-    // 3. Invocar al trabajador con el ID y el token. Sin headers de autenticación.
+    // ================== INTERVENCIÓN QUIRÚRGICA FINAL ==================
+    // Se re-introduce un header de autenticación a nivel de servicio (`apikey`)
+    // para satisfacer la regla de seguridad de la API Gateway de Supabase.
+    // La autorización real a nivel de aplicación sigue siendo el token en el cuerpo.
     const functionUrl = `${Deno.env.get('SUPABASE_URL')!}/functions/v1/process-podcast-job`;
     fetch(functionUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'apikey': Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+      },
       body: JSON.stringify({ job_id: newJobId, token: invocationToken }),
     }).catch(err => {
       console.error(`Error crítico al invocar 'process-podcast-job' para el trabajo ${newJobId}:`, err);
     });
+    // ================================================================
 
     return new Response(JSON.stringify({ success: true, job_id: newJobId, message: "El trabajo ha sido encolado y el procesamiento ha comenzado." }), {
       status: 200,
