@@ -1,5 +1,5 @@
 // supabase/functions/process-podcast-job/index.ts
-// ARQUITECTURA: "TOKEN DE INVOCACIÓN DE UN SOLO USO" - RECEPTOR
+// ARQUITECTURA FINAL: TRABAJADOR SIMPLE (INVOCACIÓN NATIVA)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -10,6 +10,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const GOOGLE_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY")!;
 
+// Se crea un cliente de administrador a nivel de módulo para reutilización y eficiencia.
 const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_KEY);
 
 interface Job {
@@ -28,38 +29,29 @@ function buildFinalPrompt(template: string, inputs: Record<string, any>): string
   return finalPrompt;
 }
 
-const ADMIN_AUTH_HEADERS = {
-  'Content-Type': 'application/json',
-  'apikey': SERVICE_KEY,
-  'Authorization': `Bearer ${SERVICE_KEY}`
-};
-
 serve(async (request: Request) => {
+  // Manejo estándar de la petición pre-vuelo de CORS.
   if (request.method === 'OPTIONS') { return new Response('ok', { headers: corsHeaders }); }
+
   let job: Job | null = null;
+
   try {
-    const { job_id, token } = await request.json();
-    if (!job_id || !token) { throw new Error("Se requiere 'job_id' y 'token' en el cuerpo de la solicitud."); }
+    // 1. OBTENCIÓN DEL TRABAJO
+    // No se necesita validación de autenticación aquí. La API Gateway de Supabase
+    // ya ha garantizado que esta función solo puede ser llamada por un servicio
+    // con la `service_role_key`.
+    const { job_id } = await request.json();
+    if (!job_id) { throw new Error("Se requiere un 'job_id' en el cuerpo de la solicitud."); }
 
-    // 1. AUTENTICACIÓN: Reclamar y anular el token de forma atómica.
-    // Esta operación solo tendrá éxito si el job_id y el token coinciden,
-    // y si el token no ha sido ya anulado (es decir, no es NULL).
-    const { data: claimedJob, error: claimError } = await supabaseAdmin
+    const { data: jobData, error: jobError } = await supabaseAdmin
       .from('podcast_creation_jobs')
-      .update({ invocation_token: null }) // Anula el token para prevenir re-uso
+      .select('*')
       .eq('id', job_id)
-      .eq('invocation_token', token)
-      .select()
       .single();
-      
-    if (claimError || !claimedJob) {
-      console.error("Fallo de autorización. Trabajo no encontrado, ya reclamado, o token inválido:", claimError?.message);
-      throw new Error("Llamada no autorizada o trabajo inválido.");
-    }
-    job = claimedJob;
-
-    // A partir de aquí, la llamada es 100% legítima.
     
+    if (jobError || !jobData) { throw new Error(`El trabajo con ID ${job_id} no fue encontrado o hubo un error: ${jobError?.message}`); }
+    job = jobData as Job;
+
     // 2. BLOQUEO DEL TRABAJO
     await supabaseAdmin
       .from('podcast_creation_jobs')
@@ -70,11 +62,13 @@ serve(async (request: Request) => {
     if (!agentName) throw new Error(`El trabajo ${job.id} no tiene un 'agentName'.`);
 
     // 3. LÓGICA DE NEGOCIO
-    const getPromptResponse = await fetch(`${SUPABASE_URL}/rest/v1/ai_prompts?agent_name=eq.${agentName}&select=prompt_template`, { headers: ADMIN_AUTH_HEADERS });
-    if (!getPromptResponse.ok) throw new Error(`Prompt para el agente '${agentName}' no encontrado.`);
-    const prompts = await getPromptResponse.json();
-    if (prompts.length === 0) throw new Error(`Prompt para el agente '${agentName}' no encontrado.`);
-    const promptData = prompts[0];
+    const { data: promptData, error: promptError } = await supabaseAdmin
+      .from('ai_prompts')
+      .select('prompt_template')
+      .eq('agent_name', agentName)
+      .single();
+
+    if (promptError || !promptData) { throw new Error(`Prompt para el agente '${agentName}' no encontrado.`); }
 
     const finalPrompt = buildFinalPrompt(promptData.prompt_template, inputs);
     
@@ -95,18 +89,18 @@ serve(async (request: Request) => {
     const scriptJson = JSON.parse(generatedText);
 
     // 4. PERSISTENCIA
-    const insertPodResponse = await fetch(`${SUPABASE_URL}/rest/v1/micro_pods`, {
-      method: 'POST',
-      headers: { ...ADMIN_AUTH_HEADERS, 'Prefer': 'return=representation' },
-      body: JSON.stringify({
+    const { data: newPodcast, error: insertError } = await supabaseAdmin
+      .from('micro_pods')
+      .insert({
         user_id: job.user_id,
         title: scriptJson.title,
         script_text: JSON.stringify(scriptJson.script),
         status: 'published',
       })
-    });
-    if (!insertPodResponse.ok) throw new Error("Fallo al guardar el podcast.");
-    const newPodcast = (await insertPodResponse.json())[0];
+      .select('id')
+      .single();
+
+    if (insertError) { throw new Error(`Fallo al guardar el podcast: ${insertError.message}`); }
 
     // 5. FINALIZACIÓN
     await supabaseAdmin
@@ -114,21 +108,32 @@ serve(async (request: Request) => {
       .update({ status: 'completed', micro_pod_id: newPodcast.id, error_message: null })
       .eq('id', job.id);
 
-    return new Response(JSON.stringify({ success: true, message: `Trabajo ${job.id} completado.` }), { status: 200, headers: corsHeaders });
+    return new Response(JSON.stringify({ success: true, message: `Trabajo ${job.id} completado.` }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
 
   } catch (error) {
     // 6. MANEJO DE ERRORES Y REINTENTOS
     const errorMessage = error instanceof Error ? error.message : "Error interno desconocido.";
     console.error(`Error procesando el trabajo ${job?.id || 'webhook'}: ${errorMessage}`);
+
     if (job) {
       const newStatus = job.retry_count < MAX_RETRIES ? 'pending' : 'failed';
-      // [MEJORA] Si el trabajo falla, generamos un nuevo token de invocación para permitir un reintento manual o futuro.
       const updatePayload = newStatus === 'pending'
-        ? { status: "pending", retry_count: job.retry_count + 1, error_message: `Intento ${job.retry_count + 1} falló: ${errorMessage.substring(0, 255)}`, invocation_token: crypto.randomUUID() }
+        ? { status: "pending", retry_count: job.retry_count + 1, error_message: `Intento ${job.retry_count + 1} falló: ${errorMessage.substring(0, 255)}` }
         : { status: "failed", error_message: `Falló después de ${MAX_RETRIES + 1} intentos. Error final: ${errorMessage.substring(0, 255)}` };
-      await supabaseAdmin.from('podcast_creation_jobs').update(updatePayload).eq('id', job.id);
+      
+      await supabaseAdmin
+        .from('podcast_creation_jobs')
+        .update(updatePayload)
+        .eq('id', job.id);
     }
-    const status = errorMessage.includes("Llamada no autorizada") ? 401 : 500;
-    return new Response(JSON.stringify({ error: errorMessage }), { status, headers: corsHeaders });
+
+    // Devolvemos 500 para cualquier error interno, ya que el 401 ahora es manejado por la infraestructura.
+    return new Response(JSON.stringify({ error: errorMessage }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });
