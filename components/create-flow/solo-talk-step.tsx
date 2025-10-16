@@ -33,7 +33,7 @@ export function SoloTalkStep() {
         name="solo_motivation"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>¿Qué quieres explorar o enseñar? *</FormLabel>
+            <FormLabel>¿Desde qué perspectiva quieres explorar este tema? *</FormLabel>
             <FormControl>
               <Textarea
                 placeholder="Ej: Quiero explorar el impacto accidental de la ciencia y cómo un error puede cambiar el mundo."

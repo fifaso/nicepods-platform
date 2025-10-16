@@ -56,7 +56,8 @@ export function PodcastCreationForm() {
     }
   });
 
-  const { handleSubmit, trigger, watch, setValue } = formMethods;
+  // [INTERVENCIÓN QUIRÚRGICA #1] Añadimos `getValues` para leer el estado del formulario bajo demanda.
+  const { handleSubmit, trigger, watch, setValue, getValues } = formMethods;
   const { isSubmitting } = formMethods.formState;
   const currentStyle = watch('style');
 
@@ -76,7 +77,7 @@ export function PodcastCreationForm() {
     if (stepForValidation === 1) fieldsToValidate = ['style'];
     if (stepForValidation === 2) {
       if (currentStyle === 'solo') fieldsToValidate = ['solo_topic', 'solo_motivation'];
-      if (currentStyle === 'link') fieldsToValidate = ['link_topicA', 'link_topicB', 'link_catalyst'];
+      if (currentStyle === 'link') fieldsToValidate = ['link_topicA', 'link_topicB'];
     }
     if (currentStyle === 'solo' && stepForValidation === 3) { fieldsToValidate = ['duration', 'narrativeDepth', 'selectedAgent']; }
     if (currentStyle === 'link' && stepForValidation === 3) { fieldsToValidate = ['link_selectedNarrative', 'link_selectedTone']; }
@@ -85,24 +86,61 @@ export function PodcastCreationForm() {
     if (isStepValid) { goToNextStep(); }
   };
   
+  // ================== INTERVENCIÓN QUIRÚRGICA #2: LÓGICA DE GENERACIÓN REAL ==================
+  // Se reemplaza la simulación con la llamada real y robusta a la Edge Function.
   const handleGenerateNarratives = useCallback(async () => {
+    if (!supabase) {
+      toast({ title: "Error de Conexión", description: "La conexión con el servidor no está disponible.", variant: "destructive" });
+      return;
+    }
+    
+    const { link_topicA, link_topicB, link_catalyst } = getValues();
+
     setIsLoadingNarratives(true);
-    await new Promise(resolve => setTimeout(resolve, 1500)); 
-    setNarrativeOptions([
-      { title: "El Héroe Cotidiano", thesis: "Cómo los desafíos diarios son el verdadero campo de entrenamiento para la virtud estoica." },
-      { title: "La Fortaleza Tranquila", thesis: "Aplicando la serenidad estoica para navegar la incertidumbre de los retos modernos." },
-      { title: "De Obstáculo a Oportunidad", thesis: "Una perspectiva estoica que transforma cada desafío en un escalón para el crecimiento personal." },
-    ]);
-    setIsLoadingNarratives(false);
-    toast({ title: "Narrativas generadas", description: "Hemos creado algunas perspectivas para conectar tus ideas. ¡Elige una!" });
-    goToNextStep();
-  }, [toast]);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-narratives', {
+        body: {
+          topicA: link_topicA,
+          topicB: link_topicB,
+          catalyst: link_catalyst,
+        }
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+      
+      if (data?.narratives && Array.isArray(data.narratives)) {
+        setNarrativeOptions(data.narratives);
+        toast({ title: "Narrativas generadas", description: "Hemos creado algunas perspectivas para conectar tus ideas. ¡Elige una!" });
+        goToNextStep();
+      } else {
+        throw new Error("La respuesta del servidor no tuvo el formato esperado.");
+      }
+
+    } catch (e) {
+      console.error("Error al generar narrativas:", e);
+      toast({
+        title: "Error al Generar Narrativas",
+        description: e instanceof Error ? e.message : "Hubo un problema inesperado. Por favor, inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingNarratives(false);
+    }
+  }, [supabase, toast, getValues, goToNextStep]);
+  // =========================================================================================
 
   const handleGenerateNarrativesClick = async () => {
-    const fieldsToValidate: (keyof PodcastCreationData)[] = ['link_topicA', 'link_topicB', 'link_catalyst'];
+    // [MEJORA ESTRATÉGICA] Solo se validan los campos requeridos.
+    const fieldsToValidate: (keyof PodcastCreationData)[] = ['link_topicA', 'link_topicB'];
     const isStepValid = await trigger(fieldsToValidate);
-    if (isStepValid) { await handleGenerateNarratives(); } 
-    else { toast({ title: "Campos incompletos", description: "Por favor, rellena los temas y el catalizador para continuar.", variant: "destructive" }); }
+    if (isStepValid) { 
+      await handleGenerateNarratives(); 
+    } else { 
+      toast({ title: "Campos Incompletos", description: "Por favor, rellena los dos temas para continuar.", variant: "destructive" }); 
+    }
   };
 
   const handleFinalSubmit: SubmitHandler<PodcastCreationData> = useCallback(async (formData) => {
@@ -132,20 +170,12 @@ export function PodcastCreationForm() {
     }
     
     if (data && !data.success) {
-      if (data.error?.code === 'LIMIT_REACHED') {
-        toast({
-          title: "Límite de Creaciones Alcanzado",
-          description: "Has utilizado todas las creaciones de tu plan para este mes.",
-          variant: "destructive",
-          action: ( <Button variant="outline" size="sm" onClick={() => router.push('/pricing')}> <Zap className="mr-2 h-4 w-4" /> Ver Planes </Button> ),
-        });
-      } else {
-        toast({ title: "Error al Enviar tu Idea", description: data.error?.message || "Hubo un problema inesperado. Por favor, inténtalo de nuevo.", variant: "destructive" });
-      }
+      // El backend puede devolver un error de lógica de negocio, como el límite de creaciones.
+      toast({ title: "Error al Enviar tu Idea", description: data.error?.message || "Hubo un problema inesperado. Por favor, inténtalo de nuevo.", variant: "destructive" });
       return;
     }
 
-    toast({ title: "¡Éxito! Tu idea está en la cola.", description: "Serás redirigido a tu biblioteca. Te notificaremos cuando el guion esté listo." });
+    toast({ title: "¡Éxito! Tu idea está en la cola.", description: "Serás redirigido a tu biblioteca. El procesamiento ha comenzado." });
     router.push('/podcasts?tab=library');
   }, [supabase, user, toast, router]);
   
@@ -191,7 +221,7 @@ export function PodcastCreationForm() {
                       </CardContent>
                   </Card>
                   <div className="flex justify-between items-center mt-6 flex-shrink-0">
-                      <Button type="button" variant="outline" onClick={goToPreviousStep} disabled={currentStep === 1 || isSubmitting}>
+                      <Button type="button" variant="outline" onClick={goToPreviousStep} disabled={currentStep === 1 || isSubmitting || isLoadingNarratives}>
                           <ChevronLeft className="mr-2 h-4 w-4" />Atrás
                       </Button>
                       <div className="ml-auto">
