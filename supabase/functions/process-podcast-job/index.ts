@@ -122,8 +122,9 @@ serve(async (request: Request) => {
     console.error(`Error procesando el trabajo ${job?.id || 'webhook'}: ${errorMessage}`);
     if (job) {
       const newStatus = job.retry_count < MAX_RETRIES ? 'pending' : 'failed';
+      // [MEJORA] Si el trabajo falla, generamos un nuevo token de invocación para permitir un reintento manual o futuro.
       const updatePayload = newStatus === 'pending'
-        ? { status: "pending", retry_count: job.retry_count + 1, error_message: `Intento ${job.retry_count + 1} falló: ${errorMessage.substring(0, 255)}`, invocation_token: crypto.randomUUID() } // Se genera un nuevo token para el reintento
+        ? { status: "pending", retry_count: job.retry_count + 1, error_message: `Intento ${job.retry_count + 1} falló: ${errorMessage.substring(0, 255)}`, invocation_token: crypto.randomUUID() }
         : { status: "failed", error_message: `Falló después de ${MAX_RETRIES + 1} intentos. Error final: ${errorMessage.substring(0, 255)}` };
       await supabaseAdmin.from('podcast_creation_jobs').update(updatePayload).eq('id', job.id);
     }
