@@ -1,3 +1,4 @@
+// app/podcast/[id]/page.tsx
 import { cookies } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
 import { PodcastView } from "@/components/podcast-view";
