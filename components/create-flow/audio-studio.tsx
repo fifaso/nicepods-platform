@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 
 // --- Importaciones de Componentes de UI ---
 import { 
@@ -12,27 +12,20 @@ import {
   DialogFooter 
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
-import { Loader2 } from "lucide-react";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Loader2, User, UserSquare2 } from "lucide-react"; // Usamos iconos para el género
 
-// ================== ARQUITECTURA DE CONFIGURACIÓN ESTÁTICA ==================
-// La lista de voces es una constante estática. Esto elimina la dependencia de red,
-// haciendo la UI más rápida, más robusta y más fácil de mantener.
+// ================== INTERVENCIÓN QUIRÚRGICA #1: ESTRUCTURA DE DATOS DE VOZ ENRIQUECIDA ==================
+// La lista de voces ahora es una "base de datos" de actores, con género y una descripción de estilo.
+// Se han eliminado las voces en inglés como solicitaste.
 const voiceOptions = [
-  { name: "es-US-Wavenet-A", description: "Voz Masculina (EE.UU., Clara)" },
-  { name: "es-US-Wavenet-C", description: "Voz Femenina (EE.UU., Cálida)" },
-  { name: "es-ES-Wavenet-B", description: "Voz Masculina (España, Formal)" },
-  { name: "es-ES-Wavenet-C", description: "Voz Femenina (España, Suave)" },
+  { name: "es-US-Wavenet-A", gender: "MALE", description: "Voz Clara (EE.UU.)" },
+  { name: "es-ES-Wavenet-B", gender: "MALE", description: "Voz Formal (España)" },
+  { name: "es-US-Wavenet-C", gender: "FEMALE", description: "Voz Cálida (EE.UU.)" },
+  { name: "es-ES-Wavenet-C", gender: "FEMALE", description: "Voz Suave (España)" },
 ];
-// =========================================================================
+// =====================================================================================================
 
 interface AudioStudioProps {
   podcastId: string;
@@ -43,18 +36,27 @@ interface AudioStudioProps {
 export function AudioStudio({ podcastId, isOpen, onClose }: AudioStudioProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   
-  // El estado ahora puede tener un valor por defecto directamente de la constante.
-  const [selectedVoice, setSelectedVoice] = useState<string>(voiceOptions[0].name);
-  const [speakingRate, setSpeakingRate] = useState(1.0);
-  const [pitch, setPitch] = useState(0);
+  // ================== INTERVENCIÓN QUIRÚRGICA #2: GESTIÓN DE ESTADO JERÁRQUICA ==================
+  // Separamos el estado para el género y para la voz final.
+  const [selectedGender, setSelectedGender] = useState<'MALE' | 'FEMALE'>('MALE');
+  const [selectedVoiceName, setSelectedVoiceName] = useState<string>(voiceOptions.find(v => v.gender === 'MALE')!.name);
+
+  // Efecto para actualizar la voz seleccionada cuando cambia el género,
+  // asegurando que siempre haya una opción válida seleccionada.
+  useEffect(() => {
+    const firstVoiceOfGender = voiceOptions.find(v => v.gender === selectedGender);
+    if (firstVoiceOfGender) {
+      setSelectedVoiceName(firstVoiceOfGender.name);
+    }
+  }, [selectedGender]);
+  // ==============================================================================================
   
   const handleGenerateAudio = useCallback(() => {
-    // Criterio de éxito del Hito 1:
+    // La función de "éxito" ahora recoge solo la voz final. Los otros parámetros
+    // se añadirán en el backend con valores por defecto.
     console.log("=== INICIANDO GENERACIÓN DE AUDIO (HITO 1 COMPLETADO) ===");
     console.log("Podcast ID:", podcastId);
-    console.log("Voz Seleccionada:", selectedVoice);
-    console.log("Velocidad:", speakingRate);
-    console.log("Tono:", pitch);
+    console.log("Voz Seleccionada (Nombre Técnico):", selectedVoiceName);
     console.log("========================================================");
     
     setIsGenerating(true);
@@ -62,7 +64,10 @@ export function AudioStudio({ podcastId, isOpen, onClose }: AudioStudioProps) {
       setIsGenerating(false);
       onClose();
     }, 2000);
-  }, [podcastId, selectedVoice, speakingRate, pitch, onClose]);
+  }, [podcastId, selectedVoiceName, onClose]);
+
+  // Filtramos las voces disponibles basándonos en el género seleccionado.
+  const availableVoices = voiceOptions.filter(v => v.gender === selectedGender);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -70,46 +75,56 @@ export function AudioStudio({ podcastId, isOpen, onClose }: AudioStudioProps) {
         <DialogHeader>
           <DialogTitle>Estudio de Audio</DialogTitle>
           <DialogDescription>
-            Personaliza la voz y el ritmo de tu micro-podcast antes de generar el audio final.
+            Actúa como director. Elige la voz y el estilo para tu micro-podcast.
           </DialogDescription>
         </DialogHeader>
         
-        {/* Se elimina el estado de carga, ya que los datos son instantáneos. */}
-        <div className="grid gap-6 py-4">
-          <div className="grid gap-2">
-            <Label>Voz del Narrador</Label>
-            <Select onValueChange={setSelectedVoice} value={selectedVoice}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecciona una voz..." />
-              </SelectTrigger>
-              <SelectContent>
-                {voiceOptions.map(voice => (
-                  <SelectItem key={voice.name} value={voice.name}>
-                    {voice.description}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        <div className="grid gap-8 py-4">
+          {/* ================== INTERVENCIÓN QUIRÚRGICA #3: SELECCIÓN DE GÉNERO ================== */}
+          <div className="grid gap-3">
+            <Label>1. Tipo de Narrador</Label>
+            <ToggleGroup
+              type="single"
+              value={selectedGender}
+              onValueChange={(value: 'MALE' | 'FEMALE') => {
+                if (value) setSelectedGender(value);
+              }}
+              className="grid grid-cols-2"
+            >
+              <ToggleGroupItem value="MALE" aria-label="Voz Masculina" className="h-12">
+                <User className="h-5 w-5 mr-2" />
+                Masculino
+              </ToggleGroupItem>
+              <ToggleGroupItem value="FEMALE" aria-label="Voz Femenina" className="h-12">
+                <UserSquare2 className="h-5 w-5 mr-2" />
+                Femenino
+              </ToggleGroupItem>
+            </ToggleGroup>
           </div>
-          <div className="grid gap-2">
-            <Label>Velocidad de Habla ({speakingRate.toFixed(2)}x)</Label>
-            <Slider
-              min={0.75} max={1.25} step={0.05}
-              value={[speakingRate]} onValueChange={(val) => setSpeakingRate(val[0])}
-            />
+          {/* ======================================================================================= */}
+          
+          {/* ================== INTERVENCIÓN QUIRÚRGICA #4: SELECCIÓN DE ESTILO (RITMO) ================== */}
+          <div className="grid gap-3">
+            <Label>2. Estilo de Voz</Label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {availableVoices.map((voice) => (
+                <Button
+                  key={voice.name}
+                  variant={selectedVoiceName === voice.name ? 'default' : 'outline'}
+                  onClick={() => setSelectedVoiceName(voice.name)}
+                  className="h-12"
+                >
+                  {voice.description}
+                </Button>
+              ))}
+            </div>
           </div>
-          <div className="grid gap-2">
-            <Label>Tono de Voz ({pitch > 0 ? '+' : ''}{pitch})</Label>
-             <Slider
-              min={-4} max={4} step={0.5}
-              value={[pitch]} onValueChange={(val) => setPitch(val[0])}
-            />
-          </div>
+          {/* ======================================================================================= */}
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={isGenerating}>Cancelar</Button>
-          <Button onClick={handleGenerateAudio} disabled={isGenerating || !selectedVoice}>
+          <Button onClick={handleGenerateAudio} disabled={isGenerating || !selectedVoiceName}>
             {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Generar Audio
           </Button>
