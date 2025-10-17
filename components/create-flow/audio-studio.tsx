@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
+import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
 
 // --- Importaciones de Componentes de UI ---
 import { 
@@ -20,10 +22,10 @@ import { Loader2, User, UserSquare2 } from "lucide-react";
 // ================== INTERVENCIÓN QUIRÚRGICA #1: LA FUENTE DE LA VERDAD ==================
 // La "base de datos" de voces. Es la única fuente de información.
 const voiceOptions = [
-  { name: "es-US-Wavenet-A", gender: "MALE", description: "Voz Clara" },
+  { name: "es-ES-Wavenet-A", gender: "MALE", description: "Voz Clara" },
   { name: "es-ES-Wavenet-B", gender: "MALE", description: "Voz Formal" },
-  { name: "es-US-Wavenet-C", gender: "FEMALE", description: "Voz Cálida" },
-  { name: "es-ES-Wavenet-C", gender: "FEMALE", description: "Voz Suave" },
+  { name: "es-ES-Wavenet-C", gender: "FEMALE", description: "Voz Clara)" },
+  { name: "es-ES-Wavenet-C", gender: "FEMALE", description: "Voz Formal)" },
 ] as const; // `as const` para máxima seguridad de tipos en TypeScript.
 // ======================================================================================
 
@@ -34,6 +36,9 @@ interface AudioStudioProps {
 }
 
 export function AudioStudio({ podcastId, isOpen, onClose }: AudioStudioProps) {
+  const { supabase } = useAuth();
+  const { toast } = useToast();
+  
   const [isGenerating, setIsGenerating] = useState(false);
   
   // ================== INTERVENCIÓN QUIRÚRGICA #2: ARQUITECTURA DE ESTADO SIMPLIFICADA ==================
@@ -42,7 +47,7 @@ export function AudioStudio({ podcastId, isOpen, onClose }: AudioStudioProps) {
   const [speakingRate, setSpeakingRate] = useState(1.0);
   
   // DATOS DERIVADOS: En lugar de estados separados, derivamos la información necesaria
-  // de la fuente única de verdad en cada renderizado. Esto es más eficiente y seguro.
+  // de la fuente única de verdad en cada renderizado. Esto es más eficiente y 100% seguro.
   const selectedVoiceObject = useMemo(() => 
     voiceOptions.find(v => v.name === selectedVoiceName)!, 
     [selectedVoiceName]
@@ -50,21 +55,39 @@ export function AudioStudio({ podcastId, isOpen, onClose }: AudioStudioProps) {
   const selectedGender = selectedVoiceObject.gender;
   // ================================================================================================
   
-  const handleGenerateAudio = useCallback(() => {
-    console.log("=== INICIANDO GENERACIÓN DE AUDIO (HITO 1 COMPLETADO) ===");
-    console.log("Podcast ID:", podcastId);
-    console.log("Voz Seleccionada (Nombre Técnico):", selectedVoiceName);
-    console.log("Velocidad:", speakingRate);
-    console.log("========================================================");
-    
+  const handleGenerateAudio = useCallback(async () => {
+    if (!supabase) {
+      toast({ title: "Error", description: "La conexión con Supabase no está disponible.", variant: "destructive" });
+      return;
+    }
     setIsGenerating(true);
-    setTimeout(() => {
-      setIsGenerating(false);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-audio-from-script', {
+        body: {
+          podcastId: podcastId,
+          voiceName: selectedVoiceName, // Se usa directamente la fuente de verdad.
+          speakingRate: speakingRate,
+        }
+      });
+      if (error) { throw new Error(error.message); }
+      toast({
+        title: "¡Petición Enviada!",
+        description: "Tu audio está siendo generado. Podrás escucharlo en tu biblioteca en unos momentos.",
+      });
       onClose();
-    }, 2000);
-  }, [podcastId, selectedVoiceName, speakingRate, onClose]);
+    } catch (e) {
+      console.error("Error al generar el audio:", e);
+      toast({
+        title: "Error al Generar el Audio",
+        description: e instanceof Error ? e.message : "Hubo un problema inesperado.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [podcastId, selectedVoiceName, speakingRate, supabase, toast, onClose]);
   
-  // Filtramos las voces que se mostrarán en la UI basándonos en el género derivado.
+  // Filtramos las voces que se mostrarán en la UI basándonos en el género.
   const voicesForMale = voiceOptions.filter(v => v.gender === 'MALE');
   const voicesForFemale = voiceOptions.filter(v => v.gender === 'FEMALE');
 
