@@ -2,9 +2,8 @@
 
 import { useState, useCallback } from "react";
 
-// ================== INTERVENCIÓN QUIRÚRGICA: IMPORTACIONES COMPLETAS ==================
-// Se añaden todas las importaciones de componentes de UI de ShadCN/UI y Lucide
-// que son necesarias para renderizar el modal y sus controles.
+// ================== INTERVENCIÓN QUIRÚRGICA #1: LA IMPORTACIÓN CORRECTA ==================
+// Se reemplaza `FormLabel` por el componente `Label` estándar y sin contexto.
 import { 
   Dialog, 
   DialogContent, 
@@ -22,11 +21,10 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { FormLabel } from "@/components/ui/form";
+import { Label } from "@/components/ui/label"; // <-- ¡ESTA ES LA CORRECCIÓN!
 import { Loader2 } from "lucide-react";
-// ====================================================================================
+// =======================================================================================
 
-// La lista de voces ahora es una constante estática, haciendo la UI más rápida y robusta.
 const voiceOptions = [
   { name: "es-US-Wavenet-A", description: "Voz Masculina (EE.UU., Clara)" },
   { name: "es-US-Wavenet-C", description: "Voz Femenina (EE.UU., Cálida)" },
@@ -49,7 +47,6 @@ export function AudioStudio({ podcastId, isOpen, onClose }: AudioStudioProps) {
   const [pitch, setPitch] = useState(0);
   
   const handleGenerateAudio = useCallback(() => {
-    // Criterio de éxito del Hito 1:
     console.log("=== INICIANDO GENERACIÓN DE AUDIO (HITO 1) ===");
     console.log("Podcast ID:", podcastId);
     console.log("Voz Seleccionada:", selectedVoice);
@@ -76,7 +73,8 @@ export function AudioStudio({ podcastId, isOpen, onClose }: AudioStudioProps) {
         
         <div className="grid gap-6 py-4">
           <div className="grid gap-2">
-            <FormLabel>Voz del Narrador</FormLabel>
+            {/* ================== INTERVENCIÓN QUIRÚRGICA #2: EL COMPONENTE CORRECTO ================== */}
+            <Label>Voz del Narrador</Label>
             <Select onValueChange={setSelectedVoice} value={selectedVoice}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecciona una voz..." />
@@ -91,19 +89,20 @@ export function AudioStudio({ podcastId, isOpen, onClose }: AudioStudioProps) {
             </Select>
           </div>
           <div className="grid gap-2">
-            <FormLabel>Velocidad de Habla ({speakingRate.toFixed(2)}x)</FormLabel>
+            <Label>Velocidad de Habla ({speakingRate.toFixed(2)}x)</Label>
             <Slider
               min={0.75} max={1.25} step={0.05}
               value={[speakingRate]} onValueChange={(val) => setSpeakingRate(val[0])}
             />
           </div>
           <div className="grid gap-2">
-            <FormLabel>Tono de Voz ({pitch > 0 ? '+' : ''}{pitch})</FormLabel>
+            <Label>Tono de Voz ({pitch > 0 ? '+' : ''}{pitch})</Label>
              <Slider
               min={-4} max={4} step={0.5}
               value={[pitch]} onValueChange={(val) => setPitch(val[0])}
             />
           </div>
+          {/* ======================================================================================= */}
         </div>
 
         <DialogFooter>
