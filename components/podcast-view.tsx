@@ -5,8 +5,6 @@ import { User } from '@supabase/supabase-js';
 import Image from 'next/image';
 
 // --- Importaciones de Hooks y Tipos ---
-import { useAuth } from '@/hooks/use-auth';
-import { useToast } from '@/hooks/use-toast';
 import { PodcastWithProfile } from '@/types/podcast';
 
 // --- Importaciones de Componentes de UI ---
@@ -14,19 +12,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-// ================== INTERVENCIÓN QUIRÚRGICA #1: IMPORTACIÓN DE COMPONENTES DE DIÁLOGO ==================
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-// ===================================================================================================
-import { Heart, Share2, Download, Bot, Calendar, Clock, Wand2 } from 'lucide-react'; // Se añade Wand2 para el nuevo botón
+import { Heart, Share2, Download, Bot, Calendar, Clock, Wand2 } from 'lucide-react';
+
+// ================== INTERVENCIÓN QUIRÚRGICA FINAL ==================
+// Se corrige la ruta de importación para que apunte al directorio correcto (`create-flow`)
+// y se utiliza el alias de ruta `@/components` para mantener la consistencia del proyecto.
+import { AudioStudio } from '@/components/create-flow/audio-studio';
+// ====================================================================
 
 type ScriptLine = { speaker: string; line: string; };
 interface ScriptViewerProps { scriptText: string | null; }
@@ -64,13 +56,8 @@ interface PodcastViewProps {
 }
 
 export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewProps) {
-  const { toast } = useToast();
-  
-  // ================== INTERVENCIÓN QUIRÚRGICA #2: GESTIÓN DE ESTADO PARA EL DIÁLOGO ==================
-  const [isFutureFeatureDialogOpen, setIsFutureFeatureDialogOpen] = useState(false);
-  // ==============================================================================================
-
   const [isLiked, setIsLiked] = useState(initialIsLiked);
+  const [isStudioOpen, setIsStudioOpen] = useState(false);
 
   return (
     <>
@@ -96,7 +83,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
           {/* Columna Lateral: Interacciones y Metadatos */}
           <div className="lg:col-span-1 space-y-6">
             
-            {/* ================== INTERVENCIÓN QUIRÚRGICA #3: MÓDULO DE GENERACIÓN DE AUDIO ================== */}
             <Card className="bg-card/50 backdrop-blur-lg border-border/20 shadow-lg">
               <CardHeader>
                 <CardTitle>Crear Podcast</CardTitle>
@@ -105,12 +91,11 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
                 <Button 
                   size="lg" 
                   className="w-full" 
-                  onClick={() => setIsFutureFeatureDialogOpen(true)}
-                  // Deshabilitamos el botón si ya existiera un audio, aunque no es el caso actual.
+                  onClick={() => setIsStudioOpen(true)}
                   disabled={!!podcastData.audio_url}
                 >
                   <Wand2 className="mr-2 h-5 w-5" />
-                  Generar Audio con IA
+                  {podcastData.audio_url ? "Audio ya Generado" : "Generar Audio con IA"}
                 </Button>
 
                 <div className="flex justify-around">
@@ -126,7 +111,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
                 </div>
               </CardContent>
             </Card>
-            {/* ============================================================================================== */}
             
             <Card className="bg-card/50 backdrop-blur-lg border-border/20 shadow-lg">
               <CardHeader>
@@ -143,7 +127,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
                 </div>
                 <div className="flex items-center text-muted-foreground">
                   <Bot className="h-4 w-4 mr-2" />
-                  {/* Podríamos hacer este campo dinámico en el futuro */}
                   <span>Agente de IA: Narrador Maestro</span>
                 </div>
                 {podcastData.duration_seconds && 
@@ -158,23 +141,11 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
         </div>
       </div>
 
-      {/* ================== INTERVENCIÓN QUIRÚRGICA #4: COMPONENTE DE DIÁLOGO (POPUP) ================== */}
-      <AlertDialog open={isFutureFeatureDialogOpen} onOpenChange={setIsFutureFeatureDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-2xl">El Futuro del Audio está Llegando</AlertDialogTitle>
-            <AlertDialogDescription className="pt-4 text-base">
-              ¡Gracias por ser uno de nuestros primeros exploradores! Esta es una versión MVP de NicePod, y la generación de audio con voces de IA de alta calidad es el próximo gran paso en nuestro viaje.
-              <br/><br/>
-              Estamos construyendo una herramienta para potenciar tu creatividad y facilitar el aprendizaje. Imagina convertir tus guiones en audio profesional con un solo clic. ¡Ese es el futuro que estamos creando juntos!
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction className="w-full">¡Entendido!</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      {/* ============================================================================================== */}
+      <AudioStudio
+        podcastId={String(podcastData.id)}
+        isOpen={isStudioOpen}
+        onClose={() => setIsStudioOpen(false)}
+      />
     </>
   );
 }
