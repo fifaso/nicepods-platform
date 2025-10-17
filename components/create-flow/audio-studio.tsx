@@ -20,10 +20,10 @@ import { Loader2, User, UserSquare2 } from "lucide-react";
 // ================== INTERVENCIÓN QUIRÚRGICA #1: LA FUENTE DE LA VERDAD ==================
 // La "base de datos" de voces. Es la única fuente de información.
 const voiceOptions = [
-  { name: "es-US-Wavenet-A", gender: "MALE", description: "Voz Clara (EE.UU.)" },
-  { name: "es-ES-Wavenet-B", gender: "MALE", description: "Voz Formal (España)" },
-  { name: "es-US-Wavenet-C", gender: "FEMALE", description: "Voz Cálida (EE.UU.)" },
-  { name: "es-ES-Wavenet-C", gender: "FEMALE", description: "Voz Suave (España)" },
+  { name: "es-US-Wavenet-A", gender: "MALE", description: "Voz Clara" },
+  { name: "es-ES-Wavenet-B", gender: "MALE", description: "Voz Formal" },
+  { name: "es-US-Wavenet-C", gender: "FEMALE", description: "Voz Cálida" },
+  { name: "es-ES-Wavenet-C", gender: "FEMALE", description: "Voz Suave" },
 ] as const; // `as const` para máxima seguridad de tipos en TypeScript.
 // ======================================================================================
 
