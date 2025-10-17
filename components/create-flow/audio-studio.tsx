@@ -19,15 +19,20 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Slider } from "@/components/ui/slider";
 import { Loader2, User, UserSquare2 } from "lucide-react";
 
-// ================== INTERVENCIÓN QUIRÚRGICA #1: LA FUENTE DE LA VERDAD ==================
-// La "base de datos" de voces. Es la única fuente de información.
-const voiceOptions = [
-  { name: "es-ES-Wavenet-A", gender: "MALE", description: "Voz Clara" },
-  { name: "es-ES-Wavenet-B", gender: "MALE", description: "Voz Formal" },
-  { name: "es-ES-Wavenet-C", gender: "FEMALE", description: "Voz Clara)" },
-  { name: "es-ES-Wavenet-C", gender: "FEMALE", description: "Voz Formal)" },
-] as const; // `as const` para máxima seguridad de tipos en TypeScript.
-// ======================================================================================
+// ================== INTERVENCIÓN QUIRÚRGICA #1: LA "MATRIZ DE DECISIÓN" DE VOCES ==================
+// Esta es nuestra "fuente de la verdad" técnica. Mapeamos las decisiones simples del usuario (género, estilo)
+// a la voz técnica específica de Google. Se han seleccionado las mejores voces WaveNet en español para cada categoría.
+const voiceMatrix = {
+  MALE: {
+    Formal: "es-ES-Wavenet-B", // Acento de España, a menudo percibido como más formal.
+    Cálida: "es-US-Wavenet-A", // Acento de EE.UU., a menudo percibido como más claro y cercano.
+  },
+  FEMALE: {
+    Formal: "es-ES-Wavenet-C", // Acento de España, voz suave y profesional.
+    Cálida: "es-US-Wavenet-C", // Acento de EE.UU., a menudo descrito como una voz cálida.
+  }
+} as const;
+// =====================================================================================================
 
 interface AudioStudioProps {
   podcastId: string;
@@ -41,18 +46,17 @@ export function AudioStudio({ podcastId, isOpen, onClose }: AudioStudioProps) {
   
   const [isGenerating, setIsGenerating] = useState(false);
   
-  // ================== INTERVENCIÓN QUIRÚRGICA #2: ARQUITECTURA DE ESTADO SIMPLIFICADA ==================
-  // Solo tenemos UN estado para la selección de voz, que es la fuente única de verdad.
-  const [selectedVoiceName, setSelectedVoiceName] = useState<string>(voiceOptions[0].name);
+  // ================== INTERVENCIÓN QUIRÚRGICA #2: GESTIÓN DE ESTADO SIMPLE Y DIRECTA ==================
+  // Estados separados y claros para cada decisión del usuario.
+  const [selectedGender, setSelectedGender] = useState<'MALE' | 'FEMALE'>('MALE');
+  const [selectedStyle, setSelectedStyle] = useState<'Formal' | 'Cálida'>('Formal');
   const [speakingRate, setSpeakingRate] = useState(1.0);
-  
-  // DATOS DERIVADOS: En lugar de estados separados, derivamos la información necesaria
-  // de la fuente única de verdad en cada renderizado. Esto es más eficiente y 100% seguro.
-  const selectedVoiceObject = useMemo(() => 
-    voiceOptions.find(v => v.name === selectedVoiceName)!, 
-    [selectedVoiceName]
-  );
-  const selectedGender = selectedVoiceObject.gender;
+
+  // Lógica de derivación 100% segura. Se obtiene el nombre técnico de la voz
+  // a partir de las selecciones simples del usuario en cada renderizado. No hay `useEffect`.
+  const finalVoiceName = useMemo(() => {
+    return voiceMatrix[selectedGender][selectedStyle];
+  }, [selectedGender, selectedStyle]);
   // ================================================================================================
   
   const handleGenerateAudio = useCallback(async () => {
@@ -62,10 +66,11 @@ export function AudioStudio({ podcastId, isOpen, onClose }: AudioStudioProps) {
     }
     setIsGenerating(true);
     try {
+      // En el Hito 2, esta llamada enviará los datos al backend.
       const { data, error } = await supabase.functions.invoke('generate-audio-from-script', {
         body: {
           podcastId: podcastId,
-          voiceName: selectedVoiceName, // Se usa directamente la fuente de verdad.
+          voiceName: finalVoiceName,
           speakingRate: speakingRate,
         }
       });
@@ -85,12 +90,8 @@ export function AudioStudio({ podcastId, isOpen, onClose }: AudioStudioProps) {
     } finally {
       setIsGenerating(false);
     }
-  }, [podcastId, selectedVoiceName, speakingRate, supabase, toast, onClose]);
+  }, [podcastId, finalVoiceName, speakingRate, supabase, toast, onClose]);
   
-  // Filtramos las voces que se mostrarán en la UI basándonos en el género.
-  const voicesForMale = voiceOptions.filter(v => v.gender === 'MALE');
-  const voicesForFemale = voiceOptions.filter(v => v.gender === 'FEMALE');
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-lg">
@@ -109,13 +110,7 @@ export function AudioStudio({ podcastId, isOpen, onClose }: AudioStudioProps) {
             <ToggleGroup
               type="single"
               value={selectedGender}
-              // Al cambiar el género, se establece la primera voz disponible para ese nuevo género.
-              onValueChange={(gender: 'MALE' | 'FEMALE') => { 
-                if (gender) {
-                  const firstVoice = gender === 'MALE' ? voicesForMale[0] : voicesForFemale[0];
-                  setSelectedVoiceName(firstVoice.name);
-                }
-              }}
+              onValueChange={(value: 'MALE' | 'FEMALE') => { if (value) setSelectedGender(value); }}
               className="grid grid-cols-2"
             >
               <ToggleGroupItem value="MALE" aria-label="Voz Masculina" className="h-12"><User className="h-5 w-5 mr-2" />Masculino</ToggleGroupItem>
@@ -126,19 +121,15 @@ export function AudioStudio({ podcastId, isOpen, onClose }: AudioStudioProps) {
           {/* --- 2. ESTILO DE VOZ --- */}
           <div className="grid gap-3">
             <Label>2. Estilo de Voz</Label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {(selectedGender === 'MALE' ? voicesForMale : voicesForFemale).map((voice) => (
-                <Button
-                  key={voice.name}
-                  variant={selectedVoiceName === voice.name ? 'default' : 'outline'}
-                  // La acción es simple: establecer la fuente única de verdad.
-                  onClick={() => setSelectedVoiceName(voice.name)}
-                  className="h-12"
-                >
-                  {voice.description}
-                </Button>
-              ))}
-            </div>
+            <ToggleGroup
+              type="single"
+              value={selectedStyle}
+              onValueChange={(value: 'Formal' | 'Cálida') => { if (value) setSelectedStyle(value); }}
+              className="grid grid-cols-2 gap-3"
+            >
+              <ToggleGroupItem value="Formal" aria-label="Estilo Formal" className="h-12">Formal</ToggleGroupItem>
+              <ToggleGroupItem value="Cálida" aria-label="Estilo Cálido" className="h-12">Cálida</ToggleGroupItem>
+            </ToggleGroup>
           </div>
 
           {/* --- 3. VELOCIDAD DEL HABLA --- */}
