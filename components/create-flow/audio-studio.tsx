@@ -2,8 +2,7 @@
 
 import { useState, useCallback } from "react";
 
-// ================== INTERVENCIÓN QUIRÚRGICA #1: LA IMPORTACIÓN CORRECTA ==================
-// Se reemplaza `FormLabel` por el componente `Label` estándar y sin contexto.
+// --- Importaciones de Componentes de UI (sin cambios) ---
 import { 
   Dialog, 
   DialogContent, 
@@ -20,19 +19,18 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
-import { Label } from "@/components/ui/label"; // <-- ¡ESTA ES LA CORRECCIÓN!
+import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
-// =======================================================================================
 
+// ================== INTERVENCIÓN QUIRÚRGICA #1: LISTA DE VOCES ENFOCADA ==================
+// Se refina la lista para ofrecer únicamente las opciones en español para el MVP.
 const voiceOptions = [
   { name: "es-US-Wavenet-A", description: "Voz Masculina (EE.UU., Clara)" },
   { name: "es-US-Wavenet-C", description: "Voz Femenina (EE.UU., Cálida)" },
   { name: "es-ES-Wavenet-B", description: "Voz Masculina (España, Formal)" },
   { name: "es-ES-Wavenet-C", description: "Voz Femenina (España, Suave)" },
-  { name: "en-US-Wavenet-D", description: "Voz Masculina (Inglés, Profesional)" },
-  { name: "en-US-Wavenet-F", description: "Voz Femenina (Inglés, Profesional)" },
 ];
+// =======================================================================================
 
 interface AudioStudioProps {
   podcastId: string;
@@ -43,23 +41,26 @@ interface AudioStudioProps {
 export function AudioStudio({ podcastId, isOpen, onClose }: AudioStudioProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState<string>(voiceOptions[0].name);
-  const [speakingRate, setSpeakingRate] = useState(1.0);
-  const [pitch, setPitch] = useState(0);
+
+  // ================== INTERVENCIÓN QUIRÚRGICA #2: LIMPIEZA DEL ESTADO ==================
+  // Se eliminan los estados `speakingRate` y `pitch` que no se usarán en este hito.
+  // =======================================================================================
   
   const handleGenerateAudio = useCallback(() => {
-    console.log("=== INICIANDO GENERACIÓN DE AUDIO (HITO 1) ===");
+    // ================== INTERVENCIÓN QUIRÚRGICA #3: LÓGICA SIMPLIFICADA ==================
+    // La función ahora solo registra la información esencial para este hito.
+    console.log("=== INICIANDO GENERACIÓN DE AUDIO (HITO 1 COMPLETADO) ===");
     console.log("Podcast ID:", podcastId);
     console.log("Voz Seleccionada:", selectedVoice);
-    console.log("Velocidad:", speakingRate);
-    console.log("Tono:", pitch);
-    console.log("==============================================");
+    console.log("========================================================");
+    // =======================================================================================
     
     setIsGenerating(true);
     setTimeout(() => {
       setIsGenerating(false);
       onClose();
     }, 2000);
-  }, [podcastId, selectedVoice, speakingRate, pitch, onClose]);
+  }, [podcastId, selectedVoice, onClose]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -67,13 +68,12 @@ export function AudioStudio({ podcastId, isOpen, onClose }: AudioStudioProps) {
         <DialogHeader>
           <DialogTitle>Estudio de Audio</DialogTitle>
           <DialogDescription>
-            Personaliza la voz y el ritmo de tu micro-podcast antes de generar el audio final.
+            Selecciona la voz para tu micro-podcast. Pronto podrás personalizar el ritmo y el tono.
           </DialogDescription>
         </DialogHeader>
         
         <div className="grid gap-6 py-4">
           <div className="grid gap-2">
-            {/* ================== INTERVENCIÓN QUIRÚRGICA #2: EL COMPONENTE CORRECTO ================== */}
             <Label>Voz del Narrador</Label>
             <Select onValueChange={setSelectedVoice} value={selectedVoice}>
               <SelectTrigger>
@@ -88,20 +88,9 @@ export function AudioStudio({ podcastId, isOpen, onClose }: AudioStudioProps) {
               </SelectContent>
             </Select>
           </div>
-          <div className="grid gap-2">
-            <Label>Velocidad de Habla ({speakingRate.toFixed(2)}x)</Label>
-            <Slider
-              min={0.75} max={1.25} step={0.05}
-              value={[speakingRate]} onValueChange={(val) => setSpeakingRate(val[0])}
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label>Tono de Voz ({pitch > 0 ? '+' : ''}{pitch})</Label>
-             <Slider
-              min={-4} max={4} step={0.5}
-              value={[pitch]} onValueChange={(val) => setPitch(val[0])}
-            />
-          </div>
+          
+          {/* ================== INTERVENCIÓN QUIRÚRGICA #4: ELIMINACIÓN DE CONTROLES ================== */}
+          {/* Se eliminan los `Slider` de velocidad y tono para enfocar el MVP. */}
           {/* ======================================================================================= */}
         </div>
 
