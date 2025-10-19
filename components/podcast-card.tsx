@@ -1,14 +1,14 @@
 "use client";
 
-import Link from "next/link"; // Se importa el componente Link de Next.js
+import Link from "next/link";
 import Image from "next/image";
+import type React from "react"; // Se importa React para tipar el evento del mouse
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Play, Clock, Pause } from "lucide-react";
 import { useAudio } from "@/contexts/audio-context";
 import { PodcastWithProfile } from "@/types/podcast";
-import type React from "react"; // Se importa React para tipar el evento del mouse
 
 interface PodcastCardProps {
   podcast: PodcastWithProfile;
@@ -17,13 +17,15 @@ interface PodcastCardProps {
 export function PodcastCard({ podcast }: PodcastCardProps) {
   const { playPodcast, currentPodcast, isPlaying } = useAudio();
 
-  // ================== INTERVENCIÓN QUIRÚRGICA #1: MANEJO DE EVENTOS PROFESIONAL ==================
-  // Esta función ahora maneja la reproducción y detiene la propagación del evento de clic.
+  // ================== INTERVENCIÓN QUIRÚRGICA: MANEJO DE EVENTOS PROFESIONAL ==================
+  // La función ahora acepta el evento del mouse (`React.MouseEvent`).
   const handlePlay = (event: React.MouseEvent<HTMLButtonElement>) => {
-    // 1. Detiene el evento de clic para que no active el <Link> padre.
+    // 1. Detiene la propagación del evento. Esto es CRUCIAL.
+    // Previene que el clic "burbujee" hacia el componente <Link> padre y cause una navegación.
     event.stopPropagation();
     
-    // 2. Llama a `playPodcast` con el objeto `podcast` completo, cumpliendo el contrato.
+    // 2. Llama a `playPodcast` con el objeto `podcast` completo, cumpliendo el contrato
+    // de nuestro AudioContext y asegurando que la URL del audio se pase correctamente.
     playPodcast(podcast);
   };
   // ==============================================================================================
@@ -33,8 +35,7 @@ export function PodcastCard({ podcast }: PodcastCardProps) {
   const authorImage = podcast.profiles?.avatar_url || "/images/placeholder.svg";
 
   return (
-    // ================== INTERVENCIÓN QUIRÚRGICA #2: LA TARJETA COMO ENLACE ==================
-    // Se envuelve toda la tarjeta en un componente <Link> para hacerla navegable.
+    // La tarjeta completa sigue siendo un enlace para una navegación intuitiva.
     <Link href={`/podcast/${podcast.id}`} className="group block">
       <Card className="flex flex-col h-full overflow-hidden transition-all duration-300 group-hover:-translate-y-1 bg-card/50 shadow-md group-hover:shadow-xl border border-border/20">
         <div className="relative w-full h-48">
@@ -53,6 +54,7 @@ export function PodcastCard({ podcast }: PodcastCardProps) {
             )}
           </div>
           <div className="absolute bottom-3 right-3">
+             {/* El `onClick` ahora pasa el evento a nuestra función `handlePlay`. */}
              <Button onClick={handlePlay} size="icon" className="w-12 h-12 rounded-full bg-primary/80 backdrop-blur-sm hover:bg-primary text-primary-foreground transition-transform duration-300 group-hover:scale-110">
               {isCurrentlyPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6 fill-current" />}
             </Button>
@@ -74,6 +76,5 @@ export function PodcastCard({ podcast }: PodcastCardProps) {
         </CardContent>
       </Card>
     </Link>
-    // =========================================================================================
   );
 }
