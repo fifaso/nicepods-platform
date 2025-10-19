@@ -9,6 +9,7 @@ import Image from 'next/image';
 import { PodcastWithProfile } from '@/types/podcast';
 import { useAuth } from '@/hooks/use-auth';
 import { useAudio } from '@/contexts/audio-context';
+import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -53,14 +54,15 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
   const router = useRouter();
   const { supabase } = useAuth();
   const { playPodcast } = useAudio();
+  const { toast } = useToast();
   
   const [isLiked, setIsLiked] = useState(initialIsLiked);
+  const [likeCount, setLikeCount] = useState(podcastData.like_count);
+  const [isLiking, setIsLiking] = useState(false);
   const [isStudioOpen, setIsStudioOpen] = useState(false);
 
   useEffect(() => {
-    if (!supabase || podcastData.audio_url) {
-      return;
-    }
+    if (!supabase || podcastData.audio_url) { return; }
     const channel = supabase
       .channel(`micro_pod_${podcastData.id}`)
       .on<PodcastWithProfile>(
@@ -74,16 +76,46 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
         }
       )
       .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [supabase, podcastData.id, podcastData.audio_url, router]);
+
+  // ================== INTERVENCIÓN QUIRÚRGICA FINAL ==================
+  // Se añade el manejo de 'null' en la actualización del estado de `likeCount`
+  // para garantizar la seguridad de tipos y eliminar los errores de TypeScript.
+  const handleLike = async () => {
+    if (!supabase || !user) {
+        toast({ title: "Acción requerida", description: "Debes iniciar sesión para dar 'like'.", variant: "destructive" });
+        return;
+    }
+    setIsLiking(true);
+    
+    if (isLiked) {
+      setIsLiked(false);
+      setLikeCount(c => (c ?? 0) - 1); // <-- CORRECCIÓN
+      const { error } = await supabase.from('likes').delete().match({ user_id: user.id, podcast_id: podcastData.id });
+      if (error) {
+        setIsLiked(true);
+        setLikeCount(c => (c ?? 0) + 1); // <-- CORRECCIÓN
+        toast({ title: "Error", description: "No se pudo quitar el 'like'.", variant: "destructive" });
+      }
+    } else {
+      setIsLiked(true);
+      setLikeCount(c => (c ?? 0) + 1); // <-- CORRECCIÓN
+      const { error } = await supabase.from('likes').insert({ user_id: user.id, podcast_id: podcastData.id });
+      if (error) {
+        setIsLiked(false);
+        setLikeCount(c => (c ?? 0) - 1); // <-- CORRECCIÓN
+        toast({ title: "Error", description: "No se pudo dar 'like'.", variant: "destructive" });
+      }
+    }
+    setIsLiking(false);
+  };
+  // ====================================================================
 
   return (
     <>
       <div className="container mx-auto max-w-4xl py-12">
         <div className="grid lg:grid-cols-3 gap-8">
-          
           <div className="lg:col-span-2">
             <Card className="bg-card/50 backdrop-blur-lg border-border/20 shadow-lg">
               <CardHeader>
@@ -98,18 +130,13 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
               </CardContent>
             </Card>
           </div>
-
           <div className="lg:col-span-1 space-y-6">
             <Card className="bg-card/50 backdrop-blur-lg border-border/20 shadow-lg">
               <CardHeader>
                 <CardTitle>{podcastData.audio_url ? "Reproducir Podcast" : "Crear Podcast"}</CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
-                
                 {podcastData.audio_url ? (
-                  // ================== INTERVENCIÓN QUIRÚRGICA FINAL ==================
-                  // Se pasa el objeto `podcastData` completo y sin modificar.
-                  // Esto garantiza que el "contrato" con `playPodcast` se cumple.
                   <Button 
                     size="lg" 
                     className="w-full bg-green-500 hover:bg-green-600"
@@ -118,7 +145,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
                     <PlayCircle className="mr-2 h-5 w-5" />
                     Reproducir Audio
                   </Button>
-                  // ====================================================================
                 ) : (
                   <Button 
                     size="lg" 
@@ -129,15 +155,22 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
                     Generar Audio con IA
                   </Button>
                 )}
-                
-                <div className="flex justify-around">
-                  <Button variant="ghost" size="icon" disabled><Heart className="h-5 w-5 text-muted-foreground/50" /></Button>
-                  <Button variant="ghost" size="icon" disabled><Share2 className="h-5 w-5 text-muted-foreground/50" /></Button>
-                  <Button variant="ghost" size="icon" disabled><Download className="h-5 w-5 text-muted-foreground/50" /></Button>
+                <div className="flex justify-around items-center">
+                  <div className="flex items-center gap-1">
+                    <Button onClick={handleLike} variant="ghost" size="icon" disabled={isLiking}>
+                      <Heart className={`h-5 w-5 transition-colors ${isLiked ? 'text-red-500 fill-current' : 'text-muted-foreground'}`} />
+                    </Button>
+                    <span className="text-sm text-muted-foreground w-4 text-center">{likeCount ?? 0}</span>
+                  </div>
+                  <Button variant="ghost" size="icon" disabled>
+                    <Share2 className="h-5 w-5 text-muted-foreground" />
+                  </Button>
+                  <Button variant="ghost" size="icon" disabled>
+                    <Download className="h-5 w-5 text-muted-foreground" />
+                  </Button>
                 </div>
               </CardContent>
             </Card>
-            
             <Card className="bg-card/50 backdrop-blur-lg border-border/20 shadow-lg">
               <CardHeader>
                 <CardTitle>Metadatos</CardTitle>
@@ -166,12 +199,7 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
           </div>
         </div>
       </div>
-
-      <AudioStudio
-        podcastId={String(podcastData.id)}
-        isOpen={isStudioOpen}
-        onClose={() => setIsStudioOpen(false)}
-      />
+      <AudioStudio podcastId={String(podcastData.id)} isOpen={isStudioOpen} onClose={() => setIsStudioOpen(false)} />
     </>
   );
 }

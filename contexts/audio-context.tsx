@@ -4,6 +4,7 @@ import type React from "react";
 import { createContext, useContext, useState, useRef, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { PodcastWithProfile } from "@/types/podcast";
+import { createClient } from "@/lib/supabase/client";
 
 export interface AudioContextType {
   currentPodcast: PodcastWithProfile | null;
@@ -26,6 +27,7 @@ const AudioContext = createContext<AudioContextType | undefined>(undefined);
 
 export function AudioProvider({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
+  const supabase = createClient();
   
   const [currentPodcast, setCurrentPodcast] = useState<PodcastWithProfile | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -90,9 +92,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     };
   }, [cleanup]);
 
-  // ================== CORRECCIÓN QUIRÚRGICA #2 ==================
-  // Se reordena el código. La declaración de `togglePlayPause` ahora está
-  // ANTES de `playPodcast`, que es la función que la utiliza.
   const togglePlayPause = useCallback(() => {
     if (!audioRef.current || !currentPodcast) return;
     
@@ -105,15 +104,10 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       });
     }
   }, [isPlaying, currentPodcast]);
-  // ================================================================
 
   const playPodcast = useCallback((podcast: PodcastWithProfile) => {
     if (!podcast.audio_url) {
-      toast({
-        title: "Audio no disponible",
-        description: "Este guion aún no ha sido procesado para generar el audio.",
-        variant: "destructive",
-      });
+      toast({ title: "Audio no disponible", description: "Este guion aún no ha sido procesado para generar el audio.", variant: "destructive" });
       return;
     }
     
@@ -131,8 +125,19 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         console.error("Error al iniciar la reproducción:", e);
         setError("No se pudo reproducir el audio.");
       });
+
+      // ================== INTERVENCIÓN QUIRÚRGICA: HITO 2 ==================
+      // Se invoca la función RPC para registrar la reproducción de forma asíncrona ("fire-and-forget").
+      supabase
+        .rpc('increment_play_count', { podcast_id: podcast.id })
+        .then(({ error }) => {
+          if (error) {
+            console.error(`Error al incrementar play_count para el podcast ${podcast.id}:`, error);
+          }
+        });
+      // ====================================================================
     }
-  }, [cleanup, toast, currentPodcast, togglePlayPause, volume]);
+  }, [cleanup, toast, currentPodcast, togglePlayPause, volume, supabase]);
 
   const closePodcast = useCallback(() => {
     cleanup();
