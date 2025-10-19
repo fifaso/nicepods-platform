@@ -57,43 +57,33 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
   const [isLiked, setIsLiked] = useState(initialIsLiked);
   const [isStudioOpen, setIsStudioOpen] = useState(false);
 
-  // ================== INTERVENCIÓN QUIRÚRGICA #1: LA ACTUALIZACIÓN EN TIEMPO REAL ==================
   useEffect(() => {
     if (!supabase || podcastData.audio_url) {
       return;
     }
-
     const channel = supabase
       .channel(`micro_pod_${podcastData.id}`)
       .on<PodcastWithProfile>(
         'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'micro_pods',
-          filter: `id=eq.${podcastData.id}`
-        },
+        { event: 'UPDATE', schema: 'public', table: 'micro_pods', filter: `id=eq.${podcastData.id}` },
         (payload) => {
           if (payload.new.audio_url) {
-            console.log("¡Audio detectado! Refrescando los datos de la página...");
+            console.log("¡Audio detectado! Refrescando datos...");
             router.refresh();
           }
         }
       )
       .subscribe();
-
     return () => {
       supabase.removeChannel(channel);
     };
   }, [supabase, podcastData.id, podcastData.audio_url, router]);
-  // ==============================================================================================
 
   return (
     <>
       <div className="container mx-auto max-w-4xl py-12">
         <div className="grid lg:grid-cols-3 gap-8">
           
-          {/* Columna Principal: Guion y Título */}
           <div className="lg:col-span-2">
             <Card className="bg-card/50 backdrop-blur-lg border-border/20 shadow-lg">
               <CardHeader>
@@ -109,7 +99,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
             </Card>
           </div>
 
-          {/* Columna Lateral: Interacciones y Metadatos */}
           <div className="lg:col-span-1 space-y-6">
             <Card className="bg-card/50 backdrop-blur-lg border-border/20 shadow-lg">
               <CardHeader>
@@ -117,20 +106,19 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
                 
-                {/* ================== INTERVENCIÓN QUIRÚRGICA #2: RENDERIZADO CONDICIONAL ================== */}
                 {podcastData.audio_url ? (
+                  // ================== INTERVENCIÓN QUIRÚRGICA FINAL ==================
+                  // Se pasa el objeto `podcastData` completo y sin modificar.
+                  // Esto garantiza que el "contrato" con `playPodcast` se cumple.
                   <Button 
                     size="lg" 
                     className="w-full bg-green-500 hover:bg-green-600"
-                    onClick={() => playPodcast({ 
-                      id: String(podcastData.id), 
-                      title: podcastData.title, 
-                      audioUrl: podcastData.audio_url! 
-                    })}
+                    onClick={() => playPodcast(podcastData)}
                   >
                     <PlayCircle className="mr-2 h-5 w-5" />
                     Reproducir Audio
                   </Button>
+                  // ====================================================================
                 ) : (
                   <Button 
                     size="lg" 
@@ -141,7 +129,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
                     Generar Audio con IA
                   </Button>
                 )}
-                {/* ======================================================================================== */}
                 
                 <div className="flex justify-around">
                   <Button variant="ghost" size="icon" disabled><Heart className="h-5 w-5 text-muted-foreground/50" /></Button>
