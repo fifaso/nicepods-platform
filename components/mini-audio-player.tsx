@@ -1,16 +1,18 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import Image from "next/image";
+import { useAudio } from "@/contexts/audio-context";
+import { formatTime } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
-import { useState, useEffect, useMemo } from "react"
-import { Button } from "@/components/ui/button"
-import { Slider } from "@/components/ui/slider"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Play, Pause, SkipForward, SkipBack, Volume2, VolumeX, X, Minimize2, Loader2, AlertCircle } from "lucide-react"
-import { useAudio } from "@/contexts/audio-context"
-import { formatTime } from "@/lib/utils"
-import { useToast } from "@/hooks/use-toast"
+// --- Importaciones de Componentes de UI ---
+import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
+import { Card, CardContent } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Play, Pause, SkipForward, SkipBack, Volume2, VolumeX, X, Loader2, AlertCircle } from "lucide-react";
 
 export function MiniAudioPlayer() {
   const {
@@ -27,279 +29,155 @@ export function MiniAudioPlayer() {
     skipBackward,
     setVolume,
     closePodcast,
-  } = useAudio()
+  } = useAudio();
 
-  const [isMinimized, setIsMinimized] = useState(false)
-  const [showVolumeSlider, setShowVolumeSlider] = useState(false)
-  const [isMuted, setIsMuted] = useState(false)
-  const [previousVolume, setPreviousVolume] = useState(volume)
-  const [isMounted, setIsMounted] = useState(false)
-  const { toast } = useToast()
+  const [isMinimized, setIsMinimized] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [previousVolume, setPreviousVolume] = useState(volume);
+  const [isMounted, setIsMounted] = useState(false);
+  const { toast } = useToast();
+  const playerRef = useRef<HTMLDivElement>(null);
 
-  // Handle hydration
-  useEffect(() => {
-    setIsMounted(true)
-  }, [])
+  useEffect(() => { setIsMounted(true); }, []);
 
-  // Show error toast when error occurs
   useEffect(() => {
     if (error) {
       toast({
-        title: "Audio Error",
+        title: "Error de Audio",
         description: error,
         variant: "destructive",
-      })
+      });
     }
-  }, [error, toast])
+  }, [error, toast]);
 
-  // Memoized waveform bars to prevent recreation on every render
-  const waveformBars = useMemo(() => {
-    return Array.from({ length: 20 }, (_, i) => ({
-      id: i,
-      height: Math.random() * 20 + 8,
-      delay: i * 0.1,
-    }))
-  }, [])
+  useEffect(() => {
+    if (currentPodcast && !isMinimized) {
+      playerRef.current?.focus();
+    }
+  }, [currentPodcast, isMinimized]);
 
-  // Don't render on server or if no current podcast
-  if (!isMounted || !currentPodcast) return null
+  const waveformBars = useMemo(() => Array.from({ length: 30 }, (_, i) => ({ id: i, height: Math.random() * 16 + 4 })), []);
+
+  if (!isMounted || !currentPodcast) return null;
 
   const handleProgressChange = (value: number[]) => {
-    if (value[0] !== undefined) {
-      seekTo(value[0])
-    }
-  }
+    if (typeof value[0] === 'number') seekTo(value[0]);
+  };
 
   const handleVolumeChange = (value: number[]) => {
-    if (value[0] !== undefined) {
-      const newVolume = value[0] / 100
-      setVolume(newVolume)
-      if (newVolume > 0 && isMuted) {
-        setIsMuted(false)
-      }
+    if (typeof value[0] === 'number') {
+      const newVolume = value[0] / 100;
+      setVolume(newVolume);
+      if (newVolume > 0 && isMuted) setIsMuted(false);
     }
-  }
+  };
 
   const toggleMute = () => {
     if (isMuted) {
-      setVolume(previousVolume)
-      setIsMuted(false)
+      setVolume(previousVolume);
+      setIsMuted(false);
     } else {
-      setPreviousVolume(volume)
-      setVolume(0)
-      setIsMuted(true)
+      setPreviousVolume(volume);
+      setVolume(0);
+      setIsMuted(true);
     }
-  }
+  };
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.target !== playerRef.current) return;
     switch (event.key) {
-      case " ":
-        event.preventDefault()
-        togglePlayPause()
-        break
-      case "ArrowLeft":
-        event.preventDefault()
-        skipBackward()
-        break
-      case "ArrowRight":
-        event.preventDefault()
-        skipForward()
-        break
-      case "Escape":
-        event.preventDefault()
-        closePodcast()
-        break
+      case " ": event.preventDefault(); togglePlayPause(); break;
+      case "ArrowLeft": event.preventDefault(); skipBackward(); break;
+      case "ArrowRight": event.preventDefault(); skipForward(); break;
+      case "Escape": event.preventDefault(); closePodcast(); break;
+      case "m": event.preventDefault(); toggleMute(); break;
     }
-  }
+  };
+  
+  const authorName = currentPodcast.profiles?.full_name || "Creador Anónimo";
+  const authorImage = currentPodcast.profiles?.avatar_url || "/images/placeholder.svg";
 
   return (
-    <div
-      className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-4 duration-500"
-      onKeyDown={handleKeyDown}
-      tabIndex={-1}
-    >
-      <Card
-        className={`glass-card border-0 shadow-glass transition-all duration-300 ${
-          isMinimized ? "w-16 h-16" : "w-80"
-        } overflow-hidden group hover:shadow-soft`}
+    <TooltipProvider delayDuration={200}>
+      <div
+        className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 animate-in slide-in-from-bottom-4 duration-500"
+        onKeyDown={handleKeyDown}
+        tabIndex={0}
+        ref={playerRef}
         role="region"
-        aria-label="Audio player"
+        aria-label="Reproductor de audio"
       >
-        {isMinimized ? (
-          // Minimized view
-          <CardContent className="p-0 h-full flex items-center justify-center">
-            <Button
-              onClick={() => setIsMinimized(false)}
-              variant="ghost"
-              size="icon"
-              className="w-full h-full rounded-lg glass-button border-0 group-hover:scale-110 transition-transform duration-300"
-              aria-label={`Expand audio player. Currently playing: ${currentPodcast.title}`}
-            >
-              {isLoading ? (
-                <Loader2 className="h-6 w-6 animate-spin text-purple-accessible" />
-              ) : error ? (
-                <AlertCircle className="h-6 w-6 text-red-500" />
-              ) : isPlaying ? (
-                <Pause className="h-6 w-6 text-purple-accessible" />
-              ) : (
-                <Play className="h-6 w-6 text-purple-accessible" />
-              )}
-            </Button>
-          </CardContent>
-        ) : (
-          // Expanded view
-          <CardContent className="p-4 space-y-3">
-            {/* Header */}
-            <div className="flex items-start justify-between">
-              <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm truncate mb-1">
-                  {currentPodcast.title}
-                </h3>
-                <Badge variant="secondary" className="text-xs glass text-purple-accessible-dark border-0">
-                  {currentPodcast.category}
-                </Badge>
-              </div>
-              <div className="flex items-center space-x-1 ml-2">
-                <Button
-                  onClick={() => setIsMinimized(true)}
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 glass-button border-0 opacity-70 hover:opacity-100 text-gray-700 dark:text-gray-300"
-                  aria-label="Minimize player"
-                >
-                  <Minimize2 className="h-4 w-4" />
-                </Button>
-                <Button
-                  onClick={closePodcast}
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 glass-button border-0 opacity-70 hover:opacity-100 hover:text-red-600 text-gray-700 dark:text-gray-300 dark:hover:text-red-400"
-                  aria-label="Close player"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-
-            {/* Error display */}
-            {error && (
-              <div className="flex items-center gap-2 p-2 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
-                <span className="text-sm text-red-700 dark:text-red-300">{error}</span>
-              </div>
-            )}
-
-            {/* Progress Bar */}
-            <div className="space-y-2">
-              <Slider
-                value={[currentTime]}
-                max={duration || 100}
-                step={1}
-                onValueChange={handleProgressChange}
-                className="w-full cursor-pointer"
-                aria-label={`Seek to position. Current time: ${formatTime(currentTime)}, Duration: ${formatTime(duration)}`}
-                disabled={isLoading || !!error}
-              />
-              <div className="flex justify-between text-xs text-muted-accessible font-medium">
-                <span aria-live="polite">{formatTime(currentTime)}</span>
-                <span>{formatTime(duration)}</span>
-              </div>
-            </div>
-
-            {/* Controls */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-1">
-                <Button
-                  onClick={skipBackward}
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 glass-button border-0 hover:scale-110 transition-transform duration-200 text-gray-700 dark:text-gray-300"
-                  aria-label="Skip backward 15 seconds"
-                  disabled={isLoading || !!error}
-                >
-                  <SkipBack className="h-4 w-4" />
-                </Button>
-
-                <Button
-                  onClick={togglePlayPause}
-                  variant="ghost"
-                  size="icon"
-                  className="h-10 w-10 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-glass border-0 hover:scale-110 transition-all duration-200 dark:from-purple-500 dark:to-blue-500 dark:hover:from-purple-600 dark:hover:to-blue-600"
-                  disabled={isLoading}
-                  aria-label={isPlaying ? "Pause" : "Play"}
-                >
-                  {isLoading ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  ) : error ? (
-                    <AlertCircle className="h-5 w-5" />
-                  ) : isPlaying ? (
-                    <Pause className="h-5 w-5" />
-                  ) : (
-                    <Play className="h-5 w-5" />
-                  )}
-                </Button>
-
-                <Button
-                  onClick={skipForward}
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 glass-button border-0 hover:scale-110 transition-transform duration-200 text-gray-700 dark:text-gray-300"
-                  aria-label="Skip forward 15 seconds"
-                  disabled={isLoading || !!error}
-                >
-                  <SkipForward className="h-4 w-4" />
-                </Button>
-              </div>
-
-              {/* Volume Control */}
-              <div className="relative">
-                <Button
-                  onClick={() => setShowVolumeSlider(!showVolumeSlider)}
-                  onDoubleClick={toggleMute}
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 glass-button border-0 hover:scale-110 transition-transform duration-200 text-gray-700 dark:text-gray-300"
-                  aria-label={`Volume: ${Math.round(volume * 100)}%. ${isMuted ? "Muted" : "Unmuted"}`}
-                >
-                  {isMuted || volume === 0 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-                </Button>
-
-                {showVolumeSlider && (
-                  <div className="absolute bottom-full right-0 mb-2 p-3 glass-card border-0 shadow-glass rounded-lg">
-                    <div className="h-20 flex items-center">
-                      <Slider
-                        value={[volume * 100]}
-                        max={100}
-                        step={1}
-                        onValueChange={handleVolumeChange}
-                        orientation="vertical"
-                        className="h-16"
-                        aria-label="Volume control"
-                      />
-                    </div>
+        <Card
+          className={`glass-card border border-white/20 dark:border-white/10 shadow-glass-xl transition-all duration-300 ease-in-out ${
+            isMinimized ? "w-16 h-16 rounded-full" : "w-80 sm:w-96 rounded-2xl"
+          } overflow-hidden group`}
+        >
+          {isMinimized ? (
+            <CardContent className="p-0 h-full w-full flex items-center justify-center">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={() => setIsMinimized(false)}
+                    variant="ghost"
+                    size="icon"
+                    className="w-full h-full rounded-full bg-black/10 hover:bg-black/20 backdrop-blur-md"
+                    aria-label={`Expandir reproductor. Reproduciendo: ${currentPodcast.title}`}
+                  >
+                    {isLoading ? <Loader2 className="h-6 w-6 animate-spin text-white" /> :
+                     isPlaying ? <Pause className="h-6 w-6 text-white" /> :
+                     <Play className="h-6 w-6 text-white" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{currentPodcast.title}</p>
+                </TooltipContent>
+              </Tooltip>
+            </CardContent>
+          ) : (
+            <CardContent className="p-4 space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="relative w-16 h-16 flex-shrink-0">
+                  <Image src={currentPodcast.cover_image_url || authorImage} alt={currentPodcast.title} fill className="rounded-md object-cover"/>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-gray-900 dark:text-gray-100 text-md truncate">{currentPodcast.title}</h3>
+                  <div className="flex items-center text-xs text-muted-foreground mt-1">
+                    <Image src={authorImage} alt={authorName} width={16} height={16} className="rounded-full mr-1.5"/>
+                    <span className="truncate">{authorName}</span>
                   </div>
-                )}
+                </div>
+                <Button onClick={closePodcast} variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:bg-black/10 flex-shrink-0"><X className="h-4 w-4" /></Button>
               </div>
-            </div>
 
-            {/* Waveform visualization */}
-            <div className="h-8 flex items-center justify-center space-x-1 opacity-50" aria-hidden="true">
-              {waveformBars.map((bar) => (
-                <div
-                  key={bar.id}
-                  className={`w-1 bg-gradient-to-t from-purple-600 to-blue-600 dark:from-purple-400 dark:to-blue-400 rounded-full transition-all duration-300 ${
-                    isPlaying && !error ? "animate-pulse" : ""
-                  }`}
-                  style={{
-                    height: `${bar.height}px`,
-                    animationDelay: `${bar.delay}s`,
-                  }}
-                />
-              ))}
-            </div>
-          </CardContent>
-        )}
-      </Card>
-    </div>
-  )
+              <div className="space-y-1.5">
+                <Slider value={[currentTime]} max={duration || 100} step={1} onValueChange={handleProgressChange} disabled={isLoading || !!error} />
+                <div className="flex justify-between text-xs text-muted-foreground font-mono"><span aria-live="polite">{formatTime(currentTime)}</span><span>{formatTime(duration)}</span></div>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1">
+                  {/* ================== CORRECCIÓN QUIRÚRGICA #1 ================== */}
+                  <Tooltip><TooltipTrigger asChild><Button onClick={() => skipBackward()} variant="ghost" size="icon" disabled={isLoading || !!error}><SkipBack className="h-5 w-5" /></Button></TooltipTrigger><TooltipContent>Retroceder 15s</TooltipContent></Tooltip>
+                  <Button onClick={togglePlayPause} variant="default" size="icon" className="h-12 w-12 rounded-full shadow-lg" disabled={isLoading}>
+                    {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : 
+                     error ? <AlertCircle className="h-6 w-6 text-red-500" /> :
+                     isPlaying ? <Pause className="h-6 w-6" /> : 
+                     <Play className="h-6 w-6" />}
+                  </Button>
+                  <Tooltip><TooltipTrigger asChild><Button onClick={() => skipForward()} variant="ghost" size="icon" disabled={isLoading || !!error}><SkipForward className="h-5 w-5" /></Button></TooltipTrigger><TooltipContent>Adelantar 15s</TooltipContent></Tooltip>
+                  {/* ================================================================ */}
+                </div>
+                <div className="h-8 flex items-end justify-center gap-0.5" aria-hidden="true">
+                  {waveformBars.map((bar) => (
+                    <div key={bar.id} className="w-1 bg-primary/70 rounded-full" style={{ height: isPlaying && !error ? `${bar.height}px` : '4px', transition: 'height 0.3s ease-in-out' }} />
+                  ))}
+                </div>
+                <Tooltip><TooltipTrigger asChild><Button onClick={toggleMute} variant="ghost" size="icon">{isMuted || volume === 0 ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}</Button></TooltipTrigger><TooltipContent>{isMuted ? 'Quitar silencio' : 'Silenciar'}</TooltipContent></Tooltip>
+              </div>
+            </CardContent>
+          )}
+        </Card>
+      </div>
+    </TooltipProvider>
+  );
 }

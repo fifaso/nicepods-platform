@@ -1,58 +1,64 @@
-// contexts/audio-context.tsx
 "use client";
 
 import type React from "react";
 import { createContext, useContext, useState, useRef, useEffect, useCallback } from "react";
-import { useToast } from "@/hooks/use-toast"; // Importamos el hook de 'toast'
-
-// ================== MODIFICACIÓN #1: SIMPLIFICACIÓN DE TIPOS ==================
-// En lugar de una interfaz compleja, definimos un tipo simple y genérico para
-// lo que el reproductor de audio realmente necesita.
-export interface PlayablePodcast {
-  id: string;
-  title: string;
-  audioUrl: string; // La URL es la pieza clave.
-}
+import { useToast } from "@/hooks/use-toast";
+import { PodcastWithProfile } from "@/types/podcast";
 
 export interface AudioContextType {
-  currentPodcast: PlayablePodcast | null;
+  currentPodcast: PodcastWithProfile | null;
   isPlaying: boolean;
   isLoading: boolean;
   error: string | null;
-  playPodcast: (podcast: PlayablePodcast) => void;
+  duration: number;
+  currentTime: number;
+  volume: number;
+  playPodcast: (podcast: PodcastWithProfile) => void;
   togglePlayPause: () => void;
   closePodcast: () => void;
-  // Simplificamos omitiendo funciones de UI que pertenecen a un componente de reproductor dedicado.
+  seekTo: (time: number) => void;
+  skipForward: (seconds?: number) => void;
+  skipBackward: (seconds?: number) => void;
+  setVolume: (volume: number) => void;
 }
 
 const AudioContext = createContext<AudioContextType | undefined>(undefined);
 
 export function AudioProvider({ children }: { children: React.ReactNode }) {
-  const [currentPodcast, setCurrentPodcast] = useState<PlayablePodcast | null>(null);
+  const { toast } = useToast();
+  
+  const [currentPodcast, setCurrentPodcast] = useState<PodcastWithProfile | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const { toast } = useToast(); // Inicializamos el hook de 'toast'
+  
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [volume, setVolumeState] = useState(1);
 
-  // Función de limpieza reutilizable
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
   const cleanup = useCallback(() => {
     if (audioRef.current) {
       audioRef.current.pause();
-      audioRef.current.src = ""; // Liberamos la fuente del audio
+      audioRef.current.removeAttribute('src');
+      audioRef.current.load();
     }
     setIsPlaying(false);
     setIsLoading(false);
     setError(null);
+    setCurrentTime(0);
+    setDuration(0);
   }, []);
 
-  // Inicialización y manejo de eventos del elemento de audio
   useEffect(() => {
     audioRef.current = new Audio();
     const audio = audioRef.current;
 
+    const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
+    const handleDurationChange = () => setDuration(audio.duration);
     const handleEnded = () => setIsPlaying(false);
-    const handleLoadStart = () => setIsLoading(true);
+    const handleLoadStart = () => { setIsLoading(true); setError(null); };
     const handleCanPlay = () => setIsLoading(false);
     const handlePlaying = () => { setIsLoading(false); setIsPlaying(true); };
     const handlePause = () => setIsPlaying(false);
@@ -62,6 +68,8 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       setIsPlaying(false);
     };
 
+    audio.addEventListener("timeupdate", handleTimeUpdate);
+    audio.addEventListener("durationchange", handleDurationChange);
     audio.addEventListener("ended", handleEnded);
     audio.addEventListener("loadstart", handleLoadStart);
     audio.addEventListener("canplay", handleCanPlay);
@@ -69,9 +77,10 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     audio.addEventListener("pause", handlePause);
     audio.addEventListener("error", handleError);
 
-    // Limpieza al desmontar el proveedor
     return () => {
       cleanup();
+      audio.removeEventListener("timeupdate", handleTimeUpdate);
+      audio.removeEventListener("durationchange", handleDurationChange);
       audio.removeEventListener("ended", handleEnded);
       audio.removeEventListener("loadstart", handleLoadStart);
       audio.removeEventListener("canplay", handleCanPlay);
@@ -81,55 +90,97 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     };
   }, [cleanup]);
 
-  // ================== MODIFICACIÓN #2: LÓGICA DE REPRODUCCIÓN REFINADA ==================
-  const playPodcast = useCallback((podcast: PlayablePodcast) => {
-    // LA VERIFICACIÓN CLAVE:
-    if (!podcast.audioUrl) {
-      toast({
-        title: "Audio no disponible",
-        description: "Este guion aún no ha sido procesado para generar el audio.",
-        variant: "destructive",
-      });
-      return; // Detenemos la ejecución si no hay URL
-    }
-    
-    if (audioRef.current) {
-      cleanup();
-      setCurrentPodcast(podcast);
-      audioRef.current.src = podcast.audioUrl;
-      audioRef.current.play().catch(e => {
-        console.error("Error al iniciar la reproducción:", e);
-        setError("No se pudo reproducir el audio.");
-      });
-    }
-  }, [cleanup, toast]);
-
+  // ================== CORRECCIÓN QUIRÚRGICA #2 ==================
+  // Se reordena el código. La declaración de `togglePlayPause` ahora está
+  // ANTES de `playPodcast`, que es la función que la utiliza.
   const togglePlayPause = useCallback(() => {
-    if (!audioRef.current) return;
+    if (!audioRef.current || !currentPodcast) return;
     
     if (isPlaying) {
       audioRef.current.pause();
-    } else {
+    } else if (audioRef.current.src) {
       audioRef.current.play().catch(e => {
         console.error("Error al reanudar la reproducción:", e);
         setError("No se pudo reanudar el audio.");
       });
     }
-  }, [isPlaying]);
+  }, [isPlaying, currentPodcast]);
+  // ================================================================
+
+  const playPodcast = useCallback((podcast: PodcastWithProfile) => {
+    if (!podcast.audio_url) {
+      toast({
+        title: "Audio no disponible",
+        description: "Este guion aún no ha sido procesado para generar el audio.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (audioRef.current) {
+      if (currentPodcast?.id === podcast.id) {
+        togglePlayPause();
+        return;
+      }
+      
+      cleanup();
+      setCurrentPodcast(podcast);
+      audioRef.current.src = podcast.audio_url;
+      audioRef.current.volume = volume;
+      audioRef.current.play().catch(e => {
+        console.error("Error al iniciar la reproducción:", e);
+        setError("No se pudo reproducir el audio.");
+      });
+    }
+  }, [cleanup, toast, currentPodcast, togglePlayPause, volume]);
 
   const closePodcast = useCallback(() => {
     cleanup();
     setCurrentPodcast(null);
   }, [cleanup]);
 
+  const seekTo = useCallback((time: number) => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = time;
+      setCurrentTime(time);
+    }
+  }, []);
+
+  const skipForward = useCallback((seconds = 15) => {
+    if (audioRef.current) {
+      seekTo(Math.min(audioRef.current.currentTime + seconds, duration));
+    }
+  }, [duration, seekTo]);
+
+  const skipBackward = useCallback((seconds = 15) => {
+    if (audioRef.current) {
+      seekTo(Math.max(audioRef.current.currentTime - seconds, 0));
+    }
+  }, [seekTo]);
+
+  const setVolume = useCallback((newVolume: number) => {
+    const clampedVolume = Math.max(0, Math.min(1, newVolume));
+    if (audioRef.current) {
+      audioRef.current.volume = clampedVolume;
+    }
+    setVolumeState(clampedVolume);
+  }, []);
+
   const contextValue: AudioContextType = {
     currentPodcast,
     isPlaying,
     isLoading,
     error,
+    duration,
+    currentTime,
+    volume,
     playPodcast,
     togglePlayPause,
     closePodcast,
+    seekTo,
+    skipForward,
+    skipBackward,
+    setVolume,
   };
 
   return <AudioContext.Provider value={contextValue}>{children}</AudioContext.Provider>;
