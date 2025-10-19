@@ -1,5 +1,5 @@
 // app/podcasts/page.tsx
-// VERSIÓN FINAL REFACTORIZADA (SERVER COMPONENT)
+// VERSIÓN FINAL CON CARGA DE DATOS COMPLETA
 
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
@@ -7,18 +7,16 @@ import { PodcastWithProfile } from '@/types/podcast';
 import Link from 'next/link';
 import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-
-// Se importa el nuevo componente de cliente que manejará la interactividad.
 import { LibraryTabs } from './library-tabs';
 
-// Los tipos se mantienen para la carga de datos.
 type UserCreatedPodcast = {
   id: number;
   created_at: string;
   title: string;
   description: string | null;
   status: string;
-  audio_url: string | null; // Se añade `audio_url` para los filtros
+  audio_url: string | null;
+  duration_seconds: number | null; // Se añade el tipo
 };
 
 type UserCreationJob = {
@@ -36,7 +34,6 @@ export default async function PodcastsPage({ searchParams }: { searchParams: { t
 
   const { data: { user } } = await supabase.auth.getUser();
 
-  // La lógica de carga de datos permanece aquí, en el servidor. Es eficiente y seguro.
   let publicPodcasts: PodcastWithProfile[] = [];
   try {
     const { data, error } = await supabase.from('micro_pods').select(`*, profiles(full_name, avatar_url)`).eq('status', 'published').order('created_at', { ascending: false });
@@ -56,8 +53,10 @@ export default async function PodcastsPage({ searchParams }: { searchParams: { t
       userCreationJobs = data || [];
     } catch (error) { console.error("Error al obtener trabajos de creación del usuario:", error); userCreationJobs = []; }
     try {
-      // Se añade `audio_url` a la selección para poder usarlo en los filtros.
-      const { data, error } = await supabase.from('micro_pods').select('id, created_at, title, description, status, audio_url').eq('user_id', user.id).order('created_at', { ascending: false });
+      // ================== INTERVENCIÓN QUIRÚRGICA ==================
+      // Se añade `duration_seconds` a la lista de columnas solicitadas.
+      const { data, error } = await supabase.from('micro_pods').select('id, created_at, title, description, status, audio_url, duration_seconds').eq('user_id', user.id).order('created_at', { ascending: false });
+      // =============================================================
       if (error) throw error;
       userCreatedPodcasts = data || [];
     } catch (error) { console.error("Error al obtener micro-podcasts del usuario:", error); userCreatedPodcasts = []; }
@@ -79,7 +78,6 @@ export default async function PodcastsPage({ searchParams }: { searchParams: { t
         </div>
       </header>
       
-      {/* Se renderiza el componente de cliente, pasándole todos los datos cargados en el servidor. */}
       <LibraryTabs
         defaultTab={defaultTab}
         user={user}
