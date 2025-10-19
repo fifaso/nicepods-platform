@@ -1,24 +1,20 @@
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { User } from '@supabase/supabase-js';
 import Image from 'next/image';
 
-// --- Importaciones de Hooks y Tipos ---
+// --- Importaciones ---
 import { PodcastWithProfile } from '@/types/podcast';
-
-// --- Importaciones de Componentes de UI ---
+import { useAuth } from '@/hooks/use-auth';
+import { useAudio } from '@/contexts/audio-context';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Heart, Share2, Download, Bot, Calendar, Clock, Wand2 } from 'lucide-react';
-
-// ================== INTERVENCIÓN QUIRÚRGICA FINAL ==================
-// Se corrige la ruta de importación para que apunte al directorio correcto (`create-flow`)
-// y se utiliza el alias de ruta `@/components` para mantener la consistencia del proyecto.
+import { Heart, Share2, Download, Bot, Calendar, Clock, Wand2, PlayCircle } from 'lucide-react';
 import { AudioStudio } from '@/components/create-flow/audio-studio';
-// ====================================================================
 
 type ScriptLine = { speaker: string; line: string; };
 interface ScriptViewerProps { scriptText: string | null; }
@@ -28,9 +24,7 @@ function ScriptViewer({ scriptText }: ScriptViewerProps) {
     if (!scriptText) return null;
     try {
       const scriptData = JSON.parse(scriptText);
-      if (!Array.isArray(scriptData)) {
-        throw new Error("El formato del guion no es un array válido.");
-      }
+      if (!Array.isArray(scriptData)) { throw new Error("El formato del guion no es un array válido."); }
       return scriptData.map((item: ScriptLine) => item.line).join('\n\n');
     } catch (error) {
       console.error("Error al parsear o formatear el guion JSON:", error);
@@ -56,8 +50,43 @@ interface PodcastViewProps {
 }
 
 export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewProps) {
+  const router = useRouter();
+  const { supabase } = useAuth();
+  const { playPodcast } = useAudio();
+  
   const [isLiked, setIsLiked] = useState(initialIsLiked);
   const [isStudioOpen, setIsStudioOpen] = useState(false);
+
+  // ================== INTERVENCIÓN QUIRÚRGICA #1: LA ACTUALIZACIÓN EN TIEMPO REAL ==================
+  useEffect(() => {
+    if (!supabase || podcastData.audio_url) {
+      return;
+    }
+
+    const channel = supabase
+      .channel(`micro_pod_${podcastData.id}`)
+      .on<PodcastWithProfile>(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'micro_pods',
+          filter: `id=eq.${podcastData.id}`
+        },
+        (payload) => {
+          if (payload.new.audio_url) {
+            console.log("¡Audio detectado! Refrescando los datos de la página...");
+            router.refresh();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase, podcastData.id, podcastData.audio_url, router]);
+  // ==============================================================================================
 
   return (
     <>
@@ -82,32 +111,42 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
 
           {/* Columna Lateral: Interacciones y Metadatos */}
           <div className="lg:col-span-1 space-y-6">
-            
             <Card className="bg-card/50 backdrop-blur-lg border-border/20 shadow-lg">
               <CardHeader>
-                <CardTitle>Crear Podcast</CardTitle>
+                <CardTitle>{podcastData.audio_url ? "Reproducir Podcast" : "Crear Podcast"}</CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
-                <Button 
-                  size="lg" 
-                  className="w-full" 
-                  onClick={() => setIsStudioOpen(true)}
-                  disabled={!!podcastData.audio_url}
-                >
-                  <Wand2 className="mr-2 h-5 w-5" />
-                  {podcastData.audio_url ? "Audio ya Generado" : "Generar Audio con IA"}
-                </Button>
-
+                
+                {/* ================== INTERVENCIÓN QUIRÚRGICA #2: RENDERIZADO CONDICIONAL ================== */}
+                {podcastData.audio_url ? (
+                  <Button 
+                    size="lg" 
+                    className="w-full bg-green-500 hover:bg-green-600"
+                    onClick={() => playPodcast({ 
+                      id: String(podcastData.id), 
+                      title: podcastData.title, 
+                      audioUrl: podcastData.audio_url! 
+                    })}
+                  >
+                    <PlayCircle className="mr-2 h-5 w-5" />
+                    Reproducir Audio
+                  </Button>
+                ) : (
+                  <Button 
+                    size="lg" 
+                    className="w-full" 
+                    onClick={() => setIsStudioOpen(true)}
+                  >
+                    <Wand2 className="mr-2 h-5 w-5" />
+                    Generar Audio con IA
+                  </Button>
+                )}
+                {/* ======================================================================================== */}
+                
                 <div className="flex justify-around">
-                  <Button variant="ghost" size="icon" disabled>
-                    <Heart className="h-5 w-5 text-muted-foreground/50" />
-                  </Button>
-                  <Button variant="ghost" size="icon" disabled>
-                    <Share2 className="h-5 w-5 text-muted-foreground/50" />
-                  </Button>
-                  <Button variant="ghost" size="icon" disabled>
-                    <Download className="h-5 w-5 text-muted-foreground/50" />
-                  </Button>
+                  <Button variant="ghost" size="icon" disabled><Heart className="h-5 w-5 text-muted-foreground/50" /></Button>
+                  <Button variant="ghost" size="icon" disabled><Share2 className="h-5 w-5 text-muted-foreground/50" /></Button>
+                  <Button variant="ghost" size="icon" disabled><Download className="h-5 w-5 text-muted-foreground/50" /></Button>
                 </div>
               </CardContent>
             </Card>

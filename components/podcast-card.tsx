@@ -1,4 +1,5 @@
-// components/podcast-card.tsx
+// app/components/podcast-card.tsx
+// VERSIÓN FINAL CON INDICADOR DE ESTADO
 
 "use client";
 
@@ -8,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Play, Clock, Pause } from "lucide-react";
 import { useAudio } from "@/contexts/audio-context";
-import { PodcastWithProfile } from "@/types/podcast"; // MODIFICACIÓN: Importamos nuestro tipo centralizado
+import { PodcastWithProfile } from "@/types/podcast";
 
 interface PodcastCardProps {
   podcast: PodcastWithProfile;
@@ -17,21 +18,17 @@ interface PodcastCardProps {
 export function PodcastCard({ podcast }: PodcastCardProps) {
   const { playPodcast, currentPodcast, isPlaying } = useAudio();
 
-  // ================== MODIFICACIÓN #3: ADAPTACIÓN A LA NUEVA LÓGICA ==================
   const handlePlay = () => {
-    // Creamos un objeto 'PlayablePodcast' con solo la información necesaria.
-    // El 'audioUrl' puede ser null, y nuestro nuevo AudioContext lo manejará.
     playPodcast({
       id: podcast.id.toString(),
       title: podcast.title,
-      audioUrl: podcast.audio_url || '', // Pasamos la URL (o un string vacío si es null)
+      audioUrl: podcast.audio_url || '',
     });
   };
-  // =================================================================================
 
   const isCurrentlyPlaying = currentPodcast?.id === podcast.id.toString() && isPlaying;
   const authorName = podcast.profiles?.full_name || "Creador Anónimo";
-  const authorImage = podcast.profiles?.avatar_url || "/images/placeholder.svg"; // Usamos un placeholder genérico
+  const authorImage = podcast.profiles?.avatar_url || "/images/placeholder.svg";
 
   return (
     <Card className="flex flex-col overflow-hidden transition-transform duration-300 hover:-translate-y-1 bg-card/50 shadow-md hover:shadow-xl border border-border/20">
@@ -43,9 +40,17 @@ export function PodcastCard({ podcast }: PodcastCardProps) {
           className="object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-        <div className="absolute top-3 left-3">
+        <div className="absolute top-3 left-3 flex gap-2">
+          {/* ================== INTERVENCIÓN QUIRÚRGICA #1 ================== */}
+          {/* Se añade un Badge que muestra el estado del podcast. */}
+          {podcast.audio_url ? (
+            <Badge className="bg-green-500/20 text-green-300 border-green-500/30">Audio Disponible</Badge>
+          ) : (
+            <Badge variant="secondary">Solo Guion</Badge>
+          )}
+          {/* ================================================================ */}
           {podcast.category && (
-            <Badge variant="secondary">{podcast.category}</Badge>
+            <Badge variant="outline">{podcast.category}</Badge>
           )}
         </div>
         <div className="absolute bottom-3 right-3">
