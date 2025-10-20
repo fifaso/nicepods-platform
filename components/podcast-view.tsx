@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { User } from '@supabase/supabase-js';
 import Image from 'next/image';
 
-// --- Importaciones ---
 import { PodcastWithProfile } from '@/types/podcast';
 import { useAuth } from '@/hooks/use-auth';
 import { useAudio } from '@/contexts/audio-context';
@@ -16,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Heart, Share2, Download, Bot, Calendar, Clock, Wand2, PlayCircle } from 'lucide-react';
 import { AudioStudio } from '@/components/create-flow/audio-studio';
+import { CreationMetadata } from './creation-metadata';
 
 type ScriptLine = { speaker: string; line: string; };
 interface ScriptViewerProps { scriptText: string | null; }
@@ -79,9 +79,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
     return () => { supabase.removeChannel(channel); };
   }, [supabase, podcastData.id, podcastData.audio_url, router]);
 
-  // ================== INTERVENCIÓN QUIRÚRGICA FINAL ==================
-  // Se añade el manejo de 'null' en la actualización del estado de `likeCount`
-  // para garantizar la seguridad de tipos y eliminar los errores de TypeScript.
   const handleLike = async () => {
     if (!supabase || !user) {
         toast({ title: "Acción requerida", description: "Debes iniciar sesión para dar 'like'.", variant: "destructive" });
@@ -91,32 +88,31 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
     
     if (isLiked) {
       setIsLiked(false);
-      setLikeCount(c => (c ?? 0) - 1); // <-- CORRECCIÓN
+      setLikeCount(c => (c ?? 1) - 1);
       const { error } = await supabase.from('likes').delete().match({ user_id: user.id, podcast_id: podcastData.id });
       if (error) {
         setIsLiked(true);
-        setLikeCount(c => (c ?? 0) + 1); // <-- CORRECCIÓN
+        setLikeCount(c => (c ?? 0) + 1);
         toast({ title: "Error", description: "No se pudo quitar el 'like'.", variant: "destructive" });
       }
     } else {
       setIsLiked(true);
-      setLikeCount(c => (c ?? 0) + 1); // <-- CORRECCIÓN
+      setLikeCount(c => (c ?? 0) + 1);
       const { error } = await supabase.from('likes').insert({ user_id: user.id, podcast_id: podcastData.id });
       if (error) {
         setIsLiked(false);
-        setLikeCount(c => (c ?? 0) - 1); // <-- CORRECCIÓN
+        setLikeCount(c => (c ?? 1) - 1);
         toast({ title: "Error", description: "No se pudo dar 'like'.", variant: "destructive" });
       }
     }
     setIsLiking(false);
   };
-  // ====================================================================
 
   return (
     <>
       <div className="container mx-auto max-w-4xl py-12">
         <div className="grid lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
+          <div className="lg-col-span-2">
             <Card className="bg-card/50 backdrop-blur-lg border-border/20 shadow-lg">
               <CardHeader>
                 <Badge variant="secondary" className="mb-2 w-fit">{podcastData.status === 'published' ? 'Publicado' : 'Borrador'}</Badge>
@@ -132,28 +128,12 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
           </div>
           <div className="lg:col-span-1 space-y-6">
             <Card className="bg-card/50 backdrop-blur-lg border-border/20 shadow-lg">
-              <CardHeader>
-                <CardTitle>{podcastData.audio_url ? "Reproducir Podcast" : "Crear Podcast"}</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle>{podcastData.audio_url ? "Reproducir Podcast" : "Crear Podcast"}</CardTitle></CardHeader>
               <CardContent className="flex flex-col gap-4">
                 {podcastData.audio_url ? (
-                  <Button 
-                    size="lg" 
-                    className="w-full bg-green-500 hover:bg-green-600"
-                    onClick={() => playPodcast(podcastData)}
-                  >
-                    <PlayCircle className="mr-2 h-5 w-5" />
-                    Reproducir Audio
-                  </Button>
+                  <Button size="lg" className="w-full bg-green-500 hover:bg-green-600" onClick={() => playPodcast(podcastData)}><PlayCircle className="mr-2 h-5 w-5" />Reproducir Audio</Button>
                 ) : (
-                  <Button 
-                    size="lg" 
-                    className="w-full" 
-                    onClick={() => setIsStudioOpen(true)}
-                  >
-                    <Wand2 className="mr-2 h-5 w-5" />
-                    Generar Audio con IA
-                  </Button>
+                  <Button size="lg" className="w-full" onClick={() => setIsStudioOpen(true)}><Wand2 className="mr-2 h-5 w-5" />Generar Audio con IA</Button>
                 )}
                 <div className="flex justify-around items-center">
                   <div className="flex items-center gap-1">
@@ -162,38 +142,17 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
                     </Button>
                     <span className="text-sm text-muted-foreground w-4 text-center">{likeCount ?? 0}</span>
                   </div>
-                  <Button variant="ghost" size="icon" disabled>
-                    <Share2 className="h-5 w-5 text-muted-foreground" />
-                  </Button>
-                  <Button variant="ghost" size="icon" disabled>
-                    <Download className="h-5 w-5 text-muted-foreground" />
-                  </Button>
+                  <Button variant="ghost" size="icon" disabled><Share2 className="h-5 w-5 text-muted-foreground" /></Button>
+                  <Button variant="ghost" size="icon" disabled><Download className="h-5 w-5 text-muted-foreground" /></Button>
                 </div>
               </CardContent>
             </Card>
             <Card className="bg-card/50 backdrop-blur-lg border-border/20 shadow-lg">
               <CardHeader>
-                <CardTitle>Metadatos</CardTitle>
+                <CardTitle>Metadatos de Creación</CardTitle>
               </CardHeader>
               <CardContent className="text-sm space-y-3">
-                <div className="flex items-center">
-                  <Image src={podcastData.profiles?.avatar_url || '/images/placeholder.svg'} alt={podcastData.profiles?.full_name || 'Creador'} width={24} height={24} className="rounded-full mr-2" />
-                  <span className="font-medium">{podcastData.profiles?.full_name || 'Creador Anónimo'}</span>
-                </div>
-                <div className="flex items-center text-muted-foreground">
-                  <Calendar className="h-4 w-4 mr-2" />
-                  <span>Creado el: {new Date(podcastData.created_at).toLocaleDateString()}</span>
-                </div>
-                <div className="flex items-center text-muted-foreground">
-                  <Bot className="h-4 w-4 mr-2" />
-                  <span>Agente de IA: Narrador Maestro</span>
-                </div>
-                {podcastData.duration_seconds && 
-                  <div className="flex items-center text-muted-foreground">
-                    <Clock className="h-4 w-4 mr-2" />
-                    <span>Duración Aprox: {Math.floor(podcastData.duration_seconds / 60)} min</span>
-                  </div>
-                }
+                <CreationMetadata data={podcastData.creation_data} />
               </CardContent>
             </Card>
           </div>

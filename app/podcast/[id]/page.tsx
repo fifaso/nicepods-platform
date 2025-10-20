@@ -4,7 +4,11 @@ import { PodcastView } from "@/components/podcast-view";
 import { PodcastWithProfile } from '@/types/podcast';
 import { createClient } from '@/lib/supabase/server'; 
 
-type PodcastPageProps = { params: { id: string; }; };
+type PodcastPageProps = {
+  params: {
+    id: string;
+  };
+};
 
 export default async function PodcastDisplayPage({ params }: PodcastPageProps) {
   const cookieStore = cookies();
@@ -21,6 +25,7 @@ export default async function PodcastDisplayPage({ params }: PodcastPageProps) {
       id, user_id, title, description, script_text, audio_url,
       cover_image_url, duration_seconds, category, status,
       play_count, like_count, created_at, updated_at,
+      creation_data,
       profiles ( full_name, avatar_url )
     `)
     .eq('id', params.id)
@@ -31,7 +36,6 @@ export default async function PodcastDisplayPage({ params }: PodcastPageProps) {
     notFound();
   }
   
-  // ================== INTERVENCIÓN QUIRÚRGICA: OBTENCIÓN DEL ESTADO DEL LIKE ==================
   const { data: likeData } = await supabase
     .from('likes')
     .select('user_id')
@@ -40,7 +44,6 @@ export default async function PodcastDisplayPage({ params }: PodcastPageProps) {
     .single();
     
   const initialIsLiked = !!likeData;
-  // ========================================================================================
   
   return (
     <PodcastView 

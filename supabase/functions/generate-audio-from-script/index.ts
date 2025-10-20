@@ -1,12 +1,17 @@
 // supabase/functions/generate-audio-from-script/index.ts
-// VERSIÓN DE PRODUCCIÓN FINAL (CON CÁLCULO DE DURACIÓN ROBUSTO)
+// VERSIÓN DE PRODUCCIÓN FINAL (ROBUSTA Y A PRUEBA DE CASOS LÍMITE)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { z, ZodError } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { decode } from "https://deno.land/std@0.208.0/encoding/base64.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+
+// ================== INTERVENCIÓN QUIRÚRGICA #1: REEMPLAZO DE DEPENDENCIA ==================
+// Se reemplaza la librería de metadatos por la versión de servidor (`music-metadata`)
+// para eliminar el error de incompatibilidad de entorno en guiones cortos.
 import * as mm from "https://esm.sh/music-metadata@7.14.0"; 
+// ======================================================================================
 
 const supabaseAdmin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 const GOOGLE_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY")!;
@@ -19,16 +24,40 @@ const AudioPayloadSchema = z.object({
 
 type ScriptLine = { speaker: string; line: string; };
 
-function transformScriptToSSML(scriptText: string): string {
-  try {
-    const scriptData = JSON.parse(scriptText) as ScriptLine[];
-    const lines = scriptData.map(item => `<p>${item.line}</p>`).join('<break time="800ms"/>');
-    return `<speak>${lines}</speak>`;
-  } catch (error) {
-    console.error("Error al transformar el guion a SSML:", error);
-    throw new Error("El formato del guion es inválido y no se pudo procesar.");
+// ================== INTERVENCIÓN QUIRÚRGICA #2: BLINDAJE DEL "CHUNKER" ==================
+// Se refina la lógica para dividir el guion en trozos, usando un límite más conservador
+// y una lógica de bucle más precisa para prevenir el error 400 en guiones largos.
+function chunkScriptForTTS(script: ScriptLine[], limit = 4500): string[] {
+  const chunks: string[] = [];
+  let currentChunkLines: string[] = [];
+  let currentByteLength = 0;
+  const encoder = new TextEncoder();
+
+  const speakTagStart = "<speak>";
+  const speakTagEnd = "</speak>";
+  const tagsByteLength = encoder.encode(speakTagStart + speakTagEnd).length;
+
+  for (const line of script) {
+    const lineSSML = `<p>${line.line}</p><break time="800ms"/>`;
+    const lineByteLength = encoder.encode(lineSSML).length;
+
+    if (currentByteLength + lineByteLength + tagsByteLength > limit && currentChunkLines.length > 0) {
+      chunks.push(`${speakTagStart}${currentChunkLines.join('')}${speakTagEnd}`);
+      currentChunkLines = [];
+      currentByteLength = 0;
+    }
+    
+    currentChunkLines.push(lineSSML);
+    currentByteLength += lineByteLength;
   }
+
+  if (currentChunkLines.length > 0) {
+    chunks.push(`${speakTagStart}${currentChunkLines.join('')}${speakTagEnd}`);
+  }
+  
+  return chunks;
 }
+// ======================================================================================
 
 serve(async (request: Request) => {
   if (request.method === 'OPTIONS') { return new Response('ok', { headers: corsHeaders }); }
@@ -47,35 +76,47 @@ serve(async (request: Request) => {
     if (podcast.user_id !== user.id) { return new Response(JSON.stringify({ error: "No tienes permiso para modificar este podcast." }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' }}); }
     if (!podcast.script_text) { throw new Error("El guion de este podcast está vacío."); }
 
-    const ssmlText = transformScriptToSSML(podcast.script_text);
+    const scriptData = JSON.parse(podcast.script_text) as ScriptLine[];
+    const ssmlChunks = chunkScriptForTTS(scriptData);
+
+    const ttsApiUrl = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${GOOGLE_API_KEY}`;
     const languageCode = voiceName.split('-').slice(0, 2).join('-');
     
-    const ttsResponse = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${GOOGLE_API_KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        input: { ssml: ssmlText },
-        voice: { languageCode: languageCode, name: voiceName },
-        audioConfig: { audioEncoding: 'MP3', speakingRate: speakingRate }
+    const audioPromises = ssmlChunks.map(chunk => 
+      fetch(ttsApiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          input: { ssml: chunk },
+          voice: { languageCode: languageCode, name: voiceName },
+          audioConfig: { audioEncoding: 'MP3', speakingRate: speakingRate }
+        })
       })
-    });
-    if (!ttsResponse.ok) { throw new Error(`La API de Google TTS falló: ${await ttsResponse.text()}`); }
+    );
+    const responses = await Promise.all(audioPromises);
 
-    const { audioContent } = await ttsResponse.json();
-    if (!audioContent) { throw new Error("La respuesta de la API de Google TTS no contenía audio."); }
-
-    const decodedAudio = decode(audioContent);
+    const audioContents: string[] = [];
+    for (const res of responses) {
+      if (!res.ok) { throw new Error(`Una de las llamadas a la API de Google TTS falló: ${await res.text()}`); }
+      const { audioContent } = await res.json();
+      if (!audioContent) { throw new Error("Una de las respuestas de la API no contenía audio."); }
+      audioContents.push(audioContent);
+    }
     
+    const audioBuffers = audioContents.map(content => decode(content));
+    const combinedBlob = new Blob(audioBuffers, { type: 'audio/mpeg' });
+    const combinedAudioBuffer = await combinedBlob.arrayBuffer();
+
     let audioDuration = 0;
     try {
-      const metadata = await mm.parseBuffer(decodedAudio, 'audio/mpeg');
+      const metadata = await mm.parseBuffer(new Uint8Array(combinedAudioBuffer), 'audio/mpeg');
       audioDuration = metadata.format.duration ? Math.round(metadata.format.duration) : 0;
     } catch (e) {
       console.error("No se pudo parsear la duración del audio, se guardará como 0.", e);
     }
 
     const filePath = `public/${user.id}/${podcastId}-${Date.now()}.mp3`;
-    const { error: storageError } = await supabaseAdmin.storage.from('podcasts').upload(filePath, decodedAudio, { contentType: 'audio/mpeg' });
+    const { error: storageError } = await supabaseAdmin.storage.from('podcasts').upload(filePath, combinedAudioBuffer, { contentType: 'audio/mpeg' });
     if (storageError) { throw new Error(`Fallo al subir el audio: ${storageError.message}`); }
 
     const { data: publicUrlData } = supabaseAdmin.storage.from('podcasts').getPublicUrl(filePath);
@@ -88,7 +129,8 @@ serve(async (request: Request) => {
         duration_seconds: audioDuration
       })
       .eq('id', podcastId);
-    if (updateError) { throw new Error(`Fallo al actualizar el podcast: ${updateError.message}`); }
+      
+    if (updateError) { throw new Error(`Fallo al actualizar el podcast con la URL y duración: ${updateError.message}`); }
 
     return new Response(JSON.stringify({ success: true, message: "Audio generado y guardado con éxito." }), {
       status: 200,
