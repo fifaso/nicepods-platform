@@ -17,6 +17,7 @@ import { Separator } from '@/components/ui/separator';
 import { Heart, Share2, Download, Bot, Calendar, Clock, Wand2, PlayCircle } from 'lucide-react';
 import { AudioStudio } from '@/components/create-flow/audio-studio';
 import { CreationMetadata } from './creation-metadata';
+import { formatTime } from '@/lib/utils'; // Se importa la utilidad de formato de tiempo
 
 type ScriptLine = { speaker: string; line: string; };
 interface ScriptViewerProps { scriptText: string | null; }
@@ -107,12 +108,12 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
 
   return (
     <>
-      <div className="container mx-auto max-w-4xl py-12">
-        {/* ================== INTERVENCIÓN QUIRÚRGICA: CORRECCIÓN DE LAYOUT ================== */}
-        {/* Se corrige el error de tipeo en la clase de la rejilla (grid). */}
+      {/* ================== INTERVENCIÓN QUIRÚRGICA #1: EXPANSIÓN DEL LAYOUT ================== */}
+      {/* Se cambia `max-w-4xl` por `max-w-7xl` para que coincida con el ancho del menú superior. */}
+      <div className="container mx-auto max-w-7xl py-12 px-4">
+      {/* ==================================================================================== */}
         <div className="grid lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
-        {/* ==================================================================================== */}
             <Card className="bg-card/50 backdrop-blur-lg border-border/20 shadow-lg">
               <CardHeader>
                 <Badge variant="secondary" className="mb-2 w-fit">{podcastData.status === 'published' ? 'Publicado' : 'Borrador'}</Badge>
@@ -147,14 +148,40 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
                 </div>
               </CardContent>
             </Card>
+            
+            {/* ================== INTERVENCIÓN QUIRÚRGICA #2: TARJETA DE METADATOS UNIFICADA ================== */}
             <Card className="bg-card/50 backdrop-blur-lg border-border/20 shadow-lg">
               <CardHeader>
-                <CardTitle>Metadatos de Creación</CardTitle>
+                <CardTitle>Metadatos</CardTitle>
               </CardHeader>
-              <CardContent className="text-sm space-y-3">
-                <CreationMetadata data={podcastData.creation_data} />
+              <CardContent className="text-sm space-y-4">
+                {/* --- SECCIÓN DE METADATOS BASE (SIEMPRE SE MUESTRA) --- */}
+                <div className="flex items-center">
+                  <Image src={podcastData.profiles?.avatar_url || '/images/placeholder.svg'} alt={podcastData.profiles?.full_name || 'Creador'} width={24} height={24} className="rounded-full mr-2" />
+                  <span className="font-medium">{podcastData.profiles?.full_name || 'Creador Anónimo'}</span>
+                </div>
+                <div className="flex items-center text-muted-foreground">
+                  <Calendar className="h-4 w-4 mr-2" />
+                  <span>Creado el: {new Date(podcastData.created_at).toLocaleDateString()}</span>
+                </div>
+                {podcastData.duration_seconds && podcastData.duration_seconds > 0 &&
+                  <div className="flex items-center text-muted-foreground">
+                    <Clock className="h-4 w-4 mr-2" />
+                    <span>Duración: {formatTime(podcastData.duration_seconds)}</span>
+                  </div>
+                }
+                
+                {/* --- SECCIÓN DE MEJORA PROGRESIVA (SOLO PARA PODCASTS NUEVOS) --- */}
+                {podcastData.creation_data && (
+                  <>
+                    <Separator className="my-4" />
+                    <CreationMetadata data={podcastData.creation_data} />
+                  </>
+                )}
               </CardContent>
             </Card>
+            {/* ================================================================================================ */}
+
           </div>
         </div>
       </div>
