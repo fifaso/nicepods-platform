@@ -1,7 +1,8 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { Bot, Lightbulb, Link2, Mic, Settings, BookOpen } from 'lucide-react';
+import { Bot, Lightbulb, Link2, Mic, Settings, BookOpen, Info } from 'lucide-react';
+import type React from 'react';
 
 interface MetadataItemProps {
   icon: React.ElementType;
@@ -23,7 +24,18 @@ function MetadataItem({ icon: Icon, label, value }: MetadataItemProps) {
 }
 
 export function CreationMetadata({ data }: { data: any }) {
-  if (!data) return null;
+  // ================== INTERVENCIÓN QUIRÚRGICA: MANEJO DE ESTADO VACÍO ==================
+  // Si los datos de creación no existen (ej. para podcasts antiguos),
+  // mostramos un mensaje informativo en lugar de una tarjeta vacía.
+  if (!data) {
+    return (
+      <div className="flex items-center text-muted-foreground">
+        <Info className="h-4 w-4 mr-3 flex-shrink-0" />
+        <span className="text-sm">Metadatos de creación no disponibles para este podcast.</span>
+      </div>
+    );
+  }
+  // ====================================================================================
 
   const { style, agentName, inputs } = data;
 

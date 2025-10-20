@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { User } from '@supabase/supabase-js';
 import Image from 'next/image';
 
+// --- Importaciones ---
 import { PodcastWithProfile } from '@/types/podcast';
 import { useAuth } from '@/hooks/use-auth';
 import { useAudio } from '@/contexts/audio-context';
@@ -63,9 +64,7 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
 
   useEffect(() => {
     if (!supabase || podcastData.audio_url) { return; }
-    const channel = supabase
-      .channel(`micro_pod_${podcastData.id}`)
-      .on<PodcastWithProfile>(
+    const channel = supabase.channel(`micro_pod_${podcastData.id}`).on<PodcastWithProfile>(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'micro_pods', filter: `id=eq.${podcastData.id}` },
         (payload) => {
@@ -74,8 +73,7 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
             router.refresh();
           }
         }
-      )
-      .subscribe();
+      ).subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [supabase, podcastData.id, podcastData.audio_url, router]);
 
@@ -85,7 +83,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
         return;
     }
     setIsLiking(true);
-    
     if (isLiked) {
       setIsLiked(false);
       setLikeCount(c => (c ?? 1) - 1);
@@ -111,8 +108,11 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
   return (
     <>
       <div className="container mx-auto max-w-4xl py-12">
+        {/* ================== INTERVENCIÓN QUIRÚRGICA: CORRECCIÓN DE LAYOUT ================== */}
+        {/* Se corrige el error de tipeo en la clase de la rejilla (grid). */}
         <div className="grid lg:grid-cols-3 gap-8">
-          <div className="lg-col-span-2">
+          <div className="lg:col-span-2">
+        {/* ==================================================================================== */}
             <Card className="bg-card/50 backdrop-blur-lg border-border/20 shadow-lg">
               <CardHeader>
                 <Badge variant="secondary" className="mb-2 w-fit">{podcastData.status === 'published' ? 'Publicado' : 'Borrador'}</Badge>
