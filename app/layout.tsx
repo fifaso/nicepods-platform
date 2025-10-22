@@ -1,13 +1,10 @@
-// app/layout.tsx
-
 import { cookies } from 'next/headers';
 import type React from "react";
 import type { Metadata } from "next";
 import "./globals.css";
 import { Inter } from "next/font/google";
-// ================== MODIFICACIÓN QUIRÚRGICA #1: IMPORTACIÓN DEL CONSTRUCTOR ==================
+
 import { createClient } from '@/lib/supabase/server';
-// =========================================================================================
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/hooks/use-auth";
@@ -16,8 +13,12 @@ import { ScrollToTop } from "@/components/scroll-to-top";
 import { SmoothScrollWrapper } from "@/components/smooth-scroll-wrapper";
 import { PageTransition } from "@/components/page-transition";
 import { AudioProvider } from "@/contexts/audio-context";
-import { MiniAudioPlayer } from "@/components/mini-audio-player";
 import { ErrorBoundary } from "@/components/error-boundary";
+
+// ================== INTERVENCIÓN QUIRÚRGICA: REEMPLAZO ARQUITECTÓNICO ==================
+// Se importa el nuevo "orquestador" en lugar del reproductor directo.
+import { PlayerOrchestrator } from "@/components/player-orchestrator";
+// ==================================================================================
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -32,20 +33,9 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const cookieStore = cookies();
-  // ================== MODIFICACIÓN QUIRÚRGICA #2: USO DEL CONSTRUCTOR CENTRALIZADO ==================
-  // Reemplazamos la creación manual del cliente por nuestra función helper,
-  // asegurando consistencia y mantenibilidad en todo el proyecto.
   const supabase = createClient(cookieStore);
-  // ==============================================================================================
-
-  // ================== MODIFICACIÓN QUIRÚRGICA #3: OBTENCIÓN SEGURA DE LA SESIÓN ==================
-  // Reemplazamos 'getSession()' por 'getUser()' para obtener la sesión del servidor.
-  // 'getUser()' revalida la sesión con el servidor de Supabase, lo cual es la mejor práctica de seguridad.
-  // Esto eliminará la advertencia de la terminal.
   const { data: { user } } = await supabase.auth.getUser();
-  // Pasamos la sesión (que puede ser null) al AuthProvider.
   const session = user ? { user } : null;
-  // =============================================================================================
 
   return (
     <html lang="es" suppressHydrationWarning>
@@ -91,7 +81,12 @@ export default async function RootLayout({
                     <PageTransition>
                       <main className="relative z-10">{children}</main>
                     </PageTransition>
-                    <MiniAudioPlayer />
+
+                    {/* ================== INTERVENCIÓN QUIRÚRGICA: EL TRASPLANTE ================== */}
+                    {/* Se reemplaza el antiguo <MiniAudioPlayer /> por el nuevo <PlayerOrchestrator />. */}
+                    <PlayerOrchestrator />
+                    {/* ============================================================================ */}
+                    
                     <Toaster />
                   </div>
                 </SmoothScrollWrapper>

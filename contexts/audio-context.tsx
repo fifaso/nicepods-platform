@@ -21,6 +21,11 @@ export interface AudioContextType {
   skipForward: (seconds?: number) => void;
   skipBackward: (seconds?: number) => void;
   setVolume: (volume: number) => void;
+  // ================== INTERVENCIÓN QUIRÚRGICA #1: NUEVO ESTADO Y ACCIONES ==================
+  isPlayerExpanded: boolean;
+  expandPlayer: () => void;
+  collapsePlayer: () => void;
+  // =====================================================================================
 }
 
 const AudioContext = createContext<AudioContextType | undefined>(undefined);
@@ -38,6 +43,9 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolumeState] = useState(1);
 
+  // Se añade el nuevo estado para controlar la vista del reproductor.
+  const [isPlayerExpanded, setIsPlayerExpanded] = useState(false);
+
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const cleanup = useCallback(() => {
@@ -51,6 +59,8 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     setError(null);
     setCurrentTime(0);
     setDuration(0);
+    // Se resetea el estado expandido al limpiar.
+    setIsPlayerExpanded(false);
   }, []);
 
   useEffect(() => {
@@ -126,8 +136,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         setError("No se pudo reproducir el audio.");
       });
 
-      // ================== INTERVENCIÓN QUIRÚRGICA: HITO 2 ==================
-      // Se invoca la función RPC para registrar la reproducción de forma asíncrona ("fire-and-forget").
       supabase
         .rpc('increment_play_count', { podcast_id: podcast.id })
         .then(({ error }) => {
@@ -135,7 +143,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
             console.error(`Error al incrementar play_count para el podcast ${podcast.id}:`, error);
           }
         });
-      // ====================================================================
     }
   }, [cleanup, toast, currentPodcast, togglePlayPause, volume, supabase]);
 
@@ -171,6 +178,11 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     setVolumeState(clampedVolume);
   }, []);
 
+  // ================== INTERVENCIÓN QUIRÚRGICA #2: NUEVAS FUNCIONES DE CONTROL ==================
+  const expandPlayer = useCallback(() => setIsPlayerExpanded(true), []);
+  const collapsePlayer = useCallback(() => setIsPlayerExpanded(false), []);
+  // ==========================================================================================
+
   const contextValue: AudioContextType = {
     currentPodcast,
     isPlaying,
@@ -186,6 +198,9 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     skipForward,
     skipBackward,
     setVolume,
+    isPlayerExpanded,
+    expandPlayer,
+    collapsePlayer,
   };
 
   return <AudioContext.Provider value={contextValue}>{children}</AudioContext.Provider>;

@@ -17,34 +17,12 @@ import { Separator } from '@/components/ui/separator';
 import { Heart, Share2, Download, Bot, Calendar, Clock, Wand2, PlayCircle } from 'lucide-react';
 import { AudioStudio } from '@/components/create-flow/audio-studio';
 import { CreationMetadata } from './creation-metadata';
-import { formatTime } from '@/lib/utils'; // Se importa la utilidad de formato de tiempo
+import { formatTime } from '@/lib/utils';
 
-type ScriptLine = { speaker: string; line: string; };
-interface ScriptViewerProps { scriptText: string | null; }
-
-function ScriptViewer({ scriptText }: ScriptViewerProps) {
-  const formattedScript = useMemo(() => {
-    if (!scriptText) return null;
-    try {
-      const scriptData = JSON.parse(scriptText);
-      if (!Array.isArray(scriptData)) { throw new Error("El formato del guion no es un array válido."); }
-      return scriptData.map((item: ScriptLine) => item.line).join('\n\n');
-    } catch (error) {
-      console.error("Error al parsear o formatear el guion JSON:", error);
-      return null;
-    }
-  }, [scriptText]);
-
-  if (formattedScript === null) {
-    return <p className="text-destructive">El guion no se pudo cargar o tiene un formato incorrecto.</p>;
-  }
-
-  return (
-    <div className="prose prose-sm max-w-none dark:prose-invert font-serif">
-      <p style={{ whiteSpace: 'pre-wrap' }}>{formattedScript}</p>
-    </div>
-  );
-}
+// ================== INTERVENCIÓN QUIRÚRGICA: REFACTORIZACIÓN ==================
+// Se importa el componente ScriptViewer desde su nuevo archivo.
+import { ScriptViewer } from './script-viewer';
+// ============================================================================
 
 interface PodcastViewProps { 
   podcastData: PodcastWithProfile;
@@ -108,10 +86,7 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
 
   return (
     <>
-      {/* ================== INTERVENCIÓN QUIRÚRGICA #1: EXPANSIÓN DEL LAYOUT ================== */}
-      {/* Se cambia `max-w-4xl` por `max-w-7xl` para que coincida con el ancho del menú superior. */}
       <div className="container mx-auto max-w-7xl py-12 px-4">
-      {/* ==================================================================================== */}
         <div className="grid lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
             <Card className="bg-card/50 backdrop-blur-lg border-border/20 shadow-lg">
@@ -149,13 +124,11 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
               </CardContent>
             </Card>
             
-            {/* ================== INTERVENCIÓN QUIRÚRGICA #2: TARJETA DE METADATOS UNIFICADA ================== */}
             <Card className="bg-card/50 backdrop-blur-lg border-border/20 shadow-lg">
               <CardHeader>
                 <CardTitle>Metadatos</CardTitle>
               </CardHeader>
               <CardContent className="text-sm space-y-4">
-                {/* --- SECCIÓN DE METADATOS BASE (SIEMPRE SE MUESTRA) --- */}
                 <div className="flex items-center">
                   <Image src={podcastData.profiles?.avatar_url || '/images/placeholder.svg'} alt={podcastData.profiles?.full_name || 'Creador'} width={24} height={24} className="rounded-full mr-2" />
                   <span className="font-medium">{podcastData.profiles?.full_name || 'Creador Anónimo'}</span>
@@ -171,7 +144,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
                   </div>
                 }
                 
-                {/* --- SECCIÓN DE MEJORA PROGRESIVA (SOLO PARA PODCASTS NUEVOS) --- */}
                 {podcastData.creation_data && (
                   <>
                     <Separator className="my-4" />
@@ -180,8 +152,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
                 )}
               </CardContent>
             </Card>
-            {/* ================================================================================================ */}
-
           </div>
         </div>
       </div>
