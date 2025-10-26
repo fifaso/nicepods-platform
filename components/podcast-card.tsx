@@ -1,3 +1,6 @@
+// components/podcast-card.tsx
+// VERSIÓN FINAL CON EL NUEVO COMPONENTE `PodcastListItem`
+
 "use client";
 
 import Link from "next/link";
@@ -6,28 +9,24 @@ import type React from "react";
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Play, Clock, Pause } from "lucide-react";
+import { Play, Clock, Pause, MoreHorizontal } from "lucide-react";
 import { useAudio } from "@/contexts/audio-context";
-import { PodcastWithProfile } from "@/types/podcast";
+import { PodcastWithProfile } from "@/types/podcast"; // Tipo completo para máxima compatibilidad
 import { formatTime } from "@/lib/utils";
 
 interface PodcastCardProps {
   podcast: PodcastWithProfile;
 }
 
+// --- El componente PodcastCard original no necesita cambios ---
 export function PodcastCard({ podcast }: PodcastCardProps) {
   const { playPodcast, currentPodcast, isPlaying } = useAudio();
 
-  // ================== INTERVENCIÓN QUIRÚRGICA: MANEJO DE EVENTOS PROFESIONAL ==================
   const handlePlay = (event: React.MouseEvent<HTMLButtonElement>) => {
-    // 1. Detiene la propagación del evento para que no active el <Link> padre.
     event.stopPropagation();
-    event.preventDefault(); // Añadimos preventDefault para máxima seguridad.
-    
-    // 2. Llama a `playPodcast` con el objeto `podcast` completo.
+    event.preventDefault();
     playPodcast(podcast);
   };
-  // ==============================================================================================
 
   const isCurrentlyPlaying = currentPodcast?.id === podcast.id && isPlaying;
   const authorName = podcast.profiles?.full_name || "Creador Anónimo";
@@ -45,10 +44,8 @@ export function PodcastCard({ podcast }: PodcastCardProps) {
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
           <div className="absolute top-3 left-3 flex gap-2">
-            {podcast.audio_url ? (
+            {podcast.audio_url && (
               <Badge className="bg-green-500/20 text-green-300 border-green-500/30">Audio Disponible</Badge>
-            ) : (
-              <Badge variant="secondary">Solo Guion</Badge>
             )}
           </div>
           <div className="absolute bottom-3 right-3">
@@ -71,6 +68,49 @@ export function PodcastCard({ podcast }: PodcastCardProps) {
             </div>
           </div>
         </CardContent>
+      </Card>
+    </Link>
+  );
+}
+
+
+// --- [INTERVENCIÓN QUIRÚRGICA]: Creación del nuevo componente para la vista de lista ---
+export function PodcastListItem({ podcast }: PodcastCardProps) {
+  const { playPodcast, currentPodcast, isPlaying } = useAudio();
+
+  const handlePlay = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    event.preventDefault();
+    playPodcast(podcast);
+  };
+  
+  const isCurrentlyPlaying = currentPodcast?.id === podcast.id && isPlaying;
+  const authorName = podcast.profiles?.full_name || "Creador Anónimo";
+  const creationDate = new Date(podcast.created_at).toLocaleDateString();
+
+  return (
+    <Link href={`/podcast/${podcast.id}`} className="group block">
+      <Card className="p-4 transition-all duration-300 group-hover:bg-primary/5 border border-border/20">
+        <div className="flex items-center gap-4">
+          <div className="flex-shrink-0">
+            <Button onClick={handlePlay} size="icon" className="w-12 h-12 rounded-full bg-primary/80 backdrop-blur-sm hover:bg-primary text-primary-foreground">
+              {isCurrentlyPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6 fill-current" />}
+            </Button>
+          </div>
+          <div className="flex-grow min-w-0">
+            <p className="text-sm text-muted-foreground">{authorName} • {creationDate}</p>
+            <h3 className="font-semibold truncate group-hover:text-primary transition-colors">{podcast.title}</h3>
+          </div>
+          <div className="hidden sm:flex items-center text-sm text-muted-foreground flex-shrink-0 ml-4">
+            <Clock className="h-4 w-4 mr-1" />
+            <span>{podcast.duration_seconds ? formatTime(podcast.duration_seconds) : 'N/A'}</span>
+          </div>
+          <div className="flex-shrink-0">
+            <Button variant="ghost" size="icon" className="rounded-full">
+              <MoreHorizontal className="h-5 w-5" />
+            </Button>
+          </div>
+        </div>
       </Card>
     </Link>
   );

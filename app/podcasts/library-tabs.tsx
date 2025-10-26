@@ -1,3 +1,6 @@
+// app/podcasts/library-tabs.tsx
+// VERSIÓN FINAL CORREGIDA, CON EL CUERPO DEL COMPONENTE JobCard RESTAURADO
+
 "use client";
 
 import { useState } from 'react';
@@ -5,15 +8,16 @@ import Link from 'next/link';
 import { User } from '@supabase/supabase-js';
 import { PodcastWithProfile } from '@/types/podcast';
 
-// --- Importaciones de UI ---
+// --- Importaciones para la UI ---
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Hourglass, CheckCircle, Bot } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PodcastCard } from '@/components/podcast-card';
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Search, Hourglass, Bot, LayoutGrid, List } from 'lucide-react';
+import { PodcastCard, PodcastListItem } from '@/components/podcast-card';
 
-// --- Tipos locales para los datos recibidos como props ---
+// --- Tipos de datos ---
 type UserCreatedPodcast = {
   id: number;
   created_at: string;
@@ -21,6 +25,7 @@ type UserCreatedPodcast = {
   description: string | null;
   status: string;
   audio_url: string | null;
+  duration_seconds: number | null;
 };
 
 type UserCreationJob = {
@@ -40,12 +45,8 @@ interface LibraryTabsProps {
   userCreatedPodcasts: UserCreatedPodcast[];
 }
 
-type FilterStatus = 'all' | 'script' | 'audio';
-
-// ================== INTERVENCIÓN QUIRÚRGICA #1: RE-INTRODUCCIÓN DE SUB-COMPONENTES ==================
-// Se añaden las definiciones completas de JobCard y UserPodcastCard, que antes
-// vivían en `page.tsx`, para que este componente pueda renderizarlos.
-
+// --- [CORRECCIÓN TÉCNICA]: Se restaura el cuerpo de la función JobCard ---
+// Esta función ahora devuelve explícitamente un elemento JSX, resolviendo el error de tipo.
 function JobCard({ job }: { job: UserCreationJob }) {
   return (
     <Card className="bg-background/50 border-primary/20">
@@ -69,32 +70,6 @@ function JobCard({ job }: { job: UserCreationJob }) {
   );
 }
 
-function UserPodcastCard({ podcast }: { podcast: UserCreatedPodcast }) {
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle>{podcast.title}</CardTitle>
-          {podcast.audio_url ? (
-            <Badge className="bg-green-500/20 text-green-300 border-green-500/30">Audio Disponible</Badge>
-          ) : (
-            <Badge variant="secondary">Solo Guion</Badge>
-          )}
-        </div>
-        <CardDescription>Creado el: {new Date(podcast.created_at).toLocaleString()}</CardDescription>
-      </CardHeader>
-      <CardContent>
-         <Button asChild variant="link" className="p-0 h-auto">
-            <Link href={`/podcast/${podcast.id}`}>
-              {podcast.audio_url ? 'Escuchar y ver guion' : 'Ver Guion'}
-            </Link>
-         </Button>
-      </CardContent>
-    </Card>
-  );
-}
-// =================================================================================================
-
 export function LibraryTabs({
   defaultTab,
   user,
@@ -102,37 +77,63 @@ export function LibraryTabs({
   userCreationJobs,
   userCreatedPodcasts
 }: LibraryTabsProps) {
-  const [filter, setFilter] = useState<FilterStatus>('all');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
-  const filteredUserPodcasts = userCreatedPodcasts.filter(p => {
-    if (filter === 'script') return !p.audio_url;
-    if (filter === 'audio') return !!p.audio_url;
-    return true; // 'all'
-  });
+  const renderContent = (podcasts: (PodcastWithProfile | UserCreatedPodcast)[]) => {
+    if (viewMode === 'grid') {
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {podcasts.map((podcast) => <PodcastCard key={podcast.id} podcast={podcast as PodcastWithProfile} />)}
+        </div>
+      );
+    }
+    return (
+      <div className="space-y-4">
+        {podcasts.map((podcast) => <PodcastListItem key={podcast.id} podcast={podcast as PodcastWithProfile} />)}
+      </div>
+    );
+  };
 
   return (
     <Tabs defaultValue={defaultTab} className="w-full">
-      <TabsList className="grid w-full grid-cols-2 mx-auto max-w-xs">
-        <TabsTrigger value="discover">Descubrir</TabsTrigger>
-        <TabsTrigger value="library">Mi Biblioteca</TabsTrigger>
-      </TabsList>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+        <Button variant="outline" className="w-full sm:w-auto">
+          <Search className="mr-2 h-4 w-4" />
+          Buscar...
+        </Button>
+        <TabsList className="grid grid-cols-2 w-full sm:w-auto">
+          <TabsTrigger value="discover">Descubrir</TabsTrigger>
+          <TabsTrigger value="library">Mi Biblioteca</TabsTrigger>
+        </TabsList>
+        <ToggleGroup 
+          type="single" 
+          value={viewMode} 
+          onValueChange={(value) => { if (value) setViewMode(value as 'grid' | 'list'); }}
+          className="justify-center"
+        >
+          <ToggleGroupItem value="grid" aria-label="Vista de cuadrícula">
+            <LayoutGrid className="h-4 w-4" />
+          </ToggleGroupItem>
+          <ToggleGroupItem value="list" aria-label="Vista de lista">
+            <List className="h-4 w-4" />
+          </ToggleGroupItem>
+        </ToggleGroup>
+      </div>
       
-      <TabsContent value="discover" className="mt-8">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {publicPodcasts.length > 0 ? (
-            publicPodcasts.map((podcast) => <PodcastCard key={podcast.id} podcast={podcast} />)
-          ) : (
-            <div className="col-span-full text-center py-16 border-2 border-dashed rounded-lg">
-              <h2 className="text-2xl font-semibold">El universo está por descubrir</h2>
-              <p className="text-muted-foreground mt-2">
-                Aún no hay micro-podcasts públicos. ¡Sé el primero en <Link href="/create" className="text-primary hover:underline">crear y publicar</Link> uno!
-              </p>
-            </div>
-          )}
-        </div>
+      <TabsContent value="discover" className="mt-0">
+        {publicPodcasts.length > 0 ? (
+          renderContent(publicPodcasts)
+        ) : (
+          <div className="col-span-full text-center py-16 border-2 border-dashed rounded-lg">
+            <h2 className="text-2xl font-semibold">El universo está por descubrir</h2>
+            <p className="text-muted-foreground mt-2">
+              Aún no hay micro-podcasts públicos. ¡Sé el primero en <Link href="/create" className="text-primary hover:underline">crear y publicar</Link> uno!
+            </p>
+          </div>
+        )}
       </TabsContent>
       
-      <TabsContent value="library" className="mt-8">
+      <TabsContent value="library" className="mt-0">
         {user ? (
           (userCreationJobs.length > 0 || userCreatedPodcasts.length > 0) ? (
             <div className="space-y-10">
@@ -147,17 +148,8 @@ export function LibraryTabs({
               
               {userCreatedPodcasts.length > 0 && (
                 <section>
-                  <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-2xl font-semibold tracking-tight">Mis Creaciones</h2>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant={filter === 'all' ? 'default' : 'outline'} onClick={() => setFilter('all')}>Todos</Button>
-                      <Button size="sm" variant={filter === 'script' ? 'default' : 'outline'} onClick={() => setFilter('script')}>Solo Guion</Button>
-                      <Button size="sm" variant={filter === 'audio' ? 'default' : 'outline'} onClick={() => setFilter('audio')}>Con Audio</Button>
-                    </div>
-                  </div>
-                   <div className="space-y-4">
-                    {filteredUserPodcasts.map((podcast) => <UserPodcastCard key={`pod-${podcast.id}`} podcast={podcast} />)}
-                  </div>
+                  <h2 className="text-2xl font-semibold tracking-tight mb-4">Mis Creaciones</h2>
+                  {renderContent(userCreatedPodcasts)}
                 </section>
               )}
             </div>

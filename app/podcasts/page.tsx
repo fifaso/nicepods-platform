@@ -1,14 +1,12 @@
 // app/podcasts/page.tsx
-// VERSIÓN FINAL CON CARGA DE DATOS COMPLETA
+// VERSIÓN FINAL CON LAYOUT REESTRUCTURADO
 
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { PodcastWithProfile } from '@/types/podcast';
-import Link from 'next/link';
-import { Search } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { LibraryTabs } from './library-tabs';
+import { LibraryTabs } from './library-tabs'; // El componente hijo ahora contiene toda la lógica de UI
 
+// Tipos de datos que se pasarán como props (sin cambios)
 type UserCreatedPodcast = {
   id: number;
   created_at: string;
@@ -16,7 +14,7 @@ type UserCreatedPodcast = {
   description: string | null;
   status: string;
   audio_url: string | null;
-  duration_seconds: number | null; // Se añade el tipo
+  duration_seconds: number | null;
 };
 
 type UserCreationJob = {
@@ -34,6 +32,7 @@ export default async function PodcastsPage({ searchParams }: { searchParams: { t
 
   const { data: { user } } = await supabase.auth.getUser();
 
+  // La lógica de obtención de datos permanece sin cambios. Es robusta y eficiente.
   let publicPodcasts: PodcastWithProfile[] = [];
   try {
     const { data, error } = await supabase.from('micro_pods').select(`*, profiles(full_name, avatar_url)`).eq('status', 'published').order('created_at', { ascending: false });
@@ -53,10 +52,7 @@ export default async function PodcastsPage({ searchParams }: { searchParams: { t
       userCreationJobs = data || [];
     } catch (error) { console.error("Error al obtener trabajos de creación del usuario:", error); userCreationJobs = []; }
     try {
-      // ================== INTERVENCIÓN QUIRÚRGICA ==================
-      // Se añade `duration_seconds` a la lista de columnas solicitadas.
       const { data, error } = await supabase.from('micro_pods').select('id, created_at, title, description, status, audio_url, duration_seconds').eq('user_id', user.id).order('created_at', { ascending: false });
-      // =============================================================
       if (error) throw error;
       userCreatedPodcasts = data || [];
     } catch (error) { console.error("Error al obtener micro-podcasts del usuario:", error); userCreatedPodcasts = []; }
@@ -66,18 +62,16 @@ export default async function PodcastsPage({ searchParams }: { searchParams: { t
   const defaultTab = currentTab === 'library' && user ? 'library' : 'discover';
 
   return (
-    <div className="container mx-auto max-w-7xl py-12 md:py-16 px-4">
-      <header className="mb-8 text-center">
+    <div className="container mx-auto max-w-7xl py-8 md:py-12 px-4">
+      {/* [INTERVENCIÓN QUIRÚRGICA #1]: Header optimizado para reducir espacio vertical */}
+      <header className="mb-6 text-center">
         <h1 className="text-4xl font-bold tracking-tight text-primary">Centro de Descubrimiento</h1>
         <p className="text-lg text-muted-foreground mt-2">
           Descubre conocimiento en experiencias de audio concisas.
         </p>
-        <div className="mt-6 max-w-2xl mx-auto relative">
-          <Input placeholder="Buscar podcasts, temas o creadores..." className="pr-10" />
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-        </div>
       </header>
       
+      {/* [INTERVENCIÓN QUIRÚRGICA #2]: Se delega toda la UI, incluida la nueva barra de control, a LibraryTabs */}
       <LibraryTabs
         defaultTab={defaultTab}
         user={user}
