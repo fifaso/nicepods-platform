@@ -5,24 +5,31 @@ import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 
 // --- Importaciones de Componentes de UI ---
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogDescription, 
+  DialogFooter 
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Slider } from "@/components/ui/slider";
 import { Loader2, User, UserSquare2 } from "lucide-react";
 
-// ================== INTERVENCIÓN QUIRÚRGICA: LA "MATRIZ DE DECISIÓN" CHIRP ==================
-// Se actualiza la matriz para usar los identificadores de Chirp.
-// NOTA: Estos son mapeos sugeridos. Debes ajustarlos según los resultados de tu "casting".
+// ================== INTERVENCIÓN QUIRÚRGICA: VUELTA A WAVENET (ESTABILIDAD PROBADA) ==================
+// Se revierte la `voiceMatrix` para usar las voces WaveNet de alta calidad, que sabemos que están
+// disponibles y son robustas, eliminando la dependencia de los modelos Chirp no disponibles.
 const voiceMatrix = {
   MALE: {
-    Formal: "chirp-es-001", // Suposición: La primera voz masculina es la 'Formal'.
-    Cálida: "chirp-es-002", // Suposición: La segunda voz masculina es la 'Cálida'.
+    Formal: "es-ES-Wavenet-B", // Acento de España, profesional y sereno.
+    Cálida: "es-US-Wavenet-A", // Acento de EE.UU., claro y cercano.
   },
   FEMALE: {
-    Formal: "chirp-es-003", 
-    Cálida: "chirp-es-004", 
+    Formal: "es-ES-Wavenet-C", // Acento de España, voz suave y profesional.
+    Cálida: "es-US-Wavenet-C", // Acento de EE.UU., voz cálida y amigable.
   }
 } as const;
 // =====================================================================================================
@@ -63,7 +70,7 @@ export function AudioStudio({ podcastId, isOpen, onClose }: AudioStudioProps) {
       if (error) { throw new Error(error.message); }
       toast({
         title: "¡Petición Enviada!",
-        description: "Tu audio con voz Chirp está siendo generado. Podrás escucharlo en tu biblioteca en unos momentos.",
+        description: "Tu audio está siendo generado. Podrás escucharlo en tu biblioteca en unos momentos.",
       });
       onClose();
     } catch (e) {
@@ -82,7 +89,7 @@ export function AudioStudio({ podcastId, isOpen, onClose }: AudioStudioProps) {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Estudio de Audio (Calidad Chirp)</DialogTitle>
+          <DialogTitle>Estudio de Audio</DialogTitle>
           <DialogDescription>
             Actúa como director. Elige el narrador, el estilo y el ritmo para tu micro-podcast.
           </DialogDescription>
