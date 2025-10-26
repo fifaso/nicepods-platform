@@ -1,5 +1,5 @@
 // supabase/functions/generate-audio-from-script/index.ts
-// VERSIÓN DE PRODUCCIÓN FINAL (CHIRP TTS)
+// VERSIÓN DE PRODUCCIÓN FINAL (ARQUITECTURA DE CHUNKING CON WAVENET)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -10,7 +10,6 @@ import * as mm from "https://esm.sh/music-metadata@7.14.0";
 
 const supabaseAdmin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 const GOOGLE_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY")!;
-const PROJECT_NUMBER = "716729888285"; // Tu ID de proyecto
 
 const AudioPayloadSchema = z.object({
   podcastId: z.string(),
@@ -21,28 +20,28 @@ const AudioPayloadSchema = z.object({
 type ScriptLine = { speaker: string; line: string; };
 
 function chunkScriptForTTS(script: ScriptLine[], limit = 4500): string[] {
-    const chunks: string[] = [];
-    let currentChunkLines: string[] = [];
-    let currentByteLength = 0;
-    const encoder = new TextEncoder();
-    const speakTagStart = "<speak>";
-    const speakTagEnd = "</speak>";
-    const tagsByteLength = encoder.encode(speakTagStart + speakTagEnd).length;
-    for (const line of script) {
-        const lineSSML = `<p>${line.line}</p><break time="800ms"/>`;
-        const lineByteLength = encoder.encode(lineSSML).length;
-        if (currentByteLength + lineByteLength + tagsByteLength > limit && currentChunkLines.length > 0) {
-            chunks.push(`${speakTagStart}${currentChunkLines.join('')}${speakTagEnd}`);
-            currentChunkLines = [];
-            currentByteLength = 0;
-        }
-        currentChunkLines.push(lineSSML);
-        currentByteLength += lineByteLength;
+  const chunks: string[] = [];
+  let currentChunkLines: string[] = [];
+  let currentByteLength = 0;
+  const encoder = new TextEncoder();
+  const speakTagStart = "<speak>";
+  const speakTagEnd = "</speak>";
+  const tagsByteLength = encoder.encode(speakTagStart + speakTagEnd).length;
+  for (const line of script) {
+    const lineSSML = `<p>${line.line}</p><break time="800ms"/>`;
+    const lineByteLength = encoder.encode(lineSSML).length;
+    if (currentByteLength + lineByteLength + tagsByteLength > limit && currentChunkLines.length > 0) {
+      chunks.push(`${speakTagStart}${currentChunkLines.join('')}${speakTagEnd}`);
+      currentChunkLines = [];
+      currentByteLength = 0;
     }
-    if (currentChunkLines.length > 0) {
-        chunks.push(`${speakTagStart}${currentChunkLines.join('')}${speakTagEnd}`);
-    }
-    return chunks;
+    currentChunkLines.push(lineSSML);
+    currentByteLength += lineByteLength;
+  }
+  if (currentChunkLines.length > 0) {
+    chunks.push(`${speakTagStart}${currentChunkLines.join('')}${speakTagEnd}`);
+  }
+  return chunks;
 }
 
 serve(async (request: Request) => {
@@ -65,26 +64,24 @@ serve(async (request: Request) => {
     const scriptData = JSON.parse(podcast.script_text) as ScriptLine[];
     const ssmlChunks = chunkScriptForTTS(scriptData);
 
-    // ================== INTERVENCIÓN QUIRÚRGICA: API CHIRP ==================
-    // 1. Se apunta al endpoint `v1beta1` de la API de TTS.
-    const ttsApiUrl = `https://texttospeech.googleapis.com/v1beta1/text:synthesize?key=${GOOGLE_API_KEY}`;
-    
-    const audioPromises = ssmlChunks.map(chunk => {
-      // 2. Se construye el nombre de la voz con la ruta completa del recurso, como lo exige Chirp.
-      const fullVoiceName = `projects/${PROJECT_NUMBER}/locations/us-central1/voices/${voiceName}`;
-      
-      return fetch(ttsApiUrl, {
+    // ================== INTERVENCIÓN QUIRÚRGICA: VUELTA A LA API ESTABLE `v1` ==================
+    const ttsApiUrl = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${GOOGLE_API_KEY}`;
+    const languageCode = voiceName.split('-').slice(0, 2).join('-');
+    if (!languageCode) { throw new Error(`No se pudo extraer un código de idioma válido del nombre de la voz: "${voiceName}"`); }
+
+    const audioPromises = ssmlChunks.map(chunk => 
+      fetch(ttsApiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           input: { ssml: chunk },
-          // 3. El objeto `voice` ahora solo contiene el `name` completo.
-          voice: { name: fullVoiceName }, 
+          // WaveNet no necesita la ruta completa del proyecto, solo el nombre y el idioma.
+          voice: { languageCode: languageCode, name: voiceName }, 
           audioConfig: { audioEncoding: 'MP3', speakingRate: speakingRate }
         })
-      });
-    });
-    // =======================================================================
+      })
+    );
+    // ========================================================================================
     
     const responses = await Promise.all(audioPromises);
 
