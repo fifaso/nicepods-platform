@@ -19,9 +19,9 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Slider } from "@/components/ui/slider";
 import { Loader2, User, UserSquare2 } from "lucide-react";
 
-// ================== INTERVENCIÓN QUIRÚRGICA: LA NUEVA "MATRIZ DE DECISIÓN" CHIRP ==================
-// Se reemplazan los nombres de voz WaveNet por los identificadores de Chirp.
-// NOTA: Estos son mapeos sugeridos. Puedes ajustarlos según los resultados de tu "casting".
+// ================== INTERVENCIÓN QUIRÚRGICA: LA "MATRIZ DE DECISIÓN" CHIRP ==================
+// Se actualiza la matriz para usar los identificadores de Chirp.
+// NOTA: Estos son mapeos sugeridos. Debes reemplazarlos con los resultados de tu "casting" (Hito 0).
 const voiceMatrix = {
   MALE: {
     Formal: "chirp-es-001", // Suposición: La primera voz masculina es la 'Formal'.
@@ -29,12 +29,11 @@ const voiceMatrix = {
   },
   FEMALE: {
     // Asumiendo que el casting encontró al menos dos voces femeninas.
-    // Si solo hay una, puedes asignar la misma a ambos estilos.
     Formal: "chirp-es-003", 
     Cálida: "chirp-es-004", 
   }
 } as const;
-// =====================================================================================================
+// ==============================================================================================
 
 interface AudioStudioProps {
   podcastId: string;
@@ -72,7 +71,7 @@ export function AudioStudio({ podcastId, isOpen, onClose }: AudioStudioProps) {
       if (error) { throw new Error(error.message); }
       toast({
         title: "¡Petición Enviada!",
-        description: "Tu audio está siendo generado. Podrás escucharlo en tu biblioteca en unos momentos.",
+        description: "Tu audio con voz Chirp está siendo generado. Podrás escucharlo en tu biblioteca en unos momentos.",
       });
       onClose();
     } catch (e) {
@@ -91,7 +90,7 @@ export function AudioStudio({ podcastId, isOpen, onClose }: AudioStudioProps) {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Estudio de Audio</DialogTitle>
+          <DialogTitle>Estudio de Audio (Calidad Chirp)</DialogTitle>
           <DialogDescription>
             Actúa como director. Elige el narrador, el estilo y el ritmo para tu micro-podcast.
           </DialogDescription>
