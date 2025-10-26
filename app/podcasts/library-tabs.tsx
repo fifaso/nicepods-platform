@@ -1,5 +1,5 @@
 // app/podcasts/library-tabs.tsx
-// VERSIÓN FINAL CORREGIDA, CON EL CUERPO DEL COMPONENTE JobCard RESTAURADO
+// VERSIÓN FINAL CON BARRA DE CONTROL MINIMALISTA Y RESPONSIVE
 
 "use client";
 
@@ -17,7 +17,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Search, Hourglass, Bot, LayoutGrid, List } from 'lucide-react';
 import { PodcastCard, PodcastListItem } from '@/components/podcast-card';
 
-// --- Tipos de datos ---
+// --- Tipos de datos (sin cambios) ---
 type UserCreatedPodcast = {
   id: number;
   created_at: string;
@@ -45,8 +45,7 @@ interface LibraryTabsProps {
   userCreatedPodcasts: UserCreatedPodcast[];
 }
 
-// --- [CORRECCIÓN TÉCNICA]: Se restaura el cuerpo de la función JobCard ---
-// Esta función ahora devuelve explícitamente un elemento JSX, resolviendo el error de tipo.
+// --- Componentes internos (sin cambios) ---
 function JobCard({ job }: { job: UserCreationJob }) {
   return (
     <Card className="bg-background/50 border-primary/20">
@@ -96,29 +95,36 @@ export function LibraryTabs({
 
   return (
     <Tabs defaultValue={defaultTab} className="w-full">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-        <Button variant="outline" className="w-full sm:w-auto">
-          <Search className="mr-2 h-4 w-4" />
-          Buscar...
+      {/* ======================= INTERVENCIÓN QUIRÚRGICA ======================= */}
+      {/* Se reemplaza toda la barra de control por una versión unificada en una sola línea, optimizada para móviles. */}
+      <div className="flex w-full items-center gap-2 sm:gap-4 mb-8">
+        {/* 1. Botón de Búsqueda (solo icono) */}
+        <Button variant="ghost" size="icon" aria-label="Buscar" className="flex-shrink-0">
+            <Search className="h-5 w-5" />
         </Button>
-        <TabsList className="grid grid-cols-2 w-full sm:w-auto">
-          <TabsTrigger value="discover">Descubrir</TabsTrigger>
-          <TabsTrigger value="library">Mi Biblioteca</TabsTrigger>
+
+        {/* 2. Filtros de Contenido (ocupa el espacio central) */}
+        <TabsList className="grid grid-cols-2 w-full flex-grow">
+            <TabsTrigger value="discover">Descubrir</TabsTrigger>
+            <TabsTrigger value="library">Biblioteca</TabsTrigger>
         </TabsList>
+
+        {/* 3. Selectores de Vista */}
         <ToggleGroup 
-          type="single" 
-          value={viewMode} 
-          onValueChange={(value) => { if (value) setViewMode(value as 'grid' | 'list'); }}
-          className="justify-center"
+            type="single" 
+            value={viewMode} 
+            onValueChange={(value) => { if (value) setViewMode(value as 'grid' | 'list'); }}
+            className="flex-shrink-0"
         >
-          <ToggleGroupItem value="grid" aria-label="Vista de cuadrícula">
-            <LayoutGrid className="h-4 w-4" />
-          </ToggleGroupItem>
-          <ToggleGroupItem value="list" aria-label="Vista de lista">
-            <List className="h-4 w-4" />
-          </ToggleGroupItem>
+            <ToggleGroupItem value="grid" aria-label="Vista de cuadrícula">
+                <LayoutGrid className="h-4 w-4" />
+            </ToggleGroupItem>
+            <ToggleGroupItem value="list" aria-label="Vista de lista">
+                <List className="h-4 w-4" />
+            </ToggleGroupItem>
         </ToggleGroup>
       </div>
+      {/* ===================== FIN DE LA INTERVENCIÓN QUIRÚRGICA ===================== */}
       
       <TabsContent value="discover" className="mt-0">
         {publicPodcasts.length > 0 ? (
