@@ -1,5 +1,5 @@
 // supabase/functions/generate-audio-from-script/index.ts
-// VERSIÓN DE PRODUCCIÓN FINAL (ARQUITECTURA DE CHUNKING CON WAVENET)
+// VERSIÓN DE PRODUCCIÓN FINAL (CHIRP TTS)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -10,6 +10,7 @@ import * as mm from "https://esm.sh/music-metadata@7.14.0";
 
 const supabaseAdmin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 const GOOGLE_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY")!;
+const PROJECT_NUMBER = "716729888285";
 
 const AudioPayloadSchema = z.object({
   podcastId: z.string(),
@@ -64,24 +65,23 @@ serve(async (request: Request) => {
     const scriptData = JSON.parse(podcast.script_text) as ScriptLine[];
     const ssmlChunks = chunkScriptForTTS(scriptData);
 
-    // ================== INTERVENCIÓN QUIRÚRGICA: VUELTA A LA API ESTABLE `v1` ==================
-    const ttsApiUrl = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${GOOGLE_API_KEY}`;
-    const languageCode = voiceName.split('-').slice(0, 2).join('-');
-    if (!languageCode) { throw new Error(`No se pudo extraer un código de idioma válido del nombre de la voz: "${voiceName}"`); }
-
-    const audioPromises = ssmlChunks.map(chunk => 
-      fetch(ttsApiUrl, {
+    // ================== INTERVENCIÓN QUIRÚRGICA: API CHIRP ==================
+    const ttsApiUrl = `https://texttospeech.googleapis.com/v1beta1/text:synthesize?key=${GOOGLE_API_KEY}`;
+    
+    const audioPromises = ssmlChunks.map(chunk => {
+      const fullVoiceName = `projects/${PROJECT_NUMBER}/locations/us-central1/voices/${voiceName}`;
+      
+      return fetch(ttsApiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           input: { ssml: chunk },
-          // WaveNet no necesita la ruta completa del proyecto, solo el nombre y el idioma.
-          voice: { languageCode: languageCode, name: voiceName }, 
+          voice: { name: fullVoiceName }, 
           audioConfig: { audioEncoding: 'MP3', speakingRate: speakingRate }
         })
-      })
-    );
-    // ========================================================================================
+      });
+    });
+    // =======================================================================
     
     const responses = await Promise.all(audioPromises);
 
