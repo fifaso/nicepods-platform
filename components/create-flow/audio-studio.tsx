@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 
@@ -19,17 +19,19 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Slider } from "@/components/ui/slider";
 import { Loader2, User, UserSquare2 } from "lucide-react";
 
-// ================== INTERVENCIÓN QUIRÚRGICA #1: LA "MATRIZ DE DECISIÓN" DE VOCES ==================
-// Esta es nuestra "fuente de la verdad" técnica. Mapeamos las decisiones simples del usuario (género, estilo)
-// a la voz técnica específica de Google. Se han seleccionado las mejores voces WaveNet en español para cada categoría.
+// ================== INTERVENCIÓN QUIRÚRGICA: LA NUEVA "MATRIZ DE DECISIÓN" CHIRP ==================
+// Se reemplazan los nombres de voz WaveNet por los identificadores de Chirp.
+// NOTA: Estos son mapeos sugeridos. Puedes ajustarlos según los resultados de tu "casting".
 const voiceMatrix = {
   MALE: {
-    Formal: "es-ES-Wavenet-B", // Acento de España, a menudo percibido como más formal.
-    Cálida: "es-US-Wavenet-A", // Acento de EE.UU., a menudo percibido como más claro y cercano.
+    Formal: "chirp-es-001", // Suposición: La primera voz masculina es la 'Formal'.
+    Cálida: "chirp-es-002", // Suposición: La segunda voz masculina es la 'Cálida'.
   },
   FEMALE: {
-    Formal: "es-ES-Wavenet-C", // Acento de España, voz suave y profesional.
-    Cálida: "es-US-Wavenet-C", // Acento de EE.UU., a menudo descrito como una voz cálida.
+    // Asumiendo que el casting encontró al menos dos voces femeninas.
+    // Si solo hay una, puedes asignar la misma a ambos estilos.
+    Formal: "chirp-es-003", 
+    Cálida: "chirp-es-004", 
   }
 } as const;
 // =====================================================================================================
@@ -45,19 +47,13 @@ export function AudioStudio({ podcastId, isOpen, onClose }: AudioStudioProps) {
   const { toast } = useToast();
   
   const [isGenerating, setIsGenerating] = useState(false);
-  
-  // ================== INTERVENCIÓN QUIRÚRGICA #2: GESTIÓN DE ESTADO SIMPLE Y DIRECTA ==================
-  // Estados separados y claros para cada decisión del usuario.
   const [selectedGender, setSelectedGender] = useState<'MALE' | 'FEMALE'>('MALE');
   const [selectedStyle, setSelectedStyle] = useState<'Formal' | 'Cálida'>('Formal');
   const [speakingRate, setSpeakingRate] = useState(1.0);
 
-  // Lógica de derivación 100% segura. Se obtiene el nombre técnico de la voz
-  // a partir de las selecciones simples del usuario en cada renderizado. No hay `useEffect`.
   const finalVoiceName = useMemo(() => {
     return voiceMatrix[selectedGender][selectedStyle];
   }, [selectedGender, selectedStyle]);
-  // ================================================================================================
   
   const handleGenerateAudio = useCallback(async () => {
     if (!supabase) {
@@ -66,7 +62,6 @@ export function AudioStudio({ podcastId, isOpen, onClose }: AudioStudioProps) {
     }
     setIsGenerating(true);
     try {
-      // En el Hito 2, esta llamada enviará los datos al backend.
       const { data, error } = await supabase.functions.invoke('generate-audio-from-script', {
         body: {
           podcastId: podcastId,
@@ -103,8 +98,6 @@ export function AudioStudio({ podcastId, isOpen, onClose }: AudioStudioProps) {
         </DialogHeader>
         
         <div className="grid gap-8 py-4">
-          
-          {/* --- 1. TIPO DE NARRADOR --- */}
           <div className="grid gap-3">
             <Label>1. Tipo de Narrador</Label>
             <ToggleGroup
@@ -118,7 +111,6 @@ export function AudioStudio({ podcastId, isOpen, onClose }: AudioStudioProps) {
             </ToggleGroup>
           </div>
           
-          {/* --- 2. ESTILO DE VOZ --- */}
           <div className="grid gap-3">
             <Label>2. Estilo de Voz</Label>
             <ToggleGroup
@@ -132,7 +124,6 @@ export function AudioStudio({ podcastId, isOpen, onClose }: AudioStudioProps) {
             </ToggleGroup>
           </div>
 
-          {/* --- 3. VELOCIDAD DEL HABLA --- */}
           <div className="grid gap-3">
             <Label>3. Velocidad del Habla ({speakingRate.toFixed(2)}x)</Label>
             <Slider
@@ -140,7 +131,6 @@ export function AudioStudio({ podcastId, isOpen, onClose }: AudioStudioProps) {
               value={[speakingRate]} onValueChange={(val) => setSpeakingRate(val[0])}
             />
           </div>
-
         </div>
 
         <DialogFooter>

@@ -1,32 +1,25 @@
 // supabase/functions/generate-audio-from-script/index.ts
-// VERSIÓN DE PRODUCCIÓN FINAL (ROBUSTA Y A PRUEBA DE CASOS LÍMITE)
+// VERSIÓN DE PRODUCCIÓN FINAL (CHIRP TTS)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { z, ZodError } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { decode } from "https://deno.land/std@0.208.0/encoding/base64.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-
-// ================== INTERVENCIÓN QUIRÚRGICA #1: REEMPLAZO DE DEPENDENCIA ==================
-// Se reemplaza la librería de metadatos por la versión de servidor (`music-metadata`)
-// para eliminar el error de incompatibilidad de entorno en guiones cortos.
 import * as mm from "https://esm.sh/music-metadata@7.14.0"; 
-// ======================================================================================
 
 const supabaseAdmin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 const GOOGLE_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY")!;
+const PROJECT_NUMBER = "716729888285"; // Tu ID de proyecto confirmado
 
 const AudioPayloadSchema = z.object({
   podcastId: z.string(),
-  voiceName: z.string(),
+  voiceName: z.string(), // Ahora recibirá 'chirp-es-XXX'
   speakingRate: z.number(),
 });
 
 type ScriptLine = { speaker: string; line: string; };
 
-// ================== INTERVENCIÓN QUIRÚRGICA #2: BLINDAJE DEL "CHUNKER" ==================
-// Se refina la lógica para dividir el guion en trozos, usando un límite más conservador
-// y una lógica de bucle más precisa para prevenir el error 400 en guiones largos.
 function chunkScriptForTTS(script: ScriptLine[], limit = 4500): string[] {
   const chunks: string[] = [];
   let currentChunkLines: string[] = [];
@@ -57,7 +50,6 @@ function chunkScriptForTTS(script: ScriptLine[], limit = 4500): string[] {
   
   return chunks;
 }
-// ======================================================================================
 
 serve(async (request: Request) => {
   if (request.method === 'OPTIONS') { return new Response('ok', { headers: corsHeaders }); }
@@ -79,8 +71,12 @@ serve(async (request: Request) => {
     const scriptData = JSON.parse(podcast.script_text) as ScriptLine[];
     const ssmlChunks = chunkScriptForTTS(scriptData);
 
-    const ttsApiUrl = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${GOOGLE_API_KEY}`;
-    const languageCode = voiceName.split('-').slice(0, 2).join('-');
+    // ================== INTERVENCIÓN QUIRÚRGICA: NUEVO ENDPOINT Y NOMBRE DE VOZ ==================
+    // 1. Se apunta al endpoint `v1beta1` de la API de TTS.
+    const ttsApiUrl = `https://texttospeech.googleapis.com/v1beta1/text:synthesize?key=${GOOGLE_API_KEY}`;
+    
+    // 2. Se construye el nombre de la voz con la ruta completa del recurso, como lo exige Chirp.
+    const fullVoiceName = `projects/${PROJECT_NUMBER}/locations/us-central1/voices/${voiceName}`;
     
     const audioPromises = ssmlChunks.map(chunk => 
       fetch(ttsApiUrl, {
@@ -88,11 +84,13 @@ serve(async (request: Request) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           input: { ssml: chunk },
-          voice: { languageCode: languageCode, name: voiceName },
+          voice: { name: fullVoiceName }, // Se usa el nombre completo del recurso
           audioConfig: { audioEncoding: 'MP3', speakingRate: speakingRate }
         })
       })
     );
+    // ========================================================================================
+    
     const responses = await Promise.all(audioPromises);
 
     const audioContents: string[] = [];
@@ -130,7 +128,7 @@ serve(async (request: Request) => {
       })
       .eq('id', podcastId);
       
-    if (updateError) { throw new Error(`Fallo al actualizar el podcast con la URL y duración: ${updateError.message}`); }
+    if (updateError) { throw new Error(`Fallo al actualizar el podcast: ${updateError.message}`); }
 
     return new Response(JSON.stringify({ success: true, message: "Audio generado y guardado con éxito." }), {
       status: 200,
