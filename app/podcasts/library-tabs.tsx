@@ -1,9 +1,9 @@
 // app/podcasts/library-tabs.tsx
-// VERSIÓN FINAL CON BARRA DE CONTROL MINIMALISTA Y RESPONSIVE
+// VERSIÓN FINAL CON ANCHO RESTRINGIDO PARA LA BARRA DE PESTAÑAS EN ESCRITORIO
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { User } from '@supabase/supabase-js';
 import { PodcastWithProfile } from '@/types/podcast';
@@ -47,26 +47,26 @@ interface LibraryTabsProps {
 
 // --- Componentes internos (sin cambios) ---
 function JobCard({ job }: { job: UserCreationJob }) {
-  return (
-    <Card className="bg-background/50 border-primary/20">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">{job.job_title || "Creación en progreso..."}</CardTitle>
-          <Badge variant="secondary" className="animate-pulse">
-            <Hourglass className="mr-2 h-4 w-4" />
-            {job.status === 'pending' ? 'Pendiente' : 'Procesando'}
-          </Badge>
-        </div>
-        <CardDescription>Iniciado el: {new Date(job.created_at).toLocaleString()}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-center text-sm text-muted-foreground">
-          <Bot className="mr-2 h-4 w-4" />
-          <p>Nuestros agentes de IA están trabajando. Refresca la página en un momento para ver el resultado.</p>
-        </div>
-      </CardContent>
-    </Card>
-  );
+    return (
+        <Card className="bg-background/50 border-primary/20">
+            <CardHeader>
+                <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg">{job.job_title || "Creación en progreso..."}</CardTitle>
+                    <Badge variant="secondary" className="animate-pulse">
+                        <Hourglass className="mr-2 h-4 w-4" />
+                        {job.status === 'pending' ? 'Pendiente' : 'Procesando'}
+                    </Badge>
+                </div>
+                <CardDescription>Iniciado el: {new Date(job.created_at).toLocaleString()}</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="flex items-center text-sm text-muted-foreground">
+                    <Bot className="mr-2 h-4 w-4" />
+                    <p>Nuestros agentes de IA están trabajando. Refresca la página en un momento para ver el resultado.</p>
+                </div>
+            </CardContent>
+        </Card>
+    );
 }
 
 export function LibraryTabs({
@@ -76,7 +76,14 @@ export function LibraryTabs({
   userCreationJobs,
   userCreatedPodcasts
 }: LibraryTabsProps) {
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+    useEffect(() => {
+        const isSmallScreen = window.innerWidth < 768;
+        if (isSmallScreen) {
+            setViewMode('list');
+        }
+    }, []);
 
   const renderContent = (podcasts: (PodcastWithProfile | UserCreatedPodcast)[]) => {
     if (viewMode === 'grid') {
@@ -96,20 +103,20 @@ export function LibraryTabs({
   return (
     <Tabs defaultValue={defaultTab} className="w-full">
       {/* ======================= INTERVENCIÓN QUIRÚRGICA ======================= */}
-      {/* Se reemplaza toda la barra de control por una versión unificada en una sola línea, optimizada para móviles. */}
       <div className="flex w-full items-center gap-2 sm:gap-4 mb-8">
-        {/* 1. Botón de Búsqueda (solo icono) */}
         <Button variant="ghost" size="icon" aria-label="Buscar" className="flex-shrink-0">
             <Search className="h-5 w-5" />
         </Button>
 
-        {/* 2. Filtros de Contenido (ocupa el espacio central) */}
-        <TabsList className="grid grid-cols-2 w-full flex-grow">
-            <TabsTrigger value="discover">Descubrir</TabsTrigger>
-            <TabsTrigger value="library">Biblioteca</TabsTrigger>
-        </TabsList>
+        {/* [Punto 1]: El nuevo contenedor centralizador que ocupa el espacio sobrante */}
+        <div className="flex flex-grow justify-center">
+            {/* [Punto 2]: Se ajusta el ancho del TabsList para que sea `w-full` en móvil y tenga un `max-w-xs` en escritorio */}
+            <TabsList className="grid grid-cols-2 w-full sm:w-auto sm:max-w-xs">
+                <TabsTrigger value="discover">Descubrir</TabsTrigger>
+                <TabsTrigger value="library">Biblioteca</TabsTrigger>
+            </TabsList>
+        </div>
 
-        {/* 3. Selectores de Vista */}
         <ToggleGroup 
             type="single" 
             value={viewMode} 
