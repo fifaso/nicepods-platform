@@ -1,4 +1,6 @@
-//narrative-selection.tsx
+// components/create-flow/narrative-selection-step.tsx
+// ESTE ARCHIVO ES CORRECTO Y NO REQUIERE CAMBIOS
+
 "use client";
 
 import { useFormContext } from "react-hook-form";
