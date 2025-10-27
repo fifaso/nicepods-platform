@@ -1,5 +1,5 @@
 // components/create-flow/details-step.tsx
-// VERSIÓN FINAL Y ROBUSTA QUE ACEPTA `preselectedAgent` Y RENDERIZA CONDICIONALMENTE
+// VERSIÓN FINAL CON LAYOUT CONSISTENTE DE 3 COLUMNAS
 
 "use client";
 
@@ -40,6 +40,7 @@ export function DetailsStep({ agents, preselectedAgent }: DetailsStepProps) {
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-6">
+        {/* Columna 1: Duración */}
         <FormField
           control={control}
           name="duration"
@@ -64,6 +65,7 @@ export function DetailsStep({ agents, preselectedAgent }: DetailsStepProps) {
           )}
         />
 
+        {/* Columna 2: Profundidad */}
         <FormField
           control={control}
           name="narrativeDepth"
@@ -88,6 +90,7 @@ export function DetailsStep({ agents, preselectedAgent }: DetailsStepProps) {
           )}
         />
         
+        {/* Columna 3: Agente o Confirmación */}
         <div className="space-y-3">
           <FormLabel className="text-base font-semibold text-center block">
             {preselectedAgent ? 'Arquetipo Seleccionado' : 'Agente Especializado *'}
