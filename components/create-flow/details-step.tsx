@@ -1,3 +1,6 @@
+// components/create-flow/details-step.tsx
+// VERSIÓN FINAL Y ROBUSTA QUE ACEPTA `hideAgentSelector` Y RENDERIZA CONDICIONALMENTE
+
 "use client";
 
 import { useFormContext } from "react-hook-form";
@@ -10,9 +13,9 @@ import { Label } from "@/components/ui/label";
 import { CardDescription, CardTitle } from "@/components/ui/card";
 
 const durationOptions = [
-  { value: "Corta (1-2 minutos)", label: "Corta", description: "1-2 min" },
-  { value: "Media (3-5 minutos)", label: "Media", description: "3-5 min" },
-  { value: "Larga (5-7 minutos)", label: "Larga", description: "5-7 min" },
+  { value: "Corta", label: "Corta", description: "1-2 min" },
+  { value: "Media", label: "Media", description: "3-5 min" },
+  { value: "Larga", label: "Larga", description: "5-7 min" },
 ];
 
 const depthOptions = [
@@ -21,7 +24,14 @@ const depthOptions = [
   { value: "Profunda", label: "Profunda", description: "Análisis exhaustivo." },
 ];
 
-export function DetailsStep({ agents }: { agents: AgentOption[] }) {
+// [INTERVENCIÓN QUIRÚRGICA #1]: Se define una interfaz clara para las props del componente.
+interface DetailsStepProps {
+  agents: AgentOption[];
+  hideAgentSelector?: boolean;
+}
+
+// [INTERVENCIÓN QUIRÚRGICA #2]: Se actualiza la firma de la función para aceptar las nuevas props.
+export function DetailsStep({ agents, hideAgentSelector = false }: DetailsStepProps) {
   const { control } = useFormContext<PodcastCreationData>();
 
   return (
@@ -31,6 +41,7 @@ export function DetailsStep({ agents }: { agents: AgentOption[] }) {
         <p className="text-muted-foreground">Ajusta los últimos parámetros clave para tu guion.</p>
       </div>
       
+      {/* Se ajusta el grid para ser más flexible si un elemento desaparece */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-6">
         <FormField
           control={control}
@@ -86,32 +97,36 @@ export function DetailsStep({ agents }: { agents: AgentOption[] }) {
           )}
         />
         
-        <FormField
-          control={control}
-          name="selectedAgent"
-          render={({ field }) => (
-            <FormItem className="space-y-3">
-              <FormLabel className="text-base font-semibold text-center block">Agente Especializado *</FormLabel>
-              <FormControl>
-                <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-col space-y-2">
-                  {agents.map((agent, index) => (
-                    <div key={`agent-${index}`}>
-                      <RadioGroupItem value={agent.value} id={`agent-${index}`} className="sr-only" />
-                      <Label
-                        htmlFor={`agent-${index}`}
-                        className={cn("flex flex-col items-center justify-center p-4 rounded-lg cursor-pointer transition-all duration-200 text-center", "border-2 bg-muted/30 hover:bg-muted/60", field.value === agent.value ? "border-primary" : "border-transparent")}
-                      >
-                        <CardTitle className="text-sm font-semibold">{agent.label}</CardTitle>
-                        <CardDescription className="text-xs">{agent.description}</CardDescription>
-                      </Label>
-                    </div>
-                  ))}
-                </RadioGroup>
-              </FormControl>
-              <FormMessage className="text-center" />
-            </FormItem>
-          )}
-        />
+        {/* [INTERVENCIÓN QUIRÚRGICA #3]: Se envuelve el selector de agente en una condición robusta. */}
+        {/* Solo se mostrará si no se indica lo contrario Y si hay agentes disponibles. */}
+        {!hideAgentSelector && agents.length > 0 && (
+          <FormField
+            control={control}
+            name="selectedAgent"
+            render={({ field }) => (
+              <FormItem className="space-y-3">
+                <FormLabel className="text-base font-semibold text-center block">Agente Especializado *</FormLabel>
+                <FormControl>
+                  <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-col space-y-2">
+                    {agents.map((agent, index) => (
+                      <div key={`agent-${index}`}>
+                        <RadioGroupItem value={agent.value} id={`agent-${index}`} className="sr-only" />
+                        <Label
+                          htmlFor={`agent-${index}`}
+                          className={cn("flex flex-col items-center justify-center p-4 rounded-lg cursor-pointer transition-all duration-200 text-center", "border-2 bg-muted/30 hover:bg-muted/60", field.value === agent.value ? "border-primary" : "border-transparent")}
+                        >
+                          <CardTitle className="text-sm font-semibold">{agent.label}</CardTitle>
+                          <CardDescription className="text-xs">{agent.description}</CardDescription>
+                        </Label>
+                      </div>
+                    ))}
+                  </RadioGroup>
+                </FormControl>
+                <FormMessage className="text-center" />
+              </FormItem>
+            )}
+          />
+        )}
       </div>
     </div>
   );

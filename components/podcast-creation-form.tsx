@@ -1,4 +1,6 @@
 // components/podcast-creation-form.tsx
+// VERSIÓN FINAL, COMPLETA Y CORREGIDA
+
 "use client";
 
 import { useState, useCallback } from "react";
@@ -14,7 +16,7 @@ import { soloTalkAgents, linkPointsAgents } from "@/lib/agent-config";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ChevronLeft, ChevronRight, Wand2, Loader2, Zap } from "lucide-react";
+import { ChevronLeft, ChevronRight, Wand2, Loader2 } from "lucide-react";
 
 // --- Importaciones de los Pasos del Flujo ---
 import { StyleSelectionStep } from "./create-flow/style-selection";
@@ -23,6 +25,7 @@ import { LinkPointsStep } from "./create-flow/link-points";
 import { NarrativeSelectionStep } from "./create-flow/narrative-selection";
 import { DetailsStep } from "./create-flow/details-step";
 import { FinalStep } from "./create-flow/final-step";
+import { ArchetypeStep } from "./create-flow/archetype-step";
 
 export interface NarrativeOption { 
   title: string; 
@@ -50,6 +53,9 @@ export function PodcastCreationForm() {
       link_catalyst: '',
       link_selectedNarrative: null,
       link_selectedTone: undefined,
+      selectedArchetype: undefined,
+      archetype_topic: '',
+      archetype_goal: '',
       duration: '',
       narrativeDepth: '',
       tags: [],
@@ -57,16 +63,10 @@ export function PodcastCreationForm() {
     }
   });
 
-  // [INTERVENCIÓN QUIRÚRGICA #1] Añadimos `getValues` para leer el estado del formulario bajo demanda.
   const { handleSubmit, trigger, watch, setValue, getValues } = formMethods;
   const { isSubmitting } = formMethods.formState;
   const currentStyle = watch('style');
 
-  const updateFormStyle = useCallback((data: Partial<PodcastCreationData>) => {
-    for (const key in data) { setValue(key as keyof PodcastCreationData, data[key as keyof PodcastCreationData], { shouldValidate: true }); }
-    setCurrentStep(1);
-  }, [setValue]);
-  
   const goToNextStep = () => setCurrentStep(previousStep => previousStep + 1);
   const goToPreviousStep = () => setCurrentStep(previousStep => previousStep - 1);
 
@@ -75,108 +75,106 @@ export function PodcastCreationForm() {
   const handleStepNavigation = async () => {
     let fieldsToValidate: (keyof PodcastCreationData)[] = [];
     const stepForValidation = currentStep;
+    
     if (stepForValidation === 1) fieldsToValidate = ['style'];
+    
     if (stepForValidation === 2) {
       if (currentStyle === 'solo') fieldsToValidate = ['solo_topic', 'solo_motivation'];
       if (currentStyle === 'link') fieldsToValidate = ['link_topicA', 'link_topicB'];
+      if (currentStyle === 'archetype') fieldsToValidate = ['selectedArchetype', 'archetype_topic', 'archetype_goal'];
     }
-    if (currentStyle === 'solo' && stepForValidation === 3) { fieldsToValidate = ['duration', 'narrativeDepth', 'selectedAgent']; }
-    if (currentStyle === 'link' && stepForValidation === 3) { fieldsToValidate = ['link_selectedNarrative', 'link_selectedTone']; }
-    if (currentStyle === 'link' && stepForValidation === 4) { fieldsToValidate = ['duration', 'narrativeDepth', 'selectedAgent']; }
+    
+    if ((currentStyle === 'solo' || currentStyle === 'archetype') && stepForValidation === 3) {
+      // Para el estilo arquetipo, no necesitamos validar 'selectedAgent' ya que no se muestra
+      if (currentStyle === 'archetype') {
+        fieldsToValidate = ['duration', 'narrativeDepth'];
+      } else {
+        fieldsToValidate = ['duration', 'narrativeDepth', 'selectedAgent'];
+      }
+    }
+    
+    if (currentStyle === 'link' && stepForValidation === 3) {
+      fieldsToValidate = ['link_selectedNarrative', 'link_selectedTone'];
+    }
+    
+    if (currentStyle === 'link' && stepForValidation === 4) {
+      fieldsToValidate = ['duration', 'narrativeDepth', 'selectedAgent'];
+    }
+    
     const isStepValid = await trigger(fieldsToValidate);
     if (isStepValid) { goToNextStep(); }
   };
   
-  // ================== INTERVENCIÓN QUIRÚRGICA #2: LÓGICA DE GENERACIÓN REAL ==================
-  // Se reemplaza la simulación con la llamada real y robusta a la Edge Function.
   const handleGenerateNarratives = useCallback(async () => {
     if (!supabase) {
-      toast({ title: "Error de Conexión", description: "La conexión con el servidor no está disponible.", variant: "destructive" });
+      toast({ title: "Error de Conexión", variant: "destructive" });
       return;
     }
     
     const { link_topicA, link_topicB, link_catalyst } = getValues();
-
     setIsLoadingNarratives(true);
     
     try {
       const { data, error } = await supabase.functions.invoke('generate-narratives', {
-        body: {
-          topicA: link_topicA,
-          topicB: link_topicB,
-          catalyst: link_catalyst,
-        }
+        body: { topicA: link_topicA, topicB: link_topicB, catalyst: link_catalyst }
       });
-
-      if (error) {
-        throw new Error(error.message);
-      }
-      
+      if (error) throw new Error(error.message);
       if (data?.narratives && Array.isArray(data.narratives)) {
         setNarrativeOptions(data.narratives);
-        toast({ title: "Narrativas generadas", description: "Hemos creado algunas perspectivas para conectar tus ideas. ¡Elige una!" });
+        toast({ title: "Narrativas generadas" });
         goToNextStep();
       } else {
-        throw new Error("La respuesta del servidor no tuvo el formato esperado.");
+        throw new Error("Respuesta del servidor inesperada.");
       }
-
     } catch (e) {
-      console.error("Error al generar narrativas:", e);
-      toast({
-        title: "Error al Generar Narrativas",
-        description: e instanceof Error ? e.message : "Hubo un problema inesperado. Por favor, inténtalo de nuevo.",
-        variant: "destructive",
-      });
+      toast({ title: "Error al Generar Narrativas", description: e instanceof Error ? e.message : "Inténtalo de nuevo.", variant: "destructive" });
     } finally {
       setIsLoadingNarratives(false);
     }
-  }, [supabase, toast, getValues, goToNextStep]);
-  // =========================================================================================
+  }, [supabase, toast, getValues]);
 
   const handleGenerateNarrativesClick = async () => {
-    // [MEJORA ESTRATÉGICA] Solo se validan los campos requeridos.
-    const fieldsToValidate: (keyof PodcastCreationData)[] = ['link_topicA', 'link_topicB'];
-    const isStepValid = await trigger(fieldsToValidate);
-    if (isStepValid) { 
-      await handleGenerateNarratives(); 
-    } else { 
-      toast({ title: "Campos Incompletos", description: "Por favor, rellena los dos temas para continuar.", variant: "destructive" }); 
-    }
+    const isStepValid = await trigger(['link_topicA', 'link_topicB']);
+    if (isStepValid) await handleGenerateNarratives();
   };
 
   const handleFinalSubmit: SubmitHandler<PodcastCreationData> = useCallback(async (formData) => {
     if (!supabase || !user) {
-      toast({ title: "Error de Autenticación", description: "Por favor, inicia sesión de nuevo.", variant: "destructive" });
+      toast({ title: "Error de Autenticación", variant: "destructive" });
       return;
     }
 
     let jobInputs = {};
     if (formData.style === 'solo') {
       jobInputs = { topic: formData.solo_topic, motivation: formData.solo_motivation };
-    } else {
+    } else if (formData.style === 'archetype') {
+      jobInputs = { topic: formData.archetype_topic, goal: formData.archetype_goal };
+    } else { // 'link'
       jobInputs = { topicA: formData.link_topicA, topicB: formData.link_topicB, catalyst: formData.link_catalyst, narrative: formData.link_selectedNarrative, tone: formData.link_selectedTone };
     }
     
+    // El agentName para arquetipo es el propio arquetipo seleccionado
+    const agentName = formData.style === 'archetype' ? formData.selectedArchetype : formData.selectedAgent;
+
     const payload = {
       style: formData.style,
-      agentName: formData.selectedAgent,
+      agentName: agentName,
       inputs: { ...jobInputs, duration: formData.duration, depth: formData.narrativeDepth, tags: formData.tags },
     };
 
     const { data, error } = await supabase.functions.invoke('queue-podcast-job', { body: payload });
 
     if (error) {
-      toast({ title: "Error de Conexión", description: "No se pudo comunicar con el servidor. Por favor, revisa tu conexión e inténtalo de nuevo.", variant: "destructive" });
+      toast({ title: "Error de Conexión", variant: "destructive" });
       return;
     }
     
     if (data && !data.success) {
-      // El backend puede devolver un error de lógica de negocio, como el límite de creaciones.
-      toast({ title: "Error al Enviar tu Idea", description: data.error?.message || "Hubo un problema inesperado. Por favor, inténtalo de nuevo.", variant: "destructive" });
+      toast({ title: "Error al Enviar tu Idea", description: data.error?.message, variant: "destructive" });
       return;
     }
 
-    toast({ title: "¡Éxito! Tu idea está en la cola.", description: "Serás redirigido a tu biblioteca. El procesamiento ha comenzado." });
+    toast({ title: "¡Éxito!", description: "Tu idea está en la cola de procesamiento." });
     router.push('/podcasts?tab=library');
   }, [supabase, user, toast, router]);
   
@@ -184,23 +182,30 @@ export function PodcastCreationForm() {
   
   const renderCurrentStep = () => {
     switch (currentStep) {
-      case 1: return <StyleSelectionStep updateFormData={updateFormStyle} onNext={goToNextStep} />;
+      case 1:
+        return <StyleSelectionStep />;
       case 2:
         if (currentStyle === 'solo') return <SoloTalkStep />;
         if (currentStyle === 'link') return <LinkPointsStep />;
+        if (currentStyle === 'archetype') return <ArchetypeStep />;
         return <p className="text-center text-muted-foreground">Por favor, selecciona un estilo para continuar.</p>;
       case 3:
         if (currentStyle === 'solo') return <DetailsStep agents={soloTalkAgents} />;
+        if (currentStyle === 'archetype') {
+          // [INTERVENCIÓN QUIRÚRGICA]: Se pasa la prop `hideAgentSelector` para ocultar el selector
+          return <DetailsStep agents={[]} hideAgentSelector={true} />;
+        }
         if (currentStyle === 'link') return <NarrativeSelectionStep narrativeOptions={narrativeOptions} />;
         return null;
       case 4:
-        if (currentStyle === 'solo') return <FinalStep />;
+        if (currentStyle === 'solo' || currentStyle === 'archetype') return <FinalStep />;
         if (currentStyle === 'link') return <DetailsStep agents={linkPointsAgents} />;
         return null;
       case 5:
         if (currentStyle === 'link') return <FinalStep />;
         return null;
-      default: return <div>Error: Paso inválido. Por favor, refresca la página.</div>;
+      default:
+        return <div>Error: Paso inválido. Por favor, refresca la página.</div>;
     }
   };
 

@@ -1,73 +1,51 @@
 // lib/validation/podcast-schema.ts
+// VERSIÓN ACTUALIZADA CON EL ESTILO "ARQUETIPO"
 
-import { z } from "zod";
+import { z } from 'zod';
 
-const NarrativeOptionSchema = z.object({
-    title: z.string().min(1, "El título de la narrativa no puede estar vacío."),
-    thesis: z.string().min(1, "La tesis de la narrativa no puede estar vacía."),
+export const PodcastCreationSchema = z.object({
+  // [INTERVENCIÓN QUIRÚRGICA #1]: Se añade 'archetype' al enum de estilos.
+  style: z.enum(['solo', 'link', 'archetype'], { required_error: "Debes seleccionar un estilo creativo." }),
+  
+  // --- Campos para 'solo' ---
+  solo_topic: z.string().optional(),
+  solo_motivation: z.string().optional(),
+
+  // --- Campos para 'link' ---
+  link_topicA: z.string().optional(),
+  link_topicB: z.string().optional(),
+  link_catalyst: z.string().optional(),
+  link_selectedNarrative: z.object({ title: z.string(), thesis: z.string() }).nullable().optional(),
+  link_selectedTone: z.enum(['synthesizer', 'catalyst']).optional(),
+  
+  // --- [INTERVENCIÓN QUIRÚRGICA #2]: Nuevos campos para 'archetype' ---
+  selectedArchetype: z.string().optional(), // e.g., 'archetype-hero'
+  archetype_topic: z.string().optional(),
+  archetype_goal: z.string().optional(),
+
+  // --- Campos comunes ---
+  duration: z.string().nonempty({ message: "Selecciona una duración." }),
+  narrativeDepth: z.string().nonempty({ message: "Define una profundidad." }),
+  tags: z.array(z.string()).optional(),
+  selectedAgent: z.string({ required_error: "Debes elegir un agente." }),
+})
+// [INTERVENCIÓN QUIRÚRGICA #3]: Validación condicional robusta.
+.superRefine((data, ctx) => {
+  if (data.style === 'solo') {
+    if (!data.solo_topic || data.solo_topic.length < 3) ctx.addIssue({ code: 'custom', message: 'El tema debe tener al menos 3 caracteres.', path: ['solo_topic'] });
+    if (!data.solo_motivation || data.solo_motivation.length < 3) ctx.addIssue({ code: 'custom', message: 'La motivación debe tener al menos 3 caracteres.', path: ['solo_motivation'] });
+  }
+  if (data.style === 'link') {
+    if (!data.link_topicA || data.link_topicA.length < 3) ctx.addIssue({ code: 'custom', message: 'El Tema A es requerido.', path: ['link_topicA'] });
+    if (!data.link_topicB || data.link_topicB.length < 3) ctx.addIssue({ code: 'custom', message: 'El Tema B es requerido.', path: ['link_topicB'] });
+    if (!data.link_selectedNarrative) ctx.addIssue({ code: 'custom', message: 'Debes seleccionar una narrativa.', path: ['link_selectedNarrative'] });
+    if (!data.link_selectedTone) ctx.addIssue({ code: 'custom', message: 'Debes seleccionar un tono.', path: ['link_selectedTone'] });
+  }
+  if (data.style === 'archetype') {
+    if (!data.selectedArchetype) ctx.addIssue({ code: 'custom', message: 'Debes seleccionar un arquetipo.', path: ['selectedArchetype'] });
+    if (!data.archetype_topic || data.archetype_topic.length < 3) ctx.addIssue({ code: 'custom', message: 'El tema debe tener al menos 3 caracteres.', path: ['archetype_topic'] });
+    if (!data.archetype_goal || data.archetype_goal.length < 3) ctx.addIssue({ code: 'custom', message: 'El objetivo debe tener al menos 3 caracteres.', path: ['archetype_goal'] });
+  }
 });
-
-// Hacemos explícitamente opcionales los campos que no pertenecen a cada estilo.
-const SoloPodcastSchema = z.object({
-    style: z.literal("solo"),
-    solo_topic: z.string().min(3, "El tema debe tener al menos 3 caracteres."),
-    solo_motivation: z.string().min(
-        10,
-        "La motivación debe tener al menos 10 caracteres.",
-    ),
-    link_topicA: z.string().optional(),
-    link_topicB: z.string().optional(),
-    link_catalyst: z.string().optional(),
-    link_selectedNarrative: NarrativeOptionSchema.nullable().optional(),
-    link_selectedTone: z.string().optional(),
-    duration: z.string().min(1, "Por favor, selecciona una duración."),
-    narrativeDepth: z.string().min(
-        1,
-        "Por favor, selecciona una profundidad narrativa.",
-    ),
-    tags: z.array(z.string()).optional(),
-    // ================== MODIFICACIÓN QUIRÚRGICA ==================
-    selectedAgent: z.string().min(1, "Por favor, selecciona un agente especializado."),
-    // =============================================================
-});
-
-const LinkPodcastSchema = z.object({
-    style: z.literal("link"),
-    solo_topic: z.string().optional(),
-    solo_motivation: z.string().optional(),
-    link_topicA: z.string().min(
-        2,
-        "El Tema A debe tener al menos 2 caracteres.",
-    ),
-    link_topicB: z.string().min(
-        2,
-        "El Tema B debe tener al menos 2 caracteres.",
-    ),
-    link_catalyst: z.string().min(
-        10,
-        "El catalizador debe tener al menos 10 caracteres.",
-    ),
-    link_selectedNarrative: NarrativeOptionSchema.nullable().refine(
-        (val) => val !== null,
-        { message: "Por favor, selecciona una narrativa." },
-    ),
-    link_selectedTone: z.enum(["Educativo", "Inspirador", "Analítico"], {
-        required_error: "Por favor, selecciona un tono.",
-    }),
-    duration: z.string().min(1, "Por favor, selecciona una duración."),
-    narrativeDepth: z.string().min(
-        1,
-        "Por favor, selecciona una profundidad narrativa.",
-    ),
-    tags: z.array(z.string()).optional(),
-    // ================== MODIFICACIÓN QUIRÚRGICA ==================
-    selectedAgent: z.string().min(1, "Por favor, selecciona un agente especializado."),
-    // =============================================================
-});
-
-export const PodcastCreationSchema = z.discriminatedUnion("style", [
-    SoloPodcastSchema,
-    LinkPodcastSchema,
-]);
 
 export type PodcastCreationData = z.infer<typeof PodcastCreationSchema>;
