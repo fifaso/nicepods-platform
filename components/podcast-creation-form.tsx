@@ -1,5 +1,5 @@
 // components/podcast-creation-form.tsx
-// VERSIÓN FINAL, COMPLETA Y SIN ABREVIACIONES
+// VERSIÓN FINAL Y COMPLETA, CON ORQUESTACIÓN CORREGIDA
 
 "use client";
 
@@ -12,13 +12,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { PodcastCreationSchema, PodcastCreationData } from "@/lib/validation/podcast-schema";
 import { soloTalkAgents, linkPointsAgents } from "@/lib/agent-config";
 
-// --- Importaciones de Componentes de UI ---
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChevronLeft, ChevronRight, Wand2, Loader2 } from "lucide-react";
 
-// --- Importaciones de los Pasos del Flujo ---
 import { StyleSelectionStep } from "./create-flow/style-selection";
 import { SoloTalkStep } from "./create-flow/solo-talk-step";
 import { LinkPointsStep } from "./create-flow/link-points";
@@ -144,7 +142,7 @@ export function PodcastCreationForm() {
       jobInputs = { topic: formData.solo_topic, motivation: formData.solo_motivation };
     } else if (formData.style === 'archetype') {
       jobInputs = { topic: formData.archetype_topic, goal: formData.archetype_goal };
-    } else { // 'link'
+    } else {
       jobInputs = { topicA: formData.link_topicA, topicB: formData.link_topicB, catalyst: formData.link_catalyst, narrative: formData.link_selectedNarrative, tone: formData.link_selectedTone };
     }
     
