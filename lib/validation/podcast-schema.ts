@@ -1,10 +1,9 @@
 // lib/validation/podcast-schema.ts
-// VERSIÓN ACTUALIZADA CON EL ESTILO "ARQUETIPO"
+// VERSIÓN FINAL CON VALIDACIÓN CONDICIONAL ROBUSTA
 
 import { z } from 'zod';
 
 export const PodcastCreationSchema = z.object({
-  // [INTERVENCIÓN QUIRÚRGICA #1]: Se añade 'archetype' al enum de estilos.
   style: z.enum(['solo', 'link', 'archetype'], { required_error: "Debes seleccionar un estilo creativo." }),
   
   // --- Campos para 'solo' ---
@@ -18,8 +17,8 @@ export const PodcastCreationSchema = z.object({
   link_selectedNarrative: z.object({ title: z.string(), thesis: z.string() }).nullable().optional(),
   link_selectedTone: z.enum(['synthesizer', 'catalyst']).optional(),
   
-  // --- [INTERVENCIÓN QUIRÚRGICA #2]: Nuevos campos para 'archetype' ---
-  selectedArchetype: z.string().optional(), // e.g., 'archetype-hero'
+  // --- Campos para 'archetype' ---
+  selectedArchetype: z.string().optional(),
   archetype_topic: z.string().optional(),
   archetype_goal: z.string().optional(),
 
@@ -27,19 +26,22 @@ export const PodcastCreationSchema = z.object({
   duration: z.string().nonempty({ message: "Selecciona una duración." }),
   narrativeDepth: z.string().nonempty({ message: "Define una profundidad." }),
   tags: z.array(z.string()).optional(),
-  selectedAgent: z.string({ required_error: "Debes elegir un agente." }),
+  // [INTERVENCIÓN QUIRÚRGICA #1]: Se hace `selectedAgent` opcional a nivel global...
+  selectedAgent: z.string().optional(),
 })
-// [INTERVENCIÓN QUIRÚRGICA #3]: Validación condicional robusta.
+// [INTERVENCIÓN QUIRÚRGICA #2]: ...y se hace requerido condicionalmente aquí.
 .superRefine((data, ctx) => {
   if (data.style === 'solo') {
     if (!data.solo_topic || data.solo_topic.length < 3) ctx.addIssue({ code: 'custom', message: 'El tema debe tener al menos 3 caracteres.', path: ['solo_topic'] });
     if (!data.solo_motivation || data.solo_motivation.length < 3) ctx.addIssue({ code: 'custom', message: 'La motivación debe tener al menos 3 caracteres.', path: ['solo_motivation'] });
+    if (!data.selectedAgent) ctx.addIssue({ code: 'custom', message: 'Debes elegir un agente.', path: ['selectedAgent'] });
   }
   if (data.style === 'link') {
     if (!data.link_topicA || data.link_topicA.length < 3) ctx.addIssue({ code: 'custom', message: 'El Tema A es requerido.', path: ['link_topicA'] });
     if (!data.link_topicB || data.link_topicB.length < 3) ctx.addIssue({ code: 'custom', message: 'El Tema B es requerido.', path: ['link_topicB'] });
     if (!data.link_selectedNarrative) ctx.addIssue({ code: 'custom', message: 'Debes seleccionar una narrativa.', path: ['link_selectedNarrative'] });
     if (!data.link_selectedTone) ctx.addIssue({ code: 'custom', message: 'Debes seleccionar un tono.', path: ['link_selectedTone'] });
+    if (!data.selectedAgent) ctx.addIssue({ code: 'custom', message: 'Debes elegir un agente.', path: ['selectedAgent'] });
   }
   if (data.style === 'archetype') {
     if (!data.selectedArchetype) ctx.addIssue({ code: 'custom', message: 'Debes seleccionar un arquetipo.', path: ['selectedArchetype'] });

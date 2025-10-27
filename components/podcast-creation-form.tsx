@@ -1,5 +1,5 @@
 // components/podcast-creation-form.tsx
-// VERSIÓN FINAL, COMPLETA Y CORREGIDA
+// VERSIÓN FINAL, COMPLETA Y SIN ABREVIACIONES
 
 "use client";
 
@@ -25,7 +25,7 @@ import { LinkPointsStep } from "./create-flow/link-points";
 import { NarrativeSelectionStep } from "./create-flow/narrative-selection";
 import { DetailsStep } from "./create-flow/details-step";
 import { FinalStep } from "./create-flow/final-step";
-import { ArchetypeStep } from "./create-flow/archetype-step";
+import { ArchetypeStep, archetypeOptions } from "./create-flow/archetype-step";
 
 export interface NarrativeOption { 
   title: string; 
@@ -63,9 +63,10 @@ export function PodcastCreationForm() {
     }
   });
 
-  const { handleSubmit, trigger, watch, setValue, getValues } = formMethods;
+  const { handleSubmit, trigger, watch, getValues } = formMethods;
   const { isSubmitting } = formMethods.formState;
   const currentStyle = watch('style');
+  const selectedArchetypeValue = watch('selectedArchetype');
 
   const goToNextStep = () => setCurrentStep(previousStep => previousStep + 1);
   const goToPreviousStep = () => setCurrentStep(previousStep => previousStep - 1);
@@ -85,7 +86,6 @@ export function PodcastCreationForm() {
     }
     
     if ((currentStyle === 'solo' || currentStyle === 'archetype') && stepForValidation === 3) {
-      // Para el estilo arquetipo, no necesitamos validar 'selectedAgent' ya que no se muestra
       if (currentStyle === 'archetype') {
         fieldsToValidate = ['duration', 'narrativeDepth'];
       } else {
@@ -93,16 +93,11 @@ export function PodcastCreationForm() {
       }
     }
     
-    if (currentStyle === 'link' && stepForValidation === 3) {
-      fieldsToValidate = ['link_selectedNarrative', 'link_selectedTone'];
-    }
-    
-    if (currentStyle === 'link' && stepForValidation === 4) {
-      fieldsToValidate = ['duration', 'narrativeDepth', 'selectedAgent'];
-    }
+    if (currentStyle === 'link' && stepForValidation === 3) fieldsToValidate = ['link_selectedNarrative', 'link_selectedTone'];
+    if (currentStyle === 'link' && stepForValidation === 4) fieldsToValidate = ['duration', 'narrativeDepth', 'selectedAgent'];
     
     const isStepValid = await trigger(fieldsToValidate);
-    if (isStepValid) { goToNextStep(); }
+    if (isStepValid) goToNextStep();
   };
   
   const handleGenerateNarratives = useCallback(async () => {
@@ -131,7 +126,7 @@ export function PodcastCreationForm() {
     } finally {
       setIsLoadingNarratives(false);
     }
-  }, [supabase, toast, getValues]);
+  }, [supabase, toast, getValues, goToNextStep]);
 
   const handleGenerateNarrativesClick = async () => {
     const isStepValid = await trigger(['link_topicA', 'link_topicB']);
@@ -153,7 +148,6 @@ export function PodcastCreationForm() {
       jobInputs = { topicA: formData.link_topicA, topicB: formData.link_topicB, catalyst: formData.link_catalyst, narrative: formData.link_selectedNarrative, tone: formData.link_selectedTone };
     }
     
-    // El agentName para arquetipo es el propio arquetipo seleccionado
     const agentName = formData.style === 'archetype' ? formData.selectedArchetype : formData.selectedAgent;
 
     const payload = {
@@ -192,8 +186,8 @@ export function PodcastCreationForm() {
       case 3:
         if (currentStyle === 'solo') return <DetailsStep agents={soloTalkAgents} />;
         if (currentStyle === 'archetype') {
-          // [INTERVENCIÓN QUIRÚRGICA]: Se pasa la prop `hideAgentSelector` para ocultar el selector
-          return <DetailsStep agents={[]} hideAgentSelector={true} />;
+          const preselectedAgent = archetypeOptions.find(opt => opt.value === selectedArchetypeValue);
+          return <DetailsStep agents={[]} preselectedAgent={preselectedAgent} />;
         }
         if (currentStyle === 'link') return <NarrativeSelectionStep narrativeOptions={narrativeOptions} />;
         return null;

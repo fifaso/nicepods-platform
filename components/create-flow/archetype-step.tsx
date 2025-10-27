@@ -1,18 +1,18 @@
 // components/create-flow/archetype-step.tsx
-// VERSIÓN CORREGIDA CON RUTA DE IMPORTACIÓN
+// VERSIÓN FINAL QUE EXPORTA LAS OPCIONES
 
 "use client";
 
 import { useFormContext } from "react-hook-form";
 import { PodcastCreationData } from "@/lib/validation/podcast-schema";
-// [INTERVENCIÓN QUIRÚRGICA]: Ruta de importación corregida a la ubicación central de UI
 import { SelectionCard } from "@/components/ui/selection-card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FormField, FormControl, FormItem, FormMessage } from "@/components/ui/form";
 import { Heart, BookOpen, Compass, Zap, Construction, Shield } from "lucide-react";
 
-const archetypeOptions = [
+// [INTERVENCIÓN QUIRÚRGICA]: Se añade `export` para que el orquestador pueda acceder a esta lista.
+export const archetypeOptions = [
     { value: 'archetype-hero', icon: <Shield className="h-7 w-7" />, title: 'El Héroe', description: 'Narra un viaje de desafío y transformación.' },
     { value: 'archetype-sage', icon: <BookOpen className="h-7 w-7" />, title: 'El Sabio', description: 'Explica un tema complejo con claridad y autoridad.' },
     { value: 'archetype-explorer', icon: <Compass className="h-7 w-7" />, title: 'El Explorador', description: 'Descubre lo nuevo con curiosidad y asombro.' },
