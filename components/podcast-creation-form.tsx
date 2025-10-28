@@ -1,5 +1,5 @@
 // components/podcast-creation-form.tsx
-// VERSIÓN FINAL, COMPLETA, CON LÓGICA DE PASOS CORREGIDA Y PAYLOAD ENRIQUECIDO
+// VERSIÓN FINAL COMPLETA, CON LÓGICA DE PASOS CORREGIDA Y PAYLOAD ENRIQUECIDO
 
 "use client";
 
@@ -69,7 +69,6 @@ export function PodcastCreationForm() {
   const goToNextStep = () => setCurrentStep(previousStep => previousStep + 1);
   const goToPreviousStep = () => setCurrentStep(previousStep => previousStep - 1);
 
-  // [INTERVENCIÓN QUIRÚRGICA #1]: Se corrige el cálculo del total de pasos.
   const totalSteps = currentStyle === 'link' ? 5 : 4;
 
   const handleStepNavigation = async () => {
@@ -181,14 +180,13 @@ export function PodcastCreationForm() {
       return;
     }
 
-    toast({ title: "¡Éxito!", description: "Tu idea está en la cola de procesamiento." });
+    toast({ title: "¡Tu idea está en camino!", description: "Serás redirigido a tu biblioteca. El proceso ha comenzado." });
     router.push('/podcasts?tab=library');
   }, [supabase, user, toast, router]);
   
   const progress = (currentStep / totalSteps) * 100;
   
   const renderCurrentStep = () => {
-    // [INTERVENCIÓN QUIRÚRGICA #2]: Lógica de renderizado de pasos corregida.
     switch (currentStep) {
       case 1:
         return <StyleSelectionStep />;
@@ -196,7 +194,7 @@ export function PodcastCreationForm() {
         if (currentStyle === 'solo') return <SoloTalkStep />;
         if (currentStyle === 'link') return <LinkPointsStep />;
         if (currentStyle === 'archetype') return <ArchetypeStep />;
-        return <p>Selecciona un estilo para continuar.</p>;
+        return <p className="text-center text-muted-foreground">Por favor, selecciona un estilo para continuar.</p>;
       case 3:
         if (currentStyle === 'solo' || currentStyle === 'archetype') return <DetailsStep agents={soloTalkAgents} />;
         if (currentStyle === 'link') return <NarrativeSelectionStep narrativeOptions={narrativeOptions} />;
@@ -239,7 +237,6 @@ export function PodcastCreationForm() {
                               <Button type="button" size="lg" onClick={handleGenerateNarrativesClick} disabled={isLoadingNarratives}>
                                   {isLoadingNarratives ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Generando...</> : 'Generar Narrativas'}
                               </Button>
-                          // [INTERVENCIÓN QUIRÚRGICA #3]: Lógica de botones corregida con el `totalSteps` correcto.
                           ) : currentStep < totalSteps ? (
                               <Button type="button" onClick={handleStepNavigation}>
                                   Siguiente <ChevronRight className="ml-2 h-4 w-4" />
