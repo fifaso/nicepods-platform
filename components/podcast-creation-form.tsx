@@ -1,5 +1,5 @@
 // components/podcast-creation-form.tsx
-// VERSIÓN FINAL CON LÓGICA DE PASOS Y BOTONES CORREGIDA
+// VERSIÓN FINAL CON LÓGICA DE RENDERIZADO ROBUSTA Y A PRUEBA DE ERRORES
 
 "use client";
 
@@ -69,9 +69,6 @@ export function PodcastCreationForm() {
   const goToNextStep = () => setCurrentStep(previousStep => previousStep + 1);
   const goToPreviousStep = () => setCurrentStep(previousStep => previousStep - 1);
 
-  // [INTERVENCIÓN QUIRÚRGICA #1]: Se corrige el cálculo del total de pasos.
-  // Style(1), Inputs(2), Details(3), Final(4). Total = 4.
-  // Para Link: Style(1), Inputs(2), Narrative(3), Details(4), Final(5). Total = 5.
   const totalSteps = currentStyle === 'link' ? 5 : 4;
 
   const handleStepNavigation = async () => {
@@ -189,29 +186,27 @@ export function PodcastCreationForm() {
   
   const progress = (currentStep / totalSteps) * 100;
   
+  // [INTERVENCIÓN QUIRÚRGICA]: Se refactoriza `renderCurrentStep` a una estructura `if/else` explícita y robusta.
   const renderCurrentStep = () => {
-    switch (currentStep) {
-      case 1:
-        return <StyleSelectionStep />;
-      case 2:
-        if (currentStyle === 'solo') return <SoloTalkStep />;
-        if (currentStyle === 'link') return <LinkPointsStep />;
-        if (currentStyle === 'archetype') return <ArchetypeStep />;
-        return <p className="text-center text-muted-foreground">Por favor, selecciona un estilo para continuar.</p>;
-      case 3:
-        if (currentStyle === 'solo' || currentStyle === 'archetype') return <DetailsStep agents={soloTalkAgents} />;
-        if (currentStyle === 'link') return <NarrativeSelectionStep narrativeOptions={narrativeOptions} />;
-        return null;
-      case 4:
-        if (currentStyle === 'solo' || currentStyle === 'archetype') return <FinalStep />;
-        if (currentStyle === 'link') return <DetailsStep agents={linkPointsAgents} />;
-        return null;
-      case 5:
-        if (currentStyle === 'link') return <FinalStep />;
-        return null;
-      default:
-        return <div>Error: Paso inválido. Por favor, refresca la página.</div>;
+    if (currentStep === 1) {
+      return <StyleSelectionStep />;
     }
+
+    if (currentStyle === 'solo' || currentStyle === 'archetype') {
+      if (currentStep === 2) return currentStyle === 'solo' ? <SoloTalkStep /> : <ArchetypeStep />;
+      if (currentStep === 3) return <DetailsStep agents={soloTalkAgents} />;
+      if (currentStep === 4) return <FinalStep />;
+    }
+
+    if (currentStyle === 'link') {
+      if (currentStep === 2) return <LinkPointsStep />;
+      if (currentStep === 3) return <NarrativeSelectionStep narrativeOptions={narrativeOptions} />;
+      if (currentStep === 4) return <DetailsStep agents={linkPointsAgents} />;
+      if (currentStep === 5) return <FinalStep />;
+    }
+    
+    // Si ninguna condición se cumple, es un estado inválido o inicial.
+    return <p className="text-center text-muted-foreground">Por favor, selecciona un estilo para continuar.</p>;
   };
 
   return (
@@ -240,7 +235,6 @@ export function PodcastCreationForm() {
                               <Button type="button" size="lg" onClick={handleGenerateNarrativesClick} disabled={isLoadingNarratives}>
                                   {isLoadingNarratives ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Generando...</> : 'Generar Narrativas'}
                               </Button>
-                          // [INTERVENCIÓN QUIRÚRGICA #2]: La lógica de los botones ahora es correcta y robusta.
                           ) : currentStep < totalSteps ? (
                               <Button type="button" onClick={handleStepNavigation}>
                                   Siguiente <ChevronRight className="ml-2 h-4 w-4" />
