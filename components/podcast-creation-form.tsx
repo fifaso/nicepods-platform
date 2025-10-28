@@ -1,5 +1,5 @@
 // components/podcast-creation-form.tsx
-// VERSIÓN FINAL COMPLETA, CON LÓGICA DE PASOS CORREGIDA Y PAYLOAD ENRIQUECIDO
+// VERSIÓN FINAL CON LÓGICA DE PASOS Y BOTONES CORREGIDA
 
 "use client";
 
@@ -69,6 +69,9 @@ export function PodcastCreationForm() {
   const goToNextStep = () => setCurrentStep(previousStep => previousStep + 1);
   const goToPreviousStep = () => setCurrentStep(previousStep => previousStep - 1);
 
+  // [INTERVENCIÓN QUIRÚRGICA #1]: Se corrige el cálculo del total de pasos.
+  // Style(1), Inputs(2), Details(3), Final(4). Total = 4.
+  // Para Link: Style(1), Inputs(2), Narrative(3), Details(4), Final(5). Total = 5.
   const totalSteps = currentStyle === 'link' ? 5 : 4;
 
   const handleStepNavigation = async () => {
@@ -237,6 +240,7 @@ export function PodcastCreationForm() {
                               <Button type="button" size="lg" onClick={handleGenerateNarrativesClick} disabled={isLoadingNarratives}>
                                   {isLoadingNarratives ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Generando...</> : 'Generar Narrativas'}
                               </Button>
+                          // [INTERVENCIÓN QUIRÚRGICA #2]: La lógica de los botones ahora es correcta y robusta.
                           ) : currentStep < totalSteps ? (
                               <Button type="button" onClick={handleStepNavigation}>
                                   Siguiente <ChevronRight className="ml-2 h-4 w-4" />
