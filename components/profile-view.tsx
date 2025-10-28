@@ -1,5 +1,5 @@
 // components/profile-view.tsx
-// VERSIÓN FINAL COMPLETA - VALIDADA
+// VERSIÓN FINAL COMPLETA - CON TIPADO EXPLÍCITO Y ROBUSTO
 
 "use client";
 
@@ -43,6 +43,7 @@ export interface ProfileViewProps {
   totalPodcasts: number;
   totalLikes: number;
   initialTestimonials: TestimonialWithAuthor[];
+  initialIsFollowing: boolean;
 }
 
 function TestimonialCard({ testimonial, isOwner, onModerate }: { testimonial: TestimonialWithAuthor, isOwner: boolean, onModerate: (id: number, status: 'approved' | 'rejected') => void }) {
@@ -83,7 +84,8 @@ export function ProfileView({
   podcastsCreatedThisMonth,
   totalPodcasts,
   totalLikes,
-  initialTestimonials
+  initialTestimonials,
+  initialIsFollowing
 }: ProfileViewProps) {
   const { user, signOut, supabase } = useAuth();
   const router = useRouter();
@@ -97,16 +99,22 @@ export function ProfileView({
   const [isSavingBio, setIsSavingBio] = useState(false);
   const [testimonials, setTestimonials] = useState(initialTestimonials);
 
+  const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
+  const [followersCount, setFollowersCount] = useState(profile?.followers_count ?? 0);
+  const [isFollowLoading, setIsFollowLoading] = useState(false);
+
   useEffect(() => {
     if (profile) {
       setFullName(profile.full_name || "");
       setBio(profile.bio || "");
+      setFollowersCount(profile.followers_count ?? 0);
     }
     setTestimonials(initialTestimonials);
-  }, [profile, initialTestimonials]);
+    setIsFollowing(initialIsFollowing);
+  }, [profile, initialTestimonials, initialIsFollowing]);
   
   const handleSaveProfile = async () => {
-    if (!user) return;
+    if (!user || !supabase) return;
     setIsSaving(true);
     const { error } = await supabase.from('profiles').update({ full_name: fullName }).eq('id', user.id);
     if (error) {
@@ -143,12 +151,43 @@ export function ProfileView({
     }
   };
   
+  const handleFollowToggle = async () => {
+    if (!user || !supabase || !profile) {
+      toast({ title: "Debes iniciar sesión para seguir a un usuario.", variant: "destructive" });
+      return;
+    }
+    
+    setIsFollowLoading(true);
+    const currentlyFollowing = isFollowing;
+
+    setIsFollowing(!currentlyFollowing);
+    setFollowersCount((count: number) => !currentlyFollowing ? count + 1 : count - 1);
+    
+    if (currentlyFollowing) {
+      const { error } = await supabase.from('followers').delete().match({ follower_id: user.id, following_id: profile.id });
+      if (error) {
+        toast({ title: "Error", description: "No se pudo dejar de seguir al usuario.", variant: "destructive" });
+        setIsFollowing(true);
+        setFollowersCount((count: number) => count + 1);
+      }
+    } else {
+      const { error } = await supabase.from('followers').insert({ follower_id: user.id, following_id: profile.id });
+      if (error) {
+        toast({ title: "Error", description: "No se pudo seguir al usuario.", variant: "destructive" });
+        setIsFollowing(false);
+        setFollowersCount((count: number) => count - 1);
+      }
+    }
+    
+    setIsFollowLoading(false);
+  };
+
   if (!profile) {
     return (
       <div className="max-w-6xl mx-auto py-8 px-4">
         <div className="grid lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-1 space-y-6"><Skeleton className="h-48 w-full" /><Skeleton className="h-32 w-full" /></div>
-            <div className="lg:col-span-2 space-y-6"><Skeleton className="h-48 w-full" /><Skeleton className="h-64 w-full" /></div>
+          <div className="lg:col-span-1 space-y-6"><Skeleton className="h-48 w-full" /><Skeleton className="h-32 w-full" /></div>
+          <div className="lg:col-span-2 space-y-6"><Skeleton className="h-48 w-full" /><Skeleton className="h-64 w-full" /></div>
         </div>
       </div>
     );
@@ -156,7 +195,7 @@ export function ProfileView({
   
   const plan = profile.subscriptions?.plans;
   const creationsLimit = plan?.monthly_creation_limit ?? 0;
-  const creationsRemaining = Math.max(0, creationsLimit - podcastsCreatedThisMonth);
+  const creationsRemaining = Math.max(0, podcastsCreatedThisMonth);
   
   const pendingTestimonials = testimonials.filter(t => t.status === 'pending');
   const approvedTestimonials = testimonials.filter(t => t.status === 'approved');
@@ -192,14 +231,23 @@ export function ProfileView({
               </div>
 
               {isOwner && (<div className="mt-6 w-full"><Button onClick={signOut} variant="destructive" className="w-full">Cerrar Sesión</Button></div>)}
-              {!isOwner && (<div className="mt-6 w-full"><Button className="w-full">Seguir</Button></div>)}
+              {!isOwner && (
+                <div className="mt-6 w-full">
+                  <Button className="w-full" variant={isFollowing ? "outline" : "default"} onClick={handleFollowToggle} disabled={isFollowLoading}>
+                    {isFollowLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    {isFollowing ? "Siguiendo" : "Seguir"}
+                  </Button>
+                </div>
+              )}
           </Card>
 
           <Card className="border-border/20 bg-card/50 shadow-lg">
             <CardHeader><CardTitle className="text-xl">Estadísticas Generales</CardTitle></CardHeader>
             <CardContent className="space-y-4">
+              <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Seguidores</span><span className="font-bold text-lg">{followersCount}</span></div>
+              <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Siguiendo</span><span className="font-bold text-lg">{profile.following_count ?? 0}</span></div>
               <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground flex items-center gap-2"><Bot className="h-4 w-4" /> Podcasts Creados</span><span className="font-bold text-lg">{totalPodcasts}</span></div>
-              <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground flex items-center gap-2"><Heart className="h-4 w-4" /> Likes Totales Recibidos</span><span className="font-bold text-lg">{totalLikes}</span></div>
+              <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground flex items-center gap-2"><Heart className="h-4 w-4" /> Likes Recibidos</span><span className="font-bold text-lg">{totalLikes}</span></div>
             </CardContent>
           </Card>
         </div>

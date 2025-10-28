@@ -1,8 +1,8 @@
 // types/supabase.ts
 // VERSIÓN FINAL Y ROBUSTA QUE EXPORTA TIPOS DE UTILIDAD
 
-// [INTERVENCIÓN QUIRÚRGICA #1]: Se añade el bloque de exportación de tipos de utilidad.
-// Estos tipos genéricos nos permiten extraer tipos de fila, inserción y actualización de forma segura.
+// [INTERVENCIÓN ARQUITECTÓNICA]: Se añade este bloque para convertir el archivo en un módulo
+// y proporcionar tipos de utilidad que harán toda la aplicación más robusta.
 export type Tables<
   T extends keyof Database['public']['Tables']
 > = Database['public']['Tables'][T]['Row']
@@ -50,6 +50,37 @@ export interface Database {
           prompt_variables?: string[] | null
         }
         Relationships: []
+      }
+      followers: {
+        Row: {
+          created_at: string
+          follower_id: string
+          following_id: string
+        }
+        Insert: {
+          created_at?: string
+          follower_id: string
+          following_id: string
+        }
+        Update: {
+          created_at?: string
+          follower_id?: string
+          following_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "followers_follower_id_fkey"
+            columns: ["follower_id"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "followers_following_id_fkey"
+            columns: ["following_id"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       likes: {
         Row: {
@@ -234,6 +265,8 @@ export interface Database {
           avatar_url: string | null
           bio: string | null
           created_at: string
+          followers_count: number
+          following_count: number
           full_name: string | null
           id: string
           role: string
@@ -246,6 +279,8 @@ export interface Database {
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
+          followers_count?: number
+          following_count?: number
           full_name?: string | null
           id: string
           role?: string
@@ -258,6 +293,8 @@ export interface Database {
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
+          followers_count?: number
+          following_count?: number
           full_name?: string | null
           id?: string
           role?: string
@@ -418,6 +455,10 @@ export interface Database {
           creation_data: Json
           profiles: Json
         }[]
+      }
+      update_follow_counts: {
+        Args: Record<PropertyKey, never>
+        Returns: unknown
       }
       update_like_count: {
         Args: Record<PropertyKey, never>
