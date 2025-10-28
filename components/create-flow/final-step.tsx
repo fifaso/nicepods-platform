@@ -1,3 +1,6 @@
+// components/create-flow/final-step.tsx
+// VERSIÓN FINAL COMPLETA CON TODOS LOS RESÚMENES Y EL NUEVO SWITCH
+
 "use client";
 
 import { useFormContext } from "react-hook-form";
@@ -5,10 +8,13 @@ import { PodcastCreationData } from "@/lib/validation/podcast-schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Link2, Mic, Clock, Palette, BrainCircuit } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { FormControl, FormField, FormItem } from "@/components/ui/form";
+import { Link2, Mic, Clock, BrainCircuit, Theater, Palette } from "lucide-react";
 
 export function FinalStep() {
-  const { watch } = useFormContext<PodcastCreationData>();
+  const { control, watch } = useFormContext<PodcastCreationData>();
   const formData = watch();
 
   return (
@@ -78,6 +84,27 @@ export function FinalStep() {
              </div>
           )}
           
+          {formData.style === 'archetype' && (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center text-muted-foreground font-medium">
+                  <Theater className="h-4 w-4 mr-2" />
+                  <span>Estilo</span>
+                </div>
+                <Badge variant="secondary">Arquetipo</Badge>
+              </div>
+              <Separator />
+              <div className="flex flex-col space-y-1">
+                <span className="text-sm text-muted-foreground">Tema Principal</span>
+                <p className="font-semibold text-primary">{formData.archetype_topic || "No especificado"}</p>
+              </div>
+              <div className="flex flex-col space-y-1">
+                <span className="text-sm text-muted-foreground">Objetivo Final</span>
+                <p className="text-sm italic leading-relaxed">"{formData.archetype_goal || "No especificado"}"</p>
+              </div>
+            </div>
+          )}
+          
           <Separator />
 
           <div className="space-y-4">
@@ -96,6 +123,30 @@ export function FinalStep() {
               <span className="font-medium">{formData.narrativeDepth || "No especificada"}</span>
             </div>
           </div>
+          
+          <Separator />
+          <FormField
+            control={control}
+            name="generateAudioDirectly"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-muted/30">
+                <div className="space-y-0.5">
+                  <Label htmlFor="generate-audio-switch">Generar Audio Directamente</Label>
+                  <CardDescription className="text-xs">
+                    Crea el guion y el audio en un solo paso.
+                  </CardDescription>
+                </div>
+                <FormControl>
+                  <Switch
+                    id="generate-audio-switch"
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+
         </CardContent>
       </Card>
     </div>
