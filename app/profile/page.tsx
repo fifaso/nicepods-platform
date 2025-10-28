@@ -1,55 +1,56 @@
 // app/profile/page.tsx
+// VERSIÓN FINAL COMPLETA QUE OBTIENE LOS TESTIMONIOS
 
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
-import { redirect, notFound } from 'next/navigation';
-import { ProfileClientComponent, type ProfileData } from '@/components/profile-client-component';
+import { redirect } from 'next/navigation';
+import { ProfileClientComponent, type ProfileData, type TestimonialWithAuthor } from '@/components/profile-client-component';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Terminal } from "lucide-react";
 
 export default async function ProfilePage() {
   const supabase = createClient(cookies());
 
-  // --- LÓGICA DE GUARDIÁN EN EL SERVIDOR ---
-  // Esta es la primera y más importante capa de seguridad.
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     redirect('/login?redirect=/profile');
   }
   
-  // --- LÓGICA DE OBTENCIÓN DE DATOS AMPLIADA ---
-  // Ejecutamos todas las consultas en paralelo para máxima eficiencia.
   const [
     profileResponse,
     totalPodcastsResponse,
     totalLikesResponse,
-    podcastsThisMonthResponse
+    podcastsThisMonthResponse,
+    testimonialsResponse
   ] = await Promise.all([
-    // Consulta 1: Obtener el perfil completo del usuario con su plan.
     supabase
       .from('profiles')
       .select('*, subscriptions(*, plans(*))')
       .eq('id', user.id)
       .single<ProfileData>(),
     
-    // Consulta 2: Contar el número total de podcasts creados por el usuario.
     supabase
       .from('micro_pods')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', user.id),
 
-    // Consulta 3: Sumar todos los 'like_count' de los podcasts del usuario.
     supabase
       .from('micro_pods')
       .select('like_count')
       .eq('user_id', user.id),
       
-    // Consulta 4: Contar los podcasts creados en el último ciclo de 30 días.
     supabase
       .from('micro_pods')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', user.id)
-      .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+      .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
+      
+    supabase
+      .from('profile_testimonials')
+      .select('*, author:author_user_id(full_name, avatar_url)')
+      .eq('profile_user_id', user.id)
+      .order('created_at', { ascending: false })
+      .returns<TestimonialWithAuthor[]>()
   ]);
 
   const { data: profile, error: profileError } = profileResponse;
@@ -70,14 +71,15 @@ export default async function ProfilePage() {
   const totalPodcasts = totalPodcastsResponse.count ?? 0;
   const podcastsCreatedThisMonth = podcastsThisMonthResponse.count ?? 0;
   const totalLikes = totalLikesResponse.data?.reduce((sum, pod) => sum + (pod.like_count || 0), 0) ?? 0;
+  const testimonials = testimonialsResponse.data ?? [];
 
-  // Pasamos todos los datos, ya procesados, al componente de cliente.
   return (
     <ProfileClientComponent 
       profile={profile} 
       podcastsCreatedThisMonth={podcastsCreatedThisMonth}
       totalPodcasts={totalPodcasts}
       totalLikes={totalLikes}
+      initialTestimonials={testimonials}
     />
   );
 }
