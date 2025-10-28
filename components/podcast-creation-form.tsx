@@ -188,24 +188,32 @@ export function PodcastCreationForm() {
   
   // [INTERVENCIÓN QUIRÚRGICA]: Se refactoriza `renderCurrentStep` a una estructura `if/else` explícita y robusta.
   const renderCurrentStep = () => {
+    if (currentStyle === 'solo' || currentStyle === 'archetype') {
+      switch (currentStep) {
+        case 1: return <StyleSelectionStep />;
+        case 2: return currentStyle === 'solo' ? <SoloTalkStep /> : <ArchetypeStep />;
+        case 3: return <DetailsStep agents={soloTalkAgents} />;
+        case 4: return <FinalStep />;
+        default: return <div>Error: Paso inválido.</div>;
+      }
+    }
+
+    if (currentStyle === 'link') {
+      switch (currentStep) {
+        case 1: return <StyleSelectionStep />;
+        case 2: return <LinkPointsStep />;
+        case 3: return <NarrativeSelectionStep narrativeOptions={narrativeOptions} />;
+        case 4: return <DetailsStep agents={linkPointsAgents} />;
+        case 5: return <FinalStep />;
+        default: return <div>Error: Paso inválido.</div>;
+      }
+    }
+    
+    // Si no se ha seleccionado estilo, solo se muestra el primer paso.
     if (currentStep === 1) {
       return <StyleSelectionStep />;
     }
 
-    if (currentStyle === 'solo' || currentStyle === 'archetype') {
-      if (currentStep === 2) return currentStyle === 'solo' ? <SoloTalkStep /> : <ArchetypeStep />;
-      if (currentStep === 3) return <DetailsStep agents={soloTalkAgents} />;
-      if (currentStep === 4) return <FinalStep />;
-    }
-
-    if (currentStyle === 'link') {
-      if (currentStep === 2) return <LinkPointsStep />;
-      if (currentStep === 3) return <NarrativeSelectionStep narrativeOptions={narrativeOptions} />;
-      if (currentStep === 4) return <DetailsStep agents={linkPointsAgents} />;
-      if (currentStep === 5) return <FinalStep />;
-    }
-    
-    // Si ninguna condición se cumple, es un estado inválido o inicial.
     return <p className="text-center text-muted-foreground">Por favor, selecciona un estilo para continuar.</p>;
   };
 
