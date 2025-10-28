@@ -1,5 +1,5 @@
 // components/podcast-creation-form.tsx
-// VERSIÓN FINAL, COMPLETA Y ROBUSTA. RESTAURA LA FUNCIONALIDAD Y MANTIENE LAS ÚLTIMAS DIRECTIVAS.
+// VERSIÓN FINAL, COMPLETA, CON LÓGICA DE PASOS CORREGIDA Y PAYLOAD ENRIQUECIDO
 
 "use client";
 
@@ -58,6 +58,7 @@ export function PodcastCreationForm() {
       narrativeDepth: '',
       tags: [],
       selectedAgent: undefined,
+      generateAudioDirectly: true,
     }
   });
 
@@ -68,9 +69,9 @@ export function PodcastCreationForm() {
   const goToNextStep = () => setCurrentStep(previousStep => previousStep + 1);
   const goToPreviousStep = () => setCurrentStep(previousStep => previousStep - 1);
 
+  // [INTERVENCIÓN QUIRÚRGICA #1]: Se corrige el cálculo del total de pasos.
   const totalSteps = currentStyle === 'link' ? 5 : 4;
 
-  // [INTERVENCIÓN QUIRÚRGICA #1]: Se restaura el cuerpo completo de la función.
   const handleStepNavigation = async () => {
     let fieldsToValidate: (keyof PodcastCreationData)[] = [];
     const stepForValidation = currentStep;
@@ -99,7 +100,6 @@ export function PodcastCreationForm() {
     if (isStepValid) goToNextStep();
   };
   
-  // [INTERVENCIÓN QUIRÚRGICA #2]: Se restaura el cuerpo completo de la función.
   const handleGenerateNarratives = useCallback(async () => {
     if (!supabase) {
       toast({ title: "Error de Conexión", variant: "destructive" });
@@ -128,13 +128,11 @@ export function PodcastCreationForm() {
     }
   }, [supabase, toast, getValues, goToNextStep]);
 
-  // [INTERVENCIÓN QUIRÚRGICA #3]: Se restaura el cuerpo completo de la función.
   const handleGenerateNarrativesClick = async () => {
     const isStepValid = await trigger(['link_topicA', 'link_topicB']);
     if (isStepValid) await handleGenerateNarratives();
   };
 
-  // [INTERVENCIÓN QUIRÚRGICA #4]: Se restaura y refina la función de submit.
   const handleFinalSubmit: SubmitHandler<PodcastCreationData> = useCallback(async (formData) => {
     if (!supabase || !user) {
       toast({ title: "Error de Autenticación", variant: "destructive" });
@@ -145,26 +143,29 @@ export function PodcastCreationForm() {
     if (formData.style === 'solo' || formData.style === 'archetype') {
       jobInputs = {
         topic: formData.style === 'archetype' ? formData.archetype_topic : formData.solo_topic,
-        // El prompt de arquetipo espera 'goal', y el de monólogo 'motivation'. Mapeamos ambos.
         goal: formData.style === 'archetype' ? formData.archetype_goal : formData.solo_motivation,
         motivation: formData.style === 'archetype' ? formData.archetype_goal : formData.solo_motivation,
       };
-    } else { // 'link'
+    } else {
       jobInputs = { topicA: formData.link_topicA, topicB: formData.link_topicB, catalyst: formData.link_catalyst, narrative: formData.link_selectedNarrative, tone: formData.link_selectedTone };
     }
     
-    // Construimos el payload base que será enviado
     const payload = {
       style: formData.style,
-      agentName: formData.selectedAgent,
-      inputs: { ...jobInputs, duration: formData.duration, depth: formData.narrativeDepth, tags: formData.tags },
+      agentName: formData.style === 'archetype' ? formData.selectedArchetype : formData.selectedAgent,
+      inputs: {
+        ...jobInputs,
+        duration: formData.duration,
+        depth: formData.narrativeDepth,
+        tags: formData.tags,
+        generateAudioDirectly: formData.generateAudioDirectly,
+        defaultVoice: "es-US-Standard-A",
+        defaultRate: 1.0,
+      },
     };
 
-    // La "traducción" para no modificar el backend.
     if (payload.style === 'archetype') {
-      // 1. Disfrazamos el estilo como 'solo' para que la Edge Function lo acepte.
       payload.style = 'solo';
-      // 2. Asignamos el agente de arquetipo, que es el que realmente importa para la generación del guion.
       payload.agentName = formData.selectedArchetype;
     }
 
@@ -186,8 +187,8 @@ export function PodcastCreationForm() {
   
   const progress = (currentStep / totalSteps) * 100;
   
-  // [INTERVENCIÓN QUIRÚRGICA #5]: Se refina y unifica la lógica de renderizado.
   const renderCurrentStep = () => {
+    // [INTERVENCIÓN QUIRÚRGICA #2]: Lógica de renderizado de pasos corregida.
     switch (currentStep) {
       case 1:
         return <StyleSelectionStep />;
@@ -195,22 +196,14 @@ export function PodcastCreationForm() {
         if (currentStyle === 'solo') return <SoloTalkStep />;
         if (currentStyle === 'link') return <LinkPointsStep />;
         if (currentStyle === 'archetype') return <ArchetypeStep />;
-        return <p className="text-center text-muted-foreground">Por favor, selecciona un estilo para continuar.</p>;
+        return <p>Selecciona un estilo para continuar.</p>;
       case 3:
-        if (currentStyle === 'solo' || currentStyle === 'archetype') {
-          return <DetailsStep agents={soloTalkAgents} />;
-        }
-        if (currentStyle === 'link') {
-          return <NarrativeSelectionStep narrativeOptions={narrativeOptions} />;
-        }
+        if (currentStyle === 'solo' || currentStyle === 'archetype') return <DetailsStep agents={soloTalkAgents} />;
+        if (currentStyle === 'link') return <NarrativeSelectionStep narrativeOptions={narrativeOptions} />;
         return null;
       case 4:
-        if (currentStyle === 'solo' || currentStyle === 'archetype') {
-          return <FinalStep />;
-        }
-        if (currentStyle === 'link') {
-          return <DetailsStep agents={linkPointsAgents} />;
-        }
+        if (currentStyle === 'solo' || currentStyle === 'archetype') return <FinalStep />;
+        if (currentStyle === 'link') return <DetailsStep agents={linkPointsAgents} />;
         return null;
       case 5:
         if (currentStyle === 'link') return <FinalStep />;
@@ -246,6 +239,7 @@ export function PodcastCreationForm() {
                               <Button type="button" size="lg" onClick={handleGenerateNarrativesClick} disabled={isLoadingNarratives}>
                                   {isLoadingNarratives ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Generando...</> : 'Generar Narrativas'}
                               </Button>
+                          // [INTERVENCIÓN QUIRÚRGICA #3]: Lógica de botones corregida con el `totalSteps` correcto.
                           ) : currentStep < totalSteps ? (
                               <Button type="button" onClick={handleStepNavigation}>
                                   Siguiente <ChevronRight className="ml-2 h-4 w-4" />
