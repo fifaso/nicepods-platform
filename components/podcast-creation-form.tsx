@@ -1,5 +1,5 @@
 // components/podcast-creation-form.tsx
-// VERSIÓN FINAL CON LÓGICA DE RENDERIZADO ROBUSTA Y A PRUEBA DE ERRORES
+// VERSIÓN FINAL CON LÓGICA DE RENDERIZADO EXPLÍCITA Y ROBUSTA
 
 "use client";
 
@@ -187,34 +187,31 @@ export function PodcastCreationForm() {
   const progress = (currentStep / totalSteps) * 100;
   
   // [INTERVENCIÓN QUIRÚRGICA]: Se refactoriza `renderCurrentStep` a una estructura `if/else` explícita y robusta.
+  // Esta nueva arquitectura elimina por completo la posibilidad de errores "fall-through".
   const renderCurrentStep = () => {
+    // Flujo para Monólogo y Arquetipo (4 pasos)
     if (currentStyle === 'solo' || currentStyle === 'archetype') {
-      switch (currentStep) {
-        case 1: return <StyleSelectionStep />;
-        case 2: return currentStyle === 'solo' ? <SoloTalkStep /> : <ArchetypeStep />;
-        case 3: return <DetailsStep agents={soloTalkAgents} />;
-        case 4: return <FinalStep />;
-        default: return <div>Error: Paso inválido.</div>;
-      }
+      if (currentStep === 1) return <StyleSelectionStep />;
+      if (currentStep === 2) return currentStyle === 'solo' ? <SoloTalkStep /> : <ArchetypeStep />;
+      if (currentStep === 3) return <DetailsStep agents={soloTalkAgents} />;
+      if (currentStep === 4) return <FinalStep />;
     }
 
+    // Flujo para Unir Ideas (5 pasos)
     if (currentStyle === 'link') {
-      switch (currentStep) {
-        case 1: return <StyleSelectionStep />;
-        case 2: return <LinkPointsStep />;
-        case 3: return <NarrativeSelectionStep narrativeOptions={narrativeOptions} />;
-        case 4: return <DetailsStep agents={linkPointsAgents} />;
-        case 5: return <FinalStep />;
-        default: return <div>Error: Paso inválido.</div>;
-      }
+      if (currentStep === 1) return <StyleSelectionStep />;
+      if (currentStep === 2) return <LinkPointsStep />;
+      if (currentStep === 3) return <NarrativeSelectionStep narrativeOptions={narrativeOptions} />;
+      if (currentStep === 4) return <DetailsStep agents={linkPointsAgents} />;
+      if (currentStep === 5) return <FinalStep />;
     }
     
-    // Si no se ha seleccionado estilo, solo se muestra el primer paso.
+    // Estado inicial o inválido
     if (currentStep === 1) {
       return <StyleSelectionStep />;
     }
 
-    return <p className="text-center text-muted-foreground">Por favor, selecciona un estilo para continuar.</p>;
+    return <div>Error: Estado de formulario inválido. Por favor, refresca la página.</div>;
   };
 
   return (
