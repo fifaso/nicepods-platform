@@ -1,3 +1,21 @@
+// types/supabase.ts
+// VERSIÓN FINAL Y ROBUSTA QUE EXPORTA TIPOS DE UTILIDAD
+
+// [INTERVENCIÓN QUIRÚRGICA #1]: Se añade el bloque de exportación de tipos de utilidad.
+// Estos tipos genéricos nos permiten extraer tipos de fila, inserción y actualización de forma segura.
+export type Tables<
+  T extends keyof Database['public']['Tables']
+> = Database['public']['Tables'][T]['Row']
+export type Enums<
+  T extends keyof Database['public']['Enums']
+> = Database['public']['Enums'][T]
+
+// -----------------------------------------------------------------------------------
+// El siguiente bloque es el que genera la CLI de Supabase.
+// Si vuelves a ejecutar `npx supabase gen types...`, solo necesitas reemplazar
+// el contenido de aquí hacia abajo.
+// -----------------------------------------------------------------------------------
+
 export type Json =
   | string
   | number
@@ -6,12 +24,7 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "13.0.4"
-  }
+export interface Database {
   public: {
     Tables: {
       ai_prompts: {
@@ -38,19 +51,51 @@ export type Database = {
         }
         Relationships: []
       }
+      likes: {
+        Row: {
+          created_at: string
+          podcast_id: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          podcast_id: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          podcast_id?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "likes_podcast_id_fkey"
+            columns: ["podcast_id"]
+            referencedRelation: "micro_pods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "likes_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       micro_pods: {
         Row: {
           audio_url: string | null
           category: string | null
           cover_image_url: string | null
           created_at: string
+          creation_data: Json | null
           description: string | null
           duration_seconds: number | null
           id: number
-          like_count: number | null
-          play_count: number | null
+          like_count: number
+          play_count: number
           script_text: string | null
-          status: string
+          status: Database["public"]["Enums"]["podcast_status"]
           title: string
           updated_at: string
           user_id: string
@@ -60,13 +105,14 @@ export type Database = {
           category?: string | null
           cover_image_url?: string | null
           created_at?: string
+          creation_data?: Json | null
           description?: string | null
           duration_seconds?: number | null
           id?: number
-          like_count?: number | null
-          play_count?: number | null
+          like_count?: number
+          play_count?: number
           script_text?: string | null
-          status?: string
+          status?: Database["public"]["Enums"]["podcast_status"]
           title: string
           updated_at?: string
           user_id: string
@@ -76,13 +122,14 @@ export type Database = {
           category?: string | null
           cover_image_url?: string | null
           created_at?: string
+          creation_data?: Json | null
           description?: string | null
           duration_seconds?: number | null
           id?: number
-          like_count?: number | null
-          play_count?: number | null
+          like_count?: number
+          play_count?: number
           script_text?: string | null
-          status?: string
+          status?: Database["public"]["Enums"]["podcast_status"]
           title?: string
           updated_at?: string
           user_id?: string
@@ -91,10 +138,9 @@ export type Database = {
           {
             foreignKeyName: "micro_pods_user_id_fkey"
             columns: ["user_id"]
-            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       plans: {
@@ -129,182 +175,186 @@ export type Database = {
       }
       podcast_creation_jobs: {
         Row: {
+          archived: boolean
           created_at: string
           error_message: string | null
           id: number
           job_title: string | null
           micro_pod_id: number | null
           payload: Json | null
-          retry_count: number | null
-          status: string
+          retry_count: number
+          status: Database["public"]["Enums"]["job_status"]
+          updated_at: string
           user_id: string
         }
         Insert: {
+          archived?: boolean
           created_at?: string
           error_message?: string | null
           id?: number
           job_title?: string | null
           micro_pod_id?: number | null
           payload?: Json | null
-          retry_count?: number | null
-          status?: string
+          retry_count?: number
+          status?: Database["public"]["Enums"]["job_status"]
+          updated_at?: string
           user_id: string
         }
         Update: {
+          archived?: boolean
           created_at?: string
           error_message?: string | null
           id?: number
           job_title?: string | null
           micro_pod_id?: number | null
           payload?: Json | null
-          retry_count?: number | null
-          status?: string
+          retry_count?: number
+          status?: Database["public"]["Enums"]["job_status"]
+          updated_at?: string
           user_id?: string
         }
         Relationships: [
           {
             foreignKeyName: "podcast_creation_jobs_micro_pod_id_fkey"
             columns: ["micro_pod_id"]
-            isOneToOne: false
             referencedRelation: "micro_pods"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "podcast_creation_jobs_user_id_fkey"
             columns: ["user_id"]
-            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
-        ]
-      }
-      podcast_likes: {
-        Row: {
-          id: number
-          liked_at: string
-          podcast_id: number
-          user_id: string
-        }
-        Insert: {
-          id?: number
-          liked_at?: string
-          podcast_id: number
-          user_id: string
-        }
-        Update: {
-          id?: number
-          liked_at?: string
-          podcast_id?: number
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "podcast_likes_podcast_id_fkey"
-            columns: ["podcast_id"]
-            isOneToOne: false
-            referencedRelation: "micro_pods"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "podcast_likes_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      podcast_plays: {
-        Row: {
-          id: number
-          played_at: string
-          podcast_id: number
-          user_id: string | null
-        }
-        Insert: {
-          id?: number
-          played_at?: string
-          podcast_id: number
-          user_id?: string | null
-        }
-        Update: {
-          id?: number
-          played_at?: string
-          podcast_id?: number
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "podcast_plays_podcast_id_fkey"
-            columns: ["podcast_id"]
-            isOneToOne: false
-            referencedRelation: "micro_pods"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "podcast_plays_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
+          }
         ]
       }
       profiles: {
         Row: {
+          active_creation_jobs: number
           avatar_url: string | null
+          bio: string | null
+          created_at: string
           full_name: string | null
           id: string
           role: string
+          stripe_customer_id: string | null
+          updated_at: string
           username: string
         }
         Insert: {
+          active_creation_jobs?: number
           avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
           full_name?: string | null
           id: string
           role?: string
+          stripe_customer_id?: string | null
+          updated_at?: string
           username: string
         }
         Update: {
+          active_creation_jobs?: number
           avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
           full_name?: string | null
           id?: string
           role?: string
+          stripe_customer_id?: string | null
+          updated_at?: string
           username?: string
-        }
-        Relationships: []
-      }
-      subscriptions: {
-        Row: {
-          id: string
-          plan_id: number | null
-          status: string
-        }
-        Insert: {
-          id: string
-          plan_id?: number | null
-          status: string
-        }
-        Update: {
-          id?: string
-          plan_id?: number | null
-          status?: string
         }
         Relationships: [
           {
-            foreignKeyName: "subscriptions_id_fkey"
+            foreignKeyName: "profiles_id_fkey"
             columns: ["id"]
-            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      profile_testimonials: {
+        Row: {
+          author_user_id: string
+          comment_text: string
+          created_at: string
+          id: number
+          profile_user_id: string
+          status: Database["public"]["Enums"]["testimonial_status"]
+        }
+        Insert: {
+          author_user_id: string
+          comment_text: string
+          created_at?: string
+          id?: number
+          profile_user_id: string
+          status?: Database["public"]["Enums"]["testimonial_status"]
+        }
+        Update: {
+          author_user_id?: string
+          comment_text?: string
+          created_at?: string
+          id?: number
+          profile_user_id?: string
+          status?: Database["public"]["Enums"]["testimonial_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_testimonials_author_user_id_fkey"
+            columns: ["author_user_id"]
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "profile_testimonials_profile_user_id_fkey"
+            columns: ["profile_user_id"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      subscriptions: {
+        Row: {
+          created_at: string
+          current_period_end: string | null
+          plan_id: number
+          status: Database["public"]["Enums"]["subscription_status"]
+          stripe_subscription_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_period_end?: string | null
+          plan_id: number
+          status?: Database["public"]["Enums"]["subscription_status"]
+          stripe_subscription_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_period_end?: string | null
+          plan_id?: number
+          status?: Database["public"]["Enums"]["subscription_status"]
+          stripe_subscription_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
             foreignKeyName: "subscriptions_plan_id_fkey"
             columns: ["plan_id"]
-            isOneToOne: false
             referencedRelation: "plans"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
         ]
       }
     }
@@ -312,136 +362,84 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      create_profile_and_free_subscription: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          aud: string
+          role: string
+          email: string
+          phone: string
+          created_at: string
+          updated_at: string
+          email_confirmed_at: string
+          phone_confirmed_at: string
+          last_sign_in_at: string
+          app_metadata: Json
+          user_metadata: Json
+          identities: Json
+          is_anonymous: boolean
+        }
+      }
+      handle_updated_at: {
+        Args: Record<PropertyKey, never>
+        Returns: unknown
+      }
+      increment_jobs_and_queue: {
+        Args: {
+          p_user_id: string
+          p_payload: Json
+        }
+        Returns: number
+      }
+      notify_job_processor: {
+        Args: Record<PropertyKey, never>
+        Returns: unknown
+      }
+      search_podcasts: {
+        Args: {
+          search_term: string
+        }
+        Returns: {
+          id: number
+          user_id: string
+          title: string
+          description: string
+          script_text: string
+          audio_url: string
+          cover_image_url: string
+          duration_seconds: number
+          category: string
+          status: Database["public"]["Enums"]["podcast_status"]
+          play_count: number
+          like_count: number
+          created_at: string
+          updated_at: string
+          creation_data: Json
+          profiles: Json
+        }[]
+      }
+      update_like_count: {
+        Args: Record<PropertyKey, never>
+        Returns: unknown
+      }
     }
     Enums: {
-      [_ in never]: never
+      job_status: "pending" | "processing" | "completed" | "failed"
+      podcast_status:
+        | "pending_approval"
+        | "published"
+        | "archived"
+        | "failed"
+      subscription_status:
+        | "active"
+        | "inactive"
+        | "trialing"
+        | "past_due"
+      testimonial_status: "pending" | "approved" | "rejected"
     }
     CompositeTypes: {
       [_ in never]: never
     }
   }
 }
-
-type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
-
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
-
-export type Tables<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
-      Row: infer R
-    }
-    ? R
-    : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-        Row: infer R
-      }
-      ? R
-      : never
-    : never
-
-export type TablesInsert<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Insert: infer I
-    }
-    ? I
-    : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Insert: infer I
-      }
-      ? I
-      : never
-    : never
-
-export type TablesUpdate<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Update: infer U
-    }
-    ? U
-    : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Update: infer U
-      }
-      ? U
-      : never
-    : never
-
-export type Enums<
-  DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
-    | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
-> = DefaultSchemaEnumNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
-  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-    : never
-
-export type CompositeTypes<
-  PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
-> = PublicCompositeTypeNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-    : never
-
-export const Constants = {
-  public: {
-    Enums: {},
-  },
-} as const

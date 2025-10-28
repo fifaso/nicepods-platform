@@ -1,5 +1,5 @@
 // components/podcast-card.tsx
-// VERSIÓN FINAL CON EL NUEVO COMPONENTE `PodcastListItem`
+// VERSIÓN FINAL COMPLETA CON ENLACES A PERFILES PÚBLICOS
 
 "use client";
 
@@ -11,14 +11,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Play, Clock, Pause, MoreHorizontal } from "lucide-react";
 import { useAudio } from "@/contexts/audio-context";
-import { PodcastWithProfile } from "@/types/podcast"; // Tipo completo para máxima compatibilidad
+import { PodcastWithProfile } from "@/types/podcast";
 import { formatTime } from "@/lib/utils";
 
 interface PodcastCardProps {
   podcast: PodcastWithProfile;
 }
 
-// --- El componente PodcastCard original no necesita cambios ---
 export function PodcastCard({ podcast }: PodcastCardProps) {
   const { playPodcast, currentPodcast, isPlaying } = useAudio();
 
@@ -31,6 +30,7 @@ export function PodcastCard({ podcast }: PodcastCardProps) {
   const isCurrentlyPlaying = currentPodcast?.id === podcast.id && isPlaying;
   const authorName = podcast.profiles?.full_name || "Creador Anónimo";
   const authorImage = podcast.profiles?.avatar_url || "/images/placeholder.svg";
+  const authorUsername = podcast.profiles?.username;
 
   return (
     <Link href={`/podcast/${podcast.id}`} className="group block">
@@ -58,10 +58,20 @@ export function PodcastCard({ podcast }: PodcastCardProps) {
           <CardTitle className="text-lg font-semibold line-clamp-2 group-hover:text-primary transition-colors">{podcast.title}</CardTitle>
           <CardDescription className="text-sm line-clamp-2 mt-1 flex-grow text-muted-foreground">{podcast.description}</CardDescription>
           <div className="flex items-center text-sm text-muted-foreground pt-4 mt-auto border-t border-border/20">
-            <div className="flex-shrink-0 mr-2">
+            <Link 
+              href={authorUsername ? `/profile/${authorUsername}` : '#'} 
+              onClick={(e) => e.stopPropagation()} 
+              className="flex-shrink-0 mr-2 hover:opacity-80 transition-opacity"
+            >
               <Image src={authorImage} alt={authorName} width={24} height={24} className="rounded-full" />
-            </div>
-            <span className="truncate flex-1 font-medium">{authorName}</span>
+            </Link>
+            <Link 
+              href={authorUsername ? `/profile/${authorUsername}` : '#'} 
+              onClick={(e) => e.stopPropagation()} 
+              className="truncate flex-1 font-medium hover:text-primary transition-colors"
+            >
+              {authorName}
+            </Link>
             <div className="flex items-center flex-shrink-0 ml-2">
               <Clock className="h-4 w-4 mr-1" />
               <span>{podcast.duration_seconds ? formatTime(podcast.duration_seconds) : 'N/A'}</span>
@@ -73,8 +83,6 @@ export function PodcastCard({ podcast }: PodcastCardProps) {
   );
 }
 
-
-// --- [INTERVENCIÓN QUIRÚRGICA]: Creación del nuevo componente para la vista de lista ---
 export function PodcastListItem({ podcast }: PodcastCardProps) {
   const { playPodcast, currentPodcast, isPlaying } = useAudio();
 
@@ -86,6 +94,7 @@ export function PodcastListItem({ podcast }: PodcastCardProps) {
   
   const isCurrentlyPlaying = currentPodcast?.id === podcast.id && isPlaying;
   const authorName = podcast.profiles?.full_name || "Creador Anónimo";
+  const authorUsername = podcast.profiles?.username;
   const creationDate = new Date(podcast.created_at).toLocaleDateString();
 
   return (
@@ -98,7 +107,16 @@ export function PodcastListItem({ podcast }: PodcastCardProps) {
             </Button>
           </div>
           <div className="flex-grow min-w-0">
-            <p className="text-sm text-muted-foreground">{authorName} • {creationDate}</p>
+            <p className="text-sm text-muted-foreground">
+              <Link 
+                href={authorUsername ? `/profile/${authorUsername}` : '#'} 
+                onClick={(e) => e.stopPropagation()} 
+                className="hover:underline"
+              >
+                {authorName}
+              </Link> 
+              • {creationDate}
+            </p>
             <h3 className="font-semibold truncate group-hover:text-primary transition-colors">{podcast.title}</h3>
           </div>
           <div className="hidden sm:flex items-center text-sm text-muted-foreground flex-shrink-0 ml-4">
