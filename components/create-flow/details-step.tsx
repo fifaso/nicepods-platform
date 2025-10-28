@@ -1,5 +1,5 @@
 // components/create-flow/details-step.tsx
-// VERSIÓN FINAL CON LAYOUT CONSISTENTE DE 3 COLUMNAS
+// VERSIÓN FINAL, SIMPLIFICADA Y CONSISTENTE
 
 "use client";
 
@@ -26,10 +26,9 @@ const depthOptions = [
 
 interface DetailsStepProps {
   agents: AgentOption[];
-  preselectedAgent?: { title: string; description: string; };
 }
 
-export function DetailsStep({ agents, preselectedAgent }: DetailsStepProps) {
+export function DetailsStep({ agents }: DetailsStepProps) {
   const { control } = useFormContext<PodcastCreationData>();
 
   return (
@@ -90,41 +89,30 @@ export function DetailsStep({ agents, preselectedAgent }: DetailsStepProps) {
           )}
         />
         
-        {/* Columna 3: Agente o Confirmación */}
-        <div className="space-y-3">
-          <FormLabel className="text-base font-semibold text-center block">
-            {preselectedAgent ? 'Arquetipo Seleccionado' : 'Agente Especializado *'}
-          </FormLabel>
-          {preselectedAgent ? (
-            <div className={cn("flex flex-col items-center justify-center p-4 rounded-lg text-center h-full", "border-2 bg-muted/30 border-primary")}>
-              <CardTitle className="text-sm font-semibold">{preselectedAgent.title}</CardTitle>
-              <CardDescription className="text-xs">{preselectedAgent.description}</CardDescription>
-            </div>
-          ) : (
-            <FormField
-              control={control}
-              name="selectedAgent"
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-col space-y-2">
-                      {agents.map((agent, index) => (
-                        <div key={`agent-${index}`}>
-                          <RadioGroupItem value={agent.value} id={`agent-${index}`} className="sr-only" />
-                          <Label htmlFor={`agent-${index}`} className={cn("flex flex-col items-center justify-center p-4 rounded-lg cursor-pointer transition-all duration-200 text-center h-full", "border-2 bg-muted/30 hover:bg-muted/60", field.value === agent.value ? "border-primary" : "border-transparent")}>
-                            <CardTitle className="text-sm font-semibold">{agent.label}</CardTitle>
-                            <CardDescription className="text-xs">{agent.description}</CardDescription>
-                          </Label>
-                        </div>
-                      ))}
-                    </RadioGroup>
-                  </FormControl>
-                  <FormMessage className="text-center" />
-                </FormItem>
-              )}
-            />
+        {/* Columna 3: Agente Especializado */}
+        <FormField
+          control={control}
+          name="selectedAgent"
+          render={({ field }) => (
+            <FormItem className="space-y-3">
+              <FormLabel className="text-base font-semibold text-center block">Agente Especializado *</FormLabel>
+              <FormControl>
+                <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-col space-y-2">
+                  {agents.map((agent, index) => (
+                    <div key={`agent-${index}`}>
+                      <RadioGroupItem value={agent.value} id={`agent-${index}`} className="sr-only" />
+                      <Label htmlFor={`agent-${index}`} className={cn("flex flex-col items-center justify-center p-4 rounded-lg cursor-pointer transition-all duration-200 text-center h-full", "border-2 bg-muted/30 hover:bg-muted/60", field.value === agent.value ? "border-primary" : "border-transparent")}>
+                        <CardTitle className="text-sm font-semibold">{agent.label}</CardTitle>
+                        <CardDescription className="text-xs">{agent.description}</CardDescription>
+                      </Label>
+                    </div>
+                  ))}
+                </RadioGroup>
+              </FormControl>
+              <FormMessage className="text-center" />
+            </FormItem>
           )}
-        </div>
+        />
       </div>
     </div>
   );
