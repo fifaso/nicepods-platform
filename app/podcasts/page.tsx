@@ -1,21 +1,14 @@
 // app/podcasts/page.tsx
-// VERSIÓN FINAL CON LAYOUT REESTRUCTURADO
+// VERSIÓN FINAL CON CONSULTA DE DATOS CORREGIDA PARA "MI BIBLIOTECA"
 
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { PodcastWithProfile } from '@/types/podcast';
-import { LibraryTabs } from './library-tabs'; // El componente hijo ahora contiene toda la lógica de UI
+import { LibraryTabs } from './library-tabs';
 
-// Tipos de datos que se pasarán como props (sin cambios)
-type UserCreatedPodcast = {
-  id: number;
-  created_at: string;
-  title: string;
-  description: string | null;
-  status: string;
-  audio_url: string | null;
-  duration_seconds: number | null;
-};
+// [INTERVENCIÓN QUIRÚRGICA #1]: Se actualiza el tipo para que coincida con los nuevos datos que traeremos.
+// El tipo `PodcastWithProfile` ya incluye el objeto `profiles`, que es lo que necesitamos.
+type UserCreatedPodcast = PodcastWithProfile;
 
 type UserCreationJob = {
   id: number;
@@ -32,7 +25,6 @@ export default async function PodcastsPage({ searchParams }: { searchParams: { t
 
   const { data: { user } } = await supabase.auth.getUser();
 
-  // La lógica de obtención de datos permanece sin cambios. Es robusta y eficiente.
   let publicPodcasts: PodcastWithProfile[] = [];
   try {
     const { data, error } = await supabase.from('micro_pods').select(`*, profiles(full_name, avatar_url)`).eq('status', 'published').order('created_at', { ascending: false });
@@ -51,11 +43,21 @@ export default async function PodcastsPage({ searchParams }: { searchParams: { t
       if (error) throw error;
       userCreationJobs = data || [];
     } catch (error) { console.error("Error al obtener trabajos de creación del usuario:", error); userCreationJobs = []; }
+    
     try {
-      const { data, error } = await supabase.from('micro_pods').select('id, created_at, title, description, status, audio_url, duration_seconds').eq('user_id', user.id).order('created_at', { ascending: false });
+      // [INTERVENCIÓN QUIRÚRGICA #2]: Se modifica la consulta para que pida los datos del perfil asociado.
+      // Ahora es idéntica en estructura a la consulta de `publicPodcasts`, garantizando datos completos.
+      const { data, error } = await supabase.from('micro_pods')
+        .select(`*, profiles(full_name, avatar_url)`)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
       if (error) throw error;
       userCreatedPodcasts = data || [];
-    } catch (error) { console.error("Error al obtener micro-podcasts del usuario:", error); userCreatedPodcasts = []; }
+    } catch (error) { 
+      console.error("Error al obtener micro-podcasts del usuario:", error); 
+      userCreatedPodcasts = []; 
+    }
   }
 
   const currentTab = searchParams.tab;
@@ -63,7 +65,6 @@ export default async function PodcastsPage({ searchParams }: { searchParams: { t
 
   return (
     <div className="container mx-auto max-w-7xl py-8 md:py-12 px-4">
-      {/* [INTERVENCIÓN QUIRÚRGICA #1]: Header optimizado para reducir espacio vertical */}
       <header className="mb-6 text-center">
         <h1 className="text-4xl font-bold tracking-tight text-primary">Centro de Descubrimiento</h1>
         <p className="text-lg text-muted-foreground mt-2">
@@ -71,7 +72,6 @@ export default async function PodcastsPage({ searchParams }: { searchParams: { t
         </p>
       </header>
       
-      {/* [INTERVENCIÓN QUIRÚRGICA #2]: Se delega toda la UI, incluida la nueva barra de control, a LibraryTabs */}
       <LibraryTabs
         defaultTab={defaultTab}
         user={user}
