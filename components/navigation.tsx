@@ -1,4 +1,7 @@
-"use client"
+// components/navigation.tsx
+// VERSIÓN FINAL CON LA RUTA DE IMPORTACIÓN DE `ThemeToggle` CORREGIDA
+
+"use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -6,7 +9,8 @@ import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ThemeToggle } from "@/components/theme-toggle";
+// [INTERVENCIÓN QUIRÚRGICA]: Se corrige la ruta de importación.
+import { ThemeToggle } from "@/components/theme-toggle"; 
 import {
   Sheet,
   SheetContent,
@@ -14,7 +18,8 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { Mic, Menu, LogIn, LogOut, ShieldCheck, Loader, User as UserIcon } from "lucide-react";
+import { NotificationBell } from "@/components/notification-bell";
+import { Mic, Menu, LogIn, LogOut, ShieldCheck, Loader, User as UserIcon, Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function Navigation() {
@@ -31,7 +36,7 @@ export function Navigation() {
 
   const isActive = (href: string) => pathname === href;
 
-  const handleMobileLinkClick = (href: string) => {
+  const handleMobileLinkClick = () => {
     setIsMobileMenuOpen(false);
   };
 
@@ -49,14 +54,7 @@ export function Navigation() {
             <div className="p-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600">
               <Mic className="h-6 w-6 text-white" />
             </div>
-            {/* ================== INTERVENCIÓN QUIRÚRGICA: CORRECCIÓN DE VISIBILIDAD ================== */}
-            {/* 
-              Se han eliminado las clases responsivas ('hidden', 'sm:inline-block')
-              que causaban que el nombre "NicePod" desapareciera en pantallas pequeñas.
-              Ahora, el span es 'inline-block' por defecto en todos los tamaños.
-            */}
             <span className="font-bold text-xl inline-block">NicePod</span>
-            {/* ======================================================================================== */}
           </Link>
         </div>
 
@@ -88,8 +86,9 @@ export function Navigation() {
               <div className="w-20 h-10 flex items-center justify-center"><Loader className="h-5 w-5 animate-spin"/></div>
             ) : user ? (
               <>
+                <NotificationBell />
                 {isAdmin && (<Link href="/admin/prompts" title="Panel de Administrador"><Button variant="ghost" size="icon"><ShieldCheck className="h-5 w-5 text-green-500" /></Button></Link>)}
-                <Link href="/profile" title="Perfil">
+                <Link href={`/profile/${user.user_metadata?.username}`} title="Perfil">
                   <Avatar className="h-9 w-9 cursor-pointer">
                     <AvatarImage src={user.user_metadata?.avatar_url} />
                     <AvatarFallback>{user.email?.substring(0, 2).toUpperCase()}</AvatarFallback>
@@ -124,7 +123,7 @@ export function Navigation() {
                 </SheetHeader>
                 <div className="flex flex-col space-y-3 mt-8">
                   {navItems.map((item) => (
-                    <Link key={item.href} href={item.href} onClick={() => handleMobileLinkClick(item.href)}>
+                    <Link key={item.href} href={item.href} onClick={handleMobileLinkClick}>
                       <Button
                         variant={isActive(item.href) ? "secondary" : "ghost"}
                         className="w-full justify-start text-base py-6"
@@ -138,15 +137,18 @@ export function Navigation() {
                     <div className="flex items-center justify-center p-4"><Loader className="h-6 w-6 animate-spin"/></div>
                   ) : user ? (
                     <>
-                      <Link href="/profile" onClick={() => handleMobileLinkClick("/profile")}><Button variant="ghost" className="w-full justify-start text-base py-6"><UserIcon className="mr-2 h-5 w-5" /> Perfil</Button></Link>
-                      {isAdmin && <Link href="/admin/prompts" onClick={() => handleMobileLinkClick("/admin/prompts")}><Button variant="ghost" className="w-full justify-start text-base py-6 text-green-500"><ShieldCheck className="mr-2 h-5 w-5" />Admin</Button></Link>}
+                      <Button variant="ghost" className="w-full justify-start text-base py-6" disabled>
+                        <Bell className="mr-2 h-5 w-5" /> Notificaciones
+                      </Button>
+                      <Link href={`/profile/${user.user_metadata?.username}`} onClick={handleMobileLinkClick}><Button variant="ghost" className="w-full justify-start text-base py-6"><UserIcon className="mr-2 h-5 w-5" /> Perfil</Button></Link>
+                      {isAdmin && <Link href="/admin/prompts" onClick={handleMobileLinkClick}><Button variant="ghost" className="w-full justify-start text-base py-6 text-green-500"><ShieldCheck className="mr-2 h-5 w-5" />Admin</Button></Link>}
                       <Button variant="ghost" onClick={handleLogout} className="w-full justify-start text-base py-6 text-red-500"><LogOut className="mr-2 h-5 w-5" /> Cerrar Sesión</Button>
                     </>
                   ) : (
-                    <Link href="/login" onClick={() => handleMobileLinkClick("/login")}><Button variant="ghost" className="w-full justify-start text-base py-6"><LogIn className="h-5 w-5 mr-2" /> Ingresar</Button></Link>
+                    <Link href="/login" onClick={handleMobileLinkClick}><Button variant="ghost" className="w-full justify-start text-base py-6"><LogIn className="h-5 w-5 mr-2" /> Ingresar</Button></Link>
                   )}
                   <hr className="border-border" />
-                  <Link href="/create" onClick={() => handleMobileLinkClick("/create")}><Button size="lg" className="w-full py-6 text-base"><Mic className="mr-2 h-5 w-5" />Crear Nuevo Podcast</Button></Link>
+                  <Link href="/create" onClick={handleMobileLinkClick}><Button size="lg" className="w-full py-6 text-base"><Mic className="mr-2 h-5 w-5" />Crear Nuevo Podcast</Button></Link>
                 </div>
               </SheetContent>
             </Sheet>
