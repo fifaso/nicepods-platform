@@ -1,5 +1,5 @@
 // components/podcast-view.tsx
-// VERSIÓN FINAL CON REORDENACIÓN DE UI, CORRECCIÓN DE AUTO-REFRESCO Y GUION COLAPSABLE
+// VERSIÓN FINAL CON GESTIÓN DE ESTADO ROBUSTA Y CONSISTENTE PARA AUTO-REFRESCO
 
 "use client";
 
@@ -17,14 +17,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-// [INTERVENCIÓN QUIRÚRGICA #1]: Se importan los componentes para el colapsable y el icono de flecha
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Heart, Share2, Download, Calendar, Clock, Wand2, PlayCircle, ChevronDown } from 'lucide-react';
 import { AudioStudio } from '@/components/create-flow/audio-studio';
 import { CreationMetadata } from './creation-metadata';
 import { formatTime } from '@/lib/utils';
 import { ScriptViewer } from './script-viewer';
-import { cn } from '@/lib/utils'; // Se importa cn para clases condicionales
+import { cn } from '@/lib/utils';
 
 interface PodcastViewProps { 
   podcastData: PodcastWithProfile;
@@ -38,27 +37,25 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
   const { playPodcast } = useAudio();
   const { toast } = useToast();
   
-  // [INTERVENCIÓN QUIRÚRGICA #2]: Se introduce un estado local para los datos del podcast
+  // [INTERVENCIÓN QUIRÚRGICA #1]: `localPodcastData` se establece como la ÚNICA fuente de verdad.
   const [localPodcastData, setLocalPodcastData] = useState(podcastData);
   
   const [isLiked, setIsLiked] = useState(initialIsLiked);
-  // Se lee el likeCount desde el estado local
   const [likeCount, setLikeCount] = useState(localPodcastData.like_count);
   const [isLiking, setIsLiking] = useState(false);
   const [isStudioOpen, setIsStudioOpen] = useState(false);
-  
-  // [INTERVENCIÓN QUIRÚRGICA #3]: Se añade el estado para el guion colapsable
   const [isScriptExpanded, setIsScriptExpanded] = useState(false);
 
-  // Efecto para sincronizar el estado local si las props cambian (ej. navegación)
+  // [INTERVENCIÓN QUIRÚRGICA #2]: Este efecto asegura que si el usuario navega a un nuevo podcast,
+  // el estado interno se actualice con las nuevas props.
   useEffect(() => {
     setLocalPodcastData(podcastData);
     setLikeCount(podcastData.like_count);
-  }, [podcastData]);
+    setIsLiked(initialIsLiked);
+  }, [podcastData, initialIsLiked]);
 
-  // [INTERVENCIÓN QUIRÚRGICA #4]: El useEffect de Realtime ahora actualiza el estado local directamente
+  // [INTERVENCIÓN QUIRÚRGICA #3]: El useEffect de Realtime ahora depende y actualiza consistentemente el estado local.
   useEffect(() => {
-    // Si el audio ya existe, no necesitamos suscribirnos a cambios para la URL del audio.
     if (!supabase || localPodcastData.audio_url) { return; }
 
     const channel = supabase.channel(`micro_pod_${localPodcastData.id}`)
@@ -66,37 +63,60 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'micro_pods', filter: `id=eq.${localPodcastData.id}` },
         (payload) => {
-          // Si el evento de actualización contiene una nueva URL de audio...
           if (payload.new.audio_url) {
             console.log("¡Audio detectado! Actualizando UI en tiempo real...");
-            // Actualizamos nuestro estado local con los nuevos datos. React se encargará de re-renderizar.
             setLocalPodcastData(prevData => ({ ...prevData, ...payload.new }));
-            // Cerramos el estudio de audio si estaba abierto
             setIsStudioOpen(false);
           }
         }
       ).subscribe();
 
-    // Limpieza al desmontar el componente
     return () => { supabase.removeChannel(channel); };
   }, [supabase, localPodcastData.id, localPodcastData.audio_url]);
 
-  const handleLike = async () => { /* ... (sin cambios) */ };
+  // [INTERVENCIÓN QUIRÚRGICA #4]: La función `handleLike` ahora usa consistentemente el `localPodcastData.id`.
+  const handleLike = async () => {
+    if (!supabase || !user) {
+        toast({ title: "Acción requerida", description: "Debes iniciar sesión para dar 'like'.", variant: "destructive" });
+        return;
+    }
+    setIsLiking(true);
+    if (isLiked) {
+      setIsLiked(false);
+      setLikeCount(c => (c ?? 1) - 1);
+      const { error } = await supabase.from('likes').delete().match({ user_id: user.id, podcast_id: localPodcastData.id });
+      if (error) {
+        setIsLiked(true);
+        setLikeCount(c => (c ?? 0) + 1);
+        toast({ title: "Error", description: "No se pudo quitar el 'like'.", variant: "destructive" });
+      }
+    } else {
+      setIsLiked(true);
+      setLikeCount(c => (c ?? 0) + 1);
+      const { error } = await supabase.from('likes').insert({ user_id: user.id, podcast_id: localPodcastData.id });
+      if (error) {
+        setIsLiked(false);
+        setLikeCount(c => (c ?? 1) - 1);
+        toast({ title: "Error", description: "No se pudo dar 'like'.", variant: "destructive" });
+      }
+    }
+    setIsLiking(false);
+  };
 
   return (
     <>
       <div className="container mx-auto max-w-7xl py-12 px-4">
+        {/* [INTERVENCIÓN QUIRÚRGICA #5]: Todo el JSX ahora lee del estado `localPodcastData` */}
         <div className="grid lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
             <Card className="bg-card/50 backdrop-blur-lg border-border/20 shadow-lg">
-              <CardHeader>
+              <CardHeader className="p-4">
                 <Badge variant="secondary" className="mb-2 w-fit">{localPodcastData.status === 'published' ? 'Publicado' : 'Borrador'}</Badge>
                 <CardTitle className="text-3xl font-bold">{localPodcastData.title}</CardTitle>
                 <CardDescription className="pt-2">{localPodcastData.description}</CardDescription>
               </CardHeader>
-              <CardContent>
-                <Separator className="my-6" />
-                {/* [INTERVENCIÓN QUIRÚRGICA #5]: Se implementa el componente Collapsible */}
+              <CardContent className="p-4 pt-0">
+                <Separator className="my-4" />
                 <Collapsible open={isScriptExpanded} onOpenChange={setIsScriptExpanded}>
                   <CollapsibleTrigger asChild>
                     <div className="flex justify-between items-center cursor-pointer mb-4 group">
@@ -112,7 +132,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
             </Card>
           </div>
           <div className="lg:col-span-1 space-y-6">
-            {/* [INTERVENCIÓN QUIRÚRGICA #6]: Se invierte el orden de las tarjetas */}
             <Card className="bg-card/50 backdrop-blur-lg border-border/20 shadow-lg">
               <CardHeader><CardTitle>{localPodcastData.audio_url ? "Reproducir Podcast" : "Crear Podcast"}</CardTitle></CardHeader>
               <CardContent className="flex flex-col gap-4">
