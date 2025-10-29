@@ -1,34 +1,34 @@
 // lib/validation/podcast-schema.ts
-// VERSIÓN FINAL COMPLETA CON EL CAMPO `generateAudioDirectly`
+// VERSIÓN FINAL COMPLETA CON LOS CAMPOS DEL AUDIO STUDIO INTEGRADOS
 
 import { z } from 'zod';
 
 export const PodcastCreationSchema = z.object({
   style: z.enum(['solo', 'link', 'archetype'], { required_error: "Debes seleccionar un estilo creativo." }),
   
-  // --- Campos para 'solo' ---
+  // --- Campos de cada estilo ---
   solo_topic: z.string().optional(),
   solo_motivation: z.string().optional(),
-
-  // --- Campos para 'link' ---
   link_topicA: z.string().optional(),
   link_topicB: z.string().optional(),
   link_catalyst: z.string().optional(),
   link_selectedNarrative: z.object({ title: z.string(), thesis: z.string() }).nullable().optional(),
   link_selectedTone: z.enum(['Educativo', 'Inspirador', 'Analítico']).optional(),
-  
-  // --- Campos para 'archetype' ---
   selectedArchetype: z.string().optional(),
   archetype_topic: z.string().optional(),
   archetype_goal: z.string().optional(),
 
-  // --- Campos comunes ---
+  // --- Campos de Detalles ---
   duration: z.string().nonempty({ message: "Selecciona una duración." }),
   narrativeDepth: z.string().nonempty({ message: "Define una profundidad." }),
-  tags: z.array(z.string()).optional(),
   selectedAgent: z.string().optional(),
+  
+  // --- Campos del Audio Studio ---
+  voicePrompt: z.string().min(10, { message: "La descripción de la voz debe tener al menos 10 caracteres." }),
+  speakingRate: z.number(),
 
-  // --- Campo para la nueva funcionalidad ---
+  // --- Campos Finales ---
+  tags: z.array(z.string()).optional(),
   generateAudioDirectly: z.boolean().optional(),
 })
 .superRefine((data, ctx) => {
