@@ -1,5 +1,5 @@
 // components/podcast-view.tsx
-// VERSIÓN FINAL CON GESTIÓN DE ESTADO ROBUSTA Y CONSISTENTE PARA AUTO-REFRESCO
+// VERSIÓN FINAL COMPLETA - SIMPLIFICADA
 
 "use client";
 
@@ -8,7 +8,6 @@ import { useRouter } from 'next/navigation';
 import { User } from '@supabase/supabase-js';
 import Image from 'next/image';
 
-// --- Importaciones ---
 import { PodcastWithProfile } from '@/types/podcast';
 import { useAuth } from '@/hooks/use-auth';
 import { useAudio } from '@/contexts/audio-context';
@@ -18,8 +17,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Heart, Share2, Download, Calendar, Clock, Wand2, PlayCircle, ChevronDown } from 'lucide-react';
-import { AudioStudio } from '@/components/create-flow/audio-studio';
+import { Heart, Share2, Download, Calendar, Clock, PlayCircle, ChevronDown, Loader2 } from 'lucide-react';
 import { CreationMetadata } from './creation-metadata';
 import { formatTime } from '@/lib/utils';
 import { ScriptViewer } from './script-viewer';
@@ -37,27 +35,20 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
   const { playPodcast } = useAudio();
   const { toast } = useToast();
   
-  // [INTERVENCIÓN QUIRÚRGICA #1]: `localPodcastData` se establece como la ÚNICA fuente de verdad.
   const [localPodcastData, setLocalPodcastData] = useState(podcastData);
-  
   const [isLiked, setIsLiked] = useState(initialIsLiked);
   const [likeCount, setLikeCount] = useState(localPodcastData.like_count);
   const [isLiking, setIsLiking] = useState(false);
-  const [isStudioOpen, setIsStudioOpen] = useState(false);
   const [isScriptExpanded, setIsScriptExpanded] = useState(false);
 
-  // [INTERVENCIÓN QUIRÚRGICA #2]: Este efecto asegura que si el usuario navega a un nuevo podcast,
-  // el estado interno se actualice con las nuevas props.
   useEffect(() => {
     setLocalPodcastData(podcastData);
     setLikeCount(podcastData.like_count);
     setIsLiked(initialIsLiked);
   }, [podcastData, initialIsLiked]);
 
-  // [INTERVENCIÓN QUIRÚRGICA #3]: El useEffect de Realtime ahora depende y actualiza consistentemente el estado local.
   useEffect(() => {
     if (!supabase || localPodcastData.audio_url) { return; }
-
     const channel = supabase.channel(`micro_pod_${localPodcastData.id}`)
       .on<PodcastWithProfile>(
         'postgres_changes',
@@ -66,15 +57,12 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
           if (payload.new.audio_url) {
             console.log("¡Audio detectado! Actualizando UI en tiempo real...");
             setLocalPodcastData(prevData => ({ ...prevData, ...payload.new }));
-            setIsStudioOpen(false);
           }
         }
       ).subscribe();
-
     return () => { supabase.removeChannel(channel); };
-  }, [supabase, localPodcastData.id, localPodcastData.audio_url]);
+  }, [supabase, localPodcastData.id, localPodcastData.audio_url, router]);
 
-  // [INTERVENCIÓN QUIRÚRGICA #4]: La función `handleLike` ahora usa consistentemente el `localPodcastData.id`.
   const handleLike = async () => {
     if (!supabase || !user) {
         toast({ title: "Acción requerida", description: "Debes iniciar sesión para dar 'like'.", variant: "destructive" });
@@ -106,12 +94,11 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
   return (
     <>
       <div className="container mx-auto max-w-7xl py-12 px-4">
-        {/* [INTERVENCIÓN QUIRÚRGICA #5]: Todo el JSX ahora lee del estado `localPodcastData` */}
         <div className="grid lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
             <Card className="bg-card/50 backdrop-blur-lg border-border/20 shadow-lg">
               <CardHeader className="p-4">
-                <Badge variant="secondary" className="mb-2 w-fit">{localPodcastData.status === 'published' ? 'Publicado' : 'Borrador'}</Badge>
+                <Badge variant="secondary" className="mb-2 w-fit">{localPodcastData.status === 'published' ? 'Publicado' : 'Procesando'}</Badge>
                 <CardTitle className="text-3xl font-bold">{localPodcastData.title}</CardTitle>
                 <CardDescription className="pt-2">{localPodcastData.description}</CardDescription>
               </CardHeader>
@@ -133,12 +120,17 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
           </div>
           <div className="lg:col-span-1 space-y-6">
             <Card className="bg-card/50 backdrop-blur-lg border-border/20 shadow-lg">
-              <CardHeader><CardTitle>{localPodcastData.audio_url ? "Reproducir Podcast" : "Crear Podcast"}</CardTitle></CardHeader>
+              <CardHeader><CardTitle>{localPodcastData.audio_url ? "Reproducir Podcast" : "Procesando Audio..."}</CardTitle></CardHeader>
               <CardContent className="flex flex-col gap-4">
                 {localPodcastData.audio_url ? (
-                  <Button size="lg" className="w-full bg-green-500 hover:bg-green-600" onClick={() => playPodcast(localPodcastData)}><PlayCircle className="mr-2 h-5 w-5" />Reproducir Audio</Button>
+                  <Button size="lg" className="w-full bg-green-500 hover:bg-green-600" onClick={() => playPodcast(localPodcastData)}>
+                    <PlayCircle className="mr-2 h-5 w-5" />Reproducir Audio
+                  </Button>
                 ) : (
-                  <Button size="lg" className="w-full" onClick={() => setIsStudioOpen(true)}><Wand2 className="mr-2 h-5 w-5" />Generar Audio con IA</Button>
+                  <Button size="lg" className="w-full" disabled>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generando Audio
+                  </Button>
                 )}
                 <div className="flex justify-around items-center">
                   <div className="flex items-center gap-1">
@@ -184,7 +176,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
           </div>
         </div>
       </div>
-      <AudioStudio podcastId={String(localPodcastData.id)} isOpen={isStudioOpen} onClose={() => setIsStudioOpen(false)} />
     </>
   );
 }
