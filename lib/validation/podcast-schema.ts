@@ -1,12 +1,11 @@
 // lib/validation/podcast-schema.ts
-// VERSIÓN FINAL COMPLETA CON LOS CAMPOS DEL AUDIO STUDIO INTEGRADOS
+// VERSIÓN FINAL CON LA LÓGICA DE VALIDACIÓN CORREGIDA
 
 import { z } from 'zod';
 
 export const PodcastCreationSchema = z.object({
   style: z.enum(['solo', 'link', 'archetype'], { required_error: "Debes seleccionar un estilo creativo." }),
   
-  // --- Campos de cada estilo ---
   solo_topic: z.string().optional(),
   solo_motivation: z.string().optional(),
   link_topicA: z.string().optional(),
@@ -18,16 +17,15 @@ export const PodcastCreationSchema = z.object({
   archetype_topic: z.string().optional(),
   archetype_goal: z.string().optional(),
 
-  // --- Campos de Detalles ---
   duration: z.string().nonempty({ message: "Selecciona una duración." }),
   narrativeDepth: z.string().nonempty({ message: "Define una profundidad." }),
   selectedAgent: z.string().optional(),
   
-  // --- Campos del Audio Studio ---
-  voicePrompt: z.string().min(10, { message: "La descripción de la voz debe tener al menos 10 caracteres." }),
+  voiceGender: z.enum(['Masculino', 'Femenino'], { required_error: "Debes seleccionar un género de voz." }),
+  voiceStyle: z.enum(['Calmado', 'Energético', 'Profesional', 'Inspirador'], { required_error: "Debes seleccionar un estilo de voz." }),
+  voicePace: z.enum(['Lento', 'Moderado', 'Rápido'], { required_error: "Debes seleccionar un ritmo." }),
   speakingRate: z.number(),
 
-  // --- Campos Finales ---
   tags: z.array(z.string()).optional(),
   generateAudioDirectly: z.boolean().optional(),
 })
@@ -48,6 +46,7 @@ export const PodcastCreationSchema = z.object({
     if (!data.selectedArchetype) ctx.addIssue({ code: 'custom', message: 'Debes seleccionar un arquetipo.', path: ['selectedArchetype'] });
     if (!data.archetype_topic || data.archetype_topic.length < 3) ctx.addIssue({ code: 'custom', message: 'El tema debe tener al menos 3 caracteres.', path: ['archetype_topic'] });
     if (!data.archetype_goal || data.archetype_goal.length < 3) ctx.addIssue({ code: 'custom', message: 'El objetivo debe tener al menos 3 caracteres.', path: ['archetype_goal'] });
+    // [INTERVENCIÓN QUIRÚRGICA]: Se elimina la validación incorrecta de `selectedAgent` para el flujo de Arquetipo.
     if (!data.selectedAgent) ctx.addIssue({ code: 'custom', message: 'Debes elegir un agente.', path: ['selectedAgent'] });
   }
 });
