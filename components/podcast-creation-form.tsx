@@ -1,5 +1,5 @@
 // components/podcast-creation-form.tsx
-// VERSIÓN FINAL CON LÓGICA DE RENDERIZADO EXPLÍCITA Y ROBUSTA
+// VERSIÓN FINAL COMPLETA, CON LÓGICA DE PASOS, RENDERIZADO Y ENVÍO ROBUSTA
 
 "use client";
 
@@ -24,6 +24,7 @@ import { NarrativeSelectionStep } from "./create-flow/narrative-selection";
 import { DetailsStep } from "./create-flow/details-step";
 import { FinalStep } from "./create-flow/final-step";
 import { ArchetypeStep } from "./create-flow/archetype-step";
+import { AudioStudio } from "./create-flow/audio-studio";
 
 export interface NarrativeOption { 
   title: string; 
@@ -56,8 +57,10 @@ export function PodcastCreationForm() {
       archetype_goal: '',
       duration: '',
       narrativeDepth: '',
-      tags: [],
       selectedAgent: undefined,
+      voicePrompt: "Una voz masculina, profunda y calmada, con un ritmo de habla moderado.",
+      speakingRate: 1.0,
+      tags: [],
       generateAudioDirectly: true,
     }
   });
@@ -69,30 +72,32 @@ export function PodcastCreationForm() {
   const goToNextStep = () => setCurrentStep(previousStep => previousStep + 1);
   const goToPreviousStep = () => setCurrentStep(previousStep => previousStep - 1);
 
-  const totalSteps = currentStyle === 'link' ? 5 : 4;
+  const totalSteps = currentStyle === 'link' ? 6 : 5;
 
   const handleStepNavigation = async () => {
     let fieldsToValidate: (keyof PodcastCreationData)[] = [];
     const stepForValidation = currentStep;
     
     if (stepForValidation === 1) fieldsToValidate = ['style'];
-    
     if (stepForValidation === 2) {
       if (currentStyle === 'solo') fieldsToValidate = ['solo_topic', 'solo_motivation'];
       if (currentStyle === 'link') fieldsToValidate = ['link_topicA', 'link_topicB'];
       if (currentStyle === 'archetype') fieldsToValidate = ['selectedArchetype', 'archetype_topic', 'archetype_goal'];
     }
-    
     if ((currentStyle === 'solo' || currentStyle === 'archetype') && stepForValidation === 3) {
       fieldsToValidate = ['duration', 'narrativeDepth', 'selectedAgent'];
     }
-    
     if (currentStyle === 'link' && stepForValidation === 3) {
       fieldsToValidate = ['link_selectedNarrative', 'link_selectedTone'];
     }
-    
     if (currentStyle === 'link' && stepForValidation === 4) {
       fieldsToValidate = ['duration', 'narrativeDepth', 'selectedAgent'];
+    }
+    if ((currentStyle === 'solo' || currentStyle === 'archetype') && stepForValidation === 4) {
+      fieldsToValidate = ['voicePrompt', 'speakingRate'];
+    }
+    if (currentStyle === 'link' && stepForValidation === 5) {
+      fieldsToValidate = ['voicePrompt', 'speakingRate'];
     }
     
     const isStepValid = await trigger(fieldsToValidate);
@@ -157,9 +162,8 @@ export function PodcastCreationForm() {
         duration: formData.duration,
         depth: formData.narrativeDepth,
         tags: formData.tags,
-        generateAudioDirectly: formData.generateAudioDirectly,
-        defaultVoice: "es-US-Standard-A",
-        defaultRate: 1.0,
+        voicePrompt: formData.voicePrompt,
+        speakingRate: formData.speakingRate,
       },
     };
 
@@ -186,38 +190,38 @@ export function PodcastCreationForm() {
   
   const progress = (currentStep / totalSteps) * 100;
   
-  // [INTERVENCIÓN QUIRÚRGICA]: Se refactoriza `renderCurrentStep` a una estructura `if/else` explícita y robusta.
-  // Esta nueva arquitectura elimina por completo la posibilidad de errores "fall-through".
   const renderCurrentStep = () => {
-    // Flujo para Monólogo y Arquetipo (4 pasos)
     if (currentStyle === 'solo' || currentStyle === 'archetype') {
-      if (currentStep === 1) return <StyleSelectionStep />;
-      if (currentStep === 2) return currentStyle === 'solo' ? <SoloTalkStep /> : <ArchetypeStep />;
-      if (currentStep === 3) return <DetailsStep agents={soloTalkAgents} />;
-      if (currentStep === 4) return <FinalStep />;
+      switch (currentStep) {
+        case 1: return <StyleSelectionStep />;
+        case 2: return currentStyle === 'solo' ? <SoloTalkStep /> : <ArchetypeStep />;
+        case 3: return <DetailsStep agents={soloTalkAgents} />;
+        case 4: return <AudioStudio />;
+        case 5: return <FinalStep />;
+        default: return <div>Error: Paso inválido.</div>;
+      }
     }
 
-    // Flujo para Unir Ideas (5 pasos)
     if (currentStyle === 'link') {
-      if (currentStep === 1) return <StyleSelectionStep />;
-      if (currentStep === 2) return <LinkPointsStep />;
-      if (currentStep === 3) return <NarrativeSelectionStep narrativeOptions={narrativeOptions} />;
-      if (currentStep === 4) return <DetailsStep agents={linkPointsAgents} />;
-      if (currentStep === 5) return <FinalStep />;
+      switch (currentStep) {
+        case 1: return <StyleSelectionStep />;
+        case 2: return <LinkPointsStep />;
+        case 3: return <NarrativeSelectionStep narrativeOptions={narrativeOptions} />;
+        case 4: return <DetailsStep agents={linkPointsAgents} />;
+        case 5: return <AudioStudio />;
+        case 6: return <FinalStep />;
+        default: return <div>Error: Paso inválido.</div>;
+      }
     }
     
-    // Estado inicial o inválido
-    if (currentStep === 1) {
-      return <StyleSelectionStep />;
-    }
-
-    return <div>Error: Estado de formulario inválido. Por favor, refresca la página.</div>;
+    if (currentStep === 1) return <StyleSelectionStep />;
+    return <div>Error: Estado de formulario inválido.</div>;
   };
 
   return (
     <FormProvider {...formMethods}>
-      <div className="bg-gradient-to-br from-purple-100/80 via-blue-100/80 to-indigo-100/80 dark:from-gray-900 dark:via-purple-900/20 dark:to-blue-900/20 py-4 rounded-xl shadow-lg">
-          <form onSubmit={handleSubmit(handleFinalSubmit)}>
+      <form onSubmit={(e) => e.preventDefault()}>
+          <div className="bg-gradient-to-br from-purple-100/80 via-blue-100/80 to-indigo-100/80 dark:from-gray-900 dark:via-purple-900/20 dark:to-blue-900/20 py-4 rounded-xl shadow-lg">
               <div className="max-w-4xl mx-auto px-4 flex flex-col">
                   <div className="mb-6 flex-shrink-0">
                       <div className="flex justify-between items-center mb-2">
@@ -245,15 +249,15 @@ export function PodcastCreationForm() {
                                   Siguiente <ChevronRight className="ml-2 h-4 w-4" />
                               </Button>
                           ) : (
-                              <Button type="submit" disabled={isSubmitting}>
-                                  {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Encolando Idea...</> : <><Wand2 className="mr-2 h-4 w-4" />Crear Guion</>}
+                              <Button type="button" onClick={handleSubmit(handleFinalSubmit)} disabled={isSubmitting}>
+                                  {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Encolando Idea...</> : <><Wand2 className="mr-2 h-4 w-4" />Crear Guion y Audio</>}
                               </Button>
                           )}
                       </div>
                   </div>
               </div>
-          </form>
-      </div>
+          </div>
+      </form>
     </FormProvider>
   );
 }
