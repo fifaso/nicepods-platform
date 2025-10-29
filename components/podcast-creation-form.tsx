@@ -58,7 +58,9 @@ export function PodcastCreationForm() {
       duration: '',
       narrativeDepth: '',
       selectedAgent: undefined,
-      voicePrompt: "Una voz masculina, profunda y calmada, con un ritmo de habla moderado.",
+      voiceGender: "Masculino",
+      voiceStyle: "Calmado",
+      voicePace: "Moderado",
       speakingRate: 1.0,
       tags: [],
       generateAudioDirectly: true,
@@ -94,10 +96,10 @@ export function PodcastCreationForm() {
       fieldsToValidate = ['duration', 'narrativeDepth', 'selectedAgent'];
     }
     if ((currentStyle === 'solo' || currentStyle === 'archetype') && stepForValidation === 4) {
-      fieldsToValidate = ['voicePrompt', 'speakingRate'];
+      fieldsToValidate = ['voiceGender', 'voiceStyle', 'speakingRate'];
     }
     if (currentStyle === 'link' && stepForValidation === 5) {
-      fieldsToValidate = ['voicePrompt', 'speakingRate'];
+      fieldsToValidate = ['voiceGender', 'voiceStyle', 'speakingRate'];
     }
     
     const isStepValid = await trigger(fieldsToValidate);
@@ -162,7 +164,10 @@ export function PodcastCreationForm() {
         duration: formData.duration,
         depth: formData.narrativeDepth,
         tags: formData.tags,
-        voicePrompt: formData.voicePrompt,
+        generateAudioDirectly: formData.generateAudioDirectly,
+        voiceGender: formData.voiceGender,
+        voiceStyle: formData.voiceStyle,
+        voicePace: formData.voicePace,
         speakingRate: formData.speakingRate,
       },
     };
