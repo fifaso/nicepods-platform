@@ -1,5 +1,5 @@
 // hooks/use-auth.tsx
-// VERSIÓN FINAL REFORZADA CON DATOS DEL PERFIL INTEGRADOS
+// VERSIÓN FINAL REFORZADA CON SINCRONIZACIÓN DE SESIÓN SERVER-CLIENT
 
 "use client";
 
@@ -8,13 +8,11 @@ import { createClient } from "@/lib/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
 import type { Tables } from "@/types/supabase";
 
-// Se define un tipo para el perfil completo
 type Profile = Tables<'profiles'>;
 
-// Se actualiza el tipo del contexto para incluir el perfil
 interface AuthContextType {
   user: User | null;
-  profile: Profile | null; // Nuevo
+  profile: Profile | null;
   session: Session | null;
   isAdmin: boolean;
   isLoading: boolean;
@@ -24,71 +22,55 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Se actualiza el tipo de las props para aceptar la sesión inicial
+// [INTERVENCIÓN ARQUITECTÓNICA #1]: El AuthProvider ahora acepta la sesión inicial del servidor.
 export function AuthProvider({ session: initialSession, children }: { session: Session | null; children: React.ReactNode; }) {
   const supabase = createClient();
+  
+  // [INTERVENCIÓN ARQUITECTÓNICA #2]: El estado se inicializa con los datos del servidor, no con null.
   const [session, setSession] = useState<Session | null>(initialSession);
   const [user, setUser] = useState<User | null>(initialSession?.user || null);
-  const [profile, setProfile] = useState<Profile | null>(null); // Nuevo estado para el perfil
-  const [isLoading, setIsLoading] = useState(true);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  // La carga inicial ahora solo se activa si el servidor no nos dio una sesión.
+  const [isLoading, setIsLoading] = useState(!initialSession);
 
   useEffect(() => {
     let mounted = true;
     
-    async function fetchSessionAndProfile() {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (mounted) {
-        setSession(session);
-        const currentUser = session?.user || null;
-        setUser(currentUser);
-
-        // Si hay un usuario, obtenemos su perfil
-        if (currentUser) {
-          const { data: userProfile, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', currentUser.id)
-            .single();
-            
+    // Función para obtener el perfil del usuario actual.
+    async function getProfile(currentUser: User | null) {
+      if (currentUser) {
+        const { data: userProfile, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', currentUser.id)
+          .single();
+        
+        if (mounted) {
           if (error) {
             console.error("Error fetching user profile:", error);
             setProfile(null);
           } else {
             setProfile(userProfile);
           }
-        } else {
-          setProfile(null);
         }
-        setIsLoading(false);
+      } else {
+        if (mounted) setProfile(null);
       }
     }
 
-    fetchSessionAndProfile();
+    // Obtenemos el perfil para la sesión inicial si existe.
+    getProfile(session?.user || null).finally(() => {
+      if (mounted) setIsLoading(false);
+    });
 
+    // El listener de onAuthStateChange se mantiene para actualizaciones en tiempo real (login/logout en otra pestaña).
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      (_event, newSession) => {
         if (mounted) {
-          setSession(session);
-          const currentUser = session?.user || null;
+          setSession(newSession);
+          const currentUser = newSession?.user || null;
           setUser(currentUser);
-
-          if (currentUser) {
-            const { data: userProfile, error } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', currentUser.id)
-              .single();
-              
-            if (error) {
-              console.error("Error fetching user profile on auth change:", error);
-              setProfile(null);
-            } else {
-              setProfile(userProfile);
-            }
-          } else {
-            setProfile(null);
-          }
+          getProfile(currentUser); // Obtenemos el perfil para la nueva sesión.
         }
       }
     );
@@ -108,15 +90,7 @@ export function AuthProvider({ session: initialSession, children }: { session: S
 
   const isAdmin = profile?.role === 'admin';
 
-  const value = {
-    session,
-    user,
-    profile, // Se expone el perfil en el contexto
-    isAdmin,
-    isLoading,
-    signOut,
-    supabase,
-  };
+  const value = { session, user, profile, isAdmin, isLoading, signOut, supabase };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

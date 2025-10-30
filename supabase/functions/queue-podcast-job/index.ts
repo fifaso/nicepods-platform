@@ -1,14 +1,15 @@
 // supabase/functions/queue-podcast-job/index.ts
-// ARQUITECTURA FINAL: INVOCACIÓN NATIVA (`invoke`)
+// VERSIÓN FINAL - SIMPLIFICADA Y DESACOPLADA
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { z, ZodError } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
+// Se mantiene el schema de validación para proteger la entrada
 const QueuePayloadSchema = z.object({
-  style: z.enum(['solo', 'link']),
-  agentName: z.string().min(1, { message: "El 'agentName' es requerido." }),
+  style: z.enum(['solo', 'link', 'archetype']),
+  agentName: z.string().min(1),
   inputs: z.object({}).passthrough(),
 });
 
@@ -16,13 +17,7 @@ serve(async (request: Request) => {
   if (request.method === 'OPTIONS') { return new Response('ok', { headers: corsHeaders }); }
   try {
     const authorizationHeader = request.headers.get('Authorization');
-    if (!authorizationHeader) { throw new Error("La cabecera de autorización es requerida."); }
-    
-    // Se crea un cliente de admin, que es necesario para invocar otra función con privilegios de servicio.
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
+    if (!authorizationHeader) { throw new Error("Autorización requerida."); }
 
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -36,29 +31,22 @@ serve(async (request: Request) => {
     const payload = await request.json();
     const validatedPayload = QueuePayloadSchema.parse(payload);
     
+    // Su única responsabilidad es llamar al RPC que crea el trabajo.
+    // El trigger de la base de datos se encargará de iniciar el procesamiento.
     const { data: newJobId, error: rpcError } = await supabaseClient
-      .rpc('increment_jobs_and_queue', { p_user_id: user.id, p_payload: validatedPayload });
+      .rpc('increment_jobs_and_queue', {
+        p_user_id: user.id,
+        p_payload: validatedPayload
+      });
+
     if (rpcError) { throw new Error(rpcError.message); }
 
-    // ================== INTERVENCIÓN QUIRÚRGICA FINAL ==================
-    // Se reemplaza `fetch` por el método oficial y robusto `invoke`.
-    // El cliente de admin se encarga de añadir los headers de autenticación correctos.
-    const { error: invokeError } = await supabaseAdmin.functions.invoke('process-podcast-job', {
-      body: { job_id: newJobId },
-    });
-
-    if (invokeError) {
-      // Si la invocación falla, lo registramos, pero no rompemos la respuesta al usuario.
-      console.error(`Error invocando 'process-podcast-job' para el trabajo ${newJobId}:`, invokeError);
-    }
-    // ================================================================
-
-    return new Response(JSON.stringify({ success: true, job_id: newJobId, message: "El trabajo ha sido encolado y el procesamiento ha comenzado." }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(JSON.stringify({
+      success: true,
+      job_id: newJobId,
+      message: "El trabajo ha sido encolado. El procesamiento comenzará en segundo plano."
+    }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error) {
-    console.error("Error detallado en la función queue-podcast-job:", error);
     const errorMessage = error instanceof Error ? error.message : "Error interno desconocido.";
     const status = error instanceof ZodError ? 400 : 500;
     return new Response(JSON.stringify({ error: errorMessage }), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});

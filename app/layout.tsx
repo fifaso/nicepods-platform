@@ -1,3 +1,6 @@
+// app/layout.tsx
+// VERSIÓN FINAL COMPLETA CON PASO DE SESIÓN DEL SERVIDOR AL CLIENTE
+
 import { cookies } from 'next/headers';
 import type React from "react";
 import type { Metadata } from "next";
@@ -14,11 +17,7 @@ import { SmoothScrollWrapper } from "@/components/smooth-scroll-wrapper";
 import { PageTransition } from "@/components/page-transition";
 import { AudioProvider } from "@/contexts/audio-context";
 import { ErrorBoundary } from "@/components/error-boundary";
-
-// ================== INTERVENCIÓN QUIRÚRGICA: REEMPLAZO ARQUITECTÓNICO ==================
-// Se importa el nuevo "orquestador" en lugar del reproductor directo.
 import { PlayerOrchestrator } from "@/components/player-orchestrator";
-// ==================================================================================
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -32,10 +31,10 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // [INTERVENCIÓN ARQUITECTÓNICA]: Se obtiene la sesión en el servidor.
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
-  const { data: { user } } = await supabase.auth.getUser();
-  const session = user ? { user } : null;
+  const { data: { session } } = await supabase.auth.getSession();
 
   return (
     <html lang="es" suppressHydrationWarning>
@@ -49,9 +48,7 @@ export default async function RootLayout({
                   if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
                     document.documentElement.classList.add('dark');
                   }
-                } catch (e) {
-                  console.warn('Theme initialization failed:', e);
-                }
+                } catch (e) {}
               })();
             `,
           }}
@@ -66,6 +63,7 @@ export default async function RootLayout({
             disableTransitionOnChange={false}
             storageKey="theme"
           >
+            {/* [INTERVENCIÓN ARQUITECTÓNICA]: Se pasa la sesión del servidor al AuthProvider. */}
             <AuthProvider session={session}>
               <AudioProvider>
                 <SmoothScrollWrapper>
@@ -82,10 +80,7 @@ export default async function RootLayout({
                       <main className="relative z-10">{children}</main>
                     </PageTransition>
 
-                    {/* ================== INTERVENCIÓN QUIRÚRGICA: EL TRASPLANTE ================== */}
-                    {/* Se reemplaza el antiguo <MiniAudioPlayer /> por el nuevo <PlayerOrchestrator />. */}
                     <PlayerOrchestrator />
-                    {/* ============================================================================ */}
                     
                     <Toaster />
                   </div>

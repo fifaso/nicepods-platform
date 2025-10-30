@@ -1,5 +1,5 @@
 // supabase/functions/process-podcast-job/index.ts
-// VERSIÓN DE PRODUCCIÓN FINAL (CON GUARDADO DE METADATOS DE CREACIÓN)
+// VERSIÓN FINAL - "MAESTRO GUIONISTA" ACTIVADO POR WEBHOOK
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -10,6 +10,7 @@ const MAX_RETRIES = 2;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const GOOGLE_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY")!;
+const INTERNAL_SECRET = Deno.env.get("INTERNAL_WEBHOOK_SECRET")!;
 
 const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_KEY);
 
@@ -19,6 +20,10 @@ interface Job {
   payload: { agentName: string; inputs: Record<string, any>; style: string; };
   retry_count: number;
 }
+
+const WebhookPayloadSchema = z.object({
+  job_id: z.number(),
+});
 
 function buildFinalPrompt(template: string, inputs: Record<string, any>): string {
   let finalPrompt = template;
@@ -41,95 +46,73 @@ const parseJsonResponse = (text: string) => {
 
 serve(async (request: Request) => {
   if (request.method === 'OPTIONS') { return new Response('ok', { headers: corsHeaders }); }
-
+  
   let job: Job | null = null;
-
   try {
-    const { job_id } = await request.json();
-    if (!job_id) { throw new Error("Se requiere un 'job_id' en el cuerpo de la solicitud."); }
-
-    const { data: jobData, error: jobError } = await supabaseAdmin
-      .from('podcast_creation_jobs')
-      .select('*')
-      .eq('id', job_id)
-      .single();
-    
-    if (jobError || !jobData) { throw new Error(`El trabajo con ID ${job_id} no fue encontrado o hubo un error: ${jobError?.message}`); }
-    job = jobData as Job;
-
-    await supabaseAdmin
-      .from('podcast_creation_jobs')
-      .update({ status: 'processing', updated_at: new Date().toISOString() })
-      .eq('id', job.id);
-      
-    const { agentName, inputs } = job.payload;
-    if (!agentName) throw new Error(`El trabajo ${job.id} no tiene un 'agentName'.`);
-
-    console.log(`Job ${job.id}: Agent='${agentName}', Inputs='${JSON.stringify(inputs)}'`);
-
-    const { data: promptData, error: promptError } = await supabaseAdmin
-      .from('ai_prompts')
-      .select('prompt_template')
-      .eq('agent_name', agentName)
-      .single();
-
-    if (promptError || !promptData) { throw new Error(`Prompt para el agente '${agentName}' no encontrado.`); }
-
-    const finalPrompt = buildFinalPrompt(promptData.prompt_template, inputs);
-
-    if (!finalPrompt || finalPrompt.trim() === "") {
-      console.error("Error: El prompt final generado está vacío.");
-      throw new Error("El prompt final generado está vacío, no se puede llamar a la IA.");
+    const internalSecretHeader = request.headers.get('x-internal-secret');
+    if (INTERNAL_SECRET !== internalSecretHeader) {
+      return new Response(JSON.stringify({ error: "No autorizado." }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const aiApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GOOGLE_API_KEY}`;
-    const aiResponse = await fetch(aiApiUrl, {
+    const { job_id } = WebhookPayloadSchema.parse(await request.json());
+    
+    const { data: jobData, error: jobError } = await supabaseAdmin.from('podcast_creation_jobs').select('*').eq('id', job_id).single();
+    if (jobError || !jobData) throw new Error(`Trabajo ${job_id} no encontrado.`);
+    job = jobData as Job;
+
+    await supabaseAdmin.from('podcast_creation_jobs').update({ status: 'processing' }).eq('id', job.id);
+      
+    const { agentName, inputs } = job.payload;
+
+    const { data: promptData } = await supabaseAdmin.from('ai_prompts').select('prompt_template').eq('agent_name', agentName).single();
+    if (!promptData) throw new Error(`Prompt para '${agentName}' no encontrado.`);
+
+    const finalPrompt = buildFinalPrompt(promptData.prompt_template, inputs);
+    
+    const scriptGenApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${GOOGLE_API_KEY}`;
+    
+    const scriptResponse = await fetch(scriptGenApiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ contents: [{ parts: [{ text: finalPrompt }] }] }),
     });
-
-    if (!aiResponse.ok) {
-      const errorBody = await aiResponse.text();
-      throw new Error(`La API de Google AI falló con el estado ${aiResponse.status}: ${errorBody}`);
-    }
+    if (!scriptResponse.ok) throw new Error(`API de IA (Guion) falló: ${await scriptResponse.text()}`);
     
-    const aiResult = await aiResponse.json();
-    
-    if (!aiResult.candidates?.[0]?.content?.parts?.[0]?.text) {
-        throw new Error("La respuesta de la API de Google AI no tiene la estructura esperada.");
-    }
-    const generatedText = aiResult.candidates[0].content.parts[0].text;
+    const scriptResult = await scriptResponse.json();
+    const generatedText = scriptResult.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!generatedText) throw new Error("La respuesta de la IA (Guion) no tiene la estructura esperada.");
     
     const scriptJson = parseJsonResponse(generatedText);
 
-    const { data: newPodcast, error: insertError } = await supabaseAdmin
-      .from('micro_pods')
-      .insert({
-        user_id: job.user_id,
-        title: scriptJson.title,
-        script_text: JSON.stringify(scriptJson.script),
-        status: 'published',
-        creation_data: job.payload
-      })
-      .select('id')
-      .single();
+    const initialStatus = inputs.generateAudioDirectly ? 'pending_approval' : 'published';
+    const { data: newPodcast, error: insertError } = await supabaseAdmin.from('micro_pods').insert({
+      user_id: job.user_id,
+      title: scriptJson.title,
+      script_text: JSON.stringify(scriptJson.script),
+      status: initialStatus,
+      creation_data: job.payload,
+      audio_url: null,
+      duration_seconds: null,
+    }).select('id').single();
       
-    if (insertError) { throw new Error(`Fallo al guardar el podcast: ${insertError.message}`); }
+    if (insertError) throw new Error(`Fallo al guardar el guion: ${insertError.message}`);
 
-    await supabaseAdmin
-      .from('podcast_creation_jobs')
-      .update({ status: 'completed', micro_pod_id: newPodcast.id, error_message: null })
-      .eq('id', job.id);
+    let finalJobStatus: 'completed' | 'pending_audio' = 'completed';
+    if (inputs.generateAudioDirectly === true) {
+      finalJobStatus = 'pending_audio';
+    }
+    
+    await supabaseAdmin.from('podcast_creation_jobs').update({
+      status: finalJobStatus,
+      micro_pod_id: newPodcast.id,
+      error_message: null
+    }).eq('id', job.id);
 
-    return new Response(JSON.stringify({ success: true, message: `Trabajo ${job.id} completado.` }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(JSON.stringify({ success: true, message: `Trabajo de guion ${job.id} completado.` }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Error interno desconocido.";
-    console.error(`Error procesando el trabajo ${job?.id || 'webhook'}: ${errorMessage}`);
+    console.error(`Error procesando trabajo ${job?.id || 'webhook'}: ${errorMessage}`);
     if (job) {
       const newStatus = job.retry_count < MAX_RETRIES ? 'pending' : 'failed';
       const updatePayload = newStatus === 'pending'
