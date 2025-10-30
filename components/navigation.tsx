@@ -1,5 +1,5 @@
 // components/navigation.tsx
-// VERSIÓN FINAL CON LA RUTA DE IMPORTACIÓN DE `ThemeToggle` CORREGIDA
+// VERSIÓN FINAL CON ENLACE A PERFIL CORREGIDO
 
 "use client";
 
@@ -9,8 +9,7 @@ import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-// [INTERVENCIÓN QUIRÚRGICA]: Se corrige la ruta de importación.
-import { ThemeToggle } from "@/components/theme-toggle"; 
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
   Sheet,
   SheetContent,
@@ -26,7 +25,8 @@ export function Navigation() {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
-  const { user, isAdmin, signOut, isLoading } = useAuth();
+  // [INTERVENCIÓN QUIRÚRGICA]: Se obtiene el 'profile' completo del hook `useAuth`.
+  const { user, profile, isAdmin, signOut, isLoading } = useAuth();
 
   const navItems = [
     { href: "/create", label: "Crear" },
@@ -84,14 +84,16 @@ export function Navigation() {
           <div className="hidden sm:flex items-center space-x-2">
             {isLoading ? (
               <div className="w-20 h-10 flex items-center justify-center"><Loader className="h-5 w-5 animate-spin"/></div>
-            ) : user ? (
+            ) : user && profile ? ( // Se asegura de que tanto user como profile existan
               <>
                 <NotificationBell />
                 {isAdmin && (<Link href="/admin/prompts" title="Panel de Administrador"><Button variant="ghost" size="icon"><ShieldCheck className="h-5 w-5 text-green-500" /></Button></Link>)}
-                <Link href={`/profile/${user.user_metadata?.username}`} title="Perfil">
+                
+                {/* [INTERVENCIÓN QUIRÚRGICA]: Se utiliza `profile.username` como la fuente de la verdad para el enlace. */}
+                <Link href={`/profile/${profile.username}`} title="Perfil">
                   <Avatar className="h-9 w-9 cursor-pointer">
-                    <AvatarImage src={user.user_metadata?.avatar_url} />
-                    <AvatarFallback>{user.email?.substring(0, 2).toUpperCase()}</AvatarFallback>
+                    <AvatarImage src={profile.avatar_url || ''} />
+                    <AvatarFallback>{profile.full_name?.substring(0, 2).toUpperCase() || 'U'}</AvatarFallback>
                   </Avatar>
                 </Link>
               </>
@@ -135,12 +137,15 @@ export function Navigation() {
                   <hr className="border-border" />
                   {isLoading ? (
                     <div className="flex items-center justify-center p-4"><Loader className="h-6 w-6 animate-spin"/></div>
-                  ) : user ? (
+                  ) : user && profile ? ( // Se asegura de que tanto user como profile existan
                     <>
                       <Button variant="ghost" className="w-full justify-start text-base py-6" disabled>
                         <Bell className="mr-2 h-5 w-5" /> Notificaciones
                       </Button>
-                      <Link href={`/profile/${user.user_metadata?.username}`} onClick={handleMobileLinkClick}><Button variant="ghost" className="w-full justify-start text-base py-6"><UserIcon className="mr-2 h-5 w-5" /> Perfil</Button></Link>
+                      
+                      {/* [INTERVENCIÓN QUIRÚRGICA]: Se utiliza `profile.username` para el enlace móvil. */}
+                      <Link href={`/profile/${profile.username}`} onClick={handleMobileLinkClick}><Button variant="ghost" className="w-full justify-start text-base py-6"><UserIcon className="mr-2 h-5 w-5" /> Perfil</Button></Link>
+                      
                       {isAdmin && <Link href="/admin/prompts" onClick={handleMobileLinkClick}><Button variant="ghost" className="w-full justify-start text-base py-6 text-green-500"><ShieldCheck className="mr-2 h-5 w-5" />Admin</Button></Link>}
                       <Button variant="ghost" onClick={handleLogout} className="w-full justify-start text-base py-6 text-red-500"><LogOut className="mr-2 h-5 w-5" /> Cerrar Sesión</Button>
                     </>

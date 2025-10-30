@@ -1,94 +1,130 @@
+// hooks/use-auth.tsx
+// VERSIÓN FINAL REFORZADA CON DATOS DEL PERFIL INTEGRADOS
+
 "use client";
 
-import { createContext, useContext, useEffect, useState, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
-import { createBrowserClient } from '@supabase/ssr';
-import type { Session, SupabaseClient, User } from '@supabase/supabase-js';
+import { createContext, useContext, useState, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
+import type { Session, User } from "@supabase/supabase-js";
+import type { Tables } from "@/types/supabase";
 
-type AuthProviderProps = {
-  children: React.ReactNode;
-  session: (Pick<Session, 'user'> & Partial<Omit<Session, 'user'>>) | null;
-};
+// Se define un tipo para el perfil completo
+type Profile = Tables<'profiles'>;
 
-type SupabaseContextType = {
-  supabase: SupabaseClient;
+// Se actualiza el tipo del contexto para incluir el perfil
+interface AuthContextType {
   user: User | null;
+  profile: Profile | null; // Nuevo
+  session: Session | null;
   isAdmin: boolean;
   isLoading: boolean;
   signOut: () => Promise<void>;
-};
+  supabase: ReturnType<typeof createClient>;
+}
 
-const SupabaseContext = createContext<SupabaseContextType | null>(null);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider = ({ children, session }: AuthProviderProps) => {
-  const [supabase] = useState(() =>
-    createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
-  );
-  
-  const [user, setUser] = useState<User | null>(session?.user ?? null);
-  const [isLoading, setIsLoading] = useState(session === undefined);
-  const router = useRouter();
-
-  const isAdmin = useMemo(() => {
-    return user?.user_metadata?.user_role === 'admin';
-  }, [user]);
+// Se actualiza el tipo de las props para aceptar la sesión inicial
+export function AuthProvider({ session: initialSession, children }: { session: Session | null; children: React.ReactNode; }) {
+  const supabase = createClient();
+  const [session, setSession] = useState<Session | null>(initialSession);
+  const [user, setUser] = useState<User | null>(initialSession?.user || null);
+  const [profile, setProfile] = useState<Profile | null>(null); // Nuevo estado para el perfil
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      setUser(newSession?.user ?? null);
-      setIsLoading(false);
+    let mounted = true;
+    
+    async function fetchSessionAndProfile() {
+      const { data: { session } } = await supabase.auth.getSession();
       
-      // ================== INTERVENCIÓN QUIRÚRGICA: ELIMINACIÓN DEL LOOP ==================
-      //
-      // Se ha eliminado la llamada a `router.refresh()`.
-      //
-      // JUSTIFICACIÓN ESTRATÉGICA: Esta línea causaba un ciclo infinito de
-      // re-renderizado al hacer que el AuthProvider se desmontara y montara
-      // repetidamente en cada cambio de estado de autenticación. El estado local
-      // 'user' ya se actualiza a través de 'setUser', lo que es suficiente para
-      // que la UI reaccione. Eliminar esta línea rompe el ciclo y estabiliza la aplicación.
-      //
-      // router.refresh(); // LÍNEA CRÍTICA ELIMINADA
-      // ==================================================================================
-    });
+      if (mounted) {
+        setSession(session);
+        const currentUser = session?.user || null;
+        setUser(currentUser);
 
-    if (session) {
-      setIsLoading(false);
+        // Si hay un usuario, obtenemos su perfil
+        if (currentUser) {
+          const { data: userProfile, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', currentUser.id)
+            .single();
+            
+          if (error) {
+            console.error("Error fetching user profile:", error);
+            setProfile(null);
+          } else {
+            setProfile(userProfile);
+          }
+        } else {
+          setProfile(null);
+        }
+        setIsLoading(false);
+      }
     }
 
+    fetchSessionAndProfile();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        if (mounted) {
+          setSession(session);
+          const currentUser = session?.user || null;
+          setUser(currentUser);
+
+          if (currentUser) {
+            const { data: userProfile, error } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', currentUser.id)
+              .single();
+              
+            if (error) {
+              console.error("Error fetching user profile on auth change:", error);
+              setProfile(null);
+            } else {
+              setProfile(userProfile);
+            }
+          } else {
+            setProfile(null);
+          }
+        }
+      }
+    );
+    
     return () => {
-      subscription.unsubscribe();
+      mounted = false;
+      subscription?.unsubscribe();
     };
-  }, [supabase.auth, session]); // Se elimina 'router' de las dependencias para evitar re-ejecuciones innecesarias.
+  }, [supabase]);
 
   const signOut = async () => {
     await supabase.auth.signOut();
-    // Se añade una redirección explícita al hacer logout para una mejor experiencia de usuario.
-    router.push('/');
+    setSession(null);
+    setUser(null);
+    setProfile(null);
   };
 
-  const value: SupabaseContextType = {
-    supabase,
+  const isAdmin = profile?.role === 'admin';
+
+  const value = {
+    session,
     user,
+    profile, // Se expone el perfil en el contexto
     isAdmin,
     isLoading,
     signOut,
+    supabase,
   };
 
-  return (
-    <SupabaseContext.Provider value={value}>
-      {children}
-    </SupabaseContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-export const useAuth = () => {
-  const context = useContext(SupabaseContext);
-  if (context === null) { 
-    throw new Error('useAuth debe ser usado dentro de un AuthProvider');
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }
