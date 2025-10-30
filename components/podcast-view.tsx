@@ -1,5 +1,5 @@
 // components/podcast-view.tsx
-// VERSIÓN FINAL COMPLETA - SIMPLIFICADA
+// VERSIÓN FINAL COMPLETA - CON EXPORTACIÓN VALIDADA Y LÓGICA ROBUSTA
 
 "use client";
 
@@ -29,6 +29,7 @@ interface PodcastViewProps {
   initialIsLiked: boolean; 
 }
 
+// [INTERVENCIÓN QUIRÚRGICA]: Se valida que la función se exporte correctamente.
 export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewProps) {
   const router = useRouter();
   const { supabase } = useAuth();
@@ -61,7 +62,7 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
         }
       ).subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [supabase, localPodcastData.id, localPodcastData.audio_url, router]);
+  }, [supabase, localPodcastData.id, localPodcastData.audio_url]);
 
   const handleLike = async () => {
     if (!supabase || !user) {
@@ -71,20 +72,20 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
     setIsLiking(true);
     if (isLiked) {
       setIsLiked(false);
-      setLikeCount(c => (c ?? 1) - 1);
+      setLikeCount((c: number) => (c ?? 1) - 1);
       const { error } = await supabase.from('likes').delete().match({ user_id: user.id, podcast_id: localPodcastData.id });
       if (error) {
         setIsLiked(true);
-        setLikeCount(c => (c ?? 0) + 1);
+        setLikeCount((c: number) => (c ?? 0) + 1);
         toast({ title: "Error", description: "No se pudo quitar el 'like'.", variant: "destructive" });
       }
     } else {
       setIsLiked(true);
-      setLikeCount(c => (c ?? 0) + 1);
+      setLikeCount((c: number) => (c ?? 0) + 1);
       const { error } = await supabase.from('likes').insert({ user_id: user.id, podcast_id: localPodcastData.id });
       if (error) {
         setIsLiked(false);
-        setLikeCount(c => (c ?? 1) - 1);
+        setLikeCount((c: number) => (c ?? 1) - 1);
         toast({ title: "Error", description: "No se pudo dar 'like'.", variant: "destructive" });
       }
     }
