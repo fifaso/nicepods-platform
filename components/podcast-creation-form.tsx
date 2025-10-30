@@ -1,5 +1,5 @@
 // components/podcast-creation-form.tsx
-// VERSIÓN FINAL COMPLETA - CON CUERPO DE FUNCIÓN RESTAURADO Y LÓGICA ROBUSTA
+// VERSIÓN FINAL COMPLETA CON LÓGICA DE VALIDACIÓN DE PASOS REFORZADA
 
 "use client";
 
@@ -24,6 +24,7 @@ import { NarrativeSelectionStep } from "./create-flow/narrative-selection";
 import { DetailsStep } from "./create-flow/details-step";
 import { FinalStep } from "./create-flow/final-step";
 import { ArchetypeStep } from "./create-flow/archetype-step";
+import { AudioStudio } from "./create-flow/audio-studio";
 
 export interface NarrativeOption { 
   title: string; 
@@ -31,7 +32,6 @@ export interface NarrativeOption {
 }
 
 export function PodcastCreationForm() {
-  // [INTERVENCIÓN QUIRÚRGICA #1]: Se restaura el cuerpo completo de la función, incluyendo hooks, estados y funciones auxiliares.
   const router = useRouter();
   const { toast } = useToast();
   const { supabase, user } = useAuth();
@@ -57,8 +57,12 @@ export function PodcastCreationForm() {
       archetype_goal: '',
       duration: '',
       narrativeDepth: '',
-      tags: [],
       selectedAgent: undefined,
+      voiceGender: "Masculino",
+      voiceStyle: "Calmado",
+      voicePace: "Moderado",
+      speakingRate: 1.0,
+      tags: [],
       generateAudioDirectly: true,
     }
   });
@@ -70,30 +74,32 @@ export function PodcastCreationForm() {
   const goToNextStep = () => setCurrentStep(previousStep => previousStep + 1);
   const goToPreviousStep = () => setCurrentStep(previousStep => previousStep - 1);
 
-  const totalSteps = currentStyle === 'link' ? 5 : 4;
+  const totalSteps = currentStyle === 'link' ? 6 : 5;
 
   const handleStepNavigation = async () => {
     let fieldsToValidate: (keyof PodcastCreationData)[] = [];
     const stepForValidation = currentStep;
     
     if (stepForValidation === 1) fieldsToValidate = ['style'];
-    
     if (stepForValidation === 2) {
       if (currentStyle === 'solo') fieldsToValidate = ['solo_topic', 'solo_motivation'];
       if (currentStyle === 'link') fieldsToValidate = ['link_topicA', 'link_topicB'];
       if (currentStyle === 'archetype') fieldsToValidate = ['selectedArchetype', 'archetype_topic', 'archetype_goal'];
     }
-    
     if ((currentStyle === 'solo' || currentStyle === 'archetype') && stepForValidation === 3) {
       fieldsToValidate = ['duration', 'narrativeDepth', 'selectedAgent'];
     }
-    
     if (currentStyle === 'link' && stepForValidation === 3) {
       fieldsToValidate = ['link_selectedNarrative', 'link_selectedTone'];
     }
-    
     if (currentStyle === 'link' && stepForValidation === 4) {
       fieldsToValidate = ['duration', 'narrativeDepth', 'selectedAgent'];
+    }
+    if ((currentStyle === 'solo' || currentStyle === 'archetype') && stepForValidation === 4) {
+      fieldsToValidate = ['voiceGender', 'voiceStyle', 'voicePace', 'speakingRate'];
+    }
+    if (currentStyle === 'link' && stepForValidation === 5) {
+      fieldsToValidate = ['voiceGender', 'voiceStyle', 'voicePace', 'speakingRate'];
     }
     
     const isStepValid = await trigger(fieldsToValidate);
@@ -159,8 +165,10 @@ export function PodcastCreationForm() {
         depth: formData.narrativeDepth,
         tags: formData.tags,
         generateAudioDirectly: formData.generateAudioDirectly,
-        defaultVoice: "es-US-Standard-A",
-        defaultRate: 1.0,
+        voiceGender: formData.voiceGender,
+        voiceStyle: formData.voiceStyle,
+        voicePace: formData.voicePace,
+        speakingRate: formData.speakingRate,
       },
     };
 
@@ -185,6 +193,15 @@ export function PodcastCreationForm() {
     router.push('/podcasts?tab=library');
   }, [supabase, user, toast, router]);
   
+  const onValidationErrors = (errors: FieldErrors<PodcastCreationData>) => {
+    console.error("Errores de validación del formulario:", errors);
+    toast({
+      title: "Formulario incompleto",
+      description: "Parece que faltan algunos datos o hay errores. Por favor, retrocede y revisa los pasos anteriores.",
+      variant: "destructive",
+    });
+  };
+
   const progress = (currentStep / totalSteps) * 100;
   
   const renderCurrentStep = () => {
@@ -193,7 +210,8 @@ export function PodcastCreationForm() {
         case 1: return <StyleSelectionStep />;
         case 2: return currentStyle === 'solo' ? <SoloTalkStep /> : <ArchetypeStep />;
         case 3: return <DetailsStep agents={soloTalkAgents} />;
-        case 4: return <FinalStep />;
+        case 4: return <AudioStudio />;
+        case 5: return <FinalStep />;
         default: return <div>Error: Paso inválido.</div>;
       }
     }
@@ -204,28 +222,16 @@ export function PodcastCreationForm() {
         case 2: return <LinkPointsStep />;
         case 3: return <NarrativeSelectionStep narrativeOptions={narrativeOptions} />;
         case 4: return <DetailsStep agents={linkPointsAgents} />;
-        case 5: return <FinalStep />;
+        case 5: return <AudioStudio />;
+        case 6: return <FinalStep />;
         default: return <div>Error: Paso inválido.</div>;
       }
     }
     
-    if (currentStep === 1) {
-      return <StyleSelectionStep />;
-    }
-
-    return <p className="text-center text-muted-foreground">Por favor, selecciona un estilo para continuar.</p>;
+    if (currentStep === 1) return <StyleSelectionStep />;
+    return <div>Error: Estado de formulario inválido.</div>;
   };
 
-  const onValidationErrors = (errors: FieldErrors<PodcastCreationData>) => {
-    console.error("Errores de validación del formulario:", errors);
-    toast({
-      title: "Formulario incompleto",
-      description: "Parece que faltan algunos datos o hay errores. Por favor, retrocede y revisa los pasos anteriores.",
-      variant: "destructive",
-    });
-  };
-
-  // [INTERVENCIÓN QUIRÚRGICA #2]: Se restaura el JSX completo del componente.
   return (
     <FormProvider {...formMethods}>
       <form onSubmit={(e) => e.preventDefault()}>
@@ -258,7 +264,7 @@ export function PodcastCreationForm() {
                               </Button>
                           ) : (
                               <Button type="button" onClick={handleSubmit(handleFinalSubmit, onValidationErrors)} disabled={isSubmitting}>
-                                  {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Encolando Idea...</> : <><Wand2 className="mr-2 h-4 w-4" />Crear Guion</>}
+                                  {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Encolando Idea...</> : <><Wand2 className="mr-2 h-4 w-4" />Crear Guion y Audio</>}
                               </Button>
                           )}
                       </div>

@@ -1,5 +1,5 @@
 // components/create-flow/audio-studio.tsx
-// VERSIÓN FINAL COMPLETA CON SELECCIONES ESTRUCTURADAS
+// VERSIÓN FINAL COMPLETA CON TODOS LOS CAMPOS DE VOZ REQUERIDOS
 
 "use client";
 
@@ -37,8 +37,8 @@ export function AudioStudio() {
                 <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="grid grid-cols-2 gap-4">
                   {genderOptions.map(option => (
                     <FormItem key={option.value}>
-                      <FormControl><RadioGroupItem value={option.value} id={option.value} className="sr-only" /></FormControl>
-                      <Label htmlFor={option.value} className={cn("flex items-center justify-center p-4 rounded-lg cursor-pointer transition-all duration-200 border-2", field.value === option.value ? "border-primary" : "bg-muted/30 hover:bg-muted/60")}>
+                      <FormControl><RadioGroupItem value={option.value} id={`gender-${option.value}`} className="sr-only" /></FormControl>
+                      <Label htmlFor={`gender-${option.value}`} className={cn("flex items-center justify-center p-4 rounded-lg cursor-pointer transition-all duration-200 border-2", field.value === option.value ? "border-primary" : "bg-muted/30 hover:bg-muted/60")}>
                         {option.value}
                       </Label>
                     </FormItem>
@@ -60,8 +60,8 @@ export function AudioStudio() {
                 <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   {styleOptions.map(option => (
                     <FormItem key={option.value}>
-                      <FormControl><RadioGroupItem value={option.value} id={option.value} className="sr-only" /></FormControl>
-                      <Label htmlFor={option.value} className={cn("flex items-center justify-center p-4 rounded-lg cursor-pointer transition-all duration-200 border-2", field.value === option.value ? "border-primary" : "bg-muted/30 hover:bg-muted/60")}>
+                      <FormControl><RadioGroupItem value={option.value} id={`style-${option.value}`} className="sr-only" /></FormControl>
+                      <Label htmlFor={`style-${option.value}`} className={cn("flex items-center justify-center p-4 rounded-lg cursor-pointer transition-all duration-200 border-2", field.value === option.value ? "border-primary" : "bg-muted/30 hover:bg-muted/60")}>
                         {option.value}
                       </Label>
                     </FormItem>
@@ -75,10 +75,33 @@ export function AudioStudio() {
         
         <FormField
           control={control}
+          name="voicePace"
+          render={({ field }) => (
+            <FormItem className="space-y-3">
+              <Label className="font-semibold">3. Ritmo del Habla</Label>
+              <FormControl>
+                <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="grid grid-cols-3 gap-4">
+                  {paceOptions.map(option => (
+                    <FormItem key={option.value}>
+                      <FormControl><RadioGroupItem value={option.value} id={`pace-${option.value}`} className="sr-only" /></FormControl>
+                      <Label htmlFor={`pace-${option.value}`} className={cn("flex items-center justify-center p-4 rounded-lg cursor-pointer transition-all duration-200 border-2", field.value === option.value ? "border-primary" : "bg-muted/30 hover:bg-muted/60")}>
+                        {option.value}
+                      </Label>
+                    </FormItem>
+                  ))}
+                </RadioGroup>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={control}
           name="speakingRate"
           render={({ field }) => (
             <FormItem className="space-y-3">
-              <Label className="font-semibold">3. Ajuste Fino de Velocidad ({speakingRate?.toFixed(2)}x)</Label>
+              <Label className="font-semibold">4. Ajuste Fino de Velocidad ({speakingRate?.toFixed(2)}x)</Label>
               <FormControl>
                 <Slider min={0.75} max={1.25} step={0.05} value={[field.value]} onValueChange={(value) => field.onChange(value[0])} />
               </FormControl>
