@@ -1,5 +1,5 @@
 // components/navigation.tsx
-// VERSIÓN FINAL CON ENLACE A PERFIL CORREGIDO
+// VERSIÓN FINAL CON ENLACES A PERFIL CORREGIDOS USANDO `username`
 
 "use client";
 
@@ -25,7 +25,6 @@ export function Navigation() {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
-  // [INTERVENCIÓN QUIRÚRGICA]: Se obtiene el 'profile' completo del hook `useAuth`.
   const { user, profile, isAdmin, signOut, isLoading } = useAuth();
 
   const navItems = [
@@ -43,6 +42,8 @@ export function Navigation() {
   const handleLogout = async () => {
     setIsMobileMenuOpen(false);
     await signOut();
+    // No se necesita redirección aquí, ya que el AuthProvider manejará el estado.
+    // La redirección principal se hará desde el propio perfil.
   };
 
   return (
@@ -84,12 +85,12 @@ export function Navigation() {
           <div className="hidden sm:flex items-center space-x-2">
             {isLoading ? (
               <div className="w-20 h-10 flex items-center justify-center"><Loader className="h-5 w-5 animate-spin"/></div>
-            ) : user && profile ? ( // Se asegura de que tanto user como profile existan
+            ) : user && profile ? (
               <>
                 <NotificationBell />
                 {isAdmin && (<Link href="/admin/prompts" title="Panel de Administrador"><Button variant="ghost" size="icon"><ShieldCheck className="h-5 w-5 text-green-500" /></Button></Link>)}
                 
-                {/* [INTERVENCIÓN QUIRÚRGICA]: Se utiliza `profile.username` como la fuente de la verdad para el enlace. */}
+                {/* [INTERVENCIÓN QUIRÚRGICA #1]: Se utiliza `profile.username` como la fuente de la verdad para el enlace. */}
                 <Link href={`/profile/${profile.username}`} title="Perfil">
                   <Avatar className="h-9 w-9 cursor-pointer">
                     <AvatarImage src={profile.avatar_url || ''} />
@@ -137,13 +138,13 @@ export function Navigation() {
                   <hr className="border-border" />
                   {isLoading ? (
                     <div className="flex items-center justify-center p-4"><Loader className="h-6 w-6 animate-spin"/></div>
-                  ) : user && profile ? ( // Se asegura de que tanto user como profile existan
+                  ) : user && profile ? (
                     <>
                       <Button variant="ghost" className="w-full justify-start text-base py-6" disabled>
                         <Bell className="mr-2 h-5 w-5" /> Notificaciones
                       </Button>
                       
-                      {/* [INTERVENCIÓN QUIRÚRGICA]: Se utiliza `profile.username` para el enlace móvil. */}
+                      {/* [INTERVENCIÓN QUIRÚRGICA #2]: Se utiliza `profile.username` para el enlace móvil. */}
                       <Link href={`/profile/${profile.username}`} onClick={handleMobileLinkClick}><Button variant="ghost" className="w-full justify-start text-base py-6"><UserIcon className="mr-2 h-5 w-5" /> Perfil</Button></Link>
                       
                       {isAdmin && <Link href="/admin/prompts" onClick={handleMobileLinkClick}><Button variant="ghost" className="w-full justify-start text-base py-6 text-green-500"><ShieldCheck className="mr-2 h-5 w-5" />Admin</Button></Link>}

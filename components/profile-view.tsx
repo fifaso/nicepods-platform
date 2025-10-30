@@ -1,5 +1,5 @@
 // components/profile-view.tsx
-// VERSIÓN FINAL COMPLETA - CON TIPADO EXPLÍCITO Y ROBUSTO
+// VERSIÓN FINAL COMPLETA - REFACTORIZADA PARA VISTA PÚBLICA Y PRIVADA, CON TODAS LAS FUNCIONALIDADES
 
 "use client";
 
@@ -182,6 +182,12 @@ export function ProfileView({
     setIsFollowLoading(false);
   };
 
+  const handleSignOut = async () => {
+    await signOut();
+    router.push('/');
+    toast({ title: "Has cerrado sesión" });
+  };
+
   if (!profile) {
     return (
       <div className="max-w-6xl mx-auto py-8 px-4">
@@ -230,7 +236,7 @@ export function ProfileView({
                 )}
               </div>
 
-              {isOwner && (<div className="mt-6 w-full"><Button onClick={signOut} variant="destructive" className="w-full">Cerrar Sesión</Button></div>)}
+              {isOwner && (<div className="mt-6 w-full"><Button onClick={handleSignOut} variant="destructive" className="w-full">Cerrar Sesión</Button></div>)}
               {!isOwner && (
                 <div className="mt-6 w-full">
                   <Button className="w-full" variant={isFollowing ? "outline" : "default"} onClick={handleFollowToggle} disabled={isFollowLoading}>
