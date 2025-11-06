@@ -1,16 +1,15 @@
 // supabase/functions/process-podcast-job/index.ts
-// VERSIÓN FINAL - "MAESTRO GUIONISTA" ACTIVADO POR WEBHOOK
+// VERSIÓN FINAL - "MAESTRO GUIONISTA" - Acepta invocaciones seguras del dispatcher.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { z, ZodError } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 const MAX_RETRIES = 2;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const GOOGLE_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY")!;
-const INTERNAL_SECRET = Deno.env.get("INTERNAL_WEBHOOK_SECRET")!;
 
 const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_KEY);
 
@@ -21,7 +20,7 @@ interface Job {
   retry_count: number;
 }
 
-const WebhookPayloadSchema = z.object({
+const InvokePayloadSchema = z.object({
   job_id: z.number(),
 });
 
@@ -37,7 +36,7 @@ function buildFinalPrompt(template: string, inputs: Record<string, any>): string
 const parseJsonResponse = (text: string) => {
     const jsonMatch = text.match(/```json([\s\S]*?)```/);
     if (jsonMatch && jsonMatch[1]) {
-        try { return JSON.parse(jsonMatch[1]); } catch (e) { /* Fall through */ }
+        try { return JSON.parse(jsonMatch[1]); } catch (e) { /* Ignorar y continuar */ }
     }
     try { return JSON.parse(text); } catch (error) {
         throw new Error("La respuesta de la IA no contenía un formato JSON reconocible.");
@@ -49,12 +48,13 @@ serve(async (request: Request) => {
   
   let job: Job | null = null;
   try {
-    const internalSecretHeader = request.headers.get('x-internal-secret');
-    if (INTERNAL_SECRET !== internalSecretHeader) {
-      return new Response(JSON.stringify({ error: "No autorizado." }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
+    // [INTERVENCIÓN QUIRÚRGICA Y ESTRATÉGICA]
+    // Se elimina por completo la validación de la cabecera 'x-internal-secret'.
+    // La seguridad ahora está garantizada por el gateway de Supabase, que solo permite
+    // invocaciones autenticadas con un token de servicio válido (lo que hace nuestro dispatcher).
+    // Esto simplifica el código y lo alinea con la nueva arquitectura.
 
-    const { job_id } = WebhookPayloadSchema.parse(await request.json());
+    const { job_id } = InvokePayloadSchema.parse(await request.json());
     
     const { data: jobData, error: jobError } = await supabaseAdmin.from('podcast_creation_jobs').select('*').eq('id', job_id).single();
     if (jobError || !jobData) throw new Error(`Trabajo ${job_id} no encontrado.`);
@@ -112,7 +112,7 @@ serve(async (request: Request) => {
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Error interno desconocido.";
-    console.error(`Error procesando trabajo ${job?.id || 'webhook'}: ${errorMessage}`);
+    console.error(`Error procesando trabajo ${job?.id || 'invocación'}: ${errorMessage}`);
     if (job) {
       const newStatus = job.retry_count < MAX_RETRIES ? 'pending' : 'failed';
       const updatePayload = newStatus === 'pending'
