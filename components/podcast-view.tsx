@@ -1,5 +1,8 @@
 // components/podcast-view.tsx
-// VERSIÓN DE LA VICTORIA ABSOLUTA: Alineado con la arquitectura final del backend.
+// VERSIÓN DE PRODUCCIÓN FINAL Y COMPLETA
+// - Muestra correctamente los estados de audio (listo, procesando, solo guion).
+// - Permite la generación de audio bajo demanda.
+// - Se actualiza automáticamente en tiempo real sin necesidad de refrescar la página.
 
 "use client";
 
@@ -49,7 +52,9 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
   }, [podcastData, initialIsLiked]);
 
   useEffect(() => {
-    if (!supabase || localPodcastData.audio_url || isGeneratingAudio) { return; }
+    if (!supabase || localPodcastData.audio_url) { 
+      return; 
+    }
 
     const channel = supabase.channel(`micro_pod_${localPodcastData.id}`)
       .on<PodcastWithProfile>(
@@ -63,10 +68,39 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
           }
         }
       ).subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [supabase, localPodcastData.id, localPodcastData.audio_url, isGeneratingAudio]);
+      
+    return () => { 
+      supabase.removeChannel(channel); 
+    };
+  }, [supabase, localPodcastData.id, localPodcastData.audio_url]);
 
-  const handleLike = async () => { /* ... (sin cambios) ... */ };
+  const handleLike = async () => {
+    if (!supabase || !user) {
+        toast({ title: "Acción requerida", description: "Debes iniciar sesión para dar 'like'.", variant: "destructive" });
+        return;
+    }
+    setIsLiking(true);
+    if (isLiked) {
+      setIsLiked(false);
+      setLikeCount((c: number) => (c ?? 1) - 1);
+      const { error } = await supabase.from('likes').delete().match({ user_id: user.id, podcast_id: localPodcastData.id });
+      if (error) {
+        setIsLiked(true);
+        setLikeCount((c: number) => (c ?? 0) + 1);
+        toast({ title: "Error", description: "No se pudo quitar el 'like'.", variant: "destructive" });
+      }
+    } else {
+      setIsLiked(true);
+      setLikeCount((c: number) => (c ?? 0) + 1);
+      const { error } = await supabase.from('likes').insert({ user_id: user.id, podcast_id: localPodcastData.id });
+      if (error) {
+        setIsLiked(false);
+        setLikeCount((c: number) => (c ?? 1) - 1);
+        toast({ title: "Error", description: "No se pudo dar 'like'.", variant: "destructive" });
+      }
+    }
+    setIsLiking(false);
+  };
 
   const handleGenerateAudio = async () => {
     if (!supabase) {
@@ -81,6 +115,8 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
         .from('podcast_creation_jobs')
         .select('id')
         .eq('micro_pod_id', localPodcastData.id)
+        .order('created_at', { ascending: false }) // Asegurarnos de obtener el trabajo más reciente
+        .limit(1)
         .single();
 
       if (jobError || !job) {
@@ -89,9 +125,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
 
       setLocalPodcastData(prev => ({...prev, status: 'pending_approval'}));
       
-      // [INTERVENCIÓN QUIRÚRGICA DE LA VICTORIA ABSOLUTA]
-      // Eliminamos la llamada al 'dispatcher' que ya no existe.
-      // Invocamos DIRECTAMENTE al trabajador 'generate-audio-from-script'.
       const { error: invokeError } = await supabase.functions.invoke('generate-audio-from-script', {
         body: {
           job_id: job.id,
