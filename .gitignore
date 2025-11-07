@@ -33,3 +33,4 @@ next-env.d.ts
 
 # Ignorar secretos del backend de Supabase
 supabase/.env
+supabase/service-account.json

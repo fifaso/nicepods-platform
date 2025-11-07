@@ -1,5 +1,5 @@
 // supabase/functions/process-podcast-job/index.ts
-// VERSIÓN FINAL - "MAESTRO GUIONISTA" - Acepta invocaciones seguras del dispatcher.
+// VERSIÓN DE PRODUCCIÓN FINAL: Orquesta tareas paralelas y es resiliente a fallos de API.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -20,7 +20,7 @@ interface Job {
   retry_count: number;
 }
 
-const InvokePayloadSchema = z.object({
+const WebhookPayloadSchema = z.object({
   job_id: z.number(),
 });
 
@@ -36,7 +36,7 @@ function buildFinalPrompt(template: string, inputs: Record<string, any>): string
 const parseJsonResponse = (text: string) => {
     const jsonMatch = text.match(/```json([\s\S]*?)```/);
     if (jsonMatch && jsonMatch[1]) {
-        try { return JSON.parse(jsonMatch[1]); } catch (e) { /* Ignorar y continuar */ }
+        try { return JSON.parse(jsonMatch[1]); } catch (e) { /* Ignorar */ }
     }
     try { return JSON.parse(text); } catch (error) {
         throw new Error("La respuesta de la IA no contenía un formato JSON reconocible.");
@@ -48,13 +48,7 @@ serve(async (request: Request) => {
   
   let job: Job | null = null;
   try {
-    // [INTERVENCIÓN QUIRÚRGICA Y ESTRATÉGICA]
-    // Se elimina por completo la validación de la cabecera 'x-internal-secret'.
-    // La seguridad ahora está garantizada por el gateway de Supabase, que solo permite
-    // invocaciones autenticadas con un token de servicio válido (lo que hace nuestro dispatcher).
-    // Esto simplifica el código y lo alinea con la nueva arquitectura.
-
-    const { job_id } = InvokePayloadSchema.parse(await request.json());
+    const { job_id } = WebhookPayloadSchema.parse(await request.json());
     
     const { data: jobData, error: jobError } = await supabaseAdmin.from('podcast_creation_jobs').select('*').eq('id', job_id).single();
     if (jobError || !jobData) throw new Error(`Trabajo ${job_id} no encontrado.`);
@@ -84,23 +78,19 @@ serve(async (request: Request) => {
     
     const scriptJson = parseJsonResponse(generatedText);
 
-    const initialStatus = inputs.generateAudioDirectly ? 'pending_approval' : 'published';
+    const initialPodcastStatus = inputs.generateAudioDirectly ? 'pending_approval' : 'published';
+
     const { data: newPodcast, error: insertError } = await supabaseAdmin.from('micro_pods').insert({
       user_id: job.user_id,
       title: scriptJson.title,
       script_text: JSON.stringify(scriptJson.script),
-      status: initialStatus,
+      status: initialPodcastStatus,
       creation_data: job.payload,
-      audio_url: null,
-      duration_seconds: null,
     }).select('id').single();
       
-    if (insertError) throw new Error(`Fallo al guardar el guion: ${insertError.message}`);
+    if (insertError || !newPodcast) throw new Error(`Fallo al guardar el guion: ${insertError?.message}`);
 
-    let finalJobStatus: 'completed' | 'pending_audio' = 'completed';
-    if (inputs.generateAudioDirectly === true) {
-      finalJobStatus = 'pending_audio';
-    }
+    const finalJobStatus = inputs.generateAudioDirectly ? 'pending_audio' : 'completed';
     
     await supabaseAdmin.from('podcast_creation_jobs').update({
       status: finalJobStatus,
@@ -108,17 +98,49 @@ serve(async (request: Request) => {
       error_message: null
     }).eq('id', job.id);
 
-    return new Response(JSON.stringify({ success: true, message: `Trabajo de guion ${job.id} completado.` }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    // Orquestación paralela
+    console.log(`Lanzando generación de carátula para el trabajo ${job.id}...`);
+    supabaseAdmin.functions.invoke('generate-cover-image', {
+      body: { job_id: job.id }
+    }).then(({ error }) => {
+      if (error) console.error(`Invocación asíncrona a 'generate-cover-image' falló para el trabajo ${job.id}:`, error);
+    });
+
+    if (finalJobStatus === 'pending_audio') {
+      console.log(`Lanzando generación de audio para el trabajo ${job.id}...`);
+      supabaseAdmin.functions.invoke('generate-audio-from-script', {
+        body: { job_id: job.id }
+      }).then(({ error }) => {
+        if (error) console.error(`Invocación asíncrona a 'generate-audio-from-script' falló para el trabajo ${job.id}:`, error);
+      });
+    }
+
+    return new Response(JSON.stringify({ success: true, message: `Trabajo de guion ${job.id} completado. Tareas paralelas iniciadas.` }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Error interno desconocido.";
     console.error(`Error procesando trabajo ${job?.id || 'invocación'}: ${errorMessage}`);
+
     if (job) {
-      const newStatus = job.retry_count < MAX_RETRIES ? 'pending' : 'failed';
-      const updatePayload = newStatus === 'pending'
-        ? { status: "pending", retry_count: job.retry_count + 1, error_message: `Intento ${job.retry_count + 1} falló: ${errorMessage.substring(0, 255)}` }
-        : { status: "failed", error_message: `Falló después de ${MAX_RETRIES + 1} intentos. Error final: ${errorMessage.substring(0, 255)}` };
-      await supabaseAdmin.from('podcast_creation_jobs').update(updatePayload).eq('id', job.id);
+      if (errorMessage.includes("The model is overloaded") || errorMessage.includes("UNAVAILABLE") || errorMessage.includes("503")) {
+        if (job.retry_count < MAX_RETRIES) {
+          await supabaseAdmin.from('podcast_creation_jobs').update({
+            status: "pending",
+            retry_count: job.retry_count + 1,
+            error_message: `Intento ${job.retry_count + 1} falló (transitorio): ${errorMessage.substring(0, 200)}`
+          }).eq('id', job.id);
+        } else {
+          await supabaseAdmin.from('podcast_creation_jobs').update({
+            status: "failed",
+            error_message: `Falló después de ${MAX_RETRIES + 1} intentos. Error final (transitorio): ${errorMessage.substring(0, 200)}`
+          }).eq('id', job.id);
+        }
+      } else {
+        await supabaseAdmin.from('podcast_creation_jobs').update({
+          status: "failed",
+          error_message: `Error permanente: ${errorMessage.substring(0, 255)}`
+        }).eq('id', job.id);
+      }
     }
     return new Response(JSON.stringify({ error: errorMessage }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
   }

@@ -1,89 +1,129 @@
 // supabase/functions/generate-audio-from-script/index.ts
-// VERSIÓN FINAL - "INGENIERO DE SONIDO" ACTIVADO POR WEBHOOK
+// VERSIÓN DE LA VICTORIA ABSOLUTA: Especifica el código de idioma obligatorio.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { z, ZodError } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { decode } from "https://deno.land/std@0.208.0/encoding/base64.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { create } from "https://deno.land/x/djwt@v2.2/mod.ts";
+
+const GOOGLE_CLIENT_EMAIL = Deno.env.get("GOOGLE_CLIENT_EMAIL");
+const GOOGLE_PRIVATE_KEY_RAW = Deno.env.get("GOOGLE_PRIVATE_KEY");
+
+if (!GOOGLE_CLIENT_EMAIL || !GOOGLE_PRIVATE_KEY_RAW) {
+  throw new Error("FATAL: GOOGLE_CLIENT_EMAIL or GOOGLE_PRIVATE_KEY is not configured in Supabase secrets.");
+}
 
 const supabaseAdmin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-const GOOGLE_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY")!;
-const INTERNAL_SECRET = Deno.env.get("INTERNAL_WEBHOOK_SECRET");
 
-const WebhookPayloadSchema = z.object({
+const InvokePayloadSchema = z.object({
   job_id: z.number(),
 });
 
 type ScriptLine = { speaker: string; line: string; };
+
+async function getGoogleAccessToken(): Promise<string> {
+  const GOOGLE_PRIVATE_KEY = GOOGLE_PRIVATE_KEY_RAW.replace(/\\n/g, '\n');
+
+  const jwt = await create({ alg: "RS256", typ: "JWT" }, {
+    iss: GOOGLE_CLIENT_EMAIL,
+    scope: "https://www.googleapis.com/auth/cloud-platform",
+    aud: "https://oauth2.googleapis.com/token",
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    iat: Math.floor(Date.now() / 1000),
+  }, GOOGLE_PRIVATE_KEY);
+
+  const response = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion: jwt,
+    }),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(`Error al obtener el token de acceso de Google: ${JSON.stringify(data)}`);
+  }
+  return data.access_token;
+}
 
 serve(async (request: Request) => {
   if (request.method === 'OPTIONS') { return new Response('ok', { headers: corsHeaders }); }
   
   let jobId: number | null = null;
   try {
-    const internalSecretHeader = request.headers.get('x-internal-secret');
-    if (!INTERNAL_SECRET || internalSecretHeader !== INTERNAL_SECRET) {
-      return new Response(JSON.stringify({ error: "No autorizado." }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
-    }
-    
-    const payload = await request.json();
-    const { job_id } = WebhookPayloadSchema.parse(payload);
+    const { job_id } = InvokePayloadSchema.parse(await request.json());
     jobId = job_id;
 
-    const { data: jobData, error: jobError } = await supabaseAdmin.from('podcast_creation_jobs').select('micro_pod_id, payload').eq('id', job_id).single();
-    if (jobError || !jobData || !jobData.micro_pod_id) {
-      throw new Error(`Trabajo ${job_id} o podcast asociado no encontrado.`);
-    }
+    await supabaseAdmin.from('podcast_creation_jobs').update({ status: 'processing' }).eq('id', job_id);
+
+    const { data: jobData } = await supabaseAdmin.from('podcast_creation_jobs').select('micro_pod_id, payload').eq('id', jobId).single();
+    if (!jobData || !jobData.micro_pod_id) throw new Error(`Podcast asociado al trabajo ${jobId} no encontrado.`);
 
     const podcastId = jobData.micro_pod_id;
     const inputs = jobData.payload.inputs;
 
-    const { data: podcast, error: podcastError } = await supabaseAdmin.from('micro_pods').select('script_text, user_id').eq('id', podcastId).single();
-    if (podcastError) throw new Error(`No se pudo encontrar el podcast: ${podcastError.message}`);
-    if (!podcast.script_text) throw new Error("El guion de este podcast está vacío.");
+    const { data: podcastData } = await supabaseAdmin.from('micro_pods').select('script_text, user_id').eq('id', podcastId).single();
+    if (!podcastData || !podcastData.script_text) throw new Error("Guion del podcast no encontrado o vacío.");
     
-    const scriptData = JSON.parse(podcast.script_text) as ScriptLine[];
+    const scriptData = JSON.parse(podcastData.script_text) as ScriptLine[];
     const scriptTextOnly = scriptData.map(line => line.line).join('\n\n');
-    
-    const ttsApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro-tts-preview:synthesizeSpeech?key=${GOOGLE_API_KEY}`;
-    
-    const voiceDescription = `Una voz ${inputs.voiceGender}, con un tono ${inputs.voiceStyle} y un ritmo ${inputs.voicePace}.`;
-    const metaPrompt = `<speak><prosody rate="${inputs.speakingRate}"><s>${voiceDescription}</s><break time="1s"/>${scriptTextOnly.replace(/\n\n/g, '<break time="800ms"/>')}</prosody></speak>`;
 
+    const accessToken = await getGoogleAccessToken();
+    const ttsApiUrl = `https://texttospeech.googleapis.com/v1beta1/text:synthesize`;
+    
     const ttsResponse = await fetch(ttsApiUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        model: "models/gemini-2.5-pro-tts-preview",
-        text: metaPrompt,
-        audio_config: { audio_encoding: "MP3" }
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({
+        input: { text: scriptTextOnly },
+        // [INTERVENCIÓN QUIRÚRGICA DE LA VICTORIA ABSOLUTA]
+        // Añadimos el 'languageCode' obligatorio que la API nos estaba pidiendo.
+        voice: { 
+          languageCode: "es-US",
+          name: "zephyr" 
+        },
+        audioConfig: {
+          audioEncoding: "MP3",
+          speakingRate: inputs.speakingRate || 1.0,
+        }
       })
     });
-    if (!ttsResponse.ok) throw new Error(`API de IA (Audio) falló: ${await ttsResponse.text()}`);
-
-    const { audioContent } = await ttsResponse.json();
-    if (!audioContent) throw new Error("La respuesta de la IA (Audio) no contenía audio.");
+    
+    if (!ttsResponse.ok) {
+        const errorText = await ttsResponse.text();
+        throw new Error(`API de Cloud TTS (Gemini) falló con status ${ttsResponse.status}: ${errorText}`);
+    }
+    
+    const responseData = await ttsResponse.json();
+    const audioContent = responseData.audioContent;
+    
+    if (!audioContent) {
+        throw new Error("La respuesta de la IA no contenía audio.");
+    }
 
     const audioBuffer = decode(audioContent);
     const arrayBuffer = await (new Blob([audioBuffer], { type: 'audio/mpeg' })).arrayBuffer();
 
-    const audioDuration = 0;
-
-    const filePath = `public/${podcast.user_id}/${podcastId}-${Date.now()}.mp3`;
-    const { error: storageError } = await supabaseAdmin.storage.from('podcasts').upload(filePath, arrayBuffer, { contentType: 'audio/mpeg' });
-    if (storageError) throw new Error(`Fallo al subir el audio: ${storageError.message}`);
+    const filePath = `public/${podcastData.user_id}/${podcastId}-audio.mp3`;
+    await supabaseAdmin.storage.from('podcasts').upload(filePath, arrayBuffer, { contentType: 'audio/mpeg', upsert: true });
 
     const { data: publicUrlData } = supabaseAdmin.storage.from('podcasts').getPublicUrl(filePath);
-    if (!publicUrlData) throw new Error("No se pudo obtener la URL pública del audio.");
+    if (!publicUrlData) throw new Error("No se pudo obtener la URL pública de la imagen.");
 
     await supabaseAdmin.from('micro_pods').update({ 
         audio_url: publicUrlData.publicUrl,
-        duration_seconds: audioDuration,
+        duration_seconds: 0,
         status: 'published'
       }).eq('id', podcastId);
     
-    await supabaseAdmin.from('podcast_creation_jobs').update({ status: 'completed' }).eq('id', job_id);
+    await supabaseAdmin.from('podcast_creation_jobs').update({ status: 'completed' }).eq('id', jobId);
 
     return new Response(JSON.stringify({ success: true, message: `Trabajo de audio para podcast ${podcastId} completado.` }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
 
@@ -93,7 +133,6 @@ serve(async (request: Request) => {
     if (jobId) {
       await supabaseAdmin.from('podcast_creation_jobs').update({ status: 'failed', error_message: `Error en la generación de audio: ${errorMessage.substring(0, 255)}`}).eq('id', jobId);
     }
-    const status = error instanceof ZodError ? 400 : 500;
-    return new Response(JSON.stringify({ error: errorMessage }), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
+    return new Response(JSON.stringify({ error: errorMessage }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
   }
 });

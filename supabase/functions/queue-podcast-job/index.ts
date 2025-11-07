@@ -1,5 +1,5 @@
 // supabase/functions/queue-podcast-job/index.ts
-// VERSIÓN FINAL Y ROBUSTA: Usa un cliente admin para invocar al dispatcher de forma segura.
+// VERSIÓN DE LA VICTORIA ABSOLUTA: Asume el rol de orquestador inicial.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -13,17 +13,12 @@ const QueuePayloadSchema = z.object({
 });
 
 serve(async (request: Request) => {
-  if (request.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
+  if (request.method === 'OPTIONS') { return new Response('ok', { headers: corsHeaders }); }
 
   try {
     const authorizationHeader = request.headers.get('Authorization');
-    if (!authorizationHeader) {
-      return new Response(JSON.stringify({ success: false, error: "Autorización requerida." }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
-    }
+    if (!authorizationHeader) throw new Error("Autorización requerida.");
 
-    // Cliente para actuar en nombre del usuario (para RLS y getUser)
     const supabaseClient: SupabaseClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_ANON_KEY')!,
@@ -31,46 +26,41 @@ serve(async (request: Request) => {
     );
 
     const { data: { user } } = await supabaseClient.auth.getUser();
-    if (!user) {
-      return new Response(JSON.stringify({ success: false, error: "No autorizado." }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
-    }
+    if (!user) throw new Error("No autorizado.");
 
     const payload = await request.json();
     const validatedPayload = QueuePayloadSchema.parse(payload);
     
-    // [MEJORA] Usamos el cliente del usuario para el RPC, respetando RLS si la hubiera.
+    // 1. Crear el trabajo en la base de datos.
     const { data: newJobId, error: rpcError } = await supabaseClient
       .rpc('increment_jobs_and_queue', {
         p_user_id: user.id,
         p_payload: validatedPayload
       });
 
-    if (rpcError) {
-      throw new Error(`Fallo en RPC: ${rpcError.message}`);
-    }
+    if (rpcError) throw new Error(`Fallo en RPC: ${rpcError.message}`);
 
-    // [CAMBIO QUIRÚRGICO] Reemplazamos el 'fetch' anónimo por una invocación autenticada.
-    // Creamos un cliente admin SÓLO para esta operación privilegiada de servidor a servidor.
+    // [INTERVENCIÓN ARQUITECTÓNICA DE LA VICTORIA]
+    // 2. Asumir la responsabilidad de iniciar la cadena.
+    // Ya no dependemos de un trigger de base de datos.
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    console.log(`Trabajo ${newJobId} creado. Invocando al dispatcher de forma segura...`);
+    console.log(`Trabajo ${newJobId} creado. Invocando a 'process-podcast-job' para iniciar la cadena...`);
     
-    // El método 'invoke' automáticamente añade la cabecera 'Authorization: Bearer <service_role_key>'
-    const { error: invokeError } = await supabaseAdmin.functions.invoke('secure-webhook-dispatcher', {
-      body: {
-        job_id: newJobId,
-        target_webhook_url: `${Deno.env.get('SUPABASE_URL')!}/functions/v1/process-podcast-job`
+    // 3. Invocación asíncrona ("dispara y olvida") para no retrasar la respuesta al cliente.
+    // Usamos la herramienta que SÍ funciona: supabase.functions.invoke().
+    supabaseAdmin.functions.invoke('process-podcast-job', {
+      body: { job_id: newJobId }
+    }).then(({ error: invokeError }) => {
+      if (invokeError) {
+        console.error(`Invocación asíncrona a 'process-podcast-job' falló para el trabajo ${newJobId}:`, invokeError);
       }
     });
 
-    if (invokeError) {
-      // Si la invocación falla, lo registramos, pero no bloqueamos la respuesta al usuario.
-      console.error(`Error al invocar al dispatcher para el trabajo ${newJobId}:`, invokeError);
-    }
-
+    // 4. Devolver éxito inmediato al usuario.
     return new Response(JSON.stringify({
       success: true,
       job_id: newJobId,
@@ -78,10 +68,11 @@ serve(async (request: Request) => {
     }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Error desconocido.";
     console.error("Error en queue-podcast-job:", error);
-    if (error instanceof ZodError) {
-      return new Response(JSON.stringify({ success: false, error: "Payload inválido.", details: error.errors }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
-    }
-    return new Response(JSON.stringify({ success: false, error: "Error interno.", message: error.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
+    return new Response(JSON.stringify({ error: errorMessage }), { 
+      status: error instanceof ZodError ? 400 : 500, 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
   }
 });

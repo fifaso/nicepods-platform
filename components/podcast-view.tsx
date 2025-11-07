@@ -1,5 +1,5 @@
 // components/podcast-view.tsx
-// VERSIÓN FINAL Y VICTORIOSA: Permite la generación de audio bajo demanda.
+// VERSIÓN DE LA VICTORIA ABSOLUTA: Alineado con la arquitectura final del backend.
 
 "use client";
 
@@ -17,7 +17,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Heart, Share2, Download, Calendar, Clock, PlayCircle, ChevronDown, Loader2, Mic } from 'lucide-react'; // Cambiamos MicOff por Mic
+import { Heart, Share2, Download, Calendar, Clock, PlayCircle, ChevronDown, Loader2, Mic } from 'lucide-react';
 import { CreationMetadata } from './creation-metadata';
 import { formatTime } from '@/lib/utils';
 import { ScriptViewer } from './script-viewer';
@@ -40,7 +40,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
   const [likeCount, setLikeCount] = useState(localPodcastData.like_count);
   const [isLiking, setIsLiking] = useState(false);
   const [isScriptExpanded, setIsScriptExpanded] = useState(false);
-  // [INTERVENCIÓN ESTRATÉGICA] Nuevo estado para gestionar la carga de la generación manual de audio.
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
 
   useEffect(() => {
@@ -50,7 +49,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
   }, [podcastData, initialIsLiked]);
 
   useEffect(() => {
-    // Si ya hay un audio, o si ya estamos en proceso de generar uno manualmente, no necesitamos suscribirnos.
     if (!supabase || localPodcastData.audio_url || isGeneratingAudio) { return; }
 
     const channel = supabase.channel(`micro_pod_${localPodcastData.id}`)
@@ -61,7 +59,7 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
           if (payload.new.audio_url) {
             console.log("¡Audio detectado! Actualizando UI en tiempo real...");
             setLocalPodcastData(prevData => ({ ...prevData, ...payload.new }));
-            setIsGeneratingAudio(false); // Detenemos el estado de carga
+            setIsGeneratingAudio(false);
           }
         }
       ).subscribe();
@@ -70,7 +68,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
 
   const handleLike = async () => { /* ... (sin cambios) ... */ };
 
-  // [INTERVENCIÓN ESTRATÉGICA] Nueva función para iniciar la generación de audio bajo demanda.
   const handleGenerateAudio = async () => {
     if (!supabase) {
       toast({ title: "Error de conexión", variant: "destructive" });
@@ -80,7 +77,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
     toast({ title: "Iniciando generación de audio...", description: "Tu audio estará listo en unos momentos." });
 
     try {
-      // 1. Encontrar el job_id original asociado a este podcast.
       const { data: job, error: jobError } = await supabase
         .from('podcast_creation_jobs')
         .select('id')
@@ -91,14 +87,14 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
         throw new Error("No se pudo encontrar el trabajo de creación original asociado a este podcast.");
       }
 
-      // 2. Actualizar el estado del podcast en la UI para una respuesta inmediata.
       setLocalPodcastData(prev => ({...prev, status: 'pending_approval'}));
       
-      // 3. Invocar al dispatcher para que inicie la función de generación de audio.
-      const { error: invokeError } = await supabase.functions.invoke('secure-webhook-dispatcher', {
+      // [INTERVENCIÓN QUIRÚRGICA DE LA VICTORIA ABSOLUTA]
+      // Eliminamos la llamada al 'dispatcher' que ya no existe.
+      // Invocamos DIRECTAMENTE al trabajador 'generate-audio-from-script'.
+      const { error: invokeError } = await supabase.functions.invoke('generate-audio-from-script', {
         body: {
           job_id: job.id,
-          target_webhook_url: `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/generate-audio-from-script`
         }
       });
       
@@ -109,11 +105,10 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
     } catch (error) {
       console.error("Error al iniciar la generación de audio:", error);
       toast({ title: "Error", description: "No se pudo iniciar la generación de audio. Inténtalo de nuevo.", variant: "destructive" });
-      setIsGeneratingAudio(false); // Revertir el estado de carga si hay un error
-      setLocalPodcastData(prev => ({...prev, status: 'published'})); // Revertir estado del podcast
+      setIsGeneratingAudio(false);
+      setLocalPodcastData(prev => ({...prev, status: 'published'}));
     }
   };
-
 
   return (
     <>
@@ -154,20 +149,16 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
                 </CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
-                {/* [INTERVENCIÓN ESTRATÉGICA FINAL] Lógica de renderizado de 3+1 estados */}
                 {localPodcastData.audio_url ? (
-                  // Estado 1: El audio existe y está listo para reproducir.
                   <Button size="lg" className="w-full bg-green-500 hover:bg-green-600" onClick={() => playPodcast(localPodcastData)}>
                     <PlayCircle className="mr-2 h-5 w-5" />Reproducir Audio
                   </Button>
                 ) : (localPodcastData.status !== 'published' || isGeneratingAudio) ? (
-                  // Estado 2: El audio se está procesando (ya sea inicialmente o por acción manual).
                   <Button size="lg" className="w-full" disabled>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Generando Audio
                   </Button>
                 ) : (
-                  // Estado 3: Es un podcast de solo guion, listo para generar el audio.
                   <Button size="lg" className="w-full" onClick={handleGenerateAudio} disabled={isGeneratingAudio}>
                     <Mic className="mr-2 h-5 w-5" />Generar Audio
                   </Button>
