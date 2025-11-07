@@ -1,3 +1,6 @@
+// contexts/audio-context.tsx
+// VERSIÓN DE PRODUCCIÓN FINAL: Con cálculo y guardado de duración "just-in-time" integrado.
+
 "use client";
 
 import type React from "react";
@@ -5,6 +8,7 @@ import { createContext, useContext, useState, useRef, useEffect, useCallback } f
 import { useToast } from "@/hooks/use-toast";
 import { PodcastWithProfile } from "@/types/podcast";
 import { createClient } from "@/lib/supabase/client";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export interface AudioContextType {
   currentPodcast: PodcastWithProfile | null;
@@ -21,18 +25,17 @@ export interface AudioContextType {
   skipForward: (seconds?: number) => void;
   skipBackward: (seconds?: number) => void;
   setVolume: (volume: number) => void;
-  // ================== INTERVENCIÓN QUIRÚRGICA #1: NUEVO ESTADO Y ACCIONES ==================
   isPlayerExpanded: boolean;
   expandPlayer: () => void;
   collapsePlayer: () => void;
-  // =====================================================================================
 }
 
 const AudioContext = createContext<AudioContextType | undefined>(undefined);
 
 export function AudioProvider({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
-  const supabase = createClient();
+  // Se inicializa el cliente de Supabase aquí para ser usado en el contexto.
+  const supabase = useRef(createClient()).current;
   
   const [currentPodcast, setCurrentPodcast] = useState<PodcastWithProfile | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -43,7 +46,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolumeState] = useState(1);
 
-  // Se añade el nuevo estado para controlar la vista del reproductor.
   const [isPlayerExpanded, setIsPlayerExpanded] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -59,7 +61,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     setError(null);
     setCurrentTime(0);
     setDuration(0);
-    // Se resetea el estado expandido al limpiar.
     setIsPlayerExpanded(false);
   }, []);
 
@@ -121,7 +122,8 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     
-    if (audioRef.current) {
+    const audio = audioRef.current;
+    if (audio) {
       if (currentPodcast?.id === podcast.id) {
         togglePlayPause();
         return;
@@ -129,18 +131,44 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       
       cleanup();
       setCurrentPodcast(podcast);
-      audioRef.current.src = podcast.audio_url;
-      audioRef.current.volume = volume;
-      audioRef.current.play().catch(e => {
+      audio.src = podcast.audio_url;
+      audio.volume = volume;
+      audio.play().catch(e => {
         console.error("Error al iniciar la reproducción:", e);
         setError("No se pudo reproducir el audio.");
       });
 
+      // [INTERVENCIÓN QUIRÚRGICA Y ESTRATÉGICA DE LA VICTORIA]
+      // Lógica "just-in-time" para guardar la duración del audio.
+      if (podcast.duration_seconds === 0 && supabase) {
+        const handleMetadata = async () => {
+          const newDuration = Math.round(audio.duration);
+          console.log(`Duración calculada: ${newDuration}s. Guardando en DB...`);
+          
+          if (newDuration > 0) {
+            const { error: updateError } = await supabase
+              .from('micro_pods')
+              .update({ duration_seconds: newDuration })
+              .eq('id', podcast.id);
+
+            if (updateError) {
+              console.error("Error al guardar la duración del audio:", updateError);
+            } else {
+              console.log("Duración guardada con éxito.");
+            }
+          }
+          // Importante: Eliminar el listener después de ejecutarlo una vez.
+          audio.removeEventListener('loadedmetadata', handleMetadata);
+        };
+        
+        audio.addEventListener('loadedmetadata', handleMetadata);
+      }
+
       supabase
         .rpc('increment_play_count', { podcast_id: podcast.id })
-        .then(({ error }) => {
-          if (error) {
-            console.error(`Error al incrementar play_count para el podcast ${podcast.id}:`, error);
+        .then(({ error: rpcError }) => {
+          if (rpcError) {
+            console.error(`Error al incrementar play_count para el podcast ${podcast.id}:`, rpcError);
           }
         });
     }
@@ -178,10 +206,8 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     setVolumeState(clampedVolume);
   }, []);
 
-  // ================== INTERVENCIÓN QUIRÚRGICA #2: NUEVAS FUNCIONES DE CONTROL ==================
   const expandPlayer = useCallback(() => setIsPlayerExpanded(true), []);
   const collapsePlayer = useCallback(() => setIsPlayerExpanded(false), []);
-  // ==========================================================================================
 
   const contextValue: AudioContextType = {
     currentPodcast,

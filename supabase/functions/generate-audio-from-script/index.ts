@@ -1,18 +1,19 @@
 // supabase/functions/generate-audio-from-script/index.ts
-// VERSIÓN DE LA VICTORIA ABSOLUTA: Simplificada, robusta y basada en la API de producción v1.
+// VERSIÓN DE LA VICTORIA ABSOLUTA: Con personalización completa y mejoras de calidad.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { decode } from "https://deno.land/std@0.208.0/encoding/base64.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { create } from "https://deno.land/x/djwt@v2.2/mod.ts";
 
-// --- SECRETOS SIMPLIFICADOS ---
-// Solo necesitamos la API Key, que ya está probada y funciona para la generación de guiones.
-const GOOGLE_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
+// --- VERIFICACIÓN DE SECRETOS AL INICIO ---
+const GOOGLE_CLIENT_EMAIL = Deno.env.get("GOOGLE_CLIENT_EMAIL");
+const GOOGLE_PRIVATE_KEY_RAW = Deno.env.get("GOOGLE_PRIVATE_KEY");
 
-if (!GOOGLE_API_KEY) {
-  throw new Error("FATAL: GOOGLE_AI_API_KEY is not configured in Supabase secrets.");
+if (!GOOGLE_CLIENT_EMAIL || !GOOGLE_PRIVATE_KEY_RAW) {
+  throw new Error("FATAL: GOOGLE_CLIENT_EMAIL or GOOGLE_PRIVATE_KEY is not configured in Supabase secrets.");
 }
 
 const supabaseAdmin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -22,6 +23,57 @@ const InvokePayloadSchema = z.object({
 });
 
 type ScriptLine = { speaker: string; line: string; };
+
+// [INTERVENCIÓN QUIRÚRGICA #1] Mapa de voces de producción, basado en el catálogo de Google Cloud Neural2.
+const voiceMap = {
+  "Masculino": {
+    "Calmado": "es-US-Neural2-D",     // Tono más bajo y resonante
+    "Energético": "es-US-Neural2-B",   // Tono estándar, claro y enérgico
+    "Profesional": "es-US-Neural2-B", // La voz 'B' es ideal para un tono de noticias/profesional
+    "Inspirador": "es-US-Neural2-D",  // La voz 'D' es buena para un tono de narración inspirador
+  },
+  "Femenino": {
+    "Calmado": "es-US-Neural2-C",     // Tono más bajo y cálido
+    "Energético": "es-US-Neural2-A",   // Tono estándar, claro y enérgico
+    "Profesional": "es-US-Neural2-A", // La voz 'A' es la contraparte femenina de la 'B'
+    "Inspirador": "es-US-Neural2-C",  // La voz 'C' es buena para un tono de narración inspirador
+  }
+};
+
+// [INTERVENCIÓN ESTRATÉGICA #2] Mapa para la velocidad de habla.
+const speakingRateMap = {
+  "Lento": 0.9,
+  "Moderado": 1.0,
+  "Rápido": 1.1,
+};
+
+
+async function getGoogleAccessToken(): Promise<string> {
+  const GOOGLE_PRIVATE_KEY = GOOGLE_PRIVATE_KEY_RAW.replace(/\\n/g, '\n');
+
+  const jwt = await create({ alg: "RS256", typ: "JWT" }, {
+    iss: GOOGLE_CLIENT_EMAIL,
+    scope: "https://www.googleapis.com/auth/cloud-platform",
+    aud: "https://oauth2.googleapis.com/token",
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    iat: Math.floor(Date.now() / 1000),
+  }, GOOGLE_PRIVATE_KEY);
+
+  const response = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion: jwt,
+    }),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(`Error al obtener el token de acceso de Google: ${JSON.stringify(data)}`);
+  }
+  return data.access_token;
+}
 
 serve(async (request: Request) => {
   if (request.method === 'OPTIONS') { return new Response('ok', { headers: corsHeaders }); }
@@ -45,35 +97,41 @@ serve(async (request: Request) => {
     const scriptData = JSON.parse(podcastData.script_text) as ScriptLine[];
     const scriptTextOnly = scriptData.map(line => line.line).join('\n\n');
 
-    // [INTERVENCIÓN ESTRATÉGICA DE LA VICTORIA]
-    // 1. Apuntamos al endpoint de producción v1, que es estable y fiable.
-    const ttsApiUrl = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${GOOGLE_API_KEY}`;
+    const accessToken = await getGoogleAccessToken();
+    const ttsApiUrl = `https://texttospeech.googleapis.com/v1/text:synthesize`;
     
-    // 2. Simplificamos la selección de voz a una voz Neural2 de alta calidad, eliminando la complejidad del voiceMap.
-    const voiceSelection = {
-        languageCode: "es-US",
-        // 'es-US-Neural2-B' es una voz masculina de estudio. 'es-US-Neural2-A' es femenina.
-        name: "es-US-Neural2-B", 
-    };
+    // [INTERVENCIÓN QUIRÚRGICA #3] Selección dinámica de voz y ritmo.
+    const selectedVoiceGender = inputs.voiceGender as keyof typeof voiceMap;
+    const selectedVoiceStyle = inputs.voiceStyle as keyof typeof voiceMap['Masculino'];
+    const voiceName = voiceMap[selectedVoiceGender]?.[selectedVoiceStyle] || "es-US-Neural2-B"; // Fallback a una voz masculina profesional.
+
+    const selectedVoicePace = inputs.voicePace as keyof typeof speakingRateMap;
+    const speakingRate = speakingRateMap[selectedVoicePace] || 1.0; // Fallback a velocidad moderada.
 
     const ttsResponse = await fetch(ttsApiUrl, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`
       },
       body: JSON.stringify({
         input: { text: scriptTextOnly },
-        voice: voiceSelection,
+        voice: { 
+          languageCode: "es-US",
+          name: voiceName
+        },
         audioConfig: {
           audioEncoding: "MP3",
-          speakingRate: inputs.speakingRate || 1.0,
+          speakingRate: speakingRate,
+          // [INTERVENCIÓN ESTRATÉGICA #4] Añadir perfil de efectos para mayor calidad.
+          effectsProfileId: ["headphone-class-device"]
         }
       })
     });
     
     if (!ttsResponse.ok) {
         const errorText = await ttsResponse.text();
-        throw new Error(`API de Cloud TTS (v1) falló con status ${ttsResponse.status}: ${errorText}`);
+        throw new Error(`API de Cloud TTS falló con status ${ttsResponse.status}: ${errorText}`);
     }
     
     const responseData = await ttsResponse.json();
