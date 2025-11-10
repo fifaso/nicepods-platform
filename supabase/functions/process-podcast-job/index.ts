@@ -1,5 +1,5 @@
 // supabase/functions/process-podcast-job/index.ts
-// VERSIÓN DE PRODUCCIÓN FINAL: Orquesta tareas paralelas y es resiliente a fallos de API.
+// VERSIÓN DE PRODUCCIÓN FINAL: Orquesta tareas paralelas asignando agentes específicos.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -98,10 +98,14 @@ serve(async (request: Request) => {
       error_message: null
     }).eq('id', job.id);
 
-    // Orquestación paralela
-    console.log(`Lanzando generación de carátula para el trabajo ${job.id}...`);
+    // [INTERVENCIÓN QUIRÚRGICA DE LA VICTORIA]
+    // Ahora, la invocación a 'generate-cover-image' incluye la dirección creativa.
+    console.log(`Lanzando generación de carátula para el trabajo ${job.id} con el agente 'cover-art-director-v1'...`);
     supabaseAdmin.functions.invoke('generate-cover-image', {
-      body: { job_id: job.id }
+      body: { 
+        job_id: job.id,
+        agent_name: 'cover-art-director-v1' // <-- LA LÍNEA DE LA VICTORIA
+      }
     }).then(({ error }) => {
       if (error) console.error(`Invocación asíncrona a 'generate-cover-image' falló para el trabajo ${job.id}:`, error);
     });

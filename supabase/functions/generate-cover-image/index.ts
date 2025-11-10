@@ -1,21 +1,31 @@
 // supabase/functions/generate-cover-image/index.ts
-// VERSIÓN DE LA VICTORIA: Utiliza la autenticación profesional de Cuenta de Servicio para Vertex AI.
+// VERSIÓN DE PRODUCCIÓN FINAL: Ahora es un trabajador especialista que lee prompts de la base de datos.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { create } from "https://deno.land/x/djwt@v2.2/mod.ts";
 
-// --- CONFIGURACIÓN Y SECRETOS ---
-const supabaseAdmin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-const GOOGLE_SERVICE_ACCOUNT = JSON.parse(Deno.env.get("GOOGLE_SERVICE_ACCOUNT")!);
-const GOOGLE_PROJECT_ID = Deno.env.get("GOOGLE_PROJECT_ID")!;
+const GOOGLE_CLIENT_EMAIL = Deno.env.get("GOOGLE_CLIENT_EMAIL");
+const GOOGLE_PRIVATE_KEY_RAW = Deno.env.get("GOOGLE_PRIVATE_KEY");
+const GOOGLE_PROJECT_ID = Deno.env.get("GOOGLE_PROJECT_ID");
 
-// --- FUNCIÓN DE AUTENTICACIÓN (REUTILIZADA) ---
+if (!GOOGLE_CLIENT_EMAIL || !GOOGLE_PRIVATE_KEY_RAW || !GOOGLE_PROJECT_ID) {
+  throw new Error("FATAL: Uno o más secretos de Google Cloud no están configurados.");
+}
+
+const supabaseAdmin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+const InvokePayloadSchema = z.object({
+  job_id: z.number(),
+  agent_name: z.string(),
+});
+
 async function getGoogleAccessToken(): Promise<string> {
-  const GOOGLE_PRIVATE_KEY = GOOGLE_SERVICE_ACCOUNT.private_key.replace(/\\n/g, '\n');
+  const GOOGLE_PRIVATE_KEY = GOOGLE_PRIVATE_KEY_RAW.replace(/\\n/g, '\n');
   const jwt = await create({ alg: "RS256", typ: "JWT" }, {
-    iss: GOOGLE_SERVICE_ACCOUNT.client_email,
+    iss: GOOGLE_CLIENT_EMAIL,
     scope: "https://www.googleapis.com/auth/cloud-platform",
     aud: "https://oauth2.googleapis.com/token",
     exp: Math.floor(Date.now() / 1000) + 3600,
@@ -38,21 +48,21 @@ async function getGoogleAccessToken(): Promise<string> {
   return data.access_token;
 }
 
-// --- FUNCIONES DE AYUDA ---
-const createVisualPrompt = (title: string, scriptText: string): string => {
-    const style = "digital art, cinematic lighting, high detail, epic, abstract conceptual";
-    const theme = `An artwork for a podcast cover titled: "${title}".`;
-    const context = scriptText.substring(0, 400).replace(/(\r\n|\n|\r)/gm, " ");
-    return `${theme} The podcast explores these ideas: "${context}...". Style must be: ${style}.`;
-};
+function buildFinalPrompt(template: string, inputs: Record<string, any>): string {
+  let finalPrompt = template;
+  for (const key in inputs) {
+    const value = String(inputs[key]);
+    finalPrompt = finalPrompt.replace(new RegExp(`{{${key}}}`, 'g'), value);
+  }
+  return finalPrompt;
+}
 
-// --- SERVIDOR DE LA FUNCIÓN ---
 serve(async (request: Request) => {
   if (request.method === 'OPTIONS') { return new Response('ok', { headers: corsHeaders }); }
 
   let jobId: number | null = null;
   try {
-    const { job_id } = await request.json();
+    const { job_id, agent_name } = InvokePayloadSchema.parse(await request.json());
     jobId = job_id;
 
     const { data: jobData } = await supabaseAdmin.from('podcast_creation_jobs').select('micro_pod_id').eq('id', jobId).single();
@@ -63,19 +73,21 @@ serve(async (request: Request) => {
     const { data: podcastData } = await supabaseAdmin.from('micro_pods').select('title, script_text, user_id').eq('id', podcastId).single();
     if (!podcastData) throw new Error(`Podcast con ID ${podcastId} no encontrado.`);
 
-    const visualPrompt = createVisualPrompt(podcastData.title, podcastData.script_text || '');
+    const { data: promptData } = await supabaseAdmin.from('ai_prompts').select('prompt_template').eq('agent_name', agent_name).single();
+    if (!promptData) throw new Error(`Agente de imagen '${agent_name}' no encontrado.`);
 
-    // [INTERVENCIÓN QUIRÚRGICA DE LA VICTORIA]
-    // 1. Obtener un token de acceso válido.
+    const visualPrompt = buildFinalPrompt(promptData.prompt_template, {
+      title: podcastData.title,
+      script_summary: (podcastData.script_text || '').substring(0, 400).replace(/(\r\n|\n|\r)/gm, " "),
+    });
+    
     const accessToken = await getGoogleAccessToken();
-
-    // 2. Usar el token para la autenticación Bearer, que es lo que Vertex AI espera.
     const imageUrl = `https://us-central1-aiplatform.googleapis.com/v1/projects/${GOOGLE_PROJECT_ID}/locations/us-central1/publishers/google/models/imagegeneration:predict`;
 
     const imageResponse = await fetch(imageUrl, {
         method: 'POST',
         headers: {
-            'Authorization': `Bearer ${accessToken}`, // <-- LA CORRECCIÓN CLAVE
+            'Authorization': `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -84,11 +96,12 @@ serve(async (request: Request) => {
         }),
     });
     
-    const responseData = await imageResponse.json();
     if (!imageResponse.ok) {
-        throw new Error(`API de Imagen (Vertex AI) falló: ${JSON.stringify(responseData)}`);
+      const errorText = await imageResponse.text();
+      throw new Error(`API de Imagen (Vertex AI) falló: ${errorText}`);
     }
 
+    const responseData = await imageResponse.json();
     const imageBase64 = responseData.predictions[0]?.bytesBase64Encoded;
     if (!imageBase64) throw new Error("La respuesta de la IA no contenía datos de imagen.");
     
@@ -104,8 +117,7 @@ serve(async (request: Request) => {
 
     return new Response(JSON.stringify({ success: true, imageUrl: publicUrlData.publicUrl }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
 
-  } catch (error)
- {
+  } catch (error) {
     console.error("Error en generate-cover-image:", error);
     return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
   }
