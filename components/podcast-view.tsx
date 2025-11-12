@@ -1,5 +1,5 @@
 // components/podcast-view.tsx
-// VERSIÓN DE LA VICTORIA ABSOLUTA: Corregida, robusta y con la funcionalidad de carátula completa.
+// VERSIÓN DE PRODUCCIÓN FINAL: Integra el registro del evento "like" para el sistema de Resonancia.
 
 "use client";
 
@@ -32,7 +32,7 @@ interface PodcastViewProps {
 export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewProps) {
   const router = useRouter();
   const { supabase } = useAuth();
-  const { playPodcast } = useAudio();
+  const { playPodcast, logInteractionEvent } = useAudio();
   const { toast } = useToast();
   
   const [localPodcastData, setLocalPodcastData] = useState(podcastData);
@@ -48,16 +48,12 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
     setIsLiked(initialIsLiked);
   }, [podcastData, initialIsLiked]);
 
-  // [INTERVENCIÓN ESTRATÉGICA] Listener de Realtime corregido y refinado.
   useEffect(() => {
-    // Determinar si el podcast está 100% completo (tiene carátula y el audio que se esperaba).
     const wasAudioRequested = localPodcastData.creation_data?.inputs?.generateAudioDirectly ?? true;
     const isAudioComplete = !!localPodcastData.audio_url;
     const isImageComplete = !!localPodcastData.cover_image_url;
-
     const isPodcastComplete = isImageComplete && (isAudioComplete || !wasAudioRequested);
 
-    // Si no hay cliente de Supabase o el podcast ya está completo, no hay nada que escuchar.
     if (!supabase || isPodcastComplete) { 
       return; 
     }
@@ -68,7 +64,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
         { event: 'UPDATE', schema: 'public', table: 'micro_pods', filter: `id=eq.${localPodcastData.id}` },
         (payload) => {
           console.log("Cambio detectado en el podcast:", payload.new);
-          // Aplicamos todas las actualizaciones para reaccionar a la llegada del audio y/o la imagen.
           setLocalPodcastData(prevData => ({ ...prevData, ...payload.new }));
           
           if (payload.new.audio_url) {
@@ -82,7 +77,37 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
     };
   }, [supabase, localPodcastData.id, localPodcastData.audio_url, localPodcastData.cover_image_url, localPodcastData.creation_data]);
 
-  const handleLike = async () => { /* ... (sin cambios) ... */ };
+  const handleLike = async () => {
+    if (!supabase || !user) {
+        toast({ title: "Acción requerida", description: "Debes iniciar sesión para dar 'like'.", variant: "destructive" });
+        return;
+    }
+    setIsLiking(true);
+
+    if (isLiked) {
+      setIsLiked(false);
+      setLikeCount((c) => (c > 0 ? c - 1 : 0));
+      const { error } = await supabase.from('likes').delete().match({ user_id: user.id, podcast_id: localPodcastData.id });
+      if (error) {
+        setIsLiked(true);
+        setLikeCount((c) => c + 1);
+        toast({ title: "Error", description: "No se pudo quitar el 'like'.", variant: "destructive" });
+      }
+    } else {
+      setIsLiked(true);
+      setLikeCount((c) => c + 1);
+      const { error } = await supabase.from('likes').insert({ user_id: user.id, podcast_id: localPodcastData.id });
+      
+      if (error) {
+        setIsLiked(false);
+        setLikeCount((c) => (c > 0 ? c - 1 : 0));
+        toast({ title: "Error", description: "No se pudo dar 'like'.", variant: "destructive" });
+      } else {
+        logInteractionEvent(localPodcastData.id, 'liked');
+      }
+    }
+    setIsLiking(false);
+  };
 
   const handleGenerateAudio = async () => {
     if (!supabase) {
@@ -131,7 +156,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
         <div className="grid lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
             <Card className="bg-card/50 backdrop-blur-lg border-border/20 shadow-lg overflow-hidden">
-              {/* [INTERVENCIÓN QUIRÚRGICA] Renderizado condicional de la carátula. */}
               {localPodcastData.cover_image_url && (
                 <div className="aspect-video relative w-full">
                   <Image

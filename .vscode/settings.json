@@ -5,7 +5,7 @@
   "[typescript][typescriptreact]": {
     "editor.defaultFormatter": "denoland.vscode-deno"
   },
-  "deno.enable": false,
+  "deno.enable": true,
   "deno.enablePaths": [
     "supabase/functions"
   ],
