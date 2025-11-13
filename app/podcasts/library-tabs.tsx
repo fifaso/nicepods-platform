@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { User } from '@supabase/supabase-js';
 import { PodcastWithProfile } from '@/types/podcast';
 import { createClient } from '@/lib/supabase/client';
@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Hourglass, Bot, LayoutGrid, List, X, Loader2 } from 'lucide-react';
+import { Search, Hourglass, Bot, LayoutGrid, List, Compass, X, Loader2 } from 'lucide-react';
 import { PodcastCard, PodcastListItem } from '@/components/podcast-card';
 import { LibraryViewSwitcher } from '@/components/library-view-switcher';
 import { ResonanceCompass } from '@/components/resonance-compass';
@@ -23,6 +23,7 @@ import type { Tables } from '@/types/supabase';
 
 type UserCreationJob = Tables<'podcast_creation_jobs'>;
 type ResonanceProfile = Tables<'user_resonance_profiles'>;
+type LibraryViewMode = 'grid' | 'list' | 'compass';
 
 interface LibraryTabsProps {
   defaultTab: 'discover' | 'library';
@@ -69,10 +70,12 @@ export function LibraryTabs({
   compassProps,
 }: LibraryTabsProps) {
     const supabase = createClient();
+    const router = useRouter();
+    const pathname = usePathname();
     const searchParams = useSearchParams();
     
     const currentTab = searchParams.get('tab') || defaultTab;
-    const currentView = searchParams.get('view') || 'grid';
+    const currentView = (searchParams.get('view') as LibraryViewMode) || 'grid';
 
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -104,17 +107,23 @@ export function LibraryTabs({
         setIsSearchOpen(false);
     };
 
-    const renderGridOrListContent = (podcasts: (PodcastWithProfile | Partial<PodcastWithProfile>)[]) => {
-        if (currentView === 'grid') {
+    const handleTabChange = (tab: string) => {
+        const params = new URLSearchParams(searchParams.toString());
+        params.set('tab', tab);
+        router.push(`${pathname}?${params.toString()}`);
+    };
+
+    const renderGridOrListContent = (podcasts: PodcastWithProfile[]) => {
+        if (currentView === 'list') {
             return (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {podcasts.map((podcast) => <PodcastCard key={podcast.id} podcast={podcast as PodcastWithProfile} />)}
+                <div className="space-y-4">
+                    {podcasts.map((podcast) => <PodcastListItem key={podcast.id} podcast={podcast} />)}
                 </div>
             );
         }
         return (
-            <div className="space-y-4">
-                {podcasts.map((podcast) => <PodcastListItem key={podcast.id} podcast={podcast as PodcastWithProfile} />)}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {podcasts.map((podcast) => <PodcastCard key={podcast.id} podcast={podcast} />)}
             </div>
         );
     };
@@ -122,7 +131,7 @@ export function LibraryTabs({
     const activePodcastList = searchResults !== null ? searchResults : publicPodcasts;
 
     return (
-        <Tabs value={currentTab} className="w-full">
+        <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
             <div className="flex w-full items-center gap-2 sm:gap-4 mb-8">
                 {isSearchOpen ? (
                     <div className="flex w-full items-center gap-2 flex-grow">
