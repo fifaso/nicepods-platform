@@ -1,5 +1,5 @@
 // app/podcasts/page.tsx
-// VERSIÓN DE PRODUCCIÓN FINAL: Con manejo de tipos robusto y obtención de datos condicional.
+// VERSIÓN DE PRODUCCIÓN FINAL: Con obtención de datos condicional para la Brújula de Resonancia.
 
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
@@ -10,7 +10,7 @@ import type { Tables } from '@/types/supabase';
 // Usamos los tipos generados por Supabase para máxima robustez y consistencia.
 type UserCreationJob = Tables<'podcast_creation_jobs'>;
 type ResonanceProfile = Tables<'user_resonance_profiles'>;
-type LibraryViewMode = 'grid' | 'compass';
+type LibraryViewMode = 'grid' | 'list' | 'compass';
 
 export default async function PodcastsPage({ searchParams }: { searchParams: { tab: string, view: LibraryViewMode } }) {
   const cookieStore = cookies();
@@ -21,43 +21,29 @@ export default async function PodcastsPage({ searchParams }: { searchParams: { t
   const currentView = searchParams.view || 'grid';
   const defaultTab = currentTab === 'library' && user ? 'library' : 'discover';
 
-  // --- OBTENCIÓN DE DATOS ESTÁNDAR ---
-  const { data: publicPodcastsData, error: publicPodcastsError } = await supabase
-    .from('micro_pods')
-    .select('*, profiles(full_name, avatar_url, username)')
-    .eq('status', 'published')
-    .order('created_at', { ascending: false });
+  const profileQuery = '*, profiles(full_name, avatar_url, username)';
+
+  // --- OBTENCIÓN DE DATOS ESTÁNDAR (Lógica existente preservada) ---
+  const { data: publicPodcastsData, error: publicPodcastsError } = await supabase.from('micro_pods').select(profileQuery).eq('status', 'published').order('created_at', { ascending: false });
 
   if (publicPodcastsError) console.error("Error al obtener podcasts públicos:", publicPodcastsError);
-  // Type casting seguro: si falla, es un array vacío.
   const publicPodcasts: PodcastWithProfile[] = (publicPodcastsData as any[]) || [];
 
   let userCreationJobs: UserCreationJob[] = [];
   let userCreatedPodcasts: PodcastWithProfile[] = [];
 
   if (user) {
-    // [INTERVENCIÓN QUIRÚRGICA #1] Hacemos que la consulta de 'jobs' sea más específica
-    // y el type casting más seguro para satisfacer al compilador.
-    const { data: jobsData, error: jobsError } = await supabase
-      .from('podcast_creation_jobs')
-      .select('id, created_at, job_title, status, error_message, micro_pod_id')
-      .eq('user_id', user.id)
-      .in('status', ['pending', 'processing'])
-      .eq('archived', false)
-      .order('created_at', { ascending: false });
+    const { data: jobsData, error: jobsError } = await supabase.from('podcast_creation_jobs').select('id, created_at, job_title, status, error_message, micro_pod_id').eq('user_id', user.id).in('status', ['pending', 'processing']).eq('archived', false).order('created_at', { ascending: false });
     if (jobsError) console.error("Error al obtener trabajos de creación:", jobsError);
+    // Type casting seguro para satisfacer al compilador.
     userCreationJobs = (jobsData as UserCreationJob[]) || [];
     
-    const { data: userPodcastsData, error: userPodcastsError } = await supabase
-      .from('micro_pods')
-      .select('*, profiles(full_name, avatar_url, username)')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
+    const { data: userPodcastsData, error: userPodcastsError } = await supabase.from('micro_pods').select(profileQuery).eq('user_id', user.id).order('created_at', { ascending: false });
     if (userPodcastsError) console.error("Error al obtener micro-podcasts del usuario:", userPodcastsError);
     userCreatedPodcasts = (userPodcastsData as any[]) || [];
   }
 
-  // --- OBTENCIÓN DE DATOS CONDICIONAL PARA LA BRÚJULA ---
+  // --- [INTERVENCIÓN ESTRATÉGICA] OBTENCIÓN DE DATOS CONDICIONAL PARA LA BRÚJULA ---
   let compassProps: { userProfile: ResonanceProfile | null; podcasts: PodcastWithProfile[]; tags: string[] } | null = null;
   
   if (user && defaultTab === 'library' && currentView === 'compass') {

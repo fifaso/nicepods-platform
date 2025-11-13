@@ -1,5 +1,5 @@
 // app/podcasts/library-tabs.tsx
-// VERSIÓN DE PRODUCCIÓN FINAL: Integra la "Brújula de Resonancia" como una nueva modalidad de visualización.
+// VERSIÓN DE PRODUCCIÓN FINAL: Integra la "Brújula de Resonancia" y preserva la funcionalidad existente.
 
 'use client';
 
@@ -10,7 +10,6 @@ import { User } from '@supabase/supabase-js';
 import { PodcastWithProfile } from '@/types/podcast';
 import { createClient } from '@/lib/supabase/client';
 
-// --- Importaciones de UI ---
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,18 +17,13 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, Hourglass, Bot, LayoutGrid, List, X, Loader2 } from 'lucide-react';
 import { PodcastCard, PodcastListItem } from '@/components/podcast-card';
-
-// --- [INTERVENCIÓN ESTRATÉGICA #1] Importamos los nuevos componentes y tipos ---
 import { LibraryViewSwitcher } from '@/components/library-view-switcher';
 import { ResonanceCompass } from '@/components/resonance-compass';
 import type { Tables } from '@/types/supabase';
 
-// --- Tipos de Datos Actualizados y Unificados ---
 type UserCreationJob = Tables<'podcast_creation_jobs'>;
 type ResonanceProfile = Tables<'user_resonance_profiles'>;
-type LibraryViewMode = 'grid' | 'list' | 'compass';
 
-// [INTERVENCIÓN ESTRATÉGICA #2] Actualizamos la interfaz de props para aceptar los datos de la Brújula.
 interface LibraryTabsProps {
   defaultTab: 'discover' | 'library';
   user: User | null;
@@ -43,7 +37,6 @@ interface LibraryTabsProps {
   } | null;
 }
 
-// Componente interno para trabajos en proceso (sin cambios)
 function JobCard({ job }: { job: UserCreationJob }) {
     return (
         <Card className="bg-background/50 border-primary/20">
@@ -73,21 +66,19 @@ export function LibraryTabs({
   publicPodcasts,
   userCreationJobs,
   userCreatedPodcasts,
-  compassProps
+  compassProps,
 }: LibraryTabsProps) {
     const supabase = createClient();
     const searchParams = useSearchParams();
     
-    // [INTERVENCIÓN QUIRÚRGICA #3] La URL es ahora la única fuente de la verdad para la vista.
-    const currentView = (searchParams.get('view') as LibraryViewMode) || 'grid';
+    const currentTab = searchParams.get('tab') || defaultTab;
+    const currentView = searchParams.get('view') || 'grid';
 
-    // Estados para la funcionalidad de búsqueda (sin cambios)
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<PodcastWithProfile[] | null>(null);
     const [isLoadingSearch, setIsLoadingSearch] = useState(false);
 
-    // Efecto "debounce" para la búsqueda (sin cambios)
     useEffect(() => {
         if (searchQuery.trim() === '') {
             setSearchResults(null);
@@ -113,19 +104,17 @@ export function LibraryTabs({
         setIsSearchOpen(false);
     };
 
-    // Función auxiliar para renderizar el contenido en cuadrícula o lista (lógica preservada)
-    const renderGridOrListContent = (podcasts: PodcastWithProfile[]) => {
-        if (currentView === 'grid') { // Ahora se basa en 'currentView' de la URL
+    const renderGridOrListContent = (podcasts: (PodcastWithProfile | Partial<PodcastWithProfile>)[]) => {
+        if (currentView === 'grid') {
             return (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {podcasts.map((podcast) => <PodcastCard key={podcast.id} podcast={podcast} />)}
+                    {podcasts.map((podcast) => <PodcastCard key={podcast.id} podcast={podcast as PodcastWithProfile} />)}
                 </div>
             );
         }
-        // Aunque el switcher no tiene 'list', preservamos la lógica por si se añade en el futuro
         return (
             <div className="space-y-4">
-                {podcasts.map((podcast) => <PodcastListItem key={podcast.id} podcast={podcast} />)}
+                {podcasts.map((podcast) => <PodcastListItem key={podcast.id} podcast={podcast as PodcastWithProfile} />)}
             </div>
         );
     };
@@ -133,7 +122,7 @@ export function LibraryTabs({
     const activePodcastList = searchResults !== null ? searchResults : publicPodcasts;
 
     return (
-        <Tabs defaultValue={defaultTab} className="w-full">
+        <Tabs value={currentTab} className="w-full">
             <div className="flex w-full items-center gap-2 sm:gap-4 mb-8">
                 {isSearchOpen ? (
                     <div className="flex w-full items-center gap-2 flex-grow">
@@ -152,7 +141,6 @@ export function LibraryTabs({
                                 <TabsTrigger value="library" disabled={!user}>Biblioteca</TabsTrigger>
                             </TabsList>
                         </div>
-                        {/* [INTERVENCIÓN QUIRÚRGICA #4] Reemplazamos el antiguo ToggleGroup por el nuevo Switcher. */}
                         <LibraryViewSwitcher />
                     </>
                 )}
@@ -173,7 +161,6 @@ export function LibraryTabs({
       
             <TabsContent value="library" className="mt-0">
                 {user ? (
-                    // [INTERVENCIÓN ESTRATÉGICA #5] Renderizado condicional basado en la vista.
                     currentView === 'compass' ? (
                         compassProps ? (
                             <ResonanceCompass 
@@ -188,7 +175,6 @@ export function LibraryTabs({
                             </div>
                         )
                     ) : (
-                        // Vista de 'grid' o 'list' (la lógica que ya tenías, 100% preservada).
                         (userCreationJobs.length > 0 || userCreatedPodcasts.length > 0) ? (
                             <div className="space-y-10">
                                 {userCreationJobs.length > 0 && (
