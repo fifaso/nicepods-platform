@@ -1,53 +1,49 @@
 // app/podcasts/library-tabs.tsx
-// VERSIÓN FINAL COMPLETA, SIN ABREVIACIONES, CON BÚSQUEDA FUNCIONAL
+// VERSIÓN DE PRODUCCIÓN FINAL: Integra la "Brújula de Resonancia" como una nueva modalidad de visualización.
 
-"use client";
+'use client';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { User } from '@supabase/supabase-js';
 import { PodcastWithProfile } from '@/types/podcast';
 import { createClient } from '@/lib/supabase/client';
 
-// --- Importaciones para la UI ---
+// --- Importaciones de UI ---
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Search, Hourglass, Bot, LayoutGrid, List, X, Loader2 } from 'lucide-react';
 import { PodcastCard, PodcastListItem } from '@/components/podcast-card';
 
-// --- Tipos de datos ---
-type UserCreatedPodcast = {
-  id: number;
-  created_at: string;
-  title: string;
-  description: string | null;
-  status: string;
-  audio_url: string | null;
-  duration_seconds: number | null;
-};
+// --- [INTERVENCIÓN ESTRATÉGICA #1] Importamos los nuevos componentes y tipos ---
+import { LibraryViewSwitcher } from '@/components/library-view-switcher';
+import { ResonanceCompass } from '@/components/resonance-compass';
+import type { Tables } from '@/types/supabase';
 
-type UserCreationJob = {
-  id: number;
-  created_at: string;
-  job_title: string | null;
-  status: string;
-  error_message: string | null;
-  micro_pod_id: number | null;
-};
+// --- Tipos de Datos Actualizados y Unificados ---
+type UserCreationJob = Tables<'podcast_creation_jobs'>;
+type ResonanceProfile = Tables<'user_resonance_profiles'>;
+type LibraryViewMode = 'grid' | 'list' | 'compass';
 
+// [INTERVENCIÓN ESTRATÉGICA #2] Actualizamos la interfaz de props para aceptar los datos de la Brújula.
 interface LibraryTabsProps {
   defaultTab: 'discover' | 'library';
   user: User | null;
   publicPodcasts: PodcastWithProfile[];
   userCreationJobs: UserCreationJob[];
-  userCreatedPodcasts: UserCreatedPodcast[];
+  userCreatedPodcasts: PodcastWithProfile[];
+  compassProps: { 
+    userProfile: ResonanceProfile | null;
+    podcasts: PodcastWithProfile[];
+    tags: string[];
+  } | null;
 }
 
-// --- Componente interno para trabajos en proceso ---
+// Componente interno para trabajos en proceso (sin cambios)
 function JobCard({ job }: { job: UserCreationJob }) {
     return (
         <Card className="bg-background/50 border-primary/20">
@@ -76,37 +72,30 @@ export function LibraryTabs({
   user,
   publicPodcasts,
   userCreationJobs,
-  userCreatedPodcasts
+  userCreatedPodcasts,
+  compassProps
 }: LibraryTabsProps) {
     const supabase = createClient();
-    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+    const searchParams = useSearchParams();
     
-    // Estados para la funcionalidad de búsqueda
+    // [INTERVENCIÓN QUIRÚRGICA #3] La URL es ahora la única fuente de la verdad para la vista.
+    const currentView = (searchParams.get('view') as LibraryViewMode) || 'grid';
+
+    // Estados para la funcionalidad de búsqueda (sin cambios)
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<PodcastWithProfile[] | null>(null);
     const [isLoadingSearch, setIsLoadingSearch] = useState(false);
 
-    // Efecto para establecer la vista predeterminada en móviles
-    useEffect(() => {
-        const isSmallScreen = window.innerWidth < 768;
-        if (isSmallScreen) {
-            setViewMode('list');
-        }
-    }, []);
-
-    // Efecto "debounce" para la búsqueda
+    // Efecto "debounce" para la búsqueda (sin cambios)
     useEffect(() => {
         if (searchQuery.trim() === '') {
             setSearchResults(null);
             return;
         }
-
         const delayDebounceFn = setTimeout(async () => {
             setIsLoadingSearch(true);
-            const { data, error } = await supabase
-                .rpc('search_podcasts', { search_term: searchQuery });
-            
+            const { data, error } = await supabase.rpc('search_podcasts', { search_term: searchQuery });
             if (error) {
                 console.error('Error en la búsqueda:', error);
                 setSearchResults([]);
@@ -115,7 +104,6 @@ export function LibraryTabs({
             }
             setIsLoadingSearch(false);
         }, 500);
-
         return () => clearTimeout(delayDebounceFn);
     }, [searchQuery, supabase]);
 
@@ -125,18 +113,19 @@ export function LibraryTabs({
         setIsSearchOpen(false);
     };
 
-    // Función auxiliar para renderizar el contenido en cuadrícula o lista
-    const renderContent = (podcasts: (PodcastWithProfile | UserCreatedPodcast)[]) => {
-        if (viewMode === 'grid') {
+    // Función auxiliar para renderizar el contenido en cuadrícula o lista (lógica preservada)
+    const renderGridOrListContent = (podcasts: PodcastWithProfile[]) => {
+        if (currentView === 'grid') { // Ahora se basa en 'currentView' de la URL
             return (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {podcasts.map((podcast) => <PodcastCard key={podcast.id} podcast={podcast as PodcastWithProfile} />)}
+                    {podcasts.map((podcast) => <PodcastCard key={podcast.id} podcast={podcast} />)}
                 </div>
             );
         }
+        // Aunque el switcher no tiene 'list', preservamos la lógica por si se añade en el futuro
         return (
             <div className="space-y-4">
-                {podcasts.map((podcast) => <PodcastListItem key={podcast.id} podcast={podcast as PodcastWithProfile} />)}
+                {podcasts.map((podcast) => <PodcastListItem key={podcast.id} podcast={podcast} />)}
             </div>
         );
     };
@@ -149,17 +138,8 @@ export function LibraryTabs({
                 {isSearchOpen ? (
                     <div className="flex w-full items-center gap-2 flex-grow">
                         <Search className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                        <Input
-                            type="text"
-                            placeholder="Buscar por título, tema o creador..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="flex-grow"
-                            autoFocus
-                        />
-                        <Button variant="ghost" size="icon" onClick={handleClearSearch} aria-label="Cerrar búsqueda">
-                            <X className="h-5 w-5" />
-                        </Button>
+                        <Input type="text" placeholder="Buscar por título, tema o creador..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="flex-grow" autoFocus />
+                        <Button variant="ghost" size="icon" onClick={handleClearSearch} aria-label="Cerrar búsqueda"><X className="h-5 w-5" /></Button>
                     </div>
                 ) : (
                     <>
@@ -169,75 +149,75 @@ export function LibraryTabs({
                         <div className="flex flex-grow justify-center">
                            <TabsList className="grid grid-cols-2 w-full sm:w-auto sm:max-w-xs">
                                 <TabsTrigger value="discover">Descubrir</TabsTrigger>
-                                <TabsTrigger value="library">Biblioteca</TabsTrigger>
+                                <TabsTrigger value="library" disabled={!user}>Biblioteca</TabsTrigger>
                             </TabsList>
                         </div>
-                        <ToggleGroup 
-                            type="single" 
-                            value={viewMode} 
-                            onValueChange={(value) => { if (value) setViewMode(value as 'grid' | 'list'); }}
-                            className="flex-shrink-0"
-                        >
-                            <ToggleGroupItem value="grid" aria-label="Vista de cuadrícula"><LayoutGrid className="h-4 w-4" /></ToggleGroupItem>
-                            <ToggleGroupItem value="list" aria-label="Vista de lista"><List className="h-4 w-4" /></ToggleGroupItem>
-                        </ToggleGroup>
+                        {/* [INTERVENCIÓN QUIRÚRGICA #4] Reemplazamos el antiguo ToggleGroup por el nuevo Switcher. */}
+                        <LibraryViewSwitcher />
                     </>
                 )}
             </div>
       
             <TabsContent value="discover" className="mt-0">
                 {isLoadingSearch ? (
-                    <div className="flex justify-center items-center py-16">
-                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    </div>
+                    <div className="flex justify-center items-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
                 ) : activePodcastList.length > 0 ? (
-                    renderContent(activePodcastList)
+                    renderGridOrListContent(activePodcastList)
                 ) : (
                     <div className="col-span-full text-center py-16 border-2 border-dashed rounded-lg">
-                        <h2 className="text-2xl font-semibold">
-                            {searchResults !== null ? 'No se encontraron resultados' : 'El universo está por descubrir'}
-                        </h2>
-                        <p className="text-muted-foreground mt-2">
-                            {searchResults !== null ? `Intenta con otras palabras clave.` : `Aún no hay micro-podcasts públicos. ¡Sé el primero en crear y publicar uno!`}
-                        </p>
+                        <h2 className="text-2xl font-semibold">{searchResults !== null ? 'No se encontraron resultados' : 'El universo está por descubrir'}</h2>
+                        <p className="text-muted-foreground mt-2">{searchResults !== null ? `Intenta con otras palabras clave.` : `Aún no hay micro-podcasts públicos. ¡Sé el primero en crear y publicar uno!`}</p>
                     </div>
                 )}
             </TabsContent>
       
             <TabsContent value="library" className="mt-0">
                 {user ? (
-                    (userCreationJobs.length > 0 || userCreatedPodcasts.length > 0) ? (
-                        <div className="space-y-10">
-                            {userCreationJobs.length > 0 && (
-                                <section>
-                                    <h2 className="text-2xl font-semibold tracking-tight mb-4">En Proceso</h2>
-                                    <div className="space-y-4">
-                                        {userCreationJobs.map((job) => <JobCard key={`job-${job.id}`} job={job} />)}
-                                    </div>
-                                </section>
-                            )}
-                            
-                            {userCreatedPodcasts.length > 0 && (
-                                <section>
-                                    <h2 className="text-2xl font-semibold tracking-tight mb-4">Mis Creaciones</h2>
-                                    {renderContent(userCreatedPodcasts)}
-                                </section>
-                            )}
-                        </div>
+                    // [INTERVENCIÓN ESTRATÉGICA #5] Renderizado condicional basado en la vista.
+                    currentView === 'compass' ? (
+                        compassProps ? (
+                            <ResonanceCompass 
+                                userProfile={compassProps.userProfile}
+                                podcasts={compassProps.podcasts}
+                                tags={compassProps.tags}
+                            />
+                        ) : (
+                            <div className="flex justify-center items-center py-16">
+                                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                                <p className="ml-4 text-muted-foreground">Cargando tu universo...</p>
+                            </div>
+                        )
                     ) : (
-                        <div className="text-center py-16 border-2 border-dashed rounded-lg">
-                            <h2 className="text-2xl font-semibold">Tu biblioteca está vacía</h2>
-                            <p className="text-muted-foreground mt-2">
-                                <Link href="/create" className="text-primary hover:underline">Crea tu primer micro-podcast</Link> para empezar.
-                            </p>
-                        </div>
+                        // Vista de 'grid' o 'list' (la lógica que ya tenías, 100% preservada).
+                        (userCreationJobs.length > 0 || userCreatedPodcasts.length > 0) ? (
+                            <div className="space-y-10">
+                                {userCreationJobs.length > 0 && (
+                                    <section>
+                                        <h2 className="text-2xl font-semibold tracking-tight mb-4">En Proceso</h2>
+                                        <div className="space-y-4">
+                                            {userCreationJobs.map((job) => <JobCard key={`job-${job.id}`} job={job} />)}
+                                        </div>
+                                    </section>
+                                )}
+                                
+                                {userCreatedPodcasts.length > 0 && (
+                                    <section>
+                                        <h2 className="text-2xl font-semibold tracking-tight mb-4">Mis Creaciones</h2>
+                                        {renderGridOrListContent(userCreatedPodcasts)}
+                                    </section>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="text-center py-16 border-2 border-dashed rounded-lg">
+                                <h2 className="text-2xl font-semibold">Tu biblioteca está vacía</h2>
+                                <p className="text-muted-foreground mt-2"><Link href="/create" className="text-primary hover:underline">Crea tu primer micro-podcast</Link> para empezar.</p>
+                            </div>
+                        )
                     )
                 ) : (
                     <div className="text-center py-16 border-2 border-dashed rounded-lg">
                         <h2 className="text-2xl font-semibold">Inicia sesión para ver tu biblioteca</h2>
-                        <p className="text-muted-foreground mt-2">
-                            <Link href="/login?redirect=/podcasts?tab=library" className="text-primary hover:underline">Ingresa a tu cuenta</Link> para acceder a tus creaciones.
-                        </p>
+                        <p className="text-muted-foreground mt-2"><Link href="/login?redirect=/podcasts?tab=library" className="text-primary hover:underline">Ingresa a tu cuenta</Link> para acceder a tus creaciones.</p>
                     </div>
                 )}
             </TabsContent>

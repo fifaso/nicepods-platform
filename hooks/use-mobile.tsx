@@ -1,19 +1,32 @@
-import * as React from "react"
+// hooks/use-mobile.ts
+// VERSIÓN DE PRODUCCIÓN FINAL: Robusta para SSR y optimizada.
 
-const MOBILE_BREAKPOINT = 768
+"use client";
 
-export function useIsMobile() {
-  const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined)
+import { useState, useEffect, useCallback } from 'react';
 
-  React.useEffect(() => {
-    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`)
-    const onChange = () => {
-      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
-    }
-    mql.addEventListener("change", onChange)
-    setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
-    return () => mql.removeEventListener("change", onChange)
-  }, [])
+const MOBILE_BREAKPOINT = 768; // Punto de corte estándar para 'md' en Tailwind
 
-  return !!isMobile
+export function useMobile(breakpoint: number = MOBILE_BREAKPOINT): boolean {
+  // Inicializar en 'false' en el servidor para evitar errores de hidratación.
+  // El valor real se determinará en el cliente.
+  const [isMobile, setIsMobile] = useState(false);
+
+  const checkScreenSize = useCallback(() => {
+    // La comprobación solo se hace si 'window' está disponible (en el cliente).
+    setIsMobile(typeof window !== 'undefined' && window.innerWidth < breakpoint);
+  }, [breakpoint]);
+
+  useEffect(() => {
+    // Ejecutar la comprobación una vez que el componente se monta en el cliente.
+    checkScreenSize();
+    
+    window.addEventListener('resize', checkScreenSize);
+    
+    return () => {
+      window.removeEventListener('resize', checkScreenSize);
+    };
+  }, [checkScreenSize]);
+
+  return isMobile;
 }
