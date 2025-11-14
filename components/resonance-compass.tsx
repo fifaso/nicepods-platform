@@ -1,5 +1,5 @@
 // components/resonance-compass.tsx
-// VERSIÓN DE LA VICTORIA ABSOLUTA: Antifrágil, adaptativa, dinámica y con el tipo de retorno de useEffect corregido.
+// VERSIÓN DE LA VICTORIA ABSOLUTA: Con el tipo de retorno de useEffect corregido.
 
 "use client";
 
@@ -32,11 +32,7 @@ function PodcastBubble({ node, onSelect }: { node: SimulationNode; onSelect: () 
   return (
     <motion.div
       className="absolute flex flex-col items-center gap-2 cursor-pointer group"
-      style={{
-        left: `${node.x}px`,
-        top: `${node.y}px`,
-        transform: 'translate(-50%, -50%)',
-      }}
+      style={{ left: `${node.x}px`, top: `${node.y}px`, transform: 'translate(-50%, -50%)' }}
       onClick={onSelect}
       whileHover={{ scale: 1.1 }}
       initial={{ opacity: 0, scale: 0.5 }}
