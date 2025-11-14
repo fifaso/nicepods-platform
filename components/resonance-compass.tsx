@@ -1,5 +1,5 @@
 // components/resonance-compass.tsx
-// VERSIÓN DE LA VICTORIA ABSOLUTA: Antifrágil, adaptativa, dinámica y con tipos correctos.
+// VERSIÓN DE LA VICTORIA ABSOLUTA: Antifrágil, adaptativa, dinámica y con el tipo de retorno de useEffect corregido.
 
 "use client";
 
@@ -24,7 +24,7 @@ interface SimulationNode extends d3.SimulationNodeDatum {
 interface ResonanceCompassProps {
   userProfile: ResonanceProfile | null;
   podcasts: PodcastWithProfile[];
-  tags: string[]; // Aseguramos que el componente acepte los tags
+  tags: string[];
 }
 
 function PodcastBubble({ node, onSelect }: { node: SimulationNode; onSelect: () => void }) {
@@ -78,6 +78,7 @@ export function ResonanceCompass({ userProfile, podcasts, tags }: ResonanceCompa
     
     const centerX = width / 2;
     const centerY = height / 2;
+    const noFlyZoneRadius = Math.min(width, height) * 0.15;
 
     const initialNodes: SimulationNode[] = podcasts.map((p: PodcastWithProfile) => ({
       id: p.id,
@@ -88,7 +89,7 @@ export function ResonanceCompass({ userProfile, podcasts, tags }: ResonanceCompa
 
     const simulation = d3.forceSimulation(initialNodes)
       .force('charge', d3.forceManyBody().strength(50))
-      .force('center', d3.forceCenter(centerX, centerY).strength(0.05))
+      .force('radial', d3.forceRadial(noFlyZoneRadius, centerX, centerY).strength(0.6))
       .force('collision', d3.forceCollide().radius(60))
       .on('tick', () => {
         setNodes([...initialNodes]);
@@ -97,8 +98,10 @@ export function ResonanceCompass({ userProfile, podcasts, tags }: ResonanceCompa
         setIsLoading(false);
       });
 
+    // [INTERVENCIÓN QUIRÚRGICA DE LA VICTORIA]
+    // La función de limpieza ahora tiene un cuerpo explícito y no devuelve nada (void),
+    // lo que satisface el contrato de tipo de 'useEffect'.
     return () => {
-      // ensure cleanup returns void by not returning the simulation object
       simulation.stop();
     };
   }, [podcasts, width, height]);

@@ -1,5 +1,5 @@
 // app/podcasts/library-tabs.tsx
-// VERSIÓN DE PRODUCCIÓN FINAL: Con la composición de componentes corregida para una funcionalidad perfecta.
+// VERSIÓN DE PRODUCCIÓN FINAL: Con el componente 'JobCard' restaurado y todas las funcionalidades integradas.
 
 'use client';
 
@@ -40,6 +40,9 @@ interface LibraryTabsProps {
   } | null;
 }
 
+// [INTERVENCIÓN QUIRÚRGICA #1]
+// Se restaura la definición del componente 'JobCard' DENTRO de este archivo,
+// ya que es un componente de ayuda local y no existe en un archivo separado.
 function JobCard({ job }: { job: UserCreationJob }) {
     return (
         <Card className="bg-background/50 border-primary/20">
@@ -142,8 +145,6 @@ export function LibraryTabs({
 
     return (
         <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
-            {/* [INTERVENCIÓN ARQUITECTÓNICA DE LA VICTORIA] */}
-            {/* La barra de controles ahora es un único 'div' flexible que organiza a sus hijos. */}
             <div className="flex w-full items-center justify-between gap-2 sm:gap-4 mb-8">
                 {isSearchOpen ? (
                     <div className="flex w-full items-center gap-2 flex-grow">
@@ -153,20 +154,15 @@ export function LibraryTabs({
                     </div>
                 ) : (
                     <>
-                        {/* Grupo Izquierdo: Búsqueda */}
                         <div>
-                            <Button variant="ghost" size="icon" aria-label="Buscar" className="flex-shrink-0" onClick={() => setIsSearchOpen(true)}>
-                                <Search className="h-5 w-5" />
-                            </Button>
+                          <Button variant="ghost" size="icon" aria-label="Buscar" onClick={() => setIsSearchOpen(true)}>
+                            <Search className="h-5 w-5" />
+                          </Button>
                         </div>
-
-                        {/* Grupo Central: Pestañas (ahora sin el div extra) */}
                         <TabsList className="grid grid-cols-2 w-full sm:w-auto sm:max-w-xs">
                             <TabsTrigger value="discover">Descubrir</TabsTrigger>
                             <TabsTrigger value="library" disabled={!user}>Biblioteca</TabsTrigger>
                         </TabsList>
-
-                        {/* Grupo Derecho: Controles de Vista */}
                         <div className="flex items-center gap-2">
                             {!isMobile && (
                               <Button variant="ghost" size="icon" onClick={() => setView('compass')} title="Vista de Brújula" className={cn(currentView === 'compass' && 'bg-accent text-accent-foreground')}>
