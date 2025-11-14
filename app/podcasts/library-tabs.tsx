@@ -1,5 +1,5 @@
 // app/podcasts/library-tabs.tsx
-// VERSIÓN DE PRODUCCIÓN FINAL: Integra la "Brújula de Resonancia" y preserva la funcionalidad existente.
+// VERSIÓN DE PRODUCCIÓN FINAL: Integra la "Brújula de Resonancia" y preserva toda la funcionalidad existente.
 
 'use client';
 
@@ -20,6 +20,8 @@ import { PodcastCard, PodcastListItem } from '@/components/podcast-card';
 import { LibraryViewSwitcher } from '@/components/library-view-switcher';
 import { ResonanceCompass } from '@/components/resonance-compass';
 import type { Tables } from '@/types/supabase';
+import { useMobile } from '@/hooks/use-mobile';
+import { cn } from '@/lib/utils';
 
 type UserCreationJob = Tables<'podcast_creation_jobs'>;
 type ResonanceProfile = Tables<'user_resonance_profiles'>;
@@ -73,10 +75,11 @@ export function LibraryTabs({
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
+    const isMobile = useMobile();
     
     const currentTab = searchParams.get('tab') || defaultTab;
     const currentView = (searchParams.get('view') as LibraryViewMode) || 'grid';
-
+  
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<PodcastWithProfile[] | null>(null);
@@ -110,20 +113,27 @@ export function LibraryTabs({
     const handleTabChange = (tab: string) => {
         const params = new URLSearchParams(searchParams.toString());
         params.set('tab', tab);
+        params.set('view', 'grid');
         router.push(`${pathname}?${params.toString()}`);
     };
 
-    const renderGridOrListContent = (podcasts: PodcastWithProfile[]) => {
+    const setView = (view: LibraryViewMode) => {
+        const params = new URLSearchParams(searchParams);
+        params.set('view', view);
+        router.push(`${pathname}?${params.toString()}`);
+    };
+
+    const renderGridOrListContent = (podcasts: (PodcastWithProfile | Partial<PodcastWithProfile>)[]) => {
         if (currentView === 'list') {
             return (
                 <div className="space-y-4">
-                    {podcasts.map((podcast) => <PodcastListItem key={podcast.id} podcast={podcast} />)}
+                    {podcasts.map((podcast) => <PodcastListItem key={podcast.id} podcast={podcast as PodcastWithProfile} />)}
                 </div>
             );
         }
         return (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {podcasts.map((podcast) => <PodcastCard key={podcast.id} podcast={podcast} />)}
+                {podcasts.map((podcast) => <PodcastCard key={podcast.id} podcast={podcast as PodcastWithProfile} />)}
             </div>
         );
     };
@@ -148,41 +158,50 @@ export function LibraryTabs({
                            <TabsList className="grid grid-cols-2 w-full sm:w-auto sm:max-w-xs">
                                 <TabsTrigger value="discover">Descubrir</TabsTrigger>
                                 <TabsTrigger value="library" disabled={!user}>Biblioteca</TabsTrigger>
-                            </TabsList>
+                           </TabsList>
                         </div>
+                        {!isMobile && (
+                          <Button variant="ghost" size="icon" onClick={() => setView('compass')} title="Vista de Brújula" className={cn(currentView === 'compass' && 'bg-accent text-accent-foreground')}>
+                            <Compass className="h-5 w-5" />
+                          </Button>
+                        )}
                         <LibraryViewSwitcher />
                     </>
                 )}
             </div>
       
-            <TabsContent value="discover" className="mt-0">
-                {isLoadingSearch ? (
-                    <div className="flex justify-center items-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-                ) : activePodcastList.length > 0 ? (
-                    renderGridOrListContent(activePodcastList)
+            <TabsContent value="discover">
+                {currentView === 'compass' && !isMobile && compassProps ? (
+                  <ResonanceCompass 
+                    userProfile={null} 
+                    podcasts={compassProps.podcasts} 
+                    tags={compassProps.tags} 
+                  />
                 ) : (
-                    <div className="col-span-full text-center py-16 border-2 border-dashed rounded-lg">
-                        <h2 className="text-2xl font-semibold">{searchResults !== null ? 'No se encontraron resultados' : 'El universo está por descubrir'}</h2>
-                        <p className="text-muted-foreground mt-2">{searchResults !== null ? `Intenta con otras palabras clave.` : `Aún no hay micro-podcasts públicos. ¡Sé el primero en crear y publicar uno!`}</p>
-                    </div>
+                  <section>
+                    <h2 className="text-2xl font-semibold tracking-tight mb-4">Creaciones de la Comunidad</h2>
+                    {isLoadingSearch ? (
+                        <div className="flex justify-center items-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+                    ) : activePodcastList.length > 0 ? (
+                        renderGridOrListContent(activePodcastList)
+                    ) : (
+                        <div className="col-span-full text-center py-16 border-2 border-dashed rounded-lg">
+                            <h2 className="text-2xl font-semibold">{searchResults !== null ? 'No se encontraron resultados' : 'El universo está por descubrir'}</h2>
+                            <p className="text-muted-foreground mt-2">{searchResults !== null ? `Intenta con otras palabras clave.` : `Aún no hay micro-podcasts públicos. ¡Sé el primero en crear y publicar uno!`}</p>
+                        </div>
+                    )}
+                  </section>
                 )}
             </TabsContent>
       
-            <TabsContent value="library" className="mt-0">
+            <TabsContent value="library">
                 {user ? (
-                    currentView === 'compass' ? (
-                        compassProps ? (
-                            <ResonanceCompass 
-                                userProfile={compassProps.userProfile}
-                                podcasts={compassProps.podcasts}
-                                tags={compassProps.tags}
-                            />
-                        ) : (
-                            <div className="flex justify-center items-center py-16">
-                                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                                <p className="ml-4 text-muted-foreground">Cargando tu universo...</p>
-                            </div>
-                        )
+                    currentView === 'compass' && !isMobile && compassProps ? (
+                        <ResonanceCompass 
+                          userProfile={compassProps.userProfile} 
+                          podcasts={compassProps.userProfile ? userCreatedPodcasts : compassProps.podcasts}
+                          tags={compassProps.tags}
+                        />
                     ) : (
                         (userCreationJobs.length > 0 || userCreatedPodcasts.length > 0) ? (
                             <div className="space-y-10">
@@ -194,7 +213,6 @@ export function LibraryTabs({
                                         </div>
                                     </section>
                                 )}
-                                
                                 {userCreatedPodcasts.length > 0 && (
                                     <section>
                                         <h2 className="text-2xl font-semibold tracking-tight mb-4">Mis Creaciones</h2>
