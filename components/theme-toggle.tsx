@@ -1,43 +1,55 @@
 // components/theme-toggle.tsx
-// NUEVO COMPONENTE PARA CAMBIAR ENTRE TEMA CLARO Y OSCURO
+// VERSIÓN POTENCIADA: Toggle directo con transición animada y robustez para SSR.
 
-"use client"
+"use client";
 
-import * as React from "react"
-import { Moon, Sun } from "lucide-react"
-import { useTheme } from "next-themes"
-
-import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { useState, useEffect } from "react";
+import { useTheme } from "next-themes";
+import { motion, AnimatePresence } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { Sun, Moon } from "lucide-react";
 
 export function ThemeToggle() {
-  const { setTheme } = useTheme()
+  // Utilizamos 'resolvedTheme' para saber cuál es el tema activo, incluso si el usuario ha seleccionado "system".
+  const { resolvedTheme, setTheme } = useTheme();
+  
+  // Este estado es crucial para prevenir errores de hidratación en Next.js.
+  // El componente renderizará un placeholder hasta que esté montado en el cliente.
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // La función de toggle ahora es simple y directa.
+  const toggleTheme = () => {
+    setTheme(resolvedTheme === "dark" ? "light" : "dark");
+  };
+
+  // Mientras el componente no se haya montado en el cliente, mostramos un botón deshabilitado
+  // del mismo tamaño para evitar saltos en el layout (Cumulative Layout Shift).
+  if (!mounted) {
+    return <Button variant="ghost" size="icon" className="h-9 w-9" disabled aria-label="Cargando selector de tema" />;
+  }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon">
-          <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-          <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-          <span className="sr-only">Toggle theme</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => setTheme("light")}>
-          Claro
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("dark")}>
-          Oscuro
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("system")}>
-          Sistema
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
+    <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="Cambiar entre tema claro y oscuro">
+      <AnimatePresence mode="wait" initial={false}>
+        {/* Usamos el 'key' para que AnimatePresence detecte el cambio y active la animación de entrada/salida. */}
+        <motion.div
+          key={resolvedTheme}
+          initial={{ opacity: 0, rotate: -90, scale: 0.5 }}
+          animate={{ opacity: 1, rotate: 0, scale: 1 }}
+          exit={{ opacity: 0, rotate: 90, scale: 0.5 }}
+          transition={{ duration: 0.25, ease: "easeInOut" }}
+        >
+          {resolvedTheme === "dark" ? (
+            <Sun className="h-5 w-5" />
+          ) : (
+            <Moon className="h-5 w-5" />
+          )}
+        </motion.div>
+      </AnimatePresence>
+    </Button>
+  );
 }

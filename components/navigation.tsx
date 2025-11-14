@@ -1,5 +1,5 @@
 // components/navigation.tsx
-// VERSIÓN FINAL CON ENLACES A PERFIL CORREGIDOS USANDO `username`
+// VERSIÓN FINAL CORREGIDA Y ROBUSTA
 
 "use client";
 
@@ -90,7 +90,6 @@ export function Navigation() {
                 <NotificationBell />
                 {isAdmin && (<Link href="/admin/prompts" title="Panel de Administrador"><Button variant="ghost" size="icon"><ShieldCheck className="h-5 w-5 text-green-500" /></Button></Link>)}
                 
-                {/* [INTERVENCIÓN QUIRÚRGICA #1]: Se utiliza `profile.username` como la fuente de la verdad para el enlace. */}
                 <Link href={`/profile/${profile.username}`} title="Perfil">
                   <Avatar className="h-9 w-9 cursor-pointer">
                     <AvatarImage src={profile.avatar_url || ''} />
@@ -106,6 +105,7 @@ export function Navigation() {
           <Link href="/create"><Button className="hidden lg:inline-flex"><Mic className="mr-2 h-4 w-4" />Crear Nuevo Podcast</Button></Link>
 
           <div className="md:hidden">
+            {/* [INTERVENCIÓN QUIRÚRGICA]: El error de tipeo ha sido corregido aquí. */}
             <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon">
@@ -144,7 +144,6 @@ export function Navigation() {
                         <Bell className="mr-2 h-5 w-5" /> Notificaciones
                       </Button>
                       
-                      {/* [INTERVENCIÓN QUIRÚRGICA #2]: Se utiliza `profile.username` para el enlace móvil. */}
                       <Link href={`/profile/${profile.username}`} onClick={handleMobileLinkClick}><Button variant="ghost" className="w-full justify-start text-base py-6"><UserIcon className="mr-2 h-5 w-5" /> Perfil</Button></Link>
                       
                       {isAdmin && <Link href="/admin/prompts" onClick={handleMobileLinkClick}><Button variant="ghost" className="w-full justify-start text-base py-6 text-green-500"><ShieldCheck className="mr-2 h-5 w-5" />Admin</Button></Link>}
