@@ -1,5 +1,5 @@
 // components/podcast-view.tsx
-// VERSIÓN CORREGIDA: Utiliza el tipo 'PodcastWithProfile' para resolver el error de tipado.
+// VERSIÓN CORREGIDA Y RESTAURADA: Se elimina el placeholder y se importa el componente real de metadatos.
 
 "use client";
 
@@ -18,7 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Heart, Share2, Download, Calendar, Clock, PlayCircle, ChevronDown, Loader2, Mic } from 'lucide-react';
-// import { CreationMetadata } from './creation-metadata'; // Componente no proporcionado, se asume que existe.
+import { CreationMetadata } from './creation-metadata'; // [CORRECCIÓN #1]: Se importa el componente real desde su archivo.
 import { formatTime } from '@/lib/utils';
 import { ScriptViewer } from './script-viewer';
 import { cn } from '@/lib/utils';
@@ -28,9 +28,6 @@ interface PodcastViewProps {
   user: User; 
   initialIsLiked: boolean; 
 }
-
-// Se asume que existe un componente CreationMetadata, lo definimos temporalmente para evitar errores.
-const CreationMetadata = ({ data }: { data: any }) => <pre>{JSON.stringify(data, null, 2)}</pre>;
 
 export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewProps) {
   const router = useRouter();
@@ -45,6 +42,8 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
   const [isScriptExpanded, setIsScriptExpanded] = useState(false);
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
 
+  // [CORRECCIÓN #2]: Se elimina la definición temporal de CreationMetadata que causaba el problema visual.
+
   useEffect(() => {
     setLocalPodcastData(podcastData);
     setLikeCount(podcastData.like_count);
@@ -52,7 +51,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
   }, [podcastData, initialIsLiked]);
 
   useEffect(() => {
-    // [CORRECCIÓN]: Usamos nuestro tipo seguro. El error de TypeScript se ha resuelto.
     const wasAudioRequested = localPodcastData.creation_data?.inputs?.generateAudioDirectly ?? true;
     const isAudioComplete = !!localPodcastData.audio_url;
     const isImageComplete = !!localPodcastData.cover_image_url;
@@ -252,12 +250,8 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
                   </div>
                 }
                 
-                {localPodcastData.creation_data && (
-                  <>
-                    <Separator className="my-4" />
-                    <CreationMetadata data={localPodcastData.creation_data} />
-                  </>
-                )}
+                <Separator className="my-4" />
+                <CreationMetadata data={localPodcastData.creation_data} />
               </CardContent>
             </Card>
           </div>

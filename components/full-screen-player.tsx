@@ -1,3 +1,4 @@
+//components/full-screen-player.tsx
 "use client";
 
 import Image from "next/image";
