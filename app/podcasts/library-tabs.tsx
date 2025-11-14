@@ -1,5 +1,5 @@
 // app/podcasts/library-tabs.tsx
-// VERSIÓN DE PRODUCCIÓN FINAL: Integra la "Brújula de Resonancia" y preserva toda la funcionalidad existente.
+// VERSIÓN DE PRODUCCIÓN FINAL: Con todos los contratos de props y dependencias corregidos.
 
 'use client';
 
@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Hourglass, Bot, LayoutGrid, List, Compass, X, Loader2 } from 'lucide-react';
+import { Search, Hourglass, Bot, Compass, X, Loader2, LayoutGrid, List } from 'lucide-react';
 import { PodcastCard, PodcastListItem } from '@/components/podcast-card';
 import { LibraryViewSwitcher } from '@/components/library-view-switcher';
 import { ResonanceCompass } from '@/components/resonance-compass';
@@ -141,7 +141,7 @@ export function LibraryTabs({
     const activePodcastList = searchResults !== null ? searchResults : publicPodcasts;
 
     return (
-        <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
+        <Tabs value={currentTab} onValue-change={handleTabChange} className="w-full">
             <div className="flex w-full items-center gap-2 sm:gap-4 mb-8">
                 {isSearchOpen ? (
                     <div className="flex w-full items-center gap-2 flex-grow">

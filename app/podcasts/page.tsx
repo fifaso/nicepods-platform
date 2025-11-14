@@ -38,7 +38,6 @@ export default async function PodcastsPage({ searchParams }: { searchParams: { t
     user ? supabase.from('micro_pods').select(profileQuery).eq('user_id', user.id).order('created_at', { ascending: false }) : Promise.resolve({ data: [], error: null }),
     user ? supabase.from('podcast_creation_jobs').select('id, created_at, job_title, status, error_message, micro_pod_id, archived').eq('user_id', user.id).in('status', ['pending', 'processing']).eq('archived', false).order('created_at', { ascending: false }) : Promise.resolve({ data: [], error: null }),
     user ? supabase.from('user_resonance_profiles').select('*').eq('user_id', user.id).single() : Promise.resolve({ data: null, error: null }),
-    // Solo obtenemos los datos masivos de la Brújula si la vista está activa.
     currentView === 'compass' ? supabase.from('micro_pods').select('*, profiles(*)').not('final_coordinates', 'is', null).eq('status', 'published') : Promise.resolve({ data: [], error: null }),
     currentView === 'compass' ? supabase.rpc('get_all_unique_tags') : Promise.resolve({ data: [], error: null })
   ]);
@@ -64,7 +63,7 @@ export default async function PodcastsPage({ searchParams }: { searchParams: { t
 
   const compassProps = currentView === 'compass' ? {
     userProfile: userProfile,
-    podcasts: allAnalyzedPodcasts, // La brújula siempre muestra todos los podcasts
+    podcasts: allAnalyzedPodcasts,
     tags: compassTags,
   } : null;
 
@@ -79,8 +78,8 @@ export default async function PodcastsPage({ searchParams }: { searchParams: { t
         defaultTab={defaultTab}
         user={user}
         publicPodcasts={publicPodcasts}
-        userCreationJobs={userCreationJobs}
         userCreatedPodcasts={userCreatedPodcasts}
+        userCreationJobs={userCreationJobs}
         compassProps={compassProps}
       />
     </div>
