@@ -1,5 +1,5 @@
 // app/podcasts/library-tabs.tsx
-// VERSIÓN DE PRODUCCIÓN FINAL: Con todos los contratos de props y dependencias corregidos.
+// VERSIÓN DE PRODUCCIÓN FINAL: Con la composición de componentes corregida para una funcionalidad perfecta.
 
 'use client';
 
@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Hourglass, Bot, Compass, X, Loader2, LayoutGrid, List } from 'lucide-react';
+import { Search, Hourglass, Bot, Compass, X, Loader2 } from 'lucide-react';
 import { PodcastCard, PodcastListItem } from '@/components/podcast-card';
 import { LibraryViewSwitcher } from '@/components/library-view-switcher';
 import { ResonanceCompass } from '@/components/resonance-compass';
@@ -141,8 +141,10 @@ export function LibraryTabs({
     const activePodcastList = searchResults !== null ? searchResults : publicPodcasts;
 
     return (
-        <Tabs value={currentTab} onValue-change={handleTabChange} className="w-full">
-            <div className="flex w-full items-center gap-2 sm:gap-4 mb-8">
+        <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
+            {/* [INTERVENCIÓN ARQUITECTÓNICA DE LA VICTORIA] */}
+            {/* La barra de controles ahora es un único 'div' flexible que organiza a sus hijos. */}
+            <div className="flex w-full items-center justify-between gap-2 sm:gap-4 mb-8">
                 {isSearchOpen ? (
                     <div className="flex w-full items-center gap-2 flex-grow">
                         <Search className="h-5 w-5 text-muted-foreground flex-shrink-0" />
@@ -151,21 +153,28 @@ export function LibraryTabs({
                     </div>
                 ) : (
                     <>
-                        <Button variant="ghost" size="icon" aria-label="Buscar" className="flex-shrink-0" onClick={() => setIsSearchOpen(true)}>
-                            <Search className="h-5 w-5" />
-                        </Button>
-                        <div className="flex flex-grow justify-center">
-                           <TabsList className="grid grid-cols-2 w-full sm:w-auto sm:max-w-xs">
-                                <TabsTrigger value="discover">Descubrir</TabsTrigger>
-                                <TabsTrigger value="library" disabled={!user}>Biblioteca</TabsTrigger>
-                           </TabsList>
+                        {/* Grupo Izquierdo: Búsqueda */}
+                        <div>
+                            <Button variant="ghost" size="icon" aria-label="Buscar" className="flex-shrink-0" onClick={() => setIsSearchOpen(true)}>
+                                <Search className="h-5 w-5" />
+                            </Button>
                         </div>
-                        {!isMobile && (
-                          <Button variant="ghost" size="icon" onClick={() => setView('compass')} title="Vista de Brújula" className={cn(currentView === 'compass' && 'bg-accent text-accent-foreground')}>
-                            <Compass className="h-5 w-5" />
-                          </Button>
-                        )}
-                        <LibraryViewSwitcher />
+
+                        {/* Grupo Central: Pestañas (ahora sin el div extra) */}
+                        <TabsList className="grid grid-cols-2 w-full sm:w-auto sm:max-w-xs">
+                            <TabsTrigger value="discover">Descubrir</TabsTrigger>
+                            <TabsTrigger value="library" disabled={!user}>Biblioteca</TabsTrigger>
+                        </TabsList>
+
+                        {/* Grupo Derecho: Controles de Vista */}
+                        <div className="flex items-center gap-2">
+                            {!isMobile && (
+                              <Button variant="ghost" size="icon" onClick={() => setView('compass')} title="Vista de Brújula" className={cn(currentView === 'compass' && 'bg-accent text-accent-foreground')}>
+                                <Compass className="h-5 w-5" />
+                              </Button>
+                            )}
+                            <LibraryViewSwitcher />
+                        </div>
                     </>
                 )}
             </div>
