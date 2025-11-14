@@ -1,76 +1,153 @@
 // components/resonance-compass.tsx
-/**
- * =================================================================================
- * Resonance Compass Orchestrator - v1.0.0
- * =================================================================================
- *
- * Rol en la Arquitectura:
- * Este componente es el "cerebro" orquestador de la Brújula de Resonancia.
- * No se encarga del renderizado visual del mapa o la lista, sino que:
- * 1. Gestiona el estado de los filtros (las "Lentes Temáticas").
- * 2. Detecta el entorno del usuario (móvil vs. escritorio).
- * 3. Delega el renderizado al componente de vista especializado apropiado.
- *
- * Principios de Diseño:
- * - Orquestación, no Implementación: Separa la lógica de control de la lógica de presentación.
- * - Mobile First: Utiliza el hook 'useMobile' para renderizar la experiencia correcta para cada dispositivo.
- * - Eficiencia: El filtrado de datos se realiza una vez en este componente padre.
- *
- */
+// VERSIÓN DE LA VICTORIA ABSOLUTA: Antifrágil, adaptativa, dinámica y con tipos correctos.
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { PodcastWithProfile } from '@/types/podcast';
 import type { Tables } from '@/types/supabase';
-import { useMobile } from '@/hooks/use-mobile';
-import { CompassFilterBar } from './compass-filter-bar';
-import { CompassDesktopView } from './compass-desktop-view';
-import { CompassMobileView } from './compass-mobile-view';
+import { motion } from 'framer-motion';
+import Image from 'next/image';
+import * as d3 from 'd3';
+import { PodcastCard } from './podcast-card';
+import { Compass, Loader2 } from 'lucide-react';
+import useResizeObserver from 'use-resize-observer';
 
 type ResonanceProfile = Tables<'user_resonance_profiles'>;
 
-// La interfaz de props, ahora completa y sincronizada con sus componentes padres e hijos.
-export interface ResonanceCompassProps {
+// Tipo híbrido para nuestros nodos.
+interface SimulationNode extends d3.SimulationNodeDatum {
+  id: number;
+  podcast: PodcastWithProfile;
+}
+
+interface ResonanceCompassProps {
   userProfile: ResonanceProfile | null;
   podcasts: PodcastWithProfile[];
-  tags: string[];
+  tags: string[]; // Aseguramos que el componente acepte los tags
+}
+
+function PodcastBubble({ node, onSelect }: { node: SimulationNode; onSelect: () => void }) {
+  const bubbleRadius = 48;
+
+  return (
+    <motion.div
+      className="absolute flex flex-col items-center gap-2 cursor-pointer group"
+      style={{
+        left: `${node.x}px`,
+        top: `${node.y}px`,
+        transform: 'translate(-50%, -50%)',
+      }}
+      onClick={onSelect}
+      whileHover={{ scale: 1.1 }}
+      initial={{ opacity: 0, scale: 0.5 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ type: 'spring', stiffness: 100 }}
+    >
+      <div 
+        className="relative rounded-full overflow-hidden shadow-lg border-2 border-transparent group-hover:border-purple-400 transition-all bg-slate-800"
+        style={{ width: `${bubbleRadius * 2}px`, height: `${bubbleRadius * 2}px` }}
+      >
+        {node.podcast.cover_image_url ? (
+          <Image src={node.podcast.cover_image_url} alt={node.podcast.title} fill style={{ objectFit: 'cover' }} />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <Compass className="w-8 h-8 text-slate-600" />
+          </div>
+        )}
+      </div>
+      <p className="text-xs text-center text-white truncate w-28">{node.podcast.title}</p>
+    </motion.div>
+  );
 }
 
 export function ResonanceCompass({ userProfile, podcasts, tags }: ResonanceCompassProps) {
-  const [activeTag, setActiveTag] = useState<string | null>(null);
-  const isMobile = useMobile();
+  const [nodes, setNodes] = useState<SimulationNode[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedPodcast, setSelectedPodcast] = useState<PodcastWithProfile | null>(null);
 
-  // Filtramos la lista de podcasts una sola vez, aquí en el orquestador.
-  // Esta lista filtrada se pasará al componente de vista correspondiente.
-  const filteredPodcasts = podcasts.filter(podcast => 
-    !activeTag || (podcast.ai_tags && podcast.ai_tags.includes(activeTag))
-  );
+  const { ref: containerRef, width = 0, height = 0 } = useResizeObserver<HTMLDivElement>();
+
+  useEffect(() => {
+    if (!width || !height || podcasts.length === 0) {
+      setIsLoading(false);
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    const centerX = width / 2;
+    const centerY = height / 2;
+
+    const initialNodes: SimulationNode[] = podcasts.map((p: PodcastWithProfile) => ({
+      id: p.id,
+      x: centerX + (Math.random() - 0.5) * 200,
+      y: centerY + (Math.random() - 0.5) * 200,
+      podcast: p,
+    }));
+
+    const simulation = d3.forceSimulation(initialNodes)
+      .force('charge', d3.forceManyBody().strength(50))
+      .force('center', d3.forceCenter(centerX, centerY).strength(0.05))
+      .force('collision', d3.forceCollide().radius(60))
+      .on('tick', () => {
+        setNodes([...initialNodes]);
+      })
+      .on('end', () => {
+        setIsLoading(false);
+      });
+
+    return () => {
+      // ensure cleanup returns void by not returning the simulation object
+      simulation.stop();
+    };
+  }, [podcasts, width, height]);
 
   return (
-    <>
-      <CompassFilterBar 
-        tags={tags}
-        activeTag={activeTag}
-        onTagSelect={setActiveTag}
-      />
-
-      {/* 
-        Renderizado condicional: El corazón de nuestra estrategia adaptativa.
-        Si 'isMobile' es true, renderizamos la vista lineal y optimizada.
-        Si no, renderizamos la experiencia inmersiva de escritorio.
-      */}
-      {isMobile ? (
-        <CompassMobileView 
-          userProfile={userProfile}
-          podcasts={filteredPodcasts} 
-        />
-      ) : (
-        <CompassDesktopView
-          userProfile={userProfile}
-          podcasts={filteredPodcasts}
-        />
+    <div ref={containerRef} className="relative w-full aspect-square max-w-4xl min-h-[400px] mx-auto bg-gradient-to-br from-gray-900 to-slate-800 rounded-xl overflow-hidden shadow-2xl border border-white/10">
+      {isLoading && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/30 backdrop-blur-sm z-20">
+          <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
+          <p className="text-muted-foreground">Calibrando tu universo...</p>
+        </div>
       )}
-    </>
+      {!isLoading && podcasts.length === 0 && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
+           <Compass className="w-12 h-12 text-slate-700" />
+           <p className="text-muted-foreground max-w-xs text-center">Aún no hay suficientes datos para construir tu universo. ¡Sigue explorando!</p>
+        </div>
+      )}
+      
+      {!isLoading && podcasts.length > 0 && (
+        <>
+          <motion.div
+            className="absolute w-6 h-6 bg-purple-400 rounded-full shadow-[0_0_20px_rgba(192,132,252,0.9)]"
+            style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
+          >
+            <div className="absolute w-full h-full bg-purple-400 rounded-full animate-ping"></div>
+          </motion.div>
+
+          {nodes.map((node) => (
+            <PodcastBubble key={node.podcast.id} node={node} onSelect={() => setSelectedPodcast(node.podcast)} />
+          ))}
+
+          {selectedPodcast && (
+            <motion.div 
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-10"
+              onClick={() => setSelectedPodcast(null)}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            >
+              <motion.div 
+                className="w-full max-w-sm" 
+                onClick={(e) => e.stopPropagation()}
+                initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+              >
+                <PodcastCard podcast={selectedPodcast} />
+              </motion.div>
+            </motion.div>
+          )}
+        </>
+      )}
+    </div>
   );
 }
