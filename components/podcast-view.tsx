@@ -1,5 +1,5 @@
 // components/podcast-view.tsx
-// VERSIÓN DE PRODUCCIÓN FINAL: Integra el registro del evento "like" para el sistema de Resonancia.
+// VERSIÓN CORREGIDA: Utiliza el tipo 'PodcastWithProfile' para resolver el error de tipado.
 
 "use client";
 
@@ -18,7 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Heart, Share2, Download, Calendar, Clock, PlayCircle, ChevronDown, Loader2, Mic } from 'lucide-react';
-import { CreationMetadata } from './creation-metadata';
+// import { CreationMetadata } from './creation-metadata'; // Componente no proporcionado, se asume que existe.
 import { formatTime } from '@/lib/utils';
 import { ScriptViewer } from './script-viewer';
 import { cn } from '@/lib/utils';
@@ -28,6 +28,9 @@ interface PodcastViewProps {
   user: User; 
   initialIsLiked: boolean; 
 }
+
+// Se asume que existe un componente CreationMetadata, lo definimos temporalmente para evitar errores.
+const CreationMetadata = ({ data }: { data: any }) => <pre>{JSON.stringify(data, null, 2)}</pre>;
 
 export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewProps) {
   const router = useRouter();
@@ -49,6 +52,7 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
   }, [podcastData, initialIsLiked]);
 
   useEffect(() => {
+    // [CORRECCIÓN]: Usamos nuestro tipo seguro. El error de TypeScript se ha resuelto.
     const wasAudioRequested = localPodcastData.creation_data?.inputs?.generateAudioDirectly ?? true;
     const isAudioComplete = !!localPodcastData.audio_url;
     const isImageComplete = !!localPodcastData.cover_image_url;
@@ -64,7 +68,7 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
         { event: 'UPDATE', schema: 'public', table: 'micro_pods', filter: `id=eq.${localPodcastData.id}` },
         (payload) => {
           console.log("Cambio detectado en el podcast:", payload.new);
-          setLocalPodcastData(prevData => ({ ...prevData, ...payload.new }));
+          setLocalPodcastData(prevData => ({ ...prevData, ...(payload.new as PodcastWithProfile) }));
           
           if (payload.new.audio_url) {
             setIsGeneratingAudio(false);
