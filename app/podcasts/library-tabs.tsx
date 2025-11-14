@@ -1,5 +1,5 @@
 // app/podcasts/library-tabs.tsx
-// VERSIÓN DE PRODUCCIÓN FINAL: Con el componente 'JobCard' restaurado y todas las funcionalidades integradas.
+// VERSIÓN DE PRODUCCIÓN FINAL: Con la integridad de componentes restaurada.
 
 'use client';
 
@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Hourglass, Bot, Compass, X, Loader2 } from 'lucide-react';
+import { Search, Hourglass, Bot, Compass, X, Loader2, LayoutGrid, List } from 'lucide-react';
 import { PodcastCard, PodcastListItem } from '@/components/podcast-card';
 import { LibraryViewSwitcher } from '@/components/library-view-switcher';
 import { ResonanceCompass } from '@/components/resonance-compass';
@@ -40,9 +40,6 @@ interface LibraryTabsProps {
   } | null;
 }
 
-// [INTERVENCIÓN QUIRÚRGICA #1]
-// Se restaura la definición del componente 'JobCard' DENTRO de este archivo,
-// ya que es un componente de ayuda local y no existe en un archivo separado.
 function JobCard({ job }: { job: UserCreationJob }) {
     return (
         <Card className="bg-background/50 border-primary/20">

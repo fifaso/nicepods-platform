@@ -1,5 +1,5 @@
 // components/resonance-compass.tsx
-// VERSIÓN DE LA VICTORIA ABSOLUTA: Antifrágil, adaptativa, dinámica y con el tipo de retorno de useEffect corregido.
+// VERSIÓN DE LA VICTORIA ABSOLUTA: Con el tipo de retorno de useEffect corregido.
 
 "use client";
 
@@ -15,7 +15,6 @@ import useResizeObserver from 'use-resize-observer';
 
 type ResonanceProfile = Tables<'user_resonance_profiles'>;
 
-// Tipo híbrido para nuestros nodos.
 interface SimulationNode extends d3.SimulationNodeDatum {
   id: number;
   podcast: PodcastWithProfile;
@@ -33,11 +32,7 @@ function PodcastBubble({ node, onSelect }: { node: SimulationNode; onSelect: () 
   return (
     <motion.div
       className="absolute flex flex-col items-center gap-2 cursor-pointer group"
-      style={{
-        left: `${node.x}px`,
-        top: `${node.y}px`,
-        transform: 'translate(-50%, -50%)',
-      }}
+      style={{ left: `${node.x}px`, top: `${node.y}px`, transform: 'translate(-50%, -50%)' }}
       onClick={onSelect}
       whileHover={{ scale: 1.1 }}
       initial={{ opacity: 0, scale: 0.5 }}
@@ -65,7 +60,6 @@ export function ResonanceCompass({ userProfile, podcasts, tags }: ResonanceCompa
   const [nodes, setNodes] = useState<SimulationNode[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedPodcast, setSelectedPodcast] = useState<PodcastWithProfile | null>(null);
-
   const { ref: containerRef, width = 0, height = 0 } = useResizeObserver<HTMLDivElement>();
 
   useEffect(() => {
@@ -98,16 +92,13 @@ export function ResonanceCompass({ userProfile, podcasts, tags }: ResonanceCompa
         setIsLoading(false);
       });
 
-    // [INTERVENCIÓN QUIRÚRGICA DE LA VICTORIA]
-    // La función de limpieza ahora tiene un cuerpo explícito y no devuelve nada (void),
-    // lo que satisface el contrato de tipo de 'useEffect'.
     return () => {
       simulation.stop();
     };
   }, [podcasts, width, height]);
 
   return (
-    <div ref={containerRef} className="relative w-full aspect-square max-w-4xl min-h-[400px] mx-auto bg-gradient-to-br from-gray-900 to-slate-800 rounded-xl overflow-hidden shadow-2xl border border-white/10">
+    <div ref={containerRef} className="relative w-full aspect-video max-h-[70vh] max-w-6xl mx-auto bg-gradient-to-br from-gray-900 to-slate-800 rounded-xl overflow-hidden shadow-2xl border border-white/10">
       {isLoading && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/30 backdrop-blur-sm z-20">
           <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
