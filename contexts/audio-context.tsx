@@ -1,5 +1,5 @@
 // contexts/audio-context.tsx
-// VERSIÓN DEFINITIVA Y ROBUSTA: Se introduce audio.load() para un flujo de reproducción secuencial y seguro.
+// VERSIÓN DE PRODUCCIÓN FINAL: Con lógica de reproducción robusta y registro de eventos para Resonancia.
 
 "use client";
 
@@ -8,6 +8,7 @@ import { createContext, useContext, useState, useRef, useEffect, useCallback } f
 import { useToast } from "@/hooks/use-toast";
 import { PodcastWithProfile } from "@/types/podcast";
 import { createClient } from "@/lib/supabase/client";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { useAuth } from "@/hooks/use-auth";
 
 export interface AudioContextType {
@@ -51,16 +52,19 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const logCompletedPlayback = useCallback(() => {
-    if (user && currentPodcast) {
-      supabase
-        .from('playback_events')
-        .insert({ user_id: user.id, podcast_id: currentPodcast.id, event_type: 'completed_playback' })
-        .then(({ error: insertError }) => {
-          if (insertError) console.error("Error al registrar evento:", insertError);
-        });
+  const cleanup = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.removeAttribute('src');
+      audioRef.current.load();
     }
-  }, [user, currentPodcast, supabase]);
+    setIsPlaying(false);
+    setIsLoading(false);
+    setError(null);
+    setCurrentTime(0);
+    setDuration(0);
+    setIsPlayerExpanded(false);
+  }, []);
 
   useEffect(() => {
     audioRef.current = new Audio();
@@ -68,13 +72,29 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
 
     const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
     const handleDurationChange = () => setDuration(audio.duration);
-    const handleEnded = () => { setIsPlaying(false); logCompletedPlayback(); };
+    const handleEnded = () => {
+      setIsPlaying(false);
+      if (user && currentPodcast) {
+        console.log(`Registrando 'completed_playback' para el podcast ${currentPodcast.id}`);
+        supabase
+          .from('playback_events')
+          .insert({
+            user_id: user.id,
+            podcast_id: currentPodcast.id,
+            event_type: 'completed_playback',
+          })
+          .then(({ error: insertError }) => {
+            if (insertError) {
+              console.error("Error al registrar el evento de reproducción completada:", insertError);
+            }
+          });
+      }
+    };
     const handleLoadStart = () => { setIsLoading(true); setError(null); };
     const handleCanPlay = () => setIsLoading(false);
     const handlePlaying = () => { setIsLoading(false); setIsPlaying(true); };
     const handlePause = () => setIsPlaying(false);
-    const handleError = (e: Event) => {
-      console.error("Audio Element Error:", e);
+    const handleError = () => {
       setError("Error al cargar el audio.");
       setIsLoading(false);
       setIsPlaying(false);
@@ -90,118 +110,158 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     audio.addEventListener("error", handleError);
 
     return () => {
-      if (audio) {
-        audio.pause();
-        audio.src = "";
-        audio.load();
-        audio.removeEventListener("timeupdate", handleTimeUpdate);
-        audio.removeEventListener("durationchange", handleDurationChange);
-        audio.removeEventListener("ended", handleEnded);
-        audio.removeEventListener("loadstart", handleLoadStart);
-        audio.removeEventListener("canplay", handleCanPlay);
-        audio.removeEventListener("playing", handlePlaying);
-        audio.removeEventListener("pause", handlePause);
-        audio.removeEventListener("error", handleError);
-      }
+      cleanup();
+      audio.removeEventListener("timeupdate", handleTimeUpdate);
+      audio.removeEventListener("durationchange", handleDurationChange);
+      audio.removeEventListener("ended", handleEnded);
+      audio.removeEventListener("loadstart", handleLoadStart);
+      audio.removeEventListener("canplay", handleCanPlay);
+      audio.removeEventListener("playing", handlePlaying);
+      audio.removeEventListener("pause", handlePause);
+      audio.removeEventListener("error", handleError);
     };
-  }, [logCompletedPlayback]);
+  }, [cleanup, user, currentPodcast, supabase]);
+
+  const togglePlayPause = useCallback(() => {
+    if (!audioRef.current || !currentPodcast) return;
+    
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else if (audioRef.current.src) {
+      audioRef.current.play().catch(e => {
+        console.error("Error al reanudar la reproducción:", e);
+        setError("No se pudo reanudar el audio.");
+      });
+    }
+  }, [isPlaying, currentPodcast]);
 
   const playPodcast = useCallback((podcast: PodcastWithProfile) => {
     if (!podcast.audio_url) {
-      toast({ title: "Audio no disponible.", variant: "destructive" });
+      toast({ title: "Audio no disponible", description: "Este guion aún no ha sido procesado para generar el audio.", variant: "destructive" });
       return;
     }
     
     const audio = audioRef.current;
-    if (!audio) return;
-
-    if (currentPodcast?.id === podcast.id) {
-      if (audio.paused) {
-        audio.play().catch(e => console.error("Error al reanudar:", e));
-      } else {
-        audio.pause();
+    if (audio) {
+      if (currentPodcast?.id === podcast.id) {
+        togglePlayPause();
+        return;
       }
-      return;
-    }
-    
-    // [SOLUCIÓN DEFINITIVA]: Se establece un flujo secuencial explícito para el navegador.
-    setCurrentPodcast(podcast); // 1. Actualiza el estado de React.
-    setError(null);
-    audio.src = podcast.audio_url; // 2. Asigna la nueva fuente de audio.
-    audio.load(); // 3. ¡CRÍTICO! Ordena al navegador que descarte el buffer antiguo y cargue la nueva fuente.
-    
-    const playPromise = audio.play(); // 4. Inicia la reproducción DESPUÉS de la carga.
-
-    if (playPromise !== undefined) {
-      playPromise.catch(e => {
-        // El AbortError puede ocurrir legítimamente si el usuario hace clic muy rápido en otro podcast. Lo manejamos con gracia.
-        if (e.name === 'AbortError') {
-          console.log('La reproducción fue interrumpida por una nueva acción del usuario.');
-        } else {
-          console.error("Error al iniciar la reproducción:", e);
-          setError("No se pudo reproducir el audio.");
-          setCurrentPodcast(null);
-          setIsPlaying(false);
-        }
+      
+      setCurrentPodcast(podcast);
+      audio.src = podcast.audio_url;
+      audio.volume = volume;
+      audio.load(); // Le decimos explícitamente al navegador que cargue la nueva fuente.
+      audio.play().catch(e => {
+        console.error("Error al iniciar la reproducción:", e);
+        setError("No se pudo reproducir el audio.");
       });
+
+      if (podcast.duration_seconds === 0 && supabase) {
+        const handleMetadata = async () => {
+          const newDuration = Math.round(audio.duration);
+          console.log(`Duración calculada: ${newDuration}s. Guardando en DB...`);
+          
+          if (newDuration > 0) {
+            const { error: updateError } = await supabase
+              .from('micro_pods')
+              .update({ duration_seconds: newDuration })
+              .eq('id', podcast.id);
+
+            if (updateError) {
+              console.error("Error al guardar la duración del audio:", updateError);
+            } else {
+              console.log("Duración guardada con éxito.");
+            }
+          }
+          audio.removeEventListener('loadedmetadata', handleMetadata);
+        };
+        
+        audio.addEventListener('loadedmetadata', handleMetadata);
+      }
+
+      supabase
+        .rpc('increment_play_count', { podcast_id: podcast.id })
+        .then(({ error: rpcError }) => {
+          if (rpcError) {
+            console.error(`Error al incrementar play_count para el podcast ${podcast.id}:`, rpcError);
+          }
+        });
     }
-
-    supabase.rpc('increment_play_count', { podcast_id: podcast.id })
-      .then(({ error: rpcError }) => {
-        if (rpcError) console.error(`Error al incrementar play_count:`, rpcError);
-      });
-  }, [currentPodcast, supabase, toast]);
-
-  const togglePlayPause = useCallback(() => {
-    const audio = audioRef.current;
-    if (!audio || !currentPodcast) return;
-    if (isPlaying) audio.pause();
-    else audio.play().catch(e => console.error("Error en togglePlayPause:", e));
-  }, [isPlaying, currentPodcast]);
+  }, [currentPodcast, togglePlayPause, volume, supabase, toast]);
 
   const closePodcast = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.src = "";
-    }
+    cleanup();
     setCurrentPodcast(null);
-    setIsPlaying(false);
-    setIsLoading(false);
-    setError(null);
-    setCurrentTime(0);
-    setDuration(0);
-    setIsPlayerExpanded(false);
-  }, []);
+  }, [cleanup]);
 
   const seekTo = useCallback((time: number) => {
-    if (audioRef.current) audioRef.current.currentTime = time;
+    if (audioRef.current) {
+      audioRef.current.currentTime = time;
+      setCurrentTime(time);
+    }
   }, []);
 
   const skipForward = useCallback((seconds = 15) => {
-    if (audioRef.current) seekTo(Math.min(audioRef.current.currentTime + seconds, duration));
+    if (audioRef.current) {
+      seekTo(Math.min(audioRef.current.currentTime + seconds, duration));
+    }
   }, [duration, seekTo]);
 
   const skipBackward = useCallback((seconds = 15) => {
-    if (audioRef.current) seekTo(Math.max(audioRef.current.currentTime - seconds, 0));
+    if (audioRef.current) {
+      seekTo(Math.max(audioRef.current.currentTime - seconds, 0));
+    }
   }, [seekTo]);
 
   const setVolume = useCallback((newVolume: number) => {
-    if (audioRef.current) audioRef.current.volume = Math.max(0, Math.min(1, newVolume));
-    setVolumeState(newVolume);
+    const clampedVolume = Math.max(0, Math.min(1, newVolume));
+    if (audioRef.current) {
+      audioRef.current.volume = clampedVolume;
+    }
+    setVolumeState(clampedVolume);
   }, []);
 
   const expandPlayer = useCallback(() => setIsPlayerExpanded(true), []);
   const collapsePlayer = useCallback(() => setIsPlayerExpanded(false), []);
-
+  
   const logInteractionEvent = useCallback(async (podcastId: number, eventType: 'liked' | 'shared') => {
-    if (!user) return;
-    await supabase.from('playback_events').insert({ user_id: user.id, podcast_id: podcastId, event_type: eventType });
+    if (!user) {
+        console.warn("Intento de registrar evento sin un usuario autenticado.");
+        return;
+    }
+    console.log(`Registrando evento '${eventType}' para el podcast ${podcastId}`);
+    const { error: insertError } = await supabase
+        .from('playback_events')
+        .insert({
+            user_id: user.id,
+            podcast_id: podcastId,
+            event_type: eventType,
+        });
+    if (insertError) {
+        console.error(`Error al registrar el evento '${eventType}':`, insertError);
+    }
   }, [user, supabase]);
 
   const contextValue: AudioContextType = {
-    currentPodcast, isPlaying, isLoading, error, duration, currentTime, volume, playPodcast,
-    togglePlayPause, closePodcast, seekTo, skipForward, skipBackward, setVolume,
-    isPlayerExpanded, expandPlayer, collapsePlayer, logInteractionEvent,
+    currentPodcast,
+    isPlaying,
+    isLoading,
+    error,
+    duration,
+    currentTime,
+    volume,
+    playPodcast,
+    togglePlayPause,
+    closePodcast,
+    seekTo,
+    skipForward,
+    skipBackward,
+    setVolume,
+    isPlayerExpanded,
+    expandPlayer,
+    collapsePlayer,
+    logInteractionEvent,
   };
 
   return <AudioContext.Provider value={contextValue}>{children}</AudioContext.Provider>;
