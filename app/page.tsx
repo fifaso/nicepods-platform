@@ -1,6 +1,5 @@
 // app/page.tsx
-// VERSIÓN FINAL Y COMPLETA: Implementa la "Tríada de Valor" para invitados y las "Estanterías de Resonancia"
-// para usuarios autenticados, con un diseño completamente responsivo y sin abreviaciones.
+// VERSIÓN FINAL REESTRUCTURADA: Implementa el layout 2/3 + 1/3 con una columna de panel estática (sticky).
 
 import { cookies } from "next/headers";
 import Link from "next/link";
@@ -17,7 +16,7 @@ import type { Tables } from "@/types/supabase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
-// Definimos los tipos para la seguridad de tipos de nuestros datos.
+// Definimos los tipos para la seguridad de tipos.
 type ResonanceProfile = Tables<'user_resonance_profiles'>;
 interface DiscoveryFeed {
   epicenter: PodcastWithProfile[] | null;
@@ -26,31 +25,22 @@ interface DiscoveryFeed {
 }
 
 // ===================================================================
-// VISTA PARA USUARIO AUTENTICADO (POTENCIADA)
+// VISTA PARA USUARIO AUTENTICADO
 // ===================================================================
-function UserDashboard({ user, feed, resonanceProfile }: { user: any; feed: DiscoveryFeed | null; resonanceProfile: ResonanceProfile | null }) {
+function UserDashboard({ user, feed }: { user: any; feed: DiscoveryFeed | null }) {
   const userName = user.user_metadata?.full_name?.split(' ')[0] || user.email;
 
   return (
     <>
-      <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-8 xl:gap-12 h-full">
-        {/* Columna Principal: Estanterías (ocupa todo el ancho en móvil) */}
-        <div className="lg:col-span-2">
-          <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
-            Hola, {userName}!
-          </h1>
-          <p className="text-lg text-muted-foreground mt-2">Tu centro de descubrimiento personalizado.</p>
-
-          <div className="mt-8 space-y-12">
-            <PodcastShelf title="Tu Epicentro Creativo" podcasts={feed?.epicenter || []} />
-            <PodcastShelf title="Conexiones Inesperadas" podcasts={feed?.semantic_connections || []} />
-            <PodcastShelf title="Nuevos Horizontes en NicePod" podcasts={feed?.new_horizons || []} />
-          </div>
-        </div>
-        
-        {/* Columna Lateral: Panel de Perspectivas (visible solo en pantallas grandes) */}
-        <div className="hidden lg:block lg:col-span-1">
-          <InsightPanel resonanceProfile={resonanceProfile} />
+      <div>
+        <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
+          Hola, {userName}!
+        </h1>
+        <p className="text-lg text-muted-foreground mt-2">Tu centro de descubrimiento personalizado.</p>
+        <div className="mt-8 space-y-12">
+          <PodcastShelf title="Tu Epicentro Creativo" podcasts={feed?.epicenter || []} />
+          <PodcastShelf title="Conexiones Inesperadas" podcasts={feed?.semantic_connections || []} />
+          <PodcastShelf title="Nuevos Horizontes en NicePod" podcasts={feed?.new_horizons || []} />
         </div>
       </div>
       <FloatingActionButton />
@@ -59,16 +49,9 @@ function UserDashboard({ user, feed, resonanceProfile }: { user: any; feed: Disc
 }
 
 // ===================================================================
-// VISTA PARA INVITADO (POTENCIADA Y COMPLETA)
+// VISTA PARA INVITADO
 // ===================================================================
 function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] | null }) {
-  const sampleFeaturesPodcasts = [
-    { id: "1", title: "La Ciencia de Crear Hábitos", description: "Descubre los secretos para construir hábitos duraderos.", category: "Psicología", duration: "5:23", color: "from-purple-500 to-pink-500" },
-    { id: "2", title: "Mindfulness en la Era Digital", description: "Aprende a mantenerte presente y enfocado.", category: "Bienestar", duration: "4:15", color: "from-blue-500 to-cyan-500" },
-    { id: "3", title: "El Poder de la Filosofía Estoica", description: "Sabiduría milenaria para los desafíos modernos.", category: "Filosofía", duration: "6:42", color: "from-indigo-500 to-purple-500" },
-    { id: "4", title: "Entendiendo Sesgos Cognitivos", description: "Explora los atajos mentales que nos influencian.", category: "Psicología", duration: "5:18", color: "from-pink-500 to-rose-500" },
-  ];
-
   return (
     <div className="flex flex-col items-center">
       {/* Sección 1: Héroe */}
@@ -114,21 +97,16 @@ function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] | null }) 
         </div>
       </section>
 
-      {/* Sección 3: Únete a la Conversación (con Panel de Perspectivas en Escritorio) */}
-      <div className="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 lg:gap-8 xl:gap-12 px-4 lg:px-0 flex-grow">
-        <div className="lg:col-span-2">
-          <PodcastShelf 
-            title="Únete a la Conversación"
-            podcasts={latestPodcasts as any[] || []}
-          />
-        </div>
-        <div className="hidden lg:block lg:col-span-1">
-          <InsightPanel resonanceProfile={null} />
-        </div>
+      {/* Sección 3: Únete a la Conversación */}
+      <div className="w-full max-w-7xl mx-auto px-4 lg:px-0">
+        <PodcastShelf 
+          title="Únete a la Conversación"
+          podcasts={latestPodcasts as any[] || []}
+        />
       </div>
 
-      {/* Footer */}
-      <footer className="w-full py-8 mt-16 bg-muted/50 text-center text-sm text-muted-foreground">
+      {/* Footer (solo visible en móvil en este layout) */}
+      <footer className="w-full py-8 mt-16 bg-muted/50 text-center text-sm text-muted-foreground lg:hidden">
         <div className="container px-4 md:px-6 mx-auto">
             <p>&copy; {new Date().getFullYear()} NicePod. Todos los derechos reservados.</p>
         </div>
@@ -138,55 +116,56 @@ function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] | null }) 
 }
 
 // ===================================================================
-// WRAPPERS DE DATOS: Separan la lógica de obtención de datos para cada vista.
-// ===================================================================
-async function UserDashboardWrapper({ user, supabase }: { user: any; supabase: any }) {
-  const [
-    { data: feed, error: feedError },
-    { data: resonanceProfile, error: profileError }
-  ] = await Promise.all([
-    supabase.rpc('get_user_discovery_feed', { p_user_id: user.id }),
-    supabase.from('user_resonance_profiles').select('*').eq('user_id', user.id).single()
-  ]);
-
-  if (feedError) console.error("Error al obtener el feed de descubrimiento:", feedError);
-  if (profileError && profileError.code !== 'PGRST116') {
-    console.error("Error al obtener el perfil de resonancia:", profileError);
-  }
-
-  return <UserDashboard user={user} feed={feed} resonanceProfile={resonanceProfile} />;
-}
-
-async function GuestLandingPageWrapper({ supabase }: { supabase: any }) {
-  const { data: latestPodcasts, error } = await supabase
-    .from('micro_pods')
-    .select(`*, profiles (full_name, avatar_url, username)`)
-    .eq('status', 'published')
-    .order('created_at', { ascending: false })
-    .limit(8);
-
-  if (error) console.error("Error al obtener los últimos podcasts:", error.message);
-  
-  return <GuestLandingPage latestPodcasts={latestPodcasts} />;
-}
-
-
-// ===================================================================
-// COMPONENTE PRINCIPAL (EL "ROUTER" LÓGICO POTENCIADO)
+// COMPONENTE PRINCIPAL (EL "ROUTER" LÓGICO CON EL NUEVO LAYOUT)
 // ===================================================================
 export default async function HomePage() {
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
   const { data: { user } } = await supabase.auth.getUser();
 
+  // Obtenemos los datos necesarios de forma condicional ANTES de renderizar el layout.
+  let feed: DiscoveryFeed | null = null;
+  let resonanceProfile: ResonanceProfile | null = null;
+  let latestPodcasts: any[] | null = null;
+
+  if (user) {
+    const [{ data: feedData }, { data: profileData }] = await Promise.all([
+      supabase.rpc('get_user_discovery_feed', { p_user_id: user.id }),
+      supabase.from('user_resonance_profiles').select('*').eq('user_id', user.id).single()
+    ]);
+    feed = feedData;
+    resonanceProfile = profileData;
+  } else {
+    const { data } = await supabase
+      .from('micro_pods')
+      .select(`*, profiles (full_name, avatar_url, username)`)
+      .eq('status', 'published')
+      .order('created_at', { ascending: false })
+      .limit(8);
+    latestPodcasts = data;
+  }
+
   return (
-    <main className="flex-grow flex flex-col">
-      <div className="container mx-auto max-w-7xl py-12 px-4 flex-grow flex flex-col">
-        {user ? (
-          <UserDashboardWrapper user={user} supabase={supabase} />
-        ) : (
-          <GuestLandingPageWrapper supabase={supabase} />
-        )}
+    // [CAMBIO ESTRUCTURAL]: El layout principal se define aquí.
+    <main className="container mx-auto max-w-screen-2xl flex-grow">
+      <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-8 xl:gap-12 h-full">
+        
+        {/* === COLUMNA DE CONTENIDO (2/3) - SCROLLABLE === */}
+        <div className="lg:col-span-2 lg:h-[calc(100vh-5rem)] lg:overflow-y-auto lg:pr-4"> {/* 5rem es la altura del nav */}
+          {user ? (
+            <UserDashboard user={user} feed={feed} />
+          ) : (
+            <GuestLandingPage latestPodcasts={latestPodcasts} />
+          )}
+        </div>
+        
+        {/* === COLUMNA DEL PANEL (1/3) - STICKY === */}
+        <div className="hidden lg:block lg:col-span-1">
+          <div className="sticky top-20 h-[calc(100vh-6rem)]"> {/* 6rem = altura nav + un poco de padding */}
+            <InsightPanel resonanceProfile={resonanceProfile} />
+          </div>
+        </div>
+        
       </div>
     </main>
   );

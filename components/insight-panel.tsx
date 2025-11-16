@@ -1,5 +1,5 @@
 // components/insight-panel.tsx
-// VERSIÓN POTENCIADA: Con llamados a la acción contextuales y textos editables claramente marcados.
+// VERSIÓN FINAL: Con CTAs estratégicos, textos editables y layout de altura completa.
 
 "use client";
 
@@ -60,7 +60,6 @@ export function InsightPanel({ resonanceProfile }: InsightPanelProps) {
               Las estanterías a tu izquierda están curadas por nuestra IA para resonar con tu perspectiva única.
             </p>
           </div>
-          {/* [CAMBIO QUIRÚRGICO]: El botón ahora lleva al Centro de Creación. */}
           <Link href="/create">
             <Button className="w-full">
               <Mic className="mr-2 h-4 w-4" />
@@ -95,7 +94,6 @@ export function InsightPanel({ resonanceProfile }: InsightPanelProps) {
               Al crear una cuenta, la plataforma aprende tu 'centro de gravedad' personal para recomendarte contenido que realmente te impactará.
             </p>
         </div>
-        {/* [CAMBIO QUIRÚRGICO]: El botón ahora lleva a la página de Login. */}
         <Link href="/login">
           <Button className="w-full">
             <LogIn className="mr-2 h-4 w-4" />
