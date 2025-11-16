@@ -1,6 +1,6 @@
 // app/page.tsx
-// VERSIÓN FINAL Y POTENCIADA: Integra el InsightPanel, FloatingActionButton y una UI/UX mejorada
-// para las vistas de invitado y de usuario autenticado, con un diseño completamente responsivo.
+// VERSIÓN FINAL Y COMPLETA: Implementa la "Tríada de Valor" para invitados y las "Estanterías de Resonancia"
+// para usuarios autenticados, con un diseño completamente responsivo y sin abreviaciones.
 
 import { cookies } from "next/headers";
 import Link from "next/link";
@@ -9,11 +9,13 @@ import { PodcastWithProfile } from "@/types/podcast";
 import { PodcastShelf } from "@/components/podcast-shelf";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Mic, Search, Compass, Lightbulb, Bot } from "lucide-react";
+import { Mic, Search, Compass, Lightbulb, Bot, Play } from "lucide-react";
 import { QuadrantCard } from "@/components/ui/quadrant-card";
 import { InsightPanel } from "@/components/insight-panel";
 import { FloatingActionButton } from "@/components/ui/floating-action-button";
 import type { Tables } from "@/types/supabase";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 // Definimos los tipos para la seguridad de tipos de nuestros datos.
 type ResonanceProfile = Tables<'user_resonance_profiles'>;
@@ -27,46 +29,46 @@ interface DiscoveryFeed {
 // VISTA PARA USUARIO AUTENTICADO (POTENCIADA)
 // ===================================================================
 function UserDashboard({ user, feed, resonanceProfile }: { user: any; feed: DiscoveryFeed | null; resonanceProfile: ResonanceProfile | null }) {
-  // Obtenemos el primer nombre del usuario para un saludo más personal.
   const userName = user.user_metadata?.full_name?.split(' ')[0] || user.email;
 
   return (
     <>
-      <div className="container mx-auto max-w-7xl py-12 px-4">
-        <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-8 xl:gap-12">
-          
-          {/* Columna Principal: Estanterías (ocupa todo el ancho en móvil) */}
-          <div className="lg:col-span-2">
-            <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
-              Hola, {userName}!
-            </h1>
-            <p className="text-lg text-muted-foreground mt-2">Tu centro de descubrimiento personalizado.</p>
+      <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-8 xl:gap-12 h-full">
+        {/* Columna Principal: Estanterías (ocupa todo el ancho en móvil) */}
+        <div className="lg:col-span-2">
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
+            Hola, {userName}!
+          </h1>
+          <p className="text-lg text-muted-foreground mt-2">Tu centro de descubrimiento personalizado.</p>
 
-            {/* TODO: Implementar el "Magic Slot" aquí en una futura iteración (ej. Continuar Escuchando) */}
-
-            <div className="mt-8 space-y-12">
-              <PodcastShelf title="Tu Epicentro Creativo" podcasts={feed?.epicenter || []} />
-              <PodcastShelf title="Conexiones Inesperadas" podcasts={feed?.semantic_connections || []} />
-              <PodcastShelf title="Nuevos Horizontes en NicePod" podcasts={feed?.new_horizons || []} />
-            </div>
-          </div>
-          
-          {/* [CAMBIO QUIRÚRGICO #1]: Columna Lateral para el Panel de Perspectivas (visible solo en pantallas grandes) */}
-          <div className="hidden lg:block lg:col-span-1">
-            <InsightPanel resonanceProfile={resonanceProfile} />
+          <div className="mt-8 space-y-12">
+            <PodcastShelf title="Tu Epicentro Creativo" podcasts={feed?.epicenter || []} />
+            <PodcastShelf title="Conexiones Inesperadas" podcasts={feed?.semantic_connections || []} />
+            <PodcastShelf title="Nuevos Horizontes en NicePod" podcasts={feed?.new_horizons || []} />
           </div>
         </div>
+        
+        {/* Columna Lateral: Panel de Perspectivas (visible solo en pantallas grandes) */}
+        <div className="hidden lg:block lg:col-span-1">
+          <InsightPanel resonanceProfile={resonanceProfile} />
+        </div>
       </div>
-      {/* [CAMBIO QUIRÚRGICO #2]: Botón de Acción Flotante para un acceso rápido a la creación en móviles. */}
       <FloatingActionButton />
     </>
   );
 }
 
 // ===================================================================
-// VISTA PARA INVITADO (POTENCIADA)
+// VISTA PARA INVITADO (POTENCIADA Y COMPLETA)
 // ===================================================================
 function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] | null }) {
+  const sampleFeaturesPodcasts = [
+    { id: "1", title: "La Ciencia de Crear Hábitos", description: "Descubre los secretos para construir hábitos duraderos.", category: "Psicología", duration: "5:23", color: "from-purple-500 to-pink-500" },
+    { id: "2", title: "Mindfulness en la Era Digital", description: "Aprende a mantenerte presente y enfocado.", category: "Bienestar", duration: "4:15", color: "from-blue-500 to-cyan-500" },
+    { id: "3", title: "El Poder de la Filosofía Estoica", description: "Sabiduría milenaria para los desafíos modernos.", category: "Filosofía", duration: "6:42", color: "from-indigo-500 to-purple-500" },
+    { id: "4", title: "Entendiendo Sesgos Cognitivos", description: "Explora los atajos mentales que nos influencian.", category: "Psicología", duration: "5:18", color: "from-pink-500 to-rose-500" },
+  ];
+
   return (
     <div className="flex flex-col items-center">
       {/* Sección 1: Héroe */}
@@ -77,7 +79,6 @@ function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] | null }) 
         <p className="max-w-2xl text-lg text-muted-foreground">
           Crea y descubre Micro-Podcasts que se adaptan a tu ritmo de vida. Aprende, comparte y potencia tu creatividad.
         </p>
-        {/* [CAMBIO QUIRÚRGICO #3]: Doble llamado a la acción para guiar al usuario. */}
         <div className="flex flex-col sm:flex-row justify-center gap-4 w-full max-w-xs mx-auto">
           <Link href="/create" className="w-full">
             <Button size="lg" className="rounded-full w-full py-6 text-lg">
@@ -113,8 +114,8 @@ function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] | null }) 
         </div>
       </section>
 
-      {/* [CAMBIO QUIRÚRGICO #4]: Sección 3 reestructurada con un grid para acomodar el InsightPanel en escritorio. */}
-      <div className="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 lg:gap-8 xl:gap-12 px-4 lg:px-0">
+      {/* Sección 3: Únete a la Conversación (con Panel de Perspectivas en Escritorio) */}
+      <div className="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 lg:gap-8 xl:gap-12 px-4 lg:px-0 flex-grow">
         <div className="lg:col-span-2">
           <PodcastShelf 
             title="Únete a la Conversación"
@@ -137,44 +138,56 @@ function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] | null }) 
 }
 
 // ===================================================================
+// WRAPPERS DE DATOS: Separan la lógica de obtención de datos para cada vista.
+// ===================================================================
+async function UserDashboardWrapper({ user, supabase }: { user: any; supabase: any }) {
+  const [
+    { data: feed, error: feedError },
+    { data: resonanceProfile, error: profileError }
+  ] = await Promise.all([
+    supabase.rpc('get_user_discovery_feed', { p_user_id: user.id }),
+    supabase.from('user_resonance_profiles').select('*').eq('user_id', user.id).single()
+  ]);
+
+  if (feedError) console.error("Error al obtener el feed de descubrimiento:", feedError);
+  if (profileError && profileError.code !== 'PGRST116') {
+    console.error("Error al obtener el perfil de resonancia:", profileError);
+  }
+
+  return <UserDashboard user={user} feed={feed} resonanceProfile={resonanceProfile} />;
+}
+
+async function GuestLandingPageWrapper({ supabase }: { supabase: any }) {
+  const { data: latestPodcasts, error } = await supabase
+    .from('micro_pods')
+    .select(`*, profiles (full_name, avatar_url, username)`)
+    .eq('status', 'published')
+    .order('created_at', { ascending: false })
+    .limit(8);
+
+  if (error) console.error("Error al obtener los últimos podcasts:", error.message);
+  
+  return <GuestLandingPage latestPodcasts={latestPodcasts} />;
+}
+
+
+// ===================================================================
 // COMPONENTE PRINCIPAL (EL "ROUTER" LÓGICO POTENCIADO)
 // ===================================================================
 export default async function HomePage() {
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
-
   const { data: { user } } = await supabase.auth.getUser();
 
-  if (user) {
-    // [CAMBIO QUIRÚRGICO #5]: Si hay usuario, obtenemos AMBOS el feed y el perfil de resonancia en paralelo para máxima eficiencia.
-    const [
-      { data: feed, error: feedError },
-      { data: resonanceProfile, error: profileError }
-    ] = await Promise.all([
-      supabase.rpc('get_user_discovery_feed', { p_user_id: user.id }),
-      supabase.from('user_resonance_profiles').select('*').eq('user_id', user.id).single()
-    ]);
-
-    if (feedError) console.error("Error al obtener el feed de descubrimiento:", feedError);
-    // Ignoramos el error 'PGRST116' que ocurre cuando un usuario nuevo aún no tiene perfil de resonancia.
-    if (profileError && profileError.code !== 'PGRST116') {
-      console.error("Error al obtener el perfil de resonancia:", profileError);
-    }
-
-    return <UserDashboard user={user} feed={feed} resonanceProfile={resonanceProfile} />;
-  } else {
-    // Si no hay usuario, la lógica se mantiene igual.
-    const { data: latestPodcasts, error } = await supabase
-      .from('micro_pods')
-      .select(`*, profiles (full_name, avatar_url, username)`)
-      .eq('status', 'published')
-      .order('created_at', { ascending: false })
-      .limit(8);
-
-    if (error) {
-      console.error("Error al obtener los últimos podcasts para la página de inicio:", error.message);
-    }
-    
-    return <GuestLandingPage latestPodcasts={latestPodcasts} />;
-  }
+  return (
+    <main className="flex-grow flex flex-col">
+      <div className="container mx-auto max-w-7xl py-12 px-4 flex-grow flex flex-col">
+        {user ? (
+          <UserDashboardWrapper user={user} supabase={supabase} />
+        ) : (
+          <GuestLandingPageWrapper supabase={supabase} />
+        )}
+      </div>
+    </main>
+  );
 }
