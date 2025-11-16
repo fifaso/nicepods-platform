@@ -1,5 +1,5 @@
 // contexts/audio-context.tsx
-// VERSIÓN DE LA VICTORIA ABSOLUTA: Con la condición de carrera de reproducción eliminada y arquitectura robusta.
+// VERSIÓN FINAL Y MEJORADA: Ahora cierra el reproductor al finalizar y registra el evento de reproducción completada.
 
 "use client";
 
@@ -57,13 +57,13 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => { userRef.current = user; }, [user]);
   useEffect(() => { currentPodcastRef.current = currentPodcast; }, [currentPodcast]);
 
-  const cleanup = useCallback(() => {
+  const closePodcast = useCallback(() => {
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.removeAttribute('src');
       audioRef.current.load();
     }
-    setCurrentPodcast(null); // Asegurarse de limpiar el podcast actual
+    setCurrentPodcast(null);
     setIsPlaying(false);
     setIsLoading(false);
     setError(null);
@@ -79,7 +79,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
     const handleDurationChange = () => setDuration(audio.duration);
     const handleEnded = () => {
-      setIsPlaying(false);
+      // La lógica para registrar el evento ya estaba aquí y era correcta.
       if (userRef.current && currentPodcastRef.current) {
         supabase
           .from('playback_events')
@@ -92,6 +92,10 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
             if (insertError) console.error("Error al registrar evento:", insertError);
           });
       }
+      
+      // [CAMBIO QUIRÚRGICO #1]: Añadimos la llamada para limpiar la UI.
+      // Esto implementa tu requisito de que el reproductor se esconda al finalizar.
+      closePodcast();
     };
     const handleLoadStart = () => { setIsLoading(true); setError(null); };
     const handleCanPlay = () => setIsLoading(false);
@@ -127,7 +131,9 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         audio.removeEventListener("error", handleError);
       }
     };
-  }, [supabase]);
+  // [CAMBIO QUIRÚRGICO #2]: Añadimos 'closePodcast' a las dependencias.
+  // Es una función estable (gracias a useCallback), por lo que es seguro y no causará re-renderizados.
+  }, [supabase, closePodcast]);
 
   const togglePlayPause = useCallback(() => {
     if (!audioRef.current || !currentPodcast) return;
@@ -185,10 +191,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       });
     }
   }, [currentPodcast, togglePlayPause, volume, supabase, toast]);
-
-  const closePodcast = useCallback(() => {
-    cleanup();
-  }, [cleanup]);
 
   const seekTo = useCallback((time: number) => {
     if (audioRef.current) {
