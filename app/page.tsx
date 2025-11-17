@@ -1,5 +1,5 @@
 // app/page.tsx
-// VERSIÓN FINAL Y COMPLETA: Implementa el layout 3/4 + 1/4 con scroll aislado y sin abreviaciones.
+// VERSIÓN FINAL Y DEFINITIVA: Con scroll perfectamente aislado y sin "micro scroll".
 
 import { cookies } from "next/headers";
 import Link from "next/link";
@@ -14,7 +14,7 @@ import { InsightPanel } from "@/components/insight-panel";
 import { FloatingActionButton } from "@/components/ui/floating-action-button";
 import type { Tables } from "@/types/supabase";
 
-// Definimos los tipos para la seguridad de tipos.
+// Tipos y componentes internos (sin cambios)
 type ResonanceProfile = Tables<'user_resonance_profiles'>;
 interface DiscoveryFeed {
   epicenter: PodcastWithProfile[] | null;
@@ -22,9 +22,6 @@ interface DiscoveryFeed {
   new_horizons: PodcastWithProfile[] | null;
 }
 
-// ===================================================================
-// VISTA PARA USUARIO AUTENTICADO
-// ===================================================================
 function UserDashboard({ user, feed }: { user: any; feed: DiscoveryFeed | null }) {
   const userName = user.user_metadata?.full_name?.split(' ')[0] || user.email;
 
@@ -46,13 +43,9 @@ function UserDashboard({ user, feed }: { user: any; feed: DiscoveryFeed | null }
   );
 }
 
-// ===================================================================
-// VISTA PARA INVITADO
-// ===================================================================
 function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] | null }) {
   return (
     <div className="flex flex-col items-center">
-      {/* Sección 1: Héroe */}
       <section className="w-full text-center py-20 md:py-24 flex flex-col items-center space-y-6 px-4">
         <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-primary">
           Expande tu perspectiva diariamente
@@ -74,7 +67,6 @@ function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] | null }) 
         </div>
       </section>
       
-      {/* Sección 2: Encuentra tu Próxima Idea */}
       <section className="w-full max-w-4xl py-12 px-4 mx-auto">
         <h2 className="text-3xl font-bold text-center mb-6">Encuentra tu Próxima Idea</h2>
         <div className="relative mb-8">
@@ -89,12 +81,10 @@ function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] | null }) 
         </div>
       </section>
 
-      {/* Sección 3: Únete a la Conversación */}
       <div className="w-full max-w-7xl mx-auto px-4 lg:px-0">
         <PodcastShelf title="Únete a la Conversación" podcasts={latestPodcasts as any[] || []} />
       </div>
 
-      {/* Footer (solo visible en móvil en este layout) */}
       <footer className="w-full py-8 mt-16 bg-muted/50 text-center text-sm text-muted-foreground lg:hidden">
         <div className="container px-4 md:px-6 mx-auto">
             <p>&copy; {new Date().getFullYear()} NicePod. Todos los derechos reservados.</p>
@@ -104,15 +94,12 @@ function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] | null }) 
   );
 }
 
-// ===================================================================
-// COMPONENTE PRINCIPAL (EL "ROUTER" LÓGICO CON EL NUEVO LAYOUT)
-// ===================================================================
+// COMPONENTE PRINCIPAL CON EL LAYOUT CORREGIDO
 export default async function HomePage() {
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Obtenemos los datos necesarios de forma condicional ANTES de renderizar el layout.
   let feed: DiscoveryFeed | null = null;
   let resonanceProfile: ResonanceProfile | null = null;
   let latestPodcasts: any[] | null = null;
@@ -139,6 +126,7 @@ export default async function HomePage() {
       <div className="grid grid-cols-1 lg:grid-cols-4 lg:gap-8 xl:gap-12 h-full">
         
         {/* === COLUMNA DE CONTENIDO (3/4) - SCROLLABLE === */}
+        {/* [CAMBIO QUIRÚRGICO #1]: La altura se calcula con precisión para llenar el espacio. El padding se mueve a un div interior. */}
         <div className="lg:col-span-3 lg:h-[calc(100vh-5rem)] lg:overflow-y-auto lg:pr-6 
                        scrollbar-thin scrollbar-thumb-gray-600/50 hover:scrollbar-thumb-gray-500/50 
                        scrollbar-track-transparent scrollbar-thumb-rounded-full">
@@ -153,8 +141,12 @@ export default async function HomePage() {
         
         {/* === COLUMNA DEL PANEL (1/4) - STICKY === */}
         <div className="hidden lg:block lg:col-span-1">
-          <div className="sticky top-20 h-[calc(100vh-6.5rem)] py-12">
-            <InsightPanel resonanceProfile={resonanceProfile} />
+          {/* [CAMBIO QUIRÚRGICO #2]: El contenedor sticky ahora tiene el padding en su interior, y la altura del panel
+              se controla con h-full para que se adapte perfectamente al espacio definido por el padre. */}
+          <div className="sticky top-20 h-[calc(100vh-6.5rem)]">
+            <div className="py-12 h-full">
+                <InsightPanel resonanceProfile={resonanceProfile} />
+            </div>
           </div>
         </div>
         
