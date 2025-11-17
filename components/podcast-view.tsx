@@ -1,5 +1,5 @@
 // components/podcast-view.tsx
-// VERSIÓN CORREGIDA Y RESTAURADA: Se elimina el placeholder y se importa el componente real de metadatos.
+// VERSIÓN FINAL Y COMPLETA: La lógica para mostrar la duración es ahora más explícita y robusta.
 
 "use client";
 
@@ -18,7 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Heart, Share2, Download, Calendar, Clock, PlayCircle, ChevronDown, Loader2, Mic } from 'lucide-react';
-import { CreationMetadata } from './creation-metadata'; // [CORRECCIÓN #1]: Se importa el componente real desde su archivo.
+import { CreationMetadata } from './creation-metadata';
 import { formatTime } from '@/lib/utils';
 import { ScriptViewer } from './script-viewer';
 import { cn } from '@/lib/utils';
@@ -41,8 +41,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
   const [isLiking, setIsLiking] = useState(false);
   const [isScriptExpanded, setIsScriptExpanded] = useState(false);
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
-
-  // [CORRECCIÓN #2]: Se elimina la definición temporal de CreationMetadata que causaba el problema visual.
 
   useEffect(() => {
     setLocalPodcastData(podcastData);
@@ -243,12 +241,14 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
                   <Calendar className="h-4 w-4 mr-2" />
                   <span>Creado el: {new Date(localPodcastData.created_at).toLocaleDateString()}</span>
                 </div>
-                {localPodcastData.duration_seconds && localPodcastData.duration_seconds > 0 &&
+                
+                {/* [CAMBIO QUIRÚRGICO]: Hacemos la condición de renderizado más explícita y segura. */}
+                {(localPodcastData.duration_seconds ?? 0) > 0 && (
                   <div className="flex items-center text-muted-foreground">
                     <Clock className="h-4 w-4 mr-2" />
-                    <span>Duración: {formatTime(localPodcastData.duration_seconds)}</span>
+                    <span>Duración: {formatTime(localPodcastData.duration_seconds!)}</span>
                   </div>
-                }
+                )}
                 
                 <Separator className="my-4" />
                 <CreationMetadata data={localPodcastData.creation_data} />

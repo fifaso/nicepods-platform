@@ -1,5 +1,5 @@
 // contexts/audio-context.tsx
-// VERSIÓN FINAL Y MEJORADA: Ahora cierra el reproductor al finalizar y registra el evento de reproducción completada.
+// VERSIÓN FINAL Y COMPLETA: La lógica para actualizar la duración ahora maneja 'null' y '0' de forma robusta.
 
 "use client";
 
@@ -8,7 +8,7 @@ import { createContext, useContext, useState, useRef, useEffect, useCallback } f
 import { useToast } from "@/hooks/use-toast";
 import { PodcastWithProfile } from "@/types/podcast";
 import { createClient } from "@/lib/supabase/client";
-import type { SupabaseClient, User } from "@supabase/supabase-js";
+import type { User } from "@supabase/supabase-js";
 import { useAuth } from "@/hooks/use-auth";
 
 export interface AudioContextType {
@@ -79,7 +79,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
     const handleDurationChange = () => setDuration(audio.duration);
     const handleEnded = () => {
-      // La lógica para registrar el evento ya estaba aquí y era correcta.
       if (userRef.current && currentPodcastRef.current) {
         supabase
           .from('playback_events')
@@ -92,9 +91,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
             if (insertError) console.error("Error al registrar evento:", insertError);
           });
       }
-      
-      // [CAMBIO QUIRÚRGICO #1]: Añadimos la llamada para limpiar la UI.
-      // Esto implementa tu requisito de que el reproductor se esconda al finalizar.
       closePodcast();
     };
     const handleLoadStart = () => { setIsLoading(true); setError(null); };
@@ -131,8 +127,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         audio.removeEventListener("error", handleError);
       }
     };
-  // [CAMBIO QUIRÚRGICO #2]: Añadimos 'closePodcast' a las dependencias.
-  // Es una función estable (gracias a useCallback), por lo que es seguro y no causará re-renderizados.
   }, [supabase, closePodcast]);
 
   const togglePlayPause = useCallback(() => {
@@ -174,12 +168,18 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         }
       });
 
-      if (podcast.duration_seconds === 0 && supabase) {
+      // [CAMBIO QUIRÚRGICO]: La condición `!podcast.duration_seconds` es más robusta y cubre tanto '0' como 'null'.
+      if (!podcast.duration_seconds && supabase) {
         const handleMetadata = async () => {
           const newDuration = Math.round(audio.duration);
           if (newDuration > 0) {
             const { error: updateError } = await supabase.from('micro_pods').update({ duration_seconds: newDuration }).eq('id', podcast.id);
-            if (updateError) console.error("Error al guardar la duración:", updateError);
+            if (updateError) {
+              console.error("Error al guardar la duración:", updateError);
+            } else {
+              // Actualización optimista del estado local para que la UI refleje el cambio al instante.
+              setCurrentPodcast(p => p ? { ...p, duration_seconds: newDuration } : null);
+            }
           }
           audio.removeEventListener('loadedmetadata', handleMetadata);
         };

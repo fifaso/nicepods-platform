@@ -1,5 +1,5 @@
 // supabase/functions/process-podcast-job/index.ts
-// VERSIÓN POTENCIADA FINAL: Integra la generación de notificaciones de éxito, fallo y fan-out a seguidores.
+// VERSIÓN FINAL: Utiliza la URL de la API de Gemini especificada y probada.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -32,9 +32,7 @@ const parseJsonResponse = (text: string) => {
   if (jsonMatch && jsonMatch[1]) {
     try {
       return JSON.parse(jsonMatch[1]);
-    } catch (e) {
-      // Si falla el parsing del bloque JSON, intentamos parsear el texto completo como fallback.
-    }
+    } catch (e) { /* Fallback */ }
   }
   try {
     return JSON.parse(text);
@@ -45,46 +43,23 @@ const parseJsonResponse = (text: string) => {
 
 async function notifyFollowers(creatorId: string, podcastId: number, podcastTitle: string) {
   try {
-    const { data: creatorProfile, error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .select('full_name')
-      .eq('id', creatorId)
-      .single();
-    
-    if (profileError || !creatorProfile) {
-      console.warn(`No se pudo encontrar el perfil del creador ${creatorId} para la notificación de fan-out.`);
-      return;
-    }
+    const { data: creatorProfile } = await supabaseAdmin
+      .from('profiles').select('full_name').eq('id', creatorId).single();
+    if (!creatorProfile) return;
 
-    const { data: followers, error: followersError } = await supabaseAdmin
-      .from('followers')
-      .select('follower_id')
-      .eq('following_id', creatorId);
+    const { data: followers } = await supabaseAdmin
+      .from('followers').select('follower_id').eq('following_id', creatorId);
+    if (!followers || followers.length === 0) return;
 
-    if (followersError) throw followersError;
-    if (!followers || followers.length === 0) {
-      console.log(`El creador ${creatorId} no tiene seguidores para notificar.`);
-      return;
-    }
-
-    const notifications = followers.map(follower => ({
-      user_id: follower.follower_id,
+    const notifications = followers.map(f => ({
+      user_id: f.follower_id,
       type: 'new_podcast_from_followed_user',
-      data: {
-        actor_id: creatorId,
-        actor_name: creatorProfile.full_name,
-        podcast_id: podcastId,
-        podcast_title: podcastTitle
-      }
+      data: { actor_id: creatorId, actor_name: creatorProfile.full_name, podcast_id: podcastId, podcast_title: podcastTitle }
     }));
-
-    const { error: insertError } = await supabaseAdmin.from('notifications').insert(notifications);
-    if (insertError) throw insertError;
     
-    console.log(`Notificaciones de fan-out enviadas a ${followers.length} seguidores.`);
-
+    await supabaseAdmin.from('notifications').insert(notifications);
   } catch (error) {
-    console.error("Error en la función de notificación a seguidores (fan-out):", error.message);
+    console.error("Error en fan-out:", error.message);
   }
 }
 
@@ -107,14 +82,21 @@ serve(async (request) => {
     if (!promptData) throw new Error(`Prompt para '${agentName}' no encontrado.`);
 
     const finalPrompt = buildFinalPrompt(promptData.prompt_template, inputs);
-    const scriptGenApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GOOGLE_API_KEY}`;
+
+    // [CAMBIO QUIRÚRGICO]: Se utiliza la URL de la API especificada por ti.
+    const scriptGenApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${GOOGLE_API_KEY}`;
+    
     const scriptResponse = await fetch(scriptGenApiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ contents: [{ parts: [{ text: finalPrompt }] }] }),
     });
 
-    if (!scriptResponse.ok) throw new Error(`API de IA (Guion) falló: ${await scriptResponse.text()}`);
+    if (!scriptResponse.ok) {
+        const errorText = await scriptResponse.text();
+        throw new Error(`API de IA (Guion) falló: ${errorText}`);
+    }
+
     const scriptResult = await scriptResponse.json();
     const generatedText = scriptResult.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!generatedText) throw new Error("La respuesta de la IA (Guion) no tiene la estructura esperada.");
@@ -138,33 +120,19 @@ serve(async (request) => {
       error_message: null
     }).eq('id', job.id);
 
-    console.log(`Lanzando generación de carátula para el trabajo ${job.id}...`);
-    supabaseAdmin.functions.invoke('generate-cover-image', {
-      body: { job_id: job.id, agent_name: 'cover-art-director-v1' }
-    }).then(({ error }) => {
-      if (error) console.error(`Invocación asíncrona a 'generate-cover-image' falló para el trabajo ${job.id}:`, error);
-    });
-
+    supabaseAdmin.functions.invoke('generate-cover-image', { body: { job_id: job.id, agent_name: 'cover-art-director-v1' } });
     if (finalJobStatus === 'pending_audio') {
-      console.log(`Lanzando generación de audio para el trabajo ${job.id}...`);
-      supabaseAdmin.functions.invoke('generate-audio-from-script', {
-        body: { job_id: job.id }
-      }).then(({ error }) => {
-        if (error) console.error(`Invocación asíncrona a 'generate-audio-from-script' falló para el trabajo ${job.id}:`, error);
-      });
+      supabaseAdmin.functions.invoke('generate-audio-from-script', { body: { job_id: job.id } });
     }
 
     (async () => {
       await supabaseAdmin.from('notifications').insert({
         user_id: job.user_id,
         type: 'podcast_created_success',
-        data: {
-          podcast_id: newPodcast.id,
-          podcast_title: scriptJson.title
-        }
+        data: { podcast_id: newPodcast.id, podcast_title: scriptJson.title }
       });
       await notifyFollowers(job.user_id, newPodcast.id, scriptJson.title);
-    })().catch(console.error);
+    })();
     
     return new Response(JSON.stringify({ success: true, message: `Trabajo de guion ${job.id} completado.` }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -184,19 +152,13 @@ serve(async (request) => {
           }).eq('id', job.id);
         } else {
           const finalErrorMessage = `Falló después de ${MAX_RETRIES + 1} intentos. Error final: ${errorMessage.substring(0, 200)}`;
-          await supabaseAdmin.from('podcast_creation_jobs').update({
-            status: "failed",
-            error_message: finalErrorMessage
-          }).eq('id', job.id);
+          await supabaseAdmin.from('podcast_creation_jobs').update({ status: "failed", error_message: finalErrorMessage }).eq('id', job.id);
           
           await supabaseAdmin.from('notifications').insert({
             user_id: job.user_id,
             type: 'podcast_created_failure',
-            data: {
-              job_title: job.payload?.inputs?.topic || 'Tu Micro-Podcast',
-              error_message: finalErrorMessage
-            }
-          }).catch(console.error);
+            data: { job_title: job.payload?.inputs?.topic || 'Tu Micro-Podcast', error_message: finalErrorMessage }
+          });
         }
       } else {
         await supabaseAdmin.from('podcast_creation_jobs').update({
@@ -207,11 +169,8 @@ serve(async (request) => {
         await supabaseAdmin.from('notifications').insert({
           user_id: job.user_id,
           type: 'podcast_created_failure',
-          data: {
-            job_title: job.payload?.inputs?.topic || 'Tu Micro-Podcast',
-            error_message: errorMessage.substring(0, 100)
-          }
-        }).catch(console.error);
+          data: { job_title: job.payload?.inputs?.topic || 'Tu Micro-Podcast', error_message: errorMessage.substring(0, 100) }
+        });
       }
     }
     
