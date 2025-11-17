@@ -1,5 +1,5 @@
 // app/page.tsx
-// VERSIÓN FINAL REESTRUCTURADA: Implementa el layout 2/3 + 1/3 con una columna de panel estática (sticky).
+// VERSIÓN FINAL CON LAYOUT 3/4 + 1/4 Y PANEL STICKY ALINEADO
 
 import { cookies } from "next/headers";
 import Link from "next/link";
@@ -8,13 +8,11 @@ import { PodcastWithProfile } from "@/types/podcast";
 import { PodcastShelf } from "@/components/podcast-shelf";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Mic, Search, Compass, Lightbulb, Bot, Play } from "lucide-react";
+import { Mic, Search, Compass, Lightbulb, Bot } from "lucide-react";
 import { QuadrantCard } from "@/components/ui/quadrant-card";
 import { InsightPanel } from "@/components/insight-panel";
 import { FloatingActionButton } from "@/components/ui/floating-action-button";
 import type { Tables } from "@/types/supabase";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 
 // Definimos los tipos para la seguridad de tipos.
 type ResonanceProfile = Tables<'user_resonance_profiles'>;
@@ -32,7 +30,8 @@ function UserDashboard({ user, feed }: { user: any; feed: DiscoveryFeed | null }
 
   return (
     <>
-      <div>
+      {/* El padding se aplica aquí para móviles y se resetea para LG en el contenedor superior */}
+      <div className="px-4 lg:px-0">
         <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
           Hola, {userName}!
         </h1>
@@ -55,7 +54,7 @@ function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] | null }) 
   return (
     <div className="flex flex-col items-center">
       {/* Sección 1: Héroe */}
-      <section className="w-full text-center py-20 md:py-32 flex flex-col items-center space-y-6 px-4">
+      <section className="w-full text-center py-20 md:py-24 flex flex-col items-center space-y-6 px-4">
         <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-primary">
           Expande tu perspectiva diariamente
         </h1>
@@ -65,14 +64,12 @@ function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] | null }) 
         <div className="flex flex-col sm:flex-row justify-center gap-4 w-full max-w-xs mx-auto">
           <Link href="/create" className="w-full">
             <Button size="lg" className="rounded-full w-full py-6 text-lg">
-              <Mic className="mr-2 h-5 w-5" />
-              Comienza a Crear
+              <Mic className="mr-2 h-5 w-5" /> Comienza a Crear
             </Button>
           </Link>
           <Link href="/podcasts" className="w-full">
              <Button size="lg" variant="outline" className="rounded-full w-full py-6 text-lg">
-               <Compass className="mr-2 h-5 w-5" />
-               Explorar Ideas
+               <Compass className="mr-2 h-5 w-5" /> Explorar Ideas
              </Button>
           </Link>
         </div>
@@ -83,11 +80,7 @@ function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] | null }) 
         <h2 className="text-3xl font-bold text-center mb-6">Encuentra tu Próxima Idea</h2>
         <div className="relative mb-8">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Input
-                type="text"
-                placeholder="Buscar podcasts por tema o palabra clave..."
-                className="w-full p-4 pl-12 rounded-full bg-muted/50 border-2 border-border/20 focus:ring-2 focus:ring-primary focus:outline-none"
-            />
+            <Input type="text" placeholder="Buscar podcasts..." className="w-full p-4 pl-12 rounded-full bg-muted/50 border-2 border-border/20 focus:ring-2 focus:ring-primary focus:outline-none" />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <QuadrantCard icon={<Compass className="h-6 w-6" />} title="Ideas Prácticas y Abstractas" description="Herramientas para la mente y el alma." href="/podcasts?view=compass" />
@@ -99,10 +92,7 @@ function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] | null }) 
 
       {/* Sección 3: Únete a la Conversación */}
       <div className="w-full max-w-7xl mx-auto px-4 lg:px-0">
-        <PodcastShelf 
-          title="Únete a la Conversación"
-          podcasts={latestPodcasts as any[] || []}
-        />
+        <PodcastShelf title="Únete a la Conversación" podcasts={latestPodcasts as any[] || []} />
       </div>
 
       {/* Footer (solo visible en móvil en este layout) */}
@@ -146,12 +136,15 @@ export default async function HomePage() {
   }
 
   return (
-    // [CAMBIO ESTRUCTURAL]: El layout principal se define aquí.
-    <main className="container mx-auto max-w-screen-2xl flex-grow">
-      <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-8 xl:gap-12 h-full">
+    // [CAMBIO ESTRUCTURAL #1]: El <main> ahora define el contenedor de ancho máximo y el layout de grid.
+    // 'max-w-screen-xl' asegura que el ancho coincida con el de la barra de navegación para una alineación perfecta.
+    <main className="container mx-auto max-w-screen-xl flex-grow">
+      {/* [CAMBIO ESTRUCTURAL #2]: Se cambia el grid a 4 columnas. */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 lg:gap-8 xl:gap-12 h-full">
         
-        {/* === COLUMNA DE CONTENIDO (2/3) - SCROLLABLE === */}
-        <div className="lg:col-span-2 lg:h-[calc(100vh-5rem)] lg:overflow-y-auto lg:pr-4"> {/* 5rem es la altura del nav */}
+        {/* === COLUMNA DE CONTENIDO (3/4) - SCROLLABLE === */}
+        {/* [CAMBIO ESTRUCTURAL #3]: Esta columna ahora ocupa 3 de 4 partes del grid. */}
+        <div className="lg:col-span-3 lg:h-[calc(100vh-5rem)] lg:overflow-y-auto lg:pr-6 scrollbar-thin scrollbar-thumb-gray-700/50 scrollbar-track-transparent">
           {user ? (
             <UserDashboard user={user} feed={feed} />
           ) : (
@@ -159,7 +152,8 @@ export default async function HomePage() {
           )}
         </div>
         
-        {/* === COLUMNA DEL PANEL (1/3) - STICKY === */}
+        {/* === COLUMNA DEL PANEL (1/4) - STICKY === */}
+        {/* [CAMBIO ESTRUCTURAL #4]: Esta columna ahora ocupa 1 de 4 partes. */}
         <div className="hidden lg:block lg:col-span-1">
           <div className="sticky top-20 h-[calc(100vh-6rem)]"> {/* 6rem = altura nav + un poco de padding */}
             <InsightPanel resonanceProfile={resonanceProfile} />
