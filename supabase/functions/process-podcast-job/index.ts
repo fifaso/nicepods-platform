@@ -1,31 +1,40 @@
 // supabase/functions/process-podcast-job/index.ts
-// VERSIÓN DE PRODUCCIÓN FINAL: Sincronizada, resiliente y completa.
+// VERSIÓN POTENCIADA FINAL: Integra la generación de notificaciones de éxito, fallo y fan-out a seguidores.
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+
 const MAX_RETRIES = 2;
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
-const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-const GOOGLE_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const GOOGLE_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY")!;
 const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_KEY);
+
 const WebhookPayloadSchema = z.object({
   job_id: z.number()
 });
-function buildFinalPrompt(template, inputs) {
+
+function buildFinalPrompt(template: string, inputs: any) {
   let finalPrompt = template;
-  for(const key in inputs){
-    const value = typeof inputs[key] === 'object' ? JSON.stringify(inputs[key], null, 2) : String(inputs[key]);
-    finalPrompt = finalPrompt.replace(new RegExp(`{{${key}}}`, 'g'), value);
+  for (const key in inputs) {
+    if (Object.prototype.hasOwnProperty.call(inputs, key)) {
+      const value = typeof inputs[key] === 'object' ? JSON.stringify(inputs[key], null, 2) : String(inputs[key]);
+      finalPrompt = finalPrompt.replace(new RegExp(`{{${key}}}`, 'g'), value);
+    }
   }
   return finalPrompt;
 }
-const parseJsonResponse = (text)=>{
+
+const parseJsonResponse = (text: string) => {
   const jsonMatch = text.match(/```json([\s\S]*?)```/);
   if (jsonMatch && jsonMatch[1]) {
     try {
       return JSON.parse(jsonMatch[1]);
-    } catch (e) {}
+    } catch (e) {
+      // Si falla el parsing del bloque JSON, intentamos parsear el texto completo como fallback.
+    }
   }
   try {
     return JSON.parse(text);
@@ -33,47 +42,83 @@ const parseJsonResponse = (text)=>{
     throw new Error("La respuesta de la IA no contenía un formato JSON reconocible.");
   }
 };
-serve(async (request)=>{
-  if (request.method === 'OPTIONS') {
-    return new Response('ok', {
-      headers: corsHeaders
-    });
+
+async function notifyFollowers(creatorId: string, podcastId: number, podcastTitle: string) {
+  try {
+    const { data: creatorProfile, error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .select('full_name')
+      .eq('id', creatorId)
+      .single();
+    
+    if (profileError || !creatorProfile) {
+      console.warn(`No se pudo encontrar el perfil del creador ${creatorId} para la notificación de fan-out.`);
+      return;
+    }
+
+    const { data: followers, error: followersError } = await supabaseAdmin
+      .from('followers')
+      .select('follower_id')
+      .eq('following_id', creatorId);
+
+    if (followersError) throw followersError;
+    if (!followers || followers.length === 0) {
+      console.log(`El creador ${creatorId} no tiene seguidores para notificar.`);
+      return;
+    }
+
+    const notifications = followers.map(follower => ({
+      user_id: follower.follower_id,
+      type: 'new_podcast_from_followed_user',
+      data: {
+        actor_id: creatorId,
+        actor_name: creatorProfile.full_name,
+        podcast_id: podcastId,
+        podcast_title: podcastTitle
+      }
+    }));
+
+    const { error: insertError } = await supabaseAdmin.from('notifications').insert(notifications);
+    if (insertError) throw insertError;
+    
+    console.log(`Notificaciones de fan-out enviadas a ${followers.length} seguidores.`);
+
+  } catch (error) {
+    console.error("Error en la función de notificación a seguidores (fan-out):", error.message);
   }
-  let job = null;
+}
+
+serve(async (request) => {
+  if (request.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  let job: any = null;
   try {
     const { job_id } = WebhookPayloadSchema.parse(await request.json());
     const { data: jobData, error: jobError } = await supabaseAdmin.from('podcast_creation_jobs').select('*').eq('id', job_id).single();
     if (jobError || !jobData) throw new Error(`Trabajo ${job_id} no encontrado.`);
     job = jobData;
-    await supabaseAdmin.from('podcast_creation_jobs').update({
-      status: 'processing'
-    }).eq('id', job.id);
+
+    await supabaseAdmin.from('podcast_creation_jobs').update({ status: 'processing' }).eq('id', job.id);
+    
     const { agentName, inputs } = job.payload;
     const { data: promptData } = await supabaseAdmin.from('ai_prompts').select('prompt_template').eq('agent_name', agentName).single();
     if (!promptData) throw new Error(`Prompt para '${agentName}' no encontrado.`);
+
     const finalPrompt = buildFinalPrompt(promptData.prompt_template, inputs);
-    const scriptGenApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${GOOGLE_API_KEY}`;
+    const scriptGenApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GOOGLE_API_KEY}`;
     const scriptResponse = await fetch(scriptGenApiUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: finalPrompt
-              }
-            ]
-          }
-        ]
-      })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts: [{ text: finalPrompt }] }] }),
     });
+
     if (!scriptResponse.ok) throw new Error(`API de IA (Guion) falló: ${await scriptResponse.text()}`);
     const scriptResult = await scriptResponse.json();
     const generatedText = scriptResult.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!generatedText) throw new Error("La respuesta de la IA (Guion) no tiene la estructura esperada.");
+    
     const scriptJson = parseJsonResponse(generatedText);
     const initialPodcastStatus = inputs.generateAudioDirectly ? 'pending_approval' : 'published';
     const { data: newPodcast, error: insertError } = await supabaseAdmin.from('micro_pods').insert({
@@ -83,49 +128,52 @@ serve(async (request)=>{
       status: initialPodcastStatus,
       creation_data: job.payload
     }).select('id').single();
+    
     if (insertError || !newPodcast) throw new Error(`Fallo al guardar el guion: ${insertError?.message}`);
-    // [INTERVENCIÓN ARQUITECTÓNICA DE LA VICTORIA]
-    // Se sincroniza el estado de la base de datos ANTES de delegar las tareas.
+
     const finalJobStatus = inputs.generateAudioDirectly ? 'pending_audio' : 'completed';
-    // 1. Realizar la actualización crítica y esperar (await) a que se complete.
-    // Esto garantiza que el micro_pod_id está guardado antes de que cualquier otra función lo necesite.
     await supabaseAdmin.from('podcast_creation_jobs').update({
       status: finalJobStatus,
       micro_pod_id: newPodcast.id,
       error_message: null
     }).eq('id', job.id);
-    // 2. Ahora que la base de datos es consistente, lanzar las tareas en paralelo de forma segura.
-    console.log(`Lanzando generación de carátula para el trabajo ${job.id} con el agente 'cover-art-director-v1'...`);
+
+    console.log(`Lanzando generación de carátula para el trabajo ${job.id}...`);
     supabaseAdmin.functions.invoke('generate-cover-image', {
-      body: {
-        job_id: job.id,
-        agent_name: 'cover-art-director-v1'
-      }
-    }).then(({ error })=>{
+      body: { job_id: job.id, agent_name: 'cover-art-director-v1' }
+    }).then(({ error }) => {
       if (error) console.error(`Invocación asíncrona a 'generate-cover-image' falló para el trabajo ${job.id}:`, error);
     });
+
     if (finalJobStatus === 'pending_audio') {
       console.log(`Lanzando generación de audio para el trabajo ${job.id}...`);
       supabaseAdmin.functions.invoke('generate-audio-from-script', {
-        body: {
-          job_id: job.id
-        }
-      }).then(({ error })=>{
+        body: { job_id: job.id }
+      }).then(({ error }) => {
         if (error) console.error(`Invocación asíncrona a 'generate-audio-from-script' falló para el trabajo ${job.id}:`, error);
       });
     }
-    return new Response(JSON.stringify({
-      success: true,
-      message: `Trabajo de guion ${job.id} completado. Tareas paralelas iniciadas.`
-    }), {
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json'
-      }
+
+    (async () => {
+      await supabaseAdmin.from('notifications').insert({
+        user_id: job.user_id,
+        type: 'podcast_created_success',
+        data: {
+          podcast_id: newPodcast.id,
+          podcast_title: scriptJson.title
+        }
+      });
+      await notifyFollowers(job.user_id, newPodcast.id, scriptJson.title);
+    })().catch(console.error);
+    
+    return new Response(JSON.stringify({ success: true, message: `Trabajo de guion ${job.id} completado.` }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
+
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Error interno desconocido.";
     console.error(`Error procesando trabajo ${job?.id || 'invocación'}: ${errorMessage}`);
+
     if (job) {
       if (errorMessage.includes("The model is overloaded") || errorMessage.includes("UNAVAILABLE") || errorMessage.includes("503")) {
         if (job.retry_count < MAX_RETRIES) {
@@ -135,26 +183,41 @@ serve(async (request)=>{
             error_message: `Intento ${job.retry_count + 1} falló (transitorio): ${errorMessage.substring(0, 200)}`
           }).eq('id', job.id);
         } else {
+          const finalErrorMessage = `Falló después de ${MAX_RETRIES + 1} intentos. Error final: ${errorMessage.substring(0, 200)}`;
           await supabaseAdmin.from('podcast_creation_jobs').update({
             status: "failed",
-            error_message: `Falló después de ${MAX_RETRIES + 1} intentos. Error final (transitorio): ${errorMessage.substring(0, 200)}`
+            error_message: finalErrorMessage
           }).eq('id', job.id);
+          
+          await supabaseAdmin.from('notifications').insert({
+            user_id: job.user_id,
+            type: 'podcast_created_failure',
+            data: {
+              job_title: job.payload?.inputs?.topic || 'Tu Micro-Podcast',
+              error_message: finalErrorMessage
+            }
+          }).catch(console.error);
         }
       } else {
         await supabaseAdmin.from('podcast_creation_jobs').update({
           status: "failed",
           error_message: `Error permanente: ${errorMessage.substring(0, 255)}`
         }).eq('id', job.id);
+        
+        await supabaseAdmin.from('notifications').insert({
+          user_id: job.user_id,
+          type: 'podcast_created_failure',
+          data: {
+            job_title: job.payload?.inputs?.topic || 'Tu Micro-Podcast',
+            error_message: errorMessage.substring(0, 100)
+          }
+        }).catch(console.error);
       }
     }
-    return new Response(JSON.stringify({
-      error: errorMessage
-    }), {
+    
+    return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json'
-      }
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
 });
