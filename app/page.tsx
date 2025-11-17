@@ -1,5 +1,5 @@
 // app/page.tsx
-// VERSIÓN FINAL CON LAYOUT 3/4 + 1/4 Y PANEL STICKY ALINEADO
+// VERSIÓN FINAL Y COMPLETA: Implementa el layout 3/4 + 1/4 con scroll aislado y sin abreviaciones.
 
 import { cookies } from "next/headers";
 import Link from "next/link";
@@ -30,7 +30,6 @@ function UserDashboard({ user, feed }: { user: any; feed: DiscoveryFeed | null }
 
   return (
     <>
-      {/* El padding se aplica aquí para móviles y se resetea para LG en el contenedor superior */}
       <div className="px-4 lg:px-0">
         <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
           Hola, {userName}!
@@ -136,26 +135,25 @@ export default async function HomePage() {
   }
 
   return (
-    // [CAMBIO ESTRUCTURAL #1]: El <main> ahora define el contenedor de ancho máximo y el layout de grid.
-    // 'max-w-screen-xl' asegura que el ancho coincida con el de la barra de navegación para una alineación perfecta.
     <main className="container mx-auto max-w-screen-xl flex-grow">
-      {/* [CAMBIO ESTRUCTURAL #2]: Se cambia el grid a 4 columnas. */}
       <div className="grid grid-cols-1 lg:grid-cols-4 lg:gap-8 xl:gap-12 h-full">
         
         {/* === COLUMNA DE CONTENIDO (3/4) - SCROLLABLE === */}
-        {/* [CAMBIO ESTRUCTURAL #3]: Esta columna ahora ocupa 3 de 4 partes del grid. */}
-        <div className="lg:col-span-3 lg:h-[calc(100vh-5rem)] lg:overflow-y-auto lg:pr-6 scrollbar-thin scrollbar-thumb-gray-700/50 scrollbar-track-transparent">
-          {user ? (
-            <UserDashboard user={user} feed={feed} />
-          ) : (
-            <GuestLandingPage latestPodcasts={latestPodcasts} />
-          )}
+        <div className="lg:col-span-3 lg:h-[calc(100vh-5rem)] lg:overflow-y-auto lg:pr-6 
+                       scrollbar-thin scrollbar-thumb-gray-600/50 hover:scrollbar-thumb-gray-500/50 
+                       scrollbar-track-transparent scrollbar-thumb-rounded-full">
+          <div className="py-12">
+            {user ? (
+              <UserDashboard user={user} feed={feed} />
+            ) : (
+              <GuestLandingPage latestPodcasts={latestPodcasts} />
+            )}
+          </div>
         </div>
         
         {/* === COLUMNA DEL PANEL (1/4) - STICKY === */}
-        {/* [CAMBIO ESTRUCTURAL #4]: Esta columna ahora ocupa 1 de 4 partes. */}
         <div className="hidden lg:block lg:col-span-1">
-          <div className="sticky top-20 h-[calc(100vh-6rem)]"> {/* 6rem = altura nav + un poco de padding */}
+          <div className="sticky top-20 h-[calc(100vh-6.5rem)] py-12">
             <InsightPanel resonanceProfile={resonanceProfile} />
           </div>
         </div>

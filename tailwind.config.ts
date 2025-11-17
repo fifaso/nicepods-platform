@@ -1,8 +1,6 @@
 // tailwind.config.ts
 import type { Config } from "tailwindcss";
 
-// all in fixtures is set to tailwind v3 as interims solutions
-
 const config: Config = {
     darkMode: ["class"],
     content: [
@@ -94,6 +92,11 @@ const config: Config = {
   		}
   	}
   },
-  plugins: [require("tailwindcss-animate")],
+  // [CAMBIO QUIRÚRGICO]: Se añade el plugin 'tailwind-scrollbar' para habilitar
+  // las clases de utilidad de la barra de scroll personalizada.
+  plugins: [
+    require("tailwindcss-animate"),
+    require("tailwind-scrollbar"), // <-- ESTA ES LA ÚNICA LÍNEA AÑADIDA
+  ],
 };
 export default config;
