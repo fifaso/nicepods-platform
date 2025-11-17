@@ -1,5 +1,5 @@
 // app/page.tsx
-// VERSIÓN FINAL Y DEFINITIVA: Con scroll perfectamente aislado y sin "micro scroll".
+// VERSIÓN FINAL CON LAYOUT ESTRUCTURAL 3/4 + 1/4 Y PANEL STICKY ALINEADO
 
 import { cookies } from "next/headers";
 import Link from "next/link";
@@ -8,13 +8,13 @@ import { PodcastWithProfile } from "@/types/podcast";
 import { PodcastShelf } from "@/components/podcast-shelf";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Mic, Search, Compass, Lightbulb, Bot } from "lucide-react";
+import { Mic, Search, Compass, Lightbulb, Bot, Play } from "lucide-react";
 import { QuadrantCard } from "@/components/ui/quadrant-card";
 import { InsightPanel } from "@/components/insight-panel";
 import { FloatingActionButton } from "@/components/ui/floating-action-button";
 import type { Tables } from "@/types/supabase";
 
-// Tipos y componentes internos (sin cambios)
+// Definimos los tipos para la seguridad de tipos.
 type ResonanceProfile = Tables<'user_resonance_profiles'>;
 interface DiscoveryFeed {
   epicenter: PodcastWithProfile[] | null;
@@ -22,6 +22,9 @@ interface DiscoveryFeed {
   new_horizons: PodcastWithProfile[] | null;
 }
 
+// ===================================================================
+// VISTA PARA USUARIO AUTENTICADO
+// ===================================================================
 function UserDashboard({ user, feed }: { user: any; feed: DiscoveryFeed | null }) {
   const userName = user.user_metadata?.full_name?.split(' ')[0] || user.email;
 
@@ -43,9 +46,13 @@ function UserDashboard({ user, feed }: { user: any; feed: DiscoveryFeed | null }
   );
 }
 
+// ===================================================================
+// VISTA PARA INVITADO
+// ===================================================================
 function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] | null }) {
   return (
     <div className="flex flex-col items-center">
+      {/* Sección 1: Héroe */}
       <section className="w-full text-center py-20 md:py-24 flex flex-col items-center space-y-6 px-4">
         <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-primary">
           Expande tu perspectiva diariamente
@@ -67,6 +74,7 @@ function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] | null }) 
         </div>
       </section>
       
+      {/* Sección 2: Encuentra tu Próxima Idea */}
       <section className="w-full max-w-4xl py-12 px-4 mx-auto">
         <h2 className="text-3xl font-bold text-center mb-6">Encuentra tu Próxima Idea</h2>
         <div className="relative mb-8">
@@ -81,10 +89,12 @@ function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] | null }) 
         </div>
       </section>
 
+      {/* Sección 3: Únete a la Conversación */}
       <div className="w-full max-w-7xl mx-auto px-4 lg:px-0">
         <PodcastShelf title="Únete a la Conversación" podcasts={latestPodcasts as any[] || []} />
       </div>
 
+      {/* Footer (solo visible en móvil en este layout) */}
       <footer className="w-full py-8 mt-16 bg-muted/50 text-center text-sm text-muted-foreground lg:hidden">
         <div className="container px-4 md:px-6 mx-auto">
             <p>&copy; {new Date().getFullYear()} NicePod. Todos los derechos reservados.</p>
@@ -94,12 +104,15 @@ function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] | null }) 
   );
 }
 
-// COMPONENTE PRINCIPAL CON EL LAYOUT CORREGIDO
+// ===================================================================
+// COMPONENTE PRINCIPAL (EL "ROUTER" LÓGICO CON EL NUEVO LAYOUT)
+// ===================================================================
 export default async function HomePage() {
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
   const { data: { user } } = await supabase.auth.getUser();
 
+  // Obtenemos los datos necesarios de forma condicional ANTES de renderizar el layout.
   let feed: DiscoveryFeed | null = null;
   let resonanceProfile: ResonanceProfile | null = null;
   let latestPodcasts: any[] | null = null;
@@ -122,12 +135,15 @@ export default async function HomePage() {
   }
 
   return (
+    // [CAMBIO ESTRUCTURAL #1]: El <main> ahora define el contenedor de ancho máximo y el layout de grid.
+    // 'max-w-screen-xl' asegura que el ancho coincida con el de la barra de navegación para una alineación perfecta.
     <main className="container mx-auto max-w-screen-xl flex-grow">
+      {/* [CAMBIO ESTRUCTURAL #2]: Se cambia el grid a 4 columnas. */}
       <div className="grid grid-cols-1 lg:grid-cols-4 lg:gap-8 xl:gap-12 h-full">
         
         {/* === COLUMNA DE CONTENIDO (3/4) - SCROLLABLE === */}
-        {/* [CAMBIO QUIRÚRGICO #1]: La altura se calcula con precisión para llenar el espacio. El padding se mueve a un div interior. */}
-        <div className="lg:col-span-3 lg:h-[calc(100vh-5rem)] lg:overflow-y-auto lg:pr-6 
+        {/* [CAMBIO ESTRUCTURAL #3]: Esta columna ahora ocupa 3 de 4 partes del grid. */}
+        <div className="lg:col-span-3 lg:h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-6 
                        scrollbar-thin scrollbar-thumb-gray-600/50 hover:scrollbar-thumb-gray-500/50 
                        scrollbar-track-transparent scrollbar-thumb-rounded-full">
           <div className="py-12">
@@ -140,10 +156,9 @@ export default async function HomePage() {
         </div>
         
         {/* === COLUMNA DEL PANEL (1/4) - STICKY === */}
+        {/* [CAMBIO ESTRUCTURAL #4]: Esta columna ahora ocupa 1 de 4 partes. */}
         <div className="hidden lg:block lg:col-span-1">
-          {/* [CAMBIO QUIRÚRGICO #2]: El contenedor sticky ahora tiene el padding en su interior, y la altura del panel
-              se controla con h-full para que se adapte perfectamente al espacio definido por el padre. */}
-          <div className="sticky top-20 h-[calc(100vh-6.5rem)]">
+          <div className="sticky top-[6rem] h-[calc(100vh-7.5rem)]">
             <div className="py-12 h-full">
                 <InsightPanel resonanceProfile={resonanceProfile} />
             </div>
