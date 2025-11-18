@@ -1,5 +1,5 @@
 // components/podcast-view.tsx
-// VERSIÓN FINAL Y COMPLETA: Integra el nuevo sistema de curación de etiquetas.
+// VERSIÓN FINAL Y COMPLETA: Integra el nuevo sistema de curación de etiquetas sin abreviaciones.
 
 "use client";
 
@@ -307,8 +307,8 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
         <TagCurationCanvas 
           isOpen={isEditingTags}
           onOpenChange={setIsEditingTags}
-          initialSuggestedTags={localPodcastData.ai_tags || []}
-          initialPublishedTags={localPodcastData.user_tags || []}
+          suggestedTags={localPodcastData.ai_tags || []}
+          publishedTags={localPodcastData.user_tags || []}
           onSave={handleSaveTags}
         />
       )}
