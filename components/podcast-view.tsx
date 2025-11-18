@@ -22,7 +22,7 @@ import { CreationMetadata } from './creation-metadata';
 import { formatTime } from '@/lib/utils';
 import { ScriptViewer } from './script-viewer';
 import { cn } from '@/lib/utils';
-import { TagCurationCanvas } from './tag-curation-canvas'; // Importamos nuestro nuevo componente.
+import { TagCurationCanvas } from './tag-curation-canvas';
 
 interface PodcastViewProps { 
   podcastData: PodcastWithProfile;
@@ -42,8 +42,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
   const [isLiking, setIsLiking] = useState(false);
   const [isScriptExpanded, setIsScriptExpanded] = useState(false);
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
-  
-  // [CAMBIO QUIRÚRGICO #1]: Estado para controlar el modal de edición de etiquetas.
   const [isEditingTags, setIsEditingTags] = useState(false);
 
   useEffect(() => {
@@ -86,14 +84,11 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
   const displayTags = useMemo(() => {
     const userTags = localPodcastData.user_tags;
     const aiTags = localPodcastData.ai_tags;
-    // Si hay etiquetas de usuario, esas son la fuente de la verdad.
     if (userTags && userTags.length > 0) return userTags;
-    // Si no, mostramos las de la IA como sugerencia.
     if (aiTags && aiTags.length > 0) return aiTags;
     return [];
   }, [localPodcastData.ai_tags, localPodcastData.user_tags]);
 
-  // [CAMBIO QUIRÚRGICO #2]: Función para guardar las etiquetas actualizadas desde el Canvas.
   const handleSaveTags = async (finalTags: string[]) => {
     const { error } = await supabase
       .from('micro_pods')
@@ -103,7 +98,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
     if (error) {
       toast({ title: "Error", description: "No se pudieron guardar las etiquetas.", variant: "destructive" });
     } else {
-      // Actualización optimista de la UI para reflejar los cambios al instante.
       setLocalPodcastData(prev => ({ ...prev, user_tags: finalTags }));
       toast({ title: "Éxito", description: "Tus etiquetas han sido actualizadas." });
     }
@@ -200,7 +194,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
                 
                 <Separator className="my-4" />
 
-                {/* [CAMBIO QUIRÚRGICO #3]: Nueva sección de etiquetas inyectada en la UI. */}
                 <div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -259,16 +252,15 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
                   <Button size="lg" className="w-full bg-green-500 hover:bg-green-600" onClick={() => playPodcast(localPodcastData)}>
                     <PlayCircle className="mr-2 h-5 w-5" />Reproducir Audio
                   </Button>
-                ) : (localPodcastData.status !== 'published' || isGeneratingAudio) ? (
+                ) : ( (localPodcastData.status !== 'published' || isGeneratingAudio) ? (
                   <Button size="lg" className="w-full" disabled>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Generando Audio
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generando Audio
                   </Button>
                 ) : (
                   <Button size="lg" className="w-full" onClick={handleGenerateAudio} disabled={isGeneratingAudio}>
                     <Mic className="mr-2 h-5 w-5" />Generar Audio
                   </Button>
-                )}
+                ))}
                 <div className="flex justify-around items-center">
                   <div className="flex items-center gap-1">
                     <Button onClick={handleLike} variant="ghost" size="icon" disabled={isLiking}>
@@ -311,7 +303,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
         </div>
       </div>
       
-      {/* [CAMBIO QUIRÚRGICO #4]: El Lienzo de Curación, renderizado condicionalmente para el propietario. */}
       {isOwner && (
         <TagCurationCanvas 
           isOpen={isEditingTags}
