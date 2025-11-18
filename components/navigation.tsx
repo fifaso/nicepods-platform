@@ -1,9 +1,10 @@
 // components/navigation.tsx
-// VERSIÓN FINAL CORREGIDA Y ROBUSTA
+// VERSIÓN FINAL: Actualizado con el nuevo logo de marca desde la carpeta /public.
 
 "use client";
 
 import Link from "next/link";
+import Image from "next/image"; // [CAMBIO QUIRÚRGICO #1]: Se importa el componente de Imagen de Next.js.
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
@@ -42,8 +43,6 @@ export function Navigation() {
   const handleLogout = async () => {
     setIsMobileMenuOpen(false);
     await signOut();
-    // No se necesita redirección aquí, ya que el AuthProvider manejará el estado.
-    // La redirección principal se hará desde el propio perfil.
   };
 
   return (
@@ -51,11 +50,15 @@ export function Navigation() {
       <div className="relative max-w-screen-xl mx-auto flex h-16 items-center rounded-2xl border border-border/40 bg-background/80 px-4 shadow-lg shadow-black/5 backdrop-blur-lg supports-[backdrop-filter]:bg-background/60">
         
         <div className="flex-1 flex justify-start">
-          <Link href="/" className="flex items-center space-x-2">
-            <div className="p-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600">
-              <Mic className="h-6 w-6 text-white" />
-            </div>
-            <span className="font-bold text-xl inline-block">NicePod</span>
+          {/* [CAMBIO QUIRÚRGICO #2]: Se reemplaza el logo antiguo por el nuevo componente <Image>. */}
+          <Link href="/" className="flex items-center">
+            <Image
+              src="/nicepod-logo.svg" // Asume que el logo se llama así en la carpeta /public
+              alt="NicePod Logo"
+              width={120} // Ajusta el ancho según el diseño de tu logo
+              height={40} // Ajusta la altura para que encaje bien en la barra de h-16 (64px)
+              priority // Carga la imagen con prioridad ya que es parte del LCP (Largest Contentful Paint)
+            />
           </Link>
         </div>
 
@@ -105,7 +108,6 @@ export function Navigation() {
           <Link href="/create"><Button className="hidden lg:inline-flex"><Mic className="mr-2 h-4 w-4" />Crear Nuevo Podcast</Button></Link>
 
           <div className="md:hidden">
-            {/* [INTERVENCIÓN QUIRÚRGICA]: El error de tipeo ha sido corregido aquí. */}
             <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon">
@@ -116,11 +118,14 @@ export function Navigation() {
               <SheetContent side="right" className="w-full max-w-xs">
                 <SheetHeader>
                   <SheetTitle>
-                    <Link href="/" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-2">
-                       <div className="p-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600">
-                         <Mic className="h-6 w-6 text-white" />
-                       </div>
-                       <span className="font-bold text-xl">NicePod</span>
+                    {/* [CAMBIO QUIRÚRGICO #3]: Se reemplaza también el logo en el menú móvil para consistencia. */}
+                    <Link href="/" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center">
+                       <Image
+                         src="/nicepod-logo.svg"
+                         alt="NicePod Logo"
+                         width={120}
+                         height={40}
+                       />
                     </Link>
                   </SheetTitle>
                 </SheetHeader>
