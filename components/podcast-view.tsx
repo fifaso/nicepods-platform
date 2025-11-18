@@ -1,9 +1,9 @@
 // components/podcast-view.tsx
-// VERSIÓN FINAL Y COMPLETA: La lógica para mostrar la duración es ahora más explícita y robusta.
+// VERSIÓN FINAL Y COMPLETA: Integra el nuevo sistema de curación de etiquetas.
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { User } from '@supabase/supabase-js';
 import Image from 'next/image';
@@ -17,11 +17,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Heart, Share2, Download, Calendar, Clock, PlayCircle, ChevronDown, Loader2, Mic } from 'lucide-react';
+import { Heart, Share2, Download, Calendar, Clock, PlayCircle, ChevronDown, Loader2, Mic, Tag, Pencil } from 'lucide-react';
 import { CreationMetadata } from './creation-metadata';
 import { formatTime } from '@/lib/utils';
 import { ScriptViewer } from './script-viewer';
 import { cn } from '@/lib/utils';
+import { TagCurationCanvas } from './tag-curation-canvas'; // Importamos nuestro nuevo componente.
 
 interface PodcastViewProps { 
   podcastData: PodcastWithProfile;
@@ -41,6 +42,9 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
   const [isLiking, setIsLiking] = useState(false);
   const [isScriptExpanded, setIsScriptExpanded] = useState(false);
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
+  
+  // [CAMBIO QUIRÚRGICO #1]: Estado para controlar el modal de edición de etiquetas.
+  const [isEditingTags, setIsEditingTags] = useState(false);
 
   useEffect(() => {
     setLocalPodcastData(podcastData);
@@ -76,6 +80,34 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
       supabase.removeChannel(channel); 
     };
   }, [supabase, localPodcastData.id, localPodcastData.audio_url, localPodcastData.cover_image_url, localPodcastData.creation_data]);
+
+  const isOwner = user?.id === localPodcastData.user_id;
+
+  const displayTags = useMemo(() => {
+    const userTags = localPodcastData.user_tags;
+    const aiTags = localPodcastData.ai_tags;
+    // Si hay etiquetas de usuario, esas son la fuente de la verdad.
+    if (userTags && userTags.length > 0) return userTags;
+    // Si no, mostramos las de la IA como sugerencia.
+    if (aiTags && aiTags.length > 0) return aiTags;
+    return [];
+  }, [localPodcastData.ai_tags, localPodcastData.user_tags]);
+
+  // [CAMBIO QUIRÚRGICO #2]: Función para guardar las etiquetas actualizadas desde el Canvas.
+  const handleSaveTags = async (finalTags: string[]) => {
+    const { error } = await supabase
+      .from('micro_pods')
+      .update({ user_tags: finalTags })
+      .eq('id', localPodcastData.id);
+
+    if (error) {
+      toast({ title: "Error", description: "No se pudieron guardar las etiquetas.", variant: "destructive" });
+    } else {
+      // Actualización optimista de la UI para reflejar los cambios al instante.
+      setLocalPodcastData(prev => ({ ...prev, user_tags: finalTags }));
+      toast({ title: "Éxito", description: "Tus etiquetas han sido actualizadas." });
+    }
+  };
 
   const handleLike = async () => {
     if (!supabase || !user) {
@@ -158,20 +190,42 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
             <Card className="bg-card/50 backdrop-blur-lg border-border/20 shadow-lg overflow-hidden">
               {localPodcastData.cover_image_url && (
                 <div className="aspect-video relative w-full">
-                  <Image
-                    src={localPodcastData.cover_image_url}
-                    alt={`Carátula de ${localPodcastData.title}`}
-                    fill
-                    style={{ objectFit: 'cover' }}
-                    className="animate-fade-in"
-                    priority
-                  />
+                  <Image src={localPodcastData.cover_image_url} alt={`Carátula de ${localPodcastData.title}`} fill style={{ objectFit: 'cover' }} className="animate-fade-in" priority />
                 </div>
               )}
               <CardHeader className="p-4">
-                <Badge variant="secondary" className="mb-2 w-fit">{localPodcastData.status === 'published' ? 'Publicado' : 'Procesando'}</Badge>
+                <Badge variant="secondary" className="mb-2 w-fit">{localPodcastData.status}</Badge>
                 <CardTitle className="text-3xl font-bold">{localPodcastData.title}</CardTitle>
                 <CardDescription className="pt-2">{localPodcastData.description}</CardDescription>
+                
+                <Separator className="my-4" />
+
+                {/* [CAMBIO QUIRÚRGICO #3]: Nueva sección de etiquetas inyectada en la UI. */}
+                <div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Tag className="h-4 w-4" />
+                      <h4>{localPodcastData.user_tags && localPodcastData.user_tags.length > 0 ? 'Etiquetas' : 'Sugerencias de la IA'}</h4>
+                    </div>
+                    {isOwner && (
+                      <Button variant="ghost" size="sm" onClick={() => setIsEditingTags(true)}>
+                        <Pencil className="h-4 w-4 mr-2" />
+                        Revisar y Curar
+                      </Button>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {displayTags.length > 0 ? (
+                      displayTags.map(tag => (
+                        <Badge key={tag} variant={localPodcastData.user_tags && localPodcastData.user_tags.length > 0 ? 'default' : 'outline'}>
+                          {tag}
+                        </Badge>
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted-foreground italic">No hay etiquetas para este podcast.</p>
+                    )}
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="p-4 pt-0">
                 <Separator className="my-4" />
@@ -242,7 +296,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
                   <span>Creado el: {new Date(localPodcastData.created_at).toLocaleDateString()}</span>
                 </div>
                 
-                {/* [CAMBIO QUIRÚRGICO]: Hacemos la condición de renderizado más explícita y segura. */}
                 {(localPodcastData.duration_seconds ?? 0) > 0 && (
                   <div className="flex items-center text-muted-foreground">
                     <Clock className="h-4 w-4 mr-2" />
@@ -257,6 +310,17 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
           </div>
         </div>
       </div>
+      
+      {/* [CAMBIO QUIRÚRGICO #4]: El Lienzo de Curación, renderizado condicionalmente para el propietario. */}
+      {isOwner && (
+        <TagCurationCanvas 
+          isOpen={isEditingTags}
+          onOpenChange={setIsEditingTags}
+          initialSuggestedTags={localPodcastData.ai_tags || []}
+          initialPublishedTags={localPodcastData.user_tags || []}
+          onSave={handleSaveTags}
+        />
+      )}
     </>
   );
 }
