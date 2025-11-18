@@ -1,4 +1,6 @@
 // app/podcast/[id]/page.tsx
+// VERSIÓN FINAL CON CAMBIO QUIRÚRGICO: La consulta a la base de datos ahora solicita 'ai_tags' y 'user_tags'.
+
 import { cookies } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
 import { PodcastView } from "@/components/podcast-view";
@@ -17,17 +19,31 @@ export default async function PodcastDisplayPage({ params }: PodcastPageProps) {
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
-    redirect(`/login?redirect=/podcasts/${params.id}`);
+    // Redirige a la página de login, manteniendo la URL original para un retorno fácil.
+    redirect(`/login?redirect=/podcast/${params.id}`);
   }
 
   const { data: podcastData, error } = await supabase
     .from("micro_pods")
     .select(`
-      id, user_id, title, description, script_text, audio_url,
-      cover_image_url, duration_seconds, category, status,
-      play_count, like_count, created_at, updated_at,
+      id, 
+      user_id, 
+      title, 
+      description, 
+      script_text, 
+      audio_url,
+      cover_image_url, 
+      duration_seconds, 
+      category, 
+      status,
+      play_count, 
+      like_count, 
+      created_at, 
+      updated_at,
       creation_data,
-      profiles ( full_name, avatar_url )
+      ai_tags, 
+      user_tags,
+      profiles ( full_name, avatar_url, username )
     `)
     .eq('id', params.id)
     .single<PodcastWithProfile>();
