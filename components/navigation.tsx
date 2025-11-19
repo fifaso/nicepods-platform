@@ -1,10 +1,10 @@
 // components/navigation.tsx
-// VERSIÓN FINAL: Actualizado con el nuevo logo de marca desde la carpeta /public.
+// VERSIÓN FINAL CORREGIDA: Apunta al archivo de logo .png existente en la carpeta /public.
 
 "use client";
 
 import Link from "next/link";
-import Image from "next/image"; // [CAMBIO QUIRÚRGICO #1]: Se importa el componente de Imagen de Next.js.
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
@@ -50,14 +50,13 @@ export function Navigation() {
       <div className="relative max-w-screen-xl mx-auto flex h-16 items-center rounded-2xl border border-border/40 bg-background/80 px-4 shadow-lg shadow-black/5 backdrop-blur-lg supports-[backdrop-filter]:bg-background/60">
         
         <div className="flex-1 flex justify-start">
-          {/* [CAMBIO QUIRÚRGICO #2]: Se reemplaza el logo antiguo por el nuevo componente <Image>. */}
           <Link href="/" className="flex items-center">
-            <Image
-              src="/nicepod-logo.svg" // Asume que el logo se llama así en la carpeta /public
-              alt="NicePod Logo"
-              width={120} // Ajusta el ancho según el diseño de tu logo
-              height={40} // Ajusta la altura para que encaje bien en la barra de h-16 (64px)
-              priority // Carga la imagen con prioridad ya que es parte del LCP (Largest Contentful Paint)
+              <Image
+              src="/nicepod-logo.png" // Este archivo de imagen ahora contiene el icono Y el texto.
+              alt="NicePod"
+              width={120}
+              height={40}
+              priority
             />
           </Link>
         </div>
@@ -118,11 +117,11 @@ export function Navigation() {
               <SheetContent side="right" className="w-full max-w-xs">
                 <SheetHeader>
                   <SheetTitle>
-                    {/* [CAMBIO QUIRÚRGICO #3]: Se reemplaza también el logo en el menú móvil para consistencia. */}
                     <Link href="/" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center">
+                       {/* [CAMBIO QUIRÚRGICO #2]: Se corrige la extensión también en el menú móvil para consistencia. */}
                        <Image
-                         src="/nicepod-logo.svg"
-                         alt="NicePod Logo"
+                         src="/nicepod-logo.png"
+                         alt="NicePod"
                          width={120}
                          height={40}
                        />
