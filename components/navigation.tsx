@@ -1,10 +1,10 @@
 // components/navigation.tsx
-// VERSIÓN FINAL CORREGIDA: Apunta al archivo de logo .png existente en la carpeta /public.
+// VERSIÓN FINAL: Restaura la estructura de [ICONO] + [TEXTO] utilizando la nueva imagen de marca.
 
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
+import Image from "next/image"; // Se mantiene la importación del componente de Imagen.
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
@@ -50,14 +50,17 @@ export function Navigation() {
       <div className="relative max-w-screen-xl mx-auto flex h-16 items-center rounded-2xl border border-border/40 bg-background/80 px-4 shadow-lg shadow-black/5 backdrop-blur-lg supports-[backdrop-filter]:bg-background/60">
         
         <div className="flex-1 flex justify-start">
-          <Link href="/" className="flex items-center">
-              <Image
-              src="/nicepod-logo.png" // Este archivo de imagen ahora contiene el icono Y el texto.
-              alt="NicePod"
-              width={120}
+          {/* [CAMBIO QUIRÚRGICO #1]: Se restaura la estructura de ICONO + TEXTO. */}
+          <Link href="/" className="flex items-center space-x-3">
+            <Image
+              src="/nicepod-logo.png" // Asegúrate de que este archivo esté en /public
+              alt="NicePod Icon"
+              width={40}  // 40px x 40px para un icono prominente
               height={40}
+              className="rounded-lg" // Aplica las esquinas redondeadas
               priority
             />
+            <span className="font-bold text-xl inline-block">NicePod</span>
           </Link>
         </div>
 
@@ -117,14 +120,16 @@ export function Navigation() {
               <SheetContent side="right" className="w-full max-w-xs">
                 <SheetHeader>
                   <SheetTitle>
-                    <Link href="/" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center">
-                       {/* [CAMBIO QUIRÚRGICO #2]: Se corrige la extensión también en el menú móvil para consistencia. */}
+                    {/* [CAMBIO QUIRÚRGICO #2]: Se aplica la misma estructura en el menú móvil para consistencia. */}
+                    <Link href="/" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center space-x-3">
                        <Image
                          src="/nicepod-logo.png"
-                         alt="NicePod"
-                         width={120}
+                         alt="NicePod Icon"
+                         width={40}
                          height={40}
+                         className="rounded-lg"
                        />
+                       <span className="font-bold text-xl">NicePod</span>
                     </Link>
                   </SheetTitle>
                 </SheetHeader>
@@ -144,12 +149,8 @@ export function Navigation() {
                     <div className="flex items-center justify-center p-4"><Loader className="h-6 w-6 animate-spin"/></div>
                   ) : user && profile ? (
                     <>
-                      <Button variant="ghost" className="w-full justify-start text-base py-6" disabled>
-                        <Bell className="mr-2 h-5 w-5" /> Notificaciones
-                      </Button>
-                      
+                      <NotificationBell />
                       <Link href={`/profile/${profile.username}`} onClick={handleMobileLinkClick}><Button variant="ghost" className="w-full justify-start text-base py-6"><UserIcon className="mr-2 h-5 w-5" /> Perfil</Button></Link>
-                      
                       {isAdmin && <Link href="/admin/prompts" onClick={handleMobileLinkClick}><Button variant="ghost" className="w-full justify-start text-base py-6 text-green-500"><ShieldCheck className="mr-2 h-5 w-5" />Admin</Button></Link>}
                       <Button variant="ghost" onClick={handleLogout} className="w-full justify-start text-base py-6 text-red-500"><LogOut className="mr-2 h-5 w-5" /> Cerrar Sesión</Button>
                     </>
