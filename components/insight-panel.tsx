@@ -45,13 +45,13 @@ export function InsightPanel({ resonanceProfile }: InsightPanelProps) {
       <Card className="bg-card/50 backdrop-blur-lg border-border/20 shadow-lg h-full flex flex-col">
         {/* [CAMBIO QUIRÚRGICO #1]: Se elimina el icono del encabezado */}
         <CardHeader>
-          <CardTitle>Tu Universo Personalizado</CardTitle>
+          <CardTitle>Tu huella como podcast </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 flex-grow flex flex-col">
           {/* Texto personalizado en la parte superior */}
           <div>
             <p className="text-sm text-muted-foreground">
-              Hola, {userName}. Basado en tus escuchas, tu 'centro de gravedad' se encuentra en {quadrantDescription}.
+              Usemos la Inteligencia Artificial como una herramienta de valor para todos.
             </p>
           </div>
           
@@ -62,16 +62,17 @@ export function InsightPanel({ resonanceProfile }: InsightPanelProps) {
               <h4 className="font-semibold text-sm flex items-center"><Info className="h-4 w-4 mr-2 text-primary" /> El Valor de NicePod</h4>
               {/* [EDITABLE TEXT - LOGGED-IN USER]: Contenido del primer cuadrante */}
               <p className="text-xs text-muted-foreground mt-1">
-                Nuestra misión es transformar tus ideas en experiencias de audio memorables, sin fricción. Cada herramienta está diseñada para potenciar tu creatividad.
+                Nuestra misión es transformar tus ideas en experiencias de audio memorables, sin fricción.
               </p>
             </div>
             
             {/* Segundo cuadrante de información */}
             <div className="bg-muted/30 rounded-lg p-3">
-              <h4 className="font-semibold text-sm flex items-center"><Sparkles className="h-4 w-4 mr-2 text-yellow-500" /> Novedades de la Plataforma</h4>
+              <h4 className="font-semibold text-sm flex items-center"><Sparkles className="h-4 w-4 mr-2 text-yellow-500" /> Novedades</h4>
               {/* [EDITABLE TEXT - LOGGED-IN USER]: Contenido del segundo cuadrante */}
               <p className="text-xs text-muted-foreground mt-1">
-                ¡Nuevo! Ahora puedes revisar, editar y publicar las etiquetas sugeridas por la IA para cada uno de tus podcasts, dándote control total sobre su descubrimiento.
+                Puedes revisar, editar y publicar las etiquetas de tus podcasts.
+                Agregamos nuevas herramientas de creación.
               </p>
             </div>
           </div>
@@ -80,7 +81,7 @@ export function InsightPanel({ resonanceProfile }: InsightPanelProps) {
           <Link href="/create">
             <Button className="w-full">
               <Mic className="mr-2 h-4 w-4" />
-              Ir al Centro de Creación
+              Centro de Creación
             </Button>
           </Link>
         </CardContent>
@@ -101,7 +102,7 @@ export function InsightPanel({ resonanceProfile }: InsightPanelProps) {
         {/* Texto principal en la parte superior */}
         <div>
             <p className="text-sm text-muted-foreground">
-              NicePod va más allá de las categorías. Cada podcast tiene coordenadas en un 'Mapa Estelar' de ideas para un descubrimiento más profundo.
+              Usemos la Inteligencia Artificial como una herramienta de valor para todos.
             </p>
         </div>
 
@@ -112,7 +113,7 @@ export function InsightPanel({ resonanceProfile }: InsightPanelProps) {
               <h4 className="font-semibold text-sm flex items-center"><Info className="h-4 w-4 mr-2 text-primary" /> El Valor de NicePod</h4>
               {/* [EDITABLE TEXT - GUEST USER]: Contenido del primer cuadrante */}
               <p className="text-xs text-muted-foreground mt-1">
-                Nuestra misión es transformar ideas en experiencias de audio memorables, sin fricción. Ideal para mentes curiosas y creadores de contenido.
+                Nuestra misión es transformar ideas en experiencias de audio memorables, sin fricción.
               </p>
             </div>
             
@@ -121,7 +122,7 @@ export function InsightPanel({ resonanceProfile }: InsightPanelProps) {
               <h4 className="font-semibold text-sm flex items-center"><Sparkles className="h-4 w-4 mr-2 text-yellow-500" /> Novedades de la Plataforma</h4>
               {/* [EDITABLE TEXT - GUEST USER]: Contenido del segundo cuadrante */}
               <p className="text-xs text-muted-foreground mt-1">
-                Nuestro nuevo dashboard inteligente te recomienda contenido basado en tus gustos. ¡Crea una cuenta para activar tu "centro de gravedad" personal!
+                Nuestro nuevo dashboard inteligente te recomienda contenido basado en tus gustos.
               </p>
             </div>
         </div>
@@ -130,7 +131,7 @@ export function InsightPanel({ resonanceProfile }: InsightPanelProps) {
         <Link href="/login">
           <Button className="w-full">
             <LogIn className="mr-2 h-4 w-4" />
-            Ingresar y Crear mi Brújula
+            Ingresar
           </Button>
         </Link>
       </CardContent>
