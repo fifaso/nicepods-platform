@@ -1,5 +1,5 @@
 // app/page.tsx
-// VERSIÓN FINAL POTENCIADA: Introduce el "Hub de Acción" en el dashboard móvil y optimiza el layout.
+// VERSIÓN FINAL POTENCIADA: Refina el layout móvil y la funcionalidad del "Hub de Acción".
 
 import { cookies } from "next/headers";
 import Link from "next/link";
@@ -30,24 +30,25 @@ function UserDashboard({ user, feed, profile }: { user: any; feed: DiscoveryFeed
   return (
     <>
       <div className="px-4 lg:px-0">
-        {/* [CAMBIO QUIRÚRGICO #1]: "Hub de Acción" visible solo en pantallas pequeñas (móvil y tablet). */}
-        <div className="lg:hidden mb-8">
+        {/* Hub de Acción para pantallas pequeñas */}
+        <div className="lg:hidden mb-6"> {/* [CAMBIO QUIRÚRGICO #1]: Se reduce el margen inferior de 8 a 6 */}
             <h1 className="text-3xl font-bold tracking-tight mb-4">Hola, {userName}!</h1>
             <div className="grid grid-cols-2 gap-4">
-                <Link href="/podcasts">
-                    <Button variant="outline" className="w-full h-16 text-base">
+                <Link href="/podcasts?tab=discover">
+                    <Button variant="outline" className="w-full h-16 text-base bg-card/50">
                         <Library className="mr-2 h-5 w-5" /> Explorar
                     </Button>
                 </Link>
-                <Link href={`/profile/${profile?.username || user.id}`}>
-                    <Button variant="outline" className="w-full h-16 text-base">
+                {/* [CAMBIO QUIRÚRGICO #2]: El botón "Mis Creaciones" ahora apunta a la biblioteca en modo lista. */}
+                <Link href={`/podcasts?tab=library&view=list`}>
+                    <Button variant="outline" className="w-full h-16 text-base bg-card/50">
                         <User className="mr-2 h-5 w-5" /> Mis Creaciones
                     </Button>
                 </Link>
             </div>
         </div>
         
-        {/* Saludo original, ahora visible solo en pantallas grandes. */}
+        {/* Saludo para pantallas grandes */}
         <div className="hidden lg:block">
             <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
               Hola, {userName}!
@@ -56,7 +57,6 @@ function UserDashboard({ user, feed, profile }: { user: any; feed: DiscoveryFeed
         </div>
 
         <div className="mt-8 space-y-12">
-          {/* Se añade la prop 'variant' para usar las tarjetas compactas. */}
           <PodcastShelf title="Tu Epicentro Creativo" podcasts={feed?.epicenter || []} variant="compact" />
           <PodcastShelf title="Conexiones Inesperadas" podcasts={feed?.semantic_connections || []} variant="compact" />
           <PodcastShelf title="Nuevos Horizontes en NicePod" podcasts={feed?.new_horizons || []} variant="compact" />
@@ -68,7 +68,7 @@ function UserDashboard({ user, feed, profile }: { user: any; feed: DiscoveryFeed
 }
 
 // ===================================================================
-// VISTA PARA INVITADO (SIN CAMBIOS FUNCIONALES)
+// VISTA PARA INVITADO (SIN CAMBIOS)
 // ===================================================================
 function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] | null }) {
   return (
@@ -122,10 +122,9 @@ export default async function HomePage() {
   let feed: DiscoveryFeed | null = null;
   let resonanceProfile: ResonanceProfile | null = null;
   let latestPodcasts: any[] | null = null;
-  let userProfile: any = null; // Para pasar el username al dashboard
+  let userProfile: any = null;
 
   if (user) {
-    // [CAMBIO QUIRÚRGICO #4]: Se añade la obtención del perfil de usuario en paralelo.
     const [
       { data: feedData, error: feedError },
       { data: profileData, error: resonanceError },
@@ -159,7 +158,8 @@ export default async function HomePage() {
         <div className="lg:col-span-3 lg:h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-6 
                        scrollbar-thin scrollbar-thumb-gray-600/50 hover:scrollbar-thumb-gray-500/50 
                        scrollbar-track-transparent scrollbar-thumb-rounded-full">
-          <div className="py-12">
+          {/* [CAMBIO QUIRÚRGICO #3]: Se reduce el padding vertical superior para subir el contenido. */}
+          <div className="pt-6 pb-12">
             {user ? (
               <UserDashboard user={user} feed={feed} profile={userProfile} />
             ) : (
