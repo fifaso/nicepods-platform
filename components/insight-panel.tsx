@@ -1,5 +1,5 @@
 // components/insight-panel.tsx
-// VERSIÓN FINAL: Con CTAs estratégicos, textos editables y layout de altura completa.
+// VERSIÓN POTENCIADA: Con dos cuadrantes de información internos y CTAs estratégicos.
 
 "use client";
 
@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Compass, Target, Mic, LogIn } from "lucide-react";
+import { Mic, LogIn, Sparkles, Info } from "lucide-react";
 import type { Tables } from "@/types/supabase";
 
 type ResonanceProfile = Tables<'user_resonance_profiles'>;
@@ -43,27 +43,43 @@ export function InsightPanel({ resonanceProfile }: InsightPanelProps) {
 
     return (
       <Card className="bg-card/50 backdrop-blur-lg border-border/20 shadow-lg h-full flex flex-col">
-        <CardHeader className="flex flex-row items-center space-x-3 pb-2">
-          <div className="p-3 bg-primary/10 rounded-lg text-primary">
-            <Target className="h-6 w-6" />
-          </div>
-          {/* [EDITABLE TEXT - LOGGED-IN USER]: Título del panel */}
+        {/* [CAMBIO QUIRÚRGICO #1]: Se elimina el icono del encabezado */}
+        <CardHeader>
           <CardTitle>Tu Universo Personalizado</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 flex-grow flex flex-col">
-          <div className="flex-grow">
-            {/* [EDITABLE TEXT - LOGGED-IN USER]: Cuerpo del mensaje */}
+          {/* Texto personalizado en la parte superior */}
+          <div>
             <p className="text-sm text-muted-foreground">
               Hola, {userName}. Basado en tus escuchas, tu 'centro de gravedad' se encuentra en {quadrantDescription}.
             </p>
-            <p className="text-sm text-muted-foreground mt-2">
-              Las estanterías a tu izquierda están curadas por nuestra IA para resonar con tu perspectiva única.
-            </p>
           </div>
+          
+          {/* [CAMBIO QUIRÚRGICO #2]: Contenedor que crece para empujar el botón hacia abajo */}
+          <div className="flex-grow space-y-4">
+            {/* Primer cuadrante de información */}
+            <div className="bg-muted/30 rounded-lg p-3">
+              <h4 className="font-semibold text-sm flex items-center"><Info className="h-4 w-4 mr-2 text-primary" /> El Valor de NicePod</h4>
+              {/* [EDITABLE TEXT - LOGGED-IN USER]: Contenido del primer cuadrante */}
+              <p className="text-xs text-muted-foreground mt-1">
+                Nuestra misión es transformar tus ideas en experiencias de audio memorables, sin fricción. Cada herramienta está diseñada para potenciar tu creatividad.
+              </p>
+            </div>
+            
+            {/* Segundo cuadrante de información */}
+            <div className="bg-muted/30 rounded-lg p-3">
+              <h4 className="font-semibold text-sm flex items-center"><Sparkles className="h-4 w-4 mr-2 text-yellow-500" /> Novedades de la Plataforma</h4>
+              {/* [EDITABLE TEXT - LOGGED-IN USER]: Contenido del segundo cuadrante */}
+              <p className="text-xs text-muted-foreground mt-1">
+                ¡Nuevo! Ahora puedes revisar, editar y publicar las etiquetas sugeridas por la IA para cada uno de tus podcasts, dándote control total sobre su descubrimiento.
+              </p>
+            </div>
+          </div>
+          
+          {/* Botón de acción en la parte inferior */}
           <Link href="/create">
             <Button className="w-full">
               <Mic className="mr-2 h-4 w-4" />
-              {/* [EDITABLE TEXT - LOGGED-IN USER]: Texto del botón */}
               Ir al Centro de Creación
             </Button>
           </Link>
@@ -77,27 +93,43 @@ export function InsightPanel({ resonanceProfile }: InsightPanelProps) {
   // ==============================================================
   return (
     <Card className="bg-card/50 backdrop-blur-lg border-border/20 shadow-lg h-full flex flex-col">
-      <CardHeader className="flex flex-row items-center space-x-3 pb-2">
-        <div className="p-3 bg-primary/10 rounded-lg text-primary">
-            <Compass className="h-6 w-6" />
-        </div>
-        {/* [EDITABLE TEXT - GUEST USER]: Título del panel */}
+      {/* [CAMBIO QUIRÚRGICO #1]: Se elimina el icono del encabezado */}
+      <CardHeader>
         <CardTitle>Descubre Contenido que Resuena</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4 flex-grow flex flex-col">
-        <div className="flex-grow">
-            {/* [EDITABLE TEXT - GUEST USER]: Cuerpo del mensaje */}
+        {/* Texto principal en la parte superior */}
+        <div>
             <p className="text-sm text-muted-foreground">
-              NicePod va más allá de las categorías. Cada podcast tiene coordenadas en un 'Mapa Estelar' de ideas.
-            </p>
-            <p className="text-sm text-muted-foreground mt-2">
-              Al crear una cuenta, la plataforma aprende tu 'centro de gravedad' personal para recomendarte contenido que realmente te impactará.
+              NicePod va más allá de las categorías. Cada podcast tiene coordenadas en un 'Mapa Estelar' de ideas para un descubrimiento más profundo.
             </p>
         </div>
+
+        {/* [CAMBIO QUIRÚRGICO #2]: Contenedor que crece para empujar el botón hacia abajo */}
+        <div className="flex-grow space-y-4">
+            {/* Primer cuadrante de información */}
+            <div className="bg-muted/30 rounded-lg p-3">
+              <h4 className="font-semibold text-sm flex items-center"><Info className="h-4 w-4 mr-2 text-primary" /> El Valor de NicePod</h4>
+              {/* [EDITABLE TEXT - GUEST USER]: Contenido del primer cuadrante */}
+              <p className="text-xs text-muted-foreground mt-1">
+                Nuestra misión es transformar ideas en experiencias de audio memorables, sin fricción. Ideal para mentes curiosas y creadores de contenido.
+              </p>
+            </div>
+            
+            {/* Segundo cuadrante de información */}
+            <div className="bg-muted/30 rounded-lg p-3">
+              <h4 className="font-semibold text-sm flex items-center"><Sparkles className="h-4 w-4 mr-2 text-yellow-500" /> Novedades de la Plataforma</h4>
+              {/* [EDITABLE TEXT - GUEST USER]: Contenido del segundo cuadrante */}
+              <p className="text-xs text-muted-foreground mt-1">
+                Nuestro nuevo dashboard inteligente te recomienda contenido basado en tus gustos. ¡Crea una cuenta para activar tu "centro de gravedad" personal!
+              </p>
+            </div>
+        </div>
+        
+        {/* Botón de acción en la parte inferior */}
         <Link href="/login">
           <Button className="w-full">
             <LogIn className="mr-2 h-4 w-4" />
-            {/* [EDITABLE TEXT - GUEST USER]: Texto del botón */}
             Ingresar y Crear mi Brújula
           </Button>
         </Link>
