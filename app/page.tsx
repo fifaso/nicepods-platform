@@ -1,5 +1,5 @@
 // app/page.tsx
-// VERSIÓN FINAL POTENCIADA: Refina el layout de la GuestLandingPage para un mayor impacto visual.
+// VERSIÓN FINAL: Utiliza la variante 'compact' del PodcastShelf para la vista de usuario autenticado.
 
 import { cookies } from "next/headers";
 import Link from "next/link";
@@ -14,7 +14,6 @@ import { InsightPanel } from "@/components/insight-panel";
 import { FloatingActionButton } from "@/components/ui/floating-action-button";
 import type { Tables } from "@/types/supabase";
 
-// Definimos los tipos para la seguridad de tipos.
 type ResonanceProfile = Tables<'user_resonance_profiles'>;
 interface DiscoveryFeed {
   epicenter: PodcastWithProfile[] | null;
@@ -22,9 +21,6 @@ interface DiscoveryFeed {
   new_horizons: PodcastWithProfile[] | null;
 }
 
-// ===================================================================
-// VISTA PARA USUARIO AUTENTICADO (SIN CAMBIOS)
-// ===================================================================
 function UserDashboard({ user, feed }: { user: any; feed: DiscoveryFeed | null }) {
   const userName = user.user_metadata?.full_name?.split(' ')[0] || user.email;
 
@@ -36,9 +32,10 @@ function UserDashboard({ user, feed }: { user: any; feed: DiscoveryFeed | null }
         </h1>
         <p className="text-lg text-muted-foreground mt-2">Tu centro de descubrimiento personalizado.</p>
         <div className="mt-8 space-y-12">
-          <PodcastShelf title="Tu Epicentro Creativo" podcasts={feed?.epicenter || []} />
-          <PodcastShelf title="Conexiones Inesperadas" podcasts={feed?.semantic_connections || []} />
-          <PodcastShelf title="Nuevos Horizontes en NicePod" podcasts={feed?.new_horizons || []} />
+          {/* [CAMBIO QUIRÚRGICO]: Se añade la prop 'variant' para usar las tarjetas compactas. */}
+          <PodcastShelf title="Tu Epicentro Creativo" podcasts={feed?.epicenter || []} variant="compact" />
+          <PodcastShelf title="Conexiones Inesperadas" podcasts={feed?.semantic_connections || []} variant="compact" />
+          <PodcastShelf title="Nuevos Horizontes en NicePod" podcasts={feed?.new_horizons || []} variant="compact" />
         </div>
       </div>
       <FloatingActionButton />
@@ -46,28 +43,19 @@ function UserDashboard({ user, feed }: { user: any; feed: DiscoveryFeed | null }
   );
 }
 
-// ===================================================================
-// VISTA PARA INVITADO (POTENCIADA)
-// ===================================================================
 function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] | null }) {
   return (
     <div className="flex flex-col items-center">
-      
-      {/* [CAMBIO QUIRÚRGICO #1]: Se fusionan las secciones de Héroe y Búsqueda */}
       <section className="w-full text-center py-16 md:py-20 flex flex-col items-center space-y-4 px-4">
-        {/* [CAMBIO QUIRÚRGICO #2]: Se acorta el título y se ajusta el espaciado */}
         <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-primary">
           Expande tu perspectiva
         </h1>
         <p className="max-w-2xl text-lg text-muted-foreground">
           Crea y descubre Micro-Podcasts que se adaptan a tu ritmo de vida. Aprende, comparte y potencia tu creatividad.
         </p>
-        {/* [CAMBIO QUIRÚRGICO #3]: Se eliminan los botones "Comienza a Crear" y "Explorar Ideas" */}
       </section>
       
-      {/* [CAMBIO QUIRÚRGICO #4]: La sección de búsqueda ahora está integrada en el flujo principal */}
       <section className="w-full max-w-4xl py-6 px-4 mx-auto">
-        {/* Se elimina el título "Encuentra tu Próxima Idea" */}
         <div className="relative mb-8">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input type="text" placeholder="Buscar podcasts por tema o palabra clave..." className="w-full p-4 pl-12 rounded-full bg-muted/50 border-2 border-border/20 focus:ring-2 focus:ring-primary focus:outline-none" />
@@ -81,7 +69,6 @@ function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] | null }) 
       </section>
 
       <div className="w-full max-w-7xl mx-auto px-4 lg:px-0 mt-8">
-        {/* [CAMBIO QUIRÚRGICO #5]: Se actualiza el título de la estantería */}
         <PodcastShelf 
           title="Las últimas creaciones de la comunidad"
           podcasts={latestPodcasts as any[] || []}
@@ -97,9 +84,6 @@ function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] | null }) 
   );
 }
 
-// ===================================================================
-// COMPONENTE PRINCIPAL (EL "ROUTER" LÓGICO CON EL NUEVO LAYOUT)
-// ===================================================================
 export default async function HomePage() {
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
