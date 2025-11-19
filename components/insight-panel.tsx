@@ -45,13 +45,13 @@ export function InsightPanel({ resonanceProfile }: InsightPanelProps) {
       <Card className="bg-card/50 backdrop-blur-lg border-border/20 shadow-lg h-full flex flex-col">
         {/* [CAMBIO QUIRÚRGICO #1]: Se elimina el icono del encabezado */}
         <CardHeader>
-          <CardTitle>Tu huella como podcast </CardTitle>
+          <CardTitle>Podcast sintéticos </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 flex-grow flex flex-col">
           {/* Texto personalizado en la parte superior */}
           <div>
             <p className="text-sm text-muted-foreground">
-              Usemos la Inteligencia Artificial como una herramienta de valor para todos.
+              La Inteligencia Artificial como herramienta de valor para todos
             </p>
           </div>
           
@@ -71,8 +71,8 @@ export function InsightPanel({ resonanceProfile }: InsightPanelProps) {
               <h4 className="font-semibold text-sm flex items-center"><Sparkles className="h-4 w-4 mr-2 text-yellow-500" /> Novedades</h4>
               {/* [EDITABLE TEXT - LOGGED-IN USER]: Contenido del segundo cuadrante */}
               <p className="text-xs text-muted-foreground mt-1">
-                Puedes revisar, editar y publicar las etiquetas de tus podcasts.
-                Agregamos nuevas herramientas de creación.
+                - Puedes revisar, editar y publicar las etiquetas de tus podcasts.
+                - Agregamos nuevas herramientas de creación. Descubrelas!
               </p>
             </div>
           </div>
@@ -96,13 +96,13 @@ export function InsightPanel({ resonanceProfile }: InsightPanelProps) {
     <Card className="bg-card/50 backdrop-blur-lg border-border/20 shadow-lg h-full flex flex-col">
       {/* [CAMBIO QUIRÚRGICO #1]: Se elimina el icono del encabezado */}
       <CardHeader>
-        <CardTitle>Descubre Contenido que Resuena</CardTitle>
+        <CardTitle>Contenido que resuena</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4 flex-grow flex flex-col">
         {/* Texto principal en la parte superior */}
         <div>
             <p className="text-sm text-muted-foreground">
-              Usemos la Inteligencia Artificial como una herramienta de valor para todos.
+              La Inteligencia Artificial como herramienta de valor para todos
             </p>
         </div>
 
@@ -119,10 +119,11 @@ export function InsightPanel({ resonanceProfile }: InsightPanelProps) {
             
             {/* Segundo cuadrante de información */}
             <div className="bg-muted/30 rounded-lg p-3">
-              <h4 className="font-semibold text-sm flex items-center"><Sparkles className="h-4 w-4 mr-2 text-yellow-500" /> Novedades de la Plataforma</h4>
+              <h4 className="font-semibold text-sm flex items-center"><Sparkles className="h-4 w-4 mr-2 text-yellow-500" /> Novedades</h4>
               {/* [EDITABLE TEXT - GUEST USER]: Contenido del segundo cuadrante */}
               <p className="text-xs text-muted-foreground mt-1">
-                Nuestro nuevo dashboard inteligente te recomienda contenido basado en tus gustos.
+                - Nuestro nuevo dashboard inteligente te recomienda contenido basado en tus gustos.
+                - Agregamos nuevas herramientas de creación. Descubrelas!
               </p>
             </div>
         </div>

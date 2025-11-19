@@ -107,7 +107,7 @@ export function Navigation() {
             )}
           </div>
           
-          <Link href="/create"><Button className="hidden lg:inline-flex"><Mic className="mr-2 h-4 w-4" />Crear Nuevo Podcast</Button></Link>
+          <Link href="/create"><Button className="hidden lg:inline-flex"><Mic className="mr-2 h-4 w-4" />Nuevo Podcast</Button></Link>
 
           <div className="md:hidden">
             <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
