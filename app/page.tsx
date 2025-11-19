@@ -1,5 +1,5 @@
 // app/page.tsx
-// VERSIÓN FINAL: Utiliza la variante 'compact' del PodcastShelf para la vista de usuario autenticado.
+// VERSIÓN FINAL POTENCIADA: Introduce el "Hub de Acción" en el dashboard móvil y optimiza el layout.
 
 import { cookies } from "next/headers";
 import Link from "next/link";
@@ -8,7 +8,7 @@ import { PodcastWithProfile } from "@/types/podcast";
 import { PodcastShelf } from "@/components/podcast-shelf";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Mic, Search, Compass, Lightbulb, Bot } from "lucide-react";
+import { Mic, Search, Compass, Lightbulb, Bot, Library, User } from "lucide-react";
 import { QuadrantCard } from "@/components/ui/quadrant-card";
 import { InsightPanel } from "@/components/insight-panel";
 import { FloatingActionButton } from "@/components/ui/floating-action-button";
@@ -21,18 +21,42 @@ interface DiscoveryFeed {
   new_horizons: PodcastWithProfile[] | null;
 }
 
-function UserDashboard({ user, feed }: { user: any; feed: DiscoveryFeed | null }) {
+// ===================================================================
+// VISTA PARA USUARIO AUTENTICADO (POTENCIADA)
+// ===================================================================
+function UserDashboard({ user, feed, profile }: { user: any; feed: DiscoveryFeed | null; profile: any }) {
   const userName = user.user_metadata?.full_name?.split(' ')[0] || user.email;
 
   return (
     <>
       <div className="px-4 lg:px-0">
-        <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
-          Hola, {userName}!
-        </h1>
-        <p className="text-lg text-muted-foreground mt-2">Tu centro de descubrimiento personalizado.</p>
+        {/* [CAMBIO QUIRÚRGICO #1]: "Hub de Acción" visible solo en pantallas pequeñas (móvil y tablet). */}
+        <div className="lg:hidden mb-8">
+            <h1 className="text-3xl font-bold tracking-tight mb-4">Hola, {userName}!</h1>
+            <div className="grid grid-cols-2 gap-4">
+                <Link href="/podcasts">
+                    <Button variant="outline" className="w-full h-16 text-base">
+                        <Library className="mr-2 h-5 w-5" /> Explorar
+                    </Button>
+                </Link>
+                <Link href={`/profile/${profile?.username || user.id}`}>
+                    <Button variant="outline" className="w-full h-16 text-base">
+                        <User className="mr-2 h-5 w-5" /> Mis Creaciones
+                    </Button>
+                </Link>
+            </div>
+        </div>
+        
+        {/* Saludo original, ahora visible solo en pantallas grandes. */}
+        <div className="hidden lg:block">
+            <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
+              Hola, {userName}!
+            </h1>
+            <p className="text-lg text-muted-foreground mt-2">Tu centro de descubrimiento personalizado.</p>
+        </div>
+
         <div className="mt-8 space-y-12">
-          {/* [CAMBIO QUIRÚRGICO]: Se añade la prop 'variant' para usar las tarjetas compactas. */}
+          {/* Se añade la prop 'variant' para usar las tarjetas compactas. */}
           <PodcastShelf title="Tu Epicentro Creativo" podcasts={feed?.epicenter || []} variant="compact" />
           <PodcastShelf title="Conexiones Inesperadas" podcasts={feed?.semantic_connections || []} variant="compact" />
           <PodcastShelf title="Nuevos Horizontes en NicePod" podcasts={feed?.new_horizons || []} variant="compact" />
@@ -43,6 +67,9 @@ function UserDashboard({ user, feed }: { user: any; feed: DiscoveryFeed | null }
   );
 }
 
+// ===================================================================
+// VISTA PARA INVITADO (SIN CAMBIOS FUNCIONALES)
+// ===================================================================
 function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] | null }) {
   return (
     <div className="flex flex-col items-center">
@@ -84,6 +111,9 @@ function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] | null }) 
   );
 }
 
+// ===================================================================
+// COMPONENTE PRINCIPAL (EL "ROUTER" LÓGICO)
+// ===================================================================
 export default async function HomePage() {
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
@@ -92,14 +122,27 @@ export default async function HomePage() {
   let feed: DiscoveryFeed | null = null;
   let resonanceProfile: ResonanceProfile | null = null;
   let latestPodcasts: any[] | null = null;
+  let userProfile: any = null; // Para pasar el username al dashboard
 
   if (user) {
-    const [{ data: feedData }, { data: profileData }] = await Promise.all([
+    // [CAMBIO QUIRÚRGICO #4]: Se añade la obtención del perfil de usuario en paralelo.
+    const [
+      { data: feedData, error: feedError },
+      { data: profileData, error: resonanceError },
+      { data: userProfileData, error: profileError }
+    ] = await Promise.all([
       supabase.rpc('get_user_discovery_feed', { p_user_id: user.id }),
-      supabase.from('user_resonance_profiles').select('*').eq('user_id', user.id).single()
+      supabase.from('user_resonance_profiles').select('*').eq('user_id', user.id).single(),
+      supabase.from('profiles').select('username').eq('id', user.id).single()
     ]);
+    
+    if (feedError) console.error("Error al obtener feed:", feedError);
+    if (resonanceError && resonanceError.code !== 'PGRST116') console.error("Error al obtener perfil de resonancia:", resonanceError);
+    if (profileError) console.error("Error al obtener perfil de usuario:", profileError);
+
     feed = feedData;
     resonanceProfile = profileData;
+    userProfile = userProfileData;
   } else {
     const { data } = await supabase
       .from('micro_pods')
@@ -118,7 +161,7 @@ export default async function HomePage() {
                        scrollbar-track-transparent scrollbar-thumb-rounded-full">
           <div className="py-12">
             {user ? (
-              <UserDashboard user={user} feed={feed} />
+              <UserDashboard user={user} feed={feed} profile={userProfile} />
             ) : (
               <GuestLandingPage latestPodcasts={latestPodcasts} />
             )}
