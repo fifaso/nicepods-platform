@@ -1,5 +1,5 @@
 // app/podcasts/library-tabs.tsx
-// VERSIÓN FINAL Y COMPLETA: Implementa el "Atrio del Descubrimiento" sin abreviaciones.
+// VERSIÓN FINAL Y COMPLETA: Gestiona el estado de la biblioteca en tiempo real sin abreviaciones.
 
 'use client';
 
@@ -12,20 +12,18 @@ import { createClient } from '@/lib/supabase/client';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Hourglass, Bot, Compass, X, Loader2 } from 'lucide-react';
+import { Search, Compass, X, Loader2 } from 'lucide-react';
 import { PodcastCard } from '@/components/podcast-card';
 import { LibraryViewSwitcher } from '@/components/library-view-switcher';
-import { ResonanceCompass } from '@/components/resonance-compass';
-import type { Tables } from '@/types/supabase';
-import { useMobile } from '@/hooks/use-mobile';
-import { cn } from '@/lib/utils';
 import { CompactPodcastCard } from '@/components/compact-podcast-card';
 import { PodcastShelf } from '@/components/podcast-shelf';
 import { CuratedShelvesData } from './page';
 import { UniverseCard } from '@/components/universe-card';
+import { SmartJobCard } from '@/components/smart-job-card';
+import type { Tables } from '@/types/supabase';
+import { cn } from '@/lib/utils';
+import { useMobile } from '@/hooks/use-mobile';
 
 type UserCreationJob = Tables<'podcast_creation_jobs'>;
 type ResonanceProfile = Tables<'user_resonance_profiles'>;
@@ -36,48 +34,25 @@ interface LibraryTabsProps {
   user: User | null;
   userCreationJobs: UserCreationJob[];
   userCreatedPodcasts: PodcastWithProfile[];
+  curatedShelves: CuratedShelvesData | null;
   compassProps: { 
     userProfile: ResonanceProfile | null;
     podcasts: PodcastWithProfile[];
     tags: string[];
   } | null;
-  curatedShelves: CuratedShelvesData | null;
 }
 
 const universeCategories = [
   { key: 'most_resonant', title: 'Lo más resonante', image: '/images/universes/resonant.png' },
-  { key: 'deep_thought', title: 'Pensamiento Profundo', image: '/images/universes/deep-thought.png' },
-  { key: 'practical_tools', title: 'Herramientas Prácticas', image: '/images/universes/practical-tools.png' },
-  { key: 'tech_and_innovation', title: 'Innovación y Tec.', image: '/images/universes/tech.png' },
-  { key: 'wellness_and_mind', title: 'Bienestar y Mente', image: '/images/universes/wellness.png' },
-  { key: 'narrative_and_stories', title: 'Narrativa e Historias', image: '/images/universes/narrative.png' },
+  { key: 'deep_thought', title: 'Pensamiento', image: '/images/universes/deep-thought.png' },
+  { key: 'practical_tools', title: 'Herramientas', image: '/images/universes/practical-tools.png' },
+  { key: 'tech_and_innovation', title: 'Innovación', image: '/images/universes/tech.png' },
+  { key: 'wellness_and_mind', title: 'Bienestar', image: '/images/universes/wellness.png' },
+  { key: 'narrative_and_stories', title: 'Narrativa', image: '/images/universes/narrative.png' },
 ];
 
-function JobCard({ job }: { job: UserCreationJob }) {
-    return (
-        <Card className="bg-background/50 border-primary/20">
-            <CardHeader>
-                <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">{job.job_title || "Creación en progreso..."}</CardTitle>
-                    <Badge variant="secondary" className="animate-pulse">
-                        <Hourglass className="mr-2 h-4 w-4" />
-                        {job.status === 'pending' ? 'Pendiente' : 'Procesando'}
-                    </Badge>
-                </div>
-                <CardDescription>Iniciado el: {new Date(job.created_at).toLocaleString()}</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="flex items-center text-sm text-muted-foreground">
-                    <Bot className="mr-2 h-4 w-4" />
-                    <p>Nuestros agentes de IA están trabajando. Refresca la página en un momento para ver el resultado.</p>
-                </div>
-            </CardContent>
-        </Card>
-    );
-}
-
 export function LibraryTabs({
-  defaultTab, user, userCreationJobs, userCreatedPodcasts, compassProps, curatedShelves,
+  defaultTab, user, userCreationJobs: initialJobs, userCreatedPodcasts: initialPodcasts, curatedShelves, compassProps,
 }: LibraryTabsProps) {
     const supabase = createClient();
     const router = useRouter();
@@ -89,29 +64,63 @@ export function LibraryTabs({
     const currentView = (searchParams.get('view') as LibraryViewMode) || 'grid';
     const activeUniverseKey = searchParams.get('universe') || (user ? 'most_resonant' : 'tech_and_innovation');
 
+    // [CAMBIO QUIRÚRGICO #1]: Las listas de la biblioteca ahora son estados locales para ser actualizadas en tiempo real.
+    const [jobs, setJobs] = useState(initialJobs);
+    const [podcasts, setPodcasts] = useState(initialPodcasts);
+    
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<PodcastWithProfile[] | null>(null);
     const [isLoadingSearch, setIsLoadingSearch] = useState(false);
 
+    // [CAMBIO QUIRÚRGICO #2]: useEffect para la magia en tiempo real.
     useEffect(() => {
-        if (searchQuery.trim() === '') {
-            setSearchResults(null);
-            return;
-        }
-        const delayDebounceFn = setTimeout(async () => {
-            setIsLoadingSearch(true);
-            const { data, error } = await supabase.rpc('search_podcasts', { search_term: searchQuery });
-            if (error) {
-                console.error('Error en la búsqueda:', error);
-                setSearchResults([]);
-            } else {
-                setSearchResults(data as PodcastWithProfile[]);
-            }
-            setIsLoadingSearch(false);
-        }, 500);
-        return () => clearTimeout(delayDebounceFn);
-    }, [searchQuery, supabase]);
+        if (!user) return;
+
+        // Listener para cuando un JOB se actualiza (ej. a 'completed').
+        const jobsChannel = supabase.channel(`realtime-jobs:${user.id}`)
+            .on<UserCreationJob>('postgres_changes', { event: '*', schema: 'public', table: 'podcast_creation_jobs', filter: `user_id=eq.${user.id}` },
+                (payload) => {
+                    if (payload.eventType === 'INSERT') {
+                        setJobs(currentJobs => [payload.new as UserCreationJob, ...currentJobs]);
+                    }
+                    if (payload.eventType === 'UPDATE') {
+                        // Si el job se completa o falla, lo quitamos de la lista "En Proceso".
+                        if (payload.new.status === 'completed' || payload.new.status === 'failed') {
+                            // Esperamos un momento para que el usuario vea el 100% antes de que desaparezca.
+                            setTimeout(() => {
+                                setJobs(currentJobs => currentJobs.filter(job => job.id !== payload.new.id));
+                            }, 2000);
+                        } else {
+                            setJobs(currentJobs => currentJobs.map(job => job.id === payload.new.id ? payload.new as UserCreationJob : job));
+                        }
+                    }
+                }
+            ).subscribe();
+
+        // Listener para cuando un nuevo PODCAST se crea.
+        const podsChannel = supabase.channel(`realtime-pods:${user.id}`)
+            .on<PodcastWithProfile>('postgres_changes', { event: 'INSERT', schema: 'public', table: 'micro_pods', filter: `user_id=eq.${user.id}` },
+                async (payload) => {
+                    const { data: newPodcast, error } = await supabase
+                        .from('micro_pods')
+                        .select('*, profiles(full_name, avatar_url, username)')
+                        .eq('id', payload.new.id)
+                        .single();
+
+                    if (error) {
+                        console.error("Error al obtener el nuevo podcast:", error);
+                    } else if (newPodcast) {
+                        setPodcasts(currentPodcasts => [newPodcast as PodcastWithProfile, ...currentPodcasts]);
+                    }
+                }
+            ).subscribe();
+
+        return () => {
+            supabase.removeChannel(jobsChannel);
+            supabase.removeChannel(podsChannel);
+        };
+    }, [user, supabase]);
 
     const handleClearSearch = () => {
         setSearchQuery('');
@@ -122,23 +131,16 @@ export function LibraryTabs({
     const handleTabChange = (tab: string) => {
         const params = new URLSearchParams(searchParams.toString());
         params.set('tab', tab);
-        // Reseteamos los filtros de vista y universo al cambiar de pestaña
         params.delete('view');
         params.delete('universe');
         router.push(`${pathname}?${params.toString()}`);
     };
 
-    const setView = (view: LibraryViewMode) => {
-        const params = new URLSearchParams(searchParams);
-        params.set('view', view);
-        router.push(`${pathname}?${params.toString()}`);
-    };
-
-    const renderGridOrListContent = (podcasts: PodcastWithProfile[]) => {
+    const renderGridOrListContent = (podcastsToRender: PodcastWithProfile[]) => {
         if (currentView === 'list') {
-            return <div className="space-y-4">{podcasts.map(p => <CompactPodcastCard key={p.id} podcast={p} />)}</div>;
+            return <div className="space-y-4">{podcastsToRender.map(p => <CompactPodcastCard key={p.id} podcast={p} />)}</div>;
         }
-        return <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">{podcasts.map(p => <PodcastCard key={p.id} podcast={p} />)}</div>;
+        return <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">{podcastsToRender.map(p => <PodcastCard key={p.id} podcast={p} />)}</div>;
     };
 
     return (
@@ -190,20 +192,21 @@ export function LibraryTabs({
       
             <TabsContent value="library">
                 {user ? (
-                    (userCreationJobs.length > 0 || userCreatedPodcasts.length > 0) ? (
+                    (jobs.length > 0 || podcasts.length > 0) ? (
                         <div className="space-y-10">
-                            {userCreationJobs.length > 0 && (
+                            {jobs.length > 0 && (
                                 <section>
                                     <h2 className="text-2xl font-semibold tracking-tight mb-4">En Proceso</h2>
                                     <div className="space-y-4">
-                                        {userCreationJobs.map((job) => <JobCard key={`job-${job.id}`} job={job} />)}
+                                        {/* [CAMBIO QUIRÚRGICO #3]: Se usa el nuevo SmartJobCard. */}
+                                        {jobs.map((job) => <SmartJobCard key={`job-${job.id}`} job={job} />)}
                                     </div>
                                 </section>
                             )}
-                            {userCreatedPodcasts.length > 0 && (
+                            {podcasts.length > 0 && (
                                 <section>
                                     <h2 className="text-2xl font-semibold tracking-tight mb-4">Mis Creaciones</h2>
-                                    {renderGridOrListContent(userCreatedPodcasts)}
+                                    {renderGridOrListContent(podcasts)}
                                 </section>
                             )}
                         </div>
