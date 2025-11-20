@@ -1,5 +1,5 @@
 // components/podcast-card.tsx
-// VERSIÓN FINAL COMPLETA CON ENLACES A PERFILES PÚBLICOS
+// VERSIÓN FINAL Y LIMPIA: Se elimina el componente obsoleto 'PodcastListItem'.
 
 "use client";
 
@@ -9,7 +9,7 @@ import type React from "react";
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Play, Clock, Pause, MoreHorizontal } from "lucide-react";
+import { Play, Clock, Pause } from "lucide-react";
 import { useAudio } from "@/contexts/audio-context";
 import { PodcastWithProfile } from "@/types/podcast";
 import { formatTime } from "@/lib/utils";
@@ -29,7 +29,7 @@ export function PodcastCard({ podcast }: PodcastCardProps) {
 
   const isCurrentlyPlaying = currentPodcast?.id === podcast.id && isPlaying;
   const authorName = podcast.profiles?.full_name || "Creador Anónimo";
-  const authorImage = podcast.profiles?.avatar_url || "/images/placeholder.svg";
+  const authorImage = podcast.profiles?.avatar_url || "/images/placeholder-user.jpg";
   const authorUsername = podcast.profiles?.username;
 
   return (
@@ -37,7 +37,7 @@ export function PodcastCard({ podcast }: PodcastCardProps) {
       <Card className="flex flex-col h-full overflow-hidden transition-all duration-300 group-hover:-translate-y-1 bg-card/50 shadow-md group-hover:shadow-xl border border-border/20">
         <div className="relative w-full h-48">
           <Image
-            src={podcast.cover_image_url || "/images/placeholder.svg"}
+            src={podcast.cover_image_url || "/images/placeholder-logo.svg"}
             alt={podcast.title}
             fill
             className="object-cover transition-transform duration-500 group-hover:scale-105"
@@ -78,57 +78,6 @@ export function PodcastCard({ podcast }: PodcastCardProps) {
             </div>
           </div>
         </CardContent>
-      </Card>
-    </Link>
-  );
-}
-
-export function PodcastListItem({ podcast }: PodcastCardProps) {
-  const { playPodcast, currentPodcast, isPlaying } = useAudio();
-
-  const handlePlay = (event: React.MouseEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    event.preventDefault();
-    playPodcast(podcast);
-  };
-  
-  const isCurrentlyPlaying = currentPodcast?.id === podcast.id && isPlaying;
-  const authorName = podcast.profiles?.full_name || "Creador Anónimo";
-  const authorUsername = podcast.profiles?.username;
-  const creationDate = new Date(podcast.created_at).toLocaleDateString();
-
-  return (
-    <Link href={`/podcast/${podcast.id}`} className="group block">
-      <Card className="p-4 transition-all duration-300 group-hover:bg-primary/5 border border-border/20">
-        <div className="flex items-center gap-4">
-          <div className="flex-shrink-0">
-            <Button onClick={handlePlay} size="icon" className="w-12 h-12 rounded-full bg-primary/80 backdrop-blur-sm hover:bg-primary text-primary-foreground">
-              {isCurrentlyPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6 fill-current" />}
-            </Button>
-          </div>
-          <div className="flex-grow min-w-0">
-            <p className="text-sm text-muted-foreground">
-              <Link 
-                href={authorUsername ? `/profile/${authorUsername}` : '#'} 
-                onClick={(e) => e.stopPropagation()} 
-                className="hover:underline"
-              >
-                {authorName}
-              </Link> 
-              • {creationDate}
-            </p>
-            <h3 className="font-semibold truncate group-hover:text-primary transition-colors">{podcast.title}</h3>
-          </div>
-          <div className="hidden sm:flex items-center text-sm text-muted-foreground flex-shrink-0 ml-4">
-            <Clock className="h-4 w-4 mr-1" />
-            <span>{podcast.duration_seconds ? formatTime(podcast.duration_seconds) : 'N/A'}</span>
-          </div>
-          <div className="flex-shrink-0">
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <MoreHorizontal className="h-5 w-5" />
-            </Button>
-          </div>
-        </div>
       </Card>
     </Link>
   );
