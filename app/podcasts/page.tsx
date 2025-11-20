@@ -1,5 +1,5 @@
 // app/podcasts/page.tsx
-// VERSIÓN POTENCIADA: Llama a la nueva RPC para obtener las estanterías curadas.
+// VERSIÓN FINAL Y COMPLETA: Llama a la RPC correcta y maneja toda la lógica de datos sin abreviaciones.
 
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
@@ -11,7 +11,7 @@ type UserCreationJob = Tables<'podcast_creation_jobs'>;
 type ResonanceProfile = Tables<'user_resonance_profiles'>;
 type LibraryViewMode = 'grid' | 'list' | 'compass';
 
-// Definimos la estructura de la respuesta de nuestra nueva RPC para seguridad de tipos.
+// Se actualiza la interfaz para reflejar los 6 universos.
 export interface CuratedShelvesData {
   most_resonant: PodcastWithProfile[] | null;
   deep_thought: PodcastWithProfile[] | null;
@@ -19,17 +19,16 @@ export interface CuratedShelvesData {
   tech_and_innovation: PodcastWithProfile[] | null;
   wellness_and_mind: PodcastWithProfile[] | null;
   narrative_and_stories: PodcastWithProfile[] | null;
-  business_and_strategy: PodcastWithProfile[] | null;
 }
 
-export default async function PodcastsPage({ searchParams }: { searchParams: { tab: string, view: LibraryViewMode, limit?: string } }) {
+export default async function PodcastsPage({ searchParams }: { searchParams: { tab: string, view: LibraryViewMode, limit?: string, universe?: string } }) {
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
   const { data: { user } } = await supabase.auth.getUser();
 
   const currentTab: 'library' | 'discover' = (searchParams.tab === 'library' || searchParams.tab === 'discover')
     ? searchParams.tab
-    : (user ? 'library' : 'discover');
+    : 'discover';
   const currentView = searchParams.view || 'grid';
   const limit = parseInt(searchParams.limit || '10', 10);
   
@@ -37,19 +36,15 @@ export default async function PodcastsPage({ searchParams }: { searchParams: { t
   
   // Obtenemos los datos estándar y los nuevos datos curados en paralelo.
   const [
-    publicPodcastsResult,
     userPodcastsResult,
     userCreationJobsResult,
     curatedShelvesResult
   ] = await Promise.all([
-    supabase.from('micro_pods').select(profileQuery).eq('status', 'published').order('created_at', { ascending: false }).limit(20),
     user ? supabase.from('micro_pods').select(profileQuery).eq('user_id', user.id).order('created_at', { ascending: false }) : Promise.resolve({ data: [], error: null }),
     user ? supabase.from('podcast_creation_jobs').select('*').eq('user_id', user.id).in('status', ['pending', 'processing']).eq('archived', false).order('created_at', { ascending: false }) : Promise.resolve({ data: [], error: null }),
-    // [CAMBIO QUIRÚRGICO #1]: Llamamos a la nueva RPC si el usuario está logueado.
-    user ? supabase.rpc('get_curated_library_shelves', { p_user_id: user.id }) : Promise.resolve({ data: null, error: null })
+    user ? supabase.rpc('get_curated_library_shelves', { p_user_id: user.id }) : supabase.rpc('get_generic_library_shelves')
   ]);
 
-  const publicPodcasts: PodcastWithProfile[] = (publicPodcastsResult.data as any[]) || [];
   const userCreatedPodcasts: PodcastWithProfile[] = (userPodcastsResult.data as any[]) || [];
   const userCreationJobs: UserCreationJob[] = (userCreationJobsResult.data as UserCreationJob[]) || [];
   const curatedShelves: CuratedShelvesData | null = curatedShelvesResult.data;
@@ -58,7 +53,7 @@ export default async function PodcastsPage({ searchParams }: { searchParams: { t
     console.error("Error al obtener estanterías curadas:", curatedShelvesResult.error);
   }
 
-  // La lógica para compassProps no ha cambiado.
+  // La lógica para compassProps se mantiene completa para cuando se necesite.
   let compassProps: { userProfile: ResonanceProfile | null; podcasts: PodcastWithProfile[]; tags: string[] } | null = null;
   if (currentView === 'compass') {
     let userProfile: ResonanceProfile | null = null;
@@ -105,11 +100,9 @@ export default async function PodcastsPage({ searchParams }: { searchParams: { t
       <LibraryTabs
         defaultTab={currentTab}
         user={user}
-        publicPodcasts={publicPodcasts}
         userCreatedPodcasts={userCreatedPodcasts}
         userCreationJobs={userCreationJobs}
         compassProps={compassProps}
-        // [CAMBIO QUIRÚRGICO #2]: Pasamos los nuevos datos curados al componente cliente.
         curatedShelves={curatedShelves}
       />
     </div>
