@@ -1,5 +1,5 @@
 // app/podcasts/library-tabs.tsx
-// VERSIÓN POTENCIADA: Reemplaza PodcastListItem con CompactPodcastCard para una UI unificada.
+// VERSIÓN FINAL: Implementa el "Atrio del Descubrimiento" con "Universos de Resonancia" interactivos.
 
 'use client';
 
@@ -15,15 +15,16 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Hourglass, Bot, Compass, X, Loader2 } from 'lucide-react';
+import { Search, Hourglass, Bot, Compass, X, Loader2, Target, Brain, Wrench, Rocket, HeartPulse, BookOpen, Briefcase } from 'lucide-react';
 import { PodcastCard } from '@/components/podcast-card';
 import { LibraryViewSwitcher } from '@/components/library-view-switcher';
 import { ResonanceCompass } from '@/components/resonance-compass';
 import type { Tables } from '@/types/supabase';
 import { useMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
-// [CAMBIO QUIRÚRGICO #1]: Importamos nuestro nuevo componente de tarjeta compacta.
 import { CompactPodcastCard } from '@/components/compact-podcast-card';
+import { PodcastShelf } from '@/components/podcast-shelf';
+import { CuratedShelvesData } from './page';
 
 type UserCreationJob = Tables<'podcast_creation_jobs'>;
 type ResonanceProfile = Tables<'user_resonance_profiles'>;
@@ -40,7 +41,18 @@ interface LibraryTabsProps {
     podcasts: PodcastWithProfile[];
     tags: string[];
   } | null;
+  curatedShelves: CuratedShelvesData | null;
 }
+
+const universeCategories = [
+  { key: 'most_resonant', title: 'Lo más resonante', icon: <Target className="h-5 w-5" /> },
+  { key: 'deep_thought', title: 'Pensamiento Profundo', icon: <Brain className="h-5 w-5" /> },
+  { key: 'practical_tools', title: 'Herramientas Prácticas', icon: <Wrench className="h-5 w-5" /> },
+  { key: 'tech_and_innovation', title: 'Innovación y Tec.', icon: <Rocket className="h-5 w-5" /> },
+  { key: 'wellness_and_mind', title: 'Bienestar y Mente', icon: <HeartPulse className="h-5 w-5" /> },
+  { key: 'narrative_and_stories', title: 'Narrativa e Historias', icon: <BookOpen className="h-5 w-5" /> },
+  { key: 'business_and_strategy', title: 'Negocios y Estrategia', icon: <Briefcase className="h-5 w-5" /> },
+];
 
 function JobCard({ job }: { job: UserCreationJob }) {
     return (
@@ -72,6 +84,7 @@ export function LibraryTabs({
   userCreationJobs,
   userCreatedPodcasts,
   compassProps,
+  curatedShelves,
 }: LibraryTabsProps) {
     const supabase = createClient();
     const router = useRouter();
@@ -86,6 +99,7 @@ export function LibraryTabs({
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<PodcastWithProfile[] | null>(null);
     const [isLoadingSearch, setIsLoadingSearch] = useState(false);
+    const [activeUniverse, setActiveUniverse] = useState('most_resonant');
 
     useEffect(() => {
         if (searchQuery.trim() === '') {
@@ -126,7 +140,6 @@ export function LibraryTabs({
     };
 
     const renderGridOrListContent = (podcasts: (PodcastWithProfile | Partial<PodcastWithProfile>)[]) => {
-        // [CAMBIO QUIRÚRGICO #2]: La lógica de la vista de lista ahora usa el nuevo componente 'CompactPodcastCard'.
         if (currentView === 'list') {
             return (
                 <div className="space-y-4">
@@ -176,26 +189,42 @@ export function LibraryTabs({
             </div>
       
             <TabsContent value="discover">
-                {currentView === 'compass' && !isMobile && compassProps ? (
-                  <ResonanceCompass 
-                    userProfile={null} 
-                    podcasts={compassProps.podcasts} 
-                    tags={compassProps.tags} 
-                  />
-                ) : (
-                  <section>
-                    <h2 className="text-2xl font-semibold tracking-tight mb-4">Creaciones de la Comunidad</h2>
-                    {isLoadingSearch ? (
-                        <div className="flex justify-center items-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-                    ) : activePodcastList.length > 0 ? (
-                        renderGridOrListContent(activePodcastList)
-                    ) : (
-                        <div className="col-span-full text-center py-16 border-2 border-dashed rounded-lg">
-                            <h2 className="text-2xl font-semibold">{searchResults !== null ? 'No se encontraron resultados' : 'El universo está por descubrir'}</h2>
-                            <p className="text-muted-foreground mt-2">{searchResults !== null ? `Intenta con otras palabras clave.` : `Aún no hay micro-podcasts públicos. ¡Sé el primero en crear y publicar uno!`}</p>
+                {user && curatedShelves ? (
+                    <div className="space-y-8">
+                        <div className="flex overflow-x-auto space-x-2 pb-4 scrollbar-thin">
+                            {universeCategories.map(cat => (
+                                <Button 
+                                    key={cat.key}
+                                    variant={activeUniverse === cat.key ? 'default' : 'outline'}
+                                    onClick={() => setActiveUniverse(cat.key)}
+                                    className="flex-shrink-0 space-x-2"
+                                >
+                                    {cat.icon}
+                                    <span>{cat.title}</span>
+                                </Button>
+                            ))}
                         </div>
-                    )}
-                  </section>
+                        <section>
+                            <PodcastShelf 
+                                title={universeCategories.find(c => c.key === activeUniverse)?.title || ""}
+                                podcasts={curatedShelves[activeUniverse as keyof CuratedShelvesData] || []}
+                            />
+                        </section>
+                    </div>
+                ) : (
+                    <section>
+                        <h2 className="text-2xl font-semibold tracking-tight mb-4">Creaciones de la Comunidad</h2>
+                        {isLoadingSearch ? (
+                            <div className="flex justify-center items-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+                        ) : activePodcastList.length > 0 ? (
+                            renderGridOrListContent(activePodcastList)
+                        ) : (
+                            <div className="col-span-full text-center py-16 border-2 border-dashed rounded-lg">
+                                <h2 className="text-2xl font-semibold">{searchResults !== null ? 'No se encontraron resultados' : 'El universo está por descubrir'}</h2>
+                                <p className="text-muted-foreground mt-2">{searchResults !== null ? `Intenta con otras palabras clave.` : `Aún no hay micro-podcasts públicos. ¡Sé el primero en crear y publicar uno!`}</p>
+                            </div>
+                        )}
+                    </section>
                 )}
             </TabsContent>
       
