@@ -1,5 +1,5 @@
 // app/podcasts/library-tabs.tsx
-// VERSIÓN DE PRODUCCIÓN FINAL: Con la integridad de componentes restaurada.
+// VERSIÓN POTENCIADA: Reemplaza PodcastListItem con CompactPodcastCard para una UI unificada.
 
 'use client';
 
@@ -15,13 +15,15 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Hourglass, Bot, Compass, X, Loader2, LayoutGrid, List } from 'lucide-react';
-import { PodcastCard, PodcastListItem } from '@/components/podcast-card';
+import { Search, Hourglass, Bot, Compass, X, Loader2 } from 'lucide-react';
+import { PodcastCard } from '@/components/podcast-card';
 import { LibraryViewSwitcher } from '@/components/library-view-switcher';
 import { ResonanceCompass } from '@/components/resonance-compass';
 import type { Tables } from '@/types/supabase';
 import { useMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
+// [CAMBIO QUIRÚRGICO #1]: Importamos nuestro nuevo componente de tarjeta compacta.
+import { CompactPodcastCard } from '@/components/compact-podcast-card';
 
 type UserCreationJob = Tables<'podcast_creation_jobs'>;
 type ResonanceProfile = Tables<'user_resonance_profiles'>;
@@ -124,10 +126,11 @@ export function LibraryTabs({
     };
 
     const renderGridOrListContent = (podcasts: (PodcastWithProfile | Partial<PodcastWithProfile>)[]) => {
+        // [CAMBIO QUIRÚRGICO #2]: La lógica de la vista de lista ahora usa el nuevo componente 'CompactPodcastCard'.
         if (currentView === 'list') {
             return (
                 <div className="space-y-4">
-                    {podcasts.map((podcast) => <PodcastListItem key={podcast.id} podcast={podcast as PodcastWithProfile} />)}
+                    {podcasts.map((podcast) => <CompactPodcastCard key={podcast.id} podcast={podcast as PodcastWithProfile} />)}
                 </div>
             );
         }
