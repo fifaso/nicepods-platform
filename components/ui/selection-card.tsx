@@ -1,5 +1,5 @@
 // components/ui/selection-card.tsx
-// COMPONENTE REUTILIZABLE EN SU UBICACIÓN CORRECTA Y CON PROP `disabled`
+// VERSIÓN POTENCIADA: Ahora acepta y aplica una prop 'className' externa.
 
 "use client";
 
@@ -14,22 +14,24 @@ interface SelectionCardProps {
   isSelected: boolean;
   onClick: () => void;
   badgeText?: string;
-  disabled?: boolean; // [INTERVENCIÓN QUIRÚRGICA #1]: Se añade la prop `disabled`
+  disabled?: boolean;
+  className?: string; // [CAMBIO QUIRÚRGICO #1]: Se añade la prop 'className' para aceptar clases externas.
 }
 
-export function SelectionCard({ icon, title, description, isSelected, onClick, badgeText, disabled = false }: SelectionCardProps) {
+export function SelectionCard({ icon, title, description, isSelected, onClick, badgeText, disabled = false, className }: SelectionCardProps) {
   return (
     <Card
       onClick={disabled ? undefined : onClick}
+      // [CAMBIO QUIRÚRGICO #2]: Se utiliza `cn()` para fusionar de forma segura las clases internas con la 'className' externa.
       className={cn(
         "transition-all duration-200 relative group h-full flex flex-col",
         isSelected
           ? "border-primary ring-2 ring-primary/50 shadow-lg"
           : "hover:border-primary/50 hover:shadow-md",
-        // [INTERVENCIÓN QUIRÚRGICA #2]: Clases para el estado deshabilitado
         disabled 
           ? "opacity-50 cursor-not-allowed bg-muted/50" 
-          : "cursor-pointer"
+          : "cursor-pointer",
+        className // La nueva className se aplica aquí, permitiendo estilos adicionales desde el componente padre.
       )}
     >
       {badgeText && (
