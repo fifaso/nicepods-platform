@@ -17,24 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChevronLeft, ChevronRight, Wand2, Loader2 } from "lucide-react";
 
-/* PurposeSelectionStep file was missing; provide a small inline fallback component to avoid module resolution errors.
-   Replace this inline stub with the full implementation or restore the original file at
-   components/create-flow/purpose-selection-step.tsx when available. */
-function PurposeSelectionStep() {
-  return (
-    <div className="p-4">
-      <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">Selecciona el propósito</h3>
-      <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">Selecciona una opción para empezar a crear tu podcast.</p>
-      {/* Simple quick choices to avoid blocking the flow; replace with full UI as needed */}
-      <div className="mt-4 flex gap-2">
-        <button type="button" className="px-3 py-1 rounded bg-indigo-600 text-white">Aprender</button>
-        <button type="button" className="px-3 py-1 rounded bg-green-600 text-white">Inspirar</button>
-        <button type="button" className="px-3 py-1 rounded bg-yellow-600 text-white">Explorar</button>
-      </div>
-    </div>
-  );
-}
-
+import { PurposeSelectionStep } from "./create-flow/PurposeSelectionStep";
 import { LearnSubStep } from "./create-flow/LearnSubStep";
 import { InspireSubStep } from "./create-flow/InspireSubStep";
 import { LegacyStep } from "./create-flow/LegacyStep";
@@ -152,8 +135,7 @@ export function PodcastCreationForm() {
         nextState = 'DETAILS_STEP';
         break;
       case 'LINK_POINTS_INPUT':
-        fieldsToValidate = ['link_topicA', 'link_topicB'];
-        const isLinkPointsValid = await trigger(fieldsToValidate);
+        const isLinkPointsValid = await trigger(['link_topicA', 'link_topicB']);
         if (isLinkPointsValid) await handleGenerateNarratives();
         return;
       case 'NARRATIVE_SELECTION':
@@ -221,10 +203,10 @@ export function PodcastCreationForm() {
       return;
     }
 
-    let jobInputs = {};
+    let jobInputs: Record<string, any> = {};
     switch (formData.purpose) {
         case 'learn':
-        case 'freestyle': // Asumiendo que freestyle puede usar solo/archetype
+        case 'freestyle':
             if (formData.style === 'solo' || formData.style === 'archetype') {
                 jobInputs = {
                     topic: formData.style === 'archetype' ? formData.archetype_topic : formData.solo_topic,
@@ -280,8 +262,8 @@ export function PodcastCreationForm() {
   }, [supabase, user, toast, router]);
   
   const onValidationErrors = (errors: FieldErrors<PodcastCreationData>) => {
-    console.error("Errores de validación:", errors);
-    toast({ title: "Formulario incompleto", description: "Por favor, revisa los campos marcados en rojo.", variant: "destructive" });
+    console.error("Errores de validación del formulario:", errors);
+    toast({ title: "Formulario incompleto", description: "Por favor, revisa los campos con errores.", variant: "destructive" });
   };
 
   const renderCurrentStep = () => {
@@ -297,8 +279,7 @@ export function PodcastCreationForm() {
       case 'NARRATIVE_SELECTION': return <NarrativeSelectionStep narrativeOptions={narrativeOptions} />;
       case 'FREESTYLE_SELECTION': return <StyleSelectionStep />;
       case 'DETAILS_STEP':
-        const style = getValues('style');
-        const agents = style === 'link' ? linkPointsAgents : soloTalkAgents;
+        const agents = formData.purpose === 'explore' ? linkPointsAgents : soloTalkAgents;
         return <DetailsStep agents={agents} />;
       case 'AUDIO_STUDIO_STEP': return <AudioStudio />;
       case 'FINAL_STEP': return <FinalStep />;
@@ -315,7 +296,7 @@ export function PodcastCreationForm() {
     freestyle: ['SELECTING_PURPOSE', 'FREESTYLE_SELECTION'],
   };
   const currentPath = flowPaths[formData.purpose] || [];
-  const totalSteps = currentPath.length;
+  const totalSteps = currentPath.length > 1 ? currentPath.length : 6; // Fallback
   const currentStepIndex = history.length;
   const progress = totalSteps > 0 ? (currentStepIndex / totalSteps) * 100 : 0;
   
