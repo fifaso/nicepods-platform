@@ -38,7 +38,8 @@ export interface NarrativeOption {
 
 export type FlowState = 
   | 'SELECTING_PURPOSE' | 'LEARN_SUB_SELECTION' | 'INSPIRE_SUB_SELECTION'
-  | 'SOLO_TALK_INPUT' | 'ARCHETYPE_SELECTION' | 'LINK_POINTS_INPUT' | 'NARRATIVE_SELECTION'
+  | 'SOLO_TALK_INPUT' | 'ARCHETYPE_INPUT'
+  | 'LINK_POINTS_INPUT' | 'NARRATIVE_SELECTION'
   | 'LEGACY_INPUT' | 'QUESTION_INPUT' | 'FREESTYLE_SELECTION'
   | 'DETAILS_STEP' | 'AUDIO_STUDIO_STEP' | 'FINAL_STEP';
 
@@ -130,8 +131,8 @@ export function PodcastCreationForm() {
         fieldsToValidate = ['solo_topic', 'solo_motivation'];
         nextState = 'DETAILS_STEP';
         break;
-      case 'ARCHETYPE_SELECTION':
-        fieldsToValidate = ['archetype_topic', 'archetype_goal'];
+      case 'ARCHETYPE_INPUT':
+        fieldsToValidate = ['selectedArchetype', 'archetype_topic', 'archetype_goal'];
         nextState = 'DETAILS_STEP';
         break;
       case 'LINK_POINTS_INPUT':
@@ -147,7 +148,7 @@ export function PodcastCreationForm() {
         const style = getValues('style');
         if (style === 'solo') nextState = 'SOLO_TALK_INPUT';
         else if (style === 'link') nextState = 'LINK_POINTS_INPUT';
-        else if (style === 'archetype') nextState = 'ARCHETYPE_SELECTION';
+        else if (style === 'archetype') nextState = 'ARCHETYPE_INPUT';
         break;
       case 'LEGACY_INPUT':
         fieldsToValidate = ['legacy_lesson'];
@@ -274,7 +275,7 @@ export function PodcastCreationForm() {
       case 'LEGACY_INPUT': return <LegacyStep />;
       case 'QUESTION_INPUT': return <QuestionStep />;
       case 'SOLO_TALK_INPUT': return <SoloTalkStep />;
-      case 'ARCHETYPE_SELECTION': return <ArchetypeStep />;
+      case 'ARCHETYPE_INPUT': return <ArchetypeStep />;
       case 'LINK_POINTS_INPUT': return <LinkPointsStep />;
       case 'NARRATIVE_SELECTION': return <NarrativeSelectionStep narrativeOptions={narrativeOptions} />;
       case 'FREESTYLE_SELECTION': return <StyleSelectionStep />;
@@ -289,14 +290,14 @@ export function PodcastCreationForm() {
 
   const flowPaths: Record<string, FlowState[]> = {
     learn: ['SELECTING_PURPOSE', 'LEARN_SUB_SELECTION', 'SOLO_TALK_INPUT', 'DETAILS_STEP', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    inspire: ['SELECTING_PURPOSE', 'INSPIRE_SUB_SELECTION', 'ARCHETYPE_SELECTION', 'DETAILS_STEP', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
+    inspire: ['SELECTING_PURPOSE', 'INSPIRE_SUB_SELECTION', 'ARCHETYPE_INPUT', 'DETAILS_STEP', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
     explore: ['SELECTING_PURPOSE', 'LINK_POINTS_INPUT', 'NARRATIVE_SELECTION', 'DETAILS_STEP', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
     reflect: ['SELECTING_PURPOSE', 'LEGACY_INPUT', 'DETAILS_STEP', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
     answer: ['SELECTING_PURPOSE', 'QUESTION_INPUT', 'DETAILS_STEP', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
     freestyle: ['SELECTING_PURPOSE', 'FREESTYLE_SELECTION'],
   };
   const currentPath = flowPaths[formData.purpose] || [];
-  const totalSteps = currentPath.length > 1 ? currentPath.length : 6; // Fallback
+  const totalSteps = currentPath.length > 1 ? currentPath.length : 6;
   const currentStepIndex = history.length;
   const progress = totalSteps > 0 ? (currentStepIndex / totalSteps) * 100 : 0;
   

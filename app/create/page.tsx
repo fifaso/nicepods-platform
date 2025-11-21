@@ -1,4 +1,5 @@
-// app/create/page.tsx (Versión Final Corregida)
+// app/create/page.tsx
+// VERSIÓN FINAL: Implementa un layout flexible para centrar el formulario y eliminar el scroll.
 
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
@@ -15,9 +16,11 @@ export default async function CreatePage() {
   }
 
   return (
-    <div className="container mx-auto max-w-4xl py-12 md:py-16">
-      {/* El header ha sido eliminado para evitar el scroll vertical. */}
-      <PodcastCreationForm />
+    // [CAMBIO QUIRÚRGICO]: Se reemplaza el padding por clases de Flexbox para centrado vertical.
+    <div className="flex min-h-[calc(100vh-8rem)] flex-col items-center justify-center p-4">
+      <div className="w-full max-w-4xl">
+        <PodcastCreationForm />
+      </div>
     </div>
   );
 }

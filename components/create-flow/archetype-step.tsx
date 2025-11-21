@@ -1,17 +1,16 @@
 // components/create-flow/archetype-step.tsx
-// VERSIÓN FINAL QUE EXPORTA LAS OPCIONES
+// VERSIÓN RE-ARQUITECTADA: Se convierte en el "Taller de Escritura" del Paso 3.
 
 "use client";
 
 import { useFormContext } from "react-hook-form";
 import { PodcastCreationData } from "@/lib/validation/podcast-schema";
-import { SelectionCard } from "@/components/ui/selection-card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FormField, FormControl, FormItem, FormMessage } from "@/components/ui/form";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Heart, BookOpen, Compass, Zap, Construction, Shield } from "lucide-react";
 
-// [INTERVENCIÓN QUIRÚRGICA]: Se añade `export` para que el orquestador pueda acceder a esta lista.
 export const archetypeOptions = [
     { value: 'archetype-hero', icon: <Shield className="h-7 w-7" />, title: 'El Héroe', description: 'Narra un viaje de desafío y transformación.' },
     { value: 'archetype-sage', icon: <BookOpen className="h-7 w-7" />, title: 'El Sabio', description: 'Explica un tema complejo con claridad y autoridad.' },
@@ -21,55 +20,77 @@ export const archetypeOptions = [
     { value: 'archetype-caregiver', icon: <Heart className="h-7 w-7" />, title: 'El Cuidador', description: 'Conecta con la audiencia a través de la empatía.' },
 ];
 
+// Un nuevo sub-componente para la tarjeta de vista previa.
+function ArchetypePreviewCard({ value }: { value: string }) {
+    const archetype = archetypeOptions.find(opt => opt.value === value);
+    if (!archetype) return null;
+
+    return (
+        <Card className="bg-primary/5 border-primary/20 h-full">
+            <CardHeader>
+                <div className="flex items-center space-x-3 text-primary">
+                    {archetype.icon}
+                    <CardTitle>{archetype.title}</CardTitle>
+                </div>
+            </CardHeader>
+            <CardContent>
+                <CardDescription>{archetype.description}</CardDescription>
+            </CardContent>
+        </Card>
+    );
+}
+
 export function ArchetypeStep() {
-  const { control, watch, setValue } = useFormContext<PodcastCreationData>();
+  const { control, watch } = useFormContext<PodcastCreationData>();
   const selectedArchetype = watch('selectedArchetype');
 
   return (
     <div className="flex flex-col h-full">
       <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold">Elige tu Arquetipo Narrativo</h2>
-        <p className="text-muted-foreground">Selecciona una estructura para dar forma a tu guion.</p>
+        <h2 className="text-2xl font-bold">Desarrolla tu Historia</h2>
+        <p className="text-muted-foreground">Utiliza la estructura de <span className="font-semibold text-primary">{archetypeOptions.find(opt => opt.value === selectedArchetype)?.title || 'tu Arquetipo'}</span> para darle forma a tu idea.</p>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
-        {archetypeOptions.map((option) => (
-          <SelectionCard
-            key={option.value}
-            icon={option.icon}
-            title={option.title}
-            description={option.description}
-            isSelected={selectedArchetype === option.value}
-            onClick={() => setValue('selectedArchetype', option.value, { shouldValidate: true })}
+      
+      {/* [CAMBIO ESTRUCTURAL]: Se implementa el nuevo layout 1/4 + 3/4. */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 flex-grow">
+        
+        {/* Columna 1: Vista Previa del Arquetipo (Sticky en escritorio) */}
+        <div className="lg:col-span-1">
+          <div className="sticky top-24">
+            <h3 className="text-sm font-medium text-muted-foreground mb-2">Arquetipo Seleccionado</h3>
+            <ArchetypePreviewCard value={selectedArchetype || ''} />
+          </div>
+        </div>
+
+        {/* Columna 2: Campos de Texto */}
+        <div className="lg:col-span-3 space-y-6">
+          <FormField
+            control={control}
+            name="archetype_topic"
+            render={({ field }) => (
+              <FormItem>
+                <Label htmlFor="archetype_topic">Tema Principal</Label>
+                <FormControl>
+                  <Input id="archetype_topic" placeholder="Ej: La historia de la inteligencia artificial" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-        ))}
-      </div>
-      <div className="space-y-4 mt-auto">
-        <FormField
-          control={control}
-          name="archetype_topic"
-          render={({ field }) => (
-            <FormItem>
-              <Label htmlFor="archetype_topic">Tema Principal</Label>
-              <FormControl>
-                <Input id="archetype_topic" placeholder="Ej: La historia de la inteligencia artificial" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={control}
-          name="archetype_goal"
-          render={({ field }) => (
-            <FormItem>
-              <Label htmlFor="archetype_goal">Mensaje u Objetivo Final</Label>
-              <FormControl>
-                <Input id="archetype_goal" placeholder="Ej: Demostrar cómo ha evolucionado para cambiar nuestro mundo" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+          <FormField
+            control={control}
+            name="archetype_goal"
+            render={({ field }) => (
+              <FormItem>
+                <Label htmlFor="archetype_goal">Mensaje u Objetivo Final</Label>
+                <FormControl>
+                  <Input id="archetype_goal" placeholder="Ej: Demostrar cómo ha evolucionado para cambiar nuestro mundo" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
       </div>
     </div>
   );
