@@ -1,5 +1,5 @@
 // components/notification-bell.tsx
-// VERSIÓN FINAL Y COMPLETA: Con popover scrollable, footer de acciones y lógica de "limpieza" corregida.
+// VERSIÓN FINAL Y COMPLETA: El popover ahora es un "inbox" que solo muestra lo no leído y se limpia correctamente.
 
 "use client";
 
@@ -77,12 +77,25 @@ export function NotificationBell() {
 
   useEffect(() => {
     if (!user) return;
+
     const fetchInitialNotifications = async () => {
-      const { data, error } = await supabase.from('notifications').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10);
-      if (error) { console.error("Error al cargar notificaciones:", error); return; }
+      // [CAMBIO QUIRÚRGICO #1]: Ahora solo obtenemos las notificaciones NO leídas para el popover.
+      const { data, error, count } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact' })
+        .eq('user_id', user.id)
+        .eq('is_read', false)
+        .order('created_at', { ascending: false })
+        .limit(10);
+      
+      if (error) {
+        console.error("Error al cargar notificaciones no leídas:", error);
+        return;
+      }
       setNotifications(data as Notification[]);
-      setUnreadCount(data.filter(n => !n.is_read).length);
+      setUnreadCount(count || 0);
     };
+
     fetchInitialNotifications();
 
     const channel = supabase.channel(`notifications:${user.id}`)
@@ -96,41 +109,34 @@ export function NotificationBell() {
     return () => { supabase.removeChannel(channel); };
   }, [user, supabase]);
 
-  const handleMarkAllAsRead = async () => {
-    // [CAMBIO QUIRÚRGICO]: Modificamos la función para que "limpie" la vista.
+  const handleClearRead = async () => {
+    // [CAMBIO QUIRÚRGICO #2]: La lógica ahora limpia la UI y actualiza la DB.
     if (notifications.length === 0) return;
     
     // Actualización optimista de la UI para una respuesta instantánea.
-    const unreadNotifications = notifications.filter(n => !n.is_read);
-    setNotifications([]); // Limpiamos la lista de la UI.
+    setNotifications([]);
     setUnreadCount(0);
     
-    // Llamada a la RPC en segundo plano para actualizar la base de datos solo si había no leídas.
-    if (unreadNotifications.length > 0) {
-        const { error } = await supabase.rpc('mark_notifications_as_read');
-        if (error) {
-          console.error("Error al marcar notificaciones como leídas:", error);
-          // Opcional: Revertir la actualización optimista si la llamada a la RPC falla.
-          setNotifications(notifications);
-          setUnreadCount(unreadNotifications.length);
-        }
+    const { error } = await supabase.rpc('mark_notifications_as_read');
+    if (error) {
+      console.error("Error al marcar notificaciones como leídas:", error);
+      // Opcional: Implementar lógica para re-obtener notificaciones si la RPC falla.
     }
   };
 
   const handlePopoverOpen = (open: boolean) => {
-    if (open && unreadCount > 0) {
-      const newUnreadCount = 0;
-      setUnreadCount(newUnreadCount);
-      const updatedNotifications = notifications.map(n => ({ ...n, is_read: true }));
-      setNotifications(updatedNotifications);
-      
-      supabase.rpc('mark_notifications_as_read').then(({ error }) => {
-          if (error) {
-            console.error("Error al marcar notificaciones como leídas al abrir:", error);
-            setUnreadCount(notifications.filter(n => !n.is_read).length);
-            setNotifications(notifications);
-          }
-      });
+    if (!open && unreadCount > 0) {
+      // Cuando se cierra el popover, marcamos como leídas las que se mostraron.
+      markAllAsReadAndClearCount();
+    }
+  };
+
+  const markAllAsReadAndClearCount = async () => {
+    if (unreadCount === 0) return;
+    setUnreadCount(0);
+    const { error } = await supabase.rpc('mark_notifications_as_read');
+    if (error) {
+      console.error("Error al marcar notificaciones como leídas al abrir:", error);
     }
   };
 
@@ -166,7 +172,7 @@ export function NotificationBell() {
         </div>
 
         <div className="border-t p-2 flex gap-2">
-          <Button variant="outline" size="sm" className="w-full" onClick={handleMarkAllAsRead}>
+          <Button variant="outline" size="sm" className="w-full" onClick={handleClearRead}>
             <Archive className="h-4 w-4 mr-2" />
             Limpiar
           </Button>
