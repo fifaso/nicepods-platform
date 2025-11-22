@@ -1,5 +1,5 @@
 // app/layout.tsx
-// VERSIÓN FINAL Y COMPLETA: Renderiza Analytics y Speed Insights solo en producción.
+// VERSIÓN FINAL: Añade los metadatos necesarios en el <head> para la PWA.
 
 import { cookies } from 'next/headers';
 import type React from "react";
@@ -40,6 +40,10 @@ export default async function RootLayout({
   return (
     <html lang="es" suppressHydrationWarning>
       <head>
+        {/* [CAMBIO QUIRÚRGICO #1]: Se añaden las etiquetas meta para PWA. */}
+        <meta name="theme-color" content="#111827" />
+        <link rel="manifest" href="/manifest.json" />
+
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -88,8 +92,6 @@ export default async function RootLayout({
           </ThemeProvider>
         </ErrorBoundary>
         
-        {/* [CAMBIO QUIRÚRGICO]: Se envuelven los componentes de Vercel en una comprobación de entorno.
-            Solo se incluirán en el HTML final cuando la aplicación se construya para producción. */}
         {process.env.NODE_ENV === 'production' && (
           <>
             <Analytics />
