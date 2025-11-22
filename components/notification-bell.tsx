@@ -1,5 +1,5 @@
 // components/notification-bell.tsx
-// VERSIÓN FINAL Y COMPLETA: Componente dinámico con suscripción en tiempo real y renderizado para TODOS los tipos de notificación.
+// VERSIÓN FINAL Y COMPLETA: Con popover scrollable, footer de acciones y tipos exportables.
 
 "use client";
 
@@ -7,15 +7,14 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { Bell, User, Heart, Mic, CheckCircle2, AlertCircle, MessageSquare, Rss } from "lucide-react";
+import { Bell, User, Heart, Mic, CheckCircle2, AlertCircle, MessageSquare, Rss, Archive, Book } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-// Definimos el tipo para una notificación, incluyendo el 'data' parseado.
-type Notification = {
+// [CAMBIO QUIRÚRGICO #1]: Exportamos el tipo para que sea reutilizable en la página de historial.
+export type Notification = {
   id: number;
   type: string;
   is_read: boolean;
@@ -32,9 +31,8 @@ type Notification = {
   };
 };
 
-// Sub-componente para renderizar un item de notificación individual.
-function NotificationItem({ notification }: { notification: Notification }) {
-  // Mapeo de tipos de notificación a iconos para una fácil extensibilidad.
+// [CAMBIO QUIRÚRGICO #2]: Exportamos el sub-componente para reutilizarlo en la página de historial.
+export function NotificationItem({ notification }: { notification: Notification }) {
   const iconMap: { [key: string]: React.ReactNode } = {
     'new_like': <Heart className="h-5 w-5 text-red-500" />,
     'new_follower': <User className="h-5 w-5 text-blue-500" />,
@@ -54,7 +52,7 @@ function NotificationItem({ notification }: { notification: Notification }) {
         };
       case 'new_follower':
         return {
-          href: `/profile/${n.data.actor_id}`, // Asumiendo perfil por ID, o se podría usar username si está en 'data'
+          href: `/profile/${n.data.actor_id}`,
           message: <p><span className="font-semibold">{n.data.actor_name}</span> ha comenzado a seguirte.</p>
         };
       case 'podcast_created_success':
@@ -69,7 +67,7 @@ function NotificationItem({ notification }: { notification: Notification }) {
         };
       case 'new_testimonial':
          return {
-          href: `/profile/${n.data.actor_id}`, // O al perfil del usuario actual para ver sus testimonios
+          href: `/profile/${n.data.actor_id}`,
           message: <p><span className="font-semibold">{n.data.actor_name}</span> te ha dejado un testimonio.</p>
         };
       case 'new_podcast_from_followed_user':
@@ -101,7 +99,6 @@ function NotificationItem({ notification }: { notification: Notification }) {
     </Link>
   );
 }
-
 
 export function NotificationBell() {
   const { user, supabase } = useAuth();
@@ -146,17 +143,10 @@ export function NotificationBell() {
 
   const markAllAsRead = async () => {
     if (unreadCount === 0) return;
-    
-    // Actualización optimista de la UI para una respuesta instantánea.
     setUnreadCount(0);
     setNotifications(current => current.map(n => ({ ...n, is_read: true })));
-    
-    // Llamada a la RPC en segundo plano para actualizar la base de datos.
     const { error } = await supabase.rpc('mark_notifications_as_read');
-    if (error) {
-      console.error("Error al marcar notificaciones como leídas:", error);
-      // Opcional: Implementar lógica de rollback si la llamada a la RPC falla.
-    }
+    if (error) console.error("Error al marcar notificaciones como leídas:", error);
   };
 
   return (
@@ -172,23 +162,35 @@ export function NotificationBell() {
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 md:w-96 p-2">
-        <div className="grid gap-2">
-          <div className="p-2">
-            <h4 className="font-medium leading-none">Notificaciones</h4>
-            <p className="text-sm text-muted-foreground">
-              Aquí aparecerán las últimas actualizaciones.
-            </p>
-          </div>
-          <div className="space-y-1">
-            {notifications.length > 0 ? (
-              notifications.map(n => <NotificationItem key={n.id} notification={n} />)
-            ) : (
-              <div className="text-center text-sm text-muted-foreground py-8">
-                No tienes notificaciones nuevas.
-              </div>
-            )}
-          </div>
+      <PopoverContent className="w-80 md:w-96 p-0">
+        <div className="p-2 border-b">
+          <h4 className="font-medium leading-none">Notificaciones</h4>
+          <p className="text-sm text-muted-foreground">Tus últimas actualizaciones.</p>
+        </div>
+        
+        <div className="max-h-[400px] overflow-y-auto scrollbar-thin p-2">
+          {notifications.length > 0 ? (
+            <div className="space-y-1">
+              {notifications.map(n => <NotificationItem key={n.id} notification={n} />)}
+            </div>
+          ) : (
+            <div className="text-center text-sm text-muted-foreground py-8">
+              No tienes notificaciones nuevas.
+            </div>
+          )}
+        </div>
+
+        <div className="border-t p-2 flex gap-2">
+          <Button variant="outline" size="sm" className="w-full" onClick={markAllAsRead}>
+            <Archive className="h-4 w-4 mr-2" />
+            Marcar como leído
+          </Button>
+          <Link href="/notifications" className="w-full">
+            <Button variant="default" size="sm" className="w-full">
+              <Book className="h-4 w-4 mr-2" />
+              Ver Todas
+            </Button>
+          </Link>
         </div>
       </PopoverContent>
     </Popover>
