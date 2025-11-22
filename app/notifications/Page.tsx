@@ -1,11 +1,11 @@
 // app/notifications/page.tsx
-// La página de servidor para el historial completo de notificaciones.
+// VERSIÓN FINAL Y COMPLETA
 
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { NotificationHistoryClient } from "./notification-history-client";
-// Reutilizamos el tipo 'Notification' que exportamos desde notification-bell.tsx
+// Asegúrate de que NotificationBell exporte este tipo
 import type { Notification } from "@/components/notification-bell";
 
 export default async function NotificationsPage() {
@@ -17,7 +17,7 @@ export default async function NotificationsPage() {
     redirect('/login?redirect=/notifications');
   }
 
-  // Obtenemos TODAS las notificaciones del usuario, no solo las últimas 10.
+  // Esta consulta ahora funcionará gracias al comando GRANT.
   const { data: notifications, error } = await supabase
     .from('notifications')
     .select('*')
@@ -26,7 +26,6 @@ export default async function NotificationsPage() {
 
   if (error) {
     console.error("Error al cargar el historial de notificaciones:", error);
-    // En caso de error, pasamos un array vacío para no romper la UI.
   }
 
   return (

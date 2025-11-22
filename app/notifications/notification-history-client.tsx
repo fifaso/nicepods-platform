@@ -1,10 +1,10 @@
 // app/notifications/notification-history-client.tsx
-// Componente de cliente que agrupa y renderiza el historial de notificaciones por fecha.
+// VERSIÓN FINAL Y COMPLETA
 
 "use client";
 
 import { useMemo } from 'react';
-// Importamos los componentes reutilizables que ya hemos construido y exportado.
+// Asegúrate de que NotificationBell exporte estos componentes
 import { Notification, NotificationItem } from "@/components/notification-bell"; 
 import { format, isToday, isYesterday } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -15,9 +15,8 @@ interface NotificationHistoryClientProps {
 
 export function NotificationHistoryClient({ initialNotifications }: NotificationHistoryClientProps) {
   const groupedNotifications = useMemo(() => {
-    if (!initialNotifications) return {};
+    if (!initialNotifications || initialNotifications.length === 0) return {};
 
-    // Agrupamos las notificaciones por un título de fecha legible.
     return initialNotifications.reduce((acc, notification) => {
       const date = new Date(notification.created_at);
       let groupTitle: string;
@@ -38,14 +37,10 @@ export function NotificationHistoryClient({ initialNotifications }: Notification
     }, {} as Record<string, Notification[]>);
   }, [initialNotifications]);
 
-  // Ordenamos los grupos para que "Hoy" y "Ayer" siempre aparezcan primero.
   const sortedGroups = Object.keys(groupedNotifications).sort((a, b) => {
-    if (a === 'Hoy') return -1;
-    if (b === 'Hoy') return 1;
-    if (a === 'Ayer') return -1;
-    if (b === 'Ayer') return 1;
-    // Para las fechas completas, las ordenamos de más reciente a más antigua.
-    return new Date(b).getTime() - new Date(a).getTime();
+    const dateA = a === 'Hoy' ? new Date() : a === 'Ayer' ? new Date(Date.now() - 86400000) : new Date(groupedNotifications[a][0].created_at);
+    const dateB = b === 'Hoy' ? new Date() : b === 'Ayer' ? new Date(Date.now() - 86400000) : new Date(groupedNotifications[b][0].created_at);
+    return dateB.getTime() - dateA.getTime();
   });
 
   if (initialNotifications.length === 0) {
