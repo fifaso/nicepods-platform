@@ -1,13 +1,13 @@
 // app/notifications/notification-history-client.tsx
-// VERSIÓN FINAL Y COMPLETA
+// VERSIÓN POTENCIADA: El contenido ahora se renderiza dentro de una tarjeta translúcida para mejorar la legibilidad.
 
 "use client";
 
 import { useMemo } from 'react';
-// Asegúrate de que NotificationBell exporte estos componentes
 import { Notification, NotificationItem } from "@/components/notification-bell"; 
 import { format, isToday, isYesterday } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { Card, CardContent } from '@/components/ui/card'; // [CAMBIO QUIRÚRGICO #1]: Importamos Card y CardContent.
 
 interface NotificationHistoryClientProps {
   initialNotifications: Notification[];
@@ -21,17 +21,11 @@ export function NotificationHistoryClient({ initialNotifications }: Notification
       const date = new Date(notification.created_at);
       let groupTitle: string;
 
-      if (isToday(date)) {
-        groupTitle = 'Hoy';
-      } else if (isYesterday(date)) {
-        groupTitle = 'Ayer';
-      } else {
-        groupTitle = format(date, "d 'de' MMMM 'de' yyyy", { locale: es });
-      }
+      if (isToday(date)) groupTitle = 'Hoy';
+      else if (isYesterday(date)) groupTitle = 'Ayer';
+      else groupTitle = format(date, "d 'de' MMMM 'de' yyyy", { locale: es });
 
-      if (!acc[groupTitle]) {
-        acc[groupTitle] = [];
-      }
+      if (!acc[groupTitle]) acc[groupTitle] = [];
       acc[groupTitle].push(notification);
       return acc;
     }, {} as Record<string, Notification[]>);
@@ -43,27 +37,30 @@ export function NotificationHistoryClient({ initialNotifications }: Notification
     return dateB.getTime() - dateA.getTime();
   });
 
-  if (initialNotifications.length === 0) {
-    return (
-      <div className="text-center py-16 border-2 border-dashed rounded-lg">
-        <h2 className="text-2xl font-semibold">Tu historial está vacío</h2>
-        <p className="text-muted-foreground mt-2">Cuando tengas nuevas actualizaciones, aparecerán aquí.</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-8">
-      {sortedGroups.map((groupTitle) => (
-        <section key={groupTitle}>
-          <h3 className="text-lg font-semibold text-muted-foreground mb-4">{groupTitle}</h3>
-          <div className="space-y-2">
-            {groupedNotifications[groupTitle].map(notification => (
-              <NotificationItem key={notification.id} notification={notification} />
+    // [CAMBIO QUIRÚRGICO #2]: Envolvemos toda la salida en un componente Card con el estilo de la plataforma.
+    <Card className="bg-card/50 backdrop-blur-lg border-border/20 shadow-lg">
+      <CardContent className="p-4 md:p-6">
+        {initialNotifications.length === 0 ? (
+          <div className="text-center py-16">
+            <h2 className="text-2xl font-semibold">Tu historial está vacío</h2>
+            <p className="text-muted-foreground mt-2">Cuando tengas nuevas actualizaciones, aparecerán aquí.</p>
+          </div>
+        ) : (
+          <div className="space-y-8">
+            {sortedGroups.map((groupTitle) => (
+              <section key={groupTitle}>
+                <h3 className="text-lg font-semibold text-muted-foreground mb-4">{groupTitle}</h3>
+                <div className="space-y-2">
+                  {groupedNotifications[groupTitle].map(notification => (
+                    <NotificationItem key={notification.id} notification={notification} />
+                  ))}
+                </div>
+              </section>
             ))}
           </div>
-        </section>
-      ))}
-    </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
