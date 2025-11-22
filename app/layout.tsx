@@ -1,11 +1,11 @@
 // app/layout.tsx
-// VERSIÓN FINAL: Integra Vercel Analytics y Speed Insights.
+// VERSIÓN FINAL Y COMPLETA: Renderiza Analytics y Speed Insights solo en producción.
 
 import { cookies } from 'next/headers';
 import type React from "react";
 import type { Metadata } from "next";
 import { Analytics } from '@vercel/analytics/react';
-import { SpeedInsights } from '@vercel/speed-insights/next'; // [CAMBIO QUIRÚRGICO #1]: Se importa Speed Insights.
+import { SpeedInsights } from '@vercel/speed-insights/next';
 import "./globals.css";
 import { Inter } from "next/font/google";
 
@@ -88,9 +88,14 @@ export default async function RootLayout({
           </ThemeProvider>
         </ErrorBoundary>
         
-        <Analytics />
-        {/* [CAMBIO QUIRÚRGICO #2]: Se añade el componente Speed Insights junto a Analytics. */}
-        <SpeedInsights />
+        {/* [CAMBIO QUIRÚRGICO]: Se envuelven los componentes de Vercel en una comprobación de entorno.
+            Solo se incluirán en el HTML final cuando la aplicación se construya para producción. */}
+        {process.env.NODE_ENV === 'production' && (
+          <>
+            <Analytics />
+            <SpeedInsights />
+          </>
+        )}
       </body>
     </html>
   );
