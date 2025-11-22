@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { NotificationHistoryClient } from "./notification-history-client";
-// Reutilizamos el tipo 'Notification' que definiremos como exportable en notification-bell.tsx
+// Reutilizamos el tipo 'Notification' que exportaremos desde notification-bell.tsx
 import type { Notification } from "@/components/notification-bell";
 
 export default async function NotificationsPage() {

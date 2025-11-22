@@ -4,7 +4,7 @@
 "use client";
 
 import { useMemo } from 'react';
-// Asumiendo que exportaremos Notification y NotificationItem de notification-bell.tsx
+// Asumimos que exportaremos Notification y NotificationItem desde notification-bell.tsx
 import { Notification, NotificationItem } from "@/components/notification-bell"; 
 import { format, isToday, isYesterday } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -34,6 +34,7 @@ export function NotificationHistoryClient({ initialNotifications }: Notification
   const sortedGroups = Object.keys(groupedNotifications).sort((a, b) => {
     if (a === 'Hoy') return -1; if (b === 'Hoy') return 1;
     if (a === 'Ayer') return -1; if (b === 'Ayer') return 1;
+    // Para las fechas reales, las ordenamos de más reciente a más antigua
     return new Date(b).getTime() - new Date(a).getTime();
   });
 

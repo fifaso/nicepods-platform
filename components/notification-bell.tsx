@@ -1,5 +1,5 @@
 // components/notification-bell.tsx
-// VERSIÓN FINAL Y COMPLETA: Con popover scrollable, footer de acciones y tipos exportables.
+// VERSIÓN FINAL Y COMPLETA: Con popover scrollable, footer de acciones y lógica de "limpieza" corregida.
 
 "use client";
 
@@ -13,25 +13,20 @@ import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-// [CAMBIO QUIRÚRGICO #1]: Exportamos el tipo para que sea reutilizable en la página de historial.
+// Se exporta el tipo para que sea reutilizable en la página de historial.
 export type Notification = {
   id: number;
   type: string;
   is_read: boolean;
   created_at: string;
   data: {
-    actor_id?: string;
-    actor_name?: string;
-    actor_avatar_url?: string;
-    podcast_id?: number;
-    podcast_title?: string;
-    job_title?: string;
-    error_message?: string;
-    testimonial_text?: string;
+    actor_id?: string; actor_name?: string; actor_avatar_url?: string;
+    podcast_id?: number; podcast_title?: string; job_title?: string;
+    error_message?: string; testimonial_text?: string;
   };
 };
 
-// [CAMBIO QUIRÚRGICO #2]: Exportamos el sub-componente para reutilizarlo en la página de historial.
+// Se exporta el sub-componente para reutilizarlo en la página de historial.
 export function NotificationItem({ notification }: { notification: Notification }) {
   const iconMap: { [key: string]: React.ReactNode } = {
     'new_like': <Heart className="h-5 w-5 text-red-500" />,
@@ -45,38 +40,13 @@ export function NotificationItem({ notification }: { notification: Notification 
 
   const getMessageAndLink = (n: Notification) => {
     switch (n.type) {
-      case 'new_like':
-        return {
-          href: `/podcast/${n.data.podcast_id}`,
-          message: <p><span className="font-semibold">{n.data.actor_name}</span> le ha gustado tu podcast: <span className="italic">"{n.data.podcast_title}"</span></p>
-        };
-      case 'new_follower':
-        return {
-          href: `/profile/${n.data.actor_id}`,
-          message: <p><span className="font-semibold">{n.data.actor_name}</span> ha comenzado a seguirte.</p>
-        };
-      case 'podcast_created_success':
-         return {
-          href: `/podcast/${n.data.podcast_id}`,
-          message: <p>Tu podcast <span className="font-semibold">"{n.data.podcast_title}"</span> ha sido creado con éxito.</p>
-        };
-      case 'podcast_created_failure':
-         return {
-          href: `/create`,
-          message: <p>Error al crear <span className="font-semibold">"{n.data.job_title}"</span>. Razón: {n.data.error_message || 'desconocida'}</p>
-        };
-      case 'new_testimonial':
-         return {
-          href: `/profile/${n.data.actor_id}`,
-          message: <p><span className="font-semibold">{n.data.actor_name}</span> te ha dejado un testimonio.</p>
-        };
-      case 'new_podcast_from_followed_user':
-        return {
-          href: `/podcast/${n.data.podcast_id}`,
-          message: <p><span className="font-semibold">{n.data.actor_name}</span> ha publicado un nuevo podcast: <span className="italic">"{n.data.podcast_title}"</span></p>
-        };
-      default:
-        return { href: '#', message: <p>Tienes una nueva actualización.</p> };
+      case 'new_like': return { href: `/podcast/${n.data.podcast_id}`, message: <p><span className="font-semibold">{n.data.actor_name}</span> le ha gustado tu podcast: <span className="italic">"{n.data.podcast_title}"</span></p> };
+      case 'new_follower': return { href: `/profile/${n.data.actor_id}`, message: <p><span className="font-semibold">{n.data.actor_name}</span> ha comenzado a seguirte.</p> };
+      case 'podcast_created_success': return { href: `/podcast/${n.data.podcast_id}`, message: <p>Tu podcast <span className="font-semibold">"{n.data.podcast_title}"</span> ha sido creado con éxito.</p> };
+      case 'podcast_created_failure': return { href: `/create`, message: <p>Error al crear <span className="font-semibold">"{n.data.job_title}"</span>. Razón: {n.data.error_message || 'desconocida'}</p> };
+      case 'new_testimonial': return { href: `/profile/${n.data.actor_id}`, message: <p><span className="font-semibold">{n.data.actor_name}</span> te ha dejado un testimonio.</p> };
+      case 'new_podcast_from_followed_user': return { href: `/podcast/${n.data.podcast_id}`, message: <p><span className="font-semibold">{n.data.actor_name}</span> ha publicado un nuevo podcast: <span className="italic">"{n.data.podcast_title}"</span></p> };
+      default: return { href: '#', message: <p>Tienes una nueva actualización.</p> };
     }
   };
 
@@ -107,50 +77,51 @@ export function NotificationBell() {
 
   useEffect(() => {
     if (!user) return;
-
     const fetchInitialNotifications = async () => {
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(10);
-      
-      if (error) {
-        console.error("Error al cargar notificaciones:", error);
-        return;
-      }
+      const { data, error } = await supabase.from('notifications').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10);
+      if (error) { console.error("Error al cargar notificaciones:", error); return; }
       setNotifications(data as Notification[]);
       setUnreadCount(data.filter(n => !n.is_read).length);
     };
-
     fetchInitialNotifications();
 
     const channel = supabase.channel(`notifications:${user.id}`)
-      .on<Notification>(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+      .on<Notification>('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
         (payload) => {
           setNotifications(currentNotifications => [payload.new as Notification, ...currentNotifications]);
           setUnreadCount(currentCount => currentCount + 1);
         }
       ).subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [user, supabase]);
 
-  const markAllAsRead = async () => {
+  const handleMarkAllAsRead = async () => {
     if (unreadCount === 0) return;
+    
+    // [CAMBIO QUIRÚRGICO]: Se añade la limpieza del estado local para el efecto de "archivar".
+    setNotifications([]);
     setUnreadCount(0);
-    setNotifications(current => current.map(n => ({ ...n, is_read: true })));
+    
     const { error } = await supabase.rpc('mark_notifications_as_read');
-    if (error) console.error("Error al marcar notificaciones como leídas:", error);
+    if (error) {
+      console.error("Error al marcar notificaciones como leídas:", error);
+    }
+  };
+
+  const handlePopoverOpen = (open: boolean) => {
+    // Marcamos como leídas solo las que están visibles al abrir.
+    if (open && unreadCount > 0) {
+      setUnreadCount(0);
+      setNotifications(current => current.map(n => ({ ...n, is_read: true })));
+      supabase.rpc('mark_notifications_as_read').then(({ error }) => {
+          if (error) console.error("Error al marcar notificaciones como leídas al abrir:", error);
+      });
+    }
   };
 
   return (
-    <Popover onOpenChange={(open) => { if (open) markAllAsRead(); }}>
+    <Popover onOpenChange={handlePopoverOpen}>
       <PopoverTrigger asChild>
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
@@ -181,14 +152,14 @@ export function NotificationBell() {
         </div>
 
         <div className="border-t p-2 flex gap-2">
-          <Button variant="outline" size="sm" className="w-full" onClick={markAllAsRead}>
+          <Button variant="outline" size="sm" className="w-full" onClick={handleMarkAllAsRead}>
             <Archive className="h-4 w-4 mr-2" />
-            Marcar como leído
+            Limpiar Leídas
           </Button>
           <Link href="/notifications" className="w-full">
             <Button variant="default" size="sm" className="w-full">
               <Book className="h-4 w-4 mr-2" />
-              Ver Todas
+              Ver Historial
             </Button>
           </Link>
         </div>
