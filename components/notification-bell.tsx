@@ -97,25 +97,39 @@ export function NotificationBell() {
   }, [user, supabase]);
 
   const handleMarkAllAsRead = async () => {
-    if (unreadCount === 0) return;
+    // [CAMBIO QUIRÚRGICO]: Modificamos la función para que "limpie" la vista.
+    if (notifications.length === 0) return;
     
-    // [CAMBIO QUIRÚRGICO]: Se añade la limpieza del estado local para el efecto de "archivar".
-    setNotifications([]);
+    // Actualización optimista de la UI para una respuesta instantánea.
+    const unreadNotifications = notifications.filter(n => !n.is_read);
+    setNotifications([]); // Limpiamos la lista de la UI.
     setUnreadCount(0);
     
-    const { error } = await supabase.rpc('mark_notifications_as_read');
-    if (error) {
-      console.error("Error al marcar notificaciones como leídas:", error);
+    // Llamada a la RPC en segundo plano para actualizar la base de datos solo si había no leídas.
+    if (unreadNotifications.length > 0) {
+        const { error } = await supabase.rpc('mark_notifications_as_read');
+        if (error) {
+          console.error("Error al marcar notificaciones como leídas:", error);
+          // Opcional: Revertir la actualización optimista si la llamada a la RPC falla.
+          setNotifications(notifications);
+          setUnreadCount(unreadNotifications.length);
+        }
     }
   };
 
   const handlePopoverOpen = (open: boolean) => {
-    // Marcamos como leídas solo las que están visibles al abrir.
     if (open && unreadCount > 0) {
-      setUnreadCount(0);
-      setNotifications(current => current.map(n => ({ ...n, is_read: true })));
+      const newUnreadCount = 0;
+      setUnreadCount(newUnreadCount);
+      const updatedNotifications = notifications.map(n => ({ ...n, is_read: true }));
+      setNotifications(updatedNotifications);
+      
       supabase.rpc('mark_notifications_as_read').then(({ error }) => {
-          if (error) console.error("Error al marcar notificaciones como leídas al abrir:", error);
+          if (error) {
+            console.error("Error al marcar notificaciones como leídas al abrir:", error);
+            setUnreadCount(notifications.filter(n => !n.is_read).length);
+            setNotifications(notifications);
+          }
       });
     }
   };
@@ -154,7 +168,7 @@ export function NotificationBell() {
         <div className="border-t p-2 flex gap-2">
           <Button variant="outline" size="sm" className="w-full" onClick={handleMarkAllAsRead}>
             <Archive className="h-4 w-4 mr-2" />
-            Limpiar Leídas
+            Limpiar
           </Button>
           <Link href="/notifications" className="w-full">
             <Button variant="default" size="sm" className="w-full">
