@@ -1,9 +1,11 @@
 // app/layout.tsx
-// VERSIÓN FINAL COMPLETA CON PASO DE SESIÓN DEL SERVIDOR AL CLIENTE
+// VERSIÓN FINAL: Integra Vercel Analytics y Speed Insights.
 
 import { cookies } from 'next/headers';
 import type React from "react";
 import type { Metadata } from "next";
+import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/next'; // [CAMBIO QUIRÚRGICO #1]: Se importa Speed Insights.
 import "./globals.css";
 import { Inter } from "next/font/google";
 
@@ -31,7 +33,6 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // [INTERVENCIÓN ARQUITECTÓNICA]: Se obtiene la sesión en el servidor.
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
   const { data: { session } } = await supabase.auth.getSession();
@@ -63,7 +64,6 @@ export default async function RootLayout({
             disableTransitionOnChange={false}
             storageKey="theme"
           >
-            {/* [INTERVENCIÓN ARQUITECTÓNICA]: Se pasa la sesión del servidor al AuthProvider. */}
             <AuthProvider session={session}>
               <AudioProvider>
                 <SmoothScrollWrapper>
@@ -79,9 +79,7 @@ export default async function RootLayout({
                     <PageTransition>
                       <main className="relative z-10">{children}</main>
                     </PageTransition>
-
                     <PlayerOrchestrator />
-                    
                     <Toaster />
                   </div>
                 </SmoothScrollWrapper>
@@ -89,6 +87,10 @@ export default async function RootLayout({
             </AuthProvider>
           </ThemeProvider>
         </ErrorBoundary>
+        
+        <Analytics />
+        {/* [CAMBIO QUIRÚRGICO #2]: Se añade el componente Speed Insights junto a Analytics. */}
+        <SpeedInsights />
       </body>
     </html>
   );
