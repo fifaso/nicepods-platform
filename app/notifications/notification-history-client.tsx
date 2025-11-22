@@ -4,7 +4,7 @@
 "use client";
 
 import { useMemo } from 'react';
-// Asumimos que exportaremos Notification y NotificationItem desde notification-bell.tsx
+// Importamos los componentes reutilizables que ya hemos construido y exportado.
 import { Notification, NotificationItem } from "@/components/notification-bell"; 
 import { format, isToday, isYesterday } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -17,24 +17,34 @@ export function NotificationHistoryClient({ initialNotifications }: Notification
   const groupedNotifications = useMemo(() => {
     if (!initialNotifications) return {};
 
+    // Agrupamos las notificaciones por un título de fecha legible.
     return initialNotifications.reduce((acc, notification) => {
       const date = new Date(notification.created_at);
       let groupTitle: string;
 
-      if (isToday(date)) groupTitle = 'Hoy';
-      else if (isYesterday(date)) groupTitle = 'Ayer';
-      else groupTitle = format(date, "d 'de' MMMM 'de' yyyy", { locale: es });
+      if (isToday(date)) {
+        groupTitle = 'Hoy';
+      } else if (isYesterday(date)) {
+        groupTitle = 'Ayer';
+      } else {
+        groupTitle = format(date, "d 'de' MMMM 'de' yyyy", { locale: es });
+      }
 
-      if (!acc[groupTitle]) acc[groupTitle] = [];
+      if (!acc[groupTitle]) {
+        acc[groupTitle] = [];
+      }
       acc[groupTitle].push(notification);
       return acc;
     }, {} as Record<string, Notification[]>);
   }, [initialNotifications]);
 
+  // Ordenamos los grupos para que "Hoy" y "Ayer" siempre aparezcan primero.
   const sortedGroups = Object.keys(groupedNotifications).sort((a, b) => {
-    if (a === 'Hoy') return -1; if (b === 'Hoy') return 1;
-    if (a === 'Ayer') return -1; if (b === 'Ayer') return 1;
-    // Para las fechas reales, las ordenamos de más reciente a más antigua
+    if (a === 'Hoy') return -1;
+    if (b === 'Hoy') return 1;
+    if (a === 'Ayer') return -1;
+    if (b === 'Ayer') return 1;
+    // Para las fechas completas, las ordenamos de más reciente a más antigua.
     return new Date(b).getTime() - new Date(a).getTime();
   });
 
