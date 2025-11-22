@@ -1,5 +1,5 @@
 // middleware.ts
-// VERSIÓN ACTUALIZADA: Redirige a los usuarios autenticados a la página de inicio ('/') en lugar de a '/create'.
+// VERSIÓN FINAL Y CORREGIDA: Redirige a los usuarios autenticados a la página de inicio ('/') como dashboard principal.
 
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
@@ -33,15 +33,18 @@ export async function middleware(request: NextRequest) {
   const isProtectedRoute = protectedRoutes.some(path => request.nextUrl.pathname.startsWith(path));
   const isPublicRoute = publicRoutes.some(path => request.nextUrl.pathname.startsWith(path));
 
+  // CASO 1: El usuario no está logueado e intenta acceder a una ruta protegida.
   if (!user && isProtectedRoute) {
+    // Lo redirigimos a login, guardando la página a la que quería ir.
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     url.searchParams.set('redirect', request.nextUrl.pathname)
     return NextResponse.redirect(url)
   }
 
-  // [CAMBIO QUIRÚRGICO]: Si un usuario logueado intenta acceder a una ruta pública,
-  // ahora lo redirigimos a la página de inicio ('/'), que es nuestro nuevo dashboard.
+  // CASO 2: El usuario SÍ está logueado e intenta acceder a una ruta pública (como login).
+  // [CAMBIO QUIRÚRGICO]: Se cambia el destino de la redirección a la página raíz ('/').
+  // Esta es ahora nuestra página de inicio y dashboard principal para usuarios autenticados.
   if (user && isPublicRoute) {
     return NextResponse.redirect(new URL('/', request.url))
   }
