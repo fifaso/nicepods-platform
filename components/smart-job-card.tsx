@@ -26,14 +26,14 @@ export function SmartJobCard({ job }: { job: UserCreationJob }) {
   const [statusText, setStatusText] = useState("Iniciando...");
 
   useEffect(() => {
-    // Si no hay un micro_pod_id, significa que el guion aún no se ha creado.
+    // Si no hay un micro_pod_id, el guion aún no se ha creado.
     if (!job.micro_pod_id) {
       setStatusText("Creando guion...");
-      setProgress(PROGRESS_STAGES.SCRIPT_CREATED / 2); // Un progreso visual inicial
+      setProgress(PROGRESS_STAGES.SCRIPT_CREATED / 2); // Progreso visual inicial
       return;
     }
 
-    // Una vez que tenemos el micro_pod_id, el guion ya existe.
+    // Si tenemos micro_pod_id, el guion ya existe.
     setProgress(PROGRESS_STAGES.SCRIPT_CREATED);
     setStatusText("Generando audio...");
 
@@ -58,7 +58,6 @@ export function SmartJobCard({ job }: { job: UserCreationJob }) {
             status = "Generando carátula...";
           }
           if (newPod.cover_image_url) {
-            // Si ya teníamos audio, ahora está completo. Si no, solo tenemos cover.
             currentProgress = newPod.audio_url ? PROGRESS_STAGES.COVER_GENERATED : PROGRESS_STAGES.SCRIPT_CREATED + 33;
             status = newPod.audio_url ? "Finalizando..." : "Generando audio...";
           }
@@ -90,10 +89,9 @@ export function SmartJobCard({ job }: { job: UserCreationJob }) {
       <CardContent>
         <div className="flex items-center text-sm text-muted-foreground">
           <Bot className="mr-2 h-4 w-4" />
-          <p>Nuestros agentes de IA están trabajando en tu idea. Esto se actualizará automáticamente.</p>
+          <p>Nuestros agentes de IA están trabajando en tu idea...</p>
         </div>
       </CardContent>
-      {/* La barra de progreso animada */}
       <div className="relative h-1 w-full bg-muted/30">
         <div 
           className="absolute top-0 left-0 h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-500 ease-in-out"

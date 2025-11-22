@@ -1,5 +1,5 @@
 // components/podcast-shelf.tsx
-// VERSIÓN FINAL: El 'variant="compact"' ahora crea una "ventana de descubrimiento" scrollable.
+// VERSIÓN CORREGIDA: Se añade 'relative' para arreglar el efecto de fade-out.
 
 import { PodcastWithProfile } from "@/types/podcast";
 import { PodcastCard } from "@/components/podcast-card";
@@ -16,31 +16,24 @@ export function PodcastShelf({ title, podcasts, variant = 'default' }: PodcastSh
     return null;
   }
 
-  // Si la variante es 'compact', renderizamos una lista vertical scrollable.
   if (variant === 'compact') {
     return (
       <section className="w-full">
         <h2 className="text-2xl md:text-3xl font-bold mb-4 px-4 md:px-0">{title}</h2>
-        {/* [CAMBIO QUIRÚRGICO #1]: Se añade un contenedor relativo para el efecto de fade-out. */}
+        {/* [CAMBIO QUIRÚRGICO]: Se añade 'relative' para que el degradado absoluto se posicione correctamente. */}
         <div className="relative">
-          {/* [CAMBIO QUIRÚRGICO #2]: Se define una altura máxima y un scroll vertical.
-              La altura se calcula para mostrar ~3.5 tarjetas (3 completas y una insinuada).
-              `88px` es la altura aprox. de una CompactCard (h-20 + padding), `1rem` es el space-y-4. */}
           <div className="space-y-4 max-h-[calc(3*88px+3*1rem)] overflow-y-auto pr-2
                         scrollbar-thin scrollbar-thumb-gray-700/50 scrollbar-track-transparent">
             {podcasts.map((podcast) => (
               <CompactPodcastCard key={podcast.id} podcast={podcast} />
             ))}
           </div>
-          {/* [CAMBIO QUIRÚRGICO #3]: Elemento para el efecto "fade-out" en la parte inferior.
-              Es invisible a los clics para no interferir con el scroll. */}
           <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-background to-transparent pointer-events-none" />
         </div>
       </section>
     );
   }
 
-  // Por defecto, renderizamos el carrusel horizontal.
   return (
     <section className="w-full py-8">
       <h2 className="text-2xl font-bold mb-4 px-4 md:px-0">{title}</h2>

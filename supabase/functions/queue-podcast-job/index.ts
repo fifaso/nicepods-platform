@@ -1,14 +1,17 @@
 // supabase/functions/queue-podcast-job/index.ts
-// VERSIÓN DE LA VICTORIA ABSOLUTA: Asume el rol de orquestador inicial.
+// VERSIÓN FINAL Y ROBUSTA: Actualiza el esquema de validación para aceptar los nuevos estilos de creación.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { z, ZodError } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
+// [CAMBIO QUIRÚRGICO]: Se actualiza el esquema de Zod para incluir los nuevos estilos 'legacy' y 'qa'.
+// También se hace el 'style' opcional para ser coherente con el payload, ya que a veces viene en el 'purpose'.
 const QueuePayloadSchema = z.object({
-  style: z.enum(['solo', 'link', 'archetype']),
-  agentName: z.string().min(1),
+  purpose: z.string(),
+  style: z.enum(['solo', 'link', 'archetype', 'legacy', 'qa']).optional(),
+  agentName: z.string().min(1).optional(), // Algunos flujos no seleccionan el agente al principio
   inputs: z.object({}).passthrough(),
 });
 
@@ -40,9 +43,7 @@ serve(async (request: Request) => {
 
     if (rpcError) throw new Error(`Fallo en RPC: ${rpcError.message}`);
 
-    // [INTERVENCIÓN ARQUITECTÓNICA DE LA VICTORIA]
     // 2. Asumir la responsabilidad de iniciar la cadena.
-    // Ya no dependemos de un trigger de base de datos.
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -50,8 +51,7 @@ serve(async (request: Request) => {
 
     console.log(`Trabajo ${newJobId} creado. Invocando a 'process-podcast-job' para iniciar la cadena...`);
     
-    // 3. Invocación asíncrona ("dispara y olvida") para no retrasar la respuesta al cliente.
-    // Usamos la herramienta que SÍ funciona: supabase.functions.invoke().
+    // 3. Invocación asíncrona ("dispara y olvida").
     supabaseAdmin.functions.invoke('process-podcast-job', {
       body: { job_id: newJobId }
     }).then(({ error: invokeError }) => {

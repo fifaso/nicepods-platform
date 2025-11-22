@@ -1,5 +1,5 @@
 // app/podcasts/library-tabs.tsx
-// VERSIÓN FINAL Y COMPLETA: Gestiona el estado de la biblioteca en tiempo real sin abreviaciones.
+// VERSIÓN FINAL Y COMPLETA: Gestiona el estado de la biblioteca en tiempo real.
 
 'use client';
 
@@ -64,7 +64,6 @@ export function LibraryTabs({
     const currentView = (searchParams.get('view') as LibraryViewMode) || 'grid';
     const activeUniverseKey = searchParams.get('universe') || (user ? 'most_resonant' : 'tech_and_innovation');
 
-    // [CAMBIO QUIRÚRGICO #1]: Las listas de la biblioteca ahora son estados locales para ser actualizadas en tiempo real.
     const [jobs, setJobs] = useState(initialJobs);
     const [podcasts, setPodcasts] = useState(initialPodcasts);
     
@@ -73,11 +72,9 @@ export function LibraryTabs({
     const [searchResults, setSearchResults] = useState<PodcastWithProfile[] | null>(null);
     const [isLoadingSearch, setIsLoadingSearch] = useState(false);
 
-    // [CAMBIO QUIRÚRGICO #2]: useEffect para la magia en tiempo real.
     useEffect(() => {
         if (!user) return;
 
-        // Listener para cuando un JOB se actualiza (ej. a 'completed').
         const jobsChannel = supabase.channel(`realtime-jobs:${user.id}`)
             .on<UserCreationJob>('postgres_changes', { event: '*', schema: 'public', table: 'podcast_creation_jobs', filter: `user_id=eq.${user.id}` },
                 (payload) => {
@@ -85,9 +82,7 @@ export function LibraryTabs({
                         setJobs(currentJobs => [payload.new as UserCreationJob, ...currentJobs]);
                     }
                     if (payload.eventType === 'UPDATE') {
-                        // Si el job se completa o falla, lo quitamos de la lista "En Proceso".
                         if (payload.new.status === 'completed' || payload.new.status === 'failed') {
-                            // Esperamos un momento para que el usuario vea el 100% antes de que desaparezca.
                             setTimeout(() => {
                                 setJobs(currentJobs => currentJobs.filter(job => job.id !== payload.new.id));
                             }, 2000);
@@ -98,20 +93,20 @@ export function LibraryTabs({
                 }
             ).subscribe();
 
-        // Listener para cuando un nuevo PODCAST se crea.
         const podsChannel = supabase.channel(`realtime-pods:${user.id}`)
-            .on<PodcastWithProfile>('postgres_changes', { event: 'INSERT', schema: 'public', table: 'micro_pods', filter: `user_id=eq.${user.id}` },
+            .on<PodcastWithProfile>('postgres_changes', { event: '*', schema: 'public', table: 'micro_pods', filter: `user_id=eq.${user.id}` },
                 async (payload) => {
-                    const { data: newPodcast, error } = await supabase
-                        .from('micro_pods')
-                        .select('*, profiles(full_name, avatar_url, username)')
-                        .eq('id', payload.new.id)
-                        .single();
-
-                    if (error) {
-                        console.error("Error al obtener el nuevo podcast:", error);
-                    } else if (newPodcast) {
-                        setPodcasts(currentPodcasts => [newPodcast as PodcastWithProfile, ...currentPodcasts]);
+                    if (payload.eventType === 'INSERT') {
+                        const { data: newPodcast, error } = await supabase
+                            .from('micro_pods').select('*, profiles(full_name, avatar_url, username)').eq('id', payload.new.id).single();
+                        if (!error && newPodcast) {
+                            setPodcasts(currentPodcasts => [newPodcast as PodcastWithProfile, ...currentPodcasts]);
+                        }
+                    }
+                    if (payload.eventType === 'UPDATE') {
+                        setPodcasts(currentPodcasts => 
+                            currentPodcasts.map(p => p.id === payload.new.id ? { ...p, ...payload.new } : p)
+                        );
                     }
                 }
             ).subscribe();
@@ -198,7 +193,6 @@ export function LibraryTabs({
                                 <section>
                                     <h2 className="text-2xl font-semibold tracking-tight mb-4">En Proceso</h2>
                                     <div className="space-y-4">
-                                        {/* [CAMBIO QUIRÚRGICO #3]: Se usa el nuevo SmartJobCard. */}
                                         {jobs.map((job) => <SmartJobCard key={`job-${job.id}`} job={job} />)}
                                     </div>
                                 </section>

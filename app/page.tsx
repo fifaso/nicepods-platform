@@ -1,5 +1,5 @@
 // app/page.tsx
-// VERSIÓN FINAL POTENCIADA: Refina el layout móvil y la funcionalidad del "Hub de Acción".
+// VERSIÓN FINAL Y COMPLETA: Integra el DiscoveryHub y corrige los bugs visuales de overflow sin abreviaciones.
 
 import { cookies } from "next/headers";
 import Link from "next/link";
@@ -12,6 +12,7 @@ import { Mic, Search, Compass, Lightbulb, Bot, Library, User } from "lucide-reac
 import { QuadrantCard } from "@/components/ui/quadrant-card";
 import { InsightPanel } from "@/components/insight-panel";
 import { FloatingActionButton } from "@/components/ui/floating-action-button";
+import { DiscoveryHub } from "@/components/discovery-hub";
 import type { Tables } from "@/types/supabase";
 
 type ResonanceProfile = Tables<'user_resonance_profiles'>;
@@ -22,7 +23,7 @@ interface DiscoveryFeed {
 }
 
 // ===================================================================
-// VISTA PARA USUARIO AUTENTICADO (POTENCIADA)
+// VISTA PARA USUARIO AUTENTICADO
 // ===================================================================
 function UserDashboard({ user, feed, profile }: { user: any; feed: DiscoveryFeed | null; profile: any }) {
   const userName = user.user_metadata?.full_name?.split(' ')[0] || user.email;
@@ -31,7 +32,7 @@ function UserDashboard({ user, feed, profile }: { user: any; feed: DiscoveryFeed
     <>
       <div className="px-4 lg:px-0">
         {/* Hub de Acción para pantallas pequeñas */}
-        <div className="lg:hidden mb-6"> {/* [CAMBIO QUIRÚRGICO #1]: Se reduce el margen inferior de 8 a 6 */}
+        <div className="lg:hidden mb-6"> 
             <h1 className="text-3xl font-bold tracking-tight mb-4">Hola, {userName}!</h1>
             <div className="grid grid-cols-2 gap-4">
                 <Link href="/podcasts?tab=discover">
@@ -39,7 +40,6 @@ function UserDashboard({ user, feed, profile }: { user: any; feed: DiscoveryFeed
                         <Library className="mr-2 h-5 w-5" /> Explorar
                     </Button>
                 </Link>
-                {/* [CAMBIO QUIRÚRGICO #2]: El botón "Mis Creaciones" ahora apunta a la biblioteca en modo lista. */}
                 <Link href={`/podcasts?tab=library&view=list`}>
                     <Button variant="outline" className="w-full h-16 text-base bg-card/50">
                         <User className="mr-2 h-5 w-5" /> Mis Creaciones
@@ -56,6 +56,9 @@ function UserDashboard({ user, feed, profile }: { user: any; feed: DiscoveryFeed
             <p className="text-lg text-muted-foreground mt-2">Tu centro de descubrimiento personalizado.</p>
         </div>
 
+        {/* Hub de Descubrimiento con 4 categorías */}
+        <DiscoveryHub />
+
         <div className="mt-8 space-y-12">
           <PodcastShelf title="Tu Epicentro Creativo" podcasts={feed?.epicenter || []} variant="compact" />
           <PodcastShelf title="Conexiones Inesperadas" podcasts={feed?.semantic_connections || []} variant="compact" />
@@ -68,11 +71,12 @@ function UserDashboard({ user, feed, profile }: { user: any; feed: DiscoveryFeed
 }
 
 // ===================================================================
-// VISTA PARA INVITADO (SIN CAMBIOS)
+// VISTA PARA INVITADO (SIN LOGIN)
 // ===================================================================
 function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] | null }) {
   return (
     <div className="flex flex-col items-center">
+      {/* Sección 1: Héroe */}
       <section className="w-full text-center py-16 md:py-20 flex flex-col items-center space-y-4 px-4">
         <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-primary">
           Expande tu perspectiva
@@ -82,6 +86,7 @@ function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] | null }) 
         </p>
       </section>
       
+      {/* Sección 2: Encuentra tu Próxima Idea */}
       <section className="w-full max-w-4xl py-6 px-4 mx-auto">
         <div className="relative mb-8">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -95,6 +100,7 @@ function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] | null }) 
         </div>
       </section>
 
+      {/* Sección 3: Las últimas creaciones de la comunidad */}
       <div className="w-full max-w-7xl mx-auto px-4 lg:px-0 mt-8">
         <PodcastShelf 
           title="Las últimas creaciones de la comunidad"
@@ -102,6 +108,7 @@ function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] | null }) 
         />
       </div>
 
+      {/* Footer */}
       <footer className="w-full py-8 mt-16 bg-muted/50 text-center text-sm text-muted-foreground lg:hidden">
         <div className="container px-4 md:px-6 mx-auto">
             <p>&copy; {new Date().getFullYear()} NicePod. Todos los derechos reservados.</p>
@@ -155,11 +162,11 @@ export default async function HomePage() {
   return (
     <main className="container mx-auto max-w-screen-xl flex-grow">
       <div className="grid grid-cols-1 lg:grid-cols-4 lg:gap-8 xl:gap-12 h-full">
-        <div className="lg:col-span-3 lg:h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-6 
+        {/* Columna de Contenido (Scrollable) con corrección de overflow */}
+        <div className="lg:col-span-3 lg:h-[calc(100vh-6rem)] lg:overflow-y-auto lg:overflow-x-hidden lg:pr-6 
                        scrollbar-thin scrollbar-thumb-gray-600/50 hover:scrollbar-thumb-gray-500/50 
                        scrollbar-track-transparent scrollbar-thumb-rounded-full">
-          {/* [CAMBIO QUIRÚRGICO #3]: Se reduce el padding vertical superior para subir el contenido. */}
-          <div className="pt-6 pb-12">
+          <div className="pt-6 pb-12 lg:pt-12">
             {user ? (
               <UserDashboard user={user} feed={feed} profile={userProfile} />
             ) : (
@@ -167,6 +174,7 @@ export default async function HomePage() {
             )}
           </div>
         </div>
+        {/* Columna del Panel (Sticky) */}
         <div className="hidden lg:block lg:col-span-1">
           <div className="sticky top-[6rem] h-[calc(100vh-7.5rem)]">
             <div className="py-12 h-full">
