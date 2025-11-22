@@ -1,47 +1,48 @@
 // components/discovery-hub.tsx
-// Un componente dedicado para mostrar las 4 categorías principales de descubrimiento.
+// VERSIÓN POTENCIADA: Utiliza UniverseCard para una experiencia visual inmersiva.
 
-import { QuadrantCard } from "@/components/ui/quadrant-card";
-import { Compass, Lightbulb, Bot, Mic } from "lucide-react";
+import { UniverseCard } from "@/components/universe-card"; // [CAMBIO QUIRÚRGICO #1]: Se cambia la importación.
 
+// [CAMBIO QUIRÚRGICO #2]: Se actualiza la estructura de datos para incluir las imágenes.
 const discoveryHubCategories = [
     {
-        icon: <Lightbulb className="h-6 w-6" />,
+        key: "deep_thought",
         title: "Pensamiento Profundo",
-        description: "Explora los 'porqués' del mundo.",
+        image: "/images/universes/deep-thought.png",
         href: "/podcasts?tab=discover&universe=deep_thought"
     },
     {
-        icon: <Compass className="h-6 w-6" />,
+        key: "practical_tools",
         title: "Herramientas Prácticas",
-        description: "Conocimiento aplicable para tu día a día.",
+        image: "/images/universes/practical-tools.png",
         href: "/podcasts?tab=discover&universe=practical_tools"
     },
     {
-        icon: <Bot className="h-6 w-6" />,
-        title: "Innovación y Tecnología",
-        description: "Descubre cómo funciona el futuro.",
+        key: "tech_and_innovation",
+        title: "Innovación y Tec.",
+        image: "/images/universes/tech.png",
         href: "/podcasts?tab=discover&universe=tech_and_innovation"
     },
     {
-        icon: <Mic className="h-6 w-6" />,
+        key: "narrative_and_stories",
         title: "Narrativa e Historias",
-        description: "Conecta a través del storytelling.",
+        image: "/images/universes/narrative.png",
         href: "/podcasts?tab=discover&universe=narrative_and_stories"
     },
 ];
 
 export function DiscoveryHub() {
     return (
-        <section className="my-8">
+        <section className="my-12">
+            {/* [CAMBIO QUIRÚRGICO #3]: Se renderiza el componente UniverseCard con las nuevas props. */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {discoveryHubCategories.map((category) => (
-                    <QuadrantCard
-                        key={category.href}
-                        icon={category.icon}
+                    <UniverseCard
+                        key={category.key}
                         title={category.title}
-                        description={category.description}
+                        image={category.image}
                         href={category.href}
+                        isActive={false} // En el hub, ninguna tarjeta está "activa" por defecto.
                     />
                 ))}
             </div>

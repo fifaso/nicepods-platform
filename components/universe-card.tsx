@@ -19,7 +19,7 @@ export function UniverseCard({ title, image, href, isActive }: UniverseCardProps
   return (
     <Link href={href} className="group block">
       <Card className={cn(
-        "relative overflow-hidden h-24 md:h-32 transition-all duration-300 border-2",
+        "relative overflow-hidden h-24 md:h-32 transition-all duration-300 border-2 rounded-2xl", // Esquinas más redondeadas
         isActive ? "border-primary shadow-lg shadow-primary/20" : "border-transparent hover:border-primary/50"
       )}>
         <Image
