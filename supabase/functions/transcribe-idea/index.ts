@@ -1,5 +1,5 @@
 // supabase/functions/transcribe-idea/index.ts
-// VERSIÓN ENTERPRISE: Rate Limiting + Audio Streaming + Gemini 2.5
+// VERSIÓN DUAL: Soporta 'clarify' (IA) y 'fast' (Literal). Sin Streaming para máxima estabilidad.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -18,7 +18,7 @@ serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
-    // 1. AUTENTICACIÓN
+    // 1. SEGURIDAD & RATE LIMITING
     const authHeader = request.headers.get('Authorization');
     if (!authHeader) throw new Error("Falta autorización.");
     
@@ -28,41 +28,43 @@ serve(async (request) => {
     const { data: { user }, error: authError } = await supabaseUserClient.auth.getUser();
     if (authError || !user) throw new Error("Usuario no autenticado.");
 
-    // 2. RATE LIMITING (5 peticiones por 60 segundos)
-    const { data: allowed, error: rateError } = await supabaseAdmin.rpc('check_rate_limit', {
-      p_user_id: user.id,
-      p_function_name: 'transcribe-idea',
-      p_limit: 5,
-      p_window_seconds: 60
+    // Limitamos a 10 peticiones por minuto (un poco más generoso para uso intensivo)
+    const { data: allowed } = await supabaseAdmin.rpc('check_rate_limit', {
+      p_user_id: user.id, p_function_name: 'transcribe-idea', p_limit: 10, p_window_seconds: 60
     });
-
-    if (rateError) console.error("Error Rate Limit RPC:", rateError);
     if (allowed === false) {
-      return new Response(JSON.stringify({ error: "Límite de velocidad excedido. Espera un momento." }), { 
-        status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      });
+      return new Response(JSON.stringify({ error: "Límite de velocidad. Espera un poco." }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // 3. PROCESAMIENTO AUDIO
-    const contentType = request.headers.get('content-type') || '';
-    if (!contentType.includes('multipart/form-data')) throw new Error("Content-Type inválido.");
+    // 2. EXTRACCIÓN DE DATOS
     const formData = await request.formData();
     const audioFile = formData.get('audio');
-    if (!audioFile || !(audioFile instanceof File)) throw new Error("Falta archivo de audio.");
+    const mode = formData.get('mode') || 'clarify'; // 'clarify' | 'fast'
+
+    if (!audioFile || !(audioFile instanceof File)) throw new Error("Falta audio.");
 
     const arrayBuffer = await audioFile.arrayBuffer();
     const base64Audio = encodeBase64(new Uint8Array(arrayBuffer));
 
-    // 4. PREPARAR PROMPT
-    const { data: promptData } = await supabaseAdmin
-      .from('ai_prompts').select('prompt_template')
-      .eq('agent_name', 'thought-clarifier').single();
-    if (!promptData) throw new Error("Agente no configurado.");
+    // 3. SELECCIÓN DE INTELIGENCIA (EL CEREBRO)
+    let systemInstruction = "";
 
-    const systemInstruction = promptData.prompt_template.replace('{{transcription}}', '[AUDIO ADJUNTO]');
+    if (mode === 'fast') {
+      // MODO RÁPIDO: Prompt ligero, sin consultas a DB, directo al grano.
+      systemInstruction = `Transcribe el siguiente audio exactamente palabra por palabra. 
+      No añadas explicaciones, ni formatos. Solo el texto crudo en español.`;
+    } else {
+      // MODO CLARIFICAR (Default): Usa el Agente experto de la DB.
+      const { data: promptData } = await supabaseAdmin
+        .from('ai_prompts').select('prompt_template')
+        .eq('agent_name', 'thought-clarifier').single();
+      
+      if (!promptData) throw new Error("Agente thought-clarifier no configurado.");
+      systemInstruction = promptData.prompt_template.replace('{{transcription}}', '[AUDIO ADJUNTO]');
+    }
 
-    // 5. LLAMADA A GEMINI CON STREAMING (alt=sse)
-    const apiUrl = `https://generativelanguage.googleapis.com/${API_VERSION}/models/${MODEL_NAME}:streamGenerateContent?alt=sse&key=${GOOGLE_API_KEY}`;
+    // 4. LLAMADA A GEMINI (SIN STREAMING PARA EVITAR BUGS DE PARSEO)
+    const apiUrl = `https://generativelanguage.googleapis.com/${API_VERSION}/models/${MODEL_NAME}:generateContent?key=${GOOGLE_API_KEY}`;
 
     const response = await fetch(apiUrl, {
       method: 'POST',
@@ -75,7 +77,8 @@ serve(async (request) => {
               { inline_data: { mime_type: audioFile.type || 'audio/mp3', data: base64Audio } }
             ]
         }],
-        generationConfig: { temperature: 0.7, maxOutputTokens: 2000 }
+        // Temperatura baja para dictado, media para creatividad
+        generationConfig: { temperature: mode === 'fast' ? 0.2 : 0.7, maxOutputTokens: 2000 }
       }),
     });
 
@@ -84,53 +87,20 @@ serve(async (request) => {
       throw new Error(`Gemini Error: ${txt}`);
     }
 
-    // 6. TRANSFORMACIÓN DEL STREAM (Proxy SSE -> Texto)
-    const reader = response.body?.getReader();
-    const encoder = new TextEncoder();
-    const decoder = new TextDecoder();
+    const result = await response.json();
+    const finalBuffer = result.candidates?.[0]?.content?.parts?.[0]?.text;
 
-    const stream = new ReadableStream({
-      async start(controller) {
-        if (!reader) { controller.close(); return; }
-        
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            
-            const chunk = decoder.decode(value, { stream: true });
-            const lines = chunk.split('\n');
-            
-            for (const line of lines) {
-              if (line.startsWith('data: ')) {
-                const jsonStr = line.slice(6);
-                if (jsonStr.trim() === '[DONE]') continue;
-                try {
-                  const data = JSON.parse(jsonStr);
-                  const textPart = data.candidates?.[0]?.content?.parts?.[0]?.text;
-                  if (textPart) {
-                    controller.enqueue(encoder.encode(textPart));
-                  }
-                } catch (e) { /* ignorar chunks parciales */ }
-              }
-            }
-          }
-        } catch (err) {
-          console.error("Stream error:", err);
-          controller.error(err);
-        } finally {
-          controller.close();
-        }
-      }
-    });
+    if (!finalBuffer) throw new Error("Sin respuesta de texto.");
 
-    return new Response(stream, {
-      headers: { ...corsHeaders, 'Content-Type': 'text/plain; charset=utf-8' }
-    });
+    // 5. RESPUESTA LIMPIA
+    return new Response(
+      JSON.stringify({ success: true, clarified_text: finalBuffer.trim() }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
 
   } catch (error) {
     console.error("Error:", error);
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Error" }), { 
+    return new Response(JSON.stringify({ success: false, error: error instanceof Error ? error.message : "Error" }), { 
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });
   }
