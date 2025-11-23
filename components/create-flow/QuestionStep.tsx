@@ -1,16 +1,22 @@
 // components/create-flow/QuestionStep.tsx
-// Nuevo paso de formulario para la intención "Responder una Pregunta".
 
 "use client";
-
 import { useFormContext } from "react-hook-form";
 import { PodcastCreationData } from "@/lib/validation/podcast-schema";
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { HelpCircle } from "lucide-react";
+// 1. Importar
+import { VoiceInput } from "@/components/ui/voice-input";
 
 export function QuestionStep() {
-  const { control } = useFormContext<PodcastCreationData>();
+  const { control, setValue } = useFormContext<PodcastCreationData>();
+
+  // 2. Handler (Para inputs cortos, quizás quieras reemplazar en vez de añadir)
+  const handleVoiceInput = (text: string) => {
+    // Para preguntas, solemos querer reemplazar lo que había porque es una frase corta
+    setValue('question_to_answer', text, { shouldValidate: true, shouldDirty: true });
+  };
 
   return (
     <div className="flex flex-col h-full animate-fade-in">
@@ -19,18 +25,22 @@ export function QuestionStep() {
           <HelpCircle className="h-6 w-6 text-primary" />
         </div>
         <h2 className="text-2xl font-bold">Responde una Pregunta</h2>
-        <p className="text-muted-foreground">Proporciona una respuesta clara y concisa a una duda específica.</p>
+        <p className="text-muted-foreground">Proporciona una respuesta clara y concisa.</p>
       </div>
       <div className="flex-grow">
         <FormField
           control={control}
-          name="question_to_answer" // Este campo deberá ser añadido al schema de validación
+          name="question_to_answer"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>¿Qué pregunta quieres responder?</FormLabel>
+               {/* 3. Insertar Componente */}
+               <div className="flex justify-between items-center mb-2">
+                  <FormLabel>¿Qué pregunta quieres responder?</FormLabel>
+                  <VoiceInput onTextGenerated={handleVoiceInput} placeholder="Dictar pregunta" />
+              </div>
               <FormControl>
                 <Input
-                  placeholder="Ej: ¿Cómo funciona la edición genética con CRISPR?"
+                  placeholder="Ej: ¿Cómo funciona la edición genética?..."
                   {...field}
                 />
               </FormControl>

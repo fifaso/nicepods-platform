@@ -1,16 +1,23 @@
 // components/create-flow/LegacyStep.tsx
-// Nuevo paso de formulario para la intención "Reflexionar / Documentar".
 
 "use client";
-
 import { useFormContext } from "react-hook-form";
 import { PodcastCreationData } from "@/lib/validation/podcast-schema";
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { PenSquare } from "lucide-react";
+// 1. Importar
+import { VoiceInput } from "@/components/ui/voice-input";
 
 export function LegacyStep() {
-  const { control } = useFormContext<PodcastCreationData>();
+  const { control, setValue, getValues } = useFormContext<PodcastCreationData>();
+
+  // 2. Handler
+  const handleVoiceInput = (text: string) => {
+    const currentText = getValues('legacy_lesson') || '';
+    const newText = currentText ? `${currentText}\n\n${text}` : text;
+    setValue('legacy_lesson', newText, { shouldValidate: true, shouldDirty: true });
+  };
 
   return (
     <div className="flex flex-col h-full animate-fade-in">
@@ -19,18 +26,22 @@ export function LegacyStep() {
           <PenSquare className="h-6 w-6 text-primary" />
         </div>
         <h2 className="text-2xl font-bold">Deja tu Legado</h2>
-        <p className="text-muted-foreground">¿Qué sabiduría quieres preservar? Captura una experiencia o lección importante.</p>
+        <p className="text-muted-foreground">¿Qué sabiduría quieres preservar?</p>
       </div>
       <div className="flex-grow">
         <FormField
           control={control}
-          name="legacy_lesson" // Este campo deberá ser añadido al schema de validación
+          name="legacy_lesson"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Describe la lección de vida o experiencia clave que quieres compartir:</FormLabel>
+               {/* 3. Insertar Componente en el Header del Label */}
+              <div className="flex justify-between items-center mb-2">
+                  <FormLabel>Describe la lección de vida o experiencia:</FormLabel>
+                  <VoiceInput onTextGenerated={handleVoiceInput} placeholder="Narrar historia" />
+              </div>
               <FormControl>
                 <Textarea
-                  placeholder="Ej: Aprendí que la vulnerabilidad no es una debilidad, sino la puerta de entrada a la conexión auténtica. Recuerdo una vez que..."
+                  placeholder="Ej: Aprendí que la vulnerabilidad... (Presiona el micro para contar tu historia)"
                   className="resize-none min-h-[200px]"
                   {...field}
                 />

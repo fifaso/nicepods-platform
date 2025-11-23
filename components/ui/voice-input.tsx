@@ -1,8 +1,10 @@
 // components/ui/voice-input.tsx
+// VERSIÓN MAESTRA: Compatible con Safari/iOS y Chrome, con gestión de errores robusta.
+
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import { Mic, Square, Loader2, Sparkles } from "lucide-react";
+import { Mic, Square, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -17,68 +19,32 @@ interface VoiceInputProps {
 export function VoiceInput({ onTextGenerated, className, placeholder = "Grabar idea" }: VoiceInputProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  // Refs para mantener persistencia sin provocar re-renders
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  
   const { toast } = useToast();
   const supabase = createClient();
 
-  const startRecording = useCallback(async () => {
+  // Función interna para procesar el audio una vez grabado
+  const processAudio = useCallback(async (audioBlob: Blob) => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      chunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          chunksRef.current.push(e.data);
-        }
-      };
-
-      mediaRecorder.onstop = async () => {
-        const tracks = stream.getTracks();
-        tracks.forEach(track => track.stop()); // Apagar micrófono
-
-        const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' }); // O el tipo nativo del navegador
-        await processAudio(audioBlob);
-      };
-
-      mediaRecorder.start();
-      setIsRecording(true);
-    } catch (err) {
-      console.error("Error accediendo al micrófono:", err);
-      toast({
-        title: "Error de micrófono",
-        description: "No pudimos acceder a tu micrófono. Verifica los permisos.",
-        variant: "destructive",
-      });
-    }
-  }, [toast]);
-
-  const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
       setIsProcessing(true);
-    }
-  }, [isRecording]);
-
-  const processAudio = async (audioBlob: Blob) => {
-    try {
+      
       const formData = new FormData();
       formData.append('audio', audioBlob);
 
-      // Invocación a la Edge Function
+      // Llamada a la Edge Function (Gemini 2.5 Flash)
       const { data, error } = await supabase.functions.invoke('transcribe-idea', {
         body: formData,
-        // Importante: No establecemos Content-Type manualmente para que el navegador 
-        // configure el boundary del multipart/form-data correctamente.
       });
 
       if (error) throw new Error(error.message);
       if (!data?.success) throw new Error(data?.error || "Error desconocido al procesar audio.");
 
       onTextGenerated(data.clarified_text);
+      
       toast({
         title: "¡Idea capturada!",
         description: "Tu voz ha sido transformada en texto claro.",
@@ -94,17 +60,74 @@ export function VoiceInput({ onTextGenerated, className, placeholder = "Grabar i
     } finally {
       setIsProcessing(false);
     }
-  };
+  }, [supabase, onTextGenerated, toast]);
+
+  const startRecording = useCallback(async () => {
+    try {
+      // 1. Solicitar permisos
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      
+      // 2. Crear Recorder (Sin forzar mimeType aquí para compatibilidad Safari)
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      chunksRef.current = [];
+
+      // 3. Capturar fragmentos de datos
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          chunksRef.current.push(e.data);
+        }
+      };
+
+      // 4. Manejar el evento de parada
+      mediaRecorder.onstop = async () => {
+        // Apagar el micrófono (liberar hardware)
+        const tracks = stream.getTracks();
+        tracks.forEach(track => track.stop());
+
+        // DETECCIÓN INTELIGENTE DE FORMATO (CRÍTICO PARA SAFARI)
+        // Safari usa 'audio/mp4' o 'audio/aac', Chrome usa 'audio/webm'.
+        // Usamos la propiedad .mimeType del propio recorder.
+        const mimeType = mediaRecorder.mimeType || 'audio/webm';
+        
+        console.log(`Grabación finalizada. Formato detectado: ${mimeType}`); // Log de diagnóstico
+        
+        const audioBlob = new Blob(chunksRef.current, { type: mimeType });
+        await processAudio(audioBlob);
+      };
+
+      // 5. Iniciar grabación
+      mediaRecorder.start();
+      setIsRecording(true);
+
+    } catch (err) {
+      console.error("Error accediendo al micrófono:", err);
+      toast({
+        title: "Error de micrófono",
+        description: "Verifica que has dado permisos de micrófono al navegador.",
+        variant: "destructive",
+      });
+    }
+  }, [toast, processAudio]);
+
+  const stopRecording = useCallback(() => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      // El estado isProcessing se activará dentro del evento onstop
+    }
+  }, []);
 
   return (
     <div className={cn("flex items-center gap-2", className)}>
       <Button
         type="button"
-        variant={isRecording ? "destructive" : "secondary"}
+        // Cambiamos el estilo visual drásticamente si está grabando para dar feedback claro
+        variant={isRecording ? "destructive" : "secondary"} 
         size="sm"
         className={cn(
-          "transition-all duration-300 relative overflow-hidden",
-          isRecording && "animate-pulse pr-4"
+          "transition-all duration-300 relative overflow-hidden font-medium",
+          isRecording && "animate-pulse pr-4 ring-2 ring-offset-2 ring-red-500"
         )}
         onClick={isRecording ? stopRecording : startRecording}
         disabled={isProcessing}
@@ -112,7 +135,7 @@ export function VoiceInput({ onTextGenerated, className, placeholder = "Grabar i
         {isProcessing ? (
           <>
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            Clarificando...
+            Pensando...
           </>
         ) : isRecording ? (
           <>
@@ -127,7 +150,7 @@ export function VoiceInput({ onTextGenerated, className, placeholder = "Grabar i
         )}
       </Button>
       
-      {/* Indicador visual extra si está grabando */}
+      {/* Indicador visual extra (Punto rojo parpadeante fuera del botón) */}
       {isRecording && (
         <span className="flex h-3 w-3 relative">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
