@@ -1,5 +1,5 @@
 // components/create-flow/archetype-step.tsx
-// VERSIÓN RE-ARQUITECTADA: Se convierte en el "Taller de Escritura" del Paso 3.
+// VERSIÓN VOICE-FIRST: Integra la captura de voz en la redacción del arquetipo.
 
 "use client";
 
@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label";
 import { FormField, FormControl, FormItem, FormMessage } from "@/components/ui/form";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Heart, BookOpen, Compass, Zap, Construction, Shield } from "lucide-react";
+// 1. Importación del componente de voz
+import { VoiceInput } from "@/components/ui/voice-input";
 
 export const archetypeOptions = [
     { value: 'archetype-hero', icon: <Shield className="h-7 w-7" />, title: 'El Héroe', description: 'Narra un viaje de desafío y transformación.' },
@@ -20,7 +22,6 @@ export const archetypeOptions = [
     { value: 'archetype-caregiver', icon: <Heart className="h-7 w-7" />, title: 'El Cuidador', description: 'Conecta con la audiencia a través de la empatía.' },
 ];
 
-// Un nuevo sub-componente para la tarjeta de vista previa.
 function ArchetypePreviewCard({ value }: { value: string }) {
     const archetype = archetypeOptions.find(opt => opt.value === value);
     if (!archetype) return null;
@@ -41,20 +42,29 @@ function ArchetypePreviewCard({ value }: { value: string }) {
 }
 
 export function ArchetypeStep() {
-  const { control, watch } = useFormContext<PodcastCreationData>();
+  const { control, watch, setValue, getValues } = useFormContext<PodcastCreationData>();
   const selectedArchetype = watch('selectedArchetype');
 
+  // 2. Handler para la entrada de voz (Apuntando al objetivo/mensaje)
+  const handleVoiceGoal = (text: string) => {
+    const currentText = getValues('archetype_goal') || '';
+    const newText = currentText ? `${currentText} ${text}` : text;
+    
+    setValue('archetype_goal', newText, { 
+      shouldValidate: true, 
+      shouldDirty: true 
+    });
+  };
+
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full animate-fade-in">
       <div className="text-center mb-6">
         <h2 className="text-2xl font-bold">Desarrolla tu Historia</h2>
         <p className="text-muted-foreground">Utiliza la estructura de <span className="font-semibold text-primary">{archetypeOptions.find(opt => opt.value === selectedArchetype)?.title || 'tu Arquetipo'}</span> para darle forma a tu idea.</p>
       </div>
       
-      {/* [CAMBIO ESTRUCTURAL]: Se implementa el nuevo layout 1/4 + 3/4. */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 flex-grow">
         
-        {/* Columna 1: Vista Previa del Arquetipo (Sticky en escritorio) */}
         <div className="lg:col-span-1">
           <div className="sticky top-24">
             <h3 className="text-sm font-medium text-muted-foreground mb-2">Arquetipo Seleccionado</h3>
@@ -62,7 +72,6 @@ export function ArchetypeStep() {
           </div>
         </div>
 
-        {/* Columna 2: Campos de Texto */}
         <div className="lg:col-span-3 space-y-6">
           <FormField
             control={control}
@@ -77,12 +86,17 @@ export function ArchetypeStep() {
               </FormItem>
             )}
           />
+          
           <FormField
             control={control}
             name="archetype_goal"
             render={({ field }) => (
               <FormItem>
-                <Label htmlFor="archetype_goal">Mensaje u Objetivo Final</Label>
+                {/* 3. Integración visual del botón de voz */}
+                <div className="flex justify-between items-center mb-2">
+                    <Label htmlFor="archetype_goal">Mensaje u Objetivo Final</Label>
+                    <VoiceInput onTextGenerated={handleVoiceGoal} placeholder="Describir objetivo" />
+                </div>
                 <FormControl>
                   <Input id="archetype_goal" placeholder="Ej: Demostrar cómo ha evolucionado para cambiar nuestro mundo" {...field} />
                 </FormControl>
