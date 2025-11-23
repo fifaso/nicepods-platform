@@ -1,6 +1,4 @@
 // components/create-flow/archetype-step.tsx
-// VERSIÓN VOICE-FIRST: Integra la captura de voz en la redacción del arquetipo.
-
 "use client";
 
 import { useFormContext } from "react-hook-form";
@@ -10,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import { FormField, FormControl, FormItem, FormMessage } from "@/components/ui/form";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Heart, BookOpen, Compass, Zap, Construction, Shield } from "lucide-react";
-// 1. Importación del componente de voz
 import { VoiceInput } from "@/components/ui/voice-input";
 
 export const archetypeOptions = [
@@ -45,15 +42,10 @@ export function ArchetypeStep() {
   const { control, watch, setValue, getValues } = useFormContext<PodcastCreationData>();
   const selectedArchetype = watch('selectedArchetype');
 
-  // 2. Handler para la entrada de voz (Apuntando al objetivo/mensaje)
   const handleVoiceGoal = (text: string) => {
     const currentText = getValues('archetype_goal') || '';
     const newText = currentText ? `${currentText} ${text}` : text;
-    
-    setValue('archetype_goal', newText, { 
-      shouldValidate: true, 
-      shouldDirty: true 
-    });
+    setValue('archetype_goal', newText, { shouldValidate: true, shouldDirty: true });
   };
 
   return (
@@ -92,7 +84,6 @@ export function ArchetypeStep() {
             name="archetype_goal"
             render={({ field }) => (
               <FormItem>
-                {/* 3. Integración visual del botón de voz */}
                 <div className="flex justify-between items-center mb-2">
                     <Label htmlFor="archetype_goal">Mensaje u Objetivo Final</Label>
                     <VoiceInput onTextGenerated={handleVoiceGoal} placeholder="Describir objetivo" />

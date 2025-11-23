@@ -1,5 +1,5 @@
 // components/ui/voice-input.tsx
-// VERSIÓN MAESTRA: Compatible con Safari/iOS y Chrome, con gestión de errores robusta.
+// VERSIÓN ENTERPRISE: Feedback Sonoro, Compatible con Safari y Streaming
 
 "use client";
 
@@ -19,42 +19,99 @@ interface VoiceInputProps {
 export function VoiceInput({ onTextGenerated, className, placeholder = "Grabar idea" }: VoiceInputProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  
-  // Refs para mantener persistencia sin provocar re-renders
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-  
   const { toast } = useToast();
   const supabase = createClient();
 
-  // Función interna para procesar el audio una vez grabado
+  // --- 1. FEEDBACK DE AUDIO (WEB AUDIO API) ---
+  const playFeedbackTone = (type: 'start' | 'success' | 'error') => {
+    try {
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      const now = ctx.currentTime;
+      
+      if (type === 'start') {
+        osc.frequency.setValueAtTime(400, now);
+        osc.frequency.exponentialRampToValueAtTime(800, now + 0.1);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+        osc.start(now);
+        osc.stop(now + 0.1);
+      } else if (type === 'success') {
+        osc.frequency.setValueAtTime(600, now);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+        osc.start(now);
+        osc.stop(now + 0.3);
+      } else {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, now);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.3);
+        osc.start(now);
+        osc.stop(now + 0.3);
+      }
+    } catch (e) {
+      // Ignorar errores de audio
+    }
+  };
+
   const processAudio = useCallback(async (audioBlob: Blob) => {
     try {
       setIsProcessing(true);
-      
       const formData = new FormData();
       formData.append('audio', audioBlob);
 
-      // Llamada a la Edge Function (Gemini 2.5 Flash)
-      const { data, error } = await supabase.functions.invoke('transcribe-idea', {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/transcribe-idea`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session?.access_token || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
+        },
         body: formData,
       });
 
-      if (error) throw new Error(error.message);
-      if (!data?.success) throw new Error(data?.error || "Error desconocido al procesar audio.");
+      if (!response.ok) {
+        if (response.status === 429) throw new Error("Has excedido el límite de velocidad. Espera un minuto.");
+        const errText = await response.text();
+        throw new Error(errText || "Error conectando con la IA.");
+      }
 
-      onTextGenerated(data.clarified_text);
-      
-      toast({
-        title: "¡Idea capturada!",
-        description: "Tu voz ha sido transformada en texto claro.",
-      });
+      if (!response.body) throw new Error("Sin respuesta del servidor.");
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullText = "";
+
+      // Lectura del Stream
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        fullText += chunk;
+        // NOTA: Podríamos llamar a onTextGenerated(fullText) aquí para streaming visual,
+        // pero para estabilidad con el estado del formulario padre, lo enviamos al final.
+      }
+
+      onTextGenerated(fullText); // Enviamos el texto completo final
+      playFeedbackTone('success');
+      toast({ title: "¡Idea capturada!", className: "bg-green-500/10 border-green-500/20" });
 
     } catch (error) {
       console.error("Error processing audio:", error);
+      playFeedbackTone('error');
       toast({
-        title: "Error de procesamiento",
-        description: "No pudimos entender el audio. Inténtalo de nuevo.",
+        title: "Error",
+        description: error instanceof Error ? tryParseError(error.message) : "Error al procesar.",
         variant: "destructive",
       });
     } finally {
@@ -62,59 +119,49 @@ export function VoiceInput({ onTextGenerated, className, placeholder = "Grabar i
     }
   }, [supabase, onTextGenerated, toast]);
 
+  const tryParseError = (msg: string) => {
+      try {
+          const parsed = JSON.parse(msg);
+          return parsed.error || msg;
+      } catch {
+          return msg;
+      }
+  }
+
   const startRecording = useCallback(async () => {
     try {
-      // 1. Solicitar permisos
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      playFeedbackTone('start');
       
-      // 2. Crear Recorder (Sin forzar mimeType aquí para compatibilidad Safari)
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
 
-      // 3. Capturar fragmentos de datos
       mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          chunksRef.current.push(e.data);
-        }
+        if (e.data.size > 0) chunksRef.current.push(e.data);
       };
 
-      // 4. Manejar el evento de parada
       mediaRecorder.onstop = async () => {
-        // Apagar el micrófono (liberar hardware)
         const tracks = stream.getTracks();
         tracks.forEach(track => track.stop());
-
-        // DETECCIÓN INTELIGENTE DE FORMATO (CRÍTICO PARA SAFARI)
-        // Safari usa 'audio/mp4' o 'audio/aac', Chrome usa 'audio/webm'.
-        // Usamos la propiedad .mimeType del propio recorder.
         const mimeType = mediaRecorder.mimeType || 'audio/webm';
-        
-        console.log(`Grabación finalizada. Formato detectado: ${mimeType}`); // Log de diagnóstico
-        
         const audioBlob = new Blob(chunksRef.current, { type: mimeType });
         await processAudio(audioBlob);
       };
 
-      // 5. Iniciar grabación
       mediaRecorder.start();
       setIsRecording(true);
 
     } catch (err) {
-      console.error("Error accediendo al micrófono:", err);
-      toast({
-        title: "Error de micrófono",
-        description: "Verifica que has dado permisos de micrófono al navegador.",
-        variant: "destructive",
-      });
+      playFeedbackTone('error');
+      toast({ title: "Error de micrófono", description: "Verifica permisos.", variant: "destructive" });
     }
-  }, [toast, processAudio]);
+  }, [processAudio, toast]);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
-      // El estado isProcessing se activará dentro del evento onstop
     }
   }, []);
 
@@ -122,12 +169,12 @@ export function VoiceInput({ onTextGenerated, className, placeholder = "Grabar i
     <div className={cn("flex items-center gap-2", className)}>
       <Button
         type="button"
-        // Cambiamos el estilo visual drásticamente si está grabando para dar feedback claro
-        variant={isRecording ? "destructive" : "secondary"} 
+        variant={isRecording ? "destructive" : "secondary"}
         size="sm"
         className={cn(
-          "transition-all duration-300 relative overflow-hidden font-medium",
-          isRecording && "animate-pulse pr-4 ring-2 ring-offset-2 ring-red-500"
+          "transition-all duration-300 relative overflow-hidden font-medium border shadow-sm",
+          isRecording ? "animate-pulse pr-4 ring-2 ring-offset-2 ring-red-500" : "hover:bg-secondary/80",
+          isProcessing && "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
         )}
         onClick={isRecording ? stopRecording : startRecording}
         disabled={isProcessing}
@@ -135,7 +182,7 @@ export function VoiceInput({ onTextGenerated, className, placeholder = "Grabar i
         {isProcessing ? (
           <>
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            Pensando...
+            <span className="animate-pulse">Escribiendo...</span>
           </>
         ) : isRecording ? (
           <>
@@ -149,8 +196,6 @@ export function VoiceInput({ onTextGenerated, className, placeholder = "Grabar i
           </>
         )}
       </Button>
-      
-      {/* Indicador visual extra (Punto rojo parpadeante fuera del botón) */}
       {isRecording && (
         <span className="flex h-3 w-3 relative">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>

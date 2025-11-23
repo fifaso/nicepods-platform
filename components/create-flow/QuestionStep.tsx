@@ -1,6 +1,4 @@
 // components/create-flow/QuestionStep.tsx
-// VERSIÓN VOICE-FIRST: Permite dictar la pregunta compleja.
-
 "use client";
 
 import { useFormContext } from "react-hook-form";
@@ -8,18 +6,18 @@ import { PodcastCreationData } from "@/lib/validation/podcast-schema";
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { HelpCircle } from "lucide-react";
-// 1. Importación
 import { VoiceInput } from "@/components/ui/voice-input";
 
 export function QuestionStep() {
-  const { control, setValue } = useFormContext<PodcastCreationData>();
+  const { control, setValue, getValues } = useFormContext<PodcastCreationData>();
 
-  // 2. Handler: Reemplaza el texto (para preguntas solemos querer reintentar si sale mal)
+  // Para preguntas, solemos querer reemplazar o añadir con un espacio si es continuación
   const handleVoiceInput = (text: string) => {
-    setValue('question_to_answer', text, { 
-      shouldValidate: true, 
-      shouldDirty: true 
-    });
+    const currentText = getValues('question_to_answer') || '';
+    // Si es muy corto lo que había, probablemente queremos reemplazar. Si es largo, añadir.
+    // Estrategia segura: Añadir siempre con espacio.
+    const newText = currentText ? `${currentText} ${text}` : text;
+    setValue('question_to_answer', newText, { shouldValidate: true, shouldDirty: true });
   };
 
   return (
@@ -37,11 +35,10 @@ export function QuestionStep() {
           name="question_to_answer"
           render={({ field }) => (
             <FormItem>
-               {/* 3. Cabecera con Botón de Voz */}
                <div className="flex justify-between items-center mb-2">
                   <FormLabel>¿Qué pregunta quieres responder?</FormLabel>
                   <VoiceInput onTextGenerated={handleVoiceInput} placeholder="Dictar pregunta" />
-               </div>
+              </div>
               <FormControl>
                 <Input
                   placeholder="Ej: ¿Cómo funciona la edición genética con CRISPR?"
