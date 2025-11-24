@@ -1,4 +1,4 @@
-// components/insight-panel.tsx
+// components/insight-panel.tsx 
 // VERSIÓN POTENCIADA: Con dos cuadrantes de información internos y CTAs estratégicos.
 
 "use client";
