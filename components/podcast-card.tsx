@@ -1,5 +1,5 @@
 // components/podcast-card.tsx
-// VERSIÓN FINAL Y LIMPIA: Se elimina el componente obsoleto 'PodcastListItem'.
+// VERSIÓN OPTIMIZADA PARA DATOS: Implementa 'sizes' y 'quality' para reducir Cached Egress.
 
 "use client";
 
@@ -36,10 +36,15 @@ export function PodcastCard({ podcast }: PodcastCardProps) {
     <Link href={`/podcast/${podcast.id}`} className="group block">
       <Card className="flex flex-col h-full overflow-hidden transition-all duration-300 group-hover:-translate-y-1 bg-card/50 shadow-md group-hover:shadow-xl border border-border/20">
         <div className="relative w-full h-48">
+          {/* CAMBIO 1: Optimización de Cover Image */}
           <Image
             src={podcast.cover_image_url || "/images/placeholder-logo.svg"}
             alt={podcast.title}
             fill
+            // 'sizes' es vital: Descarga la imagen del tamaño correcto según el dispositivo.
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            // 'quality' en 70 es perfecto para miniaturas, reduce peso sin pixelar.
+            quality={70}
             className="object-cover transition-transform duration-500 group-hover:scale-105"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
@@ -63,7 +68,16 @@ export function PodcastCard({ podcast }: PodcastCardProps) {
               onClick={(e) => e.stopPropagation()} 
               className="flex-shrink-0 mr-2 hover:opacity-80 transition-opacity"
             >
-              <Image src={authorImage} alt={authorName} width={24} height={24} className="rounded-full" />
+              {/* CAMBIO 2: Optimización de Avatar */}
+              {/* Para avatares tan pequeños (24px), bajar la calidad ahorra bytes valiosos */}
+              <Image 
+                src={authorImage} 
+                alt={authorName} 
+                width={24} 
+                height={24} 
+                quality={60}
+                className="rounded-full" 
+              />
             </Link>
             <Link 
               href={authorUsername ? `/profile/${authorUsername}` : '#'} 
