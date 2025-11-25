@@ -20,7 +20,7 @@ const purposeOptions = [
   },
   {
     purpose: "explore", style: "link", nextState: "LINK_POINTS_INPUT",
-    icon: <LinkIcon className="h-8 w-8" />, title: "Explorar Ideas",
+    icon: <LinkIcon className="h-8 w-8" />, title: "Ideas",
     description: <span className="hidden md:inline">Conecta dos ideas distintas para revelar una nueva perspectiva.</span>
   },
   {
@@ -30,12 +30,12 @@ const purposeOptions = [
   },
   {
     purpose: "answer", style: "qa", agent: "qa-agent", nextState: "QUESTION_INPUT",
-    icon: <HelpCircle className="h-8 w-8" />, title: "Responder una Pregunta",
+    icon: <HelpCircle className="h-8 w-8" />, title: "Preguntas",
     description: <span className="hidden md:inline">Ofrece una respuesta concisa y bien estructurada a una duda específica.</span>
   },
   {
     purpose: "freestyle", style: undefined, nextState: "FREESTYLE_SELECTION",
-    icon: <Bot className="h-8 w-8" />, title: "Estilo Libre",
+    icon: <Bot className="h-8 w-8" />, title: "Libre",
     description: <span className="hidden md:inline">Para creadores avanzados que ya tienen una visión clara.</span>, 
     isSecondary: true
   }
