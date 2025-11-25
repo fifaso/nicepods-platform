@@ -11,12 +11,42 @@ import { Heart, BookOpen, Compass, Zap, Construction, Shield } from "lucide-reac
 import { VoiceInput } from "@/components/ui/voice-input";
 
 export const archetypeOptions = [
-    { value: 'archetype-hero', icon: <Shield className="h-7 w-7" />, title: 'El Héroe', description: 'Narra un viaje de desafío y transformación.' },
-    { value: 'archetype-sage', icon: <BookOpen className="h-7 w-7" />, title: 'El Sabio', description: 'Explica un tema complejo con claridad y autoridad.' },
-    { value: 'archetype-explorer', icon: <Compass className="h-7 w-7" />, title: 'El Explorador', description: 'Descubre lo nuevo con curiosidad y asombro.' },
-    { value: 'archetype-rebel', icon: <Zap className="h-7 w-7" />, title: 'El Rebelde', description: 'Desafía el status quo y propone un cambio radical.' },
-    { value: 'archetype-creator', icon: <Construction className="h-7 w-7" />, title: 'El Creador', description: 'Construye una idea desde la visión y la imaginación.' },
-    { value: 'archetype-caregiver', icon: <Heart className="h-7 w-7" />, title: 'El Cuidador', description: 'Conecta con la audiencia a través de la empatía.' },
+    { 
+        value: 'archetype-hero', 
+        icon: <Shield className="h-7 w-7" />, 
+        title: 'El Héroe', 
+        description: <span className="hidden md:inline">Narra un viaje de desafío y transformación.</span> 
+    },
+    { 
+        value: 'archetype-sage', 
+        icon: <BookOpen className="h-7 w-7" />, 
+        title: 'El Sabio', 
+        description: <span className="hidden md:inline">Explica un tema complejo con claridad y autoridad.</span> 
+    },
+    { 
+        value: 'archetype-explorer', 
+        icon: <Compass className="h-7 w-7" />, 
+        title: 'El Explorador', 
+        description: <span className="hidden md:inline">Descubre lo nuevo con curiosidad y asombro.</span> 
+    },
+    { 
+        value: 'archetype-rebel', 
+        icon: <Zap className="h-7 w-7" />, 
+        title: 'El Rebelde', 
+        description: <span className="hidden md:inline">Desafía el status quo y propone un cambio radical.</span> 
+    },
+    { 
+        value: 'archetype-creator', 
+        icon: <Construction className="h-7 w-7" />, 
+        title: 'El Creador', 
+        description: <span className="hidden md:inline">Construye una idea desde la visión y la imaginación.</span> 
+    },
+    { 
+        value: 'archetype-caregiver', 
+        icon: <Heart className="h-7 w-7" />, 
+        title: 'El Cuidador', 
+        description: <span className="hidden md:inline">Conecta con la audiencia a través de la empatía.</span> 
+    },
 ];
 
 function ArchetypePreviewCard({ value }: { value: string }) {
