@@ -10,27 +10,34 @@ import { Lightbulb, Sparkles, Link as LinkIcon, PenSquare, HelpCircle, Bot } fro
 const purposeOptions = [
   {
     purpose: "learn", style: "solo", agent: "solo-talk-analyst", nextState: "LEARN_SUB_SELECTION",
-    icon: <Lightbulb className="h-8 w-8" />, title: "Aprender", description: "Transforma un tema complejo en un audio claro y memorable."
+    icon: <Lightbulb className="h-8 w-8" />, title: "Aprender",
+    description: <span className="hidden md:inline">Transforma un tema complejo en un audio claro y memorable.</span>
   },
   {
     purpose: "inspire", style: "archetype", nextState: "INSPIRE_SUB_SELECTION",
-    icon: <Sparkles className="h-8 w-8" />, title: "Inspirar", description: "Comparte una historia potente usando estructuras narrativas clásicas."
+    icon: <Sparkles className="h-8 w-8" />, title: "Inspirar",
+    description: <span className="hidden md:inline">Comparte una historia potente usando estructuras narrativas clásicas.</span>
   },
   {
     purpose: "explore", style: "link", nextState: "LINK_POINTS_INPUT",
-    icon: <LinkIcon className="h-8 w-8" />, title: "Explorar Ideas", description: "Conecta dos ideas distintas para revelar una nueva perspectiva."
+    icon: <LinkIcon className="h-8 w-8" />, title: "Explorar Ideas",
+    description: <span className="hidden md:inline">Conecta dos ideas distintas para revelar una nueva perspectiva.</span>
   },
   {
     purpose: "reflect", style: "legacy", agent: "legacy-agent", nextState: "LEGACY_INPUT",
-    icon: <PenSquare className="h-8 w-8" />, title: "Reflexionar", description: "Captura una experiencia o lección de vida para dejar un legado."
+    icon: <PenSquare className="h-8 w-8" />, title: "Reflexionar",
+    description: <span className="hidden md:inline">Captura una experiencia o lección de vida para dejar un legado.</span>
   },
   {
     purpose: "answer", style: "qa", agent: "qa-agent", nextState: "QUESTION_INPUT",
-    icon: <HelpCircle className="h-8 w-8" />, title: "Responder una Pregunta", description: "Ofrece una respuesta concisa y bien estructurada a una duda específica."
+    icon: <HelpCircle className="h-8 w-8" />, title: "Responder una Pregunta",
+    description: <span className="hidden md:inline">Ofrece una respuesta concisa y bien estructurada a una duda específica.</span>
   },
   {
     purpose: "freestyle", style: undefined, nextState: "FREESTYLE_SELECTION",
-    icon: <Bot className="h-8 w-8" />, title: "Estilo Libre", description: "Para creadores avanzados que ya tienen una visión clara.", isSecondary: true
+    icon: <Bot className="h-8 w-8" />, title: "Estilo Libre",
+    description: <span className="hidden md:inline">Para creadores avanzados que ya tienen una visión clara.</span>, 
+    isSecondary: true
   }
 ];
 
