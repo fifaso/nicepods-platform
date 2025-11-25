@@ -1,5 +1,6 @@
 // contexts/audio-context.tsx
 // VERSIÓN FINAL Y COMPLETA: La lógica para actualizar la duración ahora maneja 'null' y '0' de forma robusta.
+// OPTIMIZACIÓN DE DATOS: Se añade preload="none" para reducir el Cached Egress de Supabase.
 
 "use client";
 
@@ -73,8 +74,11 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    audioRef.current = new Audio();
-    const audio = audioRef.current;
+    // [CAMBIO QUIRÚRGICO 1]: Configurar preload="none" al crear el audio.
+    // Esto evita descargas automáticas innecesarias al montar el componente.
+    const audio = new Audio();
+    audio.preload = 'none'; 
+    audioRef.current = audio;
 
     const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
     const handleDurationChange = () => setDuration(audio.duration);
@@ -158,6 +162,11 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       }
       
       setCurrentPodcast(podcast);
+      
+      // [CAMBIO QUIRÚRGICO 2]: Forzar preload="none" antes de asignar el src.
+      // Esto asegura que si el usuario hace click en otro podcast, no se descargue buffer
+      // hasta que se llame explícitamente a .play().
+      audio.preload = 'none';
       audio.src = podcast.audio_url;
       audio.volume = volume;
       audio.load();
@@ -168,7 +177,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         }
       });
 
-      // [CAMBIO QUIRÚRGICO]: La condición `!podcast.duration_seconds` es más robusta y cubre tanto '0' como 'null'.
+      // La condición `!podcast.duration_seconds` es más robusta y cubre tanto '0' como 'null'.
       if (!podcast.duration_seconds && supabase) {
         const handleMetadata = async () => {
           const newDuration = Math.round(audio.duration);

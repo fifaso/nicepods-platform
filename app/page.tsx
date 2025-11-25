@@ -82,7 +82,7 @@ function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] | null }) 
           Expande tu perspectiva
         </h1>
         <p className="max-w-2xl text-lg text-muted-foreground">
-          Crea y descubre Micro-Podcasts que se adaptan a tu ritmo de vida. Aprende, comparte y potencia tu creatividad.
+          Crea, aprende, comparte y potencia tu creatividad.
         </p>
       </section>
       
