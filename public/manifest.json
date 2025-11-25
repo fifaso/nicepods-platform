@@ -1,22 +1,24 @@
-
 {
   "name": "NicePod",
   "short_name": "NicePod",
-  "description": "Crea y descubre Micro-Podcasts que se adaptan a tu ritmo de vida. Aprende, comparte y potencia tu creatividad.",
+  "description": "Crea, aprende, comparte y potencia tu creatividad.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#111827",
   "theme_color": "#8B5CF6",
+  "orientation": "portrait",
   "icons": [
     {
-      "src": "/android-chrome-192x192.png",
+      "src": "/nicepod-logo.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
-      "src": "/android-chrome-512x512.png",
+      "src": "/nicepod-logo.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }

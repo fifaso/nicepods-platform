@@ -1,9 +1,10 @@
 // app/layout.tsx
-// VERSIÓN FINAL: Añade los metadatos necesarios en el <head> para la PWA.
+// VERSIÓN MAESTRA PWA: Implementación de Metadata y Viewport según estándares Next.js 14+.
 
 import { cookies } from 'next/headers';
 import type React from "react";
-import type { Metadata } from "next";
+// [CAMBIO 1]: Importamos Viewport
+import type { Metadata, Viewport } from "next";
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import "./globals.css";
@@ -23,9 +24,30 @@ import { PlayerOrchestrator } from "@/components/player-orchestrator";
 
 const inter = Inter({ subsets: ["latin"] });
 
+// [CAMBIO 2]: Definimos el Viewport (Color y Escala Móvil)
+// Esto reemplaza al <meta name="theme-color"> y asegura que se sienta como app nativa.
+export const viewport: Viewport = {
+  themeColor: "#111827",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false, // Evita que el usuario haga zoom en inputs, vital para PWA.
+};
+
+// [CAMBIO 3]: Enlazamos el Manifiesto y Configuración Apple
 export const metadata: Metadata = {
   title: "NicePod - Create & Share Micro-Podcasts",
   description: "Fomenta el conocimiento y el pensamiento crítico a través de contenido de audio conciso.",
+  manifest: "/manifest.json", // Enlace oficial al manifiesto
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "NicePod",
+  },
+  icons: {
+    icon: "/nicepod-logo.png", // Icono por defecto para navegadores
+    apple: "/nicepod-logo.png", // Icono para iPhone
+  }
 };
 
 export default async function RootLayout({
@@ -40,10 +62,10 @@ export default async function RootLayout({
   return (
     <html lang="es" suppressHydrationWarning>
       <head>
-        {/* [CAMBIO QUIRÚRGICO #1]: Se añaden las etiquetas meta para PWA. */}
-        <meta name="theme-color" content="#111827" />
-        <link rel="manifest" href="/manifest.json" />
-
+        {/* [CAMBIO 4]: Eliminamos las etiquetas manuales <meta> y <link manifest> 
+            porque Next.js ahora las inyecta gracias a las exportaciones de arriba. 
+            Mantenemos solo el script de tema crítico. */}
+        
         <script
           dangerouslySetInnerHTML={{
             __html: `
