@@ -1,5 +1,5 @@
 // next.config.mjs
-// VERSIÓN OPTIMIZADA: Se activa la Optimización de Imágenes de Next.js para reducir el peso de carga.
+// VERSIÓN CORREGIDA: Autorización de dominios externos para optimización de imágenes.
 
 import withPWA from 'next-pwa';
 import defaultRuntimeCaching from 'next-pwa/cache.js';
@@ -13,27 +13,32 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   images: {
-    // [MODIFICACIÓN QUIRÚRGICA]: Eliminada la línea 'unoptimized: true'.
-    // Esto habilita automáticamente la conversión a WebP y el redimensionado en servidor.
+    // [SOLUCIÓN DEL ERROR 400]: Lista blanca de dominios permitidos para optimización.
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: '**.supabase.co',
+        hostname: '**.supabase.co', // Tus carátulas y audios
+      },
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com', // Avatares de Google Auth
+      },
+      {
+        protocol: 'https',
+        hostname: 'avatars.githubusercontent.com', // Avatares de GitHub Auth (Prevención)
       },
     ],
   },
 };
 
-// Configuración avanzada de la PWA
+// Configuración PWA (Sin cambios, sigue funcionando perfecto)
 const pwaConfig = {
   dest: 'public',
   register: true,
   skipWaiting: true,
   disable: process.env.NODE_ENV === 'development',
   
-  // Definimos las reglas de caché (El Portero).
   runtimeCaching: [
-    // ESTRATEGIA CRÍTICA: Imágenes y Audio de Supabase
     {
       urlPattern: /^https:\/\/.*supabase\.co\/storage\/v1\/object\/public\/.*/i,
       handler: 'CacheFirst',
