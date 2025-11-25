@@ -10,19 +10,19 @@ import { Lightbulb, Sparkles, Link as LinkIcon, PenSquare, HelpCircle, Bot } fro
 const purposeOptions = [
   {
     purpose: "learn", style: "solo", agent: "solo-talk-analyst", nextState: "LEARN_SUB_SELECTION",
-    icon: <Lightbulb className="h-8 w-8" />, title: "Aprender / Enseñar", description: "Transforma un tema complejo en un audio claro y memorable."
+    icon: <Lightbulb className="h-8 w-8" />, title: "Aprender", description: "Transforma un tema complejo en un audio claro y memorable."
   },
   {
     purpose: "inspire", style: "archetype", nextState: "INSPIRE_SUB_SELECTION",
-    icon: <Sparkles className="h-8 w-8" />, title: "Inspirar / Motivar", description: "Comparte una historia potente usando estructuras narrativas clásicas."
+    icon: <Sparkles className="h-8 w-8" />, title: "Inspirar", description: "Comparte una historia potente usando estructuras narrativas clásicas."
   },
   {
     purpose: "explore", style: "link", nextState: "LINK_POINTS_INPUT",
-    icon: <LinkIcon className="h-8 w-8" />, title: "Explorar / Cuestionar", description: "Conecta dos ideas distintas para revelar una nueva perspectiva."
+    icon: <LinkIcon className="h-8 w-8" />, title: "Explorar Ideas", description: "Conecta dos ideas distintas para revelar una nueva perspectiva."
   },
   {
     purpose: "reflect", style: "legacy", agent: "legacy-agent", nextState: "LEGACY_INPUT",
-    icon: <PenSquare className="h-8 w-8" />, title: "Reflexionar / Documentar", description: "Captura una experiencia o lección de vida para dejar un legado."
+    icon: <PenSquare className="h-8 w-8" />, title: "Reflexionar", description: "Captura una experiencia o lección de vida para dejar un legado."
   },
   {
     purpose: "answer", style: "qa", agent: "qa-agent", nextState: "QUESTION_INPUT",
