@@ -1,5 +1,5 @@
 // components/ui/voice-input.tsx
-// VERSIÓN DUAL: Botones separados para "Pulir" y "Dictar".
+// VERSIÓN FINAL PREMIUM: Botones estilo "Cápsula" coherentes con el Dashboard.
 
 "use client";
 
@@ -13,19 +13,17 @@ import { createClient } from "@/lib/supabase/client";
 interface VoiceInputProps {
   onTextGenerated: (text: string) => void;
   className?: string;
-  placeholder?: string; // Ya no se usa tanto visualmente, pero mantenemos compatibilidad
+  placeholder?: string;
 }
 
 export function VoiceInput({ onTextGenerated, className }: VoiceInputProps) {
-  // Estado: 'idle' | 'recording-clarify' | 'recording-fast' | 'processing'
   const [status, setStatus] = useState<'idle' | 'recording-clarify' | 'recording-fast' | 'processing'>('idle');
-  
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const { toast } = useToast();
   const supabase = createClient();
 
-  // --- AUDIO FEEDBACK ---
+  // --- AUDIO FEEDBACK (Sin cambios lógicos) ---
   const playTone = (type: 'start' | 'end' | 'error') => {
     try {
       const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
@@ -63,7 +61,7 @@ export function VoiceInput({ onTextGenerated, className }: VoiceInputProps) {
       setStatus('processing');
       const formData = new FormData();
       formData.append('audio', audioBlob);
-      formData.append('mode', mode); // Enviamos el modo al backend
+      formData.append('mode', mode);
 
       const { data, error } = await supabase.functions.invoke('transcribe-idea', {
         body: formData,
@@ -72,9 +70,7 @@ export function VoiceInput({ onTextGenerated, className }: VoiceInputProps) {
       if (error) throw new Error(error.message);
       if (!data?.success) throw new Error(data?.error || "Error desconocido.");
 
-      // AQUÍ ESTÁ EL FIX DEL BUG JSON: Leemos la propiedad correcta
       onTextGenerated(data.clarified_text);
-      
       playTone('end');
       toast({ title: mode === 'clarify' ? "Idea pulida ✨" : "Texto capturado ⚡" });
 
@@ -123,61 +119,45 @@ export function VoiceInput({ onTextGenerated, className }: VoiceInputProps) {
     }
   }, []);
 
-  // UI DUAL: Si estamos grabando o procesando, mostramos un botón de "STOP/LOADING".
-  // Si estamos "idle", mostramos los dos botones de opción.
-
+  // UI: Estado Grabando/Procesando
   if (status !== 'idle') {
     return (
-      <Button
-        type="button"
-        variant="destructive"
-        size="sm"
-        onClick={status === 'processing' ? undefined : stopRecording}
-        disabled={status === 'processing'}
-        className={cn("w-full transition-all duration-300", className)}
-      >
-        {status === 'processing' ? (
-          <>
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            Procesando...
-          </>
-        ) : (
-          <>
-            <StopCircle className="h-4 w-4 mr-2 animate-pulse" />
-            {status === 'recording-clarify' ? 'Detener (Pulir)' : 'Detener (Dictar)'}
-          </>
-        )}
-      </Button>
+      <div className={cn("w-full", className)}>
+        <Button
+            type="button"
+            className="w-full h-12 rounded-full bg-red-500/20 text-red-100 border border-red-500/50 hover:bg-red-500/30 animate-pulse font-medium tracking-wide shadow-lg shadow-red-900/20 transition-all"
+            onClick={status === 'processing' ? undefined : stopRecording}
+            disabled={status === 'processing'}
+        >
+            {status === 'processing' ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <StopCircle className="h-5 w-5 mr-2 fill-current" />}
+            {status === 'processing' ? "Procesando..." : "Detener Grabación"}
+        </Button>
+      </div>
     );
   }
 
+  // UI: Estado Inactivo (Botones de Acción)
   return (
-    <div className={cn("flex items-center gap-2", className)}>
-      {/* Botón 1: Clarificar (El Mágico) */}
+    <div className={cn("grid grid-cols-2 gap-3 w-full", className)}>
+      
+      {/* Botón 1: Idea Mágica (Principal - Violeta/Brand) */}
       <Button
         type="button"
-        variant="secondary"
-        size="sm"
         onClick={() => startRecording('clarify')}
-        className="flex-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
-        title="Grabar y pulir idea (elimina ruido)"
+        className="h-12 rounded-full bg-[#6d28d9] hover:bg-[#5b21b6] text-white border border-white/10 shadow-lg shadow-purple-900/30 transition-transform active:scale-95 group"
       >
-        <Sparkles className="h-4 w-4 mr-1 md:mr-2" />
-        <span className="hidden md:inline">Pulir Idea</span>
-        <span className="md:hidden">Idea</span>
+        <Sparkles className="h-5 w-5 mr-2 group-hover:text-yellow-200 transition-colors" />
+        <span className="font-medium">Idea Mágica</span>
       </Button>
 
-      {/* Botón 2: Dictado Rápido (El Literal) */}
+      {/* Botón 2: Dictar (Secundario - Glass/Dark) */}
       <Button
         type="button"
-        variant="ghost"
-        size="sm"
         onClick={() => startRecording('fast')}
-        className="text-muted-foreground hover:text-foreground"
-        title="Dictado literal rápido"
+        className="h-12 rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/10 transition-transform active:scale-95"
       >
-        <Zap className="h-4 w-4 md:mr-1" />
-        <span className="hidden md:inline">Dictar</span>
+        <Zap className="h-5 w-5 mr-2 text-amber-400" />
+        <span className="font-medium">Dictar</span>
       </Button>
     </div>
   );
