@@ -1,16 +1,17 @@
 // lib/validation/podcast-schema.ts
-// VERSIÓN RE-ARQUITECTADA: Esquema dinámico y condicional basado en el 'purpose' del usuario.
+// VERSIÓN RE-ARQUITECTADA: Soporte para flujo de Edición de Guion (Drafting -> Editing -> Production).
 
 import { z } from 'zod';
 
 export const PodcastCreationSchema = z.object({
-  // [CAMBIO QUIRÚRGICO #1]: Se añade 'purpose' como el nuevo discriminador principal.
+  // Se mantiene 'purpose' como el discriminador principal.
   purpose: z.enum(['learn', 'inspire', 'explore', 'reflect', 'answer', 'freestyle']),
 
-  // El campo 'style' ahora es opcional en la base, su obligatoriedad se define en .superRefine.
+  // El campo 'style' es opcional en la base.
   style: z.enum(['solo', 'link', 'archetype', 'legacy', 'qa']).optional(),
   
-  // Campos para los flujos existentes
+  // Campos de Ingesta (Materia Prima)
+  // Nota: Estos campos ahora actúan como contenedores temporales o inputs de "texto libre".
   solo_topic: z.string().optional(),
   solo_motivation: z.string().optional(),
   link_topicA: z.string().optional(),
@@ -22,11 +23,15 @@ export const PodcastCreationSchema = z.object({
   archetype_topic: z.string().optional(),
   archetype_goal: z.string().optional(),
   
-  // [CAMBIO QUIRÚRGICO #2]: Se añaden los nuevos campos para los nuevos flujos.
   legacy_lesson: z.string().optional(),
   question_to_answer: z.string().optional(),
 
-  // Campos comunes
+  // [CAMBIO QUIRÚRGICO #1]: Nuevos campos para la Fase de Edición.
+  // Estos almacenarán el resultado final aprobado por el usuario (post-IA).
+  final_title: z.string().optional(), // Título editado por el usuario
+  final_script: z.string().optional(), // Cuerpo del guion (Markdown/Texto) editado
+
+  // Campos comunes de configuración
   duration: z.string().nonempty({ message: "Debes seleccionar una duración." }),
   narrativeDepth: z.string().nonempty({ message: "Debes definir una profundidad." }),
   selectedAgent: z.string().optional(),
@@ -39,8 +44,8 @@ export const PodcastCreationSchema = z.object({
   tags: z.array(z.string()).optional(),
   generateAudioDirectly: z.boolean().optional(),
 })
-// [CAMBIO QUIRÚRGICO #3]: La lógica de validación se re-arquitecta completamente para basarse en 'purpose'.
 .superRefine((data, ctx) => {
+  // La validación asegura que la "Materia Prima" sea suficiente para generar un buen borrador.
   switch (data.purpose) {
     case 'learn':
       if (!data.solo_topic || data.solo_topic.length < 5) ctx.addIssue({ code: 'custom', message: 'El tema debe tener al menos 5 caracteres.', path: ['solo_topic'] });
@@ -74,10 +79,8 @@ export const PodcastCreationSchema = z.object({
     
     case 'freestyle':
       if (!data.style) ctx.addIssue({ code: 'custom', message: 'Debes seleccionar un estilo creativo.', path: ['style'] });
-      // Si se selecciona un estilo en freestyle, se podrían añadir validaciones anidadas aquí.
       break;
   }
 });
 
-// El tipo de datos de TypeScript se actualiza automáticamente para incluir los nuevos campos.
 export type PodcastCreationData = z.infer<typeof PodcastCreationSchema>;
