@@ -1,5 +1,5 @@
 // components/podcast-creation-form.tsx
-// VERSIÓN REFINADA VISUALMENTE: Garantiza transparencia total en móvil para eliminar el efecto "caja".
+// VERSIÓN FINAL: Contenedor estricto para prevenir scroll global.
 
 "use client";
 
@@ -273,16 +273,9 @@ export function PodcastCreationForm() {
   };
 
   const currentStepIndex = history.length;
-  const flowPaths: Record<string, FlowState[]> = {
-    learn: ['SELECTING_PURPOSE', 'LEARN_SUB_SELECTION', 'SOLO_TALK_INPUT', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    inspire: ['SELECTING_PURPOSE', 'INSPIRE_SUB_SELECTION', 'ARCHETYPE_INPUT', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    explore: ['SELECTING_PURPOSE', 'LINK_POINTS_INPUT', 'NARRATIVE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    reflect: ['SELECTING_PURPOSE', 'LEGACY_INPUT', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    answer: ['SELECTING_PURPOSE', 'QUESTION_INPUT', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    freestyle: ['SELECTING_PURPOSE', 'FREESTYLE_SELECTION'],
-  };
   const currentPath = flowPaths[formData.purpose] || [];
-  const progress = Math.min((currentStepIndex / (currentPath.length || 7)) * 100, 100); 
+  const totalSteps = currentPath.length > 1 ? currentPath.length : 6;
+  const progress = totalSteps > 0 ? (currentStepIndex / totalSteps) * 100 : 0;
   const isFinalStep = currentFlowState === 'FINAL_STEP';
   const isSelectingPurpose = currentFlowState === 'SELECTING_PURPOSE';
 
@@ -290,10 +283,11 @@ export function PodcastCreationForm() {
     <CreationContext.Provider value={{ updateFormData, transitionTo, goBack }}>
       <FormProvider {...formMethods}>
         <form onSubmit={(e) => e.preventDefault()} className="h-full">
+            {/* CONTENEDOR APP-SHELL: Altura fija y sin márgenes extra en móvil */}
             <div className="h-[calc(100vh-4rem)] flex flex-col py-0 md:py-4 bg-transparent">
                 <div className="w-full max-w-4xl mx-auto px-0 md:px-4 flex flex-col flex-grow h-full overflow-hidden">
                     
-                    {/* TARJETA PRINCIPAL: Ajuste de clases para transparencia total en móvil */}
+                    {/* TARJETA PRINCIPAL: Transparencia total en selección de propósito */}
                     <Card className={`flex-1 flex flex-col overflow-hidden relative transition-all duration-500
                         ${isSelectingPurpose 
                             ? "bg-transparent border-0 shadow-none rounded-none" 
