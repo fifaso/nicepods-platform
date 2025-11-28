@@ -1,5 +1,5 @@
 // supabase/functions/process-podcast-job/index.ts
-// VERSIÓN FINAL: Utiliza la URL de la API de Gemini especificada y probada.
+// VERSIÓN REFACTORIZADA: Soporte para "Bypass" de generación si el guion ya fue editado.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -77,38 +77,69 @@ serve(async (request) => {
 
     await supabaseAdmin.from('podcast_creation_jobs').update({ status: 'processing' }).eq('id', job.id);
     
-    const { agentName, inputs } = job.payload;
-    const { data: promptData } = await supabaseAdmin.from('ai_prompts').select('prompt_template').eq('agent_name', agentName).single();
-    if (!promptData) throw new Error(`Prompt para '${agentName}' no encontrado.`);
-
-    const finalPrompt = buildFinalPrompt(promptData.prompt_template, inputs);
-
-    // [CAMBIO QUIRÚRGICO]: Se utiliza la URL de la API especificada por ti.
-    const scriptGenApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${GOOGLE_API_KEY}`;
+    // [MODIFICACIÓN ESTRATÉGICA]: Extraemos los nuevos campos del payload
+    const { agentName, inputs, final_script, final_title } = job.payload;
     
-    const scriptResponse = await fetch(scriptGenApiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: finalPrompt }] }] }),
-    });
+    // Variable para unificar el resultado (sea generado o editado)
+    let processedScriptData = { title: "", scriptBody: "" };
 
-    if (!scriptResponse.ok) {
-        const errorText = await scriptResponse.text();
-        throw new Error(`API de IA (Guion) falló: ${errorText}`);
+    // BIFURCACIÓN DE LÓGICA
+    if (final_script && final_title) {
+        // CAMINO A: El usuario ya editó el guion. Usamos esa "Verdad Absoluta".
+        console.log(`Job ${job.id}: Usando guion pre-editado por el usuario.`);
+        processedScriptData = {
+            title: final_title,
+            scriptBody: final_script // Esto ya viene como string (Markdown/HTML)
+        };
+    } else {
+        // CAMINO B: Generación automática (Flujo Legacy)
+        console.log(`Job ${job.id}: Generando guion desde cero con IA.`);
+        
+        const { data: promptData } = await supabaseAdmin.from('ai_prompts').select('prompt_template').eq('agent_name', agentName).single();
+        if (!promptData) throw new Error(`Prompt para '${agentName}' no encontrado.`);
+
+        const finalPrompt = buildFinalPrompt(promptData.prompt_template, inputs);
+        const scriptGenApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${GOOGLE_API_KEY}`;
+        
+        const scriptResponse = await fetch(scriptGenApiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: finalPrompt }] }] }),
+        });
+
+        if (!scriptResponse.ok) {
+            const errorText = await scriptResponse.text();
+            throw new Error(`API de IA (Guion) falló: ${errorText}`);
+        }
+
+        const scriptResult = await scriptResponse.json();
+        const generatedText = scriptResult.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!generatedText) throw new Error("La respuesta de la IA (Guion) no tiene la estructura esperada.");
+        
+        const scriptJson = parseJsonResponse(generatedText);
+        
+        processedScriptData = {
+            title: scriptJson.title,
+            // Mantenemos compatibilidad con agentes viejos que devuelven arrays o strings
+            scriptBody: scriptJson.script 
+        };
     }
 
-    const scriptResult = await scriptResponse.json();
-    const generatedText = scriptResult.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!generatedText) throw new Error("La respuesta de la IA (Guion) no tiene la estructura esperada.");
-    
-    const scriptJson = parseJsonResponse(generatedText);
+    // PREPARACIÓN PARA BASE DE DATOS
     const initialPodcastStatus = inputs.generateAudioDirectly ? 'pending_approval' : 'published';
+    
+    // [AJUSTE DE DATOS]: Si scriptBody es string (nuevo editor), lo guardamos directo. 
+    // Si es objeto/array (legacy), lo stringificamos.
+    const scriptTextToSave = typeof processedScriptData.scriptBody === 'string' 
+        ? processedScriptData.scriptBody 
+        : JSON.stringify(processedScriptData.scriptBody);
+
     const { data: newPodcast, error: insertError } = await supabaseAdmin.from('micro_pods').insert({
       user_id: job.user_id,
-      title: scriptJson.title,
-      script_text: JSON.stringify(scriptJson.script),
+      title: processedScriptData.title,
+      script_text: scriptTextToSave,
       status: initialPodcastStatus,
-      creation_data: job.payload
+      creation_data: job.payload // Guardamos el payload completo (incluyendo el borrador original si existía)
     }).select('id').single();
     
     if (insertError || !newPodcast) throw new Error(`Fallo al guardar el guion: ${insertError?.message}`);
@@ -120,7 +151,9 @@ serve(async (request) => {
       error_message: null
     }).eq('id', job.id);
 
+    // Detonación de Workers (Audio e Imagen)
     supabaseAdmin.functions.invoke('generate-cover-image', { body: { job_id: job.id, agent_name: 'cover-art-director-v1' } });
+    
     if (finalJobStatus === 'pending_audio') {
       supabaseAdmin.functions.invoke('generate-audio-from-script', { body: { job_id: job.id } });
     }
@@ -129,9 +162,9 @@ serve(async (request) => {
       await supabaseAdmin.from('notifications').insert({
         user_id: job.user_id,
         type: 'podcast_created_success',
-        data: { podcast_id: newPodcast.id, podcast_title: scriptJson.title }
+        data: { podcast_id: newPodcast.id, podcast_title: processedScriptData.title }
       });
-      await notifyFollowers(job.user_id, newPodcast.id, scriptJson.title);
+      await notifyFollowers(job.user_id, newPodcast.id, processedScriptData.title);
     })();
     
     return new Response(JSON.stringify({ success: true, message: `Trabajo de guion ${job.id} completado.` }), {
