@@ -1,5 +1,5 @@
 // components/create-flow/solo-talk-step.tsx
-// VERSIÓN FINAL REFINADA: Optimización de espacio móvil, alineación centrada y estética "Glass Surface".
+// VERSIÓN FINAL: Cero Scroll, Contraste Alto y Legibilidad Máxima.
 
 "use client";
 
@@ -13,11 +13,8 @@ import { Input } from "@/components/ui/input";
 
 export function SoloTalkStep() {
   const { control, setValue, watch } = useFormContext<PodcastCreationData>();
-  
-  // 1. Observamos el contenido para sincronización
   const motivationValue = watch('solo_motivation');
 
-  // 2. Sincronización Automática en segundo plano (Titulo)
   useEffect(() => {
     if (motivationValue) {
       const autoTopic = motivationValue.length > 50 
@@ -27,7 +24,6 @@ export function SoloTalkStep() {
     }
   }, [motivationValue, setValue]);
 
-  // 3. Handler para input de voz
   const handleVoiceInput = (text: string) => {
     const currentText = motivationValue || '';
     const newText = currentText ? `${currentText} ${text}` : text;
@@ -35,31 +31,28 @@ export function SoloTalkStep() {
   };
 
   return (
-    // W-FULL es crítico aquí para respetar el ancho del menú superior
-    <div className="flex flex-col h-full w-full animate-fade-in">
+    <div className="flex flex-col h-full w-full animate-fade-in px-2 md:px-6 pb-2">
       
-      {/* CABECERA OPTIMIZADA: Centrada y compacta en móviles para ganar altura */}
-      <div className="flex-shrink-0 py-2 md:py-4 text-center px-2">
-        <h2 className="text-xl md:text-2xl font-bold tracking-tight text-white">
+      {/* CABECERA COMPACTA: py-1 en móvil es vital para ganar espacio */}
+      <div className="flex-shrink-0 py-1 md:py-4 text-center">
+        <h2 className="text-lg md:text-2xl font-bold tracking-tight text-white drop-shadow-md">
           Cuéntanos tu idea
         </h2>
-        <p className="text-xs md:text-sm text-white/60 font-medium mt-1">
-          Habla o escribe libremente. La IA estructurará el contenido.
+        <p className="text-[10px] md:text-sm text-white/80 font-medium mt-0.5 md:mt-1">
+          Habla o escribe libremente.
         </p>
       </div>
 
-      {/* Input Oculto para validación */}
       <div className="hidden">
-        <FormField 
-          control={control} 
-          name="solo_topic" 
-          render={({ field }) => <FormItem><FormControl><Input {...field} /></FormControl></FormItem>} 
-        />
+        <FormField control={control} name="solo_topic" render={({ field }) => <FormItem><FormControl><Input {...field} /></FormControl></FormItem>} />
       </div>
 
-      {/* ÁREA DE TRABAJO PRINCIPAL */}
-      {/* Usamos flex-grow para ocupar todo el alto disponible. Cambiado a bg-white/5 para efecto "superficie" en vez de "hoyo". */}
-      <div className="flex-grow flex flex-col min-h-0 relative rounded-xl md:rounded-2xl overflow-hidden bg-white/5 border border-white/10">
+      {/* ÁREA DE TRABAJO:
+          - flex-grow: Ocupa todo el espacio restante.
+          - bg-black/20: Fondo oscuro para garantizar contraste en modo claro.
+          - overflow-hidden: Evita que el contenedor crezca, forzando scroll interno del textarea si es necesario.
+      */}
+      <div className="flex-grow flex flex-col min-h-0 relative rounded-xl overflow-hidden bg-black/20 border border-white/10 backdrop-blur-sm shadow-inner">
         <FormField
           control={control}
           name="solo_motivation"
@@ -67,19 +60,18 @@ export function SoloTalkStep() {
             <FormItem className="flex-1 flex flex-col h-full space-y-0">
               
               <FormControl>
-                {/* TEXTAREA: Padding responsivo (p-4 móvil, p-6 desktop) y fondo transparente */}
                 <Textarea
-                  placeholder="Ej: Quiero explorar el impacto accidental de la ciencia en la vida moderna..."
-                  className="flex-1 w-full h-full resize-none border-0 focus-visible:ring-0 text-lg md:text-xl leading-relaxed p-4 md:p-6 bg-transparent text-white placeholder:text-white/20 scrollbar-hide"
+                  placeholder="Ej: Quiero explorar el impacto accidental de la ciencia..."
+                  // text-base en móvil para que quepa más texto sin scroll
+                  className="flex-1 w-full h-full resize-none border-0 focus-visible:ring-0 text-base md:text-xl leading-relaxed p-4 md:p-6 bg-transparent text-white placeholder:text-white/40 scrollbar-hide"
                   {...field}
                 />
               </FormControl>
               
-              {/* BARRA DE CONTROL DE VOZ */}
-              {/* Degradado sutil para integración suave con el área de texto */}
-              <div className="flex-shrink-0 p-3 md:p-4 bg-gradient-to-t from-black/30 to-transparent border-t border-white/5">
+              {/* BOTONERA */}
+              <div className="flex-shrink-0 p-3 bg-black/40 backdrop-blur-md border-t border-white/5">
                  <VoiceInput onTextGenerated={handleVoiceInput} className="w-full" />
-                 <FormMessage className="mt-2 text-center text-xs text-red-400" />
+                 <FormMessage className="mt-1 text-center text-[10px] text-red-300" />
               </div>
 
             </FormItem>
