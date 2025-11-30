@@ -1,5 +1,5 @@
 // components/podcast-creation-form.tsx
-// VERSIÓN FINAL PREMIUM: Header Informativo, Footer Integrado y UX Robusta.
+// VERSIÓN FINAL PREMIUM: Header Informativo, Footer Integrado y UX Robusta sin Scroll.
 
 "use client";
 
@@ -204,7 +204,7 @@ export function PodcastCreationForm() {
       if (isStepValid) {
         transitionTo(nextState);
       } else {
-        // [MEJORA UX]: Feedback explícito si la validación falla
+        // FEEDBACK DE ERROR (Para no romper el flujo visualmente)
         toast({ 
           title: "Falta completar este paso", 
           description: "Por favor revisa los campos requeridos.", 
@@ -298,10 +298,8 @@ export function PodcastCreationForm() {
   
   const currentPath = flowPaths[formData.purpose] || [];
   const currentStepIndex = history.length;
-  // Calculamos progreso (Evitamos división por cero)
   const totalPasosEstimados = currentPath.length > 0 ? currentPath.length : 6;
   const progress = Math.min((currentStepIndex / totalPasosEstimados) * 100, 100);
-  
   const isFinalStep = currentFlowState === 'FINAL_STEP';
   const isSelectingPurpose = currentFlowState === 'SELECTING_PURPOSE';
 
@@ -309,85 +307,89 @@ export function PodcastCreationForm() {
     <CreationContext.Provider value={{ updateFormData, transitionTo, goBack }}>
       <FormProvider {...formMethods}>
         <form onSubmit={(e) => e.preventDefault()} className="h-full">
-            {/* ESTRUCTURA APP-SHELL FIJA */}
-            <div className="h-[calc(100vh-4rem)] flex flex-col bg-transparent">
+            
+            {/* 1. CONTENEDOR PRINCIPAL: 'dvh' para móvil, sin padding vertical en el padre para control total */}
+            <div className="h-[calc(100dvh-4rem)] flex flex-col bg-transparent">
                 
-                <div className="w-full max-w-4xl mx-auto flex flex-col flex-grow h-full overflow-hidden relative">
+                {/* Contenedor Central Ajustado: max-w-4xl para pantallas grandes */}
+                <div className="w-full max-w-4xl mx-auto flex flex-col flex-grow h-full overflow-hidden relative md:px-4">
                     
-                    {/* --- HEADER DE PROGRESO (Solo visible si NO es selección) --- */}
+                    {/* 2. HEADER DE PROGRESO: Más informativo y visible */}
                     {!isSelectingPurpose && (
-                      <div className="flex-shrink-0 px-4 py-3 z-20 bg-gradient-to-b from-background/80 to-transparent backdrop-blur-sm">
-                        <div className="flex justify-between items-center mb-2">
-                           {/* Información rica para el usuario */}
+                      <div className="flex-shrink-0 px-4 pt-3 pb-2 z-20">
+                        <div className="flex justify-between items-end mb-2">
                            <div className="flex flex-col">
-                             <span className="text-sm font-bold text-foreground tracking-tight">Nuevo Podcast</span>
-                             <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">
-                               Paso {currentStepIndex} de {totalPasosEstimados}
+                             {/* Título del proceso */}
+                             <span className="text-sm font-bold text-foreground tracking-tight">
+                               {isGeneratingScript ? "Creando Guion..." : "Nuevo Podcast"}
+                             </span>
+                             {/* Contador de pasos claro */}
+                             <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mt-0.5">
+                               Paso {currentStepIndex} <span className="text-muted-foreground/50">/</span> {totalPasosEstimados}
                              </span>
                            </div>
-                           <div className="text-right text-xs font-mono text-primary/80 font-medium">
+                           {/* Porcentaje Numérico */}
+                           <div className="text-right text-xs font-mono font-bold text-primary">
                              {Math.round(progress)}%
                            </div>
                         </div>
                         
-                        {/* Barra de Progreso Premium (Glow y Gradiente) */}
-                        <div className="h-2 w-full bg-secondary/30 rounded-full overflow-hidden shadow-inner">
+                        {/* Barra visual gruesa y con brillo */}
+                        <div className="h-2 w-full bg-secondary/50 rounded-full overflow-hidden">
                             <div 
-                              className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 transition-all duration-500 ease-out shadow-[0_0_10px_rgba(168,85,247,0.5)]" 
+                              className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 transition-all duration-500 ease-out shadow-[0_0_12px_rgba(168,85,247,0.6)]" 
                               style={{ width: `${progress}%` }} 
                             />
                         </div>
                       </div>
                     )}
 
-                    {/* --- TARJETA CONTENEDORA (Cuerpo) --- */}
-                    <Card className={`flex-1 flex flex-col overflow-hidden relative transition-all duration-500 border-0 shadow-none rounded-none
+                    {/* 3. TARJETA DE CONTENIDO: Transparente en móvil, Glass en Desktop */}
+                    <Card className={`flex-1 flex flex-col overflow-hidden relative transition-all duration-500 border-0 shadow-none
                         ${isSelectingPurpose 
-                            ? "bg-transparent" 
-                            : "bg-transparent" // El fondo ya lo da la página, aquí queremos transparencia para los inputs
+                            ? "bg-transparent rounded-none" 
+                            : "bg-transparent md:bg-background/40 md:backdrop-blur-xl rounded-none md:rounded-2xl border-0 md:border md:border-white/10"
                         }`}
                     >
+                        {/* Área de Contenido Scrollable (Si es necesario) */}
                         <CardContent className="p-0 flex-1 flex flex-col h-full overflow-hidden relative">
-                          {/* El contenido se renderiza aquí y gestiona su propio layout interno */}
                           <div className="flex-1 overflow-hidden h-full flex flex-col">
                              {renderCurrentStep()}
                           </div>
                         </CardContent>
 
-                        {/* --- FOOTER DE NAVEGACIÓN (Solo visible si NO es selección) --- */}
+                        {/* 4. FOOTER FLOTANTE: Integrado visualmente, garantiza área de toque */}
                         {!isSelectingPurpose && (
-                           <div className="flex-shrink-0 px-4 py-4 md:py-6 z-20 bg-gradient-to-t from-background via-background/90 to-transparent">
+                           <div className="flex-shrink-0 px-4 py-4 md:py-5 z-20 bg-gradient-to-t from-background via-background/95 to-transparent backdrop-blur-sm">
                                <div className="flex justify-between items-center gap-4">
                                    
-                                   {/* Botón Atrás (Sutil) */}
                                    <Button 
                                      type="button" 
                                      variant="ghost" 
                                      onClick={goBack} 
                                      disabled={isSubmitting || isGeneratingScript}
-                                     className="text-muted-foreground hover:text-foreground hover:bg-secondary/20"
+                                     className="text-muted-foreground hover:text-foreground hover:bg-secondary/20 transition-colors"
                                    >
                                        <ChevronLeft className="mr-1 h-4 w-4" /> Atrás
                                    </Button>
 
-                                   {/* Botón de Acción Principal (Heroico) */}
                                    <div className="flex-1 flex justify-end">
                                        {currentFlowState === 'LINK_POINTS_INPUT' ? (
-                                           <Button type="button" onClick={handleNextTransition} disabled={isLoadingNarratives} className="w-full md:w-auto bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20">
+                                           <Button type="button" onClick={handleNextTransition} disabled={isLoadingNarratives} className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg rounded-full px-6">
                                                {isLoadingNarratives ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Wand2 className="mr-2 h-4 w-4" />}
-                                               Generar Narrativas
+                                               Generar
                                            </Button>
                                        ) : currentFlowState === 'DETAILS_STEP' ? (
-                                           <Button type="button" onClick={handleNextTransition} disabled={isGeneratingScript} className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20">
-                                               {isGeneratingScript ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Escribiendo...</> : <><FileText className="mr-2 h-4 w-4" /> Generar Borrador</>}
+                                           <Button type="button" onClick={handleNextTransition} disabled={isGeneratingScript} className="bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 rounded-full px-6">
+                                               {isGeneratingScript ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Escribiendo...</> : <><FileText className="mr-2 h-4 w-4" /> Crear Borrador</>}
                                            </Button>
                                        ) : isFinalStep ? (
-                                           <Button type="button" onClick={handleSubmit(handleFinalSubmit)} disabled={isSubmitting} className="w-full md:w-auto bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-fuchsia-500/20 hover:scale-[1.02] transition-transform">
+                                           <Button type="button" onClick={handleSubmit(handleFinalSubmit)} disabled={isSubmitting} className="bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30 rounded-full px-8 hover:scale-105 transition-transform">
                                                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
-                                               Producir Podcast
+                                               Producir Final
                                            </Button>
                                        ) : (
-                                           <Button type="button" onClick={handleNextTransition} className="w-full md:w-auto min-w-[120px] bg-foreground text-background hover:bg-foreground/90 shadow-md">
+                                           <Button type="button" onClick={handleNextTransition} className="bg-foreground text-background hover:bg-foreground/90 rounded-full px-6 font-semibold shadow-md transition-transform active:scale-95">
                                                Siguiente <ChevronRight className="ml-1 h-4 w-4" />
                                            </Button>
                                        )}
