@@ -1,5 +1,5 @@
 // components/podcast-creation-form.tsx
-// VERSIÓN FINAL PREMIUM: Header Informativo, Footer Integrado y UX Robusta sin Scroll.
+// VERSIÓN FINAL CORREGIDA: Solución de error de referencia y estructura App-Shell completa.
 
 "use client";
 
@@ -66,9 +66,9 @@ export function PodcastCreationForm() {
   const { toast } = useToast();
   const { supabase, user } = useAuth();
   
+  // --- ESTADOS ---
   const [currentFlowState, setCurrentFlowState] = useState<FlowState>('SELECTING_PURPOSE');
   const [history, setHistory] = useState<FlowState[]>(['SELECTING_PURPOSE']);
-  
   const [isGeneratingScript, setIsGeneratingScript] = useState(false);
   const [isLoadingNarratives, setIsLoadingNarratives] = useState(false);
   const [narrativeOptions, setNarrativeOptions] = useState<NarrativeOption[]>([]);
@@ -109,6 +109,17 @@ export function PodcastCreationForm() {
   const { isSubmitting } = formMethods.formState;
   const formData = watch();
 
+  // --- CONFIGURACIÓN DE RUTAS (Definida AQUÍ para evitar errores de referencia) ---
+  const flowPaths: Record<string, FlowState[]> = {
+    learn: ['SELECTING_PURPOSE', 'LEARN_SUB_SELECTION', 'SOLO_TALK_INPUT', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
+    inspire: ['SELECTING_PURPOSE', 'INSPIRE_SUB_SELECTION', 'ARCHETYPE_INPUT', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
+    explore: ['SELECTING_PURPOSE', 'LINK_POINTS_INPUT', 'NARRATIVE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
+    reflect: ['SELECTING_PURPOSE', 'LEGACY_INPUT', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
+    answer: ['SELECTING_PURPOSE', 'QUESTION_INPUT', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
+    freestyle: ['SELECTING_PURPOSE', 'FREESTYLE_SELECTION'],
+  };
+
+  // --- FUNCIONES DE NAVEGACIÓN ---
   const transitionTo = (state: FlowState) => {
     setHistory(prev => [...prev, state]);
     setCurrentFlowState(state);
@@ -128,6 +139,8 @@ export function PodcastCreationForm() {
       setValue(key as keyof PodcastCreationData, value, { shouldValidate: true });
     });
   };
+
+  // --- LÓGICA DE NEGOCIO ---
 
   const handleGenerateDraft = async () => {
     setIsGeneratingScript(true);
@@ -204,7 +217,6 @@ export function PodcastCreationForm() {
       if (isStepValid) {
         transitionTo(nextState);
       } else {
-        // FEEDBACK DE ERROR (Para no romper el flujo visualmente)
         toast({ 
           title: "Falta completar este paso", 
           description: "Por favor revisa los campos requeridos.", 
@@ -286,16 +298,7 @@ export function PodcastCreationForm() {
     }
   };
 
-  // Configuración de Rutas y Progreso
-  const flowPaths: Record<string, FlowState[]> = {
-    learn: ['SELECTING_PURPOSE', 'LEARN_SUB_SELECTION', 'SOLO_TALK_INPUT', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    inspire: ['SELECTING_PURPOSE', 'INSPIRE_SUB_SELECTION', 'ARCHETYPE_INPUT', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    explore: ['SELECTING_PURPOSE', 'LINK_POINTS_INPUT', 'NARRATIVE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    reflect: ['SELECTING_PURPOSE', 'LEGACY_INPUT', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    answer: ['SELECTING_PURPOSE', 'QUESTION_INPUT', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    freestyle: ['SELECTING_PURPOSE', 'FREESTYLE_SELECTION'],
-  };
-  
+  // --- CÁLCULO DE PROGRESO ---
   const currentPath = flowPaths[formData.purpose] || [];
   const currentStepIndex = history.length;
   const totalPasosEstimados = currentPath.length > 0 ? currentPath.length : 6;
@@ -308,59 +311,53 @@ export function PodcastCreationForm() {
       <FormProvider {...formMethods}>
         <form onSubmit={(e) => e.preventDefault()} className="h-full">
             
-            {/* 1. CONTENEDOR PRINCIPAL: 'dvh' para móvil, sin padding vertical en el padre para control total */}
+            {/* CONTENEDOR APP-SHELL: h-[calc(100dvh-4rem)] */}
             <div className="h-[calc(100dvh-4rem)] flex flex-col bg-transparent">
                 
-                {/* Contenedor Central Ajustado: max-w-4xl para pantallas grandes */}
                 <div className="w-full max-w-4xl mx-auto flex flex-col flex-grow h-full overflow-hidden relative md:px-4">
                     
-                    {/* 2. HEADER DE PROGRESO: Más informativo y visible */}
+                    {/* HEADER DE PROGRESO */}
                     {!isSelectingPurpose && (
-                      <div className="flex-shrink-0 px-4 pt-3 pb-2 z-20">
+                      <div className="flex-shrink-0 px-4 py-3 z-20 bg-transparent">
                         <div className="flex justify-between items-end mb-2">
                            <div className="flex flex-col">
-                             {/* Título del proceso */}
-                             <span className="text-sm font-bold text-foreground tracking-tight">
+                             <span className="text-xs font-bold text-white/90 tracking-tight drop-shadow-sm">
                                {isGeneratingScript ? "Creando Guion..." : "Nuevo Podcast"}
                              </span>
-                             {/* Contador de pasos claro */}
-                             <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mt-0.5">
-                               Paso {currentStepIndex} <span className="text-muted-foreground/50">/</span> {totalPasosEstimados}
+                             <span className="text-[9px] text-white/60 uppercase tracking-widest font-bold mt-0.5">
+                               Paso {currentStepIndex}/{totalPasosEstimados}
                              </span>
                            </div>
-                           {/* Porcentaje Numérico */}
-                           <div className="text-right text-xs font-mono font-bold text-primary">
+                           <div className="text-right text-[10px] font-mono font-bold text-white/80">
                              {Math.round(progress)}%
                            </div>
                         </div>
                         
-                        {/* Barra visual gruesa y con brillo */}
-                        <div className="h-2 w-full bg-secondary/50 rounded-full overflow-hidden">
+                        <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden backdrop-blur-sm">
                             <div 
-                              className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 transition-all duration-500 ease-out shadow-[0_0_12px_rgba(168,85,247,0.6)]" 
+                              className="h-full bg-gradient-to-r from-indigo-400 to-purple-400 transition-all duration-500 ease-out shadow-[0_0_8px_rgba(168,85,247,0.6)]" 
                               style={{ width: `${progress}%` }} 
                             />
                         </div>
                       </div>
                     )}
 
-                    {/* 3. TARJETA DE CONTENIDO: Transparente en móvil, Glass en Desktop */}
+                    {/* TARJETA PRINCIPAL (Con lógica de transparencia y bordes redondeados) */}
                     <Card className={`flex-1 flex flex-col overflow-hidden relative transition-all duration-500 border-0 shadow-none
                         ${isSelectingPurpose 
                             ? "bg-transparent rounded-none" 
-                            : "bg-transparent md:bg-background/40 md:backdrop-blur-xl rounded-none md:rounded-2xl border-0 md:border md:border-white/10"
+                            : "bg-transparent md:bg-black/20 md:backdrop-blur-xl rounded-t-2xl md:rounded-xl mx-0 md:mx-0 border-0 md:border md:border-white/10"
                         }`}
                     >
-                        {/* Área de Contenido Scrollable (Si es necesario) */}
                         <CardContent className="p-0 flex-1 flex flex-col h-full overflow-hidden relative">
                           <div className="flex-1 overflow-hidden h-full flex flex-col">
                              {renderCurrentStep()}
                           </div>
                         </CardContent>
 
-                        {/* 4. FOOTER FLOTANTE: Integrado visualmente, garantiza área de toque */}
+                        {/* FOOTER DE NAVEGACIÓN */}
                         {!isSelectingPurpose && (
-                           <div className="flex-shrink-0 px-4 py-4 md:py-5 z-20 bg-gradient-to-t from-background via-background/95 to-transparent backdrop-blur-sm">
+                           <div className="flex-shrink-0 px-4 py-4 md:py-5 z-20 bg-gradient-to-t from-black/80 via-black/60 to-transparent backdrop-blur-sm border-t border-white/5">
                                <div className="flex justify-between items-center gap-4">
                                    
                                    <Button 
@@ -368,28 +365,28 @@ export function PodcastCreationForm() {
                                      variant="ghost" 
                                      onClick={goBack} 
                                      disabled={isSubmitting || isGeneratingScript}
-                                     className="text-muted-foreground hover:text-foreground hover:bg-secondary/20 transition-colors"
+                                     className="text-white/60 hover:text-white hover:bg-white/10 transition-colors h-10 px-3"
                                    >
                                        <ChevronLeft className="mr-1 h-4 w-4" /> Atrás
                                    </Button>
 
                                    <div className="flex-1 flex justify-end">
                                        {currentFlowState === 'LINK_POINTS_INPUT' ? (
-                                           <Button type="button" onClick={handleNextTransition} disabled={isLoadingNarratives} className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg rounded-full px-6">
+                                           <Button type="button" onClick={handleNextTransition} disabled={isLoadingNarratives} className="bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/30 rounded-full px-5 h-10 text-sm">
                                                {isLoadingNarratives ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Wand2 className="mr-2 h-4 w-4" />}
                                                Generar
                                            </Button>
                                        ) : currentFlowState === 'DETAILS_STEP' ? (
-                                           <Button type="button" onClick={handleNextTransition} disabled={isGeneratingScript} className="bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 rounded-full px-6">
+                                           <Button type="button" onClick={handleNextTransition} disabled={isGeneratingScript} className="bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-500/30 rounded-full px-5 h-10 text-sm transition-all active:scale-95">
                                                {isGeneratingScript ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Escribiendo...</> : <><FileText className="mr-2 h-4 w-4" /> Crear Borrador</>}
                                            </Button>
                                        ) : isFinalStep ? (
-                                           <Button type="button" onClick={handleSubmit(handleFinalSubmit)} disabled={isSubmitting} className="bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30 rounded-full px-8 hover:scale-105 transition-transform">
+                                           <Button type="button" onClick={handleSubmit(handleFinalSubmit)} disabled={isSubmitting} className="bg-gradient-to-r from-fuchsia-600 to-purple-600 hover:from-fuchsia-500 hover:to-purple-500 text-white shadow-lg shadow-fuchsia-500/30 rounded-full px-6 h-10 text-sm transition-all active:scale-95">
                                                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
-                                               Producir Final
+                                               Producir
                                            </Button>
                                        ) : (
-                                           <Button type="button" onClick={handleNextTransition} className="bg-foreground text-background hover:bg-foreground/90 rounded-full px-6 font-semibold shadow-md transition-transform active:scale-95">
+                                           <Button type="button" onClick={handleNextTransition} className="bg-white text-black hover:bg-white/90 shadow-lg rounded-full px-6 font-semibold transition-transform active:scale-95 h-10 text-sm">
                                                Siguiente <ChevronRight className="ml-1 h-4 w-4" />
                                            </Button>
                                        )}
