@@ -1,5 +1,5 @@
 // components/podcast-creation-form.tsx
-// VERSIÓN PRODUCCIÓN FINAL: Cero Scroll (Box Model corregido) + Contraste Adaptativo (Light/Dark).
+// VERSIÓN MAESTRA FINAL: Zero Scroll (dvh), Adaptive Glass (Light/Dark) y Player Aware.
 
 "use client";
 
@@ -70,6 +70,7 @@ export function PodcastCreationForm() {
   
   const [currentFlowState, setCurrentFlowState] = useState<FlowState>('SELECTING_PURPOSE');
   const [history, setHistory] = useState<FlowState[]>(['SELECTING_PURPOSE']);
+  
   const [isGeneratingScript, setIsGeneratingScript] = useState(false);
   const [isLoadingNarratives, setIsLoadingNarratives] = useState(false);
   const [narrativeOptions, setNarrativeOptions] = useState<NarrativeOption[]>([]);
@@ -307,21 +308,29 @@ export function PodcastCreationForm() {
       <FormProvider {...formMethods}>
         <form onSubmit={(e) => e.preventDefault()} className="h-full">
             
+            {/* 
+               ESTRATEGIA DE ALTURA "LOCK-IN"
+               - Usamos h-[calc(100dvh-4rem)] para forzar el alto exacto de la ventana móvil (menos header).
+               - Esto impide físicamente que el body scrollee.
+               - Si hay reproductor, reducimos aún más el alto disponible.
+            */}
             <div 
-                className={`flex flex-col flex-grow w-full bg-transparent overflow-hidden transition-all duration-300 ${currentPodcast ? 'pb-24' : 'pb-0'}`}
-                style={{ height: 'calc(100dvh - 4rem)' }}
+                className="flex flex-col bg-transparent overflow-hidden transition-all duration-300"
+                style={{ 
+                    height: currentPodcast 
+                        ? 'calc(100dvh - 4rem - 5rem)' // 4rem (Header) + 5rem (Player)
+                        : 'calc(100dvh - 4rem)' 
+                }}
             >
                 
-                {/* FIX SCROLL: Eliminado padding vertical (py) del contenedor padre para evitar desbordamiento */}
                 <div className="w-full max-w-4xl mx-auto flex flex-col flex-grow h-full overflow-hidden relative md:px-4">
                     
                     {/* HEADER DE PROGRESO */}
                     {!isSelectingPurpose && (
-                      <div className="flex-shrink-0 px-4 py-2 z-20">
+                      <div className="flex-shrink-0 px-4 pt-4 pb-2 z-20">
                         <div className="flex justify-between items-end mb-1.5">
                            <div className="flex flex-col">
-                             {/* FIX CONTRASTE: 'text-foreground' para modo claro/oscuro */}
-                             <span className="text-xs font-bold text-foreground tracking-tight drop-shadow-sm">
+                             <span className="text-xs font-bold text-foreground/90 tracking-tight drop-shadow-sm">
                                {isGeneratingScript ? "Creando Guion..." : "Nuevo Podcast"}
                              </span>
                              <span className="text-[9px] text-muted-foreground uppercase tracking-widest font-bold mt-0.5">
@@ -332,35 +341,36 @@ export function PodcastCreationForm() {
                              {Math.round(progress)}%
                            </div>
                         </div>
-                        <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
+                        
+                        <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden backdrop-blur-sm">
                             <div 
-                              className="h-full bg-primary transition-all duration-500 ease-out" 
+                              className="h-full bg-primary transition-all duration-500 ease-out shadow-[0_0_8px_rgba(168,85,247,0.6)]" 
                               style={{ width: `${progress}%` }} 
                             />
                         </div>
                       </div>
                     )}
 
-                    {/* TARJETA PRINCIPAL 
-                        FIX CONTRASTE: 'bg-white/40' en modo claro, 'dark:bg-black/20' en oscuro.
+                    {/* TARJETA PRINCIPAL "ADAPTIVE GLASS"
+                        - Light Mode: bg-white/60 (Más legible)
+                        - Dark Mode: bg-black/40
                     */}
                     <Card className={`flex-1 flex flex-col overflow-hidden relative transition-all duration-500 border-0 shadow-none
                         ${isSelectingPurpose 
                             ? "bg-transparent rounded-none" 
-                            : "bg-white/50 dark:bg-black/20 backdrop-blur-xl rounded-t-2xl md:rounded-xl mx-0 md:mx-0 border-0 md:border border-white/20 dark:border-white/10"
+                            : "bg-white/60 dark:bg-black/40 backdrop-blur-xl rounded-t-2xl md:rounded-xl mx-0 md:mx-0 border-0 md:border border-white/40 dark:border-white/10 shadow-lg"
                         }`}
                     >
+                        {/* CONTENIDO (Scroll Interno) */}
                         <CardContent className="p-0 flex-1 flex flex-col h-full overflow-hidden relative">
                           <div className="flex-1 overflow-hidden h-full flex flex-col">
                              {renderCurrentStep()}
                           </div>
                         </CardContent>
 
-                        {/* FOOTER DE NAVEGACIÓN 
-                            FIX CONTRASTE: 'from-white/90' en modo claro.
-                        */}
+                        {/* FOOTER (Fijo) */}
                         {!isSelectingPurpose && (
-                           <div className="flex-shrink-0 px-4 py-3 md:py-4 z-20 bg-gradient-to-t from-white/90 via-white/60 dark:from-black/90 dark:via-black/60 to-transparent backdrop-blur-sm border-t border-border/10">
+                           <div className="flex-shrink-0 px-4 py-4 z-20 bg-gradient-to-t from-white/80 via-white/50 dark:from-black/80 dark:via-black/50 to-transparent backdrop-blur-md border-t border-white/10 dark:border-white/5">
                                <div className="flex justify-between items-center gap-4">
                                    
                                    <Button 
@@ -380,7 +390,7 @@ export function PodcastCreationForm() {
                                                Generar
                                            </Button>
                                        ) : currentFlowState === 'DETAILS_STEP' ? (
-                                           <Button type="button" onClick={handleNextTransition} disabled={isGeneratingScript} className="bg-indigo-600 text-white hover:bg-indigo-700 shadow-md rounded-full px-5 h-9 text-xs font-semibold transition-all active:scale-95">
+                                           <Button type="button" onClick={handleNextTransition} disabled={isGeneratingScript} className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md rounded-full px-5 h-9 text-xs font-semibold transition-all active:scale-95">
                                                {isGeneratingScript ? <><Loader2 className="mr-2 h-3 w-3 animate-spin" /> Escribiendo...</> : <><FileText className="mr-2 h-3 w-3" /> Crear Borrador</>}
                                            </Button>
                                        ) : isFinalStep ? (
@@ -389,7 +399,7 @@ export function PodcastCreationForm() {
                                                Producir
                                            </Button>
                                        ) : (
-                                           <Button type="button" onClick={handleNextTransition} className="bg-foreground text-background hover:bg-foreground/90 shadow-md rounded-full px-5 h-9 text-xs font-semibold transition-transform active:scale-95">
+                                           <Button type="button" onClick={handleNextTransition} className="bg-foreground text-background hover:bg-foreground/90 shadow-lg rounded-full px-5 h-9 text-xs font-semibold transition-transform active:scale-95">
                                                Siguiente <ChevronRight className="ml-1 h-3 w-3" />
                                            </Button>
                                        )}
