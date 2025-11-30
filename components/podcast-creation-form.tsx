@@ -1,5 +1,5 @@
 // components/podcast-creation-form.tsx
-// VERSIÓN MAESTRA "FLEX-LOCK": Elimina scroll mediante arquitectura de capas absolutas y padding dinámico.
+// VERSIÓN MAESTRA FINAL: Safe Areas ajustadas (Header/Footer) y Cero Scroll garantizado.
 
 "use client";
 
@@ -309,21 +309,22 @@ export function PodcastCreationForm() {
         <form onSubmit={(e) => e.preventDefault()} className="h-full w-full overflow-hidden">
             
             {/* 
-               ESTRATEGIA "FIXED VIEWPORT":
-               1. h-screen / w-screen: Ocupa todo.
-               2. pt-16: Deja espacio para el navbar superior.
-               3. pb-dynamic: Deja espacio para el player.
+               ESTRATEGIA "SAFE AREA" SUPERIOR:
+               - pt-16 (4rem) no era suficiente porque el navbar mide aprox 4.5rem + margen.
+               - Cambiamos a 'pt-24' (6rem) en móvil y 'md:pt-28' (7rem) en desktop.
+               - Esto empuja todo el contenedor hacia abajo, limpiando el menú superior.
+               - Ajustamos h-[100dvh] para que el contenedor ocupe toda la pantalla base.
             */}
             <div 
-                className={`fixed inset-0 pt-16 flex flex-col bg-transparent transition-all duration-300 ${currentPodcast ? 'pb-24' : 'pb-0'}`}
-                style={{ zIndex: 0 }} // Z-Index bajo
+                className={`fixed inset-0 w-full flex flex-col bg-transparent transition-all duration-300 pt-24 md:pt-28 ${currentPodcast ? 'pb-24' : 'pb-4'}`}
+                style={{ zIndex: 0 }}
             >
                 
                 <div className="w-full max-w-4xl mx-auto flex flex-col flex-grow h-full overflow-hidden relative md:px-4">
                     
                     {/* HEADER DE PROGRESO */}
                     {!isSelectingPurpose && (
-                      <div className="flex-shrink-0 px-4 pt-4 pb-2 z-20">
+                      <div className="flex-shrink-0 px-4 py-1 z-20 mb-2">
                         <div className="flex justify-between items-end mb-1.5">
                            <div className="flex flex-col">
                              <span className="text-xs font-bold text-foreground/90 tracking-tight drop-shadow-sm">
@@ -337,6 +338,7 @@ export function PodcastCreationForm() {
                              {Math.round(progress)}%
                            </div>
                         </div>
+                        
                         <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden backdrop-blur-sm">
                             <div 
                               className="h-full bg-primary transition-all duration-500 ease-out shadow-[0_0_8px_rgba(168,85,247,0.6)]" 
@@ -359,10 +361,11 @@ export function PodcastCreationForm() {
                           </div>
                         </CardContent>
 
-                        {/* FOOTER DE NAVEGACIÓN */}
+                        {/* FOOTER DE NAVEGACIÓN (Padding Inferior Aumentado pb-4 md:pb-6) */}
                         {!isSelectingPurpose && (
-                           <div className="flex-shrink-0 px-4 py-3 md:py-4 z-20 bg-gradient-to-t from-white/80 via-white/50 dark:from-black/80 dark:via-black/50 to-transparent backdrop-blur-md border-t border-border/10">
+                           <div className="flex-shrink-0 px-4 py-4 md:py-6 z-20 bg-gradient-to-t from-white/90 via-white/60 dark:from-black/90 dark:via-black/60 to-transparent backdrop-blur-md border-t border-border/10">
                                <div className="flex justify-between items-center gap-4">
+                                   
                                    <Button 
                                      type="button" 
                                      variant="ghost" 
@@ -384,7 +387,7 @@ export function PodcastCreationForm() {
                                                {isGeneratingScript ? <><Loader2 className="mr-2 h-3 w-3 animate-spin" /> Escribiendo...</> : <><FileText className="mr-2 h-3 w-3" /> Crear Borrador</>}
                                            </Button>
                                        ) : isFinalStep ? (
-                                           <Button type="button" onClick={handleSubmit(handleFinalSubmit)} disabled={isSubmitting} className="bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md rounded-full px-6 h-10 text-xs font-semibold transition-all active:scale-95">
+                                           <Button type="button" onClick={handleSubmit(handleFinalSubmit)} disabled={isSubmitting} className="bg-primary text-primary-foreground shadow-md rounded-full px-6 h-10 text-xs font-semibold transition-all active:scale-95">
                                                {isSubmitting ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Wand2 className="mr-2 h-3 w-3" />}
                                                Producir
                                            </Button>
