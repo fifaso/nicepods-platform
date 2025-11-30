@@ -1,5 +1,5 @@
 // components/podcast-creation-form.tsx
-// VERSIÓN FINAL ELASTIC VIEWPORT: Detección de Reproductor + Cero Scroll + Box Model corregido.
+// VERSIÓN MAESTRA "FLEX-LOCK": Elimina scroll mediante arquitectura de capas absolutas y padding dinámico.
 
 "use client";
 
@@ -11,7 +11,6 @@ import { useForm, FormProvider, SubmitHandler, FieldErrors } from "react-hook-fo
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PodcastCreationSchema, PodcastCreationData } from "@/lib/validation/podcast-schema";
 import { soloTalkAgents, linkPointsAgents } from "@/lib/agent-config";
-// [NUEVO] Importamos el contexto de audio para detectar el reproductor y ajustar la altura
 import { useAudio } from "@/contexts/audio-context";
 
 import { Progress } from "@/components/ui/progress";
@@ -67,8 +66,6 @@ export function PodcastCreationForm() {
   const router = useRouter();
   const { toast } = useToast();
   const { supabase, user } = useAuth();
-  
-  // [ESTRATEGIA DE ESPACIO]: Detectamos si hay un podcast activo
   const { currentPodcast } = useAudio();
   
   const [currentFlowState, setCurrentFlowState] = useState<FlowState>('SELECTING_PURPOSE');
@@ -311,27 +308,20 @@ export function PodcastCreationForm() {
       <FormProvider {...formMethods}>
         <form onSubmit={(e) => e.preventDefault()} className="h-full">
             
-            {/* 
-               CÁLCULO DINÁMICO DE ALTURA (Elastic Viewport)
-               - 100dvh: Altura real del móvil ignorando barras.
-               - 4rem: Header superior.
-               - 5rem: Espacio reservado si hay un podcast reproduciéndose.
+            {/* 1. CONTENEDOR ABSOLUTO (Fixed Position): 
+                Ocupa toda la pantalla por encima de todo, excepto el Navbar (z-0).
+                El 'pb-' dinámico es la clave para el reproductor.
             */}
             <div 
-                className="flex flex-col bg-transparent overflow-hidden transition-all duration-300"
-                style={{ 
-                    height: currentPodcast 
-                        ? 'calc(100dvh - 4rem - 5rem)' 
-                        : 'calc(100dvh - 4rem)' 
-                }}
+                className={`fixed inset-0 top-16 left-0 w-full flex flex-col bg-transparent transition-all duration-300 pointer-events-none ${currentPodcast ? 'pb-20' : 'pb-0'}`}
+                style={{ zIndex: 10 }} // Z-Index bajo para que no tape el menú superior ni los modales
             >
-                
-                {/* Contenedor Central: py-2 en móvil para ganar espacio */}
-                <div className="w-full max-w-4xl mx-auto flex flex-col flex-grow h-full overflow-hidden relative md:px-4 py-2 md:py-4">
+                {/* Contenedor Central (Habilita clicks) */}
+                <div className="w-full max-w-4xl mx-auto flex flex-col flex-grow h-full overflow-hidden pointer-events-auto">
                     
-                    {/* HEADER PROGRESO */}
+                    {/* HEADER DE PROGRESO */}
                     {!isSelectingPurpose && (
-                      <div className="flex-shrink-0 px-4 py-1 z-20 mb-2">
+                      <div className="flex-shrink-0 px-4 py-2 z-20">
                         <div className="flex justify-between items-end mb-1.5">
                            <div className="flex flex-col">
                              <span className="text-xs font-bold text-white/90 tracking-tight drop-shadow-sm">
@@ -346,7 +336,7 @@ export function PodcastCreationForm() {
                            </div>
                         </div>
                         
-                        <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden backdrop-blur-sm">
+                        <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden backdrop-blur-sm">
                             <div 
                               className="h-full bg-gradient-to-r from-indigo-400 to-purple-400 transition-all duration-500 ease-out shadow-[0_0_8px_rgba(168,85,247,0.6)]" 
                               style={{ width: `${progress}%` }} 
@@ -355,22 +345,23 @@ export function PodcastCreationForm() {
                       </div>
                     )}
 
-                    {/* TARJETA PRINCIPAL (Rounded en Top para sensación de hoja) */}
+                    {/* TARJETA PRINCIPAL */}
                     <Card className={`flex-1 flex flex-col overflow-hidden relative transition-all duration-500 border-0 shadow-none
                         ${isSelectingPurpose 
                             ? "bg-transparent rounded-none" 
-                            : "bg-transparent md:bg-black/20 md:backdrop-blur-xl rounded-t-2xl md:rounded-xl mx-0 md:mx-0 border-0 md:border md:border-white/10"
+                            : "bg-transparent md:bg-black/20 md:backdrop-blur-xl rounded-t-2xl md:rounded-xl mx-0 md:mx-4 border-0 md:border md:border-white/10"
                         }`}
                     >
-                        <CardContent className="p-0 flex-1 flex flex-col h-full overflow-hidden relative">
+                        {/* ÁREA DE CONTENIDO (FLEX-1 = Ocupa todo el espacio restante) */}
+                        <CardContent className="p-0 flex-1 flex flex-col min-h-0 relative">
                           <div className="flex-1 overflow-hidden h-full flex flex-col">
                              {renderCurrentStep()}
                           </div>
                         </CardContent>
 
-                        {/* FOOTER DE NAVEGACIÓN */}
+                        {/* FOOTER DE NAVEGACIÓN (Fijo al fondo de la tarjeta) */}
                         {!isSelectingPurpose && (
-                           <div className="flex-shrink-0 px-4 py-3 md:py-5 z-20 bg-gradient-to-t from-black/80 via-black/60 to-transparent backdrop-blur-sm border-t border-white/5">
+                           <div className="flex-shrink-0 px-4 py-3 md:py-4 z-20 bg-gradient-to-t from-black/90 via-black/70 to-transparent backdrop-blur-md border-t border-white/5">
                                <div className="flex justify-between items-center gap-4">
                                    
                                    <Button 
@@ -378,29 +369,29 @@ export function PodcastCreationForm() {
                                      variant="ghost" 
                                      onClick={goBack} 
                                      disabled={isSubmitting || isGeneratingScript}
-                                     className="text-white/60 hover:text-white hover:bg-white/10 transition-colors h-10 px-3"
+                                     className="text-white/60 hover:text-white hover:bg-white/10 transition-colors h-9 px-3 text-xs"
                                    >
-                                       <ChevronLeft className="mr-1 h-4 w-4" /> Atrás
+                                       <ChevronLeft className="mr-1 h-3 w-3" /> Atrás
                                    </Button>
 
                                    <div className="flex-1 flex justify-end">
                                        {currentFlowState === 'LINK_POINTS_INPUT' ? (
-                                           <Button type="button" onClick={handleNextTransition} disabled={isLoadingNarratives} className="bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/30 rounded-full px-5 h-10 text-sm">
-                                               {isLoadingNarratives ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Wand2 className="mr-2 h-4 w-4" />}
+                                           <Button type="button" onClick={handleNextTransition} disabled={isLoadingNarratives} className="bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/30 rounded-full px-5 h-9 text-xs font-semibold">
+                                               {isLoadingNarratives ? <Loader2 className="mr-2 h-3 w-3 animate-spin"/> : <Wand2 className="mr-2 h-3 w-3" />}
                                                Generar
                                            </Button>
                                        ) : currentFlowState === 'DETAILS_STEP' ? (
-                                           <Button type="button" onClick={handleNextTransition} disabled={isGeneratingScript} className="bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-500/30 rounded-full px-5 h-10 text-sm transition-all active:scale-95">
-                                               {isGeneratingScript ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Escribiendo...</> : <><FileText className="mr-2 h-4 w-4" /> Crear Borrador</>}
+                                           <Button type="button" onClick={handleNextTransition} disabled={isGeneratingScript} className="bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-500/30 rounded-full px-5 h-9 text-xs font-semibold transition-all active:scale-95">
+                                               {isGeneratingScript ? <><Loader2 className="mr-2 h-3 w-3 animate-spin" /> Escribiendo...</> : <><FileText className="mr-2 h-3 w-3" /> Crear Borrador</>}
                                            </Button>
                                        ) : isFinalStep ? (
-                                           <Button type="button" onClick={handleSubmit(handleFinalSubmit)} disabled={isSubmitting} className="bg-gradient-to-r from-fuchsia-600 to-purple-600 hover:from-fuchsia-500 hover:to-purple-500 text-white shadow-lg shadow-fuchsia-500/30 rounded-full px-6 h-10 text-sm transition-all active:scale-95">
-                                               {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
+                                           <Button type="button" onClick={handleSubmit(handleFinalSubmit)} disabled={isSubmitting} className="bg-gradient-to-r from-fuchsia-600 to-purple-600 hover:from-fuchsia-500 hover:to-purple-500 text-white shadow-lg shadow-fuchsia-500/30 rounded-full px-6 h-9 text-xs font-semibold transition-all active:scale-95">
+                                               {isSubmitting ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Wand2 className="mr-2 h-3 w-3" />}
                                                Producir
                                            </Button>
                                        ) : (
-                                           <Button type="button" onClick={handleNextTransition} className="bg-white text-black hover:bg-white/90 shadow-lg rounded-full px-6 font-semibold transition-transform active:scale-95 h-10 text-sm">
-                                               Siguiente <ChevronRight className="ml-1 h-4 w-4" />
+                                           <Button type="button" onClick={handleNextTransition} className="bg-white text-black hover:bg-white/90 shadow-lg rounded-full px-5 h-9 text-xs font-semibold transition-transform active:scale-95">
+                                               Siguiente <ChevronRight className="ml-1 h-3 w-3" />
                                            </Button>
                                        )}
                                    </div>
