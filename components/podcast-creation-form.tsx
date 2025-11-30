@@ -392,7 +392,7 @@ export function PodcastCreationForm() {
                                                Producir
                                            </Button>
                                        ) : (
-                                           <Button type="button" onClick={handleNextTransition} className="bg-foreground text-background hover:bg-foreground/90 shadow-md rounded-full px-5 h-10 text-xs font-semibold transition-transform active:scale-95">
+                                           <Button type="button" onClick={handleNextTransition} className="bg-foreground text-white dark:text-black hover:bg-foreground/90 shadow-md rounded-full px-5 h-10 text-xs font-semibold transition-transform active:scale-95">
                                                Siguiente <ChevronRight className="ml-1 h-3 w-3" />
                                            </Button>
                                        )}
