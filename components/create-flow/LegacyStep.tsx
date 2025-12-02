@@ -1,11 +1,12 @@
-//  components/create-flow/LegacyStep.tsx
+// components/create-flow/LegacyStep.tsx
+// VERSIÓN FINAL ESTANDARIZADA: Coherencia visual con SoloTalk y QuestionStep.
+
 "use client";
 
 import { useFormContext } from "react-hook-form";
 import { PodcastCreationData } from "@/lib/validation/podcast-schema";
-import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
-import { PenSquare } from "lucide-react";
 import { VoiceInput } from "@/components/ui/voice-input";
 
 export function LegacyStep() {
@@ -18,32 +19,41 @@ export function LegacyStep() {
   };
 
   return (
-    <div className="flex flex-col h-full animate-fade-in">
-      <div className="text-center mb-6">
-        <div className="inline-flex items-center justify-center w-12 h-12 bg-primary/10 rounded-full mb-3">
-          <PenSquare className="h-6 w-6 text-primary" />
-        </div>
-        <h2 className="text-2xl font-bold">Deja tu Legado</h2>
-        <p className="text-muted-foreground">¿Qué sabiduría quieres preservar? Captura una experiencia o lección importante.</p>
+    <div className="flex flex-col h-full w-full animate-fade-in px-2 md:px-6 pb-2">
+      
+      {/* CABECERA COMPACTA Y ADAPTATIVA */}
+      <div className="flex-shrink-0 py-1 md:py-4 text-center">
+        <h2 className="text-lg md:text-2xl font-bold tracking-tight text-foreground drop-shadow-sm md:drop-shadow-none">
+          Deja tu Legado
+        </h2>
+        <p className="text-[10px] md:text-sm text-muted-foreground font-medium mt-0.5 md:mt-1">
+          ¿Qué sabiduría quieres preservar hoy?
+        </p>
       </div>
-      <div className="flex-grow">
+
+      {/* ÁREA DE ESCRITURA: Patrón "Glass Surface" Adaptativo */}
+      <div className="flex-grow flex flex-col min-h-0 relative rounded-xl overflow-hidden bg-white/50 dark:bg-black/20 border border-black/5 dark:border-white/10 backdrop-blur-md shadow-sm">
         <FormField
           control={control}
           name="legacy_lesson"
           render={({ field }) => (
-            <FormItem>
-              <div className="flex justify-between items-center mb-2">
-                  <FormLabel>Describe la lección de vida o experiencia:</FormLabel>
-                  <VoiceInput onTextGenerated={handleVoiceInput} placeholder="Narrar historia" />
-              </div>
+            <FormItem className="flex-1 flex flex-col h-full space-y-0">
+              
               <FormControl>
                 <Textarea
-                  placeholder="Ej: Aprendí que la vulnerabilidad no es una debilidad... (Usa el micrófono para contar tu historia)"
-                  className="resize-none min-h-[200px]"
+                  placeholder="Ej: Aprendí que la vulnerabilidad no es una debilidad..."
+                  // Texto grande y adaptable
+                  className="flex-1 w-full h-full resize-none border-0 focus-visible:ring-0 text-base md:text-xl leading-relaxed p-4 md:p-6 bg-transparent text-foreground placeholder:text-muted-foreground/50 scrollbar-hide"
                   {...field}
                 />
               </FormControl>
-              <FormMessage />
+              
+              {/* BOTONERA INTEGRADA */}
+              <div className="flex-shrink-0 p-3 md:p-4 bg-gradient-to-t from-white/80 via-white/40 dark:from-black/40 dark:via-black/20 to-transparent border-t border-black/5 dark:border-white/5 backdrop-blur-sm">
+                 <VoiceInput onTextGenerated={handleVoiceInput} className="w-full" />
+                 <FormMessage className="mt-1 text-center text-[10px] text-red-500 dark:text-red-400" />
+              </div>
+
             </FormItem>
           )}
         />
