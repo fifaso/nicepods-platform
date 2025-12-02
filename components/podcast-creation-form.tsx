@@ -1,5 +1,5 @@
 // components/podcast-creation-form.tsx
-// VERSIÓN MAESTRA FINAL: Safe Areas ajustadas (Header/Footer) y Cero Scroll garantizado.
+// VERSIÓN FINAL: Interfaz pulida, cero scroll y contraste optimizado.
 
 "use client";
 
@@ -308,19 +308,13 @@ export function PodcastCreationForm() {
       <FormProvider {...formMethods}>
         <form onSubmit={(e) => e.preventDefault()} className="h-full w-full overflow-hidden">
             
-            {/* 
-               ESTRATEGIA "SAFE AREA" SUPERIOR:
-               - pt-16 (4rem) no era suficiente porque el navbar mide aprox 4.5rem + margen.
-               - Cambiamos a 'pt-24' (6rem) en móvil y 'md:pt-28' (7rem) en desktop.
-               - Esto empuja todo el contenedor hacia abajo, limpiando el menú superior.
-               - Ajustamos h-[100dvh] para que el contenedor ocupe toda la pantalla base.
-            */}
+            {/* ESTRUCTURA FLEXBOX PURA */}
             <div 
-                className={`fixed inset-0 w-full flex flex-col bg-transparent transition-all duration-300 pt-24 md:pt-28 ${currentPodcast ? 'pb-24' : 'pb-4'}`}
-                style={{ zIndex: 0 }}
+                className={`flex flex-col flex-grow w-full bg-transparent overflow-hidden transition-all duration-300 ${currentPodcast ? 'pb-24' : 'pb-0'}`}
+                style={{ height: 'calc(100dvh - 4rem)' }}
             >
                 
-                <div className="w-full max-w-4xl mx-auto flex flex-col flex-grow h-full overflow-hidden relative md:px-4">
+                <div className="w-full max-w-4xl mx-auto flex flex-col flex-grow h-full overflow-hidden relative md:px-4 py-2 md:py-4">
                     
                     {/* HEADER DE PROGRESO */}
                     {!isSelectingPurpose && (
@@ -348,11 +342,11 @@ export function PodcastCreationForm() {
                       </div>
                     )}
 
-                    {/* TARJETA PRINCIPAL */}
+                    {/* TARJETA PRINCIPAL: Ajuste sutil de opacidad para Light Mode */}
                     <Card className={`flex-1 flex flex-col overflow-hidden relative transition-all duration-500 border-0 shadow-none
                         ${isSelectingPurpose 
                             ? "bg-transparent rounded-none" 
-                            : "bg-white/60 dark:bg-black/40 backdrop-blur-xl rounded-t-2xl md:rounded-xl mx-0 md:mx-0 border-0 md:border border-white/20 dark:border-white/10 shadow-lg"
+                            : "bg-white/70 dark:bg-black/40 backdrop-blur-xl rounded-t-2xl md:rounded-xl mx-0 md:mx-0 border-0 md:border border-white/20 dark:border-white/10 shadow-lg"
                         }`}
                     >
                         <CardContent className="p-0 flex-1 flex flex-col h-full overflow-hidden relative">
@@ -361,7 +355,7 @@ export function PodcastCreationForm() {
                           </div>
                         </CardContent>
 
-                        {/* FOOTER DE NAVEGACIÓN (Padding Inferior Aumentado pb-4 md:pb-6) */}
+                        {/* FOOTER DE NAVEGACIÓN */}
                         {!isSelectingPurpose && (
                            <div className="flex-shrink-0 px-4 py-4 md:py-6 z-20 bg-gradient-to-t from-white/90 via-white/60 dark:from-black/90 dark:via-black/60 to-transparent backdrop-blur-md border-t border-border/10">
                                <div className="flex justify-between items-center gap-4">
@@ -392,7 +386,12 @@ export function PodcastCreationForm() {
                                                Producir
                                            </Button>
                                        ) : (
-                                           <Button type="button" onClick={handleNextTransition} className="bg-foreground text-white dark:text-black hover:bg-foreground/90 shadow-md rounded-full px-5 h-10 text-xs font-semibold transition-transform active:scale-95">
+                                           <Button 
+                                              type="button" 
+                                              onClick={handleNextTransition} 
+                                              // FIX: Forzamos texto blanco/negro para máximo contraste en botones sólidos
+                                              className="bg-foreground text-white dark:text-black hover:bg-foreground/90 shadow-md rounded-full px-5 h-10 text-xs font-semibold transition-transform active:scale-95"
+                                           >
                                                Siguiente <ChevronRight className="ml-1 h-3 w-3" />
                                            </Button>
                                        )}
