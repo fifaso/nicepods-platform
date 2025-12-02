@@ -1,5 +1,5 @@
 // next.config.mjs
-// VERSIÓN CORREGIDA: Autorización de dominios externos para optimización de imágenes.
+// VERSIÓN AHORRO VERCEL: Desactiva transformaciones de imagen (usamos imágenes ya optimizadas en origen).
 
 import withPWA from 'next-pwa';
 import defaultRuntimeCaching from 'next-pwa/cache.js';
@@ -13,25 +13,28 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   images: {
-    // [SOLUCIÓN DEL ERROR 400]: Lista blanca de dominios permitidos para optimización.
+    // [CAMBIO ESTRATÉGICO]: Activamos unoptimized.
+    // Al tener ya las imágenes optimizadas en el backend (JPEG ligeros),
+    // no necesitamos gastar cuota de "Image Transformations" de Vercel.
+    unoptimized: true, 
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: '**.supabase.co', // Tus carátulas y audios
+        hostname: '**.supabase.co',
       },
       {
         protocol: 'https',
-        hostname: 'lh3.googleusercontent.com', // Avatares de Google Auth
+        hostname: 'lh3.googleusercontent.com',
       },
       {
         protocol: 'https',
-        hostname: 'avatars.githubusercontent.com', // Avatares de GitHub Auth (Prevención)
+        hostname: 'avatars.githubusercontent.com',
       },
     ],
   },
 };
 
-// Configuración PWA (Sin cambios, sigue funcionando perfecto)
+// Configuración PWA
 const pwaConfig = {
   dest: 'public',
   register: true,
