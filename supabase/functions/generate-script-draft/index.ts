@@ -1,5 +1,6 @@
 // supabase/functions/generate-script-draft/index.ts
 // CEREBRO SÍNCRONO: Genera el borrador del guion y el título sugerido para el editor.
+// VERSIÓN ROBUSTA: Implementa extracción de JSON por límites para ignorar ruido de Markdown.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -9,21 +10,30 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const GOOGLE_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY")!;
 
-// Usamos el Service Role para leer los prompts de la base de datos (que pueden ser privados/admin)
 const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_KEY);
 
 const MODEL_NAME = "gemini-2.5-flash"; 
 const API_VERSION = "v1beta";
 
-// UTILIDAD: Limpiador de JSON (Vital para respuestas de IA)
-function cleanJsonString(text: string): string {
-  // Elimina bloques de markdown ```json ... ``` si existen
-  let clean = text.replace(/```json\s*/g, "").replace(/```\s*$/g, "");
-  // Elimina posibles espacios en blanco al inicio/final
-  return clean.trim();
+// [MEJORA ESTRATÉGICA]: Extractor de JSON quirúrgico.
+// En lugar de limpiar, busca matemáticamente dónde empieza y termina el objeto.
+function extractJsonFromResponse(text: string): string {
+  // 1. Buscar la primera llave '{'
+  const firstBrace = text.indexOf('{');
+  // 2. Buscar la última llave '}'
+  const lastBrace = text.lastIndexOf('}');
+
+  // Si encontramos ambas y están en orden lógico
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    // Extraemos exactamente el contenido del objeto, ignorando markdown o texto extra
+    return text.substring(firstBrace, lastBrace + 1);
+  }
+
+  // Fallback: Si no hay llaves, devolvemos el texto original (probablemente fallará, pero es el último recurso)
+  return text.trim();
 }
 
-// UTILIDAD: Constructor de Contexto (Normaliza inputs dispares en un solo texto)
+// UTILIDAD: Constructor de Contexto
 function buildRawContext(purpose: string, inputs: any): string {
   switch (purpose) {
     case 'explore':
@@ -37,7 +47,6 @@ function buildRawContext(purpose: string, inputs: any): string {
     case 'learn':
     case 'freestyle':
     default:
-      // Caso base: combina tema y motivación
       const topic = inputs.solo_topic || inputs.topic || '';
       const motivation = inputs.solo_motivation || inputs.motivation || '';
       return `Tema: ${topic}. Detalles/Motivación: ${motivation}`;
@@ -45,13 +54,12 @@ function buildRawContext(purpose: string, inputs: any): string {
 }
 
 serve(async (request) => {
-  // 1. CORS
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    // 2. SEGURIDAD: Verificar Usuario
+    // 2. SEGURIDAD
     const authHeader = request.headers.get('Authorization');
     if (!authHeader) throw new Error("Falta cabecera de autorización.");
     
@@ -62,12 +70,11 @@ serve(async (request) => {
     
     if (authError || !user) throw new Error("Usuario no autenticado.");
 
-    // 3. RATE LIMITING (Protección de API)
-    // Usamos la misma función SQL pero con un límite separado para generación de guiones
+    // 3. RATE LIMITING
     const { data: allowed } = await supabaseAdmin.rpc('check_rate_limit', {
       p_user_id: user.id,
       p_function_name: 'generate-script-draft',
-      p_limit: 10, // 10 borradores por minuto es generoso y seguro
+      p_limit: 10, 
       p_window_seconds: 60
     });
 
@@ -77,25 +84,22 @@ serve(async (request) => {
       });
     }
 
-    // 4. PREPARACIÓN DE DATOS
+    // 4. PREPARACIÓN
     const { purpose, style, duration, depth, raw_inputs } = await request.json();
-
-    // Normalizar la "Materia Prima" en un solo string coherente
     const normalizedRawText = buildRawContext(purpose, raw_inputs);
 
-    // 5. OBTENER EL CEREBRO (Prompt desde DB)
+    // 5. OBTENER PROMPT
     const { data: promptData, error: promptError } = await supabaseAdmin
       .from('ai_prompts')
       .select('prompt_template')
-      .eq('agent_name', 'script-architect-v1') // El agente que creamos en SQL
+      .eq('agent_name', 'script-architect-v1')
       .single();
 
     if (promptError || !promptData) {
-      console.error("Error DB Prompt:", promptError);
       throw new Error("El agente 'script-architect-v1' no está configurado en la base de datos.");
     }
 
-    // 6. INYECCIÓN DE VARIABLES
+    // 6. INYECCIÓN
     let finalPrompt = promptData.prompt_template
       .replace('{{raw_text}}', normalizedRawText)
       .replace('{{duration}}', duration)
@@ -121,28 +125,29 @@ serve(async (request) => {
       throw new Error(`Gemini API Error: ${errorTxt}`);
     }
 
-    // 8. PROCESAMIENTO DE RESPUESTA
+    // 8. PROCESAMIENTO DE RESPUESTA (ROBUSTO)
     const result = await response.json();
     const rawOutput = result.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!rawOutput) throw new Error("La IA no generó contenido.");
 
-    // Limpieza y Parseo del JSON
-    const cleanOutput = cleanJsonString(rawOutput);
+    // [CAMBIO QUIRÚRGICO]: Usamos la nueva función de extracción
+    const cleanOutput = extractJsonFromResponse(rawOutput);
+    
     let draftJson;
     try {
       draftJson = JSON.parse(cleanOutput);
     } catch (e) {
-      console.error("JSON Parse Error. Raw:", rawOutput);
+      // Logueamos el rawOutput original para entender por qué falló la extracción/parseo
+      console.error("JSON Parse Error. Extracted string was:", cleanOutput);
+      console.error("Original Raw Output:", rawOutput);
       throw new Error("La IA generó un formato inválido. Por favor intenta de nuevo.");
     }
 
-    // Validación básica de estructura
     if (!draftJson.suggested_title || !draftJson.script_body) {
         throw new Error("La respuesta de la IA está incompleta (falta título o cuerpo).");
     }
 
-    // 9. RESPUESTA AL FRONTEND
     return new Response(
       JSON.stringify({ 
         success: true, 
