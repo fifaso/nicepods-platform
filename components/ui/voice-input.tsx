@@ -1,5 +1,5 @@
 // components/ui/voice-input.tsx
-// VERSIÓN FINAL PREMIUM: Botones estilo "Cápsula" coherentes con el Dashboard.
+// VERSIÓN FINAL CONTRASTE: Botones legibles en cualquier modo (Light/Dark).
 
 "use client";
 
@@ -23,7 +23,6 @@ export function VoiceInput({ onTextGenerated, className }: VoiceInputProps) {
   const { toast } = useToast();
   const supabase = createClient();
 
-  // --- AUDIO FEEDBACK (Sin cambios lógicos) ---
   const playTone = (type: 'start' | 'end' | 'error') => {
     try {
       const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
@@ -125,9 +124,12 @@ export function VoiceInput({ onTextGenerated, className }: VoiceInputProps) {
       <div className={cn("w-full", className)}>
         <Button
             type="button"
-            className="w-full h-12 rounded-full bg-red-500/20 text-red-100 border border-red-500/50 hover:bg-red-500/30 animate-pulse font-medium tracking-wide shadow-lg shadow-red-900/20 transition-all"
+            // CAMBIO: Fondo rojo sólido (destructive) para garantizar visibilidad en cualquier modo
+            variant="destructive"
+            size="lg"
             onClick={status === 'processing' ? undefined : stopRecording}
             disabled={status === 'processing'}
+            className="w-full h-12 rounded-full font-medium shadow-lg animate-pulse transition-all"
         >
             {status === 'processing' ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <StopCircle className="h-5 w-5 mr-2 fill-current" />}
             {status === 'processing' ? "Procesando..." : "Detener Grabación"}
@@ -140,24 +142,28 @@ export function VoiceInput({ onTextGenerated, className }: VoiceInputProps) {
   return (
     <div className={cn("grid grid-cols-2 gap-3 w-full", className)}>
       
-      {/* Botón 1: Idea Mágica (Principal - Violeta/Brand) */}
+      {/* Botón 1: Idea Mágica (Principal - Violeta Brand) 
+          Se mantiene igual porque el violeta funciona bien en ambos modos.
+      */}
       <Button
         type="button"
         onClick={() => startRecording('clarify')}
-        className="h-12 rounded-full bg-[#6d28d9] hover:bg-[#5b21b6] text-white border border-white/10 shadow-lg shadow-purple-900/30 transition-transform active:scale-95 group"
+        className="h-12 rounded-full bg-[#6d28d9] hover:bg-[#5b21b6] text-white font-medium shadow-lg shadow-purple-900/20 border-0 transition-transform active:scale-95 group"
       >
         <Sparkles className="h-5 w-5 mr-2 group-hover:text-yellow-200 transition-colors" />
-        <span className="font-medium">Idea Mágica</span>
+        <span>Idea Mágica</span>
       </Button>
 
-      {/* Botón 2: Dictar (Secundario - Glass/Dark) */}
+      {/* Botón 2: Dictar (Secundario - Adaptativo Light/Dark) 
+          CAMBIO: Usamos 'bg-secondary' y 'text-secondary-foreground' para contraste automático.
+      */}
       <Button
         type="button"
         onClick={() => startRecording('fast')}
-        className="h-12 rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/10 transition-transform active:scale-95"
+        className="h-12 rounded-full bg-secondary/80 hover:bg-secondary text-secondary-foreground font-medium border border-border/50 shadow-sm transition-transform active:scale-95"
       >
-        <Zap className="h-5 w-5 mr-2 text-amber-400" />
-        <span className="font-medium">Dictar</span>
+        <Zap className="h-5 w-5 mr-2 text-amber-500" />
+        <span>Dictar</span>
       </Button>
     </div>
   );
