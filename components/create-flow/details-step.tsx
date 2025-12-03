@@ -34,17 +34,17 @@ const depthOptions = [
   { 
     value: "Superficial", 
     label: "Básico", 
-    description: "Visión general rápida, ideal para introducciones o resúmenes ejecutivos." 
+    description: "Visión general, introducciones o resúmenes ejecutivos." 
   },
   { 
     value: "Intermedia", 
     label: "Medio", 
-    description: "Exploración equilibrada con ejemplos y contexto relevante." 
+    description: "Exploración con ejemplos y contexto relevante." 
   },
   { 
     value: "Profunda", 
     label: "Profundo", 
-    description: "Análisis exhaustivo, matices complejos y múltiples perspectivas." 
+    description: "Análisis exhaustivo, matices y múltiples perspectivas." 
   },
 ];
 

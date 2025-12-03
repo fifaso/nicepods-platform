@@ -1,6 +1,5 @@
 // supabase/functions/generate-script-draft/index.ts
-// CEREBRO SÍNCRONO: Genera el borrador del guion y el título sugerido para el editor.
-// VERSIÓN ROBUSTA: Implementa extracción de JSON por límites para ignorar ruido de Markdown.
+// CEREBRO SÍNCRONO ROBUSTO: Incluye lógica de reintento automático (Self-Healing) ante errores de JSON.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -14,26 +13,19 @@ const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_KEY);
 
 const MODEL_NAME = "gemini-2.5-flash"; 
 const API_VERSION = "v1beta";
+const MAX_RETRIES = 2; // Intentará hasta 2 veces si la IA falla el formato
 
-// [MEJORA ESTRATÉGICA]: Extractor de JSON quirúrgico.
-// En lugar de limpiar, busca matemáticamente dónde empieza y termina el objeto.
+// Extractor quirúrgico
 function extractJsonFromResponse(text: string): string {
-  // 1. Buscar la primera llave '{'
   const firstBrace = text.indexOf('{');
-  // 2. Buscar la última llave '}'
   const lastBrace = text.lastIndexOf('}');
-
-  // Si encontramos ambas y están en orden lógico
   if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-    // Extraemos exactamente el contenido del objeto, ignorando markdown o texto extra
     return text.substring(firstBrace, lastBrace + 1);
   }
-
-  // Fallback: Si no hay llaves, devolvemos el texto original (probablemente fallará, pero es el último recurso)
   return text.trim();
 }
 
-// UTILIDAD: Constructor de Contexto
+// Constructor de Contexto
 function buildRawContext(purpose: string, inputs: any): string {
   switch (purpose) {
     case 'explore':
@@ -59,7 +51,7 @@ serve(async (request) => {
   }
 
   try {
-    // 2. SEGURIDAD
+    // --- SEGURIDAD Y RATE LIMITING ---
     const authHeader = request.headers.get('Authorization');
     if (!authHeader) throw new Error("Falta cabecera de autorización.");
     
@@ -67,10 +59,8 @@ serve(async (request) => {
       global: { headers: { Authorization: authHeader } }
     });
     const { data: { user }, error: authError } = await supabaseUserClient.auth.getUser();
-    
     if (authError || !user) throw new Error("Usuario no autenticado.");
 
-    // 3. RATE LIMITING
     const { data: allowed } = await supabaseAdmin.rpc('check_rate_limit', {
       p_user_id: user.id,
       p_function_name: 'generate-script-draft',
@@ -83,78 +73,77 @@ serve(async (request) => {
         status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       });
     }
+    // ---------------------------------
 
-    // 4. PREPARACIÓN
     const { purpose, style, duration, depth, raw_inputs } = await request.json();
     const normalizedRawText = buildRawContext(purpose, raw_inputs);
 
-    // 5. OBTENER PROMPT
     const { data: promptData, error: promptError } = await supabaseAdmin
       .from('ai_prompts')
       .select('prompt_template')
       .eq('agent_name', 'script-architect-v1')
       .single();
 
-    if (promptError || !promptData) {
-      throw new Error("El agente 'script-architect-v1' no está configurado en la base de datos.");
-    }
+    if (promptError || !promptData) throw new Error("Agente 'script-architect-v1' no configurado.");
 
-    // 6. INYECCIÓN
-    let finalPrompt = promptData.prompt_template
+    let basePrompt = promptData.prompt_template
       .replace('{{raw_text}}', normalizedRawText)
       .replace('{{duration}}', duration)
       .replace('{{depth}}', depth)
       .replace('{{style}}', style || 'Estándar')
       .replace('{{archetype}}', raw_inputs.archetype || 'N/A');
 
-    // 7. LLAMADA A GEMINI
-    const apiUrl = `https://generativelanguage.googleapis.com/${API_VERSION}/models/${MODEL_NAME}:generateContent?key=${GOOGLE_API_KEY}`;
-
-    console.log(`Generando borrador con ${MODEL_NAME} para usuario ${user.id}...`);
-
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: finalPrompt }] }]
-      }),
-    });
-
-    if (!response.ok) {
-      const errorTxt = await response.text();
-      throw new Error(`Gemini API Error: ${errorTxt}`);
-    }
-
-    // 8. PROCESAMIENTO DE RESPUESTA (ROBUSTO)
-    const result = await response.json();
-    const rawOutput = result.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!rawOutput) throw new Error("La IA no generó contenido.");
-
-    // [CAMBIO QUIRÚRGICO]: Usamos la nueva función de extracción
-    const cleanOutput = extractJsonFromResponse(rawOutput);
+    // --- BUCLE DE INTENTOS (SELF-HEALING) ---
+    let lastError = null;
     
-    let draftJson;
-    try {
-      draftJson = JSON.parse(cleanOutput);
-    } catch (e) {
-      // Logueamos el rawOutput original para entender por qué falló la extracción/parseo
-      console.error("JSON Parse Error. Extracted string was:", cleanOutput);
-      console.error("Original Raw Output:", rawOutput);
-      throw new Error("La IA generó un formato inválido. Por favor intenta de nuevo.");
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        console.log(`Intento ${attempt}/${MAX_RETRIES} con ${MODEL_NAME}...`);
+        
+        // Si es un reintento, añadimos una instrucción de corrección fuerte al prompt
+        const currentPrompt = attempt > 1 
+            ? basePrompt + "\n\nIMPORTANTE: Tu respuesta anterior falló. Asegúrate de devolver UNICAMENTE un JSON válido. Escapa correctamente los saltos de línea."
+            : basePrompt;
+
+        const apiUrl = `https://generativelanguage.googleapis.com/${API_VERSION}/models/${MODEL_NAME}:generateContent?key=${GOOGLE_API_KEY}`;
+
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: currentPrompt }] }] }),
+        });
+
+        if (!response.ok) {
+          const errorTxt = await response.text();
+          throw new Error(`Gemini API Error: ${errorTxt}`);
+        }
+
+        const result = await response.json();
+        const rawOutput = result.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!rawOutput) throw new Error("La IA no generó contenido.");
+
+        const cleanOutput = extractJsonFromResponse(rawOutput);
+        const draftJson = JSON.parse(cleanOutput);
+
+        if (!draftJson.suggested_title || !draftJson.script_body) {
+            throw new Error("JSON incompleto.");
+        }
+
+        // ÉXITO
+        return new Response(
+          JSON.stringify({ success: true, draft: draftJson }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+
+      } catch (e) {
+        console.error(`Fallo intento ${attempt}:`, e);
+        lastError = e;
+        // Si falló, el bucle continuará al siguiente intento
+      }
     }
 
-    if (!draftJson.suggested_title || !draftJson.script_body) {
-        throw new Error("La respuesta de la IA está incompleta (falta título o cuerpo).");
-    }
-
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        draft: draftJson 
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    // Si salimos del bucle, es que fallaron todos los intentos
+    throw lastError || new Error("Fallaron todos los intentos de generación.");
 
   } catch (error) {
     console.error("Critical Error in generate-script-draft:", error);
