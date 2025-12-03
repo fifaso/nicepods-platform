@@ -1,5 +1,5 @@
 // components/create-flow/details-step.tsx
-// VERSIÓN FINAL, SIMPLIFICADA Y CONSISTENTE
+// VERSIÓN FINAL ADAPTATIVA: Grid Responsivo, Estética Glass y Cero Scroll.
 
 "use client";
 
@@ -9,8 +9,6 @@ import { AgentOption } from "@/lib/agent-config";
 import { cn } from "@/lib/utils";
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { CardDescription, CardTitle } from "@/components/ui/card";
 
 const durationOptions = [
   { value: "Corta", label: "Corta", description: "1-2 min" },
@@ -19,9 +17,9 @@ const durationOptions = [
 ];
 
 const depthOptions = [
-  { value: "Superficial", label: "Superficial", description: "Introducción clara." },
-  { value: "Intermedia", label: "Intermedia", description: "Explora matices." },
-  { value: "Profunda", label: "Profunda", description: "Análisis exhaustivo." },
+  { value: "Superficial", label: "Básico", description: "Intro clara." },
+  { value: "Intermedia", label: "Medio", description: "Matices." },
+  { value: "Profunda", label: "Profundo", description: "Análisis." },
 ];
 
 interface DetailsStepProps {
@@ -32,84 +30,142 @@ export function DetailsStep({ agents }: DetailsStepProps) {
   const { control } = useFormContext<PodcastCreationData>();
 
   return (
-    <div className="space-y-8 animate-fade-in">
-      <div className="text-center">
-        <h2 className="text-2xl font-bold text-foreground">Detalles Finales</h2>
-        <p className="text-muted-foreground">Ajusta los últimos parámetros clave para tu guion.</p>
+    // CONTENEDOR PRINCIPAL: 
+    // - h-full y justify-center para centrar verticalmente en escritorio.
+    // - overflow-y-auto para permitir scroll interno en móviles pequeños si es necesario.
+    <div className="flex flex-col h-full w-full justify-center animate-fade-in px-2 md:px-6 overflow-y-auto scrollbar-hide pb-2">
+      
+      {/* CABECERA */}
+      <div className="text-center mb-4 md:mb-8 flex-shrink-0 w-full">
+        <h2 className="text-xl md:text-3xl font-bold tracking-tight text-foreground drop-shadow-sm">
+          Detalles Finales
+        </h2>
+        <p className="text-xs md:text-sm text-muted-foreground mt-1 font-medium">
+          Ajusta los parámetros clave para tu guion.
+        </p>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-6">
-        {/* Columna 1: Duración */}
+      {/* GRID MAESTRO: 
+          - Móvil: 1 columna (stack vertical).
+          - Escritorio: 3 columnas equidistantes.
+          - gap-4: Espacio limpio.
+      */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-5xl mx-auto">
+        
+        {/* --- SECCIÓN 1: DURACIÓN --- */}
         <FormField
           control={control}
           name="duration"
           render={({ field }) => (
-            <FormItem className="space-y-3">
-              <FormLabel className="text-base font-semibold text-center block">Duración Deseada *</FormLabel>
+            <FormItem className="space-y-2">
+              <FormLabel className="text-sm font-bold text-foreground text-center block uppercase tracking-wider opacity-80">
+                Duración
+              </FormLabel>
               <FormControl>
-                <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-col space-y-3">
-                  {durationOptions.map((option, index) => (
-                    <div key={`duration-${index}`}>
-                      <RadioGroupItem value={option.value} id={`duration-${index}`} className="sr-only" />
-                      <Label htmlFor={`duration-${index}`} className={cn("flex flex-col items-center justify-center p-4 rounded-lg cursor-pointer transition-all duration-200 h-full", "border-2 bg-muted/30 hover:bg-muted/60", field.value === option.value ? "border-primary" : "border-transparent")}>
-                        <CardTitle className="text-sm font-semibold">{option.label}</CardTitle>
-                        <CardDescription className="text-xs">{option.description}</CardDescription>
-                      </Label>
+                <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-col gap-2">
+                  {durationOptions.map((option) => (
+                    <div key={option.value}>
+                      <RadioGroupItem value={option.value} id={`dur-${option.value}`} className="sr-only" />
+                      <label
+                        htmlFor={`dur-${option.value}`}
+                        className={cn(
+                          "flex items-center justify-between px-4 py-3 rounded-xl cursor-pointer transition-all duration-200 border",
+                          // ESTILO ADAPTATIVO (GLASS):
+                          field.value === option.value
+                            ? "bg-primary/10 border-primary/50 ring-1 ring-primary/50 shadow-md"
+                            : "bg-white/40 dark:bg-white/5 border-black/5 dark:border-white/10 hover:bg-white/60 dark:hover:bg-white/10"
+                        )}
+                      >
+                        <span className={cn("text-sm font-bold", field.value === option.value ? "text-primary" : "text-foreground")}>
+                          {option.label}
+                        </span>
+                        <span className="text-xs text-muted-foreground font-medium">
+                          {option.description}
+                        </span>
+                      </label>
                     </div>
                   ))}
                 </RadioGroup>
               </FormControl>
-              <FormMessage className="text-center" />
+              <FormMessage className="text-center text-xs" />
             </FormItem>
           )}
         />
 
-        {/* Columna 2: Profundidad */}
+        {/* --- SECCIÓN 2: PROFUNDIDAD --- */}
         <FormField
           control={control}
           name="narrativeDepth"
           render={({ field }) => (
-            <FormItem className="space-y-3">
-              <FormLabel className="text-base font-semibold text-center block">Profundidad Narrativa *</FormLabel>
+            <FormItem className="space-y-2">
+              <FormLabel className="text-sm font-bold text-foreground text-center block uppercase tracking-wider opacity-80">
+                Profundidad
+              </FormLabel>
               <FormControl>
-                <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-col space-y-2">
-                  {depthOptions.map((option, index) => (
-                    <div key={`depth-${index}`}>
-                      <RadioGroupItem value={option.value} id={`depth-${index}`} className="sr-only" />
-                      <Label htmlFor={`depth-${index}`} className={cn("flex flex-col items-center justify-center p-4 rounded-lg cursor-pointer transition-all duration-200 h-full", "border-2 bg-muted/30 hover:bg-muted/60", field.value === option.value ? "border-primary" : "border-transparent")}>
-                        <CardTitle className="text-sm font-semibold">{option.label}</CardTitle>
-                        <CardDescription className="text-xs text-center">{option.description}</CardDescription>
-                      </Label>
+                <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-col gap-2">
+                  {depthOptions.map((option) => (
+                    <div key={option.value}>
+                      <RadioGroupItem value={option.value} id={`depth-${option.value}`} className="sr-only" />
+                      <label
+                        htmlFor={`depth-${option.value}`}
+                        className={cn(
+                          "flex items-center justify-between px-4 py-3 rounded-xl cursor-pointer transition-all duration-200 border",
+                          field.value === option.value
+                            ? "bg-primary/10 border-primary/50 ring-1 ring-primary/50 shadow-md"
+                            : "bg-white/40 dark:bg-white/5 border-black/5 dark:border-white/10 hover:bg-white/60 dark:hover:bg-white/10"
+                        )}
+                      >
+                        <span className={cn("text-sm font-bold", field.value === option.value ? "text-primary" : "text-foreground")}>
+                          {option.label}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground font-medium max-w-[50%] text-right leading-tight">
+                          {option.description}
+                        </span>
+                      </label>
                     </div>
                   ))}
                 </RadioGroup>
               </FormControl>
-              <FormMessage className="text-center" />
+              <FormMessage className="text-center text-xs" />
             </FormItem>
           )}
         />
         
-        {/* Columna 3: Agente Especializado */}
+        {/* --- SECCIÓN 3: AGENTE --- */}
         <FormField
           control={control}
           name="selectedAgent"
           render={({ field }) => (
-            <FormItem className="space-y-3">
-              <FormLabel className="text-base font-semibold text-center block">Agente Especializado *</FormLabel>
+            <FormItem className="space-y-2">
+              <FormLabel className="text-sm font-bold text-foreground text-center block uppercase tracking-wider opacity-80">
+                Estilo de IA
+              </FormLabel>
               <FormControl>
-                <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-col space-y-2">
+                <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-col gap-2">
                   {agents.map((agent, index) => (
                     <div key={`agent-${index}`}>
                       <RadioGroupItem value={agent.value} id={`agent-${index}`} className="sr-only" />
-                      <Label htmlFor={`agent-${index}`} className={cn("flex flex-col items-center justify-center p-4 rounded-lg cursor-pointer transition-all duration-200 text-center h-full", "border-2 bg-muted/30 hover:bg-muted/60", field.value === agent.value ? "border-primary" : "border-transparent")}>
-                        <CardTitle className="text-sm font-semibold">{agent.label}</CardTitle>
-                        <CardDescription className="text-xs">{agent.description}</CardDescription>
-                      </Label>
+                      <label
+                        htmlFor={`agent-${index}`}
+                        className={cn(
+                          "flex flex-col px-4 py-2.5 rounded-xl cursor-pointer transition-all duration-200 border h-full",
+                          field.value === agent.value
+                            ? "bg-primary/10 border-primary/50 ring-1 ring-primary/50 shadow-md"
+                            : "bg-white/40 dark:bg-white/5 border-black/5 dark:border-white/10 hover:bg-white/60 dark:hover:bg-white/10"
+                        )}
+                      >
+                        <span className={cn("text-sm font-bold mb-0.5", field.value === agent.value ? "text-primary" : "text-foreground")}>
+                          {agent.label}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground leading-tight line-clamp-2">
+                          {agent.description}
+                        </span>
+                      </label>
                     </div>
                   ))}
                 </RadioGroup>
               </FormControl>
-              <FormMessage className="text-center" />
+              <FormMessage className="text-center text-xs" />
             </FormItem>
           )}
         />
