@@ -1,17 +1,16 @@
 // lib/validation/podcast-schema.ts
-// VERSIÓN RE-ARQUITECTADA: Soporte para flujo de Edición de Guion (Drafting -> Editing -> Production).
+// VERSIÓN FINAL: Esquema actualizado para Flujo de Tonos y Edición.
 
 import { z } from 'zod';
 
 export const PodcastCreationSchema = z.object({
-  // Se mantiene 'purpose' como el discriminador principal.
+  // Discriminador Principal
   purpose: z.enum(['learn', 'inspire', 'explore', 'reflect', 'answer', 'freestyle']),
-
-  // El campo 'style' es opcional en la base.
+  
+  // Estilo (Opcional en base, requerido por lógica)
   style: z.enum(['solo', 'link', 'archetype', 'legacy', 'qa']).optional(),
   
-  // Campos de Ingesta (Materia Prima)
-  // Nota: Estos campos ahora actúan como contenedores temporales o inputs de "texto libre".
+  // Inputs de Materia Prima (Texto Libre)
   solo_topic: z.string().optional(),
   solo_motivation: z.string().optional(),
   link_topicA: z.string().optional(),
@@ -22,20 +21,21 @@ export const PodcastCreationSchema = z.object({
   selectedArchetype: z.string().optional(),
   archetype_topic: z.string().optional(),
   archetype_goal: z.string().optional(),
-  
   legacy_lesson: z.string().optional(),
   question_to_answer: z.string().optional(),
 
-  // [CAMBIO QUIRÚRGICO #1]: Nuevos campos para la Fase de Edición.
-  // Estos almacenarán el resultado final aprobado por el usuario (post-IA).
-  final_title: z.string().optional(), // Título editado por el usuario
-  final_script: z.string().optional(), // Cuerpo del guion (Markdown/Texto) editado
+  // Campos de Edición Final (Salida del Editor)
+  final_title: z.string().optional(),
+  final_script: z.string().optional(),
 
-  // Campos comunes de configuración
+  // Configuración Técnica
   duration: z.string().nonempty({ message: "Debes seleccionar una duración." }),
   narrativeDepth: z.string().nonempty({ message: "Debes definir una profundidad." }),
-  selectedAgent: z.string().optional(),
   
+  // [NUEVO]: Tono Creativo (Reemplaza a Agente)
+  selectedTone: z.string().optional(), 
+  
+  // Configuración de Audio
   voiceGender: z.enum(['Masculino', 'Femenino']),
   voiceStyle: z.enum(['Calmado', 'Energético', 'Profesional', 'Inspirador']),
   voicePace: z.enum(['Lento', 'Moderado', 'Rápido']),
@@ -45,40 +45,29 @@ export const PodcastCreationSchema = z.object({
   generateAudioDirectly: z.boolean().optional(),
 })
 .superRefine((data, ctx) => {
-  // La validación asegura que la "Materia Prima" sea suficiente para generar un buen borrador.
+  // Validaciones de contenido mínimo para generar un borrador decente
   switch (data.purpose) {
     case 'learn':
-      if (!data.solo_topic || data.solo_topic.length < 5) ctx.addIssue({ code: 'custom', message: 'El tema debe tener al menos 5 caracteres.', path: ['solo_topic'] });
-      if (!data.solo_motivation || data.solo_motivation.length < 5) ctx.addIssue({ code: 'custom', message: 'La perspectiva debe tener al menos 5 caracteres.', path: ['solo_motivation'] });
-      if (!data.selectedAgent) ctx.addIssue({ code: 'custom', message: 'Debes elegir un agente.', path: ['selectedAgent'] });
+      if (!data.solo_topic || data.solo_topic.length < 3) ctx.addIssue({ code: 'custom', message: 'Falta información del tema.', path: ['solo_topic'] });
+      if (!data.solo_motivation || data.solo_motivation.length < 3) ctx.addIssue({ code: 'custom', message: 'Describe tu idea un poco más.', path: ['solo_motivation'] });
       break;
       
     case 'inspire':
-      if (!data.selectedArchetype) ctx.addIssue({ code: 'custom', message: 'Debes seleccionar un arquetipo.', path: ['selectedArchetype'] });
-      if (!data.archetype_topic || data.archetype_topic.length < 5) ctx.addIssue({ code: 'custom', message: 'El tema debe tener al menos 5 caracteres.', path: ['archetype_topic'] });
-      if (!data.archetype_goal || data.archetype_goal.length < 5) ctx.addIssue({ code: 'custom', message: 'El objetivo debe tener al menos 5 caracteres.', path: ['archetype_goal'] });
+      if (!data.selectedArchetype) ctx.addIssue({ code: 'custom', message: 'Selecciona un arquetipo.', path: ['selectedArchetype'] });
+      if (!data.archetype_goal || data.archetype_goal.length < 3) ctx.addIssue({ code: 'custom', message: 'Describe el objetivo.', path: ['archetype_goal'] });
       break;
       
     case 'explore':
-      if (!data.link_topicA || data.link_topicA.length < 3) ctx.addIssue({ code: 'custom', message: 'El Tema A es requerido.', path: ['link_topicA'] });
-      if (!data.link_topicB || data.link_topicB.length < 3) ctx.addIssue({ code: 'custom', message: 'El Tema B es requerido.', path: ['link_topicB'] });
-      if (!data.link_selectedNarrative) ctx.addIssue({ code: 'custom', message: 'Debes seleccionar una narrativa.', path: ['link_selectedNarrative'] });
-      if (!data.link_selectedTone) ctx.addIssue({ code: 'custom', message: 'Debes seleccionar un tono.', path: ['link_selectedTone'] });
-      if (!data.selectedAgent) ctx.addIssue({ code: 'custom', message: 'Debes elegir un agente.', path: ['selectedAgent'] });
+      if (!data.link_topicA) ctx.addIssue({ code: 'custom', message: 'Falta el Tema A.', path: ['link_topicA'] });
+      if (!data.link_topicB) ctx.addIssue({ code: 'custom', message: 'Falta el Tema B.', path: ['link_topicB'] });
       break;
 
     case 'reflect':
-      if (!data.legacy_lesson || data.legacy_lesson.length < 10) ctx.addIssue({ code: 'custom', message: 'La lección debe tener al menos 10 caracteres.', path: ['legacy_lesson'] });
-      if (!data.selectedAgent) ctx.addIssue({ code: 'custom', message: 'Debes elegir un agente.', path: ['selectedAgent'] });
+      if (!data.legacy_lesson || data.legacy_lesson.length < 5) ctx.addIssue({ code: 'custom', message: 'La lección es muy breve.', path: ['legacy_lesson'] });
       break;
 
     case 'answer':
-      if (!data.question_to_answer || data.question_to_answer.length < 10) ctx.addIssue({ code: 'custom', message: 'La pregunta debe tener al menos 10 caracteres.', path: ['question_to_answer'] });
-      if (!data.selectedAgent) ctx.addIssue({ code: 'custom', message: 'Debes elegir un agente.', path: ['selectedAgent'] });
-      break;
-    
-    case 'freestyle':
-      if (!data.style) ctx.addIssue({ code: 'custom', message: 'Debes seleccionar un estilo creativo.', path: ['style'] });
+      if (!data.question_to_answer || data.question_to_answer.length < 5) ctx.addIssue({ code: 'custom', message: 'La pregunta es muy breve.', path: ['question_to_answer'] });
       break;
   }
 });

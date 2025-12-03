@@ -1,16 +1,15 @@
 // components/podcast-creation-form.tsx
-// VERSIÓN FINAL "FIXED VIEWPORT": Posicionamiento absoluto para garantizar cero scroll global.
+// VERSIÓN PRODUCCIÓN: Errores de Tipos corregidos + Layout "Cero Scroll" intacto.
 
 "use client";
 
-import { useState, useCallback, createContext, useContext } from "react";
+import { useState, useCallback, createContext, useContext, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { useForm, FormProvider, SubmitHandler, FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PodcastCreationSchema, PodcastCreationData } from "@/lib/validation/podcast-schema";
-import { soloTalkAgents, linkPointsAgents } from "@/lib/agent-config";
 import { useAudio } from "@/contexts/audio-context";
 
 import { Progress } from "@/components/ui/progress";
@@ -33,6 +32,7 @@ import { FinalStep } from "./create-flow/final-step";
 import { ArchetypeStep } from "./create-flow/archetype-step";
 import { AudioStudio } from "./create-flow/audio-studio";
 import { ScriptEditorStep } from "./create-flow/script-editor-step";
+import { ToneSelectionStep } from "./create-flow/tone-selection-step";
 
 export interface NarrativeOption { 
   title: string; 
@@ -45,6 +45,7 @@ export type FlowState =
   | 'LINK_POINTS_INPUT' | 'NARRATIVE_SELECTION'
   | 'LEGACY_INPUT' | 'QUESTION_INPUT' | 'FREESTYLE_SELECTION'
   | 'DETAILS_STEP' 
+  | 'TONE_SELECTION'
   | 'SCRIPT_EDITING' 
   | 'AUDIO_STUDIO_STEP' | 'FINAL_STEP';
 
@@ -68,12 +69,19 @@ export function PodcastCreationForm() {
   const { supabase, user } = useAuth();
   const { currentPodcast } = useAudio();
   
+  // Estado para hidratación segura
+  const [isMounted, setIsMounted] = useState(false);
+  
   const [currentFlowState, setCurrentFlowState] = useState<FlowState>('SELECTING_PURPOSE');
   const [history, setHistory] = useState<FlowState[]>(['SELECTING_PURPOSE']);
   
   const [isGeneratingScript, setIsGeneratingScript] = useState(false);
   const [isLoadingNarratives, setIsLoadingNarratives] = useState(false);
   const [narrativeOptions, setNarrativeOptions] = useState<NarrativeOption[]>([]);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const formMethods = useForm<PodcastCreationData>({
     resolver: zodResolver(PodcastCreationSchema),
@@ -95,7 +103,7 @@ export function PodcastCreationForm() {
       question_to_answer: '',
       duration: '',
       narrativeDepth: '',
-      selectedAgent: undefined,
+      selectedTone: undefined,
       voiceGender: "Masculino",
       voiceStyle: "Calmado",
       voicePace: "Moderado",
@@ -140,6 +148,9 @@ export function PodcastCreationForm() {
         style: currentData.style,
         duration: currentData.duration,
         depth: currentData.narrativeDepth,
+        // Usamos el arquetipo como tono si es 'inspire', si no, el tono seleccionado
+        tone: currentData.purpose === 'inspire' ? currentData.selectedArchetype : currentData.selectedTone,
+        
         raw_inputs: {
           solo_topic: currentData.solo_topic,
           solo_motivation: currentData.solo_motivation,
@@ -192,11 +203,26 @@ export function PodcastCreationForm() {
         break;
       case 'LEGACY_INPUT': fieldsToValidate = ['legacy_lesson']; nextState = 'DETAILS_STEP'; break;
       case 'QUESTION_INPUT': fieldsToValidate = ['question_to_answer']; nextState = 'DETAILS_STEP'; break;
+      
       case 'DETAILS_STEP': 
-        const isDetailsValid = await trigger(['duration', 'narrativeDepth', 'selectedAgent']);
-        if (isDetailsValid) await handleGenerateDraft();
-        else toast({ title: "Configuración incompleta", description: "Selecciona duración y profundidad.", variant: "destructive" });
+        const isDetailsValid = await trigger(['duration', 'narrativeDepth']);
+        if (isDetailsValid) {
+           if (formData.purpose === 'inspire') {
+               await handleGenerateDraft();
+           } else {
+               transitionTo('TONE_SELECTION');
+           }
+        } else {
+           toast({ title: "Falta información", description: "Selecciona duración y profundidad.", variant: "destructive" });
+        }
         return;
+
+      case 'TONE_SELECTION':
+        const isToneValid = await trigger(['selectedTone']);
+        if (isToneValid) await handleGenerateDraft();
+        else toast({ title: "Falta información", description: "Selecciona un tono.", variant: "destructive" });
+        return;
+
       case 'SCRIPT_EDITING': fieldsToValidate = ['final_title', 'final_script']; nextState = 'AUDIO_STUDIO_STEP'; break;
       case 'AUDIO_STUDIO_STEP': fieldsToValidate = ['voiceGender', 'voiceStyle', 'voicePace', 'speakingRate']; nextState = 'FINAL_STEP'; break;
     }
@@ -251,10 +277,15 @@ export function PodcastCreationForm() {
         case 'answer': jobInputs = { topic: formData.question_to_answer, motivation: "Respuesta" }; break;
     }
     
+    // [CORRECCIÓN #1]: Determinamos el agente/tono correcto aquí
+    const determinedAgent = formData.purpose === 'inspire' 
+        ? formData.selectedArchetype 
+        : formData.selectedTone;
+
     const payload = {
       purpose: formData.purpose,
       style: formData.style,
-      agentName: formData.selectedAgent,
+      agentName: determinedAgent, // Enviamos el tono como 'agentName' para el backend
       final_script: formData.final_script,
       final_title: formData.final_title,
       inputs: { ...jobInputs, duration: formData.duration, depth: formData.narrativeDepth, tags: formData.tags, generateAudioDirectly: formData.generateAudioDirectly, voiceGender: formData.voiceGender, voiceStyle: formData.voiceStyle, voicePace: formData.voicePace, speakingRate: formData.speakingRate },
@@ -279,7 +310,9 @@ export function PodcastCreationForm() {
       case 'LINK_POINTS_INPUT': return <LinkPointsStep />;
       case 'NARRATIVE_SELECTION': return <NarrativeSelectionStep narrativeOptions={narrativeOptions} />;
       case 'FREESTYLE_SELECTION': return <StyleSelectionStep />;
-      case 'DETAILS_STEP': return <DetailsStep agents={formData.purpose === 'explore' ? linkPointsAgents : soloTalkAgents} />;
+      // [CORRECCIÓN #2]: Eliminado el prop 'agents' que ya no existe en DetailsStep
+      case 'DETAILS_STEP': return <DetailsStep />; 
+      case 'TONE_SELECTION': return <ToneSelectionStep />;
       case 'SCRIPT_EDITING': return <ScriptEditorStep />;
       case 'AUDIO_STUDIO_STEP': return <AudioStudio />;
       case 'FINAL_STEP': return <FinalStep />;
@@ -288,11 +321,11 @@ export function PodcastCreationForm() {
   };
 
   const flowPaths: Record<string, FlowState[]> = {
-    learn: ['SELECTING_PURPOSE', 'LEARN_SUB_SELECTION', 'SOLO_TALK_INPUT', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
+    learn: ['SELECTING_PURPOSE', 'LEARN_SUB_SELECTION', 'SOLO_TALK_INPUT', 'DETAILS_STEP', 'TONE_SELECTION', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
     inspire: ['SELECTING_PURPOSE', 'INSPIRE_SUB_SELECTION', 'ARCHETYPE_INPUT', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    explore: ['SELECTING_PURPOSE', 'LINK_POINTS_INPUT', 'NARRATIVE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    reflect: ['SELECTING_PURPOSE', 'LEGACY_INPUT', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    answer: ['SELECTING_PURPOSE', 'QUESTION_INPUT', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
+    explore: ['SELECTING_PURPOSE', 'LINK_POINTS_INPUT', 'NARRATIVE_SELECTION', 'DETAILS_STEP', 'TONE_SELECTION', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
+    reflect: ['SELECTING_PURPOSE', 'LEGACY_INPUT', 'DETAILS_STEP', 'TONE_SELECTION', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
+    answer: ['SELECTING_PURPOSE', 'QUESTION_INPUT', 'DETAILS_STEP', 'TONE_SELECTION', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
     freestyle: ['SELECTING_PURPOSE', 'FREESTYLE_SELECTION'],
   };
   
@@ -303,26 +336,20 @@ export function PodcastCreationForm() {
   const isFinalStep = currentFlowState === 'FINAL_STEP';
   const isSelectingPurpose = currentFlowState === 'SELECTING_PURPOSE';
 
+  const playerPadding = isMounted && currentPodcast ? 'pb-24' : 'pb-4';
+
   return (
     <CreationContext.Provider value={{ updateFormData, transitionTo, goBack }}>
       <FormProvider {...formMethods}>
         <form onSubmit={(e) => e.preventDefault()} className="h-full w-full overflow-hidden">
             
-            {/* 
-               ESTRATEGIA "FIXED FULL SCREEN":
-               1. fixed inset-0: Ocupa toda la pantalla, ignorando el flujo normal.
-               2. pt-24: Padding top agresivo para esquivar el menú superior y el "notch".
-               3. pb: Padding bottom dinámico para el reproductor.
-               4. z-0: Se queda detrás de elementos modales, pero por encima del fondo base.
-            */}
             <div 
-                className={`fixed inset-0 w-full flex flex-col bg-transparent transition-all duration-300 pt-24 md:pt-28 ${currentPodcast ? 'pb-24' : 'pb-0'}`}
+                className={`fixed inset-0 w-full flex flex-col bg-transparent transition-all duration-300 pt-24 md:pt-28 ${playerPadding}`}
                 style={{ zIndex: 0 }}
             >
                 
-                <div className="w-full max-w-4xl mx-auto flex flex-col flex-grow h-full overflow-hidden relative md:px-4 py-2">
+                <div className="w-full max-w-4xl mx-auto flex flex-col flex-grow h-full overflow-hidden relative md:px-4 py-0 md:py-4">
                     
-                    {/* HEADER DE PROGRESO */}
                     {!isSelectingPurpose && (
                       <div className="flex-shrink-0 px-4 py-1 z-20 mb-2">
                         <div className="flex justify-between items-end mb-1.5">
@@ -348,11 +375,10 @@ export function PodcastCreationForm() {
                       </div>
                     )}
 
-                    {/* TARJETA PRINCIPAL */}
                     <Card className={`flex-1 flex flex-col overflow-hidden relative transition-all duration-500 border-0 shadow-none
                         ${isSelectingPurpose 
                             ? "bg-transparent rounded-none" 
-                            : "bg-white/70 dark:bg-black/40 backdrop-blur-xl rounded-t-2xl md:rounded-xl mx-0 md:mx-0 border-0 md:border border-white/20 dark:border-white/10 shadow-lg"
+                            : "bg-white/60 dark:bg-black/40 backdrop-blur-xl rounded-t-2xl md:rounded-xl mx-0 md:mx-0 border-0 md:border border-white/20 dark:border-white/10 shadow-lg"
                         }`}
                     >
                         <CardContent className="p-0 flex-1 flex flex-col h-full overflow-hidden relative">
@@ -361,32 +387,31 @@ export function PodcastCreationForm() {
                           </div>
                         </CardContent>
 
-                        {/* FOOTER */}
                         {!isSelectingPurpose && (
-                           <div className="flex-shrink-0 px-4 py-4 z-20 bg-gradient-to-t from-white/95 via-white/80 dark:from-black/95 dark:via-black/80 to-transparent backdrop-blur-md border-t border-white/10 dark:border-white/5">
+                           <div className="flex-shrink-0 px-4 py-4 md:py-6 z-20 bg-gradient-to-t from-white/90 via-white/60 dark:from-black/90 dark:via-black/60 to-transparent backdrop-blur-md border-t border-border/10">
                                <div className="flex justify-between items-center gap-4">
                                    <Button 
                                      type="button" 
                                      variant="ghost" 
                                      onClick={goBack} 
                                      disabled={isSubmitting || isGeneratingScript}
-                                     className="text-muted-foreground hover:text-foreground hover:bg-secondary/20 transition-colors h-9 px-3 text-xs"
+                                     className="text-muted-foreground hover:text-foreground hover:bg-secondary/20 transition-colors h-10 px-3 text-xs"
                                    >
                                        <ChevronLeft className="mr-1 h-3 w-3" /> Atrás
                                    </Button>
 
                                    <div className="flex-1 flex justify-end">
                                        {currentFlowState === 'LINK_POINTS_INPUT' ? (
-                                           <Button type="button" onClick={handleNextTransition} disabled={isLoadingNarratives} className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md rounded-full px-5 h-9 text-xs font-semibold">
+                                           <Button type="button" onClick={handleNextTransition} disabled={isLoadingNarratives} className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md rounded-full px-5 h-10 text-xs font-semibold">
                                                {isLoadingNarratives ? <Loader2 className="mr-2 h-3 w-3 animate-spin"/> : <Wand2 className="mr-2 h-3 w-3" />}
                                                Generar
                                            </Button>
                                        ) : currentFlowState === 'DETAILS_STEP' ? (
-                                           <Button type="button" onClick={handleNextTransition} disabled={isGeneratingScript} className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md rounded-full px-5 h-9 text-xs font-semibold transition-all active:scale-95">
+                                           <Button type="button" onClick={handleNextTransition} disabled={isGeneratingScript} className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md rounded-full px-5 h-10 text-xs font-semibold transition-all active:scale-95">
                                                {isGeneratingScript ? <><Loader2 className="mr-2 h-3 w-3 animate-spin" /> Escribiendo...</> : <><FileText className="mr-2 h-3 w-3" /> Crear Borrador</>}
                                            </Button>
                                        ) : isFinalStep ? (
-                                           <Button type="button" onClick={handleSubmit(handleFinalSubmit)} disabled={isSubmitting} className="bg-primary text-primary-foreground shadow-md rounded-full px-6 h-9 text-xs font-semibold transition-all active:scale-95">
+                                           <Button type="button" onClick={handleSubmit(handleFinalSubmit)} disabled={isSubmitting} className="bg-primary text-primary-foreground shadow-md rounded-full px-6 h-10 text-xs font-semibold transition-all active:scale-95">
                                                {isSubmitting ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Wand2 className="mr-2 h-3 w-3" />}
                                                Producir
                                            </Button>
@@ -394,7 +419,7 @@ export function PodcastCreationForm() {
                                            <Button 
                                               type="button" 
                                               onClick={handleNextTransition} 
-                                              className="bg-foreground text-white dark:text-black hover:bg-foreground/90 shadow-md rounded-full px-5 h-9 text-xs font-semibold transition-transform active:scale-95"
+                                              className="bg-foreground text-white dark:text-black hover:bg-foreground/90 shadow-md rounded-full px-5 h-10 text-xs font-semibold transition-transform active:scale-95"
                                            >
                                                Siguiente <ChevronRight className="ml-1 h-3 w-3" />
                                            </Button>
