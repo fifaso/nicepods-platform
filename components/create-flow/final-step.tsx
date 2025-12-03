@@ -1,154 +1,123 @@
 // components/create-flow/final-step.tsx
-// VERSIÓN FINAL COMPLETA CON TODOS LOS RESÚMENES Y EL NUEVO SWITCH
+// VERSIÓN FINAL: Resumen Ejecutivo "Ticket Style", Cero Scroll y Data Real (Final Title).
 
 "use client";
 
 import { useFormContext } from "react-hook-form";
 import { PodcastCreationData } from "@/lib/validation/podcast-schema";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { FormControl, FormField, FormItem } from "@/components/ui/form";
-import { Link2, Mic, Clock, BrainCircuit, Theater, Palette } from "lucide-react";
+import { Clock, BrainCircuit, Sparkles, Mic2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export function FinalStep() {
   const { control, watch } = useFormContext<PodcastCreationData>();
   const formData = watch();
 
+  // Mapeo de etiquetas para mostrar nombres bonitos
+  const toneLabel = formData.purpose === 'inspire' ? formData.selectedArchetype : formData.selectedTone;
+  const purposeLabel = {
+      learn: "Lección",
+      inspire: "Historia",
+      explore: "Exploración",
+      reflect: "Reflexión",
+      answer: "Respuesta",
+      freestyle: "Freestyle"
+  }[formData.purpose] || "Podcast";
+
   return (
-    <div className="flex flex-col space-y-6 animate-fade-in">
-      <div className="text-center">
-        <h2 className="text-2xl font-bold">Confirma tu Creación</h2>
-        <p className="text-muted-foreground">Revisa los detalles finales antes de enviar tu idea a la IA.</p>
+    <div className="flex flex-col h-full w-full justify-center animate-fade-in px-2 md:px-6 overflow-y-auto scrollbar-hide pb-2">
+      
+      {/* CABECERA */}
+      <div className="text-center mb-4 md:mb-6 flex-shrink-0 w-full">
+        <h2 className="text-xl md:text-3xl font-bold tracking-tight text-foreground drop-shadow-sm">
+          Confirma tu Creación
+        </h2>
+        <p className="text-xs md:text-sm text-muted-foreground mt-1 font-medium">
+          Todo listo para producir. Revisa los detalles finales.
+        </p>
       </div>
 
-      <Card className="bg-background/50 w-full max-w-lg mx-auto">
-        <CardHeader>
-          <CardTitle>Resumen de tu Micro-Podcast</CardTitle>
-          <CardDescription>Esta será la base para la generación del guion.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Separator />
-          
-          {formData.style === 'solo' && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center text-muted-foreground font-medium">
-                  <Mic className="h-4 w-4 mr-2" />
-                  <span>Estilo</span>
-                </div>
-                <Badge variant="secondary">Monólogo</Badge>
-              </div>
-              <Separator />
-              <div className="flex flex-col space-y-1">
-                <span className="text-sm text-muted-foreground">Tema Principal</span>
-                <p className="font-semibold text-primary">{formData.solo_topic || "No especificado"}</p>
-              </div>
-              <div className="flex flex-col space-y-1">
-                <span className="text-sm text-muted-foreground">Concepto a Explorar</span>
-                <p className="text-sm italic leading-relaxed">"{formData.solo_motivation || "No especificado"}"</p>
-              </div>
-            </div>
-          )}
+      {/* TARJETA RESUMEN "TICKET" */}
+      <div className="w-full max-w-2xl mx-auto bg-white/60 dark:bg-black/20 border border-black/5 dark:border-white/10 rounded-2xl overflow-hidden backdrop-blur-md shadow-lg flex flex-col">
+        
+        {/* SECCIÓN 1: TÍTULO HEROICO (Lo más importante) */}
+        <div className="p-6 md:p-8 border-b border-black/5 dark:border-white/5 text-center bg-gradient-to-b from-white/50 to-transparent dark:from-white/5">
+            <span className="inline-block px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-widest mb-3 border border-primary/20">
+                {purposeLabel}
+            </span>
+            <h3 className="text-2xl md:text-4xl font-black text-foreground leading-tight tracking-tight">
+                {formData.final_title || "Sin Título Definido"}
+            </h3>
+            <p className="text-xs md:text-sm text-muted-foreground mt-3 italic opacity-80 max-w-md mx-auto">
+                "Guion validado y listo para locución"
+            </p>
+        </div>
 
-          {formData.style === 'link' && (
-             <div className="space-y-4">
-               <div className="flex justify-between items-center">
-                <div className="flex items-center text-muted-foreground font-medium">
-                  <Link2 className="h-4 w-4 mr-2" />
-                  <span>Estilo</span>
-                </div>
-                <Badge variant="secondary">Unir Ideas</Badge>
-              </div>
-              <Separator />
-               <div className="flex flex-col space-y-1">
-                <span className="text-sm text-muted-foreground">Narrativa Seleccionada</span>
-                {formData.link_selectedNarrative ? (
-                  <div className="mt-1 p-3 bg-muted rounded-md border">
-                    <p className="font-semibold text-primary">{formData.link_selectedNarrative.title}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{formData.link_selectedNarrative.thesis}</p>
-                  </div>
-                ) : (
-                  <p className="text-sm text-destructive-foreground">No seleccionada</p>
+        {/* SECCIÓN 2: GRID DE DETALLES TÉCNICOS */}
+        <div className="grid grid-cols-2 gap-px bg-black/5 dark:bg-white/5">
+            
+            {/* Duración */}
+            <div className="bg-white/40 dark:bg-[#1a1a1a] p-4 flex flex-col items-center justify-center text-center group">
+                <Clock className="h-5 w-5 text-blue-500 mb-2 group-hover:scale-110 transition-transform" />
+                <span className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider">Duración</span>
+                <span className="text-sm font-semibold text-foreground mt-0.5">{formData.duration}</span>
+            </div>
+
+            {/* Profundidad */}
+            <div className="bg-white/40 dark:bg-[#1a1a1a] p-4 flex flex-col items-center justify-center text-center group">
+                <BrainCircuit className="h-5 w-5 text-purple-500 mb-2 group-hover:scale-110 transition-transform" />
+                <span className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider">Nivel</span>
+                <span className="text-sm font-semibold text-foreground mt-0.5">{formData.narrativeDepth}</span>
+            </div>
+
+            {/* Tono / Arquetipo */}
+            <div className="bg-white/40 dark:bg-[#1a1a1a] p-4 flex flex-col items-center justify-center text-center group">
+                <Sparkles className="h-5 w-5 text-amber-500 mb-2 group-hover:scale-110 transition-transform" />
+                <span className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider">Tono</span>
+                <span className="text-sm font-semibold text-foreground mt-0.5 capitalize">
+                    {toneLabel?.replace('archetype-', '') || "Estándar"}
+                </span>
+            </div>
+
+            {/* Voz */}
+            <div className="bg-white/40 dark:bg-[#1a1a1a] p-4 flex flex-col items-center justify-center text-center group">
+                <Mic2 className="h-5 w-5 text-pink-500 mb-2 group-hover:scale-110 transition-transform" />
+                <span className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider">Voz</span>
+                <span className="text-sm font-semibold text-foreground mt-0.5">
+                    {formData.voiceGender} / {formData.voiceStyle}
+                </span>
+            </div>
+        </div>
+
+        {/* SECCIÓN 3: SWITCH DE AUDIO */}
+        <div className="p-5 bg-white/40 dark:bg-black/20 border-t border-black/5 dark:border-white/5">
+            <FormField
+                control={control}
+                name="generateAudioDirectly"
+                render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-xl border border-primary/20 bg-primary/5 p-3 shadow-sm">
+                    <div className="space-y-0.5 pl-1">
+                    <Label htmlFor="generate-audio-switch" className="text-sm font-bold text-primary">Generar Audio Automáticamente</Label>
+                    <p className="text-[10px] text-muted-foreground">
+                        Creará el archivo MP3 inmediatamente tras guardar.
+                    </p>
+                    </div>
+                    <FormControl>
+                    <Switch
+                        id="generate-audio-switch"
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        className="data-[state=checked]:bg-primary"
+                    />
+                    </FormControl>
+                </FormItem>
                 )}
-              </div>
-               <div className="flex justify-between items-center">
-                <div className="flex items-center text-muted-foreground">
-                  <Palette className="h-4 w-4 mr-2" />
-                  <span>Tono</span>
-                </div>
-                <span className="font-medium">{formData.link_selectedTone || "No especificado"}</span>
-              </div>
-             </div>
-          )}
-          
-          {formData.style === 'archetype' && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center text-muted-foreground font-medium">
-                  <Theater className="h-4 w-4 mr-2" />
-                  <span>Estilo</span>
-                </div>
-                <Badge variant="secondary">Arquetipo</Badge>
-              </div>
-              <Separator />
-              <div className="flex flex-col space-y-1">
-                <span className="text-sm text-muted-foreground">Tema Principal</span>
-                <p className="font-semibold text-primary">{formData.archetype_topic || "No especificado"}</p>
-              </div>
-              <div className="flex flex-col space-y-1">
-                <span className="text-sm text-muted-foreground">Objetivo Final</span>
-                <p className="text-sm italic leading-relaxed">"{formData.archetype_goal || "No especificado"}"</p>
-              </div>
-            </div>
-          )}
-          
-          <Separator />
+            />
+        </div>
 
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center text-muted-foreground">
-                <Clock className="h-4 w-4 mr-2" />
-                <span>Duración Estimada</span>
-              </div>
-              <span className="font-medium">{formData.duration || "No especificada"}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <div className="flex items-center text-muted-foreground">
-                <BrainCircuit className="h-4 w-4 mr-2" />
-                <span>Profundidad Narrativa</span>
-              </div>
-              <span className="font-medium">{formData.narrativeDepth || "No especificada"}</span>
-            </div>
-          </div>
-          
-          <Separator />
-          <FormField
-            control={control}
-            name="generateAudioDirectly"
-            render={({ field }) => (
-              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-muted/30">
-                <div className="space-y-0.5">
-                  <Label htmlFor="generate-audio-switch">Generar Audio Directamente</Label>
-                  <CardDescription className="text-xs">
-                    Crea el guion y el audio en un solo paso.
-                  </CardDescription>
-                </div>
-                <FormControl>
-                  <Switch
-                    id="generate-audio-switch"
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-
-        </CardContent>
-      </Card>
+      </div>
     </div>
   );
 }
