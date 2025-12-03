@@ -1,5 +1,5 @@
 // components/create-flow/final-step.tsx
-// VERSIÓN FINAL: Resumen Ejecutivo "Ticket Style", Cero Scroll y Data Real (Final Title).
+// VERSIÓN FINAL "RECEIPT": Diseño compacto, tipografía ajustada y cero desbordamiento.
 
 "use client";
 
@@ -15,8 +15,11 @@ export function FinalStep() {
   const { control, watch } = useFormContext<PodcastCreationData>();
   const formData = watch();
 
-  // Mapeo de etiquetas para mostrar nombres bonitos
-  const toneLabel = formData.purpose === 'inspire' ? formData.selectedArchetype : formData.selectedTone;
+  // Limpieza de etiquetas
+  const toneLabel = formData.purpose === 'inspire' 
+    ? formData.selectedArchetype?.replace('archetype-', '') 
+    : formData.selectedTone;
+
   const purposeLabel = {
       learn: "Lección",
       inspire: "Historia",
@@ -29,87 +32,71 @@ export function FinalStep() {
   return (
     <div className="flex flex-col h-full w-full justify-center animate-fade-in px-2 md:px-6 overflow-y-auto scrollbar-hide pb-2">
       
-      {/* CABECERA */}
-      <div className="text-center mb-4 md:mb-6 flex-shrink-0 w-full">
+      <div className="text-center mb-4 flex-shrink-0 w-full">
         <h2 className="text-xl md:text-3xl font-bold tracking-tight text-foreground drop-shadow-sm">
-          Confirma tu Creación
+          Confirmar Producción
         </h2>
         <p className="text-xs md:text-sm text-muted-foreground mt-1 font-medium">
-          Todo listo para producir. Revisa los detalles finales.
+          Revisa los detalles finales antes de lanzar.
         </p>
       </div>
 
-      {/* TARJETA RESUMEN "TICKET" */}
-      <div className="w-full max-w-2xl mx-auto bg-white/60 dark:bg-black/20 border border-black/5 dark:border-white/10 rounded-2xl overflow-hidden backdrop-blur-md shadow-lg flex flex-col">
+      {/* TICKET DIGITAL */}
+      <div className="w-full max-w-xl mx-auto bg-white/60 dark:bg-black/20 border border-black/5 dark:border-white/10 rounded-2xl overflow-hidden backdrop-blur-md shadow-lg flex flex-col">
         
-        {/* SECCIÓN 1: TÍTULO HEROICO (Lo más importante) */}
-        <div className="p-6 md:p-8 border-b border-black/5 dark:border-white/5 text-center bg-gradient-to-b from-white/50 to-transparent dark:from-white/5">
-            <span className="inline-block px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-widest mb-3 border border-primary/20">
+        {/* CABECERA DE TICKET (Título) */}
+        <div className="p-6 border-b border-black/5 dark:border-white/5 text-center relative overflow-hidden">
+            {/* Fondo decorativo sutil */}
+            <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none" />
+            
+            <span className="relative inline-flex items-center px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-widest border border-primary/20 mb-3">
                 {purposeLabel}
             </span>
-            <h3 className="text-2xl md:text-4xl font-black text-foreground leading-tight tracking-tight">
-                {formData.final_title || "Sin Título Definido"}
+            
+            {/* Título con ajuste automático de tamaño */}
+            <h3 className="relative text-xl md:text-2xl font-black text-foreground leading-tight tracking-tight line-clamp-3 px-2">
+                {formData.final_title || "Sin Título"}
             </h3>
-            <p className="text-xs md:text-sm text-muted-foreground mt-3 italic opacity-80 max-w-md mx-auto">
-                "Guion validado y listo para locución"
+            
+            <p className="relative text-[10px] md:text-xs text-muted-foreground mt-2 italic">
+                "Guion validado • Listo para locución"
             </p>
         </div>
 
-        {/* SECCIÓN 2: GRID DE DETALLES TÉCNICOS */}
-        <div className="grid grid-cols-2 gap-px bg-black/5 dark:bg-white/5">
-            
-            {/* Duración */}
-            <div className="bg-white/40 dark:bg-[#1a1a1a] p-4 flex flex-col items-center justify-center text-center group">
-                <Clock className="h-5 w-5 text-blue-500 mb-2 group-hover:scale-110 transition-transform" />
-                <span className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider">Duración</span>
-                <span className="text-sm font-semibold text-foreground mt-0.5">{formData.duration}</span>
-            </div>
-
-            {/* Profundidad */}
-            <div className="bg-white/40 dark:bg-[#1a1a1a] p-4 flex flex-col items-center justify-center text-center group">
-                <BrainCircuit className="h-5 w-5 text-purple-500 mb-2 group-hover:scale-110 transition-transform" />
-                <span className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider">Nivel</span>
-                <span className="text-sm font-semibold text-foreground mt-0.5">{formData.narrativeDepth}</span>
-            </div>
-
-            {/* Tono / Arquetipo */}
-            <div className="bg-white/40 dark:bg-[#1a1a1a] p-4 flex flex-col items-center justify-center text-center group">
-                <Sparkles className="h-5 w-5 text-amber-500 mb-2 group-hover:scale-110 transition-transform" />
-                <span className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider">Tono</span>
-                <span className="text-sm font-semibold text-foreground mt-0.5 capitalize">
-                    {toneLabel?.replace('archetype-', '') || "Estándar"}
-                </span>
-            </div>
-
-            {/* Voz */}
-            <div className="bg-white/40 dark:bg-[#1a1a1a] p-4 flex flex-col items-center justify-center text-center group">
-                <Mic2 className="h-5 w-5 text-pink-500 mb-2 group-hover:scale-110 transition-transform" />
-                <span className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider">Voz</span>
-                <span className="text-sm font-semibold text-foreground mt-0.5">
-                    {formData.voiceGender} / {formData.voiceStyle}
-                </span>
-            </div>
+        {/* CUERPO DE TICKET (Metadatos en Fila) */}
+        <div className="grid grid-cols-4 divide-x divide-black/5 dark:divide-white/5 bg-white/40 dark:bg-white/5">
+            {[
+              { icon: Clock, label: "Tiempo", value: formData.duration.split(' ')[0] }, // Solo "Corta/Media/Larga"
+              { icon: BrainCircuit, label: "Nivel", value: formData.narrativeDepth },
+              { icon: Sparkles, label: "Tono", value: toneLabel },
+              { icon: Mic2, label: "Voz", value: formData.voiceGender === "Masculino" ? "Masc." : "Fem." }
+            ].map((item, i) => (
+              <div key={i} className="p-3 flex flex-col items-center justify-center text-center hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
+                  <item.icon className="h-4 w-4 text-primary/70 mb-1" />
+                  <span className="text-[9px] uppercase text-muted-foreground font-bold">{item.label}</span>
+                  <span className="text-xs font-semibold text-foreground capitalize truncate w-full px-1">
+                    {item.value || "-"}
+                  </span>
+              </div>
+            ))}
         </div>
 
-        {/* SECCIÓN 3: SWITCH DE AUDIO */}
-        <div className="p-5 bg-white/40 dark:bg-black/20 border-t border-black/5 dark:border-white/5">
+        {/* PIE DE TICKET (Acción) */}
+        <div className="p-4 bg-black/5 dark:bg-black/20 border-t border-black/5 dark:border-white/5">
             <FormField
                 control={control}
                 name="generateAudioDirectly"
                 render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-xl border border-primary/20 bg-primary/5 p-3 shadow-sm">
-                    <div className="space-y-0.5 pl-1">
-                    <Label htmlFor="generate-audio-switch" className="text-sm font-bold text-primary">Generar Audio Automáticamente</Label>
-                    <p className="text-[10px] text-muted-foreground">
-                        Creará el archivo MP3 inmediatamente tras guardar.
-                    </p>
+                <FormItem className="flex flex-row items-center justify-between bg-background/50 rounded-xl p-3 border border-border/50">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="audio-switch" className="text-sm font-semibold text-foreground cursor-pointer">Generar Audio</Label>
+                      <p className="text-[10px] text-muted-foreground">Crear archivo MP3 automáticamente.</p>
                     </div>
                     <FormControl>
                     <Switch
-                        id="generate-audio-switch"
+                        id="audio-switch"
                         checked={field.value}
                         onCheckedChange={field.onChange}
-                        className="data-[state=checked]:bg-primary"
                     />
                     </FormControl>
                 </FormItem>

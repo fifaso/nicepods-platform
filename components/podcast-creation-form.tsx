@@ -1,5 +1,6 @@
 // components/podcast-creation-form.tsx
-// VERSIÓN PRODUCCIÓN: Errores de Tipos corregidos + Layout "Cero Scroll" intacto.
+// VERSIÓN DE FLUJO OPTIMIZADO: Input -> Tono -> Detalles -> Borrador.
+// Mantiene la arquitectura visual "Cero Scroll".
 
 "use client";
 
@@ -10,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useForm, FormProvider, SubmitHandler, FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PodcastCreationSchema, PodcastCreationData } from "@/lib/validation/podcast-schema";
+import { soloTalkAgents, linkPointsAgents } from "@/lib/agent-config";
 import { useAudio } from "@/contexts/audio-context";
 
 import { Progress } from "@/components/ui/progress";
@@ -69,7 +71,6 @@ export function PodcastCreationForm() {
   const { supabase, user } = useAuth();
   const { currentPodcast } = useAudio();
   
-  // Estado para hidratación segura
   const [isMounted, setIsMounted] = useState(false);
   
   const [currentFlowState, setCurrentFlowState] = useState<FlowState>('SELECTING_PURPOSE');
@@ -119,6 +120,16 @@ export function PodcastCreationForm() {
   const { isSubmitting } = formMethods.formState;
   const formData = watch();
 
+  // --- RUTAS REORDENADAS: Tone Selection ANTES de Details ---
+  const flowPaths: Record<string, FlowState[]> = {
+    learn: ['SELECTING_PURPOSE', 'LEARN_SUB_SELECTION', 'SOLO_TALK_INPUT', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
+    inspire: ['SELECTING_PURPOSE', 'INSPIRE_SUB_SELECTION', 'ARCHETYPE_INPUT', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
+    explore: ['SELECTING_PURPOSE', 'LINK_POINTS_INPUT', 'NARRATIVE_SELECTION', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
+    reflect: ['SELECTING_PURPOSE', 'LEGACY_INPUT', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
+    answer: ['SELECTING_PURPOSE', 'QUESTION_INPUT', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
+    freestyle: ['SELECTING_PURPOSE', 'FREESTYLE_SELECTION'],
+  };
+
   const transitionTo = (state: FlowState) => {
     setHistory(prev => [...prev, state]);
     setCurrentFlowState(state);
@@ -148,7 +159,6 @@ export function PodcastCreationForm() {
         style: currentData.style,
         duration: currentData.duration,
         depth: currentData.narrativeDepth,
-        // Usamos el arquetipo como tono si es 'inspire', si no, el tono seleccionado
         tone: currentData.purpose === 'inspire' ? currentData.selectedArchetype : currentData.selectedTone,
         
         raw_inputs: {
@@ -186,14 +196,29 @@ export function PodcastCreationForm() {
     let nextState: FlowState | null = null;
 
     switch(currentFlowState) {
-      case 'SOLO_TALK_INPUT': fieldsToValidate = ['solo_topic', 'solo_motivation']; nextState = 'DETAILS_STEP'; break;
-      case 'ARCHETYPE_INPUT': fieldsToValidate = ['selectedArchetype', 'archetype_topic', 'archetype_goal']; nextState = 'DETAILS_STEP'; break;
+      // --- FASE 1: INPUTS DE TEXTO -> Pasan a Selección de Tono ---
+      case 'SOLO_TALK_INPUT': 
+        fieldsToValidate = ['solo_topic', 'solo_motivation']; 
+        nextState = 'TONE_SELECTION'; 
+        break;
+      
+      // Excepción: Inspirar (Arquetipo) salta Tono y va directo a Detalles
+      case 'ARCHETYPE_INPUT': 
+        fieldsToValidate = ['selectedArchetype', 'archetype_topic', 'archetype_goal']; 
+        nextState = 'DETAILS_STEP'; 
+        break;
+      
       case 'LINK_POINTS_INPUT':
         const isLinkPointsValid = await trigger(['link_topicA', 'link_topicB']);
         if (isLinkPointsValid) await handleGenerateNarratives();
         else toast({ title: "Falta información", description: "Completa los temas para continuar.", variant: "destructive" });
         return;
-      case 'NARRATIVE_SELECTION': fieldsToValidate = ['link_selectedNarrative', 'link_selectedTone']; nextState = 'DETAILS_STEP'; break;
+      
+      case 'NARRATIVE_SELECTION': 
+        fieldsToValidate = ['link_selectedNarrative', 'link_selectedTone']; 
+        nextState = 'TONE_SELECTION'; 
+        break;
+        
       case 'FREESTYLE_SELECTION':
         const style = getValues('style');
         fieldsToValidate = ['style'];
@@ -201,26 +226,32 @@ export function PodcastCreationForm() {
         else if (style === 'link') nextState = 'LINK_POINTS_INPUT';
         else if (style === 'archetype') nextState = 'ARCHETYPE_INPUT';
         break;
-      case 'LEGACY_INPUT': fieldsToValidate = ['legacy_lesson']; nextState = 'DETAILS_STEP'; break;
-      case 'QUESTION_INPUT': fieldsToValidate = ['question_to_answer']; nextState = 'DETAILS_STEP'; break;
+        
+      case 'LEGACY_INPUT': 
+        fieldsToValidate = ['legacy_lesson']; 
+        nextState = 'TONE_SELECTION'; 
+        break;
+        
+      case 'QUESTION_INPUT': 
+        fieldsToValidate = ['question_to_answer']; 
+        nextState = 'TONE_SELECTION'; 
+        break;
       
+      // --- FASE 2: TONO -> DETALLES ---
+      case 'TONE_SELECTION':
+        fieldsToValidate = ['selectedTone'];
+        nextState = 'DETAILS_STEP';
+        break;
+
+      // --- FASE 3: DETALLES -> GENERAR BORRADOR (Punto de Convergencia) ---
       case 'DETAILS_STEP': 
         const isDetailsValid = await trigger(['duration', 'narrativeDepth']);
         if (isDetailsValid) {
-           if (formData.purpose === 'inspire') {
-               await handleGenerateDraft();
-           } else {
-               transitionTo('TONE_SELECTION');
-           }
+           // Aquí ya tenemos todo: Idea + Tono + Detalles. Generamos.
+           await handleGenerateDraft();
         } else {
-           toast({ title: "Falta información", description: "Selecciona duración y profundidad.", variant: "destructive" });
+           toast({ title: "Configuración incompleta", description: "Selecciona duración y profundidad.", variant: "destructive" });
         }
-        return;
-
-      case 'TONE_SELECTION':
-        const isToneValid = await trigger(['selectedTone']);
-        if (isToneValid) await handleGenerateDraft();
-        else toast({ title: "Falta información", description: "Selecciona un tono.", variant: "destructive" });
         return;
 
       case 'SCRIPT_EDITING': fieldsToValidate = ['final_title', 'final_script']; nextState = 'AUDIO_STUDIO_STEP'; break;
@@ -277,15 +308,10 @@ export function PodcastCreationForm() {
         case 'answer': jobInputs = { topic: formData.question_to_answer, motivation: "Respuesta" }; break;
     }
     
-    // [CORRECCIÓN #1]: Determinamos el agente/tono correcto aquí
-    const determinedAgent = formData.purpose === 'inspire' 
-        ? formData.selectedArchetype 
-        : formData.selectedTone;
-
     const payload = {
       purpose: formData.purpose,
       style: formData.style,
-      agentName: determinedAgent, // Enviamos el tono como 'agentName' para el backend
+      agentName: formData.selectedAgent,
       final_script: formData.final_script,
       final_title: formData.final_title,
       inputs: { ...jobInputs, duration: formData.duration, depth: formData.narrativeDepth, tags: formData.tags, generateAudioDirectly: formData.generateAudioDirectly, voiceGender: formData.voiceGender, voiceStyle: formData.voiceStyle, voicePace: formData.voicePace, speakingRate: formData.speakingRate },
@@ -310,8 +336,7 @@ export function PodcastCreationForm() {
       case 'LINK_POINTS_INPUT': return <LinkPointsStep />;
       case 'NARRATIVE_SELECTION': return <NarrativeSelectionStep narrativeOptions={narrativeOptions} />;
       case 'FREESTYLE_SELECTION': return <StyleSelectionStep />;
-      // [CORRECCIÓN #2]: Eliminado el prop 'agents' que ya no existe en DetailsStep
-      case 'DETAILS_STEP': return <DetailsStep />; 
+      case 'DETAILS_STEP': return <DetailsStep agents={[]} />; 
       case 'TONE_SELECTION': return <ToneSelectionStep />;
       case 'SCRIPT_EDITING': return <ScriptEditorStep />;
       case 'AUDIO_STUDIO_STEP': return <AudioStudio />;
@@ -320,15 +345,6 @@ export function PodcastCreationForm() {
     }
   };
 
-  const flowPaths: Record<string, FlowState[]> = {
-    learn: ['SELECTING_PURPOSE', 'LEARN_SUB_SELECTION', 'SOLO_TALK_INPUT', 'DETAILS_STEP', 'TONE_SELECTION', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    inspire: ['SELECTING_PURPOSE', 'INSPIRE_SUB_SELECTION', 'ARCHETYPE_INPUT', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    explore: ['SELECTING_PURPOSE', 'LINK_POINTS_INPUT', 'NARRATIVE_SELECTION', 'DETAILS_STEP', 'TONE_SELECTION', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    reflect: ['SELECTING_PURPOSE', 'LEGACY_INPUT', 'DETAILS_STEP', 'TONE_SELECTION', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    answer: ['SELECTING_PURPOSE', 'QUESTION_INPUT', 'DETAILS_STEP', 'TONE_SELECTION', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    freestyle: ['SELECTING_PURPOSE', 'FREESTYLE_SELECTION'],
-  };
-  
   const currentPath = flowPaths[formData.purpose] || [];
   const currentStepIndex = history.length;
   const totalPasosEstimados = currentPath.length > 0 ? currentPath.length : 6;
@@ -347,9 +363,7 @@ export function PodcastCreationForm() {
                 className={`fixed inset-0 w-full flex flex-col bg-transparent transition-all duration-300 pt-24 md:pt-28 ${playerPadding}`}
                 style={{ zIndex: 0 }}
             >
-                
                 <div className="w-full max-w-4xl mx-auto flex flex-col flex-grow h-full overflow-hidden relative md:px-4 py-0 md:py-4">
-                    
                     {!isSelectingPurpose && (
                       <div className="flex-shrink-0 px-4 py-1 z-20 mb-2">
                         <div className="flex justify-between items-end mb-1.5">
@@ -365,7 +379,6 @@ export function PodcastCreationForm() {
                              {Math.round(progress)}%
                            </div>
                         </div>
-                        
                         <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden backdrop-blur-sm">
                             <div 
                               className="h-full bg-primary transition-all duration-500 ease-out shadow-[0_0_8px_rgba(168,85,247,0.6)]" 
@@ -388,7 +401,7 @@ export function PodcastCreationForm() {
                         </CardContent>
 
                         {!isSelectingPurpose && (
-                           <div className="flex-shrink-0 px-4 py-4 md:py-6 z-20 bg-gradient-to-t from-white/90 via-white/60 dark:from-black/90 dark:via-black/60 to-transparent backdrop-blur-md border-t border-border/10">
+                           <div className="flex-shrink-0 px-4 py-3 md:py-4 z-20 bg-gradient-to-t from-white/90 via-white/60 dark:from-black/90 dark:via-black/60 to-transparent backdrop-blur-md border-t border-border/10">
                                <div className="flex justify-between items-center gap-4">
                                    <Button 
                                      type="button" 
@@ -407,6 +420,7 @@ export function PodcastCreationForm() {
                                                Generar
                                            </Button>
                                        ) : currentFlowState === 'DETAILS_STEP' ? (
+                                           // BOTÓN FINAL: Generar Borrador (Aquí convergen todos los flujos)
                                            <Button type="button" onClick={handleNextTransition} disabled={isGeneratingScript} className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md rounded-full px-5 h-10 text-xs font-semibold transition-all active:scale-95">
                                                {isGeneratingScript ? <><Loader2 className="mr-2 h-3 w-3 animate-spin" /> Escribiendo...</> : <><FileText className="mr-2 h-3 w-3" /> Crear Borrador</>}
                                            </Button>
