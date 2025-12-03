@@ -1,5 +1,5 @@
 // components/podcast-creation-form.tsx
-// VERSIÓN MAESTRA FINAL: Zero Scroll (dvh), Adaptive Glass (Light/Dark) y Player Aware.
+// VERSIÓN MAESTRA FINAL: Footer Absoluto + Scroll Interno Seguro.
 
 "use client";
 
@@ -287,20 +287,10 @@ export function PodcastCreationForm() {
     }
   };
 
-  const flowPaths: Record<string, FlowState[]> = {
-    learn: ['SELECTING_PURPOSE', 'LEARN_SUB_SELECTION', 'SOLO_TALK_INPUT', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    inspire: ['SELECTING_PURPOSE', 'INSPIRE_SUB_SELECTION', 'ARCHETYPE_INPUT', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    explore: ['SELECTING_PURPOSE', 'LINK_POINTS_INPUT', 'NARRATIVE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    reflect: ['SELECTING_PURPOSE', 'LEGACY_INPUT', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    answer: ['SELECTING_PURPOSE', 'QUESTION_INPUT', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    freestyle: ['SELECTING_PURPOSE', 'FREESTYLE_SELECTION'],
-  };
-  
-  const currentPath = flowPaths[formData.purpose] || [];
   const currentStepIndex = history.length;
+  const currentPath = flowPaths[formData.purpose] || [];
   const totalPasosEstimados = currentPath.length > 0 ? currentPath.length : 6;
   const progress = Math.min((currentStepIndex / totalPasosEstimados) * 100, 100);
-  const isFinalStep = currentFlowState === 'FINAL_STEP';
   const isSelectingPurpose = currentFlowState === 'SELECTING_PURPOSE';
 
   return (
@@ -308,20 +298,13 @@ export function PodcastCreationForm() {
       <FormProvider {...formMethods}>
         <form onSubmit={(e) => e.preventDefault()} className="h-full w-full overflow-hidden">
             
-            {/* 
-               ESTRATEGIA "FIXED VIEWPORT":
-               - h-[100dvh]: Altura real dinámica.
-               - pt-16: Espacio para la navbar.
-               - pb: Dinámico para el player.
-            */}
             <div 
-                className={`fixed inset-0 w-full flex flex-col bg-transparent transition-all duration-300 pt-16 ${currentPodcast ? 'pb-24' : 'pb-4'}`}
-                style={{ zIndex: 0 }}
+                className={`flex flex-col flex-grow w-full bg-transparent overflow-hidden transition-all duration-300 ${currentPodcast ? 'pb-24' : 'pb-0'}`}
+                style={{ height: 'calc(100dvh - 4rem)' }}
             >
                 
                 <div className="w-full max-w-4xl mx-auto flex flex-col flex-grow h-full overflow-hidden relative md:px-4 py-2">
                     
-                    {/* HEADER */}
                     {!isSelectingPurpose && (
                       <div className="flex-shrink-0 px-4 py-1 z-20 mb-2">
                         <div className="flex justify-between items-end mb-1.5">
@@ -350,19 +333,22 @@ export function PodcastCreationForm() {
                     <Card className={`flex-1 flex flex-col overflow-hidden relative transition-all duration-500 border-0 shadow-none
                         ${isSelectingPurpose 
                             ? "bg-transparent rounded-none" 
-                            : "bg-white/60 dark:bg-black/40 backdrop-blur-xl rounded-t-2xl md:rounded-xl mx-0 md:mx-0 border-0 md:border border-white/20 dark:border-white/10 shadow-lg"
+                            : "bg-white/70 dark:bg-black/40 backdrop-blur-xl rounded-t-2xl md:rounded-xl mx-0 md:mx-0 border-0 md:border border-white/20 dark:border-white/10 shadow-lg"
                         }`}
                     >
-                        <CardContent className="p-0 flex-1 flex flex-col h-full overflow-hidden relative">
-                          <div className="flex-1 overflow-hidden h-full flex flex-col">
+                        {/* ÁREA DE CONTENIDO (Con padding bottom para el footer) */}
+                        {/* ESTRATEGIA CLAVE: pb-[80px] para que el contenido scrollee por debajo del footer absoluto */}
+                        <CardContent className={`p-0 flex-1 flex flex-col overflow-hidden relative ${!isSelectingPurpose ? 'pb-[80px]' : ''}`}>
+                          <div className="flex-1 overflow-y-auto scrollbar-hide h-full flex flex-col">
                              {renderCurrentStep()}
                           </div>
                         </CardContent>
 
-                        {/* FOOTER */}
+                        {/* FOOTER ABSOLUTO (Siempre visible abajo) */}
                         {!isSelectingPurpose && (
-                           <div className="flex-shrink-0 px-4 py-3 md:py-4 z-20 bg-gradient-to-t from-white/90 via-white/60 dark:from-black/90 dark:via-black/60 to-transparent backdrop-blur-md border-t border-border/10">
+                           <div className="absolute bottom-0 left-0 w-full px-4 py-4 z-30 bg-gradient-to-t from-white/95 via-white/80 dark:from-black/95 dark:via-black/80 to-transparent backdrop-blur-md border-t border-white/10">
                                <div className="flex justify-between items-center gap-4">
+                                   
                                    <Button 
                                      type="button" 
                                      variant="ghost" 
