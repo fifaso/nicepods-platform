@@ -1,5 +1,5 @@
 // components/podcast-creation-form.tsx
-// VERSIÓN FINAL: Interfaz pulida, cero scroll y contraste optimizado.
+// VERSIÓN MAESTRA FINAL: Zero Scroll (dvh), Adaptive Glass (Light/Dark) y Player Aware.
 
 "use client";
 
@@ -308,15 +308,20 @@ export function PodcastCreationForm() {
       <FormProvider {...formMethods}>
         <form onSubmit={(e) => e.preventDefault()} className="h-full w-full overflow-hidden">
             
-            {/* ESTRUCTURA FLEXBOX PURA */}
+            {/* 
+               ESTRATEGIA "FIXED VIEWPORT":
+               - h-[100dvh]: Altura real dinámica.
+               - pt-16: Espacio para la navbar.
+               - pb: Dinámico para el player.
+            */}
             <div 
-                className={`flex flex-col flex-grow w-full bg-transparent overflow-hidden transition-all duration-300 ${currentPodcast ? 'pb-24' : 'pb-0'}`}
-                style={{ height: 'calc(100dvh - 4rem)' }}
+                className={`fixed inset-0 w-full flex flex-col bg-transparent transition-all duration-300 pt-16 ${currentPodcast ? 'pb-24' : 'pb-4'}`}
+                style={{ zIndex: 0 }}
             >
                 
-                <div className="w-full max-w-4xl mx-auto flex flex-col flex-grow h-full overflow-hidden relative md:px-4 py-2 md:py-4">
+                <div className="w-full max-w-4xl mx-auto flex flex-col flex-grow h-full overflow-hidden relative md:px-4 py-2">
                     
-                    {/* HEADER DE PROGRESO */}
+                    {/* HEADER */}
                     {!isSelectingPurpose && (
                       <div className="flex-shrink-0 px-4 py-1 z-20 mb-2">
                         <div className="flex justify-between items-end mb-1.5">
@@ -332,7 +337,6 @@ export function PodcastCreationForm() {
                              {Math.round(progress)}%
                            </div>
                         </div>
-                        
                         <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden backdrop-blur-sm">
                             <div 
                               className="h-full bg-primary transition-all duration-500 ease-out shadow-[0_0_8px_rgba(168,85,247,0.6)]" 
@@ -342,11 +346,11 @@ export function PodcastCreationForm() {
                       </div>
                     )}
 
-                    {/* TARJETA PRINCIPAL: Ajuste sutil de opacidad para Light Mode */}
+                    {/* TARJETA PRINCIPAL */}
                     <Card className={`flex-1 flex flex-col overflow-hidden relative transition-all duration-500 border-0 shadow-none
                         ${isSelectingPurpose 
                             ? "bg-transparent rounded-none" 
-                            : "bg-white/70 dark:bg-black/40 backdrop-blur-xl rounded-t-2xl md:rounded-xl mx-0 md:mx-0 border-0 md:border border-white/20 dark:border-white/10 shadow-lg"
+                            : "bg-white/60 dark:bg-black/40 backdrop-blur-xl rounded-t-2xl md:rounded-xl mx-0 md:mx-0 border-0 md:border border-white/20 dark:border-white/10 shadow-lg"
                         }`}
                     >
                         <CardContent className="p-0 flex-1 flex flex-col h-full overflow-hidden relative">
@@ -355,11 +359,10 @@ export function PodcastCreationForm() {
                           </div>
                         </CardContent>
 
-                        {/* FOOTER DE NAVEGACIÓN */}
+                        {/* FOOTER */}
                         {!isSelectingPurpose && (
-                           <div className="flex-shrink-0 px-4 py-4 md:py-6 z-20 bg-gradient-to-t from-white/90 via-white/60 dark:from-black/90 dark:via-black/60 to-transparent backdrop-blur-md border-t border-border/10">
+                           <div className="flex-shrink-0 px-4 py-3 md:py-4 z-20 bg-gradient-to-t from-white/90 via-white/60 dark:from-black/90 dark:via-black/60 to-transparent backdrop-blur-md border-t border-border/10">
                                <div className="flex justify-between items-center gap-4">
-                                   
                                    <Button 
                                      type="button" 
                                      variant="ghost" 
@@ -389,7 +392,6 @@ export function PodcastCreationForm() {
                                            <Button 
                                               type="button" 
                                               onClick={handleNextTransition} 
-                                              // FIX: Forzamos texto blanco/negro para máximo contraste en botones sólidos
                                               className="bg-foreground text-white dark:text-black hover:bg-foreground/90 shadow-md rounded-full px-5 h-10 text-xs font-semibold transition-transform active:scale-95"
                                            >
                                                Siguiente <ChevronRight className="ml-1 h-3 w-3" />
@@ -405,5 +407,5 @@ export function PodcastCreationForm() {
         </form>
       </FormProvider>
     </CreationContext.Provider>
-  ); 
+  );
 }
