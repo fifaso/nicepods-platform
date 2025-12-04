@@ -1,38 +1,73 @@
 // lib/validation/podcast-schema.ts
-// VERSIÓN FINAL: Esquema actualizado para Flujo de Tonos y Edición.
+// VERSIÓN SEGURA: Incluye sanitización de inputs (Anti-XSS) y límites de longitud (Anti-DoS).
 
 import { z } from 'zod';
+
+// --- CAPA DE SEGURIDAD ---
+
+// 1. Función de Sanitización: Elimina scripts y HTML malicioso de inputs de texto plano.
+const sanitizeInput = (val: string | undefined) => {
+  if (!val) return undefined;
+  return val
+    .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "") // Elimina scripts
+    .replace(/<[^>]+>/g, "") // Elimina cualquier otra etiqueta HTML (para inputs planos)
+    .trim();
+};
+
+// 2. Definición de String Seguro:
+// - Limita a 5000 caracteres (Protección contra payloads gigantes/DoS)
+// - Aplica sanitización automática
+const safeInputString = z.string()
+  .max(5000, { message: "El texto excede el límite de seguridad (5000 caracteres)." })
+  .transform(sanitizeInput);
+
+// -------------------------
 
 export const PodcastCreationSchema = z.object({
   // Discriminador Principal
   purpose: z.enum(['learn', 'inspire', 'explore', 'reflect', 'answer', 'freestyle']),
   
-  // Estilo (Opcional en base, requerido por lógica)
+  // Estilo
   style: z.enum(['solo', 'link', 'archetype', 'legacy', 'qa']).optional(),
   
-  // Inputs de Materia Prima (Texto Libre)
-  solo_topic: z.string().optional(),
-  solo_motivation: z.string().optional(),
-  link_topicA: z.string().optional(),
-  link_topicB: z.string().optional(),
-  link_catalyst: z.string().optional(),
-  link_selectedNarrative: z.object({ title: z.string(), thesis: z.string() }).nullable().optional(),
+  // --- INPUTS DE MATERIA PRIMA BLINDADOS ---
+  // Aplicamos 'safeInputString' a todos los campos donde el usuario escribe libremente.
+  
+  solo_topic: safeInputString.optional(),
+  solo_motivation: safeInputString.optional(),
+  
+  link_topicA: safeInputString.optional(),
+  link_topicB: safeInputString.optional(),
+  link_catalyst: safeInputString.optional(),
+  
+  link_selectedNarrative: z.object({ 
+    title: safeInputString, // También sanitizamos objetos anidados
+    thesis: safeInputString 
+  }).nullable().optional(),
+  
   link_selectedTone: z.enum(['Educativo', 'Inspirador', 'Analítico']).optional(),
+  
   selectedArchetype: z.string().optional(),
-  archetype_topic: z.string().optional(),
-  archetype_goal: z.string().optional(),
-  legacy_lesson: z.string().optional(),
-  question_to_answer: z.string().optional(),
+  archetype_topic: safeInputString.optional(),
+  archetype_goal: safeInputString.optional(),
+  
+  legacy_lesson: safeInputString.optional(),
+  question_to_answer: safeInputString.optional(),
 
-  // Campos de Edición Final (Salida del Editor)
-  final_title: z.string().optional(),
-  final_script: z.string().optional(),
+  // --- CAMPOS DE EDICIÓN FINAL ---
+  final_title: safeInputString.optional(),
+  
+  // EXCEPCIÓN: final_script puede contener HTML (formato de TipTap), por lo que no usamos
+  // el sanitizador estricto que borra tags, pero SÍ limitamos su tamaño para evitar abusos.
+  final_script: z.string()
+    .max(25000, { message: "El guion es demasiado largo para ser procesado." })
+    .optional(),
 
   // Configuración Técnica
   duration: z.string().nonempty({ message: "Debes seleccionar una duración." }),
   narrativeDepth: z.string().nonempty({ message: "Debes definir una profundidad." }),
   
-  // [NUEVO]: Tono Creativo (Reemplaza a Agente)
+  // Tono Creativo
   selectedTone: z.string().optional(), 
   
   // Configuración de Audio
@@ -41,11 +76,12 @@ export const PodcastCreationSchema = z.object({
   voicePace: z.enum(['Lento', 'Moderado', 'Rápido']),
   speakingRate: z.number(),
 
-  tags: z.array(z.string()).optional(),
+  // Tags también sanitizados
+  tags: z.array(safeInputString).optional(),
   generateAudioDirectly: z.boolean().optional(),
 })
 .superRefine((data, ctx) => {
-  // Validaciones de contenido mínimo para generar un borrador decente
+  // Validaciones de contenido mínimo (Reglas de Negocio)
   switch (data.purpose) {
     case 'learn':
       if (!data.solo_topic || data.solo_topic.length < 3) ctx.addIssue({ code: 'custom', message: 'Falta información del tema.', path: ['solo_topic'] });
