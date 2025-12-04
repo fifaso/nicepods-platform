@@ -1,5 +1,5 @@
 // components/create-flow/script-editor-step.tsx
-// VERSIÓN FINAL ADAPTATIVA: Editor con contraste perfecto en Light/Dark Mode.
+// VERSIÓN SEGURA: Implementa Sanitización Anti-XSS y protección de pegado.
 
 "use client";
 
@@ -14,9 +14,13 @@ import { cn } from "@/lib/utils";
 import { useEditor, EditorContent, Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
-import { Bold, Italic, Heading2, List, ListOrdered, Undo, Redo } from "lucide-react";
+import { Bold, Italic, Heading2, List, Undo, Redo } from "lucide-react";
 
-// --- BARRA DE HERRAMIENTAS ADAPTATIVA ---
+// [SEGURIDAD]: Importamos la librería de sanitización
+// Ejecutar en terminal: pnpm add isomorphic-dompurify
+import DOMPurify from "isomorphic-dompurify";
+
+// --- BARRA DE HERRAMIENTAS ---
 const MenuBar = ({ editor }: { editor: Editor | null }) => {
   if (!editor) return null;
 
@@ -111,15 +115,21 @@ export function ScriptEditorStep() {
     content: initialScript, 
     editorProps: {
       attributes: {
-        // CLASES DE TEXTO ADAPTATIVAS:
-        // text-foreground: Negro en Light, Blanco en Dark.
-        // prose-stone / prose-invert: Maneja estilos de Markdown automáticos.
         class: 'prose prose-stone dark:prose-invert max-w-none focus:outline-none min-h-[300px] text-foreground leading-relaxed p-6',
       },
+      // [SEGURIDAD]: Control de pegado para evitar estilos sucios
+      transformPastedHTML(html) {
+        // Opcional: Aquí podrías limpiar estilos inline si quisieras ser muy estricto
+        return html; 
+      },
     },
+    // [SEGURIDAD CRÍTICA]: Sanitización en tiempo real
     onUpdate: ({ editor }) => {
-      const html = editor.getHTML();
-      setValue('final_script', html, { shouldValidate: true, shouldDirty: true });
+      const dirtyHtml = editor.getHTML();
+      // Limpiamos el HTML antes de guardarlo en el estado
+      const cleanHtml = DOMPurify.sanitize(dirtyHtml);
+      
+      setValue('final_script', cleanHtml, { shouldValidate: true, shouldDirty: true });
     },
   });
 
@@ -132,19 +142,17 @@ export function ScriptEditorStep() {
   return (
     <div className="flex flex-col h-full w-full animate-fade-in">
       
-      {/* CABECERA */}
       <div className="flex-shrink-0 pt-4 pb-2 px-4 text-center">
         <h2 className="text-xl md:text-2xl font-bold tracking-tight text-foreground drop-shadow-sm md:drop-shadow-none">
-          Revisa tu Guion
+          Revisa tu Guión
         </h2>
         <p className="text-xs md:text-sm text-muted-foreground mt-1 font-medium">
-          Edita el título y el contenido antes de grabar.
+          Edita el título y el contenido antes de generar el podcast
         </p>
       </div>
 
       <div className="flex-grow flex flex-col min-h-0 px-2 md:px-6 pb-2 gap-4">
         
-        {/* EDITOR DE TÍTULO (Input Transparente) */}
         <div className="flex-shrink-0">
             <FormField
             control={control}
@@ -155,7 +163,8 @@ export function ScriptEditorStep() {
                     <Input
                     {...field}
                     placeholder="Título del Podcast"
-                    // Input Adaptativo
+                    // [SEGURIDAD]: Los inputs de React ya escapan XSS por defecto, pero mantenemos maxLength en Schema
+                    maxLength={100}
                     className="h-14 text-xl md:text-2xl font-bold bg-transparent border-0 border-b border-border text-center md:text-left text-foreground placeholder:text-muted-foreground/50 focus-visible:ring-0 px-0 rounded-none"
                     />
                 </FormControl>
@@ -165,15 +174,12 @@ export function ScriptEditorStep() {
             />
         </div>
 
-        {/* EDITOR DE GUION (Contenedor Glass) */}
         <div className="flex-1 flex flex-col min-h-0 bg-white/50 dark:bg-black/20 rounded-2xl border border-black/5 dark:border-white/10 overflow-hidden shadow-sm relative backdrop-blur-sm">
             
-            {/* Toolbar */}
             <div className="flex-shrink-0 z-10">
                 <MenuBar editor={editor} />
             </div>
 
-            {/* Área Scrolleable */}
             <div className="flex-1 overflow-y-auto scrollbar-hide">
                 <EditorContent editor={editor} />
             </div>

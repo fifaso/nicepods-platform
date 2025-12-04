@@ -1,5 +1,5 @@
 // next.config.mjs
-// VERSIÓN AHORRO VERCEL: Desactiva transformaciones de imagen (usamos imágenes ya optimizadas en origen).
+// VERSIÓN SEGURIDAD ENTERPRISE: PWA + Ahorro Vercel + Cabeceras de Seguridad HTTP.
 
 import withPWA from 'next-pwa';
 import defaultRuntimeCaching from 'next-pwa/cache.js';
@@ -13,9 +13,7 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   images: {
-    // [CAMBIO ESTRATÉGICO]: Activamos unoptimized.
-    // Al tener ya las imágenes optimizadas en el backend (JPEG ligeros),
-    // no necesitamos gastar cuota de "Image Transformations" de Vercel.
+    // Mantenemos el ahorro de costes de Vercel (imágenes optimizadas en origen)
     unoptimized: true, 
     remotePatterns: [
       {
@@ -31,6 +29,32 @@ const nextConfig = {
         hostname: 'avatars.githubusercontent.com',
       },
     ],
+  },
+  // [NUEVO]: Inyección de Cabeceras de Seguridad
+  async headers() {
+    return [
+      {
+        source: '/:path*', // Aplica a todas las rutas de la aplicación
+        headers: [
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY', // Evita ataques de Clickjacking (tu web no puede ser puesta en un iframe)
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff', // Evita que el navegador adivine tipos de archivo (previene inyección de scripts en imágenes)
+          },
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin', // Protege la privacidad del usuario al navegar fuera
+          },
+          {
+            key: 'Permissions-Policy',
+            value: "camera=(), microphone=(self), geolocation=()", // Bloquea cámara y geo, permite micro solo al mismo origen
+          },
+        ],
+      },
+    ];
   },
 };
 
