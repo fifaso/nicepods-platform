@@ -1,5 +1,5 @@
 // components/podcast-view.tsx
-// VERSIÓN FINAL Y COMPLETA: Integra el nuevo sistema de curación de etiquetas sin abreviaciones.
+// VERSIÓN FINAL: Integra visualización de Fuentes Científicas (Grounding) + UI de Etiquetas.
 
 "use client";
 
@@ -17,7 +17,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Heart, Share2, Download, Calendar, Clock, PlayCircle, ChevronDown, Loader2, Mic, Tag, Pencil } from 'lucide-react';
+import { Heart, Share2, Download, Calendar, Clock, PlayCircle, ChevronDown, Loader2, Mic, Tag, Pencil, BookOpen, ExternalLink } from 'lucide-react';
 import { CreationMetadata } from './creation-metadata';
 import { formatTime } from '@/lib/utils';
 import { ScriptViewer } from './script-viewer';
@@ -41,6 +41,7 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
   const [likeCount, setLikeCount] = useState(localPodcastData.like_count);
   const [isLiking, setIsLiking] = useState(false);
   const [isScriptExpanded, setIsScriptExpanded] = useState(false);
+  const [isSourcesExpanded, setIsSourcesExpanded] = useState(false); // Nuevo estado para fuentes
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const [isEditingTags, setIsEditingTags] = useState(false);
 
@@ -88,6 +89,9 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
     if (aiTags && aiTags.length > 0) return aiTags;
     return [];
   }, [localPodcastData.ai_tags, localPodcastData.user_tags]);
+
+  // [NUEVO]: Extracción segura de fuentes (el tipo puede no estar actualizado en TS, así que casteamos o accedemos con seguridad)
+  const displaySources = (localPodcastData as any).sources || [];
 
   const handleSaveTags = async (finalTags: string[]) => {
     const { error } = await supabase
@@ -180,7 +184,7 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
     <>
       <div className="container mx-auto max-w-7xl py-12 px-4">
         <div className="grid lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 space-y-6">
             <Card className="bg-card/50 backdrop-blur-lg border-border/20 shadow-lg overflow-hidden">
               {localPodcastData.cover_image_url && (
                 <div className="aspect-video relative w-full">
@@ -194,7 +198,8 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
                 
                 <Separator className="my-4" />
 
-                <div>
+                {/* SECCIÓN DE ETIQUETAS */}
+                <div className="mb-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Tag className="h-4 w-4" />
@@ -219,9 +224,48 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
                     )}
                   </div>
                 </div>
+
+                {/* [NUEVO]: SECCIÓN DE FUENTES CIENTÍFICAS (SI EXISTEN) */}
+                {displaySources && displaySources.length > 0 && (
+                  <div className="mt-6">
+                      <Collapsible open={isSourcesExpanded} onOpenChange={setIsSourcesExpanded}>
+                        <CollapsibleTrigger asChild>
+                          <div className="flex justify-between items-center cursor-pointer group p-3 bg-secondary/10 rounded-lg hover:bg-secondary/20 transition-colors">
+                            <div className="flex items-center gap-2 text-blue-500">
+                                <BookOpen className="h-4 w-4" />
+                                <h4 className="font-semibold text-sm">Fuentes de Investigación ({displaySources.length})</h4>
+                            </div>
+                            <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform duration-300", isSourcesExpanded && 'rotate-180')} />
+                          </div>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="pt-2 space-y-2">
+                            {displaySources.map((source: any, idx: number) => (
+                                <div key={idx} className="p-3 border border-border/30 rounded-lg bg-background/40 text-sm">
+                                    <div className="flex justify-between items-start gap-2">
+                                        <span className="font-medium text-foreground">{source.title || "Fuente sin título"}</span>
+                                        {source.url && (
+                                            <a href={source.url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline flex items-center gap-1 whitespace-nowrap">
+                                                Ver <ExternalLink className="h-3 w-3" />
+                                            </a>
+                                        )}
+                                    </div>
+                                    {source.snippet && (
+                                        <p className="text-muted-foreground text-xs mt-1 italic border-l-2 border-primary/20 pl-2">
+                                            "{source.snippet}"
+                                        </p>
+                                    )}
+                                </div>
+                            ))}
+                        </CollapsibleContent>
+                      </Collapsible>
+                  </div>
+                )}
+
               </CardHeader>
               <CardContent className="p-4 pt-0">
                 <Separator className="my-4" />
+                
+                {/* SECCIÓN DE GUION */}
                 <Collapsible open={isScriptExpanded} onOpenChange={setIsScriptExpanded}>
                   <CollapsibleTrigger asChild>
                     <div className="flex justify-between items-center cursor-pointer mb-4 group">
@@ -233,6 +277,7 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
                     <ScriptViewer scriptText={localPodcastData.script_text} />
                   </CollapsibleContent>
                 </Collapsible>
+
               </CardContent>
             </Card>
           </div>

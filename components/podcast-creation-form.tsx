@@ -1,5 +1,5 @@
 // components/podcast-creation-form.tsx
-// VERSIÓN PRODUCCIÓN BLINDADA: Validación estricta de datos antes del envío (Zero Undefined).
+// VERSIÓN FINAL: Soporte para Fuentes (Grounding), Layout Cero Scroll y UX Premium.
 
 "use client";
 
@@ -69,9 +69,12 @@ export function PodcastCreationForm() {
   const { supabase, user } = useAuth();
   const { currentPodcast } = useAudio();
   
+  // Estado para hidratación segura
   const [isMounted, setIsMounted] = useState(false);
+  
   const [currentFlowState, setCurrentFlowState] = useState<FlowState>('SELECTING_PURPOSE');
   const [history, setHistory] = useState<FlowState[]>(['SELECTING_PURPOSE']);
+  
   const [isGeneratingScript, setIsGeneratingScript] = useState(false);
   const [isLoadingNarratives, setIsLoadingNarratives] = useState(false);
   const [narrativeOptions, setNarrativeOptions] = useState<NarrativeOption[]>([]);
@@ -109,6 +112,7 @@ export function PodcastCreationForm() {
       generateAudioDirectly: true,
       final_title: '',
       final_script: '',
+      sources: [], // Inicializamos sources vacío
     },
   });
 
@@ -146,6 +150,7 @@ export function PodcastCreationForm() {
         duration: currentData.duration,
         depth: currentData.narrativeDepth,
         tone: currentData.purpose === 'inspire' ? currentData.selectedArchetype : currentData.selectedTone,
+        
         raw_inputs: {
           solo_topic: currentData.solo_topic,
           solo_motivation: currentData.solo_motivation,
@@ -165,8 +170,17 @@ export function PodcastCreationForm() {
       if (error) throw new Error(error.message);
       if (!data?.success) throw new Error(data?.error || "Error generando borrador");
 
+      // Guardamos el borrador y las fuentes en el estado del formulario
       setValue('final_title', data.draft.suggested_title);
       setValue('final_script', data.draft.script_body);
+      
+      // [CAMBIO CRÍTICO]: Capturamos las fuentes devueltas por el Agente Curador
+      if (data.draft.sources && Array.isArray(data.draft.sources)) {
+          setValue('sources', data.draft.sources);
+      } else {
+          setValue('sources', []);
+      }
+
       transitionTo('SCRIPT_EDITING');
 
     } catch (error) {
@@ -181,14 +195,14 @@ export function PodcastCreationForm() {
     let nextState: FlowState | null = null;
 
     switch(currentFlowState) {
-      case 'SOLO_TALK_INPUT': fieldsToValidate = ['solo_topic', 'solo_motivation']; nextState = 'TONE_SELECTION'; break;
+      case 'SOLO_TALK_INPUT': fieldsToValidate = ['solo_topic', 'solo_motivation']; nextState = 'DETAILS_STEP'; break;
       case 'ARCHETYPE_INPUT': fieldsToValidate = ['selectedArchetype', 'archetype_topic', 'archetype_goal']; nextState = 'DETAILS_STEP'; break;
       case 'LINK_POINTS_INPUT':
         const isLinkPointsValid = await trigger(['link_topicA', 'link_topicB']);
         if (isLinkPointsValid) await handleGenerateNarratives();
         else toast({ title: "Falta información", description: "Completa los temas para continuar.", variant: "destructive" });
         return;
-      case 'NARRATIVE_SELECTION': fieldsToValidate = ['link_selectedNarrative', 'link_selectedTone']; nextState = 'TONE_SELECTION'; break;
+      case 'NARRATIVE_SELECTION': fieldsToValidate = ['link_selectedNarrative', 'link_selectedTone']; nextState = 'DETAILS_STEP'; break;
       case 'FREESTYLE_SELECTION':
         const style = getValues('style');
         fieldsToValidate = ['style'];
@@ -196,19 +210,26 @@ export function PodcastCreationForm() {
         else if (style === 'link') nextState = 'LINK_POINTS_INPUT';
         else if (style === 'archetype') nextState = 'ARCHETYPE_INPUT';
         break;
-      case 'LEGACY_INPUT': fieldsToValidate = ['legacy_lesson']; nextState = 'TONE_SELECTION'; break;
-      case 'QUESTION_INPUT': fieldsToValidate = ['question_to_answer']; nextState = 'TONE_SELECTION'; break;
+      case 'LEGACY_INPUT': fieldsToValidate = ['legacy_lesson']; nextState = 'DETAILS_STEP'; break;
+      case 'QUESTION_INPUT': fieldsToValidate = ['question_to_answer']; nextState = 'DETAILS_STEP'; break;
       
-      case 'TONE_SELECTION':
-        const isToneValid = await trigger(['selectedTone']);
-        if (isToneValid) transitionTo('DETAILS_STEP');
-        else toast({ title: "Falta información", description: "Selecciona un tono.", variant: "destructive" });
-        return;
-
       case 'DETAILS_STEP': 
         const isDetailsValid = await trigger(['duration', 'narrativeDepth']);
-        if (isDetailsValid) await handleGenerateDraft();
-        else toast({ title: "Configuración incompleta", description: "Selecciona duración y profundidad.", variant: "destructive" });
+        if (isDetailsValid) {
+           if (formData.purpose === 'inspire') {
+               await handleGenerateDraft();
+           } else {
+               transitionTo('TONE_SELECTION');
+           }
+        } else {
+           toast({ title: "Configuración incompleta", description: "Selecciona duración y profundidad.", variant: "destructive" });
+        }
+        return;
+
+      case 'TONE_SELECTION':
+        const isToneValid = await trigger(['selectedTone']);
+        if (isToneValid) await handleGenerateDraft();
+        else toast({ title: "Falta información", description: "Selecciona un tono.", variant: "destructive" });
         return;
 
       case 'SCRIPT_EDITING': fieldsToValidate = ['final_title', 'final_script']; nextState = 'AUDIO_STUDIO_STEP'; break;
@@ -217,8 +238,16 @@ export function PodcastCreationForm() {
 
     if (nextState) {
       const isStepValid = await trigger(fieldsToValidate);
-      if (isStepValid) transitionTo(nextState);
-      else toast({ title: "Falta completar este paso", variant: "destructive", action: <AlertCircle className="h-5 w-5" /> });
+      if (isStepValid) {
+        transitionTo(nextState);
+      } else {
+        toast({ 
+          title: "Falta completar este paso", 
+          description: "Por favor revisa los campos requeridos.", 
+          variant: "destructive",
+          action: <AlertCircle className="h-5 w-5" />
+        });
+      }
     }
   };
 
@@ -245,19 +274,14 @@ export function PodcastCreationForm() {
   const handleFinalSubmit: SubmitHandler<PodcastCreationData> = useCallback(async (formData) => {
     if (!supabase || !user) { toast({ title: "Error Auth", variant: "destructive" }); return; }
 
-    // 1. Determinación del Agente (Tono/Arquetipo)
+    // Determinación del Agente
     const determinedAgent = formData.purpose === 'inspire' 
         ? formData.selectedArchetype 
         : formData.selectedTone;
 
-    // [VÁLVULA DE SEGURIDAD ESTRICTA]: Si no hay tono/arquetipo, detenemos el envío.
     if (!determinedAgent) {
-        toast({
-            title: "Falta Información Crítica",
-            description: "No se detectó el Tono o Arquetipo. Por favor, regresa y selecciona uno.",
-            variant: "destructive"
-        });
-        return; // DETIENE LA EJECUCIÓN AQUÍ. NO ENVÍA NADA AL BACKEND.
+        toast({ title: "Falta Información", description: "No se detectó el Tono o Arquetipo.", variant: "destructive" });
+        return;
     }
 
     let jobInputs: Record<string, any> = {};
@@ -275,13 +299,15 @@ export function PodcastCreationForm() {
     const payload = {
       purpose: formData.purpose,
       style: formData.style,
-      agentName: determinedAgent, // Ahora garantizado de no ser undefined
+      agentName: determinedAgent,
       final_script: formData.final_script,
       final_title: formData.final_title,
+      // [CAMBIO CRÍTICO]: Enviamos las fuentes al backend para que se guarden en la DB
+      sources: formData.sources, 
       inputs: { ...jobInputs, duration: formData.duration, depth: formData.narrativeDepth, tags: formData.tags, generateAudioDirectly: formData.generateAudioDirectly, voiceGender: formData.voiceGender, voiceStyle: formData.voiceStyle, voicePace: formData.voicePace, speakingRate: formData.speakingRate },
     };
 
-    if (payload.purpose === 'inspire') { payload.style = 'archetype'; payload.agentName = formData.selectedArchetype!; } // "!" porque ya validamos que existe
+    if (payload.purpose === 'inspire') { payload.style = 'archetype'; payload.agentName = formData.selectedArchetype!; }
     
     const { data, error } = await supabase.functions.invoke('queue-podcast-job', { body: payload });
     if (error || !data?.success) { toast({ title: "Error", description: error?.message, variant: "destructive" }); return; }
@@ -300,7 +326,7 @@ export function PodcastCreationForm() {
       case 'LINK_POINTS_INPUT': return <LinkPointsStep />;
       case 'NARRATIVE_SELECTION': return <NarrativeSelectionStep narrativeOptions={narrativeOptions} />;
       case 'FREESTYLE_SELECTION': return <StyleSelectionStep />;
-      case 'DETAILS_STEP': return <DetailsStep agents={[]} />; 
+      case 'DETAILS_STEP': return <DetailsStep />; 
       case 'TONE_SELECTION': return <ToneSelectionStep />;
       case 'SCRIPT_EDITING': return <ScriptEditorStep />;
       case 'AUDIO_STUDIO_STEP': return <AudioStudio />;
@@ -310,11 +336,11 @@ export function PodcastCreationForm() {
   };
 
   const flowPaths: Record<string, FlowState[]> = {
-    learn: ['SELECTING_PURPOSE', 'LEARN_SUB_SELECTION', 'SOLO_TALK_INPUT', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
+    learn: ['SELECTING_PURPOSE', 'LEARN_SUB_SELECTION', 'SOLO_TALK_INPUT', 'DETAILS_STEP', 'TONE_SELECTION', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
     inspire: ['SELECTING_PURPOSE', 'INSPIRE_SUB_SELECTION', 'ARCHETYPE_INPUT', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    explore: ['SELECTING_PURPOSE', 'LINK_POINTS_INPUT', 'NARRATIVE_SELECTION', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    reflect: ['SELECTING_PURPOSE', 'LEGACY_INPUT', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    answer: ['SELECTING_PURPOSE', 'QUESTION_INPUT', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
+    explore: ['SELECTING_PURPOSE', 'LINK_POINTS_INPUT', 'NARRATIVE_SELECTION', 'DETAILS_STEP', 'TONE_SELECTION', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
+    reflect: ['SELECTING_PURPOSE', 'LEGACY_INPUT', 'DETAILS_STEP', 'TONE_SELECTION', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
+    answer: ['SELECTING_PURPOSE', 'QUESTION_INPUT', 'DETAILS_STEP', 'TONE_SELECTION', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
     freestyle: ['SELECTING_PURPOSE', 'FREESTYLE_SELECTION'],
   };
   
@@ -325,17 +351,20 @@ export function PodcastCreationForm() {
   const isFinalStep = currentFlowState === 'FINAL_STEP';
   const isSelectingPurpose = currentFlowState === 'SELECTING_PURPOSE';
 
-  const playerPadding = isMounted && currentPodcast ? 'pb-24' : 'pb-0';
+  const playerPadding = isMounted && currentPodcast ? 'pb-24' : 'pb-4';
 
   return (
     <CreationContext.Provider value={{ updateFormData, transitionTo, goBack }}>
       <FormProvider {...formMethods}>
         <form onSubmit={(e) => e.preventDefault()} className="h-full w-full overflow-hidden">
+            
             <div 
                 className={`fixed inset-0 w-full flex flex-col bg-transparent transition-all duration-300 pt-24 md:pt-28 ${playerPadding}`}
                 style={{ zIndex: 0 }}
             >
+                
                 <div className="w-full max-w-4xl mx-auto flex flex-col flex-grow h-full overflow-hidden relative md:px-4 py-0 md:py-4">
+                    
                     {!isSelectingPurpose && (
                       <div className="flex-shrink-0 px-4 py-1 z-20 mb-2">
                         <div className="flex justify-between items-end mb-1.5">
@@ -387,16 +416,16 @@ export function PodcastCreationForm() {
 
                                    <div className="flex-1 flex justify-end">
                                        {currentFlowState === 'LINK_POINTS_INPUT' ? (
-                                           <Button type="button" onClick={handleNextTransition} disabled={isLoadingNarratives} className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md rounded-full px-5 h-9 text-xs font-semibold">
+                                           <Button type="button" onClick={handleNextTransition} disabled={isLoadingNarratives} className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md rounded-full px-5 h-10 text-xs font-semibold">
                                                {isLoadingNarratives ? <Loader2 className="mr-2 h-3 w-3 animate-spin"/> : <Wand2 className="mr-2 h-3 w-3" />}
                                                Generar
                                            </Button>
                                        ) : currentFlowState === 'DETAILS_STEP' ? (
-                                           <Button type="button" onClick={handleNextTransition} disabled={isGeneratingScript} className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md rounded-full px-5 h-9 text-xs font-semibold transition-all active:scale-95">
+                                           <Button type="button" onClick={handleNextTransition} disabled={isGeneratingScript} className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md rounded-full px-5 h-10 text-xs font-semibold transition-all active:scale-95">
                                                {isGeneratingScript ? <><Loader2 className="mr-2 h-3 w-3 animate-spin" /> Escribiendo...</> : <><FileText className="mr-2 h-3 w-3" /> Crear Borrador</>}
                                            </Button>
                                        ) : isFinalStep ? (
-                                           <Button type="button" onClick={handleSubmit(handleFinalSubmit)} disabled={isSubmitting} className="bg-primary text-primary-foreground shadow-md rounded-full px-6 h-9 text-xs font-semibold transition-all active:scale-95">
+                                           <Button type="button" onClick={handleSubmit(handleFinalSubmit)} disabled={isSubmitting} className="bg-primary text-primary-foreground shadow-md rounded-full px-6 h-10 text-xs font-semibold transition-all active:scale-95">
                                                {isSubmitting ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Wand2 className="mr-2 h-3 w-3" />}
                                                Producir
                                            </Button>
@@ -404,7 +433,7 @@ export function PodcastCreationForm() {
                                            <Button 
                                               type="button" 
                                               onClick={handleNextTransition} 
-                                              className="bg-foreground text-white dark:text-black hover:bg-foreground/90 shadow-md rounded-full px-5 h-9 text-xs font-semibold transition-transform active:scale-95"
+                                              className="bg-foreground text-white dark:text-black hover:bg-foreground/90 shadow-md rounded-full px-5 h-10 text-xs font-semibold transition-transform active:scale-95"
                                            >
                                                Siguiente <ChevronRight className="ml-1 h-3 w-3" />
                                            </Button>

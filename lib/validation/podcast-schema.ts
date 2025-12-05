@@ -1,5 +1,5 @@
 // lib/validation/podcast-schema.ts
-// VERSIÓN SEGURA: Incluye sanitización de inputs (Anti-XSS) y límites de longitud (Anti-DoS).
+// VERSIÓN FINAL: Seguridad Anti-XSS/DoS + Soporte para Fuentes de Investigación (Grounding).
 
 import { z } from 'zod';
 
@@ -21,18 +21,24 @@ const safeInputString = z.string()
   .max(5000, { message: "El texto excede el límite de seguridad (5000 caracteres)." })
   .transform(sanitizeInput);
 
+// [NUEVO]: Esquema para las Fuentes de Investigación (Grounding)
+// Define la estructura de los datos que nos devolverá el Agente Curador.
+const SourceSchema = z.object({
+  title: z.string().optional(),
+  url: z.string().optional(), // Usamos string flexible para evitar bloqueos por formatos de URL extraños
+  snippet: z.string().optional(),
+});
+
 // -------------------------
 
 export const PodcastCreationSchema = z.object({
   // Discriminador Principal
   purpose: z.enum(['learn', 'inspire', 'explore', 'reflect', 'answer', 'freestyle']),
   
-  // Estilo
+  // Estilo (Opcional en base, requerido por lógica)
   style: z.enum(['solo', 'link', 'archetype', 'legacy', 'qa']).optional(),
   
   // --- INPUTS DE MATERIA PRIMA BLINDADOS ---
-  // Aplicamos 'safeInputString' a todos los campos donde el usuario escribe libremente.
-  
   solo_topic: safeInputString.optional(),
   solo_motivation: safeInputString.optional(),
   
@@ -40,28 +46,27 @@ export const PodcastCreationSchema = z.object({
   link_topicB: safeInputString.optional(),
   link_catalyst: safeInputString.optional(),
   
-  link_selectedNarrative: z.object({ 
-    title: safeInputString, // También sanitizamos objetos anidados
-    thesis: safeInputString 
-  }).nullable().optional(),
-  
+  link_selectedNarrative: z.object({ title: z.string(), thesis: z.string() }).nullable().optional(),
   link_selectedTone: z.enum(['Educativo', 'Inspirador', 'Analítico']).optional(),
   
   selectedArchetype: z.string().optional(),
-  archetype_topic: safeInputString.optional(),
-  archetype_goal: safeInputString.optional(),
+  archetype_topic: z.string().optional(),
+  archetype_goal: z.string().optional(),
   
-  legacy_lesson: safeInputString.optional(),
-  question_to_answer: safeInputString.optional(),
+  legacy_lesson: z.string().optional(),
+  question_to_answer: z.string().optional(),
 
   // --- CAMPOS DE EDICIÓN FINAL ---
-  final_title: safeInputString.optional(),
+  final_title: z.string().optional(),
   
   // EXCEPCIÓN: final_script puede contener HTML (formato de TipTap), por lo que no usamos
-  // el sanitizador estricto que borra tags, pero SÍ limitamos su tamaño para evitar abusos.
+  // el sanitizador estricto que borra tags, pero SÍ limitamos su tamaño.
   final_script: z.string()
     .max(25000, { message: "El guion es demasiado largo para ser procesado." })
     .optional(),
+
+  // [NUEVO]: Array de Fuentes (Aquí se guardará el Dossier del Curador)
+  sources: z.array(SourceSchema).optional(),
 
   // Configuración Técnica
   duration: z.string().nonempty({ message: "Debes seleccionar una duración." }),
