@@ -1,5 +1,5 @@
 // components/podcast-creation-form.tsx
-// VERSIÓN FINAL: Soporte para Fuentes (Grounding), Layout Cero Scroll y UX Premium.
+// VERSIÓN: 5.1 (Mission Beta - Session Persistence & Autosave)
 
 "use client";
 
@@ -11,6 +11,7 @@ import { useForm, FormProvider, SubmitHandler, FieldErrors } from "react-hook-fo
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PodcastCreationSchema, PodcastCreationData } from "@/lib/validation/podcast-schema";
 import { useAudio } from "@/contexts/audio-context";
+import { usePersistentForm } from "@/hooks/use-persistent-form"; // [NUEVO] Hook de Persistencia
 
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -120,6 +121,33 @@ export function PodcastCreationForm() {
   const { isSubmitting } = formMethods.formState;
   const formData = watch();
 
+  // ===========================================================================
+  // [MISIÓN BETA] LÓGICA DE PERSISTENCIA
+  // ===========================================================================
+
+  const handleHydration = useCallback((savedStep: string, savedHistory: string[]) => {
+    // Restauramos el historial y el paso actual
+    setHistory(savedHistory as FlowState[]);
+    setCurrentFlowState(savedStep as FlowState);
+    
+    // Notificación discreta de restauración
+    toast({
+      title: "Sesión Restaurada",
+      description: "Hemos recuperado tu borrador donde lo dejaste.",
+      duration: 3000,
+    });
+  }, [toast]);
+
+  // Invocación del Hook de Persistencia
+  const { clearDraft } = usePersistentForm(
+    formMethods, 
+    currentFlowState, 
+    history, 
+    handleHydration
+  );
+
+  // ===========================================================================
+
   const transitionTo = (state: FlowState) => {
     setHistory(prev => [...prev, state]);
     setCurrentFlowState(state);
@@ -174,7 +202,7 @@ export function PodcastCreationForm() {
       setValue('final_title', data.draft.suggested_title);
       setValue('final_script', data.draft.script_body);
       
-      // [CAMBIO CRÍTICO]: Capturamos las fuentes devueltas por el Agente Curador
+      // Capturamos las fuentes devueltas por el Agente Curador
       if (data.draft.sources && Array.isArray(data.draft.sources)) {
           setValue('sources', data.draft.sources);
       } else {
@@ -302,7 +330,7 @@ export function PodcastCreationForm() {
       agentName: determinedAgent,
       final_script: formData.final_script,
       final_title: formData.final_title,
-      // [CAMBIO CRÍTICO]: Enviamos las fuentes al backend para que se guarden en la DB
+      // Enviamos las fuentes al backend
       sources: formData.sources, 
       inputs: { ...jobInputs, duration: formData.duration, depth: formData.narrativeDepth, tags: formData.tags, generateAudioDirectly: formData.generateAudioDirectly, voiceGender: formData.voiceGender, voiceStyle: formData.voiceStyle, voicePace: formData.voicePace, speakingRate: formData.speakingRate },
     };
@@ -311,8 +339,12 @@ export function PodcastCreationForm() {
     
     const { data, error } = await supabase.functions.invoke('queue-podcast-job', { body: payload });
     if (error || !data?.success) { toast({ title: "Error", description: error?.message, variant: "destructive" }); return; }
+    
+    // [IMPORTANTE]: Limpiamos el borrador persistente tras el éxito
+    clearDraft();
+
     router.push('/podcasts?tab=library');
-  }, [supabase, user, toast, router]);
+  }, [supabase, user, toast, router, clearDraft]);
   
   const renderCurrentStep = () => {
     switch (currentFlowState) {
