@@ -1,5 +1,5 @@
 // components/podcast-creation-form.tsx
-// VERSIÓN: 5.2 (Flow Correction: Input -> Tone -> Config -> Draft)
+// VERSIÓN: 5.3 (Dynamic Layout: Wide Studio Mode)
 
 "use client";
 
@@ -173,7 +173,6 @@ export function PodcastCreationForm() {
         style: currentData.style,
         duration: currentData.duration,
         depth: currentData.narrativeDepth,
-        // Si es Inspire, el tono es el arquetipo. Si no, es el tono seleccionado.
         tone: currentData.purpose === 'inspire' ? currentData.selectedArchetype : currentData.selectedTone,
         
         raw_inputs: {
@@ -218,13 +217,11 @@ export function PodcastCreationForm() {
     let nextState: FlowState | null = null;
 
     switch(currentFlowState) {
-      // 1. INPUTS DE MATERIA PRIMA -> AHORA VAN A TONE_SELECTION
       case 'SOLO_TALK_INPUT': 
           fieldsToValidate = ['solo_topic', 'solo_motivation']; 
           nextState = 'TONE_SELECTION'; 
           break;
       
-      // EXCEPCIÓN: ARQUETIPO VA DIRECTO A DETALLES (EL ARQUETIPO YA ES EL TONO)
       case 'ARCHETYPE_INPUT': 
           fieldsToValidate = ['selectedArchetype', 'archetype_topic', 'archetype_goal']; 
           nextState = 'DETAILS_STEP'; 
@@ -237,7 +234,7 @@ export function PodcastCreationForm() {
         return;
       
       case 'NARRATIVE_SELECTION': 
-          fieldsToValidate = ['link_selectedNarrative']; // Quitamos link_selectedTone de aquí, ya que hay un paso dedicado
+          fieldsToValidate = ['link_selectedNarrative']; 
           nextState = 'TONE_SELECTION'; 
           break;
       
@@ -259,17 +256,14 @@ export function PodcastCreationForm() {
           nextState = 'TONE_SELECTION'; 
           break;
       
-      // 2. SELECCIÓN DE TONO (Personalidad) -> AHORA VA A DETAILS_STEP (Configuración)
       case 'TONE_SELECTION':
         fieldsToValidate = ['selectedTone'];
         nextState = 'DETAILS_STEP';
         break;
 
-      // 3. DETALLES (Configuración) -> AHORA ES EL GATILLO FINAL
       case 'DETAILS_STEP': 
         const isDetailsValid = await trigger(['duration', 'narrativeDepth']);
         if (isDetailsValid) {
-           // Aquí ya tenemos Input + Tono + Detalles. Generamos.
            await handleGenerateDraft();
         } else {
            toast({ title: "Configuración incompleta", description: "Selecciona duración y profundidad.", variant: "destructive" });
@@ -379,10 +373,8 @@ export function PodcastCreationForm() {
     }
   };
 
-  // ACTUALIZACIÓN DE PATHS VISUALES PARA REFLEJAR EL NUEVO ORDEN
   const flowPaths: Record<string, FlowState[]> = {
     learn: ['SELECTING_PURPOSE', 'LEARN_SUB_SELECTION', 'SOLO_TALK_INPUT', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    // Inspire se mantiene igual (No tiene Tone Selection explícito)
     inspire: ['SELECTING_PURPOSE', 'INSPIRE_SUB_SELECTION', 'ARCHETYPE_INPUT', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
     explore: ['SELECTING_PURPOSE', 'LINK_POINTS_INPUT', 'NARRATIVE_SELECTION', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
     reflect: ['SELECTING_PURPOSE', 'LEGACY_INPUT', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
@@ -396,6 +388,10 @@ export function PodcastCreationForm() {
   const progress = Math.min((currentStepIndex / totalPasosEstimados) * 100, 100);
   const isFinalStep = currentFlowState === 'FINAL_STEP';
   const isSelectingPurpose = currentFlowState === 'SELECTING_PURPOSE';
+  
+  // [MODIFICACIÓN CLAVE]: Lógica de Layout Dinámico
+  const isWideView = currentFlowState === 'SCRIPT_EDITING';
+  const containerMaxWidth = isWideView ? "max-w-[1400px]" : "max-w-4xl";
 
   const playerPadding = isMounted && currentPodcast ? 'pb-24' : 'pb-4';
 
@@ -408,11 +404,15 @@ export function PodcastCreationForm() {
                 className={`fixed inset-0 w-full flex flex-col bg-transparent transition-all duration-300 pt-24 md:pt-28 ${playerPadding}`}
                 style={{ zIndex: 0 }}
             >
-                
-                <div className="w-full max-w-4xl mx-auto flex flex-col flex-grow h-full overflow-hidden relative md:px-4 py-0 md:py-4">
+                {/* 
+                   CONTENEDOR DINÁMICO: 
+                   Cambia de max-w-4xl a max-w-[1400px] con animación suave.
+                */}
+                <div className={`w-full ${containerMaxWidth} mx-auto flex flex-col flex-grow h-full overflow-hidden relative md:px-4 py-0 md:py-4 transition-all duration-500 ease-in-out`}>
                     
                     {!isSelectingPurpose && (
-                      <div className="flex-shrink-0 px-4 py-1 z-20 mb-2">
+                      // CABECERA FIJA: Forzamos max-w-4xl para mantener la barra de progreso consistente
+                      <div className="w-full max-w-4xl mx-auto flex-shrink-0 px-4 py-1 z-20 mb-2">
                         <div className="flex justify-between items-end mb-1.5">
                            <div className="flex flex-col">
                              <span className="text-xs font-bold text-foreground/90 tracking-tight drop-shadow-sm">
@@ -448,6 +448,7 @@ export function PodcastCreationForm() {
                         </CardContent>
 
                         {!isSelectingPurpose && (
+                           // FOOTER: El footer se expande junto con la tarjeta (UX deseada para modo estudio)
                            <div className="flex-shrink-0 px-4 py-3 md:py-4 z-20 bg-gradient-to-t from-white/90 via-white/60 dark:from-black/90 dark:via-black/60 to-transparent backdrop-blur-md border-t border-border/10">
                                <div className="flex justify-between items-center gap-4">
                                    <Button 
