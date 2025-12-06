@@ -1,5 +1,5 @@
 // components/podcast-creation-form.tsx
-// VERSIÓN: 5.1 (Mission Beta - Session Persistence & Autosave)
+// VERSIÓN: 5.2 (Flow Correction: Input -> Tone -> Config -> Draft)
 
 "use client";
 
@@ -11,7 +11,7 @@ import { useForm, FormProvider, SubmitHandler, FieldErrors } from "react-hook-fo
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PodcastCreationSchema, PodcastCreationData } from "@/lib/validation/podcast-schema";
 import { useAudio } from "@/contexts/audio-context";
-import { usePersistentForm } from "@/hooks/use-persistent-form"; // [NUEVO] Hook de Persistencia
+import { usePersistentForm } from "@/hooks/use-persistent-form";
 
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -113,7 +113,7 @@ export function PodcastCreationForm() {
       generateAudioDirectly: true,
       final_title: '',
       final_script: '',
-      sources: [], // Inicializamos sources vacío
+      sources: [],
     },
   });
 
@@ -122,15 +122,12 @@ export function PodcastCreationForm() {
   const formData = watch();
 
   // ===========================================================================
-  // [MISIÓN BETA] LÓGICA DE PERSISTENCIA
+  // LÓGICA DE PERSISTENCIA
   // ===========================================================================
 
   const handleHydration = useCallback((savedStep: string, savedHistory: string[]) => {
-    // Restauramos el historial y el paso actual
     setHistory(savedHistory as FlowState[]);
     setCurrentFlowState(savedStep as FlowState);
-    
-    // Notificación discreta de restauración
     toast({
       title: "Sesión Restaurada",
       description: "Hemos recuperado tu borrador donde lo dejaste.",
@@ -138,7 +135,6 @@ export function PodcastCreationForm() {
     });
   }, [toast]);
 
-  // Invocación del Hook de Persistencia
   const { clearDraft } = usePersistentForm(
     formMethods, 
     currentFlowState, 
@@ -177,6 +173,7 @@ export function PodcastCreationForm() {
         style: currentData.style,
         duration: currentData.duration,
         depth: currentData.narrativeDepth,
+        // Si es Inspire, el tono es el arquetipo. Si no, es el tono seleccionado.
         tone: currentData.purpose === 'inspire' ? currentData.selectedArchetype : currentData.selectedTone,
         
         raw_inputs: {
@@ -198,11 +195,9 @@ export function PodcastCreationForm() {
       if (error) throw new Error(error.message);
       if (!data?.success) throw new Error(data?.error || "Error generando borrador");
 
-      // Guardamos el borrador y las fuentes en el estado del formulario
       setValue('final_title', data.draft.suggested_title);
       setValue('final_script', data.draft.script_body);
       
-      // Capturamos las fuentes devueltas por el Agente Curador
       if (data.draft.sources && Array.isArray(data.draft.sources)) {
           setValue('sources', data.draft.sources);
       } else {
@@ -223,14 +218,29 @@ export function PodcastCreationForm() {
     let nextState: FlowState | null = null;
 
     switch(currentFlowState) {
-      case 'SOLO_TALK_INPUT': fieldsToValidate = ['solo_topic', 'solo_motivation']; nextState = 'DETAILS_STEP'; break;
-      case 'ARCHETYPE_INPUT': fieldsToValidate = ['selectedArchetype', 'archetype_topic', 'archetype_goal']; nextState = 'DETAILS_STEP'; break;
+      // 1. INPUTS DE MATERIA PRIMA -> AHORA VAN A TONE_SELECTION
+      case 'SOLO_TALK_INPUT': 
+          fieldsToValidate = ['solo_topic', 'solo_motivation']; 
+          nextState = 'TONE_SELECTION'; 
+          break;
+      
+      // EXCEPCIÓN: ARQUETIPO VA DIRECTO A DETALLES (EL ARQUETIPO YA ES EL TONO)
+      case 'ARCHETYPE_INPUT': 
+          fieldsToValidate = ['selectedArchetype', 'archetype_topic', 'archetype_goal']; 
+          nextState = 'DETAILS_STEP'; 
+          break;
+      
       case 'LINK_POINTS_INPUT':
         const isLinkPointsValid = await trigger(['link_topicA', 'link_topicB']);
         if (isLinkPointsValid) await handleGenerateNarratives();
         else toast({ title: "Falta información", description: "Completa los temas para continuar.", variant: "destructive" });
         return;
-      case 'NARRATIVE_SELECTION': fieldsToValidate = ['link_selectedNarrative', 'link_selectedTone']; nextState = 'DETAILS_STEP'; break;
+      
+      case 'NARRATIVE_SELECTION': 
+          fieldsToValidate = ['link_selectedNarrative']; // Quitamos link_selectedTone de aquí, ya que hay un paso dedicado
+          nextState = 'TONE_SELECTION'; 
+          break;
+      
       case 'FREESTYLE_SELECTION':
         const style = getValues('style');
         fieldsToValidate = ['style'];
@@ -238,26 +248,32 @@ export function PodcastCreationForm() {
         else if (style === 'link') nextState = 'LINK_POINTS_INPUT';
         else if (style === 'archetype') nextState = 'ARCHETYPE_INPUT';
         break;
-      case 'LEGACY_INPUT': fieldsToValidate = ['legacy_lesson']; nextState = 'DETAILS_STEP'; break;
-      case 'QUESTION_INPUT': fieldsToValidate = ['question_to_answer']; nextState = 'DETAILS_STEP'; break;
       
+      case 'LEGACY_INPUT': 
+          fieldsToValidate = ['legacy_lesson']; 
+          nextState = 'TONE_SELECTION'; 
+          break;
+      
+      case 'QUESTION_INPUT': 
+          fieldsToValidate = ['question_to_answer']; 
+          nextState = 'TONE_SELECTION'; 
+          break;
+      
+      // 2. SELECCIÓN DE TONO (Personalidad) -> AHORA VA A DETAILS_STEP (Configuración)
+      case 'TONE_SELECTION':
+        fieldsToValidate = ['selectedTone'];
+        nextState = 'DETAILS_STEP';
+        break;
+
+      // 3. DETALLES (Configuración) -> AHORA ES EL GATILLO FINAL
       case 'DETAILS_STEP': 
         const isDetailsValid = await trigger(['duration', 'narrativeDepth']);
         if (isDetailsValid) {
-           if (formData.purpose === 'inspire') {
-               await handleGenerateDraft();
-           } else {
-               transitionTo('TONE_SELECTION');
-           }
+           // Aquí ya tenemos Input + Tono + Detalles. Generamos.
+           await handleGenerateDraft();
         } else {
            toast({ title: "Configuración incompleta", description: "Selecciona duración y profundidad.", variant: "destructive" });
         }
-        return;
-
-      case 'TONE_SELECTION':
-        const isToneValid = await trigger(['selectedTone']);
-        if (isToneValid) await handleGenerateDraft();
-        else toast({ title: "Falta información", description: "Selecciona un tono.", variant: "destructive" });
         return;
 
       case 'SCRIPT_EDITING': fieldsToValidate = ['final_title', 'final_script']; nextState = 'AUDIO_STUDIO_STEP'; break;
@@ -302,7 +318,6 @@ export function PodcastCreationForm() {
   const handleFinalSubmit: SubmitHandler<PodcastCreationData> = useCallback(async (formData) => {
     if (!supabase || !user) { toast({ title: "Error Auth", variant: "destructive" }); return; }
 
-    // Determinación del Agente
     const determinedAgent = formData.purpose === 'inspire' 
         ? formData.selectedArchetype 
         : formData.selectedTone;
@@ -330,7 +345,6 @@ export function PodcastCreationForm() {
       agentName: determinedAgent,
       final_script: formData.final_script,
       final_title: formData.final_title,
-      // Enviamos las fuentes al backend
       sources: formData.sources, 
       inputs: { ...jobInputs, duration: formData.duration, depth: formData.narrativeDepth, tags: formData.tags, generateAudioDirectly: formData.generateAudioDirectly, voiceGender: formData.voiceGender, voiceStyle: formData.voiceStyle, voicePace: formData.voicePace, speakingRate: formData.speakingRate },
     };
@@ -340,9 +354,7 @@ export function PodcastCreationForm() {
     const { data, error } = await supabase.functions.invoke('queue-podcast-job', { body: payload });
     if (error || !data?.success) { toast({ title: "Error", description: error?.message, variant: "destructive" }); return; }
     
-    // [IMPORTANTE]: Limpiamos el borrador persistente tras el éxito
     clearDraft();
-
     router.push('/podcasts?tab=library');
   }, [supabase, user, toast, router, clearDraft]);
   
@@ -367,12 +379,14 @@ export function PodcastCreationForm() {
     }
   };
 
+  // ACTUALIZACIÓN DE PATHS VISUALES PARA REFLEJAR EL NUEVO ORDEN
   const flowPaths: Record<string, FlowState[]> = {
-    learn: ['SELECTING_PURPOSE', 'LEARN_SUB_SELECTION', 'SOLO_TALK_INPUT', 'DETAILS_STEP', 'TONE_SELECTION', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
+    learn: ['SELECTING_PURPOSE', 'LEARN_SUB_SELECTION', 'SOLO_TALK_INPUT', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
+    // Inspire se mantiene igual (No tiene Tone Selection explícito)
     inspire: ['SELECTING_PURPOSE', 'INSPIRE_SUB_SELECTION', 'ARCHETYPE_INPUT', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    explore: ['SELECTING_PURPOSE', 'LINK_POINTS_INPUT', 'NARRATIVE_SELECTION', 'DETAILS_STEP', 'TONE_SELECTION', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    reflect: ['SELECTING_PURPOSE', 'LEGACY_INPUT', 'DETAILS_STEP', 'TONE_SELECTION', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    answer: ['SELECTING_PURPOSE', 'QUESTION_INPUT', 'DETAILS_STEP', 'TONE_SELECTION', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
+    explore: ['SELECTING_PURPOSE', 'LINK_POINTS_INPUT', 'NARRATIVE_SELECTION', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
+    reflect: ['SELECTING_PURPOSE', 'LEGACY_INPUT', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
+    answer: ['SELECTING_PURPOSE', 'QUESTION_INPUT', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
     freestyle: ['SELECTING_PURPOSE', 'FREESTYLE_SELECTION'],
   };
   
