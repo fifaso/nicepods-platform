@@ -1,5 +1,5 @@
 // app/podcast/[id]/page.tsx
-// VERSIÓN FINAL CON CAMBIO QUIRÚRGICO: La consulta a la base de datos ahora solicita 'ai_tags' y 'user_tags'.
+// VERSIÓN: 5.10 (Fix: Fetch 'sources' column for Grounding UI)
 
 import { cookies } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
@@ -43,6 +43,7 @@ export default async function PodcastDisplayPage({ params }: PodcastPageProps) {
       creation_data,
       ai_tags, 
       user_tags,
+      sources,
       profiles ( full_name, avatar_url, username )
     `)
     .eq('id', params.id)
