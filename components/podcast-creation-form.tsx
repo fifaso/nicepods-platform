@@ -1,5 +1,5 @@
 // components/podcast-creation-form.tsx
-// VERSIÓN: 5.3 (Dynamic Layout: Wide Studio Mode)
+// VERSIÓN: 5.4 (UX Final: Inmersive Loader Integration)
 
 "use client";
 
@@ -34,6 +34,8 @@ import { ArchetypeStep } from "./create-flow/archetype-step";
 import { AudioStudio } from "./create-flow/audio-studio";
 import { ScriptEditorStep } from "./create-flow/script-editor-step";
 import { ToneSelectionStep } from "./create-flow/tone-selection-step";
+// [NUEVO] Importamos la pantalla de carga inmersiva
+import { DraftGenerationLoader } from "./create-flow/draft-generation-loader";
 
 export interface NarrativeOption { 
   title: string; 
@@ -165,7 +167,7 @@ export function PodcastCreationForm() {
   };
 
   const handleGenerateDraft = async () => {
-    setIsGeneratingScript(true);
+    setIsGeneratingScript(true); // Esto activará el Loader gracias a las variables de estado abajo
     try {
       const currentData = getValues();
       const draftPayload = {
@@ -389,11 +391,15 @@ export function PodcastCreationForm() {
   const isFinalStep = currentFlowState === 'FINAL_STEP';
   const isSelectingPurpose = currentFlowState === 'SELECTING_PURPOSE';
   
-  // [MODIFICACIÓN CLAVE]: Lógica de Layout Dinámico
   const isWideView = currentFlowState === 'SCRIPT_EDITING';
   const containerMaxWidth = isWideView ? "max-w-[1400px]" : "max-w-4xl";
 
   const playerPadding = isMounted && currentPodcast ? 'pb-24' : 'pb-4';
+
+  // [UX LOGIC]: Control de visibilidad para experiencia inmersiva
+  const shouldShowLoader = isGeneratingScript;
+  const shouldShowHeader = !isSelectingPurpose && !shouldShowLoader;
+  const shouldShowFooter = !isSelectingPurpose && !shouldShowLoader;
 
   return (
     <CreationContext.Provider value={{ updateFormData, transitionTo, goBack }}>
@@ -404,14 +410,10 @@ export function PodcastCreationForm() {
                 className={`fixed inset-0 w-full flex flex-col bg-transparent transition-all duration-300 pt-24 md:pt-28 ${playerPadding}`}
                 style={{ zIndex: 0 }}
             >
-                {/* 
-                   CONTENEDOR DINÁMICO: 
-                   Cambia de max-w-4xl a max-w-[1400px] con animación suave.
-                */}
                 <div className={`w-full ${containerMaxWidth} mx-auto flex flex-col flex-grow h-full overflow-hidden relative md:px-4 py-0 md:py-4 transition-all duration-500 ease-in-out`}>
                     
-                    {!isSelectingPurpose && (
-                      // CABECERA FIJA: Forzamos max-w-4xl para mantener la barra de progreso consistente
+                    {/* CABECERA: Se oculta si estamos cargando el borrador */}
+                    {shouldShowHeader && (
                       <div className="w-full max-w-4xl mx-auto flex-shrink-0 px-4 py-1 z-20 mb-2">
                         <div className="flex justify-between items-end mb-1.5">
                            <div className="flex flex-col">
@@ -443,12 +445,17 @@ export function PodcastCreationForm() {
                     >
                         <CardContent className="p-0 flex-1 flex flex-col h-full overflow-hidden relative">
                           <div className="flex-1 overflow-hidden h-full flex flex-col">
-                             {renderCurrentStep()}
+                             {/* CONTENIDO PRINCIPAL: Alterna entre Loader y Paso Actual */}
+                             {shouldShowLoader ? (
+                                <DraftGenerationLoader formData={formData} />
+                             ) : (
+                                renderCurrentStep()
+                             )}
                           </div>
                         </CardContent>
 
-                        {!isSelectingPurpose && (
-                           // FOOTER: El footer se expande junto con la tarjeta (UX deseada para modo estudio)
+                        {/* FOOTER: Se oculta si estamos cargando el borrador */}
+                        {shouldShowFooter && (
                            <div className="flex-shrink-0 px-4 py-3 md:py-4 z-20 bg-gradient-to-t from-white/90 via-white/60 dark:from-black/90 dark:via-black/60 to-transparent backdrop-blur-md border-t border-border/10">
                                <div className="flex justify-between items-center gap-4">
                                    <Button 
