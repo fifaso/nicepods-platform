@@ -1,17 +1,24 @@
 // supabase/functions/queue-podcast-job/index.ts
-// VERSIÓN FINAL Y ROBUSTA: Actualiza el esquema de validación para aceptar los nuevos estilos de creación.
+// VERSIÓN: 5.7 (Fix: Whitelist 'sources', 'final_script', 'final_title' in Zod Schema)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { z, ZodError } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
-// [CAMBIO QUIRÚRGICO]: Se actualiza el esquema de Zod para incluir los nuevos estilos 'legacy' y 'qa'.
-// También se hace el 'style' opcional para ser coherente con el payload, ya que a veces viene en el 'purpose'.
+// [CAMBIO QUIRÚRGICO]: Ampliamos el esquema para permitir el paso de datos de edición y fuentes.
 const QueuePayloadSchema = z.object({
   purpose: z.string(),
   style: z.enum(['solo', 'link', 'archetype', 'legacy', 'qa']).optional(),
-  agentName: z.string().min(1).optional(), // Algunos flujos no seleccionan el agente al principio
+  agentName: z.string().min(1).optional(),
+  
+  // --- NUEVOS CAMPOS PERMITIDOS (Corrección de Fuga de Datos) ---
+  final_title: z.string().optional(),
+  final_script: z.string().optional(),
+  // Permitimos un array de cualquier objeto para las fuentes. 
+  // La validación estricta del contenido de la fuente ya se hizo en el frontend.
+  sources: z.array(z.any()).optional(), 
+  
   inputs: z.object({}).passthrough(),
 });
 
@@ -32,9 +39,12 @@ serve(async (request: Request) => {
     if (!user) throw new Error("No autorizado.");
 
     const payload = await request.json();
+    
+    // Aquí ocurría el "strip": Zod eliminaba lo que no estaba definido arriba.
+    // Con el nuevo esquema, 'sources' sobrevivirá a esta línea.
     const validatedPayload = QueuePayloadSchema.parse(payload);
     
-    // 1. Crear el trabajo en la base de datos.
+    // 1. Crear el trabajo en la base de datos (con el payload completo).
     const { data: newJobId, error: rpcError } = await supabaseClient
       .rpc('increment_jobs_and_queue', {
         p_user_id: user.id,
@@ -49,7 +59,7 @@ serve(async (request: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    console.log(`Trabajo ${newJobId} creado. Invocando a 'process-podcast-job' para iniciar la cadena...`);
+    console.log(`Trabajo ${newJobId} creado. Invocando a 'process-podcast-job'...`);
     
     // 3. Invocación asíncrona ("dispara y olvida").
     supabaseAdmin.functions.invoke('process-podcast-job', {

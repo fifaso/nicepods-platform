@@ -1,5 +1,5 @@
 // supabase/functions/generate-script-draft/index.ts
-// CEREBRO SÍNCRONO V2 (SALA DE REDACCIÓN): Pipeline de Investigación (Curador) -> Escritura (Arquitecto).
+// CEREBRO SÍNCRONO V3 (SALA DE REDACCIÓN): Pipeline de Investigación (Curador) -> Escritura (Arquitecto) con Matriz de Densidad.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -16,6 +16,32 @@ const API_VERSION = "v1beta";
 const MAX_RETRIES = 2; 
 
 // --- UTILIDADES ---
+
+// 1. Matriz de Densidad Documental
+function calculateSourceLimits(durationStr: string, depthStr: string): { min: number, max: number } {
+  // Normalización básica
+  const duration = durationStr.toLowerCase().trim(); // "3-5 min", "10-14 min"
+  const depth = depthStr.toLowerCase().trim();       // "básico", "profundo", "medio"
+
+  // Lógica de decisión
+  if (duration.includes("3-5")) {
+    if (depth.includes("profundo")) return { min: 5, max: 8 };
+    return { min: 3, max: 5 }; // Básico/Medio
+  }
+  
+  if (duration.includes("6-9")) {
+    if (depth.includes("profundo")) return { min: 8, max: 12 };
+    return { min: 5, max: 8 };
+  }
+  
+  if (duration.includes("10-14")) {
+    if (depth.includes("profundo")) return { min: 12, max: 18 };
+    return { min: 8, max: 12 };
+  }
+
+  // Fallback seguro por defecto
+  return { min: 4, max: 8 };
+}
 
 // Extractor quirúrgico de JSON
 function extractJsonFromResponse(text: string): string {
@@ -97,12 +123,9 @@ serve(async (request) => {
     // 2. DATOS DE ENTRADA
     const { purpose, style, duration, depth, tone, raw_inputs } = await request.json();
     
-    // Seleccionamos el agente "Personalidad" (Tono) o usamos el default si no hay uno específico.
-    // Nota: Aunque tengamos un Curador antes, la personalidad define CÓMO se escribe el guion final.
     const writerAgentName = tone || 'script-architect-v1'; 
 
-    // 3. RECUPERAR PROMPTS (Curador y Escritor)
-    // Buscamos ambos prompts en paralelo para eficiencia
+    // 3. RECUPERAR PROMPTS
     const { data: promptsData, error: promptsError } = await supabaseAdmin
       .from('ai_prompts')
       .select('agent_name, prompt_template')
@@ -118,18 +141,26 @@ serve(async (request) => {
 
     // --- FASE 1: EL CURADOR (Investigación) ---
     const normalizedRawText = buildRawContext(purpose, raw_inputs);
-    console.log(`1. Iniciando Investigación para: ${normalizedRawText.substring(0, 50)}...`);
+    
+    // [NUEVO]: Cálculo de Límites de Fuentes
+    const sourceLimits = calculateSourceLimits(duration, depth);
+    console.log(`1. Iniciando Investigación: "${normalizedRawText.substring(0, 30)}..." | Sources: ${sourceLimits.min}-${sourceLimits.max}`);
 
     const curatorFinalPrompt = curatorPromptTemplate
         .replace('{{raw_input}}', normalizedRawText)
-        .replace('{{purpose}}', purpose);
+        .replace('{{purpose}}', purpose)
+        // Inyección de variables de investigación controlada:
+        .replace('{{topic}}', normalizedRawText) 
+        .replace('{{goal}}', `Crear un podcast ${style} de ${duration}`)
+        .replace('{{context}}', `Profundidad: ${depth}`)
+        .replace('{{min_sources}}', sourceLimits.min.toString())
+        .replace('{{max_sources}}', sourceLimits.max.toString());
 
     // Llamada con Google Search Activado
     let dossierJson;
     try {
         dossierJson = await callGeminiAgent(curatorFinalPrompt, [{ google_search: {} }]);
     } catch (e) {
-        // Fallback: Si falla la investigación, creamos un dossier "ficticio" con la data cruda para que el escritor no falle.
         console.warn("Fallo en Curador, usando fallback local:", e);
         dossierJson = {
             main_thesis: normalizedRawText,
@@ -141,17 +172,12 @@ serve(async (request) => {
     // --- FASE 2: EL ARQUITECTO (Escritura) ---
     console.log("2. Iniciando Redacción basada en Dossier...");
 
-    // Preparamos las variables para el escritor. 
-    // IMPORTANTE: Si el escritor es 'script-architect-v1' (nuevo), espera {{dossier_json}}.
-    // Si es un tono antiguo (ej 'narrador'), espera {{topic}} y {{motivation}}. Hacemos un mapeo híbrido.
-    
-    const dossierString = JSON.stringify(dossierJson); // Dossier completo para el arquitecto
-    const enrichedTopic = dossierJson.main_thesis || normalizedRawText; // Tesis validada como tema
-    const enrichedMotivation = (dossierJson.key_facts || []).join(". "); // Hechos como motivación
+    const dossierString = JSON.stringify(dossierJson);
+    const enrichedTopic = dossierJson.main_thesis || normalizedRawText;
+    const enrichedMotivation = (dossierJson.key_facts || []).join(". ");
 
     let writerFinalPrompt = writerPromptTemplate
-        .replace('{{dossier_json}}', dossierString) // Para la V3.0 (Arquitecto)
-        // Compatibilidad con Tonos (V2.0)
+        .replace('{{dossier_json}}', dossierString)
         .replace('{{topic}}', enrichedTopic)
         .replace('{{motivation}}', enrichedMotivation)
         .replace('{{context}}', "Basado en hechos reales investigados.") 
@@ -160,17 +186,14 @@ serve(async (request) => {
         .replace('{{style}}', style || 'Estándar')
         .replace('{{archetype}}', raw_inputs.archetype || 'N/A');
 
-    // Llamada al Escritor (Sin búsqueda, usa el dossier)
     const scriptJson = await callGeminiAgent(writerFinalPrompt);
 
-    // Validación Final
     if (!scriptJson.title && !scriptJson.suggested_title) throw new Error("Guion sin título.");
     
-    // Normalización de salida
     const finalDraft = {
         suggested_title: scriptJson.title || scriptJson.suggested_title,
         script_body: scriptJson.script_body || scriptJson.script,
-        sources: dossierJson.sources || [] // Pasamos las fuentes al frontend
+        sources: dossierJson.sources || [] 
     };
 
     return new Response(JSON.stringify({ success: true, draft: finalDraft }), { 
