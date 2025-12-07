@@ -1,5 +1,5 @@
 // components/podcast-view.tsx
-// VERSIÓN: 5.9 (Fix: CSS Sticky Robusto + Renderizado Seguro de Fuentes)
+// VERSIÓN: 6.0 (Fix: Fuente Robusta & UX Mejorada)
 
 "use client";
 
@@ -17,7 +17,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Heart, Share2, Download, Calendar, Clock, PlayCircle, ChevronDown, Loader2, Mic, Tag, Pencil, BookOpen, ExternalLink, Globe } from 'lucide-react';
+import { Heart, Share2, Download, Calendar, Clock, PlayCircle, ChevronDown, Loader2, Mic, Tag, Pencil, BookOpen, ExternalLink, Globe, Link as LinkIcon } from 'lucide-react';
 import { CreationMetadata } from './creation-metadata';
 import { formatTime } from '@/lib/utils';
 import { ScriptViewer } from './script-viewer';
@@ -91,9 +91,14 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
     return [];
   }, [localPodcastData.ai_tags, localPodcastData.user_tags]);
 
-  // Recuperación segura de fuentes con fallback a array vacío
-  // Nota: Asegúrate de que 'sources' esté en el SELECT de Supabase en page.tsx
-  const displaySources: SourceItem[] = (localPodcastData as any).sources || [];
+  // Recuperación Segura de Fuentes (Safe Parsing)
+  const displaySources: SourceItem[] = useMemo(() => {
+    const rawSources = (localPodcastData as any).sources; // Acceso dinámico si no está en tipo
+    if (Array.isArray(rawSources)) {
+        return rawSources.filter(s => s.title || s.url); // Filtrar basura vacía
+    }
+    return [];
+  }, [localPodcastData]);
 
   const handleSaveTags = async (finalTags: string[]) => {
     const { error } = await supabase
@@ -200,7 +205,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
                     <Badge variant="secondary" className="mb-3 w-fit capitalize px-3 py-1 text-xs font-semibold tracking-wide">
                         {localPodcastData.status.replace('_', ' ')}
                     </Badge>
-                    {/* Timestamp relativo o fecha corta podría ir aquí */}
                 </div>
                 
                 <CardTitle className="text-2xl md:text-4xl font-bold leading-tight tracking-tight">
@@ -239,7 +243,7 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
                   </div>
                 </div>
 
-                {/* --- ACORDEÓN DE FUENTES CIENTÍFICAS --- */}
+                {/* --- ACORDEÓN DE FUENTES CIENTÍFICAS (MEJORADO) --- */}
                 {displaySources.length > 0 && (
                   <div className="rounded-xl border border-primary/10 bg-primary/5 dark:bg-primary/10 overflow-hidden transition-all duration-300">
                       <Collapsible open={isSourcesExpanded} onOpenChange={setIsSourcesExpanded}>
@@ -259,32 +263,37 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
                         </CollapsibleTrigger>
 
                         <CollapsibleContent className="animate-slide-down">
-                            <div className="max-h-[400px] overflow-y-auto p-4 pt-0 space-y-3 custom-scrollbar">
+                            <div className="max-h-[400px] overflow-y-auto p-4 pt-0 space-y-2 custom-scrollbar">
                                 <div className="h-px w-full bg-primary/10 mb-4" />
                                 
                                 {displaySources.map((source, idx) => (
-                                    <div key={idx} className="group relative p-3.5 rounded-lg bg-background/80 border border-border/50 hover:border-primary/30 hover:shadow-sm transition-all">
-                                        <div className="flex flex-col gap-1.5">
-                                            <div className="flex justify-between items-start gap-4">
+                                    <div 
+                                      key={idx} 
+                                      className={cn(
+                                        "group relative p-3 rounded-lg bg-background/60 border border-border/40 hover:border-primary/20 hover:shadow-sm transition-all",
+                                        source.url && "cursor-pointer hover:bg-background/80"
+                                      )}
+                                      onClick={() => source.url && window.open(source.url, '_blank')}
+                                    >
+                                        <div className="flex flex-col gap-1">
+                                            <div className="flex justify-between items-start gap-3">
                                                 <span className="font-medium text-sm text-foreground leading-snug line-clamp-2">
                                                   {source.title || "Fuente de Referencia"}
                                                 </span>
                                                 {source.url && (
-                                                    <a 
-                                                      href={source.url} 
-                                                      target="_blank" 
-                                                      rel="noopener noreferrer" 
-                                                      className="flex-shrink-0"
-                                                      title="Abrir fuente original"
-                                                    >
-                                                        <ExternalLink className="h-4 w-4 text-muted-foreground hover:text-primary transition-colors" />
-                                                    </a>
+                                                    <ExternalLink className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors mt-0.5 flex-shrink-0" />
                                                 )}
                                             </div>
                                             {source.snippet && (
-                                                <p className="text-xs text-muted-foreground line-clamp-2 border-l-2 border-primary/20 pl-2">
+                                                <p className="text-xs text-muted-foreground/80 line-clamp-2 border-l-2 border-primary/20 pl-2 mt-1 italic">
                                                     {source.snippet}
                                                 </p>
+                                            )}
+                                            {source.url && (
+                                              <div className="flex items-center gap-1 mt-1">
+                                                <LinkIcon className="h-2.5 w-2.5 text-blue-400" />
+                                                <span className="text-[10px] text-blue-400/80 truncate max-w-[200px]">{new URL(source.url).hostname}</span>
+                                              </div>
                                             )}
                                         </div>
                                     </div>
@@ -325,7 +334,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
           </div>
 
           {/* --- COLUMNA DERECHA (Acciones Sticky) --- */}
-          {/* [FIX STICKY]: Usamos self-start para evitar saltos y top-24 para respetar el navbar */}
           <div className="lg:col-span-1 space-y-6 lg:sticky lg:top-24 lg:self-start">
             
             {/* 1. Player Card */}
@@ -333,9 +341,7 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg font-semibold flex items-center gap-2">
                     <PlayCircle className="h-5 w-5 text-primary" />
-                    {localPodcastData.audio_url 
-                        ? "Reproducir Episodio" 
-                        : "Estado del Audio"}
+                    {localPodcastData.audio_url ? "Reproducir Episodio" : "Estado del Audio"}
                 </CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col gap-4">

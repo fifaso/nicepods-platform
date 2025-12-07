@@ -1,5 +1,5 @@
 // app/podcast/[id]/page.tsx
-// VERSIÓN: 5.10 (Fix: Fetch 'sources' column for Grounding UI)
+// VERSIÓN: 5.11 (Final: Verified Data Pipeline for Sources & Tags)
 
 import { cookies } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
@@ -23,6 +23,8 @@ export default async function PodcastDisplayPage({ params }: PodcastPageProps) {
     redirect(`/login?redirect=/podcast/${params.id}`);
   }
 
+  // Consulta Maestra:
+  // Aquí es donde aseguramos que el campo 'sources' viaja desde la DB al Frontend.
   const { data: podcastData, error } = await supabase
     .from("micro_pods")
     .select(`
@@ -43,7 +45,7 @@ export default async function PodcastDisplayPage({ params }: PodcastPageProps) {
       creation_data,
       ai_tags, 
       user_tags,
-      sources,
+      sources, 
       profiles ( full_name, avatar_url, username )
     `)
     .eq('id', params.id)
@@ -54,6 +56,7 @@ export default async function PodcastDisplayPage({ params }: PodcastPageProps) {
     notFound();
   }
   
+  // Verificación de Like inicial para UX instantánea
   const { data: likeData } = await supabase
     .from('likes')
     .select('user_id')
