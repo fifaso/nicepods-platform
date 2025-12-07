@@ -1,5 +1,5 @@
 // supabase/functions/generate-script-draft/index.ts
-// CEREBRO SÍNCRONO V3 (SALA DE REDACCIÓN): Pipeline de Investigación (Curador) -> Escritura (Arquitecto) con Matriz de Densidad.
+// VERSIÓN: 5.9 (Final: Force 'script-architect-v1' & Safety Settings)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -11,7 +11,8 @@ const GOOGLE_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY")!;
 
 const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_KEY);
 
-const MODEL_NAME = "gemini-2.5-flash"; 
+// Usamos el modelo experimental más capaz para razonamiento complejo
+const MODEL_NAME = "gemini-2.0-flash-exp"; 
 const API_VERSION = "v1beta";
 const MAX_RETRIES = 2; 
 
@@ -19,28 +20,19 @@ const MAX_RETRIES = 2;
 
 // 1. Matriz de Densidad Documental
 function calculateSourceLimits(durationStr: string, depthStr: string): { min: number, max: number } {
-  // Normalización básica
-  const duration = durationStr.toLowerCase().trim(); // "3-5 min", "10-14 min"
-  const depth = depthStr.toLowerCase().trim();       // "básico", "profundo", "medio"
+  const duration = (durationStr || "").toLowerCase().trim();
+  const depth = (depthStr || "").toLowerCase().trim();
 
-  // Lógica de decisión
   if (duration.includes("3-5")) {
-    if (depth.includes("profundo")) return { min: 5, max: 8 };
-    return { min: 3, max: 5 }; // Básico/Medio
+    return depth.includes("profundo") ? { min: 4, max: 7 } : { min: 2, max: 4 };
   }
-  
   if (duration.includes("6-9")) {
-    if (depth.includes("profundo")) return { min: 8, max: 12 };
-    return { min: 5, max: 8 };
+    return depth.includes("profundo") ? { min: 6, max: 10 } : { min: 3, max: 6 };
   }
-  
   if (duration.includes("10-14")) {
-    if (depth.includes("profundo")) return { min: 12, max: 18 };
-    return { min: 8, max: 12 };
+    return depth.includes("profundo") ? { min: 10, max: 15 } : { min: 5, max: 10 };
   }
-
-  // Fallback seguro por defecto
-  return { min: 4, max: 8 };
+  return { min: 3, max: 6 };
 }
 
 // Extractor quirúrgico de JSON
@@ -53,7 +45,6 @@ function extractJsonFromResponse(text: string): string {
   return text.trim();
 }
 
-// Constructor de Contexto Crudo (Para el Investigador)
 function buildRawContext(purpose: string, inputs: any): string {
   switch (purpose) {
     case 'explore': return `Conectar "${inputs.topicA}" con "${inputs.topicB}". Catalizador: ${inputs.catalyst || 'Ninguno'}.`;
@@ -64,9 +55,18 @@ function buildRawContext(purpose: string, inputs: any): string {
   }
 }
 
-// Función Genérica para llamar a Gemini con Reintentos
+// Función Genérica para llamar a Gemini
 async function callGeminiAgent(prompt: string, tools: any[] = []) {
   let lastError = null;
+  
+  // Configuración de Seguridad permisiva para evitar bloqueos en temas creativos
+  const safetySettings = [
+    { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_ONLY_HIGH" },
+    { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_ONLY_HIGH" },
+    { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_ONLY_HIGH" },
+    { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_ONLY_HIGH" }
+  ];
+
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
       const currentPrompt = attempt > 1 
@@ -78,22 +78,33 @@ async function callGeminiAgent(prompt: string, tools: any[] = []) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: currentPrompt }] }],
-          tools: tools.length > 0 ? tools : undefined
+          tools: tools.length > 0 ? tools : undefined,
+          safetySettings: safetySettings,
+          generationConfig: { responseMimeType: "application/json" }
         }),
       });
 
-      if (!response.ok) throw new Error(`Gemini Error: ${await response.text()}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Gemini API Error (${response.status}): ${errorText}`);
+      }
 
       const result = await response.json();
-      const rawOutput = result.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!rawOutput) throw new Error("Respuesta vacía.");
+      const candidate = result.candidates?.[0];
+      
+      if (!candidate) throw new Error("Gemini no devolvió candidatos.");
+      if (candidate.finishReason !== "STOP") console.warn(`Gemini Warning: FinishReason ${candidate.finishReason}`);
+
+      const rawOutput = candidate.content?.parts?.[0]?.text;
+      if (!rawOutput) throw new Error("Respuesta de texto vacía.");
 
       const cleanOutput = extractJsonFromResponse(rawOutput);
       return JSON.parse(cleanOutput);
 
     } catch (e) {
-      console.error(`Intento ${attempt} fallido:`, e);
+      console.error(`Intento ${attempt} fallido:`, e.message);
       lastError = e;
+      await new Promise(r => setTimeout(r, 1000 * attempt));
     }
   }
   throw lastError;
@@ -105,7 +116,6 @@ serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
-    // 1. SEGURIDAD
     const authHeader = request.headers.get('Authorization');
     if (!authHeader) throw new Error("Falta autorización.");
     
@@ -120,75 +130,78 @@ serve(async (request) => {
     });
     if (allowed === false) return new Response(JSON.stringify({ error: "Rate limit excedido." }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-    // 2. DATOS DE ENTRADA
+    // Inputs
     const { purpose, style, duration, depth, tone, raw_inputs } = await request.json();
     
-    const writerAgentName = tone || 'script-architect-v1'; 
+    // [CAMBIO CRÍTICO]: Forzamos SIEMPRE al Arquitecto V1.
+    // El 'tone' del usuario se pasará como parámetro {{style}} al prompt, no como nombre de agente.
+    const writerAgentName = 'script-architect-v1'; 
+    const curatorAgentName = 'research-curator-v1';
 
-    // 3. RECUPERAR PROMPTS
+    // Recuperamos Prompts
     const { data: promptsData, error: promptsError } = await supabaseAdmin
       .from('ai_prompts')
       .select('agent_name, prompt_template')
-      .in('agent_name', ['research-curator-v1', writerAgentName]);
+      .in('agent_name', [curatorAgentName, writerAgentName]);
 
     if (promptsError || !promptsData) throw new Error("Error cargando agentes.");
 
-    const curatorPromptTemplate = promptsData.find(p => p.agent_name === 'research-curator-v1')?.prompt_template;
+    const curatorPromptTemplate = promptsData.find(p => p.agent_name === curatorAgentName)?.prompt_template;
     const writerPromptTemplate = promptsData.find(p => p.agent_name === writerAgentName)?.prompt_template;
 
     if (!curatorPromptTemplate) throw new Error("Agente Curador no encontrado.");
-    if (!writerPromptTemplate) throw new Error(`Agente Escritor '${writerAgentName}' no encontrado.`);
+    if (!writerPromptTemplate) throw new Error("Agente Arquitecto no encontrado.");
 
     // --- FASE 1: EL CURADOR (Investigación) ---
     const normalizedRawText = buildRawContext(purpose, raw_inputs);
-    
-    // [NUEVO]: Cálculo de Límites de Fuentes
     const sourceLimits = calculateSourceLimits(duration, depth);
-    console.log(`1. Iniciando Investigación: "${normalizedRawText.substring(0, 30)}..." | Sources: ${sourceLimits.min}-${sourceLimits.max}`);
+    
+    console.log(`1. Investigación: "${normalizedRawText.substring(0, 30)}..." | Sources: ${sourceLimits.min}-${sourceLimits.max}`);
 
     const curatorFinalPrompt = curatorPromptTemplate
         .replace('{{raw_input}}', normalizedRawText)
         .replace('{{purpose}}', purpose)
-        // Inyección de variables de investigación controlada:
         .replace('{{topic}}', normalizedRawText) 
-        .replace('{{goal}}', `Crear un podcast ${style} de ${duration}`)
+        .replace('{{goal}}', `Podcast ${style || 'Estándar'} de ${duration}`)
         .replace('{{context}}', `Profundidad: ${depth}`)
         .replace('{{min_sources}}', sourceLimits.min.toString())
         .replace('{{max_sources}}', sourceLimits.max.toString());
 
-    // Llamada con Google Search Activado
     let dossierJson;
     try {
         dossierJson = await callGeminiAgent(curatorFinalPrompt, [{ google_search: {} }]);
     } catch (e) {
-        console.warn("Fallo en Curador, usando fallback local:", e);
+        console.warn("⚠️ Fallo Curador (Fallback activo):", e);
         dossierJson = {
             main_thesis: normalizedRawText,
-            key_facts: ["Información basada en el conocimiento general de la IA."],
+            key_facts: ["Investigación en tiempo real no disponible. Generación basada en conocimiento general."],
             sources: []
         };
     }
 
     // --- FASE 2: EL ARQUITECTO (Escritura) ---
-    console.log("2. Iniciando Redacción basada en Dossier...");
+    console.log("2. Redacción (Arquitecto V1)...");
 
     const dossierString = JSON.stringify(dossierJson);
-    const enrichedTopic = dossierJson.main_thesis || normalizedRawText;
-    const enrichedMotivation = (dossierJson.key_facts || []).join(". ");
+    
+    // Aquí mapeamos el 'tone' (input usuario) a la variable {{style}} del prompt
+    const userSelectedTone = tone || style || "Neutro y Profesional";
 
     let writerFinalPrompt = writerPromptTemplate
         .replace('{{dossier_json}}', dossierString)
-        .replace('{{topic}}', enrichedTopic)
-        .replace('{{motivation}}', enrichedMotivation)
-        .replace('{{context}}', "Basado en hechos reales investigados.") 
+        // Mapeo de seguridad para variables antiguas si existieran en el prompt
+        .replace('{{topic}}', dossierJson.main_thesis || normalizedRawText)
+        .replace('{{motivation}}', "Basado en dossier.")
+        .replace('{{context}}', "Podcast fundamentado.") 
+        // Variables V5
         .replace('{{duration}}', duration)
         .replace('{{depth}}', depth)
-        .replace('{{style}}', style || 'Estándar')
-        .replace('{{archetype}}', raw_inputs.archetype || 'N/A');
+        .replace('{{style}}', userSelectedTone) // <--- El tono del usuario entra aquí
+        .replace('{{archetype}}', raw_inputs.archetype || 'Ninguno');
 
     const scriptJson = await callGeminiAgent(writerFinalPrompt);
 
-    if (!scriptJson.title && !scriptJson.suggested_title) throw new Error("Guion sin título.");
+    if (!scriptJson.title && !scriptJson.suggested_title) throw new Error("Guion generado sin título.");
     
     const finalDraft = {
         suggested_title: scriptJson.title || scriptJson.suggested_title,
@@ -201,7 +214,7 @@ serve(async (request) => {
     });
 
   } catch (error) {
-    console.error("Critical Error pipeline:", error);
+    console.error("Pipeline Error:", error);
     return new Response(
       JSON.stringify({ success: false, error: error instanceof Error ? error.message : "Error interno" }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

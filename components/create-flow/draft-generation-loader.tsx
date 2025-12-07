@@ -22,7 +22,7 @@ const PHASES = [
     icon: <Globe className="h-12 w-12 text-blue-500" />,
     color: "from-blue-500/20 to-blue-500/5",
     targetProgress: 35, // Llega hasta el 35%
-    durationMs: 7000,   // En 7 segundos (Búsqueda suele ser rápida)
+    durationMs: 9000,   // En 7 segundos (Búsqueda suele ser rápida)
   },
   {
     id: 1,
@@ -31,7 +31,7 @@ const PHASES = [
     icon: <BrainCircuit className="h-12 w-12 text-purple-500" />,
     color: "from-purple-500/20 to-purple-500/5",
     targetProgress: 50, // Salta al 50%
-    durationMs: 2000,   // Muy rápido (Configuración interna)
+    durationMs: 5000,   // Muy rápido (Configuración interna)
   },
   {
     id: 2,
@@ -40,7 +40,7 @@ const PHASES = [
     icon: <LibraryBig className="h-12 w-12 text-amber-500" />,
     color: "from-amber-500/20 to-amber-500/5",
     targetProgress: 65, // Llega al 65%
-    durationMs: 4000,   // Tiempo de pensamiento
+    durationMs: 9000,   // Tiempo de pensamiento
   },
   {
     id: 3,
