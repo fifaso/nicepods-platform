@@ -1,5 +1,5 @@
 // components/script-viewer.tsx
-// VERSIÓN: 3.0 (Polyglot: Soporta JSON Legacy, Nuevo HTML Object y Texto Plano)
+// VERSIÓN: 3.1 (Robust Polyglot: Manejo de Doble Parseo y Estilos Refinados)
 
 "use client";
 
@@ -11,73 +11,94 @@ interface ScriptViewerProps {
   scriptText: string | null; 
 }
 
-// Estructura Legacy
-type LegacyScriptLine = { speaker: string; line: string; };
-
 export function ScriptViewer({ scriptText }: ScriptViewerProps) {
   
   const content = useMemo(() => {
     if (!scriptText) return null;
 
     try {
-      // 1. Intentamos parsear el JSON
-      const parsed = JSON.parse(scriptText);
+      let parsed;
+      
+      // 1. Intentamos parsear. Si es un string simple, podría fallar o devolver un string.
+      try {
+        parsed = JSON.parse(scriptText);
+      } catch {
+        // Si falla el parseo inicial, asumimos que es texto plano o HTML directo
+        return { html: scriptText, isRichText: true };
+      }
 
-      // CASO A: Nuevo Estándar (Objeto con script_body HTML/Markdown)
-      if (parsed.script_body) {
+      // 2. Manejo de "Double Stringify" (Edge Case común en DBs)
+      if (typeof parsed === 'string') {
+        try {
+          parsed = JSON.parse(parsed);
+        } catch {
+          // Si el segundo parseo falla, es que realmente era un string JSONificado
+          // Lo tratamos como el contenido final.
+          return { html: parsed, isRichText: true };
+        }
+      }
+
+      // CASO A: Nuevo Estándar V5 (Objeto con script_body)
+      if (parsed && typeof parsed === 'object' && 'script_body' in parsed) {
         return { 
-          html: parsed.script_body, 
+          html: parsed.script_body || "", // Protección contra null
           isRichText: true 
         };
       }
 
-      // CASO B: Legacy (Array de objetos speaker/line)
+      // CASO B: Legacy V4 (Array de objetos speaker/line)
       if (Array.isArray(parsed)) {
-        const textBlock = parsed.map((item: LegacyScriptLine) => item.line).join('\n\n');
+        const textBlock = parsed
+          .map((item: any) => item.line || "")
+          .filter(Boolean)
+          .join('\n\n');
         return { 
           html: textBlock, 
           isRichText: false 
         };
       }
 
-      // CASO C: JSON stringificado simple
+      // CASO C: Fallback final (Convertir objeto desconocido a string)
       return { 
-        html: String(parsed), 
-        isRichText: true 
+        html: typeof parsed === 'object' ? JSON.stringify(parsed, null, 2) : String(parsed), 
+        isRichText: false 
       };
 
     } catch (error) {
-      // CASO D: Fallo de JSON (Texto plano o HTML crudo)
-      // Asumimos que es contenido válido directo
-      return { 
-        html: scriptText, 
-        isRichText: true 
-      };
+      console.warn("Error parseando guion:", error);
+      // Último recurso: devolver lo que llegó
+      return { html: scriptText, isRichText: true };
     }
   }, [scriptText]);
 
-  // Estado de Error (Solo si es null o vacío)
-  if (!content || !content.html) {
+  // Estado de Error / Vacío
+  if (!content || !content.html || content.html.trim().length === 0) {
     return (
-      <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-center">
-        <p className="text-destructive text-sm font-medium">
-          El guion no está disponible en este momento.
+      <div className="p-6 rounded-xl bg-secondary/20 border border-border/50 text-center flex flex-col items-center justify-center gap-2">
+        <span className="text-2xl">📝</span>
+        <p className="text-muted-foreground text-sm font-medium">
+          No hay texto disponible para mostrar.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-lg bg-card/30 p-4 md:p-6 border border-border/40">
+    <div className="rounded-xl bg-card/40 p-5 md:p-8 border border-white/5 shadow-inner">
       {content.isRichText ? (
-        // Renderizado de Texto Rico (HTML del Editor)
+        // Renderizado de Texto Rico (HTML del Editor TipTap)
         <div 
-          className="prose prose-stone dark:prose-invert max-w-none font-serif leading-relaxed"
+          className="prose prose-stone dark:prose-invert max-w-none 
+            prose-p:leading-relaxed prose-p:text-base md:prose-p:text-lg prose-p:text-foreground/90
+            prose-headings:font-bold prose-headings:tracking-tight prose-headings:text-primary
+            prose-strong:text-primary/90 prose-strong:font-semibold
+            prose-ul:list-disc prose-ul:pl-5
+            font-sans"
           dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content.html) }} 
         />
       ) : (
         // Renderizado de Texto Plano (Legacy)
-        <div className="prose prose-stone dark:prose-invert max-w-none font-serif leading-relaxed">
+        <div className="prose prose-stone dark:prose-invert max-w-none text-base md:text-lg leading-relaxed text-foreground/90 font-sans">
           <p className="whitespace-pre-wrap">{content.html}</p>
         </div>
       )}
