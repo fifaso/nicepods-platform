@@ -1,38 +1,86 @@
+// components/script-viewer.tsx
+// VERSIÓN: 3.0 (Polyglot: Soporta JSON Legacy, Nuevo HTML Object y Texto Plano)
+
 "use client";
 
 import { useMemo } from 'react';
+import DOMPurify from 'isomorphic-dompurify';
 
-// Se define el tipo de dato que espera el guion.
-type ScriptLine = { speaker: string; line: string; };
-
-// Se definen las props que recibirá el componente.
+// Definición de props
 interface ScriptViewerProps { 
   scriptText: string | null; 
 }
 
-// Se exporta la función para que pueda ser importada en otros archivos.
+// Estructura Legacy
+type LegacyScriptLine = { speaker: string; line: string; };
+
 export function ScriptViewer({ scriptText }: ScriptViewerProps) {
-  const formattedScript = useMemo(() => {
+  
+  const content = useMemo(() => {
     if (!scriptText) return null;
+
     try {
-      const scriptData = JSON.parse(scriptText);
-      if (!Array.isArray(scriptData)) { 
-        throw new Error("El formato del guion no es un array válido."); 
+      // 1. Intentamos parsear el JSON
+      const parsed = JSON.parse(scriptText);
+
+      // CASO A: Nuevo Estándar (Objeto con script_body HTML/Markdown)
+      if (parsed.script_body) {
+        return { 
+          html: parsed.script_body, 
+          isRichText: true 
+        };
       }
-      return scriptData.map((item: ScriptLine) => item.line).join('\n\n');
+
+      // CASO B: Legacy (Array de objetos speaker/line)
+      if (Array.isArray(parsed)) {
+        const textBlock = parsed.map((item: LegacyScriptLine) => item.line).join('\n\n');
+        return { 
+          html: textBlock, 
+          isRichText: false 
+        };
+      }
+
+      // CASO C: JSON stringificado simple
+      return { 
+        html: String(parsed), 
+        isRichText: true 
+      };
+
     } catch (error) {
-      console.error("Error al parsear o formatear el guion JSON:", error);
-      return null;
+      // CASO D: Fallo de JSON (Texto plano o HTML crudo)
+      // Asumimos que es contenido válido directo
+      return { 
+        html: scriptText, 
+        isRichText: true 
+      };
     }
   }, [scriptText]);
 
-  if (formattedScript === null) {
-    return <p className="text-destructive">El guion no se pudo cargar o tiene un formato incorrecto.</p>;
+  // Estado de Error (Solo si es null o vacío)
+  if (!content || !content.html) {
+    return (
+      <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-center">
+        <p className="text-destructive text-sm font-medium">
+          El guion no está disponible en este momento.
+        </p>
+      </div>
+    );
   }
 
   return (
-    <div className="prose prose-sm max-w-none dark:prose-invert font-serif">
-      <p style={{ whiteSpace: 'pre-wrap' }}>{formattedScript}</p>
+    <div className="rounded-lg bg-card/30 p-4 md:p-6 border border-border/40">
+      {content.isRichText ? (
+        // Renderizado de Texto Rico (HTML del Editor)
+        <div 
+          className="prose prose-stone dark:prose-invert max-w-none font-serif leading-relaxed"
+          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content.html) }} 
+        />
+      ) : (
+        // Renderizado de Texto Plano (Legacy)
+        <div className="prose prose-stone dark:prose-invert max-w-none font-serif leading-relaxed">
+          <p className="whitespace-pre-wrap">{content.html}</p>
+        </div>
+      )}
     </div>
   );
 }
