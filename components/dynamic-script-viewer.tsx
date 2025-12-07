@@ -1,5 +1,5 @@
 // components/dynamic-script-viewer.tsx
-// VERSIÓN: 2.0 (Políglota: Soporta JSON Legacy y HTML Rich Text)
+// VERSIÓN: 2.1 (Fix: Soporte total para JSON Object con HTML)
 
 "use client";
 
@@ -16,7 +16,7 @@ interface DynamicScriptViewerProps {
 
 interface PositionalScriptLine {
   id: number;
-  content: string; // Puede ser HTML
+  content: string;
   startChar: number;
   endChar: number;
   isHtml: boolean;
@@ -26,7 +26,7 @@ export function DynamicScriptViewer({ scriptText, currentTime, duration, isPlayi
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [activeLineIndex, setActiveLineIndex] = useState(-1);
 
-  // 1. PARSER HÍBRIDO (El Cerebro)
+  // 1. Lógica de Parseo Inteligente (Polyglot Parser)
   const { linesWithMetadata, totalCharacters } = useMemo(() => {
     if (!scriptText) return { linesWithMetadata: [], totalCharacters: 0 };
 
@@ -34,24 +34,25 @@ export function DynamicScriptViewer({ scriptText, currentTime, duration, isPlayi
     let isHtmlMode = false;
 
     try {
-      // INTENTO A: Formato Legacy (JSON Array)
+      // Intentamos parsear el JSON almacenado
       const parsed = JSON.parse(scriptText);
-      if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].line) {
-        // Es formato antiguo [{speaker, line}]
-        lines = parsed.map((item: any) => item.line);
-      } else if (parsed.script_body) {
-        // Es formato intermedio JSON { script_body: "..." }
-        // Lo tratamos como texto rico, dividiendo por párrafos
+
+      // CASO A: Formato Nuevo Estandarizado { script_body: "<html>..." }
+      if (parsed.script_body) {
         isHtmlMode = true;
         lines = splitHtmlContent(parsed.script_body);
-      } else {
-        // Es un JSON stringificado de texto plano
+      } 
+      // CASO B: Formato Legacy Array [{ speaker: "...", line: "..." }]
+      else if (Array.isArray(parsed)) {
+        lines = parsed.map((item: any) => item.line || "");
+      }
+      // CASO C: JSON extraño o texto plano encapsulado
+      else {
         isHtmlMode = true;
         lines = splitHtmlContent(String(parsed));
       }
     } catch (e) {
-      // INTENTO B: Texto Plano / HTML directo (Formato Nuevo)
-      // Si falla JSON.parse, es texto crudo.
+      // CASO D: Texto Plano / HTML Crudo (Fallo de JSON.parse)
       isHtmlMode = true;
       lines = splitHtmlContent(scriptText);
     }
@@ -59,10 +60,10 @@ export function DynamicScriptViewer({ scriptText, currentTime, duration, isPlayi
     // Calcular metadatos de tiempo para el teleprompter
     let cumulativeChars = 0;
     const processedLines: PositionalScriptLine[] = lines.map((content, index) => {
-      // Limpiamos etiquetas para contar caracteres "reales" (aproximación para el timing)
+      // Limpiamos etiquetas para contar caracteres "reales" para el timing
       const cleanLength = content.replace(/<[^>]+>/g, '').length;
       const startChar = cumulativeChars;
-      cumulativeChars += cleanLength + 1; // +1 por pausa imaginaria
+      cumulativeChars += cleanLength + 1; 
       
       return { 
         id: index, 
@@ -76,26 +77,27 @@ export function DynamicScriptViewer({ scriptText, currentTime, duration, isPlayi
     return { linesWithMetadata: processedLines, totalCharacters: cumulativeChars };
   }, [scriptText]);
 
-  // Helper para dividir HTML o Texto en bloques lógicos para el teleprompter
+  // Helper para dividir el contenido en bloques visuales
   function splitHtmlContent(html: string): string[] {
     if (!html) return [];
-    // Si tiene etiquetas <p>, dividimos por ellas
+    
+    // Si detectamos párrafos HTML, dividimos por ellos
     if (html.includes('<p>')) {
         return html
             .split('</p>')
-            .map(s => s.replace('<p>', '').trim())
+            .map(s => s.replace('<p>', '').trim()) // Limpiamos tags para re-envolver luego si queremos, o dejar limpio
             .filter(s => s.length > 0)
-            .map(s => `<p>${s}</p>`); // Re-envolvemos para mantener estilo si es necesario
+            .map(s => `<p>${s}</p>`); // Re-envolvemos para mantener estructura
     }
-    // Si es Markdown/Texto plano, dividimos por doble salto de línea
+    
+    // Si es Markdown o texto plano, dividimos por saltos de línea dobles
     return html.split(/\n\s*\n/).filter(s => s.trim().length > 0);
   }
 
-  // 2. Lógica de Teleprompter (Sincronización)
+  // 2. Sincronización (Teleprompter)
   useEffect(() => {
     if (!isPlaying || duration === 0 || totalCharacters === 0) return;
     
-    // Estimación lineal: Asumimos velocidad constante (mejorable con timestamps reales en futuro)
     const charsPerSecond = totalCharacters / duration;
     const currentCharPosition = currentTime * charsPerSecond;
 
@@ -120,35 +122,35 @@ export function DynamicScriptViewer({ scriptText, currentTime, duration, isPlayi
   if (linesWithMetadata.length === 0) {
     return (
         <div className="flex flex-col items-center justify-center h-full p-8 text-center opacity-70">
-            <p className="text-red-400 font-medium">No se pudo cargar el formato del guion.</p>
-            <p className="text-xs mt-2">Intenta regenerar el episodio.</p>
+            <p className="text-muted-foreground text-sm">Esperando transcripción...</p>
         </div>
     );
   }
 
   return (
-    <div ref={scrollContainerRef} className="h-full overflow-y-auto p-4 md:p-8 space-y-6 text-center scroll-smooth">
+    <div ref={scrollContainerRef} className="h-full overflow-y-auto p-4 md:p-8 space-y-6 text-center scroll-smooth pb-32">
       {linesWithMetadata.map((line, index) => (
         <div
           key={line.id}
           data-line-index={index}
           className={cn(
-            "font-serif text-lg md:text-xl leading-relaxed transition-all duration-500 max-w-2xl mx-auto",
+            "font-serif text-lg md:text-xl leading-relaxed transition-all duration-500 max-w-2xl mx-auto cursor-default",
             activeLineIndex === index
-              ? "text-foreground scale-105 opacity-100" 
-              : "text-muted-foreground opacity-40 blur-[0.5px]"
+              ? "text-foreground scale-105 opacity-100 font-medium" 
+              : "text-muted-foreground opacity-50 blur-[0.5px] hover:opacity-80 hover:blur-none transition-opacity"
           )}
         >
+          {/* Renderizado Seguro de HTML */}
           {line.isHtml ? (
-             <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(line.content) }} />
+             <div 
+               className="prose dark:prose-invert max-w-none [&>p]:mb-0" 
+               dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(line.content) }} 
+             />
           ) : (
              <p>{line.content}</p>
           )}
         </div>
       ))}
-      
-      {/* Espaciador final para permitir scroll hasta el último elemento */}
-      <div className="h-32" />
     </div>
   );
 }
