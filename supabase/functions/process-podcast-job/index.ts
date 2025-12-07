@@ -1,5 +1,5 @@
 // supabase/functions/process-podcast-job/index.ts
-// VERSIÓN FINAL GROUNDING: Persistencia de fuentes y manejo robusto de datos.
+// VERSIÓN: 5.6 (Fix: Normalized JSON Storage Schema)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -100,7 +100,6 @@ serve(async (request) => {
     // Fallback de agente
     const agentName = payload.agentName || DEFAULT_AGENT; 
     
-    // [CAMBIO QUIRÚRGICO]: Extraemos 'sources' también
     const { final_script, final_title, sources } = payload;
     
     // Objeto unificado para guardar
@@ -115,8 +114,8 @@ serve(async (request) => {
         console.log(`Job ${job.id}: Usando guion editado.`);
         processedScriptData = {
             title: final_title,
-            scriptBody: final_script,
-            sources: sources || [] // Si el usuario editó, usamos las fuentes que venían del borrador
+            scriptBody: final_script, // AQUÍ TENEMOS EL HTML CRUDO
+            sources: sources || []
         };
     } 
     // --- CAMINO B: Generación en Backend (Fallback/Legacy) ---
@@ -158,7 +157,7 @@ serve(async (request) => {
         processedScriptData = {
             title: extracted.title,
             scriptBody: extracted.scriptBody,
-            sources: [] // En generación legacy/fallback no tenemos fuentes de grounding
+            sources: [] 
         };
     }
 
@@ -169,18 +168,22 @@ serve(async (request) => {
 
     // Guardado Final en DB
     const initialPodcastStatus = inputs.generateAudioDirectly ? 'pending_approval' : 'published';
-    const scriptTextToSave = typeof processedScriptData.scriptBody === 'string'
-        ? processedScriptData.scriptBody
-        : JSON.stringify(processedScriptData.scriptBody);
+    
+    // [MODIFICACIÓN CRÍTICA]: Estandarización de Formato
+    // Independientemente de si es texto, HTML o Markdown, lo encapsulamos en un objeto JSON.
+    // Esto garantiza que el Frontend siempre pueda hacer JSON.parse() exitosamente.
+    const scriptTextToSave = JSON.stringify({
+        script_body: processedScriptData.scriptBody
+    });
 
-    // [CAMBIO QUIRÚRGICO]: Inserción de 'sources' en la columna JSONB
+    // Inserción
     const { data: newPodcast, error: insertError } = await supabaseAdmin.from('micro_pods').insert({
       user_id: job.user_id,
       title: processedScriptData.title,
-      script_text: scriptTextToSave,
+      script_text: scriptTextToSave, // Guardamos el JSON estandarizado
       status: initialPodcastStatus,
       creation_data: job.payload,
-      sources: processedScriptData.sources // <--- AQUÍ GUARDAMOS LA EVIDENCIA
+      sources: processedScriptData.sources 
     }).select('id').single();
     
     if (insertError) throw new Error(`Error DB: ${insertError.message}`);
