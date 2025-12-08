@@ -1,5 +1,5 @@
 // components/podcast-creation-form.tsx
-// VERSIÓN: 5.4 (UX Final: Inmersive Loader Integration)
+// VERSIÓN: 5.5 (Final Production: Controlled Hydration UX)
 
 "use client";
 
@@ -16,7 +16,9 @@ import { usePersistentForm } from "@/hooks/use-persistent-form";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ChevronLeft, ChevronRight, Wand2, Loader2, FileText, AlertCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Wand2, Loader2, FileText, AlertCircle, History, Trash2 } from "lucide-react";
+// [NUEVO] Importamos ToastAction para botones interactivos en la notificación
+import { ToastAction } from "@/components/ui/toast"; 
 
 // Importación de Pasos
 import { PurposeSelectionStep } from "./create-flow/purpose-selection-step";
@@ -34,7 +36,6 @@ import { ArchetypeStep } from "./create-flow/archetype-step";
 import { AudioStudio } from "./create-flow/audio-studio";
 import { ScriptEditorStep } from "./create-flow/script-editor-step";
 import { ToneSelectionStep } from "./create-flow/tone-selection-step";
-// [NUEVO] Importamos la pantalla de carga inmersiva
 import { DraftGenerationLoader } from "./create-flow/draft-generation-loader";
 
 export interface NarrativeOption { 
@@ -72,7 +73,6 @@ export function PodcastCreationForm() {
   const { supabase, user } = useAuth();
   const { currentPodcast } = useAudio();
   
-  // Estado para hidratación segura
   const [isMounted, setIsMounted] = useState(false);
   
   const [currentFlowState, setCurrentFlowState] = useState<FlowState>('SELECTING_PURPOSE');
@@ -81,6 +81,9 @@ export function PodcastCreationForm() {
   const [isGeneratingScript, setIsGeneratingScript] = useState(false);
   const [isLoadingNarratives, setIsLoadingNarratives] = useState(false);
   const [narrativeOptions, setNarrativeOptions] = useState<NarrativeOption[]>([]);
+
+  // [NUEVO] Estado para controlar la pregunta de restauración
+  const [hasRestorableData, setHasRestorableData] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -124,25 +127,59 @@ export function PodcastCreationForm() {
   const formData = watch();
 
   // ===========================================================================
-  // LÓGICA DE PERSISTENCIA
+  // SISTEMA DE HIDRATACIÓN CONTROLADA (UX PREMIUM)
   // ===========================================================================
 
-  const handleHydration = useCallback((savedStep: string, savedHistory: string[]) => {
+  // 1. Definimos qué hacer visualmente si el usuario acepta restaurar
+  const handleHydrationUI = useCallback((savedStep: string, savedHistory: string[]) => {
     setHistory(savedHistory as FlowState[]);
     setCurrentFlowState(savedStep as FlowState);
-    toast({
-      title: "Sesión Restaurada",
-      description: "Hemos recuperado tu borrador donde lo dejaste.",
-      duration: 3000,
-    });
-  }, [toast]);
+  }, []);
 
-  const { clearDraft } = usePersistentForm(
+  // 2. Invocamos el Hook. Si encuentra datos, activa el flag 'hasRestorableData'
+  const { restoreSession, discardSession, clearDraft } = usePersistentForm(
     formMethods, 
     currentFlowState, 
     history, 
-    handleHydration
+    handleHydrationUI,
+    useCallback(() => setHasRestorableData(true), []) // Callback de detección
   );
+
+  // 3. Efecto que reacciona al hallazgo de datos y muestra la pregunta
+  useEffect(() => {
+    if (hasRestorableData) {
+      toast({
+        title: "Sesión encontrada",
+        description: "Tienes un borrador sin guardar de tu visita anterior.",
+        duration: Infinity, // Se queda fijo hasta que el usuario decida
+        action: (
+          <div className="flex items-center gap-2">
+             <ToastAction 
+                altText="Nuevo" 
+                onClick={() => {
+                    discardSession();
+                    setHasRestorableData(false);
+                }} 
+                className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors"
+             >
+                <Trash2 className="h-3 w-3 mr-1" /> Nuevo
+             </ToastAction>
+             
+             <ToastAction 
+                altText="Continuar" 
+                onClick={() => {
+                    restoreSession();
+                    setHasRestorableData(false);
+                }} 
+                className="bg-primary text-primary-foreground hover:bg-primary/90 border-0 transition-colors"
+             >
+                <History className="h-3 w-3 mr-1" /> Continuar
+             </ToastAction>
+          </div>
+        ),
+      });
+    }
+  }, [hasRestorableData, toast, restoreSession, discardSession]);
 
   // ===========================================================================
 
@@ -167,7 +204,7 @@ export function PodcastCreationForm() {
   };
 
   const handleGenerateDraft = async () => {
-    setIsGeneratingScript(true); // Esto activará el Loader gracias a las variables de estado abajo
+    setIsGeneratingScript(true);
     try {
       const currentData = getValues();
       const draftPayload = {
@@ -219,27 +256,14 @@ export function PodcastCreationForm() {
     let nextState: FlowState | null = null;
 
     switch(currentFlowState) {
-      case 'SOLO_TALK_INPUT': 
-          fieldsToValidate = ['solo_topic', 'solo_motivation']; 
-          nextState = 'TONE_SELECTION'; 
-          break;
-      
-      case 'ARCHETYPE_INPUT': 
-          fieldsToValidate = ['selectedArchetype', 'archetype_topic', 'archetype_goal']; 
-          nextState = 'DETAILS_STEP'; 
-          break;
-      
+      case 'SOLO_TALK_INPUT': fieldsToValidate = ['solo_topic', 'solo_motivation']; nextState = 'TONE_SELECTION'; break;
+      case 'ARCHETYPE_INPUT': fieldsToValidate = ['selectedArchetype', 'archetype_topic', 'archetype_goal']; nextState = 'DETAILS_STEP'; break;
       case 'LINK_POINTS_INPUT':
         const isLinkPointsValid = await trigger(['link_topicA', 'link_topicB']);
         if (isLinkPointsValid) await handleGenerateNarratives();
-        else toast({ title: "Falta información", description: "Completa los temas para continuar.", variant: "destructive" });
+        else toast({ title: "Falta información", description: "Completa los temas.", variant: "destructive" });
         return;
-      
-      case 'NARRATIVE_SELECTION': 
-          fieldsToValidate = ['link_selectedNarrative']; 
-          nextState = 'TONE_SELECTION'; 
-          break;
-      
+      case 'NARRATIVE_SELECTION': fieldsToValidate = ['link_selectedNarrative']; nextState = 'TONE_SELECTION'; break;
       case 'FREESTYLE_SELECTION':
         const style = getValues('style');
         fieldsToValidate = ['style'];
@@ -247,88 +271,53 @@ export function PodcastCreationForm() {
         else if (style === 'link') nextState = 'LINK_POINTS_INPUT';
         else if (style === 'archetype') nextState = 'ARCHETYPE_INPUT';
         break;
-      
-      case 'LEGACY_INPUT': 
-          fieldsToValidate = ['legacy_lesson']; 
-          nextState = 'TONE_SELECTION'; 
-          break;
-      
-      case 'QUESTION_INPUT': 
-          fieldsToValidate = ['question_to_answer']; 
-          nextState = 'TONE_SELECTION'; 
-          break;
-      
-      case 'TONE_SELECTION':
-        fieldsToValidate = ['selectedTone'];
-        nextState = 'DETAILS_STEP';
-        break;
-
+      case 'LEGACY_INPUT': fieldsToValidate = ['legacy_lesson']; nextState = 'TONE_SELECTION'; break;
+      case 'QUESTION_INPUT': fieldsToValidate = ['question_to_answer']; nextState = 'TONE_SELECTION'; break;
+      case 'TONE_SELECTION': fieldsToValidate = ['selectedTone']; nextState = 'DETAILS_STEP'; break;
       case 'DETAILS_STEP': 
         const isDetailsValid = await trigger(['duration', 'narrativeDepth']);
-        if (isDetailsValid) {
-           await handleGenerateDraft();
-        } else {
-           toast({ title: "Configuración incompleta", description: "Selecciona duración y profundidad.", variant: "destructive" });
-        }
+        if (isDetailsValid) await handleGenerateDraft();
+        else toast({ title: "Configuración incompleta", variant: "destructive" });
         return;
-
       case 'SCRIPT_EDITING': fieldsToValidate = ['final_title', 'final_script']; nextState = 'AUDIO_STUDIO_STEP'; break;
       case 'AUDIO_STUDIO_STEP': fieldsToValidate = ['voiceGender', 'voiceStyle', 'voicePace', 'speakingRate']; nextState = 'FINAL_STEP'; break;
     }
 
     if (nextState) {
       const isStepValid = await trigger(fieldsToValidate);
-      if (isStepValid) {
-        transitionTo(nextState);
-      } else {
-        toast({ 
-          title: "Falta completar este paso", 
-          description: "Por favor revisa los campos requeridos.", 
-          variant: "destructive",
-          action: <AlertCircle className="h-5 w-5" />
-        });
-      }
+      if (isStepValid) transitionTo(nextState);
+      else toast({ title: "Falta completar este paso", variant: "destructive", action: <AlertCircle className="h-5 w-5" /> });
     }
   };
 
   const handleGenerateNarratives = useCallback(async () => {
-    if (!supabase) { toast({ title: "Error", variant: "destructive" }); return; }
+    if (!supabase) return;
     const { link_topicA, link_topicB, link_catalyst } = getValues();
     setIsLoadingNarratives(true);
     try {
       const { data, error } = await supabase.functions.invoke('generate-narratives', {
         body: { topicA: link_topicA, topicB: link_topicB, catalyst: link_catalyst }
       });
-      if (error) throw new Error(error.message);
       if (data?.narratives) {
         setNarrativeOptions(data.narratives);
         transitionTo('NARRATIVE_SELECTION');
       }
     } catch (e) {
-      toast({ title: "Error", description: "Falló la generación de narrativas.", variant: "destructive" });
+      toast({ title: "Error", variant: "destructive" });
     } finally {
       setIsLoadingNarratives(false);
     }
   }, [supabase, getValues, transitionTo, toast]);
 
   const handleFinalSubmit: SubmitHandler<PodcastCreationData> = useCallback(async (formData) => {
-    if (!supabase || !user) { toast({ title: "Error Auth", variant: "destructive" }); return; }
-
-    const determinedAgent = formData.purpose === 'inspire' 
-        ? formData.selectedArchetype 
-        : formData.selectedTone;
-
-    if (!determinedAgent) {
-        toast({ title: "Falta Información", description: "No se detectó el Tono o Arquetipo.", variant: "destructive" });
-        return;
-    }
+    if (!supabase || !user) return;
+    const determinedAgent = formData.purpose === 'inspire' ? formData.selectedArchetype : formData.selectedTone;
+    if (!determinedAgent) { toast({ title: "Falta Información", variant: "destructive" }); return; }
 
     let jobInputs: Record<string, any> = {};
     switch (formData.purpose) {
         case 'learn':
-        case 'freestyle':
-            if (formData.style === 'solo' || formData.style === 'archetype') jobInputs = { topic: formData.solo_topic, motivation: formData.solo_motivation };
-            break;
+        case 'freestyle': if (formData.style === 'solo' || formData.style === 'archetype') jobInputs = { topic: formData.solo_topic, motivation: formData.solo_motivation }; break;
         case 'inspire': jobInputs = { topic: formData.archetype_topic, motivation: formData.archetype_goal }; break;
         case 'explore': jobInputs = { topicA: formData.link_topicA, topicB: formData.link_topicB, catalyst: formData.link_catalyst, narrative: formData.link_selectedNarrative, tone: formData.link_selectedTone }; break;
         case 'reflect': jobInputs = { topic: "Reflexión Personal", motivation: formData.legacy_lesson }; break;
@@ -344,7 +333,6 @@ export function PodcastCreationForm() {
       sources: formData.sources, 
       inputs: { ...jobInputs, duration: formData.duration, depth: formData.narrativeDepth, tags: formData.tags, generateAudioDirectly: formData.generateAudioDirectly, voiceGender: formData.voiceGender, voiceStyle: formData.voiceStyle, voicePace: formData.voicePace, speakingRate: formData.speakingRate },
     };
-
     if (payload.purpose === 'inspire') { payload.style = 'archetype'; payload.agentName = formData.selectedArchetype!; }
     
     const { data, error } = await supabase.functions.invoke('queue-podcast-job', { body: payload });
@@ -396,7 +384,6 @@ export function PodcastCreationForm() {
 
   const playerPadding = isMounted && currentPodcast ? 'pb-24' : 'pb-4';
 
-  // [UX LOGIC]: Control de visibilidad para experiencia inmersiva
   const shouldShowLoader = isGeneratingScript;
   const shouldShowHeader = !isSelectingPurpose && !shouldShowLoader;
   const shouldShowFooter = !isSelectingPurpose && !shouldShowLoader;
@@ -412,7 +399,6 @@ export function PodcastCreationForm() {
             >
                 <div className={`w-full ${containerMaxWidth} mx-auto flex flex-col flex-grow h-full overflow-hidden relative md:px-4 py-0 md:py-4 transition-all duration-500 ease-in-out`}>
                     
-                    {/* CABECERA: Se oculta si estamos cargando el borrador */}
                     {shouldShowHeader && (
                       <div className="w-full max-w-4xl mx-auto flex-shrink-0 px-4 py-1 z-20 mb-2">
                         <div className="flex justify-between items-end mb-1.5">
@@ -445,7 +431,6 @@ export function PodcastCreationForm() {
                     >
                         <CardContent className="p-0 flex-1 flex flex-col h-full overflow-hidden relative">
                           <div className="flex-1 overflow-hidden h-full flex flex-col">
-                             {/* CONTENIDO PRINCIPAL: Alterna entre Loader y Paso Actual */}
                              {shouldShowLoader ? (
                                 <DraftGenerationLoader formData={formData} />
                              ) : (
@@ -454,7 +439,6 @@ export function PodcastCreationForm() {
                           </div>
                         </CardContent>
 
-                        {/* FOOTER: Se oculta si estamos cargando el borrador */}
                         {shouldShowFooter && (
                            <div className="flex-shrink-0 px-4 py-3 md:py-4 z-20 bg-gradient-to-t from-white/90 via-white/60 dark:from-black/90 dark:via-black/60 to-transparent backdrop-blur-md border-t border-border/10">
                                <div className="flex justify-between items-center gap-4">
