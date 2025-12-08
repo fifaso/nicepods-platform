@@ -1,5 +1,5 @@
 // components/podcast-view.tsx
-// VERSIÓN: 6.0 (Fix: Fuente Robusta & UX Mejorada)
+// VERSIÓN: 6.1 (Fix: Script Content Normalization & UX Polish)
 
 "use client";
 
@@ -91,14 +91,37 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
     return [];
   }, [localPodcastData.ai_tags, localPodcastData.user_tags]);
 
-  // Recuperación Segura de Fuentes (Safe Parsing)
+  // Recuperación Segura de Fuentes
   const displaySources: SourceItem[] = useMemo(() => {
-    const rawSources = (localPodcastData as any).sources; // Acceso dinámico si no está en tipo
+    const rawSources = (localPodcastData as any).sources; 
     if (Array.isArray(rawSources)) {
-        return rawSources.filter(s => s.title || s.url); // Filtrar basura vacía
+        return rawSources.filter(s => s.title || s.url); 
     }
     return [];
   }, [localPodcastData]);
+
+  // [NUEVO] Normalizador de Guion: Extrae el texto real del JSON o String
+  const normalizedScriptText = useMemo(() => {
+    const rawScript = localPodcastData.script_text;
+    if (!rawScript) return null;
+
+    try {
+      // Intentamos parsear como JSON (Formato V5 estandarizado)
+      const parsed = JSON.parse(rawScript);
+      
+      // Si tiene la propiedad script_body, es nuestro formato nuevo
+      if (parsed.script_body) return parsed.script_body;
+      
+      // Si es un array (Legacy), lo unimos
+      if (Array.isArray(parsed)) return parsed.map((l: any) => l.line).join('\n\n');
+      
+      // Si parsea pero es otra cosa, devolvemos string
+      return String(parsed);
+    } catch (e) {
+      // Si falla el parseo, es texto plano/HTML antiguo
+      return rawScript;
+    }
+  }, [localPodcastData.script_text]);
 
   const handleSaveTags = async (finalTags: string[]) => {
     const { error } = await supabase
@@ -179,14 +202,12 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
   return (
     <>
       <div className="container mx-auto max-w-7xl py-8 md:py-12 px-4">
-        {/* LAYOUT GRID: Columna Principal (2/3) + Lateral (1/3) */}
         <div className="grid lg:grid-cols-3 gap-8 items-start relative">
           
-          {/* --- COLUMNA IZQUIERDA (Contenido) --- */}
+          {/* COLUMNA IZQUIERDA */}
           <div className="lg:col-span-2 space-y-6">
             <Card className="bg-card/50 backdrop-blur-lg border-border/20 shadow-lg overflow-hidden">
               
-              {/* Cover Art */}
               {localPodcastData.cover_image_url && (
                 <div className="aspect-video relative w-full bg-black/5">
                   <Image 
@@ -243,11 +264,10 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
                   </div>
                 </div>
 
-                {/* --- ACORDEÓN DE FUENTES CIENTÍFICAS (MEJORADO) --- */}
+                {/* FUENTES */}
                 {displaySources.length > 0 && (
                   <div className="rounded-xl border border-primary/10 bg-primary/5 dark:bg-primary/10 overflow-hidden transition-all duration-300">
                       <Collapsible open={isSourcesExpanded} onOpenChange={setIsSourcesExpanded}>
-                        
                         <CollapsibleTrigger asChild>
                           <div className="flex justify-between items-center cursor-pointer p-4 hover:bg-primary/5 transition-colors group select-none">
                             <div className="flex items-center gap-2.5 text-primary">
@@ -261,46 +281,22 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
                             </div>
                           </div>
                         </CollapsibleTrigger>
-
                         <CollapsibleContent className="animate-slide-down">
                             <div className="max-h-[400px] overflow-y-auto p-4 pt-0 space-y-2 custom-scrollbar">
                                 <div className="h-px w-full bg-primary/10 mb-4" />
-                                
                                 {displaySources.map((source, idx) => (
-                                    <div 
-                                      key={idx} 
-                                      className={cn(
-                                        "group relative p-3 rounded-lg bg-background/60 border border-border/40 hover:border-primary/20 hover:shadow-sm transition-all",
-                                        source.url && "cursor-pointer hover:bg-background/80"
-                                      )}
-                                      onClick={() => source.url && window.open(source.url, '_blank')}
-                                    >
+                                    <div key={idx} className={cn("group relative p-3 rounded-lg bg-background/60 border border-border/40 hover:border-primary/20 hover:shadow-sm transition-all", source.url && "cursor-pointer hover:bg-background/80")} onClick={() => source.url && window.open(source.url, '_blank')}>
                                         <div className="flex flex-col gap-1">
                                             <div className="flex justify-between items-start gap-3">
-                                                <span className="font-medium text-sm text-foreground leading-snug line-clamp-2">
-                                                  {source.title || "Fuente de Referencia"}
-                                                </span>
-                                                {source.url && (
-                                                    <ExternalLink className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors mt-0.5 flex-shrink-0" />
-                                                )}
+                                                <span className="font-medium text-sm text-foreground leading-snug line-clamp-2">{source.title || "Fuente"}</span>
+                                                {source.url && <ExternalLink className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors mt-0.5 flex-shrink-0" />}
                                             </div>
-                                            {source.snippet && (
-                                                <p className="text-xs text-muted-foreground/80 line-clamp-2 border-l-2 border-primary/20 pl-2 mt-1 italic">
-                                                    {source.snippet}
-                                                </p>
-                                            )}
-                                            {source.url && (
-                                              <div className="flex items-center gap-1 mt-1">
-                                                <LinkIcon className="h-2.5 w-2.5 text-blue-400" />
-                                                <span className="text-[10px] text-blue-400/80 truncate max-w-[200px]">{new URL(source.url).hostname}</span>
-                                              </div>
-                                            )}
+                                            {source.snippet && <p className="text-xs text-muted-foreground/80 line-clamp-2 border-l-2 border-primary/20 pl-2 mt-1 italic">{source.snippet}</p>}
                                         </div>
                                     </div>
                                 ))}
                             </div>
                         </CollapsibleContent>
-
                       </Collapsible>
                   </div>
                 )}
@@ -310,7 +306,7 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
               <CardContent className="p-5 pt-0 md:p-8 md:pt-0">
                 <Separator className="my-6" />
                 
-                {/* --- GUION COMPLETO --- */}
+                {/* --- GUION COMPLETO (Renderizando texto normalizado) --- */}
                 <Collapsible open={isScriptExpanded} onOpenChange={setIsScriptExpanded}>
                   <div className="flex items-center justify-between mb-4">
                       <h3 className="text-lg font-bold tracking-tight text-foreground">Guion del Episodio</h3>
@@ -324,7 +320,8 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
                   
                   <CollapsibleContent className="animate-slide-down">
                     <div className="p-4 bg-secondary/20 rounded-xl border border-border/50">
-                        <ScriptViewer scriptText={localPodcastData.script_text} />
+                        {/* Pasamos el texto limpio */}
+                        <ScriptViewer scriptText={normalizedScriptText} />
                     </div>
                   </CollapsibleContent>
                 </Collapsible>
@@ -333,10 +330,8 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
             </Card>
           </div>
 
-          {/* --- COLUMNA DERECHA (Acciones Sticky) --- */}
+          {/* COLUMNA DERECHA */}
           <div className="lg:col-span-1 space-y-6 lg:sticky lg:top-24 lg:self-start">
-            
-            {/* 1. Player Card */}
             <Card className="bg-card/50 backdrop-blur-lg border-border/20 shadow-lg">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg font-semibold flex items-center gap-2">
@@ -374,11 +369,8 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
               </CardContent>
             </Card>
             
-            {/* 2. Metadata Card */}
             <Card className="bg-card/30 backdrop-blur-sm border-border/10 shadow-sm">
               <CardContent className="p-5 text-sm space-y-5">
-                
-                {/* Perfil Creador */}
                 <div className="flex items-center gap-3 p-3 bg-background/40 rounded-xl border border-border/30">
                   <Image 
                     src={localPodcastData.profiles?.avatar_url || '/images/placeholder.svg'} 
@@ -392,7 +384,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
                   </div>
                 </div>
                 
-                {/* Stats Grid */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1 p-2 rounded-lg hover:bg-background/30 transition-colors">
                     <div className="flex items-center text-muted-foreground text-xs font-medium">
@@ -412,7 +403,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
                 
                 <Separator />
                 
-                {/* Metadatos IA */}
                 <CreationMetadata data={localPodcastData.creation_data} />
               </CardContent>
             </Card>
@@ -421,7 +411,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
         </div>
       </div>
       
-      {/* Editor de Tags (Modal) */}
       {isOwner && (
         <TagCurationCanvas 
           isOpen={isEditingTags}
