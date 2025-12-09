@@ -1,5 +1,5 @@
 // components/profile-client-component.tsx
-// VERSIÓN FINAL COMPLETA, EVOLUCIONADA CON BIO Y TESTIMONIOS
+// VERSIÓN: 2.0 (Fix: Renamed to ProfileView for Consistency)
 
 "use client";
 
@@ -36,12 +36,15 @@ export type TestimonialWithAuthor = Tables<'profile_testimonials'> & {
   } | null;
 };
 
-export interface ProfileClientComponentProps {
+// Interfaz de Props renombrada para consistencia
+export interface ProfileViewProps {
   profile: ProfileData | null;
   podcastsCreatedThisMonth: number;
   totalPodcasts: number;
   totalLikes: number;
   initialTestimonials: TestimonialWithAuthor[];
+  isOwner: boolean;     // Añadido para completitud
+  initialIsFollowing: boolean; // Añadido para completitud
 }
 
 // --- SUB-COMPONENTE PARA LOS TESTIMONIOS ---
@@ -77,14 +80,14 @@ function TestimonialCard({ testimonial, isOwner, onModerate }: { testimonial: Te
   )
 }
 
-
-export function ProfileClientComponent({ 
+// [CAMBIO CRÍTICO]: Renombrado de ProfileClientComponent a ProfileView
+export function ProfileView({ 
   profile, 
   podcastsCreatedThisMonth,
   totalPodcasts,
   totalLikes,
   initialTestimonials
-}: ProfileClientComponentProps) {
+}: ProfileViewProps) {
   const { user, signOut, supabase } = useAuth();
   const router = useRouter();
   const { toast } = useToast();

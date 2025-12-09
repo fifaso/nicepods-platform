@@ -1,10 +1,13 @@
 // app/profile/[username]/page.tsx
-// VERSIÓN FINAL COMPLETA - VALIDADA
+// VERSIÓN: 3.0 (Fix: Correct Component Import Path)
 
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { notFound } from 'next/navigation';
-import { ProfileView, type ProfileData, type TestimonialWithAuthor } from '@/components/profile-view';
+
+// [CORRECCIÓN CRÍTICA]: El nombre real del archivo es 'profile-client-component', no 'profile-view'.
+import { ProfileView, type ProfileData, type TestimonialWithAuthor } from '@/components/profile-client-component';
+
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Terminal } from "lucide-react";
 
