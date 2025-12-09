@@ -1,5 +1,5 @@
 // components/podcast-view.tsx
-// VERSIÓN: 6.3 (Fix: Correct Profile URL Path & Interaction Polish)
+// VERSIÓN: 6.4 (Fix: Robust Profile Linking & Safety Checks)
 
 "use client";
 
@@ -114,15 +114,17 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
     }
   }, [localPodcastData.script_text]);
 
-  // [CORRECCIÓN CRÍTICA]: Generador de URL de perfil apuntando a /profile/
+  // [CORRECCIÓN BLINDADA]: Generación de URL de Perfil
   const profileUrl = useMemo(() => {
-    // Prioridad absoluta al username si existe
-    if (localPodcastData.profiles?.username) {
-        return `/profile/${localPodcastData.profiles.username}`;
+    const username = localPodcastData.profiles?.username;
+    
+    // Solo si existe un username válido retornamos la ruta
+    if (username && typeof username === 'string' && username.trim() !== '') {
+        return `/profile/${username.trim()}`;
     }
-    // Si no hay username, no podemos enlazar correctamente a la ruta dinámica [username].
-    // En este caso, deshabilitamos el enlace retornando '#' o null.
-    return '#'; 
+    
+    // Si no hay username, retornamos null explícitamente para deshabilitar el Link
+    return null; 
   }, [localPodcastData.profiles]);
 
   const handleSaveTags = async (finalTags: string[]) => {
@@ -322,7 +324,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
                   
                   <CollapsibleContent className="animate-slide-down">
                     <div className="p-4 bg-secondary/20 rounded-xl border border-border/50">
-                        {/* Pasamos el texto limpio */}
                         <ScriptViewer scriptText={normalizedScriptText} />
                     </div>
                   </CollapsibleContent>
@@ -375,9 +376,8 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
             <Card className="bg-card/30 backdrop-blur-sm border-border/10 shadow-sm">
               <CardContent className="p-5 text-sm space-y-5">
                 
-                {/* [MODIFICACIÓN] Perfil Creador Navegable a /profile/... */}
-                {/* Usamos un condicional: Si profileUrl es '#', renderizamos div, si no, Link */}
-                {profileUrl !== '#' ? (
+                {/* [MODIFICACIÓN] Renderizado Condicional Seguro (Solo renderiza Link si existe URL válida) */}
+                {profileUrl ? (
                   <Link href={profileUrl} className="block group">
                     <div className="flex items-center gap-3 p-3 bg-background/40 rounded-xl border border-border/30 transition-all duration-300 group-hover:bg-background/60 group-hover:border-primary/20 group-hover:shadow-md">
                       <div className="relative h-10 w-10">
@@ -400,7 +400,8 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
                     </div>
                   </Link>
                 ) : (
-                  <div className="flex items-center gap-3 p-3 bg-background/40 rounded-xl border border-border/30 opacity-70">
+                  // Si profileUrl es null, renderizamos un div estático
+                  <div className="flex items-center gap-3 p-3 bg-background/40 rounded-xl border border-border/30 opacity-80 cursor-default">
                     <div className="relative h-10 w-10">
                         <Image 
                           src={localPodcastData.profiles?.avatar_url || '/images/placeholder.svg'} 
