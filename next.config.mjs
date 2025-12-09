@@ -1,22 +1,19 @@
 // next.config.mjs
-// VERSIÓN: 5.2 (Fix: Vercel Standalone Mode + ENOENT Patch)
-
-import withPWA from 'next-pwa';
-import defaultRuntimeCaching from 'next-pwa/cache.js';
+// VERSIÓN: 6.0 (Rescue Mode: PWA Disabled + CSS Ignore)
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // [SOLUCIÓN CRÍTICA]: Standalone Mode
-  // Esto obliga a Next.js a trazar y copiar todos los archivos necesarios (incluyendo CSS ocultos)
-  // en el despliegue serverless, solucionando el error ENOENT.
-  output: 'standalone',
-
+  // Optimizaciones estándar
   eslint: {
     ignoreDuringBuilds: true,
   },
   typescript: {
     ignoreBuildErrors: true,
   },
+  
+  // Standalone ayuda a Vercel a trazar archivos correctamente
+  output: 'standalone',
+
   images: {
     unoptimized: true, 
     remotePatterns: [
@@ -34,20 +31,25 @@ const nextConfig = {
       },
     ],
   },
-  
-  // Configuración de Webpack defensiva
+
+  // CONFIGURACIÓN DE WEBPACK BLINDADA
   webpack: (config, { isServer }) => {
+    // 1. Ignoramos dependencias de sistema comunes que rompen Server Components
     if (isServer) {
-      // Ignoramos dependencias de canvas/encoding que suelen romper los Server Components
       config.resolve.alias.canvas = false;
       config.resolve.alias.encoding = false;
     }
+
+    // 2. [PARCHE ESPECÍFICO]: Ignoramos el archivo fantasma que causa el error 500
+    // Esto le dice a Webpack: "Si alguien pide este CSS, dale un objeto vacío".
+    config.resolve.alias['/var/task/.next/browser/default-stylesheet.css'] = false;
+    
     return config;
   },
 
-  // Marcamos paquetes problemáticos como externos para evitar que Webpack los rompa al intentar leer archivos
+  // Marcamos paquetes externos para evitar que Webpack intente empaquetarlos
   experimental: {
-    serverComponentsExternalPackages: ['@react-pdf/renderer', 'pdfjs-dist'],
+    serverComponentsExternalPackages: ['@react-pdf/renderer', 'pdfjs-dist', 'sharp'],
   },
 
   async headers() {
@@ -65,30 +67,22 @@ const nextConfig = {
   },
 };
 
+// [DESACTIVACIÓN TEMPORAL DE PWA]
+// Estamos exportando la config directa sin el wrapper de PWA.
+// Esto aísla el problema. Si la web carga, confirmamos que next-pwa era el culpable.
+export default nextConfig; 
+
+/* 
+// Configuración PWA original (Guardada para referencia)
+import withPWA from 'next-pwa';
+import defaultRuntimeCaching from 'next-pwa/cache.js';
+
 const pwaConfig = {
   dest: 'public',
   register: true,
   skipWaiting: true,
   disable: process.env.NODE_ENV === 'development',
-  runtimeCaching: [
-    {
-      urlPattern: /^https:\/\/.*supabase\.co\/storage\/v1\/object\/public\/.*/i,
-      handler: 'CacheFirst',
-      options: {
-        cacheName: 'supabase-media-cache',
-        expiration: {
-          maxEntries: 200,
-          maxAgeSeconds: 60 * 60 * 24 * 30,
-        },
-        cacheableResponse: {
-          statuses: [0, 200],
-        },
-      },
-    },
-    ...defaultRuntimeCaching,
-  ],
+  runtimeCaching: [ ... ],
 };
-
-const withPwaPlugin = withPWA(pwaConfig);
-
-export default withPwaPlugin(nextConfig);
+// export default withPWA(pwaConfig)(nextConfig);
+*/
