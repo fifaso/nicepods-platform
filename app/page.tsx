@@ -1,5 +1,5 @@
 // app/page.tsx
-// VERSIÓN FINAL Y COMPLETA: Integra el DiscoveryHub y corrige los bugs visuales de overflow sin abreviaciones.
+// VERSIÓN: 2.1 (Fix: Guest Access Resilience & Error 500 Prevention)
 
 import { cookies } from "next/headers";
 import Link from "next/link";
@@ -31,7 +31,6 @@ function UserDashboard({ user, feed, profile }: { user: any; feed: DiscoveryFeed
   return (
     <>
       <div className="px-4 lg:px-0">
-        {/* Hub de Acción para pantallas pequeñas */}
         <div className="lg:hidden mb-6"> 
             <h1 className="text-3xl font-bold tracking-tight mb-4">Hola, {userName}!</h1>
             <div className="grid grid-cols-2 gap-4">
@@ -48,7 +47,6 @@ function UserDashboard({ user, feed, profile }: { user: any; feed: DiscoveryFeed
             </div>
         </div>
         
-        {/* Saludo para pantallas grandes */}
         <div className="hidden lg:block">
             <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
               Hola, {userName}!
@@ -56,7 +54,6 @@ function UserDashboard({ user, feed, profile }: { user: any; feed: DiscoveryFeed
             <p className="text-lg text-muted-foreground mt-2">Tu centro de descubrimiento personalizado.</p>
         </div>
 
-        {/* Hub de Descubrimiento con 4 categorías */}
         <DiscoveryHub />
 
         <div className="mt-8 space-y-12">
@@ -73,10 +70,9 @@ function UserDashboard({ user, feed, profile }: { user: any; feed: DiscoveryFeed
 // ===================================================================
 // VISTA PARA INVITADO (SIN LOGIN)
 // ===================================================================
-function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] | null }) {
+function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] }) {
   return (
     <div className="flex flex-col items-center">
-      {/* Sección 1: Héroe */}
       <section className="w-full text-center py-16 md:py-20 flex flex-col items-center space-y-4 px-4">
         <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-primary">
           Expande tu perspectiva
@@ -86,7 +82,6 @@ function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] | null }) 
         </p>
       </section>
       
-      {/* Sección 2: Encuentra tu Próxima Idea */}
       <section className="w-full max-w-4xl py-6 px-4 mx-auto">
         <div className="relative mb-8">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -100,15 +95,13 @@ function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] | null }) 
         </div>
       </section>
 
-      {/* Sección 3: Las últimas creaciones de la comunidad */}
       <div className="w-full max-w-7xl mx-auto px-4 lg:px-0 mt-8">
         <PodcastShelf 
           title="Las últimas creaciones de la comunidad"
-          podcasts={latestPodcasts as any[] || []}
+          podcasts={latestPodcasts || []} // Protección contra null
         />
       </div>
 
-      {/* Footer */}
       <footer className="w-full py-8 mt-16 bg-muted/50 text-center text-sm text-muted-foreground lg:hidden">
         <div className="container px-4 md:px-6 mx-auto">
             <p>&copy; {new Date().getFullYear()} NicePod. Todos los derechos reservados.</p>
@@ -128,41 +121,54 @@ export default async function HomePage() {
 
   let feed: DiscoveryFeed | null = null;
   let resonanceProfile: ResonanceProfile | null = null;
-  let latestPodcasts: any[] | null = null;
+  let latestPodcasts: any[] = []; // Inicializado como array vacío por seguridad
   let userProfile: any = null;
 
   if (user) {
-    const [
-      { data: feedData, error: feedError },
-      { data: profileData, error: resonanceError },
-      { data: userProfileData, error: profileError }
-    ] = await Promise.all([
-      supabase.rpc('get_user_discovery_feed', { p_user_id: user.id }),
-      supabase.from('user_resonance_profiles').select('*').eq('user_id', user.id).single(),
-      supabase.from('profiles').select('username').eq('id', user.id).single()
-    ]);
-    
-    if (feedError) console.error("Error al obtener feed:", feedError);
-    if (resonanceError && resonanceError.code !== 'PGRST116') console.error("Error al obtener perfil de resonancia:", resonanceError);
-    if (profileError) console.error("Error al obtener perfil de usuario:", profileError);
-
-    feed = feedData;
-    resonanceProfile = profileData;
-    userProfile = userProfileData;
+    try {
+        const [
+          { data: feedData, error: feedError },
+          { data: profileData, error: resonanceError },
+          { data: userProfileData, error: profileError }
+        ] = await Promise.all([
+          supabase.rpc('get_user_discovery_feed', { p_user_id: user.id }),
+          supabase.from('user_resonance_profiles').select('*').eq('user_id', user.id).single(),
+          supabase.from('profiles').select('username').eq('id', user.id).single()
+        ]);
+        
+        if (feedError) console.error("Error al obtener feed:", feedError);
+        feed = feedData;
+        resonanceProfile = profileData;
+        userProfile = userProfileData;
+    } catch (e) {
+        console.error("Error crítico en carga de usuario:", e);
+    }
   } else {
-    const { data } = await supabase
-      .from('micro_pods')
-      .select(`*, profiles (full_name, avatar_url, username)`)
-      .eq('status', 'published')
-      .order('created_at', { ascending: false })
-      .limit(8);
-    latestPodcasts = data;
+    // [MODIFICACIÓN CRÍTICA]: Manejo de error para invitados (RLS Protection)
+    try {
+        const { data, error } = await supabase
+          .from('micro_pods')
+          .select(`*, profiles (full_name, avatar_url, username)`)
+          .eq('status', 'published')
+          .order('created_at', { ascending: false })
+          .limit(8);
+        
+        if (error) {
+            console.error("Error cargando podcasts públicos (Probable RLS):", error.message);
+            latestPodcasts = []; // Fallback seguro
+        } else {
+            latestPodcasts = data || [];
+        }
+    } catch (e) {
+        console.error("Excepción en carga pública:", e);
+        latestPodcasts = [];
+    }
   }
 
   return (
     <main className="container mx-auto max-w-screen-xl flex-grow">
       <div className="grid grid-cols-1 lg:grid-cols-4 lg:gap-8 xl:gap-12 h-full">
-        {/* Columna de Contenido (Scrollable) con corrección de overflow */}
+        {/* Columna de Contenido */}
         <div className="lg:col-span-3 lg:h-[calc(100vh-6rem)] lg:overflow-y-auto lg:overflow-x-hidden lg:pr-6 
                        scrollbar-thin scrollbar-thumb-gray-600/50 hover:scrollbar-thumb-gray-500/50 
                        scrollbar-track-transparent scrollbar-thumb-rounded-full">
@@ -174,6 +180,7 @@ export default async function HomePage() {
             )}
           </div>
         </div>
+        
         {/* Columna del Panel (Sticky) */}
         <div className="hidden lg:block lg:col-span-1">
           <div className="sticky top-[6rem] h-[calc(100vh-7.5rem)]">
