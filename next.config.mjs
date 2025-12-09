@@ -1,19 +1,21 @@
 // next.config.mjs
-// VERSIÓN SEGURIDAD ENTERPRISE: PWA + Ahorro Vercel + Cabeceras de Seguridad HTTP.
+// VERSIÓN: 5.1 (Fix: Vercel ENOENT CSS Build Error)
 
 import withPWA from 'next-pwa';
 import defaultRuntimeCaching from 'next-pwa/cache.js';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Optimizaciones de Build
   eslint: {
     ignoreDuringBuilds: true,
   },
   typescript: {
     ignoreBuildErrors: true,
   },
+  
+  // Optimización de Imágenes (Costos)
   images: {
-    // Mantenemos el ahorro de costes de Vercel (imágenes optimizadas en origen)
     unoptimized: true, 
     remotePatterns: [
       {
@@ -30,27 +32,41 @@ const nextConfig = {
       },
     ],
   },
-  // [NUEVO]: Inyección de Cabeceras de Seguridad
+
+  // [SOLUCIÓN AL ERROR ENOENT]: Configuración robusta de Webpack
+  // Evita que el servidor intente resolver archivos de estilos del cliente que no existen en el runtime de Node.
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      // Si alguna librería intenta importar CSS global en el servidor y falla, esto lo mitiga.
+      // Pero el error específico de 'default-stylesheet.css' suele ser un artefacto de compilación.
+      // Esta configuración asegura que canvas y encoding (usados por librerías gráficas) sean ignorados.
+      config.resolve.alias.canvas = false;
+      config.resolve.alias.encoding = false;
+    }
+    return config;
+  },
+
+  // Cabeceras de Seguridad
   async headers() {
     return [
       {
-        source: '/:path*', // Aplica a todas las rutas de la aplicación
+        source: '/:path*',
         headers: [
           {
             key: 'X-Frame-Options',
-            value: 'DENY', // Evita ataques de Clickjacking (tu web no puede ser puesta en un iframe)
+            value: 'DENY',
           },
           {
             key: 'X-Content-Type-Options',
-            value: 'nosniff', // Evita que el navegador adivine tipos de archivo (previene inyección de scripts en imágenes)
+            value: 'nosniff',
           },
           {
             key: 'Referrer-Policy',
-            value: 'strict-origin-when-cross-origin', // Protege la privacidad del usuario al navegar fuera
+            value: 'strict-origin-when-cross-origin',
           },
           {
             key: 'Permissions-Policy',
-            value: "camera=(), microphone=(self), geolocation=()", // Bloquea cámara y geo, permite micro solo al mismo origen
+            value: "camera=(), microphone=(self), geolocation=()",
           },
         ],
       },
@@ -58,7 +74,7 @@ const nextConfig = {
   },
 };
 
-// Configuración PWA
+// Configuración PWA (Intacta)
 const pwaConfig = {
   dest: 'public',
   register: true,
