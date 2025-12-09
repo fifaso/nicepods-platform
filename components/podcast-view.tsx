@@ -1,5 +1,5 @@
 // components/podcast-view.tsx
-// VERSIÓN: 6.2 (Feature: Clickable Creator Profile & UX Connection)
+// VERSIÓN: 6.4 (Fix: Profile Route Enforcement /profile/[username])
 
 "use client";
 
@@ -7,7 +7,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { User } from '@supabase/supabase-js';
 import Image from 'next/image';
-import Link from 'next/link'; // [NUEVO] Para navegación optimizada
+import Link from 'next/link';
 
 import { PodcastWithProfile } from '@/types/podcast';
 import { useAuth } from '@/hooks/use-auth';
@@ -18,7 +18,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Heart, Share2, Download, Calendar, Clock, PlayCircle, ChevronDown, Loader2, Mic, Tag, Pencil, BookOpen, ExternalLink, Globe, Link as LinkIcon, User as UserIcon } from 'lucide-react';
+import { Heart, Share2, Download, Calendar, Clock, PlayCircle, ChevronDown, Loader2, Mic, Tag, Pencil, BookOpen, ExternalLink, Globe, Link as LinkIcon } from 'lucide-react';
 import { CreationMetadata } from './creation-metadata';
 import { formatTime } from '@/lib/utils';
 import { ScriptViewer } from './script-viewer';
@@ -114,14 +114,20 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
     }
   }, [localPodcastData.script_text]);
 
-  // Generador de URL de perfil seguro
+  // [CORRECCIÓN CRÍTICA DE RUTA]
+  // La ruta física es app/profile/[username], por lo tanto el link debe ser /profile/username.
   const profileUrl = useMemo(() => {
-    if (localPodcastData.profiles?.username) {
-        return `/u/${localPodcastData.profiles.username}`;
+    const username = localPodcastData.profiles?.username;
+    
+    // Solo generamos el link si existe un username válido
+    if (username && typeof username === 'string' && username.trim().length > 0) {
+        return `/profile/${username.trim()}`;
     }
-    // Fallback por si no hay username (aunque debería haber)
-    return `/u/${localPodcastData.user_id}`;
-  }, [localPodcastData.profiles, localPodcastData.user_id]);
+    
+    // Si no hay username, desactivamos el enlace (retornando '#')
+    // para evitar enviar al usuario a una página 404 (/u/id o /profile/null)
+    return '#'; 
+  }, [localPodcastData.profiles]);
 
   const handleSaveTags = async (finalTags: string[]) => {
     const { error } = await supabase
@@ -306,7 +312,7 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
               <CardContent className="p-5 pt-0 md:p-8 md:pt-0">
                 <Separator className="my-6" />
                 
-                {/* --- GUION COMPLETO (Renderizando texto normalizado) --- */}
+                {/* --- GUION COMPLETO --- */}
                 <Collapsible open={isScriptExpanded} onOpenChange={setIsScriptExpanded}>
                   <div className="flex items-center justify-between mb-4">
                       <h3 className="text-lg font-bold tracking-tight text-foreground">Guion del Episodio</h3>
@@ -373,28 +379,49 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
             <Card className="bg-card/30 backdrop-blur-sm border-border/10 shadow-sm">
               <CardContent className="p-5 text-sm space-y-5">
                 
-                {/* [MODIFICACIÓN] Perfil Creador Navegable */}
-                <Link href={profileUrl} className="block group">
-                  <div className="flex items-center gap-3 p-3 bg-background/40 rounded-xl border border-border/30 transition-all duration-300 group-hover:bg-background/60 group-hover:border-primary/20 group-hover:shadow-md">
+                {/* [MODIFICACIÓN] Renderizado Condicional Seguro */}
+                {profileUrl !== '#' ? (
+                  <Link href={profileUrl} className="block group">
+                    <div className="flex items-center gap-3 p-3 bg-background/40 rounded-xl border border-border/30 transition-all duration-300 group-hover:bg-background/60 group-hover:border-primary/20 group-hover:shadow-md">
+                      <div className="relative h-10 w-10">
+                        <Image 
+                          src={localPodcastData.profiles?.avatar_url || '/images/placeholder.svg'} 
+                          alt={localPodcastData.profiles?.full_name || 'Creador'} 
+                          fill 
+                          style={{ objectFit: 'cover' }}
+                          className="rounded-full border border-border shadow-sm group-hover:scale-105 transition-transform" 
+                        />
+                      </div>
+                      <div className="overflow-hidden flex-1">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1">
+                          Creado por <ExternalLink className="h-2.5 w-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </p>
+                        <p className="font-medium truncate text-foreground group-hover:text-primary transition-colors">
+                          {localPodcastData.profiles?.full_name || 'Usuario NicePod'}
+                        </p>
+                      </div>
+                    </div>
+                  </Link>
+                ) : (
+                  // Estado no clicable (Si no hay username)
+                  <div className="flex items-center gap-3 p-3 bg-background/40 rounded-xl border border-border/30 opacity-80 cursor-default">
                     <div className="relative h-10 w-10">
-                      <Image 
-                        src={localPodcastData.profiles?.avatar_url || '/images/placeholder.svg'} 
-                        alt={localPodcastData.profiles?.full_name || 'Creador'} 
-                        fill 
-                        style={{ objectFit: 'cover' }}
-                        className="rounded-full border border-border shadow-sm group-hover:scale-105 transition-transform" 
-                      />
+                        <Image 
+                          src={localPodcastData.profiles?.avatar_url || '/images/placeholder.svg'} 
+                          alt={localPodcastData.profiles?.full_name || 'Creador'} 
+                          fill 
+                          style={{ objectFit: 'cover' }}
+                          className="rounded-full border border-border shadow-sm" 
+                        />
                     </div>
                     <div className="overflow-hidden flex-1">
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1">
-                        Creado por <ExternalLink className="h-2.5 w-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </p>
-                      <p className="font-medium truncate text-foreground group-hover:text-primary transition-colors">
-                        {localPodcastData.profiles?.full_name || 'Usuario NicePod'}
-                      </p>
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Creado por</p>
+                        <p className="font-medium truncate text-foreground">
+                          {localPodcastData.profiles?.full_name || 'Usuario NicePod'}
+                        </p>
                     </div>
                   </div>
-                </Link>
+                )}
                 
                 {/* Stats Grid */}
                 <div className="grid grid-cols-2 gap-3">
@@ -425,7 +452,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
         </div>
       </div>
       
-      {/* Editor de Tags (Modal) */}
       {isOwner && (
         <TagCurationCanvas 
           isOpen={isEditingTags}
