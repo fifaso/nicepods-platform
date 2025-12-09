@@ -1,10 +1,10 @@
 // app/profile/page.tsx
-// VERSIÓN FINAL COMPLETA QUE OBTIENE LOS TESTIMONIOS
+// VERSIÓN: 3.0 (Fix: Renamed Component Import & Props Sync)
 
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { ProfileClientComponent, type ProfileData, type TestimonialWithAuthor } from '@/components/profile-client-component';
+import { ProfileView, type ProfileData, type TestimonialWithAuthor } from '@/components/profile-client-component';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Terminal } from "lucide-react";
 
@@ -74,12 +74,15 @@ export default async function ProfilePage() {
   const testimonials = testimonialsResponse.data ?? [];
 
   return (
-    <ProfileClientComponent 
+    // [CORRECCIÓN 2]: Renderizamos ProfileView con los nuevos props requeridos
+    <ProfileView 
       profile={profile} 
       podcastsCreatedThisMonth={podcastsCreatedThisMonth}
       totalPodcasts={totalPodcasts}
       totalLikes={totalLikes}
       initialTestimonials={testimonials}
+      isOwner={true} // En /profile siempre eres el dueño
+      initialIsFollowing={false} // No te puedes seguir a ti mismo
     />
   );
 }
