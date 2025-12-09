@@ -1,20 +1,22 @@
 // next.config.mjs
-// VERSIÓN: 5.1 (Fix: Vercel ENOENT CSS Build Error)
+// VERSIÓN: 5.2 (Fix: Vercel Standalone Mode + ENOENT Patch)
 
 import withPWA from 'next-pwa';
 import defaultRuntimeCaching from 'next-pwa/cache.js';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Optimizaciones de Build
+  // [SOLUCIÓN CRÍTICA]: Standalone Mode
+  // Esto obliga a Next.js a trazar y copiar todos los archivos necesarios (incluyendo CSS ocultos)
+  // en el despliegue serverless, solucionando el error ENOENT.
+  output: 'standalone',
+
   eslint: {
     ignoreDuringBuilds: true,
   },
   typescript: {
     ignoreBuildErrors: true,
   },
-  
-  // Optimización de Imágenes (Costos)
   images: {
     unoptimized: true, 
     remotePatterns: [
@@ -32,55 +34,42 @@ const nextConfig = {
       },
     ],
   },
-
-  // [SOLUCIÓN AL ERROR ENOENT]: Configuración robusta de Webpack
-  // Evita que el servidor intente resolver archivos de estilos del cliente que no existen en el runtime de Node.
+  
+  // Configuración de Webpack defensiva
   webpack: (config, { isServer }) => {
     if (isServer) {
-      // Si alguna librería intenta importar CSS global en el servidor y falla, esto lo mitiga.
-      // Pero el error específico de 'default-stylesheet.css' suele ser un artefacto de compilación.
-      // Esta configuración asegura que canvas y encoding (usados por librerías gráficas) sean ignorados.
+      // Ignoramos dependencias de canvas/encoding que suelen romper los Server Components
       config.resolve.alias.canvas = false;
       config.resolve.alias.encoding = false;
     }
     return config;
   },
 
-  // Cabeceras de Seguridad
+  // Marcamos paquetes problemáticos como externos para evitar que Webpack los rompa al intentar leer archivos
+  experimental: {
+    serverComponentsExternalPackages: ['@react-pdf/renderer', 'pdfjs-dist'],
+  },
+
   async headers() {
     return [
       {
         source: '/:path*',
         headers: [
-          {
-            key: 'X-Frame-Options',
-            value: 'DENY',
-          },
-          {
-            key: 'X-Content-Type-Options',
-            value: 'nosniff',
-          },
-          {
-            key: 'Referrer-Policy',
-            value: 'strict-origin-when-cross-origin',
-          },
-          {
-            key: 'Permissions-Policy',
-            value: "camera=(), microphone=(self), geolocation=()",
-          },
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          { key: 'Permissions-Policy', value: "camera=(), microphone=(self), geolocation=()" },
         ],
       },
     ];
   },
 };
 
-// Configuración PWA (Intacta)
 const pwaConfig = {
   dest: 'public',
   register: true,
   skipWaiting: true,
   disable: process.env.NODE_ENV === 'development',
-  
   runtimeCaching: [
     {
       urlPattern: /^https:\/\/.*supabase\.co\/storage\/v1\/object\/public\/.*/i,
