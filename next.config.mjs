@@ -1,9 +1,9 @@
 // next.config.mjs
-// VERSIÓN: 7.0 (Clean Slate: PWA Removed Completely)
+// VERSIÓN: 8.0 (Fix: Force File Tracing for Vercel Serverless)
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // [CRÍTICO] Standalone mode ayuda a Vercel a gestionar archivos correctamente
+  // Standalone es correcto, lo mantenemos
   output: 'standalone',
 
   eslint: {
@@ -13,7 +13,6 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   
-  // Optimización de imágenes (Mantenemos esto para ahorro de costes)
   images: {
     unoptimized: true, 
     remotePatterns: [
@@ -32,17 +31,28 @@ const nextConfig = {
     ],
   },
 
-  // Configuración de Webpack Defensiva
+  // CONFIGURACIÓN EXPERIMENTAL PARA ARREGLAR EL ENOENT
+  experimental: {
+    // 1. Evitamos que webpack rompa dependencias comunes
+    serverComponentsExternalPackages: ['@react-pdf/renderer', 'pdfjs-dist', 'sharp'],
+    
+    // 2. [SOLUCIÓN CRÍTICA]
+    // Forzamos a Vercel a incluir los archivos de compilación del cliente dentro de la función serverless.
+    // Esto evita el error "ENOENT" cuando una librería intenta leer CSS/JS compilado desde el servidor.
+    outputFileTracingIncludes: {
+      '/': ['./.next/browser/**/*'],
+    },
+  },
+
+  // Webpack defensivo
   webpack: (config, { isServer }) => {
     if (isServer) {
-      // Evita que librerías intenten cargar módulos nativos que no existen en Vercel
       config.resolve.alias.canvas = false;
       config.resolve.alias.encoding = false;
     }
     return config;
   },
 
-  // Cabeceras de seguridad (Mantenemos esto por seguridad)
   async headers() {
     return [
       {
@@ -58,6 +68,4 @@ const nextConfig = {
   },
 };
 
-// [NOTA]: Hemos eliminado 'withPWA' completamente.
-// Exportamos la configuración plana para garantizar que no hay procesos ocultos fallando.
 export default nextConfig;
