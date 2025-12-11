@@ -1,5 +1,5 @@
 // components/podcast-creation-form.tsx
-// VERSIÓN: 5.5 (Final Production: Controlled Hydration UX)
+// VERSIÓN: 7.1 (Fix: Restore Missing State Variables)
 
 "use client";
 
@@ -13,14 +13,29 @@ import { PodcastCreationSchema, PodcastCreationData } from "@/lib/validation/pod
 import { useAudio } from "@/contexts/audio-context";
 import { usePersistentForm } from "@/hooks/use-persistent-form";
 
+// [CRÍTICO] Importación Dinámica (Lazy Load) para TipTap
+import dynamic from 'next/dynamic';
+
+const ScriptEditorStep = dynamic(
+  () => import('./create-flow/script-editor-step').then((mod) => mod.ScriptEditorStep),
+  { 
+    ssr: false, 
+    loading: () => (
+      <div className="h-64 w-full flex items-center justify-center text-muted-foreground animate-pulse">
+        <Loader2 className="h-6 w-6 animate-spin mr-2" />
+        Cargando Editor...
+      </div>
+    )
+  }
+);
+
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChevronLeft, ChevronRight, Wand2, Loader2, FileText, AlertCircle, History, Trash2 } from "lucide-react";
-// [NUEVO] Importamos ToastAction para botones interactivos en la notificación
 import { ToastAction } from "@/components/ui/toast"; 
 
-// Importación de Pasos
+// Importación de Pasos Normales
 import { PurposeSelectionStep } from "./create-flow/purpose-selection-step";
 import { LearnSubStep } from "./create-flow/LearnSubStep";
 import { InspireSubStep } from "./create-flow/InspireSubStep";
@@ -34,7 +49,6 @@ import { DetailsStep } from "./create-flow/details-step";
 import { FinalStep } from "./create-flow/final-step";
 import { ArchetypeStep } from "./create-flow/archetype-step";
 import { AudioStudio } from "./create-flow/audio-studio";
-import { ScriptEditorStep } from "./create-flow/script-editor-step";
 import { ToneSelectionStep } from "./create-flow/tone-selection-step";
 import { DraftGenerationLoader } from "./create-flow/draft-generation-loader";
 
@@ -82,7 +96,6 @@ export function PodcastCreationForm() {
   const [isLoadingNarratives, setIsLoadingNarratives] = useState(false);
   const [narrativeOptions, setNarrativeOptions] = useState<NarrativeOption[]>([]);
 
-  // [NUEVO] Estado para controlar la pregunta de restauración
   const [hasRestorableData, setHasRestorableData] = useState(false);
 
   useEffect(() => {
@@ -127,31 +140,28 @@ export function PodcastCreationForm() {
   const formData = watch();
 
   // ===========================================================================
-  // SISTEMA DE HIDRATACIÓN CONTROLADA (UX PREMIUM)
+  // SISTEMA DE HIDRATACIÓN
   // ===========================================================================
 
-  // 1. Definimos qué hacer visualmente si el usuario acepta restaurar
   const handleHydrationUI = useCallback((savedStep: string, savedHistory: string[]) => {
     setHistory(savedHistory as FlowState[]);
     setCurrentFlowState(savedStep as FlowState);
   }, []);
 
-  // 2. Invocamos el Hook. Si encuentra datos, activa el flag 'hasRestorableData'
   const { restoreSession, discardSession, clearDraft } = usePersistentForm(
     formMethods, 
     currentFlowState, 
     history, 
     handleHydrationUI,
-    useCallback(() => setHasRestorableData(true), []) // Callback de detección
+    useCallback(() => setHasRestorableData(true), []) 
   );
 
-  // 3. Efecto que reacciona al hallazgo de datos y muestra la pregunta
   useEffect(() => {
-    if (hasRestorableData) {
+    if (isMounted && hasRestorableData) {
       toast({
         title: "Sesión encontrada",
         description: "Tienes un borrador sin guardar de tu visita anterior.",
-        duration: Infinity, // Se queda fijo hasta que el usuario decida
+        duration: Infinity, 
         action: (
           <div className="flex items-center gap-2">
              <ToastAction 
@@ -179,7 +189,7 @@ export function PodcastCreationForm() {
         ),
       });
     }
-  }, [hasRestorableData, toast, restoreSession, discardSession]);
+  }, [hasRestorableData, isMounted, toast, restoreSession, discardSession]);
 
   // ===========================================================================
 
@@ -363,28 +373,16 @@ export function PodcastCreationForm() {
     }
   };
 
-  const flowPaths: Record<string, FlowState[]> = {
-    learn: ['SELECTING_PURPOSE', 'LEARN_SUB_SELECTION', 'SOLO_TALK_INPUT', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    inspire: ['SELECTING_PURPOSE', 'INSPIRE_SUB_SELECTION', 'ARCHETYPE_INPUT', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    explore: ['SELECTING_PURPOSE', 'LINK_POINTS_INPUT', 'NARRATIVE_SELECTION', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    reflect: ['SELECTING_PURPOSE', 'LEGACY_INPUT', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    answer: ['SELECTING_PURPOSE', 'QUESTION_INPUT', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    freestyle: ['SELECTING_PURPOSE', 'FREESTYLE_SELECTION'],
-  };
-  
-  const currentPath = flowPaths[formData.purpose] || [];
-  const currentStepIndex = history.length;
-  const totalPasosEstimados = currentPath.length > 0 ? currentPath.length : 6;
-  const progress = Math.min((currentStepIndex / totalPasosEstimados) * 100, 100);
-  const isFinalStep = currentFlowState === 'FINAL_STEP';
-  const isSelectingPurpose = currentFlowState === 'SELECTING_PURPOSE';
-  
+  // [CORRECCIÓN] Definición de Variables de Estado Visual
   const isWideView = currentFlowState === 'SCRIPT_EDITING';
   const containerMaxWidth = isWideView ? "max-w-[1400px]" : "max-w-4xl";
-
   const playerPadding = isMounted && currentPodcast ? 'pb-24' : 'pb-4';
-
   const shouldShowLoader = isGeneratingScript;
+  
+  // [CORRECCIÓN CRÍTICA] Definición de flags faltantes
+  const isSelectingPurpose = currentFlowState === 'SELECTING_PURPOSE';
+  const isFinalStep = currentFlowState === 'FINAL_STEP';
+
   const shouldShowHeader = !isSelectingPurpose && !shouldShowLoader;
   const shouldShowFooter = !isSelectingPurpose && !shouldShowLoader;
 
@@ -407,18 +405,15 @@ export function PodcastCreationForm() {
                                {isGeneratingScript ? "Creando Guion..." : "Nuevo Podcast"}
                              </span>
                              <span className="text-[9px] text-muted-foreground uppercase tracking-widest font-bold mt-0.5">
-                               Paso {currentStepIndex}/{totalPasosEstimados}
+                               Paso {history.length}/{6}
                              </span>
                            </div>
                            <div className="text-right text-[10px] font-mono font-bold text-primary">
-                             {Math.round(progress)}%
+                             {Math.min((history.length / 6) * 100, 100).toFixed(0)}%
                            </div>
                         </div>
                         <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden backdrop-blur-sm">
-                            <div 
-                              className="h-full bg-primary transition-all duration-500 ease-out shadow-[0_0_8px_rgba(168,85,247,0.6)]" 
-                              style={{ width: `${progress}%` }} 
-                            />
+                            <div className="h-full bg-primary transition-all duration-500 ease-out shadow-[0_0_8px_rgba(168,85,247,0.6)]" style={{ width: `${Math.min((history.length / 6) * 100, 100)}%` }} />
                         </div>
                       </div>
                     )}
