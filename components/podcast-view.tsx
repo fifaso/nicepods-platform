@@ -1,5 +1,5 @@
 // components/podcast-view.tsx
-// VERSIÓN: 6.4 (Fix: Profile Route Enforcement /profile/[username])
+// VERSIÓN: 7.0 (Fix: Lazy Loading ScriptViewer - Total Server Isolation)
 
 "use client";
 
@@ -8,6 +8,8 @@ import { useRouter } from 'next/navigation';
 import { User } from '@supabase/supabase-js';
 import Image from 'next/image';
 import Link from 'next/link';
+// [CRÍTICO] Importación para Lazy Loading
+import dynamic from 'next/dynamic'; 
 
 import { PodcastWithProfile } from '@/types/podcast';
 import { useAuth } from '@/hooks/use-auth';
@@ -21,9 +23,23 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Heart, Share2, Download, Calendar, Clock, PlayCircle, ChevronDown, Loader2, Mic, Tag, Pencil, BookOpen, ExternalLink, Globe, Link as LinkIcon } from 'lucide-react';
 import { CreationMetadata } from './creation-metadata';
 import { formatTime } from '@/lib/utils';
-import { ScriptViewer } from './script-viewer';
+// import { ScriptViewer } from './script-viewer'; <--- ELIMINADO (Causa del Error 500)
 import { cn } from '@/lib/utils';
 import { TagCurationCanvas } from './tag-curation-canvas';
+
+// [NUEVO] Componente Dinámico Seguro
+const ScriptViewer = dynamic(
+  () => import('./script-viewer').then((mod) => mod.ScriptViewer),
+  { 
+    ssr: false, // Desactivamos SSR para TipTap
+    loading: () => (
+        <div className="h-24 w-full flex items-center justify-center text-muted-foreground animate-pulse">
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            Cargando guion...
+        </div>
+    )
+  }
+);
 
 interface PodcastViewProps { 
   podcastData: PodcastWithProfile;
@@ -114,19 +130,12 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
     }
   }, [localPodcastData.script_text]);
 
-  // [CORRECCIÓN CRÍTICA DE RUTA]
-  // La ruta física es app/profile/[username], por lo tanto el link debe ser /profile/username.
   const profileUrl = useMemo(() => {
     const username = localPodcastData.profiles?.username;
-    
-    // Solo generamos el link si existe un username válido
-    if (username && typeof username === 'string' && username.trim().length > 0) {
+    if (username && typeof username === 'string' && username.trim() !== '') {
         return `/profile/${username.trim()}`;
     }
-    
-    // Si no hay username, desactivamos el enlace (retornando '#')
-    // para evitar enviar al usuario a una página 404 (/u/id o /profile/null)
-    return '#'; 
+    return null; 
   }, [localPodcastData.profiles]);
 
   const handleSaveTags = async (finalTags: string[]) => {
@@ -312,7 +321,7 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
               <CardContent className="p-5 pt-0 md:p-8 md:pt-0">
                 <Separator className="my-6" />
                 
-                {/* --- GUION COMPLETO --- */}
+                {/* --- GUION COMPLETO (Renderizando texto normalizado) --- */}
                 <Collapsible open={isScriptExpanded} onOpenChange={setIsScriptExpanded}>
                   <div className="flex items-center justify-between mb-4">
                       <h3 className="text-lg font-bold tracking-tight text-foreground">Guion del Episodio</h3>
@@ -379,8 +388,8 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
             <Card className="bg-card/30 backdrop-blur-sm border-border/10 shadow-sm">
               <CardContent className="p-5 text-sm space-y-5">
                 
-                {/* [MODIFICACIÓN] Renderizado Condicional Seguro */}
-                {profileUrl !== '#' ? (
+                {/* [MODIFICACIÓN] Renderizado Condicional Seguro (Solo renderiza Link si existe URL válida) */}
+                {profileUrl ? (
                   <Link href={profileUrl} className="block group">
                     <div className="flex items-center gap-3 p-3 bg-background/40 rounded-xl border border-border/30 transition-all duration-300 group-hover:bg-background/60 group-hover:border-primary/20 group-hover:shadow-md">
                       <div className="relative h-10 w-10">
@@ -403,7 +412,7 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
                     </div>
                   </Link>
                 ) : (
-                  // Estado no clicable (Si no hay username)
+                  // Si profileUrl es null, renderizamos un div estático
                   <div className="flex items-center gap-3 p-3 bg-background/40 rounded-xl border border-border/30 opacity-80 cursor-default">
                     <div className="relative h-10 w-10">
                         <Image 
