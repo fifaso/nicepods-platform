@@ -1,5 +1,5 @@
 // app/layout.tsx
-// VERSIÓN: 5.6 (Fix: Secure Auth & Analytics Guard)
+// VERSIÓN: 6.0 (Stabilized: Analytics Removed)
 
 import { cookies } from 'next/headers';
 import type React from "react";
@@ -18,7 +18,6 @@ import { PageTransition } from "@/components/page-transition";
 import { AudioProvider } from "@/contexts/audio-context";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { PlayerOrchestrator } from "@/components/player-orchestrator";
-import { AnalyticsProvider } from "@/components/analytics-provider";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -56,12 +55,7 @@ export default async function RootLayout({
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
   
-  // [CORRECCIÓN]: Usamos getUser() para validación segura en el servidor
-  // Esto elimina el warning "Using user object... could be insecure"
   const { data: { user } } = await supabase.auth.getUser();
-  
-  // Para mantener compatibilidad con AuthProvider que espera una 'session',
-  // podemos obtenerla, pero confiamos en 'user' para la lógica de servidor.
   const { data: { session } } = await supabase.auth.getSession();
 
   return (
@@ -114,9 +108,6 @@ export default async function RootLayout({
             </AuthProvider>
           </ThemeProvider>
         </ErrorBoundary>
-        
-        {/* Proveedor de Analíticas con "Environment Guard" */}
-        <AnalyticsProvider />
       </body>
     </html>
   );
