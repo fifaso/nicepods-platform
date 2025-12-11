@@ -1,5 +1,5 @@
 // components/create-flow/script-editor-step.tsx
-// VERSIÓN: 5.8 (UX Final Polish: Split Header Layout)
+// VERSIÓN: 5.9 (UX Final: Visual Hierarchy & Alignment)
 
 "use client";
 
@@ -156,25 +156,25 @@ export function ScriptEditorStep() {
       
       {/* 1. HEADER (ADAPTATIVO) */}
       
-      {/* MÓVIL: Diseño centrado clásico */}
+      {/* MÓVIL */}
       <div className="lg:hidden flex-shrink-0 pt-4 pb-2 px-4 text-center">
         <h2 className="text-xl font-bold tracking-tight text-foreground">Revisa tu Guion</h2>
         <p className="text-xs text-muted-foreground mt-1 font-medium">Edita el contenido antes de grabar.</p>
       </div>
 
       {/* DESKTOP: Barra superior WORKSTATION */}
-      {/* Usamos justify-between para separar los dos bloques principales */}
-      <div className="hidden lg:flex flex-shrink-0 items-center justify-between px-1 pb-4 pt-1 border-b border-black/5 dark:border-white/5 mb-4 gap-4">
+      {/* Cambios: justify-between, padding ajustado y eliminación de bordes para integración visual */}
+      <div className="hidden lg:flex flex-shrink-0 items-center justify-between px-1 pb-2 pt-0 mb-4 gap-4 -mt-1">
          
          {/* LADO IZQUIERDO: Título de Fase + Subtítulo */}
          <div className="flex flex-col justify-center">
-            <h2 className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
-                <Pencil className="h-4 w-4 text-primary" /> Editor de Guion
+            <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
+                <Pencil className="h-5 w-5 text-primary" /> Editor de Guion
             </h2>
-            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider pl-6">Modo Estudio</p>
+            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider pl-7">Modo Estudio</p>
          </div>
 
-         {/* LADO DERECHO: Input del Título (Ocupa el 50% de la pantalla, desde el centro a la derecha) */}
+         {/* LADO DERECHO: Input del Título (Ocupa el 50% de la pantalla) */}
          <div className="w-1/2 pl-4">
             <FormField
                 control={control}
@@ -186,7 +186,6 @@ export function ScriptEditorStep() {
                         {...field}
                         placeholder="Título del Podcast"
                         maxLength={100}
-                        // Ajustes visuales: Texto alineado a la izquierda, fondo sutil, altura cómoda
                         className="h-10 text-base font-medium bg-white/40 dark:bg-black/20 border-transparent hover:border-primary/20 focus:border-primary focus:bg-background transition-all text-left px-4 rounded-lg w-full"
                         />
                     </FormControl>
@@ -200,7 +199,7 @@ export function ScriptEditorStep() {
       {/* 2. ÁREA DE TRABAJO */}
       <div className="flex-grow flex flex-col min-h-0 px-2 lg:px-0 pb-2">
         
-        {/* INPUT DE TÍTULO (SOLO MÓVIL) - Oculto en LG */}
+        {/* INPUT DE TÍTULO (SOLO MÓVIL) */}
         <div className="lg:hidden flex-shrink-0 mb-4">
             <FormField
             control={control}
@@ -221,16 +220,13 @@ export function ScriptEditorStep() {
             />
         </div>
 
-        {/* CONTAINER FLEXIBLE: Columna única en móvil, Fila en Desktop */}
+        {/* CONTAINER FLEXIBLE */}
         <div className="flex-1 flex flex-col lg:flex-row min-h-0 gap-0 lg:gap-6">
             
-            {/* COLUMNA PRINCIPAL (Editor + Bandeja Móvil) */}
+            {/* COLUMNA PRINCIPAL (Editor) */}
             <div className="flex-1 flex flex-col min-h-0">
-                
-                {/* Bandeja Móvil */}
                 <MobileSourcesTray sources={sources} />
 
-                {/* EDITOR */}
                 <div className="flex-1 flex flex-col min-h-0 bg-white/50 dark:bg-black/20 rounded-xl border border-black/5 dark:border-white/10 overflow-hidden shadow-sm relative backdrop-blur-sm">
                     <div className="flex-shrink-0 z-10">
                         <MenuBar editor={editor} />
