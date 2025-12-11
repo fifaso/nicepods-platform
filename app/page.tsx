@@ -1,5 +1,5 @@
 // app/page.tsx
-// VERSIÓN: 2.1 (Fix: Guest Access Resilience & Error 500 Prevention)
+// VERSIÓN: 3.0 (Fix: Data Sanitization & Serialization Safety)
 
 import { cookies } from "next/headers";
 import Link from "next/link";
@@ -22,11 +22,30 @@ interface DiscoveryFeed {
   new_horizons: PodcastWithProfile[] | null;
 }
 
-// ===================================================================
-// VISTA PARA USUARIO AUTENTICADO
-// ===================================================================
+// [NUEVO] Función de Saneamiento: Limpia datos para evitar errores de serialización
+function sanitizePodcasts(podcasts: any[] | null): PodcastWithProfile[] {
+  if (!podcasts || !Array.isArray(podcasts)) return [];
+  
+  return podcasts.map(pod => ({
+    ...pod,
+    // Aseguramos que creation_data sea un objeto válido o null
+    creation_data: typeof pod.creation_data === 'string' 
+      ? JSON.parse(pod.creation_data) 
+      : pod.creation_data || null,
+    // Aseguramos arrays
+    ai_tags: Array.isArray(pod.ai_tags) ? pod.ai_tags : [],
+    user_tags: Array.isArray(pod.user_tags) ? pod.user_tags : [],
+    sources: Array.isArray(pod.sources) ? pod.sources : [],
+  })).filter(p => p.id); // Filtramos nulos por si acaso
+}
+
 function UserDashboard({ user, feed, profile }: { user: any; feed: DiscoveryFeed | null; profile: any }) {
   const userName = user.user_metadata?.full_name?.split(' ')[0] || user.email;
+
+  // Saneamos los feeds antes de renderizar
+  const safeEpicenter = sanitizePodcasts(feed?.epicenter || []);
+  const safeConnections = sanitizePodcasts(feed?.semantic_connections || []);
+  const safeHorizons = sanitizePodcasts(feed?.new_horizons || []);
 
   return (
     <>
@@ -57,9 +76,9 @@ function UserDashboard({ user, feed, profile }: { user: any; feed: DiscoveryFeed
         <DiscoveryHub />
 
         <div className="mt-8 space-y-12">
-          <PodcastShelf title="Tu Epicentro Creativo" podcasts={feed?.epicenter || []} variant="compact" />
-          <PodcastShelf title="Conexiones Inesperadas" podcasts={feed?.semantic_connections || []} variant="compact" />
-          <PodcastShelf title="Nuevos Horizontes en NicePod" podcasts={feed?.new_horizons || []} variant="compact" />
+          <PodcastShelf title="Tu Epicentro Creativo" podcasts={safeEpicenter} variant="compact" />
+          <PodcastShelf title="Conexiones Inesperadas" podcasts={safeConnections} variant="compact" />
+          <PodcastShelf title="Nuevos Horizontes en NicePod" podcasts={safeHorizons} variant="compact" />
         </div>
       </div>
       <FloatingActionButton />
@@ -67,10 +86,10 @@ function UserDashboard({ user, feed, profile }: { user: any; feed: DiscoveryFeed
   );
 }
 
-// ===================================================================
-// VISTA PARA INVITADO (SIN LOGIN)
-// ===================================================================
 function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] }) {
+  // Saneamiento también para invitados
+  const safeLatest = sanitizePodcasts(latestPodcasts);
+
   return (
     <div className="flex flex-col items-center">
       <section className="w-full text-center py-16 md:py-20 flex flex-col items-center space-y-4 px-4">
@@ -98,7 +117,7 @@ function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] }) {
       <div className="w-full max-w-7xl mx-auto px-4 lg:px-0 mt-8">
         <PodcastShelf 
           title="Las últimas creaciones de la comunidad"
-          podcasts={latestPodcasts || []} // Protección contra null
+          podcasts={safeLatest} 
         />
       </div>
 
@@ -111,67 +130,61 @@ function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] }) {
   );
 }
 
-// ===================================================================
-// COMPONENTE PRINCIPAL (EL "ROUTER" LÓGICO)
-// ===================================================================
 export default async function HomePage() {
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
-  const { data: { user } } = await supabase.auth.getUser();
+  
+  // Try/Catch global para evitar que la home muera por auth
+  let user = null;
+  try {
+    const { data } = await supabase.auth.getUser();
+    user = data?.user;
+  } catch (e) {
+    // Si auth falla, tratamos como guest
+  }
 
   let feed: DiscoveryFeed | null = null;
   let resonanceProfile: ResonanceProfile | null = null;
-  let latestPodcasts: any[] = []; // Inicializado como array vacío por seguridad
+  let latestPodcasts: any[] = [];
   let userProfile: any = null;
 
   if (user) {
     try {
         const [
-          { data: feedData, error: feedError },
-          { data: profileData, error: resonanceError },
-          { data: userProfileData, error: profileError }
+          { data: feedData },
+          { data: profileData },
+          { data: userProfileData }
         ] = await Promise.all([
           supabase.rpc('get_user_discovery_feed', { p_user_id: user.id }),
           supabase.from('user_resonance_profiles').select('*').eq('user_id', user.id).single(),
           supabase.from('profiles').select('username').eq('id', user.id).single()
         ]);
         
-        if (feedError) console.error("Error al obtener feed:", feedError);
         feed = feedData;
         resonanceProfile = profileData;
         userProfile = userProfileData;
     } catch (e) {
-        console.error("Error crítico en carga de usuario:", e);
+        console.error("Error cargando dashboard:", e);
     }
   } else {
-    // [MODIFICACIÓN CRÍTICA]: Manejo de error para invitados (RLS Protection)
     try {
-        const { data, error } = await supabase
+        const { data } = await supabase
           .from('micro_pods')
           .select(`*, profiles (full_name, avatar_url, username)`)
           .eq('status', 'published')
           .order('created_at', { ascending: false })
           .limit(8);
         
-        if (error) {
-            console.error("Error cargando podcasts públicos (Probable RLS):", error.message);
-            latestPodcasts = []; // Fallback seguro
-        } else {
-            latestPodcasts = data || [];
-        }
+        latestPodcasts = data || [];
     } catch (e) {
-        console.error("Excepción en carga pública:", e);
-        latestPodcasts = [];
+        console.error("Error carga pública:", e);
     }
   }
 
   return (
     <main className="container mx-auto max-w-screen-xl flex-grow">
       <div className="grid grid-cols-1 lg:grid-cols-4 lg:gap-8 xl:gap-12 h-full">
-        {/* Columna de Contenido */}
-        <div className="lg:col-span-3 lg:h-[calc(100vh-6rem)] lg:overflow-y-auto lg:overflow-x-hidden lg:pr-6 
-                       scrollbar-thin scrollbar-thumb-gray-600/50 hover:scrollbar-thumb-gray-500/50 
-                       scrollbar-track-transparent scrollbar-thumb-rounded-full">
+        <div className="lg:col-span-3 lg:h-[calc(100vh-6rem)] lg:overflow-y-auto lg:overflow-x-hidden lg:pr-6 scrollbar-thin scrollbar-thumb-gray-600/50 hover:scrollbar-thumb-gray-500/50 scrollbar-track-transparent scrollbar-thumb-rounded-full">
           <div className="pt-6 pb-12 lg:pt-12">
             {user ? (
               <UserDashboard user={user} feed={feed} profile={userProfile} />
@@ -180,8 +193,6 @@ export default async function HomePage() {
             )}
           </div>
         </div>
-        
-        {/* Columna del Panel (Sticky) */}
         <div className="hidden lg:block lg:col-span-1">
           <div className="sticky top-[6rem] h-[calc(100vh-7.5rem)]">
             <div className="py-12 h-full">
