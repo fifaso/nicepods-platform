@@ -1,5 +1,5 @@
 // components/create-flow/script-editor-step.tsx
-// VERSIÓN: 5.7 (UX Polish: Aligned Headers & Spacious Title Input)
+// VERSIÓN: 5.8 (UX Final Polish: Split Header Layout)
 
 "use client";
 
@@ -18,6 +18,7 @@ import { Bold, Italic, Heading2, List, Undo, Redo, BookOpen, ChevronDown, Chevro
 
 import DOMPurify from "isomorphic-dompurify";
 
+// --- COMPONENTE REUTILIZABLE: ÍTEM DE FUENTE ---
 const SourceItem = ({ source }: { source: { title?: string, url?: string, snippet?: string } }) => (
     <li className="text-[10px] text-muted-foreground flex flex-col gap-1 p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors border border-transparent hover:border-black/5 dark:hover:border-white/5">
         <div className="flex items-start justify-between gap-2">
@@ -42,6 +43,8 @@ const SourceItem = ({ source }: { source: { title?: string, url?: string, snippe
         )}
     </li>
 );
+
+// --- BANDEJAS DE FUENTES (MOBILE/DESKTOP) ---
 
 const MobileSourcesTray = ({ sources }: { sources?: any[] }) => {
     const [isOpen, setIsOpen] = useState(false);
@@ -83,6 +86,7 @@ const DesktopSourcesSidebar = ({ sources }: { sources?: any[] }) => {
                 <Globe className="h-4 w-4 text-blue-500" />
                 <span className="text-xs font-bold text-foreground">Fuentes ({sources.length})</span>
             </div>
+            
             <div className="flex-1 overflow-y-auto scrollbar-hide p-2">
                 <ul className="space-y-1">
                     {sources.map((source, idx) => (
@@ -94,6 +98,7 @@ const DesktopSourcesSidebar = ({ sources }: { sources?: any[] }) => {
     );
 };
 
+// --- BARRA DE HERRAMIENTAS EDITOR ---
 const MenuBar = ({ editor }: { editor: Editor | null }) => {
   if (!editor) return null;
 
@@ -111,6 +116,7 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
   );
 };
 
+// --- COMPONENTE PRINCIPAL ---
 export function ScriptEditorStep() {
   const { control, setValue, getValues } = useFormContext<PodcastCreationData>();
   
@@ -157,18 +163,19 @@ export function ScriptEditorStep() {
       </div>
 
       {/* DESKTOP: Barra superior WORKSTATION */}
-      <div className="hidden lg:flex flex-shrink-0 items-center gap-6 px-1 pb-4 pt-1 border-b border-black/5 dark:border-white/5 mb-4">
+      {/* Usamos justify-between para separar los dos bloques principales */}
+      <div className="hidden lg:flex flex-shrink-0 items-center justify-between px-1 pb-4 pt-1 border-b border-black/5 dark:border-white/5 mb-4 gap-4">
          
-         {/* Título de Fase + Subtítulo (Alineado Izquierda) */}
-         <div className="flex flex-col flex-shrink-0 w-48">
+         {/* LADO IZQUIERDO: Título de Fase + Subtítulo */}
+         <div className="flex flex-col justify-center">
             <h2 className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
                 <Pencil className="h-4 w-4 text-primary" /> Editor de Guion
             </h2>
-            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Modo Estudio</p>
+            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider pl-6">Modo Estudio</p>
          </div>
 
-         {/* Input del Título (Central Expandido) */}
-         <div className="flex-1">
+         {/* LADO DERECHO: Input del Título (Ocupa el 50% de la pantalla, desde el centro a la derecha) */}
+         <div className="w-1/2 pl-4">
             <FormField
                 control={control}
                 name="final_title"
@@ -179,10 +186,11 @@ export function ScriptEditorStep() {
                         {...field}
                         placeholder="Título del Podcast"
                         maxLength={100}
-                        className="h-10 text-base font-medium bg-white/40 dark:bg-black/20 border-transparent hover:border-primary/20 focus:border-primary focus:bg-background transition-all text-left px-4 rounded-lg w-full max-w-3xl"
+                        // Ajustes visuales: Texto alineado a la izquierda, fondo sutil, altura cómoda
+                        className="h-10 text-base font-medium bg-white/40 dark:bg-black/20 border-transparent hover:border-primary/20 focus:border-primary focus:bg-background transition-all text-left px-4 rounded-lg w-full"
                         />
                     </FormControl>
-                    <FormMessage className="text-[10px] absolute mt-1" />
+                    <FormMessage className="text-[10px] absolute mt-1 right-0" />
                     </FormItem>
                 )}
             />
