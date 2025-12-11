@@ -1,5 +1,5 @@
 // components/create-flow/script-editor-step.tsx
-// VERSIÓN ACTUALIZADA: Layout Responsive (Sidebar en Desktop / Acordeón en Móvil)
+// VERSIÓN: 5.6 (UX: Desktop Workstation Layout - Maximize Editor Space)
 
 "use client";
 
@@ -44,7 +44,8 @@ const SourceItem = ({ source }: { source: { title?: string, url?: string, snippe
     </li>
 );
 
-// --- VARIANTE 1: BANDEJA MÓVIL (Acordeón) ---
+// --- BANDEJAS DE FUENTES (MOBILE/DESKTOP) ---
+
 const MobileSourcesTray = ({ sources }: { sources?: any[] }) => {
     const [isOpen, setIsOpen] = useState(false);
 
@@ -76,24 +77,18 @@ const MobileSourcesTray = ({ sources }: { sources?: any[] }) => {
     );
 };
 
-// --- VARIANTE 2: SIDEBAR DESKTOP (Panel Fijo) ---
 const DesktopSourcesSidebar = ({ sources }: { sources?: any[] }) => {
     if (!sources || sources.length === 0) return null;
 
     return (
-        <div className="hidden lg:flex flex-col w-72 flex-shrink-0 h-full bg-white/40 dark:bg-black/20 backdrop-blur-sm border border-black/5 dark:border-white/10 rounded-2xl overflow-hidden">
-            <div className="p-4 border-b border-black/5 dark:border-white/10 bg-white/50 dark:bg-black/40">
-                <div className="flex items-center gap-2 text-xs font-bold text-foreground">
-                    <Globe className="h-4 w-4 text-blue-500" />
-                    <span>Fuentes ({sources.length})</span>
-                </div>
-                <p className="text-[10px] text-muted-foreground mt-1">
-                    Base científica utilizada por la IA.
-                </p>
+        <div className="hidden lg:flex flex-col w-80 flex-shrink-0 h-full bg-white/40 dark:bg-black/20 backdrop-blur-sm border border-black/5 dark:border-white/10 rounded-xl overflow-hidden shadow-sm">
+            <div className="p-3 border-b border-black/5 dark:border-white/10 bg-white/50 dark:bg-black/40 flex items-center gap-2">
+                <Globe className="h-4 w-4 text-blue-500" />
+                <span className="text-xs font-bold text-foreground">Fuentes ({sources.length})</span>
             </div>
             
-            <div className="flex-1 overflow-y-auto scrollbar-hide p-3">
-                <ul className="space-y-2">
+            <div className="flex-1 overflow-y-auto scrollbar-hide p-2">
+                <ul className="space-y-1">
                     {sources.map((source, idx) => (
                         <SourceItem key={idx} source={source} />
                     ))}
@@ -108,7 +103,7 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
   if (!editor) return null;
 
   return (
-    <div className="flex items-center gap-1 p-2 border-b border-black/5 dark:border-white/10 bg-white/80 dark:bg-black/40 backdrop-blur-md overflow-x-auto scrollbar-hide rounded-t-2xl z-20 relative">
+    <div className="flex items-center gap-1 p-2 border-b border-black/5 dark:border-white/10 bg-white/80 dark:bg-black/40 backdrop-blur-md overflow-x-auto scrollbar-hide rounded-t-xl z-20 relative">
       <Button type="button" variant="ghost" size="sm" onClick={() => editor.chain().focus().toggleBold().run()} disabled={!editor.can().chain().focus().toggleBold().run()} className={cn("h-8 w-8 p-0", editor.isActive('bold') ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground')} title="Negrita"><Bold className="h-4 w-4" /></Button>
       <Button type="button" variant="ghost" size="sm" onClick={() => editor.chain().focus().toggleItalic().run()} disabled={!editor.can().chain().focus().toggleItalic().run()} className={cn("h-8 w-8 p-0", editor.isActive('italic') ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground')} title="Itálica"><Italic className="h-4 w-4" /></Button>
       <div className="w-px h-4 bg-black/10 dark:bg-white/10 mx-1" />
@@ -123,11 +118,9 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
 
 // --- COMPONENTE PRINCIPAL ---
 export function ScriptEditorStep() {
-  const { control, setValue, watch, getValues } = useFormContext<PodcastCreationData>();
+  const { control, setValue, getValues } = useFormContext<PodcastCreationData>();
   
-  const initialTitle = getValues('final_title') || '';
   const initialScript = getValues('final_script') || '';
-  // Recuperamos las fuentes del estado global
   const sources = getValues('sources') || [];
 
   const editor = useEditor({
@@ -161,20 +154,50 @@ export function ScriptEditorStep() {
   return (
     <div className="flex flex-col h-full w-full animate-fade-in">
       
-      {/* HEADER COMPARTIDO */}
-      <div className="flex-shrink-0 pt-4 pb-2 px-4 text-center">
-        <h2 className="text-xl md:text-2xl font-bold tracking-tight text-foreground drop-shadow-sm md:drop-shadow-none">
-          Revisa tu Guion
-        </h2>
-        <p className="text-xs md:text-sm text-muted-foreground mt-1 font-medium">
-          Edita el contenido antes de grabar.
-        </p>
+      {/* 1. HEADER (ADAPTATIVO) */}
+      
+      {/* MÓVIL: Diseño centrado clásico */}
+      <div className="lg:hidden flex-shrink-0 pt-4 pb-2 px-4 text-center">
+        <h2 className="text-xl font-bold tracking-tight text-foreground">Revisa tu Guion</h2>
+        <p className="text-xs text-muted-foreground mt-1 font-medium">Edita el contenido antes de grabar.</p>
       </div>
 
-      <div className="flex-grow flex flex-col min-h-0 px-2 md:px-6 pb-2">
+      {/* DESKTOP: Barra superior estilo Workstation */}
+      <div className="hidden lg:flex flex-shrink-0 items-center justify-between px-1 pb-4 pt-1 gap-8 border-b border-black/5 dark:border-white/5 mb-4">
+         <div className="flex flex-col">
+            <h2 className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
+                <Pencil className="h-4 w-4 text-primary" /> Editor de Guion
+            </h2>
+            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Modo Estudio</p>
+         </div>
+
+         {/* Input del Título en la barra superior (Derecha) */}
+         <div className="flex-1 max-w-md">
+            <FormField
+                control={control}
+                name="final_title"
+                render={({ field }) => (
+                    <FormItem className="space-y-0">
+                    <FormControl>
+                        <Input
+                        {...field}
+                        placeholder="Título del Podcast"
+                        maxLength={100}
+                        className="h-9 text-sm font-medium bg-white/40 dark:bg-black/20 border-transparent hover:border-primary/20 focus:border-primary focus:bg-background transition-all text-right pr-3"
+                        />
+                    </FormControl>
+                    <FormMessage className="text-[10px] text-right absolute right-0" />
+                    </FormItem>
+                )}
+            />
+         </div>
+      </div>
+
+      {/* 2. ÁREA DE TRABAJO */}
+      <div className="flex-grow flex flex-col min-h-0 px-2 lg:px-0 pb-2">
         
-        {/* 1. TÍTULO (Siempre arriba) */}
-        <div className="flex-shrink-0 mb-4">
+        {/* INPUT DE TÍTULO (SOLO MÓVIL) - Oculto en LG */}
+        <div className="lg:hidden flex-shrink-0 mb-4">
             <FormField
             control={control}
             name="final_title"
@@ -185,7 +208,7 @@ export function ScriptEditorStep() {
                     {...field}
                     placeholder="Título del Podcast"
                     maxLength={100}
-                    className="h-14 text-xl md:text-2xl font-bold bg-transparent border-0 border-b border-border text-center md:text-left text-foreground placeholder:text-muted-foreground/50 focus-visible:ring-0 px-0 rounded-none transition-colors hover:border-primary/50 focus:border-primary"
+                    className="h-14 text-xl md:text-2xl font-bold bg-transparent border-0 border-b border-border text-center text-foreground placeholder:text-muted-foreground/50 focus-visible:ring-0 px-0 rounded-none transition-colors hover:border-primary/50 focus:border-primary"
                     />
                 </FormControl>
                 <FormMessage />
@@ -200,11 +223,11 @@ export function ScriptEditorStep() {
             {/* COLUMNA PRINCIPAL (Editor + Bandeja Móvil) */}
             <div className="flex-1 flex flex-col min-h-0">
                 
-                {/* 2. BANDEJA MÓVIL (Solo visible en pantallas pequeñas) */}
+                {/* Bandeja Móvil (Solo visible en pantallas pequeñas) */}
                 <MobileSourcesTray sources={sources} />
 
-                {/* 3. EDITOR (Ocupa el resto) */}
-                <div className="flex-1 flex flex-col min-h-0 bg-white/50 dark:bg-black/20 rounded-2xl border border-black/5 dark:border-white/10 overflow-hidden shadow-sm relative backdrop-blur-sm">
+                {/* EDITOR (Ocupa el resto) */}
+                <div className="flex-1 flex flex-col min-h-0 bg-white/50 dark:bg-black/20 rounded-xl border border-black/5 dark:border-white/10 overflow-hidden shadow-sm relative backdrop-blur-sm">
                     
                     <div className="flex-shrink-0 z-10">
                         <MenuBar editor={editor} />
@@ -224,7 +247,7 @@ export function ScriptEditorStep() {
                 </div>
             </div>
 
-            {/* 4. SIDEBAR DESKTOP (Solo visible en pantallas grandes) */}
+            {/* SIDEBAR DESKTOP (Solo visible en pantallas grandes) */}
             <DesktopSourcesSidebar sources={sources} />
 
         </div>
@@ -232,4 +255,24 @@ export function ScriptEditorStep() {
       </div>
     </div>
   );
+}
+
+function Pencil(props: any) {
+    return (
+      <svg
+        {...props}
+        xmlns="http://www.w3.org/2000/svg"
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+        <path d="m15 5 4 4" />
+      </svg>
+    )
 }
