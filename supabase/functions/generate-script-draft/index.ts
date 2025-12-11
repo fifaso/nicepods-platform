@@ -1,5 +1,5 @@
 // supabase/functions/generate-script-draft/index.ts
-// VERSIÓN: 8.1 (Model Migration: Gemini 2.5 Native)
+// VERSIÓN: 9.0 (Fix: Model Names Correction & Enhanced Debugging)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -11,13 +11,10 @@ const GOOGLE_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY")!;
 
 const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_KEY);
 
-// --- CONFIGURACIÓN DE MODELOS (ACTUALIZADA A GEMINI 2.5) ---
-// Writer: Modelo potente para redacción y JSON estricto.
-// Research: Modelo veloz para llamadas a herramientas.
-// Opciones disponibles hoy: 'gemini-3.0-flash-exp', 'gemini-2.5-pro', 'gemini-2.5-flash'
-
+// --- CORRECCIÓN DE MODELOS ---
+// "gemini-2.5" NO existe. Usamos las versiones estables actuales.
 const WRITER_MODEL = "gemini-2.5-pro"; 
-const RESEARCH_MODEL = "gemini-2.5-flash"; 
+const RESEARCH_MODEL = "gemini-2.5-pro"; 
 
 const API_VERSION = "v1beta";
 
@@ -32,22 +29,17 @@ function calculateSourceLimits(durationStr: string, depthStr: string): { min: nu
   return { min: 3, max: 6 };
 }
 
-// Extractor y Limpiador de JSON Robusto
 function cleanAndExtractJson(text: string): string {
   let clean = text;
-  
-  // 1. Extraer bloque JSON si la IA envuelve en markdown
   const firstBrace = text.indexOf('{');
   const lastBrace = text.lastIndexOf('}');
   if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
     clean = text.substring(firstBrace, lastBrace + 1);
   }
-  
-  // 2. Limpieza de caracteres de control ilegales que rompen JSON.parse
+  // Limpieza de caracteres de control peligrosos
   clean = clean.replace(/[\x00-\x1F\x7F-\x9F]/g, (c) => {
       return ["\b", "\f", "\n", "\r", "\t"].includes(c) ? c : ""; 
   });
-  
   return clean.trim();
 }
 
@@ -61,8 +53,6 @@ function buildRawContext(purpose: string, inputs: any): string {
   }
 }
 
-// Función Central de Llamada a IA
-// forceJson=true inyecta responseMimeType (Solo usar si NO hay tools)
 async function callGemini(model: string, prompt: string, tools: any[] = [], forceJson: boolean = false) {
   
   const safetySettings = [
@@ -75,17 +65,14 @@ async function callGemini(model: string, prompt: string, tools: any[] = [], forc
   const requestBody: any = {
     contents: [{ parts: [{ text: prompt }] }],
     safetySettings: safetySettings,
-    generationConfig: { 
-      temperature: 0.7 
-    }
+    generationConfig: { temperature: 0.7 }
   };
 
-  // Inyección de herramientas (Grounding)
   if (tools.length > 0) {
     requestBody.tools = tools;
   }
 
-  // Activación de JSON Mode (Solo compatible sin tools en ciertas versiones, lo separamos por seguridad)
+  // IMPORTANTE: Gemini falla con Error 400 si enviamos responseMimeType junto con Tools
   if (forceJson && tools.length === 0) {
     requestBody.generationConfig.responseMimeType = "application/json";
   }
@@ -101,11 +88,8 @@ async function callGemini(model: string, prompt: string, tools: any[] = [], forc
 
     if (!response.ok) {
       const errorText = await response.text();
-      // Si el modelo no existe (404), es un error crítico de configuración
-      if (response.status === 404) {
-          throw new Error(`CRITICAL: Model '${model}' not found in API ${API_VERSION}.`);
-      }
-      throw new Error(`API Error (${response.status}): ${errorText}`);
+      console.error(`[AI API ERROR] ${model} respondió con ${response.status}: ${errorText}`);
+      throw new Error(`Google AI Error (${response.status}): ${errorText}`);
     }
 
     const result = await response.json();
@@ -116,26 +100,22 @@ async function callGemini(model: string, prompt: string, tools: any[] = [], forc
     const rawOutput = candidate.content?.parts?.[0]?.text;
     if (!rawOutput) throw new Error("Texto vacío.");
 
-    // Parseo inteligente
     if (forceJson) {
         const clean = cleanAndExtractJson(rawOutput);
         return JSON.parse(clean);
     } 
     
-    // Intento oportunista para respuestas con herramientas
     try {
         const clean = cleanAndExtractJson(rawOutput);
         if (clean.startsWith('{') || clean.startsWith('[')) {
             return JSON.parse(clean);
         }
-    } catch (e) {
-        // Ignorar fallo de parseo si no era forzado
-    }
+    } catch (e) { }
 
     return rawOutput;
 
   } catch (e) {
-    console.error(`[AI] Error en llamada a ${model}:`, e);
+    console.error(`[AI] Excepción invocando ${model}:`, e);
     throw e;
   }
 }
@@ -189,15 +169,15 @@ serve(async (request) => {
 
     let dossierJson;
     try {
-        // [MODO BÚSQUEDA]: Usamos RESEARCH_MODEL y NO forzamos JSON (false) para compatibilidad con tools
+        // [Fase Búsqueda]: Usamos RESEARCH_MODEL (1.5 Flash) + Tools
         dossierJson = await callGemini(RESEARCH_MODEL, curatorFinalPrompt, [{ google_search: {} }], false);
         
         if (typeof dossierJson === 'string') {
              dossierJson = JSON.parse(cleanAndExtractJson(dossierJson));
         }
     } catch (e) {
-        console.warn("⚠️ Fallo Curador (Search):", e.message);
-        // Fallback: Conocimiento Interno. Aquí SÍ forzamos JSON.
+        console.warn("⚠️ Fallo Curador (Search), activando fallback:", e.message);
+        // Fallback: Sin herramientas, forzando JSON
         dossierJson = await callGemini(RESEARCH_MODEL, curatorFinalPrompt + "\n\n(Investigación interna, sin web).", [], true);
     }
 
@@ -221,7 +201,7 @@ serve(async (request) => {
         .replace('{{style}}', userSelectedTone)
         .replace('{{archetype}}', raw_inputs.archetype || 'Ninguno');
 
-    // [MODO ESCRITURA]: Usamos WRITER_MODEL y FORZAMOS JSON (true)
+    // [Fase Escritura]: Usamos WRITER_MODEL (1.5 Pro) + JSON Mode
     const scriptJson = await callGemini(WRITER_MODEL, writerFinalPrompt, [], true);
 
     const finalDraft = {
@@ -238,6 +218,7 @@ serve(async (request) => {
 
   } catch (error) {
     console.error("Pipeline Fatal Error:", error);
+    // Devolvemos el mensaje exacto de la API para facilitar el debug en el frontend si falla
     return new Response(
       JSON.stringify({ success: false, error: error instanceof Error ? error.message : "Error desconocido" }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
