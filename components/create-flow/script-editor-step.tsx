@@ -1,5 +1,5 @@
 // components/create-flow/script-editor-step.tsx
-// VERSIÓN: 5.9 (UX Final: Visual Hierarchy & Alignment)
+// VERSIÓN: 5.9 (UX Final: Fixed Alignment & Workstation Feel)
 
 "use client";
 
@@ -44,7 +44,7 @@ const SourceItem = ({ source }: { source: { title?: string, url?: string, snippe
     </li>
 );
 
-// --- BANDEJAS DE FUENTES (MOBILE/DESKTOP) ---
+// --- BANDEJAS DE FUENTES ---
 
 const MobileSourcesTray = ({ sources }: { sources?: any[] }) => {
     const [isOpen, setIsOpen] = useState(false);
@@ -162,20 +162,23 @@ export function ScriptEditorStep() {
         <p className="text-xs text-muted-foreground mt-1 font-medium">Edita el contenido antes de grabar.</p>
       </div>
 
-      {/* DESKTOP: Barra superior WORKSTATION */}
-      {/* Cambios: justify-between, padding ajustado y eliminación de bordes para integración visual */}
-      <div className="hidden lg:flex flex-shrink-0 items-center justify-between px-1 pb-2 pt-0 mb-4 gap-4 -mt-1">
+      {/* DESKTOP: Barra superior WORKSTATION (Corregida) */}
+      {/* Eliminado -mt, añadido pt-2 para aire. Alineación items-center estricta. */}
+      <div className="hidden lg:flex flex-shrink-0 items-center justify-between w-full pt-2 pb-4 border-b border-white/5 mb-4">
          
-         {/* LADO IZQUIERDO: Título de Fase + Subtítulo */}
+         {/* LADO IZQUIERDO: Título de Fase */}
+         {/* Sin padding extra para alinear con el borde de la tarjeta inferior */}
          <div className="flex flex-col justify-center">
-            <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
+            <h2 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
                 <Pencil className="h-5 w-5 text-primary" /> Editor de Guion
             </h2>
+            {/* Alineamos el subtítulo con el texto del título (offset del icono) */}
             <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider pl-7">Modo Estudio</p>
          </div>
 
-         {/* LADO DERECHO: Input del Título (Ocupa el 50% de la pantalla) */}
-         <div className="w-1/2 pl-4">
+         {/* LADO DERECHO: Input de Título (Cuadrante) */}
+         {/* Ocupa el 50% del ancho del contenedor (w-1/2) y se justifica al final (derecha) */}
+         <div className="w-1/2 flex justify-end">
             <FormField
                 control={control}
                 name="final_title"
@@ -186,10 +189,11 @@ export function ScriptEditorStep() {
                         {...field}
                         placeholder="Título del Podcast"
                         maxLength={100}
-                        className="h-10 text-base font-medium bg-white/40 dark:bg-black/20 border-transparent hover:border-primary/20 focus:border-primary focus:bg-background transition-all text-left px-4 rounded-lg w-full"
+                        // Input sólido y elegante
+                        className="h-11 text-lg font-medium bg-black/20 border border-white/10 hover:border-primary/30 focus:border-primary focus:bg-black/30 transition-all text-left px-4 rounded-lg w-full"
                         />
                     </FormControl>
-                    <FormMessage className="text-[10px] absolute mt-1 right-0" />
+                    <FormMessage className="text-[10px] absolute right-0 mt-1" />
                     </FormItem>
                 )}
             />
@@ -227,6 +231,7 @@ export function ScriptEditorStep() {
             <div className="flex-1 flex flex-col min-h-0">
                 <MobileSourcesTray sources={sources} />
 
+                {/* EDITOR */}
                 <div className="flex-1 flex flex-col min-h-0 bg-white/50 dark:bg-black/20 rounded-xl border border-black/5 dark:border-white/10 overflow-hidden shadow-sm relative backdrop-blur-sm">
                     <div className="flex-shrink-0 z-10">
                         <MenuBar editor={editor} />
