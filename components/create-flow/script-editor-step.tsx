@@ -1,5 +1,5 @@
 // components/create-flow/script-editor-step.tsx
-// VERSIÓN: 5.6 (UX: Desktop Workstation Layout - Maximize Editor Space)
+// VERSIÓN: 5.7 (UX Polish: Aligned Headers & Spacious Title Input)
 
 "use client";
 
@@ -18,7 +18,6 @@ import { Bold, Italic, Heading2, List, Undo, Redo, BookOpen, ChevronDown, Chevro
 
 import DOMPurify from "isomorphic-dompurify";
 
-// --- COMPONENTE REUTILIZABLE: ÍTEM DE FUENTE ---
 const SourceItem = ({ source }: { source: { title?: string, url?: string, snippet?: string } }) => (
     <li className="text-[10px] text-muted-foreground flex flex-col gap-1 p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors border border-transparent hover:border-black/5 dark:hover:border-white/5">
         <div className="flex items-start justify-between gap-2">
@@ -43,8 +42,6 @@ const SourceItem = ({ source }: { source: { title?: string, url?: string, snippe
         )}
     </li>
 );
-
-// --- BANDEJAS DE FUENTES (MOBILE/DESKTOP) ---
 
 const MobileSourcesTray = ({ sources }: { sources?: any[] }) => {
     const [isOpen, setIsOpen] = useState(false);
@@ -86,7 +83,6 @@ const DesktopSourcesSidebar = ({ sources }: { sources?: any[] }) => {
                 <Globe className="h-4 w-4 text-blue-500" />
                 <span className="text-xs font-bold text-foreground">Fuentes ({sources.length})</span>
             </div>
-            
             <div className="flex-1 overflow-y-auto scrollbar-hide p-2">
                 <ul className="space-y-1">
                     {sources.map((source, idx) => (
@@ -98,7 +94,6 @@ const DesktopSourcesSidebar = ({ sources }: { sources?: any[] }) => {
     );
 };
 
-// --- BARRA DE HERRAMIENTAS EDITOR ---
 const MenuBar = ({ editor }: { editor: Editor | null }) => {
   if (!editor) return null;
 
@@ -116,7 +111,6 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
   );
 };
 
-// --- COMPONENTE PRINCIPAL ---
 export function ScriptEditorStep() {
   const { control, setValue, getValues } = useFormContext<PodcastCreationData>();
   
@@ -162,31 +156,33 @@ export function ScriptEditorStep() {
         <p className="text-xs text-muted-foreground mt-1 font-medium">Edita el contenido antes de grabar.</p>
       </div>
 
-      {/* DESKTOP: Barra superior estilo Workstation */}
-      <div className="hidden lg:flex flex-shrink-0 items-center justify-between px-1 pb-4 pt-1 gap-8 border-b border-black/5 dark:border-white/5 mb-4">
-         <div className="flex flex-col">
+      {/* DESKTOP: Barra superior WORKSTATION */}
+      <div className="hidden lg:flex flex-shrink-0 items-center gap-6 px-1 pb-4 pt-1 border-b border-black/5 dark:border-white/5 mb-4">
+         
+         {/* Título de Fase + Subtítulo (Alineado Izquierda) */}
+         <div className="flex flex-col flex-shrink-0 w-48">
             <h2 className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
                 <Pencil className="h-4 w-4 text-primary" /> Editor de Guion
             </h2>
             <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Modo Estudio</p>
          </div>
 
-         {/* Input del Título en la barra superior (Derecha) */}
-         <div className="flex-1 max-w-md">
+         {/* Input del Título (Central Expandido) */}
+         <div className="flex-1">
             <FormField
                 control={control}
                 name="final_title"
                 render={({ field }) => (
-                    <FormItem className="space-y-0">
+                    <FormItem className="space-y-0 w-full">
                     <FormControl>
                         <Input
                         {...field}
                         placeholder="Título del Podcast"
                         maxLength={100}
-                        className="h-9 text-sm font-medium bg-white/40 dark:bg-black/20 border-transparent hover:border-primary/20 focus:border-primary focus:bg-background transition-all text-right pr-3"
+                        className="h-10 text-base font-medium bg-white/40 dark:bg-black/20 border-transparent hover:border-primary/20 focus:border-primary focus:bg-background transition-all text-left px-4 rounded-lg w-full max-w-3xl"
                         />
                     </FormControl>
-                    <FormMessage className="text-[10px] text-right absolute right-0" />
+                    <FormMessage className="text-[10px] absolute mt-1" />
                     </FormItem>
                 )}
             />
@@ -223,20 +219,17 @@ export function ScriptEditorStep() {
             {/* COLUMNA PRINCIPAL (Editor + Bandeja Móvil) */}
             <div className="flex-1 flex flex-col min-h-0">
                 
-                {/* Bandeja Móvil (Solo visible en pantallas pequeñas) */}
+                {/* Bandeja Móvil */}
                 <MobileSourcesTray sources={sources} />
 
-                {/* EDITOR (Ocupa el resto) */}
+                {/* EDITOR */}
                 <div className="flex-1 flex flex-col min-h-0 bg-white/50 dark:bg-black/20 rounded-xl border border-black/5 dark:border-white/10 overflow-hidden shadow-sm relative backdrop-blur-sm">
-                    
                     <div className="flex-shrink-0 z-10">
                         <MenuBar editor={editor} />
                     </div>
-
                     <div className="flex-1 overflow-y-auto scrollbar-hide relative">
                         <EditorContent editor={editor} className="h-full" />
                     </div>
-                    
                     <div className="hidden">
                         <FormField 
                             control={control} 
@@ -247,7 +240,7 @@ export function ScriptEditorStep() {
                 </div>
             </div>
 
-            {/* SIDEBAR DESKTOP (Solo visible en pantallas grandes) */}
+            {/* SIDEBAR DESKTOP */}
             <DesktopSourcesSidebar sources={sources} />
 
         </div>
