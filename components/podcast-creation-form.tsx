@@ -1,5 +1,5 @@
 // components/podcast-creation-form.tsx
-// VERSIÓN: 7.1 (Fix: Restore Missing State Variables)
+// VERSIÓN: 8.0 (Final Polish: Progress Bar Logic Fixed & State Restoration)
 
 "use client";
 
@@ -373,18 +373,39 @@ export function PodcastCreationForm() {
     }
   };
 
-  // [CORRECCIÓN] Definición de Variables de Estado Visual
   const isWideView = currentFlowState === 'SCRIPT_EDITING';
   const containerMaxWidth = isWideView ? "max-w-[1400px]" : "max-w-4xl";
   const playerPadding = isMounted && currentPodcast ? 'pb-24' : 'pb-4';
   const shouldShowLoader = isGeneratingScript;
-  
-  // [CORRECCIÓN CRÍTICA] Definición de flags faltantes
   const isSelectingPurpose = currentFlowState === 'SELECTING_PURPOSE';
   const isFinalStep = currentFlowState === 'FINAL_STEP';
-
   const shouldShowHeader = !isSelectingPurpose && !shouldShowLoader;
   const shouldShowFooter = !isSelectingPurpose && !shouldShowLoader;
+
+  // [MODIFICACIÓN CRÍTICA: LÓGICA DE BARRA DE PROGRESO MATEMÁTICA]
+  const flowPaths: Record<string, FlowState[]> = {
+    learn: ['SELECTING_PURPOSE', 'LEARN_SUB_SELECTION', 'SOLO_TALK_INPUT', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
+    inspire: ['SELECTING_PURPOSE', 'INSPIRE_SUB_SELECTION', 'ARCHETYPE_INPUT', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
+    explore: ['SELECTING_PURPOSE', 'LINK_POINTS_INPUT', 'NARRATIVE_SELECTION', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
+    reflect: ['SELECTING_PURPOSE', 'LEGACY_INPUT', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
+    answer: ['SELECTING_PURPOSE', 'QUESTION_INPUT', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
+    freestyle: ['SELECTING_PURPOSE', 'FREESTYLE_SELECTION'],
+  };
+
+  // 1. Obtenemos el array del camino actual
+  const currentPathArray = flowPaths[formData.purpose] || [];
+  
+  // 2. Buscamos el índice del paso actual en ese array
+  const stepIndexInPath = currentPathArray.indexOf(currentFlowState);
+
+  // 3. Calculamos el paso actual (1-based) y el total
+  // Si stepIndexInPath es -1 (no encontrado, raro), usamos history.length como fallback pero topeado
+  const totalSteps = currentPathArray.length > 0 ? currentPathArray.length : 6;
+  const currentStepNumber = stepIndexInPath !== -1 ? stepIndexInPath + 1 : Math.min(history.length, totalSteps);
+
+  // 4. Porcentaje exacto
+  const progressPercent = Math.round((currentStepNumber / totalSteps) * 100);
+
 
   return (
     <CreationContext.Provider value={{ updateFormData, transitionTo, goBack }}>
@@ -405,15 +426,18 @@ export function PodcastCreationForm() {
                                {isGeneratingScript ? "Creando Guion..." : "Nuevo Podcast"}
                              </span>
                              <span className="text-[9px] text-muted-foreground uppercase tracking-widest font-bold mt-0.5">
-                               Paso {history.length}/{6}
+                               Paso {currentStepNumber}/{totalSteps}
                              </span>
                            </div>
                            <div className="text-right text-[10px] font-mono font-bold text-primary">
-                             {Math.min((history.length / 6) * 100, 100).toFixed(0)}%
+                             {progressPercent}%
                            </div>
                         </div>
                         <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden backdrop-blur-sm">
-                            <div className="h-full bg-primary transition-all duration-500 ease-out shadow-[0_0_8px_rgba(168,85,247,0.6)]" style={{ width: `${Math.min((history.length / 6) * 100, 100)}%` }} />
+                            <div 
+                              className="h-full bg-primary transition-all duration-500 ease-out shadow-[0_0_8px_rgba(168,85,247,0.6)]" 
+                              style={{ width: `${progressPercent}%` }} 
+                            />
                         </div>
                       </div>
                     )}
