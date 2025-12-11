@@ -1,19 +1,35 @@
 // app/page.tsx
-// VERSIÓN: 3.0 (Fix: Data Sanitization & Serialization Safety)
+// VERSIÓN: 4.0 (Fix: Error 500 via Dynamic Client Shelves)
 
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { PodcastWithProfile } from "@/types/podcast";
-import { PodcastShelf } from "@/components/podcast-shelf";
+// [CAMBIO CRÍTICO] Eliminamos importación estática
+// import { PodcastShelf } from "@/components/podcast-shelf"; 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Mic, Search, Compass, Lightbulb, Bot, Library, User } from "lucide-react";
+import { Mic, Search, Compass, Lightbulb, Bot, Library, User, Loader2 } from "lucide-react";
 import { QuadrantCard } from "@/components/ui/quadrant-card";
 import { InsightPanel } from "@/components/insight-panel";
 import { FloatingActionButton } from "@/components/ui/floating-action-button";
 import { DiscoveryHub } from "@/components/discovery-hub";
 import type { Tables } from "@/types/supabase";
+import dynamic from "next/dynamic";
+
+// [NUEVO] Dynamic Import para aislar el renderizado de tarjetas del servidor
+// Esto previene que dependencias de UI (como estilos fantasmas) rompan el SSR.
+const PodcastShelf = dynamic(
+  () => import("@/components/podcast-shelf").then((mod) => mod.PodcastShelf),
+  { 
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-48 flex items-center justify-center text-muted-foreground">
+        <Loader2 className="h-6 w-6 animate-spin mr-2" /> Cargando contenido...
+      </div>
+    )
+  }
+);
 
 type ResonanceProfile = Tables<'user_resonance_profiles'>;
 interface DiscoveryFeed {
@@ -22,27 +38,20 @@ interface DiscoveryFeed {
   new_horizons: PodcastWithProfile[] | null;
 }
 
-// [NUEVO] Función de Saneamiento: Limpia datos para evitar errores de serialización
 function sanitizePodcasts(podcasts: any[] | null): PodcastWithProfile[] {
   if (!podcasts || !Array.isArray(podcasts)) return [];
-  
   return podcasts.map(pod => ({
     ...pod,
-    // Aseguramos que creation_data sea un objeto válido o null
-    creation_data: typeof pod.creation_data === 'string' 
-      ? JSON.parse(pod.creation_data) 
-      : pod.creation_data || null,
-    // Aseguramos arrays
+    creation_data: typeof pod.creation_data === 'string' ? JSON.parse(pod.creation_data) : pod.creation_data || null,
     ai_tags: Array.isArray(pod.ai_tags) ? pod.ai_tags : [],
     user_tags: Array.isArray(pod.user_tags) ? pod.user_tags : [],
     sources: Array.isArray(pod.sources) ? pod.sources : [],
-  })).filter(p => p.id); // Filtramos nulos por si acaso
+  })).filter(p => p.id); 
 }
 
 function UserDashboard({ user, feed, profile }: { user: any; feed: DiscoveryFeed | null; profile: any }) {
   const userName = user.user_metadata?.full_name?.split(' ')[0] || user.email;
 
-  // Saneamos los feeds antes de renderizar
   const safeEpicenter = sanitizePodcasts(feed?.epicenter || []);
   const safeConnections = sanitizePodcasts(feed?.semantic_connections || []);
   const safeHorizons = sanitizePodcasts(feed?.new_horizons || []);
@@ -76,6 +85,7 @@ function UserDashboard({ user, feed, profile }: { user: any; feed: DiscoveryFeed
         <DiscoveryHub />
 
         <div className="mt-8 space-y-12">
+          {/* Los Shelves ahora se cargan en el cliente */}
           <PodcastShelf title="Tu Epicentro Creativo" podcasts={safeEpicenter} variant="compact" />
           <PodcastShelf title="Conexiones Inesperadas" podcasts={safeConnections} variant="compact" />
           <PodcastShelf title="Nuevos Horizontes en NicePod" podcasts={safeHorizons} variant="compact" />
@@ -87,7 +97,6 @@ function UserDashboard({ user, feed, profile }: { user: any; feed: DiscoveryFeed
 }
 
 function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] }) {
-  // Saneamiento también para invitados
   const safeLatest = sanitizePodcasts(latestPodcasts);
 
   return (
@@ -134,13 +143,12 @@ export default async function HomePage() {
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
   
-  // Try/Catch global para evitar que la home muera por auth
   let user = null;
   try {
     const { data } = await supabase.auth.getUser();
     user = data?.user;
   } catch (e) {
-    // Si auth falla, tratamos como guest
+    // Silent fail for guest
   }
 
   let feed: DiscoveryFeed | null = null;
@@ -164,7 +172,7 @@ export default async function HomePage() {
         resonanceProfile = profileData;
         userProfile = userProfileData;
     } catch (e) {
-        console.error("Error cargando dashboard:", e);
+        console.error("Error dashboard:", e);
     }
   } else {
     try {
@@ -177,7 +185,7 @@ export default async function HomePage() {
         
         latestPodcasts = data || [];
     } catch (e) {
-        console.error("Error carga pública:", e);
+        console.error("Error guest:", e);
     }
   }
 
