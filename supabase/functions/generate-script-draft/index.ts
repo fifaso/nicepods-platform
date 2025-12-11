@@ -1,5 +1,5 @@
 // supabase/functions/generate-script-draft/index.ts
-// VERSIÓN: 9.0 (Fix: Model Names Correction & Enhanced Debugging)
+// VERSIÓN: 9.0 (Architecture: Tavily Integration for Validated Grounding)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -8,26 +8,56 @@ import { corsHeaders } from "../_shared/cors.ts";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const GOOGLE_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY")!;
+const TAVILY_API_KEY = Deno.env.get("TAVILY_API_KEY")!;
 
 const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_KEY);
 
-// --- CORRECCIÓN DE MODELOS ---
-// "gemini-2.5" NO existe. Usamos las versiones estables actuales.
+// --- MODELOS ---
+// Usamos Gemini 1.5 Pro para la escritura final por su capacidad de contexto y JSON.
 const WRITER_MODEL = "gemini-2.5-pro"; 
-const RESEARCH_MODEL = "gemini-2.5-pro"; 
-
 const API_VERSION = "v1beta";
 
-// --- UTILIDADES ---
+// --- UTILIDADES DE BÚSQUEDA (TAVILY) ---
 
-function calculateSourceLimits(durationStr: string, depthStr: string): { min: number, max: number } {
-  const duration = (durationStr || "").toLowerCase().trim();
-  const depth = (depthStr || "").toLowerCase().trim();
-  if (duration.includes("3-5")) return depth.includes("profundo") ? { min: 4, max: 7 } : { min: 2, max: 4 };
-  if (duration.includes("6-9")) return depth.includes("profundo") ? { min: 6, max: 10 } : { min: 3, max: 6 };
-  if (duration.includes("10-14")) return depth.includes("profundo") ? { min: 10, max: 15 } : { min: 5, max: 10 };
-  return { min: 3, max: 6 };
+interface TavilyResult {
+  title: string;
+  url: string;
+  content: string;
 }
+
+interface TavilyResponse {
+  answer: string; // El resumen generado por Tavily
+  results: TavilyResult[]; // Las fuentes validadas
+}
+
+async function searchWithTavily(query: string, maxResults: number = 5): Promise<TavilyResponse> {
+  console.log(`[Tavily] Buscando: "${query}"...`);
+  
+  const response = await fetch("https://api.tavily.com/search", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      api_key: TAVILY_API_KEY,
+      query: query,
+      search_depth: "advanced", // Búsqueda profunda para mejor calidad
+      include_answer: true,     // Tavily genera un resumen (tesis) por nosotros
+      max_results: maxResults,
+      include_images: false,
+      include_raw_content: false
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Tavily Error (${response.status}): ${errorText}`);
+  }
+
+  return await response.json();
+}
+
+// --- UTILIDADES DE TEXTO ---
 
 function cleanAndExtractJson(text: string): string {
   let clean = text;
@@ -36,25 +66,25 @@ function cleanAndExtractJson(text: string): string {
   if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
     clean = text.substring(firstBrace, lastBrace + 1);
   }
-  // Limpieza de caracteres de control peligrosos
   clean = clean.replace(/[\x00-\x1F\x7F-\x9F]/g, (c) => {
       return ["\b", "\f", "\n", "\r", "\t"].includes(c) ? c : ""; 
   });
   return clean.trim();
 }
 
-function buildRawContext(purpose: string, inputs: any): string {
+function buildSearchQuery(purpose: string, inputs: any): string {
+  // Construimos una query optimizada para motor de búsqueda, no para chat
   switch (purpose) {
-    case 'explore': return `Conectar "${inputs.topicA}" con "${inputs.topicB}". Catalizador: ${inputs.catalyst || 'Ninguno'}.`;
-    case 'inspire': return `Arquetipo: ${inputs.archetype}. Tema: ${inputs.archetype_topic}. Meta: ${inputs.archetype_goal}.`;
-    case 'reflect': return `Reflexión: ${inputs.legacy_lesson}.`;
-    case 'answer': return `Pregunta: "${inputs.question}".`;
-    default: return `Tema: ${inputs.solo_topic || inputs.topic}. Motivación: ${inputs.solo_motivation || inputs.motivation}.`;
+    case 'explore': return `Relación y conexión entre ${inputs.topicA} y ${inputs.topicB}`;
+    case 'inspire': return `Historia inspiradora real sobre ${inputs.archetype_topic} ${inputs.archetype_goal}`;
+    case 'reflect': return `Análisis filosófico y psicológico de ${inputs.legacy_lesson}`;
+    case 'answer': return `${inputs.question} explicación detallada y científica`;
+    default: return `${inputs.solo_topic || inputs.topic} análisis profundo y hechos clave`;
   }
 }
 
-async function callGemini(model: string, prompt: string, tools: any[] = [], forceJson: boolean = false) {
-  
+// --- LLAMADA A GEMINI (Solo Escritura) ---
+async function callGeminiWriter(prompt: string) {
   const safetySettings = [
     { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_ONLY_HIGH" },
     { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_ONLY_HIGH" },
@@ -62,65 +92,41 @@ async function callGemini(model: string, prompt: string, tools: any[] = [], forc
     { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_ONLY_HIGH" }
   ];
 
-  const requestBody: any = {
-    contents: [{ parts: [{ text: prompt }] }],
-    safetySettings: safetySettings,
-    generationConfig: { temperature: 0.7 }
-  };
-
-  if (tools.length > 0) {
-    requestBody.tools = tools;
-  }
-
-  // IMPORTANTE: Gemini falla con Error 400 si enviamos responseMimeType junto con Tools
-  if (forceJson && tools.length === 0) {
-    requestBody.generationConfig.responseMimeType = "application/json";
-  }
-
-  console.log(`[AI] Llamando a ${model}. JSON Mode: ${forceJson}. Tools: ${tools.length}`);
-
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/${API_VERSION}/models/${model}:generateContent?key=${GOOGLE_API_KEY}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/${API_VERSION}/models/${WRITER_MODEL}:generateContent?key=${GOOGLE_API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        safetySettings: safetySettings,
+        generationConfig: { 
+          temperature: 0.7,
+          responseMimeType: "application/json" // Forzamos JSON porque no usamos Tools aquí
+        }
+      }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`[AI API ERROR] ${model} respondió con ${response.status}: ${errorText}`);
       throw new Error(`Google AI Error (${response.status}): ${errorText}`);
     }
 
     const result = await response.json();
     const candidate = result.candidates?.[0];
-    
-    if (!candidate) throw new Error("Sin candidatos en respuesta.");
-    
     const rawOutput = candidate.content?.parts?.[0]?.text;
-    if (!rawOutput) throw new Error("Texto vacío.");
 
-    if (forceJson) {
-        const clean = cleanAndExtractJson(rawOutput);
-        return JSON.parse(clean);
-    } 
-    
-    try {
-        const clean = cleanAndExtractJson(rawOutput);
-        if (clean.startsWith('{') || clean.startsWith('[')) {
-            return JSON.parse(clean);
-        }
-    } catch (e) { }
+    if (!rawOutput) throw new Error("Texto vacío de Gemini.");
 
-    return rawOutput;
+    // Parseo directo
+    return JSON.parse(cleanAndExtractJson(rawOutput));
 
   } catch (e) {
-    console.error(`[AI] Excepción invocando ${model}:`, e);
+    console.error(`[AI Writer] Error:`, e);
     throw e;
   }
 }
 
-// --- MAIN ---
+// --- MAIN HANDLER ---
 
 serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -137,80 +143,75 @@ serve(async (request) => {
 
     // Inputs
     const { purpose, style, duration, depth, tone, raw_inputs } = await request.json();
-    
     const writerAgentName = 'script-architect-v1'; 
-    const curatorAgentName = 'research-curator-v1';
 
-    // Recuperar Prompts
+    // Recuperar Prompt del Escritor
     const { data: promptsData } = await supabaseAdmin
       .from('ai_prompts')
-      .select('agent_name, prompt_template')
-      .in('agent_name', [curatorAgentName, writerAgentName]);
+      .select('prompt_template')
+      .eq('agent_name', writerAgentName)
+      .single();
 
-    const curatorPromptTemplate = promptsData?.find(p => p.agent_name === curatorAgentName)?.prompt_template;
-    const writerPromptTemplate = promptsData?.find(p => p.agent_name === writerAgentName)?.prompt_template;
+    if (!promptsData?.prompt_template) throw new Error("Prompt de arquitecto no encontrado.");
 
-    if (!curatorPromptTemplate || !writerPromptTemplate) throw new Error("Prompts no configurados en DB.");
+    // --- FASE 1: INVESTIGACIÓN REAL (Tavily) ---
+    const searchQuery = buildSearchQuery(purpose, raw_inputs);
+    let dossierData;
+    let usedSources: any[] = [];
 
-    // --- FASE 1: EL CURADOR (Investigación) ---
-    const normalizedRawText = buildRawContext(purpose, raw_inputs);
-    const sourceLimits = calculateSourceLimits(duration, depth);
-    
-    console.log(`1. Investigación: "${normalizedRawText.substring(0, 30)}..."`);
-
-    const curatorFinalPrompt = curatorPromptTemplate
-        .replace('{{raw_input}}', normalizedRawText)
-        .replace('{{purpose}}', purpose)
-        .replace('{{topic}}', normalizedRawText) 
-        .replace('{{goal}}', `Podcast ${style || 'Estándar'} de ${duration}`)
-        .replace('{{context}}', `Profundidad: ${depth}`)
-        .replace('{{min_sources}}', sourceLimits.min.toString())
-        .replace('{{max_sources}}', sourceLimits.max.toString());
-
-    let dossierJson;
     try {
-        // [Fase Búsqueda]: Usamos RESEARCH_MODEL (1.5 Flash) + Tools
-        dossierJson = await callGemini(RESEARCH_MODEL, curatorFinalPrompt, [{ google_search: {} }], false);
+        // Buscamos en la web real
+        const tavilyResponse = await searchWithTavily(searchQuery);
         
-        if (typeof dossierJson === 'string') {
-             dossierJson = JSON.parse(cleanAndExtractJson(dossierJson));
-        }
+        // Mapeamos la respuesta de Tavily a nuestro formato de "Dossier"
+        dossierData = {
+            main_thesis: tavilyResponse.answer || `Investigación sobre ${searchQuery}`,
+            // Usamos los snippets de los resultados como "Key Facts"
+            key_facts: tavilyResponse.results.map(r => r.content.substring(0, 300)), 
+            sources: tavilyResponse.results.map(r => ({
+                title: r.title,
+                url: r.url,
+                snippet: r.content.substring(0, 150) + "..."
+            }))
+        };
+        usedSources = dossierData.sources;
+
     } catch (e) {
-        console.warn("⚠️ Fallo Curador (Search), activando fallback:", e.message);
-        // Fallback: Sin herramientas, forzando JSON
-        dossierJson = await callGemini(RESEARCH_MODEL, curatorFinalPrompt + "\n\n(Investigación interna, sin web).", [], true);
+        console.warn("⚠️ Fallo Tavily, usando conocimiento interno:", e.message);
+        // Fallback: Si Tavily falla (créditos, error), usamos datos básicos
+        dossierData = {
+            main_thesis: searchQuery,
+            key_facts: ["Investigación web no disponible. Generado con conocimiento base."],
+            sources: []
+        };
     }
 
-    if (!dossierJson || (!dossierJson.main_thesis && !dossierJson.key_facts)) {
-        dossierJson = { main_thesis: normalizedRawText, key_facts: ["Datos no disponibles."], sources: [] };
-    }
+    // --- FASE 2: REDACCIÓN (Gemini Pro) ---
+    console.log("2. Redacción con datos verificados...");
 
-    // --- FASE 2: EL ARQUITECTO (Escritura) ---
-    console.log("2. Redacción (Arquitecto)...");
-
-    const dossierString = JSON.stringify(dossierJson);
     const userSelectedTone = tone || style || "Neutro";
-
-    let writerFinalPrompt = writerPromptTemplate
-        .replace('{{dossier_json}}', dossierString)
-        .replace('{{topic}}', dossierJson.main_thesis || normalizedRawText)
-        .replace('{{motivation}}', "Basado en investigación.")
-        .replace('{{context}}', "Podcast.") 
+    
+    // Inyectamos el Dossier Real en el prompt
+    let writerFinalPrompt = promptsData.prompt_template
+        .replace('{{dossier_json}}', JSON.stringify(dossierData))
+        .replace('{{topic}}', searchQuery)
+        .replace('{{motivation}}', "Basado en fuentes verificadas.")
+        .replace('{{context}}', "Podcast educativo.") 
         .replace('{{duration}}', duration)
         .replace('{{depth}}', depth)
         .replace('{{style}}', userSelectedTone)
         .replace('{{archetype}}', raw_inputs.archetype || 'Ninguno');
 
-    // [Fase Escritura]: Usamos WRITER_MODEL (1.5 Pro) + JSON Mode
-    const scriptJson = await callGemini(WRITER_MODEL, writerFinalPrompt, [], true);
+    const scriptJson = await callGeminiWriter(writerFinalPrompt);
 
+    // Construcción del objeto final
     const finalDraft = {
         suggested_title: scriptJson.title || scriptJson.suggested_title || "Nuevo Podcast",
         script_body: scriptJson.script_body || scriptJson.script || scriptJson.text,
-        sources: dossierJson.sources || [] 
+        sources: usedSources // Pasamos las fuentes REALES validadas por Tavily
     };
 
-    if (!finalDraft.script_body) throw new Error("Guion vacío generado.");
+    if (!finalDraft.script_body) throw new Error("Guion vacío.");
 
     return new Response(JSON.stringify({ success: true, draft: finalDraft }), { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -218,7 +219,6 @@ serve(async (request) => {
 
   } catch (error) {
     console.error("Pipeline Fatal Error:", error);
-    // Devolvemos el mensaje exacto de la API para facilitar el debug en el frontend si falla
     return new Response(
       JSON.stringify({ success: false, error: error instanceof Error ? error.message : "Error desconocido" }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
