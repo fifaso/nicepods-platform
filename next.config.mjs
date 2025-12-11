@@ -1,11 +1,13 @@
 // next.config.mjs
-// VERSIÓN: 8.0 (Fix: Force File Tracing for Vercel Serverless)
+// VERSIÓN: GOLDEN MASTER (Clean & Stable)
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Standalone es correcto, lo mantenemos
+  // 1. Standalone: La clave para despliegues estables en Vercel/Docker.
+  // Empaqueta automáticamente solo lo necesario, sin fantasmas.
   output: 'standalone',
 
+  // 2. Optimizaciones de Build
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -13,6 +15,7 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   
+  // 3. Imágenes: Optimización en origen (Ahorro de costes)
   images: {
     unoptimized: true, 
     remotePatterns: [
@@ -31,20 +34,12 @@ const nextConfig = {
     ],
   },
 
-  // CONFIGURACIÓN EXPERIMENTAL PARA ARREGLAR EL ENOENT
+  // 4. Paquetes Externos: Prevención de errores de empaquetado comunes
   experimental: {
-    // 1. Evitamos que webpack rompa dependencias comunes
     serverComponentsExternalPackages: ['@react-pdf/renderer', 'pdfjs-dist', 'sharp'],
-    
-    // 2. [SOLUCIÓN CRÍTICA]
-    // Forzamos a Vercel a incluir los archivos de compilación del cliente dentro de la función serverless.
-    // Esto evita el error "ENOENT" cuando una librería intenta leer CSS/JS compilado desde el servidor.
-    outputFileTracingIncludes: {
-      '/': ['./.next/browser/**/*'],
-    },
   },
 
-  // Webpack defensivo
+  // 5. Webpack Defensivo: Ignora módulos de sistema que no existen en Edge/Serverless
   webpack: (config, { isServer }) => {
     if (isServer) {
       config.resolve.alias.canvas = false;
@@ -53,6 +48,7 @@ const nextConfig = {
     return config;
   },
 
+  // 6. Seguridad: Cabeceras HTTP estrictas
   async headers() {
     return [
       {
