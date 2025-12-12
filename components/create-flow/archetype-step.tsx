@@ -1,5 +1,5 @@
 // components/create-flow/archetype-step.tsx
-// VERSIÓN: 5.0 (Standardized Viewport Architecture: Proven Fix)
+// VERSIÓN: 6.0 (Final Fix: Removed Invalid Flex on Textarea/FormControl)
 
 "use client";
 
@@ -27,7 +27,7 @@ export function ArchetypeStep() {
   const selectedArchetype = watch('selectedArchetype');
   const goalValue = watch('archetype_goal'); 
 
-  // [INFRAESTRUCTURA]: Hook de Viewport para altura dinámica real
+  // Hook de Viewport para altura precisa con teclado
   const containerRef = useRef<HTMLDivElement>(null);
   const viewportHeight = useMobileViewport(containerRef);
 
@@ -49,7 +49,7 @@ export function ArchetypeStep() {
   const currentArchetype = archetypeOptions.find(opt => opt.value === selectedArchetype);
 
   return (
-    // [CLAVE 1]: CONTENEDOR PRINCIPAL CONTROLADO POR JS
+    // CONTENEDOR PRINCIPAL (JS Controlled Height)
     <div 
         ref={containerRef}
         className="flex flex-col w-full animate-fade-in px-2 md:px-6 overflow-hidden"
@@ -86,21 +86,25 @@ export function ArchetypeStep() {
           name="archetype_goal"
           render={({ field }) => (
             
-            // [CLAVE 2] FormItem: flex-1 + min-h-0
-            <FormItem className="flex-1 flex flex-col w-full min-h-0 space-y-0">
+            // [CLAVE 1] FormItem es el contenedor FLEX.
+            // Ocupa todo el espacio del wrapper (h-full) y organiza sus hijos (textarea + botones).
+            <FormItem className="flex flex-col w-full h-full min-h-0 space-y-0">
               
-              {/* [CLAVE 3] FormControl: flex-1 + min-h-0 */}
-              <FormControl className="flex-1 flex flex-col min-h-0">
+              {/* 
+                  [CLAVE 2] FormControl es TRANSPARENTE.
+                  No le ponemos clases de layout porque se fusionan con el Textarea y rompen el display.
+              */}
+              <FormControl>
                 
                 {/* 
-                   [CLAVE 4] Textarea: 
-                   - flex-1: Ocupa lo que sobra.
-                   - min-h-0: Permite scroll interno.
-                   - SIN h-full: Para evitar desbordamiento.
+                   [CLAVE 3] Textarea: 
+                   - flex-1: Crece para ocupar el espacio libre en el FormItem.
+                   - h-full: Intenta llenar su hueco asignado.
+                   - min-h-0: Permite scroll si el espacio es diminuto.
                 */}
                 <Textarea
                   placeholder={`Escribe aquí... La IA adaptará tu texto al estilo de "${currentArchetype?.title || 'tu arquetipo'}"...`}
-                  className="flex-1 w-full resize-none border-0 focus-visible:ring-0 text-base md:text-xl leading-relaxed p-4 md:p-6 bg-transparent text-foreground placeholder:text-muted-foreground/50 scrollbar-hide min-h-0"
+                  className="flex-1 w-full h-full resize-none border-0 focus-visible:ring-0 text-base md:text-xl leading-relaxed p-4 md:p-6 bg-transparent text-foreground placeholder:text-muted-foreground/50 scrollbar-hide min-h-0"
                   {...field}
                 />
               </FormControl>
