@@ -1,5 +1,5 @@
 // components/create-flow/solo-talk-step.tsx
-// VERSIÓN: 11.0 (Final Fix: Rigid Height on Focus)
+// VERSIÓN: 12.0 (Keyboard Logic: Visual Viewport Listener)
 
 "use client";
 
@@ -17,7 +17,8 @@ export function SoloTalkStep() {
   const motivationValue = watch('solo_motivation');
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   
-  const [isFocused, setIsFocused] = useState(false);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+  const [viewportHeight, setViewportHeight] = useState(0);
 
   useEffect(() => {
     if (motivationValue) {
@@ -34,27 +35,53 @@ export function SoloTalkStep() {
     setValue('solo_motivation', newText, { shouldValidate: true, shouldDirty: true });
   };
 
-  // Scroll al enfocar para asegurar que el input quede centrado
+  // DETECCIÓN INTELIGENTE DE TECLADO (VISUAL VIEWPORT)
   useEffect(() => {
-    if (isFocused && textareaRef.current) {
+    if (typeof window === 'undefined') return;
+
+    const handleResize = () => {
+      const vh = window.visualViewport?.height || window.innerHeight;
+      setViewportHeight(vh);
+      
+      // Si la altura visible es significativamente menor que la pantalla total, asumimos teclado.
+      // (Ajuste empírico: Si perdemos más del 25% de la pantalla)
+      const isCompact = vh < window.screen.height * 0.75;
+      setIsKeyboardOpen(isCompact);
+    };
+
+    // Escuchamos tanto el resize normal como el visualViewport (específico para teclados móviles)
+    window.visualViewport?.addEventListener('resize', handleResize);
+    window.addEventListener('resize', handleResize);
+    
+    // Inicialización
+    handleResize();
+
+    return () => {
+      window.visualViewport?.removeEventListener('resize', handleResize);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
+  // Scroll táctico cuando se abre el teclado
+  useEffect(() => {
+    if (isKeyboardOpen && textareaRef.current) {
       setTimeout(() => {
         textareaRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
-      }, 300);
+      }, 100);
     }
-  }, [isFocused]);
+  }, [isKeyboardOpen]);
 
   return (
     <div className="flex flex-col h-full w-full animate-fade-in px-2 md:px-6 overflow-hidden">
       
       {/* 
          HEADER: 
-         - isFocused: hidden (Desaparece del DOM para liberar píxeles reales)
-         - !isFocused: visible y con padding
+         - Se oculta si detectamos teclado abierto para maximizar espacio.
       */}
       <div 
         className={cn(
-          "flex-shrink-0 text-center transition-all duration-200 ease-in-out",
-          isFocused ? "hidden" : "block py-2 md:py-4"
+          "flex-shrink-0 text-center transition-all duration-200 ease-out overflow-hidden",
+          isKeyboardOpen ? "h-0 opacity-0 m-0 p-0" : "py-2 md:py-4 h-auto opacity-100"
         )}
       >
         <h2 className="text-lg md:text-2xl font-bold tracking-tight text-foreground drop-shadow-sm truncate">
@@ -71,49 +98,42 @@ export function SoloTalkStep() {
 
       {/* 
          ÁREA DE TRABAJO (WRAPPER):
-         - Normal: flex-1 min-h-0 (Ocupa todo el alto).
-         - Foco: h-auto flex-none (Se encoge al tamaño de su contenido).
+         - Si hay teclado: Altura Fija Calculada (Viewport height - Espacio de botones).
+         - Si no hay teclado: flex-1 (Ocupa todo).
+         
+         Usamos style inline para altura dinámica precisa basada en el viewport real.
       */}
-      <div className={cn(
-          "flex flex-col relative rounded-xl overflow-hidden bg-white/50 dark:bg-black/20 border border-black/5 dark:border-white/10 backdrop-blur-md shadow-sm transition-all duration-300",
-          isFocused ? "h-auto flex-none" : "flex-1 min-h-0"
+      <div 
+        className={cn(
+          "flex flex-col relative rounded-xl overflow-hidden bg-white/50 dark:bg-black/20 border border-black/5 dark:border-white/10 backdrop-blur-md shadow-sm transition-all duration-200",
+          isKeyboardOpen ? "flex-none" : "flex-1 min-h-0"
         )}
+        style={isKeyboardOpen ? { height: `${viewportHeight * 0.55}px` } : undefined} 
       >
         
         <FormField
           control={control}
           name="solo_motivation"
           render={({ field }) => (
-            <FormItem className="flex flex-col h-full w-full space-y-0">
+            <FormItem className="flex-1 flex flex-col h-full w-full min-h-0 space-y-0">
               
               <FormControl>
                 {/* 
                    TEXTAREA:
-                   - Normal: flex-1 (Se estira).
-                   - Foco: h-32 (128px fijo). 
-                   Esto es la clave. Al tener altura fija pequeña, deja espacio físico
-                   para que el teclado NO tape los botones de abajo.
+                   - Ocupa todo el espacio disponible dentro del wrapper ajustado.
                 */}
                 <Textarea
                   placeholder="Ej: Quiero explorar el impacto accidental de la ciencia..."
-                  className={cn(
-                    "w-full resize-none border-0 focus-visible:ring-0 text-base md:text-xl leading-relaxed p-4 md:p-6 bg-transparent text-foreground placeholder:text-muted-foreground/50 scrollbar-hide transition-all duration-300",
-                    isFocused ? "h-32" : "flex-1 h-full min-h-0"
-                  )}
+                  className="flex-1 w-full h-full resize-none border-0 focus-visible:ring-0 text-base md:text-xl leading-relaxed p-4 md:p-6 bg-transparent text-foreground placeholder:text-muted-foreground/50 scrollbar-hide min-h-[50px]" 
                   {...field}
                   ref={(e) => {
                     field.ref(e);
                     textareaRef.current = e;
                   }}
-                  onFocus={() => setIsFocused(true)}
-                  onBlur={() => {
-                    setTimeout(() => setIsFocused(false), 150);
-                    field.onBlur();
-                  }}
                 />
               </FormControl>
               
-              {/* BOTONERA VOZ: Siempre visible al final del bloque */}
+              {/* BOTONERA VOZ */}
               <div className="flex-shrink-0 p-2 md:p-4 bg-gradient-to-t from-white/95 via-white/90 dark:from-black/90 dark:via-black/80 to-transparent border-t border-black/5 dark:border-white/5 backdrop-blur-md z-10">
                  <VoiceInput onTextGenerated={handleVoiceInput} className="w-full" />
                  <FormMessage className="mt-1 text-center text-[10px] text-red-500 dark:text-red-400" />
@@ -123,6 +143,9 @@ export function SoloTalkStep() {
           )}
         />
       </div>
+
+      {/* Espaciador dinámico */}
+      {isKeyboardOpen && <div className="h-1 flex-shrink-0" />}
 
     </div>
   );
