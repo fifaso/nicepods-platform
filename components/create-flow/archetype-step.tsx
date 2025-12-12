@@ -1,9 +1,9 @@
 // components/create-flow/archetype-step.tsx
-// VERSIÓN FINAL ADAPTATIVA: Contraste perfecto Light/Dark y Lienzo Infinito.
+// VERSIÓN: 2.0 (Mobile Viewport Standardized)
 
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useFormContext } from "react-hook-form";
 import { PodcastCreationData } from "@/lib/validation/podcast-schema";
 import { FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { VoiceInput } from "@/components/ui/voice-input";
 import { Input } from "@/components/ui/input";
 import { Heart, BookOpen, Compass, Zap, Construction, Shield } from "lucide-react";
+import { useMobileViewport } from "@/hooks/use-mobile-viewport"; // [NUEVO] Importación del Hook
 
 // Opciones exportadas
 export const archetypeOptions = [
@@ -57,6 +58,10 @@ export function ArchetypeStep() {
   const selectedArchetype = watch('selectedArchetype');
   const goalValue = watch('archetype_goal'); 
 
+  // [NUEVO] Hook de Viewport para control total del teclado
+  const containerRef = useRef<HTMLDivElement>(null);
+  const viewportHeight = useMobileViewport(containerRef);
+
   useEffect(() => {
     if (goalValue) {
       const autoTopic = goalValue.length > 50 
@@ -75,18 +80,23 @@ export function ArchetypeStep() {
   const currentArchetype = archetypeOptions.find(opt => opt.value === selectedArchetype);
 
   return (
-    <div className="flex flex-col h-full w-full animate-fade-in px-2 md:px-6 pb-2">
+    // CONTENEDOR PRINCIPAL: Vinculado a la altura visual real
+    <div 
+        ref={containerRef}
+        className="flex flex-col w-full animate-fade-in px-2 md:px-6 overflow-hidden"
+        style={{ 
+            height: viewportHeight ? `${viewportHeight}px` : '100%', 
+            maxHeight: '100%' 
+        }}
+    >
       
-      {/* CABECERA ADAPTATIVA: 'text-foreground' */}
-      <div className="flex-shrink-0 py-1 md:py-4 text-center">
+      {/* CABECERA (Rígida) */}
+      <div className="flex-shrink-0 py-2 md:py-4 text-center">
         <h2 className="text-lg md:text-2xl font-bold tracking-tight text-foreground drop-shadow-sm md:drop-shadow-none">
           Desarrolla tu Historia
         </h2>
         
-        {/* BANNER DE CONTEXTO ADAPTATIVO
-            - Light: bg-white/50 (resalta sutilmente)
-            - Dark: dark:bg-white/10
-        */}
+        {/* BANNER DE CONTEXTO */}
         {currentArchetype && (
             <div className="inline-flex items-center justify-center mt-2 px-3 py-1 bg-white/50 dark:bg-white/10 rounded-full border border-black/5 dark:border-white/10 backdrop-blur-md shadow-sm">
                 <span className="text-primary mr-2">{currentArchetype.icon}</span>
@@ -101,32 +111,27 @@ export function ArchetypeStep() {
         <FormField control={control} name="archetype_topic" render={({ field }) => <FormItem><FormControl><Input {...field} /></FormControl></FormItem>} />
       </div>
 
-      {/* LIENZO DE ESCRITURA ADAPTATIVO:
-          - Light: bg-white/50
-          - Dark: dark:bg-black/20
-          - Texto: text-foreground
-      */}
-      <div className="flex-grow flex flex-col min-h-0 relative rounded-xl overflow-hidden bg-white/50 dark:bg-black/20 border border-black/5 dark:border-white/10 backdrop-blur-md shadow-sm">
+      {/* ÁREA DE TRABAJO (Elástica) */}
+      <div className="flex-1 flex flex-col min-h-0 relative rounded-xl overflow-hidden bg-white/50 dark:bg-black/20 border border-black/5 dark:border-white/10 backdrop-blur-md shadow-sm">
         <FormField
           control={control}
           name="archetype_goal"
           render={({ field }) => (
-            <FormItem className="flex-1 flex flex-col h-full space-y-0">
+            // FormItem: Flexible
+            <FormItem className="flex-1 flex flex-col h-full w-full min-h-0 space-y-0">
               
-              <FormControl>
+              {/* FormControl: Flexible (Vital para que el textarea crezca) */}
+              <FormControl className="flex-1 flex flex-col min-h-0">
+                {/* Textarea: flex-1 + min-h-0 para scroll interno */}
                 <Textarea
                   placeholder={`Escribe aquí... La IA adaptará tu texto al estilo de "${currentArchetype?.title || 'tu arquetipo'}"...`}
-                  // text-foreground asegura legibilidad en ambos modos
-                  className="flex-1 w-full h-full resize-none border-0 focus-visible:ring-0 text-base md:text-xl leading-relaxed p-4 md:p-6 bg-transparent text-foreground placeholder:text-muted-foreground/50 scrollbar-hide"
+                  className="flex-1 w-full resize-none border-0 focus-visible:ring-0 text-base md:text-xl leading-relaxed p-4 md:p-6 bg-transparent text-foreground placeholder:text-muted-foreground/50 scrollbar-hide min-h-0"
                   {...field}
                 />
               </FormControl>
               
-              {/* BOTONERA ADAPTATIVA:
-                  - Light: Gradiente blanco
-                  - Dark: Gradiente negro
-              */}
-              <div className="flex-shrink-0 p-3 md:p-4 bg-gradient-to-t from-white/80 via-white/40 dark:from-black/40 dark:via-black/20 to-transparent border-t border-black/5 dark:border-white/5 backdrop-blur-sm">
+              {/* BOTONERA (Rígida) */}
+              <div className="flex-shrink-0 p-3 md:p-4 bg-gradient-to-t from-white/95 via-white/90 dark:from-black/90 dark:via-black/80 to-transparent border-t border-black/5 dark:border-white/5 backdrop-blur-md z-10">
                  <VoiceInput onTextGenerated={handleVoiceGoal} className="w-full" />
                  <FormMessage className="mt-1 text-center text-[10px] text-red-500 dark:text-red-400" />
               </div>
@@ -135,6 +140,9 @@ export function ArchetypeStep() {
           )}
         />
       </div>
+      
+      {/* ESPACIADOR FINAL */}
+      <div className="h-2 flex-shrink-0" />
     </div>
   );
 }
