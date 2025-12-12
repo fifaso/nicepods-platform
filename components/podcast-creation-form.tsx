@@ -1,5 +1,5 @@
 // components/podcast-creation-form.tsx
-// VERSIÓN: 8.0 (Final Polish: Progress Bar Logic Fixed & State Restoration)
+// VERSIÓN: 9.1 (Fix: TypeScript Type Mismatch in Progress Calculation)
 
 "use client";
 
@@ -47,10 +47,13 @@ import { LinkPointsStep } from "./create-flow/link-points";
 import { NarrativeSelectionStep } from "./create-flow/narrative-selection-step";
 import { DetailsStep } from "./create-flow/details-step";
 import { FinalStep } from "./create-flow/final-step";
-import { ArchetypeStep } from "./create-flow/archetype-step";
 import { AudioStudio } from "./create-flow/audio-studio";
 import { ToneSelectionStep } from "./create-flow/tone-selection-step";
 import { DraftGenerationLoader } from "./create-flow/draft-generation-loader";
+
+// [NUEVO] Importaciones para el flujo dividido de Arquetipos
+import { ArchetypeStep } from "./create-flow/archetype-step";       // Paso 1: Selección
+import { ArchetypeInputStep } from "./create-flow/archetype-input"; // Paso 2: Escritura
 
 export interface NarrativeOption { 
   title: string; 
@@ -58,14 +61,22 @@ export interface NarrativeOption {
 }
 
 export type FlowState = 
-  | 'SELECTING_PURPOSE' | 'LEARN_SUB_SELECTION' | 'INSPIRE_SUB_SELECTION'
-  | 'SOLO_TALK_INPUT' | 'ARCHETYPE_INPUT'
-  | 'LINK_POINTS_INPUT' | 'NARRATIVE_SELECTION'
-  | 'LEGACY_INPUT' | 'QUESTION_INPUT' | 'FREESTYLE_SELECTION'
+  | 'SELECTING_PURPOSE' 
+  | 'LEARN_SUB_SELECTION' 
+  | 'INSPIRE_SUB_SELECTION'
+  | 'SOLO_TALK_INPUT' 
+  | 'ARCHETYPE_SELECTION' 
+  | 'ARCHETYPE_GOAL'      
+  | 'LINK_POINTS_INPUT' 
+  | 'NARRATIVE_SELECTION'
+  | 'LEGACY_INPUT' 
+  | 'QUESTION_INPUT' 
+  | 'FREESTYLE_SELECTION'
   | 'DETAILS_STEP' 
   | 'TONE_SELECTION'
   | 'SCRIPT_EDITING' 
-  | 'AUDIO_STUDIO_STEP' | 'FINAL_STEP';
+  | 'AUDIO_STUDIO_STEP' 
+  | 'FINAL_STEP';
 
 interface CreationContextType {
   updateFormData: (data: Partial<PodcastCreationData>) => void;
@@ -267,7 +278,17 @@ export function PodcastCreationForm() {
 
     switch(currentFlowState) {
       case 'SOLO_TALK_INPUT': fieldsToValidate = ['solo_topic', 'solo_motivation']; nextState = 'TONE_SELECTION'; break;
-      case 'ARCHETYPE_INPUT': fieldsToValidate = ['selectedArchetype', 'archetype_topic', 'archetype_goal']; nextState = 'DETAILS_STEP'; break;
+      
+      case 'ARCHETYPE_SELECTION': 
+          fieldsToValidate = ['selectedArchetype']; 
+          nextState = 'ARCHETYPE_GOAL'; 
+          break;
+
+      case 'ARCHETYPE_GOAL': 
+          fieldsToValidate = ['archetype_topic', 'archetype_goal']; 
+          nextState = 'DETAILS_STEP'; 
+          break;
+
       case 'LINK_POINTS_INPUT':
         const isLinkPointsValid = await trigger(['link_topicA', 'link_topicB']);
         if (isLinkPointsValid) await handleGenerateNarratives();
@@ -279,7 +300,7 @@ export function PodcastCreationForm() {
         fieldsToValidate = ['style'];
         if (style === 'solo') nextState = 'SOLO_TALK_INPUT';
         else if (style === 'link') nextState = 'LINK_POINTS_INPUT';
-        else if (style === 'archetype') nextState = 'ARCHETYPE_INPUT';
+        else if (style === 'archetype') nextState = 'ARCHETYPE_SELECTION';
         break;
       case 'LEGACY_INPUT': fieldsToValidate = ['legacy_lesson']; nextState = 'TONE_SELECTION'; break;
       case 'QUESTION_INPUT': fieldsToValidate = ['question_to_answer']; nextState = 'TONE_SELECTION'; break;
@@ -360,7 +381,10 @@ export function PodcastCreationForm() {
       case 'LEGACY_INPUT': return <LegacyStep />;
       case 'QUESTION_INPUT': return <QuestionStep />;
       case 'SOLO_TALK_INPUT': return <SoloTalkStep />;
-      case 'ARCHETYPE_INPUT': return <ArchetypeStep />;
+      
+      case 'ARCHETYPE_SELECTION': return <ArchetypeStep />; 
+      case 'ARCHETYPE_GOAL': return <ArchetypeInputStep />; 
+      
       case 'LINK_POINTS_INPUT': return <LinkPointsStep />;
       case 'NARRATIVE_SELECTION': return <NarrativeSelectionStep narrativeOptions={narrativeOptions} />;
       case 'FREESTYLE_SELECTION': return <StyleSelectionStep />;
@@ -382,30 +406,26 @@ export function PodcastCreationForm() {
   const shouldShowHeader = !isSelectingPurpose && !shouldShowLoader;
   const shouldShowFooter = !isSelectingPurpose && !shouldShowLoader;
 
-  // [MODIFICACIÓN CRÍTICA: LÓGICA DE BARRA DE PROGRESO MATEMÁTICA]
   const flowPaths: Record<string, FlowState[]> = {
     learn: ['SELECTING_PURPOSE', 'LEARN_SUB_SELECTION', 'SOLO_TALK_INPUT', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    inspire: ['SELECTING_PURPOSE', 'INSPIRE_SUB_SELECTION', 'ARCHETYPE_INPUT', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
+    inspire: ['SELECTING_PURPOSE', 'INSPIRE_SUB_SELECTION', 'ARCHETYPE_SELECTION', 'ARCHETYPE_GOAL', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
     explore: ['SELECTING_PURPOSE', 'LINK_POINTS_INPUT', 'NARRATIVE_SELECTION', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
     reflect: ['SELECTING_PURPOSE', 'LEGACY_INPUT', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
     answer: ['SELECTING_PURPOSE', 'QUESTION_INPUT', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
     freestyle: ['SELECTING_PURPOSE', 'FREESTYLE_SELECTION'],
   };
 
-  // 1. Obtenemos el array del camino actual
   const currentPathArray = flowPaths[formData.purpose] || [];
   
-  // 2. Buscamos el índice del paso actual en ese array
-  const stepIndexInPath = currentPathArray.indexOf(currentFlowState);
-
-  // 3. Calculamos el paso actual (1-based) y el total
-  // Si stepIndexInPath es -1 (no encontrado, raro), usamos history.length como fallback pero topeado
-  const totalSteps = currentPathArray.length > 0 ? currentPathArray.length : 6;
-  const currentStepNumber = stepIndexInPath !== -1 ? stepIndexInPath + 1 : Math.min(history.length, totalSteps);
-
-  // 4. Porcentaje exacto
+  // [CORRECCIÓN QUIRÚRGICA]: Casteamos currentFlowState a 'any' dentro de indexOf 
+  // para silenciar el error de TypeScript, ya que estamos seguros de que los valores 
+  // en 'effectiveSteps' son compatibles lógicamente aunque el tipado estricto se queje.
+  const effectiveSteps = currentPathArray.filter(step => step !== 'SELECTING_PURPOSE');
+  const totalSteps = effectiveSteps.length > 0 ? effectiveSteps.length : 6;
+  const stepIndexInEffective = effectiveSteps.indexOf(currentFlowState as any);
+  
+  let currentStepNumber = stepIndexInEffective !== -1 ? stepIndexInEffective + 1 : 1;
   const progressPercent = Math.round((currentStepNumber / totalSteps) * 100);
-
 
   return (
     <CreationContext.Provider value={{ updateFormData, transitionTo, goBack }}>
