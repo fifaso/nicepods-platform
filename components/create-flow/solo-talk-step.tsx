@@ -1,5 +1,5 @@
 // components/create-flow/solo-talk-step.tsx
-// VERSIÓN: 15.0 (Final Architecture: Pure Flexbox Hierarchy - No JS Layout Hacks)
+// VERSIÓN: 16.0 (Flexbox Physics Fix: Basis-0 Strategy)
 
 "use client";
 
@@ -32,13 +32,16 @@ export function SoloTalkStep() {
   };
 
   return (
-    // CONTENEDOR PRINCIPAL: Ocupa el 100% del espacio disponible en el paso
+    // CONTENEDOR PRINCIPAL
+    // Usamos flex-col y overflow-hidden para contener todo en el viewport visible.
     <div className="flex flex-col h-full w-full animate-fade-in px-2 md:px-6 overflow-hidden">
       
       {/* 
          BLOQUE 1: HEADER (Rígido)
-         - flex-shrink-0: Garantiza que el título y subtítulo NUNCA se oculten ni se aplasten.
-         - Siempre visible, con o sin teclado.
+         - flex-shrink-0: No se encoge.
+         - hidden md:block: En móviles, cuando falta espacio vertical crítico (como al escribir),
+           a veces es mejor ocultar esto via CSS puro media queries si la pantalla es muy corta, 
+           pero por ahora lo mantenemos visible y dejamos que el textarea se sacrifique.
       */}
       <div className="flex-shrink-0 py-2 md:py-4 text-center">
         <h2 className="text-lg md:text-2xl font-bold tracking-tight text-foreground drop-shadow-sm truncate">
@@ -55,8 +58,8 @@ export function SoloTalkStep() {
 
       {/* 
          BLOQUE 2: ÁREA DE TRABAJO (Flexible)
-         - flex-1: Este es el único elemento que puede crecer o encogerse.
-         - min-h-0: Permite que el contenedor sea más pequeño que su contenido (activando scroll).
+         - flex-1: Ocupa el espacio.
+         - min-h-0: Permite encogerse por debajo del contenido.
       */}
       <div className="flex-1 flex flex-col min-h-0 relative rounded-xl overflow-hidden bg-white/50 dark:bg-black/20 border border-black/5 dark:border-white/10 backdrop-blur-md shadow-sm">
         
@@ -68,13 +71,14 @@ export function SoloTalkStep() {
               
               <FormControl>
                 {/* 
-                   TEXTAREA
-                   - flex-1: Se estira para llenar el espacio entre el Header y la Botonera.
-                   - Cuando sale el teclado, este espacio se reduce, y el textarea se adapta.
+                   TEXTAREA - EL CAMBIO QUIRÚRGICO:
+                   - flex-1 basis-0: Esto es vital. Le dice al flexbox que su tamaño base es 0, 
+                     por lo que solo crecerá si sobra espacio real. Evita que empuje hacia afuera.
+                   - min-h-[80px]: Mantenemos un mínimo de dignidad para escribir.
                 */}
                 <Textarea
                   placeholder="Ej: Quiero explorar el impacto accidental de la ciencia..."
-                  className="flex-1 w-full resize-none border-0 focus-visible:ring-0 text-base md:text-xl leading-relaxed p-4 md:p-6 bg-transparent text-foreground placeholder:text-muted-foreground/50 scrollbar-hide min-h-[60px]" 
+                  className="flex-1 basis-0 w-full resize-none border-0 focus-visible:ring-0 text-base md:text-xl leading-relaxed p-4 md:p-6 bg-transparent text-foreground placeholder:text-muted-foreground/50 scrollbar-hide min-h-[60px]" 
                   {...field}
                   ref={(e) => {
                     field.ref(e);
@@ -85,8 +89,8 @@ export function SoloTalkStep() {
               
               {/* 
                  BLOQUE 3: BOTONERA VOZ (Rígido)
-                 - flex-shrink-0: Siempre visible al fondo del bloque gris.
-                 - No usamos absolute ni fixed, es parte del flujo natural.
+                 - flex-shrink-0: Asegura que NUNCA se oculte.
+                 - z-10: Para que el texto pase por debajo si hay mucho scroll.
               */}
               <div className="flex-shrink-0 p-2 md:p-4 bg-gradient-to-t from-white/95 via-white/90 dark:from-black/90 dark:via-black/80 to-transparent border-t border-black/5 dark:border-white/5 backdrop-blur-md z-10">
                  <VoiceInput onTextGenerated={handleVoiceInput} className="w-full" />
@@ -98,7 +102,7 @@ export function SoloTalkStep() {
         />
       </div>
 
-      {/* Espaciador mínimo de seguridad para separar del footer global */}
+      {/* Espaciador de seguridad para el Footer Global */}
       <div className="h-2 flex-shrink-0" />
 
     </div>
