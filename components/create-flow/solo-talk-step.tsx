@@ -1,5 +1,5 @@
 // components/create-flow/solo-talk-step.tsx
-// VERSIÓN: 18.0 (Final Architecture: Pure Native Flexbox - No Hacks)
+// VERSIÓN: 19.0 (Flexbox Fix: Switching h-full to flex-1)
 
 "use client";
 
@@ -15,7 +15,6 @@ export function SoloTalkStep() {
   const { control, setValue, watch } = useFormContext<PodcastCreationData>();
   const motivationValue = watch('solo_motivation');
 
-  // Lógica de autocompletado del título (Mantenemos la lógica de negocio intacta)
   useEffect(() => {
     if (motivationValue) {
       const autoTopic = motivationValue.length > 50 
@@ -32,16 +31,10 @@ export function SoloTalkStep() {
   };
 
   return (
-    // CONTENEDOR PRINCIPAL:
-    // h-full: Ocupa el 100% del espacio que le da el padre (que ya tiene 100dvh).
-    // overflow-hidden: Evita que el scroll de la página global se active.
+    // CONTENEDOR PRINCIPAL: h-full ocupa el espacio del padre (100dvh)
     <div className="flex flex-col h-full w-full animate-fade-in px-2 md:px-6 overflow-hidden">
       
-      {/* 
-         BLOQUE 1: HEADER
-         - flex-shrink-0: Le decimos al navegador "Este bloque es sagrado, no lo encojas".
-         - Siempre visible.
-      */}
+      {/* HEADER: Rígido (shrink-0). Siempre visible. */}
       <div className="flex-shrink-0 py-2 md:py-4 text-center">
         <h2 className="text-lg md:text-2xl font-bold tracking-tight text-foreground drop-shadow-sm truncate">
           Cuéntanos tu idea
@@ -55,39 +48,32 @@ export function SoloTalkStep() {
         <FormField control={control} name="solo_topic" render={({ field }) => <FormItem><FormControl><Input {...field} /></FormControl></FormItem>} />
       </div>
 
-      {/* 
-         BLOQUE 2: ÁREA DE TRABAJO (Elástica)
-         - flex-1: "Ocupa todo el espacio que sobra".
-         - min-h-0: "Puedes encogerte hasta 0 píxeles si hace falta". ESTA ES LA CLAVE.
-         Sin min-h-0, el flexbox se niega a encogerse más allá del contenido del textarea.
-      */}
+      {/* ÁREA DE TRABAJO: Elástica (flex-1) */}
       <div className="flex-1 flex flex-col min-h-0 relative rounded-xl overflow-hidden bg-white/50 dark:bg-black/20 border border-black/5 dark:border-white/10 backdrop-blur-md shadow-sm">
         
         <FormField
           control={control}
           name="solo_motivation"
           render={({ field }) => (
-            <FormItem className="flex flex-col h-full w-full space-y-0">
+            // FORM ITEM: Es el contenedor flex vertical interno
+            // min-h-0 es vital para permitir el encogimiento
+            <FormItem className="flex flex-col h-full w-full min-h-0 space-y-0">
               
               <FormControl>
                 {/* 
-                   TEXTAREA
-                   - h-full: Llena el contenedor elástico.
-                   - resize-none: Evita tiradores manuales.
-                   - Al no tener altura fija, fluirá con el contenedor padre.
+                   TEXTAREA - CORRECCIÓN CRÍTICA:
+                   - Antes: 'h-full' (Forzaba 100% y empujaba botones fuera).
+                   - Ahora: 'flex-1' (Ocupa solo lo que sobra).
+                   - min-h-0: Permite que se encoja por debajo de su contenido (scroll).
                 */}
                 <Textarea
                   placeholder="Ej: Quiero explorar el impacto accidental de la ciencia..."
-                  className="h-full w-full resize-none border-0 focus-visible:ring-0 text-base md:text-xl leading-relaxed p-4 md:p-6 bg-transparent text-foreground placeholder:text-muted-foreground/50 scrollbar-hide" 
+                  className="flex-1 w-full resize-none border-0 focus-visible:ring-0 text-base md:text-xl leading-relaxed p-4 md:p-6 bg-transparent text-foreground placeholder:text-muted-foreground/50 scrollbar-hide min-h-0" 
                   {...field}
                 />
               </FormControl>
               
-              {/* 
-                 BLOQUE 3: BOTONERA VOZ
-                 - flex-shrink-0: "Sagrado". No se encoge.
-                 - Al estar dentro del flex-col, siempre se pintará al final del bloque gris.
-              */}
+              {/* BOTONERA VOZ: Rígida (shrink-0). El navegador calcula su altura PRIMERO. */}
               <div className="flex-shrink-0 p-3 md:p-4 bg-gradient-to-t from-white/95 via-white/90 dark:from-black/90 dark:via-black/80 to-transparent border-t border-black/5 dark:border-white/5 backdrop-blur-md z-10">
                  <VoiceInput onTextGenerated={handleVoiceInput} className="w-full" />
                  <FormMessage className="mt-1 text-center text-[10px] text-red-500 dark:text-red-400" />
@@ -98,7 +84,7 @@ export function SoloTalkStep() {
         />
       </div>
 
-      {/* Espaciador de seguridad para separar visualmente del footer global */}
+      {/* Espaciador para separar del footer global */}
       <div className="h-2 flex-shrink-0" />
 
     </div>
