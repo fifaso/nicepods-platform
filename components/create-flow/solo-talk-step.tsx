@@ -1,9 +1,9 @@
 // components/create-flow/solo-talk-step.tsx
-// VERSIÓN: 19.0 (Flexbox Fix: Switching h-full to flex-1)
+// VERSIÓN: 20.0 (Ultimate Fix: Visual Viewport Binding & Native Feel)
 
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useFormContext } from "react-hook-form";
 import { PodcastCreationData } from "@/lib/validation/podcast-schema";
 import { FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
@@ -14,6 +14,10 @@ import { Input } from "@/components/ui/input";
 export function SoloTalkStep() {
   const { control, setValue, watch } = useFormContext<PodcastCreationData>();
   const motivationValue = watch('solo_motivation');
+  
+  // Estado para la altura exacta del área visible
+  const [viewportHeight, setViewportHeight] = useState<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (motivationValue) {
@@ -30,11 +34,52 @@ export function SoloTalkStep() {
     setValue('solo_motivation', newText, { shouldValidate: true, shouldDirty: true });
   };
 
+  // [LÓGICA CORE V20] Detección precisa del área visible real
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleResize = () => {
+      // visualViewport.height es la altura REAL libre de teclado y barras del navegador
+      if (window.visualViewport) {
+        // Restamos un pequeño margen para el footer global si es necesario, 
+        // o usamos el 100% de lo visible si queremos ocupar todo.
+        // Aquí usamos offsetTop para calcular cuánto espacio queda desde donde empieza el componente.
+        const offsetTop = containerRef.current?.getBoundingClientRect().top || 0;
+        // La altura disponible es el viewport total menos lo que ya ocupamos arriba (navbar)
+        const availableHeight = window.visualViewport.height - Math.max(0, offsetTop);
+        
+        setViewportHeight(availableHeight);
+      }
+    };
+
+    // Escuchamos el evento específico de visualViewport (mejor que window.resize)
+    window.visualViewport?.addEventListener('resize', handleResize);
+    window.visualViewport?.addEventListener('scroll', handleResize);
+    
+    // Ejecutar al inicio
+    handleResize();
+
+    return () => {
+      window.visualViewport?.removeEventListener('resize', handleResize);
+      window.visualViewport?.removeEventListener('scroll', handleResize);
+    };
+  }, []);
+
   return (
-    // CONTENEDOR PRINCIPAL: h-full ocupa el espacio del padre (100dvh)
-    <div className="flex flex-col h-full w-full animate-fade-in px-2 md:px-6 overflow-hidden">
+    // CONTENEDOR PRINCIPAL
+    // style={{ height }}: Esto es lo que garantiza la flexibilidad real.
+    // Si sale el teclado, esta altura cambia a píxeles exactos, forzando el re-cálculo de Flexbox.
+    <div 
+        ref={containerRef}
+        className="flex flex-col w-full animate-fade-in px-2 md:px-6 overflow-hidden"
+        style={{ 
+            height: viewportHeight ? `${viewportHeight}px` : '100%',
+            // En desktop o carga inicial, usamos 100% del padre. En móvil con teclado, usamos píxeles.
+            maxHeight: '100%' 
+        }}
+    >
       
-      {/* HEADER: Rígido (shrink-0). Siempre visible. */}
+      {/* HEADER (Rígido) */}
       <div className="flex-shrink-0 py-2 md:py-4 text-center">
         <h2 className="text-lg md:text-2xl font-bold tracking-tight text-foreground drop-shadow-sm truncate">
           Cuéntanos tu idea
@@ -48,23 +93,19 @@ export function SoloTalkStep() {
         <FormField control={control} name="solo_topic" render={({ field }) => <FormItem><FormControl><Input {...field} /></FormControl></FormItem>} />
       </div>
 
-      {/* ÁREA DE TRABAJO: Elástica (flex-1) */}
+      {/* ÁREA DE TRABAJO (Elástica dentro de la altura forzada) */}
       <div className="flex-1 flex flex-col min-h-0 relative rounded-xl overflow-hidden bg-white/50 dark:bg-black/20 border border-black/5 dark:border-white/10 backdrop-blur-md shadow-sm">
         
         <FormField
           control={control}
           name="solo_motivation"
           render={({ field }) => (
-            // FORM ITEM: Es el contenedor flex vertical interno
-            // min-h-0 es vital para permitir el encogimiento
             <FormItem className="flex flex-col h-full w-full min-h-0 space-y-0">
               
               <FormControl>
                 {/* 
-                   TEXTAREA - CORRECCIÓN CRÍTICA:
-                   - Antes: 'h-full' (Forzaba 100% y empujaba botones fuera).
-                   - Ahora: 'flex-1' (Ocupa solo lo que sobra).
-                   - min-h-0: Permite que se encoja por debajo de su contenido (scroll).
+                   TEXTAREA
+                   - flex-1: Ocupa todo el espacio que deja el Header y la Botonera dentro de la altura calculada.
                 */}
                 <Textarea
                   placeholder="Ej: Quiero explorar el impacto accidental de la ciencia..."
@@ -73,7 +114,7 @@ export function SoloTalkStep() {
                 />
               </FormControl>
               
-              {/* BOTONERA VOZ: Rígida (shrink-0). El navegador calcula su altura PRIMERO. */}
+              {/* BOTONERA VOZ (Rígida) */}
               <div className="flex-shrink-0 p-3 md:p-4 bg-gradient-to-t from-white/95 via-white/90 dark:from-black/90 dark:via-black/80 to-transparent border-t border-black/5 dark:border-white/5 backdrop-blur-md z-10">
                  <VoiceInput onTextGenerated={handleVoiceInput} className="w-full" />
                  <FormMessage className="mt-1 text-center text-[10px] text-red-500 dark:text-red-400" />
@@ -84,7 +125,7 @@ export function SoloTalkStep() {
         />
       </div>
 
-      {/* Espaciador para separar del footer global */}
+      {/* Espaciador final para dar aire respecto al borde inferior/teclado */}
       <div className="h-2 flex-shrink-0" />
 
     </div>
