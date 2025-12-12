@@ -1,5 +1,5 @@
 // components/create-flow/solo-talk-step.tsx
-// VERSIÓN: 5.1 (Keyboard Layout: Safe Zone Priority)
+// VERSIÓN: 6.0 (Keyboard Logic: Aggressive Height Constraint)
 
 "use client";
 
@@ -34,12 +34,24 @@ export function SoloTalkStep() {
     setValue('solo_motivation', newText, { shouldValidate: true, shouldDirty: true });
   };
 
+  // Scroll táctico al enfocar
+  useEffect(() => {
+    if (isFocused && textareaRef.current) {
+      setTimeout(() => {
+        textareaRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+      }, 300);
+    }
+  }, [isFocused]);
+
   return (
-    // CONTENEDOR PRINCIPAL: Controlamos la altura máxima para no empujar el footer fuera
-    // 'pb-safe' o un padding fijo ayuda en iOS.
-    <div className="flex flex-col h-full w-full animate-fade-in px-2 md:px-6 overflow-hidden">
+    // CONTENEDOR PRINCIPAL
+    // Si hay foco, quitamos 'h-full' para evitar que trate de llenar un viewport fantasma
+    <div className={cn(
+      "flex flex-col w-full animate-fade-in px-2 md:px-6 overflow-hidden transition-all duration-300",
+      isFocused ? "h-auto" : "h-full"
+    )}>
       
-      {/* HEADER: Desaparece al escribir para ganar espacio */}
+      {/* HEADER: Colapsa a 0 */}
       <div 
         className={cn(
           "flex-shrink-0 text-center transition-all duration-300 overflow-hidden",
@@ -59,26 +71,31 @@ export function SoloTalkStep() {
       </div>
 
       {/* ÁREA DE TRABAJO */}
-      <div className="flex-grow flex flex-col min-h-0 relative rounded-xl overflow-hidden bg-white/50 dark:bg-black/20 border border-black/5 dark:border-white/10 backdrop-blur-md shadow-sm">
+      <div className={cn(
+          "flex flex-col relative rounded-xl overflow-hidden bg-white/50 dark:bg-black/20 border border-black/5 dark:border-white/10 backdrop-blur-md shadow-sm transition-all duration-300",
+          // AQUÍ ESTÁ EL TRUCO:
+          // Sin foco: flex-grow (ocupa todo).
+          // Con foco: h-[180px] o h-[30vh]. Forzamos una altura pequeña fija.
+          isFocused ? "h-[35vh] flex-grow-0" : "flex-grow min-h-0"
+        )}
+      >
         
         <FormField
           control={control}
           name="solo_motivation"
           render={({ field }) => (
-            <FormItem className="flex-1 flex flex-col h-full space-y-0 w-full min-h-0">
+            <FormItem className="flex-1 flex flex-col h-full space-y-0 w-full min-h-0 relative">
               
               <FormControl>
-                {/* TEXTAREA: Elástico. El 'min-h-0' del padre es clave aquí. */}
+                {/* TEXTAREA */}
                 <Textarea
                   placeholder="Ej: Quiero explorar el impacto accidental de la ciencia..."
-                  className="flex-1 w-full h-full resize-none border-0 focus-visible:ring-0 text-base md:text-xl leading-relaxed p-4 md:p-6 bg-transparent text-foreground placeholder:text-muted-foreground/50 scrollbar-hide" 
+                  className="flex-1 w-full h-full resize-none border-0 focus-visible:ring-0 text-base md:text-xl leading-relaxed p-4 md:p-6 bg-transparent text-foreground placeholder:text-muted-foreground/50 scrollbar-hide min-h-0" 
                   {...field}
-                  
                   ref={(e) => {
                     field.ref(e);
                     textareaRef.current = e;
                   }}
-
                   onFocus={() => setIsFocused(true)}
                   onBlur={() => {
                     setIsFocused(false);
@@ -87,7 +104,8 @@ export function SoloTalkStep() {
                 />
               </FormControl>
               
-              {/* BOTONERA VOZ: Fija al final de ESTE contenedor (no de la pantalla) */}
+              {/* BOTONERA VOZ */}
+              {/* flex-shrink-0 asegura que siempre tenga su espacio reservado */}
               <div className="flex-shrink-0 p-3 md:p-4 bg-gradient-to-t from-white/95 via-white/90 dark:from-black/90 dark:via-black/80 to-transparent border-t border-black/5 dark:border-white/5 backdrop-blur-md z-10">
                  <VoiceInput onTextGenerated={handleVoiceInput} className="w-full" />
                  <FormMessage className="mt-1 text-center text-[10px] text-red-500 dark:text-red-400" />
@@ -98,12 +116,8 @@ export function SoloTalkStep() {
         />
       </div>
       
-      {/* 
-         ESPACIADOR TÁCTICO (Solo móvil):
-         Si el teclado está abierto, añadimos un pequeño margen invisible abajo
-         para asegurar que la botonera de voz no quede pegada visualmente al footer global.
-      */}
-      <div className={cn("transition-all duration-300", isFocused ? "h-2" : "h-0")} />
+      {/* Espaciador de seguridad para asegurar que el footer global (externo) tenga aire */}
+      {isFocused && <div className="h-4 flex-shrink-0" />}
 
     </div>
   );
