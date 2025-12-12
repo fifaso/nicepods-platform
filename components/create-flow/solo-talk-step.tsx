@@ -1,9 +1,9 @@
 // components/create-flow/solo-talk-step.tsx
-// VERSIÓN: 3.1 (Fix: Event Handler Merging & Mobile Focus Mode)
+// VERSIÓN: 4.0 (Mobile Keyboard Perfect: Safe Area & Sticky Controls)
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useFormContext } from "react-hook-form";
 import { PodcastCreationData } from "@/lib/validation/podcast-schema";
 import { FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 export function SoloTalkStep() {
   const { control, setValue, watch } = useFormContext<PodcastCreationData>();
   const motivationValue = watch('solo_motivation');
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   
   const [isFocused, setIsFocused] = useState(false);
 
@@ -33,14 +34,23 @@ export function SoloTalkStep() {
     setValue('solo_motivation', newText, { shouldValidate: true, shouldDirty: true });
   };
 
+  // Scroll al fondo al enfocar para asegurar visibilidad en móviles
+  useEffect(() => {
+    if (isFocused && textareaRef.current) {
+      setTimeout(() => {
+        textareaRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+      }, 300);
+    }
+  }, [isFocused]);
+
   return (
     <div className="flex flex-col h-full w-full animate-fade-in px-2 md:px-6 pb-2 overflow-hidden transition-all duration-300">
       
-      {/* HEADER COLAPSIBLE (MODO ENFOQUE) */}
+      {/* HEADER COLAPSIBLE */}
       <div 
         className={cn(
           "flex-shrink-0 text-center transition-all duration-300 overflow-hidden",
-          isFocused ? "h-0 opacity-0 md:h-auto md:opacity-100 md:py-4" : "py-2 md:py-4 h-auto opacity-100"
+          isFocused ? "h-0 opacity-0 m-0 p-0" : "py-2 md:py-4 h-auto opacity-100"
         )}
       >
         <h2 className="text-lg md:text-2xl font-bold tracking-tight text-foreground drop-shadow-sm truncate">
@@ -61,29 +71,33 @@ export function SoloTalkStep() {
           control={control}
           name="solo_motivation"
           render={({ field }) => (
-            <FormItem className="flex-1 flex flex-col h-full space-y-0 w-full min-h-0">
+            <FormItem className="flex-1 flex flex-col h-full space-y-0 w-full min-h-0 relative">
               
               <FormControl>
                 <Textarea
                   placeholder="Ej: Quiero explorar el impacto accidental de la ciencia..."
-                  className="flex-1 w-full h-full resize-none border-0 focus-visible:ring-0 text-base md:text-xl leading-relaxed p-4 md:p-6 bg-transparent text-foreground placeholder:text-muted-foreground/50 scrollbar-hide min-h-[80px]"
-                  // Desestructuramos el resto de props (value, onChange, ref)
+                  className="flex-1 w-full h-full resize-none border-0 focus-visible:ring-0 text-base md:text-xl leading-relaxed p-4 md:p-6 bg-transparent text-foreground placeholder:text-muted-foreground/50 scrollbar-hide min-h-[80px] pb-24" // Padding inferior extra para que el texto no quede tapado por los botones flotantes
                   {...field}
                   
-                  // [CORRECCIÓN]: Interceptamos los eventos explícitamente y llamamos al original
+                  // Manejo de Refs compuesto
+                  ref={(e) => {
+                    field.ref(e);
+                    textareaRef.current = e;
+                  }}
+
                   onFocus={(e) => {
                     setIsFocused(true);
-                    // No hay onFocus original en RHF por defecto, pero si hubiera, lo llamaríamos aquí
                   }}
                   onBlur={(e) => {
                     setIsFocused(false);
-                    field.onBlur(); // Llamada CRÍTICA: Mantiene la validación de React Hook Form
+                    field.onBlur();
                   }}
                 />
               </FormControl>
               
-              {/* BOTONERA SIEMPRE VISIBLE */}
-              <div className="flex-shrink-0 p-3 md:p-4 bg-gradient-to-t from-white/95 via-white/90 dark:from-black/90 dark:via-black/80 to-transparent border-t border-black/5 dark:border-white/5 backdrop-blur-md z-10">
+              {/* BOTONERA FLOTANTE AL PIE */}
+              {/* Usamos absolute bottom-0 para garantizar que se pegue al fondo del contenedor visual */}
+              <div className="absolute bottom-0 left-0 right-0 p-3 md:p-4 bg-gradient-to-t from-white via-white/95 to-transparent dark:from-black dark:via-black/95 dark:to-transparent pt-8 z-20">
                  <VoiceInput onTextGenerated={handleVoiceInput} className="w-full" />
                  <FormMessage className="mt-1 text-center text-[10px] text-red-500 dark:text-red-400" />
               </div>
