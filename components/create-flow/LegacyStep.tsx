@@ -1,16 +1,22 @@
 // components/create-flow/LegacyStep.tsx
-// VERSIÓN FINAL ESTANDARIZADA: Coherencia visual con SoloTalk y QuestionStep.
+// VERSIÓN: 2.1 (Mobile Viewport Sync & Flexbox Fix)
 
 "use client";
 
+import { useRef } from "react";
 import { useFormContext } from "react-hook-form";
 import { PodcastCreationData } from "@/lib/validation/podcast-schema";
 import { FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { VoiceInput } from "@/components/ui/voice-input";
+import { useMobileViewport } from "@/hooks/use-mobile-viewport"; // [NUEVO]
 
 export function LegacyStep() {
   const { control, setValue, getValues } = useFormContext<PodcastCreationData>();
+  
+  // [NUEVO] Hook de Viewport para altura precisa con teclado
+  const containerRef = useRef<HTMLDivElement>(null);
+  const viewportHeight = useMobileViewport(containerRef);
 
   const handleVoiceInput = (text: string) => {
     const currentText = getValues('legacy_lesson') || '';
@@ -19,10 +25,18 @@ export function LegacyStep() {
   };
 
   return (
-    <div className="flex flex-col h-full w-full animate-fade-in px-2 md:px-6 pb-2">
+    // CONTENEDOR PRINCIPAL: Vinculado a la altura visual real
+    <div 
+      ref={containerRef}
+      className="flex flex-col w-full animate-fade-in px-2 md:px-6 overflow-hidden"
+      style={{ 
+        height: viewportHeight ? `${viewportHeight}px` : '100%', 
+        maxHeight: '100%' 
+      }}
+    >
       
-      {/* CABECERA COMPACTA Y ADAPTATIVA */}
-      <div className="flex-shrink-0 py-1 md:py-4 text-center">
+      {/* CABECERA (Rígida) */}
+      <div className="flex-shrink-0 py-2 md:py-4 text-center">
         <h2 className="text-lg md:text-2xl font-bold tracking-tight text-foreground drop-shadow-sm md:drop-shadow-none">
           Deja tu Legado
         </h2>
@@ -31,25 +45,25 @@ export function LegacyStep() {
         </p>
       </div>
 
-      {/* ÁREA DE ESCRITURA: Patrón "Glass Surface" Adaptativo */}
-      <div className="flex-grow flex flex-col min-h-0 relative rounded-xl overflow-hidden bg-white/50 dark:bg-black/20 border border-black/5 dark:border-white/10 backdrop-blur-md shadow-sm">
+      {/* ÁREA DE TRABAJO (Elástica) */}
+      <div className="flex-1 flex flex-col min-h-0 relative rounded-xl overflow-hidden bg-white/50 dark:bg-black/20 border border-black/5 dark:border-white/10 backdrop-blur-md shadow-sm">
         <FormField
           control={control}
           name="legacy_lesson"
           render={({ field }) => (
-            <FormItem className="flex-1 flex flex-col h-full space-y-0">
+            <FormItem className="flex flex-col h-full w-full min-h-0 space-y-0">
               
               <FormControl>
+                {/* TEXTAREA: flex-1 + min-h-0 para scroll interno */}
                 <Textarea
                   placeholder="Ej: Aprendí que la vulnerabilidad no es una debilidad..."
-                  // Texto grande y adaptable
-                  className="flex-1 w-full h-full resize-none border-0 focus-visible:ring-0 text-base md:text-xl leading-relaxed p-4 md:p-6 bg-transparent text-foreground placeholder:text-muted-foreground/50 scrollbar-hide"
+                  className="flex-1 w-full resize-none border-0 focus-visible:ring-0 text-base md:text-xl leading-relaxed p-4 md:p-6 bg-transparent text-foreground placeholder:text-muted-foreground/50 scrollbar-hide min-h-0"
                   {...field}
                 />
               </FormControl>
               
-              {/* BOTONERA INTEGRADA */}
-              <div className="flex-shrink-0 p-3 md:p-4 bg-gradient-to-t from-white/80 via-white/40 dark:from-black/40 dark:via-black/20 to-transparent border-t border-black/5 dark:border-white/5 backdrop-blur-sm">
+              {/* BOTONERA (Rígida y Opaca) */}
+              <div className="flex-shrink-0 p-3 md:p-4 bg-gradient-to-t from-white/95 via-white/90 dark:from-black/90 dark:via-black/80 to-transparent border-t border-black/5 dark:border-white/5 backdrop-blur-md z-10">
                  <VoiceInput onTextGenerated={handleVoiceInput} className="w-full" />
                  <FormMessage className="mt-1 text-center text-[10px] text-red-500 dark:text-red-400" />
               </div>
@@ -58,6 +72,9 @@ export function LegacyStep() {
           )}
         />
       </div>
+
+      {/* ESPACIADOR FINAL */}
+      <div className="h-2 flex-shrink-0" />
     </div>
   );
 }
