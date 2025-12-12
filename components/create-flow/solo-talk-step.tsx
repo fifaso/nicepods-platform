@@ -1,5 +1,5 @@
 // components/create-flow/solo-talk-step.tsx
-// VERSIÓN: 20.0 (Ultimate Fix: Visual Viewport Binding & Native Feel)
+// VERSIÓN: 21.0 (UX Final: Native Physics Animation & Frame Sync)
 
 "use client";
 
@@ -15,9 +15,10 @@ export function SoloTalkStep() {
   const { control, setValue, watch } = useFormContext<PodcastCreationData>();
   const motivationValue = watch('solo_motivation');
   
-  // Estado para la altura exacta del área visible
   const [viewportHeight, setViewportHeight] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  // Ref para controlar el bucle de animación y evitar actualizaciones innecesarias
+  const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (motivationValue) {
@@ -34,48 +35,51 @@ export function SoloTalkStep() {
     setValue('solo_motivation', newText, { shouldValidate: true, shouldDirty: true });
   };
 
-  // [LÓGICA CORE V20] Detección precisa del área visible real
+  // [MEJORA V21]: Sincronización de Frames
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const handleResize = () => {
-      // visualViewport.height es la altura REAL libre de teclado y barras del navegador
-      if (window.visualViewport) {
-        // Restamos un pequeño margen para el footer global si es necesario, 
-        // o usamos el 100% de lo visible si queremos ocupar todo.
-        // Aquí usamos offsetTop para calcular cuánto espacio queda desde donde empieza el componente.
-        const offsetTop = containerRef.current?.getBoundingClientRect().top || 0;
-        // La altura disponible es el viewport total menos lo que ya ocupamos arriba (navbar)
+    const updateHeight = () => {
+      if (window.visualViewport && containerRef.current) {
+        const offsetTop = containerRef.current.getBoundingClientRect().top;
+        // Calculamos el espacio disponible exacto
         const availableHeight = window.visualViewport.height - Math.max(0, offsetTop);
-        
         setViewportHeight(availableHeight);
       }
     };
 
-    // Escuchamos el evento específico de visualViewport (mejor que window.resize)
-    window.visualViewport?.addEventListener('resize', handleResize);
-    window.visualViewport?.addEventListener('scroll', handleResize);
+    const onResize = () => {
+      // Cancelamos el frame anterior si aún no se ejecutó, para evitar trabajo doble
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      
+      // Agendamos la actualización para el próximo "pintado" del navegador
+      rafRef.current = requestAnimationFrame(updateHeight);
+    };
+
+    window.visualViewport?.addEventListener('resize', onResize);
+    window.visualViewport?.addEventListener('scroll', onResize);
     
-    // Ejecutar al inicio
-    handleResize();
+    // Medición inicial inmediata
+    updateHeight();
 
     return () => {
-      window.visualViewport?.removeEventListener('resize', handleResize);
-      window.visualViewport?.removeEventListener('scroll', handleResize);
+      window.visualViewport?.removeEventListener('resize', onResize);
+      window.visualViewport?.removeEventListener('scroll', onResize);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
   }, []);
 
   return (
     // CONTENEDOR PRINCIPAL
-    // style={{ height }}: Esto es lo que garantiza la flexibilidad real.
-    // Si sale el teclado, esta altura cambia a píxeles exactos, forzando el re-cálculo de Flexbox.
     <div 
         ref={containerRef}
         className="flex flex-col w-full animate-fade-in px-2 md:px-6 overflow-hidden"
         style={{ 
             height: viewportHeight ? `${viewportHeight}px` : '100%',
-            // En desktop o carga inicial, usamos 100% del padre. En móvil con teclado, usamos píxeles.
-            maxHeight: '100%' 
+            maxHeight: '100%',
+            // [MEJORA V21]: Transición CSS para suavizar cualquier salto de cálculo JS.
+            // Usamos una curva cubic-bezier que imita la fricción física de iOS.
+            transition: 'height 0.3s cubic-bezier(0.32, 0.72, 0, 1)'
         }}
     >
       
@@ -93,7 +97,7 @@ export function SoloTalkStep() {
         <FormField control={control} name="solo_topic" render={({ field }) => <FormItem><FormControl><Input {...field} /></FormControl></FormItem>} />
       </div>
 
-      {/* ÁREA DE TRABAJO (Elástica dentro de la altura forzada) */}
+      {/* ÁREA DE TRABAJO (Elástica) */}
       <div className="flex-1 flex flex-col min-h-0 relative rounded-xl overflow-hidden bg-white/50 dark:bg-black/20 border border-black/5 dark:border-white/10 backdrop-blur-md shadow-sm">
         
         <FormField
@@ -103,13 +107,10 @@ export function SoloTalkStep() {
             <FormItem className="flex flex-col h-full w-full min-h-0 space-y-0">
               
               <FormControl>
-                {/* 
-                   TEXTAREA
-                   - flex-1: Ocupa todo el espacio que deja el Header y la Botonera dentro de la altura calculada.
-                */}
                 <Textarea
                   placeholder="Ej: Quiero explorar el impacto accidental de la ciencia..."
-                  className="flex-1 w-full resize-none border-0 focus-visible:ring-0 text-base md:text-xl leading-relaxed p-4 md:p-6 bg-transparent text-foreground placeholder:text-muted-foreground/50 scrollbar-hide min-h-0" 
+                  // Añadimos 'transition-all' al textarea también para que acompañe el movimiento
+                  className="flex-1 w-full resize-none border-0 focus-visible:ring-0 text-base md:text-xl leading-relaxed p-4 md:p-6 bg-transparent text-foreground placeholder:text-muted-foreground/50 scrollbar-hide min-h-0 transition-all duration-300 ease-out" 
                   {...field}
                 />
               </FormControl>
@@ -125,7 +126,7 @@ export function SoloTalkStep() {
         />
       </div>
 
-      {/* Espaciador final para dar aire respecto al borde inferior/teclado */}
+      {/* Espaciador final */}
       <div className="h-2 flex-shrink-0" />
 
     </div>
