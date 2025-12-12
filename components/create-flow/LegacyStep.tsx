@@ -1,5 +1,5 @@
 // components/create-flow/LegacyStep.tsx
-// VERSIÓN: 2.2 (Fix: FormControl Flex Growth)
+// VERSIÓN: 21.0 (Standardized Viewport Architecture)
 
 "use client";
 
@@ -27,10 +27,7 @@ export function LegacyStep() {
     <div 
       ref={containerRef}
       className="flex flex-col w-full animate-fade-in px-2 md:px-6 overflow-hidden"
-      style={{ 
-        height: viewportHeight ? `${viewportHeight}px` : '100%', 
-        maxHeight: '100%' 
-      }}
+      style={{ height: viewportHeight, maxHeight: '100%' }}
     >
       
       <div className="flex-shrink-0 py-2 md:py-4 text-center">
@@ -47,10 +44,7 @@ export function LegacyStep() {
           control={control}
           name="legacy_lesson"
           render={({ field }) => (
-            // FormItem debe ser flex-1 para llenar el espacio del padre
             <FormItem className="flex-1 flex flex-col w-full min-h-0 space-y-0">
-              
-              {/* FormControl debe ser flex-1 para que el textarea crezca */}
               <FormControl className="flex-1 flex flex-col min-h-0">
                 <Textarea
                   placeholder="Ej: Aprendí que la vulnerabilidad no es una debilidad..."
@@ -63,7 +57,6 @@ export function LegacyStep() {
                  <VoiceInput onTextGenerated={handleVoiceInput} className="w-full" />
                  <FormMessage className="mt-1 text-center text-[10px] text-red-500 dark:text-red-400" />
               </div>
-
             </FormItem>
           )}
         />

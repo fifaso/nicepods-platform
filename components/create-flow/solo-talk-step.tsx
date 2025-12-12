@@ -1,24 +1,24 @@
 // components/create-flow/solo-talk-step.tsx
-// VERSIÓN: 21.0 (UX Final: Native Physics Animation & Frame Sync)
+// VERSIÓN: 21.0 (Standardized Viewport Architecture)
 
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useFormContext } from "react-hook-form";
 import { PodcastCreationData } from "@/lib/validation/podcast-schema";
 import { FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { VoiceInput } from "@/components/ui/voice-input";
 import { Input } from "@/components/ui/input";
+import { useMobileViewport } from "@/hooks/use-mobile-viewport"; // Usamos el hook estandarizado
 
 export function SoloTalkStep() {
   const { control, setValue, watch } = useFormContext<PodcastCreationData>();
   const motivationValue = watch('solo_motivation');
   
-  const [viewportHeight, setViewportHeight] = useState<number | null>(null);
+  // Hook de Viewport (El cerebro de la operación)
   const containerRef = useRef<HTMLDivElement>(null);
-  // Ref para controlar el bucle de animación y evitar actualizaciones innecesarias
-  const rafRef = useRef<number | null>(null);
+  const viewportHeight = useMobileViewport(containerRef);
 
   useEffect(() => {
     if (motivationValue) {
@@ -35,52 +35,12 @@ export function SoloTalkStep() {
     setValue('solo_motivation', newText, { shouldValidate: true, shouldDirty: true });
   };
 
-  // [MEJORA V21]: Sincronización de Frames
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const updateHeight = () => {
-      if (window.visualViewport && containerRef.current) {
-        const offsetTop = containerRef.current.getBoundingClientRect().top;
-        // Calculamos el espacio disponible exacto
-        const availableHeight = window.visualViewport.height - Math.max(0, offsetTop);
-        setViewportHeight(availableHeight);
-      }
-    };
-
-    const onResize = () => {
-      // Cancelamos el frame anterior si aún no se ejecutó, para evitar trabajo doble
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      
-      // Agendamos la actualización para el próximo "pintado" del navegador
-      rafRef.current = requestAnimationFrame(updateHeight);
-    };
-
-    window.visualViewport?.addEventListener('resize', onResize);
-    window.visualViewport?.addEventListener('scroll', onResize);
-    
-    // Medición inicial inmediata
-    updateHeight();
-
-    return () => {
-      window.visualViewport?.removeEventListener('resize', onResize);
-      window.visualViewport?.removeEventListener('scroll', onResize);
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
-  }, []);
-
   return (
-    // CONTENEDOR PRINCIPAL
+    // ESTRUCTURA ESTÁNDAR V20
     <div 
         ref={containerRef}
         className="flex flex-col w-full animate-fade-in px-2 md:px-6 overflow-hidden"
-        style={{ 
-            height: viewportHeight ? `${viewportHeight}px` : '100%',
-            maxHeight: '100%',
-            // [MEJORA V21]: Transición CSS para suavizar cualquier salto de cálculo JS.
-            // Usamos una curva cubic-bezier que imita la fricción física de iOS.
-            transition: 'height 0.3s cubic-bezier(0.32, 0.72, 0, 1)'
-        }}
+        style={{ height: viewportHeight, maxHeight: '100%' }}
     >
       
       {/* HEADER (Rígido) */}
@@ -104,18 +64,18 @@ export function SoloTalkStep() {
           control={control}
           name="solo_motivation"
           render={({ field }) => (
-            <FormItem className="flex flex-col h-full w-full min-h-0 space-y-0">
+            <FormItem className="flex-1 flex flex-col h-full w-full min-h-0 space-y-0">
               
-              <FormControl>
+              {/* FormControl debe ser flexible también */}
+              <FormControl className="flex-1 flex flex-col min-h-0">
                 <Textarea
                   placeholder="Ej: Quiero explorar el impacto accidental de la ciencia..."
-                  // Añadimos 'transition-all' al textarea también para que acompañe el movimiento
-                  className="flex-1 w-full resize-none border-0 focus-visible:ring-0 text-base md:text-xl leading-relaxed p-4 md:p-6 bg-transparent text-foreground placeholder:text-muted-foreground/50 scrollbar-hide min-h-0 transition-all duration-300 ease-out" 
+                  className="flex-1 w-full resize-none border-0 focus-visible:ring-0 text-base md:text-xl leading-relaxed p-4 md:p-6 bg-transparent text-foreground placeholder:text-muted-foreground/50 scrollbar-hide min-h-0" 
                   {...field}
                 />
               </FormControl>
               
-              {/* BOTONERA VOZ (Rígida) */}
+              {/* BOTONERA (Rígida) */}
               <div className="flex-shrink-0 p-3 md:p-4 bg-gradient-to-t from-white/95 via-white/90 dark:from-black/90 dark:via-black/80 to-transparent border-t border-black/5 dark:border-white/5 backdrop-blur-md z-10">
                  <VoiceInput onTextGenerated={handleVoiceInput} className="w-full" />
                  <FormMessage className="mt-1 text-center text-[10px] text-red-500 dark:text-red-400" />
@@ -126,9 +86,7 @@ export function SoloTalkStep() {
         />
       </div>
 
-      {/* Espaciador final */}
       <div className="h-2 flex-shrink-0" />
-
     </div>
   );
 }
