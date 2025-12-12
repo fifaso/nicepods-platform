@@ -1,25 +1,21 @@
 // components/create-flow/solo-talk-step.tsx
-// VERSIÓN: 17.0 (Final Architecture: Absolute Inset Strategy & Focus State)
+// VERSIÓN: 18.0 (Final Architecture: Pure Native Flexbox - No Hacks)
 
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect } from "react";
 import { useFormContext } from "react-hook-form";
 import { PodcastCreationData } from "@/lib/validation/podcast-schema";
 import { FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { VoiceInput } from "@/components/ui/voice-input";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
 
 export function SoloTalkStep() {
   const { control, setValue, watch } = useFormContext<PodcastCreationData>();
   const motivationValue = watch('solo_motivation');
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  // Volvemos a usar estado para control total de la UI al escribir
-  const [isFocused, setIsFocused] = useState(false);
-
+  // Lógica de autocompletado del título (Mantenemos la lógica de negocio intacta)
   useEffect(() => {
     if (motivationValue) {
       const autoTopic = motivationValue.length > 50 
@@ -35,30 +31,18 @@ export function SoloTalkStep() {
     setValue('solo_motivation', newText, { shouldValidate: true, shouldDirty: true });
   };
 
-  // Scroll táctico al enfocar
-  useEffect(() => {
-    if (isFocused && textareaRef.current) {
-      setTimeout(() => {
-        // scrollIntoView con 'center' ayuda a que el teclado no tape el input
-        textareaRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
-      }, 300);
-    }
-  }, [isFocused]);
-
   return (
+    // CONTENEDOR PRINCIPAL:
+    // h-full: Ocupa el 100% del espacio que le da el padre (que ya tiene 100dvh).
+    // overflow-hidden: Evita que el scroll de la página global se active.
     <div className="flex flex-col h-full w-full animate-fade-in px-2 md:px-6 overflow-hidden">
       
       {/* 
          BLOQUE 1: HEADER
-         - Estrategia: Si hay foco (teclado), lo ocultamos (hidden).
-         - Ganancia: ~60-80px de espacio vertical crítico.
+         - flex-shrink-0: Le decimos al navegador "Este bloque es sagrado, no lo encojas".
+         - Siempre visible.
       */}
-      <div 
-        className={cn(
-          "flex-shrink-0 text-center transition-all duration-200",
-          isFocused ? "hidden" : "block py-2 md:py-4"
-        )}
-      >
+      <div className="flex-shrink-0 py-2 md:py-4 text-center">
         <h2 className="text-lg md:text-2xl font-bold tracking-tight text-foreground drop-shadow-sm truncate">
           Cuéntanos tu idea
         </h2>
@@ -73,9 +57,9 @@ export function SoloTalkStep() {
 
       {/* 
          BLOQUE 2: ÁREA DE TRABAJO (Elástica)
-         - flex-1: Toma el espacio disponible.
-         - min-h-0: Permite contracción.
-         - flex-col: Organiza Textarea y Botones verticalmente.
+         - flex-1: "Ocupa todo el espacio que sobra".
+         - min-h-0: "Puedes encogerte hasta 0 píxeles si hace falta". ESTA ES LA CLAVE.
+         Sin min-h-0, el flexbox se niega a encogerse más allá del contenido del textarea.
       */}
       <div className="flex-1 flex flex-col min-h-0 relative rounded-xl overflow-hidden bg-white/50 dark:bg-black/20 border border-black/5 dark:border-white/10 backdrop-blur-md shadow-sm">
         
@@ -87,45 +71,26 @@ export function SoloTalkStep() {
               
               <FormControl>
                 {/* 
-                   CONTENEDOR DEL TEXTAREA (La Magia V17)
-                   - flex-1 relative: Este div define el tamaño disponible para el texto.
+                   TEXTAREA
+                   - h-full: Llena el contenedor elástico.
+                   - resize-none: Evita tiradores manuales.
+                   - Al no tener altura fija, fluirá con el contenedor padre.
                 */}
-                <div className="flex-1 relative w-full min-h-[80px]">
-                    {/* 
-                       TEXTAREA ABSOLUTO
-                       - absolute inset-0: Fuerza al textarea a tener EXACTAMENTE el tamaño de su padre.
-                       - No puede empujar. No puede crecer más allá. Si hay mucho texto, scroll interno.
-                    */}
-                    <Textarea
-                      placeholder="Ej: Quiero explorar el impacto accidental de la ciencia..."
-                      className="absolute inset-0 w-full h-full resize-none border-0 focus-visible:ring-0 text-base md:text-xl leading-relaxed p-4 md:p-6 bg-transparent text-foreground placeholder:text-muted-foreground/50 scrollbar-hide" 
-                      {...field}
-                      ref={(e) => {
-                        field.ref(e);
-                        textareaRef.current = e;
-                      }}
-                      onFocus={() => setIsFocused(true)}
-                      onBlur={() => {
-                        // Pequeño delay para evitar saltos si se toca un botón de la propia UI
-                        setTimeout(() => setIsFocused(false), 100);
-                        field.onBlur();
-                      }}
-                    />
-                </div>
+                <Textarea
+                  placeholder="Ej: Quiero explorar el impacto accidental de la ciencia..."
+                  className="h-full w-full resize-none border-0 focus-visible:ring-0 text-base md:text-xl leading-relaxed p-4 md:p-6 bg-transparent text-foreground placeholder:text-muted-foreground/50 scrollbar-hide" 
+                  {...field}
+                />
               </FormControl>
               
               {/* 
                  BLOQUE 3: BOTONERA VOZ
-                 - flex-shrink-0: Rígido.
-                 - z-10: Por si acaso.
+                 - flex-shrink-0: "Sagrado". No se encoge.
+                 - Al estar dentro del flex-col, siempre se pintará al final del bloque gris.
               */}
-              <div className="flex-shrink-0 p-2 md:p-4 bg-gradient-to-t from-white/95 via-white/90 dark:from-black/90 dark:via-black/80 to-transparent border-t border-black/5 dark:border-white/5 backdrop-blur-md z-10">
+              <div className="flex-shrink-0 p-3 md:p-4 bg-gradient-to-t from-white/95 via-white/90 dark:from-black/90 dark:via-black/80 to-transparent border-t border-black/5 dark:border-white/5 backdrop-blur-md z-10">
                  <VoiceInput onTextGenerated={handleVoiceInput} className="w-full" />
-                 
-                 {/* Ocultamos mensaje de error al escribir para ahorrar más espacio si es necesario */}
-                 {!isFocused && (
-                   <FormMessage className="mt-1 text-center text-[10px] text-red-500 dark:text-red-400" />
-                 )}
+                 <FormMessage className="mt-1 text-center text-[10px] text-red-500 dark:text-red-400" />
               </div>
 
             </FormItem>
@@ -133,8 +98,8 @@ export function SoloTalkStep() {
         />
       </div>
 
-      {/* Espaciador de seguridad para el Footer Global */}
-      <div className={cn("flex-shrink-0 transition-all", isFocused ? "h-1" : "h-2")} />
+      {/* Espaciador de seguridad para separar visualmente del footer global */}
+      <div className="h-2 flex-shrink-0" />
 
     </div>
   );
