@@ -1,5 +1,5 @@
 // components/create-flow/archetype-step.tsx
-// VERSIÓN: 3.0 (Final Architecture: Pure Flexbox & Removed h-full Conflict)
+// VERSIÓN: 4.0 (Final Fix: Unbroken Flex Chain & Height Propagation)
 
 "use client";
 
@@ -27,7 +27,7 @@ export function ArchetypeStep() {
   const selectedArchetype = watch('selectedArchetype');
   const goalValue = watch('archetype_goal'); 
 
-  // 1. Hook de Viewport para altura precisa con teclado
+  // 1. Hook de Viewport: La base de la estabilidad con teclado
   const containerRef = useRef<HTMLDivElement>(null);
   const viewportHeight = useMobileViewport(containerRef);
 
@@ -49,7 +49,7 @@ export function ArchetypeStep() {
   const currentArchetype = archetypeOptions.find(opt => opt.value === selectedArchetype);
 
   return (
-    // 2. CONTENEDOR PRINCIPAL: Vinculado a la altura visual real (JS)
+    // 2. CONTENEDOR RAÍZ: Altura exacta controlada por JS
     <div 
         ref={containerRef}
         className="flex flex-col w-full animate-fade-in px-2 md:px-6 overflow-hidden"
@@ -59,7 +59,7 @@ export function ArchetypeStep() {
         }}
     >
       
-      {/* 3. CABECERA: Rígida (flex-shrink-0) */}
+      {/* 3. HEADER: Rígido (No se encoge) */}
       <div className="flex-shrink-0 py-2 md:py-4 text-center">
         <h2 className="text-lg md:text-2xl font-bold tracking-tight text-foreground drop-shadow-sm md:drop-shadow-none">
           Desarrolla tu Historia
@@ -79,33 +79,33 @@ export function ArchetypeStep() {
         <FormField control={control} name="archetype_topic" render={({ field }) => <FormItem><FormControl><Input {...field} /></FormControl></FormItem>} />
       </div>
 
-      {/* 4. ÁREA DE TRABAJO: Elástica (flex-1) */}
+      {/* 4. WRAPPER PRINCIPAL: Elástico */}
       <div className="flex-1 flex flex-col min-h-0 relative rounded-xl overflow-hidden bg-white/50 dark:bg-black/20 border border-black/5 dark:border-white/10 backdrop-blur-md shadow-sm">
         <FormField
           control={control}
           name="archetype_goal"
           render={({ field }) => (
             
-            // [CLAVE] FormItem transmite la flexibilidad
-            <FormItem className="flex-1 flex flex-col w-full min-h-0 space-y-0">
+            // [CLAVE 1] FormItem: Forzamos a ocupar toda la altura y ser flexible
+            <FormItem className="flex flex-col flex-1 h-full w-full min-h-0 m-0 p-0 space-y-0">
               
-              {/* [CLAVE] FormControl transmite la flexibilidad */}
-              <FormControl className="flex-1 flex flex-col min-h-0">
+              {/* [CLAVE 2] FormControl: También debe ser flexible para pasar la altura al textarea */}
+              <FormControl className="flex flex-col flex-1 h-full min-h-0">
                 
                 {/* 
-                   [CLAVE FINAL] Textarea:
-                   - flex-1: Ocupa espacio restante.
-                   - min-h-[60px]: Evita colapso total.
-                   - ELIMINADO: 'h-full' (Causaba el conflicto).
+                   [CLAVE 3] Textarea: 
+                   - flex-1: Ocupa el espacio restante.
+                   - h-full: Se asegura de estirarse.
+                   - min-h-0: Permite el scroll interno si el espacio es muy pequeño.
                 */}
                 <Textarea
                   placeholder={`Escribe aquí... La IA adaptará tu texto al estilo de "${currentArchetype?.title || 'tu arquetipo'}"...`}
-                  className="flex-1 w-full resize-none border-0 focus-visible:ring-0 text-base md:text-xl leading-relaxed p-4 md:p-6 bg-transparent text-foreground placeholder:text-muted-foreground/50 scrollbar-hide min-h-[60px]"
+                  className="flex-1 w-full h-full resize-none border-0 focus-visible:ring-0 text-base md:text-xl leading-relaxed p-4 md:p-6 bg-transparent text-foreground placeholder:text-muted-foreground/50 scrollbar-hide min-h-0"
                   {...field}
                 />
               </FormControl>
               
-              {/* 5. BOTONERA: Rígida (flex-shrink-0) */}
+              {/* 5. BOTONERA: Rígida al final del flujo Flex */}
               <div className="flex-shrink-0 p-3 md:p-4 bg-gradient-to-t from-white/95 via-white/90 dark:from-black/90 dark:via-black/80 to-transparent border-t border-black/5 dark:border-white/5 backdrop-blur-md z-10">
                  <VoiceInput onTextGenerated={handleVoiceGoal} className="w-full" />
                  <FormMessage className="mt-1 text-center text-[10px] text-red-500 dark:text-red-400" />
