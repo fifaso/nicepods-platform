@@ -1,5 +1,5 @@
 // supabase/functions/generate-audio-from-script/index.ts
-// VERSIÓN: 5.5 (Hotfix: Aggressive Chunking & Safety Limits)
+// VERSIÓN: 6.0 (Security Hardened & Cost Controlled)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -25,8 +25,14 @@ const InvokePayloadSchema = z.object({
 });
 
 // --- CONSTANTES DE INGENIERÍA ---
-// Google límite: 5000 bytes.
-// Usamos 4000 para tener un margen de seguridad amplio para caracteres especiales (UTF-8 multibyte).
+
+// [SEGURIDAD] HARD LIMIT DE PRESUPUESTO
+// 25,000 caracteres son aprox 15-20 minutos de audio.
+// Evita que un error o ataque drene la cuota de Google Cloud.
+const HARD_LIMIT_CHARS = 25000; 
+
+// Google límite por request: 5000 bytes.
+// Usamos 4000 para margen de seguridad (UTF-8 multibyte).
 const SAFE_CHUNK_LIMIT = 4000; 
 
 const voiceMap = {
@@ -62,17 +68,15 @@ function cleanScriptText(raw: string): string {
 }
 
 // ALGORITMO DE CHUNKING AGRESIVO
-// Divide por palabras para asegurar que NUNCA excedamos el límite.
 function splitTextIntoSafeChunks(text: string, limit: number): string[] {
   const words = text.split(' ');
   const chunks: string[] = [];
   let currentChunk = "";
 
   for (const word of words) {
-    // +1 por el espacio que añadiremos
     if ((currentChunk.length + word.length + 1) > limit) {
       if (currentChunk) chunks.push(currentChunk.trim());
-      currentChunk = word; // Iniciar nuevo chunk con la palabra actual
+      currentChunk = word;
     } else {
       currentChunk += (currentChunk ? " " : "") + word;
     }
@@ -80,7 +84,6 @@ function splitTextIntoSafeChunks(text: string, limit: number): string[] {
   
   if (currentChunk) chunks.push(currentChunk.trim());
 
-  // Fail-safe final: Si por alguna razón una sola palabra es gigante (url loca, base64), la cortamos
   return chunks.flatMap(c => {
       if (c.length <= limit) return [c];
       console.warn("Detectado bloque masivo indivisible. Cortando a la fuerza.");
@@ -150,7 +153,6 @@ serve(async (request: Request) => {
     // Extracción robusta del texto
     let rawText = "";
     if (typeof podcastData?.script_text === 'string') {
-        // Intenta ver si es un JSON stringificado
         try {
             const parsed = JSON.parse(podcastData.script_text);
             rawText = parsed.script_body || parsed.text || podcastData.script_text;
@@ -163,9 +165,14 @@ serve(async (request: Request) => {
 
     const cleanText = cleanScriptText(rawText);
     
+    // [SEGURIDAD] CHECKPOINT CRÍTICO: HARD LIMIT
+    if (cleanText.length > HARD_LIMIT_CHARS) {
+        throw new Error(`[SEGURIDAD] El guion excede el límite permitido. Longitud: ${cleanText.length} (Máx: ${HARD_LIMIT_CHARS}). Por favor, reduce la duración.`);
+    }
+
     if (cleanText.length < 5) throw new Error("El guion está vacío o es ilegible.");
 
-    console.log(`[Audio] Longitud Texto: ${cleanText.length} caracteres.`);
+    console.log(`[Audio] Longitud Texto: ${cleanText.length} caracteres (Aprobado).`);
 
     // CHUNKING
     const chunks = splitTextIntoSafeChunks(cleanText, SAFE_CHUNK_LIMIT);
@@ -183,11 +190,10 @@ serve(async (request: Request) => {
 
     const audioBuffers: ArrayBuffer[] = [];
 
-    // PROCESAMIENTO SECUENCIAL (Para evitar saturar el Rate Limit)
+    // PROCESAMIENTO SECUENCIAL
     for (const [i, chunk] of chunks.entries()) {
         console.log(`[Audio] Procesando chunk ${i+1}/${chunks.length} (${chunk.length} chars)`);
         
-        // Retry logic simple para cada chunk
         let retries = 0;
         let success = false;
         
@@ -220,12 +226,11 @@ serve(async (request: Request) => {
             } catch (e) {
                 retries++;
                 console.error(`[Audio] Error en chunk ${i+1}, intento ${retries}:`, e);
-                if (retries >= 2) throw e; // Fallar si agotamos reintentos
-                await new Promise(r => setTimeout(r, 1000)); // Esperar 1s antes de reintentar
+                if (retries >= 2) throw e;
+                await new Promise(r => setTimeout(r, 1000));
             }
         }
         
-        // Pequeña pausa entre chunks para ser amables con la API
         if (i < chunks.length - 1) await new Promise(r => setTimeout(r, 100));
     }
 

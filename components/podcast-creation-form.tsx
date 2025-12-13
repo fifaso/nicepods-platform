@@ -1,5 +1,5 @@
 // components/podcast-creation-form.tsx
-// VERSIÓN: 9.1 (Fix: TypeScript Type Mismatch in Progress Calculation)
+// VERSIÓN: 9.2 (Archetype Flow Connected & Validated)
 
 "use client";
 
@@ -7,13 +7,13 @@ import { useState, useCallback, createContext, useContext, useEffect } from "rea
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { useForm, FormProvider, SubmitHandler, FieldErrors } from "react-hook-form";
+import { useForm, FormProvider, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PodcastCreationSchema, PodcastCreationData } from "@/lib/validation/podcast-schema";
 import { useAudio } from "@/contexts/audio-context";
 import { usePersistentForm } from "@/hooks/use-persistent-form";
 
-// [CRÍTICO] Importación Dinámica (Lazy Load) para TipTap
+// Importación Dinámica (Lazy Load) para TipTap para evitar Hydration Error
 import dynamic from 'next/dynamic';
 
 const ScriptEditorStep = dynamic(
@@ -29,13 +29,12 @@ const ScriptEditorStep = dynamic(
   }
 );
 
-import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChevronLeft, ChevronRight, Wand2, Loader2, FileText, AlertCircle, History, Trash2 } from "lucide-react";
 import { ToastAction } from "@/components/ui/toast"; 
 
-// Importación de Pasos Normales
+// Importación de Pasos
 import { PurposeSelectionStep } from "./create-flow/purpose-selection-step";
 import { LearnSubStep } from "./create-flow/LearnSubStep";
 import { InspireSubStep } from "./create-flow/InspireSubStep";
@@ -51,9 +50,9 @@ import { AudioStudio } from "./create-flow/audio-studio";
 import { ToneSelectionStep } from "./create-flow/tone-selection-step";
 import { DraftGenerationLoader } from "./create-flow/draft-generation-loader";
 
-// [NUEVO] Importaciones para el flujo dividido de Arquetipos
-import { ArchetypeStep } from "./create-flow/archetype-step";       // Paso 1: Selección
-import { ArchetypeInputStep } from "./create-flow/archetype-input"; // Paso 2: Escritura
+// Importaciones del flujo de Arquetipos
+import { ArchetypeStep } from "./create-flow/archetype-step";       
+import { ArchetypeInputStep } from "./create-flow/archetype-input"; 
 
 export interface NarrativeOption { 
   title: string; 
@@ -284,8 +283,10 @@ export function PodcastCreationForm() {
           nextState = 'ARCHETYPE_GOAL'; 
           break;
 
+      // [MODIFICACIÓN QUIRÚRGICA] Validación segura del flujo de Arquetipos
       case 'ARCHETYPE_GOAL': 
-          fieldsToValidate = ['archetype_topic', 'archetype_goal']; 
+          // Validamos solo 'archetype_goal' porque 'archetype_topic' es oculto/auto-generado
+          fieldsToValidate = ['archetype_goal']; 
           nextState = 'DETAILS_STEP'; 
           break;
 
@@ -417,9 +418,7 @@ export function PodcastCreationForm() {
 
   const currentPathArray = flowPaths[formData.purpose] || [];
   
-  // [CORRECCIÓN QUIRÚRGICA]: Casteamos currentFlowState a 'any' dentro de indexOf 
-  // para silenciar el error de TypeScript, ya que estamos seguros de que los valores 
-  // en 'effectiveSteps' son compatibles lógicamente aunque el tipado estricto se queje.
+  // Solución simple para el tipado del indexOf
   const effectiveSteps = currentPathArray.filter(step => step !== 'SELECTING_PURPOSE');
   const totalSteps = effectiveSteps.length > 0 ? effectiveSteps.length : 6;
   const stepIndexInEffective = effectiveSteps.indexOf(currentFlowState as any);
