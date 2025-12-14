@@ -1,5 +1,5 @@
 // components/podcast-view.tsx
-// VERSIÓN: 7.0 (Fix: Lazy Loading ScriptViewer - Total Server Isolation)
+// VERSIÓN: 8.0 (Social Workflow: Listen-to-Publish & Admin Kill-Switch)
 
 "use client";
 
@@ -8,7 +8,6 @@ import { useRouter } from 'next/navigation';
 import { User } from '@supabase/supabase-js';
 import Image from 'next/image';
 import Link from 'next/link';
-// [CRÍTICO] Importación para Lazy Loading
 import dynamic from 'next/dynamic'; 
 
 import { PodcastWithProfile } from '@/types/podcast';
@@ -16,22 +15,22 @@ import { useAuth } from '@/hooks/use-auth';
 import { useAudio } from '@/contexts/audio-context';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Heart, Share2, Download, Calendar, Clock, PlayCircle, ChevronDown, Loader2, Mic, Tag, Pencil, BookOpen, ExternalLink, Globe, Link as LinkIcon } from 'lucide-react';
+import { Heart, Share2, Download, Calendar, Clock, PlayCircle, ChevronDown, Loader2, Mic, Tag, Pencil, Globe, ExternalLink, ShieldAlert, CheckCircle, Lock, Users } from 'lucide-react';
 import { CreationMetadata } from './creation-metadata';
 import { formatTime } from '@/lib/utils';
-// import { ScriptViewer } from './script-viewer'; <--- ELIMINADO (Causa del Error 500)
 import { cn } from '@/lib/utils';
 import { TagCurationCanvas } from './tag-curation-canvas';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
-// [NUEVO] Componente Dinámico Seguro
+// Componente Dinámico Seguro
 const ScriptViewer = dynamic(
   () => import('./script-viewer').then((mod) => mod.ScriptViewer),
   { 
-    ssr: false, // Desactivamos SSR para TipTap
+    ssr: false, 
     loading: () => (
         <div className="h-24 w-full flex items-center justify-center text-muted-foreground animate-pulse">
             <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -56,7 +55,10 @@ interface SourceItem {
 export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewProps) {
   const router = useRouter();
   const { supabase } = useAuth();
-  const { playPodcast, logInteractionEvent } = useAudio();
+  
+  // Conectamos con el reproductor global para verificar la escucha
+  const { playPodcast, logInteractionEvent, currentPodcast, currentTime, duration: currentDuration } = useAudio();
+  
   const { toast } = useToast();
   
   const [localPodcastData, setLocalPodcastData] = useState(podcastData);
@@ -69,12 +71,44 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
   const [isSourcesExpanded, setIsSourcesExpanded] = useState(false); 
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const [isEditingTags, setIsEditingTags] = useState(false);
+  const [viewerRole, setViewerRole] = useState<string>('user');
+
+  // Lógica de Validación de Escucha
+  const [hasListenedFully, setHasListenedFully] = useState(false);
+  const [listeningProgress, setListeningProgress] = useState(0);
 
   useEffect(() => {
     setLocalPodcastData(podcastData);
     setLikeCount(podcastData.like_count);
     setIsLiked(initialIsLiked);
   }, [podcastData, initialIsLiked]);
+
+  // 1. Obtener Rol del Visitante (Para Admin Kill-Switch)
+  useEffect(() => {
+    const fetchRole = async () => {
+        if (!user) return;
+        const { data } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+        if (data?.role) setViewerRole(data.role);
+    };
+    fetchRole();
+  }, [user, supabase]);
+
+  // 2. Monitor de Progreso de Escucha (Workflow: 95% = Completo)
+  useEffect(() => {
+    // Si ya lo escuchó o el podcast no es este, no hacer nada
+    if (hasListenedFully) return;
+    if (currentPodcast?.id !== localPodcastData.id) return;
+
+    if (currentDuration > 0) {
+        const percent = (currentTime / currentDuration) * 100;
+        setListeningProgress(percent);
+        
+        // Umbral del 95% para considerar "Escuchado"
+        if (percent > 95) {
+            setHasListenedFully(true);
+        }
+    }
+  }, [currentTime, currentDuration, currentPodcast, localPodcastData.id, hasListenedFully]);
 
   // Real-time Subscription
   useEffect(() => {
@@ -99,6 +133,7 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
   }, [supabase, localPodcastData.id, localPodcastData.audio_url, localPodcastData.cover_image_url, localPodcastData.creation_data]);
 
   const isOwner = user?.id === localPodcastData.user_id;
+  const isAdmin = viewerRole === 'admin';
 
   const displayTags = useMemo(() => {
     const userTags = localPodcastData.user_tags;
@@ -116,7 +151,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
     return [];
   }, [localPodcastData]);
 
-  // Normalizador de Guion
   const normalizedScriptText = useMemo(() => {
     const rawScript = localPodcastData.script_text;
     if (!rawScript) return null;
@@ -138,6 +172,8 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
     return null; 
   }, [localPodcastData.profiles]);
 
+  // --- ACTIONS ---
+
   const handleSaveTags = async (finalTags: string[]) => {
     const { error } = await supabase
       .from('micro_pods')
@@ -149,6 +185,52 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
     } else {
       setLocalPodcastData(prev => ({ ...prev, user_tags: finalTags }));
       toast({ title: "Éxito", description: "Tus etiquetas han sido actualizadas." });
+    }
+  };
+
+  const handlePublishToCommunity = async () => {
+    if (!hasListenedFully) {
+        toast({ title: "Escucha requerida", description: "Debes escuchar el episodio completo antes de publicarlo.", variant: "destructive" });
+        return;
+    }
+
+    const { error } = await supabase
+        .from('micro_pods')
+        .update({ 
+            status: 'published',
+            reviewed_by_user: true,
+            published_at: new Date().toISOString()
+        })
+        .eq('id', localPodcastData.id);
+
+    if (error) {
+        toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+        setLocalPodcastData(prev => ({ ...prev, status: 'published' }));
+        toast({ 
+            title: "¡Publicado!", 
+            description: "Tu podcast ahora es visible para la comunidad.", 
+            action: <CheckCircle className="h-5 w-5 text-green-500"/> 
+        });
+    }
+  };
+
+  const handleAdminBan = async () => {
+    if (!confirm("¿Estás seguro de que quieres BANEAR este contenido? Desaparecerá del feed.")) return;
+
+    const { error } = await supabase
+        .from('micro_pods')
+        .update({ 
+            status: 'archived', // O 'failed' según prefieras
+            admin_notes: `Banned by Admin ${user.id} at ${new Date().toISOString()}`
+        })
+        .eq('id', localPodcastData.id);
+
+    if (error) {
+        toast({ title: "Error Admin", description: error.message, variant: "destructive" });
+    } else {
+        setLocalPodcastData(prev => ({ ...prev, status: 'archived' }));
+        toast({ title: "BANNED", description: "Contenido eliminado del feed público.", variant: "destructive" });
     }
   };
 
@@ -217,6 +299,67 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
   return (
     <>
       <div className="container mx-auto max-w-7xl py-8 md:py-12 px-4">
+        
+        {/* --- ZONA DE SEGURIDAD ADMIN --- */}
+        {isAdmin && (
+            <Alert variant="destructive" className="mb-6 border-red-500/50 bg-red-500/10">
+                <ShieldAlert className="h-4 w-4" />
+                <AlertTitle>Modo Administrador</AlertTitle>
+                <AlertDescription className="flex justify-between items-center">
+                    <span>Tienes privilegios de moderación sobre este contenido.</span>
+                    {localPodcastData.status !== 'archived' && (
+                        <Button variant="destructive" size="sm" onClick={handleAdminBan}>
+                            BANEAR CONTENIDO
+                        </Button>
+                    )}
+                </AlertDescription>
+            </Alert>
+        )}
+
+        {/* --- BANNER DE ESTADO PRIVADO (SOLO DUEÑO) --- */}
+        {isOwner && localPodcastData.status === 'pending_approval' && (
+             <div className="mb-6 rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-4 backdrop-blur-sm animate-in fade-in slide-in-from-top-2">
+                <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-yellow-500/20 rounded-full text-yellow-500">
+                            <Lock className="h-5 w-5" />
+                        </div>
+                        <div>
+                            <h3 className="font-semibold text-foreground">Modo Privado (Borrador)</h3>
+                            <p className="text-sm text-muted-foreground">
+                                Solo tú puedes ver esto. Escucha el audio completo para verificarlo antes de publicar.
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div className="w-full md:w-auto flex flex-col items-end gap-2">
+                        <Button 
+                            onClick={handlePublishToCommunity}
+                            disabled={!hasListenedFully}
+                            className={cn(
+                                "w-full md:w-auto font-bold transition-all duration-500",
+                                hasListenedFully 
+                                    ? "bg-green-600 hover:bg-green-700 text-white shadow-[0_0_15px_rgba(34,197,94,0.4)]" 
+                                    : "bg-muted text-muted-foreground cursor-not-allowed opacity-80"
+                            )}
+                        >
+                            {hasListenedFully ? (
+                                <><Users className="mr-2 h-4 w-4" /> PUBLICAR A LA COMUNIDAD</>
+                            ) : (
+                                <><PlayCircle className="mr-2 h-4 w-4" /> ESCUCHA PARA DESBLOQUEAR ({Math.round(listeningProgress)}%)</>
+                            )}
+                        </Button>
+                        
+                        {!hasListenedFully && (
+                            <div className="w-full h-1 bg-muted rounded-full overflow-hidden">
+                                <div className="h-full bg-yellow-500 transition-all duration-300" style={{ width: `${listeningProgress}%` }} />
+                            </div>
+                        )}
+                    </div>
+                </div>
+             </div>
+        )}
+
         <div className="grid lg:grid-cols-3 gap-8 items-start relative">
           
           {/* COLUMNA IZQUIERDA */}
@@ -238,8 +381,8 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
 
               <CardHeader className="p-5 md:p-8">
                 <div className="flex justify-between items-start gap-4">
-                    <Badge variant="secondary" className="mb-3 w-fit capitalize px-3 py-1 text-xs font-semibold tracking-wide">
-                        {localPodcastData.status.replace('_', ' ')}
+                    <Badge variant={localPodcastData.status === 'published' ? 'default' : 'secondary'} className="mb-3 w-fit capitalize px-3 py-1 text-xs font-semibold tracking-wide">
+                        {localPodcastData.status === 'pending_approval' ? 'Borrador Privado' : localPodcastData.status.replace('_', ' ')}
                     </Badge>
                 </div>
                 
@@ -335,7 +478,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
                   
                   <CollapsibleContent className="animate-slide-down">
                     <div className="p-4 bg-secondary/20 rounded-xl border border-border/50">
-                        {/* Pasamos el texto limpio */}
                         <ScriptViewer scriptText={normalizedScriptText} />
                     </div>
                   </CollapsibleContent>
@@ -359,7 +501,7 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
                   <Button size="lg" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-md transition-all active:scale-[0.98] h-12 text-base font-semibold" onClick={() => playPodcast(localPodcastData)}>
                     Reproducir Ahora
                   </Button>
-                ) : ( (localPodcastData.status !== 'published' || isGeneratingAudio) ? (
+                ) : ( (localPodcastData.status !== 'published' && localPodcastData.status !== 'pending_approval') || isGeneratingAudio ? (
                   <Button size="lg" className="w-full opacity-80 cursor-wait" disabled>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Procesando...
                   </Button>
@@ -384,11 +526,9 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
               </CardContent>
             </Card>
             
-            {/* 2. Metadata Card (Perfil Creador Clickable) */}
             <Card className="bg-card/30 backdrop-blur-sm border-border/10 shadow-sm">
               <CardContent className="p-5 text-sm space-y-5">
                 
-                {/* [MODIFICACIÓN] Renderizado Condicional Seguro (Solo renderiza Link si existe URL válida) */}
                 {profileUrl ? (
                   <Link href={profileUrl} className="block group">
                     <div className="flex items-center gap-3 p-3 bg-background/40 rounded-xl border border-border/30 transition-all duration-300 group-hover:bg-background/60 group-hover:border-primary/20 group-hover:shadow-md">
@@ -412,7 +552,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
                     </div>
                   </Link>
                 ) : (
-                  // Si profileUrl es null, renderizamos un div estático
                   <div className="flex items-center gap-3 p-3 bg-background/40 rounded-xl border border-border/30 opacity-80 cursor-default">
                     <div className="relative h-10 w-10">
                         <Image 
@@ -432,7 +571,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
                   </div>
                 )}
                 
-                {/* Stats Grid */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1 p-2 rounded-lg hover:bg-background/30 transition-colors">
                     <div className="flex items-center text-muted-foreground text-xs font-medium">
@@ -452,7 +590,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
                 
                 <Separator />
                 
-                {/* Metadatos IA */}
                 <CreationMetadata data={localPodcastData.creation_data} />
               </CardContent>
             </Card>
