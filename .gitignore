@@ -34,3 +34,6 @@ next-env.d.ts
 # Ignorar secretos del backend de Supabase
 supabase/.env
 supabase/service-account.json
+
+# Sentry Config File
+.env.sentry-build-plugin
