@@ -1,39 +1,21 @@
 // supabase/functions/generate-audio-from-script/index.ts
-// VERSIÓN: 6.0 (Security Hardened & Cost Controlled)
+// VERSIÓN: 7.0 (Guard Integrated: Sentry + Arcjet + TTS Cost Protection)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { decode } from "https://deno.land/std@0.208.0/encoding/base64.ts";
-import { corsHeaders } from "../_shared/cors.ts";
 import { create } from "https://deno.land/x/djwt@v2.2/mod.ts";
+import { guard } from "../_shared/guard.ts"; // <--- INTEGRACIÓN DEL ESTÁNDAR
+import { corsHeaders } from "../_shared/cors.ts";
 
 // --- CONFIGURACIÓN & SECRETOS ---
-const GOOGLE_CLIENT_EMAIL = Deno.env.get("GOOGLE_CLIENT_EMAIL");
-const GOOGLE_PRIVATE_KEY_RAW = Deno.env.get("GOOGLE_PRIVATE_KEY");
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
-if (!GOOGLE_CLIENT_EMAIL || !GOOGLE_PRIVATE_KEY_RAW || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  console.error("Faltan variables de entorno críticas.");
-}
-
-const supabaseAdmin = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+const HARD_LIMIT_CHARS = 25000; 
+const SAFE_CHUNK_LIMIT = 4000; 
 
 const InvokePayloadSchema = z.object({
   job_id: z.number(),
 });
-
-// --- CONSTANTES DE INGENIERÍA ---
-
-// [SEGURIDAD] HARD LIMIT DE PRESUPUESTO
-// 25,000 caracteres son aprox 15-20 minutos de audio.
-// Evita que un error o ataque drene la cuota de Google Cloud.
-const HARD_LIMIT_CHARS = 25000; 
-
-// Google límite por request: 5000 bytes.
-// Usamos 4000 para margen de seguridad (UTF-8 multibyte).
-const SAFE_CHUNK_LIMIT = 4000; 
 
 const voiceMap = {
   "Masculino": {
@@ -56,18 +38,13 @@ const speakingRateMap = {
   "Rápido": 1.1,
 };
 
-// --- UTILIDADES DE TEXTO BLINDADAS ---
+// --- UTILIDADES ---
 
 function cleanScriptText(raw: string): string {
   if (!raw) return "";
-  return raw
-    .replace(/<[^>]+>/g, ' ') // Elimina HTML
-    .replace(/[\*_#`]/g, '')  // Elimina Markdown chars
-    .replace(/\s+/g, ' ')     // Colapsa espacios
-    .trim();
+  return raw.replace(/<[^>]+>/g, ' ').replace(/[\*_#`]/g, '').replace(/\s+/g, ' ').trim();
 }
 
-// ALGORITMO DE CHUNKING AGRESIVO
 function splitTextIntoSafeChunks(text: string, limit: number): string[] {
   const words = text.split(' ');
   const chunks: string[] = [];
@@ -102,17 +79,15 @@ function concatenateAudioBuffers(buffers: ArrayBuffer[]): ArrayBuffer {
   return result.buffer;
 }
 
-// --- CLIENTE GOOGLE ---
-
-async function getGoogleAccessToken(): Promise<string> {
-  const GOOGLE_PRIVATE_KEY = GOOGLE_PRIVATE_KEY_RAW!.replace(/\\n/g, '\n');
+async function getGoogleAccessToken(clientEmail: string, privateKeyRaw: string) {
+  const privateKey = privateKeyRaw.replace(/\\n/g, '\n');
   const jwt = await create({ alg: "RS256", typ: "JWT" }, {
-    iss: GOOGLE_CLIENT_EMAIL,
+    iss: clientEmail,
     scope: "https://www.googleapis.com/auth/cloud-platform",
     aud: "https://oauth2.googleapis.com/token",
     exp: Math.floor(Date.now() / 1000) + 3600,
     iat: Math.floor(Date.now() / 1000),
-  }, GOOGLE_PRIVATE_KEY);
+  }, privateKey);
 
   const response = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
@@ -128,11 +103,21 @@ async function getGoogleAccessToken(): Promise<string> {
   return data.access_token;
 }
 
-// --- MAIN ---
-
-serve(async (request: Request) => {
-  if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+// --- LOGICA DE NEGOCIO (HANDLER) ---
+const handler = async (request: Request): Promise<Response> => {
+  // Guard maneja OPTIONS y CORS
   
+  // 1. VALIDACIÓN DE ENTORNO
+  const GOOGLE_CLIENT_EMAIL = Deno.env.get("GOOGLE_CLIENT_EMAIL");
+  const GOOGLE_PRIVATE_KEY_RAW = Deno.env.get("GOOGLE_PRIVATE_KEY");
+  const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+  const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+  if (!GOOGLE_CLIENT_EMAIL || !GOOGLE_PRIVATE_KEY_RAW || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+     throw new Error("FATAL: Variables de entorno críticas no configuradas.");
+  }
+
+  const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
   let jobId: number | null = null;
 
   try {
@@ -141,7 +126,7 @@ serve(async (request: Request) => {
 
     console.log(`[Audio] Iniciando Job ${jobId}`);
 
-    // Recuperar datos
+    // 2. RECUPERACIÓN DE DATOS
     const { data: jobData } = await supabaseAdmin.from('podcast_creation_jobs').select('micro_pod_id, payload').eq('id', jobId).single();
     if (!jobData?.micro_pod_id) throw new Error("Job sin micro_pod_id asociado");
 
@@ -165,21 +150,21 @@ serve(async (request: Request) => {
 
     const cleanText = cleanScriptText(rawText);
     
-    // [SEGURIDAD] CHECKPOINT CRÍTICO: HARD LIMIT
+    // [SEGURIDAD] HARD LIMIT CHECKPOINT
     if (cleanText.length > HARD_LIMIT_CHARS) {
-        throw new Error(`[SEGURIDAD] El guion excede el límite permitido. Longitud: ${cleanText.length} (Máx: ${HARD_LIMIT_CHARS}). Por favor, reduce la duración.`);
+        throw new Error(`[SEGURIDAD] El guion excede el límite permitido. Longitud: ${cleanText.length} (Máx: ${HARD_LIMIT_CHARS}).`);
     }
 
     if (cleanText.length < 5) throw new Error("El guion está vacío o es ilegible.");
 
-    console.log(`[Audio] Longitud Texto: ${cleanText.length} caracteres (Aprobado).`);
+    console.log(`[Audio] Texto aprobado: ${cleanText.length} chars.`);
 
-    // CHUNKING
+    // 3. CHUNKING
     const chunks = splitTextIntoSafeChunks(cleanText, SAFE_CHUNK_LIMIT);
-    console.log(`[Audio] Dividido en ${chunks.length} bloques seguros.`);
+    console.log(`[Audio] Dividido en ${chunks.length} bloques.`);
 
-    // PREPARACIÓN GOOGLE TTS
-    const accessToken = await getGoogleAccessToken();
+    // 4. GENERACIÓN GOOGLE TTS
+    const accessToken = await getGoogleAccessToken(GOOGLE_CLIENT_EMAIL, GOOGLE_PRIVATE_KEY_RAW);
     const ttsApiUrl = `https://texttospeech.googleapis.com/v1/text:synthesize`;
     
     const gender = (inputs.voiceGender as keyof typeof voiceMap) || "Masculino";
@@ -192,7 +177,7 @@ serve(async (request: Request) => {
 
     // PROCESAMIENTO SECUENCIAL
     for (const [i, chunk] of chunks.entries()) {
-        console.log(`[Audio] Procesando chunk ${i+1}/${chunks.length} (${chunk.length} chars)`);
+        console.log(`[Audio] Procesando chunk ${i+1}/${chunks.length}`);
         
         let retries = 0;
         let success = false;
@@ -225,7 +210,7 @@ serve(async (request: Request) => {
 
             } catch (e) {
                 retries++;
-                console.error(`[Audio] Error en chunk ${i+1}, intento ${retries}:`, e);
+                console.error(`[Audio] Chunk ${i+1} fail, retry ${retries}:`, e);
                 if (retries >= 2) throw e;
                 await new Promise(r => setTimeout(r, 1000));
             }
@@ -237,9 +222,8 @@ serve(async (request: Request) => {
     console.log("[Audio] Uniendo buffers...");
     const finalBuffer = concatenateAudioBuffers(audioBuffers);
 
-    // SUBIDA
+    // 5. SUBIDA A STORAGE
     const filePath = `public/${podcastData.user_id}/${podcastId}-audio.mp3`;
-    console.log(`[Audio] Subiendo ${finalBuffer.byteLength} bytes a ${filePath}`);
     
     const { error: uploadError } = await supabaseAdmin.storage.from('podcasts').upload(filePath, finalBuffer, { 
         contentType: 'audio/mpeg', 
@@ -250,7 +234,7 @@ serve(async (request: Request) => {
 
     const { data: publicUrlData } = supabaseAdmin.storage.from('podcasts').getPublicUrl(filePath);
 
-    // FINALIZACIÓN
+    // 6. FINALIZACIÓN
     await supabaseAdmin.from('micro_pods').update({ 
         audio_url: publicUrlData.publicUrl,
         status: 'published'
@@ -263,15 +247,17 @@ serve(async (request: Request) => {
     });
 
   } catch (error) {
-    console.error("CRITICAL FAILURE:", error);
+    // Si falla, marcamos el job como failed
     if (jobId) {
         await supabaseAdmin.from('podcast_creation_jobs').update({ 
             status: 'failed', 
             error_message: error instanceof Error ? error.message : String(error)
         }).eq('id', jobId);
     }
-    return new Response(JSON.stringify({ error: String(error) }), { 
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-    });
+    // Relanzamos para que Guard (Sentry) capture la incidencia
+    throw error;
   }
-});
+};
+
+// --- PUNTO DE ENTRADA PROTEGIDO ---
+serve(guard(handler));

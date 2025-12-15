@@ -1,16 +1,10 @@
 // supabase/functions/cognitive-core-orchestrator/index.ts
-/**
- * =================================================================================
- * Cognitive Core Orchestrator - v1.1.0 (Robust Version)
- * =================================================================================
- * - Resiliente a datos heredados (creation_context nulo).
- * - Sincronizado con el esquema de BD real ('ai_prompts', 'micro_pods').
- * - Utiliza autenticación de Cuenta de Servicio y reintentos (exponential backoff).
- */
+// VERSIÓN: 2.0.0 (Guard Integrated: Sentry + Arcjet + Robust Orchestration)
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient, SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { create } from "https://deno.land/x/djwt@v2.2/mod.ts";
+import { guard } from "../_shared/guard.ts"; // <--- INTEGRACIÓN DEL ESTÁNDAR
 
 // =================================================================================
 // CAPA 1: FOUNDATION (Tipos, Configuración, Logging)
@@ -18,7 +12,7 @@ import { create } from "https://deno.land/x/djwt@v2.2/mod.ts";
 
 interface WebhookPayload { record: { id: string } }
 type CreationContext = { tool: 'monologo' | 'unir_puntos' | 'arquetipo' | 'plan_aprendizaje' | 'legado'; [key: string]: any };
-interface PodcastData { id: string; script_text: string; creation_context: CreationContext | null } // Permite que creation_context sea nulo
+interface PodcastData { id: string; script_text: string; creation_context: CreationContext | null }
 interface AIAgent { agent_name: string; prompt_template: string; model_identifier: string; parameters: Record<string, any>; version: number; }
 interface AIAnalysisResult { analysis: { x_essence: number; y_intention: number; narrative_lens: 'Ficción' | 'No-Ficción'; tags: string[]; ai_summary: string }; embedding_source: string }
 interface FinalAnalysis { ai_analysis: AIAnalysisResult['analysis']; embedding: number[]; consistency_level: 'high' | 'medium' | 'low' }
@@ -34,10 +28,6 @@ const config = {
   apiTimeoutMs: 30000,
   agentCacheTtlMs: 5 * 60 * 1000,
 };
-
-if (!config.supabaseUrl || !config.supabaseServiceKey || !config.googleClientEmail || !config.googlePrivateKeyRaw || !config.googleProjectId) {
-  throw new Error("FATAL: Faltan variables de entorno críticas de Supabase o Google Cloud.");
-}
 
 class Logger {
   constructor(private context: Record<string, any> = {}) {}
@@ -152,8 +142,10 @@ const aiAdapter = {
         if (response.status < 500 && response.status !== 429) return response;
         logger.warn(`API call failed with status ${response.status}. Retrying (${i + 1}/${retries})...`);
       } catch (error) {
+        // [MEJORA TS] tipado de error en catch
+        const errMsg = error instanceof Error ? error.message : String(error);
         if (i === retries - 1) throw error;
-        logger.warn(`API call failed with network error. Retrying (${i + 1}/${retries})...`, { error: error.message });
+        logger.warn(`API call failed with network error. Retrying (${i + 1}/${retries})...`, { error: errMsg });
       }
       const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
       await new Promise(res => setTimeout(res, delay));
@@ -187,7 +179,7 @@ const aiAdapter = {
       const jsonString = textResponse.match(/```json\n([\s\S]*?)\n```/)?.[1];
       if (!jsonString) throw new Error('AI Analysis API Error: JSON block not found in response.');
       return JSON.parse(jsonString) as AIAnalysisResult;
-    } catch (e) {
+    } catch (e: any) {
       throw new Error(`AI Analysis API Error: Failed to parse JSON response. ${e.message}`);
     }
   },
@@ -220,7 +212,6 @@ const aiAdapter = {
 // =================================================================================
 const services = {
   getReferenceCoordinates: (context: CreationContext | null): { refX: number; refY: number } => {
-    // [INTERVENCIÓN QUIRÚRGICA] Añadimos una guarda de seguridad.
     if (!context || !context.tool) {
       return { refX: 0, refY: 0 };
     }
@@ -238,7 +229,6 @@ const services = {
   },
   
   buildPrompt: (template: string, data: PodcastData, refCoords: { refX: number, refY: number }): string => {
-    // [INTERVENCIÓN QUIRÚRGICA] Hacemos la función robusta ante un contexto nulo.
     return template
       .replace('{{script_text}}', data.script_text)
       .replace('{{context_tool}}', data.creation_context?.tool || 'unknown')
@@ -284,25 +274,32 @@ async function runAnalysisOrchestration(podcastId: string, logger: Logger) {
         };
 
         await dbAdapter.saveAnalysisResults(podcastId, finalResults, agent.version, logger);
+        await dbAdapter.updatePodcastStatus(podcastId, 'completed', logger); // [CORRECCIÓN]: Marcar como completado al final
         
         logger.info('Orchestration completed successfully.');
-    } catch (error) {
+    } catch (error: any) {
         logger.error('Orchestration failed.', { error: error.message, stack: error.stack });
         try {
             await dbAdapter.updatePodcastStatus(podcastId, 'failed', logger);
             await dbAdapter.logProcessingError(podcastId, error, logger);
-        } catch (dbError) {
+        } catch (dbError: any) {
             logger.error('CRITICAL: Failed to log processing error to DB.', { dbError: dbError.message });
         }
-        throw error;
+        throw error; // Relanzar para que Guard (Sentry) capture la excepción
     }
 }
 
 // =================================================================================
-// CAPA 5: ENTRYPOINT
+// CAPA 5: ENTRYPOINT (HANDLER)
 // =================================================================================
 
-serve(async (req: Request) => {
+const handler = async (req: Request): Promise<Response> => {
+  // El Guard maneja OPTIONS y CORS
+  // Validamos secretos críticos al inicio para Sentry
+  if (!config.supabaseUrl || !config.supabaseServiceKey || !config.googleClientEmail || !config.googlePrivateKeyRaw || !config.googleProjectId) {
+    throw new Error("FATAL: Faltan variables de entorno críticas en el servidor.");
+  }
+
   const requestId = crypto.randomUUID();
   const logger = log.child({ requestId, function: 'cognitive-core-orchestrator' });
   
@@ -327,10 +324,11 @@ serve(async (req: Request) => {
       status: 200,
     });
   } catch (error) {
-    logger.error('Request failed at the entrypoint.', { error: error.message });
-    return new Response(JSON.stringify({ success: false, error: 'Internal Server Error' }), {
-      headers: { 'Content-Type': 'application/json' },
-      status: 500,
-    });
+    // Si el error subió hasta aquí, es crítico.
+    // El Guard lo enviará a Sentry.
+    throw error;
   }
-});
+};
+
+// --- PUNTO DE ENTRADA PROTEGIDO ---
+serve(guard(handler));

@@ -1,23 +1,24 @@
 // supabase/functions/process-podcast-job/index.ts
-// VERSIÓN: 5.6 (Fix: Normalized JSON Storage Schema)
+// VERSIÓN: 6.0 (Standardized Guard + Plain Text Extraction for Embeddings)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import { guard } from "../_shared/guard.ts"; // <--- INTEGRACIÓN DEL ESTÁNDAR
 
-const MAX_RETRIES = 2;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const GOOGLE_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY")!;
+
 const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_KEY);
 
-// Agente de rescate
 const DEFAULT_AGENT = 'script-architect-v1';
 
 const WebhookPayloadSchema = z.object({
   job_id: z.number()
 });
+
+// --- UTILIDADES ---
 
 function buildFinalPrompt(template: string, inputs: any) {
   let finalPrompt = template;
@@ -31,7 +32,15 @@ function buildFinalPrompt(template: string, inputs: any) {
   return finalPrompt;
 }
 
-// Extractor inteligente (ya probado y aprobado)
+// Limpiador HTML -> Texto Plano (Vital para futuros Embeddings/Búsqueda)
+function stripHtml(html: string): string {
+   if (!html) return "";
+   return html
+     .replace(/<[^>]+>/g, ' ') // Elimina etiquetas
+     .replace(/\s+/g, ' ')     // Colapsa espacios
+     .trim();
+}
+
 function extractContentFromResponse(rawText: string, originalTopic: string): { title: string, scriptBody: string } {
   const cleanText = rawText.replace(/```json\s*/g, "").replace(/```\s*$/g, "").trim();
   
@@ -52,7 +61,7 @@ function extractContentFromResponse(rawText: string, originalTopic: string): { t
         return { title, scriptBody: script };
     }
   } catch (e) {
-    console.warn("Fallo al parsear JSON de la IA. Usando Fallback a Texto Plano.", e);
+    console.warn("Fallo al parsear JSON de la IA. Usando Fallback a Texto Plano.");
   }
 
   return {
@@ -78,149 +87,161 @@ async function notifyFollowers(creatorId: string, podcastId: number, podcastTitl
     }));
     
     await supabaseAdmin.from('notifications').insert(notifications);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error en fan-out:", error.message);
   }
 }
 
-serve(async (request) => {
-  if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+// --- LOGICA DE NEGOCIO (HANDLER) ---
 
-  let job: any = null;
-  try {
+const handler = async (request: Request): Promise<Response> => {
+    let job: any = null;
+    
+    // 1. Parsing y Validación Inicial
     const { job_id } = WebhookPayloadSchema.parse(await request.json());
+    
+    // Recuperar Job
     const { data: jobData, error: jobError } = await supabaseAdmin.from('podcast_creation_jobs').select('*').eq('id', job_id).single();
     if (jobError || !jobData) throw new Error(`Trabajo ${job_id} no encontrado.`);
     job = jobData;
 
+    // Marcar como procesando
     await supabaseAdmin.from('podcast_creation_jobs').update({ status: 'processing' }).eq('id', job.id);
     
-    const payload = job.payload || {};
-    const inputs = payload.inputs || {};
-    // Fallback de agente
-    const agentName = payload.agentName || DEFAULT_AGENT; 
-    
-    const { final_script, final_title, sources } = payload;
-    
-    // Objeto unificado para guardar
-    let processedScriptData = { 
-        title: "", 
-        scriptBody: "",
-        sources: [] as any[] // Inicializamos vacío por si acaso
-    };
-
-    // --- CAMINO A: Guion pre-editado (Frontend) ---
-    if (final_script && final_title) {
-        console.log(`Job ${job.id}: Usando guion editado.`);
-        processedScriptData = {
-            title: final_title,
-            scriptBody: final_script, // AQUÍ TENEMOS EL HTML CRUDO
-            sources: sources || []
+    try {
+        const payload = job.payload || {};
+        const inputs = payload.inputs || {};
+        const agentName = payload.agentName || DEFAULT_AGENT; 
+        
+        const { final_script, final_title, sources } = payload;
+        
+        let processedScriptData = { 
+            title: "", 
+            scriptBody: "",
+            sources: [] as any[]
         };
-    } 
-    // --- CAMINO B: Generación en Backend (Fallback/Legacy) ---
-    else {
-        console.log(`Job ${job.id}: Generando con agente '${agentName}'...`);
-        
-        let templateToUse;
-        const { data: promptData } = await supabaseAdmin.from('ai_prompts').select('prompt_template').eq('agent_name', agentName).single();
-        
-        if (promptData) {
-            templateToUse = promptData.prompt_template;
-        } else {
-            console.warn(`Agente '${agentName}' no encontrado. Usando default.`);
-            const { data: defaultPrompt } = await supabaseAdmin.from('ai_prompts').select('prompt_template').eq('agent_name', DEFAULT_AGENT).single();
-            templateToUse = defaultPrompt?.prompt_template || ""; 
+
+        // --- RUTA A: GUION EXISTENTE (Normal) ---
+        if (final_script && final_title) {
+            console.log(`Job ${job.id}: Usando guion editado.`);
+            processedScriptData = {
+                title: final_title,
+                scriptBody: final_script, 
+                sources: sources || []
+            };
+        } 
+        // --- RUTA B: GENERACIÓN BACKEND (Legacy/Emergency) ---
+        else {
+            console.log(`Job ${job.id}: Generando con agente '${agentName}'...`);
+            
+            let templateToUse;
+            const { data: promptData } = await supabaseAdmin.from('ai_prompts').select('prompt_template').eq('agent_name', agentName).single();
+            
+            if (promptData) {
+                templateToUse = promptData.prompt_template;
+            } else {
+                const { data: defaultPrompt } = await supabaseAdmin.from('ai_prompts').select('prompt_template').eq('agent_name', DEFAULT_AGENT).single();
+                templateToUse = defaultPrompt?.prompt_template || ""; 
+            }
+
+            if (!templateToUse) throw new Error("No se encontró ningún prompt válido.");
+
+            const finalPrompt = buildFinalPrompt(templateToUse, inputs);
+            
+            const scriptGenApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${GOOGLE_API_KEY}`;
+            const scriptResponse = await fetch(scriptGenApiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: [{ text: finalPrompt }] }] }),
+            });
+
+            if (!scriptResponse.ok) throw new Error(`Error Gemini: ${await scriptResponse.text()}`);
+
+            const scriptResult = await scriptResponse.json();
+            const generatedText = scriptResult.candidates?.[0]?.content?.parts?.[0]?.text;
+            
+            if (!generatedText) throw new Error("Respuesta IA vacía.");
+
+            const topicFallback = inputs.topic || inputs.solo_topic || "Nuevo Podcast";
+            const extracted = extractContentFromResponse(generatedText, topicFallback);
+            
+            processedScriptData = {
+                title: extracted.title,
+                scriptBody: extracted.scriptBody,
+                sources: [] 
+            };
         }
 
-        if (!templateToUse) throw new Error("No se encontró ningún prompt válido.");
+        // Validación Final
+        if (!processedScriptData.scriptBody || processedScriptData.scriptBody.length < 10) {
+            throw new Error("El guion generado está vacío o es demasiado corto.");
+        }
 
-        const finalPrompt = buildFinalPrompt(templateToUse, inputs);
+        // --- PREPARACIÓN DE DATOS INTELIGENTES ---
+        const initialPodcastStatus = inputs.generateAudioDirectly ? 'pending_approval' : 'published';
         
-        const scriptGenApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${GOOGLE_API_KEY}`;
-        const scriptResponse = await fetch(scriptGenApiUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contents: [{ parts: [{ text: finalPrompt }] }] }),
+        // [MEJORA V6.0] Guardado Dual (HTML + Plain)
+        const scriptTextToSave = JSON.stringify({
+            script_body: processedScriptData.scriptBody,       // HTML Rico (para Visor)
+            script_plain: stripHtml(processedScriptData.scriptBody) // Texto Plano (para Embeddings/Search)
         });
 
-        if (!scriptResponse.ok) throw new Error(`Error Gemini: ${await scriptResponse.text()}`);
-
-        const scriptResult = await scriptResponse.json();
-        const generatedText = scriptResult.candidates?.[0]?.content?.parts?.[0]?.text;
+        // Inserción en DB
+        const { data: newPodcast, error: insertError } = await supabaseAdmin.from('micro_pods').insert({
+            user_id: job.user_id,
+            title: processedScriptData.title,
+            script_text: scriptTextToSave,
+            status: initialPodcastStatus,
+            creation_data: job.payload,
+            sources: processedScriptData.sources 
+        }).select('id').single();
         
-        if (!generatedText) throw new Error("Respuesta IA vacía.");
+        if (insertError) throw new Error(`Error DB: ${insertError.message}`);
 
-        const topicFallback = inputs.topic || inputs.solo_topic || "Nuevo Podcast";
-        const extracted = extractContentFromResponse(generatedText, topicFallback);
+        // Actualización Job
+        const finalJobStatus = inputs.generateAudioDirectly ? 'pending_audio' : 'completed';
+        await supabaseAdmin.from('podcast_creation_jobs').update({
+            status: finalJobStatus,
+            micro_pod_id: newPodcast.id,
+            error_message: null
+        }).eq('id', job.id);
+
+        // --- WORKERS ASÍNCRONOS ---
+        // Fire-and-forget invocations (Sentry capturará si la invocación falla, pero no bloquea el flujo principal)
+        supabaseAdmin.functions.invoke('generate-cover-image', { body: { job_id: job.id, agent_name: 'cover-art-director-v1' } });
         
-        processedScriptData = {
-            title: extracted.title,
-            scriptBody: extracted.scriptBody,
-            sources: [] 
-        };
+        if (finalJobStatus === 'pending_audio') {
+            supabaseAdmin.functions.invoke('generate-audio-from-script', { body: { job_id: job.id } });
+        }
+
+        // Notificaciones (Fan-out)
+        (async () => {
+            try {
+                await supabaseAdmin.from('notifications').insert({
+                    user_id: job.user_id,
+                    type: 'podcast_created_success',
+                    data: { podcast_id: newPodcast.id, podcast_title: processedScriptData.title }
+                });
+                await notifyFollowers(job.user_id, newPodcast.id, processedScriptData.title);
+            } catch (e) {
+                console.error("Error en notificaciones secundarias (No crítico):", e);
+            }
+        })();
+        
+        return new Response(JSON.stringify({ success: true, message: "Job completado." }), {
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+    } catch (error) {
+        // En caso de error dentro del flujo de negocio, marcamos el job como fallido
+        // El Guard (Sentry) capturará la excepción y la reportará también.
+        const msg = error instanceof Error ? error.message : "Error desconocido";
+        if (job) {
+            await supabaseAdmin.from('podcast_creation_jobs').update({ status: "failed", error_message: msg }).eq('id', job.id);
+        }
+        throw error; // Re-lanzamos para que el Guard haga su trabajo
     }
+};
 
-    // Validación Final de Seguridad
-    if (!processedScriptData.scriptBody || processedScriptData.scriptBody.length < 10) {
-        throw new Error("El guion generado está vacío o es demasiado corto.");
-    }
-
-    // Guardado Final en DB
-    const initialPodcastStatus = inputs.generateAudioDirectly ? 'pending_approval' : 'published';
-    
-    // [MODIFICACIÓN CRÍTICA]: Estandarización de Formato
-    // Independientemente de si es texto, HTML o Markdown, lo encapsulamos en un objeto JSON.
-    // Esto garantiza que el Frontend siempre pueda hacer JSON.parse() exitosamente.
-    const scriptTextToSave = JSON.stringify({
-        script_body: processedScriptData.scriptBody
-    });
-
-    // Inserción
-    const { data: newPodcast, error: insertError } = await supabaseAdmin.from('micro_pods').insert({
-      user_id: job.user_id,
-      title: processedScriptData.title,
-      script_text: scriptTextToSave, // Guardamos el JSON estandarizado
-      status: initialPodcastStatus,
-      creation_data: job.payload,
-      sources: processedScriptData.sources 
-    }).select('id').single();
-    
-    if (insertError) throw new Error(`Error DB: ${insertError.message}`);
-
-    const finalJobStatus = inputs.generateAudioDirectly ? 'pending_audio' : 'completed';
-    await supabaseAdmin.from('podcast_creation_jobs').update({
-      status: finalJobStatus,
-      micro_pod_id: newPodcast.id,
-      error_message: null
-    }).eq('id', job.id);
-
-    // Disparadores de Workers
-    supabaseAdmin.functions.invoke('generate-cover-image', { body: { job_id: job.id, agent_name: 'cover-art-director-v1' } });
-    
-    if (finalJobStatus === 'pending_audio') {
-      supabaseAdmin.functions.invoke('generate-audio-from-script', { body: { job_id: job.id } });
-    }
-
-    (async () => {
-      await supabaseAdmin.from('notifications').insert({
-        user_id: job.user_id,
-        type: 'podcast_created_success',
-        data: { podcast_id: newPodcast.id, podcast_title: processedScriptData.title }
-      });
-      await notifyFollowers(job.user_id, newPodcast.id, processedScriptData.title);
-    })();
-    
-    return new Response(JSON.stringify({ success: true, message: "Job completado." }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-
-  } catch (error) {
-    console.error(`Error Job ${job?.id}:`, error);
-    const msg = error instanceof Error ? error.message : "Error desconocido";
-    if (job) {
-        await supabaseAdmin.from('podcast_creation_jobs').update({ status: "failed", error_message: msg }).eq('id', job.id);
-    }
-    return new Response(JSON.stringify({ error: msg }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-  }
-});
+// --- PUNTO DE ENTRADA PROTEGIDO ---
+serve(guard(handler));

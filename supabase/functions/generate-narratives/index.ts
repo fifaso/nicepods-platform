@@ -1,17 +1,19 @@
 // supabase/functions/generate-narratives/index.ts
-// VERSIÓN SIMPLIFICADA: Solo requiere Tema A y Tema B. El catalizador es la propia IA.
+// VERSIÓN: 2.0 (Guard Integrated: Sentry + Arcjet + Creative Flow Optimized)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { z, ZodError } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { guard } from "../_shared/guard.ts"; // <--- INTEGRACIÓN DEL ESTÁNDAR
 import { corsHeaders } from "../_shared/cors.ts";
 
+// Validación de Entrada
 const NarrativesPayloadSchema = z.object({
   topicA: z.string().min(2, "El Tema A es muy corto."),
   topicB: z.string().min(2, "El Tema B es muy corto."),
-  // [CAMBIO]: Eliminado catalyst
 });
 
+// Utilidad de Parseo Resiliente
 const parseJsonResponse = (text: string) => {
   const jsonMatch = text.match(/```json([\s\S]*?)```/);
   if (jsonMatch && jsonMatch[1]) {
@@ -26,8 +28,9 @@ const parseJsonResponse = (text: string) => {
   throw new Error("La respuesta de la IA no es un JSON válido.");
 };
 
-serve(async (request: Request) => {
-  if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+// --- LÓGICA DE NEGOCIO (HANDLER) ---
+const handler = async (request: Request): Promise<Response> => {
+  // El Guard maneja OPTIONS y CORS automáticamente
 
   try {
     // 1. AUTH
@@ -44,11 +47,11 @@ serve(async (request: Request) => {
 
     const GOOGLE_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
     
-    // 2. INPUTS
+    // 2. INPUTS & VALIDATION
     const payload = await request.json();
     const { topicA, topicB } = NarrativesPayloadSchema.parse(payload);
     
-    // [CAMBIO]: Prompt optimizado para 2 inputs. La IA pone la creatividad.
+    // Prompt optimizado para creatividad lateral
     const prompt = `Eres un experto en pensamiento lateral y síntesis creativa.
 Tu misión es encontrar 3 conexiones narrativas fascinantes, inesperadas o profundas entre dos conceptos aparentemente dispares.
 
@@ -72,7 +75,7 @@ FORMATO DE SALIDA (JSON ÚNICAMENTE):
 }
 \`\`\``;
 
-    // 3. IA
+    // 3. IA (Gemini Flash para velocidad en flujo creativo)
     const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GOOGLE_API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -91,7 +94,24 @@ FORMATO DE SALIDA (JSON ÚNICAMENTE):
     return new Response(JSON.stringify(json), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {
-    console.error("Error generate-narratives:", error);
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Error interno" }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    // --- MANEJO DE ERRORES DE NEGOCIO ---
+    // Atrapamos errores esperados para devolver códigos 4xx y NO reportar a Sentry
+    const errorMessage = error instanceof Error ? error.message : "Error desconocido";
+
+    if (error instanceof ZodError) {
+        return new Response(JSON.stringify({ error: errorMessage }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    if (errorMessage.includes("Usuario no autenticado") || errorMessage.includes("Falta autorización")) {
+        return new Response(JSON.stringify({ error: errorMessage }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // --- ERRORES CRÍTICOS ---
+    // Si no es ninguno de los anteriores, lanzamos el error hacia arriba.
+    // El 'guard' lo atrapará, lo enviará a Sentry y devolverá un 500.
+    throw error;
   }
-});
+};
+
+// --- PUNTO DE ENTRADA PROTEGIDO ---
+serve(guard(handler));
