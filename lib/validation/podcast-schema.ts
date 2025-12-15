@@ -1,43 +1,39 @@
 // lib/validation/podcast-schema.ts
-// VERSIÓN FINAL: Seguridad Anti-XSS/DoS + Soporte para Fuentes de Investigación (Grounding).
+// VERSIÓN: 2.0 (Evolutiva: Inclusión de selectedAgent para enrutamiento de IA)
 
 import { z } from 'zod';
 
 // --- CAPA DE SEGURIDAD ---
-
-// 1. Función de Sanitización: Elimina scripts y HTML malicioso de inputs de texto plano.
 const sanitizeInput = (val: string | undefined) => {
   if (!val) return undefined;
   return val
-    .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "") // Elimina scripts
-    .replace(/<[^>]+>/g, "") // Elimina cualquier otra etiqueta HTML (para inputs planos)
+    .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "")
+    .replace(/<[^>]+>/g, "")
     .trim();
 };
 
-// 2. Definición de String Seguro:
-// - Limita a 5000 caracteres (Protección contra payloads gigantes/DoS)
-// - Aplica sanitización automática
 const safeInputString = z.string()
   .max(5000, { message: "El texto excede el límite de seguridad (5000 caracteres)." })
   .transform(sanitizeInput);
 
-// [NUEVO]: Esquema para las Fuentes de Investigación (Grounding)
-// Define la estructura de los datos que nos devolverá el Agente Curador.
 const SourceSchema = z.object({
   title: z.string().optional(),
-  url: z.string().optional(), // Usamos string flexible para evitar bloqueos por formatos de URL extraños
+  url: z.string().optional(),
   snippet: z.string().optional(),
 });
 
 // -------------------------
 
 export const PodcastCreationSchema = z.object({
-  // Discriminador Principal
   purpose: z.enum(['learn', 'inspire', 'explore', 'reflect', 'answer', 'freestyle']),
   
-  // Estilo (Opcional en base, requerido por lógica)
   style: z.enum(['solo', 'link', 'archetype', 'legacy', 'qa']).optional(),
   
+  // [MODIFICACIÓN ESTRATÉGICA]
+  // Permitimos guardar el nombre del agente técnico seleccionado en el paso 1.
+  // Esto facilita el enrutamiento en el backend sin lógica condicional redundante.
+  selectedAgent: z.string().optional(),
+
   // --- INPUTS DE MATERIA PRIMA BLINDADOS ---
   solo_topic: safeInputString.optional(),
   solo_motivation: safeInputString.optional(),
@@ -59,34 +55,26 @@ export const PodcastCreationSchema = z.object({
   // --- CAMPOS DE EDICIÓN FINAL ---
   final_title: z.string().optional(),
   
-  // EXCEPCIÓN: final_script puede contener HTML (formato de TipTap), por lo que no usamos
-  // el sanitizador estricto que borra tags, pero SÍ limitamos su tamaño.
   final_script: z.string()
     .max(25000, { message: "El guion es demasiado largo para ser procesado." })
     .optional(),
 
-  // [NUEVO]: Array de Fuentes (Aquí se guardará el Dossier del Curador)
   sources: z.array(SourceSchema).optional(),
 
-  // Configuración Técnica
   duration: z.string().nonempty({ message: "Debes seleccionar una duración." }),
   narrativeDepth: z.string().nonempty({ message: "Debes definir una profundidad." }),
   
-  // Tono Creativo
   selectedTone: z.string().optional(), 
   
-  // Configuración de Audio
   voiceGender: z.enum(['Masculino', 'Femenino']),
   voiceStyle: z.enum(['Calmado', 'Energético', 'Profesional', 'Inspirador']),
   voicePace: z.enum(['Lento', 'Moderado', 'Rápido']),
   speakingRate: z.number(),
 
-  // Tags también sanitizados
   tags: z.array(safeInputString).optional(),
   generateAudioDirectly: z.boolean().optional(),
 })
 .superRefine((data, ctx) => {
-  // Validaciones de contenido mínimo (Reglas de Negocio)
   switch (data.purpose) {
     case 'learn':
       if (!data.solo_topic || data.solo_topic.length < 3) ctx.addIssue({ code: 'custom', message: 'Falta información del tema.', path: ['solo_topic'] });
