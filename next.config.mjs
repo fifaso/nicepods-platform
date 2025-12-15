@@ -1,7 +1,5 @@
-import {withSentryConfig} from '@sentry/nextjs';
 // next.config.mjs
-// VERSIÓN: 11.1 (Observability: PostHog Rewrites + Trailing Slash Support)
-
+import { withSentryConfig } from '@sentry/nextjs';
 import withPWA from 'next-pwa';
 import defaultRuntimeCaching from 'next-pwa/cache.js';
 
@@ -28,7 +26,7 @@ const nextConfig = {
     ],
   },
 
-  // 4. Webpack Defensivo: Mantenemos el bloqueo del CSS fantasma por si acaso
+  // 4. Webpack Defensivo
   webpack: (config, { isServer }) => {
     if (isServer) {
       config.resolve.alias.canvas = false;
@@ -53,7 +51,7 @@ const nextConfig = {
     ];
   },
 
-  // 6. Rewrites for PostHog ingestion endpoints
+  // 6. Rewrites for PostHog ingestion endpoints (EU Region)
   async rewrites() {
     return [
       {
@@ -71,14 +69,12 @@ const nextConfig = {
   skipTrailingSlashRedirect: true,
 };
 
-// 7. Configuración PWA (RESTITUIDA Y BLINDADA)
+// 7. Configuración PWA
 const pwaConfig = {
   dest: 'public',
   register: true,
   skipWaiting: true,
   disable: process.env.NODE_ENV === 'development',
-  
-  // [MEJORA DE SEGURIDAD]: Excluir archivos de servidor que confunden a Vercel
   buildExcludes: [/middleware-manifest\.json$/, /app-build-manifest\.json$/],
   
   runtimeCaching: [
@@ -97,30 +93,23 @@ const pwaConfig = {
         },
       },
     },
-    // Mantenemos el caché por defecto para Google Fonts, CSS, etc.
     ...defaultRuntimeCaching,
   ],
 };
 
 const withPwaPlugin = withPWA(pwaConfig);
 
+// CONFIGURACIÓN SENTRY LIMPIA (Sin opciones deprecadas)
 export default withSentryConfig(withPwaPlugin(nextConfig), {
-  // For all available options, see:
-  // https://www.npmjs.com/package/@sentry/webpack-plugin#options
-
+  // Opciones del Plugin (Build time)
   org: 'nicepod',
-
   project: 'javascript-nextjs',
-
-  // Only print logs for uploading source maps in CI
   silent: !process.env.CI,
-
-  // Upload a larger set of source maps for prettier stack traces (increases build time)
   widenClientFileUpload: true,
-
-  // Automatically tree-shake Sentry logger statements to reduce bundle size
-  disableLogger: true,
-
-  // Enables automatic instrumentation of Vercel Cron Monitors. (Does not yet work with App Router route handlers.)
-  automaticVercelMonitors: true,
+  
+  // [LIMPIEZA]: Eliminados 'disableLogger' y 'automaticVercelMonitors' 
+  // para evitar warnings de deprecación.
+  
+  // Habilita sourcemaps ocultos para producción
+  hideSourceMaps: true,
 });

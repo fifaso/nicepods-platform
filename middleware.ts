@@ -1,45 +1,50 @@
 // middleware.ts
-// VERSIÓN: 4.0 (Lightweight - Session Only)
+// VERSIÓN: 5.2 (Strict TypeScript Fixed)
 
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  // 1. Respuesta inicial
+  // 1. Crear respuesta inicial
   let response = NextResponse.next({
     request: {
       headers: request.headers,
     },
   })
 
-  // 2. Cliente Supabase (Solo para refrescar Tokens)
+  // 2. Cliente Supabase
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value
+        getAll() {
+          return request.cookies.getAll()
         },
-        set(name: string, value: string, options: CookieOptions) {
-          request.cookies.set({ name, value, ...options })
+        // [CORRECCIÓN]: Tipado explícito del parámetro de entrada aquí
+        setAll(cookiesToSet: { name: string; value: string; options?: CookieOptions }[]) {
+          
+          // Bucle 1: Actualizar cookies en la Request
+          cookiesToSet.forEach(({ name, value }) => 
+            request.cookies.set(name, value)
+          )
+          
           response = NextResponse.next({
-            request: { headers: request.headers },
+            request: {
+              headers: request.headers,
+            },
           })
-          response.cookies.set({ name, value, ...options })
-        },
-        remove(name: string, options: CookieOptions) {
-          request.cookies.set({ name, value: '', ...options })
-          response = NextResponse.next({
-            request: { headers: request.headers },
-          })
-          response.cookies.set({ name, value: '', ...options })
+          
+          // Bucle 2: Actualizar cookies en la Response
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          )
         },
       },
     }
   )
 
-  // Refrescar sesión y continuar
+  // 3. Refrescar sesión
   await supabase.auth.getUser()
 
   return response
