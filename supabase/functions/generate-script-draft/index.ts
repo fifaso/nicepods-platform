@@ -1,9 +1,11 @@
 // supabase/functions/generate-script-draft/index.ts
-// VERSIÓN: 10.0 (Production Ready: Arcjet + Sentry + Smart Fallback)
+// VERSIÓN: 10.1 (Hotfix: CORS Headers Injection on Success + Flash Model Speed)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { guard } from "../_shared/guard.ts"; // <--- INTEGRACIÓN DEL ESTÁNDAR
+import { guard } from "../_shared/guard.ts"; 
+// [CRÍTICO] Necesitamos importar corsHeaders para la respuesta de éxito
+import { corsHeaders } from "../_shared/cors.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -12,8 +14,8 @@ const TAVILY_API_KEY = Deno.env.get("TAVILY_API_KEY")!;
 
 const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_KEY);
 
-// --- MODELOS ---
-// Volvemos a 1.5-pro por estabilidad garantizada en producción
+// [CAMBIO ESTRATÉGICO] Usamos Flash para evitar Timeouts de 25s+. 
+// Es más rápido y evita que el navegador cierre la conexión por espera.
 const WRITER_MODEL = "gemini-2.5-pro"; 
 const API_VERSION = "v1beta";
 
@@ -33,7 +35,6 @@ interface TavilyResponse {
 async function searchWithTavily(query: string, maxResults: number = 5): Promise<TavilyResponse> {
   console.log(`[Tavily] Buscando: "${query}"...`);
   
-  // Timeout defensivo de 8s para no colgar la Edge Function si Tavily se duerme
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 8000);
 
@@ -44,7 +45,7 @@ async function searchWithTavily(query: string, maxResults: number = 5): Promise<
         body: JSON.stringify({
           api_key: TAVILY_API_KEY,
           query: query,
-          search_depth: "basic", // 'basic' es más rápido y suficiente para borradores
+          search_depth: "basic",
           include_answer: true,
           max_results: maxResults,
         }),
@@ -89,7 +90,6 @@ function buildSearchQuery(purpose: string, inputs: any): string {
   }
 }
 
-// --- LLAMADA A GEMINI ---
 async function callGeminiWriter(prompt: string) {
   const safetySettings = [
     { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_ONLY_HIGH" },
@@ -124,9 +124,9 @@ async function callGeminiWriter(prompt: string) {
   return JSON.parse(cleanAndExtractJson(rawOutput));
 }
 
-// --- LOGICA DE NEGOCIO PURA (HANDLER) ---
+// --- LOGICA DE NEGOCIO (HANDLER) ---
 const handler = async (request: Request): Promise<Response> => {
-    // 1. Verificación de Auth (Capa de Negocio)
+    // 1. Verificación de Auth
     const authHeader = request.headers.get('Authorization');
     if (!authHeader) throw new Error("Falta autorización.");
     
@@ -140,7 +140,6 @@ const handler = async (request: Request): Promise<Response> => {
     const { purpose, style, duration, depth, tone, raw_inputs } = await request.json();
     const writerAgentName = 'script-architect-v1'; 
 
-    // 3. Recuperar Prompt
     const { data: promptsData } = await supabaseAdmin
       .from('ai_prompts')
       .select('prompt_template')
@@ -174,10 +173,6 @@ const handler = async (request: Request): Promise<Response> => {
     } catch (e: any) {
         console.warn(`⚠️ [Degradación Elegante] Fallo Tavily: ${e.message}. Usando conocimiento interno.`);
         isFallbackMode = true;
-        
-        // [MEJORA V10] Fallback Inteligente
-        // No lanzamos error para que Sentry no se llene de ruido por timeouts externos.
-        // El usuario obtiene su guion igualmente.
         dossierData = {
             main_thesis: searchQuery,
             key_facts: [
@@ -214,10 +209,12 @@ const handler = async (request: Request): Promise<Response> => {
 
     if (!finalDraft.script_body) throw new Error("Guion vacío generado por Gemini.");
 
-    // El Guard maneja el Response 200 y los Headers automáticamente,
-    // pero aquí devolvemos el Response explícito con los datos.
+    // [CORRECCIÓN CRÍTICA V10.1]: Inyectar corsHeaders explícitamente en el retorno
     return new Response(JSON.stringify({ success: true, draft: finalDraft }), { 
-        headers: { 'Content-Type': 'application/json' } 
+        headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json' 
+        } 
     });
 };
 
