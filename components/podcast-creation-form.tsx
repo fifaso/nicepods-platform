@@ -1,5 +1,5 @@
 // components/podcast-creation-form.tsx
-// VERSIÓN: 9.2 (Archetype Flow Connected & Validated)
+// VERSIÓN: 9.3 (Fix: Navigation Logic for Sub-Steps & Archetype Flow)
 
 "use client";
 
@@ -13,7 +13,7 @@ import { PodcastCreationSchema, PodcastCreationData } from "@/lib/validation/pod
 import { useAudio } from "@/contexts/audio-context";
 import { usePersistentForm } from "@/hooks/use-persistent-form";
 
-// Importación Dinámica (Lazy Load) para TipTap para evitar Hydration Error
+// Importación Dinámica (Lazy Load) para TipTap
 import dynamic from 'next/dynamic';
 
 const ScriptEditorStep = dynamic(
@@ -276,6 +276,17 @@ export function PodcastCreationForm() {
     let nextState: FlowState | null = null;
 
     switch(currentFlowState) {
+      // [CORRECCIÓN CRÍTICA] Agregar lógica para los sub-pasos intermedios
+      case 'LEARN_SUB_SELECTION':
+        // No hay validación requerida aquí, es solo selección
+        nextState = 'SOLO_TALK_INPUT';
+        break;
+
+      case 'INSPIRE_SUB_SELECTION':
+        // Conecta el sub-paso de Inspire con la Selección de Arquetipos
+        nextState = 'ARCHETYPE_SELECTION';
+        break;
+
       case 'SOLO_TALK_INPUT': fieldsToValidate = ['solo_topic', 'solo_motivation']; nextState = 'TONE_SELECTION'; break;
       
       case 'ARCHETYPE_SELECTION': 
@@ -283,7 +294,6 @@ export function PodcastCreationForm() {
           nextState = 'ARCHETYPE_GOAL'; 
           break;
 
-      // [MODIFICACIÓN QUIRÚRGICA] Validación segura del flujo de Arquetipos
       case 'ARCHETYPE_GOAL': 
           // Validamos solo 'archetype_goal' porque 'archetype_topic' es oculto/auto-generado
           fieldsToValidate = ['archetype_goal']; 
