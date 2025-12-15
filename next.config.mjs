@@ -1,6 +1,6 @@
 import {withSentryConfig} from '@sentry/nextjs';
 // next.config.mjs
-// VERSIÓN: 11.0 (Production: PWA Restored + Safety Excludes + Standalone)
+// VERSIÓN: 11.1 (Observability: PostHog Rewrites + Trailing Slash Support)
 
 import withPWA from 'next-pwa';
 import defaultRuntimeCaching from 'next-pwa/cache.js';
@@ -52,9 +52,26 @@ const nextConfig = {
       },
     ];
   },
+
+  // 6. Rewrites for PostHog ingestion endpoints
+  async rewrites() {
+    return [
+      {
+        source: '/ingest/static/:path*',
+        destination: 'https://eu-assets.i.posthog.com/static/:path*',
+      },
+      {
+        source: '/ingest/:path*',
+        destination: 'https://eu.i.posthog.com/:path*',
+      },
+    ];
+  },
+
+  // Required to support PostHog trailing slash API requests
+  skipTrailingSlashRedirect: true,
 };
 
-// 6. Configuración PWA (RESTITUIDA Y BLINDADA)
+// 7. Configuración PWA (RESTITUIDA Y BLINDADA)
 const pwaConfig = {
   dest: 'public',
   register: true,
@@ -67,14 +84,13 @@ const pwaConfig = {
   runtimeCaching: [
     {
       // ESTRATEGIA DE AHORRO: Cachear todo lo que venga de Supabase Storage
-      // Esto intercepta las imágenes y los audios MP3.
       urlPattern: /^https:\/\/.*supabase\.co\/storage\/v1\/object\/public\/.*/i,
       handler: 'CacheFirst',
       options: {
         cacheName: 'supabase-media-cache',
         expiration: {
-          maxEntries: 200, // Guardamos hasta 200 archivos
-          maxAgeSeconds: 60 * 60 * 24 * 30, // 30 Días de vida en el celular del usuario
+          maxEntries: 200,
+          maxAgeSeconds: 60 * 60 * 24 * 30,
         },
         cacheableResponse: {
           statuses: [0, 200],
@@ -92,31 +108,19 @@ export default withSentryConfig(withPwaPlugin(nextConfig), {
   // For all available options, see:
   // https://www.npmjs.com/package/@sentry/webpack-plugin#options
 
-  org: "nicepod",
+  org: 'nicepod',
 
-  project: "javascript-nextjs",
+  project: 'javascript-nextjs',
 
   // Only print logs for uploading source maps in CI
   silent: !process.env.CI,
 
-  // For all available options, see:
-  // https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/
-
   // Upload a larger set of source maps for prettier stack traces (increases build time)
   widenClientFileUpload: true,
-
-  // Uncomment to route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers.
-  // This can increase your server load as well as your hosting bill.
-  // Note: Check that the configured route will not match with your Next.js middleware, otherwise reporting of client-
-  // side errors will fail.
-  // tunnelRoute: "/monitoring",
 
   // Automatically tree-shake Sentry logger statements to reduce bundle size
   disableLogger: true,
 
   // Enables automatic instrumentation of Vercel Cron Monitors. (Does not yet work with App Router route handlers.)
-  // See the following for more information:
-  // https://docs.sentry.io/product/crons/
-  // https://vercel.com/docs/cron-jobs
   automaticVercelMonitors: true,
 });

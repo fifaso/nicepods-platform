@@ -1,5 +1,5 @@
 // app/layout.tsx
-// VERSIÓN: 6.0 (Stabilized: Analytics Removed)
+// VERSIÓN: 7.0 (Observability Added: PostHog EU Integration)
 
 import { cookies } from 'next/headers';
 import type React from "react";
@@ -18,6 +18,9 @@ import { PageTransition } from "@/components/page-transition";
 import { AudioProvider } from "@/contexts/audio-context";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { PlayerOrchestrator } from "@/components/player-orchestrator";
+
+// [NUEVO] Importación del Proveedor de PostHog
+import { PostHogProvider } from '@/components/providers/posthog-provider';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -77,37 +80,40 @@ export default async function RootLayout({
         />
       </head>
       <body className={`${inter.className} min-h-screen bg-background font-sans antialiased`}>
-        <ErrorBoundary>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="dark"
-            enableSystem
-            disableTransitionOnChange={false}
-            storageKey="theme"
-          >
-            <AuthProvider session={session}>
-              <AudioProvider>
-                <SmoothScrollWrapper>
-                  <div className="min-h-screen gradient-mesh">
-                    <div className="fixed inset-0 pointer-events-none overflow-hidden">
-                      <div className="absolute top-20 left-10 w-20 h-20 bg-purple-400/20 rounded-full blur-xl animate-float"></div>
-                      <div className="absolute top-40 right-20 w-32 h-32 bg-blue-400/20 rounded-full blur-xl animate-float" style={{ animationDelay: "2s" }}></div>
-                      <div className="absolute bottom-20 left-1/4 w-24 h-24 bg-pink-400/20 rounded-full blur-xl animate-float" style={{ animationDelay: "4s" }}></div>
-                      <div className="absolute top-1/2 right-1/3 w-16 h-16 bg-indigo-400/20 rounded-full blur-xl animate-float" style={{ animationDelay: "6s" }}></div>
+        {/* [MODIFICACIÓN] PostHogProvider envuelve toda la app para capturar sesiones */}
+        <PostHogProvider>
+          <ErrorBoundary>
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="dark"
+              enableSystem
+              disableTransitionOnChange={false}
+              storageKey="theme"
+            >
+              <AuthProvider session={session}>
+                <AudioProvider>
+                  <SmoothScrollWrapper>
+                    <div className="min-h-screen gradient-mesh">
+                      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+                        <div className="absolute top-20 left-10 w-20 h-20 bg-purple-400/20 rounded-full blur-xl animate-float"></div>
+                        <div className="absolute top-40 right-20 w-32 h-32 bg-blue-400/20 rounded-full blur-xl animate-float" style={{ animationDelay: "2s" }}></div>
+                        <div className="absolute bottom-20 left-1/4 w-24 h-24 bg-pink-400/20 rounded-full blur-xl animate-float" style={{ animationDelay: "4s" }}></div>
+                        <div className="absolute top-1/2 right-1/3 w-16 h-16 bg-indigo-400/20 rounded-full blur-xl animate-float" style={{ animationDelay: "6s" }}></div>
+                      </div>
+                      <ScrollToTop />
+                      <Navigation />
+                      <PageTransition>
+                        <main className="relative z-10">{children}</main>
+                      </PageTransition>
+                      <PlayerOrchestrator />
+                      <Toaster />
                     </div>
-                    <ScrollToTop />
-                    <Navigation />
-                    <PageTransition>
-                      <main className="relative z-10">{children}</main>
-                    </PageTransition>
-                    <PlayerOrchestrator />
-                    <Toaster />
-                  </div>
-                </SmoothScrollWrapper>
-              </AudioProvider>
-            </AuthProvider>
-          </ThemeProvider>
-        </ErrorBoundary>
+                  </SmoothScrollWrapper>
+                </AudioProvider>
+              </AuthProvider>
+            </ThemeProvider>
+          </ErrorBoundary>
+        </PostHogProvider>
       </body>
     </html>
   );
