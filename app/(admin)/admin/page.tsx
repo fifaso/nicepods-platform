@@ -1,12 +1,13 @@
 import { getAdminDashboardStats, getUsersList, getRecentFailedJobs } from "@/lib/admin/actions";
 import { UsersTable } from "@/components/admin/users-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Activity, AlertTriangle, Users } from "lucide-react";
-import { FailedJobsDialog } from "@/components/admin/failed-jobs-dialog"; // Vamos a crear este pequeño componente
+import { Activity, Users } from "lucide-react";
+import { FailedJobsDialog } from "@/components/admin/failed-jobs-dialog";
 
 export const dynamic = 'force-dynamic';
 
 export default async function AdminPage() {
+  // Promise.all para carga paralela eficiente
   const [stats, users, failedJobsList] = await Promise.all([
     getAdminDashboardStats(),
     getUsersList(),
@@ -31,6 +32,8 @@ export default async function AdminPage() {
 
       {/* KPI CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        
+        {/* Card 1: Usuarios */}
         <Card className="bg-slate-900 border-slate-800 text-slate-200 shadow-lg">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-slate-400">Usuarios Totales</CardTitle>
@@ -42,6 +45,7 @@ export default async function AdminPage() {
           </CardContent>
         </Card>
 
+        {/* Card 2: Podcasts */}
         <Card className="bg-slate-900 border-slate-800 text-slate-200 shadow-lg">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-slate-400">Podcasts Generados</CardTitle>
@@ -53,7 +57,7 @@ export default async function AdminPage() {
           </CardContent>
         </Card>
 
-        {/* ALERT CARD CON TRIGGER */}
+        {/* Card 3: Alertas (Interactivo) */}
         <FailedJobsDialog jobs={failedJobsList} count={stats.failedJobs} />
       </div>
 
