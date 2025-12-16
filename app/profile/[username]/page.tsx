@@ -1,10 +1,15 @@
 // app/profile/[username]/page.tsx
-// VERSIÓN: 4.0 (Security: Canonical Redirect & Public View)
+// VERSIÓN: 5.0 (Social Proof: Testimonials Integration & Security)
 
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { notFound, redirect } from 'next/navigation';
-import { PublicProfilePage, type ProfileData, type PublicPodcast } from '@/components/profile-client-component';
+import { 
+  PublicProfilePage, 
+  type ProfileData, 
+  type PublicPodcast,
+  type TestimonialWithAuthor 
+} from '@/components/profile-client-component';
 
 type ProfilePageProps = {
   params: { username: string };
@@ -13,11 +18,10 @@ type ProfilePageProps = {
 export default async function PublicProfileRoute({ params }: ProfilePageProps) {
   const supabase = createClient(cookies());
 
-  // 1. Identificar al visitante (si existe)
+  // 1. Identificar al visitante (para saber si puede dejar review o si es el dueño)
   const { data: { user: visitor } } = await supabase.auth.getUser();
 
-  // 2. Buscar al dueño del perfil por USERNAME (no ID)
-  // IMPORTANTE: decodeURIComponent para manejar espacios o caracteres especiales en URL
+  // 2. Decodificar username y buscar perfil
   const targetUsername = decodeURIComponent(params.username);
   
   const { data: targetProfile, error } = await supabase
@@ -27,41 +31,52 @@ export default async function PublicProfileRoute({ params }: ProfilePageProps) {
     .single<ProfileData>();
   
   if (error || !targetProfile) {
-    notFound(); // 404 si el usuario no existe
+    notFound(); 
   }
   
-  // 3. CHECK DE ESPEJO: ¿Soy yo mismo?
-  // Si el ID del visitante coincide con el ID del perfil buscado, redirigir al panel privado.
-  // Esto evita tener dos URLs para lo mismo y mejora la seguridad.
+  // 3. CANONICAL REDIRECT: Si soy yo, voy a mi panel privado
   if (visitor?.id === targetProfile.id) {
     redirect('/profile');
   }
 
-  // 4. Cargar datos PÚBLICOS (Solo podcasts published)
-  const [podcastsResponse, likesResponse] = await Promise.all([
+  // 4. CARGA DE DATOS PARALELA (Optimizada)
+  const [podcastsResponse, likesResponse, testimonialsResponse] = await Promise.all([
+    // A. Podcasts Publicados
     supabase
       .from('micro_pods')
       .select('id, title, description, audio_url, created_at, duration_seconds')
       .eq('user_id', targetProfile.id)
-      .eq('status', 'published') // SEGURIDAD: Solo lo publicado
+      .eq('status', 'published') 
       .order('created_at', { ascending: false }),
       
+    // B. Total de Likes
     supabase
       .from('micro_pods')
       .select('like_count')
       .eq('user_id', targetProfile.id)
-      .eq('status', 'published')
+      .eq('status', 'published'),
+
+    // C. Testimonios Aprobados (Solo lo que queremos mostrar al mundo)
+    supabase
+      .from('profile_testimonials')
+      .select('*, author:author_user_id(full_name, avatar_url)')
+      .eq('profile_user_id', targetProfile.id)
+      .eq('status', 'approved') // FILTRO CRÍTICO
+      .order('created_at', { ascending: false })
+      .returns<TestimonialWithAuthor[]>()
   ]);
 
   const podcasts = (podcastsResponse.data || []) as PublicPodcast[];
   const totalLikes = likesResponse.data?.reduce((sum, p) => sum + (p.like_count || 0), 0) ?? 0;
+  const testimonials = testimonialsResponse.data || [];
 
-  // 5. Renderizar Vista Pública
+  // 5. Renderizado
   return (
     <PublicProfilePage 
       profile={targetProfile} 
       podcasts={podcasts}
       totalLikes={totalLikes}
+      initialTestimonials={testimonials}
     />
   );
 }

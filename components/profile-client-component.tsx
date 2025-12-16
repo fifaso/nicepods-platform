@@ -1,8 +1,9 @@
 // components/profile-client-component.tsx
-// VERSIÓN: 4.0 (Split View Architecture: Public vs Private)
+// VERSIÓN: 5.0 (Feature Complete: Testimonials Integration)
 
 "use client";
 
+import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -12,10 +13,14 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Crown, PlayCircle, Calendar, Mic } from "lucide-react";
+import { Crown, PlayCircle, Calendar, Mic, MessageSquare, ThumbsUp, ThumbsDown, CheckCircle, Clock } from "lucide-react";
 import Link from "next/link";
+import { useToast } from "@/hooks/use-toast";
 
-// --- TIPOS EXPORTADOS (Esto soluciona los errores de importación) ---
+// [NUEVO] Importamos el diálogo de creación
+import { LeaveTestimonialDialog } from "@/components/leave-testimonial-dialog";
+
+// --- TIPOS ---
 export type ProfileData = {
   id: string;
   username: string | null;
@@ -37,22 +42,57 @@ export type PublicPodcast = {
   duration_seconds: number | null;
 };
 
+// [NUEVO] Tipo para Testimonios
+export type TestimonialWithAuthor = {
+  id: number;
+  comment_text: string;
+  created_at: string;
+  status: 'pending' | 'approved' | 'rejected';
+  author: {
+    full_name: string | null;
+    avatar_url: string | null;
+  } | null;
+};
+
 // =====================================================================
 // COMPONENTE A: PERFIL PRIVADO (DASHBOARD)
-// Este es el que usa 'app/profile/page.tsx'
 // =====================================================================
 interface PrivateProps {
   profile: ProfileData;
   podcastsCreatedThisMonth: number;
+  initialTestimonials?: TestimonialWithAuthor[]; // [NUEVO]
 }
 
-export function PrivateProfileDashboard({ profile, podcastsCreatedThisMonth }: PrivateProps) {
-  const { signOut, user } = useAuth();
+export function PrivateProfileDashboard({ profile, podcastsCreatedThisMonth, initialTestimonials = [] }: PrivateProps) {
+  const { signOut, user, supabase } = useAuth();
+  const { toast } = useToast();
   
+  // Estado local para gestionar aprobaciones sin recargar
+  const [testimonials, setTestimonials] = useState(initialTestimonials);
+
+  const handleStatusChange = async (id: number, newStatus: 'approved' | 'rejected') => {
+    if (!supabase) return;
+    const { error } = await supabase
+        .from('profile_testimonials')
+        .update({ status: newStatus })
+        .eq('id', id);
+
+    if (error) {
+        toast({ title: "Error", description: "No se pudo actualizar el estado.", variant: "destructive" });
+    } else {
+        setTestimonials(prev => prev.map(t => t.id === id ? { ...t, status: newStatus } : t));
+        toast({ title: "Actualizado", description: `Testimonio ${newStatus === 'approved' ? 'aprobado' : 'rechazado'}.` });
+    }
+  };
+
   const monthlyLimit = profile?.subscriptions?.plans?.monthly_creation_limit ?? 3;
   const podcastsRemaining = Math.max(0, monthlyLimit - podcastsCreatedThisMonth);
   const usagePercentage = Math.min(100, (podcastsCreatedThisMonth / monthlyLimit) * 100);
   const userInitial = profile?.full_name?.charAt(0)?.toUpperCase() ?? 'U';
+
+  // Filtramos pendientes para mostrarlos destacados
+  const pendingTestimonials = testimonials.filter(t => t.status === 'pending');
+  const approvedTestimonials = testimonials.filter(t => t.status === 'approved');
 
   return (
     <div className="container mx-auto max-w-5xl py-12 px-4 animate-fade-in">
@@ -118,6 +158,72 @@ export function PrivateProfileDashboard({ profile, podcastsCreatedThisMonth }: P
 
         {/* CONTENIDO PRINCIPAL */}
         <div className="w-full md:w-2/3 space-y-6">
+            
+            {/* GESTIÓN DE TESTIMONIOS */}
+            <Card>
+                <CardHeader>
+                    <div className="flex justify-between items-center">
+                        <CardTitle className="flex items-center gap-2">
+                            <MessageSquare className="h-5 w-5 text-primary" /> Testimonios
+                        </CardTitle>
+                        {pendingTestimonials.length > 0 && (
+                            <Badge variant="destructive">{pendingTestimonials.length} Pendientes</Badge>
+                        )}
+                    </div>
+                    <CardDescription>Lo que la comunidad dice de ti.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Tabs defaultValue="pending" className="w-full">
+                        <TabsList className="w-full mb-4">
+                            <TabsTrigger value="pending" className="flex-1">Pendientes ({pendingTestimonials.length})</TabsTrigger>
+                            <TabsTrigger value="approved" className="flex-1">Aprobados ({approvedTestimonials.length})</TabsTrigger>
+                        </TabsList>
+                        
+                        <TabsContent value="pending" className="space-y-4">
+                            {pendingTestimonials.length === 0 ? (
+                                <p className="text-sm text-muted-foreground text-center py-6">No tienes testimonios pendientes.</p>
+                            ) : (
+                                pendingTestimonials.map(t => (
+                                    <div key={t.id} className="p-4 rounded-lg bg-muted/40 border flex gap-4">
+                                        <Avatar className="h-10 w-10">
+                                            <AvatarImage src={t.author?.avatar_url || ''} />
+                                            <AvatarFallback>{t.author?.full_name?.substring(0,1) || '?'}</AvatarFallback>
+                                        </Avatar>
+                                        <div className="flex-1">
+                                            <p className="font-semibold text-sm">{t.author?.full_name || 'Usuario Anónimo'}</p>
+                                            <p className="text-sm text-muted-foreground mt-1">{t.comment_text}</p>
+                                            <div className="flex gap-2 mt-3">
+                                                <Button size="sm" onClick={() => handleStatusChange(t.id, 'approved')} className="h-8 gap-1 bg-green-600 hover:bg-green-700">
+                                                    <ThumbsUp className="h-3 w-3" /> Aprobar
+                                                </Button>
+                                                <Button size="sm" variant="outline" onClick={() => handleStatusChange(t.id, 'rejected')} className="h-8 gap-1 text-red-500 hover:text-red-600">
+                                                    <ThumbsDown className="h-3 w-3" /> Rechazar
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </TabsContent>
+                        
+                        <TabsContent value="approved" className="space-y-4">
+                             {approvedTestimonials.map(t => (
+                                <div key={t.id} className="p-3 rounded-lg bg-card border flex gap-3 items-center">
+                                    <Avatar className="h-8 w-8">
+                                        <AvatarImage src={t.author?.avatar_url || ''} />
+                                        <AvatarFallback>{t.author?.full_name?.substring(0,1)}</AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex-1">
+                                        <p className="text-sm line-clamp-1">{t.comment_text}</p>
+                                    </div>
+                                    <Badge variant="outline" className="text-green-500 border-green-500/20 bg-green-500/10">Visible</Badge>
+                                </div>
+                             ))}
+                        </TabsContent>
+                    </Tabs>
+                </CardContent>
+            </Card>
+
             <Card>
                 <CardHeader>
                     <CardTitle>Configuración</CardTitle>
@@ -149,16 +255,27 @@ export function PrivateProfileDashboard({ profile, podcastsCreatedThisMonth }: P
 
 // =====================================================================
 // COMPONENTE B: PERFIL PÚBLICO (SOCIAL)
-// Este es el que usa 'app/profile/[username]/page.tsx'
 // =====================================================================
 interface PublicProps {
   profile: ProfileData;
   podcasts: PublicPodcast[];
   totalLikes: number;
+  initialTestimonials?: TestimonialWithAuthor[]; // [NUEVO]
 }
 
-export function PublicProfilePage({ profile, podcasts, totalLikes }: PublicProps) {
+export function PublicProfilePage({ profile, podcasts, totalLikes, initialTestimonials = [] }: PublicProps) {
+  const { user } = useAuth();
   const userInitial = profile?.full_name?.charAt(0)?.toUpperCase() ?? 'U';
+  
+  // Como es vista pública, los testimonios vienen pre-filtrados (solo aprobados) desde el servidor.
+  // Pero usamos estado por si agregamos uno nuevo dinámicamente.
+  const [testimonials, setTestimonials] = useState(initialTestimonials);
+
+  const handleTestimonialAdded = () => {
+    // En una app real, aquí haríamos refetch o agregaríamos uno optimista pendiente.
+    // Por ahora, solo refrescamos la página para simplificar
+    window.location.reload(); 
+  };
 
   return (
     <div className="container mx-auto max-w-4xl py-12 px-4 animate-fade-in">
@@ -189,11 +306,14 @@ export function PublicProfilePage({ profile, podcasts, totalLikes }: PublicProps
         </div>
       </div>
 
-      {/* LISTA DE CONTENIDO */}
+      {/* TABS DE CONTENIDO */}
       <Tabs defaultValue="podcasts" className="w-full">
         <TabsList className="w-full justify-center bg-transparent border-b rounded-none h-auto p-0 mb-8">
             <TabsTrigger value="podcasts" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-8 py-3 text-sm">
                 Publicaciones
+            </TabsTrigger>
+            <TabsTrigger value="testimonials" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-8 py-3 text-sm">
+                Testimonios ({testimonials.length})
             </TabsTrigger>
         </TabsList>
 
@@ -235,6 +355,43 @@ export function PublicProfilePage({ profile, podcasts, totalLikes }: PublicProps
                     ))}
                 </div>
             )}
+        </TabsContent>
+
+        {/* [NUEVO] TAB DE TESTIMONIOS */}
+        <TabsContent value="testimonials" className="space-y-6">
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold">Lo que dice la comunidad</h3>
+                {user && user.id !== profile.id && (
+                     <LeaveTestimonialDialog 
+                        profileId={profile.id} 
+                        onTestimonialAdded={handleTestimonialAdded} 
+                     />
+                )}
+            </div>
+
+            <div className="grid gap-4">
+                {testimonials.length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground border border-dashed rounded-lg">
+                        Aún no hay testimonios. ¡Sé el primero en dejar uno!
+                    </div>
+                ) : (
+                    testimonials.map((t) => (
+                        <div key={t.id} className="p-4 rounded-xl bg-card border flex gap-4">
+                            <Avatar>
+                                <AvatarImage src={t.author?.avatar_url || ''} />
+                                <AvatarFallback>{t.author?.full_name?.substring(0,1)}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <p className="font-semibold text-sm">{t.author?.full_name}</p>
+                                    <span className="text-xs text-muted-foreground">• {new Date(t.created_at).toLocaleDateString()}</span>
+                                </div>
+                                <p className="text-sm text-foreground/90 leading-relaxed">{t.comment_text}</p>
+                            </div>
+                        </div>
+                    ))
+                )}
+            </div>
         </TabsContent>
       </Tabs>
     </div>
