@@ -1,5 +1,5 @@
 // supabase/functions/process-podcast-job/index.ts
-// VERSIÓN: 6.0 (Standardized Guard + Plain Text Extraction for Embeddings)
+// VERSIÓN: 7.0 (Full Pipeline: Guard + Dual Storage + Audio + Image + Embeddings)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -208,13 +208,21 @@ const handler = async (request: Request): Promise<Response> => {
 
         // --- WORKERS ASÍNCRONOS ---
         // Fire-and-forget invocations (Sentry capturará si la invocación falla, pero no bloquea el flujo principal)
+        
+        // 1. Portada
         supabaseAdmin.functions.invoke('generate-cover-image', { body: { job_id: job.id, agent_name: 'cover-art-director-v1' } });
         
+        // 2. Audio (Si aplica)
         if (finalJobStatus === 'pending_audio') {
             supabaseAdmin.functions.invoke('generate-audio-from-script', { body: { job_id: job.id } });
         }
 
-        // Notificaciones (Fan-out)
+        // 3. [NUEVO] Embeddings (Inteligencia de Búsqueda)
+        supabaseAdmin.functions.invoke('generate-embedding', { 
+            body: { podcast_id: newPodcast.id } 
+        }).catch(err => console.error("Fallo silencioso en embedding:", err));
+
+        // 4. Notificaciones (Fan-out)
         (async () => {
             try {
                 await supabaseAdmin.from('notifications').insert({
