@@ -1,343 +1,242 @@
 // components/profile-client-component.tsx
-// VERSIÓN: 2.0 (Fix: Renamed to ProfileView for Consistency)
+// VERSIÓN: 4.0 (Split View Architecture: Public vs Private)
 
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
-import { useToast } from "@/hooks/use-toast";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Crown, User as UserIcon, Bot, Heart, Pencil, Check, X } from "lucide-react";
-import type { Tables } from "@/types/supabase";
-import { formatDistanceToNow } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { Crown, PlayCircle, Calendar, Mic } from "lucide-react";
+import Link from "next/link";
 
-// --- TIPOS DE DATOS AMPLIADOS ---
-export type ProfileData = Tables<'profiles'> & {
-  subscriptions: (Tables<'subscriptions'> & {
-    plans: Tables<'plans'> | null;
-  }) | null;
-};
-
-export type TestimonialWithAuthor = Tables<'profile_testimonials'> & {
-  author: {
-    full_name: string | null;
-    avatar_url: string | null;
+// --- TIPOS EXPORTADOS (Esto soluciona los errores de importación) ---
+export type ProfileData = {
+  id: string;
+  username: string | null;
+  full_name: string | null;
+  avatar_url: string | null;
+  bio: string | null;
+  subscriptions?: {
+    status: string | null;
+    plans: { name: string | null; monthly_creation_limit: number } | null;
   } | null;
 };
 
-// Interfaz de Props renombrada para consistencia
-export interface ProfileViewProps {
-  profile: ProfileData | null;
+export type PublicPodcast = {
+  id: number;
+  title: string;
+  description: string | null;
+  audio_url: string | null;
+  created_at: string;
+  duration_seconds: number | null;
+};
+
+// =====================================================================
+// COMPONENTE A: PERFIL PRIVADO (DASHBOARD)
+// Este es el que usa 'app/profile/page.tsx'
+// =====================================================================
+interface PrivateProps {
+  profile: ProfileData;
   podcastsCreatedThisMonth: number;
-  totalPodcasts: number;
-  totalLikes: number;
-  initialTestimonials: TestimonialWithAuthor[];
-  isOwner: boolean;     // Añadido para completitud
-  initialIsFollowing: boolean; // Añadido para completitud
 }
 
-// --- SUB-COMPONENTE PARA LOS TESTIMONIOS ---
-function TestimonialCard({ testimonial, isOwner, onModerate }: { testimonial: TestimonialWithAuthor, isOwner: boolean, onModerate: (id: number, status: 'approved' | 'rejected') => void }) {
-  return (
-    <Card className="bg-muted/30">
-      <CardHeader className="flex flex-row items-start gap-4 space-y-0 p-4">
-        <Avatar>
-          <AvatarImage src={testimonial.author?.avatar_url || ''} />
-          <AvatarFallback>{testimonial.author?.full_name?.charAt(0) || '?'}</AvatarFallback>
-        </Avatar>
-        <div className="flex-grow">
-          <p className="font-semibold">{testimonial.author?.full_name || 'Usuario Anónimo'}</p>
-          <p className="text-xs text-muted-foreground">
-            {formatDistanceToNow(new Date(testimonial.created_at), { addSuffix: true, locale: es })}
-          </p>
-        </div>
-        {isOwner && testimonial.status === 'pending' && (
-          <div className="flex gap-2">
-            <Button size="icon" variant="outline" className="h-8 w-8 bg-green-500/10 text-green-500 border-green-500/20 hover:bg-green-500/20 hover:text-green-500" onClick={() => onModerate(testimonial.id, 'approved')}>
-              <Check className="h-4 w-4" />
-            </Button>
-            <Button size="icon" variant="outline" className="h-8 w-8 bg-red-500/10 text-red-500 border-red-500/20 hover:bg-red-500/20 hover:text-red-500" onClick={() => onModerate(testimonial.id, 'rejected')}>
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
-      </CardHeader>
-      <CardContent className="p-4 pt-0">
-        <p className="text-sm italic">"{testimonial.comment_text}"</p>
-      </CardContent>
-    </Card>
-  )
-}
-
-// [CAMBIO CRÍTICO]: Renombrado de ProfileClientComponent a ProfileView
-export function ProfileView({ 
-  profile, 
-  podcastsCreatedThisMonth,
-  totalPodcasts,
-  totalLikes,
-  initialTestimonials
-}: ProfileViewProps) {
-  const { user, signOut, supabase } = useAuth();
-  const router = useRouter();
-  const { toast } = useToast();
+export function PrivateProfileDashboard({ profile, podcastsCreatedThisMonth }: PrivateProps) {
+  const { signOut, user } = useAuth();
   
-  const [fullName, setFullName] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
-  
-  const [bio, setBio] = useState(profile?.bio || "");
-  const [isBioModalOpen, setIsBioModalOpen] = useState(false);
-  const [isSavingBio, setIsSavingBio] = useState(false);
-  const [testimonials, setTestimonials] = useState(initialTestimonials);
-
-  useEffect(() => {
-    if (profile) {
-      setFullName(profile.full_name || "");
-      setBio(profile.bio || "");
-    }
-    setTestimonials(initialTestimonials);
-  }, [profile, initialTestimonials]);
-  
-  const handleSaveProfile = async () => {
-    if (!user) return;
-    setIsSaving(true);
-    const { error } = await supabase
-      .from('profiles')
-      .update({ full_name: fullName })
-      .eq('id', user.id);
-
-    if (error) {
-      toast({ title: "Error", description: "No se pudo actualizar tu perfil.", variant: "destructive" });
-    } else {
-      toast({ title: "¡Éxito!", description: "Tu perfil ha sido actualizado." });
-      router.refresh(); 
-    }
-    setIsSaving(false);
-  };
-
-  const handleSaveBio = async () => {
-    if (!user) return;
-    setIsSavingBio(true);
-    const { error } = await supabase.from('profiles').update({ bio }).eq('id', user.id);
-    if (error) {
-      toast({ title: "Error", description: "No se pudo actualizar tu biografía.", variant: "destructive" });
-    } else {
-      toast({ title: "¡Éxito!", description: "Tu biografía ha sido actualizada." });
-      setIsBioModalOpen(false);
-      router.refresh();
-    }
-    setIsSavingBio(false);
-  };
-  
-  const handleModerateTestimonial = async (id: number, status: 'approved' | 'rejected') => {
-    const { error } = await supabase
-      .from('profile_testimonials')
-      .update({ status })
-      .eq('id', id);
-
-    if (error) {
-      toast({ title: "Error", description: "No se pudo moderar el testimonio.", variant: "destructive" });
-    } else {
-      toast({ title: "¡Éxito!", description: `El testimonio ha sido ${status === 'approved' ? 'aprobado' : 'rechazado'}.` });
-      setTestimonials(current => current.map(t => t.id === id ? { ...t, status } : t));
-    }
-  };
-  
-  if (!profile) {
-    return (
-      <div className="max-w-6xl mx-auto py-8 px-4">
-        <div className="grid lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-1 space-y-6">
-                <Skeleton className="h-48 w-full" />
-                <Skeleton className="h-32 w-full" />
-            </div>
-            <div className="lg:col-span-2 space-y-6">
-                <Skeleton className="h-48 w-full" />
-                <Skeleton className="h-64 w-full" />
-            </div>
-        </div>
-      </div>
-    );
-  }
-  
-  const plan = profile.subscriptions?.plans;
-  const creationsLimit = plan?.monthly_creation_limit ?? 0;
-  const creationsRemaining = Math.max(0, creationsLimit - podcastsCreatedThisMonth);
-  
-  const pendingTestimonials = testimonials.filter(t => t.status === 'pending');
-  const approvedTestimonials = testimonials.filter(t => t.status === 'approved');
+  const monthlyLimit = profile?.subscriptions?.plans?.monthly_creation_limit ?? 3;
+  const podcastsRemaining = Math.max(0, monthlyLimit - podcastsCreatedThisMonth);
+  const usagePercentage = Math.min(100, (podcastsCreatedThisMonth / monthlyLimit) * 100);
+  const userInitial = profile?.full_name?.charAt(0)?.toUpperCase() ?? 'U';
 
   return (
-    <div className="max-w-6xl mx-auto py-8 px-4">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="container mx-auto max-w-5xl py-12 px-4 animate-fade-in">
+      <div className="flex flex-col md:flex-row gap-8 items-start">
         
-        {/* --- Columna Izquierda --- */}
-        <div className="lg:col-span-1 space-y-6">
-          <Card className="p-6 border-border/20 bg-card/50 flex flex-col items-center text-center shadow-lg">
-              <Avatar className="w-24 h-24 mb-4 border-4 border-primary">
-                <AvatarImage src={profile.avatar_url || ''} alt={profile.full_name || ''} />
-                <AvatarFallback className="text-3xl bg-muted">{profile.full_name ? profile.full_name.charAt(0) : <UserIcon />}</AvatarFallback>
-              </Avatar>
-              <h2 className="text-2xl font-bold">{profile.full_name}</h2>
-              
-              <div className="mt-4 text-sm text-muted-foreground w-full relative">
-                <p className="italic">{profile.bio || "Este usuario aún no ha añadido una biografía."}</p>
-                {user?.id === profile.id && (
-                  <Dialog open={isBioModalOpen} onOpenChange={setIsBioModalOpen}>
-                    <DialogTrigger asChild>
-                      <Button variant="ghost" size="icon" className="absolute -top-2 -right-2 h-7 w-7">
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Edita tu Biografía</DialogTitle>
-                        <DialogDescription>Comparte algo sobre ti con la comunidad.</DialogDescription>
-                      </DialogHeader>
-                      <Textarea
-                        value={bio}
-                        onChange={(e) => setBio(e.target.value)}
-                        placeholder="Soy un creador apasionado por..."
-                        maxLength={280}
-                        className="min-h-[120px]"
-                      />
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsBioModalOpen(false)}>Cancelar</Button>
-                        <Button onClick={handleSaveBio} disabled={isSavingBio}>
-                          {isSavingBio && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                          Guardar
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                )}
-              </div>
-
-              <div className="mt-6 w-full">
-                <Button onClick={signOut} variant="destructive" className="w-full">Cerrar Sesión</Button>
-              </div>
+        {/* SIDEBAR PERSONAL */}
+        <div className="w-full md:w-1/3 flex flex-col gap-6">
+          <Card className="text-center overflow-hidden border-primary/20">
+            <div className="h-24 bg-gradient-to-r from-primary/10 to-primary/5"></div>
+            <div className="px-6 pb-6 -mt-12 relative">
+                <Avatar className="h-24 w-24 mx-auto border-4 border-background shadow-lg">
+                    <AvatarImage src={profile?.avatar_url || ''} />
+                    <AvatarFallback className="text-2xl">{userInitial}</AvatarFallback>
+                </Avatar>
+                <h2 className="text-xl font-bold mt-4">{profile?.full_name}</h2>
+                <p className="text-sm text-muted-foreground">@{profile?.username}</p>
+                
+                <div className="mt-6 space-y-2">
+                    {profile?.username && (
+                      <Link href={`/profile/${profile.username}`} className="w-full block">
+                          <Button variant="outline" className="w-full">Ver mi Perfil Público</Button>
+                      </Link>
+                    )}
+                    <Button onClick={signOut} variant="ghost" className="w-full text-red-500 hover:text-red-600 hover:bg-red-500/10">
+                        Cerrar Sesión
+                    </Button>
+                </div>
+            </div>
           </Card>
 
-          <Card className="border-border/20 bg-card/50 shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-xl">Estadísticas Generales</CardTitle>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Suscripción</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground flex items-center gap-2"><Bot className="h-4 w-4" /> Podcasts Creados</span>
-                <span className="font-bold text-lg">{totalPodcasts}</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground flex items-center gap-2"><Heart className="h-4 w-4" /> Likes Totales Recibidos</span>
-                <span className="font-bold text-lg">{totalLikes}</span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-        
-        {/* --- Columna Derecha --- */}
-        <div className="lg:col-span-2 space-y-6">
-          <Card className="border-border/20 bg-card/50 shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-xl">Detalles de la Suscripción</CardTitle>
-              <CardDescription>Tu plan actual y el uso de este ciclo.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50 border">
-                <div className="flex items-center gap-3">
-                  <Crown className="h-6 w-6 text-primary" />
-                  <div>
-                    <p className="font-semibold text-lg capitalize">{plan?.name ?? 'N/A'} Plan</p>
-                    <Badge variant={profile.subscriptions?.status === 'active' ? 'default' : 'destructive'} className="capitalize">{profile.subscriptions?.status ?? 'Inactivo'}</Badge>
-                  </div>
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <Crown className="h-5 w-5 text-yellow-500" />
+                        <span className="font-semibold">{profile?.subscriptions?.plans?.name || 'Free Tier'}</span>
+                    </div>
+                    <Badge variant={profile?.subscriptions?.status === 'active' ? 'default' : 'secondary'}>
+                        {profile?.subscriptions?.status || 'Active'}
+                    </Badge>
                 </div>
-                <Button variant="outline" onClick={() => router.push('/pricing')}>Administrar Plan</Button>
-              </div>
-              <div>
-                <Label className="text-sm font-medium mb-2 block">Uso Mensual de Creaciones</Label>
-                <div className="flex items-center gap-4">
-                  <div className="flex-shrink-0 text-center font-medium text-lg">
-                    <span>{podcastsCreatedThisMonth}</span>
-                    <span className="text-muted-foreground">/{creationsLimit}</span>
-                  </div>
-                  <div className="w-full">
-                    <progress value={podcastsCreatedThisMonth} max={creationsLimit} className="w-full h-2.5 [&::-webkit-progress-bar]:rounded-lg [&::-webkit-progress-value]:rounded-lg [&::-webkit-progress-bar]:bg-muted [&::-webkit-progress-value]:bg-primary [&::-moz-progress-bar]:bg-primary" />
-                    <p className="text-xs text-muted-foreground mt-1 text-right">Te quedan {creationsRemaining} creaciones este mes.</p>
-                  </div>
+                
+                <div className="space-y-1.5">
+                    <div className="flex justify-between text-xs">
+                        <span>Uso del ciclo</span>
+                        <span>{podcastsCreatedThisMonth} / {monthlyLimit}</span>
+                    </div>
+                    <Progress value={usagePercentage} className="h-2" />
+                    <p className="text-xs text-muted-foreground text-center pt-1">
+                        Te quedan <span className="font-bold text-foreground">{podcastsRemaining}</span> creaciones.
+                    </p>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/20 bg-card/50 shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-xl">Testimonios de la Comunidad</CardTitle>
-              <CardDescription>Lo que otros dicen de este creador.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {user?.id === profile.id ? (
-                <Tabs defaultValue="approved">
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="approved">Públicos ({approvedTestimonials.length})</TabsTrigger>
-                    <TabsTrigger value="pending">Pendientes ({pendingTestimonials.length})</TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="approved" className="mt-4 space-y-4">
-                    {approvedTestimonials.length > 0 ? (
-                      approvedTestimonials.map(t => <TestimonialCard key={t.id} testimonial={t} isOwner={true} onModerate={handleModerateTestimonial} />)
-                    ) : <p className="text-sm text-center text-muted-foreground py-8">Aún no tienes testimonios públicos.</p>}
-                  </TabsContent>
-                  <TabsContent value="pending" className="mt-4 space-y-4">
-                    {pendingTestimonials.length > 0 ? (
-                      pendingTestimonials.map(t => <TestimonialCard key={t.id} testimonial={t} isOwner={true} onModerate={handleModerateTestimonial} />)
-                    ) : <p className="text-sm text-center text-muted-foreground py-8">No tienes testimonios pendientes de revisión.</p>}
-                  </TabsContent>
-                </Tabs>
-              ) : (
-                <div className="space-y-4">
-                  {approvedTestimonials.length > 0 ? (
-                    approvedTestimonials.map(t => <TestimonialCard key={t.id} testimonial={t} isOwner={false} onModerate={() => {}} />)
-                  ) : <p className="text-sm text-center text-muted-foreground py-8">Sé el primero en dejar un testimonio para este creador.</p>}
-                  {/* Aquí iría la lógica para que un visitante deje un testimonio */}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/20 bg-card/50 shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-xl">Configuración de la Cuenta</CardTitle>
-              <CardDescription>Gestiona tu información personal.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Dirección de Email</Label>
-                <Input id="email" type="email" value={user?.email || ""} disabled className="opacity-70" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="full_name">Nombre Completo</Label>
-                <Input id="full_name" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Tu nombre completo" />
-              </div>
-              <div className="flex justify-end pt-2">
-                <Button onClick={handleSaveProfile} disabled={isSaving}>
-                  {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Guardar Cambios
+                
+                <Button className="w-full" variant="secondary" asChild>
+                    <Link href="/pricing">Gestionar Plan</Link>
                 </Button>
-              </div>
             </CardContent>
           </Card>
         </div>
-        
+
+        {/* CONTENIDO PRINCIPAL */}
+        <div className="w-full md:w-2/3 space-y-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Configuración</CardTitle>
+                    <CardDescription>Información privada de tu cuenta.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="grid gap-2">
+                        <Label>Email</Label>
+                        <Input value={user?.email || ''} disabled className="bg-muted" />
+                    </div>
+                    <div className="grid gap-2">
+                        <Label>Nombre Visible</Label>
+                        <Input defaultValue={profile?.full_name || ''} />
+                    </div>
+                    <div className="grid gap-2">
+                        <Label>Bio</Label>
+                        <Input defaultValue={profile?.bio || ''} placeholder="Cuéntanos sobre ti..." />
+                    </div>
+                    <div className="flex justify-end">
+                        <Button>Guardar Cambios</Button>
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
       </div>
+    </div>
+  );
+}
+
+// =====================================================================
+// COMPONENTE B: PERFIL PÚBLICO (SOCIAL)
+// Este es el que usa 'app/profile/[username]/page.tsx'
+// =====================================================================
+interface PublicProps {
+  profile: ProfileData;
+  podcasts: PublicPodcast[];
+  totalLikes: number;
+}
+
+export function PublicProfilePage({ profile, podcasts, totalLikes }: PublicProps) {
+  const userInitial = profile?.full_name?.charAt(0)?.toUpperCase() ?? 'U';
+
+  return (
+    <div className="container mx-auto max-w-4xl py-12 px-4 animate-fade-in">
+      {/* HEADER PÚBLICO */}
+      <div className="flex flex-col items-center text-center mb-12">
+        <Avatar className="h-32 w-32 border-4 border-background shadow-xl mb-4">
+            <AvatarImage src={profile?.avatar_url || ''} />
+            <AvatarFallback className="text-4xl bg-primary/10 text-primary">{userInitial}</AvatarFallback>
+        </Avatar>
+        <h1 className="text-3xl font-bold tracking-tight">{profile?.full_name}</h1>
+        <p className="text-muted-foreground mt-1 text-lg">@{profile?.username}</p>
+        
+        {profile?.bio && (
+            <p className="max-w-lg mt-4 text-sm text-muted-foreground/80 leading-relaxed">
+                {profile.bio}
+            </p>
+        )}
+
+        <div className="flex gap-6 mt-6">
+            <div className="text-center">
+                <span className="block font-bold text-xl">{podcasts.length}</span>
+                <span className="text-xs text-muted-foreground uppercase tracking-wider">Podcasts</span>
+            </div>
+            <div className="text-center">
+                <span className="block font-bold text-xl">{totalLikes}</span>
+                <span className="text-xs text-muted-foreground uppercase tracking-wider">Likes</span>
+            </div>
+        </div>
+      </div>
+
+      {/* LISTA DE CONTENIDO */}
+      <Tabs defaultValue="podcasts" className="w-full">
+        <TabsList className="w-full justify-center bg-transparent border-b rounded-none h-auto p-0 mb-8">
+            <TabsTrigger value="podcasts" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-8 py-3 text-sm">
+                Publicaciones
+            </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="podcasts" className="space-y-4">
+            {podcasts.length === 0 ? (
+                <div className="text-center py-16 bg-muted/20 rounded-xl border border-dashed">
+                    <Mic className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
+                    <p className="text-muted-foreground">Este usuario aún no ha publicado contenido.</p>
+                </div>
+            ) : (
+                <div className="grid gap-4 md:grid-cols-2">
+                    {podcasts.map((pod) => (
+                        <Card key={pod.id} className="group hover:border-primary/50 transition-all cursor-pointer bg-card/50">
+                            <CardContent className="p-5 flex flex-col h-full">
+                                <div className="flex justify-between items-start mb-3">
+                                    <h3 className="font-bold line-clamp-1 group-hover:text-primary transition-colors">{pod.title}</h3>
+                                    {pod.created_at && (
+                                        <span className="text-[10px] text-muted-foreground whitespace-nowrap flex items-center gap-1">
+                                            <Calendar className="h-3 w-3" />
+                                            {new Date(pod.created_at).toLocaleDateString()}
+                                        </span>
+                                    )}
+                                </div>
+                                <p className="text-sm text-muted-foreground line-clamp-2 mb-4 flex-grow">
+                                    {pod.description || "Sin descripción disponible."}
+                                </p>
+                                <div className="pt-4 border-t flex justify-between items-center">
+                                    <Badge variant="secondary" className="text-[10px]">
+                                        {Math.floor((pod.duration_seconds || 0) / 60)} min
+                                    </Badge>
+                                    <Link href={`/podcast/${pod.id}`}>
+                                        <Button size="sm" className="gap-2 rounded-full h-8">
+                                            <PlayCircle className="h-3.5 w-3.5" /> Escuchar
+                                        </Button>
+                                    </Link>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
+            )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
