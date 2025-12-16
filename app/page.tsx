@@ -1,12 +1,10 @@
 // app/page.tsx
-// VERSIÓN: 4.0 (Fix: Error 500 via Dynamic Client Shelves)
+// VERSIÓN: 5.0 (Stabilized: Defensive Auth Loading & Visual Consistency)
 
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { PodcastWithProfile } from "@/types/podcast";
-// [CAMBIO CRÍTICO] Eliminamos importación estática
-// import { PodcastShelf } from "@/components/podcast-shelf"; 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Mic, Search, Compass, Lightbulb, Bot, Library, User, Loader2 } from "lucide-react";
@@ -17,8 +15,8 @@ import { DiscoveryHub } from "@/components/discovery-hub";
 import type { Tables } from "@/types/supabase";
 import dynamic from "next/dynamic";
 
-// [NUEVO] Dynamic Import para aislar el renderizado de tarjetas del servidor
-// Esto previene que dependencias de UI (como estilos fantasmas) rompan el SSR.
+// Dynamic Import para aislar el renderizado de tarjetas del servidor
+// Previene errores de hidratación y mejora la velocidad inicial
 const PodcastShelf = dynamic(
   () => import("@/components/podcast-shelf").then((mod) => mod.PodcastShelf),
   { 
@@ -38,6 +36,7 @@ interface DiscoveryFeed {
   new_horizons: PodcastWithProfile[] | null;
 }
 
+// Utilidad para limpiar datos JSON antes de pasarlos a componentes de cliente
 function sanitizePodcasts(podcasts: any[] | null): PodcastWithProfile[] {
   if (!podcasts || !Array.isArray(podcasts)) return [];
   return podcasts.map(pod => ({
@@ -49,8 +48,10 @@ function sanitizePodcasts(podcasts: any[] | null): PodcastWithProfile[] {
   })).filter(p => p.id); 
 }
 
+// --- SUB-COMPONENTES DE VISTA ---
+
 function UserDashboard({ user, feed, profile }: { user: any; feed: DiscoveryFeed | null; profile: any }) {
-  const userName = user.user_metadata?.full_name?.split(' ')[0] || user.email;
+  const userName = profile?.full_name?.split(' ')[0] || user.user_metadata?.full_name?.split(' ')[0] || "Creador";
 
   const safeEpicenter = sanitizePodcasts(feed?.epicenter || []);
   const safeConnections = sanitizePodcasts(feed?.semantic_connections || []);
@@ -85,7 +86,6 @@ function UserDashboard({ user, feed, profile }: { user: any; feed: DiscoveryFeed
         <DiscoveryHub />
 
         <div className="mt-8 space-y-12">
-          {/* Los Shelves ahora se cargan en el cliente */}
           <PodcastShelf title="Tu Epicentro Creativo" podcasts={safeEpicenter} variant="compact" />
           <PodcastShelf title="Conexiones Inesperadas" podcasts={safeConnections} variant="compact" />
           <PodcastShelf title="Nuevos Horizontes en NicePod" podcasts={safeHorizons} variant="compact" />
@@ -139,16 +139,20 @@ function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] }) {
   );
 }
 
+// --- PÁGINA PRINCIPAL (SERVER COMPONENT) ---
+
 export default async function HomePage() {
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
   
   let user = null;
+  
+  // 1. Intentar obtener sesión
   try {
     const { data } = await supabase.auth.getUser();
     user = data?.user;
   } catch (e) {
-    // Silent fail for guest
+    // Si falla la auth, asumimos invitado
   }
 
   let feed: DiscoveryFeed | null = null;
@@ -156,25 +160,37 @@ export default async function HomePage() {
   let latestPodcasts: any[] = [];
   let userProfile: any = null;
 
+  // 2. Lógica de Carga de Datos (Defensiva)
   if (user) {
     try {
         const [
           { data: feedData },
           { data: profileData },
-          { data: userProfileData }
+          { data: userProfileData, error: profileError }
         ] = await Promise.all([
           supabase.rpc('get_user_discovery_feed', { p_user_id: user.id }),
           supabase.from('user_resonance_profiles').select('*').eq('user_id', user.id).single(),
-          supabase.from('profiles').select('username').eq('id', user.id).single()
+          supabase.from('profiles').select('username, full_name').eq('id', user.id).single()
         ]);
         
+        // [CHECK DE INTEGRIDAD]: Si la DB falla al traer el perfil (ej: error de recursión), 
+        // lanzamos error para activar el fallback a invitado.
+        if (profileError) throw new Error("Error crítico cargando perfil: " + profileError.message);
+
         feed = feedData;
         resonanceProfile = profileData;
         userProfile = userProfileData;
+
     } catch (e) {
-        console.error("Error dashboard:", e);
+        console.error("Error cargando dashboard de usuario:", e);
+        // [FALLBACK]: Si algo falla, degradamos a vista de invitado limpiamente.
+        // Esto evita la "Disonancia Visual" (Hola Francisco + Botón Ingresar).
+        user = null; 
     }
-  } else {
+  }
+
+  // 3. Carga de Datos Públicos (Si es invitado o falló la carga de usuario)
+  if (!user) {
     try {
         const { data } = await supabase
           .from('micro_pods')
@@ -185,29 +201,35 @@ export default async function HomePage() {
         
         latestPodcasts = data || [];
     } catch (e) {
-        console.error("Error guest:", e);
+        console.error("Error cargando landing:", e);
     }
   }
 
   return (
     <main className="container mx-auto max-w-screen-xl flex-grow">
       <div className="grid grid-cols-1 lg:grid-cols-4 lg:gap-8 xl:gap-12 h-full">
+        
+        {/* COLUMNA CENTRAL (CONTENIDO) */}
         <div className="lg:col-span-3 lg:h-[calc(100vh-6rem)] lg:overflow-y-auto lg:overflow-x-hidden lg:pr-6 scrollbar-thin scrollbar-thumb-gray-600/50 hover:scrollbar-thumb-gray-500/50 scrollbar-track-transparent scrollbar-thumb-rounded-full">
           <div className="pt-6 pb-12 lg:pt-12">
-            {user ? (
+            {user && userProfile ? (
               <UserDashboard user={user} feed={feed} profile={userProfile} />
             ) : (
               <GuestLandingPage latestPodcasts={latestPodcasts} />
             )}
           </div>
         </div>
+
+        {/* COLUMNA LATERAL (PANEL DERECHO) */}
         <div className="hidden lg:block lg:col-span-1">
           <div className="sticky top-[6rem] h-[calc(100vh-7.5rem)]">
             <div className="py-12 h-full">
+                {/* El panel derecho recibe el perfil de resonancia si existe */}
                 <InsightPanel resonanceProfile={resonanceProfile} />
             </div>
           </div>
         </div>
+
       </div>
     </main>
   );
