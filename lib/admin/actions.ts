@@ -1,3 +1,4 @@
+// lib/admin/actions.ts
 "use server";
 
 import { createClient } from '@supabase/supabase-js';
@@ -5,22 +6,36 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 
-// Cliente con SUPERPODERES (Service Role) para operaciones administrativas
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// [CORRECCIÓN] Lazy Initialization: No crear el cliente globalmente para evitar errores en Build Time
+function getAdminClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-// Verificador de Seguridad: ¿Quien llama es realmente el Admin?
+  if (!url || !key) {
+    throw new Error("Faltan credenciales de Supabase Admin (Service Role)");
+  }
+
+  return createClient(url, key, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  });
+}
+
+// Verificador de Seguridad
 async function assertAdmin() {
   const cookieStore = cookies();
   const supabase = createServerClient(cookieStore);
-  const { data: { user } } = await supabase.auth.getUser();
   
-  if (!user) throw new Error("No autenticado");
+  // Usamos getUser() que valida contra Supabase Auth real
+  const { data: { user }, error } = await supabase.auth.getUser();
+  
+  if (error || !user) throw new Error("No autenticado");
 
-  // Verificamos el rol directamente contra la DB (más seguro que confiar en la sesión local)
-  const { data: profile } = await supabaseAdmin
+  // Usamos el cliente admin para saltar RLS y ver el rol real en la DB
+  const adminClient = getAdminClient();
+  const { data: profile } = await adminClient
     .from('profiles')
     .select('role')
     .eq('id', user.id)
@@ -36,14 +51,11 @@ async function assertAdmin() {
 
 export async function getAdminDashboardStats() {
   await assertAdmin();
+  const supabaseAdmin = getAdminClient();
 
-  // 1. Usuarios Totales
   const { count: userCount } = await supabaseAdmin.from('profiles').select('*', { count: 'exact', head: true });
-  
-  // 2. Podcasts Totales
   const { count: podCount } = await supabaseAdmin.from('micro_pods').select('*', { count: 'exact', head: true });
   
-  // 3. Jobs Fallidos (Últimas 24h)
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
   const { count: failedJobs } = await supabaseAdmin
@@ -57,8 +69,8 @@ export async function getAdminDashboardStats() {
 
 export async function getUsersList() {
   await assertAdmin();
+  const supabaseAdmin = getAdminClient();
 
-  // Obtenemos perfiles + su uso actual
   const { data: users, error } = await supabaseAdmin
     .from('profiles')
     .select(`
@@ -76,8 +88,8 @@ export async function getUsersList() {
 
 export async function resetUserQuota(userId: string) {
   await assertAdmin();
+  const supabaseAdmin = getAdminClient();
   
-  // Reseteamos el uso del mes a 0
   const { error } = await supabaseAdmin
     .from('user_usage')
     .update({ podcasts_created_this_month: 0 })
@@ -85,6 +97,6 @@ export async function resetUserQuota(userId: string) {
 
   if (error) throw new Error("Error reseteando cuota");
   
-  revalidatePath('/admin'); // Refresca la UI automáticamente
+  revalidatePath('/admin');
   return { success: true };
 }
