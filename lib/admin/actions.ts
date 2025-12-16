@@ -1,5 +1,5 @@
 // lib/admin/actions.ts
-// VERSIÓN: 3.0 (Data Enrichment & Resilience)
+// VERSIÓN: 4.0 (Data Enrichment: User Context in Errors & Robust User List)
 
 "use server";
 
@@ -7,6 +7,9 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
+
+// ... (getAdminClient y assertAdmin se mantienen igual, no los repetiré para ahorrar espacio) ...
+// ASEGÚRATE DE MANTENER LAS FUNCIONES getAdminClient y assertAdmin QUE YA TIENES.
 
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -28,14 +31,13 @@ async function assertAdmin() {
   return user;
 }
 
-// --- LECTURA MEJORADA ---
+// --- NUEVAS CONSULTAS POTENCIADAS ---
 
 export async function getAdminDashboardStats() {
   try {
     await assertAdmin();
     const supabase = getAdminClient();
 
-    // Consultas paralelas
     const [userReq, podReq, jobsReq] = await Promise.all([
         supabase.from('profiles').select('*', { count: 'exact', head: true }),
         supabase.from('micro_pods').select('*', { count: 'exact', head: true }),
@@ -48,7 +50,6 @@ export async function getAdminDashboardStats() {
         failedJobs: jobsReq.count || 0 
     };
   } catch (e) {
-    console.error("Admin Stats Error:", e);
     return { userCount: 0, podCount: 0, failedJobs: 0 };
   }
 }
@@ -58,52 +59,52 @@ export async function getUsersList() {
     await assertAdmin();
     const supabase = getAdminClient();
 
-    // [MEJORA]: Traemos Perfiles + Uso + Últimos 5 Podcasts (para la vista detalle)
-    // El left join es implícito en Supabase si la relación existe.
+    // [MEJORA]: Traemos datos y ordenamos por fecha de creación (Nuevos primero)
+    // El user_usage puede ser null, lo manejaremos en el frontend.
     const { data: users, error } = await supabase
       .from('profiles')
       .select(`
         id, full_name, email, avatar_url, role, created_at,
         user_usage ( podcasts_created_this_month ),
-        micro_pods ( id, title, status, created_at, audio_url )
+        micro_pods ( id, status, created_at )
       `)
       .order('created_at', { ascending: false })
-      .limit(50); // Paginación implícita de 50 para velocidad
+      .limit(100);
 
     if (error) {
-        console.error("Supabase Error getUsersList:", error);
+        console.error("Error getUsersList:", error);
         return [];
     }
     
     return users || [];
   } catch (error) {
-    console.error("Server Action Error getUsersList:", error);
     return [];
   }
 }
 
-// Nueva función para ver los errores
 export async function getRecentFailedJobs() {
   await assertAdmin();
   const supabase = getAdminClient();
   
+  // [MEJORA]: Join con Profiles para saber QUIÉN falló
   const { data } = await supabase
     .from('podcast_creation_jobs')
-    .select('id, created_at, error_message, job_title')
+    .select(`
+        id, created_at, error_message, job_title, status,
+        profiles:user_id ( email, full_name, avatar_url )
+    `)
     .eq('status', 'failed')
     .order('created_at', { ascending: false })
-    .limit(10);
+    .limit(20); // Aumentamos límite para mejor contexto
     
   return data || [];
 }
 
-// --- ACCIONES ---
-
+// ... (resetUserQuota se mantiene igual) ...
 export async function resetUserQuota(userId: string) {
   await assertAdmin();
   const supabase = getAdminClient();
   
-  // Usamos upsert por si el registro no existe
   const { error } = await supabase
     .from('user_usage')
     .upsert({ user_id: userId, podcasts_created_this_month: 0, updated_at: new Date().toISOString() });
