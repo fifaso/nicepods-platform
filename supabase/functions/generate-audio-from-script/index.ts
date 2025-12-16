@@ -1,15 +1,14 @@
 // supabase/functions/generate-audio-from-script/index.ts
-// VERSIÓN: 7.0 (Guard Integrated: Sentry + Arcjet + TTS Cost Protection)
+// VERSIÓN: 8.0 (Quality Assurance: Force Draft Mode)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { decode } from "https://deno.land/std@0.208.0/encoding/base64.ts";
 import { create } from "https://deno.land/x/djwt@v2.2/mod.ts";
-import { guard } from "../_shared/guard.ts"; // <--- INTEGRACIÓN DEL ESTÁNDAR
+import { guard } from "../_shared/guard.ts"; 
 import { corsHeaders } from "../_shared/cors.ts";
 
-// --- CONFIGURACIÓN & SECRETOS ---
 const HARD_LIMIT_CHARS = 25000; 
 const SAFE_CHUNK_LIMIT = 4000; 
 
@@ -37,8 +36,6 @@ const speakingRateMap = {
   "Moderado": 1.0,
   "Rápido": 1.1,
 };
-
-// --- UTILIDADES ---
 
 function cleanScriptText(raw: string): string {
   if (!raw) return "";
@@ -103,11 +100,7 @@ async function getGoogleAccessToken(clientEmail: string, privateKeyRaw: string) 
   return data.access_token;
 }
 
-// --- LOGICA DE NEGOCIO (HANDLER) ---
 const handler = async (request: Request): Promise<Response> => {
-  // Guard maneja OPTIONS y CORS
-  
-  // 1. VALIDACIÓN DE ENTORNO
   const GOOGLE_CLIENT_EMAIL = Deno.env.get("GOOGLE_CLIENT_EMAIL");
   const GOOGLE_PRIVATE_KEY_RAW = Deno.env.get("GOOGLE_PRIVATE_KEY");
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
@@ -124,9 +117,6 @@ const handler = async (request: Request): Promise<Response> => {
     const { job_id } = InvokePayloadSchema.parse(await request.json());
     jobId = job_id;
 
-    console.log(`[Audio] Iniciando Job ${jobId}`);
-
-    // 2. RECUPERACIÓN DE DATOS
     const { data: jobData } = await supabaseAdmin.from('podcast_creation_jobs').select('micro_pod_id, payload').eq('id', jobId).single();
     if (!jobData?.micro_pod_id) throw new Error("Job sin micro_pod_id asociado");
 
@@ -135,7 +125,6 @@ const handler = async (request: Request): Promise<Response> => {
 
     const { data: podcastData } = await supabaseAdmin.from('micro_pods').select('script_text, user_id').eq('id', podcastId).single();
     
-    // Extracción robusta del texto
     let rawText = "";
     if (typeof podcastData?.script_text === 'string') {
         try {
@@ -150,20 +139,16 @@ const handler = async (request: Request): Promise<Response> => {
 
     const cleanText = cleanScriptText(rawText);
     
-    // [SEGURIDAD] HARD LIMIT CHECKPOINT
     if (cleanText.length > HARD_LIMIT_CHARS) {
         throw new Error(`[SEGURIDAD] El guion excede el límite permitido. Longitud: ${cleanText.length} (Máx: ${HARD_LIMIT_CHARS}).`);
     }
 
     if (cleanText.length < 5) throw new Error("El guion está vacío o es ilegible.");
 
-    console.log(`[Audio] Texto aprobado: ${cleanText.length} chars.`);
+    console.log(`[Audio] Generando para Job ${jobId}. Longitud: ${cleanText.length}`);
 
-    // 3. CHUNKING
     const chunks = splitTextIntoSafeChunks(cleanText, SAFE_CHUNK_LIMIT);
-    console.log(`[Audio] Dividido en ${chunks.length} bloques.`);
 
-    // 4. GENERACIÓN GOOGLE TTS
     const accessToken = await getGoogleAccessToken(GOOGLE_CLIENT_EMAIL, GOOGLE_PRIVATE_KEY_RAW);
     const ttsApiUrl = `https://texttospeech.googleapis.com/v1/text:synthesize`;
     
@@ -175,10 +160,7 @@ const handler = async (request: Request): Promise<Response> => {
 
     const audioBuffers: ArrayBuffer[] = [];
 
-    // PROCESAMIENTO SECUENCIAL
     for (const [i, chunk] of chunks.entries()) {
-        console.log(`[Audio] Procesando chunk ${i+1}/${chunks.length}`);
-        
         let retries = 0;
         let success = false;
         
@@ -210,7 +192,7 @@ const handler = async (request: Request): Promise<Response> => {
 
             } catch (e) {
                 retries++;
-                console.error(`[Audio] Chunk ${i+1} fail, retry ${retries}:`, e);
+                console.error(`Chunk retry ${retries}:`, e);
                 if (retries >= 2) throw e;
                 await new Promise(r => setTimeout(r, 1000));
             }
@@ -219,10 +201,8 @@ const handler = async (request: Request): Promise<Response> => {
         if (i < chunks.length - 1) await new Promise(r => setTimeout(r, 100));
     }
 
-    console.log("[Audio] Uniendo buffers...");
     const finalBuffer = concatenateAudioBuffers(audioBuffers);
 
-    // 5. SUBIDA A STORAGE
     const filePath = `public/${podcastData.user_id}/${podcastId}-audio.mp3`;
     
     const { error: uploadError } = await supabaseAdmin.storage.from('podcasts').upload(filePath, finalBuffer, { 
@@ -234,10 +214,11 @@ const handler = async (request: Request): Promise<Response> => {
 
     const { data: publicUrlData } = supabaseAdmin.storage.from('podcasts').getPublicUrl(filePath);
 
-    // 6. FINALIZACIÓN
+    // [CAMBIO CRÍTICO]: Estado final = pending_approval
+    // Esto obliga al usuario a escuchar el audio en el frontend para poder publicarlo.
     await supabaseAdmin.from('micro_pods').update({ 
         audio_url: publicUrlData.publicUrl,
-        status: 'published'
+        status: 'pending_approval' // <--- AQUÍ ESTÁ EL CAMBIO
     }).eq('id', podcastId);
     
     await supabaseAdmin.from('podcast_creation_jobs').update({ status: 'completed' }).eq('id', jobId);
@@ -247,17 +228,14 @@ const handler = async (request: Request): Promise<Response> => {
     });
 
   } catch (error) {
-    // Si falla, marcamos el job como failed
     if (jobId) {
         await supabaseAdmin.from('podcast_creation_jobs').update({ 
             status: 'failed', 
             error_message: error instanceof Error ? error.message : String(error)
         }).eq('id', jobId);
     }
-    // Relanzamos para que Guard (Sentry) capture la incidencia
     throw error;
   }
 };
 
-// --- PUNTO DE ENTRADA PROTEGIDO ---
 serve(guard(handler));

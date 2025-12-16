@@ -1,5 +1,5 @@
 // types/podcast.ts
-// VERSIÓN MEJORADA: Se añade un tipo explícito para el payload de creación.
+// VERSIÓN: 2.0 (Sync with DB Schema: Added 'reviewed_by_user' field)
 
 import type { Database } from './supabase';
 
@@ -7,22 +7,31 @@ type Tables<T extends keyof Database['public']['Tables']> = Database['public']['
 
 type PodcastRow = Tables<'micro_pods'>;
 type ProfileRow = Tables<'profiles'>;
-type Profile = Pick<ProfileRow, 'full_name' | 'avatar_url' | 'username'>; // Se añade username para los enlaces de perfil
 
-// [INTERVENCIÓN QUIRÚRGICA]: Definimos la estructura interna del JSON 'creation_data'.
-// Esto nos dará autocompletado y seguridad de tipos en todo el proyecto.
+// Seleccionamos solo los campos necesarios del perfil para evitar exponer datos sensibles
+type Profile = Pick<ProfileRow, 'full_name' | 'avatar_url' | 'username'>; 
+
+// Definición estricta del payload JSON para autocompletado en el frontend
 export type CreationDataPayload = {
   style: 'solo' | 'link' | 'archetype';
   agentName: string;
   inputs: {
     generateAudioDirectly?: boolean;
-    // Aquí se pueden añadir otras propiedades de 'inputs' si es necesario.
+    // Permitimos otras propiedades dinámicas
     [key: string]: any;
   };
 };
 
+// Tipo Maestro utilizado en las vistas
 export type PodcastWithProfile = Omit<PodcastRow, 'creation_data'> & {
-  // Sobrescribimos el tipo genérico 'Json' con nuestro tipo específico y seguro.
+  // 1. Tipado fuerte para el JSON de creación
   creation_data: CreationDataPayload | null;
+  
+  // 2. Relación con la tabla de perfiles (Join)
   profiles: Profile | null;
+
+  // 3. [CORRECCIÓN CRÍTICA]: Inyección manual de campos nuevos.
+  // Estos campos existen en la DB (creados por SQL) pero TS no los veía.
+  reviewed_by_user?: boolean | null;
+  published_at?: string | null;
 };

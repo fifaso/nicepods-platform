@@ -1,9 +1,9 @@
 // components/podcast-view.tsx
-// VERSIÓN: 8.0 (Social Workflow: Listen-to-Publish & Admin Kill-Switch)
+// VERSIÓN: 9.0 (Persistence: Save Listening Progress to DB)
 
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { User } from '@supabase/supabase-js';
 import Image from 'next/image';
@@ -15,7 +15,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useAudio } from '@/contexts/audio-context';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -26,7 +26,6 @@ import { cn } from '@/lib/utils';
 import { TagCurationCanvas } from './tag-curation-canvas';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
-// Componente Dinámico Seguro
 const ScriptViewer = dynamic(
   () => import('./script-viewer').then((mod) => mod.ScriptViewer),
   { 
@@ -53,12 +52,9 @@ interface SourceItem {
 }
 
 export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewProps) {
-  const router = useRouter();
   const { supabase } = useAuth();
   
-  // Conectamos con el reproductor global para verificar la escucha
   const { playPodcast, logInteractionEvent, currentPodcast, currentTime, duration: currentDuration } = useAudio();
-  
   const { toast } = useToast();
   
   const [localPodcastData, setLocalPodcastData] = useState(podcastData);
@@ -66,24 +62,32 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
   const [likeCount, setLikeCount] = useState(localPodcastData.like_count);
   const [isLiking, setIsLiking] = useState(false);
   
-  // Estados de UI
   const [isScriptExpanded, setIsScriptExpanded] = useState(false);
   const [isSourcesExpanded, setIsSourcesExpanded] = useState(false); 
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const [isEditingTags, setIsEditingTags] = useState(false);
   const [viewerRole, setViewerRole] = useState<string>('user');
 
-  // Lógica de Validación de Escucha
-  const [hasListenedFully, setHasListenedFully] = useState(false);
-  const [listeningProgress, setListeningProgress] = useState(0);
+  // [MEJORA 1]: Inicialización Persistente
+  // Si la DB dice que ya lo revisaste, empezamos en true.
+  const [hasListenedFully, setHasListenedFully] = useState(localPodcastData.reviewed_by_user || false);
+  const [listeningProgress, setListeningProgress] = useState(hasListenedFully ? 100 : 0);
+  
+  // Ref para evitar múltiples llamadas a la DB en el mismo segundo
+  const hasUpdatedDbRef = useRef(hasListenedFully);
 
   useEffect(() => {
     setLocalPodcastData(podcastData);
     setLikeCount(podcastData.like_count);
     setIsLiked(initialIsLiked);
+    // Sincronizar estado si los props cambian
+    if (podcastData.reviewed_by_user) {
+        setHasListenedFully(true);
+        setListeningProgress(100);
+        hasUpdatedDbRef.current = true;
+    }
   }, [podcastData, initialIsLiked]);
 
-  // 1. Obtener Rol del Visitante (Para Admin Kill-Switch)
   useEffect(() => {
     const fetchRole = async () => {
         if (!user) return;
@@ -93,10 +97,28 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
     fetchRole();
   }, [user, supabase]);
 
-  // 2. Monitor de Progreso de Escucha (Workflow: 95% = Completo)
+  // [MEJORA 2]: Guardado Silencioso en DB
+  const markAsListened = async () => {
+    if (!supabase || hasUpdatedDbRef.current) return;
+    
+    // Bloqueo inmediato local
+    hasUpdatedDbRef.current = true;
+    setHasListenedFully(true);
+
+    console.log("Guardando validación de escucha en DB...");
+    
+    // Actualización en segundo plano (Fire and forget)
+    await supabase
+        .from('micro_pods')
+        .update({ reviewed_by_user: true })
+        .eq('id', localPodcastData.id);
+        
+    // No mostramos toast para no interrumpir la experiencia de escucha
+  };
+
+  // Monitor de Progreso
   useEffect(() => {
-    // Si ya lo escuchó o el podcast no es este, no hacer nada
-    if (hasListenedFully) return;
+    if (hasListenedFully) return; // Si ya está listo, dejamos de calcular
     if (currentPodcast?.id !== localPodcastData.id) return;
 
     if (currentDuration > 0) {
@@ -105,7 +127,7 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
         
         // Umbral del 95% para considerar "Escuchado"
         if (percent > 95) {
-            setHasListenedFully(true);
+            markAsListened(); // <--- Llamada a la persistencia
         }
     }
   }, [currentTime, currentDuration, currentPodcast, localPodcastData.id, hasListenedFully]);
@@ -126,6 +148,11 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
         (payload) => {
           setLocalPodcastData(prevData => ({ ...prevData, ...(payload.new as PodcastWithProfile) }));
           if (payload.new.audio_url) setIsGeneratingAudio(false);
+          // Si llega una actualización externa de que ya se revisó, actualizamos UI
+          if (payload.new.reviewed_by_user) {
+             setHasListenedFully(true);
+             hasUpdatedDbRef.current = true;
+          }
         }
       ).subscribe();
       
@@ -198,6 +225,7 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
         .from('micro_pods')
         .update({ 
             status: 'published',
+            // reviewed_by_user ya debería ser true, pero lo reafirmamos por seguridad
             reviewed_by_user: true,
             published_at: new Date().toISOString()
         })
@@ -221,7 +249,7 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
     const { error } = await supabase
         .from('micro_pods')
         .update({ 
-            status: 'archived', // O 'failed' según prefieras
+            status: 'archived', 
             admin_notes: `Banned by Admin ${user.id} at ${new Date().toISOString()}`
         })
         .eq('id', localPodcastData.id);
