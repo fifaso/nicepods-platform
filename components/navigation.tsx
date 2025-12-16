@@ -1,11 +1,12 @@
 // components/navigation.tsx
-// VERSIÓN: 8.0 (UX Fix: Smart Auth State & Admin Access)
+// VERSIÓN: 9.0 (Fix: Logout Refresh & Redirect)
 
 "use client";
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+// [CAMBIO 1] Importamos useRouter para controlar la navegación
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -27,11 +28,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { NotificationBell } from "@/components/notification-bell";
-import { Mic, Menu, LogIn, LogOut, ShieldCheck, Loader, User as UserIcon, LayoutDashboard } from "lucide-react";
+import { Mic, Menu, LogIn, LogOut, ShieldCheck, Loader, User as UserIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function Navigation() {
   const pathname = usePathname();
+  // [CAMBIO 2] Instanciamos el router
+  const router = useRouter(); 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   const { user, profile, isAdmin, signOut, isLoading } = useAuth();
@@ -48,9 +51,18 @@ export function Navigation() {
     setIsMobileMenuOpen(false);
   };
 
+  // [CAMBIO 3] Lógica de Logout Robusta
   const handleLogout = async () => {
     setIsMobileMenuOpen(false);
+    
+    // 1. Ejecutar logout de Supabase
     await signOut();
+    
+    // 2. Limpiar Caché del Router (Esto actualiza la UI de "Hola User" a "Hola Invitado")
+    router.refresh();
+    
+    // 3. Redirigir al Home (por si estabas en una página protegida)
+    router.replace("/");
   };
 
   return (
@@ -104,7 +116,7 @@ export function Navigation() {
               <>
                 <NotificationBell />
                 
-                {/* DROPDOWN DE USUARIO (SOLUCIÓN DISONANCIA) */}
+                {/* DROPDOWN DE USUARIO */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Avatar className="h-9 w-9 cursor-pointer border border-border hover:border-primary transition-colors">
@@ -122,7 +134,6 @@ export function Navigation() {
                       </Link>
                     </DropdownMenuItem>
                     
-                    {/* ENLACE ADMIN: Solo si es admin */}
                     {isAdmin && (
                       <>
                         <DropdownMenuSeparator />
@@ -148,7 +159,7 @@ export function Navigation() {
             )}
           </div>
           
-          {/* BOTÓN NUEVO PODCAST (Solo si logueado o Desktop) */}
+          {/* BOTÓN NUEVO PODCAST */}
           <Link href="/create">
             <Button className="hidden lg:inline-flex bg-primary hover:bg-primary/90 text-white shadow-md">
                 <Mic className="mr-2 h-4 w-4" /> Nuevo Podcast
