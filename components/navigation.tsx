@@ -1,12 +1,11 @@
 // components/navigation.tsx
-// VERSIÓN: 9.0 (Fix: Logout Refresh & Redirect)
+// VERSIÓN: 10.0 (Fix: Logout Hard Redirect)
 
 "use client";
 
 import Link from "next/link";
 import Image from "next/image";
-// [CAMBIO 1] Importamos useRouter para controlar la navegación
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -28,13 +27,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { NotificationBell } from "@/components/notification-bell";
-import { Mic, Menu, LogIn, LogOut, ShieldCheck, Loader, User as UserIcon } from "lucide-react";
+import { Mic, Menu, LogOut, ShieldCheck, Loader, User as UserIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function Navigation() {
   const pathname = usePathname();
-  // [CAMBIO 2] Instanciamos el router
-  const router = useRouter(); 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   const { user, profile, isAdmin, signOut, isLoading } = useAuth();
@@ -51,18 +48,23 @@ export function Navigation() {
     setIsMobileMenuOpen(false);
   };
 
-  // [CAMBIO 3] Lógica de Logout Robusta
+  // [MODIFICACIÓN CRÍTICA]: Estrategia de "Hard Logout"
   const handleLogout = async () => {
     setIsMobileMenuOpen(false);
     
-    // 1. Ejecutar logout de Supabase
-    await signOut();
-    
-    // 2. Limpiar Caché del Router (Esto actualiza la UI de "Hola User" a "Hola Invitado")
-    router.refresh();
-    
-    // 3. Redirigir al Home (por si estabas en una página protegida)
-    router.replace("/");
+    try {
+      // 1. Limpiar sesión en Supabase y Storage local
+      await signOut();
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error);
+    } finally {
+      // 2. FORZAR RECARGA TOTAL DEL NAVEGADOR
+      // No usamos router.push() aquí. Usamos window.location.href para:
+      // a) Limpiar la memoria RAM del cliente (Estados de React).
+      // b) Obligar al servidor a renderizar la página de nuevo (sin cookies).
+      // c) Garantizar que el usuario aterrice en la Home de invitados.
+      window.location.href = "/";
+    }
   };
 
   return (
