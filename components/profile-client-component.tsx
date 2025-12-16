@@ -1,9 +1,8 @@
 // components/profile-client-component.tsx
-// VERSIÓN: 5.0 (Feature Complete: Testimonials Integration)
+// VERSIÓN: 6.0 (Privacy Shield: UUID Masking)
 
 "use client";
 
-import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -13,12 +12,21 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Crown, PlayCircle, Calendar, Mic, MessageSquare, ThumbsUp, ThumbsDown, CheckCircle, Clock } from "lucide-react";
+import { Crown, PlayCircle, Calendar, Mic, MessageSquare, ThumbsUp, ThumbsDown } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
+import { useState } from "react"; // Asegúrate de importar useState
 
-// [NUEVO] Importamos el diálogo de creación
+// Importamos el diálogo de creación
 import { LeaveTestimonialDialog } from "@/components/leave-testimonial-dialog";
+
+// --- UTILIDAD DE PRIVACIDAD ---
+// Detecta si un string parece un UUID para no mostrarlo
+const isUUID = (str: string | null | undefined) => {
+    if (!str) return false;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(str);
+};
 
 // --- TIPOS ---
 export type ProfileData = {
@@ -42,7 +50,6 @@ export type PublicPodcast = {
   duration_seconds: number | null;
 };
 
-// [NUEVO] Tipo para Testimonios
 export type TestimonialWithAuthor = {
   id: number;
   comment_text: string;
@@ -60,14 +67,12 @@ export type TestimonialWithAuthor = {
 interface PrivateProps {
   profile: ProfileData;
   podcastsCreatedThisMonth: number;
-  initialTestimonials?: TestimonialWithAuthor[]; // [NUEVO]
+  initialTestimonials?: TestimonialWithAuthor[];
 }
 
 export function PrivateProfileDashboard({ profile, podcastsCreatedThisMonth, initialTestimonials = [] }: PrivateProps) {
   const { signOut, user, supabase } = useAuth();
   const { toast } = useToast();
-  
-  // Estado local para gestionar aprobaciones sin recargar
   const [testimonials, setTestimonials] = useState(initialTestimonials);
 
   const handleStatusChange = async (id: number, newStatus: 'approved' | 'rejected') => {
@@ -78,7 +83,7 @@ export function PrivateProfileDashboard({ profile, podcastsCreatedThisMonth, ini
         .eq('id', id);
 
     if (error) {
-        toast({ title: "Error", description: "No se pudo actualizar el estado.", variant: "destructive" });
+        toast({ title: "Error", description: "No se pudo actualizar.", variant: "destructive" });
     } else {
         setTestimonials(prev => prev.map(t => t.id === id ? { ...t, status: newStatus } : t));
         toast({ title: "Actualizado", description: `Testimonio ${newStatus === 'approved' ? 'aprobado' : 'rechazado'}.` });
@@ -90,9 +95,11 @@ export function PrivateProfileDashboard({ profile, podcastsCreatedThisMonth, ini
   const usagePercentage = Math.min(100, (podcastsCreatedThisMonth / monthlyLimit) * 100);
   const userInitial = profile?.full_name?.charAt(0)?.toUpperCase() ?? 'U';
 
-  // Filtramos pendientes para mostrarlos destacados
   const pendingTestimonials = testimonials.filter(t => t.status === 'pending');
   const approvedTestimonials = testimonials.filter(t => t.status === 'approved');
+
+  // Lógica de visualización del Username: Si es UUID, lo ocultamos.
+  const showUsername = profile?.username && !isUUID(profile.username);
 
   return (
     <div className="container mx-auto max-w-5xl py-12 px-4 animate-fade-in">
@@ -108,7 +115,11 @@ export function PrivateProfileDashboard({ profile, podcastsCreatedThisMonth, ini
                     <AvatarFallback className="text-2xl">{userInitial}</AvatarFallback>
                 </Avatar>
                 <h2 className="text-xl font-bold mt-4">{profile?.full_name}</h2>
-                <p className="text-sm text-muted-foreground">@{profile?.username}</p>
+                
+                {/* [PRIVACIDAD] Solo mostramos el handle si NO es un UUID */}
+                {showUsername && (
+                    <p className="text-sm text-muted-foreground">@{profile?.username}</p>
+                )}
                 
                 <div className="mt-6 space-y-2">
                     {profile?.username && (
@@ -260,20 +271,18 @@ interface PublicProps {
   profile: ProfileData;
   podcasts: PublicPodcast[];
   totalLikes: number;
-  initialTestimonials?: TestimonialWithAuthor[]; // [NUEVO]
+  initialTestimonials?: TestimonialWithAuthor[];
 }
 
 export function PublicProfilePage({ profile, podcasts, totalLikes, initialTestimonials = [] }: PublicProps) {
   const { user } = useAuth();
   const userInitial = profile?.full_name?.charAt(0)?.toUpperCase() ?? 'U';
-  
-  // Como es vista pública, los testimonios vienen pre-filtrados (solo aprobados) desde el servidor.
-  // Pero usamos estado por si agregamos uno nuevo dinámicamente.
   const [testimonials, setTestimonials] = useState(initialTestimonials);
 
+  // Lógica de visualización del Username: Si es UUID, lo ocultamos.
+  const showUsername = profile?.username && !isUUID(profile.username);
+
   const handleTestimonialAdded = () => {
-    // En una app real, aquí haríamos refetch o agregaríamos uno optimista pendiente.
-    // Por ahora, solo refrescamos la página para simplificar
     window.location.reload(); 
   };
 
@@ -286,7 +295,11 @@ export function PublicProfilePage({ profile, podcasts, totalLikes, initialTestim
             <AvatarFallback className="text-4xl bg-primary/10 text-primary">{userInitial}</AvatarFallback>
         </Avatar>
         <h1 className="text-3xl font-bold tracking-tight">{profile?.full_name}</h1>
-        <p className="text-muted-foreground mt-1 text-lg">@{profile?.username}</p>
+        
+        {/* [PRIVACIDAD] Ocultamos el ID si es un UUID */}
+        {showUsername && (
+            <p className="text-muted-foreground mt-1 text-lg">@{profile?.username}</p>
+        )}
         
         {profile?.bio && (
             <p className="max-w-lg mt-4 text-sm text-muted-foreground/80 leading-relaxed">
@@ -306,7 +319,7 @@ export function PublicProfilePage({ profile, podcasts, totalLikes, initialTestim
         </div>
       </div>
 
-      {/* TABS DE CONTENIDO */}
+      {/* LISTA DE CONTENIDO */}
       <Tabs defaultValue="podcasts" className="w-full">
         <TabsList className="w-full justify-center bg-transparent border-b rounded-none h-auto p-0 mb-8">
             <TabsTrigger value="podcasts" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-8 py-3 text-sm">
@@ -356,8 +369,7 @@ export function PublicProfilePage({ profile, podcasts, totalLikes, initialTestim
                 </div>
             )}
         </TabsContent>
-
-        {/* [NUEVO] TAB DE TESTIMONIOS */}
+        
         <TabsContent value="testimonials" className="space-y-6">
             <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold">Lo que dice la comunidad</h3>
