@@ -1,12 +1,10 @@
 // supabase/functions/queue-podcast-job/index.ts
-// VERSIÓN: 7.0 (Guard Integration: Sentry + Arcjet + Strict Quota)
+// VERSIÓN: 8.0 (Dynamic Quotas based on Subscription Plan)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { z, ZodError } from "https://deno.land/x/zod@v3.22.4/mod.ts";
-import { guard } from "../_shared/guard.ts"; // <--- INTEGRACIÓN DEL ESTÁNDAR
-
-// Mantenemos corsHeaders para las respuestas explícitas de éxito/negocio dentro del handler
+import { guard } from "../_shared/guard.ts"; 
 import { corsHeaders } from "../_shared/cors.ts"; 
 
 const QueuePayloadSchema = z.object({
@@ -21,7 +19,6 @@ const QueuePayloadSchema = z.object({
 
 // --- LÓGICA DE NEGOCIO (HANDLER) ---
 const handler = async (request: Request): Promise<Response> => {
-  // El Guard ya maneja OPTIONS (CORS Preflight), así que vamos directo al grano.
 
   try {
     // 1. AUTENTICACIÓN
@@ -37,22 +34,44 @@ const handler = async (request: Request): Promise<Response> => {
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) throw new Error("No autorizado.");
 
-    // --- 2. ZONA DE SEGURIDAD: CONTROL DE CUOTAS ---
+    // --- 2. ZONA DE SEGURIDAD: CÁLCULO DE CUOTA DINÁMICA ---
     const supabaseAdmin = createClient(
         Deno.env.get('SUPABASE_URL')!,
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // A. Obtener Configuración Global
-    const { data: limits } = await supabaseAdmin
-        .from('platform_limits')
-        .select('*')
-        .eq('key_name', 'free_tier')
-        .single();
-    
-    const maxPodcasts = limits?.max_podcasts_per_month ?? 3;
+    // PASO A: Determinar el Límite del Usuario (Plan vs. Free Tier)
+    let maxPodcasts = 3; // Valor de seguridad por defecto
 
-    // B. Obtener Uso del Usuario
+    // Consultamos si el usuario tiene una suscripción ACTIVA y traemos el límite del plan
+    const { data: subscription } = await supabaseAdmin
+        .from('subscriptions')
+        .select(`
+            status,
+            plans ( monthly_creation_limit )
+        `)
+        .eq('user_id', user.id)
+        .in('status', ['active', 'trialing']) // Consideramos activos y pruebas
+        .single();
+
+    if (subscription && subscription.plans) {
+        // [CASO 1]: Usuario Premium
+        // @ts-ignore: Supabase join typing inference can be tricky in Deno
+        maxPodcasts = subscription.plans.monthly_creation_limit;
+        console.log(`[Quota] Usuario Premium detectado. Límite: ${maxPodcasts}`);
+    } else {
+        // [CASO 2]: Usuario Free (Fallback a configuración global)
+        const { data: limits } = await supabaseAdmin
+            .from('platform_limits')
+            .select('max_podcasts_per_month')
+            .eq('key_name', 'free_tier')
+            .single();
+        
+        maxPodcasts = limits?.max_podcasts_per_month ?? 3;
+        console.log(`[Quota] Usuario Free. Límite: ${maxPodcasts}`);
+    }
+
+    // PASO B: Obtener Uso Actual
     const { data: usageData } = await supabaseAdmin
         .from('user_usage')
         .select('*')
@@ -65,23 +84,23 @@ const handler = async (request: Request): Promise<Response> => {
         last_reset_date: new Date().toISOString() 
     };
 
-    // C. Lazy Reset
+    // PASO C: Lazy Reset (Reinicio Mensual)
     const now = new Date();
     const lastResetDate = new Date(currentUsage.last_reset_date);
     
     if (now.getMonth() !== lastResetDate.getMonth() || now.getFullYear() !== lastResetDate.getFullYear()) {
-        console.log(`[Quota] Reset mensual para usuario ${user.id}.`);
+        console.log(`[Quota] Reset mensual automático para usuario ${user.id}.`);
         currentUsage.podcasts_created_this_month = 0;
         currentUsage.last_reset_date = now.toISOString();
     }
 
-    // D. Chequeo Final de Límite (Hard Stop)
+    // PASO D: Validación Final (El momento de la verdad)
     if (currentUsage.podcasts_created_this_month >= maxPodcasts) {
-        // Lanzamos error específico que atraparemos abajo para devolver 403
-        throw new Error(`Has alcanzado tu límite mensual de ${maxPodcasts} podcasts. Podrás crear más el próximo mes.`);
+        // Mensaje personalizado según el plan
+        throw new Error(`Has alcanzado tu límite mensual de ${maxPodcasts} podcasts. Actualiza tu plan para crear más.`);
     }
 
-    // E. Actualizar Contador (+1)
+    // PASO E: Consumir Token (+1)
     const { error: updateError } = await supabaseAdmin
         .from('user_usage')
         .upsert({
@@ -97,6 +116,8 @@ const handler = async (request: Request): Promise<Response> => {
     }
 
     console.log(`[Quota] Token consumido. Uso: ${currentUsage.podcasts_created_this_month + 1}/${maxPodcasts}`);
+
+    // --- FIN ZONA DE SEGURIDAD ---
 
     // 3. PROCESAMIENTO DEL TRABAJO
     const payload = await request.json();
@@ -129,9 +150,7 @@ const handler = async (request: Request): Promise<Response> => {
     const errorMessage = error instanceof Error ? error.message : "Error desconocido.";
     console.error("Error en queue-podcast-job:", error);
     
-    // LÓGICA DE FILTRADO PARA SENTRY:
-    
-    // Caso 1: Error de Cuota (403)
+    // Manejo de códigos de estado para el Frontend
     if (errorMessage.includes("límite mensual")) {
         return new Response(JSON.stringify({ error: errorMessage }), { 
             status: 403, 
@@ -139,7 +158,6 @@ const handler = async (request: Request): Promise<Response> => {
         });
     }
 
-    // Caso 2: Error de Validación (400)
     if (error instanceof ZodError) {
         return new Response(JSON.stringify({ error: errorMessage }), { 
             status: 400, 
@@ -147,7 +165,6 @@ const handler = async (request: Request): Promise<Response> => {
         });
     }
 
-    // Caso 3: Error de Auth (401/403)
     if (errorMessage.includes("Autorización") || errorMessage.includes("No autorizado")) {
          return new Response(JSON.stringify({ error: errorMessage }), { 
             status: 401, 
@@ -155,11 +172,8 @@ const handler = async (request: Request): Promise<Response> => {
         });
     }
 
-    // Caso 4: Error Crítico de Sistema (500) -> SE LO PASAMOS AL GUARD
-    // Al hacer 'throw', el Guard (guard.ts) lo captura, lo manda a Sentry y devuelve el 500.
     throw error;
   }
 };
 
-// --- PUNTO DE ENTRADA PROTEGIDO ---
 serve(guard(handler));

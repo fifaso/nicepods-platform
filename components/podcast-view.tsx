@@ -1,5 +1,5 @@
 // components/podcast-view.tsx
-// VERSIÓN: 9.0 (Persistence: Save Listening Progress to DB)
+// VERSIÓN: 10.0 (Persistence: LocalStorage Resume + Database Sync)
 
 "use client";
 
@@ -28,15 +28,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const ScriptViewer = dynamic(
   () => import('./script-viewer').then((mod) => mod.ScriptViewer),
-  { 
-    ssr: false, 
-    loading: () => (
-        <div className="h-24 w-full flex items-center justify-center text-muted-foreground animate-pulse">
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            Cargando guion...
-        </div>
-    )
-  }
+  { ssr: false, loading: () => <div className="h-24 w-full flex items-center justify-center text-muted-foreground animate-pulse"><Loader2 className="h-4 w-4 animate-spin mr-2" />Cargando guion...</div> }
 );
 
 interface PodcastViewProps { 
@@ -53,8 +45,7 @@ interface SourceItem {
 
 export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewProps) {
   const { supabase } = useAuth();
-  
-  const { playPodcast, logInteractionEvent, currentPodcast, currentTime, duration: currentDuration } = useAudio();
+  const { playPodcast, logInteractionEvent, currentPodcast, currentTime, duration: currentDuration, seekTo } = useAudio(); // Importamos seekTo
   const { toast } = useToast();
   
   const [localPodcastData, setLocalPodcastData] = useState(podcastData);
@@ -68,25 +59,38 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
   const [isEditingTags, setIsEditingTags] = useState(false);
   const [viewerRole, setViewerRole] = useState<string>('user');
 
-  // [MEJORA 1]: Inicialización Persistente
-  // Si la DB dice que ya lo revisaste, empezamos en true.
-  const [hasListenedFully, setHasListenedFully] = useState(localPodcastData.reviewed_by_user || false);
-  const [listeningProgress, setListeningProgress] = useState(hasListenedFully ? 100 : 0);
-  
-  // Ref para evitar múltiples llamadas a la DB en el mismo segundo
-  const hasUpdatedDbRef = useRef(hasListenedFully);
+  // Lógica de Persistencia
+  const [hasListenedFully, setHasListenedFully] = useState(false);
+  const [listeningProgress, setListeningProgress] = useState(0);
+  const hasUpdatedDbRef = useRef(false);
 
+  // 1. INICIALIZACIÓN ROBUSTA (DB + LocalStorage)
   useEffect(() => {
     setLocalPodcastData(podcastData);
     setLikeCount(podcastData.like_count);
     setIsLiked(initialIsLiked);
-    // Sincronizar estado si los props cambian
+
+    // CASO A: Ya validado en DB (Prioridad Máxima)
     if (podcastData.reviewed_by_user) {
         setHasListenedFully(true);
         setListeningProgress(100);
         hasUpdatedDbRef.current = true;
+    } else {
+        // CASO B: No validado -> Buscar progreso parcial en LocalStorage
+        // Clave única por podcast
+        const savedTime = localStorage.getItem(`nicepod_progress_${podcastData.id}`);
+        if (savedTime && podcastData.duration_seconds) {
+            const time = parseFloat(savedTime);
+            const percent = (time / podcastData.duration_seconds) * 100;
+            setListeningProgress(Math.min(percent, 99)); // Topamos en 99 visualmente hasta que reproduzca
+            
+            // Opcional: Si el audio es el actual, sincronizamos el player
+            if (currentPodcast?.id === podcastData.id) {
+                // seekTo(time); // Esto a veces entra en conflicto con el autoplay, mejor dejarlo visual
+            }
+        }
     }
-  }, [podcastData, initialIsLiked]);
+  }, [podcastData, initialIsLiked, currentPodcast]);
 
   useEffect(() => {
     const fetchRole = async () => {
@@ -97,42 +101,57 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
     fetchRole();
   }, [user, supabase]);
 
-  // [MEJORA 2]: Guardado Silencioso en DB
+  // 2. GUARDADO EN DB (Cuando llega al 100%)
   const markAsListened = async () => {
     if (!supabase || hasUpdatedDbRef.current) return;
     
-    // Bloqueo inmediato local
     hasUpdatedDbRef.current = true;
     setHasListenedFully(true);
-
-    console.log("Guardando validación de escucha en DB...");
     
-    // Actualización en segundo plano (Fire and forget)
+    // Limpiamos el localStorage porque ya no es necesario
+    localStorage.removeItem(`nicepod_progress_${localPodcastData.id}`);
+
     await supabase
         .from('micro_pods')
         .update({ reviewed_by_user: true })
         .eq('id', localPodcastData.id);
-        
-    // No mostramos toast para no interrumpir la experiencia de escucha
   };
 
-  // Monitor de Progreso
+  // 3. MONITOR Y PERSISTENCIA CONTINUA
   useEffect(() => {
-    if (hasListenedFully) return; // Si ya está listo, dejamos de calcular
+    if (hasListenedFully) return;
     if (currentPodcast?.id !== localPodcastData.id) return;
 
     if (currentDuration > 0) {
         const percent = (currentTime / currentDuration) * 100;
         setListeningProgress(percent);
         
-        // Umbral del 95% para considerar "Escuchado"
+        // Guardar progreso en LocalStorage cada segundo (aprox)
+        if (currentTime > 0) {
+            localStorage.setItem(`nicepod_progress_${localPodcastData.id}`, currentTime.toString());
+        }
+
         if (percent > 95) {
-            markAsListened(); // <--- Llamada a la persistencia
+            markAsListened();
         }
     }
   }, [currentTime, currentDuration, currentPodcast, localPodcastData.id, hasListenedFully]);
 
-  // Real-time Subscription
+  // 4. PLAY INTELIGENTE (Resume)
+  const handlePlaySmart = () => {
+      // Si hay progreso guardado y no es el audio actual, intentamos resumir
+      const savedTime = localStorage.getItem(`nicepod_progress_${localPodcastData.id}`);
+      playPodcast(localPodcastData);
+      
+      if (savedTime && !hasListenedFully) {
+          // Pequeño timeout para dar tiempo al player a cargar la metadata
+          setTimeout(() => {
+              seekTo(parseFloat(savedTime));
+          }, 500);
+      }
+  };
+
+  // Real-time Subscription (Sin cambios)
   useEffect(() => {
     const wasAudioRequested = localPodcastData.creation_data?.inputs?.generateAudioDirectly ?? true;
     const isAudioComplete = !!localPodcastData.audio_url;
@@ -148,7 +167,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
         (payload) => {
           setLocalPodcastData(prevData => ({ ...prevData, ...(payload.new as PodcastWithProfile) }));
           if (payload.new.audio_url) setIsGeneratingAudio(false);
-          // Si llega una actualización externa de que ya se revisó, actualizamos UI
           if (payload.new.reviewed_by_user) {
              setHasListenedFully(true);
              hasUpdatedDbRef.current = true;
@@ -225,7 +243,6 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
         .from('micro_pods')
         .update({ 
             status: 'published',
-            // reviewed_by_user ya debería ser true, pero lo reafirmamos por seguridad
             reviewed_by_user: true,
             published_at: new Date().toISOString()
         })
@@ -526,7 +543,8 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
                 {localPodcastData.audio_url ? (
-                  <Button size="lg" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-md transition-all active:scale-[0.98] h-12 text-base font-semibold" onClick={() => playPodcast(localPodcastData)}>
+                  // [MEJORA 3]: Usamos handlePlaySmart para reanudar desde donde se dejó
+                  <Button size="lg" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-md transition-all active:scale-[0.98] h-12 text-base font-semibold" onClick={handlePlaySmart}>
                     Reproducir Ahora
                   </Button>
                 ) : ( (localPodcastData.status !== 'published' && localPodcastData.status !== 'pending_approval') || isGeneratingAudio ? (

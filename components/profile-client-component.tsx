@@ -1,8 +1,9 @@
 // components/profile-client-component.tsx
-// VERSIÓN: 6.0 (Privacy Shield: UUID Masking)
+// VERSIÓN: 7.0 (Fix: Public View Link & Full Features Integration)
 
 "use client";
 
+import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -12,12 +13,11 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Crown, PlayCircle, Calendar, Mic, MessageSquare, ThumbsUp, ThumbsDown } from "lucide-react";
+import { Crown, PlayCircle, Calendar, Mic, MessageSquare, ThumbsUp, ThumbsDown, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react"; // Asegúrate de importar useState
 
-// Importamos el diálogo de creación
+// Importamos el diálogo de creación de testimonios
 import { LeaveTestimonialDialog } from "@/components/leave-testimonial-dialog";
 
 // --- UTILIDAD DE PRIVACIDAD ---
@@ -75,6 +75,7 @@ export function PrivateProfileDashboard({ profile, podcastsCreatedThisMonth, ini
   const { toast } = useToast();
   const [testimonials, setTestimonials] = useState(initialTestimonials);
 
+  // Lógica para aprobar/rechazar testimonios
   const handleStatusChange = async (id: number, newStatus: 'approved' | 'rejected') => {
     if (!supabase) return;
     const { error } = await supabase
@@ -98,7 +99,6 @@ export function PrivateProfileDashboard({ profile, podcastsCreatedThisMonth, ini
   const pendingTestimonials = testimonials.filter(t => t.status === 'pending');
   const approvedTestimonials = testimonials.filter(t => t.status === 'approved');
 
-  // Lógica de visualización del Username: Si es UUID, lo ocultamos.
   const showUsername = profile?.username && !isUUID(profile.username);
 
   return (
@@ -116,15 +116,17 @@ export function PrivateProfileDashboard({ profile, podcastsCreatedThisMonth, ini
                 </Avatar>
                 <h2 className="text-xl font-bold mt-4">{profile?.full_name}</h2>
                 
-                {/* [PRIVACIDAD] Solo mostramos el handle si NO es un UUID */}
                 {showUsername && (
                     <p className="text-sm text-muted-foreground">@{profile?.username}</p>
                 )}
                 
                 <div className="mt-6 space-y-2">
                     {profile?.username && (
-                      <Link href={`/profile/${profile.username}`} className="w-full block">
-                          <Button variant="outline" className="w-full">Ver mi Perfil Público</Button>
+                      // [CORRECCIÓN]: Agregamos ?view=public para evitar el rebote del servidor
+                      <Link href={`/profile/${profile.username}?view=public`} className="w-full block">
+                          <Button variant="outline" className="w-full">
+                            Ver mi Perfil Público <ExternalLink className="ml-2 h-3 w-3" />
+                          </Button>
                       </Link>
                     )}
                     <Button onClick={signOut} variant="ghost" className="w-full text-red-500 hover:text-red-600 hover:bg-red-500/10">
@@ -218,18 +220,23 @@ export function PrivateProfileDashboard({ profile, podcastsCreatedThisMonth, ini
                         </TabsContent>
                         
                         <TabsContent value="approved" className="space-y-4">
-                             {approvedTestimonials.map(t => (
-                                <div key={t.id} className="p-3 rounded-lg bg-card border flex gap-3 items-center">
-                                    <Avatar className="h-8 w-8">
-                                        <AvatarImage src={t.author?.avatar_url || ''} />
-                                        <AvatarFallback>{t.author?.full_name?.substring(0,1)}</AvatarFallback>
-                                    </Avatar>
-                                    <div className="flex-1">
-                                        <p className="text-sm line-clamp-1">{t.comment_text}</p>
+                             {approvedTestimonials.length === 0 ? (
+                                <p className="text-sm text-muted-foreground text-center py-6">No hay testimonios aprobados aún.</p>
+                             ) : (
+                                approvedTestimonials.map(t => (
+                                    <div key={t.id} className="p-3 rounded-lg bg-card border flex gap-3 items-center">
+                                        <Avatar className="h-8 w-8">
+                                            <AvatarImage src={t.author?.avatar_url || ''} />
+                                            <AvatarFallback>{t.author?.full_name?.substring(0,1)}</AvatarFallback>
+                                        </Avatar>
+                                        <div className="flex-1">
+                                            <p className="text-sm line-clamp-2 italic">"{t.comment_text}"</p>
+                                            <p className="text-xs text-muted-foreground mt-1">- {t.author?.full_name}</p>
+                                        </div>
+                                        <Badge variant="outline" className="text-green-500 border-green-500/20 bg-green-500/10">Visible</Badge>
                                     </div>
-                                    <Badge variant="outline" className="text-green-500 border-green-500/20 bg-green-500/10">Visible</Badge>
-                                </div>
-                             ))}
+                                ))
+                             )}
                         </TabsContent>
                     </Tabs>
                 </CardContent>
@@ -277,9 +284,8 @@ interface PublicProps {
 export function PublicProfilePage({ profile, podcasts, totalLikes, initialTestimonials = [] }: PublicProps) {
   const { user } = useAuth();
   const userInitial = profile?.full_name?.charAt(0)?.toUpperCase() ?? 'U';
-  const [testimonials, setTestimonials] = useState(initialTestimonials);
+  const [testimonials] = useState(initialTestimonials);
 
-  // Lógica de visualización del Username: Si es UUID, lo ocultamos.
   const showUsername = profile?.username && !isUUID(profile.username);
 
   const handleTestimonialAdded = () => {
@@ -296,7 +302,6 @@ export function PublicProfilePage({ profile, podcasts, totalLikes, initialTestim
         </Avatar>
         <h1 className="text-3xl font-bold tracking-tight">{profile?.full_name}</h1>
         
-        {/* [PRIVACIDAD] Ocultamos el ID si es un UUID */}
         {showUsername && (
             <p className="text-muted-foreground mt-1 text-lg">@{profile?.username}</p>
         )}

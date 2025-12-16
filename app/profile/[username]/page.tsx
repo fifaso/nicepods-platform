@@ -1,5 +1,5 @@
 // app/profile/[username]/page.tsx
-// VERSIÓN: 5.0 (Social Proof: Testimonials Integration & Security)
+// VERSIÓN: 6.0 (Fix: Allow Owner to View Public Profile via Param)
 
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
@@ -13,12 +13,13 @@ import {
 
 type ProfilePageProps = {
   params: { username: string };
+  searchParams: { [key: string]: string | string[] | undefined }; // [NUEVO]: Tipado para recibir query params
 };
 
-export default async function PublicProfileRoute({ params }: ProfilePageProps) {
+export default async function PublicProfileRoute({ params, searchParams }: ProfilePageProps) {
   const supabase = createClient(cookies());
 
-  // 1. Identificar al visitante (para saber si puede dejar review o si es el dueño)
+  // 1. Identificar al visitante
   const { data: { user: visitor } } = await supabase.auth.getUser();
 
   // 2. Decodificar username y buscar perfil
@@ -34,14 +35,16 @@ export default async function PublicProfileRoute({ params }: ProfilePageProps) {
     notFound(); 
   }
   
-  // 3. CANONICAL REDIRECT: Si soy yo, voy a mi panel privado
-  if (visitor?.id === targetProfile.id) {
+  // 3. CANONICAL REDIRECT (LÓGICA MEJORADA)
+  // Si soy yo, PERO NO he pedido explícitamente ver la versión pública (?view=public), redirigir.
+  const isViewingPublicMode = searchParams?.view === 'public';
+
+  if (visitor?.id === targetProfile.id && !isViewingPublicMode) {
     redirect('/profile');
   }
 
-  // 4. CARGA DE DATOS PARALELA (Optimizada)
+  // 4. CARGA DE DATOS PARALELA
   const [podcastsResponse, likesResponse, testimonialsResponse] = await Promise.all([
-    // A. Podcasts Publicados
     supabase
       .from('micro_pods')
       .select('id, title, description, audio_url, created_at, duration_seconds')
@@ -49,19 +52,17 @@ export default async function PublicProfileRoute({ params }: ProfilePageProps) {
       .eq('status', 'published') 
       .order('created_at', { ascending: false }),
       
-    // B. Total de Likes
     supabase
       .from('micro_pods')
       .select('like_count')
       .eq('user_id', targetProfile.id)
       .eq('status', 'published'),
 
-    // C. Testimonios Aprobados (Solo lo que queremos mostrar al mundo)
     supabase
       .from('profile_testimonials')
       .select('*, author:author_user_id(full_name, avatar_url)')
       .eq('profile_user_id', targetProfile.id)
-      .eq('status', 'approved') // FILTRO CRÍTICO
+      .eq('status', 'approved')
       .order('created_at', { ascending: false })
       .returns<TestimonialWithAuthor[]>()
   ]);
@@ -70,7 +71,6 @@ export default async function PublicProfileRoute({ params }: ProfilePageProps) {
   const totalLikes = likesResponse.data?.reduce((sum, p) => sum + (p.like_count || 0), 0) ?? 0;
   const testimonials = testimonialsResponse.data || [];
 
-  // 5. Renderizado
   return (
     <PublicProfilePage 
       profile={targetProfile} 
