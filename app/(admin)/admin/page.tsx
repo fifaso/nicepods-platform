@@ -1,66 +1,66 @@
-import { getAdminDashboardStats, getUsersList } from "@/lib/admin/actions";
+import { getAdminDashboardStats, getUsersList, getRecentFailedJobs } from "@/lib/admin/actions";
 import { UsersTable } from "@/components/admin/users-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Activity, AlertTriangle, Users } from "lucide-react";
+import { FailedJobsDialog } from "@/components/admin/failed-jobs-dialog"; // Vamos a crear este pequeño componente
 
-// Forzar renderizado dinámico para ver datos frescos siempre
 export const dynamic = 'force-dynamic';
 
 export default async function AdminPage() {
-  const [stats, users] = await Promise.all([
+  const [stats, users, failedJobsList] = await Promise.all([
     getAdminDashboardStats(),
-    getUsersList()
+    getUsersList(),
+    getRecentFailedJobs()
   ]);
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500 pb-20">
       
       {/* HEADER */}
-      <div>
-        <h1 className="text-3xl font-bold text-white mb-2">Panel de Operaciones</h1>
-        <p className="text-slate-400">Estado del sistema y gestión de la red boutique.</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-white">Panel de Operaciones</h1>
+            <p className="text-slate-400 text-sm">Gestión de la red boutique.</p>
+        </div>
+        <div className="flex items-center gap-2">
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-500/10 text-green-400 border border-green-500/20">
+                Sistema Operativo
+            </span>
+        </div>
       </div>
 
       {/* KPI CARDS */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="bg-slate-900 border-slate-800 text-slate-200">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="bg-slate-900 border-slate-800 text-slate-200 shadow-lg">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-slate-400">Usuarios Totales</CardTitle>
             <Users className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.userCount || 0}</div>
-            <p className="text-xs text-slate-500">Miembros en la plataforma</p>
+            <div className="text-2xl font-bold">{stats.userCount}</div>
+            <p className="text-xs text-slate-500">Miembros activos</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-900 border-slate-800 text-slate-200">
+        <Card className="bg-slate-900 border-slate-800 text-slate-200 shadow-lg">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-slate-400">Podcasts Generados</CardTitle>
             <Activity className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.podCount || 0}</div>
+            <div className="text-2xl font-bold">{stats.podCount}</div>
             <p className="text-xs text-slate-500">Contenido histórico</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-900 border-slate-800 text-slate-200">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-400">Alertas (24h)</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-400">{stats.failedJobs || 0}</div>
-            <p className="text-xs text-slate-500">Jobs fallidos hoy</p>
-          </CardContent>
-        </Card>
+        {/* ALERT CARD CON TRIGGER */}
+        <FailedJobsDialog jobs={failedJobsList} count={stats.failedJobs} />
       </div>
 
-      {/* TABLA DE USUARIOS */}
+      {/* USERS TABLE */}
       <div className="space-y-4">
-        <h2 className="text-xl font-bold text-white">Gestión de Usuarios</h2>
-        <UsersTable users={users || []} />
+        <h2 className="text-lg font-bold text-white">Gestión de Usuarios</h2>
+        <UsersTable users={users} />
       </div>
 
     </div>
