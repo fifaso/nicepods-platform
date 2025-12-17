@@ -1,3 +1,6 @@
+// components/platform-info-dialog.tsx
+// VERSIÓN: 2.0 (Dynamic Aurora Button: "Conócenos")
+
 "use client";
 
 import {
@@ -9,20 +12,42 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Info, Sparkles, BrainCircuit, Headphones } from "lucide-react";
+import { Info, Sparkles, BrainCircuit, Headphones, ArrowRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export function PlatformInfoDialog() {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button 
-            variant="ghost" 
-            size="icon" 
-            className="rounded-full h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-        >
-          <Info className="h-5 w-5" />
-          <span className="sr-only">Sobre NicePod</span>
-        </Button>
+        <div className="relative group cursor-pointer">
+            {/* Capa de Brillo (Glow) detrás del botón */}
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-pink-600 to-purple-600 rounded-full blur opacity-40 group-hover:opacity-75 transition duration-200"></div>
+            
+            <Button 
+                className={cn(
+                    "relative h-10 px-5 rounded-full border-0 overflow-hidden",
+                    "text-white font-bold text-xs tracking-wide uppercase",
+                    "shadow-xl transition-all active:scale-95"
+                )}
+                style={{
+                    background: "linear-gradient(270deg, #ec4899, #8b5cf6, #3b82f6, #ec4899)",
+                    backgroundSize: "300% 300%",
+                    animation: "aurora 6s ease infinite"
+                }}
+            >
+                {/* Definición de la animación inline para no tocar tailwind.config */}
+                <style jsx>{`
+                    @keyframes aurora {
+                        0% { background-position: 0% 50% }
+                        50% { background-position: 100% 50% }
+                        100% { background-position: 0% 50% }
+                    }
+                `}</style>
+
+                <Sparkles className="mr-2 h-4 w-4 text-yellow-200 animate-pulse" />
+                Conócenos
+            </Button>
+        </div>
       </DialogTrigger>
       
       <DialogContent className="sm:max-w-md bg-slate-950 border-slate-800 text-slate-200">
