@@ -1,11 +1,11 @@
 // components/navigation.tsx
-// VERSIÓN: 10.0 (Fix: Logout Hard Redirect)
+// VERSIÓN: 11.0 (Growth Hacking: High Visibility Create Button)
 
 "use client";
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -27,11 +27,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { NotificationBell } from "@/components/notification-bell";
-import { Mic, Menu, LogOut, ShieldCheck, Loader, User as UserIcon } from "lucide-react";
+import { Mic, Menu, LogOut, ShieldCheck, Loader, User as UserIcon, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function Navigation() {
   const pathname = usePathname();
+  const router = useRouter(); 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   const { user, profile, isAdmin, signOut, isLoading } = useAuth();
@@ -48,30 +49,40 @@ export function Navigation() {
     setIsMobileMenuOpen(false);
   };
 
-  // [MODIFICACIÓN CRÍTICA]: Estrategia de "Hard Logout"
   const handleLogout = async () => {
     setIsMobileMenuOpen(false);
-    
     try {
-      // 1. Limpiar sesión en Supabase y Storage local
       await signOut();
     } catch (error) {
       console.error("Error al cerrar sesión:", error);
     } finally {
-      // 2. FORZAR RECARGA TOTAL DEL NAVEGADOR
-      // No usamos router.push() aquí. Usamos window.location.href para:
-      // a) Limpiar la memoria RAM del cliente (Estados de React).
-      // b) Obligar al servidor a renderizar la página de nuevo (sin cookies).
-      // c) Garantizar que el usuario aterrice en la Home de invitados.
       window.location.href = "/";
     }
   };
 
+  // ESTILO DINÁMICO (AURORA)
+  const auroraStyle = {
+    background: "linear-gradient(270deg, #ec4899, #8b5cf6, #3b82f6, #ec4899)",
+    backgroundSize: "300% 300%",
+    animation: "aurora 6s ease infinite",
+    border: "none",
+    color: "white"
+  };
+
   return (
     <header className="sticky top-0 z-50 w-full p-4">
+      {/* Definición de animación global para este componente */}
+      <style jsx global>{`
+          @keyframes aurora {
+              0% { background-position: 0% 50% }
+              50% { background-position: 100% 50% }
+              100% { background-position: 0% 50% }
+          }
+      `}</style>
+
       <div className="relative max-w-screen-xl mx-auto flex h-16 items-center rounded-2xl border border-border/40 bg-background/80 px-4 shadow-lg shadow-black/5 backdrop-blur-lg supports-[backdrop-filter]:bg-background/60">
         
-        {/* LOGO */}
+        {/* 1. LOGO */}
         <div className="flex-1 flex justify-start">
           <Link href="/" className="flex items-center space-x-3">
             <Image
@@ -82,32 +93,69 @@ export function Navigation() {
               className="rounded-lg"
               priority
             />
-            <span className="font-bold text-xl inline-block">NicePod</span>
+            <span className="font-bold text-xl inline-block hidden sm:block">NicePod</span>
           </Link>
         </div>
 
-        {/* MENÚ CENTRAL DESKTOP */}
+        {/* 2. [NUEVO] BOTÓN CENTRAL MÓVIL (CTA ESTRATÉGICO) */}
+        {/* Solo visible en móviles (md:hidden) y centrado absolutamente */}
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 md:hidden">
+            <Link href="/create">
+                <Button 
+                    size="sm"
+                    className="h-9 px-4 rounded-full font-bold text-xs uppercase tracking-wide shadow-md hover:scale-105 transition-transform"
+                    style={auroraStyle}
+                >
+                    <Mic className="mr-1.5 h-3.5 w-3.5 animate-pulse" />
+                    Crear
+                </Button>
+            </Link>
+        </div>
+
+        {/* 3. MENÚ CENTRAL DESKTOP (MEJORADO) */}
         <nav className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
           <ul className="flex items-center space-x-2 rounded-full bg-muted/50 p-1">
-            {navItems.map((item) => (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className={cn(
-                    "rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
-                    isActive(item.href)
-                      ? "bg-background shadow-sm text-primary"
-                      : "text-muted-foreground hover:text-primary"
-                  )}
-                >
-                  {item.label}
-                </Link>
-              </li>
-            ))}
+            {navItems.map((item) => {
+              // Lógica especial para el botón "Crear"
+              const isCreateBtn = item.href === '/create';
+              
+              if (isCreateBtn) {
+                  return (
+                    <li key={item.href}>
+                        <Link href={item.href}>
+                            <Button 
+                                size="sm" 
+                                className="rounded-full px-5 h-8 text-xs font-bold transition-all hover:brightness-110"
+                                style={auroraStyle}
+                            >
+                                <Sparkles className="mr-1.5 h-3 w-3" />
+                                {item.label}
+                            </Button>
+                        </Link>
+                    </li>
+                  );
+              }
+
+              return (
+                <li key={item.href}>
+                    <Link
+                    href={item.href}
+                    className={cn(
+                        "rounded-full px-4 py-1.5 text-sm font-medium transition-colors block",
+                        isActive(item.href)
+                        ? "bg-background shadow-sm text-primary"
+                        : "text-muted-foreground hover:text-primary"
+                    )}
+                    >
+                    {item.label}
+                    </Link>
+                </li>
+              );
+            })}
           </ul>
         </nav>
 
-        {/* ZONA DERECHA (AUTH & TOOLS) */}
+        {/* 4. ZONA DERECHA (AUTH & TOOLS) */}
         <div className="flex-1 flex items-center justify-end space-x-2">
           <ThemeToggle />
           
@@ -161,12 +209,7 @@ export function Navigation() {
             )}
           </div>
           
-          {/* BOTÓN NUEVO PODCAST */}
-          <Link href="/create">
-            <Button className="hidden lg:inline-flex bg-primary hover:bg-primary/90 text-white shadow-md">
-                <Mic className="mr-2 h-4 w-4" /> Nuevo Podcast
-            </Button>
-          </Link>
+          {/* BOTÓN NUEVO PODCAST DESKTOP (Eliminado porque ahora está en el menú central) */}
 
           {/* MENÚ MÓVIL */}
           <div className="md:hidden">
@@ -186,13 +229,25 @@ export function Navigation() {
                   </SheetTitle>
                 </SheetHeader>
                 <div className="flex flex-col space-y-4 mt-8">
-                  {navItems.map((item) => (
-                    <Link key={item.href} href={item.href} onClick={handleMobileLinkClick}>
-                      <Button variant="ghost" className={cn("w-full justify-start text-lg", isActive(item.href) && "bg-secondary")}>
-                        {item.label}
-                      </Button>
-                    </Link>
-                  ))}
+                  {navItems.map((item) => {
+                    const isCreateBtn = item.href === '/create';
+                    
+                    return (
+                        <Link key={item.href} href={item.href} onClick={handleMobileLinkClick}>
+                        <Button 
+                            variant={isActive(item.href) && !isCreateBtn ? "secondary" : "ghost"}
+                            className={cn(
+                                "w-full justify-start text-lg relative overflow-hidden",
+                                isCreateBtn && "text-white font-bold shadow-md hover:scale-[1.02] transition-transform"
+                            )}
+                            style={isCreateBtn ? auroraStyle : {}}
+                        >
+                            {isCreateBtn && <Mic className="mr-2 h-5 w-5 animate-pulse" />}
+                            {item.label}
+                        </Button>
+                        </Link>
+                    );
+                  })}
                   <hr className="border-border" />
                   
                   {user && profile ? (
