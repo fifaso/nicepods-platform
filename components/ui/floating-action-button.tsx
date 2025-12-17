@@ -1,5 +1,5 @@
 // components/ui/floating-action-button.tsx
-// Un botón de acción flotante, visible solo en pantallas pequeñas, para un acceso rápido a la creación.
+// VERSIÓN: 3.0 (Compact & Safe Z-Index)
 
 "use client";
 
@@ -7,23 +7,29 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Mic } from "lucide-react";
+import { useAudio } from "@/contexts/audio-context";
 
 export function FloatingActionButton() {
+  const { currentPodcast } = useAudio();
+  
+  // Si hay reproductor, subimos mucho más (bottom-32) para librar el player y su progreso
+  const bottomPosition = currentPodcast ? "bottom-32" : "bottom-6";
+
   return (
-    // Este componente solo será visible en pantallas pequeñas (md:hidden).
     <motion.div
-      className="fixed bottom-6 right-6 z-50 md:hidden"
+      className={`fixed ${bottomPosition} right-4 z-40 md:hidden transition-all duration-500 ease-in-out`}
       initial={{ scale: 0, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
-      transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.5 }}
+      whileTap={{ scale: 0.9 }}
     >
       <Link href="/create" passHref>
         <Button
           size="icon"
-          className="w-16 h-16 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg"
+          // Tamaño reducido a h-12 (48px) para ser estándar móvil, no gigante
+          className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-xl hover:shadow-2xl border border-white/20"
           aria-label="Crear nuevo podcast"
         >
-          <Mic className="h-7 w-7" />
+          <Mic className="h-5 w-5" />
         </Button>
       </Link>
     </motion.div>
