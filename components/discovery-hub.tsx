@@ -58,7 +58,7 @@ export function DiscoveryHub() {
             if (vectorError || !vectorData.embedding) throw new Error("Error vectorizando");
 
             const { data: searchResults, error: searchError } = await supabase.rpc('search_omni', {
-                query_text: searchTerm, query_embedding: vectorData.embedding, match_threshold: 0.5, match_count: 10
+                query_text: searchTerm, query_embedding: vectorData.embedding, match_threshold: 0.15, match_count: 10
             });
             if (searchError) throw searchError;
             setResults(searchResults || []);
