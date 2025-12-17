@@ -1,5 +1,5 @@
 // app/page.tsx
-// VERSIÓN: 5.0 (Stabilized: Defensive Auth Loading & Visual Consistency)
+// VERSIÓN: 6.0 (Mobile First: Ultra Compact Layout)
 
 import { cookies } from "next/headers";
 import Link from "next/link";
@@ -15,15 +15,13 @@ import { DiscoveryHub } from "@/components/discovery-hub";
 import type { Tables } from "@/types/supabase";
 import dynamic from "next/dynamic";
 
-// Dynamic Import para aislar el renderizado de tarjetas del servidor
-// Previene errores de hidratación y mejora la velocidad inicial
 const PodcastShelf = dynamic(
   () => import("@/components/podcast-shelf").then((mod) => mod.PodcastShelf),
   { 
     ssr: false,
     loading: () => (
-      <div className="w-full h-48 flex items-center justify-center text-muted-foreground">
-        <Loader2 className="h-6 w-6 animate-spin mr-2" /> Cargando contenido...
+      <div className="w-full h-32 flex items-center justify-center text-muted-foreground">
+        <Loader2 className="h-5 w-5 animate-spin" />
       </div>
     )
   }
@@ -36,7 +34,6 @@ interface DiscoveryFeed {
   new_horizons: PodcastWithProfile[] | null;
 }
 
-// Utilidad para limpiar datos JSON antes de pasarlos a componentes de cliente
 function sanitizePodcasts(podcasts: any[] | null): PodcastWithProfile[] {
   if (!podcasts || !Array.isArray(podcasts)) return [];
   return podcasts.map(pod => ({
@@ -48,8 +45,6 @@ function sanitizePodcasts(podcasts: any[] | null): PodcastWithProfile[] {
   })).filter(p => p.id); 
 }
 
-// --- SUB-COMPONENTES DE VISTA ---
-
 function UserDashboard({ user, feed, profile }: { user: any; feed: DiscoveryFeed | null; profile: any }) {
   const userName = profile?.full_name?.split(' ')[0] || user.user_metadata?.full_name?.split(' ')[0] || "Creador";
 
@@ -59,38 +54,47 @@ function UserDashboard({ user, feed, profile }: { user: any; feed: DiscoveryFeed
 
   return (
     <>
-      <div className="px-4 lg:px-0">
-        <div className="lg:hidden mb-6"> 
-            <h1 className="text-3xl font-bold tracking-tight mb-4">Hola, {userName}!</h1>
-            <div className="grid grid-cols-2 gap-4">
-                <Link href="/podcasts?tab=discover">
-                    <Button variant="outline" className="w-full h-16 text-base bg-card/50">
-                        <Library className="mr-2 h-5 w-5" /> Explorar
+      <div className="px-4 lg:px-0 pb-24"> 
+        
+        {/* HEADER MÓVIL SUPER COMPACTO */}
+        <div className="lg:hidden mb-4 mt-2"> 
+            <div className="flex items-baseline justify-between mb-3">
+                <h1 className="text-xl font-bold tracking-tight">Hola, {userName}</h1>
+            </div>
+            
+            {/* Botones de Acción Rápida (Estilo Pill) */}
+            <div className="grid grid-cols-2 gap-3">
+                <Link href="/podcasts?tab=discover" className="w-full">
+                    <Button variant="secondary" className="w-full h-10 text-xs font-semibold bg-secondary/50 border border-border/50 hover:bg-secondary">
+                        <Library className="mr-2 h-3.5 w-3.5" /> Explorar
                     </Button>
                 </Link>
-                <Link href={`/podcasts?tab=library&view=list`}>
-                    <Button variant="outline" className="w-full h-16 text-base bg-card/50">
-                        <User className="mr-2 h-5 w-5" /> Mis Creaciones
+                <Link href={`/podcasts?tab=library&view=list`} className="w-full">
+                    <Button variant="secondary" className="w-full h-10 text-xs font-semibold bg-secondary/50 border border-border/50 hover:bg-secondary">
+                        <User className="mr-2 h-3.5 w-3.5" /> Mis Creaciones
                     </Button>
                 </Link>
             </div>
         </div>
         
-        <div className="hidden lg:block">
+        {/* HEADER DESKTOP (Sin cambios) */}
+        <div className="hidden lg:block mb-8">
             <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
               Hola, {userName}!
             </h1>
             <p className="text-lg text-muted-foreground mt-2">Tu centro de descubrimiento personalizado.</p>
         </div>
 
+        {/* COMPONENTE HÍBRIDO (Grid en Desktop / Carrusel en Móvil) */}
         <DiscoveryHub />
 
-        <div className="mt-8 space-y-12">
+        <div className="mt-6 md:mt-10 space-y-8 md:space-y-12">
           <PodcastShelf title="Tu Epicentro Creativo" podcasts={safeEpicenter} variant="compact" />
           <PodcastShelf title="Conexiones Inesperadas" podcasts={safeConnections} variant="compact" />
-          <PodcastShelf title="Nuevos Horizontes en NicePod" podcasts={safeHorizons} variant="compact" />
+          <PodcastShelf title="Nuevos Horizontes" podcasts={safeHorizons} variant="compact" />
         </div>
       </div>
+      
       <FloatingActionButton />
     </>
   );
@@ -100,96 +104,69 @@ function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] }) {
   const safeLatest = sanitizePodcasts(latestPodcasts);
 
   return (
-    <div className="flex flex-col items-center">
-      <section className="w-full text-center py-16 md:py-20 flex flex-col items-center space-y-4 px-4">
-        <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-primary">
+    <div className="flex flex-col items-center pb-24">
+      <section className="w-full text-center py-8 md:py-20 flex flex-col items-center space-y-3 px-4">
+        <h1 className="text-2xl md:text-6xl font-bold tracking-tight text-primary leading-tight">
           Expande tu perspectiva
         </h1>
-        <p className="max-w-2xl text-lg text-muted-foreground">
-          Crea, aprende, comparte y potencia tu creatividad.
+        <p className="max-w-xl text-sm md:text-lg text-muted-foreground px-4">
+          Crea, aprende y comparte conocimiento en audio.
         </p>
       </section>
       
-      <section className="w-full max-w-4xl py-6 px-4 mx-auto">
-        <div className="relative mb-8">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Input type="text" placeholder="Buscar podcasts por tema o palabra clave..." className="w-full p-4 pl-12 rounded-full bg-muted/50 border-2 border-border/20 focus:ring-2 focus:ring-primary focus:outline-none" />
+      {/* Buscador Compacto */}
+      <section className="w-full max-w-4xl py-2 px-4 mx-auto">
+        <div className="relative mb-6">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input type="text" placeholder="Buscar ideas..." className="w-full h-10 pl-10 rounded-full bg-muted/40 border-border/40 text-sm" />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <QuadrantCard icon={<Compass className="h-6 w-6" />} title="Ideas Prácticas y Abstractas" description="Herramientas para la mente y el alma." href="/podcasts?view=compass" />
-          <QuadrantCard icon={<Lightbulb className="h-6 w-6" />} title="Pensamiento Conceptual" description="Explora los 'porqués' del mundo." href="/podcasts?view=compass" />
-          <QuadrantCard icon={<Bot className="h-6 w-6" />} title="Análisis y Tecnología" description="Descubre cómo funciona el futuro." href="/podcasts?view=compass" />
-          <QuadrantCard icon={<Mic className="h-6 w-6" />} title="Narrativa e Historias" description="Conecta a través del storytelling." href="/podcasts?view=compass" />
-        </div>
+        
+        {/* Reutilizamos DiscoveryHub aquí también para consistencia */}
+        <DiscoveryHub />
       </section>
 
-      <div className="w-full max-w-7xl mx-auto px-4 lg:px-0 mt-8">
+      <div className="w-full max-w-7xl mx-auto px-4 lg:px-0 mt-6">
         <PodcastShelf 
-          title="Las últimas creaciones de la comunidad"
+          title="Últimas creaciones"
           podcasts={safeLatest} 
         />
       </div>
-
-      <footer className="w-full py-8 mt-16 bg-muted/50 text-center text-sm text-muted-foreground lg:hidden">
-        <div className="container px-4 md:px-6 mx-auto">
-            <p>&copy; {new Date().getFullYear()} NicePod. Todos los derechos reservados.</p>
-        </div>
-      </footer>
     </div>
   );
 }
-
-// --- PÁGINA PRINCIPAL (SERVER COMPONENT) ---
 
 export default async function HomePage() {
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
   
   let user = null;
-  
-  // 1. Intentar obtener sesión
   try {
     const { data } = await supabase.auth.getUser();
     user = data?.user;
-  } catch (e) {
-    // Si falla la auth, asumimos invitado
-  }
+  } catch (e) {}
 
   let feed: DiscoveryFeed | null = null;
   let resonanceProfile: ResonanceProfile | null = null;
   let latestPodcasts: any[] = [];
   let userProfile: any = null;
 
-  // 2. Lógica de Carga de Datos (Defensiva)
   if (user) {
     try {
         const [
           { data: feedData },
           { data: profileData },
-          { data: userProfileData, error: profileError }
+          { data: userProfileData }
         ] = await Promise.all([
           supabase.rpc('get_user_discovery_feed', { p_user_id: user.id }),
           supabase.from('user_resonance_profiles').select('*').eq('user_id', user.id).single(),
           supabase.from('profiles').select('username, full_name').eq('id', user.id).single()
         ]);
-        
-        // [CHECK DE INTEGRIDAD]: Si la DB falla al traer el perfil (ej: error de recursión), 
-        // lanzamos error para activar el fallback a invitado.
-        if (profileError) throw new Error("Error crítico cargando perfil: " + profileError.message);
-
         feed = feedData;
         resonanceProfile = profileData;
         userProfile = userProfileData;
-
-    } catch (e) {
-        console.error("Error cargando dashboard de usuario:", e);
-        // [FALLBACK]: Si algo falla, degradamos a vista de invitado limpiamente.
-        // Esto evita la "Disonancia Visual" (Hola Francisco + Botón Ingresar).
-        user = null; 
-    }
+    } catch (e) { user = null; }
   }
 
-  // 3. Carga de Datos Públicos (Si es invitado o falló la carga de usuario)
   if (!user) {
     try {
         const { data } = await supabase
@@ -198,20 +175,15 @@ export default async function HomePage() {
           .eq('status', 'published')
           .order('created_at', { ascending: false })
           .limit(8);
-        
         latestPodcasts = data || [];
-    } catch (e) {
-        console.error("Error cargando landing:", e);
-    }
+    } catch (e) {}
   }
 
   return (
     <main className="container mx-auto max-w-screen-xl flex-grow">
       <div className="grid grid-cols-1 lg:grid-cols-4 lg:gap-8 xl:gap-12 h-full">
-        
-        {/* COLUMNA CENTRAL (CONTENIDO) */}
-        <div className="lg:col-span-3 lg:h-[calc(100vh-6rem)] lg:overflow-y-auto lg:overflow-x-hidden lg:pr-6 scrollbar-thin scrollbar-thumb-gray-600/50 hover:scrollbar-thumb-gray-500/50 scrollbar-track-transparent scrollbar-thumb-rounded-full">
-          <div className="pt-6 pb-12 lg:pt-12">
+        <div className="lg:col-span-3 lg:h-[calc(100vh-6rem)] lg:overflow-y-auto lg:overflow-x-hidden lg:pr-6 scrollbar-thin scrollbar-track-transparent">
+          <div className="pt-4 pb-12 lg:pt-12">
             {user && userProfile ? (
               <UserDashboard user={user} feed={feed} profile={userProfile} />
             ) : (
@@ -219,17 +191,13 @@ export default async function HomePage() {
             )}
           </div>
         </div>
-
-        {/* COLUMNA LATERAL (PANEL DERECHO) */}
         <div className="hidden lg:block lg:col-span-1">
           <div className="sticky top-[6rem] h-[calc(100vh-7.5rem)]">
             <div className="py-12 h-full">
-                {/* El panel derecho recibe el perfil de resonancia si existe */}
                 <InsightPanel resonanceProfile={resonanceProfile} />
             </div>
           </div>
         </div>
-
       </div>
     </main>
   );
