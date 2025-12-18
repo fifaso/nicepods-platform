@@ -1,5 +1,5 @@
 // next.config.mjs
-// VERSIÓN: 13.0 (SW Registration Fix)
+// VERSIÓN: 14.0 (Aggressive App Shell Caching)
 
 import { withSentryConfig } from '@sentry/nextjs';
 import withPWA from 'next-pwa';
@@ -11,7 +11,7 @@ const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
   images: {
-    unoptimized: true, 
+    unoptimized: true,
     remotePatterns: [
       { protocol: 'https', hostname: '**.supabase.co' },
       { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
@@ -47,22 +47,22 @@ const nextConfig = {
   skipTrailingSlashRedirect: true,
 };
 
-// 7. Configuración PWA (SIMPLIFICADA Y ROBUSTA)
 const pwaConfig = {
   dest: 'public',
-  register: false, // [IMPORTANTE]: Lo haremos manualmente para asegurar que ocurra
+  register: false, // Lo hacemos manualmente en el layout
   skipWaiting: true,
   disable: process.env.NODE_ENV === 'development',
   
   buildExcludes: [/middleware-manifest\.json$/, /app-build-manifest\.json$/],
   
-  // Fallback automático (Next-PWA genera el precaché de esto)
+  // [CLAVE] Esto le dice al SW que use /offline cuando falle la navegación
   fallbacks: {
     document: '/offline', 
   },
 
+  // Estrategias de Caché
   runtimeCaching: [
-    // A. Caché de Audios (Supabase)
+    // 1. Audios (CacheFirst - Inmutable)
     {
       urlPattern: /^https:\/\/.*supabase\.co\/storage\/v1\/object\/public\/.*/i,
       handler: 'CacheFirst',
@@ -72,7 +72,34 @@ const pwaConfig = {
         cacheableResponse: { statuses: [0, 200] },
       },
     },
-    // B. Eliminamos la regla manual de /offline, dejamos que 'fallbacks' lo maneje
+    // 2. Página Offline (NetworkFirst - Prioriza red, pero guarda copia)
+    {
+        urlPattern: ({ url }) => url.pathname === '/offline',
+        handler: 'NetworkFirst',
+        options: {
+             cacheName: 'offline-page-cache',
+             expiration: { maxEntries: 1, maxAgeSeconds: 60 * 60 * 24 },
+        }
+    },
+    // 3. Assets de Next.js (JS/CSS) - StaleWhileRevalidate (Rápido y actualiza en fondo)
+    {
+      urlPattern: /^\/_next\/static\/.*/i,
+      handler: 'StaleWhileRevalidate',
+      options: {
+        cacheName: 'next-static-js-assets',
+        expiration: { maxEntries: 64, maxAgeSeconds: 24 * 60 * 60 }, // 24 hours
+      },
+    },
+    // 4. Imágenes estáticas
+    {
+      urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/i,
+      handler: 'StaleWhileRevalidate',
+      options: {
+        cacheName: 'static-image-assets',
+        expiration: { maxEntries: 64, maxAgeSeconds: 24 * 60 * 60 },
+      },
+    },
+    // 5. Resto (API, otras rutas)
     ...defaultRuntimeCaching,
   ],
 };
