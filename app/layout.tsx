@@ -1,5 +1,5 @@
 // app/layout.tsx
-// VERSIÓN: 7.0 (Observability Added: PostHog EU Integration)
+// VERSIÓN: 13.0 (Fixed: JSX Hierarchy & PWA Integration)
 
 import { cookies } from 'next/headers';
 import type React from "react";
@@ -19,8 +19,12 @@ import { AudioProvider } from "@/contexts/audio-context";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { PlayerOrchestrator } from "@/components/player-orchestrator";
 
-// [NUEVO] Importación del Proveedor de PostHog
-import { PostHogProvider } from '@/components/providers/posthog-provider';
+// Importación del Proveedor de PostHog (Named Export)
+import { CSPostHogProvider } from '@/components/providers/posthog-provider';
+
+// Importación del ciclo de vida PWA
+import { PwaLifecycle } from "@/components/pwa-lifecycle";
+import { OfflineIndicator } from '@/components/offline-indicator';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -58,7 +62,6 @@ export default async function RootLayout({
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
   
-  const { data: { user } } = await supabase.auth.getUser();
   const { data: { session } } = await supabase.auth.getSession();
 
   return (
@@ -80,9 +83,18 @@ export default async function RootLayout({
         />
       </head>
       <body className={`${inter.className} min-h-screen bg-background font-sans antialiased`}>
-        {/* [MODIFICACIÓN] PostHogProvider envuelve toda la app para capturar sesiones */}
-        <PostHogProvider>
+        
+        {/* NIVEL 1: Analítica y Sesión */}
+        <CSPostHogProvider>
+          
+          {/* NIVEL 2: PWA Service Worker (Debe estar dentro del Body) */}
+          <PwaLifecycle />
+          <OfflineIndicator />
+          
+          {/* NIVEL 3: Manejo de Errores */}
           <ErrorBoundary>
+            
+            {/* NIVEL 4: Tema Visual */}
             <ThemeProvider
               attribute="class"
               defaultTheme="dark"
@@ -90,30 +102,44 @@ export default async function RootLayout({
               disableTransitionOnChange={false}
               storageKey="theme"
             >
+              {/* NIVEL 5: Autenticación */}
               <AuthProvider session={session}>
+                
+                {/* NIVEL 6: Estado de Audio Global */}
                 <AudioProvider>
+                  
+                  {/* NIVEL 7: Scroll Suave */}
                   <SmoothScrollWrapper>
+                    
                     <div className="min-h-screen gradient-mesh">
+                      {/* Fondo Animado */}
                       <div className="fixed inset-0 pointer-events-none overflow-hidden">
                         <div className="absolute top-20 left-10 w-20 h-20 bg-purple-400/20 rounded-full blur-xl animate-float"></div>
                         <div className="absolute top-40 right-20 w-32 h-32 bg-blue-400/20 rounded-full blur-xl animate-float" style={{ animationDelay: "2s" }}></div>
                         <div className="absolute bottom-20 left-1/4 w-24 h-24 bg-pink-400/20 rounded-full blur-xl animate-float" style={{ animationDelay: "4s" }}></div>
                         <div className="absolute top-1/2 right-1/3 w-16 h-16 bg-indigo-400/20 rounded-full blur-xl animate-float" style={{ animationDelay: "6s" }}></div>
                       </div>
+                      
+                      {/* Elementos UI Globales */}
                       <ScrollToTop />
                       <Navigation />
+                      
+                      {/* Contenido de la Página */}
                       <PageTransition>
                         <main className="relative z-10">{children}</main>
                       </PageTransition>
+                      
+                      {/* Reproductores y Notificaciones */}
                       <PlayerOrchestrator />
                       <Toaster />
+                      
                     </div>
                   </SmoothScrollWrapper>
                 </AudioProvider>
               </AuthProvider>
             </ThemeProvider>
           </ErrorBoundary>
-        </PostHogProvider>
+        </CSPostHogProvider>
       </body>
     </html>
   );

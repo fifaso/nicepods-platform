@@ -1,3 +1,6 @@
+// app/~offline/page.tsx
+// VERSIÓN: 2.0 (Force Static Generation for PWA Fallback)
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -6,6 +9,9 @@ import { Button } from "@/components/ui/button";
 import { WifiOff, PlayCircle, Clock, Trash2 } from "lucide-react";
 import { useAudio } from "@/contexts/audio-context";
 import Image from "next/image";
+
+// [CRÍTICO]: Esto obliga a generar un HTML físico que el SW puede guardar en caché.
+export const dynamic = 'force-static';
 
 const METADATA_KEY = "offline_podcasts_metadata";
 const CACHE_NAME = "supabase-media-cache";
