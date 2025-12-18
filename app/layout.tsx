@@ -1,5 +1,5 @@
 // app/layout.tsx
-// VERSIÓN: 15.0 (Manual SW Registration)
+// VERSIÓN: 15.0 (Hierarchy Fix: Components inside Providers)
 
 import { cookies } from 'next/headers';
 import type React from "react";
@@ -21,9 +21,10 @@ import { PlayerOrchestrator } from "@/components/player-orchestrator";
 
 // Providers y PWA
 import { CSPostHogProvider } from '@/components/providers/posthog-provider';
+import { PwaLifecycle } from "@/components/pwa-lifecycle";
 import { OfflineIndicator } from '@/components/offline-indicator';
 import { InstallPwaButton } from '@/components/install-pwa-button';
-import { ServiceWorkerRegister } from '@/components/sw-register'; // [NUEVO]
+import { ServiceWorkerRegister } from '@/components/sw-register';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -61,7 +62,13 @@ export default async function RootLayout({
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
   
+  // [CORRECCIÓN WARNING]: Usamos getUser en lugar de getSession para validación segura
+  const { data: { user } } = await supabase.auth.getUser();
+  // Para mantener compatibilidad con AuthProvider que espera 'session', obtenemos la sesión también
   const { data: { session } } = await supabase.auth.getSession();
+
+  // Si getUser falló, la sesión no es válida, así que pasamos null
+  const validatedSession = user ? session : null;
 
   return (
     <html lang="es" suppressHydrationWarning>
@@ -84,10 +91,10 @@ export default async function RootLayout({
       <body className={`${inter.className} min-h-screen bg-background font-sans antialiased`}>
         
         <CSPostHogProvider>
-          {/* [CRÍTICO]: Registro manual del Service Worker */}
+          {/* Service Worker debe registrarse lo antes posible */}
           <ServiceWorkerRegister />
-          <OfflineIndicator />
-          <InstallPwaButton />
+          {/* PwaLifecycle maneja eventos de actualización */}
+          <PwaLifecycle />
           
           <ErrorBoundary>
             <ThemeProvider
@@ -97,8 +104,14 @@ export default async function RootLayout({
               disableTransitionOnChange={false}
               storageKey="theme"
             >
-              <AuthProvider session={session}>
+              <AuthProvider session={validatedSession}>
                 <AudioProvider>
+                  {/* [CORRECCIÓN CRÍTICA]: OfflineIndicator y InstallPwaButton usan useAudio o hooks de UI.
+                      Deben estar DENTRO de AudioProvider y ThemeProvider. */}
+                  
+                  <OfflineIndicator />
+                  <InstallPwaButton />
+                  
                   <SmoothScrollWrapper>
                     <div className="min-h-screen gradient-mesh">
                       <div className="fixed inset-0 pointer-events-none overflow-hidden">
