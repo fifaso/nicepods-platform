@@ -1,5 +1,5 @@
 // app/layout.tsx
-// VERSIÓN: 13.0 (Fixed: JSX Hierarchy & PWA Integration)
+// VERSIÓN: 14.0 (PWA Complete: Install Button Added)
 
 import { cookies } from 'next/headers';
 import type React from "react";
@@ -22,9 +22,10 @@ import { PlayerOrchestrator } from "@/components/player-orchestrator";
 // Importación del Proveedor de PostHog (Named Export)
 import { CSPostHogProvider } from '@/components/providers/posthog-provider';
 
-// Importación del ciclo de vida PWA
+// Importación de componentes PWA (Ciclo de vida, Offline y Botón de Instalación)
 import { PwaLifecycle } from "@/components/pwa-lifecycle";
 import { OfflineIndicator } from '@/components/offline-indicator';
+import { InstallPwaButton } from '@/components/install-pwa-button';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -87,9 +88,10 @@ export default async function RootLayout({
         {/* NIVEL 1: Analítica y Sesión */}
         <CSPostHogProvider>
           
-          {/* NIVEL 2: PWA Service Worker (Debe estar dentro del Body) */}
+          {/* NIVEL 2: PWA Service Worker & Tools */}
           <PwaLifecycle />
           <OfflineIndicator />
+          <InstallPwaButton /> {/* <--- Botón de instalación manual */}
           
           {/* NIVEL 3: Manejo de Errores */}
           <ErrorBoundary>
