@@ -1,5 +1,5 @@
 // components/profile-client-component.tsx
-// VERSIÓN: 7.0 (Fix: Public View Link & Full Features Integration)
+// VERSIÓN: 8.0 (Offline Download Manager Integration)
 
 "use client";
 
@@ -13,15 +13,20 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Crown, PlayCircle, Calendar, Mic, MessageSquare, ThumbsUp, ThumbsDown, ExternalLink } from "lucide-react";
+import { 
+  Crown, PlayCircle, Calendar, Mic, MessageSquare, ThumbsUp, ThumbsDown, 
+  ExternalLink, WifiOff, Settings, BookOpen 
+} from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 
 // Importamos el diálogo de creación de testimonios
 import { LeaveTestimonialDialog } from "@/components/leave-testimonial-dialog";
 
+// [NUEVO]: Importamos el Gestor de Descargas
+import { DownloadsManager } from "@/components/downloads-manager";
+
 // --- UTILIDAD DE PRIVACIDAD ---
-// Detecta si un string parece un UUID para no mostrarlo
 const isUUID = (str: string | null | undefined) => {
     if (!str) return false;
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -75,7 +80,6 @@ export function PrivateProfileDashboard({ profile, podcastsCreatedThisMonth, ini
   const { toast } = useToast();
   const [testimonials, setTestimonials] = useState(initialTestimonials);
 
-  // Lógica para aprobar/rechazar testimonios
   const handleStatusChange = async (id: number, newStatus: 'approved' | 'rejected') => {
     if (!supabase) return;
     const { error } = await supabase
@@ -98,7 +102,6 @@ export function PrivateProfileDashboard({ profile, podcastsCreatedThisMonth, ini
 
   const pendingTestimonials = testimonials.filter(t => t.status === 'pending');
   const approvedTestimonials = testimonials.filter(t => t.status === 'approved');
-
   const showUsername = profile?.username && !isUUID(profile.username);
 
   return (
@@ -122,7 +125,6 @@ export function PrivateProfileDashboard({ profile, podcastsCreatedThisMonth, ini
                 
                 <div className="mt-6 space-y-2">
                     {profile?.username && (
-                      // [CORRECCIÓN]: Agregamos ?view=public para evitar el rebote del servidor
                       <Link href={`/profile/${profile.username}?view=public`} className="w-full block">
                           <Button variant="outline" className="w-full">
                             Ver mi Perfil Público <ExternalLink className="ml-2 h-3 w-3" />
@@ -169,102 +171,126 @@ export function PrivateProfileDashboard({ profile, podcastsCreatedThisMonth, ini
           </Card>
         </div>
 
-        {/* CONTENIDO PRINCIPAL */}
-        <div className="w-full md:w-2/3 space-y-6">
-            
-            {/* GESTIÓN DE TESTIMONIOS */}
-            <Card>
-                <CardHeader>
-                    <div className="flex justify-between items-center">
-                        <CardTitle className="flex items-center gap-2">
-                            <MessageSquare className="h-5 w-5 text-primary" /> Testimonios
-                        </CardTitle>
+        {/* CONTENIDO PRINCIPAL (TABS) */}
+        <div className="w-full md:w-2/3">
+            <Tabs defaultValue="offline" className="w-full">
+                <TabsList className="w-full mb-6 grid grid-cols-3 bg-muted/20">
+                    <TabsTrigger value="offline">
+                        <WifiOff className="mr-2 h-4 w-4" /> Offline
+                    </TabsTrigger>
+                    <TabsTrigger value="testimonials">
+                        <MessageSquare className="mr-2 h-4 w-4" /> Reseñas
                         {pendingTestimonials.length > 0 && (
-                            <Badge variant="destructive">{pendingTestimonials.length} Pendientes</Badge>
+                            <span className="ml-2 bg-red-500 text-white text-[10px] px-1.5 rounded-full">{pendingTestimonials.length}</span>
                         )}
-                    </div>
-                    <CardDescription>Lo que la comunidad dice de ti.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Tabs defaultValue="pending" className="w-full">
-                        <TabsList className="w-full mb-4">
-                            <TabsTrigger value="pending" className="flex-1">Pendientes ({pendingTestimonials.length})</TabsTrigger>
-                            <TabsTrigger value="approved" className="flex-1">Aprobados ({approvedTestimonials.length})</TabsTrigger>
-                        </TabsList>
-                        
-                        <TabsContent value="pending" className="space-y-4">
-                            {pendingTestimonials.length === 0 ? (
-                                <p className="text-sm text-muted-foreground text-center py-6">No tienes testimonios pendientes.</p>
-                            ) : (
-                                pendingTestimonials.map(t => (
-                                    <div key={t.id} className="p-4 rounded-lg bg-muted/40 border flex gap-4">
-                                        <Avatar className="h-10 w-10">
-                                            <AvatarImage src={t.author?.avatar_url || ''} />
-                                            <AvatarFallback>{t.author?.full_name?.substring(0,1) || '?'}</AvatarFallback>
-                                        </Avatar>
-                                        <div className="flex-1">
-                                            <p className="font-semibold text-sm">{t.author?.full_name || 'Usuario Anónimo'}</p>
-                                            <p className="text-sm text-muted-foreground mt-1">{t.comment_text}</p>
-                                            <div className="flex gap-2 mt-3">
-                                                <Button size="sm" onClick={() => handleStatusChange(t.id, 'approved')} className="h-8 gap-1 bg-green-600 hover:bg-green-700">
-                                                    <ThumbsUp className="h-3 w-3" /> Aprobar
-                                                </Button>
-                                                <Button size="sm" variant="outline" onClick={() => handleStatusChange(t.id, 'rejected')} className="h-8 gap-1 text-red-500 hover:text-red-600">
-                                                    <ThumbsDown className="h-3 w-3" /> Rechazar
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))
-                            )}
-                        </TabsContent>
-                        
-                        <TabsContent value="approved" className="space-y-4">
-                             {approvedTestimonials.length === 0 ? (
-                                <p className="text-sm text-muted-foreground text-center py-6">No hay testimonios aprobados aún.</p>
-                             ) : (
-                                approvedTestimonials.map(t => (
-                                    <div key={t.id} className="p-3 rounded-lg bg-card border flex gap-3 items-center">
-                                        <Avatar className="h-8 w-8">
-                                            <AvatarImage src={t.author?.avatar_url || ''} />
-                                            <AvatarFallback>{t.author?.full_name?.substring(0,1)}</AvatarFallback>
-                                        </Avatar>
-                                        <div className="flex-1">
-                                            <p className="text-sm line-clamp-2 italic">"{t.comment_text}"</p>
-                                            <p className="text-xs text-muted-foreground mt-1">- {t.author?.full_name}</p>
-                                        </div>
-                                        <Badge variant="outline" className="text-green-500 border-green-500/20 bg-green-500/10">Visible</Badge>
-                                    </div>
-                                ))
-                             )}
-                        </TabsContent>
-                    </Tabs>
-                </CardContent>
-            </Card>
+                    </TabsTrigger>
+                    <TabsTrigger value="settings">
+                        <Settings className="mr-2 h-4 w-4" /> Cuenta
+                    </TabsTrigger>
+                </TabsList>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Configuración</CardTitle>
-                    <CardDescription>Información privada de tu cuenta.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="grid gap-2">
-                        <Label>Email</Label>
-                        <Input value={user?.email || ''} disabled className="bg-muted" />
-                    </div>
-                    <div className="grid gap-2">
-                        <Label>Nombre Visible</Label>
-                        <Input defaultValue={profile?.full_name || ''} />
-                    </div>
-                    <div className="grid gap-2">
-                        <Label>Bio</Label>
-                        <Input defaultValue={profile?.bio || ''} placeholder="Cuéntanos sobre ti..." />
-                    </div>
-                    <div className="flex justify-end">
-                        <Button>Guardar Cambios</Button>
-                    </div>
-                </CardContent>
-            </Card>
+                {/* TAB 1: DESCARGAS (NUEVO) */}
+                <TabsContent value="offline" className="mt-0 animate-in fade-in slide-in-from-bottom-2">
+                    <DownloadsManager />
+                </TabsContent>
+
+                {/* TAB 2: TESTIMONIOS */}
+                <TabsContent value="testimonials" className="mt-0 animate-in fade-in slide-in-from-bottom-2">
+                     <Card>
+                        <CardHeader>
+                            <div className="flex justify-between items-center">
+                                <CardTitle>Testimonios</CardTitle>
+                                {pendingTestimonials.length > 0 && <Badge variant="destructive">{pendingTestimonials.length} Pendientes</Badge>}
+                            </div>
+                            <CardDescription>Lo que dicen de ti.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Tabs defaultValue="pending" className="w-full">
+                                <TabsList className="w-full mb-4">
+                                    <TabsTrigger value="pending" className="flex-1 text-xs">Pendientes ({pendingTestimonials.length})</TabsTrigger>
+                                    <TabsTrigger value="approved" className="flex-1 text-xs">Aprobados ({approvedTestimonials.length})</TabsTrigger>
+                                </TabsList>
+                                
+                                <TabsContent value="pending" className="space-y-4">
+                                    {pendingTestimonials.length === 0 ? (
+                                        <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
+                                            <p className="text-sm">Estás al día. No hay testimonios pendientes.</p>
+                                        </div>
+                                    ) : (
+                                        pendingTestimonials.map(t => (
+                                            <div key={t.id} className="p-4 rounded-lg bg-muted/40 border flex gap-4">
+                                                <Avatar className="h-10 w-10">
+                                                    <AvatarImage src={t.author?.avatar_url || ''} />
+                                                    <AvatarFallback>{t.author?.full_name?.substring(0,1) || '?'}</AvatarFallback>
+                                                </Avatar>
+                                                <div className="flex-1">
+                                                    <p className="font-semibold text-sm">{t.author?.full_name || 'Anónimo'}</p>
+                                                    <p className="text-sm text-muted-foreground mt-1">{t.comment_text}</p>
+                                                    <div className="flex gap-2 mt-3">
+                                                        <Button size="sm" onClick={() => handleStatusChange(t.id, 'approved')} className="h-8 bg-green-600 hover:bg-green-700">
+                                                            <ThumbsUp className="h-3 w-3 mr-1" /> Aprobar
+                                                        </Button>
+                                                        <Button size="sm" variant="outline" onClick={() => handleStatusChange(t.id, 'rejected')} className="h-8 text-red-500 hover:text-red-600">
+                                                            <ThumbsDown className="h-3 w-3 mr-1" /> Rechazar
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </TabsContent>
+                                
+                                <TabsContent value="approved" className="space-y-4">
+                                    {approvedTestimonials.length === 0 ? (
+                                        <p className="text-sm text-muted-foreground text-center py-6">Aún no has aprobado ningún testimonio.</p>
+                                    ) : (
+                                        approvedTestimonials.map(t => (
+                                            <div key={t.id} className="p-3 rounded-lg bg-card border flex gap-3 items-center">
+                                                <Avatar className="h-8 w-8">
+                                                    <AvatarImage src={t.author?.avatar_url || ''} />
+                                                    <AvatarFallback>{t.author?.full_name?.substring(0,1)}</AvatarFallback>
+                                                </Avatar>
+                                                <div className="flex-1">
+                                                    <p className="text-sm italic">"{t.comment_text}"</p>
+                                                    <p className="text-xs text-muted-foreground mt-1">- {t.author?.full_name}</p>
+                                                </div>
+                                                <Badge variant="outline" className="text-green-500 bg-green-500/10 border-green-500/20">Visible</Badge>
+                                            </div>
+                                        ))
+                                    )}
+                                </TabsContent>
+                            </Tabs>
+                        </CardContent>
+                     </Card>
+                </TabsContent>
+
+                {/* TAB 3: CONFIGURACIÓN */}
+                <TabsContent value="settings" className="mt-0 animate-in fade-in slide-in-from-bottom-2">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Configuración</CardTitle>
+                            <CardDescription>Datos personales.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="grid gap-2">
+                                <Label>Email</Label>
+                                <Input value={user?.email || ''} disabled className="bg-muted" />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>Nombre Visible</Label>
+                                <Input defaultValue={profile?.full_name || ''} />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>Bio</Label>
+                                <Input defaultValue={profile?.bio || ''} placeholder="Cuéntanos sobre ti..." />
+                            </div>
+                            <div className="flex justify-end">
+                                <Button>Guardar Cambios</Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+            </Tabs>
         </div>
       </div>
     </div>
