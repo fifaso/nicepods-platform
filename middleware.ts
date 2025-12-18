@@ -1,5 +1,5 @@
 // middleware.ts
-// VERSIÓN: 5.2 (Strict TypeScript Fixed)
+// VERSIÓN: 6.0 (Offline Route Exclusion for PWA Stability)
 
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
@@ -21,10 +21,7 @@ export async function middleware(request: NextRequest) {
         getAll() {
           return request.cookies.getAll()
         },
-        // [CORRECCIÓN]: Tipado explícito del parámetro de entrada aquí
         setAll(cookiesToSet: { name: string; value: string; options?: CookieOptions }[]) {
-          
-          // Bucle 1: Actualizar cookies en la Request
           cookiesToSet.forEach(({ name, value }) => 
             request.cookies.set(name, value)
           )
@@ -35,7 +32,6 @@ export async function middleware(request: NextRequest) {
             },
           })
           
-          // Bucle 2: Actualizar cookies en la Response
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options)
           )
@@ -52,6 +48,9 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // [CAMBIO ESTRATÉGICO]: Agregamos '|offline' a la lista de exclusión.
+    // Esto garantiza que la página estática de fallback se sirva instantáneamente
+    // sin procesamiento de servidor, permitiendo que el Service Worker la cachee limpiamente.
+    '/((?!_next/static|_next/image|favicon.ico|offline|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

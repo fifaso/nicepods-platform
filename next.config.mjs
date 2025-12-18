@@ -1,5 +1,5 @@
 // next.config.mjs
-// VERSIÓN: 14.0 (Aggressive App Shell Caching)
+// VERSIÓN: 16.0 (Offline Fix: Disable Navigation Preload)
 
 import { withSentryConfig } from '@sentry/nextjs';
 import withPWA from 'next-pwa';
@@ -11,7 +11,7 @@ const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
   images: {
-    unoptimized: true,
+    unoptimized: true, 
     remotePatterns: [
       { protocol: 'https', hostname: '**.supabase.co' },
       { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
@@ -47,22 +47,25 @@ const nextConfig = {
   skipTrailingSlashRedirect: true,
 };
 
+// 7. Configuración PWA BLINDADA
 const pwaConfig = {
   dest: 'public',
-  register: false, // Lo hacemos manualmente en el layout
+  register: false, // Registro manual en layout
   skipWaiting: true,
   disable: process.env.NODE_ENV === 'development',
   
+  // [CORRECCIÓN CRÍTICA]: Desactivar preload para que el fallback funcione siempre
+  navigationPreload: false, 
+
   buildExcludes: [/middleware-manifest\.json$/, /app-build-manifest\.json$/],
   
-  // [CLAVE] Esto le dice al SW que use /offline cuando falle la navegación
+  // Esta es la instrucción mágica: "Si falla CUALQUIER navegación, usa esto"
   fallbacks: {
     document: '/offline', 
   },
 
-  // Estrategias de Caché
   runtimeCaching: [
-    // 1. Audios (CacheFirst - Inmutable)
+    // 1. Audios (CacheFirst)
     {
       urlPattern: /^https:\/\/.*supabase\.co\/storage\/v1\/object\/public\/.*/i,
       handler: 'CacheFirst',
@@ -72,34 +75,16 @@ const pwaConfig = {
         cacheableResponse: { statuses: [0, 200] },
       },
     },
-    // 2. Página Offline (NetworkFirst - Prioriza red, pero guarda copia)
-    {
-        urlPattern: ({ url }) => url.pathname === '/offline',
-        handler: 'NetworkFirst',
-        options: {
-             cacheName: 'offline-page-cache',
-             expiration: { maxEntries: 1, maxAgeSeconds: 60 * 60 * 24 },
-        }
-    },
-    // 3. Assets de Next.js (JS/CSS) - StaleWhileRevalidate (Rápido y actualiza en fondo)
+    // 2. Assets estáticos de Next.js (CSS/JS chunks)
+    // Es vital cachear esto para que la página offline tenga estilos
     {
       urlPattern: /^\/_next\/static\/.*/i,
       handler: 'StaleWhileRevalidate',
       options: {
         cacheName: 'next-static-js-assets',
-        expiration: { maxEntries: 64, maxAgeSeconds: 24 * 60 * 60 }, // 24 hours
+        expiration: { maxEntries: 100, maxAgeSeconds: 24 * 60 * 60 },
       },
     },
-    // 4. Imágenes estáticas
-    {
-      urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/i,
-      handler: 'StaleWhileRevalidate',
-      options: {
-        cacheName: 'static-image-assets',
-        expiration: { maxEntries: 64, maxAgeSeconds: 24 * 60 * 60 },
-      },
-    },
-    // 5. Resto (API, otras rutas)
     ...defaultRuntimeCaching,
   ],
 };
