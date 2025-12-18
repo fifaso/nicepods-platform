@@ -1,5 +1,5 @@
 // middleware.ts
-// VERSIÓN: 6.0 (Offline Route Exclusion for PWA Stability)
+// VERSIÓN: 7.0 (Critical PWA Exclusion)
 
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
@@ -48,9 +48,15 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // [CAMBIO ESTRATÉGICO]: Agregamos '|offline' a la lista de exclusión.
-    // Esto garantiza que la página estática de fallback se sirva instantáneamente
-    // sin procesamiento de servidor, permitiendo que el Service Worker la cachee limpiamente.
-    '/((?!_next/static|_next/image|favicon.ico|offline|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    /*
+     * Matcher Negativo (Exclusiones):
+     * - _next/static, _next/image, favicon.ico: Assets estáticos.
+     * - offline: La página de fallback debe ser estática y sin auth de servidor.
+     * - manifest.json: El manifiesto de la PWA.
+     * - sw.js: El Service Worker.
+     * - workbox-*.js: Scripts internos de Workbox.
+     * - Extensiones de imágenes.
+     */
+    '/((?!_next/static|_next/image|favicon.ico|offline|manifest.json|sw.js|workbox-.*|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
