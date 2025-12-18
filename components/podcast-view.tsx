@@ -1,5 +1,5 @@
 // components/podcast-view.tsx
-// VERSIÓN: 10.0 (Persistence: LocalStorage Resume + Database Sync)
+// VERSIÓN: 11.0 (Full Feature Set: Offline, QA, Admin, Persistence)
 
 "use client";
 
@@ -19,16 +19,47 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Heart, Share2, Download, Calendar, Clock, PlayCircle, ChevronDown, Loader2, Mic, Tag, Pencil, Globe, ExternalLink, ShieldAlert, CheckCircle, Lock, Users } from 'lucide-react';
+import { 
+  Heart, 
+  Share2, 
+  Download, 
+  Calendar, 
+  Clock, 
+  PlayCircle, 
+  ChevronDown, 
+  Loader2, 
+  Mic, 
+  Tag, 
+  Pencil, 
+  Globe, 
+  ExternalLink, 
+  ShieldAlert, 
+  CheckCircle, 
+  Lock, 
+  Users, 
+  Trash2 
+} from 'lucide-react';
 import { CreationMetadata } from './creation-metadata';
 import { formatTime } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { TagCurationCanvas } from './tag-curation-canvas';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
+// Hook personalizado para gestión de descargas PWA
+import { useOfflineAudio } from '@/hooks/use-offline-audio';
+
+// Carga diferida del visor de guiones para rendimiento
 const ScriptViewer = dynamic(
   () => import('./script-viewer').then((mod) => mod.ScriptViewer),
-  { ssr: false, loading: () => <div className="h-24 w-full flex items-center justify-center text-muted-foreground animate-pulse"><Loader2 className="h-4 w-4 animate-spin mr-2" />Cargando guion...</div> }
+  { 
+    ssr: false, 
+    loading: () => (
+        <div className="h-24 w-full flex items-center justify-center text-muted-foreground animate-pulse">
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            Cargando guion...
+        </div>
+    )
+  }
 );
 
 interface PodcastViewProps { 
@@ -45,53 +76,53 @@ interface SourceItem {
 
 export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewProps) {
   const { supabase } = useAuth();
-  const { playPodcast, logInteractionEvent, currentPodcast, currentTime, duration: currentDuration, seekTo } = useAudio(); // Importamos seekTo
+  const { playPodcast, logInteractionEvent, currentPodcast, currentTime, duration: currentDuration, seekTo } = useAudio();
   const { toast } = useToast();
   
+  // --- ESTADOS DE DATOS ---
   const [localPodcastData, setLocalPodcastData] = useState(podcastData);
   const [isLiked, setIsLiked] = useState(initialIsLiked);
   const [likeCount, setLikeCount] = useState(localPodcastData.like_count);
   const [isLiking, setIsLiking] = useState(false);
   
+  // --- ESTADOS DE UI ---
   const [isScriptExpanded, setIsScriptExpanded] = useState(false);
   const [isSourcesExpanded, setIsSourcesExpanded] = useState(false); 
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const [isEditingTags, setIsEditingTags] = useState(false);
   const [viewerRole, setViewerRole] = useState<string>('user');
 
-  // Lógica de Persistencia
+  // --- LÓGICA DE VALIDACIÓN (QA) ---
   const [hasListenedFully, setHasListenedFully] = useState(false);
   const [listeningProgress, setListeningProgress] = useState(0);
   const hasUpdatedDbRef = useRef(false);
 
-  // 1. INICIALIZACIÓN ROBUSTA (DB + LocalStorage)
+  // --- LÓGICA OFFLINE (Descargas) ---
+  const { isOfflineAvailable, isDownloading, downloadForOffline, removeFromOffline } = useOfflineAudio(localPodcastData.audio_url);
+
+  // 1. INICIALIZACIÓN Y PERSISTENCIA
   useEffect(() => {
     setLocalPodcastData(podcastData);
     setLikeCount(podcastData.like_count);
     setIsLiked(initialIsLiked);
 
-    // CASO A: Ya validado en DB (Prioridad Máxima)
+    // Si la DB dice que ya se revisó, estado completo
     if (podcastData.reviewed_by_user) {
         setHasListenedFully(true);
         setListeningProgress(100);
         hasUpdatedDbRef.current = true;
     } else {
-        // CASO B: No validado -> Buscar progreso parcial en LocalStorage
-        // Clave única por podcast
+        // Si no, buscamos progreso parcial en LocalStorage
         const savedTime = localStorage.getItem(`nicepod_progress_${podcastData.id}`);
         if (savedTime && podcastData.duration_seconds) {
             const time = parseFloat(savedTime);
             const percent = (time / podcastData.duration_seconds) * 100;
-            setListeningProgress(Math.min(percent, 99)); // Topamos en 99 visualmente hasta que reproduzca
-            
-            // Opcional: Si el audio es el actual, sincronizamos el player
-            if (currentPodcast?.id === podcastData.id) {
-                // seekTo(time); // Esto a veces entra en conflicto con el autoplay, mejor dejarlo visual
-            }
+            setListeningProgress(Math.min(percent, 99)); 
         }
     }
-  }, [podcastData, initialIsLiked, currentPodcast]);
+  }, [podcastData, initialIsLiked]);
 
+  // 2. OBTENER ROL DEL VISITANTE (Para Admin)
   useEffect(() => {
     const fetchRole = async () => {
         if (!user) return;
@@ -101,23 +132,24 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
     fetchRole();
   }, [user, supabase]);
 
-  // 2. GUARDADO EN DB (Cuando llega al 100%)
+  // 3. GUARDAR VALIDACIÓN EN DB (Sync)
   const markAsListened = async () => {
     if (!supabase || hasUpdatedDbRef.current) return;
     
     hasUpdatedDbRef.current = true;
     setHasListenedFully(true);
     
-    // Limpiamos el localStorage porque ya no es necesario
+    // Limpiamos localStorage
     localStorage.removeItem(`nicepod_progress_${localPodcastData.id}`);
 
+    // Actualizamos DB
     await supabase
         .from('micro_pods')
         .update({ reviewed_by_user: true })
         .eq('id', localPodcastData.id);
   };
 
-  // 3. MONITOR Y PERSISTENCIA CONTINUA
+  // 4. MONITOR DE REPRODUCCIÓN (Tracking)
   useEffect(() => {
     if (hasListenedFully) return;
     if (currentPodcast?.id !== localPodcastData.id) return;
@@ -126,32 +158,19 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
         const percent = (currentTime / currentDuration) * 100;
         setListeningProgress(percent);
         
-        // Guardar progreso en LocalStorage cada segundo (aprox)
+        // Persistencia local cada segundo
         if (currentTime > 0) {
             localStorage.setItem(`nicepod_progress_${localPodcastData.id}`, currentTime.toString());
         }
 
+        // Umbral de validación (95%)
         if (percent > 95) {
             markAsListened();
         }
     }
   }, [currentTime, currentDuration, currentPodcast, localPodcastData.id, hasListenedFully]);
 
-  // 4. PLAY INTELIGENTE (Resume)
-  const handlePlaySmart = () => {
-      // Si hay progreso guardado y no es el audio actual, intentamos resumir
-      const savedTime = localStorage.getItem(`nicepod_progress_${localPodcastData.id}`);
-      playPodcast(localPodcastData);
-      
-      if (savedTime && !hasListenedFully) {
-          // Pequeño timeout para dar tiempo al player a cargar la metadata
-          setTimeout(() => {
-              seekTo(parseFloat(savedTime));
-          }, 500);
-      }
-  };
-
-  // Real-time Subscription (Sin cambios)
+  // 5. SUBSCRIPCIÓN REALTIME (Actualizaciones en vivo)
   useEffect(() => {
     const wasAudioRequested = localPodcastData.creation_data?.inputs?.generateAudioDirectly ?? true;
     const isAudioComplete = !!localPodcastData.audio_url;
@@ -167,6 +186,7 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
         (payload) => {
           setLocalPodcastData(prevData => ({ ...prevData, ...(payload.new as PodcastWithProfile) }));
           if (payload.new.audio_url) setIsGeneratingAudio(false);
+          // Sincronizar estado de validación si cambia externamente
           if (payload.new.reviewed_by_user) {
              setHasListenedFully(true);
              hasUpdatedDbRef.current = true;
@@ -176,6 +196,8 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
       
     return () => { supabase.removeChannel(channel); };
   }, [supabase, localPodcastData.id, localPodcastData.audio_url, localPodcastData.cover_image_url, localPodcastData.creation_data]);
+
+  // --- HELPERS VISUALES ---
 
   const isOwner = user?.id === localPodcastData.user_id;
   const isAdmin = viewerRole === 'admin';
@@ -217,7 +239,28 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
     return null; 
   }, [localPodcastData.profiles]);
 
-  // --- ACTIONS ---
+  // --- MANEJADORES DE ACCIÓN ---
+
+  const handlePlaySmart = () => {
+      const savedTime = localStorage.getItem(`nicepod_progress_${localPodcastData.id}`);
+      playPodcast(localPodcastData);
+      
+      if (savedTime && !hasListenedFully) {
+          setTimeout(() => {
+              seekTo(parseFloat(savedTime));
+          }, 500);
+      }
+  };
+
+  const handleDownloadToggle = () => {
+    if (isOfflineAvailable) {
+        if(confirm("¿Eliminar este episodio de tus descargas?")) {
+            removeFromOffline();
+        }
+    } else {
+        downloadForOffline();
+    }
+  };
 
   const handleSaveTags = async (finalTags: string[]) => {
     const { error } = await supabase
@@ -543,7 +586,7 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
                 {localPodcastData.audio_url ? (
-                  // [MEJORA 3]: Usamos handlePlaySmart para reanudar desde donde se dejó
+                  // [MEJORA SMART PLAY]
                   <Button size="lg" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-md transition-all active:scale-[0.98] h-12 text-base font-semibold" onClick={handlePlaySmart}>
                     Reproducir Ahora
                   </Button>
@@ -564,9 +607,30 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
                     </Button>
                     <span className="text-sm font-medium text-muted-foreground tabular-nums">{likeCount ?? 0}</span>
                   </div>
+                  
+                  {/* [BOTÓN DE DESCARGA ACTIVO] */}
                   <div className="flex gap-1">
                     <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-foreground"><Share2 className="h-4.5 w-4.5" /></Button>
-                    <Button variant="ghost" size="icon" disabled={!localPodcastData.audio_url} className="h-9 w-9 text-muted-foreground hover:text-foreground disabled:opacity-30"><Download className="h-4.5 w-4.5" /></Button>
+                    
+                    <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        disabled={!localPodcastData.audio_url || isDownloading} 
+                        onClick={handleDownloadToggle}
+                        className={cn(
+                            "h-9 w-9 transition-colors",
+                            isOfflineAvailable ? "text-green-500 hover:text-red-500" : "text-muted-foreground hover:text-foreground"
+                        )}
+                        title={isOfflineAvailable ? "Descargado (Clic para borrar)" : "Descargar para offline"}
+                    >
+                        {isDownloading ? (
+                            <Loader2 className="h-4.5 w-4.5 animate-spin" />
+                        ) : isOfflineAvailable ? (
+                            <CheckCircle className="h-4.5 w-4.5" />
+                        ) : (
+                            <Download className="h-4.5 w-4.5" />
+                        )}
+                    </Button>
                   </div>
                 </div>
               </CardContent>

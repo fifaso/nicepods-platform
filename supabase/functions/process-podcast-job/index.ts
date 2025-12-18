@@ -1,10 +1,10 @@
 // supabase/functions/process-podcast-job/index.ts
-// VERSIÓN: 7.0 (Full Pipeline: Guard + Dual Storage + Audio + Image + Embeddings)
+// VERSIÓN: 9.0 (Restored Logic: Create First, Then Process + Private Notification)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
-import { guard } from "../_shared/guard.ts"; // <--- INTEGRACIÓN DEL ESTÁNDAR
+import { guard } from "../_shared/guard.ts"; 
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -32,12 +32,12 @@ function buildFinalPrompt(template: string, inputs: any) {
   return finalPrompt;
 }
 
-// Limpiador HTML -> Texto Plano (Vital para futuros Embeddings/Búsqueda)
+// Limpiador HTML -> Texto Plano (Para Embeddings y TTS)
 function stripHtml(html: string): string {
    if (!html) return "";
    return html
-     .replace(/<[^>]+>/g, ' ') // Elimina etiquetas
-     .replace(/\s+/g, ' ')     // Colapsa espacios
+     .replace(/<[^>]+>/g, ' ') 
+     .replace(/\s+/g, ' ')     
      .trim();
 }
 
@@ -70,58 +70,42 @@ function extractContentFromResponse(rawText: string, originalTopic: string): { t
   };
 }
 
-async function notifyFollowers(creatorId: string, podcastId: number, podcastTitle: string) {
-  try {
-    const { data: creatorProfile } = await supabaseAdmin
-      .from('profiles').select('full_name').eq('id', creatorId).single();
-    if (!creatorProfile) return;
-
-    const { data: followers } = await supabaseAdmin
-      .from('followers').select('follower_id').eq('following_id', creatorId);
-    if (!followers || followers.length === 0) return;
-
-    const notifications = followers.map(f => ({
-      user_id: f.follower_id,
-      type: 'new_podcast_from_followed_user',
-      data: { actor_id: creatorId, actor_name: creatorProfile.full_name, podcast_id: podcastId, podcast_title: podcastTitle }
-    }));
-    
-    await supabaseAdmin.from('notifications').insert(notifications);
-  } catch (error: any) {
-    console.error("Error en fan-out:", error.message);
-  }
-}
-
-// --- LOGICA DE NEGOCIO (HANDLER) ---
+// --- HANDLER PRINCIPAL ---
 
 const handler = async (request: Request): Promise<Response> => {
     let job: any = null;
     
-    // 1. Parsing y Validación Inicial
-    const { job_id } = WebhookPayloadSchema.parse(await request.json());
-    
-    // Recuperar Job
-    const { data: jobData, error: jobError } = await supabaseAdmin.from('podcast_creation_jobs').select('*').eq('id', job_id).single();
-    if (jobError || !jobData) throw new Error(`Trabajo ${job_id} no encontrado.`);
-    job = jobData;
-
-    // Marcar como procesando
-    await supabaseAdmin.from('podcast_creation_jobs').update({ status: 'processing' }).eq('id', job.id);
-    
     try {
+        // 1. OBTENER EL TRABAJO
+        const { job_id } = WebhookPayloadSchema.parse(await request.json());
+        
+        // Consultamos el trabajo. NOTA: No exigimos micro_pod_id aquí porque aún no existe.
+        const { data: jobData, error: jobError } = await supabaseAdmin
+            .from('podcast_creation_jobs')
+            .select('*')
+            .eq('id', job_id)
+            .single();
+            
+        if (jobError || !jobData) throw new Error(`Trabajo ${job_id} no encontrado.`);
+        job = jobData;
+
+        // Marcamos como procesando
+        await supabaseAdmin.from('podcast_creation_jobs').update({ status: 'processing' }).eq('id', job.id);
+        
         const payload = job.payload || {};
         const inputs = payload.inputs || {};
         const agentName = payload.agentName || DEFAULT_AGENT; 
         
         const { final_script, final_title, sources } = payload;
         
+        // 2. DETERMINAR CONTENIDO (Guion)
         let processedScriptData = { 
             title: "", 
             scriptBody: "",
             sources: [] as any[]
         };
 
-        // --- RUTA A: GUION EXISTENTE (Normal) ---
+        // CASO A: Guion ya editado en Frontend
         if (final_script && final_title) {
             console.log(`Job ${job.id}: Usando guion editado.`);
             processedScriptData = {
@@ -130,7 +114,7 @@ const handler = async (request: Request): Promise<Response> => {
                 sources: sources || []
             };
         } 
-        // --- RUTA B: GENERACIÓN BACKEND (Legacy/Emergency) ---
+        // CASO B: Generar Guion con IA (Fallback o API directa)
         else {
             console.log(`Job ${job.id}: Generando con agente '${agentName}'...`);
             
@@ -148,11 +132,11 @@ const handler = async (request: Request): Promise<Response> => {
 
             const finalPrompt = buildFinalPrompt(templateToUse, inputs);
             
-            const scriptGenApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${GOOGLE_API_KEY}`;
+            const scriptGenApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${GOOGLE_API_KEY}`;
             const scriptResponse = await fetch(scriptGenApiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts: [{ text: finalPrompt }] }] }),
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: finalPrompt }] }] }),
             });
 
             if (!scriptResponse.ok) throw new Error(`Error Gemini: ${await scriptResponse.text()}`);
@@ -172,84 +156,98 @@ const handler = async (request: Request): Promise<Response> => {
             };
         }
 
-        // Validación Final
+        // Validación de contenido mínimo
         if (!processedScriptData.scriptBody || processedScriptData.scriptBody.length < 10) {
             throw new Error("El guion generado está vacío o es demasiado corto.");
         }
 
-        // --- PREPARACIÓN DE DATOS INTELIGENTES ---
-        const initialPodcastStatus = inputs.generateAudioDirectly ? 'pending_approval' : 'published';
+        // 3. CREAR EL PODCAST EN DB (AQUÍ NACE EL ID)
         
-        // [MEJORA V6.0] Guardado Dual (HTML + Plain)
+        // Si hay audio pedido, nace como 'pending_approval' (Borrador).
+        // Si es solo texto, podría ser 'published', pero por consistencia usamos 'pending_approval' también si quieres revisión.
+        // Asumiremos la lógica de QA: Todo nace privado.
+        const initialPodcastStatus = 'pending_approval'; 
+        
+        // Preparamos el JSON estandarizado
         const scriptTextToSave = JSON.stringify({
-            script_body: processedScriptData.scriptBody,       // HTML Rico (para Visor)
-            script_plain: stripHtml(processedScriptData.scriptBody) // Texto Plano (para Embeddings/Search)
+            script_body: processedScriptData.scriptBody,       // HTML
+            script_plain: stripHtml(processedScriptData.scriptBody) // Texto limpio para búsquedas
         });
 
-        // Inserción en DB
-        const { data: newPodcast, error: insertError } = await supabaseAdmin.from('micro_pods').insert({
-            user_id: job.user_id,
-            title: processedScriptData.title,
-            script_text: scriptTextToSave,
-            status: initialPodcastStatus,
-            creation_data: job.payload,
-            sources: processedScriptData.sources 
-        }).select('id').single();
+        const { data: newPodcast, error: insertError } = await supabaseAdmin
+            .from('micro_pods')
+            .insert({
+                user_id: job.user_id,
+                title: processedScriptData.title,
+                script_text: scriptTextToSave,
+                status: initialPodcastStatus,
+                creation_data: job.payload,
+                sources: processedScriptData.sources 
+            })
+            .select('id')
+            .single();
         
-        if (insertError) throw new Error(`Error DB: ${insertError.message}`);
+        if (insertError) throw new Error(`Error insertando podcast: ${insertError.message}`);
 
-        // Actualización Job
+        console.log(`Podcast creado con ID: ${newPodcast.id}`);
+
+        // 4. VINCULAR JOB CON PODCAST
         const finalJobStatus = inputs.generateAudioDirectly ? 'pending_audio' : 'completed';
+        
         await supabaseAdmin.from('podcast_creation_jobs').update({
             status: finalJobStatus,
             micro_pod_id: newPodcast.id,
             error_message: null
         }).eq('id', job.id);
 
-        // --- WORKERS ASÍNCRONOS ---
-        // Fire-and-forget invocations (Sentry capturará si la invocación falla, pero no bloquea el flujo principal)
+        // 5. DISPARAR WORKERS (Cadena de Producción)
         
-        // 1. Portada
-        supabaseAdmin.functions.invoke('generate-cover-image', { body: { job_id: job.id, agent_name: 'cover-art-director-v1' } });
+        // A. Portada (Siempre)
+        supabaseAdmin.functions.invoke('generate-cover-image', { 
+            body: { job_id: job.id, agent_name: 'cover-art-director-v1' } 
+        });
         
-        // 2. Audio (Si aplica)
-        if (finalJobStatus === 'pending_audio') {
-            supabaseAdmin.functions.invoke('generate-audio-from-script', { body: { job_id: job.id } });
-        }
-
-        // 3. [NUEVO] Embeddings (Inteligencia de Búsqueda)
+        // B. Embeddings (Siempre - Para el Buscador)
         supabaseAdmin.functions.invoke('generate-embedding', { 
             body: { podcast_id: newPodcast.id } 
-        }).catch(err => console.error("Fallo silencioso en embedding:", err));
-
-        // 4. Notificaciones (Fan-out)
-        (async () => {
-            try {
-                await supabaseAdmin.from('notifications').insert({
-                    user_id: job.user_id,
-                    type: 'podcast_created_success',
-                    data: { podcast_id: newPodcast.id, podcast_title: processedScriptData.title }
-                });
-                await notifyFollowers(job.user_id, newPodcast.id, processedScriptData.title);
-            } catch (e) {
-                console.error("Error en notificaciones secundarias (No crítico):", e);
-            }
-        })();
+        }).catch(err => console.error("Error silencioso embeddings:", err));
         
-        return new Response(JSON.stringify({ success: true, message: "Job completado." }), {
+        // C. Audio (Si se solicitó)
+        if (finalJobStatus === 'pending_audio') {
+            supabaseAdmin.functions.invoke('generate-audio-from-script', { 
+                body: { job_id: job.id } 
+            });
+        } else {
+            // Si NO hay audio, notificamos al creador de inmediato que el TEXTO está listo
+            await supabaseAdmin.from('notifications').insert({
+                user_id: job.user_id,
+                type: 'podcast_created_success', // Tipo genérico, el frontend maneja el mensaje
+                data: { 
+                    podcast_id: newPodcast.id, 
+                    podcast_title: processedScriptData.title,
+                    message: "Tu guion está listo para revisión."
+                }
+            });
+        }
+        
+        // NOTA: Si hay audio, la notificación la envía la función 'generate-audio' al terminar.
+        // NOTA: La notificación a los seguidores la maneja el TRIGGER de base de datos cuando pasa a 'published'.
+
+        return new Response(JSON.stringify({ success: true, message: "Orquestación iniciada." }), {
             headers: { 'Content-Type': 'application/json' }
         });
 
     } catch (error) {
-        // En caso de error dentro del flujo de negocio, marcamos el job como fallido
-        // El Guard (Sentry) capturará la excepción y la reportará también.
         const msg = error instanceof Error ? error.message : "Error desconocido";
+        console.error(`Fallo Job ${job?.id}:`, msg);
+        
         if (job) {
-            await supabaseAdmin.from('podcast_creation_jobs').update({ status: "failed", error_message: msg }).eq('id', job.id);
+            await supabaseAdmin.from('podcast_creation_jobs')
+                .update({ status: "failed", error_message: msg })
+                .eq('id', job.id);
         }
-        throw error; // Re-lanzamos para que el Guard haga su trabajo
+        throw error;
     }
 };
 
-// --- PUNTO DE ENTRADA PROTEGIDO ---
 serve(guard(handler));
