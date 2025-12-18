@@ -1,5 +1,5 @@
 // next.config.mjs
-// VERSIÓN: 17.0 (Offline-First: Manual Registration & Aggressive Caching)
+// VERSIÓN: 18.0 (Fix: Bad Precache Response)
 
 import { withSentryConfig } from '@sentry/nextjs';
 import withPWA from 'next-pwa';
@@ -22,7 +22,6 @@ const nextConfig = {
     if (isServer) {
       config.resolve.alias.canvas = false;
       config.resolve.alias.encoding = false;
-      config.resolve.alias['/var/task/.next/browser/default-stylesheet.css'] = false;
     }
     return config;
   },
@@ -48,45 +47,45 @@ const nextConfig = {
   skipTrailingSlashRedirect: true,
 };
 
-// 7. Configuración PWA
+// 7. Configuración PWA (FIXED)
 const pwaConfig = {
   dest: 'public',
-  register: false, // Registro manual vía componente para mayor control
+  register: false, 
   skipWaiting: true,
   disable: process.env.NODE_ENV === 'development',
   
-  // Desactivar preload mejora la estabilidad del fallback en ciertos navegadores móviles
   navigationPreload: false,
 
-  buildExcludes: [/middleware-manifest\.json$/, /app-build-manifest\.json$/],
+  // [CORRECCIÓN]: Excluir mapas de fuente (.map) del precaché
+  // Esto elimina el error "bad-precaching-response: 404"
+  buildExcludes: [
+    /middleware-manifest\.json$/, 
+    /app-build-manifest\.json$/, 
+    /\.map$/ 
+  ],
   
-  // El Búnker: Si falla la navegación, usa esta página
   fallbacks: {
     document: '/offline', 
   },
 
   runtimeCaching: [
-    // A. Caché de Audios (Supabase) - PRIORIDAD MÁXIMA
     {
       urlPattern: /^https:\/\/.*supabase\.co\/storage\/v1\/object\/public\/.*/i,
       handler: 'CacheFirst',
       options: {
         cacheName: 'supabase-media-cache',
-        expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 365 }, // 1 año
+        expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 365 },
         cacheableResponse: { statuses: [0, 200] },
       },
     },
-    // B. Caché de la Página Offline
-    // Aseguramos que la ruta /offline siempre se sirva desde caché si es posible
     {
-        urlPattern: ({ url }) => url.pathname === '/offline',
+        urlPattern: /\/offline$/,
         handler: 'CacheFirst',
         options: {
              cacheName: 'offline-page-cache',
              expiration: { maxEntries: 1, maxAgeSeconds: 60 * 60 * 24 * 30 },
         }
     },
-    // C. Assets Estáticos de Next.js (JS/CSS chunks)
     {
       urlPattern: /^\/_next\/static\/.*/i,
       handler: 'CacheFirst',
@@ -95,7 +94,6 @@ const pwaConfig = {
         expiration: { maxEntries: 100, maxAgeSeconds: 24 * 60 * 60 * 30 },
       },
     },
-    // D. Imágenes
     {
       urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/i,
       handler: 'StaleWhileRevalidate',
