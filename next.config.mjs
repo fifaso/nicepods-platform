@@ -1,4 +1,6 @@
 // next.config.mjs
+// VERSIÓN: 13.0 (SW Registration Fix)
+
 import { withSentryConfig } from '@sentry/nextjs';
 import withPWA from 'next-pwa';
 import defaultRuntimeCaching from 'next-pwa/cache.js';
@@ -23,7 +25,6 @@ const nextConfig = {
     }
     return config;
   },
-  // Headers y Rewrites se mantienen igual...
   async headers() {
     return [
       {
@@ -46,21 +47,19 @@ const nextConfig = {
   skipTrailingSlashRedirect: true,
 };
 
-// 7. Configuración PWA (OFFLINE MODE REFORZADO)
+// 7. Configuración PWA (SIMPLIFICADA Y ROBUSTA)
 const pwaConfig = {
   dest: 'public',
-  register: true,
+  register: false, // [IMPORTANTE]: Lo haremos manualmente para asegurar que ocurra
   skipWaiting: true,
   disable: process.env.NODE_ENV === 'development',
   
-  // [CAMBIO]: Apuntamos a la nueva ruta estándar
+  buildExcludes: [/middleware-manifest\.json$/, /app-build-manifest\.json$/],
+  
+  // Fallback automático (Next-PWA genera el precaché de esto)
   fallbacks: {
     document: '/offline', 
   },
-  
-  // Cachear assets estáticos de forma agresiva
-  cacheOnFrontEndNav: true,
-  reloadOnOnline: true,
 
   runtimeCaching: [
     // A. Caché de Audios (Supabase)
@@ -73,14 +72,7 @@ const pwaConfig = {
         cacheableResponse: { statuses: [0, 200] },
       },
     },
-    // B. Caché de la página offline (CRÍTICO)
-    {
-        urlPattern: /\/offline$/,
-        handler: 'NetworkFirst',
-        options: {
-             cacheName: 'offline-page-cache',
-        }
-    },
+    // B. Eliminamos la regla manual de /offline, dejamos que 'fallbacks' lo maneje
     ...defaultRuntimeCaching,
   ],
 };
