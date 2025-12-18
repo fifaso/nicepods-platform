@@ -1,5 +1,5 @@
 // components/podcast-view.tsx
-// VERSIÓN: 11.0 (Full Feature Set: Offline, QA, Admin, Persistence)
+// VERSIÓN: 12.0 (Fix: Type Mismatch in Offline Hook & Full Feature Set)
 
 "use client";
 
@@ -98,7 +98,8 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
   const hasUpdatedDbRef = useRef(false);
 
   // --- LÓGICA OFFLINE (Descargas) ---
-  const { isOfflineAvailable, isDownloading, downloadForOffline, removeFromOffline } = useOfflineAudio(localPodcastData.audio_url);
+  // [CORRECCIÓN CRÍTICA]: Pasamos el objeto completo 'localPodcastData', no solo la URL string.
+  const { isOfflineAvailable, isDownloading, downloadForOffline, removeFromOffline } = useOfflineAudio(localPodcastData);
 
   // 1. INICIALIZACIÓN Y PERSISTENCIA
   useEffect(() => {
@@ -552,7 +553,7 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
               <CardContent className="p-5 pt-0 md:p-8 md:pt-0">
                 <Separator className="my-6" />
                 
-                {/* --- GUION COMPLETO (Renderizando texto normalizado) --- */}
+                {/* --- GUION COMPLETO --- */}
                 <Collapsible open={isScriptExpanded} onOpenChange={setIsScriptExpanded}>
                   <div className="flex items-center justify-between mb-4">
                       <h3 className="text-lg font-bold tracking-tight text-foreground">Guion del Episodio</h3>
@@ -608,7 +609,7 @@ export function PodcastView({ podcastData, user, initialIsLiked }: PodcastViewPr
                     <span className="text-sm font-medium text-muted-foreground tabular-nums">{likeCount ?? 0}</span>
                   </div>
                   
-                  {/* [BOTÓN DE DESCARGA ACTIVO] */}
+                  {/* [BOTÓN DE DESCARGA OFFLINE] */}
                   <div className="flex gap-1">
                     <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-foreground"><Share2 className="h-4.5 w-4.5" /></Button>
                     
