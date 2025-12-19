@@ -1,49 +1,80 @@
-// components/podcast-shelf.tsx
-// VERSIÓN CORREGIDA: Se añade 'relative' para arreglar el efecto de fade-out.
+"use client";
 
+import { useRef, useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { PodcastWithProfile } from "@/types/podcast";
-import { PodcastCard } from "@/components/podcast-card";
-import { CompactPodcastCard } from "@/components/compact-podcast-card";
+// [CAMBIO]: Usamos el componente Stacked y la utilidad compartida
+import { StackedPodcastCard } from "@/components/stacked-podcast-card";
+import { groupPodcastsByThread } from "@/lib/podcast-utils";
 
 interface PodcastShelfProps {
   title: string;
-  podcasts: PodcastWithProfile[] | null;
+  podcasts: PodcastWithProfile[];
   variant?: 'default' | 'compact';
 }
 
 export function PodcastShelf({ title, podcasts, variant = 'default' }: PodcastShelfProps) {
-  if (!podcasts || podcasts.length === 0) {
-    return null;
-  }
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [showLeftArrow, setShowLeftArrow] = useState(false);
+  const [showRightArrow, setShowRightArrow] = useState(true);
 
-  if (variant === 'compact') {
-    return (
-      <section className="w-full">
-        <h2 className="text-2xl md:text-3xl font-bold mb-4 px-4 md:px-0">{title}</h2>
-        {/* [CAMBIO QUIRÚRGICO]: Se añade 'relative' para que el degradado absoluto se posicione correctamente. */}
-        <div className="relative">
-          <div className="space-y-4 max-h-[calc(3*88px+3*1rem)] overflow-y-auto pr-2
-                        scrollbar-thin scrollbar-thumb-gray-700/50 scrollbar-track-transparent">
-            {podcasts.map((podcast) => (
-              <CompactPodcastCard key={podcast.id} podcast={podcast} />
-            ))}
-          </div>
-          <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-background to-transparent pointer-events-none" />
-        </div>
-      </section>
-    );
-  }
+  // [ESTRATEGIA]: Agrupamos siempre para mostrar mazos si hay hilos en el home
+  const stackedPodcasts = groupPodcastsByThread(podcasts);
+
+  const scroll = (direction: 'left' | 'right') => {
+    if (scrollRef.current) {
+      const { current } = scrollRef;
+      const scrollAmount = direction === 'left' ? -300 : 300;
+      current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
+  };
+
+  const checkScroll = () => {
+    if (scrollRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
+      setShowLeftArrow(scrollLeft > 0);
+      setShowRightArrow(scrollLeft < scrollWidth - clientWidth - 10);
+    }
+  };
+
+  useEffect(() => {
+    checkScroll();
+    window.addEventListener('resize', checkScroll);
+    return () => window.removeEventListener('resize', checkScroll);
+  }, [stackedPodcasts]);
+
+  if (stackedPodcasts.length === 0) return null;
 
   return (
-    <section className="w-full py-8">
-      <h2 className="text-2xl font-bold mb-4 px-4 md:px-0">{title}</h2>
-      <div className="flex overflow-x-auto space-x-4 pb-4 px-4 md:px-0 scrollbar-thin scrollbar-thumb-gray-700/50 hover:scrollbar-thumb-gray-600/50 scrollbar-track-transparent scrollbar-thumb-rounded-full">
-        {podcasts.map((podcast) => (
-          <div key={podcast.id} className="flex-shrink-0 w-64 md:w-72">
-            <PodcastCard podcast={podcast} />
+    <section className="relative group/shelf py-4 md:py-6">
+      <div className="flex items-center justify-between mb-4 px-1">
+        <h2 className="text-xl md:text-2xl font-bold tracking-tight text-white">{title}</h2>
+        
+        {/* Controles de Scroll (Solo Desktop) */}
+        <div className="hidden md:flex gap-2 opacity-0 group-hover/shelf:opacity-100 transition-opacity duration-300">
+          <Button variant="outline" size="icon" className="h-8 w-8 rounded-full bg-black/50 border-white/10 hover:bg-black/80" onClick={() => scroll('left')} disabled={!showLeftArrow}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="icon" className="h-8 w-8 rounded-full bg-black/50 border-white/10 hover:bg-black/80" onClick={() => scroll('right')} disabled={!showRightArrow}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      <div 
+        ref={scrollRef}
+        onScroll={checkScroll}
+        className="flex overflow-x-auto gap-4 pb-4 scrollbar-hide snap-x -mx-4 px-4 md:mx-0 md:px-0"
+      >
+        {stackedPodcasts.map((podcast: any) => (
+          <div key={podcast.id} className="min-w-[280px] md:min-w-[300px] snap-start">
+            <StackedPodcastCard 
+                podcast={podcast} 
+                replies={podcast.replies} 
+            />
           </div>
         ))}
-        <div className="flex-shrink-0 w-1 md:w-0" />
       </div>
     </section>
   );

@@ -1,9 +1,9 @@
 // app/podcasts/library-tabs.tsx
-// VERSIÓN: 4.0 (Remix Stacked Cards + OmniSearch Integration)
+// VERSIÓN: 5.0 (Clean Architecture: Shared Utils & Omni-Search)
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { User } from '@supabase/supabase-js';
@@ -11,7 +11,6 @@ import { PodcastWithProfile } from '@/types/podcast';
 import { createClient } from '@/lib/supabase/client';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PodcastCard } from '@/components/podcast-card';
 import { StackedPodcastCard } from '@/components/stacked-podcast-card';
 import { LibraryViewSwitcher } from '@/components/library-view-switcher';
 import { CompactPodcastCard } from '@/components/compact-podcast-card';
@@ -25,6 +24,9 @@ import { Input } from "@/components/ui/input";
 
 import { LibraryOmniSearch, SearchResult } from '@/components/library-omni-search';
 import { Search, X, Loader2 } from 'lucide-react';
+
+// [CAMBIO CRÍTICO]: Importamos la utilidad compartida para no repetir lógica
+import { groupPodcastsByThread } from '@/lib/podcast-utils';
 
 type UserCreationJob = Tables<'podcast_creation_jobs'>;
 type ResonanceProfile = Tables<'user_resonance_profiles'>;
@@ -52,45 +54,6 @@ const universeCategories = [
   { key: 'narrative_and_stories', title: 'Narrativa', image: '/images/universes/narrative.png' },
 ];
 
-// Extensión Local de Tipos para Genealogía
-interface PodcastWithGenealogy extends PodcastWithProfile {
-    parent_id?: number | null;
-    root_id?: number | null;
-    replies?: PodcastWithProfile[];
-}
-
-// ALGORITMO DE AGRUPACIÓN (Remix Threading)
-function groupPodcastsByThread(flatList: PodcastWithProfile[]) {
-    // 1. Casting seguro
-    const list = flatList as PodcastWithGenealogy[];
-    const parentMap = new Map<number, PodcastWithGenealogy>();
-    
-    // 2. Identificar Padres (Roots)
-    list.forEach(pod => {
-        if (!pod.parent_id) {
-            parentMap.set(pod.id, { ...pod, replies: [] });
-        }
-    });
-
-    // 3. Asignar Hijos (Remixes)
-    list.forEach(pod => {
-        if (pod.parent_id) {
-            const parent = parentMap.get(pod.parent_id);
-            if (parent && parent.replies) {
-                parent.replies.push(pod);
-            } else {
-                // Si el padre no está (ej: es ajeno), el hijo se convierte en carta independiente
-                parentMap.set(pod.id, { ...pod, replies: [] });
-            }
-        }
-    });
-
-    // 4. Ordenar Cronológicamente (Más reciente primero)
-    return Array.from(parentMap.values()).sort((a, b) => 
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
-}
-
 export function LibraryTabs({
   defaultTab, user, userCreationJobs: initialJobs, userCreatedPodcasts: initialPodcasts, curatedShelves, compassProps,
 }: LibraryTabsProps) {
@@ -105,10 +68,6 @@ export function LibraryTabs({
 
     const [jobs, setJobs] = useState(initialJobs);
     const [podcasts, setPodcasts] = useState(initialPodcasts);
-    
-    // Memoización de la lista agrupada (se recalcula solo si cambia 'podcasts')
-    const stackedPodcasts = useMemo(() => groupPodcastsByThread(podcasts), [podcasts]);
-
     const [searchResults, setSearchResults] = useState<SearchResult[] | null>(null);
     const [isSearching, setIsSearching] = useState(false);
 
@@ -159,28 +118,17 @@ export function LibraryTabs({
         setSearchResults(null);
     };
 
-    // RENDERIZADO DE CONTENIDO (GRID/LISTA)
     const renderGridOrListContent = (podcastsToRender: PodcastWithProfile[]) => {
         if (currentView === 'list') {
             return <div className="space-y-4">{podcastsToRender.map(p => <CompactPodcastCard key={p.id} podcast={p} />)}</div>;
         }
 
-        // Lógica de Selección de Lista:
-        // Si la lista que vamos a renderizar es la biblioteca del usuario ("Mis Creaciones"),
-        // usamos la versión Agrupada (Stacked).
-        // Si es una lista curada (Descubrir), la usamos tal cual pero aplicando el mismo algoritmo por si acaso.
-        
-        let listToUse = podcastsToRender;
-        if (podcastsToRender === podcasts) {
-            listToUse = stackedPodcasts; // Versión cacheada para mi librería
-        } else {
-            listToUse = groupPodcastsByThread(podcastsToRender); // Versión al vuelo para otras listas
-        }
+        // Usamos la utilidad compartida para agrupar
+        const stackedList = groupPodcastsByThread(podcastsToRender);
 
         return (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {listToUse.map((p: any) => (
-                    // Aquí usamos el componente Stacked. Si no tiene replies, se ve normal.
+                {stackedList.map((p: any) => (
                     <StackedPodcastCard key={p.id} podcast={p} replies={p.replies} />
                 ))}
             </div>
