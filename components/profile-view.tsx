@@ -1,4 +1,4 @@
-// components/podcast-view.tsx
+//components/profile-view.tsx
 // VERSIÓN: 6.4 (Fix: Robust Profile Linking & Safety Checks)
 
 "use client";

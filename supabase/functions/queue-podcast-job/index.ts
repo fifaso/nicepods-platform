@@ -1,5 +1,5 @@
 // supabase/functions/queue-podcast-job/index.ts
-// VERSIÓN: 8.0 (Dynamic Quotas based on Subscription Plan)
+// VERSIÓN: 9.0 (Support for Remix/Audio Threads + Dynamic Quotas)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -7,14 +7,25 @@ import { z, ZodError } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { guard } from "../_shared/guard.ts"; 
 import { corsHeaders } from "../_shared/cors.ts"; 
 
+// [MODIFICACIÓN ESTRATÉGICA]: Esquema flexible para soportar tanto creación Estándar como Remix
 const QueuePayloadSchema = z.object({
-  purpose: z.string(),
+  // Campos Estándar (ahora opcionales porque Remix no los usa todos)
+  purpose: z.string().optional(),
   style: z.enum(['solo', 'link', 'archetype', 'legacy', 'qa']).optional(),
+  
+  // Campos Comunes
   agentName: z.string().min(1).optional(),
   final_title: z.string().optional(),
   final_script: z.string().optional(),
   sources: z.array(z.any()).optional(), 
   inputs: z.object({}).passthrough(),
+
+  // [NUEVO] Campos para Remix / Hilos
+  creation_mode: z.enum(['standard', 'remix']).default('standard'),
+  parent_id: z.number().optional(),     // ID del podcast al que respondemos
+  root_id: z.number().optional(),       // ID del hilo original (opcional, el trigger lo puede deducir)
+  user_reaction: z.string().optional(), // El texto/transcripción de la respuesta del usuario
+  quote_context: z.string().optional(), // El fragmento de texto original citado
 });
 
 // --- LÓGICA DE NEGOCIO (HANDLER) ---
@@ -40,35 +51,26 @@ const handler = async (request: Request): Promise<Response> => {
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // PASO A: Determinar el Límite del Usuario (Plan vs. Free Tier)
-    let maxPodcasts = 3; // Valor de seguridad por defecto
+    // PASO A: Determinar el Límite del Usuario
+    let maxPodcasts = 3; 
 
-    // Consultamos si el usuario tiene una suscripción ACTIVA y traemos el límite del plan
     const { data: subscription } = await supabaseAdmin
         .from('subscriptions')
-        .select(`
-            status,
-            plans ( monthly_creation_limit )
-        `)
+        .select(`status, plans ( monthly_creation_limit )`)
         .eq('user_id', user.id)
-        .in('status', ['active', 'trialing']) // Consideramos activos y pruebas
+        .in('status', ['active', 'trialing'])
         .single();
 
     if (subscription && subscription.plans) {
-        // [CASO 1]: Usuario Premium
-        // @ts-ignore: Supabase join typing inference can be tricky in Deno
+        // @ts-ignore: Supabase join typing
         maxPodcasts = subscription.plans.monthly_creation_limit;
-        console.log(`[Quota] Usuario Premium detectado. Límite: ${maxPodcasts}`);
     } else {
-        // [CASO 2]: Usuario Free (Fallback a configuración global)
         const { data: limits } = await supabaseAdmin
             .from('platform_limits')
             .select('max_podcasts_per_month')
             .eq('key_name', 'free_tier')
             .single();
-        
         maxPodcasts = limits?.max_podcasts_per_month ?? 3;
-        console.log(`[Quota] Usuario Free. Límite: ${maxPodcasts}`);
     }
 
     // PASO B: Obtener Uso Actual
@@ -84,7 +86,7 @@ const handler = async (request: Request): Promise<Response> => {
         last_reset_date: new Date().toISOString() 
     };
 
-    // PASO C: Lazy Reset (Reinicio Mensual)
+    // PASO C: Lazy Reset
     const now = new Date();
     const lastResetDate = new Date(currentUsage.last_reset_date);
     
@@ -94,13 +96,13 @@ const handler = async (request: Request): Promise<Response> => {
         currentUsage.last_reset_date = now.toISOString();
     }
 
-    // PASO D: Validación Final (El momento de la verdad)
+    // PASO D: Validación Final (Hard Stop)
+    // Nota: Los Remixes TAMBIÉN consumen cuota (decisión de negocio)
     if (currentUsage.podcasts_created_this_month >= maxPodcasts) {
-        // Mensaje personalizado según el plan
-        throw new Error(`Has alcanzado tu límite mensual de ${maxPodcasts} podcasts. Actualiza tu plan para crear más.`);
+        throw new Error(`Has alcanzado tu límite mensual de ${maxPodcasts} creaciones.`);
     }
 
-    // PASO E: Consumir Token (+1)
+    // PASO E: Consumir Token
     const { error: updateError } = await supabaseAdmin
         .from('user_usage')
         .upsert({
@@ -115,14 +117,26 @@ const handler = async (request: Request): Promise<Response> => {
         throw new Error("Error interno gestionando tu cuota.");
     }
 
-    console.log(`[Quota] Token consumido. Uso: ${currentUsage.podcasts_created_this_month + 1}/${maxPodcasts}`);
-
     // --- FIN ZONA DE SEGURIDAD ---
 
     // 3. PROCESAMIENTO DEL TRABAJO
     const payload = await request.json();
     const validatedPayload = QueuePayloadSchema.parse(payload);
     
+    // [LÓGICA DE NEGOCIO REMIX]
+    if (validatedPayload.creation_mode === 'remix') {
+        // Validaciones específicas para Remix
+        if (!validatedPayload.parent_id) throw new Error("Falta el ID del podcast original para el Remix.");
+        if (!validatedPayload.user_reaction) throw new Error("Falta la reacción del usuario.");
+        
+        // Asignación automática del Agente de Debate si no viene definido
+        if (!validatedPayload.agentName) {
+            validatedPayload.agentName = 'reply-synthesizer-v1';
+        }
+        
+        console.log(`[Queue] Iniciando REMIX para podcast padre ${validatedPayload.parent_id}`);
+    }
+
     const { data: newJobId, error: rpcError } = await supabaseClient
       .rpc('increment_jobs_and_queue', {
         p_user_id: user.id,
@@ -132,7 +146,7 @@ const handler = async (request: Request): Promise<Response> => {
     if (rpcError) throw new Error(`Fallo en RPC: ${rpcError.message}`);
 
     // 4. Invocación Asíncrona
-    console.log(`Trabajo ${newJobId} creado. Invocando worker...`);
+    console.log(`Trabajo ${newJobId} creado (${validatedPayload.creation_mode}). Invocando worker...`);
     
     supabaseAdmin.functions.invoke('process-podcast-job', {
       body: { job_id: newJobId }
@@ -150,7 +164,6 @@ const handler = async (request: Request): Promise<Response> => {
     const errorMessage = error instanceof Error ? error.message : "Error desconocido.";
     console.error("Error en queue-podcast-job:", error);
     
-    // Manejo de códigos de estado para el Frontend
     if (errorMessage.includes("límite mensual")) {
         return new Response(JSON.stringify({ error: errorMessage }), { 
             status: 403, 

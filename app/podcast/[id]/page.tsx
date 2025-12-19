@@ -1,5 +1,5 @@
 // app/podcast/[id]/page.tsx
-// VERSIÓN: 5.11 (Final: Verified Data Pipeline for Sources & Tags)
+// VERSIÓN: 6.0 (Thread Aware: Fetching Replies & Lineage)
 
 import { cookies } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
@@ -17,60 +17,86 @@ export default async function PodcastDisplayPage({ params }: PodcastPageProps) {
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
 
+  // 1. Verificación de Auth
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
-    // Redirige a la página de login, manteniendo la URL original para un retorno fácil.
     redirect(`/login?redirect=/podcast/${params.id}`);
   }
 
-  // Consulta Maestra:
-  // Aquí es donde aseguramos que el campo 'sources' viaja desde la DB al Frontend.
-  const { data: podcastData, error } = await supabase
-    .from("micro_pods")
-    .select(`
-      id, 
-      user_id, 
-      title, 
-      description, 
-      script_text, 
-      audio_url,
-      cover_image_url, 
-      duration_seconds, 
-      category, 
-      status,
-      play_count, 
-      like_count, 
-      created_at, 
-      updated_at,
-      creation_data,
-      ai_tags, 
-      user_tags,
-      sources, 
-      profiles ( full_name, avatar_url, username )
-    `)
-    .eq('id', params.id)
-    .single<PodcastWithProfile>();
+  // 2. EJECUCIÓN PARALELA DE DATOS
+  // Traemos el podcast, el estado del like y el hilo de respuestas en una sola promesa
+  const [podcastResponse, likeResponse, repliesResponse] = await Promise.all([
+    // A. El Podcast Principal
+    supabase
+      .from("micro_pods")
+      .select(`
+        id, 
+        user_id, 
+        title, 
+        description, 
+        script_text, 
+        audio_url,
+        cover_image_url, 
+        duration_seconds, 
+        category, 
+        status,
+        play_count, 
+        like_count, 
+        created_at, 
+        updated_at,
+        creation_data,
+        ai_tags, 
+        user_tags,
+        sources, 
+        reviewed_by_user,
+        profiles ( full_name, avatar_url, username )
+      `)
+      .eq('id', params.id)
+      .single<PodcastWithProfile>(),
 
-  if (error || !podcastData) {
-    console.error(`Error al obtener podcast con ID ${params.id}:`, error?.message);
+    // B. Estado del Like
+    supabase
+      .from('likes')
+      .select('user_id')
+      .eq('user_id', user.id)
+      .eq('podcast_id', params.id)
+      .single(),
+
+    // C. Hilo de Respuestas (Remixes)
+    supabase
+      .from('micro_pods')
+      .select(`
+        id, 
+        title, 
+        description,
+        duration_seconds, 
+        created_at, 
+        cover_image_url, 
+        audio_url,
+        status,
+        profiles ( full_name, avatar_url, username )
+      `)
+      .eq('parent_id', params.id)
+      .eq('status', 'published') // Solo mostramos respuestas públicas
+      .order('created_at', { ascending: true }) // Orden cronológico (Hilo)
+  ]);
+
+  const podcastData = podcastResponse.data;
+  
+  if (podcastResponse.error || !podcastData) {
+    console.error(`Error al obtener podcast ${params.id}:`, podcastResponse.error?.message);
     notFound();
   }
   
-  // Verificación de Like inicial para UX instantánea
-  const { data: likeData } = await supabase
-    .from('likes')
-    .select('user_id')
-    .eq('user_id', user.id)
-    .eq('podcast_id', podcastData.id)
-    .single();
-    
-  const initialIsLiked = !!likeData;
-  
+  const initialIsLiked = !!likeResponse.data;
+  const replies = repliesResponse.data || []; // Lista segura de respuestas (Array vacío si no hay)
+
   return (
     <PodcastView 
       podcastData={podcastData} 
       user={user} 
-      initialIsLiked={initialIsLiked} 
+      initialIsLiked={initialIsLiked}
+      replies={replies} // Inyectamos el hilo al componente visual
     />
   );
 }
