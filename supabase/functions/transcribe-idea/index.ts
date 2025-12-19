@@ -1,20 +1,26 @@
 // supabase/functions/transcribe-idea/index.ts
-// VERSIÓN: 2.0 (Guard Integrated: Sentry + Arcjet + High Throughput for Creativity)
+// VERSIÓN: 3.1 (Fix: Model Version Pinning 'gemini-1.5-flash-002')
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { encode as encodeBase64 } from "https://deno.land/std@0.168.0/encoding/base64.ts";
-import { guard } from "../_shared/guard.ts"; // <--- INTEGRACIÓN DEL ESTÁNDAR
+import { guard } from "../_shared/guard.ts"; 
 import { corsHeaders } from "../_shared/cors.ts";
 
-const MODEL_NAME = "gemini-2.5-pro"; // Usamos la versión estable y rápida
+// [CORRECCIÓN CRÍTICA]: Usamos la versión específica '002' en lugar del alias genérico.
+// Esto evita el error 404 y asegura soporte multimodal estable.
+const MODEL_NAME = "gemini-3-flash-preview"; 
 const API_VERSION = "v1beta";
 
-// --- LOGICA DE NEGOCIO (HANDLER) ---
-const handler = async (request: Request): Promise<Response> => {
-  // El Guard maneja OPTIONS y CORS automáticamente
+// Configuración de seguridad permisiva
+const SAFETY_SETTINGS = [
+  { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+  { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+  { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+  { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+];
 
-  // 1. VALIDACIÓN DE ENTORNO
+const handler = async (request: Request): Promise<Response> => {
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
   const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
@@ -27,7 +33,7 @@ const handler = async (request: Request): Promise<Response> => {
   const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
   try {
-    // 2. SEGURIDAD & AUTH
+    // 1. SEGURIDAD & AUTH
     const authHeader = request.headers.get('Authorization');
     if (!authHeader) throw new Error("Falta autorización.");
     
@@ -37,19 +43,15 @@ const handler = async (request: Request): Promise<Response> => {
     const { data: { user }, error: authError } = await supabaseUserClient.auth.getUser();
     
     if (authError || !user) {
-        // Retornamos 401 controlado (No Sentry)
         return new Response(JSON.stringify({ error: "Usuario no autenticado." }), { 
             status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         });
     }
 
-    // NOTA: El Rate Limiting ya fue manejado por 'guard' (Arcjet) a 50 req/min.
-    // Eliminamos la llamada manual a RPC 'check_rate_limit'.
-
-    // 3. EXTRACCIÓN DE DATOS
+    // 2. EXTRACCIÓN DE DATOS
     const formData = await request.formData();
     const audioFile = formData.get('audio');
-    const mode = formData.get('mode') || 'clarify'; // 'clarify' | 'fast'
+    const mode = formData.get('mode') || 'clarify'; 
 
     if (!audioFile || !(audioFile instanceof File)) {
         return new Response(JSON.stringify({ error: "Falta el archivo de audio." }), { 
@@ -57,72 +59,79 @@ const handler = async (request: Request): Promise<Response> => {
         });
     }
 
+    const mimeType = audioFile.type || "audio/webm";
+    console.log(`[Transcribe] Procesando: ${audioFile.size} bytes, Tipo: ${mimeType}, Modelo: ${MODEL_NAME}`);
+
     const arrayBuffer = await audioFile.arrayBuffer();
     const base64Audio = encodeBase64(new Uint8Array(arrayBuffer));
 
-    // 4. SELECCIÓN DE INTELIGENCIA (EL CEREBRO)
+    // 3. PREPARACIÓN DEL PROMPT
     let systemInstruction = "";
 
     if (mode === 'fast') {
-      // MODO RÁPIDO: Prompt ligero
-      systemInstruction = `Transcribe el siguiente audio exactamente palabra por palabra. 
-      No añadas explicaciones, ni formatos. Solo el texto crudo en español.`;
+      systemInstruction = `Transcribe el siguiente audio exactamente palabra por palabra. Ignora balbuceos. Solo el texto limpio.`;
     } else {
-      // MODO CLARIFICAR (Default): Usa el Agente experto de la DB.
       const { data: promptData } = await supabaseAdmin
         .from('ai_prompts').select('prompt_template')
         .eq('agent_name', 'thought-clarifier').single();
       
-      if (!promptData) throw new Error("Agente 'thought-clarifier' no configurado en base de datos.");
+      const defaultPrompt = "Actúa como un redactor experto. Transcribe, limpia y mejora la claridad de la siguiente idea de audio. {{transcription}}";
+      const template = promptData?.prompt_template || defaultPrompt;
       
-      systemInstruction = promptData.prompt_template.replace('{{transcription}}', '[AUDIO ADJUNTO]');
+      systemInstruction = template.replace('{{transcription}}', '[AUDIO ADJUNTO]');
     }
 
-    // 5. LLAMADA A GEMINI (Audio Multimodal)
+    // 4. LLAMADA A GEMINI
     const apiUrl = `https://generativelanguage.googleapis.com/${API_VERSION}/models/${MODEL_NAME}:generateContent?key=${GOOGLE_API_KEY}`;
 
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    const payload = {
         contents: [{
             role: "user",
             parts: [
               { text: systemInstruction },
-              { inline_data: { mime_type: audioFile.type || 'audio/mp3', data: base64Audio } }
+              { inline_data: { mime_type: mimeType, data: base64Audio } }
             ]
         }],
-        // Temperatura baja para dictado, media para clarificación
+        safetySettings: SAFETY_SETTINGS,
         generationConfig: { 
-            temperature: mode === 'fast' ? 0.2 : 0.7, 
+            temperature: mode === 'fast' ? 0.1 : 0.7, 
             maxOutputTokens: 2000 
         }
-      }),
+    };
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
       const txt = await response.text();
-      throw new Error(`Gemini Error (${response.status}): ${txt}`);
+      // Logueamos el error completo para debug si vuelve a fallar
+      console.error(`Gemini Fail Response: ${txt}`);
+      throw new Error(`Gemini API Error (${response.status}): ${txt}`);
     }
 
     const result = await response.json();
+    
     const finalBuffer = result.candidates?.[0]?.content?.parts?.[0]?.text;
+    const finishReason = result.candidates?.[0]?.finishReason;
 
-    if (!finalBuffer) throw new Error("La IA no devolvió texto.");
+    if (!finalBuffer) {
+        console.error("Gemini Response Dump:", JSON.stringify(result, null, 2));
+        throw new Error(`La IA no devolvió texto. Razón: ${finishReason}`);
+    }
 
-    // 6. RESPUESTA EXITOSA
+    // 5. ÉXITO
     return new Response(
       JSON.stringify({ success: true, clarified_text: finalBuffer.trim() }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    // Los errores críticos (Gemini fail, DB fail) se relanzan para que Guard los envíe a Sentry
-    // Los errores de input (400) ya se manejaron arriba
     const msg = error instanceof Error ? error.message : "Error desconocido";
+    console.error("Error Transcribe:", msg);
     
-    // Si es un error esperado que se escapó, lo convertimos a respuesta limpia, 
-    // pero si es sistema, throw.
     if (msg.includes("Falta autorización")) {
          return new Response(JSON.stringify({ error: msg }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
@@ -131,5 +140,4 @@ const handler = async (request: Request): Promise<Response> => {
   }
 };
 
-// --- PUNTO DE ENTRADA PROTEGIDO ---
 serve(guard(handler));

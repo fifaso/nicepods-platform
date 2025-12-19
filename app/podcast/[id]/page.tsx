@@ -1,5 +1,5 @@
 // app/podcast/[id]/page.tsx
-// VERSIÓN: 6.0 (Thread Aware: Fetching Replies & Lineage)
+// VERSIÓN: 7.0 (Remix Ready: Fetching Threads & Drafts context)
 
 import { cookies } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
@@ -24,9 +24,8 @@ export default async function PodcastDisplayPage({ params }: PodcastPageProps) {
   }
 
   // 2. EJECUCIÓN PARALELA DE DATOS
-  // Traemos el podcast, el estado del like y el hilo de respuestas en una sola promesa
   const [podcastResponse, likeResponse, repliesResponse] = await Promise.all([
-    // A. El Podcast Principal
+    // A. El Podcast Principal (Padre)
     supabase
       .from("micro_pods")
       .select(`
@@ -54,7 +53,7 @@ export default async function PodcastDisplayPage({ params }: PodcastPageProps) {
       .eq('id', params.id)
       .single<PodcastWithProfile>(),
 
-    // B. Estado del Like
+    // B. Estado del Like (Interacción)
     supabase
       .from('likes')
       .select('user_id')
@@ -62,11 +61,15 @@ export default async function PodcastDisplayPage({ params }: PodcastPageProps) {
       .eq('podcast_id', params.id)
       .single(),
 
-    // C. Hilo de Respuestas (Remixes)
+    // C. Hilo de Respuestas (Remixes & Thread)
+    // [ESTRATEGIA]: No filtramos por 'published' aquí.
+    // Traemos todo lo que la política RLS permita (Públicos + Mis Borradores).
+    // El componente PodcastView se encarga de separar visualmente los pendientes de los publicados.
     supabase
       .from('micro_pods')
       .select(`
         id, 
+        user_id, 
         title, 
         description,
         duration_seconds, 
@@ -77,8 +80,7 @@ export default async function PodcastDisplayPage({ params }: PodcastPageProps) {
         profiles ( full_name, avatar_url, username )
       `)
       .eq('parent_id', params.id)
-      .eq('status', 'published') // Solo mostramos respuestas públicas
-      .order('created_at', { ascending: true }) // Orden cronológico (Hilo)
+      .order('created_at', { ascending: true }) // Orden cronológico para seguir la conversación
   ]);
 
   const podcastData = podcastResponse.data;
@@ -89,14 +91,14 @@ export default async function PodcastDisplayPage({ params }: PodcastPageProps) {
   }
   
   const initialIsLiked = !!likeResponse.data;
-  const replies = repliesResponse.data || []; // Lista segura de respuestas (Array vacío si no hay)
+  const replies = repliesResponse.data || []; 
 
   return (
     <PodcastView 
       podcastData={podcastData} 
       user={user} 
       initialIsLiked={initialIsLiked}
-      replies={replies} // Inyectamos el hilo al componente visual
+      replies={replies} 
     />
   );
 }
