@@ -1,13 +1,14 @@
 // app/page.tsx
-// VERSIÓN: 8.0 (Guest UX Fix: Remove Duplicate Search Bar)
+// VERSIÓN: 8.0 (Guest UX Fix: Tight & Professional Layout)
 
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { PodcastWithProfile } from "@/types/podcast";
 import { Button } from "@/components/ui/button";
-import { Library, User, Loader2 } from "lucide-react";
-// [LIMPIEZA]: Quitamos imports no usados (Input, Search, etc que estaban en el guest page)
+import { Input } from "@/components/ui/input";
+import { Mic, Search, Compass, Lightbulb, Bot, Library, User, Loader2 } from "lucide-react";
+import { QuadrantCard } from "@/components/ui/quadrant-card";
 import { InsightPanel } from "@/components/insight-panel";
 import { FloatingActionButton } from "@/components/ui/floating-action-button";
 import { DiscoveryHub } from "@/components/discovery-hub";
@@ -57,8 +58,6 @@ function UserDashboard({ user, feed, profile }: { user: any; feed: DiscoveryFeed
   return (
     <>
       <div className="px-4 lg:px-0 pb-24"> 
-        
-        {/* HEADER MÓVIL */}
         <div className="lg:hidden mb-5 mt-2"> 
             <div className="flex items-center justify-between mb-4">
                 <h1 className="text-2xl font-bold tracking-tight text-foreground">
@@ -81,7 +80,6 @@ function UserDashboard({ user, feed, profile }: { user: any; feed: DiscoveryFeed
             </div>
         </div>
         
-        {/* HEADER DESKTOP */}
         <div className="hidden lg:block mb-8">
             <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
               Hola, {userName}!
@@ -103,35 +101,48 @@ function UserDashboard({ user, feed, profile }: { user: any; feed: DiscoveryFeed
   );
 }
 
+// [OPTIMIZACIÓN QUIRÚRGICA]: Layout de Invitado Compacto
 function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] }) {
   const safeLatest = sanitizePodcasts(latestPodcasts);
 
   return (
-    <div className="flex flex-col items-center pb-24">
-      {/* HERO SECTION */}
-      <section className="w-full text-center py-12 md:py-20 flex flex-col items-center space-y-4 px-4">
-        <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-primary leading-tight">
+    <div className="flex flex-col items-center pb-20 w-full">
+      {/* 
+         CAMBIOS ESTRATÉGICOS:
+         1. pt-12 en lugar de py-20: Subimos todo el contenido hacia arriba.
+         2. space-y-2: Reducimos la distancia entre título y subtítulo.
+         3. max-w-3xl: Controlamos el ancho para lectura óptima.
+      */}
+      <section className="w-full text-center pt-12 pb-6 flex flex-col items-center space-y-3 px-4 animate-in fade-in slide-in-from-top-4 duration-700">
+        <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-white leading-tight drop-shadow-xl">
           Expande tu perspectiva
         </h1>
-        <p className="max-w-xl text-base md:text-lg text-muted-foreground px-4">
+        <p className="max-w-xl text-base md:text-xl text-muted-foreground/80 leading-relaxed px-2">
           Crea, aprende y comparte conocimiento en audio.
         </p>
       </section>
       
-      {/* [CORRECCIÓN]: ELIMINADO EL INPUT MANUAL DUPLICADO */}
-      {/* Integramos directamente el Hub que ya tiene su propio buscador */}
-      <section className="w-full max-w-4xl px-2 md:px-4 mx-auto">
+      {/* 
+         INTEGRACIÓN FLUIDA:
+         El DiscoveryHub contiene el buscador. Al quitarle márgenes externos negativos o reducir el espacio aquí,
+         logramos que parezca parte de la misma sección que el título.
+      */}
+      <section className="w-full max-w-5xl px-0 md:px-4 mx-auto -mt-4 relative z-10">
         <DiscoveryHub />
       </section>
 
-      <div className="w-full max-w-7xl mx-auto px-4 lg:px-0 mt-12">
+      {/* 
+         SECCIÓN DE CONTENIDO:
+         Añadimos un borde superior sutil para separar la herramienta de búsqueda del contenido pasivo.
+      */}
+      <div className="w-full max-w-7xl mx-auto px-4 lg:px-0 mt-8 pt-8 border-t border-white/5">
         <PodcastShelf 
           title="Últimas creaciones de la comunidad"
           podcasts={safeLatest} 
         />
       </div>
-      
-      <footer className="w-full py-8 mt-8 text-center text-xs text-muted-foreground lg:hidden">
+
+      <footer className="w-full py-8 mt-4 text-center text-xs text-muted-foreground lg:hidden">
         <p>&copy; {new Date().getFullYear()} NicePod.</p>
       </footer>
     </div>
