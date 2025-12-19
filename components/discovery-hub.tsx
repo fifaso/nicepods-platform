@@ -1,5 +1,5 @@
 // components/discovery-hub.tsx
-// VERSIÓN: 3.0 (Omni-Search Debug Mode: Logging & Low Threshold)
+// VERSIÓN: 4.0 (UI Polish: Theme-Aware Search Bar & Omni-Search)
 
 "use client";
 
@@ -85,20 +85,12 @@ export function DiscoveryHub() {
                 body: { query: searchTerm }
             });
 
-            if (vectorError) {
-                console.error("❌ Error Vectorizando:", vectorError);
-                throw new Error("Error al conectar con IA");
-            }
+            if (vectorError) throw new Error("Error al conectar con IA");
+            if (!vectorData?.embedding) throw new Error("La IA no devolvió resultados numéricos");
 
-            if (!vectorData?.embedding) {
-                console.error("❌ Vector vacío recibido de Google");
-                throw new Error("La IA no devolvió resultados numéricos");
-            }
-
-            console.log("✅ Vector generado correctamente. Dimensión:", vectorData.embedding.length);
+            console.log("✅ Vector generado correctamente.");
 
             // PASO 2: BÚSQUEDA HÍBRIDA (Database RPC)
-            // Usamos un umbral bajo (0.15) para probar si trae ALGO.
             const { data: searchResults, error: searchError } = await supabase.rpc('search_omni', {
                 query_text: searchTerm,
                 query_embedding: vectorData.embedding,
@@ -106,19 +98,9 @@ export function DiscoveryHub() {
                 match_count: 10
             });
 
-            if (searchError) {
-                console.error("❌ Error SQL search_omni:", searchError);
-                throw searchError;
-            }
+            if (searchError) throw searchError;
 
             console.log("✅ Resultados SQL:", searchResults);
-            
-            if (searchResults && searchResults.length > 0) {
-                 console.table(searchResults.map((r: any) => ({ tipo: r.type, titulo: r.title, score: r.similarity })));
-            } else {
-                 console.warn("⚠️ SQL devolvió 0 resultados. Revisa permisos RLS o datos en tabla 'podcast_embeddings'.");
-            }
-
             setResults(searchResults || []);
 
         } catch (error) {
@@ -135,35 +117,41 @@ export function DiscoveryHub() {
         setHasSearched(false);
     };
 
-    // Agrupación de resultados para UI limpia
+    // Agrupación de resultados
     const podcastResults = results.filter(r => r.type === 'podcast');
     const userResults = results.filter(r => r.type === 'user');
 
     return (
         <section className="my-8 md:my-12 px-2 md:px-0">
             
-            {/* CABECERA Y BUSCADOR */}
+            {/* CABECERA Y BUSCADOR (REDISEÑADO) */}
             <div className="text-center mb-8">
                 {/* Título solo visible en Desktop para ahorrar espacio móvil */}
                 <div className="hidden lg:block">
-                    <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">Centro de Descubrimiento</h2>
+                    <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2">Centro de Descubrimiento</h2>
                     <p className="text-muted-foreground mb-6">Descubre conocimiento en experiencias de audio concisas.</p>
                 </div>
                 
                 <div className="relative max-w-2xl mx-auto group">
-                    <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full opacity-30 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-tilt blur"></div>
-                    <div className="relative flex items-center bg-black rounded-full border border-white/10 p-1">
-                        <Search className="h-5 w-5 text-muted-foreground ml-3 mr-2" />
+                    {/* Efecto Glow (Adaptativo Light/Dark) */}
+                    <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full opacity-20 dark:opacity-40 group-hover:opacity-60 transition duration-1000 group-hover:duration-200 animate-tilt blur"></div>
+                    
+                    {/* Contenedor del Input (Píldora) */}
+                    <div className="relative flex items-center rounded-full p-1 transition-colors bg-white border border-slate-200 shadow-sm dark:bg-black dark:border-white/10 dark:shadow-none">
+                        
+                        <Search className="h-5 w-5 ml-3 mr-2 text-slate-400 dark:text-slate-500" />
+                        
                         <Input 
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}
                             placeholder="Buscar por idea, persona o tema..." 
-                            className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-base h-12 flex-grow placeholder:text-muted-foreground/50"
+                            className="border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 h-12 flex-grow bg-transparent text-base text-slate-900 placeholder:text-slate-400 dark:text-slate-100 dark:placeholder:text-slate-500"
                         />
+                        
                         {isSearching ? (
                             <Loader2 className="h-5 w-5 text-purple-500 animate-spin mr-4" />
                         ) : query.length > 0 ? (
-                            <Button variant="ghost" size="icon" onClick={clearSearch} className="mr-1 h-8 w-8 hover:bg-white/10 rounded-full">
+                            <Button variant="ghost" size="icon" onClick={clearSearch} className="mr-1 h-8 w-8 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full text-slate-500">
                                 <X className="h-4 w-4" />
                             </Button>
                         ) : null}
@@ -179,6 +167,7 @@ export function DiscoveryHub() {
                         {discoveryHubCategories.map((category) => (
                             <div key={category.key} className="min-w-[140px] w-[40%] lg:w-auto snap-start flex-shrink-0">
                                 <UniverseCard
+                                    key={category.key}
                                     title={category.title}
                                     image={category.image}
                                     href={category.href}
@@ -204,13 +193,13 @@ export function DiscoveryHub() {
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                                             {userResults.map(user => (
                                                 <Link key={user.id} href={`/profile/${user.subtitle.replace('@', '')}`}>
-                                                    <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-purple-500/30 transition-all cursor-pointer">
+                                                    <div className="flex items-center gap-3 p-3 rounded-xl bg-card/50 hover:bg-accent/50 border border-border/50 hover:border-primary/30 transition-all cursor-pointer">
                                                         <Avatar>
                                                             <AvatarImage src={user.image_url} />
                                                             <AvatarFallback><User className="h-4 w-4" /></AvatarFallback>
                                                         </Avatar>
                                                         <div className="overflow-hidden">
-                                                            <p className="font-semibold text-sm truncate">{user.title}</p>
+                                                            <p className="font-semibold text-sm truncate text-foreground">{user.title}</p>
                                                             <p className="text-xs text-muted-foreground truncate">{user.subtitle}</p>
                                                         </div>
                                                     </div>
@@ -227,8 +216,8 @@ export function DiscoveryHub() {
                                         <div className="grid grid-cols-1 gap-3">
                                             {podcastResults.map(pod => (
                                                 <Link key={pod.id} href={`/podcast/${pod.id}`}>
-                                                    <div className="group flex gap-4 p-4 rounded-xl bg-slate-900/40 border border-white/5 hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/10 transition-all">
-                                                        <div className="relative h-16 w-16 flex-shrink-0 rounded-lg overflow-hidden bg-black/20">
+                                                    <div className="group flex gap-4 p-4 rounded-xl bg-card/40 border border-border/50 hover:border-primary/50 hover:shadow-lg transition-all">
+                                                        <div className="relative h-16 w-16 flex-shrink-0 rounded-lg overflow-hidden bg-muted">
                                                             {pod.image_url ? (
                                                                 // eslint-disable-next-line @next/next/no-img-element
                                                                 <img src={pod.image_url} alt={pod.title} className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-500" />
@@ -241,8 +230,8 @@ export function DiscoveryHub() {
                                                         </div>
                                                         <div className="flex-1 min-w-0">
                                                             <div className="flex justify-between items-start">
-                                                                <h4 className="font-bold text-base truncate pr-4 text-white group-hover:text-purple-300 transition-colors">{pod.title}</h4>
-                                                                <Badge variant="outline" className="text-[10px] bg-purple-900/20 text-purple-200 border-purple-800 hidden sm:inline-flex">
+                                                                <h4 className="font-bold text-base truncate pr-4 text-foreground group-hover:text-primary transition-colors">{pod.title}</h4>
+                                                                <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/20 hidden sm:inline-flex">
                                                                     {Math.round(pod.similarity * 100)}% Match
                                                                 </Badge>
                                                             </div>
