@@ -1,5 +1,5 @@
 // app/podcasts/library-tabs.tsx
-// VERSIÓN: 3.1 (Fix: Imports & Types Extension)
+// VERSIÓN: 4.0 (Remix Stacked Cards + OmniSearch Integration)
 
 'use client';
 
@@ -21,11 +21,9 @@ import { SmartJobCard } from '@/components/smart-job-card';
 import type { Tables } from '@/types/supabase';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-// [CORRECCIÓN 1]: Input importado correctamente desde UI, no de iconos
 import { Input } from "@/components/ui/input";
 
 import { LibraryOmniSearch, SearchResult } from '@/components/library-omni-search';
-// [CORRECCIÓN 1]: Quitamos 'Input' de aquí
 import { Search, X, Loader2 } from 'lucide-react';
 
 type UserCreationJob = Tables<'podcast_creation_jobs'>;
@@ -54,45 +52,40 @@ const universeCategories = [
   { key: 'narrative_and_stories', title: 'Narrativa', image: '/images/universes/narrative.png' },
 ];
 
-// [CORRECCIÓN 2]: Extensión Local de Tipos
-// Definimos que el podcast tiene parent_id aunque el tipo global aún no se haya actualizado
+// Extensión Local de Tipos para Genealogía
 interface PodcastWithGenealogy extends PodcastWithProfile {
     parent_id?: number | null;
     root_id?: number | null;
-    // Añadimos 'replies' para el manejo interno del algoritmo
     replies?: PodcastWithProfile[];
 }
 
-// --- ALGORITMO DE AGRUPACIÓN ---
+// ALGORITMO DE AGRUPACIÓN (Remix Threading)
 function groupPodcastsByThread(flatList: PodcastWithProfile[]) {
-    // Casteamos la lista de entrada al tipo extendido
+    // 1. Casting seguro
     const list = flatList as PodcastWithGenealogy[];
-    
     const parentMap = new Map<number, PodcastWithGenealogy>();
     
-    // 1. Identificar padres e inicializar
+    // 2. Identificar Padres (Roots)
     list.forEach(pod => {
-        // Si no tiene padre, es un nodo raíz potencial
         if (!pod.parent_id) {
             parentMap.set(pod.id, { ...pod, replies: [] });
         }
     });
 
-    // 2. Asignar hijos
+    // 3. Asignar Hijos (Remixes)
     list.forEach(pod => {
         if (pod.parent_id) {
             const parent = parentMap.get(pod.parent_id);
             if (parent && parent.replies) {
                 parent.replies.push(pod);
             } else {
-                // Caso Borde: Soy hijo pero mi padre no está en la lista actual
-                // Lo tratamos como una carta independiente
+                // Si el padre no está (ej: es ajeno), el hijo se convierte en carta independiente
                 parentMap.set(pod.id, { ...pod, replies: [] });
             }
         }
     });
 
-    // 3. Retornar array ordenado
+    // 4. Ordenar Cronológicamente (Más reciente primero)
     return Array.from(parentMap.values()).sort((a, b) => 
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
@@ -113,7 +106,7 @@ export function LibraryTabs({
     const [jobs, setJobs] = useState(initialJobs);
     const [podcasts, setPodcasts] = useState(initialPodcasts);
     
-    // Agrupamos la lista inicial al montar
+    // Memoización de la lista agrupada (se recalcula solo si cambia 'podcasts')
     const stackedPodcasts = useMemo(() => groupPodcastsByThread(podcasts), [podcasts]);
 
     const [searchResults, setSearchResults] = useState<SearchResult[] | null>(null);
@@ -166,20 +159,28 @@ export function LibraryTabs({
         setSearchResults(null);
     };
 
+    // RENDERIZADO DE CONTENIDO (GRID/LISTA)
     const renderGridOrListContent = (podcastsToRender: PodcastWithProfile[]) => {
         if (currentView === 'list') {
             return <div className="space-y-4">{podcastsToRender.map(p => <CompactPodcastCard key={p.id} podcast={p} />)}</div>;
         }
 
-        const isMyLibrary = podcastsToRender === podcasts; 
+        // Lógica de Selección de Lista:
+        // Si la lista que vamos a renderizar es la biblioteca del usuario ("Mis Creaciones"),
+        // usamos la versión Agrupada (Stacked).
+        // Si es una lista curada (Descubrir), la usamos tal cual pero aplicando el mismo algoritmo por si acaso.
         
-        // Si es mi librería, usamos los datos agrupados (con tipo extendido)
-        // Si no, usamos la lista plana estándar
-        const listToUse = isMyLibrary ? stackedPodcasts : podcastsToRender;
+        let listToUse = podcastsToRender;
+        if (podcastsToRender === podcasts) {
+            listToUse = stackedPodcasts; // Versión cacheada para mi librería
+        } else {
+            listToUse = groupPodcastsByThread(podcastsToRender); // Versión al vuelo para otras listas
+        }
 
         return (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {listToUse.map((p: any) => (
+                    // Aquí usamos el componente Stacked. Si no tiene replies, se ve normal.
                     <StackedPodcastCard key={p.id} podcast={p} replies={p.replies} />
                 ))}
             </div>
