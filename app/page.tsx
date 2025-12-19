@@ -1,20 +1,17 @@
 // app/page.tsx
-// VERSIÓN: 7.0 (Mobile Header: Integrated Info Dialog & Compact Layout)
+// VERSIÓN: 8.0 (Guest UX Fix: Remove Duplicate Search Bar)
 
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { PodcastWithProfile } from "@/types/podcast";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Mic, Search, Compass, Lightbulb, Bot, Library, User, Loader2 } from "lucide-react";
-import { QuadrantCard } from "@/components/ui/quadrant-card";
+import { Library, User, Loader2 } from "lucide-react";
+// [LIMPIEZA]: Quitamos imports no usados (Input, Search, etc que estaban en el guest page)
 import { InsightPanel } from "@/components/insight-panel";
 import { FloatingActionButton } from "@/components/ui/floating-action-button";
 import { DiscoveryHub } from "@/components/discovery-hub";
-// [NUEVO IMPORT]: El botón de información estratégica
 import { PlatformInfoDialog } from "@/components/platform-info-dialog";
-
 import type { Tables } from "@/types/supabase";
 import dynamic from "next/dynamic";
 
@@ -61,19 +58,15 @@ function UserDashboard({ user, feed, profile }: { user: any; feed: DiscoveryFeed
     <>
       <div className="px-4 lg:px-0 pb-24"> 
         
-        {/* HEADER MÓVIL OPTIMIZADO V2 */}
+        {/* HEADER MÓVIL */}
         <div className="lg:hidden mb-5 mt-2"> 
-            {/* Bloque Superior: Saludo + Información */}
             <div className="flex items-center justify-between mb-4">
                 <h1 className="text-2xl font-bold tracking-tight text-foreground">
                     Hola, <span className="text-primary">{userName}</span>
                 </h1>
-                
-                {/* Botón de Información Estratégica (Manifiesto) */}
                 <PlatformInfoDialog />
             </div>
             
-            {/* Botones de Acción Rápida (Compactos) */}
             <div className="grid grid-cols-2 gap-3">
                 <Link href="/podcasts?tab=discover" className="w-full">
                     <Button variant="secondary" className="w-full h-10 text-xs font-semibold bg-secondary/50 border border-border/50 hover:bg-secondary transition-all">
@@ -88,7 +81,7 @@ function UserDashboard({ user, feed, profile }: { user: any; feed: DiscoveryFeed
             </div>
         </div>
         
-        {/* HEADER DESKTOP (Sin cambios) */}
+        {/* HEADER DESKTOP */}
         <div className="hidden lg:block mb-8">
             <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
               Hola, {userName}!
@@ -96,7 +89,6 @@ function UserDashboard({ user, feed, profile }: { user: any; feed: DiscoveryFeed
             <p className="text-lg text-muted-foreground mt-2">Tu centro de descubrimiento personalizado.</p>
         </div>
 
-        {/* COMPONENTE HÍBRIDO (Grid en Desktop / Carrusel en Móvil) */}
         <DiscoveryHub />
 
         <div className="mt-6 md:mt-10 space-y-8 md:space-y-12">
@@ -116,28 +108,25 @@ function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] }) {
 
   return (
     <div className="flex flex-col items-center pb-24">
-      <section className="w-full text-center py-8 md:py-20 flex flex-col items-center space-y-3 px-4">
-        <h1 className="text-2xl md:text-6xl font-bold tracking-tight text-primary leading-tight">
+      {/* HERO SECTION */}
+      <section className="w-full text-center py-12 md:py-20 flex flex-col items-center space-y-4 px-4">
+        <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-primary leading-tight">
           Expande tu perspectiva
         </h1>
-        <p className="max-w-xl text-sm md:text-lg text-muted-foreground px-4">
+        <p className="max-w-xl text-base md:text-lg text-muted-foreground px-4">
           Crea, aprende y comparte conocimiento en audio.
         </p>
       </section>
       
-      <section className="w-full max-w-4xl py-2 px-4 mx-auto">
-        <div className="relative mb-6">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input type="text" placeholder="Buscar ideas..." className="w-full h-10 pl-10 rounded-full bg-muted/40 border-border/40 text-sm" />
-        </div>
-        
-        {/* Reutilizamos DiscoveryHub aquí también para consistencia */}
+      {/* [CORRECCIÓN]: ELIMINADO EL INPUT MANUAL DUPLICADO */}
+      {/* Integramos directamente el Hub que ya tiene su propio buscador */}
+      <section className="w-full max-w-4xl px-2 md:px-4 mx-auto">
         <DiscoveryHub />
       </section>
 
-      <div className="w-full max-w-7xl mx-auto px-4 lg:px-0 mt-6">
+      <div className="w-full max-w-7xl mx-auto px-4 lg:px-0 mt-12">
         <PodcastShelf 
-          title="Últimas creaciones"
+          title="Últimas creaciones de la comunidad"
           podcasts={safeLatest} 
         />
       </div>
@@ -149,28 +138,23 @@ function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] }) {
   );
 }
 
-// --- PÁGINA PRINCIPAL (SERVER COMPONENT) ---
+// --- PÁGINA PRINCIPAL ---
 
 export default async function HomePage() {
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
   
   let user = null;
-  
-  // 1. Intentar obtener sesión
   try {
     const { data } = await supabase.auth.getUser();
     user = data?.user;
-  } catch (e) {
-    // Si falla la auth, asumimos invitado
-  }
+  } catch (e) { }
 
   let feed: DiscoveryFeed | null = null;
   let resonanceProfile: ResonanceProfile | null = null;
   let latestPodcasts: any[] = [];
   let userProfile: any = null;
 
-  // 2. Lógica de Carga de Datos (Defensiva)
   if (user) {
     try {
         const [
@@ -183,7 +167,6 @@ export default async function HomePage() {
           supabase.from('profiles').select('username, full_name').eq('id', user.id).single()
         ]);
         
-        // [CHECK DE INTEGRIDAD]: Si la DB falla al traer el perfil, lanzamos error
         if (profileError) throw new Error("Error crítico cargando perfil: " + profileError.message);
 
         feed = feedData;
@@ -192,12 +175,10 @@ export default async function HomePage() {
 
     } catch (e) {
         console.error("Error cargando dashboard de usuario:", e);
-        // [FALLBACK]: Si algo falla, degradamos a vista de invitado.
         user = null; 
     }
   }
 
-  // 3. Carga de Datos Públicos (Si es invitado o falló la carga de usuario)
   if (!user) {
     try {
         const { data } = await supabase
@@ -217,7 +198,7 @@ export default async function HomePage() {
     <main className="container mx-auto max-w-screen-xl flex-grow">
       <div className="grid grid-cols-1 lg:grid-cols-4 lg:gap-8 xl:gap-12 h-full">
         
-        {/* COLUMNA CENTRAL (CONTENIDO) */}
+        {/* COLUMNA CENTRAL */}
         <div className="lg:col-span-3 lg:h-[calc(100vh-6rem)] lg:overflow-y-auto lg:overflow-x-hidden lg:pr-6 scrollbar-thin scrollbar-thumb-gray-600/50 hover:scrollbar-thumb-gray-500/50 scrollbar-track-transparent scrollbar-thumb-rounded-full">
           <div className="pt-4 pb-12 lg:pt-12">
             {user && userProfile ? (
@@ -228,11 +209,10 @@ export default async function HomePage() {
           </div>
         </div>
 
-        {/* COLUMNA LATERAL (PANEL DERECHO) */}
+        {/* COLUMNA LATERAL */}
         <div className="hidden lg:block lg:col-span-1">
           <div className="sticky top-[6rem] h-[calc(100vh-7.5rem)]">
             <div className="py-12 h-full">
-                {/* El panel derecho recibe el perfil de resonancia si existe */}
                 <InsightPanel resonanceProfile={resonanceProfile} />
             </div>
           </div>
