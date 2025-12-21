@@ -1,0 +1,3004 @@
+
+
+
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
+
+
+CREATE EXTENSION IF NOT EXISTS "pg_cron" WITH SCHEMA "pg_catalog";
+
+
+
+
+
+
+CREATE EXTENSION IF NOT EXISTS "pg_net" WITH SCHEMA "extensions";
+
+
+
+
+
+
+CREATE SCHEMA IF NOT EXISTS "private";
+
+
+ALTER SCHEMA "private" OWNER TO "postgres";
+
+
+COMMENT ON SCHEMA "public" IS 'standard public schema';
+
+
+
+CREATE EXTENSION IF NOT EXISTS "hypopg" WITH SCHEMA "extensions";
+
+
+
+
+
+
+CREATE EXTENSION IF NOT EXISTS "index_advisor" WITH SCHEMA "extensions";
+
+
+
+
+
+
+CREATE EXTENSION IF NOT EXISTS "pg_graphql" WITH SCHEMA "graphql";
+
+
+
+
+
+
+CREATE EXTENSION IF NOT EXISTS "pg_stat_statements" WITH SCHEMA "extensions";
+
+
+
+
+
+
+CREATE EXTENSION IF NOT EXISTS "pgcrypto" WITH SCHEMA "extensions";
+
+
+
+
+
+
+CREATE EXTENSION IF NOT EXISTS "supabase_vault" WITH SCHEMA "vault";
+
+
+
+
+
+
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA "extensions";
+
+
+
+
+
+
+CREATE EXTENSION IF NOT EXISTS "vector" WITH SCHEMA "extensions";
+
+
+
+
+
+
+CREATE TYPE "public"."agent_status" AS ENUM (
+    'active',
+    'experimental',
+    'archived'
+);
+
+
+ALTER TYPE "public"."agent_status" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."agent_type" AS ENUM (
+    'script',
+    'image'
+);
+
+
+ALTER TYPE "public"."agent_type" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."consistency_level" AS ENUM (
+    'high',
+    'medium',
+    'low'
+);
+
+
+ALTER TYPE "public"."consistency_level" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."interaction_event_type" AS ENUM (
+    'completed_playback',
+    'liked',
+    'shared'
+);
+
+
+ALTER TYPE "public"."interaction_event_type" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."job_status" AS ENUM (
+    'pending',
+    'processing',
+    'completed',
+    'failed',
+    'pending_audio'
+);
+
+
+ALTER TYPE "public"."job_status" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."notification_type" AS ENUM (
+    'podcast_created_success',
+    'podcast_created_failure',
+    'new_follower',
+    'new_like',
+    'new_podcast_from_followed_user',
+    'new_testimonial'
+);
+
+
+ALTER TYPE "public"."notification_type" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."podcast_status" AS ENUM (
+    'pending_approval',
+    'published',
+    'archived',
+    'failed'
+);
+
+
+ALTER TYPE "public"."podcast_status" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."podcast_shelf_item" AS (
+	"id" bigint,
+	"title" "text",
+	"description" "text",
+	"audio_url" "text",
+	"cover_image_url" "text",
+	"duration_seconds" integer,
+	"like_count" bigint,
+	"play_count" bigint,
+	"created_at" timestamp with time zone,
+	"user_id" "uuid",
+	"status" "public"."podcast_status",
+	"creation_data" "jsonb",
+	"final_coordinates" "point",
+	"ai_tags" "text"[],
+	"profiles" json
+);
+
+
+ALTER TYPE "public"."podcast_shelf_item" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."processing_status" AS ENUM (
+    'pending',
+    'processing',
+    'completed',
+    'failed'
+);
+
+
+ALTER TYPE "public"."processing_status" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."subscription_status" AS ENUM (
+    'active',
+    'inactive',
+    'trialing',
+    'past_due'
+);
+
+
+ALTER TYPE "public"."subscription_status" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."testimonial_status" AS ENUM (
+    'pending',
+    'approved',
+    'rejected'
+);
+
+
+ALTER TYPE "public"."testimonial_status" OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."check_rate_limit"("p_user_id" "uuid", "p_function_name" "text", "p_limit" integer, "p_window_seconds" integer) RETURNS boolean
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'extensions'
+    AS $$
+declare
+  request_count int;
+begin
+  -- 1. Limpieza de mantenimiento (Borrar logs viejos)
+  DELETE FROM public.ai_usage_logs 
+  WHERE created_at < now() - (p_window_seconds || ' seconds')::interval;
+
+  -- 2. Contar peticiones recientes
+  SELECT count(*) INTO request_count
+  FROM public.ai_usage_logs
+  WHERE user_id = p_user_id
+    AND function_name = p_function_name
+    AND created_at > now() - (p_window_seconds || ' seconds')::interval;
+
+  -- 3. Decisión
+  IF request_count >= p_limit THEN
+    RETURN FALSE; -- Bloqueado
+  ELSE
+    INSERT INTO public.ai_usage_logs (user_id, function_name)
+    VALUES (p_user_id, p_function_name);
+    RETURN TRUE; -- Permitido
+  END IF;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."check_rate_limit"("p_user_id" "uuid", "p_function_name" "text", "p_limit" integer, "p_window_seconds" integer) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."create_profile_and_free_subscription"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO ''
+    AS $$ DECLARE free_plan_id BIGINT; BEGIN SELECT id INTO free_plan_id FROM public.plans WHERE name = 'Gratuito' LIMIT 1; IF free_plan_id IS NULL THEN RAISE EXCEPTION 'Plan "Gratuito" no encontrado.'; END IF; INSERT INTO public.profiles (id, username, full_name, avatar_url, role) VALUES (NEW.id, COALESCE(NEW.raw_user_meta_data->>'user_name', NEW.id::text), NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'avatar_url', 'user'); INSERT INTO public.subscriptions (user_id, plan_id, status) VALUES (NEW.id, free_plan_id, 'active'); UPDATE auth.users SET raw_app_meta_data = raw_app_meta_data || jsonb_build_object('user_role', 'user') WHERE id = NEW.id; RETURN NEW; END; $$;
+
+
+ALTER FUNCTION "public"."create_profile_and_free_subscription"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."get_curated_library_shelves"("p_user_id" "uuid") RETURNS json
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$
+DECLARE
+  user_center point;
+  result json;
+BEGIN
+  SELECT COALESCE(current_center, point(0,0)) INTO user_center FROM public.user_resonance_profiles WHERE user_id = p_user_id;
+  WITH
+  most_resonant AS (
+    SELECT p.id, p.title, p.description, p.audio_url, p.cover_image_url, p.duration_seconds, p.user_id, to_json(prof.*) as profiles
+    FROM public.micro_pods p LEFT JOIN public.profiles prof ON p.user_id = prof.id WHERE p.status = 'published' AND p.final_coordinates IS NOT NULL ORDER BY p.final_coordinates <-> user_center LIMIT 10
+  ),
+  deep_thought AS (
+    SELECT p.id, p.title, p.description, p.audio_url, p.cover_image_url, p.duration_seconds, p.user_id, to_json(prof.*) as profiles
+    FROM public.micro_pods p LEFT JOIN public.profiles prof ON p.user_id = prof.id WHERE p.status = 'published' AND p.final_coordinates[0] < 0 AND p.final_coordinates[1] > 0 ORDER BY p.final_coordinates <-> user_center LIMIT 10
+  ),
+  practical_tools AS (
+    SELECT p.id, p.title, p.description, p.audio_url, p.cover_image_url, p.duration_seconds, p.user_id, to_json(prof.*) as profiles
+    FROM public.micro_pods p LEFT JOIN public.profiles prof ON p.user_id = prof.id WHERE p.status = 'published' AND p.final_coordinates[1] < -5 ORDER BY p.final_coordinates <-> user_center LIMIT 10
+  ),
+  tech_and_innovation AS (
+    SELECT p.id, p.title, p.description, p.audio_url, p.cover_image_url, p.duration_seconds, p.user_id, to_json(prof.*) as profiles
+    FROM public.micro_pods p LEFT JOIN public.profiles prof ON p.user_id = prof.id WHERE p.status = 'published' AND p.ai_tags && ARRAY['ia', 'tecnología', 'futurismo', 'innovación'] ORDER BY p.final_coordinates <-> user_center LIMIT 10
+  ),
+  wellness_and_mind AS (
+    SELECT p.id, p.title, p.description, p.audio_url, p.cover_image_url, p.duration_seconds, p.user_id, to_json(prof.*) as profiles
+    FROM public.micro_pods p LEFT JOIN public.profiles prof ON p.user_id = prof.id WHERE p.status = 'published' AND p.ai_tags && ARRAY['psicología', 'mindfulness', 'hábitos', 'estoicismo', 'bienestar'] ORDER BY p.final_coordinates <-> user_center LIMIT 10
+  ),
+  narrative_and_stories AS (
+    SELECT p.id, p.title, p.description, p.audio_url, p.cover_image_url, p.duration_seconds, p.user_id, to_json(prof.*) as profiles
+    FROM public.micro_pods p LEFT JOIN public.profiles prof ON p.user_id = prof.id WHERE p.status = 'published' AND p.ai_tags && ARRAY['storytelling', 'historia', 'narrativa'] ORDER BY p.final_coordinates <-> user_center LIMIT 10
+  )
+  SELECT json_build_object( 'most_resonant', (SELECT json_agg(t) FROM most_resonant t), 'deep_thought', (SELECT json_agg(t) FROM deep_thought t), 'practical_tools', (SELECT json_agg(t) FROM practical_tools t), 'tech_and_innovation', (SELECT json_agg(t) FROM tech_and_innovation t), 'wellness_and_mind', (SELECT json_agg(t) FROM wellness_and_mind t), 'narrative_and_stories', (SELECT json_agg(t) FROM narrative_and_stories t) ) INTO result;
+  RETURN result;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."get_curated_library_shelves"("p_user_id" "uuid") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."get_generic_library_shelves"() RETURNS json
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$
+DECLARE
+  result json;
+BEGIN
+  WITH
+  most_resonant AS (
+    SELECT p.id, p.title, p.description, p.audio_url, p.cover_image_url, p.duration_seconds, p.user_id, to_json(prof.*) as profiles
+    FROM public.micro_pods p LEFT JOIN public.profiles prof ON p.user_id = prof.id WHERE p.status = 'published' ORDER BY p.play_count DESC, p.created_at DESC LIMIT 10
+  ),
+  deep_thought AS (
+    SELECT p.id, p.title, p.description, p.audio_url, p.cover_image_url, p.duration_seconds, p.user_id, to_json(prof.*) as profiles
+    FROM public.micro_pods p LEFT JOIN public.profiles prof ON p.user_id = prof.id WHERE p.status = 'published' AND p.final_coordinates[0] < 0 AND p.final_coordinates[1] > 0 ORDER BY p.play_count DESC, p.created_at DESC LIMIT 10
+  ),
+  practical_tools AS (
+    SELECT p.id, p.title, p.description, p.audio_url, p.cover_image_url, p.duration_seconds, p.user_id, to_json(prof.*) as profiles
+    FROM public.micro_pods p LEFT JOIN public.profiles prof ON p.user_id = prof.id WHERE p.status = 'published' AND p.final_coordinates[1] < -5 ORDER BY p.play_count DESC, p.created_at DESC LIMIT 10
+  ),
+  tech_and_innovation AS (
+    SELECT p.id, p.title, p.description, p.audio_url, p.cover_image_url, p.duration_seconds, p.user_id, to_json(prof.*) as profiles
+    FROM public.micro_pods p LEFT JOIN public.profiles prof ON p.user_id = prof.id WHERE p.status = 'published' AND p.ai_tags && ARRAY['ia', 'tecnología', 'futurismo', 'innovación'] ORDER BY p.play_count DESC, p.created_at DESC LIMIT 10
+  ),
+  wellness_and_mind AS (
+    SELECT p.id, p.title, p.description, p.audio_url, p.cover_image_url, p.duration_seconds, p.user_id, to_json(prof.*) as profiles
+    FROM public.micro_pods p LEFT JOIN public.profiles prof ON p.user_id = prof.id WHERE p.status = 'published' AND p.ai_tags && ARRAY['psicología', 'mindfulness', 'hábitos', 'estoicismo', 'bienestar'] ORDER BY p.play_count DESC, p.created_at DESC LIMIT 10
+  ),
+  narrative_and_stories AS (
+    SELECT p.id, p.title, p.description, p.audio_url, p.cover_image_url, p.duration_seconds, p.user_id, to_json(prof.*) as profiles
+    FROM public.micro_pods p LEFT JOIN public.profiles prof ON p.user_id = prof.id WHERE p.status = 'published' AND p.ai_tags && ARRAY['storytelling', 'historia', 'narrativa'] ORDER BY p.play_count DESC, p.created_at DESC LIMIT 10
+  )
+  SELECT json_build_object( 'most_resonant', (SELECT json_agg(t) FROM most_resonant t), 'deep_thought', (SELECT json_agg(t) FROM deep_thought t), 'practical_tools', (SELECT json_agg(t) FROM practical_tools t), 'tech_and_innovation', (SELECT json_agg(t) FROM tech_and_innovation t), 'wellness_and_mind', (SELECT json_agg(t) FROM wellness_and_mind t), 'narrative_and_stories', (SELECT json_agg(t) FROM narrative_and_stories t) ) INTO result;
+  RETURN result;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."get_generic_library_shelves"() OWNER TO "postgres";
+
+SET default_tablespace = '';
+
+SET default_table_access_method = "heap";
+
+
+CREATE TABLE IF NOT EXISTS "public"."micro_pods" (
+    "id" bigint NOT NULL,
+    "user_id" "uuid" NOT NULL,
+    "title" "text" NOT NULL,
+    "description" "text",
+    "script_text" "text",
+    "audio_url" "text",
+    "cover_image_url" "text",
+    "duration_seconds" integer,
+    "category" "text",
+    "status" "public"."podcast_status" DEFAULT 'pending_approval'::"public"."podcast_status" NOT NULL,
+    "play_count" bigint DEFAULT 0 NOT NULL,
+    "like_count" bigint DEFAULT 0 NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "creation_data" "jsonb",
+    "processing_status" "public"."processing_status" DEFAULT 'pending'::"public"."processing_status" NOT NULL,
+    "agent_version" "text",
+    "ai_summary" "text",
+    "narrative_lens" "text",
+    "ai_tags" "text"[],
+    "user_tags" "text"[],
+    "ai_coordinates" "point",
+    "final_coordinates" "point",
+    "ai_consistency_drift" "jsonb",
+    "consistency_level" "public"."consistency_level",
+    "creation_context" "jsonb",
+    "sources" "jsonb" DEFAULT '[]'::"jsonb",
+    "reviewed_by_user" boolean DEFAULT false,
+    "published_at" timestamp with time zone,
+    "admin_notes" "text",
+    "is_featured" boolean DEFAULT false,
+    "parent_id" bigint,
+    "root_id" bigint,
+    "quote_context" "text",
+    "quote_timestamp" numeric,
+    "creation_mode" "text" DEFAULT 'standard'::"text",
+    CONSTRAINT "micro_pods_creation_mode_check" CHECK (("creation_mode" = ANY (ARRAY['standard'::"text", 'remix'::"text"]))),
+    CONSTRAINT "micro_pods_title_check" CHECK (("char_length"("title") > 0))
+);
+
+
+ALTER TABLE "public"."micro_pods" OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."get_resonant_podcasts"("center_point" "point", "count_limit" integer) RETURNS SETOF "public"."micro_pods"
+    LANGUAGE "plpgsql"
+    SET "search_path" TO 'public', 'extensions'
+    AS $$
+BEGIN
+  RETURN QUERY
+  SELECT *
+  FROM public.micro_pods
+  WHERE 
+    status = 'published' 
+    AND final_coordinates IS NOT NULL
+    AND cover_image_url IS NOT NULL -- [MEJORA] Aseguramos que solo devolvemos podcasts con carátula.
+  ORDER BY 
+    final_coordinates <-> center_point -- Operador de distancia de PostgreSQL.
+  LIMIT 
+    count_limit;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."get_resonant_podcasts"("center_point" "point", "count_limit" integer) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."get_user_discovery_feed"("p_user_id" "uuid") RETURNS json
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$
+DECLARE
+  user_center point;
+  epicenter_tags text[];
+  result json;
+BEGIN
+  -- 1. Obtener el centro de gravedad del usuario. Si no existe, usar el origen (0,0).
+  SELECT COALESCE(current_center, point(0,0))
+  INTO user_center
+  FROM public.user_resonance_profiles
+  WHERE user_id = p_user_id;
+
+  -- Usamos Common Table Expressions (CTEs) para organizar las consultas.
+  WITH
+  -- Estantería 1: "Tu Epicentro Creativo" - Los 10 más cercanos al centro del usuario.
+  epicenter_shelf AS (
+    SELECT p.*, to_json(prof.*) as profiles
+    FROM public.micro_pods p
+    LEFT JOIN public.profiles prof ON p.user_id = prof.id
+    WHERE p.status = 'published' AND p.final_coordinates IS NOT NULL
+    ORDER BY p.final_coordinates <-> user_center
+    LIMIT 10
+  ),
+  -- Obtenemos los tags más comunes del epicentro para la siguiente estantería.
+  common_tags AS (
+    SELECT unnest(ai_tags) as tag
+    FROM epicenter_shelf
+    GROUP BY tag
+    ORDER BY count(*) DESC
+    LIMIT 3
+  ),
+  -- Estantería 2: "Conexiones Inesperadas" - Podcasts con los mismos tags, pero lejos en el mapa.
+  semantic_connections_shelf AS (
+    SELECT p.*, to_json(prof.*) as profiles
+    FROM public.micro_pods p
+    LEFT JOIN public.profiles prof ON p.user_id = prof.id
+    CROSS JOIN common_tags ct
+    WHERE p.status = 'published'
+      AND p.ai_tags && ARRAY[ct.tag] -- Que contenga al menos uno de los tags comunes
+      AND p.final_coordinates IS NOT NULL
+      AND (p.final_coordinates <-> user_center) > 10 -- Umbral de distancia para que sea "inesperado"
+    ORDER BY p.created_at DESC
+    LIMIT 10
+  ),
+  -- Estantería 3: "Nuevos Horizontes" - Lo último en la plataforma.
+  new_horizons_shelf AS (
+    SELECT p.*, to_json(prof.*) as profiles
+    FROM public.micro_pods p
+    LEFT JOIN public.profiles prof ON p.user_id = prof.id
+    WHERE p.status = 'published'
+    ORDER BY p.created_at DESC
+    LIMIT 10
+  )
+  -- 2. Construir el objeto JSON final que se devolverá al frontend.
+  SELECT json_build_object(
+    'epicenter', (SELECT json_agg(t) FROM epicenter_shelf t),
+    'semantic_connections', (SELECT json_agg(t) FROM semantic_connections_shelf t),
+    'new_horizons', (SELECT json_agg(t) FROM new_horizons_shelf t)
+  )
+  INTO result;
+
+  RETURN result;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."get_user_discovery_feed"("p_user_id" "uuid") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."handle_new_podcast_publication"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+BEGIN
+  -- Solo si el estado cambia a 'published' (y antes no lo era)
+  IF NEW.status = 'published' AND (OLD.status IS NULL OR OLD.status != 'published') THEN
+    
+    -- Insertar notificaciones para todos los seguidores
+    INSERT INTO public.notifications (user_id, type, data)
+    SELECT 
+      follower_id,
+      'new_podcast_from_followed_user',
+      jsonb_build_object(
+        'actor_id', NEW.user_id,
+        'podcast_id', NEW.id,
+        'podcast_title', NEW.title
+      )
+    FROM public.followers
+    WHERE following_id = NEW.user_id;
+    
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."handle_new_podcast_publication"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."handle_new_testimonial"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$
+DECLARE
+  actor_name_text text;
+BEGIN
+  -- Obtener el nombre del autor para mostrarlo en la notificación.
+  SELECT full_name INTO actor_name_text FROM public.profiles WHERE id = NEW.author_user_id;
+  
+  -- Crear la notificación para el dueño del perfil que recibió el testimonio.
+  INSERT INTO public.notifications (user_id, type, data)
+  VALUES (
+    NEW.profile_user_id, -- El destinatario de la notificación.
+    'new_testimonial',
+    jsonb_build_object(
+      'actor_id', NEW.author_user_id,
+      'actor_name', actor_name_text,
+      'testimonial_text', left(NEW.comment_text, 50) -- Acortamos el texto a 50 caracteres para la vista previa.
+    )
+  );
+  
+  RETURN NULL;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."handle_new_testimonial"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."handle_new_user"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+BEGIN
+  INSERT INTO public.profiles (id, full_name, avatar_url, username)
+  VALUES (
+    NEW.id,
+    NEW.raw_user_meta_data->>'full_name',
+    NEW.raw_user_meta_data->>'avatar_url',
+    -- Lógica de seguridad: Usar parte del email, nunca el ID
+    COALESCE(
+      NEW.raw_user_meta_data->>'username', 
+      split_part(NEW.email, '@', 1)
+    )
+  );
+  RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."handle_new_user"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."handle_updated_at"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO ''
+    AS $$ BEGIN NEW.updated_at = now(); RETURN NEW; END; $$;
+
+
+ALTER FUNCTION "public"."handle_updated_at"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."handle_zombie_jobs"() RETURNS "void"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+DECLARE
+    count_killed INTEGER;
+BEGIN
+    WITH updated_rows AS (
+        UPDATE public.podcast_creation_jobs
+        SET 
+            status = 'failed',
+            error_message = 'Timeout del Sistema: El proceso excedió el tiempo límite (Zombie Auto-Kill)',
+            updated_at = NOW()
+        WHERE 
+            status = 'processing' 
+            AND updated_at < (NOW() - INTERVAL '1 hour')
+        RETURNING id
+    )
+    SELECT count(*) INTO count_killed FROM updated_rows;
+
+    IF count_killed > 0 THEN
+        RAISE NOTICE 'Se han eliminado % jobs zombis.', count_killed;
+    END IF;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."handle_zombie_jobs"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."hybrid_search"("query_text" "text", "query_embedding" "extensions"."vector", "match_threshold" double precision, "match_count" integer) RETURNS TABLE("id" bigint, "podcast_id" bigint, "content" "text", "similarity" double precision)
+    LANGUAGE "plpgsql"
+    AS $$
+begin
+  return query
+  select
+    pe.id,
+    pe.podcast_id,
+    pe.content,
+    (1 - (pe.embedding <=> query_embedding)) as similarity
+  from public.podcast_embeddings pe
+  where 1 - (pe.embedding <=> query_embedding) > match_threshold
+  order by similarity desc
+  limit match_count;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."hybrid_search"("query_text" "text", "query_embedding" "extensions"."vector", "match_threshold" double precision, "match_count" integer) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."increment_jobs_and_queue"("p_user_id" "uuid", "p_payload" "jsonb") RETURNS bigint
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$
+DECLARE
+  current_jobs_count INT;
+  creation_limit INT;
+  new_job_id BIGINT;
+BEGIN
+  SELECT (SELECT count(*) FROM public.podcast_creation_jobs WHERE user_id = p_user_id AND status IN ('pending', 'processing')), pl.monthly_creation_limit
+  INTO current_jobs_count, creation_limit
+  FROM public.profiles p
+  JOIN public.subscriptions s ON p.id = s.user_id
+  JOIN public.plans pl ON s.plan_id = pl.id
+  WHERE p.id = p_user_id;
+
+  IF current_jobs_count >= creation_limit THEN
+    RAISE EXCEPTION 'Límite de creación mensual alcanzado.';
+  END IF;
+
+  INSERT INTO public.podcast_creation_jobs (user_id, payload)
+  VALUES (p_user_id, p_payload)
+  RETURNING id INTO new_job_id;
+  
+  RETURN new_job_id;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."increment_jobs_and_queue"("p_user_id" "uuid", "p_payload" "jsonb") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."increment_play_count"("podcast_id" bigint) RETURNS "void"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$
+BEGIN
+  UPDATE public.micro_pods
+    SET play_count = play_count + 1
+      WHERE id = podcast_id;
+      END;
+      $$;
+
+
+ALTER FUNCTION "public"."increment_play_count"("podcast_id" bigint) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."is_admin"() RETURNS boolean
+    LANGUAGE "sql" SECURITY DEFINER
+    AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.profiles
+    WHERE id = auth.uid()
+    AND role = 'admin'
+  );
+$$;
+
+
+ALTER FUNCTION "public"."is_admin"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."maintain_thread_integrity"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+BEGIN
+  IF NEW.parent_id IS NOT NULL THEN
+    -- Buscamos el root_id del padre
+    SELECT COALESCE(root_id, id) INTO NEW.root_id
+    FROM public.micro_pods
+    WHERE id = NEW.parent_id;
+    
+    -- Si el padre no tenía root_id (era el origen), él mismo es el root
+    IF NEW.root_id IS NULL THEN
+        NEW.root_id = NEW.parent_id;
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."maintain_thread_integrity"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."mark_notifications_as_read"() RETURNS "void"
+    LANGUAGE "sql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$
+  UPDATE public.notifications
+  SET is_read = true
+  WHERE user_id = auth.uid() AND is_read = false;
+$$;
+
+
+ALTER FUNCTION "public"."mark_notifications_as_read"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."reset_monthly_quotas"() RETURNS "void"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+BEGIN
+    UPDATE public.user_usage
+    SET 
+        podcasts_created_this_month = 0,
+        minutes_listened_this_month = 0,
+        last_reset_date = CURRENT_DATE,
+        updated_at = NOW();
+        
+    RAISE NOTICE 'Cuotas mensuales reseteadas para todos los usuarios.';
+END;
+$$;
+
+
+ALTER FUNCTION "public"."reset_monthly_quotas"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."save_analysis_and_embedding"("p_podcast_id" bigint, "p_agent_version" "text", "p_ai_summary" "text", "p_narrative_lens" "text", "p_ai_tags" "text"[], "p_ai_coordinates" "point", "p_consistency_level" "public"."consistency_level", "p_embedding" "extensions"."vector") RETURNS "void"
+    LANGUAGE "plpgsql"
+    AS $$
+BEGIN
+    -- SOLO actualizamos metadatos visuales en micro_pods
+    UPDATE public.micro_pods
+    SET 
+        agent_version = p_agent_version,
+        ai_summary = p_ai_summary,
+        narrative_lens = p_narrative_lens,
+        ai_tags = p_ai_tags,
+        final_coordinates = p_ai_coordinates,
+        consistency_level = p_consistency_level,
+        updated_at = NOW()
+    WHERE id = p_podcast_id;
+
+    -- [CRÍTICO]: NO HACEMOS NADA CON p_embedding ni con la tabla podcast_embeddings.
+    -- Esa responsabilidad es 100% de la nueva función generate-embedding.
+END;
+$$;
+
+
+ALTER FUNCTION "public"."save_analysis_and_embedding"("p_podcast_id" bigint, "p_agent_version" "text", "p_ai_summary" "text", "p_narrative_lens" "text", "p_ai_tags" "text"[], "p_ai_coordinates" "point", "p_consistency_level" "public"."consistency_level", "p_embedding" "extensions"."vector") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."search_omni"("query_text" "text", "query_embedding" double precision[], "match_threshold" double precision, "match_count" integer) RETURNS TABLE("type" "text", "id" "text", "title" "text", "subtitle" "text", "image_url" "text", "similarity" double precision)
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'extensions'
+    AS $$
+BEGIN
+  -- 1. BUSCAR PODCASTS
+  RETURN QUERY
+  SELECT 
+    'podcast'::text as type,
+    mp.id::text,
+    mp.title,
+    mp.description as subtitle,
+    mp.cover_image_url as image_url,
+    -- [CORRECCIÓN]: Convertimos el resultado matemático a float explícitamente
+    ((1 - (pe.embedding <=> query_embedding::vector)) + (CASE WHEN mp.title ILIKE '%' || query_text || '%' THEN 0.3 ELSE 0 END))::float as similarity
+  FROM public.podcast_embeddings pe
+  JOIN public.micro_pods mp ON mp.id = pe.podcast_id
+  WHERE 
+    mp.status = 'published' 
+    AND (
+      (1 - (pe.embedding <=> query_embedding::vector) > match_threshold)
+      OR 
+      mp.title ILIKE '%' || query_text || '%'
+      OR 
+      mp.description ILIKE '%' || query_text || '%'
+    )
+  ORDER BY similarity DESC
+  LIMIT match_count;
+
+  -- 2. BUSCAR USUARIOS
+  RETURN QUERY
+  SELECT 
+    'user'::text as type,
+    p.id::text,
+    p.full_name as title,
+    '@' || p.username as subtitle,
+    p.avatar_url as image_url,
+    -- [CORRECCIÓN]: 1.0 es numeric, 1.0::float es double precision. Esto arregla el error.
+    1.0::float as similarity
+  FROM public.profiles p
+  WHERE 
+    p.username ILIKE '%' || query_text || '%' 
+    OR p.full_name ILIKE '%' || query_text || '%'
+  LIMIT 5;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."search_omni"("query_text" "text", "query_embedding" double precision[], "match_threshold" double precision, "match_count" integer) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."search_podcasts"("search_term" "text") RETURNS TABLE("id" bigint, "user_id" "uuid", "title" "text", "description" "text", "script_text" "text", "audio_url" "text", "cover_image_url" "text", "duration_seconds" integer, "category" "text", "status" "public"."podcast_status", "play_count" bigint, "like_count" bigint, "created_at" timestamp with time zone, "updated_at" timestamp with time zone, "creation_data" "jsonb", "profiles" json)
+    LANGUAGE "plpgsql"
+    SET "search_path" TO 'public'
+    AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        mp.id,
+        mp.user_id,
+        mp.title,
+        mp.description,
+        mp.script_text,
+        mp.audio_url,
+        mp.cover_image_url,
+        mp.duration_seconds,
+        mp.category,
+        mp.status,
+        mp.play_count,
+        mp.like_count,
+        mp.created_at,
+        mp.updated_at,
+        mp.creation_data,
+        json_build_object(
+            'full_name', p.full_name,
+            'avatar_url', p.avatar_url
+        ) AS profiles
+    FROM
+        public.micro_pods AS mp
+    JOIN
+        public.profiles AS p ON mp.user_id = p.id
+    WHERE
+        mp.status = 'published' AND (
+            mp.title ILIKE '%' || search_term || '%' OR
+            mp.description ILIKE '%' || search_term || '%' OR
+            p.full_name ILIKE '%' || search_term || '%'
+        );
+END;
+$$;
+
+
+ALTER FUNCTION "public"."search_podcasts"("search_term" "text") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."trigger_resonance_recalculation"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    SET "search_path" TO 'public', 'extensions'
+    AS $$
+DECLARE
+  user_id_to_update UUID;
+BEGIN
+  -- TG_OP nos dice si es un INSERT, UPDATE o DELETE.
+  IF (TG_OP = 'INSERT' OR TG_OP = 'UPDATE') THEN
+    user_id_to_update := NEW.user_id;
+  ELSE
+    user_id_to_update := OLD.user_id;
+  END IF;
+  
+  -- Realiza la llamada HTTP no bloqueante a nuestra función "cerebro".
+  PERFORM http_post(
+    url := 'https://arbojlknwilqcszuqope.supabase.co/functions/v1/update-resonance-profile',
+    body := jsonb_build_object('record', jsonb_build_object('user_id', user_id_to_update)),
+    headers := jsonb_build_object('Content-Type', 'application/json')
+  );
+
+  RETURN NULL; -- El resultado no es importante para un trigger AFTER.
+END;
+$$;
+
+
+ALTER FUNCTION "public"."trigger_resonance_recalculation"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."update_follow_counts"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$
+DECLARE
+  actor_name_text text;
+  actor_avatar_url_text text;
+BEGIN
+  IF (TG_OP = 'INSERT') THEN
+    UPDATE public.profiles SET following_count = following_count + 1 WHERE id = NEW.follower_id;
+    UPDATE public.profiles SET followers_count = followers_count + 1 WHERE id = NEW.following_id;
+
+    SELECT full_name, avatar_url INTO actor_name_text, actor_avatar_url_text FROM public.profiles WHERE id = NEW.follower_id;
+
+    INSERT INTO public.notifications (user_id, type, data)
+    VALUES (
+      NEW.following_id,
+      'new_follower',
+      jsonb_build_object(
+        'actor_id', NEW.follower_id,
+        'actor_name', actor_name_text,
+        'actor_avatar_url', actor_avatar_url_text
+      )
+    );
+
+  ELSIF (TG_OP = 'DELETE') THEN
+    UPDATE public.profiles SET following_count = following_count - 1 WHERE id = OLD.follower_id;
+    UPDATE public.profiles SET followers_count = followers_count - 1 WHERE id = OLD.following_id;
+  END IF;
+
+  RETURN NULL;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."update_follow_counts"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."update_like_count"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$-- Código SQL completo y corregido para la función 'update_like_count'
+
+DECLARE
+  -- PASO 1: Declarar todas las variables que usaremos.
+  podcast_owner_id uuid;
+  podcast_title_text text;
+  actor_name_text text;
+BEGIN
+  -- PASO 2: Iniciar el bloque lógico.
+  IF (TG_OP = 'INSERT') THEN
+    -- Actualizar el contador de likes.
+    UPDATE public.micro_pods SET like_count = like_count + 1 WHERE id = NEW.podcast_id;
+
+    -- Obtener la información necesaria para crear la notificación.
+    SELECT user_id, title INTO podcast_owner_id, podcast_title_text FROM public.micro_pods WHERE id = NEW.podcast_id;
+    SELECT full_name INTO actor_name_text FROM public.profiles WHERE id = NEW.user_id;
+
+    -- Solo crear la notificación si la persona que da 'like' no es la dueña del podcast.
+    IF podcast_owner_id <> NEW.user_id THEN
+      INSERT INTO public.notifications (user_id, type, data)
+      VALUES (
+        podcast_owner_id,
+        'new_like',
+        jsonb_build_object(
+          'actor_id', NEW.user_id,
+          'actor_name', actor_name_text,
+          'podcast_id', NEW.podcast_id,
+          'podcast_title', podcast_title_text
+        )
+      );
+    END IF;
+
+  ELSIF (TG_OP = 'DELETE') THEN
+    -- Si se quita un 'like', solo actualizamos el contador. No generamos notificación.
+    UPDATE public.micro_pods SET like_count = like_count - 1 WHERE id = OLD.podcast_id;
+  END IF;
+
+  -- Las funciones de trigger deben devolver NULL.
+  RETURN NULL;
+END;$$;
+
+
+ALTER FUNCTION "public"."update_like_count"() OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "private"."secrets" (
+    "name" "text" NOT NULL,
+    "value" "bytea" NOT NULL
+);
+
+
+ALTER TABLE "private"."secrets" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."ai_prompts" (
+    "id" bigint NOT NULL,
+    "agent_name" "text" NOT NULL,
+    "description" "text",
+    "prompt_template" "text" NOT NULL,
+    "prompt_variables" "text"[],
+    "agent_type" "public"."agent_type" DEFAULT 'script'::"public"."agent_type" NOT NULL,
+    "model_identifier" "text",
+    "version" integer DEFAULT 1 NOT NULL,
+    "status" "public"."agent_status" DEFAULT 'active'::"public"."agent_status" NOT NULL,
+    "parameters" "jsonb",
+    "output_schema" "jsonb",
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL
+);
+
+
+ALTER TABLE "public"."ai_prompts" OWNER TO "postgres";
+
+
+ALTER TABLE "public"."ai_prompts" ALTER COLUMN "id" ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME "public"."ai_prompts_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."ai_usage_logs" (
+    "id" bigint NOT NULL,
+    "user_id" "uuid" NOT NULL,
+    "function_name" "text" NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"()
+);
+
+
+ALTER TABLE "public"."ai_usage_logs" OWNER TO "postgres";
+
+
+ALTER TABLE "public"."ai_usage_logs" ALTER COLUMN "id" ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME "public"."ai_usage_logs_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."followers" (
+    "follower_id" "uuid" NOT NULL,
+    "following_id" "uuid" NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL
+);
+
+
+ALTER TABLE "public"."followers" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."likes" (
+    "user_id" "uuid" NOT NULL,
+    "podcast_id" bigint NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL
+);
+
+
+ALTER TABLE "public"."likes" OWNER TO "postgres";
+
+
+ALTER TABLE "public"."micro_pods" ALTER COLUMN "id" ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME "public"."micro_pods_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."notifications" (
+    "id" bigint NOT NULL,
+    "user_id" "uuid" NOT NULL,
+    "type" "public"."notification_type" NOT NULL,
+    "data" "jsonb",
+    "is_read" boolean DEFAULT false NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL
+);
+
+
+ALTER TABLE "public"."notifications" OWNER TO "postgres";
+
+
+ALTER TABLE "public"."notifications" ALTER COLUMN "id" ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME "public"."notifications_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."plans" (
+    "id" bigint NOT NULL,
+    "active" boolean DEFAULT true NOT NULL,
+    "name" "text" NOT NULL,
+    "description" "text",
+    "price_monthly" numeric(10,2),
+    "monthly_creation_limit" integer DEFAULT 0 NOT NULL,
+    "features" "text"[],
+    CONSTRAINT "plans_monthly_creation_limit_check" CHECK (("monthly_creation_limit" >= 0))
+);
+
+
+ALTER TABLE "public"."plans" OWNER TO "postgres";
+
+
+ALTER TABLE "public"."plans" ALTER COLUMN "id" ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME "public"."plans_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."platform_limits" (
+    "id" integer NOT NULL,
+    "key_name" "text" NOT NULL,
+    "max_podcasts_per_month" integer DEFAULT 3,
+    "max_listening_minutes" integer DEFAULT 2000,
+    "created_at" timestamp with time zone DEFAULT "now"()
+);
+
+
+ALTER TABLE "public"."platform_limits" OWNER TO "postgres";
+
+
+CREATE SEQUENCE IF NOT EXISTS "public"."platform_limits_id_seq"
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE "public"."platform_limits_id_seq" OWNER TO "postgres";
+
+
+ALTER SEQUENCE "public"."platform_limits_id_seq" OWNED BY "public"."platform_limits"."id";
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."playback_events" (
+    "id" bigint NOT NULL,
+    "user_id" "uuid" NOT NULL,
+    "podcast_id" bigint NOT NULL,
+    "event_type" "public"."interaction_event_type" NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL
+);
+
+
+ALTER TABLE "public"."playback_events" OWNER TO "postgres";
+
+
+ALTER TABLE "public"."playback_events" ALTER COLUMN "id" ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME "public"."playback_events_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."podcast_analysis_history" (
+    "analysis_id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "podcast_id" bigint NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "agent_version" "text" NOT NULL,
+    "analysis_data" "jsonb" NOT NULL,
+    "triggered_by" "text" DEFAULT 'system'::"text" NOT NULL
+);
+
+
+ALTER TABLE "public"."podcast_analysis_history" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."podcast_creation_jobs" (
+    "id" bigint NOT NULL,
+    "user_id" "uuid" NOT NULL,
+    "status" "public"."job_status" DEFAULT 'pending'::"public"."job_status" NOT NULL,
+    "payload" "jsonb",
+    "error_message" "text",
+    "retry_count" integer DEFAULT 0 NOT NULL,
+    "micro_pod_id" bigint,
+    "archived" boolean DEFAULT false NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "job_title" "text" GENERATED ALWAYS AS (
+CASE
+    WHEN (("payload" ->> 'style'::"text") = 'solo'::"text") THEN (("payload" -> 'inputs'::"text") ->> 'topic'::"text")
+    WHEN (("payload" ->> 'style'::"text") = 'link'::"text") THEN ((("payload" -> 'inputs'::"text") -> 'narrative'::"text") ->> 'title'::"text")
+    ELSE 'Untitled Job'::"text"
+END) STORED
+);
+
+
+ALTER TABLE "public"."podcast_creation_jobs" OWNER TO "postgres";
+
+
+ALTER TABLE "public"."podcast_creation_jobs" ALTER COLUMN "id" ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME "public"."podcast_creation_jobs_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."podcast_embeddings" (
+    "id" bigint NOT NULL,
+    "podcast_id" bigint NOT NULL,
+    "content" "text",
+    "embedding" "extensions"."vector"(768)
+);
+
+
+ALTER TABLE "public"."podcast_embeddings" OWNER TO "postgres";
+
+
+ALTER TABLE "public"."podcast_embeddings" ALTER COLUMN "id" ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME "public"."podcast_embeddings_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."processing_errors" (
+    "id" bigint NOT NULL,
+    "podcast_id" bigint,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "error_message" "text",
+    "error_stack" "text"
+);
+
+
+ALTER TABLE "public"."processing_errors" OWNER TO "postgres";
+
+
+ALTER TABLE "public"."processing_errors" ALTER COLUMN "id" ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME "public"."processing_errors_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."profile_testimonials" (
+    "id" bigint NOT NULL,
+    "profile_user_id" "uuid" NOT NULL,
+    "author_user_id" "uuid" NOT NULL,
+    "comment_text" "text" NOT NULL,
+    "status" "public"."testimonial_status" DEFAULT 'pending'::"public"."testimonial_status" NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    CONSTRAINT "author_cannot_be_profile_user" CHECK (("author_user_id" <> "profile_user_id")),
+    CONSTRAINT "profile_testimonials_comment_text_check" CHECK (("char_length"("comment_text") > 0))
+);
+
+
+ALTER TABLE "public"."profile_testimonials" OWNER TO "postgres";
+
+
+ALTER TABLE "public"."profile_testimonials" ALTER COLUMN "id" ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME "public"."profile_testimonials_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE TABLE IF NOT EXISTS "public"."profiles" (
+    "id" "uuid" NOT NULL,
+    "username" "text" NOT NULL,
+    "full_name" "text",
+    "avatar_url" "text",
+    "role" "text" DEFAULT 'user'::"text" NOT NULL,
+    "active_creation_jobs" integer DEFAULT 0 NOT NULL,
+    "stripe_customer_id" "text",
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "bio" "text",
+    "followers_count" integer DEFAULT 0 NOT NULL,
+    "following_count" integer DEFAULT 0 NOT NULL,
+    CONSTRAINT "profiles_active_creation_jobs_check" CHECK (("active_creation_jobs" >= 0)),
+    CONSTRAINT "profiles_role_check" CHECK (("role" = ANY (ARRAY['user'::"text", 'admin'::"text"]))),
+    CONSTRAINT "profiles_username_check" CHECK (("char_length"("username") >= 3))
+);
+
+
+ALTER TABLE "public"."profiles" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."subscriptions" (
+    "user_id" "uuid" NOT NULL,
+    "plan_id" bigint NOT NULL,
+    "status" "public"."subscription_status" DEFAULT 'active'::"public"."subscription_status" NOT NULL,
+    "stripe_subscription_id" "text",
+    "current_period_end" timestamp with time zone,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL
+);
+
+
+ALTER TABLE "public"."subscriptions" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."user_resonance_profiles" (
+    "user_id" "uuid" NOT NULL,
+    "current_center" "point",
+    "last_calculated_at" timestamp with time zone,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL
+);
+
+
+ALTER TABLE "public"."user_resonance_profiles" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."user_usage" (
+    "user_id" "uuid" NOT NULL,
+    "podcasts_created_this_month" integer DEFAULT 0,
+    "minutes_listened_this_month" integer DEFAULT 0,
+    "last_reset_date" "date" DEFAULT CURRENT_DATE,
+    "updated_at" timestamp with time zone DEFAULT "now"()
+);
+
+
+ALTER TABLE "public"."user_usage" OWNER TO "postgres";
+
+
+ALTER TABLE ONLY "public"."platform_limits" ALTER COLUMN "id" SET DEFAULT "nextval"('"public"."platform_limits_id_seq"'::"regclass");
+
+
+
+ALTER TABLE ONLY "private"."secrets"
+    ADD CONSTRAINT "secrets_pkey" PRIMARY KEY ("name");
+
+
+
+ALTER TABLE ONLY "public"."ai_prompts"
+    ADD CONSTRAINT "ai_prompts_agent_name_key" UNIQUE ("agent_name");
+
+
+
+ALTER TABLE ONLY "public"."ai_prompts"
+    ADD CONSTRAINT "ai_prompts_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."ai_usage_logs"
+    ADD CONSTRAINT "ai_usage_logs_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."followers"
+    ADD CONSTRAINT "followers_pkey" PRIMARY KEY ("follower_id", "following_id");
+
+
+
+ALTER TABLE ONLY "public"."likes"
+    ADD CONSTRAINT "likes_pkey" PRIMARY KEY ("user_id", "podcast_id");
+
+
+
+ALTER TABLE ONLY "public"."micro_pods"
+    ADD CONSTRAINT "micro_pods_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."notifications"
+    ADD CONSTRAINT "notifications_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."plans"
+    ADD CONSTRAINT "plans_name_key" UNIQUE ("name");
+
+
+
+ALTER TABLE ONLY "public"."plans"
+    ADD CONSTRAINT "plans_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."platform_limits"
+    ADD CONSTRAINT "platform_limits_key_name_key" UNIQUE ("key_name");
+
+
+
+ALTER TABLE ONLY "public"."platform_limits"
+    ADD CONSTRAINT "platform_limits_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."playback_events"
+    ADD CONSTRAINT "playback_events_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."podcast_analysis_history"
+    ADD CONSTRAINT "podcast_analysis_history_pkey" PRIMARY KEY ("analysis_id");
+
+
+
+ALTER TABLE ONLY "public"."podcast_creation_jobs"
+    ADD CONSTRAINT "podcast_creation_jobs_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."podcast_embeddings"
+    ADD CONSTRAINT "podcast_embeddings_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."processing_errors"
+    ADD CONSTRAINT "processing_errors_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."profile_testimonials"
+    ADD CONSTRAINT "profile_testimonials_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."profiles"
+    ADD CONSTRAINT "profiles_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."profiles"
+    ADD CONSTRAINT "profiles_stripe_customer_id_key" UNIQUE ("stripe_customer_id");
+
+
+
+ALTER TABLE ONLY "public"."profiles"
+    ADD CONSTRAINT "profiles_username_key" UNIQUE ("username");
+
+
+
+ALTER TABLE ONLY "public"."subscriptions"
+    ADD CONSTRAINT "subscriptions_pkey" PRIMARY KEY ("user_id");
+
+
+
+ALTER TABLE ONLY "public"."subscriptions"
+    ADD CONSTRAINT "subscriptions_stripe_subscription_id_key" UNIQUE ("stripe_subscription_id");
+
+
+
+ALTER TABLE ONLY "public"."user_resonance_profiles"
+    ADD CONSTRAINT "user_resonance_profiles_pkey" PRIMARY KEY ("user_id");
+
+
+
+ALTER TABLE ONLY "public"."user_usage"
+    ADD CONSTRAINT "user_usage_pkey" PRIMARY KEY ("user_id");
+
+
+
+CREATE INDEX "idx_ai_usage_logs_user_date" ON "public"."ai_usage_logs" USING "btree" ("user_id", "created_at");
+
+
+
+CREATE INDEX "idx_jobs_status" ON "public"."podcast_creation_jobs" USING "btree" ("status");
+
+
+
+CREATE INDEX "idx_jobs_user_id" ON "public"."podcast_creation_jobs" USING "btree" ("user_id");
+
+
+
+CREATE INDEX "idx_micro_pods_mode" ON "public"."micro_pods" USING "btree" ("creation_mode");
+
+
+
+CREATE INDEX "idx_micro_pods_parent" ON "public"."micro_pods" USING "btree" ("parent_id");
+
+
+
+CREATE INDEX "idx_micro_pods_root" ON "public"."micro_pods" USING "btree" ("root_id");
+
+
+
+CREATE INDEX "idx_micro_pods_status" ON "public"."micro_pods" USING "btree" ("status");
+
+
+
+CREATE INDEX "idx_micro_pods_user_id" ON "public"."micro_pods" USING "btree" ("user_id");
+
+
+
+CREATE INDEX "idx_playback_events_user_id_created_at" ON "public"."playback_events" USING "btree" ("user_id", "created_at" DESC);
+
+
+
+CREATE INDEX "notifications_user_id_created_at_idx" ON "public"."notifications" USING "btree" ("user_id", "created_at" DESC);
+
+
+
+CREATE INDEX "podcast_embeddings_embedding_idx" ON "public"."podcast_embeddings" USING "ivfflat" ("embedding" "extensions"."vector_cosine_ops") WITH ("lists"='100');
+
+
+
+CREATE OR REPLACE TRIGGER "Cognitive Core Orchestrator Trigger" AFTER INSERT ON "public"."micro_pods" FOR EACH ROW EXECUTE FUNCTION "supabase_functions"."http_request"('https://arbojlknwilqcszuqope.supabase.co/functions/v1/cognitive-core-orchestrator', 'POST', '{"Content-type":"application/json","Authorization":"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFyYm9qbGtud2lscWNzenVxb3BlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTkxMDMwMSwiZXhwIjoyMDc1NDg2MzAxfQ.-K-ZM6_0ea-fA9sA7rTvlMq8d9TL8gx-Ypcm6EE0Qjc"}', '{}', '5000');
+
+
+
+CREATE OR REPLACE TRIGGER "Resonance Profile Calculator Trigger" AFTER INSERT ON "public"."playback_events" FOR EACH ROW EXECUTE FUNCTION "supabase_functions"."http_request"('https://arbojlknwilqcszuqope.supabase.co/functions/v1/update-resonance-profile', 'POST', '{"Content-type":"application/json","Authorization":"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFyYm9qbGtud2lscWNzenVxb3BlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTkxMDMwMSwiZXhwIjoyMDc1NDg2MzAxfQ.-K-ZM6_0ea-fA9sA7rTvlMq8d9TL8gx-Ypcm6EE0Qjc"}', '{}', '5000');
+
+
+
+CREATE OR REPLACE TRIGGER "Resonance Profile Trigger (Likes)" AFTER INSERT OR DELETE ON "public"."likes" FOR EACH ROW EXECUTE FUNCTION "supabase_functions"."http_request"('https://arbojlknwilqcszuqope.supabase.co/functions/v1/update-resonance-profile', 'POST', '{"Content-type":"application/json","Authorization":"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFyYm9qbGtud2lscWNzenVxb3BlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTkxMDMwMSwiZXhwIjoyMDc1NDg2MzAxfQ.-K-ZM6_0ea-fA9sA7rTvlMq8d9TL8gx-Ypcm6EE0Qjc"}', '{}', '5000');
+
+
+
+CREATE OR REPLACE TRIGGER "on_follow_delete" AFTER DELETE ON "public"."followers" FOR EACH ROW EXECUTE FUNCTION "public"."update_follow_counts"();
+
+
+
+CREATE OR REPLACE TRIGGER "on_follow_insert" AFTER INSERT ON "public"."followers" FOR EACH ROW EXECUTE FUNCTION "public"."update_follow_counts"();
+
+
+
+CREATE OR REPLACE TRIGGER "on_jobs_update" BEFORE UPDATE ON "public"."podcast_creation_jobs" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "on_like_delete" AFTER DELETE ON "public"."likes" FOR EACH ROW EXECUTE FUNCTION "public"."update_like_count"();
+
+
+
+CREATE OR REPLACE TRIGGER "on_like_insert" AFTER INSERT ON "public"."likes" FOR EACH ROW EXECUTE FUNCTION "public"."update_like_count"();
+
+
+
+CREATE OR REPLACE TRIGGER "on_micro_pods_update" BEFORE UPDATE ON "public"."micro_pods" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "on_new_testimonial" AFTER INSERT ON "public"."profile_testimonials" FOR EACH ROW EXECUTE FUNCTION "public"."handle_new_testimonial"();
+
+
+
+CREATE OR REPLACE TRIGGER "on_playback_event_recalculate_resonance" AFTER INSERT ON "public"."playback_events" FOR EACH ROW EXECUTE FUNCTION "supabase_functions"."http_request"('https://arbojlknwilqcszuqope.supabase.co/functions/v1/update-resonance-profile', 'POST', '{"Content-type":"application/json","Authorization":"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFyYm9qbGtud2lscWNzenVxb3BlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTkxMDMwMSwiZXhwIjoyMDc1NDg2MzAxfQ.-K-ZM6_0ea-fA9sA7rTvlMq8d9TL8gx-Ypcm6EE0Qjc"}', '{}', '5000');
+
+
+
+CREATE OR REPLACE TRIGGER "on_podcast_publish" AFTER UPDATE ON "public"."micro_pods" FOR EACH ROW EXECUTE FUNCTION "public"."handle_new_podcast_publication"();
+
+
+
+CREATE OR REPLACE TRIGGER "on_profiles_update" BEFORE UPDATE ON "public"."profiles" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "on_subscriptions_update" BEFORE UPDATE ON "public"."subscriptions" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "set_root_id_trigger" BEFORE INSERT ON "public"."micro_pods" FOR EACH ROW EXECUTE FUNCTION "public"."maintain_thread_integrity"();
+
+
+
+ALTER TABLE ONLY "public"."ai_usage_logs"
+    ADD CONSTRAINT "ai_usage_logs_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id");
+
+
+
+ALTER TABLE ONLY "public"."followers"
+    ADD CONSTRAINT "followers_follower_id_fkey" FOREIGN KEY ("follower_id") REFERENCES "public"."profiles"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."followers"
+    ADD CONSTRAINT "followers_following_id_fkey" FOREIGN KEY ("following_id") REFERENCES "public"."profiles"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."likes"
+    ADD CONSTRAINT "likes_podcast_id_fkey" FOREIGN KEY ("podcast_id") REFERENCES "public"."micro_pods"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."likes"
+    ADD CONSTRAINT "likes_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."micro_pods"
+    ADD CONSTRAINT "micro_pods_parent_id_fkey" FOREIGN KEY ("parent_id") REFERENCES "public"."micro_pods"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."micro_pods"
+    ADD CONSTRAINT "micro_pods_root_id_fkey" FOREIGN KEY ("root_id") REFERENCES "public"."micro_pods"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."micro_pods"
+    ADD CONSTRAINT "micro_pods_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."profiles"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."notifications"
+    ADD CONSTRAINT "notifications_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."profiles"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."playback_events"
+    ADD CONSTRAINT "playback_events_podcast_id_fkey" FOREIGN KEY ("podcast_id") REFERENCES "public"."micro_pods"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."playback_events"
+    ADD CONSTRAINT "playback_events_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."profiles"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."podcast_analysis_history"
+    ADD CONSTRAINT "podcast_analysis_history_podcast_id_fkey" FOREIGN KEY ("podcast_id") REFERENCES "public"."micro_pods"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."podcast_creation_jobs"
+    ADD CONSTRAINT "podcast_creation_jobs_micro_pod_id_fkey" FOREIGN KEY ("micro_pod_id") REFERENCES "public"."micro_pods"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."podcast_creation_jobs"
+    ADD CONSTRAINT "podcast_creation_jobs_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."profiles"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."podcast_embeddings"
+    ADD CONSTRAINT "podcast_embeddings_podcast_id_fkey" FOREIGN KEY ("podcast_id") REFERENCES "public"."micro_pods"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."processing_errors"
+    ADD CONSTRAINT "processing_errors_podcast_id_fkey" FOREIGN KEY ("podcast_id") REFERENCES "public"."micro_pods"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."profile_testimonials"
+    ADD CONSTRAINT "profile_testimonials_author_user_id_fkey" FOREIGN KEY ("author_user_id") REFERENCES "public"."profiles"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."profile_testimonials"
+    ADD CONSTRAINT "profile_testimonials_profile_user_id_fkey" FOREIGN KEY ("profile_user_id") REFERENCES "public"."profiles"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."profiles"
+    ADD CONSTRAINT "profiles_id_fkey" FOREIGN KEY ("id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."subscriptions"
+    ADD CONSTRAINT "subscriptions_plan_id_fkey" FOREIGN KEY ("plan_id") REFERENCES "public"."plans"("id");
+
+
+
+ALTER TABLE ONLY "public"."subscriptions"
+    ADD CONSTRAINT "subscriptions_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."profiles"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."user_resonance_profiles"
+    ADD CONSTRAINT "user_resonance_profiles_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."profiles"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."user_usage"
+    ADD CONSTRAINT "user_usage_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."profiles"("id");
+
+
+
+CREATE POLICY "Admins can read all podcasts" ON "public"."micro_pods" FOR SELECT USING ("public"."is_admin"());
+
+
+
+CREATE POLICY "Admins can read all profiles" ON "public"."profiles" FOR SELECT USING ("public"."is_admin"());
+
+
+
+CREATE POLICY "Admins can read quotas" ON "public"."user_usage" FOR SELECT USING ("public"."is_admin"());
+
+
+
+CREATE POLICY "Admins can update all podcasts" ON "public"."micro_pods" FOR UPDATE USING ("public"."is_admin"());
+
+
+
+CREATE POLICY "Admins can update quotas" ON "public"."user_usage" FOR UPDATE USING ("public"."is_admin"());
+
+
+
+CREATE POLICY "Allow authenticated users to create" ON "public"."profile_testimonials" FOR INSERT WITH CHECK (((( SELECT "auth"."uid"() AS "uid") IS NOT NULL) AND (( SELECT "auth"."uid"() AS "uid") <> "profile_user_id")));
+
+
+
+CREATE POLICY "Allow individual delete access" ON "public"."followers" FOR DELETE USING ((( SELECT "auth"."uid"() AS "uid") = "follower_id"));
+
+
+
+CREATE POLICY "Allow individual insert access" ON "public"."followers" FOR INSERT WITH CHECK ((( SELECT "auth"."uid"() AS "uid") = "follower_id"));
+
+
+
+CREATE POLICY "Allow individual insert access" ON "public"."podcast_creation_jobs" FOR INSERT WITH CHECK ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
+
+
+
+CREATE POLICY "Allow individual read access" ON "public"."podcast_creation_jobs" FOR SELECT USING ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
+
+
+
+CREATE POLICY "Allow individual read access" ON "public"."subscriptions" FOR SELECT USING ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
+
+
+
+CREATE POLICY "Allow individual read access" ON "public"."user_resonance_profiles" FOR SELECT USING ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
+
+
+
+CREATE POLICY "Allow individual update access" ON "public"."micro_pods" FOR UPDATE USING ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
+
+
+
+CREATE POLICY "Allow individual update access" ON "public"."profiles" FOR UPDATE USING ((( SELECT "auth"."uid"() AS "uid") = "id"));
+
+
+
+CREATE POLICY "Allow owners to delete" ON "public"."profile_testimonials" FOR DELETE USING ((( SELECT "auth"."uid"() AS "uid") = "profile_user_id"));
+
+
+
+CREATE POLICY "Allow owners to update" ON "public"."profile_testimonials" FOR UPDATE USING ((( SELECT "auth"."uid"() AS "uid") = "profile_user_id"));
+
+
+
+CREATE POLICY "Allow public and owner read access" ON "public"."micro_pods" FOR SELECT USING ((("status" = 'published'::"public"."podcast_status") OR (( SELECT "auth"."uid"() AS "uid") = "user_id")));
+
+
+
+CREATE POLICY "Allow public and owner read access" ON "public"."profile_testimonials" FOR SELECT USING ((("status" = 'approved'::"public"."testimonial_status") OR (( SELECT "auth"."uid"() AS "uid") = "profile_user_id")));
+
+
+
+CREATE POLICY "Allow public read access" ON "public"."followers" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Allow public read access" ON "public"."plans" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Allow read access for authenticated users" ON "public"."ai_prompts" FOR SELECT TO "authenticated" USING (true);
+
+
+
+CREATE POLICY "Denegar acceso público a errores de procesamiento" ON "public"."processing_errors" USING (false);
+
+
+
+CREATE POLICY "Denegar todo el acceso público" ON "public"."podcast_analysis_history" USING (false);
+
+
+
+CREATE POLICY "Enable read access for all users" ON "public"."profiles" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Los usuarios pueden actualizar su propio perfil" ON "public"."profiles" FOR UPDATE USING ((( SELECT "auth"."uid"() AS "uid") = "id"));
+
+
+
+CREATE POLICY "Los usuarios pueden crear sus propios likes" ON "public"."likes" FOR INSERT WITH CHECK ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
+
+
+
+CREATE POLICY "Los usuarios pueden eliminar sus propios likes" ON "public"."likes" FOR DELETE USING ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
+
+
+
+CREATE POLICY "Permitir acceso total a las notificaciones propias" ON "public"."notifications" USING ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
+
+
+
+CREATE POLICY "Permitir creación de trabajos propios" ON "public"."podcast_creation_jobs" FOR INSERT WITH CHECK ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
+
+
+
+CREATE POLICY "Permitir crear seguimientos" ON "public"."followers" FOR INSERT WITH CHECK ((( SELECT "auth"."uid"() AS "uid") = "follower_id"));
+
+
+
+CREATE POLICY "Permitir eliminar seguimientos" ON "public"."followers" FOR DELETE USING ((( SELECT "auth"."uid"() AS "uid") = "follower_id"));
+
+
+
+CREATE POLICY "Permitir inserción de eventos de reproducción propios" ON "public"."playback_events" FOR INSERT WITH CHECK ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
+
+
+
+CREATE POLICY "Permitir lectura de perfiles" ON "public"."profiles" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Permitir lectura de trabajos de creación propios" ON "public"."podcast_creation_jobs" FOR SELECT USING ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
+
+
+
+CREATE POLICY "Permitir lectura pública de likes" ON "public"."likes" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Public Podcasts are viewable by everyone" ON "public"."micro_pods" FOR SELECT USING (("status" = 'published'::"public"."podcast_status"));
+
+
+
+CREATE POLICY "Public Profiles are viewable by everyone" ON "public"."profiles" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Public read access" ON "public"."podcast_embeddings" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Service role write access" ON "public"."podcast_embeddings" USING (("auth"."role"() = 'service_role'::"text"));
+
+
+
+CREATE POLICY "Users can view own usage" ON "public"."user_usage" FOR SELECT USING (("auth"."uid"() = "user_id"));
+
+
+
+ALTER TABLE "public"."ai_prompts" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."ai_usage_logs" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."followers" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."likes" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."micro_pods" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."notifications" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."plans" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."platform_limits" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."playback_events" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."podcast_analysis_history" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."podcast_creation_jobs" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."podcast_embeddings" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."processing_errors" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."profile_testimonials" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."profiles" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."subscriptions" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."user_resonance_profiles" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."user_usage" ENABLE ROW LEVEL SECURITY;
+
+
+
+
+ALTER PUBLICATION "supabase_realtime" OWNER TO "postgres";
+
+
+
+
+
+
+ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."followers";
+
+
+
+ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."likes";
+
+
+
+ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."micro_pods";
+
+
+
+ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."playback_events";
+
+
+
+ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."podcast_analysis_history";
+
+
+
+ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."podcast_creation_jobs";
+
+
+
+ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."profile_testimonials";
+
+
+
+ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."subscriptions";
+
+
+
+
+
+
+
+
+
+GRANT USAGE ON SCHEMA "public" TO "postgres";
+GRANT USAGE ON SCHEMA "public" TO "anon";
+GRANT USAGE ON SCHEMA "public" TO "authenticated";
+GRANT USAGE ON SCHEMA "public" TO "service_role";
+GRANT USAGE ON SCHEMA "public" TO "supabase_auth_admin";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+GRANT ALL ON FUNCTION "public"."check_rate_limit"("p_user_id" "uuid", "p_function_name" "text", "p_limit" integer, "p_window_seconds" integer) TO "anon";
+GRANT ALL ON FUNCTION "public"."check_rate_limit"("p_user_id" "uuid", "p_function_name" "text", "p_limit" integer, "p_window_seconds" integer) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."check_rate_limit"("p_user_id" "uuid", "p_function_name" "text", "p_limit" integer, "p_window_seconds" integer) TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."create_profile_and_free_subscription"() TO "anon";
+GRANT ALL ON FUNCTION "public"."create_profile_and_free_subscription"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."create_profile_and_free_subscription"() TO "service_role";
+GRANT ALL ON FUNCTION "public"."create_profile_and_free_subscription"() TO "supabase_auth_admin";
+
+
+
+GRANT ALL ON FUNCTION "public"."get_curated_library_shelves"("p_user_id" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."get_curated_library_shelves"("p_user_id" "uuid") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."get_curated_library_shelves"("p_user_id" "uuid") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."get_generic_library_shelves"() TO "anon";
+GRANT ALL ON FUNCTION "public"."get_generic_library_shelves"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."get_generic_library_shelves"() TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."micro_pods" TO "anon";
+GRANT ALL ON TABLE "public"."micro_pods" TO "authenticated";
+GRANT ALL ON TABLE "public"."micro_pods" TO "service_role";
+
+
+
+GRANT UPDATE("duration_seconds") ON TABLE "public"."micro_pods" TO "authenticated";
+
+
+
+GRANT ALL ON FUNCTION "public"."get_resonant_podcasts"("center_point" "point", "count_limit" integer) TO "anon";
+GRANT ALL ON FUNCTION "public"."get_resonant_podcasts"("center_point" "point", "count_limit" integer) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."get_resonant_podcasts"("center_point" "point", "count_limit" integer) TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."get_user_discovery_feed"("p_user_id" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."get_user_discovery_feed"("p_user_id" "uuid") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."get_user_discovery_feed"("p_user_id" "uuid") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."handle_new_podcast_publication"() TO "anon";
+GRANT ALL ON FUNCTION "public"."handle_new_podcast_publication"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."handle_new_podcast_publication"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."handle_new_testimonial"() TO "anon";
+GRANT ALL ON FUNCTION "public"."handle_new_testimonial"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."handle_new_testimonial"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."handle_new_user"() TO "anon";
+GRANT ALL ON FUNCTION "public"."handle_new_user"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."handle_new_user"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."handle_updated_at"() TO "anon";
+GRANT ALL ON FUNCTION "public"."handle_updated_at"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."handle_updated_at"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."handle_zombie_jobs"() TO "anon";
+GRANT ALL ON FUNCTION "public"."handle_zombie_jobs"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."handle_zombie_jobs"() TO "service_role";
+
+
+
+
+
+
+GRANT ALL ON FUNCTION "public"."increment_jobs_and_queue"("p_user_id" "uuid", "p_payload" "jsonb") TO "anon";
+GRANT ALL ON FUNCTION "public"."increment_jobs_and_queue"("p_user_id" "uuid", "p_payload" "jsonb") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."increment_jobs_and_queue"("p_user_id" "uuid", "p_payload" "jsonb") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."increment_play_count"("podcast_id" bigint) TO "anon";
+GRANT ALL ON FUNCTION "public"."increment_play_count"("podcast_id" bigint) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."increment_play_count"("podcast_id" bigint) TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."is_admin"() TO "anon";
+GRANT ALL ON FUNCTION "public"."is_admin"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."is_admin"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."maintain_thread_integrity"() TO "anon";
+GRANT ALL ON FUNCTION "public"."maintain_thread_integrity"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."maintain_thread_integrity"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."mark_notifications_as_read"() TO "anon";
+GRANT ALL ON FUNCTION "public"."mark_notifications_as_read"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."mark_notifications_as_read"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."reset_monthly_quotas"() TO "anon";
+GRANT ALL ON FUNCTION "public"."reset_monthly_quotas"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."reset_monthly_quotas"() TO "service_role";
+
+
+
+
+
+
+GRANT ALL ON FUNCTION "public"."search_omni"("query_text" "text", "query_embedding" double precision[], "match_threshold" double precision, "match_count" integer) TO "anon";
+GRANT ALL ON FUNCTION "public"."search_omni"("query_text" "text", "query_embedding" double precision[], "match_threshold" double precision, "match_count" integer) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."search_omni"("query_text" "text", "query_embedding" double precision[], "match_threshold" double precision, "match_count" integer) TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."search_podcasts"("search_term" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."search_podcasts"("search_term" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."search_podcasts"("search_term" "text") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."trigger_resonance_recalculation"() TO "anon";
+GRANT ALL ON FUNCTION "public"."trigger_resonance_recalculation"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."trigger_resonance_recalculation"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."update_follow_counts"() TO "anon";
+GRANT ALL ON FUNCTION "public"."update_follow_counts"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."update_follow_counts"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."update_like_count"() TO "anon";
+GRANT ALL ON FUNCTION "public"."update_like_count"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."update_like_count"() TO "service_role";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+GRANT ALL ON TABLE "public"."ai_prompts" TO "anon";
+GRANT ALL ON TABLE "public"."ai_prompts" TO "authenticated";
+GRANT ALL ON TABLE "public"."ai_prompts" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."ai_prompts_id_seq" TO "anon";
+GRANT ALL ON SEQUENCE "public"."ai_prompts_id_seq" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."ai_prompts_id_seq" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."ai_usage_logs" TO "anon";
+GRANT ALL ON TABLE "public"."ai_usage_logs" TO "authenticated";
+GRANT ALL ON TABLE "public"."ai_usage_logs" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."ai_usage_logs_id_seq" TO "anon";
+GRANT ALL ON SEQUENCE "public"."ai_usage_logs_id_seq" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."ai_usage_logs_id_seq" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."followers" TO "anon";
+GRANT ALL ON TABLE "public"."followers" TO "authenticated";
+GRANT ALL ON TABLE "public"."followers" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."likes" TO "anon";
+GRANT ALL ON TABLE "public"."likes" TO "authenticated";
+GRANT ALL ON TABLE "public"."likes" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."micro_pods_id_seq" TO "anon";
+GRANT ALL ON SEQUENCE "public"."micro_pods_id_seq" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."micro_pods_id_seq" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."notifications" TO "anon";
+GRANT ALL ON TABLE "public"."notifications" TO "authenticated";
+GRANT ALL ON TABLE "public"."notifications" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."notifications_id_seq" TO "anon";
+GRANT ALL ON SEQUENCE "public"."notifications_id_seq" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."notifications_id_seq" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."plans" TO "anon";
+GRANT ALL ON TABLE "public"."plans" TO "authenticated";
+GRANT ALL ON TABLE "public"."plans" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."plans_id_seq" TO "anon";
+GRANT ALL ON SEQUENCE "public"."plans_id_seq" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."plans_id_seq" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."platform_limits" TO "anon";
+GRANT ALL ON TABLE "public"."platform_limits" TO "authenticated";
+GRANT ALL ON TABLE "public"."platform_limits" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."platform_limits_id_seq" TO "anon";
+GRANT ALL ON SEQUENCE "public"."platform_limits_id_seq" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."platform_limits_id_seq" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."playback_events" TO "anon";
+GRANT ALL ON TABLE "public"."playback_events" TO "authenticated";
+GRANT ALL ON TABLE "public"."playback_events" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."playback_events_id_seq" TO "anon";
+GRANT ALL ON SEQUENCE "public"."playback_events_id_seq" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."playback_events_id_seq" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."podcast_analysis_history" TO "anon";
+GRANT ALL ON TABLE "public"."podcast_analysis_history" TO "authenticated";
+GRANT ALL ON TABLE "public"."podcast_analysis_history" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."podcast_creation_jobs" TO "anon";
+GRANT ALL ON TABLE "public"."podcast_creation_jobs" TO "authenticated";
+GRANT ALL ON TABLE "public"."podcast_creation_jobs" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."podcast_creation_jobs_id_seq" TO "anon";
+GRANT ALL ON SEQUENCE "public"."podcast_creation_jobs_id_seq" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."podcast_creation_jobs_id_seq" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."podcast_embeddings" TO "anon";
+GRANT ALL ON TABLE "public"."podcast_embeddings" TO "authenticated";
+GRANT ALL ON TABLE "public"."podcast_embeddings" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."podcast_embeddings_id_seq" TO "anon";
+GRANT ALL ON SEQUENCE "public"."podcast_embeddings_id_seq" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."podcast_embeddings_id_seq" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."processing_errors" TO "anon";
+GRANT ALL ON TABLE "public"."processing_errors" TO "authenticated";
+GRANT ALL ON TABLE "public"."processing_errors" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."processing_errors_id_seq" TO "anon";
+GRANT ALL ON SEQUENCE "public"."processing_errors_id_seq" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."processing_errors_id_seq" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."profile_testimonials" TO "anon";
+GRANT ALL ON TABLE "public"."profile_testimonials" TO "authenticated";
+GRANT ALL ON TABLE "public"."profile_testimonials" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."profile_testimonials_id_seq" TO "anon";
+GRANT ALL ON SEQUENCE "public"."profile_testimonials_id_seq" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."profile_testimonials_id_seq" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."profiles" TO "anon";
+GRANT ALL ON TABLE "public"."profiles" TO "authenticated";
+GRANT ALL ON TABLE "public"."profiles" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."subscriptions" TO "anon";
+GRANT ALL ON TABLE "public"."subscriptions" TO "authenticated";
+GRANT ALL ON TABLE "public"."subscriptions" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."user_resonance_profiles" TO "anon";
+GRANT ALL ON TABLE "public"."user_resonance_profiles" TO "authenticated";
+GRANT ALL ON TABLE "public"."user_resonance_profiles" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."user_usage" TO "anon";
+GRANT ALL ON TABLE "public"."user_usage" TO "authenticated";
+GRANT ALL ON TABLE "public"."user_usage" TO "service_role";
+
+
+
+SET SESSION AUTHORIZATION "postgres";
+RESET SESSION AUTHORIZATION;
+
+
+
+
+
+
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES TO "postgres";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES TO "anon";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES TO "authenticated";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES TO "service_role";
+
+
+
+
+
+
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "postgres";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "anon";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "authenticated";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "service_role";
+
+
+
+
+
+
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "postgres";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "anon";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "authenticated";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "service_role";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+set check_function_bodies = off;
+
+CREATE OR REPLACE FUNCTION public.update_like_count()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$-- Código SQL completo y corregido para la función 'update_like_count'
+-- La estructura correcta de plpgsql es DECLARE -> BEGIN -> END.
+
+DECLARE
+  -- PASO 1: Declarar todas las variables que usaremos.
+  podcast_owner_id uuid;
+  podcast_title_text text;
+  actor_name_text text;
+BEGIN
+  -- PASO 2: Iniciar el bloque lógico.
+  IF (TG_OP = 'INSERT') THEN
+    -- Actualizar el contador de likes.
+    UPDATE public.micro_pods SET like_count = like_count + 1 WHERE id = NEW.podcast_id;
+
+    -- Obtener la información necesaria para crear la notificación.
+    SELECT user_id, title INTO podcast_owner_id, podcast_title_text FROM public.micro_pods WHERE id = NEW.podcast_id;
+    SELECT full_name INTO actor_name_text FROM public.profiles WHERE id = NEW.user_id;
+
+    -- Solo crear la notificación si la persona que da 'like' no es la dueña del podcast.
+    IF podcast_owner_id <> NEW.user_id THEN
+      INSERT INTO public.notifications (user_id, type, data)
+      VALUES (
+        podcast_owner_id,
+        'new_like',
+        jsonb_build_object(
+          'actor_id', NEW.user_id,
+          'actor_name', actor_name_text,
+          'podcast_id', NEW.podcast_id,
+          'podcast_title', podcast_title_text
+        )
+      );
+    END IF;
+
+  ELSIF (TG_OP = 'DELETE') THEN
+    -- Si se quita un 'like', solo actualizamos el contador. No generamos notificación.
+    UPDATE public.micro_pods SET like_count = like_count - 1 WHERE id = OLD.podcast_id;
+  END IF;
+
+  -- Las funciones de trigger deben devolver NULL.
+  RETURN NULL;
+END;$function$
+;
+
+CREATE TRIGGER on_new_user_setup AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION public.create_profile_and_free_subscription();
+
+
+  create policy "Permitir subidas solo a usuarios autenticados"
+  on "storage"."objects"
+  as permissive
+  for insert
+  to public
+with check (((bucket_id = 'podcasts'::text) AND (auth.role() = 'authenticated'::text)));
+
+
