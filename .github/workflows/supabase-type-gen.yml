@@ -5,8 +5,8 @@ on:
     branches:
       - main
     paths:
-      - 'supabase/migrations/**'
-  workflow_dispatch:
+      - 'supabase/migrations/**' # Solo se dispara si cambias la base de datos
+  workflow_dispatch: # Permite ejecución manual
 
 jobs:
   update-types:
@@ -20,14 +20,14 @@ jobs:
         with:
           node-version: '20'
 
-      # PASO CLAVE: Usar la acción oficial en lugar de npm install
+      # CORRECCIÓN: El nombre oficial es setup-cli
       - name: Setup Supabase CLI
-        uses: supabase/setup-supabase-cli@v1
+        uses: supabase/setup-cli@v1
         with:
           version: latest
 
       - name: Generate Types from Local Migrations
-        # Iniciamos un entorno local temporal para procesar los tipos
+        # Levantamos una DB temporal con tus migraciones y generamos tipos
         run: |
           supabase db start
           supabase gen types typescript --local > types/database.types.ts
@@ -37,4 +37,11 @@ jobs:
           git config --global user.name "NicePod Bot"
           git config --global user.email "bot@nicepod.io"
           git add types/database.types.ts
-          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: sync typescript types with database schema" && git push)
+          
+          # Solo hacemos commit si hay cambios reales para evitar bucles
+          if [ -n "$(git status --porcelain types/database.types.ts)" ]; then
+            git commit -m "chore: sync typescript types with database schema [skip ci]"
+            git push origin main
+          else
+            echo "No hay cambios en los tipos. Saltando commit."
+          fi
