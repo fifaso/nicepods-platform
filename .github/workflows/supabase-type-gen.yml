@@ -5,12 +5,16 @@ on:
     branches:
       - main
     paths:
-      - 'supabase/migrations/**' # Solo se dispara si cambias la base de datos
-  workflow_dispatch: # Permite ejecución manual
+      - 'supabase/migrations/**'
+  workflow_dispatch:
 
 jobs:
   update-types:
     runs-on: ubuntu-latest
+    # AGREGAMOS ESTO: Permisos explícitos para que el bot pueda escribir
+    permissions:
+      contents: write
+      
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -20,14 +24,12 @@ jobs:
         with:
           node-version: '20'
 
-      # CORRECCIÓN: El nombre oficial es setup-cli
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
           version: latest
 
       - name: Generate Types from Local Migrations
-        # Levantamos una DB temporal con tus migraciones y generamos tipos
         run: |
           supabase db start
           supabase gen types typescript --local > types/database.types.ts
@@ -38,7 +40,6 @@ jobs:
           git config --global user.email "bot@nicepod.io"
           git add types/database.types.ts
           
-          # Solo hacemos commit si hay cambios reales para evitar bucles
           if [ -n "$(git status --porcelain types/database.types.ts)" ]; then
             git commit -m "chore: sync typescript types with database schema [skip ci]"
             git push origin main
