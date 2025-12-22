@@ -2,39 +2,39 @@ name: "Supabase Type Generation"
 
 on:
   push:
-      branches:
-            - main
-                paths:
-                      - 'supabase/migrations/**' # Se activa solo si cambias el SQL de la base de datos
-                        workflow_dispatch: # Permite que tú lo actives manualmente desde el botón de GitHub
+    branches:
+      - main
+    paths:
+      - 'supabase/migrations/**' # Se activa solo si cambias el SQL de la base de datos
+  workflow_dispatch: # Permite que tú lo actives manualmente desde el botón de GitHub
 
-                        jobs:
-                          update-types:
-                              runs-on: ubuntu-latest
-                                  steps:
-                                        - name: Checkout code
-                                                uses: actions/checkout@v4
+jobs:
+  update-types:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-                                                      - name: Setup Node.js
-                                                              uses: actions/setup-node@v4
-                                                                      with:
-                                                                                node-version: '20'
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
-                                                                                      - name: Install Supabase CLI
-                                                                                              run: npm install -g supabase
+      - name: Install Supabase CLI
+        run: npm install -g supabase
 
-                                                                                                    - name: Generate Types from Local Migrations
-                                                                                                            # Este comando levanta una base de datos "invisible" en la nube de GitHub,
-                                                                                                                    # ejecuta tus archivos .sql de la carpeta migrations y genera los tipos TS.
-                                                                                                                            run: |
-                                                                                                                                      supabase init
-                                                                                                                                                supabase db reset --soft # Valida tus migraciones sin conexión externa
-                                                                                                                                                          supabase gen types typescript --local > types/database.types.ts
+      - name: Generate Types from Local Migrations
+        # Este comando levanta una base de datos "invisible" en la nube de GitHub,
+        # ejecuta tus archivos .sql de la carpeta migrations y genera los tipos TS.
+        run: |
+          supabase init
+          supabase db reset --soft # Valida tus migraciones sin conexión externa
+          supabase gen types typescript --local > types/database.types.ts
 
-                                                                                                                                                                - name: Commit and Push changes
-                                                                                                                                                                        run: |
-                                                                                                                                                                                  git config --global user.name "NicePod Bot"
-                                                                                                                                                                                            git config --global user.email "bot@nicepod.io"
-                                                                                                                                                                                                      git add types/database.types.ts
-                                                                                                                                                                                                                # Solo hace commit si el archivo realmente cambió
-                                                                                                                                                                                                                          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: sync typescript types with database schema" && git push)
+      - name: Commit and Push changes
+        run: |
+          git config --global user.name "NicePod Bot"
+          git config --global user.email "bot@nicepod.io"
+          git add types/database.types.ts
+          # Solo hace commit si el archivo realmente cambió
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: sync typescript types with database schema" && git push)
