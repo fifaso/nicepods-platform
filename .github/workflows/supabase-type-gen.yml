@@ -5,8 +5,8 @@ on:
     branches:
       - main
     paths:
-      - 'supabase/migrations/**' # Se activa solo si cambias el SQL de la base de datos
-  workflow_dispatch: # Permite que tú lo actives manualmente desde el botón de GitHub
+      - 'supabase/migrations/**'
+  workflow_dispatch:
 
 jobs:
   update-types:
@@ -20,15 +20,16 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install Supabase CLI
-        run: npm install -g supabase
+      # PASO CLAVE: Usar la acción oficial en lugar de npm install
+      - name: Setup Supabase CLI
+        uses: supabase/setup-supabase-cli@v1
+        with:
+          version: latest
 
       - name: Generate Types from Local Migrations
-        # Este comando levanta una base de datos "invisible" en la nube de GitHub,
-        # ejecuta tus archivos .sql de la carpeta migrations y genera los tipos TS.
+        # Iniciamos un entorno local temporal para procesar los tipos
         run: |
-          supabase init
-          supabase db reset --soft # Valida tus migraciones sin conexión externa
+          supabase db start
           supabase gen types typescript --local > types/database.types.ts
 
       - name: Commit and Push changes
@@ -36,5 +37,4 @@ jobs:
           git config --global user.name "NicePod Bot"
           git config --global user.email "bot@nicepod.io"
           git add types/database.types.ts
-          # Solo hace commit si el archivo realmente cambió
           git diff --quiet && git diff --staged --quiet || (git commit -m "chore: sync typescript types with database schema" && git push)
