@@ -1,65 +1,88 @@
 // supabase/functions/_shared/guard.ts
+// VERSIÓN: 3.0 (Smart Identity & Rate Limiting)
 
-// Usamos los paquetes via NPM para máxima compatibilidad
 import * as Sentry from "npm:@sentry/node@8.26.0";
-import arcjet, { detectBot, tokenBucket, fixedWindow } from "npm:@arcjet/deno@1.0.0-beta.4";
+import arcjet, { detectBot, fixedWindow, shield } from "npm:@arcjet/deno@1.0.0-beta.4";
 import { corsHeaders } from "./cors.ts";
 
-// --- 1. CONFIGURACIÓN INICIAL (SINGLETON) ---
+// --- 1. CONFIGURACIÓN (SINGLETON) ---
 
-// Inicializamos Sentry fuera del handler para reusar la instancia (Warm Start)
 Sentry.init({
   dsn: Deno.env.get("SENTRY_DSN"),
-  tracesSampleRate: 1.0, // Capturamos todo en esta etapa "Boutique"
-  defaultIntegrations: false, // Minimizamos overhead en Edge
+  tracesSampleRate: 1.0,
+  defaultIntegrations: false,
 });
 
-// Inicializamos Arcjet
 const aj = arcjet({
   key: Deno.env.get("ARCJET_KEY")!,
   rules: [
-    // Regla 1: Bloqueo de Bots (Permitimos buscadores como Google para SEO si fuera público)
+    // Protección contra ataques comunes (SQL Injection, XSS)
+    shield({ mode: "LIVE" }), 
     detectBot({
       mode: "LIVE",
       allow: ["CATEGORY:SEARCH_ENGINE"],
     }),
-    // Regla 2: Rate Limit General (Protección base contra inundación)
-    // 50 peticiones cada 60 segundos por IP.
+    // Rate Limit Base
     fixedWindow({
       mode: "LIVE",
       window: "60s",
-      max: 50,
+      max: 60, // Aumentamos un poco el margen para usuarios legítimos
     }),
   ],
 });
 
-// --- 2. DEFINICIÓN DEL WRAPPER ---
+// --- 2. UTILIDADES DE IDENTIDAD ---
 
 /**
- * Higher-Order Function que envuelve la lógica de negocio con:
- * 1. Manejo automático de CORS.
- * 2. Protección de Arcjet (Seguridad).
- * 3. Captura de errores con Sentry (Observabilidad).
+ * Intenta extraer el User ID (sub) del JWT de Supabase sin validar la firma 
+ * (la validación la hace Supabase después, aquí solo queremos el ID para el Rate Limit)
  */
+function getUserIdFromRequest(req: Request): string | null {
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader) return null;
+
+  try {
+    const token = authHeader.replace("Bearer ", "");
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    
+    const payload = JSON.parse(atob(parts[1]));
+    return payload.sub || null; // 'sub' es el estándar para el ID de usuario
+  } catch {
+    return null;
+  }
+}
+
+// --- 3. DEFINICIÓN DEL WRAPPER ---
+
 export const guard = (handler: (req: Request) => Promise<Response>) => {
   return async (req: Request): Promise<Response> => {
     
-    // A. MANEJO DE CORS (Preflight)
     if (req.method === 'OPTIONS') {
       return new Response('ok', { headers: corsHeaders });
     }
 
     try {
-      // B. CAPA DE SEGURIDAD (ARCJET)
-      // Pasamos 'requested: 1' explícitamente para satisfacer tipos estrictos
-      const decision = await aj.protect(req, { requested: 1 });
+      // A. DETERMINAR HUELLA DIGITAL (FINGERPRINTING)
+      // Si tenemos un User ID, lo usamos como llave única. Si no, Arcjet usará la IP.
+      const userId = getUserIdFromRequest(req);
+      const fingerprint = userId ? `user-${userId}` : undefined;
+
+      // B. PROTECCIÓN INTELIGENTE
+      const decision = await aj.protect(req, { 
+        requested: 1,
+        fingerprint: fingerprint 
+      });
 
       if (decision.isDenied()) {
-        console.warn(`[Arcjet] Bloqueo: ${decision.reason.type}`);
+        console.warn(`[Arcjet] Bloqueo para ${fingerprint || 'IP'}: ${decision.reason.type}`);
         
         if (decision.reason.isRateLimit()) {
           return new Response(
-            JSON.stringify({ error: "Demasiadas peticiones. Por favor espera." }), 
+            JSON.stringify({ 
+              error: "Límite de peticiones alcanzado.", 
+              suggestion: userId ? "Espera un momento." : "Inicia sesión para límites más altos." 
+            }), 
             { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
@@ -70,30 +93,18 @@ export const guard = (handler: (req: Request) => Promise<Response>) => {
         );
       }
 
-      // C. EJECUCIÓN LÓGICA DE NEGOCIO
-      // Si pasa la seguridad, ejecutamos la función real
+      // C. EJECUCIÓN
       return await handler(req);
 
     } catch (error) {
-      // D. CAPTURA DE ERRORES (SENTRY)
-      console.error("🔥 Error no controlado:", error);
-
-      // Reportar a Sentry
+      console.error("🔥 Error en Guard:", error);
       Sentry.captureException(error);
-      
-      // CRÍTICO: Esperar a que Sentry envíe los datos antes de cerrar el proceso
       await Sentry.flush(2000);
 
-      // Determinar mensaje de error seguro para el cliente
-      const errorMessage = error instanceof Error ? error.message : "Error interno del servidor";
-      
-      // Retornar 500 estándar
+      const errorMessage = error instanceof Error ? error.message : "Internal Server Error";
       return new Response(
         JSON.stringify({ success: false, error: errorMessage }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
   };
