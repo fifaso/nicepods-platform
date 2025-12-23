@@ -1,99 +1,115 @@
 // supabase/functions/generate-embedding/index.ts
-// VERSIÓN: 3.0 (Políglota: Soporta JSON Moderno, Texto Plano y Arrays Legacy)
+// VERSIÓN: 4.0 (Standard Compliant - Google Gecko-004 Optimized)
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
-import { guard } from "../_shared/guard.ts"; 
-import { corsHeaders } from "../_shared/cors.ts";
+import { serve } from "std/http/server.ts";
+import { createClient, SupabaseClient } from "supabase";
+import { z } from "zod";
+import { guard } from "guard";
+import { corsHeaders } from "cors";
+import { cleanTextForSpeech } from "ai-core";
 
 const EMBEDDING_MODEL = "models/text-embedding-004";
 const API_VERSION = "v1beta";
 
 const PayloadSchema = z.object({
   podcast_id: z.number(),
+  trace_id: z.string().optional()
 });
 
-// --- HELPER DE EXTRACCIÓN ROBUSTA ---
-function extractTextContent(input: any): string {
+/**
+ * Interfaces para navegación segura de tipos sin usar 'any'
+ */
+interface AIScriptLine {
+  speaker?: string;
+  line?: string;
+  text?: string;
+}
+
+interface ScriptMetadata {
+  script_body?: string;
+  script_plain?: string;
+  text?: string;
+}
+
+/**
+ * Extrae texto de forma recursiva y segura de múltiples formatos históricos.
+ */
+function extractTextContent(input: unknown): string {
     if (!input) return "";
 
-    // CASO 1: String puro
+    // Caso 1: String (puede ser JSON stringificado)
     if (typeof input === 'string') {
-        // Intentar parsear por si es un JSON stringificado
         try {
             const parsed = JSON.parse(input);
-            return extractTextContent(parsed); // Recursión
+            return extractTextContent(parsed);
         } catch {
-            return input; // Es texto plano real
+            return input; 
         }
     }
 
-    // CASO 2: Array Legacy ([{speaker: "...", line: "..."}])
+    // Caso 2: Array Legacy (Diálogos)
     if (Array.isArray(input)) {
         return input
-            .map((item: any) => {
-                if (typeof item === 'string') return item;
-                // Formato diálogo: "Speaker: Linea"
-                const speaker = item.speaker ? `${item.speaker}: ` : "";
-                const line = item.line || item.text || "";
-                return `${speaker}${line}`;
+            .map((item: AIScriptLine) => {
+                const prefix = item.speaker ? `${item.speaker}: ` : "";
+                const content = item.line || item.text || "";
+                return `${prefix}${content}`;
             })
             .join("\n\n");
     }
 
-    // CASO 3: Objeto Moderno ({ script_body: "...", script_plain: "..." })
-    if (typeof input === 'object') {
-        // Prioridad: Texto limpio > HTML > Texto crudo
-        return input.script_plain || input.script_body || input.text || "";
+    // Caso 3: Objeto Moderno
+    if (typeof input === 'object' && input !== null) {
+        const obj = input as ScriptMetadata;
+        return obj.script_plain || obj.script_body || obj.text || "";
     }
 
     return "";
 }
 
-// --- HANDLER ---
 const handler = async (request: Request): Promise<Response> => {
-  const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
-  const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const GOOGLE_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
+  const correlationId = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
+  
+  const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
+  const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  const GOOGLE_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY") ?? "";
 
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !GOOGLE_API_KEY) {
-    throw new Error("FATAL: Faltan variables de entorno críticas.");
-  }
-
-  const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+  const supabaseAdmin: SupabaseClient = createClient(SUPABASE_URL, SERVICE_KEY);
 
   try {
-    const { podcast_id } = PayloadSchema.parse(await request.json());
-    console.log(`[Embedding] Procesando Podcast ID: ${podcast_id}`);
+    const body = await request.json();
+    const { podcast_id } = PayloadSchema.parse(body);
 
-    // 1. OBTENER DATOS
+    console.log(`🧠 [${correlationId}] Generando Embedding para Podcast: ${podcast_id}`);
+
+    // 1. OBTENER CONTENIDO
     const { data: podcast, error: fetchError } = await supabaseAdmin
         .from('micro_pods')
         .select('script_text')
         .eq('id', podcast_id)
         .single();
 
-    if (fetchError || !podcast) throw new Error(`Podcast no encontrado: ${fetchError?.message}`);
+    if (fetchError || !podcast) throw new Error(`Podcast ${podcast_id} no encontrado.`);
 
-    // 2. EXTRACCIÓN INTELIGENTE
-    let textToEmbed = extractTextContent(podcast.script_text);
-    
-    // Limpieza final de HTML
-    textToEmbed = textToEmbed.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    // 2. LIMPIEZA SEMÁNTICA
+    // Usamos el helper centralizado para asegurar consistencia con el audio
+    const rawText = extractTextContent(podcast.script_text);
+    const cleanText = cleanTextForSpeech(rawText);
 
-    console.log(`[Debug] Texto extraído (${textToEmbed.length} chars): ${textToEmbed.substring(0, 50)}...`);
-
-    if (textToEmbed.length < 50) {
-        console.warn("⚠️ Texto insuficiente tras limpieza. Saltando.");
-        // Devolvemos éxito falso pero controlado para que el backfill no se detenga
-        return new Response(JSON.stringify({ skipped: true, reason: "too_short" }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    if (cleanText.length < 50) {
+        console.warn(`[${correlationId}] Texto demasiado corto para vectorizar. ID: ${podcast_id}`);
+        return new Response(JSON.stringify({ success: true, skipped: true }), { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
     }
 
-    const safeText = textToEmbed.substring(0, 8000);
+    // Google soporta hasta 2048 tokens, cortamos por seguridad de red
+    const safeText = cleanText.substring(0, 10000);
 
-    // 3. GENERAR VECTOR
-    const response = await fetch(`https://generativelanguage.googleapis.com/${API_VERSION}/${EMBEDDING_MODEL}:embedContent?key=${GOOGLE_API_KEY}`, {
+    // 3. LLAMADA A GOOGLE AI (Gecko)
+    const embeddingUrl = `https://generativelanguage.googleapis.com/${API_VERSION}/${EMBEDDING_MODEL}:embedContent?key=${GOOGLE_API_KEY}`;
+    
+    const response = await fetch(embeddingUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -102,17 +118,15 @@ const handler = async (request: Request): Promise<Response> => {
         }),
     });
 
-    if (!response.ok) {
-        const errTxt = await response.text();
-        throw new Error(`Google Embedding Error: ${errTxt}`);
-    }
+    if (!response.ok) throw new Error(`Google AI Error: ${await response.text()}`);
 
     const result = await response.json();
     const embeddingValues = result.embedding?.values;
 
-    if (!embeddingValues) throw new Error("Google no devolvió valores vectoriales.");
+    if (!embeddingValues) throw new Error("La IA no devolvió el vector esperado.");
 
-    // 4. GUARDAR
+    // 4. PERSISTENCIA VECTORIAL (Atómica)
+    // Borramos registros previos del mismo podcast para evitar duplicidad semántica
     await supabaseAdmin.from('podcast_embeddings').delete().eq('podcast_id', podcast_id);
 
     const { error: insertError } = await supabaseAdmin
@@ -123,14 +137,20 @@ const handler = async (request: Request): Promise<Response> => {
             embedding: embeddingValues
         });
 
-    if (insertError) throw new Error(`Error guardando: ${insertError.message}`);
+    if (insertError) throw insertError;
 
-    return new Response(JSON.stringify({ success: true }), { 
+    return new Response(JSON.stringify({ success: true, dimensions: embeddingValues.length }), { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });
 
-  } catch (error) {
-    throw error;
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Error desconocido en el worker de embedding";
+    console.error(`🔥 [${correlationId}] Error Vectorial:`, msg);
+    
+    return new Response(JSON.stringify({ success: false, error: msg }), { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    });
   }
 };
 

@@ -1,109 +1,67 @@
 // supabase/functions/generate-cover-image/index.ts
-// VERSIÓN: 2.0 (Guard Integrated: Sentry + Arcjet + Vertex AI Cost Protection)
+// VERSIÓN: 3.0 (Standard Compliant - Vertex AI Imagen 3 Optimized)
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
-import { create } from "https://deno.land/x/djwt@v2.2/mod.ts";
-import { guard } from "../_shared/guard.ts"; // <--- INTEGRACIÓN DEL ESTÁNDAR
-import { corsHeaders } from "../_shared/cors.ts";
+import { serve } from "std/http/server.ts";
+import { createClient, SupabaseClient } from "supabase";
+import { z } from "zod";
+import { guard } from "guard";
+import { corsHeaders } from "cors";
+import { getGoogleAccessToken } from "google-auth";
+import { buildPrompt, cleanTextForSpeech } from "ai-core";
 
 const InvokePayloadSchema = z.object({
   job_id: z.number(),
-  agent_name: z.string()
+  agent_name: z.string(),
+  trace_id: z.string().optional()
 });
 
-// --- UTILIDADES DE GOOGLE CLOUD ---
-
-async function getGoogleAccessToken(clientEmail: string, privateKeyRaw: string) {
-  const privateKey = privateKeyRaw.replace(/\\n/g, '\n');
-  const jwt = await create({
-    alg: "RS256",
-    typ: "JWT"
-  }, {
-    iss: clientEmail,
-    scope: "https://www.googleapis.com/auth/cloud-platform",
-    aud: "https://oauth2.googleapis.com/token",
-    exp: Math.floor(Date.now() / 1000) + 3600,
-    iat: Math.floor(Date.now() / 1000)
-  }, privateKey);
-
-  const response = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-      assertion: jwt
-    })
-  });
-  
-  const data = await response.json();
-  if (!response.ok) throw new Error(`Error token Google: ${JSON.stringify(data)}`);
-  return data.access_token;
-}
-
-function hydratePrompt(template: string, variables: Record<string, string>) {
-  let prompt = template;
-  for (const [key, value] of Object.entries(variables)) {
-    const cleanValue = value.replace(/(\r\n|\n|\r)/gm, " ").replace(/"/g, "'");
-    prompt = prompt.replace(new RegExp(`{{${key}}}`, 'g'), cleanValue);
-  }
-  return prompt;
-}
-
-// --- LOGICA DE NEGOCIO (HANDLER) ---
 const handler = async (request: Request): Promise<Response> => {
-  // El Guard maneja OPTIONS
+  const correlationId = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
+  
+  const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
+  const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  const GOOGLE_PROJECT_ID = Deno.env.get("GOOGLE_PROJECT_ID") ?? "";
 
-  // 1. VALIDACIÓN DE ENTORNO (Dentro del handler para reporte Sentry)
-  const GOOGLE_CLIENT_EMAIL = Deno.env.get("GOOGLE_CLIENT_EMAIL");
-  const GOOGLE_PRIVATE_KEY_RAW = Deno.env.get("GOOGLE_PRIVATE_KEY");
-  const GOOGLE_PROJECT_ID = Deno.env.get("GOOGLE_PROJECT_ID");
-  const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
-  const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
-  if (!GOOGLE_CLIENT_EMAIL || !GOOGLE_PRIVATE_KEY_RAW || !GOOGLE_PROJECT_ID || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-     throw new Error("FATAL: Secretos de configuración incompletos en el servidor.");
-  }
-
-  const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-  let jobId = null;
+  const supabaseAdmin: SupabaseClient = createClient(SUPABASE_URL, SERVICE_KEY);
+  let currentJobId: number | null = null;
 
   try {
-    // 2. PARSEO INPUT
-    const { job_id, agent_name } = InvokePayloadSchema.parse(await request.json());
-    jobId = job_id;
+    // 1. VALIDACIÓN DE ENTRADA
+    const payload = await request.json();
+    const { job_id, agent_name } = InvokePayloadSchema.parse(payload);
+    currentJobId = job_id;
 
-    console.log(`[Cover] Iniciando generación para Job ${jobId}`);
+    console.log(`🎨 [${correlationId}] Iniciando generación de imagen para Job: ${job_id}`);
 
-    // 3. RECUPERACIÓN DE DATOS
-    const { data: jobData } = await supabaseAdmin.from('podcast_creation_jobs').select('micro_pod_id').eq('id', jobId).single();
-    if (!jobData?.micro_pod_id) throw new Error(`Job ${jobId} sin podcast asociado.`);
+    // 2. HIDRATACIÓN DE DATOS (Podcast + Agente)
+    const { data: job } = await supabaseAdmin.from('podcast_creation_jobs').select('micro_pod_id').eq('id', job_id).single();
+    if (!job?.micro_pod_id) throw new Error("Referencia de podcast no encontrada.");
+
+    const [podResult, agentResult] = await Promise.all([
+      supabaseAdmin.from('micro_pods').select('title, script_text, user_id').eq('id', job.micro_pod_id).single(),
+      supabaseAdmin.from('ai_prompts').select('prompt_template, model_identifier').eq('agent_name', agent_name).single()
+    ]);
+
+    if (!podResult.data || !agentResult.data) throw new Error("Datos de podcast o agente insuficientes.");
+
+    const podcast = podResult.data;
+    const agent = agentResult.data;
+
+    // 3. CONSTRUCCIÓN DEL PROMPT VISUAL
+    // Limpiamos el guion para usarlo como contexto semántico para la imagen
+    const scriptSummary = cleanTextForSpeech(podcast.script_text || "").substring(0, 500);
     
-    const podcastId = jobData.micro_pod_id;
-    const { data: podcastData } = await supabaseAdmin.from('micro_pods').select('title, script_text, user_id').eq('id', podcastId).single();
-    if (!podcastData) throw new Error(`Podcast ${podcastId} no encontrado.`);
-
-    // 4. RECUPERACIÓN AGENTE (PROMPT)
-    const { data: promptData } = await supabaseAdmin.from('ai_prompts').select('prompt_template, model_identifier').eq('agent_name', agent_name).single();
-    if (!promptData) throw new Error(`Agente '${agent_name}' no encontrado.`);
-
-    // 5. CONSTRUCCIÓN PROMPT
-    const scriptSummary = podcastData.script_text 
-        ? podcastData.script_text.substring(0, 500) + "..." 
-        : "Un podcast interesante sobre temas variados.";
-
-    const visualPrompt = hydratePrompt(promptData.prompt_template, {
-        title: podcastData.title || "Podcast",
-        script_summary: scriptSummary
+    const visualPrompt = buildPrompt(agent.prompt_template, {
+      title: podcast.title,
+      script_summary: scriptSummary
     });
 
-    // 6. GENERACIÓN (VERTEX AI)
-    const accessToken = await getGoogleAccessToken(GOOGLE_CLIENT_EMAIL, GOOGLE_PRIVATE_KEY_RAW);
-    const modelId = promptData.model_identifier || 'imagegeneration@006';
-    const imageUrl = `https://us-central1-aiplatform.googleapis.com/v1/projects/${GOOGLE_PROJECT_ID}/locations/us-central1/publishers/google/models/${modelId}:predict`;
-    
-    const imageResponse = await fetch(imageUrl, {
+    // 4. GENERACIÓN EN VERTEX AI (Google Cloud)
+    const accessToken = await getGoogleAccessToken();
+    const modelId = agent.model_identifier || 'imagegeneration@006'; // Imagen 3 por defecto
+    const vertexUrl = `https://us-central1-aiplatform.googleapis.com/v1/projects/${GOOGLE_PROJECT_ID}/locations/us-central1/publishers/google/models/${modelId}:predict`;
+
+    const imageResponse = await fetch(vertexUrl, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
@@ -114,60 +72,54 @@ const handler = async (request: Request): Promise<Response> => {
         parameters: {
           "sampleCount": 1,
           "aspectRatio": "1:1",
-          // Optimización de formato JPEG (Reduce peso y latencia)
           "outputOptions": {
-             "mimeType": "image/jpeg",
-             "compressionQuality": 80
+            "mimeType": "image/jpeg",
+            "compressionQuality": 80
           }
         }
       })
     });
 
-    if (!imageResponse.ok) {
-      const errorText = await imageResponse.text();
-      throw new Error(`Vertex AI Error (${imageResponse.status}): ${errorText}`);
-    }
+    if (!imageResponse.ok) throw new Error(`Vertex AI Error: ${await imageResponse.text()}`);
 
-    const responseData = await imageResponse.json();
-    const imageBase64 = responseData.predictions?.[0]?.bytesBase64Encoded;
-    
-    if (!imageBase64) {
-      console.error("Vertex Response:", JSON.stringify(responseData, null, 2));
-      throw new Error("La IA no devolvió datos de imagen.");
-    }
+    const vertexData = await imageResponse.json();
+    const imageBase64 = vertexData.predictions?.[0]?.bytesBase64Encoded;
+    if (!imageBase64) throw new Error("La IA no devolvió datos binarios de imagen.");
 
-    // 7. SUBIDA A STORAGE
-    const imageBuffer = Uint8Array.from(atob(imageBase64), (c)=>c.charCodeAt(0));
-    const filePath = `public/${podcastData.user_id}/${podcastId}-cover.jpg`;
-    
+    // 5. PERSISTENCIA EN STORAGE
+    const imageBuffer = Uint8Array.from(atob(imageBase64), (c) => c.charCodeAt(0));
+    const filePath = `public/${podcast.user_id}/${job.micro_pod_id}-cover.jpg`;
+
     const { error: uploadError } = await supabaseAdmin.storage.from('podcasts').upload(filePath, imageBuffer, {
       contentType: 'image/jpeg',
       upsert: true,
-      cacheControl: '31536000'
+      cacheControl: '31536000' // 1 año de caché para optimizar PWA
     });
 
-    if (uploadError) throw new Error(`Error subiendo imagen: ${uploadError.message}`);
+    if (uploadError) throw uploadError;
 
     const { data: publicUrlData } = supabaseAdmin.storage.from('podcasts').getPublicUrl(filePath);
-    
-    // 8. GUARDADO FINAL
+
+    // 6. ACTUALIZACIÓN FINAL
     await supabaseAdmin.from('micro_pods').update({
       cover_image_url: publicUrlData.publicUrl
-    }).eq('id', podcastId);
+    }).eq('id', job.micro_pod_id);
 
-    return new Response(JSON.stringify({
-      success: true,
-      imageUrl: publicUrlData.publicUrl
-    }), {
+    return new Response(JSON.stringify({ success: true, url: publicUrlData.publicUrl }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
-  } catch (error) {
-    // Los errores críticos suben al Guard para Sentry
-    // Los errores de negocio (400) los atrapa el Guard automáticamente si lanzamos una instancia de Error
-    throw error;
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Error desconocido en Imagen Worker";
+    console.error(`🔥 [${correlationId}] Error Imagen:`, msg);
+    
+    // No marcamos el Job como fallido aquí porque el audio podría haber tenido éxito.
+    // Solo logueamos el error para auditoría Admin.
+    return new Response(JSON.stringify({ success: false, error: msg }), { 
+      status: 500, 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    });
   }
 };
 
-// --- PUNTO DE ENTRADA PROTEGIDO ---
 serve(guard(handler));
