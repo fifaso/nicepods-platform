@@ -1,9 +1,9 @@
 // supabase/functions/_shared/guard.ts
-// VERSIÓN: 3.0 (Smart Identity & Rate Limiting)
+// VERSIÓN: 3.3 (Final Stable - Deno Optimized)
 
-import * as Sentry from "npm:@sentry/node@8.26.0";
-import arcjet, { detectBot, fixedWindow, shield } from "npm:@arcjet/deno@1.0.0-beta.4";
-import { corsHeaders } from "./cors.ts";
+import * as Sentry from "sentry";
+import arcjet, { detectBot, fixedWindow, shield } from "arcjet";
+import { corsHeaders } from "cors";
 
 // --- 1. CONFIGURACIÓN (SINGLETON) ---
 
@@ -16,38 +16,30 @@ Sentry.init({
 const aj = arcjet({
   key: Deno.env.get("ARCJET_KEY")!,
   rules: [
-    // Protección contra ataques comunes (SQL Injection, XSS)
+    // Protección contra ataques de inyección y malicia conocida
     shield({ mode: "LIVE" }), 
+    // Bloqueo de Bots agresivo
     detectBot({
       mode: "LIVE",
       allow: ["CATEGORY:SEARCH_ENGINE"],
     }),
-    // Rate Limit Base
+    // Rate Limit por IP (Capa de defensa contra inundación de red)
     fixedWindow({
       mode: "LIVE",
       window: "60s",
-      max: 60, // Aumentamos un poco el margen para usuarios legítimos
+      max: 60,
     }),
   ],
 });
 
 // --- 2. UTILIDADES DE IDENTIDAD ---
 
-/**
- * Intenta extraer el User ID (sub) del JWT de Supabase sin validar la firma 
- * (la validación la hace Supabase después, aquí solo queremos el ID para el Rate Limit)
- */
-function getUserIdFromRequest(req: Request): string | null {
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return null;
-
+function getUserIdFromAuth(authHeader: string | null): string | null {
+  if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
   try {
-    const token = authHeader.replace("Bearer ", "");
-    const parts = token.split(".");
-    if (parts.length !== 3) return null;
-    
-    const payload = JSON.parse(atob(parts[1]));
-    return payload.sub || null; // 'sub' es el estándar para el ID de usuario
+    const token = authHeader.split(".")[1];
+    const decoded = JSON.parse(atob(token));
+    return decoded.sub || null;
   } catch {
     return null;
   }
@@ -58,53 +50,61 @@ function getUserIdFromRequest(req: Request): string | null {
 export const guard = (handler: (req: Request) => Promise<Response>) => {
   return async (req: Request): Promise<Response> => {
     
+    // A. MANEJO DE CORS (Mantenemos soporte total)
     if (req.method === 'OPTIONS') {
       return new Response('ok', { headers: corsHeaders });
     }
 
-    try {
-      // A. DETERMINAR HUELLA DIGITAL (FINGERPRINTING)
-      // Si tenemos un User ID, lo usamos como llave única. Si no, Arcjet usará la IP.
-      const userId = getUserIdFromRequest(req);
-      const fingerprint = userId ? `user-${userId}` : undefined;
+    const correlationId = crypto.randomUUID();
 
-      // B. PROTECCIÓN INTELIGENTE
-      const decision = await aj.protect(req, { 
-        requested: 1,
-        fingerprint: fingerprint 
-      });
+    try {
+      // B. PROTECCIÓN DE BORDE (EDGE PROTECTION)
+      // Solo enviamos 'req' para cumplir con la firma de la versión Deno
+      const decision = await aj.protect(req);
 
       if (decision.isDenied()) {
-        console.warn(`[Arcjet] Bloqueo para ${fingerprint || 'IP'}: ${decision.reason.type}`);
+        console.warn(`[Guard][${correlationId}] Acceso denegado por Arcjet: ${decision.reason.type}`);
         
-        if (decision.reason.isRateLimit()) {
-          return new Response(
-            JSON.stringify({ 
-              error: "Límite de peticiones alcanzado.", 
-              suggestion: userId ? "Espera un momento." : "Inicia sesión para límites más altos." 
-            }), 
-            { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-        
+        const status = decision.reason.isRateLimit() ? 429 : 403;
         return new Response(
-          JSON.stringify({ error: "Acceso denegado por seguridad." }), 
-          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ 
+            error: "Acceso restringido por seguridad.", 
+            trace_id: correlationId 
+          }), 
+          { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      // C. EJECUCIÓN
-      return await handler(req);
+      // C. CONTEXTO DE OBSERVABILIDAD
+      // Extraemos el ID para Sentry pero no lo usamos en la decisión de Arcjet (Edge)
+      const userId = getUserIdFromAuth(req.headers.get("Authorization"));
+      Sentry.setTag("correlation_id", correlationId);
+      if (userId) Sentry.setUser({ id: userId });
+
+      // D. EJECUCIÓN LÓGICA DE NEGOCIO
+      const response = await handler(req);
+      
+      // Inyectar headers CORS en la respuesta de la función real
+      Object.entries(corsHeaders).forEach(([k, v]) => response.headers.set(k, v));
+      
+      return response;
 
     } catch (error) {
-      console.error("🔥 Error en Guard:", error);
-      Sentry.captureException(error);
+      console.error(`🔥 [Guard][${correlationId}] Error Crítico:`, error);
+      
+      Sentry.captureException(error, { extra: { correlationId } });
       await Sentry.flush(2000);
 
-      const errorMessage = error instanceof Error ? error.message : "Internal Server Error";
       return new Response(
-        JSON.stringify({ success: false, error: errorMessage }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ 
+          success: false, 
+          error: "Internal Server Error", 
+          trace_id: correlationId 
+        }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
       );
     }
   };
