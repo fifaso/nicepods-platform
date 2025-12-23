@@ -3,6 +3,10 @@
   "imports": {
     "sentry": "npm:@sentry/node@8.26.0",
     "arcjet": "npm:@arcjet/deno@1.0.0-beta.4",
-    "cors": "./_shared/cors.ts"
+    "cors": "./_shared/cors.ts",
+    "guard": "./_shared/guard.ts",
+    "ai-core": "./_shared/ai.ts",
+    "supabase": "https://esm.sh/@supabase/supabase-js@2.39.7",
+    "std/": "https://deno.land/std@0.168.0/"
   }
 }
