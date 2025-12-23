@@ -1,240 +1,132 @@
 // supabase/functions/generate-audio-from-script/index.ts
-// VERSIÓN: 8.0 (Quality Assurance: Force Draft Mode)
+// VERSIÓN: 10.0 (NicePod Engine v1.0 - Optimized Binaries & Resilience)
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
-import { decode } from "https://deno.land/std@0.208.0/encoding/base64.ts";
-import { create } from "https://deno.land/x/djwt@v2.2/mod.ts";
-import { guard } from "../_shared/guard.ts"; 
-import { corsHeaders } from "../_shared/cors.ts";
+import { serve } from "std/http/server.ts";
+import { createClient, SupabaseClient } from "supabase";
+import { z } from "zod";
+import { decode } from "std/encoding/base64.ts";
+import { guard } from "guard";
+import { corsHeaders } from "cors";
+import { getGoogleAccessToken } from "../_shared/google-auth.ts";
+import { VOICE_CONFIGS, SPEAKING_RATES } from "ai-core";
 
-const HARD_LIMIT_CHARS = 25000; 
-const SAFE_CHUNK_LIMIT = 4000; 
+const SAFE_CHUNK_LIMIT = 4500; // Máximo permitido por petición TTS
 
 const InvokePayloadSchema = z.object({
   job_id: z.number(),
+  trace_id: z.string().optional()
 });
 
-const voiceMap = {
-  "Masculino": {
-    "Calmado": "es-US-Neural2-B",
-    "Energético": "es-US-Neural2-B",
-    "Profesional": "es-US-Neural2-B",
-    "Inspirador": "es-US-Neural2-B",
-  },
-  "Femenino": {
-    "Energético": "es-US-Neural2-A",
-    "Profesional": "es-US-Neural2-A",
-    "Calmado": "es-US-Neural2-C",
-    "Inspirador": "es-US-Neural2-C",
-  }
-};
+// --- UTILIDADES DE AUDIO ---
 
-const speakingRateMap = {
-  "Lento": 0.9,
-  "Moderado": 1.0,
-  "Rápido": 1.1,
-};
-
-function cleanScriptText(raw: string): string {
-  if (!raw) return "";
-  return raw.replace(/<[^>]+>/g, ' ').replace(/[\*_#`]/g, '').replace(/\s+/g, ' ').trim();
-}
-
-function splitTextIntoSafeChunks(text: string, limit: number): string[] {
+function splitTextIntoSafeChunks(text: string): string[] {
   const words = text.split(' ');
   const chunks: string[] = [];
   let currentChunk = "";
 
   for (const word of words) {
-    if ((currentChunk.length + word.length + 1) > limit) {
-      if (currentChunk) chunks.push(currentChunk.trim());
+    if ((currentChunk.length + word.length + 1) > SAFE_CHUNK_LIMIT) {
+      chunks.push(currentChunk.trim());
       currentChunk = word;
     } else {
       currentChunk += (currentChunk ? " " : "") + word;
     }
   }
-  
   if (currentChunk) chunks.push(currentChunk.trim());
-
-  return chunks.flatMap(c => {
-      if (c.length <= limit) return [c];
-      console.warn("Detectado bloque masivo indivisible. Cortando a la fuerza.");
-      return c.match(new RegExp(`.{1,${limit}}`, 'g')) || [c];
-  });
-}
-
-function concatenateAudioBuffers(buffers: ArrayBuffer[]): ArrayBuffer {
-  const totalLength = buffers.reduce((acc, b) => acc + b.byteLength, 0);
-  const result = new Uint8Array(totalLength);
-  let offset = 0;
-  for (const buffer of buffers) {
-    result.set(new Uint8Array(buffer), offset);
-    offset += buffer.byteLength;
-  }
-  return result.buffer;
-}
-
-async function getGoogleAccessToken(clientEmail: string, privateKeyRaw: string) {
-  const privateKey = privateKeyRaw.replace(/\\n/g, '\n');
-  const jwt = await create({ alg: "RS256", typ: "JWT" }, {
-    iss: clientEmail,
-    scope: "https://www.googleapis.com/auth/cloud-platform",
-    aud: "https://oauth2.googleapis.com/token",
-    exp: Math.floor(Date.now() / 1000) + 3600,
-    iat: Math.floor(Date.now() / 1000),
-  }, privateKey);
-
-  const response = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-      assertion: jwt,
-    }),
-  });
-
-  const data = await response.json();
-  if (!response.ok) throw new Error(`Error Auth Google: ${JSON.stringify(data)}`);
-  return data.access_token;
+  return chunks;
 }
 
 const handler = async (request: Request): Promise<Response> => {
-  const GOOGLE_CLIENT_EMAIL = Deno.env.get("GOOGLE_CLIENT_EMAIL");
-  const GOOGLE_PRIVATE_KEY_RAW = Deno.env.get("GOOGLE_PRIVATE_KEY");
-  const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
-  const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const correlationId = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
+  const supabaseAdmin: SupabaseClient = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  );
 
-  if (!GOOGLE_CLIENT_EMAIL || !GOOGLE_PRIVATE_KEY_RAW || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-     throw new Error("FATAL: Variables de entorno críticas no configuradas.");
-  }
-
-  const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-  let jobId: number | null = null;
+  let currentJobId: number | null = null;
 
   try {
-    const { job_id } = InvokePayloadSchema.parse(await request.json());
-    jobId = job_id;
+    const payload = await request.json();
+    const { job_id } = InvokePayloadSchema.parse(payload);
+    currentJobId = job_id;
 
-    const { data: jobData } = await supabaseAdmin.from('podcast_creation_jobs').select('micro_pod_id, payload').eq('id', jobId).single();
-    if (!jobData?.micro_pod_id) throw new Error("Job sin micro_pod_id asociado");
+    // 1. OBTENER DATOS DEL PODCAST
+    const { data: job } = await supabaseAdmin.from('podcast_creation_jobs').select('micro_pod_id, payload').eq('id', job_id).single();
+    if (!job?.micro_pod_id) throw new Error("Referencia de podcast no encontrada.");
 
-    const podcastId = jobData.micro_pod_id;
-    const inputs = jobData.payload.inputs || {};
+    const { data: pod } = await supabaseAdmin.from('micro_pods').select('script_text, user_id').eq('id', job.micro_pod_id).single();
+    if (!pod) throw new Error("Podcast no encontrado en base de datos.");
 
-    const { data: podcastData } = await supabaseAdmin.from('micro_pods').select('script_text, user_id').eq('id', podcastId).single();
+    const scriptData = JSON.parse(pod.script_text || "{}");
+    const textToSpeak = scriptData.script_body || pod.script_text;
     
-    let rawText = "";
-    if (typeof podcastData?.script_text === 'string') {
-        try {
-            const parsed = JSON.parse(podcastData.script_text);
-            rawText = parsed.script_body || parsed.text || podcastData.script_text;
-        } catch {
-            rawText = podcastData.script_text;
-        }
-    } else if (typeof podcastData?.script_text === 'object') {
-        rawText = (podcastData.script_text as any).script_body || JSON.stringify(podcastData.script_text);
+    // Limpieza de caracteres que confunden al TTS
+    const cleanText = textToSpeak.replace(/<[^>]+>/g, ' ').replace(/[\*_#`]/g, '').trim();
+
+    // 2. CONFIGURACIÓN DE VOZ
+    const inputs = job.payload.inputs || {};
+    const gender = inputs.voiceGender || "Masculino";
+    const style = inputs.voiceStyle || "Calmado";
+    const voiceName = VOICE_CONFIGS[gender]?.[style] || "es-US-Neural2-A";
+    const rate = SPEAKING_RATES[inputs.voicePace] || 1.0;
+
+    console.log(`🎙️ [${correlationId}] Iniciando TTS: ${cleanText.length} caracteres.`);
+
+    // 3. PROCESAMIENTO POR FRAGMENTOS
+    const chunks = splitTextIntoSafeChunks(cleanText);
+    const accessToken = await getGoogleAccessToken();
+    const audioBuffers: Uint8Array[] = [];
+
+    for (const chunk of chunks) {
+      const response = await fetch("https://texttospeech.googleapis.com/v1/text:synthesize", {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          input: { text: chunk },
+          voice: { languageCode: "es-US", name: voiceName },
+          audioConfig: { audioEncoding: "MP3", speakingRate: rate }
+        })
+      });
+
+      if (!response.ok) throw new Error(`Google TTS Error: ${await response.text()}`);
+
+      const json = await response.json();
+      audioBuffers.push(new Uint8Array(decode(json.audioContent).buffer));
     }
 
-    const cleanText = cleanScriptText(rawText);
-    
-    if (cleanText.length > HARD_LIMIT_CHARS) {
-        throw new Error(`[SEGURIDAD] El guion excede el límite permitido. Longitud: ${cleanText.length} (Máx: ${HARD_LIMIT_CHARS}).`);
+    // 4. ENSAMBLAJE FINAL
+    const totalLength = audioBuffers.reduce((acc, b) => acc + b.length, 0);
+    const finalBuffer = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const buffer of audioBuffers) {
+      finalBuffer.set(buffer, offset);
+      offset += buffer.length;
     }
 
-    if (cleanText.length < 5) throw new Error("El guion está vacío o es ilegible.");
-
-    console.log(`[Audio] Generando para Job ${jobId}. Longitud: ${cleanText.length}`);
-
-    const chunks = splitTextIntoSafeChunks(cleanText, SAFE_CHUNK_LIMIT);
-
-    const accessToken = await getGoogleAccessToken(GOOGLE_CLIENT_EMAIL, GOOGLE_PRIVATE_KEY_RAW);
-    const ttsApiUrl = `https://texttospeech.googleapis.com/v1/text:synthesize`;
-    
-    const gender = (inputs.voiceGender as keyof typeof voiceMap) || "Masculino";
-    const style = (inputs.voiceStyle as string) || "Calmado";
-    const voiceName = voiceMap[gender]?.[style as any] || "es-US-Neural2-A"; 
-    const paceKey = (inputs.voicePace as keyof typeof speakingRateMap) || "Moderado";
-    const rate = speakingRateMap[paceKey] || 1.0;
-
-    const audioBuffers: ArrayBuffer[] = [];
-
-    for (const [i, chunk] of chunks.entries()) {
-        let retries = 0;
-        let success = false;
-        
-        while(retries < 2 && !success) {
-            try {
-                const response = await fetch(ttsApiUrl, {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${accessToken}`
-                    },
-                    body: JSON.stringify({
-                        input: { text: chunk },
-                        voice: { languageCode: "es-US", name: voiceName },
-                        audioConfig: { audioEncoding: "MP3", speakingRate: rate }
-                    })
-                });
-
-                if (!response.ok) {
-                    const errorTxt = await response.text();
-                    throw new Error(`Google API Error: ${errorTxt}`);
-                }
-
-                const json = await response.json();
-                if (!json.audioContent) throw new Error("Respuesta vacía de Google");
-                
-                audioBuffers.push(decode(json.audioContent).buffer);
-                success = true;
-
-            } catch (e) {
-                retries++;
-                console.error(`Chunk retry ${retries}:`, e);
-                if (retries >= 2) throw e;
-                await new Promise(r => setTimeout(r, 1000));
-            }
-        }
-        
-        if (i < chunks.length - 1) await new Promise(r => setTimeout(r, 100));
-    }
-
-    const finalBuffer = concatenateAudioBuffers(audioBuffers);
-
-    const filePath = `public/${podcastData.user_id}/${podcastId}-audio.mp3`;
-    
-    const { error: uploadError } = await supabaseAdmin.storage.from('podcasts').upload(filePath, finalBuffer, { 
-        contentType: 'audio/mpeg', 
-        upsert: true 
-    });
-    
-    if (uploadError) throw new Error(`Error Storage: ${uploadError.message}`);
-
-    const { data: publicUrlData } = supabaseAdmin.storage.from('podcasts').getPublicUrl(filePath);
-
-    // [CAMBIO CRÍTICO]: Estado final = pending_approval
-    // Esto obliga al usuario a escuchar el audio en el frontend para poder publicarlo.
-    await supabaseAdmin.from('micro_pods').update({ 
-        audio_url: publicUrlData.publicUrl,
-        status: 'pending_approval' // <--- AQUÍ ESTÁ EL CAMBIO
-    }).eq('id', podcastId);
-    
-    await supabaseAdmin.from('podcast_creation_jobs').update({ status: 'completed' }).eq('id', jobId);
-
-    return new Response(JSON.stringify({ success: true }), { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    // 5. SUBIDA A STORAGE
+    const filePath = `public/${pod.user_id}/${job.micro_pod_id}-audio.mp3`;
+    const { error: uploadError } = await supabaseAdmin.storage.from('podcasts').upload(filePath, finalBuffer, {
+      contentType: 'audio/mpeg',
+      upsert: true
     });
 
-  } catch (error) {
-    if (jobId) {
-        await supabaseAdmin.from('podcast_creation_jobs').update({ 
-            status: 'failed', 
-            error_message: error instanceof Error ? error.message : String(error)
-        }).eq('id', jobId);
-    }
-    throw error;
+    if (uploadError) throw uploadError;
+
+    const { data: publicUrl } = supabaseAdmin.storage.from('podcasts').getPublicUrl(filePath);
+
+    // 6. CIERRE DE CICLO
+    await supabaseAdmin.from('micro_pods').update({
+      audio_url: publicUrl.publicUrl,
+      status: 'pending_approval' // Se queda en borrador para revisión del usuario
+    }).eq('id', job.micro_pod_id);
+
+    return new Response(JSON.stringify({ success: true, url: publicUrl.publicUrl }));
+
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Error desconocido en Audio Worker";
+    console.error(`🔥 [${correlationId}] Error Audio:`, msg);
+    if (currentJobId) await supabaseAdmin.from('podcast_creation_jobs').update({ status: 'failed', error_message: msg }).eq('id', currentJobId);
+    return new Response(JSON.stringify({ success: false, error: msg }), { status: 500 });
   }
 };
 

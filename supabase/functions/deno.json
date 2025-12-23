@@ -1,4 +1,10 @@
 {
+  "compilerOptions": {
+    "allowJs": true,
+    "lib": ["deno.window"],
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
+  },
   "nodeModulesDir": "none",
   "imports": {
     "sentry": "npm:@sentry/node@8.26.0",
@@ -7,6 +13,7 @@
     "guard": "./_shared/guard.ts",
     "ai-core": "./_shared/ai.ts",
     "supabase": "https://esm.sh/@supabase/supabase-js@2.39.7",
+    "zod": "https://deno.land/x/zod@v3.22.4/mod.ts",
     "std/": "https://deno.land/std@0.168.0/"
   }
 }
