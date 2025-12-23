@@ -1,28 +1,39 @@
 {
-  "[typescript]": {
-    "editor.defaultFormatter": "denoland.vscode-deno"
-  },
-  "[typescript][typescriptreact]": {
-    "editor.defaultFormatter": "denoland.vscode-deno"
-  },
-  "deno.enable": true,
+  // 1. ELIMINAR BLOQUEOS: Desactivamos Deno globalmente
+  "deno.enable": false,
+  "deno.lint": true,
+  "deno.config": "./supabase/functions/deno.json",
+
+  // 2. ACTIVACIÓN QUIRÚRGICA: Deno solo trabaja en las funciones
   "deno.enablePaths": [
     "supabase/functions"
   ],
-  "deno.lint": true,
+
+  // 3. FORMATEADORES (Corregidos para evitar advertencias en Codespaces)
+  "[typescript]": {
+    "editor.defaultFormatter": "vscode.typescript-language-features"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "vscode.typescript-language-features"
+  },
+
+  // 4. PERMISOS UNSTABLE (Solo los necesarios para Supabase Edge)
   "deno.unstable": [
-    "bare-node-builtins",
-    "byonm",
-    "sloppy-imports",
-    "unsafe-proto",
-    "webgpu",
-    "broadcast-channel",
-    "worker-options",
     "cron",
-    "kv",
-    "ffi",
-    "fs",
-    "http",
-    "net"
-  ]
+    "net",
+    "http"
+  ],
+
+  // 5. EXCLUSIONES PARA VELOCIDAD: Evita que el IDE indexe basura
+  "files.exclude": {
+    "**/.next": true,
+    "**/node_modules": true,
+    "**/dist": true
+  },
+
+  // 6. HIGIENE
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  }
 }
