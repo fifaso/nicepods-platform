@@ -1,5 +1,5 @@
 // supabase/functions/process-podcast-job/index.ts
-// VERSIÓN: 19.0 (Atomic Handshake - Fixes Race Condition & Missing Params)
+// VERSIÓN: 20.0 (Master Persistence - Metadata Sincronizada)
 
 import { serve } from "std/http/server.ts";
 import { createClient, SupabaseClient } from "supabase";
@@ -24,8 +24,7 @@ const handler = async (request: Request): Promise<Response> => {
     const { data: job, error: jobErr } = await supabaseAdmin.from("podcast_creation_jobs").select("*").eq("id", currentJobId).single();
     if (jobErr || !job) throw new Error(`Job ${currentJobId} no encontrado.`);
 
-    // FIX 1: Interpolación de logs corregida
-    console.log(`🚀 [${correlationId}] Procesando Podcast: ${job.job_title}`);
+    console.log(`🚀 [${correlationId}] Orquestando Metadata para: ${job.job_title}`);
 
     const agentName = job.payload.agentName || (job.payload.creation_mode === "remix" ? "reply-synthesizer-v1" : "script-architect-v1");
 
@@ -48,45 +47,37 @@ const handler = async (request: Request): Promise<Response> => {
       scriptBody = content.script.map((s) => s.line).join("\n\n");
     }
 
-    if (!scriptBody) throw new Error("Guion vacío generado por IA.");
-
-    // 1. CREAR EL PODCAST PRIMERO
+    // 1. INSERCIÓN CON METADATOS COMPLETOS
     const { data: pod, error: podErr } = await supabaseAdmin.from("micro_pods").insert({
         user_id: job.user_id,
         title: content.title || content.suggested_title || job.job_title,
-        script_text: JSON.stringify({ script_body: scriptBody, script_plain: scriptBody.replace(/<[^>]+>/g, " ").trim() }),
+        script_text: JSON.stringify({ 
+            script_body: scriptBody, 
+            script_plain: scriptBody.replace(/<[^>]+>/g, " ").trim() 
+        }),
         status: "pending_approval",
         creation_mode: job.payload.creation_mode,
         parent_id: job.payload.parent_id,
-        agent_version: agentName
+        agent_version: agentName,
+        // [FIX CRÍTICO]: Persistimos el payload original para que el frontend tenga qué mostrar
+        creation_data: job.payload 
       }).select("id").single();
 
     if (podErr) throw podErr;
 
-    // FIX 2: ACTUALIZACIÓN ATÓMICA ANTES DE LOS WORKERS
-    // Esto garantiza que cuando el worker de audio despierte, el ID ya esté en la DB.
+    // Actualización atómica antes de workers
     await supabaseAdmin.from("podcast_creation_jobs").update({ 
         status: "processing", 
         micro_pod_id: pod.id 
     }).eq("id", currentJobId);
 
-    // FIX 3: INVOCACIÓN CON PAYLOAD COMPLETO
-    // Enviamos agent_name para cumplir el contrato de generate-cover-image
-    console.log(`📡 [${correlationId}] Disparando workers para Pod: ${pod.id}`);
-    
+    // Fan-out paralelo
     await Promise.allSettled([
-      supabaseAdmin.functions.invoke("generate-audio-from-script", { 
-        body: { job_id: job.id, trace_id: correlationId } 
-      }),
-      supabaseAdmin.functions.invoke("generate-cover-image", { 
-        body: { job_id: job.id, agent_name: "cover-art-director-v1", trace_id: correlationId } 
-      }),
-      supabaseAdmin.functions.invoke("generate-embedding", { 
-        body: { podcast_id: pod.id, trace_id: correlationId } 
-      })
+      supabaseAdmin.functions.invoke("generate-audio-from-script", { body: { job_id: job.id, trace_id: correlationId } }),
+      supabaseAdmin.functions.invoke("generate-cover-image", { body: { job_id: job.id, agent_name: "cover-art-director-v1", trace_id: correlationId } }),
+      supabaseAdmin.functions.invoke("generate-embedding", { body: { podcast_id: pod.id, trace_id: correlationId } })
     ]);
 
-    // Marcamos como completado el orquestador
     await supabaseAdmin.from("podcast_creation_jobs").update({ status: "completed" }).eq("id", currentJobId);
 
     return new Response(JSON.stringify({ success: true, pod_id: pod.id }), { headers: { "Content-Type": "application/json" } });
