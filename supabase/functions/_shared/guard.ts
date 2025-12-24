@@ -1,5 +1,5 @@
 // supabase/functions/_shared/guard.ts
-// VERSIÓN: 3.4 (Immutable-Safe Headers & Enhanced Logging)
+// VERSIÓN: 3.5 (Deno v2 Optimized - Silent Header Injection)
 
 import * as Sentry from "sentry";
 import arcjet, { detectBot, fixedWindow, shield } from "arcjet";
@@ -8,7 +8,6 @@ import { corsHeaders } from "cors";
 Sentry.init({
   dsn: Deno.env.get("SENTRY_DSN"),
   tracesSampleRate: 1.0,
-  defaultIntegrations: false,
 });
 
 const aj = arcjet({
@@ -30,30 +29,29 @@ export const guard = (handler: (req: Request) => Promise<Response>) => {
 
     try {
       const decision = await aj.protect(req);
-
       if (decision.isDenied()) {
         return new Response(
-          JSON.stringify({ error: "Security block", trace_id: correlationId }), 
+          JSON.stringify({ error: "Access Denied", trace_id: correlationId }), 
           { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      // EJECUCIÓN DEL HANDLER
+      // Ejecutamos la función
       const response = await handler(req);
       
-      // [FIX CRÍTICO]: Para evitar errores de inmutabilidad, creamos una nueva Response 
-      // con los headers combinados.
-      const newHeaders = new Headers(response.headers);
-      Object.entries(corsHeaders).forEach(([k, v]) => newHeaders.set(k, v));
+      // Creamos una respuesta nueva para asegurar que los headers CORS estén presentes
+      // sin importar cómo se generó la respuesta original.
+      const responseHeaders = new Headers(response.headers);
+      Object.entries(corsHeaders).forEach(([k, v]) => responseHeaders.set(k, v));
 
       return new Response(response.body, {
         status: response.status,
         statusText: response.statusText,
-        headers: newHeaders,
+        headers: responseHeaders,
       });
 
     } catch (error) {
-      console.error(`🔥 [Guard][${correlationId}] Fatal:`, error);
+      console.error(`🔥 [Guard][${correlationId}] Error:`, error);
       Sentry.captureException(error);
       await Sentry.flush(2000);
 
