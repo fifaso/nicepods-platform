@@ -1,6 +1,4 @@
 // supabase/functions/generate-cover-image/index.ts
-// VERSIÓN: 4.0 (NicePod Engine Standard - Vertex AI Imagen 3)
-
 import { serve } from "std/http/server.ts";
 import { createClient, SupabaseClient } from "supabase";
 import { z } from "zod";
@@ -11,6 +9,7 @@ import { buildPrompt, cleanTextForSpeech } from "ai-core";
 
 const InvokePayloadSchema = z.object({
   job_id: z.number(),
+  podcast_id: z.number(),
   agent_name: z.string().default("cover-art-director-v1"),
   trace_id: z.string().optional()
 });
@@ -24,28 +23,25 @@ const handler = async (request: Request): Promise<Response> => {
 
   try {
     const payload = await request.json();
-    const { job_id, agent_name } = InvokePayloadSchema.parse(payload);
+    const { podcast_id, agent_name } = InvokePayloadSchema.parse(payload);
 
-    // 1. HIDRATACIÓN
-    const { data: job } = await supabaseAdmin.from('podcast_creation_jobs').select('micro_pod_id').eq('id', job_id).single();
-    if (!job?.micro_pod_id) throw new Error("Referencia de podcast no encontrada.");
-
+    // 1. OBTENCIÓN DIRECTA
     const [podRes, agentRes] = await Promise.all([
-      supabaseAdmin.from('micro_pods').select('title, script_text, user_id').eq('id', job.micro_pod_id).single(),
+      supabaseAdmin.from('micro_pods').select('title, script_text, user_id').eq('id', podcast_id).single(),
       supabaseAdmin.from('ai_prompts').select('prompt_template, model_identifier').eq('agent_name', agent_name).single()
     ]);
 
-    if (!podRes.data || !agentRes.data) throw new Error("Datos insuficientes para generar imagen.");
+    if (!podRes.data || !agentRes.data) throw new Error("Datos insuficientes para imagen.");
 
-    // 2. CONSTRUCCIÓN DEL PROMPT VISUAL
+    // 2. PROMPT VISUAL
     const scriptSummary = cleanTextForSpeech(podRes.data.script_text || "").substring(0, 500);
     const visualPrompt = buildPrompt(agentRes.data.prompt_template, {
       title: podRes.data.title,
       script_summary: scriptSummary
     });
 
-    // 3. VERTEX AI CALL (Imagen 3)
-    console.log(`🎨 [${correlationId}] Generando Imagen para Job ${job_id}`);
+    // 3. GENERACIÓN VERTEX AI
+    console.log(`🎨 [${correlationId}] Generando Imagen para Pod: ${podcast_id}`);
     const accessToken = await getGoogleAccessToken();
     const modelId = agentRes.data.model_identifier || 'imagegeneration@006';
     const vertexUrl = `https://us-central1-aiplatform.googleapis.com/v1/projects/${GOOGLE_PROJECT_ID}/locations/us-central1/publishers/google/models/${modelId}:predict`;
@@ -59,38 +55,32 @@ const handler = async (request: Request): Promise<Response> => {
       })
     });
 
-    if (!response.ok) throw new Error(`Vertex AI Fail: ${await response.text()}`);
+    if (!response.ok) throw new Error(`Vertex AI Error: ${await response.text()}`);
     const result = await response.json();
     const imageBase64 = result.predictions?.[0]?.bytesBase64Encoded;
-    if (!imageBase64) throw new Error("La IA no devolvió binarios de imagen.");
 
-    // 4. PERSISTENCIA
+    // 4. STORAGE
     const imageBuffer = Uint8Array.from(atob(imageBase64), (c) => c.charCodeAt(0));
-    const filePath = `public/${podRes.data.user_id}/${job.micro_pod_id}-cover.jpg`;
+    const filePath = `public/${podRes.data.user_id}/${podcast_id}-cover.jpg`;
 
     await supabaseAdmin.storage.from('podcasts').upload(filePath, imageBuffer, {
       contentType: 'image/jpeg',
-      upsert: true,
-      cacheControl: '31536000'
+      upsert: true
     });
 
     const { data: publicUrl } = supabaseAdmin.storage.from('podcasts').getPublicUrl(filePath);
 
     await supabaseAdmin.from('micro_pods').update({
       cover_image_url: publicUrl.publicUrl
-    }).eq('id', job.micro_pod_id);
+    }).eq('id', podcast_id);
 
     return new Response(JSON.stringify({ success: true, url: publicUrl.publicUrl }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Error desconocido en Imagen Worker";
-    console.error(`🔥 [${correlationId}] Error:`, msg);
-    return new Response(JSON.stringify({ success: false, error: msg }), { 
-      status: 500, 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-    });
+    console.error(`🔥 [Image Error]:`, err);
+    return new Response(JSON.stringify({ success: false, error: "Image Fail" }), { status: 500 });
   }
 };
 

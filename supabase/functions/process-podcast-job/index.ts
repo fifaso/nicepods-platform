@@ -1,14 +1,9 @@
 // supabase/functions/process-podcast-job/index.ts
-// VERSIÓN: 21.0 (Enterprise Standard - Full Transparency & Strict Typing)
-
 import { serve } from "std/http/server.ts";
 import { createClient, SupabaseClient } from "supabase";
 import { guard } from "guard";
 import { AI_MODELS, callGemini, parseAIJson, buildPrompt } from "ai-core";
 
-/**
- * Interfaces para eliminar advertencias de 'any' y asegurar contratos de datos
- */
 interface AIScriptLine {
   speaker: string;
   line: string;
@@ -24,12 +19,9 @@ interface AIContentResponse {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-
-// Inicialización del cliente administrador
 const supabaseAdmin: SupabaseClient = createClient(SUPABASE_URL, SERVICE_KEY);
 
 const handler = async (request: Request): Promise<Response> => {
-  // TraceID para seguimiento holístico de la petición
   const correlationId = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
   let currentJobId: number | null = null;
 
@@ -37,26 +29,19 @@ const handler = async (request: Request): Promise<Response> => {
     const payload = await request.json();
     currentJobId = payload.job_id;
 
-    // 1. HIDRATACIÓN DEL TRABAJO
+    // 1. HIDRATACIÓN DEL JOB
     const { data: job, error: jobErr } = await supabaseAdmin
       .from("podcast_creation_jobs")
       .select("*")
       .eq("id", currentJobId)
       .single();
 
-    if (jobErr || !job) {
-      throw new Error(`Imposible localizar el Job con ID: ${currentJobId}`);
-    }
+    if (jobErr || !job) throw new Error(`Job ${currentJobId} no encontrado.`);
 
-    console.log(`🚀 [${correlationId}] Procesando metadatos para: ${job.job_title}`);
+    console.log(`🚀 [${correlationId}] Iniciando Síntesis Creativa: ${job.job_title}`);
+    await supabaseAdmin.from("podcast_creation_jobs").update({ status: "processing" }).eq("id", currentJobId);
 
-    // Marcamos el inicio del procesamiento
-    await supabaseAdmin
-      .from("podcast_creation_jobs")
-      .update({ status: "processing" })
-      .eq("id", currentJobId);
-
-    // 2. SELECCIÓN DINÁMICA DEL AGENTE
+    // 2. CONFIGURACIÓN DEL AGENTE
     const agentName = job.payload.agentName || 
                      (job.payload.creation_mode === "remix" ? "reply-synthesizer-v1" : "script-architect-v1");
 
@@ -66,13 +51,10 @@ const handler = async (request: Request): Promise<Response> => {
       .eq("agent_name", agentName)
       .single();
 
-    // FIX: Validación de existencia del agente para eliminar el error 'possibly null'
-    if (agentErr || !agent) {
-      throw new Error(`El Agente Inteligente '${agentName}' no está configurado en la base de datos.`);
-    }
+    if (agentErr || !agent) throw new Error(`Agente ${agentName} no disponible.`);
 
-    // 3. GENERACIÓN DE INTELIGENCIA NARRATIVA
-    const contextData = {
+    // 3. GENERACIÓN NARRATIVA (Gemini 2.0 Flash)
+    const context = {
       ...job.payload.inputs,
       topic: job.payload.inputs?.topic || job.job_title,
       quote_context: job.payload.quote_context,
@@ -81,106 +63,70 @@ const handler = async (request: Request): Promise<Response> => {
       depth: job.payload.inputs?.depth || "Profunda"
     };
 
-    const finalPrompt = buildPrompt(agent.prompt_template, contextData);
-    const modelToUse = agent.model_identifier || AI_MODELS.LATEST;
-    
-    const rawAiResponse = await callGemini(finalPrompt, modelToUse);
+    const finalPrompt = buildPrompt(agent.prompt_template, context);
+    const rawAiResponse = await callGemini(finalPrompt, agent.model_identifier || AI_MODELS.LATEST);
     const content: AIContentResponse = parseAIJson(rawAiResponse);
 
-    // 4. NORMALIZACIÓN DEL GUION (Cero 'any')
-    let finalScriptBody = "";
-    if (content.script_body) {
-      finalScriptBody = content.script_body;
-    } else if (Array.isArray(content.script)) {
-      finalScriptBody = content.script.map((item: AIScriptLine) => item.line).join("\n\n");
-    } else if (content.text) {
-      finalScriptBody = content.text;
+    let scriptBody = content.script_body || content.text || "";
+    if (!scriptBody && Array.isArray(content.script)) {
+      scriptBody = content.script.map((s: AIScriptLine) => s.line).join("\n\n");
     }
 
-    if (!finalScriptBody || finalScriptBody.length < 10) {
-      throw new Error("Fallo en la síntesis: El guion generado no tiene la longitud mínima requerida.");
-    }
+    if (!scriptBody) throw new Error("La IA generó un guion vacío.");
 
-    // 5. REGISTRO DEL PODCAST (HUELLA DIGITAL COMPLETA)
-    const { data: newPodcast, error: dbInsertError } = await supabaseAdmin
+    // 4. CREACIÓN ATÓMICA DEL PODCAST (Heredando metadatos para transparencia)
+    const { data: pod, error: podErr } = await supabaseAdmin
       .from("micro_pods")
       .insert({
         user_id: job.user_id,
         title: content.title || content.suggested_title || job.job_title,
         script_text: JSON.stringify({ 
-          script_body: finalScriptBody,
-          script_plain: finalScriptBody.replace(/<[^>]+>/g, " ").trim() 
+          script_body: scriptBody, 
+          script_plain: scriptBody.replace(/<[^>]+>/g, " ").trim() 
         }),
         status: "pending_approval",
         creation_mode: job.payload.creation_mode,
         parent_id: job.payload.parent_id,
         agent_version: agentName,
-        // PERSISTENCIA 360: Guardamos el payload y las fuentes para transparencia total
-        creation_data: job.payload,
+        creation_data: job.payload, // Persistencia de transparencia
         sources: job.payload.sources || []
       })
       .select("id")
       .single();
 
-    if (dbInsertError) throw dbInsertError;
+    if (podErr) throw podErr;
 
-    // 6. DISPARO DE WORKERS ASÍNCRONOS (FAN-OUT)
-    console.log(`📡 [${correlationId}] Disparando producción de activos para Pod: ${newPodcast.id}`);
+    // 5. VÍNCULO DE SEGURIDAD
+    // Actualizamos el Job con el ID del podcast ANTES de llamar a los workers
+    await supabaseAdmin.from("podcast_creation_jobs").update({ 
+        micro_pod_id: pod.id 
+    }).eq("id", currentJobId);
+
+    // 6. INVOCACIÓN EN PARALELO (Direct Injection)
+    console.log(`📡 [${correlationId}] Fan-out: Inyectando Podcast ID ${pod.id}`);
     
-    const workerPromises = [
+    await Promise.allSettled([
       supabaseAdmin.functions.invoke("generate-audio-from-script", { 
-        body: { job_id: job.id, trace_id: correlationId } 
+        body: { job_id: job.id, podcast_id: pod.id, trace_id: correlationId } 
       }),
       supabaseAdmin.functions.invoke("generate-cover-image", { 
-        body: { job_id: job.id, agent_name: "cover-art-director-v1", trace_id: correlationId } 
+        body: { job_id: job.id, podcast_id: pod.id, agent_name: "cover-art-director-v1", trace_id: correlationId } 
       }),
       supabaseAdmin.functions.invoke("generate-embedding", { 
-        body: { podcast_id: newPodcast.id, trace_id: correlationId } 
+        body: { podcast_id: pod.id, trace_id: correlationId } 
       })
-    ];
+    ]);
 
-    // No bloqueamos el proceso, permitimos que los workers trabajen en paralelo
-    await Promise.allSettled(workerPromises);
+    await supabaseAdmin.from("podcast_creation_jobs").update({ status: "completed" }).eq("id", currentJobId);
 
-    // 7. CIERRE DEL TRABAJO
-    await supabaseAdmin
-      .from("podcast_creation_jobs")
-      .update({ 
-        status: "completed", 
-        micro_pod_id: newPodcast.id 
-      })
-      .eq("id", currentJobId);
-
-    return new Response(JSON.stringify({ 
-      success: true, 
-      podcast_id: newPodcast.id,
-      trace_id: correlationId 
-    }), {
+    return new Response(JSON.stringify({ success: true, pod_id: pod.id }), {
       headers: { "Content-Type": "application/json" }
     });
 
   } catch (err: unknown) {
-    const errorMessage = err instanceof Error ? err.message : "Error desconocido en el orquestador";
-    console.error(`🔥 [${correlationId}] Fallo en Orquestación:`, errorMessage);
-
-    if (currentJobId) {
-      await supabaseAdmin
-        .from("podcast_creation_jobs")
-        .update({ 
-          status: "failed", 
-          error_message: errorMessage 
-        })
-        .eq("id", currentJobId);
-    }
-
-    return new Response(JSON.stringify({ 
-      success: false, 
-      error: errorMessage,
-      trace_id: correlationId 
-    }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" }
-    });
+    const msg = err instanceof Error ? err.message : "Error desconocido";
+    if (currentJobId) await supabaseAdmin.from("podcast_creation_jobs").update({ status: "failed", error_message: msg }).eq("id", currentJobId);
+    return new Response(JSON.stringify({ success: false, error: msg }), { status: 500 });
   }
 };
 
