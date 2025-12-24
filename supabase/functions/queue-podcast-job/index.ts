@@ -1,11 +1,14 @@
 // supabase/functions/queue-podcast-job/index.ts
-// VERSIÓN: 11.3 (Deno v2 Standard - Immediate Body Consumption)
+// VERSIÓN: 12.1 (Atomic DB Integration - Clean & No Unused Vars)
 
 import { serve } from "std/http/server.ts";
-import { createClient, SupabaseClient } from "supabase";
+import { createClient } from "supabase";
 import { z, ZodError } from "zod";
 import { guard } from "guard";
 
+/**
+ * Esquema de validación para asegurar integridad de datos de entrada
+ */
 const QueuePayloadSchema = z.object({
   agentName: z.string().optional(),
   creation_mode: z.enum(['standard', 'remix']).default('standard'),
@@ -18,84 +21,77 @@ const QueuePayloadSchema = z.object({
 const handler = async (request: Request): Promise<Response> => {
   const correlationId = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
   
-  // ESTRATEGIA: Consumir el body inmediatamente para evitar bloqueos de stream en Deno v2
+  // ESTRATEGIA: Consumir el body inmediatamente para liberar el stream en Deno v2
   const rawBody = await request.json();
-  console.log(`[Queue][${correlationId}] 1. Body recibido.`);
 
   const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? "";
   const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? "";
+  const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_KEY);
 
   try {
-    // 1. VALIDACIÓN DE SESIÓN
+    // 1. OBTENER IDENTIDAD (Desde el Header inyectado por el Guard)
     const authHeader = request.headers.get('Authorization');
-    if (!authHeader) throw new Error("No Auth Header");
+    if (!authHeader) throw new Error("Acceso denegado: Sesión no encontrada.");
 
-    const supabaseClient: SupabaseClient = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_ANON_KEY') ?? "", {
-      global: { headers: { Authorization: authHeader } }
-    });
+    // Decodificación rápida del JWT para identificar al usuario
+    const token = authHeader.replace("Bearer ", "").split(".")[1];
+    const { sub: userId } = JSON.parse(atob(token));
 
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
-    if (authError || !user) throw new Error("Invalid Session");
+    console.log(`[Queue][${correlationId}] Operación atómica para usuario: ${userId}`);
 
-    const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_KEY);
-
-    // 2. CONTROL DE CUOTAS
-    console.log(`[Queue][${correlationId}] 2. Analizando cuota para ${user.id}`);
-
-    const { data: usageData, error: usageErr } = await supabaseAdmin
-        .from('user_usage')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-    if (usageErr) console.error("Error consultando cuota:", usageErr);
-
-    const currentUsage = usageData ?? { 
-        podcasts_created_this_month: 0, 
-        last_reset_date: new Date().toISOString() 
-    };
-
-    const MAX_FREE_LIMIT = 3;
-    if (currentUsage.podcasts_created_this_month >= MAX_FREE_LIMIT) {
-        return new Response(JSON.stringify({ error: "Límite excedido", trace_id: correlationId }), { status: 403 });
-    }
-
-    // 3. VALIDACIÓN DE PAYLOAD
+    // 2. VALIDACIÓN DE CARGA
     const validatedPayload = QueuePayloadSchema.parse(rawBody);
+    
+    // Fallback de agente para hilos
     if (validatedPayload.creation_mode === 'remix' && !validatedPayload.agentName) {
         validatedPayload.agentName = 'reply-synthesizer-v1';
     }
 
-    // 4. ENCOLADO
-    console.log(`[Queue][${correlationId}] 3. Ejecutando RPC...`);
+    // 3. OPERACIÓN ATÓMICA (Validar cuota e insertar en un solo viaje SQL)
     const { data: jobId, error: rpcError } = await supabaseAdmin.rpc('increment_jobs_and_queue', {
-        p_user_id: user.id,
+        p_user_id: userId,
         p_payload: validatedPayload
     });
 
-    if (rpcError) throw new Error(`RPC Error: ${rpcError.message}`);
+    if (rpcError) {
+      const isQuotaError = rpcError.message.includes('Límite mensual');
+      console.warn(`[Queue][${correlationId}] Rechazado por DB: ${rpcError.message}`);
+      return new Response(JSON.stringify({ 
+        error: rpcError.message, 
+        trace_id: correlationId 
+      }), { 
+        status: isQuotaError ? 403 : 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
 
-    // 5. DISPARO ASÍNCRONO
-    console.log(`[Queue][${correlationId}] 4. Job ${jobId} creado. Invocando orquestador...`);
+    // 4. DISPARO DE WORKERS (Fan-out)
+    console.log(`[Queue][${correlationId}] Job ${jobId} aceptado.`);
+    
     supabaseAdmin.functions.invoke('process-podcast-job', {
       body: { job_id: jobId, trace_id: correlationId }
     });
 
-    // 6. ACTUALIZAR USO
+    // 5. REGISTRO DE ACTIVIDAD (Upsert de uso para inicialización si no existe)
     await supabaseAdmin.from('user_usage').upsert({
-        user_id: user.id,
-        podcasts_created_this_month: (currentUsage.podcasts_created_this_month || 0) + 1,
-        last_reset_date: currentUsage.last_reset_date,
+        user_id: userId,
         updated_at: new Date().toISOString()
-    });
+    }, { onConflict: 'user_id' });
 
-    return new Response(JSON.stringify({ success: true, job_id: jobId, trace_id: correlationId }), { status: 202 });
+    return new Response(JSON.stringify({ 
+      success: true, 
+      job_id: jobId, 
+      trace_id: correlationId 
+    }), { status: 202, headers: { 'Content-Type': 'application/json' } });
 
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Queue Error";
-    console.error(`🔥 [Queue][${correlationId}] Fallo:`, msg);
-    return new Response(JSON.stringify({ error: msg, trace_id: correlationId }), { 
-      status: err instanceof ZodError ? 400 : 500 
+    const msg = err instanceof Error ? err.message : "Error desconocido en el motor de cola";
+    const status = err instanceof ZodError ? 400 : 500;
+    
+    console.error(`🔥 [Queue][${correlationId}] Fallo Crítico:`, msg);
+    return new Response(JSON.stringify({ error: msg, trace_id: correlationId }), {
+      status,
+      headers: { 'Content-Type': 'application/json' }
     });
   }
 };
