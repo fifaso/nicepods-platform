@@ -1,9 +1,9 @@
 // components/podcast-creation-form.tsx
-// VERSIÓN: 9.5 (Master Production - Provenance Guaranteed & Full Context)
+// VERSIÓN: 10.0 (Master Integrity - Full Metadata & Source Provenance)
 
 "use client";
 
-import { useState, useCallback, createContext, useContext, useEffect, useMemo } from "react";
+import { useState, useCallback, createContext, useContext, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -13,7 +13,7 @@ import { PodcastCreationSchema, PodcastCreationData } from "@/lib/validation/pod
 import { useAudio } from "@/contexts/audio-context";
 import { usePersistentForm } from "@/hooks/use-persistent-form";
 
-// Importación Dinámica (Lazy Load) para componentes pesados
+// Importación Dinámica para componentes pesados
 import dynamic from 'next/dynamic';
 
 const ScriptEditorStep = dynamic(
@@ -23,7 +23,7 @@ const ScriptEditorStep = dynamic(
     loading: () => (
       <div className="h-64 w-full flex items-center justify-center text-muted-foreground animate-pulse">
         <Loader2 className="h-6 w-6 animate-spin mr-2 text-primary" />
-        <span className="text-sm font-medium">Cargando Editor de Guion...</span>
+        <span className="text-sm font-medium">Preparando editor profesional...</span>
       </div>
     )
   }
@@ -44,7 +44,7 @@ import {
 } from "lucide-react";
 import { ToastAction } from "@/components/ui/toast"; 
 
-// Importación de Pasos del Flow
+// Pasos del flujo
 import { PurposeSelectionStep } from "./create-flow/purpose-selection-step";
 import { LearnSubStep } from "./create-flow/LearnSubStep";
 import { InspireSubStep } from "./create-flow/InspireSubStep";
@@ -63,22 +63,11 @@ import { ArchetypeStep } from "./create-flow/archetype-step";
 import { ArchetypeInputStep } from "./create-flow/archetype-input"; 
 
 export type FlowState = 
-  | 'SELECTING_PURPOSE' 
-  | 'LEARN_SUB_SELECTION' 
-  | 'INSPIRE_SUB_SELECTION'
-  | 'SOLO_TALK_INPUT' 
-  | 'ARCHETYPE_SELECTION' 
-  | 'ARCHETYPE_GOAL'      
-  | 'LINK_POINTS_INPUT' 
-  | 'NARRATIVE_SELECTION'
-  | 'LEGACY_INPUT' 
-  | 'QUESTION_INPUT' 
-  | 'FREESTYLE_SELECTION'
-  | 'DETAILS_STEP' 
-  | 'TONE_SELECTION'
-  | 'SCRIPT_EDITING' 
-  | 'AUDIO_STUDIO_STEP' 
-  | 'FINAL_STEP';
+  | 'SELECTING_PURPOSE' | 'LEARN_SUB_SELECTION' | 'INSPIRE_SUB_SELECTION'
+  | 'SOLO_TALK_INPUT' | 'ARCHETYPE_SELECTION' | 'ARCHETYPE_GOAL'      
+  | 'LINK_POINTS_INPUT' | 'NARRATIVE_SELECTION' | 'LEGACY_INPUT' 
+  | 'QUESTION_INPUT' | 'FREESTYLE_SELECTION' | 'DETAILS_STEP' 
+  | 'TONE_SELECTION' | 'SCRIPT_EDITING' | 'AUDIO_STUDIO_STEP' | 'FINAL_STEP';
 
 interface CreationContextType {
   updateFormData: (data: Partial<PodcastCreationData>) => void;
@@ -94,6 +83,16 @@ export const useCreationContext = () => {
   return context;
 };
 
+// Rutas de flujo estáticas
+const FLOW_PATHS: Record<string, FlowState[]> = {
+  learn: ['SELECTING_PURPOSE', 'LEARN_SUB_SELECTION', 'SOLO_TALK_INPUT', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
+  inspire: ['SELECTING_PURPOSE', 'INSPIRE_SUB_SELECTION', 'ARCHETYPE_SELECTION', 'ARCHETYPE_GOAL', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
+  explore: ['SELECTING_PURPOSE', 'LINK_POINTS_INPUT', 'NARRATIVE_SELECTION', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
+  reflect: ['SELECTING_PURPOSE', 'LEGACY_INPUT', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
+  answer: ['SELECTING_PURPOSE', 'QUESTION_INPUT', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
+  freestyle: ['SELECTING_PURPOSE', 'FREESTYLE_SELECTION'],
+};
+
 export function PodcastCreationForm() {
   const router = useRouter();
   const { toast } = useToast();
@@ -103,46 +102,27 @@ export function PodcastCreationForm() {
   const [isMounted, setIsMounted] = useState(false);
   const [currentFlowState, setCurrentFlowState] = useState<FlowState>('SELECTING_PURPOSE');
   const [history, setHistory] = useState<FlowState[]>(['SELECTING_PURPOSE']);
-  
   const [isGeneratingScript, setIsGeneratingScript] = useState(false);
   const [isLoadingNarratives, setIsLoadingNarratives] = useState(false);
   const [narrativeOptions, setNarrativeOptions] = useState<any[]>([]);
   const [hasRestorableData, setHasRestorableData] = useState(false);
 
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  useEffect(() => { setIsMounted(true); }, []);
 
   const formMethods = useForm<PodcastCreationData>({
     resolver: zodResolver(PodcastCreationSchema),
     mode: "onBlur",
     defaultValues: {
       purpose: "learn",
-      style: undefined,
       solo_topic: '',
       solo_motivation: '',
-      link_topicA: '',
-      link_topicB: '',
-      link_catalyst: '',
-      link_selectedNarrative: null,
-      link_selectedTone: undefined,
-      selectedArchetype: undefined,
-      archetype_topic: '',
-      archetype_goal: '',
-      legacy_lesson: '',
-      question_to_answer: '',
       duration: '',
       narrativeDepth: '',
-      selectedTone: undefined,
-      voiceGender: "Masculino",
-      voiceStyle: "Calmado",
-      voicePace: "Moderado",
-      speakingRate: 1.0,
       tags: [],
       generateAudioDirectly: true,
       final_title: '',
       final_script: '',
-      sources: [], // Fundamental para el registro de transparencia
+      sources: [],
     },
   });
 
@@ -158,19 +138,18 @@ export function PodcastCreationForm() {
       setHistory(savedHistory as FlowState[]);
       setCurrentFlowState(savedStep as FlowState);
     },
-    () => setHasRestorableData(true) 
+    () => setHasRestorableData(true)
   );
 
   useEffect(() => {
     if (isMounted && hasRestorableData) {
       toast({
-        title: "Borrador recuperado",
-        description: "¿Deseas continuar donde te quedaste?",
-        duration: 10000, 
+        title: "Sesión pendiente",
+        description: "¿Deseas retomar tu última creación?",
         action: (
-          <div className="flex items-center gap-2">
-             <ToastAction altText="Descartar" onClick={() => { discardSession(); setHasRestorableData(false); }} className="text-xs">Limpiar</ToastAction>
-             <ToastAction altText="Continuar" onClick={() => { restoreSession(); setHasRestorableData(false); }} className="bg-primary text-primary-foreground text-xs">Continuar</ToastAction>
+          <div className="flex gap-2">
+            <ToastAction altText="Descartar" onClick={() => { discardSession(); setHasRestorableData(false); }}>Limpiar</ToastAction>
+            <ToastAction altText="Retomar" onClick={() => { restoreSession(); setHasRestorableData(false); }} className="bg-primary text-white">Retomar</ToastAction>
           </div>
         ),
       });
@@ -198,19 +177,13 @@ export function PodcastCreationForm() {
     });
   };
 
-  /**
-   * FASE 1: GENERACIÓN DE INVESTIGACIÓN Y BORRADOR
-   * Es el punto donde capturamos las fuentes de Tavily.
-   */
   const handleGenerateDraft = async () => {
     setIsGeneratingScript(true);
     try {
       const currentData = getValues();
-      
-      // Determinamos el agente para que la búsqueda sea Agent-Centric
       const selectedAgent = currentData.purpose === 'inspire' ? currentData.selectedArchetype : currentData.selectedTone;
 
-      const draftPayload = {
+      const payload = {
         purpose: currentData.purpose,
         style: currentData.style || 'solo',
         duration: currentData.duration,
@@ -225,148 +198,90 @@ export function PodcastCreationForm() {
         }
       };
 
-      const { data, error } = await supabase.functions.invoke('generate-script-draft', { body: draftPayload });
+      const { data, error } = await supabase.functions.invoke('generate-script-draft', { body: payload });
+      if (error || !data?.success) throw new Error(data?.error || "IA no disponible");
 
-      if (error || !data?.success) throw new Error(data?.error || "Error de comunicación con los Agentes AI.");
-
-      // CUSTODIA DE DATOS: Guardamos el resultado de la investigación
       setValue('final_title', data.draft.suggested_title);
       setValue('final_script', data.draft.script_body);
-      
-      // [FIX CRÍTICO]: Sincronizamos las fuentes recolectadas por Tavily
-      const researchSources = Array.isArray(data.draft.sources) ? data.draft.sources : [];
-      setValue('sources', researchSources);
+      setValue('sources', Array.isArray(data.draft.sources) ? data.draft.sources : []);
 
       transitionTo('SCRIPT_EDITING');
-
-    } catch (error: any) {
-      toast({ 
-        title: "Fallo en la Investigación", 
-        description: error.message || "No se pudo crear el borrador.", 
-        variant: "destructive" 
-      });
+    } catch (e: any) {
+      toast({ title: "Error Creativo", description: e.message, variant: "destructive" });
     } finally {
       setIsGeneratingScript(false);
     }
   };
 
-  /**
-   * FASE 2: ENVÍO A PRODUCCIÓN
-   * Empaqueta el guion final y las fuentes para el Orquestador.
-   */
-  const handleFinalSubmit: SubmitHandler<PodcastCreationData> = useCallback(async (formData) => {
+  const handleFinalSubmit: SubmitHandler<PodcastCreationData> = useCallback(async (data) => {
     if (!supabase || !user) return;
     
-    const determinedAgent = formData.purpose === 'inspire' ? formData.selectedArchetype : formData.selectedTone;
-    
-    // Mapeo exhaustivo de entradas para el orquestador
-    const jobInputs = {
-        topic: formData.solo_topic || formData.archetype_topic || formData.question_to_answer || formData.link_topicA,
-        motivation: formData.solo_motivation || formData.archetype_goal || formData.legacy_lesson || formData.link_catalyst,
-        duration: formData.duration,
-        depth: formData.narrativeDepth,
-        tags: formData.tags,
-        generateAudioDirectly: formData.generateAudioDirectly,
-        voiceGender: formData.voiceGender,
-        voiceStyle: formData.voiceStyle,
-        voicePace: formData.voicePace,
-        speakingRate: formData.speakingRate,
-        archetype: formData.selectedArchetype
-    };
+    const determinedAgent = data.purpose === 'inspire' ? data.selectedArchetype : data.selectedTone;
     
     const payload = {
-      purpose: formData.purpose,
-      style: formData.style || (formData.purpose === 'inspire' ? 'archetype' : 'solo'),
+      purpose: data.purpose,
+      style: data.style || (data.purpose === 'inspire' ? 'archetype' : 'solo'),
       agentName: determinedAgent,
-      final_script: formData.final_script,
-      final_title: formData.final_title,
-      creation_mode: 'standard',
-      // [TRANSPARENCIA]: Enviamos el array de fuentes que guardamos en handleGenerateDraft
-      sources: formData.sources || [], 
-      inputs: jobInputs
+      final_script: data.final_script,
+      final_title: data.final_title,
+      sources: data.sources || [],
+      inputs: { ...data, tags: data.tags }
     };
     
-    const { data, error } = await supabase.functions.invoke('queue-podcast-job', { body: payload });
+    const { data: res, error } = await supabase.functions.invoke('queue-podcast-job', { body: payload });
     
-    if (error || !data?.success) {
-      toast({ title: "Error de Producción", description: error?.message || "Fallo al encolar el trabajo.", variant: "destructive" });
-      return;
+    if (res?.success) {
+      toast({ title: "¡Enviado!", description: "Iniciando producción de audio.", action: <CheckCircle2 className="h-5 w-5 text-green-500"/> });
+      clearDraft();
+      router.push('/podcasts?tab=library');
+    } else {
+      toast({ title: "Error", description: error?.message || "Fallo en producción", variant: "destructive" });
     }
-    
-    toast({ 
-      title: "¡Producción iniciada!", 
-      description: "Tu podcast estará disponible en la biblioteca en breve.",
-      action: <CheckCircle2 className="h-5 w-5 text-green-500" /> 
-    });
-    
-    clearDraft();
-    router.push('/podcasts?tab=library');
   }, [supabase, user, toast, router, clearDraft]);
-
-  // --- LÓGICA DE NAVEGACIÓN ---
 
   const handleNextTransition = async () => {
     let fieldsToValidate: (keyof PodcastCreationData)[] = [];
     let nextState: FlowState | null = null;
 
     switch(currentFlowState) {
-      case 'SELECTING_PURPOSE': 
-          // La navegación se maneja dentro del componente PurposeSelectionStep vía updateFormData
-          break;
       case 'LEARN_SUB_SELECTION': nextState = 'SOLO_TALK_INPUT'; break;
       case 'INSPIRE_SUB_SELECTION': nextState = 'ARCHETYPE_SELECTION'; break;
       case 'SOLO_TALK_INPUT': fieldsToValidate = ['solo_topic', 'solo_motivation']; nextState = 'TONE_SELECTION'; break;
       case 'ARCHETYPE_SELECTION': fieldsToValidate = ['selectedArchetype']; nextState = 'ARCHETYPE_GOAL'; break;
       case 'ARCHETYPE_GOAL': fieldsToValidate = ['archetype_goal']; nextState = 'DETAILS_STEP'; break;
       case 'LINK_POINTS_INPUT':
-        const isInputsValid = await trigger(['link_topicA', 'link_topicB']);
-        if (isInputsValid) await handleGenerateNarratives();
+        if (await trigger(['link_topicA', 'link_topicB'])) await handleGenerateNarratives();
         return;
       case 'NARRATIVE_SELECTION': fieldsToValidate = ['link_selectedNarrative']; nextState = 'TONE_SELECTION'; break;
       case 'FREESTYLE_SELECTION':
-        const style = getValues('style');
-        if (style === 'solo') nextState = 'SOLO_TALK_INPUT';
-        else if (style === 'link') nextState = 'LINK_POINTS_INPUT';
-        else if (style === 'archetype') nextState = 'ARCHETYPE_SELECTION';
+        const s = getValues('style');
+        if (s === 'solo') nextState = 'SOLO_TALK_INPUT';
+        else if (s === 'link') nextState = 'LINK_POINTS_INPUT';
+        else if (s === 'archetype') nextState = 'ARCHETYPE_SELECTION';
         break;
       case 'LEGACY_INPUT': fieldsToValidate = ['legacy_lesson']; nextState = 'TONE_SELECTION'; break;
       case 'QUESTION_INPUT': fieldsToValidate = ['question_to_answer']; nextState = 'TONE_SELECTION'; break;
       case 'TONE_SELECTION': fieldsToValidate = ['selectedTone']; nextState = 'DETAILS_STEP'; break;
       case 'DETAILS_STEP': 
-        const isDetailsValid = await trigger(['duration', 'narrativeDepth']);
-        if (isDetailsValid) await handleGenerateDraft();
+        if (await trigger(['duration', 'narrativeDepth'])) await handleGenerateDraft();
         return;
       case 'SCRIPT_EDITING': fieldsToValidate = ['final_title', 'final_script']; nextState = 'AUDIO_STUDIO_STEP'; break;
       case 'AUDIO_STUDIO_STEP': fieldsToValidate = ['voiceGender', 'voiceStyle']; nextState = 'FINAL_STEP'; break;
     }
 
-    if (nextState) {
-      const isStepValid = await trigger(fieldsToValidate);
-      if (isStepValid) transitionTo(nextState);
-    }
+    if (nextState && await trigger(fieldsToValidate)) transitionTo(nextState);
   };
 
   const handleGenerateNarratives = useCallback(async () => {
-    if (!supabase) return;
-    const { link_topicA, link_topicB, link_catalyst } = getValues();
     setIsLoadingNarratives(true);
     try {
-      const { data, error } = await supabase.functions.invoke('generate-narratives', {
+      const { link_topicA, link_topicB, link_catalyst } = getValues();
+      const { data } = await supabase.functions.invoke('generate-narratives', {
         body: { topicA: link_topicA, topicB: link_topicB, catalyst: link_catalyst }
       });
-      if (error) throw error;
-      if (data?.narratives) {
-        setNarrativeOptions(data.narratives);
-        transitionTo('NARRATIVE_SELECTION');
-      }
-    } catch {
-      toast({ title: "Error", description: "No pudimos conectar los ejes temáticos.", variant: "destructive" });
-    } finally {
-      setIsLoadingNarratives(false);
-    }
-  }, [supabase, getValues, transitionTo, toast]);
-
-  // --- RENDERIZADO DINÁMICO ---
+      if (data?.narratives) { setNarrativeOptions(data.narratives); transitionTo('NARRATIVE_SELECTION'); }
+    } finally { setIsLoadingNarratives(false); }
+  }, [supabase, getValues]);
 
   const renderCurrentStep = () => {
     switch (currentFlowState) {
@@ -390,116 +305,64 @@ export function PodcastCreationForm() {
     }
   };
 
-  // --- UI HELPERS ---
-
-  const flowPaths: Record<string, FlowState[]> = {
-    learn: ['SELECTING_PURPOSE', 'LEARN_SUB_SELECTION', 'SOLO_TALK_INPUT', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    inspire: ['SELECTING_PURPOSE', 'INSPIRE_SUB_SELECTION', 'ARCHETYPE_SELECTION', 'ARCHETYPE_GOAL', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    explore: ['SELECTING_PURPOSE', 'LINK_POINTS_INPUT', 'NARRATIVE_SELECTION', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    reflect: ['SELECTING_PURPOSE', 'LEGACY_INPUT', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    answer: ['SELECTING_PURPOSE', 'QUESTION_INPUT', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-    freestyle: ['SELECTING_PURPOSE', 'FREESTYLE_SELECTION'],
-  };
-
-  const currentPath = flowPaths[formData.purpose] || [];
+  const currentPath = FLOW_PATHS[formData.purpose] || [];
   const effectiveSteps = currentPath.filter(s => s !== 'SELECTING_PURPOSE');
-  const currentIndex = effectiveSteps.indexOf(currentFlowState as any);
+  const currentIndex = effectiveSteps.indexOf(currentFlowState);
   const currentStepNumber = currentIndex !== -1 ? currentIndex + 1 : 1;
   const progressPercent = Math.round((currentStepNumber / (effectiveSteps.length || 6)) * 100);
 
   return (
     <CreationContext.Provider value={{ updateFormData, transitionTo, goBack }}>
       <FormProvider {...formMethods}>
-        <form onSubmit={(e) => e.preventDefault()} className="h-full w-full overflow-hidden flex flex-col">
+        <div className="flex flex-col h-full w-full max-w-4xl mx-auto px-4 py-6">
             
-            {/* PROGRESS BAR HEADER */}
+            {/* Header de Progreso */}
             {currentFlowState !== 'SELECTING_PURPOSE' && !isGeneratingScript && (
-              <div className="w-full max-w-4xl mx-auto px-6 py-4 flex-shrink-0 z-20 animate-in fade-in slide-in-from-top-4">
+              <div className="w-full mb-6 animate-in fade-in slide-in-from-top-4">
                 <div className="flex justify-between items-end mb-2">
-                   <div className="flex flex-col">
-                     <span className="text-sm font-bold text-foreground/80 tracking-tight">Arquitectura del Podcast</span>
-                     <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mt-0.5">
-                       Etapa {currentStepNumber} de {effectiveSteps.length}
-                     </span>
+                   <div>
+                     <h2 className="text-lg font-bold">Creación</h2>
+                     <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Paso {currentStepNumber} de {effectiveSteps.length}</p>
                    </div>
-                   <div className="text-right text-xs font-mono font-bold text-primary">{progressPercent}%</div>
+                   <div className="text-sm font-mono font-bold text-primary">{progressPercent}%</div>
                 </div>
-                <div className="h-2 w-full bg-secondary/50 rounded-full overflow-hidden backdrop-blur-sm border border-white/5">
-                    <div className="h-full bg-primary transition-all duration-700 ease-out shadow-[0_0_15px_rgba(168,85,247,0.4)]" style={{ width: `${progressPercent}%` }} />
+                <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
+                    <div className="h-full bg-primary transition-all duration-500" style={{ width: `${progressPercent}%` }} />
                 </div>
               </div>
             )}
 
-            {/* MAIN CONTAINER */}
-            <div className={`flex-grow flex flex-col overflow-hidden relative px-4 pb-4 transition-all duration-500`}>
-                <Card className={`flex-grow flex flex-col overflow-hidden relative border-0 shadow-2xl transition-all duration-500
-                    ${currentFlowState === 'SELECTING_PURPOSE' 
-                        ? "bg-transparent shadow-none" 
-                        : "bg-white/70 dark:bg-zinc-950/80 backdrop-blur-2xl rounded-2xl md:rounded-3xl border border-white/20 dark:border-white/5"
-                    }`}
-                >
-                    <CardContent className="p-0 flex-grow flex flex-col h-full overflow-hidden relative">
-                      <div className="flex-grow overflow-hidden h-full flex flex-col">
-                         {isGeneratingScript ? (
-                            <DraftGenerationLoader formData={formData} />
-                         ) : (
-                            <div className="flex-grow overflow-y-auto custom-scrollbar h-full">
-                                {renderCurrentStep()}
-                            </div>
-                         )}
-                      </div>
-                    </CardContent>
+            <Card className={`flex-grow flex flex-col overflow-hidden relative border-0 shadow-none ${currentFlowState === 'SELECTING_PURPOSE' ? "bg-transparent" : "bg-card/50 backdrop-blur-xl rounded-2xl shadow-xl border border-border/40"}`}>
+                <CardContent className="p-0 flex-grow flex flex-col h-full overflow-hidden relative">
+                    {isGeneratingScript ? <DraftGenerationLoader formData={formData} /> : renderCurrentStep()}
+                </CardContent>
 
-                    {/* NAVIGATION FOOTER */}
-                    {currentFlowState !== 'SELECTING_PURPOSE' && !isGeneratingScript && (
-                       <div className="flex-shrink-0 px-6 py-4 md:py-6 z-20 bg-gradient-to-t from-background/90 via-background/50 to-transparent backdrop-blur-md border-t border-border/10">
-                           <div className="flex justify-between items-center gap-4 max-w-4xl mx-auto w-full">
-                               <Button 
-                                 type="button" 
-                                 variant="ghost" 
-                                 onClick={goBack} 
-                                 disabled={isSubmitting}
-                                 className="text-muted-foreground hover:text-foreground transition-all hover:bg-secondary/30 h-11 px-5 rounded-xl"
-                               >
-                                   <ChevronLeft className="mr-2 h-4 w-4" /> Anterior
-                               </Button>
-
-                               <div className="flex items-center gap-3">
-                                   {currentFlowState === 'DETAILS_STEP' ? (
-                                       <Button 
-                                          type="button" 
-                                          onClick={handleNextTransition} 
-                                          disabled={isGeneratingScript} 
-                                          className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg rounded-full px-8 h-12 text-sm font-bold transition-all active:scale-95"
-                                       >
-                                           <FileText className="mr-2 h-4 w-4" /> Generar Borrador
-                                       </Button>
-                                   ) : currentFlowState === 'FINAL_STEP' ? (
-                                       <Button 
-                                          type="button" 
-                                          onClick={handleSubmit(handleFinalSubmit)} 
-                                          disabled={isSubmitting} 
-                                          className="bg-primary text-primary-foreground shadow-xl rounded-full px-10 h-12 text-sm font-black transition-all active:scale-95 group"
-                                       >
-                                           {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4 group-hover:rotate-12 transition-transform" />}
-                                           INICIAR PRODUCCIÓN
-                                       </Button>
-                                   ) : (
-                                       <Button 
-                                          type="button" 
-                                          onClick={handleNextTransition} 
-                                          className="bg-foreground text-background hover:opacity-90 shadow-lg rounded-full px-8 h-12 text-sm font-bold transition-transform active:scale-95"
-                                       >
-                                           Continuar <ChevronRight className="ml-2 h-4 w-4" />
-                                       </Button>
-                                   )}
-                               </div>
-                           </div>
-                       </div>
-                    )}
-                </Card>
-            </div>
-        </form>
+                {/* Footer de Navegación */}
+                {currentFlowState !== 'SELECTING_PURPOSE' && !isGeneratingScript && (
+                    <div className="p-4 border-t border-border/10 flex justify-between items-center bg-background/50 backdrop-blur-md">
+                        <Button type="button" variant="ghost" onClick={goBack} disabled={isSubmitting} className="h-10 px-4">
+                            <ChevronLeft className="mr-2 h-4 w-4" /> Anterior
+                        </Button>
+                        <div className="flex gap-2">
+                            {currentFlowState === 'DETAILS_STEP' ? (
+                                <Button type="button" onClick={handleNextTransition} className="bg-primary text-white rounded-full px-6 h-10 font-bold">
+                                    <FileText className="mr-2 h-4 w-4" /> Generar Borrador
+                                </Button>
+                            ) : currentFlowState === 'FINAL_STEP' ? (
+                                <Button type="button" onClick={handleSubmit(handleFinalSubmit)} disabled={isSubmitting} className="bg-primary text-white rounded-full px-8 h-10 font-black group">
+                                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4 group-hover:rotate-12 transition-transform" />}
+                                    PRODUCIR
+                                </Button>
+                            ) : (
+                                <Button type="button" onClick={handleNextTransition} className="bg-foreground text-background rounded-full px-6 h-10 font-bold">
+                                    Siguiente <ChevronRight className="ml-2 h-4 w-4" />
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </Card>
+        </div>
       </FormProvider>
     </CreationContext.Provider>
   );
