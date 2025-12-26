@@ -1,5 +1,5 @@
 // components/podcast-creation-form.tsx
-// VERSIÓN: 10.0 (Master Integrity - Full Metadata & Source Provenance)
+// VERSIÓN: 11.0 (Master Reliability - Fixed Types & Full Source Provenance)
 
 "use client";
 
@@ -13,7 +13,7 @@ import { PodcastCreationSchema, PodcastCreationData } from "@/lib/validation/pod
 import { useAudio } from "@/contexts/audio-context";
 import { usePersistentForm } from "@/hooks/use-persistent-form";
 
-// Importación Dinámica para componentes pesados
+// Importación Dinámica para optimización de carga
 import dynamic from 'next/dynamic';
 
 const ScriptEditorStep = dynamic(
@@ -23,7 +23,7 @@ const ScriptEditorStep = dynamic(
     loading: () => (
       <div className="h-64 w-full flex items-center justify-center text-muted-foreground animate-pulse">
         <Loader2 className="h-6 w-6 animate-spin mr-2 text-primary" />
-        <span className="text-sm font-medium">Preparando editor profesional...</span>
+        <span className="text-sm font-medium">Iniciando editor de guion...</span>
       </div>
     )
   }
@@ -44,7 +44,7 @@ import {
 } from "lucide-react";
 import { ToastAction } from "@/components/ui/toast"; 
 
-// Pasos del flujo
+// Pasos del flujo de creación
 import { PurposeSelectionStep } from "./create-flow/purpose-selection-step";
 import { LearnSubStep } from "./create-flow/LearnSubStep";
 import { InspireSubStep } from "./create-flow/InspireSubStep";
@@ -83,7 +83,7 @@ export const useCreationContext = () => {
   return context;
 };
 
-// Rutas de flujo estáticas
+// Rutas de navegación lógica
 const FLOW_PATHS: Record<string, FlowState[]> = {
   learn: ['SELECTING_PURPOSE', 'LEARN_SUB_SELECTION', 'SOLO_TALK_INPUT', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
   inspire: ['SELECTING_PURPOSE', 'INSPIRE_SUB_SELECTION', 'ARCHETYPE_SELECTION', 'ARCHETYPE_GOAL', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
@@ -114,6 +114,7 @@ export function PodcastCreationForm() {
     mode: "onBlur",
     defaultValues: {
       purpose: "learn",
+      style: undefined,
       solo_topic: '',
       solo_motivation: '',
       duration: '',
@@ -199,10 +200,12 @@ export function PodcastCreationForm() {
       };
 
       const { data, error } = await supabase.functions.invoke('generate-script-draft', { body: payload });
-      if (error || !data?.success) throw new Error(data?.error || "IA no disponible");
+      if (error || !data?.success) throw new Error(data?.error || "Los agentes de IA no están disponibles.");
 
       setValue('final_title', data.draft.suggested_title);
       setValue('final_script', data.draft.script_body);
+      
+      // PERSISTENCIA DE FUENTES (TAVILY)
       setValue('sources', Array.isArray(data.draft.sources) ? data.draft.sources : []);
 
       transitionTo('SCRIPT_EDITING');
@@ -215,7 +218,6 @@ export function PodcastCreationForm() {
 
   const handleFinalSubmit: SubmitHandler<PodcastCreationData> = useCallback(async (data) => {
     if (!supabase || !user) return;
-    
     const determinedAgent = data.purpose === 'inspire' ? data.selectedArchetype : data.selectedTone;
     
     const payload = {
@@ -231,11 +233,11 @@ export function PodcastCreationForm() {
     const { data: res, error } = await supabase.functions.invoke('queue-podcast-job', { body: payload });
     
     if (res?.success) {
-      toast({ title: "¡Enviado!", description: "Iniciando producción de audio.", action: <CheckCircle2 className="h-5 w-5 text-green-500"/> });
+      toast({ title: "¡Producción iniciada!", description: "Tu podcast estará listo en unos minutos.", action: <CheckCircle2 className="h-5 w-5 text-green-500"/> });
       clearDraft();
       router.push('/podcasts?tab=library');
     } else {
-      toast({ title: "Error", description: error?.message || "Fallo en producción", variant: "destructive" });
+      toast({ title: "Error de Producción", description: error?.message || "Fallo en el servidor.", variant: "destructive" });
     }
   }, [supabase, user, toast, router, clearDraft]);
 
@@ -284,6 +286,7 @@ export function PodcastCreationForm() {
   }, [supabase, getValues]);
 
   const renderCurrentStep = () => {
+    if (!isMounted) return null;
     switch (currentFlowState) {
       case 'SELECTING_PURPOSE': return <PurposeSelectionStep />;
       case 'LEARN_SUB_SELECTION': return <LearnSubStep />;
@@ -305,56 +308,68 @@ export function PodcastCreationForm() {
     }
   };
 
-  const currentPath = FLOW_PATHS[formData.purpose] || [];
+  // CÁLCULO DE PROGRESO SEGURO PARA TYPESCRIPT
+  const currentPath = FLOW_PATHS[formData.purpose] || FLOW_PATHS.learn;
   const effectiveSteps = currentPath.filter(s => s !== 'SELECTING_PURPOSE');
-  const currentIndex = effectiveSteps.indexOf(currentFlowState);
+  
+  // FIX IMAGEN 42: Cast a 'string[]' para evitar error de tipado en subconjunto de FlowState
+  const currentIndex = (effectiveSteps as string[]).indexOf(currentFlowState);
   const currentStepNumber = currentIndex !== -1 ? currentIndex + 1 : 1;
-  const progressPercent = Math.round((currentStepNumber / (effectiveSteps.length || 6)) * 100);
+  const progressPercent = Math.round((currentStepNumber / effectiveSteps.length) * 100);
 
   return (
     <CreationContext.Provider value={{ updateFormData, transitionTo, goBack }}>
       <FormProvider {...formMethods}>
-        <div className="flex flex-col h-full w-full max-w-4xl mx-auto px-4 py-6">
+        <div className="flex flex-col h-full w-full max-w-4xl mx-auto px-4 py-4 md:py-8">
             
-            {/* Header de Progreso */}
-            {currentFlowState !== 'SELECTING_PURPOSE' && !isGeneratingScript && (
-              <div className="w-full mb-6 animate-in fade-in slide-in-from-top-4">
+            {/* Header de Progreso Blindado */}
+            {isMounted && currentFlowState !== 'SELECTING_PURPOSE' && !isGeneratingScript && (
+              <div className="w-full mb-4 md:mb-8 animate-in fade-in slide-in-from-top-4">
                 <div className="flex justify-between items-end mb-2">
                    <div>
-                     <h2 className="text-lg font-bold">Creación</h2>
-                     <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Paso {currentStepNumber} de {effectiveSteps.length}</p>
+                     <h2 className="text-lg font-bold tracking-tight text-foreground/90">Construcción</h2>
+                     <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">
+                        Paso {currentStepNumber} de {effectiveSteps.length}
+                     </p>
                    </div>
-                   <div className="text-sm font-mono font-bold text-primary">{progressPercent}%</div>
+                   <div className="text-xs font-mono font-bold text-primary">{progressPercent}%</div>
                 </div>
-                <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
-                    <div className="h-full bg-primary transition-all duration-500" style={{ width: `${progressPercent}%` }} />
+                <div className="h-1.5 w-full bg-secondary/30 rounded-full overflow-hidden border border-white/5">
+                    <div className="h-full bg-primary transition-all duration-700 ease-out shadow-[0_0_10px_rgba(168,85,247,0.3)]" style={{ width: `${progressPercent}%` }} />
                 </div>
               </div>
             )}
 
-            <Card className={`flex-grow flex flex-col overflow-hidden relative border-0 shadow-none ${currentFlowState === 'SELECTING_PURPOSE' ? "bg-transparent" : "bg-card/50 backdrop-blur-xl rounded-2xl shadow-xl border border-border/40"}`}>
+            {/* Contenedor Principal Adaptativo */}
+            <Card className={`flex-grow flex flex-col overflow-hidden relative border-0 shadow-none ${currentFlowState === 'SELECTING_PURPOSE' ? "bg-transparent" : "bg-card/40 backdrop-blur-2xl rounded-3xl border border-border/40 shadow-2xl"}`}>
                 <CardContent className="p-0 flex-grow flex flex-col h-full overflow-hidden relative">
-                    {isGeneratingScript ? <DraftGenerationLoader formData={formData} /> : renderCurrentStep()}
+                    {isGeneratingScript ? (
+                        <DraftGenerationLoader formData={formData} />
+                    ) : (
+                        <div className="flex-grow overflow-y-auto custom-scrollbar">
+                            {renderCurrentStep()}
+                        </div>
+                    )}
                 </CardContent>
 
-                {/* Footer de Navegación */}
-                {currentFlowState !== 'SELECTING_PURPOSE' && !isGeneratingScript && (
-                    <div className="p-4 border-t border-border/10 flex justify-between items-center bg-background/50 backdrop-blur-md">
-                        <Button type="button" variant="ghost" onClick={goBack} disabled={isSubmitting} className="h-10 px-4">
+                {/* Footer de Navegación Profesional */}
+                {isMounted && currentFlowState !== 'SELECTING_PURPOSE' && !isGeneratingScript && (
+                    <div className="p-4 md:p-6 border-t border-border/10 flex justify-between items-center bg-background/20 backdrop-blur-md">
+                        <Button type="button" variant="ghost" onClick={goBack} disabled={isSubmitting} className="h-11 px-5 rounded-xl hover:bg-secondary/40 transition-all">
                             <ChevronLeft className="mr-2 h-4 w-4" /> Anterior
                         </Button>
-                        <div className="flex gap-2">
+                        <div className="flex gap-3">
                             {currentFlowState === 'DETAILS_STEP' ? (
-                                <Button type="button" onClick={handleNextTransition} className="bg-primary text-white rounded-full px-6 h-10 font-bold">
-                                    <FileText className="mr-2 h-4 w-4" /> Generar Borrador
+                                <Button type="button" onClick={handleNextTransition} className="bg-primary text-white rounded-full px-8 h-12 font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all">
+                                    <FileText className="mr-2 h-4 w-4" /> CREAR BORRADOR
                                 </Button>
                             ) : currentFlowState === 'FINAL_STEP' ? (
-                                <Button type="button" onClick={handleSubmit(handleFinalSubmit)} disabled={isSubmitting} className="bg-primary text-white rounded-full px-8 h-10 font-black group">
-                                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4 group-hover:rotate-12 transition-transform" />}
+                                <Button type="button" onClick={handleSubmit(handleFinalSubmit)} disabled={isSubmitting} className="bg-primary text-white rounded-full px-10 h-12 font-black shadow-xl shadow-primary/30 active:scale-95 transition-all">
+                                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
                                     PRODUCIR
                                 </Button>
                             ) : (
-                                <Button type="button" onClick={handleNextTransition} className="bg-foreground text-background rounded-full px-6 h-10 font-bold">
+                                <Button type="button" onClick={handleNextTransition} className="bg-foreground text-background rounded-full px-8 h-12 font-bold hover:opacity-90 transition-all">
                                     Siguiente <ChevronRight className="ml-2 h-4 w-4" />
                                 </Button>
                             )}
