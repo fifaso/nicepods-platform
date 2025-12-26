@@ -1,40 +1,49 @@
 // lib/validation/podcast-schema.ts
-// VERSIÓN: 2.0 (Evolutiva: Inclusión de selectedAgent para enrutamiento de IA)
+// VERSIÓN: 3.0 (Enterprise Standard - Full Data Provenance & Remix Support)
 
 import { z } from 'zod';
 
-// --- CAPA DE SEGURIDAD ---
+// --- CAPA DE SEGURIDAD Y LIMPIEZA ---
 const sanitizeInput = (val: string | undefined) => {
   if (!val) return undefined;
   return val
-    .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "")
-    .replace(/<[^>]+>/g, "")
+    .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "") // Elimina scripts
+    .replace(/<iframe\b[^>]*>([\s\S]*?)<\/iframe>/gim, "") // Elimina frames
+    .replace(/<[^>]+>/g, "") // Elimina HTML residual
     .trim();
 };
 
 const safeInputString = z.string()
-  .max(5000, { message: "El texto excede el límite de seguridad (5000 caracteres)." })
+  .max(8000, { message: "El texto excede el límite de seguridad permitido." })
   .transform(sanitizeInput);
 
+/**
+ * Esquema de Fuente de Investigación
+ * Garantiza la transparencia de la información recolectada por Tavily/IA.
+ */
 const SourceSchema = z.object({
-  title: z.string().optional(),
-  url: z.string().optional(),
+  title: z.string().min(1, "El título de la fuente es requerido"),
+  url: z.string().url("URL de fuente inválida"),
   snippet: z.string().optional(),
 });
 
 // -------------------------
 
 export const PodcastCreationSchema = z.object({
+  // Identidad del Proceso
   purpose: z.enum(['learn', 'inspire', 'explore', 'reflect', 'answer', 'freestyle']),
+  creation_mode: z.enum(['standard', 'remix']).default('standard'),
   
-  style: z.enum(['solo', 'link', 'archetype', 'legacy', 'qa']).optional(),
+  // Metodología de Producción
+  style: z.enum(['solo', 'link', 'archetype', 'legacy', 'qa', 'remix']).optional(),
   
-  // [MODIFICACIÓN ESTRATÉGICA]
-  // Permitimos guardar el nombre del agente técnico seleccionado en el paso 1.
-  // Esto facilita el enrutamiento en el backend sin lógica condicional redundante.
-  selectedAgent: z.string().optional(),
+  // [SINCRONIZACIÓN MAESTRA] 
+  // agentName es el campo oficial de la DB. 
+  // Mantendremos selectedAgent temporalmente para evitar errores en componentes antiguos.
+  agentName: z.string().min(1, "El Agente de IA es obligatorio"),
+  selectedAgent: z.string().optional(), 
 
-  // --- INPUTS DE MATERIA PRIMA BLINDADOS ---
+  // --- INPUTS DE MATERIA PRIMA (SEMILLA) ---
   solo_topic: safeInputString.optional(),
   solo_motivation: safeInputString.optional(),
   
@@ -42,63 +51,86 @@ export const PodcastCreationSchema = z.object({
   link_topicB: safeInputString.optional(),
   link_catalyst: safeInputString.optional(),
   
-  link_selectedNarrative: z.object({ title: z.string(), thesis: z.string() }).nullable().optional(),
-  link_selectedTone: z.enum(['Educativo', 'Inspirador', 'Analítico']).optional(),
+  // Lógica de Narrativa (Link Points)
+  link_selectedNarrative: z.object({ 
+    title: z.string(), 
+    thesis: z.string() 
+  }).nullable().optional(),
+  link_selectedTone: z.string().optional(),
   
+  // Lógica de Arquetipos e Historias
   selectedArchetype: z.string().optional(),
   archetype_topic: z.string().optional(),
   archetype_goal: z.string().optional(),
   
+  // Otros Flujos
   legacy_lesson: z.string().optional(),
   question_to_answer: z.string().optional(),
 
-  // --- CAMPOS DE EDICIÓN FINAL ---
-  final_title: z.string().optional(),
+  // --- GENEALOGÍA (Remixes / Threads) ---
+  parent_id: z.number().optional().nullable(),
+  root_id: z.number().optional().nullable(),
+  user_reaction: z.string().optional(),
+  quote_context: z.string().optional(),
+
+  // --- CAMPOS DE PRODUCCIÓN FINAL ---
+  final_title: z.string().min(1, "El título es necesario").max(120).optional(),
   
   final_script: z.string()
-    .max(25000, { message: "El guion es demasiado largo para ser procesado." })
+    .max(30000, { message: "El guion excede la capacidad del motor de voz." })
     .optional(),
 
-  sources: z.array(SourceSchema).optional(),
+  // CUSTODIA DE FUENTES: Array de bibliografía real
+  sources: z.array(SourceSchema).default([]),
 
-  duration: z.string().nonempty({ message: "Debes seleccionar una duración." }),
-  narrativeDepth: z.string().nonempty({ message: "Debes definir una profundidad." }),
+  // Configuración Técnica
+  duration: z.string().min(1, "Selecciona una duración aproximada"),
+  narrativeDepth: z.string().min(1, "Define el nivel de profundidad"),
   
   selectedTone: z.string().optional(), 
   
-  voiceGender: z.enum(['Masculino', 'Femenino']),
-  voiceStyle: z.enum(['Calmado', 'Energético', 'Profesional', 'Inspirador']),
-  voicePace: z.enum(['Lento', 'Moderado', 'Rápido']),
-  speakingRate: z.number(),
+  // Configuración de Voz (Motor Neural2)
+  voiceGender: z.enum(['Masculino', 'Femenino']).default('Masculino'),
+  voiceStyle: z.enum(['Calmado', 'Energético', 'Profesional', 'Inspirador']).default('Profesional'),
+  voicePace: z.string().default('Moderado'),
+  speakingRate: z.number().default(1.0),
 
-  tags: z.array(safeInputString).optional(),
-  generateAudioDirectly: z.boolean().optional(),
+  // Metadatos Adicionales
+  tags: z.array(z.string()).optional().default([]),
+  generateAudioDirectly: z.boolean().default(true),
 })
 .superRefine((data, ctx) => {
+  /**
+   * REGLAS DE NEGOCIO DINÁMICAS
+   * Validamos según el propósito para asegurar que la IA tenga datos suficientes.
+   */
+  if (data.creation_mode === 'remix') {
+    if (!data.user_reaction) ctx.addIssue({ code: 'custom', message: 'La reacción es necesaria para el remix.', path: ['user_reaction'] });
+    return;
+  }
+
   switch (data.purpose) {
     case 'learn':
-      if (!data.solo_topic || data.solo_topic.length < 3) ctx.addIssue({ code: 'custom', message: 'Falta información del tema.', path: ['solo_topic'] });
-      if (!data.solo_motivation || data.solo_motivation.length < 3) ctx.addIssue({ code: 'custom', message: 'Describe tu idea un poco más.', path: ['solo_motivation'] });
+      if (!data.solo_topic) ctx.addIssue({ code: 'custom', message: 'Define el tema a aprender.', path: ['solo_topic'] });
       break;
       
     case 'inspire':
-      if (!data.selectedArchetype) ctx.addIssue({ code: 'custom', message: 'Selecciona un arquetipo.', path: ['selectedArchetype'] });
-      if (!data.archetype_goal || data.archetype_goal.length < 3) ctx.addIssue({ code: 'custom', message: 'Describe el objetivo.', path: ['archetype_goal'] });
+      if (!data.selectedArchetype) ctx.addIssue({ code: 'custom', message: 'Selecciona una personalidad épica.', path: ['selectedArchetype'] });
+      if (!data.archetype_goal) ctx.addIssue({ code: 'custom', message: '¿Qué quieres inspirar?', path: ['archetype_goal'] });
       break;
       
     case 'explore':
-      if (!data.link_topicA) ctx.addIssue({ code: 'custom', message: 'Falta el Tema A.', path: ['link_topicA'] });
-      if (!data.link_topicB) ctx.addIssue({ code: 'custom', message: 'Falta el Tema B.', path: ['link_topicB'] });
+      if (!data.link_topicA || !data.link_topicB) ctx.addIssue({ code: 'custom', message: 'Se requieren dos ejes para explorar.', path: ['link_topicA'] });
       break;
 
     case 'reflect':
-      if (!data.legacy_lesson || data.legacy_lesson.length < 5) ctx.addIssue({ code: 'custom', message: 'La lección es muy breve.', path: ['legacy_lesson'] });
-      break;
-
-    case 'answer':
-      if (!data.question_to_answer || data.question_to_answer.length < 5) ctx.addIssue({ code: 'custom', message: 'La pregunta es muy breve.', path: ['question_to_answer'] });
+      if (!data.legacy_lesson) ctx.addIssue({ code: 'custom', message: 'Escribe tu reflexión o lección.', path: ['legacy_lesson'] });
       break;
   }
 });
 
+/**
+ * TIPO DE DATOS INFERIDO
+ * Este tipo es el que usan todos nuestros componentes de React.
+ */
 export type PodcastCreationData = z.infer<typeof PodcastCreationSchema>;
