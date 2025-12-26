@@ -1,5 +1,5 @@
 // components/podcast-creation-form.tsx
-// VERSIÓN: 16.0 (Master Recovery - Zero Reference Errors & Full Provenance)
+// VERSIÓN: 17.0 (Fluid Architecture - Native Mobile Feel & Desktop Precision)
 
 "use client";
 
@@ -13,7 +13,6 @@ import { PodcastCreationSchema, PodcastCreationData } from "@/lib/validation/pod
 import { useAudio } from "@/contexts/audio-context";
 import { usePersistentForm } from "@/hooks/use-persistent-form";
 
-// Importación Dinámica de Componentes Críticos
 import dynamic from 'next/dynamic';
 
 const ScriptEditorStep = dynamic(
@@ -21,16 +20,15 @@ const ScriptEditorStep = dynamic(
   { 
     ssr: false, 
     loading: () => (
-      <div className="h-64 w-full flex flex-col items-center justify-center text-muted-foreground animate-pulse bg-secondary/10 rounded-xl">
-        <Loader2 className="h-8 w-8 animate-spin mb-4 text-primary" />
-        <span className="text-xs font-bold tracking-widest uppercase opacity-60">Iniciando Estación Creativa</span>
+      <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground animate-pulse">
+        <Loader2 className="h-10 w-10 animate-spin mb-4 text-primary/40" />
+        <span className="text-xs font-bold tracking-widest uppercase opacity-40">Abriendo Estudio</span>
       </div>
     )
   }
 );
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -40,8 +38,7 @@ import {
   History, 
   Trash2,
   CheckCircle2,
-  Sparkles,
-  AlertCircle
+  Sparkles
 } from "lucide-react";
 import { ToastAction } from "@/components/ui/toast"; 
 
@@ -63,8 +60,6 @@ import { DraftGenerationLoader } from "./create-flow/draft-generation-loader";
 import { ArchetypeStep } from "./create-flow/archetype-step";       
 import { ArchetypeInputStep } from "./create-flow/archetype-input"; 
 
-// --- DEFINICIÓN DE TIPOS Y RUTAS ---
-
 export type FlowState = 
   | 'SELECTING_PURPOSE' | 'LEARN_SUB_SELECTION' | 'INSPIRE_SUB_SELECTION'
   | 'SOLO_TALK_INPUT' | 'ARCHETYPE_SELECTION' | 'ARCHETYPE_GOAL'      
@@ -79,14 +74,12 @@ interface CreationContextType {
 }
 
 const CreationContext = createContext<CreationContextType | undefined>(undefined);
-
 export const useCreationContext = () => {
   const context = useContext(CreationContext);
-  if (!context) throw new Error("useCreationContext debe ser usado dentro de un CreationFormProvider");
+  if (!context) throw new Error("Context Error");
   return context;
 };
 
-// [FIX]: Definimos la constante maestra con un nombre unificado para evitar ReferenceErrors
 const MASTER_FLOW_PATHS: Record<string, FlowState[]> = {
   learn: ['SELECTING_PURPOSE', 'LEARN_SUB_SELECTION', 'SOLO_TALK_INPUT', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
   inspire: ['SELECTING_PURPOSE', 'INSPIRE_SUB_SELECTION', 'ARCHETYPE_SELECTION', 'ARCHETYPE_GOAL', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
@@ -131,9 +124,7 @@ export function PodcastCreationForm() {
   const formData = watch();
 
   const { restoreSession, discardSession, clearDraft } = usePersistentForm(
-    formMethods, 
-    currentFlowState, 
-    history, 
+    formMethods, currentFlowState, history, 
     (step, hist) => {
       if (step) setCurrentFlowState(step as FlowState);
       if (hist) setHistory(hist as FlowState[]);
@@ -144,19 +135,17 @@ export function PodcastCreationForm() {
   useEffect(() => {
     if (isMounted && hasRestorableData) {
       toast({
-        title: "Sesión encontrada",
-        description: "¿Deseas continuar con tu progreso?",
+        title: "Sesión recuperada",
+        description: "¿Retomar tu último podcast?",
         action: (
           <div className="flex gap-2">
-            <ToastAction altText="X" onClick={() => { discardSession(); setHasRestorableData(false); }}>Limpiar</ToastAction>
-            <ToastAction altText="O" onClick={() => { restoreSession(); setHasRestorableData(false); }} className="bg-primary text-white font-bold">Continuar</ToastAction>
+            <ToastAction altText="X" onClick={() => { discardSession(); setHasRestorableData(false); }}>Borrar</ToastAction>
+            <ToastAction altText="O" onClick={() => { restoreSession(); setHasRestorableData(false); }} className="bg-primary text-white font-bold px-4">Retomar</ToastAction>
           </div>
         ),
       });
     }
   }, [hasRestorableData, isMounted, toast, restoreSession, discardSession]);
-
-  // --- MÉTODOS DE TRANSICIÓN (Memoizados para estabilidad) ---
 
   const transitionTo = useCallback((state: FlowState) => {
     setHistory(prev => [...prev, state]);
@@ -176,13 +165,10 @@ export function PodcastCreationForm() {
 
   const updateFormData = useCallback((data: Partial<PodcastCreationData>) => {
     Object.entries(data).forEach(([key, value]) => {
-      // Normalización de nombres: mapeamos selectedAgent a agentName automáticamente
       const targetKey = key === 'selectedAgent' ? 'agentName' : key;
       setValue(targetKey as any, value, { shouldValidate: true });
     });
   }, [setValue]);
-
-  // --- LÓGICA DE INTELIGENCIA ---
 
   const handleGenerateDraft = async () => {
     setIsGeneratingScript(true);
@@ -194,15 +180,11 @@ export function PodcastCreationForm() {
         duration: vals.duration,
         depth: vals.narrativeDepth,
         tone: vals.purpose === 'inspire' ? vals.selectedArchetype : (vals.agentName || vals.selectedTone),
-        raw_inputs: {
-          topic: vals.solo_topic || vals.archetype_topic || vals.question_to_answer || vals.link_topicA,
-          motivation: vals.solo_motivation || vals.archetype_goal || vals.legacy_lesson || vals.link_catalyst,
-          archetype: vals.selectedArchetype
-        }
+        raw_inputs: { ...vals.inputs, archetype: vals.selectedArchetype }
       };
 
       const { data: res, error } = await supabase.functions.invoke('generate-script-draft', { body: payload });
-      if (error || !res?.success) throw new Error(res?.error || "Error de red con la IA.");
+      if (error || !res?.success) throw new Error("Fallo de conexión IA.");
 
       setValue('final_title', res.draft.suggested_title);
       setValue('final_script', res.draft.script_body);
@@ -210,7 +192,7 @@ export function PodcastCreationForm() {
 
       transitionTo('SCRIPT_EDITING');
     } catch (e: any) {
-      toast({ title: "Fallo Creativo", description: e.message, variant: "destructive" });
+      toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {
       setIsGeneratingScript(false);
     }
@@ -275,24 +257,19 @@ export function PodcastCreationForm() {
     if (result?.success) { clearDraft(); router.push('/podcasts?tab=library'); }
   }, [supabase, user, router, clearDraft]);
 
-  // --- UI METRICS (Blindadas) ---
+  // --- UI DYNAMICS ---
 
-  const progressMetrics = useMemo(() => {
-    if (!isMounted) return { step: 0, total: 1, percent: 0, isInitial: true };
-    const path = MASTER_FLOW_PATHS[formData.purpose as keyof typeof MASTER_FLOW_PATHS] || MASTER_FLOW_PATHS.learn;
+  const metrics = useMemo(() => {
+    const path = MASTER_FLOW_PATHS[formData.purpose] || MASTER_FLOW_PATHS.learn;
     const steps = path.filter(s => s !== 'SELECTING_PURPOSE');
-    // FIX: Usamos casting a string[] para que indexOf sea compatible con currentFlowState
     const idx = (steps as string[]).indexOf(currentFlowState);
     return {
-      step: idx !== -1 ? idx + 1 : 1,
-      total: steps.length,
       percent: idx !== -1 ? Math.round(((idx + 1) / steps.length) * 100) : 0,
       isInitial: currentFlowState === 'SELECTING_PURPOSE'
     };
-  }, [currentFlowState, formData.purpose, isMounted]);
+  }, [currentFlowState, formData.purpose]);
 
-  const renderCurrentStep = () => {
-    if (!isMounted) return null;
+  const renderStep = () => {
     switch (currentFlowState) {
       case 'SELECTING_PURPOSE': return <PurposeSelectionStep />;
       case 'LEARN_SUB_SELECTION': return <LearnSubStep />;
@@ -314,70 +291,100 @@ export function PodcastCreationForm() {
     }
   };
 
-  // BLOQUEO DE HIDRATACIÓN
   if (!isMounted) return null;
 
   return (
     <CreationContext.Provider value={{ updateFormData, transitionTo, goBack }}>
       <FormProvider {...formMethods}>
-        <div className="flex flex-col h-full w-full max-w-4xl mx-auto px-4 py-4 md:py-8 overflow-hidden">
+        {/* CONTENEDOR MAESTRO: Bloqueado a la altura del dispositivo (dvh) */}
+        <div className="fixed inset-0 flex flex-col bg-background overflow-hidden">
             
-            {/* Progress Header */}
-            {!progressMetrics.isInitial && !isGeneratingScript && (
-              <div className="w-full mb-6 animate-in fade-in slide-in-from-top-4 duration-500">
-                <div className="flex justify-between items-end mb-2">
-                   <div>
-                     <h2 className="text-lg font-bold tracking-tight">Arquitectura</h2>
-                     <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest opacity-70">
-                       Paso {progressMetrics.step} de {progressMetrics.total}
-                     </p>
-                   </div>
-                   <div className="text-xs font-mono font-bold text-primary px-2 py-1 bg-primary/5 rounded border border-primary/10">
-                    {progressMetrics.percent}%
-                   </div>
+            {/* 1. TOP BAR: Branding & Progreso (Fijo) */}
+            <div className="flex-shrink-0 w-full pt-14 pb-4 px-6 md:pt-10">
+                <div className="max-w-4xl mx-auto">
+                    {!metrics.isInitial && !isGeneratingScript && (
+                      <div className="animate-in fade-in slide-in-from-top-2 duration-500">
+                        <div className="flex justify-between items-center mb-3">
+                            <div className="flex flex-col">
+                                <h1 className="text-xl md:text-2xl font-black tracking-tighter text-foreground flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                                    CONSTRUCCIÓN
+                                </h1>
+                                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.2em] opacity-60">Diseño de Conocimiento</span>
+                            </div>
+                            <div className="text-xs font-mono font-bold text-primary bg-primary/10 px-2 py-1 rounded border border-primary/20">
+                                {metrics.percent}%
+                            </div>
+                        </div>
+                        <div className="h-1 w-full bg-secondary/30 rounded-full overflow-hidden">
+                            <div className="h-full bg-primary transition-all duration-1000 ease-out" style={{ width: `${metrics.percent}%` }} />
+                        </div>
+                      </div>
+                    )}
                 </div>
-                <div className="h-1.5 w-full bg-secondary/30 rounded-full overflow-hidden border border-white/5">
-                    <div className="h-full bg-primary transition-all duration-1000 ease-out" style={{ width: `${progressMetrics.percent}%` }} />
-                </div>
-              </div>
-            )}
+            </div>
 
-            <Card className={`flex-grow flex flex-col overflow-hidden relative border-0 shadow-none ${progressMetrics.isInitial ? "bg-transparent" : "bg-card/40 backdrop-blur-3xl rounded-3xl border border-border/40 shadow-2xl transition-all duration-700"}`}>
-                <CardContent className="p-0 flex-grow flex flex-col h-full overflow-hidden relative">
-                    {isGeneratingScript ? (
-                        <DraftGenerationLoader formData={formData} />
-                    ) : (
-                        <div className="flex-grow overflow-y-auto custom-scrollbar h-full">
-                            {renderCurrentStep()}
+            {/* 2. BODY: Contenido del Paso (Scrolleable internamente) */}
+            <div className="flex-grow overflow-hidden flex flex-col items-center">
+                <div className={cn(
+                    "w-full h-full flex flex-col transition-all duration-500",
+                    metrics.isInitial ? "max-w-5xl" : "max-w-4xl px-4"
+                )}>
+                    <Card className={cn(
+                        "flex-1 flex flex-col overflow-hidden border-0 shadow-none relative",
+                        !metrics.isInitial && "bg-card/40 backdrop-blur-3xl rounded-3xl border border-border/40 shadow-2xl"
+                    )}>
+                        <CardContent className="p-0 flex-1 flex flex-col overflow-hidden relative">
+                            {isGeneratingScript ? (
+                                <DraftGenerationLoader formData={formData} />
+                            ) : (
+                                <div className="flex-1 overflow-y-auto custom-scrollbar-hide px-2">
+                                    {renderStep()}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
+
+            {/* 3. NAVIGATION: Footer Fijo (Ergonómico para Móvil) */}
+            <div className="flex-shrink-0 w-full p-4 md:p-8 bg-gradient-to-t from-background via-background/90 to-transparent">
+                <div className="max-w-4xl mx-auto">
+                    {!metrics.isInitial && !isGeneratingScript && (
+                        <div className="flex justify-between items-center gap-4">
+                            <Button 
+                                type="button" 
+                                variant="ghost" 
+                                onClick={goBack} 
+                                disabled={isSubmitting} 
+                                className="h-12 px-6 rounded-2xl font-bold text-muted-foreground hover:bg-secondary/40"
+                            >
+                                <ChevronLeft className="mr-1 h-4 w-4" /> ANTERIOR
+                            </Button>
+                            
+                            <div className="flex items-center gap-3">
+                                {currentFlowState === 'DETAILS_STEP' ? (
+                                    <Button type="button" onClick={handleNextTransition} className="bg-primary text-white rounded-full px-8 h-12 font-bold shadow-lg shadow-primary/20 animate-in zoom-in-95">
+                                        <FileText className="mr-2 h-4 w-4" /> GENERAR BORRADOR
+                                    </Button>
+                                ) : currentFlowState === 'FINAL_STEP' ? (
+                                    <Button type="button" onClick={handleSubmit(handleFinalSubmit)} disabled={isSubmitting} className="bg-primary text-white rounded-full px-10 h-12 font-black shadow-xl shadow-primary/30 group">
+                                        {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4 group-hover:rotate-12 transition-transform" />}
+                                        PRODUCIR
+                                    </Button>
+                                ) : (
+                                    <Button type="button" onClick={handleNextTransition} className="bg-foreground text-background rounded-full px-8 h-12 font-bold hover:opacity-90">
+                                        SIGUIENTE <ChevronRight className="ml-1 h-4 w-4" />
+                                    </Button>
+                                )}
+                            </div>
                         </div>
                     )}
-                </CardContent>
-
-                {/* Master Navigation */}
-                {!progressMetrics.isInitial && !isGeneratingScript && (
-                    <div className="p-4 md:p-6 border-t border-border/10 flex justify-between items-center bg-background/20 backdrop-blur-md z-30">
-                        <Button type="button" variant="ghost" onClick={goBack} disabled={isSubmitting} className="h-11 px-5 rounded-xl font-bold text-muted-foreground hover:bg-secondary/40 transition-all">
-                            <ChevronLeft className="mr-2 h-4 w-4" /> Anterior
-                        </Button>
-                        <div className="flex gap-3">
-                            {currentFlowState === 'DETAILS_STEP' ? (
-                                <Button type="button" onClick={handleNextTransition} className="bg-primary text-white rounded-full px-8 h-12 font-bold shadow-lg shadow-primary/20 active:scale-95 transition-all">
-                                    <FileText className="mr-2 h-4 w-4" /> CREAR BORRADOR
-                                </Button>
-                            ) : currentFlowState === 'FINAL_STEP' ? (
-                                <Button type="button" onClick={handleSubmit(handleFinalSubmit)} disabled={isSubmitting} className="bg-primary text-white rounded-full px-10 h-12 font-black shadow-xl shadow-primary/30 active:scale-95 transition-all group">
-                                    {isSubmitting ? <Loader2 className="mr-3 h-4 w-4 animate-spin" /> : <Wand2 className="mr-3 h-4 w-4 group-hover:rotate-12 transition-transform" />}
-                                    PRODUCIR
-                                </Button>
-                            ) : (
-                                <Button type="button" onClick={handleNextTransition} className="bg-foreground text-background rounded-full px-8 h-12 font-bold hover:opacity-90 active:scale-95 transition-all">
-                                    Siguiente <ChevronRight className="ml-2 h-4 w-4" />
-                                </Button>
-                            )}
-                        </div>
-                    </div>
-                )}
-            </Card>
+                </div>
+            </div>
+            
+            {/* Spacer para el reproductor global si está activo */}
+            <div className={cn("transition-all duration-300", currentPodcast ? "h-24" : "h-0")} />
         </div>
       </FormProvider>
     </CreationContext.Provider>
