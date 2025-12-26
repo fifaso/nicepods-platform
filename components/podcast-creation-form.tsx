@@ -1,9 +1,9 @@
 // components/podcast-creation-form.tsx
-// VERSIÓN: 11.0 (Master Reliability - Fixed Types & Full Source Provenance)
+// VERSIÓN: 13.0 (Master Orchestrator - Full Synchronization & Source Provenance)
 
 "use client";
 
-import { useState, useCallback, createContext, useContext, useEffect } from "react";
+import { useState, useCallback, createContext, useContext, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -13,7 +13,7 @@ import { PodcastCreationSchema, PodcastCreationData } from "@/lib/validation/pod
 import { useAudio } from "@/contexts/audio-context";
 import { usePersistentForm } from "@/hooks/use-persistent-form";
 
-// Importación Dinámica para optimización de carga
+// Importación Dinámica de Componentes de Alto Peso
 import dynamic from 'next/dynamic';
 
 const ScriptEditorStep = dynamic(
@@ -21,9 +21,9 @@ const ScriptEditorStep = dynamic(
   { 
     ssr: false, 
     loading: () => (
-      <div className="h-64 w-full flex items-center justify-center text-muted-foreground animate-pulse">
-        <Loader2 className="h-6 w-6 animate-spin mr-2 text-primary" />
-        <span className="text-sm font-medium">Iniciando editor de guion...</span>
+      <div className="h-64 w-full flex flex-col items-center justify-center text-muted-foreground animate-pulse">
+        <Loader2 className="h-8 w-8 animate-spin mb-4 text-primary" />
+        <span className="text-sm font-bold tracking-widest uppercase opacity-50">Abriendo Estación de Edición</span>
       </div>
     )
   }
@@ -37,14 +37,14 @@ import {
   Wand2, 
   Loader2, 
   FileText, 
-  AlertCircle, 
   History, 
   Trash2,
-  CheckCircle2
+  CheckCircle2,
+  Sparkles
 } from "lucide-react";
 import { ToastAction } from "@/components/ui/toast"; 
 
-// Pasos del flujo de creación
+// Registro de Pasos del Flujo
 import { PurposeSelectionStep } from "./create-flow/purpose-selection-step";
 import { LearnSubStep } from "./create-flow/LearnSubStep";
 import { InspireSubStep } from "./create-flow/InspireSubStep";
@@ -83,8 +83,8 @@ export const useCreationContext = () => {
   return context;
 };
 
-// Rutas de navegación lógica
-const FLOW_PATHS: Record<string, FlowState[]> = {
+// Definición Maestra de Rutas (Fuera del componente para evitar re-renders)
+const FLOW_MAP: Record<string, FlowState[]> = {
   learn: ['SELECTING_PURPOSE', 'LEARN_SUB_SELECTION', 'SOLO_TALK_INPUT', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
   inspire: ['SELECTING_PURPOSE', 'INSPIRE_SUB_SELECTION', 'ARCHETYPE_SELECTION', 'ARCHETYPE_GOAL', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
   explore: ['SELECTING_PURPOSE', 'LINK_POINTS_INPUT', 'NARRATIVE_SELECTION', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
@@ -111,18 +111,14 @@ export function PodcastCreationForm() {
 
   const formMethods = useForm<PodcastCreationData>({
     resolver: zodResolver(PodcastCreationSchema),
-    mode: "onBlur",
+    mode: "onChange",
     defaultValues: {
       purpose: "learn",
-      style: undefined,
       solo_topic: '',
       solo_motivation: '',
       duration: '',
       narrativeDepth: '',
-      tags: [],
       generateAudioDirectly: true,
-      final_title: '',
-      final_script: '',
       sources: [],
     },
   });
@@ -132,30 +128,28 @@ export function PodcastCreationForm() {
   const formData = watch();
 
   const { restoreSession, discardSession, clearDraft } = usePersistentForm(
-    formMethods, 
-    currentFlowState, 
-    history, 
-    (savedStep, savedHistory) => {
-      setHistory(savedHistory as FlowState[]);
-      setCurrentFlowState(savedStep as FlowState);
-    },
+    formMethods, currentFlowState, history, 
+    (step, hist) => { setHistory(hist as FlowState[]); setCurrentFlowState(step as FlowState); },
     () => setHasRestorableData(true)
   );
 
   useEffect(() => {
     if (isMounted && hasRestorableData) {
       toast({
-        title: "Sesión pendiente",
-        description: "¿Deseas retomar tu última creación?",
+        title: "Sesión recuperada",
+        description: "¿Deseas continuar con tu progreso previo?",
+        duration: 8000,
         action: (
           <div className="flex gap-2">
-            <ToastAction altText="Descartar" onClick={() => { discardSession(); setHasRestorableData(false); }}>Limpiar</ToastAction>
-            <ToastAction altText="Retomar" onClick={() => { restoreSession(); setHasRestorableData(false); }} className="bg-primary text-white">Retomar</ToastAction>
+            <ToastAction altText="Limpiar" onClick={() => { discardSession(); setHasRestorableData(false); }}>Limpiar</ToastAction>
+            <ToastAction altText="Retomar" onClick={() => { restoreSession(); setHasRestorableData(false); }} className="bg-primary text-white font-bold">Continuar</ToastAction>
           </div>
         ),
       });
     }
   }, [hasRestorableData, isMounted, toast, restoreSession, discardSession]);
+
+  // --- MÉTODOS DE TRANSICIÓN ---
 
   const transitionTo = (state: FlowState) => {
     setHistory(prev => [...prev, state]);
@@ -174,39 +168,38 @@ export function PodcastCreationForm() {
 
   const updateFormData = (data: Partial<PodcastCreationData>) => {
     Object.entries(data).forEach(([key, value]) => {
-      setValue(key as keyof PodcastCreationData, value, { shouldValidate: true });
+      // Sincronización de nombres (selectedAgent -> agentName)
+      const targetKey = key === 'selectedAgent' ? 'agentName' : key;
+      setValue(targetKey as keyof PodcastCreationData, value, { shouldValidate: true });
     });
   };
+
+  // --- LÓGICA DE INTELIGENCIA ---
 
   const handleGenerateDraft = async () => {
     setIsGeneratingScript(true);
     try {
-      const currentData = getValues();
-      const selectedAgent = currentData.purpose === 'inspire' ? currentData.selectedArchetype : currentData.selectedTone;
-
+      const data = getValues();
       const payload = {
-        purpose: currentData.purpose,
-        style: currentData.style || 'solo',
-        duration: currentData.duration,
-        depth: currentData.narrativeDepth,
-        tone: selectedAgent,
+        purpose: data.purpose,
+        style: data.style || 'solo',
+        duration: data.duration,
+        depth: data.narrativeDepth,
+        tone: data.purpose === 'inspire' ? data.selectedArchetype : (data.agentName || data.selectedTone),
         raw_inputs: {
-          topic: currentData.solo_topic || currentData.archetype_topic || currentData.question_to_answer || currentData.link_topicA,
-          motivation: currentData.solo_motivation || currentData.archetype_goal || currentData.legacy_lesson || currentData.link_catalyst,
-          archetype: currentData.selectedArchetype,
-          topicA: currentData.link_topicA,
-          topicB: currentData.link_topicB
+          topic: data.solo_topic || data.archetype_topic || data.question_to_answer || data.link_topicA,
+          motivation: data.solo_motivation || data.archetype_goal || data.legacy_lesson || data.link_catalyst,
+          archetype: data.selectedArchetype
         }
       };
 
-      const { data, error } = await supabase.functions.invoke('generate-script-draft', { body: payload });
-      if (error || !data?.success) throw new Error(data?.error || "Los agentes de IA no están disponibles.");
+      const { data: aiResponse, error } = await supabase.functions.invoke('generate-script-draft', { body: payload });
+      if (error || !aiResponse?.success) throw new Error(aiResponse?.error || "Fallo en la síntesis de IA.");
 
-      setValue('final_title', data.draft.suggested_title);
-      setValue('final_script', data.draft.script_body);
-      
-      // PERSISTENCIA DE FUENTES (TAVILY)
-      setValue('sources', Array.isArray(data.draft.sources) ? data.draft.sources : []);
+      // CUSTODIA DE DATOS
+      setValue('final_title', aiResponse.draft.suggested_title);
+      setValue('final_script', aiResponse.draft.script_body);
+      setValue('sources', aiResponse.draft.sources || []);
 
       transitionTo('SCRIPT_EDITING');
     } catch (e: any) {
@@ -218,72 +211,32 @@ export function PodcastCreationForm() {
 
   const handleFinalSubmit: SubmitHandler<PodcastCreationData> = useCallback(async (data) => {
     if (!supabase || !user) return;
-    const determinedAgent = data.purpose === 'inspire' ? data.selectedArchetype : data.selectedTone;
     
+    // Determinación final del agente basada en la tabla ai_prompts
+    const finalAgent = data.purpose === 'inspire' ? data.selectedArchetype : (data.agentName || data.selectedTone || 'script-architect-v1');
+
     const payload = {
       purpose: data.purpose,
       style: data.style || (data.purpose === 'inspire' ? 'archetype' : 'solo'),
-      agentName: determinedAgent,
+      agentName: finalAgent,
       final_script: data.final_script,
       final_title: data.final_title,
-      sources: data.sources || [],
-      inputs: { ...data, tags: data.tags }
+      sources: data.sources || [], // Transparencia total
+      inputs: { ...data }
     };
     
-    const { data: res, error } = await supabase.functions.invoke('queue-podcast-job', { body: payload });
+    const { data: queueRes, error } = await supabase.functions.invoke('queue-podcast-job', { body: payload });
     
-    if (res?.success) {
-      toast({ title: "¡Producción iniciada!", description: "Tu podcast estará listo en unos minutos.", action: <CheckCircle2 className="h-5 w-5 text-green-500"/> });
+    if (queueRes?.success) {
+      toast({ title: "¡En Producción!", description: "Tu NicePod se está horneando.", action: <CheckCircle2 className="h-5 w-5 text-green-500"/> });
       clearDraft();
       router.push('/podcasts?tab=library');
     } else {
-      toast({ title: "Error de Producción", description: error?.message || "Fallo en el servidor.", variant: "destructive" });
+      toast({ title: "Error", description: error?.message || "Fallo al encolar el trabajo.", variant: "destructive" });
     }
-  }, [supabase, user, toast, router, clearDraft]);
+  }, [supabase, user, router, clearDraft, toast]);
 
-  const handleNextTransition = async () => {
-    let fieldsToValidate: (keyof PodcastCreationData)[] = [];
-    let nextState: FlowState | null = null;
-
-    switch(currentFlowState) {
-      case 'LEARN_SUB_SELECTION': nextState = 'SOLO_TALK_INPUT'; break;
-      case 'INSPIRE_SUB_SELECTION': nextState = 'ARCHETYPE_SELECTION'; break;
-      case 'SOLO_TALK_INPUT': fieldsToValidate = ['solo_topic', 'solo_motivation']; nextState = 'TONE_SELECTION'; break;
-      case 'ARCHETYPE_SELECTION': fieldsToValidate = ['selectedArchetype']; nextState = 'ARCHETYPE_GOAL'; break;
-      case 'ARCHETYPE_GOAL': fieldsToValidate = ['archetype_goal']; nextState = 'DETAILS_STEP'; break;
-      case 'LINK_POINTS_INPUT':
-        if (await trigger(['link_topicA', 'link_topicB'])) await handleGenerateNarratives();
-        return;
-      case 'NARRATIVE_SELECTION': fieldsToValidate = ['link_selectedNarrative']; nextState = 'TONE_SELECTION'; break;
-      case 'FREESTYLE_SELECTION':
-        const s = getValues('style');
-        if (s === 'solo') nextState = 'SOLO_TALK_INPUT';
-        else if (s === 'link') nextState = 'LINK_POINTS_INPUT';
-        else if (s === 'archetype') nextState = 'ARCHETYPE_SELECTION';
-        break;
-      case 'LEGACY_INPUT': fieldsToValidate = ['legacy_lesson']; nextState = 'TONE_SELECTION'; break;
-      case 'QUESTION_INPUT': fieldsToValidate = ['question_to_answer']; nextState = 'TONE_SELECTION'; break;
-      case 'TONE_SELECTION': fieldsToValidate = ['selectedTone']; nextState = 'DETAILS_STEP'; break;
-      case 'DETAILS_STEP': 
-        if (await trigger(['duration', 'narrativeDepth'])) await handleGenerateDraft();
-        return;
-      case 'SCRIPT_EDITING': fieldsToValidate = ['final_title', 'final_script']; nextState = 'AUDIO_STUDIO_STEP'; break;
-      case 'AUDIO_STUDIO_STEP': fieldsToValidate = ['voiceGender', 'voiceStyle']; nextState = 'FINAL_STEP'; break;
-    }
-
-    if (nextState && await trigger(fieldsToValidate)) transitionTo(nextState);
-  };
-
-  const handleGenerateNarratives = useCallback(async () => {
-    setIsLoadingNarratives(true);
-    try {
-      const { link_topicA, link_topicB, link_catalyst } = getValues();
-      const { data } = await supabase.functions.invoke('generate-narratives', {
-        body: { topicA: link_topicA, topicB: link_topicB, catalyst: link_catalyst }
-      });
-      if (data?.narratives) { setNarrativeOptions(data.narratives); transitionTo('NARRATIVE_SELECTION'); }
-    } finally { setIsLoadingNarratives(false); }
-  }, [supabase, getValues]);
+  // --- RENDERIZADO ---
 
   const renderCurrentStep = () => {
     if (!isMounted) return null;
@@ -308,69 +261,72 @@ export function PodcastCreationForm() {
     }
   };
 
-  // CÁLCULO DE PROGRESO SEGURO PARA TYPESCRIPT
-  const currentPath = FLOW_PATHS[formData.purpose] || FLOW_PATHS.learn;
-  const effectiveSteps = currentPath.filter(s => s !== 'SELECTING_PURPOSE');
-  
-  // FIX IMAGEN 42: Cast a 'string[]' para evitar error de tipado en subconjunto de FlowState
-  const currentIndex = (effectiveSteps as string[]).indexOf(currentFlowState);
-  const currentStepNumber = currentIndex !== -1 ? currentIndex + 1 : 1;
-  const progressPercent = Math.round((currentStepNumber / effectiveSteps.length) * 100);
+  // CÁLCULO DE PROGRESO (Fix Imagen 42)
+  const progressMetrics = useMemo(() => {
+    const path = FLOW_MAP[formData.purpose] || FLOW_MAP.learn;
+    const steps = path.filter(s => s !== 'SELECTING_PURPOSE');
+    const idx = (steps as string[]).indexOf(currentFlowState);
+    return {
+      step: idx !== -1 ? idx + 1 : 1,
+      total: steps.length,
+      percent: idx !== -1 ? Math.round(((idx + 1) / steps.length) * 100) : 0,
+      isInitial: currentFlowState === 'SELECTING_PURPOSE'
+    };
+  }, [currentFlowState, formData.purpose]);
 
   return (
     <CreationContext.Provider value={{ updateFormData, transitionTo, goBack }}>
       <FormProvider {...formMethods}>
-        <div className="flex flex-col h-full w-full max-w-4xl mx-auto px-4 py-4 md:py-8">
+        <div className="flex flex-col h-full w-full max-w-6xl mx-auto px-4 py-4 md:py-10">
             
-            {/* Header de Progreso Blindado */}
-            {isMounted && currentFlowState !== 'SELECTING_PURPOSE' && !isGeneratingScript && (
-              <div className="w-full mb-4 md:mb-8 animate-in fade-in slide-in-from-top-4">
-                <div className="flex justify-between items-end mb-2">
-                   <div>
-                     <h2 className="text-lg font-bold tracking-tight text-foreground/90">Construcción</h2>
-                     <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">
-                        Paso {currentStepNumber} de {effectiveSteps.length}
-                     </p>
+            {/* Header de Progreso Elite */}
+            {isMounted && !progressMetrics.isInitial && !isGeneratingScript && (
+              <div className="w-full max-w-4xl mx-auto mb-6 md:mb-10 animate-in fade-in slide-in-from-top-4">
+                <div className="flex justify-between items-end mb-3">
+                   <div className="flex items-center gap-2">
+                     <div className="p-1.5 bg-primary/10 rounded-lg"><Sparkles className="h-4 w-4 text-primary animate-pulse" /></div>
+                     <h2 className="text-sm font-black uppercase tracking-widest text-foreground/70">Diseño de Podcast</h2>
                    </div>
-                   <div className="text-xs font-mono font-bold text-primary">{progressPercent}%</div>
+                   <div className="text-xs font-mono font-bold text-primary bg-primary/5 px-2 py-1 rounded-md border border-primary/10">
+                    {progressMetrics.percent}%
+                   </div>
                 </div>
                 <div className="h-1.5 w-full bg-secondary/30 rounded-full overflow-hidden border border-white/5">
-                    <div className="h-full bg-primary transition-all duration-700 ease-out shadow-[0_0_10px_rgba(168,85,247,0.3)]" style={{ width: `${progressPercent}%` }} />
+                    <div className="h-full bg-primary transition-all duration-1000 ease-out shadow-[0_0_15px_rgba(168,85,247,0.4)]" style={{ width: `${progressMetrics.percent}%` }} />
                 </div>
               </div>
             )}
 
-            {/* Contenedor Principal Adaptativo */}
-            <Card className={`flex-grow flex flex-col overflow-hidden relative border-0 shadow-none ${currentFlowState === 'SELECTING_PURPOSE' ? "bg-transparent" : "bg-card/40 backdrop-blur-2xl rounded-3xl border border-border/40 shadow-2xl"}`}>
+            <Card className={`flex-grow flex flex-col overflow-hidden relative border-0 shadow-none ${progressMetrics.isInitial ? "bg-transparent" : "bg-card/40 backdrop-blur-3xl rounded-3xl border border-border/40 shadow-2xl transition-all duration-700"}`}>
                 <CardContent className="p-0 flex-grow flex flex-col h-full overflow-hidden relative">
                     {isGeneratingScript ? (
                         <DraftGenerationLoader formData={formData} />
                     ) : (
-                        <div className="flex-grow overflow-y-auto custom-scrollbar">
+                        <div className="flex-grow overflow-y-auto custom-scrollbar h-full">
                             {renderCurrentStep()}
                         </div>
                     )}
                 </CardContent>
 
-                {/* Footer de Navegación Profesional */}
-                {isMounted && currentFlowState !== 'SELECTING_PURPOSE' && !isGeneratingScript && (
-                    <div className="p-4 md:p-6 border-t border-border/10 flex justify-between items-center bg-background/20 backdrop-blur-md">
-                        <Button type="button" variant="ghost" onClick={goBack} disabled={isSubmitting} className="h-11 px-5 rounded-xl hover:bg-secondary/40 transition-all">
-                            <ChevronLeft className="mr-2 h-4 w-4" /> Anterior
+                {/* Footer de Navegación Master */}
+                {isMounted && !progressMetrics.isInitial && !isGeneratingScript && (
+                    <div className="p-4 md:p-8 border-t border-border/10 flex justify-between items-center bg-background/30 backdrop-blur-md">
+                        <Button type="button" variant="ghost" onClick={goBack} disabled={isSubmitting} className="h-12 px-6 rounded-2xl hover:bg-secondary/40 transition-all font-bold text-muted-foreground hover:text-foreground">
+                            <ChevronLeft className="mr-2 h-4 w-4" /> ANTERIOR
                         </Button>
-                        <div className="flex gap-3">
+                        <div className="flex gap-4">
                             {currentFlowState === 'DETAILS_STEP' ? (
-                                <Button type="button" onClick={handleNextTransition} className="bg-primary text-white rounded-full px-8 h-12 font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all">
-                                    <FileText className="mr-2 h-4 w-4" /> CREAR BORRADOR
+                                <Button type="button" onClick={handleGenerateDraft} className="bg-primary text-white rounded-full px-10 h-14 font-black shadow-lg shadow-primary/20 hover:scale-[1.03] active:scale-95 transition-all">
+                                    <FileText className="mr-2 h-5 w-5" /> CREAR BORRADOR
                                 </Button>
                             ) : currentFlowState === 'FINAL_STEP' ? (
-                                <Button type="button" onClick={handleSubmit(handleFinalSubmit)} disabled={isSubmitting} className="bg-primary text-white rounded-full px-10 h-12 font-black shadow-xl shadow-primary/30 active:scale-95 transition-all">
-                                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
-                                    PRODUCIR
+                                <Button type="button" onClick={handleSubmit(handleFinalSubmit)} disabled={isSubmitting} className="bg-primary text-white rounded-full px-12 h-14 font-black shadow-2xl shadow-primary/40 active:scale-95 transition-all group">
+                                    {isSubmitting ? <Loader2 className="mr-3 h-5 w-5 animate-spin" /> : <Wand2 className="mr-3 h-5 w-5 group-hover:rotate-12 transition-transform" />}
+                                    INICIAR PRODUCCIÓN
                                 </Button>
                             ) : (
-                                <Button type="button" onClick={handleNextTransition} className="bg-foreground text-background rounded-full px-8 h-12 font-bold hover:opacity-90 transition-all">
-                                    Siguiente <ChevronRight className="ml-2 h-4 w-4" />
+                                <Button type="button" onClick={handleNextTransition} className="bg-foreground text-background rounded-full px-10 h-14 font-black hover:opacity-90 transition-all active:scale-95">
+                                    CONTINUAR <ChevronRight className="ml-2 h-4 w-4" />
                                 </Button>
                             )}
                         </div>
