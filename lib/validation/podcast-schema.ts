@@ -1,49 +1,46 @@
 // lib/validation/podcast-schema.ts
-// VERSIÓN: 3.0 (Enterprise Standard - Full Data Provenance & Remix Support)
+// VERSIÓN: 3.1 (Enterprise Standard - Data Provenance & AI Governance)
 
 import { z } from 'zod';
 
-// --- CAPA DE SEGURIDAD Y LIMPIEZA ---
+/**
+ * CAPA DE SEGURIDAD: Limpieza de inyecciones maliciosas en inputs de texto.
+ */
 const sanitizeInput = (val: string | undefined) => {
   if (!val) return undefined;
   return val
-    .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "") // Elimina scripts
-    .replace(/<iframe\b[^>]*>([\s\S]*?)<\/iframe>/gim, "") // Elimina frames
-    .replace(/<[^>]+>/g, "") // Elimina HTML residual
+    .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "")
+    .replace(/<iframe\b[^>]*>([\s\S]*?)<\/iframe>/gim, "")
+    .replace(/<[^>]+>/g, "")
     .trim();
 };
 
 const safeInputString = z.string()
-  .max(8000, { message: "El texto excede el límite de seguridad permitido." })
+  .max(10000, { message: "El texto excede el límite de seguridad (10,000 caracteres)." })
   .transform(sanitizeInput);
 
 /**
- * Esquema de Fuente de Investigación
- * Garantiza la transparencia de la información recolectada por Tavily/IA.
+ * Esquema de Fuente de Investigación (Transparency 360).
  */
 const SourceSchema = z.object({
-  title: z.string().min(1, "El título de la fuente es requerido"),
-  url: z.string().url("URL de fuente inválida"),
+  title: z.string().min(1, "El título de la fuente es obligatorio."),
+  url: z.string().url("Debe ser una URL válida."),
   snippet: z.string().optional(),
 });
 
-// -------------------------
-
 export const PodcastCreationSchema = z.object({
-  // Identidad del Proceso
+  // Identidad y Propósito
   purpose: z.enum(['learn', 'inspire', 'explore', 'reflect', 'answer', 'freestyle']),
   creation_mode: z.enum(['standard', 'remix']).default('standard'),
   
   // Metodología de Producción
   style: z.enum(['solo', 'link', 'archetype', 'legacy', 'qa', 'remix']).optional(),
   
-  // [SINCRONIZACIÓN MAESTRA] 
-  // agentName es el campo oficial de la DB. 
-  // Mantendremos selectedAgent temporalmente para evitar errores en componentes antiguos.
-  agentName: z.string().min(1, "El Agente de IA es obligatorio"),
-  selectedAgent: z.string().optional(), 
+  // [GOBERNANZA]: agentName es el campo oficial sincronizado con la tabla ai_prompts.
+  agentName: z.string().min(1, "El Agente de IA es obligatorio."),
+  selectedAgent: z.string().optional(), // Mantenido para compatibilidad de UI.
 
-  // --- INPUTS DE MATERIA PRIMA (SEMILLA) ---
+  // --- INPUTS SEMILLA (MATERIA PRIMA) ---
   solo_topic: safeInputString.optional(),
   solo_motivation: safeInputString.optional(),
   
@@ -51,86 +48,57 @@ export const PodcastCreationSchema = z.object({
   link_topicB: safeInputString.optional(),
   link_catalyst: safeInputString.optional(),
   
-  // Lógica de Narrativa (Link Points)
   link_selectedNarrative: z.object({ 
     title: z.string(), 
     thesis: z.string() 
   }).nullable().optional(),
+  
   link_selectedTone: z.string().optional(),
   
-  // Lógica de Arquetipos e Historias
   selectedArchetype: z.string().optional(),
   archetype_topic: z.string().optional(),
   archetype_goal: z.string().optional(),
   
-  // Otros Flujos
   legacy_lesson: z.string().optional(),
   question_to_answer: z.string().optional(),
 
-  // --- GENEALOGÍA (Remixes / Threads) ---
+  // --- GENEALOGÍA (Remixes) ---
   parent_id: z.number().optional().nullable(),
   root_id: z.number().optional().nullable(),
   user_reaction: z.string().optional(),
   quote_context: z.string().optional(),
 
-  // --- CAMPOS DE PRODUCCIÓN FINAL ---
-  final_title: z.string().min(1, "El título es necesario").max(120).optional(),
+  // --- OUTPUT DE PRODUCCIÓN ---
+  final_title: z.string().min(1, "El título es necesario.").max(150).optional(),
   
   final_script: z.string()
-    .max(30000, { message: "El guion excede la capacidad del motor de voz." })
+    .max(40000, { message: "El guion excede la capacidad máxima de procesamiento." })
     .optional(),
 
-  // CUSTODIA DE FUENTES: Array de bibliografía real
+  // CUSTODIA DE FUENTES: Registro bibliográfico de la investigación.
   sources: z.array(SourceSchema).default([]),
 
-  // Configuración Técnica
-  duration: z.string().min(1, "Selecciona una duración aproximada"),
-  narrativeDepth: z.string().min(1, "Define el nivel de profundidad"),
-  
+  // Configuración Técnica y de Voz
+  duration: z.string().min(1, "Selecciona una duración."),
+  narrativeDepth: z.string().min(1, "Define la profundidad."),
   selectedTone: z.string().optional(), 
   
-  // Configuración de Voz (Motor Neural2)
   voiceGender: z.enum(['Masculino', 'Femenino']).default('Masculino'),
   voiceStyle: z.enum(['Calmado', 'Energético', 'Profesional', 'Inspirador']).default('Profesional'),
   voicePace: z.string().default('Moderado'),
   speakingRate: z.number().default(1.0),
 
-  // Metadatos Adicionales
   tags: z.array(z.string()).optional().default([]),
   generateAudioDirectly: z.boolean().default(true),
 })
 .superRefine((data, ctx) => {
-  /**
-   * REGLAS DE NEGOCIO DINÁMICAS
-   * Validamos según el propósito para asegurar que la IA tenga datos suficientes.
-   */
-  if (data.creation_mode === 'remix') {
-    if (!data.user_reaction) ctx.addIssue({ code: 'custom', message: 'La reacción es necesaria para el remix.', path: ['user_reaction'] });
-    return;
+  // Validaciones lógicas por propósito
+  if (data.purpose === 'learn' && (!data.solo_topic || data.solo_topic.length < 3)) {
+    ctx.addIssue({ code: 'custom', message: 'Falta el tema a aprender.', path: ['solo_topic'] });
   }
-
-  switch (data.purpose) {
-    case 'learn':
-      if (!data.solo_topic) ctx.addIssue({ code: 'custom', message: 'Define el tema a aprender.', path: ['solo_topic'] });
-      break;
-      
-    case 'inspire':
-      if (!data.selectedArchetype) ctx.addIssue({ code: 'custom', message: 'Selecciona una personalidad épica.', path: ['selectedArchetype'] });
-      if (!data.archetype_goal) ctx.addIssue({ code: 'custom', message: '¿Qué quieres inspirar?', path: ['archetype_goal'] });
-      break;
-      
-    case 'explore':
-      if (!data.link_topicA || !data.link_topicB) ctx.addIssue({ code: 'custom', message: 'Se requieren dos ejes para explorar.', path: ['link_topicA'] });
-      break;
-
-    case 'reflect':
-      if (!data.legacy_lesson) ctx.addIssue({ code: 'custom', message: 'Escribe tu reflexión o lección.', path: ['legacy_lesson'] });
-      break;
+  if (data.purpose === 'explore' && (!data.link_topicA || !data.link_topicB)) {
+    ctx.addIssue({ code: 'custom', message: 'Se requieren dos temas para explorar.', path: ['link_topicA'] });
   }
 });
 
-/**
- * TIPO DE DATOS INFERIDO
- * Este tipo es el que usan todos nuestros componentes de React.
- */
 export type PodcastCreationData = z.infer<typeof PodcastCreationSchema>;
