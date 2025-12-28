@@ -1,46 +1,66 @@
 // lib/validation/podcast-schema.ts
-// VERSIÓN: 3.1 (Enterprise Standard - Data Provenance & AI Governance)
+// VERSIÓN: 4.0 (Enterprise Standard - Spatial & Vision Support)
 
 import { z } from 'zod';
 
 /**
- * CAPA DE SEGURIDAD: Limpieza de inyecciones maliciosas en inputs de texto.
+ * CAPA DE SEGURIDAD: Limpieza de entradas de texto contra ataques XSS e inyecciones de código.
  */
-const sanitizeInput = (val: string | undefined) => {
-  if (!val) return undefined;
-  return val
-    .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "")
-    .replace(/<iframe\b[^>]*>([\s\S]*?)<\/iframe>/gim, "")
-    .replace(/<[^>]+>/g, "")
+const sanitizeInput = (valor: string | undefined) => {
+  if (!valor) return undefined;
+  return valor
+    .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "") // Neutraliza scripts
+    .replace(/<iframe\b[^>]*>([\s\S]*?)<\/iframe>/gim, "") // Neutraliza iframes
+    .replace(/<[^>]+>/g, "") // Elimina cualquier etiqueta HTML residual
     .trim();
 };
 
+/**
+ * Validador robusto para strings de largo aliento (guiones y descripciones).
+ */
 const safeInputString = z.string()
-  .max(10000, { message: "El texto excede el límite de seguridad (10,000 caracteres)." })
+  .max(15000, { message: "El contenido excede el límite de seguridad de 15,000 caracteres." })
   .transform(sanitizeInput);
 
 /**
- * Esquema de Fuente de Investigación (Transparency 360).
+ * Esquema de Fuente de Investigación para Transparencia 360.
  */
 const SourceSchema = z.object({
   title: z.string().min(1, "El título de la fuente es obligatorio."),
-  url: z.string().url("Debe ser una URL válida."),
+  url: z.string().url("URL de investigación inválida."),
   snippet: z.string().optional(),
 });
 
+/**
+ * ESQUEMA MAESTRO DE CREACIÓN
+ * Define todas las ramas posibles de creación: desde monólogos hasta Turismo Local.
+ */
 export const PodcastCreationSchema = z.object({
-  // Identidad y Propósito
-  purpose: z.enum(['learn', 'inspire', 'explore', 'reflect', 'answer', 'freestyle']),
+  // Propósito e Intencionalidad del usuario
+  purpose: z.enum(['learn', 'inspire', 'explore', 'reflect', 'answer', 'freestyle', 'local_soul']),
+  
+  // Modo de creación (Estándar o Respuesta/Remix)
   creation_mode: z.enum(['standard', 'remix']).default('standard'),
   
-  // Metodología de Producción
-  style: z.enum(['solo', 'link', 'archetype', 'legacy', 'qa', 'remix']).optional(),
+  // Metodología Técnica (estilo de guion)
+  style: z.enum(['solo', 'link', 'archetype', 'legacy', 'qa', 'remix', 'local_concierge']).optional(),
   
-  // [GOBERNANZA]: agentName es el campo oficial sincronizado con la tabla ai_prompts.
-  agentName: z.string().min(1, "El Agente de IA es obligatorio."),
-  selectedAgent: z.string().optional(), // Mantenido para compatibilidad de UI.
+  // Identidad técnica del Agente AI a invocar
+  agentName: z.string().min(1, "El Agente de IA debe estar definido."),
+  selectedAgent: z.string().optional(), // Compatibilidad con componentes legacy
 
-  // --- INPUTS SEMILLA (MATERIA PRIMA) ---
+  // --- DATOS SENSORIALES (NUEVO: VIVIR LO LOCAL) ---
+  location: z.object({
+    latitude: z.number(),
+    longitude: z.number(),
+    placeName: z.string().optional(),
+    cityName: z.string().optional()
+  }).optional(),
+
+  // Contexto visual (Base64 de la cámara o upload)
+  imageContext: z.string().optional(),
+
+  // --- INPUTS DE MATERIA PRIMA (SEMILLA) ---
   solo_topic: safeInputString.optional(),
   solo_motivation: safeInputString.optional(),
   
@@ -62,43 +82,52 @@ export const PodcastCreationSchema = z.object({
   legacy_lesson: z.string().optional(),
   question_to_answer: z.string().optional(),
 
-  // --- GENEALOGÍA (Remixes) ---
+  // --- GENEALOGÍA (Remixes / Threads) ---
   parent_id: z.number().optional().nullable(),
   root_id: z.number().optional().nullable(),
   user_reaction: z.string().optional(),
   quote_context: z.string().optional(),
 
-  // --- OUTPUT DE PRODUCCIÓN ---
-  final_title: z.string().min(1, "El título es necesario.").max(150).optional(),
-  
-  final_script: z.string()
-    .max(40000, { message: "El guion excede la capacidad máxima de procesamiento." })
-    .optional(),
+  // --- DATOS DE PRODUCCIÓN FINAL ---
+  final_title: z.string().min(1, "Título obligatorio").max(180).optional(),
+  final_script: z.string().max(50000).optional(),
 
-  // CUSTODIA DE FUENTES: Registro bibliográfico de la investigación.
+  // CUSTODIA DE FUENTES (Transparency Hub)
   sources: z.array(SourceSchema).default([]),
 
-  // Configuración Técnica y de Voz
-  duration: z.string().min(1, "Selecciona una duración."),
-  narrativeDepth: z.string().min(1, "Define la profundidad."),
+  // Configuración de Producción Técnica
+  duration: z.string().min(1, "Duración requerida"),
+  narrativeDepth: z.string().min(1, "Profundidad requerida"),
   selectedTone: z.string().optional(), 
   
+  // Parámetros del Motor de Voz
   voiceGender: z.enum(['Masculino', 'Femenino']).default('Masculino'),
   voiceStyle: z.enum(['Calmado', 'Energético', 'Profesional', 'Inspirador']).default('Profesional'),
   voicePace: z.string().default('Moderado'),
   speakingRate: z.number().default(1.0),
 
-  tags: z.array(z.string()).optional().default([]),
+  // Metadatos de Red
+  tags: z.array(z.string()).default([]),
   generateAudioDirectly: z.boolean().default(true),
 })
 .superRefine((data, ctx) => {
-  // Validaciones lógicas por propósito
-  if (data.purpose === 'learn' && (!data.solo_topic || data.solo_topic.length < 3)) {
-    ctx.addIssue({ code: 'custom', message: 'Falta el tema a aprender.', path: ['solo_topic'] });
+  // Validación de seguridad para "Vivir lo Local"
+  if (data.purpose === 'local_soul' && !data.location && !data.imageContext) {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'Para vivir lo local, NicePod necesita tu ubicación o una fotografía de tu entorno.',
+      path: ['purpose']
+    });
   }
-  if (data.purpose === 'explore' && (!data.link_topicA || !data.link_topicB)) {
-    ctx.addIssue({ code: 'custom', message: 'Se requieren dos temas para explorar.', path: ['link_topicA'] });
+
+  // Validación para el flujo de aprendizaje
+  if (data.purpose === 'learn' && !data.solo_topic) {
+    ctx.addIssue({ code: 'custom', message: 'Indica qué deseas aprender hoy.', path: ['solo_topic'] });
   }
 });
 
+/**
+ * TIPO DE DATOS INFERIDO
+ * Objeto central que fluye por todo el formulario y componentes de UI.
+ */
 export type PodcastCreationData = z.infer<typeof PodcastCreationSchema>;
