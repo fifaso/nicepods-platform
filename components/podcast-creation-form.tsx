@@ -1,5 +1,5 @@
 // components/podcast-creation-form.tsx
-// VERSIÓN: 10.0 (Master Integrity - Fluid Architecture & Source Provenance)
+// VERSIÓN: 11.0 (Crystal Architecture - Background Fix & Source Provenance)
 
 "use client";
 
@@ -13,7 +13,6 @@ import { PodcastCreationSchema, PodcastCreationData } from "@/lib/validation/pod
 import { useAudio } from "@/contexts/audio-context";
 import { usePersistentForm } from "@/hooks/use-persistent-form";
 
-// Importación Dinámica de Componentes de Alto Peso
 import dynamic from 'next/dynamic';
 
 const ScriptEditorStep = dynamic(
@@ -23,7 +22,7 @@ const ScriptEditorStep = dynamic(
     loading: () => (
       <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground animate-pulse">
         <Loader2 className="h-10 w-10 animate-spin mb-4 text-primary/40" />
-        <span className="text-xs font-bold tracking-widest uppercase opacity-40 text-center">Iniciando Estudio de Edición</span>
+        <span className="text-xs font-bold tracking-widest uppercase opacity-40 text-center">Iniciando Estudio</span>
       </div>
     )
   }
@@ -44,8 +43,9 @@ import {
   AlertCircle
 } from "lucide-react";
 import { ToastAction } from "@/components/ui/toast"; 
+import { cn } from "@/lib/utils";
 
-// Registro de Pasos del Flujo
+// Pasos del flujo
 import { PurposeSelectionStep } from "./create-flow/purpose-selection-step";
 import { LearnSubStep } from "./create-flow/LearnSubStep";
 import { InspireSubStep } from "./create-flow/InspireSubStep";
@@ -79,11 +79,10 @@ interface CreationContextType {
 const CreationContext = createContext<CreationContextType | undefined>(undefined);
 export const useCreationContext = () => {
   const context = useContext(CreationContext);
-  if (!context) throw new Error("CreationContext not found");
+  if (!context) throw new Error("Context Error");
   return context;
 };
 
-// Rutas Maestras de Navegación
 const MASTER_FLOW_PATHS: Record<string, FlowState[]> = {
   learn: ['SELECTING_PURPOSE', 'LEARN_SUB_SELECTION', 'SOLO_TALK_INPUT', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
   inspire: ['SELECTING_PURPOSE', 'INSPIRE_SUB_SELECTION', 'ARCHETYPE_SELECTION', 'ARCHETYPE_GOAL', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
@@ -136,23 +135,6 @@ export function PodcastCreationForm() {
     () => setHasRestorableData(true)
   );
 
-  useEffect(() => {
-    if (isMounted && hasRestorableData) {
-      toast({
-        title: "Sesión recuperada",
-        description: "¿Retomar tu último borrador?",
-        action: (
-          <div className="flex gap-2">
-            <ToastAction altText="X" onClick={() => { discardSession(); setHasRestorableData(false); }}>Limpiar</ToastAction>
-            <ToastAction altText="O" onClick={() => { restoreSession(); setHasRestorableData(false); }} className="bg-primary text-white font-bold">Continuar</ToastAction>
-          </div>
-        ),
-      });
-    }
-  }, [hasRestorableData, isMounted, toast, restoreSession, discardSession]);
-
-  // --- MÉTODOS ESTRATÉGICOS ---
-
   const transitionTo = useCallback((state: FlowState) => {
     setHistory(prev => [...prev, state]);
     setCurrentFlowState(state);
@@ -171,13 +153,10 @@ export function PodcastCreationForm() {
 
   const updateFormData = useCallback((data: Partial<PodcastCreationData>) => {
     Object.entries(data).forEach(([key, value]) => {
-      // Normalización Quirúrgica: selectedAgent (UI) -> agentName (Backend/Schema)
       const targetKey = key === 'selectedAgent' ? 'agentName' : key;
       setValue(targetKey as any, value, { shouldValidate: true });
     });
   }, [setValue]);
-
-  // --- LÓGICA DE INTELIGENCIA Y FUENTES ---
 
   const handleGenerateDraft = async () => {
     setIsGeneratingScript(true);
@@ -197,48 +176,19 @@ export function PodcastCreationForm() {
       };
 
       const { data: res, error } = await supabase.functions.invoke('generate-script-draft', { body: payload });
-      if (error || !res?.success) throw new Error(res?.error || "Fallo en la comunicación con la IA.");
+      if (error || !res?.success) throw new Error("IA no disponible.");
 
-      // CUSTODIA DE DATOS: Aseguramos que las fuentes de Tavily se guarden en el estado
       setValue('final_title', res.draft.suggested_title);
       setValue('final_script', res.draft.script_body);
       setValue('sources', res.draft.sources || []);
 
       transitionTo('SCRIPT_EDITING');
     } catch (e: any) {
-      toast({ title: "Error Creativo", description: e.message, variant: "destructive" });
+      toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {
       setIsGeneratingScript(false);
     }
   };
-
-  const handleFinalSubmit: SubmitHandler<any> = useCallback(async (data) => {
-    if (!supabase || !user) return;
-    
-    // Determinación final de identidad del agente
-    const finalAgent = data.purpose === 'inspire' ? data.selectedArchetype : (data.agentName || data.selectedTone || 'script-architect-v1');
-
-    const payload = {
-      purpose: data.purpose,
-      agentName: finalAgent,
-      final_script: data.final_script,
-      final_title: data.final_title,
-      sources: data.sources || [], // Transparencia total de fuentes
-      inputs: { ...data }
-    };
-    
-    const { data: result, error } = await supabase.functions.invoke('queue-podcast-job', { body: payload });
-    
-    if (result?.success) {
-      toast({ title: "Producción Iniciada", description: "Tu podcast estará disponible en breve.", action: <CheckCircle2 className="h-5 w-5 text-green-500"/> });
-      clearDraft();
-      router.push('/podcasts?tab=library');
-    } else {
-      toast({ title: "Fallo en Producción", description: error?.message || "Revisa tu conexión.", variant: "destructive" });
-    }
-  }, [supabase, user, router, clearDraft, toast]);
-
-  // --- NAVEGACIÓN TÉCNICA ---
 
   const handleNextTransition = async () => {
     let fields: any[] = [];
@@ -271,7 +221,6 @@ export function PodcastCreationForm() {
     }
 
     if (next && (fields.length === 0 || await trigger(fields))) transitionTo(next);
-    else if (next) toast({ title: "Paso incompleto", variant: "destructive", action: <AlertCircle className="h-5 w-5"/> });
   };
 
   const handleGenerateNarratives = useCallback(async () => {
@@ -285,77 +234,65 @@ export function PodcastCreationForm() {
     } finally { setIsLoadingNarratives(false); }
   }, [supabase, getValues, transitionTo]);
 
-  // --- UI DYNAMICS (Cálculo de Progreso Seguro) ---
+  const handleFinalSubmit: SubmitHandler<any> = useCallback(async (data) => {
+    if (!supabase || !user) return;
+    const finalAgent = data.purpose === 'inspire' ? data.selectedArchetype : (data.agentName || data.selectedTone);
+    const payload = {
+      purpose: data.purpose,
+      agentName: finalAgent,
+      final_script: data.final_script,
+      final_title: data.final_title,
+      sources: data.sources || [],
+      inputs: { ...data }
+    };
+    const { data: result } = await supabase.functions.invoke('queue-podcast-job', { body: payload });
+    if (result?.success) { clearDraft(); router.push('/podcasts?tab=library'); }
+  }, [supabase, user, router, clearDraft]);
 
   const metrics = useMemo(() => {
-    if (!isMounted) return { step: 0, total: 1, percent: 0, isInitial: true };
-    const path = MASTER_FLOW_PATHS[formData.purpose as keyof typeof MASTER_FLOW_PATHS] || MASTER_FLOW_PATHS.learn;
+    const path = MASTER_FLOW_PATHS[formData.purpose] || MASTER_FLOW_PATHS.learn;
     const steps = path.filter(s => s !== 'SELECTING_PURPOSE');
     const idx = (steps as string[]).indexOf(currentFlowState);
     return {
-      step: idx !== -1 ? idx + 1 : 1,
-      total: steps.length,
       percent: idx !== -1 ? Math.round(((idx + 1) / steps.length) * 100) : 0,
       isInitial: currentFlowState === 'SELECTING_PURPOSE'
     };
-  }, [currentFlowState, formData.purpose, isMounted]);
-
-  const renderCurrentStep = () => {
-    switch (currentFlowState) {
-      case 'SELECTING_PURPOSE': return <PurposeSelectionStep />;
-      case 'LEARN_SUB_SELECTION': return <LearnSubStep />;
-      case 'INSPIRE_SUB_SELECTION': return <InspireSubStep />;
-      case 'LEGACY_INPUT': return <LegacyStep />;
-      case 'QUESTION_INPUT': return <QuestionStep />;
-      case 'SOLO_TALK_INPUT': return <SoloTalkStep />;
-      case 'ARCHETYPE_SELECTION': return <ArchetypeStep />; 
-      case 'ARCHETYPE_GOAL': return <ArchetypeInputStep />; 
-      case 'LINK_POINTS_INPUT': return <LinkPointsStep />;
-      case 'NARRATIVE_SELECTION': return <NarrativeSelectionStep narrativeOptions={narrativeOptions} />;
-      case 'FREESTYLE_SELECTION': return <StyleSelectionStep />;
-      case 'DETAILS_STEP': return <DetailsStep />; 
-      case 'TONE_SELECTION': return <ToneSelectionStep />;
-      case 'SCRIPT_EDITING': return <ScriptEditorStep />;
-      case 'AUDIO_STUDIO_STEP': return <AudioStudio />;
-      case 'FINAL_STEP': return <FinalStep />;
-      default: return null;
-    }
-  };
+  }, [currentFlowState, formData.purpose]);
 
   if (!isMounted) return null;
 
   return (
     <CreationContext.Provider value={{ updateFormData, transitionTo, goBack }}>
       <FormProvider {...formMethods}>
-        {/* CONTENEDOR FLUIDO: Bloqueado a 100dvh para evitar bucles de renderizado en móvil */}
-        <div className="fixed inset-0 flex flex-col bg-background overflow-hidden h-[100dvh]">
+        {/* FIX: Eliminamos bg-background para dejar ver el fondo global de la app */}
+        <div className="fixed inset-0 flex flex-col bg-transparent overflow-hidden h-[100dvh]">
             
-            {/* 1. PROGRESS HEADER */}
-            {!metrics.isInitial && !isGeneratingScript && (
-              <div className="flex-shrink-0 w-full pt-14 pb-4 px-6 md:pt-10">
-                <div className="max-w-4xl mx-auto animate-in fade-in slide-in-from-top-2">
-                    <div className="flex justify-between items-center mb-3">
-                        <div className="flex flex-col">
-                            <h1 className="text-xl md:text-2xl font-black tracking-tighter text-foreground flex items-center gap-2">
-                                <Sparkles className="h-4 w-4 text-primary animate-pulse" />
-                                CONSTRUCCIÓN
-                            </h1>
-                            <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.2em] opacity-60">Etapa {metrics.step} de {metrics.total}</span>
+            {/* 1. TOP BAR: Ajustado para no tapar el fondo */}
+            <div className="flex-shrink-0 w-full pt-20 pb-4 px-6 md:pt-12">
+                <div className="max-w-4xl mx-auto">
+                    {!metrics.isInitial && !isGeneratingScript && (
+                      <div className="animate-in fade-in slide-in-from-top-2">
+                        <div className="flex justify-between items-center mb-3">
+                            <h1 className="text-xl md:text-2xl font-black tracking-tighter text-foreground/90">CONSTRUCCIÓN</h1>
+                            <div className="text-xs font-mono font-bold text-primary bg-primary/10 px-2 py-1 rounded">{metrics.percent}%</div>
                         </div>
-                        <div className="text-xs font-mono font-bold text-primary bg-primary/10 px-2 py-1 rounded border border-primary/20">{metrics.percent}%</div>
-                    </div>
-                    <div className="h-1 w-full bg-secondary/30 rounded-full overflow-hidden border border-white/5">
-                        <div className="h-full bg-primary transition-all duration-1000 ease-out shadow-[0_0_15px_rgba(168,85,247,0.4)]" style={{ width: `${metrics.percent}%` }} />
-                    </div>
+                        <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
+                            <div className="h-full bg-primary transition-all duration-1000" style={{ width: `${metrics.percent}%` }} />
+                        </div>
+                      </div>
+                    )}
                 </div>
-              </div>
-            )}
+            </div>
 
-            {/* 2. BODY CONTENT (SCROLL INTERNO) */}
-            <main className="flex-1 overflow-hidden flex flex-col items-center">
-                <div className={`w-full h-full flex flex-col transition-all duration-700 ${metrics.isInitial ? "max-w-5xl" : "max-w-4xl px-4"}`}>
-                    <Card className={`flex-1 flex flex-col overflow-hidden relative border-0 shadow-none ${!metrics.isInitial && "bg-card/40 backdrop-blur-3xl rounded-3xl border border-border/40 shadow-2xl"}`}>
-                        <CardContent className="p-0 flex-1 flex flex-col h-full overflow-hidden relative">
+            {/* 2. BODY: Contenido transparente */}
+            <main className="flex-1 overflow-hidden flex flex-col items-center justify-center px-4">
+                <div className={cn("w-full h-full flex flex-col max-w-4xl transition-all duration-700")}>
+                    {/* El Card es lo único que tiene fondo semitransparente */}
+                    <Card className={cn(
+                        "flex-1 flex flex-col overflow-hidden border-0 shadow-none relative",
+                        !metrics.isInitial ? "bg-card/40 backdrop-blur-3xl rounded-3xl border border-border/40 shadow-2xl" : "bg-transparent"
+                    )}>
+                        <CardContent className="p-0 flex-1 flex flex-col h-full overflow-hidden">
                             {isGeneratingScript ? (
                                 <DraftGenerationLoader formData={formData} />
                             ) : (
@@ -368,27 +305,27 @@ export function PodcastCreationForm() {
                 </div>
             </main>
 
-            {/* 3. NAVIGATION FOOTER (FIJO) */}
-            <footer className="flex-shrink-0 w-full p-4 md:p-8 bg-gradient-to-t from-background via-background/90 to-transparent">
+            {/* 3. NAVIGATION: Footer flotante */}
+            <footer className="flex-shrink-0 w-full p-6 md:p-8 bg-transparent">
                 <div className="max-w-4xl mx-auto">
                     {!metrics.isInitial && !isGeneratingScript && (
                         <div className="flex justify-between items-center gap-4">
-                            <Button type="button" variant="ghost" onClick={goBack} disabled={isSubmitting} className="h-12 px-6 rounded-2xl font-bold text-muted-foreground hover:bg-secondary/40">
-                                <ChevronLeft className="mr-1 h-4 w-4" /> ANTERIOR
+                            <Button type="button" variant="ghost" onClick={goBack} disabled={isSubmitting} className="h-12 px-6 rounded-xl font-bold text-muted-foreground/80 hover:bg-white/10 transition-all">
+                                <ChevronLeft className="mr-1 h-4 w-4" /> ATRÁS
                             </Button>
                             
                             <div className="flex items-center gap-3">
                                 {currentFlowState === 'DETAILS_STEP' ? (
-                                    <Button type="button" onClick={handleNextTransition} className="bg-primary text-white rounded-full px-8 h-12 font-bold shadow-lg shadow-primary/20 animate-in zoom-in-95">
-                                        <FileText className="mr-2 h-4 w-4" /> CREAR BORRADOR
+                                    <Button type="button" onClick={handleNextTransition} className="bg-primary text-white rounded-full px-8 h-12 font-bold shadow-lg">
+                                        <FileText className="mr-2 h-4 w-4" /> GENERAR BORRADOR
                                     </Button>
                                 ) : currentFlowState === 'FINAL_STEP' ? (
-                                    <Button type="button" onClick={handleSubmit(handleFinalSubmit)} disabled={isSubmitting} className="bg-primary text-white rounded-full px-10 h-12 font-black shadow-xl shadow-primary/30 group active:scale-95 transition-all">
-                                        {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4 group-hover:rotate-12 transition-transform" />}
+                                    <Button type="button" onClick={handleSubmit(handleFinalSubmit)} disabled={isSubmitting} className="bg-primary text-white rounded-full px-10 h-12 font-black active:scale-95 transition-all">
+                                        {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
                                         PRODUCIR
                                     </Button>
                                 ) : (
-                                    <Button type="button" onClick={handleNextTransition} className="bg-foreground text-background rounded-full px-8 h-12 font-bold hover:opacity-90 active:scale-95 transition-all">
+                                    <Button type="button" onClick={handleNextTransition} className="bg-foreground text-background rounded-full px-8 h-12 font-bold">
                                         SIGUIENTE <ChevronRight className="ml-1 h-4 w-4" />
                                     </Button>
                                 )}
@@ -397,9 +334,7 @@ export function PodcastCreationForm() {
                     )}
                 </div>
             </footer>
-
-            {/* Spacer para el reproductor global */}
-            <div className={`transition-all duration-500 ${currentPodcast ? "h-24" : "h-0"}`} />
+            <div className={cn("transition-all", currentPodcast ? "h-24" : "h-0")} />
         </div>
       </FormProvider>
     </CreationContext.Provider>
