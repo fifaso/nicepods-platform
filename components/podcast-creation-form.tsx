@@ -1,5 +1,5 @@
 // components/podcast-creation-form.tsx
-// VERSIÓN: 20.0 (Master Orchestrator - Local Soul & Discovery Engine Integration)
+// VERSIÓN: 21.0 (Master Integrity - Situational Discovery & Production Stability)
 
 "use client";
 
@@ -13,7 +13,7 @@ import { PodcastCreationSchema, PodcastCreationData } from "@/lib/validation/pod
 import { useAudio } from "@/contexts/audio-context";
 import { usePersistentForm } from "@/hooks/use-persistent-form";
 
-// Importación Dinámica para optimización de carga
+// Importación Dinámica para optimización de carga y rendimiento del cliente
 import dynamic from 'next/dynamic';
 
 const ScriptEditorStep = dynamic(
@@ -41,14 +41,15 @@ import {
   Trash2,
   CheckCircle2,
   Sparkles,
-  AlertCircle
+  AlertCircle,
+  Compass
 } from "lucide-react";
 import { ToastAction } from "@/components/ui/toast"; 
 import { cn } from "@/lib/utils";
 
-// Importación de Pasos
+// Importación de Pasos del Flujo
 import { PurposeSelectionStep } from "./create-flow/purpose-selection-step";
-import { LocalDiscoveryStep } from "./create-flow/local-discovery-step"; // <--- NUEVO COMPONENTE
+import { LocalDiscoveryStep } from "./create-flow/local-discovery-step"; 
 import { LearnSubStep } from "./create-flow/LearnSubStep";
 import { InspireSubStep } from "./create-flow/InspireSubStep";
 import { LegacyStep } from "./create-flow/LegacyStep";
@@ -65,6 +66,8 @@ import { DraftGenerationLoader } from "./create-flow/draft-generation-loader";
 import { ArchetypeStep } from "./create-flow/archetype-step";       
 import { ArchetypeInputStep } from "./create-flow/archetype-input"; 
 
+// --- DEFINICIÓN DE ESTADOS Y RUTAS ---
+
 export type FlowState = 
   | 'SELECTING_PURPOSE' | 'LOCAL_DISCOVERY_STEP' | 'LEARN_SUB_SELECTION' 
   | 'INSPIRE_SUB_SELECTION' | 'SOLO_TALK_INPUT' | 'ARCHETYPE_SELECTION' 
@@ -80,15 +83,16 @@ interface CreationContextType {
 }
 
 const CreationContext = createContext<CreationContextType | undefined>(undefined);
+
 export const useCreationContext = () => {
   const context = useContext(CreationContext);
-  if (!context) throw new Error("CreationContext error");
+  if (!context) throw new Error("useCreationContext debe ser usado dentro de un CreationFormProvider");
   return context;
 };
 
 /**
- * MAPA MAESTRO DE RUTAS
- * Define el camino crítico para cada intención del usuario.
+ * MAPA MAESTRO DE NAVEGACIÓN
+ * Define el camino lógico para cada propósito del usuario.
  */
 const MASTER_FLOW_PATHS: Record<string, FlowState[]> = {
   learn: ['SELECTING_PURPOSE', 'LEARN_SUB_SELECTION', 'SOLO_TALK_INPUT', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
@@ -109,6 +113,7 @@ export function PodcastCreationForm() {
   const [currentFlowState, setCurrentFlowState] = useState<FlowState>('SELECTING_PURPOSE');
   const [history, setHistory] = useState<FlowState[]>(['SELECTING_PURPOSE']);
   const [isGeneratingScript, setIsGeneratingScript] = useState(false);
+  const [isAnalyzingLocal, setIsAnalyzingLocal] = useState(false);
   const [isLoadingNarratives, setIsLoadingNarratives] = useState(false);
   const [narrativeOptions, setNarrativeOptions] = useState<any[]>([]);
   const [hasRestorableData, setHasRestorableData] = useState(false);
@@ -120,14 +125,9 @@ export function PodcastCreationForm() {
     mode: "onChange",
     defaultValues: {
       purpose: "learn",
-      solo_topic: '',
-      solo_motivation: '',
-      duration: '',
-      narrativeDepth: '',
-      generateAudioDirectly: true,
+      agentName: 'solo-talk-analyst',
       sources: [],
-      location: undefined,
-      imageContext: undefined
+      generateAudioDirectly: true,
     },
   });
 
@@ -136,13 +136,30 @@ export function PodcastCreationForm() {
   const formData = watch();
 
   const { restoreSession, discardSession, clearDraft } = usePersistentForm(
-    formMethods, currentFlowState, history, 
+    formMethods, 
+    currentFlowState, 
+    history, 
     (step, hist) => {
       if (step) setCurrentFlowState(step as FlowState);
       if (hist) setHistory(hist as FlowState[]);
     },
     () => setHasRestorableData(true)
   );
+
+  useEffect(() => {
+    if (isMounted && hasRestorableData) {
+      toast({
+        title: "Sesión recuperada",
+        description: "¿Deseas continuar con tu progreso?",
+        action: (
+          <div className="flex gap-2">
+            <ToastAction altText="X" onClick={() => { discardSession(); setHasRestorableData(false); }}>Limpiar</ToastAction>
+            <ToastAction altText="O" onClick={() => { restoreSession(); setHasRestorableData(false); }} className="bg-primary text-white font-bold">Retomar</ToastAction>
+          </div>
+        ),
+      });
+    }
+  }, [hasRestorableData, isMounted, toast, restoreSession, discardSession]);
 
   // --- MÉTODOS DE TRANSICIÓN ---
 
@@ -164,37 +181,70 @@ export function PodcastCreationForm() {
 
   const updateFormData = useCallback((data: Partial<PodcastCreationData>) => {
     Object.entries(data).forEach(([key, value]) => {
+      // Normalización de nombres para compatibilidad con Schema v3.1
       const finalKey = key === 'selectedAgent' ? 'agentName' : key;
       setValue(finalKey as any, value, { shouldValidate: true });
     });
   }, [setValue]);
 
-  // --- LÓGICA DE INTELIGENCIA ---
+  // --- LÓGICA DE INTELIGENCIA SITUACIONAL ---
+
+  const handleAnalyzeLocal = async () => {
+    if (!formData.location && !formData.imageContext) {
+      toast({ title: "Acción requerida", description: "Activa el GPS o captura una imagen para interpretar tu entorno.", variant: "destructive" });
+      return;
+    }
+
+    setIsAnalyzingLocal(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('get-local-discovery', {
+        body: {
+          latitude: formData.location?.latitude || 0,
+          longitude: formData.location?.longitude || 0,
+          lens: formData.selectedTone || 'Tesoros Ocultos',
+          image_base64: formData.imageContext
+        }
+      });
+
+      if (error || !data.success) throw new Error(data?.error || "Fallo en el cerebro situacional.");
+
+      // CUSTODIA DE DATOS: Registramos el Dossier y las Fuentes
+      setValue('discovery_context', data.dossier);
+      setValue('sources', data.sources || []);
+      setValue('solo_topic', data.poi || "Descubrimiento Local");
+      setValue('agentName', 'local-concierge-v1');
+
+      toast({ title: "¡Entorno Interpretado!", description: `Identificado: ${data.poi}` });
+      transitionTo('DETAILS_STEP');
+
+    } catch (e: any) {
+      toast({ title: "Error de Análisis", description: e.message, variant: "destructive" });
+    } finally {
+      setIsAnalyzingLocal(false);
+    }
+  };
 
   const handleGenerateDraft = async () => {
     setIsGeneratingScript(true);
     try {
-      const vals = getValues();
-      // El tono se deriva del agente o la lente seleccionada en turismo
-      const selectedAgent = vals.agentName || vals.selectedTone || 'script-architect-v1';
-
+      const data = getValues();
       const payload = {
-        purpose: vals.purpose,
-        style: vals.style || 'solo',
-        duration: vals.duration,
-        depth: vals.narrativeDepth,
-        tone: selectedAgent,
+        purpose: data.purpose,
+        style: data.style || 'solo',
+        duration: data.duration,
+        depth: data.narrativeDepth,
+        tone: data.purpose === 'inspire' ? data.selectedArchetype : (data.agentName || data.selectedTone),
         raw_inputs: {
-          ...vals.inputs,
-          topic: vals.solo_topic || vals.question_to_answer || vals.link_topicA,
-          motivation: vals.solo_motivation || vals.legacy_lesson || vals.link_catalyst,
-          location: vals.location,
-          discovery_context: vals.discovery_context
+          ...data.inputs,
+          topic: data.solo_topic || data.question_to_answer || data.link_topicA,
+          motivation: data.solo_motivation || data.legacy_lesson || data.link_catalyst,
+          location: data.location,
+          discovery_context: data.discovery_context
         }
       };
 
       const { data: res, error } = await supabase.functions.invoke('generate-script-draft', { body: payload });
-      if (error || !res?.success) throw new Error("Fallo en la comunicación con la IA.");
+      if (error || !res?.success) throw new Error(res?.error || "Fallo en la comunicación con la IA.");
 
       setValue('final_title', res.draft.suggested_title);
       setValue('final_script', res.draft.script_body);
@@ -208,42 +258,10 @@ export function PodcastCreationForm() {
     }
   };
 
-  const handleNextTransition = async () => {
-    let fields: any[] = [];
-    let next: FlowState | null = null;
-
-    switch(currentFlowState) {
-      case 'LEARN_SUB_SELECTION': next = 'SOLO_TALK_INPUT'; break;
-      case 'INSPIRE_SUB_SELECTION': next = 'ARCHETYPE_SELECTION'; break;
-      case 'SOLO_TALK_INPUT': fields = ['solo_topic', 'solo_motivation']; next = 'TONE_SELECTION'; break;
-      case 'ARCHETYPE_SELECTION': fields = ['selectedArchetype']; next = 'ARCHETYPE_GOAL'; break;
-      case 'ARCHETYPE_GOAL': fields = ['archetype_goal']; next = 'DETAILS_STEP'; break;
-      case 'LINK_POINTS_INPUT':
-        if (await trigger(['link_topicA', 'link_topicB'])) await handleGenerateNarratives();
-        return;
-      case 'NARRATIVE_SELECTION': fields = ['link_selectedNarrative']; next = 'TONE_SELECTION'; break;
-      case 'FREESTYLE_SELECTION':
-        const s = getValues('style');
-        if (s === 'solo') next = 'SOLO_TALK_INPUT';
-        else if (s === 'link') next = 'LINK_POINTS_INPUT';
-        break;
-      case 'LEGACY_INPUT': fields = ['legacy_lesson']; next = 'TONE_SELECTION'; break;
-      case 'QUESTION_INPUT': fields = ['question_to_answer']; next = 'TONE_SELECTION'; break;
-      case 'TONE_SELECTION': fields = ['selectedTone']; next = 'DETAILS_STEP'; break;
-      case 'DETAILS_STEP': 
-        if (await trigger(['duration', 'narrativeDepth'])) await handleGenerateDraft();
-        return;
-      case 'SCRIPT_EDITING': fields = ['final_title', 'final_script']; next = 'AUDIO_STUDIO_STEP'; break;
-      case 'AUDIO_STUDIO_STEP': fields = ['voiceGender', 'voiceStyle']; next = 'FINAL_STEP'; break;
-      // El caso LOCAL_DISCOVERY_STEP se maneja internamente en el componente llamando a transitionTo('DETAILS_STEP')
-    }
-
-    if (next && (fields.length === 0 || await trigger(fields))) transitionTo(next);
-  };
-
   const handleFinalSubmit: SubmitHandler<any> = useCallback(async (data) => {
     if (!supabase || !user) return;
     const finalAgent = data.agentName || data.selectedTone || 'script-architect-v1';
+    
     const payload = {
       purpose: data.purpose,
       agentName: finalAgent,
@@ -252,14 +270,17 @@ export function PodcastCreationForm() {
       sources: data.sources || [],
       inputs: { ...data }
     };
-    const { data: result } = await supabase.functions.invoke('queue-podcast-job', { body: payload });
+    
+    const { data: result, error } = await supabase.functions.invoke('queue-podcast-job', { body: payload });
     if (result?.success) {
       clearDraft();
       router.push('/podcasts?tab=library');
+    } else {
+      toast({ title: "Error de Producción", description: error?.message, variant: "destructive" });
     }
-  }, [supabase, user, router, clearDraft]);
+  }, [supabase, user, router, clearDraft, toast]);
 
-  // --- UI DYNAMICS ---
+  // --- UI METRICS ---
 
   const metrics = useMemo(() => {
     if (!isMounted) return { step: 0, total: 1, percent: 0, isInitial: true };
@@ -275,7 +296,7 @@ export function PodcastCreationForm() {
   const renderCurrentStep = () => {
     switch (currentFlowState) {
       case 'SELECTING_PURPOSE': return <PurposeSelectionStep />;
-      case 'LOCAL_DISCOVERY_STEP': return <LocalDiscoveryStep />; // <--- INTEGRADO
+      case 'LOCAL_DISCOVERY_STEP': return <LocalDiscoveryStep />; 
       case 'LEARN_SUB_SELECTION': return <LearnSubStep />;
       case 'INSPIRE_SUB_SELECTION': return <InspireSubStep />;
       case 'LEGACY_INPUT': return <LegacyStep />;
@@ -300,16 +321,17 @@ export function PodcastCreationForm() {
   return (
     <CreationContext.Provider value={{ updateFormData, transitionTo, goBack }}>
       <FormProvider {...formMethods}>
+        {/* CONTENEDOR FLUIDO: bg-transparent para dejar ver el fondo global aurora */}
         <div className="fixed inset-0 flex flex-col bg-transparent overflow-hidden h-[100dvh]">
             
             {/* 1. TOP BAR: Branding & Progreso */}
-            <div className="flex-shrink-0 w-full pt-28 pb-4 px-6">
+            <div className="flex-shrink-0 w-full pt-24 md:pt-14 pb-4 px-6">
                 <div className="max-w-4xl mx-auto">
                     {!metrics.isInitial && !isGeneratingScript && (
                       <div className="animate-in fade-in slide-in-from-top-2 duration-700">
                         <div className="flex justify-between items-center mb-3">
-                            <h1 className="text-xl md:text-2xl font-black tracking-tighter text-foreground/90 uppercase">Construcción</h1>
-                            <div className="text-xs font-mono font-bold text-primary bg-primary/10 px-2 py-1 rounded">{metrics.percent}%</div>
+                            <h1 className="text-xl md:text-2xl font-black tracking-tighter text-foreground/90 uppercase">CONSTRUCCIÓN</h1>
+                            <div className="text-xs font-mono font-bold text-primary bg-primary/10 px-2 py-1 rounded border border-primary/20">{metrics.percent}%</div>
                         </div>
                         <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
                             <div className="h-full bg-primary transition-all duration-1000 ease-out shadow-[0_0_15px_rgba(168,85,247,0.4)]" style={{ width: `${metrics.percent}%` }} />
@@ -319,21 +341,18 @@ export function PodcastCreationForm() {
                 </div>
             </div>
 
-            {/* 2. BODY CONTENT */}
-            <main className="flex-1 overflow-hidden flex flex-col items-center">
-                <div className={cn(
-                    "w-full h-full flex flex-col transition-all duration-700",
-                    metrics.isInitial ? "max-w-5xl" : "max-w-4xl px-4"
-                )}>
+            {/* 2. BODY CONTENT (SCROLLABLE) */}
+            <main className="flex-1 overflow-hidden flex flex-col items-center justify-center">
+                <div className={cn("w-full h-full flex flex-col transition-all duration-700", metrics.isInitial ? "max-w-5xl" : "max-w-4xl px-4")}>
                     <Card className={cn(
                         "flex-1 flex flex-col overflow-hidden border-0 shadow-none relative",
                         !metrics.isInitial ? "bg-card/40 backdrop-blur-3xl rounded-3xl border border-border/40 shadow-2xl" : "bg-transparent"
                     )}>
-                        <CardContent className="p-0 flex-1 flex flex-col h-full overflow-hidden relative">
+                        <CardContent className="p-0 flex-1 flex flex-col h-full overflow-hidden">
                             {isGeneratingScript ? (
                                 <DraftGenerationLoader formData={formData} />
                             ) : (
-                                <div className="flex-1 overflow-y-auto custom-scrollbar-hide">
+                                <div className="flex-1 overflow-y-auto custom-scrollbar-hide px-2">
                                     {renderCurrentStep()}
                                 </div>
                             )}
@@ -342,28 +361,38 @@ export function PodcastCreationForm() {
                 </div>
             </main>
 
-            {/* 3. NAVIGATION FOOTER (Condicional para no estorbar en el paso sensorial) */}
-            <footer className="flex-shrink-0 w-full p-4 md:p-8 bg-transparent">
+            {/* 3. NAVIGATION FOOTER (UNIFICADO) */}
+            <footer className="flex-shrink-0 w-full p-6 md:p-8 bg-transparent z-50">
                 <div className="max-w-4xl mx-auto">
-                    {!metrics.isInitial && !isGeneratingScript && currentFlowState !== 'LOCAL_DISCOVERY_STEP' && (
+                    {!metrics.isInitial && !isGeneratingScript && (
                         <div className="flex justify-between items-center gap-4">
-                            <Button type="button" variant="ghost" onClick={goBack} disabled={isSubmitting} className="h-12 px-6 rounded-xl font-bold text-muted-foreground/80 hover:bg-white/10">
+                            <Button type="button" variant="ghost" onClick={goBack} disabled={isSubmitting || isAnalyzingLocal} className="h-12 px-6 rounded-xl font-bold text-muted-foreground/80 hover:bg-white/10 transition-all">
                                 <ChevronLeft className="mr-1 h-4 w-4" /> ANTERIOR
                             </Button>
                             
                             <div className="flex items-center gap-3">
-                                {currentFlowState === 'DETAILS_STEP' ? (
-                                    <Button type="button" onClick={handleNextTransition} className="bg-primary text-white rounded-full px-8 h-12 font-bold shadow-lg">
+                                {currentFlowState === 'LOCAL_DISCOVERY_STEP' ? (
+                                    <Button 
+                                        type="button" 
+                                        onClick={handleAnalyzeLocal} 
+                                        disabled={isAnalyzingLocal} 
+                                        className="bg-primary text-white rounded-full px-10 h-14 font-black shadow-lg shadow-primary/20 active:scale-95 transition-all flex items-center gap-2"
+                                    >
+                                        {isAnalyzingLocal ? <Loader2 className="h-5 w-5 animate-spin" /> : <Compass className="h-5 w-5 animate-pulse" />}
+                                        INTERPRETAR MI MUNDO
+                                    </Button>
+                                ) : currentFlowState === 'DETAILS_STEP' ? (
+                                    <Button type="button" onClick={handleGenerateDraft} className="bg-primary text-white rounded-full px-8 h-12 font-bold shadow-lg">
                                         <FileText className="mr-2 h-4 w-4" /> GENERAR BORRADOR
                                     </Button>
                                 ) : currentFlowState === 'FINAL_STEP' ? (
-                                    <Button type="button" onClick={handleSubmit(handleFinalSubmit)} disabled={isSubmitting} className="bg-primary text-white rounded-full px-10 h-12 font-black">
-                                        {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
+                                    <Button type="button" onClick={handleSubmit(handleFinalSubmit)} disabled={isSubmitting} className="bg-primary text-white rounded-full px-10 h-12 font-black shadow-xl shadow-primary/30 group active:scale-95 transition-all">
+                                        {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4 group-hover:rotate-12 transition-transform" />}
                                         PRODUCIR
                                     </Button>
                                 ) : (
-                                    <Button type="button" onClick={handleNextTransition} className="bg-foreground text-background rounded-full px-8 h-12 font-bold">
-                                        SIGUIENTE <ChevronRight className="ml-2 h-4 w-4" />
+                                    <Button type="button" onClick={handleNextTransition} className="bg-foreground text-background rounded-full px-8 h-12 font-bold hover:opacity-90">
+                                        SIGUIENTE <ChevronRight className="ml-1 h-4 w-4" />
                                     </Button>
                                 )}
                             </div>
