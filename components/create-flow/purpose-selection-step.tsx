@@ -1,5 +1,5 @@
 // components/create-flow/purpose-selection-step.tsx
-// VERSIÓN: 12.0 (Master Categorization - Local Soul Integration)
+// VERSIÓN: 13.0 (Ultra-Compact Architecture - Zero Scroll & Category Sync)
 
 "use client";
 
@@ -13,13 +13,14 @@ import {
   ArrowRight,
   Compass,
   Palette,
-  ScrollText
+  ScrollText,
+  Zap
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
- * ESTRUCTURA DE CATEGORÍAS Y OPCIONES
- * Definición profesional de la taxonomía de creación de NicePod.
+ * ESTRUCTURA DE CATEGORÍAS OPTIMIZADA
+ * Mapeo exacto de la nueva taxonomía solicitada.
  */
 const SECTIONS = [
   {
@@ -31,27 +32,27 @@ const SECTIONS = [
         style: "solo", 
         agentName: "solo-talk-analyst", 
         nextState: "LEARN_SUB_SELECTION", 
-        icon: <Lightbulb className="h-5 w-5 text-amber-500" />, 
+        icon: <Lightbulb className="h-4 w-4 text-amber-500" />, 
         title: "Aprender", 
-        description: "Desglosa conceptos complejos con claridad." 
+        description: "Desglosa conceptos complejos." 
       },
       { 
         purpose: "explore", 
         style: "link", 
         agentName: "link-points-synthesizer", 
         nextState: "LINK_POINTS_INPUT", 
-        icon: <LinkIcon className="h-5 w-5 text-blue-500" />, 
+        icon: <LinkIcon className="h-4 w-4 text-blue-500" />, 
         title: "Explorar", 
-        description: "Encuentra el hilo conductor entre dos ideas." 
+        description: "Conecta dos ideas distintas." 
       },
       { 
         purpose: "answer", 
         style: "qa", 
         agentName: "qa-agent", 
         nextState: "QUESTION_INPUT", 
-        icon: <HelpCircle className="h-5 w-5 text-rose-500" />, 
+        icon: <HelpCircle className="h-4 w-4 text-rose-500" />, 
         title: "Preguntar", 
-        description: "Respuestas directas a dudas específicas." 
+        description: "Respuestas directas a dudas." 
       },
     ]
   },
@@ -64,9 +65,9 @@ const SECTIONS = [
         style: "legacy", 
         agentName: "legacy-agent", 
         nextState: "LEGACY_INPUT", 
-        icon: <PenSquare className="h-5 w-5 text-emerald-500" />, 
+        icon: <PenSquare className="h-4 w-4 text-emerald-500" />, 
         title: "Reflexionar", 
-        description: "Lecciones de vida y testimonios personales." 
+        description: "Lecciones y testimonios personales." 
       }
     ]
   },
@@ -79,9 +80,9 @@ const SECTIONS = [
         style: "local_concierge", 
         agentName: "local-concierge-v1", 
         nextState: "LOCAL_DISCOVERY_STEP", 
-        icon: <MapPin className="h-5 w-5 text-indigo-500" />, 
+        icon: <MapPin className="h-4 w-4 text-indigo-500" />, 
         title: "Vive lo local", 
-        description: "Secretos y guías del sitio donde estás hoy.",
+        description: "Secretos del sitio donde estás hoy.",
         isNew: true 
       }
     ]
@@ -92,79 +93,78 @@ export function PurposeSelectionStep() {
   const { updateFormData, transitionTo } = useCreationContext();
 
   const handleSelect = (option: any) => {
-    // ACTUALIZACIÓN QUIRÚRGICA: 
-    // Sincronizamos con el Schema v4.0 e inicializamos metadatos de transparencia.
     updateFormData({ 
         purpose: option.purpose, 
         style: option.style, 
         agentName: option.agentName,
-        sources: [], // Aseguramos que la investigación empiece desde cero
+        sources: [], // Reset de transparencia
         creation_mode: 'standard'
     });
     transitionTo(option.nextState);
   };
 
   return (
-    <div className="flex flex-col h-full w-full max-w-4xl mx-auto items-center animate-in fade-in duration-700 px-4 md:px-0">
+    <div className="flex flex-col h-full w-full max-w-2xl mx-auto items-center animate-in fade-in duration-500 px-3 md:px-0">
       
-      {/* CABECERA MINIMALISTA */}
-      <div className="text-center mb-8 mt-4 md:mt-2">
-        <h2 className="text-2xl md:text-4xl font-black tracking-tighter text-foreground bg-clip-text text-transparent bg-gradient-to-b from-foreground to-foreground/60">
+      {/* CABECERA COMPACTA (pt-2 para ahorrar espacio superior) */}
+      <div className="text-center mb-6 pt-2">
+        <h2 className="text-xl md:text-2xl font-black tracking-tight text-foreground">
           ¿Cuál es tu intención?
         </h2>
-        <p className="text-sm text-muted-foreground mt-2 font-medium">
-          Selecciona una rama de conocimiento para iniciar el escaneo de IA.
+        <p className="text-[10px] md:text-xs text-muted-foreground mt-1 font-medium uppercase tracking-widest opacity-60">
+          Selecciona una rama para iniciar el escaneo
         </p>
       </div>
       
-      {/* SECCIONES CATEGORIZADAS */}
-      <div className="w-full space-y-10 pb-20 overflow-y-auto custom-scrollbar-hide">
+      {/* SECCIONES EN LISTA VERTICAL COMPACTA */}
+      <div className="w-full space-y-5 pb-6">
         {SECTIONS.map((section) => (
-          <div key={section.label} className="space-y-4 animate-in slide-in-from-bottom-2 duration-500">
+          <div key={section.label} className="space-y-2">
             
-            {/* ETIQUETA DE CATEGORÍA */}
+            {/* ETIQUETA DE CATEGORÍA MINIMALISTA */}
             <div className="flex items-center gap-2 px-1">
-                <div className="p-1 rounded-md bg-primary/10 text-primary">
-                    {section.icon}
-                </div>
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/50">
+                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-primary/70">
                     {section.label}
                 </span>
-                <div className="flex-1 h-px bg-gradient-to-r from-border/50 to-transparent ml-2" />
+                <div className="flex-1 h-px bg-primary/10" />
             </div>
 
-            {/* GRID DE OPCIONES */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {/* BOTONES HORIZONTALES (Icono al costado) */}
+            <div className="grid grid-cols-1 gap-2">
               {section.options.map((option) => (
                 <button
                   key={option.purpose}
                   onClick={() => handleSelect(option)}
                   className={cn(
-                    "group relative flex flex-col items-start text-left transition-all duration-300",
-                    "p-5 bg-card/20 hover:bg-card/60 backdrop-blur-md",
-                    "border border-border/40 hover:border-primary/40",
-                    "rounded-2xl shadow-sm hover:shadow-2xl active:scale-[0.98] overflow-hidden"
+                    "group relative flex items-center text-left transition-all duration-300",
+                    "p-3 bg-white/5 hover:bg-white/10 backdrop-blur-md",
+                    "border border-white/5 hover:border-primary/30",
+                    "rounded-xl active:scale-[0.99] overflow-hidden"
                   )}
                 >
                   {option.isNew && (
-                    <div className="absolute top-0 right-0 px-2 py-1 bg-primary text-[8px] font-black text-white uppercase tracking-tighter rounded-bl-lg">
-                        Nuevo
+                    <div className="absolute top-0 right-0 px-1.5 py-0.5 bg-primary text-[7px] font-black text-white uppercase tracking-tighter rounded-bl-md">
+                        <Zap className="h-2 w-2 inline mr-0.5 fill-current" /> Nuevo
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between w-full mb-3">
-                    <div className="p-3 rounded-xl bg-background/50 border border-border/20 shadow-inner group-hover:scale-110 group-hover:border-primary/20 transition-all duration-500">
+                  {/* ICONO COMPACTO IZQUIERDA */}
+                  <div className="flex-shrink-0 mr-4">
+                    <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-background/40 border border-white/5 shadow-inner group-hover:bg-primary/20 group-hover:border-primary/30 transition-all duration-500">
                       {option.icon}
                     </div>
-                    <ArrowRight className="h-4 w-4 text-muted-foreground/30 opacity-0 -translate-x-4 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />
                   </div>
 
-                  <div className="space-y-1">
-                    <h3 className="text-base font-bold text-foreground group-hover:text-primary transition-colors">
+                  {/* TEXTO DERECHA */}
+                  <div className="flex-grow min-w-0">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">
                         {option.title}
-                    </h3>
-                    <p className="text-[11px] text-muted-foreground leading-snug line-clamp-2 font-medium opacity-80 group-hover:opacity-100 transition-opacity">
-                        {option.description}
+                      </h3>
+                      <ArrowRight className="h-3 w-3 text-primary/30 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground leading-tight truncate">
+                      {option.description}
                     </p>
                   </div>
                 </button>
