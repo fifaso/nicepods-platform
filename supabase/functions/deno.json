@@ -1,6 +1,5 @@
 {
   "compilerOptions": {
-    "allowJs": true,
     "lib": ["deno.window", "deno.ns"],
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true
@@ -12,6 +11,7 @@
     "cors": "./_shared/cors.ts",
     "guard": "./_shared/guard.ts",
     "ai-core": "./_shared/ai.ts",
+    "location": "./_shared/location.ts",
     "google-auth": "./_shared/google-auth.ts",
     "supabase": "https://esm.sh/@supabase/supabase-js@2.39.7",
     "zod": "https://deno.land/x/zod@v3.22.4/mod.ts",
