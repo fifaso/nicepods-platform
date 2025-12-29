@@ -1,5 +1,5 @@
 // components/podcast-creation-form.tsx
-// VERSIÓN: 19.0 (Aura Resilience - Background Transparency & Dynamic Viewport Fix)
+// VERSIÓN: 20.0 (Master Orchestrator - Local Soul & Discovery Engine Integration)
 
 "use client";
 
@@ -13,7 +13,7 @@ import { PodcastCreationSchema, PodcastCreationData } from "@/lib/validation/pod
 import { useAudio } from "@/contexts/audio-context";
 import { usePersistentForm } from "@/hooks/use-persistent-form";
 
-// Importación Dinámica para optimización
+// Importación Dinámica para optimización de carga
 import dynamic from 'next/dynamic';
 
 const ScriptEditorStep = dynamic(
@@ -23,7 +23,7 @@ const ScriptEditorStep = dynamic(
     loading: () => (
       <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground animate-pulse">
         <Loader2 className="h-10 w-10 animate-spin mb-4 text-primary/40" />
-        <span className="text-xs font-bold tracking-widest uppercase opacity-40">Abriendo Estación de Edición</span>
+        <span className="text-xs font-bold tracking-widest uppercase opacity-40 text-center">Iniciando Estación de Edición</span>
       </div>
     )
   }
@@ -48,6 +48,7 @@ import { cn } from "@/lib/utils";
 
 // Importación de Pasos
 import { PurposeSelectionStep } from "./create-flow/purpose-selection-step";
+import { LocalDiscoveryStep } from "./create-flow/local-discovery-step"; // <--- NUEVO COMPONENTE
 import { LearnSubStep } from "./create-flow/LearnSubStep";
 import { InspireSubStep } from "./create-flow/InspireSubStep";
 import { LegacyStep } from "./create-flow/LegacyStep";
@@ -65,11 +66,12 @@ import { ArchetypeStep } from "./create-flow/archetype-step";
 import { ArchetypeInputStep } from "./create-flow/archetype-input"; 
 
 export type FlowState = 
-  | 'SELECTING_PURPOSE' | 'LEARN_SUB_SELECTION' | 'INSPIRE_SUB_SELECTION'
-  | 'SOLO_TALK_INPUT' | 'ARCHETYPE_SELECTION' | 'ARCHETYPE_GOAL'      
-  | 'LINK_POINTS_INPUT' | 'NARRATIVE_SELECTION' | 'LEGACY_INPUT' 
-  | 'QUESTION_INPUT' | 'FREESTYLE_SELECTION' | 'DETAILS_STEP' 
-  | 'TONE_SELECTION' | 'SCRIPT_EDITING' | 'AUDIO_STUDIO_STEP' | 'FINAL_STEP';
+  | 'SELECTING_PURPOSE' | 'LOCAL_DISCOVERY_STEP' | 'LEARN_SUB_SELECTION' 
+  | 'INSPIRE_SUB_SELECTION' | 'SOLO_TALK_INPUT' | 'ARCHETYPE_SELECTION' 
+  | 'ARCHETYPE_GOAL' | 'LINK_POINTS_INPUT' | 'NARRATIVE_SELECTION' 
+  | 'LEGACY_INPUT' | 'QUESTION_INPUT' | 'FREESTYLE_SELECTION' 
+  | 'DETAILS_STEP' | 'TONE_SELECTION' | 'SCRIPT_EDITING' 
+  | 'AUDIO_STUDIO_STEP' | 'FINAL_STEP';
 
 interface CreationContextType {
   updateFormData: (data: Partial<PodcastCreationData>) => void;
@@ -84,12 +86,16 @@ export const useCreationContext = () => {
   return context;
 };
 
+/**
+ * MAPA MAESTRO DE RUTAS
+ * Define el camino crítico para cada intención del usuario.
+ */
 const MASTER_FLOW_PATHS: Record<string, FlowState[]> = {
   learn: ['SELECTING_PURPOSE', 'LEARN_SUB_SELECTION', 'SOLO_TALK_INPUT', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
-  inspire: ['SELECTING_PURPOSE', 'INSPIRE_SUB_SELECTION', 'ARCHETYPE_SELECTION', 'ARCHETYPE_GOAL', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
   explore: ['SELECTING_PURPOSE', 'LINK_POINTS_INPUT', 'NARRATIVE_SELECTION', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
   reflect: ['SELECTING_PURPOSE', 'LEGACY_INPUT', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
   answer: ['SELECTING_PURPOSE', 'QUESTION_INPUT', 'TONE_SELECTION', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
+  local_soul: ['SELECTING_PURPOSE', 'LOCAL_DISCOVERY_STEP', 'DETAILS_STEP', 'SCRIPT_EDITING', 'AUDIO_STUDIO_STEP', 'FINAL_STEP'],
   freestyle: ['SELECTING_PURPOSE', 'FREESTYLE_SELECTION'],
 };
 
@@ -120,6 +126,8 @@ export function PodcastCreationForm() {
       narrativeDepth: '',
       generateAudioDirectly: true,
       sources: [],
+      location: undefined,
+      imageContext: undefined
     },
   });
 
@@ -135,6 +143,8 @@ export function PodcastCreationForm() {
     },
     () => setHasRestorableData(true)
   );
+
+  // --- MÉTODOS DE TRANSICIÓN ---
 
   const transitionTo = useCallback((state: FlowState) => {
     setHistory(prev => [...prev, state]);
@@ -154,30 +164,37 @@ export function PodcastCreationForm() {
 
   const updateFormData = useCallback((data: Partial<PodcastCreationData>) => {
     Object.entries(data).forEach(([key, value]) => {
-      const targetKey = key === 'selectedAgent' ? 'agentName' : key;
-      setValue(targetKey as any, value, { shouldValidate: true });
+      const finalKey = key === 'selectedAgent' ? 'agentName' : key;
+      setValue(finalKey as any, value, { shouldValidate: true });
     });
   }, [setValue]);
+
+  // --- LÓGICA DE INTELIGENCIA ---
 
   const handleGenerateDraft = async () => {
     setIsGeneratingScript(true);
     try {
       const vals = getValues();
+      // El tono se deriva del agente o la lente seleccionada en turismo
+      const selectedAgent = vals.agentName || vals.selectedTone || 'script-architect-v1';
+
       const payload = {
         purpose: vals.purpose,
         style: vals.style || 'solo',
         duration: vals.duration,
         depth: vals.narrativeDepth,
-        tone: vals.purpose === 'inspire' ? vals.selectedArchetype : (vals.agentName || vals.selectedTone),
+        tone: selectedAgent,
         raw_inputs: {
-          topic: vals.solo_topic || vals.archetype_topic || vals.question_to_answer || vals.link_topicA,
-          motivation: vals.solo_motivation || vals.archetype_goal || vals.legacy_lesson || vals.link_catalyst,
-          archetype: vals.selectedArchetype
+          ...vals.inputs,
+          topic: vals.solo_topic || vals.question_to_answer || vals.link_topicA,
+          motivation: vals.solo_motivation || vals.legacy_lesson || vals.link_catalyst,
+          location: vals.location,
+          discovery_context: vals.discovery_context
         }
       };
 
       const { data: res, error } = await supabase.functions.invoke('generate-script-draft', { body: payload });
-      if (error || !res?.success) throw new Error(res?.error || "Fallo en la comunicación con la IA.");
+      if (error || !res?.success) throw new Error("Fallo en la comunicación con la IA.");
 
       setValue('final_title', res.draft.suggested_title);
       setValue('final_script', res.draft.script_body);
@@ -190,26 +207,6 @@ export function PodcastCreationForm() {
       setIsGeneratingScript(false);
     }
   };
-
-  const handleFinalSubmit: SubmitHandler<any> = useCallback(async (data) => {
-    if (!supabase || !user) return;
-    const finalAgent = data.purpose === 'inspire' ? data.selectedArchetype : (data.agentName || data.selectedTone || 'script-architect-v1');
-    const payload = {
-      purpose: data.purpose,
-      agentName: finalAgent,
-      final_script: data.final_script,
-      final_title: data.final_title,
-      sources: data.sources || [],
-      inputs: { ...data }
-    };
-    const { data: result, error } = await supabase.functions.invoke('queue-podcast-job', { body: payload });
-    if (result?.success) {
-      clearDraft();
-      router.push('/podcasts?tab=library');
-    } else {
-      toast({ title: "Error", description: error?.message || "Fallo en producción", variant: "destructive" });
-    }
-  }, [supabase, user, router, clearDraft, toast]);
 
   const handleNextTransition = async () => {
     let fields: any[] = [];
@@ -229,7 +226,6 @@ export function PodcastCreationForm() {
         const s = getValues('style');
         if (s === 'solo') next = 'SOLO_TALK_INPUT';
         else if (s === 'link') next = 'LINK_POINTS_INPUT';
-        else if (s === 'archetype') next = 'ARCHETYPE_SELECTION';
         break;
       case 'LEGACY_INPUT': fields = ['legacy_lesson']; next = 'TONE_SELECTION'; break;
       case 'QUESTION_INPUT': fields = ['question_to_answer']; next = 'TONE_SELECTION'; break;
@@ -239,27 +235,35 @@ export function PodcastCreationForm() {
         return;
       case 'SCRIPT_EDITING': fields = ['final_title', 'final_script']; next = 'AUDIO_STUDIO_STEP'; break;
       case 'AUDIO_STUDIO_STEP': fields = ['voiceGender', 'voiceStyle']; next = 'FINAL_STEP'; break;
+      // El caso LOCAL_DISCOVERY_STEP se maneja internamente en el componente llamando a transitionTo('DETAILS_STEP')
     }
 
     if (next && (fields.length === 0 || await trigger(fields))) transitionTo(next);
   };
 
-  const handleGenerateNarratives = useCallback(async () => {
-    setIsLoadingNarratives(true);
-    try {
-      const v = getValues();
-      const { data } = await supabase.functions.invoke('generate-narratives', {
-        body: { topicA: v.link_topicA, topicB: v.link_topicB, catalyst: v.link_catalyst }
-      });
-      if (data?.narratives) { setNarrativeOptions(data.narratives); transitionTo('NARRATIVE_SELECTION'); }
-    } finally { setIsLoadingNarratives(false); }
-  }, [supabase, getValues, transitionTo]);
+  const handleFinalSubmit: SubmitHandler<any> = useCallback(async (data) => {
+    if (!supabase || !user) return;
+    const finalAgent = data.agentName || data.selectedTone || 'script-architect-v1';
+    const payload = {
+      purpose: data.purpose,
+      agentName: finalAgent,
+      final_script: data.final_script,
+      final_title: data.final_title,
+      sources: data.sources || [],
+      inputs: { ...data }
+    };
+    const { data: result } = await supabase.functions.invoke('queue-podcast-job', { body: payload });
+    if (result?.success) {
+      clearDraft();
+      router.push('/podcasts?tab=library');
+    }
+  }, [supabase, user, router, clearDraft]);
 
   // --- UI DYNAMICS ---
 
   const metrics = useMemo(() => {
     if (!isMounted) return { step: 0, total: 1, percent: 0, isInitial: true };
-    const path = MASTER_FLOW_PATHS[formData.purpose as keyof typeof MASTER_FLOW_PATHS] || MASTER_FLOW_PATHS.learn;
+    const path = MASTER_FLOW_PATHS[formData.purpose] || MASTER_FLOW_PATHS.learn;
     const steps = path.filter(s => s !== 'SELECTING_PURPOSE');
     const idx = (steps as string[]).indexOf(currentFlowState);
     return {
@@ -271,6 +275,7 @@ export function PodcastCreationForm() {
   const renderCurrentStep = () => {
     switch (currentFlowState) {
       case 'SELECTING_PURPOSE': return <PurposeSelectionStep />;
+      case 'LOCAL_DISCOVERY_STEP': return <LocalDiscoveryStep />; // <--- INTEGRADO
       case 'LEARN_SUB_SELECTION': return <LearnSubStep />;
       case 'INSPIRE_SUB_SELECTION': return <InspireSubStep />;
       case 'LEGACY_INPUT': return <LegacyStep />;
@@ -295,26 +300,16 @@ export function PodcastCreationForm() {
   return (
     <CreationContext.Provider value={{ updateFormData, transitionTo, goBack }}>
       <FormProvider {...formMethods}>
-        {/* FIX #1: bg-transparent para dejar ver el fondo global aurora */}
         <div className="fixed inset-0 flex flex-col bg-transparent overflow-hidden h-[100dvh]">
             
             {/* 1. TOP BAR: Branding & Progreso */}
-            {/* FIX #2: pt-28 para asegurar que no se oculte bajo el menú superior */}
             <div className="flex-shrink-0 w-full pt-28 pb-4 px-6">
                 <div className="max-w-4xl mx-auto">
                     {!metrics.isInitial && !isGeneratingScript && (
                       <div className="animate-in fade-in slide-in-from-top-2 duration-700">
                         <div className="flex justify-between items-center mb-3">
-                            <div className="flex flex-col">
-                                <h1 className="text-xl md:text-2xl font-black tracking-tighter text-foreground flex items-center gap-2">
-                                    <Sparkles className="h-4 w-4 text-primary animate-pulse" />
-                                    CONSTRUCCIÓN
-                                </h1>
-                                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.2em] opacity-60">NicePod Studio</span>
-                            </div>
-                            <div className="text-xs font-mono font-bold text-primary bg-primary/10 px-2 py-1 rounded border border-primary/20">
-                                {metrics.percent}%
-                            </div>
+                            <h1 className="text-xl md:text-2xl font-black tracking-tighter text-foreground/90 uppercase">Construcción</h1>
+                            <div className="text-xs font-mono font-bold text-primary bg-primary/10 px-2 py-1 rounded">{metrics.percent}%</div>
                         </div>
                         <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
                             <div className="h-full bg-primary transition-all duration-1000 ease-out shadow-[0_0_15px_rgba(168,85,247,0.4)]" style={{ width: `${metrics.percent}%` }} />
@@ -330,7 +325,6 @@ export function PodcastCreationForm() {
                     "w-full h-full flex flex-col transition-all duration-700",
                     metrics.isInitial ? "max-w-5xl" : "max-w-4xl px-4"
                 )}>
-                    {/* FIX #3: Fondo transparente en el paso inicial para que flote sobre la aurora */}
                     <Card className={cn(
                         "flex-1 flex flex-col overflow-hidden border-0 shadow-none relative",
                         !metrics.isInitial ? "bg-card/40 backdrop-blur-3xl rounded-3xl border border-border/40 shadow-2xl" : "bg-transparent"
@@ -339,7 +333,7 @@ export function PodcastCreationForm() {
                             {isGeneratingScript ? (
                                 <DraftGenerationLoader formData={formData} />
                             ) : (
-                                <div className="flex-1 overflow-y-auto custom-scrollbar-hide px-2">
+                                <div className="flex-1 overflow-y-auto custom-scrollbar-hide">
                                     {renderCurrentStep()}
                                 </div>
                             )}
@@ -348,33 +342,27 @@ export function PodcastCreationForm() {
                 </div>
             </main>
 
-            {/* 3. NAVIGATION FOOTER */}
+            {/* 3. NAVIGATION FOOTER (Condicional para no estorbar en el paso sensorial) */}
             <footer className="flex-shrink-0 w-full p-4 md:p-8 bg-transparent">
                 <div className="max-w-4xl mx-auto">
-                    {!metrics.isInitial && !isGeneratingScript && (
+                    {!metrics.isInitial && !isGeneratingScript && currentFlowState !== 'LOCAL_DISCOVERY_STEP' && (
                         <div className="flex justify-between items-center gap-4">
-                            <Button 
-                                type="button" 
-                                variant="ghost" 
-                                onClick={goBack} 
-                                disabled={isSubmitting} 
-                                className="h-12 px-6 rounded-2xl font-bold text-muted-foreground/80 hover:bg-white/10"
-                            >
+                            <Button type="button" variant="ghost" onClick={goBack} disabled={isSubmitting} className="h-12 px-6 rounded-xl font-bold text-muted-foreground/80 hover:bg-white/10">
                                 <ChevronLeft className="mr-1 h-4 w-4" /> ANTERIOR
                             </Button>
                             
                             <div className="flex items-center gap-3">
                                 {currentFlowState === 'DETAILS_STEP' ? (
-                                    <Button type="button" onClick={handleNextTransition} className="bg-primary text-white rounded-full px-8 h-12 font-bold shadow-lg shadow-primary/20">
+                                    <Button type="button" onClick={handleNextTransition} className="bg-primary text-white rounded-full px-8 h-12 font-bold shadow-lg">
                                         <FileText className="mr-2 h-4 w-4" /> GENERAR BORRADOR
                                     </Button>
                                 ) : currentFlowState === 'FINAL_STEP' ? (
-                                    <Button type="button" onClick={handleSubmit(handleFinalSubmit)} disabled={isSubmitting} className="bg-primary text-white rounded-full px-10 h-12 font-black shadow-xl shadow-primary/30 active:scale-95 transition-all">
-                                        {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4 group-hover:rotate-12 transition-transform" />}
+                                    <Button type="button" onClick={handleSubmit(handleFinalSubmit)} disabled={isSubmitting} className="bg-primary text-white rounded-full px-10 h-12 font-black">
+                                        {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
                                         PRODUCIR
                                     </Button>
                                 ) : (
-                                    <Button type="button" onClick={handleNextTransition} className="bg-foreground text-background rounded-full px-8 h-12 font-bold hover:opacity-90">
+                                    <Button type="button" onClick={handleNextTransition} className="bg-foreground text-background rounded-full px-8 h-12 font-bold">
                                         SIGUIENTE <ChevronRight className="ml-2 h-4 w-4" />
                                     </Button>
                                 )}
