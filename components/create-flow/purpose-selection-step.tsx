@@ -1,137 +1,177 @@
 // components/create-flow/purpose-selection-step.tsx
-// VERSIÓN ROBUSTA: Sincronizada con el Schema v2.0 para persistir el Agente seleccionado.
+// VERSIÓN: 12.0 (Master Categorization - Local Soul Integration)
 
 "use client";
 
 import { useCreationContext } from "../podcast-creation-form";
-import { Lightbulb, Sparkles, Link as LinkIcon, PenSquare, HelpCircle, Bot, ArrowRight } from "lucide-react";
+import { 
+  Lightbulb, 
+  Link as LinkIcon, 
+  PenSquare, 
+  HelpCircle, 
+  MapPin, 
+  ArrowRight,
+  Compass,
+  Palette,
+  ScrollText
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const purposeOptions = [
-  { 
-    purpose: "learn", 
-    style: "solo", 
-    agent: "solo-talk-analyst", 
-    nextState: "LEARN_SUB_SELECTION", 
-    icon: <Lightbulb className="h-5 w-5 text-amber-600 dark:text-amber-400" />, 
-    title: "Aprender", 
-    description: "Explica un concepto complejo con claridad." 
+/**
+ * ESTRUCTURA DE CATEGORÍAS Y OPCIONES
+ * Definición profesional de la taxonomía de creación de NicePod.
+ */
+const SECTIONS = [
+  {
+    label: "Creatividad",
+    icon: <Palette className="h-3 w-3" />,
+    options: [
+      { 
+        purpose: "learn", 
+        style: "solo", 
+        agentName: "solo-talk-analyst", 
+        nextState: "LEARN_SUB_SELECTION", 
+        icon: <Lightbulb className="h-5 w-5 text-amber-500" />, 
+        title: "Aprender", 
+        description: "Desglosa conceptos complejos con claridad." 
+      },
+      { 
+        purpose: "explore", 
+        style: "link", 
+        agentName: "link-points-synthesizer", 
+        nextState: "LINK_POINTS_INPUT", 
+        icon: <LinkIcon className="h-5 w-5 text-blue-500" />, 
+        title: "Explorar", 
+        description: "Encuentra el hilo conductor entre dos ideas." 
+      },
+      { 
+        purpose: "answer", 
+        style: "qa", 
+        agentName: "qa-agent", 
+        nextState: "QUESTION_INPUT", 
+        icon: <HelpCircle className="h-5 w-5 text-rose-500" />, 
+        title: "Preguntar", 
+        description: "Respuestas directas a dudas específicas." 
+      },
+    ]
   },
-  { 
-    purpose: "inspire", 
-    style: "archetype", 
-    // Nota: Inspire usa arquetipos dinámicos, el agente base es genérico hasta que se elija el arquetipo
-    agent: "script-architect-v1", 
-    nextState: "INSPIRE_SUB_SELECTION", 
-    icon: <Sparkles className="h-5 w-5 text-purple-600 dark:text-purple-400" />, 
-    title: "Inspirar", 
-    description: "Historias potentes con estructura narrativa." 
+  {
+    label: "Legado",
+    icon: <ScrollText className="h-3 w-3" />,
+    options: [
+      { 
+        purpose: "reflect", 
+        style: "legacy", 
+        agentName: "legacy-agent", 
+        nextState: "LEGACY_INPUT", 
+        icon: <PenSquare className="h-5 w-5 text-emerald-500" />, 
+        title: "Reflexionar", 
+        description: "Lecciones de vida y testimonios personales." 
+      }
+    ]
   },
-  { 
-    purpose: "explore", 
-    style: "link", 
-    agent: "link-synthesizer",
-    nextState: "LINK_POINTS_INPUT", 
-    icon: <LinkIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />, 
-    title: "Explorar", 
-    description: "Conecta dos ideas distintas." 
-  },
-  { 
-    purpose: "reflect", 
-    style: "legacy", 
-    agent: "legacy-agent", 
-    nextState: "LEGACY_INPUT", 
-    icon: <PenSquare className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />, 
-    title: "Reflexionar", 
-    description: "Deja un legado o lección importante." 
-  },
-  { 
-    purpose: "answer", 
-    style: "qa", 
-    agent: "qa-agent", 
-    nextState: "QUESTION_INPUT", 
-    icon: <HelpCircle className="h-5 w-5 text-rose-600 dark:text-rose-400" />, 
-    title: "Responder", 
-    description: "Respuesta concisa a una duda." 
-  },
-  { 
-    purpose: "freestyle", 
-    style: undefined, 
-    // Freestyle no define agente aquí, se define más tarde
-    nextState: "FREESTYLE_SELECTION", 
-    icon: <Bot className="h-5 w-5 text-slate-600 dark:text-slate-400" />, 
-    title: "Libre", 
-    description: "Para creadores avanzados.", 
-    isSecondary: true 
+  {
+    label: "Entorno",
+    icon: <Compass className="h-3 w-3" />,
+    options: [
+      { 
+        purpose: "local_soul", 
+        style: "local_concierge", 
+        agentName: "local-concierge-v1", 
+        nextState: "LOCAL_DISCOVERY_STEP", 
+        icon: <MapPin className="h-5 w-5 text-indigo-500" />, 
+        title: "Vive lo local", 
+        description: "Secretos y guías del sitio donde estás hoy.",
+        isNew: true 
+      }
+    ]
   }
 ];
 
 export function PurposeSelectionStep() {
   const { updateFormData, transitionTo } = useCreationContext();
 
-  const handleSelectPurpose = (option: typeof purposeOptions[0]) => {
-    // AHORA ESTO ES VÁLIDO Y ROBUSTO:
-    // Guardamos el agente específico definido en la UI dentro del estado global.
-    // El Schema ya lo permite.
+  const handleSelect = (option: any) => {
+    // ACTUALIZACIÓN QUIRÚRGICA: 
+    // Sincronizamos con el Schema v4.0 e inicializamos metadatos de transparencia.
     updateFormData({ 
-        purpose: option.purpose as any, 
-        style: option.style as any, 
-        selectedAgent: option.agent // <--- El dato crítico se conserva
+        purpose: option.purpose, 
+        style: option.style, 
+        agentName: option.agentName,
+        sources: [], // Aseguramos que la investigación empiece desde cero
+        creation_mode: 'standard'
     });
-    transitionTo(option.nextState as any);
+    transitionTo(option.nextState);
   };
 
   return (
-    <div className="flex flex-col h-full w-full max-w-5xl mx-auto items-center animate-fade-in px-2 md:px-0 pt-2 md:pt-0">
+    <div className="flex flex-col h-full w-full max-w-4xl mx-auto items-center animate-in fade-in duration-700 px-4 md:px-0">
       
-      {/* CABECERA */}
-      <div className="text-center mb-4 md:mb-8 flex-shrink-0 w-full">
-        <h2 className="text-xl md:text-3xl font-bold tracking-tight text-foreground drop-shadow-sm md:drop-shadow-none">
+      {/* CABECERA MINIMALISTA */}
+      <div className="text-center mb-8 mt-4 md:mt-2">
+        <h2 className="text-2xl md:text-4xl font-black tracking-tighter text-foreground bg-clip-text text-transparent bg-gradient-to-b from-foreground to-foreground/60">
           ¿Cuál es tu intención?
         </h2>
-        <p className="text-xs md:text-sm text-muted-foreground mt-1 font-medium">
-          Elige un propósito y la IA hará el resto.
+        <p className="text-sm text-muted-foreground mt-2 font-medium">
+          Selecciona una rama de conocimiento para iniciar el escaneo de IA.
         </p>
       </div>
       
-      {/* GRID DE CONTENIDO */}
-      <div className="w-full flex-1 min-h-0 overflow-y-auto scrollbar-hide flex flex-col justify-center">
-        <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4 pb-2">
-          {purposeOptions.map((option) => (
-            <button
-              key={option.purpose}
-              onClick={() => handleSelectPurpose(option)}
-              className={cn(
-                "group relative flex items-center text-left transition-all duration-200",
-                "p-3 md:p-4",
-                "bg-white/60 dark:bg-white/5",
-                "hover:bg-white/80 dark:hover:bg-white/10",
-                "border border-black/5 dark:border-white/10",
-                "hover:border-black/10 dark:hover:border-white/20",
-                "rounded-xl overflow-hidden shadow-sm hover:shadow-md active:scale-[0.99]",
-                option.isSecondary && "opacity-90 dark:opacity-70 hover:opacity-100"
-              )}
-            >
-              <div className="flex-shrink-0 mr-3 md:mr-4">
-                <div className="flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-lg bg-white dark:bg-black/20 border border-black/5 dark:border-white/5 shadow-sm group-hover:scale-105 transition-transform duration-300">
-                  {option.icon}
+      {/* SECCIONES CATEGORIZADAS */}
+      <div className="w-full space-y-10 pb-20 overflow-y-auto custom-scrollbar-hide">
+        {SECTIONS.map((section) => (
+          <div key={section.label} className="space-y-4 animate-in slide-in-from-bottom-2 duration-500">
+            
+            {/* ETIQUETA DE CATEGORÍA */}
+            <div className="flex items-center gap-2 px-1">
+                <div className="p-1 rounded-md bg-primary/10 text-primary">
+                    {section.icon}
                 </div>
-              </div>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/50">
+                    {section.label}
+                </span>
+                <div className="flex-1 h-px bg-gradient-to-r from-border/50 to-transparent ml-2" />
+            </div>
 
-              <div className="flex-grow min-w-0">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm md:text-base font-bold text-foreground group-hover:text-primary transition-colors">
-                    {option.title}
-                  </h3>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground/50 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 hidden md:block" />
-                </div>
-                <p className="text-xs text-muted-foreground mt-0.5 md:mt-1 line-clamp-1">
-                  {option.description}
-                </p>
-              </div>
-            </button>
-          ))}
-        </div>
+            {/* GRID DE OPCIONES */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {section.options.map((option) => (
+                <button
+                  key={option.purpose}
+                  onClick={() => handleSelect(option)}
+                  className={cn(
+                    "group relative flex flex-col items-start text-left transition-all duration-300",
+                    "p-5 bg-card/20 hover:bg-card/60 backdrop-blur-md",
+                    "border border-border/40 hover:border-primary/40",
+                    "rounded-2xl shadow-sm hover:shadow-2xl active:scale-[0.98] overflow-hidden"
+                  )}
+                >
+                  {option.isNew && (
+                    <div className="absolute top-0 right-0 px-2 py-1 bg-primary text-[8px] font-black text-white uppercase tracking-tighter rounded-bl-lg">
+                        Nuevo
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between w-full mb-3">
+                    <div className="p-3 rounded-xl bg-background/50 border border-border/20 shadow-inner group-hover:scale-110 group-hover:border-primary/20 transition-all duration-500">
+                      {option.icon}
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-muted-foreground/30 opacity-0 -translate-x-4 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />
+                  </div>
+
+                  <div className="space-y-1">
+                    <h3 className="text-base font-bold text-foreground group-hover:text-primary transition-colors">
+                        {option.title}
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground leading-snug line-clamp-2 font-medium opacity-80 group-hover:opacity-100 transition-opacity">
+                        {option.description}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
