@@ -1,5 +1,5 @@
 // components/create-flow/local-discovery-step.tsx
-// VERSIÓN: 3.0 (Self-Sufficient Engine - Encapsulated Logic)
+// VERSIÓN: 4.0 (Master Discovery Engine - Multi-Input & Zero Scroll Design)
 
 "use client";
 
@@ -10,27 +10,18 @@ import { useCreationContext } from "../podcast-creation-form";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { 
-  MapPin, 
-  Camera, 
-  Sparkles, 
-  History, 
-  Utensils, 
-  Search, 
-  Loader2, 
-  X,
-  Navigation,
-  Compass
+  MapPin, Camera, Sparkles, History, Utensils, Search, 
+  Loader2, X, Navigation, Compass, Globe2, Trash2 
 } from "lucide-react";
-import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 const DISCOVERY_LENSES = [
-  { id: 'Tesoros Ocultos', icon: <Sparkles className="h-4 w-4" />, label: "Tesoros", desc: "No turísticos" },
-  { id: 'Historias de Pasillo', icon: <History className="h-4 w-4" />, label: "Crónicas", desc: "Leyendas" },
-  { id: 'Sabor Local', icon: <Utensils className="h-4 w-4" />, label: "Sabor", desc: "Gastronomía" },
-  { id: 'Qué hacer ahora', icon: <Search className="h-4 w-4" />, label: "Planes", desc: "Eventos hoy" },
+  { id: 'Tesoros Ocultos', icon: <Sparkles className="h-4 w-4" />, label: "Tesoros" },
+  { id: 'Historias de Pasillo', icon: <History className="h-4 w-4" />, label: "Historias" },
+  { id: 'Sabor Local', icon: <Utensils className="h-4 w-4" />, label: "Sabor" },
+  { id: 'Qué hacer ahora', icon: <Search className="h-4 w-4" />, label: "Planes" },
 ] as const;
 
 export function LocalDiscoveryStep() {
@@ -39,7 +30,7 @@ export function LocalDiscoveryStep() {
   const { setValue, watch } = useFormContext<PodcastCreationData>();
   const { transitionTo } = useCreationContext();
   
-  // Estados Locales internos (no afectan al padre hasta el éxito)
+  // --- ESTADOS DE SENSORES ---
   const [isLocating, setIsLocating] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -47,31 +38,28 @@ export function LocalDiscoveryStep() {
 
   const location = watch("location");
   const selectedLens = watch("selectedTone");
+  const imageContext = watch("imageContext");
 
-  // 1. Lógica interna de GPS
+  // --- 1. LOCALIZACIÓN INTELIGENTE ---
   const handleGetLocation = () => {
     setIsLocating(true);
-    if (!navigator.geolocation) {
-      toast({ title: "Error", description: "GPS no soportado", variant: "destructive" });
-      setIsLocating(false);
-      return;
-    }
+    const options = { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 };
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setValue("location", {
           latitude: pos.coords.latitude,
           longitude: pos.coords.longitude,
-          placeName: "Ubicación fijada"
+          placeName: "Ubicación GPS"
         });
-        toast({ title: "Radar Activo", description: "Ubicación capturada correctamente." });
+        toast({ title: "Radar Fijado", description: "Coordenadas capturadas." });
         setIsLocating(false);
       },
       () => {
-        toast({ title: "Error GPS", description: "No se pudo obtener la señal.", variant: "destructive" });
+        toast({ title: "Error GPS", description: "Escribe tu destino manualmente.", variant: "destructive" });
         setIsLocating(false);
       },
-      { enableHighAccuracy: true, timeout: 10000 }
+      options
     );
   };
 
@@ -82,21 +70,22 @@ export function LocalDiscoveryStep() {
       reader.onloadend = () => {
         const base64 = reader.result as string;
         setPreviewImage(base64);
-        setValue("imageContext", base64);
+        setValue("imageContext", base64, { shouldValidate: true });
       };
       reader.readAsDataURL(file);
     }
   };
 
-  // 2. Lógica interna de Análisis (Llamada a Supabase)
+  // --- 2. EJECUCIÓN DEL DESCUBRIMIENTO ---
   const handleAnalyze = async () => {
-    if (!location && !previewImage) {
-      toast({ title: "Sensores inactivos", description: "Necesito GPS o una foto." });
+    const topicManual = watch("solo_topic");
+    if (!location && !imageContext && (!topicManual || topicManual.length < 3)) {
+      toast({ title: "Faltan datos", description: "Activa GPS, saca una foto o escribe un destino." });
       return;
     }
     if (!selectedLens) {
-        toast({ title: "Lente requerida", description: "Elige qué guía necesitas hoy." });
-        return;
+      toast({ title: "Elige una Lente", description: "¿Qué tipo de guía necesitas?" });
+      return;
     }
 
     setIsAnalyzing(true);
@@ -106,21 +95,19 @@ export function LocalDiscoveryStep() {
           latitude: location?.latitude || 0,
           longitude: location?.longitude || 0,
           lens: selectedLens,
-          image_base64: previewImage
+          image_base64: imageContext,
+          manual_topic: topicManual
         }
       });
 
       if (error || !data.success) throw new Error("Fallo en el motor situacional.");
 
-      // ESCRIBIMOS EN EL FORMULARIO PADRE SOLO AL FINAL
       setValue('discovery_context', data.dossier);
       setValue('sources', data.sources || []);
-      setValue('solo_topic', data.poi || "Descubrimiento Local");
+      setValue('solo_topic', data.poi || topicManual || "Destino Local");
       setValue('agentName', 'local-concierge-v1');
 
-      toast({ title: "¡Entorno Sincronizado!", description: `Lugar detectado: ${data.poi}` });
-      
-      // LE DECIMOS AL PADRE QUE AVANCE
+      toast({ title: "¡Entorno Sincronizado!" });
       transitionTo('DETAILS_STEP');
 
     } catch (e: any) {
@@ -131,63 +118,77 @@ export function LocalDiscoveryStep() {
   };
 
   return (
-    <div className="flex flex-col w-full h-full animate-in fade-in duration-500 pb-10">
+    <div className="flex flex-col h-full w-full animate-in fade-in duration-700 px-4">
       
-      <div className="text-center py-6">
-        <h2 className="text-2xl font-black tracking-tight text-foreground">Vivir lo Local</h2>
-        <p className="text-xs text-muted-foreground font-medium mt-1 uppercase tracking-widest opacity-60">
-           Acompañante Situacional
-        </p>
+      {/* HEADER ULTRA-COMPACTO */}
+      <div className="flex-shrink-0 text-center py-4">
+        <h2 className="text-xl font-black tracking-tighter flex items-center justify-center gap-2">
+            <Compass className="h-5 w-5 text-primary animate-pulse" /> 
+            Vivir lo Local
+        </h2>
+        <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest opacity-60">Sincronización Situacional</p>
       </div>
 
-      <div className="flex-1 space-y-6 px-4 overflow-y-auto custom-scrollbar pb-32">
+      <div className="flex-1 flex flex-col gap-4 min-h-0">
         
-        {/* SENSORES */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* BLOQUE DE BÚSQUEDA MANUAL (Destino futuro) */}
+        <div className="relative group">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50 group-focus-within:text-primary transition-colors" />
+            <Input 
+                placeholder="Escribe tu próximo destino (Ej: Kioto)" 
+                className="pl-10 h-12 bg-white/5 border-white/10 rounded-xl focus:ring-primary/30"
+                onChange={(e) => setValue("solo_topic", e.target.value)}
+            />
+        </div>
+
+        {/* MATRIZ DE SENSORES (GPS + CÁMARA) - Lado a Lado para ahorrar espacio */}
+        <div className="grid grid-cols-2 gap-3">
           <button 
             type="button"
             onClick={handleGetLocation}
             className={cn(
-              "flex flex-col items-center justify-center p-8 rounded-3xl border-2 transition-all duration-300",
-              location ? "border-green-500/40 bg-green-500/5 shadow-inner" : "border-border/40 bg-background/40"
+              "flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all duration-300",
+              location ? "border-green-500/40 bg-green-500/5" : "border-white/5 bg-white/5 hover:bg-white/10"
             )}
           >
-            <div className={cn("p-4 rounded-2xl mb-3 shadow-xl", location ? "bg-green-500 text-white" : "bg-primary/10 text-primary")}>
-              {isLocating ? <Loader2 className="h-8 w-8 animate-spin" /> : location ? <Navigation className="h-8 w-8" /> : <MapPin className="h-8 w-8" />}
+            <div className={cn("p-2.5 rounded-xl mb-2", location ? "bg-green-500 text-white" : "bg-primary/10 text-primary")}>
+              {isLocating ? <Loader2 className="h-5 w-5 animate-spin" /> : <Navigation className="h-5 w-5" />}
             </div>
-            <span className="text-sm font-black uppercase tracking-tighter">GPS</span>
-            <span className="text-[10px] opacity-60 mt-1">{location ? "Señal Fijada" : "Activar Radar"}</span>
+            <span className="text-xs font-bold">GPS Radar</span>
+            <span className="text-[9px] opacity-60">{location ? "Localizado" : "Detectar ahora"}</span>
           </button>
 
           <button 
             type="button"
             onClick={() => fileInputRef.current?.click()}
             className={cn(
-              "relative flex flex-col items-center justify-center p-8 rounded-3xl border-2 transition-all duration-300 overflow-hidden",
-              previewImage ? "border-blue-500/40" : "border-border/40 bg-background/40"
+              "relative flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all duration-300 overflow-hidden",
+              imageContext ? "border-blue-500/40 bg-blue-500/5" : "border-white/5 bg-white/5 hover:bg-white/10"
             )}
           >
             {previewImage ? (
-                <>
-                    <img src={previewImage} className="absolute inset-0 w-full h-full object-cover opacity-50" />
-                    <div className="z-10 bg-blue-600 text-white text-[9px] font-black px-3 py-1 rounded-full">VISIÓN ACTIVA</div>
-                </>
+                <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-black/40">
+                   <CheckCircle2 className="h-6 w-6 text-blue-400" />
+                   <div className="absolute top-1 right-1 p-1 bg-red-500 rounded-full" onClick={(e) => { e.stopPropagation(); clearImage(); }}>
+                       <X className="h-3 w-3 text-white" />
+                   </div>
+                </div>
             ) : (
                 <>
-                    <div className="p-4 rounded-2xl mb-3 bg-blue-500/10 text-blue-500 shadow-xl">
-                        <Camera className="h-8 w-8" />
+                    <div className="p-2.5 rounded-xl mb-2 bg-blue-500/10 text-blue-500">
+                        <Camera className="h-5 w-5" />
                     </div>
-                    <span className="text-sm font-black uppercase tracking-tighter">Cámara</span>
-                    <span className="text-[10px] opacity-60 mt-1">Analizar Imagen</span>
+                    <span className="text-xs font-bold">Visión AI</span>
+                    <span className="text-[9px] opacity-60">Analizar foto</span>
                 </>
             )}
             <input type="file" accept="image/*" capture="environment" className="hidden" ref={fileInputRef} onChange={handleImageCapture} />
           </button>
         </div>
 
-        {/* LENTES */}
-        <div className="space-y-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/40 ml-1">Lente de Interés</p>
+        {/* LENTES DE INTERÉS (Matriz 2x2) */}
+        <div className="space-y-2">
+            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/40 ml-1">Lente de Interés</p>
             <div className="grid grid-cols-2 gap-2">
                 {DISCOVERY_LENSES.map((lens) => (
                     <button
@@ -195,45 +196,46 @@ export function LocalDiscoveryStep() {
                         type="button"
                         onClick={() => setValue("selectedTone", lens.id as any)}
                         className={cn(
-                            "flex items-center gap-3 p-4 rounded-2xl border-2 transition-all duration-300",
+                            "flex items-center gap-2.5 p-3 rounded-xl border transition-all duration-300",
                             selectedLens === lens.id 
-                                ? "bg-primary/20 border-primary shadow-[0_0_20px_rgba(168,85,247,0.2)]" 
-                                : "bg-background/40 border-border/20 hover:bg-background/60"
+                                ? "bg-primary/20 border-primary shadow-sm" 
+                                : "bg-white/5 border-white/5 hover:bg-white/10"
                         )}
                     >
-                        <div className={cn("p-2 rounded-lg", selectedLens === lens.id ? "bg-primary text-white" : "bg-secondary text-muted-foreground")}>
+                        <div className={cn("p-1.5 rounded-lg", selectedLens === lens.id ? "bg-primary text-white" : "bg-white/10 text-muted-foreground")}>
                             {lens.icon}
                         </div>
-                        <div className="text-left">
-                            <p className="text-xs font-black leading-tight tracking-tighter">{lens.label}</p>
-                            <p className="text-[9px] opacity-50 leading-tight">{lens.desc}</p>
-                        </div>
+                        <span className="text-xs font-bold leading-tight">{lens.label}</span>
                     </button>
                 ))}
             </div>
         </div>
 
-        {/* BOTÓN DE ACCIÓN ENCAPSULADO */}
-        {/* Lo ubicamos aquí para que se mueva con el contenido y no flote sobre el diseño del padre */}
-        <div className="pt-6">
+        {/* BOTÓN DE ACCIÓN FINAL (Dentro del área sin scroll) */}
+        <div className="pt-2 pb-4 mt-auto">
             <Button 
                 onClick={handleAnalyze}
-                disabled={isAnalyzing || (!location && !previewImage)}
+                disabled={isAnalyzing}
                 className={cn(
-                    "w-full h-16 rounded-2xl text-base font-black shadow-2xl transition-all active:scale-95 flex items-center justify-center gap-3",
+                    "w-full h-14 rounded-2xl text-sm font-black shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2",
                     isAnalyzing 
                         ? "bg-secondary text-muted-foreground" 
                         : "bg-gradient-to-r from-primary to-indigo-600 text-white"
                 )}
             >
                 {isAnalyzing ? (
-                    <><Loader2 className="h-5 w-5 animate-spin" /> INTERPRETANDO MUNDO...</>
+                    <><Loader2 className="h-4 w-4 animate-spin" /> SINCRONIZANDO...</>
                 ) : (
-                    <><Compass className="h-5 w-5 animate-pulse" /> COMENZAR DESCUBRIMIENTO</>
+                    <><Globe2 className="h-4 w-4" /> INTERPRETAR MI MUNDO</>
                 )}
             </Button>
         </div>
       </div>
     </div>
   );
+
+  function clearImage() {
+    setPreviewImage(null);
+    setValue("imageContext", undefined);
+  }
 }
