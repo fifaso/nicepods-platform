@@ -1,13 +1,16 @@
-// components/create-flow/hooks/use-flow-actions.ts
-// VERSIÓN: 1.2 (Master Actions Engine - Situational Discovery & Production Stability)
+// components/create-flow/hooks/use-flow-actions.tsx
+// VERSIÓN: 1.3 (Master Actions Engine - JSX Fix & Full Provenance)
 
-import { useState, useCallback } from "react";
+"use client";
+
+import React, { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useFormContext } from "react-hook-form";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { PodcastCreationData } from "@/lib/validation/podcast-schema";
 import { FlowState } from "../shared/types";
+import { CheckCircle2, Loader2 } from "lucide-react"; // [FIX]: Importación agregada
 
 interface UseFlowActionsProps {
   transitionTo: (state: FlowState) => void;
@@ -16,8 +19,8 @@ interface UseFlowActionsProps {
 
 /**
  * useFlowActions
- * Hook de grado industrial que gestiona todas las interacciones con el Cerebro AI de NicePod.
- * Centraliza la lógica de red, estados de carga y persistencia de contratos de datos.
+ * Hook de grado industrial que gestiona las interacciones asíncronas.
+ * NOTA: Requiere extensión .tsx para soportar iconos en los Toasts.
  */
 export function useFlowActions({ transitionTo, clearDraft }: UseFlowActionsProps) {
   const { supabase, user } = useAuth();
@@ -25,19 +28,15 @@ export function useFlowActions({ transitionTo, clearDraft }: UseFlowActionsProps
   const router = useRouter();
   const { getValues, setValue } = useFormContext<PodcastCreationData>();
 
-  // --- ESTADOS DE CARGA (OPERATIVOS) ---
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   /**
-   * 1. ANALIZAR ENTORNO LOCAL (VIVIR LO LOCAL)
-   * Llama a la Edge Function de descubrimiento para interpretar GPS y Visión.
-   * Resuelve el error detectado en la Imagen 79.
+   * 1. ANALIZAR ENTORNO LOCAL
    */
   const analyzeLocalEnvironment = useCallback(async () => {
     const data = getValues();
     
-    // Validación de Sensores antes de disparar crédito
     if (!data.location && !data.imageContext) {
       toast({ 
         title: "Sensores Inactivos", 
@@ -49,41 +48,33 @@ export function useFlowActions({ transitionTo, clearDraft }: UseFlowActionsProps
 
     setIsGenerating(true);
     try {
-      console.log(`[FlowActions] Iniciando escaneo situacional para: ${data.selectedTone || 'General'}`);
-      
       const { data: res, error } = await supabase.functions.invoke('get-local-discovery', {
         body: {
           latitude: data.location?.latitude || 0,
           longitude: data.location?.longitude || 0,
-          lens: data.selectedTone || 'Tesoros Ocultos', // 'selectedTone' actúa como la lente de interés
+          lens: data.selectedTone || 'Tesoros Ocultos',
           image_base64: data.imageContext
         }
       });
 
-      if (error || !res?.success) throw new Error(res?.error || "Fallo en el motor de descubrimiento local.");
+      if (error || !res?.success) throw new Error(res?.error || "Fallo en el motor de descubrimiento.");
 
-      // CUSTODIA DE DATOS: Inyectamos el Dossier de Inteligencia y las Fuentes de Tavily
       setValue('discovery_context', res.dossier, { shouldValidate: true });
       setValue('sources', res.sources || [], { shouldValidate: true });
       setValue('solo_topic', res.poi || "Descubrimiento Local", { shouldValidate: true });
-      
-      // Sincronización del Agente técnico oficial para Turismo
       setValue('agentName', 'local-concierge-v1', { shouldValidate: true });
 
       toast({ 
         title: "¡Entorno Sincronizado!", 
-        description: `Lugar identificado: ${res.poi}` 
+        description: `Lugar identificado: ${res.poi}`,
+        action: <CheckCircle2 className="h-5 w-5 text-green-500" />
       });
 
-      // Transición al paso de Veredicto de IA (NUEVO)
       transitionTo('LOCAL_RESULT_STEP');
 
-    } catch (e: any) {
-      toast({ 
-        title: "Error de Análisis", 
-        description: e.message || "No pudimos conectar con los sensores de NicePod.", 
-        variant: "destructive" 
-      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Fallo de sensores";
+      toast({ title: "Error de Análisis", description: msg, variant: "destructive" });
     } finally {
       setIsGenerating(false);
     }
@@ -91,7 +82,6 @@ export function useFlowActions({ transitionTo, clearDraft }: UseFlowActionsProps
 
   /**
    * 2. GENERAR NARRATIVAS (PARA EXPLORAR)
-   * Conecta ejes temáticos para el flujo de 'Explore'.
    */
   const generateNarratives = useCallback(async (callback: (data: any[]) => void) => {
     const { link_topicA, link_topicB, link_catalyst } = getValues();
@@ -114,7 +104,6 @@ export function useFlowActions({ transitionTo, clearDraft }: UseFlowActionsProps
 
   /**
    * 3. GENERAR BORRADOR (IA NARRATIVA)
-   * Llama a Gemini 2.5 Pro para la redacción final del guion.
    */
   const generateDraft = useCallback(async () => {
     setIsGenerating(true);
@@ -141,23 +130,19 @@ export function useFlowActions({ transitionTo, clearDraft }: UseFlowActionsProps
 
       setValue('final_title', response.draft.suggested_title);
       setValue('final_script', response.draft.script_body);
-      
-      // Sincronizamos las fuentes de Tavily si existen en el borrador
-      if (response.draft.sources) {
-        setValue('sources', response.draft.sources);
-      }
+      setValue('sources', response.draft.sources || []);
 
       transitionTo('SCRIPT_EDITING');
-    } catch (e: any) {
-      toast({ title: "Error Creativo", description: e.message, variant: "destructive" });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error desconocido";
+      toast({ title: "Fallo Creativo", description: msg, variant: "destructive" });
     } finally {
       setIsGenerating(false);
     }
   }, [supabase, getValues, setValue, transitionTo, toast]);
 
   /**
-   * 4. ENVÍO A PRODUCCIÓN (QUEUE)
-   * Registra el trabajo final en la cola de encolado atómico.
+   * 4. ENVÍO A PRODUCCIÓN
    */
   const submitToProduction = useCallback(async () => {
     if (!supabase || !user) return;
@@ -178,6 +163,7 @@ export function useFlowActions({ transitionTo, clearDraft }: UseFlowActionsProps
 
       if (error || !res?.success) throw new Error("No se pudo iniciar la producción.");
 
+      // [FIX IMAGEN 81]: Ahora con la extensión .tsx, este JSX es válido
       toast({ 
         title: "¡Éxito!", 
         description: "Tu audio está siendo generado.",
@@ -186,8 +172,9 @@ export function useFlowActions({ transitionTo, clearDraft }: UseFlowActionsProps
 
       clearDraft();
       router.push('/podcasts?tab=library');
-    } catch (e: any) {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Fallo de red";
+      toast({ title: "Error", description: msg, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -196,7 +183,7 @@ export function useFlowActions({ transitionTo, clearDraft }: UseFlowActionsProps
   return {
     generateDraft,
     generateNarratives,
-    analyzeLocalEnvironment, // <--- EXPORTADO PARA EL ORQUESTADOR
+    analyzeLocalEnvironment,
     submitToProduction,
     isGenerating,
     isSubmitting
