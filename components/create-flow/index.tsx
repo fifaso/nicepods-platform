@@ -1,38 +1,36 @@
 // components/create-flow/index.tsx
-// VERSIÓN: 26.0 (Master Sovereign Orchestrator - Full Multi-Flow & Validation Support)
+// VERSIÓN: 25.0 (Master Sovereign - Recovery & Full Multi-Flow Integration)
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PodcastCreationSchema, PodcastCreationData } from "@/lib/validation/podcast-schema";
-import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
+import { useAudio } from "@/contexts/audio-context";
+import { useRouter } from "next/navigation";
 
-// Imports Modulares NicePod Engine
+// Imports del Dominio Modular
 import { CreationContext } from "./shared/context";
+import { MASTER_FLOW_PATHS } from "./shared/config";
 import { useFlowNavigation } from "./hooks/use-flow-navigation";
 import { useFlowActions } from "./hooks/use-flow-actions";
 import { StepRenderer } from "./step-renderer";
 import { LayoutShell } from "./layout-shell";
 
-/**
- * PodcastCreationOrchestrator
- * Master Component que gobierna el flujo de creación global de NicePod.
- */
 export default function PodcastCreationOrchestrator() {
   const { toast } = useToast();
   const { supabase, user } = useAuth();
+  const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
-  
-  // Estado para las opciones de narrativa del flujo 'Explore'
   const [narrativeOptions, setNarrativeOptions] = useState<any[]>([]);
 
-  // Garantía de Hidratación para estabilidad en móviles y PWA
+  // 1. Garantía de Hidratación (Elimina el error "Something went wrong")
   useEffect(() => { setIsMounted(true); }, []);
 
-  // 1. INICIALIZACIÓN DEL CONTRATO DE DATOS (Zod v4.0)
+  // 2. Inicialización de Datos (Contrato Zod v4.0)
   const formMethods = useForm<PodcastCreationData | any>({
     resolver: zodResolver(PodcastCreationSchema),
     mode: "onChange",
@@ -46,12 +44,10 @@ export default function PodcastCreationOrchestrator() {
   });
 
   const { watch, setValue, trigger, handleSubmit, reset } = formMethods;
-  const currentPurpose = watch("purpose");
+  const formData = watch();
 
-  // 2. INICIALIZACIÓN DE LA NAVEGACIÓN
-  const navigation = useFlowNavigation({ currentPurpose });
-
-  // 3. INICIALIZACIÓN DE LAS ACCIONES IA
+  // 3. Inicialización del Motor de Navegación y Acciones
+  const navigation = useFlowNavigation({ currentPurpose: formData.purpose });
   const actions = useFlowActions({ 
     transitionTo: navigation.transitionTo, 
     clearDraft: () => reset() 
@@ -59,14 +55,14 @@ export default function PodcastCreationOrchestrator() {
 
   /**
    * handleValidatedNext
-   * Gestiona el botón "CONTINUAR" con validación de campos obligatorios 
-   * para todos los propósitos de la plataforma.
+   * Gestiona la navegación para TODAS las opciones del formulario.
+   * Esto repara el error de que solo funcionaba "Vivir lo local".
    */
   const handleValidatedNext = async () => {
-    let fieldsToValidate: any[] = [];
     const currentState = navigation.currentFlowState;
+    let fieldsToValidate: any[] = [];
 
-    // Mapa dinámico de validaciones por pantalla
+    // Mapeo dinámico de validaciones
     if (currentState === 'SOLO_TALK_INPUT') fieldsToValidate = ['solo_topic', 'solo_motivation'];
     if (currentState === 'ARCHETYPE_SELECTION') fieldsToValidate = ['selectedArchetype'];
     if (currentState === 'DETAILS_STEP') fieldsToValidate = ['duration', 'narrativeDepth'];
@@ -77,44 +73,41 @@ export default function PodcastCreationOrchestrator() {
     const isValid = fieldsToValidate.length > 0 ? await trigger(fieldsToValidate as any) : true;
 
     if (isValid) {
-      // Casos Especiales (Llamadas a funciones antes de cambiar de paso)
       if (currentState === 'LINK_POINTS_INPUT') {
           // @ts-ignore: Acceso a función compartida
           await actions.generateNarratives(setNarrativeOptions);
       } else {
-          // Navegación secuencial basada en el mapa maestro de configuración
-          const path = navigation.activePath;
+          // Avance secuencial basado en el config.ts
+          const path = MASTER_FLOW_PATHS[formData.purpose] || MASTER_FLOW_PATHS.learn;
           const currentIndex = (path as string[]).indexOf(currentState);
-          const nextIndex = currentIndex + 1;
-          
-          if (nextIndex < path.length) {
-            navigation.transitionTo(path[nextIndex]);
+          if (currentIndex !== -1 && currentIndex < path.length - 1) {
+            navigation.transitionTo(path[currentIndex + 1]);
           }
       }
     } else {
-      toast({ 
-        title: "Atención", 
-        description: "Completa la información del paso actual para continuar.", 
-        variant: "destructive" 
-      });
+      toast({ title: "Atención", description: "Completa los campos para continuar.", variant: "destructive" });
     }
+  };
+
+  /**
+   * handleAnalyzeLocalSurroundings
+   * Específico para el hito sensorial de "Vivir lo Local"
+   */
+  const handleAnalyzeLocalSurroundings = async () => {
+    await actions.analyzeLocalEnvironment();
   };
 
   if (!isMounted) return null;
 
-  /**
-   * contextValue
-   * Inyectamos el ID de correlación y la normalización de Agentes en el contexto.
-   */
+  // Contexto Unificado
   const contextValue = {
     ...navigation,
     isGeneratingScript: actions.isGenerating,
-    setIsGeneratingScript: () => {}, // Gestionado internamente por el hook de acciones
-    updateFormData: (data: Partial<PodcastCreationData>) => {
-        Object.entries(data).forEach(([key, value]) => {
-          // Mapeo de compatibilidad: selectedAgent -> agentName
-          const targetKey = key === 'selectedAgent' ? 'agentName' : key;
-          setValue(targetKey as any, value, { shouldValidate: true });
+    setIsGeneratingScript: () => {}, 
+    updateFormData: (data: any) => {
+        Object.entries(data).forEach(([k, v]) => {
+            const finalKey = k === 'selectedAgent' ? 'agentName' : k;
+            setValue(finalKey as any, v, { shouldValidate: true });
         });
     }
   };
@@ -126,7 +119,7 @@ export default function PodcastCreationOrchestrator() {
           onNext={handleValidatedNext}
           onDraft={actions.generateDraft}
           onProduce={handleSubmit(actions.submitToProduction)}
-          onAnalyzeLocal={actions.analyzeLocalEnvironment} // <--- Soporte para Vivir lo local
+          onAnalyzeLocal={handleAnalyzeLocalSurroundings}
           isGenerating={actions.isGenerating}
           isSubmitting={actions.isSubmitting}
           progress={navigation.progressMetrics}
