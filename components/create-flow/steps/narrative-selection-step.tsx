@@ -7,7 +7,7 @@ import { useFormContext } from "react-hook-form";
 import { PodcastCreationData } from "@/lib/validation/podcast-schema";
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { NarrativeOption } from "../podcast-creation-form";
+import { NarrativeOption } from "../shared/context";
 import { BookOpen, Lightbulb, BarChart3 } from "lucide-react";
 
 interface NarrativeSelectionStepProps {
