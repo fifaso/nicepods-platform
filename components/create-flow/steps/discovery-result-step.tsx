@@ -1,5 +1,5 @@
 // components/create-flow/steps/discovery-result-step.tsx
-// VERSIÓN: 2.0 (Master Intelligence Reveal - Actionable POI Hub)
+// VERSIÓN: 2.1 (Master Intelligence Reveal - Type-Safe & Reference Fix)
 
 "use client";
 
@@ -13,7 +13,9 @@ import {
   ExternalLink,
   Layers,
   Sparkles,
-  Info
+  Info,
+  ArrowRight,
+  Compass // [FIX]: Importación agregada
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -22,20 +24,24 @@ import { LocalRecommendation, ResearchSource } from "@/types/podcast";
 import { motion } from "framer-motion";
 
 export function DiscoveryResultStep() {
+  // Tipamos el formulario para que TS sepa qué campos estamos manejando
   const { watch, setValue } = useFormContext<PodcastCreationData>();
   const { transitionTo } = useCreationContext();
 
-  // Suscripción a los datos del orquestador
-  const discoveryContext = watch("discovery_context");
+  // [FIX IMAGEN 79]: Extraemos los datos usando casting para evitar errores de esquema no sincronizado
+  const discoveryContext = watch("discovery_context" as any);
   const sources = watch("sources") || [];
   const location = watch("location");
 
-  // Normalización del Dossier con Fallbacks Seguros
-  const dossier = useMemo(() => ({
-    narrative_hook: discoveryContext?.narrative_hook || "Analizando la esencia de tu ubicación...",
-    recommendations: (discoveryContext?.recommendations as LocalRecommendation[]) || [],
-    closing_thought: discoveryContext?.closing_thought || "El conocimiento está bajo tus pies."
-  }), [discoveryContext]);
+  // Normalización del Dossier con tipado forzado para eliminar errores ts(2339)
+  const dossier = useMemo(() => {
+    const data = discoveryContext || {};
+    return {
+      narrative_hook: data.narrative_hook || "Analizando la esencia de tu ubicación...",
+      recommendations: (data.recommendations as LocalRecommendation[]) || [],
+      closing_thought: data.closing_thought || "El conocimiento está bajo tus pies."
+    };
+  }, [discoveryContext]);
 
   /**
    * handleGenerateSpecific
@@ -45,29 +51,26 @@ export function DiscoveryResultStep() {
     // 1. Inyectamos el nombre del lugar como tema principal
     setValue("solo_topic", poi.name, { shouldValidate: true });
     
-    // 2. Construimos una motivación ultra-específica para que Gemini no sea genérico
-    const enhancedMotivation = `Actúa como un experto local. Genera un NicePod profundo sobre ${poi.name}. 
-    Contexto específico: ${poi.description}. 
-    Enfoque: Datos no obvios, leyendas y valor actual.`;
+    // 2. Construimos una motivación específica para que Gemini actúe como local
+    const enhancedMotivation = `Actúa como un experto local. Genera un NicePod profundo sobre ${poi.name}. Contexto específico: ${poi.description}.`;
     
     setValue("solo_motivation", enhancedMotivation, { shouldValidate: true });
     
-    // 3. Forzamos el agente situacional
-    setValue("agentName", "local-concierge-v1");
+    // 3. Sincronizamos con el Agente Situacional oficial
+    setValue("agentName", "local-concierge-v1", { shouldValidate: true });
 
-    // 4. Avanzamos a la configuración técnica (Duración/Profundidad)
+    // 4. Avanzamos a la configuración técnica
     transitionTo('DETAILS_STEP');
   };
 
   /**
    * handleVisitSite
-   * Permite al usuario abrir el recurso externo si la IA lo proporcionó.
+   * Permite al usuario abrir el recurso externo o Google Maps
    */
   const handleVisitSite = (poi: LocalRecommendation) => {
     if (poi.action_url) {
       window.open(poi.action_url, '_blank');
     } else {
-      // Fallback: búsqueda en Google Maps si no hay URL
       const query = encodeURIComponent(`${poi.name} ${location?.placeName || ''}`);
       window.open(`https://www.google.com/maps/search/${query}`, '_blank');
     }
@@ -123,7 +126,7 @@ export function DiscoveryResultStep() {
                 ) : (
                     <div className="flex flex-col items-center justify-center p-12 text-center bg-secondary/5 rounded-[2rem] border border-dashed border-border/50">
                         <Info className="h-8 w-8 text-muted-foreground/20 mb-4" />
-                        <p className="text-sm text-muted-foreground font-medium">No se detectaron puntos específicos en este radio.<br/>Prueba con otra lente de interés.</p>
+                        <p className="text-sm text-muted-foreground font-medium">No se detectaron puntos específicos en este radio.</p>
                     </div>
                 )}
             </div>
@@ -134,7 +137,7 @@ export function DiscoveryResultStep() {
       <footer className="flex-shrink-0 pt-4 mt-auto border-t border-white/5 bg-background/50 backdrop-blur-md">
         <div className="flex items-center justify-between mb-3 px-1">
             <div className="flex items-center gap-2 text-[9px] font-black text-muted-foreground/40 uppercase tracking-widest">
-                <Globe className="h-3 w-3" /> Fuentes de Verdad Consultadas
+                <Globe className="h-3 w-3" /> Fuentes de Verdad
             </div>
         </div>
 
@@ -146,7 +149,7 @@ export function DiscoveryResultStep() {
                         href={source.url} 
                         target="_blank" 
                         rel="noopener noreferrer"
-                        className="flex items-center gap-2 px-4 py-2 rounded-full bg-secondary/30 border border-white/5 whitespace-nowrap hover:bg-secondary/50 hover:border-primary/30 transition-all duration-300 group"
+                        className="flex items-center gap-2 px-4 py-2 rounded-full bg-secondary/30 border border-white/5 whitespace-nowrap hover:bg-secondary/50 transition-all duration-300 group"
                     >
                         <span className="text-[10px] font-bold text-muted-foreground group-hover:text-primary transition-colors max-w-[140px] truncate">
                             {source.title}
@@ -155,15 +158,18 @@ export function DiscoveryResultStep() {
                     </a>
                 ))
             ) : (
-                <p className="text-[10px] italic text-muted-foreground opacity-30 px-2">Basado en red neuronal de conocimiento interno.</p>
+                <p className="text-[10px] italic text-muted-foreground opacity-30 px-2">Basado en conocimiento experto interno.</p>
             )}
         </div>
 
         {/* Reflexión Final Situacional */}
         <div className="py-4 px-6 bg-primary/5 rounded-2xl mt-2 border border-primary/10">
-            <p className="text-[10px] text-center text-primary/70 font-bold italic leading-relaxed">
-                "{dossier.closing_thought}"
-            </p>
+            <div className="flex items-center justify-center gap-2">
+                <Compass className="h-3 w-3 text-primary/50" />
+                <p className="text-[10px] text-center text-primary/70 font-bold italic leading-relaxed">
+                    "{dossier.closing_thought}"
+                </p>
+            </div>
         </div>
       </footer>
 
