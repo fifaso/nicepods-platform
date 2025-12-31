@@ -1,25 +1,25 @@
 // lib/validation/podcast-schema.ts
-// VERSIÓN: 4.0 (Enterprise Standard - Spatial & Vision Support)
+// VERSIÓN: 5.0 (Master Standard - Global Situational Support & Data Provenance)
 
 import { z } from 'zod';
 
 /**
- * CAPA DE SEGURIDAD: Limpieza de entradas de texto contra ataques XSS e inyecciones de código.
+ * CAPA DE SEGURIDAD: Limpieza de inyecciones maliciosas y sanitización de texto.
  */
 const sanitizeInput = (valor: string | undefined) => {
   if (!valor) return undefined;
   return valor
     .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "") // Neutraliza scripts
     .replace(/<iframe\b[^>]*>([\s\S]*?)<\/iframe>/gim, "") // Neutraliza iframes
-    .replace(/<[^>]+>/g, "") // Elimina cualquier etiqueta HTML residual
+    .replace(/<[^>]+>/g, "") // Elimina HTML residual
     .trim();
 };
 
 /**
- * Validador robusto para strings de largo aliento (guiones y descripciones).
+ * Validador robusto para entradas de texto de alta densidad.
  */
 const safeInputString = z.string()
-  .max(15000, { message: "El contenido excede el límite de seguridad de 15,000 caracteres." })
+  .max(15000, { message: "El contenido excede el límite de seguridad (15,000 caracteres)." })
   .transform(sanitizeInput);
 
 /**
@@ -27,29 +27,48 @@ const safeInputString = z.string()
  */
 const SourceSchema = z.object({
   title: z.string().min(1, "El título de la fuente es obligatorio."),
-  url: z.string().url("URL de investigación inválida."),
+  url: z.string().url("Debe ser una dirección web válida."),
   snippet: z.string().optional(),
 });
 
 /**
+ * Esquema de Recomendación Local (Points of Interest).
+ */
+const LocalRecommendationSchema = z.object({
+  name: z.string(),
+  category: z.string(),
+  description: z.string(),
+  has_specific_podcast: z.boolean().optional().default(false),
+  action_url: z.string().optional(),
+});
+
+/**
+ * Esquema del Dossier de Descubrimiento (Situational Intelligence).
+ */
+const DiscoveryContextSchema = z.object({
+  narrative_hook: z.string().optional(),
+  recommendations: z.array(LocalRecommendationSchema).optional(),
+  closing_thought: z.string().optional(),
+  image_analysis_summary: z.string().optional(),
+});
+
+/**
  * ESQUEMA MAESTRO DE CREACIÓN
- * Define todas las ramas posibles de creación: desde monólogos hasta Turismo Local.
+ * Este es el contrato único entre el Formulario y el Backend de NicePod.
  */
 export const PodcastCreationSchema = z.object({
-  // Propósito e Intencionalidad del usuario
+  // Identidad y Propósito
   purpose: z.enum(['learn', 'inspire', 'explore', 'reflect', 'answer', 'freestyle', 'local_soul']),
+  creation_mode: z.enum(['standard', 'remix', 'situational']).default('standard'),
   
-  // Modo de creación (Estándar o Respuesta/Remix)
-  creation_mode: z.enum(['standard', 'remix']).default('standard'),
-  
-  // Metodología Técnica (estilo de guion)
+  // Metodología de Producción
   style: z.enum(['solo', 'link', 'archetype', 'legacy', 'qa', 'remix', 'local_concierge']).optional(),
   
-  // Identidad técnica del Agente AI a invocar
+  // GOBERNANZA DE IA: agentName es el campo oficial sincronizado con la DB.
   agentName: z.string().min(1, "El Agente de IA debe estar definido."),
-  selectedAgent: z.string().optional(), // Compatibilidad con componentes legacy
+  selectedAgent: z.string().optional(), // Mantenido por compatibilidad legacy.
 
-  // --- DATOS SENSORIALES (NUEVO: VIVIR LO LOCAL) ---
+  // --- CONTEXTO SITUACIONAL (NUEVO) ---
   location: z.object({
     latitude: z.number(),
     longitude: z.number(),
@@ -57,10 +76,12 @@ export const PodcastCreationSchema = z.object({
     cityName: z.string().optional()
   }).optional(),
 
-  // Contexto visual (Base64 de la cámara o upload)
-  imageContext: z.string().optional(),
+  imageContext: z.string().optional(), // Base64 de la captura visual.
 
-  // --- INPUTS DE MATERIA PRIMA (SEMILLA) ---
+  // [BLOQUE CRÍTICO]: Dossier de resultados de la fase de descubrimiento.
+  discovery_context: DiscoveryContextSchema.optional().nullable(),
+
+  // --- INPUTS SEMILLA (MATERIA PRIMA) ---
   solo_topic: safeInputString.optional(),
   solo_motivation: safeInputString.optional(),
   
@@ -89,18 +110,18 @@ export const PodcastCreationSchema = z.object({
   quote_context: z.string().optional(),
 
   // --- DATOS DE PRODUCCIÓN FINAL ---
-  final_title: z.string().min(1, "Título obligatorio").max(180).optional(),
+  final_title: z.string().min(1, "El título es obligatorio.").max(180).optional(),
   final_script: z.string().max(50000).optional(),
 
-  // CUSTODIA DE FUENTES (Transparency Hub)
+  // CUSTODIA DE FUENTES: Bibliografía recolectada por IA/Tavily.
   sources: z.array(SourceSchema).default([]),
 
-  // Configuración de Producción Técnica
-  duration: z.string().min(1, "Duración requerida"),
-  narrativeDepth: z.string().min(1, "Profundidad requerida"),
+  // Configuración Técnica
+  duration: z.string().min(1, "Selecciona una duración."),
+  narrativeDepth: z.string().min(1, "Define el nivel de profundidad."),
   selectedTone: z.string().optional(), 
   
-  // Parámetros del Motor de Voz
+  // Parámetros del Motor de Voz (Neural2)
   voiceGender: z.enum(['Masculino', 'Femenino']).default('Masculino'),
   voiceStyle: z.enum(['Calmado', 'Energético', 'Profesional', 'Inspirador']).default('Profesional'),
   voicePace: z.string().default('Moderado'),
@@ -111,23 +132,28 @@ export const PodcastCreationSchema = z.object({
   generateAudioDirectly: z.boolean().default(true),
 })
 .superRefine((data, ctx) => {
-  // Validación de seguridad para "Vivir lo Local"
-  if (data.purpose === 'local_soul' && !data.location && !data.imageContext) {
+  // 1. Validación para "Vivir lo Local"
+  if (data.purpose === 'local_soul' && !data.location && !data.imageContext && !data.solo_topic) {
     ctx.addIssue({
       code: 'custom',
-      message: 'Para vivir lo local, NicePod necesita tu ubicación o una fotografía de tu entorno.',
-      path: ['purpose']
+      message: 'Indica un lugar, usa el GPS o captura una foto para vivir lo local.',
+      path: ['solo_topic']
     });
   }
 
-  // Validación para el flujo de aprendizaje
-  if (data.purpose === 'learn' && !data.solo_topic) {
-    ctx.addIssue({ code: 'custom', message: 'Indica qué deseas aprender hoy.', path: ['solo_topic'] });
+  // 2. Validación para flujos de aprendizaje
+  if (data.purpose === 'learn' && (!data.solo_topic || data.solo_topic.length < 3)) {
+    ctx.addIssue({ code: 'custom', message: 'Indica qué tema deseas aprender.', path: ['solo_topic'] });
+  }
+
+  // 3. Validación de Remixes
+  if (data.creation_mode === 'remix' && !data.user_reaction) {
+    ctx.addIssue({ code: 'custom', message: 'La reacción de voz es necesaria.', path: ['user_reaction'] });
   }
 });
 
 /**
  * TIPO DE DATOS INFERIDO
- * Objeto central que fluye por todo el formulario y componentes de UI.
+ * Fuente de verdad para todos los componentes de la plataforma.
  */
 export type PodcastCreationData = z.infer<typeof PodcastCreationSchema>;
