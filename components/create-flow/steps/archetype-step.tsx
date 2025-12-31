@@ -6,7 +6,7 @@ import { PodcastCreationData } from "@/lib/validation/podcast-schema";
 import { Card } from "@/components/ui/card";
 import { Heart, BookOpen, Compass, Zap, Construction, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useCreationContext } from "../podcast-creation-form";
+import { useCreationContext } from "../shared/context";
 
 // Opciones exportadas (Las mantenemos aquí para importarlas en el otro archivo si hace falta)
 export const archetypeOptions = [

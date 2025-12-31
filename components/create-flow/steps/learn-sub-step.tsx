@@ -3,7 +3,7 @@
 
 "use client";
 
-import { useCreationContext } from "../podcast-creation-form";
+import { useCreationContext } from "../shared/context";
 import { Zap, Layers, ArrowRight, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";

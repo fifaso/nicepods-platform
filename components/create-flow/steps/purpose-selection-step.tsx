@@ -3,7 +3,7 @@
 
 "use client";
 
-import { useCreationContext } from "../podcast-creation-form";
+import { useCreationContext } from "../shared/context";
 import { 
   Lightbulb, 
   Link as LinkIcon, 

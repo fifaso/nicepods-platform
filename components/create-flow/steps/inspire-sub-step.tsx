@@ -3,7 +3,7 @@
 
 "use client";
 
-import { useCreationContext } from "../podcast-creation-form";
+import { useCreationContext } from "../shared/context";
 import { cn } from "@/lib/utils";
 import { ArrowRight, Shield, BookOpen, Compass, Zap, Construction, Heart } from "lucide-react";
 

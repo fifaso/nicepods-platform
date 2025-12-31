@@ -1,16 +1,17 @@
 // components/create-flow/index.tsx
-// VERSIÓN: 23.0 (Master Sovereign - Final Assembly with Validation Logic)
+// VERSIÓN: 24.0 (The Sovereign Orchestrator - Build Fix & Perfect Context Sync)
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PodcastCreationSchema } from "@/lib/validation/podcast-schema";
 import { useToast } from "@/hooks/use-toast";
 
-// Imports Modulares
+// Imports del Dominio Modular
 import { CreationContext } from "./shared/context";
+import { MASTER_FLOW_PATHS } from "./shared/config";
 import { useFlowNavigation } from "./hooks/use-flow-navigation";
 import { useFlowActions } from "./hooks/use-flow-actions";
 import { StepRenderer } from "./step-renderer";
@@ -21,9 +22,10 @@ export default function PodcastCreationOrchestrator() {
   const [isMounted, setIsMounted] = useState(false);
   const [narrativeOptions, setNarrativeOptions] = useState<any[]>([]);
 
+  // Garantía de Hidratación para evitar "Something went wrong" en móviles
   useEffect(() => { setIsMounted(true); }, []);
 
-  // 1. Inicialización de Datos (Fuente de Verdad)
+  // 1. INICIALIZACIÓN DE DATOS (Contrato Zod v3.1)
   const formMethods = useForm({
     resolver: zodResolver(PodcastCreationSchema),
     mode: "onChange",
@@ -31,69 +33,71 @@ export default function PodcastCreationOrchestrator() {
       purpose: "learn", 
       sources: [], 
       agentName: 'solo-talk-analyst',
-      inputs: {} 
+      inputs: {},
+      creation_mode: 'standard'
     }
   });
 
-  const { watch, setValue, trigger, handleSubmit } = formMethods;
+  const { watch, setValue, trigger, handleSubmit, reset } = formMethods;
   const currentPurpose = watch("purpose");
 
-  // 2. Inicialización de Navegación
+  // 2. INICIALIZACIÓN DEL SISTEMA NERVIOSO (Navegación)
   const navigation = useFlowNavigation({ currentPurpose });
 
-  // 3. Inicialización de Acciones (IA y Red)
+  // 3. INICIALIZACIÓN DEL MÚSCULO (Acciones IA)
   const actions = useFlowActions({ 
     transitionTo: navigation.transitionTo, 
-    clearDraft: () => formMethods.reset() 
+    clearDraft: () => reset() 
   });
 
   /**
-   * LÓGICA DE VALIDACIÓN DE PASOS (Crucial para el botón SIGUIENTE)
+   * handleValidatedNext
+   * Lógica profesional de validación paso a paso.
    */
   const handleValidatedNext = async () => {
     let fields: any[] = [];
     const state = navigation.currentFlowState;
 
-    // Determinamos qué campos validar según el paso actual
     if (state === 'SOLO_TALK_INPUT') fields = ['solo_topic', 'solo_motivation'];
     if (state === 'ARCHETYPE_SELECTION') fields = ['selectedArchetype'];
     if (state === 'DETAILS_STEP') fields = ['duration', 'narrativeDepth'];
-    if (state === 'TONE_SELECTION') fields = ['selectedTone'];
+    if (state === 'TONE_SELECTION') fields = ['agentName'];
 
     const isValid = fields.length > 0 ? await trigger(fields as any) : true;
 
     if (isValid) {
-      // Casos especiales de transición
       if (state === 'LINK_POINTS_INPUT') {
-          // Lógica de narrativas para el flujo 'explore'
+          // @ts-ignore: Acceso a función de narrativas
           await actions.generateNarratives(setNarrativeOptions);
       } else {
-          // Navegación automática basada en MASTER_FLOW_PATHS
-          const path = navigation.getMasterPath();
-          const nextIndex = path.indexOf(state) + 1;
+          const path = MASTER_FLOW_PATHS[currentPurpose] || MASTER_FLOW_PATHS.learn;
+          const nextIndex = (path as string[]).indexOf(state) + 1;
           if (nextIndex < path.length) {
             navigation.transitionTo(path[nextIndex]);
           }
       }
     } else {
-      toast({ title: "Información incompleta", variant: "destructive" });
+      toast({ title: "Información requerida", description: "Completa los campos marcados para continuar.", variant: "destructive" });
     }
   };
 
   if (!isMounted) return null;
 
+  // Objeto de Contexto Unificado (NicePod Standard)
+  const contextValue = {
+    ...navigation,
+    isGeneratingScript: actions.isGenerating,
+    setIsGeneratingScript: () => {}, 
+    updateFormData: (data: any) => {
+        Object.entries(data).forEach(([k, v]) => setValue(k as any, v, { shouldValidate: true }));
+    }
+  };
+
   return (
-    <CreationContext.Provider value={{ 
-      ...navigation, 
-      isGeneratingScript: actions.isGenerating,
-      setIsGeneratingScript: () => {}, 
-      updateFormData: (data: any) => {
-        Object.entries(data).forEach(([k, v]) => setValue(k as any, v));
-      }
-    }}>
+    <CreationContext.Provider value={contextValue}>
       <FormProvider {...formMethods}>
         <LayoutShell
-          onNext={handleValidatedNext} // <--- VALIDACIÓN INTEGRADA
+          onNext={handleValidatedNext}
           onDraft={actions.generateDraft}
           onProduce={handleSubmit(actions.submitToProduction)}
           isGenerating={actions.isGenerating}
