@@ -1,8 +1,9 @@
 // components/creation-metadata.tsx
-// VERSIÓN: 4.1 (Intelligence Hub - Enhanced Transparency & Direct Research Links)
+// VERSIÓN: 5.0 (Intelligence Hub - Full Situational & Discovery Support)
 
 "use client";
 
+import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { 
   Bot, 
@@ -16,15 +17,22 @@ import {
   Globe,
   ExternalLink,
   ChevronRight,
-  Fingerprint
+  Fingerprint,
+  MapPin,
+  Navigation,
+  Landmark,
+  FileCheck
 } from 'lucide-react';
 import { ResearchSource, CreationMetadataPayload } from '@/types/podcast';
 import { cn } from "@/lib/utils";
 
+/**
+ * MetadataSection: Contenedor estandarizado para bloques de información.
+ */
 function MetadataSection({ title, icon: Icon, children }: { title: string; icon: any; children: React.ReactNode }) {
     return (
         <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
-            <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/40">
+            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/40">
                 <Icon className="h-3 w-3" />
                 <span>{title}</span>
             </div>
@@ -35,11 +43,17 @@ function MetadataSection({ title, icon: Icon, children }: { title: string; icon:
     );
 }
 
-function DataRow({ label, value }: { label: string; value: string | null | undefined }) {
+/**
+ * DataRow: Fila de datos con etiquetas de alta densidad.
+ */
+function DataRow({ label, value, icon: Icon }: { label: string; value: string | null | undefined, icon?: any }) {
   if (!value || value === "undefined") return null;
   return (
     <div className="group transition-all duration-300">
-      <p className="text-[10px] text-muted-foreground/50 font-bold uppercase tracking-tight mb-0.5">{label}</p>
+      <div className="flex items-center gap-1.5 mb-0.5">
+        {Icon && <Icon className="h-2.5 w-2.5 text-muted-foreground/40" />}
+        <p className="text-[10px] text-muted-foreground/50 font-bold uppercase tracking-tight">{label}</p>
+      </div>
       <p className="text-sm text-foreground/90 font-medium leading-relaxed group-hover:text-primary transition-colors">{value}</p>
     </div>
   );
@@ -50,41 +64,86 @@ export function CreationMetadata({ data, sources = [] }: { data: CreationMetadat
     return (
       <div className="p-6 rounded-2xl border border-dashed border-border/40 text-center bg-secondary/5">
           <Fingerprint className="h-8 w-8 text-muted-foreground/20 mx-auto mb-2" />
-          <p className="text-xs text-muted-foreground italic font-medium">Arquitectura de creación no recuperable para este registro.</p>
+          <p className="text-xs text-muted-foreground italic font-medium">Arquitectura de creación no recuperable.</p>
       </div>
     );
   }
 
-  // Fallbacks estratégicos para compatibilidad con flujos legacy
+  // Normalización de metodología para visualización
   const style = data.style || (data.creation_mode === 'remix' ? 'remix' : 'solo');
   const inputs = data.inputs || {};
   const agentName = data.agentName || "Arquitecto Base";
+  const discovery = data.discovery_context;
 
   return (
     <div className="space-y-10 py-4 max-w-full overflow-hidden">
       
-      {/* 1. IDENTIDAD DE INTELIGENCIA */}
+      {/* 1. IDENTIDAD DE INTELIGENCIA (ADN TÉCNICO) */}
       <MetadataSection title="Identidad Creativa" icon={Bot}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
             <DataRow label="Metodología" value={
                 style === 'solo' ? 'Monólogo Estructurado' : 
                 style === 'link' ? 'Sintetizador de Ejes' : 
-                style === 'archetype' ? 'Narrativa de Arquetipo' : 
+                style === 'local_concierge' ? 'Guía Situacional' :
                 data.creation_mode === 'remix' ? 'Hilo de Respuesta' : 'Producción Estándar'
             } />
-            <DataRow label="Agente Inteligente" value={agentName} />
+            <DataRow label="Agente Aplicado" value={agentName} />
             <DataRow label="Nivel de Análisis" value={inputs.depth || "Estándar"} />
-            <DataRow label="Tono de Voz" value={inputs.tone || inputs.selectedTone || "Equilibrado"} />
+            <DataRow label="Tono Narrativo" value={inputs.tone || inputs.selectedTone || "Equilibrado"} />
         </div>
       </MetadataSection>
 
-      {/* 2. CONTEXTO SEMILLA (PROVENANCE) */}
-      <MetadataSection title="Contexto Semilla" icon={Lightbulb}>
+      {/* 2. CONTEXTO SITUACIONAL (GPS & ENTORNO) */}
+      {(data.location || discovery) && (
+        <MetadataSection title="Ubicación Verificada" icon={MapPin}>
+            <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <DataRow 
+                        label="Lugar de Origen" 
+                        value={data.location?.placeName || discovery?.detected_poi || "Ubicación Geográfica"} 
+                        icon={Navigation}
+                    />
+                    <DataRow 
+                        label="Coordenadas" 
+                        value={data.location ? `${data.location.latitude.toFixed(4)}, ${data.location.longitude.toFixed(4)}` : undefined} 
+                        icon={MapPin}
+                    />
+                </div>
+                {discovery?.image_analysis_summary && (
+                    <div className="p-3 rounded-xl bg-primary/5 border border-primary/10">
+                        <p className="text-[9px] font-black uppercase text-primary/60 mb-1">Análisis de Visión Artificial</p>
+                        <p className="text-xs text-foreground/80 italic">"{discovery.image_analysis_summary}"</p>
+                    </div>
+                )}
+            </div>
+        </MetadataSection>
+      )}
+
+      {/* 3. DOSSIER DE DESCUBRIMIENTO (RECOMENDACIONES) */}
+      {discovery?.recommendations && discovery.recommendations.length > 0 && (
+        <MetadataSection title="Dossier Local" icon={Landmark}>
+            <div className="grid grid-cols-1 gap-2">
+                {discovery.recommendations.map((rec: any, idx: number) => (
+                    <div key={idx} className="flex flex-col p-3 rounded-xl bg-secondary/20 border border-border/30">
+                        <div className="flex items-center justify-between mb-1">
+                            <span className="text-[10px] font-black text-primary/70 uppercase">{rec.category}</span>
+                            {rec.has_specific_podcast && <FileCheck className="h-3 w-3 text-green-500" />}
+                        </div>
+                        <p className="text-sm font-bold text-foreground/90">{rec.name}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{rec.description}</p>
+                    </div>
+                ))}
+            </div>
+        </MetadataSection>
+      )}
+
+      {/* 4. CONTEXTO SEMILLA (INPUTS ORIGINALES) */}
+      <MetadataSection title="Semilla de Creación" icon={Lightbulb}>
         <div className="space-y-4">
             {style === 'solo' && (
               <>
                 <DataRow label="Eje Temático Principal" value={inputs.topic} />
-                <DataRow label="Motivación de Búsqueda" value={inputs.motivation || inputs.goal} />
+                <DataRow label="Motivación / Objetivo" value={inputs.motivation || inputs.goal} />
               </>
             )}
             {style === 'link' && (
@@ -98,14 +157,14 @@ export function CreationMetadata({ data, sources = [] }: { data: CreationMetadat
               </>
             )}
             {data.creation_mode === 'remix' && (
-              <DataRow label="Postura e Intervención" value={data.user_reaction} />
+              <DataRow label="Intervención de Voz" value={data.user_reaction} />
             )}
         </div>
       </MetadataSection>
 
-      {/* 3. BIBLIOGRAFÍA DE INVESTIGACIÓN (TRANSPARENCIA TOTAL) */}
+      {/* 5. BIBLIOGRAFÍA DE INVESTIGACIÓN (TAVILY / GROUNDING) */}
       {sources && sources.length > 0 && (
-          <MetadataSection title="Evidencia y Fuentes" icon={Globe}>
+          <MetadataSection title="Fuentes y Evidencia" icon={Globe}>
             <div className="grid grid-cols-1 gap-2.5">
                 {sources.map((source, index) => (
                     <a 
