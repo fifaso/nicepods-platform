@@ -1,5 +1,5 @@
 // components/create-flow/hooks/use-flow-navigation.ts
-// VERSIÓN: 1.1 (Master Navigation - Added Path Resolver)
+// VERSIÓN: 1.3 (Master Navigation Hook - Atomic Progress Control)
 
 import { useState, useCallback, useMemo } from "react";
 import { FlowState } from "../shared/types";
@@ -13,7 +13,8 @@ export function useFlowNavigation({ currentPurpose }: UseFlowNavigationProps) {
   const [currentFlowState, setCurrentFlowState] = useState<FlowState>('SELECTING_PURPOSE');
   const [history, setHistory] = useState<FlowState[]>(['SELECTING_PURPOSE']);
 
-  const getMasterPath = useCallback(() => {
+  // Obtiene la ruta actual de forma segura
+  const activePath = useMemo(() => {
     return MASTER_FLOW_PATHS[currentPurpose] || MASTER_FLOW_PATHS.learn;
   }, [currentPurpose]);
 
@@ -33,19 +34,21 @@ export function useFlowNavigation({ currentPurpose }: UseFlowNavigationProps) {
     });
   }, []);
 
+  /**
+   * progressMetrics
+   * Calcula el avance real filtrando el portal de entrada.
+   */
   const progressMetrics = useMemo(() => {
-    const path = getMasterPath();
-    const effectiveSteps = path.filter(s => s !== 'SELECTING_PURPOSE');
-    const currentIndex = (effectiveSteps as string[]).indexOf(currentFlowState);
-    const isInitial = currentFlowState === 'SELECTING_PURPOSE';
-
+    const steps = activePath.filter(s => s !== 'SELECTING_PURPOSE');
+    const currentIndex = (steps as string[]).indexOf(currentFlowState);
+    
     return {
       step: currentIndex !== -1 ? currentIndex + 1 : 1,
-      total: effectiveSteps.length,
-      percent: currentIndex !== -1 ? Math.round(((currentIndex + 1) / effectiveSteps.length) * 100) : 0,
-      isInitial
+      total: steps.length,
+      percent: currentIndex !== -1 ? Math.round(((currentIndex + 1) / steps.length) * 100) : 0,
+      isInitial: currentFlowState === 'SELECTING_PURPOSE'
     };
-  }, [currentFlowState, getMasterPath]);
+  }, [currentFlowState, activePath]);
 
   return {
     currentFlowState,
@@ -53,6 +56,6 @@ export function useFlowNavigation({ currentPurpose }: UseFlowNavigationProps) {
     transitionTo,
     goBack,
     progressMetrics,
-    getMasterPath // <--- FIX IMAGEN 72
+    activePath
   };
 }
