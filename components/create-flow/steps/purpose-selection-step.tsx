@@ -1,8 +1,9 @@
-// components/create-flow/purpose-selection-step.tsx
-// VERSIÓN: 13.0 (Ultra-Compact Architecture - Zero Scroll & Category Sync)
+// components/create-flow/steps/purpose-selection-step.tsx
+// VERSIÓN: 13.1 (Professional Architecture - Type Safety & Zero Scroll Optimized)
 
 "use client";
 
+import React from "react";
 import { useCreationContext } from "../shared/context";
 import { 
   Lightbulb, 
@@ -17,12 +18,30 @@ import {
   Zap
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FlowState } from "../shared/types";
 
 /**
- * ESTRUCTURA DE CATEGORÍAS OPTIMIZADA
- * Mapeo exacto de la nueva taxonomía solicitada.
+ * INTERFAZ DE OPCIÓN DE PROPÓSITO
+ * Define el contrato estricto para evitar errores de compilación en Vercel.
  */
-const SECTIONS = [
+interface PurposeOption {
+  purpose: 'learn' | 'explore' | 'answer' | 'reflect' | 'local_soul' | 'freestyle';
+  style?: 'solo' | 'link' | 'legacy' | 'qa' | 'local_concierge';
+  agentName: string;
+  nextState: FlowState;
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  isNew?: boolean;
+}
+
+interface Section {
+  label: string;
+  icon: React.ReactNode;
+  options: PurposeOption[];
+}
+
+const SECTIONS: Section[] = [
   {
     label: "Creatividad",
     icon: <Palette className="h-3 w-3" />,
@@ -92,34 +111,35 @@ const SECTIONS = [
 export function PurposeSelectionStep() {
   const { updateFormData, transitionTo } = useCreationContext();
 
-  const handleSelect = (option: any) => {
+  const handleSelect = (option: PurposeOption) => {
+    // Sincronización con el Schema v4.0 (Garantía de Custodia de Datos)
     updateFormData({ 
         purpose: option.purpose, 
         style: option.style, 
         agentName: option.agentName,
-        sources: [], // Reset de transparencia
+        sources: [], // Inicialización limpia para transparencia
         creation_mode: 'standard'
     });
     transitionTo(option.nextState);
   };
 
   return (
-    <div className="flex flex-col h-full w-full max-w-2xl mx-auto items-center animate-in fade-in duration-500 px-3 md:px-0">
+    <div className="flex flex-col h-full w-full max-w-2xl mx-auto items-center animate-in fade-in duration-700 px-3 md:px-0 overflow-hidden">
       
-      {/* CABECERA COMPACTA (pt-2 para ahorrar espacio superior) */}
-      <div className="text-center mb-6 pt-2">
+      {/* CABECERA COMPACTA: Optimizada para ahorrar espacio vertical */}
+      <div className="text-center mb-5 pt-2 flex-shrink-0">
         <h2 className="text-xl md:text-2xl font-black tracking-tight text-foreground">
           ¿Cuál es tu intención?
         </h2>
-        <p className="text-[10px] md:text-xs text-muted-foreground mt-1 font-medium uppercase tracking-widest opacity-60">
-          Selecciona una rama para iniciar el escaneo
+        <p className="text-[10px] md:text-xs text-muted-foreground mt-0.5 font-medium uppercase tracking-widest opacity-60">
+          Elige una rama para iniciar el escaneo de IA
         </p>
       </div>
       
-      {/* SECCIONES EN LISTA VERTICAL COMPACTA */}
-      <div className="w-full space-y-5 pb-6">
+      {/* SECCIONES: Contenedor elástico para evitar scroll */}
+      <div className="w-full space-y-4 pb-6 flex-grow min-h-0 overflow-y-auto custom-scrollbar-hide">
         {SECTIONS.map((section) => (
-          <div key={section.label} className="space-y-2">
+          <div key={section.label} className="space-y-2 animate-in slide-in-from-bottom-1 duration-500">
             
             {/* ETIQUETA DE CATEGORÍA MINIMALISTA */}
             <div className="flex items-center gap-2 px-1">
@@ -129,28 +149,29 @@ export function PurposeSelectionStep() {
                 <div className="flex-1 h-px bg-primary/10" />
             </div>
 
-            {/* BOTONES HORIZONTALES (Icono al costado) */}
+            {/* GRID DE BOTONES HORIZONTALES */}
             <div className="grid grid-cols-1 gap-2">
               {section.options.map((option) => (
                 <button
                   key={option.purpose}
+                  type="button"
                   onClick={() => handleSelect(option)}
                   className={cn(
                     "group relative flex items-center text-left transition-all duration-300",
-                    "p-3 bg-white/5 hover:bg-white/10 backdrop-blur-md",
+                    "p-2.5 md:p-3 bg-white/5 hover:bg-white/10 backdrop-blur-md",
                     "border border-white/5 hover:border-primary/30",
                     "rounded-xl active:scale-[0.99] overflow-hidden"
                   )}
                 >
                   {option.isNew && (
-                    <div className="absolute top-0 right-0 px-1.5 py-0.5 bg-primary text-[7px] font-black text-white uppercase tracking-tighter rounded-bl-md">
+                    <div className="absolute top-0 right-0 px-1.5 py-0.5 bg-primary text-[7px] font-black text-white uppercase tracking-tighter rounded-bl-md shadow-sm">
                         <Zap className="h-2 w-2 inline mr-0.5 fill-current" /> Nuevo
                     </div>
                   )}
 
-                  {/* ICONO COMPACTO IZQUIERDA */}
+                  {/* ICONO IZQUIERDA */}
                   <div className="flex-shrink-0 mr-4">
-                    <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-background/40 border border-white/5 shadow-inner group-hover:bg-primary/20 group-hover:border-primary/30 transition-all duration-500">
+                    <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-background/40 border border-white/5 shadow-inner group-hover:bg-primary/20 group-hover:border-primary/30 transition-all duration-500">
                       {option.icon}
                     </div>
                   </div>
@@ -163,7 +184,7 @@ export function PurposeSelectionStep() {
                       </h3>
                       <ArrowRight className="h-3 w-3 text-primary/30 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />
                     </div>
-                    <p className="text-[10px] text-muted-foreground leading-tight truncate">
+                    <p className="text-[10px] text-muted-foreground leading-tight truncate opacity-80 group-hover:opacity-100">
                       {option.description}
                     </p>
                   </div>
