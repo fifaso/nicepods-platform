@@ -1,12 +1,12 @@
 // components/profile-client-component.tsx
-// VERSIÓN: 9.0 (Curator Integration: Library & Collections)
+// VERSIÓN: 9.1 (Mobile UX Fix: Full Clickable Cards & Data Formatting)
 
 "use client";
 
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button"; // Importamos variantes para simular botones
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,10 +15,11 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Crown, PlayCircle, Calendar, Mic, MessageSquare, ThumbsUp, ThumbsDown, 
-  ExternalLink, WifiOff, Settings, BookOpen, Layers, Lock, Globe, Plus 
+  ExternalLink, WifiOff, Settings, BookOpen, Layers, Lock, Globe, Plus, Clock 
 } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils"; // Necesario para combinar clases
 
 // Importamos el diálogo de creación de testimonios
 import { LeaveTestimonialDialog } from "@/components/leave-testimonial-dialog";
@@ -33,6 +34,15 @@ const isUUID = (str: string | null | undefined) => {
     return uuidRegex.test(str);
 };
 
+// --- UTILIDAD DE FORMATO DE TIEMPO (NUEVO) ---
+const formatDuration = (seconds: number | null) => {
+    if (!seconds) return "0:00";
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    // Si dura menos de 1 min, muestra "0:XX", si no "M min" o formato extendido si prefieres
+    return `${m}:${s.toString().padStart(2, '0')}`;
+};
+
 // --- TIPOS ---
 export type ProfileData = {
   id: string;
@@ -40,8 +50,8 @@ export type ProfileData = {
   full_name: string | null;
   avatar_url: string | null;
   bio: string | null;
-  reputation_score?: number; // [NUEVO]
-  is_verified?: boolean; // [NUEVO]
+  reputation_score?: number;
+  is_verified?: boolean;
   subscriptions?: {
     status: string | null;
     plans: { name: string | null; monthly_creation_limit: number } | null;
@@ -68,7 +78,6 @@ export type TestimonialWithAuthor = {
   } | null;
 };
 
-// [NUEVO] Tipo para Colecciones
 export type Collection = {
   id: string;
   title: string;
@@ -76,16 +85,15 @@ export type Collection = {
   is_public: boolean;
   cover_image_url: string | null;
   updated_at: string;
-  collection_items: { count: number }[]; // Count aggregate from Supabase
+  collection_items: { count: number }[];
 };
 
 // =====================================================================
-// COMPONENTE AUXILIAR: TARJETA DE COLECCIÓN (UI)
+// COMPONENTE AUXILIAR: TARJETA DE COLECCIÓN
 // =====================================================================
 const CompactCollectionCard = ({ col, isOwner = false }: { col: Collection, isOwner?: boolean }) => (
   <Link href={`/collection/${col.id}`} className="block group">
     <div className="relative aspect-[4/3] bg-muted rounded-xl overflow-hidden border border-white/5 group-hover:border-primary/50 transition-all">
-       {/* Stack Effect Visual */}
        <div className="absolute top-0 inset-x-4 h-1 bg-white/10 rounded-t-lg mx-2 -mt-1" />
        
        {col.cover_image_url ? (
@@ -96,7 +104,6 @@ const CompactCollectionCard = ({ col, isOwner = false }: { col: Collection, isOw
          </div>
        )}
        
-       {/* Badge de Privacidad (Solo visible para el dueño) */}
        {isOwner && (
          <div className="absolute top-2 right-2 px-2 py-1 rounded-full bg-black/60 backdrop-blur-md text-[10px] text-white flex items-center gap-1">
            {col.is_public ? <Globe size={10} className="text-green-400"/> : <Lock size={10} className="text-amber-400"/>}
@@ -120,20 +127,18 @@ interface PrivateProps {
   profile: ProfileData;
   podcastsCreatedThisMonth: number;
   initialTestimonials?: TestimonialWithAuthor[];
-  initialCollections?: Collection[]; // [NUEVO]
+  initialCollections?: Collection[];
 }
 
 export function PrivateProfileDashboard({ 
   profile, 
   podcastsCreatedThisMonth, 
   initialTestimonials = [],
-  initialCollections = [] // [NUEVO]
+  initialCollections = []
 }: PrivateProps) {
   const { signOut, user, supabase } = useAuth();
   const { toast } = useToast();
   const [testimonials, setTestimonials] = useState(initialTestimonials);
-  // No necesitamos estado para colecciones si no las mutamos aquí directamente,
-  // pero para futuras acciones (borrar) sería útil. Por ahora solo visualización.
 
   const handleStatusChange = async (id: number, newStatus: 'approved' | 'rejected') => {
     if (!supabase) return;
@@ -260,7 +265,7 @@ export function PrivateProfileDashboard({
                     <DownloadsManager />
                 </TabsContent>
 
-                {/* TAB 2: BIBLIOTECA (CURADOR) [NUEVO] */}
+                {/* TAB 2: BIBLIOTECA */}
                 <TabsContent value="library" className="mt-0 animate-in fade-in slide-in-from-bottom-2">
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between">
@@ -394,14 +399,14 @@ export function PrivateProfileDashboard({
 }
 
 // =====================================================================
-// COMPONENTE B: PERFIL PÚBLICO (SOCIAL)
+// COMPONENTE B: PERFIL PÚBLICO (SOCIAL - FIXED)
 // =====================================================================
 interface PublicProps {
   profile: ProfileData;
   podcasts: PublicPodcast[];
   totalLikes: number;
   initialTestimonials?: TestimonialWithAuthor[];
-  publicCollections?: Collection[]; // [NUEVO]
+  publicCollections?: Collection[];
 }
 
 export function PublicProfilePage({ 
@@ -409,7 +414,7 @@ export function PublicProfilePage({
   podcasts, 
   totalLikes, 
   initialTestimonials = [],
-  publicCollections = [] // [NUEVO]
+  publicCollections = []
 }: PublicProps) {
   const { user } = useAuth();
   const userInitial = profile?.full_name?.charAt(0)?.toUpperCase() ?? 'U';
@@ -488,32 +493,39 @@ export function PublicProfilePage({
             ) : (
                 <div className="grid gap-4 md:grid-cols-2">
                     {podcasts.map((pod) => (
-                        <Card key={pod.id} className="group hover:border-primary/50 transition-all cursor-pointer bg-card/50">
-                            <CardContent className="p-5 flex flex-col h-full">
-                                <div className="flex justify-between items-start mb-3">
-                                    <h3 className="font-bold line-clamp-1 group-hover:text-primary transition-colors">{pod.title}</h3>
-                                    {pod.created_at && (
-                                        <span className="text-[10px] text-muted-foreground whitespace-nowrap flex items-center gap-1">
+                        /* CORRECCIÓN UX MÓVIL: Envolvemos toda la card en el Link */
+                        <Link key={pod.id} href={`/podcast/${pod.id}`} className="block group">
+                            <Card className="h-full hover:border-primary/50 transition-all cursor-pointer bg-card/50">
+                                <CardContent className="p-5 flex flex-col h-full">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <h3 className="font-bold leading-tight line-clamp-2 group-hover:text-primary transition-colors">{pod.title}</h3>
+                                    </div>
+                                    
+                                    <div className="text-xs text-muted-foreground flex items-center gap-2 mb-3">
+                                        <span className="flex items-center gap-1">
                                             <Calendar className="h-3 w-3" />
-                                            {new Date(pod.created_at).toLocaleDateString()}
+                                            {pod.created_at ? new Date(pod.created_at).toLocaleDateString() : ''}
                                         </span>
-                                    )}
-                                </div>
-                                <p className="text-sm text-muted-foreground line-clamp-2 mb-4 flex-grow">
-                                    {pod.description || "Sin descripción disponible."}
-                                </p>
-                                <div className="pt-4 border-t flex justify-between items-center">
-                                    <Badge variant="secondary" className="text-[10px]">
-                                        {Math.floor((pod.duration_seconds || 0) / 60)} min
-                                    </Badge>
-                                    <Link href={`/podcast/${pod.id}`}>
-                                        <Button size="sm" className="gap-2 rounded-full h-8">
+                                        <span>•</span>
+                                        <span className="flex items-center gap-1">
+                                            <Clock className="h-3 w-3" />
+                                            {formatDuration(pod.duration_seconds)}
+                                        </span>
+                                    </div>
+
+                                    <p className="text-sm text-muted-foreground line-clamp-2 mb-4 flex-grow">
+                                        {pod.description || ""} 
+                                    </p>
+                                    
+                                    <div className="pt-4 border-t flex justify-end items-center mt-auto">
+                                        {/* Usamos un div simulando botón para evitar nesting ilegal de <a><button> */}
+                                        <div className={cn(buttonVariants({ size: 'sm', variant: 'secondary' }), "gap-2 rounded-full h-8 pointer-events-none")}>
                                             <PlayCircle className="h-3.5 w-3.5" /> Escuchar
-                                        </Button>
-                                    </Link>
-                                </div>
-                            </CardContent>
-                        </Card>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </Link>
                     ))}
                 </div>
             )}
