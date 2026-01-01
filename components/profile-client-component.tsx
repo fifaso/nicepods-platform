@@ -1,5 +1,5 @@
 // components/profile-client-component.tsx
-// VERSIÓN: 8.0 (Offline Download Manager Integration)
+// VERSIÓN: 9.0 (Curator Integration: Library & Collections)
 
 "use client";
 
@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Crown, PlayCircle, Calendar, Mic, MessageSquare, ThumbsUp, ThumbsDown, 
-  ExternalLink, WifiOff, Settings, BookOpen 
+  ExternalLink, WifiOff, Settings, BookOpen, Layers, Lock, Globe, Plus 
 } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
@@ -23,7 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 // Importamos el diálogo de creación de testimonios
 import { LeaveTestimonialDialog } from "@/components/leave-testimonial-dialog";
 
-// [NUEVO]: Importamos el Gestor de Descargas
+// Importamos el Gestor de Descargas
 import { DownloadsManager } from "@/components/downloads-manager";
 
 // --- UTILIDAD DE PRIVACIDAD ---
@@ -40,6 +40,8 @@ export type ProfileData = {
   full_name: string | null;
   avatar_url: string | null;
   bio: string | null;
+  reputation_score?: number; // [NUEVO]
+  is_verified?: boolean; // [NUEVO]
   subscriptions?: {
     status: string | null;
     plans: { name: string | null; monthly_creation_limit: number } | null;
@@ -66,6 +68,51 @@ export type TestimonialWithAuthor = {
   } | null;
 };
 
+// [NUEVO] Tipo para Colecciones
+export type Collection = {
+  id: string;
+  title: string;
+  description: string | null;
+  is_public: boolean;
+  cover_image_url: string | null;
+  updated_at: string;
+  collection_items: { count: number }[]; // Count aggregate from Supabase
+};
+
+// =====================================================================
+// COMPONENTE AUXILIAR: TARJETA DE COLECCIÓN (UI)
+// =====================================================================
+const CompactCollectionCard = ({ col, isOwner = false }: { col: Collection, isOwner?: boolean }) => (
+  <Link href={`/collection/${col.id}`} className="block group">
+    <div className="relative aspect-[4/3] bg-muted rounded-xl overflow-hidden border border-white/5 group-hover:border-primary/50 transition-all">
+       {/* Stack Effect Visual */}
+       <div className="absolute top-0 inset-x-4 h-1 bg-white/10 rounded-t-lg mx-2 -mt-1" />
+       
+       {col.cover_image_url ? (
+         <img src={col.cover_image_url} alt={col.title} className="w-full h-full object-cover" />
+       ) : (
+         <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-muted/50 to-muted">
+           <Layers className="w-10 h-10 text-muted-foreground/30" />
+         </div>
+       )}
+       
+       {/* Badge de Privacidad (Solo visible para el dueño) */}
+       {isOwner && (
+         <div className="absolute top-2 right-2 px-2 py-1 rounded-full bg-black/60 backdrop-blur-md text-[10px] text-white flex items-center gap-1">
+           {col.is_public ? <Globe size={10} className="text-green-400"/> : <Lock size={10} className="text-amber-400"/>}
+           {col.is_public ? "Pública" : "Privada"}
+         </div>
+       )}
+    </div>
+    <div className="mt-3">
+      <h4 className="font-semibold text-sm truncate group-hover:text-primary transition-colors">{col.title}</h4>
+      <p className="text-xs text-muted-foreground flex items-center gap-1">
+        {col.collection_items?.[0]?.count || 0} audios
+      </p>
+    </div>
+  </Link>
+);
+
 // =====================================================================
 // COMPONENTE A: PERFIL PRIVADO (DASHBOARD)
 // =====================================================================
@@ -73,12 +120,20 @@ interface PrivateProps {
   profile: ProfileData;
   podcastsCreatedThisMonth: number;
   initialTestimonials?: TestimonialWithAuthor[];
+  initialCollections?: Collection[]; // [NUEVO]
 }
 
-export function PrivateProfileDashboard({ profile, podcastsCreatedThisMonth, initialTestimonials = [] }: PrivateProps) {
+export function PrivateProfileDashboard({ 
+  profile, 
+  podcastsCreatedThisMonth, 
+  initialTestimonials = [],
+  initialCollections = [] // [NUEVO]
+}: PrivateProps) {
   const { signOut, user, supabase } = useAuth();
   const { toast } = useToast();
   const [testimonials, setTestimonials] = useState(initialTestimonials);
+  // No necesitamos estado para colecciones si no las mutamos aquí directamente,
+  // pero para futuras acciones (borrar) sería útil. Por ahora solo visualización.
 
   const handleStatusChange = async (id: number, newStatus: 'approved' | 'rejected') => {
     if (!supabase) return;
@@ -117,10 +172,18 @@ export function PrivateProfileDashboard({ profile, podcastsCreatedThisMonth, ini
                     <AvatarImage src={profile?.avatar_url || ''} />
                     <AvatarFallback className="text-2xl">{userInitial}</AvatarFallback>
                 </Avatar>
-                <h2 className="text-xl font-bold mt-4">{profile?.full_name}</h2>
+                <div className="mt-4">
+                  <h2 className="text-xl font-bold flex items-center justify-center gap-2">
+                    {profile?.full_name}
+                    {profile?.is_verified && <Badge variant="secondary" className="h-5 px-1 text-[10px]">Verified</Badge>}
+                  </h2>
+                  <div className="flex justify-center gap-4 text-xs text-muted-foreground mt-1">
+                    <span>{profile.reputation_score || 0} Rep</span>
+                  </div>
+                </div>
                 
                 {showUsername && (
-                    <p className="text-sm text-muted-foreground">@{profile?.username}</p>
+                    <p className="text-sm text-muted-foreground mt-1">@{profile?.username}</p>
                 )}
                 
                 <div className="mt-6 space-y-2">
@@ -174,27 +237,60 @@ export function PrivateProfileDashboard({ profile, podcastsCreatedThisMonth, ini
         {/* CONTENIDO PRINCIPAL (TABS) */}
         <div className="w-full md:w-2/3">
             <Tabs defaultValue="offline" className="w-full">
-                <TabsList className="w-full mb-6 grid grid-cols-3 bg-muted/20">
+                <TabsList className="w-full mb-6 grid grid-cols-4 bg-muted/20">
                     <TabsTrigger value="offline">
-                        <WifiOff className="mr-2 h-4 w-4" /> Offline
+                        <WifiOff className="mr-2 h-4 w-4" /> <span className="hidden sm:inline">Offline</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="library">
+                        <BookOpen className="mr-2 h-4 w-4" /> <span className="hidden sm:inline">Biblioteca</span>
                     </TabsTrigger>
                     <TabsTrigger value="testimonials">
-                        <MessageSquare className="mr-2 h-4 w-4" /> Reseñas
+                        <MessageSquare className="mr-2 h-4 w-4" /> <span className="hidden sm:inline">Reseñas</span>
                         {pendingTestimonials.length > 0 && (
                             <span className="ml-2 bg-red-500 text-white text-[10px] px-1.5 rounded-full">{pendingTestimonials.length}</span>
                         )}
                     </TabsTrigger>
                     <TabsTrigger value="settings">
-                        <Settings className="mr-2 h-4 w-4" /> Cuenta
+                        <Settings className="mr-2 h-4 w-4" /> <span className="hidden sm:inline">Cuenta</span>
                     </TabsTrigger>
                 </TabsList>
 
-                {/* TAB 1: DESCARGAS (NUEVO) */}
+                {/* TAB 1: DESCARGAS */}
                 <TabsContent value="offline" className="mt-0 animate-in fade-in slide-in-from-bottom-2">
                     <DownloadsManager />
                 </TabsContent>
 
-                {/* TAB 2: TESTIMONIOS */}
+                {/* TAB 2: BIBLIOTECA (CURADOR) [NUEVO] */}
+                <TabsContent value="library" className="mt-0 animate-in fade-in slide-in-from-bottom-2">
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between">
+                           <div>
+                               <CardTitle>Mis Colecciones</CardTitle>
+                               <CardDescription>Gestiona tus listas de curaduría.</CardDescription>
+                           </div>
+                           <Button size="sm" variant="outline" className="gap-2">
+                               <Plus size={16} /> Nueva
+                           </Button>
+                        </CardHeader>
+                        <CardContent>
+                           {initialCollections.length === 0 ? (
+                               <div className="text-center py-10 border-2 border-dashed rounded-xl">
+                                   <Layers className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
+                                   <p className="text-sm text-muted-foreground">No has creado colecciones aún.</p>
+                                   <p className="text-xs text-muted-foreground mt-1">Guarda podcasts mientras escuchas para empezar.</p>
+                               </div>
+                           ) : (
+                               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                   {initialCollections.map(col => (
+                                       <CompactCollectionCard key={col.id} col={col} isOwner={true} />
+                                   ))}
+                               </div>
+                           )}
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                {/* TAB 3: TESTIMONIOS */}
                 <TabsContent value="testimonials" className="mt-0 animate-in fade-in slide-in-from-bottom-2">
                      <Card>
                         <CardHeader>
@@ -264,7 +360,7 @@ export function PrivateProfileDashboard({ profile, podcastsCreatedThisMonth, ini
                      </Card>
                 </TabsContent>
 
-                {/* TAB 3: CONFIGURACIÓN */}
+                {/* TAB 4: CONFIGURACIÓN */}
                 <TabsContent value="settings" className="mt-0 animate-in fade-in slide-in-from-bottom-2">
                     <Card>
                         <CardHeader>
@@ -305,9 +401,16 @@ interface PublicProps {
   podcasts: PublicPodcast[];
   totalLikes: number;
   initialTestimonials?: TestimonialWithAuthor[];
+  publicCollections?: Collection[]; // [NUEVO]
 }
 
-export function PublicProfilePage({ profile, podcasts, totalLikes, initialTestimonials = [] }: PublicProps) {
+export function PublicProfilePage({ 
+  profile, 
+  podcasts, 
+  totalLikes, 
+  initialTestimonials = [],
+  publicCollections = [] // [NUEVO]
+}: PublicProps) {
   const { user } = useAuth();
   const userInitial = profile?.full_name?.charAt(0)?.toUpperCase() ?? 'U';
   const [testimonials] = useState(initialTestimonials);
@@ -322,10 +425,18 @@ export function PublicProfilePage({ profile, podcasts, totalLikes, initialTestim
     <div className="container mx-auto max-w-4xl py-12 px-4 animate-fade-in">
       {/* HEADER PÚBLICO */}
       <div className="flex flex-col items-center text-center mb-12">
-        <Avatar className="h-32 w-32 border-4 border-background shadow-xl mb-4">
-            <AvatarImage src={profile?.avatar_url || ''} />
-            <AvatarFallback className="text-4xl bg-primary/10 text-primary">{userInitial}</AvatarFallback>
-        </Avatar>
+        <div className="relative">
+             <Avatar className="h-32 w-32 border-4 border-background shadow-xl mb-4">
+                 <AvatarImage src={profile?.avatar_url || ''} />
+                 <AvatarFallback className="text-4xl bg-primary/10 text-primary">{userInitial}</AvatarFallback>
+             </Avatar>
+             {profile.is_verified && (
+                 <div className="absolute bottom-6 right-2 bg-blue-500 text-white rounded-full p-1 border-2 border-background" title="Verificado">
+                     <Crown size={16} fill="currentColor" />
+                 </div>
+             )}
+        </div>
+        
         <h1 className="text-3xl font-bold tracking-tight">{profile?.full_name}</h1>
         
         {showUsername && (
@@ -338,7 +449,7 @@ export function PublicProfilePage({ profile, podcasts, totalLikes, initialTestim
             </p>
         )}
 
-        <div className="flex gap-6 mt-6">
+        <div className="flex gap-6 mt-6 justify-center">
             <div className="text-center">
                 <span className="block font-bold text-xl">{podcasts.length}</span>
                 <span className="text-xs text-muted-foreground uppercase tracking-wider">Podcasts</span>
@@ -347,16 +458,23 @@ export function PublicProfilePage({ profile, podcasts, totalLikes, initialTestim
                 <span className="block font-bold text-xl">{totalLikes}</span>
                 <span className="text-xs text-muted-foreground uppercase tracking-wider">Likes</span>
             </div>
+            <div className="text-center">
+                <span className="block font-bold text-xl">{profile.reputation_score || 0}</span>
+                <span className="text-xs text-muted-foreground uppercase tracking-wider">Reputación</span>
+            </div>
         </div>
       </div>
 
       {/* LISTA DE CONTENIDO */}
       <Tabs defaultValue="podcasts" className="w-full">
-        <TabsList className="w-full justify-center bg-transparent border-b rounded-none h-auto p-0 mb-8">
-            <TabsTrigger value="podcasts" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-8 py-3 text-sm">
+        <TabsList className="w-full justify-center bg-transparent border-b rounded-none h-auto p-0 mb-8 flex-wrap">
+            <TabsTrigger value="podcasts" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-6 py-3 text-sm">
                 Publicaciones
             </TabsTrigger>
-            <TabsTrigger value="testimonials" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-8 py-3 text-sm">
+            <TabsTrigger value="collections" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-6 py-3 text-sm">
+                Colecciones
+            </TabsTrigger>
+            <TabsTrigger value="testimonials" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-6 py-3 text-sm">
                 Testimonios ({testimonials.length})
             </TabsTrigger>
         </TabsList>
@@ -396,6 +514,21 @@ export function PublicProfilePage({ profile, podcasts, totalLikes, initialTestim
                                 </div>
                             </CardContent>
                         </Card>
+                    ))}
+                </div>
+            )}
+        </TabsContent>
+
+        <TabsContent value="collections" className="space-y-4">
+            {publicCollections.length === 0 ? (
+                <div className="text-center py-16 bg-muted/20 rounded-xl border border-dashed">
+                    <Layers className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
+                    <p className="text-muted-foreground">No hay colecciones públicas.</p>
+                </div>
+            ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    {publicCollections.map(col => (
+                        <CompactCollectionCard key={col.id} col={col} isOwner={false} />
                     ))}
                 </div>
             )}
