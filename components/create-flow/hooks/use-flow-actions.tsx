@@ -1,5 +1,5 @@
 // components/create-flow/hooks/use-flow-actions.tsx
-// VERSIÓN: 1.4 (Master Stable - JSX Enabled & Full Error Handling)
+// VERSIÓN: 1.5 (Master Actions Engine - Self-Contained Validation & Submission)
 
 "use client";
 
@@ -10,49 +10,34 @@ import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { PodcastCreationData } from "@/lib/validation/podcast-schema";
 import { FlowState } from "../shared/types";
-import { CheckCircle2, Loader2, AlertCircle } from "lucide-react"; 
+import { CheckCircle2 } from "lucide-react"; 
 
 interface UseFlowActionsProps {
   transitionTo: (state: FlowState) => void;
   clearDraft: () => void;
 }
 
-/**
- * useFlowActions
- * Hook especializado en la orquestación de llamadas a la IA y gestión de red.
- * Centraliza la lógica de negocio para mantener los componentes visuales limpios.
- */
 export function useFlowActions({ transitionTo, clearDraft }: UseFlowActionsProps) {
   const { supabase, user } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
-  const { getValues, setValue } = useFormContext<PodcastCreationData>();
+  // Al estar dentro del InnerOrchestrator, este hook TIENE acceso seguro al contexto
+  const { getValues, setValue, trigger } = useFormContext<PodcastCreationData>();
 
-  // --- ESTADOS DE CARGA ---
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  /**
-   * 1. ANALIZAR ENTORNO LOCAL (VIVIR LO LOCAL)
-   * Gatillo de la experiencia situacional. Procesa GPS y Fotos.
-   */
+  // --- 1. ANALIZAR ENTORNO LOCAL ---
   const analyzeLocalEnvironment = useCallback(async () => {
     const data = getValues();
     
-    // Validación de entrada sensorial
     if (!data.location && !data.imageContext) {
-      toast({ 
-        title: "Faltan Sensores", 
-        description: "Activa el GPS o sube una foto para analizar el entorno.", 
-        variant: "destructive" 
-      });
+      toast({ title: "Faltan Sensores", description: "GPS o Foto requeridos.", variant: "destructive" });
       return;
     }
 
     setIsGenerating(true);
     try {
-      console.log(`[Actions] Iniciando escaneo situacional...`);
-      
       const { data: res, error } = await supabase.functions.invoke('get-local-discovery', {
         body: {
           latitude: data.location?.latitude || 0,
@@ -62,75 +47,56 @@ export function useFlowActions({ transitionTo, clearDraft }: UseFlowActionsProps
         }
       });
 
-      if (error || !res?.success) throw new Error(res?.error || "El motor de descubrimiento no respondió.");
+      if (error || !res?.success) throw new Error(res?.error || "Fallo en descubrimiento.");
 
-      // CUSTODIA DE DATOS: Inyectamos el Dossier, Fuentes y Tema
       setValue('discovery_context', res.dossier, { shouldValidate: true });
       setValue('sources', res.sources || [], { shouldValidate: true });
       setValue('solo_topic', res.poi || "Descubrimiento Local", { shouldValidate: true });
       setValue('agentName', 'local-concierge-v1', { shouldValidate: true });
 
       toast({ 
-        title: "Entorno Interpretado", 
-        description: `Identificado: ${res.poi}`,
+        title: "¡Entorno Sincronizado!", 
+        description: `Lugar: ${res.poi}`,
         action: <CheckCircle2 className="h-5 w-5 text-green-500" />
       });
-
-      // Transición a la pantalla de resultados del dossier
       transitionTo('LOCAL_RESULT_STEP');
-
     } catch (err: any) {
-      const msg = err.message || "Error desconocido";
-      toast({ title: "Fallo de Análisis", description: msg, variant: "destructive" });
+      toast({ title: "Error de Análisis", description: err.message, variant: "destructive" });
     } finally {
       setIsGenerating(false);
     }
   }, [supabase, getValues, setValue, transitionTo, toast]);
 
-  /**
-   * 2. GENERAR NARRATIVAS (MODO EXPLORAR)
-   * Conecta dos temas dispares para encontrar un hilo conductor.
-   */
+  // --- 2. GENERAR NARRATIVAS ---
   const generateNarratives = useCallback(async (callback: (data: any[]) => void) => {
     const { link_topicA, link_topicB, link_catalyst } = getValues();
-    
     setIsGenerating(true);
     try {
       const { data, error } = await supabase.functions.invoke('generate-narratives', {
         body: { topicA: link_topicA, topicB: link_topicB, catalyst: link_catalyst }
       });
-
       if (error) throw error;
-      
-      if (data?.narratives) {
-        callback(data.narratives);
-        transitionTo('NARRATIVE_SELECTION');
-      }
+      if (data?.narratives) { callback(data.narratives); transitionTo('NARRATIVE_SELECTION'); }
     } catch {
-      toast({ title: "Error", description: "No se pudieron conectar las ideas.", variant: "destructive" });
+      toast({ title: "Error", description: "Fallo al conectar ideas.", variant: "destructive" });
     } finally {
       setIsGenerating(false);
     }
   }, [supabase, getValues, transitionTo, toast]);
 
-  /**
-   * 3. GENERAR BORRADOR (IA NARRATIVA)
-   * Crea el guion preliminar basado en la investigación y configuración.
-   */
+  // --- 3. GENERAR BORRADOR ---
   const generateDraft = useCallback(async () => {
     setIsGenerating(true);
     try {
       const data = getValues();
-      const selectedAgent = data.agentName || data.selectedTone || 'script-architect-v1';
-
       const payload = {
         purpose: data.purpose,
         style: data.style || 'solo',
         duration: data.duration,
         depth: data.narrativeDepth,
-        tone: selectedAgent,
+        tone: data.agentName || data.selectedTone || 'script-architect-v1',
         raw_inputs: {
-          ...data, // Enviamos todo el contexto
+          ...data,
           topic: data.solo_topic || data.question_to_answer || data.link_topicA,
           motivation: data.solo_motivation || data.legacy_lesson,
           location: data.location,
@@ -139,19 +105,13 @@ export function useFlowActions({ transitionTo, clearDraft }: UseFlowActionsProps
       };
 
       const { data: response, error } = await supabase.functions.invoke('generate-script-draft', { body: payload });
-      
-      if (error || !response?.success) throw new Error(response?.error || "La IA no pudo generar el borrador.");
+      if (error || !response?.success) throw new Error(response?.error || "Error IA");
 
-      // CUSTODIA DE DATOS: Guardamos guion y fuentes de Tavily
       setValue('final_title', response.draft.suggested_title);
       setValue('final_script', response.draft.script_body);
-      
-      if (response.draft.sources) {
-        setValue('sources', response.draft.sources);
-      }
+      if (response.draft.sources) setValue('sources', response.draft.sources);
 
       transitionTo('SCRIPT_EDITING');
-
     } catch (err: any) {
       toast({ title: "Fallo Creativo", description: err.message, variant: "destructive" });
     } finally {
@@ -160,13 +120,11 @@ export function useFlowActions({ transitionTo, clearDraft }: UseFlowActionsProps
   }, [supabase, getValues, setValue, transitionTo, toast]);
 
   /**
-   * 4. ENVÍO A PRODUCCIÓN (QUEUE FINAL)
-   * Encola el trabajo para la generación asíncrona de audio e imagen.
+   * 4. ENVÍO A PRODUCCIÓN (Lógica Privada)
    */
   const submitToProduction = useCallback(async () => {
     if (!supabase || !user) return;
     setIsSubmitting(true);
-
     try {
       const data = getValues();
       const payload = {
@@ -179,30 +137,37 @@ export function useFlowActions({ transitionTo, clearDraft }: UseFlowActionsProps
       };
 
       const { data: res, error } = await supabase.functions.invoke('queue-podcast-job', { body: payload });
+      if (error || !res?.success) throw new Error("Fallo en producción.");
 
-      if (error || !res?.success) throw new Error("No se pudo iniciar la producción.");
-
-      toast({ 
-        title: "¡Éxito!", 
-        description: "Tu audio está siendo generado.",
-        action: <CheckCircle2 className="h-5 w-5 text-green-500" />
-      });
-
+      toast({ title: "¡Éxito!", description: "Generando audio...", action: <CheckCircle2 className="h-5 w-5 text-green-500" /> });
       clearDraft();
       router.push('/podcasts?tab=library');
-
     } catch (err: any) {
-      toast({ title: "Error de Producción", description: err.message, variant: "destructive" });
+      toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
   }, [supabase, user, getValues, clearDraft, router, toast]);
 
+  /**
+   * [NUEVO] Wrapper de Validación y Envío
+   * Esta función es la que el Orquestador expondrá al LayoutShell.
+   * Se asegura de validar todo el formulario antes de llamar a submitToProduction.
+   */
+  const handleSubmitProduction = useCallback(async () => {
+    const isValid = await trigger(); // Valida todo el formulario con Zod
+    if (isValid) {
+      await submitToProduction();
+    } else {
+      toast({ title: "Datos incompletos", description: "Revisa el formulario.", variant: "destructive" });
+    }
+  }, [trigger, submitToProduction, toast]);
+
   return {
     generateDraft,
     generateNarratives,
     analyzeLocalEnvironment,
-    submitToProduction,
+    handleSubmitProduction, // <--- Exportación limpia para el botón PRODUCIR
     isGenerating,
     isSubmitting
   };
