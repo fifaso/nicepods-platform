@@ -1,8 +1,6 @@
 {
   "compilerOptions": {
-    "lib": ["deno.window", "deno.ns"],
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true
+    "lib": ["deno.window", "deno.ns"]
   },
   "nodeModulesDir": "none",
   "imports": {

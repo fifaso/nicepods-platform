@@ -7,30 +7,10 @@ export type Json =
   | Json[]
 
 export type Database = {
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "13.0.5"
   }
   public: {
     Tables: {
@@ -99,6 +79,131 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      audio_echoes: {
+        Row: {
+          audio_url: string
+          author_id: string
+          created_at: string | null
+          duration_seconds: number | null
+          id: string
+          parent_pod_id: number
+          transcript: string | null
+        }
+        Insert: {
+          audio_url: string
+          author_id: string
+          created_at?: string | null
+          duration_seconds?: number | null
+          id?: string
+          parent_pod_id: number
+          transcript?: string | null
+        }
+        Update: {
+          audio_url?: string
+          author_id?: string
+          created_at?: string | null
+          duration_seconds?: number | null
+          id?: string
+          parent_pod_id?: number
+          transcript?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audio_echoes_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audio_echoes_parent_pod_id_fkey"
+            columns: ["parent_pod_id"]
+            isOneToOne: false
+            referencedRelation: "micro_pods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      collection_items: {
+        Row: {
+          added_at: string | null
+          collection_id: string
+          curator_note: string | null
+          pod_id: number
+        }
+        Insert: {
+          added_at?: string | null
+          collection_id: string
+          curator_note?: string | null
+          pod_id: number
+        }
+        Update: {
+          added_at?: string | null
+          collection_id?: string
+          curator_note?: string | null
+          pod_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collection_items_collection_id_fkey"
+            columns: ["collection_id"]
+            isOneToOne: false
+            referencedRelation: "collections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collection_items_pod_id_fkey"
+            columns: ["pod_id"]
+            isOneToOne: false
+            referencedRelation: "micro_pods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      collections: {
+        Row: {
+          cover_image_url: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_public: boolean | null
+          likes_count: number | null
+          owner_id: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          cover_image_url?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_public?: boolean | null
+          likes_count?: number | null
+          owner_id: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          cover_image_url?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_public?: boolean | null
+          likes_count?: number | null
+          owner_id?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collections_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       followers: {
         Row: {
@@ -180,11 +285,13 @@ export type Database = {
           description: string | null
           duration_seconds: number | null
           final_coordinates: unknown
+          geo_location: unknown
           id: number
           is_featured: boolean | null
           like_count: number
           narrative_lens: string | null
           parent_id: number | null
+          place_name: string | null
           play_count: number
           processing_status: Database["public"]["Enums"]["processing_status"]
           published_at: string | null
@@ -220,11 +327,13 @@ export type Database = {
           description?: string | null
           duration_seconds?: number | null
           final_coordinates?: unknown
+          geo_location?: unknown
           id?: number
           is_featured?: boolean | null
           like_count?: number
           narrative_lens?: string | null
           parent_id?: number | null
+          place_name?: string | null
           play_count?: number
           processing_status?: Database["public"]["Enums"]["processing_status"]
           published_at?: string | null
@@ -260,11 +369,13 @@ export type Database = {
           description?: string | null
           duration_seconds?: number | null
           final_coordinates?: unknown
+          geo_location?: unknown
           id?: number
           is_featured?: boolean | null
           like_count?: number
           narrative_lens?: string | null
           parent_id?: number | null
+          place_name?: string | null
           play_count?: number
           processing_status?: Database["public"]["Enums"]["processing_status"]
           published_at?: string | null
@@ -335,6 +446,39 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      place_memories: {
+        Row: {
+          pod_id: number
+          poi_id: number
+          relevance_score: number | null
+        }
+        Insert: {
+          pod_id: number
+          poi_id: number
+          relevance_score?: number | null
+        }
+        Update: {
+          pod_id?: number
+          poi_id?: number
+          relevance_score?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "place_memories_pod_id_fkey"
+            columns: ["pod_id"]
+            isOneToOne: false
+            referencedRelation: "micro_pods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "place_memories_poi_id_fkey"
+            columns: ["poi_id"]
+            isOneToOne: false
+            referencedRelation: "points_of_interest"
             referencedColumns: ["id"]
           },
         ]
@@ -553,6 +697,53 @@ export type Database = {
           },
         ]
       }
+      points_of_interest: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          description: string | null
+          geo_location: unknown
+          id: number
+          image_summary: string | null
+          metadata: Json | null
+          name: string
+          reference_podcast_id: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          geo_location: unknown
+          id?: number
+          image_summary?: string | null
+          metadata?: Json | null
+          name: string
+          reference_podcast_id?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          geo_location?: unknown
+          id?: number
+          image_summary?: string | null
+          metadata?: Json | null
+          name?: string
+          reference_podcast_id?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "points_of_interest_reference_podcast_id_fkey"
+            columns: ["reference_podcast_id"]
+            isOneToOne: false
+            referencedRelation: "micro_pods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       processing_errors: {
         Row: {
           created_at: string
@@ -632,43 +823,55 @@ export type Database = {
           active_creation_jobs: number
           avatar_url: string | null
           bio: string | null
+          bio_short: string | null
           created_at: string
           followers_count: number
           following_count: number
           full_name: string | null
           id: string
+          is_verified: boolean | null
+          reputation_score: number | null
           role: string
           stripe_customer_id: string | null
           updated_at: string
           username: string
+          website_url: string | null
         }
         Insert: {
           active_creation_jobs?: number
           avatar_url?: string | null
           bio?: string | null
+          bio_short?: string | null
           created_at?: string
           followers_count?: number
           following_count?: number
           full_name?: string | null
           id: string
+          is_verified?: boolean | null
+          reputation_score?: number | null
           role?: string
           stripe_customer_id?: string | null
           updated_at?: string
           username: string
+          website_url?: string | null
         }
         Update: {
           active_creation_jobs?: number
           avatar_url?: string | null
           bio?: string | null
+          bio_short?: string | null
           created_at?: string
           followers_count?: number
           following_count?: number
           full_name?: string | null
           id?: string
+          is_verified?: boolean | null
+          reputation_score?: number | null
           role?: string
           stripe_customer_id?: string | null
           updated_at?: string
           username?: string
+          website_url?: string | null
         }
         Relationships: []
       }
@@ -800,6 +1003,23 @@ export type Database = {
         Returns: Json
       }
       get_generic_library_shelves: { Args: never; Returns: Json }
+      get_nearby_podcasts: {
+        Args: {
+          p_lat: number
+          p_limit?: number
+          p_lng: number
+          p_radius_meters?: number
+        }
+        Returns: {
+          audio_url: string
+          cover_image_url: string
+          description: string
+          distance_meters: number
+          id: number
+          profiles: Json
+          title: string
+        }[]
+      }
       get_resonant_podcasts: {
         Args: { center_point: unknown; count_limit: number }
         Returns: {
@@ -822,11 +1042,13 @@ export type Database = {
           description: string | null
           duration_seconds: number | null
           final_coordinates: unknown
+          geo_location: unknown
           id: number
           is_featured: boolean | null
           like_count: number
           narrative_lens: string | null
           parent_id: number | null
+          place_name: string | null
           play_count: number
           processing_status: Database["public"]["Enums"]["processing_status"]
           published_at: string | null
@@ -885,6 +1107,26 @@ export type Database = {
           p_podcast_id: number
         }
         Returns: undefined
+      }
+      search_geo_semantic: {
+        Args: {
+          match_count?: number
+          match_threshold?: number
+          query_embedding: string
+          radius_units?: number
+          user_lat: number
+          user_long: number
+        }
+        Returns: {
+          audio_url: string
+          author_handle: string
+          description: string
+          dist_val: number
+          id: number
+          image_url: string
+          similarity: number
+          title: string
+        }[]
       }
       search_omni: {
         Args: {
@@ -1087,9 +1329,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       agent_status: ["active", "experimental", "archived"],
@@ -1118,4 +1357,3 @@ export const Constants = {
     },
   },
 } as const
-

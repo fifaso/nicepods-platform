@@ -1,5 +1,4 @@
-// supabase/functions/_shared/guard.ts
-// VERSIÓN: 3.5 (Deno v2 Optimized - Silent Header Injection)
+// VERSIÓN: 3.6 (Re-export CORS patch)
 
 import * as Sentry from "sentry";
 import arcjet, { detectBot, fixedWindow, shield } from "arcjet";
@@ -62,3 +61,6 @@ export const guard = (handler: (req: Request) => Promise<Response>) => {
     }
   };
 };
+
+// [NUEVO] Re-exportamos para que search-pro pueda usarlo sin importar cors.ts directamente
+export { corsHeaders };
