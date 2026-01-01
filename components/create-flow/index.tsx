@@ -1,37 +1,108 @@
 // components/create-flow/index.tsx
-// VERSIÓN: 25.0 (Master Sovereign - Recovery & Full Multi-Flow Integration)
+// VERSIÓN: 27.0 (Master Sovereign - Context Injection Fix)
 
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { FormProvider, useForm } from "react-hook-form";
+import { useState, useEffect } from "react";
+import { FormProvider, useForm, useFormContext } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PodcastCreationSchema, PodcastCreationData } from "@/lib/validation/podcast-schema";
-import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { useAudio } from "@/contexts/audio-context";
-import { useRouter } from "next/navigation";
 
-// Imports del Dominio Modular
+// Imports Modulares
 import { CreationContext } from "./shared/context";
-import { MASTER_FLOW_PATHS } from "./shared/config";
 import { useFlowNavigation } from "./hooks/use-flow-navigation";
 import { useFlowActions } from "./hooks/use-flow-actions";
 import { StepRenderer } from "./step-renderer";
 import { LayoutShell } from "./layout-shell";
+import { MASTER_FLOW_PATHS } from "./shared/config";
 
-export default function PodcastCreationOrchestrator() {
+/**
+ * InnerOrchestrator
+ * Componente interno que YA TIENE ACCESO al FormProvider.
+ * Aquí es seguro usar useFlowActions y useFormContext.
+ */
+function InnerOrchestrator() {
   const { toast } = useToast();
-  const { supabase, user } = useAuth();
-  const router = useRouter();
-  const [isMounted, setIsMounted] = useState(false);
+  const { watch, trigger, setValue } = useFormContext<PodcastCreationData>();
+  const currentPurpose = watch("purpose");
   const [narrativeOptions, setNarrativeOptions] = useState<any[]>([]);
 
-  // 1. Garantía de Hidratación (Elimina el error "Something went wrong")
+  // 1. Navegación (No depende de RHF, pero la necesitamos aquí)
+  const navigation = useFlowNavigation({ currentPurpose });
+
+  // 2. Acciones (AHORA SÍ TIENE CONTEXTO DE RHF)
+  const actions = useFlowActions({ 
+    transitionTo: navigation.transitionTo, 
+    clearDraft: () => {} // Reset manejado por el padre si es necesario o via window location
+  });
+
+  const handleValidatedNext = async () => {
+    let fields: any[] = [];
+    const state = navigation.currentFlowState;
+
+    if (state === 'SOLO_TALK_INPUT') fields = ['solo_topic', 'solo_motivation'];
+    if (state === 'ARCHETYPE_SELECTION') fields = ['selectedArchetype'];
+    if (state === 'DETAILS_STEP') fields = ['duration', 'narrativeDepth'];
+    if (state === 'TONE_SELECTION') fields = ['agentName'];
+    if (state === 'LEGACY_INPUT') fields = ['legacy_lesson'];
+    if (state === 'QUESTION_INPUT') fields = ['question_to_answer'];
+
+    const isValid = fields.length > 0 ? await trigger(fields as any) : true;
+
+    if (isValid) {
+      if (state === 'LINK_POINTS_INPUT') {
+          // @ts-ignore
+          await actions.generateNarratives(setNarrativeOptions);
+      } else {
+          const path = MASTER_FLOW_PATHS[currentPurpose] || MASTER_FLOW_PATHS.learn;
+          const nextIndex = (path as string[]).indexOf(state) + 1;
+          if (nextIndex < path.length) {
+            navigation.transitionTo(path[nextIndex]);
+          }
+      }
+    } else {
+      toast({ title: "Información incompleta", variant: "destructive" });
+    }
+  };
+
+  // Inyectamos el contexto de navegación y acciones para los hijos (Steps)
+  const contextValue = {
+    ...navigation,
+    isGeneratingScript: actions.isGenerating,
+    setIsGeneratingScript: () => {}, 
+    updateFormData: (data: any) => {
+        Object.entries(data).forEach(([k, v]) => setValue(k as any, v, { shouldValidate: true }));
+    }
+  };
+
+  return (
+    <CreationContext.Provider value={contextValue}>
+      <LayoutShell
+        onNext={handleValidatedNext}
+        onDraft={actions.generateDraft}
+        onProduce={actions.handleSubmitProduction} // Usamos la función wrapper del hook
+        onAnalyzeLocal={actions.analyzeLocalEnvironment}
+        isGenerating={actions.isGenerating}
+        isSubmitting={actions.isSubmitting}
+        progress={navigation.progressMetrics}
+      >
+        <StepRenderer narrativeOptions={narrativeOptions} />
+      </LayoutShell>
+    </CreationContext.Provider>
+  );
+}
+
+/**
+ * PodcastCreationOrchestrator (Wrapper Principal)
+ * Su única misión es proveer el FormContext y montar el InnerOrchestrator.
+ */
+export default function PodcastCreationOrchestrator() {
+  const [isMounted, setIsMounted] = useState(false);
+
   useEffect(() => { setIsMounted(true); }, []);
 
-  // 2. Inicialización de Datos (Contrato Zod v4.0)
-  const formMethods = useForm<PodcastCreationData | any>({
+  const formMethods = useForm({
     resolver: zodResolver(PodcastCreationSchema),
     mode: "onChange",
     defaultValues: { 
@@ -43,90 +114,11 @@ export default function PodcastCreationOrchestrator() {
     }
   });
 
-  const { watch, setValue, trigger, handleSubmit, reset } = formMethods;
-  const formData = watch();
-
-  // 3. Inicialización del Motor de Navegación y Acciones
-  const navigation = useFlowNavigation({ currentPurpose: formData.purpose });
-  const actions = useFlowActions({ 
-    transitionTo: navigation.transitionTo, 
-    clearDraft: () => reset() 
-  });
-
-  /**
-   * handleValidatedNext
-   * Gestiona la navegación para TODAS las opciones del formulario.
-   * Esto repara el error de que solo funcionaba "Vivir lo local".
-   */
-  const handleValidatedNext = async () => {
-    const currentState = navigation.currentFlowState;
-    let fieldsToValidate: any[] = [];
-
-    // Mapeo dinámico de validaciones
-    if (currentState === 'SOLO_TALK_INPUT') fieldsToValidate = ['solo_topic', 'solo_motivation'];
-    if (currentState === 'ARCHETYPE_SELECTION') fieldsToValidate = ['selectedArchetype'];
-    if (currentState === 'DETAILS_STEP') fieldsToValidate = ['duration', 'narrativeDepth'];
-    if (currentState === 'TONE_SELECTION') fieldsToValidate = ['agentName'];
-    if (currentState === 'LEGACY_INPUT') fieldsToValidate = ['legacy_lesson'];
-    if (currentState === 'QUESTION_INPUT') fieldsToValidate = ['question_to_answer'];
-
-    const isValid = fieldsToValidate.length > 0 ? await trigger(fieldsToValidate as any) : true;
-
-    if (isValid) {
-      if (currentState === 'LINK_POINTS_INPUT') {
-          // @ts-ignore: Acceso a función compartida
-          await actions.generateNarratives(setNarrativeOptions);
-      } else {
-          // Avance secuencial basado en el config.ts
-          const path = MASTER_FLOW_PATHS[formData.purpose] || MASTER_FLOW_PATHS.learn;
-          const currentIndex = (path as string[]).indexOf(currentState);
-          if (currentIndex !== -1 && currentIndex < path.length - 1) {
-            navigation.transitionTo(path[currentIndex + 1]);
-          }
-      }
-    } else {
-      toast({ title: "Atención", description: "Completa los campos para continuar.", variant: "destructive" });
-    }
-  };
-
-  /**
-   * handleAnalyzeLocalSurroundings
-   * Específico para el hito sensorial de "Vivir lo Local"
-   */
-  const handleAnalyzeLocalSurroundings = async () => {
-    await actions.analyzeLocalEnvironment();
-  };
-
   if (!isMounted) return null;
 
-  // Contexto Unificado
-  const contextValue = {
-    ...navigation,
-    isGeneratingScript: actions.isGenerating,
-    setIsGeneratingScript: () => {}, 
-    updateFormData: (data: any) => {
-        Object.entries(data).forEach(([k, v]) => {
-            const finalKey = k === 'selectedAgent' ? 'agentName' : k;
-            setValue(finalKey as any, v, { shouldValidate: true });
-        });
-    }
-  };
-
   return (
-    <CreationContext.Provider value={contextValue}>
-      <FormProvider {...formMethods}>
-        <LayoutShell
-          onNext={handleValidatedNext}
-          onDraft={actions.generateDraft}
-          onProduce={handleSubmit(actions.submitToProduction)}
-          onAnalyzeLocal={handleAnalyzeLocalSurroundings}
-          isGenerating={actions.isGenerating}
-          isSubmitting={actions.isSubmitting}
-          progress={navigation.progressMetrics}
-        >
-          <StepRenderer narrativeOptions={narrativeOptions} />
-        </LayoutShell>
-      </FormProvider>
-    </CreationContext.Provider>
+    <FormProvider {...formMethods}>
+      <InnerOrchestrator />
+    </FormProvider>
   );
 }
