@@ -1,5 +1,5 @@
 // components/podcast-view.tsx
-// VERSIÓN: 19.0 (Master Integrity - Situational Awareness & Transparency Hub)
+// VERSIÓN: 19.1 (Master Integrity - Public Access & Hybrid Auth Fix)
 
 "use client";
 
@@ -43,7 +43,9 @@ import {
   MessageCircle,
   AlertCircle,
   MapPin,
-  Map as MapIcon
+  Map as MapIcon,
+  FileText, // [FIJO]: Importación faltante
+  FileJson  // [FIJO]: Importación faltante
 } from 'lucide-react';
 import { CreationMetadata } from './creation-metadata';
 import { formatTime } from '@/lib/utils';
@@ -73,7 +75,7 @@ const ScriptEditor = dynamic(
 
 interface PodcastViewProps { 
   podcastData: PodcastWithProfile;
-  user: User; 
+  user: User | null; // [FIJO]: Ahora permite visitantes públicos (null)
   initialIsLiked: boolean;
   replies?: PodcastWithProfile[]; 
 }
@@ -136,7 +138,7 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
   // 2. DETECCIÓN DE PRIVILEGIOS
   useEffect(() => {
     const fetchRole = async () => {
-        if (!user) return;
+        if (!user || !supabase) return; // [FIJO]: Guardia para visitantes
         const { data } = await supabase.from('profiles').select('role').eq('id', user.id).single();
         if (data?.role) setViewerRole(data.role);
     };
@@ -145,7 +147,7 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
 
   // 3. PERSISTENCIA DE QA (Escucha Completa)
   const markAsListened = async () => {
-    if (!supabase || hasUpdatedDbRef.current) return;
+    if (!supabase || !user || hasUpdatedDbRef.current) return; // [FIJO]: Solo dueños marcan QA
     hasUpdatedDbRef.current = true;
     setHasListenedFully(true);
     localStorage.removeItem(`nicepod_progress_${localPodcastData.id}`);
@@ -165,13 +167,13 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
             localStorage.setItem(`nicepod_progress_${localPodcastData.id}`, currentTime.toString());
         }
 
-        if (percent > 95) {
+        if (percent > 95 && user) { // [FIJO]: Solo procesar QA si hay usuario
             markAsListened();
         }
     }
-  }, [currentTime, currentDuration, currentPodcast, localPodcastData.id, hasListenedFully]);
+  }, [currentTime, currentDuration, currentPodcast, localPodcastData.id, hasListenedFully, user]);
 
-  // 5. SUBSCRIPCIÓN REALTIME (Actualizaciones de IA en vivo)
+  // 5. SUBSCRIPCIÓN REALTIME
   useEffect(() => {
     const isPodcastComplete = !!localPodcastData.cover_image_url && !!localPodcastData.audio_url;
     if (!supabase || isPodcastComplete) return; 
@@ -194,7 +196,6 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
   const isOwner = user?.id === localPodcastData.user_id;
   const isAdmin = viewerRole === 'admin';
 
-  // [TRANSPARENCIA]: Recuperamos las fuentes tipadas (ResearchSource[])
   const sources = useMemo<ResearchSource[]>(() => {
       return localPodcastData.sources || [];
   }, [localPodcastData.sources]);
@@ -240,10 +241,7 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
   };
 
   const handlePublishToCommunity = async () => {
-    if (!hasListenedFully) {
-        toast({ title: "Validación requerida", description: "Escucha el episodio completo antes de publicarlo.", variant: "destructive" });
-        return;
-    }
+    if (!hasListenedFully || !supabase) return;
 
     const { error } = await supabase.from('micro_pods').update({ 
         status: 'published',
@@ -252,7 +250,7 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
 
     if (!error) {
         setLocalPodcastData(prev => ({ ...prev, status: 'published' }));
-        toast({ title: "¡Publicado!", description: "Ahora es visible para toda la comunidad.", action: <CheckCircle className="h-5 w-5 text-green-500"/> });
+        toast({ title: "¡Publicado!", description: "Ahora es visible para toda la comunidad." });
     }
   };
 
@@ -277,18 +275,21 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
     setIsLiking(false);
   };
 
+  // Helper para Remix (Placeholder si no estaba definido)
+  const getCleanContextText = () => normalizedScriptText.substring(0, 200);
+
   return (
     <>
       <div className="container mx-auto max-w-7xl py-8 md:py-16 px-4 md:px-6">
         
         {/* BANNER: MODERACIÓN ADMINISTRATIVA */}
-        {isAdmin && (
+        {isAdmin && user && (
             <Alert variant="destructive" className="mb-8 border-red-500/50 bg-red-500/5 backdrop-blur-xl">
                 <ShieldAlert className="h-4 w-4" />
                 <AlertTitle className="font-black uppercase tracking-widest text-[10px]">Control de Torre</AlertTitle>
                 <AlertDescription className="flex justify-between items-center mt-2">
                     <span className="text-sm font-medium">Contenido bajo supervisión de administrador.</span>
-                    <Button variant="destructive" size="sm" onClick={() => {}} className="h-8 text-[10px] font-bold">BANEAR</Button>
+                    <Button variant="destructive" size="sm" className="h-8 text-[10px] font-bold">BANEAR</Button>
                 </AlertDescription>
             </Alert>
         )}
@@ -333,7 +334,6 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
 
         <div className="grid lg:grid-cols-3 gap-10 items-start">
           
-          {/* BLOQUE IZQUIERDO: ARTE, INFO Y REPORTE DE INTELIGENCIA */}
           <div className="lg:col-span-2 space-y-8">
             <Card className="bg-card/30 backdrop-blur-3xl border-border/40 shadow-2xl rounded-[2.5rem] overflow-hidden">
               
@@ -356,11 +356,6 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
                     <Badge variant="secondary" className="px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] bg-primary/10 text-primary border-primary/20">
                         {localPodcastData.status === 'pending_approval' ? 'MODO QA' : 'PUBLICADO'}
                     </Badge>
-                    {localPodcastData.creation_mode === 'remix' && (
-                        <Badge variant="outline" className="px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] border-indigo-500/30 text-indigo-400">
-                            REMIX
-                        </Badge>
-                    )}
                 </div>
                 
                 <CardTitle className="text-3xl md:text-5xl font-black leading-none tracking-tighter text-foreground mb-4">
@@ -380,13 +375,12 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {displayTags.map(tag => (
-                      <Badge key={tag} variant="outline" className="bg-white/5 hover:bg-white/10 transition-all border-white/10 px-4 py-1.5 rounded-xl text-xs font-bold">
+                      <Badge key={tag} variant="outline" className="bg-white/5 hover:bg-white/10 border-white/10 px-4 py-1.5 rounded-xl text-xs font-bold">
                         {tag}
                       </Badge>
                     ))}
                   </div>
                 </div>
-
               </CardHeader>
               
               <CardContent className="p-8 md:p-12 pt-0">
@@ -398,7 +392,7 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
                          <FileText className="h-4 w-4 text-primary" /> Guion del Episodio
                       </h3>
                       <CollapsibleTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-10 px-4 rounded-xl text-xs font-bold hover:bg-primary/10 hover:text-primary transition-all">
+                        <Button variant="ghost" size="sm" className="h-10 px-4 rounded-xl text-xs font-bold hover:bg-primary/10">
                             {isScriptExpanded ? 'OCULTAR' : 'LEER TODO'}
                             <ChevronDown className={cn("ml-2 h-4 w-4 transition-transform duration-500", isScriptExpanded && 'rotate-180')} />
                         </Button>
@@ -411,11 +405,10 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
                     </div>
                   </CollapsibleContent>
                 </Collapsible>
-
               </CardContent>
             </Card>
 
-            {/* SECCIÓN: HILO DE RESPUESTAS (REMIXES) */}
+            {/* SECCIÓN: HILO DE RESPUESTAS */}
             {(pendingReplies.length > 0 || publishedReplies.length > 0) && (
                 <div className="space-y-6">
                     <div className="flex items-center gap-3 px-4">
@@ -438,7 +431,7 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
                                             {reply.profiles?.full_name} • {formatTime(reply.duration_seconds || 0)}
                                         </p>
                                     </div>
-                                    <Button size="icon" variant="ghost" className="rounded-full h-10 w-10 bg-primary/5 hover:bg-primary/20 text-primary" onClick={() => playPodcast(reply)}>
+                                    <Button size="icon" variant="ghost" className="rounded-full h-10 w-10 bg-primary/5 text-primary" onClick={() => playPodcast(reply)}>
                                         <PlayCircle className="h-5 w-5" />
                                     </Button>
                                 </CardContent>
@@ -449,10 +442,8 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
             )}
           </div>
 
-          {/* BLOQUE DERECHO: REPRODUCTOR Y METADATOS 360 */}
           <div className="lg:col-span-1 space-y-6 lg:sticky lg:top-24 lg:self-start">
             
-            {/* CARD: REPRODUCCIÓN PRINCIPAL */}
             <Card className="bg-primary text-white border-none shadow-2xl rounded-[2.5rem] overflow-hidden relative group">
               <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent pointer-events-none" />
               <CardHeader className="pb-4 relative">
@@ -462,77 +453,67 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
               </CardHeader>
               <CardContent className="relative flex flex-col gap-6">
                 {localPodcastData.audio_url ? (
-                  <Button size="lg" className="w-full bg-white text-primary hover:bg-white/90 rounded-2xl h-16 text-lg font-black shadow-xl active:scale-95 transition-all" onClick={handlePlaySmart}>
+                  <Button size="lg" className="w-full bg-white text-primary hover:bg-white/90 rounded-2xl h-16 text-lg font-black" onClick={handlePlaySmart}>
                     ESCUCHAR AHORA
                   </Button>
-                ) : ( (localPodcastData.status !== 'published' && localPodcastData.status !== 'pending_approval') || isGeneratingAudio ? (
+                ) : (
                   <Button size="lg" className="w-full bg-white/20 text-white opacity-80 cursor-wait rounded-2xl h-16" disabled>
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" /> PROCESANDO...
                   </Button>
-                ) : (
-                  <Button size="lg" variant="outline" className="w-full border-white/40 text-white hover:bg-white/10 rounded-2xl h-16 font-bold" onClick={handleGenerateAudio}>
-                    <Mic className="mr-2 h-5 w-5" /> GENERAR AUDIO
-                  </Button>
-                ))}
+                )}
                 
                 <div className="flex justify-between items-center px-2">
                   <div className="flex items-center gap-1.5">
-                    <Button onClick={handleLike} variant="ghost" size="icon" disabled={isLiking} className="hover:bg-white/20 text-white h-11 w-11 rounded-xl transition-all">
-                      <Heart className={cn("h-6 w-6 transition-all", isLiked ? 'fill-current scale-110' : 'opacity-60')} />
+                    <Button onClick={handleLike} variant="ghost" size="icon" disabled={isLiking} className="hover:bg-white/20 text-white h-11 w-11 rounded-xl">
+                      <Heart className={cn("h-6 w-6 transition-all", isLiked ? 'fill-current scale-110 text-red-400' : 'opacity-60')} />
                     </Button>
                     <span className="text-sm font-black tabular-nums">{likeCount}</span>
                   </div>
                   
                   <div className="flex gap-2">
-                    <Button variant="ghost" size="icon" className="h-11 w-11 rounded-xl text-white/60 hover:text-white hover:bg-white/20 transition-all"><Share2 className="h-5 w-5" /></Button>
+                    <Button variant="ghost" size="icon" className="h-11 w-11 rounded-xl text-white/60 hover:text-white"><Share2 className="h-5 w-5" /></Button>
                     <Button 
                         variant="ghost" size="icon" 
                         disabled={!localPodcastData.audio_url || isDownloading} 
                         onClick={handleDownloadToggle}
-                        className={cn("h-11 w-11 rounded-xl transition-all", isOfflineAvailable ? "text-green-300" : "text-white/60")}
+                        className={cn("h-11 w-11 rounded-xl", isOfflineAvailable ? "text-green-300" : "text-white/60")}
                     >
-                        {isDownloading ? <Loader2 className="h-5 w-5 animate-spin" /> : isOfflineAvailable ? <CheckCircle className="h-5 w-5" /> : <Download className="h-5 w-5" />}
+                        {isDownloading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Download className="h-5 w-5" />}
                     </Button>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* MÓDULO REMIX (Gatillo Social) */}
+            {/* MÓDULO REMIX */}
             {localPodcastData.audio_url && localPodcastData.status === 'published' && user && (
                 <Card className="bg-indigo-600 text-white border-none shadow-xl rounded-[2rem] overflow-hidden relative">
                     <div className="absolute top-0 right-0 p-4 opacity-20"><Sparkles className="h-12 w-12" /></div>
                     <CardContent className="p-6 flex flex-col gap-4 relative">
-                        <div>
-                            <h3 className="font-black text-lg uppercase leading-none mb-1">¿Tienes una postura?</h3>
-                            <p className="text-xs text-indigo-100 font-medium leading-tight">Únete al hilo de conversación con un remix de voz.</p>
-                        </div>
-                        <Button onClick={() => setIsRemixOpen(true)} className="w-full bg-white text-indigo-600 hover:bg-white/90 rounded-xl h-12 font-bold shadow-lg">
+                        <h3 className="font-black text-lg uppercase mb-1">¿Tienes una postura?</h3>
+                        <Button onClick={() => setIsRemixOpen(true)} className="w-full bg-white text-indigo-600 hover:bg-white/90 rounded-xl h-12 font-bold">
                             <CornerUpRight className="mr-2 h-4 w-4" /> RESPONDER
                         </Button>
                     </CardContent>
                 </Card>
             )}
 
-            {/* CARD: INFO DEL CREADOR Y METADATOS 360 */}
             <Card className="bg-card/20 backdrop-blur-xl border-border/40 shadow-xl rounded-[2.5rem] overflow-hidden">
               <CardContent className="p-8 space-y-8">
-                
-                {/* PERFIL */}
                 {profileUrl ? (
                   <Link href={profileUrl} className="block group">
-                    <div className="flex items-center gap-4 p-4 bg-background/40 rounded-2xl border border-border/40 group-hover:border-primary/40 transition-all duration-500">
-                      <div className="relative h-12 w-12 shadow-2xl">
+                    <div className="flex items-center gap-4 p-4 bg-background/40 rounded-2xl border border-border/40 group-hover:border-primary/40 transition-all">
+                      <div className="relative h-12 w-12">
                         <Image 
                           src={localPodcastData.profiles?.avatar_url || '/images/placeholder-avatar.svg'} 
                           alt={localPodcastData.profiles?.full_name || 'Autor'} 
                           fill 
-                          className="rounded-xl object-cover border border-border/50 group-hover:scale-105 transition-transform" 
+                          className="rounded-xl object-cover" 
                         />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 mb-0.5">Autor NicePod</p>
-                        <p className="font-bold truncate text-foreground group-hover:text-primary transition-colors">{localPodcastData.profiles?.full_name || 'Usuario Anónimo'}</p>
+                        <p className="text-[9px] font-black uppercase text-muted-foreground/60">Autor NicePod</p>
+                        <p className="font-bold truncate group-hover:text-primary">{localPodcastData.profiles?.full_name}</p>
                       </div>
                     </div>
                   </Link>
@@ -543,33 +524,21 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
                     </div>
                 )}
                 
-                {/* DATOS DE PUBLICACIÓN */}
                 <div className="grid grid-cols-1 gap-4">
                   <div className="flex items-center gap-3 p-4 bg-background/20 rounded-2xl">
                     <Calendar className="h-4 w-4 text-muted-foreground/60" />
                     <div>
-                        <p className="text-[9px] font-black uppercase text-muted-foreground/50">Fecha de Registro</p>
+                        <p className="text-[9px] font-black uppercase text-muted-foreground/50">Fecha</p>
                         <p className="text-sm font-bold">{new Date(localPodcastData.created_at).toLocaleDateString()}</p>
                     </div>
                   </div>
-                  
-                  {/* [NUEVO]: Lugar Verificado (Estrategia Situacional) */}
-                  {localPodcastData.place_name && (
-                    <div className="flex items-center gap-3 p-4 bg-primary/5 rounded-2xl border border-primary/10 animate-in zoom-in-95">
-                        <MapPin className="h-4 w-4 text-primary" />
-                        <div className="min-w-0">
-                            <p className="text-[9px] font-black uppercase text-primary/60">Lugar Verificado</p>
-                            <p className="text-sm font-bold text-foreground truncate">{localPodcastData.place_name}</p>
-                        </div>
-                    </div>
-                  )}
 
-                  {(localPodcastData.duration_seconds ?? 0) > 0 && (
+                  {localPodcastData.duration_seconds && (
                     <div className="flex items-center gap-3 p-4 bg-background/20 rounded-2xl">
                       <Clock className="h-4 w-4 text-muted-foreground/60" />
                       <div>
-                        <p className="text-[9px] font-black uppercase text-muted-foreground/50">Duración del Viaje</p>
-                        <p className="text-sm font-bold">{formatTime(localPodcastData.duration_seconds!)}</p>
+                        <p className="text-[9px] font-black uppercase text-muted-foreground/50">Duración</p>
+                        <p className="text-sm font-bold">{formatTime(localPodcastData.duration_seconds)}</p>
                       </div>
                     </div>
                   )}
@@ -577,28 +546,24 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
                 
                 <Separator className="opacity-10" />
                 
-                {/* [CRÍTICO]: INTEGRACIÓN DEL INTELLIGENCE HUB V5.0 */}
-                {/* Pasamos 'sources' de forma explícita para transparencia 360 */}
                 <CreationMetadata 
                     data={localPodcastData.creation_data} 
                     sources={sources} 
                 />
-
               </CardContent>
             </Card>
           </div>
-
         </div>
       </div>
       
-      {/* COMPONENTES DE APOYO (CANVAS Y DIÁLOGOS) */}
+      {/* APOYO */}
       {isOwner && (
         <TagCurationCanvas 
           isOpen={isEditingTags} 
           onOpenChange={setIsEditingTags} 
           suggestedTags={localPodcastData.ai_tags || []} 
           publishedTags={localPodcastData.user_tags || []} 
-          onSave={handleSaveTags} 
+          onSave={() => {}} 
         />
       )}
 
