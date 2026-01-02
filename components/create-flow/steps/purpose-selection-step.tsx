@@ -1,204 +1,170 @@
 // components/create-flow/steps/purpose-selection-step.tsx
-// VERSIÓN: 13.2 (Master Fix - Explicit Typing for 'isNew' & Strict Contracts)
+// VERSIÓN: 2.0 (Aurora UX - Zero Scroll Architecture)
 
 "use client";
 
-import React from "react";
-import { useCreationContext } from "../shared/context";
+import { useFormContext } from "react-hook-form";
+import { motion } from "framer-motion";
 import { 
   Lightbulb, 
-  Link as LinkIcon, 
-  PenSquare, 
-  HelpCircle, 
+  Link2, 
+  MessageCircleQuestion, 
+  PenLine, 
   MapPin, 
-  ArrowRight,
-  Compass,
-  Palette,
-  ScrollText,
-  Zap
+  Sparkles 
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { FlowState } from "../shared/types";
 
-/**
- * INTERFAZ ESTRICTA (Contrato)
- * Define explícitamente que 'isNew' es una propiedad opcional (boolean | undefined).
- * Esto evita que TypeScript infiera erróneamente el tipo basándose en el primer elemento del array.
- */
-interface PurposeOption {
-  purpose: 'learn' | 'explore' | 'answer' | 'reflect' | 'local_soul' | 'freestyle';
-  style?: 'solo' | 'link' | 'legacy' | 'qa' | 'local_concierge';
-  agentName: string;
-  nextState: FlowState;
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  isNew?: boolean; // <--- La clave del fix: Declarado explícitamente como opcional
-}
+// Componentes del Core Orchestrator
+import { useCreationContext } from "../shared/context";
+import { Badge } from "@/components/ui/badge";
 
-interface Section {
-  label: string;
-  icon: React.ReactNode;
-  options: PurposeOption[];
-}
-
-/**
- * CONFIGURACIÓN DE SECCIONES
- * Al tipar la constante como 'Section[]', forzamos a TS a respetar la interfaz PurposeOption.
- */
-const SECTIONS: Section[] = [
+const PURPOSES = [
   {
-    label: "Creatividad",
-    icon: <Palette className="h-3 w-3" />,
-    options: [
-      { 
-        purpose: "learn", 
-        style: "solo", 
-        agentName: "solo-talk-analyst", 
-        nextState: "LEARN_SUB_SELECTION", 
-        icon: <Lightbulb className="h-4 w-4 text-amber-500" />, 
-        title: "Aprender", 
-        description: "Desglosa conceptos complejos." 
-      },
-      { 
-        purpose: "explore", 
-        style: "link", 
-        agentName: "link-points-synthesizer", 
-        nextState: "LINK_POINTS_INPUT", 
-        icon: <LinkIcon className="h-4 w-4 text-blue-500" />, 
-        title: "Explorar", 
-        description: "Conecta dos ideas distintas." 
-      },
-      { 
-        purpose: "answer", 
-        style: "qa", 
-        agentName: "qa-agent", 
-        nextState: "QUESTION_INPUT", 
-        icon: <HelpCircle className="h-4 w-4 text-rose-500" />, 
-        title: "Preguntar", 
-        description: "Respuestas directas a dudas." 
-      },
-    ]
+    id: "learn",
+    category: "Creatividad",
+    title: "Aprender",
+    desc: "Desglosa conceptos complejos",
+    icon: Lightbulb,
+    color: "from-amber-400/20 to-orange-500/10",
   },
   {
-    label: "Legado",
-    icon: <ScrollText className="h-3 w-3" />,
-    options: [
-      { 
-        purpose: "reflect", 
-        style: "legacy", 
-        agentName: "legacy-agent", 
-        nextState: "LEGACY_INPUT", 
-        icon: <PenSquare className="h-4 w-4 text-emerald-500" />, 
-        title: "Reflexionar", 
-        description: "Lecciones y testimonios personales." 
-      }
-    ]
+    id: "explore",
+    category: "Creatividad",
+    title: "Explorar",
+    desc: "Conecta dos ideas distintas",
+    icon: Link2,
+    color: "from-blue-400/20 to-indigo-500/10",
   },
   {
-    label: "Entorno",
-    icon: <Compass className="h-3 w-3" />,
-    options: [
-      { 
-        purpose: "local_soul", 
-        style: "local_concierge", 
-        agentName: "local-concierge-v1", 
-        nextState: "LOCAL_DISCOVERY_STEP", 
-        icon: <MapPin className="h-4 w-4 text-indigo-500" />, 
-        title: "Vive lo local", 
-        description: "Secretos del sitio donde estás hoy.",
-        isNew: true // <--- Ahora TS sabe que esto es legal gracias a la interfaz
-      }
-    ]
+    id: "ask",
+    category: "Creatividad",
+    title: "Preguntar",
+    desc: "Respuestas directas a dudas",
+    icon: MessageCircleQuestion,
+    color: "from-rose-400/20 to-red-500/10",
+  },
+  {
+    id: "reflect",
+    category: "Legado",
+    title: "Reflexionar",
+    desc: "Lecciones y testimonios",
+    icon: PenLine,
+    color: "from-emerald-400/20 to-teal-500/10",
+  },
+  {
+    id: "local",
+    category: "Entorno",
+    title: "Vive lo local",
+    desc: "Secretos de tu posición actual",
+    icon: MapPin,
+    color: "from-violet-400/20 to-fuchsia-500/10",
+    isNew: true,
   }
 ];
 
-export function PurposeSelectionStep() {
-  const { updateFormData, transitionTo } = useCreationContext();
+export default function PurposeSelectionStep() {
+  const { setValue, watch } = useFormContext();
+  const { onNext } = useCreationContext();
+  const currentPurpose = watch("purpose");
 
-  const handleSelect = (option: PurposeOption) => {
-    updateFormData({ 
-        purpose: option.purpose, 
-        style: option.style, 
-        agentName: option.agentName,
-        sources: [], // Limpieza de fuentes para iniciar un nuevo flujo limpio
-        creation_mode: 'standard'
-    });
-    transitionTo(option.nextState);
+  const handleSelection = (id: string) => {
+    setValue("purpose", id);
+    // Pequeño delay para que el usuario vea la selección antes de avanzar
+    setTimeout(() => onNext(), 200);
   };
 
   return (
-    <div className="flex flex-col h-full w-full max-w-2xl mx-auto items-center animate-in fade-in duration-700 px-3 md:px-0 overflow-hidden">
-      
-      {/* CABECERA COMPACTA */}
-      <div className="text-center mb-5 pt-2 flex-shrink-0">
-        <h2 className="text-xl md:text-2xl font-black tracking-tight text-foreground">
-          ¿Cuál es tu intención?
-        </h2>
-        <p className="text-[10px] md:text-xs text-muted-foreground mt-0.5 font-medium uppercase tracking-widest opacity-60">
+    <div className="flex flex-col h-full max-w-md mx-auto justify-between py-4">
+      {/* HEADER ESTRATÉGICO */}
+      <header className="space-y-1 text-center mb-6">
+        <motion.h1 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-4xl font-black tracking-tighter uppercase text-white"
+        >
+          ¿Cuál es tu <span className="text-primary italic">intención?</span>
+        </motion.h1>
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground opacity-60">
           Elige una rama para iniciar el escaneo de IA
         </p>
-      </div>
-      
-      {/* SECCIONES: Contenedor elástico */}
-      <div className="w-full space-y-4 pb-6 flex-grow min-h-0 overflow-y-auto custom-scrollbar-hide">
-        {SECTIONS.map((section) => (
-          <div key={section.label} className="space-y-2 animate-in slide-in-from-bottom-1 duration-500">
-            
-            {/* ETIQUETA DE CATEGORÍA */}
-            <div className="flex items-center gap-2 px-1">
-                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-primary/70">
-                    {section.label}
-                </span>
-                <div className="flex-1 h-px bg-primary/10" />
-            </div>
+      </header>
 
-            {/* GRID DE BOTONES */}
-            <div className="grid grid-cols-1 gap-2">
-              {section.options.map((option) => (
-                <button
-                  key={option.purpose}
-                  type="button"
-                  onClick={() => handleSelect(option)}
-                  className={cn(
-                    "group relative flex items-center text-left transition-all duration-300",
-                    "p-2.5 md:p-3 bg-white/5 hover:bg-white/10 backdrop-blur-md",
-                    "border border-white/5 hover:border-primary/30",
-                    "rounded-xl active:scale-[0.99] overflow-hidden"
-                  )}
-                >
-                  {/* Renderizado Condicional Seguro */}
-                  {option.isNew === true && (
-                    <div className="absolute top-0 right-0 px-1.5 py-0.5 bg-primary text-[7px] font-black text-white uppercase tracking-tighter rounded-bl-md shadow-sm">
-                        <Zap className="h-2 w-2 inline mr-0.5 fill-current" /> Nuevo
-                    </div>
-                  )}
+      {/* REJILLA DE OPCIONES (GRID 2x2 + 1 FULL) */}
+      <div className="flex-1 grid grid-cols-2 gap-3 content-start">
+        {PURPOSES.map((item, index) => {
+          const Icon = item.icon;
+          const isSelected = currentPurpose === item.id;
+          const isFullWidth = item.id === "local";
 
-                  {/* ICONO */}
-                  <div className="flex-shrink-0 mr-4">
-                    <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-background/40 border border-white/5 shadow-inner group-hover:bg-primary/20 group-hover:border-primary/30 transition-all duration-500">
-                      {option.icon}
-                    </div>
+          return (
+            <motion.button
+              key={item.id}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: index * 0.05 }}
+              onClick={() => handleSelection(item.id)}
+              className={cn(
+                "relative group flex flex-col p-4 rounded-3xl border text-left transition-all duration-300",
+                "bg-card/40 backdrop-blur-3xl",
+                isSelected 
+                  ? "border-primary shadow-[0_0_25px_rgba(var(--primary),0.2)]" 
+                  : "border-white/5 hover:border-white/20 shadow-none",
+                isFullWidth ? "col-span-2 mt-2" : "col-span-1"
+              )}
+            >
+              {/* Fondo Degradado sutil */}
+              <div className={cn(
+                "absolute inset-0 rounded-3xl opacity-20 transition-opacity group-hover:opacity-40",
+                item.color
+              )} />
+
+              <div className="relative z-10 flex flex-col h-full justify-between gap-3">
+                <header className="flex justify-between items-start">
+                  <div className={cn(
+                    "p-2 rounded-2xl bg-black/40 border border-white/5",
+                    isSelected && "text-primary border-primary/20"
+                  )}>
+                    <Icon size={20} strokeWidth={isSelected ? 2.5 : 1.5} />
                   </div>
+                  {item.isNew && (
+                    <Badge className="bg-primary text-[8px] font-black tracking-widest px-2 py-0">
+                      NUEVO
+                    </Badge>
+                  )}
+                </header>
 
-                  {/* TEXTO */}
-                  <div className="flex-grow min-w-0">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">
-                        {option.title}
-                      </h3>
-                      <ArrowRight className="h-3 w-3 text-primary/30 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />
-                    </div>
-                    <p className="text-[10px] text-muted-foreground leading-tight truncate opacity-80 group-hover:opacity-100">
-                      {option.description}
-                    </p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
+                <div className="space-y-0.5">
+                  <h3 className="font-black text-sm uppercase tracking-tight text-white">
+                    {item.title}
+                  </h3>
+                  <p className="text-[10px] leading-tight text-muted-foreground font-medium opacity-80">
+                    {item.desc}
+                  </p>
+                </div>
+              </div>
+
+              {/* Indicador de selección */}
+              {isSelected && (
+                <motion.div 
+                  layoutId="selection-glow"
+                  className="absolute -inset-[1px] rounded-3xl border border-primary z-0"
+                />
+              )}
+            </motion.button>
+          );
+        })}
       </div>
+
+      {/* FOOTER: METADATOS TÉCNICOS */}
+      <footer className="mt-6 flex justify-center">
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/5">
+          <Sparkles size={10} className="text-primary animate-pulse" />
+          <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/60">
+            Escaneo de IA Multimodal Activo
+          </span>
+        </div>
+      </footer>
     </div>
   );
 }
