@@ -1,5 +1,5 @@
 // components/create-flow/steps/purpose-selection-step.tsx
-// VERSIÓN: 2.6 (Master Standard - Anti-Overlap & High Density UI)
+// VERSIÓN: 2.7 (Master Standard - Direct Path Transition Fix)
 
 "use client";
 
@@ -16,6 +16,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import { useCreationContext } from "../shared/context";
+import { MASTER_FLOW_PATHS } from "../shared/config"; // Importación crítica para la lógica de saltos
 import { Badge } from "@/components/ui/badge";
 
 const CATEGORIES = [
@@ -43,20 +44,35 @@ const CATEGORIES = [
 
 export function PurposeSelectionStep() {
   const { setValue, watch } = useFormContext();
-  const { onNext } = useCreationContext();
+  const { transitionTo } = useCreationContext(); // Usamos transitionTo para un salto directo y seguro
   const currentPurpose = watch("purpose");
 
   const handleSelection = (id: string) => {
-    // Sincronización de estado
-    setValue("purpose", id, { shouldValidate: true, shouldDirty: true });
-    // Navegación inmediata
-    onNext();
+    // 1. Sincronizamos el formulario inmediatamente
+    setValue("purpose", id, { 
+      shouldValidate: true, 
+      shouldDirty: true,
+      shouldTouch: true 
+    });
+
+    // 2. Lógica de Transición Robusta:
+    // Obtenemos el mapa de ruta para este propósito específico desde la configuración maestra
+    const targetPath = MASTER_FLOW_PATHS[id];
+
+    // 3. Ejecutamos el salto al segundo paso de la rama (índice 1)
+    // El índice 0 siempre es 'SELECTING_PURPOSE'
+    if (targetPath && targetPath.length > 1) {
+      const nextStepInBranch = targetPath[1];
+      transitionTo(nextStepInBranch);
+    } else {
+      console.warn(`NicePod Error: No se encontró una ruta válida para el propósito: ${id}`);
+    }
   };
 
   return (
     <div className="flex flex-col h-full w-full max-w-md mx-auto px-4 py-2 justify-center overflow-hidden">
       
-      {/* HEADER: Ajustado para evitar solapamientos */}
+      {/* HEADER */}
       <header className="text-center mb-6 pt-2">
         <motion.h1 
           initial={{ opacity: 0, y: -10 }}
@@ -70,7 +86,7 @@ export function PurposeSelectionStep() {
         </p>
       </header>
 
-      {/* LISTADO DE OPCIONES: Alta densidad, sin scroll */}
+      {/* LISTADO DE OPCIONES */}
       <div className="flex-1 flex flex-col gap-5 justify-center">
         {CATEGORIES.map((cat, catIdx) => (
           <section key={cat.name} className="space-y-2">
@@ -100,7 +116,6 @@ export function PurposeSelectionStep() {
                     )}
                   >
                     <div className="flex items-center w-full gap-4 relative z-10">
-                      {/* Icono compacto */}
                       <div className={cn(
                         "p-2.5 rounded-lg transition-colors",
                         isSelected ? "bg-primary text-white" : item.color
@@ -108,7 +123,6 @@ export function PurposeSelectionStep() {
                         <Icon size={18} strokeWidth={2.5} />
                       </div>
 
-                      {/* Textos: Aumento de legibilidad */}
                       <div className="flex-1 text-left min-w-0">
                         <div className="flex items-center gap-2">
                           <h3 className="font-bold text-sm uppercase tracking-tight text-zinc-900 dark:text-white leading-none">
