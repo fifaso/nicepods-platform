@@ -1,75 +1,84 @@
 // app/profile/page.tsx
-// VERSIÓN: 5.1 (Curator Integration: Library Management)
+// VERSIÓN: 6.2 (Production Ready: Full Data Orchestration & Vault Logic)
 
-import { createClient } from '@/lib/supabase/server'; // [NOTA]: Ya no requiere cookies()
+import { createClient } from '@/lib/supabase/server'; 
 import { redirect } from 'next/navigation';
 import { 
   PrivateProfileDashboard, 
   type ProfileData,
   type TestimonialWithAuthor
-  // Asumo que tendrás que exportar un tipo para Colección en tu componente cliente
-  // o definirlo aquí si es nuevo.
 } from '@/components/profile-client-component';
 
 export default async function PrivateProfileRoute() {
   const supabase = createClient();
 
-  // 1. Auth Check Estricto
+  // 1. Verificación de identidad
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    redirect('/login?redirect=/profile');
-  }
+  if (!user) redirect('/login?redirect=/profile');
   
-  // 2. CARGA DE DATOS DE GESTIÓN (Ahora con Colecciones)
-  const [profileResponse, usageResponse, testimonialsResponse, collectionsResponse] = await Promise.all([
-    // A. Perfil Completo
+  // 2. Ejecución paralela de alta eficiencia (5 consultas concurrentes)
+  const [profileRes, usageRes, testimonialsRes, collectionsRes, vaultRes] = await Promise.all([
+    // A. Datos de perfil, rol y suscripción
     supabase
-      .from('profiles')
-      .select('*, subscriptions(*, plans(*))')
-      .eq('id', user.id)
-      .single<ProfileData>(),
+        .from('profiles')
+        .select('*, subscriptions(*, plans(*))')
+        .eq('id', user.id)
+        .single<ProfileData>(),
     
-    // B. Uso de Cuota
+    // B. Uso de cuota del mes actual
     supabase
-      .from('user_usage')
-      .select('podcasts_created_this_month')
+        .from('user_usage')
+        .select('podcasts_created_this_month')
+        .eq('user_id', user.id)
+        .single(),
+
+    // C. Reseñas recibidas (incluyendo las pendientes de moderar)
+    supabase
+        .from('profile_testimonials')
+        .select('*, author:author_user_id(full_name, avatar_url)')
+        .eq('profile_user_id', user.id)
+        .order('created_at', { ascending: false })
+        .returns<TestimonialWithAuthor[]>(),
+
+    // D. Colecciones propias (Públicas y Privadas)
+    supabase
+        .from('collections')
+        .select('*, collection_items(count)')
+        .eq('owner_id', user.id)
+        .order('updated_at', { ascending: false }),
+
+    // E. Bóveda de Valor: Podcasts terminados al 100% por este usuario
+    supabase
+      .from('playback_events')
+      .select('podcast_id, micro_pods(id, title, cover_image_url, duration_seconds)')
       .eq('user_id', user.id)
-      .single(),
-
-    // C. Testimonios
-    supabase
-      .from('profile_testimonials')
-      .select('*, author:author_user_id(full_name, avatar_url)')
-      .eq('profile_user_id', user.id)
-      .order('created_at', { ascending: false })
-      .returns<TestimonialWithAuthor[]>(),
-
-    // D. [NUEVO] Mis Colecciones (Curaduría)
-    // Traemos TODAS (públicas y privadas) para gestión
-    supabase
-      .from('collections')
-      .select('*, collection_items(count)')
-      .eq('owner_id', user.id)
-      .order('updated_at', { ascending: false })
+      .eq('event_type', 'completed_playback')
   ]);
 
-  const profile = profileResponse.data;
-  const podcastsCreated = usageResponse.data?.podcasts_created_this_month || 0;
-  const testimonials = testimonialsResponse.data || [];
-  const myCollections = collectionsResponse.data || []; // [NUEVO]
-
-  if (!profile) {
-    return <div className="p-8 text-center text-white">Error cargando perfil. Recarga la página.</div>;
+  if (!profileRes.data) {
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-black">
+            <p className="text-white font-black animate-pulse">SINCRONIZANDO PERFIL...</p>
+        </div>
+    );
   }
 
-  // 3. Renderizado del Dashboard
-  // Nota: Deberás actualizar <PrivateProfileDashboard> para aceptar 'collections'
+  // 3. Procesamiento de la Bóveda (Deduplicación de podcasts escuchados varias veces)
+  const finishedPodcastsRaw = (vaultRes.data || [])
+    .map(v => v.micro_pods as any)
+    .filter(Boolean);
+
+  const finishedPodcasts = Array.from(
+    new Map(finishedPodcastsRaw.map(p => [p.id, p])).values()
+  );
+
   return (
     <PrivateProfileDashboard 
-      profile={profile} 
-      podcastsCreatedThisMonth={podcastsCreated}
-      initialTestimonials={testimonials}
-      initialCollections={myCollections} // [INYECCIÓN DE DATOS]
+      profile={profileRes.data} 
+      podcastsCreatedThisMonth={usageRes.data?.podcasts_created_this_month || 0}
+      initialTestimonials={testimonialsRes.data || []}
+      initialCollections={collectionsRes.data as any || []}
+      finishedPodcasts={finishedPodcasts} 
     />
   );
 }
