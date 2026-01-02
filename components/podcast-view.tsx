@@ -1,5 +1,5 @@
 // components/podcast-view.tsx
-// VERSIÓN: 19.1 (Master Integrity - Public Access & Hybrid Auth Fix)
+// VERSIÓN: 19.2 (Master Integrity - Singleton Audio Sync & Public Auth Guard)
 
 "use client";
 
@@ -44,8 +44,8 @@ import {
   AlertCircle,
   MapPin,
   Map as MapIcon,
-  FileText, // [FIJO]: Importación faltante
-  FileJson  // [FIJO]: Importación faltante
+  FileText, // [SISTEMA]: Importado correctamente
+  FileJson  // [SISTEMA]: Importado correctamente
 } from 'lucide-react';
 import { CreationMetadata } from './creation-metadata';
 import { formatTime } from '@/lib/utils';
@@ -75,14 +75,24 @@ const ScriptEditor = dynamic(
 
 interface PodcastViewProps { 
   podcastData: PodcastWithProfile;
-  user: User | null; // [FIJO]: Ahora permite visitantes públicos (null)
+  user: User | null; // Soporta visitantes anónimos
   initialIsLiked: boolean;
   replies?: PodcastWithProfile[]; 
 }
 
 export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }: PodcastViewProps) {
   const { supabase } = useAuth();
-  const { playPodcast, logInteractionEvent, currentPodcast, currentTime, duration: currentDuration, seekTo } = useAudio();
+  const { 
+    playPodcast, 
+    logInteractionEvent, 
+    currentPodcast, 
+    currentTime, 
+    duration: currentDuration, 
+    seekTo,
+    isPlaying,
+    isLoading: audioLoading,
+    togglePlayPause
+  } = useAudio();
   const { toast } = useToast();
   
   // --- ESTADOS DE DATOS ---
@@ -105,6 +115,9 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
 
   // --- LÓGICA OFFLINE (PWA) ---
   const { isOfflineAvailable, isDownloading, downloadForOffline, removeFromOffline } = useOfflineAudio(localPodcastData);
+
+  // --- DETERMINAR SI ES EL AUDIO ACTIVO ---
+  const isCurrentActive = useMemo(() => currentPodcast?.id === localPodcastData.id, [currentPodcast?.id, localPodcastData.id]);
 
   // --- GESTIÓN DE HILOS (REMIXES) ---
   const pendingReplies = useMemo(() => 
@@ -138,7 +151,7 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
   // 2. DETECCIÓN DE PRIVILEGIOS
   useEffect(() => {
     const fetchRole = async () => {
-        if (!user || !supabase) return; // [FIJO]: Guardia para visitantes
+        if (!user || !supabase) return;
         const { data } = await supabase.from('profiles').select('role').eq('id', user.id).single();
         if (data?.role) setViewerRole(data.role);
     };
@@ -147,7 +160,7 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
 
   // 3. PERSISTENCIA DE QA (Escucha Completa)
   const markAsListened = async () => {
-    if (!supabase || !user || hasUpdatedDbRef.current) return; // [FIJO]: Solo dueños marcan QA
+    if (!supabase || !user || hasUpdatedDbRef.current) return;
     hasUpdatedDbRef.current = true;
     setHasListenedFully(true);
     localStorage.removeItem(`nicepod_progress_${localPodcastData.id}`);
@@ -155,9 +168,9 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
     await supabase.from('micro_pods').update({ reviewed_by_user: true }).eq('id', localPodcastData.id);
   };
 
-  // 4. MONITOR DE PROGRESO EN TIEMPO REAL
+  // 4. MONITOR DE PROGRESO EN TIEMPO REAL (Solo si es el activo)
   useEffect(() => {
-    if (hasListenedFully || currentPodcast?.id !== localPodcastData.id) return;
+    if (!isCurrentActive || hasListenedFully) return;
 
     if (currentDuration > 0) {
         const percent = (currentTime / currentDuration) * 100;
@@ -167,11 +180,11 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
             localStorage.setItem(`nicepod_progress_${localPodcastData.id}`, currentTime.toString());
         }
 
-        if (percent > 95 && user) { // [FIJO]: Solo procesar QA si hay usuario
+        if (percent > 95 && user) {
             markAsListened();
         }
     }
-  }, [currentTime, currentDuration, currentPodcast, localPodcastData.id, hasListenedFully, user]);
+  }, [currentTime, currentDuration, isCurrentActive, hasListenedFully, user]);
 
   // 5. SUBSCRIPCIÓN REALTIME
   useEffect(() => {
@@ -189,7 +202,7 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
       ).subscribe();
       
     return () => { supabase.removeChannel(channel); };
-  }, [supabase, localPodcastData.id, localPodcastData.audio_url, localPodcastData.cover_image_url]);
+  }, [supabase, localPodcastData.id]);
 
   // --- HELPERS DINÁMICOS ---
 
@@ -225,10 +238,15 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
   // --- ACCIONES DE USUARIO ---
 
   const handlePlaySmart = () => {
-      const savedTime = localStorage.getItem(`nicepod_progress_${localPodcastData.id}`);
-      playPodcast(localPodcastData);
-      if (savedTime && !hasListenedFully) {
-          setTimeout(() => seekTo(parseFloat(savedTime)), 500);
+      if (isCurrentActive) {
+          togglePlayPause();
+      } else {
+          const savedTime = localStorage.getItem(`nicepod_progress_${localPodcastData.id}`);
+          // Pasamos las respuestas publicadas como cola automática
+          playPodcast(localPodcastData, publishedReplies);
+          if (savedTime && !hasListenedFully) {
+              setTimeout(() => seekTo(parseFloat(savedTime)), 500);
+          }
       }
   };
 
@@ -275,8 +293,29 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
     setIsLiking(false);
   };
 
-  // Helper para Remix (Placeholder si no estaba definido)
-  const getCleanContextText = () => normalizedScriptText.substring(0, 200);
+  const handleSaveTags = async (newTags: string[]) => {
+      if (!supabase) return;
+      const { error } = await supabase.from('micro_pods').update({ user_tags: newTags }).eq('id', localPodcastData.id);
+      if (!error) {
+          setLocalPodcastData(prev => ({ ...prev, user_tags: newTags }));
+          toast({ title: "Conceptos actualizados" });
+      }
+  };
+
+  const handleGenerateAudio = async () => {
+    if (!supabase) return;
+    setIsGeneratingAudio(true);
+    // Invocamos el proceso de generación de audio vía Edge Function si el audio falta
+    const { error } = await supabase.functions.invoke('process-podcast-job', {
+        body: { podcast_id: localPodcastData.id, force_audio: true }
+    });
+    if (error) {
+        toast({ title: "Error", description: "No se pudo iniciar la síntesis.", variant: "destructive" });
+        setIsGeneratingAudio(false);
+    }
+  };
+
+  const getCleanContextText = () => normalizedScriptText.substring(0, 300);
 
   return (
     <>
@@ -343,8 +382,7 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
                     src={localPodcastData.cover_image_url} 
                     alt={localPodcastData.title} 
                     fill 
-                    style={{ objectFit: 'cover' }} 
-                    className="animate-fade-in group-hover:scale-105 transition-transform duration-1000" 
+                    className="animate-fade-in group-hover:scale-105 transition-transform duration-1000 object-cover" 
                     priority 
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
@@ -356,11 +394,23 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
                     <Badge variant="secondary" className="px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] bg-primary/10 text-primary border-primary/20">
                         {localPodcastData.status === 'pending_approval' ? 'MODO QA' : 'PUBLICADO'}
                     </Badge>
+                    {localPodcastData.creation_mode === 'remix' && (
+                        <Badge variant="outline" className="px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] border-indigo-500/30 text-indigo-400">
+                            REMIX
+                        </Badge>
+                    )}
                 </div>
                 
-                <CardTitle className="text-3xl md:text-5xl font-black leading-none tracking-tighter text-foreground mb-4">
-                    {localPodcastData.title}
-                </CardTitle>
+                <div className="flex justify-between items-start gap-4">
+                    <CardTitle className="text-3xl md:text-5xl font-black leading-none tracking-tighter text-foreground mb-4">
+                        {localPodcastData.title}
+                    </CardTitle>
+                    {isOwner && (
+                        <Button variant="ghost" size="icon" onClick={() => setIsEditingTags(true)} className="rounded-full hover:bg-white/10">
+                            <Pencil size={18} className="text-primary" />
+                        </Button>
+                    )}
+                </div>
                 
                 <CardDescription className="text-lg md:text-xl text-muted-foreground font-medium leading-snug">
                     {localPodcastData.description || "Un viaje sonoro a través del conocimiento."}
@@ -431,7 +481,7 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
                                             {reply.profiles?.full_name} • {formatTime(reply.duration_seconds || 0)}
                                         </p>
                                     </div>
-                                    <Button size="icon" variant="ghost" className="rounded-full h-10 w-10 bg-primary/5 text-primary" onClick={() => playPodcast(reply)}>
+                                    <Button size="icon" variant="ghost" className="rounded-full h-10 w-10 bg-primary/5 text-primary" onClick={() => playPodcast(reply, publishedReplies)}>
                                         <PlayCircle className="h-5 w-5" />
                                     </Button>
                                 </CardContent>
@@ -453,12 +503,27 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
               </CardHeader>
               <CardContent className="relative flex flex-col gap-6">
                 {localPodcastData.audio_url ? (
-                  <Button size="lg" className="w-full bg-white text-primary hover:bg-white/90 rounded-2xl h-16 text-lg font-black" onClick={handlePlaySmart}>
-                    ESCUCHAR AHORA
+                  <Button 
+                    size="lg" 
+                    className="w-full bg-white text-primary hover:bg-white/90 rounded-2xl h-16 text-lg font-black" 
+                    onClick={handlePlaySmart}
+                    disabled={audioLoading && !isCurrentActive}
+                  >
+                    {audioLoading && isCurrentActive ? (
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    ) : isCurrentActive && isPlaying ? (
+                        "PAUSAR VIAJE"
+                    ) : (
+                        "ESCUCHAR AHORA"
+                    )}
                   </Button>
                 ) : (
-                  <Button size="lg" className="w-full bg-white/20 text-white opacity-80 cursor-wait rounded-2xl h-16" disabled>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" /> PROCESANDO...
+                  <Button size="lg" className="w-full bg-white/20 text-white opacity-80 cursor-wait rounded-2xl h-16" disabled={isGeneratingAudio} onClick={handleGenerateAudio}>
+                    {isGeneratingAudio ? (
+                        <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> PROCESANDO...</>
+                    ) : (
+                        <><Mic className="mr-2 h-5 w-5" /> GENERAR AUDIO</>
+                    )}
                   </Button>
                 )}
                 
@@ -490,8 +555,9 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
                 <Card className="bg-indigo-600 text-white border-none shadow-xl rounded-[2rem] overflow-hidden relative">
                     <div className="absolute top-0 right-0 p-4 opacity-20"><Sparkles className="h-12 w-12" /></div>
                     <CardContent className="p-6 flex flex-col gap-4 relative">
-                        <h3 className="font-black text-lg uppercase mb-1">¿Tienes una postura?</h3>
-                        <Button onClick={() => setIsRemixOpen(true)} className="w-full bg-white text-indigo-600 hover:bg-white/90 rounded-xl h-12 font-bold">
+                        <h3 className="font-black text-lg uppercase mb-1 leading-tight">¿Tienes una postura?</h3>
+                        <p className="text-[10px] font-medium text-indigo-100 opacity-70">Únete a la conversación con un remix de voz.</p>
+                        <Button onClick={() => setIsRemixOpen(true)} className="w-full bg-white text-indigo-600 hover:bg-white/90 rounded-xl h-12 font-bold uppercase tracking-tighter">
                             <CornerUpRight className="mr-2 h-4 w-4" /> RESPONDER
                         </Button>
                     </CardContent>
@@ -512,8 +578,8 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
                         />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-[9px] font-black uppercase text-muted-foreground/60">Autor NicePod</p>
-                        <p className="font-bold truncate group-hover:text-primary">{localPodcastData.profiles?.full_name}</p>
+                        <p className="text-[9px] font-black uppercase text-muted-foreground/60 mb-0.5 tracking-widest">Autor NicePod</p>
+                        <p className="font-bold truncate group-hover:text-primary transition-colors">{localPodcastData.profiles?.full_name}</p>
                       </div>
                     </div>
                   </Link>
@@ -528,7 +594,7 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
                   <div className="flex items-center gap-3 p-4 bg-background/20 rounded-2xl">
                     <Calendar className="h-4 w-4 text-muted-foreground/60" />
                     <div>
-                        <p className="text-[9px] font-black uppercase text-muted-foreground/50">Fecha</p>
+                        <p className="text-[9px] font-black uppercase text-muted-foreground/50">Registro Temporal</p>
                         <p className="text-sm font-bold">{new Date(localPodcastData.created_at).toLocaleDateString()}</p>
                     </div>
                   </div>
@@ -537,9 +603,19 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
                     <div className="flex items-center gap-3 p-4 bg-background/20 rounded-2xl">
                       <Clock className="h-4 w-4 text-muted-foreground/60" />
                       <div>
-                        <p className="text-[9px] font-black uppercase text-muted-foreground/50">Duración</p>
+                        <p className="text-[9px] font-black uppercase text-muted-foreground/50">Dimensión Sonora</p>
                         <p className="text-sm font-bold">{formatTime(localPodcastData.duration_seconds)}</p>
                       </div>
+                    </div>
+                  )}
+
+                  {localPodcastData.place_name && (
+                    <div className="flex items-center gap-3 p-4 bg-primary/5 rounded-2xl border border-primary/10">
+                        <MapPin className="h-4 w-4 text-primary" />
+                        <div className="min-w-0">
+                            <p className="text-[9px] font-black uppercase text-primary/60 tracking-widest">Ubicación</p>
+                            <p className="text-sm font-bold text-foreground truncate">{localPodcastData.place_name}</p>
+                        </div>
                     </div>
                   )}
                 </div>
@@ -563,7 +639,7 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
           onOpenChange={setIsEditingTags} 
           suggestedTags={localPodcastData.ai_tags || []} 
           publishedTags={localPodcastData.user_tags || []} 
-          onSave={() => {}} 
+          onSave={handleSaveTags} 
         />
       )}
 
