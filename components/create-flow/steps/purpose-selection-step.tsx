@@ -1,5 +1,5 @@
 // components/create-flow/steps/purpose-selection-step.tsx
-// VERSIÓN: 2.3 (Master Standard - Categorized Architecture & Path Sync)
+// VERSIÓN: 2.4 (Aurora Sharp - High Density & Zero Scroll)
 
 "use client";
 
@@ -11,8 +11,7 @@ import {
   MessageCircleQuestion, 
   PenLine, 
   MapPin, 
-  Zap,
-  Sparkles
+  ChevronRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -20,59 +19,27 @@ import { useCreationContext } from "../shared/context";
 import { Badge } from "@/components/ui/badge";
 
 /**
- * DEFINICIÓN DE PROPÓSITOS CATEGORIZADOS
- * Los IDs coinciden estrictamente con shared/config.ts (MASTER_FLOW_PATHS)
+ * CONFIGURACIÓN DE RUTAS OFICIALES (Sincronizadas con shared/config.ts)
  */
 const CATEGORIES = [
   {
     name: "Creatividad",
     items: [
-      {
-        id: "learn",
-        title: "Aprender",
-        desc: "Desglosa conceptos.",
-        icon: Lightbulb,
-        color: "from-amber-400/20 to-orange-500/10",
-      },
-      {
-        id: "explore",
-        title: "Explorar",
-        desc: "Conecta ideas.",
-        icon: Link2,
-        color: "from-blue-400/20 to-indigo-500/10",
-      },
-      {
-        id: "answer", // Sincronizado con config.ts
-        title: "Preguntar",
-        desc: "Respuestas IA.",
-        icon: MessageCircleQuestion,
-        color: "from-rose-400/20 to-red-500/10",
-      },
+      { id: "learn", title: "Aprender", desc: "Desglosa conceptos complejos.", icon: Lightbulb, color: "from-amber-500/20" },
+      { id: "explore", title: "Explorar", desc: "Conecta dos ideas distintas.", icon: Link2, color: "from-blue-500/20" },
+      { id: "answer", title: "Preguntar", desc: "Respuestas directas de la IA.", icon: MessageCircleQuestion, color: "from-rose-500/20" },
     ]
   },
   {
     name: "Legado",
     items: [
-      {
-        id: "reflect",
-        title: "Reflexionar",
-        desc: "Lecciones y vida.",
-        icon: PenLine,
-        color: "from-emerald-400/20 to-teal-500/10",
-      }
+      { id: "reflect", title: "Reflexionar", desc: "Lecciones y testimonios de vida.", icon: PenLine, color: "from-emerald-500/20" }
     ]
   },
   {
     name: "Entorno",
     items: [
-      {
-        id: "local_soul", // Sincronizado con config.ts
-        title: "Vive lo local",
-        desc: "Secretos de tu ubicación actual.",
-        icon: MapPin,
-        color: "from-violet-500/30 to-fuchsia-600/10",
-        isSituational: true,
-      }
+      { id: "local_soul", title: "Vive lo local", desc: "Secretos de tu ubicación actual.", icon: MapPin, color: "from-violet-600/30", isNew: true }
     ]
   }
 ];
@@ -83,45 +50,42 @@ export function PurposeSelectionStep() {
   const currentPurpose = watch("purpose");
 
   const handleSelection = (id: string) => {
-    // 1. Inyectamos el valor oficial en el Formulario (RHF)
-    setValue("purpose", id, { shouldValidate: true });
-    
-    // 2. Pequeña vibración visual/delay para feedback antes de avanzar
-    setTimeout(() => onNext(), 300);
+    // Sincronización inmediata con el estado del formulario
+    setValue("purpose", id, { shouldValidate: true, shouldDirty: true });
+    // Disparo de navegación
+    onNext();
   };
 
   return (
-    <div className="flex flex-col h-full max-w-lg mx-auto py-4 px-2 justify-between">
+    <div className="flex flex-col h-full max-w-lg mx-auto py-2 px-4 overflow-hidden">
       
-      {/* HEADER DINÁMICO */}
-      <header className="space-y-1 text-center mb-6">
+      {/* HEADER COMPACTO */}
+      <header className="text-center mt-4 mb-8">
         <motion.h1 
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-4xl font-black tracking-tighter uppercase text-white leading-none"
+          className="text-4xl md:text-5xl font-black tracking-tighter uppercase text-white leading-none mb-2"
         >
           ¿Cuál es tu <span className="text-primary italic">intención?</span>
         </motion.h1>
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">
-          Selecciona una rama para el escaneo de IA
+        <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/30">
+          Inicia el escaneo cognitivo de IA
         </p>
       </header>
 
-      {/* RENDERIZADO POR CATEGORÍAS */}
-      <div className="flex-1 space-y-6 overflow-y-auto custom-scrollbar-hide">
+      {/* STACK DE OPCIONES (Sin Scroll) */}
+      <div className="flex-1 flex flex-col justify-center gap-6 mb-8">
         {CATEGORIES.map((cat, catIdx) => (
-          <div key={cat.name} className="space-y-3">
-            <div className="flex items-center gap-3 px-1">
-              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">
+          <div key={cat.name} className="space-y-2">
+            {/* Divisor de Categoría sutil */}
+            <div className="flex items-center gap-3 mb-1 opactiy-50">
+              <div className="h-[1px] w-4 bg-primary/40" />
+              <span className="text-[9px] font-black uppercase tracking-[0.4em] text-primary/80">
                 {cat.name}
               </span>
-              <div className="h-[1px] flex-1 bg-white/5" />
             </div>
 
-            <div className={cn(
-              "grid gap-3",
-              cat.items.length > 1 ? "grid-cols-2" : "grid-cols-1"
-            )}>
+            <div className="flex flex-col gap-2">
               {cat.items.map((item, idx) => {
                 const Icon = item.icon;
                 const isSelected = currentPurpose === item.id;
@@ -129,48 +93,55 @@ export function PurposeSelectionStep() {
                 return (
                   <motion.button
                     key={item.id}
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: (catIdx * 0.1) + (idx * 0.05) }}
                     onClick={() => handleSelection(item.id)}
                     className={cn(
-                      "relative group flex flex-col p-4 rounded-[1.5rem] border transition-all duration-300 text-left",
-                      "bg-zinc-900/40 backdrop-blur-xl",
+                      "relative group w-full flex items-center p-3 rounded-xl border transition-all duration-300",
+                      "bg-zinc-900/60 backdrop-blur-xl overflow-hidden",
                       isSelected 
-                        ? "border-primary bg-primary/5 shadow-[0_10px_30px_rgba(var(--primary),0.15)]" 
-                        : "border-white/10 hover:border-white/20"
+                        ? "border-primary bg-primary/10 shadow-[0_0_20px_rgba(var(--primary),0.2)]" 
+                        : "border-white/5 hover:border-white/10"
                     )}
                   >
-                    {/* Glow Interno */}
+                    {/* Gradiente de fondo rectangular */}
                     <div className={cn(
-                      "absolute inset-0 bg-gradient-to-br opacity-0 transition-opacity duration-500 rounded-[1.5rem]",
+                      "absolute inset-0 bg-gradient-to-r to-transparent opacity-0 transition-opacity duration-500",
                       item.color,
                       isSelected ? "opacity-100" : "group-hover:opacity-40"
                     )} />
 
-                    <div className="relative z-10 flex flex-col gap-3">
-                      <div className="flex justify-between items-start">
-                        <div className={cn(
-                          "p-2 rounded-xl transition-colors",
-                          isSelected ? "bg-primary text-white" : "bg-white/5 text-white/60"
-                        )}>
-                          <Icon size={18} />
-                        </div>
-                        {item.isSituational && (
-                          <Badge className="bg-primary/20 text-primary border-primary/20 text-[8px] font-black tracking-tighter py-0">
-                            SITUACIONAL
-                          </Badge>
-                        )}
+                    <div className="relative z-10 flex items-center w-full gap-4">
+                      {/* Icono Rectangular */}
+                      <div className={cn(
+                        "p-3 rounded-lg transition-all shadow-inner",
+                        isSelected ? "bg-primary text-white scale-110" : "bg-white/5 text-white/40 group-hover:text-white"
+                      )}>
+                        <Icon size={20} strokeWidth={isSelected ? 2.5 : 2} />
                       </div>
 
-                      <div className="space-y-0.5">
-                        <h3 className="font-bold text-sm uppercase tracking-tight text-white leading-none">
-                          {item.title}
-                        </h3>
-                        <p className="text-[10px] leading-tight text-white/40 font-medium truncate">
+                      {/* Textos a la derecha */}
+                      <div className="flex-1 text-left">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-black text-sm uppercase tracking-tight text-white">
+                            {item.title}
+                          </h3>
+                          {item.isNew && (
+                            <Badge className="bg-primary/20 text-primary border-primary/20 text-[7px] font-black tracking-tighter h-3 px-1 animate-pulse">
+                              NUEVO
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-white/40 font-medium leading-none mt-0.5">
                           {item.desc}
                         </p>
                       </div>
+
+                      <ChevronRight className={cn(
+                        "text-white/10 transition-all",
+                        isSelected ? "opacity-100 text-primary translate-x-0" : "opacity-0 -translate-x-2 group-hover:opacity-100"
+                      )} size={16} />
                     </div>
                   </motion.button>
                 );
@@ -180,15 +151,6 @@ export function PurposeSelectionStep() {
         ))}
       </div>
 
-      {/* FOOTER TÉCNICO */}
-      <footer className="mt-6 flex justify-center">
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.02] border border-white/5">
-          <Sparkles size={10} className="text-primary animate-pulse" />
-          <span className="text-[9px] font-black uppercase tracking-widest text-white/20">
-            Engine v2.5 Active
-          </span>
-        </div>
-      </footer>
     </div>
   );
 }
