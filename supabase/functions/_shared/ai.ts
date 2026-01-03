@@ -1,9 +1,9 @@
 // VERSIÓN: 6.3 (Strict Typing Fix)
 
 export const AI_MODELS = {
-    FLASH: "gemini-2.0-flash", 
-    PRO: "gemini-2.5-pro", 
-    LATEST: "gemini-2.0-flash",
+    FLASH: "gemini-3.0-flash", 
+    PRO: "gemini-3.0-flash", 
+    LATEST: "gemini-3.0-flash",
     EMBEDDING: "text-embedding-004"
 };
 
