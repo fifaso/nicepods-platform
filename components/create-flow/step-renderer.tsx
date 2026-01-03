@@ -1,5 +1,5 @@
 // components/create-flow/step-renderer.tsx
-// VERSIÓN: 1.5 (Sovereign Architecture - Clean Transition Mapping)
+// VERSIÓN: 1.6 (Sovereign Architecture - Path Resolution Fix)
 
 "use client";
 
@@ -8,13 +8,14 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useCreationContext } from "./shared/context";
 import { useFormContext } from "react-hook-form";
 
+// IMPORTACIONES QUIRÚRGICAS - RUTAS CORREGIDAS
 import { PurposeSelectionStep } from "./steps/purpose-selection-step";
 import { LearnSubStep } from "./steps/learn-sub-step";
 import { SoloTalkStep } from "./steps/solo-talk-step";
 import { DetailsStep } from "./steps/details-step";
 import { FinalStep } from "./steps/final-step";
 import { ToneSelectionStep } from "./steps/tone-selection-step";
-import { DraftGenerationLoader } from "./draft-generation-loader";
+import { DraftGenerationLoader } from "./steps/draft-generation-loader"; // <--- RUTA CORREGIDA
 
 import dynamic from 'next/dynamic';
 const ScriptEditorStep = dynamic(
@@ -33,11 +34,7 @@ export function StepRenderer({ narrativeOptions }: { narrativeOptions: any[] }) 
       case 'SOLO_TALK_INPUT':        return <SoloTalkStep />;
       case 'DETAILS_STEP':           return <DetailsStep />;
       case 'TONE_SELECTION':         return <ToneSelectionStep />;
-      
-      // [CLAVE]: El Loader se muestra como una página COMPLETA, eliminando el híbrido
-      case 'DRAFT_GENERATION_LOADER': 
-        return <DraftGenerationLoader formData={getValues() as any} />;
-      
+      case 'DRAFT_GENERATION_LOADER': return <DraftGenerationLoader formData={getValues() as any} />;
       case 'SCRIPT_EDITING':         return <ScriptEditorStep />;
       case 'FINAL_STEP':             return <FinalStep />;
       default:                       return <PurposeSelectionStep />;
@@ -55,7 +52,7 @@ export function StepRenderer({ narrativeOptions }: { narrativeOptions: any[] }) 
           transition={{ duration: 0.5, ease: "easeInOut" }}
           className="flex-1 flex flex-col min-h-0 h-full"
         >
-          <div className="flex-1 overflow-y-auto custom-scrollbar-hide">
+          <div className="flex-1 overflow-y-auto custom-scrollbar-hide px-4 md:px-0">
             {stepContent}
           </div>
         </motion.div>
