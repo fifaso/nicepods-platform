@@ -1,184 +1,149 @@
 // components/create-flow/draft-generation-loader.tsx
-// VERSIÓN: 2.0 (Calibrated Timing: Weighted Phases Algorithm)
+// VERSIÓN: 3.0 (Aurora Standard - High-Contrast Cognitive Loader)
 
 "use client";
 
 import { useEffect, useState, useRef } from "react";
 import { PodcastCreationData } from "@/lib/validation/podcast-schema";
 import { motion, AnimatePresence } from "framer-motion";
-import { BrainCircuit, Globe, PenTool, Sparkles, LibraryBig } from "lucide-react";
+import { BrainCircuit, Globe, PenTool, Sparkles, LibraryBig, Cpu } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 
 interface DraftLoaderProps {
   formData: PodcastCreationData;
 }
 
-// Definición de las Fases con Tiempos Reales Calibrados
 const PHASES = [
   {
     id: 0,
-    title: "Investigación Global",
-    desc: (topic: string) => `Analizando tendencias y datos sobre "${topic}"...`,
-    icon: <Globe className="h-12 w-12 text-blue-500" />,
-    color: "from-blue-500/20 to-blue-500/5",
-    targetProgress: 35, // Llega hasta el 35%
-    durationMs: 9000,   // En 7 segundos (Búsqueda suele ser rápida)
+    title: "Investigación",
+    desc: (topic: string) => `Extrayendo datos de resonancia sobre "${topic}"...`,
+    icon: Globe,
+    color: "text-blue-400",
+    bg: "from-blue-500/20 to-transparent",
+    targetProgress: 25,
+    durationMs: 8000,
   },
   {
     id: 1,
-    title: "Alineación de Agente",
-    desc: (agent: string) => `Configurando la personalidad del ${agent}...`,
-    icon: <BrainCircuit className="h-12 w-12 text-purple-500" />,
-    color: "from-purple-500/20 to-purple-500/5",
-    targetProgress: 50, // Salta al 50%
-    durationMs: 5000,   // Muy rápido (Configuración interna)
+    title: "Alineación",
+    desc: (agent: string) => `Sincronizando el tono creativo con el ${agent}...`,
+    icon: BrainCircuit,
+    color: "text-purple-400",
+    bg: "from-purple-500/20 to-transparent",
+    targetProgress: 45,
+    durationMs: 5000,
   },
   {
     id: 2,
-    title: "Arquitectura Narrativa",
-    desc: () => "Organizando los puntos clave y el arco dramático...",
-    icon: <LibraryBig className="h-12 w-12 text-amber-500" />,
-    color: "from-amber-500/20 to-amber-500/5",
-    targetProgress: 65, // Llega al 65%
-    durationMs: 9000,   // Tiempo de pensamiento
+    title: "Estructura",
+    desc: () => "Arquitecturando el arco narrativo y puntos de valor...",
+    icon: LibraryBig,
+    color: "text-amber-400",
+    bg: "from-amber-500/20 to-transparent",
+    targetProgress: 70,
+    durationMs: 10000,
   },
   {
     id: 3,
-    title: "Redacción del Guion",
-    desc: () => "Generando texto, citando fuentes y puliendo el estilo...",
-    icon: <PenTool className="h-12 w-12 text-green-500" />,
-    color: "from-green-500/20 to-green-500/5",
-    targetProgress: 98, // Llega casi al final
-    durationMs: 22000,  // La parte más larga (Generación de tokens)
+    title: "Redacción",
+    desc: () => "Generando borrador final y validando bibliografía...",
+    icon: PenTool,
+    color: "text-green-400",
+    bg: "from-green-500/20 to-transparent",
+    targetProgress: 98,
+    durationMs: 20000,
   }
 ];
 
 export function DraftGenerationLoader({ formData }: DraftLoaderProps) {
   const [progress, setProgress] = useState(0);
   const [currentPhaseIndex, setCurrentPhaseIndex] = useState(0);
-  
-  // Referencias para el bucle de animación
+  const rafRef = useRef<number>();
   const startTimeRef = useRef<number>(Date.now());
   const startProgressRef = useRef<number>(0);
-  const rafRef = useRef<number>();
 
-  const getMainTopic = () => {
-    switch (formData.purpose) {
-      case 'learn': return formData.solo_topic || "tu tema";
-      case 'inspire': return formData.archetype_topic || "la idea";
-      case 'explore': return "la conexión de temas";
-      case 'answer': return "la respuesta";
-      default: return "tu idea";
-    }
-  };
-
-  const getAgentName = () => {
-    return formData.purpose === 'inspire' ? formData.selectedArchetype : formData.selectedTone || "Narrador";
-  };
+  const topic = formData.solo_topic || "tu idea";
+  const agent = formData.agentName || "Especialista NicePod";
 
   useEffect(() => {
     const activePhase = PHASES[currentPhaseIndex];
-    
-    // Resetear tiempos al cambiar de fase
     startTimeRef.current = Date.now();
     startProgressRef.current = progress;
 
     const animate = () => {
-      const now = Date.now();
-      const elapsed = now - startTimeRef.current;
-      const phaseDuration = activePhase.durationMs;
+      const elapsed = Date.now() - startTimeRef.current;
+      const percentComplete = Math.min(elapsed / activePhase.durationMs, 1);
+      const range = activePhase.targetProgress - startProgressRef.current;
       
-      // Cálculo lineal dentro de la fase actual
-      const percentComplete = Math.min(elapsed / phaseDuration, 1);
-      
-      // Interpolación: Desde donde estábamos -> Hasta el objetivo de la fase
-      const progressRange = activePhase.targetProgress - startProgressRef.current;
-      const currentCalculatedProgress = startProgressRef.current + (progressRange * percentComplete);
-
-      setProgress(currentCalculatedProgress);
+      setProgress(startProgressRef.current + (range * percentComplete));
 
       if (percentComplete < 1) {
-        // Si no hemos terminado la fase, seguir animando
         rafRef.current = requestAnimationFrame(animate);
-      } else {
-        // Si la fase terminó, pasar a la siguiente (si existe)
-        if (currentPhaseIndex < PHASES.length - 1) {
-          setCurrentPhaseIndex(prev => prev + 1);
-        }
-        // Si es la última fase, se queda en 98% esperando a la API
+      } else if (currentPhaseIndex < PHASES.length - 1) {
+        setCurrentPhaseIndex(prev => prev + 1);
       }
     };
 
     rafRef.current = requestAnimationFrame(animate);
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+  }, [currentPhaseIndex]);
 
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
-  }, [currentPhaseIndex]); // Dependencia: Se reinicia el efecto cada vez que cambia la fase
-
-  const phaseData = PHASES[currentPhaseIndex];
+  const phase = PHASES[currentPhaseIndex];
+  const Icon = phase.icon;
 
   return (
-    <div className="flex flex-col items-center justify-center h-full w-full p-6 text-center animate-in fade-in duration-700 relative overflow-hidden">
-      
-      {/* Fondo Ambiental Dinámico */}
-      <div className={`absolute inset-0 bg-gradient-radial ${phaseData.color} opacity-40 blur-3xl transition-colors duration-1000 ease-in-out`} />
+    <div className="flex flex-col items-center justify-center h-full w-full max-w-lg mx-auto p-4 text-center overflow-hidden">
+      <div className={cn(
+        "absolute inset-0 bg-gradient-radial opacity-30 blur-[120px] transition-colors duration-1000 ease-in-out pointer-events-none",
+        phase.bg
+      )} />
 
-      <div className="relative z-10 flex flex-col items-center max-w-md w-full">
-        
-        {/* Icono Pulsante */}
+      <div className="relative z-10 w-full flex flex-col items-center">
         <AnimatePresence mode="wait">
           <motion.div
-            key={phaseData.id}
-            initial={{ scale: 0.8, opacity: 0, y: 10 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.8, opacity: 0, y: -10 }}
-            transition={{ type: "spring", stiffness: 200, damping: 20 }}
-            className="mb-8 p-6 bg-white/60 dark:bg-black/30 backdrop-blur-xl rounded-full border border-white/20 shadow-[0_0_30px_rgba(255,255,255,0.1)] ring-1 ring-white/30"
+            key={phase.id}
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 1.1, opacity: 0 }}
+            className="mb-12 relative"
           >
-            {phaseData.icon}
+            <div className="absolute -inset-4 bg-white/5 rounded-full blur-xl animate-pulse" />
+            <div className="relative p-8 bg-zinc-900/40 backdrop-blur-3xl rounded-[2.5rem] border border-white/10 shadow-2xl ring-1 ring-white/10">
+              <Icon className={cn("h-16 w-16 transition-colors duration-500", phase.color)} strokeWidth={1.5} />
+            </div>
+            <div className="absolute -top-2 -right-2 bg-primary rounded-full p-2 shadow-lg animate-bounce">
+              <Cpu className="h-4 w-4 text-white" />
+            </div>
           </motion.div>
         </AnimatePresence>
 
-        {/* Textos con Transición Suave */}
-        <div className="space-y-3 mb-10 min-h-[6rem]">
-            <h3 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground transition-all duration-500">
-              {phaseData.title}
-            </h3>
-            <p className="text-sm md:text-base text-muted-foreground font-medium leading-relaxed px-4 transition-all duration-500 animate-pulse">
-              {typeof phaseData.desc === 'function' 
-                ? phaseData.desc(phaseData.id === 0 ? getMainTopic() : getAgentName()!) 
-                : phaseData.desc}
-            </p>
+        <div className="space-y-3 mb-12 min-h-[120px]">
+          <h2 className="text-4xl font-black uppercase tracking-tighter text-white leading-none">
+            {phase.title}
+          </h2>
+          <p className="text-base text-muted-foreground font-medium max-w-sm mx-auto leading-relaxed">
+            {typeof phase.desc === 'function' ? phase.desc(phase.id === 0 ? topic : agent) : phase.desc}
+          </p>
         </div>
 
-        {/* Barra de Progreso de Alta Precisión */}
-        <div className="w-full space-y-2">
-            <Progress 
-                value={progress} 
-                className="h-2 w-full transition-all duration-100 ease-linear" // ease-linear para fluidez controlada por JS
+        <div className="w-full max-w-xs space-y-4">
+          <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
+            <motion.div 
+              className="h-full bg-primary" 
+              animate={{ width: `${progress}%` }}
+              transition={{ duration: 0.5, ease: "linear" }}
             />
-            <div className="flex justify-between text-[10px] text-muted-foreground font-mono uppercase tracking-widest px-1">
-                <span className={progress > 90 ? "text-primary font-bold transition-colors" : ""}>
-                    {progress > 95 ? "Finalizando..." : "Procesando"}
-                </span>
-                <span>{Math.round(progress)}%</span>
-            </div>
+          </div>
+          <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-[0.2em] text-white/30">
+            <span className="flex items-center gap-2">
+               <Sparkles size={10} className="animate-pulse text-primary" />
+               IA Generativa Activa
+            </span>
+            <span className="text-white/60">{Math.round(progress)}%</span>
+          </div>
         </div>
-
-        {/* Tip Flotante */}
-        <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 2, duration: 1 }}
-            className="mt-12 p-3 px-5 bg-secondary/40 rounded-full border border-border/50 backdrop-blur-sm"
-        >
-            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground/90">
-                <Sparkles className="h-3.5 w-3.5 text-amber-400" />
-                <span className="font-medium">Estamos creando algo único para ti</span>
-            </div>
-        </motion.div>
-
       </div>
     </div>
   );
