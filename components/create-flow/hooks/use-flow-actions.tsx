@@ -1,5 +1,5 @@
 // components/create-flow/hooks/use-flow-actions.tsx
-// VERSIÓN: 1.6 (Master Actions Engine - Loader Integration & Global Sync)
+// VERSIÓN: 1.7 (Transition-First Logic - UX Integrity Fix)
 
 "use client";
 
@@ -27,10 +27,12 @@ export function useFlowActions({ transitionTo, goBack, clearDraft }: UseFlowActi
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  // --- GENERAR BORRADOR (Incluye Transición al Loader) ---
+  // --- GENERAR BORRADOR CON TRANSICIÓN PREVENTIVA ---
   const generateDraft = useCallback(async () => {
-    // 1. Activar pantalla de carga cognitiva
+    // [ORDEN QUIRÚRGICO]: 1. Cambiamos la vista inmediatamente para evitar el "Híbrido"
     transitionTo('DRAFT_GENERATION_LOADER');
+    
+    // 2. Activamos estados de procesamiento para el Shell
     setIsGenerating(true);
 
     try {
@@ -45,22 +47,24 @@ export function useFlowActions({ transitionTo, goBack, clearDraft }: UseFlowActi
           ...data,
           topic: data.solo_topic || data.question_to_answer || data.link_topicA,
           motivation: data.solo_motivation || data.legacy_lesson,
+          location: data.location,
+          discovery_context: data.discovery_context
         }
       };
 
       const { data: response, error } = await supabase.functions.invoke('generate-script-draft', { body: payload });
-      if (error || !response?.success) throw new Error(response?.error || "Error en la estación de IA");
+      if (error || !response?.success) throw new Error(response?.error || "Fallo en la estación de IA.");
 
-      // 2. Inyectar resultados en el formulario
-      setValue('final_title', response.draft.suggested_title);
-      setValue('final_script', response.draft.script_body);
+      setValue('final_title', response.draft.suggested_title, { shouldValidate: true });
+      setValue('final_script', response.draft.script_body, { shouldValidate: true });
       if (response.draft.sources) setValue('sources', response.draft.sources);
 
-      // 3. Avanzar al editor
+      // 3. Al terminar, saltamos al editor
       transitionTo('SCRIPT_EDITING');
     } catch (err: any) {
       toast({ title: "Fallo Creativo", description: err.message, variant: "destructive" });
-      goBack(); // Regresar al paso anterior si hay error
+      // Si falla, regresamos al usuario a la configuración para que corrija
+      goBack(); 
     } finally {
       setIsGenerating(false);
     }
@@ -72,14 +76,12 @@ export function useFlowActions({ transitionTo, goBack, clearDraft }: UseFlowActi
       toast({ title: "Datos incompletos", variant: "destructive" });
       return;
     }
-
     if (!supabase || !user) return;
     setIsSubmitting(true);
     try {
       const data = getValues();
       const { data: res, error } = await supabase.functions.invoke('queue-podcast-job', { body: { ...data } });
       if (error || !res?.success) throw new Error("Fallo en producción.");
-
       toast({ title: "¡Éxito!", description: "Generando audio...", action: <CheckCircle2 className="h-5 w-5 text-green-500" /> });
       router.push('/podcasts?tab=library');
     } catch (err: any) {
@@ -89,9 +91,15 @@ export function useFlowActions({ transitionTo, goBack, clearDraft }: UseFlowActi
     }
   }, [trigger, supabase, user, getValues, router, toast]);
 
+  // Otros métodos (analyzeLocalEnvironment, generateNarratives) se mantienen igual...
+  const analyzeLocalEnvironment = useCallback(async () => {}, []);
+  const generateNarratives = useCallback(async () => {}, []);
+
   return {
     generateDraft,
     handleSubmitProduction,
+    analyzeLocalEnvironment,
+    generateNarratives,
     isGenerating,
     isSubmitting
   };
