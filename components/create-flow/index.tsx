@@ -1,15 +1,15 @@
 // components/create-flow/index.tsx
-// VERSIÓN: 27.0 (Master Sovereign - Context Injection Fix)
+// VERSIÓN: 28.0 (Master Sovereign - Unabbreviated Production Shield)
 
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { FormProvider, useForm, useFormContext } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PodcastCreationSchema, PodcastCreationData } from "@/lib/validation/podcast-schema";
 import { useToast } from "@/hooks/use-toast";
 
-// Imports Modulares
+// Imports de Arquitectura Modular
 import { CreationContext } from "./shared/context";
 import { useFlowNavigation } from "./hooks/use-flow-navigation";
 import { useFlowActions } from "./hooks/use-flow-actions";
@@ -19,60 +19,112 @@ import { MASTER_FLOW_PATHS } from "./shared/config";
 
 /**
  * InnerOrchestrator
- * Componente interno que YA TIENE ACCESO al FormProvider.
- * Aquí es seguro usar useFlowActions y useFormContext.
+ * Componente de lógica interna. Consume el FormContext de su padre y gestiona
+ * la Máquina de Estados Finitos (FSM) del flujo creativo.
  */
 function InnerOrchestrator() {
   const { toast } = useToast();
   const { watch, trigger, setValue } = useFormContext<PodcastCreationData>();
+  
   const currentPurpose = watch("purpose");
   const [narrativeOptions, setNarrativeOptions] = useState<any[]>([]);
 
-  // 1. Navegación (No depende de RHF, pero la necesitamos aquí)
+  // 1. Inicialización de Motores (Navegación y Acciones IA)
   const navigation = useFlowNavigation({ currentPurpose });
-
-  // 2. Acciones (AHORA SÍ TIENE CONTEXTO DE RHF)
   const actions = useFlowActions({ 
     transitionTo: navigation.transitionTo, 
-    clearDraft: () => {} // Reset manejado por el padre si es necesario o via window location
+    clearDraft: () => {} 
   });
 
+  /**
+   * handleValidatedNext
+   * Puerta de enlace crítica. Valida quirúrgicamente los campos del paso actual
+   * mediante el esquema Zod antes de permitir el tránsito al siguiente estado.
+   */
   const handleValidatedNext = async () => {
     let fields: any[] = [];
     const state = navigation.currentFlowState;
 
-    if (state === 'SOLO_TALK_INPUT') fields = ['solo_topic', 'solo_motivation'];
-    if (state === 'ARCHETYPE_SELECTION') fields = ['selectedArchetype'];
-    if (state === 'DETAILS_STEP') fields = ['duration', 'narrativeDepth'];
-    if (state === 'TONE_SELECTION') fields = ['agentName'];
-    if (state === 'LEGACY_INPUT') fields = ['legacy_lesson'];
-    if (state === 'QUESTION_INPUT') fields = ['question_to_answer'];
+    // MAPEO DE INTEGRIDAD POR ESTADO
+    switch (state) {
+      case 'SOLO_TALK_INPUT':
+        fields = ['solo_topic', 'solo_motivation'];
+        break;
+      case 'LEARN_SUB_SELECTION':
+        fields = ['agentName', 'style'];
+        break;
+      case 'ARCHETYPE_SELECTION':
+        fields = ['selectedArchetype'];
+        break;
+      case 'ARCHETYPE_GOAL':
+        fields = ['archetype_topic', 'archetype_goal'];
+        break;
+      case 'LINK_POINTS_INPUT':
+        fields = ['link_topicA', 'link_topicB', 'link_catalyst'];
+        break;
+      case 'DETAILS_STEP':
+        fields = ['duration', 'narrativeDepth'];
+        break;
+      case 'TONE_SELECTION':
+        fields = ['agentName', 'voiceGender', 'voiceStyle'];
+        break;
+      case 'LEGACY_INPUT':
+        fields = ['legacy_lesson'];
+        break;
+      case 'QUESTION_INPUT':
+        fields = ['question_to_answer'];
+        break;
+      case 'LOCAL_DISCOVERY_STEP':
+        // Validamos que exista una semilla para la IA Situacional
+        fields = ['location', 'solo_topic'];
+        break;
+      default:
+        // Pasos puramente informativos o de visualización no requieren validación de campos
+        fields = [];
+    }
 
+    // Ejecución de la validación asíncrona de React Hook Form
     const isValid = fields.length > 0 ? await trigger(fields as any) : true;
 
     if (isValid) {
+      // Caso Especial: Transición asíncrona por Generación de IA
       if (state === 'LINK_POINTS_INPUT') {
+          // Si el usuario termina de ingresar sus dos ideas, generamos narrativas antes de avanzar
           // @ts-ignore
           await actions.generateNarratives(setNarrativeOptions);
       } else {
+          // Navegación secuencial estándar
           const path = MASTER_FLOW_PATHS[currentPurpose] || MASTER_FLOW_PATHS.learn;
           const nextIndex = (path as string[]).indexOf(state) + 1;
+          
           if (nextIndex < path.length) {
             navigation.transitionTo(path[nextIndex]);
           }
       }
     } else {
-      toast({ title: "Información incompleta", variant: "destructive" });
+      // Feedback de alta visibilidad para el usuario
+      toast({ 
+        title: "Contexto Incompleto", 
+        description: "Completa los campos marcados para que la IA pueda procesar tu idea.", 
+        variant: "destructive" 
+      });
     }
   };
 
-  // Inyectamos el contexto de navegación y acciones para los hijos (Steps)
+  /**
+   * contextValue
+   * Objeto de comunicación compartido con todos los 'steps' vía CreationContext.
+   */
   const contextValue = {
     ...navigation,
     isGeneratingScript: actions.isGenerating,
-    setIsGeneratingScript: () => {}, 
+    setIsGeneratingScript: () => {}, // Placeholder para extensiones futuras
     updateFormData: (data: any) => {
-        Object.entries(data).forEach(([k, v]) => setValue(k as any, v, { shouldValidate: true }));
+        Object.entries(data).forEach(([k, v]) => setValue(k as any, v, { 
+          shouldValidate: true,
+          shouldDirty: true,
+          shouldTouch: true
+        }));
     }
   };
 
@@ -81,7 +133,7 @@ function InnerOrchestrator() {
       <LayoutShell
         onNext={handleValidatedNext}
         onDraft={actions.generateDraft}
-        onProduce={actions.handleSubmitProduction} // Usamos la función wrapper del hook
+        onProduce={actions.handleSubmitProduction}
         onAnalyzeLocal={actions.analyzeLocalEnvironment}
         isGenerating={actions.isGenerating}
         isSubmitting={actions.isSubmitting}
@@ -94,15 +146,19 @@ function InnerOrchestrator() {
 }
 
 /**
- * PodcastCreationOrchestrator (Wrapper Principal)
- * Su única misión es proveer el FormContext y montar el InnerOrchestrator.
+ * PodcastCreationOrchestrator
+ * Entry Point del flujo de creación. Provee el FormProvider global
+ * asegurando la persistencia de datos entre montajes de componentes dinámicos.
  */
 export default function PodcastCreationOrchestrator() {
   const [isMounted, setIsMounted] = useState(false);
 
-  useEffect(() => { setIsMounted(true); }, []);
+  // Garantizamos hidratación segura en Next.js App Router
+  useEffect(() => { 
+    setIsMounted(true); 
+  }, []);
 
-  const formMethods = useForm({
+  const formMethods = useForm<PodcastCreationData>({
     resolver: zodResolver(PodcastCreationSchema),
     mode: "onChange",
     defaultValues: { 
@@ -110,7 +166,11 @@ export default function PodcastCreationOrchestrator() {
       sources: [], 
       agentName: 'solo-talk-analyst',
       inputs: {},
-      creation_mode: 'standard'
+      creation_mode: 'standard',
+      voiceGender: 'Masculino',
+      voiceStyle: 'Profesional',
+      duration: 'short',
+      narrativeDepth: 'balanced'
     }
   });
 
