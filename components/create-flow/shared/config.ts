@@ -1,12 +1,13 @@
 // components/create-flow/shared/config.ts
-// VERSIÓN: 1.4 (Full Journey Persistence - Pathing Fix)
+// VERSIÓN: 1.5 (Sovereign Configuration - Journey Integrity Fix)
 
 import { FlowState } from "./types";
 
 /**
  * MASTER_FLOW_PATHS
- * [CORRECCIÓN CRÍTICA]: Se añaden DRAFT_GENERATION_LOADER y SCRIPT_EDITING
- * para que el motor de navegación no pierda el índice y reinicie el flujo.
+ * Define la secuencia lineal de cada rama creativa.
+ * ORDEN TEÓRICO APLICADO: 
+ * 1. Entrada -> 2. Materia Prima -> 3. Calibración -> 4. Carga -> 5. Editor -> 6. Studio -> 7. Final
  */
 export const MASTER_FLOW_PATHS: Record<string, FlowState[]> = {
   learn: [
@@ -15,9 +16,9 @@ export const MASTER_FLOW_PATHS: Record<string, FlowState[]> = {
     'SOLO_TALK_INPUT', 
     'TONE_SELECTION', 
     'DETAILS_STEP', 
-    'DRAFT_GENERATION_LOADER', // Paso técnico registrado
-    'SCRIPT_EDITING',          // Paso técnico registrado
-    'AUDIO_STUDIO_STEP',       // DESTINO TRAS EL GUION
+    'DRAFT_GENERATION_LOADER', 
+    'SCRIPT_EDITING', 
+    'AUDIO_STUDIO_STEP', 
     'FINAL_STEP'
   ],
   explore: [
@@ -26,9 +27,9 @@ export const MASTER_FLOW_PATHS: Record<string, FlowState[]> = {
     'NARRATIVE_SELECTION', 
     'TONE_SELECTION', 
     'DETAILS_STEP', 
-    'DRAFT_GENERATION_LOADER',
-    'SCRIPT_EDITING',
-    'AUDIO_STUDIO_STEP',
+    'DRAFT_GENERATION_LOADER', 
+    'SCRIPT_EDITING', 
+    'AUDIO_STUDIO_STEP', 
     'FINAL_STEP'
   ],
   reflect: [
@@ -36,9 +37,9 @@ export const MASTER_FLOW_PATHS: Record<string, FlowState[]> = {
     'LEGACY_INPUT', 
     'TONE_SELECTION', 
     'DETAILS_STEP', 
-    'DRAFT_GENERATION_LOADER',
-    'SCRIPT_EDITING',
-    'AUDIO_STUDIO_STEP',
+    'DRAFT_GENERATION_LOADER', 
+    'SCRIPT_EDITING', 
+    'AUDIO_STUDIO_STEP', 
     'FINAL_STEP'
   ],
   answer: [
@@ -46,9 +47,9 @@ export const MASTER_FLOW_PATHS: Record<string, FlowState[]> = {
     'QUESTION_INPUT', 
     'TONE_SELECTION', 
     'DETAILS_STEP', 
-    'DRAFT_GENERATION_LOADER',
-    'SCRIPT_EDITING',
-    'AUDIO_STUDIO_STEP',
+    'DRAFT_GENERATION_LOADER', 
+    'SCRIPT_EDITING', 
+    'AUDIO_STUDIO_STEP', 
     'FINAL_STEP'
   ],
   local_soul: [
@@ -56,9 +57,9 @@ export const MASTER_FLOW_PATHS: Record<string, FlowState[]> = {
     'LOCAL_DISCOVERY_STEP', 
     'LOCAL_RESULT_STEP',
     'DETAILS_STEP', 
-    'DRAFT_GENERATION_LOADER',
-    'SCRIPT_EDITING',
-    'AUDIO_STUDIO_STEP',
+    'DRAFT_GENERATION_LOADER', 
+    'SCRIPT_EDITING', 
+    'AUDIO_STUDIO_STEP', 
     'FINAL_STEP'
   ]
 };
