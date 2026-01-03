@@ -19,7 +19,7 @@ export type FlowState =
   | 'FREESTYLE_SELECTION' 
   | 'DETAILS_STEP' 
   | 'TONE_SELECTION' 
-  | 'DRAFT_GENERATION_LOADER' // <--- ESTADO DE TRANSICIÓN CRÍTICO
+  | 'DRAFT_GENERATION_LOADER' // Estado de transición pura
   | 'SCRIPT_EDITING' 
   | 'AUDIO_STUDIO_STEP' 
   | 'FINAL_STEP';
