@@ -1,5 +1,5 @@
 // components/create-flow/index.tsx
-// VERSIÓN: 28.0 (Master Sovereign - Unabbreviated Production Shield)
+// VERSIÓN: 29.0 (Master Sovereign - Contextual Validation & Strategic Feedback)
 
 "use client";
 
@@ -19,17 +19,15 @@ import { MASTER_FLOW_PATHS } from "./shared/config";
 
 /**
  * InnerOrchestrator
- * Componente de lógica interna. Consume el FormContext de su padre y gestiona
- * la Máquina de Estados Finitos (FSM) del flujo creativo.
+ * Gestiona la lógica de validación y transición de la FSM (Finite State Machine).
  */
 function InnerOrchestrator() {
   const { toast } = useToast();
-  const { watch, trigger, setValue } = useFormContext<PodcastCreationData>();
+  const { watch, trigger, setValue, getValues } = useFormContext<PodcastCreationData>();
   
   const currentPurpose = watch("purpose");
   const [narrativeOptions, setNarrativeOptions] = useState<any[]>([]);
 
-  // 1. Inicialización de Motores (Navegación y Acciones IA)
   const navigation = useFlowNavigation({ currentPurpose });
   const actions = useFlowActions({ 
     transitionTo: navigation.transitionTo, 
@@ -38,62 +36,92 @@ function InnerOrchestrator() {
 
   /**
    * handleValidatedNext
-   * Puerta de enlace crítica. Valida quirúrgicamente los campos del paso actual
-   * mediante el esquema Zod antes de permitir el tránsito al siguiente estado.
+   * Validador estratégico. Determina requerimientos por paso y lanza feedback específico.
    */
   const handleValidatedNext = async () => {
     let fields: any[] = [];
+    let customError: { title: string; description: string } | null = null;
+    
     const state = navigation.currentFlowState;
+    const currentValues = getValues();
 
-    // MAPEO DE INTEGRIDAD POR ESTADO
+    // 1. CONFIGURACIÓN DE REQUERIMIENTOS Y MENSAJES ESPECÍFICOS
     switch (state) {
       case 'SOLO_TALK_INPUT':
         fields = ['solo_topic', 'solo_motivation'];
+        // Validación de densidad de palabras (Mínimo 10 palabras para calidad IA)
+        const wordCount = currentValues.solo_motivation?.trim().split(/\s+/).length || 0;
+        if (wordCount < 10 && currentValues.solo_motivation !== "") {
+            customError = {
+                title: "Idea poco desarrollada",
+                description: "Para un audio de alta calidad, intenta describir tu idea con al menos 10 palabras."
+            };
+        }
         break;
-      case 'LEARN_SUB_SELECTION':
-        fields = ['agentName', 'style'];
-        break;
-      case 'ARCHETYPE_SELECTION':
-        fields = ['selectedArchetype'];
-        break;
-      case 'ARCHETYPE_GOAL':
-        fields = ['archetype_topic', 'archetype_goal'];
-        break;
-      case 'LINK_POINTS_INPUT':
-        fields = ['link_topicA', 'link_topicB', 'link_catalyst'];
-        break;
+
       case 'DETAILS_STEP':
         fields = ['duration', 'narrativeDepth'];
+        customError = {
+            title: "Falta Configuración",
+            description: "Define la duración y la profundidad del análisis para continuar."
+        };
         break;
+
       case 'TONE_SELECTION':
-        fields = ['agentName', 'voiceGender', 'voiceStyle'];
+        fields = ['agentName'];
+        customError = {
+            title: "Selecciona una Personalidad",
+            description: "Elige cómo debe sonar la voz de la IA para este podcast."
+        };
         break;
-      case 'LEGACY_INPUT':
-        fields = ['legacy_lesson'];
+
+      case 'LINK_POINTS_INPUT':
+        fields = ['link_topicA', 'link_topicB'];
+        customError = {
+            title: "Conceptos Incompletos",
+            description: "Ingresa ambos temas para que la IA pueda establecer una conexión narrativa."
+        };
         break;
+
       case 'QUESTION_INPUT':
         fields = ['question_to_answer'];
+        customError = {
+            title: "Pregunta ausente",
+            description: "Escribe la duda o pregunta que el Agente IA debe resolver."
+        };
         break;
+
       case 'LOCAL_DISCOVERY_STEP':
-        // Validamos que exista una semilla para la IA Situacional
         fields = ['location', 'solo_topic'];
+        customError = {
+            title: "Sin Contexto Local",
+            description: "Activa el GPS o describe tu ubicación para iniciar el escaneo situacional."
+        };
         break;
+
       default:
-        // Pasos puramente informativos o de visualización no requieren validación de campos
         fields = [];
     }
 
-    // Ejecución de la validación asíncrona de React Hook Form
+    // 2. EJECUCIÓN DE VALIDACIÓN
+    // Si ya detectamos un error personalizado (como el de las 10 palabras), no ejecutamos trigger
+    if (customError && state === 'SOLO_TALK_INPUT' && !fields.every(f => !!currentValues[f as keyof PodcastCreationData])) {
+        // Dejar que pase al trigger normal si los campos están vacíos
+    } else if (customError && state === 'SOLO_TALK_INPUT') {
+        const wordCount = currentValues.solo_motivation?.trim().split(/\s+/).length || 0;
+        if (wordCount < 10) {
+            toast({ title: customError.title, description: customError.description, variant: "destructive" });
+            return;
+        }
+    }
+
     const isValid = fields.length > 0 ? await trigger(fields as any) : true;
 
     if (isValid) {
-      // Caso Especial: Transición asíncrona por Generación de IA
+      // 3. LÓGICA DE TRANSICIÓN
       if (state === 'LINK_POINTS_INPUT') {
-          // Si el usuario termina de ingresar sus dos ideas, generamos narrativas antes de avanzar
-          // @ts-ignore
           await actions.generateNarratives(setNarrativeOptions);
       } else {
-          // Navegación secuencial estándar
           const path = MASTER_FLOW_PATHS[currentPurpose] || MASTER_FLOW_PATHS.learn;
           const nextIndex = (path as string[]).indexOf(state) + 1;
           
@@ -102,23 +130,19 @@ function InnerOrchestrator() {
           }
       }
     } else {
-      // Feedback de alta visibilidad para el usuario
+      // 4. FEEDBACK DE ERROR ESTRATÉGICO
       toast({ 
-        title: "Contexto Incompleto", 
-        description: "Completa los campos marcados para que la IA pueda procesar tu idea.", 
+        title: customError?.title || "Información Necesaria", 
+        description: customError?.description || "Completa los campos requeridos para avanzar.", 
         variant: "destructive" 
       });
     }
   };
 
-  /**
-   * contextValue
-   * Objeto de comunicación compartido con todos los 'steps' vía CreationContext.
-   */
   const contextValue = {
     ...navigation,
     isGeneratingScript: actions.isGenerating,
-    setIsGeneratingScript: () => {}, // Placeholder para extensiones futuras
+    setIsGeneratingScript: () => {}, 
     updateFormData: (data: any) => {
         Object.entries(data).forEach(([k, v]) => setValue(k as any, v, { 
           shouldValidate: true,
@@ -145,15 +169,9 @@ function InnerOrchestrator() {
   );
 }
 
-/**
- * PodcastCreationOrchestrator
- * Entry Point del flujo de creación. Provee el FormProvider global
- * asegurando la persistencia de datos entre montajes de componentes dinámicos.
- */
 export default function PodcastCreationOrchestrator() {
   const [isMounted, setIsMounted] = useState(false);
 
-  // Garantizamos hidratación segura en Next.js App Router
   useEffect(() => { 
     setIsMounted(true); 
   }, []);
@@ -169,8 +187,7 @@ export default function PodcastCreationOrchestrator() {
       creation_mode: 'standard',
       voiceGender: 'Masculino',
       voiceStyle: 'Profesional',
-      duration: 'short',
-      narrativeDepth: 'balanced'
+      // No ponemos defaults para duration y depth si queremos obligar al usuario a elegir
     }
   });
 
