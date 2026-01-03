@@ -1,125 +1,147 @@
-// components/create-flow/LearnSubStep.tsx
-// VERSIÓN FINAL ADAPTATIVA: Contraste perfecto en Light/Dark Mode.
+// components/create-flow/steps/learn-sub-step.tsx
+// VERSIÓN: 9.0 (Aurora Standard - High Contrast & Zero Scroll)
 
 "use client";
 
-import { useCreationContext } from "../shared/context";
-import { Zap, Layers, ArrowRight, Lock } from "lucide-react";
+import { motion } from "framer-motion";
+import { Zap, Layers, ArrowRight, Lock, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useCreationContext } from "../shared/context";
 import { Badge } from "@/components/ui/badge";
 
-// COLORES AJUSTADOS: Tono 600 para Light, 400 para Dark.
-const learnOptions = [
+/**
+ * OPCIONES DE APRENDIZAJE
+ * Sincronizadas con la lógica de negocio y MASTER_FLOW_PATHS
+ */
+const LEARN_OPTIONS = [
   {
-    type: "quick_lesson",
+    id: "quick_lesson",
     nextState: "SOLO_TALK_INPUT",
     agent: "solo-talk-analyst",
     style: "solo",
-    icon: <Zap className="h-5 w-5 text-amber-600 dark:text-amber-400" />,
+    icon: Zap,
     title: "Lección Rápida",
-    description: "Explica un concepto de forma clara y concisa en un solo episodio."
+    description: "Explica un concepto de forma clara y concisa en un solo audio.",
+    color: "text-amber-500",
+    bgColor: "bg-amber-500/10",
   },
   {
-    type: "deep_course",
+    id: "deep_course",
     nextState: "DETAILS_STEP",
-    icon: <Layers className="h-5 w-5 text-blue-600 dark:text-blue-400" />,
+    icon: Layers,
     title: "Curso Profundo",
     description: "Estructura un tema en un plan de aprendizaje de varios episodios.",
+    color: "text-blue-500",
+    bgColor: "bg-blue-500/10",
     disabled: true,
-    badge: "Próximamente"
+    badge: "PRÓXIMAMENTE"
   }
 ];
 
 export function LearnSubStep() {
   const { updateFormData, transitionTo } = useCreationContext();
 
-  const handleSelectOption = (option: typeof learnOptions[0]) => {
+  const handleSelectOption = (option: typeof LEARN_OPTIONS[0]) => {
     if (option.disabled) return;
     
+    // 1. Inyectamos la metología elegida
     updateFormData({
       style: option.style as any,
-      selectedAgent: option.agent,
+      agentName: option.agent, // Actualizado a agentName según esquema Zod v5.0
     });
+
+    // 2. Salto de estado inmediato
     transitionTo(option.nextState as any);
   };
 
   return (
-    <div className="flex flex-col h-full w-full justify-center items-center animate-fade-in px-2 md:px-6 overflow-y-auto scrollbar-hide">
+    <div className="flex flex-col h-full w-full max-w-lg mx-auto py-6 px-4 justify-center overflow-hidden">
       
-      {/* CABECERA ADAPTATIVA */}
-      <div className="text-center mb-4 md:mb-8 flex-shrink-0 w-full max-w-lg">
-        <h2 className="text-xl md:text-3xl font-bold tracking-tight text-foreground drop-shadow-sm md:drop-shadow-none">
-          Elige la Profundidad
-        </h2>
-        <p className="text-xs md:text-sm text-muted-foreground mt-1 font-medium">
-          ¿Qué nivel de detalle necesitas hoy?
+      {/* HEADER: Magnetismo Aurora */}
+      <header className="text-center mb-10">
+        <motion.h1 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-4xl md:text-5xl font-black tracking-tighter uppercase text-foreground leading-[0.9] mb-2"
+        >
+          Elige la <span className="text-primary italic">Profundidad</span>
+        </motion.h1>
+        <p className="text-xs font-black uppercase tracking-[0.3em] text-muted-foreground/60 flex items-center justify-center gap-2">
+          <Sparkles size={12} className="text-primary" />
+          ¿Qué nivel de detalle necesitas?
         </p>
-      </div>
-      
-      {/* LISTA DE OPCIONES */}
-      <div className="w-full max-w-md flex flex-col gap-3">
-        {learnOptions.map((option) => (
-          <button
-            key={option.type}
-            onClick={() => handleSelectOption(option)}
-            disabled={option.disabled}
-            className={cn(
-              "group relative flex items-center text-left transition-all duration-300",
-              "p-3 md:p-4",
-              // ESTILOS ADAPTATIVOS (GLASS):
-              // Light: Fondo blanco semitransparente (60%).
-              // Dark: Fondo oscuro semitransparente (20%).
-              "bg-white/60 dark:bg-black/20",
-              "border border-black/5 dark:border-white/10",
-              "rounded-xl overflow-hidden backdrop-blur-sm shadow-sm",
-              !option.disabled 
-                ? "hover:bg-white/80 dark:hover:bg-black/30 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] cursor-pointer" 
-                : "opacity-60 cursor-not-allowed grayscale-[0.5]"
-            )}
-          >
-            {/* ICONO: Fondo blanco en Light para resaltar */}
-            <div className="flex-shrink-0 mr-4">
-              <div className={cn(
-                "flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-lg transition-transform duration-300 shadow-sm border",
-                "bg-white dark:bg-black/40 border-black/5 dark:border-white/5",
-                !option.disabled && "group-hover:scale-110"
-              )}>
-                {option.icon}
-              </div>
-            </div>
+      </header>
 
-            {/* TEXTOS */}
-            <div className="flex-grow min-w-0 flex flex-col justify-center">
-              <div className="flex items-center gap-2 flex-wrap">
-                {/* Título Semántico */}
-                <h3 className="text-sm md:text-base font-bold text-foreground group-hover:text-primary transition-colors">
-                  {option.title}
-                </h3>
-                
-                {option.badge && (
-                  <Badge variant="secondary" className="text-[10px] h-5 px-1.5 bg-muted text-muted-foreground border-0">
-                    {option.badge}
-                  </Badge>
-                )}
-              </div>
-              
-              {/* Descripción Semántica */}
-              <p className="text-xs text-muted-foreground mt-0.5 md:mt-1 line-clamp-2 font-medium leading-snug">
-                {option.description}
-              </p>
-            </div>
+      {/* STACK DE OPCIONES */}
+      <div className="flex flex-col gap-4">
+        {LEARN_OPTIONS.map((option, index) => {
+          const Icon = option.icon;
+          const isDisabled = option.disabled;
 
-            {/* FLECHA / CANDADO */}
-            <div className="flex-shrink-0 ml-2 text-muted-foreground/50">
-              {option.disabled ? (
-                <Lock className="h-4 w-4 md:h-5 md:w-5" />
-              ) : (
-                <ArrowRight className="h-4 w-4 md:h-5 md:w-5 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />
+          return (
+            <motion.button
+              key={option.id}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.1 }}
+              onClick={() => handleSelectOption(option)}
+              disabled={isDisabled}
+              className={cn(
+                "relative group w-full flex items-center p-5 rounded-[1.5rem] border transition-all duration-300",
+                "bg-card/40 backdrop-blur-xl overflow-hidden",
+                !isDisabled 
+                  ? "border-foreground/10 hover:border-primary/40 hover:bg-card/60 active:scale-[0.98]" 
+                  : "opacity-40 grayscale cursor-not-allowed border-dashed border-zinc-500/20"
               )}
-            </div>
-          </button>
-        ))}
+            >
+              {/* Contenido de la Tarjeta */}
+              <div className="relative z-10 flex items-center w-full gap-5">
+                {/* Contenedor de Icono */}
+                <div className={cn(
+                  "p-3.5 rounded-2xl transition-all duration-500 shadow-inner border border-white/5",
+                  !isDisabled ? `${option.bgColor} ${option.color} group-hover:scale-110` : "bg-zinc-500/10 text-zinc-500"
+                )}>
+                  <Icon size={24} strokeWidth={isDisabled ? 1.5 : 2.5} />
+                </div>
+
+                {/* Textos Informativos */}
+                <div className="flex-1 text-left">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <h3 className="font-black text-base md:text-lg uppercase tracking-tight text-foreground">
+                      {option.title}
+                    </h3>
+                    {option.badge && (
+                      <Badge className="bg-zinc-500/20 text-zinc-500 border-none text-[8px] font-black tracking-tighter px-1.5 h-4">
+                        {option.badge}
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs md:text-sm text-muted-foreground font-medium leading-snug">
+                    {option.description}
+                  </p>
+                </div>
+
+                {/* Indicador de Acción */}
+                <div className="flex-shrink-0">
+                  {!isDisabled ? (
+                    <ArrowRight className="text-primary opacity-0 -translate-x-4 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" size={20} />
+                  ) : (
+                    <Lock className="text-zinc-500/50" size={18} />
+                  )}
+                </div>
+              </div>
+
+              {/* Efecto Glow de Hover (Solo en habilitados) */}
+              {!isDisabled && (
+                <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              )}
+            </motion.button>
+          );
+        })}
       </div>
+
+      {/* ESPACIADOR INFERIOR (Para centrado óptico) */}
+      <div className="h-10 md:h-20" />
     </div>
   );
 }
