@@ -1,5 +1,5 @@
-// components/create-flow/draft-generation-loader.tsx
-// VERSIÓN: 3.0 (Aurora Standard - High-Contrast Cognitive Loader)
+// components/create-flow/steps/draft-generation-loader.tsx
+// VERSIÓN: 3.1 (Aurora Standard - High-Contrast Cognitive Loader)
 
 "use client";
 
