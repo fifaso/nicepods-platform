@@ -1,12 +1,12 @@
 // components/create-flow/shared/config.ts
-// VERSIÓN: 1.6 (Sovereign Configuration - Zero Loop Architecture)
+// VERSIÓN: 1.7 (Master Standard - Final Path Mapping)
 
 import { FlowState } from "./types";
 
 /**
  * MASTER_FLOW_PATHS
- * Define la genealogía absoluta de cada flujo creativo en NicePod.
- * Estándar de cierre: DRAFT_GENERATION_LOADER -> SCRIPT_EDITING -> AUDIO_STUDIO_STEP -> FINAL_STEP
+ * Define el ADN de navegación para cada intención.
+ * Todas las rutas convergen en el ciclo final de producción.
  */
 export const MASTER_FLOW_PATHS: Record<string, FlowState[]> = {
   learn: [
@@ -31,9 +31,9 @@ export const MASTER_FLOW_PATHS: Record<string, FlowState[]> = {
     'AUDIO_STUDIO_STEP', 
     'FINAL_STEP'
   ],
-  answer: [
+  reflect: [
     'SELECTING_PURPOSE', 
-    'QUESTION_INPUT', 
+    'LEGACY_INPUT', 
     'TONE_SELECTION', 
     'DETAILS_STEP', 
     'DRAFT_GENERATION_LOADER', 
@@ -41,9 +41,9 @@ export const MASTER_FLOW_PATHS: Record<string, FlowState[]> = {
     'AUDIO_STUDIO_STEP', 
     'FINAL_STEP'
   ],
-  reflect: [
+  answer: [
     'SELECTING_PURPOSE', 
-    'LEGACY_INPUT', 
+    'QUESTION_INPUT', 
     'TONE_SELECTION', 
     'DETAILS_STEP', 
     'DRAFT_GENERATION_LOADER', 
