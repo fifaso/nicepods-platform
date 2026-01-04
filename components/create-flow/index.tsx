@@ -1,5 +1,5 @@
 // components/create-flow/index.tsx
-// VERSIÓN: 32.0 (Master Sovereign - Production Ready Journey Orchestrator)
+// VERSIÓN: 33.0 (Master Sovereign - Total Integrity & Navigation Shield)
 
 "use client";
 
@@ -9,7 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { PodcastCreationSchema, PodcastCreationData } from "@/lib/validation/podcast-schema";
 import { useToast } from "@/hooks/use-toast";
 
-// Core Architecture Imports
+// Imports de Arquitectura Modular
 import { CreationContext } from "./shared/context";
 import { useFlowNavigation } from "./hooks/use-flow-navigation";
 import { useFlowActions } from "./hooks/use-flow-actions";
@@ -19,17 +19,20 @@ import { MASTER_FLOW_PATHS } from "./shared/config";
 
 /**
  * InnerOrchestrator
- * Implementa la lógica de control de flujo y validación de campo por paso.
+ * Componente de lógica de control. Gestiona la transición entre pantallas
+ * asegurando que los datos cumplan con el contrato de calidad de NicePod.
  */
 function InnerOrchestrator() {
   const { toast } = useToast();
-  const { watch, trigger, setValue, getValues } = useFormContext<PodcastCreationData>();
+  const { trigger, setValue, getValues } = useFormContext<PodcastCreationData>();
   
-  const currentPurpose = watch("purpose");
+  // No usamos 'watch' para el propósito en la lógica de navegación para evitar stale closures
   const [narrativeOptions, setNarrativeOptions] = useState<any[]>([]);
 
-  // Motores de navegación y acciones IA
-  const navigation = useFlowNavigation({ currentPurpose });
+  // Inicialización de Hook de Navegación (currentPurpose se actualiza vía props)
+  const navigation = useFlowNavigation({ currentPurpose: getValues("purpose") });
+  
+  // Inicialización de Hook de Acciones (IA y Backend)
   const actions = useFlowActions({ 
     transitionTo: navigation.transitionTo, 
     goBack: navigation.goBack,
@@ -38,94 +41,83 @@ function InnerOrchestrator() {
 
   /**
    * handleValidatedNext
-   * Gestiona el botón "SIGUIENTE" con validación de negocio y técnica.
+   * El guardián del flujo. Valida el paso actual y decide el destino exacto.
    */
   const handleValidatedNext = async () => {
-    const state = navigation.currentFlowState;
+    const currentState = navigation.currentFlowState;
     const currentValues = getValues();
-    let fields: any[] = [];
-
-    // --- BLOQUE 1: VALIDACIÓN DE REQUISITOS DE NEGOCIO (HARD LOCK) ---
+    const currentPurpose = currentValues.purpose;
     
-    // Validación de densidad de palabras en ideas
-    if (state === 'SOLO_TALK_INPUT' || state === 'QUESTION_INPUT' || state === 'LEGACY_INPUT') {
-      const motivation = currentValues.solo_motivation || currentValues.question_to_answer || currentValues.legacy_lesson || "";
-      const wordCount = motivation.trim().split(/\s+/).filter(w => w.length > 0).length;
+    let fieldsToValidate: any[] = [];
+
+    // --- FASE 1: BLOQUEOS DE CALIDAD (BUSINESS LOGIC) ---
+    if (currentState === 'SOLO_TALK_INPUT' || currentState === 'QUESTION_INPUT' || currentState === 'LEGACY_INPUT') {
+      const content = currentValues.solo_motivation || currentValues.question_to_answer || currentValues.legacy_lesson || "";
+      const wordCount = content.trim().split(/\s+/).filter(w => w.length > 0).length;
       
       if (wordCount < 10) {
         toast({ 
-          title: "Desarrolla más tu idea", 
-          description: "La IA necesita al menos 10 palabras para captar la esencia de tu podcast.", 
+          title: "Falta sustancia", 
+          description: "Desarrolla tu idea con al menos 10 palabras para que la IA cree un guion de valor.", 
           variant: "destructive" 
         });
-        return; // Detener flujo
+        return;
       }
     }
 
-    // Validación de edición de guion
-    if (state === 'SCRIPT_EDITING') {
+    if (currentState === 'SCRIPT_EDITING') {
       if (!currentValues.final_title || currentValues.final_title.length < 5) {
-        toast({ title: "Título necesario", description: "Define un título atractivo para tu pieza.", variant: "destructive" });
-        return;
-      }
-      if (!currentValues.final_script || currentValues.final_script.length < 50) {
-        toast({ title: "Guion incompleto", description: "El guion debe tener una estructura mínima para ser procesado.", variant: "destructive" });
+        toast({ title: "Título requerido", description: "El podcast necesita un nombre para ser procesado.", variant: "destructive" });
         return;
       }
     }
 
-    // --- BLOQUE 2: MAPEO DE CAMPOS PARA VALIDACIÓN TÉCNICA (ZOD) ---
-    switch (state) {
-      case 'SOLO_TALK_INPUT': fields = ['solo_topic', 'solo_motivation']; break;
-      case 'LEARN_SUB_SELECTION': fields = ['agentName', 'style']; break;
-      case 'DETAILS_STEP': fields = ['duration', 'narrativeDepth']; break;
-      case 'TONE_SELECTION': fields = ['agentName']; break;
-      case 'SCRIPT_EDITING': fields = ['final_title', 'final_script']; break;
-      case 'AUDIO_STUDIO_STEP': fields = ['voiceGender', 'voiceStyle', 'voicePace', 'speakingRate']; break;
-      default: fields = [];
+    // --- FASE 2: DEFINICIÓN DE CAMPOS PARA ZOD ---
+    switch (currentState) {
+      case 'SOLO_TALK_INPUT': fieldsToValidate = ['solo_topic', 'solo_motivation']; break;
+      case 'LEARN_SUB_SELECTION': fieldsToValidate = ['agentName', 'style']; break;
+      case 'DETAILS_STEP': fieldsToValidate = ['duration', 'narrativeDepth']; break;
+      case 'TONE_SELECTION': fieldsToValidate = ['agentName']; break;
+      case 'SCRIPT_EDITING': fieldsToValidate = ['final_title', 'final_script']; break;
+      case 'AUDIO_STUDIO_STEP': fieldsToValidate = ['voiceGender', 'voiceStyle', 'voicePace', 'speakingRate']; break;
+      case 'ARCHETYPE_SELECTION': fieldsToValidate = ['selectedArchetype']; break;
+      case 'ARCHETYPE_GOAL': fieldsToValidate = ['archetype_topic', 'archetype_goal']; break;
+      default: fieldsToValidate = [];
     }
 
-    // Ejecutamos validación asíncrona de Zod
-    const isValid = fields.length > 0 ? await trigger(fields as any) : true;
+    // --- FASE 3: VALIDACIÓN Y TRANSICIÓN ---
+    const isStepValid = fieldsToValidate.length > 0 ? await trigger(fieldsToValidate as any) : true;
 
-    if (isValid) {
-      // --- BLOQUE 3: CÁLCULO DE TRANSICIÓN SEGÚN MAPA ESTRATÉGICO ---
-      if (state === 'LINK_POINTS_INPUT') {
-          // Caso especial: Disparador de IA antes de avanzar
+    if (isStepValid) {
+      // Manejo de estados asíncronos (IA)
+      if (currentState === 'LINK_POINTS_INPUT') {
           await actions.generateNarratives(setNarrativeOptions);
       } else {
+          // Lógica de navegación determinista basada en Config
           const path = MASTER_FLOW_PATHS[currentPurpose] || MASTER_FLOW_PATHS.learn;
-          const currentIndex = (path as string[]).indexOf(state);
-          const nextIndex = currentIndex + 1;
+          const currentIndex = path.indexOf(currentState);
           
-          if (currentIndex !== -1 && nextIndex < path.length) {
-            navigation.transitionTo(path[nextIndex]);
-          } else {
-            console.error(`NicePod Flow Error: No exit path found for state [${state}] in purpose [${currentPurpose}]`);
+          if (currentIndex !== -1 && (currentIndex + 1) < path.length) {
+            const nextState = path[currentIndex + 1];
+            navigation.transitionTo(nextState);
+          } else if (currentIndex === -1) {
+            console.error(`CRITICAL: State [${currentState}] not found in [${currentPurpose}] path. Reset prevented.`);
+            // En lugar de resetear, forzamos la vuelta al paso de Propósito si algo falla gravemente
+            // pero NO lo hacemos automáticamente para no arruinar la experiencia del usuario.
           }
       }
     } else {
-      toast({ 
-        title: "Información Requerida", 
-        description: "Completa las opciones marcadas para poder avanzar.", 
-        variant: "destructive" 
-      });
+      toast({ title: "Información incompleta", description: "Revisa los campos marcados antes de continuar.", variant: "destructive" });
     }
   };
 
-  /**
-   * contextValue
-   * Inyección de métodos y estados para todos los componentes hijos (Steps).
-   */
   const contextValue = {
     ...navigation,
     isGeneratingScript: actions.isGenerating,
     setIsGeneratingScript: () => {}, 
     updateFormData: (data: any) => {
         Object.entries(data).forEach(([k, v]) => setValue(k as any, v, { 
-          shouldValidate: true, 
-          shouldDirty: true, 
-          shouldTouch: true
+          shouldValidate: true, shouldDirty: true, shouldTouch: true
         }));
     }
   };
@@ -149,7 +141,7 @@ function InnerOrchestrator() {
 
 /**
  * PodcastCreationOrchestrator
- * Componente raíz que inicializa el estado del formulario y la hidratación.
+ * Wrapper principal. Garantiza la existencia del FormContext.
  */
 export default function PodcastCreationOrchestrator() {
   const [isMounted, setIsMounted] = useState(false);
@@ -170,7 +162,8 @@ export default function PodcastCreationOrchestrator() {
       voiceStyle: 'Profesional',
       voicePace: 'Moderado',
       speakingRate: 1.0,
-      // No duration ni narrativeDepth para forzar selección en DETAILS_STEP
+      duration: 'short',
+      narrativeDepth: 'balanced'
     }
   });
 
