@@ -1,5 +1,5 @@
 // components/create-flow/steps/audio-studio.tsx
-// VERSIÓN: 2.0 (Aurora Studio - High Density & Zero Scroll UI)
+// VERSIÓN: 2.1 (Aurora Studio - Stability & Sync Fix)
 
 "use client";
 
@@ -7,23 +7,45 @@ import { useFormContext } from "react-hook-form";
 import { motion } from "framer-motion";
 import { PodcastCreationData } from "@/lib/validation/podcast-schema";
 import { cn } from "@/lib/utils";
+
+// [CORRECCIÓN CRÍTICA]: Importación de Badge faltante
+import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { FormField, FormControl, FormItem, FormLabel } from "@/components/ui/form";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Mic2, Sparkles, Volume2, Gauge } from "lucide-react";
 
-const GENDER_OPTS = [{ value: "Masculino", label: "Hombre" }, { value: "Femenino", label: "Mujer" }];
-const STYLE_OPTS = [{ value: "Calmado" }, { value: "Energético" }, { value: "Profesional" }, { value: "Inspirador" }];
-const PACE_OPTS = [{ value: "Lento" }, { value: "Moderado" }, { value: "Rápido" }];
+/**
+ * CONFIGURACIÓN DE OPCIONES
+ */
+const GENDER_OPTS = [
+  { value: "Masculino", label: "Hombre" }, 
+  { value: "Femenino", label: "Mujer" }
+];
+
+const STYLE_OPTS = [
+  { value: "Calmado" }, 
+  { value: "Energético" }, 
+  { value: "Profesional" }, 
+  { value: "Inspirador" }
+];
+
+const PACE_OPTS = [
+  { value: "Lento" }, 
+  { value: "Moderado" }, 
+  { value: "Rápido" }
+];
 
 export function AudioStudio() {
   const { control, watch } = useFormContext<PodcastCreationData>();
-  const speakingRate = watch('speakingRate');
+  
+  // Observamos el valor en tiempo real para el feedback del Badge
+  const speakingRate = watch('speakingRate') || 1.0;
 
   return (
-    <div className="flex flex-col h-full w-full max-w-xl mx-auto py-2 px-4 justify-center overflow-hidden">
+    <div className="flex flex-col h-full w-full max-w-xl mx-auto py-2 px-4 justify-center overflow-hidden animate-in fade-in duration-700">
       
-      {/* HEADER AURORA */}
+      {/* HEADER AURORA: Identidad visual NicePod */}
       <header className="text-center mb-8 shrink-0">
         <motion.h1 
           initial={{ opacity: 0, y: -10 }}
@@ -38,10 +60,10 @@ export function AudioStudio() {
         </p>
       </header>
 
-      {/* PANEL DE CONTROL (ALTA DENSIDAD) */}
+      {/* PANEL DE CONTROL: Alta densidad para prevenir scroll */}
       <div className="flex-1 flex flex-col gap-6 justify-center">
         
-        {/* FILA 1: GÉNERO Y RITMO (RECTANGULARES) */}
+        {/* FILA 1: GÉNERO Y RITMO BASE */}
         <div className="grid grid-cols-2 gap-4">
             <FormField
               control={control}
@@ -52,13 +74,19 @@ export function AudioStudio() {
                     <Volume2 size={10}/> Género
                   </FormLabel>
                   <FormControl>
-                    <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex gap-2">
+                    <RadioGroup 
+                      onValueChange={field.onChange} 
+                      value={field.value} // Cambiado a 'value' para sincronización total
+                      className="flex gap-2"
+                    >
                       {GENDER_OPTS.map(opt => (
                         <div key={opt.value} className="flex-1">
                           <RadioGroupItem value={opt.value} id={`g-${opt.value}`} className="sr-only" />
                           <label htmlFor={`g-${opt.value}`} className={cn(
                             "flex items-center justify-center h-12 rounded-xl cursor-pointer transition-all border font-bold text-xs uppercase tracking-tight",
-                            field.value === opt.value ? "bg-primary border-primary text-white shadow-lg shadow-primary/20" : "bg-white/5 border-white/10 text-white/40 hover:bg-white/10"
+                            field.value === opt.value 
+                              ? "bg-primary border-primary text-white shadow-lg shadow-primary/20" 
+                              : "bg-white/5 border-white/10 text-white/40 hover:bg-white/10"
                           )}>
                             {opt.label}
                           </label>
@@ -79,13 +107,19 @@ export function AudioStudio() {
                     <Gauge size={10}/> Ritmo
                   </FormLabel>
                   <FormControl>
-                    <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex gap-2">
+                    <RadioGroup 
+                      onValueChange={field.onChange} 
+                      value={field.value} // Sincronizado
+                      className="flex gap-2"
+                    >
                       {PACE_OPTS.map(opt => (
                         <div key={opt.value} className="flex-1">
                           <RadioGroupItem value={opt.value} id={`p-${opt.value}`} className="sr-only" />
                           <label htmlFor={`p-${opt.value}`} className={cn(
                             "flex items-center justify-center h-12 rounded-xl cursor-pointer transition-all border font-bold text-[10px] uppercase",
-                            field.value === opt.value ? "bg-primary border-primary text-white shadow-lg" : "bg-white/5 border-white/10 text-white/40"
+                            field.value === opt.value 
+                              ? "bg-primary border-primary text-white shadow-lg" 
+                              : "bg-white/5 border-white/10 text-white/40 hover:bg-white/10"
                           )}>
                             {opt.value}
                           </label>
@@ -98,7 +132,7 @@ export function AudioStudio() {
             />
         </div>
 
-        {/* FILA 2: ESTILO EMOCIONAL */}
+        {/* FILA 2: ESTILO EMOCIONAL (Tono) */}
         <FormField
           control={control}
           name="voiceStyle"
@@ -108,13 +142,19 @@ export function AudioStudio() {
                 <Sparkles size={10}/> Tono Emocional
               </FormLabel>
               <FormControl>
-                <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="grid grid-cols-2 gap-2">
+                <RadioGroup 
+                  onValueChange={field.onChange} 
+                  value={field.value} // Sincronizado
+                  className="grid grid-cols-2 gap-2"
+                >
                   {STYLE_OPTS.map(opt => (
                     <div key={opt.value}>
                       <RadioGroupItem value={opt.value} id={`s-${opt.value}`} className="sr-only" />
                       <label htmlFor={`s-${opt.value}`} className={cn(
                         "flex items-center justify-center h-12 rounded-xl cursor-pointer transition-all border font-bold text-xs uppercase tracking-tight",
-                        field.value === opt.value ? "bg-primary border-primary text-white shadow-lg" : "bg-white/5 border-white/10 text-white/40"
+                        field.value === opt.value 
+                          ? "bg-primary border-primary text-white shadow-lg" 
+                          : "bg-white/5 border-white/10 text-white/40 hover:bg-white/10"
                       )}>
                         {opt.value}
                       </label>
@@ -126,7 +166,7 @@ export function AudioStudio() {
           )}
         />
 
-        {/* FILA 3: SLIDER DE VELOCIDAD EXACTA */}
+        {/* FILA 3: SLIDER DE VELOCIDAD EXACTA (Slider control de precisión) */}
         <div className="bg-white/5 p-6 rounded-[2rem] border border-white/5 shadow-inner">
             <FormField
               control={control}
@@ -134,11 +174,22 @@ export function AudioStudio() {
               render={({ field }) => (
                 <FormItem className="space-y-4">
                    <div className="flex justify-between items-center">
-                      <FormLabel className="text-[9px] font-black text-white/40 uppercase tracking-widest">Velocidad de Habla</FormLabel>
-                      <Badge variant="outline" className="font-mono text-primary border-primary/20 bg-primary/5">{speakingRate?.toFixed(2)}x</Badge>
+                      <FormLabel className="text-[9px] font-black text-white/40 uppercase tracking-widest">
+                        Velocidad de Habla
+                      </FormLabel>
+                      <Badge variant="outline" className="font-mono text-primary border-primary/20 bg-primary/5">
+                        {speakingRate.toFixed(2)}x
+                      </Badge>
                    </div>
                   <FormControl>
-                    <Slider min={0.75} max={1.25} step={0.05} value={[field.value]} onValueChange={(v) => field.onChange(v[0])} className="py-2" />
+                    <Slider 
+                      min={0.75} 
+                      max={1.25} 
+                      step={0.05} 
+                      value={[field.value || 1.0]} 
+                      onValueChange={(v) => field.onChange(v[0])} 
+                      className="py-2" 
+                    />
                   </FormControl>
                   <div className="flex justify-between text-[9px] font-bold text-white/20 uppercase tracking-tighter">
                       <span>Reflexivo</span>
@@ -151,7 +202,7 @@ export function AudioStudio() {
         </div>
       </div>
 
-      {/* EQUILIBRIO ÓPTICO */}
+      {/* FOOTER ESPACIADOR: Equilibrio óptico sin scroll */}
       <div className="h-10 shrink-0" />
     </div>
   );
