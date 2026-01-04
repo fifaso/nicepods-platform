@@ -1,13 +1,12 @@
 // components/create-flow/shared/config.ts
-// VERSIÓN: 1.5 (Sovereign Configuration - Journey Integrity Fix)
+// VERSIÓN: 1.6 (Sovereign Configuration - Zero Loop Architecture)
 
 import { FlowState } from "./types";
 
 /**
  * MASTER_FLOW_PATHS
- * Define la secuencia lineal de cada rama creativa.
- * ORDEN TEÓRICO APLICADO: 
- * 1. Entrada -> 2. Materia Prima -> 3. Calibración -> 4. Carga -> 5. Editor -> 6. Studio -> 7. Final
+ * Define la genealogía absoluta de cada flujo creativo en NicePod.
+ * Estándar de cierre: DRAFT_GENERATION_LOADER -> SCRIPT_EDITING -> AUDIO_STUDIO_STEP -> FINAL_STEP
  */
 export const MASTER_FLOW_PATHS: Record<string, FlowState[]> = {
   learn: [
@@ -32,9 +31,9 @@ export const MASTER_FLOW_PATHS: Record<string, FlowState[]> = {
     'AUDIO_STUDIO_STEP', 
     'FINAL_STEP'
   ],
-  reflect: [
+  answer: [
     'SELECTING_PURPOSE', 
-    'LEGACY_INPUT', 
+    'QUESTION_INPUT', 
     'TONE_SELECTION', 
     'DETAILS_STEP', 
     'DRAFT_GENERATION_LOADER', 
@@ -42,9 +41,9 @@ export const MASTER_FLOW_PATHS: Record<string, FlowState[]> = {
     'AUDIO_STUDIO_STEP', 
     'FINAL_STEP'
   ],
-  answer: [
+  reflect: [
     'SELECTING_PURPOSE', 
-    'QUESTION_INPUT', 
+    'LEGACY_INPUT', 
     'TONE_SELECTION', 
     'DETAILS_STEP', 
     'DRAFT_GENERATION_LOADER', 
@@ -56,6 +55,18 @@ export const MASTER_FLOW_PATHS: Record<string, FlowState[]> = {
     'SELECTING_PURPOSE', 
     'LOCAL_DISCOVERY_STEP', 
     'LOCAL_RESULT_STEP',
+    'DETAILS_STEP', 
+    'DRAFT_GENERATION_LOADER', 
+    'SCRIPT_EDITING', 
+    'AUDIO_STUDIO_STEP', 
+    'FINAL_STEP'
+  ],
+  inspire: [
+    'SELECTING_PURPOSE', 
+    'INSPIRE_SUB_SELECTION', 
+    'ARCHETYPE_SELECTION', 
+    'ARCHETYPE_GOAL',
+    'TONE_SELECTION', 
     'DETAILS_STEP', 
     'DRAFT_GENERATION_LOADER', 
     'SCRIPT_EDITING', 
