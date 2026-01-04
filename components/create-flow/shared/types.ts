@@ -1,5 +1,5 @@
 // components/create-flow/shared/types.ts
-// VERSIÓN: 1.2 (Sovereign Flow Typings - Loader Enforcement)
+// VERSIÓN: 1.3 (Master Standard - Final State Definition)
 
 import { PodcastCreationData } from "@/lib/validation/podcast-schema";
 
@@ -19,7 +19,7 @@ export type FlowState =
   | 'FREESTYLE_SELECTION' 
   | 'DETAILS_STEP' 
   | 'TONE_SELECTION' 
-  | 'DRAFT_GENERATION_LOADER' // Estado de transición pura
+  | 'DRAFT_GENERATION_LOADER' 
   | 'SCRIPT_EDITING' 
   | 'AUDIO_STUDIO_STEP' 
   | 'FINAL_STEP';
