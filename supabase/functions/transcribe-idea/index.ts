@@ -4,12 +4,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { encode as encodeBase64 } from "https://deno.land/std@0.168.0/encoding/base64.ts";
-import { guard } from "../_shared/guard.ts"; 
+import { guard } from "../_shared/guard.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 // [CORRECCIÓN CRÍTICA]: Usamos la versión específica '002' en lugar del alias genérico.
 // Esto evita el error 404 y asegura soporte multimodal estable.
-const MODEL_NAME = "gemini-3-flash-preview"; 
+const MODEL_NAME = "gemini-3-flash-preview";
 const API_VERSION = "v1beta";
 
 // Configuración de seguridad permisiva
@@ -36,27 +36,27 @@ const handler = async (request: Request): Promise<Response> => {
     // 1. SEGURIDAD & AUTH
     const authHeader = request.headers.get('Authorization');
     if (!authHeader) throw new Error("Falta autorización.");
-    
+
     const supabaseUserClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } }
     });
     const { data: { user }, error: authError } = await supabaseUserClient.auth.getUser();
-    
+
     if (authError || !user) {
-        return new Response(JSON.stringify({ error: "Usuario no autenticado." }), { 
-            status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        });
+      return new Response(JSON.stringify({ error: "Usuario no autenticado." }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
     // 2. EXTRACCIÓN DE DATOS
     const formData = await request.formData();
     const audioFile = formData.get('audio');
-    const mode = formData.get('mode') || 'clarify'; 
+    const mode = formData.get('mode') || 'clarify';
 
     if (!audioFile || !(audioFile instanceof File)) {
-        return new Response(JSON.stringify({ error: "Falta el archivo de audio." }), { 
-            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        });
+      return new Response(JSON.stringify({ error: "Falta el archivo de audio." }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
     const mimeType = audioFile.type || "audio/webm";
@@ -74,10 +74,10 @@ const handler = async (request: Request): Promise<Response> => {
       const { data: promptData } = await supabaseAdmin
         .from('ai_prompts').select('prompt_template')
         .eq('agent_name', 'thought-clarifier').single();
-      
-      const defaultPrompt = "Actúa como un redactor experto. Transcribe, limpia y mejora la claridad de la siguiente idea de audio. {{transcription}}";
+
+      const defaultPrompt = "Actúa como un redactor experto. Transcribe, limpia y mejora la claridad de la siguiente idea de audio, solo con modificaciones quirurgicas en el texto, sin agregar contenido que no se diga explisitamente. {{transcription}}";
       const template = promptData?.prompt_template || defaultPrompt;
-      
+
       systemInstruction = template.replace('{{transcription}}', '[AUDIO ADJUNTO]');
     }
 
@@ -85,18 +85,18 @@ const handler = async (request: Request): Promise<Response> => {
     const apiUrl = `https://generativelanguage.googleapis.com/${API_VERSION}/models/${MODEL_NAME}:generateContent?key=${GOOGLE_API_KEY}`;
 
     const payload = {
-        contents: [{
-            role: "user",
-            parts: [
-              { text: systemInstruction },
-              { inline_data: { mime_type: mimeType, data: base64Audio } }
-            ]
-        }],
-        safetySettings: SAFETY_SETTINGS,
-        generationConfig: { 
-            temperature: mode === 'fast' ? 0.1 : 0.7, 
-            maxOutputTokens: 2000 
-        }
+      contents: [{
+        role: "user",
+        parts: [
+          { text: systemInstruction },
+          { inline_data: { mime_type: mimeType, data: base64Audio } }
+        ]
+      }],
+      safetySettings: SAFETY_SETTINGS,
+      generationConfig: {
+        temperature: mode === 'fast' ? 0.1 : 0.7,
+        maxOutputTokens: 2000
+      }
     };
 
     const response = await fetch(apiUrl, {
@@ -113,13 +113,13 @@ const handler = async (request: Request): Promise<Response> => {
     }
 
     const result = await response.json();
-    
+
     const finalBuffer = result.candidates?.[0]?.content?.parts?.[0]?.text;
     const finishReason = result.candidates?.[0]?.finishReason;
 
     if (!finalBuffer) {
-        console.error("Gemini Response Dump:", JSON.stringify(result, null, 2));
-        throw new Error(`La IA no devolvió texto. Razón: ${finishReason}`);
+      console.error("Gemini Response Dump:", JSON.stringify(result, null, 2));
+      throw new Error(`La IA no devolvió texto. Razón: ${finishReason}`);
     }
 
     // 5. ÉXITO
@@ -131,9 +131,9 @@ const handler = async (request: Request): Promise<Response> => {
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Error desconocido";
     console.error("Error Transcribe:", msg);
-    
+
     if (msg.includes("Falta autorización")) {
-         return new Response(JSON.stringify({ error: msg }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: msg }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     throw error;
