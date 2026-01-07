@@ -1,11 +1,10 @@
 // supabase/functions/generate-script-draft/index.ts
-// VERSIÓN: 13.0 (Master Research Standard - Agent-Centric & Gemini 2.5 Pro)
+// VERSIÓN: 14.0 (Master Research Standard - Structured Inputs & Gemini 2.5 Pro)
 
 import { serve } from "std/http/server.ts";
 import { createClient, SupabaseClient } from "supabase";
-import { guard } from "guard";
-import { corsHeaders } from "cors";
-import { AI_MODELS, callGemini, parseAIJson, buildPrompt } from "ai-core";
+import { guard, corsHeaders } from "guard";
+import { AI_MODELS, callGeminiMultimodal, parseAIJson, buildPrompt } from "ai-core";
 
 interface ResearchSource { title: string; url: string; snippet: string; }
 interface TavilyResult { title: string; url: string; content: string; }
@@ -17,22 +16,20 @@ const supabaseAdmin: SupabaseClient = createClient(
 );
 
 /**
- * Refina la búsqueda según la personalidad del agente para un grounding más preciso.
+ * Refina la búsqueda según la personalidad para un grounding preciso.
  */
 function getAgentBiasQuery(agent: string, topic: string): string {
   const lowAgent = agent.toLowerCase();
-  if (lowAgent.includes("rebel")) return `controversias, fallas de sistema, críticas y paradojas sobre ${topic}`;
-  if (lowAgent.includes("sage")) return `principios fundamentales, verdades científicas, ética y tesis sobre ${topic}`;
-  if (lowAgent.includes("hero")) return `historias reales de superación, hitos históricos y éxitos sobre ${topic}`;
-  if (lowAgent.includes("analyst")) return `datos técnicos, estadísticas, cronología y estructura detallada de ${topic}`;
-  if (lowAgent.includes("explorer")) return `descubrimientos recientes, fronteras del conocimiento y misterios de ${topic}`;
-  return `${topic} análisis profundo, hechos verificados y contexto actual`;
+  if (lowAgent.includes("rebel")) return `controversias y fallas de sistema sobre ${topic}`;
+  if (lowAgent.includes("sage")) return `principios fundamentales y ética sobre ${topic}`;
+  if (lowAgent.includes("hero")) return `historias de superación y éxito sobre ${topic}`;
+  if (lowAgent.includes("analyst")) return `datos técnicos y estadísticas de ${topic}`;
+  return `${topic} análisis profundo y contexto actual`;
 }
 
 async function conductResearch(query: string, depth: string): Promise<ResearchSource[]> {
   if (!TAVILY_API_KEY) return [];
-  // Cantidad de fuentes según profundidad: Superficial (3), Intermedia (5), Profunda (10)
-  const limit = depth === "Profunda" ? 10 : depth === "Intermedia" ? 5 : 3;
+  const limit = depth === "Profundo" ? 10 : depth === "Medio" ? 5 : 3;
   
   try {
     const response = await fetch("https://api.tavily.com/search", {
@@ -41,7 +38,7 @@ async function conductResearch(query: string, depth: string): Promise<ResearchSo
       body: JSON.stringify({
         api_key: TAVILY_API_KEY,
         query: query,
-        search_depth: depth === "Profunda" ? "advanced" : "basic",
+        search_depth: depth === "Profundo" ? "advanced" : "basic",
         max_results: limit,
       }),
     });
@@ -51,10 +48,10 @@ async function conductResearch(query: string, depth: string): Promise<ResearchSo
     return data.results.map((result: TavilyResult) => ({
       title: result.title,
       url: result.url,
-      snippet: result.content.substring(0, 250) + "..."
+      snippet: result.content.substring(0, 300) + "..."
     }));
   } catch (error) {
-    console.error("Fase de investigación fallida, procediendo con conocimiento interno:", error);
+    console.error("Investigación fallida, usando conocimiento interno:", error);
     return [];
   }
 }
@@ -63,60 +60,85 @@ const handler = async (request: Request): Promise<Response> => {
   const correlationId = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
 
   try {
-    const { purpose, duration, depth, tone, style, raw_inputs } = await request.json();
-    
-    // 1. INVESTIGACIÓN ORIENTADA AL AGENTE
-    const selectedAgent = tone || style || "solo-talk-narrator";
-    const baseTopic = raw_inputs.topic || raw_inputs.topicA || raw_inputs.question || "Conocimiento general";
-    const smartQuery = getAgentBiasQuery(selectedAgent, baseTopic);
+    // 1. EXTRACCIÓN DEL NUEVO PAYLOAD ESTRUCTURADO (v5.0 Frontend)
+    const { purpose, agentName, inputs } = await request.json();
+    if (!inputs) throw new Error("Objeto 'inputs' requerido.");
 
-    console.log(`🔍 [${correlationId}] Investigando con sesgo: ${selectedAgent}`);
+    // Mapeo de variables internas desde el objeto estructurado
+    const duration = inputs.duration || "Corta";
+    const depth = inputs.narrativeDepth || "Medio";
+    const selectedAgent = agentName || "script-architect-v1";
+    
+    // Resolución dinámica del tema semilla según la rama
+    const baseTopic = 
+        inputs.solo_topic || 
+        (inputs.link_topicA ? `${inputs.link_topicA} + ${inputs.link_topicB}` : null) ||
+        inputs.question_to_answer ||
+        inputs.legacy_lesson ||
+        "Conocimiento general";
+
+    // 2. INVESTIGACIÓN CON Grounding (Tavily)
+    const smartQuery = getAgentBiasQuery(selectedAgent, baseTopic);
+    console.log(`🔍 [${correlationId}] Investigando: ${smartQuery}`);
     const sources = await conductResearch(smartQuery, depth);
 
-    // 2. RECUPERACIÓN DE PROMPT MAESTRO
+    // 3. RECUPERACIÓN DE PROMPT MAESTRO
     const { data: promptEntry, error: promptError } = await supabaseAdmin
       .from('ai_prompts')
       .select('prompt_template')
       .eq('agent_name', 'script-architect-v1')
       .single();
 
-    if (promptError || !promptEntry) throw new Error("Configuración de Arquitecto no encontrada.");
+    if (promptError || !promptEntry) throw new Error("Prompt maestro no encontrado.");
 
-    // 3. SÍNTESIS CREATIVA (Gemini 2.5 Pro para redacción de élite)
+    // 4. SÍNTESIS CREATIVA (Gemini 2.5 Pro)
     const dossier = {
       main_thesis: smartQuery,
       sources: sources,
-      key_facts: sources.map(s => s.snippet)
+      key_facts: sources.map(s => s.snippet),
+      situational_context: inputs.discovery_context || null
     };
 
     const finalPrompt = buildPrompt(promptEntry.prompt_template, {
       dossier_json: JSON.stringify(dossier),
       topic: baseTopic,
-      duration: duration || "Media",
-      depth: depth || "Intermedia",
-      style: tone || style || "Profesional",
-      archetype: raw_inputs.archetype || "Ninguno"
+      duration: duration,
+      depth: depth,
+      style: selectedAgent,
+      motivation: inputs.solo_motivation || inputs.archetype_goal || "Aportar valor masivo."
     });
 
-    console.log(`✍️ [${correlationId}] Redactando borrador con Gemini 2.5 Pro...`);
-    const rawAiResponse = await callGemini(finalPrompt, AI_MODELS.PRO);
-    const content = parseAIJson(rawAiResponse);
+    console.log(`✍️ [${correlationId}] Redactando borrador multimodal...`);
+    
+    // Usamos callGeminiMultimodal para soportar análisis de imagen si viene en el input
+    const rawAiResponse = await callGeminiMultimodal(
+        finalPrompt, 
+        inputs.imageContext, 
+        AI_MODELS.PRO
+    );
+    
+    const content = parseAIJson(rawAiResponse) as any;
 
-    // 4. RETORNO CON CUSTODIA DE FUENTES
+    // 5. RETORNO CON CUSTODIA DE DATOS
     return new Response(JSON.stringify({ 
       success: true, 
       draft: {
-        suggested_title: content.title || content.suggested_title || "Nuevo Podcast",
-        script_body: content.script_body || content.text || "Contenido no generado.",
+        suggested_title: content.title || content.suggested_title || baseTopic,
+        script_body: content.script_body || content.text || "Error en generación de texto.",
         sources: sources 
       },
       trace_id: correlationId
-    }), { headers: { "Content-Type": "application/json" } });
+    }), { 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+    });
 
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Error en borrador";
+    const msg = err instanceof Error ? err.message : "Error desconocido en borrador";
     console.error(`🔥 [${correlationId}] Fallo en Draft:`, msg);
-    return new Response(JSON.stringify({ success: false, error: msg }), { status: 500 });
+    return new Response(JSON.stringify({ success: false, error: msg }), { 
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
   }
 };
 
