@@ -1,5 +1,5 @@
 // components/create-flow/script-editor-step.tsx
-// VERSIÓN: 5.9 (UX Final: Fixed Alignment & Workstation Feel)
+// VERSIÓN: 6.0 (UX Final: Data Integrity & Sources Transparency)
 
 "use client";
 
@@ -14,267 +14,129 @@ import { cn } from "@/lib/utils";
 import { useEditor, EditorContent, Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
-import { Bold, Italic, Heading2, List, Undo, Redo, BookOpen, ChevronDown, ChevronUp, ExternalLink, Globe } from "lucide-react";
+import { 
+    Bold, Italic, Heading2, List, Undo, Redo, BookOpen, 
+    ChevronDown, ChevronUp, ExternalLink, Globe, Pencil as PencilIcon 
+} from "lucide-react";
 
 import DOMPurify from "isomorphic-dompurify";
 
-// --- COMPONENTE REUTILIZABLE: ÍTEM DE FUENTE ---
+// --- ÍTEM DE FUENTE BIBLIOGRÁFICA ---
 const SourceItem = ({ source }: { source: { title?: string, url?: string, snippet?: string } }) => (
-    <li className="text-[10px] text-muted-foreground flex flex-col gap-1 p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors border border-transparent hover:border-black/5 dark:hover:border-white/5">
+    <li className="text-[10px] text-muted-foreground flex flex-col gap-1 p-3 rounded-xl bg-white/5 border border-white/5 hover:border-primary/20 transition-all">
         <div className="flex items-start justify-between gap-2">
-            <span className="font-semibold text-foreground line-clamp-2 leading-tight">
-                {source.title || "Fuente sin título"}
+            <span className="font-bold text-foreground line-clamp-2 leading-tight uppercase tracking-tighter">
+                {source.title || "Fuente Verificada"}
             </span>
             {source.url && (
-                <a 
-                    href={source.url} 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="text-primary hover:text-primary/80 flex-shrink-0 flex items-center gap-1 bg-primary/10 px-1.5 py-0.5 rounded text-[9px] font-medium transition-colors"
-                >
-                    Link <ExternalLink className="h-2 w-2" />
+                <a href={source.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:opacity-80">
+                    <ExternalLink className="h-3 w-3" />
                 </a>
             )}
         </div>
         {source.snippet && (
-            <p className="italic opacity-80 line-clamp-3 leading-relaxed border-l-2 border-primary/20 pl-2">
-                {source.snippet}
+            <p className="text-[9px] italic opacity-60 line-clamp-3 leading-relaxed mt-1">
+                "{source.snippet}"
             </p>
         )}
     </li>
 );
 
-// --- BANDEJAS DE FUENTES ---
-
-const MobileSourcesTray = ({ sources }: { sources?: any[] }) => {
-    const [isOpen, setIsOpen] = useState(false);
-
-    if (!sources || sources.length === 0) return null;
-
-    return (
-        <div className="lg:hidden flex-shrink-0 mb-4 border border-black/5 dark:border-white/10 rounded-xl overflow-hidden bg-white/40 dark:bg-black/20 backdrop-blur-sm">
-            <button 
-                onClick={() => setIsOpen(!isOpen)}
-                className="w-full flex items-center justify-between px-4 py-3 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-            >
-                <div className="flex items-center gap-2">
-                    <BookOpen className="h-4 w-4 text-blue-500" />
-                    <span>{sources.length} Fuentes de Investigación</span>
-                </div>
-                {isOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-            </button>
-
-            {isOpen && (
-                <div className="px-4 pb-3 bg-black/5 dark:bg-white/5 border-t border-black/5 dark:border-white/5 max-h-40 overflow-y-auto scrollbar-thin">
-                    <ul className="space-y-2 mt-2">
-                        {sources.map((source, idx) => (
-                            <SourceItem key={idx} source={source} />
-                        ))}
-                    </ul>
-                </div>
-            )}
-        </div>
-    );
-};
-
-const DesktopSourcesSidebar = ({ sources }: { sources?: any[] }) => {
-    if (!sources || sources.length === 0) return null;
-
-    return (
-        <div className="hidden lg:flex flex-col w-80 flex-shrink-0 h-full bg-white/40 dark:bg-black/20 backdrop-blur-sm border border-black/5 dark:border-white/10 rounded-xl overflow-hidden shadow-sm">
-            <div className="p-3 border-b border-black/5 dark:border-white/10 bg-white/50 dark:bg-black/40 flex items-center gap-2">
-                <Globe className="h-4 w-4 text-blue-500" />
-                <span className="text-xs font-bold text-foreground">Fuentes ({sources.length})</span>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto scrollbar-hide p-2">
-                <ul className="space-y-1">
-                    {sources.map((source, idx) => (
-                        <SourceItem key={idx} source={source} />
-                    ))}
-                </ul>
-            </div>
-        </div>
-    );
-};
-
-// --- BARRA DE HERRAMIENTAS EDITOR ---
-const MenuBar = ({ editor }: { editor: Editor | null }) => {
-  if (!editor) return null;
-
-  return (
-    <div className="flex items-center gap-1 p-2 border-b border-black/5 dark:border-white/10 bg-white/80 dark:bg-black/40 backdrop-blur-md overflow-x-auto scrollbar-hide rounded-t-xl z-20 relative">
-      <Button type="button" variant="ghost" size="sm" onClick={() => editor.chain().focus().toggleBold().run()} disabled={!editor.can().chain().focus().toggleBold().run()} className={cn("h-8 w-8 p-0", editor.isActive('bold') ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground')} title="Negrita"><Bold className="h-4 w-4" /></Button>
-      <Button type="button" variant="ghost" size="sm" onClick={() => editor.chain().focus().toggleItalic().run()} disabled={!editor.can().chain().focus().toggleItalic().run()} className={cn("h-8 w-8 p-0", editor.isActive('italic') ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground')} title="Itálica"><Italic className="h-4 w-4" /></Button>
-      <div className="w-px h-4 bg-black/10 dark:bg-white/10 mx-1" />
-      <Button type="button" variant="ghost" size="sm" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className={cn("h-8 w-8 p-0", editor.isActive('heading', { level: 2 }) ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground')} title="Título de Sección"><Heading2 className="h-4 w-4" /></Button>
-      <Button type="button" variant="ghost" size="sm" onClick={() => editor.chain().focus().toggleBulletList().run()} className={cn("h-8 w-8 p-0", editor.isActive('bulletList') ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground')}><List className="h-4 w-4" /></Button>
-      <div className="w-px h-4 bg-black/10 dark:bg-white/10 mx-1" />
-      <Button type="button" variant="ghost" size="sm" onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().chain().focus().undo().run()} className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground disabled:opacity-30"><Undo className="h-4 w-4" /></Button>
-      <Button type="button" variant="ghost" size="sm" onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().chain().focus().redo().run()} className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground disabled:opacity-30"><Redo className="h-4 w-4" /></Button>
-    </div>
-  );
-};
-
-// --- COMPONENTE PRINCIPAL ---
 export function ScriptEditorStep() {
-  const { control, setValue, getValues } = useFormContext<PodcastCreationData>();
+  const { control, setValue, getValues, watch } = useFormContext<PodcastCreationData>();
   
+  // Suscripción a fuentes para tiempo real
+  const sources = watch('sources') || [];
   const initialScript = getValues('final_script') || '';
-  const sources = getValues('sources') || [];
 
   const editor = useEditor({
     extensions: [
       StarterKit,
       Placeholder.configure({
-        placeholder: 'Escribe o edita tu guion aquí...',
-        emptyEditorClass: 'is-editor-empty before:content-[attr(data-placeholder)] before:text-muted-foreground/50 before:float-left before:pointer-events-none',
+        placeholder: 'La IA está redactando tu conocimiento...',
       }),
     ],
     content: initialScript, 
     editorProps: {
       attributes: {
-        class: 'prose prose-stone dark:prose-invert max-w-none focus:outline-none h-full text-foreground leading-relaxed p-6',
+        class: 'prose prose-invert max-w-none focus:outline-none h-full text-foreground leading-relaxed p-8',
       },
-      transformPastedHTML(html) { return html; },
     },
     onUpdate: ({ editor }) => {
-      const dirtyHtml = editor.getHTML();
-      const cleanHtml = DOMPurify.sanitize(dirtyHtml);
+      const cleanHtml = DOMPurify.sanitize(editor.getHTML());
       setValue('final_script', cleanHtml, { shouldValidate: true, shouldDirty: true });
     },
   });
 
+  // Sincronización si el script llega después del montaje (asíncrono)
   useEffect(() => {
-    if (editor && initialScript && editor.getText() === '') {
+    if (editor && initialScript && editor.isEmpty) {
        editor.commands.setContent(initialScript);
     }
   }, [editor, initialScript]);
 
   return (
-    <div className="flex flex-col h-full w-full animate-fade-in">
+    <div className="flex flex-col h-full w-full animate-in fade-in duration-700">
       
-      {/* 1. HEADER (ADAPTATIVO) */}
-      
-      {/* MÓVIL */}
-      <div className="lg:hidden flex-shrink-0 pt-4 pb-2 px-4 text-center">
-        <h2 className="text-xl font-bold tracking-tight text-foreground">Revisa tu Guion</h2>
-        <p className="text-xs text-muted-foreground mt-1 font-medium">Edita el contenido antes de grabar.</p>
-      </div>
-
-      {/* DESKTOP: Barra superior WORKSTATION (Corregida) */}
-      {/* Eliminado -mt, añadido pt-2 para aire. Alineación items-center estricta. */}
-      <div className="hidden lg:flex flex-shrink-0 items-center justify-between w-full pt-2 pb-4 border-b border-white/5 mb-4">
-         
-         {/* LADO IZQUIERDO: Título de Fase */}
-         {/* Sin padding extra para alinear con el borde de la tarjeta inferior */}
-         <div className="flex flex-col justify-center">
-            <h2 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-                <Pencil className="h-5 w-5 text-primary" /> Editor de Guion
+      {/* HEADER TÉCNICO (Desktop/Móvil) */}
+      <div className="flex-shrink-0 flex flex-col md:flex-row items-center justify-between gap-4 p-6 border-b border-white/5">
+         <div className="text-center md:text-left">
+            <h2 className="text-2xl font-black uppercase tracking-tighter text-white flex items-center gap-2">
+                <PencilIcon className="h-5 w-5 text-primary" /> Estación de Guion
             </h2>
-            {/* Alineamos el subtítulo con el texto del título (offset del icono) */}
-            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider pl-7">Modo Estudio</p>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Ajuste de narrativa y fuentes</p>
          </div>
 
-         {/* LADO DERECHO: Input de Título (Cuadrante) */}
-         {/* Ocupa el 50% del ancho del contenedor (w-1/2) y se justifica al final (derecha) */}
-         <div className="w-1/2 flex justify-end">
+         <div className="w-full md:w-1/2">
             <FormField
                 control={control}
                 name="final_title"
                 render={({ field }) => (
-                    <FormItem className="space-y-0 w-full">
+                    <FormItem className="space-y-0">
                     <FormControl>
                         <Input
-                        {...field}
-                        placeholder="Título del Podcast"
-                        maxLength={100}
-                        // Input sólido y elegante
-                        className="h-11 text-lg font-medium bg-black/20 border border-white/10 hover:border-primary/30 focus:border-primary focus:bg-black/30 transition-all text-left px-4 rounded-lg w-full"
+                            {...field}
+                            placeholder="Título del Podcast"
+                            className="h-12 bg-black/40 border-white/10 font-bold text-white rounded-xl focus:border-primary transition-all"
                         />
                     </FormControl>
-                    <FormMessage className="text-[10px] absolute right-0 mt-1" />
+                    <FormMessage className="text-[10px] mt-1" />
                     </FormItem>
                 )}
             />
          </div>
       </div>
 
-      {/* 2. ÁREA DE TRABAJO */}
-      <div className="flex-grow flex flex-col min-h-0 px-2 lg:px-0 pb-2">
-        
-        {/* INPUT DE TÍTULO (SOLO MÓVIL) */}
-        <div className="lg:hidden flex-shrink-0 mb-4">
-            <FormField
-            control={control}
-            name="final_title"
-            render={({ field }) => (
-                <FormItem>
-                <FormControl>
-                    <Input
-                    {...field}
-                    placeholder="Título del Podcast"
-                    maxLength={100}
-                    className="h-14 text-xl md:text-2xl font-bold bg-transparent border-0 border-b border-border text-center text-foreground placeholder:text-muted-foreground/50 focus-visible:ring-0 px-0 rounded-none transition-colors hover:border-primary/50 focus:border-primary"
-                    />
-                </FormControl>
-                <FormMessage />
-                </FormItem>
-            )}
-            />
-        </div>
-
-        {/* CONTAINER FLEXIBLE */}
-        <div className="flex-1 flex flex-col lg:flex-row min-h-0 gap-0 lg:gap-6">
+      {/* ÁREA DE TRABAJO DUAL (Editor + Fuentes) */}
+      <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden">
             
-            {/* COLUMNA PRINCIPAL (Editor) */}
-            <div className="flex-1 flex flex-col min-h-0">
-                <MobileSourcesTray sources={sources} />
-
-                {/* EDITOR */}
-                <div className="flex-1 flex flex-col min-h-0 bg-white/50 dark:bg-black/20 rounded-xl border border-black/5 dark:border-white/10 overflow-hidden shadow-sm relative backdrop-blur-sm">
-                    <div className="flex-shrink-0 z-10">
-                        <MenuBar editor={editor} />
-                    </div>
-                    <div className="flex-1 overflow-y-auto scrollbar-hide relative">
-                        <EditorContent editor={editor} className="h-full" />
-                    </div>
-                    <div className="hidden">
-                        <FormField 
-                            control={control} 
-                            name="final_script" 
-                            render={({ field }) => <input type="hidden" {...field} />} 
-                        />
-                    </div>
+            {/* COLUMNA EDITOR */}
+            <div className="flex-1 flex flex-col min-h-0 bg-black/20">
+                <div className="flex-1 overflow-y-auto custom-scrollbar">
+                    <EditorContent editor={editor} />
                 </div>
             </div>
 
-            {/* SIDEBAR DESKTOP */}
-            <DesktopSourcesSidebar sources={sources} />
-
-        </div>
-
+            {/* SIDEBAR FUENTES (Grounding) */}
+            <aside className="w-full lg:w-80 border-t lg:border-t-0 lg:border-l border-white/5 bg-black/40 flex flex-col">
+                <div className="p-4 border-b border-white/5 flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-blue-400 flex items-center gap-2">
+                        <Globe size={14} /> Evidencia de Verdad
+                    </span>
+                    <Badge variant="outline" className="text-[9px] border-white/10">{sources.length}</Badge>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                    <ul className="space-y-3">
+                        {sources.map((s, i) => <SourceItem key={i} source={s} />)}
+                        {sources.length === 0 && (
+                            <p className="text-[10px] text-zinc-600 italic text-center py-20 px-6">
+                                Analizando corpus de conocimiento experto...
+                            </p>
+                        )}
+                    </ul>
+                </div>
+            </aside>
       </div>
     </div>
   );
-}
-
-function Pencil(props: any) {
-    return (
-      <svg
-        {...props}
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="24"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-        <path d="m15 5 4 4" />
-      </svg>
-    )
 }
