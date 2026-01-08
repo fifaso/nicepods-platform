@@ -1,5 +1,5 @@
 // components/create-flow/index.tsx
-// VERSIÓN: 35.0 (Master Sovereign - Total Integrity & State Preservation)
+// VERSIÓN: 37.0 (Master Sovereign - Actions Interface Fix)
 
 "use client";
 
@@ -23,50 +23,46 @@ function InnerOrchestrator() {
   const [narrativeOptions, setNarrativeOptions] = useState<any[]>([]);
 
   const navigation = useFlowNavigation({ currentPurpose });
-  const actions = useFlowActions({ 
-    transitionTo: navigation.transitionTo, 
-    goBack: navigation.goBack,
-    clearDraft: () => {} 
+  const actions = useFlowActions({
+    transitionTo: (state) => navigation.transitionTo(state),
+    goBack: () => navigation.goBack(),
+    clearDraft: () => { }
   });
 
   const handleValidatedNext = async () => {
     const currentState = navigation.currentFlowState;
     const currentValues = getValues();
-    let fields: any[] = [];
+    const currentPath = MASTER_FLOW_PATHS[currentValues.purpose] || MASTER_FLOW_PATHS.learn;
 
-    // BLOQUEOS DE CALIDAD (BUSINESS LOGIC)
+    // BLOQUEO DE CALIDAD
     if (['SOLO_TALK_INPUT', 'QUESTION_INPUT', 'LEGACY_INPUT'].includes(currentState)) {
       const content = currentValues.solo_motivation || currentValues.question_to_answer || currentValues.legacy_lesson || "";
-      const wordCount = content.trim().split(/\s+/).filter(w => w.length > 0).length;
-      if (wordCount < 10) {
-        toast({ title: "Falta sustancia", description: "Mínimo 10 palabras para garantizar calidad.", variant: "destructive" });
+      if (content.trim().split(/\s+/).filter(w => w.length > 0).length < 10) {
+        toast({ title: "Sustancia insuficiente", description: "Escribe al menos 10 palabras.", variant: "destructive" });
         return;
       }
     }
 
-    // MAPEO DE CAMPOS SEGÚN ESTADO PARA ZOD
+    let fields: any[] = [];
     switch (currentState) {
       case 'SOLO_TALK_INPUT': fields = ['solo_topic', 'solo_motivation']; break;
       case 'DETAILS_STEP': fields = ['duration', 'narrativeDepth']; break;
       case 'TONE_SELECTION': fields = ['agentName']; break;
       case 'SCRIPT_EDITING': fields = ['final_title', 'final_script']; break;
       case 'LINK_POINTS_INPUT': fields = ['link_topicA', 'link_topicB']; break;
-      case 'ARCHETYPE_GOAL': fields = ['archetype_topic', 'archetype_goal']; break;
-      default: fields = [];
     }
 
-    const isStepValid = fields.length > 0 ? await trigger(fields as any) : true;
+    const isValid = fields.length > 0 ? await trigger(fields as any) : true;
 
-    if (isStepValid) {
+    if (isValid) {
       if (currentState === 'LINK_POINTS_INPUT') {
-          // @ts-ignore
-          await actions.generateNarratives(setNarrativeOptions);
+        // [FIJO]: Ahora la función existe en el contrato de actions
+        await actions.generateNarratives(setNarrativeOptions);
       } else {
-          const path = MASTER_FLOW_PATHS[currentPurpose] || MASTER_FLOW_PATHS.learn;
-          const currentIndex = path.indexOf(currentState);
-          if (currentIndex !== -1 && (currentIndex + 1) < path.length) {
-            navigation.transitionTo(path[currentIndex + 1]);
-          }
+        const currentIndex = currentPath.indexOf(currentState);
+        if (currentIndex !== -1 && (currentIndex + 1) < currentPath.length) {
+          navigation.transitionTo(currentPath[currentIndex + 1]);
+        }
       }
     } else {
       toast({ title: "Atención", description: "Completa los campos requeridos.", variant: "destructive" });
@@ -76,11 +72,11 @@ function InnerOrchestrator() {
   const contextValue = {
     ...navigation,
     isGeneratingScript: actions.isGenerating,
-    setIsGeneratingScript: () => {}, 
+    setIsGeneratingScript: () => { },
     updateFormData: (data: any) => {
-        Object.entries(data).forEach(([k, v]) => setValue(k as any, v, { 
-          shouldValidate: true, shouldDirty: true, shouldTouch: true
-        }));
+      Object.entries(data).forEach(([k, v]) => setValue(k as any, v, {
+        shouldValidate: true, shouldDirty: true, shouldTouch: true
+      }));
     }
   };
 
@@ -90,7 +86,7 @@ function InnerOrchestrator() {
         onNext={handleValidatedNext}
         onDraft={actions.generateDraft}
         onProduce={actions.handleSubmitProduction}
-        onAnalyzeLocal={actions.analyzeLocalEnvironment}
+        onAnalyzeLocal={actions.analyzeLocalEnvironment} // [FIJO]: Ahora existe en actions
         isGenerating={actions.isGenerating}
         isSubmitting={actions.isSubmitting}
         progress={navigation.progressMetrics}
@@ -108,9 +104,9 @@ export default function PodcastCreationOrchestrator() {
   const formMethods = useForm<PodcastCreationData>({
     resolver: zodResolver(PodcastCreationSchema),
     mode: "onChange",
-    defaultValues: { 
-      purpose: "learn", 
-      sources: [], 
+    defaultValues: {
+      purpose: "learn",
+      sources: [],
       agentName: 'solo-talk-analyst',
       creation_mode: 'standard',
       voiceGender: 'Masculino',
