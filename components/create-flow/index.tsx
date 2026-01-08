@@ -1,5 +1,5 @@
 // components/create-flow/index.tsx
-// VERSIÓN: 40.0 (Master Sovereign - Dependency & Reference Fix)
+// VERSIÓN: 44.0 (Master Sovereign - Total Prop Sync)
 
 "use client";
 
@@ -17,23 +17,23 @@ import { StepRenderer } from "./step-renderer";
 import { LayoutShell } from "./layout-shell";
 import { MASTER_FLOW_PATHS } from "./shared/config";
 
+interface InnerOrchestratorProps {
+  initialDrafts: any[];
+}
+
 /**
  * InnerOrchestrator
- * Implementa la lógica de control de flujo y validación de campo por paso.
- * Centraliza la comunicación entre la UI y los motores de IA.
+ * Gestiona la lógica de validación y transición asíncrona.
  */
-function InnerOrchestrator() {
+function InnerOrchestrator({ initialDrafts }: InnerOrchestratorProps) {
   const { toast } = useToast();
   const { trigger, setValue, getValues, watch } = useFormContext<PodcastCreationData>();
 
-  // Observamos el propósito para reaccionar a cambios de rama
   const currentPurpose = watch("purpose");
   const [narrativeOptions, setNarrativeOptions] = useState<any[]>([]);
 
-  // 1. Inicialización de Motores
   const navigation = useFlowNavigation({ currentPurpose });
 
-  // Memorizamos las acciones de navegación para evitar recreaciones innecesarias
   const navActions = useMemo(() => ({
     transitionTo: (state: any) => navigation.transitionTo(state),
     goBack: () => navigation.goBack()
@@ -45,37 +45,23 @@ function InnerOrchestrator() {
     clearDraft: () => { }
   });
 
-  // 2. Resolución del Mapa de Ruta Actual
   const currentPath = useMemo(() => {
     return MASTER_FLOW_PATHS[currentPurpose] || MASTER_FLOW_PATHS.learn;
   }, [currentPurpose]);
 
-  /**
-   * handleValidatedNext
-   * Gestiona el botón "SIGUIENTE". Valida la integridad del paso actual
-   * antes de ordenar la transición al siguiente estado del mapa.
-   */
   const handleValidatedNext = useCallback(async () => {
     const currentState = navigation.currentFlowState;
     const currentValues = getValues();
 
-    // --- BLOQUE A: VALIDACIÓN DE CALIDAD DE CONTENIDO ---
-    const textFields = [currentValues.solo_motivation, currentValues.question_to_answer, currentValues.legacy_lesson];
-    const activeText = textFields.find(val => val && val.length > 0) || "";
-    const wordCount = activeText.trim().split(/\s+/).filter(w => w.length > 0).length;
-
+    // Validación de calidad mínima de texto
     if (['SOLO_TALK_INPUT', 'QUESTION_INPUT', 'LEGACY_INPUT'].includes(currentState)) {
-      if (wordCount < 10) {
-        toast({
-          title: "Idea insuficiente",
-          description: "Desarrolla tu idea con al menos 10 palabras para que la IA cree un guion de valor.",
-          variant: "destructive"
-        });
+      const content = currentValues.solo_motivation || currentValues.question_to_answer || currentValues.legacy_lesson || "";
+      if (content.trim().split(/\s+/).filter(w => w.length > 0).length < 10) {
+        toast({ title: "Idea insuficiente", description: "Desarrolla tu idea con al menos 10 palabras.", variant: "destructive" });
         return;
       }
     }
 
-    // --- BLOQUE B: MAPEO DE CAMPOS PARA ZOD ---
     let fields: any[] = [];
     switch (currentState) {
       case 'SOLO_TALK_INPUT': fields = ['solo_topic', 'solo_motivation']; break;
@@ -89,39 +75,26 @@ function InnerOrchestrator() {
     const isValid = fields.length > 0 ? await trigger(fields as any) : true;
 
     if (isValid) {
-      // --- BLOQUE C: TRANSICIÓN DETERMINISTA ---
       if (currentState === 'LINK_POINTS_INPUT') {
         await actions.generateNarratives(setNarrativeOptions);
       } else {
         const currentIndex = currentPath.indexOf(currentState);
         if (currentIndex !== -1 && (currentIndex + 1) < currentPath.length) {
           navigation.transitionTo(currentPath[currentIndex + 1]);
-        } else if (currentIndex === -1) {
-          console.error(`NicePod Flow Error: State [${currentState}] missing in current path.`);
         }
       }
     } else {
-      toast({
-        title: "Atención",
-        description: "Completa los campos marcados para poder avanzar.",
-        variant: "destructive"
-      });
+      toast({ title: "Atención", description: "Completa los campos requeridos.", variant: "destructive" });
     }
   }, [navigation, getValues, trigger, toast, actions, currentPath]);
 
-  /**
-   * contextValue
-   * Expone el estado y métodos de actualización a los componentes de cada paso.
-   */
   const contextValue = {
     ...navigation,
     isGeneratingScript: actions.isGenerating,
     setIsGeneratingScript: () => { },
     updateFormData: (data: any) => {
       Object.entries(data).forEach(([k, v]) => setValue(k as any, v, {
-        shouldValidate: true,
-        shouldDirty: true,
-        shouldTouch: true
+        shouldValidate: true, shouldDirty: true, shouldTouch: true
       }));
     }
   };
@@ -137,7 +110,11 @@ function InnerOrchestrator() {
         isSubmitting={actions.isSubmitting}
         progress={navigation.progressMetrics}
       >
-        <StepRenderer narrativeOptions={narrativeOptions} />
+        {/* [FIJO]: StepRenderer ahora acepta initialDrafts */}
+        <StepRenderer
+          narrativeOptions={narrativeOptions}
+          initialDrafts={initialDrafts}
+        />
       </LayoutShell>
     </CreationContext.Provider>
   );
@@ -145,15 +122,11 @@ function InnerOrchestrator() {
 
 /**
  * PodcastCreationOrchestrator
- * Punto de entrada principal. Garantiza que el formulario y sus métodos
- * estén disponibles para todo el árbol de creación.
+ * Componente principal exportado.
  */
-export default function PodcastCreationOrchestrator() {
+export default function PodcastCreationOrchestrator({ initialDrafts = [] }: { initialDrafts?: any[] }) {
   const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  useEffect(() => { setIsMounted(true); }, []);
 
   const formMethods = useForm<PodcastCreationData>({
     resolver: zodResolver(PodcastCreationSchema),
@@ -176,7 +149,7 @@ export default function PodcastCreationOrchestrator() {
 
   return (
     <FormProvider {...formMethods}>
-      <InnerOrchestrator />
+      <InnerOrchestrator initialDrafts={initialDrafts} />
     </FormProvider>
   );
 }

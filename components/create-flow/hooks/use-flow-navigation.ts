@@ -1,5 +1,5 @@
 // components/create-flow/hooks/use-flow-navigation.ts
-// VERSIÓN: 1.5 (Master Navigation Engine - Loading State Awareness)
+// VERSIÓN: 1.6 (Master Navigation - Deep Linking & History Injection)
 
 import { useState, useCallback, useMemo } from "react";
 import { FlowState } from "../shared/types";
@@ -13,16 +13,31 @@ export function useFlowNavigation({ currentPurpose }: UseFlowNavigationProps) {
   const [currentFlowState, setCurrentFlowState] = useState<FlowState>('SELECTING_PURPOSE');
   const [history, setHistory] = useState<FlowState[]>(['SELECTING_PURPOSE']);
 
-  const getMasterPath = useCallback((): FlowState[] => {
+  const activePath = useMemo(() => {
     return MASTER_FLOW_PATHS[currentPurpose] || MASTER_FLOW_PATHS.learn;
   }, [currentPurpose]);
-
-  const activePath = useMemo(() => getMasterPath(), [getMasterPath]);
 
   const transitionTo = useCallback((state: FlowState) => {
     setHistory((prev) => [...prev, state]);
     setCurrentFlowState(state);
   }, []);
+
+  /**
+   * [NUEVO]: jumpToStep
+   * Permite saltar a un paso avanzado (ej: SCRIPT_EDITING) 
+   * reconstruyendo el historial previo para que el botón "ATRÁS" no se rompa.
+   */
+  const jumpToStep = useCallback((targetState: FlowState) => {
+    const path = MASTER_FLOW_PATHS[currentPurpose] || MASTER_FLOW_PATHS.learn;
+    const targetIndex = path.indexOf(targetState);
+
+    if (targetIndex !== -1) {
+      // Creamos un historial sintético con todos los pasos anteriores al objetivo
+      const syntheticHistory = path.slice(0, targetIndex + 1);
+      setHistory(syntheticHistory);
+      setCurrentFlowState(targetState);
+    }
+  }, [currentPurpose]);
 
   const goBack = useCallback(() => {
     setHistory((prev) => {
@@ -35,25 +50,15 @@ export function useFlowNavigation({ currentPurpose }: UseFlowNavigationProps) {
     });
   }, []);
 
-  const syncNavigation = useCallback((state: FlowState, newHistory: FlowState[]) => {
-    setCurrentFlowState(state);
-    setHistory(newHistory);
-  }, []);
-
   const progressMetrics = useMemo(() => {
-    // Excluimos estados técnicos de la cuenta total para no confundir al usuario
-    const visibleSteps = activePath.filter(s => s !== 'SELECTING_PURPOSE' && s !== 'DRAFT_GENERATION_LOADER');
-    
-    // Si estamos en el loader, visualmente seguimos en el paso previo (DETAILS_STEP)
+    const steps = activePath.filter(s => s !== 'SELECTING_PURPOSE' && s !== 'DRAFT_GENERATION_LOADER');
     const effectiveState = currentFlowState === 'DRAFT_GENERATION_LOADER' ? 'DETAILS_STEP' : currentFlowState;
-    const currentIndex = (visibleSteps as string[]).indexOf(effectiveState);
-    
+    const currentIndex = (steps as string[]).indexOf(effectiveState);
+
     return {
       step: currentIndex !== -1 ? currentIndex + 1 : 1,
-      total: visibleSteps.length,
-      percent: currentIndex !== -1 
-        ? Math.round(((currentIndex + 1) / visibleSteps.length) * 100) 
-        : 0,
+      total: steps.length,
+      percent: currentIndex !== -1 ? Math.round(((currentIndex + 1) / steps.length) * 100) : 0,
       isInitial: currentFlowState === 'SELECTING_PURPOSE'
     };
   }, [currentFlowState, activePath]);
@@ -62,10 +67,9 @@ export function useFlowNavigation({ currentPurpose }: UseFlowNavigationProps) {
     currentFlowState,
     history,
     transitionTo,
+    jumpToStep, // <--- Exportación vital para hidratación
     goBack,
-    syncNavigation,
     progressMetrics,
-    activePath,
-    getMasterPath 
+    activePath
   };
 }

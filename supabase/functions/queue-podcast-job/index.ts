@@ -1,121 +1,112 @@
 // supabase/functions/queue-podcast-job/index.ts
-// VERSIÓN: 14.0 (Atomic Transit - Multi-Mode & Situational Support)
+// VERSIÓN: 16.0 (Atomic Promotion - Draft Integration & Direct Relative Imports)
 
-import { serve } from "std/http/server.ts";
-import { createClient } from "supabase";
-import { z, ZodError } from "zod";
-import { guard, corsHeaders } from "guard"; // [SISTEMA]: Uso de alias legal y re-export de headers
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
+import { z, ZodError } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
-/**
- * SCHEMA DE ENTRADA: QueuePayloadSchema
- * Sincronizado 1:1 con PodcastCreationSchema v5.0 del Frontend.
- */
+// Importaciones con rutas relativas para compatibilidad móvil/dashboard
+import { guard } from "../_shared/guard.ts";
+import { corsHeaders } from "../_shared/cors.ts";
+
 const QueuePayloadSchema = z.object({
-  agentName: z.string().min(1, "agentName es requerido"),
-  purpose: z.enum(['learn', 'inspire', 'explore', 'reflect', 'answer', 'freestyle', 'local_soul']),
-  creation_mode: z.enum(['standard', 'remix', 'situational']).default('standard'), // [FIJO]: Añadido situational
-  parent_id: z.number().optional().nullable(),
-
-  // CUSTODIA DE FUENTES: Validamos integridad bibliográfica
-  sources: z.array(z.object({
-    title: z.string(),
-    url: z.string().url("URL de fuente inválida"),
-    snippet: z.string().optional()
-  })).default([]),
-
-  // MATERIA PRIMA (ENCAPSULADA):
-  // No validamos campos internos aquí para mantener la función agnóstica al propósito,
-  // pero obligamos a que sea un objeto no vacío.
-  inputs: z.record(z.unknown()).refine((obj) => Object.keys(obj).length > 0, {
-    message: "El objeto 'inputs' no puede estar vacío"
-  })
+  draft_id: z.number().optional().nullable(),
+  purpose: z.string(),
+  agentName: z.string(),
+  final_title: z.string(),
+  final_script: z.string(),
+  sources: z.array(z.any()).default([]),
+  inputs: z.record(z.unknown())
 });
 
 const handler = async (request: Request): Promise<Response> => {
   const correlationId = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
 
-  // 1. Obtención Segura del Cliente Admin
-  const supabaseAdmin = createClient(
+  const supabaseAdmin: SupabaseClient = createClient(
     Deno.env.get('SUPABASE_URL') ?? "",
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ""
   );
 
   try {
-    // 2. Extracción de Identidad del Token JWT
     const authHeader = request.headers.get('Authorization');
-    if (!authHeader) throw new Error("Cabecera de autorización ausente.");
-
     const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(
-      authHeader.replace("Bearer ", "")
+      authHeader?.replace("Bearer ", "") || ""
     );
+    if (authError || !user) throw new Error("No autorizado.");
 
-    if (authError || !user) throw new Error("Sesión inválida o expirada.");
-
-    // 3. VALIDACIÓN DE CONTRATO (QUIRÚRGICA)
     const rawBody = await request.json();
-    const validatedPayload = QueuePayloadSchema.parse(rawBody);
+    const validated = QueuePayloadSchema.parse(rawBody);
 
-    console.log(`[Queue][${correlationId}] Usuario ${user.id} encolando modo ${validatedPayload.creation_mode}`);
+    let targetPodId: number;
 
-    // 4. OPERACIÓN ATÓMICA EN BASE DE DATOS
-    // La función RPC 'increment_jobs_and_queue' debe:
-    // a. Validar cuota del usuario.
-    // b. Insertar en la tabla 'podcast_creation_jobs'.
-    const { data: jobId, error: rpcError } = await supabaseAdmin.rpc('increment_jobs_and_queue', {
-      p_user_id: user.id,
-      p_payload: validatedPayload // Incluye el nuevo objeto 'inputs' estructurado
-    });
+    // 1. DETERMINAR ESTRATEGIA (ACTUALIZAR BORRADOR O INSERTAR NUEVO)
+    if (validated.draft_id) {
+      console.log(`[Queue][${correlationId}] Promocionando borrador #${validated.draft_id}`);
 
-    if (rpcError) throw new Error(`Error de cuota o base de datos: ${rpcError.message}`);
+      const { data: updatedPod, error: updateError } = await supabaseAdmin
+        .from('micro_pods')
+        .update({
+          status: 'pending_approval', // Sube de 'draft' a producción
+          title: validated.final_title,
+          script_text: JSON.stringify({
+            script_body: validated.final_script,
+            script_plain: validated.final_script.replace(/<[^>]+>/g, " ").trim()
+          }),
+          sources: validated.sources,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', validated.draft_id)
+        .eq('user_id', user.id) // Seguridad: solo borra lo propio
+        .select('id')
+        .single();
 
-    // 5. DISPARO DEL ORQUESTADOR (Fire & Forget)
-    // Invocamos a 'process-podcast-job' pasando el ID del registro y el trace ID para logs.
-    supabaseAdmin.functions.invoke('process-podcast-job', {
-      body: {
-        job_id: jobId,
-        trace_id: correlationId
-      }
-    });
+      if (updateError) throw new Error(`Fallo en promoción: ${updateError.message}`);
+      targetPodId = updatedPod.id;
+    } else {
+      // Caso: El usuario no generó borrador previo (no debería pasar con el nuevo flujo)
+      const { data: newPod, error: insertError } = await supabaseAdmin
+        .from('micro_pods')
+        .insert({
+          user_id: user.id,
+          title: validated.final_title,
+          status: 'pending_approval',
+          creation_data: validated.inputs,
+          sources: validated.sources
+        })
+        .select('id')
+        .single();
 
-    // 6. RESPUESTA DE ACEPTACIÓN (HTTP 202 Accepted)
-    return new Response(
-      JSON.stringify({
-        success: true,
-        job_id: jobId,
-        trace_id: correlationId,
-        message: "Trabajo encolado exitosamente"
-      }),
-      {
-        status: 202,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      }
-    );
-
-  } catch (err: unknown) {
-    let errorMessage = "Error interno en el motor de cola";
-    let statusCode = 500;
-
-    if (err instanceof ZodError) {
-      errorMessage = `Error de contrato: ${err.errors.map(e => `${e.path}: ${e.message}`).join(", ")}`;
-      statusCode = 400;
-    } else if (err instanceof Error) {
-      errorMessage = err.message;
+      if (insertError) throw insertError;
+      targetPodId = newPod.id;
     }
 
-    console.error(`🔥 [Queue][${correlationId}] Error:`, errorMessage);
-
-    return new Response(
-      JSON.stringify({
-        error: errorMessage,
+    // 2. DISPARAR PROCESAMIENTO (AUDIO/IMAGEN/VECTOR)
+    // El orquestador 'process-podcast-job' toma el podcast y dispara los workers
+    supabaseAdmin.functions.invoke('process-podcast-job', {
+      body: {
+        job_id: null,
+        podcast_id: targetPodId,
         trace_id: correlationId
-      }),
-      {
-        status: statusCode,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
       }
-    );
+    });
+
+    return new Response(JSON.stringify({
+      success: true,
+      pod_id: targetPodId,
+      trace_id: correlationId
+    }), {
+      status: 202,
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
+
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Error desconocido";
+    console.error(`🔥 [Queue][${correlationId}] Error:`, msg);
+    return new Response(JSON.stringify({ error: msg, trace_id: correlationId }), {
+      status: err instanceof ZodError ? 400 : 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
   }
 };
 
-// [SISTEMA]: El 'guard' ya maneja los preflights y la seguridad Arcjet inicial.
 serve(guard(handler));

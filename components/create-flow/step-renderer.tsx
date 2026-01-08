@@ -1,5 +1,5 @@
 // components/create-flow/step-renderer.tsx
-// VERSIÓN: 1.7 (Sovereign Architecture - Total State Coverage)
+// VERSIÓN: 1.8 (Sovereign Architecture - Prop Sync Fix)
 
 "use client";
 
@@ -8,6 +8,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useCreationContext } from "./shared/context";
 import { useFormContext } from "react-hook-form";
 
+// IMPORTACIONES DE PASOS
 import { PurposeSelectionStep } from "./steps/purpose-selection-step";
 import { LearnSubStep } from "./steps/learn-sub-step";
 import { SoloTalkStep } from "./steps/solo-talk-step";
@@ -15,7 +16,7 @@ import { DetailsStep } from "./steps/details-step";
 import { FinalStep } from "./steps/final-step";
 import { ToneSelectionStep } from "./steps/tone-selection-step";
 import { DraftGenerationLoader } from "./steps/draft-generation-loader";
-import { AudioStudio } from "./steps/audio-studio"; // [CRÍTICO]: Asegurar importación
+import { AudioStudio } from "./steps/audio-studio";
 import { LocalDiscoveryStep } from "./steps/local-discovery-step";
 import { DiscoveryResultStep } from "./steps/discovery-result-step";
 import { InspireSubStep } from "./steps/inspire-sub-step";
@@ -28,39 +29,52 @@ import { QuestionStep } from "./steps/question-step";
 import { StyleSelectionStep } from "./steps/style-selection";
 
 import dynamic from 'next/dynamic';
+
 const ScriptEditorStep = dynamic(
   () => import('./steps/script-editor-step').then((m) => m.ScriptEditorStep),
   { ssr: false }
 );
 
-export function StepRenderer({ narrativeOptions }: { narrativeOptions: any[] }) {
+/**
+ * INTERFAZ DE PROPS (El contrato que faltaba)
+ */
+interface StepRendererProps {
+  narrativeOptions: any[];
+  initialDrafts: any[]; // [FIJO]: Ahora el renderer acepta borradores
+}
+
+export function StepRenderer({ narrativeOptions, initialDrafts }: StepRendererProps) {
   const { currentFlowState } = useCreationContext();
   const { getValues } = useFormContext();
 
   const stepContent = useMemo(() => {
     switch (currentFlowState) {
-      case 'SELECTING_PURPOSE':      return <PurposeSelectionStep />;
-      case 'LOCAL_DISCOVERY_STEP':   return <LocalDiscoveryStep />;
-      case 'LOCAL_RESULT_STEP':      return <DiscoveryResultStep />;
-      case 'LEARN_SUB_SELECTION':    return <LearnSubStep />;
-      case 'INSPIRE_SUB_SELECTION':  return <InspireSubStep />;
-      case 'SOLO_TALK_INPUT':        return <SoloTalkStep />;
-      case 'ARCHETYPE_SELECTION':    return <ArchetypeStep />;
-      case 'ARCHETYPE_GOAL':         return <ArchetypeInputStep />;
-      case 'LINK_POINTS_INPUT':      return <LinkPointsStep />;
-      case 'NARRATIVE_SELECTION':    return <NarrativeSelectionStep narrativeOptions={narrativeOptions} />;
-      case 'LEGACY_INPUT':           return <LegacyStep />;
-      case 'QUESTION_INPUT':         return <QuestionStep />;
-      case 'FREESTYLE_SELECTION':    return <StyleSelectionStep />;
-      case 'DETAILS_STEP':           return <DetailsStep />;
-      case 'TONE_SELECTION':         return <ToneSelectionStep />;
+      case 'SELECTING_PURPOSE':
+        // Pasamos los borradores iniciales a la pantalla de selección
+        return <PurposeSelectionStep existingDrafts={initialDrafts} />;
+
+      case 'LOCAL_DISCOVERY_STEP': return <LocalDiscoveryStep />;
+      case 'LOCAL_RESULT_STEP': return <DiscoveryResultStep />;
+      case 'LEARN_SUB_SELECTION': return <LearnSubStep />;
+      case 'INSPIRE_SUB_SELECTION': return <InspireSubStep />;
+      case 'SOLO_TALK_INPUT': return <SoloTalkStep />;
+      case 'ARCHETYPE_SELECTION': return <ArchetypeStep />;
+      case 'ARCHETYPE_GOAL': return <ArchetypeInputStep />;
+      case 'LINK_POINTS_INPUT': return <LinkPointsStep />;
+      case 'NARRATIVE_SELECTION': return <NarrativeSelectionStep narrativeOptions={narrativeOptions} />;
+      case 'LEGACY_INPUT': return <LegacyStep />;
+      case 'QUESTION_INPUT': return <QuestionStep />;
+      case 'FREESTYLE_SELECTION': return <StyleSelectionStep />;
+      case 'DETAILS_STEP': return <DetailsStep />;
+      case 'TONE_SELECTION': return <ToneSelectionStep />;
       case 'DRAFT_GENERATION_LOADER': return <DraftGenerationLoader formData={getValues() as any} />;
-      case 'SCRIPT_EDITING':         return <ScriptEditorStep />;
-      case 'AUDIO_STUDIO_STEP':      return <AudioStudio />; // [FIJO]: Mapeado correctamente
-      case 'FINAL_STEP':             return <FinalStep />;
-      default:                       return <div className="text-white p-10">Error de flujo: Estado no reconocido.</div>;
+      case 'SCRIPT_EDITING': return <ScriptEditorStep />;
+      case 'AUDIO_STUDIO_STEP': return <AudioStudio />;
+      case 'FINAL_STEP': return <FinalStep />;
+
+      default: return <div className="text-white p-10">Estado no reconocido.</div>;
     }
-  }, [currentFlowState, getValues, narrativeOptions]);
+  }, [currentFlowState, getValues, narrativeOptions, initialDrafts]);
 
   return (
     <div className="relative flex-1 flex flex-col min-h-0 w-full overflow-hidden">

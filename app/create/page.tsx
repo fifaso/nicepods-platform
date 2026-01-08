@@ -1,41 +1,37 @@
 // app/create/page.tsx
-// VERSIÓN: 9.0 (Direct Mount - Eliminates Layout Conflicts)
+// VERSIÓN: 2.3 (Production Ready - Named Import & SSR Sync)
 
-import { cookies } from "next/headers";
+import { listUserDrafts } from "@/actions/draft-actions";
+import PodcastCreationOrchestrator from "@/components/create-flow";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
-// Importamos el Orquestador desde el índice del módulo
-// Usamos el nombre semántico correcto para mantener coherencia
-import PodcastCreationOrchestrator from "@/components/create-flow";
-
-export const metadata = {
-  title: "Nuevo Podcast | NicePod Studio",
-  description: "Crea contenido de audio con inteligencia artificial situacional.",
-};
-
+/**
+ * PAGE: CreatePage
+ * Orquestador de servidor para la ruta de creación.
+ * Garantiza la hidratación de borradores antes de que el cliente tome el control.
+ */
 export default async function CreatePage() {
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
+  const supabase = createClient();
 
-  // 1. Verificación de Seguridad (SSR)
-  // Protegemos la ruta en el servidor antes de enviar cualquier JS al cliente
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  if (!user) {
-    redirect('/login?redirect=/create');
+  // 1. Verificación de Seguridad en el Servidor
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    redirect("/login?redirect=/create");
   }
 
-  /**
-   * INTERVENCIÓN ESTRATÉGICA:
-   * Hemos eliminado los contenedores <div> con clases 'flex', 'min-h', etc.
-   * El componente PodcastCreationOrchestrator (y su LayoutShell) está diseñado 
-   * con 'fixed inset-0', por lo que necesita ser montado directamente en el fragmento 
-   * para tomar control del viewport sin restricciones heredadas.
-   */
+  // 2. Hidratación de Datos de Borradores (Status: 'draft')
+  // [CORRECCIÓN]: Sincronización del nombre de la función exportada en actions
+  const existingDrafts = await listUserDrafts();
+
   return (
-    <>
-      <PodcastCreationOrchestrator />
-    </>
+    <main className="min-h-screen bg-transparent relative overflow-hidden">
+      {/* 
+        Componente Raíz del Formulario.
+        Recibe los borradores pre-cargados para evitar estados de carga vacíos.
+      */}
+      <PodcastCreationOrchestrator initialDrafts={existingDrafts} />
+    </main>
   );
 }

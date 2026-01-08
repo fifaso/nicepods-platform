@@ -1,5 +1,5 @@
 // components/create-flow/hooks/use-flow-actions.tsx
-// VERSIÓN: 2.1 (Master Actions Engine - Total Feature Restoration)
+// VERSIÓN: 2.3 (Master Actions - Full Hydration Integration)
 
 "use client";
 
@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { PodcastCreationData } from "@/lib/validation/podcast-schema";
 import { FlowState } from "../shared/types";
 import { CheckCircle2 } from "lucide-react";
+import { deleteDraftAction } from "@/actions/draft-actions";
 
 interface UseFlowActionsProps {
   transitionTo: (state: FlowState) => void;
@@ -22,20 +23,18 @@ export function useFlowActions({ transitionTo, goBack, clearDraft }: UseFlowActi
   const { supabase, user } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
-  const { getValues, setValue, trigger } = useFormContext<PodcastCreationData>();
+  const { getValues, setValue, trigger, reset } = useFormContext<PodcastCreationData>();
 
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  /**
-   * packageInputs: Centraliza la materia prima para la IA
-   */
   const packageInputs = (data: PodcastCreationData) => {
     return {
       duration: data.duration,
       narrativeDepth: data.narrativeDepth,
       voiceGender: data.voiceGender,
       voiceStyle: data.voiceStyle,
+      voicePace: data.voicePace,
       speakingRate: data.speakingRate,
       location: data.location,
       discovery_context: data.discovery_context,
@@ -53,90 +52,75 @@ export function useFlowActions({ transitionTo, goBack, clearDraft }: UseFlowActi
     };
   };
 
-  // --- 1. ANALIZAR ENTORNO LOCAL (Restaurado) ---
-  const analyzeLocalEnvironment = useCallback(async () => {
-    const data = getValues();
-    if (!data.location && !data.imageContext) {
-      toast({ title: "Faltan Sensores", description: "GPS o Foto requeridos.", variant: "destructive" });
-      return;
-    }
-
-    setIsGenerating(true);
+  /**
+   * handleResumeDraft: El "Inyector de Memoria"
+   * Transfiere los datos de la DB al estado de React Hook Form.
+   */
+  const handleResumeDraft = useCallback((draft: any) => {
     try {
-      const { data: res, error } = await supabase.functions.invoke('get-local-discovery', {
-        body: {
-          latitude: data.location?.latitude || 0,
-          longitude: data.location?.longitude || 0,
-          lens: data.selectedTone || 'Tesoros Ocultos',
-          image_base64: data.imageContext
-        }
+      const { purpose, agentName, inputs } = draft.creation_data;
+
+      // Limpiamos y re-hidratamos
+      reset();
+
+      // 1. Semilla
+      Object.entries(inputs || {}).forEach(([k, v]) => {
+        setValue(k as any, v);
       });
 
-      if (error || !res?.success) throw new Error(res?.error || "Fallo en descubrimiento.");
+      // 2. Identidad
+      setValue("purpose", purpose);
+      setValue("agentName", agentName);
 
-      setValue('discovery_context', res.dossier, { shouldValidate: true });
-      setValue('sources', res.sources || [], { shouldValidate: true });
-      setValue('solo_topic', res.poi || "Descubrimiento Local", { shouldValidate: true });
-      setValue('agentName', 'local-concierge-v1', { shouldValidate: true });
+      // @ts-ignore
+      setValue("draft_id", draft.id);
 
-      toast({ title: "¡Entorno Sincronizado!", description: `Lugar: ${res.poi}` });
-      transitionTo('LOCAL_RESULT_STEP');
-    } catch (err: any) {
-      toast({ title: "Error de Análisis", description: err.message, variant: "destructive" });
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [supabase, getValues, setValue, transitionTo, toast]);
-
-  // --- 2. GENERAR NARRATIVAS (Restaurado) ---
-  const generateNarratives = useCallback(async (callback: (data: any[]) => void) => {
-    const { link_topicA, link_topicB, link_catalyst } = getValues();
-    setIsGenerating(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('generate-narratives', {
-        body: { topicA: link_topicA, topicB: link_topicB, catalyst: link_catalyst }
-      });
-      if (error) throw error;
-      if (data?.narratives) {
-        callback(data.narratives);
-        transitionTo('NARRATIVE_SELECTION');
+      // 3. Resultado de IA (Si ya existía guion)
+      if (draft.script_text) {
+        const parsed = typeof draft.script_text === 'string' ? JSON.parse(draft.script_text) : draft.script_text;
+        setValue("final_title", draft.title);
+        setValue("final_script", parsed.script_body || draft.script_text);
       }
-    } catch {
-      toast({ title: "Error", description: "Fallo al conectar ideas.", variant: "destructive" });
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [supabase, getValues, transitionTo, toast]);
 
-  // --- 3. GENERAR BORRADOR ---
+      setValue("sources", draft.sources || []);
+
+      toast({ title: "Borrador recuperado", description: `Continuando: ${draft.title}` });
+      transitionTo('SCRIPT_EDITING'); // Salto directo al editor
+    } catch (err) {
+      toast({ title: "Error de hidratación", description: "El borrador está corrupto.", variant: "destructive" });
+    }
+  }, [reset, setValue, transitionTo, toast]);
+
   const generateDraft = useCallback(async () => {
     transitionTo('DRAFT_GENERATION_LOADER');
     setIsGenerating(true);
     try {
       const data = getValues();
       const payload = {
+        user_id: user?.id,
         purpose: data.purpose,
         agentName: data.agentName || 'script-architect-v1',
         inputs: packageInputs(data)
       };
 
       const { data: response, error } = await supabase.functions.invoke('generate-script-draft', { body: payload });
-      if (error || !response?.success) throw new Error(response?.error || "IA fuera de servicio.");
+      if (error || !response?.success) throw new Error(response?.error || "Fallo IA");
 
-      setValue('final_title', response.draft.suggested_title, { shouldValidate: true });
-      setValue('final_script', response.draft.script_body, { shouldValidate: true });
-      if (response.draft.sources) setValue('sources', response.draft.sources, { shouldValidate: true });
+      // @ts-ignore
+      setValue('draft_id', response.draft_id);
+      setValue('final_title', response.draft.suggested_title);
+      setValue('final_script', response.draft.script_body);
+      if (response.draft.sources) setValue('sources', response.draft.sources);
 
       transitionTo('SCRIPT_EDITING');
     } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: "Fallo Creativo", description: err.message, variant: "destructive" });
       goBack();
     } finally {
       setIsGenerating(false);
     }
-  }, [supabase, getValues, setValue, transitionTo, goBack, toast]);
+  }, [supabase, user, getValues, setValue, transitionTo, goBack, toast]);
 
-  // --- 4. ENVÍO A PRODUCCIÓN ---
   const handleSubmitProduction = useCallback(async () => {
     const isValid = await trigger();
     if (!isValid) return;
@@ -146,6 +130,8 @@ export function useFlowActions({ transitionTo, goBack, clearDraft }: UseFlowActi
     try {
       const data = getValues();
       const payload = {
+        // @ts-ignore
+        draft_id: data.draft_id,
         purpose: data.purpose,
         agentName: data.agentName,
         final_title: data.final_title,
@@ -155,8 +141,9 @@ export function useFlowActions({ transitionTo, goBack, clearDraft }: UseFlowActi
       };
 
       const { data: res, error } = await supabase.functions.invoke('queue-podcast-job', { body: payload });
-      if (error || !res?.success) throw new Error("Fallo en cola.");
+      if (error || !res?.success) throw new Error("Fallo en producción.");
 
+      toast({ title: "¡Éxito!", description: "Generando audio final...", action: <CheckCircle2 className="h-5 w-5 text-green-500" /> });
       router.push('/podcasts?tab=library');
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -165,11 +152,21 @@ export function useFlowActions({ transitionTo, goBack, clearDraft }: UseFlowActi
     }
   }, [trigger, supabase, user, getValues, router, toast]);
 
+  const deleteDraft = useCallback(async (id: number) => {
+    const result = await deleteDraftAction(id);
+    if (result.success) {
+      toast({ title: "Eliminado", description: result.message });
+      // El revalidatePath en el action se encargará del resto
+    } else {
+      toast({ title: "Error", description: result.message, variant: "destructive" });
+    }
+  }, [toast]);
+
   return {
     generateDraft,
     handleSubmitProduction,
-    analyzeLocalEnvironment,
-    generateNarratives,
+    handleResumeDraft, // Exportación clave
+    deleteDraft,      // Exportación clave
     isGenerating,
     isSubmitting
   };

@@ -1,5 +1,5 @@
 // lib/validation/podcast-schema.ts
-// VERSIÓN: 5.0 (Master Standard - Global Situational Support & Data Provenance)
+// VERSIÓN: 5.1 (Master Standard - Draft ID & Persistence Support)
 
 import { z } from 'zod';
 
@@ -57,18 +57,22 @@ const DiscoveryContextSchema = z.object({
  * Este es el contrato único entre el Formulario y el Backend de NicePod.
  */
 export const PodcastCreationSchema = z.object({
+  // [NUEVO]: Identificador de persistencia para el sistema de hidratación y promoción.
+  // Permite al Backend actualizar un registro 'draft' en lugar de crear uno nuevo.
+  draft_id: z.number().optional().nullable(),
+
   // Identidad y Propósito
   purpose: z.enum(['learn', 'inspire', 'explore', 'reflect', 'answer', 'freestyle', 'local_soul']),
   creation_mode: z.enum(['standard', 'remix', 'situational']).default('standard'),
-  
+
   // Metodología de Producción
   style: z.enum(['solo', 'link', 'archetype', 'legacy', 'qa', 'remix', 'local_concierge']).optional(),
-  
+
   // GOBERNANZA DE IA: agentName es el campo oficial sincronizado con la DB.
   agentName: z.string().min(1, "El Agente de IA debe estar definido."),
   selectedAgent: z.string().optional(), // Mantenido por compatibilidad legacy.
 
-  // --- CONTEXTO SITUACIONAL (NUEVO) ---
+  // --- CONTEXTO SITUACIONAL ---
   location: z.object({
     latitude: z.number(),
     longitude: z.number(),
@@ -84,22 +88,22 @@ export const PodcastCreationSchema = z.object({
   // --- INPUTS SEMILLA (MATERIA PRIMA) ---
   solo_topic: safeInputString.optional(),
   solo_motivation: safeInputString.optional(),
-  
+
   link_topicA: safeInputString.optional(),
   link_topicB: safeInputString.optional(),
   link_catalyst: safeInputString.optional(),
-  
-  link_selectedNarrative: z.object({ 
-    title: z.string(), 
-    thesis: z.string() 
+
+  link_selectedNarrative: z.object({
+    title: z.string(),
+    thesis: z.string()
   }).nullable().optional(),
-  
+
   link_selectedTone: z.string().optional(),
-  
+
   selectedArchetype: z.string().optional(),
   archetype_topic: z.string().optional(),
   archetype_goal: z.string().optional(),
-  
+
   legacy_lesson: z.string().optional(),
   question_to_answer: z.string().optional(),
 
@@ -119,8 +123,8 @@ export const PodcastCreationSchema = z.object({
   // Configuración Técnica
   duration: z.string().min(1, "Selecciona una duración."),
   narrativeDepth: z.string().min(1, "Define el nivel de profundidad."),
-  selectedTone: z.string().optional(), 
-  
+  selectedTone: z.string().optional(),
+
   // Parámetros del Motor de Voz (Neural2)
   voiceGender: z.enum(['Masculino', 'Femenino']).default('Masculino'),
   voiceStyle: z.enum(['Calmado', 'Energético', 'Profesional', 'Inspirador']).default('Profesional'),
@@ -131,26 +135,26 @@ export const PodcastCreationSchema = z.object({
   tags: z.array(z.string()).default([]),
   generateAudioDirectly: z.boolean().default(true),
 })
-.superRefine((data, ctx) => {
-  // 1. Validación para "Vivir lo Local"
-  if (data.purpose === 'local_soul' && !data.location && !data.imageContext && !data.solo_topic) {
-    ctx.addIssue({
-      code: 'custom',
-      message: 'Indica un lugar, usa el GPS o captura una foto para vivir lo local.',
-      path: ['solo_topic']
-    });
-  }
+  .superRefine((data, ctx) => {
+    // 1. Validación para "Vivir lo Local"
+    if (data.purpose === 'local_soul' && !data.location && !data.imageContext && !data.solo_topic) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Indica un lugar, usa el GPS o captura una foto para vivir lo local.',
+        path: ['solo_topic']
+      });
+    }
 
-  // 2. Validación para flujos de aprendizaje
-  if (data.purpose === 'learn' && (!data.solo_topic || data.solo_topic.length < 3)) {
-    ctx.addIssue({ code: 'custom', message: 'Indica qué tema deseas aprender.', path: ['solo_topic'] });
-  }
+    // 2. Validación para flujos de aprendizaje (Mínimo 3 caracteres para tema)
+    if (data.purpose === 'learn' && (!data.solo_topic || data.solo_topic.length < 3)) {
+      ctx.addIssue({ code: 'custom', message: 'Indica qué tema deseas aprender.', path: ['solo_topic'] });
+    }
 
-  // 3. Validación de Remixes
-  if (data.creation_mode === 'remix' && !data.user_reaction) {
-    ctx.addIssue({ code: 'custom', message: 'La reacción de voz es necesaria.', path: ['user_reaction'] });
-  }
-});
+    // 3. Validación de Remixes
+    if (data.creation_mode === 'remix' && !data.user_reaction) {
+      ctx.addIssue({ code: 'custom', message: 'La reacción de voz es necesaria.', path: ['user_reaction'] });
+    }
+  });
 
 /**
  * TIPO DE DATOS INFERIDO
