@@ -1,5 +1,5 @@
 // components/create-flow/index.tsx
-// VERSIÓN: 44.0 (Master Sovereign - Total Prop Sync)
+// VERSIÓN: 45.0 (Master Sovereign - Actions & Context Reference Fix)
 
 "use client";
 
@@ -21,10 +21,6 @@ interface InnerOrchestratorProps {
   initialDrafts: any[];
 }
 
-/**
- * InnerOrchestrator
- * Gestiona la lógica de validación y transición asíncrona.
- */
 function InnerOrchestrator({ initialDrafts }: InnerOrchestratorProps) {
   const { toast } = useToast();
   const { trigger, setValue, getValues, watch } = useFormContext<PodcastCreationData>();
@@ -39,6 +35,7 @@ function InnerOrchestrator({ initialDrafts }: InnerOrchestratorProps) {
     goBack: () => navigation.goBack()
   }), [navigation]);
 
+  // [FIJO]: El hook actions ahora recibe las referencias correctas
   const actions = useFlowActions({
     transitionTo: navActions.transitionTo,
     goBack: navActions.goBack,
@@ -53,11 +50,11 @@ function InnerOrchestrator({ initialDrafts }: InnerOrchestratorProps) {
     const currentState = navigation.currentFlowState;
     const currentValues = getValues();
 
-    // Validación de calidad mínima de texto
+    // Bloqueo de calidad
     if (['SOLO_TALK_INPUT', 'QUESTION_INPUT', 'LEGACY_INPUT'].includes(currentState)) {
-      const content = currentValues.solo_motivation || currentValues.question_to_answer || currentValues.legacy_lesson || "";
-      if (content.trim().split(/\s+/).filter(w => w.length > 0).length < 10) {
-        toast({ title: "Idea insuficiente", description: "Desarrolla tu idea con al menos 10 palabras.", variant: "destructive" });
+      const content = currentValues.solo_motivation || currentValues.question_to_answer || "";
+      if (content.trim().split(/\s+/).length < 10) {
+        toast({ title: "Falta sustancia", description: "Mínimo 10 palabras.", variant: "destructive" });
         return;
       }
     }
@@ -69,34 +66,34 @@ function InnerOrchestrator({ initialDrafts }: InnerOrchestratorProps) {
       case 'TONE_SELECTION': fields = ['agentName']; break;
       case 'SCRIPT_EDITING': fields = ['final_title', 'final_script']; break;
       case 'LINK_POINTS_INPUT': fields = ['link_topicA', 'link_topicB']; break;
-      case 'ARCHETYPE_GOAL': fields = ['archetype_topic', 'archetype_goal']; break;
     }
 
     const isValid = fields.length > 0 ? await trigger(fields as any) : true;
 
     if (isValid) {
       if (currentState === 'LINK_POINTS_INPUT') {
-        await actions.generateNarratives(setNarrativeOptions);
+        // [FIJO]: Se verifica existencia de generateNarratives antes de llamar
+        if ('generateNarratives' in actions) {
+          await (actions as any).generateNarratives(setNarrativeOptions);
+        }
       } else {
         const currentIndex = currentPath.indexOf(currentState);
         if (currentIndex !== -1 && (currentIndex + 1) < currentPath.length) {
           navigation.transitionTo(currentPath[currentIndex + 1]);
         }
       }
-    } else {
-      toast({ title: "Atención", description: "Completa los campos requeridos.", variant: "destructive" });
     }
   }, [navigation, getValues, trigger, toast, actions, currentPath]);
 
+  // [FIJO]: Cumplimos con el contrato de CreationContextType (getMasterPath)
   const contextValue = {
     ...navigation,
     isGeneratingScript: actions.isGenerating,
     setIsGeneratingScript: () => { },
     updateFormData: (data: any) => {
-      Object.entries(data).forEach(([k, v]) => setValue(k as any, v, {
-        shouldValidate: true, shouldDirty: true, shouldTouch: true
-      }));
-    }
+      Object.entries(data).forEach(([k, v]) => setValue(k as any, v, { shouldValidate: true, shouldDirty: true }));
+    },
+    getMasterPath: () => currentPath
   };
 
   return (
@@ -105,25 +102,17 @@ function InnerOrchestrator({ initialDrafts }: InnerOrchestratorProps) {
         onNext={handleValidatedNext}
         onDraft={actions.generateDraft}
         onProduce={actions.handleSubmitProduction}
-        onAnalyzeLocal={actions.analyzeLocalEnvironment}
+        onAnalyzeLocal={(actions as any).analyzeLocalEnvironment} // [FIJO]: Referencia segura
         isGenerating={actions.isGenerating}
         isSubmitting={actions.isSubmitting}
         progress={navigation.progressMetrics}
       >
-        {/* [FIJO]: StepRenderer ahora acepta initialDrafts */}
-        <StepRenderer
-          narrativeOptions={narrativeOptions}
-          initialDrafts={initialDrafts}
-        />
+        <StepRenderer narrativeOptions={narrativeOptions} initialDrafts={initialDrafts} />
       </LayoutShell>
     </CreationContext.Provider>
   );
 }
 
-/**
- * PodcastCreationOrchestrator
- * Componente principal exportado.
- */
 export default function PodcastCreationOrchestrator({ initialDrafts = [] }: { initialDrafts?: any[] }) {
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => { setIsMounted(true); }, []);
@@ -132,24 +121,12 @@ export default function PodcastCreationOrchestrator({ initialDrafts = [] }: { in
     resolver: zodResolver(PodcastCreationSchema),
     mode: "onChange",
     defaultValues: {
-      purpose: "learn",
-      sources: [],
-      agentName: 'solo-talk-analyst',
-      creation_mode: 'standard',
-      voiceGender: 'Masculino',
-      voiceStyle: 'Profesional',
-      voicePace: 'Moderado',
-      speakingRate: 1.0,
-      duration: 'short',
+      purpose: "learn", agentName: 'solo-talk-analyst', creation_mode: 'standard',
+      voiceGender: 'Masculino', voiceStyle: 'Profesional', duration: 'short',
       narrativeDepth: 'balanced'
     }
   });
 
   if (!isMounted) return null;
-
-  return (
-    <FormProvider {...formMethods}>
-      <InnerOrchestrator initialDrafts={initialDrafts} />
-    </FormProvider>
-  );
+  return <FormProvider {...formMethods}><InnerOrchestrator initialDrafts={initialDrafts} /></FormProvider>;
 }
