@@ -1,5 +1,5 @@
 // components/create-flow/steps/purpose-selection-step.tsx
-// VERSIÓN: 4.9 (Aurora Master - Full Logic Sync & Type Integrity Fix)
+// VERSIÓN: 5.0 (Aurora Master - Desktop Polish & Final Layout Sync)
 
 "use client";
 
@@ -13,7 +13,7 @@ import {
   PenLine,
   MapPin,
   ChevronRight,
-  ChevronUp, // [FIJO]: Importación añadida
+  ChevronUp,
   History,
   Play,
   Trash2,
@@ -33,7 +33,7 @@ interface PurposeOption {
   desc: string;
   icon: React.ElementType;
   color: string;
-  isSituational?: boolean; // Propiedad opcional legalizada
+  isSituational?: boolean;
 }
 
 interface CategoryGroup {
@@ -88,45 +88,52 @@ export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?:
   };
 
   return (
-    <div className="relative h-full w-full max-w-6xl mx-auto flex flex-col lg:grid lg:grid-cols-3 gap-0 lg:gap-10 p-4 md:p-10 overflow-hidden">
+    <div className="relative h-full w-full max-w-6xl mx-auto flex flex-col lg:grid lg:grid-cols-3 lg:items-center gap-0 lg:gap-12 p-4 md:p-10 overflow-hidden">
 
-      {/* SECCIÓN 1: INTENCIONES (Linear High-Density) */}
-      <div className="flex-1 lg:col-span-2 flex flex-col justify-center gap-4 lg:gap-10">
-        <header className="text-center lg:text-left space-y-1">
-          <motion.h1 initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-3xl md:text-6xl font-black tracking-tighter uppercase text-white leading-none">
-            ¿Cuál es tu <br className="hidden lg:block" /><span className="text-primary italic">intención?</span>
+      {/* SECCIÓN 1: INTENCIONES (Desktop: 2/3, Compactado verticalmente) */}
+      <div className="flex-1 lg:col-span-2 flex flex-col justify-center gap-6 lg:gap-8 overflow-y-auto lg:overflow-visible custom-scrollbar-hide">
+        <header className="text-center lg:text-left space-y-1 lg:mb-2">
+          <motion.h1
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-3xl lg:text-4xl font-black tracking-tighter uppercase text-white leading-tight"
+          >
+            ¿Cuál es tu <span className="text-primary italic">intención?</span>
           </motion.h1>
-          <p className="text-[10px] md:text-xs font-black uppercase tracking-[0.3em] text-white/20">Escaneo cognitivo de IA activo</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/20">Escaneo cognitivo de IA activo</p>
         </header>
 
-        <div className="flex flex-col gap-4 lg:gap-6">
+        <div className="flex flex-col gap-5 lg:gap-6">
           {CATEGORIES.map((cat) => (
-            <div key={cat.name} className="space-y-2">
+            <div key={cat.name} className="space-y-2 lg:space-y-3">
               <div className="flex items-center gap-3 px-1">
                 <span className="text-[9px] font-black uppercase tracking-[0.3em] text-primary/60">{cat.name}</span>
                 <div className="h-[px] flex-1 bg-white/5" />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 lg:gap-3">
                 {cat.items.map((item: PurposeOption) => (
                   <button
                     key={item.id}
                     onClick={() => handleSelection(item.id)}
-                    className="relative flex items-center p-3 lg:p-4 rounded-xl lg:rounded-2xl border border-white/5 bg-zinc-900/40 backdrop-blur-xl hover:border-primary/40 transition-all text-left overflow-hidden group shadow-sm"
+                    className={cn(
+                      "relative flex items-center p-3 lg:p-4 rounded-xl lg:rounded-2xl border border-white/5 bg-zinc-900/40 backdrop-blur-xl hover:border-primary/40 transition-all text-left overflow-hidden group shadow-sm",
+                      item.id === "local_soul" && "md:col-span-2"
+                    )}
                   >
-                    <div className={cn("p-2 lg:p-3 rounded-lg mr-3 lg:mr-4 transition-transform group-hover:scale-110 shadow-inner", item.color)}>
+                    <div className={cn("p-2 lg:p-2.5 rounded-lg mr-3 lg:mr-4 transition-transform group-hover:scale-110", item.color)}>
                       <item.icon size={18} strokeWidth={2.5} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <h3 className="font-bold text-xs lg:text-sm uppercase text-white leading-none">{item.title}</h3>
+                        <h3 className="font-bold text-xs lg:text-sm uppercase text-white leading-none tracking-tight">{item.title}</h3>
                         {item.isSituational && (
                           <div className="bg-primary/20 text-primary px-1.5 py-0.5 rounded text-[7px] font-black tracking-tighter animate-pulse">
                             SITUACIONAL
                           </div>
                         )}
                       </div>
-                      <p className="text-[10px] text-zinc-500 font-medium truncate mt-0.5">{item.desc}</p>
+                      <p className="text-[10px] text-zinc-500 font-medium truncate mt-0.5 opacity-80">{item.desc}</p>
                     </div>
                     <ChevronRight size={16} className="text-white/10 group-hover:text-primary transition-all group-hover:translate-x-1" />
                   </button>
@@ -137,32 +144,37 @@ export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?:
         </div>
       </div>
 
-      {/* SECCIÓN 2: BÓVEDA DESKTOP */}
-      <aside className="hidden lg:flex lg:col-span-1 bg-white/[0.02] border border-white/5 p-8 rounded-[2.5rem] backdrop-blur-3xl flex flex-col shadow-2xl relative">
-        <div className="flex items-center justify-between mb-8 relative z-10">
+      {/* SECCIÓN 2: BÓVEDA DESKTOP (Integrada y Proporcional) */}
+      <aside className="hidden lg:flex lg:col-span-1 bg-white/[0.02] border border-white/5 p-8 rounded-[2.5rem] backdrop-blur-3xl flex flex-col shadow-2xl h-fit max-h-[70vh]">
+        <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-primary/10 rounded-xl"><History size={20} className="text-primary" /></div>
-            <h2 className="font-black uppercase tracking-tighter text-white text-xl">Bóveda</h2>
+            <h2 className="font-black uppercase tracking-tighter text-white text-lg">Bóveda</h2>
           </div>
           <Badge variant="outline" className="text-[10px] border-white/10 text-zinc-500 font-mono">{existingDrafts.length}</Badge>
         </div>
+
         <div className="flex-1 space-y-3 overflow-y-auto custom-scrollbar-hide pr-1">
-          {existingDrafts.map((draft) => (
-            <div key={draft.id} className="p-4 rounded-2xl bg-black/40 border border-white/5 hover:border-primary/30 transition-all group">
-              <p className="text-xs font-bold text-white truncate mb-2 uppercase tracking-tight">{draft.title}</p>
-              <div className="flex justify-between items-center">
-                <span className="text-[8px] font-black text-primary uppercase opacity-60">{draft.creation_data.purpose}</span>
-                <div className="flex gap-2">
-                  <Trash2 size={12} className="text-zinc-600 hover:text-red-400 cursor-pointer" onClick={(e) => { e.stopPropagation(); startTransition(() => deleteDraft(draft.id)); }} />
-                  <div className="p-1 bg-primary/10 rounded text-primary hover:bg-primary hover:text-white transition-colors cursor-pointer" onClick={() => handleResumeDraft(draft)}><Play size={10} fill="currentColor" /></div>
+          {existingDrafts.length === 0 ? (
+            <p className="text-[10px] text-center text-zinc-700 uppercase font-black py-10 opacity-30">Vacío</p>
+          ) : (
+            existingDrafts.map((draft) => (
+              <div key={draft.id} className="p-4 rounded-2xl bg-black/40 border border-white/5 hover:border-primary/30 transition-all group">
+                <p className="text-xs font-bold text-white truncate mb-2 uppercase tracking-tight">{draft.title}</p>
+                <div className="flex justify-between items-center">
+                  <span className="text-[8px] font-black text-primary uppercase opacity-60">{draft.creation_data.purpose}</span>
+                  <div className="flex gap-2">
+                    <Trash2 size={12} className="text-zinc-600 hover:text-red-400 cursor-pointer" onClick={(e) => { e.stopPropagation(); startTransition(() => deleteDraft(draft.id)); }} />
+                    <div className="p-1 bg-primary/10 rounded text-primary hover:bg-primary hover:text-white transition-colors cursor-pointer" onClick={() => handleResumeDraft(draft)}><Play size={10} fill="currentColor" /></div>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </aside>
 
-      {/* SECCIÓN 3: BÓVEDA MOBILE (Trigger en la base) */}
+      {/* SECCIÓN 3: BÓVEDA MOBILE (Mantenida como Perfecta) */}
       <div className="lg:hidden flex-shrink-0 mt-4">
         <button
           onClick={() => setIsVaultOpen(true)}
@@ -181,18 +193,18 @@ export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?:
         <AnimatePresence>
           {isVaultOpen && (
             <>
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsVaultOpen(false)} className="fixed inset-0 bg-black/80 backdrop-blur-md z-[60]" />
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsVaultOpen(false)} className="fixed inset-0 bg-black/80 backdrop-blur-md z-[60] lg:hidden" />
               <motion.div
                 initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
                 transition={{ type: "spring", damping: 30, stiffness: 300 }}
-                className="fixed bottom-0 left-0 right-0 h-[70vh] bg-zinc-950 border-t border-white/10 z-[70] rounded-t-[2.5rem] p-6 flex flex-col shadow-[0_-20px_50px_rgba(0,0,0,0.5)]"
+                className="fixed bottom-0 left-0 right-0 h-[70vh] bg-zinc-950 border-t border-white/10 z-[70] rounded-t-[2.5rem] p-6 flex flex-col shadow-[0_-20px_50px_rgba(0,0,0,0.5)] lg:hidden"
               >
-                <div className="flex items-center justify-between mb-8">
+                <div className="p-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <History size={20} className="text-primary" />
                     <h2 className="text-xl font-black uppercase tracking-tighter text-white">Continuar</h2>
                   </div>
-                  <button onClick={() => setIsVaultOpen(false)} className="p-2 bg-white/5 rounded-full focus:outline-none"><X size={20} className="text-white/50" /></button>
+                  <button onClick={() => setIsVaultOpen(false)} className="p-2 bg-white/5 rounded-full"><X size={20} className="text-white/50" /></button>
                 </div>
                 <div className="flex-1 space-y-4 overflow-y-auto pb-10 custom-scrollbar-hide">
                   {existingDrafts.map((draft) => (
@@ -203,13 +215,12 @@ export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?:
                           {draft.creation_data.purpose}
                         </div>
                         <div className="flex gap-6">
-                          <button onClick={(e) => { e.stopPropagation(); startTransition(() => deleteDraft(draft.id)); }} className="text-zinc-600 active:text-red-400 focus:outline-none"><Trash2 size={18} /></button>
+                          <button onClick={(e) => { e.stopPropagation(); startTransition(() => deleteDraft(draft.id)); }} className="text-zinc-600 active:text-red-400"><Trash2 size={18} /></button>
                           <span className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2 underline underline-offset-4">RETOMAR <Play size={10} fill="currentColor" /></span>
                         </div>
                       </div>
                     </div>
                   ))}
-                  {existingDrafts.length === 0 && <p className="text-center text-zinc-500 text-xs py-10 uppercase font-bold tracking-widest opacity-20">Bóveda vacía</p>}
                 </div>
               </motion.div>
             </>
