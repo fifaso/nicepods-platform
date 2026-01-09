@@ -6,19 +6,19 @@
 import React, { useState, useTransition } from "react";
 import { useFormContext } from "react-hook-form";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Lightbulb, 
-  Link2, 
-  MessageCircleQuestion, 
-  PenLine, 
-  MapPin, 
-  ChevronRight, 
+import {
+  Lightbulb,
+  Link2,
+  MessageCircleQuestion,
+  PenLine,
+  MapPin,
+  ChevronRight,
   ChevronUp, // [FIJO]: Importación añadida
-  History, 
-  Play, 
-  Trash2, 
-  X, 
-  Sparkles 
+  History,
+  Play,
+  Trash2,
+  X,
+  Sparkles
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCreationContext } from "../shared/context";
@@ -65,7 +65,7 @@ export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?:
   const { transitionTo, jumpToStep } = useCreationContext();
   const [isPending, startTransition] = useTransition();
   const [isVaultOpen, setIsVaultOpen] = useState(false);
-  const { deleteDraft } = useFlowActions({ transitionTo: (s) => transitionTo(s), goBack: () => {}, clearDraft: () => {} });
+  const { deleteDraft } = useFlowActions({ transitionTo: (s) => transitionTo(s), goBack: () => { }, clearDraft: () => { } });
 
   const handleSelection = (id: string) => {
     setValue("purpose", id, { shouldValidate: true, shouldDirty: true });
@@ -75,7 +75,7 @@ export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?:
 
   const handleResumeDraft = (draft: any) => {
     const { purpose, agentName, inputs } = draft.creation_data;
-    reset(); 
+    reset();
     setValue("draft_id", draft.id);
     Object.entries(inputs || {}).forEach(([k, v]) => setValue(k as any, v, { shouldValidate: true }));
     setValue("purpose", purpose);
@@ -89,12 +89,12 @@ export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?:
 
   return (
     <div className="relative h-full w-full max-w-6xl mx-auto flex flex-col lg:grid lg:grid-cols-3 gap-0 lg:gap-10 p-4 md:p-10 overflow-hidden">
-      
+
       {/* SECCIÓN 1: INTENCIONES (Linear High-Density) */}
       <div className="flex-1 lg:col-span-2 flex flex-col justify-center gap-4 lg:gap-10">
         <header className="text-center lg:text-left space-y-1">
           <motion.h1 initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-3xl md:text-6xl font-black tracking-tighter uppercase text-white leading-none">
-            ¿Cuál es tu <br className="hidden lg:block"/><span className="text-primary italic">intención?</span>
+            ¿Cuál es tu <br className="hidden lg:block" /><span className="text-primary italic">intención?</span>
           </motion.h1>
           <p className="text-[10px] md:text-xs font-black uppercase tracking-[0.3em] text-white/20">Escaneo cognitivo de IA activo</p>
         </header>
@@ -121,9 +121,9 @@ export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?:
                       <div className="flex items-center gap-2">
                         <h3 className="font-bold text-xs lg:text-sm uppercase text-white leading-none">{item.title}</h3>
                         {item.isSituational && (
-                            <div className="bg-primary/20 text-primary px-1.5 py-0.5 rounded text-[7px] font-black tracking-tighter animate-pulse">
-                                SITUACIONAL
-                            </div>
+                          <div className="bg-primary/20 text-primary px-1.5 py-0.5 rounded text-[7px] font-black tracking-tighter animate-pulse">
+                            SITUACIONAL
+                          </div>
                         )}
                       </div>
                       <p className="text-[10px] text-zinc-500 font-medium truncate mt-0.5">{item.desc}</p>
@@ -164,7 +164,7 @@ export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?:
 
       {/* SECCIÓN 3: BÓVEDA MOBILE (Trigger en la base) */}
       <div className="lg:hidden flex-shrink-0 mt-4">
-        <button 
+        <button
           onClick={() => setIsVaultOpen(true)}
           className="w-full flex items-center justify-between p-3.5 bg-zinc-900/90 border border-white/10 rounded-xl text-white shadow-xl"
         >
@@ -182,16 +182,16 @@ export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?:
           {isVaultOpen && (
             <>
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsVaultOpen(false)} className="fixed inset-0 bg-black/80 backdrop-blur-md z-[60]" />
-              <motion.div 
-                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} 
+              <motion.div
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
                 transition={{ type: "spring", damping: 30, stiffness: 300 }}
                 className="fixed bottom-0 left-0 right-0 h-[70vh] bg-zinc-950 border-t border-white/10 z-[70] rounded-t-[2.5rem] p-6 flex flex-col shadow-[0_-20px_50px_rgba(0,0,0,0.5)]"
               >
                 <div className="flex items-center justify-between mb-8">
-                    <div className="flex items-center gap-3">
-                        <History size={20} className="text-primary" />
-                        <h2 className="text-xl font-black uppercase tracking-tighter text-white">Continuar</h2>
-                    </div>
+                  <div className="flex items-center gap-3">
+                    <History size={20} className="text-primary" />
+                    <h2 className="text-xl font-black uppercase tracking-tighter text-white">Continuar</h2>
+                  </div>
                   <button onClick={() => setIsVaultOpen(false)} className="p-2 bg-white/5 rounded-full focus:outline-none"><X size={20} className="text-white/50" /></button>
                 </div>
                 <div className="flex-1 space-y-4 overflow-y-auto pb-10 custom-scrollbar-hide">
@@ -200,11 +200,11 @@ export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?:
                       <p className="text-sm font-bold text-white uppercase tracking-tight leading-tight line-clamp-2">{draft.title || "Sin título"}</p>
                       <div className="flex justify-between items-center">
                         <div className="text-[10px] font-black text-primary border border-primary/20 px-2 py-0.5 rounded uppercase">
-                            {draft.creation_data.purpose}
+                          {draft.creation_data.purpose}
                         </div>
                         <div className="flex gap-6">
-                          <button onClick={(e) => { e.stopPropagation(); startTransition(() => deleteDraft(draft.id)); }} className="text-zinc-600 active:text-red-400 focus:outline-none"><Trash2 size={18}/></button>
-                          <span className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2 underline underline-offset-4">RETOMAR <Play size={10} fill="currentColor"/></span>
+                          <button onClick={(e) => { e.stopPropagation(); startTransition(() => deleteDraft(draft.id)); }} className="text-zinc-600 active:text-red-400 focus:outline-none"><Trash2 size={18} /></button>
+                          <span className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2 underline underline-offset-4">RETOMAR <Play size={10} fill="currentColor" /></span>
                         </div>
                       </div>
                     </div>
