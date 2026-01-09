@@ -1,5 +1,5 @@
 // components/create-flow/steps/script-editor-step.tsx
-// VERSIÓN: 7.1 (Aurora Master - Ultra-Wide Desktop Workstation & Mobile Tray)
+// VERSIÓN: 7.2 (Aurora Studio Pro - Ultra-Wide Workflow & Organic Mobile Flow)
 
 "use client";
 
@@ -20,10 +20,8 @@ import {
     Pencil as PencilIcon,
     ExternalLink,
     BookOpen,
-    FileText,
     X,
-    Sparkles,
-    CheckCircle2
+    Sparkles
 } from "lucide-react";
 import DOMPurify from "isomorphic-dompurify";
 
@@ -75,7 +73,7 @@ export function ScriptEditorStep() {
         content: getValues('final_script') || "",
         editorProps: {
             attributes: {
-                class: 'prose prose-invert max-w-none focus:outline-none h-full text-foreground leading-relaxed p-6 md:p-16 text-base md:text-lg',
+                class: 'prose prose-invert max-w-none focus:outline-none h-full text-foreground leading-relaxed p-6 md:p-12 text-base md:text-lg',
             },
         },
         onUpdate: ({ editor }) => {
@@ -95,29 +93,25 @@ export function ScriptEditorStep() {
     return (
         <div className="flex flex-col h-full w-full animate-in fade-in duration-700 relative overflow-hidden bg-transparent">
 
-            {/* 1. HEADER: WORKSTATION FEEL (Ancho Completo) */}
-            <header className="flex-shrink-0 flex flex-col lg:flex-row items-center justify-between gap-6 p-6 lg:p-10 border-b border-white/5 bg-zinc-900/60 backdrop-blur-xl z-20">
+            {/* 1. HEADER: EDICIÓN DE GUIÓN (Optimizado y Limpio) */}
+            <header className="flex-shrink-0 flex flex-col lg:flex-row items-center justify-between gap-6 p-6 lg:p-8 border-b border-white/5 bg-zinc-900/60 backdrop-blur-xl z-20">
                 <div className="flex items-center gap-5 w-full lg:w-auto">
-                    <div className="p-3.5 bg-primary/10 rounded-[1.25rem] border border-primary/20 shadow-inner">
-                        <PencilIcon className="h-7 w-7 text-primary" />
+                    <div className="p-3 bg-primary/10 rounded-2xl border border-primary/20 shadow-inner">
+                        <PencilIcon className="h-6 w-6 text-primary" />
                     </div>
-                    <div>
-                        <h2 className="text-2xl lg:text-3xl font-black uppercase tracking-tighter text-white leading-none">Estación de Guion</h2>
-                        <div className="flex items-center gap-2 mt-1.5">
-                            <Badge variant="outline" className="text-[9px] font-black tracking-[0.2em] border-primary/30 text-primary bg-primary/5">MODO EDICIÓN</Badge>
-                            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-40">Refinación de Inteligencia</span>
-                        </div>
-                    </div>
+                    <h2 className="text-2xl lg:text-3xl font-black uppercase tracking-tighter text-white leading-none">
+                        Edición de guión
+                    </h2>
                 </div>
 
-                <div className="w-full lg:flex-1 lg:max-w-2xl">
+                <div className="w-full lg:flex-1 lg:max-w-3xl">
                     <FormField control={control} name="final_title" render={({ field }) => (
                         <FormItem className="space-y-0">
                             <FormControl>
                                 <Input
                                     {...field}
                                     placeholder="Título definitivo del podcast..."
-                                    className="h-14 lg:h-16 bg-black/40 border-white/10 font-black text-lg lg:text-xl text-white rounded-2xl focus:border-primary shadow-2xl transition-all placeholder:text-zinc-700"
+                                    className="h-12 lg:h-14 bg-black/40 border-white/10 font-black text-base lg:text-lg text-white rounded-xl focus:border-primary shadow-2xl transition-all"
                                 />
                             </FormControl>
                         </FormItem>
@@ -125,22 +119,34 @@ export function ScriptEditorStep() {
                 </div>
             </header>
 
-            {/* 2. ESPACIO DE TRABAJO DUAL */}
+            {/* 2. ESPACIO DE TRABAJO DUAL (Sin limitaciones de ancho en Desktop) */}
             <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden relative">
 
-                {/* ÁREA DEL EDITOR (Prioridad de lectura: 3/4) */}
+                {/* ÁREA DEL EDITOR (Full Width en Mobile, 3/4 en Desktop) */}
                 <main className="flex-1 overflow-y-auto custom-scrollbar bg-black/20 lg:bg-transparent">
-                    <div className="max-w-5xl mx-auto h-full">
+                    <div className="w-full h-full">
                         <EditorContent editor={editor} />
+
+                        {/* TRIGGER DE FUENTES MÓVIL: Reubicado bajo el guión */}
+                        <div className="lg:hidden p-8 pt-0 flex justify-center">
+                            <button
+                                onClick={() => setIsMobileSourcesOpen(true)}
+                                className="flex items-center gap-3 px-8 py-4 bg-zinc-900/90 border border-white/20 rounded-full text-white shadow-2xl backdrop-blur-md active:scale-95 transition-all w-full justify-center"
+                            >
+                                <Globe size={16} className="text-blue-400" />
+                                <span className="text-[11px] font-black uppercase tracking-widest">Investigación</span>
+                                <Badge className="bg-primary/20 text-primary border-none h-5 px-1.5 text-[10px]">{sources.length}</Badge>
+                            </button>
+                        </div>
                     </div>
                 </main>
 
-                {/* SIDEBAR DE FUENTES (Solo Desktop: 1/4 - Proporción Profesional) */}
-                <aside className="hidden lg:flex lg:w-1/4 border-l border-white/5 bg-zinc-900/40 backdrop-blur-3xl flex-col shadow-[ -20px_0_50px_rgba(0,0,0,0.2)]">
-                    <div className="p-8 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+                {/* SIDEBAR DE FUENTES (Desktop: 1/4 - Optimizado) */}
+                <aside className="hidden lg:flex lg:w-1/4 border-l border-white/5 bg-zinc-900/60 backdrop-blur-3xl flex-col shadow-2xl">
+                    <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
                         <div className="flex items-center gap-3 text-blue-400">
-                            <Globe size={20} className="animate-pulse" />
-                            <span className="text-xs font-black uppercase tracking-widest">Grounding de Datos</span>
+                            <Globe size={18} />
+                            <span className="text-[11px] font-black uppercase tracking-widest leading-none">Fuentes utilizadas</span>
                         </div>
                         <Badge variant="outline" className="text-[10px] border-white/10 font-mono px-2 bg-black/20">
                             {sources.length}
@@ -153,36 +159,15 @@ export function ScriptEditorStep() {
                             {sources.length === 0 && (
                                 <div className="py-32 text-center opacity-10">
                                     <BookOpen className="h-16 w-16 mx-auto mb-6" />
-                                    <p className="text-xs font-black uppercase tracking-[0.3em]">Sincronizando fuentes...</p>
+                                    <p className="text-xs font-black uppercase tracking-[0.3em]">Sin fuentes asociadas</p>
                                 </div>
                             )}
                         </ul>
                     </div>
-
-                    <footer className="p-8 bg-primary/5 border-t border-white/5">
-                        <div className="flex items-center gap-3 text-[10px] font-black text-primary uppercase tracking-[0.2em]">
-                            <CheckCircle2 size={14} />
-                            <span>Custodia de Proveniencia v5.0</span>
-                        </div>
-                    </footer>
                 </aside>
-
-                {/* TRIGGER DE FUENTES (Móvil) */}
-                <div className="lg:hidden absolute bottom-6 left-1/2 -translate-x-1/2 z-30">
-                    <button
-                        onClick={() => setIsMobileSourcesOpen(true)}
-                        className="flex items-center gap-3 px-8 py-4 bg-primary text-white border border-primary/50 rounded-full shadow-[0_0_30px_rgba(var(--primary),0.4)] backdrop-blur-md active:scale-95 transition-all"
-                    >
-                        <Globe size={16} />
-                        <span className="text-[11px] font-black uppercase tracking-widest">Investigación</span>
-                        <div className="h-5 w-5 bg-white/20 rounded-full flex items-center justify-center text-[10px] font-black">
-                            {sources.length}
-                        </div>
-                    </button>
-                </div>
             </div>
 
-            {/* DRAWER DE FUENTES (Solo Mobile - Upward Expansion) */}
+            {/* DRAWER DE FUENTES MOBILE */}
             <AnimatePresence>
                 {isMobileSourcesOpen && (
                     <>
@@ -205,20 +190,17 @@ export function ScriptEditorStep() {
                                     <div className="p-2 bg-blue-500/20 rounded-xl">
                                         <Globe className="text-blue-400" size={24} />
                                     </div>
-                                    <div>
-                                        <h3 className="text-xl font-black uppercase tracking-tighter text-white">Bóveda de Fuentes</h3>
-                                        <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest"> ग्राउंडिंग (Grounding)</p>
-                                    </div>
+                                    <h3 className="text-xl font-black uppercase tracking-tighter text-white">Investigación</h3>
                                 </div>
                                 <button
                                     onClick={() => setIsMobileSourcesOpen(false)}
-                                    className="p-3 bg-white/5 rounded-full text-white/50 hover:bg-white/10"
+                                    className="p-3 bg-white/5 rounded-full text-white/50"
                                 >
                                     <X size={24} />
                                 </button>
                             </div>
 
-                            <div className="flex-1 overflow-y-auto p-6 custom-scrollbar pb-20">
+                            <div className="flex-1 overflow-y-auto p-6 pb-20 custom-scrollbar">
                                 <ul className="space-y-4">
                                     {sources.map((s: any, i: number) => <SourceItem key={i} source={s} />)}
                                 </ul>
