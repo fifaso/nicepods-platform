@@ -1,19 +1,20 @@
 // components/create-flow/steps/tone-selection-step.tsx
-// VERSIÓN: 2.0 (Aurora Standard - High Density & Zero Scroll Architecture)
+// VERSIÓN: 3.3 (Aurora Master - Logic Fix & UI Cleanup)
 
 "use client";
 
 import { useFormContext } from "react-hook-form";
 import { motion } from "framer-motion";
-import { 
-  Mic2, 
-  Search, 
-  Sparkles, 
-  Coffee, 
-  Zap, 
+import {
+  Mic2,
+  Search,
+  Sparkles,
+  Coffee,
+  Zap,
   Feather,
   ChevronRight,
-  Brain
+  Brain,
+  Wand2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -21,9 +22,11 @@ import { PodcastCreationData } from "@/lib/validation/podcast-schema";
 import { FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { useCreationContext } from "../shared/context";
 
+// [SISTEMA]: Importación corregida a la ruta relativa del frontend
+import { PERSONALITY_PERFECT_SETUPS, PersonalityType } from "../shared/vocal-director-map";
+
 /**
- * DEFINICIÓN DE PERSONALIDADES (TONOS)
- * Los valores están sincronizados con la lógica de Prompts del Backend.
+ * TONE_OPTIONS: Definición de personalidades con su semántica visual.
  */
 const TONE_OPTIONS = [
   { value: "narrador", label: "El Narrador", desc: "Historias envolventes", icon: Mic2, color: "bg-indigo-500/10 text-indigo-400" },
@@ -35,50 +38,68 @@ const TONE_OPTIONS = [
 ];
 
 export function ToneSelectionStep() {
-  const { control, setValue, watch } = useFormContext<PodcastCreationData>();
-  const { onNext } = useCreationContext();
+  const { setValue, watch } = useFormContext<PodcastCreationData>();
+
+  // [FIJO]: Usamos getMasterPath y transitionTo para una navegación segura y tipada
+  const { transitionTo, getMasterPath } = useCreationContext();
   const selectedTone = watch('selectedTone');
 
   /**
    * handleSelect
-   * Sincroniza tanto el valor visual como el técnico para el Agente IA.
+   * Sincroniza la personalidad, auto-calibra el Studio y dispara el avance de flujo.
    */
   const handleSelect = (val: string) => {
+    const personality = val as PersonalityType;
+    const perfectSetup = PERSONALITY_PERFECT_SETUPS[personality];
+
+    // 1. Sincronización de Identidad
     setValue('selectedTone', val, { shouldValidate: true, shouldDirty: true });
-    // Sincronización oficial con agentName para el orquestador de backend
     setValue('agentName', val, { shouldValidate: true, shouldDirty: true });
-    
-    // Disparo de navegación inmediato tras selección
-    setTimeout(() => onNext(), 200);
+
+    // 2. Calibración Automática del Studio
+    if (perfectSetup) {
+      setValue('voiceStyle', perfectSetup.style, { shouldValidate: true });
+      setValue('voicePace', perfectSetup.pace, { shouldValidate: true });
+    }
+
+    // 3. [LÓGICA DE NAVEGACIÓN ROBUSTA]
+    // Calculamos el siguiente paso basándonos en el mapa de ruta actual
+    const path = getMasterPath();
+    const currentIndex = path.indexOf('TONE_SELECTION');
+
+    if (currentIndex !== -1 && (currentIndex + 1) < path.length) {
+      const nextState = path[currentIndex + 1];
+      // Pequeño delay para feedback visual del botón seleccionado
+      setTimeout(() => transitionTo(nextState), 300);
+    }
   };
 
   return (
-    <div className="flex flex-col h-full w-full max-w-lg mx-auto py-4 px-2 justify-center overflow-hidden">
-      
-      {/* HEADER ESTRATÉGICO */}
-      <header className="text-center mb-6 pt-2 shrink-0">
-        <motion.h1 
+    <div className="flex flex-col h-full w-full max-w-lg md:max-w-4xl mx-auto py-4 px-2 md:px-6 justify-center overflow-hidden">
+
+      {/* HEADER: Identidad Aurora */}
+      <header className="text-center mb-6 md:mb-10 pt-2 shrink-0">
+        <motion.h1
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-4xl md:text-5xl font-black tracking-tighter uppercase text-zinc-900 dark:text-white leading-none"
+          className="text-4xl md:text-6xl font-black tracking-tighter uppercase text-zinc-900 dark:text-white leading-none"
         >
           Personalidad
         </motion.h1>
-        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 dark:text-zinc-400 mt-2 flex items-center justify-center gap-2">
+        <p className="text-[10px] md:text-xs font-black uppercase tracking-[0.3em] text-zinc-500 dark:text-zinc-400 mt-3 flex items-center justify-center gap-2">
           <Brain size={14} className="text-primary" />
-          ¿Cómo debería sonar la voz de la IA?
+          Define el ADN interpretativo de tu IA
         </p>
       </header>
 
-      {/* STACK DE SELECCIÓN (ALTA DENSIDAD) */}
-      <div className="flex-1 flex flex-col gap-2 justify-center">
+      {/* STACK DE SELECCIÓN (DUAL LAYOUT) */}
+      <div className="flex-1 flex flex-col justify-center">
         <FormField
-          control={control}
           name="selectedTone"
           render={() => (
             <FormItem className="space-y-0">
               <FormControl>
-                <div className="flex flex-col gap-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4">
                   {TONE_OPTIONS.map((opt, index) => {
                     const Icon = opt.icon;
                     const isSelected = selectedTone === opt.value;
@@ -87,67 +108,74 @@ export function ToneSelectionStep() {
                       <motion.button
                         key={opt.value}
                         type="button"
-                        initial={{ opacity: 0, x: -15 }}
+                        initial={{ opacity: 0, x: index % 2 === 0 ? -20 : 20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: index * 0.05 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={() => handleSelect(opt.value)}
                         className={cn(
-                          "relative w-full flex items-center p-3 rounded-xl border transition-all duration-300",
+                          "relative w-full flex items-center p-3.5 md:p-5 rounded-2xl border transition-all duration-300",
                           "bg-white/70 dark:bg-zinc-900/60 backdrop-blur-md overflow-hidden",
-                          isSelected 
-                            ? "border-primary ring-1 ring-primary/30 shadow-lg" 
-                            : "border-zinc-200 dark:border-white/5 hover:border-zinc-300 dark:hover:border-white/20"
+                          isSelected
+                            ? "border-primary ring-1 ring-primary/30 shadow-xl shadow-primary/10"
+                            : "border-zinc-200 dark:border-white/5 hover:border-zinc-300 dark:hover:border-white/20 shadow-sm"
                         )}
                       >
-                        <div className="flex items-center w-full gap-4 relative z-10">
-                          {/* Icono Compacto */}
+                        <div className="flex items-center w-full gap-4 md:gap-6 relative z-10">
                           <div className={cn(
-                            "p-2.5 rounded-lg transition-all duration-500 shadow-inner",
-                            isSelected ? "bg-primary text-white scale-110" : opt.color
+                            "p-2.5 md:p-3.5 rounded-xl transition-all duration-500 shadow-inner",
+                            isSelected ? "bg-primary text-white scale-110 shadow-lg" : opt.color
                           )}>
-                            <Icon size={18} strokeWidth={2.5} />
+                            <Icon size={20} className="md:w-6 md:h-6" strokeWidth={2.5} />
                           </div>
 
-                          {/* Textos a la Derecha */}
                           <div className="flex-1 text-left min-w-0">
-                            <h3 className={cn(
-                              "font-bold text-sm uppercase tracking-tight transition-colors leading-none",
-                              isSelected ? "text-zinc-900 dark:text-white" : "text-zinc-600 dark:text-zinc-300"
-                            )}>
-                              {opt.label}
-                            </h3>
-                            <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium leading-tight mt-1 truncate">
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <h3 className={cn(
+                                "font-black text-sm md:text-base uppercase tracking-tight transition-colors leading-none",
+                                isSelected ? "text-zinc-900 dark:text-white" : "text-zinc-700 dark:text-zinc-300"
+                              )}>
+                                {opt.label}
+                              </h3>
+                              {isSelected && (
+                                <motion.div
+                                  initial={{ opacity: 0, scale: 0.5 }}
+                                  animate={{ opacity: 1, scale: 1 }}
+                                  className="flex items-center gap-1 text-[8px] font-black text-primary bg-primary/10 px-1.5 py-0.5 rounded-full"
+                                >
+                                  <Wand2 size={8} /> CALIBRADO
+                                </motion.div>
+                              )}
+                            </div>
+                            <p className="text-[10px] md:text-xs text-zinc-400 dark:text-zinc-500 font-medium leading-tight mt-1 truncate">
                               {opt.desc}
                             </p>
                           </div>
 
-                          {/* Indicador visual de selección */}
-                          <ChevronRight 
+                          <ChevronRight
                             className={cn(
                               "transition-all duration-300",
-                              isSelected ? "text-primary opacity-100 translate-x-0" : "text-zinc-300 dark:text-zinc-600 opacity-0 -translate-x-2"
-                            )} 
-                            size={16} 
+                              isSelected ? "text-primary opacity-100 translate-x-0" : "text-zinc-300 dark:text-zinc-700 opacity-0 -translate-x-2"
+                            )}
+                            size={20}
                           />
                         </div>
 
-                        {/* Efecto Glow de Selección */}
                         {isSelected && (
-                          <div className="absolute inset-0 bg-primary/5 pointer-events-none" />
+                          <div className="absolute inset-0 bg-primary/[0.04] pointer-events-none" />
                         )}
                       </motion.button>
                     );
                   })}
                 </div>
               </FormControl>
-              <FormMessage className="text-center mt-4 text-[10px] font-bold uppercase tracking-widest text-destructive" />
+              <FormMessage className="text-center mt-6 text-[10px] font-bold uppercase tracking-widest text-destructive" />
             </FormItem>
           )}
         />
       </div>
 
-      {/* ESPACIADOR PARA EQUILIBRIO VISUAL */}
+      {/* EQUILIBRIO ÓPTICO */}
       <div className="h-6 md:h-12 shrink-0" />
     </div>
   );
