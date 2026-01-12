@@ -1,5 +1,5 @@
 // lib/validation/podcast-schema.ts
-// VERSIÓN: 5.1 (Master Standard - Draft ID & Persistence Support)
+// VERSIÓN: 5.2 (Master Standard - NKV Provenance & Source Origin Support)
 
 import { z } from 'zod';
 
@@ -23,12 +23,15 @@ const safeInputString = z.string()
   .transform(sanitizeInput);
 
 /**
- * Esquema de Fuente de Investigación para Transparencia 360.
+ * Esquema de Fuente de Investigación para Transparencia 360 y NKV.
+ * [ACTUALIZACIÓN V5.2]: Añadido campo 'origin' para trazabilidad de Bóveda.
  */
 const SourceSchema = z.object({
   title: z.string().min(1, "El título de la fuente es obligatorio."),
   url: z.string().url("Debe ser una dirección web válida."),
   snippet: z.string().optional(),
+  // Sello de proveniencia: Diferencia conocimiento comunitario de fuentes web externas.
+  origin: z.enum(['vault', 'web']).default('web'),
 });
 
 /**
@@ -57,8 +60,7 @@ const DiscoveryContextSchema = z.object({
  * Este es el contrato único entre el Formulario y el Backend de NicePod.
  */
 export const PodcastCreationSchema = z.object({
-  // [NUEVO]: Identificador de persistencia para el sistema de hidratación y promoción.
-  // Permite al Backend actualizar un registro 'draft' en lugar de crear uno nuevo.
+  // Identificador de persistencia para el sistema de hidratación y promoción.
   draft_id: z.number().optional().nullable(),
 
   // Identidad y Propósito
@@ -117,7 +119,7 @@ export const PodcastCreationSchema = z.object({
   final_title: z.string().min(1, "El título es obligatorio.").max(180).optional(),
   final_script: z.string().max(50000).optional(),
 
-  // CUSTODIA DE FUENTES: Bibliografía recolectada por IA/Tavily.
+  // CUSTODIA DE FUENTES: Bibliografía recolectada por IA (NKV + Web).
   sources: z.array(SourceSchema).default([]),
 
   // Configuración Técnica

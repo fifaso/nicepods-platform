@@ -1,15 +1,13 @@
 // supabase/functions/process-podcast-job/index.ts
-// VERSIÓN: 25.0 (Journey Master Orchestrator - Dynamic Context & Vision Support)
+// VERSIÓN: 26.0 (Journey Master Orchestrator - Recursive Wisdom & NKV Integration)
 
-import { serve } from "std/http/server.ts";
-import { createClient, SupabaseClient } from "supabase";
-import { guard, corsHeaders } from "guard";
-import {
-  AI_MODELS,
-  callGeminiMultimodal,
-  parseAIJson,
-  buildPrompt
-} from "ai-core";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
+
+// Importaciones con rutas relativas directas para estabilidad total en despliegues
+import { AI_MODELS, callGeminiMultimodal, parseAIJson, buildPrompt } from "../_shared/ai.ts";
+import { guard } from "../_shared/guard.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
 // --- INTERFACES DE CONTRATO ---
 interface AIScriptLine {
@@ -46,7 +44,7 @@ const handler = async (request: Request): Promise<Response> => {
       .eq("id", currentJobId)
       .single();
 
-    if (jobErr || !job) throw new Error("Job no localizado en la cola.");
+    if (jobErr || !job) throw new Error("CRITICAL: Job no localizado en la cola de producción.");
 
     // 2. SELECCIÓN DE AGENTE Y PROMPT
     const agentName = job.payload.agentName || "script-architect-v1";
@@ -56,10 +54,9 @@ const handler = async (request: Request): Promise<Response> => {
       .eq("agent_name", agentName)
       .single();
 
-    if (!agent) throw new Error(`Agente [${agentName}] no configurado en la base de datos.`);
+    if (!agent) throw new Error(`CONFIG_ERROR: Agente [${agentName}] no configurado.`);
 
-    // 3. NORMALIZACIÓN DINÁMICA DEL CONTEXTO (Data Provenance)
-    // Extraemos la materia prima según la rama del formulario v5.0
+    // 3. NORMALIZACIÓN DEL CONTEXTO (Data Provenance)
     const inputs = job.payload.inputs || {};
 
     const topicSemilla =
@@ -67,35 +64,33 @@ const handler = async (request: Request): Promise<Response> => {
       (inputs.link_topicA ? `${inputs.link_topicA} y ${inputs.link_topicB}` : null) ||
       inputs.question_to_answer ||
       inputs.legacy_lesson ||
+      job.job_title ||
       "Tema General";
 
     const motivationSemilla =
       inputs.solo_motivation ||
       inputs.archetype_goal ||
       inputs.link_selectedNarrative?.thesis ||
-      "Crear una pieza de alto valor.";
+      "Crear una pieza de alto valor educativo.";
 
     const context = {
       ...inputs,
       topic: topicSemilla,
       motivation: motivationSemilla,
       purpose: job.payload.purpose,
-      duration: inputs.duration || "Corta",
-      depth: inputs.narrativeDepth || "Equilibrada",
-      // Contexto situacional para local_soul
-      discovery_dossier: inputs.discovery_context ? JSON.stringify(inputs.discovery_context) : null
+      duration: inputs.duration || "Media",
+      depth: inputs.narrativeDepth || "Equilibrada"
     };
 
-    // 4. GENERACIÓN DE CONTENIDO (IA Multimodal)
-    console.log(`[Orchestrator][${correlationId}] Procesando "${topicSemilla}" con Agente ${agentName}`);
+    // 4. GENERACIÓN DE CONTENIDO (Gemini 2.5 Pro - Razonamiento de Élite)
+    console.log(`[Orchestrator][${correlationId}] Redactando "${topicSemilla}" con Agente ${agentName}`);
 
     const finalPrompt = buildPrompt(agent.prompt_template, context);
 
-    // Invocamos multimodal para soportar imágenes en modo situacional
     const rawAiResponse = await callGeminiMultimodal(
       finalPrompt,
-      inputs.imageContext, // Si hay base64 de foto, Gemini la procesará
-      agent.model_identifier || AI_MODELS.PRO
+      inputs.imageContext, // Soporte multimodal nativo
+      AI_MODELS.PRO
     );
 
     const content: AIContentResponse = parseAIJson(rawAiResponse);
@@ -107,9 +102,9 @@ const handler = async (request: Request): Promise<Response> => {
       (Array.isArray(content.script) ? content.script.map((s: AIScriptLine) => s.line).join("\n\n") : "");
 
     const finalTitle = content.title || content.suggested_title || topicSemilla;
-    const aiSummary = content.ai_summary || scriptBody.substring(0, 200) + "...";
+    const aiSummary = content.ai_summary || scriptBody.substring(0, 250) + "...";
 
-    // 6. INSERCIÓN ATÓMICA EN MICRO_PODS (La Huella Digital)
+    // 6. INSERCIÓN ATÓMICA EN MICRO_PODS (Registro de Propiedad Intelectual)
     const { data: pod, error: podErr } = await supabaseAdmin.from("micro_pods").insert({
       user_id: job.user_id,
       title: finalTitle,
@@ -119,24 +114,26 @@ const handler = async (request: Request): Promise<Response> => {
         script_plain: scriptBody.replace(/<[^>]+>/g, " ").trim()
       }),
       status: "pending_approval",
-      creation_mode: job.payload.creation_mode,
+      creation_mode: job.payload.creation_mode || 'standard',
       parent_id: job.payload.parent_id,
       agent_version: `${agentName}-v${agent.version || '1'}`,
-      creation_data: job.payload, // Registro íntegro para transparencia
-      sources: job.payload.sources || [] // Registro de investigación bibliográfica
+      creation_data: job.payload,
+      sources: job.payload.sources || []
     }).select("id").single();
 
     if (podErr) throw podErr;
 
-    // 7. ACTUALIZACIÓN DE HANDSHAKE
+    // 7. ACTUALIZACIÓN DE HANDSHAKE (Vínculo Job -> Pod)
     await supabaseAdmin
       .from("podcast_creation_jobs")
       .update({ micro_pod_id: pod.id, status: "processing" })
       .eq("id", currentJobId);
 
-    // 8. DISPARO DE WORKERS (Fan-Out Paralelo)
-    // Usamos Promise.allSettled para que un error en la imagen no detenga el audio
+    // 8. FAN-OUT PARALELO: Producción de Activos y APRENDIZAJE RECURSIVO
+    console.log(`[Orchestrator][${correlationId}] Disparando trabajadores y NKV Loop...`);
+
     await Promise.allSettled([
+      // A. Trabajadores de Activos
       supabaseAdmin.functions.invoke("generate-audio-from-script", {
         body: { podcast_id: pod.id, trace_id: correlationId }
       }),
@@ -145,6 +142,20 @@ const handler = async (request: Request): Promise<Response> => {
       }),
       supabaseAdmin.functions.invoke("generate-embedding", {
         body: { podcast_id: pod.id, trace_id: correlationId }
+      }),
+
+      // B. [NKV RECURSIVE WISDOM]: El sistema aprende de su propio guion de alta calidad.
+      supabaseAdmin.functions.invoke("vault-refinery", {
+        body: {
+          title: `Síntesis: ${finalTitle}`,
+          text: scriptBody,
+          source_type: 'user_contribution',
+          is_public: true,
+          metadata: {
+            original_podcast_id: pod.id,
+            purpose: job.payload.purpose
+          }
+        }
       })
     ]);
 
@@ -160,8 +171,8 @@ const handler = async (request: Request): Promise<Response> => {
     );
 
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Error crítico en orquestador";
-    console.error(`🔥 [Orchestrator][${correlationId}] Error:`, msg);
+    const msg = err instanceof Error ? err.message : "Error desconocido en el motor de orquestación.";
+    console.error(`🔥 [Orchestrator][${correlationId}] ERROR:`, msg);
 
     if (currentJobId) {
       await supabaseAdmin
@@ -172,7 +183,10 @@ const handler = async (request: Request): Promise<Response> => {
 
     return new Response(
       JSON.stringify({ success: false, error: msg, trace_id: correlationId }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      }
     );
   }
 };

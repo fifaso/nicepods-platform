@@ -1,18 +1,25 @@
 {
   "compilerOptions": {
-    "lib": ["deno.window", "deno.ns"]
+    "lib": [
+      "deno.window",
+      "deno.ns"
+    ],
+    "strict": true
   },
   "nodeModulesDir": "none",
   "imports": {
     "sentry": "npm:@sentry/node@8.26.0",
     "arcjet": "npm:@arcjet/deno@1.0.0-beta.4",
-    "cors": "./_shared/cors.ts",
     "guard": "./_shared/guard.ts",
+    "cors": "./_shared/cors.ts",
     "ai-core": "./_shared/ai.ts",
-    "location": "./_shared/location.ts",
+    "vault-refinery": "./vault-refinery/index.ts",
     "google-auth": "./_shared/google-auth.ts",
+    "location": "./_shared/location.ts",
     "supabase": "https://esm.sh/@supabase/supabase-js@2.39.7",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.39.7",
     "zod": "https://deno.land/x/zod@v3.22.4/mod.ts",
-    "std/": "https://deno.land/std@0.168.0/"
+    "std/": "https://deno.land/std@0.168.0/",
+    "std/http/": "https://deno.land/std@0.168.0/http/"
   }
 }
