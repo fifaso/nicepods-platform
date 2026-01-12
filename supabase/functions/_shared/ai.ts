@@ -1,31 +1,32 @@
 /**
  * 📋 INVENTARIO DE CONSUMO DE IA (GOVERNANCE MAP)
  * -----------------------------------------------------------------------------
- * 1. process-podcast-job        -> GEMINI_2_5_PRO (Razonamiento y Estructura)
- * 2. generate-script-draft      -> GEMINI_2_5_PRO (Investigación y Síntesis)
- * 3. vault-refinery             -> GEMINI_3_FLASH_PREVIEW (Destilación Masiva)
- * 4. get-local-discovery        -> GEMINI_3_FLASH_PREVIEW (Visión Situacional)
- * 5. generate-audio-from-script -> GEMINI_2_5_PRO_PREVIEW_TTS (Audio Nativo)
- * 6. generate-embedding         -> TEXT_EMBEDDING_004 (Vectores 768d)
+ * 1. process-podcast-job        -> GEMINI_PRO (Razonamiento y Estructura)
+ * 2. generate-script-draft      -> GEMINI_PRO (Orquestación Híbrida)
+ * 3. research-intelligence      -> GEMINI_FLASH (Análisis y Creación de Dossier)
+ * 4. vault-refinery             -> GEMINI_FLASH (Destilación de Hechos Atómicos)
+ * 5. get-local-discovery        -> GEMINI_FLASH (Visión Situacional)
+ * 6. generate-audio-from-script -> GEMINI_AUDIO (Interpretación Nativa)
+ * 7. search-pro / NKV           -> TEXT_EMBEDDING_004 (ADN Semántico)
  * -----------------------------------------------------------------------------
  */
 
 export const AI_MODELS = {
-    // Inteligencia de Grado Profesional
+    // Inteligencia Superior para Redacción y Lógica
     PRO: "gemini-2.5-pro",
 
-    // Motor de Última Generación (Velocidad Extrema)
+    // Motor de Alta Velocidad para Procesamiento de Datos (Ex-1.5 Flash)
     FLASH: "gemini-3-flash-preview",
 
-    // Motor de Audio Nativo (Speech Generation)
+    // Generación Nativa de Voz (Speech Generation)
     AUDIO: "gemini-2.5-pro-preview-tts",
 
-    // Motor de Embeddings
+    // Motor de Embeddings (Vectores 768d)
     EMBEDDING: "text-embedding-004"
 };
 
 /**
- * CONFIGURACIÓN DE APOYO PARA AUDIO TRADICIONAL (Fallback)
+ * CONFIGURACIÓN DE APOYO PARA AUDIO
  */
 export const VOICE_CONFIGS: Record<string, Record<string, string>> = {
     "Masculino": { "Profesional": "es-US-Neural2-B", "Calmado": "es-US-Neural2-B" },
@@ -58,7 +59,7 @@ export async function callGeminiMultimodal(
     temperature = 0.7
 ) {
     const apiKey = Deno.env.get("GOOGLE_AI_API_KEY");
-    if (!apiKey) throw new Error("Missing GOOGLE_AI_API_KEY");
+    if (!apiKey) throw new Error("CRITICAL: GOOGLE_AI_API_KEY_MISSING");
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
     const parts: Record<string, unknown>[] = [{ text: prompt }];
@@ -83,13 +84,10 @@ export async function callGeminiMultimodal(
 }
 
 /**
- * callGeminiAudio: Generación nativa de voz (Text-to-Audio).
- * Utiliza el modelo especializado gemini-2.5-pro-preview-tts.
+ * callGeminiAudio: Generación nativa de voz interpretativa.
  */
 export async function callGeminiAudio(prompt: string, directorNote: string) {
     const apiKey = Deno.env.get("GOOGLE_AI_API_KEY");
-    if (!apiKey) throw new Error("Missing GOOGLE_AI_API_KEY");
-
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${AI_MODELS.AUDIO}:generateContent?key=${apiKey}`;
 
     const response = await fetch(url, {
@@ -99,20 +97,15 @@ export async function callGeminiAudio(prompt: string, directorNote: string) {
             contents: [{
                 parts: [
                     { text: `INSTRUCCIONES DE ACTUACIÓN: ${directorNote}` },
-                    { text: `GUION A LOCUTAR: ${prompt}` }
+                    { text: `GUION A INTERPRETAR: ${prompt}` }
                 ]
             }],
-            generationConfig: {
-                // Dejamos libre el razonamiento de audio pero forzamos el formato de salida
-                response_mime_type: "audio/wav"
-            }
+            generationConfig: { response_mime_type: "audio/wav" }
         }),
     });
 
     if (!response.ok) throw new Error(`AUDIO_GEN_ERROR: ${await response.text()}`);
     const data = await response.json();
-
-    // Retorna el base64 del audio generado nativamente
     return data.candidates?.[0]?.content?.parts?.find((p: any) => p.inline_data)?.inline_data?.data;
 }
 
@@ -127,7 +120,36 @@ export async function extractAtomicFacts(rawText: string): Promise<string[]> {
 }
 
 /**
- * parseAIJson: Parser resiliente de respuestas de IA.
+ * flattenDossierToFacts: Convierte un dossier JSON en una lista de unidades semánticas.
+ * [NUEVO V8.1]: Vital para vectorizar inteligencia estructurada en el NKV.
+ */
+export function flattenDossierToFacts(dossier: Record<string, any>): string[] {
+    const facts: string[] = [];
+
+    // 1. Extraer Hallazgos Clave
+    if (Array.isArray(dossier.key_findings)) {
+        facts.push(...dossier.key_findings);
+    }
+
+    // 2. Aplanar Conocimiento Estructurado
+    if (dossier.structured_knowledge && typeof dossier.structured_knowledge === 'object') {
+        Object.entries(dossier.structured_knowledge).forEach(([key, value]) => {
+            const cleanKey = key.replace(/_/g, ' ').toUpperCase();
+            facts.push(`${cleanKey}: ${value}`);
+        });
+    }
+
+    // 3. Incluir el Hook Narrativo como unidad de valor
+    if (dossier.suggested_hook) {
+        facts.push(`PERSPECTIVA NARRATIVA: ${dossier.suggested_hook}`);
+    }
+
+    // Filtro de calidad: Solo hechos con densidad informativa suficiente
+    return facts.filter(f => f.length > 25);
+}
+
+/**
+ * parseAIJson: Parser resiliente.
  */
 export function parseAIJson<T = unknown>(rawText: string): T {
     try {
@@ -135,7 +157,7 @@ export function parseAIJson<T = unknown>(rawText: string): T {
         if (!jsonMatch) throw new Error("No JSON found");
         return JSON.parse(jsonMatch[0]) as T;
     } catch {
-        throw new Error("Fallo al parsear estructura de inteligencia.");
+        throw new Error("FAIL_PARSE_INTELLIGENCE");
     }
 }
 
@@ -155,13 +177,13 @@ export async function generateEmbedding(text: string): Promise<number[]> {
 }
 
 /**
- * cleanTextForSpeech: Limpia el guion para una locución fluida.
+ * cleanTextForSpeech: Filtro de ruido para locución fluida.
  */
 export function cleanTextForSpeech(text: string): string {
     return text
-        .replace(/<[^>]*>/g, "")
+        .replace(/\[.*?\]/g, "") // Limpia marcas de [SFX], [MUSIC], [ORIGIN]
+        .replace(/^(Host|Narrador|Speaker\s?\d?):\s?/gim, "") // Limpia etiquetas de locutor
         .replace(/[*#_~`]/g, "")
-        .replace(/\[origin:.*?\]/gi, "")
         .replace(/\s+/g, " ")
         .trim();
 }
