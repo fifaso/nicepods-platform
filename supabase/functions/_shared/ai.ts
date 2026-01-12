@@ -1,32 +1,60 @@
 // supabase/functions/_shared/ai.ts
-// VERSIÓN: 8.2 (Stability Patch - Native Audio Protocol Fix)
+// VERSIÓN: 8.3 (Master Standard - Strict Audio Protocol Enforcement)
 
 /**
  * 📋 INVENTARIO DE CONSUMO DE IA (GOVERNANCE MAP)
- * 1. process-podcast-job        -> GEMINI_2_5_PRO
- * 2. generate-script-draft      -> GEMINI_2_5_PRO
- * 3. research-intelligence      -> GEMINI_3_FLASH_PREVIEW
- * 4. vault-refinery             -> GEMINI_3_FLASH_PREVIEW
- * 5. generate-audio-from-script -> GEMINI_2_5_PRO_PREVIEW_TTS
- * 6. generate-embedding         -> TEXT_EMBEDDING_004
+ * -----------------------------------------------------------------------------
+ * 1. process-podcast-job        -> GEMINI_PRO (Razonamiento y Estructura)
+ * 2. generate-script-draft      -> GEMINI_PRO (Orquestación Híbrida)
+ * 3. research-intelligence      -> GEMINI_FLASH (Análisis y Creación de Dossier)
+ * 4. vault-refinery             -> GEMINI_FLASH (Destilación de Hechos Atómicos)
+ * 5. get-local-discovery        -> GEMINI_FLASH (Visión Situacional)
+ * 6. generate-audio-from-script -> GEMINI_AUDIO (Interpretación Nativa)
+ * 7. search-pro / NKV           -> TEXT_EMBEDDING_004 (ADN Semántico)
+ * -----------------------------------------------------------------------------
  */
 
 export const AI_MODELS = {
+    // Inteligencia Superior para Redacción y Lógica
     PRO: "gemini-2.5-pro",
+
+    // Motor de Alta Velocidad para Procesamiento de Datos
     FLASH: "gemini-3-flash-preview",
+
+    // Generación Nativa de Voz (Speech Generation)
     AUDIO: "gemini-2.5-pro-preview-tts",
+
+    // Motor de Embeddings (Vectores 768d)
     EMBEDDING: "text-embedding-004"
 };
 
+/**
+ * CONFIGURACIÓN DE APOYO PARA AUDIO TRADICIONAL (Fallback)
+ */
 export const VOICE_CONFIGS: Record<string, Record<string, string>> = {
-    "Masculino": { "Profesional": "es-US-Neural2-B", "Calmado": "es-US-Neural2-B", "Inspirador": "es-US-Neural2-B", "Energético": "es-US-Neural2-B" },
-    "Femenino": { "Profesional": "es-US-Neural2-A", "Calmado": "es-US-Neural2-A", "Inspirador": "es-US-Neural2-A", "Energético": "es-US-Neural2-A" }
+    "Masculino": {
+        "Profesional": "es-US-Neural2-B",
+        "Calmado": "es-US-Neural2-B",
+        "Inspirador": "es-US-Neural2-B",
+        "Energético": "es-US-Neural2-B"
+    },
+    "Femenino": {
+        "Profesional": "es-US-Neural2-A",
+        "Calmado": "es-US-Neural2-A",
+        "Inspirador": "es-US-Neural2-A",
+        "Energético": "es-US-Neural2-A"
+    }
 };
 
 export const SPEAKING_RATES: Record<string, number> = {
-    "Lento": 0.85, "Moderado": 1.0, "Rápido": 1.15
+    "Lento": 0.85,
+    "Moderado": 1.0,
+    "Rápido": 1.15
 };
 
+/**
+ * buildPrompt: Inyecta datos en plantillas de forma segura.
+ */
 export function buildPrompt(template: string, data: Record<string, unknown>): string {
     let prompt = template;
     for (const [key, value] of Object.entries(data)) {
@@ -36,12 +64,20 @@ export function buildPrompt(template: string, data: Record<string, unknown>): st
     return prompt.replace(/{{.*?}}/g, "").trim();
 }
 
-export async function callGeminiMultimodal(prompt: string, imageBase64?: string, model = AI_MODELS.PRO, temperature = 0.7) {
+/**
+ * callGeminiMultimodal: Invocación estándar para texto y visión.
+ */
+export async function callGeminiMultimodal(
+    prompt: string,
+    imageBase64?: string,
+    model = AI_MODELS.PRO,
+    temperature = 0.7
+) {
     const apiKey = Deno.env.get("GOOGLE_AI_API_KEY");
-    if (!apiKey) throw new Error("GOOGLE_AI_API_KEY_MISSING");
+    if (!apiKey) throw new Error("CRITICAL_ERROR: GOOGLE_AI_API_KEY_MISSING");
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-    const parts: any[] = [{ text: prompt }];
+    const parts: Record<string, unknown>[] = [{ text: prompt }];
 
     if (imageBase64) {
         const base64Data = imageBase64.includes(",") ? imageBase64.split(",")[1] : imageBase64;
@@ -53,22 +89,30 @@ export async function callGeminiMultimodal(prompt: string, imageBase64?: string,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             contents: [{ parts }],
-            generationConfig: { temperature, response_mime_type: "application/json" }
+            generationConfig: {
+                temperature: temperature,
+                response_mime_type: "application/json"
+            }
         }),
     });
 
-    if (!response.ok) throw new Error(`AI_FAIL [${model}]: ${await response.text()}`);
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`AI_MODALITY_FAIL [${model}]: ${errorText}`);
+    }
+
     const data = await response.json();
     return data.candidates?.[0]?.content?.parts?.[0]?.text;
 }
 
 /**
- * [FIJO]: callGeminiAudio
- * Eliminada la restricción de response_mime_type que causaba el error 400.
- * Gemini Audio devuelve el binario en la estructura de respuesta estándar.
+ * callGeminiAudio: Generación nativa de voz interpretativa (Audio Native).
+ * [ACTUALIZACIÓN V8.3]: Implementación de response_modalities para corregir Error 400.
  */
 export async function callGeminiAudio(prompt: string, directorNote: string) {
     const apiKey = Deno.env.get("GOOGLE_AI_API_KEY");
+    if (!apiKey) throw new Error("CRITICAL_ERROR: GOOGLE_AI_API_KEY_MISSING");
+
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${AI_MODELS.AUDIO}:generateContent?key=${apiKey}`;
 
     const response = await fetch(url, {
@@ -78,21 +122,38 @@ export async function callGeminiAudio(prompt: string, directorNote: string) {
             contents: [{
                 parts: [
                     { text: `INSTRUCCIONES DE ACTUACIÓN: ${directorNote}` },
-                    { text: `GUION: ${prompt}` }
+                    { text: `GUION A INTERPRETAR: ${prompt}` }
                 ]
-            }]
-            // Eliminamos response_mime_type: "audio/wav" para cumplir con el protocolo v1beta
+            }],
+            // [FILTRO DE MODALIDAD]: Crucial para evitar el error 'TEXT combination not supported'
+            response_modalities: ["AUDIO"],
+            generationConfig: {
+                // Especificamos el contenedor para el flujo binario
+                response_mime_type: "audio/wav"
+            }
         }),
     });
 
-    if (!response.ok) throw new Error(`AUDIO_GEN_ERROR: ${await response.text()}`);
+    if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`AUDIO_PROTOCOL_ERROR: ${errText}`);
+    }
+
     const data = await response.json();
 
-    // El audio reside en la propiedad inline_data del primer candidate
+    // El audio reside en la propiedad inline_data del mensaje de respuesta de la IA
     const audioPart = data.candidates?.[0]?.content?.parts?.find((p: any) => p.inline_data);
-    return audioPart?.inline_data?.data;
+
+    if (!audioPart?.inline_data?.data) {
+        throw new Error("IA_AUDIO_PAYLOAD_MISSING: El modelo no devolvió datos binarios.");
+    }
+
+    return audioPart.inline_data.data;
 }
 
+/**
+ * extractAtomicFacts: Destilación de conocimiento usando Gemini 3 Flash.
+ */
 export async function extractAtomicFacts(rawText: string): Promise<string[]> {
     const prompt = `Extrae HECHOS ATÓMICOS del texto en JSON: {"facts": []}. Texto: ${rawText.substring(0, 20000)}`;
     const responseRaw = await callGeminiMultimodal(prompt, undefined, AI_MODELS.FLASH, 0.2);
@@ -100,39 +161,76 @@ export async function extractAtomicFacts(rawText: string): Promise<string[]> {
     return result.facts || [];
 }
 
+/**
+ * flattenDossierToFacts: Convierte un dossier JSON en una lista de unidades semánticas.
+ * Vital para vectorizar inteligencia estructurada en el NKV.
+ */
 export function flattenDossierToFacts(dossier: Record<string, any>): string[] {
     const facts: string[] = [];
     if (Array.isArray(dossier.key_findings)) facts.push(...dossier.key_findings);
-    if (dossier.structured_knowledge) {
+    if (dossier.structured_knowledge && typeof dossier.structured_knowledge === 'object') {
         Object.entries(dossier.structured_knowledge).forEach(([key, value]) => {
-            facts.push(`${key.toUpperCase()}: ${value}`);
+            const cleanKey = key.replace(/_/g, ' ').toUpperCase();
+            facts.push(`${cleanKey}: ${value}`);
         });
+    }
+    if (dossier.suggested_hook) {
+        facts.push(`PERSPECTIVA NARRATIVA: ${dossier.suggested_hook}`);
     }
     return facts.filter(f => f.length > 25);
 }
 
+/**
+ * parseAIJson: Parser resiliente para extraer JSON de respuestas mixtas.
+ */
 export function parseAIJson<T = unknown>(rawText: string): T {
     try {
         const jsonMatch = rawText.trim().match(/\{[\s\S]*\}/);
-        if (!jsonMatch) throw new Error("JSON not found");
+        if (!jsonMatch) throw new Error("JSON_STRUCTURE_NOT_FOUND");
         return JSON.parse(jsonMatch[0]) as T;
-    } catch {
-        throw new Error("FAIL_PARSE_IA");
+    } catch (error) {
+        console.error("AI_JSON_PARSE_ERROR:", rawText);
+        throw new Error("Fallo crítico al procesar la respuesta inteligente.");
     }
 }
 
+/**
+ * generateEmbedding: Generación de vectores 768d para Búsqueda Semántica.
+ */
 export async function generateEmbedding(text: string): Promise<number[]> {
     const apiKey = Deno.env.get("GOOGLE_AI_API_KEY");
+    if (!apiKey) throw new Error("GOOGLE_AI_API_KEY_MISSING");
+
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${AI_MODELS.EMBEDDING}:embedContent?key=${apiKey}`;
-    const res = await fetch(url, {
+    const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: `models/${AI_MODELS.EMBEDDING}`, content: { parts: [{ text }] } })
+        body: JSON.stringify({
+            model: `models/${AI_MODELS.EMBEDDING}`,
+            content: { parts: [{ text }] }
+        })
     });
-    const data = await res.json();
+
+    if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`EMBEDDING_API_ERROR: ${errText}`);
+    }
+
+    const data = await response.json();
     return data.embedding.values;
 }
 
+/**
+ * cleanTextForSpeech: Filtro de ruido narrativo para locución fluida.
+ * Elimina marcas técnicas que la IA no debe leer en voz alta.
+ */
 export function cleanTextForSpeech(text: string): string {
-    return text.replace(/\[.*?\]/g, "").replace(/^(Host|Narrador|Speaker\s?\d?):\s?/gim, "").replace(/[*#_~`]/g, "").replace(/\s+/g, " ").trim();
+    if (!text) return "";
+    return text
+        .replace(/\[.*?\]/g, "") // Elimina [SFX], [MUSIC], [ORIGIN], etc.
+        .replace(/^(Host|Narrador|Speaker\s?\d?):\s?/gim, "") // Elimina etiquetas de locutor
+        .replace(/\n(Host|Narrador|Speaker\s?\d?):\s?/gim, "\n")
+        .replace(/[*#_~`]/g, "") // Elimina Markdown residual
+        .replace(/\s+/g, " ") // Normaliza espacios en blanco
+        .trim();
 }
