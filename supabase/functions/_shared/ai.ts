@@ -1,5 +1,5 @@
 // supabase/functions/_shared/ai.ts
-// VERSIÓN: 8.3 (Master Standard - Strict Audio Protocol Enforcement)
+// VERSIÓN: 8.4 (Master Standard - Strict Audio Modality & Protocol Fix)
 
 /**
  * 📋 INVENTARIO DE CONSUMO DE IA (GOVERNANCE MAP)
@@ -107,7 +107,8 @@ export async function callGeminiMultimodal(
 
 /**
  * callGeminiAudio: Generación nativa de voz interpretativa (Audio Native).
- * [ACTUALIZACIÓN V8.3]: Implementación de response_modalities para corregir Error 400.
+ * [ACTUALIZACIÓN V8.4]: Implementación de 'response_modalities' a nivel raíz 
+ * para satisfacer el contrato estricto de Gemini Audio y evitar Error 400.
  */
 export async function callGeminiAudio(prompt: string, directorNote: string) {
     const apiKey = Deno.env.get("GOOGLE_AI_API_KEY");
@@ -125,27 +126,29 @@ export async function callGeminiAudio(prompt: string, directorNote: string) {
                     { text: `GUION A INTERPRETAR: ${prompt}` }
                 ]
             }],
-            // [FILTRO DE MODALIDAD]: Crucial para evitar el error 'TEXT combination not supported'
+            // [FILTRO DE MODALIDAD]: Obliga al modelo a responder ÚNICAMENTE con audio.
+            // Esto resuelve el error "requested combination of response modalities (TEXT) is not supported".
             response_modalities: ["AUDIO"],
             generationConfig: {
-                // Especificamos el contenedor para el flujo binario
-                response_mime_type: "audio/wav"
+                // Mantenemos la temperatura baja para asegurar una locución estable y consistente.
+                temperature: 0.3,
             }
         }),
     });
 
     if (!response.ok) {
         const errText = await response.text();
-        throw new Error(`AUDIO_PROTOCOL_ERROR: ${errText}`);
+        throw new Error(`AUDIO_GEN_PROTOCOL_ERROR: ${errText}`);
     }
 
     const data = await response.json();
 
-    // El audio reside en la propiedad inline_data del mensaje de respuesta de la IA
+    // El audio reside en la propiedad inline_data del mensaje de respuesta de la IA.
+    // Buscamos específicamente la parte que contiene los datos binarios.
     const audioPart = data.candidates?.[0]?.content?.parts?.find((p: any) => p.inline_data);
 
     if (!audioPart?.inline_data?.data) {
-        throw new Error("IA_AUDIO_PAYLOAD_MISSING: El modelo no devolvió datos binarios.");
+        throw new Error("IA_AUDIO_PAYLOAD_MISSING: El modelo no devolvió el binario de audio.");
     }
 
     return audioPart.inline_data.data;
