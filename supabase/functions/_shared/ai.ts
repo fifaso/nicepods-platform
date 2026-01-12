@@ -1,55 +1,23 @@
 // supabase/functions/_shared/ai.ts
-// VERSIÓN: 8.4 (Master Standard - Strict Audio Modality & Protocol Fix)
+// VERSIÓN: 8.5 (Master Standard - Clean Audio Protocol & Binary Extraction)
 
 /**
  * 📋 INVENTARIO DE CONSUMO DE IA (GOVERNANCE MAP)
  * -----------------------------------------------------------------------------
- * 1. process-podcast-job        -> GEMINI_PRO (Razonamiento y Estructura)
+ * 1. process-podcast-job        -> GEMINI_PRO (Razonamiento Superior)
  * 2. generate-script-draft      -> GEMINI_PRO (Orquestación Híbrida)
- * 3. research-intelligence      -> GEMINI_FLASH (Análisis y Creación de Dossier)
- * 4. vault-refinery             -> GEMINI_FLASH (Destilación de Hechos Atómicos)
- * 5. get-local-discovery        -> GEMINI_FLASH (Visión Situacional)
- * 6. generate-audio-from-script -> GEMINI_AUDIO (Interpretación Nativa)
- * 7. search-pro / NKV           -> TEXT_EMBEDDING_004 (ADN Semántico)
+ * 3. research-intelligence      -> GEMINI_FLASH (Síntesis de Dossier)
+ * 4. vault-refinery             -> GEMINI_FLASH (Destilación NKV)
+ * 5. generate-audio-from-script -> GEMINI_AUDIO (Síntesis de Voz Nativa)
+ * 6. search-pro / NKV           -> TEXT_EMBEDDING_004 (ADN Semántico)
  * -----------------------------------------------------------------------------
  */
 
 export const AI_MODELS = {
-    // Inteligencia Superior para Redacción y Lógica
     PRO: "gemini-2.5-pro",
-
-    // Motor de Alta Velocidad para Procesamiento de Datos
     FLASH: "gemini-3-flash-preview",
-
-    // Generación Nativa de Voz (Speech Generation)
     AUDIO: "gemini-2.5-pro-preview-tts",
-
-    // Motor de Embeddings (Vectores 768d)
     EMBEDDING: "text-embedding-004"
-};
-
-/**
- * CONFIGURACIÓN DE APOYO PARA AUDIO TRADICIONAL (Fallback)
- */
-export const VOICE_CONFIGS: Record<string, Record<string, string>> = {
-    "Masculino": {
-        "Profesional": "es-US-Neural2-B",
-        "Calmado": "es-US-Neural2-B",
-        "Inspirador": "es-US-Neural2-B",
-        "Energético": "es-US-Neural2-B"
-    },
-    "Femenino": {
-        "Profesional": "es-US-Neural2-A",
-        "Calmado": "es-US-Neural2-A",
-        "Inspirador": "es-US-Neural2-A",
-        "Energético": "es-US-Neural2-A"
-    }
-};
-
-export const SPEAKING_RATES: Record<string, number> = {
-    "Lento": 0.85,
-    "Moderado": 1.0,
-    "Rápido": 1.15
 };
 
 /**
@@ -107,8 +75,8 @@ export async function callGeminiMultimodal(
 
 /**
  * callGeminiAudio: Generación nativa de voz interpretativa (Audio Native).
- * [ACTUALIZACIÓN V8.4]: Implementación de 'response_modalities' a nivel raíz 
- * para satisfacer el contrato estricto de Gemini Audio y evitar Error 400.
+ * [ACTUALIZACIÓN V8.5]: Protocolo simplificado para modelos TTS Preview.
+ * Eliminamos 'response_modalities' de la raíz para evitar el error de 'Unknown name'.
  */
 export async function callGeminiAudio(prompt: string, directorNote: string) {
     const apiKey = Deno.env.get("GOOGLE_AI_API_KEY");
@@ -122,36 +90,39 @@ export async function callGeminiAudio(prompt: string, directorNote: string) {
         body: JSON.stringify({
             contents: [{
                 parts: [
-                    { text: `INSTRUCCIONES DE ACTUACIÓN: ${directorNote}` },
-                    { text: `GUION A INTERPRETAR: ${prompt}` }
+                    { text: `INSTRUCTIONS: ${directorNote}` },
+                    { text: `SCRIPT: ${prompt}` }
                 ]
             }],
-            // [FILTRO DE MODALIDAD]: Obliga al modelo a responder ÚNICAMENTE con audio.
-            // Esto resuelve el error "requested combination of response modalities (TEXT) is not supported".
-            response_modalities: ["AUDIO"],
             generationConfig: {
-                // Mantenemos la temperatura baja para asegurar una locución estable y consistente.
-                temperature: 0.3,
+                // Definimos el tipo de respuesta aquí para que el modelo TTS 
+                // sepa que debe emitir el flujo binario de audio.
+                response_mime_type: "audio/wav",
+                temperature: 0.2 // Temperatura baja para estabilidad fonética
             }
         }),
     });
 
     if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`AUDIO_GEN_PROTOCOL_ERROR: ${errText}`);
+        const errText = await response.json();
+        throw new Error(`AUDIO_API_REJECTION: ${JSON.stringify(errText)}`);
     }
 
     const data = await response.json();
 
-    // El audio reside en la propiedad inline_data del mensaje de respuesta de la IA.
-    // Buscamos específicamente la parte que contiene los datos binarios.
-    const audioPart = data.candidates?.[0]?.content?.parts?.find((p: any) => p.inline_data);
+    /**
+     * EXTRACCIÓN BINARIA:
+     * El modelo 'preview-tts' devuelve el audio codificado en Base64 
+     * dentro de la estructura inline_data.
+     */
+    const audioContent = data.candidates?.[0]?.content?.parts?.[0]?.inline_data?.data;
 
-    if (!audioPart?.inline_data?.data) {
-        throw new Error("IA_AUDIO_PAYLOAD_MISSING: El modelo no devolvió el binario de audio.");
+    if (!audioContent) {
+        console.error("DEBUG_AUDIO_RESPONSE:", JSON.stringify(data));
+        throw new Error("EMPTY_AUDIO_CONTENT: El modelo no devolvió datos binarios.");
     }
 
-    return audioPart.inline_data.data;
+    return audioContent;
 }
 
 /**
@@ -166,7 +137,6 @@ export async function extractAtomicFacts(rawText: string): Promise<string[]> {
 
 /**
  * flattenDossierToFacts: Convierte un dossier JSON en una lista de unidades semánticas.
- * Vital para vectorizar inteligencia estructurada en el NKV.
  */
 export function flattenDossierToFacts(dossier: Record<string, any>): string[] {
     const facts: string[] = [];
@@ -225,15 +195,14 @@ export async function generateEmbedding(text: string): Promise<number[]> {
 
 /**
  * cleanTextForSpeech: Filtro de ruido narrativo para locución fluida.
- * Elimina marcas técnicas que la IA no debe leer en voz alta.
  */
 export function cleanTextForSpeech(text: string): string {
     if (!text) return "";
     return text
-        .replace(/\[.*?\]/g, "") // Elimina [SFX], [MUSIC], [ORIGIN], etc.
-        .replace(/^(Host|Narrador|Speaker\s?\d?):\s?/gim, "") // Elimina etiquetas de locutor
+        .replace(/\[.*?\]/g, "")
+        .replace(/^(Host|Narrador|Speaker\s?\d?):\s?/gim, "")
         .replace(/\n(Host|Narrador|Speaker\s?\d?):\s?/gim, "\n")
-        .replace(/[*#_~`]/g, "") // Elimina Markdown residual
-        .replace(/\s+/g, " ") // Normaliza espacios en blanco
+        .replace(/[*#_~`]/g, "")
+        .replace(/\s+/g, " ")
         .trim();
 }
