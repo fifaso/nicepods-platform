@@ -1,5 +1,5 @@
 // components/podcast-view.tsx
-// VERSIÓN: 19.3 Final (Master Integrity - Full Feature Set & Hydration Shield)
+// VERSIÓN: 19.2 (Master Integrity - Singleton Audio Sync & Public Auth Guard)
 
 "use client";
 
@@ -44,8 +44,8 @@ import {
   AlertCircle,
   MapPin,
   Map as MapIcon,
-  FileText,
-  FileJson
+  FileText, // [SISTEMA]: Importado correctamente
+  FileJson  // [SISTEMA]: Importado correctamente
 } from 'lucide-react';
 import { CreationMetadata } from './creation-metadata';
 import { formatTime } from '@/lib/utils';
@@ -75,7 +75,7 @@ const ScriptEditor = dynamic(
 
 interface PodcastViewProps {
   podcastData: PodcastWithProfile;
-  user: User | null;
+  user: User | null; // Soporta visitantes anónimos
   initialIsLiked: boolean;
   replies?: PodcastWithProfile[];
 }
@@ -94,10 +94,6 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
     togglePlayPause
   } = useAudio();
   const { toast } = useToast();
-
-  // --- ESTADOS DE HIDRATACIÓN ---
-  const [isClient, setIsClient] = useState(false);
-  useEffect(() => { setIsClient(true); }, []);
 
   // --- ESTADOS DE DATOS ---
   const [localPodcastData, setLocalPodcastData] = useState<PodcastWithProfile>(podcastData);
@@ -143,7 +139,7 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
       setListeningProgress(100);
       hasUpdatedDbRef.current = true;
     } else {
-      const savedTime = typeof window !== 'undefined' ? localStorage.getItem(`nicepod_progress_${podcastData.id}`) : null;
+      const savedTime = localStorage.getItem(`nicepod_progress_${podcastData.id}`);
       if (savedTime && podcastData.duration_seconds) {
         const time = parseFloat(savedTime);
         const percent = (time / podcastData.duration_seconds) * 100;
@@ -167,12 +163,12 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
     if (!supabase || !user || hasUpdatedDbRef.current) return;
     hasUpdatedDbRef.current = true;
     setHasListenedFully(true);
-    if (typeof window !== 'undefined') localStorage.removeItem(`nicepod_progress_${localPodcastData.id}`);
+    localStorage.removeItem(`nicepod_progress_${localPodcastData.id}`);
 
     await supabase.from('micro_pods').update({ reviewed_by_user: true }).eq('id', localPodcastData.id);
   };
 
-  // 4. MONITOR DE PROGRESO EN TIEMPO REAL
+  // 4. MONITOR DE PROGRESO EN TIEMPO REAL (Solo si es el activo)
   useEffect(() => {
     if (!isCurrentActive || hasListenedFully) return;
 
@@ -180,7 +176,7 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
       const percent = (currentTime / currentDuration) * 100;
       setListeningProgress(percent);
 
-      if (currentTime > 0 && typeof window !== 'undefined') {
+      if (currentTime > 0) {
         localStorage.setItem(`nicepod_progress_${localPodcastData.id}`, currentTime.toString());
       }
 
@@ -212,7 +208,10 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
 
   const isOwner = user?.id === localPodcastData.user_id;
   const isAdmin = viewerRole === 'admin';
-  const sources = useMemo<ResearchSource[]>(() => localPodcastData.sources || [], [localPodcastData.sources]);
+
+  const sources = useMemo<ResearchSource[]>(() => {
+    return localPodcastData.sources || [];
+  }, [localPodcastData.sources]);
 
   const displayTags = useMemo(() => {
     const userTags = localPodcastData.user_tags || [];
@@ -226,7 +225,9 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
     try {
       const parsed = typeof rawScript === 'string' ? JSON.parse(rawScript) : rawScript;
       return parsed.script_body || String(parsed);
-    } catch { return String(rawScript); }
+    } catch {
+      return String(rawScript);
+    }
   }, [localPodcastData.script_text]);
 
   const profileUrl = useMemo(() => {
@@ -240,7 +241,8 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
     if (isCurrentActive) {
       togglePlayPause();
     } else {
-      const savedTime = typeof window !== 'undefined' ? localStorage.getItem(`nicepod_progress_${localPodcastData.id}`) : null;
+      const savedTime = localStorage.getItem(`nicepod_progress_${localPodcastData.id}`);
+      // Pasamos las respuestas publicadas como cola automática
       playPodcast(localPodcastData, publishedReplies);
       if (savedTime && !hasListenedFully) {
         setTimeout(() => seekTo(parseFloat(savedTime)), 500);
@@ -251,11 +253,14 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
   const handleDownloadToggle = () => {
     if (isOfflineAvailable) {
       if (confirm("¿Eliminar este episodio de tus descargas?")) removeFromOffline();
-    } else { downloadForOffline(); }
+    } else {
+      downloadForOffline();
+    }
   };
 
   const handlePublishToCommunity = async () => {
     if (!hasListenedFully || !supabase) return;
+
     const { error } = await supabase.from('micro_pods').update({
       status: 'published',
       published_at: new Date().toISOString()
@@ -274,6 +279,7 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
     }
     setIsLiking(true);
     const podId = localPodcastData.id;
+
     if (isLiked) {
       setIsLiked(false);
       setLikeCount(c => Math.max(0, c - 1));
@@ -299,6 +305,7 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
   const handleGenerateAudio = async () => {
     if (!supabase) return;
     setIsGeneratingAudio(true);
+    // Invocamos el proceso de generación de audio vía Edge Function si el audio falta
     const { error } = await supabase.functions.invoke('process-podcast-job', {
       body: { podcast_id: localPodcastData.id, force_audio: true }
     });
@@ -314,7 +321,7 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
     <>
       <div className="container mx-auto max-w-7xl py-8 md:py-16 px-4 md:px-6">
 
-        {/* BANNER: MODERACIÓN */}
+        {/* BANNER: MODERACIÓN ADMINISTRATIVA */}
         {isAdmin && user && (
           <Alert variant="destructive" className="mb-8 border-red-500/50 bg-red-500/5 backdrop-blur-xl">
             <ShieldAlert className="h-4 w-4" />
@@ -326,24 +333,38 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
           </Alert>
         )}
 
-        {/* BANNER: QA */}
+        {/* BANNER: FLUJO DE APROBACIÓN (QA) */}
         {isOwner && localPodcastData.status === 'pending_approval' && (
           <div className="mb-8 rounded-3xl border border-primary/20 bg-primary/5 p-6 backdrop-blur-2xl animate-in fade-in slide-in-from-top-4 duration-700">
             <div className="flex flex-col md:flex-row justify-between items-center gap-6">
               <div className="flex items-center gap-4">
-                <div className="p-4 bg-primary/10 rounded-2xl text-primary shadow-inner"><Lock className="h-6 w-6" /></div>
+                <div className="p-4 bg-primary/10 rounded-2xl text-primary shadow-inner">
+                  <Lock className="h-6 w-6" />
+                </div>
                 <div>
                   <h3 className="font-black text-lg tracking-tight uppercase">Borrador Privado</h3>
-                  <p className="text-sm text-muted-foreground font-medium leading-tight">Valida la calidad del audio antes de liberarlo al mundo.</p>
+                  <p className="text-sm text-muted-foreground font-medium leading-tight">
+                    Valida la calidad del audio antes de liberarlo al mundo.
+                  </p>
                 </div>
               </div>
+
               <div className="w-full md:w-auto flex flex-col items-end gap-3">
                 <Button
                   onClick={handlePublishToCommunity}
                   disabled={!hasListenedFully}
-                  className={cn("w-full md:w-auto h-12 px-8 font-black transition-all duration-500 rounded-full", hasListenedFully ? "bg-green-600 hover:bg-green-700 text-white shadow-xl shadow-green-500/20" : "bg-secondary text-muted-foreground opacity-50")}
+                  className={cn(
+                    "w-full md:w-auto h-12 px-8 font-black transition-all duration-500 rounded-full",
+                    hasListenedFully
+                      ? "bg-green-600 hover:bg-green-700 text-white shadow-xl shadow-green-500/20"
+                      : "bg-secondary text-muted-foreground opacity-50"
+                  )}
                 >
-                  {hasListenedFully ? <><Users className="mr-2 h-4 w-4" /> PUBLICAR AHORA</> : <><PlayCircle className="mr-2 h-4 w-4" /> ESCUCHA PARA LIBERAR ({Math.round(listeningProgress)}%)</>}
+                  {hasListenedFully ? (
+                    <><Users className="mr-2 h-4 w-4" /> PUBLICAR AHORA</>
+                  ) : (
+                    <><PlayCircle className="mr-2 h-4 w-4" /> ESCUCHA PARA DESBLOQUEAR ({Math.round(listeningProgress)}%)</>
+                  )}
                 </Button>
               </div>
             </div>
@@ -351,40 +372,75 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
         )}
 
         <div className="grid lg:grid-cols-3 gap-10 items-start">
+
           <div className="lg:col-span-2 space-y-8">
             <Card className="bg-card/30 backdrop-blur-3xl border-border/40 shadow-2xl rounded-[2.5rem] overflow-hidden">
+
               {localPodcastData.cover_image_url && (
                 <div className="aspect-video relative w-full group overflow-hidden">
-                  <Image src={localPodcastData.cover_image_url} alt={localPodcastData.title} fill className="animate-fade-in group-hover:scale-105 transition-transform duration-1000 object-cover" priority />
+                  <Image
+                    src={localPodcastData.cover_image_url}
+                    alt={localPodcastData.title}
+                    fill
+                    className="animate-fade-in group-hover:scale-105 transition-transform duration-1000 object-cover"
+                    priority
+                  />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                 </div>
               )}
+
               <CardHeader className="p-8 md:p-12">
                 <div className="flex flex-wrap items-center gap-3 mb-6">
                   <Badge variant="secondary" className="px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] bg-primary/10 text-primary border-primary/20">
                     {localPodcastData.status === 'pending_approval' ? 'MODO QA' : 'PUBLICADO'}
                   </Badge>
-                </div>
-                <div className="flex justify-between items-start gap-4">
-                  <CardTitle className="text-3xl md:text-5xl font-black leading-none tracking-tighter text-foreground mb-4 uppercase">{localPodcastData.title}</CardTitle>
-                  {isOwner && (
-                    <Button variant="ghost" size="icon" onClick={() => setIsEditingTags(true)} className="rounded-full hover:bg-white/10"><Pencil size={18} className="text-primary" /></Button>
+                  {localPodcastData.creation_mode === 'remix' && (
+                    <Badge variant="outline" className="px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] border-indigo-500/30 text-indigo-400">
+                      REMIX
+                    </Badge>
                   )}
                 </div>
-                <CardDescription className="text-lg md:text-xl text-muted-foreground font-medium leading-snug">{localPodcastData.description}</CardDescription>
+
+                <div className="flex justify-between items-start gap-4">
+                  <CardTitle className="text-3xl md:text-5xl font-black leading-none tracking-tighter text-foreground mb-4">
+                    {localPodcastData.title}
+                  </CardTitle>
+                  {isOwner && (
+                    <Button variant="ghost" size="icon" onClick={() => setIsEditingTags(true)} className="rounded-full hover:bg-white/10">
+                      <Pencil size={18} className="text-primary" />
+                    </Button>
+                  )}
+                </div>
+
+                <CardDescription className="text-lg md:text-xl text-muted-foreground font-medium leading-snug">
+                  {localPodcastData.description || "Un viaje sonoro a través del conocimiento."}
+                </CardDescription>
+
                 <Separator className="my-10 opacity-10" />
+
                 <div className="space-y-6">
-                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground/50"><Tag className="h-3 w-3" /><span>Conceptos de Resonancia</span></div>
+                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">
+                    <Tag className="h-3 w-3" />
+                    <span>Conceptos de Resonancia</span>
+                  </div>
                   <div className="flex flex-wrap gap-2">
-                    {displayTags.map(tag => <Badge key={tag} variant="outline" className="bg-white/5 hover:bg-white/10 border-white/10 px-4 py-1.5 rounded-xl text-xs font-bold">{tag}</Badge>)}
+                    {displayTags.map(tag => (
+                      <Badge key={tag} variant="outline" className="bg-white/5 hover:bg-white/10 border-white/10 px-4 py-1.5 rounded-xl text-xs font-bold">
+                        {tag}
+                      </Badge>
+                    ))}
                   </div>
                 </div>
               </CardHeader>
+
               <CardContent className="p-8 md:p-12 pt-0">
                 <Separator className="mb-10 opacity-10" />
+
                 <Collapsible open={isScriptExpanded} onOpenChange={setIsScriptExpanded}>
                   <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-lg font-black uppercase tracking-tighter text-foreground/80 flex items-center gap-2"><FileText className="h-4 w-4 text-primary" /> Guion</h3>
+                    <h3 className="text-lg font-black uppercase tracking-tighter text-foreground/80 flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-primary" /> Guion del Episodio
+                    </h3>
                     <CollapsibleTrigger asChild>
                       <Button variant="ghost" size="sm" className="h-10 px-4 rounded-xl text-xs font-bold hover:bg-primary/10">
                         {isScriptExpanded ? 'OCULTAR' : 'LEER TODO'}
@@ -392,16 +448,24 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
                       </Button>
                     </CollapsibleTrigger>
                   </div>
+
                   <CollapsibleContent className="animate-in slide-in-from-top-2 duration-500">
-                    <div className="p-8 bg-black/20 rounded-[2rem] border border-border/40 shadow-inner"><ScriptEditor scriptText={normalizedScriptText} /></div>
+                    <div className="p-8 bg-black/20 rounded-[2rem] border border-border/40 shadow-inner">
+                      <ScriptEditor scriptText={normalizedScriptText} />
+                    </div>
                   </CollapsibleContent>
                 </Collapsible>
               </CardContent>
             </Card>
 
+            {/* SECCIÓN: HILO DE RESPUESTAS */}
             {(pendingReplies.length > 0 || publishedReplies.length > 0) && (
               <div className="space-y-6">
-                <div className="flex items-center gap-3 px-4"><MessageCircle className="h-5 w-5 text-primary" /><h3 className="text-xl font-black tracking-tighter uppercase">Hilo de Conversación</h3></div>
+                <div className="flex items-center gap-3 px-4">
+                  <MessageCircle className="h-5 w-5 text-primary" />
+                  <h3 className="text-xl font-black tracking-tighter uppercase">Hilo de Conversación</h3>
+                </div>
+
                 <div className="pl-6 border-l-2 border-primary/10 space-y-4">
                   {publishedReplies.map((reply) => (
                     <Card key={reply.id} className="bg-card/20 border-border/40 hover:border-primary/30 transition-all rounded-3xl group">
@@ -410,10 +474,16 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
                           {reply.cover_image_url ? <Image src={reply.cover_image_url} alt="" fill className="object-cover" /> : <Mic className="m-auto h-5 w-5 text-muted-foreground" />}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <Link href={`/podcast/${reply.id}`} className="hover:text-primary transition-colors"><h4 className="font-bold text-sm truncate">{reply.title}</h4></Link>
-                          <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-tighter">{reply.profiles?.full_name} • {formatTime(reply.duration_seconds || 0)}</p>
+                          <Link href={`/podcast/${reply.id}`} className="hover:text-primary transition-colors">
+                            <h4 className="font-bold text-sm truncate">{reply.title}</h4>
+                          </Link>
+                          <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-tighter">
+                            {reply.profiles?.full_name} • {formatTime(reply.duration_seconds || 0)}
+                          </p>
                         </div>
-                        <Button size="icon" variant="ghost" className="rounded-full h-10 w-10 bg-primary/5 text-primary" onClick={() => playPodcast(reply)}><PlayCircle className="h-5 w-5" /></Button>
+                        <Button size="icon" variant="ghost" className="rounded-full h-10 w-10 bg-primary/5 text-primary" onClick={() => playPodcast(reply, publishedReplies)}>
+                          <PlayCircle className="h-5 w-5" />
+                        </Button>
                       </CardContent>
                     </Card>
                   ))}
@@ -424,63 +494,72 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
 
           <div className="lg:col-span-1 space-y-6 lg:sticky lg:top-24 lg:self-start">
 
-            {/* [SISTEMA]: Hydration Shield aplicado aquí para detener Error #425 */}
-            {isClient ? (
-              <Card className="bg-primary text-white border-none shadow-2xl rounded-[2.5rem] overflow-hidden relative group">
-                <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent pointer-events-none" />
-                <CardHeader className="pb-4 relative">
-                  <CardTitle className="text-xl font-black uppercase tracking-tighter flex items-center gap-2">
-                    <PlayCircle className="h-5 w-5" /> Reproducir
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="relative flex flex-col gap-6">
-                  {localPodcastData.audio_url ? (
-                    <Button
-                      size="lg"
-                      className="w-full bg-white text-primary hover:bg-white/90 rounded-2xl h-16 text-lg font-black shadow-xl active:scale-95 transition-all"
-                      onClick={handlePlaySmart}
-                      disabled={audioLoading && !isCurrentActive}
-                    >
-                      {audioLoading && isCurrentActive ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : isCurrentActive && isPlaying ? "PAUSAR VIAJE" : "ESCUCHAR AHORA"}
-                    </Button>
-                  ) : (
-                    <Button size="lg" className="w-full bg-white/20 text-white opacity-80 cursor-wait rounded-2xl h-16" disabled={isGeneratingAudio} onClick={handleGenerateAudio}>
-                      {isGeneratingAudio ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> PROCESANDO...</> : <><Mic className="mr-2 h-5 w-5" /> GENERAR AUDIO</>}
-                    </Button>
-                  )}
+            <Card className="bg-primary text-white border-none shadow-2xl rounded-[2.5rem] overflow-hidden relative group">
+              <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent pointer-events-none" />
+              <CardHeader className="pb-4 relative">
+                <CardTitle className="text-xl font-black uppercase tracking-tighter flex items-center gap-2">
+                  <PlayCircle className="h-5 w-5" /> Reproducir
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="relative flex flex-col gap-6">
+                {localPodcastData.audio_url ? (
+                  <Button
+                    size="lg"
+                    className="w-full bg-white text-primary hover:bg-white/90 rounded-2xl h-16 text-lg font-black"
+                    onClick={handlePlaySmart}
+                    disabled={audioLoading && !isCurrentActive}
+                  >
+                    {audioLoading && isCurrentActive ? (
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    ) : isCurrentActive && isPlaying ? (
+                      "PAUSAR VIAJE"
+                    ) : (
+                      "ESCUCHAR AHORA"
+                    )}
+                  </Button>
+                ) : (
+                  <Button size="lg" className="w-full bg-white/20 text-white opacity-80 cursor-wait rounded-2xl h-16" disabled={isGeneratingAudio} onClick={handleGenerateAudio}>
+                    {isGeneratingAudio ? (
+                      <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> PROCESANDO...</>
+                    ) : (
+                      <><Mic className="mr-2 h-5 w-5" /> GENERAR AUDIO</>
+                    )}
+                  </Button>
+                )}
 
-                  <div className="flex justify-between items-center px-2">
-                    <div className="flex items-center gap-1.5">
-                      <Button onClick={handleLike} variant="ghost" size="icon" disabled={isLiking} className="hover:bg-white/20 text-white h-11 w-11 rounded-xl transition-all">
-                        <Heart className={cn("h-6 w-6 transition-all", isLiked ? 'fill-current scale-110 text-red-400' : 'opacity-60')} />
-                      </Button>
-                      <span className="text-sm font-black tabular-nums">{likeCount}</span>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="ghost" size="icon" className="h-11 w-11 rounded-xl text-white/60 hover:text-white hover:bg-white/20 transition-all"><Share2 className="h-5 w-5" /></Button>
-                      <Button
-                        variant="ghost" size="icon"
-                        disabled={!localPodcastData.audio_url || isDownloading}
-                        onClick={handleDownloadToggle}
-                        className={cn("h-11 w-11 rounded-xl transition-all", isOfflineAvailable ? "text-green-300" : "text-white/60")}
-                      >
-                        {isDownloading ? <Loader2 className="h-5 w-5 animate-spin" /> : isOfflineAvailable ? <CheckCircle className="h-5 w-5" /> : <Download className="h-5 w-5" />}
-                      </Button>
-                    </div>
+                <div className="flex justify-between items-center px-2">
+                  <div className="flex items-center gap-1.5">
+                    <Button onClick={handleLike} variant="ghost" size="icon" disabled={isLiking} className="hover:bg-white/20 text-white h-11 w-11 rounded-xl">
+                      <Heart className={cn("h-6 w-6 transition-all", isLiked ? 'fill-current scale-110 text-red-400' : 'opacity-60')} />
+                    </Button>
+                    <span className="text-sm font-black tabular-nums">{likeCount}</span>
                   </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="h-64 bg-zinc-900/50 animate-pulse rounded-[2.5rem] border border-white/5" />
-            )}
 
+                  <div className="flex gap-2">
+                    <Button variant="ghost" size="icon" className="h-11 w-11 rounded-xl text-white/60 hover:text-white"><Share2 className="h-5 w-5" /></Button>
+                    <Button
+                      variant="ghost" size="icon"
+                      disabled={!localPodcastData.audio_url || isDownloading}
+                      onClick={handleDownloadToggle}
+                      className={cn("h-11 w-11 rounded-xl", isOfflineAvailable ? "text-green-300" : "text-white/60")}
+                    >
+                      {isDownloading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Download className="h-5 w-5" />}
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* MÓDULO REMIX */}
             {localPodcastData.audio_url && localPodcastData.status === 'published' && user && (
               <Card className="bg-indigo-600 text-white border-none shadow-xl rounded-[2rem] overflow-hidden relative">
                 <div className="absolute top-0 right-0 p-4 opacity-20"><Sparkles className="h-12 w-12" /></div>
                 <CardContent className="p-6 flex flex-col gap-4 relative">
                   <h3 className="font-black text-lg uppercase mb-1 leading-tight">¿Tienes una postura?</h3>
                   <p className="text-[10px] font-medium text-indigo-100 opacity-70">Únete a la conversación con un remix de voz.</p>
-                  <Button onClick={() => setIsRemixOpen(true)} className="w-full bg-white text-indigo-600 hover:bg-white/90 rounded-xl h-12 font-bold uppercase tracking-tighter"><CornerUpRight className="mr-2 h-4 w-4" /> RESPONDER</Button>
+                  <Button onClick={() => setIsRemixOpen(true)} className="w-full bg-white text-indigo-600 hover:bg-white/90 rounded-xl h-12 font-bold uppercase tracking-tighter">
+                    <CornerUpRight className="mr-2 h-4 w-4" /> RESPONDER
+                  </Button>
                 </CardContent>
               </Card>
             )}
@@ -490,44 +569,95 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
                 {profileUrl ? (
                   <Link href={profileUrl} className="block group">
                     <div className="flex items-center gap-4 p-4 bg-background/40 rounded-2xl border border-border/40 group-hover:border-primary/40 transition-all">
-                      <div className="relative h-12 w-12"><Image src={localPodcastData.profiles?.avatar_url || '/images/placeholder-avatar.svg'} alt={localPodcastData.profiles?.full_name || 'Autor'} fill className="rounded-xl object-cover" /></div>
-                      <div className="min-w-0"><p className="text-[9px] font-black uppercase text-muted-foreground/60 mb-0.5 tracking-widest">Autor NicePod</p><p className="font-bold truncate group-hover:text-primary transition-colors">{localPodcastData.profiles?.full_name}</p></div>
+                      <div className="relative h-12 w-12">
+                        <Image
+                          src={localPodcastData.profiles?.avatar_url || '/images/placeholder-avatar.svg'}
+                          alt={localPodcastData.profiles?.full_name || 'Autor'}
+                          fill
+                          className="rounded-xl object-cover"
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[9px] font-black uppercase text-muted-foreground/60 mb-0.5 tracking-widest">Autor NicePod</p>
+                        <p className="font-bold truncate group-hover:text-primary transition-colors">{localPodcastData.profiles?.full_name}</p>
+                      </div>
                     </div>
                   </Link>
                 ) : (
-                  <div className="flex items-center gap-4 p-4 bg-background/20 rounded-2xl opacity-60"><Mic className="h-6 w-6 text-muted-foreground" /><p className="font-bold text-sm">Creador no verificado</p></div>
+                  <div className="flex items-center gap-4 p-4 bg-background/20 rounded-2xl opacity-60">
+                    <Mic className="h-6 w-6 text-muted-foreground" />
+                    <p className="font-bold text-sm">Creador no verificado</p>
+                  </div>
                 )}
+
                 <div className="grid grid-cols-1 gap-4">
                   <div className="flex items-center gap-3 p-4 bg-background/20 rounded-2xl">
                     <Calendar className="h-4 w-4 text-muted-foreground/60" />
-                    <div><p className="text-[9px] font-black uppercase text-muted-foreground/50">Registro Temporal</p><p className="text-sm font-bold">{new Date(localPodcastData.created_at).toLocaleDateString()}</p></div>
+                    <div>
+                      <p className="text-[9px] font-black uppercase text-muted-foreground/50">Registro Temporal</p>
+                      <p className="text-sm font-bold">{new Date(localPodcastData.created_at).toLocaleDateString()}</p>
+                    </div>
                   </div>
+
                   {localPodcastData.duration_seconds && (
                     <div className="flex items-center gap-3 p-4 bg-background/20 rounded-2xl">
                       <Clock className="h-4 w-4 text-muted-foreground/60" />
-                      <div><p className="text-[9px] font-black uppercase text-muted-foreground/50">Dimensión Sonora</p><p className="text-sm font-bold">{formatTime(localPodcastData.duration_seconds)}</p></div>
+                      <div>
+                        <p className="text-[9px] font-black uppercase text-muted-foreground/50">Dimensión Sonora</p>
+                        <p className="text-sm font-bold">{formatTime(localPodcastData.duration_seconds)}</p>
+                      </div>
                     </div>
                   )}
+
                   {localPodcastData.place_name && (
                     <div className="flex items-center gap-3 p-4 bg-primary/5 rounded-2xl border border-primary/10">
-                      <MapPin className="h-4 w-4 text-primary" /><div className="min-w-0"><p className="text-[9px] font-black uppercase text-primary/60 tracking-widest">Ubicación</p><p className="text-sm font-bold text-foreground truncate">{localPodcastData.place_name}</p></div>
+                      <MapPin className="h-4 w-4 text-primary" />
+                      <div className="min-w-0">
+                        <p className="text-[9px] font-black uppercase text-primary/60 tracking-widest">Ubicación</p>
+                        <p className="text-sm font-bold text-foreground truncate">{localPodcastData.place_name}</p>
+                      </div>
                     </div>
                   )}
                 </div>
+
                 <Separator className="opacity-10" />
-                <CreationMetadata data={localPodcastData.creation_data} sources={sources} />
+
+                <CreationMetadata
+                  data={localPodcastData.creation_data}
+                  sources={sources}
+                />
               </CardContent>
             </Card>
           </div>
         </div>
       </div>
 
+      {/* APOYO */}
       {isOwner && (
-        <TagCurationCanvas isOpen={isEditingTags} onOpenChange={setIsEditingTags} suggestedTags={localPodcastData.ai_tags || []} publishedTags={localPodcastData.user_tags || []} onSave={handleSaveTags} />
+        <TagCurationCanvas
+          isOpen={isEditingTags}
+          onOpenChange={setIsEditingTags}
+          suggestedTags={localPodcastData.ai_tags || []}
+          publishedTags={localPodcastData.user_tags || []}
+          onSave={handleSaveTags}
+        />
       )}
 
       {isRemixOpen && user && (
-        <RemixDialog isOpen={isRemixOpen} onOpenChange={setIsRemixOpen} parentPodcast={{ id: localPodcastData.id, title: localPodcastData.title, author: { full_name: localPodcastData.profiles?.full_name || 'Anónimo', avatar_url: localPodcastData.profiles?.avatar_url || null } }} quoteContext={getCleanContextText()} timestamp={currentTime} />
+        <RemixDialog
+          isOpen={isRemixOpen}
+          onOpenChange={setIsRemixOpen}
+          parentPodcast={{
+            id: localPodcastData.id,
+            title: localPodcastData.title,
+            author: {
+              full_name: localPodcastData.profiles?.full_name || 'Anónimo',
+              avatar_url: localPodcastData.profiles?.avatar_url || null
+            }
+          }}
+          quoteContext={getCleanContextText()}
+          timestamp={currentTime}
+        />
       )}
     </>
   );
