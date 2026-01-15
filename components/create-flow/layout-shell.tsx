@@ -1,5 +1,5 @@
 // components/create-flow/layout-shell.tsx
-// VERSIÓN: 2.5 (Aurora Shell - Space & Width Optimization)
+// VERSIÓN: 2.6 (Aurora Shell - Vertical Expansion & Workspace Mode)
 
 "use client";
 
@@ -29,13 +29,12 @@ interface LayoutShellProps {
 
 export function LayoutShell({ children, onNext, onProduce, onDraft, isSubmitting, progress }: LayoutShellProps) {
   const { currentFlowState, goBack } = useCreationContext();
-
   const isTransitioning = currentFlowState === 'DRAFT_GENERATION_LOADER';
 
   return (
     <div className="fixed inset-0 flex flex-col bg-transparent overflow-hidden h-[100dvh]">
 
-      {/* HEADER */}
+      {/* HEADER: Altura fija */}
       <header className="flex-shrink-0 w-full pt-16 sm:pt-20 pb-2 px-6 z-50">
         <div className="max-w-4xl mx-auto">
           {!progress.isInitial && !isTransitioning && (
@@ -55,10 +54,16 @@ export function LayoutShell({ children, onNext, onProduce, onDraft, isSubmitting
         </div>
       </header>
 
-      {/* BODY - [MEJORA]: max-w-6xl en el inicio para evitar colapso vertical */}
-      <main className="flex-1 overflow-hidden flex flex-col items-center justify-center p-4">
-        <div className={cn("w-full h-full flex flex-col transition-all duration-700", progress.isInitial ? "max-w-6xl" : "max-w-4xl")}>
-          <Card className={cn("flex-1 flex flex-col overflow-hidden border-0 shadow-none relative", !progress.isInitial ? "bg-card/40 backdrop-blur-3xl rounded-[2.5rem] border border-white/10 shadow-2xl" : "bg-transparent")}>
+      {/* BODY: Expansión total / [MEJORA]: Eliminamos items-center y justify-center para permitir stretch vertical */}
+      <main className="flex-1 overflow-hidden flex flex-col items-center p-4">
+        <div className={cn(
+          "w-full flex-1 flex flex-col transition-all duration-700 min-h-0", // min-h-0 es clave para scroll interno
+          progress.isInitial ? "max-w-6xl" : "max-w-4xl"
+        )}>
+          <Card className={cn(
+            "flex-1 flex flex-col overflow-hidden border-0 shadow-none relative",
+            !progress.isInitial ? "bg-card/40 backdrop-blur-3xl rounded-[2.5rem] border border-white/10 shadow-2xl" : "bg-transparent"
+          )}>
             <CardContent className="p-0 flex-1 flex flex-col h-full overflow-hidden">
               {children}
             </CardContent>
@@ -66,7 +71,7 @@ export function LayoutShell({ children, onNext, onProduce, onDraft, isSubmitting
         </div>
       </main>
 
-      {/* FOOTER */}
+      {/* FOOTER: Altura fija */}
       <footer className="flex-shrink-0 w-full p-4 sm:p-10 z-50">
         <div className="max-w-4xl mx-auto">
           {!progress.isInitial && !isTransitioning && (
