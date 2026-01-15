@@ -1,5 +1,5 @@
 // app/layout.tsx
-// VERSIÓN: 15.0 (Hierarchy Fix: Components inside Providers)
+// VERSIÓN: 16.1 (Production Ready - Supabase SSR Fixed & Theme Synchronized)
 
 import { cookies } from 'next/headers';
 import type React from "react";
@@ -59,28 +59,31 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
-  
-  // [CORRECCIÓN WARNING]: Usamos getUser en lugar de getSession para validación segura
+  // [CORRECCIÓN QUIRÚRGICA]: createClient() no requiere argumentos en la nueva arquitectura
+  const supabase = createClient();
+
+  // Verificación de sesión de alta seguridad
   const { data: { user } } = await supabase.auth.getUser();
-  // Para mantener compatibilidad con AuthProvider que espera 'session', obtenemos la sesión también
   const { data: { session } } = await supabase.auth.getSession();
 
-  // Si getUser falló, la sesión no es válida, así que pasamos null
+  // Si no hay usuario real, invalidamos la sesión para evitar ataques de replay
   const validatedSession = user ? session : null;
 
   return (
     <html lang="es" suppressHydrationWarning>
       <head>
+        {/* Script de prevención de flash de tema (Inline para máxima velocidad de renderizado) */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
                 try {
                   var theme = localStorage.getItem('theme');
-                  if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                  var supportDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                  if (theme === 'dark' || (!theme && supportDark)) {
                     document.documentElement.classList.add('dark');
+                  } else {
+                    document.documentElement.classList.remove('dark');
                   }
                 } catch (e) {}
               })();
@@ -88,14 +91,13 @@ export default async function RootLayout({
           }}
         />
       </head>
-      <body className={`${inter.className} min-h-screen bg-background font-sans antialiased`}>
-        
+      <body className={`${inter.className} min-h-screen antialiased selection:bg-primary/30 transition-colors duration-500`}>
+
         <CSPostHogProvider>
-          {/* Service Worker debe registrarse lo antes posible */}
+          {/* Inicialización de Capas Offline y Analíticas */}
           <ServiceWorkerRegister />
-          {/* PwaLifecycle maneja eventos de actualización */}
           <PwaLifecycle />
-          
+
           <ErrorBoundary>
             <ThemeProvider
               attribute="class"
@@ -106,33 +108,48 @@ export default async function RootLayout({
             >
               <AuthProvider session={validatedSession}>
                 <AudioProvider>
-                  {/* [CORRECCIÓN CRÍTICA]: OfflineIndicator y InstallPwaButton usan useAudio o hooks de UI.
-                      Deben estar DENTRO de AudioProvider y ThemeProvider. */}
-                  
+
+                  {/* 
+                    [CAPA 0]: EL LIENZO (Fondo Aurora)
+                    Se mantiene fijo detrás de todo el contenido.
+                    La clase 'gradient-mesh' en globals.css maneja el cambio Light/Dark.
+                  */}
+                  <div className="fixed inset-0 gradient-mesh -z-20" aria-hidden="true" />
+
+                  {/* 
+                    [CAPA 1]: DINAMISMO (Blobs Atmosféricos)
+                    Opacidad reducida en Modo Claro (base) y aumentada en Modo Oscuro (.dark).
+                  */}
+                  <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10 opacity-30 dark:opacity-50 transition-opacity duration-1000">
+                    <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-purple-500/20 rounded-full blur-[120px] animate-float"></div>
+                    <div className="absolute top-[20%] right-[-10%] w-[40%] h-[40%] bg-blue-500/20 rounded-full blur-[120px] animate-float" style={{ animationDelay: "2s" }}></div>
+                    <div className="absolute bottom-[-10%] left-[20%] w-[45%] h-[45%] bg-pink-500/20 rounded-full blur-[120px] animate-float" style={{ animationDelay: "4s" }}></div>
+                  </div>
+
+                  {/* UI de Utilidad PWA */}
                   <OfflineIndicator />
                   <InstallPwaButton />
-                  
+
+                  {/* [CAPA 2]: EL CONTENIDO (Arquitectura Responsiva) */}
                   <SmoothScrollWrapper>
-                    <div className="min-h-screen gradient-mesh">
-                      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-                        <div className="absolute top-20 left-10 w-20 h-20 bg-purple-400/20 rounded-full blur-xl animate-float"></div>
-                        <div className="absolute top-40 right-20 w-32 h-32 bg-blue-400/20 rounded-full blur-xl animate-float" style={{ animationDelay: "2s" }}></div>
-                        <div className="absolute bottom-20 left-1/4 w-24 h-24 bg-pink-400/20 rounded-full blur-xl animate-float" style={{ animationDelay: "4s" }}></div>
-                        <div className="absolute top-1/2 right-1/3 w-16 h-16 bg-indigo-400/20 rounded-full blur-xl animate-float" style={{ animationDelay: "6s" }}></div>
-                      </div>
-                      
+                    <div className="relative flex flex-col min-h-screen">
+
                       <ScrollToTop />
                       <Navigation />
-                      
+
                       <PageTransition>
-                        <main className="relative z-10">{children}</main>
+                        <main className="flex-1 relative z-10 w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
+                          {children}
+                        </main>
                       </PageTransition>
-                      
+
+                      {/* Componentes de persistencia global */}
                       <PlayerOrchestrator />
                       <Toaster />
-                      
+
                     </div>
                   </SmoothScrollWrapper>
+
                 </AudioProvider>
               </AuthProvider>
             </ThemeProvider>
