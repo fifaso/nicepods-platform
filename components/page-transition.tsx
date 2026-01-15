@@ -1,31 +1,30 @@
+// components/page-transition.tsx
 "use client"
 
-import type React from "react"
-
-import { useEffect, useState } from "react"
 import { usePathname } from "next/navigation"
+import type React from "react"
+import { useEffect, useState } from "react"
 
 export function PageTransition({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [isTransitioning, setIsTransitioning] = useState(false)
 
   useEffect(() => {
-    // Start transition
+    // Iniciamos la transición sutil
     setIsTransitioning(true)
 
-    // Reset scroll position immediately
-    window.scrollTo(0, 0)
+    // El scroll se mueve al inicio
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
 
-    // End transition after a brief moment
     const timer = setTimeout(() => {
       setIsTransitioning(false)
-    }, 150)
+    }, 100); // Reducimos a 100ms para mayor agilidad de hidratación
 
     return () => clearTimeout(timer)
   }, [pathname])
 
   return (
-    <div className={`transition-opacity duration-150 ${isTransitioning ? "opacity-95" : "opacity-100"}`}>
+    <div className={`transition-opacity duration-200 ease-in-out ${isTransitioning ? "opacity-0" : "opacity-100"}`}>
       {children}
     </div>
   )

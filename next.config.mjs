@@ -1,5 +1,5 @@
 // next.config.mjs
-// VERSIÓN: 18.0 (Fix: Bad Precache Response)
+// VERSIÓN: 18.1 (Master Strategy: PWA Resource Optimization)
 
 import { withSentryConfig } from '@sentry/nextjs';
 import withPWA from 'next-pwa';
@@ -11,7 +11,7 @@ const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
   images: {
-    unoptimized: true, 
+    unoptimized: true,
     remotePatterns: [
       { protocol: 'https', hostname: '**.supabase.co' },
       { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
@@ -47,27 +47,21 @@ const nextConfig = {
   skipTrailingSlashRedirect: true,
 };
 
-// 7. Configuración PWA (FIXED)
 const pwaConfig = {
   dest: 'public',
-  register: false, 
+  register: false,
   skipWaiting: true,
   disable: process.env.NODE_ENV === 'development',
-  
   navigationPreload: false,
-
-  // [CORRECCIÓN]: Excluir mapas de fuente (.map) del precaché
-  // Esto elimina el error "bad-precaching-response: 404"
   buildExcludes: [
-    /middleware-manifest\.json$/, 
-    /app-build-manifest\.json$/, 
-    /\.map$/ 
+    /middleware-manifest\.json$/,
+    /app-build-manifest\.json$/,
+    /\.map$/,
+    /^.*woff2$/ // [MEJORA]: Excluimos fuentes del precaché de compilación para dejar que el runtime lo maneje
   ],
-  
   fallbacks: {
-    document: '/offline', 
+    document: '/offline',
   },
-
   runtimeCaching: [
     {
       urlPattern: /^https:\/\/.*supabase\.co\/storage\/v1\/object\/public\/.*/i,
@@ -76,30 +70,6 @@ const pwaConfig = {
         cacheName: 'supabase-media-cache',
         expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 365 },
         cacheableResponse: { statuses: [0, 200] },
-      },
-    },
-    {
-        urlPattern: /\/offline$/,
-        handler: 'CacheFirst',
-        options: {
-             cacheName: 'offline-page-cache',
-             expiration: { maxEntries: 1, maxAgeSeconds: 60 * 60 * 24 * 30 },
-        }
-    },
-    {
-      urlPattern: /^\/_next\/static\/.*/i,
-      handler: 'CacheFirst',
-      options: {
-        cacheName: 'static-resources',
-        expiration: { maxEntries: 100, maxAgeSeconds: 24 * 60 * 60 * 30 },
-      },
-    },
-    {
-      urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/i,
-      handler: 'StaleWhileRevalidate',
-      options: {
-        cacheName: 'static-image-assets',
-        expiration: { maxEntries: 64, maxAgeSeconds: 24 * 60 * 60 },
       },
     },
     ...defaultRuntimeCaching,
