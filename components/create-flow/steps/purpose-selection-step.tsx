@@ -1,5 +1,5 @@
 // components/create-flow/steps/purpose-selection-step.tsx
-// VERSIÓN: 5.6 (Aurora Master - Full Logic Recovery & Ultra-Wide Space Polish)
+// VERSIÓN: 5.6 (Aurora Master - Ultra-Wide Desktop Visibility & TS Fix)
 
 "use client";
 
@@ -25,7 +25,7 @@ import { useFlowActions } from "../hooks/use-flow-actions";
 import { MASTER_FLOW_PATHS } from "../shared/config";
 import { useCreationContext } from "../shared/context";
 
-// --- DEFINICIÓN DE TIPOS ESTRICTOS ---
+// --- DEFINICIÓN DE TIPOS ---
 interface PurposeOption {
   id: string;
   title: string;
@@ -65,7 +65,6 @@ export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?:
   const [isPending, startTransition] = useTransition();
   const [isVaultOpen, setIsVaultOpen] = useState(false);
 
-  // Acciones de flujo (Borrar y reanudar)
   const { deleteDraft } = useFlowActions({
     transitionTo: (s) => transitionTo(s),
     goBack: () => { },
@@ -86,71 +85,63 @@ export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?:
     setValue("purpose", purpose);
     setValue("agentName", agentName);
     setValue("final_title", draft.title);
-
-    let finalScript = "";
-    try {
-      const parsed = typeof draft.script_text === 'string' ? JSON.parse(draft.script_text) : draft.script_text;
-      finalScript = parsed?.script_body || draft.script_text;
-    } catch {
-      finalScript = draft.script_text;
-    }
-
-    setValue("final_script", finalScript);
+    const parsed = typeof draft.script_text === 'string' ? JSON.parse(draft.script_text) : draft.script_text;
+    setValue("final_script", parsed.script_body || draft.script_text);
     setValue("sources", draft.sources || []);
     jumpToStep('SCRIPT_EDITING');
   };
 
   return (
-    <div className="relative h-full w-full max-w-6xl mx-auto flex flex-col p-4 md:px-10 lg:pt-2 lg:pb-0 overflow-hidden">
+    <div className="relative h-full w-full max-w-6xl mx-auto flex flex-col p-4 md:px-10 lg:pt-0 lg:pb-2 overflow-hidden">
 
-      {/* 1. HEADER: Compactado para liberar espacio vertical en Desktop */}
-      <header className="flex-shrink-0 text-center lg:text-left mt-2 mb-4 lg:mb-8">
+      {/* 1. HEADER - Reducimos margen inferior en LG para ganar espacio vertical */}
+      <header className="flex-shrink-0 text-center lg:text-left mt-2 mb-4 lg:mb-2">
         <motion.h1
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-3xl lg:text-5xl font-black tracking-tighter uppercase text-zinc-900 dark:text-white leading-none mb-1"
+          className="text-3xl lg:text-4xl font-black tracking-tighter uppercase text-zinc-900 dark:text-white leading-none mb-1"
         >
           ¿Cuál es tu <span className="text-primary italic">intención?</span>
         </motion.h1>
-        <p className="text-[10px] lg:text-sm font-black uppercase tracking-[0.2em] text-zinc-500 dark:text-white/40">
+        <p className="text-[10px] lg:text-xs font-black uppercase tracking-[0.2em] text-zinc-500 dark:text-white/40">
           Aprende desde diferentes perspectivas
         </p>
       </header>
 
-      {/* 2. ÁREA DE TRABAJO DUAL */}
-      <div className="flex-1 flex flex-col lg:flex-row gap-0 lg:gap-14 min-h-0 overflow-hidden pb-6">
+      {/* 2. ÁREA DE TRABAJO - Flex-1 asegura que use todo el alto disponible del shell */}
+      <div className="flex-1 flex flex-col lg:flex-row gap-0 lg:gap-14 min-h-0 overflow-hidden">
 
-        {/* COLUMNA INTENCIONES (Lista vertical optimizada) */}
-        <div className="lg:flex-[1.8] flex flex-col gap-6 overflow-y-auto custom-scrollbar-hide justify-start pr-1">
+        {/* COLUMNA INTENCIONES - Optimizamos gap en LG para evitar scroll */}
+        <div className="lg:flex-[1.8] flex flex-col gap-4 lg:gap-2 overflow-y-auto lg:overflow-visible custom-scrollbar-hide justify-start pr-1">
           {CATEGORIES.map((cat) => (
-            <div key={cat.name} className="space-y-4">
+            <div key={cat.name} className="space-y-2 lg:space-y-1">
               <div className="flex items-center gap-3 px-1">
-                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/80">{cat.name}</span>
+                <span className="text-[9px] font-black uppercase tracking-[0.3em] text-primary/80">{cat.name}</span>
                 <div className="h-[1px] flex-1 bg-zinc-200 dark:bg-white/5 opacity-50" />
               </div>
 
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2">
                 {cat.items.map((item: PurposeOption) => (
                   <button
                     key={item.id}
                     onClick={() => handleSelection(item.id)}
-                    className="relative flex items-center p-4 rounded-2xl border border-black/5 dark:border-white/5 bg-white/95 dark:bg-zinc-900/60 backdrop-blur-xl hover:border-primary/40 transition-all text-left group overflow-hidden shadow-sm"
+                    className="relative flex items-center p-3 rounded-xl lg:rounded-2xl border border-black/5 dark:border-white/5 bg-white/95 dark:bg-zinc-900/60 backdrop-blur-xl hover:border-primary/40 transition-all text-left group overflow-hidden shadow-sm"
                   >
-                    <div className={cn("p-3 rounded-xl mr-4 transition-transform group-hover:scale-110 shadow-inner flex-shrink-0", item.color)}>
-                      <item.icon size={22} strokeWidth={2.5} />
+                    <div className={cn("p-2 rounded-lg mr-3 lg:mr-4 transition-transform group-hover:scale-110 shadow-inner flex-shrink-0", item.color)}>
+                      <item.icon size={18} strokeWidth={2.5} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <h3 className="font-black text-sm lg:text-base uppercase text-zinc-900 dark:text-white leading-none tracking-tight">{item.title}</h3>
+                        <h3 className="font-bold text-xs lg:text-sm uppercase text-zinc-900 dark:text-white leading-none tracking-tight">{item.title}</h3>
                         {item.isSituational && (
-                          <Badge className="bg-primary text-white border-none text-[8px] font-black h-4 px-2 tracking-tighter animate-pulse">
+                          <Badge className="bg-primary text-white border-none text-[7px] font-black h-3.5 px-1.5 tracking-tighter animate-pulse">
                             SITUACIONAL
                           </Badge>
                         )}
                       </div>
-                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400 font-medium truncate mt-1">{item.desc}</p>
+                      <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium truncate mt-0.5">{item.desc}</p>
                     </div>
-                    <ChevronRight size={20} className="text-zinc-300 dark:text-white/10 group-hover:text-primary transition-all group-hover:translate-x-1" />
+                    <ChevronRight size={16} className="text-zinc-300 dark:text-white/10 group-hover:text-primary transition-all group-hover:translate-x-1" />
                   </button>
                 ))}
               </div>
@@ -158,12 +149,12 @@ export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?:
           ))}
         </div>
 
-        {/* COLUMNA BÓVEDA (Sidebar Proporcional) */}
+        {/* COLUMNA BÓVEDA */}
         <aside className="hidden lg:flex lg:flex-[1.2] bg-zinc-100/50 dark:bg-white/[0.02] border border-black/5 dark:border-white/5 p-8 rounded-[2.5rem] backdrop-blur-3xl flex-col shadow-2xl h-full max-h-full overflow-hidden">
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3">
               <div className="p-2.5 bg-primary/10 rounded-xl"><History size={20} className="text-primary" /></div>
-              <h2 className="font-black uppercase tracking-tighter text-zinc-900 dark:text-white text-base leading-none">Bóveda</h2>
+              <h2 className="font-black uppercase tracking-tighter text-zinc-900 dark:text-white text-base leading-none whitespace-nowrap">Bóveda de borradores</h2>
             </div>
             <Badge variant="secondary" className="text-[10px] font-mono border-none px-2 bg-zinc-200 dark:bg-black/40 text-zinc-600 dark:text-zinc-400">
               {existingDrafts.length}
@@ -203,8 +194,8 @@ export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?:
         </aside>
       </div>
 
-      {/* 3. MOBILE VIEW: Bóveda Drawer (Mantenida como Perfecta) */}
-      <div className="lg:hidden flex-shrink-0 mt-4 pb-4">
+      {/* FOOTER MOBILE - PERMANECE IDÉNTICO A V5.4 */}
+      <div className="lg:hidden flex-shrink-0 mt-4">
         <button
           onClick={() => setIsVaultOpen(true)}
           className="w-full flex items-center justify-between p-4 bg-zinc-900/90 border border-white/10 rounded-2xl text-white shadow-xl"
