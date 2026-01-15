@@ -1,24 +1,25 @@
 // app/page.tsx
-// VERSIÓN: 8.0 (Guest UX Fix: Tight & Professional Layout)
+// VERSIÓN: 8.1 (Production Ready - SSR Signature Fix & Logic Integrity)
 
-import { cookies } from "next/headers";
-import Link from "next/link";
+import { DiscoveryHub } from "@/components/discovery-hub";
+import { InsightPanel } from "@/components/insight-panel";
+import { PlatformInfoDialog } from "@/components/platform-info-dialog";
+import { Button } from "@/components/ui/button";
+import { FloatingActionButton } from "@/components/ui/floating-action-button";
 import { createClient } from "@/lib/supabase/server";
 import { PodcastWithProfile } from "@/types/podcast";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Mic, Search, Compass, Lightbulb, Bot, Library, User, Loader2 } from "lucide-react";
-import { QuadrantCard } from "@/components/ui/quadrant-card";
-import { InsightPanel } from "@/components/insight-panel";
-import { FloatingActionButton } from "@/components/ui/floating-action-button";
-import { DiscoveryHub } from "@/components/discovery-hub";
-import { PlatformInfoDialog } from "@/components/platform-info-dialog";
 import type { Tables } from "@/types/supabase";
+import { Library, Loader2, User } from "lucide-react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 
+/**
+ * CARGA DINÁMICA DE COMPONENTES PESADOS
+ * Evita bloqueos en el hilo principal y errores de hidratación.
+ */
 const PodcastShelf = dynamic(
   () => import("@/components/podcast-shelf").then((mod) => mod.PodcastShelf),
-  { 
+  {
     ssr: false,
     loading: () => (
       <div className="w-full h-32 flex items-center justify-center text-muted-foreground">
@@ -35,6 +36,10 @@ interface DiscoveryFeed {
   new_horizons: PodcastWithProfile[] | null;
 }
 
+/**
+ * SANITIZACIÓN DE DATOS
+ * Normaliza los campos de Supabase para asegurar compatibilidad con la UI.
+ */
 function sanitizePodcasts(podcasts: any[] | null): PodcastWithProfile[] {
   if (!podcasts || !Array.isArray(podcasts)) return [];
   return podcasts.map(pod => ({
@@ -43,7 +48,7 @@ function sanitizePodcasts(podcasts: any[] | null): PodcastWithProfile[] {
     ai_tags: Array.isArray(pod.ai_tags) ? pod.ai_tags : [],
     user_tags: Array.isArray(pod.user_tags) ? pod.user_tags : [],
     sources: Array.isArray(pod.sources) ? pod.sources : [],
-  })).filter(p => p.id); 
+  })).filter(p => p.id);
 }
 
 // --- SUB-COMPONENTES DE VISTA ---
@@ -57,34 +62,36 @@ function UserDashboard({ user, feed, profile }: { user: any; feed: DiscoveryFeed
 
   return (
     <>
-      <div className="px-4 lg:px-0 pb-24"> 
-        <div className="lg:hidden mb-5 mt-2"> 
-            <div className="flex items-center justify-between mb-4">
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">
-                    Hola, <span className="text-primary">{userName}</span>
-                </h1>
-                <PlatformInfoDialog />
-            </div>
-            
-            <div className="grid grid-cols-2 gap-3">
-                <Link href="/podcasts?tab=discover" className="w-full">
-                    <Button variant="secondary" className="w-full h-10 text-xs font-semibold bg-secondary/50 border border-border/50 hover:bg-secondary transition-all">
-                        <Library className="mr-2 h-3.5 w-3.5" /> Explorar
-                    </Button>
-                </Link>
-                <Link href={`/podcasts?tab=library&view=list`} className="w-full">
-                    <Button variant="secondary" className="w-full h-10 text-xs font-semibold bg-secondary/50 border border-border/50 hover:bg-secondary transition-all">
-                        <User className="mr-2 h-3.5 w-3.5" /> Mis Creaciones
-                    </Button>
-                </Link>
-            </div>
-        </div>
-        
-        <div className="hidden lg:block mb-8">
-            <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
-              Hola, {userName}!
+      <div className="px-4 lg:px-0 pb-24">
+        {/* CABECERA MÓVIL */}
+        <div className="lg:hidden mb-5 mt-2">
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+              Hola, <span className="text-primary">{userName}</span>
             </h1>
-            <p className="text-lg text-muted-foreground mt-2">Tu centro de descubrimiento personalizado.</p>
+            <PlatformInfoDialog />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Link href="/podcasts?tab=discover" className="w-full">
+              <Button variant="secondary" className="w-full h-10 text-xs font-semibold bg-secondary/50 border border-border/50 hover:bg-secondary transition-all">
+                <Library className="mr-2 h-3.5 w-3.5" /> Explorar
+              </Button>
+            </Link>
+            <Link href={`/podcasts?tab=library&view=list`} className="w-full">
+              <Button variant="secondary" className="w-full h-10 text-xs font-semibold bg-secondary/50 border border-border/50 hover:bg-secondary transition-all">
+                <User className="mr-2 h-3.5 w-3.5" /> Mis Creaciones
+              </Button>
+            </Link>
+          </div>
+        </div>
+
+        {/* CABECERA DESKTOP */}
+        <div className="hidden lg:block mb-8">
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
+            Hola, {userName}!
+          </h1>
+          <p className="text-lg text-muted-foreground mt-2">Tu centro de descubrimiento personalizado.</p>
         </div>
 
         <DiscoveryHub />
@@ -95,24 +102,17 @@ function UserDashboard({ user, feed, profile }: { user: any; feed: DiscoveryFeed
           <PodcastShelf title="Nuevos Horizontes" podcasts={safeHorizons} variant="compact" />
         </div>
       </div>
-      
+
       <FloatingActionButton />
     </>
   );
 }
 
-// [OPTIMIZACIÓN QUIRÚRGICA]: Layout de Invitado Compacto
 function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] }) {
   const safeLatest = sanitizePodcasts(latestPodcasts);
 
   return (
     <div className="flex flex-col items-center pb-20 w-full">
-      {/* 
-         CAMBIOS ESTRATÉGICOS:
-         1. pt-12 en lugar de py-20: Subimos todo el contenido hacia arriba.
-         2. space-y-2: Reducimos la distancia entre título y subtítulo.
-         3. max-w-3xl: Controlamos el ancho para lectura óptima.
-      */}
       <section className="w-full text-center pt-12 pb-6 flex flex-col items-center space-y-3 px-4 animate-in fade-in slide-in-from-top-4 duration-700">
         <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-white leading-tight drop-shadow-xl">
           Expande tu perspectiva
@@ -121,24 +121,15 @@ function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] }) {
           Crea, aprende y comparte conocimiento en audio.
         </p>
       </section>
-      
-      {/* 
-         INTEGRACIÓN FLUIDA:
-         El DiscoveryHub contiene el buscador. Al quitarle márgenes externos negativos o reducir el espacio aquí,
-         logramos que parezca parte de la misma sección que el título.
-      */}
+
       <section className="w-full max-w-5xl px-0 md:px-4 mx-auto -mt-4 relative z-10">
         <DiscoveryHub />
       </section>
 
-      {/* 
-         SECCIÓN DE CONTENIDO:
-         Añadimos un borde superior sutil para separar la herramienta de búsqueda del contenido pasivo.
-      */}
       <div className="w-full max-w-7xl mx-auto px-4 lg:px-0 mt-8 pt-8 border-t border-white/5">
-        <PodcastShelf 
+        <PodcastShelf
           title="Últimas creaciones de la comunidad"
-          podcasts={safeLatest} 
+          podcasts={safeLatest}
         />
       </div>
 
@@ -152,9 +143,12 @@ function GuestLandingPage({ latestPodcasts }: { latestPodcasts: any[] }) {
 // --- PÁGINA PRINCIPAL ---
 
 export default async function HomePage() {
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
-  
+  /**
+   * [RESOLUCIÓN DEL ERROR]: 
+   * createClient ya no recibe argumentos. Obtiene las cookies internamente.
+   */
+  const supabase = createClient();
+
   let user = null;
   try {
     const { data } = await supabase.auth.getUser();
@@ -168,47 +162,47 @@ export default async function HomePage() {
 
   if (user) {
     try {
-        const [
-          { data: feedData },
-          { data: profileData },
-          { data: userProfileData, error: profileError }
-        ] = await Promise.all([
-          supabase.rpc('get_user_discovery_feed', { p_user_id: user.id }),
-          supabase.from('user_resonance_profiles').select('*').eq('user_id', user.id).single(),
-          supabase.from('profiles').select('username, full_name').eq('id', user.id).single()
-        ]);
-        
-        if (profileError) throw new Error("Error crítico cargando perfil: " + profileError.message);
+      const [
+        { data: feedData },
+        { data: profileData },
+        { data: userProfileData, error: profileError }
+      ] = await Promise.all([
+        supabase.rpc('get_user_discovery_feed', { p_user_id: user.id }),
+        supabase.from('user_resonance_profiles').select('*').eq('user_id', user.id).single(),
+        supabase.from('profiles').select('username, full_name').eq('id', user.id).single()
+      ]);
 
-        feed = feedData;
-        resonanceProfile = profileData;
-        userProfile = userProfileData;
+      if (profileError) throw new Error("Error crítico cargando perfil: " + profileError.message);
+
+      feed = feedData;
+      resonanceProfile = profileData;
+      userProfile = userProfileData;
 
     } catch (e) {
-        console.error("Error cargando dashboard de usuario:", e);
-        user = null; 
+      console.error("Error cargando dashboard de usuario:", e);
+      user = null;
     }
   }
 
   if (!user) {
     try {
-        const { data } = await supabase
-          .from('micro_pods')
-          .select(`*, profiles (full_name, avatar_url, username)`)
-          .eq('status', 'published')
-          .order('created_at', { ascending: false })
-          .limit(8);
-        
-        latestPodcasts = data || [];
+      const { data } = await supabase
+        .from('micro_pods')
+        .select(`*, profiles (full_name, avatar_url, username)`)
+        .eq('status', 'published')
+        .order('created_at', { ascending: false })
+        .limit(8);
+
+      latestPodcasts = data || [];
     } catch (e) {
-        console.error("Error cargando landing:", e);
+      console.error("Error cargando landing:", e);
     }
   }
 
   return (
     <main className="container mx-auto max-w-screen-xl flex-grow">
       <div className="grid grid-cols-1 lg:grid-cols-4 lg:gap-8 xl:gap-12 h-full">
-        
+
         {/* COLUMNA CENTRAL */}
         <div className="lg:col-span-3 lg:h-[calc(100vh-6rem)] lg:overflow-y-auto lg:overflow-x-hidden lg:pr-6 scrollbar-thin scrollbar-thumb-gray-600/50 hover:scrollbar-thumb-gray-500/50 scrollbar-track-transparent scrollbar-thumb-rounded-full">
           <div className="pt-4 pb-12 lg:pt-12">
@@ -224,7 +218,7 @@ export default async function HomePage() {
         <div className="hidden lg:block lg:col-span-1">
           <div className="sticky top-[6rem] h-[calc(100vh-7.5rem)]">
             <div className="py-12 h-full">
-                <InsightPanel resonanceProfile={resonanceProfile} />
+              <InsightPanel resonanceProfile={resonanceProfile} />
             </div>
           </div>
         </div>
