@@ -1,40 +1,37 @@
-/* app/globals.css */
-/* VERSIÓN: 3.6 (Ultimate Aesthetic Recovery - Vivid & High-Performance) */
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    /* MODO CLARO: Tinte Aurora Lavanda (Sustituye al blanco clínico) */
+    /* MODO CLARO: Tinte Aurora Lavanda */
     --background: 240 20% 98%; 
     --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100% / 0.5; 
+    --card: 0 0% 100% / 0.5; /* Transparencia para Glassmorphism */
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100% / 0.8;
     --popover-foreground: 222.2 84% 4.9%;
     --primary: 262.1 83.3% 57.8%;
     --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1% / 0.5;
+    --secondary: 210 40% 96.1% / 0.4;
     --secondary-foreground: 222.2 84% 4.9%;
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
+    --accent: 210 40% 96.1% / 0.5;
     --accent-foreground: 222.2 84% 4.9%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
+    --border: 240 5% 84% / 0.4;
+    --input: 240 5% 84% / 0.4;
     --ring: 262.1 83.3% 57.8%;
-    --radius: 1rem;
+    --radius: 1.5rem;
   }
 
   .dark {
     /* MODO OSCURO: Profundidad Espacial */
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9% / 0.4;
+    --card: 222.2 84% 4.9% / 0.7;
     --card-foreground: 210 40% 98%;
     --popover: 222.2 84% 4.9% / 0.9;
     --popover-foreground: 210 40% 98%;
@@ -44,108 +41,52 @@
     --secondary-foreground: 210 40% 98%;
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
+    --accent: 217.2 32.6% 17.5% / 0.5;
     --accent-foreground: 210 40% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
+    --border: 217.2 32.6% 17.5% / 0.6;
+    --input: 217.2 32.6% 17.5% / 0.6;
     --ring: 262.1 83.3% 57.8%;
   }
 }
 
 @layer base {
-  * {
-    @apply border-border outline-none;
-  }
-
+  * { @apply border-border; }
+  
   html {
-    @apply scroll-smooth transition-colors duration-500;
+    @apply scroll-smooth transition-colors duration-700;
   }
 
   body {
-    /* [ESTABILIDAD]: Forzamos transparencia para ver el mesh del fondo */
+    /* [ESTABILIDAD]: Fundamental para que el mesh se vea */
     background: transparent !important;
     @apply text-foreground antialiased selection:bg-primary/30;
-    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
 @layer utilities {
-  /* 
-     NICEPOD CORE: GRADIENT MESH SYSTEM
-     Un sistema de 4 gradientes radiales fijos que crean profundidad.
-  */
+  /* MALLA ATMOSFÉRICA (Dreamy Aurora Mesh) */
   .gradient-mesh {
     background-color: hsl(var(--background));
     background-image: 
       radial-gradient(at 0% 0%, hsla(262, 83%, 57%, 0.15) 0px, transparent 50%),
       radial-gradient(at 100% 0%, hsla(189, 100%, 56%, 0.15) 0px, transparent 50%),
       radial-gradient(at 100% 100%, hsla(340, 100%, 76%, 0.15) 0px, transparent 50%),
-      radial-gradient(at 0% 100%, hsla(228, 100%, 74%, 0.15) 0px, transparent 50%);
+      radial-gradient(at 0% 100%, hsla(30, 100%, 70%, 0.15) 0px, transparent 50%);
     background-attachment: fixed;
     background-size: cover;
   }
 
   .dark .gradient-mesh {
     background-image: 
-      radial-gradient(at 40% 20%, hsla(228, 100%, 25%, 0.45) 0px, transparent 50%),
-      radial-gradient(at 80% 0%, hsla(189, 100%, 20%, 0.45) 0px, transparent 50%),
-      radial-gradient(at 0% 50%, hsla(355, 100%, 15%, 0.45) 0px, transparent 50%),
-      radial-gradient(at 80% 50%, hsla(340, 100%, 25%, 0.45) 0px, transparent 50%),
-      linear-gradient(180deg, rgba(15, 23, 42, 0.98) 0%, rgba(2, 6, 23, 1) 100%);
+      radial-gradient(at 0% 0%, hsla(262, 83%, 57%, 0.3) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, hsla(189, 100%, 40%, 0.3) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, hsla(340, 100%, 30%, 0.3) 0px, transparent 50%),
+      radial-gradient(at 0% 100%, hsla(240, 100%, 20%, 0.3) 0px, transparent 50%),
+      linear-gradient(180deg, rgba(2, 6, 23, 1) 0%, rgba(15, 23, 42, 1) 100%);
   }
 
-  /* SISTEMA DE ANIMACIÓN AURORA (Botones y Acentos) */
-  .bg-aurora {
-    background: linear-gradient(270deg, #ec4899, #8b5cf6, #3b82f6, #ec4899);
-    background-size: 400% 400%;
-  }
-
-  .animate-aurora {
-    animation: aurora-flow 8s ease infinite;
-    will-change: background-position;
-  }
-
-  @keyframes aurora-flow {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-  }
-
-  /* GLASSMORPHISM AVANZADO */
-  .glass {
-    @apply backdrop-blur-xl border border-white/20 bg-white/10;
-  }
-  
-  .dark .glass {
-    @apply border-white/10 bg-slate-900/40;
-  }
-
-  /* UTILIDADES DE PERFORMANCE Y UI */
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
-  .animate-float {
-    animation: float 6s ease-in-out infinite;
-    will-change: transform;
-  }
-
-  @keyframes float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-15px); }
-  }
-
-  /* Limpieza de fondos en layouts hijos */
-  .transparent-container {
-    background-color: transparent !important;
-  }
 }
-
-/* ACCESSIBILIDAD: Contrastes mejorados para texto sobre gradientes */
-.text-vivid {
-  @apply font-black tracking-tighter uppercase;
-}
-
-.text-primary-accessible { color: #111827; }
-.dark .text-primary-accessible { color: #f9fafb; }
