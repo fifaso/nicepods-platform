@@ -1,5 +1,5 @@
 // app/layout.tsx
-// VERSIÓN: 16.1 (Production Ready - Supabase SSR Fixed & Theme Synchronized)
+// VERSIÓN: 16.4 (Final Master - PWA Stable + Vivid Aurora Aesthetics)
 
 import { cookies } from 'next/headers';
 import type React from "react";
@@ -26,10 +26,19 @@ import { OfflineIndicator } from '@/components/offline-indicator';
 import { InstallPwaButton } from '@/components/install-pwa-button';
 import { ServiceWorkerRegister } from '@/components/sw-register';
 
-const inter = Inter({ subsets: ["latin"] });
+/**
+ * OPTIMIZACIÓN DE FUENTE:
+ * preload: false elimina el error de "Resource preloaded but not used"
+ * causado por la colisión entre Next.js y el Service Worker.
+ */
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  preload: false
+});
 
 export const viewport: Viewport = {
-  themeColor: "#111827",
+  themeColor: "#ffffff",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -40,17 +49,9 @@ export const metadata: Metadata = {
   title: "NicePod - Create & Share Micro-Podcasts",
   description: "Fomenta el conocimiento y el pensamiento crítico a través de contenido de audio conciso.",
   manifest: "/manifest.json",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "NicePod",
-  },
   icons: {
     icon: "/nicepod-logo.png",
     apple: "/nicepod-logo.png",
-  },
-  other: {
-    "mobile-web-app-capable": "yes",
   },
 };
 
@@ -59,20 +60,18 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // [CORRECCIÓN QUIRÚRGICA]: createClient() no requiere argumentos en la nueva arquitectura
+  // Cliente Supabase optimizado para SSR (Sin argumentos)
   const supabase = createClient();
 
-  // Verificación de sesión de alta seguridad
+  // Verificación de integridad de sesión dual
   const { data: { user } } = await supabase.auth.getUser();
   const { data: { session } } = await supabase.auth.getSession();
-
-  // Si no hay usuario real, invalidamos la sesión para evitar ataques de replay
   const validatedSession = user ? session : null;
 
   return (
     <html lang="es" suppressHydrationWarning>
       <head>
-        {/* Script de prevención de flash de tema (Inline para máxima velocidad de renderizado) */}
+        {/* Script Anti-Flash de Tema (Crítico para UX) */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -94,7 +93,10 @@ export default async function RootLayout({
       <body className={`${inter.className} min-h-screen antialiased selection:bg-primary/30 transition-colors duration-500`}>
 
         <CSPostHogProvider>
-          {/* Inicialización de Capas Offline y Analíticas */}
+          {/* 
+            [LAYER: PWA] 
+            Ubicado en la raíz para evitar re-registros y limpiar la consola.
+          */}
           <ServiceWorkerRegister />
           <PwaLifecycle />
 
@@ -110,27 +112,26 @@ export default async function RootLayout({
                 <AudioProvider>
 
                   {/* 
-                    [CAPA 0]: EL LIENZO (Fondo Aurora)
-                    Se mantiene fijo detrás de todo el contenido.
-                    La clase 'gradient-mesh' en globals.css maneja el cambio Light/Dark.
+                    [LAYER 0]: EL ESCENARIO (Fondo Aurora Recuperado)
+                    La clase 'gradient-mesh' ahora tiene el tinte suave para modo claro.
                   */}
                   <div className="fixed inset-0 gradient-mesh -z-20" aria-hidden="true" />
 
                   {/* 
-                    [CAPA 1]: DINAMISMO (Blobs Atmosféricos)
-                    Opacidad reducida en Modo Claro (base) y aumentada en Modo Oscuro (.dark).
+                    [LAYER 1]: EFECTOS ATMOSFÉRICOS (Blobs de color)
+                    Opacidad aumentada (60%) en Modo Claro para recuperar la estética NicePod.
                   */}
-                  <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10 opacity-30 dark:opacity-50 transition-opacity duration-1000">
-                    <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-purple-500/20 rounded-full blur-[120px] animate-float"></div>
-                    <div className="absolute top-[20%] right-[-10%] w-[40%] h-[40%] bg-blue-500/20 rounded-full blur-[120px] animate-float" style={{ animationDelay: "2s" }}></div>
-                    <div className="absolute bottom-[-10%] left-[20%] w-[45%] h-[45%] bg-pink-500/20 rounded-full blur-[120px] animate-float" style={{ animationDelay: "4s" }}></div>
+                  <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10 opacity-60 dark:opacity-40 transition-opacity duration-1000">
+                    <div className="absolute top-[-10%] left-[-10%] w-[70%] h-[70%] bg-purple-400/20 rounded-full blur-[120px] animate-float" />
+                    <div className="absolute top-[10%] right-[-5%] w-[60%] h-[60%] bg-blue-300/20 rounded-full blur-[120px] animate-float" style={{ animationDelay: "2s" }} />
+                    <div className="absolute bottom-[-15%] left-[10%] w-[80%] h-[80%] bg-pink-200/20 rounded-full blur-[120px] animate-float" style={{ animationDelay: "4s" }} />
                   </div>
 
-                  {/* UI de Utilidad PWA */}
+                  {/* Elementos flotantes de sistema */}
                   <OfflineIndicator />
                   <InstallPwaButton />
 
-                  {/* [CAPA 2]: EL CONTENIDO (Arquitectura Responsiva) */}
+                  {/* [LAYER 2]: EL CONTENIDO (Arquitectura de Scroll y Layout) */}
                   <SmoothScrollWrapper>
                     <div className="relative flex flex-col min-h-screen">
 
@@ -143,7 +144,7 @@ export default async function RootLayout({
                         </main>
                       </PageTransition>
 
-                      {/* Componentes de persistencia global */}
+                      {/* Persistencia del reproductor sobre el contenido */}
                       <PlayerOrchestrator />
                       <Toaster />
 
