@@ -1,31 +1,30 @@
 // components/create-flow/steps/purpose-selection-step.tsx
-// VERSIÓN: 5.3 (Aurora Master - Ultra-Wide Desktop Polish & Zero Scroll Final)
+// VERSIÓN: 5.4 (Aurora Master - Ultra-Wide Desktop Polish & Visibility Fix)
 
 "use client";
 
-import React, { useState, useTransition } from "react";
-import { useFormContext } from "react-hook-form";
-import { motion, AnimatePresence } from "framer-motion";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-  Lightbulb,
-  Link2,
-  MessageCircleQuestion,
-  PenLine,
-  MapPin,
   ChevronRight,
   ChevronUp,
   History,
+  Lightbulb,
+  Link2,
+  MapPin,
+  MessageCircleQuestion,
+  PenLine,
   Play,
   Trash2,
   X
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { useCreationContext } from "../shared/context";
+import React, { useState, useTransition } from "react";
+import { useFormContext } from "react-hook-form";
 import { useFlowActions } from "../hooks/use-flow-actions";
 import { MASTER_FLOW_PATHS } from "../shared/config";
-import { Badge } from "@/components/ui/badge";
+import { useCreationContext } from "../shared/context";
 
-// --- INTERFACES DE ALTA CATEGORÍA ---
 interface PurposeOption {
   id: string;
   title: string;
@@ -64,7 +63,12 @@ export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?:
   const { transitionTo, jumpToStep } = useCreationContext();
   const [isPending, startTransition] = useTransition();
   const [isVaultOpen, setIsVaultOpen] = useState(false);
-  const { deleteDraft } = useFlowActions({ transitionTo: (s) => transitionTo(s), goBack: () => { }, clearDraft: () => { } });
+
+  const { deleteDraft } = useFlowActions({
+    transitionTo: (s) => transitionTo(s),
+    goBack: () => { },
+    clearDraft: () => { }
+  });
 
   const handleSelection = (id: string) => {
     setValue("purpose", id, { shouldValidate: true, shouldDirty: true });
@@ -87,10 +91,9 @@ export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?:
   };
 
   return (
-    <div className="relative h-full w-full max-w-6xl mx-auto flex flex-col p-4 md:px-10 lg:pt-0 lg:pb-6 overflow-hidden">
+    <div className="relative h-full w-full max-w-6xl mx-auto flex flex-col p-4 md:px-10 lg:pt-0 lg:pb-4 overflow-hidden">
 
-      {/* 1. HEADER: Elevación máxima en Desktop */}
-      <header className="flex-shrink-0 text-center lg:text-left mt-2 mb-6 lg:mb-8">
+      <header className="flex-shrink-0 text-center lg:text-left mt-2 mb-4 lg:mb-6">
         <motion.h1
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -103,16 +106,15 @@ export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?:
         </p>
       </header>
 
-      {/* 2. ÁREA DE TRABAJO: Dual Layout */}
       <div className="flex-1 flex flex-col lg:flex-row gap-0 lg:gap-14 min-h-0 overflow-hidden">
 
-        {/* COLUMNA INTENCIONES (Lista vertical optimizada) */}
-        <div className="lg:flex-[1.8] flex flex-col gap-4 lg:gap-5 overflow-y-auto lg:overflow-hidden custom-scrollbar-hide justify-start">
+        {/* COLUMNA INTENCIONES - [MEJORA]: Permitimos scroll interno para no decapitar opciones */}
+        <div className="lg:flex-[1.8] flex flex-col gap-4 lg:gap-4 overflow-y-auto custom-scrollbar-hide justify-start pr-1 pb-4">
           {CATEGORIES.map((cat) => (
             <div key={cat.name} className="space-y-2">
               <div className="flex items-center gap-3 px-1">
                 <span className="text-[9px] font-black uppercase tracking-[0.3em] text-primary/80">{cat.name}</span>
-                <div className="h-[px] flex-1 bg-zinc-200 dark:bg-white/5 opacity-50" />
+                <div className="h-[1px] flex-1 bg-zinc-200 dark:bg-white/5 opacity-50" />
               </div>
 
               <div className="flex flex-col gap-2">
@@ -120,7 +122,7 @@ export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?:
                   <button
                     key={item.id}
                     onClick={() => handleSelection(item.id)}
-                    className="relative flex items-center p-3 lg:p-3 rounded-xl lg:rounded-2xl border border-black/5 dark:border-white/5 bg-white/95 dark:bg-zinc-900/60 backdrop-blur-xl hover:border-primary/40 transition-all text-left group overflow-hidden shadow-sm"
+                    className="relative flex items-center p-3 rounded-xl lg:rounded-2xl border border-black/5 dark:border-white/5 bg-white/95 dark:bg-zinc-900/60 backdrop-blur-xl hover:border-primary/40 transition-all text-left group overflow-hidden shadow-sm"
                   >
                     <div className={cn("p-2 rounded-lg mr-3 lg:mr-4 transition-transform group-hover:scale-110 shadow-inner flex-shrink-0", item.color)}>
                       <item.icon size={18} strokeWidth={2.5} />
@@ -144,7 +146,6 @@ export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?:
           ))}
         </div>
 
-        {/* COLUMNA BÓVEDA: Proporción Sidebar real */}
         <aside className="hidden lg:flex lg:flex-[1.2] bg-zinc-100/50 dark:bg-white/[0.02] border border-black/5 dark:border-white/5 p-8 rounded-[2.5rem] backdrop-blur-3xl flex-col shadow-2xl h-full max-h-full overflow-hidden">
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3">
@@ -173,7 +174,8 @@ export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?:
                   <div className="flex justify-between items-center">
                     <span className="text-[8px] font-black text-primary uppercase tracking-widest opacity-80">{draft.creation_data.purpose}</span>
                     <button
-                      onClick={(e) => { e.stopPropagation(); startTransition(() => deleteDraft(draft.id)); }}
+                      // [FIX TS]: Encapsulamos la llamada para que startTransition reciba void
+                      onClick={(e) => { e.stopPropagation(); startTransition(() => { deleteDraft(draft.id); }); }}
                       className="p-1.5 text-zinc-400 hover:text-red-500 transition-colors z-20"
                     >
                       <Trash2 size={14} />
@@ -189,7 +191,6 @@ export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?:
         </aside>
       </div>
 
-      {/* FOOTER MOBILE: Mantenida como Perfecta */}
       <div className="lg:hidden flex-shrink-0 mt-4">
         <button
           onClick={() => setIsVaultOpen(true)}
@@ -230,7 +231,8 @@ export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?:
                           {draft.creation_data.purpose}
                         </Badge>
                         <div className="flex gap-6">
-                          <button onClick={(e) => { e.stopPropagation(); startTransition(() => deleteDraft(draft.id)); }} className="text-zinc-600 active:text-red-400"><Trash2 size={20} /></button>
+                          {/* [FIX TS]: Encapsulamos la llamada para que startTransition reciba void */}
+                          <button onClick={(e) => { e.stopPropagation(); startTransition(() => { deleteDraft(draft.id); }); }} className="text-zinc-600 active:text-red-400"><Trash2 size={20} /></button>
                           <span className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2 underline underline-offset-8 decoration-primary">RETOMAR <Play size={10} fill="currentColor" /></span>
                         </div>
                       </div>
