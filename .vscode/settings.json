@@ -3,37 +3,53 @@
   "deno.enable": false,
   "deno.lint": true,
   "deno.config": "./supabase/functions/deno.json",
-
   // 2. ACTIVACIÓN QUIRÚRGICA: Deno solo trabaja en las funciones
   "deno.enablePaths": [
     "supabase/functions"
   ],
-
-  // 3. FORMATEADORES (Corregidos para evitar advertencias en Codespaces)
+  // 3. TAILWIND CSS & DX OPTIMIZATION (Elimina advertencias en globals.css)
+  "css.lint.unknownAtRules": "ignore",
+  "files.associations": {
+    "*.css": "tailwindcss"
+  },
+  "tailwindCSS.includeLanguages": {
+    "plaintext": "ts",
+    "css": "tailwindcss",
+    "typescript": "typescript",
+    "typescriptreact": "typescriptreact"
+  },
+  "tailwindCSS.emmetCompletions": true,
+  // 4. FORMATEADORES (Corregidos para evitar advertencias en Codespaces)
   "[typescript]": {
     "editor.defaultFormatter": "vscode.typescript-language-features"
   },
   "[typescriptreact]": {
     "editor.defaultFormatter": "vscode.typescript-language-features"
   },
-
-  // 4. PERMISOS UNSTABLE (Solo los necesarios para Supabase Edge)
+  "[css]": {
+    "editor.defaultFormatter": "vscode.css-language-features"
+  },
+  // 5. PERMISOS UNSTABLE (Solo los necesarios para Supabase Edge)
   "deno.unstable": [
     "cron",
     "net",
     "http"
   ],
-
-  // 5. EXCLUSIONES PARA VELOCIDAD: Evita que el IDE indexe basura
+  // 6. EXCLUSIONES PARA VELOCIDAD: Evita que el IDE indexe basura
   "files.exclude": {
     "**/.next": true,
     "**/node_modules": true,
-    "**/dist": true
+    "**/dist": true,
+    "**/.git": true
   },
-
-  // 6. HIGIENE
+  // 7. HIGIENE Y AUTOMATIZACIÓN
   "editor.formatOnSave": true,
+  "editor.tabSize": 2,
   "editor.codeActionsOnSave": {
-    "source.fixAll.eslint": "explicit"
-  }
+    "source.fixAll.eslint": "explicit",
+    "source.organizeImports": "explicit"
+  },
+  "workbench.editor.restoreViewState": true,
+  "editor.bracketPairColorization.enabled": true,
+  "editor.guide.bracketPairs": "active"
 }

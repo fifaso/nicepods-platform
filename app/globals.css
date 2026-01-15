@@ -1,19 +1,22 @@
+/* app/globals.css */
+/* VERSIÓN: 3.6 (Ultimate Aesthetic Recovery - Vivid & High-Performance) */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    /* MODO CLARO: Tinte Aurora Lavanda (No blanco clínico) */
-    --background: 240 20% 98%;
+    /* MODO CLARO: Tinte Aurora Lavanda (Sustituye al blanco clínico) */
+    --background: 240 20% 98%; 
     --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
+    --card: 0 0% 100% / 0.5; 
     --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
+    --popover: 0 0% 100% / 0.8;
     --popover-foreground: 222.2 84% 4.9%;
     --primary: 262.1 83.3% 57.8%;
     --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
+    --secondary: 210 40% 96.1% / 0.5;
     --secondary-foreground: 222.2 84% 4.9%;
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
@@ -28,15 +31,16 @@
   }
 
   .dark {
+    /* MODO OSCURO: Profundidad Espacial */
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
+    --card: 222.2 84% 4.9% / 0.4;
     --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
+    --popover: 222.2 84% 4.9% / 0.9;
     --popover-foreground: 210 40% 98%;
     --primary: 262.1 83.3% 57.8%;
     --primary-foreground: 210 40% 98%;
-    --secondary: 217.2 32.6% 17.5%;
+    --secondary: 217.2 32.6% 17.5% / 0.5;
     --secondary-foreground: 210 40% 98%;
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
@@ -52,37 +56,47 @@
 
 @layer base {
   * {
-    @apply border-border;
+    @apply border-border outline-none;
+  }
+
+  html {
+    @apply scroll-smooth transition-colors duration-500;
   }
 
   body {
-    @apply bg-background text-foreground;
+    /* [ESTABILIDAD]: Forzamos transparencia para ver el mesh del fondo */
+    background: transparent !important;
+    @apply text-foreground antialiased selection:bg-primary/30;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
 @layer utilities {
-
-  /* NICEPOD IDENTITY: GRADIENT MESH SYSTEM */
+  /* 
+     NICEPOD CORE: GRADIENT MESH SYSTEM
+     Un sistema de 4 gradientes radiales fijos que crean profundidad.
+  */
   .gradient-mesh {
     background-color: hsl(var(--background));
-    background-image:
-      radial-gradient(at 0% 0%, hsla(262, 83%, 57%, 0.12) 0px, transparent 50%),
-      radial-gradient(at 100% 0%, hsla(189, 100%, 56%, 0.12) 0px, transparent 50%),
-      radial-gradient(at 100% 100%, hsla(340, 100%, 76%, 0.12) 0px, transparent 50%),
-      radial-gradient(at 0% 100%, hsla(228, 100%, 74%, 0.12) 0px, transparent 50%);
+    background-image: 
+      radial-gradient(at 0% 0%, hsla(262, 83%, 57%, 0.15) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, hsla(189, 100%, 56%, 0.15) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, hsla(340, 100%, 76%, 0.15) 0px, transparent 50%),
+      radial-gradient(at 0% 100%, hsla(228, 100%, 74%, 0.15) 0px, transparent 50%);
     background-attachment: fixed;
+    background-size: cover;
   }
 
   .dark .gradient-mesh {
-    background-image:
-      radial-gradient(at 40% 20%, hsla(228, 100%, 25%, 0.4) 0px, transparent 50%),
-      radial-gradient(at 80% 0%, hsla(189, 100%, 20%, 0.4) 0px, transparent 50%),
-      radial-gradient(at 0% 50%, hsla(355, 100%, 15%, 0.4) 0px, transparent 50%),
-      radial-gradient(at 80% 50%, hsla(340, 100%, 25%, 0.4) 0px, transparent 50%),
-      linear-gradient(180deg, rgba(15, 23, 42, 0.95) 0%, rgba(2, 6, 23, 1) 100%);
+    background-image: 
+      radial-gradient(at 40% 20%, hsla(228, 100%, 25%, 0.45) 0px, transparent 50%),
+      radial-gradient(at 80% 0%, hsla(189, 100%, 20%, 0.45) 0px, transparent 50%),
+      radial-gradient(at 0% 50%, hsla(355, 100%, 15%, 0.45) 0px, transparent 50%),
+      radial-gradient(at 80% 50%, hsla(340, 100%, 25%, 0.45) 0px, transparent 50%),
+      linear-gradient(180deg, rgba(15, 23, 42, 0.98) 0%, rgba(2, 6, 23, 1) 100%);
   }
 
-  /* AURORA ANIMATION */
+  /* SISTEMA DE ANIMACIÓN AURORA (Botones y Acentos) */
   .bg-aurora {
     background: linear-gradient(270deg, #ec4899, #8b5cf6, #3b82f6, #ec4899);
     background-size: 400% 400%;
@@ -90,63 +104,48 @@
 
   .animate-aurora {
     animation: aurora-flow 8s ease infinite;
+    will-change: background-position;
   }
 
   @keyframes aurora-flow {
-    0% {
-      background-position: 0% 50%;
-    }
-
-    50% {
-      background-position: 100% 50%;
-    }
-
-    100% {
-      background-position: 0% 50%;
-    }
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
   }
 
-  /* GLASSMORPHISM */
+  /* GLASSMORPHISM AVANZADO */
   .glass {
-    @apply bg-white/10 backdrop-blur-md border border-white/20;
+    @apply backdrop-blur-xl border border-white/20 bg-white/10;
   }
-
+  
   .dark .glass {
-    @apply bg-slate-900/50 backdrop-blur-xl border-white/10;
+    @apply border-white/10 bg-slate-900/40;
   }
 
-  /* UI UTILS */
-  .no-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-
-  .no-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
+  /* UTILIDADES DE PERFORMANCE Y UI */
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
   .animate-float {
     animation: float 6s ease-in-out infinite;
+    will-change: transform;
   }
 
   @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-15px); }
+  }
 
-    0%,
-    100% {
-      transform: translateY(0);
-    }
-
-    50% {
-      transform: translateY(-20px);
-    }
+  /* Limpieza de fondos en layouts hijos */
+  .transparent-container {
+    background-color: transparent !important;
   }
 }
 
-/* ACCESSIBILITY CONTRAST */
-.text-primary-accessible {
-  color: #111827;
+/* ACCESSIBILIDAD: Contrastes mejorados para texto sobre gradientes */
+.text-vivid {
+  @apply font-black tracking-tighter uppercase;
 }
 
-.dark .text-primary-accessible {
-  color: #f9fafb;
-}
+.text-primary-accessible { color: #111827; }
+.dark .text-primary-accessible { color: #f9fafb; }
