@@ -1,156 +1,82 @@
 // components/dynamic-script-viewer.tsx
-// VERSIÓN: 2.1 (Fix: Soporte total para JSON Object con HTML)
+// VERSIÓN: 5.1 (Event-Driven High Performance Teleprompter)
 
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from 'react';
-import { cn } from '@/lib/utils';
-import DOMPurify from 'isomorphic-dompurify';
+import { useState, useEffect, useRef, useMemo } from "react";
+import { cn } from "@/lib/utils";
 
 interface DynamicScriptViewerProps {
-  scriptText: string | null;
-  currentTime: number;
+  scriptText: any;
   duration: number;
   isPlaying: boolean;
 }
 
-interface PositionalScriptLine {
-  id: number;
-  content: string;
-  startChar: number;
-  endChar: number;
-  isHtml: boolean;
-}
+export function DynamicScriptViewer({ scriptText, duration, isPlaying }: DynamicScriptViewerProps) {
+  const [localTime, setLocalTime] = useState(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-export function DynamicScriptViewer({ scriptText, currentTime, duration, isPlaying }: DynamicScriptViewerProps) {
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [activeLineIndex, setActiveLineIndex] = useState(-1);
+  // 1. ESCUCHAR EL PULSO DEL AUDIO (Aislado del render global)
+  useEffect(() => {
+    const handleSync = (e: any) => {
+      if (e.detail?.currentTime !== undefined) {
+        setLocalTime(e.detail.currentTime);
+      }
+    };
+    window.addEventListener('nicepod-timeupdate', handleSync);
+    return () => window.removeEventListener('nicepod-timeupdate', handleSync);
+  }, []);
 
-  // 1. Lógica de Parseo Inteligente (Polyglot Parser)
-  const { linesWithMetadata, totalCharacters } = useMemo(() => {
-    if (!scriptText) return { linesWithMetadata: [], totalCharacters: 0 };
-
-    let lines: string[] = [];
-    let isHtmlMode = false;
-
+  // 2. PARSEO DE CONTENIDO
+  const paragraphs = useMemo(() => {
+    let rawBody = "";
     try {
-      // Intentamos parsear el JSON almacenado
-      const parsed = JSON.parse(scriptText);
-
-      // CASO A: Formato Nuevo Estandarizado { script_body: "<html>..." }
-      if (parsed.script_body) {
-        isHtmlMode = true;
-        lines = splitHtmlContent(parsed.script_body);
-      } 
-      // CASO B: Formato Legacy Array [{ speaker: "...", line: "..." }]
-      else if (Array.isArray(parsed)) {
-        lines = parsed.map((item: any) => item.line || "");
-      }
-      // CASO C: JSON extraño o texto plano encapsulado
-      else {
-        isHtmlMode = true;
-        lines = splitHtmlContent(String(parsed));
-      }
-    } catch (e) {
-      // CASO D: Texto Plano / HTML Crudo (Fallo de JSON.parse)
-      isHtmlMode = true;
-      lines = splitHtmlContent(scriptText);
+      const parsed = typeof scriptText === 'string' ? JSON.parse(scriptText) : scriptText;
+      rawBody = parsed?.script_body || String(parsed || "");
+    } catch {
+      rawBody = String(scriptText || "");
     }
-
-    // Calcular metadatos de tiempo para el teleprompter
-    let cumulativeChars = 0;
-    const processedLines: PositionalScriptLine[] = lines.map((content, index) => {
-      // Limpiamos etiquetas para contar caracteres "reales" para el timing
-      const cleanLength = content.replace(/<[^>]+>/g, '').length;
-      const startChar = cumulativeChars;
-      cumulativeChars += cleanLength + 1; 
-      
-      return { 
-        id: index, 
-        content, 
-        startChar, 
-        endChar: cumulativeChars,
-        isHtml: isHtmlMode
-      };
-    });
-
-    return { linesWithMetadata: processedLines, totalCharacters: cumulativeChars };
+    return rawBody.split('\n').filter(p => p.trim() !== "");
   }, [scriptText]);
 
-  // Helper para dividir el contenido en bloques visuales
-  function splitHtmlContent(html: string): string[] {
-    if (!html) return [];
-    
-    // Si detectamos párrafos HTML, dividimos por ellos
-    if (html.includes('<p>')) {
-        return html
-            .split('</p>')
-            .map(s => s.replace('<p>', '').trim()) // Limpiamos tags para re-envolver luego si queremos, o dejar limpio
-            .filter(s => s.length > 0)
-            .map(s => `<p>${s}</p>`); // Re-envolvemos para mantener estructura
-    }
-    
-    // Si es Markdown o texto plano, dividimos por saltos de línea dobles
-    return html.split(/\n\s*\n/).filter(s => s.trim().length > 0);
-  }
-
-  // 2. Sincronización (Teleprompter)
+  // 3. AUTO-SCROLL INTELIGENTE
   useEffect(() => {
-    if (!isPlaying || duration === 0 || totalCharacters === 0) return;
-    
-    const charsPerSecond = totalCharacters / duration;
-    const currentCharPosition = currentTime * charsPerSecond;
+    if (!scrollRef.current || paragraphs.length === 0 || duration <= 0) return;
 
-    const currentIndex = linesWithMetadata.findIndex(line => 
-      currentCharPosition >= line.startChar && currentCharPosition < line.endChar
-    );
-    
-    if (currentIndex !== -1 && currentIndex !== activeLineIndex) {
-      setActiveLineIndex(currentIndex);
-    }
-  }, [currentTime, duration, isPlaying, linesWithMetadata, totalCharacters, activeLineIndex]);
+    const progress = localTime / duration;
+    const scrollAmount = scrollRef.current.scrollHeight * progress;
 
-  // 3. Scroll Automático
-  useEffect(() => {
-    if (activeLineIndex === -1 || !scrollContainerRef.current) return;
-    const activeElement = scrollContainerRef.current.querySelector(`[data-line-index="${activeLineIndex}"]`) as HTMLElement;
-    if (activeElement) {
-      activeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-  }, [activeLineIndex]);
-
-  if (linesWithMetadata.length === 0) {
-    return (
-        <div className="flex flex-col items-center justify-center h-full p-8 text-center opacity-70">
-            <p className="text-muted-foreground text-sm">Esperando transcripción...</p>
-        </div>
-    );
-  }
+    scrollRef.current.scrollTo({
+      top: scrollAmount - 150, // Mantenemos el texto activo cerca del centro
+      behavior: "smooth"
+    });
+  }, [localTime, duration, paragraphs.length]);
 
   return (
-    <div ref={scrollContainerRef} className="h-full overflow-y-auto p-4 md:p-8 space-y-6 text-center scroll-smooth pb-32">
-      {linesWithMetadata.map((line, index) => (
-        <div
-          key={line.id}
-          data-line-index={index}
-          className={cn(
-            "font-serif text-lg md:text-xl leading-relaxed transition-all duration-500 max-w-2xl mx-auto cursor-default",
-            activeLineIndex === index
-              ? "text-foreground scale-105 opacity-100 font-medium" 
-              : "text-muted-foreground opacity-50 blur-[0.5px] hover:opacity-80 hover:blur-none transition-opacity"
-          )}
-        >
-          {/* Renderizado Seguro de HTML */}
-          {line.isHtml ? (
-             <div 
-               className="prose dark:prose-invert max-w-none [&>p]:mb-0" 
-               dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(line.content) }} 
-             />
-          ) : (
-             <p>{line.content}</p>
-          )}
-        </div>
-      ))}
+    <div
+      ref={scrollRef}
+      className="h-full w-full overflow-y-auto px-6 py-20 scroll-smooth no-scrollbar"
+    >
+      <div className="max-w-prose mx-auto space-y-10 pb-40">
+        {paragraphs.map((para, idx) => {
+          const paraProgress = idx / paragraphs.length;
+          const isActive = (localTime / duration) >= paraProgress && (localTime / duration) < (idx + 1) / paragraphs.length;
+
+          return (
+            <p
+              key={idx}
+              className={cn(
+                "text-xl md:text-3xl font-medium transition-all duration-700 leading-relaxed",
+                isActive
+                  ? "text-white scale-105 opacity-100"
+                  : "text-white/10 scale-100 blur-[1px]"
+              )}
+            >
+              {para}
+            </p>
+          );
+        })}
+      </div>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 // app/podcast/[id]/page.tsx
-// VERSIÓN: 7.3 (Final Production - Type Strict & Public Ready)
+// VERSIÓN: 7.4 (Production Master - Parallelized, SEO Optimized & Type Safe)
 
+import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { PodcastView } from "@/components/podcast-view";
 import { PodcastWithProfile } from '@/types/podcast';
@@ -12,11 +13,42 @@ type PodcastPageProps = {
   };
 };
 
+/**
+ * GENERACIÓN DE METADATOS DINÁMICOS (SEO)
+ * Permite que los podcasts luzcan profesionales al ser compartidos.
+ */
+export async function generateMetadata({ params }: PodcastPageProps): Promise<Metadata> {
+  const supabase = createClient();
+  const { data: podcast } = await supabase
+    .from("micro_pods")
+    .select("title, description, cover_image_url")
+    .eq('id', params.id)
+    .single();
+
+  if (!podcast) return { title: "Podcast no encontrado | NicePod" };
+
+  return {
+    title: `${podcast.title} | NicePod`,
+    description: podcast.description,
+    openGraph: {
+      title: podcast.title,
+      description: podcast.description || '',
+      images: [podcast.cover_image_url || '/nicepod-logo.png'],
+      type: 'music.song',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: podcast.title,
+      description: podcast.description || '',
+      images: [podcast.cover_image_url || '/nicepod-logo.png'],
+    }
+  };
+}
+
 export default async function PodcastDisplayPage({ params }: PodcastPageProps) {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
 
-  // SELECTOR MAESTRO: Garantiza que traemos todo lo necesario para PodcastWithProfile
+  // SELECTOR MAESTRO: Campos exactos para satisfacer la interfaz PodcastWithProfile
   const fullFields = `
     *,
     profiles:user_id (
@@ -28,26 +60,23 @@ export default async function PodcastDisplayPage({ params }: PodcastPageProps) {
     )
   `;
 
-  // 1. FETCHING PÚBLICO
-  // Forzamos el tipado con 'as unknown as' tras el select para satisfacer a TS
-  const { data: podcastData, error: podcastError } = await supabase
-    .from("micro_pods")
-    .select(fullFields)
-    .eq('id', params.id)
-    .single();
+  // 1. FETCHING PARALELO (Optimización de Latencia)
+  // Disparamos Podcast, Respuestas y Usuario al mismo tiempo.
+  const [podcastResponse, repliesResponse, authResponse] = await Promise.all([
+    supabase.from("micro_pods").select(fullFields).eq('id', params.id).single(),
+    supabase.from('micro_pods').select(fullFields).eq('parent_id', params.id).order('created_at', { ascending: true }),
+    supabase.auth.getUser()
+  ]);
 
-  if (podcastError || !podcastData) {
-    console.error(`Error DB en Podcast ${params.id}:`, podcastError?.message);
+  const podcastData = podcastResponse.data;
+  const user = authResponse.data.user;
+
+  if (podcastResponse.error || !podcastData) {
+    console.error(`[NicePod-Error] ID ${params.id}:`, podcastResponse.error?.message);
     notFound();
   }
 
-  const { data: repliesData } = await supabase
-    .from('micro_pods')
-    .select(fullFields)
-    .eq('parent_id', params.id)
-    .order('created_at', { ascending: true });
-
-  // 2. FETCHING PRIVADO (Likes)
+  // 2. FETCHING DE INTERACCIONES (Condicional)
   let initialIsLiked = false;
   if (user) {
     const { data: likeData } = await supabase
@@ -55,15 +84,16 @@ export default async function PodcastDisplayPage({ params }: PodcastPageProps) {
       .select('user_id')
       .eq('user_id', user.id)
       .eq('podcast_id', params.id)
-      .single();
+      .maybeSingle(); // Usamos maybeSingle para evitar errores si no hay like
 
     initialIsLiked = !!likeData;
   }
 
-  // Cast final para asegurar compatibilidad total con el componente
+  // 3. NORMALIZACIÓN DE TIPOS
   const typedPodcast = podcastData as unknown as PodcastWithProfile;
-  const typedReplies = (repliesData || []) as unknown as PodcastWithProfile[];
+  const typedReplies = (repliesResponse.data || []) as unknown as PodcastWithProfile[];
 
+  // 4. HANDOFF AL COMPONENTE DE CLIENTE (UI AURORA)
   return (
     <PodcastView
       podcastData={typedPodcast}

@@ -24,11 +24,6 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 262.1 83.3% 57.8%;
     --radius: 0.75rem;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
   }
 
   .dark {
@@ -51,11 +46,6 @@
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 262.1 83.3% 57.8%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
   }
 }
 
@@ -66,418 +56,60 @@
 
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
-  }
-
-  /* Prevent flash of unstyled content */
-  html {
-    color-scheme: light;
-  }
-
-  html.dark {
-    color-scheme: dark;
-  }
-
-  /* Smooth theme transitions */
-  * {
-    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
   }
 }
 
-@layer components {
-  /* Enhanced Glassmorphism utilities for both light and dark modes */
+@layer utilities {
+
+  /* NICEPOD AURORA SYSTEM */
+  .bg-aurora {
+    background: linear-gradient(270deg, #ec4899, #8b5cf6, #3b82f6, #ec4899);
+    background-size: 400% 400%;
+  }
+
+  .animate-aurora {
+    animation: aurora-flow 8s ease infinite;
+  }
+
+  @keyframes aurora-flow {
+    0% {
+      background-position: 0% 50%;
+    }
+
+    50% {
+      background-position: 100% 50%;
+    }
+
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
+  /* HIGH PERFORMANCE SCROLL FIX */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* GLASSMORPHISM ADVANCED */
   .glass {
     @apply bg-white/10 backdrop-blur-md border border-white/20;
   }
 
   .dark .glass {
-    @apply bg-white/5 border-white/10;
+    @apply bg-slate-900/50 backdrop-blur-xl border-white/10;
   }
+}
 
-  .glass-card {
-    @apply bg-white/80 backdrop-blur-xl border border-white/30 shadow-xl;
-  }
-
-  .dark .glass-card {
-    @apply bg-gray-900/80 border-gray-700/30;
-  }
-
-  .glass-nav {
-    @apply bg-white/90 backdrop-blur-xl border-b border-white/20;
-  }
-
-  .dark .glass-nav {
-    @apply bg-gray-900/90 border-gray-700/20;
-  }
-
-  /* Enhanced glass button contrast for both modes */
-  .glass-button {
-    @apply bg-white/30 backdrop-blur-md border border-white/40 hover:bg-white/40 transition-all duration-300;
-  }
-
-  .dark .glass-button {
-    @apply bg-white/10 border-white/20 hover:bg-white/20;
-  }
-
-  /* Enhanced glass input contrast for both modes */
-  .glass-input {
-    @apply bg-white/60 backdrop-blur-sm border border-white/40 focus:bg-white/80 focus:border-white/60 transition-all duration-300;
-  }
-
-  .dark .glass-input {
-    @apply bg-gray-800/60 border-gray-600/40 focus:bg-gray-800/80 focus:border-gray-600/60;
-  }
-
-  /* Modern gradient backgrounds - work well in both modes */
-  .gradient-bg {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  }
-
-  .gradient-bg-alt {
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  }
-
-  .gradient-mesh {
-    background: radial-gradient(at 40% 20%, hsla(228, 100%, 74%, 1) 0px, transparent 50%),
-      radial-gradient(at 80% 0%, hsla(189, 100%, 56%, 1) 0px, transparent 50%),
-      radial-gradient(at 0% 50%, hsla(355, 100%, 93%, 1) 0px, transparent 50%),
-      radial-gradient(at 80% 50%, hsla(340, 100%, 76%, 1) 0px, transparent 50%),
-      radial-gradient(at 0% 100%, hsla(22, 100%, 77%, 1) 0px, transparent 50%),
-      radial-gradient(at 80% 100%, hsla(242, 100%, 70%, 1) 0px, transparent 50%),
-      radial-gradient(at 0% 0%, hsla(343, 100%, 76%, 1) 0px, transparent 50%);
-  }
-
-  /* Dark mode gradient mesh */
-  .dark .gradient-mesh {
-    background: radial-gradient(at 40% 20%, hsla(228, 100%, 25%, 0.8) 0px, transparent 50%),
-      radial-gradient(at 80% 0%, hsla(189, 100%, 20%, 0.8) 0px, transparent 50%),
-      radial-gradient(at 0% 50%, hsla(355, 100%, 15%, 0.8) 0px, transparent 50%),
-      radial-gradient(at 80% 50%, hsla(340, 100%, 25%, 0.8) 0px, transparent 50%),
-      radial-gradient(at 0% 100%, hsla(22, 100%, 20%, 0.8) 0px, transparent 50%),
-      radial-gradient(at 80% 100%, hsla(242, 100%, 25%, 0.8) 0px, transparent 50%),
-      radial-gradient(at 0% 0%, hsla(343, 100%, 20%, 0.8) 0px, transparent 50%),
-      linear-gradient(180deg, hsl(222.2, 84%, 4.9%) 0%, hsl(217.2, 32.6%, 17.5%) 100%);
-  }
-
-  /* Enhanced typography with improved dark mode contrast */
-  .text-gradient {
-    @apply bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 bg-clip-text text-transparent;
-  }
-
-  .dark .text-gradient {
-    @apply from-purple-300 via-blue-300 to-indigo-300;
-  }
-
-  /* ACCESSIBILITY ENHANCED: Primary headings with maximum contrast */
-  .heading-xl {
-    @apply text-5xl md:text-7xl font-bold tracking-tight text-gray-900;
-  }
-
-  .dark .heading-xl {
-    @apply text-gray-50; /* Contrast ratio: 18.7:1 (EXCELLENT) */
-  }
-
-  .heading-lg {
-    @apply text-3xl md:text-4xl font-bold tracking-tight text-gray-900;
-  }
-
-  .dark .heading-lg {
-    @apply text-gray-50; /* Contrast ratio: 18.7:1 (EXCELLENT) */
-  }
-
-  .heading-md {
-    @apply text-2xl md:text-3xl font-semibold tracking-tight text-gray-900;
-  }
-
-  .dark .heading-md {
-    @apply text-gray-50; /* Contrast ratio: 18.7:1 (EXCELLENT) */
-  }
-
-  /* Enhanced shadows for both modes */
-  .shadow-glass {
-    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37), inset 0 1px 0 0 rgba(255, 255, 255, 0.5);
-  }
-
-  .dark .shadow-glass {
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5), inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
-  }
-
-  .shadow-soft {
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  }
-
-  .dark .shadow-soft {
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
-  }
-
-  /* Animated elements */
-  .animate-float {
-    animation: float 6s ease-in-out infinite;
-  }
-
-  @keyframes float {
-    0%,
-    100% {
-      transform: translateY(0px);
-    }
-    50% {
-      transform: translateY(-10px);
-    }
-  }
-
-  .animate-glow {
-    animation: glow 2s ease-in-out infinite alternate;
-  }
-
-  @keyframes glow {
-    from {
-      box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
-    }
-    to {
-      box-shadow: 0 0 30px rgba(139, 92, 246, 0.6);
-    }
-  }
-
-  /* ACCESSIBILITY ENHANCED: Badge contrast improvements */
-  .badge-accessible {
-    @apply inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2;
-    background-color: rgba(139, 92, 246, 0.15);
-    border-color: rgba(139, 92, 246, 0.3);
-    color: #4c1d95;
-  }
-
-  .dark .badge-accessible {
-    background-color: rgba(139, 92, 246, 0.25);
-    border-color: rgba(139, 92, 246, 0.5);
-    color: #e9d5ff; /* Contrast ratio: 8.2:1 (EXCELLENT) */
-  }
-
-  /* ACCESSIBILITY ENHANCED: Status badges with improved contrast */
-  .status-published {
-    background-color: rgba(34, 197, 94, 0.15);
-    border-color: rgba(34, 197, 94, 0.3);
-    color: #14532d;
-  }
-
-  .dark .status-published {
-    background-color: rgba(34, 197, 94, 0.25);
-    border-color: rgba(34, 197, 94, 0.5);
-    color: #bbf7d0; /* Contrast ratio: 9.1:1 (EXCELLENT) */
-  }
-
-  .status-draft {
-    background-color: rgba(245, 158, 11, 0.15);
-    border-color: rgba(245, 158, 11, 0.3);
-    color: #92400e;
-  }
-
-  .dark .status-draft {
-    background-color: rgba(245, 158, 11, 0.25);
-    border-color: rgba(245, 158, 11, 0.5);
-    color: #fde68a; /* Contrast ratio: 8.7:1 (EXCELLENT) */
-  }
-
-  /* ACCESSIBILITY ENHANCED: Text hierarchy with improved contrast ratios */
-
-  /* Primary body text - highest contrast */
-  .text-primary-accessible {
-    color: #111827; /* Light mode */
-  }
-
-  .dark .text-primary-accessible {
-    color: #f9fafb; /* Contrast ratio: 17.9:1 (EXCELLENT) */
-  }
-
-  /* Secondary text - still highly readable */
-  .text-secondary-accessible {
-    color: #374151; /* Light mode */
-  }
-
-  .dark .text-secondary-accessible {
-    color: #e5e7eb; /* Contrast ratio: 12.6:1 (EXCELLENT) */
-  }
-
-  /* Muted text - minimum AA compliance */
-  .text-muted-accessible {
-    color: #4b5563; /* Light mode */
-  }
-
-  .dark .text-muted-accessible {
-    color: #d1d5db; /* Contrast ratio: 7.8:1 (EXCELLENT) */
-  }
-
-  /* Subtle text - still meets AA standards */
-  .text-subtle-accessible {
-    color: #6b7280; /* Light mode */
-  }
-
-  .dark .text-subtle-accessible {
-    color: #c4c7d0; /* Contrast ratio: 6.2:1 (AA COMPLIANT) */
-  }
-
-  /* ACCESSIBILITY ENHANCED: Interactive element text */
-  .text-interactive {
-    color: #6b21a8; /* Light mode */
-  }
-
-  .dark .text-interactive {
-    color: #d8b4fe; /* Contrast ratio: 6.8:1 (AA COMPLIANT) */
-  }
-
-  .text-interactive:hover {
-    color: #581c87; /* Light mode */
-  }
-
-  .dark .text-interactive:hover {
-    color: #e9d5ff; /* Contrast ratio: 8.2:1 (EXCELLENT) */
-  }
-
-  /* ACCESSIBILITY ENHANCED: Link text */
-  .text-link {
-    color: #7c3aed; /* Light mode */
-  }
-
-  .dark .text-link {
-    color: #c4b5fd; /* Contrast ratio: 6.1:1 (AA COMPLIANT) */
-  }
-
-  .text-link:hover {
-    color: #6d28d9; /* Light mode */
-  }
-
-  .dark .text-link:hover {
-    color: #ddd6fe; /* Contrast ratio: 8.9:1 (EXCELLENT) */
-  }
-
-  /* ACCESSIBILITY ENHANCED: Glass text on colored backgrounds */
-  .glass-text-accessible {
-    color: #1f2937; /* Light mode */
-  }
-
-  .dark .glass-text-accessible {
-    color: #f3f4f6; /* Contrast ratio: 14.8:1 (EXCELLENT) */
-  }
-
-  /* ACCESSIBILITY ENHANCED: Purple accent text with better contrast */
-  .text-purple-accessible {
-    color: #6b21a8; /* Light mode */
-  }
-
-  .dark .text-purple-accessible {
-    color: #d8b4fe; /* Contrast ratio: 6.8:1 (AA COMPLIANT) */
-  }
-
-  .text-purple-accessible-dark {
-    color: #581c87; /* Light mode */
-  }
-
-  .dark .text-purple-accessible-dark {
-    color: #e9d5ff; /* Contrast ratio: 8.2:1 (EXCELLENT) */
-  }
-
-  /* ACCESSIBILITY ENHANCED: Error and success text */
-  .text-error-accessible {
-    color: #dc2626; /* Light mode */
-  }
-
-  .dark .text-error-accessible {
-    color: #fca5a5; /* Contrast ratio: 5.8:1 (AA COMPLIANT) */
-  }
-
-  .text-success-accessible {
-    color: #16a34a; /* Light mode */
-  }
-
-  .dark .text-success-accessible {
-    color: #86efac; /* Contrast ratio: 6.4:1 (AA COMPLIANT) */
-  }
-
-  .text-warning-accessible {
-    color: #d97706; /* Light mode */
-  }
-
-  .dark .text-warning-accessible {
-    color: #fbbf24; /* Contrast ratio: 5.2:1 (AA COMPLIANT) */
-  }
-
-  /* Dark mode specific floating elements */
-  .dark .animate-float {
-    filter: brightness(0.7);
-  }
-
-  /* ACCESSIBILITY ENHANCED: Form elements for dark mode */
-  .dark input,
-  .dark textarea,
-  .dark select {
-    @apply bg-gray-800 border-gray-600 text-gray-100;
-    color: #f3f4f6; /* Contrast ratio: 14.8:1 (EXCELLENT) */
-  }
-
-  .dark input::placeholder,
-  .dark textarea::placeholder,
-  .dark select::placeholder {
-    color: #9ca3af; /* Contrast ratio: 4.6:1 (AA COMPLIANT) */
-  }
-
-  .dark input:focus,
-  .dark textarea:focus,
-  .dark select:focus {
-    @apply border-purple-400 ring-purple-400;
-    color: #f9fafb; /* Contrast ratio: 17.9:1 (EXCELLENT) */
-  }
+/* ACCESSIBILITY CONTRAST OVERRIDES */
+.text-primary-accessible {
+  color: #111827;
+}
 
-  /* ACCESSIBILITY ENHANCED: Button text contrast */
-  .dark button {
-    color: #f3f4f6; /* Default button text - Contrast ratio: 14.8:1 (EXCELLENT) */
-  }
-
-  .dark .glass-button {
-    color: #e5e7eb; /* Glass button text - Contrast ratio: 12.6:1 (EXCELLENT) */
-  }
-
-  .dark .glass-button:hover {
-    color: #f3f4f6; /* Hover state - Contrast ratio: 14.8:1 (EXCELLENT) */
-  }
-
-  /* ACCESSIBILITY ENHANCED: Navigation text */
-  .dark nav a,
-  .dark nav button {
-    color: #e5e7eb; /* Navigation links - Contrast ratio: 12.6:1 (EXCELLENT) */
-  }
-
-  .dark nav a:hover,
-  .dark nav button:hover {
-    color: #f3f4f6; /* Navigation hover - Contrast ratio: 14.8:1 (EXCELLENT) */
-  }
-
-  /* ACCESSIBILITY ENHANCED: Card content text */
-  .dark .glass-card h1,
-  .dark .glass-card h2,
-  .dark .glass-card h3,
-  .dark .glass-card h4,
-  .dark .glass-card h5,
-  .dark .glass-card h6 {
-    color: #f9fafb; /* Card headings - Contrast ratio: 17.9:1 (EXCELLENT) */
-  }
-
-  .dark .glass-card p {
-    color: #e5e7eb; /* Card body text - Contrast ratio: 12.6:1 (EXCELLENT) */
-  }
-
-  .dark .glass-card .text-sm {
-    color: #d1d5db; /* Small text in cards - Contrast ratio: 7.8:1 (EXCELLENT) */
-  }
-
-  /* ACCESSIBILITY ENHANCED: Focus indicators for dark mode */
-  .dark *:focus-visible {
-    outline: 2px solid #c4b5fd;
-    outline-offset: 2px;
-  }
-
-  .dark input:focus-visible,
-  .dark textarea:focus-visible,
-  .dark select:focus-visible {
-    outline: 2px solid #d8b4fe;
-    outline-offset: 2px;
-  }
+.dark .text-primary-accessible {
+  color: #f9fafb;
 }
