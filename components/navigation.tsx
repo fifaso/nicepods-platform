@@ -1,5 +1,5 @@
 // components/navigation.tsx
-// VERSIÓN: 12.0 (Production Ready - Auth Expanded & Aurora CTA Fixed)
+// VERSIÓN: 12.1 (Ultimate Aesthetic - Professional Contrast & Aurora Fix)
 
 "use client";
 
@@ -34,7 +34,7 @@ import {
   Sparkles, 
   User as UserIcon, 
   Bell,
-  Settings
+  X
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -66,8 +66,16 @@ export function Navigation() {
 
   const logoSrc = getSafeAsset("/nicepod-logo.png", "logo");
 
-  // CLASE UNIFICADA AURORA (Garantiza el destaque estratégico)
-  const auroraStyle = "bg-aurora animate-aurora text-white border-none shadow-lg shadow-primary/20 hover:scale-105 transition-all duration-300";
+  /**
+   * DEFINICIÓN DE ESTILO AURORA MAESTRO
+   * Diseñado para máxima legibilidad y contraste profesional.
+   */
+  const auroraClasses = cn(
+    "bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600", // Colores vibrantes
+    "animate-aurora text-white border border-white/10 shadow-lg",
+    "shadow-purple-500/20 dark:shadow-white/5", // Sombras adaptativas
+    "hover:scale-105 hover:brightness-110 transition-all duration-300 active:scale-95"
+  );
 
   return (
     <header className="sticky top-0 z-50 w-full p-4">
@@ -89,12 +97,12 @@ export function Navigation() {
           </Link>
         </div>
 
-        {/* 2. CTA CENTRAL MÓVIL (Vibrante) */}
+        {/* 2. CTA CENTRAL MÓVIL (Vibrante y Centrado) */}
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 md:hidden">
           <Link href="/create">
             <Button
               size="sm"
-              className={cn("h-9 px-4 rounded-full font-black text-[10px] uppercase tracking-widest", auroraStyle)}
+              className={cn("h-9 px-5 rounded-full font-black text-[10px] uppercase tracking-widest", auroraClasses)}
             >
               <Mic className="mr-1.5 h-3.5 w-3.5 animate-pulse" />
               Crear
@@ -113,7 +121,7 @@ export function Navigation() {
                     <Link href={item.href}>
                       <Button 
                         size="sm" 
-                        className={cn("rounded-full px-5 h-8 text-[10px] font-black uppercase tracking-widest", auroraStyle)}
+                        className={cn("rounded-full px-5 h-8 text-[10px] font-black uppercase tracking-widest", auroraClasses)}
                       >
                         <Sparkles className="mr-1.5 h-3 w-3" />
                         {item.label}
@@ -150,14 +158,17 @@ export function Navigation() {
                   <DropdownMenuTrigger asChild>
                     <Avatar className="h-9 w-9 cursor-pointer border border-border hover:border-primary transition-all shadow-sm">
                       <AvatarImage src={getSafeAsset(profile.avatar_url, 'avatar')} />
-                      <AvatarFallback className="font-bold bg-primary/10 text-primary">
+                      <AvatarFallback className="font-black bg-primary/10 text-primary">
                         {profile.full_name?.substring(0, 2).toUpperCase() || 'U'}
                       </AvatarFallback>
                     </Avatar>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56 p-2 rounded-2xl shadow-2xl border-border/40">
-                    <DropdownMenuLabel className="text-[10px] font-black uppercase text-muted-foreground px-2 py-1.5 tracking-widest">Mi Estación</DropdownMenuLabel>
+                    <DropdownMenuLabel className="text-[10px] font-black uppercase text-muted-foreground px-2 py-1.5 tracking-widest opacity-70">
+                      Mi Estación
+                    </DropdownMenuLabel>
                     <DropdownMenuSeparator />
+                    
                     <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
                       <Link href={`/profile/${profile.username}`} className="flex items-center">
                         <UserIcon className="mr-2 h-4 w-4 opacity-70" /> 
@@ -195,71 +206,69 @@ export function Navigation() {
                   <Menu className="h-6 w-6" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-full max-w-xs p-6 rounded-l-[2.5rem] border-l-border/40">
-                <SheetHeader className="text-left">
-                  <SheetTitle className="flex items-center space-x-3">
-                    <Image src={logoSrc} alt="NicePod" width={32} height={32} className="rounded-lg shadow-sm" />
-                    <span className="font-black text-xl tracking-tighter">NicePod</span>
-                  </SheetTitle>
-                  <SheetDescription className="sr-only">Menú de navegación móvil para NicePod.</SheetDescription>
-                </SheetHeader>
+              <SheetContent side="right" className="w-full max-w-[280px] p-0 rounded-l-[2rem] border-l-border/40 bg-background/95 backdrop-blur-2xl">
+                <div className="flex flex-col h-full p-6">
+                  <SheetHeader className="text-left mb-8">
+                    <div className="flex items-center justify-between">
+                      <SheetTitle className="flex items-center space-x-3">
+                        <Image src={logoSrc} alt="NicePod" width={28} height={28} className="rounded-lg shadow-sm" />
+                        <span className="font-black text-xl tracking-tighter">NicePod</span>
+                      </SheetTitle>
+                    </div>
+                    <SheetDescription className="sr-only">Navegación móvil NicePod.</SheetDescription>
+                  </SheetHeader>
 
-                <div className="flex flex-col space-y-4 mt-12">
-                  {/* Navegación Base */}
-                  {navItems.map((item) => {
-                    const isCreateBtn = item.href === '/create';
-                    return (
+                  <div className="flex flex-col space-y-3">
+                    {/* Botón Crear Especial en Móvil */}
+                    <Link href="/create" onClick={() => setIsMobileMenuOpen(false)}>
+                      <Button className={cn("w-full justify-center text-lg h-14 rounded-2xl font-black mb-4", auroraClasses)}>
+                        <Mic className="mr-3 h-5 w-5 animate-pulse" />
+                        CREAR
+                      </Button>
+                    </Link>
+
+                    {/* Otros NavItems */}
+                    {navItems.filter(item => item.href !== "/create").map((item) => (
                       <Link key={item.href} href={item.href} onClick={() => setIsMobileMenuOpen(false)}>
                         <Button 
-                          variant={isActive(item.href) && !isCreateBtn ? "secondary" : "ghost"} 
-                          className={cn(
-                            "w-full justify-start text-lg h-14 rounded-2xl font-bold transition-all", 
-                            isCreateBtn && auroraStyle
-                          )}
+                          variant={isActive(item.href) ? "secondary" : "ghost"} 
+                          className="w-full justify-start text-base h-12 rounded-xl font-bold px-4"
                         >
-                          {isCreateBtn ? <Mic className="mr-3 h-5 w-5 animate-pulse" /> : null}
                           {item.label}
                         </Button>
                       </Link>
-                    );
-                  })}
+                    ))}
 
-                  {/* SECCIÓN PRIVADA MÓVIL (Recuperación solicitada) */}
-                  <div className="pt-6 mt-6 border-t border-border/40 space-y-4">
-                    {user && profile ? (
-                      <>
-                        <Link href="/notifications" onClick={() => setIsMobileMenuOpen(false)}>
-                          <Button variant="ghost" className="w-full justify-start text-lg h-12 rounded-xl font-medium text-muted-foreground hover:text-foreground">
-                            <Bell className="mr-3 h-5 w-5" /> Notificaciones
-                          </Button>
-                        </Link>
-                        <Link href={`/profile/${profile.username}`} onClick={() => setIsMobileMenuOpen(false)}>
-                          <Button variant="ghost" className="w-full justify-start text-lg h-12 rounded-xl font-medium text-muted-foreground hover:text-foreground">
-                            <UserIcon className="mr-3 h-5 w-5" /> Mi Perfil
-                          </Button>
-                        </Link>
-                        {isAdmin && (
-                          <Link href="/admin" onClick={() => setIsMobileMenuOpen(false)}>
-                            <Button variant="ghost" className="w-full justify-start text-lg h-12 rounded-xl font-bold text-red-500 hover:bg-red-500/5">
-                              <ShieldCheck className="mr-3 h-5 w-5" /> Admin Console
+                    <div className="pt-6 mt-6 border-t border-border/40 space-y-3">
+                      {user && profile ? (
+                        <>
+                          <Link href="/notifications" onClick={() => setIsMobileMenuOpen(false)}>
+                            <Button variant="ghost" className="w-full justify-start text-base h-12 rounded-xl font-medium text-muted-foreground">
+                              <Bell className="mr-4 h-5 w-5" /> Notificaciones
                             </Button>
                           </Link>
-                        )}
-                        <Button 
-                          variant="ghost" 
-                          onClick={handleLogout} 
-                          className="w-full justify-start text-lg h-12 rounded-xl font-medium text-destructive hover:bg-destructive/5"
-                        >
-                          <LogOut className="mr-3 h-5 w-5" /> Cerrar Sesión
-                        </Button>
-                      </>
-                    ) : (
-                      <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
-                        <Button className="w-full py-8 text-xl font-black uppercase tracking-widest rounded-2xl shadow-xl">
-                          Ingresar
-                        </Button>
-                      </Link>
-                    )}
+                          <Link href={`/profile/${profile.username}`} onClick={() => setIsMobileMenuOpen(false)}>
+                            <Button variant="ghost" className="w-full justify-start text-base h-12 rounded-xl font-medium text-muted-foreground">
+                              <UserIcon className="mr-4 h-5 w-5" /> Mi Perfil
+                            </Button>
+                          </Link>
+                          <DropdownMenuSeparator className="opacity-50" />
+                          <Button 
+                            variant="ghost" 
+                            onClick={handleLogout} 
+                            className="w-full justify-start text-base h-12 rounded-xl font-medium text-destructive hover:bg-destructive/5"
+                          >
+                            <LogOut className="mr-4 h-5 w-5" /> Cerrar Sesión
+                          </Button>
+                        </>
+                      ) : (
+                        <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
+                          <Button className="w-full py-7 text-lg font-black uppercase tracking-widest rounded-2xl shadow-xl bg-primary text-white">
+                            Ingresar
+                          </Button>
+                        </Link>
+                      )}
+                    </div>
                   </div>
                 </div>
               </SheetContent>
