@@ -1,12 +1,14 @@
+// components/podcast-shelf.tsx
+// VERSIÓN: 2.0 (Shielded Shelf - Production Status Aware)
+
 "use client";
 
-import { useRef, useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { PodcastWithProfile } from "@/types/podcast";
-// [CAMBIO]: Usamos el componente Stacked y la utilidad compartida
 import { StackedPodcastCard } from "@/components/stacked-podcast-card";
+import { Button } from "@/components/ui/button";
 import { groupPodcastsByThread } from "@/lib/podcast-utils";
+import { PodcastWithProfile } from "@/types/podcast";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 interface PodcastShelfProps {
   title: string;
@@ -19,7 +21,7 @@ export function PodcastShelf({ title, podcasts, variant = 'default' }: PodcastSh
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(true);
 
-  // [ESTRATEGIA]: Agrupamos siempre para mostrar mazos si hay hilos en el home
+  // Agrupamos por hilos para mantener la arquitectura social
   const stackedPodcasts = groupPodcastsByThread(podcasts);
 
   const scroll = (direction: 'left' | 'right') => {
@@ -47,31 +49,49 @@ export function PodcastShelf({ title, podcasts, variant = 'default' }: PodcastSh
   if (stackedPodcasts.length === 0) return null;
 
   return (
-    <section className="relative group/shelf py-4 md:py-6">
+    <section className="relative group/shelf py-4 md:py-6 animate-in fade-in duration-700">
       <div className="flex items-center justify-between mb-4 px-1">
-        <h2 className="text-xl md:text-2xl font-bold tracking-tight text-white">{title}</h2>
-        
-        {/* Controles de Scroll (Solo Desktop) */}
+        <h2 className="text-xl md:text-2xl font-black uppercase tracking-tighter text-white">
+          {title}
+        </h2>
+
+        {/* Controles de Navegación (Solo Desktop) */}
         <div className="hidden md:flex gap-2 opacity-0 group-hover/shelf:opacity-100 transition-opacity duration-300">
-          <Button variant="outline" size="icon" className="h-8 w-8 rounded-full bg-black/50 border-white/10 hover:bg-black/80" onClick={() => scroll('left')} disabled={!showLeftArrow}>
-            <ChevronLeft className="h-4 w-4" />
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8 rounded-full bg-black/50 border-white/10 hover:bg-primary hover:border-primary transition-all"
+            onClick={() => scroll('left')}
+            disabled={!showLeftArrow}
+          >
+            <ChevronLeft className="h-4 w-4 text-white" />
           </Button>
-          <Button variant="outline" size="icon" className="h-8 w-8 rounded-full bg-black/50 border-white/10 hover:bg-black/80" onClick={() => scroll('right')} disabled={!showRightArrow}>
-            <ChevronRight className="h-4 w-4" />
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8 rounded-full bg-black/50 border-white/10 hover:bg-primary hover:border-primary transition-all"
+            onClick={() => scroll('right')}
+            disabled={!showRightArrow}
+          >
+            <ChevronRight className="h-4 w-4 text-white" />
           </Button>
         </div>
       </div>
 
-      <div 
+      <div
         ref={scrollRef}
         onScroll={checkScroll}
-        className="flex overflow-x-auto gap-4 pb-4 scrollbar-hide snap-x -mx-4 px-4 md:mx-0 md:px-0"
+        className="flex overflow-x-auto gap-5 pb-6 scrollbar-hide snap-x -mx-4 px-4 md:mx-0 md:px-0"
       >
         {stackedPodcasts.map((podcast: any) => (
-          <div key={podcast.id} className="min-w-[280px] md:min-w-[300px] snap-start">
-            <StackedPodcastCard 
-                podcast={podcast} 
-                replies={podcast.replies} 
+          <div key={podcast.id} className="min-w-[280px] md:min-w-[320px] snap-start">
+            {/* 
+              [SISTEMA]: StackedPodcastCard internamente debe manejar 
+              la opacidad si podcast.processing_status !== 'completed'
+            */}
+            <StackedPodcastCard
+              podcast={podcast}
+              replies={podcast.replies}
             />
           </div>
         ))}
