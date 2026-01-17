@@ -1,11 +1,11 @@
 // app/podcast/[id]/page.tsx
-// VERSIÓN: 7.4 (Production Master - Parallelized, SEO Optimized & Type Safe)
+// VERSIÓN: 7.5 (Master Integrity - Shielded Production & SEO Ready)
 
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { PodcastView } from "@/components/podcast-view";
 import { PodcastWithProfile } from '@/types/podcast';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server'; 
 
 type PodcastPageProps = {
   params: {
@@ -15,7 +15,8 @@ type PodcastPageProps = {
 
 /**
  * GENERACIÓN DE METADATOS DINÁMICOS (SEO)
- * Permite que los podcasts luzcan profesionales al ser compartidos.
+ * Estratégico: Indexamos el contenido incluso si los activos multimedia
+ * están terminando de procesarse.
  */
 export async function generateMetadata({ params }: PodcastPageProps): Promise<Metadata> {
   const supabase = createClient();
@@ -48,7 +49,7 @@ export async function generateMetadata({ params }: PodcastPageProps): Promise<Me
 export default async function PodcastDisplayPage({ params }: PodcastPageProps) {
   const supabase = createClient();
 
-  // SELECTOR MAESTRO: Campos exactos para satisfacer la interfaz PodcastWithProfile
+  // SELECTOR MAESTRO: Campos para satisfacer la interfaz y el nuevo sistema de integridad
   const fullFields = `
     *,
     profiles:user_id (
@@ -60,8 +61,7 @@ export default async function PodcastDisplayPage({ params }: PodcastPageProps) {
     )
   `;
 
-  // 1. FETCHING PARALELO (Optimización de Latencia)
-  // Disparamos Podcast, Respuestas y Usuario al mismo tiempo.
+  // 1. FETCHING PARALELO (Máxima Eficiencia)
   const [podcastResponse, repliesResponse, authResponse] = await Promise.all([
     supabase.from("micro_pods").select(fullFields).eq('id', params.id).single(),
     supabase.from('micro_pods').select(fullFields).eq('parent_id', params.id).order('created_at', { ascending: true }),
@@ -71,12 +71,18 @@ export default async function PodcastDisplayPage({ params }: PodcastPageProps) {
   const podcastData = podcastResponse.data;
   const user = authResponse.data.user;
 
+  // 2. GUARDIA DE EXISTENCIA
   if (podcastResponse.error || !podcastData) {
-    console.error(`[NicePod-Error] ID ${params.id}:`, podcastResponse.error?.message);
+    console.error(`[NicePod-Error] Fallo en recuperación de Podcast ID ${params.id}`);
     notFound();
   }
 
-  // 2. FETCHING DE INTERACCIONES (Condicional)
+  // 3. LÓGICA DE INTEGRIDAD (Gatekeeper)
+  // Determinamos si el contenido está listo para consumo multimedia total.
+  const isReady = podcastData.processing_status === 'completed';
+  const isFailed = podcastData.processing_status === 'failed';
+
+  // 4. FETCHING DE INTERACCIONES (Solo si hay sesión activa)
   let initialIsLiked = false;
   if (user) {
     const { data: likeData } = await supabase
@@ -84,20 +90,24 @@ export default async function PodcastDisplayPage({ params }: PodcastPageProps) {
       .select('user_id')
       .eq('user_id', user.id)
       .eq('podcast_id', params.id)
-      .maybeSingle(); // Usamos maybeSingle para evitar errores si no hay like
-
+      .maybeSingle();
+    
     initialIsLiked = !!likeData;
   }
 
-  // 3. NORMALIZACIÓN DE TIPOS
+  // 5. NORMALIZACIÓN Y CASTING DE TIPOS
   const typedPodcast = podcastData as unknown as PodcastWithProfile;
   const typedReplies = (repliesResponse.data || []) as unknown as PodcastWithProfile[];
 
-  // 4. HANDOFF AL COMPONENTE DE CLIENTE (UI AURORA)
+  /**
+   * HANDOFF AL COMPONENTE DE CLIENTE
+   * El componente <PodcastView> es el encargado de renderizar el estado
+   * "En Construcción" si detecta que typedPodcast.processing_status !== 'completed'
+   */
   return (
-    <PodcastView
-      podcastData={typedPodcast}
-      user={user}
+    <PodcastView 
+      podcastData={typedPodcast} 
+      user={user} 
       initialIsLiked={initialIsLiked}
       replies={typedReplies}
     />
