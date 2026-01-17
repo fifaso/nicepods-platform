@@ -1,5 +1,5 @@
 // app/podcast/[id]/page.tsx
-// VERSIÓN: 7.5 (Master Integrity - Shielded Production & SEO Ready)
+// VERSIÓN: 7.6 (Production Final - Full Fetching & Integrity Guard)
 
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
@@ -14,9 +14,8 @@ type PodcastPageProps = {
 };
 
 /**
- * GENERACIÓN DE METADATOS DINÁMICOS (SEO)
- * Estratégico: Indexamos el contenido incluso si los activos multimedia
- * están terminando de procesarse.
+ * GENERACIÓN DE METADATOS (SEO)
+ * Mantiene la visibilidad social incluso durante la forja del activo.
  */
 export async function generateMetadata({ params }: PodcastPageProps): Promise<Metadata> {
   const supabase = createClient();
@@ -49,7 +48,7 @@ export async function generateMetadata({ params }: PodcastPageProps): Promise<Me
 export default async function PodcastDisplayPage({ params }: PodcastPageProps) {
   const supabase = createClient();
 
-  // SELECTOR MAESTRO: Campos para satisfacer la interfaz y el nuevo sistema de integridad
+  // Selector maestro para satisfacer la interfaz PodcastWithProfile
   const fullFields = `
     *,
     profiles:user_id (
@@ -61,7 +60,7 @@ export default async function PodcastDisplayPage({ params }: PodcastPageProps) {
     )
   `;
 
-  // 1. FETCHING PARALELO (Máxima Eficiencia)
+  // 1. FETCHING PARALELO DE ALTA DISPONIBILIDAD
   const [podcastResponse, repliesResponse, authResponse] = await Promise.all([
     supabase.from("micro_pods").select(fullFields).eq('id', params.id).single(),
     supabase.from('micro_pods').select(fullFields).eq('parent_id', params.id).order('created_at', { ascending: true }),
@@ -71,18 +70,13 @@ export default async function PodcastDisplayPage({ params }: PodcastPageProps) {
   const podcastData = podcastResponse.data;
   const user = authResponse.data.user;
 
-  // 2. GUARDIA DE EXISTENCIA
+  // 2. GUARDIA DE PERSISTENCIA
   if (podcastResponse.error || !podcastData) {
-    console.error(`[NicePod-Error] Fallo en recuperación de Podcast ID ${params.id}`);
+    console.error(`[NicePod-Page-Error] No se pudo localizar el recurso ${params.id}`);
     notFound();
   }
 
-  // 3. LÓGICA DE INTEGRIDAD (Gatekeeper)
-  // Determinamos si el contenido está listo para consumo multimedia total.
-  const isReady = podcastData.processing_status === 'completed';
-  const isFailed = podcastData.processing_status === 'failed';
-
-  // 4. FETCHING DE INTERACCIONES (Solo si hay sesión activa)
+  // 3. FETCHING DE INTERACCIONES PRIVADAS
   let initialIsLiked = false;
   if (user) {
     const { data: likeData } = await supabase
@@ -95,15 +89,10 @@ export default async function PodcastDisplayPage({ params }: PodcastPageProps) {
     initialIsLiked = !!likeData;
   }
 
-  // 5. NORMALIZACIÓN Y CASTING DE TIPOS
+  // 4. CASTING DE TIPOS Y HANDOFF
   const typedPodcast = podcastData as unknown as PodcastWithProfile;
   const typedReplies = (repliesResponse.data || []) as unknown as PodcastWithProfile[];
 
-  /**
-   * HANDOFF AL COMPONENTE DE CLIENTE
-   * El componente <PodcastView> es el encargado de renderizar el estado
-   * "En Construcción" si detecta que typedPodcast.processing_status !== 'completed'
-   */
   return (
     <PodcastView 
       podcastData={typedPodcast} 
