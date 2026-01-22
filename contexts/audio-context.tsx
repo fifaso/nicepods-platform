@@ -1,10 +1,11 @@
 // contexts/audio-context.tsx
+//version 2.0
 "use client";
 
-import React, { createContext, useContext, useState, useRef, useEffect, useCallback } from "react";
-import { PodcastWithProfile } from "@/types/podcast";
-import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { createClient } from "@/lib/supabase/client";
+import { PodcastWithProfile } from "@/types/podcast";
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 
 export interface AudioContextType {
   currentPodcast: PodcastWithProfile | null;
