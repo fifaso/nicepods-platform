@@ -1,12 +1,11 @@
 // components/create-flow/shared/types.ts
-// VERSIÓN: 1.5 (Master Standard - Vocal Performance Type Safety)
+// VERSIÓN: 1.6 (Master Standard - Pulse & DNA Flow Integration)
 
 import { PodcastCreationData } from "@/lib/validation/podcast-schema";
 
 /**
  * 🎭 VOCAL PERFORMANCE TYPES (V3.0)
  * Definiciones estrictas alineadas con vocal-director-map.ts
- * Garantizan que el Studio de Audio y el Backend hablen el mismo idioma.
  */
 
 export type VoiceStyle =
@@ -33,23 +32,36 @@ export type PersonalityType =
   | 'minimalista';
 
 /**
- * 🗺️ FLOW STATE ENGINE
- * Representa cada hito visual y lógico en la máquina de estados.
+ * 🗺️ FLOW STATE ENGINE (V2.0)
+ * Representa cada hito visual y lógico en la máquina de estados de NicePod.
+ * 
+ * [ACTUALIZACIÓN 1.6]: Se inyectan los estados para el motor de Inteligencia Pulse.
  */
 export type FlowState =
   | 'SELECTING_PURPOSE'
+  // --- FLUJO SITUACIONAL ---
   | 'LOCAL_DISCOVERY_STEP'
   | 'LOCAL_RESULT_STEP'
+  // --- FLUJO DE APRENDIZAJE ---
   | 'LEARN_SUB_SELECTION'
-  | 'INSPIRE_SUB_SELECTION'
   | 'SOLO_TALK_INPUT'
+  // --- FLUJO DE INSPIRACIÓN ---
+  | 'INSPIRE_SUB_SELECTION'
   | 'ARCHETYPE_SELECTION'
   | 'ARCHETYPE_GOAL'
+  // --- FLUJO DE EXPLORACIÓN ---
   | 'LINK_POINTS_INPUT'
   | 'NARRATIVE_SELECTION'
+  // --- FLUJO DE LEGADO ---
   | 'LEGACY_INPUT'
+  // --- [NUEVO] FLUJO PULSE (ACTUALIDAD) ---
+  | 'DNA_CHECK'              // Entrevista IA e intereses
+  | 'PULSE_RADAR'            // Escáner y selección de fuentes
+  | 'BRIEFING_SANTIZATION'   // Revisión de la píldora informativa
+  // --- FLUJOS COMPLEMENTARIOS ---
   | 'QUESTION_INPUT'
   | 'FREESTYLE_SELECTION'
+  // --- ETAPAS TRANSVERSALES DE PRODUCCIÓN ---
   | 'DETAILS_STEP'
   | 'TONE_SELECTION'
   | 'DRAFT_GENERATION_LOADER'
@@ -59,7 +71,7 @@ export type FlowState =
 
 /**
  * 🛠️ CONTRATO DE CONTEXTO GLOBAL
- * Define los métodos de orquestación disponibles para cada 'step'.
+ * Interfaz que deben cumplir los orquestadores para la gestión del estado.
  */
 export interface CreationContextType {
   // Estado de navegación
@@ -78,7 +90,7 @@ export interface CreationContextType {
 
   /**
    * jumpToStep: Realiza un salto atómico a un estado avanzado
-   * reconstruyendo el historial previo para mantener la integridad del botón 'Atrás'.
+   * reconstruyendo el historial previo.
    */
   jumpToStep: (state: FlowState) => void;
 
@@ -95,7 +107,6 @@ export interface CreationContextType {
 
 /**
  * 📚 NARRATIVE TYPES
- * Estructuras para la conexión de ideas (flujo 'Explore').
  */
 export interface NarrativeOption {
   title: string;

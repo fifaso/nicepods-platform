@@ -1,11 +1,12 @@
 // app/podcast/[id]/page.tsx
-// VERSIÓN: 7.6 (Production Final - Full Fetching & Integrity Guard)
+// VERSIÓN: 7.7 (View Switcher Architecture - Narrative vs Pulse Pill)
 
+import { PodcastView } from "@/components/podcast-view";
+import { PulsePillView } from "@/components/pulse-pill-view"; // [NUEVO]: Componente especializado
+import { createClient } from '@/lib/supabase/server';
+import { PodcastWithProfile } from '@/types/podcast';
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { PodcastView } from "@/components/podcast-view";
-import { PodcastWithProfile } from '@/types/podcast';
-import { createClient } from '@/lib/supabase/server'; 
 
 type PodcastPageProps = {
   params: {
@@ -15,7 +16,8 @@ type PodcastPageProps = {
 
 /**
  * GENERACIÓN DE METADATOS (SEO)
- * Mantiene la visibilidad social incluso durante la forja del activo.
+ * Mantiene la visibilidad social y la indexación profesional.
+ * Es independiente de la lógica de visualización interna.
  */
 export async function generateMetadata({ params }: PodcastPageProps): Promise<Metadata> {
   const supabase = createClient();
@@ -48,7 +50,7 @@ export async function generateMetadata({ params }: PodcastPageProps): Promise<Me
 export default async function PodcastDisplayPage({ params }: PodcastPageProps) {
   const supabase = createClient();
 
-  // Selector maestro para satisfacer la interfaz PodcastWithProfile
+  // Selector maestro que garantiza todas las propiedades para la interfaz PodcastWithProfile
   const fullFields = `
     *,
     profiles:user_id (
@@ -60,7 +62,8 @@ export default async function PodcastDisplayPage({ params }: PodcastPageProps) {
     )
   `;
 
-  // 1. FETCHING PARALELO DE ALTA DISPONIBILIDAD
+  // 1. FETCHING PARALELO DE ALTA VELOCIDAD
+  // Disparamos datos públicos y sesión en paralelo para minimizar el Time-to-First-Byte (TTFB)
   const [podcastResponse, repliesResponse, authResponse] = await Promise.all([
     supabase.from("micro_pods").select(fullFields).eq('id', params.id).single(),
     supabase.from('micro_pods').select(fullFields).eq('parent_id', params.id).order('created_at', { ascending: true }),
@@ -76,7 +79,7 @@ export default async function PodcastDisplayPage({ params }: PodcastPageProps) {
     notFound();
   }
 
-  // 3. FETCHING DE INTERACCIONES PRIVADAS
+  // 3. FETCHING DE INTERACCIONES PRIVADAS (Likes)
   let initialIsLiked = false;
   if (user) {
     const { data: likeData } = await supabase
@@ -85,18 +88,36 @@ export default async function PodcastDisplayPage({ params }: PodcastPageProps) {
       .eq('user_id', user.id)
       .eq('podcast_id', params.id)
       .maybeSingle();
-    
+
     initialIsLiked = !!likeData;
   }
 
-  // 4. CASTING DE TIPOS Y HANDOFF
+  // 4. CASTING DE TIPOS Y SEGMENTACIÓN DE VISTA
   const typedPodcast = podcastData as unknown as PodcastWithProfile;
   const typedReplies = (repliesResponse.data || []) as unknown as PodcastWithProfile[];
 
+  /**
+   * [SISTEMA DE BIFURCACIÓN ESTRATÉGICA]:
+   * Decidimos qué vista entregar basándonos en el modo de creación.
+   */
+  const isPulsePill = typedPodcast.creation_mode === 'pulse';
+
+  if (isPulsePill) {
+    return (
+      <PulsePillView
+        podcastData={typedPodcast}
+        user={user}
+        initialIsLiked={initialIsLiked}
+        replies={typedReplies}
+      />
+    );
+  }
+
+  // Por defecto, entregamos la vista narrativa estándar
   return (
-    <PodcastView 
-      podcastData={typedPodcast} 
-      user={user} 
+    <PodcastView
+      podcastData={typedPodcast}
+      user={user}
       initialIsLiked={initialIsLiked}
       replies={typedReplies}
     />

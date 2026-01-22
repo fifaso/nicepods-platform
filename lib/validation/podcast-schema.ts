@@ -1,5 +1,5 @@
 // lib/validation/podcast-schema.ts
-// VERSIÓN: 5.2 (Master Standard - NKV Provenance & Source Origin Support)
+// VERSIÓN: 6.0 (Pulse Master - Cognitive DNA & Sovereign Curation Support)
 
 import { z } from 'zod';
 
@@ -24,13 +24,11 @@ const safeInputString = z.string()
 
 /**
  * Esquema de Fuente de Investigación para Transparencia 360 y NKV.
- * [ACTUALIZACIÓN V5.2]: Añadido campo 'origin' para trazabilidad de Bóveda.
  */
 const SourceSchema = z.object({
   title: z.string().min(1, "El título de la fuente es obligatorio."),
   url: z.string().url("Debe ser una dirección web válida."),
   snippet: z.string().optional(),
-  // Sello de proveniencia: Diferencia conocimiento comunitario de fuentes web externas.
   origin: z.enum(['vault', 'web']).default('web'),
 });
 
@@ -57,22 +55,33 @@ const DiscoveryContextSchema = z.object({
 
 /**
  * ESQUEMA MAESTRO DE CREACIÓN
- * Este es el contrato único entre el Formulario y el Backend de NicePod.
+ * Contrato único para flujos de Aprendizaje, Legado y Actualidad (Pulse).
  */
 export const PodcastCreationSchema = z.object({
-  // Identificador de persistencia para el sistema de hidratación y promoción.
+  // Identificador de persistencia
   draft_id: z.number().optional().nullable(),
 
   // Identidad y Propósito
-  purpose: z.enum(['learn', 'inspire', 'explore', 'reflect', 'answer', 'freestyle', 'local_soul']),
-  creation_mode: z.enum(['standard', 'remix', 'situational']).default('standard'),
+  // [ACTUALIZACIÓN 6.0]: 'pulse' es ahora el motor de actualidad personalizada.
+  purpose: z.enum(['learn', 'inspire', 'explore', 'reflect', 'answer', 'freestyle', 'local_soul', 'pulse']),
+  creation_mode: z.enum(['standard', 'remix', 'situational', 'pulse']).default('standard'),
 
   // Metodología de Producción
-  style: z.enum(['solo', 'link', 'archetype', 'legacy', 'qa', 'remix', 'local_concierge']).optional(),
+  // [ACTUALIZACIÓN 6.0]: 'briefing' identifica las píldoras estratégicas cortas.
+  style: z.enum(['solo', 'link', 'archetype', 'legacy', 'qa', 'remix', 'local_concierge', 'briefing']).optional(),
 
-  // GOBERNANZA DE IA: agentName es el campo oficial sincronizado con la DB.
+  // GOBERNANZA DE IA
   agentName: z.string().min(1, "El Agente de IA debe estar definido."),
-  selectedAgent: z.string().optional(), // Mantenido por compatibilidad legacy.
+
+  // --- BLOQUE PULSE: ACTUALIDAD Y ADN ---
+  // Fuentes seleccionadas desde el radar (Top 20 -> Seleccionadas 1-5)
+  pulse_source_ids: z.array(z.string()).max(5, "Máximo 5 fuentes por píldora.").optional(),
+  // Texto de la entrevista inicial o misión profesional para el ADN Cognitivo
+  dna_interview: safeInputString.optional(),
+  // Nivel de especialización técnica (1-10)
+  expertise_level: z.number().min(1).max(10).default(5),
+  // Control de Curaduría Soberana
+  is_sovereign_public: z.boolean().default(false),
 
   // --- CONTEXTO SITUACIONAL ---
   location: z.object({
@@ -82,12 +91,11 @@ export const PodcastCreationSchema = z.object({
     cityName: z.string().optional()
   }).optional(),
 
-  imageContext: z.string().optional(), // Base64 de la captura visual.
+  imageContext: z.string().optional(),
 
-  // [BLOQUE CRÍTICO]: Dossier de resultados de la fase de descubrimiento.
   discovery_context: DiscoveryContextSchema.optional().nullable(),
 
-  // --- INPUTS SEMILLA (MATERIA PRIMA) ---
+  // --- INPUTS SEMILLA ---
   solo_topic: safeInputString.optional(),
   solo_motivation: safeInputString.optional(),
 
@@ -100,8 +108,6 @@ export const PodcastCreationSchema = z.object({
     thesis: z.string()
   }).nullable().optional(),
 
-  link_selectedTone: z.string().optional(),
-
   selectedArchetype: z.string().optional(),
   archetype_topic: z.string().optional(),
   archetype_goal: z.string().optional(),
@@ -109,7 +115,7 @@ export const PodcastCreationSchema = z.object({
   legacy_lesson: z.string().optional(),
   question_to_answer: z.string().optional(),
 
-  // --- GENEALOGÍA (Remixes / Threads) ---
+  // --- GENEALOGÍA ---
   parent_id: z.number().optional().nullable(),
   root_id: z.number().optional().nullable(),
   user_reaction: z.string().optional(),
@@ -119,7 +125,6 @@ export const PodcastCreationSchema = z.object({
   final_title: z.string().min(1, "El título es obligatorio.").max(180).optional(),
   final_script: z.string().max(50000).optional(),
 
-  // CUSTODIA DE FUENTES: Bibliografía recolectada por IA (NKV + Web).
   sources: z.array(SourceSchema).default([]),
 
   // Configuración Técnica
@@ -127,27 +132,26 @@ export const PodcastCreationSchema = z.object({
   narrativeDepth: z.string().min(1, "Define el nivel de profundidad."),
   selectedTone: z.string().optional(),
 
-  // Parámetros del Motor de Voz (Neural2)
+  // Parámetros de Voz
   voiceGender: z.enum(['Masculino', 'Femenino']).default('Masculino'),
   voiceStyle: z.enum(['Calmado', 'Energético', 'Profesional', 'Inspirador']).default('Profesional'),
   voicePace: z.string().default('Moderado'),
   speakingRate: z.number().default(1.0),
 
-  // Metadatos de Red
   tags: z.array(z.string()).default([]),
   generateAudioDirectly: z.boolean().default(true),
 })
   .superRefine((data, ctx) => {
-    // 1. Validación para "Vivir lo Local"
-    if (data.purpose === 'local_soul' && !data.location && !data.imageContext && !data.solo_topic) {
+    // 1. Validación para "Pulse" (Actualidad)
+    if (data.purpose === 'pulse' && (!data.pulse_source_ids || data.pulse_source_ids.length === 0)) {
       ctx.addIssue({
         code: 'custom',
-        message: 'Indica un lugar, usa el GPS o captura una foto para vivir lo local.',
-        path: ['solo_topic']
+        message: 'Activa tu radar y selecciona al menos una fuente para tu actualidad.',
+        path: ['pulse_source_ids']
       });
     }
 
-    // 2. Validación para flujos de aprendizaje (Mínimo 3 caracteres para tema)
+    // 2. Validación para flujos de aprendizaje
     if (data.purpose === 'learn' && (!data.solo_topic || data.solo_topic.length < 3)) {
       ctx.addIssue({ code: 'custom', message: 'Indica qué tema deseas aprender.', path: ['solo_topic'] });
     }
@@ -158,8 +162,4 @@ export const PodcastCreationSchema = z.object({
     }
   });
 
-/**
- * TIPO DE DATOS INFERIDO
- * Fuente de verdad para todos los componentes de la plataforma.
- */
 export type PodcastCreationData = z.infer<typeof PodcastCreationSchema>;

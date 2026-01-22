@@ -1,5 +1,5 @@
 // components/create-flow/steps/purpose-selection-step.tsx
-// VERSIÓN: 5.6 (Aurora Master - Ultra-Wide Desktop Visibility & TS Fix)
+// VERSIÓN: 5.8 (Aurora Master - FlowState Type Fix & Pulse Integration)
 
 "use client";
 
@@ -13,17 +13,18 @@ import {
   Lightbulb,
   Link2,
   MapPin,
-  MessageCircleQuestion,
   PenLine,
   Play,
   Trash2,
-  X
+  X,
+  Zap
 } from "lucide-react";
 import React, { useState, useTransition } from "react";
 import { useFormContext } from "react-hook-form";
 import { useFlowActions } from "../hooks/use-flow-actions";
 import { MASTER_FLOW_PATHS } from "../shared/config";
 import { useCreationContext } from "../shared/context";
+import { FlowState } from "../shared/types"; // [SISTEMA]: Importación para validación de tipos
 
 // --- DEFINICIÓN DE TIPOS ---
 interface PurposeOption {
@@ -40,13 +41,23 @@ interface CategoryGroup {
   items: PurposeOption[];
 }
 
+/**
+ * CATEGORIES
+ * Estructura de intenciones de creación de NicePod.
+ */
 const CATEGORIES: CategoryGroup[] = [
   {
     name: "Creatividad",
     items: [
       { id: "learn", title: "Aprender", desc: "Desglosa conceptos complejos.", icon: Lightbulb, color: "bg-amber-500/10 text-amber-600 dark:text-amber-400" },
       { id: "explore", title: "Explorar", desc: "Conecta dos ideas distintas.", icon: Link2, color: "bg-blue-500/10 text-blue-600 dark:text-blue-400" },
-      { id: "answer", title: "Preguntar", desc: "Respuestas directas de la IA.", icon: MessageCircleQuestion, color: "bg-rose-500/10 text-rose-600 dark:text-rose-400" },
+      {
+        id: "pulse",
+        title: "Actualidad",
+        desc: "Briefing de inteligencia personalizada.",
+        icon: Zap,
+        color: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
+      },
     ]
   },
   {
@@ -65,8 +76,12 @@ export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?:
   const [isPending, startTransition] = useTransition();
   const [isVaultOpen, setIsVaultOpen] = useState(false);
 
+  /**
+   * [FIX]: useFlowActions con Type Casting
+   * Soluciona el error ts(2345) asegurando que el string recibido se trate como FlowState.
+   */
   const { deleteDraft } = useFlowActions({
-    transitionTo: (s) => transitionTo(s),
+    transitionTo: (s) => transitionTo(s as FlowState),
     goBack: () => { },
     clearDraft: () => { }
   });
@@ -74,7 +89,10 @@ export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?:
   const handleSelection = (id: string) => {
     setValue("purpose", id, { shouldValidate: true, shouldDirty: true });
     const targetPath = MASTER_FLOW_PATHS[id];
-    if (targetPath && targetPath.length > 1) transitionTo(targetPath[1]);
+    // En flujos definidos, saltamos al primer paso operativo tras la selección
+    if (targetPath && targetPath.length > 1) {
+      transitionTo(targetPath[1]);
+    }
   };
 
   const handleResumeDraft = (draft: any) => {
@@ -94,7 +112,7 @@ export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?:
   return (
     <div className="relative h-full w-full max-w-6xl mx-auto flex flex-col p-4 md:px-10 lg:pt-0 lg:pb-2 overflow-hidden">
 
-      {/* 1. HEADER - Reducimos margen inferior en LG para ganar espacio vertical */}
+      {/* 1. HEADER - Optimización de aire vertical para pantallas grandes */}
       <header className="flex-shrink-0 text-center lg:text-left mt-2 mb-4 lg:mb-2">
         <motion.h1
           initial={{ opacity: 0, y: -10 }}
@@ -108,10 +126,10 @@ export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?:
         </p>
       </header>
 
-      {/* 2. ÁREA DE TRABAJO - Flex-1 asegura que use todo el alto disponible del shell */}
+      {/* 2. ÁREA DE TRABAJO DUAL */}
       <div className="flex-1 flex flex-col lg:flex-row gap-0 lg:gap-14 min-h-0 overflow-hidden">
 
-        {/* COLUMNA INTENCIONES - Optimizamos gap en LG para evitar scroll */}
+        {/* COLUMNA INTENCIONES */}
         <div className="lg:flex-[1.8] flex flex-col gap-4 lg:gap-2 overflow-y-auto lg:overflow-visible custom-scrollbar-hide justify-start pr-1">
           {CATEGORIES.map((cat) => (
             <div key={cat.name} className="space-y-2 lg:space-y-1">
@@ -149,7 +167,7 @@ export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?:
           ))}
         </div>
 
-        {/* COLUMNA BÓVEDA */}
+        {/* COLUMNA BÓVEDA (SIDEBAR) */}
         <aside className="hidden lg:flex lg:flex-[1.2] bg-zinc-100/50 dark:bg-white/[0.02] border border-black/5 dark:border-white/5 p-8 rounded-[2.5rem] backdrop-blur-3xl flex-col shadow-2xl h-full max-h-full overflow-hidden">
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3">
@@ -194,7 +212,7 @@ export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?:
         </aside>
       </div>
 
-      {/* FOOTER MOBILE - PERMANECE IDÉNTICO A V5.4 */}
+      {/* FOOTER MOBILE (Mantenido intacto) */}
       <div className="lg:hidden flex-shrink-0 mt-4">
         <button
           onClick={() => setIsVaultOpen(true)}

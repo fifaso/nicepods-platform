@@ -1,20 +1,17 @@
-// components/create-flow/hooks/use-flow-actions.tsx
-// VERSIÓN: 2.4 (Master Actions - Vocal Performance & Metadata Integrity)
+// components/create-flow/hooks/use-flow-actions.ts
+// VERSIÓN: 3.1 (Master Action Orchestrator - Hybrid Pulse & Shielded Production)
 
 "use client";
 
-import React, { useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { useFormContext } from "react-hook-form";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { PodcastCreationData } from "@/lib/validation/podcast-schema";
-import { FlowState } from "../shared/types";
-import { CheckCircle2, Trash2 } from "lucide-react";
-import { deleteDraftAction } from "@/actions/draft-actions";
+import { useRouter } from "next/navigation";
+import { useCallback, useState } from "react";
+import { useFormContext } from "react-hook-form";
 
 interface UseFlowActionsProps {
-  transitionTo: (state: FlowState) => void;
+  transitionTo: (state: string) => void;
   goBack: () => void;
   clearDraft: () => void;
 }
@@ -23,184 +20,156 @@ export function useFlowActions({ transitionTo, goBack, clearDraft }: UseFlowActi
   const { supabase, user } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
-  const { getValues, setValue, trigger, reset } = useFormContext<PodcastCreationData>();
+  const { getValues, setValue } = useFormContext<PodcastCreationData>();
 
-  const [isGenerating, setIsGenerating] = useState<boolean>(false);
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-
-  /**
-   * packageInputs: El núcleo de la Custodia de Datos.
-   * Empaqueta la "Materia Prima" y los "Metadatos de Performance" 
-   * para que el motor de audio nativo interprete correctamente.
-   */
-  const packageInputs = useCallback((data: PodcastCreationData) => {
-    return {
-      // --- CAPA 1: PARÁMETROS DE PERFORMANCE (NUEVO V3.0) ---
-      // Estos alimentan al vocal-director-map.ts en el backend
-      voiceGender: data.voiceGender,
-      voiceStyle: data.voiceStyle,
-      voicePace: data.voicePace,
-      speakingRate: data.speakingRate,
-      agentName: data.agentName, // La personalidad elegida (ej. 'mentor')
-
-      // --- CAPA 2: MATERIA PRIMA (SEMILLA) ---
-      duration: data.duration,
-      narrativeDepth: data.narrativeDepth,
-      location: data.location,
-      discovery_context: data.discovery_context,
-      imageContext: data.imageContext,
-      solo_topic: data.solo_topic,
-      solo_motivation: data.solo_motivation,
-      link_topicA: data.link_topicA,
-      link_topicB: data.link_topicB,
-      link_catalyst: data.link_catalyst,
-      link_selectedNarrative: data.link_selectedNarrative,
-      question_to_answer: data.question_to_answer,
-      legacy_lesson: data.legacy_lesson,
-      selectedArchetype: data.selectedArchetype,
-      archetype_goal: data.archetype_goal
-    };
-  }, []);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   /**
-   * handleResumeDraft: Inyector de Memoria de alta fidelidad.
-   */
-  const handleResumeDraft = useCallback((draft: any) => {
-    try {
-      const { purpose, agentName, inputs } = draft.creation_data;
-
-      // Limpieza preventiva para evitar colisión de estados
-      reset();
-
-      // 1. Hidratación de la Semilla y Parámetros Vocales
-      Object.entries(inputs || {}).forEach(([k, v]) => {
-        setValue(k as any, v, { shouldValidate: true });
-      });
-
-      // 2. Sincronización de Identidad de Agente
-      setValue("purpose", purpose);
-      setValue("agentName", agentName || inputs.agentName);
-
-      // @ts-ignore - ID de persistencia
-      setValue("draft_id", draft.id);
-
-      // 3. Restauración de Resultados de IA
-      if (draft.script_text) {
-        const parsed = typeof draft.script_text === 'string' ? JSON.parse(draft.script_text) : draft.script_text;
-        setValue("final_title", draft.title);
-        setValue("final_script", parsed.script_body || draft.script_text);
-      }
-
-      setValue("sources", draft.sources || []);
-
-      toast({
-        title: "Sesión Restaurada",
-        description: `Retomando: ${draft.title}`,
-        action: <CheckCircle2 className="h-5 w-5 text-primary" />
-      });
-
-      // El orquestador index.tsx usa jumpToStep para reconstruir el historial
-    } catch (err) {
-      toast({ title: "Error de hidratación", description: "Datos del borrador corruptos.", variant: "destructive" });
-    }
-  }, [reset, setValue, toast]);
-
-  /**
-   * generateDraft: Disparador de Inteligencia Híbrida (NKV + Gemini)
+   * generateDraft
+   * Fase de inteligencia: Llama al redactor para crear el guion inicial.
+   * [PULSE READY]: Si es modo pulse, envía las fuentes seleccionadas como contexto.
    */
   const generateDraft = useCallback(async () => {
-    transitionTo('DRAFT_GENERATION_LOADER');
+    if (!user) return;
     setIsGenerating(true);
 
     try {
-      const data = getValues();
-      const payload = {
-        user_id: user?.id,
-        purpose: data.purpose,
-        agentName: data.agentName || 'script-architect-v1',
-        inputs: packageInputs(data) // Estructura jerárquica para el Backend
-      };
+      const values = getValues();
+      const isPulse = values.purpose === 'pulse';
 
-      const { data: response, error } = await supabase.functions.invoke('generate-script-draft', { body: payload });
-      if (error || !response?.success) throw new Error(response?.error || "Fallo en la síntesis de borrador.");
+      console.log(`[FlowActions] Solicitando borrador (${values.purpose})...`);
 
-      // @ts-ignore - Guardamos el ID para la promoción final
-      setValue('draft_id', response.draft_id);
-      setValue('final_title', response.draft.suggested_title, { shouldValidate: true });
-      setValue('final_script', response.draft.script_body, { shouldValidate: true });
-      if (response.draft.sources) setValue('sources', response.draft.sources);
+      const { data, error } = await supabase.functions.invoke("generate-script-draft", {
+        body: {
+          ...values,
+          // En modo Pulse, inyectamos explícitamente los IDs de las fuentes del radar
+          selected_source_ids: isPulse ? values.pulse_source_ids : undefined
+        },
+      });
 
-      transitionTo('SCRIPT_EDITING');
+      if (error) throw new Error(error.message);
+
+      if (data.success) {
+        setValue("final_title", data.title);
+        setValue("final_script", data.script_body);
+        setValue("sources", data.sources || []);
+
+        // Navegamos a la fase de edición (Sanitización)
+        transitionTo("SCRIPT_EDITING");
+      }
     } catch (err: any) {
-      toast({ title: "Fallo en Estación IA", description: err.message, variant: "destructive" });
-      goBack();
+      console.error("Draft Generation Error:", err);
+      toast({
+        title: "Fallo en Redacción",
+        description: err.message || "No pudimos conectar con el agente redactor.",
+        variant: "destructive",
+      });
     } finally {
       setIsGenerating(false);
     }
-  }, [supabase, user, getValues, setValue, transitionTo, goBack, toast, packageInputs]);
+  }, [supabase, user, getValues, setValue, transitionTo, toast]);
 
   /**
-   * handleSubmitProduction: Promoción Final de Borrador a Podcast
+   * handleSubmitProduction
+   * ORQUESTADOR DE PRODUCCIÓN: Gestiona la entrega final del producto.
    */
   const handleSubmitProduction = useCallback(async () => {
-    const isValid = await trigger();
-    if (!isValid) {
-      toast({ title: "Datos incompletos", description: "Revisa la configuración y el guion.", variant: "destructive" });
-      return;
-    }
-
-    if (!supabase || !user) return;
+    if (!user) return;
     setIsSubmitting(true);
 
+    const values = getValues();
+    const isPulseMode = values.purpose === 'pulse';
+
     try {
-      const data = getValues();
-      const payload = {
-        // @ts-ignore - ID para evitar duplicados en la DB
-        draft_id: data.draft_id,
-        purpose: data.purpose,
-        agentName: data.agentName,
-        final_title: data.final_title,
-        final_script: data.final_script,
-        sources: data.sources || [],
-        inputs: packageInputs(data) // Incluye la Dirección Vocal V3.0
-      };
+      // --- VÍA A: PRODUCCIÓN DE PÍLDORA PULSE (FAST-TRACK) ---
+      if (isPulseMode) {
+        console.log("🚀 Producción: Pulse Strategic Pill");
 
-      const { data: res, error } = await supabase.functions.invoke('queue-podcast-job', { body: payload });
-      if (error || !res?.success) throw new Error(res?.error || "Error al encolar producción.");
+        const { data, error } = await supabase.functions.invoke("generate-briefing-pill", {
+          body: {
+            selected_source_ids: values.pulse_source_ids,
+            voice_gender: values.voiceGender,
+            user_id: user.id,
+            // Enviamos el script editado por el usuario para la síntesis de voz
+            final_script: values.final_script,
+            final_title: values.final_title
+          }
+        });
 
-      toast({
-        title: "¡Sinfonía en Proceso!",
-        description: "Tu podcast se está interpretando nativamente.",
-        action: <CheckCircle2 className="h-5 w-5 text-green-500" />
-      });
+        if (error) throw new Error(error.message);
 
-      router.push('/podcasts?tab=library');
+        if (data.success && data.podcast_id) {
+          toast({ title: "Píldora Forjada", description: "Redirigiendo a la pantalla de forja." });
+          router.push(`/podcast/${data.podcast_id}`);
+        }
+      }
+      // --- VÍA B: PRODUCCIÓN ESTÁNDAR (LONG-FORM) ---
+      else {
+        console.log("🎬 Producción: Podcast Narrativo Estándar");
+
+        const { data, error } = await supabase.functions.invoke("queue-podcast-job", {
+          body: values,
+        });
+
+        if (error) throw new Error(error.message);
+
+        if (data.success && data.pod_id) {
+          toast({ title: "Producción Iniciada", description: "Moviendo a fase de activos multimedia." });
+          router.push(`/podcast/${data.pod_id}`);
+        }
+      }
+
+      // Reinicio del formulario tras éxito de envío
+      clearDraft();
+
     } catch (err: any) {
-      toast({ title: "Fallo de Producción", description: err.message, variant: "destructive" });
+      console.error("Production Submission Error:", err);
+      toast({
+        title: "Error en Producción",
+        description: err.message || "La malla de funciones no respondió correctamente.",
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
-  }, [trigger, supabase, user, getValues, router, toast, packageInputs]);
+  }, [supabase, user, getValues, router, clearDraft, toast]);
 
   /**
-   * deleteDraft: Gestión de cuota desde la Bóveda
+   * deleteDraft
+   * Limpieza de la tabla de borradores (Bóveda).
    */
   const deleteDraft = useCallback(async (id: number) => {
-    const result = await deleteDraftAction(id);
-    if (result.success) {
-      toast({ title: "Bóveda Actualizada", description: result.message });
-    } else {
-      toast({ title: "Error al purgar", description: result.message, variant: "destructive" });
+    try {
+      const { error } = await supabase
+        .from("podcast_drafts")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+
+      toast({ title: "Sesión eliminada de la bóveda" });
+      router.refresh();
+    } catch (err: any) {
+      toast({ title: "Fallo al purgar borrador", variant: "destructive" });
     }
-    return result;
-  }, [toast]);
+  }, [supabase, toast, router]);
+
+  /**
+   * analyzeLocalEnvironment
+   * Módulo de Visión Situacional (Placeholder para coherencia de LayoutShell)
+   */
+  const analyzeLocalEnvironment = useCallback(async () => {
+    console.log("[NicePod-Local] Analizando entorno para Local Soul...");
+    // Implementación específica si el flujo lo requiere
+  }, []);
 
   return {
+    isGenerating,
+    isSubmitting,
     generateDraft,
     handleSubmitProduction,
-    handleResumeDraft,
     deleteDraft,
-    isGenerating,
-    isSubmitting
+    analyzeLocalEnvironment
   };
 }
