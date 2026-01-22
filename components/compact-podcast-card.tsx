@@ -1,17 +1,17 @@
 // components/compact-podcast-card.tsx
-// VERSIÓN FINAL POTENCIADA: Utiliza la imagen del cover como fondo con un overlay translúcido.
+// VERSIÓN: 4.0 (Shielded Compact - High Performance & Access Control)
 
 "use client";
 
-import Link from "next/link";
-import Image from "next/image";
-import type React from "react";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Play, Pause, Clock } from "lucide-react";
+import { Card } from "@/components/ui/card";
 import { useAudio } from "@/contexts/audio-context";
+import { cn, formatTime, getSafeAsset } from "@/lib/utils";
 import { PodcastWithProfile } from "@/types/podcast";
-import { formatTime } from "@/lib/utils";
+import { Clock, Loader2, Lock, Pause, Play } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import type React from "react";
 
 interface CompactPodcastCardProps {
   podcast: PodcastWithProfile;
@@ -20,59 +20,87 @@ interface CompactPodcastCardProps {
 export function CompactPodcastCard({ podcast }: CompactPodcastCardProps) {
   const { playPodcast, currentPodcast, isPlaying } = useAudio();
 
+  // Control de Integridad
+  const isReady = podcast.processing_status === 'completed';
+
   const handlePlay = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
     event.preventDefault();
+    if (!isReady) return;
     playPodcast(podcast);
   };
 
   const isCurrentlyPlaying = currentPodcast?.id === podcast.id && isPlaying;
-  const authorName = podcast.profiles?.full_name || "Creador Anónimo";
-  const authorImage = podcast.profiles?.avatar_url || "/images/placeholder-user.jpg";
+  const authorName = podcast.profiles?.full_name || "Creador NicePod";
+  const authorImage = getSafeAsset(podcast.profiles?.avatar_url, 'avatar');
 
   return (
-    <Link href={`/podcast/${podcast.id}`} className="group block">
-      {/* [CAMBIO ESTRUCTURAL #1]: Se añade 'relative' y 'overflow-hidden' a la tarjeta principal
-          para que actúe como contenedor para las capas absolutas. */}
-      <Card className="relative overflow-hidden transition-all duration-300 group-hover:scale-[1.02] border border-border/20 shadow-md">
-        {/* [CAMBIO ESTRUCTURAL #2]: La imagen ahora es una capa de fondo.
-            - 'fill' hace que ocupe todo el espacio.
-            - 'object-cover' asegura que no se distorsione.
-            - 'z-0' la envía al fondo.
-            - La transición y el group-hover añaden un efecto de zoom sutil. */}
+    <Link
+      href={`/podcast/${podcast.id}`}
+      className={cn(
+        "group block transition-all",
+        !isReady && "cursor-wait opacity-70 grayscale-[0.5]"
+      )}
+      onClick={(e) => { if (!isReady) { e.preventDefault(); } }}
+    >
+      <Card className="relative overflow-hidden h-20 transition-all duration-500 group-hover:scale-[1.01] border border-border/20 shadow-lg bg-zinc-950/40 backdrop-blur-md">
+
+        {/* FONDO: Portada con overlay */}
         <Image
-          src={podcast.cover_image_url || "/images/placeholder-logo.svg"}
+          src={getSafeAsset(podcast.cover_image_url, 'cover')}
           alt={podcast.title}
           fill
-          className="object-cover z-0 transition-transform duration-500 group-hover:scale-110"
+          className="object-cover z-0 transition-transform duration-700 group-hover:scale-110 opacity-40"
         />
-        {/* [CAMBIO ESTRUCTURAL #3]: Se añade una capa de degradado translúcido.
-            - 'absolute inset-0' hace que cubra toda la tarjeta.
-            - 'bg-gradient-to-r' crea un degradado de izquierda a derecha.
-            - 'from-black/70' es oscuro bajo el texto, 'to-black/20' es más claro cerca del botón.
-            - 'z-10' la coloca por encima de la imagen. */}
-        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/70 to-black/20 z-10" />
+        <div className="absolute inset-0 bg-gradient-to-r from-zinc-950 via-zinc-950/80 to-transparent z-10" />
 
-        {/* [CAMBIO ESTRUCTURAL #4]: El contenido ahora se coloca en una capa superior.
-            - 'relative z-20' lo pone por encima de la imagen y el degradado.
-            - 'text-gray-100' y 'text-gray-300' aseguran la legibilidad. */}
-        <div className="relative z-20 flex items-center justify-between h-20 p-2">
-          <div className="flex items-center space-x-3 flex-1 min-w-0">
-            <div className="flex-1 min-w-0 pl-2">
-              <h3 className="font-semibold truncate text-gray-100 group-hover:text-white transition-colors">{podcast.title}</h3>
-              <div className="flex items-center text-sm text-gray-300 mt-1">
-                <Image src={authorImage} alt={authorName} width={16} height={16} className="rounded-full mr-2" />
-                <span className="truncate flex-1">{authorName}</span>
-                <div className="flex items-center flex-shrink-0 ml-2">
-                  <Clock className="h-3 w-3 mr-1" />
-                  <span>{podcast.duration_seconds ? formatTime(podcast.duration_seconds) : 'N/A'}</span>
+        {/* CONTENIDO SUPERIOR */}
+        <div className="relative z-20 flex items-center justify-between h-full px-4">
+          <div className="flex items-center gap-4 flex-1 min-w-0">
+            <div className="relative h-12 w-12 rounded-xl overflow-hidden border border-white/10 flex-shrink-0">
+              <Image src={authorImage} alt={authorName} fill className="object-cover" />
+              {!isReady && (
+                <div className="absolute inset-0 bg-primary/40 backdrop-blur-sm flex items-center justify-center">
+                  <Loader2 className="h-4 w-4 animate-spin text-white" />
                 </div>
+              )}
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <h3 className="font-black text-sm md:text-base truncate text-white uppercase tracking-tight group-hover:text-primary transition-colors">
+                {podcast.title}
+              </h3>
+              <div className="flex items-center gap-3 text-[10px] font-bold text-zinc-400 mt-0.5">
+                <span className="truncate">{authorName}</span>
+                <span className="flex items-center gap-1.5 border-l border-white/10 pl-3">
+                  {isReady ? (
+                    <>
+                      <Clock className="h-3 w-3" />
+                      {podcast.duration_seconds ? formatTime(podcast.duration_seconds) : 'N/A'}
+                    </>
+                  ) : (
+                    <span className="text-primary animate-pulse flex items-center gap-1">
+                      <Lock size={10} /> EN FORJA
+                    </span>
+                  )}
+                </span>
               </div>
             </div>
           </div>
-          <div className="pr-2">
-            <Button onClick={handlePlay} size="icon" className="w-12 h-12 rounded-full bg-primary/80 backdrop-blur-sm hover:bg-primary text-primary-foreground">
-              {isCurrentlyPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6 fill-current pl-0.5" />}
+
+          <div className="pl-4">
+            <Button
+              onClick={handlePlay}
+              disabled={!isReady}
+              size="icon"
+              className={cn(
+                "w-12 h-12 rounded-full transition-all border-none",
+                isReady
+                  ? "bg-white text-primary hover:bg-primary hover:text-white shadow-xl"
+                  : "bg-zinc-800 text-zinc-600 opacity-20"
+              )}
+            >
+              {isCurrentlyPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6 fill-current" />}
             </Button>
           </div>
         </div>

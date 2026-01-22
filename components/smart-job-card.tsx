@@ -3,12 +3,12 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
-import { createClient } from '@/lib/supabase/client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Bot } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { createClient } from '@/lib/supabase/client';
 import type { Tables } from '@/types/supabase';
+import { Bot } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 type UserCreationJob = Tables<'podcast_creation_jobs'>;
 type MicroPod = Tables<'micro_pods'>;
@@ -65,7 +65,7 @@ export function SmartJobCard({ job }: { job: UserCreationJob }) {
             currentProgress = 100;
             status = "¡Completado!";
           }
-          
+
           setProgress(currentProgress);
           setStatusText(status);
         }
@@ -93,7 +93,7 @@ export function SmartJobCard({ job }: { job: UserCreationJob }) {
         </div>
       </CardContent>
       <div className="relative h-1 w-full bg-muted/30">
-        <div 
+        <div
           className="absolute top-0 left-0 h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-500 ease-in-out"
           style={{ width: `${progress}%` }}
         />
