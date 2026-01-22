@@ -1,22 +1,22 @@
 // components/create-flow/steps/pulse-radar-step.tsx
-// VERSIÓN: 1.1 (Strategic Radar - Toast Integration & AI Signal Discovery)
+// VERSIÓN: 1.2 (Strategic Radar - Data Mapping Fix & Identity Evolution)
 
 "use client";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
-import { useToast } from "@/hooks/use-toast"; // [FIX]: Importación del hook de notificaciones
+import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { PulseMatchResult } from "@/types/pulse";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  AlertCircle,
   CheckCircle2,
   ExternalLink,
   FileText,
   Globe,
   Radar,
+  Search,
   TrendingUp,
   Zap
 } from "lucide-react";
@@ -26,7 +26,7 @@ import { useCreationContext } from "../shared/context";
 
 export function PulseRadarStep() {
   const { supabase } = useAuth();
-  const { toast } = useToast(); // [FIX]: Inicialización del motor de avisos
+  const { toast } = useToast();
   const { setValue, watch } = useFormContext();
   const { transitionTo } = useCreationContext();
 
@@ -38,41 +38,43 @@ export function PulseRadarStep() {
   const selectedIds = watch("pulse_source_ids") || [];
 
   /**
-   * scanRadar: Sincronización con las Edge Functions de Matching.
-   * Intercepta el Top 20 de señales basadas en el ADN del usuario.
+   * scanRadar: Sincronización con el motor de matching.
+   * [FIX]: Se ha robustecido el mapeo para capturar tanto 'signals' como 'is_fallback'.
    */
   const scanRadar = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
     try {
-      // Invocamos la Edge Function de Matching (Vectores)
       const { data, error: fetchError } = await supabase.functions.invoke('pulse-matcher');
 
-      if (fetchError) throw new Error("No pudimos sincronizar con los radares globales.");
+      if (fetchError) throw new Error("Interrupción en la sincronización con los radares.");
 
-      if (data.success) {
+      // Validamos la estructura del contrato de datos
+      if (data && data.signals && Array.isArray(data.signals)) {
         setSignals(data.signals);
 
-        // Si el backend indica que no hay ADN, avisamos sutilmente
         if (data.is_fallback) {
           toast({
             title: "Radar en modo Global",
-            description: "Personaliza tu ADN en el paso anterior para filtrar mejores señales."
+            description: "Personaliza tu ADN en el paso anterior para obtener señales prioritarias."
           });
         }
+      } else {
+        // Si no hay señales, dejamos el array vacío para mostrar el placeholder de búsqueda
+        setSignals([]);
       }
     } catch (err: any) {
-      const errorMsg = err.message || "Interrupción en el radar.";
+      const errorMsg = err.message || "No se detectaron señales en el área.";
       setError(errorMsg);
       toast({
-        title: "Fallo de Sincronización",
+        title: "Fallo de Intercepción",
         description: errorMsg,
         variant: "destructive"
       });
     } finally {
-      // Retardo visual para permitir que la animación de radar respire
-      setTimeout(() => setIsLoading(false), 1500);
+      // Retardo visual para permitir que la animación Aurora respire
+      setTimeout(() => setIsLoading(false), 1200);
     }
   }, [supabase, toast]);
 
@@ -81,8 +83,7 @@ export function PulseRadarStep() {
   }, [scanRadar]);
 
   /**
-   * toggleSource: Gestión soberana de selección de fuentes.
-   * Límite estricto de 5 fuentes para garantizar la densidad de la píldora.
+   * toggleSource: Gestión de selección múltiple.
    */
   const toggleSource = (id: string) => {
     const current = [...selectedIds];
@@ -93,8 +94,8 @@ export function PulseRadarStep() {
     } else {
       if (current.length >= 5) {
         toast({
-          title: "Límite alcanzado",
-          description: "Selecciona un máximo de 5 fuentes para mantener el foco del briefing.",
+          title: "Límite de Sintetización",
+          description: "Selecciona hasta 5 fuentes para garantizar una píldora de alta densidad.",
         });
         return;
       }
@@ -106,21 +107,24 @@ export function PulseRadarStep() {
   return (
     <div className="flex flex-col h-full w-full max-w-6xl mx-auto p-4 md:p-8 overflow-hidden">
 
-      {/* 1. HEADER: Identidad Radar */}
+      {/* 1. HEADER: Identidad Evolucionada */}
       <header className="flex-shrink-0 flex flex-col md:flex-row justify-between items-center gap-6 mb-8">
         <div className="text-center md:text-left space-y-1">
           <div className="flex items-center justify-center md:justify-start gap-2 text-primary font-black uppercase tracking-[0.3em] text-[10px]">
             <Radar size={14} className={cn(isLoading && "animate-spin")} />
-            Radar de Inteligencia Activo
+            Escáner de Inteligencia Activo
           </div>
           <h1 className="text-3xl md:text-5xl font-black uppercase tracking-tighter text-white leading-none">
-            Señales de <span className="text-primary italic">Valor</span>
+            Radar <span className="text-primary italic">Pulse</span>
           </h1>
+          <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest hidden md:block">
+            Inteligencia Detectada en Tiempo Real
+          </p>
         </div>
 
         <div className="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/10 backdrop-blur-xl">
           <div className="text-right hidden sm:block">
-            <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Fuentes Seleccionadas</p>
+            <p className="text-[10px] font-black text-white/40 uppercase tracking-widest leading-none mb-1">Materia Prima</p>
             <p className="text-lg font-bold text-white">{selectedIds.length} <span className="text-white/20">/ 5</span></p>
           </div>
           <Button
@@ -151,21 +155,25 @@ export function PulseRadarStep() {
                 <Zap size={40} className="absolute inset-0 m-auto text-primary animate-pulse" />
               </div>
               <p className="text-sm font-black uppercase tracking-[0.4em] text-primary animate-pulse text-center">
-                Interceptando fuentes de alta autoridad...
+                Sincronizando con fuentes globales...
               </p>
             </motion.div>
-          ) : error ? (
-            /* ESTADO: ERROR CRÍTICO */
-            <motion.div key="error" className="h-full flex flex-col items-center justify-center text-center space-y-4">
-              <AlertCircle size={48} className="text-rose-500" />
-              <h3 className="text-xl font-bold text-white uppercase">Interrupción en el Radar</h3>
-              <p className="text-muted-foreground max-w-xs">{error}</p>
-              <Button onClick={scanRadar} variant="outline" className="border-white/10 rounded-xl">
-                Re-intentar Escaneo
+          ) : error || (signals.length === 0 && !isLoading) ? (
+            /* ESTADO: NO SE DETECTARON SEÑALES */
+            <motion.div key="empty" className="h-full flex flex-col items-center justify-center text-center space-y-4">
+              <div className="p-6 bg-white/5 rounded-full border border-white/10">
+                <Search size={40} className="text-zinc-600" />
+              </div>
+              <h3 className="text-xl font-bold text-white uppercase tracking-tight">Frecuencia Silenciosa</h3>
+              <p className="text-muted-foreground max-w-xs text-sm">
+                No hemos detectado señales nuevas en tu área de interés. Intenta recalibrar tu ADN.
+              </p>
+              <Button onClick={scanRadar} variant="outline" className="border-white/10 rounded-xl font-bold uppercase text-[10px]">
+                Escaneo Manual
               </Button>
             </motion.div>
           ) : (
-            /* ESTADO: SEÑALES DETECTADAS */
+            /* ESTADO: SEÑALES LISTAS PARA SELECCIONAR */
             <motion.div
               key="results"
               initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
@@ -190,7 +198,7 @@ export function PulseRadarStep() {
                   >
                     {signal.is_high_value && !isSelected && (
                       <div className="absolute top-0 right-0 p-3">
-                        <Badge className="bg-primary/20 text-primary border-primary/30 text-[8px] font-black uppercase">Alta Autoridad</Badge>
+                        <Badge className="bg-primary/20 text-primary border-primary/30 text-[8px] font-black uppercase">Fondo Estratégico</Badge>
                       </div>
                     )}
 
@@ -207,7 +215,7 @@ export function PulseRadarStep() {
                             {signal.source_name}
                           </span>
                           <span className="flex items-center gap-1.5 text-[10px] font-bold text-primary uppercase">
-                            <TrendingUp size={10} /> {signal.match_percentage}% Match
+                            <TrendingUp size={10} /> {signal.match_percentage}% Resonancia
                           </span>
                         </div>
                       </div>
@@ -227,7 +235,7 @@ export function PulseRadarStep() {
                         <div className="flex items-center gap-1.5">
                           {isSelected ? <CheckCircle2 className="text-primary h-5 w-5" /> : <div className="h-5 w-5 rounded-full border-2 border-white/10" />}
                           <span className="text-[9px] font-black uppercase tracking-widest">
-                            {isSelected ? "Seleccionada" : "Incluir en Píldora"}
+                            {isSelected ? "Incluida" : "Seleccionar"}
                           </span>
                         </div>
                         <a
@@ -249,10 +257,10 @@ export function PulseRadarStep() {
         </AnimatePresence>
       </div>
 
-      {/* 3. MOBILE OVERLAY: Contador persistente */}
+      {/* 3. MOBILE OVERLAY CONTADOR */}
       <div className="md:hidden fixed bottom-24 left-1/2 -translate-x-1/2 z-50">
-        <Badge className="bg-zinc-900/90 text-white border-white/20 px-4 py-2 rounded-full backdrop-blur-md shadow-2xl font-black text-[10px] uppercase tracking-widest">
-          {selectedIds.length} Señales Marcadas
+        <Badge className="bg-zinc-900/90 text-white border-white/20 px-4 py-2 rounded-full backdrop-blur-md shadow-2xl font-black text-[9px] uppercase tracking-widest">
+          {selectedIds.length} Señales Interceptadas
         </Badge>
       </div>
 
