@@ -8,6 +8,7 @@
   },
   "nodeModulesDir": "none",
   "imports": {
+    "pulse-utils": "./_shared/pulse-utils.ts",
     "sentry": "npm:@sentry/node@8.26.0",
     "arcjet": "npm:@arcjet/deno@1.0.0-beta.4",
     "guard": "./_shared/guard.ts",
