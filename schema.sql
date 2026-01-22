@@ -13,13 +13,90 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 
-CREATE SCHEMA IF NOT EXISTS "public";
+CREATE EXTENSION IF NOT EXISTS "pg_cron" WITH SCHEMA "pg_catalog";
 
 
-ALTER SCHEMA "public" OWNER TO "pg_database_owner";
+
+
+
+
+CREATE EXTENSION IF NOT EXISTS "pg_net" WITH SCHEMA "extensions";
+
+
+
+
+
+
+CREATE SCHEMA IF NOT EXISTS "private";
+
+
+ALTER SCHEMA "private" OWNER TO "postgres";
 
 
 COMMENT ON SCHEMA "public" IS 'standard public schema';
+
+
+
+CREATE EXTENSION IF NOT EXISTS "hypopg" WITH SCHEMA "extensions";
+
+
+
+
+
+
+CREATE EXTENSION IF NOT EXISTS "index_advisor" WITH SCHEMA "extensions";
+
+
+
+
+
+
+CREATE EXTENSION IF NOT EXISTS "pg_graphql" WITH SCHEMA "graphql";
+
+
+
+
+
+
+CREATE EXTENSION IF NOT EXISTS "pg_stat_statements" WITH SCHEMA "extensions";
+
+
+
+
+
+
+CREATE EXTENSION IF NOT EXISTS "pgcrypto" WITH SCHEMA "extensions";
+
+
+
+
+
+
+CREATE EXTENSION IF NOT EXISTS "postgis" WITH SCHEMA "extensions";
+
+
+
+
+
+
+CREATE EXTENSION IF NOT EXISTS "supabase_vault" WITH SCHEMA "vault";
+
+
+
+
+
+
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA "extensions";
+
+
+
+
+
+
+CREATE EXTENSION IF NOT EXISTS "vector" WITH SCHEMA "extensions";
+
+
+
 
 
 
@@ -50,6 +127,18 @@ CREATE TYPE "public"."consistency_level" AS ENUM (
 
 
 ALTER TYPE "public"."consistency_level" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."content_category" AS ENUM (
+    'paper',
+    'report',
+    'news',
+    'analysis',
+    'trend'
+);
+
+
+ALTER TYPE "public"."content_category" OWNER TO "postgres";
 
 
 CREATE TYPE "public"."interaction_event_type" AS ENUM (
@@ -224,6 +313,18 @@ $$;
 ALTER FUNCTION "public"."check_rate_limit"("p_user_id" "uuid", "p_function_name" "text", "p_limit" integer, "p_window_seconds" integer) OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."cleanup_expired_pulse"() RETURNS "void"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+BEGIN
+    DELETE FROM public.pulse_staging WHERE expires_at < now();
+END;
+$$;
+
+
+ALTER FUNCTION "public"."cleanup_expired_pulse"() OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."create_profile_and_free_subscription"() RETURNS "trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO ''
@@ -231,6 +332,38 @@ CREATE OR REPLACE FUNCTION "public"."create_profile_and_free_subscription"() RET
 
 
 ALTER FUNCTION "public"."create_profile_and_free_subscription"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."fetch_personalized_pulse"("p_user_id" "uuid", "p_limit" integer DEFAULT 20, "p_threshold" double precision DEFAULT 0.7) RETURNS TABLE("id" "uuid", "title" "text", "summary" "text", "url" "text", "source_name" "text", "content_type" "public"."content_category", "authority_score" double precision, "similarity" double precision)
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+DECLARE
+    v_user_dna vector(768);
+BEGIN
+    -- Obtener el vector DNA del usuario
+    SELECT dna_vector INTO v_user_dna FROM public.user_interest_dna WHERE user_id = p_user_id;
+
+    RETURN QUERY
+    SELECT 
+        ps.id,
+        ps.title,
+        ps.summary,
+        ps.url,
+        ps.source_name,
+        ps.content_type,
+        ps.authority_score,
+        (1 - (ps.embedding <=> v_user_dna))::FLOAT as similarity
+    FROM public.pulse_staging ps
+    WHERE 
+        ps.expires_at > now()
+        AND (1 - (ps.embedding <=> v_user_dna)) > p_threshold
+    ORDER BY (ps.authority_score * 0.4 + (1 - (ps.embedding <=> v_user_dna)) * 0.6) DESC
+    LIMIT p_limit;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."fetch_personalized_pulse"("p_user_id" "uuid", "p_limit" integer, "p_threshold" double precision) OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."get_curated_library_shelves"("p_user_id" "uuid") RETURNS json
@@ -764,6 +897,24 @@ $$;
 ALTER FUNCTION "public"."reset_monthly_quotas"() OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."reward_sovereign_curation"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+BEGIN
+    -- Si un podcast pasa de status 'draft' a 'published' y es de tipo 'pulse'
+    IF (OLD.status = 'draft' AND NEW.status = 'published' AND NEW.creation_mode = 'situational') THEN
+        UPDATE public.profiles 
+        SET reputation_score = reputation_score + 10
+        WHERE id = NEW.user_id;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."reward_sovereign_curation"() OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."rls_auto_enable"() RETURNS "event_trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'pg_catalog'
@@ -1039,6 +1190,19 @@ $$;
 ALTER FUNCTION "public"."update_curator_reputation"() OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."update_dna_timestamp"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+BEGIN
+    NEW.last_updated = now();
+    RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."update_dna_timestamp"() OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."update_follow_counts"() RETURNS "trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
@@ -1123,6 +1287,15 @@ END;$$;
 
 
 ALTER FUNCTION "public"."update_like_count"() OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "private"."secrets" (
+    "name" "text" NOT NULL,
+    "value" "bytea" NOT NULL
+);
+
+
+ALTER TABLE "private"."secrets" OWNER TO "postgres";
 
 
 CREATE TABLE IF NOT EXISTS "public"."ai_prompts" (
@@ -1593,6 +1766,27 @@ CREATE TABLE IF NOT EXISTS "public"."profiles" (
 ALTER TABLE "public"."profiles" OWNER TO "postgres";
 
 
+CREATE TABLE IF NOT EXISTS "public"."pulse_staging" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "content_hash" "text" NOT NULL,
+    "title" "text" NOT NULL,
+    "summary" "text" NOT NULL,
+    "url" "text" NOT NULL,
+    "source_name" "text" NOT NULL,
+    "content_type" "public"."content_category" DEFAULT 'news'::"public"."content_category" NOT NULL,
+    "authority_score" double precision DEFAULT 1.0,
+    "embedding" "extensions"."vector"(768),
+    "cluster_id" "uuid",
+    "veracity_verified" boolean DEFAULT false,
+    "is_high_value" boolean DEFAULT false,
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    "expires_at" timestamp with time zone DEFAULT ("now"() + '48:00:00'::interval)
+);
+
+
+ALTER TABLE "public"."pulse_staging" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."subscriptions" (
     "user_id" "uuid" NOT NULL,
     "plan_id" bigint NOT NULL,
@@ -1605,6 +1799,21 @@ CREATE TABLE IF NOT EXISTS "public"."subscriptions" (
 
 
 ALTER TABLE "public"."subscriptions" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."user_interest_dna" (
+    "user_id" "uuid" NOT NULL,
+    "dna_vector" "extensions"."vector"(768) NOT NULL,
+    "professional_profile" "text",
+    "negative_interests" "text"[],
+    "expertise_level" smallint DEFAULT 5,
+    "last_updated" timestamp with time zone DEFAULT "now"(),
+    "total_pulses_generated" integer DEFAULT 0,
+    CONSTRAINT "user_interest_dna_expertise_level_check" CHECK ((("expertise_level" >= 1) AND ("expertise_level" <= 10)))
+);
+
+
+ALTER TABLE "public"."user_interest_dna" OWNER TO "postgres";
 
 
 CREATE TABLE IF NOT EXISTS "public"."user_resonance_profiles" (
@@ -1633,6 +1842,11 @@ ALTER TABLE "public"."user_usage" OWNER TO "postgres";
 
 
 ALTER TABLE ONLY "public"."platform_limits" ALTER COLUMN "id" SET DEFAULT "nextval"('"public"."platform_limits_id_seq"'::"regclass");
+
+
+
+ALTER TABLE ONLY "private"."secrets"
+    ADD CONSTRAINT "secrets_pkey" PRIMARY KEY ("name");
 
 
 
@@ -1781,6 +1995,16 @@ ALTER TABLE ONLY "public"."profiles"
 
 
 
+ALTER TABLE ONLY "public"."pulse_staging"
+    ADD CONSTRAINT "pulse_staging_content_hash_key" UNIQUE ("content_hash");
+
+
+
+ALTER TABLE ONLY "public"."pulse_staging"
+    ADD CONSTRAINT "pulse_staging_pkey" PRIMARY KEY ("id");
+
+
+
 ALTER TABLE ONLY "public"."subscriptions"
     ADD CONSTRAINT "subscriptions_pkey" PRIMARY KEY ("user_id");
 
@@ -1788,6 +2012,11 @@ ALTER TABLE ONLY "public"."subscriptions"
 
 ALTER TABLE ONLY "public"."subscriptions"
     ADD CONSTRAINT "subscriptions_stripe_subscription_id_key" UNIQUE ("stripe_subscription_id");
+
+
+
+ALTER TABLE ONLY "public"."user_interest_dna"
+    ADD CONSTRAINT "user_interest_dna_pkey" PRIMARY KEY ("user_id");
 
 
 
@@ -1850,6 +2079,14 @@ CREATE INDEX "idx_micro_pods_user_id" ON "public"."micro_pods" USING "btree" ("u
 
 
 CREATE INDEX "idx_playback_events_user_id_created_at" ON "public"."playback_events" USING "btree" ("user_id", "created_at" DESC);
+
+
+
+CREATE INDEX "idx_pulse_staging_embedding" ON "public"."pulse_staging" USING "hnsw" ("embedding" "extensions"."vector_cosine_ops");
+
+
+
+CREATE INDEX "idx_pulse_staging_expires_at" ON "public"."pulse_staging" USING "btree" ("expires_at");
 
 
 
@@ -1926,6 +2163,10 @@ CREATE OR REPLACE TRIGGER "on_subscriptions_update" BEFORE UPDATE ON "public"."s
 
 
 CREATE OR REPLACE TRIGGER "set_root_id_trigger" BEFORE INSERT ON "public"."micro_pods" FOR EACH ROW EXECUTE FUNCTION "public"."maintain_thread_integrity"();
+
+
+
+CREATE OR REPLACE TRIGGER "tr_update_dna_timestamp" BEFORE UPDATE ON "public"."user_interest_dna" FOR EACH ROW EXECUTE FUNCTION "public"."update_dna_timestamp"();
 
 
 
@@ -2081,6 +2322,11 @@ ALTER TABLE ONLY "public"."subscriptions"
 
 ALTER TABLE ONLY "public"."subscriptions"
     ADD CONSTRAINT "subscriptions_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."profiles"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."user_interest_dna"
+    ADD CONSTRAINT "user_interest_dna_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
 
 
 
@@ -2260,6 +2506,10 @@ CREATE POLICY "Public read access for verified POIs" ON "public"."points_of_inte
 
 
 
+CREATE POLICY "Public read access for verified pulse" ON "public"."pulse_staging" FOR SELECT TO "authenticated" USING (true);
+
+
+
 CREATE POLICY "Public sources are viewable by all" ON "public"."knowledge_sources" FOR SELECT USING (("is_public" = true));
 
 
@@ -2274,7 +2524,15 @@ CREATE POLICY "Users add items to own collection" ON "public"."collection_items"
 
 
 
+CREATE POLICY "Users can manage their own DNA" ON "public"."user_interest_dna" TO "authenticated" USING (("auth"."uid"() = "user_id")) WITH CHECK (("auth"."uid"() = "user_id"));
+
+
+
 CREATE POLICY "Users can manage their own drafts" ON "public"."podcast_drafts" USING (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "Users can only see their own DNA" ON "public"."user_interest_dna" FOR SELECT TO "authenticated" USING (("auth"."uid"() = "user_id"));
 
 
 
@@ -2375,7 +2633,13 @@ ALTER TABLE "public"."profile_testimonials" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."profiles" ENABLE ROW LEVEL SECURITY;
 
 
+ALTER TABLE "public"."pulse_staging" ENABLE ROW LEVEL SECURITY;
+
+
 ALTER TABLE "public"."subscriptions" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."user_interest_dna" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."user_resonance_profiles" ENABLE ROW LEVEL SECURITY;
@@ -2384,11 +2648,2788 @@ ALTER TABLE "public"."user_resonance_profiles" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."user_usage" ENABLE ROW LEVEL SECURITY;
 
 
+
+
+ALTER PUBLICATION "supabase_realtime" OWNER TO "postgres";
+
+
+
+
+
+
+ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."collection_items";
+
+
+
+ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."collections";
+
+
+
+ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."followers";
+
+
+
+ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."likes";
+
+
+
+ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."micro_pods";
+
+
+
+ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."playback_events";
+
+
+
+ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."podcast_analysis_history";
+
+
+
+ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."podcast_creation_jobs";
+
+
+
+ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."points_of_interest";
+
+
+
+ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."profile_testimonials";
+
+
+
+ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."subscriptions";
+
+
+
+
+
+
+
+
+
 GRANT USAGE ON SCHEMA "public" TO "postgres";
 GRANT USAGE ON SCHEMA "public" TO "anon";
 GRANT USAGE ON SCHEMA "public" TO "authenticated";
 GRANT USAGE ON SCHEMA "public" TO "service_role";
 GRANT USAGE ON SCHEMA "public" TO "supabase_auth_admin";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2404,10 +5445,22 @@ GRANT ALL ON FUNCTION "public"."check_rate_limit"("p_user_id" "uuid", "p_functio
 
 
 
+GRANT ALL ON FUNCTION "public"."cleanup_expired_pulse"() TO "anon";
+GRANT ALL ON FUNCTION "public"."cleanup_expired_pulse"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."cleanup_expired_pulse"() TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."create_profile_and_free_subscription"() TO "anon";
 GRANT ALL ON FUNCTION "public"."create_profile_and_free_subscription"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."create_profile_and_free_subscription"() TO "service_role";
 GRANT ALL ON FUNCTION "public"."create_profile_and_free_subscription"() TO "supabase_auth_admin";
+
+
+
+GRANT ALL ON FUNCTION "public"."fetch_personalized_pulse"("p_user_id" "uuid", "p_limit" integer, "p_threshold" double precision) TO "anon";
+GRANT ALL ON FUNCTION "public"."fetch_personalized_pulse"("p_user_id" "uuid", "p_limit" integer, "p_threshold" double precision) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."fetch_personalized_pulse"("p_user_id" "uuid", "p_limit" integer, "p_threshold" double precision) TO "service_role";
 
 
 
@@ -2481,9 +5534,6 @@ GRANT ALL ON FUNCTION "public"."handle_zombie_jobs"() TO "service_role";
 
 
 
-GRANT ALL ON FUNCTION "public"."hybrid_search"("query_text" "text", "query_embedding" "extensions"."vector", "match_threshold" double precision, "match_count" integer) TO "anon";
-GRANT ALL ON FUNCTION "public"."hybrid_search"("query_text" "text", "query_embedding" "extensions"."vector", "match_threshold" double precision, "match_count" integer) TO "authenticated";
-GRANT ALL ON FUNCTION "public"."hybrid_search"("query_text" "text", "query_embedding" "extensions"."vector", "match_threshold" double precision, "match_count" integer) TO "service_role";
 
 
 
@@ -2523,27 +5573,24 @@ GRANT ALL ON FUNCTION "public"."reset_monthly_quotas"() TO "service_role";
 
 
 
+GRANT ALL ON FUNCTION "public"."reward_sovereign_curation"() TO "anon";
+GRANT ALL ON FUNCTION "public"."reward_sovereign_curation"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."reward_sovereign_curation"() TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."rls_auto_enable"() TO "anon";
 GRANT ALL ON FUNCTION "public"."rls_auto_enable"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."rls_auto_enable"() TO "service_role";
 
 
 
-GRANT ALL ON FUNCTION "public"."save_analysis_and_embedding"("p_podcast_id" bigint, "p_agent_version" "text", "p_ai_summary" "text", "p_narrative_lens" "text", "p_ai_tags" "text"[], "p_ai_coordinates" "point", "p_consistency_level" "public"."consistency_level", "p_embedding" "extensions"."vector") TO "anon";
-GRANT ALL ON FUNCTION "public"."save_analysis_and_embedding"("p_podcast_id" bigint, "p_agent_version" "text", "p_ai_summary" "text", "p_narrative_lens" "text", "p_ai_tags" "text"[], "p_ai_coordinates" "point", "p_consistency_level" "public"."consistency_level", "p_embedding" "extensions"."vector") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."save_analysis_and_embedding"("p_podcast_id" bigint, "p_agent_version" "text", "p_ai_summary" "text", "p_narrative_lens" "text", "p_ai_tags" "text"[], "p_ai_coordinates" "point", "p_consistency_level" "public"."consistency_level", "p_embedding" "extensions"."vector") TO "service_role";
 
 
 
-GRANT ALL ON FUNCTION "public"."search_geo_semantic"("query_embedding" "extensions"."vector", "user_lat" double precision, "user_long" double precision, "radius_units" double precision, "match_threshold" double precision, "match_count" integer) TO "anon";
-GRANT ALL ON FUNCTION "public"."search_geo_semantic"("query_embedding" "extensions"."vector", "user_lat" double precision, "user_long" double precision, "radius_units" double precision, "match_threshold" double precision, "match_count" integer) TO "authenticated";
-GRANT ALL ON FUNCTION "public"."search_geo_semantic"("query_embedding" "extensions"."vector", "user_lat" double precision, "user_long" double precision, "radius_units" double precision, "match_threshold" double precision, "match_count" integer) TO "service_role";
 
 
 
-GRANT ALL ON FUNCTION "public"."search_knowledge_vault"("query_embedding" "extensions"."vector", "match_threshold" double precision, "match_count" integer, "only_public" boolean) TO "anon";
-GRANT ALL ON FUNCTION "public"."search_knowledge_vault"("query_embedding" "extensions"."vector", "match_threshold" double precision, "match_count" integer, "only_public" boolean) TO "authenticated";
-GRANT ALL ON FUNCTION "public"."search_knowledge_vault"("query_embedding" "extensions"."vector", "match_threshold" double precision, "match_count" integer, "only_public" boolean) TO "service_role";
 
 
 
@@ -2571,6 +5618,12 @@ GRANT ALL ON FUNCTION "public"."update_curator_reputation"() TO "service_role";
 
 
 
+GRANT ALL ON FUNCTION "public"."update_dna_timestamp"() TO "anon";
+GRANT ALL ON FUNCTION "public"."update_dna_timestamp"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."update_dna_timestamp"() TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."update_follow_counts"() TO "anon";
 GRANT ALL ON FUNCTION "public"."update_follow_counts"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."update_follow_counts"() TO "service_role";
@@ -2580,6 +5633,108 @@ GRANT ALL ON FUNCTION "public"."update_follow_counts"() TO "service_role";
 GRANT ALL ON FUNCTION "public"."update_like_count"() TO "anon";
 GRANT ALL ON FUNCTION "public"."update_like_count"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."update_like_count"() TO "service_role";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2793,9 +5948,21 @@ GRANT ALL ON TABLE "public"."profiles" TO "service_role";
 
 
 
+GRANT ALL ON TABLE "public"."pulse_staging" TO "anon";
+GRANT ALL ON TABLE "public"."pulse_staging" TO "authenticated";
+GRANT ALL ON TABLE "public"."pulse_staging" TO "service_role";
+
+
+
 GRANT ALL ON TABLE "public"."subscriptions" TO "anon";
 GRANT ALL ON TABLE "public"."subscriptions" TO "authenticated";
 GRANT ALL ON TABLE "public"."subscriptions" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."user_interest_dna" TO "anon";
+GRANT ALL ON TABLE "public"."user_interest_dna" TO "authenticated";
+GRANT ALL ON TABLE "public"."user_interest_dna" TO "service_role";
 
 
 
@@ -2808,6 +5975,14 @@ GRANT ALL ON TABLE "public"."user_resonance_profiles" TO "service_role";
 GRANT ALL ON TABLE "public"."user_usage" TO "anon";
 GRANT ALL ON TABLE "public"."user_usage" TO "authenticated";
 GRANT ALL ON TABLE "public"."user_usage" TO "service_role";
+
+
+
+SET SESSION AUTHORIZATION "postgres";
+RESET SESSION AUTHORIZATION;
+
+
+
 
 
 
@@ -2835,6 +6010,34 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TAB
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "anon";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "authenticated";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "service_role";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
