@@ -1,39 +1,56 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# dependencies
+# --- Dependencies ---
 /node_modules
+/.pnp
+.pnp.js
 
-# next.js
+# --- Next.js Framework ---
 /.next/
 /out/
+next-env.d.ts
+*.tsbuildinfo
 
-# production
+# --- Production & Build ---
 /build
+/dist
 
-# debug
+# --- Debugging Logs ---
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files
+# --- Environment Variables (CRITICAL) ---
 .env*
-
-# Ignorar archivos de entorno locales
 .env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
-# vercel
-.vercel
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-
-*.deb
-
-# Ignorar secretos del backend de Supabase
+# --- Supabase Secrets ---
 supabase/.env
 supabase/service-account.json
+supabase/.temp/
 
-# Sentry Config File
+# --- Vercel ---
+.vercel
+
+# --- Sentry ---
 .env.sentry-build-plugin
+
+# --- OS System Files ---
+.DS_Store
+Thumbs.db
+*.deb
+
+# --- Modern PWA Artifacts (@ducanh2912/next-pwa) ---
+# Estos archivos se generan dinámicamente en el build. 
+# No deben estar en el repositorio para evitar conflictos de caché.
+public/sw.js
+public/sw.js.map
+public/workbox-*.js
+public/workbox-*.js.map
+public/worker-*.js
+public/worker-*.js.map
+public/fallback-*.js

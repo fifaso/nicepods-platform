@@ -1,15 +1,22 @@
 // next.config.mjs
-// VERSIÓN: 18.1 (Master Strategy: PWA Resource Optimization)
+// VERSIÓN: 20.0 (Silent Mode: Sentry Fix & Webpack Quiet)
 
+import withPWAInit from "@ducanh2912/next-pwa";
 import { withSentryConfig } from '@sentry/nextjs';
-import withPWA from 'next-pwa';
-import defaultRuntimeCaching from 'next-pwa/cache.js';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
+
+  // [FIX]: Silenciar el warning de Cross Origin ampliando los orígenes
+  experimental: {
+    serverActions: {
+      allowedOrigins: ["localhost:3000", "127.0.0.1:3000", "*.github.dev", "*.gitpod.io", "*.app.github.dev"]
+    }
+  },
+
   images: {
     unoptimized: true,
     remotePatterns: [
@@ -18,13 +25,20 @@ const nextConfig = {
       { protocol: 'https', hostname: 'avatars.githubusercontent.com' },
     ],
   },
+
   webpack: (config, { isServer }) => {
+    // [FIX]: Silenciar warnings de "Serializing big strings"
+    config.infrastructureLogging = {
+      level: 'error',
+    };
+
     if (isServer) {
       config.resolve.alias.canvas = false;
       config.resolve.alias.encoding = false;
     }
     return config;
   },
+
   async headers() {
     return [
       {
@@ -38,50 +52,59 @@ const nextConfig = {
       },
     ];
   },
+
   async rewrites() {
     return [
       { source: '/ingest/static/:path*', destination: 'https://eu-assets.i.posthog.com/static/:path*' },
       { source: '/ingest/:path*', destination: 'https://eu.i.posthog.com/:path*' },
     ];
   },
+
   skipTrailingSlashRedirect: true,
 };
 
-const pwaConfig = {
-  dest: 'public',
-  register: false,
+// --- CONFIGURACIÓN PWA ---
+const withPWA = withPWAInit({
+  dest: "public",
+  disable: process.env.NODE_ENV === "development", // Esto evita logs de PWA en dev
+  register: true,
   skipWaiting: true,
-  disable: process.env.NODE_ENV === 'development',
-  navigationPreload: false,
-  buildExcludes: [
-    /middleware-manifest\.json$/,
-    /app-build-manifest\.json$/,
-    /\.map$/,
-    /^.*woff2$/ // [MEJORA]: Excluimos fuentes del precaché de compilación para dejar que el runtime lo maneje
-  ],
+  reloadOnOnline: true,
+  cacheOnFrontEndNav: true,
+  aggressiveFrontEndNavCaching: true,
   fallbacks: {
-    document: '/offline',
+    document: "/offline",
   },
-  runtimeCaching: [
-    {
-      urlPattern: /^https:\/\/.*supabase\.co\/storage\/v1\/object\/public\/.*/i,
-      handler: 'CacheFirst',
-      options: {
-        cacheName: 'supabase-media-cache',
-        expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 365 },
-        cacheableResponse: { statuses: [0, 200] },
+  workboxOptions: {
+    disableDevLogs: true, // Silencia logs de Workbox
+    runtimeCaching: [
+      {
+        urlPattern: /^https:\/\/.*supabase\.co\/storage\/v1\/object\/public\/.*/i,
+        handler: 'CacheFirst',
+        options: {
+          cacheName: 'supabase-media-cache',
+          expiration: {
+            maxEntries: 200,
+            maxAgeSeconds: 60 * 60 * 24 * 365
+          },
+          cacheableResponse: { statuses: [0, 200] },
+        },
       },
-    },
-    ...defaultRuntimeCaching,
-  ],
-};
-
-const withPwaPlugin = withPWA(pwaConfig);
-
-export default withSentryConfig(withPwaPlugin(nextConfig), {
-  org: 'nicepod',
-  project: 'javascript-nextjs',
-  silent: !process.env.CI,
-  widenClientFileUpload: true,
-  hideSourceMaps: true,
+    ],
+  },
 });
+
+// --- EXPORTACIÓN FINAL ---
+export default withSentryConfig(
+  withPWA(nextConfig),
+  {
+    org: 'nicepod',
+    project: 'javascript-nextjs',
+    silent: true,
+    widenClientFileUpload: true,
+
+    // [FIX CRÍTICO]: Eliminamos 'disableLogger' y otras opciones obsoletas.
+    // Solo dejamos hideSourceMaps que es seguro.
+    hideSourceMaps: true,
+  }
+);
