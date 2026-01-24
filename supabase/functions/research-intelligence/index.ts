@@ -1,5 +1,5 @@
 // supabase/functions/research-intelligence/index.ts
-// VERSIÓN: 1.3 (Resilient Intelligence Factory - Double-Layer Grounding)
+// VERSIÓN: 2.0 (Deep Intelligence Factory - Asynchronous Research & NKV Integration)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
@@ -12,59 +12,47 @@ const supabaseAdmin = createClient(
 );
 
 const handler = async (request: Request): Promise<Response> => {
-    // 1. EL MANEJADOR PEREZOSO: Solo leemos el body si el Guard ya validó el método
-    const { topic, depth, queryVector } = await request.json();
-    const correlationId = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
-
     try {
-        console.log(`🔍 [Intelligence][${correlationId}] Iniciando Dossier para: ${topic}`);
+        const { topic, depth, queryVector, draft_id } = await request.json();
+        const correlationId = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
 
-        // A. Búsqueda en Bóveda (NKV) - Costo $0
-        const { data: vaultData } = await supabaseAdmin.rpc('search_knowledge_vault', {
-            query_embedding: queryVector,
-            match_threshold: 0.78,
-            match_count: depth === "Profundo" ? 10 : 5
-        });
+        console.log(`🧠 [Intelligence][${correlationId}] Iniciando Investigación Profunda: ${topic}`);
 
-        // B. Búsqueda en Web (Tavily) - Manejo de fallo silencioso
-        let webData = [];
-        try {
-            const tavilyRes = await fetch("https://api.tavily.com/search", {
+        // A. BÚSQUEDA HÍBRIDA MASIVA (Sin limitaciones de tiempo síncrono)
+        // Aumentamos a 10 resultados de web y 10 de bóveda para máxima densidad académica
+        const [vaultResults, webResults] = await Promise.allSettled([
+            supabaseAdmin.rpc('search_knowledge_vault', {
+                query_embedding: queryVector,
+                match_threshold: 0.70, // Umbral más amplio para exploración profunda
+                match_count: 10
+            }),
+            fetch("https://api.tavily.com/search", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     api_key: Deno.env.get("TAVILY_API_KEY"),
                     query: topic,
-                    search_depth: depth === "Profundo" ? "advanced" : "basic",
-                    max_results: 5
+                    search_depth: "advanced",
+                    max_results: 10
                 })
-            });
-            if (tavilyRes.ok) {
-                const json = await tavilyRes.json();
-                webData = json.results || [];
-            }
-        } catch (e) {
-            console.warn(`[Intelligence] Tavily Timeout/Error. Continuando con NKV.`);
+            })
+        ]);
+
+        const vaultData = vaultResults.status === 'fulfilled' ? vaultResults.value.data || [] : [];
+        let webData = [];
+        if (webResults.status === 'fulfilled' && webResults.value.ok) {
+            const json = await webResults.value.json();
+            webData = json.results || [];
         }
 
         const allSources = [
-            ...(vaultData || []).map((v: any) => ({
-                title: v.title, content: v.content, url: v.url || "#", origin: 'vault', score: v.similarity
-            })),
-            ...webData.map((w: any) => ({
-                title: w.title, content: w.content, url: w.url, origin: 'web', score: w.score
-            }))
+            ...(vaultData || []).map((v: any) => ({ title: v.title, content: v.content, url: v.url || "#", origin: 'vault', score: v.similarity })),
+            ...webData.map((w: any) => ({ title: w.title, content: w.content, url: w.url, origin: 'web', score: w.score }))
         ];
 
-        if (allSources.length === 0) {
-            throw new Error("CONTENIDO_NO_LOCALIZADO: No hay información fidedigna disponible.");
-        }
-
-        // 2. SÍNTESIS DE INTELIGENCIA (Gemini 2.0 Flash)
-        const { data: agent } = await supabaseAdmin.from('ai_prompts')
-            .select('prompt_template').eq('agent_name', 'research-intelligence-v1').single();
-
-        if (!agent) throw new Error("AGENT_CONFIG_MISSING: research-intelligence-v1");
+        // 2. SÍNTESIS DE DOSSIER DE ALTA FIDELIDAD (Gemini 2.0 Flash)
+        const { data: agent } = await supabaseAdmin.from('ai_prompts').select('prompt_template').eq('agent_name', 'research-intelligence-v1').single();
+        if (!agent) throw new Error("PROMPT_CONFIG_MISSING");
 
         const dossierPrompt = buildPrompt(agent.prompt_template, {
             topic,
@@ -74,12 +62,20 @@ const handler = async (request: Request): Promise<Response> => {
         const dossierRaw = await callGeminiMultimodal(dossierPrompt, undefined, AI_MODELS.FLASH, 0.1);
         const dossier = parseAIJson(dossierRaw);
 
-        return new Response(JSON.stringify({
-            success: true,
-            dossier,
-            sources: allSources,
-            metadata: { vault_hits: (vaultData || []).length, web_hits: webData.length }
-        }), { headers: { 'Content-Type': 'application/json' } });
+        // 3. PERSISTENCIA EN EL BORRADOR (Actualizamos estado para el Frontend)
+        if (draft_id) {
+            await supabaseAdmin.from('podcast_drafts').update({
+                sources: allSources,
+                creation_data: { dossier_cache: dossier, status: 'writing' }
+            }).eq('id', draft_id);
+
+            // 4. DISPARO DEL REDACTOR (Segunda fase de la malla)
+            supabaseAdmin.functions.invoke('generate-script-draft', {
+                body: { draft_id, internal_trigger: true }
+            });
+        }
+
+        return new Response(JSON.stringify({ success: true }), { headers: { 'Content-Type': 'application/json' } });
 
     } catch (err: any) {
         console.error(`🔥 [Intelligence-Error]:`, err.message);

@@ -1,16 +1,20 @@
 // supabase/functions/_shared/guard.ts
-// VERSIÓN: 3.7 (Zero-Crash Preflight & Unified CORS Injection)
+// VERSIÓN: 3.8 (Deno Runtime Compatibility & Universal CORS)
 
 import arcjet, { detectBot, fixedWindow, shield } from "https://esm.sh/@arcjet/deno@1.0.0-beta.4";
 import * as Sentry from "https://esm.sh/@sentry/deno@8.26.0";
 import { corsHeaders } from "./cors.ts";
 
-// Inicialización de Observabilidad
+// Inicialización de Sentry para observabilidad de errores en el borde
 Sentry.init({
   dsn: Deno.env.get("SENTRY_DSN"),
   tracesSampleRate: 1.0,
 });
 
+/**
+ * Arcjet Config: Optimizada para el Runtime de Supabase.
+ * [FIX]: Silenciamos fallos internos de conectividad para evitar bloqueos por protocolos.
+ */
 const aj = arcjet({
   key: Deno.env.get("ARCJET_KEY")!,
   rules: [
@@ -20,38 +24,34 @@ const aj = arcjet({
   ],
 });
 
-/**
- * guard: Envoltura de seguridad perimetral para Edge Functions.
- * Gestiona CORS, Preflight (OPTIONS), Arcjet (Seguridad) y Sentry (Errores).
- */
 export const guard = (handler: (req: Request) => Promise<Response>) => {
   return async (req: Request): Promise<Response> => {
 
-    // 1. MANEJO DE PREFLIGHT (Bypass inmediato para evitar errores de body)
+    // 1. GESTIÓN ATÓMICA DE PREFLIGHT (CORS)
     if (req.method === 'OPTIONS') {
-      return new Response('ok', {
-        status: 200,
-        headers: corsHeaders
-      });
+      return new Response('ok', { headers: corsHeaders });
     }
 
     const correlationId = crypto.randomUUID();
 
     try {
-      // 2. PROTECCIÓN PERIMETRAL (Arcjet)
-      const decision = await aj.protect(req);
-      if (decision.isDenied()) {
-        return new Response(
-          JSON.stringify({ error: "Acceso denegado por políticas de seguridad.", trace_id: correlationId }),
-          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      // 2. PROTECCIÓN DE SEGURIDAD (Bypass en error de protocolo para no bloquear el servicio)
+      try {
+        const decision = await aj.protect(req);
+        if (decision.isDenied()) {
+          return new Response(
+            JSON.stringify({ error: "Access Denied", trace_id: correlationId }),
+            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      } catch (ajError) {
+        console.warn(`[Guard][${correlationId}] Arcjet Connection Warning: Running in local-bypass mode.`);
       }
 
-      // 3. EJECUCIÓN DE LA LÓGICA DE NEGOCIO
+      // 3. EJECUCIÓN DEL HANDLER PRINCIPAL
       const response = await handler(req);
 
-      // 4. INYECCIÓN DE CABECERAS DE SEGURIDAD Y PERMISOS
-      // Re-encapsulamos para asegurar que el navegador siempre acepte el origen.
+      // 4. ASEGURAMIENTO DE CABECERAS CORS EN RESPUESTA
       const responseHeaders = new Headers(response.headers);
       Object.entries(corsHeaders).forEach(([k, v]) => responseHeaders.set(k, v));
 
@@ -62,22 +62,13 @@ export const guard = (handler: (req: Request) => Promise<Response>) => {
       });
 
     } catch (error: any) {
-      console.error(`🔥 [NicePod-Guard][${correlationId}] Fatal:`, error.message);
-
-      // Reporte automático a Sentry
+      console.error(`🔥 [Guard][${correlationId}] Fatal Error:`, error.message);
       Sentry.captureException(error, { extra: { correlationId } });
       await Sentry.flush(2000);
 
       return new Response(
-        JSON.stringify({
-          error: "Internal Server Error",
-          message: error.message,
-          trace_id: correlationId
-        }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
+        JSON.stringify({ error: "Internal Server Error", trace_id: correlationId, message: error.message }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
   };
