@@ -1,142 +1,77 @@
 // supabase/functions/research-intelligence/index.ts
-// VERSIÓN: 1.1 (Master Intelligence Factory - Hybrid Search & Multi-Source Synthesis)
+// VERSIÓN: 1.2 (Resilient Intelligence Factory - Layered Search)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
+import { AI_MODELS, buildPrompt, callGeminiMultimodal, parseAIJson } from "../_shared/ai.ts";
+import { corsHeaders, guard } from "../_shared/guard.ts";
 
-// Importaciones de núcleo con rutas relativas para estabilidad en el despliegue
-import { AI_MODELS, callGeminiMultimodal, parseAIJson, buildPrompt } from "../_shared/ai.ts";
-import { guard } from "../_shared/guard.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+const supabaseAdmin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-interface ResearchSource {
-    title: string;
-    url: string;
-    snippet: string;
-    origin: 'vault' | 'web';
-    relevance?: number;
-}
-
-const TAVILY_API_KEY = Deno.env.get("TAVILY_API_KEY") ?? "";
-const supabaseAdmin: SupabaseClient = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-);
-
-/**
- * handler: Orquestador de la fase de investigación.
- * Realiza búsqueda híbrida y síntesis de dossier técnico.
- */
 const handler = async (request: Request): Promise<Response> => {
     const correlationId = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
 
     try {
         const { topic, depth, queryVector } = await request.json();
 
-        if (!topic || !queryVector) {
-            throw new Error("REQUISITOS_INSUFICIENTES: Se requiere 'topic' y 'queryVector'.");
-        }
+        // 1. BÚSQUEDA HÍBRIDA RESILIENTE
+        // No usamos Promise.all para que el fallo de una fuente no mate la otra
+        console.log(`🔍 [Intelligence][${correlationId}] Investigando: ${topic}`);
 
-        console.log(`🔍 [Intelligence][${correlationId}] Iniciando investigación profunda para: ${topic}`);
+        // A. Bóveda Interna (Costo $0 - Prioridad Alta)
+        const { data: vaultData } = await supabaseAdmin.rpc('search_knowledge_vault', {
+            query_embedding: queryVector,
+            match_threshold: 0.78,
+            match_count: depth === "Profundo" ? 10 : 5
+        });
 
-        // 1. BÚSQUEDA HÍBRIDA SIMULTÁNEA (NKV + WEB)
-        // Definimos límites según la profundidad solicitada
-        const vaultLimit = depth === "Profundo" ? 8 : 4;
-        const webLimit = depth === "Profundo" ? 6 : 3;
-
-        const [vaultResponse, webSearchResponse] = await Promise.all([
-            // Consulta a la Sabiduría Comunitaria (Costo $0)
-            supabaseAdmin.rpc('search_knowledge_vault', {
-                query_embedding: queryVector,
-                match_threshold: 0.75,
-                match_count: vaultLimit
-            }),
-            // Consulta a la Actualidad Mundial (Tavily)
-            fetch("https://api.tavily.com/search", {
+        // B. Web Abierta (Tavily - Costo Variable)
+        let webData = { results: [] };
+        try {
+            const tavilyRes = await fetch("https://api.tavily.com/search", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    api_key: TAVILY_API_KEY,
+                    api_key: Deno.env.get("TAVILY_API_KEY"),
                     query: topic,
                     search_depth: depth === "Profundo" ? "advanced" : "basic",
-                    max_results: webLimit,
-                    include_answer: false
+                    max_results: 5
                 })
-            })
-        ]);
+            });
+            if (tavilyRes.ok) webData = await tavilyRes.json();
+        } catch (e) {
+            console.warn(`[Intelligence][${correlationId}] Tavily inaccesible. Usando solo NKV.`);
+        }
 
-        // 2. NORMALIZACIÓN DE RESULTADOS
-        const vaultData = vaultResponse.data || [];
-        const webData = webSearchResponse.ok ? await webSearchResponse.json() : { results: [] };
-
-        const allSources: ResearchSource[] = [
-            ...vaultData.map((v: any) => ({
-                title: v.title,
-                url: v.url || "#",
-                snippet: v.content,
-                origin: 'vault' as const,
-                relevance: v.similarity
-            })),
-            ...(webData.results || []).map((w: any) => ({
-                title: w.title,
-                url: w.url,
-                snippet: w.content,
-                origin: 'web' as const,
-                relevance: w.score
-            }))
+        const allSources = [
+            ...(vaultData || []).map((v: any) => ({ title: v.title, snippet: v.content, origin: 'vault', score: v.similarity })),
+            ...(webData.results || []).map((w: any) => ({ title: w.title, snippet: w.content, origin: 'web', score: w.score }))
         ];
 
-        // 3. GENERACIÓN DEL DOSSIER DE INTELIGENCIA (IA Flash 1.5)
-        // Usamos el modelo Flash para destilar la información masiva en un dossier estructurado.
-        const { data: agent } = await supabaseAdmin
-            .from('ai_prompts')
-            .select('prompt_template')
-            .eq('agent_name', 'research-intelligence-v1')
-            .single();
+        if (allSources.length === 0) throw new Error("SIN_CONTEXTO: No se encontró información relevante.");
 
-        if (!agent) throw new Error("CONFIG_ERROR: Agente 'research-intelligence-v1' no localizado.");
+        // 2. SÍNTESIS DE DOSSIER (Gemini 3.0 Flash)
+        const { data: agent } = await supabaseAdmin.from('ai_prompts')
+            .select('prompt_template').eq('agent_name', 'research-intelligence-v1').single();
 
-        const finalPrompt = buildPrompt(agent.prompt_template, {
-            topic,
-            depth,
-            raw_sources: JSON.stringify(allSources)
-        });
-
-        console.log(`🧠 [Intelligence][${correlationId}] Sintetizando dossier con Gemini Flash...`);
+        if (!agent) throw new Error("PROMPT_CONFIG_MISSING: research-intelligence-v1");
 
         const dossierRaw = await callGeminiMultimodal(
-            finalPrompt,
+            buildPrompt(agent.prompt_template, { topic, raw_sources: JSON.stringify(allSources) }),
             undefined,
-            AI_MODELS.FLASH, // [OPTIMIZACIÓN]: Flash 1.5 para bajo costo en análisis
-            0.3 // Temperatura baja para máxima precisión en hechos
+            AI_MODELS.FLASH,
+            0.1
         );
 
-        const dossier = parseAIJson(dossierRaw);
-
-        // 4. RESPUESTA TÉCNICA
         return new Response(JSON.stringify({
             success: true,
-            dossier,
+            dossier: parseAIJson(dossierRaw),
             sources: allSources,
-            metadata: {
-                vault_hits: vaultData.length,
-                web_hits: (webData.results || []).length,
-                correlation_id: correlationId
-            }
-        }), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" }
-        });
+            trace_id: correlationId
+        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     } catch (err: any) {
-        console.error(`🔥 [Intelligence Error][${correlationId}]:`, err.message);
-        return new Response(JSON.stringify({
-            success: false,
-            error: err.message,
-            trace_id: correlationId
-        }), {
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" }
-        });
+        return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
     }
 };
 

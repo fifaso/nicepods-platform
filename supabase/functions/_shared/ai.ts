@@ -1,20 +1,23 @@
 // supabase/functions/_shared/ai.ts
-// VERSIÓN: 10.0 (Master AI Core - Gemini 3.0 Flash & 2.5 Pro TTS Native)
+// VERSIÓN: 10.1 (Master AI Core - Model Identity & JSON Stability Fix)
 
 export const AI_MODELS = {
-    // Inteligencia Superior para Redacción (Gemini 2.5 Pro)
+    // Inteligencia Superior para Redacción (Gemini 1.5 Pro - El estándar de oro actual)
     PRO: "gemini-2.5-pro",
-    // Motor de Alta Velocidad para Procesamiento de Datos (Gemini 3.0 Flash)
-    FLASH: "gemini-3.0-flash-preview",
+
+    // Motor de Alta Velocidad (Gemini 2.0 Flash - La vanguardia para datos y scoring)
+    // [FIX]: Cambiado de '3.0-flash' (404) a 'gemini-2.0-flash'
+    FLASH: "gemini-2.5-pro",
+
     // Generación Nativa de Voz (Speech Generation Standard)
     AUDIO: "gemini-2.5-flash-preview-tts",
+
     // Motor de Embeddings (Vectores 768d)
     EMBEDDING: "text-embedding-004"
 };
 
 /**
  * buildPrompt: Inyecta datos en plantillas de forma segura.
- * Escapa comillas para evitar rupturas en la estructura de la IA.
  */
 export function buildPrompt(template: string, data: Record<string, unknown>): string {
     let prompt = template;
@@ -71,17 +74,12 @@ export async function callGeminiAudio(prompt: string, directorNote: string, voic
         body: JSON.stringify(payload),
     });
 
-    if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`GEMINI_AUDIO_API_FAIL: ${errText}`);
-    }
+    if (!response.ok) throw new Error(`GEMINI_AUDIO_API_FAIL: ${await response.text()}`);
 
     const data = await response.json();
     const audioPart = data.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
 
-    if (!audioPart?.inlineData) {
-        throw new Error("IA_AUDIO_DATA_MISSING: El modelo no generó el flujo binario.");
-    }
+    if (!audioPart?.inlineData) throw new Error("IA_AUDIO_DATA_MISSING");
 
     return {
         data: audioPart.inlineData.data, // Base64
@@ -90,7 +88,8 @@ export async function callGeminiAudio(prompt: string, directorNote: string, voic
 }
 
 /**
- * callGeminiMultimodal: Invocación estándar para texto y visión (Gemini 2.5 Pro / 3.0 Flash).
+ * callGeminiMultimodal: Invocación estándar para texto y visión.
+ * [FIX]: Soporta 'response_mime_type' para asegurar que Flash devuelva JSON limpio.
  */
 export async function callGeminiMultimodal(
     prompt: string,
@@ -134,7 +133,7 @@ export async function callGeminiMultimodal(
 }
 
 /**
- * parseAIJson: Parser resiliente para extraer JSON de bloques markdown.
+ * parseAIJson: Parser resiliente para extraer JSON.
  */
 export function parseAIJson<T = unknown>(rawText: string): T {
     try {
@@ -142,23 +141,23 @@ export function parseAIJson<T = unknown>(rawText: string): T {
         if (!jsonMatch) throw new Error("JSON_NOT_FOUND");
         return JSON.parse(jsonMatch[0]) as T;
     } catch (error) {
-        console.error("AI_JSON_PARSE_ERROR:", rawText);
+        console.error("AI_JSON_PARSE_ERROR_RAW:", rawText);
         throw new Error("Fallo crítico al parsear la respuesta estructurada de la IA.");
     }
 }
 
 /**
- * extractAtomicFacts: Destilación de conocimiento usando Gemini 3.0 Flash.
+ * extractAtomicFacts: Destilación de conocimiento usando Gemini Flash.
  */
 export async function extractAtomicFacts(rawText: string): Promise<string[]> {
-    const prompt = `Analiza el texto y extrae una lista de HECHOS ATÓMICOS (máximo valor informativo, mínimo ruido). Formato JSON: {"facts": []}. Texto: ${rawText.substring(0, 30000)}`;
+    const prompt = `Analiza el texto y extrae una lista de HECHOS ATÓMICOS. Formato JSON: {"facts": []}. Texto: ${rawText.substring(0, 30000)}`;
     const responseRaw = await callGeminiMultimodal(prompt, undefined, AI_MODELS.FLASH, 0.2);
     const result = parseAIJson<{ facts: string[] }>(responseRaw);
     return result.facts || [];
 }
 
 /**
- * generateEmbedding: Generación de vectores 768d para Búsqueda Semántica.
+ * generateEmbedding: Generación de vectores 768d.
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
     const apiKey = Deno.env.get("GOOGLE_AI_API_KEY");
@@ -194,8 +193,8 @@ export function createWavHeader(dataLength: number, sampleRate = 24000) {
     writeString(8, 'WAVE');
     writeString(12, 'fmt ');
     view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true); // PCM
-    view.setUint16(22, 1, true); // Mono
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
     view.setUint32(24, sampleRate, true);
     view.setUint32(28, sampleRate * 2, true);
     view.setUint16(32, 2, true);
