@@ -1,10 +1,10 @@
 // supabase/functions/generate-script-draft/index.ts
-// VERSIÓN: 22.0 (Master Ingestion Standard - Deep Academic Integration)
+// VERSIÓN: 23.0 (Master Redactor - Agnostic Payload & Direct Pulse Ingestion)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 import { AI_MODELS, buildPrompt, callGeminiMultimodal, generateEmbedding, parseAIJson } from "../_shared/ai.ts";
-import { corsHeaders, guard } from "../_shared/guard.ts";
+import { guard } from "../_shared/guard.ts";
 
 const supabaseAdmin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
@@ -12,74 +12,95 @@ const handler = async (request: Request): Promise<Response> => {
   const correlationId = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
 
   try {
-    const body = await request.json();
-    const inputs = body.inputs || body;
+    const rawBody = await request.json();
+
+    // [ESTRATEGIA]: Unificación de Payload (Aceptamos inputs: {} o body plano)
+    const body = rawBody.inputs ? { ...rawBody.inputs, ...rawBody } : rawBody;
     const { purpose, agentName, draft_id, pulse_source_ids } = body;
 
-    // 1. SEGURIDAD Y CUOTA
+    // 1. VALIDACIÓN DE IDENTIDAD
     const authHeader = request.headers.get('Authorization')!;
-    const { data: { user } } = await supabaseAdmin.auth.getUser(authHeader.replace("Bearer ", ""));
-    if (!user) throw new Error("UNAUTHORIZED");
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(authHeader.replace("Bearer ", ""));
+    if (authError || !user) throw new Error("UNAUTHORIZED_ACCESS");
 
-    // 2. GESTIÓN DE FUENTES (ESTANDARIZACIÓN)
+    console.log(`✍️ [Draft][${correlationId}] Iniciando redacción estratégica para: ${purpose}`);
+
+    // 2. GESTIÓN DE MATERIA PRIMA
     let dossier = null;
     let sources = [];
-    const baseTopic = inputs.solo_topic || inputs.question_to_answer || "Conocimiento NicePod";
+    const baseTopic = body.solo_topic || body.question_to_answer || "Nuevos Horizontes";
 
     if (purpose === 'pulse' && pulse_source_ids?.length > 0) {
-      // INGESTA PULSE: Directo desde el búfer local (Máxima Velocidad)
+      // VÍA PULSE: Ingesta directa de señales del Radar
       const { data: pulseData } = await supabaseAdmin.from('pulse_staging').select('*').in('id', pulse_source_ids);
+      if (!pulseData || pulseData.length === 0) throw new Error("PULSE_SOURCES_NOT_FOUND");
+
       dossier = {
         topic: baseTopic,
-        key_findings: pulseData?.map(d => `[AUTORIDAD: ${d.authority_score}] ${d.title}: ${d.summary}`),
-        technical_data: pulseData
+        key_findings: pulseData.map(p => `[Autoridad: ${p.authority_score}] ${p.title}: ${p.summary}`),
+        evidence_base: pulseData
       };
-      sources = pulseData?.map(d => ({ title: d.title, url: d.url, origin: 'web' })) || [];
+      sources = pulseData.map(p => ({ title: p.title, url: p.url, origin: 'web', source_name: p.source_name }));
     } else {
-      // INGESTA NORMAL: Investigación Híbrida
-      console.log(`🧠 [Draft][${correlationId}] Invocando Inteligencia de Investigación...`);
+      // VÍA ESTÁNDAR: Invocación a Inteligencia de Investigación
       const queryVector = await generateEmbedding(baseTopic);
-      const res = await supabaseAdmin.functions.invoke('research-intelligence', {
-        body: { topic: baseTopic, depth: inputs.narrativeDepth || "Medio", queryVector }
+      const researchRes = await supabaseAdmin.functions.invoke('research-intelligence', {
+        body: { topic: baseTopic, depth: body.narrativeDepth || "Medio", queryVector }
       });
-      if (res.error || !res.data?.success) throw new Error(`IA_RESEARCH_FAIL: ${res.data?.error || 'Worker Inaccesible'}`);
-      dossier = res.data.dossier;
-      sources = res.data.sources;
+
+      if (researchRes.error || !researchRes.data?.success) {
+        throw new Error(`IA_RESEARCH_FAIL: ${researchRes.data?.error || 'Intelligence Node Unreachable'}`);
+      }
+      dossier = researchRes.data.dossier;
+      sources = researchRes.data.sources;
     }
 
-    // 3. REDACCIÓN CON PERSONALIDAD (Gemini 2.5 Pro)
-    const targetAgent = purpose === 'pulse' ? 'briefing-architect-v1' : 'script-architect-v1';
-    const { data: agentPrompt } = await supabaseAdmin.from('ai_prompts').select('prompt_template').eq('agent_name', targetAgent).single();
+    // 3. FASE DE REDACCIÓN (Gemini 1.5 Pro)
+    const agentSlug = purpose === 'pulse' ? 'briefing-architect-v1' : 'script-architect-v1';
+    const { data: promptEntry } = await supabaseAdmin.from('ai_prompts')
+      .select('prompt_template').eq('agent_name', agentSlug).single();
 
-    const finalPrompt = buildPrompt(agentPrompt?.prompt_template || "", {
+    if (!promptEntry) throw new Error(`PROMPT_MISSING: ${agentSlug}`);
+
+    const finalPrompt = buildPrompt(promptEntry.prompt_template, {
       dossier_json: JSON.stringify(dossier),
-      style: agentName, // Inyectamos la personalidad del actor
+      style: agentName || "narrador",
       topic: baseTopic,
-      duration: inputs.duration
+      duration: body.duration || "Media"
     });
 
-    const scriptRaw = await callGeminiMultimodal(finalPrompt, inputs.imageContext, AI_MODELS.PRO);
+    const scriptRaw = await callGeminiMultimodal(finalPrompt, body.imageContext, AI_MODELS.PRO);
     const content = parseAIJson<{ title: string, script_body: string }>(scriptRaw);
 
-    // 4. PERSISTENCIA ATÓMICA
+    // 4. PERSISTENCIA EN BÓVEDA (Sincronización Atómica)
     const { data: draft, error: dbErr } = await supabaseAdmin.from('podcast_drafts').upsert({
       id: draft_id || undefined,
       user_id: user.id,
-      title: content.title,
+      title: content.title || baseTopic,
       script_text: { script_body: content.script_body },
       creation_data: body,
-      sources: sources
+      sources: sources,
+      updated_at: new Date().toISOString()
     }).select('id').single();
 
-    if (dbErr) throw dbErr;
+    if (dbErr) throw new Error(`VAULT_WRITE_FAIL: ${dbErr.message}`);
 
-    return new Response(JSON.stringify({ success: true, draft_id: draft.id, draft: content }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" }
-    });
+    // 5. APRENDIZAJE RECURSIVO (NKV Loop - Asíncrono)
+    fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/vault-refinery`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: `Sabiduría: ${content.title}`, text: JSON.stringify(dossier), source_type: 'user_contribution', is_public: true, is_json: true })
+    }).catch(() => { });
+
+    return new Response(JSON.stringify({
+      success: true,
+      draft_id: draft.id,
+      draft: { suggested_title: content.title, script_body: content.script_body, sources }
+    }), { headers: { 'Content-Type': 'application/json' } });
 
   } catch (err: any) {
-    console.error(`🔥 [Draft-Fatal]:`, err.message);
-    return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+    console.error(`🔥 [Draft-Final-Error]:`, err.message);
+    return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500 });
   }
 };
 
