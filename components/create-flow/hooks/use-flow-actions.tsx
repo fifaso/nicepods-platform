@@ -1,5 +1,5 @@
 // components/create-flow/hooks/use-flow-actions.ts
-// VERSIÓN: 3.1 (Master Action Orchestrator - Hybrid Pulse & Shielded Production)
+// VERSIÓN: 4.1 (Async Flow Actions - Handover Stability)
 
 "use client";
 
@@ -25,11 +25,6 @@ export function useFlowActions({ transitionTo, goBack, clearDraft }: UseFlowActi
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  /**
-   * generateDraft
-   * Fase de inteligencia: Llama al redactor para crear el guion inicial.
-   * [PULSE READY]: Si es modo pulse, envía las fuentes seleccionadas como contexto.
-   */
   const generateDraft = useCallback(async () => {
     if (!user) return;
     setIsGenerating(true);
@@ -38,31 +33,25 @@ export function useFlowActions({ transitionTo, goBack, clearDraft }: UseFlowActi
       const values = getValues();
       const isPulse = values.purpose === 'pulse';
 
-      console.log(`[FlowActions] Solicitando borrador (${values.purpose})...`);
-
+      // Invocamos la malla asíncrona que devuelve un 202 inmediatamente
       const { data, error } = await supabase.functions.invoke("generate-script-draft", {
         body: {
           ...values,
-          // En modo Pulse, inyectamos explícitamente los IDs de las fuentes del radar
           selected_source_ids: isPulse ? values.pulse_source_ids : undefined
         },
       });
 
       if (error) throw new Error(error.message);
 
-      if (data.success) {
-        setValue("final_title", data.title);
-        setValue("final_script", data.script_body);
-        setValue("sources", data.sources || []);
-
-        // Navegamos a la fase de edición (Sanitización)
-        transitionTo("SCRIPT_EDITING");
+      if (data.success && data.draft_id) {
+        // Establecemos el ID para que el Loader sepa a quién escuchar
+        setValue("draft_id", data.draft_id);
+        transitionTo("DRAFT_GENERATION_LOADER");
       }
     } catch (err: any) {
-      console.error("Draft Generation Error:", err);
       toast({
-        title: "Fallo en Redacción",
-        description: err.message || "No pudimos conectar con el agente redactor.",
+        title: "Error de Malla",
+        description: err.message || "Fallo al iniciar investigación.",
         variant: "destructive",
       });
     } finally {
@@ -70,106 +59,36 @@ export function useFlowActions({ transitionTo, goBack, clearDraft }: UseFlowActi
     }
   }, [supabase, user, getValues, setValue, transitionTo, toast]);
 
-  /**
-   * handleSubmitProduction
-   * ORQUESTADOR DE PRODUCCIÓN: Gestiona la entrega final del producto.
-   */
   const handleSubmitProduction = useCallback(async () => {
     if (!user) return;
     setIsSubmitting(true);
-
     const values = getValues();
-    const isPulseMode = values.purpose === 'pulse';
 
     try {
-      // --- VÍA A: PRODUCCIÓN DE PÍLDORA PULSE (FAST-TRACK) ---
-      if (isPulseMode) {
-        console.log("🚀 Producción: Pulse Strategic Pill");
+      const endpoint = values.purpose === 'pulse' ? "generate-briefing-pill" : "queue-podcast-job";
+      const { data, error } = await supabase.functions.invoke(endpoint, { body: values });
+      if (error) throw new Error(error.message);
 
-        const { data, error } = await supabase.functions.invoke("generate-briefing-pill", {
-          body: {
-            selected_source_ids: values.pulse_source_ids,
-            voice_gender: values.voiceGender,
-            user_id: user.id,
-            // Enviamos el script editado por el usuario para la síntesis de voz
-            final_script: values.final_script,
-            final_title: values.final_title
-          }
-        });
-
-        if (error) throw new Error(error.message);
-
-        if (data.success && data.podcast_id) {
-          toast({ title: "Píldora Forjada", description: "Redirigiendo a la pantalla de forja." });
-          router.push(`/podcast/${data.podcast_id}`);
-        }
+      const finalId = data.podcast_id || data.pod_id;
+      if (data.success && finalId) {
+        router.push(`/podcast/${finalId}`);
+        clearDraft();
       }
-      // --- VÍA B: PRODUCCIÓN ESTÁNDAR (LONG-FORM) ---
-      else {
-        console.log("🎬 Producción: Podcast Narrativo Estándar");
-
-        const { data, error } = await supabase.functions.invoke("queue-podcast-job", {
-          body: values,
-        });
-
-        if (error) throw new Error(error.message);
-
-        if (data.success && data.pod_id) {
-          toast({ title: "Producción Iniciada", description: "Moviendo a fase de activos multimedia." });
-          router.push(`/podcast/${data.pod_id}`);
-        }
-      }
-
-      // Reinicio del formulario tras éxito de envío
-      clearDraft();
-
     } catch (err: any) {
-      console.error("Production Submission Error:", err);
-      toast({
-        title: "Error en Producción",
-        description: err.message || "La malla de funciones no respondió correctamente.",
-        variant: "destructive",
-      });
+      toast({ title: "Error en Producción", description: err.message, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
   }, [supabase, user, getValues, router, clearDraft, toast]);
-
-  /**
-   * deleteDraft
-   * Limpieza de la tabla de borradores (Bóveda).
-   */
-  const deleteDraft = useCallback(async (id: number) => {
-    try {
-      const { error } = await supabase
-        .from("podcast_drafts")
-        .delete()
-        .eq("id", id);
-
-      if (error) throw error;
-
-      toast({ title: "Sesión eliminada de la bóveda" });
-      router.refresh();
-    } catch (err: any) {
-      toast({ title: "Fallo al purgar borrador", variant: "destructive" });
-    }
-  }, [supabase, toast, router]);
-
-  /**
-   * analyzeLocalEnvironment
-   * Módulo de Visión Situacional (Placeholder para coherencia de LayoutShell)
-   */
-  const analyzeLocalEnvironment = useCallback(async () => {
-    console.log("[NicePod-Local] Analizando entorno para Local Soul...");
-    // Implementación específica si el flujo lo requiere
-  }, []);
 
   return {
     isGenerating,
     isSubmitting,
     generateDraft,
     handleSubmitProduction,
-    deleteDraft,
-    analyzeLocalEnvironment
+    deleteDraft: async (id: number) => {
+      await supabase.from("podcast_drafts").delete().eq("id", id);
+      router.refresh();
+    }
   };
 }
