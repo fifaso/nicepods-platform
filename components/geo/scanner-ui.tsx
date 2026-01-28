@@ -1,5 +1,5 @@
 // components/geo/scanner-ui.tsx
-// VERSIÓN: 2.1 (Stability Fix - Safe Data Reading)
+// VERSIÓN: 2.2 (Bulletproof Stability - Anti-Crash)
 
 "use client";
 
@@ -14,10 +14,13 @@ import { RadarHUD } from "./radar-hud";
 import { useGeoEngine } from "./use-geo-engine";
 
 export function GeoScannerUI() {
+  // 1. Extraemos los estados del motor geo
   const { status, data, scanEnvironment, submitIntent, reset } = useGeoEngine();
   const [intentText, setIntentText] = useState("");
   const [viewMode, setViewMode] = useState<'scanner' | 'map'>('scanner');
 
+  // 2. [SEGURIDAD CRÍTICA]: Si data es undefined, creamos un fallback para evitar el crash de 'weather'
+  const safeData = data || {};
   const step = status === 'IDLE' ? 1 : status === 'SCANNING' ? 2 : (status === 'ANALYZING' || status === 'REJECTED') ? 3 : 4;
 
   return (
@@ -43,18 +46,18 @@ export function GeoScannerUI() {
         ) : (
           <motion.div key="scanner-view" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="flex-1 flex flex-col gap-6">
 
-            {/* [FIX]: Paso de datos con seguridad opcional */}
+            {/* [FIX]: Usamos safeData y encadenamiento opcional para evitar el error 'reading weather' */}
             <RadarHUD
               status={status}
-              weather={data?.weather}
-              place={data?.place}
+              weather={safeData?.weather}
+              place={safeData?.place}
             />
 
             <div className="flex-1 flex flex-col justify-start min-h-0">
               {status === 'IDLE' && (
-                <div className="text-center space-y-6 pt-4 px-4">
+                <div className="text-center space-y-6 pt-4 px-4 animate-in fade-in duration-700">
                   <h2 className="text-2xl font-black tracking-tighter text-white uppercase">Sincronizar Ciudad</h2>
-                  <Button onClick={scanEnvironment} className="w-full h-16 text-sm font-black tracking-[0.2em] rounded-2xl bg-white text-black shadow-lg shadow-white/5">
+                  <Button onClick={scanEnvironment} className="w-full h-16 text-sm font-black tracking-[0.2em] rounded-2xl bg-white text-black shadow-xl">
                     ACTIVAR SENSORES GEO
                   </Button>
                 </div>
@@ -65,7 +68,7 @@ export function GeoScannerUI() {
                   {status === 'REJECTED' && (
                     <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-2xl text-red-200 text-[11px] flex gap-3 items-center">
                       <AlertTriangle className="h-5 w-5 shrink-0 text-red-500" />
-                      <p><span className="font-black uppercase mr-1">Veredicto:</span> {data?.rejectionReason}</p>
+                      <p><span className="font-black uppercase mr-1">Veredicto:</span> {safeData?.rejectionReason}</p>
                     </div>
                   )}
                   <Textarea
@@ -87,7 +90,7 @@ export function GeoScannerUI() {
 
               {status === 'ACCEPTED' && (
                 <div className="flex-1 flex flex-col">
-                  <GeoRecorder draftId={data?.draftId} script={data?.script} onUploadComplete={() => { reset(); setViewMode('map'); }} />
+                  <GeoRecorder draftId={safeData?.draftId} script={safeData?.script} onUploadComplete={() => { reset(); setViewMode('map'); }} />
                 </div>
               )}
             </div>

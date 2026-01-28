@@ -1,14 +1,16 @@
 {
   "compilerOptions": {
+    /* Configuración de Lenguaje y Entorno */
+    "target": "esnext",
     "lib": [
       "dom",
       "dom.iterable",
       "esnext"
     ],
     "allowJs": true,
-    "target": "ES6",
     "skipLibCheck": true,
     "strict": true,
+    "forceConsistentCasingInFileNames": true,
     "noEmit": true,
     "esModuleInterop": true,
     "module": "esnext",
@@ -17,28 +19,27 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
+    "noImplicitAny": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    /* Resolución de Rutas (Fix para PNPM + Mapbox) */
     "baseUrl": ".",
     "paths": {
       "@/*": [
         "./*"
       ],
       "react-map-gl": [
-        "node_modules/react-map-gl/dist/esm/index.js"
+        "./node_modules/react-map-gl"
       ],
       "mapbox-gl": [
-        "node_modules/mapbox-gl/dist/mapbox-gl.js"
+        "./node_modules/mapbox-gl"
       ]
     },
-    "types": [
-      "node",
-      "react",
-      "react-dom",
-      "mapbox-gl"
+    /* Plugins */
+    "plugins": [
+      {
+        "name": "next"
+      }
     ]
   },
   "include": [
@@ -46,9 +47,19 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    "supabase/functions/**/*.ts"
+    "components/geo/mapbox-env.d.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    ".next",
+    "out",
+    "build",
+    "dist",
+    /* 
+      [CRÍTICO]: Aislamiento de Backend.
+      Evita que TypeScript intente compilar las Edge Functions (Deno) 
+      usando el motor de Node.js de Next.js.
+    */
+    "supabase/functions"
   ]
 }
