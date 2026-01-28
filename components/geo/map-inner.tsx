@@ -1,19 +1,20 @@
 // components/geo/map-inner.tsx
-// VERSIÓN: 1.5 (Clean-Import Production Edition)
+// VERSIÓN: 1.6 (Madrid Resonance - The Unbreakable Build)
 
 "use client";
 
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2, Mic, Play } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useCallback, useMemo, useRef, useState } from "react";
-
-// Importación directa. Next.js usará el alias de la config v26.0 para resolverlo.
-import { GeolocateControl, Layer, Map, Marker, NavigationControl, Popup } from "react-map-gl";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export default function MapInner() {
   const { supabase } = useAuth();
   const { theme } = useTheme();
+
+  // Estado para la librería cargada dinámicamente
+  const [Library, setLibrary] = useState<any>(null);
+
   const mapRef = useRef<any>(null);
   const [memories, setMemories] = useState<any[]>([]);
   const [selectedMemory, setSelectedMemory] = useState<any | null>(null);
@@ -21,6 +22,23 @@ export default function MapInner() {
   const [viewState, setViewState] = useState({
     latitude: 40.4167, longitude: -3.7037, zoom: 16, pitch: 45, bearing: 0,
   });
+
+  // [SOLUCIÓN MAESTRA]: Carga de librería en tiempo de ejecución
+  // Esto evita que Webpack analice el paquete durante el Build de Vercel.
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const loadMap = async () => {
+        try {
+          // Importamos usando el alias de transpilación
+          const mod = await import('react-map-gl');
+          setLibrary(mod);
+        } catch (err) {
+          console.error("Critical: Map library failed to mount", err);
+        }
+      };
+      loadMap();
+    }
+  }, []);
 
   const fetchMemories = useCallback(async (bounds: any) => {
     if (!bounds) return;
@@ -43,6 +61,19 @@ export default function MapInner() {
     theme === "dark" ? "mapbox://styles/mapbox/dark-v11" : "mapbox://styles/mapbox/light-v11"
     , [theme]);
 
+  // Pantalla de carga profesional mientras el motor se inyecta
+  if (!Library) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center bg-black gap-4 rounded-[2rem]">
+        <Loader2 className="h-6 w-6 text-primary animate-spin" />
+        <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Inyectando motor 3D...</span>
+      </div>
+    );
+  }
+
+  // Extraemos los componentes de la librería cargada
+  const { Map, Marker, Popup, NavigationControl, GeolocateControl, Layer } = Library;
+
   const buildingLayer: any = {
     id: "3d-buildings", source: "composite", "source-layer": "building", filter: ["==", "extrude", "true"], type: "fill-extrusion", minzoom: 15,
     paint: {
@@ -59,11 +90,13 @@ export default function MapInner() {
 
       <Map
         {...viewState}
+        ref={mapRef}
         onMove={(evt: any) => setViewState(evt.viewState)}
         onMoveEnd={(evt: any) => { if (evt.target) fetchMemories(evt.target.getBounds()); }}
         mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
         style={{ width: "100%", height: "100%" }}
         mapStyle={mapStyle}
+        reuseMaps
       >
         <GeolocateControl position="top-right" trackUserLocation showUserHeading />
         <NavigationControl position="top-right" showCompass={false} />
