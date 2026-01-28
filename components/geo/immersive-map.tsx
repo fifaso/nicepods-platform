@@ -1,54 +1,50 @@
 // components/geo/immersive-map.tsx
-// VERSIÓN: 3.2 (Universal Edition - IDE Sync Fix & Vercel Ready)
+// VERSIÓN: 4.0 (Madrid Resonance - Full Production Standard)
 
 "use client";
 
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2, Mic, Play } from "lucide-react";
-import "mapbox-gl/dist/mapbox-gl.css";
 import { useTheme } from "next-themes";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-// @ts-ignore - Ignoramos el error visual del IDE. El build usará 'transpilePackages' de next.config
+// Importamos el CSS de Mapbox para evitar fallos visuales
+import "mapbox-gl/dist/mapbox-gl.css";
+
+/**
+ * [ESTRATEGIA DE BLINDAJE]: 
+ * Usamos @ts-ignore solo para el import porque el IDE en la nube tiene latencia con PNPM,
+ * pero Next.js usará 'transpilePackages' definido en tu config para el build real.
+ */
+// @ts-ignore
 import { GeolocateControl, Layer, Map, Marker, NavigationControl, Popup } from "react-map-gl";
 
-/** 
- * DEFINICIÓN LOCAL DE TIPOS (Self-Healing)
- * Esto soluciona los errores ts(7006) aunque el IDE no encuentre la librería.
- */
-interface ViewState {
-  latitude: number;
-  longitude: number;
-  zoom: number;
-  pitch: number;
-  bearing: number;
-}
-
+// Interfaces Locales para Garantizar Estabilidad
 interface PlaceMemory {
   id: number;
   lat: number;
   lng: number;
   title: string;
   focus_entity: string;
-  content_type: 'chronicle' | 'friend_tip' | 'radar';
+  content_type: "chronicle" | "friend_tip" | "radar";
 }
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
-// Estilo de Edificios 3D
+// Estilo de Capa 3D
 const buildingLayer: any = {
-  id: '3d-buildings',
-  source: 'composite',
-  'source-layer': 'building',
-  filter: ['==', 'extrude', 'true'],
-  type: 'fill-extrusion',
+  id: "3d-buildings",
+  source: "composite",
+  "source-layer": "building",
+  filter: ["==", "extrude", "true"],
+  type: "fill-extrusion",
   minzoom: 15,
   paint: {
-    'fill-extrusion-color': '#aaa',
-    'fill-extrusion-height': ['interpolate', ['linear'], ['zoom'], 15, 0, 15.05, ['get', 'height']],
-    'fill-extrusion-base': ['interpolate', ['linear'], ['zoom'], 15, 0, 15.05, ['get', 'min_height']],
-    'fill-extrusion-opacity': 0.6
-  }
+    "fill-extrusion-color": "#aaa",
+    "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 15, 0, 15.05, ["get", "height"]],
+    "fill-extrusion-base": ["interpolate", ["linear"], ["zoom"], 15, 0, 15.05, ["get", "min_height"]],
+    "fill-extrusion-opacity": 0.6,
+  },
 };
 
 export function ImmersiveMap() {
@@ -56,60 +52,56 @@ export function ImmersiveMap() {
   const { theme } = useTheme();
   const mapRef = useRef<any>(null);
 
+  // Estados
   const [memories, setMemories] = useState<PlaceMemory[]>([]);
   const [selectedMemory, setSelectedMemory] = useState<PlaceMemory | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
-  const [viewState, setViewState] = useState<ViewState>({
+  // [CRÍTICO]: Este useEffect garantiza que el mapa solo se compile en el cliente, 
+  // eliminando errores de exportación en Vercel.
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  const [viewState, setViewState] = useState({
     latitude: 40.4167,
     longitude: -3.7037,
     zoom: 16,
     pitch: 45,
-    bearing: 0
+    bearing: 0,
   });
 
-  // Motor de Carga de Datos PostGIS
   const fetchMemories = useCallback(async (bounds: any) => {
     if (!bounds) return;
     setIsLoading(true);
     try {
       const sw = bounds.getSouthWest();
       const ne = bounds.getNorthEast();
-      const { data, error } = await supabase.rpc('get_memories_in_bounds', {
-        min_lat: sw.lat, min_lng: sw.lng, max_lat: ne.lat, max_lng: ne.lng
+      const { data, error } = await supabase.rpc("get_memories_in_bounds", {
+        min_lat: sw.lat,
+        min_lng: sw.lng,
+        max_lat: ne.lat,
+        max_lng: ne.lng,
       });
       if (!error) setMemories(data || []);
     } catch (e) {
-      console.error(e);
+      console.error("Map Fetch Error:", e);
     } finally {
       setIsLoading(false);
     }
   }, [supabase]);
 
-  // Manejadores de eventos tipados manualmente para evitar ts(7006)
-  const handleMove = useCallback((evt: { viewState: ViewState }) => {
-    setViewState(evt.viewState);
-  }, []);
-
-  const handleMoveEnd = useCallback((evt: { target: any }) => {
-    if (evt.target) {
-      const bounds = evt.target.getBounds();
-      fetchMemories(bounds);
-    }
-  }, [fetchMemories]);
-
   const mapStyle = useMemo(() =>
-    theme === 'dark' ? "mapbox://styles/mapbox/dark-v11" : "mapbox://styles/mapbox/light-v11"
+    theme === "dark" ? "mapbox://styles/mapbox/dark-v11" : "mapbox://styles/mapbox/light-v11"
     , [theme]);
 
-  if (!MAPBOX_TOKEN) return (
-    <div className="h-full flex items-center justify-center bg-zinc-900 text-zinc-500 font-mono text-[10px] uppercase">
-      Mapbox Token Missing in Env
-    </div>
-  );
+  // Si no ha cargado en el cliente o no hay token, no renderizamos el motor de Mapbox
+  if (!isMounted) return <div className="h-full w-full bg-zinc-900 animate-pulse" />;
+  if (!MAPBOX_TOKEN) return <div className="p-4 text-xs font-mono text-red-500">TOKEN_MISSING</div>;
 
   return (
-    <div className="w-full h-full relative rounded-[2.5rem] overflow-hidden border border-white/5 bg-black">
+    <div className="w-full h-full relative rounded-[2.5rem] overflow-hidden border border-white/5 bg-black shadow-2xl">
 
       {isLoading && (
         <div className="absolute top-6 left-6 z-50 bg-black/60 backdrop-blur-xl p-2.5 rounded-full border border-white/10">
@@ -120,8 +112,8 @@ export function ImmersiveMap() {
       <Map
         {...viewState}
         ref={mapRef}
-        onMove={handleMove}
-        onMoveEnd={handleMoveEnd}
+        onMove={(evt: any) => setViewState(evt.viewState)}
+        onMoveEnd={(evt: any) => fetchMemories(evt.target.getBounds())}
         mapboxAccessToken={MAPBOX_TOKEN}
         style={{ width: "100%", height: "100%" }}
         mapStyle={mapStyle}
@@ -129,6 +121,7 @@ export function ImmersiveMap() {
       >
         <GeolocateControl position="top-right" trackUserLocation showUserHeading />
         <NavigationControl position="top-right" showCompass={false} />
+
         <Layer {...buildingLayer} />
 
         {memories.map((mem) => (
@@ -144,7 +137,7 @@ export function ImmersiveMap() {
           >
             <div className="group relative cursor-pointer">
               <div className="absolute inset-0 bg-primary/40 rounded-full animate-ping" />
-              <div className="relative z-10 bg-black border-2 border-primary p-2 rounded-full shadow-[0_0_15px_rgba(var(--primary),0.5)]">
+              <div className="relative z-10 bg-black border-2 border-primary p-2 rounded-full shadow-[0_0_15px_rgba(var(--primary),0.5)] transition-transform hover:scale-125">
                 <Mic className="w-4 h-4 text-white" />
               </div>
             </div>
@@ -160,12 +153,17 @@ export function ImmersiveMap() {
             closeButton={false}
             className="z-50"
           >
-            <div className="p-3 bg-zinc-950 border border-white/10 rounded-2xl shadow-2xl min-w-[200px]">
-              <span className="text-[9px] font-black text-primary/80 uppercase tracking-widest">{selectedMemory.content_type}</span>
-              <h3 className="font-bold text-sm text-white mt-1 leading-tight">{selectedMemory.title}</h3>
-              <p className="text-[10px] text-zinc-400 mt-1 mb-3 line-clamp-1">{selectedMemory.focus_entity}</p>
+            <div className="p-4 bg-zinc-950 border border-white/10 rounded-2xl shadow-2xl min-w-[220px]">
+              <div className="flex items-center gap-2 mb-1.5">
+                <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                <span className="text-[9px] font-black text-primary/80 uppercase tracking-widest">
+                  {selectedMemory.content_type}
+                </span>
+              </div>
+              <h3 className="font-bold text-sm text-white leading-tight mb-1">{selectedMemory.title}</h3>
+              <p className="text-[10px] text-zinc-400 mb-4 line-clamp-2 italic">"{selectedMemory.focus_entity}"</p>
               <button
-                className="w-full bg-primary text-white text-[10px] font-black py-2.5 rounded-xl flex items-center justify-center gap-2 hover:brightness-110 active:scale-95"
+                className="w-full bg-primary text-white text-[10px] font-black py-2.5 rounded-xl flex items-center justify-center gap-2 hover:brightness-110 active:scale-95 transition-all"
                 onClick={() => window.location.href = `/podcast/${selectedMemory.id}`}
               >
                 <Play className="w-3 h-3 fill-current" /> ESCUCHAR ECO

@@ -1,5 +1,5 @@
 // next.config.mjs
-// VERSIÓN: 20.0 (Silent Mode: Sentry Fix & Webpack Quiet)
+// VERSIÓN: 21.0 (Vercel Fix: PNPM + Mapbox Resolution)
 
 import withPWAInit from "@ducanh2912/next-pwa";
 import { withSentryConfig } from '@sentry/nextjs';
@@ -9,9 +9,10 @@ const nextConfig = {
   output: 'standalone',
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
-  transpilePackages: ['react-map-gl'],
 
-  // [FIX]: Silenciar el warning de Cross Origin ampliando los orígenes
+  // CRÍTICO: Obliga a Next.js a procesar la librería de mapas
+  transpilePackages: ['react-map-gl', 'mapbox-gl'],
+
   experimental: {
     serverActions: {
       allowedOrigins: ["localhost:3000", "127.0.0.1:3000", "*.github.dev", "*.gitpod.io", "*.app.github.dev"]
@@ -29,14 +30,18 @@ const nextConfig = {
 
   webpack: (config, { isServer }) => {
     // [FIX]: Silenciar warnings de "Serializing big strings"
-    config.infrastructureLogging = {
-      level: 'error',
-    };
+    config.infrastructureLogging = { level: 'error' };
 
-    if (isServer) {
-      config.resolve.alias.canvas = false;
-      config.resolve.alias.encoding = false;
+    // [FIX CRÍTICO]: Resolución de Mapbox para Vercel + PNPM
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+      };
     }
+
     return config;
   },
 
@@ -64,30 +69,24 @@ const nextConfig = {
   skipTrailingSlashRedirect: true,
 };
 
-// --- CONFIGURACIÓN PWA ---
 const withPWA = withPWAInit({
   dest: "public",
-  disable: process.env.NODE_ENV === "development", // Esto evita logs de PWA en dev
+  disable: process.env.NODE_ENV === "development",
   register: true,
   skipWaiting: true,
   reloadOnOnline: true,
   cacheOnFrontEndNav: true,
   aggressiveFrontEndNavCaching: true,
-  fallbacks: {
-    document: "/offline",
-  },
+  fallbacks: { document: "/offline" },
   workboxOptions: {
-    disableDevLogs: true, // Silencia logs de Workbox
+    disableDevLogs: true,
     runtimeCaching: [
       {
         urlPattern: /^https:\/\/.*supabase\.co\/storage\/v1\/object\/public\/.*/i,
         handler: 'CacheFirst',
         options: {
           cacheName: 'supabase-media-cache',
-          expiration: {
-            maxEntries: 200,
-            maxAgeSeconds: 60 * 60 * 24 * 365
-          },
+          expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 365 },
           cacheableResponse: { statuses: [0, 200] },
         },
       },
@@ -95,7 +94,6 @@ const withPWA = withPWAInit({
   },
 });
 
-// --- EXPORTACIÓN FINAL ---
 export default withSentryConfig(
   withPWA(nextConfig),
   {
@@ -103,9 +101,6 @@ export default withSentryConfig(
     project: 'javascript-nextjs',
     silent: true,
     widenClientFileUpload: true,
-
-    // [FIX CRÍTICO]: Eliminamos 'disableLogger' y otras opciones obsoletas.
-    // Solo dejamos hideSourceMaps que es seguro.
     hideSourceMaps: true,
   }
 );
