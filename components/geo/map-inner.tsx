@@ -1,19 +1,24 @@
 // components/geo/map-inner.tsx
-// VERSIÓN: 1.6 (Madrid Resonance - The Unbreakable Build)
+// VERSIÓN: 1.7 (Madrid Resonance - Deep Path Import Fix)
 
 "use client";
 
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2, Mic, Play } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
+
+/**
+ * [SOLUCIÓN MAESTRA 3]
+ * Importamos desde la ruta física interna para bypass de la validación del root '.'.
+ * Esto junto con 'esmExternals: loose' en next.config es el blindaje total.
+ */
+// @ts-ignore
+import { GeolocateControl, Layer, Map, Marker, NavigationControl, Popup } from 'react-map-gl/dist/es6/index.js';
 
 export default function MapInner() {
   const { supabase } = useAuth();
   const { theme } = useTheme();
-
-  // Estado para la librería cargada dinámicamente
-  const [Library, setLibrary] = useState<any>(null);
 
   const mapRef = useRef<any>(null);
   const [memories, setMemories] = useState<any[]>([]);
@@ -22,23 +27,6 @@ export default function MapInner() {
   const [viewState, setViewState] = useState({
     latitude: 40.4167, longitude: -3.7037, zoom: 16, pitch: 45, bearing: 0,
   });
-
-  // [SOLUCIÓN MAESTRA]: Carga de librería en tiempo de ejecución
-  // Esto evita que Webpack analice el paquete durante el Build de Vercel.
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const loadMap = async () => {
-        try {
-          // Importamos usando el alias de transpilación
-          const mod = await import('react-map-gl');
-          setLibrary(mod);
-        } catch (err) {
-          console.error("Critical: Map library failed to mount", err);
-        }
-      };
-      loadMap();
-    }
-  }, []);
 
   const fetchMemories = useCallback(async (bounds: any) => {
     if (!bounds) return;
@@ -61,29 +49,6 @@ export default function MapInner() {
     theme === "dark" ? "mapbox://styles/mapbox/dark-v11" : "mapbox://styles/mapbox/light-v11"
     , [theme]);
 
-  // Pantalla de carga profesional mientras el motor se inyecta
-  if (!Library) {
-    return (
-      <div className="w-full h-full flex flex-col items-center justify-center bg-black gap-4 rounded-[2rem]">
-        <Loader2 className="h-6 w-6 text-primary animate-spin" />
-        <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Inyectando motor 3D...</span>
-      </div>
-    );
-  }
-
-  // Extraemos los componentes de la librería cargada
-  const { Map, Marker, Popup, NavigationControl, GeolocateControl, Layer } = Library;
-
-  const buildingLayer: any = {
-    id: "3d-buildings", source: "composite", "source-layer": "building", filter: ["==", "extrude", "true"], type: "fill-extrusion", minzoom: 15,
-    paint: {
-      "fill-extrusion-color": "#aaa",
-      "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 15, 0, 15.05, ["get", "height"]],
-      "fill-extrusion-base": ["interpolate", ["linear"], ["zoom"], 15, 0, 15.05, ["get", "min_height"]],
-      "fill-extrusion-opacity": 0.6,
-    },
-  };
-
   return (
     <div className="w-full h-full relative">
       {isLoading && <div className="absolute top-6 left-6 z-50 bg-black/60 p-2 rounded-full border border-white/10"><Loader2 className="h-4 w-4 text-primary animate-spin" /></div>}
@@ -100,13 +65,10 @@ export default function MapInner() {
       >
         <GeolocateControl position="top-right" trackUserLocation showUserHeading />
         <NavigationControl position="top-right" showCompass={false} />
-        <Layer {...buildingLayer} />
+        <Layer id="3d-buildings" source="composite" source-layer="building" filter={["==", "extrude", "true"]} type="fill-extrusion" minzoom={15} paint={{ "fill-extrusion-color": "#aaa", "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 15, 0, 15.05, ["get", "height"]], "fill-extrusion-opacity": 0.6 }} />
 
         {memories.map((mem: any) => (
-          <Marker
-            key={mem.id} latitude={mem.lat} longitude={mem.lng} anchor="bottom"
-            onClick={(e: any) => { if (e.originalEvent) e.originalEvent.stopPropagation(); setSelectedMemory(mem); }}
-          >
+          <Marker key={mem.id} latitude={mem.lat} longitude={mem.lng} anchor="bottom" onClick={(e: any) => { if (e.originalEvent) e.originalEvent.stopPropagation(); setSelectedMemory(mem); }}>
             <div className="group relative cursor-pointer hover:scale-110 transition-transform">
               <div className="absolute inset-0 bg-primary/40 rounded-full animate-ping" />
               <div className="relative z-10 bg-black border-2 border-primary p-2 rounded-full shadow-lg"><Mic className="w-4 h-4 text-white" /></div>
