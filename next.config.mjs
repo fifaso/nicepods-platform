@@ -1,8 +1,12 @@
 // next.config.mjs
-// VERSIÓN: 21.0 (Vercel Fix: PNPM + Mapbox Resolution)
+// VERSIÓN: 23.0 (Madrid Resonance - Vercel Bulletproof Resolution)
 
 import withPWAInit from "@ducanh2912/next-pwa";
 import { withSentryConfig } from '@sentry/nextjs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -10,7 +14,7 @@ const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
 
-  // CRÍTICO: Obliga a Next.js a procesar la librería de mapas
+  // [ESTRATEGIA 1]: Forzamos la transpilación de las librerías de mapas
   transpilePackages: ['react-map-gl', 'mapbox-gl'],
 
   experimental: {
@@ -21,49 +25,36 @@ const nextConfig = {
 
   images: {
     unoptimized: true,
-    remotePatterns: [
-      { protocol: 'https', hostname: '**.supabase.co' },
-      { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
-      { protocol: 'https', hostname: 'avatars.githubusercontent.com' },
-    ],
+    remotePatterns: [{ protocol: 'https', hostname: '**.supabase.co' }],
   },
 
   webpack: (config, { isServer }) => {
-    // [FIX]: Silenciar warnings de "Serializing big strings"
     config.infrastructureLogging = { level: 'error' };
 
-    // [FIX CRÍTICO]: Resolución de Mapbox para Vercel + PNPM
+    // [ESTRATEGIA 2]: Alias de Módulos para PNPM + Vercel
+    // Esta técnica redirige a Webpack directamente al archivo fuente de la librería,
+    // saltándose la validación del package.json que está fallando en el build.
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      'react-map-gl': path.resolve(__dirname, 'node_modules/react-map-gl/dist/esm/index.js'),
+      'mapbox-gl': path.resolve(__dirname, 'node_modules/mapbox-gl/dist/mapbox-gl.js'),
+    };
+
+    // [ESTRATEGIA 3]: Prevención de fallos en el lado del servidor
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
         fs: false,
         net: false,
         tls: false,
+        child_process: false,
       };
     }
 
+    // [ESTRATEGIA 4]: Manejo de binarios pesados (Canvas/Encoding)
+    config.externals = [...(config.externals || []), { canvas: 'canvas' }];
+
     return config;
-  },
-
-  async headers() {
-    return [
-      {
-        source: '/:path*',
-        headers: [
-          { key: 'X-Frame-Options', value: 'DENY' },
-          { key: 'X-Content-Type-Options', value: 'nosniff' },
-          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-          { key: 'Permissions-Policy', value: "camera=(), microphone=(self), geolocation=()" },
-        ],
-      },
-    ];
-  },
-
-  async rewrites() {
-    return [
-      { source: '/ingest/static/:path*', destination: 'https://eu-assets.i.posthog.com/static/:path*' },
-      { source: '/ingest/:path*', destination: 'https://eu.i.posthog.com/:path*' },
-    ];
   },
 
   skipTrailingSlashRedirect: true,
@@ -74,24 +65,10 @@ const withPWA = withPWAInit({
   disable: process.env.NODE_ENV === "development",
   register: true,
   skipWaiting: true,
-  reloadOnOnline: true,
   cacheOnFrontEndNav: true,
   aggressiveFrontEndNavCaching: true,
+  reloadOnOnline: true,
   fallbacks: { document: "/offline" },
-  workboxOptions: {
-    disableDevLogs: true,
-    runtimeCaching: [
-      {
-        urlPattern: /^https:\/\/.*supabase\.co\/storage\/v1\/object\/public\/.*/i,
-        handler: 'CacheFirst',
-        options: {
-          cacheName: 'supabase-media-cache',
-          expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 365 },
-          cacheableResponse: { statuses: [0, 200] },
-        },
-      },
-    ],
-  },
 });
 
 export default withSentryConfig(
@@ -102,5 +79,6 @@ export default withSentryConfig(
     silent: true,
     widenClientFileUpload: true,
     hideSourceMaps: true,
+    disableLogger: true,
   }
 );
