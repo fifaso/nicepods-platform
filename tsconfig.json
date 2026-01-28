@@ -1,7 +1,10 @@
-// tsconfig.json
 {
   "compilerOptions": {
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "target": "ES6",
     "skipLibCheck": true,
@@ -19,10 +22,33 @@
         "name": "next"
       }
     ],
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"]
-    }
+      "@/*": [
+        "./*"
+      ],
+      "react-map-gl": [
+        "./node_modules/react-map-gl"
+      ],
+      "mapbox-gl": [
+        "./node_modules/mapbox-gl"
+      ]
+    },
+    "types": [
+      "node",
+      "react",
+      "react-dom",
+      "mapbox-gl"
+    ]
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    "supabase/functions/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }
