@@ -1,12 +1,8 @@
 // next.config.mjs
-// VERSIÓN: 23.0 (Madrid Resonance - Vercel Bulletproof Resolution)
+// VERSIÓN: 24.0 (Madrid Resonance - Standard Resolution)
 
 import withPWAInit from "@ducanh2912/next-pwa";
 import { withSentryConfig } from '@sentry/nextjs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -14,7 +10,7 @@ const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
 
-  // [ESTRATEGIA 1]: Forzamos la transpilación de las librerías de mapas
+  // Forzamos a Next.js a manejar las librerías de mapas
   transpilePackages: ['react-map-gl', 'mapbox-gl'],
 
   experimental: {
@@ -28,32 +24,8 @@ const nextConfig = {
     remotePatterns: [{ protocol: 'https', hostname: '**.supabase.co' }],
   },
 
-  webpack: (config, { isServer }) => {
+  webpack: (config) => {
     config.infrastructureLogging = { level: 'error' };
-
-    // [ESTRATEGIA 2]: Alias de Módulos para PNPM + Vercel
-    // Esta técnica redirige a Webpack directamente al archivo fuente de la librería,
-    // saltándose la validación del package.json que está fallando en el build.
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      'react-map-gl': path.resolve(__dirname, 'node_modules/react-map-gl/dist/esm/index.js'),
-      'mapbox-gl': path.resolve(__dirname, 'node_modules/mapbox-gl/dist/mapbox-gl.js'),
-    };
-
-    // [ESTRATEGIA 3]: Prevención de fallos en el lado del servidor
-    if (!isServer) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-        net: false,
-        tls: false,
-        child_process: false,
-      };
-    }
-
-    // [ESTRATEGIA 4]: Manejo de binarios pesados (Canvas/Encoding)
-    config.externals = [...(config.externals || []), { canvas: 'canvas' }];
-
     return config;
   },
 
@@ -65,20 +37,11 @@ const withPWA = withPWAInit({
   disable: process.env.NODE_ENV === "development",
   register: true,
   skipWaiting: true,
-  cacheOnFrontEndNav: true,
-  aggressiveFrontEndNavCaching: true,
-  reloadOnOnline: true,
-  fallbacks: { document: "/offline" },
 });
 
-export default withSentryConfig(
-  withPWA(nextConfig),
-  {
-    org: 'nicepod',
-    project: 'javascript-nextjs',
-    silent: true,
-    widenClientFileUpload: true,
-    hideSourceMaps: true,
-    disableLogger: true,
-  }
-);
+export default withSentryConfig(withPWA(nextConfig), {
+  org: 'nicepod',
+  project: 'javascript-nextjs',
+  silent: true,
+  hideSourceMaps: true,
+});

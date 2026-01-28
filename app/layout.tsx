@@ -17,6 +17,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { AudioProvider } from "@/contexts/audio-context";
 import { AuthProvider } from "@/hooks/use-auth";
 import { createClient } from '@/lib/supabase/server';
+import "mapbox-gl/dist/mapbox-gl.css";
 
 // Providers y PWA
 import { InstallPwaButton } from '@/components/install-pwa-button';
