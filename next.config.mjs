@@ -1,8 +1,12 @@
 // next.config.mjs
-// VERSIÓN: 24.0 (Madrid Resonance - Standard Resolution)
+// VERSIÓN: 26.0 (Madrid Resonance - Final Vercel Shield)
 
 import withPWAInit from "@ducanh2912/next-pwa";
 import { withSentryConfig } from '@sentry/nextjs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -10,7 +14,7 @@ const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
 
-  // Forzamos a Next.js a manejar las librerías de mapas
+  // Forzamos la transpilación
   transpilePackages: ['react-map-gl', 'mapbox-gl'],
 
   experimental: {
@@ -19,16 +23,24 @@ const nextConfig = {
     }
   },
 
-  images: {
-    unoptimized: true,
-    remotePatterns: [{ protocol: 'https', hostname: '**.supabase.co' }],
-  },
-
-  webpack: (config) => {
+  webpack: (config, { isServer }) => {
     config.infrastructureLogging = { level: 'error' };
+
+    // [EL FIX MAESTRO]: Redirigimos CUALQUIER intento de importar react-map-gl
+    // directamente al archivo de distribución, saltándonos el package.json roto.
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      'react-map-gl': path.resolve(__dirname, 'node_modules/react-map-gl/dist/es5/index.js'),
+    };
+
+    if (!isServer) {
+      config.resolve.fallback = { ...config.resolve.fallback, fs: false, net: false, tls: false };
+    }
+
     return config;
   },
 
+  images: { unoptimized: true, remotePatterns: [{ protocol: 'https', hostname: '**.supabase.co' }] },
   skipTrailingSlashRedirect: true,
 };
 

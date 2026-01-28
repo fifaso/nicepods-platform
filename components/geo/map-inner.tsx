@@ -1,20 +1,19 @@
 // components/geo/map-inner.tsx
-// VERSIÓN: 1.3 (Build-Safe Dynamic Execution)
+// VERSIÓN: 1.5 (Clean-Import Production Edition)
 
 "use client";
 
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2, Mic, Play } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
-// NOTA: No hay imports de react-map-gl arriba para evitar errores de build.
+// Importación directa. Next.js usará el alias de la config v26.0 para resolverlo.
+import { GeolocateControl, Layer, Map, Marker, NavigationControl, Popup } from "react-map-gl";
 
 export default function MapInner() {
   const { supabase } = useAuth();
   const { theme } = useTheme();
-  const [MapComponents, setMapComponents] = useState<any>(null);
-
   const mapRef = useRef<any>(null);
   const [memories, setMemories] = useState<any[]>([]);
   const [selectedMemory, setSelectedMemory] = useState<any | null>(null);
@@ -22,13 +21,6 @@ export default function MapInner() {
   const [viewState, setViewState] = useState({
     latitude: 40.4167, longitude: -3.7037, zoom: 16, pitch: 45, bearing: 0,
   });
-
-  // CARGA DINÁMICA DE LA LIBRERÍA (Solo en el navegador)
-  useEffect(() => {
-    import('react-map-gl').then(mod => {
-      setMapComponents(mod);
-    });
-  }, []);
 
   const fetchMemories = useCallback(async (bounds: any) => {
     if (!bounds) return;
@@ -51,13 +43,6 @@ export default function MapInner() {
     theme === "dark" ? "mapbox://styles/mapbox/dark-v11" : "mapbox://styles/mapbox/light-v11"
     , [theme]);
 
-  if (!MapComponents) {
-    return <div className="w-full h-full flex items-center justify-center bg-zinc-900 text-zinc-500 font-mono text-[10px]">INICIANDO MOTOR MAPBOX...</div>;
-  }
-
-  const { Map, Marker, Popup, NavigationControl, GeolocateControl, Layer } = MapComponents;
-
-  // Estilo 3D
   const buildingLayer: any = {
     id: "3d-buildings", source: "composite", "source-layer": "building", filter: ["==", "extrude", "true"], type: "fill-extrusion", minzoom: 15,
     paint: {
@@ -74,13 +59,11 @@ export default function MapInner() {
 
       <Map
         {...viewState}
-        ref={mapRef}
         onMove={(evt: any) => setViewState(evt.viewState)}
         onMoveEnd={(evt: any) => { if (evt.target) fetchMemories(evt.target.getBounds()); }}
         mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
         style={{ width: "100%", height: "100%" }}
         mapStyle={mapStyle}
-        reuseMaps
       >
         <GeolocateControl position="top-right" trackUserLocation showUserHeading />
         <NavigationControl position="top-right" showCompass={false} />
@@ -102,7 +85,7 @@ export default function MapInner() {
           <Popup latitude={selectedMemory.lat} longitude={selectedMemory.lng} anchor="top" onClose={() => setSelectedMemory(null)} closeButton={false}>
             <div className="p-3 bg-zinc-950 border border-white/10 rounded-2xl shadow-2xl min-w-[200px]">
               <span className="text-[9px] font-black text-primary/80 uppercase tracking-widest">{selectedMemory.content_type}</span>
-              <h3 className="font-bold text-sm text-white mt-1">{selectedMemory.title}</h3>
+              <h3 className="font-bold text-sm text-white mt-1 leading-tight">{selectedMemory.title}</h3>
               <button className="w-full bg-primary text-white text-[10px] font-black py-2.5 rounded-xl mt-3 flex items-center justify-center gap-2 hover:brightness-110" onClick={() => window.location.href = `/podcast/${selectedMemory.id}`}>
                 <Play className="w-3 h-3 fill-current" /> ESCUCHAR
               </button>
