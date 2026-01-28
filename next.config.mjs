@@ -1,5 +1,5 @@
 // next.config.mjs
-// VERSIÓN: 29.0 (Madrid Resonance - Final Production Armor)
+// VERSIÓN: 30.0 (Madrid Resonance - Clean & Standard)
 
 import withPWAInit from "@ducanh2912/next-pwa";
 import { withSentryConfig } from '@sentry/nextjs';
@@ -10,10 +10,12 @@ const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
 
-  // [ESTRATEGIA MAESTRA]: Evitamos que el servidor toque las librerías de mapas
-  serverExternalPackages: ['react-map-gl', 'mapbox-gl'],
+  // Transpilación necesaria para compatibilidad de librerías
+  transpilePackages: ['react-map-gl', 'mapbox-gl'],
 
   experimental: {
+    // Aquí es donde Next.js 14 prefiere manejar los paquetes externos
+    serverExternalPackages: ['react-map-gl', 'mapbox-gl'],
     serverActions: {
       allowedOrigins: ["localhost:3000", "127.0.0.1:3000", "*.github.dev", "*.gitpod.io", "*.app.github.dev"]
     }
@@ -26,13 +28,6 @@ const nextConfig = {
 
   webpack: (config) => {
     config.infrastructureLogging = { level: 'error' };
-
-    // [FIX]: Forzamos a Webpack a ignorar problemas de resolución en el build
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      "mapbox-gl": "mapbox-gl",
-    };
-
     return config;
   },
 
@@ -51,4 +46,5 @@ export default withSentryConfig(withPWA(nextConfig), {
   project: 'javascript-nextjs',
   silent: true,
   hideSourceMaps: true,
+  disableLogger: true, // [FIX]: Eliminamos el warning de deprecación de Sentry
 });
