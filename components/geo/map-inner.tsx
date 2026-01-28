@@ -11,7 +11,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 export default function MapInner() {
   const { supabase } = useAuth();
   const { theme } = useTheme();
-  const [MapEngine, setMapEngine] = useState<any>(null);
+  const [Library, setLibrary] = useState<any>(null);
 
   const mapRef = useRef<any>(null);
   const [memories, setMemories] = useState<any[]>([]);
@@ -21,19 +21,19 @@ export default function MapInner() {
     latitude: 40.4167, longitude: -3.7037, zoom: 16, pitch: 45, bearing: 0,
   });
 
-  // [ESTRATEGIA TROYA]: Ocultamos el nombre de la librería del compilador de Vercel
   useEffect(() => {
-    const injectMap = async () => {
-      try {
-        // Al usar una variable, Webpack no puede validar el 'exports' en el build
-        const libName = "react" + "-map-gl";
-        const mod = await import(/* @vite-ignore */ /* webpackIgnore: true */ libName);
-        setMapEngine(mod);
-      } catch (err) {
-        console.error("Inyección fallida:", err);
-      }
-    };
-    injectMap();
+    if (typeof window !== "undefined") {
+      const loadMap = async () => {
+        try {
+          const modName = "react" + "-map-gl";
+          const mod = await import(/* @vite-ignore */ /* webpackIgnore: true */ modName);
+          setLibrary(mod);
+        } catch (err) {
+          console.error("Critical: Map library failed to mount", err);
+        }
+      };
+      loadMap();
+    }
   }, []);
 
   const fetchMemories = useCallback(async (bounds: any) => {
@@ -46,23 +46,20 @@ export default function MapInner() {
         min_lat: sw.lat, min_lng: sw.lng, max_lat: ne.lat, max_lng: ne.lng,
       });
       if (!error) setMemories(data || []);
-    } catch (e) { console.error(e); } finally { setIsLoading(false); }
+    } catch (e) {
+      console.error("Map Fetch Error:", e);
+    } finally {
+      setIsLoading(false);
+    }
   }, [supabase]);
 
   const mapStyle = useMemo(() =>
     theme === "dark" ? "mapbox://styles/mapbox/dark-v11" : "mapbox://styles/mapbox/light-v11"
     , [theme]);
 
-  if (!MapEngine) {
-    return (
-      <div className="w-full h-full flex flex-col items-center justify-center bg-black gap-4 rounded-[2rem]">
-        <Loader2 className="h-6 w-6 text-primary animate-spin" />
-        <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Iniciando Red Neuronal Urbana...</span>
-      </div>
-    );
-  }
+  if (!Library) return null;
 
-  const { Map, Marker, Popup, NavigationControl, GeolocateControl, Layer } = MapEngine;
+  const { Map, Marker, Popup, NavigationControl, GeolocateControl, Layer } = Library;
 
   return (
     <div className="w-full h-full relative">
@@ -90,11 +87,12 @@ export default function MapInner() {
         ))}
         {selectedMemory && (
           <Popup latitude={selectedMemory.lat} longitude={selectedMemory.lng} anchor="top" onClose={() => setSelectedMemory(null)} closeButton={false}>
-            <div className="p-3 bg-zinc-950 border border-white/10 rounded-2xl shadow-2xl min-w-[200px]">
+            <div className="p-4 bg-zinc-950 border border-white/10 rounded-2xl shadow-2xl min-w-[220px]">
               <span className="text-[9px] font-black text-primary/80 uppercase tracking-widest">{selectedMemory.content_type}</span>
               <h3 className="font-bold text-sm text-white mt-1 leading-tight">{selectedMemory.title}</h3>
-              <button className="w-full bg-primary text-white text-[10px] font-black py-2.5 rounded-xl mt-3 flex items-center justify-center gap-2 hover:brightness-110" onClick={() => window.location.href = `/podcast/${selectedMemory.id}`}>
-                <Play className="w-3 h-3 fill-current" /> ESCUCHAR
+              <p className="text-[10px] text-zinc-400 mb-4 line-clamp-2 italic">"{selectedMemory.focus_entity}"</p>
+              <button className="w-full bg-primary text-white text-[10px] font-black py-2.5 rounded-xl flex items-center justify-center gap-2 hover:brightness-110 active:scale-95 transition-all" onClick={() => window.location.href = `/podcast/${selectedMemory.id}`}>
+                <Play className="w-3 h-3 fill-current" /> ESCUCHAR ECO
               </button>
             </div>
           </Popup>
