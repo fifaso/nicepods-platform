@@ -9,6 +9,7 @@ const nextConfig = {
   output: 'standalone',
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
+  transpilePackages: ['react-map-gl'],
 
   // [FIX]: Silenciar el warning de Cross Origin ampliando los orígenes
   experimental: {

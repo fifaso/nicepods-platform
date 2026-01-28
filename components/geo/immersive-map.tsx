@@ -1,6 +1,5 @@
 // components/geo/immersive-map.tsx
-// VERSIÓN: 3.0 (Madrid 3D - Self-Healing Architecture)
-// Nota: Esta versión define sus propios contratos de tipos para bypass de errores del IDE.
+// VERSIÓN: 3.2 (Universal Edition - IDE Sync Fix & Vercel Ready)
 
 "use client";
 
@@ -10,12 +9,12 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { useTheme } from "next-themes";
 import { useCallback, useMemo, useRef, useState } from "react";
 
-// @ts-ignore - Bypass visual para entornos de nube
-import Map, { GeolocateControl, Layer, Marker, NavigationControl, Popup } from "react-map-gl";
+// @ts-ignore - Ignoramos el error visual del IDE. El build usará 'transpilePackages' de next.config
+import { GeolocateControl, Layer, Map, Marker, NavigationControl, Popup } from "react-map-gl";
 
 /** 
- * INTERFACES DE EMERGENCIA (Self-Healing)
- * Definimos localmente lo que TypeScript no encuentra en node_modules 
+ * DEFINICIÓN LOCAL DE TIPOS (Self-Healing)
+ * Esto soluciona los errores ts(7006) aunque el IDE no encuentre la librería.
  */
 interface ViewState {
   latitude: number;
@@ -36,7 +35,7 @@ interface PlaceMemory {
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
-// Estilos de capa 3D
+// Estilo de Edificios 3D
 const buildingLayer: any = {
   id: '3d-buildings',
   source: 'composite',
@@ -57,7 +56,6 @@ export function ImmersiveMap() {
   const { theme } = useTheme();
   const mapRef = useRef<any>(null);
 
-  // ESTADO
   const [memories, setMemories] = useState<PlaceMemory[]>([]);
   const [selectedMemory, setSelectedMemory] = useState<PlaceMemory | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -70,7 +68,7 @@ export function ImmersiveMap() {
     bearing: 0
   });
 
-  // Lógica de carga de datos
+  // Motor de Carga de Datos PostGIS
   const fetchMemories = useCallback(async (bounds: any) => {
     if (!bounds) return;
     setIsLoading(true);
@@ -88,14 +86,16 @@ export function ImmersiveMap() {
     }
   }, [supabase]);
 
-  // Manejadores de eventos con tipado explícito para evitar ts(7006)
+  // Manejadores de eventos tipados manualmente para evitar ts(7006)
   const handleMove = useCallback((evt: { viewState: ViewState }) => {
     setViewState(evt.viewState);
   }, []);
 
   const handleMoveEnd = useCallback((evt: { target: any }) => {
-    const bounds = evt.target.getBounds();
-    fetchMemories(bounds);
+    if (evt.target) {
+      const bounds = evt.target.getBounds();
+      fetchMemories(bounds);
+    }
   }, [fetchMemories]);
 
   const mapStyle = useMemo(() =>
@@ -104,12 +104,12 @@ export function ImmersiveMap() {
 
   if (!MAPBOX_TOKEN) return (
     <div className="h-full flex items-center justify-center bg-zinc-900 text-zinc-500 font-mono text-[10px] uppercase">
-      Mapbox Token Missing
+      Mapbox Token Missing in Env
     </div>
   );
 
   return (
-    <div className="w-full h-full relative rounded-[2rem] overflow-hidden border border-white/5 bg-black">
+    <div className="w-full h-full relative rounded-[2.5rem] overflow-hidden border border-white/5 bg-black">
 
       {isLoading && (
         <div className="absolute top-6 left-6 z-50 bg-black/60 backdrop-blur-xl p-2.5 rounded-full border border-white/10">
@@ -129,7 +129,6 @@ export function ImmersiveMap() {
       >
         <GeolocateControl position="top-right" trackUserLocation showUserHeading />
         <NavigationControl position="top-right" showCompass={false} />
-
         <Layer {...buildingLayer} />
 
         {memories.map((mem) => (
@@ -139,7 +138,7 @@ export function ImmersiveMap() {
             longitude={mem.lng}
             anchor="bottom"
             onClick={(e: any) => {
-              e.originalEvent.stopPropagation();
+              if (e.originalEvent) e.originalEvent.stopPropagation();
               setSelectedMemory(mem);
             }}
           >
@@ -166,7 +165,7 @@ export function ImmersiveMap() {
               <h3 className="font-bold text-sm text-white mt-1 leading-tight">{selectedMemory.title}</h3>
               <p className="text-[10px] text-zinc-400 mt-1 mb-3 line-clamp-1">{selectedMemory.focus_entity}</p>
               <button
-                className="w-full bg-primary text-white text-[10px] font-black py-2.5 rounded-xl flex items-center justify-center gap-2 hover:brightness-110"
+                className="w-full bg-primary text-white text-[10px] font-black py-2.5 rounded-xl flex items-center justify-center gap-2 hover:brightness-110 active:scale-95"
                 onClick={() => window.location.href = `/podcast/${selectedMemory.id}`}
               >
                 <Play className="w-3 h-3 fill-current" /> ESCUCHAR ECO
