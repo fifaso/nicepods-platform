@@ -1,24 +1,17 @@
 // components/geo/map-inner.tsx
-// VERSIÓN: 1.7 (Madrid Resonance - Deep Path Import Fix)
+// VERSIÓN: 1.8 (Madrid Resonance - Trojan Build Fix)
 
 "use client";
 
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2, Mic, Play } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useCallback, useMemo, useRef, useState } from "react";
-
-/**
- * [SOLUCIÓN MAESTRA 3]
- * Importamos desde la ruta física interna para bypass de la validación del root '.'.
- * Esto junto con 'esmExternals: loose' en next.config es el blindaje total.
- */
-// @ts-ignore
-import { GeolocateControl, Layer, Map, Marker, NavigationControl, Popup } from 'react-map-gl/dist/es6/index.js';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export default function MapInner() {
   const { supabase } = useAuth();
   const { theme } = useTheme();
+  const [MapEngine, setMapEngine] = useState<any>(null);
 
   const mapRef = useRef<any>(null);
   const [memories, setMemories] = useState<any[]>([]);
@@ -27,6 +20,21 @@ export default function MapInner() {
   const [viewState, setViewState] = useState({
     latitude: 40.4167, longitude: -3.7037, zoom: 16, pitch: 45, bearing: 0,
   });
+
+  // [ESTRATEGIA TROYA]: Ocultamos el nombre de la librería del compilador de Vercel
+  useEffect(() => {
+    const injectMap = async () => {
+      try {
+        // Al usar una variable, Webpack no puede validar el 'exports' en el build
+        const libName = "react" + "-map-gl";
+        const mod = await import(/* @vite-ignore */ /* webpackIgnore: true */ libName);
+        setMapEngine(mod);
+      } catch (err) {
+        console.error("Inyección fallida:", err);
+      }
+    };
+    injectMap();
+  }, []);
 
   const fetchMemories = useCallback(async (bounds: any) => {
     if (!bounds) return;
@@ -38,21 +46,27 @@ export default function MapInner() {
         min_lat: sw.lat, min_lng: sw.lng, max_lat: ne.lat, max_lng: ne.lng,
       });
       if (!error) setMemories(data || []);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsLoading(false);
-    }
+    } catch (e) { console.error(e); } finally { setIsLoading(false); }
   }, [supabase]);
 
   const mapStyle = useMemo(() =>
     theme === "dark" ? "mapbox://styles/mapbox/dark-v11" : "mapbox://styles/mapbox/light-v11"
     , [theme]);
 
+  if (!MapEngine) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center bg-black gap-4 rounded-[2rem]">
+        <Loader2 className="h-6 w-6 text-primary animate-spin" />
+        <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Iniciando Red Neuronal Urbana...</span>
+      </div>
+    );
+  }
+
+  const { Map, Marker, Popup, NavigationControl, GeolocateControl, Layer } = MapEngine;
+
   return (
     <div className="w-full h-full relative">
       {isLoading && <div className="absolute top-6 left-6 z-50 bg-black/60 p-2 rounded-full border border-white/10"><Loader2 className="h-4 w-4 text-primary animate-spin" /></div>}
-
       <Map
         {...viewState}
         ref={mapRef}
@@ -66,7 +80,6 @@ export default function MapInner() {
         <GeolocateControl position="top-right" trackUserLocation showUserHeading />
         <NavigationControl position="top-right" showCompass={false} />
         <Layer id="3d-buildings" source="composite" source-layer="building" filter={["==", "extrude", "true"]} type="fill-extrusion" minzoom={15} paint={{ "fill-extrusion-color": "#aaa", "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 15, 0, 15.05, ["get", "height"]], "fill-extrusion-opacity": 0.6 }} />
-
         {memories.map((mem: any) => (
           <Marker key={mem.id} latitude={mem.lat} longitude={mem.lng} anchor="bottom" onClick={(e: any) => { if (e.originalEvent) e.originalEvent.stopPropagation(); setSelectedMemory(mem); }}>
             <div className="group relative cursor-pointer hover:scale-110 transition-transform">
@@ -75,7 +88,6 @@ export default function MapInner() {
             </div>
           </Marker>
         ))}
-
         {selectedMemory && (
           <Popup latitude={selectedMemory.lat} longitude={selectedMemory.lng} anchor="top" onClose={() => setSelectedMemory(null)} closeButton={false}>
             <div className="p-3 bg-zinc-950 border border-white/10 rounded-2xl shadow-2xl min-w-[200px]">

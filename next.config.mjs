@@ -1,5 +1,5 @@
 // next.config.mjs
-// VERSIÓN: 28.0 (Madrid Resonance - Loose ESM Resolution Fix)
+// VERSIÓN: 29.0 (Madrid Resonance - Final Production Armor)
 
 import withPWAInit from "@ducanh2912/next-pwa";
 import { withSentryConfig } from '@sentry/nextjs';
@@ -10,13 +10,10 @@ const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
 
-  // [SOLUCIÓN MAESTRA 1]: Transpilación forzada
-  transpilePackages: ['react-map-gl', 'mapbox-gl'],
+  // [ESTRATEGIA MAESTRA]: Evitamos que el servidor toque las librerías de mapas
+  serverExternalPackages: ['react-map-gl', 'mapbox-gl'],
 
   experimental: {
-    // [SOLUCIÓN MAESTRA 2]: Relaja la resolución de módulos ESM. 
-    // Esto soluciona el error "Package path . is not exported".
-    esmExternals: 'loose',
     serverActions: {
       allowedOrigins: ["localhost:3000", "127.0.0.1:3000", "*.github.dev", "*.gitpod.io", "*.app.github.dev"]
     }
@@ -29,6 +26,13 @@ const nextConfig = {
 
   webpack: (config) => {
     config.infrastructureLogging = { level: 'error' };
+
+    // [FIX]: Forzamos a Webpack a ignorar problemas de resolución en el build
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      "mapbox-gl": "mapbox-gl",
+    };
+
     return config;
   },
 
