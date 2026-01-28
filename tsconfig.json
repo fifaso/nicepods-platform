@@ -28,10 +28,10 @@
         "./*"
       ],
       "react-map-gl": [
-        "./node_modules/react-map-gl"
+        "node_modules/react-map-gl/dist/esm/index.js"
       ],
       "mapbox-gl": [
-        "./node_modules/mapbox-gl"
+        "node_modules/mapbox-gl/dist/mapbox-gl.js"
       ]
     },
     "types": [
