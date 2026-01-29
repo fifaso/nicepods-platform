@@ -1,5 +1,5 @@
 // next.config.mjs
-// VERSIÓN: 34.0 (Madrid Resonance - Absolute Resolution Fix)
+// VERSIÓN: 35.0 (Madrid Resonance - Full Build Recovery)
 
 import withPWAInit from "@ducanh2912/next-pwa";
 import { withSentryConfig } from '@sentry/nextjs';
@@ -10,10 +10,12 @@ const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
 
-  // [ESTRATEGIA 1]: Transpilación de motores gráficos
+  // Forzamos a Next.js a procesar las librerías conflictivas
   transpilePackages: ['react-map-gl', 'mapbox-gl'],
 
   experimental: {
+    // Relajamos la resolución de módulos para permitir que el bypass funcione
+    esmExternals: 'loose',
     serverActions: {
       allowedOrigins: ["localhost:3000", "127.0.0.1:3000", "*.github.dev", "*.gitpod.io", "*.app.github.dev"]
     }
@@ -26,11 +28,6 @@ const nextConfig = {
 
   webpack: (config) => {
     config.infrastructureLogging = { level: 'error' };
-
-    // [EL FIX DEFINITIVO]: Forzamos a Webpack a aceptar cualquier formato de módulo
-    // Esto evita que el build falle por las reglas estrictas del package.json de react-map-gl
-    config.resolve.conditionNames = ['browser', 'import', 'require'];
-
     return config;
   },
 
@@ -42,8 +39,6 @@ const withPWA = withPWAInit({
   disable: process.env.NODE_ENV === "development",
   register: true,
   skipWaiting: true,
-  cacheOnFrontEndNav: true,
-  aggressiveFrontEndNavCaching: true,
 });
 
 export default withSentryConfig(withPWA(nextConfig), {
@@ -51,6 +46,6 @@ export default withSentryConfig(withPWA(nextConfig), {
   project: 'javascript-nextjs',
   silent: true,
   hideSourceMaps: true,
-  // [FIX]: Eliminamos opciones obsoletas que causaban warnings
+  // [IMPORTANTE]: Eliminamos todas las flags que causan "export *" conflictivos
   disableLogger: true,
 });
