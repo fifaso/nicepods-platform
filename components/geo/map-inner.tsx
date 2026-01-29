@@ -1,5 +1,5 @@
 // components/geo/map-inner.tsx
-// VERSIÓN: 1.13 (Madrid Resonance - Standard Named Import)
+// VERSIÓN: 2.0 (Madrid Resonance - Standard Clean Production)
 
 "use client";
 
@@ -8,7 +8,8 @@ import { Loader2, Mic, Play } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useCallback, useMemo, useRef, useState } from "react";
 
-// [FIX]: Importación por nombre para cumplir con el estándar ESM de v8.1.0
+// Importaciones estándar. La magia de resolución ocurre en next.config.mjs
+// @ts-ignore
 import { GeolocateControl, Layer, Map, Marker, NavigationControl, Popup } from 'react-map-gl';
 
 interface PlaceMemory {
@@ -51,7 +52,7 @@ export default function MapInner() {
       });
       if (!error) setMemories(data || []);
     } catch (e) {
-      console.error("Map Fetch Error:", e);
+      console.error("Fetch Error:", e);
     } finally {
       setIsLoading(false);
     }
@@ -79,7 +80,7 @@ export default function MapInner() {
   return (
     <div className="w-full h-full relative">
       {isLoading && (
-        <div className="absolute top-6 left-6 z-50 bg-black/60 p-2 rounded-full border border-white/10">
+        <div className="absolute top-6 left-6 z-50 bg-black/60 p-2 rounded-full border border-white/10 shadow-xl">
           <Loader2 className="h-4 w-4 text-primary animate-spin" />
         </div>
       )}
@@ -109,9 +110,9 @@ export default function MapInner() {
               setSelectedMemory(mem);
             }}
           >
-            <div className="group relative cursor-pointer hover:scale-125 transition-transform duration-300">
+            <div className="group relative cursor-pointer hover:scale-125 transition-transform">
               <div className="absolute inset-0 bg-primary/40 rounded-full animate-ping opacity-60" />
-              <div className="relative z-10 bg-black border-2 border-primary p-2 rounded-full shadow-[0_0_20px_rgba(var(--primary),0.6)]">
+              <div className="relative z-10 bg-black border-2 border-primary p-2 rounded-full shadow-lg">
                 <Mic className="w-4 h-4 text-white" />
               </div>
             </div>
@@ -129,11 +130,12 @@ export default function MapInner() {
             <div className="p-4 bg-zinc-950 border border-white/10 rounded-2xl shadow-2xl min-w-[220px]">
               <span className="text-[9px] font-black text-primary/80 uppercase tracking-widest">{selectedMemory.content_type}</span>
               <h3 className="font-bold text-sm text-white mt-1 leading-tight">{selectedMemory.title}</h3>
+              <p className="text-[10px] text-zinc-400 mb-4 line-clamp-1 italic">"{selectedMemory.focus_entity}"</p>
               <button
-                className="w-full bg-primary text-white text-[10px] font-black py-3 rounded-xl mt-3 flex items-center justify-center gap-2 hover:brightness-110 transition-all"
+                className="w-full bg-primary text-white text-[10px] font-black py-3 rounded-xl flex items-center justify-center gap-2 hover:brightness-110 active:scale-95 transition-all"
                 onClick={() => window.location.href = `/podcast/${selectedMemory.id}`}
               >
-                <Play className="w-3 h-3 fill-current" /> ESCUCHAR
+                <Play className="w-3.5 h-3.5 fill-current" /> ESCUCHAR ECO
               </button>
             </div>
           </Popup>

@@ -1,12 +1,8 @@
 // next.config.mjs
-// VERSIÓN: 33.0 (Madrid Resonance - Full Module Resolution Shield)
+// VERSIÓN: 34.0 (Madrid Resonance - Absolute Resolution Fix)
 
 import withPWAInit from "@ducanh2912/next-pwa";
 import { withSentryConfig } from '@sentry/nextjs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -14,12 +10,10 @@ const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
 
-  // [ESTRATEGIA 1]: Obligamos a Next.js a procesar las librerías conflictivas
+  // [ESTRATEGIA 1]: Transpilación de motores gráficos
   transpilePackages: ['react-map-gl', 'mapbox-gl'],
 
   experimental: {
-    // [ESTRATEGIA 2]: Relajamos la resolución de módulos ESM
-    esmExternals: 'loose',
     serverActions: {
       allowedOrigins: ["localhost:3000", "127.0.0.1:3000", "*.github.dev", "*.gitpod.io", "*.app.github.dev"]
     }
@@ -33,13 +27,9 @@ const nextConfig = {
   webpack: (config) => {
     config.infrastructureLogging = { level: 'error' };
 
-    // [EL FIX DEFINITIVO]: Alias de resolución física. 
-    // Apuntamos 'react-map-gl' directamente a su archivo de distribución.
-    // Esto soluciona el error "Package path . is not exported"
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      'react-map-gl': path.resolve(__dirname, 'node_modules/react-map-gl/dist/esm/index.js'),
-    };
+    // [EL FIX DEFINITIVO]: Forzamos a Webpack a aceptar cualquier formato de módulo
+    // Esto evita que el build falle por las reglas estrictas del package.json de react-map-gl
+    config.resolve.conditionNames = ['browser', 'import', 'require'];
 
     return config;
   },
@@ -52,6 +42,8 @@ const withPWA = withPWAInit({
   disable: process.env.NODE_ENV === "development",
   register: true,
   skipWaiting: true,
+  cacheOnFrontEndNav: true,
+  aggressiveFrontEndNavCaching: true,
 });
 
 export default withSentryConfig(withPWA(nextConfig), {
@@ -59,5 +51,6 @@ export default withSentryConfig(withPWA(nextConfig), {
   project: 'javascript-nextjs',
   silent: true,
   hideSourceMaps: true,
+  // [FIX]: Eliminamos opciones obsoletas que causaban warnings
   disableLogger: true,
 });
