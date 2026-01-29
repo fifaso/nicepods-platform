@@ -1,49 +1,46 @@
-// app/(geo-mode)/map/page.tsx
-// VERSIÓN: 1.0 (Madrid Resonance - Explorer Mode)
+// app/(geo-mode)/geo/page.tsx
+// VERSIÓN: 2.0 (Madrid Resonance - Dedicated Creation Workspace)
 
 "use client";
 
-import { ImmersiveMap } from "@/components/geo/immersive-map";
+import { GeoScannerUI } from "@/components/geo/scanner-ui";
 import { Button } from "@/components/ui/button";
-import { motion } from "framer-motion";
-import { ArrowLeft, Sparkles } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
-export default function MapExplorerPage() {
+export default function GeoCreationPage() {
   return (
-    <div className="h-screen w-full relative bg-black overflow-hidden">
+    <div className="h-screen w-full relative flex flex-col bg-black overflow-hidden">
 
-      {/* HEADER TÁCTICO */}
-      <header className="absolute top-6 left-6 z-50 flex items-center gap-4">
-        <Link href="/">
-          <Button variant="ghost" size="icon" className="bg-black/60 backdrop-blur-md text-white hover:bg-black/80 rounded-full border border-white/10 shadow-2xl">
-            <ArrowLeft className="h-6 w-6" />
+      {/* HEADER DE SALIDA HACIA EL EXPLORADOR */}
+      <header className="flex-shrink-0 p-6 flex justify-between items-center z-50">
+        <Link href="/map">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-white/40 hover:text-white hover:bg-white/5 rounded-full h-12 w-12 transition-all"
+          >
+            <ArrowLeft className="h-7 w-7" />
           </Button>
         </Link>
-        <div className="bg-black/60 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/10 shadow-2xl">
-          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/70">Madrid Resonance <span className="text-primary">Explorer</span></span>
+
+        <div className="flex flex-col items-end">
+          <div className="text-[10px] font-black tracking-[0.4em] uppercase text-white/20">
+            Nicepod <span className="text-primary/50 ml-1">Spatial Hub</span>
+          </div>
+          <div className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest mt-0.5">
+            Vínculo Neural con la Ciudad
+          </div>
         </div>
       </header>
 
-      {/* MOTOR DEL MAPA 3D (Consumo de memorias) */}
-      <div className="h-full w-full">
-        <ImmersiveMap />
-      </div>
+      {/* ÁREA DE TRABAJO (Scanner + IA + Grabadora) */}
+      <main className="flex-1 overflow-y-auto custom-scrollbar-hide">
+        <GeoScannerUI />
+      </main>
 
-      {/* CTA FLOTANTE: SALTO AL MODO CRONISTA */}
-      <motion.div
-        initial={{ y: 100, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        className="absolute bottom-10 left-1/2 -translate-x-1/2 z-50 w-full max-w-xs px-6"
-      >
-        <Link href="/geo">
-          <Button className="w-full h-16 rounded-[2rem] bg-primary text-white font-black text-xs tracking-[0.2em] shadow-[0_0_40px_rgba(var(--primary),0.4)] border border-white/20 hover:scale-105 active:scale-95 transition-all">
-            <Sparkles className="mr-3 h-5 w-5 animate-pulse" />
-            ANCLAR NUEVA MEMORIA
-          </Button>
-        </Link>
-      </motion.div>
-
+      {/* DECORACIÓN AMBIENTAL (Glow sutil) */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[60%] bg-primary/5 rounded-full blur-[140px] pointer-events-none" />
     </div>
   );
 }
