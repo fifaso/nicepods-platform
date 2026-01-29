@@ -8,11 +8,9 @@ const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
 
-  // OBLIGATORIO: Next.js maneja la resolución interna de estas librerías
   transpilePackages: ['react-map-gl', 'mapbox-gl'],
 
   experimental: {
-    esmExternals: 'loose', // Permite mayor flexibilidad con librerías ESM "rotas"
     serverActions: {
       allowedOrigins: ["localhost:3000", "127.0.0.1:3000", "*.github.dev", "*.gitpod.io"]
     }
