@@ -1,5 +1,5 @@
 // components/geo/use-geo-engine.ts
-// VERSIÓN: 4.1 (Full Logic Recovery - Hyphenated & Secure)
+// VERSIÓN: 4.2 (Debug Enabled - Production Logic)
 
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
@@ -13,19 +13,16 @@ export interface GeoContextData {
   draftId?: string;
   rejectionReason?: string;
   script?: string;
-  classification?: string;
 }
 
 export function useGeoEngine() {
   const { supabase } = useAuth();
   const { toast } = useToast();
-
   const [status, setStatus] = useState<GeoState>('IDLE');
   const [data, setData] = useState<GeoContextData>({});
 
   const scanEnvironment = useCallback(async () => {
     setStatus('SCANNING');
-
     if (!navigator.geolocation) {
       toast({ title: "Error", description: "GPS no disponible", variant: "destructive" });
       setStatus('IDLE');
@@ -46,34 +43,37 @@ export function useGeoEngine() {
 
           if (error) throw error;
 
+          console.log("📍 Ingesta exitosa. ID de sesión:", res.draft_id);
+
           setData({
             weather: res.dossier?.weather,
-            place: res.dossier?.detected_place?.name || "Madrid",
-            draftId: res.draft_id
+            place: res.dossier?.detected_place?.name,
+            draftId: res.draft_id // <--- Captura el ID del backend
           });
-
           setStatus('ANALYZING');
-
         } catch (e: any) {
-          console.error("Ingest Fail:", e);
-          toast({ title: "Fallo de Sensores", variant: "destructive" });
+          console.error("Fallo en sensores:", e);
+          toast({ title: "Error de Sincronización", variant: "destructive" });
           setStatus('IDLE');
         }
       },
-      () => {
-        toast({ title: "Acceso GPS denegado", variant: "destructive" });
-        setStatus('IDLE');
-      },
-      { enableHighAccuracy: true, timeout: 8000 }
+      () => setStatus('IDLE'),
+      { enableHighAccuracy: true }
     );
   }, [supabase, toast]);
 
   const submitIntent = useCallback(async (intentText: string) => {
-    if (!data.draftId) return;
+    // Si no hay draftId, notificamos para saber qué falló
+    if (!data.draftId) {
+      console.error("❌ Abortando: No existe draftId en el estado.");
+      toast({ title: "Sesión expirada", description: "Por favor, reinicia el escaneo.", variant: "destructive" });
+      return;
+    }
+
     setStatus('SCANNING');
+    console.log("🧠 Enviando al Editor Urbano...");
 
     try {
-      // 1. Validar con el Semantic Router
       const { data: routerRes, error: routerErr } = await supabase.functions.invoke('geo-semantic-router', {
         body: { draft_id: data.draftId, user_intent_text: intentText }
       });
@@ -84,31 +84,22 @@ export function useGeoEngine() {
         setStatus('REJECTED');
         setData(prev => ({ ...prev, rejectionReason: routerRes.reason }));
       } else {
-        // 2. Si es aceptado, generar el guion final
         const { data: genRes, error: genErr } = await supabase.functions.invoke('geo-generate-content', {
           body: { draft_id: data.draftId, classification: routerRes.classification }
         });
-
         if (genErr) throw genErr;
 
-        setData(prev => ({
-          ...prev,
-          script: genRes.script,
-          classification: routerRes.classification
-        }));
+        setData(prev => ({ ...prev, script: genRes.script }));
         setStatus('ACCEPTED');
       }
     } catch (e: any) {
-      console.error("Pipeline Error:", e);
-      toast({ title: "Error de IA", description: "El cerebro urbano no respondió.", variant: "destructive" });
+      console.error("Error en pipeline:", e);
+      toast({ title: "Error de IA", variant: "destructive" });
       setStatus('ANALYZING');
     }
   }, [data.draftId, supabase, toast]);
 
-  const reset = useCallback(() => {
-    setStatus('IDLE');
-    setData({});
-  }, []);
+  const reset = useCallback(() => { setStatus('IDLE'); setData({}); }, []);
 
   return { status, data, scanEnvironment, submitIntent, reset };
 }

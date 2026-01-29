@@ -1,10 +1,12 @@
 // components/geo/scanner-ui.tsx
+// VERSIÓN: 3.1 (Fully Connected)
+
 "use client";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { AnimatePresence, motion } from "framer-motion";
-import { AlertTriangle, Map as MapIcon, RefreshCw, Zap } from "lucide-react";
+import { AlertTriangle, Info, Map as MapIcon, RefreshCw, Zap } from "lucide-react";
 import { useState } from "react";
 import { GeoRecorder } from "./geo-recorder";
 import { ImmersiveMap } from "./immersive-map";
@@ -16,20 +18,21 @@ export function GeoScannerUI() {
   const [intentText, setIntentText] = useState("");
   const [viewMode, setViewMode] = useState<'scanner' | 'map'>('scanner');
 
-  // [SOLUCIÓN AL CRASH]: Garantizamos que 'weather' nunca se lea de un undefined
-  const safeWeather = data?.weather || { temp_c: 0, condition: "Sincronizando...", is_day: true };
-  const safePlace = data?.place || "Buscando ubicación...";
-
-  const step = status === 'IDLE' ? 1 : status === 'SCANNING' ? 2 : (status === 'ANALYZING' || status === 'REJECTED') ? 3 : 4;
+  const handleSend = () => {
+    if (intentText.trim().length < 10) return;
+    submitIntent(intentText);
+  };
 
   return (
     <div className="flex flex-col h-full w-full max-w-2xl mx-auto relative px-4 pb-6 overflow-hidden">
+
+      {/* 1. SELECTOR DE VISTA */}
       <div className="flex justify-center mb-6 z-20">
         <div className="bg-white/5 backdrop-blur-2xl border border-white/10 p-1.5 rounded-full flex gap-1 shadow-2xl">
-          <Button variant={viewMode === 'scanner' ? 'secondary' : 'ghost'} size="sm" onClick={() => setViewMode('scanner')} className="rounded-full px-8 text-[10px] font-black uppercase tracking-widest transition-all">
+          <Button variant={viewMode === 'scanner' ? 'secondary' : 'ghost'} size="sm" onClick={() => setViewMode('scanner')} className="rounded-full px-8 text-[10px] font-black uppercase tracking-widest">
             <Zap className="w-3.5 h-3.5 mr-2" /> Scanner
           </Button>
-          <Button variant={viewMode === 'map' ? 'secondary' : 'ghost'} size="sm" onClick={() => setViewMode('map')} className="rounded-full px-8 text-[10px] font-black uppercase tracking-widest transition-all">
+          <Button variant={viewMode === 'map' ? 'secondary' : 'ghost'} size="sm" onClick={() => setViewMode('map')} className="rounded-full px-8 text-[10px] font-black uppercase tracking-widest">
             <MapIcon className="w-3.5 h-3.5 mr-2" /> Mapa 3D
           </Button>
         </div>
@@ -43,33 +46,49 @@ export function GeoScannerUI() {
         ) : (
           <motion.div key="scanner-view" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="flex-1 flex flex-col gap-6">
 
-            {/* Solo mostramos el HUD si el proceso ya inició */}
             {status !== 'IDLE' && (
-              <RadarHUD status={status} weather={safeWeather} place={safePlace} />
+              <RadarHUD status={status} weather={data?.weather} place={data?.place} />
             )}
 
             <div className="flex-1 flex flex-col justify-start min-h-0">
               {status === 'IDLE' && (
                 <div className="text-center space-y-8 pt-10">
                   <h2 className="text-3xl font-black tracking-tighter text-white uppercase italic">Sincronizar Ciudad</h2>
-                  <Button onClick={scanEnvironment} className="w-full h-20 text-sm font-black tracking-[0.3em] rounded-[2rem] bg-white text-black hover:bg-zinc-200 shadow-2xl transition-all">
+                  <Button onClick={scanEnvironment} className="w-full h-16 text-sm font-black tracking-[0.3em] rounded-[2rem] bg-white text-black hover:bg-zinc-200">
                     ACTIVAR SENSORES GEO
                   </Button>
                 </div>
               )}
 
               {(status === 'ANALYZING' || status === 'REJECTED' || status === 'SCANNING') && (
-                <div className="space-y-5">
+                <div className="space-y-5 animate-in slide-in-from-bottom-8">
                   {status === 'REJECTED' && (
                     <div className="bg-red-500/10 border border-red-500/30 p-5 rounded-[1.5rem] text-red-200 text-xs flex gap-4 items-center">
                       <AlertTriangle className="h-6 w-6 shrink-0 text-red-500" />
-                      <p><span className="font-black uppercase block text-[10px] mb-1">Editor Urbano</span> {data?.rejectionReason}</p>
+                      <p><span className="font-black uppercase block text-[10px] mb-1 text-red-500">Editor Urbano</span> {data?.rejectionReason}</p>
                     </div>
                   )}
-                  <Textarea placeholder="Ej: La luz sobre este edificio me recuerda al Madrid de los 80..." className="bg-white/[0.03] border-white/10 min-h-[180px] rounded-[2rem] p-6 text-lg" value={intentText} disabled={status === 'SCANNING'} onChange={(e) => setIntentText(e.target.value)} />
-                  <Button disabled={intentText.trim().length < 10 || status === 'SCANNING'} onClick={() => submitIntent(intentText)} className="w-full h-16 rounded-2xl bg-primary text-white font-black tracking-widest shadow-xl">
-                    {status === 'SCANNING' ? <RefreshCw className="w-6 h-6 animate-spin" /> : "ENVIAR AL EDITOR URBANO"}
-                  </Button>
+
+                  <Textarea
+                    placeholder="¿Qué maravillas ves en el Retiro?"
+                    className="bg-white/[0.03] border-white/10 min-h-[180px] rounded-[2rem] p-6 text-lg text-white"
+                    value={intentText}
+                    disabled={status === 'SCANNING'}
+                    onChange={(e) => setIntentText(e.target.value)}
+                  />
+
+                  <div className="space-y-4">
+                    <Button
+                      disabled={intentText.trim().length < 10 || status === 'SCANNING'}
+                      onClick={handleSend}
+                      className="w-full h-16 rounded-2xl bg-primary text-white font-black tracking-widest shadow-xl"
+                    >
+                      {status === 'SCANNING' ? <RefreshCw className="w-6 h-6 animate-spin mr-2" /> : "ENVIAR AL EDITOR URBANO"}
+                    </Button>
+                    <div className="flex items-center justify-center gap-2 text-[9px] font-bold text-white/20 uppercase tracking-[0.2em]">
+                      <Info className="w-3 h-3" /> Solo contenido de valor urbano e histórico
+                    </div>
+                  </div>
                 </div>
               )}
 
