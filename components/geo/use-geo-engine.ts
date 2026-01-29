@@ -1,9 +1,9 @@
 // components/geo/use-geo-engine.ts
-// VERSIÓN: 4.2 (Debug Enabled - Production Logic)
+// VERSIÓN: 5.0 (Auto-Sensor Handshake & Vision Support)
 
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 export type GeoState = 'IDLE' | 'SCANNING' | 'ANALYZING' | 'REJECTED' | 'ACCEPTED';
 
@@ -13,6 +13,7 @@ export interface GeoContextData {
   draftId?: string;
   rejectionReason?: string;
   script?: string;
+  imageAnalysis?: string;
 }
 
 export function useGeoEngine() {
@@ -21,8 +22,16 @@ export function useGeoEngine() {
   const [status, setStatus] = useState<GeoState>('IDLE');
   const [data, setData] = useState<GeoContextData>({});
 
-  const scanEnvironment = useCallback(async () => {
+  // [NUEVO]: Activación automática de sensores al entrar
+  useEffect(() => {
+    if (status === 'IDLE') {
+      scanEnvironment();
+    }
+  }, []);
+
+  const scanEnvironment = useCallback(async (image_base64?: string) => {
     setStatus('SCANNING');
+
     if (!navigator.geolocation) {
       toast({ title: "Error", description: "GPS no disponible", variant: "destructive" });
       setStatus('IDLE');
@@ -37,23 +46,23 @@ export function useGeoEngine() {
               lat: pos.coords.latitude,
               lng: pos.coords.longitude,
               altitude: pos.coords.altitude,
-              heading: pos.coords.heading
+              image_base64: image_base64 // Enviamos la imagen si existe
             }
           });
 
           if (error) throw error;
 
-          console.log("📍 Ingesta exitosa. ID de sesión:", res.draft_id);
-
           setData({
             weather: res.dossier?.weather,
             place: res.dossier?.detected_place?.name,
-            draftId: res.draft_id // <--- Captura el ID del backend
+            draftId: res.draft_id,
+            imageAnalysis: res.dossier?.visual_summary
           });
+
           setStatus('ANALYZING');
         } catch (e: any) {
-          console.error("Fallo en sensores:", e);
-          toast({ title: "Error de Sincronización", variant: "destructive" });
+          console.error("Ingest Fail:", e);
+          toast({ title: "Fallo de Sensores", variant: "destructive" });
           setStatus('IDLE');
         }
       },
@@ -63,21 +72,12 @@ export function useGeoEngine() {
   }, [supabase, toast]);
 
   const submitIntent = useCallback(async (intentText: string) => {
-    // Si no hay draftId, notificamos para saber qué falló
-    if (!data.draftId) {
-      console.error("❌ Abortando: No existe draftId en el estado.");
-      toast({ title: "Sesión expirada", description: "Por favor, reinicia el escaneo.", variant: "destructive" });
-      return;
-    }
-
+    if (!data.draftId) return;
     setStatus('SCANNING');
-    console.log("🧠 Enviando al Editor Urbano...");
-
     try {
       const { data: routerRes, error: routerErr } = await supabase.functions.invoke('geo-semantic-router', {
         body: { draft_id: data.draftId, user_intent_text: intentText }
       });
-
       if (routerErr) throw routerErr;
 
       if (!routerRes.success) {
@@ -88,12 +88,10 @@ export function useGeoEngine() {
           body: { draft_id: data.draftId, classification: routerRes.classification }
         });
         if (genErr) throw genErr;
-
         setData(prev => ({ ...prev, script: genRes.script }));
         setStatus('ACCEPTED');
       }
     } catch (e: any) {
-      console.error("Error en pipeline:", e);
       toast({ title: "Error de IA", variant: "destructive" });
       setStatus('ANALYZING');
     }
