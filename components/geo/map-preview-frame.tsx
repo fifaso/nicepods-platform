@@ -64,7 +64,7 @@ export function MapPreviewFrame() {
   }, []);
 
   const handlePortalClick = () => {
-    router.push("/geo");
+    router.push("/map");
   };
 
   // Evitamos el renderizado en servidor para mantener la consistencia del cliente
