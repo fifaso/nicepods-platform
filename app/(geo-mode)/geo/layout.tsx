@@ -1,3 +1,4 @@
+// app/(geo-mode)/geo/layout.tsx
 import type { Metadata, Viewport } from "next";
 
 export const viewport: Viewport = {
@@ -10,7 +11,7 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: "Madrid Resonance | Modo Explorador",
-  description: "Capa de realidad aumentada sonora sobre Madrid.",
+  description: "Capa de realidad aumentada sonora sobre la ciudad de Madrid.",
 };
 
 export default function GeoLayout({ children }: { children: React.ReactNode }) {

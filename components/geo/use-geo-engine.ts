@@ -1,5 +1,5 @@
 // components/geo/use-geo-engine.ts
-// VERSIÓN: 4.0 (Madrid Resonance - Full Synchronization & Stability)
+// VERSIÓN: 4.1 (Full Logic Recovery - Hyphenated & Secure)
 
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
@@ -8,11 +8,7 @@ import { useCallback, useState } from 'react';
 export type GeoState = 'IDLE' | 'SCANNING' | 'ANALYZING' | 'REJECTED' | 'ACCEPTED';
 
 export interface GeoContextData {
-  weather?: {
-    temp_c: number;
-    condition: string;
-    is_day: boolean;
-  };
+  weather?: { temp_c: number; condition: string; is_day: boolean };
   place?: string;
   draftId?: string;
   rejectionReason?: string;
@@ -27,104 +23,84 @@ export function useGeoEngine() {
   const [status, setStatus] = useState<GeoState>('IDLE');
   const [data, setData] = useState<GeoContextData>({});
 
-  // 1. ESCANEO Y DETECCIÓN DE CONTEXTO
   const scanEnvironment = useCallback(async () => {
     setStatus('SCANNING');
 
     if (!navigator.geolocation) {
-      toast({
-        title: "Sensores no disponibles",
-        description: "Tu navegador no soporta geolocalización.",
-        variant: "destructive"
-      });
+      toast({ title: "Error", description: "GPS no disponible", variant: "destructive" });
       setStatus('IDLE');
       return;
     }
 
     navigator.geolocation.getCurrentPosition(
-      async (position) => {
+      async (pos) => {
         try {
-          // Invocación exacta según lista de Supabase CLI
-          const { data: response, error } = await supabase.functions.invoke('geo-ingest-context', {
+          const { data: res, error } = await supabase.functions.invoke('geo-ingest-context', {
             body: {
-              lat: position.coords.latitude,
-              lng: position.coords.longitude,
-              altitude: position.coords.altitude,
-              heading: position.coords.heading
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude,
+              altitude: pos.coords.altitude,
+              heading: pos.coords.heading
             }
           });
 
           if (error) throw error;
 
-          // Mapeo seguro de la respuesta de la Edge Function
           setData({
-            weather: response.dossier?.weather,
-            place: response.dossier?.detected_place?.name || "Ubicación en Madrid",
-            draftId: response.draft_id
+            weather: res.dossier?.weather,
+            place: res.dossier?.detected_place?.name || "Madrid",
+            draftId: res.draft_id
           });
 
           setStatus('ANALYZING');
 
-        } catch (err: any) {
-          console.error("Error en Ingesta Geo:", err);
-          toast({
-            title: "Fallo de Sincronización",
-            description: "No pudimos conectar con los sensores de la ciudad.",
-            variant: "destructive"
-          });
+        } catch (e: any) {
+          console.error("Ingest Fail:", e);
+          toast({ title: "Fallo de Sensores", variant: "destructive" });
           setStatus('IDLE');
         }
       },
-      (err) => {
-        const message = err.code === 1 ? "Acceso al GPS denegado." : "No se pudo fijar la señal GPS.";
-        toast({ title: "Fallo de GPS", description: message, variant: "destructive" });
+      () => {
+        toast({ title: "Acceso GPS denegado", variant: "destructive" });
         setStatus('IDLE');
       },
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: true, timeout: 8000 }
     );
   }, [supabase, toast]);
 
-  // 2. ENVÍO DE INTENCIÓN AL EDITOR URBANO
   const submitIntent = useCallback(async (intentText: string) => {
     if (!data.draftId) return;
     setStatus('SCANNING');
 
     try {
-      // Invocación al Router Semántico
-      const { data: routerResponse, error: routerError } = await supabase.functions.invoke('geo-semantic-router', {
-        body: {
-          draft_id: data.draftId,
-          user_intent_text: intentText
-        }
+      // 1. Validar con el Semantic Router
+      const { data: routerRes, error: routerErr } = await supabase.functions.invoke('geo-semantic-router', {
+        body: { draft_id: data.draftId, user_intent_text: intentText }
       });
 
-      if (routerError) throw routerError;
+      if (routerErr) throw routerErr;
 
-      if (!routerResponse.success) {
-        // Manejo de rechazo por contenido personal/irrelevante
+      if (!routerRes.success) {
         setStatus('REJECTED');
-        setData(prev => ({ ...prev, rejectionReason: routerResponse.reason }));
+        setData(prev => ({ ...prev, rejectionReason: routerRes.reason }));
       } else {
-        // Aprobado: Procedemos a generar el guion inmersivo
-        const { data: genResponse, error: genError } = await supabase.functions.invoke('geo-generate-content', {
-          body: {
-            draft_id: data.draftId,
-            classification: routerResponse.classification
-          }
+        // 2. Si es aceptado, generar el guion final
+        const { data: genRes, error: genErr } = await supabase.functions.invoke('geo-generate-content', {
+          body: { draft_id: data.draftId, classification: routerRes.classification }
         });
 
-        if (genError) throw genError;
+        if (genErr) throw genErr;
 
         setData(prev => ({
           ...prev,
-          script: genResponse.script,
-          classification: routerResponse.classification
+          script: genRes.script,
+          classification: routerRes.classification
         }));
         setStatus('ACCEPTED');
       }
-    } catch (err: any) {
-      console.error("Error en Proceso Semántico:", err);
-      toast({ title: "Error de IA", description: "El Editor Urbano no pudo procesar tu idea.", variant: "destructive" });
+    } catch (e: any) {
+      console.error("Pipeline Error:", e);
+      toast({ title: "Error de IA", description: "El cerebro urbano no respondió.", variant: "destructive" });
       setStatus('ANALYZING');
     }
   }, [data.draftId, supabase, toast]);
@@ -134,11 +110,5 @@ export function useGeoEngine() {
     setData({});
   }, []);
 
-  return {
-    status,
-    data,
-    scanEnvironment,
-    submitIntent,
-    reset
-  };
+  return { status, data, scanEnvironment, submitIntent, reset };
 }
