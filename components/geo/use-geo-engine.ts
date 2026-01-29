@@ -1,18 +1,23 @@
 // components/geo/use-geo-engine.ts
-// VERSIÓN: 1.0 (Bridge to Geo-Suite Edge Functions)
+// VERSIÓN: 4.0 (Madrid Resonance - Full Synchronization & Stability)
 
-import { useAuth } from '@/hooks/use-auth'; // Tu hook de auth existente
+import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { useCallback, useState } from 'react';
 
-export type GeoState = 'IDLE' | 'SCANNING' | 'ANALYZING' | 'REJECTED' | 'ACCEPTED' | 'RECORDING';
+export type GeoState = 'IDLE' | 'SCANNING' | 'ANALYZING' | 'REJECTED' | 'ACCEPTED';
 
 export interface GeoContextData {
-  weather?: { temp_c: number; condition: string };
+  weather?: {
+    temp_c: number;
+    condition: string;
+    is_day: boolean;
+  };
   place?: string;
   draftId?: string;
   rejectionReason?: string;
   script?: string;
+  classification?: string;
 }
 
 export function useGeoEngine() {
@@ -22,107 +27,112 @@ export function useGeoEngine() {
   const [status, setStatus] = useState<GeoState>('IDLE');
   const [data, setData] = useState<GeoContextData>({});
 
-  // 1. INGESTA: Captura GPS y Sensores
+  // 1. ESCANEO Y DETECCIÓN DE CONTEXTO
   const scanEnvironment = useCallback(async () => {
     setStatus('SCANNING');
 
     if (!navigator.geolocation) {
-      toast({ title: "Error GPS", description: "Tu dispositivo no soporta geolocalización.", variant: "destructive" });
+      toast({
+        title: "Sensores no disponibles",
+        description: "Tu navegador no soporta geolocalización.",
+        variant: "destructive"
+      });
       setStatus('IDLE');
       return;
     }
 
     navigator.geolocation.getCurrentPosition(
-      async (pos) => {
+      async (position) => {
         try {
-          // Llamada a tu nueva función 'ingest-context'
-          const { data: res, error } = await supabase.functions.invoke('geo-ingest-context', {
+          // Invocación exacta según lista de Supabase CLI
+          const { data: response, error } = await supabase.functions.invoke('geo-ingest-context', {
             body: {
-              lat: pos.coords.latitude,
-              lng: pos.coords.longitude,
-              altitude: pos.coords.altitude,
-              heading: pos.coords.heading,
-              // Aquí podrías pasar image_base64 si integras cámara
+              lat: position.coords.latitude,
+              lng: position.coords.longitude,
+              altitude: position.coords.altitude,
+              heading: position.coords.heading
             }
           });
 
           if (error) throw error;
 
-          setData(prev => ({
-            ...prev,
-            weather: res.context.weather,
-            place: res.context.place,
-            draftId: res.draft_id
-          }));
+          // Mapeo seguro de la respuesta de la Edge Function
+          setData({
+            weather: response.dossier?.weather,
+            place: response.dossier?.detected_place?.name || "Ubicación en Madrid",
+            draftId: response.draft_id
+          });
 
-          setStatus('ANALYZING'); // Listo para pedir input al usuario
+          setStatus('ANALYZING');
 
-        } catch (e: any) {
-          console.error("Ingest Error:", e);
-          toast({ title: "Fallo de Sensores", description: "No pudimos conectar con la Bóveda de Madrid.", variant: "destructive" });
+        } catch (err: any) {
+          console.error("Error en Ingesta Geo:", err);
+          toast({
+            title: "Fallo de Sincronización",
+            description: "No pudimos conectar con los sensores de la ciudad.",
+            variant: "destructive"
+          });
           setStatus('IDLE');
         }
       },
       (err) => {
-        toast({ title: "GPS Bloqueado", description: "Necesitamos permiso para ver dónde estás.", variant: "destructive" });
+        const message = err.code === 1 ? "Acceso al GPS denegado." : "No se pudo fijar la señal GPS.";
+        toast({ title: "Fallo de GPS", description: message, variant: "destructive" });
         setStatus('IDLE');
       },
-      { enableHighAccuracy: true }
+      { enableHighAccuracy: true, timeout: 10000 }
     );
   }, [supabase, toast]);
 
-  // 2. JUICIO: Envía la intención al "Semantic Router"
-  const submitIntent = useCallback(async (userIntentText: string) => {
+  // 2. ENVÍO DE INTENCIÓN AL EDITOR URBANO
+  const submitIntent = useCallback(async (intentText: string) => {
     if (!data.draftId) return;
-    setStatus('SCANNING'); // Reusamos estado de carga visual
+    setStatus('SCANNING');
 
     try {
-      const { data: res, error } = await supabase.functions.invoke('geo-semantic-router', {
+      // Invocación al Router Semántico
+      const { data: routerResponse, error: routerError } = await supabase.functions.invoke('geo-semantic-router', {
         body: {
           draft_id: data.draftId,
-          user_intent_text: userIntentText
+          user_intent_text: intentText
         }
       });
 
-      if (error) throw error;
+      if (routerError) throw routerError;
 
-      if (!res.success) {
-        // EL EDITOR URBANO RECHAZÓ EL CONTENIDO
+      if (!routerResponse.success) {
+        // Manejo de rechazo por contenido personal/irrelevante
         setStatus('REJECTED');
-        setData(prev => ({ ...prev, rejectionReason: res.reason }));
-        toast({ title: "Contenido Rechazado", description: "El Editor Urbano requiere más foco en la ciudad.", variant: "default" });
+        setData(prev => ({ ...prev, rejectionReason: routerResponse.reason }));
       } else {
-        // APROBADO -> Generamos guion
-        await generateFinalScript(data.draftId, res.classification);
-      }
+        // Aprobado: Procedemos a generar el guion inmersivo
+        const { data: genResponse, error: genError } = await supabase.functions.invoke('geo-generate-content', {
+          body: {
+            draft_id: data.draftId,
+            classification: routerResponse.classification
+          }
+        });
 
-    } catch (e) {
-      toast({ title: "Error de Juicio", description: "El router semántico no responde.", variant: "destructive" });
+        if (genError) throw genError;
+
+        setData(prev => ({
+          ...prev,
+          script: genResponse.script,
+          classification: routerResponse.classification
+        }));
+        setStatus('ACCEPTED');
+      }
+    } catch (err: any) {
+      console.error("Error en Proceso Semántico:", err);
+      toast({ title: "Error de IA", description: "El Editor Urbano no pudo procesar tu idea.", variant: "destructive" });
       setStatus('ANALYZING');
     }
   }, [data.draftId, supabase, toast]);
 
-  // 3. GENERACIÓN: Crea el guion final
-  const generateFinalScript = async (draftId: string, classification: string) => {
-    try {
-      const { data: res, error } = await supabase.functions.invoke('geo-generate-geo-content', {
-        body: { draft_id: draftId, classification }
-      });
-
-      if (error) throw error;
-
-      setData(prev => ({ ...prev, script: res.script }));
-      setStatus('ACCEPTED'); // Éxito final
-
-    } catch (e) {
-      console.error("Gen Error", e);
-    }
-  };
-
-  const reset = () => {
+  const reset = useCallback(() => {
     setStatus('IDLE');
     setData({});
-  };
+  }, []);
 
   return {
     status,
