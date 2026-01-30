@@ -1,12 +1,11 @@
 // supabase/functions/_shared/ai.ts
-// VERSIÓN: 10.1 (Master AI Core - Model Identity & JSON Stability Fix)
+// VERSIÓN: 10.2 (Master AI Core - Production Shield & Narrative Integrity)
 
 export const AI_MODELS = {
-    // Inteligencia Superior para Redacción (Gemini 1.5 Pro - El estándar de oro actual)
+    // Inteligencia Superior para Redacción (Probado y validado)
     PRO: "gemini-2.5-pro",
 
-    // Motor de Alta Velocidad (Gemini 2.0 Flash - La vanguardia para datos y scoring)
-    // [FIX]: Cambiado de '3.0-flash' (404) a 'gemini-2.0-flash'
+    // Motor de Alta Velocidad para Datos (Probado y validado)
     FLASH: "gemini-2.5-pro",
 
     // Generación Nativa de Voz (Speech Generation Standard)
@@ -18,13 +17,19 @@ export const AI_MODELS = {
 
 /**
  * buildPrompt: Inyecta datos en plantillas de forma segura.
+ * [MEJORA]: Manejo de valores nulos y escape de caracteres de control.
  */
 export function buildPrompt(template: string, data: Record<string, unknown>): string {
     let prompt = template;
     for (const [key, value] of Object.entries(data)) {
-        const stringValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
+        // Manejamos fallbacks para datos inexistentes
+        const safeValue = value ?? "";
+        const stringValue = typeof safeValue === 'object' ? JSON.stringify(safeValue) : String(safeValue);
+
+        // Escapamos comillas dobles para no romper la estructura de instrucciones de la IA
         prompt = prompt.split(`{{${key}}}`).join(stringValue.replace(/"/g, '\\"'));
     }
+    // Limpieza final de etiquetas no resueltas
     return prompt.replace(/{{.*?}}/g, "").trim();
 }
 
@@ -74,12 +79,17 @@ export async function callGeminiAudio(prompt: string, directorNote: string, voic
         body: JSON.stringify(payload),
     });
 
-    if (!response.ok) throw new Error(`GEMINI_AUDIO_API_FAIL: ${await response.text()}`);
+    if (!response.ok) {
+        const errorDetail = await response.text();
+        throw new Error(`GEMINI_AUDIO_API_FAIL [${response.status}]: ${errorDetail}`);
+    }
 
     const data = await response.json();
     const audioPart = data.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
 
-    if (!audioPart?.inlineData) throw new Error("IA_AUDIO_DATA_MISSING");
+    if (!audioPart?.inlineData) {
+        throw new Error("IA_AUDIO_DATA_MISSING: El modelo no generó el flujo binario esperado.");
+    }
 
     return {
         data: audioPart.inlineData.data, // Base64
@@ -89,7 +99,7 @@ export async function callGeminiAudio(prompt: string, directorNote: string, voic
 
 /**
  * callGeminiMultimodal: Invocación estándar para texto y visión.
- * [FIX]: Soporta 'response_mime_type' para asegurar que Flash devuelva JSON limpio.
+ * [MEJORA]: Telemetría de estado HTTP para diagnóstico rápido.
  */
 export async function callGeminiMultimodal(
     prompt: string,
@@ -122,26 +132,26 @@ export async function callGeminiMultimodal(
 
     if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`AI_API_REJECTED [${model}]: ${errorText}`);
+        throw new Error(`AI_API_REJECTED [${model}][Status ${response.status}]: ${errorText}`);
     }
 
     const data = await response.json();
     const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
-    if (!resultText) throw new Error("EMPTY_IA_RESPONSE");
+    if (!resultText) throw new Error("EMPTY_IA_RESPONSE: No se recibió contenido del modelo.");
     return resultText;
 }
 
 /**
- * parseAIJson: Parser resiliente para extraer JSON.
+ * parseAIJson: Parser resiliente para extraer JSON de bloques de código.
  */
 export function parseAIJson<T = unknown>(rawText: string): T {
     try {
         const jsonMatch = rawText.trim().match(/\{[\s\S]*\}/);
-        if (!jsonMatch) throw new Error("JSON_NOT_FOUND");
+        if (!jsonMatch) throw new Error("JSON_NOT_FOUND_IN_STRING");
         return JSON.parse(jsonMatch[0]) as T;
     } catch (error) {
-        console.error("AI_JSON_PARSE_ERROR_RAW:", rawText);
+        console.error("AI_JSON_PARSE_ERROR:", rawText);
         throw new Error("Fallo crítico al parsear la respuesta estructurada de la IA.");
     }
 }
@@ -157,10 +167,12 @@ export async function extractAtomicFacts(rawText: string): Promise<string[]> {
 }
 
 /**
- * generateEmbedding: Generación de vectores 768d.
+ * generateEmbedding: Generación de vectores 768d para Búsqueda Semántica.
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
     const apiKey = Deno.env.get("GOOGLE_AI_API_KEY");
+    if (!apiKey) throw new Error("GOOGLE_AI_API_KEY_MISSING");
+
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${AI_MODELS.EMBEDDING}:embedContent?key=${apiKey}`;
 
     const response = await fetch(url, {
@@ -173,7 +185,7 @@ export async function generateEmbedding(text: string): Promise<number[]> {
         })
     });
 
-    if (!response.ok) throw new Error(`EMBEDDING_API_ERROR: ${await response.text()}`);
+    if (!response.ok) throw new Error(`EMBEDDING_API_ERROR [${response.status}]: ${await response.text()}`);
 
     const data = await response.json();
     return data.embedding.values;
@@ -205,14 +217,17 @@ export function createWavHeader(dataLength: number, sampleRate = 24000) {
 }
 
 /**
- * cleanTextForSpeech: Limpieza profunda de ruido narrativo.
+ * cleanTextForSpeech: Limpieza profunda de ruido narrativo y marcas Markdown.
+ * [MEJORA]: Eliminación de asteriscos y dobles guiones de énfasis.
  */
 export function cleanTextForSpeech(text: string): string {
     if (!text) return "";
     return text
-        .replace(/\[.*?\]/g, "")
-        .replace(/^(Host|Narrador|Speaker\s?\d?):\s?/gim, "")
-        .replace(/[*#_~`]/g, "")
-        .replace(/\s+/g, " ")
+        .replace(/\[.*?\]/g, "") // Elimina marcas técnicas [SFX], [MUSIC]
+        .replace(/^(Host|Narrador|Speaker\s?\d?):\s?/gim, "") // Elimina etiquetas de locutor
+        .replace(/\*\*/g, "") // Elimina negritas de Markdown
+        .replace(/__/g, "") // Elimina cursivas de Markdown
+        .replace(/[*#_~`]/g, "") // Elimina restos de Markdown
+        .replace(/\s+/g, " ") // Normaliza espacios
         .trim();
 }

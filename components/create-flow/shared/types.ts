@@ -1,13 +1,13 @@
 // components/create-flow/shared/types.ts
-// VERSIÓN: 1.6 (Master Standard - Pulse & DNA Flow Integration)
+// VERSIÓN: 3.1 (Master Standard - Type Sync & Progress Metrics Integration)
 
 import { PodcastCreationData } from "@/lib/validation/podcast-schema";
 
 /**
- * 🎭 VOCAL PERFORMANCE TYPES (V3.0)
- * Definiciones estrictas alineadas con vocal-director-map.ts
+ * 🎭 VOCAL PERFORMANCE TYPES
+ * Definiciones estandarizadas para el motor de voz neuronal de Gemini.
+ * Alineadas estrictamente con vocal-director-map.ts
  */
-
 export type VoiceStyle =
   | 'Calmado'
   | 'Energético'
@@ -32,57 +32,65 @@ export type PersonalityType =
   | 'minimalista';
 
 /**
- * 🗺️ FLOW STATE ENGINE (V2.0)
+ * 🗺️ FLOW STATE ENGINE
  * Representa cada hito visual y lógico en la máquina de estados de NicePod.
- * 
- * [ACTUALIZACIÓN 1.6]: Se inyectan los estados para el motor de Inteligencia Pulse.
  */
 export type FlowState =
+  // --- ESTADO INICIAL ---
   | 'SELECTING_PURPOSE'
-  // --- FLUJO SITUACIONAL ---
-  | 'LOCAL_DISCOVERY_STEP'
-  | 'LOCAL_RESULT_STEP'
-  // --- FLUJO DE APRENDIZAJE ---
+
+  // --- FLUJO: VIVE LO LOCAL (MADRID RESONANCE) ---
+  | 'LOCAL_DISCOVERY_STEP'  // Sensor Ingest (Cámara + GPS)
+  | 'LOCAL_ANALYSIS_LOADER' // HUD de Análisis Geosemántico
+  | 'LOCAL_RESULT_STEP'     // Vista de Hallazgo Histórico
+  | 'GEO_RECORDER_STEP'     // Generación de Crónica Local
+
+  // --- FLUJO: ACTUALIDAD (PULSE) ---
+  | 'DNA_CHECK'              // Sintonización de ADN Cognitivo
+  | 'PULSE_RADAR'            // Escáner de fuentes de autoridad
+  | 'BRIEFING_SANITIZATION'  // Revisión de la píldora estratégica
+
+  // --- FLUJO: APRENDIZAJE (LEARN) ---
   | 'LEARN_SUB_SELECTION'
   | 'SOLO_TALK_INPUT'
-  // --- FLUJO DE INSPIRACIÓN ---
+
+  // --- FLUJO: INSPIRACIÓN (INSPIRE) ---
   | 'INSPIRE_SUB_SELECTION'
-  | 'ARCHETYPE_SELECTION'
-  | 'ARCHETYPE_GOAL'
-  // --- FLUJO DE EXPLORACIÓN ---
+
+  // --- FLUJO: EXPLORACIÓN (EXPLORE) ---
   | 'LINK_POINTS_INPUT'
   | 'NARRATIVE_SELECTION'
-  // --- FLUJO DE LEGADO ---
+
+  // --- FLUJO: LEGADO (REFLECT) ---
   | 'LEGACY_INPUT'
-  // --- [NUEVO] FLUJO PULSE (ACTUALIDAD) ---
-  | 'DNA_CHECK'              // Entrevista IA e intereses
-  | 'PULSE_RADAR'            // Escáner y selección de fuentes
-  | 'BRIEFING_SANTIZATION'   // Revisión de la píldora informativa
-  // --- FLUJOS COMPLEMENTARIOS ---
-  | 'QUESTION_INPUT'
-  | 'FREESTYLE_SELECTION'
+
   // --- ETAPAS TRANSVERSALES DE PRODUCCIÓN ---
-  | 'DETAILS_STEP'
-  | 'TONE_SELECTION'
-  | 'DRAFT_GENERATION_LOADER'
-  | 'SCRIPT_EDITING'
-  | 'AUDIO_STUDIO_STEP'
-  | 'FINAL_STEP';
+  | 'DETAILS_STEP'           // Configuración técnica (Duración/Profundidad)
+  | 'TONE_SELECTION'         // Selección de Personalidad del Agente
+  | 'DRAFT_GENERATION_LOADER' // Monitor Realtime de Inteligencia
+  | 'SCRIPT_EDITING'         // Lienzo de Edición Narrativa
+  | 'AUDIO_STUDIO_STEP'      // Calibración de Voz
+  | 'FINAL_STEP'             // Manifiesto Final y Lanzamiento
+
+  // --- LEGACY & FALLBACKS ---
+  | 'QUESTION_INPUT'
+  | 'FREESTYLE_SELECTION';
 
 /**
- * 🛠️ CONTRATO DE CONTEXTO GLOBAL
- * Interfaz que deben cumplir los orquestadores para la gestión del estado.
+ * 🛠️ CreationContextType
+ * Contrato global para la gestión del estado de creación.
+ * [ACTUALIZACIÓN 3.1]: Se añade progressMetrics para sincronización de UI.
  */
 export interface CreationContextType {
   // Estado de navegación
   currentFlowState: FlowState;
   history: FlowState[];
 
-  // Estado de procesamiento
+  // Estado de procesamiento IA
   isGeneratingScript: boolean;
   setIsGeneratingScript: (val: boolean) => void;
 
-  // Gestión de datos
+  // Gestión de datos del formulario
   updateFormData: (data: Partial<PodcastCreationData>) => void;
 
   // Motores de transición
@@ -103,6 +111,17 @@ export interface CreationContextType {
    * getMasterPath: Recupera la genealogía de pasos según el propósito actual.
    */
   getMasterPath: () => FlowState[];
+
+  /**
+   * progressMetrics
+   * [SISTEMA]: Provee los datos calculados para la barra de progreso del Header.
+   */
+  progressMetrics: {
+    step: number;
+    total: number;
+    percent: number;
+    isInitial: boolean;
+  };
 }
 
 /**

@@ -1,5 +1,5 @@
 // components/create-flow/index.tsx
-// VERSIÓN: 48.0 (Master Sovereign - Instant Production Redirection & Shield Sync)
+// VERSIÓN: 50.0 (Ultimate Production Master - Type Sync & Zero Error Deployment)
 
 "use client";
 
@@ -9,133 +9,154 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FormProvider, useForm, useFormContext } from "react-hook-form";
 
-// Core Architecture
+// Core Architecture & Context
 import { useFlowActions } from "./hooks/use-flow-actions";
-import { useFlowNavigation } from "./hooks/use-flow-navigation";
 import { LayoutShell } from "./layout-shell";
 import { MASTER_FLOW_PATHS } from "./shared/config";
-import { CreationContext } from "./shared/context";
+import { CreationProvider, useCreationContext } from "./shared/context";
+import { FlowState } from "./shared/types";
 import { StepRenderer } from "./step-renderer";
 
+/**
+ * INTERFAZ DE PROPIEDADES (Resolución Error ts2304)
+ */
 interface OrchestratorProps {
   initialDrafts?: any[];
 }
 
+/**
+ * InnerOrchestrator
+ * Implementa la lógica operativa consumiendo el CreationProvider.
+ * Gestiona la validación de pasos y el disparo de acciones de backend.
+ */
 function InnerOrchestrator({ initialDrafts = [] }: { initialDrafts: any[] }) {
   const { toast } = useToast();
-  const { trigger, setValue, getValues, watch, reset } = useFormContext<PodcastCreationData>();
+  const { trigger, getValues, watch, reset } = useFormContext<PodcastCreationData>();
+
+  // Consumimos el contexto unificado (Resolución Error ts2339)
+  const {
+    currentFlowState,
+    transitionTo,
+    goBack,
+    progressMetrics,
+    isGeneratingScript
+  } = useCreationContext();
 
   const currentPurpose = watch("purpose");
   const [narrativeOptions, setNarrativeOptions] = useState<any[]>([]);
 
-  // 1. INICIALIZACIÓN DE MOTORES
-  const navigation = useFlowNavigation({ currentPurpose });
-
-  const navActions = useMemo(() => ({
-    transitionTo: (state: any) => navigation.transitionTo(state),
-    goBack: () => navigation.goBack(),
-    jumpToStep: (state: any) => navigation.jumpToStep(state)
-  }), [navigation]);
-
+  // Inicialización de Acciones (Borradores, Producción, Geo)
   const actions = useFlowActions({
-    transitionTo: navActions.transitionTo,
-    goBack: navActions.goBack,
+    transitionTo,
+    goBack,
     clearDraft: () => reset()
   });
 
+  // Resolución de la ruta maestra para el flujo actual
   const currentPath = useMemo(() => {
     return MASTER_FLOW_PATHS[currentPurpose] || MASTER_FLOW_PATHS.learn;
   }, [currentPurpose]);
 
   /**
    * handleValidatedNext
-   * Validador de calidad y orquestador de transiciones entre pasos.
+   * El guardián del flujo. Valida la integridad del paso actual (Zod)
+   * antes de permitir la transición al siguiente hito.
    */
   const handleValidatedNext = useCallback(async () => {
-    const currentState = navigation.currentFlowState;
+    const currentState = currentFlowState;
     const currentValues = getValues();
 
-    // Validación de densidad cognitiva (Mínimo 10 palabras)
-    if (['SOLO_TALK_INPUT', 'QUESTION_INPUT', 'LEGACY_INPUT'].includes(currentState)) {
-      const content = currentValues.solo_motivation || currentValues.question_to_answer || currentValues.legacy_lesson || "";
+    // --- BLOQUE 1: VALIDACIÓN DE DENSIDAD COGNITIVA ---
+    const textPhases: FlowState[] = ['SOLO_TALK_INPUT', 'LEGACY_INPUT', 'DNA_CHECK'];
+    if (textPhases.includes(currentState)) {
+      const content = currentValues.solo_motivation || currentValues.legacy_lesson || currentValues.dna_interview || "";
       const wordCount = content.trim().split(/\s+/).filter(w => w.length > 0).length;
 
       if (wordCount < 10) {
         toast({
-          title: "Desarrolla más tu idea",
-          description: "Requerimos un poco más de sustancia para generar un podcast de alto valor.",
+          title: "Sustancia insuficiente",
+          description: "La IA de NicePod requiere al menos 10 palabras para generar una síntesis de valor estratégico.",
           variant: "destructive"
         });
         return;
       }
     }
 
-    // Mapeo de validación técnica vía Zod
-    let fields: any[] = [];
+    // --- BLOQUE 2: MAPEO DE CAMPOS POR ESTADO (STRICT VALIDATION) ---
+    let fieldsToValidate: any[] = [];
     switch (currentState) {
-      case 'SOLO_TALK_INPUT': fields = ['solo_topic', 'solo_motivation']; break;
-      case 'DETAILS_STEP': fields = ['duration', 'narrativeDepth']; break;
-      case 'TONE_SELECTION': fields = ['agentName', 'voiceStyle', 'voicePace']; break; // Sincronizado con AudioStudio v2.6
-      case 'SCRIPT_EDITING': fields = ['final_title', 'final_script']; break;
-      case 'LINK_POINTS_INPUT': fields = ['link_topicA', 'link_topicB']; break;
-      case 'ARCHETYPE_GOAL': fields = ['archetype_topic', 'archetype_goal']; break;
+      case 'SOLO_TALK_INPUT':
+        fieldsToValidate = ['solo_topic', 'solo_motivation']; break;
+      case 'DNA_CHECK':
+        fieldsToValidate = ['dna_interview', 'expertise_level']; break;
+      case 'PULSE_RADAR':
+        fieldsToValidate = ['pulse_source_ids']; break;
+      case 'LOCAL_DISCOVERY_STEP':
+        fieldsToValidate = ['location']; break;
+      case 'DETAILS_STEP':
+        fieldsToValidate = ['duration', 'narrativeDepth']; break;
+      case 'TONE_SELECTION':
+        fieldsToValidate = ['agentName']; break;
+      case 'SCRIPT_EDITING':
+      case 'BRIEFING_SANITIZATION':
+        fieldsToValidate = ['final_title', 'final_script']; break;
+      case 'LINK_POINTS_INPUT':
+        fieldsToValidate = ['link_topicA', 'link_topicB']; break;
     }
 
-    const isStepValid = fields.length > 0 ? await trigger(fields as any) : true;
+    const isStepValid = fieldsToValidate.length > 0 ? await trigger(fieldsToValidate as any) : true;
 
     if (isStepValid) {
+      // --- BLOQUE 3: LÓGICA DE TRANSICIÓN ---
       if (currentState === 'LINK_POINTS_INPUT') {
-        await (actions as any).generateNarratives(setNarrativeOptions);
+        // Disparo de inteligencia para flujo Explore
+        if ((actions as any).generateNarratives) {
+          await (actions as any).generateNarratives(setNarrativeOptions);
+        }
       } else {
         const currentIndex = currentPath.indexOf(currentState);
         if (currentIndex !== -1 && (currentIndex + 1) < currentPath.length) {
-          navigation.transitionTo(currentPath[currentIndex + 1]);
+          transitionTo(currentPath[currentIndex + 1]);
         }
       }
     } else {
-      toast({ title: "Atención", description: "Revisa los campos para continuar.", variant: "destructive" });
+      toast({
+        title: "Paso Incompleto",
+        description: "Asegúrate de completar los campos obligatorios para continuar.",
+        variant: "destructive"
+      });
     }
-  }, [navigation, getValues, trigger, toast, actions, currentPath]);
-
-  // VALOR DE CONTEXTO PARA PASOS HIJOS
-  const contextValue = {
-    ...navigation,
-    onNext: handleValidatedNext,
-    isGeneratingScript: actions.isGenerating,
-    setIsGeneratingScript: () => { },
-    updateFormData: (data: any) => {
-      Object.entries(data).forEach(([k, v]) => setValue(k as any, v, {
-        shouldValidate: true,
-        shouldDirty: true
-      }));
-    },
-    getMasterPath: () => currentPath
-  };
+  }, [currentFlowState, getValues, trigger, toast, actions, currentPath, transitionTo]);
 
   return (
-    <CreationContext.Provider value={contextValue}>
-      <LayoutShell
-        onNext={handleValidatedNext}
-        onDraft={actions.generateDraft}
-        onProduce={actions.handleSubmitProduction} // [SISTEMA]: Redirige al ID tras éxito
-        onAnalyzeLocal={(actions as any).analyzeLocalEnvironment}
-        isGenerating={actions.isGenerating}
-        isSubmitting={actions.isSubmitting}
-        progress={navigation.progressMetrics}
-      >
-        <StepRenderer
-          narrativeOptions={narrativeOptions}
-          initialDrafts={initialDrafts}
-        />
-      </LayoutShell>
-    </CreationContext.Provider>
+    <LayoutShell
+      onNext={handleValidatedNext}
+      onDraft={actions.generateDraft}
+      onProduce={actions.handleSubmitProduction}
+      onAnalyzeLocal={actions.analyzeLocalEnvironment}
+      isGenerating={isGeneratingScript || actions.isGenerating}
+      isSubmitting={actions.isSubmitting}
+      progress={progressMetrics}
+    >
+      <StepRenderer
+        narrativeOptions={narrativeOptions}
+        initialDrafts={initialDrafts}
+      />
+    </LayoutShell>
   );
 }
 
+/**
+ * PodcastCreationOrchestrator
+ * Componente raíz que inicializa el formulario y los proveedores de estado.
+ */
 export default function PodcastCreationOrchestrator({ initialDrafts = [] }: OrchestratorProps) {
   const [isMounted, setIsMounted] = useState(false);
 
-  useEffect(() => { setIsMounted(true); }, []);
+  // Evita problemas de hidratación en Server Components
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const formMethods = useForm<PodcastCreationData>({
     resolver: zodResolver(PodcastCreationSchema),
@@ -151,7 +172,9 @@ export default function PodcastCreationOrchestrator({ initialDrafts = [] }: Orch
       speakingRate: 1.0,
       duration: 'short',
       narrativeDepth: 'balanced',
-      draft_id: null
+      draft_id: null,
+      pulse_source_ids: [],
+      is_sovereign_public: false
     }
   });
 
@@ -159,7 +182,9 @@ export default function PodcastCreationOrchestrator({ initialDrafts = [] }: Orch
 
   return (
     <FormProvider {...formMethods}>
-      <InnerOrchestrator initialDrafts={initialDrafts} />
+      <CreationProvider>
+        <InnerOrchestrator initialDrafts={initialDrafts} />
+      </CreationProvider>
     </FormProvider>
   );
 }
