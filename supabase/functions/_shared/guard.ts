@@ -1,26 +1,19 @@
 // supabase/functions/_shared/guard.ts
-// VERSIÓN: 4.1 (Performance Shield - Lazy Sentry & Bulletproof CORS)
+// VERSIÓN: 4.2 (Ultra-Lean Guard - Zero CPU Waste)
 
-import arcjet, { fixedWindow, shield } from "https://esm.sh/@arcjet/deno@1.0.0-beta.4";
-import * as Sentry from "https://esm.sh/@sentry/deno@8.26.0";
 import { corsHeaders } from "./cors.ts";
 
 export { corsHeaders };
 
-let isSentryInit = false;
-const initSentry = () => {
-  if (!isSentryInit && Deno.env.get("SENTRY_DSN")) {
-    Sentry.init({
-      dsn: Deno.env.get("SENTRY_DSN"),
-      tracesSampleRate: 1.0
-    });
-    isSentryInit = true;
-  }
-};
-
+/**
+ * guard: Envoltura optimizada para no consumir CPU en el arranque.
+ * Solo carga Sentry y Arcjet si el request es legítimo y requiere protección.
+ */
 export const guard = (handler: (req: Request) => Promise<Response>) => {
   return async (req: Request): Promise<Response> => {
-    // 1. Manejo de Preflight (OPTIONS) - Respuesta inmediata
+
+    // 1. Prioridad Cero: Preflight (OPTIONS)
+    // No gasta CPU en imports pesados para responder a un pre-vuelo.
     if (req.method === 'OPTIONS') {
       return new Response('ok', { status: 200, headers: corsHeaders });
     }
@@ -28,7 +21,15 @@ export const guard = (handler: (req: Request) => Promise<Response>) => {
     const correlationId = crypto.randomUUID();
 
     try {
-      initSentry();
+      // 2. Importación dinámica de seguridad (Lazy Loading)
+      // Esto solo ocurre si el método es POST/GET, ahorrando CPU en el boot inicial.
+      const [{ default: arcjet, shield, fixedWindow }, Sentry] = await Promise.all([
+        import("https://esm.sh/@arcjet/deno@1.0.0-beta.4"),
+        import("https://esm.sh/@sentry/deno@8.26.0")
+      ]);
+
+      // Inicialización mínima de Sentry
+      Sentry.init({ dsn: Deno.env.get("SENTRY_DSN"), tracesSampleRate: 0.1 });
 
       const aj = arcjet({
         key: Deno.env.get("ARCJET_KEY")!,
@@ -40,36 +41,30 @@ export const guard = (handler: (req: Request) => Promise<Response>) => {
 
       const decision = await aj.protect(req);
       if (decision.isDenied()) {
-        return new Response(
-          JSON.stringify({ error: "Access Denied", trace_id: correlationId }),
-          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        return new Response(JSON.stringify({ error: "Security Block" }), {
+          status: 403,
+          headers: corsHeaders
+        });
       }
 
-      // 2. Ejecución de la lógica de negocio
+      // 3. Ejecución del Handler real
       const response = await handler(req);
 
-      // 3. Inyección forzada de CORS en la respuesta final
+      // 4. Inyección de Headers
       const responseHeaders = new Headers(response.headers);
       Object.entries(corsHeaders).forEach(([k, v]) => responseHeaders.set(k, v));
 
       return new Response(response.body, {
         status: response.status,
-        statusText: response.statusText,
         headers: responseHeaders,
       });
 
     } catch (error: any) {
-      console.error(`🔥 [NicePod-Guard][${correlationId}] Fatal:`, error.message);
-      Sentry.captureException(error);
-      return new Response(
-        JSON.stringify({
-          error: "Internal Server Error",
-          message: error.message,
-          trace_id: correlationId
-        }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      console.error(`🔥 [Guard-System-Error]:`, error.message);
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: 500,
+        headers: corsHeaders
+      });
     }
   };
 };
