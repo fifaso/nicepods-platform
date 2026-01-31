@@ -1,16 +1,13 @@
 // supabase/functions/process-podcast-job/index.ts
-// VERSIÓN: 30.0 (Master Journey Orchestrator - Quota-Resilience & Universal Integrity)
+// VERSIÓN: 31.0 (Master Dispatcher - Integrated Logic & Zero-Wait Architecture)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 
-// Importaciones con rutas relativas para estabilidad total y despliegue universal
+// Importaciones con rutas relativas para estabilidad total
 import { AI_MODELS, buildPrompt, callGeminiMultimodal, parseAIJson } from "../_shared/ai.ts";
 import { corsHeaders, guard } from "../_shared/guard.ts";
 
-/**
- * Interfaces para el manejo de respuestas de inteligencia
- */
 interface AIContentResponse {
   title?: string;
   suggested_title?: string;
@@ -26,8 +23,6 @@ const supabaseAdmin: SupabaseClient = createClient(
 
 const handler = async (request: Request): Promise<Response> => {
   const correlationId = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
-
-  // [SISTEMA]: Declaración en scope superior para garantizar acceso en bloque catch
   let targetPodId: number | null = null;
 
   try {
@@ -39,26 +34,21 @@ const handler = async (request: Request): Promise<Response> => {
     let needsGeneration = true;
     let jobData: any = null;
 
-    console.log(`🎬 [Orchestrator][${correlationId}] Iniciando orquestación de producción.`);
+    console.log(`🎬 [Dispatcher][${correlationId}] Iniciando orquestación.`);
 
-    // --- 1. RESOLUCIÓN DE ESTRATEGIA DE DATOS ---
+    // --- 1. RESOLUCIÓN DE ESTRATEGIA DE HIDRATACIÓN ---
     if (job_id) {
-      // Caso A: Creación desde Cola (Requiere fase de redacción IA)
       const { data: job, error: jobErr } = await supabaseAdmin.from("podcast_creation_jobs").select("*").eq("id", job_id).single();
-      if (jobErr || !job) throw new Error("JOB_NOT_FOUND: El trabajo no existe en la cola.");
+      if (jobErr || !job) throw new Error("JOB_NOT_FOUND");
       jobData = job;
     } else if (podcast_id) {
-      // Caso B: Promoción Directa (Borrador/Remix con script ya validado)
       const { data: pod, error: podErr } = await supabaseAdmin.from("micro_pods").select("*").eq("id", podcast_id).single();
-      if (podErr || !pod) throw new Error("PODCAST_NOT_FOUND: Recurso no localizado.");
+      if (podErr || !pod) throw new Error("PODCAST_NOT_FOUND");
 
       targetPodId = pod.id;
-      finalTitle = pod.title;
-
       if (pod.script_text) {
-        console.log(`[Orchestrator] Script detectado. Saltando a Fase A multimedia.`);
         needsGeneration = false;
-        // Extraemos el cuerpo del guion para enviarlo a los workers
+        finalTitle = pod.title;
         const parsed = typeof pod.script_text === 'string' ? JSON.parse(pod.script_text) : pod.script_text;
         finalScriptBody = parsed.script_body || String(parsed);
         jobData = { user_id: pod.user_id, payload: pod.creation_data };
@@ -66,15 +56,15 @@ const handler = async (request: Request): Promise<Response> => {
         jobData = { user_id: pod.user_id, payload: pod.creation_data };
       }
     } else {
-      throw new Error("IDENTIFIER_MISSING: No se proporcionó ID de job ni de podcast.");
+      throw new Error("IDENTIFIER_MISSING");
     }
 
-    // --- 2. FASE DE GENERACIÓN NARRATIVA (Si el guion no existe) ---
+    // --- 2. FASE DE GENERACIÓN NARRATIVA (SÍNCRONA PERO RÁPIDA) ---
+    // Esta fase solo genera el texto, lo cual toma < 10s y no agota la CPU.
     if (needsGeneration) {
-      console.log(`🧠 [Orchestrator] Generando guion maestro con ${AI_MODELS.PRO}...`);
+      console.log(`🧠 [Dispatcher] Generando guion maestro con ${AI_MODELS.PRO}...`);
       const agentName = jobData.payload.agentName || "script-architect-v1";
       const { data: agent } = await supabaseAdmin.from("ai_prompts").select("prompt_template, version").eq("agent_name", agentName).single();
-
       if (!agent) throw new Error(`AGENT_NOT_CONFIGURED: ${agentName}`);
 
       const inputs = jobData.payload.inputs || {};
@@ -92,21 +82,20 @@ const handler = async (request: Request): Promise<Response> => {
       finalScriptBody = content.script_body || content.text || "";
       finalTitle = content.title || content.suggested_title || context.topic;
 
-      // Inserción inicial en tabla de producción con bloqueo multimedia
+      // Inserción inicial. audio_ready e image_ready inician en FALSE.
       const { data: newPod, error: podErr } = await supabaseAdmin.from("micro_pods").insert({
         user_id: jobData.user_id,
         title: finalTitle,
         description: content.ai_summary || finalScriptBody.substring(0, 200),
-        script_text: JSON.stringify({
-          script_body: finalScriptBody,
-          script_plain: finalScriptBody.replace(/<[^>]+>/g, " ").trim()
-        }),
+        script_text: JSON.stringify({ script_body: finalScriptBody, script_plain: finalScriptBody.replace(/<[^>]+>/g, " ").trim() }),
         status: "pending_approval",
         processing_status: "processing",
         creation_mode: jobData.payload.creation_mode || 'standard',
         agent_version: `${agentName}-v${agent.version || '1'}`,
         creation_data: jobData.payload,
-        sources: jobData.payload.sources || []
+        sources: jobData.payload.sources || [],
+        audio_ready: false, // Control de Trigger
+        image_ready: false  // Control de Trigger
       }).select("id").single();
 
       if (podErr) throw podErr;
@@ -117,79 +106,56 @@ const handler = async (request: Request): Promise<Response> => {
       }
     }
 
-    // --- 3. FASE A: PRODUCCIÓN MULTIMEDIA (BLOQUEANTE) ---
-    console.log(`📡 [${correlationId}] Forjando activos multimedia para Pod #${targetPodId}`);
+    // --- 3. FASE DE DESPACHO ASÍNCRONO (SOLUCIÓN AL CPU TIME) ---
+    // Invocamos a los trabajadores sin usar 'await'. 
+    // La función principal termina y libera la CPU, mientras los workers corren en paralelo.
+    console.log(`📡 [Dispatcher] Disparando Malla de Activos para Pod #${targetPodId}`);
 
-    const [audioRes, imageRes] = await Promise.all([
-      supabaseAdmin.functions.invoke("generate-audio-from-script", {
-        body: { podcast_id: targetPodId, trace_id: correlationId }
-      }),
-      supabaseAdmin.functions.invoke("generate-cover-image", {
-        body: { podcast_id: targetPodId, trace_id: correlationId }
-      })
-    ]);
+    const workerPayload = {
+      body: { podcast_id: targetPodId, trace_id: correlationId },
+      method: 'POST'
+    };
 
-    // [VALIDACIÓN DE CUOTA]: Detección de saturación en Google Cloud
-    if (audioRes.error || imageRes.error) {
-      const err = audioRes.error || imageRes.error;
-      if (err.message?.includes("Quota exceeded") || err.status === 403) {
-        throw new Error("IA_INFRASTRUCTURE_SATURATED: Cuota de Google Cloud agotada temporalmente.");
+    // Estos procesos son lentos, por eso se ejecutan en el fondo
+    supabaseAdmin.functions.invoke("generate-audio-from-script", workerPayload);
+    supabaseAdmin.functions.invoke("generate-cover-image", workerPayload);
+    supabaseAdmin.functions.invoke("generate-embedding", workerPayload);
+
+    // Disparo de Refinería NKV para aprendizaje recursivo
+    supabaseAdmin.functions.invoke("vault-refinery", {
+      body: {
+        title: `Sabiduría: ${finalTitle}`,
+        text: finalScriptBody,
+        source_type: 'user_contribution',
+        is_public: true
       }
-      throw new Error(`ASSET_WORKER_ERROR: ${err.message || 'Error en síntesis multimedia'}`);
-    }
+    });
 
-    // --- 4. PUNTO DE LIBERACIÓN (HANDOVER) ---
-    console.log(`🔓 [${correlationId}] Activos validados. Liberando acceso al usuario.`);
-    await supabaseAdmin.from("micro_pods").update({
-      processing_status: 'completed',
-      updated_at: new Date().toISOString()
-    }).eq('id', targetPodId);
-
-    // --- 5. FASE B: PROCESAMIENTO DE FONDO (NO BLOQUEANTE) ---
-    console.log(`🧠 [${correlationId}] Iniciando Fase B: Memoria Semántica.`);
-
-    // Invocamos sin esperar (await) para cerrar la respuesta al cliente lo antes posible
-    Promise.allSettled([
-      supabaseAdmin.functions.invoke("generate-embedding", {
-        body: { podcast_id: targetPodId, trace_id: correlationId }
-      }),
-      supabaseAdmin.functions.invoke("vault-refinery", {
-        body: {
-          title: `Sabiduría: ${finalTitle}`,
-          text: finalScriptBody,
-          source_type: 'user_contribution',
-          is_public: true
-        }
-      })
-    ]);
-
-    // Cierre de job legacy
     if (job_id) {
       await supabaseAdmin.from("podcast_creation_jobs").update({ status: "completed" }).eq("id", job_id);
     }
 
+    // Respuesta inmediata al cliente
     return new Response(JSON.stringify({
       success: true,
       pod_id: targetPodId,
-      message: "Producción finalizada y entregada con éxito."
-    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      message: "Orquestación activa. Los activos multimedia se sincronizarán al terminar."
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
 
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Fallo en la malla de funciones";
-    console.error(`🔥 [Orchestrator][${correlationId}] ERROR:`, msg);
+  } catch (err: any) {
+    console.error(`🔥 [Dispatcher-Fatal][${correlationId}] ERROR:`, err.message);
 
-    // [RECOVERY]: Marcamos el podcast como fallido para que el Frontend detenga el spinner
     if (targetPodId) {
-      const isQuota = msg.includes("IA_INFRASTRUCTURE_SATURATED");
       await supabaseAdmin.from("micro_pods").update({
         processing_status: 'failed',
-        admin_notes: isQuota
-          ? "Error: Servidores de Google saturados. Por favor, re-intenta en 15 minutos."
-          : `Error en fase crítica: ${msg}`
+        admin_notes: `Error de despacho: ${err.message}`
       }).eq('id', targetPodId);
     }
 
-    return new Response(JSON.stringify({ success: false, error: msg, trace_id: correlationId }), {
+    return new Response(JSON.stringify({ success: false, error: err.message }), {
       status: 500,
       headers: corsHeaders
     });
