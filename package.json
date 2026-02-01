@@ -1,6 +1,6 @@
 {
   "name": "nicepod-platform",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -11,13 +11,13 @@
     "unused-check": "pnpm exec knip",
     "security-check": "pnpm audit",
     "health-check": "echo \"🔍 Iniciando Diagnóstico NicePod...\" && pnpm type-check && pnpm lint && pnpm security-check && echo \"✅ Salud del Proyecto: ÓPTIMA. Listo para Push.\"",
-    "clean-install": "rm -rf .next node_modules pnpm-lock.yaml && pnpm install"
+    "nuclear-clean": "rm -rf .next node_modules pnpm-lock.yaml && pnpm install"
   },
   "dependencies": {
     "@arcjet/ip": "1.0.0-beta.15",
     "@arcjet/next": "1.0.0-beta.15",
     "@ducanh2912/next-pwa": "^10.2.9",
-    "@hookform/resolvers": "^3.9.1",
+    "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-accordion": "^1.2.2",
     "@radix-ui/react-alert-dialog": "^1.1.4",
     "@radix-ui/react-aspect-ratio": "^1.1.1",
@@ -45,7 +45,7 @@
     "@radix-ui/react-toggle": "^1.1.0",
     "@radix-ui/react-toggle-group": "^1.1.0",
     "@radix-ui/react-tooltip": "^1.1.4",
-    "@sentry/nextjs": "^10",
+    "@sentry/nextjs": "^10.37.0",
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.55.0",
     "@tiptap/extension-placeholder": "^2.10.3",
@@ -67,7 +67,7 @@
     "isomorphic-dompurify": "^2.33.0",
     "lucide-react": "^0.454.0",
     "mapbox-gl": "2.15.0",
-    "next": "^14.2.23",
+    "next": "14.2.35",
     "next-themes": "^0.4.4",
     "posthog-js": "^1.306.1",
     "posthog-node": "^5.17.2",
@@ -92,7 +92,7 @@
     "@types/react-dom": "^18.3.7",
     "@typescript-eslint/eslint-plugin": "^8.54.0",
     "@typescript-eslint/parser": "^8.54.0",
-    "eslint": "^8.57.1",
+    "eslint": "8.57.1",
     "eslint-config-next": "14.2.15",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
@@ -104,6 +104,11 @@
     "typescript": "^5.7.2"
   },
   "pnpm": {
+    "overrides": {
+      "glob": "^10.5.0",
+      "undici": "^6.23.0",
+      "eslint": "8.57.1"
+    },
     "onlyBuiltDependencies": [
       "@sentry/cli",
       "core-js",
