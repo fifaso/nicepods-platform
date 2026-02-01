@@ -1,14 +1,14 @@
 // app/profile/[username]/page.tsx
 // VERSIÓN: 6.1 (Curator Integration: Public Library & Reputation)
 
+import {
+  PublicProfilePage,
+  type ProfileData,
+  type PublicPodcast,
+  type TestimonialWithAuthor
+} from '@/components/profile-client-component';
 import { createClient } from '@/lib/supabase/server'; // [NOTA]: Ya no requiere cookies()
 import { notFound, redirect } from 'next/navigation';
-import { 
-  PublicProfilePage, 
-  type ProfileData, 
-  type PublicPodcast,
-  type TestimonialWithAuthor 
-} from '@/components/profile-client-component';
 
 type ProfilePageProps = {
   params: { username: string };
@@ -23,17 +23,17 @@ export default async function PublicProfileRoute({ params, searchParams }: Profi
 
   // 2. Decodificar username y buscar perfil (Ahora con datos de Curador)
   const targetUsername = decodeURIComponent(params.username);
-  
+
   const { data: targetProfile, error } = await supabase
     .from('profiles')
     .select('id, username, full_name, avatar_url, bio, reputation_score, is_verified, followers_count, following_count') // [MEJORA]: Datos sociales
     .eq('username', targetUsername)
     .single<ProfileData>();
-  
+
   if (error || !targetProfile) {
-    notFound(); 
+    notFound();
   }
-  
+
   // 3. CANONICAL REDIRECT
   const isViewingPublicMode = searchParams?.view === 'public';
   if (visitor?.id === targetProfile.id && !isViewingPublicMode) {
@@ -47,9 +47,9 @@ export default async function PublicProfileRoute({ params, searchParams }: Profi
       .from('micro_pods')
       .select('id, title, description, audio_url, created_at, duration_seconds, play_count')
       .eq('user_id', targetProfile.id)
-      .eq('status', 'published') 
+      .eq('status', 'published')
       .order('created_at', { ascending: false }),
-      
+
     // B. Likes Totales
     supabase
       .from('micro_pods')
@@ -81,12 +81,12 @@ export default async function PublicProfileRoute({ params, searchParams }: Profi
   const publicCollections = collectionsResponse.data || []; // [NUEVO]
 
   return (
-    <PublicProfilePage 
-      profile={targetProfile} 
+    <PublicProfilePage
+      profile={targetProfile}
       podcasts={podcasts}
       totalLikes={totalLikes}
       initialTestimonials={testimonials}
-      publicCollections={publicCollections} // [INYECCIÓN DE DATOS]
+      publicCollections={publicCollections.map(c => ({ ...c, is_public: true }))} // [INYECCIÓN DE DATOS]
     />
   );
 }

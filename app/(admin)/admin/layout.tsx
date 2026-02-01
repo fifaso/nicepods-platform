@@ -1,11 +1,10 @@
-import { createClient } from '@/lib/supabase/server';
-import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
+// app/(admin)/admin/layout.tsx
 import { AdminNav } from '@/components/admin/admin-nav'; // <--- Importamos el nuevo componente
+import { createClient } from '@/lib/supabase/server';
+import { redirect } from 'next/navigation';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
+  const supabase = createClient();
 
   // 1. Verificación de Seguridad (Server Side)
   const { data: { user } } = await supabase.auth.getUser();
@@ -18,12 +17,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     .single();
 
   if (profile?.role !== 'admin') {
-    redirect('/'); 
+    redirect('/');
   }
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-200 flex flex-col md:flex-row font-sans">
-      
+
       {/* NAVEGACIÓN RESPONSIVA (Maneja Móvil y Desktop internamente) */}
       <AdminNav />
 
@@ -32,7 +31,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <main className="flex-1 md:ml-64 p-4 md:p-8 overflow-y-auto">
         {children}
       </main>
-      
+
     </div>
   );
 }

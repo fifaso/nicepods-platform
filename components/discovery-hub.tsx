@@ -1,17 +1,17 @@
 // components/discovery-hub.tsx
-// VERSIÓN: 5.0 (Madrid Resonance Sync - Segmented Rendering & Mobile Hub)
+// VERSIÓN: 6.0 (Madrid Resonance Sync - Segmented Rendering & Mobile Hub)
 
 "use client";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { UnifiedSearchBar } from "@/components/ui/unified-search-bar"; // [NUEVO]
+import { UnifiedSearchBar } from "@/components/ui/unified-search-bar";
 import { UniverseCard } from "@/components/universe-card";
 import { useAuth } from "@/hooks/use-auth";
-import { Loader2, Search } from "lucide-react";
+import { Loader2, PlayCircle, Search } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 const discoveryHubCategories = [
     { key: "deep_thought", title: "Pensamiento Profundo", image: "/images/universes/deep-thought.png", href: "/podcasts?tab=discover&universe=deep_thought" },
@@ -39,99 +39,106 @@ export function DiscoveryHub({
     const [isSearching, setIsSearching] = useState(false);
     const [hasSearched, setHasSearched] = useState(false);
 
-    const performSearch = async (searchTerm: string) => {
-        if (!supabase || searchTerm.length < 3) return;
+    const performSearch = useCallback(async (searchTerm: string) => {
+        if (!supabase || searchTerm.trim().length < 3) return;
         setIsSearching(true);
         setHasSearched(true);
         try {
-            const { data: vData } = await supabase.functions.invoke('vectorize-query', { body: { query: searchTerm } });
-            const { data: sRes } = await supabase.rpc('search_omni', {
+            const { data: vData, error: vError } = await supabase.functions.invoke('vectorize-query', {
+                body: { query: searchTerm }
+            });
+            if (vError) throw vError;
+
+            const { data: sRes, error: sError } = await supabase.rpc('search_omni', {
                 query_text: searchTerm,
                 query_embedding: vData.embedding,
                 match_threshold: 0.15,
                 match_count: 10
             });
+            if (sError) throw sError;
+
             setResults(sRes || []);
         } catch (e) {
-            console.error("Search failed:", e);
+            console.error("[NicePod-Search] Error crítico:", e);
         } finally {
             setIsSearching(false);
         }
-    };
+    }, [supabase]);
 
-    const clearSearch = () => {
+    const clearSearch = useCallback(() => {
         setQuery("");
         setResults([]);
         setHasSearched(false);
-    };
+    }, []);
 
-    // --- RENDER 1: SOLO BUSCADOR (Header / Mobile Action Hub) ---
+    // --- RENDER 1: SOLO BUSCADOR (Segmented Logic) ---
     if (showOnlySearch) {
-        if (mobileVariant) {
-            return (
-                <div className="w-full">
+        return (
+            <div className="w-full">
+                {mobileVariant ? (
                     <UnifiedSearchBar
                         userName={userName}
                         onSearch={performSearch}
                         onClear={clearSearch}
                     />
-                </div>
-            );
-        }
-
-        return (
-            <div className="relative w-full group">
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/20 to-purple-600/20 rounded-full blur opacity-50 group-hover:opacity-100 transition duration-1000"></div>
-                <div className="relative flex items-center bg-white dark:bg-black border border-slate-200 dark:border-white/10 rounded-full px-4 h-12 shadow-sm">
-                    <Search className="h-4 w-4 text-muted-foreground mr-3" />
-                    <Input
-                        value={query}
-                        onChange={(e) => {
-                            setQuery(e.target.value);
-                            if (e.target.value.length > 2) performSearch(e.target.value);
-                        }}
-                        placeholder="Buscar por idea, persona o tema..."
-                        className="border-0 bg-transparent focus-visible:ring-0 text-sm h-full p-0"
-                    />
-                    {isSearching && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
-                </div>
+                ) : (
+                    <div className="relative w-full group">
+                        <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/20 to-purple-600/20 rounded-full blur opacity-40 group-hover:opacity-100 transition duration-700"></div>
+                        <div className="relative flex items-center bg-white dark:bg-black border border-slate-200 dark:border-white/10 rounded-full px-5 h-14 shadow-sm">
+                            <Search className="h-5 w-5 text-muted-foreground mr-3" />
+                            <Input
+                                value={query}
+                                onChange={(e) => {
+                                    setQuery(e.target.value);
+                                    if (e.target.value.length > 2) performSearch(e.target.value);
+                                }}
+                                placeholder="Buscar idea, persona o tema..."
+                                className="border-0 bg-transparent focus-visible:ring-0 text-base h-full p-0"
+                            />
+                            {isSearching && <Loader2 className="h-5 w-5 animate-spin text-primary ml-2" />}
+                        </div>
+                    </div>
+                )}
             </div>
         );
     }
 
-    // --- RENDER 2: SOLO CATEGORÍAS O RESULTADOS (Cuerpo de la Home) ---
+    // --- RENDER 2: CATEGORÍAS Y RESULTADOS ---
     return (
         <div className="w-full">
             {!hasSearched || showOnlyCategories ? (
-                /* CARRUSEL DE UNIVERSOS */
-                <div className="flex overflow-x-auto pb-6 gap-4 lg:grid lg:grid-cols-4 snap-x scrollbar-hide -mx-4 px-4 lg:mx-0 lg:px-0">
+                <div className="flex overflow-x-auto pb-8 gap-4 lg:grid lg:grid-cols-4 snap-x scrollbar-hide -mx-4 px-4 lg:mx-0 lg:px-0">
                     {discoveryHubCategories.map((category) => (
-                        <div key={category.key} className="min-w-[160px] w-[45%] lg:w-auto snap-start flex-shrink-0">
+                        <div key={category.key} className="min-w-[170px] w-[48%] lg:w-auto snap-start flex-shrink-0">
                             <UniverseCard {...category} isActive={false} />
                         </div>
                     ))}
                 </div>
             ) : (
-                /* LISTADO DE RESULTADOS */
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     {results.length === 0 && !isSearching ? (
-                        <div className="text-center py-10 text-muted-foreground">
-                            <p className="text-sm">No encontramos resonancia para "{query}".</p>
-                            <Button variant="link" onClick={clearSearch} className="text-primary font-bold">Ver categorías</Button>
+                        <div className="text-center py-20 bg-white/5 rounded-[2.5rem] border border-dashed border-white/10">
+                            <p className="text-muted-foreground font-medium">No hay resonancia para "{query}".</p>
+                            <Button variant="link" onClick={clearSearch} className="text-primary font-black uppercase text-xs mt-2 tracking-widest">
+                                Volver a explorar
+                            </Button>
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 gap-4">
                             {results.map(result => (
                                 <Link key={result.id} href={result.type === 'podcast' ? `/podcast/${result.id}` : `/profile/${result.subtitle.replace('@', '')}`}>
-                                    <div className="p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-primary/30 transition-all flex items-center gap-4">
-                                        <div className="h-12 w-12 rounded-lg bg-muted overflow-hidden flex-shrink-0">
-                                            <img src={result.image_url} alt="" className="object-cover w-full h-full" />
+                                    <div className="p-5 rounded-3xl bg-card/40 border border-white/5 hover:border-primary/40 hover:bg-card/60 transition-all flex items-center gap-5 group shadow-xl">
+                                        <div className="h-14 w-14 rounded-2xl bg-zinc-800 overflow-hidden flex-shrink-0 relative">
+                                            <img src={result.image_url || '/images/placeholder.png'} alt="" className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-500" />
+                                            <div className="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                <PlayCircle className="text-white h-6 w-6" />
+                                            </div>
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <p className="font-bold text-sm truncate">{result.title}</p>
-                                            <p className="text-xs text-muted-foreground truncate">{result.subtitle}</p>
+                                            <p className="font-black text-sm uppercase tracking-tight truncate">{result.title}</p>
+                                            <p className="text-xs text-muted-foreground truncate font-medium mt-0.5">{result.subtitle}</p>
                                         </div>
-                                        <Badge variant="outline" className="text-[10px] uppercase font-black tracking-tighter">
+                                        <Badge variant="outline" className="text-[9px] uppercase font-black tracking-widest px-2 py-1 bg-white/5 border-white/10">
                                             {result.type}
                                         </Badge>
                                     </div>

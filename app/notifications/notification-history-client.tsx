@@ -1,66 +1,176 @@
 // app/notifications/notification-history-client.tsx
-// VERSIÓN POTENCIADA: El contenido ahora se renderiza dentro de una tarjeta translúcida para mejorar la legibilidad.
+// VERSIÓN: 4.0 (Madrid Resonance - Full Integrity & Motion Orchestration)
+// Misión: Central de notificaciones con arquitectura de datos pura y diseño táctico inmersivo.
 
 "use client";
 
-import { useMemo } from 'react';
-import { Notification, NotificationItem } from "@/components/notification-bell"; 
 import { format, isToday, isYesterday } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Card, CardContent } from '@/components/ui/card'; // [CAMBIO QUIRÚRGICO #1]: Importamos Card y CardContent.
+import { AnimatePresence, motion } from 'framer-motion';
+import { BellOff, Clock, History, Sparkles } from 'lucide-react';
+import { useMemo } from 'react';
+
+import { Notification, NotificationItem } from "@/components/notification-bell";
+import { Card, CardContent } from '@/components/ui/card';
 
 interface NotificationHistoryClientProps {
   initialNotifications: Notification[];
 }
 
+/**
+ * COMPONENTE: NotificationHistoryClient
+ * Maneja la agrupación y visualización de notificaciones con un motor de renderizado puro.
+ */
 export function NotificationHistoryClient({ initialNotifications }: NotificationHistoryClientProps) {
-  const groupedNotifications = useMemo(() => {
-    if (!initialNotifications || initialNotifications.length === 0) return {};
 
-    return initialNotifications.reduce((acc, notification) => {
-      const date = new Date(notification.created_at);
+  /**
+   * DATA ENGINE: Grouping & Sorting
+   * [SISTEMA]: Procesamos las notificaciones fuera del flujo principal de renderizado
+   * para garantizar que el componente sea idempotente y libre de efectos colaterales (impurezas).
+   */
+  const sortedAndGrouped = useMemo(() => {
+    if (!initialNotifications || initialNotifications.length === 0) return [];
+
+    const groups: Record<string, { title: string; date: Date; items: Notification[] }> = {};
+
+    initialNotifications.forEach((notification) => {
+      // Validamos que exista la fecha antes de procesar
+      if (!notification.created_at) return;
+
+      const notifyDate = new Date(notification.created_at);
+      let groupKey: string;
       let groupTitle: string;
 
-      if (isToday(date)) groupTitle = 'Hoy';
-      else if (isYesterday(date)) groupTitle = 'Ayer';
-      else groupTitle = format(date, "d 'de' MMMM 'de' yyyy", { locale: es });
+      if (isToday(notifyDate)) {
+        groupKey = '0_today';
+        groupTitle = 'Hoy';
+      } else if (isYesterday(notifyDate)) {
+        groupKey = '1_yesterday';
+        groupTitle = 'Ayer';
+      } else {
+        // Generamos una clave única por día para agrupar históricamente
+        groupKey = format(notifyDate, 'yyyy-MM-dd');
+        groupTitle = format(notifyDate, "d 'de' MMMM 'de' yyyy", { locale: es });
+      }
 
-      if (!acc[groupTitle]) acc[groupTitle] = [];
-      acc[groupTitle].push(notification);
-      return acc;
-    }, {} as Record<string, Notification[]>);
+      if (!groups[groupKey]) {
+        groups[groupKey] = {
+          title: groupTitle,
+          date: notifyDate,
+          items: []
+        };
+      }
+      groups[groupKey].items.push(notification);
+    });
+
+    /**
+     * ORDENAMIENTO CRONOLÓGICO:
+     * Ordenamos los grupos por fecha descendente (lo más reciente primero).
+     */
+    return Object.values(groups).sort((a, b) => b.date.getTime() - a.date.getTime());
   }, [initialNotifications]);
 
-  const sortedGroups = Object.keys(groupedNotifications).sort((a, b) => {
-    const dateA = a === 'Hoy' ? new Date() : a === 'Ayer' ? new Date(Date.now() - 86400000) : new Date(groupedNotifications[a][0].created_at);
-    const dateB = b === 'Hoy' ? new Date() : b === 'Ayer' ? new Date(Date.now() - 86400000) : new Date(groupedNotifications[b][0].created_at);
-    return dateB.getTime() - dateA.getTime();
-  });
+  // --- RENDERIZADO DE ESTADO VACÍO ---
+  if (!initialNotifications || initialNotifications.length === 0) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="flex flex-col items-center justify-center py-24 text-center"
+      >
+        <div className="relative mb-8">
+          <div className="absolute inset-0 bg-primary/20 rounded-full blur-3xl animate-pulse" />
+          <div className="relative bg-zinc-900 p-8 rounded-full border border-white/10 shadow-inner">
+            <BellOff className="h-12 w-12 text-zinc-700" />
+          </div>
+        </div>
+        <h3 className="text-2xl font-black text-white uppercase tracking-tight italic">Silencio en la Red</h3>
+        <p className="text-zinc-500 mt-2 max-w-sm font-medium">
+          Tu historial está limpio. Las nuevas resonancias aparecerán aquí cuando la ciudad interactúe contigo.
+        </p>
+      </motion.div>
+    );
+  }
 
   return (
-    // [CAMBIO QUIRÚRGICO #2]: Envolvemos toda la salida en un componente Card con el estilo de la plataforma.
-    <Card className="bg-card/50 backdrop-blur-lg border-border/20 shadow-lg">
-      <CardContent className="p-4 md:p-6">
-        {initialNotifications.length === 0 ? (
-          <div className="text-center py-16">
-            <h2 className="text-2xl font-semibold">Tu historial está vacío</h2>
-            <p className="text-muted-foreground mt-2">Cuando tengas nuevas actualizaciones, aparecerán aquí.</p>
+    <div className="w-full space-y-8 pb-12">
+
+      {/* CABECERA TÁCTICA */}
+      <header className="flex items-center justify-between px-2">
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-primary/10 rounded-2xl border border-primary/20 shadow-lg shadow-primary/5">
+            <History className="h-6 w-6 text-primary" />
           </div>
-        ) : (
-          <div className="space-y-8">
-            {sortedGroups.map((groupTitle) => (
-              <section key={groupTitle}>
-                <h3 className="text-lg font-semibold text-muted-foreground mb-4">{groupTitle}</h3>
-                <div className="space-y-2">
-                  {groupedNotifications[groupTitle].map(notification => (
-                    <NotificationItem key={notification.id} notification={notification} />
-                  ))}
-                </div>
-              </section>
-            ))}
+          <div>
+            <h2 className="text-2xl font-black uppercase tracking-tighter text-white italic leading-none">
+              Centro de <span className="text-primary">Resonancia</span>
+            </h2>
+            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] mt-1 opacity-70">
+              Historial de actividad geolocalizada
+            </p>
           </div>
-        )}
-      </CardContent>
-    </Card>
+        </div>
+
+        {/* INDICADOR DE MÁXIMA CALIDAD */}
+        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
+          <Sparkles size={12} className="text-primary" />
+          <span className="text-[9px] font-black text-white/50 uppercase tracking-widest">Estado: Online</span>
+        </div>
+      </header>
+
+      {/* CONTENEDOR DE CRISTALISMO (NOTIFICACIONES) */}
+      <Card className="bg-card/40 backdrop-blur-3xl border-white/5 shadow-2xl rounded-[3rem] overflow-hidden">
+        <CardContent className="p-8 md:p-12">
+          <div className="space-y-16">
+            <AnimatePresence mode="popLayout">
+              {sortedAndGrouped.map((group, index) => (
+                <motion.section
+                  key={group.title}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="relative"
+                >
+                  {/* LÍNEA DE TIEMPO VISUAL */}
+                  <div className="absolute left-[-4px] top-10 bottom-0 w-[1px] bg-gradient-to-b from-primary/40 to-transparent hidden md:block" />
+
+                  <div className="flex items-center gap-4 mb-8">
+                    <div className="h-2.5 w-2.5 rounded-full bg-primary shadow-[0_0_15px_rgba(var(--primary),0.6)]" />
+                    <h3 className="text-xs font-black uppercase tracking-[0.4em] text-primary/80">
+                      {group.title}
+                    </h3>
+                  </div>
+
+                  {/* LISTADO DE ITEMS DE NOTIFICACIÓN */}
+                  <div className="grid grid-cols-1 gap-4 md:pl-10">
+                    {group.items.map((notification) => (
+                      <motion.div
+                        key={notification.id}
+                        whileHover={{ x: 4 }}
+                        className="transition-all active:scale-[0.99]"
+                      >
+                        <NotificationItem notification={notification} />
+                      </motion.div>
+                    ))}
+                  </div>
+                </motion.section>
+              ))}
+            </AnimatePresence>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* FIRMA DE INFRAESTRUCTURA */}
+      <footer className="flex flex-col items-center justify-center gap-2 pt-8 opacity-20">
+        <div className="flex items-center gap-3">
+          <div className="h-px w-8 bg-zinc-700" />
+          <Clock size={14} className="text-zinc-500" />
+          <div className="h-px w-8 bg-zinc-700" />
+        </div>
+        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-500">
+          NicePod Malla de Inteligencia v2.5.2
+        </span>
+      </footer>
+    </div>
   );
 }

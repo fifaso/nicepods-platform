@@ -1,7 +1,6 @@
 // app/notifications/page.tsx
 // VERSIÓN FINAL Y COMPLETA
 
-import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { NotificationHistoryClient } from "./notification-history-client";
@@ -9,8 +8,7 @@ import { NotificationHistoryClient } from "./notification-history-client";
 import type { Notification } from "@/components/notification-bell";
 
 export default async function NotificationsPage() {
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
+  const supabase = createClient();
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {

@@ -1,13 +1,24 @@
 // components/create-flow/shared/context.tsx
-// VERSIÓN: 2.1 (Master Sovereign Context - Interface Sync & Zero Error Build)
+// VERSIÓN: 3.0 (Madrid Resonance - Full Contract Export & Narrative Sync)
+// Misión: Orquestador de estado y tipos para los flujos de creación IA.
 
 "use client";
 
 import { PodcastCreationData } from "@/lib/validation/podcast-schema";
-import React, { createContext, useContext, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
 import { useFormContext } from "react-hook-form";
 import { useFlowNavigation } from "../hooks/use-flow-navigation";
 import { CreationContextType } from "./types";
+
+/**
+ * [INTERFAZ DE EXPORTACIÓN]: NarrativeOption
+ * [FIX]: Se exporta este tipo para resolver el error ts(2305) 
+ * en el paso de selección de narrativa.
+ */
+export interface NarrativeOption {
+  title: string;
+  thesis: string;
+}
 
 /**
  * CreationContext
@@ -19,7 +30,7 @@ export const CreationContext = createContext<CreationContextType | undefined>(un
 /**
  * CreationProvider
  * Componente orquestador que envuelve el flujo de creación.
- * Centraliza la lógica de navegación para los 5 flujos:
+ * Centraliza la lógica de navegación para los flujos:
  * Pulse, Local Soul, Learn, Explore y Reflect.
  */
 export function CreationProvider({ children }: { children: React.ReactNode }) {
@@ -39,7 +50,7 @@ export function CreationProvider({ children }: { children: React.ReactNode }) {
    * Sincroniza datos externos (como el draft_id de las Edge Functions) 
    * con el store de React Hook Form de forma segura.
    */
-  const updateFormData = (data: Partial<PodcastCreationData>) => {
+  const updateFormData = useCallback((data: Partial<PodcastCreationData>) => {
     Object.entries(data).forEach(([key, value]) => {
       setValue(key as any, value, {
         shouldValidate: true,
@@ -47,12 +58,11 @@ export function CreationProvider({ children }: { children: React.ReactNode }) {
         shouldTouch: true
       });
     });
-  };
+  }, [setValue]);
 
   /**
    * contextValue
    * [FIX]: Sincronización explícita con la interfaz CreationContextType.
-   * Se añade 'getMasterPath' devolviendo el 'activePath' del motor de navegación.
    */
   const contextValue: CreationContextType = useMemo(() => ({
     // Propiedades de Navegación
@@ -74,7 +84,7 @@ export function CreationProvider({ children }: { children: React.ReactNode }) {
 
     // Utilidades de Datos
     updateFormData,
-  }), [navigation, isGeneratingScript]);
+  }), [navigation, isGeneratingScript, updateFormData]);
 
   return (
     <CreationContext.Provider value={contextValue}>

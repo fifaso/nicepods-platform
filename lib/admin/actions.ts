@@ -3,9 +3,8 @@
 
 "use server";
 
-import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import { cookies } from 'next/headers';
+import { createClient } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
 
 // --- INFRAESTRUCTURA SEGURA ---
@@ -29,9 +28,8 @@ function getAdminClient() {
 
 // Verificador de Seguridad: ¿Quien llama es realmente el Admin?
 async function assertAdmin() {
-  const cookieStore = cookies();
-  const supabase = createServerClient(cookieStore);
-  
+  const supabase = createServerClient();
+
   // 1. Validar sesión de usuario
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) throw new Error("No autenticado");
@@ -59,18 +57,18 @@ export async function getAdminDashboardStats() {
 
     // Consultas paralelas para velocidad
     const [userReq, podReq, jobsReq] = await Promise.all([
-        supabaseAdmin.from('profiles').select('*', { count: 'exact', head: true }),
-        supabaseAdmin.from('micro_pods').select('*', { count: 'exact', head: true }),
-        supabaseAdmin.from('podcast_creation_jobs')
-            .select('*', { count: 'exact', head: true })
-            .eq('status', 'failed')
-            // Filtro opcional de tiempo: .gte('created_at', yesterday.toISOString())
+      supabaseAdmin.from('profiles').select('*', { count: 'exact', head: true }),
+      supabaseAdmin.from('micro_pods').select('*', { count: 'exact', head: true }),
+      supabaseAdmin.from('podcast_creation_jobs')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'failed')
+      // Filtro opcional de tiempo: .gte('created_at', yesterday.toISOString())
     ]);
 
-    return { 
-        userCount: userReq.count || 0, 
-        podCount: podReq.count || 0, 
-        failedJobs: jobsReq.count || 0 
+    return {
+      userCount: userReq.count || 0,
+      podCount: podReq.count || 0,
+      failedJobs: jobsReq.count || 0
     };
   } catch (e) {
     console.error("Error stats:", e);
@@ -96,10 +94,10 @@ export async function getUsersList() {
       .limit(50); // Paginación implícita
 
     if (error) {
-        console.error("Error getUsersList:", error);
-        return [];
+      console.error("Error getUsersList:", error);
+      return [];
     }
-    
+
     return users || [];
   } catch (error) {
     console.error("Crash getUsersList:", error);
@@ -111,7 +109,7 @@ export async function getUsersList() {
 export async function getRecentPodcasts() {
   await assertAdmin();
   const supabaseAdmin = getAdminClient();
-  
+
   const { data } = await supabaseAdmin
     .from('micro_pods')
     .select(`
@@ -120,7 +118,7 @@ export async function getRecentPodcasts() {
     `)
     .order('created_at', { ascending: false })
     .limit(10);
-    
+
   return data || [];
 }
 
@@ -128,7 +126,7 @@ export async function getRecentPodcasts() {
 export async function getRecentFailedJobs() {
   await assertAdmin();
   const supabaseAdmin = getAdminClient();
-  
+
   const { data } = await supabaseAdmin
     .from('podcast_creation_jobs')
     .select(`
@@ -138,7 +136,7 @@ export async function getRecentFailedJobs() {
     .eq('status', 'failed')
     .order('created_at', { ascending: false })
     .limit(20);
-    
+
   return data || [];
 }
 
@@ -147,18 +145,18 @@ export async function getRecentFailedJobs() {
 export async function resetUserQuota(userId: string) {
   await assertAdmin();
   const supabaseAdmin = getAdminClient();
-  
+
   // Reseteamos el uso del mes a 0 usando upsert por seguridad
   const { error } = await supabaseAdmin
     .from('user_usage')
-    .upsert({ 
-        user_id: userId, 
-        podcasts_created_this_month: 0, 
-        updated_at: new Date().toISOString() 
+    .upsert({
+      user_id: userId,
+      podcasts_created_this_month: 0,
+      updated_at: new Date().toISOString()
     });
 
   if (error) throw new Error("Error reseteando cuota: " + error.message);
-  
+
   revalidatePath('/admin'); // Actualiza la tabla inmediatamente
   return { success: true };
 }
@@ -174,7 +172,7 @@ export async function toggleFeaturedStatus(podcastId: number, currentStatus: boo
     .eq('id', podcastId);
 
   if (error) throw new Error("No se pudo actualizar el estado destacado");
-  
+
   revalidatePath('/admin');
   return { success: true };
 }

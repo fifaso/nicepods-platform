@@ -1,14 +1,10 @@
-// Se convierte en un Server Component para obtener datos directamente
-// import { useState } from "react" // Ya no se necesita aquí
-// import { useRouter } from "next/navigation" // Ya no se necesita aquí
-// import { useAuth } from "@/hooks/use-auth" // Ya no se necesita aquí
+// app/pricing/page.tsx
 import { createClient } from "@/lib/supabase/server"; // Para obtener datos
-import { cookies } from "next/headers"; // Para el cliente de servidor
 
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 // import { useToast } from "@/hooks/use-toast" // Se movería a un componente cliente si la lógica de suscripción se mantiene
-import { Check } from "lucide-react"
+import { Check } from "lucide-react";
 
 // Definimos un tipo para los datos del plan que vienen de la base de datos
 type Plan = {
@@ -21,24 +17,23 @@ type Plan = {
 };
 
 export default async function PricingPage() {
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
+  const supabase = createClient();
 
   // Obtenemos los datos de los planes y la sesión del usuario del lado del servidor
   const { data: plansData, error: plansError } = await supabase
     .from('plans')
     .select('*')
     .order('price_monthly', { ascending: true });
-    
+
   const { data: { user } } = await supabase.auth.getUser();
-  
+
   // Obtenemos la suscripción actual del usuario para saber qué plan resaltar
-  const { data: userSubscription } = user 
+  const { data: userSubscription } = user
     ? await supabase
-        .from('subscriptions')
-        .select('*, plans(*)')
-        .eq('user_id', user.id)
-        .single()
+      .from('subscriptions')
+      .select('*, plans(*)')
+      .eq('user_id', user.id)
+      .single()
     : { data: null };
 
   if (plansError) {
@@ -63,9 +58,8 @@ export default async function PricingPage() {
           return (
             <Card
               key={plan.name}
-              className={`backdrop-blur-lg bg-card/80 border-muted/30 flex flex-col ${
-                isHighlighted && !isCurrentPlan ? "border-primary/50 shadow-lg shadow-primary/10" : ""
-              } ${isCurrentPlan ? "ring-2 ring-primary" : ""}`}
+              className={`backdrop-blur-lg bg-card/80 border-muted/30 flex flex-col ${isHighlighted && !isCurrentPlan ? "border-primary/50 shadow-lg shadow-primary/10" : ""
+                } ${isCurrentPlan ? "ring-2 ring-primary" : ""}`}
             >
               <CardHeader>
                 <CardTitle className="text-2xl">{plan.name}</CardTitle>
@@ -81,9 +75,9 @@ export default async function PricingPage() {
                   <li className="flex items-start">
                     <Check className="h-5 w-5 text-primary shrink-0 mr-2 mt-0.5" />
                     <span className="text-sm">
-                      {plan.monthly_creation_limit === 0 ? "Acceso de solo escucha" : 
-                       plan.name === 'Creador' ? `Creaciones ilimitadas de micro-podcasts` : 
-                       `Hasta ${plan.monthly_creation_limit} creaciones de micro-podcasts al mes`}
+                      {plan.monthly_creation_limit === 0 ? "Acceso de solo escucha" :
+                        plan.name === 'Creador' ? `Creaciones ilimitadas de micro-podcasts` :
+                          `Hasta ${plan.monthly_creation_limit} creaciones de micro-podcasts al mes`}
                     </span>
                   </li>
                   {/* Resto de características del array */}
@@ -97,9 +91,9 @@ export default async function PricingPage() {
               </CardContent>
               <CardFooter>
                 {isCurrentPlan ? (
-                   <Button className="w-full" disabled variant="outline">
-                     Tu Plan Actual
-                   </Button>
+                  <Button className="w-full" disabled variant="outline">
+                    Tu Plan Actual
+                  </Button>
                 ) : (
                   <Button
                     className="w-full"

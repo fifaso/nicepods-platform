@@ -1,15 +1,16 @@
 // hooks/use-persistent-form.ts
-// VERSIÓN: 2.0 (Smart Hydration: Significance Check & Non-Blocking)
+// VERSIÓN: 3.0 (Madrid Resonance - Pure Integrity & High-Performance Persistence)
+// Misión: Garantizar la recuperación de borradores locales evitando colisiones con esquemas obsoletos.
 
 "use client";
 
-import { useEffect, useCallback, useState, useRef } from "react";
-import { UseFormReturn } from "react-hook-form";
 import { useDebounce } from "@/hooks/use-debounce";
 import { PodcastCreationData } from "@/lib/validation/podcast-schema";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { UseFormReturn } from "react-hook-form";
 
-const STORAGE_KEY = "nicepod_draft_v1";
-const SCHEMA_VERSION = "1.0"; 
+const STORAGE_KEY = "nicepod_draft_v7"; // Incrementamos versión por cambio de esquema
+const SCHEMA_VERSION = "7.0";
 
 interface PersistenceState {
   version: string;
@@ -19,109 +20,145 @@ interface PersistenceState {
   formData: Partial<PodcastCreationData>;
 }
 
-// Helper para determinar si vale la pena restaurar
+/**
+ * hasSignificantData
+ * [FIX]: Eliminación de 'archetype_topic' y 'archetype_goal' para resolver errores ts(2339).
+ * Determina si el borrador tiene suficiente peso intelectual para ser restaurado.
+ */
 function hasSignificantData(data: Partial<PodcastCreationData>): boolean {
-  // Verificamos si hay texto real en los campos clave
-  const hasTopic = !!(data.solo_topic?.trim() || data.archetype_topic?.trim() || data.link_topicA?.trim() || data.question_to_answer?.trim());
-  const hasMotivation = !!(data.solo_motivation?.trim() || data.archetype_goal?.trim() || data.legacy_lesson?.trim());
-  const isAdvancedStep = !!data.final_script; // Si ya hay un guion, es muy valioso
+  if (!data) return false;
+
+  const hasTopic = !!(
+    data.solo_topic?.trim() ||
+    data.link_topicA?.trim() ||
+    data.link_topicB?.trim() ||
+    data.question_to_answer?.trim()
+  );
+
+  const hasMotivation = !!(
+    data.solo_motivation?.trim() ||
+    data.legacy_lesson?.trim()
+  );
+
+  const isAdvancedStep = !!data.final_script; // Si ya hay un guion generado, es crítico salvarlo.
 
   return hasTopic || hasMotivation || isAdvancedStep;
 }
 
+/**
+ * HOOK: usePersistentForm
+ * Orquestador de la "Caja Negra" local de NicePod.
+ */
 export function usePersistentForm(
   form: UseFormReturn<PodcastCreationData>,
   currentStep: string,
   history: string[],
   onHydrate: (step: string, history: string[]) => void,
-  onDataFound?: () => void 
+  onDataFound?: () => void
 ) {
   const { watch, reset } = form;
   const formData = watch();
-  
-  const [pendingData, setPendingData] = useState<PersistenceState | null>(null);
-  const isRestoring = useRef(false); 
-  const hasUserStartedTyping = useRef(false); // Nuevo flag
 
+  const [pendingData, setPendingData] = useState<PersistenceState | null>(null);
+  const isRestoring = useRef(false);
+  const hasUserStartedTyping = useRef(false);
+
+  // Debounce de 1 segundo para no saturar el localStorage en cada pulsación de tecla
   const debouncedFormData = useDebounce(formData, 1000);
 
-  // Detectar si el usuario ya empezó a escribir "encima" del borrador
+  /**
+   * Monitor de Actividad Humana
+   * Detecta si el usuario empieza a escribir en un formulario limpio.
+   */
   useEffect(() => {
-    // Si hay cambios en el formulario y NO estamos restaurando, el usuario está activo.
     if (!isRestoring.current && hasSignificantData(formData)) {
-        hasUserStartedTyping.current = true;
+      hasUserStartedTyping.current = true;
     }
   }, [formData]);
 
-  // 1. Lectura Inicial Inteligente
+  /**
+   * 1. LECTURA INICIAL (Mount)
+   * Verifica si existe una sesión previa al cargar el componente.
+   */
   useEffect(() => {
     try {
       if (typeof window === "undefined") return;
-      
+
       const stored = localStorage.getItem(STORAGE_KEY);
       if (!stored) return;
 
       const parsed: PersistenceState = JSON.parse(stored);
+
+      // Validaciones de integridad y frescura (24 horas)
       const isOutdated = parsed.version !== SCHEMA_VERSION;
       const isExpired = (Date.now() - parsed.timestamp) > 24 * 60 * 60 * 1000;
 
-      // Si es viejo, incompatible o NO TIENE DATOS SIGNIFICATIVOS, lo borramos silenciosamente.
       if (isOutdated || isExpired || !hasSignificantData(parsed.formData)) {
         localStorage.removeItem(STORAGE_KEY);
         return;
       }
 
-      // Si llegamos aquí, hay oro. Avisamos.
       setPendingData(parsed);
       if (onDataFound) onDataFound();
 
-    } catch (e) {
+    } catch (error) {
+      console.warn("[NicePod-Persistence] Error al leer sesión previa:", error);
       localStorage.removeItem(STORAGE_KEY);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); 
+  }, [onDataFound]);
 
-  // 2. Restauración
+  /**
+   * 2. ACCIÓN: Restaurar Sesión
+   * Rehidrata el estado del formulario y la posición en el flujo.
+   */
   const restoreSession = useCallback(() => {
     if (!pendingData) return;
-    
-    // Si el usuario ya escribió algo nuevo significativo, confirmamos antes de sobrescribir?
-    // Por simplicidad UX: Si pulsa "Continuar", sobrescribimos.
-    
+
     isRestoring.current = true;
+
+    // Inyectamos los datos en el store de React Hook Form
     reset(pendingData.formData);
-    
+
+    // Sincronizamos la posición del stepper
     if (pendingData.step && pendingData.history) {
       onHydrate(pendingData.step, pendingData.history);
     }
-    
-    setPendingData(null); 
-    hasUserStartedTyping.current = false; // Resetamos flag
-    
-    setTimeout(() => { isRestoring.current = false; }, 1000);
+
+    setPendingData(null);
+    hasUserStartedTyping.current = false;
+
+    // Pequeño delay para liberar el bloqueo de guardado
+    setTimeout(() => {
+      isRestoring.current = false;
+    }, 500);
+
   }, [pendingData, reset, onHydrate]);
 
-  // 3. Descarte
+  /**
+   * 3. ACCIÓN: Descartar Sesión
+   * Limpieza manual de la memoria local.
+   */
   const discardSession = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY);
     setPendingData(null);
   }, []);
 
-  // 4. Autosave Robusto
+  /**
+   * 4. LÓGICA DE AUTOSAVE (Side Effect)
+   * Se dispara cada vez que los datos del formulario cambian.
+   */
   useEffect(() => {
     if (isRestoring.current) return;
 
-    // Si hay un borrador pendiente (el usuario no ha decidido), 
-    // PERO el usuario ya empezó a escribir algo nuevo significativo...
-    // Estrategia: El nuevo input gana. Sobrescribimos el storage viejo con lo nuevo.
+    // Si el usuario ya está escribiendo algo nuevo, priorizamos lo nuevo sobre lo viejo guardado
     if (pendingData !== null && hasUserStartedTyping.current) {
-        setPendingData(null); // Dejamos de ofrecer la restauración, el usuario ya eligió "Nuevo" implícitamente
+      setPendingData(null);
     }
 
-    // Solo guardamos si hay datos significativos
+    // No guardamos formularios vacíos
     if (!hasSignificantData(debouncedFormData)) return;
 
-    // Si todavía hay datos pendientes y el usuario no ha escrito, NO sobrescribimos (esperamos su decisión)
+    // Si hay datos pendientes de restaurar y el usuario no ha tocado nada, no sobrescribimos aún
     if (pendingData !== null && !hasUserStartedTyping.current) return;
 
     const dataToSave: PersistenceState = {
@@ -129,17 +166,25 @@ export function usePersistentForm(
       timestamp: Date.now(),
       step: currentStep,
       history: history,
-      formData: debouncedFormData, 
+      formData: debouncedFormData,
     };
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
-    
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+    } catch (e) {
+      console.error("[NicePod-Persistence] Error en cuota de almacenamiento local.");
+    }
+
   }, [debouncedFormData, currentStep, history, pendingData]);
 
+  /**
+   * clearDraft
+   * Expone un método de limpieza total para llamar tras una publicación exitosa.
+   */
   const clearDraft = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY);
     setPendingData(null);
   }, []);
 
-  return { restoreSession, discardSession, clearDraft };
+  return { restoreSession, discardSession, clearDraft, pendingData };
 }

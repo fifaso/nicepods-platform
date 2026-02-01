@@ -3,27 +3,15 @@
 
 "use client";
 
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { PodcastCreationData } from "@/lib/validation/podcast-schema";
+import {
+    Activity, BrainCircuit, CheckCircle2, Clock, ExternalLink, FileText,
+    Globe, MapPin, Mic2, Quote, ShieldCheck, Sparkles, Zap
+} from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { useFormContext } from "react-hook-form";
-import { PodcastCreationData } from "@/lib/validation/podcast-schema";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { 
-    Clock, 
-    BrainCircuit, 
-    Sparkles, 
-    Mic2, 
-    FileText, 
-    Globe, 
-    ShieldCheck, 
-    CheckCircle2, 
-    Activity, 
-    ExternalLink, 
-    Zap,
-    Quote
-} from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
-import { motion } from "framer-motion";
 
 export function FinalStep() {
     const { watch, setValue } = useFormContext<PodcastCreationData>();
@@ -57,7 +45,7 @@ export function FinalStep() {
     }, [formData.agentName]);
 
     const sources = formData.sources || [];
-    
+
     const coreTopic = useMemo(() => {
         switch (formData.purpose) {
             case 'explore': return `${formData.link_topicA} & ${formData.link_topicB}`;

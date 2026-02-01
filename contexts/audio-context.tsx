@@ -1,12 +1,17 @@
 // contexts/audio-context.tsx
-//version 2.0
+// VERSIÓN: 3.0 (Madrid Resonance - Engagement Sensor & Audio Engine)
+
 "use client";
 
 import { useAuth } from "@/hooks/use-auth";
 import { createClient } from "@/lib/supabase/client";
 import { PodcastWithProfile } from "@/types/podcast";
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
+/**
+ * INTERFAZ MAESTRA: AudioContextType
+ * Define el contrato para el control de medios y el registro de resonancia.
+ */
 export interface AudioContextType {
   currentPodcast: PodcastWithProfile | null;
   queue: PodcastWithProfile[];
@@ -19,6 +24,7 @@ export interface AudioContextType {
   seekTo: (time: number) => void;
   skipForward: (seconds?: number) => void;
   skipBackward: (seconds?: number) => void;
+  logInteractionEvent: (type: 'completed_playback' | 'liked' | 'shared') => Promise<void>; // [NUEVO]: Fix para error de tipos
   isPlayerExpanded: boolean;
   expandPlayer: () => void;
   collapsePlayer: () => void;
@@ -26,9 +32,15 @@ export interface AudioContextType {
 
 const AudioContext = createContext<AudioContextType | undefined>(undefined);
 
+/**
+ * PROVIDER: AudioProvider
+ * El motor que da voz a NicePod y mide la atención de la audiencia.
+ */
 export function AudioProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
-  const supabase = useRef(createClient()).current;
+  const { user, supabase: authSupabase } = useAuth();
+
+  // Usamos el cliente compartido de auth o creamos uno de cliente si no hay sesión
+  const supabase = authSupabase || createClient();
 
   const [currentPodcast, setCurrentPodcast] = useState<PodcastWithProfile | null>(null);
   const [queue, setQueue] = useState<PodcastWithProfile[]>([]);
@@ -36,15 +48,21 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(false);
   const [isPlayerExpanded, setIsPlayerExpanded] = useState(false);
 
+  // Referencia persistente al motor de audio del navegador
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  /**
+   * INITIALIZATION
+   * Configuramos el listener de alta frecuencia fuera de React para performance.
+   */
   useEffect(() => {
-    if (!audioRef.current && typeof window !== 'undefined') {
+    if (typeof window === 'undefined') return;
+
+    if (!audioRef.current) {
       const audio = new Audio();
       audio.preload = 'metadata';
       audioRef.current = audio;
 
-      // EVENTO DE ALTA FRECUENCIA: Se emite al Window, no al Estado de React
       const handleTimeUpdate = () => {
         window.dispatchEvent(new CustomEvent('nicepod-timeupdate', {
           detail: { currentTime: audio.currentTime, duration: audio.duration }
@@ -56,11 +74,37 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       audio.addEventListener("timeupdate", handleTimeUpdate);
       audio.addEventListener("loadstart", () => setIsLoading(true));
       audio.addEventListener("canplay", () => setIsLoading(false));
-      audio.addEventListener("ended", () => handleNext());
+      audio.addEventListener("ended", () => handleAutoNext());
     }
+
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = "";
+      }
+    };
   }, []);
 
-  const handleNext = useCallback(() => {
+  /**
+   * logInteractionEvent [SISTEMA DE RESONANCIA]
+   * Registra eventos de usuario en la base de datos para alimentar el motor de IA.
+   */
+  const logInteractionEvent = useCallback(async (type: 'completed_playback' | 'liked' | 'shared') => {
+    if (!user || !currentPodcast) return;
+
+    try {
+      await supabase.from('playback_events').insert({
+        user_id: user.id,
+        podcast_id: currentPodcast.id,
+        event_type: type
+      });
+      console.log(`[NicePod-Audio] Evento '${type}' registrado.`);
+    } catch (err) {
+      console.error("[NicePod-Audio] Error al loguear interacción:", err);
+    }
+  }, [user, currentPodcast, supabase]);
+
+  const handleAutoNext = useCallback(() => {
     if (queue.length > 0 && currentPodcast) {
       const idx = queue.findIndex(p => p.id === currentPodcast.id);
       if (idx !== -1 && idx < queue.length - 1) {
@@ -69,7 +113,8 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       }
     }
     setIsPlaying(false);
-  }, [queue, currentPodcast]);
+    logInteractionEvent('completed_playback'); // Log automático al terminar
+  }, [queue, currentPodcast, logInteractionEvent]);
 
   const playPodcast = useCallback((podcast: PodcastWithProfile, playlist: PodcastWithProfile[] = []) => {
     const audio = audioRef.current;
@@ -82,38 +127,47 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     } else {
       setCurrentPodcast(podcast);
       audio.src = podcast.audio_url;
-      audio.play().catch(console.error);
+      audio.play().catch(err => console.error("[NicePod-Audio] Playback failed:", err));
 
-      // Analytics & Logs
+      // Incrementar contador global (RPC)
       supabase.rpc('increment_play_count', { podcast_id: podcast.id }).then();
-      if (user) {
-        supabase.from('playback_events').insert({
-          user_id: user.id,
-          podcast_id: podcast.id,
-          event_type: 'completed_playback'
-        }).then();
-      }
     }
-  }, [currentPodcast, user, supabase]);
+  }, [currentPodcast, supabase]);
 
-  const contextValue = {
-    currentPodcast, queue, isPlaying, isLoading, audioRef,
+  const value = useMemo(() => ({
+    currentPodcast,
+    queue,
+    isPlaying,
+    isLoading,
+    audioRef,
     playPodcast,
     togglePlayPause: () => audioRef.current?.paused ? audioRef.current.play() : audioRef.current?.pause(),
-    closePodcast: () => { if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ""; } setCurrentPodcast(null); setQueue([]); },
+    closePodcast: () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = "";
+      }
+      setCurrentPodcast(null);
+      setQueue([]);
+    },
     seekTo: (t: number) => { if (audioRef.current) audioRef.current.currentTime = t; },
     skipForward: (s = 15) => { if (audioRef.current) audioRef.current.currentTime += s; },
     skipBackward: (s = 15) => { if (audioRef.current) audioRef.current.currentTime -= s; },
+    logInteractionEvent,
     isPlayerExpanded,
     expandPlayer: () => setIsPlayerExpanded(true),
     collapsePlayer: () => setIsPlayerExpanded(false),
-  };
+  }), [currentPodcast, queue, isPlaying, isLoading, isPlayerExpanded, logInteractionEvent, playPodcast]);
 
-  return <AudioContext.Provider value={contextValue}>{children}</AudioContext.Provider>;
+  return <AudioContext.Provider value={value}>{children}</AudioContext.Provider>;
 }
 
+/**
+ * useAudio
+ * Hook de acceso al motor de audio y analíticas.
+ */
 export const useAudio = () => {
   const context = useContext(AudioContext);
-  if (!context) throw new Error("useAudio must be used within AudioProvider");
+  if (!context) throw new Error("useAudio debe ser utilizado dentro de un AudioProvider");
   return context;
 };

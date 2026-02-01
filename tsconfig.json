@@ -55,11 +55,6 @@
     "out",
     "build",
     "dist",
-    /* 
-      [CRÍTICO]: Aislamiento de Backend.
-      Evita que TypeScript intente compilar las Edge Functions (Deno) 
-      usando el motor de Node.js de Next.js.
-    */
     "supabase/functions"
   ]
 }

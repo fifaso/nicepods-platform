@@ -1,122 +1,73 @@
-// components/create-flow/InspireSubStep.tsx
-// VERSIÓN FINAL ADAPTATIVA: Contraste perfecto en Light/Dark Mode.
+// components/create-flow/steps/inspire-sub-step.tsx
+// VERSIÓN: 6.0 (Madrid Resonance - Clean Flow Integration)
 
 "use client";
 
-import { useCreationContext } from "../shared/context";
+import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { ArrowRight, Shield, BookOpen, Compass, Zap, Construction, Heart } from "lucide-react";
+import { PodcastCreationData } from "@/lib/validation/podcast-schema";
+import { Zap } from "lucide-react";
+import { useFormContext } from "react-hook-form";
+import { useCreationContext } from "../shared/context";
 
-// COPYWRITING Y COLORES OPTIMIZADOS: 
-// Colores ajustados: Tono 600 para Light Mode (más oscuro), Tono 400 para Dark Mode (más brillante).
-const archetypeOptions = [
-    { 
-        value: 'archetype-hero', 
-        icon: <Shield className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />, 
-        title: 'El Héroe', 
-        description: "Superar desafíos y transformarse." 
-    },
-    { 
-        value: 'archetype-sage', 
-        icon: <BookOpen className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />, 
-        title: 'El Sabio', 
-        description: "Buscar la verdad y la sabiduría." 
-    },
-    { 
-        value: 'archetype-explorer', 
-        icon: <Compass className="h-5 w-5 text-amber-600 dark:text-amber-400" />, 
-        title: 'El Explorador', 
-        description: "Descubrir lo desconocido con libertad." 
-    },
-    { 
-        value: 'archetype-rebel', 
-        icon: <Zap className="h-5 w-5 text-rose-600 dark:text-rose-400" />, 
-        title: 'El Rebelde', 
-        description: "Romper reglas y cambiar el sistema." 
-    },
-    { 
-        value: 'archetype-creator', 
-        icon: <Construction className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />, 
-        title: 'El Creador', 
-        description: "Materializar una visión única." 
-    },
-    { 
-        value: 'archetype-caregiver', 
-        icon: <Heart className="h-5 w-5 text-pink-600 dark:text-pink-400" />, 
-        title: 'El Cuidador', 
-        description: "Proteger y ayudar con empatía." 
-    },
-];
+const INSPIRE_OPTIONS = [
+  {
+    id: "solo_talk",
+    title: "Voz en Solitario",
+    description: "Una reflexión directa sobre un tema que te apasione.",
+    icon: Mic,
+    color: "text-blue-500",
+    bg: "bg-blue-500/10"
+  },
+  {
+    id: "conceptual_bridge",
+    title: "Puente de Ideas",
+    description: "Conecta dos conceptos aparentemente distantes.",
+    icon: Zap,
+    color: "text-purple-500",
+    bg: "bg-purple-500/10"
+  }
+] as const;
+
+import { Mic } from "lucide-react";
 
 export function InspireSubStep() {
-  const { updateFormData, transitionTo } = useCreationContext();
+  const { setValue } = useFormContext<PodcastCreationData>();
+  const { transitionTo } = useCreationContext();
 
-  const handleSelectArchetype = (archetypeValue: string) => {
-    updateFormData({
-      style: "archetype",
-      selectedArchetype: archetypeValue,
-    });
-    transitionTo('ARCHETYPE_INPUT');
+  const handleSelection = (optionId: string) => {
+    // [FIX]: Sincronización con el nuevo esquema de navegación
+    // Eliminamos la referencia a 'ARCHETYPE_INPUT' que ya no existe
+    setValue("style", "solo", { shouldValidate: true });
+
+    // Navegamos directamente al input de creación de alto valor
+    transitionTo('SOLO_TALK_INPUT');
   };
 
   return (
-    // 1. CONTENEDOR PRINCIPAL: Centrado absoluto
-    <div className="flex flex-col h-full w-full justify-center items-center animate-fade-in px-4">
-      
-      {/* CABECERA: Texto adaptativo */}
-      <div className="text-center mb-4 flex-shrink-0 w-full max-w-lg">
-        {/* text-foreground: Negro en Claro / Blanco en Oscuro */}
-        <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground drop-shadow-sm md:drop-shadow-none">
-          Selecciona un Arquetipo
+    <div className="space-y-8 animate-in fade-in duration-700 max-w-4xl mx-auto px-4">
+      <div className="text-center space-y-2">
+        <h2 className="text-3xl font-black tracking-tighter uppercase italic text-white">
+          ¿Cómo quieres <span className="text-primary">Inspirar?</span>
         </h2>
-        <p className="text-sm text-muted-foreground mt-1 font-medium">
-          Elige el tono emocional para tu historia
-        </p>
+        <p className="text-sm text-zinc-500 font-medium">Selecciona el formato de tu chispa creativa.</p>
       </div>
-      
-      {/* GRID OPTIMIZADO */}
-      <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-3">
-        {archetypeOptions.map((option) => (
-          <button
-            key={option.value}
-            onClick={() => handleSelectArchetype(option.value)}
-            className={cn(
-              "group relative flex items-center text-left transition-all duration-300",
-              "p-3",
-              // ESTILOS ADAPTATIVOS (GLASS):
-              // Light: Fondo blanco semitransparente (60%) + Borde gris suave.
-              // Dark: Fondo blanco muy sutil (5%) + Borde blanco sutil.
-              "bg-white/60 dark:bg-white/10",
-              "hover:bg-white/80 dark:hover:bg-white/20",
-              "border border-black/5 dark:border-white/10",
-              "hover:border-black/10 dark:hover:border-white/20",
-              "rounded-xl overflow-hidden shadow-sm hover:shadow-md active:scale-[0.99]"
-            )}
-          >
-            {/* ICONO: Fondo blanco sólido en Light para resaltar el color del icono */}
-            <div className="flex-shrink-0 mr-4">
-              <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white dark:bg-black/20 border border-black/5 dark:border-white/5 group-hover:scale-110 transition-transform duration-300 shadow-sm">
-                {option.icon}
-              </div>
-            </div>
 
-            {/* TEXTOS */}
-            <div className="flex-grow min-w-0">
-              <div className="flex items-center justify-between">
-                {/* Título semántico */}
-                <h3 className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">
-                  {option.title}
-                </h3>
-                {/* Flecha adaptativa */}
-                <ArrowRight className="h-4 w-4 text-muted-foreground/50 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 hidden md:block" />
-              </div>
-              
-              {/* Descripción semántica */}
-              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1 font-medium">
-                {option.description}
-              </p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {INSPIRE_OPTIONS.map((option) => (
+          <Card
+            key={option.id}
+            onClick={() => handleSelection(option.id)}
+            className="p-8 rounded-[2rem] bg-zinc-900/40 border-white/5 hover:border-primary/40 cursor-pointer transition-all duration-300 group shadow-xl"
+          >
+            <div className={cn("p-4 rounded-2xl w-fit mb-6 transition-transform group-hover:scale-110", option.bg)}>
+              <option.icon className={cn("h-8 w-8", option.color)} />
             </div>
-          </button>
+            <h3 className="text-xl font-black text-white uppercase tracking-tight mb-2">{option.title}</h3>
+            <p className="text-sm text-zinc-400 leading-relaxed font-medium">
+              {option.description}
+            </p>
+          </Card>
         ))}
       </div>
     </div>
