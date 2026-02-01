@@ -251,25 +251,17 @@ DECLARE
     v_current_concurrent int;
     v_current_monthly int;
 BEGIN
-    -- 1. Obtener límites según Plan
     SELECT pl.max_concurrent_drafts, pl.max_monthly_drafts 
     INTO v_concurrent_limit, v_monthly_limit
     FROM public.subscriptions s
     JOIN public.plans pl ON s.plan_id = pl.id
-    WHERE s.user_id = p_user_id AND s.status = 'active'
-    LIMIT 1;
+    WHERE s.user_id = p_user_id AND s.status = 'active' LIMIT 1;
 
-    -- 2. Conteos actuales
     SELECT count(*) INTO v_current_concurrent FROM public.podcast_drafts WHERE user_id = p_user_id;
     SELECT drafts_created_this_month INTO v_current_monthly FROM public.user_usage WHERE user_id = p_user_id;
 
-    -- 3. Validaciones
     IF v_current_concurrent >= COALESCE(v_concurrent_limit, 3) THEN
-        RETURN jsonb_build_object('allowed', false, 'reason', 'Límite de borradores simultáneos alcanzado (Cuota: ' || v_concurrent_limit || '). Produce o elimina uno.');
-    END IF;
-
-    IF v_current_monthly >= COALESCE(v_monthly_limit, 5) THEN
-        RETURN jsonb_build_object('allowed', false, 'reason', 'Has agotado tus borradores mensuales.');
+        RETURN jsonb_build_object('allowed', false, 'reason', 'Límite de borradores simultáneos alcanzado.');
     END IF;
 
     RETURN jsonb_build_object('allowed', true);
@@ -278,6 +270,26 @@ $$;
 
 
 ALTER FUNCTION "public"."check_draft_quota"("p_user_id" "uuid") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."check_podcast_integrity_and_release"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+BEGIN
+    -- Si ambos activos están listos, liberamos el podcast
+    IF NEW.audio_ready = TRUE AND NEW.image_ready = TRUE THEN
+        UPDATE public.micro_pods 
+        SET 
+            processing_status = 'completed',
+            updated_at = now()
+        WHERE id = NEW.id;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."check_podcast_integrity_and_release"() OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."check_rate_limit"("p_user_id" "uuid", "p_function_name" "text", "p_limit" integer, "p_window_seconds" integer) RETURNS boolean
@@ -315,6 +327,7 @@ ALTER FUNCTION "public"."check_rate_limit"("p_user_id" "uuid", "p_function_name"
 
 CREATE OR REPLACE FUNCTION "public"."cleanup_expired_pulse"() RETURNS "void"
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'extensions'
     AS $$
 BEGIN
     DELETE FROM public.pulse_staging WHERE expires_at < now();
@@ -334,8 +347,39 @@ CREATE OR REPLACE FUNCTION "public"."create_profile_and_free_subscription"() RET
 ALTER FUNCTION "public"."create_profile_and_free_subscription"() OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."dispatch_edge_function"("function_name" "text", "payload" "jsonb") RETURNS "jsonb"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'extensions'
+    AS $$
+        DECLARE
+            request_id bigint;
+            full_url text := 'https://arbojlknwilqcszuqope.supabase.co' || '/functions/v1/' || function_name;
+            auth_header text := 'Bearer ' || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFyYm9qbGtud2lscWNzenVxb3BlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTkxMDMwMSwiZXhwIjoyMDc1NDg2MzAxfQ.-K-ZM6_0ea-fA9sA7rTvlMq8d9TL8gx-Ypcm6EE0Qjc';
+        BEGIN
+            -- Realizamos la petición ASÍNCRONA usando pg_net.
+            SELECT net.http_post(
+                url := full_url,
+                body := payload,
+                headers := jsonb_build_object(
+                    'Content-Type', 'application/json',
+                    'Authorization', auth_header
+                )
+            ) INTO request_id;
+
+            RETURN jsonb_build_object('status', 'queued', 'request_id', request_id);
+        EXCEPTION WHEN OTHERS THEN
+            RAISE WARNING 'Fallo al despachar Edge Function: %', SQLERRM;
+            RETURN jsonb_build_object('status', 'error', 'message', SQLERRM);
+        END;
+        $$;
+
+
+ALTER FUNCTION "public"."dispatch_edge_function"("function_name" "text", "payload" "jsonb") OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."fetch_personalized_pulse"("p_user_id" "uuid", "p_limit" integer DEFAULT 20, "p_threshold" double precision DEFAULT 0.7) RETURNS TABLE("id" "uuid", "title" "text", "summary" "text", "url" "text", "source_name" "text", "content_type" "public"."content_category", "authority_score" double precision, "similarity" double precision)
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'extensions'
     AS $$
 DECLARE
     v_user_dna vector(768);
@@ -450,6 +494,35 @@ $$;
 ALTER FUNCTION "public"."get_generic_library_shelves"() OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."get_memories_in_bounds"("min_lat" double precision, "min_lng" double precision, "max_lat" double precision, "max_lng" double precision) RETURNS TABLE("id" bigint, "lat" double precision, "lng" double precision, "title" "text", "focus_entity" "text", "content_type" "text")
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'extensions'
+    AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        pm.pod_id as id,
+        ST_Y(pm.geo_location::geometry) as lat,
+        ST_X(pm.geo_location::geometry) as lng,
+        mp.title,
+        pm.focus_entity,
+        pm.content_type
+    FROM 
+        public.place_memories pm
+    JOIN 
+        public.micro_pods mp ON pm.pod_id = mp.id
+    WHERE 
+        -- Filtro espacial: Cuadro delimitador (Bounding Box)
+        -- Usamos casting a geometry porque es más rápido para bounding box simple que geography
+        pm.geo_location::geometry && ST_MakeEnvelope(min_lng, min_lat, max_lng, max_lat, 4326)
+    LIMIT 100; -- Protección contra sobrecarga de UI
+END;
+$$;
+
+
+ALTER FUNCTION "public"."get_memories_in_bounds"("min_lat" double precision, "min_lng" double precision, "max_lat" double precision, "max_lng" double precision) OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."get_nearby_podcasts"("p_lat" double precision, "p_lng" double precision, "p_radius_meters" integer DEFAULT 1000, "p_limit" integer DEFAULT 10) RETURNS TABLE("id" bigint, "title" "text", "description" "text", "audio_url" "text", "cover_image_url" "text", "distance_meters" double precision, "profiles" json)
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public', 'extensions'
@@ -524,6 +597,8 @@ CREATE TABLE IF NOT EXISTS "public"."micro_pods" (
     "creation_mode" "text" DEFAULT 'standard'::"text",
     "geo_location" "extensions"."geography"(Point,4326),
     "place_name" "text",
+    "audio_ready" boolean DEFAULT false,
+    "image_ready" boolean DEFAULT false,
     CONSTRAINT "micro_pods_creation_mode_check" CHECK (("creation_mode" = ANY (ARRAY['standard'::"text", 'remix'::"text"]))),
     CONSTRAINT "micro_pods_title_check" CHECK (("char_length"("title") > 0))
 );
@@ -627,8 +702,26 @@ $$;
 ALTER FUNCTION "public"."get_user_discovery_feed"("p_user_id" "uuid") OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."handle_new_podcast_async"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'extensions'
+    AS $$
+BEGIN
+    PERFORM public.dispatch_edge_function(
+        'cognitive-core-orchestrator',
+        jsonb_build_object('record', row_to_json(NEW))
+    );
+    RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."handle_new_podcast_async"() OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."handle_new_podcast_publication"() RETURNS "trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'extensions'
     AS $$
 BEGIN
   -- Solo si el estado cambia a 'published' (y antes no lo era)
@@ -688,6 +781,7 @@ ALTER FUNCTION "public"."handle_new_testimonial"() OWNER TO "postgres";
 
 CREATE OR REPLACE FUNCTION "public"."handle_new_user"() RETURNS "trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'extensions'
     AS $$
 BEGIN
   INSERT INTO public.profiles (id, full_name, avatar_url, username)
@@ -709,6 +803,35 @@ $$;
 ALTER FUNCTION "public"."handle_new_user"() OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."handle_resonance_update_async"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'extensions'
+    AS $$
+DECLARE
+    target_user_id uuid;
+BEGIN
+    IF TG_TABLE_NAME = 'likes' THEN
+        target_user_id := COALESCE(NEW.user_id, OLD.user_id);
+    ELSIF TG_TABLE_NAME = 'playback_events' THEN
+        target_user_id := NEW.user_id;
+    END IF;
+
+    PERFORM public.dispatch_edge_function(
+        'update-resonance-profile',
+        jsonb_build_object(
+            'user_id', target_user_id,
+            'event_source', TG_TABLE_NAME
+        )
+    );
+    
+    RETURN NULL;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."handle_resonance_update_async"() OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."handle_updated_at"() RETURNS "trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO ''
@@ -720,6 +843,7 @@ ALTER FUNCTION "public"."handle_updated_at"() OWNER TO "postgres";
 
 CREATE OR REPLACE FUNCTION "public"."handle_zombie_jobs"() RETURNS "void"
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'extensions'
     AS $$
 DECLARE
     count_killed INTEGER;
@@ -749,6 +873,7 @@ ALTER FUNCTION "public"."handle_zombie_jobs"() OWNER TO "postgres";
 
 CREATE OR REPLACE FUNCTION "public"."hybrid_search"("query_text" "text", "query_embedding" "extensions"."vector", "match_threshold" double precision, "match_count" integer) RETURNS TABLE("id" bigint, "podcast_id" bigint, "content" "text", "similarity" double precision)
     LANGUAGE "plpgsql"
+    SET "search_path" TO 'public', 'extensions'
     AS $$
 begin
   return query
@@ -827,8 +952,70 @@ BEGIN
 ALTER FUNCTION "public"."increment_play_count"("podcast_id" bigint) OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."init_draft_process_v2"("p_payload" "jsonb") RETURNS TABLE("draft_id" bigint, "allowed" boolean, "reason" "text")
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+DECLARE
+    v_user_id UUID;
+    v_new_id BIGINT;
+    v_quota_check JSONB;
+    v_extracted_title TEXT;
+BEGIN
+    -- 1. Identidad
+    v_user_id := auth.uid();
+    IF v_user_id IS NULL THEN
+        RETURN QUERY SELECT NULL::BIGINT, FALSE, 'Sesión expirada.';
+        RETURN;
+    END IF;
+
+    -- 2. Cuota
+    v_quota_check := public.check_draft_quota(v_user_id);
+    IF NOT (v_quota_check->>'allowed')::BOOLEAN THEN
+        RETURN QUERY SELECT NULL::BIGINT, FALSE, v_quota_check->>'reason';
+        RETURN;
+    END IF;
+
+    -- 3. Título
+    v_extracted_title := COALESCE(
+        p_payload->'inputs'->>'solo_topic', 
+        p_payload->>'solo_topic',
+        p_payload->'inputs'->>'question_to_answer',
+        'Nueva Investigación'
+    );
+
+    -- 4. Inserción Blindada
+    -- Inyectamos JSONs vacíos '{}' para satisfacer las restricciones NOT NULL
+    INSERT INTO public.podcast_drafts (
+        user_id,
+        title,
+        status,
+        script_text,   -- <--- Columna Crítica
+        dossier_text,  -- <--- Columna Crítica
+        creation_data,
+        updated_at
+    )
+    VALUES (
+        v_user_id,
+        v_extracted_title,
+        'researching',
+        '{"script_body": ""}'::jsonb, -- Valor inicial válido
+        '{}'::jsonb,                  -- Valor inicial válido
+        p_payload,
+        now()
+    )
+    RETURNING id INTO v_new_id;
+
+    RETURN QUERY SELECT v_new_id, TRUE, 'Misión iniciada.';
+END;
+$$;
+
+
+ALTER FUNCTION "public"."init_draft_process_v2"("p_payload" "jsonb") OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."is_admin"() RETURNS boolean
     LANGUAGE "sql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'extensions'
     AS $$
   SELECT EXISTS (
     SELECT 1
@@ -844,6 +1031,7 @@ ALTER FUNCTION "public"."is_admin"() OWNER TO "postgres";
 
 CREATE OR REPLACE FUNCTION "public"."maintain_thread_integrity"() RETURNS "trigger"
     LANGUAGE "plpgsql"
+    SET "search_path" TO 'public', 'extensions'
     AS $$
 BEGIN
   IF NEW.parent_id IS NOT NULL THEN
@@ -878,8 +1066,120 @@ $$;
 ALTER FUNCTION "public"."mark_notifications_as_read"() OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."on_draft_created_trigger_research"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+BEGIN
+    -- Realizamos la llamada HTTP asíncrona a la función de investigación.
+    -- Esto no bloquea la base de datos y ocurre en el fondo.
+    PERFORM
+      net.http_post(
+        url := 'https://arbojlknwilqcszuqope.supabase.co/functions/v1/research-intelligence',
+        headers := jsonb_build_object(
+            'Content-Type', 'application/json',
+            'Authorization', 'Bearer ' || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFyYm9qbGtud2lscWNzenVxb3BlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTkxMDMwMSwiZXhwIjoyMDc1NDg2MzAxfQ.-K-ZM6_0ea-fA9sA7rTvlMq8d9TL8gx-Ypcm6EE0Qjc' -- [IMPORTANTE]: Reemplazar con tu clave real
+        ),
+        body := jsonb_build_object(
+            'draft_id', NEW.id,
+            'topic', NEW.title,
+            'depth', COALESCE(NEW.creation_data->'inputs'->>'narrativeDepth', 'Medio'),
+            'is_pulse', (NEW.creation_data->>'purpose' = 'pulse'),
+            'pulse_ids', NEW.creation_data->'pulse_source_ids'
+        )
+      );
+
+    RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."on_draft_created_trigger_research"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."on_pod_created_trigger_assets"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+BEGIN
+    -- Llamamos a process-podcast-job para generar Audio e Imagen
+    PERFORM
+      net.http_post(
+        url := 'https://arbojlknwilqcszuqope.supabase.co/functions/v1/process-podcast-job',
+        headers := jsonb_build_object(
+            'Content-Type', 'application/json',
+            'Authorization', 'Bearer ' || 'TU_SUPABASE_SERVICE_ROLE_KEY' -- [FIX]: Usa tu key real
+        ),
+        body := jsonb_build_object(
+            'podcast_id', NEW.id
+        )
+      );
+    RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."on_pod_created_trigger_assets"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."promote_draft_to_production_v2"("p_draft_id" bigint, "p_final_title" "text", "p_final_script" "text", "p_sources" "jsonb") RETURNS TABLE("pod_id" bigint, "success" boolean, "message" "text")
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+DECLARE
+    v_user_id UUID;
+    v_new_pod_id BIGINT;
+    v_creation_data JSONB;
+BEGIN
+    v_user_id := auth.uid();
+
+    -- 1. Recuperar metadatos del borrador antes de borrarlo
+    SELECT creation_data INTO v_creation_data 
+    FROM public.podcast_drafts 
+    WHERE id = p_draft_id AND user_id = v_user_id;
+
+    IF NOT FOUND THEN
+        RETURN QUERY SELECT NULL::BIGINT, FALSE, 'Borrador no encontrado o acceso denegado.';
+        RETURN;
+    END IF;
+
+    -- 2. Insertar en Producción (micro_pods)
+    INSERT INTO public.micro_pods (
+        user_id,
+        title,
+        description,
+        script_text,
+        sources,
+        creation_data,
+        status,
+        processing_status -- Nace en 'processing' para el blindaje multimedia
+    )
+    VALUES (
+        v_user_id,
+        p_final_title,
+        p_final_title, -- descripción inicial
+        JSONB_BUILD_OBJECT(
+            'script_body', p_final_script,
+            'script_plain', regexp_replace(p_final_script, '<[^>]+>', ' ', 'g')
+        ),
+        p_sources,
+        v_creation_data,
+        'pending_approval',
+        'processing'
+    )
+    RETURNING id INTO v_new_pod_id;
+
+    -- 3. ELIMINAR BORRADOR (Limpieza de cuota inmediata)
+    DELETE FROM public.podcast_drafts WHERE id = p_draft_id;
+
+    RETURN QUERY SELECT v_new_pod_id, TRUE, 'Producción iniciada.';
+END;
+$$;
+
+
+ALTER FUNCTION "public"."promote_draft_to_production_v2"("p_draft_id" bigint, "p_final_title" "text", "p_final_script" "text", "p_sources" "jsonb") OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."reset_monthly_quotas"() RETURNS "void"
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'extensions'
     AS $$
 BEGIN
     UPDATE public.user_usage
@@ -899,6 +1199,7 @@ ALTER FUNCTION "public"."reset_monthly_quotas"() OWNER TO "postgres";
 
 CREATE OR REPLACE FUNCTION "public"."reward_sovereign_curation"() RETURNS "trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'extensions'
     AS $$
 BEGIN
     -- Si un podcast pasa de status 'draft' a 'published' y es de tipo 'pulse'
@@ -949,6 +1250,7 @@ ALTER FUNCTION "public"."rls_auto_enable"() OWNER TO "postgres";
 
 CREATE OR REPLACE FUNCTION "public"."save_analysis_and_embedding"("p_podcast_id" bigint, "p_agent_version" "text", "p_ai_summary" "text", "p_narrative_lens" "text", "p_ai_tags" "text"[], "p_ai_coordinates" "point", "p_consistency_level" "public"."consistency_level", "p_embedding" "extensions"."vector") RETURNS "void"
     LANGUAGE "plpgsql"
+    SET "search_path" TO 'public', 'extensions'
     AS $$
 BEGIN
     -- SOLO actualizamos metadatos visuales en micro_pods
@@ -974,6 +1276,7 @@ ALTER FUNCTION "public"."save_analysis_and_embedding"("p_podcast_id" bigint, "p_
 
 CREATE OR REPLACE FUNCTION "public"."search_geo_semantic"("query_embedding" "extensions"."vector", "user_lat" double precision, "user_long" double precision, "radius_units" double precision DEFAULT 0.1, "match_threshold" double precision DEFAULT 0.7, "match_count" integer DEFAULT 10) RETURNS TABLE("id" bigint, "title" "text", "description" "text", "similarity" double precision, "dist_val" double precision, "audio_url" "text", "image_url" "text", "author_handle" "text")
     LANGUAGE "plpgsql"
+    SET "search_path" TO 'public', 'extensions'
     AS $$
 begin
   return query
@@ -1005,6 +1308,7 @@ ALTER FUNCTION "public"."search_geo_semantic"("query_embedding" "extensions"."ve
 
 CREATE OR REPLACE FUNCTION "public"."search_knowledge_vault"("query_embedding" "extensions"."vector", "match_threshold" double precision DEFAULT 0.7, "match_count" integer DEFAULT 5, "only_public" boolean DEFAULT true) RETURNS TABLE("source_id" "uuid", "content" "text", "title" "text", "url" "text", "similarity" double precision, "days_old" double precision)
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'extensions'
     AS $$
 begin
   return query
@@ -1157,6 +1461,7 @@ ALTER FUNCTION "public"."trigger_resonance_recalculation"() OWNER TO "postgres";
 
 CREATE OR REPLACE FUNCTION "public"."update_curator_reputation"() RETURNS "trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'extensions'
     AS $$
 DECLARE
     curator_id uuid;
@@ -1192,6 +1497,7 @@ ALTER FUNCTION "public"."update_curator_reputation"() OWNER TO "postgres";
 
 CREATE OR REPLACE FUNCTION "public"."update_dna_timestamp"() RETURNS "trigger"
     LANGUAGE "plpgsql"
+    SET "search_path" TO 'public', 'extensions'
     AS $$
 BEGIN
     NEW.last_updated = now();
@@ -1402,6 +1708,37 @@ CREATE TABLE IF NOT EXISTS "public"."followers" (
 ALTER TABLE "public"."followers" OWNER TO "postgres";
 
 
+CREATE TABLE IF NOT EXISTS "public"."geo_drafts_staging" (
+    "id" bigint NOT NULL,
+    "user_id" "uuid" NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    "location" "extensions"."geography"(Point,4326) NOT NULL,
+    "altitude" double precision,
+    "accuracy_meters" double precision,
+    "heading" double precision,
+    "detected_place_id" "text",
+    "weather_snapshot" "jsonb" DEFAULT '{}'::"jsonb",
+    "vision_analysis" "jsonb" DEFAULT '{}'::"jsonb",
+    "status" "text" DEFAULT 'scanning'::"text",
+    "rejection_reason" "text",
+    CONSTRAINT "geo_drafts_staging_status_check" CHECK (("status" = ANY (ARRAY['scanning'::"text", 'analyzing'::"text", 'rejected'::"text", 'ready_to_record'::"text", 'converted'::"text"])))
+);
+
+
+ALTER TABLE "public"."geo_drafts_staging" OWNER TO "postgres";
+
+
+ALTER TABLE "public"."geo_drafts_staging" ALTER COLUMN "id" ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME "public"."geo_drafts_staging_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
 CREATE TABLE IF NOT EXISTS "public"."knowledge_chunks" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "source_id" "uuid" NOT NULL,
@@ -1444,6 +1781,19 @@ CREATE TABLE IF NOT EXISTS "public"."likes" (
 ALTER TABLE "public"."likes" OWNER TO "postgres";
 
 
+CREATE TABLE IF NOT EXISTS "public"."madrid_vault_knowledge" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "content" "text" NOT NULL,
+    "source_authority" "text",
+    "embedding" "extensions"."vector"(768),
+    "valid_geo_bounds" "extensions"."geography"(Polygon,4326),
+    "created_at" timestamp with time zone DEFAULT "now"()
+);
+
+
+ALTER TABLE "public"."madrid_vault_knowledge" OWNER TO "postgres";
+
+
 ALTER TABLE "public"."micro_pods" ALTER COLUMN "id" ADD GENERATED BY DEFAULT AS IDENTITY (
     SEQUENCE NAME "public"."micro_pods_id_seq"
     START WITH 1
@@ -1482,7 +1832,12 @@ ALTER TABLE "public"."notifications" ALTER COLUMN "id" ADD GENERATED BY DEFAULT 
 CREATE TABLE IF NOT EXISTS "public"."place_memories" (
     "poi_id" bigint NOT NULL,
     "pod_id" bigint NOT NULL,
-    "relevance_score" double precision DEFAULT 1.0
+    "relevance_score" double precision DEFAULT 1.0,
+    "geo_location" "extensions"."geography"(Point,4326),
+    "focus_entity" "text",
+    "content_type" "text",
+    "vibe_vector" "extensions"."vector"(768),
+    CONSTRAINT "place_memories_content_type_check" CHECK (("content_type" = ANY (ARRAY['chronicle'::"text", 'friend_tip'::"text", 'cultural_radar'::"text", 'legacy_echo'::"text"])))
 );
 
 
@@ -1623,7 +1978,10 @@ CREATE TABLE IF NOT EXISTS "public"."podcast_drafts" (
     "sources" "jsonb" DEFAULT '[]'::"jsonb",
     "creation_data" "jsonb" NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"(),
-    "updated_at" timestamp with time zone DEFAULT "now"()
+    "updated_at" timestamp with time zone DEFAULT "now"(),
+    "dossier_text" "jsonb" DEFAULT '{}'::"jsonb",
+    "status" "text" DEFAULT 'idle'::"text",
+    CONSTRAINT "podcast_drafts_status_check" CHECK (("status" = ANY (ARRAY['idle'::"text", 'researching'::"text", 'writing'::"text", 'ready'::"text", 'failed'::"text"])))
 );
 
 
@@ -1885,6 +2243,11 @@ ALTER TABLE ONLY "public"."followers"
 
 
 
+ALTER TABLE ONLY "public"."geo_drafts_staging"
+    ADD CONSTRAINT "geo_drafts_staging_pkey" PRIMARY KEY ("id");
+
+
+
 ALTER TABLE ONLY "public"."knowledge_chunks"
     ADD CONSTRAINT "knowledge_chunks_pkey" PRIMARY KEY ("id");
 
@@ -1902,6 +2265,11 @@ ALTER TABLE ONLY "public"."knowledge_sources"
 
 ALTER TABLE ONLY "public"."likes"
     ADD CONSTRAINT "likes_pkey" PRIMARY KEY ("user_id", "podcast_id");
+
+
+
+ALTER TABLE ONLY "public"."madrid_vault_knowledge"
+    ADD CONSTRAINT "madrid_vault_knowledge_pkey" PRIMARY KEY ("id");
 
 
 
@@ -2054,6 +2422,14 @@ CREATE INDEX "idx_ks_source_type" ON "public"."knowledge_sources" USING "btree" 
 
 
 
+CREATE INDEX "idx_madrid_vault_embedding" ON "public"."madrid_vault_knowledge" USING "hnsw" ("embedding" "extensions"."vector_cosine_ops");
+
+
+
+CREATE INDEX "idx_micro_pods_geo_active" ON "public"."micro_pods" USING "gist" ("geo_location") WHERE ("status" = 'published'::"public"."podcast_status");
+
+
+
 CREATE INDEX "idx_micro_pods_geo_location" ON "public"."micro_pods" USING "gist" ("geo_location");
 
 
@@ -2078,6 +2454,10 @@ CREATE INDEX "idx_micro_pods_user_id" ON "public"."micro_pods" USING "btree" ("u
 
 
 
+CREATE INDEX "idx_place_memories_geo" ON "public"."place_memories" USING "gist" ("geo_location");
+
+
+
 CREATE INDEX "idx_playback_events_user_id_created_at" ON "public"."playback_events" USING "btree" ("user_id", "created_at" DESC);
 
 
@@ -2095,18 +2475,6 @@ CREATE INDEX "notifications_user_id_created_at_idx" ON "public"."notifications" 
 
 
 CREATE INDEX "podcast_embeddings_embedding_idx" ON "public"."podcast_embeddings" USING "ivfflat" ("embedding" "extensions"."vector_cosine_ops") WITH ("lists"='100');
-
-
-
-CREATE OR REPLACE TRIGGER "Cognitive Core Orchestrator Trigger" AFTER INSERT ON "public"."micro_pods" FOR EACH ROW EXECUTE FUNCTION "supabase_functions"."http_request"('https://arbojlknwilqcszuqope.supabase.co/functions/v1/cognitive-core-orchestrator', 'POST', '{"Content-type":"application/json","Authorization":"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFyYm9qbGtud2lscWNzenVxb3BlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTkxMDMwMSwiZXhwIjoyMDc1NDg2MzAxfQ.-K-ZM6_0ea-fA9sA7rTvlMq8d9TL8gx-Ypcm6EE0Qjc"}', '{}', '5000');
-
-
-
-CREATE OR REPLACE TRIGGER "Resonance Profile Calculator Trigger" AFTER INSERT ON "public"."playback_events" FOR EACH ROW EXECUTE FUNCTION "supabase_functions"."http_request"('https://arbojlknwilqcszuqope.supabase.co/functions/v1/update-resonance-profile', 'POST', '{"Content-type":"application/json","Authorization":"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFyYm9qbGtud2lscWNzenVxb3BlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTkxMDMwMSwiZXhwIjoyMDc1NDg2MzAxfQ.-K-ZM6_0ea-fA9sA7rTvlMq8d9TL8gx-Ypcm6EE0Qjc"}', '{}', '5000');
-
-
-
-CREATE OR REPLACE TRIGGER "Resonance Profile Trigger (Likes)" AFTER INSERT OR DELETE ON "public"."likes" FOR EACH ROW EXECUTE FUNCTION "supabase_functions"."http_request"('https://arbojlknwilqcszuqope.supabase.co/functions/v1/update-resonance-profile', 'POST', '{"Content-type":"application/json","Authorization":"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFyYm9qbGtud2lscWNzenVxb3BlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTkxMDMwMSwiZXhwIjoyMDc1NDg2MzAxfQ.-K-ZM6_0ea-fA9sA7rTvlMq8d9TL8gx-Ypcm6EE0Qjc"}', '{}', '5000');
 
 
 
@@ -2142,10 +2510,6 @@ CREATE OR REPLACE TRIGGER "on_playback_completed_reputation" AFTER INSERT ON "pu
 
 
 
-CREATE OR REPLACE TRIGGER "on_playback_event_recalculate_resonance" AFTER INSERT ON "public"."playback_events" FOR EACH ROW EXECUTE FUNCTION "supabase_functions"."http_request"('https://arbojlknwilqcszuqope.supabase.co/functions/v1/update-resonance-profile', 'POST', '{"Content-type":"application/json","Authorization":"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFyYm9qbGtud2lscWNzenVxb3BlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTkxMDMwMSwiZXhwIjoyMDc1NDg2MzAxfQ.-K-ZM6_0ea-fA9sA7rTvlMq8d9TL8gx-Ypcm6EE0Qjc"}', '{}', '5000');
-
-
-
 CREATE OR REPLACE TRIGGER "on_podcast_publish" AFTER UPDATE ON "public"."micro_pods" FOR EACH ROW EXECUTE FUNCTION "public"."handle_new_podcast_publication"();
 
 
@@ -2163,6 +2527,30 @@ CREATE OR REPLACE TRIGGER "on_subscriptions_update" BEFORE UPDATE ON "public"."s
 
 
 CREATE OR REPLACE TRIGGER "set_root_id_trigger" BEFORE INSERT ON "public"."micro_pods" FOR EACH ROW EXECUTE FUNCTION "public"."maintain_thread_integrity"();
+
+
+
+CREATE OR REPLACE TRIGGER "tr_async_cognitive_orchestrator" AFTER INSERT ON "public"."micro_pods" FOR EACH ROW EXECUTE FUNCTION "public"."handle_new_podcast_async"();
+
+
+
+CREATE OR REPLACE TRIGGER "tr_async_resonance_likes" AFTER INSERT OR DELETE ON "public"."likes" FOR EACH ROW EXECUTE FUNCTION "public"."handle_resonance_update_async"();
+
+
+
+CREATE OR REPLACE TRIGGER "tr_async_resonance_playback" AFTER INSERT ON "public"."playback_events" FOR EACH ROW EXECUTE FUNCTION "public"."handle_resonance_update_async"();
+
+
+
+CREATE OR REPLACE TRIGGER "tr_check_integrity" AFTER UPDATE OF "audio_ready", "image_ready" ON "public"."micro_pods" FOR EACH ROW WHEN (("new"."processing_status" = 'processing'::"public"."processing_status")) EXECUTE FUNCTION "public"."check_podcast_integrity_and_release"();
+
+
+
+CREATE OR REPLACE TRIGGER "tr_on_draft_created" AFTER INSERT ON "public"."podcast_drafts" FOR EACH ROW EXECUTE FUNCTION "public"."on_draft_created_trigger_research"();
+
+
+
+CREATE OR REPLACE TRIGGER "tr_on_pod_created" AFTER INSERT ON "public"."micro_pods" FOR EACH ROW EXECUTE FUNCTION "public"."on_pod_created_trigger_assets"();
 
 
 
@@ -2207,6 +2595,11 @@ ALTER TABLE ONLY "public"."followers"
 
 ALTER TABLE ONLY "public"."followers"
     ADD CONSTRAINT "followers_following_id_fkey" FOREIGN KEY ("following_id") REFERENCES "public"."profiles"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."geo_drafts_staging"
+    ADD CONSTRAINT "geo_drafts_staging_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
 
 
 
@@ -2340,41 +2733,15 @@ ALTER TABLE ONLY "public"."user_usage"
 
 
 
-CREATE POLICY "Admin and System manage sources" ON "public"."knowledge_sources" USING (((("auth"."jwt"() ->> 'role'::"text") = 'service_role'::"text") OR (EXISTS ( SELECT 1
-   FROM "public"."profiles"
-  WHERE (("profiles"."id" = "auth"."uid"()) AND ("profiles"."role" = 'admin'::"text"))))));
-
-
-
-CREATE POLICY "Admins can read all profiles" ON "public"."profiles" FOR SELECT USING ("public"."is_admin"());
-
-
-
-CREATE POLICY "Admins can read quotas" ON "public"."user_usage" FOR SELECT USING ("public"."is_admin"());
-
-
-
 CREATE POLICY "Admins can update quotas" ON "public"."user_usage" FOR UPDATE USING ("public"."is_admin"());
 
 
 
+CREATE POLICY "Admins manage vault" ON "public"."madrid_vault_knowledge" USING (( SELECT "public"."is_admin"() AS "is_admin"));
+
+
+
 CREATE POLICY "Allow authenticated users to create" ON "public"."profile_testimonials" FOR INSERT WITH CHECK (((( SELECT "auth"."uid"() AS "uid") IS NOT NULL) AND (( SELECT "auth"."uid"() AS "uid") <> "profile_user_id")));
-
-
-
-CREATE POLICY "Allow individual delete access" ON "public"."followers" FOR DELETE USING ((( SELECT "auth"."uid"() AS "uid") = "follower_id"));
-
-
-
-CREATE POLICY "Allow individual insert access" ON "public"."followers" FOR INSERT WITH CHECK ((( SELECT "auth"."uid"() AS "uid") = "follower_id"));
-
-
-
-CREATE POLICY "Allow individual insert access" ON "public"."podcast_creation_jobs" FOR INSERT WITH CHECK ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
-
-
-
-CREATE POLICY "Allow individual read access" ON "public"."podcast_creation_jobs" FOR SELECT USING ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
 
 
 
@@ -2383,10 +2750,6 @@ CREATE POLICY "Allow individual read access" ON "public"."subscriptions" FOR SEL
 
 
 CREATE POLICY "Allow individual read access" ON "public"."user_resonance_profiles" FOR SELECT USING ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
-
-
-
-CREATE POLICY "Allow individual update access" ON "public"."profiles" FOR UPDATE USING ((( SELECT "auth"."uid"() AS "uid") = "id"));
 
 
 
@@ -2432,20 +2795,6 @@ CREATE POLICY "Echoes are public" ON "public"."audio_echoes" FOR SELECT USING (t
 
 
 
-CREATE POLICY "Enable read access for all users" ON "public"."profiles" FOR SELECT USING (true);
-
-
-
-CREATE POLICY "Items visibility based on collection" ON "public"."collection_items" FOR SELECT USING ((EXISTS ( SELECT 1
-   FROM "public"."collections" "c"
-  WHERE (("c"."id" = "collection_items"."collection_id") AND (("c"."is_public" = true) OR ("c"."owner_id" = "auth"."uid"()))))));
-
-
-
-CREATE POLICY "Los usuarios pueden actualizar su propio perfil" ON "public"."profiles" FOR UPDATE USING ((( SELECT "auth"."uid"() AS "uid") = "id"));
-
-
-
 CREATE POLICY "Los usuarios pueden crear sus propios likes" ON "public"."likes" FOR INSERT WITH CHECK ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
 
 
@@ -2454,23 +2803,7 @@ CREATE POLICY "Los usuarios pueden eliminar sus propios likes" ON "public"."like
 
 
 
-CREATE POLICY "POIs are public" ON "public"."points_of_interest" FOR SELECT USING (true);
-
-
-
 CREATE POLICY "Permitir acceso total a las notificaciones propias" ON "public"."notifications" USING ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
-
-
-
-CREATE POLICY "Permitir creación de trabajos propios" ON "public"."podcast_creation_jobs" FOR INSERT WITH CHECK ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
-
-
-
-CREATE POLICY "Permitir crear seguimientos" ON "public"."followers" FOR INSERT WITH CHECK ((( SELECT "auth"."uid"() AS "uid") = "follower_id"));
-
-
-
-CREATE POLICY "Permitir eliminar seguimientos" ON "public"."followers" FOR DELETE USING ((( SELECT "auth"."uid"() AS "uid") = "follower_id"));
 
 
 
@@ -2478,31 +2811,7 @@ CREATE POLICY "Permitir inserción de eventos de reproducción propios" ON "publ
 
 
 
-CREATE POLICY "Permitir lectura de perfiles" ON "public"."profiles" FOR SELECT USING (true);
-
-
-
-CREATE POLICY "Permitir lectura de trabajos de creación propios" ON "public"."podcast_creation_jobs" FOR SELECT USING ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
-
-
-
 CREATE POLICY "Permitir lectura pública de likes" ON "public"."likes" FOR SELECT USING (true);
-
-
-
-CREATE POLICY "Public Profiles are viewable by everyone" ON "public"."profiles" FOR SELECT USING (true);
-
-
-
-CREATE POLICY "Public collections are visible" ON "public"."collections" FOR SELECT USING (("is_public" = true));
-
-
-
-CREATE POLICY "Public read access" ON "public"."podcast_embeddings" FOR SELECT USING (true);
-
-
-
-CREATE POLICY "Public read access for verified POIs" ON "public"."points_of_interest" FOR SELECT USING (true);
 
 
 
@@ -2510,41 +2819,15 @@ CREATE POLICY "Public read access for verified pulse" ON "public"."pulse_staging
 
 
 
-CREATE POLICY "Public sources are viewable by all" ON "public"."knowledge_sources" FOR SELECT USING (("is_public" = true));
+CREATE POLICY "Public read access memories" ON "public"."place_memories" FOR SELECT USING (true);
 
 
 
-CREATE POLICY "Service role write access" ON "public"."podcast_embeddings" USING (("auth"."role"() = 'service_role'::"text"));
+CREATE POLICY "Users can manage their own drafts" ON "public"."podcast_drafts" USING ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
 
 
 
-CREATE POLICY "Users add items to own collection" ON "public"."collection_items" FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
-   FROM "public"."collections" "c"
-  WHERE (("c"."id" = "collection_items"."collection_id") AND ("c"."owner_id" = "auth"."uid"())))));
-
-
-
-CREATE POLICY "Users can manage their own DNA" ON "public"."user_interest_dna" TO "authenticated" USING (("auth"."uid"() = "user_id")) WITH CHECK (("auth"."uid"() = "user_id"));
-
-
-
-CREATE POLICY "Users can manage their own drafts" ON "public"."podcast_drafts" USING (("auth"."uid"() = "user_id"));
-
-
-
-CREATE POLICY "Users can only see their own DNA" ON "public"."user_interest_dna" FOR SELECT TO "authenticated" USING (("auth"."uid"() = "user_id"));
-
-
-
-CREATE POLICY "Users can view own usage" ON "public"."user_usage" FOR SELECT USING (("auth"."uid"() = "user_id"));
-
-
-
-CREATE POLICY "Users create echoes" ON "public"."audio_echoes" FOR INSERT WITH CHECK (("auth"."uid"() = "author_id"));
-
-
-
-CREATE POLICY "Users manage own collections" ON "public"."collections" USING (("auth"."uid"() = "owner_id"));
+CREATE POLICY "Users manage own geo drafts" ON "public"."geo_drafts_staging" USING ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
 
 
 
@@ -2557,13 +2840,64 @@ ALTER TABLE "public"."ai_usage_logs" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."audio_echoes" ENABLE ROW LEVEL SECURITY;
 
 
+CREATE POLICY "audio_echoes_insert_policy" ON "public"."audio_echoes" FOR INSERT WITH CHECK ((( SELECT "auth"."uid"() AS "uid") = "author_id"));
+
+
+
 ALTER TABLE "public"."collection_items" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "collection_items_insert_policy" ON "public"."collection_items" FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
+   FROM "public"."collections" "c"
+  WHERE (("c"."id" = "collection_items"."collection_id") AND ("c"."owner_id" = ( SELECT "auth"."uid"() AS "uid"))))));
+
+
+
+CREATE POLICY "collection_items_select_policy" ON "public"."collection_items" FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM "public"."collections" "c"
+  WHERE (("c"."id" = "collection_items"."collection_id") AND (("c"."is_public" IS TRUE) OR ("c"."owner_id" = ( SELECT "auth"."uid"() AS "uid")))))));
+
 
 
 ALTER TABLE "public"."collections" ENABLE ROW LEVEL SECURITY;
 
 
+CREATE POLICY "collections_delete" ON "public"."collections" FOR DELETE USING ((( SELECT "auth"."uid"() AS "uid") = "owner_id"));
+
+
+
+CREATE POLICY "collections_select" ON "public"."collections" FOR SELECT USING ((("is_public" IS TRUE) OR (( SELECT "auth"."uid"() AS "uid") = "owner_id")));
+
+
+
+CREATE POLICY "collections_update" ON "public"."collections" FOR UPDATE USING ((( SELECT "auth"."uid"() AS "uid") = "owner_id"));
+
+
+
+CREATE POLICY "collections_write" ON "public"."collections" FOR INSERT WITH CHECK ((( SELECT "auth"."uid"() AS "uid") = "owner_id"));
+
+
+
+CREATE POLICY "dna_owner_policy" ON "public"."user_interest_dna" TO "authenticated" USING ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
+
+
+
 ALTER TABLE "public"."followers" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "followers_delete_policy" ON "public"."followers" FOR DELETE USING ((( SELECT "auth"."uid"() AS "uid") = "follower_id"));
+
+
+
+CREATE POLICY "followers_insert_policy" ON "public"."followers" FOR INSERT WITH CHECK ((( SELECT "auth"."uid"() AS "uid") = "follower_id"));
+
+
+
+ALTER TABLE "public"."geo_drafts_staging" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "jobs_owner_policy" ON "public"."podcast_creation_jobs" USING ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
+
 
 
 ALTER TABLE "public"."knowledge_chunks" ENABLE ROW LEVEL SECURITY;
@@ -2572,25 +2906,32 @@ ALTER TABLE "public"."knowledge_chunks" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."knowledge_sources" ENABLE ROW LEVEL SECURITY;
 
 
+CREATE POLICY "knowledge_sources_read_policy" ON "public"."knowledge_sources" FOR SELECT USING ((("is_public" IS TRUE) OR ( SELECT "public"."is_admin"() AS "is_admin")));
+
+
+
 ALTER TABLE "public"."likes" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."madrid_vault_knowledge" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."micro_pods" ENABLE ROW LEVEL SECURITY;
 
 
-CREATE POLICY "micropods_master_delete" ON "public"."micro_pods" FOR DELETE USING ((("auth"."uid"() = "user_id") OR "public"."is_admin"()));
+CREATE POLICY "micropods_master_delete" ON "public"."micro_pods" FOR DELETE USING (((( SELECT "auth"."uid"() AS "uid") = "user_id") OR "public"."is_admin"()));
 
 
 
-CREATE POLICY "micropods_master_insert" ON "public"."micro_pods" FOR INSERT WITH CHECK (("auth"."uid"() = "user_id"));
+CREATE POLICY "micropods_master_insert" ON "public"."micro_pods" FOR INSERT WITH CHECK ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
 
 
 
-CREATE POLICY "micropods_master_select" ON "public"."micro_pods" FOR SELECT USING ((("status" = 'published'::"public"."podcast_status") OR ("auth"."uid"() = "user_id") OR "public"."is_admin"()));
+CREATE POLICY "micropods_master_select" ON "public"."micro_pods" FOR SELECT USING ((("status" = 'published'::"public"."podcast_status") OR (( SELECT "auth"."uid"() AS "uid") = "user_id") OR "public"."is_admin"()));
 
 
 
-CREATE POLICY "micropods_master_update" ON "public"."micro_pods" FOR UPDATE USING ((("auth"."uid"() = "user_id") OR "public"."is_admin"())) WITH CHECK ((("auth"."uid"() = "user_id") OR "public"."is_admin"()));
+CREATE POLICY "micropods_master_update" ON "public"."micro_pods" FOR UPDATE USING (((( SELECT "auth"."uid"() AS "uid") = "user_id") OR "public"."is_admin"()));
 
 
 
@@ -2621,6 +2962,14 @@ ALTER TABLE "public"."podcast_drafts" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."podcast_embeddings" ENABLE ROW LEVEL SECURITY;
 
 
+CREATE POLICY "podcast_embeddings_read_policy" ON "public"."podcast_embeddings" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "poi_read_policy" ON "public"."points_of_interest" FOR SELECT USING (true);
+
+
+
 ALTER TABLE "public"."points_of_interest" ENABLE ROW LEVEL SECURITY;
 
 
@@ -2631,6 +2980,14 @@ ALTER TABLE "public"."profile_testimonials" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."profiles" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "profiles_read_all" ON "public"."profiles" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "profiles_update_own" ON "public"."profiles" FOR UPDATE USING ((( SELECT "auth"."uid"() AS "uid") = "id"));
+
 
 
 ALTER TABLE "public"."pulse_staging" ENABLE ROW LEVEL SECURITY;
@@ -2646,6 +3003,10 @@ ALTER TABLE "public"."user_resonance_profiles" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."user_usage" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "user_usage_policy" ON "public"."user_usage" FOR SELECT USING (((( SELECT "auth"."uid"() AS "uid") = "user_id") OR "public"."is_admin"()));
+
 
 
 
@@ -2686,6 +3047,10 @@ ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."podcast_analysis_
 
 
 ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."podcast_creation_jobs";
+
+
+
+ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."podcast_drafts";
 
 
 
@@ -5439,6 +5804,12 @@ GRANT ALL ON FUNCTION "public"."check_draft_quota"("p_user_id" "uuid") TO "servi
 
 
 
+GRANT ALL ON FUNCTION "public"."check_podcast_integrity_and_release"() TO "anon";
+GRANT ALL ON FUNCTION "public"."check_podcast_integrity_and_release"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."check_podcast_integrity_and_release"() TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."check_rate_limit"("p_user_id" "uuid", "p_function_name" "text", "p_limit" integer, "p_window_seconds" integer) TO "anon";
 GRANT ALL ON FUNCTION "public"."check_rate_limit"("p_user_id" "uuid", "p_function_name" "text", "p_limit" integer, "p_window_seconds" integer) TO "authenticated";
 GRANT ALL ON FUNCTION "public"."check_rate_limit"("p_user_id" "uuid", "p_function_name" "text", "p_limit" integer, "p_window_seconds" integer) TO "service_role";
@@ -5458,6 +5829,12 @@ GRANT ALL ON FUNCTION "public"."create_profile_and_free_subscription"() TO "supa
 
 
 
+GRANT ALL ON FUNCTION "public"."dispatch_edge_function"("function_name" "text", "payload" "jsonb") TO "anon";
+GRANT ALL ON FUNCTION "public"."dispatch_edge_function"("function_name" "text", "payload" "jsonb") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."dispatch_edge_function"("function_name" "text", "payload" "jsonb") TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."fetch_personalized_pulse"("p_user_id" "uuid", "p_limit" integer, "p_threshold" double precision) TO "anon";
 GRANT ALL ON FUNCTION "public"."fetch_personalized_pulse"("p_user_id" "uuid", "p_limit" integer, "p_threshold" double precision) TO "authenticated";
 GRANT ALL ON FUNCTION "public"."fetch_personalized_pulse"("p_user_id" "uuid", "p_limit" integer, "p_threshold" double precision) TO "service_role";
@@ -5473,6 +5850,12 @@ GRANT ALL ON FUNCTION "public"."get_curated_library_shelves"("p_user_id" "uuid")
 GRANT ALL ON FUNCTION "public"."get_generic_library_shelves"() TO "anon";
 GRANT ALL ON FUNCTION "public"."get_generic_library_shelves"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."get_generic_library_shelves"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."get_memories_in_bounds"("min_lat" double precision, "min_lng" double precision, "max_lat" double precision, "max_lng" double precision) TO "anon";
+GRANT ALL ON FUNCTION "public"."get_memories_in_bounds"("min_lat" double precision, "min_lng" double precision, "max_lat" double precision, "max_lng" double precision) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."get_memories_in_bounds"("min_lat" double precision, "min_lng" double precision, "max_lat" double precision, "max_lng" double precision) TO "service_role";
 
 
 
@@ -5504,6 +5887,12 @@ GRANT ALL ON FUNCTION "public"."get_user_discovery_feed"("p_user_id" "uuid") TO 
 
 
 
+GRANT ALL ON FUNCTION "public"."handle_new_podcast_async"() TO "anon";
+GRANT ALL ON FUNCTION "public"."handle_new_podcast_async"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."handle_new_podcast_async"() TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."handle_new_podcast_publication"() TO "anon";
 GRANT ALL ON FUNCTION "public"."handle_new_podcast_publication"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."handle_new_podcast_publication"() TO "service_role";
@@ -5519,6 +5908,12 @@ GRANT ALL ON FUNCTION "public"."handle_new_testimonial"() TO "service_role";
 GRANT ALL ON FUNCTION "public"."handle_new_user"() TO "anon";
 GRANT ALL ON FUNCTION "public"."handle_new_user"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."handle_new_user"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."handle_resonance_update_async"() TO "anon";
+GRANT ALL ON FUNCTION "public"."handle_resonance_update_async"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."handle_resonance_update_async"() TO "service_role";
 
 
 
@@ -5549,6 +5944,12 @@ GRANT ALL ON FUNCTION "public"."increment_play_count"("podcast_id" bigint) TO "s
 
 
 
+GRANT ALL ON FUNCTION "public"."init_draft_process_v2"("p_payload" "jsonb") TO "anon";
+GRANT ALL ON FUNCTION "public"."init_draft_process_v2"("p_payload" "jsonb") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."init_draft_process_v2"("p_payload" "jsonb") TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."is_admin"() TO "anon";
 GRANT ALL ON FUNCTION "public"."is_admin"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."is_admin"() TO "service_role";
@@ -5564,6 +5965,24 @@ GRANT ALL ON FUNCTION "public"."maintain_thread_integrity"() TO "service_role";
 GRANT ALL ON FUNCTION "public"."mark_notifications_as_read"() TO "anon";
 GRANT ALL ON FUNCTION "public"."mark_notifications_as_read"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."mark_notifications_as_read"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."on_draft_created_trigger_research"() TO "anon";
+GRANT ALL ON FUNCTION "public"."on_draft_created_trigger_research"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."on_draft_created_trigger_research"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."on_pod_created_trigger_assets"() TO "anon";
+GRANT ALL ON FUNCTION "public"."on_pod_created_trigger_assets"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."on_pod_created_trigger_assets"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."promote_draft_to_production_v2"("p_draft_id" bigint, "p_final_title" "text", "p_final_script" "text", "p_sources" "jsonb") TO "anon";
+GRANT ALL ON FUNCTION "public"."promote_draft_to_production_v2"("p_draft_id" bigint, "p_final_title" "text", "p_final_script" "text", "p_sources" "jsonb") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."promote_draft_to_production_v2"("p_draft_id" bigint, "p_final_title" "text", "p_final_script" "text", "p_sources" "jsonb") TO "service_role";
 
 
 
@@ -5786,6 +6205,18 @@ GRANT ALL ON TABLE "public"."followers" TO "service_role";
 
 
 
+GRANT ALL ON TABLE "public"."geo_drafts_staging" TO "anon";
+GRANT ALL ON TABLE "public"."geo_drafts_staging" TO "authenticated";
+GRANT ALL ON TABLE "public"."geo_drafts_staging" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."geo_drafts_staging_id_seq" TO "anon";
+GRANT ALL ON SEQUENCE "public"."geo_drafts_staging_id_seq" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."geo_drafts_staging_id_seq" TO "service_role";
+
+
+
 GRANT ALL ON TABLE "public"."knowledge_chunks" TO "anon";
 GRANT ALL ON TABLE "public"."knowledge_chunks" TO "authenticated";
 GRANT ALL ON TABLE "public"."knowledge_chunks" TO "service_role";
@@ -5801,6 +6232,12 @@ GRANT ALL ON TABLE "public"."knowledge_sources" TO "service_role";
 GRANT ALL ON TABLE "public"."likes" TO "anon";
 GRANT ALL ON TABLE "public"."likes" TO "authenticated";
 GRANT ALL ON TABLE "public"."likes" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."madrid_vault_knowledge" TO "anon";
+GRANT ALL ON TABLE "public"."madrid_vault_knowledge" TO "authenticated";
+GRANT ALL ON TABLE "public"."madrid_vault_knowledge" TO "service_role";
 
 
 
