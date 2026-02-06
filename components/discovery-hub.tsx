@@ -1,5 +1,5 @@
 // components/discovery-hub.tsx
-// VERSIÓN: 6.0 (Madrid Resonance Sync - Segmented Rendering & Mobile Hub)
+// VERSIÓN: 7.0 (High Performance Discovery - Next Image Optimized & Search UX)
 
 "use client";
 
@@ -10,6 +10,7 @@ import { UnifiedSearchBar } from "@/components/ui/unified-search-bar";
 import { UniverseCard } from "@/components/universe-card";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2, PlayCircle, Search } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useState } from "react";
 
@@ -39,6 +40,10 @@ export function DiscoveryHub({
     const [isSearching, setIsSearching] = useState(false);
     const [hasSearched, setHasSearched] = useState(false);
 
+    /**
+     * performSearch
+     * Ejecuta la búsqueda omnicanal cruzando vectorización y texto.
+     */
     const performSearch = useCallback(async (searchTerm: string) => {
         if (!supabase || searchTerm.trim().length < 3) return;
         setIsSearching(true);
@@ -71,7 +76,7 @@ export function DiscoveryHub({
         setHasSearched(false);
     }, []);
 
-    // --- RENDER 1: SOLO BUSCADOR (Segmented Logic) ---
+    // --- RENDER 1: SOLO BUSCADOR (Dashboard Integration) ---
     if (showOnlySearch) {
         return (
             <div className="w-full">
@@ -103,7 +108,7 @@ export function DiscoveryHub({
         );
     }
 
-    // --- RENDER 2: CATEGORÍAS Y RESULTADOS ---
+    // --- RENDER 2: CATEGORÍAS Y RESULTADOS (Discovery View) ---
     return (
         <div className="w-full">
             {!hasSearched || showOnlyCategories ? (
@@ -128,16 +133,26 @@ export function DiscoveryHub({
                             {results.map(result => (
                                 <Link key={result.id} href={result.type === 'podcast' ? `/podcast/${result.id}` : `/profile/${result.subtitle.replace('@', '')}`}>
                                     <div className="p-5 rounded-3xl bg-card/40 border border-white/5 hover:border-primary/40 hover:bg-card/60 transition-all flex items-center gap-5 group shadow-xl">
+
+                                        {/* CONTENEDOR DE IMAGEN OPTIMIZADA */}
                                         <div className="h-14 w-14 rounded-2xl bg-zinc-800 overflow-hidden flex-shrink-0 relative">
-                                            <img src={result.image_url || '/images/placeholder.png'} alt="" className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-500" />
-                                            <div className="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                            <Image
+                                                src={result.image_url || '/images/placeholder.png'}
+                                                alt={result.title}
+                                                fill
+                                                sizes="56px"
+                                                className="object-cover group-hover:scale-110 transition-transform duration-500"
+                                            />
+                                            <div className="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10">
                                                 <PlayCircle className="text-white h-6 w-6" />
                                             </div>
                                         </div>
+
                                         <div className="flex-1 min-w-0">
                                             <p className="font-black text-sm uppercase tracking-tight truncate">{result.title}</p>
                                             <p className="text-xs text-muted-foreground truncate font-medium mt-0.5">{result.subtitle}</p>
                                         </div>
+
                                         <Badge variant="outline" className="text-[9px] uppercase font-black tracking-widest px-2 py-1 bg-white/5 border-white/10">
                                             {result.type}
                                         </Badge>

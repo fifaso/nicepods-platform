@@ -1,9 +1,9 @@
 // components/create-flow/steps/draft-generation-loader.tsx
-// VERSIÓN: 4.6 (Production Master - Realtime Sync & UI Integrity Fix)
+// VERSIÓN: 5.0 (Strict Logic Master - Reactive Integrity & Zero-Stale closures)
 
 "use client";
 
-import { Button } from "@/components/ui/button"; // [FIX]: Importación restaurada
+import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { PodcastCreationData } from "@/lib/validation/podcast-schema";
@@ -17,7 +17,7 @@ import {
   PenTool,
   SearchCheck
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useFormContext } from "react-hook-form";
 import { useCreationContext } from "../shared/context";
 
@@ -81,33 +81,40 @@ export function DraftGenerationLoader({ formData }: DraftLoaderProps) {
   const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
+  // Refs para evitar doble ejecución en ráfagas de Realtime
+  const isFinalizing = useRef(false);
+
   const draftId = formData.draft_id;
   const topic = formData.solo_topic || "tu idea";
   const agentName = formData.agentName || "Especialista NicePod";
 
   /**
-   * finalizeIngestion
-   * Inyecta los resultados finales de la IA en el formulario global.
+   * [MEJORA 5.0]: finalizeIngestion con useCallback
+   * Estabiliza la función para su uso seguro dentro de useEffect sin causar re-renders infinitos.
    */
-  const finalizeIngestion = (data: any) => {
+  const finalizeIngestion = useCallback((data: any) => {
+    if (isFinalizing.current) return;
+    isFinalizing.current = true;
+
+    console.log("🎯 [Loader] Ingesta final detectada. Sincronizando estado.");
     setProgress(100);
 
-    // Extracción segura del cuerpo del guion
+    // Extracción segura del cuerpo del guion según nuevo esquema JSONB
     const rawScript = data.script_text;
     const scriptBody = rawScript?.script_body || (typeof rawScript === 'string' ? rawScript : "");
     const sources = data.sources || [];
     const title = data.title || topic;
 
     // Persistencia en el Store de React Hook Form
-    setValue("final_title", title, { shouldValidate: true });
-    setValue("final_script", scriptBody, { shouldValidate: true });
-    setValue("sources", sources, { shouldValidate: true });
+    setValue("final_title", title, { shouldValidate: true, shouldDirty: true });
+    setValue("final_script", scriptBody, { shouldValidate: true, shouldDirty: true });
+    setValue("sources", sources, { shouldValidate: true, shouldDirty: true });
 
     // Transición suave al editor tras la ingesta exitosa
     setTimeout(() => {
       transitionTo("SCRIPT_EDITING");
     }, 1200);
-  };
+  }, [setValue, transitionTo, topic]);
 
   useEffect(() => {
     if (!draftId) {
@@ -118,14 +125,20 @@ export function DraftGenerationLoader({ formData }: DraftLoaderProps) {
 
     console.log(`📡 [Loader] Vigilancia Realtime activa para Borrador #${draftId}`);
 
-    // 1. SUSCRIPCIÓN REALTIME (Escucha directa a la tabla podcast_drafts)
+    // 1. SUSCRIPCIÓN REALTIME (Canal dedicado por ID de borrador)
     const channel = supabase
       .channel(`draft_vanguard_${draftId}`)
       .on(
         'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'podcast_drafts', filter: `id=eq.${draftId}` },
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'podcast_drafts',
+          filter: `id=eq.${draftId}`
+        },
         (payload: any) => {
           const status = payload.new.status;
+          console.log(`🔔 [Realtime] Cambio de estado: ${status}`);
 
           if (status === 'failed') {
             setIsError(true);
@@ -163,26 +176,30 @@ export function DraftGenerationLoader({ formData }: DraftLoaderProps) {
           clearInterval(safetyCheck);
         } else {
           const mappedIndex = STATUS_MAP[data.status];
-          if (mappedIndex !== undefined) setCurrentPhaseIndex(mappedIndex);
+          if (mappedIndex !== undefined && mappedIndex !== -1) {
+            setCurrentPhaseIndex(mappedIndex);
+          }
         }
       }
     }, 5000);
 
+    // Limpieza de recursos al desmontar el componente
     return () => {
+      console.log(`🛑 [Loader] Limpiando vigilancia para Borrador #${draftId}`);
       supabase.removeChannel(channel);
       clearInterval(safetyCheck);
     };
-  }, [draftId, supabase, transitionTo, setValue, topic]);
+  }, [draftId, supabase, finalizeIngestion]);
 
   // 3. ANIMACIÓN DE PROGRESO "SMOOTH"
   useEffect(() => {
     if (isError) return;
     const target = PHASES[currentPhaseIndex]?.targetProgress || 95;
     const interval = setInterval(() => {
-      setProgress(prev => (prev < target ? prev + 0.2 : prev));
+      setProgress(prev => (prev < target ? prev + 0.15 : prev));
     }, 100);
     return () => clearInterval(interval);
-  }, [currentPhaseIndex, isError, progress]);
+  }, [currentPhaseIndex, isError]);
 
   const phase = PHASES[currentPhaseIndex] || PHASES[0];
   const Icon = phase.icon;

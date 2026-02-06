@@ -1,5 +1,6 @@
 // components/podcast-view.tsx
-// VERSIÓN: 20.4 (Ultimate Master - Script Object Fix & Perfect Mobile Alignment)
+// VERSIÓN: 21.0 (Strict Logic & Integrity Master - Zero Warning Edition)
+// Misión: Estabilizar el sistema nervioso central del audio y garantizar la sincronía de datos.
 
 "use client";
 
@@ -9,7 +10,7 @@ import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { RemixDialog } from '@/components/remix-dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -50,7 +51,7 @@ import { CreationMetadata } from './creation-metadata';
 import { TagCurationCanvas } from './tag-curation-canvas';
 
 /**
- * ScriptViewer: Carga diferida optimizada para rendimiento
+ * ScriptViewer: Carga diferida optimizada para no penalizar el hilo principal
  */
 const ScriptEditor = dynamic(
   () => import('./script-viewer').then((mod) => mod.ScriptViewer),
@@ -124,10 +125,6 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
     replies.filter(r => r.status === 'published'),
     [replies]);
 
-  const pendingReplies = useMemo(() =>
-    replies.filter(r => r.status === 'pending_approval' && r.user_id === user?.id),
-    [replies, user?.id]);
-
   // 1. SINCRONIZACIÓN DE PROPS
   useEffect(() => {
     setLocalPodcastData(podcastData);
@@ -151,37 +148,55 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
     fetchRole();
   }, [user, supabase]);
 
-  // 3. PERSISTENCIA DE QA
-  const markAsListened = async () => {
+  // 3. PERSISTENCIA DE QA (Refactorizada con useCallback para estabilidad)
+  const markAsListened = useCallback(async () => {
     if (!supabase || !user || hasUpdatedDbRef.current) return;
     hasUpdatedDbRef.current = true;
     setHasListenedFully(true);
-    if (isClient) localStorage.removeItem(`nicepod_progress_${localPodcastData.id}`);
-    await supabase.from('micro_pods').update({ reviewed_by_user: true }).eq('id', localPodcastData.id);
-  };
 
-  // 4. MOTOR DE TIEMPO (Suscripción local)
+    if (isClient) {
+      localStorage.removeItem(`nicepod_progress_${localPodcastData.id}`);
+    }
+
+    const { error } = await supabase
+      .from('micro_pods')
+      .update({ reviewed_by_user: true })
+      .eq('id', localPodcastData.id);
+
+    if (error) {
+      console.error("[NicePod-QA] Error de persistencia:", error.message);
+      hasUpdatedDbRef.current = false;
+    }
+  }, [supabase, user, localPodcastData.id, isClient]);
+
+  // 4. MOTOR DE TIEMPO (Suscripción local optimizada)
   useEffect(() => {
     if (!isClient || !isCurrentActive) return;
 
     const handlePulse = (e: any) => {
       const { currentTime, duration } = e.detail;
       setLocalTime(currentTime);
-      if (duration && duration !== localDuration) setLocalDuration(duration);
+
+      if (duration && duration !== localDuration) {
+        setLocalDuration(duration);
+      }
 
       if (!hasListenedFully && duration > 0) {
         const percent = (currentTime / duration) * 100;
         setListeningProgress(percent);
         localStorage.setItem(`nicepod_progress_${localPodcastData.id}`, currentTime.toString());
-        if (percent > 95 && user && !hasUpdatedDbRef.current) markAsListened();
+
+        if (percent > 95 && user && !hasUpdatedDbRef.current) {
+          markAsListened();
+        }
       }
     };
 
     window.addEventListener('nicepod-timeupdate', handlePulse);
     return () => window.removeEventListener('nicepod-timeupdate', handlePulse);
-  }, [isCurrentActive, isClient, hasListenedFully, user, localDuration, localPodcastData.id]);
+  }, [isCurrentActive, isClient, hasListenedFully, user, localDuration, localPodcastData.id, markAsListened]);
 
-  // 5. SUBSCRIPCIÓN REALTIME (Auto-Revelación)
+  // 5. SUBSCRIPCIÓN REALTIME (Auto-Revelación Blindada)
   useEffect(() => {
     if (!supabase || !isClient) return;
 
@@ -193,18 +208,25 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
           setLocalPodcastData(prev => ({ ...prev, ...(payload.new as PodcastWithProfile) }));
           if (payload.new.processing_status === 'completed') {
             setIsGeneratingAudio(false);
-            toast({ title: "¡Podcast Completado!", description: "Activos listos.", variant: "default" });
+            toast({
+              title: "¡Podcast Completado!",
+              description: "Activos forjados y listos para reproducción.",
+              variant: "default"
+            });
           }
         }
       ).subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [supabase, localPodcastData.id, isClient]);
+  }, [supabase, localPodcastData.id, isClient, toast]);
 
   // --- HELPERS DINÁMICOS ---
   const isOwner = user?.id === localPodcastData.user_id;
   const isAdmin = viewerRole === 'admin';
-  const sources = useMemo<ResearchSource[]>(() => (localPodcastData.sources as unknown as ResearchSource[]) || [], [localPodcastData.sources]);
+  const sources = useMemo<ResearchSource[]>(() =>
+    (localPodcastData.sources as unknown as ResearchSource[]) || [],
+    [localPodcastData.sources]
+  );
 
   const displayTags = useMemo(() => {
     const userTags = localPodcastData.user_tags || [];
@@ -212,17 +234,11 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
     return userTags.length > 0 ? userTags : aiTags;
   }, [localPodcastData]);
 
-  /**
-   * [FIX]: NORMALIZADOR DE GUION MAESTRO
-   * Resuelve el error [object Object] manejando Strings, Objetos y Arrays.
-   */
   const normalizedScriptText = useMemo(() => {
     const raw = localPodcastData.script_text;
     if (!raw) return "";
     try {
       const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-
-      // Caso 1: Es un Array de segmentos (La raíz del error object Object)
       if (Array.isArray(parsed)) {
         return parsed.map((segment: any) => {
           const content = segment.line || segment.text || segment.content || "";
@@ -230,12 +246,9 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
           return `${speaker}${content}`;
         }).join('\n\n');
       }
-
-      // Caso 2: Es un Objeto con propiedad script_body
       if (parsed && typeof parsed === 'object') {
         return parsed.script_body || parsed.text || parsed.content || JSON.stringify(parsed);
       }
-
       return String(raw);
     } catch {
       return String(raw);
@@ -247,7 +260,7 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
     return username ? `/profile/${username}` : null;
   }, [localPodcastData.profiles]);
 
-  // --- ACCIONES ---
+  // --- ACCIONES REFACTORIZADAS (Uso de useCallback para evitar re-renders) ---
 
   const handlePlaySmart = () => {
     if (isCurrentActive) {
@@ -267,19 +280,20 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
     } else downloadForOffline();
   };
 
-  const handlePublishToCommunity = async () => {
+  const handlePublishToCommunity = useCallback(async () => {
     if (!hasListenedFully || !supabase) return;
     const { error } = await supabase.from('micro_pods').update({
       status: 'published',
       published_at: new Date().toISOString()
     }).eq('id', localPodcastData.id);
+
     if (!error) {
       setLocalPodcastData(prev => ({ ...prev, status: 'published' }));
-      toast({ title: "¡Portal Abierto!", description: "Ya es público." });
+      toast({ title: "¡Portal Abierto!", description: "El podcast ya es visible para la comunidad." });
     }
-  };
+  }, [hasListenedFully, supabase, localPodcastData.id, toast]);
 
-  const handleLike = async () => {
+  const handleLike = useCallback(async () => {
     if (!supabase || !user) return;
     setIsLiking(true);
     const podId = localPodcastData.id;
@@ -296,22 +310,21 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
       }
     }
     setIsLiking(false);
-  };
+  }, [supabase, user, isLiked, localPodcastData.id]);
 
-  const handleSaveTags = async (newTags: string[]) => {
+  const handleSaveTags = useCallback(async (newTags: string[]) => {
     if (!supabase) return;
     const { error } = await supabase.from('micro_pods').update({ user_tags: newTags }).eq('id', localPodcastData.id);
     if (!error) {
       setLocalPodcastData(prev => ({ ...prev, user_tags: newTags }));
       toast({ title: "Mapa Semántico Actualizado" });
     }
-  };
+  }, [supabase, localPodcastData.id, toast]);
 
   if (!isClient) return null;
 
   return (
     <>
-      {/* [FIX]: overflow-x-hidden forzado para eliminar scroll lateral en dispositivos móviles */}
       <div className="container mx-auto max-w-7xl py-8 md:py-16 px-4 md:px-6 overflow-x-hidden w-full">
 
         {/* ALERTA: ERROR DE PRODUCCIÓN */}
@@ -320,7 +333,7 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
             <AlertCircle className="h-5 w-5" />
             <AlertTitle className="font-black uppercase tracking-widest text-[10px]">Interrupción de Síntesis</AlertTitle>
             <AlertDescription className="text-sm font-medium mt-1">
-              Fallo al generar activos. El equipo técnico ha sido notificado.
+              Fallo al generar activos multimedia. El equipo técnico ha sido notificado.
             </AlertDescription>
           </Alert>
         )}
@@ -331,21 +344,21 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
             <ShieldAlert className="h-4 w-4 text-orange-500" />
             <AlertTitle className="font-black uppercase tracking-widest text-[10px]">Control Admin</AlertTitle>
             <AlertDescription className="flex justify-between items-center mt-2">
-              <span className="text-[10px]">Podcast ID: {localPodcastData.id}</span>
+              <span className="text-[10px]">Punto de Memoria ID: {localPodcastData.id}</span>
               <Button variant="destructive" size="sm" className="h-7 text-[10px] font-bold">RESTRINGIR</Button>
             </AlertDescription>
           </Alert>
         )}
 
-        {/* BANNER: QA FLOW (Centrado responsivo) */}
+        {/* BANNER: QA FLOW */}
         {isOwner && !isConstructing && !isFailed && localPodcastData.status === 'pending_approval' && (
           <div className="mb-8 rounded-3xl border border-primary/20 bg-primary/5 p-5 md:p-6 backdrop-blur-2xl animate-in fade-in slide-in-from-top-4 shadow-xl">
             <div className="flex flex-col md:flex-row justify-between items-center gap-6 text-center md:text-left">
               <div className="flex flex-col md:flex-row items-center gap-4">
                 <div className="p-4 bg-primary/10 rounded-2xl text-primary shadow-inner"><Lock className="h-6 w-6" /></div>
                 <div>
-                  <h3 className="font-black text-lg tracking-tight uppercase leading-tight">Borrador en Cuarentena</h3>
-                  <p className="text-sm text-muted-foreground font-medium leading-tight">Valida la calidad antes de liberar el conocimiento.</p>
+                  <h3 className="font-black text-lg tracking-tight uppercase leading-tight">Validación en curso</h3>
+                  <p className="text-sm text-muted-foreground font-medium leading-tight">Escucha el audio completo para liberar este conocimiento al mapa público.</p>
                 </div>
               </div>
               <Button
@@ -353,10 +366,10 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
                 disabled={!hasListenedFully}
                 className={cn(
                   "w-full md:w-auto h-12 px-8 font-black transition-all rounded-full",
-                  hasListenedFully ? "bg-green-600 text-white shadow-xl" : "bg-secondary text-muted-foreground opacity-50"
+                  hasListenedFully ? "bg-green-600 text-white shadow-xl hover:scale-105" : "bg-secondary text-muted-foreground opacity-50"
                 )}
               >
-                {hasListenedFully ? <><Users className="mr-2 h-4 w-4" /> PUBLICAR AHORA</> : <><Ear className="mr-2 h-4 w-4" /> QA: {Math.round(listeningProgress)}%</>}
+                {hasListenedFully ? <><Users className="mr-2 h-4 w-4" /> PUBLICAR EN MADRID</> : <><Ear className="mr-2 h-4 w-4" /> PROGRESO QA: {Math.round(listeningProgress)}%</>}
               </Button>
             </div>
           </div>
@@ -365,7 +378,7 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
         <div className="grid lg:grid-cols-3 gap-8 md:gap-10 items-start">
           <div className="lg:col-span-2 space-y-8 w-full">
 
-            {/* VISTA: CONSTRUCCIÓN REALTIME */}
+            {/* VISTA: CONSTRUCCIÓN REALTIME (La Sala de Forja) */}
             {isConstructing ? (
               <Card className="bg-card/30 backdrop-blur-3xl border-border/40 shadow-2xl rounded-[2.5rem] overflow-hidden p-6 md:p-12 flex flex-col items-center text-center space-y-10 min-h-[550px] justify-center">
                 <div className="relative">
@@ -375,25 +388,36 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
                 <div className="space-y-4 relative z-10">
                   <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tighter text-white">Forjando Sabiduría</h2>
                   <p className="text-muted-foreground text-base md:text-lg max-w-md mx-auto font-medium">
-                    Sintetizando voz neuronal y carátula. Se revelará automáticamente al completarse.
+                    Sintetizando voz neuronal y carátula artística. Los componentes se activarán automáticamente.
                   </p>
                 </div>
                 <div className="flex flex-col items-center gap-4 bg-primary/5 px-6 md:px-8 py-5 rounded-3xl border border-primary/20">
                   <div className="flex items-center gap-3 text-primary">
                     <Loader2 className="h-5 w-5 animate-spin" />
-                    <span className="text-[10px] font-black uppercase tracking-[0.3em]">Procesando Activos</span>
+                    <span className="text-[10px] font-black uppercase tracking-[0.3em]">Procesando Malla Multimedia</span>
                   </div>
                   <div className="h-1 w-40 bg-primary/10 rounded-full overflow-hidden">
-                    <motion.div initial={{ x: "-100%" }} animate={{ x: "100%" }} transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }} className="h-full w-full bg-primary" />
+                    <motion.div
+                      initial={{ x: "-100%" }}
+                      animate={{ x: "100%" }}
+                      transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
+                      className="h-full w-full bg-primary"
+                    />
                   </div>
                 </div>
               </Card>
             ) : (
-              /* VISTA: PODCAST TERMINADO */
+              /* VISTA: PODCAST TERMINADO (Inmersión) */
               <Card className="bg-card/30 backdrop-blur-3xl border-border/40 shadow-2xl rounded-[2rem] md:rounded-[2.5rem] overflow-hidden animate-in zoom-in-95 duration-700 w-full">
                 {localPodcastData.cover_image_url && (
                   <div className="aspect-video relative w-full group overflow-hidden">
-                    <Image src={localPodcastData.cover_image_url} alt="" fill className="animate-fade-in group-hover:scale-105 transition-transform duration-1000 object-cover" priority />
+                    <Image
+                      src={localPodcastData.cover_image_url}
+                      alt={localPodcastData.title}
+                      fill
+                      className="animate-fade-in group-hover:scale-105 transition-transform duration-1000 object-cover"
+                      priority
+                    />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                   </div>
                 )}
@@ -450,9 +474,10 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
             )}
           </div>
 
-          {/* COLUMNA LATERAL (Sidebar) */}
+          {/* COLUMNA LATERAL (Terminal Táctica) */}
           <div className="lg:col-span-1 space-y-6 lg:sticky lg:top-24 lg:self-start w-full">
 
+            {/* CONSOLA DE AUDIO */}
             <Card className={cn(
               "bg-primary text-white border-none shadow-2xl rounded-[2.5rem] overflow-hidden relative group transition-all duration-1000",
               isConstructing && "opacity-40 grayscale pointer-events-none translate-y-4"
@@ -460,7 +485,7 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
               <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-black/20 pointer-events-none" />
               <CardHeader className="pb-4 relative text-center md:text-left">
                 <CardTitle className="text-xl font-black uppercase tracking-tighter flex items-center justify-center md:justify-start gap-2">
-                  <PlayCircle className="h-5 w-5" /> Consola de Audio
+                  <PlayCircle className="h-5 w-5" /> Estación de Escucha
                 </CardTitle>
               </CardHeader>
               <CardContent className="relative flex flex-col gap-6">
@@ -494,18 +519,20 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
               </CardContent>
             </Card>
 
+            {/* SECCIÓN RESPONDER (Hilos de Sabiduría) */}
             {!isConstructing && localPodcastData.status === 'published' && user && (
               <Card className="bg-indigo-600 text-white border-none shadow-xl rounded-[2.5rem] overflow-hidden relative animate-in slide-in-from-right-4 duration-1000 group cursor-pointer active:scale-[0.98]">
                 <div className="absolute top-0 right-0 p-6 opacity-20 group-hover:rotate-12 transition-transform duration-700"><Sparkles className="h-14 w-14" /></div>
                 <CardContent className="p-8 flex flex-col gap-5 relative text-center md:text-left">
                   <h3 className="font-black text-xl uppercase leading-tight">¿Tienes una postura?</h3>
                   <Button onClick={() => setIsRemixOpen(true)} className="w-full bg-white text-indigo-600 hover:bg-white/90 rounded-2xl h-14 font-black uppercase shadow-lg">
-                    <CornerUpRight className="mr-2 h-5 w-5" /> RESPONDER
+                    <CornerUpRight className="mr-2 h-5 w-5" /> APORTAR RESPUESTA
                   </Button>
                 </CardContent>
               </Card>
             )}
 
+            {/* METADATOS Y CURADOR */}
             <Card className="bg-card/20 backdrop-blur-xl border-border/40 shadow-xl rounded-[2.5rem] overflow-hidden w-full">
               <CardContent className="p-6 md:p-8 space-y-8">
                 {profileUrl ? (
@@ -515,7 +542,7 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
                         <Image src={getSafeAsset(localPodcastData.profiles?.avatar_url, 'avatar')} alt="" fill className="rounded-2xl object-cover" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-[9px] font-black uppercase text-muted-foreground/60 mb-0.5 tracking-[0.2em]">Curador</p>
+                        <p className="text-[9px] font-black uppercase text-muted-foreground/60 mb-0.5 tracking-[0.2em]">Curador de Ideas</p>
                         <p className="font-black text-sm truncate uppercase tracking-tight">{localPodcastData.profiles?.full_name}</p>
                       </div>
                     </div>
@@ -540,7 +567,7 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
                     <div className="flex items-center gap-4 p-5 bg-primary/5 rounded-2xl border border-primary/20">
                       <MapPin className="h-5 w-5 text-primary" />
                       <div className="min-w-0">
-                        <p className="text-[9px] font-black uppercase text-primary/60 tracking-widest">Ubicación</p>
+                        <p className="text-[9px] font-black uppercase text-primary/60 tracking-widest">Resonancia Espacial</p>
                         <p className="text-xs font-bold text-foreground truncate uppercase tracking-tight">{localPodcastData.place_name}</p>
                       </div>
                     </div>
@@ -554,12 +581,32 @@ export function PodcastView({ podcastData, user, initialIsLiked, replies = [] }:
         </div>
       </div>
 
+      {/* COMPONENTES DE DIÁLOGO (Hidratación diferida) */}
       {isClient && isOwner && (
-        <TagCurationCanvas isOpen={isEditingTags} onOpenChange={setIsEditingTags} suggestedTags={localPodcastData.ai_tags || []} publishedTags={localPodcastData.user_tags || []} onSave={handleSaveTags} />
+        <TagCurationCanvas
+          isOpen={isEditingTags}
+          onOpenChange={setIsEditingTags}
+          suggestedTags={localPodcastData.ai_tags || []}
+          publishedTags={localPodcastData.user_tags || []}
+          onSave={handleSaveTags}
+        />
       )}
 
       {isClient && isRemixOpen && user && (
-        <RemixDialog isOpen={isRemixOpen} onOpenChange={setIsRemixOpen} parentPodcast={{ id: localPodcastData.id, title: localPodcastData.title, author: { full_name: localPodcastData.profiles?.full_name || 'Anónimo', avatar_url: localPodcastData.profiles?.avatar_url || null } }} quoteContext={normalizedScriptText.substring(0, 400)} timestamp={localTime} />
+        <RemixDialog
+          isOpen={isRemixOpen}
+          onOpenChange={setIsRemixOpen}
+          parentPodcast={{
+            id: localPodcastData.id,
+            title: localPodcastData.title,
+            author: {
+              full_name: localPodcastData.profiles?.full_name || 'Anónimo',
+              avatar_url: localPodcastData.profiles?.avatar_url || null
+            }
+          }}
+          quoteContext={normalizedScriptText.substring(0, 400)}
+          timestamp={localTime}
+        />
       )}
     </>
   );

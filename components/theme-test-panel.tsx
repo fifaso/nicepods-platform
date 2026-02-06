@@ -1,233 +1,206 @@
-"use client"
+// components/theme-test-panel.tsx
+// VERSIÓN: 1.2 (Theme Diagnostic Master - Fixed Imports & Zero Warning)
+// Misión: Estación de monitoreo visual para validar la integridad cromática y de contrastes.
 
-import { useState, useEffect } from "react"
-import { useTheme } from "next-themes"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Monitor, Sun, Moon, CheckCircle, AlertCircle, Zap, Settings } from "lucide-react"
+"use client";
 
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import {
+  Activity,
+  AlertCircle,
+  CheckCircle,
+  Loader2 // [FIX]: Importación restaurada para el estado de carga
+  ,
+  Monitor,
+  Moon,
+  Settings,
+  Sun,
+  Zap
+} from "lucide-react";
+import { useTheme } from "next-themes";
+import { useCallback, useEffect, useState } from "react";
+
+/**
+ * ThemeTestPanel: Herramienta de auditoría para el sistema de diseño Aurora.
+ */
 export function ThemeTestPanel() {
-  const { theme, setTheme, resolvedTheme, systemTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
-  const [testResults, setTestResults] = useState<Record<string, boolean>>({})
+  const { theme, setTheme, resolvedTheme, systemTheme } = useTheme();
+  const [mounted, setMounted] = useState<boolean>(false);
+  const [testResults, setTestResults] = useState<Record<string, boolean>>({});
 
+  /**
+   * runThemeTests
+   * Ejecuta una batería de validaciones sobre el DOM para asegurar que el motor
+   * de temas está inyectando las variables correctas en el tiempo de ejecución.
+   */
+  const runThemeTests = useCallback(() => {
+    if (typeof window === 'undefined' || !document.documentElement) return;
+
+    const results: Record<string, boolean> = {};
+
+    // Prueba 1: Sincronía de Clase HTML
+    results.htmlClassApplied = document.documentElement.classList.contains("dark") === (resolvedTheme === "dark");
+
+    // Prueba 2: Inyección de Variables CSS
+    const computedStyle = getComputedStyle(document.documentElement);
+    const bgColor = computedStyle.getPropertyValue("--background").trim();
+    results.cssVariablesSet = bgColor.length > 0;
+
+    // Prueba 3: Renderizado de Capas Transparentes (Glassmorphism)
+    const glassElements = document.querySelectorAll(".glass-card");
+    results.glassElementsStyled = glassElements.length > 0;
+
+    // Prueba 4: Validación de Contraste Adaptativo
+    const textElements = document.querySelectorAll(".text-gray-900, .dark\\:text-gray-100");
+    results.textContrastAdequate = textElements.length > 0;
+
+    // Prueba 5: Verificación de Animaciones de Transición
+    const transitionElements = document.querySelectorAll('[class*="transition"]');
+    results.transitionsWorking = transitionElements.length > 0;
+
+    console.log("📊 [NicePod-Theme] Diagnóstico completado:", results);
+    setTestResults(results);
+  }, [resolvedTheme]);
+
+  /**
+   * [MONTAJE]: Hydration Guard
+   * Marcamos el componente como montado para evitar discrepancias entre servidor y cliente.
+   */
   useEffect(() => {
-    setMounted(true)
-  }, [])
+    setMounted(true);
+  }, []);
 
+  /**
+   * [SINCRO]: Disparo automático de pruebas
+   * Sincronizado con la resolución del tema para detectar fallos en caliente.
+   */
   useEffect(() => {
     if (mounted) {
-      // Run automated tests when theme changes
-      runThemeTests()
+      runThemeTests();
     }
-  }, [resolvedTheme, mounted])
+  }, [mounted, runThemeTests]);
 
-  const runThemeTests = () => {
-    const results: Record<string, boolean> = {}
-
-    // Test 1: Check if theme class is applied to html element
-    results.htmlClassApplied = document.documentElement.classList.contains("dark") === (resolvedTheme === "dark")
-
-    // Test 2: Check if CSS variables are properly set
-    const computedStyle = getComputedStyle(document.documentElement)
-    const bgColor = computedStyle.getPropertyValue("--background").trim()
-    results.cssVariablesSet = bgColor.length > 0
-
-    // Test 3: Check if glassmorphic elements exist and have proper styles
-    const glassElements = document.querySelectorAll(".glass-card")
-    results.glassElementsStyled = glassElements.length > 0
-
-    // Test 4: Check if text contrast is adequate
-    const textElements = document.querySelectorAll(".text-gray-900, .dark\\:text-gray-100")
-    results.textContrastAdequate = textElements.length > 0
-
-    // Test 5: Check if transitions are working
-    const transitionElements = document.querySelectorAll('[class*="transition"]')
-    results.transitionsWorking = transitionElements.length > 0
-
-    setTestResults(results)
-  }
-
-  const testComponents = [
-    { name: "Buttons", component: "button" },
-    { name: "Cards", component: "glass-card" },
-    { name: "Navigation", component: "glass-nav" },
-    { name: "Text Elements", component: "text-" },
-    { name: "Badges", component: "badge" },
-  ]
-
+  // Pantalla de carga profesional (Evita Layout Shift)
   if (!mounted) {
     return (
-      <Card className="glass-card border-0 shadow-glass">
-        <CardContent className="p-6">
-          <div className="animate-pulse">Loading theme test panel...</div>
+      <Card className="w-full bg-card/20 backdrop-blur-xl border-white/10 shadow-2xl">
+        <CardContent className="p-16 flex flex-col items-center justify-center space-y-6">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <div className="text-[10px] font-black uppercase tracking-[0.5em] text-primary/40 animate-pulse">
+            Sincronizando Frecuencia...
+          </div>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   return (
-    <Card className="glass-card border-0 shadow-glass">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Settings className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-          Theme Testing Panel
+    <Card className="glass-card border-white/10 shadow-2xl bg-card/30 backdrop-blur-2xl rounded-[2.5rem] overflow-hidden animate-in fade-in duration-1000">
+      <CardHeader className="p-10 pb-4 bg-white/[0.02] border-b border-white/5">
+        <CardTitle className="flex items-center gap-4 text-3xl font-black uppercase tracking-tighter italic">
+          <Settings className="h-8 w-8 text-primary" />
+          Diagnóstico de Interfaz
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Theme Controls */}
-        <div className="space-y-3">
-          <Label className="text-sm font-medium">Theme Controls</Label>
-          <div className="flex gap-2">
+
+      <CardContent className="p-10 space-y-10">
+        {/* SELECTOR DE AMBIENTE TÁCTICO */}
+        <div className="space-y-4">
+          <Label className="text-[10px] font-black uppercase tracking-[0.4em] text-primary px-1">Matriz de Color</Label>
+          <div className="flex gap-4 p-2 bg-zinc-950/50 rounded-2xl border border-white/5 shadow-inner">
             <Button
-              variant={theme === "light" ? "default" : "outline"}
+              variant={theme === "light" ? "default" : "ghost"}
               size="sm"
               onClick={() => setTheme("light")}
-              className="flex items-center gap-2"
+              className="flex-1 rounded-xl font-black uppercase text-[10px] h-12 tracking-widest transition-all"
             >
-              <Sun className="h-4 w-4" />
-              Light
+              <Sun className="h-4 w-4 mr-2" />
+              Amanecer
             </Button>
             <Button
-              variant={theme === "dark" ? "default" : "outline"}
+              variant={theme === "dark" ? "default" : "ghost"}
               size="sm"
               onClick={() => setTheme("dark")}
-              className="flex items-center gap-2"
+              className="flex-1 rounded-xl font-black uppercase text-[10px] h-12 tracking-widest transition-all"
             >
-              <Moon className="h-4 w-4" />
-              Dark
+              <Moon className="h-4 w-4 mr-2" />
+              Nebulosa
             </Button>
             <Button
-              variant={theme === "system" ? "default" : "outline"}
+              variant={theme === "system" ? "default" : "ghost"}
               size="sm"
               onClick={() => setTheme("system")}
-              className="flex items-center gap-2"
+              className="flex-1 rounded-xl font-black uppercase text-[10px] h-12 tracking-widest transition-all"
             >
-              <Monitor className="h-4 w-4" />
-              System
+              <Monitor className="h-4 w-4 mr-2" />
+              Auto
             </Button>
           </div>
         </div>
 
-        {/* Theme Status */}
-        <div className="space-y-3">
-          <Label className="text-sm font-medium">Current Status</Label>
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div>
-              <span className="text-muted-accessible">Active Theme:</span>
-              <Badge variant="secondary" className="ml-2">
-                {resolvedTheme}
-              </Badge>
-            </div>
-            <div>
-              <span className="text-muted-accessible">System Theme:</span>
-              <Badge variant="outline" className="ml-2">
-                {systemTheme}
-              </Badge>
-            </div>
+        {/* RESULTADOS DE LAS PRUEBAS DE INTEGRIDAD */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between px-1">
+            <Label className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-500">Escaneo de Capas</Label>
+            <Activity className="h-4 w-4 text-primary animate-pulse" />
           </div>
-        </div>
-
-        {/* Automated Test Results */}
-        <div className="space-y-3">
-          <Label className="text-sm font-medium">Automated Tests</Label>
-          <div className="space-y-2">
-            {Object.entries(testResults).map(([test, passed]) => (
+          <div className="grid gap-3">
+            {Object.entries(testResults).map(([testName, isPassed]) => (
               <div
-                key={test}
-                className="flex items-center justify-between p-2 rounded-lg bg-white/50 dark:bg-gray-800/50"
+                key={testName}
+                className="flex items-center justify-between p-5 rounded-[1.5rem] bg-black/40 border border-white/5 hover:border-white/20 transition-all shadow-lg"
               >
-                <span className="text-sm capitalize">{test.replace(/([A-Z])/g, " $1").trim()}</span>
-                {passed ? (
-                  <CheckCircle className="h-4 w-4 text-green-600" />
+                <span className="text-xs font-black uppercase tracking-tight text-white/70">
+                  {testName.replace(/([A-Z])/g, " $1").trim()}
+                </span>
+                {isPassed ? (
+                  <div className="flex items-center gap-3 text-emerald-400">
+                    <span className="text-[9px] font-black uppercase tracking-widest">Óptimo</span>
+                    <CheckCircle className="h-5 w-5" />
+                  </div>
                 ) : (
-                  <AlertCircle className="h-4 w-4 text-red-600" />
+                  <div className="flex items-center gap-3 text-red-500">
+                    <span className="text-[9px] font-black uppercase tracking-widest">Falla</span>
+                    <AlertCircle className="h-5 w-5" />
+                  </div>
                 )}
               </div>
             ))}
           </div>
         </div>
 
-        {/* Visual Test Components */}
-        <div className="space-y-3">
-          <Label className="text-sm font-medium">Visual Test Components</Label>
-          <div className="space-y-3">
-            {/* Button Tests */}
-            <div className="p-3 rounded-lg bg-white/30 dark:bg-gray-800/30">
-              <Label className="text-xs text-muted-accessible mb-2 block">Buttons</Label>
-              <div className="flex gap-2 flex-wrap">
-                <Button size="sm">Primary</Button>
-                <Button variant="outline" size="sm">
-                  Outline
-                </Button>
-                <Button variant="secondary" size="sm">
-                  Secondary
-                </Button>
-                <Button variant="ghost" size="sm">
-                  Ghost
-                </Button>
-              </div>
+        {/* MUESTRARIO DE REACTIVIDAD (Visual Regression Test) */}
+        <div className="space-y-6 pt-6 border-t border-white/10">
+          <Label className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-500 px-1">Componentes de Prueba</Label>
+          <div className="grid gap-8">
+            <div className="p-8 rounded-[2.5rem] bg-white/[0.03] border border-white/5 shadow-inner">
+              <p className="text-foreground font-black text-2xl uppercase tracking-tighter leading-none mb-2">Identidad Aurora</p>
+              <p className="text-muted-foreground text-base font-medium leading-relaxed italic">
+                "El conocimiento compartido es el único activo que se revaloriza en la ciudad."
+              </p>
             </div>
 
-            {/* Badge Tests */}
-            <div className="p-3 rounded-lg bg-white/30 dark:bg-gray-800/30">
-              <Label className="text-xs text-muted-accessible mb-2 block">Badges</Label>
-              <div className="flex gap-2 flex-wrap">
-                <Badge>Default</Badge>
-                <Badge variant="secondary">Secondary</Badge>
-                <Badge variant="outline">Outline</Badge>
-                <Badge className="status-published">Published</Badge>
-                <Badge className="status-draft">Draft</Badge>
-              </div>
-            </div>
-
-            {/* Input Tests */}
-            <div className="p-3 rounded-lg bg-white/30 dark:bg-gray-800/30">
-              <Label className="text-xs text-muted-accessible mb-2 block">Form Elements</Label>
-              <div className="space-y-2">
-                <Input placeholder="Test input field" className="glass-input border-0" />
-                <Input placeholder="Focused input" className="glass-input border-0" autoFocus />
-              </div>
-            </div>
-
-            {/* Text Tests */}
-            <div className="p-3 rounded-lg bg-white/30 dark:bg-gray-800/30">
-              <Label className="text-xs text-muted-accessible mb-2 block">Typography</Label>
-              <div className="space-y-1">
-                <p className="text-gray-900 dark:text-gray-100 font-semibold">Primary Text</p>
-                <p className="text-secondary-accessible">Secondary Text</p>
-                <p className="text-muted-accessible">Muted Text</p>
-                <p className="text-purple-accessible">Purple Accent</p>
-                <p className="text-gradient font-bold">Gradient Text</p>
-              </div>
+            <div className="flex flex-wrap gap-4">
+              <Badge className="bg-emerald-600 text-white rounded-lg px-4 py-1.5 font-black text-[9px] uppercase tracking-[0.2em]">Sincronizado</Badge>
+              <Badge className="bg-orange-600 text-white rounded-lg px-4 py-1.5 font-black text-[9px] uppercase tracking-[0.2em]">En Espera</Badge>
+              <Badge variant="outline" className="rounded-lg px-4 py-1.5 font-black text-[9px] uppercase tracking-[0.2em] border-primary/40 text-primary">Sistema V2.5</Badge>
             </div>
           </div>
         </div>
 
-        {/* Performance Metrics */}
-        <div className="space-y-3">
-          <Label className="text-sm font-medium">Performance</Label>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="text-center p-2 rounded-lg bg-white/30 dark:bg-gray-800/30">
-              <div className="text-lg font-bold text-green-600">✓</div>
-              <div className="text-xs text-muted-accessible">No Flicker</div>
-            </div>
-            <div className="text-center p-2 rounded-lg bg-white/30 dark:bg-gray-800/30">
-              <div className="text-lg font-bold text-green-600">300ms</div>
-              <div className="text-xs text-muted-accessible">Transition</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Manual Test Button */}
-        <Button onClick={runThemeTests} className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white">
-          <Zap className="h-4 w-4 mr-2" />
-          Run Tests Again
+        {/* ACCIÓN DE RE-ESCÁNER MANUAL */}
+        <Button
+          onClick={runThemeTests}
+          className="w-full h-20 rounded-[1.5rem] font-black text-xl uppercase tracking-tighter shadow-2xl bg-gradient-to-r from-primary via-purple-600 to-indigo-600 hover:brightness-110 active:scale-[0.98] transition-all group relative overflow-hidden"
+        >
+          <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+          <Zap className="h-6 w-6 mr-4 group-hover:rotate-12 transition-transform relative z-10" />
+          <span className="relative z-10">Ejecutar Escaneo de Verdad</span>
         </Button>
       </CardContent>
     </Card>
-  )
+  );
 }
