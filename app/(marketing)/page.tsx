@@ -55,7 +55,7 @@ export default function LandingPage() {
           {/* Badge de Versión */}
           <motion.div variants={itemVariants} className="flex justify-center">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-[0.3em] backdrop-blur-md">
-              <Zap className="h-3 w-3 fill-current" /> NicePod V2.5 Intelligence Activa
+              <Zap className="h-3 w-3 fill-current" /> NicePod Intelligence Activa
             </div>
           </motion.div>
 
@@ -64,8 +64,8 @@ export default function LandingPage() {
             variants={itemVariants}
             className="text-6xl md:text-8xl lg:text-9xl font-black tracking-tighter leading-[0.85] text-zinc-900 dark:text-white uppercase italic"
           >
-            LA CIUDAD TIENE <br />
-            <span className="text-primary not-italic">MEMORIA</span>.
+            POTENCIA TU CONOCIMIENTO <br />
+            <span className="text-primary not-italic">CON PODCASTS A MEDIDA</span>.
           </motion.h1>
 
           {/* Subtítulo de Autoridad */}
@@ -73,7 +73,7 @@ export default function LandingPage() {
             variants={itemVariants}
             className="max-w-2xl mx-auto text-lg lg:text-2xl text-muted-foreground font-medium leading-relaxed"
           >
-            Transformamos el espacio urbano en un sistema nervioso digital. Crea y descubre crónicas sonoras ancladas a la realidad física de Madrid.
+            Transformamos el tiempo de aprendizaje en un sistema nervioso digital. Crea y descubre contenido de valor solo respecto a tus intereses.
           </motion.p>
 
           {/* Call to Action Primario */}
@@ -83,12 +83,12 @@ export default function LandingPage() {
           >
             <Button asChild size="lg" className="h-16 px-10 rounded-2xl text-lg font-black uppercase tracking-tighter shadow-2xl shadow-primary/20 group">
               <Link href="/login">
-                Entrar en la Bóveda
+                Bóveda de conocimiento
                 <ArrowRight className="ml-3 h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </Link>
             </Button>
             <Button asChild variant="outline" size="lg" className="h-16 px-10 rounded-2xl text-lg font-black uppercase tracking-tighter backdrop-blur-xl bg-white/5 border-white/10 hover:bg-white/10 transition-all">
-              <Link href="/signup">Unirse como Cronista</Link>
+              <Link href="/signup">Unirse</Link>
             </Button>
           </motion.div>
         </motion.div>
