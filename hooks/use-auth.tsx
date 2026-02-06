@@ -1,33 +1,43 @@
 // hooks/use-auth.tsx
-// VERSIÓN: 15.0 (Madrid Resonance - Full Auth Protocol & Identity Guard)
+// VERSIÓN: 16.0 (Global Identity Synchronizer - SSR Handshake & Realtime Auth)
+// Misión: Centralizar la soberanía de la sesión y garantizar la integridad del perfil en el Frontend.
 
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
 import type { Tables } from "@/types/supabase";
 import type { AuthError, Session, User } from "@supabase/supabase-js";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from "react";
 
 /**
  * [TIPADO ESTRICTO]
- * Definimos el perfil de NicePod basado en el esquema de base de datos.
+ * Extraemos el tipo Profile directamente del esquema generado de la base de datos.
  */
 type Profile = Tables<'profiles'>;
 
 /**
- * INTERFAZ MAESTRA: AuthContextType
- * Este es el contrato que rige toda la seguridad del Frontend.
+ * INTERFAZ: AuthContextType
+ * Define el contrato de seguridad y los datos de identidad disponibles para toda la App.
  */
 interface AuthContextType {
   user: User | null;
   profile: Profile | null;
   session: Session | null;
   isAdmin: boolean;
-  isAuthenticated: boolean; // [NUEVO]: Helper para validaciones rápidas
+  isAuthenticated: boolean;
   isLoading: boolean;
   signOut: () => Promise<void>;
-  resetPassword: (email: string) => Promise<{ error: AuthError | null }>; // [NUEVO]: Integración para forgot-password
-  refreshProfile: () => Promise<void>; // [NUEVO]: Para actualizar datos tras edición de perfil
+  resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
+  refreshProfile: () => Promise<void>;
   supabase: ReturnType<typeof createClient>;
 }
 
@@ -35,8 +45,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 /**
  * PROVIDER: AuthProvider
- * Orquestador de la identidad del usuario. 
- * Sincroniza la sesión del servidor con el estado del cliente en tiempo real.
+ * Este componente envuelve la aplicación en app/layout.tsx.
+ * Recibe la 'session' validada desde el servidor para evitar parpadeos de identidad.
  */
 export function AuthProvider({
   session: initialSession,
@@ -46,95 +56,124 @@ export function AuthProvider({
   children: React.ReactNode;
 }) {
   const supabase = useMemo(() => createClient(), []);
+  const router = useRouter();
 
+  // --- ESTADO DE IDENTIDAD ---
+  // Inicializamos con los datos del servidor para hidratación instantánea
   const [session, setSession] = useState<Session | null>(initialSession);
   const [user, setUser] = useState<User | null>(initialSession?.user || null);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [isLoading, setIsLoading] = useState(!initialSession);
+  const [isLoading, setIsLoading] = useState<boolean>(!initialSession);
+
+  // Ref para evitar ciclos infinitos en actualizaciones de perfil
+  const isFetchingProfile = useRef<boolean>(false);
 
   /**
    * getProfile
-   * Recupera los metadatos extendidos del usuario (reputación, rol, etc.)
+   * Recupera los metadatos extendidos del usuario desde la tabla public.profiles.
+   * Incluye datos críticos como rol, reputación y avatar.
    */
-  const getProfile = useCallback(async (userId: string | undefined) => {
-    if (!userId) {
-      setProfile(null);
-      return;
-    }
+  const getProfile = useCallback(async (userId: string) => {
+    if (isFetchingProfile.current) return;
+    isFetchingProfile.current = true;
 
     try {
+      console.log(`👤 [Auth] Sincronizando perfil para UID: ${userId.substring(0, 8)}...`);
+
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        // Si el perfil no existe aún (caso de nuevo registro en proceso de trigger)
+        if (error.code === 'PGRST116') {
+          console.warn("[Auth] Perfil no encontrado, esperando a trigger de creación.");
+        } else {
+          throw error;
+        }
+      }
+
       setProfile(data);
-    } catch (error) {
-      console.error("[NicePod-Auth] Fallo al recuperar perfil:", error);
+    } catch (error: any) {
+      console.error("🔥 [Auth-Profile-Error]:", error.message);
       setProfile(null);
+    } finally {
+      isFetchingProfile.current = false;
+      setIsLoading(false);
     }
   }, [supabase]);
 
   /**
    * refreshProfile
-   * Permite a otros componentes forzar la actualización de la identidad.
+   * Permite a componentes externos (como Ajustes) forzar la recarga de la identidad.
    */
   const refreshProfile = useCallback(async () => {
-    if (user?.id) await getProfile(user.id);
+    if (user?.id) {
+      await getProfile(user.id);
+    }
   }, [user, getProfile]);
 
+  /**
+   * [CICLO DE VIDA]: Sincronización Realtime
+   * Escucha eventos de autenticación (Login, Logout, Refresh Token) y reacciona.
+   */
   useEffect(() => {
-    let isMounted = true;
+    let mounted = true;
 
-    // Carga inicial del perfil si ya tenemos sesión del servidor
+    // Si nacemos con sesión de servidor, disparamos la carga del perfil inmediatamente
     if (initialSession?.user?.id) {
-      getProfile(initialSession.user.id).finally(() => {
-        if (isMounted) setIsLoading(false);
-      });
+      getProfile(initialSession.user.id);
     }
 
-    /**
-     * ESCUCHA DE ESTADO (Realtime Auth)
-     * Detecta cambios de sesión en todas las pestañas y sincroniza el estado.
-     */
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
-        if (!isMounted) return;
+        if (!mounted) return;
 
-        console.log(`[NicePod-Auth] Evento detectado: ${event}`);
+        console.log(`🔐 [Auth-Event] Tipo: ${event}`);
 
+        // Actualizamos estados de sesión y usuario
         setSession(newSession);
         setUser(newSession?.user || null);
 
         if (newSession?.user) {
+          // Si hay una nueva sesión (Login o Refresh), traemos el perfil
           await getProfile(newSession.user.id);
-        } else {
-          setProfile(null);
-        }
 
-        setIsLoading(false);
+          // [MEJORA ESTRATÉGICA]: Sincronizamos Server Components
+          // Esto asegura que el Dashboard (Server Side) se entere del cambio de cookie.
+          if (event === 'SIGNED_IN') {
+            router.refresh();
+          }
+        } else {
+          // Limpieza total en caso de Logout
+          setProfile(null);
+          setIsLoading(false);
+          if (event === 'SIGNED_OUT') {
+            router.refresh();
+          }
+        }
       }
     );
 
     return () => {
-      isMounted = false;
-      subscription?.unsubscribe();
+      mounted = false;
+      subscription.unsubscribe();
     };
-  }, [supabase, initialSession, getProfile]);
+  }, [supabase, initialSession, getProfile, router]);
 
   /**
    * ACCIONES MAESTRAS
-   * Optimizadas con useCallback para evitar re-renders en cascada.
    */
 
   const signOut = useCallback(async () => {
+    console.log("🛑 [Auth] Cerrando sesión y limpiando rastro digital...");
     await supabase.auth.signOut();
     setSession(null);
     setUser(null);
     setProfile(null);
-    // Forzamos limpieza de cookies de sesión
+    // Redirección forzada a la Landing para seguridad total
     window.location.href = "/";
   }, [supabase]);
 
@@ -144,14 +183,10 @@ export function AuthProvider({
     });
   }, [supabase]);
 
-  // Lógica de roles y estados calculados
-  const isAdmin = profile?.role === 'admin';
-  const isAuthenticated = !!user;
+  // Estados derivados memorizados para evitar re-renders en cascada
+  const isAdmin = useMemo(() => profile?.role === 'admin', [profile]);
+  const isAuthenticated = useMemo(() => !!user, [user]);
 
-  /**
-   * [MEMOIZACIÓN]: Evitamos que el árbol de componentes 
-   * se refresque si las funciones no han cambiado.
-   */
   const contextValue = useMemo(() => ({
     session,
     user,
@@ -174,12 +209,12 @@ export function AuthProvider({
 
 /**
  * useAuth
- * Punto de entrada para consumir la identidad del usuario en cualquier parte del sistema.
+ * Punto de entrada único para consumir la identidad del usuario en NicePod.
  */
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("CRITICAL: useAuth debe ser utilizado dentro de un AuthProvider");
+    throw new Error("CRITICAL: useAuth debe ser utilizado dentro de un AuthProvider validado.");
   }
   return context;
 }
