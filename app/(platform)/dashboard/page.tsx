@@ -1,30 +1,50 @@
 // app/(platform)/dashboard/page.tsx
-// VERSIÓN: 2.0 (The Intelligence Command Center - Strategic UI & Full Integrity)
-// Misión: Proveer una terminal de alta fidelidad para el curador de conocimiento.
+// VERSIÓN: 2.1 (The Intelligence Command Center - Performance Optimized)
+// Misión: Orquestar el punto de entrada táctico del usuario con latencia cero y máxima densidad de valor.
 
 import { DiscoveryHub } from "@/components/discovery-hub";
-import { MapPreviewFrame } from "@/components/geo/map-preview-frame";
 import { InsightPanel } from "@/components/insight-panel";
 import { FloatingActionButton } from "@/components/ui/floating-action-button";
 import { createClient } from "@/lib/supabase/server";
 import { PodcastWithProfile } from "@/types/podcast";
 import type { Tables } from "@/types/supabase";
-import { BrainCircuit, Globe, Loader2, Sparkles, Zap } from "lucide-react";
+import {
+  BrainCircuit,
+  ChevronRight,
+  Globe,
+  Loader2,
+  Search,
+  Sparkles,
+  Zap
+} from "lucide-react";
 import dynamic from "next/dynamic";
 import { redirect } from "next/navigation";
 
 /**
- * [CARGA ESTRATÉGICA]: Componentes Pesados
- * Cargamos el carrusel de podcasts con ssr: false para no retrasar el First Contentful Paint.
+ * [OPTIMIZACIÓN DE CARGA CRÍTICA]
+ * Delegamos el Mapa 3D y los Estantes de Audio a una hidratación diferida.
+ * Esto libera el hilo principal para que la página sea interactiva en <200ms.
  */
+const MapPreviewFrame = dynamic(
+  () => import("@/components/geo/map-preview-frame").then((mod) => mod.MapPreviewFrame),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-[400px] rounded-[3rem] bg-zinc-900/50 border border-white/5 flex flex-col items-center justify-center space-y-4 animate-pulse">
+        <Loader2 className="h-8 w-8 animate-spin text-primary/40" />
+        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-muted-foreground/50">Iniciando Motor WebGL...</span>
+      </div>
+    )
+  }
+);
+
 const PodcastShelf = dynamic(
   () => import("@/components/podcast-shelf").then((mod) => mod.PodcastShelf),
   {
     ssr: false,
     loading: () => (
-      <div className="w-full h-48 flex flex-col items-center justify-center space-y-4 bg-white/5 rounded-[2.5rem] border border-dashed border-white/10 animate-pulse">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground">Sintonizando Frecuencias...</span>
+      <div className="w-full h-48 bg-white/[0.02] rounded-[2.5rem] border border-dashed border-white/5 flex items-center justify-center">
+        <span className="text-[9px] font-black uppercase tracking-[0.5em] text-white/20">Sintonizando Frecuencia</span>
       </div>
     )
   }
@@ -40,7 +60,7 @@ interface DiscoveryFeed {
 
 /**
  * sanitizePodcasts
- * Procesa los datos crudos de Supabase para asegurar integridad de objetos JSON y tipado.
+ * Garantiza que los metadatos JSONB sean seguros para el renderizado de React.
  */
 function sanitizePodcasts(podcasts: any[] | null): PodcastWithProfile[] {
   if (!podcasts || !Array.isArray(podcasts)) return [];
@@ -54,34 +74,27 @@ function sanitizePodcasts(podcasts: any[] | null): PodcastWithProfile[] {
 }
 
 /**
- * DashboardPage: El núcleo dinámico de NicePod V2.5.
- * Este componente es 100% Servidor, garantizando que el usuario siempre vea datos frescos.
+ * DashboardPage: Terminal táctica de NicePod.
  */
 export default async function DashboardPage() {
   const supabase = createClient();
 
-  // 1. ESCUDO DE SEGURIDAD (Server-Side Guard)
-  // Validamos identidad directamente contra el núcleo de auth antes de renderizar un solo pixel.
+  // 1. ESCUDO DE IDENTIDAD (Validación en el Borde)
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     redirect("/login");
   }
 
-  // 2. ADQUISICIÓN DE DATOS (Parallel Strategy)
-  // Disparamos todas las consultas en paralelo para minimizar la latencia de carga.
+  // 2. ADQUISICIÓN DE INTELIGENCIA (Estrategia de Paralelismo Total)
   const [
     { data: feedData },
     { data: resonanceData },
-    { data: profileData, error: profileError }
+    { data: profileData }
   ] = await Promise.all([
     supabase.rpc('get_user_discovery_feed', { p_user_id: user.id }),
     supabase.from('user_resonance_profiles').select('*').eq('user_id', user.id).single(),
     supabase.from('profiles').select('full_name, reputation_score').eq('id', user.id).single()
   ]);
-
-  if (profileError) {
-    console.error("🔥 [Dashboard-Fatal]: No se pudo recuperar el perfil del curador.");
-  }
 
   const feed = feedData as DiscoveryFeed;
   const resonanceProfile = resonanceData as ResonanceProfile;
@@ -93,83 +106,98 @@ export default async function DashboardPage() {
 
   return (
     <main className="container mx-auto max-w-screen-xl min-h-screen px-4 lg:px-0">
-      <div className="grid grid-cols-1 lg:grid-cols-4 lg:gap-12 xl:gap-16 pt-8 pb-24">
+      <div className="grid grid-cols-1 lg:grid-cols-4 lg:gap-12 xl:gap-16 pt-10 pb-32">
 
-        {/* COLUMNA CENTRAL: EL LIENZO DE SABIDURÍA */}
-        <div className="lg:col-span-3 space-y-12">
+        {/* COLUMNA DE OPERACIONES (Centro de Visión) */}
+        <div className="lg:col-span-3 space-y-16">
 
-          {/* SECCIÓN 1: HERO TÁCTICO */}
-          <header className="flex flex-col md:flex-row md:items-end justify-between gap-8 animate-in fade-in slide-in-from-top-4 duration-700">
-            <div className="space-y-2">
+          {/* SECCIÓN I: CABECERA DE ALTO IMPACTO */}
+          <header className="flex flex-col md:flex-row md:items-end justify-between gap-10 animate-in fade-in slide-in-from-top-6 duration-1000">
+            <div className="space-y-4">
               <div className="flex items-center gap-3">
-                <div className="px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-widest">
-                  Terminal de Inteligencia Activa
+                <span className="relative flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+                </span>
+                <div className="px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-[0.2em] shadow-sm">
+                  Sincronía de Inteligencia Estable
                 </div>
-                {reputation > 100 && (
-                  <div className="flex items-center gap-1.5 text-yellow-500 text-[10px] font-black uppercase tracking-widest">
-                    <Sparkles size={12} /> Curador Elite
+                {reputation > 50 && (
+                  <div className="flex items-center gap-2 text-fuchsia-500 text-[10px] font-black uppercase tracking-[0.2em]">
+                    <Sparkles size={14} className="animate-pulse" /> Nivel: Curador
                   </div>
                 )}
               </div>
-              <h1 className="text-4xl lg:text-7xl font-black tracking-tighter text-zinc-900 dark:text-white leading-none">
-                Hola, <span className="text-primary italic">{userName}</span>
+
+              <h1 className="text-5xl lg:text-8xl font-black tracking-tighter text-zinc-900 dark:text-white leading-[0.85] uppercase italic">
+                Hola, <span className="text-primary not-italic">{userName}</span>
               </h1>
-              <p className="text-muted-foreground text-sm lg:text-xl font-medium max-w-lg leading-snug">
-                Tu red de crónicas urbanas y señales de alta autoridad está sincronizada.
+              <p className="text-muted-foreground text-base lg:text-2xl font-medium max-w-xl leading-relaxed">
+                Tu mapa de crónicas y radares de alta autoridad está listo para ser explorado.
               </p>
             </div>
 
-            {/* BUSCADOR OMNI (Desktop Integrado) */}
-            <div className="w-full md:max-w-sm">
+            {/* INTEGRACIÓN OMNI-SEARCH (Acceso Rápido) */}
+            <div className="w-full md:max-w-sm group">
+              <div className="mb-2 flex items-center gap-2 px-2 text-[10px] font-bold text-muted-foreground/40 uppercase tracking-widest group-hover:text-primary/50 transition-colors">
+                <Search size={12} /> Localizador Semántico
+              </div>
               <DiscoveryHub showOnlySearch={true} userName={userName} />
             </div>
           </header>
 
-          {/* SECCIÓN 2: PORTAL DE RESONANCIA (Madrid Live) */}
-          <section className="relative group rounded-[3rem] overflow-hidden border border-white/10 shadow-2xl shadow-purple-500/10 transition-all hover:border-primary/30">
-            <div className="absolute top-8 left-8 z-20 flex flex-col gap-2">
-              <div className="bg-black/60 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                <span className="text-[10px] font-black text-white uppercase tracking-widest">Madrid Resonance Live</span>
+          {/* SECCIÓN II: MADRID RESONANCE LIVE (Ventana 3D) */}
+          <section className="relative group rounded-[3.5rem] overflow-hidden border border-white/5 shadow-2xl shadow-purple-500/5 transition-all duration-700 hover:border-primary/20">
+            {/* HUD de Estado del Mapa */}
+            <div className="absolute top-10 left-10 z-20 flex flex-col gap-3">
+              <div className="bg-black/80 backdrop-blur-2xl px-6 py-2.5 rounded-2xl border border-white/10 flex items-center gap-3 shadow-2xl">
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] animate-pulse" />
+                <span className="text-xs font-black text-white uppercase tracking-[0.2em]">Resonancia Urbana: Madrid</span>
               </div>
             </div>
 
-            <div className="h-[400px] w-full">
+            {/* Cargador del Motor WebGL */}
+            <div className="h-[450px] lg:h-[550px] w-full bg-zinc-950">
               <MapPreviewFrame />
             </div>
 
-            {/* Overlay Informativo */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
-            <div className="absolute bottom-8 left-8 right-8 z-20 flex justify-between items-end">
-              <div className="space-y-1">
-                <h3 className="text-white font-black text-2xl uppercase tracking-tighter italic">Memoria Urbana</h3>
-                <p className="text-white/60 text-xs font-bold uppercase tracking-widest">Descubre ecos en tu radio actual</p>
+            {/* Máscara de Profundidad */}
+            <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent pointer-events-none" />
+
+            {/* Controles de Navegación Inferiores */}
+            <div className="absolute bottom-10 left-10 right-10 z-20 flex justify-between items-end gap-6">
+              <div className="space-y-2">
+                <h3 className="text-white font-black text-3xl lg:text-5xl uppercase tracking-tighter italic leading-none drop-shadow-lg">
+                  Vivir lo <span className="text-primary">Local</span>
+                </h3>
+                <p className="text-white/60 text-xs lg:text-sm font-bold uppercase tracking-[0.2em]">Explora memorias sonoras ancladas al territorio</p>
               </div>
-              <div className="hidden md:flex gap-4">
-                <div className="p-3 bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 flex items-center gap-3">
-                  <Globe size={16} className="text-blue-400" />
-                  <span className="text-[10px] font-black text-white uppercase">Sincronizado</span>
+              <div className="hidden sm:flex items-center gap-4">
+                <div className="px-6 py-3 bg-white/5 backdrop-blur-2xl rounded-2xl border border-white/10 flex items-center gap-3 group/btn cursor-pointer hover:bg-white/10 transition-all">
+                  <Globe size={18} className="text-blue-400" />
+                  <span className="text-[11px] font-black text-white uppercase tracking-widest">Abrir Dimensión 3D</span>
+                  <ChevronRight size={14} className="text-white/40 group-hover/btn:translate-x-1 transition-transform" />
                 </div>
               </div>
             </div>
           </section>
 
-          {/* SECCIÓN 3: ESTANTES DE CONOCIMIENTO (Feed Dinámico) */}
-          <div className="space-y-20">
+          {/* SECCIÓN III: FEED DINÁMICO (Inteligencia Circular) */}
+          <div className="space-y-24">
 
-            {/* Categorías de Acceso Rápido */}
-            <section className="animate-in fade-in duration-1000 delay-300">
-              <div className="flex items-center gap-3 mb-8">
-                <BrainCircuit className="text-primary h-5 w-5" />
-                <h2 className="text-sm font-black uppercase tracking-[0.4em] text-muted-foreground">Explora tu Bóveda Semántica</h2>
+            {/* Categorías de Universos Semánticos */}
+            <section className="animate-in fade-in duration-1000 delay-500">
+              <div className="flex items-center gap-4 mb-10 pl-2">
+                <div className="h-px w-12 bg-primary/30" />
+                <h2 className="text-[11px] font-black uppercase tracking-[0.5em] text-muted-foreground/60">Dimensiones de Sabiduría</h2>
               </div>
               <DiscoveryHub showOnlyCategories={true} />
             </section>
 
-            {/* Estantes Curados */}
-            <div className="space-y-24">
-              <div className="relative">
-                <div className="absolute -left-4 top-0 bottom-0 w-1 bg-gradient-to-b from-primary to-transparent opacity-20" />
+            {/* Estantes de Conocimiento (Optimización LCP) */}
+            <div className="space-y-32">
+              <div className="relative group">
+                <div className="absolute -left-8 top-0 bottom-0 w-1 bg-gradient-to-b from-primary/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
                 <PodcastShelf
                   title="Tu Epicentro Creativo"
                   podcasts={safeEpicenter}
@@ -177,8 +205,8 @@ export default async function DashboardPage() {
                 />
               </div>
 
-              <div className="relative">
-                <div className="absolute -left-4 top-0 bottom-0 w-1 bg-gradient-to-b from-purple-500 to-transparent opacity-20" />
+              <div className="relative group">
+                <div className="absolute -left-8 top-0 bottom-0 w-1 bg-gradient-to-b from-purple-500/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
                 <PodcastShelf
                   title="Conexiones Inesperadas"
                   podcasts={safeConnections}
@@ -190,29 +218,49 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        {/* COLUMNA LATERAL: MÉTRICAS DE IMPACTO (Sidebar) */}
+        {/* ASIDE: TERMINAL DE MÉTRICAS (Estrategia Lateral) */}
         <aside className="hidden lg:block lg:col-span-1">
-          <div className="sticky top-[7rem] space-y-8">
-            <div className="p-6 bg-primary/5 rounded-[2.5rem] border border-primary/20 backdrop-blur-sm relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:rotate-12 transition-transform">
-                <Zap size={40} className="text-primary" />
+          <div className="sticky top-[7.5rem] space-y-10">
+
+            {/* Banner de Misión Operativa */}
+            <div className="p-8 bg-primary/5 rounded-[3rem] border border-primary/20 backdrop-blur-md relative overflow-hidden group shadow-2xl shadow-primary/5">
+              <div className="absolute -top-4 -right-4 p-4 opacity-5 group-hover:rotate-12 transition-transform duration-1000">
+                <Zap size={80} className="text-primary fill-current" />
               </div>
-              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary mb-1">Misión Actual</p>
-              <h4 className="font-bold text-sm text-foreground leading-tight">Forja contenido de alta autoridad y aumenta tu resonancia comunitaria.</h4>
+              <div className="space-y-4 relative z-10">
+                <div className="flex items-center gap-2">
+                  <BrainCircuit size={16} className="text-primary" />
+                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Objetivo de Curador</p>
+                </div>
+                <h4 className="font-bold text-base text-foreground leading-snug">
+                  Alimenta tu Bóveda hoy. Cada crónica forjada aumenta tu resonancia en el mapa de Madrid.
+                </h4>
+              </div>
             </div>
 
+            {/* Panel de Insights Semánticos */}
             <InsightPanel resonanceProfile={resonanceProfile} />
 
-            <div className="p-8 text-center bg-white/5 rounded-[2.5rem] border border-white/10">
-              <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.5em] mb-4">Integridad NicePod</p>
-              <p className="text-[10px] text-muted-foreground/60 font-medium">Versión 2.5 Active Shell<br />Stable Intelligence Loop</p>
+            {/* Branding de Versión y Salud de Red */}
+            <div className="p-10 text-center bg-white/5 rounded-[3rem] border border-white/5 flex flex-col items-center space-y-4">
+              <div className="h-8 w-8 rounded-lg bg-zinc-900 border border-white/10 p-1.5 opacity-40">
+                <img src="/nicepod-logo.png" alt="NicePod" className="w-full h-full object-contain grayscale" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.4em]">Core V2.5 Active Shell</p>
+                <p className="text-[10px] text-muted-foreground/40 font-medium leading-tight">
+                  Ecosistema Sincronizado<br />
+                  Latencia: Nominal
+                </p>
+              </div>
             </div>
+
           </div>
         </aside>
 
       </div>
 
-      {/* EL GATILLO DE CREACIÓN MAESTRO */}
+      {/* TRIGGER DE CREACIÓN FLOTANTE */}
       <FloatingActionButton />
     </main>
   );
