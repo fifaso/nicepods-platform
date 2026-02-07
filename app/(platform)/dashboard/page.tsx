@@ -1,6 +1,6 @@
 // app/(platform)/dashboard/page.tsx
-// VERSIÓN: 3.1 (Command Suite Fixed - Import Integrity & Space Optimized)
-// Misión: Punto de entrada operativo. Corregido error de referencia 'Link'.
+// VERSIÓN: 3.2 (The Intelligence Command Suite - Type Integrity Edition)
+// Misión: Punto de entrada operativo. Corregida la omisión de la prop 'title' en PodcastShelf.
 
 import { DiscoveryHub } from "@/components/discovery-hub";
 import { InsightPanel } from "@/components/insight-panel";
@@ -15,24 +15,25 @@ import {
     BrainCircuit, 
     Globe, 
     Activity,
-    ChevronRight
+    ChevronRight,
+    Search
 } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link"; // [FIX]: Importación restaurada para evitar error react/jsx-no-undef
+import Link from "next/link";
 import dynamic from "next/dynamic";
 import { redirect } from "next/navigation";
 import React from "react";
 
 /**
  * [SHIELD]: HIDRATACIÓN ESCALONADA
- * Cargamos componentes pesados de forma diferida para maximizar el rendimiento.
+ * Cargamos componentes pesados de forma diferida para maximizar el rendimiento inicial.
  */
 const MapPreviewFrame = dynamic(
   () => import("@/components/geo/map-preview-frame").then((mod) => mod.MapPreviewFrame),
   { 
     ssr: false, 
     loading: () => (
-      <div className="w-full h-[140px] md:h-[180px] rounded-[2rem] md:rounded-[3rem] bg-zinc-950 border border-white/5 animate-pulse flex items-center justify-center">
+      <div className="w-full h-[140px] md:h-[180px] rounded-[2rem] md:rounded-[3rem] bg-zinc-900/50 border border-white/5 animate-pulse flex items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-primary/30" />
       </div>
     )
@@ -60,7 +61,7 @@ interface DiscoveryFeed {
 }
 
 /**
- * sanitizePodcasts: Integridad de datos para el renderizado.
+ * sanitizePodcasts: Garantiza la integridad de los metadatos para el renderizado.
  */
 function sanitizePodcasts(podcasts: any[] | null): PodcastWithProfile[] {
   if (!podcasts || !Array.isArray(podcasts)) return [];
@@ -76,11 +77,13 @@ function sanitizePodcasts(podcasts: any[] | null): PodcastWithProfile[] {
 export default async function DashboardPage() {
   const supabase = createClient();
   
+  // 1. VALIDACIÓN DE ACCESO
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
       redirect("/login");
   }
 
+  // 2. ADQUISICIÓN DE INTELIGENCIA
   const [
     { data: feedData },
     { data: resonanceData },
@@ -94,7 +97,8 @@ export default async function DashboardPage() {
   const feed = feedData as DiscoveryFeed;
   const resonanceProfile = resonanceData as ResonanceProfile;
   const userName = profileData?.full_name?.split(' ')[0] || "Curador";
-  
+  const reputation = profileData?.reputation_score || 0;
+
   const safeEpicenter = sanitizePodcasts(feed?.epicenter || []);
   const safeConnections = sanitizePodcasts(feed?.semantic_connections || []);
 
@@ -102,7 +106,10 @@ export default async function DashboardPage() {
     <main className="container mx-auto max-w-screen-xl min-h-screen px-4 lg:px-6">
       <div className="grid grid-cols-1 lg:grid-cols-4 lg:gap-12 xl:gap-16 pt-6 pb-24">
         
+        {/* COLUMNA PRINCIPAL */}
         <div className="lg:col-span-3 space-y-10">
+          
+          {/* SECCIÓN I: COMMAND BAR */}
           <header className="relative w-full flex items-center justify-between min-h-[80px] animate-in fade-in slide-in-from-top-4 duration-700">
             <div className="flex flex-col justify-center">
               <div className="flex items-center gap-2 mb-1">
@@ -115,11 +122,13 @@ export default async function DashboardPage() {
                 Hola, <span className="text-primary not-italic">{userName}</span>
               </h1>
             </div>
+
             <div className="flex items-center">
                 <DiscoveryHub showOnlySearch={true} userName={userName} mobileVariant={true} />
             </div>
           </header>
 
+          {/* SECCIÓN II: PORTAL DE RESONANCIA */}
           <section className="relative group rounded-[2.5rem] md:rounded-[3.5rem] overflow-hidden border border-white/5 shadow-2xl transition-all duration-700 hover:border-primary/20 bg-zinc-950">
             <div className="absolute top-6 left-6 z-20">
                 <div className="bg-black/70 backdrop-blur-xl px-4 py-1.5 rounded-full border border-white/10 flex items-center gap-2 shadow-2xl">
@@ -133,7 +142,9 @@ export default async function DashboardPage() {
             <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent pointer-events-none z-10" />
           </section>
 
+          {/* SECCIÓN III: MALLA DE CONOCIMIENTO */}
           <div className="space-y-16">
+            
             <section className="animate-in fade-in duration-1000 delay-300">
                 <div className="flex items-center justify-between mb-6 px-1">
                     <div className="flex items-center gap-3">
@@ -148,25 +159,37 @@ export default async function DashboardPage() {
                 <DiscoveryHub showOnlyCategories={true} />
             </section>
 
+            {/* ESTANTES DE PODCASTS (Corregidos con prop 'title' obligatoria) */}
             <div className="space-y-12">
                 <div className="relative">
-                    <div className="flex items-center gap-2 mb-4 px-1">
+                    <div className="flex items-center gap-2 mb-2 px-1">
                         <Zap size={14} className="text-primary fill-current opacity-40" />
-                        <h2 className="text-sm font-black uppercase tracking-tighter text-foreground">Tu Epicentro</h2>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Frecuencia Propia</span>
                     </div>
-                    <PodcastShelf podcasts={safeEpicenter} variant="compact" />
+                    <PodcastShelf 
+                        title="Tu Epicentro Creativo" 
+                        podcasts={safeEpicenter} 
+                        variant="compact" 
+                    />
                 </div>
+
                 <div className="relative">
-                    <div className="flex items-center gap-2 mb-4 px-1">
+                    <div className="flex items-center gap-2 mb-2 px-1">
                         <Sparkles size={14} className="text-purple-500 fill-current opacity-40" />
-                        <h2 className="text-sm font-black uppercase tracking-tighter text-foreground">Conexiones</h2>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Red de Sabiduría</span>
                     </div>
-                    <PodcastShelf podcasts={safeConnections} variant="compact" />
+                    <PodcastShelf 
+                        title="Conexiones Inesperadas" 
+                        podcasts={safeConnections} 
+                        variant="compact" 
+                    />
                 </div>
             </div>
+
           </div>
         </div>
 
+        {/* ASIDE: INSIGHTS */}
         <aside className="hidden lg:block lg:col-span-1">
           <div className="sticky top-[7.5rem] space-y-8">
             <div className="p-8 bg-primary/5 rounded-[2.5rem] border border-primary/10 backdrop-blur-md relative overflow-hidden group shadow-xl">
@@ -176,19 +199,28 @@ export default async function DashboardPage() {
                 <div className="space-y-4 relative z-10">
                     <p className="text-[9px] font-black uppercase tracking-[0.3em] text-primary">Objetivo Operativo</p>
                     <h4 className="font-bold text-sm text-foreground leading-snug tracking-tight">
-                        Expande tu huella digital. Cada crónica anclada fortalece la memoria colectiva.
+                        Expande tu huella digital. Cada crónica anclada fortalece la memoria colectiva de la red.
                     </h4>
                     <Link href="/create" className="flex items-center gap-2 text-[10px] font-black text-primary uppercase tracking-widest hover:translate-x-1 transition-transform">
                         Iniciar Forja <ChevronRight size={12} />
                     </Link>
                 </div>
             </div>
+
             <InsightPanel resonanceProfile={resonanceProfile} />
+            
             <div className="p-8 text-center bg-white/[0.02] rounded-[2.5rem] border border-white/5 flex flex-col items-center space-y-4 shadow-inner">
-                <div className="h-8 w-8 relative opacity-20 hover:opacity-40 transition-opacity">
-                    <Image src="/nicepod-logo.png" alt="NicePod" fill className="object-contain grayscale" />
+                <div className="h-8 w-8 relative opacity-20">
+                    <Image 
+                      src="/nicepod-logo.png" 
+                      alt="NicePod" 
+                      fill 
+                      className="object-contain grayscale"
+                    />
                 </div>
-                <p className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.4em]">Intelligence Shell V2.5</p>
+                <div className="space-y-1">
+                    <p className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.4em]">Intelligence Shell V2.5</p>
+                </div>
             </div>
           </div>
         </aside>
