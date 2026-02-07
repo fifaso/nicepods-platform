@@ -1,22 +1,20 @@
 // components/discovery-hub.tsx
-// VERSIÓN: 8.1 (Command Bridge Standard - Fixed Icons & Semantic Mapping)
+// VERSIÓN: 8.2 (Command Bridge - Production Integrity Edition)
 // Misión: Centralizar la búsqueda semántica y la exploración de universos de NicePod.
+// [FIX]: Definición local de SearchResult para garantizar éxito en el build de Vercel.
 
 "use client";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { 
-    UnifiedSearchBar, 
-    type SearchResult 
-} from "@/components/ui/unified-search-bar";
+import { UnifiedSearchBar } from "@/components/ui/unified-search-bar";
 import { UniverseCard } from "@/components/universe-card";
 import { useAuth } from "@/hooks/use-auth";
 import { 
     Loader2, 
     PlayCircle, 
     TrendingUp, 
-    Search // [FIX]: Importación restaurada para evitar error react/jsx-no-undef
+    Search 
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -24,8 +22,20 @@ import { useCallback, useState } from "react";
 import { cn } from "@/lib/utils";
 
 /**
+ * [TYPE DEFINITION]: SearchResult
+ * Definido localmente para evitar errores de importación circular o miembros no exportados.
+ */
+export type SearchResult = {
+    type: 'podcast' | 'user';
+    id: string;
+    title: string;
+    subtitle: string;
+    image_url: string;
+    similarity: number;
+};
+
+/**
  * CONFIGURACIÓN: Universos Semánticos
- * Define los puntos de entrada temáticos a la biblioteca global.
  */
 const discoveryHubCategories = [
     { 
@@ -61,7 +71,7 @@ interface DiscoveryHubProps {
 }
 
 /**
- * DiscoveryHub: El cerebro de descubrimiento de NicePod.
+ * DiscoveryHub: El cerebro de descubrimiento de NicePod V2.5.
  */
 export function DiscoveryHub({
     showOnlySearch = false,
@@ -70,7 +80,7 @@ export function DiscoveryHub({
 }: DiscoveryHubProps) {
     const { supabase } = useAuth();
     
-    // --- ESTADOS DE INTELIGENCIA DE BÚSQUEDA ---
+    // --- ESTADOS DE INTELIGENCIA ---
     const [results, setResults] = useState<SearchResult[]>([]);
     const [isSearching, setIsSearching] = useState<boolean>(false);
     const [hasActiveSearch, setHasActiveSearch] = useState<boolean>(false);
@@ -78,7 +88,7 @@ export function DiscoveryHub({
 
     /**
      * handleSemanticSearch
-     * Orquesta el flujo de búsqueda vectorial (Gecko-004) y omnicanal.
+     * Orquesta la búsqueda vectorial cruzando el Edge con PostgreSQL.
      */
     const handleSemanticSearch = useCallback(async (searchTerm: string) => {
         if (!supabase || searchTerm.trim().length < 3) return;
@@ -88,14 +98,14 @@ export function DiscoveryHub({
         setLastQuery(searchTerm);
 
         try {
-            // FASE 1: Generación de ADN Semántico de la consulta
+            // 1. Vectorización de la consulta (Gecko-004)
             const { data: vectorData, error: vectorError } = await supabase.functions.invoke('vectorize-query', {
                 body: { query: searchTerm }
             });
 
             if (vectorError) throw vectorError;
 
-            // FASE 2: Matchmaking Omnicanal en PostgreSQL
+            // 2. Ejecución del RPC de búsqueda omnicanal
             const { data: searchResults, error: searchError } = await supabase.rpc('search_omni', {
                 query_text: searchTerm,
                 query_embedding: vectorData.embedding,
@@ -105,10 +115,10 @@ export function DiscoveryHub({
 
             if (searchError) throw searchError;
 
-            setResults(searchResults ?? []);
+            setResults((searchResults as SearchResult[]) ?? []);
 
         } catch (error: any) {
-            console.error("🔥 [DiscoveryHub-Fatal]:", error.message);
+            console.error("🔥 [DiscoveryHub-Search-Fail]:", error.message);
             setResults([]);
         } finally {
             setIsSearching(false);
@@ -117,7 +127,7 @@ export function DiscoveryHub({
 
     /**
      * handleClearSearch
-     * Restablece la terminal de descubrimiento al estado de reposo.
+     * Limpia el estado y restablece la vista de universos.
      */
     const handleClearSearch = useCallback(() => {
         setResults([]);
@@ -126,7 +136,7 @@ export function DiscoveryHub({
         setLastQuery("");
     }, []);
 
-    // --- RENDERIZADOR 1: ESTRATEGIA DE BÚSQUEDA (Command Bar Integration) ---
+    // --- RENDERIZADOR 1: INTEGRACIÓN CON DASHBOARD (Solo Buscador) ---
     if (showOnlySearch) {
         return (
             <div className="w-full h-full flex items-center justify-end">
@@ -139,56 +149,56 @@ export function DiscoveryHub({
         );
     }
 
-    // --- RENDERIZADOR 2: GRILLA DE CONOCIMIENTO (Categorías y Resultados) ---
+    // --- RENDERIZADOR 2: GRILLA DE EXPLORACIÓN (Categorías o Resultados) ---
     return (
         <div className="w-full">
             
             {(!hasActiveSearch || showOnlyCategories) ? (
-                /* VISTA A: Carrusel de Universos */
+                /* ESTADO: EXPLORACIÓN DE UNIVERSOS */
                 <div className="flex overflow-x-auto pb-6 gap-4 lg:grid lg:grid-cols-4 snap-x scrollbar-hide -mx-4 px-4 lg:mx-0 lg:px-0">
                     {discoveryHubCategories.map((category) => (
-                        <div key={category.key} className="min-w-[160px] w-[45%] lg:w-auto snap-start flex-shrink-0 transition-transform active:scale-95">
+                        <div key={category.key} className="min-w-[160px] w-[45%] lg:w-auto snap-start flex-shrink-0">
                             <UniverseCard {...category} isActive={false} />
                         </div>
                     ))}
                 </div>
             ) : (
-                /* VISTA B: Resultados de Resonancia Activa */
+                /* ESTADO: VISUALIZACIÓN DE RESULTADOS */
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     
-                    {/* Caso: Sin Resultados Detectados */}
+                    {/* UI: Sin Hallazgos Semánticos */}
                     {results.length === 0 && !isSearching ? (
                         <div className="text-center py-20 bg-white/[0.02] rounded-[2.5rem] border border-dashed border-white/10 flex flex-col items-center justify-center">
-                            <div className="bg-primary/10 w-14 h-14 rounded-full flex items-center justify-center mb-4 shadow-inner">
+                            <div className="bg-primary/10 w-14 h-14 rounded-full flex items-center justify-center mb-4">
                                 <Search size={24} className="text-primary/40" />
                             </div>
                             <div className="space-y-1 mb-6">
-                                <p className="text-white font-bold text-base">Frecuencia No Detectada</p>
-                                <p className="text-muted-foreground text-xs font-medium max-w-[240px] mx-auto">
-                                    No hay registros que resuenen con "{lastQuery}". Prueba con un concepto más amplio.
+                                <p className="text-white font-black uppercase tracking-widest text-xs">Frecuencia Vacía</p>
+                                <p className="text-muted-foreground text-xs font-medium max-w-[220px] mx-auto leading-relaxed">
+                                    No hay resonancia para "{lastQuery}". Prueba con términos más amplios.
                                 </p>
                             </div>
                             <Button 
                                 variant="outline" 
                                 onClick={handleClearSearch} 
-                                className="border-white/10 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-white/5 h-10 px-6"
+                                className="border-white/10 rounded-xl font-black uppercase text-[9px] tracking-[0.2em] hover:bg-white/5 h-10 px-8"
                             >
-                                Reiniciar Escaneo
+                                REINICIAR RADAR
                             </Button>
                         </div>
                     ) : (
-                        /* Caso: Muestra de Impactos Semánticos */
+                        /* UI: Listado de Impactos */
                         <div className="grid grid-cols-1 gap-3 pb-10">
                             {results.map((result) => (
                                 <Link 
                                     key={result.id} 
                                     href={result.type === 'podcast' ? `/podcast/${result.id}` : `/profile/${result.subtitle.replace('@', '')}`}
-                                    className="block"
+                                    className="block transition-transform active:scale-[0.98]"
                                 >
                                     <div className="p-4 rounded-[2rem] bg-card/40 border border-white/5 hover:border-primary/30 hover:bg-card/60 transition-all flex items-center gap-5 group shadow-xl backdrop-blur-md">
                                         
-                                        {/* Representación Visual del Activo */}
-                                        <div className="h-16 w-16 rounded-[1.25rem] bg-zinc-800 overflow-hidden flex-shrink-0 relative shadow-inner">
+                                        {/* Portada / Avatar del Nodo */}
+                                        <div className="h-16 w-16 rounded-[1.25rem] bg-zinc-900 overflow-hidden flex-shrink-0 relative shadow-inner">
                                             <Image
                                                 src={result.image_url || '/images/placeholder.png'}
                                                 alt={result.title}
@@ -206,17 +216,14 @@ export function DiscoveryHub({
                                             </div>
                                         </div>
 
-                                        {/* Metadatos de Identidad y Match */}
+                                        {/* Metadatos y Puntuación de Match */}
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 mb-1">
                                                 <p className="font-black text-sm uppercase tracking-tight truncate text-foreground leading-tight">
                                                     {result.title}
                                                 </p>
                                                 {result.similarity > 0.8 && (
-                                                    <div className="flex items-center gap-1 text-emerald-500 animate-pulse">
-                                                        <TrendingUp size={12} />
-                                                        <span className="text-[8px] font-black uppercase">Alta</span>
-                                                    </div>
+                                                    <TrendingUp size={12} className="text-emerald-500 shrink-0 animate-pulse" />
                                                 )}
                                             </div>
                                             <div className="flex items-center gap-2">
@@ -224,15 +231,15 @@ export function DiscoveryHub({
                                                     {result.subtitle}
                                                 </p>
                                                 <span className="h-1 w-1 rounded-full bg-white/10" />
-                                                <span className="text-[8px] font-black text-primary/60 uppercase tracking-tighter">
+                                                <span className="text-[8px] font-black text-primary/60 uppercase tracking-widest">
                                                     {Math.round(result.similarity * 100)}% Match
                                                 </span>
                                             </div>
                                         </div>
 
-                                        {/* Sello de Tipo de Nodo */}
+                                        {/* Badge de Clasificación */}
                                         <div className="hidden sm:block">
-                                            <Badge variant="outline" className="text-[8px] font-black uppercase tracking-[0.2em] px-2.5 py-1 bg-white/5 border-white/10 text-muted-foreground">
+                                            <Badge variant="outline" className="text-[8px] font-black uppercase tracking-[0.2em] px-2.5 py-1 bg-white/5 border-white/10 text-muted-foreground/60">
                                                 {result.type}
                                             </Badge>
                                         </div>
