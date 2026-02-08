@@ -1,7 +1,7 @@
 // app/(platform)/dashboard/page.tsx
-// VERSIÓN: 8.0 (The Intelligence Command Suite - Operational Excellence)
-// Misión: Terminal de mando central. Orquesta el saludo, la búsqueda expansiva y el banner geospacial.
-// [FIX]: Resolución de error 'PodcastShelf' y estabilización de la jerarquía de capas.
+// VERSIÓN: 9.0 (Operational Command Center - Final Structural Fix)
+// Misión: Punto de entrada operativo. Resolución definitiva de solapamiento de capas.
+// [FIX]: Se divide la lógica de búsqueda en dos instancias para proteger el flujo del documento.
 
 import { DiscoveryHub } from "@/components/discovery-hub";
 import { InsightPanel } from "@/components/insight-panel";
@@ -26,7 +26,7 @@ import { redirect } from "next/navigation";
 import React from "react";
 
 /**
- * [TYPES]: Definiciones de integridad para el compilador de Next.js.
+ * [TYPES]: Definiciones de integridad.
  */
 type ResonanceProfile = Tables<'user_resonance_profiles'>;
 
@@ -38,15 +38,15 @@ interface DiscoveryFeed {
 
 /**
  * [SHIELD]: HIDRATACIÓN ESCALONADA
- * El Mapa se carga diferido para no bloquear el hilo principal de la CPU.
+ * Mapa y Estantes cargados con skeletons para no estresar el Main Thread.
  */
 const MapPreviewFrame = dynamic(
   () => import("@/components/geo/map-preview-frame").then((mod) => mod.MapPreviewFrame),
   { 
     ssr: false, 
     loading: () => (
-      <div className="w-full h-[140px] md:h-[180px] rounded-[2.5rem] bg-zinc-950 border border-white/5 animate-pulse flex items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-primary/20" />
+      <div className="w-full h-[140px] md:h-[180px] rounded-[2.5rem] bg-zinc-900/50 border border-white/5 animate-pulse flex items-center justify-center">
+        <Loader2 className="h-5 w-5 animate-spin text-primary/20" />
       </div>
     )
   }
@@ -54,7 +54,6 @@ const MapPreviewFrame = dynamic(
 
 /**
  * sanitizePodcasts
- * Normaliza los datos de Supabase para asegurar que el tipado 'PodcastWithProfile' sea exacto.
  */
 function sanitizePodcasts(podcasts: any[] | null): PodcastWithProfile[] {
   if (!podcasts || !Array.isArray(podcasts)) return [];
@@ -69,19 +68,16 @@ function sanitizePodcasts(podcasts: any[] | null): PodcastWithProfile[] {
   }).filter((p) => p.id);
 }
 
-/**
- * DashboardPage: El punto de entrada soberano para usuarios autenticados.
- */
 export default async function DashboardPage() {
   const supabase = createClient();
   
-  // 1. VALIDACIÓN DE IDENTIDAD (Handshake en el Servidor)
+  // 1. PROTOCOLO DE IDENTIDAD
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
       redirect("/login");
   }
 
-  // 2. RECOPILACIÓN DE INTELIGENCIA (Estrategia Paralela)
+  // 2. RECOPILACIÓN DE INTELIGENCIA
   const [
     { data: feedData },
     { data: resonanceData },
@@ -96,96 +92,89 @@ export default async function DashboardPage() {
   const resonanceProfile = resonanceData as ResonanceProfile;
   const userName = profileData?.full_name?.split(' ')[0] || "Curador";
 
-  // Saneamiento de datos para el motor de descubrimiento
   const safeEpicenter = sanitizePodcasts(feed?.epicenter || []);
   const safeConnections = sanitizePodcasts(feed?.semantic_connections || []);
 
   return (
-    <main className="container mx-auto max-w-screen-xl min-h-screen px-4 lg:px-6">
-      
-      {/* GRID MAESTRO DE LA WORKSTATION */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 lg:gap-12 pt-4 pb-24">
+    <main className="container mx-auto max-w-screen-xl px-4 lg:px-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 lg:gap-12 pb-24">
         
-        {/* COLUMNA DE OPERACIONES (Izquierda/Centro) */}
-        <div className="lg:col-span-3 space-y-8">
+        {/* COLUMNA CENTRAL (OP-CENTER) */}
+        <div className="lg:col-span-3 space-y-10">
           
-          {/* SECCIÓN I: COMMAND BAR DINÁMICA
-              Este contenedor tiene una altura mínima garantizada para evitar colapsos visuales.
+          {/* SECCIÓN I: COMMAND HEADER
+              Contenedor con altura física real para anclar el resto de la página.
           */}
-          <header className="relative w-full min-h-[90px] md:min-h-[110px] flex items-center justify-between z-40 bg-transparent">
+          <header className="relative w-full h-24 md:h-28 flex items-center justify-between z-40 bg-transparent">
             
-            {/* SALUDO DE BIENVENIDA (Sutil y Profesional) */}
-            <div className="flex flex-col justify-center animate-in fade-in slide-in-from-left-4 duration-1000">
-              <div className="flex items-center gap-2 mb-1.5 opacity-60">
-                <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+            {/* SALUDO (Capa Estática en el flujo) */}
+            <div className="flex flex-col justify-center animate-in fade-in duration-1000">
+              <div className="flex items-center gap-2 mb-2 opacity-60">
+                <div className="h-1 w-1 rounded-full bg-primary animate-pulse" />
                 <span className="text-[9px] font-black uppercase tracking-[0.3em] text-primary">
-                  Sincronía de Red Estable
+                  Sincronía Nominal
                 </span>
               </div>
-              <h1 className="text-3xl md:text-5xl font-black tracking-tighter text-white uppercase italic leading-none">
+              <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-white uppercase italic leading-none">
                 Hola, <span className="text-primary not-italic">{userName}</span>
               </h1>
             </div>
 
-            {/* BUSCADOR EXPANSIVO (Orquestador Único)
-                Se encarga de cubrir el saludo y gestionar el feed dinámicamente.
+            {/* BUSCADOR MAESTRO (Capa Dinámica absoluta)
+                Al expandirse, cubrirá el saludo pero no afectará al mapa de abajo.
             */}
             <div className="absolute right-0 top-1/2 -translate-y-1/2 w-full flex justify-end pointer-events-none">
-                <div className="pointer-events-auto w-full max-w-full">
+                <div className="pointer-events-auto w-full">
                     <DiscoveryHub 
                         userName={userName} 
-                        showShelvesOnNoSearch={true}
-                        epicenterPodcasts={safeEpicenter}
-                        connectionsPodcasts={safeConnections}
+                        showOnlySearch={true} 
                     />
                 </div>
             </div>
-
           </header>
 
-          {/* SECCIÓN II: PORTAL MADRID (Banner Panorámico Elegante)
-              Unificado con la identidad visual V2.5.
-          */}
-          <section className="relative rounded-[2.5rem] md:rounded-[3.5rem] overflow-hidden border border-white/5 bg-zinc-950 shadow-2xl transition-all duration-700 hover:border-primary/20 group">
-            <div className="h-[140px] md:h-[180px] w-full relative z-0 opacity-40 group-hover:opacity-60 transition-opacity">
+          {/* SECCIÓN II: PORTAL MADRID (Posicionamiento Estático Garantizado) */}
+          <section className="relative rounded-[2.5rem] md:rounded-[3.5rem] overflow-hidden border border-white/5 bg-zinc-950 shadow-2xl transition-all duration-700 hover:border-primary/20">
+            <div className="h-[140px] md:h-[180px] w-full relative z-0">
               <MapPreviewFrame />
             </div>
-            
-            {/* Capa de profundidad Aurora */}
             <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent pointer-events-none z-10" />
-            
             <div className="absolute bottom-4 left-8 z-20 flex items-center gap-3">
                 <div className="p-2 bg-primary/20 backdrop-blur-xl rounded-xl border border-primary/30">
                     <MapIcon size={14} className="text-primary" />
                 </div>
                 <h3 className="text-white font-black text-xs md:text-sm uppercase tracking-tighter italic drop-shadow-lg leading-none">
-                    Madrid <span className="text-primary">Resonance Live</span>
+                    Madrid <span className="text-primary">Live Resonance</span>
                 </h3>
             </div>
           </section>
 
-          {/* NOTA DE ARQUITECTURA: 
-              Los estantes de podcasts (Tu Epicentro / Conexiones) se renderizan 
-              ahora DENTRO del componente DiscoveryHub (V9.1) para asegurar 
-              que el buscador pueda ocultarlos al activarse, evitando el solapamiento.
+          {/* SECCIÓN III: FEED DE INTELIGENCIA (Posicionamiento Estático)
+              [CLAVE]: Esta instancia de DiscoveryHub renderiza las categorías y los resultados,
+              asegurando que los podcasts se dibujen en su lugar correcto.
           */}
+          <div className="relative z-0">
+              <DiscoveryHub 
+                  userName={userName} 
+                  showShelvesOnNoSearch={true}
+                  epicenterPodcasts={safeEpicenter}
+                  connectionsPodcasts={safeConnections}
+                  showOnlyCategories={false} 
+              />
+          </div>
 
         </div>
 
-        {/* COLUMNA LATERAL: INSIGHTS (Derecha) */}
+        {/* COLUMNA LATERAL (Soberanía y Telemetría) */}
         <aside className="hidden lg:block lg:col-span-1">
           <div className="sticky top-[7.5rem] space-y-8">
             
-            {/* Card de Misión Táctica */}
-            <div className="p-8 bg-primary/5 rounded-[3rem] border border-primary/10 backdrop-blur-md relative overflow-hidden group shadow-xl shadow-primary/5">
+            <div className="p-8 bg-primary/5 rounded-[2.5rem] border border-primary/10 backdrop-blur-md relative overflow-hidden group shadow-xl">
                 <div className="absolute -top-4 -right-4 p-4 opacity-5 group-hover:rotate-12 group-hover:scale-110 transition-all duration-1000">
                     <Globe size={70} className="text-primary" />
                 </div>
                 <div className="space-y-4 relative z-10">
-                    <div className="flex items-center gap-2">
-                        <Activity size={14} className="text-primary" />
-                        <p className="text-[9px] font-black uppercase tracking-[0.3em] text-primary">Estado de Misión</p>
-                    </div>
+                    <p className="text-[9px] font-black uppercase tracking-[0.3em] text-primary">Estado de Misión</p>
                     <h4 className="font-bold text-sm text-foreground leading-snug tracking-tight">
                         Tu Bóveda se expande con cada crónica. Fortalece la memoria colectiva de Madrid.
                     </h4>
@@ -198,10 +187,8 @@ export default async function DashboardPage() {
                 </div>
             </div>
 
-            {/* Panel de Gráficos de Resonancia */}
             <InsightPanel resonanceProfile={resonanceProfile} />
             
-            {/* Branding y Versión */}
             <div className="p-10 text-center bg-white/[0.02] rounded-[3rem] border border-white/5 flex flex-col items-center space-y-4 shadow-inner">
                 <div className="h-10 w-10 relative opacity-20 hover:opacity-50 transition-opacity">
                     <Image 
@@ -213,15 +200,17 @@ export default async function DashboardPage() {
                 </div>
                 <div className="space-y-1">
                     <p className="text-[9px] font-black text-muted-foreground/30 uppercase tracking-[0.4em]">Intelligence Shell V2.5</p>
+                    <div className="flex items-center gap-1.5 justify-center">
+                        <Activity size={10} className="text-emerald-500 animate-pulse" />
+                        <span className="text-[8px] font-bold text-muted-foreground/30 uppercase tracking-widest">Neural Link Active</span>
+                    </div>
                 </div>
             </div>
-
           </div>
         </aside>
 
       </div>
       
-      {/* EL GATILLO DE CREACIÓN UNIVERSAL */}
       <FloatingActionButton />
     </main>
   );
