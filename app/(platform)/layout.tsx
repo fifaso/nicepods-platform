@@ -1,6 +1,6 @@
 // app/(platform)/layout.tsx
-// VERSIÓN: 1.1 (Workstation Shell - Structural Spacer Fix)
-// Misión: Proveer el contexto de audio y navegación asegurando que el contenido no colapse bajo el header.
+// VERSIÓN: 1.2 (Workstation Shell - Structural Integrity Master)
+// Misión: Proveer el contexto de audio y navegación asegurando que el contenido nazca siempre debajo del header.
 
 import { InstallPwaButton } from '@/components/install-pwa-button';
 import { Navigation } from "@/components/navigation";
@@ -11,7 +11,11 @@ import { ScrollToTop } from "@/components/scroll-to-top";
 import { SmoothScrollWrapper } from "@/components/smooth-scroll-wrapper";
 import { Toaster } from "@/components/ui/toaster";
 import { AudioProvider } from "@/contexts/audio-context";
+import React from "react";
 
+/**
+ * PlatformLayout: El contenedor táctico para la zona operativa de NicePod.
+ */
 export default function PlatformLayout({ 
   children 
 }: { 
@@ -20,29 +24,29 @@ export default function PlatformLayout({
   return (
     <AudioProvider>
       <SmoothScrollWrapper>
-        {/* Capas de Utilidad de Sistema */}
+        {/* SERVICIOS DE SISTEMA */}
         <OfflineIndicator />
         <InstallPwaButton />
         <ScrollToTop />
         
-        {/* NAVEGACIÓN STICKY (Ocupa Z-50) */}
+        {/* NAVEGACIÓN SUPERIOR (Sticky Layer) */}
         <Navigation />
         
-        <PageTransition>
-          {/* 
-              [FIX ESTRATÉGICO]: pt-20 (Padding Top)
-              Añadimos un espaciado superior fijo de 5rem (80px) que es la altura 
-              estándar de nuestra Navigation. Esto garantiza que el Dashboard 
-              nazca siempre debajo del menú, eliminando el solapamiento inicial.
-          */}
-          <main className="relative z-10 pt-4 md:pt-8 lg:pt-10">
+        {/* 
+            [SOLUCIÓN ESTRUCTURAL]: pt-24 (Padding Top)
+            La Navigation tiene una altura de 16-20 unidades (64-80px). 
+            Al añadir pt-24 (96px) al main, garantizamos que el Dashboard 
+            comience visualmente debajo del menú, eliminando el solapamiento.
+        */}
+        <main className="relative z-10 pt-20 md:pt-24 lg:pt-28">
+          <PageTransition>
             <div className="w-full">
               {children}
             </div>
-          </main>
-        </PageTransition>
+          </PageTransition>
+        </main>
 
-        {/* Capas de Salida y Notificación */}
+        {/* SALIDA DE AUDIO Y NOTIFICACIONES */}
         <PlayerOrchestrator />
         <Toaster />
       </SmoothScrollWrapper>
