@@ -1,7 +1,7 @@
 // app/(platform)/layout.tsx
-// VERSIÓN: 1.4 (NicePod Architecture Standard - Workstation Shell)
-// Misión: Orquestar el entorno operativo. Gestiona la jerarquía de audio, navegación y transiciones.
-// [FIX]: Corrección de sintaxis de comentarios JSX (react/jsx-no-comment-textnodes).
+// VERSIÓN: 1.5 (NicePod Architecture Standard - Structural Precision Edition)
+// Misión: Orquestar el ecosistema operativo para usuarios autenticados. 
+// [FIX]: Optimización de espacios verticales y eliminación de colisiones de capas visuales.
 
 import { InstallPwaButton } from '@/components/install-pwa-button';
 import { Navigation } from "@/components/navigation";
@@ -15,8 +15,8 @@ import { AudioProvider } from "@/contexts/audio-context";
 import React from "react";
 
 /**
- * PlatformLayout: El ecosistema de trabajo para el usuario autenticado.
- * Este contenedor envuelve todas las rutas operativas (dashboard, create, map, podcasts).
+ * PlatformLayout: Contenedor maestro para la Workstation.
+ * Provee los servicios de Audio, Navegación y Notificaciones persistentes.
  */
 export default function PlatformLayout({
   children
@@ -24,32 +24,42 @@ export default function PlatformLayout({
   children: React.ReactNode
 }) {
   return (
+    /**
+     * CAPA 1: Contexto de Audio
+     * Habilita el motor de síntesis y el protocolo 'nicepod-timeupdate' en toda la plataforma.
+     */
     <AudioProvider>
+
+      {/* CAPA 2: Optimización de Desplazamiento */}
       <SmoothScrollWrapper>
-        {/* SERVICIOS DE UTILIDAD TÁCTICA */}
+
+        {/* SERVICIOS DE INFRAESTRUCTURA */}
         <OfflineIndicator />
         <InstallPwaButton />
         <ScrollToTop />
 
-        {/* NAVEGACIÓN SUPERIOR (STICKY LAYER)
-            Este componente utiliza un z-index de 50. 
-            Contiene la identidad del usuario, el buscador y el acceso a la forja.
+        {/* 
+            CAPA 3: Navegación Táctica (Sticky)
+            Este componente está fijado en la parte superior (z-index: 50).
+            Es el encargado de la identidad, búsqueda y acceso a creación.
         */}
         <Navigation />
 
         {/* 
-            CONTENEDOR MAESTRO DE CONTENIDO (THE WORKSTATION)
-            [SOLUCIÓN ESTRUCTURAL]: 
-            Aplicamos un padding-top (pt) responsivo para compensar el componente Navigation.
+            CAPA 4: Contenedor Maestro de Contenido
+            [INGENIERÍA ESTRUCTURAL]: 
+            Ajustamos el padding-top (pt) para eliminar el espacio muerto detectado.
+            - pt-16 (64px) en móvil: Coincide exactamente con la altura de la Navigation.
+            - md:pt-20 (80px) en tablet/desktop: Provee el aire necesario para la jerarquía visual.
         */}
-        <main className="relative z-10 pt-20 md:pt-24 lg:pt-28 min-h-screen">
+        <main className="relative z-10 pt-16 md:pt-20 min-h-screen flex flex-col">
 
           {/* 
-              CAPA 3: Orquestador de Transiciones
-              Aplica animaciones suaves cuando el usuario navega entre pestañas.
+              CAPA 5: Orquestador de Transiciones de Página
+              Gestiona el fundido (fade) y deslizamiento entre rutas operativas.
           */}
           <PageTransition>
-            <div className="w-full h-full">
+            <div className="w-full flex-grow flex flex-col">
               {children}
             </div>
           </PageTransition>
@@ -57,9 +67,9 @@ export default function PlatformLayout({
         </main>
 
         {/* 
-            CAPA DE SALIDA MULTIMEDIA Y SISTEMA
-            PlayerOrchestrator: El reproductor flotante persistente.
-            Toaster: Sistema de notificaciones emergentes.
+            CAPA 6: Terminales de Salida
+            PlayerOrchestrator: El centro de mandos del audio (Flotante).
+            Toaster: Gestor de avisos y alertas de sistema.
         */}
         <PlayerOrchestrator />
         <Toaster />

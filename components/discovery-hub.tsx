@@ -1,7 +1,7 @@
 // components/discovery-hub.tsx
 // VERSIÓN: 9.5 (The Intelligence Command Bridge - Final Production Standard)
-// Misión: Orquestar el flujo de descubrimiento semántico y la navegación de universos de conocimiento.
-// [ESTABILIDAD]: Resolución definitiva de tipos, eliminación de abreviaciones y optimización de renderizado.
+// Misión: Orquestar el flujo de descubrimiento semántico y la navegación de universos.
+// [ESTABILIDAD]: Resolución de tipos TS(2322), eliminación de abreviaciones y optimización de LCP.
 
 "use client";
 
@@ -28,9 +28,9 @@ import Link from "next/link";
 import { useCallback, useState } from "react";
 
 /**
- * [SHIELD]: PODCAST SHELF DINÁMICO
- * Importamos el estante de forma dinámica para evitar colisiones en el hilo principal
- * y asegurar que el bundle de la biblioteca de audio no bloquee el renderizado inicial.
+ * [SHIELD]: CARGA DIFERIDA DE ESTANTES
+ * El componente PodcastShelf es pesado. Lo cargamos solo en el cliente
+ * para asegurar que la interactividad inicial del Dashboard sea de 60 FPS.
  */
 const PodcastShelf = dynamic(
     () => import("@/components/podcast-shelf").then((mod) => mod.PodcastShelf),
@@ -51,8 +51,7 @@ export type SearchResult = {
 };
 
 /**
- * CONFIGURACIÓN: Universos Semánticos
- * Lista explícita de categorías para evitar iteraciones sobre objetos dinámicos no controlados.
+ * CONFIGURACIÓN: Universos Semánticos de NicePod
  */
 const discoveryHubCategories = [
     {
@@ -83,7 +82,7 @@ const discoveryHubCategories = [
 
 /**
  * INTERFACE: DiscoveryHubProps
- * Definición exhaustiva de propiedades para garantizar compatibilidad con DashboardPage.
+ * [FIX]: Declaración explícita de todas las propiedades para satisfacer al compilador de Vercel.
  */
 interface DiscoveryHubProps {
     userName: string;
@@ -91,11 +90,11 @@ interface DiscoveryHubProps {
     epicenterPodcasts?: PodcastWithProfile[];
     connectionsPodcasts?: PodcastWithProfile[];
     showOnlySearch?: boolean;
-    showOnlyCategories?: boolean; // Requerido por el motor de visualización de la Home
+    showOnlyCategories?: boolean; // Propiedad necesaria para el filtrado en Home
 }
 
 /**
- * DiscoveryHub: El núcleo de inteligencia de NicePod.
+ * DiscoveryHub: El núcleo de inteligencia de la Workstation NicePod.
  */
 export function DiscoveryHub({
     userName = "Curador",
@@ -115,7 +114,7 @@ export function DiscoveryHub({
 
     /**
      * handleSemanticSearch
-     * Pipeline de búsqueda: Vectorización (Edge Function) -> Matchmaking (RPC SQL).
+     * Pipeline de búsqueda: Vectorización (Edge Function) -> Matchmaking Semántico (SQL RPC).
      */
     const handleSemanticSearch = useCallback(async (searchTerm: string) => {
         if (!supabase || searchTerm.trim().length < 3) {
@@ -129,16 +128,16 @@ export function DiscoveryHub({
         setLastQuery(searchTerm);
 
         try {
-            // FASE 1: Invocación de la Edge Function para vectorización
+            // ESTACIÓN 1: Vectorización de la consulta (Gecko-004)
             const { data: vectorData, error: vectorError } = await supabase.functions.invoke('vectorize-query', {
                 body: { query: searchTerm }
             });
 
             if (vectorError) {
-                throw new Error(`Vectorización fallida: ${vectorError.message}`);
+                throw new Error(`Fallo en vectorización: ${vectorError.message}`);
             }
 
-            // FASE 2: Búsqueda omnicanal en PostgreSQL
+            // ESTACIÓN 2: Búsqueda Omnicanal con similitud de coseno
             const { data: searchResults, error: searchError } = await supabase.rpc('search_omni', {
                 query_text: searchTerm,
                 query_embedding: vectorData.embedding,
@@ -147,15 +146,15 @@ export function DiscoveryHub({
             });
 
             if (searchError) {
-                throw new Error(`RPC Search failed: ${searchError.message}`);
+                throw new Error(`Error en RPC: ${searchError.message}`);
             }
 
-            // Actualización del búfer de resultados
+            // Inyección de resultados en el estado
             const validatedResults = (searchResults as SearchResult[]) ?? [];
             setResults(validatedResults);
 
         } catch (error: any) {
-            console.error("🔥 [DiscoveryHub-Fatal]:", error.message);
+            console.error("🔥 [DiscoveryHub-Search-Fatal]:", error.message);
             setResults([]);
         } finally {
             setIsSearching(false);
@@ -164,7 +163,7 @@ export function DiscoveryHub({
 
     /**
      * handleClearSearch
-     * Restablece la terminal de descubrimiento a la frecuencia base.
+     * Restablece el componente a su frecuencia base.
      */
     const handleClearSearch = useCallback(() => {
         setResults([]);
@@ -173,9 +172,10 @@ export function DiscoveryHub({
         setLastQuery("");
     }, []);
 
-    // --- RENDERIZADOR: MODO BUSCADOR (Header Integration) ---
+    // --- RENDERIZADOR 1: MODO DISPARADOR (Header Integration) ---
     if (showOnlySearch) {
         return (
+            /* h-14 reserva el espacio físico necesario para evitar el Layout Shift */
             <div className="w-full h-14 relative flex items-center justify-end z-50">
                 <UnifiedSearchBar
                     userName={userName}
@@ -186,24 +186,25 @@ export function DiscoveryHub({
         );
     }
 
+    // --- RENDERIZADOR 2: MODO CONTENIDO (Main Content Flow) ---
     return (
         <div className="w-full space-y-12">
 
-            {/* LOGICA DINÁMICA DE VISUALIZACIÓN */}
+            {/* LÓGICA DINÁMICA DE REEMPLAZO DE CONTENIDO */}
             {(!hasActiveSearch || showOnlyCategories) ? (
                 /* 
-                   ESTADO A: FRECUENCIA BASE
-                   Se muestra cuando no hay una búsqueda activa o se fuerzan categorías.
+                   ESTADO: FRECUENCIA BASE
+                   Mostramos las dimensiones de conocimiento y los estantes de podcasts.
                 */
                 <div className="space-y-16 animate-in fade-in duration-1000">
 
-                    {/* Universos de Conocimiento */}
+                    {/* Sección de Universos (Categorías) */}
                     <section>
                         <div className="flex items-center justify-between mb-8 px-1">
                             <div className="flex items-center gap-3">
                                 <BrainCircuit className="text-primary/40 h-4 w-4" />
                                 <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-muted-foreground/60">
-                                    Dimensiones
+                                    Dimensiones Semánticas
                                 </h2>
                             </div>
                             <div className="flex items-center gap-2 text-[8px] font-bold text-white/20 uppercase tracking-widest">
@@ -227,12 +228,13 @@ export function DiscoveryHub({
                         </div>
                     </section>
 
-                    {/* Estantes de Podcasts (Dashboard Context) */}
+                    {/* Estantes de Podcasts (Inyectados dinámicamente desde el Dashboard) */}
                     {(showShelvesOnNoSearch && !showOnlyCategories) && (
-                        <div className="space-y-16 animate-in slide-in-from-bottom-4 duration-700">
+                        <div className="space-y-16 animate-in slide-in-from-bottom-6 duration-700">
+                            {/* Estante: Tu Epicentro */}
                             <div className="relative group">
-                                <div className="flex items-center gap-2 mb-5 px-2 border-l-2 border-primary/40">
-                                    <Zap size={14} className="text-primary fill-current opacity-40" />
+                                <div className="flex items-center gap-3 mb-5 px-2 border-l-2 border-primary/40">
+                                    <Zap size={14} className="text-primary fill-current opacity-40 group-hover:opacity-100 transition-opacity" />
                                     <h2 className="text-sm font-black uppercase tracking-tighter text-foreground/90">
                                         Tu Epicentro Creativo
                                     </h2>
@@ -244,9 +246,10 @@ export function DiscoveryHub({
                                 />
                             </div>
 
+                            {/* Estante: Conexiones */}
                             <div className="relative group">
-                                <div className="flex items-center gap-2 mb-5 px-2 border-l-2 border-purple-500/40">
-                                    <Sparkles size={14} className="text-purple-500 fill-current opacity-40" />
+                                <div className="flex items-center gap-3 mb-5 px-2 border-l-2 border-purple-500/40">
+                                    <Sparkles size={14} className="text-purple-500 fill-current opacity-40 group-hover:opacity-100 transition-opacity" />
                                     <h2 className="text-sm font-black uppercase tracking-tighter text-foreground/90">
                                         Conexiones Inesperadas
                                     </h2>
@@ -262,8 +265,8 @@ export function DiscoveryHub({
                 </div>
             ) : (
                 /* 
-                   ESTADO B: RESULTADOS DE BÚSQUEDA ACTIVOS
-                   Muestra los impactos semánticos detectados por la IA.
+                   ESTADO: FRECUENCIA DE BÚSQUEDA
+                   Los estantes y categorías se retiran para mostrar los impactos de la IA.
                 */
                 <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
 
@@ -283,25 +286,27 @@ export function DiscoveryHub({
                             onClick={handleClearSearch}
                             className="h-8 rounded-xl font-black text-[9px] uppercase tracking-widest text-muted-foreground hover:bg-white/5"
                         >
-                            Reiniciar Radar
+                            Limpiar Radar
                         </Button>
                     </div>
 
                     {results.length === 0 && !isSearching ? (
-                        /* Estado: Frecuencia Vacía */
-                        <div className="text-center py-28 bg-white/[0.01] rounded-[2.5rem] border border-dashed border-white/5 flex flex-col items-center justify-center">
-                            <div className="bg-primary/5 w-16 h-16 rounded-full flex items-center justify-center mb-6">
-                                <Search size={32} className="text-primary/10" />
+                        /* Estado: Frecuencia Vacía (Sin resultados) */
+                        <div className="text-center py-28 bg-white/[0.01] rounded-[2.5rem] border border-dashed border-white/10 flex flex-col items-center justify-center">
+                            <div className="bg-primary/5 w-16 h-16 rounded-full flex items-center justify-center mb-6 shadow-inner">
+                                <Search size={32} className="text-primary/20" />
                             </div>
-                            <p className="text-muted-foreground text-sm font-medium uppercase tracking-widest">
-                                Sin impactos detectados
-                            </p>
-                            <p className="text-[10px] text-zinc-600 mt-2 uppercase tracking-tighter max-w-[200px] mx-auto leading-relaxed">
-                                Intenta investigar un concepto diferente para sintonizar la red.
-                            </p>
+                            <div className="space-y-1">
+                                <p className="text-muted-foreground text-sm font-medium uppercase tracking-widest">
+                                    Sin impactos detectados
+                                </p>
+                                <p className="text-[10px] text-zinc-600 uppercase tracking-tighter max-w-[200px] mx-auto leading-relaxed">
+                                    Intenta investigar un concepto diferente para sintonizar la red colectiva.
+                                </p>
+                            </div>
                         </div>
                     ) : (
-                        /* Estado: Grilla de Impactos Semánticos */
+                        /* Estado: Visualización de Impactos Semánticos */
                         <div className="grid grid-cols-1 gap-3">
                             {results.map((result) => (
                                 <Link
@@ -311,7 +316,7 @@ export function DiscoveryHub({
                                 >
                                     <div className="p-4 rounded-[2rem] bg-card/60 border border-white/5 hover:border-primary/40 hover:bg-card/80 transition-all flex items-center gap-5 shadow-2xl backdrop-blur-md">
 
-                                        {/* Avatar / Portada del Resultado */}
+                                        {/* Activo Visual del Nodo */}
                                         <div className="h-16 w-16 rounded-[1.25rem] bg-zinc-900 overflow-hidden flex-shrink-0 relative shadow-inner">
                                             <Image
                                                 src={result.image_url || '/images/placeholder.png'}
@@ -325,7 +330,7 @@ export function DiscoveryHub({
                                             </div>
                                         </div>
 
-                                        {/* Información Cognitiva */}
+                                        {/* Información Cognitiva del Impacto */}
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 mb-1">
                                                 <p className="font-black text-sm uppercase tracking-tight truncate text-foreground leading-tight">
@@ -341,12 +346,12 @@ export function DiscoveryHub({
                                                 </p>
                                                 <span className="h-0.5 w-0.5 rounded-full bg-white/10" />
                                                 <Badge variant="outline" className="text-[8px] font-black uppercase border-primary/20 text-primary/70 px-2 py-0">
-                                                    {Math.round(result.similarity * 100)}% Match
+                                                    {Math.round(result.similarity * 100)}% Resonancia
                                                 </Badge>
                                             </div>
                                         </div>
 
-                                        {/* Categorización de Nodo */}
+                                        {/* Clasificación de Entidad */}
                                         <div className="hidden sm:block">
                                             <Badge variant="outline" className="text-[8px] font-black uppercase tracking-[0.2em] px-2.5 py-1 bg-white/5 border-white/10">
                                                 {result.type}
