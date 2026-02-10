@@ -1,25 +1,26 @@
 // app/layout.tsx
-// VERSIÓN: 17.2 (NicePod Core Identity - Total Integrity Edition)
-// Misión: Orquestador global del sistema, blindaje PWA y sincronización de identidad server-to-client.
+// VERSIÓN: 17.2 (NicePod Core Architecture Standard - Total Sync Edition)
+// Misión: Orquestar el núcleo global de la plataforma, blindar la identidad visual y sincronizar la sesión servidor-cliente.
+// [ESTABILIDAD]: Resolución de advertencias de metadatos PWA y optimización de hidratación.
 
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import type React from "react";
 
 /**
- * --- CAPA DE ESTILOS CRÍTICOS ---
+ * --- CAPA DE ESTILOS GLOBALES ---
  */
 import "./globals.css";
 
 /**
- * [FIX]: Inyección prioritaria de Mapbox CSS.
- * Al estar en el Root Layout, garantizamos que el motor WebGL del Mapa 3D 
- * tenga sus definiciones de clase listas antes de inicializar la GPU.
+ * [FIX CRÍTICO]: Inyección prioritaria de Mapbox CSS.
+ * Al situar la importación en la raíz del layout, garantizamos que las clases de estilo
+ * para el motor de mapas 3D se procesen antes de la inicialización de la GPU.
  */
 import "mapbox-gl/dist/mapbox-gl.css";
 
 /**
- * --- INFRAESTRUCTURA DE COMPONENTES ---
+ * --- INFRAESTRUCTURA DE COMPONENTES Y PROVIDERS ---
  */
 import { ErrorBoundary } from "@/components/error-boundary";
 import { CSPostHogProvider } from '@/components/providers/posthog-provider';
@@ -31,7 +32,8 @@ import { createClient } from '@/lib/supabase/server';
 
 /**
  * CONFIGURACIÓN DE TIPOGRAFÍA: Inter
- * Optimizamos con preload: false para evitar conflictos con el Service Worker en PWA.
+ * Optimizamos con preload: false para evitar advertencias de precarga no utilizada en entornos PWA.
+ * Utilizamos display: "swap" para asegurar legibilidad inmediata durante la sintonía de red.
  */
 const inter = Inter({
   subsets: ["latin"],
@@ -40,7 +42,8 @@ const inter = Inter({
 });
 
 /**
- * VIEWPORT: Configuración de hardware y barra de estado.
+ * VIEWPORT: Configuración de hardware para la experiencia móvil NicePod.
+ * Aseguramos que la barra de estado de iOS y Android se integre con la paleta de la App.
  */
 export const viewport: Viewport = {
   themeColor: "#111827",
@@ -52,16 +55,16 @@ export const viewport: Viewport = {
 };
 
 /**
- * METADATA: Identidad PWA y SEO (Next.js 14 API).
- * [FIX]: Se utiliza 'appleWebApp' para sustituir el tag 'apple-mobile-web-app-capable'
- * que estaba dando errores de depreciación en la consola de Vercel/Safari.
+ * METADATA: Definición de la Identidad Digital SOBERANA (Next.js 14 API).
+ * [MEJORA]: Migramos a la nueva especificación 'appleWebApp' para silenciar 
+ * las advertencias de depreciación en Safari y Vercel detectadas en el Sprint 1.
  */
 export const metadata: Metadata = {
   title: "NicePod | Witness, Not Diarist",
-  description: "Plataforma de inteligencia personal y memoria urbana. Crea micro-podcasts anclados al mundo real.",
+  description: "Terminal de inteligencia personal y memoria urbana colectiva. Crea y descubre crónicas sonoras de alto valor.",
   manifest: "/manifest.json",
   appleWebApp: {
-    capable: true,
+    capable: true, // Sustituye al tag manual 'apple-mobile-web-app-capable'
     statusBarStyle: "black-translucent",
     title: "NicePod"
   },
@@ -78,35 +81,37 @@ export const metadata: Metadata = {
 
 /**
  * RootLayout: El gran orquestador de NicePod V2.5.
- * Al ser un Server Component, realiza el "Handshake" de identidad antes de enviar el HTML.
+ * Al ser un Server Component, realiza la validación de identidad en el borde antes de emitir HTML.
  */
 export default async function RootLayout({
   children
 }: {
   children: React.ReactNode
 }) {
-  // 1. Inicialización del cliente Supabase en el Servidor (Next.js context)
+  // 1. INICIALIZACIÓN DEL CLIENTE EN SERVIDOR
+  // Gestiona automáticamente las cookies de sesión del curador.
   const supabase = createClient();
 
   /**
-   * 2. PROTOCOLO DE SINCRONIZACIÓN DE IDENTIDAD
-   * Obtenemos la sesión directamente en el servidor. Esto es lo que soluciona
-   * que el Header no muestre "Ingresar" erróneamente cuando el usuario ya está logueado.
+   * 2. PROTOCOLO DE SINCRONÍA DE IDENTIDAD (Handshake)
+   * Recuperamos la sesión y el usuario directamente en el servidor.
+   * Esto permite que el AuthProvider inicialice el estado del cliente con datos reales,
+   * eliminando el parpadeo de "Ingresar" que degradaba la experiencia premium de Fran.
    */
   const { data: { user } } = await supabase.auth.getUser();
   const { data: { session } } = await supabase.auth.getSession();
 
-  // Validamos que el usuario del token coincida con la sesión activa
+  // Validamos que el usuario del token de red coincida con la sesión activa del servidor.
   const validatedSession = user ? session : null;
 
   return (
     <html lang="es" suppressHydrationWarning>
       <head>
         {/* 
-            SCRIPT ANTI-PESTAÑEO (Critical Theme Injection):
-            Este bloque se ejecuta antes que React. Lee la preferencia de tema 
-            del localStorage y aplica la clase 'dark' instantáneamente para 
-            evitar el destello blanco al cargar la plataforma.
+            SCRIPT ANTI-FLICKER (Theme Integrity Injection):
+            Este bloque se ejecuta de forma síncrona antes que el motor de React.
+            Lee la preferencia de sintonía lumínica del localStorage para evitar 
+            el destello blanco al cargar la Workstation en modo nocturno.
         */}
         <script
           dangerouslySetInnerHTML={{
@@ -126,17 +131,17 @@ export default async function RootLayout({
       </head>
       <body className={`${inter.className} min-h-screen bg-background font-sans antialiased selection:bg-primary/30`}>
 
-        {/* CAPA DE TELEMETRÍA: PostHog para seguimiento de eventos de IA */}
+        {/* CAPA 1: Telemetría y Monitoreo de Eventos Semánticos */}
         <CSPostHogProvider>
 
-          {/* CICLO DE VIDA PWA: Registro de SW y gestión de estados offline */}
+          {/* CAPA 2: Ciclo de Vida PWA y Soporte Offline */}
           <ServiceWorkerRegister />
           <PwaLifecycle />
 
-          {/* ESCUDO DE ERRORES: Captura fallos de renderizado en el cliente */}
+          {/* CAPA 3: Gestión de Errores Críticos de Renderizado */}
           <ErrorBoundary>
 
-            {/* MOTOR DE TEMAS: Shadcn/UI compatible con Aurora System */}
+            {/* CAPA 4: Motor de Temas Aurora - Shadcn/UI Compatible */}
             <ThemeProvider
               attribute="class"
               defaultTheme="dark"
@@ -145,22 +150,24 @@ export default async function RootLayout({
               storageKey="theme"
             >
 
-              {/* PROVIDER DE IDENTIDAD: Inyectamos la sesión del servidor al cliente */}
+              {/* CAPA 5: Soberanía de Identidad del Curador
+                  Inyectamos la sesión validada del servidor al contexto del cliente.
+              */}
               <AuthProvider session={validatedSession}>
 
-                {/* --- CONTENEDOR MAESTRO DE LA EXPERIENCIA --- */}
+                {/* --- UNIVERSO VISUAL NICEPOD V2.5 --- */}
                 <div className="min-h-screen gradient-mesh relative overflow-x-hidden">
 
-                  {/* IDENTIDAD VISUAL AURORA: Blobs atmosféricos de fondo (Z-index: 0) */}
-                  <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 opacity-40 dark:opacity-75">
-                    <div className="absolute top-10 left-10 w-72 h-72 bg-purple-500/10 rounded-full blur-[120px] animate-float"></div>
-                    <div className="absolute top-1/3 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-[150px] animate-float" style={{ animationDelay: "2s" }}></div>
-                    <div className="absolute -bottom-20 left-1/4 w-80 h-80 bg-pink-500/10 rounded-full blur-[130px] animate-float" style={{ animationDelay: "4s" }}></div>
+                  {/* IDENTIDAD VISUAL AURORA: Blobs de fondo cinematográficos.
+                      Z-index: 0 para no interferir con la interactividad de la UI.
+                  */}
+                  <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 opacity-40 dark:opacity-80">
+                    <div className="absolute top-10 left-10 w-80 h-80 bg-purple-500/10 rounded-full blur-[120px] animate-float"></div>
+                    <div className="absolute top-1/2 right-0 w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[160px] animate-float" style={{ animationDelay: "2s" }}></div>
+                    <div className="absolute -bottom-20 left-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-[140px] animate-float" style={{ animationDelay: "4s" }}></div>
                   </div>
 
-                  {/* LIENZO DE CONTENIDO (Z-index: 10)
-                      Aquí es donde Next.js inyectará el (marketing) layout o el (platform) layout.
-                  */}
+                  {/* LIENZO DE CONTENIDO (Z-index superior para interacción táctica) */}
                   <div className="relative z-10">
                     {children}
                   </div>

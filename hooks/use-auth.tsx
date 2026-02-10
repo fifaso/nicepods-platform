@@ -1,6 +1,6 @@
 // hooks/use-auth.tsx
-// VERSIÓN: 17.0 (Global Identity Synchronizer - SSR Handshake & Precision Lifecycle)
-// Misión: Centralizar la soberanía de la sesión, eliminar parpadeos de identidad y proveer estados de carga granulares.
+// VERSIÓN: 18.0 (Sovereign Identity Protocol - Loop Protection Edition)
+// Misión: Centralizar la soberanía de identidad, erradicar bucles de eventos y garantizar sincronía absoluta.
 
 "use client";
 
@@ -20,13 +20,13 @@ import {
 
 /**
  * [TIPADO ESTRICTO]
- * Extraemos el esquema de perfil directamente de las definiciones de Supabase.
+ * Extraemos el esquema de perfil de la base de datos de NicePod.
  */
 type Profile = Tables<'profiles'>;
 
 /**
  * INTERFAZ: AuthContextType
- * Define el contrato de seguridad y los datos de identidad disponibles para toda la plataforma.
+ * Define el contrato de identidad global para NicePod V2.5.
  */
 interface AuthContextType {
   user: User | null;
@@ -34,14 +34,7 @@ interface AuthContextType {
   session: Session | null;
   isAdmin: boolean;
   isAuthenticated: boolean;
-  /**
-   * isInitialLoading: True solo durante la primera reconciliación de la sesión.
-   */
   isInitialLoading: boolean;
-  /**
-   * isProfileLoading: True mientras se recuperan los metadatos extendidos de la DB.
-   * Vital para implementar el Auth-Skeleton State en la navegación.
-   */
   isProfileLoading: boolean;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
@@ -53,8 +46,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 /**
  * PROVIDER: AuthProvider
- * Orquestador de la identidad del usuario. 
- * Recibe 'session' desde el servidor (RootLayout) para eliminar el parpadeo visual inicial.
+ * Orquestador maestro de la identidad. 
+ * Implementa protección contra bucles de eventos (Idempotencia) y sincronía Server-to-Client.
  */
 export function AuthProvider({
   session: initialSession,
@@ -63,6 +56,7 @@ export function AuthProvider({
   session: Session | null;
   children: React.ReactNode;
 }) {
+  // Inicialización única del cliente Supabase
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
@@ -71,24 +65,31 @@ export function AuthProvider({
   const [user, setUser] = useState<User | null>(initialSession?.user || null);
   const [profile, setProfile] = useState<Profile | null>(null);
 
-  // --- ESTADOS DE CARGA GRANULARES ---
+  // --- ESTADOS DE CARGA (PRECISIÓN TÁCTICA) ---
   const [isInitialLoading, setIsInitialLoading] = useState<boolean>(!initialSession);
-  const [isProfileLoading, setIsProfileLoading] = useState<boolean>(!!initialSession?.user);
+  const [isProfileLoading, setIsProfileLoading] = useState<boolean>(false);
 
-  // Referencia para evitar colisiones en ráfagas de red
+  // --- GUARDIAS DE MEMORIA (PREVENCIÓN DE LOOPS) ---
   const isFetchingProfile = useRef<boolean>(false);
+  const lastFetchedUserId = useRef<string | null>(null);
+  const isListenerInitialized = useRef<boolean>(false);
 
   /**
    * getProfile
-   * Recupera los metadatos del curador (reputación, rol, avatar) de la tabla pública.
+   * Recupera los metadatos del curador (reputación, avatar, rol).
+   * Implementa un bloqueo por ID para evitar múltiples llamadas al mismo perfil.
    */
-  const getProfile = useCallback(async (userId: string) => {
-    if (isFetchingProfile.current) return;
+  const getProfile = useCallback(async (userId: string, force: boolean = false) => {
+    // Evitamos re-peticiones si ya estamos buscando o si el ID es el mismo (y no es forzado)
+    if ((isFetchingProfile.current || lastFetchedUserId.current === userId) && !force) {
+      return;
+    }
+
     isFetchingProfile.current = true;
     setIsProfileLoading(true);
 
     try {
-      console.log(`👤 [Auth] Sincronizando ADN de usuario: ${userId.substring(0, 8)}...`);
+      console.log(`👤 [Auth-Protocol] Sincronizando Perfil: ${userId.substring(0, 8)}...`);
 
       const { data, error } = await supabase
         .from('profiles')
@@ -97,17 +98,19 @@ export function AuthProvider({
         .single();
 
       if (error) {
-        // Caso específico: El trigger de DB aún no ha creado el perfil (nuevo usuario)
+        // Manejo de delay en triggers de base de datos para nuevos usuarios
         if (error.code === 'PGRST116') {
-          console.warn("[Auth] Perfil en proceso de creación.");
+          console.warn("⚠️ [Auth] Perfil en proceso de creación en la DB.");
+          setProfile(null);
         } else {
           throw error;
         }
+      } else {
+        setProfile(data);
+        lastFetchedUserId.current = userId;
       }
-
-      setProfile(data);
     } catch (error: any) {
-      console.error("🔥 [Auth-Profile-Sync-Fail]:", error.message);
+      console.error("🔥 [Auth-Critical-Error]:", error.message);
       setProfile(null);
     } finally {
       isFetchingProfile.current = false;
@@ -118,53 +121,64 @@ export function AuthProvider({
 
   /**
    * refreshProfile
-   * Expone una vía manual para actualizar la identidad tras cambios en ajustes.
+   * Permite actualizar el perfil tras cambios en ajustes sin cerrar sesión.
    */
   const refreshProfile = useCallback(async () => {
     if (user?.id) {
-      await getProfile(user.id);
+      await getProfile(user.id, true); // Forzamos la recarga
     }
   }, [user, getProfile]);
 
   /**
-   * [AUTH LIFECYCLE]: Escucha activa de eventos de sesión
-   * Detecta cambios de token, logins y logouts en todas las pestañas abiertas.
+   * [AUTH LIFECYCLE]: Orquestador de Eventos
+   * Gestiona la sintonía entre eventos de Supabase y el estado de la aplicación.
    */
   useEffect(() => {
     let mounted = true;
 
-    // Carga inmediata de perfil si el servidor ya validó la sesión
-    if (initialSession?.user?.id) {
+    // 1. HIDRATACIÓN INICIAL
+    // Si nacemos con sesión de servidor, disparamos la carga del perfil
+    if (initialSession?.user?.id && !profile) {
       getProfile(initialSession.user.id);
     } else if (!initialSession) {
-      // Si no hay sesión inicial, terminamos la carga inicial de inmediato
       setIsInitialLoading(false);
     }
+
+    // 2. PROTECCIÓN DE ESCUCHA (Singleton Listener)
+    // Evita que useEffect registre múltiples suscripciones ante cambios de props.
+    if (isListenerInitialized.current) return;
+    isListenerInitialized.current = true;
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
         if (!mounted) return;
 
-        console.log(`🔐 [Auth-Protocol] Evento detectado: ${event}`);
+        console.log(`🔐 [Auth-Event] Detección: ${event}`);
 
+        const newUser = newSession?.user || null;
+
+        // Actualizamos sesión y usuario solo si hay cambios reales
         setSession(newSession);
-        setUser(newSession?.user || null);
+        setUser(newUser);
 
-        if (newSession?.user) {
-          // Re-sincronizamos el perfil ante cualquier cambio de sesión activa
-          await getProfile(newSession.user.id);
+        if (newUser) {
+          // Disparamos la carga del perfil solo si es un usuario distinto al anterior
+          // o si el evento es una señal de entrada explícita.
+          if (newUser.id !== lastFetchedUserId.current || event === 'SIGNED_IN') {
+            await getProfile(newUser.id);
+          }
 
-          // Si es un inicio de sesión, refrescamos el router para actualizar Server Components
+          // Sincronizamos las cookies del lado del servidor para Next.js
           if (event === 'SIGNED_IN') {
             router.refresh();
           }
         } else {
-          // Limpieza atómica de estados
+          // Limpieza total ante cierre de sesión
           setProfile(null);
+          lastFetchedUserId.current = null;
           setIsProfileLoading(false);
           setIsInitialLoading(false);
 
-          // Si es un cierre de sesión, notificamos a los Server Components
           if (event === 'SIGNED_OUT') {
             router.refresh();
           }
@@ -174,24 +188,27 @@ export function AuthProvider({
 
     return () => {
       mounted = false;
+      // Nota: No limpiamos isListenerInitialized.current aquí porque queremos que
+      // la suscripción persista durante la vida del componente raíz.
       subscription.unsubscribe();
     };
-  }, [supabase, initialSession, getProfile, router]);
+  }, [supabase, initialSession, getProfile, router, profile]);
 
   /**
-   * ACCIONES DE SOBERANÍA
+   * ACCIONES MAESTRAS
    */
 
   const signOut = useCallback(async () => {
-    console.log("🛑 [Auth] Ejecutando desconexión segura...");
+    console.log("🛑 [Auth] Ejecutando desconexión de frecuencia...");
     await supabase.auth.signOut();
 
-    // Limpieza de estados locales
+    // Reset manual preventivo
     setSession(null);
     setUser(null);
     setProfile(null);
+    lastFetchedUserId.current = null;
 
-    // Redirección forzada a la Landing Page para asegurar limpieza de caché de red
+    // Forzamos redirección y limpieza de caché de red
     window.location.href = "/";
   }, [supabase]);
 
@@ -201,11 +218,11 @@ export function AuthProvider({
     });
   }, [supabase]);
 
-  // --- DERIVACIÓN DE ESTADOS MEMOIZADOS ---
+  // --- ESTADOS CALCULADOS (MEMOIZADOS) ---
   const isAdmin = useMemo(() => profile?.role === 'admin', [profile]);
   const isAuthenticated = useMemo(() => !!user, [user]);
 
-  // --- CONSTRUCCIÓN DEL CONTEXTO FINAL ---
+  // --- CONSTRUCCIÓN DEL CONTEXTO DE IDENTIDAD ---
   const contextValue = useMemo(() => ({
     session,
     user,
@@ -241,12 +258,12 @@ export function AuthProvider({
 
 /**
  * useAuth
- * Punto de entrada para consumir la identidad del usuario en NicePod.
+ * Punto de entrada único para consumir la identidad soberana en NicePod.
  */
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("CRITICAL: useAuth debe ser invocado dentro de un AuthProvider funcional.");
+    throw new Error("CRITICAL: useAuth debe ser invocado dentro de un AuthProvider validado.");
   }
   return context;
 }
