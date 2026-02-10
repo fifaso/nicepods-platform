@@ -1,6 +1,7 @@
 // app/(platform)/layout.tsx
-// VERSIÓN: 1.2 (Workstation Shell - Structural Integrity Master)
-// Misión: Proveer el contexto de audio y navegación asegurando que el contenido nazca siempre debajo del header.
+// VERSIÓN: 1.4 (NicePod Architecture Standard - Workstation Shell)
+// Misión: Orquestar el entorno operativo. Gestiona la jerarquía de audio, navegación y transiciones.
+// [FIX]: Corrección de sintaxis de comentarios JSX (react/jsx-no-comment-textnodes).
 
 import { InstallPwaButton } from '@/components/install-pwa-button';
 import { Navigation } from "@/components/navigation";
@@ -14,41 +15,55 @@ import { AudioProvider } from "@/contexts/audio-context";
 import React from "react";
 
 /**
- * PlatformLayout: El contenedor táctico para la zona operativa de NicePod.
+ * PlatformLayout: El ecosistema de trabajo para el usuario autenticado.
+ * Este contenedor envuelve todas las rutas operativas (dashboard, create, map, podcasts).
  */
-export default function PlatformLayout({ 
-  children 
-}: { 
-  children: React.ReactNode 
+export default function PlatformLayout({
+  children
+}: {
+  children: React.ReactNode
 }) {
   return (
     <AudioProvider>
       <SmoothScrollWrapper>
-        {/* SERVICIOS DE SISTEMA */}
+        {/* SERVICIOS DE UTILIDAD TÁCTICA */}
         <OfflineIndicator />
         <InstallPwaButton />
         <ScrollToTop />
-        
-        {/* NAVEGACIÓN SUPERIOR (Sticky Layer) */}
-        <Navigation />
-        
-        {/* 
-            [SOLUCIÓN ESTRUCTURAL]: pt-24 (Padding Top)
-            La Navigation tiene una altura de 16-20 unidades (64-80px). 
-            Al añadir pt-24 (96px) al main, garantizamos que el Dashboard 
-            comience visualmente debajo del menú, eliminando el solapamiento.
+
+        {/* NAVEGACIÓN SUPERIOR (STICKY LAYER)
+            Este componente utiliza un z-index de 50. 
+            Contiene la identidad del usuario, el buscador y el acceso a la forja.
         */}
-        <main className="relative z-10 pt-20 md:pt-24 lg:pt-28">
+        <Navigation />
+
+        {/* 
+            CONTENEDOR MAESTRO DE CONTENIDO (THE WORKSTATION)
+            [SOLUCIÓN ESTRUCTURAL]: 
+            Aplicamos un padding-top (pt) responsivo para compensar el componente Navigation.
+        */}
+        <main className="relative z-10 pt-20 md:pt-24 lg:pt-28 min-h-screen">
+
+          {/* 
+              CAPA 3: Orquestador de Transiciones
+              Aplica animaciones suaves cuando el usuario navega entre pestañas.
+          */}
           <PageTransition>
-            <div className="w-full">
+            <div className="w-full h-full">
               {children}
             </div>
           </PageTransition>
+
         </main>
 
-        {/* SALIDA DE AUDIO Y NOTIFICACIONES */}
+        {/* 
+            CAPA DE SALIDA MULTIMEDIA Y SISTEMA
+            PlayerOrchestrator: El reproductor flotante persistente.
+            Toaster: Sistema de notificaciones emergentes.
+        */}
         <PlayerOrchestrator />
         <Toaster />
+
       </SmoothScrollWrapper>
     </AudioProvider>
   );

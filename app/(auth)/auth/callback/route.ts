@@ -1,60 +1,65 @@
 // app/auth/callback/route.ts
-// VERSIÓN: 2.0 (Identity Bridge Standard - Dashboard Sync)
-// Misión: Intercambiar códigos de Auth por sesiones seguras y dirigir al usuario al nuevo núcleo operativo.
+// VERSIÓN: 2.1 (Identity Exchange Protocol - NicePod Standard)
+// Misión: Intercambiar tokens de proveedores externos (Google, etc.) por sesiones soberanas de NicePod.
 
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { cookies } from 'next/headers'
-import { NextResponse } from 'next/server'
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
 
 /**
- * GET Handler: Orquestador del intercambio de tokens OAuth.
- * Este endpoint es invocado automáticamente por Supabase tras un inicio de sesión exitoso.
+ * GET: Endpoint de intercambio de tokens.
+ * Invocado por Supabase tras el éxito en el proveedor de identidad.
  */
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url)
-  const code = searchParams.get('code')
+  const requestUrl = new URL(request.url);
+  const code = requestUrl.searchParams.get('code');
+  const origin = requestUrl.origin;
 
-  // 'next' es la ruta a la que el usuario quería ir originalmente (ej. /create o /map)
-  // Si no existe, lo enviamos por defecto al nuevo /dashboard
-  const next = searchParams.get('next') ?? '/dashboard'
+  // 'next' es la coordenada de destino original del usuario.
+  // Por defecto, lo enviamos al Dashboard (el nuevo núcleo operativo).
+  const next = requestUrl.searchParams.get('next') ?? '/dashboard';
 
   if (code) {
-    const cookieStore = cookies()
+    const cookieStore = cookies();
 
-    // Inicialización del cliente SSR sincronizado con el sistema de cookies de Next.js
+    /**
+     * Inicialización del cliente SSR con sincronía total de cookies.
+     * Es imperativo usar la misma lógica que el middleware para evitar 
+     * desajustes de sesión en el primer renderizado.
+     */
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
           get(name: string) {
-            return cookieStore.get(name)?.value
+            return cookieStore.get(name)?.value;
           },
           set(name: string, value: string, options: CookieOptions) {
-            cookieStore.set({ name, value, ...options })
+            cookieStore.set({ name, value, ...options });
           },
           remove(name: string, options: CookieOptions) {
-            cookieStore.delete({ name, ...options })
+            cookieStore.delete({ name, ...options });
           },
         },
       }
-    )
+    );
 
-    // Intercambio atómico del código por una sesión persistente
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    // Ejecutamos el intercambio de código por sesión persistente
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (error) {
-      console.error('🔥 [NicePod-Auth-Callback] Error de intercambio:', error.message)
-      // Si el código expira o es inválido, devolvemos al usuario a login con una señal de error
-      return NextResponse.redirect(`${origin}/login?error=auth_callback_failed`)
+      console.error('🔥 [NicePod-Auth-Critical] Fallo en el intercambio de código:', error.message);
+      // En caso de código expirado o inválido, redirigimos a login con bandera de error
+      return NextResponse.redirect(`${origin}/login?error=auth_handshake_failed`);
     }
   }
 
   /**
-   * [MEJORA ESTRATÉGICA]: Redirección Directa al Dashboard
-   * Al redirigir a 'next' (que ahora apunta por defecto a /dashboard),
-   * evitamos el salto innecesario por la Landing Page pública (/).
-   * El Middleware recibirá la petición ya con las cookies establecidas y permitirá el paso.
+   * [MEJORA ESTRATÉGICA]: Redirección Directa a la Workstation
+   * Al redirigir directamente a la ruta 'next' (Dashboard por defecto),
+   * aseguramos que el Middleware reciba la petición ya con las cookies 
+   * establecidas en el paso anterior.
    */
-  return NextResponse.redirect(`${origin}${next}`)
+  return NextResponse.redirect(`${origin}${next}`);
 }
