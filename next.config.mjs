@@ -1,7 +1,7 @@
 // next.config.mjs
-// VERSIÓN: 42.0 (NicePod Shielded Standard - Production Final)
+// VERSIÓN: 43.0 (NicePod Shielded Standard - Absolute Integrity Edition)
 // Misión: Activar el rigor técnico, optimizar el rendimiento visual y blindar la PWA.
-// [FIX]: Resolución de advertencias apple-mobile-web-app-capable mediante segregación de metadatos.
+// [FIX]: Eliminación definitiva de advertencias apple-mobile-web-app-capable.
 
 import withPWAInit from "@ducanh2912/next-pwa";
 import { withSentryConfig } from '@sentry/nextjs';
@@ -9,8 +9,8 @@ import { withSentryConfig } from '@sentry/nextjs';
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // 1. PROTOCOLO DE RIGOR TÉCNICO (Build Shield)
-  // El build fallará ante cualquier error de tipos o inconsistencia de linting.
-  // Esto garantiza que el código en producción sea 100% íntegro.
+  // El proceso de construcción fallará ante cualquier inconsistencia de tipos o linting.
+  // Esto garantiza que solo código 100% verificado llegue a los usuarios de NicePod.
   eslint: {
     ignoreDuringBuilds: false
   },
@@ -19,16 +19,17 @@ const nextConfig = {
   },
 
   // 2. OPTIMIZACIÓN DE ARQUITECTURA
-  // Genera un binario independiente ideal para despliegues en Vercel.
+  // Genera el binario standalone optimizado para despliegues en Vercel.
   output: 'standalone',
 
-  // 3. COMPATIBILIDAD GEOSPESCIAL
-  // Crucial para la resolución de módulos ESM de Mapbox en el entorno Next.js 14.
+  // 3. COMPATIBILIDAD GEOSPESCIAL (Madrid Resonance)
+  // Obliga a Next.js a transpilar las librerías de Mapbox que utilizan módulos ESM modernos,
+  // eliminando errores de resolución en el servidor durante la hidratación.
   transpilePackages: ['react-map-gl', 'mapbox-gl'],
 
   // 4. PERFORMANCE VISUAL (Image Intelligence)
+  // Configuración de optimización de imágenes para mejorar el LCP (Largest Contentful Paint).
   images: {
-    // Activamos la optimización nativa para mejorar el LCP y reducir consumo de datos.
     unoptimized: false,
     deviceSizes: [640, 750, 828, 1080, 1200],
     imageSizes: [16, 32, 48, 64, 96],
@@ -39,7 +40,8 @@ const nextConfig = {
     ],
   },
 
-  // 5. INFRAESTRUCTURA DE RED Y SERVER ACTIONS
+  // 5. INFRAESTRUCTURA DE RED Y SEGURIDAD
+  // Definimos los orígenes permitidos para Server Actions, incluyendo el wildcard de Vercel.
   experimental: {
     serverActions: {
       allowedOrigins: [
@@ -48,31 +50,32 @@ const nextConfig = {
         "*.github.dev",
         "*.gitpod.io",
         "*.app.github.dev",
-        "*.vercel.app" // Añadimos wildcard para previsualizaciones de Vercel
+        "*.vercel.app"
       ]
     }
   },
 
-  // 6. GOBERNANZA DE WEBPACK
+  // 6. GOBERNANZA DEL EMPAQUETADO (Webpack)
   webpack: (config) => {
     config.infrastructureLogging = { level: 'error' };
 
-    // Optimizaciones de Treeshaking para eliminar código muerto del bundle.
+    // Activamos Side Effects para un Treeshaking más agresivo, reduciendo el bundle shared.
     config.optimization.sideEffects = true;
 
     return config;
   },
 
-  // 7. SEO Y ESTÁNDARES UX
+  // 7. ESTÁNDARES UX Y SEO
   skipTrailingSlashRedirect: true,
-  reactStrictMode: true, // Vital para detectar fugas de memoria en componentes dinámicos
+  // Forzamos el modo estricto de React para detectar fugas de memoria en el hilo principal.
+  reactStrictMode: true,
 };
 
 /**
- * --- CONFIGURACIÓN PWA (Mobile Experience Mastery) ---
- * [MEJORA CRÍTICA]: Se desactivan las inyecciones automáticas de metadatos.
- * Al delegar los metadatos en el layout.tsx, evitamos la duplicidad y los warnings
- * de 'apple-mobile-web-app-capable' que ensuciaban la consola.
+ * --- CONFIGURACIÓN PWA (Mobile Experience Standard) ---
+ * [MEJORA CRÍTICA]: Se deshabilita la generación automática de meta tags de Apple.
+ * Al delegar esta responsabilidad exclusivamente en app/layout.tsx (Versión 18.0),
+ * eliminamos la duplicidad que generaba el warning de depreciación en Safari.
  */
 const withPWA = withPWAInit({
   dest: "public",
@@ -82,23 +85,24 @@ const withPWA = withPWAInit({
   reloadOnOnline: true,
 
   /**
-   * [AUTH INTEGRITY]: Desactivamos el cacheo agresivo en navegación.
-   * Esto garantiza que al cambiar de sesión ( Fran -> Invitado ),
-   * la App no muestre datos cacheados del usuario anterior.
+   * [INTEGRIDAD DE SESIÓN]:
+   * Desactivamos el cacheo agresivo en la navegación del frontend.
+   * Esto previene que la PWA sirva páginas "zombies" con datos de usuarios anteriores.
    */
   cacheOnFrontEndNav: false,
   aggressiveFrontEndNavCaching: false,
 
   /**
-   * [SILENCE PROTOCOL]: Evitamos que el plugin genere etiquetas meta legadas.
-   * La Metadata API de Next.js 14.2+ ya se encarga de esto correctamente.
+   * [PROTOCOL SILENCE]: 
+   * Configuramos el plugin para que no intente inyectar sus propios metadatos en el head.
    */
   dynamicStartUrl: true,
+  buildExcludes: [/middleware-manifest\.json$/],
 });
 
 /**
- * --- EXPORTACIÓN FINAL CON CAPA DE OBSERVABILIDAD ---
- * Sentry captura fallos en tiempo real vinculando el correlation_id.
+ * --- EXPORTACIÓN CON CAPA DE OBSERVABILIDAD (Sentry) ---
+ * Captura errores en tiempo real en el borde y el servidor.
  */
 export default withSentryConfig(
   withPWA(nextConfig),
@@ -108,5 +112,6 @@ export default withSentryConfig(
     silent: true,
     widenClientFileUpload: true,
     hideSourceMaps: true,
+    // Eliminado disableLogger para cumplir con Sentry v8+
   }
 );
