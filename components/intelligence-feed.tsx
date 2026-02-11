@@ -5,28 +5,26 @@
 
 "use client";
 
-import React, { useMemo } from "react";
-import dynamic from "next/dynamic";
-import Image from "next/image";
-import Link from "next/link";
-import { 
-    BrainCircuit, 
-    Activity, 
-    Zap, 
-    Sparkles, 
-    Search, 
-    Loader2, 
-    PlayCircle, 
-    TrendingUp,
-    ChevronRight,
-    ArrowRight
-} from "lucide-react";
+import { SearchResult } from "@/components/geo/search-station";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { UniverseCard } from "@/components/universe-card";
 import { cn } from "@/lib/utils";
 import { PodcastWithProfile } from "@/types/podcast";
-import { SearchResult } from "@/components/geo/SearchStation";
+import {
+    Activity,
+    BrainCircuit,
+    ChevronRight,
+    Loader2,
+    PlayCircle,
+    Search,
+    Sparkles,
+    TrendingUp,
+    Zap
+} from "lucide-react";
+import dynamic from "next/dynamic";
+import Image from "next/image";
+import Link from "next/link";
 
 /**
  * [SHIELD]: CARGA DIFERIDA DE ESTANTES
@@ -34,15 +32,15 @@ import { SearchResult } from "@/components/geo/SearchStation";
  * Lo cargamos solo en el cliente para asegurar una navegación fluida (60 FPS).
  */
 const PodcastShelf = dynamic(
-  () => import("@/components/podcast-shelf").then((mod) => mod.PodcastShelf),
-  { 
-    ssr: false,
-    loading: () => (
-        <div className="w-full h-48 bg-white/[0.01] rounded-[2.5rem] border border-dashed border-white/5 flex items-center justify-center animate-pulse">
-            <span className="text-[9px] font-black uppercase tracking-[0.4em] text-white/10">Sincronizando Frecuencia</span>
-        </div>
-    )
-  }
+    () => import("@/components/podcast-shelf").then((mod) => mod.PodcastShelf),
+    {
+        ssr: false,
+        loading: () => (
+            <div className="w-full h-48 bg-white/[0.01] rounded-[2.5rem] border border-dashed border-white/5 flex items-center justify-center animate-pulse">
+                <span className="text-[9px] font-black uppercase tracking-[0.4em] text-white/10">Sincronizando Frecuencia</span>
+            </div>
+        )
+    }
 );
 
 interface IntelligenceFeedProps {
@@ -83,11 +81,11 @@ export function IntelligenceFeed({
 
     return (
         <div className="w-full space-y-12">
-            
+
             {!hasActiveResults ? (
                 /* --- ESTADO A: FRECUENCIA BASE (Estructura Original) --- */
                 <div className="space-y-16 animate-in fade-in duration-1000">
-                    
+
                     {/* Sección 1: Dimensiones Semánticas */}
                     <section>
                         <div className="flex items-center justify-between mb-8 px-1">
@@ -102,7 +100,7 @@ export function IntelligenceFeed({
                                 <Activity size={10} /> Neural Loop Active
                             </div>
                         </div>
-                        
+
                         <div className="flex overflow-x-auto pb-6 gap-4 lg:grid lg:grid-cols-4 snap-x scrollbar-hide -mx-4 px-4 lg:mx-0 lg:px-0">
                             {discoveryHubCategories.map((category) => (
                                 <div key={category.key} className="min-w-[150px] w-[45%] lg:w-auto snap-start flex-shrink-0 transition-transform active:scale-95">
@@ -122,10 +120,10 @@ export function IntelligenceFeed({
                                     Tu Epicentro Creativo
                                 </h2>
                             </div>
-                            <PodcastShelf 
-                                title="Tu Epicentro" 
-                                podcasts={epicenterPodcasts} 
-                                variant="compact" 
+                            <PodcastShelf
+                                title="Tu Epicentro"
+                                podcasts={epicenterPodcasts}
+                                variant="compact"
                             />
                         </div>
 
@@ -137,10 +135,10 @@ export function IntelligenceFeed({
                                     Conexiones Inesperadas
                                 </h2>
                             </div>
-                            <PodcastShelf 
-                                title="Conexiones Inesperadas" 
-                                podcasts={connectionsPodcasts} 
-                                variant="compact" 
+                            <PodcastShelf
+                                title="Conexiones Inesperadas"
+                                podcasts={connectionsPodcasts}
+                                variant="compact"
                             />
                         </div>
                     </div>
@@ -148,7 +146,7 @@ export function IntelligenceFeed({
             ) : (
                 /* --- ESTADO B: CONSOLA DE RESULTADOS (IA Analysis) --- */
                 <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
-                    
+
                     {/* Cabecera de Resultados */}
                     <div className="flex items-center justify-between border-b border-white/5 pb-6 px-1">
                         <div className="flex items-center gap-4">
@@ -165,9 +163,9 @@ export function IntelligenceFeed({
                                 </p>
                             </div>
                         </div>
-                        <Button 
-                            variant="ghost" 
-                            size="sm" 
+                        <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={onClear}
                             className="h-9 rounded-xl font-black text-[9px] uppercase tracking-widest text-muted-foreground hover:bg-white/5 border border-white/5"
                         >
@@ -193,21 +191,21 @@ export function IntelligenceFeed({
                         /* Caso: Grilla de Resultados de Alta Fidelidad */
                         <div className="grid grid-cols-1 gap-3">
                             {results.map((result) => (
-                                <Link 
-                                    key={result.id} 
+                                <Link
+                                    key={result.id}
                                     href={result.type === 'podcast' ? `/podcast/${result.id}` : `/profile/${result.subtitle.replace('@', '')}`}
                                     className="block group transition-all active:scale-[0.98]"
                                 >
                                     <div className="p-5 rounded-[2rem] bg-card/60 border border-white/5 hover:border-primary/40 hover:bg-card/80 transition-all flex items-center gap-6 shadow-2xl backdrop-blur-md">
-                                        
+
                                         {/* Activo Visual (Imagen 3 / Avatar) */}
                                         <div className="h-16 w-16 rounded-[1.25rem] bg-zinc-900 overflow-hidden flex-shrink-0 relative shadow-inner">
-                                            <Image 
-                                                src={result.image_url || '/images/placeholder.png'} 
-                                                alt={result.title} 
-                                                fill 
-                                                sizes="64px" 
-                                                className="object-cover group-hover:scale-110 transition-transform duration-700" 
+                                            <Image
+                                                src={result.image_url || '/images/placeholder.png'}
+                                                alt={result.title}
+                                                fill
+                                                sizes="64px"
+                                                className="object-cover group-hover:scale-110 transition-transform duration-700"
                                             />
                                             <div className="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10">
                                                 <PlayCircle className="text-white h-8 w-8" />

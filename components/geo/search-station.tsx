@@ -1,28 +1,26 @@
 // components/geo/SearchStation.tsx
-// VERSIÓN: 1.0 (Command Layer - Final Integrity)
-// Misión: Disparador de búsqueda expansivo con gestión de historial y soberanía de capa (Z-Index).
-// [ARQUITECTURA]: Capa volátil que cubre el saludo sin desplazar el flujo del documento.
+// VERSIÓN: 3.3 (Command Engine - Total Integrity & Icon Fix)
+// Misión: Terminal de búsqueda expansiva con historial persistente y blindaje de tipos.
+// [FIX]: Restauración de icono 'Zap' y optimización de profundidad visual (Z-Index).
 
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { 
-    Search, 
-    X, 
-    Clock, 
-    ArrowUpRight, 
-    Loader2, 
-    Command,
-    History
-} from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+import { useAuth } from "@/hooks/use-auth";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+    ArrowUpRight,
+    Command,
+    History,
+    Search,
+    X,
+    Zap // [FIX]: Importación de icono Zap restaurada
+} from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
- * SearchResult: Estructura de datos para los impactos semánticos del Knowledge Vault.
+ * SearchResult: Contrato de datos para los impactos semánticos del NKV.
  */
 export type SearchResult = {
     type: 'podcast' | 'user';
@@ -34,7 +32,7 @@ export type SearchResult = {
 };
 
 /**
- * SearchStationProps: Interfaz de comunicación con el Orquestador (Dashboard).
+ * SearchStationProps: Interfaz de comunicación con el Orquestador del Dashboard.
  */
 interface SearchStationProps {
     userName: string;
@@ -43,39 +41,39 @@ interface SearchStationProps {
     onClear: () => void;
 }
 
-export function SearchStation({ 
-    userName, 
-    onResults, 
-    onLoading, 
-    onClear 
+export function SearchStation({
+    userName,
+    onResults,
+    onLoading,
+    onClear
 }: SearchStationProps) {
     const { supabase } = useAuth();
-    
-    // --- ESTADOS DE INTERFACE ---
+
+    // --- ESTADOS DE LA CONSOLA ---
     const [isExpanded, setIsExpanded] = useState<boolean>(false);
     const [query, setQuery] = useState<string>("");
     const [history, setHistory] = useState<string[]>([]);
     const inputRef = useRef<HTMLInputElement>(null);
 
     /**
-     * [LIFECYCLE]: Carga de memoria persistente.
-     * Recuperamos las últimas 5 búsquedas exitosas del usuario desde el almacenamiento local.
+     * [PERSISTENCIA]: Recuperación del Historial
+     * Extraemos los últimos 5 términos confirmados desde el almacenamiento local.
      */
     useEffect(() => {
-        const savedHistory = localStorage.getItem("nicepod_confirmed_searches");
+        const savedHistory = localStorage.getItem("nicepod_confirmed_searches_v2");
         if (savedHistory) {
             try {
                 const parsed = JSON.parse(savedHistory);
                 setHistory(Array.isArray(parsed) ? parsed.slice(0, 5) : []);
             } catch (error) {
-                console.error("🔥 [SearchStation] Error al cargar historial:", error);
+                console.error("🔥 [SearchStation] Error al cargar el historial persistente:", error);
             }
         }
     }, []);
 
     /**
-     * saveSearchToHistory
-     * Almacena el término de búsqueda solo si es único y tiene valor semántico.
+     * saveSearchToHistory:
+     * Almacena el término de búsqueda de forma atómica y única.
      */
     const saveSearchToHistory = useCallback((term: string) => {
         const cleanTerm = term.trim();
@@ -84,14 +82,14 @@ export function SearchStation({
         setHistory((prevHistory) => {
             const filtered = prevHistory.filter((item) => item.toLowerCase() !== cleanTerm.toLowerCase());
             const newHistory = [cleanTerm, ...filtered].slice(0, 5);
-            localStorage.setItem("nicepod_confirmed_searches", JSON.stringify(newHistory));
+            localStorage.setItem("nicepod_confirmed_searches_v2", JSON.stringify(newHistory));
             return newHistory;
         });
     }, []);
 
     /**
-     * performSearch
-     * Ejecuta el pipeline de inteligencia: Vectorización -> RPC de búsqueda omnicanal.
+     * performSearch:
+     * Orquesta el proceso de búsqueda: Vectorización -> Matchmaking Semántico.
      */
     const performSearch = useCallback(async (searchTerm: string) => {
         const target = searchTerm.trim();
@@ -101,14 +99,16 @@ export function SearchStation({
         saveSearchToHistory(target);
 
         try {
-            // Estación 1: Generación de Vector de Consulta (Gecko-004)
+            console.log(`🔍 [SearchStation] Investigando resonancia para: "${target}"`);
+
+            // 1. Vectorización de la consulta vía Edge Function
             const { data: vectorData, error: vectorError } = await supabase.functions.invoke('vectorize-query', {
                 body: { query: target }
             });
 
             if (vectorError) throw vectorError;
 
-            // Estación 2: Búsqueda de Proximidad en NKV
+            // 2. Ejecución del motor de búsqueda omnicanal en Postgres
             const { data: searchResults, error: searchError } = await supabase.rpc('search_omni', {
                 query_text: target,
                 query_embedding: vectorData.embedding,
@@ -118,11 +118,11 @@ export function SearchStation({
 
             if (searchError) throw searchError;
 
-            // Emitimos los resultados al Dashboard
+            // Emitimos los resultados a la Estación de Inteligencia (Dashboard)
             onResults((searchResults as SearchResult[]) ?? []);
 
         } catch (error: any) {
-            console.error("🔥 [SearchStation-Error]:", error.message);
+            console.error("🔥 [SearchStation-Fatal]:", error.message);
             onResults([]);
         } finally {
             onLoading(false);
@@ -130,8 +130,8 @@ export function SearchStation({
     }, [supabase, onLoading, onResults, saveSearchToHistory]);
 
     /**
-     * handleToggle
-     * Orquesta la apertura y el cierre de la consola de comando.
+     * handleToggle:
+     * Gestiona la expansión visual sobre el saludo.
      */
     const handleToggle = useCallback(() => {
         setIsExpanded((prev) => {
@@ -145,8 +145,8 @@ export function SearchStation({
     }, [onClear]);
 
     /**
-     * handleKeyDown
-     * Provee atajos de teclado para una experiencia de workstation profesional.
+     * handleKeyDown:
+     * Implementa atajos de teclado profesionales (Enter para buscar, Esc para cerrar).
      */
     const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
         if (event.key === "Enter") {
@@ -160,11 +160,11 @@ export function SearchStation({
     return (
         <div className="relative w-full flex items-center justify-end h-14">
             <AnimatePresence mode="wait">
-                
-                {/* ESTADO A: DISPARADOR MINIMALISTA */}
+
+                {/* ESTADO A: DISPARADOR MINIMALISTA (BOTÓN) */}
                 {!isExpanded ? (
                     <motion.div
-                        key="search_trigger"
+                        key="search_trigger_btn"
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, x: 20 }}
@@ -179,17 +179,17 @@ export function SearchStation({
                         </Button>
                     </motion.div>
                 ) : (
-                    
-                    /* ESTADO B: CONSOLA DE COMANDO EXPANDIDA (Overlay) */
+
+                    /* ESTADO B: CONSOLA DE COMANDO EXPANDIDA (OVERLAY) */
                     <motion.div
-                        key="search_console"
+                        key="search_console_active"
                         initial={{ width: "48px", opacity: 0 }}
                         animate={{ width: "100%", opacity: 1 }}
                         exit={{ width: "48px", opacity: 0 }}
-                        className="absolute right-0 flex flex-col bg-zinc-950/95 backdrop-blur-3xl border border-primary/30 rounded-[1.5rem] shadow-[0_0_60px_rgba(0,0,0,0.8)] z-[60] overflow-hidden"
+                        className="absolute top-0 right-0 flex flex-col bg-zinc-950 border border-primary/30 rounded-[1.5rem] shadow-[0_0_60px_rgba(0,0,0,0.8)] z-[60] overflow-hidden"
                     >
-                        {/* Fila de Entrada */}
-                        <div className="flex items-center px-5 h-16 gap-4">
+                        {/* Fila de Entrada Principal */}
+                        <div className="flex items-center px-5 h-16 gap-4 border-b border-white/5">
                             <Search className="h-5 w-5 text-primary animate-pulse shrink-0" />
                             <Input
                                 autoFocus
@@ -200,7 +200,7 @@ export function SearchStation({
                                 placeholder={`¿Qué conocimiento buscas hoy, ${userName}?`}
                                 className="border-none bg-transparent focus-visible:ring-0 text-white placeholder:text-white/20 h-full p-0 text-base font-black uppercase tracking-tight"
                             />
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-3">
                                 <kbd className="hidden sm:flex items-center gap-1 px-2 py-1 rounded bg-white/5 text-[8px] font-black text-white/30 border border-white/10 uppercase">
                                     <Command size={10} /> Esc
                                 </kbd>
@@ -213,17 +213,17 @@ export function SearchStation({
                             </div>
                         </div>
 
-                        {/* Panel de Historial de Sabiduría (Solo si no hay texto escrito) */}
+                        {/* Panel de Ecos Recientes (Historial Confirmado) */}
                         {history.length > 0 && !query && (
-                            <motion.div 
+                            <motion.div
                                 initial={{ height: 0, opacity: 0 }}
                                 animate={{ height: "auto", opacity: 1 }}
-                                className="p-6 bg-black/40 border-t border-white/5"
+                                className="p-6 bg-black/40"
                             >
                                 <div className="flex items-center gap-3 mb-4 px-1">
                                     <History size={12} className="text-primary/50" />
                                     <span className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground">
-                                        Ecos Recientes
+                                        Exploraciones Recientes
                                     </span>
                                 </div>
                                 <div className="flex flex-col gap-2.5">
@@ -246,7 +246,7 @@ export function SearchStation({
                             </motion.div>
                         )}
 
-                        {/* Footer Técnico de Consola */}
+                        {/* Footer Técnico (Branding & Status) */}
                         <div className="px-6 py-2.5 bg-primary/5 border-t border-white/5 flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <Zap size={10} className="text-primary" />
@@ -255,7 +255,7 @@ export function SearchStation({
                                 </span>
                             </div>
                             <span className="text-[8px] font-bold text-white/20 uppercase">
-                                NicePod V2.5.18 Shell
+                                NicePod V2.5.21 Terminal
                             </span>
                         </div>
                     </motion.div>
