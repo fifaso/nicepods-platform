@@ -1,7 +1,7 @@
 // components/geo/map-preview-frame.tsx
-// VERSIÓN: 5.3 (NicePod Resonance Engine - Idle Performance Standard)
-// Misión: Proveer una ventana táctica 3D con hidratación ultra-diferida y optimización de recursos GPU.
-// [FIX]: Eliminación de violaciones 'requestAnimationFrame' mediante inicialización en tiempo de inactividad (Idle).
+// VERSIÓN: 5.4 (NicePod Resonance Engine - Total Stability Standard)
+// Misión: Ventana táctica 3D con gestión de estados de estilo Gated-by-Idle.
+// [FIX]: Erradicación de error 'setSprite' y violaciones de hilo principal.
 
 "use client";
 
@@ -16,10 +16,10 @@ import {
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 /**
- * MadridMapProps: Contrato de integridad técnica para el motor Mapbox GL.
+ * MadridMapProps: Contrato de integridad para el motor Mapbox GL.
  */
 interface MadridMapProps {
   initialViewState: {
@@ -34,12 +34,12 @@ interface MadridMapProps {
   mapStyle: string;
   reuseMaps?: boolean;
   attributionControl?: boolean;
+  onIdle?: (event: any) => void; // Captura de estado de reposo de GPU
 }
 
 /**
  * [SHIELD]: MapEngine
  * Carga dinámica del motor WebGL con SSR desactivado.
- * El skeleton se mantiene activo hasta que el navegador reporte capacidad de renderizado libre.
  */
 const MapEngine = dynamic<MadridMapProps>(
   () => import("react-map-gl").then((module) => module.Map),
@@ -62,46 +62,44 @@ const MapEngine = dynamic<MadridMapProps>(
 export function MapPreviewFrame() {
   const router = useRouter();
   const [isMounted, setIsMounted] = useState<boolean>(false);
-  const [isLowPowerMode, setIsLowPowerMode] = useState<boolean>(true);
+  const [currentStyle, setCurrentStyle] = useState<string>("mapbox://styles/mapbox/satellite-v9");
+
+  // Referencia para asegurar que solo escalamos el estilo una vez
+  const hasEscalatedFidelity = useRef<boolean>(false);
 
   /**
    * [CONFIGURACIÓN SEMÁNTICA]: initialViewState
-   * Coordenadas: Epicentro de Madrid (Puerta del Sol).
-   * Memorizado para evitar reinicializaciones del contexto WebGL.
+   * Memorizado para evitar reinicializaciones que saturen la memoria de video.
    */
   const initialViewState = useMemo(() => {
     return {
       latitude: 40.4167,
       longitude: -3.7037,
       zoom: 14.8,
-      pitch: 65, // Inclinación para profundidad visual tipo banner
+      pitch: 65,
       bearing: -15
     };
   }, []);
 
   /**
-   * [HIDRATACIÓN ESCALONADA T2 - PROTOCOLO IDLE]:
-   * En lugar de un delay fijo, utilizamos una estrategia combinada:
-   * 1. Esperamos a que la página se estabilice (800ms).
-   * 2. Utilizamos requestIdleCallback (si está disponible) para cargar el mapa 
-   *    solo cuando el procesador no esté ocupado con animaciones.
+   * [LÓGICA DE MONTAJE IDLE]:
+   * Retrasamos la inyección del componente hasta que el navegador 
+   * haya procesado el LCP (Largest Contentful Paint).
    */
   useEffect(() => {
     let idleId: number;
 
-    const initializeMap = () => {
+    const triggerMount = () => {
       setIsMounted(true);
-      // Salimos del modo de bajo consumo 2 segundos después del montaje
-      setTimeout(() => setIsLowPowerMode(false), 2000);
     };
 
     const timerId = setTimeout(() => {
-      if ("requestIdleCallback" in window) {
-        idleId = (window as any).requestIdleCallback(initializeMap);
+      if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+        idleId = (window as any).requestIdleCallback(triggerMount);
       } else {
-        initializeMap();
+        triggerMount();
       }
-    }, 800);
+    }, 850);
 
     return () => {
       clearTimeout(timerId);
@@ -112,11 +110,23 @@ export function MapPreviewFrame() {
   }, []);
 
   /**
-   * handlePortalClick
-   * Transición controlada hacia la dimensión de exploración completa.
+   * handleMapIdle:
+   * Se dispara cuando el mapa termina de cargar sus recursos base (incluyendo sprites).
+   * [MEJORA]: Es el momento seguro para escalar a alta fidelidad sin errores de consola.
+   */
+  const handleMapIdle = useCallback(() => {
+    if (!hasEscalatedFidelity.current) {
+      console.log("📡 [NicePod-Resonance] Capas base listas. Escalando fidelidad...");
+      setCurrentStyle("mapbox://styles/mapbox/satellite-streets-v12");
+      hasEscalatedFidelity.current = true;
+    }
+  }, []);
+
+  /**
+   * handlePortalClick:
+   * Navegación controlada al explorador de Madrid Resonance.
    */
   const handlePortalClick = useCallback(() => {
-    console.log("🚀 [NicePod-Geo] Saltando a dimensión 3D completa.");
     router.push("/map");
   }, [router]);
 
@@ -124,7 +134,6 @@ export function MapPreviewFrame() {
 
   /**
    * [FALLBACK]: SKELETON ESTRUCTURAL
-   * Garantiza que el layout no colapse mientras el motor WebGL calienta.
    */
   if (!isMounted) {
     return (
@@ -136,9 +145,9 @@ export function MapPreviewFrame() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 15 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+      initial={{ opacity: 0, scale: 0.99 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.8, ease: "easeOut" }}
       onClick={handlePortalClick}
       className={cn(
         "group relative w-full overflow-hidden border border-white/10 bg-zinc-950 cursor-pointer shadow-2xl transition-all duration-700 hover:border-primary/40",
@@ -146,33 +155,28 @@ export function MapPreviewFrame() {
       )}
     >
       {/* 1. CAPA MOTOR WEBGL (Visualización Satelital) 
-          [OPTIMIZACIÓN]: Usamos un estilo más ligero (satellite-v9) si detectamos 
-          estrés inicial, escalando a streets-v12 tras el montaje.
+          Mantenemos reuseMaps en false para asegurar limpieza de WebGL Context.
       */}
       <div className="absolute inset-0 pointer-events-none opacity-60 group-hover:opacity-90 transition-all duration-1000 group-hover:scale-105">
         <MapEngine
           initialViewState={initialViewState}
           mapboxAccessToken={MAPBOX_TOKEN}
           style={{ width: "100%", height: "100%" }}
-          mapStyle={isLowPowerMode
-            ? "mapbox://styles/mapbox/satellite-v9"
-            : "mapbox://styles/mapbox/satellite-streets-v12"
-          }
-          reuseMaps={false} // [MEJORA]: Desactivado para forzar limpieza de memoria en transiciones
+          mapStyle={currentStyle}
+          reuseMaps={false}
           attributionControl={false}
+          onIdle={handleMapIdle}
         />
       </div>
 
-      {/* 2. CAPA DE GRADIENTES (Claridad Cartográfica)
-          Gradientes optimizados para permitir que las texturas de Madrid sean visibles.
-      */}
+      {/* 2. CAPA DE GRADIENTES (Claridad Cartográfica) */}
       <div className="absolute inset-0 bg-gradient-to-t from-background/50 via-transparent to-transparent z-10" />
       <div className="absolute inset-0 bg-gradient-to-r from-background/20 via-transparent to-transparent z-10" />
 
       {/* 3. CAPA DE INTERFAZ TÁCTICA (HUD) */}
       <div className="absolute inset-0 p-5 md:p-8 flex flex-col justify-between z-20">
 
-        {/* Superior: Estado de Sincronía */}
+        {/* Superior: Indicador de Sincronía */}
         <div className="flex justify-between items-start">
           <div className="bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-2 shadow-2xl">
             <div className="w-1.5 h-1.5 rounded-full bg-primary animate-ping" />
@@ -181,13 +185,13 @@ export function MapPreviewFrame() {
             </span>
           </div>
 
-          {/* Botón de Maximizar (Revelación en Hover) */}
-          <div className="bg-primary p-2 rounded-xl shadow-2xl shadow-primary/40 translate-x-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-500">
+          {/* Acción: Maximizar */}
+          <div className="bg-primary p-2.5 rounded-xl shadow-2xl shadow-primary/40 translate-x-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-500">
             <Maximize2 size={14} className="text-white" />
           </div>
         </div>
 
-        {/* Inferior: Identidad de Nodo */}
+        {/* Inferior: Identidad de Nodo y Estado de GPU */}
         <div className="flex items-end justify-between">
           <div className="flex items-center gap-4">
             <div className="bg-primary/20 p-2.5 rounded-2xl backdrop-blur-xl border border-primary/30 shadow-inner group-hover:bg-primary/40 transition-colors">
@@ -198,20 +202,19 @@ export function MapPreviewFrame() {
                 Madrid <span className="text-primary">Resonance</span>
               </h3>
               <p className="text-[9px] text-white/30 font-bold uppercase tracking-widest hidden sm:block">
-                Malla Geosemántica Activa
+                Portal de Memorias 3D
               </p>
             </div>
           </div>
 
-          {/* Indicador de carga de GPU */}
           <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/5 opacity-30 group-hover:opacity-100 transition-all duration-700">
-            {isLowPowerMode ? (
+            {!hasEscalatedFidelity.current ? (
               <Loader2 size={10} className="text-primary animate-spin" />
             ) : (
               <Zap size={10} className="text-yellow-500" />
             )}
             <span className="text-[8px] font-black uppercase text-white/60 tracking-widest">
-              {isLowPowerMode ? "Warmup" : "GPU Link"}
+              {hasEscalatedFidelity.current ? "GPU Link" : "Warmup"}
             </span>
           </div>
         </div>
