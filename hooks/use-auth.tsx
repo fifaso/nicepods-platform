@@ -1,6 +1,6 @@
 // hooks/use-auth.tsx
-// VERSIÓN: 18.0 (Sovereign Identity Protocol - Loop Protection Edition)
-// Misión: Centralizar la soberanía de identidad, erradicar bucles de eventos y garantizar sincronía absoluta.
+// VERSIÓN: 18.1 (Global Identity Synchronizer - Production & Loop Protection)
+// Misión: Centralizar la soberanía de la sesión, erradicar bucles de eventos y garantizar silencio en producción.
 
 "use client";
 
@@ -26,7 +26,7 @@ type Profile = Tables<'profiles'>;
 
 /**
  * INTERFAZ: AuthContextType
- * Define el contrato de identidad global para NicePod V2.5.
+ * Contrato de identidad global para NicePod V2.5.
  */
 interface AuthContextType {
   user: User | null;
@@ -56,7 +56,6 @@ export function AuthProvider({
   session: Session | null;
   children: React.ReactNode;
 }) {
-  // Inicialización única del cliente Supabase
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
@@ -80,7 +79,7 @@ export function AuthProvider({
    * Implementa un bloqueo por ID para evitar múltiples llamadas al mismo perfil.
    */
   const getProfile = useCallback(async (userId: string, force: boolean = false) => {
-    // Evitamos re-peticiones si ya estamos buscando o si el ID es el mismo (y no es forzado)
+    // Protección: Evitar re-peticiones si ya hay una carga en curso o si el ID es idéntico
     if ((isFetchingProfile.current || lastFetchedUserId.current === userId) && !force) {
       return;
     }
@@ -89,7 +88,10 @@ export function AuthProvider({
     setIsProfileLoading(true);
 
     try {
-      console.log(`👤 [Auth-Protocol] Sincronizando Perfil: ${userId.substring(0, 8)}...`);
+      // Logger Condicional: Solo visible en entorno de desarrollo
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`👤 [Auth-Protocol] Sincronizando ADN: ${userId.substring(0, 8)}...`);
+      }
 
       const { data, error } = await supabase
         .from('profiles')
@@ -98,9 +100,7 @@ export function AuthProvider({
         .single();
 
       if (error) {
-        // Manejo de delay en triggers de base de datos para nuevos usuarios
         if (error.code === 'PGRST116') {
-          console.warn("⚠️ [Auth] Perfil en proceso de creación en la DB.");
           setProfile(null);
         } else {
           throw error;
@@ -110,7 +110,7 @@ export function AuthProvider({
         lastFetchedUserId.current = userId;
       }
     } catch (error: any) {
-      console.error("🔥 [Auth-Critical-Error]:", error.message);
+      console.error("🔥 [NicePod-Auth-Error]:", error.message);
       setProfile(null);
     } finally {
       isFetchingProfile.current = false;
@@ -121,31 +121,28 @@ export function AuthProvider({
 
   /**
    * refreshProfile
-   * Permite actualizar el perfil tras cambios en ajustes sin cerrar sesión.
+   * Actualización manual tras cambios en ajustes.
    */
   const refreshProfile = useCallback(async () => {
     if (user?.id) {
-      await getProfile(user.id, true); // Forzamos la recarga
+      await getProfile(user.id, true);
     }
   }, [user, getProfile]);
 
   /**
-   * [AUTH LIFECYCLE]: Orquestador de Eventos
-   * Gestiona la sintonía entre eventos de Supabase y el estado de la aplicación.
+   * [AUTH LIFECYCLE]: Escucha de eventos de Supabase
    */
   useEffect(() => {
     let mounted = true;
 
-    // 1. HIDRATACIÓN INICIAL
-    // Si nacemos con sesión de servidor, disparamos la carga del perfil
-    if (initialSession?.user?.id && !profile) {
+    // 1. HIDRATACIÓN INICIAL (Server-to-Client Handshake)
+    if (initialSession?.user?.id && !profile && !lastFetchedUserId.current) {
       getProfile(initialSession.user.id);
     } else if (!initialSession) {
       setIsInitialLoading(false);
     }
 
     // 2. PROTECCIÓN DE ESCUCHA (Singleton Listener)
-    // Evita que useEffect registre múltiples suscripciones ante cambios de props.
     if (isListenerInitialized.current) return;
     isListenerInitialized.current = true;
 
@@ -153,27 +150,27 @@ export function AuthProvider({
       async (event, newSession) => {
         if (!mounted) return;
 
-        console.log(`🔐 [Auth-Event] Detección: ${event}`);
+        // Logger Condicional
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`🔐 [Auth-Event] Detección: ${event}`);
+        }
 
         const newUser = newSession?.user || null;
 
-        // Actualizamos sesión y usuario solo si hay cambios reales
         setSession(newSession);
         setUser(newUser);
 
         if (newUser) {
-          // Disparamos la carga del perfil solo si es un usuario distinto al anterior
-          // o si el evento es una señal de entrada explícita.
+          // Solo disparamos carga si el usuario ha cambiado realmente o es un login explícito
           if (newUser.id !== lastFetchedUserId.current || event === 'SIGNED_IN') {
             await getProfile(newUser.id);
           }
 
-          // Sincronizamos las cookies del lado del servidor para Next.js
           if (event === 'SIGNED_IN') {
             router.refresh();
           }
         } else {
-          // Limpieza total ante cierre de sesión
+          // Limpieza de estados en Logout
           setProfile(null);
           lastFetchedUserId.current = null;
           setIsProfileLoading(false);
@@ -188,27 +185,27 @@ export function AuthProvider({
 
     return () => {
       mounted = false;
-      // Nota: No limpiamos isListenerInitialized.current aquí porque queremos que
-      // la suscripción persista durante la vida del componente raíz.
       subscription.unsubscribe();
     };
   }, [supabase, initialSession, getProfile, router, profile]);
 
   /**
-   * ACCIONES MAESTRAS
+   * signOut
+   * Desconexión absoluta y limpieza de rastro.
    */
-
   const signOut = useCallback(async () => {
-    console.log("🛑 [Auth] Ejecutando desconexión de frecuencia...");
+    if (process.env.NODE_ENV === 'development') {
+      console.log("🛑 [Auth] Ejecutando desconexión segura...");
+    }
+
     await supabase.auth.signOut();
 
-    // Reset manual preventivo
     setSession(null);
     setUser(null);
     setProfile(null);
     lastFetchedUserId.current = null;
 
-    // Forzamos redirección y limpieza de caché de red
+    // Redirección total para limpiar caché de memoria
     window.location.href = "/";
   }, [supabase]);
 
@@ -218,11 +215,11 @@ export function AuthProvider({
     });
   }, [supabase]);
 
-  // --- ESTADOS CALCULADOS (MEMOIZADOS) ---
+  // --- ESTADOS CALCULADOS ---
   const isAdmin = useMemo(() => profile?.role === 'admin', [profile]);
   const isAuthenticated = useMemo(() => !!user, [user]);
 
-  // --- CONSTRUCCIÓN DEL CONTEXTO DE IDENTIDAD ---
+  // --- CONTEXTO SOBERANO ---
   const contextValue = useMemo(() => ({
     session,
     user,
@@ -256,10 +253,6 @@ export function AuthProvider({
   );
 }
 
-/**
- * useAuth
- * Punto de entrada único para consumir la identidad soberana en NicePod.
- */
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {

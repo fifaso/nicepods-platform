@@ -1,7 +1,7 @@
 // app/layout.tsx
-// VERSIÓN: 17.2 (NicePod Core Architecture Standard - Total Sync Edition)
+// VERSIÓN: 17.3 (NicePod Core Architecture Standard - Total Sync Edition)
 // Misión: Orquestar el núcleo global de la plataforma, blindar la identidad visual y sincronizar la sesión servidor-cliente.
-// [ESTABILIDAD]: Resolución de advertencias de metadatos PWA y optimización de hidratación.
+// [ESTABILIDAD]: Resolución definitiva de Errores React #418/#422 y advertencias de metadatos PWA.
 
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
@@ -56,15 +56,15 @@ export const viewport: Viewport = {
 
 /**
  * METADATA: Definición de la Identidad Digital SOBERANA (Next.js 14 API).
- * [MEJORA]: Migramos a la nueva especificación 'appleWebApp' para silenciar 
- * las advertencias de depreciación en Safari y Vercel detectadas en el Sprint 1.
+ * [MEJORA]: Hemos simplificado la definición de appleWebApp para que Next.js
+ * utilice los estándares modernos, evitando los tags depreciados que ensucian la consola.
  */
 export const metadata: Metadata = {
   title: "NicePod | Witness, Not Diarist",
   description: "Terminal de inteligencia personal y memoria urbana colectiva. Crea y descubre crónicas sonoras de alto valor.",
   manifest: "/manifest.json",
   appleWebApp: {
-    capable: true, // Sustituye al tag manual 'apple-mobile-web-app-capable'
+    capable: true,
     statusBarStyle: "black-translucent",
     title: "NicePod"
   },
@@ -81,7 +81,6 @@ export const metadata: Metadata = {
 
 /**
  * RootLayout: El gran orquestador de NicePod V2.5.
- * Al ser un Server Component, realiza la validación de identidad en el borde antes de emitir HTML.
  */
 export default async function RootLayout({
   children
@@ -89,19 +88,16 @@ export default async function RootLayout({
   children: React.ReactNode
 }) {
   // 1. INICIALIZACIÓN DEL CLIENTE EN SERVIDOR
-  // Gestiona automáticamente las cookies de sesión del curador.
   const supabase = createClient();
 
   /**
    * 2. PROTOCOLO DE SINCRONÍA DE IDENTIDAD (Handshake)
-   * Recuperamos la sesión y el usuario directamente en el servidor.
-   * Esto permite que el AuthProvider inicialice el estado del cliente con datos reales,
-   * eliminando el parpadeo de "Ingresar" que degradaba la experiencia premium de Fran.
+   * Recuperamos la sesión y el usuario directamente en el servidor para evitar 
+   * el parpadeo de "Ingresar" en el Header.
    */
   const { data: { user } } = await supabase.auth.getUser();
   const { data: { session } } = await supabase.auth.getSession();
 
-  // Validamos que el usuario del token de red coincida con la sesión activa del servidor.
   const validatedSession = user ? session : null;
 
   return (
@@ -109,9 +105,7 @@ export default async function RootLayout({
       <head>
         {/* 
             SCRIPT ANTI-FLICKER (Theme Integrity Injection):
-            Este bloque se ejecuta de forma síncrona antes que el motor de React.
-            Lee la preferencia de sintonía lumínica del localStorage para evitar 
-            el destello blanco al cargar la Workstation en modo nocturno.
+            Este bloque inyecta la clase de tema antes de la hidratación de React.
         */}
         <script
           dangerouslySetInnerHTML={{
@@ -122,6 +116,8 @@ export default async function RootLayout({
                   var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
                   if (storedTheme === 'dark' || (!storedTheme && prefersDark)) {
                     document.documentElement.classList.add('dark');
+                  } else {
+                    document.documentElement.classList.remove('dark');
                   }
                 } catch (e) {}
               })();
@@ -129,19 +125,20 @@ export default async function RootLayout({
           }}
         />
       </head>
-      <body className={`${inter.className} min-h-screen bg-background font-sans antialiased selection:bg-primary/30`}>
+      {/* 
+          [FIX]: Añadimos suppressHydrationWarning al body para silenciar los errores
+          418 y 422 provocados por la inyección de clases del script superior.
+      */}
+      <body
+        className={`${inter.className} min-h-screen bg-background font-sans antialiased selection:bg-primary/30`}
+        suppressHydrationWarning
+      >
 
-        {/* CAPA 1: Telemetría y Monitoreo de Eventos Semánticos */}
         <CSPostHogProvider>
-
-          {/* CAPA 2: Ciclo de Vida PWA y Soporte Offline */}
           <ServiceWorkerRegister />
           <PwaLifecycle />
 
-          {/* CAPA 3: Gestión de Errores Críticos de Renderizado */}
           <ErrorBoundary>
-
-            {/* CAPA 4: Motor de Temas Aurora - Shadcn/UI Compatible */}
             <ThemeProvider
               attribute="class"
               defaultTheme="dark"
@@ -149,25 +146,19 @@ export default async function RootLayout({
               disableTransitionOnChange={false}
               storageKey="theme"
             >
-
-              {/* CAPA 5: Soberanía de Identidad del Curador
-                  Inyectamos la sesión validada del servidor al contexto del cliente.
-              */}
               <AuthProvider session={validatedSession}>
 
                 {/* --- UNIVERSO VISUAL NICEPOD V2.5 --- */}
                 <div className="min-h-screen gradient-mesh relative overflow-x-hidden">
 
-                  {/* IDENTIDAD VISUAL AURORA: Blobs de fondo cinematográficos.
-                      Z-index: 0 para no interferir con la interactividad de la UI.
-                  */}
+                  {/* IDENTIDAD VISUAL AURORA: Blobs de fondo cinematográficos. */}
                   <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 opacity-40 dark:opacity-80">
                     <div className="absolute top-10 left-10 w-80 h-80 bg-purple-500/10 rounded-full blur-[120px] animate-float"></div>
                     <div className="absolute top-1/2 right-0 w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[160px] animate-float" style={{ animationDelay: "2s" }}></div>
                     <div className="absolute -bottom-20 left-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-[140px] animate-float" style={{ animationDelay: "4s" }}></div>
                   </div>
 
-                  {/* LIENZO DE CONTENIDO (Z-index superior para interacción táctica) */}
+                  {/* LIENZO DE CONTENIDO */}
                   <div className="relative z-10">
                     {children}
                   </div>
