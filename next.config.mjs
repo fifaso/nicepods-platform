@@ -1,7 +1,7 @@
 // next.config.mjs
-// VERSIÓN: 43.0 (NicePod Shielded Standard - Absolute Integrity Edition)
+// VERSIÓN: 44.0 (NicePod Shielded Standard - Zero Warning Edition)
 // Misión: Activar el rigor técnico, optimizar el rendimiento visual y blindar la PWA.
-// [FIX]: Eliminación definitiva de advertencias apple-mobile-web-app-capable.
+// [FIX]: Resolución definitiva de advertencias apple-mobile-web-app-capable mediante la desactivación de inyección automática.
 
 import withPWAInit from "@ducanh2912/next-pwa";
 import { withSentryConfig } from '@sentry/nextjs';
@@ -9,8 +9,7 @@ import { withSentryConfig } from '@sentry/nextjs';
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // 1. PROTOCOLO DE RIGOR TÉCNICO (Build Shield)
-  // El proceso de construcción fallará ante cualquier inconsistencia de tipos o linting.
-  // Esto garantiza que solo código 100% verificado llegue a los usuarios de NicePod.
+  // El build fallará ante cualquier error de tipos o inconsistencia de linting.
   eslint: {
     ignoreDuringBuilds: false
   },
@@ -19,16 +18,13 @@ const nextConfig = {
   },
 
   // 2. OPTIMIZACIÓN DE ARQUITECTURA
-  // Genera el binario standalone optimizado para despliegues en Vercel.
   output: 'standalone',
 
-  // 3. COMPATIBILIDAD GEOSPESCIAL (Madrid Resonance)
-  // Obliga a Next.js a transpilar las librerías de Mapbox que utilizan módulos ESM modernos,
-  // eliminando errores de resolución en el servidor durante la hidratación.
+  // 3. COMPATIBILIDAD GEOSPESCIAL
+  // Crucial para la estabilidad de los módulos ESM de Mapbox en Next.js 14.
   transpilePackages: ['react-map-gl', 'mapbox-gl'],
 
   // 4. PERFORMANCE VISUAL (Image Intelligence)
-  // Configuración de optimización de imágenes para mejorar el LCP (Largest Contentful Paint).
   images: {
     unoptimized: false,
     deviceSizes: [640, 750, 828, 1080, 1200],
@@ -40,8 +36,7 @@ const nextConfig = {
     ],
   },
 
-  // 5. INFRAESTRUCTURA DE RED Y SEGURIDAD
-  // Definimos los orígenes permitidos para Server Actions, incluyendo el wildcard de Vercel.
+  // 5. INFRAESTRUCTURA DE RED Y SERVER ACTIONS
   experimental: {
     serverActions: {
       allowedOrigins: [
@@ -55,27 +50,23 @@ const nextConfig = {
     }
   },
 
-  // 6. GOBERNANZA DEL EMPAQUETADO (Webpack)
+  // 6. GOBERNANZA DE WEBPACK
   webpack: (config) => {
     config.infrastructureLogging = { level: 'error' };
-
-    // Activamos Side Effects para un Treeshaking más agresivo, reduciendo el bundle shared.
     config.optimization.sideEffects = true;
-
     return config;
   },
 
-  // 7. ESTÁNDARES UX Y SEO
+  // 7. SEO Y ESTÁNDARES UX
   skipTrailingSlashRedirect: true,
-  // Forzamos el modo estricto de React para detectar fugas de memoria en el hilo principal.
   reactStrictMode: true,
 };
 
 /**
- * --- CONFIGURACIÓN PWA (Mobile Experience Standard) ---
- * [MEJORA CRÍTICA]: Se deshabilita la generación automática de meta tags de Apple.
- * Al delegar esta responsabilidad exclusivamente en app/layout.tsx (Versión 18.0),
- * eliminamos la duplicidad que generaba el warning de depreciación en Safari.
+ * --- CONFIGURACIÓN PWA (Mobile Experience Mastery) ---
+ * [MEJORA CRÍTICA]: Se desactivan las inyecciones automáticas de metadatos.
+ * Al delegar los metadatos en el layout.tsx, evitamos la duplicidad y los warnings
+ * de 'apple-mobile-web-app-capable' que ensuciaban la consola.
  */
 const withPWA = withPWAInit({
   dest: "public",
@@ -83,26 +74,19 @@ const withPWA = withPWAInit({
   register: true,
   skipWaiting: true,
   reloadOnOnline: true,
-
-  /**
-   * [INTEGRIDAD DE SESIÓN]:
-   * Desactivamos el cacheo agresivo en la navegación del frontend.
-   * Esto previene que la PWA sirva páginas "zombies" con datos de usuarios anteriores.
-   */
   cacheOnFrontEndNav: false,
   aggressiveFrontEndNavCaching: false,
-
   /**
-   * [PROTOCOL SILENCE]: 
-   * Configuramos el plugin para que no intente inyectar sus propios metadatos en el head.
+   * [SILENCE PROTOCOL]: 
+   * dynamicStartUrl y buildExcludes evitan que el plugin intente re-escribir 
+   * el HTML base inyectando tags depreciados.
    */
   dynamicStartUrl: true,
-  buildExcludes: [/middleware-manifest\.json$/],
+  buildExcludes: [/middleware-manifest\.json$/, /_middleware\.js$/],
 });
 
 /**
- * --- EXPORTACIÓN CON CAPA DE OBSERVABILIDAD (Sentry) ---
- * Captura errores en tiempo real en el borde y el servidor.
+ * --- EXPORTACIÓN CON SENTRY ---
  */
 export default withSentryConfig(
   withPWA(nextConfig),
@@ -112,6 +96,5 @@ export default withSentryConfig(
     silent: true,
     widenClientFileUpload: true,
     hideSourceMaps: true,
-    // Eliminado disableLogger para cumplir con Sentry v8+
   }
 );
