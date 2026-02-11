@@ -1,6 +1,7 @@
 // hooks/use-auth.tsx
-// VERSIÓN: 18.1 (Global Identity Synchronizer - Production & Loop Protection)
+// VERSIÓN: 18.5 (Global Identity Synchronizer - Final Integrity Standard)
 // Misión: Centralizar la soberanía de la sesión, erradicar bucles de eventos y garantizar silencio en producción.
+// [ESTABILIDAD]: Resolución definitiva de redundancias de red y logs de consola.
 
 "use client";
 
@@ -20,13 +21,13 @@ import {
 
 /**
  * [TIPADO ESTRICTO]
- * Extraemos el esquema de perfil de la base de datos de NicePod.
+ * Extraemos el esquema de perfil de la base de datos soberana de NicePod.
  */
 type Profile = Tables<'profiles'>;
 
 /**
  * INTERFAZ: AuthContextType
- * Contrato de identidad global para NicePod V2.5.
+ * Define el contrato de identidad global para el ecosistema NicePod V2.5.
  */
 interface AuthContextType {
   user: User | null;
@@ -47,7 +48,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 /**
  * PROVIDER: AuthProvider
  * Orquestador maestro de la identidad. 
- * Implementa protección contra bucles de eventos (Idempotencia) y sincronía Server-to-Client.
+ * Implementa protección contra bucles de eventos y sincronía Server-to-Client.
  */
 export function AuthProvider({
   session: initialSession,
@@ -68,18 +69,28 @@ export function AuthProvider({
   const [isInitialLoading, setIsInitialLoading] = useState<boolean>(!initialSession);
   const [isProfileLoading, setIsProfileLoading] = useState<boolean>(false);
 
-  // --- GUARDIAS DE MEMORIA (PREVENCIÓN DE LOOPS) ---
+  // --- GUARDIAS DE MEMORIA (PREVENCIÓN DE REDUNDANCIAS) ---
   const isFetchingProfile = useRef<boolean>(false);
   const lastFetchedUserId = useRef<string | null>(null);
   const isListenerInitialized = useRef<boolean>(false);
 
   /**
+   * logger: Sistema de depuración condicional.
+   * Evita que los logs de sistema contaminen la consola de producción.
+   */
+  const logger = (message: string, data?: any) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🔐 [Auth-Protocol] ${message}`, data ?? '');
+    }
+  };
+
+  /**
    * getProfile
    * Recupera los metadatos del curador (reputación, avatar, rol).
-   * Implementa un bloqueo por ID para evitar múltiples llamadas al mismo perfil.
+   * Implementa bloqueo por ID para evitar colisiones de red.
    */
   const getProfile = useCallback(async (userId: string, force: boolean = false) => {
-    // Protección: Evitar re-peticiones si ya hay una carga en curso o si el ID es idéntico
+    // Protección: Evitar ráfagas si ya hay una carga activa o el ID es idéntico al procesado.
     if ((isFetchingProfile.current || lastFetchedUserId.current === userId) && !force) {
       return;
     }
@@ -88,29 +99,28 @@ export function AuthProvider({
     setIsProfileLoading(true);
 
     try {
-      // Logger Condicional: Solo visible en entorno de desarrollo
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`👤 [Auth-Protocol] Sincronizando ADN: ${userId.substring(0, 8)}...`);
-      }
+      logger(`Sincronizando ADN: ${userId.substring(0, 8)}...`);
 
-      const { data, error } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
 
-      if (error) {
-        if (error.code === 'PGRST116') {
+      if (profileError) {
+        // Manejo de delay: El trigger de creación de perfil en DB podría estar en curso.
+        if (profileError.code === 'PGRST116') {
+          logger("Perfil no localizado, esperando inicialización de DB.");
           setProfile(null);
         } else {
-          throw error;
+          throw profileError;
         }
       } else {
-        setProfile(data);
+        setProfile(profileData);
         lastFetchedUserId.current = userId;
       }
     } catch (error: any) {
-      console.error("🔥 [NicePod-Auth-Error]:", error.message);
+      console.error("🔥 [NicePod-Auth-Critical]:", error.message);
       setProfile(null);
     } finally {
       isFetchingProfile.current = false;
@@ -121,7 +131,7 @@ export function AuthProvider({
 
   /**
    * refreshProfile
-   * Actualización manual tras cambios en ajustes.
+   * Actualización manual de la identidad tras cambios en ajustes de cuenta.
    */
   const refreshProfile = useCallback(async () => {
     if (user?.id) {
@@ -130,47 +140,49 @@ export function AuthProvider({
   }, [user, getProfile]);
 
   /**
-   * [AUTH LIFECYCLE]: Escucha de eventos de Supabase
+   * [AUTH LIFECYCLE]: Orquestador de Eventos de Supabase
+   * Gestiona el túnel de autenticación en tiempo real.
    */
   useEffect(() => {
-    let mounted = true;
+    let isMounted = true;
 
-    // 1. HIDRATACIÓN INICIAL (Server-to-Client Handshake)
+    // 1. SINCRO INICIAL: Si el servidor ya validó la sesión (Fran), cargamos el perfil.
     if (initialSession?.user?.id && !profile && !lastFetchedUserId.current) {
       getProfile(initialSession.user.id);
     } else if (!initialSession) {
       setIsInitialLoading(false);
     }
 
-    // 2. PROTECCIÓN DE ESCUCHA (Singleton Listener)
-    if (isListenerInitialized.current) return;
+    // 2. SINGLETON LISTENER: Garantiza una única suscripción activa.
+    if (isListenerInitialized.current) {
+      return;
+    }
     isListenerInitialized.current = true;
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
-        if (!mounted) return;
+        if (!isMounted) return;
 
-        // Logger Condicional
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`🔐 [Auth-Event] Detección: ${event}`);
-        }
+        logger(`Evento detectado: ${event}`);
 
         const newUser = newSession?.user || null;
 
+        // Actualizamos la verdad de sesión en el cliente.
         setSession(newSession);
         setUser(newUser);
 
         if (newUser) {
-          // Solo disparamos carga si el usuario ha cambiado realmente o es un login explícito
+          // Solo descargamos el perfil si el usuario ha cambiado o es un login explícito.
           if (newUser.id !== lastFetchedUserId.current || event === 'SIGNED_IN') {
             await getProfile(newUser.id);
           }
 
+          // Notificamos a los Server Components para actualizar cookies.
           if (event === 'SIGNED_IN') {
             router.refresh();
           }
         } else {
-          // Limpieza de estados en Logout
+          // Limpieza total del rastro digital en Logout.
           setProfile(null);
           lastFetchedUserId.current = null;
           setIsProfileLoading(false);
@@ -184,42 +196,45 @@ export function AuthProvider({
     );
 
     return () => {
-      mounted = false;
+      isMounted = false;
       subscription.unsubscribe();
     };
   }, [supabase, initialSession, getProfile, router, profile]);
 
   /**
    * signOut
-   * Desconexión absoluta y limpieza de rastro.
+   * Protocolo de desconexión absoluta y redirección de seguridad.
    */
   const signOut = useCallback(async () => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log("🛑 [Auth] Ejecutando desconexión segura...");
-    }
+    logger("Iniciando desconexión de frecuencia segura...");
 
     await supabase.auth.signOut();
 
+    // Reset de seguridad de estados locales.
     setSession(null);
     setUser(null);
     setProfile(null);
     lastFetchedUserId.current = null;
 
-    // Redirección total para limpiar caché de memoria
+    // Forzamos limpieza de caché de red mediante redirección a la raíz.
     window.location.href = "/";
   }, [supabase]);
 
+  /**
+   * resetPassword
+   * Gestión de recuperación de acceso.
+   */
   const resetPassword = useCallback(async (email: string) => {
     return await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/auth/callback?next=/profile`,
     });
   }, [supabase]);
 
-  // --- ESTADOS CALCULADOS ---
+  // --- ESTADOS DERIVADOS (MEMOIZADOS) ---
   const isAdmin = useMemo(() => profile?.role === 'admin', [profile]);
   const isAuthenticated = useMemo(() => !!user, [user]);
 
-  // --- CONTEXTO SOBERANO ---
+  // --- CONTEXTO FINAL (Standard V2.5) ---
   const contextValue = useMemo(() => ({
     session,
     user,
@@ -253,6 +268,10 @@ export function AuthProvider({
   );
 }
 
+/**
+ * useAuth
+ * Punto de entrada único para el consumo de identidad en la plataforma.
+ */
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
