@@ -1,37 +1,34 @@
 // supabase/functions/_shared/ai.ts
-// VERSIÓN: 10.6 (Master AI Core - Multi-Version API Routing)
-// Misión: Proveer el núcleo de inteligencia con enrutamiento dinámico de versiones de API.
-// [OPTIMIZACIÓN]: Resolución de EMBEDDING_API_ERROR [404] mediante el uso de endpoints v1/v1beta.
+// VERSIÓN: 10.7 (FinOps Edition - Optimized Routing)
 
 export const AI_MODELS = {
-    // Modelos de Generación (Soporte para 2.5 y 3.0 via v1beta)
     PRO: "gemini-3.0-flash",
     FLASH: "gemini-3.0-flash",
     AUDIO: "gemini-3.0-flash-tts",
-
-    // Modelo de Embeddings (Uso de v1 para estabilidad de producción)
     EMBEDDING: "text-embedding-004"
 };
 
 /**
- * buildPrompt: Inyecta datos en plantillas con eficiencia O(n).
+ * generateEmbedding: Generación de vectores 768d.
+ * [FIX 404]: Google AI Studio requiere el prefijo 'models/' en la URL para GA.
  */
-export function buildPrompt(template: string, data: Record<string, unknown>): string {
-    return template.replace(/{{(\w+)}}/g, (_, key) => {
-        const value = data[key];
-        if (value === undefined || value === null) return "";
+export async function generateEmbedding(text: string): Promise<number[]> {
+    const apiKey = Deno.env.get("GOOGLE_AI_API_KEY");
+    const url = `https://generativelanguage.googleapis.com/v1/models/${AI_MODELS.EMBEDDING}:embedContent?key=${apiKey}`;
 
-        const stringValue = typeof value === 'object'
-            ? JSON.stringify(value)
-            : String(value);
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            model: `models/${AI_MODELS.EMBEDDING}`, // Prefijo explícito
+            content: { parts: [{ text }] },
+            taskType: "RETRIEVAL_QUERY" // Cambiado a QUERY para búsqueda
+        })
+    });
 
-        return stringValue
-            .replace(/\\/g, "\\\\")
-            .replace(/"/g, '\\"')
-            .replace(/\n/g, "\\n")
-            .replace(/\r/g, "\\r")
-            .replace(/\t/g, "\\t");
-    }).trim();
+    if (!response.ok) throw new Error(`EMBEDDING_API_ERROR [${response.status}]`);
+    const data = await response.json();
+    return data.embedding.values;
 }
 
 /**
