@@ -349,29 +349,32 @@ ALTER FUNCTION "public"."create_profile_and_free_subscription"() OWNER TO "postg
 
 CREATE OR REPLACE FUNCTION "public"."dispatch_edge_function"("function_name" "text", "payload" "jsonb") RETURNS "jsonb"
     LANGUAGE "plpgsql" SECURITY DEFINER
-    SET "search_path" TO 'public', 'extensions'
     AS $$
-        DECLARE
-            request_id bigint;
-            full_url text := 'https://arbojlknwilqcszuqope.supabase.co' || '/functions/v1/' || function_name;
-            auth_header text := 'Bearer ' || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFyYm9qbGtud2lscWNzenVxb3BlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTkxMDMwMSwiZXhwIjoyMDc1NDg2MzAxfQ.-K-ZM6_0ea-fA9sA7rTvlMq8d9TL8gx-Ypcm6EE0Qjc';
-        BEGIN
-            -- Realizamos la petición ASÍNCRONA usando pg_net.
-            SELECT net.http_post(
-                url := full_url,
-                body := payload,
-                headers := jsonb_build_object(
-                    'Content-Type', 'application/json',
-                    'Authorization', auth_header
-                )
-            ) INTO request_id;
+DECLARE
+    request_id bigint;
+    -- Descubrimos la URL dinámicamente para no fallar por Project ID
+    base_url text := (SELECT value FROM public.platform_limits WHERE key_name = 'supabase_url'); 
+    full_url text;
+BEGIN
+    -- Fallback si no está en la tabla de límites
+    IF base_url IS NULL THEN
+        base_url := 'https://arbojlknwilqcszuqope.supabase.co';
+    END IF;
+    
+    full_url := base_url || '/functions/v1/' || function_name;
 
-            RETURN jsonb_build_object('status', 'queued', 'request_id', request_id);
-        EXCEPTION WHEN OTHERS THEN
-            RAISE WARNING 'Fallo al despachar Edge Function: %', SQLERRM;
-            RETURN jsonb_build_object('status', 'error', 'message', SQLERRM);
-        END;
-        $$;
+    SELECT net.http_post(
+        url := full_url,
+        body := payload,
+        headers := jsonb_build_object(
+            'Content-Type', 'application/json',
+            'Authorization', 'Bearer ' || public.get_service_key()
+        )
+    ) INTO request_id;
+
+    RETURN jsonb_build_object('status', 'queued', 'request_id', request_id, 'url_used', full_url);
+END;
+$$;
 
 
 ALTER FUNCTION "public"."dispatch_edge_function"("function_name" "text", "payload" "jsonb") OWNER TO "postgres";
@@ -630,6 +633,30 @@ $$;
 ALTER FUNCTION "public"."get_resonant_podcasts"("center_point" "point", "count_limit" integer) OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."get_service_key"() RETURNS "text"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'vault'
+    AS $$
+DECLARE
+  secret_value text;
+BEGIN
+  -- Buscamos el secreto por el nombre que le pusiste en el Dashboard
+  SELECT decrypted_secret INTO secret_value 
+  FROM vault.decrypted_secrets 
+  WHERE name = 'SUPABASE_SERVICE_ROLE_KEY';
+  
+  RETURN secret_value;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."get_service_key"() OWNER TO "postgres";
+
+
+COMMENT ON FUNCTION "public"."get_service_key"() IS 'Recupera de forma segura la SERVICE_ROLE_KEY desde la Vault para uso exclusivo en triggers y orquestadores.';
+
+
+
 CREATE OR REPLACE FUNCTION "public"."get_user_discovery_feed"("p_user_id" "uuid") RETURNS json
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
@@ -704,7 +731,6 @@ ALTER FUNCTION "public"."get_user_discovery_feed"("p_user_id" "uuid") OWNER TO "
 
 CREATE OR REPLACE FUNCTION "public"."handle_new_podcast_async"() RETURNS "trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
-    SET "search_path" TO 'public', 'extensions'
     AS $$
 BEGIN
     PERFORM public.dispatch_edge_function(
@@ -805,7 +831,6 @@ ALTER FUNCTION "public"."handle_new_user"() OWNER TO "postgres";
 
 CREATE OR REPLACE FUNCTION "public"."handle_resonance_update_async"() RETURNS "trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
-    SET "search_path" TO 'public', 'extensions'
     AS $$
 DECLARE
     target_user_id uuid;
@@ -823,7 +848,6 @@ BEGIN
             'event_source', TG_TABLE_NAME
         )
     );
-    
     RETURN NULL;
 END;
 $$;
@@ -1070,24 +1094,24 @@ CREATE OR REPLACE FUNCTION "public"."on_draft_created_trigger_research"() RETURN
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
 BEGIN
-    -- Realizamos la llamada HTTP asíncrona a la función de investigación.
-    -- Esto no bloquea la base de datos y ocurre en el fondo.
-    PERFORM
-      net.http_post(
-        url := 'https://arbojlknwilqcszuqope.supabase.co/functions/v1/research-intelligence',
-        headers := jsonb_build_object(
-            'Content-Type', 'application/json',
-            'Authorization', 'Bearer ' || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFyYm9qbGtud2lscWNzenVxb3BlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTkxMDMwMSwiZXhwIjoyMDc1NDg2MzAxfQ.-K-ZM6_0ea-fA9sA7rTvlMq8d9TL8gx-Ypcm6EE0Qjc' -- [IMPORTANTE]: Reemplazar con tu clave real
-        ),
-        body := jsonb_build_object(
-            'draft_id', NEW.id,
-            'topic', NEW.title,
-            'depth', COALESCE(NEW.creation_data->'inputs'->>'narrativeDepth', 'Medio'),
-            'is_pulse', (NEW.creation_data->>'purpose' = 'pulse'),
-            'pulse_ids', NEW.creation_data->'pulse_source_ids'
-        )
-      );
-
+    -- Envolvemos la llamada en un bloque EXCEPTION
+    -- Así, si falla el despacho, el borrador SÍ se guarda en la tabla
+    BEGIN
+        PERFORM public.dispatch_edge_function(
+            'research-intelligence',
+            jsonb_build_object(
+                'draft_id', NEW.id,
+                'topic', NEW.title,
+                'depth', COALESCE(NEW.creation_data->'inputs'->>'narrativeDepth', 'Medio'),
+                'is_pulse', (NEW.creation_data->>'purpose' = 'pulse'),
+                'pulse_ids', NEW.creation_data->'pulse_source_ids'
+            )
+        );
+    EXCEPTION WHEN OTHERS THEN
+        -- Si falla, solo dejamos una nota en el log, no matamos el proceso
+        RAISE WARNING 'Fallo el despacho inicial del borrador ID %: %', NEW.id, SQLERRM;
+    END;
+    
     RETURN NEW;
 END;
 $$;
@@ -1096,22 +1120,51 @@ $$;
 ALTER FUNCTION "public"."on_draft_created_trigger_research"() OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."on_pod_created_dispatch_assets"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+BEGIN
+    -- [CRÍTICO]: Solo disparamos si el podcast nace en estado 'processing'
+    -- Esto evita bucles infinitos en actualizaciones posteriores.
+    IF NEW.processing_status = 'processing' THEN
+        
+        -- A. DISPARO DE AUDIO
+        PERFORM public.dispatch_edge_function(
+            'generate-audio-from-script',
+            jsonb_build_object('podcast_id', NEW.id)
+        );
+
+        -- B. DISPARO DE IMAGEN
+        PERFORM public.dispatch_edge_function(
+            'generate-cover-image',
+            jsonb_build_object('podcast_id', NEW.id)
+        );
+
+        -- C. DISPARO DE VECTORIZACIÓN (Discovery Hub)
+        PERFORM public.dispatch_edge_function(
+            'generate-embedding',
+            jsonb_build_object('podcast_id', NEW.id)
+        );
+
+    END IF;
+    
+    RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."on_pod_created_dispatch_assets"() OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."on_pod_created_trigger_assets"() RETURNS "trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
 BEGIN
-    -- Llamamos a process-podcast-job para generar Audio e Imagen
-    PERFORM
-      net.http_post(
-        url := 'https://arbojlknwilqcszuqope.supabase.co/functions/v1/process-podcast-job',
-        headers := jsonb_build_object(
-            'Content-Type', 'application/json',
-            'Authorization', 'Bearer ' || 'TU_SUPABASE_SERVICE_ROLE_KEY' -- [FIX]: Usa tu key real
-        ),
-        body := jsonb_build_object(
-            'podcast_id', NEW.id
-        )
-      );
+    -- Eliminamos la llave hardcodeada y usamos el canal seguro
+    PERFORM public.dispatch_edge_function(
+        'process-podcast-job',
+        jsonb_build_object('podcast_id', NEW.id)
+    );
     RETURN NEW;
 END;
 $$;
@@ -1120,18 +1173,21 @@ $$;
 ALTER FUNCTION "public"."on_pod_created_trigger_assets"() OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."promote_draft_to_production_v2"("p_draft_id" bigint, "p_final_title" "text", "p_final_script" "text", "p_sources" "jsonb") RETURNS TABLE("pod_id" bigint, "success" boolean, "message" "text")
+CREATE OR REPLACE FUNCTION "public"."promote_draft_to_production_v2"("p_draft_id" bigint, "p_final_title" "text", "p_final_script" "text", "p_sources" "jsonb" DEFAULT NULL::"jsonb") RETURNS TABLE("pod_id" bigint, "success" boolean, "message" "text")
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
 DECLARE
     v_user_id UUID;
     v_new_pod_id BIGINT;
     v_creation_data JSONB;
+    v_internal_sources JSONB;
 BEGIN
+    -- 1. Identificar al dueño del proceso
     v_user_id := auth.uid();
 
-    -- 1. Recuperar metadatos del borrador antes de borrarlo
-    SELECT creation_data INTO v_creation_data 
+    -- 2. Recuperar metadatos y fuentes directamente desde la tabla de borradores
+    -- Esto evita que si el frontend envía un array vacío, perdamos la investigación.
+    SELECT creation_data, sources INTO v_creation_data, v_internal_sources
     FROM public.podcast_drafts 
     WHERE id = p_draft_id AND user_id = v_user_id;
 
@@ -1140,36 +1196,41 @@ BEGIN
         RETURN;
     END IF;
 
-    -- 2. Insertar en Producción (micro_pods)
+    -- 3. Insertar en Producción (micro_pods)
+    -- Inyectamos los activos con banderas en FALSE para activar el semáforo de integridad
     INSERT INTO public.micro_pods (
         user_id,
         title,
         description,
         script_text,
-        sources,
+        sources, -- Usamos las fuentes recuperadas internamente
         creation_data,
         status,
-        processing_status -- Nace en 'processing' para el blindaje multimedia
+        processing_status,
+        audio_ready,
+        image_ready
     )
     VALUES (
         v_user_id,
         p_final_title,
-        p_final_title, -- descripción inicial
+        p_final_title, 
         JSONB_BUILD_OBJECT(
             'script_body', p_final_script,
             'script_plain', regexp_replace(p_final_script, '<[^>]+>', ' ', 'g')
         ),
-        p_sources,
+        COALESCE(v_internal_sources, p_sources, '[]'::jsonb),
         v_creation_data,
         'pending_approval',
-        'processing'
+        'processing',
+        FALSE,
+        FALSE
     )
     RETURNING id INTO v_new_pod_id;
 
-    -- 3. ELIMINAR BORRADOR (Limpieza de cuota inmediata)
+    -- 4. ELIMINAR BORRADOR (Liberación inmediata de cuota)
     DELETE FROM public.podcast_drafts WHERE id = p_draft_id;
 
-    RETURN QUERY SELECT v_new_pod_id, TRUE, 'Producción iniciada.';
+    RETURN QUERY SELECT v_new_pod_id, TRUE, 'Producción iniciada exitosamente.';
 END;
 $$;
 
@@ -2462,6 +2523,14 @@ CREATE INDEX "idx_playback_events_user_id_created_at" ON "public"."playback_even
 
 
 
+CREATE UNIQUE INDEX "idx_profiles_username_btree" ON "public"."profiles" USING "btree" ("username");
+
+
+
+COMMENT ON INDEX "public"."idx_profiles_username_btree" IS 'Optimiza la resolución de rutas dinámicas de perfil y garantiza la unicidad del handle soberano.';
+
+
+
 CREATE INDEX "idx_pulse_staging_embedding" ON "public"."pulse_staging" USING "hnsw" ("embedding" "extensions"."vector_cosine_ops");
 
 
@@ -2550,7 +2619,7 @@ CREATE OR REPLACE TRIGGER "tr_on_draft_created" AFTER INSERT ON "public"."podcas
 
 
 
-CREATE OR REPLACE TRIGGER "tr_on_pod_created" AFTER INSERT ON "public"."micro_pods" FOR EACH ROW EXECUTE FUNCTION "public"."on_pod_created_trigger_assets"();
+CREATE OR REPLACE TRIGGER "tr_on_pod_created" AFTER INSERT ON "public"."micro_pods" FOR EACH ROW EXECUTE FUNCTION "public"."on_pod_created_dispatch_assets"();
 
 
 
@@ -5801,24 +5870,28 @@ GRANT USAGE ON SCHEMA "public" TO "supabase_auth_admin";
 GRANT ALL ON FUNCTION "public"."check_draft_quota"("p_user_id" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "public"."check_draft_quota"("p_user_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."check_draft_quota"("p_user_id" "uuid") TO "service_role";
+GRANT ALL ON FUNCTION "public"."check_draft_quota"("p_user_id" "uuid") TO "supabase_functions_admin";
 
 
 
 GRANT ALL ON FUNCTION "public"."check_podcast_integrity_and_release"() TO "anon";
 GRANT ALL ON FUNCTION "public"."check_podcast_integrity_and_release"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."check_podcast_integrity_and_release"() TO "service_role";
+GRANT ALL ON FUNCTION "public"."check_podcast_integrity_and_release"() TO "supabase_functions_admin";
 
 
 
 GRANT ALL ON FUNCTION "public"."check_rate_limit"("p_user_id" "uuid", "p_function_name" "text", "p_limit" integer, "p_window_seconds" integer) TO "anon";
 GRANT ALL ON FUNCTION "public"."check_rate_limit"("p_user_id" "uuid", "p_function_name" "text", "p_limit" integer, "p_window_seconds" integer) TO "authenticated";
 GRANT ALL ON FUNCTION "public"."check_rate_limit"("p_user_id" "uuid", "p_function_name" "text", "p_limit" integer, "p_window_seconds" integer) TO "service_role";
+GRANT ALL ON FUNCTION "public"."check_rate_limit"("p_user_id" "uuid", "p_function_name" "text", "p_limit" integer, "p_window_seconds" integer) TO "supabase_functions_admin";
 
 
 
 GRANT ALL ON FUNCTION "public"."cleanup_expired_pulse"() TO "anon";
 GRANT ALL ON FUNCTION "public"."cleanup_expired_pulse"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."cleanup_expired_pulse"() TO "service_role";
+GRANT ALL ON FUNCTION "public"."cleanup_expired_pulse"() TO "supabase_functions_admin";
 
 
 
@@ -5826,42 +5899,49 @@ GRANT ALL ON FUNCTION "public"."create_profile_and_free_subscription"() TO "anon
 GRANT ALL ON FUNCTION "public"."create_profile_and_free_subscription"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."create_profile_and_free_subscription"() TO "service_role";
 GRANT ALL ON FUNCTION "public"."create_profile_and_free_subscription"() TO "supabase_auth_admin";
+GRANT ALL ON FUNCTION "public"."create_profile_and_free_subscription"() TO "supabase_functions_admin";
 
 
 
 GRANT ALL ON FUNCTION "public"."dispatch_edge_function"("function_name" "text", "payload" "jsonb") TO "anon";
 GRANT ALL ON FUNCTION "public"."dispatch_edge_function"("function_name" "text", "payload" "jsonb") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."dispatch_edge_function"("function_name" "text", "payload" "jsonb") TO "service_role";
+GRANT ALL ON FUNCTION "public"."dispatch_edge_function"("function_name" "text", "payload" "jsonb") TO "supabase_functions_admin";
 
 
 
 GRANT ALL ON FUNCTION "public"."fetch_personalized_pulse"("p_user_id" "uuid", "p_limit" integer, "p_threshold" double precision) TO "anon";
 GRANT ALL ON FUNCTION "public"."fetch_personalized_pulse"("p_user_id" "uuid", "p_limit" integer, "p_threshold" double precision) TO "authenticated";
 GRANT ALL ON FUNCTION "public"."fetch_personalized_pulse"("p_user_id" "uuid", "p_limit" integer, "p_threshold" double precision) TO "service_role";
+GRANT ALL ON FUNCTION "public"."fetch_personalized_pulse"("p_user_id" "uuid", "p_limit" integer, "p_threshold" double precision) TO "supabase_functions_admin";
 
 
 
 GRANT ALL ON FUNCTION "public"."get_curated_library_shelves"("p_user_id" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "public"."get_curated_library_shelves"("p_user_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."get_curated_library_shelves"("p_user_id" "uuid") TO "service_role";
+GRANT ALL ON FUNCTION "public"."get_curated_library_shelves"("p_user_id" "uuid") TO "supabase_functions_admin";
 
 
 
 GRANT ALL ON FUNCTION "public"."get_generic_library_shelves"() TO "anon";
 GRANT ALL ON FUNCTION "public"."get_generic_library_shelves"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."get_generic_library_shelves"() TO "service_role";
+GRANT ALL ON FUNCTION "public"."get_generic_library_shelves"() TO "supabase_functions_admin";
 
 
 
 GRANT ALL ON FUNCTION "public"."get_memories_in_bounds"("min_lat" double precision, "min_lng" double precision, "max_lat" double precision, "max_lng" double precision) TO "anon";
 GRANT ALL ON FUNCTION "public"."get_memories_in_bounds"("min_lat" double precision, "min_lng" double precision, "max_lat" double precision, "max_lng" double precision) TO "authenticated";
 GRANT ALL ON FUNCTION "public"."get_memories_in_bounds"("min_lat" double precision, "min_lng" double precision, "max_lat" double precision, "max_lng" double precision) TO "service_role";
+GRANT ALL ON FUNCTION "public"."get_memories_in_bounds"("min_lat" double precision, "min_lng" double precision, "max_lat" double precision, "max_lng" double precision) TO "supabase_functions_admin";
 
 
 
 GRANT ALL ON FUNCTION "public"."get_nearby_podcasts"("p_lat" double precision, "p_lng" double precision, "p_radius_meters" integer, "p_limit" integer) TO "anon";
 GRANT ALL ON FUNCTION "public"."get_nearby_podcasts"("p_lat" double precision, "p_lng" double precision, "p_radius_meters" integer, "p_limit" integer) TO "authenticated";
 GRANT ALL ON FUNCTION "public"."get_nearby_podcasts"("p_lat" double precision, "p_lng" double precision, "p_radius_meters" integer, "p_limit" integer) TO "service_role";
+GRANT ALL ON FUNCTION "public"."get_nearby_podcasts"("p_lat" double precision, "p_lng" double precision, "p_radius_meters" integer, "p_limit" integer) TO "supabase_functions_admin";
 
 
 
@@ -5878,54 +5958,69 @@ GRANT UPDATE("duration_seconds") ON TABLE "public"."micro_pods" TO "authenticate
 GRANT ALL ON FUNCTION "public"."get_resonant_podcasts"("center_point" "point", "count_limit" integer) TO "anon";
 GRANT ALL ON FUNCTION "public"."get_resonant_podcasts"("center_point" "point", "count_limit" integer) TO "authenticated";
 GRANT ALL ON FUNCTION "public"."get_resonant_podcasts"("center_point" "point", "count_limit" integer) TO "service_role";
+GRANT ALL ON FUNCTION "public"."get_resonant_podcasts"("center_point" "point", "count_limit" integer) TO "supabase_functions_admin";
+
+
+
+REVOKE ALL ON FUNCTION "public"."get_service_key"() FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."get_service_key"() TO "service_role";
+GRANT ALL ON FUNCTION "public"."get_service_key"() TO "supabase_functions_admin";
 
 
 
 GRANT ALL ON FUNCTION "public"."get_user_discovery_feed"("p_user_id" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "public"."get_user_discovery_feed"("p_user_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."get_user_discovery_feed"("p_user_id" "uuid") TO "service_role";
+GRANT ALL ON FUNCTION "public"."get_user_discovery_feed"("p_user_id" "uuid") TO "supabase_functions_admin";
 
 
 
 GRANT ALL ON FUNCTION "public"."handle_new_podcast_async"() TO "anon";
 GRANT ALL ON FUNCTION "public"."handle_new_podcast_async"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."handle_new_podcast_async"() TO "service_role";
+GRANT ALL ON FUNCTION "public"."handle_new_podcast_async"() TO "supabase_functions_admin";
 
 
 
 GRANT ALL ON FUNCTION "public"."handle_new_podcast_publication"() TO "anon";
 GRANT ALL ON FUNCTION "public"."handle_new_podcast_publication"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."handle_new_podcast_publication"() TO "service_role";
+GRANT ALL ON FUNCTION "public"."handle_new_podcast_publication"() TO "supabase_functions_admin";
 
 
 
 GRANT ALL ON FUNCTION "public"."handle_new_testimonial"() TO "anon";
 GRANT ALL ON FUNCTION "public"."handle_new_testimonial"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."handle_new_testimonial"() TO "service_role";
+GRANT ALL ON FUNCTION "public"."handle_new_testimonial"() TO "supabase_functions_admin";
 
 
 
 GRANT ALL ON FUNCTION "public"."handle_new_user"() TO "anon";
 GRANT ALL ON FUNCTION "public"."handle_new_user"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."handle_new_user"() TO "service_role";
+GRANT ALL ON FUNCTION "public"."handle_new_user"() TO "supabase_functions_admin";
 
 
 
 GRANT ALL ON FUNCTION "public"."handle_resonance_update_async"() TO "anon";
 GRANT ALL ON FUNCTION "public"."handle_resonance_update_async"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."handle_resonance_update_async"() TO "service_role";
+GRANT ALL ON FUNCTION "public"."handle_resonance_update_async"() TO "supabase_functions_admin";
 
 
 
 GRANT ALL ON FUNCTION "public"."handle_updated_at"() TO "anon";
 GRANT ALL ON FUNCTION "public"."handle_updated_at"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."handle_updated_at"() TO "service_role";
+GRANT ALL ON FUNCTION "public"."handle_updated_at"() TO "supabase_functions_admin";
 
 
 
 GRANT ALL ON FUNCTION "public"."handle_zombie_jobs"() TO "anon";
 GRANT ALL ON FUNCTION "public"."handle_zombie_jobs"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."handle_zombie_jobs"() TO "service_role";
+GRANT ALL ON FUNCTION "public"."handle_zombie_jobs"() TO "supabase_functions_admin";
 
 
 
@@ -5935,72 +6030,91 @@ GRANT ALL ON FUNCTION "public"."handle_zombie_jobs"() TO "service_role";
 GRANT ALL ON FUNCTION "public"."increment_jobs_and_queue"("p_user_id" "uuid", "p_payload" "jsonb") TO "anon";
 GRANT ALL ON FUNCTION "public"."increment_jobs_and_queue"("p_user_id" "uuid", "p_payload" "jsonb") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."increment_jobs_and_queue"("p_user_id" "uuid", "p_payload" "jsonb") TO "service_role";
+GRANT ALL ON FUNCTION "public"."increment_jobs_and_queue"("p_user_id" "uuid", "p_payload" "jsonb") TO "supabase_functions_admin";
 
 
 
 GRANT ALL ON FUNCTION "public"."increment_play_count"("podcast_id" bigint) TO "anon";
 GRANT ALL ON FUNCTION "public"."increment_play_count"("podcast_id" bigint) TO "authenticated";
 GRANT ALL ON FUNCTION "public"."increment_play_count"("podcast_id" bigint) TO "service_role";
+GRANT ALL ON FUNCTION "public"."increment_play_count"("podcast_id" bigint) TO "supabase_functions_admin";
 
 
 
 GRANT ALL ON FUNCTION "public"."init_draft_process_v2"("p_payload" "jsonb") TO "anon";
 GRANT ALL ON FUNCTION "public"."init_draft_process_v2"("p_payload" "jsonb") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."init_draft_process_v2"("p_payload" "jsonb") TO "service_role";
+GRANT ALL ON FUNCTION "public"."init_draft_process_v2"("p_payload" "jsonb") TO "supabase_functions_admin";
 
 
 
 GRANT ALL ON FUNCTION "public"."is_admin"() TO "anon";
 GRANT ALL ON FUNCTION "public"."is_admin"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."is_admin"() TO "service_role";
+GRANT ALL ON FUNCTION "public"."is_admin"() TO "supabase_functions_admin";
 
 
 
 GRANT ALL ON FUNCTION "public"."maintain_thread_integrity"() TO "anon";
 GRANT ALL ON FUNCTION "public"."maintain_thread_integrity"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."maintain_thread_integrity"() TO "service_role";
+GRANT ALL ON FUNCTION "public"."maintain_thread_integrity"() TO "supabase_functions_admin";
 
 
 
 GRANT ALL ON FUNCTION "public"."mark_notifications_as_read"() TO "anon";
 GRANT ALL ON FUNCTION "public"."mark_notifications_as_read"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."mark_notifications_as_read"() TO "service_role";
+GRANT ALL ON FUNCTION "public"."mark_notifications_as_read"() TO "supabase_functions_admin";
 
 
 
 GRANT ALL ON FUNCTION "public"."on_draft_created_trigger_research"() TO "anon";
 GRANT ALL ON FUNCTION "public"."on_draft_created_trigger_research"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."on_draft_created_trigger_research"() TO "service_role";
+GRANT ALL ON FUNCTION "public"."on_draft_created_trigger_research"() TO "supabase_functions_admin";
+
+
+
+GRANT ALL ON FUNCTION "public"."on_pod_created_dispatch_assets"() TO "anon";
+GRANT ALL ON FUNCTION "public"."on_pod_created_dispatch_assets"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."on_pod_created_dispatch_assets"() TO "service_role";
+GRANT ALL ON FUNCTION "public"."on_pod_created_dispatch_assets"() TO "supabase_functions_admin";
 
 
 
 GRANT ALL ON FUNCTION "public"."on_pod_created_trigger_assets"() TO "anon";
 GRANT ALL ON FUNCTION "public"."on_pod_created_trigger_assets"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."on_pod_created_trigger_assets"() TO "service_role";
+GRANT ALL ON FUNCTION "public"."on_pod_created_trigger_assets"() TO "supabase_functions_admin";
 
 
 
 GRANT ALL ON FUNCTION "public"."promote_draft_to_production_v2"("p_draft_id" bigint, "p_final_title" "text", "p_final_script" "text", "p_sources" "jsonb") TO "anon";
 GRANT ALL ON FUNCTION "public"."promote_draft_to_production_v2"("p_draft_id" bigint, "p_final_title" "text", "p_final_script" "text", "p_sources" "jsonb") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."promote_draft_to_production_v2"("p_draft_id" bigint, "p_final_title" "text", "p_final_script" "text", "p_sources" "jsonb") TO "service_role";
+GRANT ALL ON FUNCTION "public"."promote_draft_to_production_v2"("p_draft_id" bigint, "p_final_title" "text", "p_final_script" "text", "p_sources" "jsonb") TO "supabase_functions_admin";
 
 
 
 GRANT ALL ON FUNCTION "public"."reset_monthly_quotas"() TO "anon";
 GRANT ALL ON FUNCTION "public"."reset_monthly_quotas"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."reset_monthly_quotas"() TO "service_role";
+GRANT ALL ON FUNCTION "public"."reset_monthly_quotas"() TO "supabase_functions_admin";
 
 
 
 GRANT ALL ON FUNCTION "public"."reward_sovereign_curation"() TO "anon";
 GRANT ALL ON FUNCTION "public"."reward_sovereign_curation"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."reward_sovereign_curation"() TO "service_role";
+GRANT ALL ON FUNCTION "public"."reward_sovereign_curation"() TO "supabase_functions_admin";
 
 
 
 GRANT ALL ON FUNCTION "public"."rls_auto_enable"() TO "anon";
 GRANT ALL ON FUNCTION "public"."rls_auto_enable"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."rls_auto_enable"() TO "service_role";
+GRANT ALL ON FUNCTION "public"."rls_auto_enable"() TO "supabase_functions_admin";
 
 
 
@@ -6016,42 +6130,49 @@ GRANT ALL ON FUNCTION "public"."rls_auto_enable"() TO "service_role";
 GRANT ALL ON FUNCTION "public"."search_omni"("query_text" "text", "query_embedding" double precision[], "match_threshold" double precision, "match_count" integer) TO "anon";
 GRANT ALL ON FUNCTION "public"."search_omni"("query_text" "text", "query_embedding" double precision[], "match_threshold" double precision, "match_count" integer) TO "authenticated";
 GRANT ALL ON FUNCTION "public"."search_omni"("query_text" "text", "query_embedding" double precision[], "match_threshold" double precision, "match_count" integer) TO "service_role";
+GRANT ALL ON FUNCTION "public"."search_omni"("query_text" "text", "query_embedding" double precision[], "match_threshold" double precision, "match_count" integer) TO "supabase_functions_admin";
 
 
 
 GRANT ALL ON FUNCTION "public"."search_podcasts"("search_term" "text") TO "anon";
 GRANT ALL ON FUNCTION "public"."search_podcasts"("search_term" "text") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."search_podcasts"("search_term" "text") TO "service_role";
+GRANT ALL ON FUNCTION "public"."search_podcasts"("search_term" "text") TO "supabase_functions_admin";
 
 
 
 GRANT ALL ON FUNCTION "public"."trigger_resonance_recalculation"() TO "anon";
 GRANT ALL ON FUNCTION "public"."trigger_resonance_recalculation"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."trigger_resonance_recalculation"() TO "service_role";
+GRANT ALL ON FUNCTION "public"."trigger_resonance_recalculation"() TO "supabase_functions_admin";
 
 
 
 GRANT ALL ON FUNCTION "public"."update_curator_reputation"() TO "anon";
 GRANT ALL ON FUNCTION "public"."update_curator_reputation"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."update_curator_reputation"() TO "service_role";
+GRANT ALL ON FUNCTION "public"."update_curator_reputation"() TO "supabase_functions_admin";
 
 
 
 GRANT ALL ON FUNCTION "public"."update_dna_timestamp"() TO "anon";
 GRANT ALL ON FUNCTION "public"."update_dna_timestamp"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."update_dna_timestamp"() TO "service_role";
+GRANT ALL ON FUNCTION "public"."update_dna_timestamp"() TO "supabase_functions_admin";
 
 
 
 GRANT ALL ON FUNCTION "public"."update_follow_counts"() TO "anon";
 GRANT ALL ON FUNCTION "public"."update_follow_counts"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."update_follow_counts"() TO "service_role";
+GRANT ALL ON FUNCTION "public"."update_follow_counts"() TO "supabase_functions_admin";
 
 
 
 GRANT ALL ON FUNCTION "public"."update_like_count"() TO "anon";
 GRANT ALL ON FUNCTION "public"."update_like_count"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."update_like_count"() TO "service_role";
+GRANT ALL ON FUNCTION "public"."update_like_count"() TO "supabase_functions_admin";
 
 
 

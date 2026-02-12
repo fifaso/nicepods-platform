@@ -1,11 +1,11 @@
 // supabase/functions/_shared/ai.ts
-// VERSIÓN: 10.2 (Master AI Core - Production Shield & Narrative Integrity)
+// VERSIÓN: 10.3 (Master AI Core - JSON Integrity & Control Character Shield)
 
 export const AI_MODELS = {
-    // Inteligencia Superior para Redacción (Probado y validado)
+    // Inteligencia Superior para Redacción (Sincronizado con el entorno del proyecto)
     PRO: "gemini-2.5-pro",
 
-    // Motor de Alta Velocidad para Datos (Probado y validado)
+    // Motor de Alta Velocidad para Datos
     FLASH: "gemini-2.5-pro",
 
     // Generación Nativa de Voz (Speech Generation Standard)
@@ -17,19 +17,35 @@ export const AI_MODELS = {
 
 /**
  * buildPrompt: Inyecta datos en plantillas de forma segura.
- * [MEJORA]: Manejo de valores nulos y escape de caracteres de control.
+ * [RESOLUCIÓN]: Implementación de sanitización multilínea y escape de caracteres de control
+ * para prevenir la ruptura de esquemas JSON en la respuesta de la IA.
  */
 export function buildPrompt(template: string, data: Record<string, unknown>): string {
     let prompt = template;
-    for (const [key, value] of Object.entries(data)) {
-        // Manejamos fallbacks para datos inexistentes
-        const safeValue = value ?? "";
-        const stringValue = typeof safeValue === 'object' ? JSON.stringify(safeValue) : String(safeValue);
 
-        // Escapamos comillas dobles para no romper la estructura de instrucciones de la IA
-        prompt = prompt.split(`{{${key}}}`).join(stringValue.replace(/"/g, '\\"'));
+    for (const [key, value] of Object.entries(data)) {
+        const safeValue = value ?? "";
+
+        // Si es objeto, serializamos. Si es valor simple, sanitizamos strings para JSON.
+        let stringValue = typeof safeValue === 'object'
+            ? JSON.stringify(safeValue)
+            : String(safeValue);
+
+        // Si el valor no es un objeto (ya procesado por JSON.stringify), 
+        // aplicamos escape quirúrgico de caracteres que rompen el contexto JSON del prompt.
+        if (typeof safeValue !== 'object') {
+            stringValue = stringValue
+                .replace(/\\/g, "\\\\")  // 1. Escapar barras invertidas (Fundamental)
+                .replace(/"/g, '\\"')    // 2. Escapar comillas dobles
+                .replace(/\n/g, "\\n")   // 3. Convertir saltos de línea literales
+                .replace(/\r/g, "\\r")   // 4. Convertir retornos de carro
+                .replace(/\t/g, "\\t");  // 5. Convertir tabulaciones
+        }
+
+        prompt = prompt.split(`{{${key}}}`).join(stringValue);
     }
-    // Limpieza final de etiquetas no resueltas
+
+    // Limpieza final de etiquetas {{key}} no resueltas en el objeto data.
     return prompt.replace(/{{.*?}}/g, "").trim();
 }
 
@@ -99,7 +115,6 @@ export async function callGeminiAudio(prompt: string, directorNote: string, voic
 
 /**
  * callGeminiMultimodal: Invocación estándar para texto y visión.
- * [MEJORA]: Telemetría de estado HTTP para diagnóstico rápido.
  */
 export async function callGeminiMultimodal(
     prompt: string,
@@ -218,7 +233,6 @@ export function createWavHeader(dataLength: number, sampleRate = 24000) {
 
 /**
  * cleanTextForSpeech: Limpieza profunda de ruido narrativo y marcas Markdown.
- * [MEJORA]: Eliminación de asteriscos y dobles guiones de énfasis.
  */
 export function cleanTextForSpeech(text: string): string {
     if (!text) return "";

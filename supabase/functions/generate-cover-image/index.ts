@@ -1,47 +1,39 @@
 // supabase/functions/generate-cover-image/index.ts
-// VERSIÓN: 18.0 (Stable Image Architect - Fallback Resilience & Readiness Sync)
+// VERSIÓN: 19.0 (Master Image Architect - Global Resilience & Integrity Standard)
+// Misión: Forja de identidad visual mediante Google Vertex AI (Imagen 3) con protocolo de fallback garantizado.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 
-// Importaciones del núcleo de NicePod
+// Importaciones del núcleo de NicePod (Sincronizadas con Nivel 1 de Estabilización)
 import { buildPrompt, cleanTextForSpeech } from "../_shared/ai.ts";
 import { getGoogleAccessToken } from "../_shared/google-auth.ts";
 import { corsHeaders, guard } from "../_shared/guard.ts";
 
 /**
- * CONFIGURACIÓN DE ACTIVOS
- * Ruta al logo de NicePod para casos de error o saturación de cuota.
+ * CONFIGURACIÓN DE ACTIVOS SOBERANOS
  */
 const PLACEHOLDER_COVER_URL = "https://arbojlknwilqcszuqope.supabase.co/storage/v1/object/public/podcasts/static/placeholder-logo.png";
-
-const InvokePayloadSchema = z.object({
-  podcast_id: z.number({ required_error: "podcast_id_is_required" }),
-  agent_name: z.string().default("cover-art-director-v1"),
-  trace_id: z.string().optional()
-});
+const GOOGLE_LOCATION = "us-central1"; // Región validada para Imagen 3
 
 /**
- * extractScriptContent: Asegura la compatibilidad con guiones en formato JSON o Texto.
+ * extractScriptContent: Extrae el texto para el contexto visual desde el objeto JSONB.
  */
-function extractScriptContent(input: any): string {
-  if (!input) return "";
-  if (typeof input === 'object' && input !== null) {
-    return input.script_body || input.text || "";
+function extractScriptContent(script_text: any): string {
+  if (!script_text) return "";
+  if (typeof script_text === 'object') {
+    return script_text.script_plain || script_text.script_body || "";
   }
-  if (typeof input === 'string' && input.trim().startsWith('{')) {
-    try {
-      const parsed = JSON.parse(input);
-      return parsed.script_body || parsed.text || input;
-    } catch {
-      return input;
-    }
+  try {
+    const parsed = typeof script_text === 'string' ? JSON.parse(script_text) : script_text;
+    return parsed.script_plain || parsed.script_body || "";
+  } catch {
+    return String(script_text);
   }
-  return String(input);
 }
 
 const handler = async (request: Request): Promise<Response> => {
+  // Recuperamos identidad de petición de nuestro Guard V5.0
   const correlationId = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
 
   const supabaseAdmin: SupabaseClient = createClient(
@@ -53,12 +45,14 @@ const handler = async (request: Request): Promise<Response> => {
 
   try {
     const payload = await request.json();
-    const { podcast_id, agent_name } = InvokePayloadSchema.parse(payload);
+    const { podcast_id, agent_name = "cover-art-director-v1" } = payload;
+
+    if (!podcast_id) throw new Error("PODCAST_ID_REQUIRED");
     targetPodId = podcast_id;
 
-    console.log(`🎨 [Image-Worker][${correlationId}] Iniciando generación para Pod #${podcast_id}`);
+    console.log(`🎨 [Image-Worker][${correlationId}] Iniciando generación visual para Pod #${podcast_id}`);
 
-    // 1. OBTENCIÓN DE RECURSOS (Mapeo atómico)
+    // 1. OBTENCIÓN DE DATOS Y AGENTE (Fase IV)
     const [podRes, agentRes] = await Promise.all([
       supabaseAdmin.from('micro_pods').select('title, script_text, user_id').eq('id', podcast_id).single(),
       supabaseAdmin.from('ai_prompts').select('prompt_template, model_identifier').eq('agent_name', agent_name).single()
@@ -67,24 +61,28 @@ const handler = async (request: Request): Promise<Response> => {
     if (podRes.error || !podRes.data) throw new Error("PODCAST_NOT_FOUND");
     if (agentRes.error || !agentRes.data) throw new Error("ART_AGENT_NOT_CONFIGURED");
 
-    // 2. CONSTRUCCIÓN DEL PROMPT VISUAL
+    // 2. DESTILACIÓN DEL PROMPT VISUAL
     const rawScript = extractScriptContent(podRes.data.script_text);
-    const scriptContext = cleanTextForSpeech(rawScript).substring(0, 450);
+    // Usamos cleanTextForSpeech para evitar que Markdown ensucie el prompt de la imagen
+    const scriptSummary = cleanTextForSpeech(rawScript).substring(0, 450);
 
     const visualPrompt = buildPrompt(agentRes.data.prompt_template, {
       title: podRes.data.title,
-      script_summary: scriptContext
+      script_summary: scriptSummary
     });
 
     let finalImageUrl = PLACEHOLDER_COVER_URL;
     let imageWasGenerated = false;
 
-    // 3. INTENTO DE GENERACIÓN EN VERTEX AI (Google Imagen 3)
+    // 3. CONEXIÓN CON VERTEX AI (GOOGLE IMAGEN 3)
     try {
       const accessToken = await getGoogleAccessToken();
-      const vertexUrl = `https://us-central1-aiplatform.googleapis.com/v1/projects/${Deno.env.get("GOOGLE_PROJECT_ID")}/locations/us-central1/publishers/google/models/${agentRes.data.model_identifier || 'imagegeneration@006'}:predict`;
+      const projectId = Deno.env.get("GOOGLE_PROJECT_ID");
+      const modelId = agentRes.data.model_identifier || 'imagegeneration@006';
 
-      console.log(`🧠 [Image-Worker] Solicitando imagen para: "${podRes.data.title}"`);
+      const vertexUrl = `https://${GOOGLE_LOCATION}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${GOOGLE_LOCATION}/publishers/google/models/${modelId}:predict`;
+
+      console.log(`🧠 [Image-Worker] Solicitando síntesis visual a Imagen 3...`);
 
       const response = await fetch(vertexUrl, {
         method: 'POST',
@@ -94,7 +92,7 @@ const handler = async (request: Request): Promise<Response> => {
         },
         body: JSON.stringify({
           instances: [{ "prompt": visualPrompt }],
-          parameters: { "sampleCount": 1, "aspectRatio": "1:1" }
+          parameters: { "sampleCount": 1, "aspectRatio": "1:1", "safetySetting": "block_most" }
         })
       });
 
@@ -103,7 +101,7 @@ const handler = async (request: Request): Promise<Response> => {
         const imageBase64 = result.predictions?.[0]?.bytesBase64Encoded;
 
         if (imageBase64) {
-          // 4. PERSISTENCIA EN STORAGE (Solo si la IA respondió con éxito)
+          // 4. PERSISTENCIA EN BÓVEDA DE ACTIVOS
           const imageBuffer = Uint8Array.from(atob(imageBase64), (c) => c.charCodeAt(0));
           const filePath = `public/${podRes.data.user_id}/${podcast_id}-cover.jpg`;
 
@@ -112,65 +110,71 @@ const handler = async (request: Request): Promise<Response> => {
             .upload(filePath, imageBuffer, {
               contentType: 'image/jpeg',
               upsert: true,
-              cacheControl: '3600'
+              cacheControl: '3600',
+              metadata: { correlation_id: correlationId }
             });
 
           if (!uploadError) {
             const { data: { publicUrl } } = supabaseAdmin.storage.from('podcasts').getPublicUrl(filePath);
             finalImageUrl = publicUrl;
             imageWasGenerated = true;
-          } else {
-            console.error(`⚠️ Error al subir imagen generada: ${uploadError.message}`);
           }
         }
       } else {
-        const errText = await response.text();
-        console.warn(`⚠️ Vertex AI no pudo generar la imagen (Cuota o Filtro): ${errText}`);
-        // No lanzamos error aquí, permitimos que el flujo continúe hacia el placeholder
+        const errorData = await response.text();
+        console.warn(`⚠️ [Image-Worker] Vertex AI declinó la generación: ${errorData}`);
       }
     } catch (vertexErr: any) {
-      console.error(`⚠️ Excepción en el flujo de Vertex AI: ${vertexErr.message}`);
+      console.error(`⚠️ [Image-Worker] Error en túnel Vertex AI: ${vertexErr.message}`);
     }
 
-    // 5. ACTUALIZACIÓN DE BASE DE DATOS Y LIBERACIÓN DE BANDERA
-    // Actualizamos 'image_ready' a TRUE siempre, incluso si es el placeholder, 
-    // para que el trigger tr_check_integrity pueda completar el podcast.
+    // 5. CIERRE DE CICLO Y LIBERACIÓN DE SEMÁFORO
+    // CRÍTICO: Siempre marcamos image_ready = true para no bloquear el tr_check_integrity
     const { error: updateErr } = await supabaseAdmin
       .from('micro_pods')
       .update({
         cover_image_url: finalImageUrl,
-        image_ready: true, // <--- LIBERA EL SEMÁFORO DE INTEGRIDAD
-        admin_notes: imageWasGenerated ? null : "Usada carátula de respaldo por indisponibilidad de Vertex AI.",
+        image_ready: true, // Libera la fase final
+        admin_notes: imageWasGenerated ? null : `Respaldo activado: ${correlationId}`,
         updated_at: new Date().toISOString()
       })
       .eq('id', podcast_id);
 
-    if (updateErr) throw new Error(`DB_FINAL_SYNC_FAIL: ${updateErr.message}`);
+    if (updateErr) throw new Error(`DB_SYNC_ERROR: ${updateErr.message}`);
 
-    console.log(`✅ [Image-Worker] Ciclo terminado. Generada: ${imageWasGenerated}. Pod #${podcast_id}`);
+    console.log(`✅ [Image-Worker] Ciclo finalizado para Pod #${podcast_id}. Generado: ${imageWasGenerated}`);
 
     return new Response(JSON.stringify({
       success: true,
       url: finalImageUrl,
-      generated: imageWasGenerated
+      generated: imageWasGenerated,
+      trace_id: correlationId
     }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
 
   } catch (err: any) {
     console.error(`🔥 [Image-Worker-Fatal][${correlationId}]:`, err.message);
 
+    // Fallback administrativo para evitar estados bloqueados
     if (targetPodId) {
       await supabaseAdmin.from('micro_pods').update({
-        admin_notes: `Critical Image Error: ${err.message} | Trace: ${correlationId}`
+        image_ready: true, // Liberamos el semáforo incluso en error fatal para permitir el flujo de audio
+        admin_notes: `Critical Image Failure: ${err.message} | ID: ${correlationId}`
       }).eq('id', targetPodId);
     }
 
-    return new Response(JSON.stringify({ success: false, error: err.message }), {
+    return new Response(JSON.stringify({
+      success: false,
+      error: err.message,
+      trace_id: correlationId
+    }), {
       status: 500,
-      headers: corsHeaders
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
   }
 };
 
+// Aplicamos el Guard Maestro V5.0
 serve(guard(handler));
