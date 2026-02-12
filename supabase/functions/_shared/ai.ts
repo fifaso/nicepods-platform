@@ -1,5 +1,7 @@
 // supabase/functions/_shared/ai.ts
-// VERSIÓN: 10.7 (FinOps Edition - Optimized Routing)
+// VERSIÓN: 10.8 (Master Intelligence Core - Unified & Deduplicated Edition)
+// Misión: Proveer el motor de IA Gen 3, empaquetado O(n) y utilidades binarias.
+// [FIX]: Eliminación de SyntaxError por duplicidad de 'generateEmbedding'.
 
 export const AI_MODELS = {
     PRO: "gemini-3.0-flash",
@@ -9,47 +11,44 @@ export const AI_MODELS = {
 };
 
 /**
- * generateEmbedding: Generación de vectores 768d.
- * [FIX 404]: Google AI Studio requiere el prefijo 'models/' en la URL para GA.
+ * buildPrompt: Inyecta datos en plantillas de forma segura y ultra-rápida.
  */
-export async function generateEmbedding(text: string): Promise<number[]> {
-    const apiKey = Deno.env.get("GOOGLE_AI_API_KEY");
-    const url = `https://generativelanguage.googleapis.com/v1/models/${AI_MODELS.EMBEDDING}:embedContent?key=${apiKey}`;
+export function buildPrompt(template: string, data: Record<string, unknown>): string {
+    return template.replace(/{{(\w+)}}/g, (_, key) => {
+        const value = data[key];
+        if (value === undefined || value === null) return "";
 
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            model: `models/${AI_MODELS.EMBEDDING}`, // Prefijo explícito
-            content: { parts: [{ text }] },
-            taskType: "RETRIEVAL_QUERY" // Cambiado a QUERY para búsqueda
-        })
-    });
+        const stringValue = typeof value === 'object'
+            ? JSON.stringify(value)
+            : String(value);
 
-    if (!response.ok) throw new Error(`EMBEDDING_API_ERROR [${response.status}]`);
-    const data = await response.json();
-    return data.embedding.values;
+        // Escape para contextos JSON: barras, comillas y saltos de línea.
+        return stringValue
+            .replace(/\\/g, "\\\\")
+            .replace(/"/g, '\\"')
+            .replace(/\n/g, "\\n")
+            .replace(/\r/g, "\\r")
+            .replace(/\t/g, "\\t");
+    }).trim();
 }
 
 /**
- * generateEmbedding: Generación de vectores para Búsqueda Semántica.
- * [RESOLUCIÓN 404]: Cambiamos el endpoint a 'v1' para el modelo text-embedding-004.
+ * generateEmbedding: Generación de vectores 768d para búsqueda semántica.
+ * [CONFIG]: Usa endpoint v1 y prefijo 'models/' para estabilidad GA.
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
     const apiKey = Deno.env.get("GOOGLE_AI_API_KEY");
     if (!apiKey) throw new Error("GOOGLE_AI_API_KEY_MISSING");
 
-    // text-embedding-004 es un modelo estable (GA), requiere el endpoint v1
     const url = `https://generativelanguage.googleapis.com/v1/models/${AI_MODELS.EMBEDDING}:embedContent?key=${apiKey}`;
 
     const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            content: {
-                parts: [{ text }]
-            },
-            taskType: "RETRIEVAL_DOCUMENT"
+            model: `models/${AI_MODELS.EMBEDDING}`,
+            content: { parts: [{ text }] },
+            taskType: "RETRIEVAL_QUERY"
         })
     });
 
@@ -59,11 +58,6 @@ export async function generateEmbedding(text: string): Promise<number[]> {
     }
 
     const data = await response.json();
-
-    if (!data.embedding?.values) {
-        throw new Error("EMBEDDING_DATA_INVALID: El modelo no devolvió los valores vectoriales.");
-    }
-
     return data.embedding.values;
 }
 
@@ -79,7 +73,6 @@ export async function callGeminiMultimodal(
     const apiKey = Deno.env.get("GOOGLE_AI_API_KEY");
     if (!apiKey) throw new Error("GOOGLE_AI_API_KEY_MISSING");
 
-    // Los modelos 3.0 requieren el endpoint v1beta para funcionalidades extendidas
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
     const parts: any[] = [{ text: prompt }];
 
@@ -166,18 +159,16 @@ export async function callGeminiAudio(prompt: string, directorNote: string, voic
     const data = await response.json();
     const audioPart = data.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
 
-    if (!audioPart?.inlineData) {
-        throw new Error("IA_AUDIO_DATA_MISSING");
-    }
+    if (!audioPart?.inlineData) throw new Error("IA_AUDIO_DATA_MISSING");
 
     return {
-        data: audioPart.inlineData.data,
+        data: audioPart.inlineData.data, // Base64
         mimeType: audioPart.inlineData.mimeType
     };
 }
 
 /**
- * parseAIJson: Parser resiliente.
+ * parseAIJson: Parser resiliente para extraer JSON de bloques de código.
  */
 export function parseAIJson<T = unknown>(rawText: string): T {
     try {
@@ -190,7 +181,7 @@ export function parseAIJson<T = unknown>(rawText: string): T {
 }
 
 /**
- * extractAtomicFacts: Destilación de conocimiento usando Gemini Flash 3.0.
+ * extractAtomicFacts: Destilación de conocimiento usando Gemini 3.0 Flash.
  */
 export async function extractAtomicFacts(rawText: string): Promise<string[]> {
     const prompt = `Analiza el texto y extrae una lista de HECHOS ATÓMICOS. Formato JSON: {"facts": []}. Texto: ${rawText.substring(0, 15000)}`;
@@ -225,7 +216,7 @@ export function createWavHeader(dataLength: number, sampleRate = 24000) {
 }
 
 /**
- * cleanTextForSpeech: Limpieza de ruidos visuales.
+ * cleanTextForSpeech: Limpieza de ruidos visuales para el motor de voz.
  */
 export function cleanTextForSpeech(text: string | null | undefined): string {
     if (!text) return "";
