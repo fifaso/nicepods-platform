@@ -1,54 +1,64 @@
 // supabase/functions/generate-script-draft/index.ts
-// VERSIÓN: 26.0 (Final Architect - Dynamic Persona & JSONB Integrity)
-// Misión: Transmutar el dossier en narrativa profesional respetando la personalidad elegida y el rigor del esquema V2.5.
+// VERSIÓN: 26.2 (Fast Scriptwriter - Direct Execution Edition)
+// Misión: Transmutar el dossier en narrativa profesional respetando la personalidad elegida.
+// [OPTIMIZACIÓN]: Ejecución directa sin Guard para asegurar la disponibilidad total de CPU.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 
-// Importaciones del núcleo NicePod (Nivel 1 de Estabilización)
+// Importaciones del núcleo NicePod (Sincronizadas con Nivel 1)
 import { AI_MODELS, buildPrompt, callGeminiMultimodal, cleanTextForSpeech, parseAIJson } from "../_shared/ai.ts";
-import { corsHeaders, guard } from "../_shared/guard.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
-const supabaseAdmin = createClient(
-  Deno.env.get("SUPABASE_URL")!,
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+/**
+ * CLIENTE SUPABASE ADMIN:
+ * Persistente en el contexto de ejecución de la Edge Function.
+ */
+const supabaseAdmin: SupabaseClient = createClient(
+  Deno.env.get("SUPABASE_URL") ?? "",
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
 );
 
-const handler = async (req: Request): Promise<Response> => {
-  // Recuperamos el Correlation ID inyectado por nuestro Guard V5.0
-  const correlationId = req.headers.get("x-correlation-id") ?? crypto.randomUUID();
-  let draftId: string | null = null;
+/**
+ * handler: Generación de guion maestro.
+ */
+async function handler(request: Request): Promise<Response> {
+  if (request.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  const correlationId = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
+  let currentDraftId: string | null = null;
 
   try {
-    const payload = await req.json();
-    draftId = payload.draft_id;
+    const payload = await request.json();
+    const { draft_id } = payload;
 
-    if (!draftId) throw new Error("DRAFT_ID_REQUIRED");
+    if (!draft_id) throw new Error("DRAFT_ID_REQUIRED");
+    currentDraftId = draft_id;
 
-    // 1. OBTENCIÓN DE DOSSIER Y METADATA (Fase II)
+    // 1. RECUPERACIÓN DE CONTEXTO (Dossier e Intención)
     const { data: draft, error: fetchErr } = await supabaseAdmin
       .from('podcast_drafts')
       .select('*')
-      .eq('id', draftId)
+      .eq('id', draft_id)
       .single();
 
     if (fetchErr || !draft) throw new Error("DRAFT_NOT_FOUND");
 
-    console.log(`✍️ [Redactor][${correlationId}] Forjando guion para: ${draft.title}`);
+    console.log(`✍️ [Redactor][${correlationId}] Iniciando redacción para: ${draft.title}`);
 
-    // 2. RESOLUCIÓN DINÁMICA DE AGENTE (Personalidad de Fase III)
-    // Priorizamos el agente elegido por el usuario; fallback al arquitecto base.
+    // 2. RESOLUCIÓN DINÁMICA DE AGENTE
     const agentName = draft.creation_data?.agentName || 'script-architect-v1';
-
     const { data: agent, error: agentErr } = await supabaseAdmin
       .from('ai_prompts')
-      .select('prompt_template, version')
+      .select('prompt_template')
       .eq('agent_name', agentName)
       .single();
 
     if (agentErr || !agent) throw new Error(`PROMPT_MISSING: ${agentName}`);
 
-    // 3. CONSTRUCCIÓN DEL PROMPT MAESTRO (Sanitizado por buildPrompt V10.3)
+    // 3. CONSTRUCCIÓN DEL PROMPT NARRATIVO
     const finalPrompt = buildPrompt(agent.prompt_template, {
       dossier_json: JSON.stringify(draft.dossier_text),
       topic: draft.title,
@@ -56,7 +66,7 @@ const handler = async (req: Request): Promise<Response> => {
       tone: draft.creation_data?.inputs?.tone || "Profesional"
     });
 
-    // 4. INVOCACIÓN A GEMINI PRO (Fase III)
+    // 4. GENERACIÓN CON GEMINI 3.0 FLASH (Modo Pro)
     const scriptRaw = await callGeminiMultimodal(
       finalPrompt,
       draft.creation_data?.inputs?.image_base64_reference,
@@ -66,13 +76,13 @@ const handler = async (req: Request): Promise<Response> => {
 
     const content = parseAIJson<{ title: string, script_body: string }>(scriptRaw);
 
-    if (!content.script_body) throw new Error("AI_GENERATION_EMPTY");
+    if (!content.script_body) throw new Error("AI_OUTPUT_EMPTY");
 
     // 5. PERSISTENCIA EN FORMATO JSONB (Sincronía con schema.sql)
-    // Creamos la versión plain-text para el teleprompter y limpieza acústica.
+    // Generamos la versión limpia para el motor de audio y teleprompter
     const plainText = cleanTextForSpeech(content.script_body);
 
-    const { error: updateErr } = await supabaseAdmin
+    const { error: updateError } = await supabaseAdmin
       .from('podcast_drafts')
       .update({
         title: content.title || draft.title,
@@ -83,57 +93,36 @@ const handler = async (req: Request): Promise<Response> => {
         status: 'ready',
         updated_at: new Date().toISOString()
       })
-      .eq('id', draftId);
+      .eq('id', draft_id);
 
-    if (updateErr) throw updateErr;
+    if (updateError) throw updateError;
 
-    // 6. APRENDIZAJE RECURSIVO (NKV Loop - Asíncrono)
-    // Inyectamos el Correlation ID para trazabilidad total en el Vault.
-    const refineryUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/vault-refinery`;
-
-    fetch(refineryUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-        'Content-Type': 'application/json',
-        'x-correlation-id': correlationId
-      },
-      body: JSON.stringify({
-        title: `Intel: ${content.title}`,
-        text: JSON.stringify(draft.dossier_text),
-        source_type: 'user_contribution',
-        is_public: true,
-        metadata: { draft_id: draftId, agent: agentName }
-      })
-    }).catch((e) => console.error(`⚠️ [NKV-Link-Fail]:`, e.message));
+    console.log(`✅ [Redactor][${correlationId}] Guion listo.`);
 
     return new Response(JSON.stringify({
       success: true,
-      message: "Guion redactado y listo en Sala de Forja.",
+      message: "Guion generado y sanitizado.",
       trace_id: correlationId
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
 
-  } catch (e: any) {
-    console.error(`🔥 [Redactor-Fatal][${correlationId}]:`, e.message);
+  } catch (error: any) {
+    console.error(`🔥 [Redactor-Fatal][${correlationId}]:`, error.message);
 
-    if (draftId) {
+    if (currentDraftId) {
       await supabaseAdmin.from('podcast_drafts').update({
-        status: 'failed'
-      }).eq('id', draftId);
+        status: 'failed',
+        creation_data: { last_error: error.message, trace: correlationId }
+      }).eq('id', currentDraftId);
     }
 
-    return new Response(JSON.stringify({
-      error: e.message,
-      trace_id: correlationId
-    }), {
+    return new Response(JSON.stringify({ error: error.message, trace_id: correlationId }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
   }
-};
+}
 
-// Aplicamos el Guard Maestro V5.0
-serve(guard(handler));
+serve(handler);
