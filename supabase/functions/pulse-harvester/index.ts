@@ -1,13 +1,13 @@
 // supabase/functions/pulse-harvester/index.ts
-// VERSIÓN: 2.3 (Unicode-Safe Harvester - SHA-256 Integrity)
-// Misión: Cosechar y vectorizar conocimiento académico sin errores de codificación Latin1.
-// [RESOLUCIÓN]: Sustitución de btoa() por Web Crypto API para manejar caracteres Unicode.
+// VERSIÓN: 3.1 (Professional Harvester - OpenAlex Premium & Unicode-Safe)
+// Misión: Cosechar conocimiento de alta autoridad con rotación de temas y reputación científica.
+// [RESOLUCIÓN]: Fix de autenticación OpenAlex y manejo de errores de codificación.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 import { XMLParser } from "https://esm.sh/fast-xml-parser@4.3.2";
 
-// Importaciones del núcleo NicePod sincronizado (v11.4)
+// Importaciones del núcleo NicePod sincronizado (v11.5)
 import { generateEmbedding } from "../_shared/ai.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
@@ -18,7 +18,19 @@ const supabaseAdmin: SupabaseClient = createClient(
 );
 
 /**
- * generateSecureHash: Genera un identificador SHA-256 único y seguro para Unicode.
+ * TAXONOMÍA ESTRATÉGICA NICEPOD
+ * Clústeres de búsqueda para poblar el NKV con conocimiento multidisciplinar.
+ */
+const NICEPOD_TAXONOMY = [
+  { name: "Artificial Intelligence", arxiv: "cat:cs.AI+OR+cat:cs.LG", alex: "topic.id:T10001" },
+  { name: "Urbanism & Madrid", arxiv: "all:smart+cities+OR+all:urban+planning", alex: "topic.id:T11005" },
+  { name: "Cognitive Psychology", arxiv: "all:neuroscience+OR+all:decision+making", alex: "topic.id:T10565" },
+  { name: "Systems Theory", arxiv: "all:systems+thinking+OR+all:complexity", alex: "topic.id:T12000" },
+  { name: "Digital Society", arxiv: "cat:cs.CY+OR+all:digital+ethics", alex: "topic.id:T10128" }
+];
+
+/**
+ * generateSecureHash: SHA-256 para evitar duplicados Unicode.
  */
 async function generateSecureHash(input: string): Promise<string> {
   const msgUint8 = new TextEncoder().encode(input);
@@ -27,66 +39,94 @@ async function generateSecureHash(input: string): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-const SOURCES = {
-  ARXIV: "https://export.arxiv.org/api/query?search_query=cat:cs.AI+OR+cat:cs.LG&sortBy=submittedDate&sortOrder=descending&max_results=5",
-  HACKER_NEWS: "https://hn.algolia.com/api/v1/search_by_date?tags=story&hitsPerPage=5",
-  OPEN_ALEX: "https://api.openalex.org/works?filter=default_host_group.id:https://openalex.org/S4306400030&sort=publication_date:desc&per_page=5"
-};
-
-async function harvestFromSources() {
+/**
+ * fetchFromSources: Ejecuta la búsqueda en arXiv y OpenAlex con filtros de reputación.
+ */
+async function fetchFromSources(category: typeof NICEPOD_TAXONOMY[0]) {
   const allResults: any[] = [];
+  const OPENALEX_KEY = Deno.env.get("OPENALEX_API_KEY");
+  const ADMIN_EMAIL = Deno.env.get("ADMIN_EMAIL") || "fuenzalida.rencoret@gmail.com";
 
-  // 1. arXiv
+  // 1. arXiv: Búsqueda por Relevancia (High Reputation)
   try {
-    const res = await fetch(SOURCES.ARXIV);
+    const arxivUrl = `https://export.arxiv.org/api/query?search_query=${category.arxiv}&sortBy=relevance&sortOrder=descending&max_results=10`;
+    const res = await fetch(arxivUrl);
     if (res.ok) {
       const xml = await res.text();
       const data = parser.parse(xml);
-      const entries = data.feed?.entry;
-      const items = Array.isArray(entries) ? entries : (entries ? [entries] : []);
+      const items = Array.isArray(data.feed?.entry) ? data.feed.entry : (data.feed?.entry ? [data.feed.entry] : []);
+
       items.forEach((e: any) => {
         if (e.title && e.summary) {
-          allResults.push({ title: e.title, summary: e.summary, url: e.id, source: "arXiv", score: 8.5 });
+          allResults.push({
+            title: e.title.replace(/\n/g, " ").trim(),
+            summary: e.summary.replace(/\n/g, " ").trim(),
+            url: e.id?.replace('/abs/', '/pdf/'),
+            source: "arXiv",
+            authority: 8.5 // Autoridad base para papers de arXiv
+          });
         }
       });
     }
-  } catch (e) { console.error("arXiv Fail:", e.message); }
+  } catch (error) { console.error("⚠️ arXiv Error:", error.message); }
 
-  // 2. OpenAlex
+  // 2. OpenAlex: Filtrado por Citación (Reputación Probada)
   try {
-    const res = await fetch(SOURCES.OPEN_ALEX, { headers: { "User-Agent": "NicePod-Pulse/2.3" } });
+    // Construimos la URL con el correo para el Polite Pool
+    const alexUrl = new URL("https://api.openalex.org/works");
+    alexUrl.searchParams.set("filter", `${category.alex},cited_by_count:>30`);
+    alexUrl.searchParams.set("sort", "cited_by_count:desc");
+    alexUrl.searchParams.set("per_page", "10");
+    alexUrl.searchParams.set("mailto", ADMIN_EMAIL);
+
+    const headers: Record<string, string> = {
+      "User-Agent": "NicePod-Bot/3.1"
+    };
+
+    // [FIX]: Inyectamos la API Key solo si existe y es un string válido
+    if (OPENALEX_KEY) {
+      headers["api-key"] = OPENALEX_KEY;
+    }
+
+    const res = await fetch(alexUrl.toString(), { headers });
+
     if (res.ok) {
       const data = await res.json();
       data.results?.forEach((w: any) => {
-        allResults.push({ title: w.display_name, summary: "Academic research documentation.", url: w.doi || w.id, source: "OpenAlex", score: 8.0 });
+        allResults.push({
+          title: w.display_name,
+          summary: `Paper con alto impacto académico. Citado por ${w.cited_by_count} autores.`,
+          url: w.primary_location?.pdf_url || w.doi || w.id,
+          source: "OpenAlex",
+          authority: Math.min(10, 7.5 + (w.cited_by_count / 200)) // Autoridad dinámica
+        });
       });
+    } else {
+      const errorText = await res.text();
+      console.error(`⚠️ OpenAlex API Rejected [${res.status}]: ${errorText}`);
     }
-  } catch (e) { console.error("OpenAlex Fail:", e.message); }
-
-  // 3. HackerNews
-  try {
-    const res = await fetch(SOURCES.HACKER_NEWS);
-    if (res.ok) {
-      const data = await res.json();
-      data.hits?.forEach((h: any) => {
-        allResults.push({ title: h.title, summary: h.story_text || h.title, url: h.url || `https://news.ycombinator.com/item?id=${h.objectID}`, source: "HackerNews", score: 6.0 });
-      });
-    }
-  } catch (e) { console.error("HackerNews Fail:", e.message); }
+  } catch (error) { console.error("⚠️ OpenAlex Error:", error.message); }
 
   return allResults;
 }
 
+/**
+ * handler: Ejecución principal del CRON.
+ */
 const handler = async (request: Request): Promise<Response> => {
   const correlationId = crypto.randomUUID();
-  console.log(`📡 [Harvester][${correlationId}] Iniciando cosecha Unicode-Safe...`);
+
+  // Rotación aleatoria de categorías para diversificar el NKV
+  const selectedCategory = NICEPOD_TAXONOMY[Math.floor(Math.random() * NICEPOD_TAXONOMY.length)];
+
+  console.log(`📡 [Harvester][${correlationId}] Iniciando cosecha de: ${selectedCategory.name}`);
 
   try {
-    const rawItems = await harvestFromSources();
+    const rawItems = await fetchFromSources(selectedCategory);
     let ingestedCount = 0;
 
     for (const item of rawItems) {
-      // Usamos el nuevo hash SHA-256 para soportar caracteres especiales en títulos
+      // Identificador SHA-256 (Evita colisiones Unicode)
       const contentHash = await generateSecureHash(item.title + item.url);
 
       const { data: exists } = await supabaseAdmin
@@ -97,33 +137,44 @@ const handler = async (request: Request): Promise<Response> => {
 
       if (exists) continue;
 
-      // Vectorización directa a 768d con gemini-embedding-001
+      // Vectorización a 768d (ADN del paper)
       const embedding = await generateEmbedding(`${item.title} ${item.summary}`);
 
+      // Ingesta en la Bóveda Volátil
       const { error: insertErr } = await supabaseAdmin.from('pulse_staging').insert({
         content_hash: contentHash,
         title: item.title,
-        summary: item.summary.substring(0, 1500),
+        summary: item.summary.substring(0, 2000),
         url: item.url,
         source_name: item.source,
-        content_type: item.score > 7 ? 'paper' : 'trend',
-        authority_score: item.score,
+        content_type: 'paper',
+        authority_score: item.authority,
         veracity_verified: true,
-        embedding: embedding,
-        is_high_value: item.score > 8.0,
-        expires_at: new Date(Date.now() + (item.score > 8.0 ? 168 : 48) * 60 * 60 * 1000).toISOString()
+        embedding: embedding, // 768 dimensiones
+        is_high_value: item.authority > 9.0,
+        expires_at: new Date(Date.now() + (item.authority > 9.0 ? 168 : 48) * 60 * 60 * 1000).toISOString()
       });
 
       if (!insertErr) ingestedCount++;
     }
 
-    return new Response(JSON.stringify({ success: true, ingested: ingestedCount, trace_id: correlationId }), {
+    console.log(`✅ [Harvester] Ciclo completado. Ingestados: ${ingestedCount} registros de alta reputación.`);
+
+    return new Response(JSON.stringify({
+      success: true,
+      category: selectedCategory.name,
+      ingested: ingestedCount,
+      trace_id: correlationId
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
 
   } catch (error: any) {
     console.error(`🔥 [Harvester-Fatal][${correlationId}]:`, error.message);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders });
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
   }
 };
 

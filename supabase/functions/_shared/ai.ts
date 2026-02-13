@@ -1,22 +1,23 @@
 // supabase/functions/_shared/ai.ts
-// VERSIÓN: 11.4 (Master Intelligence Core - 2026 Preview Standard)
+// VERSIÓN: 11.5 (Master Intelligence Core - 2026 Preview Standard)
 // Misión: Centralizar modelos validados (Gen 3) y utilidades de higiene y encriptación.
-// [FIX]: Sincronización con modelos preview y soporte para 768 dimensiones.
+// [OPTIMIZACIÓN]: Sincronización con modelos preview y soporte para 768 dimensiones.
 
 export const AI_MODELS = {
-    // Modelos de redacción y análisis técnico (Preview 3.0)
+    // Modelos para redacción y análisis técnico (Preview 3.0)
     PRO: "gemini-3-flash-preview",
     FLASH: "gemini-3-flash-preview",
 
     // Motor de audio neuronal avanzado
     AUDIO: "gemini-2.5-pro-preview-tts",
 
-    // Motor de Bóveda Semántica (Configurado a 768d)
+    // Motor de Bóveda Semántica (Configurado a 768d para Supabase HNSW)
     EMBEDDING: "gemini-embedding-001"
 };
 
 /**
  * generateEmbedding: Transforma conocimiento en vectores de 768 dimensiones.
+ * [RESOLUCIÓN]: Implementación de gemini-embedding-001 con outputDimensionality 768.
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
     const apiKey = Deno.env.get("GOOGLE_AI_API_KEY");
@@ -33,6 +34,7 @@ export async function generateEmbedding(text: string): Promise<number[]> {
                 parts: [{ text: text.substring(0, 30000) }]
             },
             taskType: "RETRIEVAL_DOCUMENT",
+            // Forzamos 768 dimensiones para compatibilidad con HNSW en Supabase
             outputDimensionality: 768
         })
     });
@@ -43,6 +45,11 @@ export async function generateEmbedding(text: string): Promise<number[]> {
     }
 
     const data = await response.json();
+
+    if (!data.embedding?.values) {
+        throw new Error("EMBEDDING_DATA_INVALID: No se recibieron valores vectoriales.");
+    }
+
     return data.embedding.values;
 }
 
