@@ -1,27 +1,27 @@
 // supabase/functions/_shared/ai.ts
-// VERSIÓN: 11.3 (Master Intelligence Core - FinOps Optimization)
-// Misión: Centralizar modelos y utilidades eliminando redundancias generativas.
-// [ESTÁNDAR]: 768 dimensiones forzadas para compatibilidad con Supabase HNSW.
+// VERSIÓN: 11.4 (Master Intelligence Core - 2026 Preview Standard)
+// Misión: Centralizar modelos validados (Gen 3) y utilidades de higiene y encriptación.
+// [FIX]: Sincronización con modelos preview y soporte para 768 dimensiones.
 
 export const AI_MODELS = {
-    // Modelos para redacción y análisis (Solo usados cuando el usuario decide crear)
+    // Modelos de redacción y análisis técnico (Preview 3.0)
     PRO: "gemini-3-flash-preview",
     FLASH: "gemini-3-flash-preview",
+
+    // Motor de audio neuronal avanzado
     AUDIO: "gemini-2.5-pro-preview-tts",
 
-    // Motor de Bóveda: gemini-embedding-001 configurado a 768d
+    // Motor de Bóveda Semántica (Configurado a 768d)
     EMBEDDING: "gemini-embedding-001"
 };
 
 /**
- * generateEmbedding: Transforma texto en vectores de 768 dimensiones.
- * [STRATEGY]: Reducimos la dependencia de LLMs usando la potencia semántica del vector.
+ * generateEmbedding: Transforma conocimiento en vectores de 768 dimensiones.
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
     const apiKey = Deno.env.get("GOOGLE_AI_API_KEY");
     if (!apiKey) throw new Error("CRITICAL_ERROR: GOOGLE_AI_API_KEY_MISSING");
 
-    // Endpoint v1beta necesario para el parámetro outputDimensionality
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${AI_MODELS.EMBEDDING}:embedContent?key=${apiKey}`;
 
     const response = await fetch(url, {
@@ -33,7 +33,6 @@ export async function generateEmbedding(text: string): Promise<number[]> {
                 parts: [{ text: text.substring(0, 30000) }]
             },
             taskType: "RETRIEVAL_DOCUMENT",
-            // Forzamos 768 para no romper el límite de Supabase (2000 dim)
             outputDimensionality: 768
         })
     });
@@ -44,16 +43,11 @@ export async function generateEmbedding(text: string): Promise<number[]> {
     }
 
     const data = await response.json();
-
-    if (!data.embedding?.values) {
-        throw new Error("EMBEDDING_DATA_INVALID: El modelo no devolvió valores.");
-    }
-
     return data.embedding.values;
 }
 
 /**
- * buildPrompt: Inyecta datos en plantillas con eficiencia O(n).
+ * buildPrompt: Inyecta datos en plantillas con eficiencia Regex O(n).
  */
 export function buildPrompt(template: string, data: Record<string, unknown>): string {
     return template.replace(/{{(\w+)}}/g, (_, key) => {
@@ -70,7 +64,7 @@ export function buildPrompt(template: string, data: Record<string, unknown>): st
 }
 
 /**
- * callGeminiMultimodal: Invocación estándar para texto y visión.
+ * callGeminiMultimodal: Invocación estándar para los modelos Gemini 3.0.
  */
 export async function callGeminiMultimodal(
     prompt: string,
@@ -79,8 +73,6 @@ export async function callGeminiMultimodal(
     temperature = 0.7
 ) {
     const apiKey = Deno.env.get("GOOGLE_AI_API_KEY");
-    if (!apiKey) throw new Error("GOOGLE_AI_API_KEY_MISSING");
-
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
     const parts: any[] = [{ text: prompt }];
 
@@ -101,26 +93,17 @@ export async function callGeminiMultimodal(
         }),
     });
 
-    if (!response.ok) throw new Error(`AI_API_FAIL: ${response.status}`);
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`AI_API_FAIL [${model}]: ${errorText}`);
+    }
+
     const data = await response.json();
     return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
 }
 
 /**
- * parseAIJson: Parser resiliente.
- */
-export function parseAIJson<T = unknown>(rawText: string): T {
-    try {
-        const jsonMatch = rawText.trim().match(/\{[\s\S]*\}/);
-        if (!jsonMatch) throw new Error("JSON_NOT_FOUND");
-        return JSON.parse(jsonMatch[0]) as T;
-    } catch {
-        throw new Error("ERROR_PARSING_AI_JSON");
-    }
-}
-
-/**
- * cleanTextForSpeech: Higiene acústica para el motor de voz.
+ * cleanTextForSpeech: El "Stripper" de ruidos visuales para la IA de voz.
  */
 export function cleanTextForSpeech(text: string | null | undefined): string {
     if (!text) return "";
@@ -136,26 +119,14 @@ export function cleanTextForSpeech(text: string | null | undefined): string {
 }
 
 /**
- * createWavHeader: Genera cabecera WAV RIFF de 44 bytes.
+ * parseAIJson: Parser resiliente para extraer JSON.
  */
-export function createWavHeader(dataLength: number, sampleRate = 24000) {
-    const buffer = new ArrayBuffer(44);
-    const view = new DataView(buffer);
-    const writeString = (offset: number, string: string) => {
-        for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i));
-    };
-    writeString(0, 'RIFF');
-    view.setUint32(4, 36 + dataLength, true);
-    writeString(8, 'WAVE');
-    writeString(12, 'fmt ');
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true);
-    view.setUint16(22, 1, true);
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, sampleRate * 2, true);
-    view.setUint16(32, 2, true);
-    view.setUint16(34, 16, true);
-    writeString(36, 'data');
-    view.setUint32(40, dataLength, true);
-    return new Uint8Array(buffer);
+export function parseAIJson<T = unknown>(rawText: string): T {
+    try {
+        const jsonMatch = rawText.trim().match(/\{[\s\S]*\}/);
+        if (!jsonMatch) throw new Error("JSON_NOT_FOUND");
+        return JSON.parse(jsonMatch[0]) as T;
+    } catch {
+        throw new Error("ERROR_PARSING_AI_JSON");
+    }
 }
