@@ -1,13 +1,14 @@
 // supabase/functions/pulse-harvester/index.ts
-// VERSIÓN: 2.1 (Intelligence Harvester - Stable Model Integration)
-// Misión: Cosechar papers y tendencias cada 10 minutos integrando el modelo 1.5 Flash verificado.
+// VERSIÓN: 2.2 (Ultra-Lean Harvester - Embedding-Only Edition)
+// Misión: Cosechar y vectorizar conocimiento académico automáticamente sin juicio de LLM.
+// [OPTIMIZACIÓN]: Eliminación de llamadas a Gemini Flash. 100% dependiente de vectores 768d.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 import { XMLParser } from "https://esm.sh/fast-xml-parser@4.3.2";
 
-// Importaciones del núcleo NicePod sincronizado (v11.2)
-import { AI_MODELS, buildPrompt, callGeminiMultimodal, generateEmbedding, parseAIJson } from "../_shared/ai.ts";
+// Importaciones del núcleo NicePod sincronizado (v11.3)
+import { generateEmbedding } from "../_shared/ai.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 const parser = new XMLParser({ ignoreAttributes: false });
@@ -16,6 +17,9 @@ const supabaseAdmin: SupabaseClient = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 );
 
+/**
+ * FUENTES DE CONOCIMIENTO ACADÉMICO Y TÉCNICO
+ */
 const SOURCES = {
   ARXIV: "https://export.arxiv.org/api/query?search_query=cat:cs.AI+OR+cat:cs.LG&sortBy=submittedDate&sortOrder=descending&max_results=5",
   HACKER_NEWS: "https://hn.algolia.com/api/v1/search_by_date?tags=story&hitsPerPage=5",
@@ -23,12 +27,12 @@ const SOURCES = {
 };
 
 /**
- * harvestFromSources: Recolector de datos crudos desde APIs académicas.
+ * harvestFromSources: Recolector políglota de datos crudos.
  */
 async function harvestFromSources() {
   const allResults: any[] = [];
 
-  // 1. arXiv
+  // 1. arXiv (XML)
   try {
     const res = await fetch(SOURCES.ARXIV);
     if (res.ok) {
@@ -38,32 +42,53 @@ async function harvestFromSources() {
       const items = Array.isArray(entries) ? entries : (entries ? [entries] : []);
       items.forEach((e: any) => {
         if (e.title && e.summary) {
-          allResults.push({ title: e.title, summary: e.summary, url: e.id, source_name: "arXiv", content_type: "paper" });
+          allResults.push({
+            title: e.title,
+            summary: e.summary,
+            url: e.id,
+            source_name: "arXiv",
+            type: "paper",
+            base_score: 8.5 // Los papers tienen autoridad intrínseca alta
+          });
         }
       });
     }
   } catch (error) { console.error("⚠️ arXiv Fail:", error.message); }
 
-  // 2. OpenAlex
+  // 2. OpenAlex (JSON)
   try {
     const res = await fetch(SOURCES.OPEN_ALEX, {
-      headers: { "User-Agent": `NicePod-Pulse/2.1 (mailto:${Deno.env.get("ADMIN_EMAIL")})` }
+      headers: { "User-Agent": "NicePod-Bot/2.2" }
     });
     if (res.ok) {
       const data = await res.json();
       data.results?.forEach((w: any) => {
-        allResults.push({ title: w.display_name, summary: "Academic paper summary and citation.", url: w.doi || w.id, source_name: "OpenAlex", content_type: "paper" });
+        allResults.push({
+          title: w.display_name,
+          summary: "Resumen académico disponible en la fuente original.",
+          url: w.doi || w.id,
+          source_name: "OpenAlex",
+          type: "paper",
+          base_score: 8.0
+        });
       });
     }
   } catch (error) { console.error("⚠️ OpenAlex Fail:", error.message); }
 
-  // 3. HackerNews
+  // 3. HackerNews (JSON)
   try {
     const res = await fetch(SOURCES.HACKER_NEWS);
     if (res.ok) {
       const data = await res.json();
       data.hits?.forEach((h: any) => {
-        allResults.push({ title: h.title, summary: h.story_text || h.title, url: h.url || `https://news.ycombinator.com/item?id=${h.objectID}`, source_name: "HackerNews", content_type: "trend" });
+        allResults.push({
+          title: h.title,
+          summary: h.story_text || h.title,
+          url: h.url || `https://news.ycombinator.com/item?id=${h.objectID}`,
+          source_name: "HackerNews",
+          type: "trend",
+          base_score: 6.0
+        });
       });
     }
   } catch (error) { console.error("⚠️ HackerNews Fail:", error.message); }
@@ -72,55 +97,51 @@ async function harvestFromSources() {
 }
 
 /**
- * handler: Punto de entrada del Harvester.
+ * handler: Ejecución del ciclo de cosecha sin intervención de LLM.
  */
 const handler = async (request: Request): Promise<Response> => {
   const correlationId = crypto.randomUUID();
-  console.log(`📡 [Harvester][${correlationId}] Iniciando recolección con Gemini 1.5 Flash...`);
+  console.log(`📡 [Harvester][${correlationId}] Iniciando cosecha Embedding-First...`);
 
   try {
     const rawItems = await harvestFromSources();
     let ingestedCount = 0;
 
     for (const item of rawItems) {
-      // Duplicidad: Verificación atómica
+      // a. Verificación de duplicados (Hash de integridad)
       const contentHash = btoa(item.title + item.url).substring(0, 64);
-      const { data: exists } = await supabaseAdmin.from('pulse_staging').select('id').eq('content_hash', contentHash).maybeSingle();
+      const { data: exists } = await supabaseAdmin
+        .from('pulse_staging')
+        .select('id')
+        .eq('content_hash', contentHash)
+        .maybeSingle();
+
       if (exists) continue;
 
-      // IA: Juicio de Calidad (Gemini 1.5 Flash)
-      const { data: agent } = await supabaseAdmin.from('ai_prompts').select('prompt_template').eq('agent_name', 'pulse-judge-v1').single();
+      // b. Vectorización Directa (La matemática es el juicio)
+      // Usamos el título y el resumen para crear el ADN semántico
+      const embedding = await generateEmbedding(`${item.title} ${item.summary}`);
 
-      const prompt = buildPrompt(agent?.prompt_template || "Resume y puntúa autoridad (1-10) y categoría para: {{text}}", {
-        text: `${item.title} - ${item.summary}`
-      });
-
-      const aiResponse = await callGeminiMultimodal(prompt, undefined, AI_MODELS.FLASH, 0.1);
-      const judgment = parseAIJson<any>(aiResponse);
-
-      if (judgment.authority_score < 4.0) continue;
-
-      // Vectorización: 768 dimensiones
-      const embedding = await generateEmbedding(`${judgment.summary} ${item.title}`);
-
-      // Persistencia: Inserción en Bóveda Volátil (Pulse Staging)
+      // c. Ingestión en Bóveda Volátil
+      // Asignamos autoridad basada en la fuente, ahorrando llamadas a Gemini
       const { error: insertErr } = await supabaseAdmin.from('pulse_staging').insert({
         content_hash: contentHash,
         title: item.title,
-        summary: judgment.summary,
+        summary: item.summary.substring(0, 1500),
         url: item.url,
         source_name: item.source_name,
-        content_type: judgment.category?.toLowerCase() || 'paper',
-        authority_score: judgment.authority_score,
+        content_type: item.type,
+        authority_score: item.base_score,
+        veracity_verified: item.type === "paper",
         embedding: embedding, // 768d
-        is_high_value: judgment.authority_score > 8.0,
-        expires_at: new Date(Date.now() + (judgment.authority_score > 8.0 ? 168 : 48) * 60 * 60 * 1000).toISOString()
+        is_high_value: item.base_score > 8.0,
+        expires_at: new Date(Date.now() + (item.base_score > 8.0 ? 168 : 48) * 60 * 60 * 1000).toISOString()
       });
 
       if (!insertErr) ingestedCount++;
     }
 
-    console.log(`✅ [Harvester] Ciclo completado. Ingestados: ${ingestedCount}`);
+    console.log(`✅ [Harvester] Ingestados: ${ingestedCount} registros vectorizados.`);
 
     return new Response(JSON.stringify({
       success: true,
@@ -131,7 +152,7 @@ const handler = async (request: Request): Promise<Response> => {
     });
 
   } catch (error: any) {
-    console.error(`🔥 [Harvester-Fatal][${correlationId}]:`, error.message);
+    console.error(`🔥 [Harvester-Fatal]:`, error.message);
     return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders });
   }
 };
