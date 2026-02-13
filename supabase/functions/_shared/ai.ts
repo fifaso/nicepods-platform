@@ -6,8 +6,7 @@ export const AI_MODELS = {
     PRO: "gemini-3.0-flash",
     FLASH: "gemini-3.0-flash",
     AUDIO: "gemini-3.0-flash-tts",
-    // [MIGRACIÓN]: text-embedding-004 -> embedding-001 (Estándar Google AI)
-    EMBEDDING: "embedding-001"
+    EMBEDDING: "gemini-embedding-001"
 };
 
 /**
