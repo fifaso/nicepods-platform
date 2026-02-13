@@ -1,7 +1,7 @@
 // supabase/functions/_shared/ai.ts
-// VERSIÓN: 11.5 (Master Intelligence Core - 2026 Preview Standard)
-// Misión: Centralizar modelos validados (Gen 3) y utilidades de higiene y encriptación.
-// [OPTIMIZACIÓN]: Sincronización con modelos preview y soporte para 768 dimensiones.
+// VERSIÓN: 11.6 (Master Intelligence Core - Gen 3 Preview Standard)
+// Misión: Centralizar los recursos de IA eliminando errores de direccionamiento y dimensiones.
+// [OPTIMIZACIÓN]: Modelos Preview validados y salida vectorial de 768 dimensiones.
 
 export const AI_MODELS = {
     // Modelos para redacción y análisis técnico (Preview 3.0)
@@ -17,7 +17,7 @@ export const AI_MODELS = {
 
 /**
  * generateEmbedding: Transforma conocimiento en vectores de 768 dimensiones.
- * [RESOLUCIÓN]: Implementación de gemini-embedding-001 con outputDimensionality 768.
+ * [STRATEGY]: Uso de gemini-embedding-001 con salida truncada para compatibilidad HNSW.
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
     const apiKey = Deno.env.get("GOOGLE_AI_API_KEY");
@@ -34,7 +34,7 @@ export async function generateEmbedding(text: string): Promise<number[]> {
                 parts: [{ text: text.substring(0, 30000) }]
             },
             taskType: "RETRIEVAL_DOCUMENT",
-            // Forzamos 768 dimensiones para compatibilidad con HNSW en Supabase
+            // Forzamos 768 dimensiones para no exceder el límite de Supabase (2000 dim)
             outputDimensionality: 768
         })
     });
@@ -47,7 +47,7 @@ export async function generateEmbedding(text: string): Promise<number[]> {
     const data = await response.json();
 
     if (!data.embedding?.values) {
-        throw new Error("EMBEDDING_DATA_INVALID: No se recibieron valores vectoriales.");
+        throw new Error("EMBEDDING_DATA_INVALID: El modelo no devolvió valores vectoriales.");
     }
 
     return data.embedding.values;
@@ -80,12 +80,19 @@ export async function callGeminiMultimodal(
     temperature = 0.7
 ) {
     const apiKey = Deno.env.get("GOOGLE_AI_API_KEY");
+    if (!apiKey) throw new Error("GOOGLE_AI_API_KEY_MISSING");
+
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
     const parts: any[] = [{ text: prompt }];
 
     if (imageBase64) {
         const base64Data = imageBase64.includes(",") ? imageBase64.split(",")[1] : imageBase64;
-        parts.push({ inline_data: { mime_type: "image/jpeg", data: base64Data } });
+        parts.push({
+            inline_data: {
+                mime_type: "image/jpeg",
+                data: base64Data
+            }
+        });
     }
 
     const response = await fetch(url, {
@@ -126,7 +133,7 @@ export function cleanTextForSpeech(text: string | null | undefined): string {
 }
 
 /**
- * parseAIJson: Parser resiliente para extraer JSON.
+ * parseAIJson: Parser resiliente para extraer JSON de bloques de texto.
  */
 export function parseAIJson<T = unknown>(rawText: string): T {
     try {
