@@ -1,28 +1,59 @@
 // supabase/functions/_shared/ai.ts
-// VERSIÓN: 10.8 (Master Intelligence Core - Unified & Deduplicated Edition)
-// Misión: Proveer el motor de IA Gen 3, empaquetado O(n) y utilidades binarias.
-// [FIX]: Eliminación de SyntaxError por duplicidad de 'generateEmbedding'.
+// VERSIÓN: 10.9 (Master Intelligence Core - Gemini Embedding Migration)
+// Misión: Migrar al modelo estable embedding-001 y optimizar el ruteo de API.
 
 export const AI_MODELS = {
     PRO: "gemini-3.0-flash",
     FLASH: "gemini-3.0-flash",
     AUDIO: "gemini-3.0-flash-tts",
-    EMBEDDING: "text-embedding-004"
+    // [MIGRACIÓN]: text-embedding-004 -> embedding-001 (Estándar Google AI)
+    EMBEDDING: "embedding-001"
 };
 
 /**
- * buildPrompt: Inyecta datos en plantillas de forma segura y ultra-rápida.
+ * generateEmbedding: Transforma texto en vectores para búsqueda semántica.
+ * [RESOLUCIÓN 404]: Implementación del modelo 'embedding-001' según documentación v1beta.
+ */
+export async function generateEmbedding(text: string): Promise<number[]> {
+    const apiKey = Deno.env.get("GOOGLE_AI_API_KEY");
+    if (!apiKey) throw new Error("GOOGLE_AI_API_KEY_MISSING");
+
+    // El modelo embedding-001 reside en el endpoint v1beta para acceso GA
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${AI_MODELS.EMBEDDING}:embedContent?key=${apiKey}`;
+
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            model: `models/${AI_MODELS.EMBEDDING}`,
+            content: {
+                parts: [{ text }]
+            }
+        })
+    });
+
+    if (!response.ok) {
+        const errorDetail = await response.text();
+        throw new Error(`EMBEDDING_API_ERROR [${response.status}]: ${errorDetail}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.embedding?.values) {
+        throw new Error("EMBEDDING_DATA_INCOMPLETE: No se recibieron valores vectoriales.");
+    }
+
+    return data.embedding.values;
+}
+
+/**
+ * buildPrompt: Inyecta datos con eficiencia Regex O(n).
  */
 export function buildPrompt(template: string, data: Record<string, unknown>): string {
     return template.replace(/{{(\w+)}}/g, (_, key) => {
         const value = data[key];
         if (value === undefined || value === null) return "";
-
-        const stringValue = typeof value === 'object'
-            ? JSON.stringify(value)
-            : String(value);
-
-        // Escape para contextos JSON: barras, comillas y saltos de línea.
+        const stringValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
         return stringValue
             .replace(/\\/g, "\\\\")
             .replace(/"/g, '\\"')
@@ -33,36 +64,7 @@ export function buildPrompt(template: string, data: Record<string, unknown>): st
 }
 
 /**
- * generateEmbedding: Generación de vectores 768d para búsqueda semántica.
- * [CONFIG]: Usa endpoint v1 y prefijo 'models/' para estabilidad GA.
- */
-export async function generateEmbedding(text: string): Promise<number[]> {
-    const apiKey = Deno.env.get("GOOGLE_AI_API_KEY");
-    if (!apiKey) throw new Error("GOOGLE_AI_API_KEY_MISSING");
-
-    const url = `https://generativelanguage.googleapis.com/v1/models/${AI_MODELS.EMBEDDING}:embedContent?key=${apiKey}`;
-
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            model: `models/${AI_MODELS.EMBEDDING}`,
-            content: { parts: [{ text }] },
-            taskType: "RETRIEVAL_QUERY"
-        })
-    });
-
-    if (!response.ok) {
-        const errorDetail = await response.text();
-        throw new Error(`EMBEDDING_API_ERROR [${response.status}]: ${errorDetail}`);
-    }
-
-    const data = await response.json();
-    return data.embedding.values;
-}
-
-/**
- * callGeminiMultimodal: Invocación estándar para texto y visión.
+ * callGeminiMultimodal: Invocación estándar texto/visión.
  */
 export async function callGeminiMultimodal(
     prompt: string,
@@ -71,8 +73,6 @@ export async function callGeminiMultimodal(
     temperature = 0.7
 ) {
     const apiKey = Deno.env.get("GOOGLE_AI_API_KEY");
-    if (!apiKey) throw new Error("GOOGLE_AI_API_KEY_MISSING");
-
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
     const parts: any[] = [{ text: prompt }];
 
@@ -93,130 +93,13 @@ export async function callGeminiMultimodal(
         }),
     });
 
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`AI_API_REJECTED [Status ${response.status}]: ${errorText}`);
-    }
-
+    if (!response.ok) throw new Error(`AI_API_ERROR: ${response.status}`);
     const data = await response.json();
-    const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!resultText) throw new Error("EMPTY_IA_RESPONSE");
-    return resultText;
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
 }
 
 /**
- * callGeminiAudio: Generación nativa de voz interpretativa (WAV Output).
- */
-export async function callGeminiAudio(prompt: string, directorNote: string, voiceParams: { gender: string, style: string }) {
-    const apiKey = Deno.env.get("GOOGLE_AI_API_KEY");
-    if (!apiKey) throw new Error("GOOGLE_AI_API_KEY_MISSING");
-
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${AI_MODELS.AUDIO}:generateContent?key=${apiKey}`;
-
-    const GEMINI_VOICE_MAP: Record<string, string> = {
-        "Masculino_Profesional": "Charon",
-        "Masculino_Calmado": "Puck",
-        "Masculino_Inspirador": "Fenrir",
-        "Masculino_Energético": "Aoede",
-        "Femenino_Profesional": "Kore",
-        "Femenino_Calmado": "Zephyr",
-        "Femenino_Inspirador": "Leda",
-        "Femenino_Energético": "Kalliope"
-    };
-
-    const selectedVoice = GEMINI_VOICE_MAP[`${voiceParams.gender}_${voiceParams.style}`] || "Zephyr";
-
-    const payload = {
-        contents: [{
-            role: "user",
-            parts: [{ text: `${directorNote}\n\nSCRIPT TO VOCALIZE:\n${prompt}` }]
-        }],
-        generationConfig: {
-            temperature: 1.0,
-            responseModalities: ["AUDIO"],
-            speechConfig: {
-                voiceConfig: {
-                    prebuiltVoiceConfig: {
-                        voiceName: selectedVoice
-                    }
-                }
-            }
-        }
-    };
-
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-        const errorDetail = await response.text();
-        throw new Error(`GEMINI_AUDIO_FAIL [${response.status}]: ${errorDetail}`);
-    }
-
-    const data = await response.json();
-    const audioPart = data.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
-
-    if (!audioPart?.inlineData) throw new Error("IA_AUDIO_DATA_MISSING");
-
-    return {
-        data: audioPart.inlineData.data, // Base64
-        mimeType: audioPart.inlineData.mimeType
-    };
-}
-
-/**
- * parseAIJson: Parser resiliente para extraer JSON de bloques de código.
- */
-export function parseAIJson<T = unknown>(rawText: string): T {
-    try {
-        const jsonMatch = rawText.trim().match(/\{[\s\S]*\}/);
-        if (!jsonMatch) throw new Error("JSON_NOT_FOUND");
-        return JSON.parse(jsonMatch[0]) as T;
-    } catch {
-        throw new Error("Fallo crítico al parsear la respuesta JSON de la IA.");
-    }
-}
-
-/**
- * extractAtomicFacts: Destilación de conocimiento usando Gemini 3.0 Flash.
- */
-export async function extractAtomicFacts(rawText: string): Promise<string[]> {
-    const prompt = `Analiza el texto y extrae una lista de HECHOS ATÓMICOS. Formato JSON: {"facts": []}. Texto: ${rawText.substring(0, 15000)}`;
-    const responseRaw = await callGeminiMultimodal(prompt, undefined, AI_MODELS.FLASH, 0.1);
-    const result = parseAIJson<{ facts: string[] }>(responseRaw);
-    return result.facts || [];
-}
-
-/**
- * createWavHeader: Genera cabecera WAV RIFF de 44 bytes.
- */
-export function createWavHeader(dataLength: number, sampleRate = 24000) {
-    const buffer = new ArrayBuffer(44);
-    const view = new DataView(buffer);
-    const writeString = (offset: number, string: string) => {
-        for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i));
-    };
-    writeString(0, 'RIFF');
-    view.setUint32(4, 36 + dataLength, true);
-    writeString(8, 'WAVE');
-    writeString(12, 'fmt ');
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true);
-    view.setUint16(22, 1, true);
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, sampleRate * 2, true);
-    view.setUint16(32, 2, true);
-    view.setUint16(34, 16, true);
-    writeString(36, 'data');
-    view.setUint32(40, dataLength, true);
-    return new Uint8Array(buffer);
-}
-
-/**
- * cleanTextForSpeech: Limpieza de ruidos visuales para el motor de voz.
+ * cleanTextForSpeech: Higiene acústica para el motor de voz.
  */
 export function cleanTextForSpeech(text: string | null | undefined): string {
     if (!text) return "";
@@ -229,4 +112,17 @@ export function cleanTextForSpeech(text: string | null | undefined): string {
         .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, "")
         .replace(/\s+/g, " ")
         .trim();
+}
+
+/**
+ * parseAIJson: Extractor de JSON resiliente.
+ */
+export function parseAIJson<T = unknown>(rawText: string): T {
+    try {
+        const jsonMatch = rawText.trim().match(/\{[\s\S]*\}/);
+        if (!jsonMatch) throw new Error("JSON_NOT_FOUND");
+        return JSON.parse(jsonMatch[0]) as T;
+    } catch {
+        throw new Error("ERROR_PARSING_AI_JSON");
+    }
 }

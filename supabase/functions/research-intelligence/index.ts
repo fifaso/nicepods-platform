@@ -1,12 +1,12 @@
 // supabase/functions/research-intelligence/index.ts
-// VERSIÓN: 2.9 (FinOps Collector - Ultra-Fast Data Harvesting)
-// Misión: Recolectar fuentes priorizando el Vault (NKV) y recurriendo a la Web solo por insuficiencia.
-// [OPTIMIZACIÓN]: 0% tokens de generación. 100% velocidad de recuperación.
+// VERSIÓN: 3.0 (Smart Collector - Vault-First & FinOps Logic)
+// Misión: Recolectar fuentes para el podcast priorizando el ahorro de tokens y ciclos de CPU.
+// [ESTRATEGIA]: Búsqueda vectorial pura -> Fallback Web -> Cero llamadas a Gemini Pro/Flash en esta fase.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 
-// Importaciones del núcleo NicePod (Sincronizadas con Nivel 1)
+// Importaciones del núcleo NicePod consolidado
 import { generateEmbedding } from "../_shared/ai.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
@@ -25,24 +25,24 @@ const handler = async (request: Request): Promise<Response> => {
         const payload = await request.json();
         const { draft_id, topic } = payload;
 
-        if (!draft_id || !topic) throw new Error("IDENTIFICADORES_INCOMPLETOS");
+        if (!draft_id || !topic) throw new Error("IDENTIFICADORES_FALTANTES");
         targetDraftId = draft_id;
 
-        console.log(`📡 [Collector][${correlationId}] Iniciando recolección para: ${topic}`);
+        console.log(`📡 [Collector][${correlationId}] Iniciando búsqueda estratégica para: ${topic}`);
 
-        // 1. GENERACIÓN DE ADN SEMÁNTICO (Única llamada a API Google - Vectorial)
-        // Utilizamos el endpoint v1 estabilizado en _shared/ai.ts (v10.7)
+        // 1. GENERACIÓN DE VECTOR (Único uso de API AI en esta fase)
+        // Usamos el nuevo modelo embedding-001 via _shared/ai.ts
         const queryVector = await generateEmbedding(topic);
 
-        // 2. BÚSQUEDA EN BÓVEDA (NKV) - Prioridad Soberana
-        // Buscamos hechos ya validados en nuestra base de datos vectorial
+        // 2. RECUPERACIÓN DE BÓVEDA (NKV)
+        // Intentamos resolver la solicitud con conocimiento ya validado
         const { data: vaultSources, error: vaultError } = await supabaseAdmin.rpc('search_knowledge_vault', {
             query_embedding: queryVector,
-            match_threshold: 0.80, // Umbral de alta relevancia
+            match_threshold: 0.85, // Exigimos alta fidelidad
             match_count: 5
         });
 
-        if (vaultError) console.error("⚠️ [Collector] Error en consulta NKV:", vaultError.message);
+        if (vaultError) console.error("⚠️ [Collector] Error NKV:", vaultError.message);
 
         let finalSources = (vaultSources || []).map((v: any) => ({
             title: v.title,
@@ -52,10 +52,11 @@ const handler = async (request: Request): Promise<Response> => {
             relevance: v.similarity
         }));
 
-        // 3. ESTRATEGIA DE COMPLEMENTO WEB (Tavily)
-        // Solo invocamos la Web si la Bóveda tiene menos de 2 fuentes de alta calidad
+        // 3. ESTRATEGIA DE FALLBACK (FinOps)
+        // Solo si el Vault no aporta suficiente contexto, acudimos a la Web (Gasto de créditos Tavily)
         if (finalSources.length < 2) {
-            console.log(`🌐 [Collector] Vault insuficiente. Ampliando búsqueda a la Web.`);
+            console.log(`🌐 [Collector] Vault insuficiente. Invocando inteligencia externa.`);
+
             const webRes = await fetch("https://api.tavily.com/search", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -80,16 +81,15 @@ const handler = async (request: Request): Promise<Response> => {
             }
         }
 
-        if (finalSources.length === 0) throw new Error("SIN_FUENTES_DISPONIBLES");
+        if (finalSources.length === 0) throw new Error("SIN_FUENTES_RELEVANTES_ENCONTRADAS");
 
-        // 4. PERSISTENCIA DE CHECKPOINT Y HANDOVER
-        // Guardamos las fuentes crudas directamente. El estado pasa a 'writing'.
-        // dossier_text se mantiene con un placeholder para satisfacer la integridad visual.
+        // 4. PERSISTENCIA DE CHECKPOINT
+        // Guardamos las fuentes recolectadas. El borrador ya no estará vacío.
         const { error: updateErr } = await supabaseAdmin
             .from('podcast_drafts')
             .update({
                 sources: finalSources,
-                dossier_text: { status: "sources_collected", timestamp: new Date().toISOString() },
+                dossier_text: { status: "ready_for_synthesis", source_count: finalSources.length },
                 status: 'writing',
                 updated_at: new Date().toISOString()
             })
@@ -97,10 +97,8 @@ const handler = async (request: Request): Promise<Response> => {
 
         if (updateErr) throw updateErr;
 
-        // 5. DISPARO ASÍNCRONO DE REDACCIÓN (Fase III)
-        // La IA de redacción ahora se encargará de destilar estas fuentes.
-        console.log(`✅ [Collector][${correlationId}] Fuentes listas (${finalSources.length}). Invocando Redactor.`);
-
+        // 5. RELEVO ASÍNCRONO (Handover)
+        // Invocamos a la Fase de Redacción. Esta función termina aquí, salvando CPU.
         supabaseAdmin.functions.invoke('generate-script-draft', {
             body: { draft_id },
             headers: { "x-correlation-id": correlationId }
@@ -108,17 +106,23 @@ const handler = async (request: Request): Promise<Response> => {
 
         return new Response(JSON.stringify({
             success: true,
-            sources_count: finalSources.length,
-            trace_id: correlationId
+            trace_id: correlationId,
+            sources_collected: finalSources.length
         }), {
+            status: 200,
             headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
 
     } catch (e: any) {
         console.error(`🔥 [Collector-Fatal][${correlationId}]:`, e.message);
+
         if (targetDraftId) {
-            await supabaseAdmin.from('podcast_drafts').update({ status: 'failed' }).eq('id', targetDraftId);
+            await supabaseAdmin.from('podcast_drafts').update({
+                status: 'failed',
+                creation_data: { error: e.message, trace: correlationId }
+            }).eq('id', targetDraftId);
         }
+
         return new Response(JSON.stringify({ error: e.message, trace_id: correlationId }), {
             status: 500,
             headers: { ...corsHeaders, "Content-Type": "application/json" }
