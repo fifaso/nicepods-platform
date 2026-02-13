@@ -1,12 +1,12 @@
 // supabase/functions/research-intelligence/index.ts
-// VERSIÓN: 3.0 (Smart Collector - Vault-First & FinOps Logic)
-// Misión: Recolectar fuentes para el podcast priorizando el ahorro de tokens y ciclos de CPU.
-// [ESTRATEGIA]: Búsqueda vectorial pura -> Fallback Web -> Cero llamadas a Gemini Pro/Flash en esta fase.
+// VERSIÓN: 3.0 (Omni-Vault Researcher - Layered Intelligence Standard)
+// Misión: Recolectar fuentes de alto valor priorizando la soberanía de datos del NKV.
+// [OPTIMIZACIÓN]: Búsqueda híbrida en knowledge_chunks y pulse_staging (768d).
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 
-// Importaciones del núcleo NicePod consolidado
+// Importaciones del núcleo NicePod sincronizado (v11.6+)
 import { generateEmbedding } from "../_shared/ai.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
@@ -28,34 +28,52 @@ const handler = async (request: Request): Promise<Response> => {
         if (!draft_id || !topic) throw new Error("IDENTIFICADORES_FALTANTES");
         targetDraftId = draft_id;
 
-        console.log(`📡 [Collector][${correlationId}] Iniciando búsqueda estratégica para: ${topic}`);
+        console.log(`📡 [Researcher][${correlationId}] Analizando requerimiento: ${topic}`);
 
-        // 1. GENERACIÓN DE VECTOR (Único uso de API AI en esta fase)
-        // Usamos el nuevo modelo embedding-001 via _shared/ai.ts
+        // 1. GENERACIÓN DE VECTOR DE CONSULTA (768d)
+        // Convertimos la intención del usuario en un vector para navegar la Bóveda.
         const queryVector = await generateEmbedding(topic);
 
-        // 2. RECUPERACIÓN DE BÓVEDA (NKV)
-        // Intentamos resolver la solicitud con conocimiento ya validado
-        const { data: vaultSources, error: vaultError } = await supabaseAdmin.rpc('search_knowledge_vault', {
+        // 2. BÚSQUEDA ESCALONADA DE INTELIGENCIA
+
+        // A. Búsqueda en Bóveda Permanente (Hechos Atómicos)
+        const { data: vaultFacts } = await supabaseAdmin.rpc('search_knowledge_vault', {
             query_embedding: queryVector,
-            match_threshold: 0.85, // Exigimos alta fidelidad
+            match_threshold: 0.82,
             match_count: 5
         });
 
-        if (vaultError) console.error("⚠️ [Collector] Error NKV:", vaultError.message);
+        // B. Búsqueda en Inteligencia Fresca (Papers del Harvester)
+        const { data: freshPapers } = await supabaseAdmin
+            .from('pulse_staging')
+            .select('title, summary, url, authority_score')
+            .filter('embedding', 'is', 'not', null)
+            // Usamos el operador de distancia de pgvector directamente
+            .order('embedding', { ascending: true, foreignTable: '', reference: queryVector as any })
+            .limit(5);
 
-        let finalSources = (vaultSources || []).map((v: any) => ({
-            title: v.title,
-            content: v.content.substring(0, 2000),
-            url: v.url || "#",
-            origin: 'vault',
-            relevance: v.similarity
-        }));
+        // 3. CONSOLIDACIÓN DE RESULTADOS INTERNOS
+        let finalSources = [
+            ...(vaultFacts || []).map((v: any) => ({
+                title: v.title,
+                content: v.content,
+                url: v.url || "#",
+                origin: 'vault',
+                relevance: v.similarity
+            })),
+            ...(freshPapers || []).map((p: any) => ({
+                title: p.title,
+                content: p.summary,
+                url: p.url,
+                origin: 'fresh_research',
+                relevance: p.authority_score / 10 // Normalización simple
+            }))
+        ];
 
-        // 3. ESTRATEGIA DE FALLBACK (FinOps)
-        // Solo si el Vault no aporta suficiente contexto, acudimos a la Web (Gasto de créditos Tavily)
-        if (finalSources.length < 2) {
-            console.log(`🌐 [Collector] Vault insuficiente. Invocando inteligencia externa.`);
+        // 4. JUICIO DE SUFICIENCIA (FinOps)
+        // Si ya tenemos suficiente autoridad interna, evitamos el gasto de Tavily.
+        if (finalSources.length < 3) {
+            console.log(`🌐 [Researcher] Bóveda insuficiente. Invocando fallback externo.`);
 
             const webRes = await fetch("https://api.tavily.com/search", {
                 method: "POST",
@@ -64,7 +82,7 @@ const handler = async (request: Request): Promise<Response> => {
                     api_key: Deno.env.get("TAVILY_API_KEY"),
                     query: topic,
                     search_depth: "basic",
-                    max_results: 4
+                    max_results: 5
                 })
             });
 
@@ -72,7 +90,7 @@ const handler = async (request: Request): Promise<Response> => {
                 const webData = await webRes.json();
                 const webSources = (webData.results || []).map((w: any) => ({
                     title: w.title,
-                    content: w.content.substring(0, 2000),
+                    content: w.content,
                     url: w.url,
                     origin: 'web',
                     relevance: w.score
@@ -81,45 +99,50 @@ const handler = async (request: Request): Promise<Response> => {
             }
         }
 
-        if (finalSources.length === 0) throw new Error("SIN_FUENTES_RELEVANTES_ENCONTRADAS");
+        if (finalSources.length === 0) throw new Error("RECURSOS_NO_ENCONTRADOS");
 
-        // 4. PERSISTENCIA DE CHECKPOINT
-        // Guardamos las fuentes recolectadas. El borrador ya no estará vacío.
+        // 5. PERSISTENCIA DE FUENTES Y HANDOVER
+        // Guardamos las fuentes recolectadas para que el Redactor las procese.
+        // Limpiamos rastro de etiquetas innecesarias para ahorrar CPU en la Fase III.
         const { error: updateErr } = await supabaseAdmin
             .from('podcast_drafts')
             .update({
                 sources: finalSources,
-                dossier_text: { status: "ready_for_synthesis", source_count: finalSources.length },
-                status: 'writing',
+                dossier_text: {
+                    status: "sources_finalized",
+                    internal_count: (vaultFacts?.length || 0) + (freshPapers?.length || 0),
+                    web_count: finalSources.length - ((vaultFacts?.length || 0) + (freshPapers?.length || 0))
+                },
+                status: 'writing', // Cambiamos estado para activar el front
                 updated_at: new Date().toISOString()
             })
             .eq('id', draft_id);
 
         if (updateErr) throw updateErr;
 
-        // 5. RELEVO ASÍNCRONO (Handover)
-        // Invocamos a la Fase de Redacción. Esta función termina aquí, salvando CPU.
+        // 6. DISPARO ASÍNCRONO DE REDACCIÓN
+        // La Fase III (generate-script-draft) tomará estas fuentes y creará el guion.
         supabaseAdmin.functions.invoke('generate-script-draft', {
             body: { draft_id },
             headers: { "x-correlation-id": correlationId }
-        }).catch(() => { });
+        }).catch((err) => console.error(`⚠️ [Handover-Fail]: ${err.message}`));
 
         return new Response(JSON.stringify({
             success: true,
-            trace_id: correlationId,
-            sources_collected: finalSources.length
+            sources_ingested: finalSources.length,
+            trace_id: correlationId
         }), {
             status: 200,
             headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
 
     } catch (e: any) {
-        console.error(`🔥 [Collector-Fatal][${correlationId}]:`, e.message);
+        console.error(`🔥 [Researcher-Fatal][${correlationId}]:`, e.message);
 
         if (targetDraftId) {
             await supabaseAdmin.from('podcast_drafts').update({
                 status: 'failed',
-                creation_data: { error: e.message, trace: correlationId }
+                creation_data: { error_log: e.message, trace: correlationId }
             }).eq('id', targetDraftId);
         }
 
