@@ -1,7 +1,7 @@
 // app/layout.tsx
-// VERSIÓN: 20.0 (NicePod Core Identity - Atomic Handshake Standard)
-// Misión: Orquestar el núcleo global, blindar la identidad mediante SSR y eliminar el pestañeo de hidratación.
-// [ESTABILIZACIÓN]: Ingesta de Perfil en Servidor (T0) para garantizar una carga visual profesional y estanca.
+// VERSIÓN: 20.1 (NicePod Core Identity - Synchronized Atomic Handshake)
+// Misión: Orquestar el núcleo global eliminando el pestañeo mediante la inyección síncrona de Perfil y Sesión.
+// [RESOLUCIÓN]: Fix de error de tipos en Props de AuthProvider detectado en Vercel Build.
 
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
@@ -9,8 +9,7 @@ import type React from "react";
 
 /**
  * --- CAPA DE ESTILOS CRÍTICOS ---
- * Importamos el CSS de Mapbox antes que los estilos globales para asegurar 
- * que el sistema Aurora pueda sobreescribir variables de diseño del motor geográfico.
+ * Importación del CSS de Mapbox en la raíz para evitar el flash de mapa sin estilos.
  */
 import "mapbox-gl/dist/mapbox-gl.css";
 import "./globals.css";
@@ -25,11 +24,10 @@ import { ServiceWorkerRegister } from '@/components/sw-register';
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/hooks/use-auth";
 import { createClient } from '@/lib/supabase/server';
+import { Tables } from "@/types/database.types";
 
 /**
  * CONFIGURACIÓN DE FUENTE: Inter
- * Optimizamos el rendimiento de la PWA desactivando el pre-carga de Google Fonts
- * para priorizar el renderizado del contenido crítico bajo redes inestables.
  */
 const inter = Inter({
   subsets: ["latin"],
@@ -38,8 +36,7 @@ const inter = Inter({
 });
 
 /**
- * VIEWPORT: Configuración de visualización táctica.
- * 'viewportFit: cover' es obligatorio para que el gradient-mesh ocupe el área del notch.
+ * VIEWPORT: Configuración táctica para dispositivos móviles.
  */
 export const viewport: Viewport = {
   themeColor: "#111827",
@@ -51,8 +48,7 @@ export const viewport: Viewport = {
 };
 
 /**
- * METADATA: Definición de la Identidad Digital NicePod.
- * Implementación del dogma 'Witness, Not Diarist' en el corazón del SEO.
+ * METADATA: Identidad Soberana NicePod.
  */
 export const metadata: Metadata = {
   title: "NicePod | Witness, Not Diarist",
@@ -62,11 +58,6 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "NicePod",
-  },
-  formatDetection: {
-    telephone: false,
-    email: false,
-    address: false,
   },
   icons: {
     icon: "/nicepod-logo.png",
@@ -84,19 +75,18 @@ export default async function RootLayout({
 }) {
   /**
    * 1. PROTOCOLO DE IDENTIDAD ATÓMICA (SSR)
-   * En lugar de esperar a que el cliente pregunte por el perfil, 
-   * lo recuperamos en el servidor para inyectarlo en el render inicial.
+   * Recuperamos la identidad completa en el servidor (T0).
    */
   const supabase = createClient();
   
-  // Recuperamos el usuario validado (Handshake de seguridad)
+  // Handshake inicial de seguridad
   const { data: { user } } = await supabase.auth.getUser();
   
   let initialSession = null;
-  let initialProfile = null;
+  let initialProfile: Tables<'profiles'> | null = null;
 
   if (user) {
-    // Si hay usuario, recuperamos la sesión y el perfil de forma concurrente
+    // Si el token es válido, recuperamos sesión y perfil en paralelo para optimizar TTFB
     const [sessionRes, profileRes] = await Promise.all([
       supabase.auth.getSession(),
       supabase.from('profiles').select('*').eq('id', user.id).single()
@@ -108,16 +98,11 @@ export default async function RootLayout({
 
   return (
     /**
-     * suppressHydrationWarning en <html> y <body>:
-     * Necesario para que next-themes (Nivel 4) inyecte las clases de tema 
-     * sin que React dispare errores por la discrepancia entre servidor y cliente.
+     * [FIX]: suppressHydrationWarning necesario para la inyección síncrona del tema.
      */
     <html lang="es" suppressHydrationWarning>
       <head>
-        {/* 
-            SCRIPT ANTI-PESTAÑEO DE TEMA (Inyección Síncrona Crítica):
-            Calcula la preferencia visual antes de que el motor de React se inicialice.
-        */}
+        {/* SCRIPT ANTI-PESTAÑEO DE TEMA */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -140,17 +125,10 @@ export default async function RootLayout({
         className={`${inter.className} min-h-screen bg-background font-sans antialiased selection:bg-primary/30`}
         suppressHydrationWarning
       >
-        {/* CAPA 1: Telemetría Global y Análisis de Comportamiento */}
         <CSPostHogProvider>
-
-          {/* CAPA 2: Soporte Offline y Ciclo de Vida PWA */}
           <ServiceWorkerRegister />
           <PwaLifecycle />
-
-          {/* CAPA 3: Red de Seguridad de Renderizado */}
           <ErrorBoundary>
-
-            {/* CAPA 4: Motor de Diseño Aurora (Glassmorphism) */}
             <ThemeProvider
               attribute="class"
               defaultTheme="dark"
@@ -158,34 +136,26 @@ export default async function RootLayout({
               disableTransitionOnChange={false}
               storageKey="theme"
             >
-
-              {/* CAPA 5: Soberanía de Identidad Atómica
-                  Inyectamos la sesión y el perfil recuperados en SSR.
-                  Esto garantiza que el AuthProvider no necesite realizar peticiones adicionales
-                  en el cliente durante la hidratación inicial, matando el pestañeo visual.
+              {/* 
+                  [RESOLUCIÓN DE CONTRATO]:
+                  AuthProvider recibe initialSession e initialProfile. 
+                  Asegúrese de haber desplegado simultáneamente la versión 19.0 
+                  del archivo hooks/use-auth.tsx que define estas props.
               */}
               <AuthProvider initialSession={initialSession} initialProfile={initialProfile}>
-
-                {/* --- UNIVERSO VISUAL NICEPOD V2.5 --- */}
                 <div className="min-h-screen gradient-mesh relative overflow-x-hidden">
-
-                  {/* ELEMENTOS ATMOSFÉRICOS (Z-index 0)
-                      Blobs dinámicos que definen la estética Aurora. 
-                      Se renderizan inmediatamente para dar sensación de 'App Viva'.
-                  */}
+                  
+                  {/* IDENTIDAD VISUAL AURORA (Blobs Atmosféricos) */}
                   <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 opacity-40 dark:opacity-80">
                     <div className="absolute top-10 left-10 w-80 h-80 bg-purple-500/10 rounded-full blur-[120px] animate-float"></div>
                     <div className="absolute top-1/2 right-0 w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[160px] animate-float" style={{ animationDelay: "2s" }}></div>
                     <div className="absolute -bottom-20 left-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-[140px] animate-float" style={{ animationDelay: "4s" }}></div>
                   </div>
 
-                  {/* LIENZO DE INTERACCIÓN (Z-index 10)
-                      Contenedor principal donde se inyectan las páginas de la Workstation.
-                  */}
+                  {/* LIENZO DE CONTENIDO */}
                   <div className="relative z-10">
                     {children}
                   </div>
-
                 </div>
               </AuthProvider>
             </ThemeProvider>
