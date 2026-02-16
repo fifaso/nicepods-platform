@@ -1,7 +1,7 @@
 // app/layout.tsx
-// VERSIÓN: 19.0 (NicePod Core Identity - Optimized Handshake & Zero-Flicker Standard)
-// Misión: Orquestar el núcleo global, blindar metadatos PWA y sincronizar identidad con latencia mínima.
-// [ESTABILIZACIÓN]: Eliminación de redundancia en autenticación y optimización de TTFB.
+// VERSIÓN: 20.0 (NicePod Core Identity - Atomic Handshake Standard)
+// Misión: Orquestar el núcleo global, blindar la identidad mediante SSR y eliminar el pestañeo de hidratación.
+// [ESTABILIZACIÓN]: Ingesta de Perfil en Servidor (T0) para garantizar una carga visual profesional y estanca.
 
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
@@ -9,8 +9,8 @@ import type React from "react";
 
 /**
  * --- CAPA DE ESTILOS CRÍTICOS ---
- * Importamos los estilos globales y el CSS de Mapbox en la raíz absoluta.
- * El orden es vital: Mapbox primero para asegurar que el tema Aurora pueda sobreescribir tokens.
+ * Importamos el CSS de Mapbox antes que los estilos globales para asegurar 
+ * que el sistema Aurora pueda sobreescribir variables de diseño del motor geográfico.
  */
 import "mapbox-gl/dist/mapbox-gl.css";
 import "./globals.css";
@@ -28,8 +28,8 @@ import { createClient } from '@/lib/supabase/server';
 
 /**
  * CONFIGURACIÓN DE FUENTE: Inter
- * Optimizamos para la PWA desactivando el preload de Google Fonts para evitar bloqueos
- * de renderizado en condiciones de baja conectividad (Offline-First Ready).
+ * Optimizamos el rendimiento de la PWA desactivando el pre-carga de Google Fonts
+ * para priorizar el renderizado del contenido crítico bajo redes inestables.
  */
 const inter = Inter({
   subsets: ["latin"],
@@ -38,8 +38,8 @@ const inter = Inter({
 });
 
 /**
- * VIEWPORT: Configuración táctica de visualización.
- * 'viewportFit: cover' garantiza que el gradiente Aurora se extienda tras el notch/isla dinámica.
+ * VIEWPORT: Configuración de visualización táctica.
+ * 'viewportFit: cover' es obligatorio para que el gradient-mesh ocupe el área del notch.
  */
 export const viewport: Viewport = {
   themeColor: "#111827",
@@ -51,8 +51,8 @@ export const viewport: Viewport = {
 };
 
 /**
- * METADATA: Identidad Digital NicePod V2.5.
- * Utilizamos la API moderna de Next.js para evitar etiquetas deprecadas en Safari 18+.
+ * METADATA: Definición de la Identidad Digital NicePod.
+ * Implementación del dogma 'Witness, Not Diarist' en el corazón del SEO.
  */
 export const metadata: Metadata = {
   title: "NicePod | Witness, Not Diarist",
@@ -75,7 +75,7 @@ export const metadata: Metadata = {
 };
 
 /**
- * RootLayout: El Gran Orquestador Síncrono.
+ * RootLayout: El Gran Orquestador Síncrono de NicePod V2.5.
  */
 export default async function RootLayout({
   children
@@ -83,30 +83,40 @@ export default async function RootLayout({
   children: React.ReactNode
 }) {
   /**
-   * 1. INICIALIZACIÓN DE SESIÓN (Handshake Optimizado)
-   * En lugar de llamar a getUser() y getSession() por separado,
-   * aprovechamos que el Middleware ya validó la seguridad de la petición.
-   * Recuperamos la sesión directamente para hidratar el cliente.
+   * 1. PROTOCOLO DE IDENTIDAD ATÓMICA (SSR)
+   * En lugar de esperar a que el cliente pregunte por el perfil, 
+   * lo recuperamos en el servidor para inyectarlo en el render inicial.
    */
   const supabase = createClient();
+  
+  // Recuperamos el usuario validado (Handshake de seguridad)
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  let initialSession = null;
+  let initialProfile = null;
 
-  // Realizamos una única llamada al servidor para obtener la sesión actual.
-  // Esto ahorra ~100ms de latencia de red en cada carga de página.
-  const { data: { session } } = await supabase.auth.getSession();
+  if (user) {
+    // Si hay usuario, recuperamos la sesión y el perfil de forma concurrente
+    const [sessionRes, profileRes] = await Promise.all([
+      supabase.auth.getSession(),
+      supabase.from('profiles').select('*').eq('id', user.id).single()
+    ]);
 
-  // Verificamos el usuario dentro de la sesión para el handshake de identidad
-  const validatedSession = session?.user ? session : null;
+    initialSession = sessionRes.data.session;
+    initialProfile = profileRes.data;
+  }
 
   return (
     /**
-     * [FIX]: suppressHydrationWarning en <html>
-     * Necesario para que el motor de temas inyecte la clase 'dark' sin errores de React.
+     * suppressHydrationWarning en <html> y <body>:
+     * Necesario para que next-themes (Nivel 4) inyecte las clases de tema 
+     * sin que React dispare errores por la discrepancia entre servidor y cliente.
      */
     <html lang="es" suppressHydrationWarning>
       <head>
         {/* 
-            SCRIPT ANTI-PESTAÑEO (Inyección Crítica):
-            Calcula el tema basándose en localStorage antes de que el usuario vea la UI.
+            SCRIPT ANTI-PESTAÑEO DE TEMA (Inyección Síncrona Crítica):
+            Calcula la preferencia visual antes de que el motor de React se inicialice.
         */}
         <script
           dangerouslySetInnerHTML={{
@@ -130,17 +140,17 @@ export default async function RootLayout({
         className={`${inter.className} min-h-screen bg-background font-sans antialiased selection:bg-primary/30`}
         suppressHydrationWarning
       >
-        {/* NIVEL 1: Telemetría e Inteligencia de Usuario */}
+        {/* CAPA 1: Telemetría Global y Análisis de Comportamiento */}
         <CSPostHogProvider>
 
-          {/* NIVEL 2: Infraestructura PWA y Soporte de Red */}
+          {/* CAPA 2: Soporte Offline y Ciclo de Vida PWA */}
           <ServiceWorkerRegister />
           <PwaLifecycle />
 
-          {/* NIVEL 3: Red de Seguridad de Renderizado */}
+          {/* CAPA 3: Red de Seguridad de Renderizado */}
           <ErrorBoundary>
 
-            {/* NIVEL 4: Motor de Diseño Aurora (Glassmorphism) */}
+            {/* CAPA 4: Motor de Diseño Aurora (Glassmorphism) */}
             <ThemeProvider
               attribute="class"
               defaultTheme="dark"
@@ -149,17 +159,19 @@ export default async function RootLayout({
               storageKey="theme"
             >
 
-              {/* NIVEL 5: Soberanía de Identidad
-                  Inyectamos la sesión validada en el servidor para que AuthProvider
-                  esté disponible de inmediato en el cliente sin estados de carga falsos.
+              {/* CAPA 5: Soberanía de Identidad Atómica
+                  Inyectamos la sesión y el perfil recuperados en SSR.
+                  Esto garantiza que el AuthProvider no necesite realizar peticiones adicionales
+                  en el cliente durante la hidratación inicial, matando el pestañeo visual.
               */}
-              <AuthProvider session={validatedSession}>
+              <AuthProvider initialSession={initialSession} initialProfile={initialProfile}>
 
-                {/* --- ESCENARIO VISUAL NICEPOD V2.5 --- */}
+                {/* --- UNIVERSO VISUAL NICEPOD V2.5 --- */}
                 <div className="min-h-screen gradient-mesh relative overflow-x-hidden">
 
-                  {/* IDENTIDAD VISUAL: Blobs atmosféricos cinematográficos.
-                      Se mantienen con z-0 y opacidad controlada para no fatigar la GPU.
+                  {/* ELEMENTOS ATMOSFÉRICOS (Z-index 0)
+                      Blobs dinámicos que definen la estética Aurora. 
+                      Se renderizan inmediatamente para dar sensación de 'App Viva'.
                   */}
                   <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 opacity-40 dark:opacity-80">
                     <div className="absolute top-10 left-10 w-80 h-80 bg-purple-500/10 rounded-full blur-[120px] animate-float"></div>
@@ -167,7 +179,9 @@ export default async function RootLayout({
                     <div className="absolute -bottom-20 left-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-[140px] animate-float" style={{ animationDelay: "4s" }}></div>
                   </div>
 
-                  {/* CAPA DE INTERACCIÓN (Z-index: 10 garantiza accesibilidad de botones) */}
+                  {/* LIENZO DE INTERACCIÓN (Z-index 10)
+                      Contenedor principal donde se inyectan las páginas de la Workstation.
+                  */}
                   <div className="relative z-10">
                     {children}
                   </div>
