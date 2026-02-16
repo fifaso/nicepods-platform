@@ -1,18 +1,18 @@
 // supabase/functions/research-intelligence/index.ts
-// VERSIÓN: 3.1 (Cognitive Resilience - Circular Economy & Backlog Edition)
-// Misión: Recolectar fuentes priorizando el NKV, registrando lagunas de conocimiento 
-// y capitalizando búsquedas externas en la Bóveda permanente.
+// VERSIÓN: 3.3 (Omni-Intelligence Sovereign - Final Production Standard)
+// Misión: Investigar temas con profundidad técnica, priorizando el NKV y activando la Economía Circular.
+// [INTEGRACIÓN]: Telemetría de uso, Registro de Backlog y Refinería de Bóveda activa.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 
-// Importaciones del núcleo NicePod (Estándar 768d y FinOps)
+// Importaciones del núcleo NicePod (Estabilizadas a Nivel 1)
 import { generateEmbedding } from "../_shared/ai.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 /**
- * CONFIGURACIÓN DE CLIENTE SOBERANO
- * Inicializado fuera del handler para optimizar el Warm-start en el Edge.
+ * CLIENTE SUPABASE ADMIN:
+ * Persistente para maximizar la velocidad de respuesta en el Edge.
  */
 const supabaseAdmin: SupabaseClient = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
@@ -20,73 +20,111 @@ const supabaseAdmin: SupabaseClient = createClient(
 );
 
 const handler = async (request: Request): Promise<Response> => {
-    // Protocolo rápido de CORS
-    if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+    // 1. GESTIÓN DE PROTOCOLO DE RED (CORS)
+    if (request.method === 'OPTIONS') {
+        return new Response('ok', { headers: corsHeaders });
+    }
 
-    // Trazabilidad por Correlation ID para auditoría de la Economía Circular
     const correlationId = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
     let targetDraftId: string | null = null;
 
     try {
+        // 2. RECEPCIÓN DE SOLICITUD
         const payload = await request.json();
-        const { draft_id, topic } = payload;
+        const { draft_id, topic, is_pulse, pulse_source_ids } = payload;
 
-        if (!draft_id || !topic) throw new Error("IDENTIFICADORES_INCOMPLETOS");
+        if (!draft_id || !topic) {
+            throw new Error("IDENTIFICADORES_INCOMPLETOS: Se requiere draft_id y topic.");
+        }
+
         targetDraftId = draft_id;
-
         console.log(`📡 [Researcher][${correlationId}] Iniciando Misión de Inteligencia: ${topic}`);
 
-        // 1. GENERACIÓN DE BRÚJULA SEMÁNTICA (768d)
-        // Única llamada a API de Google en esta fase para navegación vectorial.
+        // 3. GENERACIÓN DE BRÚJULA SEMÁNTICA (ADN 768d)
+        // Utilizamos el nuevo estándar gemini-embedding-001 (v11.7)
         const queryVector = await generateEmbedding(topic);
 
-        // 2. BÚSQUEDA EN MEMORIA INTERNA (NKV + Pulse Staging)
-        // Capa A: Hechos Atómicos validados
-        const { data: vaultFacts } = await supabaseAdmin.rpc('search_knowledge_vault', {
-            query_embedding: queryVector,
-            match_threshold: 0.82,
-            match_count: 5
-        });
+        let finalSources: any[] = [];
 
-        // Capa B: Papers frescos del Harvester (Uso del nuevo RPC optimizado)
-        const { data: freshPapers } = await supabaseAdmin.rpc('search_pulse_staging', {
-            query_embedding: queryVector,
-            match_threshold: 0.80,
-            match_count: 5
-        });
+        // 4. BÚSQUEDA ESCALONADA DE INTELIGENCIA SOBERANA
+        if (is_pulse && pulse_source_ids?.length > 0) {
+            /**
+             * CASO PULSE: El usuario seleccionó papers específicos del radar.
+             */
+            const { data: pulseData } = await supabaseAdmin
+                .from('pulse_staging')
+                .select('id, title, summary, url, authority_score')
+                .in('id', pulse_source_ids);
 
-        // 3. CONSOLIDACIÓN DE SOBERANÍA
-        let finalSources = [
-            ...(vaultFacts || []).map((v: any) => ({
-                title: v.title,
-                content: v.content,
-                url: v.url || "#",
-                origin: 'vault',
-                relevance: v.similarity
-            })),
-            ...(freshPapers || []).map((p: any) => ({
+            finalSources = (pulseData || []).map(p => ({
+                id: p.id,
                 title: p.title,
                 content: p.summary,
                 url: p.url,
-                origin: 'fresh_research',
-                relevance: p.similarity
-            }))
-        ];
+                origin: 'pulse_selection',
+                relevance: 1.0
+            }));
+        } else {
+            /**
+             * CASO ESTÁNDAR: Búsqueda Híbrida en Bóvedas NicePod
+             */
+            // Capa A: Hechos Atómicos validados (Bóveda Permanente)
+            const { data: vaultFacts } = await supabaseAdmin.rpc('search_knowledge_vault', {
+                query_embedding: queryVector,
+                match_threshold: 0.82,
+                match_count: 5
+            });
 
-        // 4. JUICIO DE SUFICIENCIA Y ACTIVACIÓN DE BACKLOG
-        // Si el Vault tiene menos de 3 fuentes relevantes, registramos una "Laguna de Conocimiento"
+            // Capa B: Biblioteca de Papers (Staging del Harvester)
+            const { data: freshPapers } = await supabaseAdmin.rpc('search_pulse_staging', {
+                query_embedding: queryVector,
+                match_threshold: 0.80,
+                match_count: 5
+            });
+
+            // Consolidación de fuentes internas
+            finalSources = [
+                ...(vaultFacts || []).map((v: any) => ({
+                    id: v.id,
+                    title: v.title,
+                    content: v.content,
+                    url: v.url || "#",
+                    origin: 'vault',
+                    relevance: v.similarity
+                })),
+                ...(freshPapers || []).map((p: any) => ({
+                    id: p.id,
+                    title: p.title,
+                    content: p.summary,
+                    url: p.url,
+                    origin: 'fresh_research',
+                    relevance: p.similarity
+                }))
+            ];
+        }
+
+        // 5. TELEMETRÍA DE USO (Incrementar valor de los papers)
+        const paperIds = finalSources
+            .filter(s => s.origin === 'fresh_research' || s.origin === 'pulse_selection')
+            .map(s => s.id);
+
+        if (paperIds.length > 0) {
+            console.log(`📈 [Researcher] Registrando uso de ${paperIds.length} papers.`);
+            await supabaseAdmin.rpc('increment_paper_usage', { p_ids: paperIds });
+        }
+
+        // 6. JUICIO DE SUFICIENCIA Y ECONOMÍA CIRCULAR
+        // Si no hay suficiente autoridad interna (NKV), procedemos al rescate externo.
         if (finalSources.length < 3) {
-            console.log(`⚠️ [Researcher] Laguna detectada. Registrando en Research Backlog.`);
+            console.log(`⚠️ [Researcher] Laguna de conocimiento. Activando rescate externo.`);
 
-            // Registramos el tema para que el Harvester lo priorice en su próximo ciclo
+            // a. Registro de Backlog Cognitivo para el Harvester
             await supabaseAdmin.rpc('push_to_research_backlog', {
                 p_topic: topic,
                 p_metadata: { correlation_id: correlationId, draft_id: draft_id }
             });
 
-            // 5. FALLBACK EXTERNO (Gasto Táctico en Tavily)
-            console.log(`🌐 [Researcher] Invocando inteligencia externa para completar dossier.`);
-
+            // b. Invocación a Tavily (Gasto Táctico)
             const webRes = await fetch("https://api.tavily.com/search", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -110,17 +148,15 @@ const handler = async (request: Request): Promise<Response> => {
 
                 finalSources = [...finalSources, ...webSources];
 
-                // 6. ECONOMÍA CIRCULAR: Ingesta inmediata en Bóveda
-                // No esperamos (fire and forget) para no penalizar el tiempo de respuesta del usuario
-                console.log(`♻️ [Researcher] Capitalizando ${webSources.length} fuentes web en NKV.`);
-
+                // c. ECONOMÍA CIRCULAR: Capitalizar las fuentes web en el NKV Permanente
+                // Lo hacemos fire-and-forget para no bloquear el proceso de creación
                 for (const ws of webSources) {
                     supabaseAdmin.functions.invoke('vault-refinery', {
                         body: {
                             title: ws.title,
                             text: ws.content,
                             url: ws.url,
-                            source_type: 'web',
+                            source_type: 'user_contribution',
                             is_public: true,
                             metadata: { ingested_via: 'research-intelligence', original_topic: topic }
                         },
@@ -130,27 +166,29 @@ const handler = async (request: Request): Promise<Response> => {
             }
         }
 
-        if (finalSources.length === 0) throw new Error("RECURSOS_INSATISFECHOS: El tema no pudo ser validado ni en Bóveda ni en Red.");
+        if (finalSources.length === 0) {
+            throw new Error("RECURSOS_NO_ENCONTRADOS: El sistema no pudo validar el tema en ninguna fuente.");
+        }
 
-        // 7. PERSISTENCIA DE FUENTES Y RELEVO A REDACCIÓN
+        // 7. PERSISTENCIA DE DOSSIER Y RELEVO A REDACCIÓN (FASE III)
         const { error: updateErr } = await supabaseAdmin
             .from('podcast_drafts')
             .update({
                 sources: finalSources,
                 dossier_text: {
-                    status: "sources_finalized",
-                    internal_count: (vaultFacts?.length || 0) + (freshPapers?.length || 0),
-                    web_count: finalSources.length - ((vaultFacts?.length || 0) + (freshPapers?.length || 0)),
-                    circular_economy_active: true
+                    status: "sources_found",
+                    count: finalSources.length,
+                    trace: correlationId
                 },
-                status: 'writing', // Desbloquea la Fase III
+                status: 'writing', // Desbloquea la interfaz
                 updated_at: new Date().toISOString()
             })
             .eq('id', draft_id);
 
-        if (updateErr) throw updateErr;
+        if (updateErr) throw new Error(`DATABASE_UPDATE_FAIL: ${updateErr.message}`);
 
-        // Invocamos al Redactor (Fase III)
+        // Invocación al Redactor Maestro (Agente 38)
+        console.log(`✅ [Researcher][${correlationId}] Handover a Redacción.`);
         supabaseAdmin.functions.invoke('generate-script-draft', {
             body: { draft_id },
             headers: { "x-correlation-id": correlationId }
@@ -158,28 +196,31 @@ const handler = async (request: Request): Promise<Response> => {
 
         return new Response(JSON.stringify({
             success: true,
-            sources_ingested: finalSources.length,
-            trace_id: correlationId
+            trace_id: correlationId,
+            sources: finalSources.length
         }), {
             status: 200,
             headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
 
-    } catch (e: any) {
-        console.error(`🔥 [Researcher-Fatal][${correlationId}]:`, e.message);
+    } catch (error: any) {
+        console.error(`🔥 [Researcher-Fatal][${correlationId}]:`, error.message);
 
         if (targetDraftId) {
             await supabaseAdmin.from('podcast_drafts').update({
                 status: 'failed',
-                creation_data: { error_log: e.message, trace: correlationId }
+                creation_data: { last_error: error.message, trace: correlationId }
             }).eq('id', targetDraftId);
         }
 
-        return new Response(JSON.stringify({ error: e.message, trace_id: correlationId }), {
+        return new Response(JSON.stringify({
+            error: error.message,
+            trace_id: correlationId
+        }), {
             status: 500,
             headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
     }
-};
+}
 
 serve(handler);

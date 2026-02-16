@@ -56,7 +56,7 @@ export function AuthProvider({
   children
 }: {
   initialSession: Session | null;
-  initialProfile: Profile | null;
+  initialProfile: Tables<'profiles'> | null;
   children: React.ReactNode;
 }) {
   const supabase = useMemo(() => createClient(), []);
@@ -169,7 +169,7 @@ export function AuthProvider({
           if (newUser.id !== lastFetchedUserId.current) {
             await getProfile(newUser.id);
           }
-          
+
           if (event === 'SIGNED_IN') router.refresh();
         } else {
           // Limpieza absoluta en Logout.
