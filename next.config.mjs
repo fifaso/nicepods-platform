@@ -1,7 +1,7 @@
 // next.config.mjs
-// VERSIÓN: 44.2 (NicePod Shielded Standard - Zero-Flicker PWA Edition)
-// Misión: Optimizar el rendimiento visual, blindar el build y coordinar la estrategia de caché.
-// [ESTABILIZACIÓN]: Eliminación de doble registro de SW y dieta de precaché para reducir 28MB de carga.
+// VERSIÓN: 45.0 (NicePod Shielded Standard - Zero-Flicker & Clean Console Edition)
+// Misión: Orquestar el build industrial, optimizar el payload y blindar la estrategia PWA.
+// [ESTABILIZACIÓN]: Resolución definitiva de colisiones de metadata y bloqueos de hidratación.
 
 import withPWAInit from "@ducanh2912/next-pwa";
 import { withSentryConfig } from '@sentry/nextjs';
@@ -9,7 +9,7 @@ import { withSentryConfig } from '@sentry/nextjs';
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // 1. PROTOCOLO DE RIGOR TÉCNICO (Build Shield)
-  // Bajo los mandamientos de NicePod, un error de tipos o linting detiene el despliegue.
+  // Garantizamos que NicePod sea un sistema de Zero-Warning. Si hay errores, el build aborta.
   eslint: {
     ignoreDuringBuilds: false
   },
@@ -18,15 +18,15 @@ const nextConfig = {
   },
 
   // 2. OPTIMIZACIÓN DE ARQUITECTURA
-  // 'standalone' es el estándar para despliegues optimizados en Vercel/Docker.
+  // Generamos un binario standalone optimizado para despliegues en el Edge de Vercel.
   output: 'standalone',
 
-  // 3. COMPATIBILIDAD GEOSPESCIAL (Mapbox Fix)
+  // 3. COMPATIBILIDAD GEOSPESCIAL (Mapbox Registry)
   // Obligatorio para la estabilidad de los módulos ESM de react-map-gl@7.1.7.
   transpilePackages: ['react-map-gl', 'mapbox-gl'],
 
   // 4. PERFORMANCE VISUAL (Image Intelligence)
-  // Activamos soporte para formatos de última generación (AVIF) para reducir peso de activos.
+  // Activamos soporte para AVIF (compresión superior) y WebP para reducir el peso de los assets.
   images: {
     unoptimized: false,
     formats: ['image/avif', 'image/webp'],
@@ -41,7 +41,7 @@ const nextConfig = {
   },
 
   // 5. INFRAESTRUCTURA DE RED Y SERVER ACTIONS
-  // Definimos orígenes permitidos para asegurar que los Server Actions no sufran bloqueos de CORS.
+  // Definimos orígenes permitidos para asegurar que el túnel de datos fluya sin bloqueos de CORS.
   experimental: {
     serverActions: {
       allowedOrigins: [
@@ -55,10 +55,10 @@ const nextConfig = {
     }
   },
 
-  // 6. GOBERNANZA DE WEBPACK (Performance Monitoring)
+  // 6. GOBERNANZA DE WEBPACK (Tree Shaking)
   webpack: (config) => {
     config.infrastructureLogging = { level: 'error' };
-    config.optimization.sideEffects = true; // Forzamos tree-shaking para reducir bundle size.
+    config.optimization.sideEffects = true;
     return config;
   },
 
@@ -70,9 +70,9 @@ const nextConfig = {
 /**
  * --- CONFIGURACIÓN PWA (Mobile Experience Mastery) ---
  * [ESTRATEGIA ANTI-PESTAÑEO]:
- * - register: false -> Delegamos el registro a 'pwa-lifecycle.tsx' para evitar el conflicto de doble registro.
- * - reloadOnOnline: false -> Evita refrescos traumáticos de la UI por micro-cortes de red.
- * - cacheOnFrontEndNav: false -> Prioriza la red para asegurar que el usuario vea su identidad real (SSR).
+ * - register: false -> La soberanía del registro reside en el componente 'PwaLifecycle'.
+ * - cacheOnFrontEndNav: false -> EVITA EL PESTAÑEO al obligar a consultar la red para la identidad.
+ * - reloadOnOnline: false -> Previene refrescos disruptivos por micro-cortes de Wi-Fi/5G.
  */
 const withPWA = withPWAInit({
   dest: "public",
@@ -84,18 +84,29 @@ const withPWA = withPWAInit({
   aggressiveFrontEndNavCaching: false,
 
   /**
-   * [SILENCE & WEIGHT PROTOCOL]: 
-   * buildExcludes: Filtramos proactivamente imágenes de universos y activos no optimizados.
-   * Esto reduce la transferencia inicial de 28MB a un shell ligero de ~4MB.
+   * [CLEAN CONSOLE PROTOCOL]:
+   * 'publicExcludes' evita que el plugin procese el manifest.json de forma interna,
+   * impidiendo que inyecte etiquetas meta de Apple obsoletas en el HTML.
    */
   dynamicStartUrl: true,
+  publicExcludes: ['!manifest.json', '!*.png', '!favicon.ico'],
+
+  /**
+   * [DIETA DE PAYLOAD]: 
+   * Excluimos del precaché los assets pesados de los universos y archivos de mapeo.
+   * Esto reduce la transferencia inicial de 28MB a ~4MB.
+   */
   buildExcludes: [
     /middleware-manifest\.json$/,
     /_middleware\.js$/,
-    /public\/images\/universes\/.*$/, // Excluye PNGs pesados del precaché inicial.
-    /public\/placeholder.*$/,        // Excluye placeholders redundantes.
-    /.*\.map$/                       // Excluye sourcemaps para proteger el código.
+    /public\/images\/universes\/.*$/, // Carga bajo demanda (Lazy-first)
+    /public\/placeholder.*$/,        // Carga diferida
+    /.*\.map$/                       // Exclusión de sourcemaps
   ],
+
+  fallbacks: {
+    document: "/offline", // Garantiza resiliencia en pérdida de señal.
+  },
 });
 
 /**
