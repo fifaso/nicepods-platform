@@ -1,24 +1,63 @@
 {
   "name": "NicePod",
   "short_name": "NicePod",
-  "description": "Crea, aprende, comparte y potencia tu creatividad.",
-  "start_url": "/",
+  "description": "Workstation de Inteligencia Profesional para la síntesis de conocimiento y memoria urbana.",
+  "lang": "es-ES",
+  "dir": "ltr",
+  "start_url": "/dashboard",
   "display": "standalone",
+  "display_override": [
+    "window-controls-overlay",
+    "minimal-ui"
+  ],
+  "orientation": "portrait",
   "background_color": "#111827",
   "theme_color": "#8B5CF6",
-  "orientation": "portrait",
+  "scope": "/",
+  "categories": [
+    "productivity",
+    "education",
+    "utilities"
+  ],
   "icons": [
     {
       "src": "/nicepod-logo.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/nicepod-logo.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "maskable"
+    }
+  ],
+  "prefer_related_applications": false,
+  "shortcuts": [
+    {
+      "name": "Nueva Forja",
+      "short_name": "Crear",
+      "description": "Iniciar la creación de un nuevo podcast neuronal",
+      "url": "/create",
+      "icons": [
+        {
+          "src": "/nicepod-logo.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Mi Biblioteca",
+      "short_name": "Biblioteca",
+      "description": "Acceder a tu archivo de sabiduría",
+      "url": "/podcasts",
+      "icons": [
+        {
+          "src": "/nicepod-logo.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }

@@ -39,7 +39,7 @@ export default function MarketingLayout({
           Esto mata el pestañeo de posición cuando el usuario refresca la landing.
       */}
       <main
-        className="relative z-10 flex-grow flex flex-col pt-[80px] md:pt-[100px]"
+        className="relative z-10 flex-grow flex flex-col pt-[96px] md:pt-[100px]"
       >
 
         {/* 

@@ -2,6 +2,9 @@
   "compilerOptions": {
     /* Configuración de Lenguaje y Entorno */
     "target": "esnext",
+    "types": [
+      "@ducanh2912/next-pwa/workbox"
+    ],
     "lib": [
       "dom",
       "dom.iterable",

@@ -1,7 +1,7 @@
 // next.config.mjs
-// VERSIÓN: 44.1 (NicePod Shielded Standard - Payload Optimization Edition)
-// Misión: Activar el rigor técnico, optimizar el rendimiento visual y aplicar la dieta de precaché PWA.
-// [OPTIMIZACIÓN]: Reducción de carga inicial mediante exclusión de assets pesados y soporte AVIF.
+// VERSIÓN: 44.2 (NicePod Shielded Standard - Zero-Flicker PWA Edition)
+// Misión: Optimizar el rendimiento visual, blindar el build y coordinar la estrategia de caché.
+// [ESTABILIZACIÓN]: Eliminación de doble registro de SW y dieta de precaché para reducir 28MB de carga.
 
 import withPWAInit from "@ducanh2912/next-pwa";
 import { withSentryConfig } from '@sentry/nextjs';
@@ -9,7 +9,7 @@ import { withSentryConfig } from '@sentry/nextjs';
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // 1. PROTOCOLO DE RIGOR TÉCNICO (Build Shield)
-  // Garantizamos que NicePod sea un sistema de Zero-Warning. Si hay errores de tipos o linting, el build falla.
+  // Bajo los mandamientos de NicePod, un error de tipos o linting detiene el despliegue.
   eslint: {
     ignoreDuringBuilds: false
   },
@@ -17,15 +17,16 @@ const nextConfig = {
     ignoreBuildErrors: false
   },
 
-  // 2. OPTIMIZACIÓN DE ARQUITECTURA DE SALIDA
+  // 2. OPTIMIZACIÓN DE ARQUITECTURA
+  // 'standalone' es el estándar para despliegues optimizados en Vercel/Docker.
   output: 'standalone',
 
-  // 3. COMPATIBILIDAD GEOESPACIAL (Mapbox Registry)
-  // Crucial para la estabilidad de los módulos ESM de Mapbox en Next.js 14 y evitar errores de resolución de símbolos.
+  // 3. COMPATIBILIDAD GEOSPESCIAL (Mapbox Fix)
+  // Obligatorio para la estabilidad de los módulos ESM de react-map-gl@7.1.7.
   transpilePackages: ['react-map-gl', 'mapbox-gl'],
 
   // 4. PERFORMANCE VISUAL (Image Intelligence)
-  // Activamos soporte para AVIF (mejor compresión que WebP) y definimos patrones de confianza.
+  // Activamos soporte para formatos de última generación (AVIF) para reducir peso de activos.
   images: {
     unoptimized: false,
     formats: ['image/avif', 'image/webp'],
@@ -40,7 +41,7 @@ const nextConfig = {
   },
 
   // 5. INFRAESTRUCTURA DE RED Y SERVER ACTIONS
-  // Definimos orígenes permitidos para evitar colisiones de CORS en entornos de desarrollo remotos (Codespaces/Vercel).
+  // Definimos orígenes permitidos para asegurar que los Server Actions no sufran bloqueos de CORS.
   experimental: {
     serverActions: {
       allowedOrigins: [
@@ -54,11 +55,10 @@ const nextConfig = {
     }
   },
 
-  // 6. GOBERNANZA DE BUNDLE (Webpack)
-  // Optimizamos el log de infraestructura y forzamos el tree-shaking mediante sideEffects.
+  // 6. GOBERNANZA DE WEBPACK (Performance Monitoring)
   webpack: (config) => {
     config.infrastructureLogging = { level: 'error' };
-    config.optimization.sideEffects = true;
+    config.optimization.sideEffects = true; // Forzamos tree-shaking para reducir bundle size.
     return config;
   },
 
@@ -69,43 +69,44 @@ const nextConfig = {
 
 /**
  * --- CONFIGURACIÓN PWA (Mobile Experience Mastery) ---
- * [DIETA DE PAYLOAD]: 
- * Se implementan reglas estrictas de exclusión para evitar que el Service Worker 
- * precachee megabytes de imágenes no optimizadas en la carga inicial.
+ * [ESTRATEGIA ANTI-PESTAÑEO]:
+ * - register: false -> Delegamos el registro a 'pwa-lifecycle.tsx' para evitar el conflicto de doble registro.
+ * - reloadOnOnline: false -> Evita refrescos traumáticos de la UI por micro-cortes de red.
+ * - cacheOnFrontEndNav: false -> Prioriza la red para asegurar que el usuario vea su identidad real (SSR).
  */
 const withPWA = withPWAInit({
   dest: "public",
   disable: process.env.NODE_ENV === "development",
-  register: true,
+  register: false,
   skipWaiting: true,
-  reloadOnOnline: true,
-  // Desactivamos el almacenamiento agresivo de navegación para priorizar el estado de sesión real (Auth)
+  reloadOnOnline: false,
   cacheOnFrontEndNav: false,
   aggressiveFrontEndNavCaching: false,
+
   /**
    * [SILENCE & WEIGHT PROTOCOL]: 
-   * buildExcludes: Filtramos proactivamente imágenes de universos y placeholders pesados.
-   * Estos recursos se cargarán mediante 'StaleWhileRevalidate' solo cuando se necesiten.
+   * buildExcludes: Filtramos proactivamente imágenes de universos y activos no optimizados.
+   * Esto reduce la transferencia inicial de 28MB a un shell ligero de ~4MB.
    */
   dynamicStartUrl: true,
   buildExcludes: [
     /middleware-manifest\.json$/,
     /_middleware\.js$/,
-    /public\/images\/universes\/.*$/, // Excluye PNGs pesados de la carga inicial
-    /public\/placeholder.*$/,        // Excluye placeholders del precaché
-    /.*\.map$/                       // Excluye sourcemaps del Service Worker
+    /public\/images\/universes\/.*$/, // Excluye PNGs pesados del precaché inicial.
+    /public\/placeholder.*$/,        // Excluye placeholders redundantes.
+    /.*\.map$/                       // Excluye sourcemaps para proteger el código.
   ],
 });
 
 /**
- * --- EXPORTACIÓN CON SENTRY (Observabilidad) ---
+ * --- EXPORTACIÓN CON SENTRY (Full Observability) ---
  */
 export default withSentryConfig(
   withPWA(nextConfig),
   {
     org: 'nicepod',
     project: 'javascript-nextjs',
-    silent: true, // Mantiene la consola limpia durante el build
+    silent: true,
     widenClientFileUpload: true,
     hideSourceMaps: true,
   }

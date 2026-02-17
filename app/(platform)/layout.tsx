@@ -60,7 +60,7 @@ export default function PlatformLayout({
             'contain-intrinsic-size' ayuda al navegador a pre-calcular el layout.
         */}
         <main
-          className="relative z-10 flex flex-col min-h-screen pt-[80px] md:pt-[100px]"
+          className="relative z-10 flex flex-col min-h-screen pt-[96px] md:pt-[100px]"
           style={{ containIntrinsicSize: 'auto 1000px' }}
         >
 

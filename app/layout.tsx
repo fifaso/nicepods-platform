@@ -1,7 +1,7 @@
 // app/layout.tsx
-// VERSIÓN: 20.1 (NicePod Core Identity - Synchronized Atomic Handshake)
-// Misión: Orquestar el núcleo global eliminando el pestañeo mediante la inyección síncrona de Perfil y Sesión.
-// [RESOLUCIÓN]: Fix de error de tipos en Props de AuthProvider detectado en Vercel Build.
+// VERSIÓN: 20.2 (NicePod Core Identity - Unified PWA & Atomic Handshake)
+// Misión: Orquestar el núcleo global eliminando el pestañeo y consolidando el registro único PWA.
+// [RESOLUCIÓN]: Eliminación de referencia huérfana a ServiceWorkerRegister para corregir error TS2307.
 
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
@@ -10,6 +10,7 @@ import type React from "react";
 /**
  * --- CAPA DE ESTILOS CRÍTICOS ---
  * Importación del CSS de Mapbox en la raíz para evitar el flash de mapa sin estilos.
+ * Los estilos globales se cargan después para permitir la personalización del sistema Aurora.
  */
 import "mapbox-gl/dist/mapbox-gl.css";
 import "./globals.css";
@@ -20,7 +21,6 @@ import "./globals.css";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { CSPostHogProvider } from '@/components/providers/posthog-provider';
 import { PwaLifecycle } from "@/components/pwa-lifecycle";
-import { ServiceWorkerRegister } from '@/components/sw-register';
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/hooks/use-auth";
 import { createClient } from '@/lib/supabase/server';
@@ -28,6 +28,7 @@ import { Tables } from "@/types/database.types";
 
 /**
  * CONFIGURACIÓN DE FUENTE: Inter
+ * Priorizamos la carga del sistema operativo para evitar Layout Shifts tipográficos.
  */
 const inter = Inter({
   subsets: ["latin"],
@@ -48,7 +49,7 @@ export const viewport: Viewport = {
 };
 
 /**
- * METADATA: Identidad Soberana NicePod.
+ * METADATA: Identidad Soberana NicePod V2.5.
  */
 export const metadata: Metadata = {
   title: "NicePod | Witness, Not Diarist",
@@ -66,7 +67,7 @@ export const metadata: Metadata = {
 };
 
 /**
- * RootLayout: El Gran Orquestador Síncrono de NicePod V2.5.
+ * RootLayout: El Gran Orquestador Síncrono.
  */
 export default async function RootLayout({
   children
@@ -76,17 +77,18 @@ export default async function RootLayout({
   /**
    * 1. PROTOCOLO DE IDENTIDAD ATÓMICA (SSR)
    * Recuperamos la identidad completa en el servidor (T0).
+   * Esto garantiza que el cliente nazca con la sesión y el perfil hidratados.
    */
   const supabase = createClient();
-  
-  // Handshake inicial de seguridad
+
+  // Handshake inicial de seguridad mediante validación de token
   const { data: { user } } = await supabase.auth.getUser();
-  
+
   let initialSession = null;
   let initialProfile: Tables<'profiles'> | null = null;
 
   if (user) {
-    // Si el token es válido, recuperamos sesión y perfil en paralelo para optimizar TTFB
+    // Si el usuario existe, recuperamos sesión y perfil en paralelo (Performance T0)
     const [sessionRes, profileRes] = await Promise.all([
       supabase.auth.getSession(),
       supabase.from('profiles').select('*').eq('id', user.id).single()
@@ -98,11 +100,11 @@ export default async function RootLayout({
 
   return (
     /**
-     * [FIX]: suppressHydrationWarning necesario para la inyección síncrona del tema.
+     * suppressHydrationWarning: Necesario para la inyección síncrona del tema Aurora.
      */
     <html lang="es" suppressHydrationWarning>
       <head>
-        {/* SCRIPT ANTI-PESTAÑEO DE TEMA */}
+        {/* SCRIPT ANTI-PESTAÑEO DE TEMA (Ejecución Pre-React) */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -125,37 +127,46 @@ export default async function RootLayout({
         className={`${inter.className} min-h-screen bg-background font-sans antialiased selection:bg-primary/30`}
         suppressHydrationWarning
       >
+        {/* NIVEL 1: Telemetría e Inteligencia */}
         <CSPostHogProvider>
-          <ServiceWorkerRegister />
+
+          {/* NIVEL 2: Orquestador Único PWA
+              [FIX]: Se ha eliminado ServiceWorkerRegister para evitar el conflicto de registro 
+              y errores de compilación TS2307.
+          */}
           <PwaLifecycle />
+
+          {/* NIVEL 3: Red de Seguridad */}
           <ErrorBoundary>
+
+            {/* NIVEL 4: Motor de Diseño y Atmósfera */}
             <ThemeProvider
               attribute="class"
               defaultTheme="dark"
               enableSystem
-              disableTransitionOnChange={false}
+              disableTransitionOnChange={true}
               storageKey="theme"
             >
-              {/* 
-                  [RESOLUCIÓN DE CONTRATO]:
-                  AuthProvider recibe initialSession e initialProfile. 
-                  Asegúrese de haber desplegado simultáneamente la versión 19.0 
-                  del archivo hooks/use-auth.tsx que define estas props.
+
+              {/* NIVEL 5: Soberanía de Identidad Atómica
+                  Inyectamos los datos de servidor para una hidratación sin latencia.
               */}
               <AuthProvider initialSession={initialSession} initialProfile={initialProfile}>
+
                 <div className="min-h-screen gradient-mesh relative overflow-x-hidden">
-                  
-                  {/* IDENTIDAD VISUAL AURORA (Blobs Atmosféricos) */}
+
+                  {/* IDENTIDAD VISUAL AURORA (Blobs Atmosféricos Cinematográficos) */}
                   <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 opacity-40 dark:opacity-80">
                     <div className="absolute top-10 left-10 w-80 h-80 bg-purple-500/10 rounded-full blur-[120px] animate-float"></div>
                     <div className="absolute top-1/2 right-0 w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[160px] animate-float" style={{ animationDelay: "2s" }}></div>
                     <div className="absolute -bottom-20 left-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-[140px] animate-float" style={{ animationDelay: "4s" }}></div>
                   </div>
 
-                  {/* LIENZO DE CONTENIDO */}
+                  {/* LIENZO DE INTERACCIÓN (Z-index superior para clics garantizados) */}
                   <div className="relative z-10">
                     {children}
                   </div>
+
                 </div>
               </AuthProvider>
             </ThemeProvider>
