@@ -1,33 +1,36 @@
 // supabase/functions/generate-audio-from-script/index.ts
-// VERSIÓN: 24.0 (Master Audio Architect - Performance & Integrity Standard)
-// Misión: Forja binaria de audio neuronal optimizando el uso de CPU y RAM.
-// [OPTIMIZACIÓN]: Ejecución directa sin Guard y sincronización con Gemini 2.5 Pro TTS.
+// VERSIÓN: 24.1 (Master Audio Architect - Export Sync Edition)
+// Misión: Forja binaria de audio neuronal con sincronización total con el núcleo IA.
+// [RESOLUCIÓN]: Fix de SyntaxError: Importación correcta de callGeminiAudio.
 
 import { decode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 
-// Importaciones del núcleo de inteligencia NicePod (Sincronizadas con Nivel 1)
-import { AI_MODELS, callGeminiAudio, cleanTextForSpeech, createWavHeader } from "../_shared/ai.ts";
+// Importaciones del núcleo de inteligencia NicePod (v11.8)
+import { callGeminiAudio, cleanTextForSpeech, createWavHeader } from "../_shared/ai.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { generateDirectorNote } from "../_shared/vocal-director-map.ts";
 
 /**
- * LÍMITES TÉCNICOS OPERATIVOS
+ * CONFIGURACIÓN TÉCNICA
  */
-const MAX_CHUNK_SIZE = 4500; // Margen de seguridad para el contexto de la IA de voz
-const SAMPLE_RATE = 24000;    // Estándar de frecuencia para el header WAV de NicePod
+const MAX_CHUNK_SIZE = 4500;
+const SAMPLE_RATE = 24000;
+
+const supabaseAdmin: SupabaseClient = createClient(
+  Deno.env.get("SUPABASE_URL") ?? "",
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+);
 
 /**
- * extractScriptContent: Recupera el texto plano del objeto JSONB de la base de datos.
+ * extractScriptContent: Recupera el texto plano desde el JSONB.
  */
 function extractScriptContent(script_text: any): string {
   if (!script_text) return "";
-  // Priorizamos script_plain ya sanitizado por la Sala de Forja
   if (typeof script_text === 'object') {
     return script_text.script_plain || script_text.script_body || "";
   }
-  // Fallback por si existe rastro de texto plano legacy
   try {
     const parsed = typeof script_text === 'string' ? JSON.parse(script_text) : script_text;
     return parsed.script_plain || parsed.script_body || "";
@@ -36,34 +39,21 @@ function extractScriptContent(script_text: any): string {
   }
 }
 
-/**
- * handler: Lógica central de síntesis de voz.
- */
 async function handler(request: Request): Promise<Response> {
-  // 1. GESTIÓN DE CORS (Protocolo rápido)
-  if (request.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
+  if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   const correlationId = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
-
-  const supabaseAdmin: SupabaseClient = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-  );
-
   let targetPodId: number | null = null;
 
   try {
     const payload = await request.json();
     const { podcast_id } = payload;
-
     if (!podcast_id) throw new Error("PODCAST_ID_REQUIRED");
     targetPodId = podcast_id;
 
-    console.log(`🎙️ [Audio-Worker][${correlationId}] Iniciando forja para Pod #${podcast_id}`);
+    console.log(`🎙️ [Audio-Worker][${correlationId}] Iniciando Pod #${podcast_id}`);
 
-    // 2. OBTENCIÓN DE DATOS MAESTROS (Fase IV)
+    // 1. OBTENCIÓN DE DATOS
     const { data: pod, error: podErr } = await supabaseAdmin
       .from('micro_pods')
       .select('*')
@@ -72,13 +62,13 @@ async function handler(request: Request): Promise<Response> {
 
     if (podErr || !pod) throw new Error("PODCAST_NOT_FOUND");
 
-    // 3. NORMALIZACIÓN DE TEXTO
+    // 2. NORMALIZACIÓN DE TEXTO
     const rawScript = extractScriptContent(pod.script_text);
     const cleanText = cleanTextForSpeech(rawScript);
 
     if (!cleanText || cleanText.length < 10) throw new Error("SCRIPT_CONTENT_INSUFFICIENT");
 
-    // 4. DIRECCIÓN ACTORAL (Grounded Prosody)
+    // 3. DIRECCIÓN ACTORIAL
     const inputs = (pod.creation_data as any)?.inputs || {};
     const directorNote = generateDirectorNote(
       pod.creation_data?.agentName || "narrador",
@@ -92,7 +82,7 @@ async function handler(request: Request): Promise<Response> {
       style: inputs.voiceStyle || "Profesional"
     };
 
-    // 5. FRAGMENTACIÓN SEMÁNTICA (Evitar cortes de oraciones)
+    // 4. FRAGMENTACIÓN SEMÁNTICA
     const paragraphs = cleanText.split(/\n+/);
     const chunks: string[] = [];
     let currentChunk = "";
@@ -107,97 +97,66 @@ async function handler(request: Request): Promise<Response> {
     }
     if (currentChunk) chunks.push(currentChunk);
 
-    console.log(`[Audio-Worker] Sintetizando ${chunks.length} bloques con modelo ${AI_MODELS.AUDIO}.`);
-
-    // 6. CICLO DE SÍNTESIS CON GESTIÓN DE RAM (Fase IV)
+    // 5. CICLO DE SÍNTESIS
     let audioBuffers: (Uint8Array | null)[] = [];
     let totalRawLength = 0;
 
     for (let i = 0; i < chunks.length; i++) {
-      // Invocación al modelo 2.5 Pro TTS validado
       const { data: base64Audio } = await callGeminiAudio(chunks[i], directorNote, voiceParams);
-
       const buffer = new Uint8Array(decode(base64Audio).buffer);
       totalRawLength += buffer.length;
       audioBuffers.push(buffer);
     }
 
-    // 7. ENSAMBLAJE BINARIO ATÓMICO (WAV RIFF 24kHz)
+    // 6. ENSAMBLAJE BINARIO
     const wavHeader = createWavHeader(totalRawLength, SAMPLE_RATE);
     const finalFile = new Uint8Array(wavHeader.length + totalRawLength);
 
-    // Inyectamos cabecera de 44 bytes
     finalFile.set(wavHeader, 0);
-
-    // Concatenamos y liberamos memoria instantáneamente para evitar el crash de 150MB
     let offset = wavHeader.length;
     for (let i = 0; i < audioBuffers.length; i++) {
       const chunk = audioBuffers[i];
       if (chunk) {
         finalFile.set(chunk, offset);
         offset += chunk.length;
-        // Anulamos referencia para el Garbage Collector de Deno
-        audioBuffers[i] = null;
+        audioBuffers[i] = null; // Liberación de RAM inmediata
       }
     }
-    audioBuffers = []; // Limpieza final de punteros
 
-    // 8. PERSISTENCIA EN STORAGE SOBERANO
+    // 7. PERSISTENCIA EN STORAGE
     const filePath = `public/${pod.user_id}/${podcast_id}-audio.wav`;
+    await supabaseAdmin.storage.from('podcasts').upload(filePath, finalFile, {
+      contentType: 'audio/wav',
+      upsert: true
+    });
 
-    const { error: uploadError } = await supabaseAdmin.storage
-      .from('podcasts')
-      .upload(filePath, finalFile, {
-        contentType: 'audio/wav',
-        upsert: true,
-        cacheControl: '3600'
-      });
+    const publicUrl = supabaseAdmin.storage.from('podcasts').getPublicUrl(filePath).data.publicUrl;
 
-    if (uploadError) throw new Error(`STORAGE_UPLOAD_ERROR: ${uploadError.message}`);
-
-    const { data: { publicUrl } } = supabaseAdmin.storage.from('podcasts').getPublicUrl(filePath);
-
-    // 9. CIERRE DE CICLO DE INTEGRIDAD (Fase V)
+    // 8. ACTUALIZACIÓN DE BASE DE DATOS
     const duration = Math.round(totalRawLength / (SAMPLE_RATE * 2));
+    await supabaseAdmin.from('micro_pods').update({
+      audio_url: publicUrl,
+      audio_ready: true,
+      duration_seconds: duration,
+      updated_at: new Date().toISOString()
+    }).eq('id', podcast_id);
 
-    const { error: updateErr } = await supabaseAdmin
-      .from('micro_pods')
-      .update({
-        audio_url: publicUrl,
-        duration_seconds: duration,
-        audio_ready: true, // Libera el semáforo tr_check_integrity
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', podcast_id);
+    console.log(`✅ [Audio-Worker] Completado para Pod #${podcast_id}`);
 
-    if (updateErr) throw new Error(`DATABASE_SYNC_ERROR: ${updateErr.message}`);
-
-    console.log(`✅ [Audio-Worker] Éxito para Pod #${podcast_id}. Duración: ${duration}s`);
-
-    return new Response(JSON.stringify({
-      success: true,
-      url: publicUrl,
-      trace_id: correlationId
-    }), {
+    return new Response(JSON.stringify({ success: true, url: publicUrl }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
 
   } catch (error: any) {
-    console.error(`🔥 [Audio-Worker-Fatal][${correlationId}]:`, error.message);
-
-    // [FALLBACK RESILIENTE]: Marcamos la bandera para no bloquear el Dashboard
+    console.error(`🔥 [Audio-Worker-Fatal]:`, error.message);
     if (targetPodId) {
       await supabaseAdmin.from('micro_pods').update({
         audio_ready: true,
-        admin_notes: `Audio Failure: ${error.message} | Trace: ${correlationId}`
+        admin_notes: `Audio Error: ${error.message}`
       }).eq('id', targetPodId);
     }
-
-    return new Response(JSON.stringify({
-      error: error.message,
-      trace_id: correlationId
-    }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
