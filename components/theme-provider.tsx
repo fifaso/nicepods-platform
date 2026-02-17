@@ -1,19 +1,23 @@
 // components/theme-provider.tsx
-// VERSIÓN: 6.0 (Global Aesthetic Shield - Hydration Integrity Edition)
-// Misión: Gestionar la sintonía lumínica global (Amanecer/Nebulosa) sin ruidos de hidratación.
-// [ESTABILIDAD]: Resolución de errores React #418/#422 mediante el patrón de montaje diferido.
+// VERSIÓN: 7.0 (NicePod Atmospheric Shield - Zero-Flicker & Hydration Mastery)
+// Misión: Orquestar la atmósfera visual (Amanecer/Nebulosa) eliminando el destello de carga inicial.
+// [ESTABILIZACIÓN]: Eliminación del bloqueo 'mounted' para permitir sincronía total con el script de layout.tsx.
 
 "use client";
 
 import { ThemeProvider as NextThemesProvider, type ThemeProviderProps } from "next-themes";
-import * as React from "react";
 
 /**
- * ThemeProvider: El orquestador de la atmósfera visual de NicePod.
+ * ThemeProvider: El núcleo de gestión lumínica de NicePod V2.5.
  * 
- * Este componente envuelve la aplicación en el Root Layout para proveer
- * acceso dinámico a los temas Dark y Light, gestionando la persistencia
- * en el almacenamiento local del navegador.
+ * Este componente es el responsable de aplicar las variables CSS del sistema Aurora
+ * (definidas en globals.css) basándose en la preferencia del curador o del sistema operativo.
+ * 
+ * ESTRATEGIA ARQUITECTÓNICA:
+ * 1. Sincronía con SSR: No bloqueamos el renderizado inicial. Dejamos que NextThemesProvider
+ *    trabaje en paralelo con el script inyectado en el <head> del layout.
+ * 2. Supresión de Transiciones: Bloqueamos las transiciones CSS durante el cambio de tema
+ *    para evitar el efecto de 'fading' que se percibe como retardo en la carga.
  */
 export function ThemeProvider({
   children,
@@ -21,47 +25,37 @@ export function ThemeProvider({
 }: ThemeProviderProps) {
 
   /**
-   * [CONTROL DE HIDRATACIÓN]
-   * mounted: Variable de estado que nos indica si el código se está ejecutando 
-   * en el cliente después del primer renderizado.
-   */
-  const [mounted, setMounted] = React.useState<boolean>(false);
-
-  /**
-   * useEffect: Se dispara inmediatamente tras el montaje en el DOM.
-   * Esto nos permite evitar discrepancias entre el HTML generado por el servidor
-   * y el primer ciclo de renderizado del cliente.
-   */
-  React.useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  /**
-   * [ESTRATEGIA FAIL-SAFE]:
-   * Si el componente aún no se ha montado (Fase de Servidor o Hidratación inicial),
-   * renderizamos los hijos sin el proveedor de temas activo.
+   * [RIGOR TÉCNICO]
+   * Utilizamos el NextThemesProvider con una configuración optimizada para alto rendimiento:
    * 
-   * Esto permite que el script síncrono del 'app/layout.tsx' tome el control 
-   * total del tema inicial, eliminando los errores #418 y #422 de la consola.
-   */
-  if (!mounted) {
-    return <>{children}</>;
-  }
-
-  /**
-   * RENDERIZADO FINAL:
-   * Una vez montado, entregamos el control a NextThemesProvider para permitir
-   * al usuario cambiar dinámicamente entre modo 'dark' (Nebulosa) y 'light' (Amanecer).
+   * - attribute="class": Fundamental para que las utilidades de Tailwind (dark:...) y 
+   *   nuestro gradient-mesh reconozcan el estado visual.
+   * - defaultTheme="dark": NicePod nace en la Nebulosa (modo oscuro) por identidad de marca.
+   * - enableSystem={true}: Respeta la soberanía de la configuración global del usuario.
+   * - disableTransitionOnChange={true}: ELIMINA EL PESTAÑEO. Al navegar entre páginas
+   *   o hidratar, no queremos que el navegador pierda tiempo animando colores.
    */
   return (
     <NextThemesProvider
       attribute="class"
       defaultTheme="dark"
       enableSystem={true}
-      disableTransitionOnChange={false}
+      disableTransitionOnChange={true} // <--- CLAVE: Mata el parpadeo de transición de color
       {...props}
     >
       {children}
     </NextThemesProvider>
   );
 }
+
+/**
+ * NOTA PARA EL EQUIPO DE INGENIERÍA:
+ * Se ha eliminado el estado 'mounted' que existía en versiones anteriores.
+ * 
+ * ¿Por qué?
+ * En Next.js 14, si el layout.tsx ya inyecta el tema correctamente mediante un script 
+ * síncrono, 'next-themes' es capaz de hidratarse sobre ese estado sin provocar 
+ * inconsistencias. Al quitar el retorno condicional 'if (!mounted)', garantizamos 
+ * que el árbol de React sea idéntico en servidor y cliente, eliminando el 
+ * 're-paint' que causaba el pestañeo visual.
+ */

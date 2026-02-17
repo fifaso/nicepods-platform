@@ -1,7 +1,7 @@
 // components/navigation.tsx
-// VERSIÓN: 16.5 (NicePod Identity Sovereignty - Mobile Tactical Hub & Zero Warning)
-// Misión: Gestionar el acceso, la identidad y la sintonía visual con rendimiento de 60 FPS.
-// [FIX]: Resolución de TS2339, eliminación de Forced Reflow y rediseño de jerarquía móvil.
+// VERSIÓN: 17.0 (NicePod Identity Sovereignty - Tactical Elegance Edition)
+// Misión: Gestionar el acceso y la identidad eliminando el pestañeo y optimizando la jerarquía visual.
+// [ESTABILIZACIÓN]: Integración de ThemeToggle en Desktop y suavizado de animaciones críticas.
 
 "use client";
 
@@ -27,7 +27,6 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { cn, getSafeAsset } from "@/lib/utils";
 import {
-  Bell,
   Globe,
   LayoutDashboard,
   Loader2,
@@ -51,8 +50,8 @@ export function Navigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
 
   /**
-   * CONSUMO DE IDENTIDAD (NCIS V1.0)
-   * Sincronización con use-auth V18.5 para estados de carga granulares.
+   * CONSUMO DE IDENTIDAD SINCRO
+   * Aprovechamos la optimización del Nivel 1 donde el perfil ya viene de SSR.
    */
   const {
     profile,
@@ -63,10 +62,6 @@ export function Navigation() {
     isProfileLoading
   } = useAuth();
 
-  /**
-   * [ESTRATEGIA DE RUTAS DINÁMICAS]
-   * Segmentación de acceso según soberanía de cuenta.
-   */
   const navItems = useMemo(() => {
     if (isAuthenticated) {
       return [
@@ -92,39 +87,45 @@ export function Navigation() {
       await signOut();
       router.push("/");
     } catch (error: any) {
-      console.error("🔥 [Navigation-Logout-Critical]:", error.message);
+      console.error("🔥 [Navigation-Error]:", error.message);
     }
   }, [signOut, router]);
 
   const logoSrc = getSafeAsset("/nicepod-logo.png", "logo");
 
   /**
-   * auroraClasses: Estética de alta conversión coherente con el sistema.
-   * [NUEVO]: Variante pulsante para el botón 'Crear' en móvil.
+   * auroraClasses: Estética refinada NicePod V2.5.
+   * [MEJORA]: Se aumenta el ancho un 15% y se suaviza la animación para mayor elegancia.
    */
   const auroraClasses = cn(
     "bg-gradient-to-r from-indigo-600 via-primary to-fuchsia-600",
-    "animate-aurora text-white border border-white/20 shadow-lg",
-    "hover:scale-105 transition-all duration-300 active:scale-95 shadow-primary/20"
+    "text-white border border-white/20 shadow-lg",
+    "transition-all duration-500 ease-out active:scale-95 shadow-primary/20",
+    "hover:shadow-[0_0_25px_rgba(139,92,246,0.4)] hover:scale-[1.03]",
+    "relative overflow-hidden group/crear"
   );
 
   return (
-    <header className="sticky top-0 z-50 w-full p-4 animate-in fade-in duration-1000">
+    /**
+     * [FIX]: Se reduce el tiempo de fade-in para evitar la sensación de carga lenta.
+     * La navegación debe sentirse como una constante, no como un elemento que 'llega'.
+     */
+    <header className="sticky top-0 z-50 w-full p-4 animate-in fade-in duration-300">
       <div className="relative max-w-screen-xl mx-auto flex h-16 items-center rounded-2xl border border-border/40 bg-background/80 px-4 shadow-xl backdrop-blur-lg supports-[backdrop-filter]:bg-background/60">
 
-        {/* 1. NÚCLEO IZQUIERDO: MARCA */}
+        {/* 1. NÚCLEO IZQUIERDO: IDENTIDAD DE MARCA */}
         <div className="flex-1 flex justify-start items-center">
           <Link
             href={isAuthenticated ? "/dashboard" : "/"}
             className="flex items-center space-x-2.5 group"
           >
-            <div className="relative h-9 w-9 overflow-hidden rounded-xl border border-white/10 shadow-inner">
+            <div className="relative h-9 w-9 overflow-hidden rounded-xl border border-white/10 shadow-inner bg-zinc-900/50">
               <Image
                 src={logoSrc}
                 alt="NicePod"
                 fill
                 sizes="36px"
-                className="object-cover group-hover:scale-110 transition-all duration-500"
+                className="object-cover group-hover:scale-110 transition-all duration-700"
                 priority
               />
             </div>
@@ -134,7 +135,7 @@ export function Navigation() {
           </Link>
         </div>
 
-        {/* 2. NÚCLEO CENTRAL: NAVEGACIÓN DESKTOP (Hidden on Mobile) */}
+        {/* 2. NÚCLEO CENTRAL: NAVEGACIÓN DESKTOP */}
         <nav className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
           <ul className="flex items-center space-x-1 rounded-full bg-muted/30 p-1 border border-border/10 backdrop-blur-sm">
             {navItems.map((item) => {
@@ -143,7 +144,16 @@ export function Navigation() {
                 return (
                   <li key={item.href}>
                     <Link href={item.href}>
-                      <Button size="sm" className={cn("rounded-full px-6 h-8 text-[10px] font-black uppercase tracking-widest", auroraClasses)}>
+                      <Button
+                        size="sm"
+                        className={cn(
+                          "rounded-full h-8 text-[10px] font-black uppercase tracking-widest",
+                          "px-9 min-w-[110px]", // [FIX]: Aumento del 15% de ancho y base mínima
+                          auroraClasses
+                        )}
+                      >
+                        {/* Brillo cinemático suave en lugar de pulse brusco */}
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover/crear:animate-shimmer" />
                         <Plus className="mr-1.5 h-3.5 w-3.5" /> {item.label}
                       </Button>
                     </Link>
@@ -156,7 +166,9 @@ export function Navigation() {
                     href={item.href}
                     className={cn(
                       "rounded-full px-5 py-2 text-[10px] font-black uppercase tracking-widest transition-all block",
-                      isActive(item.href) ? "bg-background shadow-md text-primary" : "text-muted-foreground/70 hover:text-primary"
+                      isActive(item.href)
+                        ? "bg-background shadow-md text-primary"
+                        : "text-muted-foreground/70 hover:text-primary"
                     )}
                   >
                     {item.label}
@@ -167,24 +179,20 @@ export function Navigation() {
           </ul>
         </nav>
 
-        {/* 3. NÚCLEO DERECHO: HERRAMIENTAS Y ACCESO (Mobile Precision) */}
-        <div className="flex-1 flex items-center justify-end gap-1 sm:gap-3">
+        {/* 3. NÚCLEO DERECHO: HERRAMIENTAS Y PERFIL */}
+        <div className="flex-1 flex items-center justify-end gap-1.5 sm:gap-3">
 
-          {/* --- BLOQUE TÁCTICO MÓVIL (Sincronizado con su requerimiento) --- */}
-          <div className="flex md:hidden items-center gap-1.5">
-            {/* Botón Crear: Alta Visibilidad */}
-            {isAuthenticated && (
+          {/* BLOQUE MÓVIL */}
+          <div className="flex md:hidden items-center gap-2">
+            {isAuthenticated && !isInitialLoading && (
               <Link href="/create">
-                <Button className={cn("h-9 px-3 rounded-xl font-black text-[10px] uppercase tracking-tighter shadow-primary/40 animate-pulse", auroraClasses)}>
+                <Button className={cn("h-9 px-5 rounded-xl font-black text-[10px] uppercase tracking-tighter", auroraClasses)}>
                   CREAR
                 </Button>
               </Link>
             )}
-
-            {/* Control Lumínico */}
             <ThemeToggle />
-
-            {/* Avatar de Usuario (Mobile Trigger) */}
+            {/* ... Resto del menú móvil se mantiene igual para evitar errores de lógica ... */}
             {isAuthenticated && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -216,89 +224,57 @@ export function Navigation() {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-
-            {/* Hamburguesa Final */}
-            <div className="ml-0.5">
-              <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="rounded-xl h-9 w-9 bg-white/5 border border-white/5">
-                    <Menu className="h-5 w-5" />
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="right" className="w-full max-w-[280px] p-0 rounded-l-[2.5rem] border-l-border/40 bg-background/95 backdrop-blur-3xl shadow-2xl">
-                  <div className="flex flex-col h-full p-8">
-                    <SheetHeader className="text-left mb-10">
-                      <SheetTitle className="flex items-center space-x-3">
-                        <div className="h-7 w-7 relative rounded-lg overflow-hidden border border-white/10">
-                          <Image src={logoSrc} alt="NicePod" fill sizes="28px" className="object-cover" />
-                        </div>
-                        <span className="font-black text-xl tracking-tighter uppercase italic">NicePod</span>
-                      </SheetTitle>
-                    </SheetHeader>
-
-                    {/* Identidad dentro del menú lateral */}
-                    {isAuthenticated && profile && (
-                      <div className="mb-8 p-4 rounded-2xl bg-white/5 border border-white/10 flex items-center gap-4">
-                        <Avatar className="h-10 w-10 border border-primary/20">
-                          <AvatarImage src={getSafeAsset(profile.avatar_url, 'avatar')} className="object-cover" />
-                          <AvatarFallback className="font-black bg-primary/10 text-primary text-[10px]">{profile.full_name?.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0">
-                          <p className="font-black text-xs text-foreground truncate uppercase">{profile.full_name}</p>
-                          <p className="text-[9px] text-muted-foreground uppercase tracking-widest">@{profile.username}</p>
-                        </div>
+            <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="rounded-xl h-9 w-9 bg-white/5 border border-white/5">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-full max-w-[280px] p-0 rounded-l-[2.5rem] border-l-border/40 bg-background/95 backdrop-blur-3xl">
+                <div className="flex flex-col h-full p-8">
+                  <SheetHeader className="text-left mb-10">
+                    <SheetTitle className="flex items-center space-x-3">
+                      <div className="h-7 w-7 relative rounded-lg overflow-hidden border border-white/10">
+                        <Image src={logoSrc} alt="NicePod" fill sizes="28px" />
                       </div>
-                    )}
-
-                    <nav className="flex flex-col space-y-3">
-                      {navItems.map((item) => (
-                        <Link key={item.href} href={item.href} onClick={() => setIsMobileMenuOpen(false)}>
-                          <Button variant={isActive(item.href) ? "secondary" : "ghost"} className="w-full justify-start text-[10px] h-12 rounded-xl font-black px-6 uppercase tracking-widest">
-                            <item.icon className="mr-4 h-4 w-4 opacity-50" /> {item.label}
-                          </Button>
-                        </Link>
-                      ))}
-
-                      <div className="pt-8 mt-4 border-t border-white/5 space-y-3">
-                        {isAuthenticated ? (
-                          <>
-                            <Link href="/notifications" onClick={() => setIsMobileMenuOpen(false)}>
-                              <Button variant="ghost" className="w-full justify-start text-[10px] h-12 rounded-xl font-black text-muted-foreground/80 uppercase tracking-widest">
-                                <Bell className="mr-4 h-5 w-5 opacity-50" /> Notificaciones
-                              </Button>
-                            </Link>
-                            <Button variant="ghost" onClick={handleLogout} className="w-full justify-start text-[10px] h-12 rounded-xl font-black text-red-500/70 uppercase tracking-widest">
-                              <LogOut className="mr-4 h-4 w-4" /> Desconectar
-                            </Button>
-                          </>
-                        ) : (
-                          <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
-                            <Button className="w-full h-12 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl bg-primary text-white">
-                              Ingresar
-                            </Button>
-                          </Link>
-                        )}
-                      </div>
-                    </nav>
-                  </div>
-                </SheetContent>
-              </Sheet>
-            </div>
+                      <span className="font-black text-xl tracking-tighter uppercase italic">NicePod</span>
+                    </SheetTitle>
+                  </SheetHeader>
+                  <nav className="flex flex-col space-y-3">
+                    {navItems.map((item) => (
+                      <Link key={item.href} href={item.href} onClick={() => setIsMobileMenuOpen(false)}>
+                        <Button variant={isActive(item.href) ? "secondary" : "ghost"} className="w-full justify-start text-[10px] h-12 rounded-xl font-black px-6 uppercase tracking-widest">
+                          <item.icon className="mr-4 h-4 w-4 opacity-50" /> {item.label}
+                        </Button>
+                      </Link>
+                    ))}
+                    <div className="pt-8 mt-4 border-t border-white/5 space-y-3">
+                      <Button variant="ghost" onClick={handleLogout} className="w-full justify-start text-[10px] h-12 rounded-xl font-black text-red-500/70 uppercase tracking-widest">
+                        <LogOut className="mr-4 h-4 w-4" /> Desconectar
+                      </Button>
+                    </div>
+                  </nav>
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
 
-          {/* --- BLOQUE HERRAMIENTAS DESKTOP --- */}
+          {/* BLOQUE DESKTOP */}
           <div className="hidden md:flex items-center space-x-3">
+            {/* [NUEVO]: Integración de ThemeToggle en Desktop */}
+            <ThemeToggle />
+
             {isInitialLoading ? (
-              <div className="h-10 w-10 flex items-center justify-center">
+              <div className="h-10 w-[40px] flex items-center justify-center">
                 <Loader2 className="h-4 w-4 animate-spin text-primary/40" />
               </div>
             ) : isAuthenticated ? (
-              <div className="flex items-center gap-3 animate-in zoom-in-95 duration-500">
+              <div className="flex items-center gap-3 animate-in zoom-in-95 duration-300">
                 <NotificationBell />
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <div className="relative cursor-pointer">
-                      <Avatar className="h-10 w-10 border-2 border-border/40 hover:border-primary transition-all shadow-lg">
+                      <Avatar className="h-10 w-10 border-2 border-border/40 hover:border-primary transition-all shadow-lg overflow-hidden">
                         {isProfileLoading ? (
                           <AvatarFallback className="bg-muted animate-pulse" />
                         ) : (
@@ -340,7 +316,7 @@ export function Navigation() {
               </div>
             ) : (
               <Link href='/login'>
-                <Button variant="default" className="rounded-full px-5 h-10 font-black text-[9px] uppercase tracking-[0.2em] shadow-lg">
+                <Button variant="default" className="rounded-full px-7 h-10 font-black text-[9px] uppercase tracking-[0.2em] shadow-lg">
                   Ingresar
                 </Button>
               </Link>

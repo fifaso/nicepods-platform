@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 @layer base {
-  /* 1. VARIABLES DE COLOR BASE (MODO CLARO) */
+  /* 1. VARIABLES DE COLOR BASE (MODO CLARO - AMANECER) */
   :root {
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
@@ -32,7 +32,7 @@
     --chart-5: 27 87% 67%;
   }
 
-  /* 2. VARIABLES DE COLOR BASE (MODO OSCURO) */
+  /* 2. VARIABLES DE COLOR BASE (MODO OSCURO - NEBULOSA) */
   .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
@@ -69,15 +69,25 @@
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
+  
+  /* [ESTABILIZACIÓN]: Gestión de Esquema Lumínico
+     Forzamos que el navegador asuma el color-scheme de la variable CSS para evitar 
+     parpadeos en barras de scroll y elementos de sistema.
+  */
   html {
     color-scheme: light;
   }
   html.dark {
     color-scheme: dark;
   }
-  * {
-    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
-  }
+
+  /* 
+     [AJUSTE QUIRÚRGICO]: Eliminación de Transición Universal.
+     Se ha removido la transición en el selector '*' para garantizar que la 
+     hidratación inicial del tema (Nebulosa/Amanecer) sea instantánea.
+     Las transiciones ahora se gestionan mediante utilidades específicas 
+     (como 'transition-colors' de Tailwind) solo donde sea necesario.
+  */
 }
 
 @layer components {

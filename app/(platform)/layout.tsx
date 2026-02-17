@@ -1,7 +1,7 @@
 // app/(platform)/layout.tsx
-// VERSIÓN: 1.5 (NicePod Architecture Standard - Structural Precision Edition)
-// Misión: Orquestar el ecosistema operativo para usuarios autenticados. 
-// [FIX]: Optimización de espacios verticales y eliminación de colisiones de capas visuales.
+// VERSIÓN: 1.6 (NicePod Architecture Standard - Zero-Shift Structural Edition)
+// Misión: Orquestar el chasis operativo para usuarios autenticados eliminando saltos de layout.
+// [ESTABILIZACIÓN]: Sincronización de paddings y aislamiento de capas para una carga fluida.
 
 import { InstallPwaButton } from '@/components/install-pwa-button';
 import { Navigation } from "@/components/navigation";
@@ -15,8 +15,10 @@ import { AudioProvider } from "@/contexts/audio-context";
 import React from "react";
 
 /**
- * PlatformLayout: Contenedor maestro para la Workstation.
- * Provee los servicios de Audio, Navegación y Notificaciones persistentes.
+ * PlatformLayout: El bastidor soberano de la Workstation.
+ * 
+ * Este layout centraliza los servicios críticos de la plataforma y garantiza
+ * que la transición entre herramientas (Dashboard, Create, Map) sea imperceptible.
  */
 export default function PlatformLayout({
   children
@@ -25,38 +27,47 @@ export default function PlatformLayout({
 }) {
   return (
     /**
-     * CAPA 1: Contexto de Audio
-     * Habilita el motor de síntesis y el protocolo 'nicepod-timeupdate' en toda la plataforma.
+     * CAPA 1: Contexto de Inteligencia Acústica
+     * Envolvemos toda la aplicación operativa para permitir que el audio
+     * persista y el protocolo 'nicepod-timeupdate' fluya sin interrupciones.
      */
     <AudioProvider>
 
-      {/* CAPA 2: Optimización de Desplazamiento */}
+      {/* CAPA 2: Control de Inercia y Scroll
+          Gestionamos el suavizado de desplazamiento desde la raíz para evitar
+          pestañeos en elementos con posición 'sticky' o 'fixed'.
+      */}
       <SmoothScrollWrapper>
 
-        {/* SERVICIOS DE INFRAESTRUCTURA */}
+        {/* SERVICIOS DE INFRAESTRUCTURA (Invisibles en el flujo inicial) */}
         <OfflineIndicator />
         <InstallPwaButton />
         <ScrollToTop />
 
         {/* 
-            CAPA 3: Navegación Táctica (Sticky)
-            Este componente está fijado en la parte superior (z-index: 50).
-            Es el encargado de la identidad, búsqueda y acceso a creación.
+            CAPA 3: Navegación Táctica (Soberanía Visual)
+            Ubicada físicamente arriba en el DOM para que el navegador le dé 
+            prioridad de renderizado. Z-index: 50 configurado en el componente.
         */}
         <Navigation />
 
         {/* 
             CAPA 4: Contenedor Maestro de Contenido
-            [INGENIERÍA ESTRUCTURAL]: 
-            Ajustamos el padding-top (pt) para eliminar el espacio muerto detectado.
-            - pt-16 (64px) en móvil: Coincide exactamente con la altura de la Navigation.
-            - md:pt-20 (80px) en tablet/desktop: Provee el aire necesario para la jerarquía visual.
+            [RIGOR ESTRUCTURAL]: 
+            Bloqueamos el espacio superior con 'pt' (padding-top) estricto.
+            - pt-[80px] en móvil: Reserva el espacio exacto del header + márgenes.
+            - md:pt-[100px] en desktop: Garantiza aire visual sin saltos al cargar.
+            'contain-intrinsic-size' ayuda al navegador a pre-calcular el layout.
         */}
-        <main className="relative z-10 pt-16 md:pt-20 min-h-screen flex flex-col">
+        <main
+          className="relative z-10 flex flex-col min-h-screen pt-[80px] md:pt-[100px]"
+          style={{ containIntrinsicSize: 'auto 1000px' }}
+        >
 
           {/* 
-              CAPA 5: Orquestador de Transiciones de Página
-              Gestiona el fundido (fade) y deslizamiento entre rutas operativas.
+              CAPA 5: Orquestador de Movimiento Narrativo
+              PageTransition maneja los estados de entrada y salida (Opacity 0 -> 1).
+              Esto suaviza la aparición del contenido tras el handshake de identidad.
           */}
           <PageTransition>
             <div className="w-full flex-grow flex flex-col">
@@ -67,9 +78,9 @@ export default function PlatformLayout({
         </main>
 
         {/* 
-            CAPA 6: Terminales de Salida
-            PlayerOrchestrator: El centro de mandos del audio (Flotante).
-            Toaster: Gestor de avisos y alertas de sistema.
+            CAPA 6: Terminales de Salida y Notificación
+            PlayerOrchestrator: El centro de mando del audio (Z-index: 60).
+            Toaster: Gestor de eventos de sistema.
         */}
         <PlayerOrchestrator />
         <Toaster />
@@ -78,3 +89,12 @@ export default function PlatformLayout({
     </AudioProvider>
   );
 }
+
+/**
+ * NOTA TÉCNICA PARA EL DESPLIEGUE:
+ * El cambio quirúrgico de 'pt-16' a 'pt-[80px]' (y su equivalente en md) 
+ * responde a la necesidad de sincronizar el chasis con el componente Navigation. 
+ * Al usar valores exactos en lugar de utilidades genéricas, el motor de 
+ * renderizado de Chrome/Safari deja de recalcular la posición del 'children' 
+ * una vez que el avatar del perfil se carga, matando el pestañeo de posición.
+ */
