@@ -1,13 +1,13 @@
 // supabase/functions/generate-cover-image/index.ts
-// VERSIÓN: 20.0 (Master Image Architect - High-Performance & Global Resilience)
-// Misión: Forja de identidad visual mediante Google Vertex AI (Imagen 3) con cierre de ciclo garantizado.
-// [OPTIMIZACIÓN]: Ejecución directa sin Guard para maximizar el presupuesto de CPU en el Edge.
+// VERSIÓN: 21.0 (Master Image Architect - Imagen 3 Migration & Zero-Overhead Standard)
+// Misión: Forjar la identidad visual del podcast mediante Google Imagen 3 con resiliencia total.
+// [RESOLUCIÓN]: Corrección de error 404 (Deprecación de modelo @006) y optimización de CPU.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 
-// Importaciones del núcleo de inteligencia NicePod (Sincronizadas con Nivel 1)
-import { buildPrompt, cleanTextForSpeech } from "../_shared/ai.ts";
+// Importaciones del núcleo de inteligencia NicePod sincronizado (v11.8)
+import { AI_MODELS, buildPrompt, cleanTextForSpeech } from "../_shared/ai.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { getGoogleAccessToken } from "../_shared/google-auth.ts";
 
@@ -15,11 +15,11 @@ import { getGoogleAccessToken } from "../_shared/google-auth.ts";
  * CONFIGURACIÓN DE ACTIVOS SOBERANOS
  */
 const PLACEHOLDER_COVER_URL = "https://arbojlknwilqcszuqope.supabase.co/storage/v1/object/public/podcasts/static/placeholder-logo.png";
-const GOOGLE_LOCATION = "us-central1"; // Región óptima para Google Imagen 3
+const GOOGLE_LOCATION = "us-central1";
 
 /**
  * CLIENTE SUPABASE ADMIN:
- * Persistente en el contexto de ejecución para optimizar latencia.
+ * Persistente en el contexto de ejecución para minimizar latencia en el handshake.
  */
 const supabaseAdmin: SupabaseClient = createClient(
   Deno.env.get("SUPABASE_URL") ?? "",
@@ -31,11 +31,11 @@ const supabaseAdmin: SupabaseClient = createClient(
  */
 function extractScriptContent(script_text: any): string {
   if (!script_text) return "";
-  // Priorizamos script_plain ya sanitizado por la Sala de Forja
+  // Priorizamos script_plain ya sanitizado por la Sala de Forja (Protocolo V2.5)
   if (typeof script_text === 'object') {
     return script_text.script_plain || script_text.script_body || "";
   }
-  // Fallback por si la migración SQL no alcanzó a este registro
+  // Fallback para datos legacy o stringificados
   try {
     const parsed = typeof script_text === 'string' ? JSON.parse(script_text) : script_text;
     return parsed.script_plain || parsed.script_body || "";
@@ -66,8 +66,8 @@ async function handler(request: Request): Promise<Response> {
 
     console.log(`🎨 [Image-Worker][${correlationId}] Iniciando forja visual para Pod #${podcast_id}`);
 
-    // 3. OBTENCIÓN DE DATOS Y PROMPT (Fase IV)
-    // Recuperamos el título, el guion y las instrucciones del agente de arte simultáneamente.
+    // 3. OBTENCIÓN DE DATOS Y AGENTE (Fase IV)
+    // Extraemos título, guion y parámetros del agente simultáneamente.
     const [podRes, agentRes] = await Promise.all([
       supabaseAdmin.from('micro_pods').select('title, script_text, user_id').eq('id', podcast_id).single(),
       supabaseAdmin.from('ai_prompts').select('prompt_template, model_identifier').eq('agent_name', agent_name).single()
@@ -76,9 +76,9 @@ async function handler(request: Request): Promise<Response> {
     if (podRes.error || !podRes.data) throw new Error("PODCAST_NOT_FOUND");
     if (agentRes.error || !agentRes.data) throw new Error("ART_AGENT_NOT_CONFIGURED");
 
-    // 4. CONSTRUCCIÓN DEL PROMPT VISUAL
+    // 4. CONSTRUCCIÓN DEL PROMPT VISUAL (Aurora Style)
     const rawScript = extractScriptContent(podRes.data.script_text);
-    // Usamos los primeros 500 caracteres para dar contexto visual sin saturar el prompt.
+    // Usamos los primeros 500 caracteres para dar contexto sin exceder los límites de tokens.
     const scriptSummary = cleanTextForSpeech(rawScript).substring(0, 500);
 
     const visualPrompt = buildPrompt(agentRes.data.prompt_template, {
@@ -89,15 +89,19 @@ async function handler(request: Request): Promise<Response> {
     let finalImageUrl = PLACEHOLDER_COVER_URL;
     let imageWasGenerated = false;
 
-    // 5. INVOCACIÓN A GOOGLE VERTEX AI (Imagen 3)
+    // 5. INVOCACIÓN A GOOGLE VERTEX AI (Imagen 3.0)
     try {
       const accessToken = await getGoogleAccessToken();
       const projectId = Deno.env.get("GOOGLE_PROJECT_ID");
-      const modelId = agentRes.data.model_identifier || 'imagegeneration@006';
 
+      /**
+       * [MIGRACIÓN]: Utilizamos el modelo IMAGE definido en nuestro núcleo compartido v11.8.
+       * Fallback a imagen-3.0-generate-001 si no está definido.
+       */
+      const modelId = AI_MODELS.IMAGE || 'imagen-3.0-generate-001';
       const vertexUrl = `https://${GOOGLE_LOCATION}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${GOOGLE_LOCATION}/publishers/google/models/${modelId}:predict`;
 
-      console.log(`🧠 [Image-Worker] Solicitando síntesis a Vertex AI: ${modelId}`);
+      console.log(`🧠 [Image-Worker] Solicitando síntesis a motor Imagen 3...`);
 
       const response = await fetch(vertexUrl, {
         method: 'POST',
@@ -110,7 +114,7 @@ async function handler(request: Request): Promise<Response> {
           parameters: {
             "sampleCount": 1,
             "aspectRatio": "1:1",
-            "safetySetting": "block_most" // Rigor de seguridad de contenido
+            "safetySetting": "block_most"
           }
         })
       });
@@ -128,8 +132,7 @@ async function handler(request: Request): Promise<Response> {
             .from('podcasts')
             .upload(filePath, imageBuffer, {
               contentType: 'image/jpeg',
-              upsert: true,
-              cacheControl: '3600'
+              upsert: true
             });
 
           if (!uploadError) {
@@ -140,20 +143,20 @@ async function handler(request: Request): Promise<Response> {
         }
       } else {
         const errorText = await response.text();
-        console.warn(`⚠️ [Image-Worker] Vertex AI no pudo generar la imagen: ${errorText}`);
+        console.warn(`⚠️ [Image-Worker] Vertex AI declinó la generación (Posible filtro o cuota): ${errorText}`);
       }
     } catch (vertexErr: any) {
-      console.error(`⚠️ [Image-Worker] Error de comunicación con Vertex: ${vertexErr.message}`);
+      console.error(`⚠️ [Image-Worker] Excepción en túnel Vertex AI: ${vertexErr.message}`);
     }
 
     // 7. CIERRE DE CICLO Y LIBERACIÓN DE SEMÁFORO (Fase V)
-    // CRÍTICO: Siempre marcamos image_ready = true para liberar el trigger tr_check_integrity
+    // CRÍTICO: Siempre marcamos image_ready = true para que tr_check_integrity libere el podcast.
     const { error: updateErr } = await supabaseAdmin
       .from('micro_pods')
       .update({
         cover_image_url: finalImageUrl,
         image_ready: true,
-        admin_notes: imageWasGenerated ? null : `Respaldo visual activado: ${correlationId}`,
+        admin_notes: imageWasGenerated ? null : `Fallback visual activado: ${correlationId}`,
         updated_at: new Date().toISOString()
       })
       .eq('id', podcast_id);
@@ -169,23 +172,23 @@ async function handler(request: Request): Promise<Response> {
       trace_id: correlationId
     }), {
       status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" }
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
-  } catch (error: any) {
-    console.error(`🔥 [Image-Worker-Fatal][${correlationId}]:`, error.message);
+  } catch (err: any) {
+    console.error(`🔥 [Image-Worker-Fatal][${correlationId}]:`, err.message);
 
-    // Fallback administrativo para evitar estados de carga infinitos en el Dashboard
+    // Fallback de emergencia para evitar estados bloqueados en la UI
     if (targetPodId) {
       await supabaseAdmin.from('micro_pods').update({
-        image_ready: true, // Liberamos el semáforo incluso en error crítico
-        admin_notes: `Critical Image Failure: ${error.message} | ID: ${correlationId}`
+        image_ready: true, // Liberamos el semáforo para permitir el flujo de audio
+        admin_notes: `Critical Art Failure: ${err.message}`
       }).eq('id', targetPodId);
     }
 
     return new Response(JSON.stringify({
       success: false,
-      error: error.message,
+      error: err.message,
       trace_id: correlationId
     }), {
       status: 500,

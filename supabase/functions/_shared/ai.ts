@@ -1,7 +1,7 @@
 // supabase/functions/_shared/ai.ts
 // VERSIÓN: 11.8 (Master Intelligence Core - Final Production Standard)
 // Misión: Centralizar los recursos de IA para redacción, audio, imagen y visión.
-// [FIX]: Exportación explícita de callGeminiAudio y actualización a Imagen 3.
+// Exportación explícita de callGeminiAudio y actualización a Imagen 3.
 
 export const AI_MODELS = {
     // Modelos para redacción y análisis técnico (Preview 3.0)

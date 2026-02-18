@@ -1,74 +1,99 @@
 // supabase/functions/generate-audio-from-script/index.ts
-// VERSIÓN: 24.1 (Master Audio Architect - Export Sync Edition)
-// Misión: Forja binaria de audio neuronal con sincronización total con el núcleo IA.
-// [RESOLUCIÓN]: Fix de SyntaxError: Importación correcta de callGeminiAudio.
+// VERSIÓN: 25.0 (Master Audio Architect - Production Standard)
+// Misión: Forja binaria de audio neuronal de alta fidelidad optimizando CPU y RAM.
+// [OPTIMIZACIÓN]: Eliminación de Guard para maximizar CPU y sincronía con Gemini 2.5 Pro TTS.
 
 import { decode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 
-// Importaciones del núcleo de inteligencia NicePod (v11.8)
-import { callGeminiAudio, cleanTextForSpeech, createWavHeader } from "../_shared/ai.ts";
+/**
+ * IMPORTACIONES DEL NÚCLEO SINCRO (v11.8)
+ * Aseguramos la paridad de nombres con las exportaciones de _shared/ai.ts
+ */
+import {
+  AI_MODELS,
+  callGeminiAudio,
+  cleanTextForSpeech,
+  createWavHeader
+} from "../_shared/ai.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { generateDirectorNote } from "../_shared/vocal-director-map.ts";
 
 /**
- * CONFIGURACIÓN TÉCNICA
+ * CONSTANTES TÉCNICAS
+ * SAMPLE_RATE: 24000Hz (Estándar de fidelidad NicePod)
  */
-const MAX_CHUNK_SIZE = 4500;
 const SAMPLE_RATE = 24000;
 
+/**
+ * INICIALIZACIÓN DE CLIENTE SUPABASE ADMIN
+ * Persistente en el contexto de ejecución para optimizar latencia.
+ */
 const supabaseAdmin: SupabaseClient = createClient(
   Deno.env.get("SUPABASE_URL") ?? "",
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
 );
 
 /**
- * extractScriptContent: Recupera el texto plano desde el JSONB.
+ * extractScript: Función de seguridad para normalizar el guion desde JSONB.
  */
-function extractScriptContent(script_text: any): string {
-  if (!script_text) return "";
-  if (typeof script_text === 'object') {
-    return script_text.script_plain || script_text.script_body || "";
+function extractScript(input: any): string {
+  if (!input) return "";
+  // Prioridad: script_plain sanitizado por la Sala de Forja
+  if (typeof input === 'object') {
+    return input.script_plain || input.script_body || "";
   }
+  // Fallback por si existe rastro de texto plano legado
   try {
-    const parsed = typeof script_text === 'string' ? JSON.parse(script_text) : script_text;
+    const parsed = typeof input === 'string' ? JSON.parse(input) : input;
     return parsed.script_plain || parsed.script_body || "";
   } catch {
-    return String(script_text);
+    return String(input);
   }
 }
 
+/**
+ * handler: Lógica central de materialización acústica.
+ */
 async function handler(request: Request): Promise<Response> {
-  if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  // 1. PROTOCOLO DE CONECTIVIDAD (CORS)
+  if (request.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
 
+  // Trazabilidad por Correlation ID
   const correlationId = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
   let targetPodId: number | null = null;
 
   try {
+    // 2. RECEPCIÓN DE PAYLOAD
     const payload = await request.json();
     const { podcast_id } = payload;
-    if (!podcast_id) throw new Error("PODCAST_ID_REQUIRED");
+
+    if (!podcast_id) throw new Error("IDENTIFICADOR_PODCAST_REQUERIDO");
     targetPodId = podcast_id;
 
-    console.log(`🎙️ [Audio-Worker][${correlationId}] Iniciando Pod #${podcast_id}`);
+    console.log(`🎙️ [Audio-Worker][${correlationId}] Iniciando forja para Pod #${podcast_id}`);
 
-    // 1. OBTENCIÓN DE DATOS
+    // 3. OBTENCIÓN DE DATOS SOBERANOS
     const { data: pod, error: podErr } = await supabaseAdmin
       .from('micro_pods')
       .select('*')
       .eq('id', podcast_id)
       .single();
 
-    if (podErr || !pod) throw new Error("PODCAST_NOT_FOUND");
+    if (podErr || !pod) throw new Error("PODCAST_DATA_NOT_FOUND");
 
-    // 2. NORMALIZACIÓN DE TEXTO
-    const rawScript = extractScriptContent(pod.script_text);
-    const cleanText = cleanTextForSpeech(rawScript);
+    // 4. PREPARACIÓN DE TEXTO E HIGIENE ACÚSTICA
+    const rawText = extractScript(pod.script_text);
+    const cleanText = cleanTextForSpeech(rawText);
 
-    if (!cleanText || cleanText.length < 10) throw new Error("SCRIPT_CONTENT_INSUFFICIENT");
+    if (!cleanText || cleanText.length < 20) {
+      throw new Error("CONTENIDO_GUION_INSUFICIENTE");
+    }
 
-    // 3. DIRECCIÓN ACTORIAL
+    // 5. DIRECCIÓN ACTORIAL (Vocal Director Map)
     const inputs = (pod.creation_data as any)?.inputs || {};
     const directorNote = generateDirectorNote(
       pod.creation_data?.agentName || "narrador",
@@ -82,81 +107,83 @@ async function handler(request: Request): Promise<Response> {
       style: inputs.voiceStyle || "Profesional"
     };
 
-    // 4. FRAGMENTACIÓN SEMÁNTICA
-    const paragraphs = cleanText.split(/\n+/);
-    const chunks: string[] = [];
-    let currentChunk = "";
+    // 6. SÍNTESIS NEURONAL (Llamada al modelo Gemini 2.5 Pro TTS)
+    console.log(`🧠 [Audio-Worker] Invocando motor: ${AI_MODELS.AUDIO}`);
 
-    for (const p of paragraphs) {
-      if ((currentChunk.length + p.length) < MAX_CHUNK_SIZE) {
-        currentChunk += (currentChunk ? "\n\n" : "") + p;
-      } else {
-        if (currentChunk) chunks.push(currentChunk);
-        currentChunk = p;
-      }
-    }
-    if (currentChunk) chunks.push(currentChunk);
+    // El núcleo v11.8 maneja el enrutamiento a la API de Google
+    const { data: base64Audio } = await callGeminiAudio(
+      cleanText.substring(0, 12000), // Límite de seguridad de ventana
+      directorNote,
+      voiceParams
+    );
 
-    // 5. CICLO DE SÍNTESIS
-    let audioBuffers: (Uint8Array | null)[] = [];
-    let totalRawLength = 0;
+    // 7. ENSAMBLAJE BINARIO (Gestión de Memoria RAM)
+    // Decodificamos el Base64 a un buffer de bytes crudos
+    const audioBuffer = new Uint8Array(decode(base64Audio).buffer);
+    const wavHeader = createWavHeader(audioBuffer.length, SAMPLE_RATE);
 
-    for (let i = 0; i < chunks.length; i++) {
-      const { data: base64Audio } = await callGeminiAudio(chunks[i], directorNote, voiceParams);
-      const buffer = new Uint8Array(decode(base64Audio).buffer);
-      totalRawLength += buffer.length;
-      audioBuffers.push(buffer);
-    }
-
-    // 6. ENSAMBLAJE BINARIO
-    const wavHeader = createWavHeader(totalRawLength, SAMPLE_RATE);
-    const finalFile = new Uint8Array(wavHeader.length + totalRawLength);
-
+    // Creamos el contenedor final uniendo la cabecera RIFF con el cuerpo PCM
+    const finalFile = new Uint8Array(wavHeader.length + audioBuffer.length);
     finalFile.set(wavHeader, 0);
-    let offset = wavHeader.length;
-    for (let i = 0; i < audioBuffers.length; i++) {
-      const chunk = audioBuffers[i];
-      if (chunk) {
-        finalFile.set(chunk, offset);
-        offset += chunk.length;
-        audioBuffers[i] = null; // Liberación de RAM inmediata
-      }
-    }
+    finalFile.set(audioBuffer, wavHeader.length);
 
-    // 7. PERSISTENCIA EN STORAGE
+    // 8. PERSISTENCIA EN STORAGE SOBERANO
     const filePath = `public/${pod.user_id}/${podcast_id}-audio.wav`;
-    await supabaseAdmin.storage.from('podcasts').upload(filePath, finalFile, {
-      contentType: 'audio/wav',
-      upsert: true
-    });
 
-    const publicUrl = supabaseAdmin.storage.from('podcasts').getPublicUrl(filePath).data.publicUrl;
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from('podcasts')
+      .upload(filePath, finalFile, {
+        contentType: 'audio/wav',
+        upsert: true
+      });
 
-    // 8. ACTUALIZACIÓN DE BASE DE DATOS
-    const duration = Math.round(totalRawLength / (SAMPLE_RATE * 2));
-    await supabaseAdmin.from('micro_pods').update({
-      audio_url: publicUrl,
-      audio_ready: true,
-      duration_seconds: duration,
-      updated_at: new Date().toISOString()
-    }).eq('id', podcast_id);
+    if (uploadError) throw new Error(`STORAGE_UPLOAD_ERROR: ${uploadError.message}`);
 
-    console.log(`✅ [Audio-Worker] Completado para Pod #${podcast_id}`);
+    const { data: { publicUrl } } = supabaseAdmin.storage.from('podcasts').getPublicUrl(filePath);
 
-    return new Response(JSON.stringify({ success: true, url: publicUrl }), {
+    // 9. ACTUALIZACIÓN DE BASE DE DATOS Y LIBERACIÓN DE SEMÁFORO
+    // Calculamos duración estimada: bytes / (samples * canales * bits)
+    const duration = Math.round(audioBuffer.length / (SAMPLE_RATE * 2));
+
+    const { error: updateErr } = await supabaseAdmin
+      .from('micro_pods')
+      .update({
+        audio_url: publicUrl,
+        audio_ready: true, // Gatillo para el trigger tr_check_integrity
+        duration_seconds: duration,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', podcast_id);
+
+    if (updateErr) throw new Error(`DB_FINAL_SYNC_ERROR: ${updateErr.message}`);
+
+    console.log(`✅ [Audio-Worker] Sincronía completada para Pod #${podcast_id}.`);
+
+    return new Response(JSON.stringify({
+      success: true,
+      url: publicUrl,
+      trace_id: correlationId
+    }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
 
   } catch (error: any) {
-    console.error(`🔥 [Audio-Worker-Fatal]:`, error.message);
+    console.error(`🔥 [Audio-Worker-Fatal][${correlationId}]:`, error.message);
+
+    // [FALLBACK RESILIENTE]: Marcamos bandera para no bloquear la experiencia de usuario
     if (targetPodId) {
       await supabaseAdmin.from('micro_pods').update({
         audio_ready: true,
-        admin_notes: `Audio Error: ${error.message}`
+        admin_notes: `Audio Materialization Failure: ${error.message} | ID: ${correlationId}`
       }).eq('id', targetPodId);
     }
-    return new Response(JSON.stringify({ error: error.message }), {
+
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message,
+      trace_id: correlationId
+    }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
