@@ -1,12 +1,23 @@
 // app/podcast/[id]/page.tsx
-// VERSIÓN: 7.7 (View Switcher Architecture - Narrative vs Pulse Pill)
+// VERSIÓN: 7.8 (View Switcher Architecture - Dynamic Integrity Standard)
+// Misión: Punto de entrada de servidor para visualización de podcasts.
+// [ESTABILIZACIÓN]: Implementación de force-dynamic y optimización de metadatos síncronos.
 
 import { PodcastView } from "@/components/podcast-view";
-import { PulsePillView } from "@/components/pulse-pill-view"; // [NUEVO]: Componente especializado
+import { PulsePillView } from "@/components/pulse-pill-view";
 import { createClient } from '@/lib/supabase/server';
 import { PodcastWithProfile } from '@/types/podcast';
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+
+/**
+ * [CONFIGURACIÓN DE RED]: force-dynamic
+ * Garantizamos que el servidor siempre consulte la base de datos en cada petición.
+ * Esto es vital para que, si el podcast termina de procesarse, el usuario vea 
+ * el estado real sin depender exclusivamente del WebSocket del cliente.
+ */
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 type PodcastPageProps = {
   params: {
@@ -15,34 +26,35 @@ type PodcastPageProps = {
 };
 
 /**
- * GENERACIÓN DE METADATOS (SEO)
- * Mantiene la visibilidad social y la indexación profesional.
- * Es independiente de la lógica de visualización interna.
+ * generateMetadata: Motor de visibilidad y SEO técnico.
  */
 export async function generateMetadata({ params }: PodcastPageProps): Promise<Metadata> {
   const supabase = createClient();
   const { data: podcast } = await supabase
     .from("micro_pods")
-    .select("title, description, cover_image_url")
+    .select("title, description, cover_image_url, processing_status")
     .eq('id', params.id)
     .single();
 
-  if (!podcast) return { title: "Podcast no encontrado | NicePod" };
+  if (!podcast) return { title: "Punto de Sabiduría no localizado | NicePod" };
+
+  // Usamos el placeholder oficial si la imagen aún no está lista
+  const ogImage = podcast.cover_image_url || 'https://arbojlknwilqcszuqope.supabase.co/storage/v1/object/public/podcasts/static/placeholder-logo.png';
 
   return {
-    title: `${podcast.title} | NicePod`,
-    description: podcast.description,
+    title: `${podcast.title} | NicePod Intelligence`,
+    description: podcast.description || "Escucha esta crónica de sabiduría generada en NicePod.",
     openGraph: {
       title: podcast.title,
       description: podcast.description || '',
-      images: [podcast.cover_image_url || '/nicepod-logo.png'],
+      images: [ogImage],
       type: 'music.song',
     },
     twitter: {
       card: 'summary_large_image',
       title: podcast.title,
       description: podcast.description || '',
-      images: [podcast.cover_image_url || '/nicepod-logo.png'],
+      images: [ogImage],
     }
   };
 }
@@ -50,7 +62,11 @@ export async function generateMetadata({ params }: PodcastPageProps): Promise<Me
 export default async function PodcastDisplayPage({ params }: PodcastPageProps) {
   const supabase = createClient();
 
-  // Selector maestro que garantiza todas las propiedades para la interfaz PodcastWithProfile
+  /**
+   * [CORE]: Selección de campos de alta fidelidad.
+   * Incluimos todas las banderas de integridad para que PodcastView (v22.0)
+   * reciba el estado exacto del inventario multimedia.
+   */
   const fullFields = `
     *,
     profiles:user_id (
@@ -62,8 +78,7 @@ export default async function PodcastDisplayPage({ params }: PodcastPageProps) {
     )
   `;
 
-  // 1. FETCHING PARALELO DE ALTA VELOCIDAD
-  // Disparamos datos públicos y sesión en paralelo para minimizar el Time-to-First-Byte (TTFB)
+  // 1. FETCHING PARALELO DE ALTA VELOCIDAD (SSR T0)
   const [podcastResponse, repliesResponse, authResponse] = await Promise.all([
     supabase.from("micro_pods").select(fullFields).eq('id', params.id).single(),
     supabase.from('micro_pods').select(fullFields).eq('parent_id', params.id).order('created_at', { ascending: true }),
@@ -75,11 +90,11 @@ export default async function PodcastDisplayPage({ params }: PodcastPageProps) {
 
   // 2. GUARDIA DE PERSISTENCIA
   if (podcastResponse.error || !podcastData) {
-    console.error(`[NicePod-Page-Error] No se pudo localizar el recurso ${params.id}`);
+    console.error(`🛑 [NicePod-Router] Recurso inexistente: ${params.id}`);
     notFound();
   }
 
-  // 3. FETCHING DE INTERACCIONES PRIVADAS (Likes)
+  // 3. CAPTURA DE INTERACCIONES SOCIALES (Private State)
   let initialIsLiked = false;
   if (user) {
     const { data: likeData } = await supabase
@@ -92,13 +107,13 @@ export default async function PodcastDisplayPage({ params }: PodcastPageProps) {
     initialIsLiked = !!likeData;
   }
 
-  // 4. CASTING DE TIPOS Y SEGMENTACIÓN DE VISTA
+  // 4. NORMALIZACIÓN DE TIPOS (Rigor TypeScript)
   const typedPodcast = podcastData as unknown as PodcastWithProfile;
   const typedReplies = (repliesResponse.data || []) as unknown as PodcastWithProfile[];
 
   /**
-   * [SISTEMA DE BIFURCACIÓN ESTRATÉGICA]:
-   * Decidimos qué vista entregar basándonos en el modo de creación.
+   * [BIFURCACIÓN DE VISTA SOBERANA]:
+   * Decidimos el componente basándonos en la intención original de creación.
    */
   const isPulsePill = typedPodcast.creation_mode === 'pulse';
 
@@ -113,7 +128,11 @@ export default async function PodcastDisplayPage({ params }: PodcastPageProps) {
     );
   }
 
-  // Por defecto, entregamos la vista narrativa estándar
+  /**
+   * [REVELACIÓN]:
+   * Entregamos el control a PodcastView (v22.0), que gestionará
+   * la actualización Realtime de audio e imagen si el estado es 'processing'.
+   */
   return (
     <PodcastView
       podcastData={typedPodcast}

@@ -3,6 +3,7 @@
     /* Configuración de Lenguaje y Entorno */
     "target": "esnext",
     "types": [
+      "node",
       "@ducanh2912/next-pwa/workbox"
     ],
     "lib": [
