@@ -9,10 +9,10 @@
  */
 export const AI_MODELS = {
     // Inteligencia para redacción técnica y arquitectura de guiones.
-    PRO: "gemini-1.5-pro",
+    PRO: "gemini-3-flash-preview",
 
     // Motor de investigación rápida y análisis de fuentes crudas.
-    FLASH: "gemini-1.5-flash",
+    FLASH: "gemini-3-flash-preview",
 
     // Motor de síntesis de voz neuronal (TTS) de última generación.
     AUDIO: "gemini-2.5-flash-preview-tts",
