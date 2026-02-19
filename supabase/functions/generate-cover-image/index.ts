@@ -1,14 +1,14 @@
 // supabase/functions/generate-cover-image/index.ts
-// VERSIÓN: 23.0 (Master Image Architect - High-Performance & Full Metadata Sync)
-// Misión: Forjar la identidad visual del podcast utilizando el 100% del contexto creativo.
-// [ESTABILIZACIÓN]: Integración nativa con Gemini 2.5 Flash Image y protocolo Zero-Wait.
+// VERSIÓN: 23.0 (Master Image Architect - Unified Gemini API Standard)
+// Misión: Forjar la carátula artística del podcast utilizando el 100% del contexto creativo.
+// [ESTABILIZACIÓN]: Integración nativa con Gemini 2.5 Flash Image y cierre de ciclo garantizado.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 
 /**
- * IMPORTACIONES DEL NÚCLEO SINCRO (v12.0)
- * Sincronizamos con el motor compartido para el uso de Gemini API.
+ * IMPORTACIONES DEL NÚCLEO SINCRO (v13.0)
+ * Utilizamos callGeminiImage para la síntesis visual nativa sin Vertex AI.
  */
 import {
   AI_MODELS,
@@ -20,13 +20,13 @@ import { corsHeaders } from "../_shared/cors.ts";
 
 /**
  * CONFIGURACIÓN DE ACTIVOS SOBERANOS
- * PLACEHOLDER_COVER_URL: Backup visual oficial de NicePod.
+ * PLACEHOLDER_COVER_URL: Backup visual oficial de NicePod en caso de fallo del motor.
  */
 const PLACEHOLDER_COVER_URL = "https://arbojlknwilqcszuqope.supabase.co/storage/v1/object/public/podcasts/static/placeholder-logo.png";
 
 /**
  * INICIALIZACIÓN DE CLIENTE SUPABASE ADMIN
- * Mantenemos la instancia persistente para optimizar los tiempos de ejecución.
+ * Persistente en el contexto de ejecución para optimizar la latencia del Edge.
  */
 const supabaseAdmin: SupabaseClient = createClient(
   Deno.env.get("SUPABASE_URL") ?? "",
@@ -34,27 +34,27 @@ const supabaseAdmin: SupabaseClient = createClient(
 );
 
 /**
- * extractScriptContent: Recupera la esencia del guion para la interpretación visual.
+ * extractScript: Normaliza la entrada del guion gestionando el formato JSONB.
+ * Prioriza la versión limpia (script_plain) para evitar ruidos de Markdown en el prompt visual.
  */
-function extractScriptContent(script_text: any): string {
-  if (!script_text) return "";
-  // Priorizamos script_plain para evitar que caracteres de control ensucien el prompt de imagen.
-  if (typeof script_text === 'object') {
-    return script_text.script_plain || script_text.script_body || "";
+function extractScript(input: any): string {
+  if (!input) return "";
+  if (typeof input === 'object' && input !== null) {
+    return input.script_plain || input.script_body || "";
   }
   try {
-    const parsed = typeof script_text === 'string' ? JSON.parse(script_text) : script_text;
+    const parsed = typeof input === 'string' ? JSON.parse(input) : input;
     return parsed.script_plain || parsed.script_body || "";
   } catch {
-    return String(script_text);
+    return String(input);
   }
 }
 
 /**
- * handler: Lógica central de forja visual.
+ * handler: Orquestador central de la dirección de arte visual.
  */
 async function handler(request: Request): Promise<Response> {
-  // 1. GESTIÓN DE PROTOCOLO DE CONECTIVIDAD (CORS)
+  // 1. GESTIÓN DE PROTOCOLO CORS (Bypass rápido para pre-vuelo)
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -64,12 +64,12 @@ async function handler(request: Request): Promise<Response> {
 
   try {
     // 2. VALIDACIÓN DE SEGURIDAD LITE (Internal Service Authorization)
-    // Verificamos que la llamada provenga de nuestra propia base de datos o sistema.
+    // Verificamos que la petición provenga de nuestra infraestructura soberana.
     const authHeader = request.headers.get('Authorization');
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-    if (!authHeader?.includes(serviceKey ?? "SECURED")) {
-      console.warn(`🛑 [Security] Intento de acceso visual no autorizado.`);
+    if (!authHeader?.includes(serviceKey ?? "SECURED_ENVIRONMENT")) {
+      console.warn(`🛑 [Security] Intento de acceso visual no autorizado bloqueado.`);
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
     }
 
@@ -82,22 +82,23 @@ async function handler(request: Request): Promise<Response> {
 
     console.log(`🎨 [Image-Worker][${correlationId}] Iniciando forja visual para Pod #${podcast_id}`);
 
-    // 4. CAPTURA DE METADATA CREATIVA (Sincronía 360°)
-    // Obtenemos los datos del podcast y el template del agente de arte simultáneamente.
+    // 4. CAPTURA DE CONTEXTO CREATIVO (Sincronía 360°)
+    // Obtenemos los datos del podcast y las instrucciones del agente de arte simultáneamente.
     const [podRes, agentRes] = await Promise.all([
       supabaseAdmin.from('micro_pods').select('*').eq('id', podcast_id).single(),
       supabaseAdmin.from('ai_prompts').select('prompt_template').eq('agent_name', agent_name).single()
     ]);
 
-    if (podRes.error || !podRes.data) throw new Error("PODCAST_NOT_FOUND");
-    if (!agentRes.data) throw new Error("ART_AGENT_NOT_CONFIGURED_IN_VAULT");
+    if (podRes.error || !podRes.data) throw new Error("PODCAST_DATA_NOT_FOUND");
+    if (!agentRes.data) throw new Error("ART_AGENT_NOT_CONFIGURED");
 
     const pod = podRes.data;
     const creationData = pod.creation_data as any;
 
-    // 5. CONSTRUCCIÓN DEL PROMPT DE ALTA FIDELIDAD
-    // Destilamos el guion y extraemos los parámetros de intención del usuario.
-    const rawScript = extractScriptContent(pod.script_text);
+    // 5. DESTILACIÓN DEL PROMPT DE ALTA FIDELIDAD
+    // Extraemos la esencia y los metadatos para un arte visual coherente.
+    const rawScript = extractScript(pod.script_text);
+    // Limitamos a 600 caracteres para un resumen denso pero procesable.
     const summary = cleanTextForSpeech(rawScript).substring(0, 600);
 
     const contextParams = {
@@ -105,8 +106,7 @@ async function handler(request: Request): Promise<Response> {
       script_summary: summary,
       purpose: creationData?.purpose || "knowledge",
       tone: creationData?.selectedTone || "professional",
-      narrative_lens: creationData?.narrative_lens || "analytical",
-      style: creationData?.style || "solo"
+      narrative_lens: creationData?.narrative_lens || "analytical"
     };
 
     const visualPrompt = buildPrompt(agentRes.data.prompt_template, contextParams);
@@ -118,12 +118,12 @@ async function handler(request: Request): Promise<Response> {
     try {
       console.log(`🧠 [Image-Worker] Invocando motor: ${AI_MODELS.IMAGE}`);
 
-      // La función callGeminiImage (v12.0) gestiona el protocolo nativo de Gemini API.
+      // La función callGeminiImage (v13.0) gestiona el protocolo nativo de Gemini API.
       const { data: base64Image } = await callGeminiImage(visualPrompt);
 
       if (base64Image) {
-        // 7. PERSISTENCIA BINARIA EN LA BÓVEDA DE ACTIVOS
-        // Convertimos el flujo Base64 a un buffer de bytes para el Storage.
+        // 7. PERSISTENCIA BINARIA EN STORAGE SOBERANO
+        // Transformamos la respuesta en un buffer de bytes para la Bóveda de Activos.
         const imageBuffer = Uint8Array.from(atob(base64Image), (c) => c.charCodeAt(0));
         const filePath = `public/${pod.user_id}/${podcast_id}-cover.jpg`;
 
@@ -131,8 +131,7 @@ async function handler(request: Request): Promise<Response> {
           .from('podcasts')
           .upload(filePath, imageBuffer, {
             contentType: 'image/jpeg',
-            upsert: true,
-            cacheControl: '3600'
+            upsert: true
           });
 
         if (!uploadError) {
@@ -142,24 +141,22 @@ async function handler(request: Request): Promise<Response> {
         }
       }
     } catch (generationError: any) {
-      console.warn(`⚠️ [Image-Worker] Fallo en motor Gemini Image: ${generationError.message}`);
+      console.warn(`⚠️ [Image-Worker] Fallo en motor Gemini Image (Posible restricción): ${generationError.message}`);
     }
 
     // 8. CIERRE DE CICLO Y ACTUALIZACIÓN DE ESTADO
-    // CRÍTICO: Siempre marcamos image_ready = true para que el trigger de integridad libere el podcast.
-    const { error: updateErr } = await supabaseAdmin
+    // CRÍTICO: Siempre marcamos image_ready = true para liberar el semáforo tr_check_integrity.
+    await supabaseAdmin
       .from('micro_pods')
       .update({
         cover_image_url: finalImageUrl,
         image_ready: true,
-        admin_notes: imageWasGenerated ? null : `Fallback visual: ${correlationId}`,
+        admin_notes: imageWasGenerated ? null : `Respaldo visual activado por incidente en IA. ID: ${correlationId}`,
         updated_at: new Date().toISOString()
       })
       .eq('id', podcast_id);
 
-    if (updateErr) throw new Error(`DB_FINAL_SYNC_ERROR: ${updateErr.message}`);
-
-    console.log(`✅ [Image-Worker] Ciclo terminado. Pod #${podcast_id}. Generado: ${imageWasGenerated}`);
+    console.log(`✅ [Image-Worker] Ciclo finalizado para Pod #${podcast_id}. Generado: ${imageWasGenerated}`);
 
     return new Response(JSON.stringify({
       success: true,
@@ -174,11 +171,7 @@ async function handler(request: Request): Promise<Response> {
   } catch (error: any) {
     console.error(`🔥 [Image-Worker-Fatal][${correlationId}]:`, error.message);
 
-    /**
-     * [RESILIENCIA DE SEMÁFORO]:
-     * En caso de error crítico, liberamos la bandera de imagen para permitir 
-     * que el usuario acceda al menos al audio del podcast.
-     */
+    // [RESILIENCIA FINAL]: Garantizamos que el podcast no quede en loop eterno.
     if (targetPodId) {
       await supabaseAdmin.from('micro_pods').update({
         image_ready: true,
@@ -196,5 +189,5 @@ async function handler(request: Request): Promise<Response> {
   }
 }
 
-// Inicialización del servidor Edge sin wrapper pesado.
+// Inicialización del servidor HTTP sin overhead.
 serve(handler);

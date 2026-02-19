@@ -1,23 +1,26 @@
 // supabase/functions/_shared/ai.ts
-// VERSIÓN: 12.5 (Master Intelligence Core - NSP Streaming & Binary Standard)
-// Misión: Proveer el cerebro asíncrono de NicePod optimizado para el Protocolo de Streaming.
-// [ESTABILIZACIÓN]: Sincronización de parámetros PCM y utilidades de conversión binaria.
+// VERSIÓN: 13.0 (Master Intelligence Core - Gemini 2.5 Flash Image & NSP Standard)
+// Misión: Centralizar los recursos de IA eliminando la dependencia de Vertex AI y estandarizando el flujo binario.
+// [ESTABILIZACIÓN]: Restauración del modelo gemini-2.5-flash-image y soporte para Streaming NSP.
 
 /**
- * AI_MODELS: Inventario oficial de modelos validados para NicePod V2.5.
- * Mantenemos estrictamente los modelos operativos confirmados por el Comandante.
+ * AI_MODELS: Inventario oficial de modelos de última generación.
+ * - PRO/FLASH: Motores de razonamiento y redacción 3.0.
+ * - AUDIO: Motor de síntesis de voz neuronal (TTS).
+ * - EMBEDDING: Generador de ADN semántico 768d (HNSW Ready).
+ * - IMAGE: Generación de imágenes nativa (Modelo validado: 2.5 Flash Image).
  */
 export const AI_MODELS = {
     PRO: "gemini-3-flash-preview",
     FLASH: "gemini-3-flash-preview",
-    AUDIO: "gemini-2.5-pro-preview-tts",
+    AUDIO: "gemini-2.5-flash-preview-tts",
     EMBEDDING: "gemini-embedding-001",
-    IMAGE: "imagen-3.0-generate-001"
+    IMAGE: "gemini-2.5-flash-image"
 };
 
 /**
- * ESTÁNDARES ACÚSTICOS NICEPOD (NSP)
- * Definiciones inamovibles para garantizar que el ensamblaje de fragmentos sea perfecto.
+ * AUDIO_CONFIG: Estándar acústico NicePod para el Protocolo NSP.
+ * Garantiza que los fragmentos PCM sean compatibles con el ensamblador final.
  */
 export const AUDIO_CONFIG = {
     SAMPLE_RATE: 24000,
@@ -27,9 +30,8 @@ export const AUDIO_CONFIG = {
 };
 
 /**
- * buildPrompt: Inyecta variables dinámicas en plantillas de instrucciones.
- * Utiliza un algoritmo de reemplazo basado en expresiones regulares para optimizar
- * el uso de CPU, vital para el ahorro de ciclos en el Edge.
+ * buildPrompt: Inyecta datos en plantillas con eficiencia O(n).
+ * Sanitiza caracteres de control para prevenir rupturas en respuestas JSON.
  */
 export function buildPrompt(template: string, data: Record<string, unknown>): string {
     return template.replace(/{{(\w+)}}/g, (_, key) => {
@@ -40,7 +42,6 @@ export function buildPrompt(template: string, data: Record<string, unknown>): st
             ? JSON.stringify(value)
             : String(value);
 
-        // Sanitización profunda para inyección segura en estructuras JSON.
         return stringValue
             .replace(/\\/g, "\\\\")
             .replace(/"/g, '\\"')
@@ -51,8 +52,8 @@ export function buildPrompt(template: string, data: Record<string, unknown>): st
 }
 
 /**
- * generateEmbedding: Transforma cadenas de texto en vectores numéricos de 768 dimensiones.
- * Configurado específicamente para paridad con los índices HNSW de la base de datos.
+ * generateEmbedding: Transforma texto en vectores de 768 dimensiones.
+ * Configurado para máxima paridad con los índices HNSW de la base de datos Supabase.
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
     const apiKey = Deno.env.get("GOOGLE_AI_API_KEY");
@@ -80,14 +81,14 @@ export async function generateEmbedding(text: string): Promise<number[]> {
 
     const data = await response.json();
     if (!data.embedding?.values) {
-        throw new Error("IA_EMBEDDING_DATA_INVALID: El modelo no devolvió valores.");
+        throw new Error("IA_EMBEDDING_DATA_INVALID: No se recibió el vector.");
     }
 
     return data.embedding.values;
 }
 
 /**
- * callGeminiMultimodal: Invocación estándar para tareas de texto y visión.
+ * callGeminiMultimodal: Invocación estándar para texto y visión (Fase II y III).
  */
 export async function callGeminiMultimodal(
     prompt: string,
@@ -133,8 +134,8 @@ export async function callGeminiMultimodal(
 }
 
 /**
- * callGeminiAudio: Generación nativa de voz interpretativa (RAW Buffer Output).
- * [NSP OPTIMIZATION]: Devuelve el flujo Base64 para ser procesado como segmento PCM.
+ * callGeminiAudio: Generación nativa de voz interpretativa (Audio del Podcast).
+ * [NSP READY]: Devuelve el buffer Base64 para el ensamblaje de fragmentos.
  */
 export async function callGeminiAudio(prompt: string, directorNote: string, voiceParams: { gender: string, style: string }) {
     const apiKey = Deno.env.get("GOOGLE_AI_API_KEY");
@@ -192,13 +193,14 @@ export async function callGeminiAudio(prompt: string, directorNote: string, voic
     }
 
     return {
-        data: audioPart.inlineData.data, // Base64 del PCM crudo
+        data: audioPart.inlineData.data, // Base64
         mimeType: audioPart.inlineData.mimeType
     };
 }
 
 /**
- * callGeminiImage: Generación nativa de carátulas mediante Imagen 3.
+ * callGeminiImage: Generación nativa de carátulas mediante Gemini API (AI Studio).
+ * [RESTAURACIÓN V12]: Utiliza el modelo gemini-2.5-flash-image con respuesta modal.
  */
 export async function callGeminiImage(prompt: string) {
     const apiKey = Deno.env.get("GOOGLE_AI_API_KEY");
@@ -212,6 +214,7 @@ export async function callGeminiImage(prompt: string) {
             parts: [{ text: prompt }]
         }],
         generationConfig: {
+            // Instrucción específica para habilitar la síntesis visual en modelos multimodales.
             responseModalities: ["IMAGE"]
         }
     };
@@ -228,10 +231,12 @@ export async function callGeminiImage(prompt: string) {
     }
 
     const data = await response.json();
+
+    // El modelo devuelve la imagen como un fragmento de datos en línea (Base64).
     const imagePart = data.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
 
     if (!imagePart?.inlineData) {
-        throw new Error("IA_IMAGE_DATA_MISSING");
+        throw new Error("IA_IMAGE_DATA_MISSING: El motor no generó el activo visual esperado.");
     }
 
     return {
@@ -241,7 +246,7 @@ export async function callGeminiImage(prompt: string) {
 }
 
 /**
- * parseAIJson: Parser resiliente para extraer JSON de bloques de código.
+ * parseAIJson: Parser resiliente para extraer JSON de bloques de texto.
  */
 export function parseAIJson<T = unknown>(rawText: string): T {
     try {
@@ -252,14 +257,13 @@ export function parseAIJson<T = unknown>(rawText: string): T {
 
         return JSON.parse(jsonMatch[0]) as T;
     } catch {
-        throw new Error("ERROR_PARSING_AI_JSON: El formato devuelto por la IA es incompatible.");
+        throw new Error("ERROR_PARSING_AI_JSON: El formato de la IA no es un JSON válido.");
     }
 }
 
 /**
- * createWavHeader: Construye una cabecera RIFF/WAVE de 44 bytes para audio PCM.
- * Sincronizado con el estándar de salida de Gemini TTS a 24kHz.
- * [NSP]: Se usará en la función Stitcher para cerrar el archivo final.
+ * createWavHeader: Genera cabecera RIFF/WAVE de 44 bytes para audio PCM.
+ * Sincronizado con AUDIO_CONFIG.SAMPLE_RATE.
  */
 export function createWavHeader(dataLength: number, sampleRate = 24000) {
     const buffer = new ArrayBuffer(44);
@@ -274,12 +278,12 @@ export function createWavHeader(dataLength: number, sampleRate = 24000) {
     writeString(8, 'WAVE');
     writeString(12, 'fmt ');
     view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true); // Formato PCM
-    view.setUint16(22, 1, true); // Mono canal
+    view.setUint16(20, 1, true); // PCM
+    view.setUint16(22, 1, true); // Mono
     view.setUint32(24, sampleRate, true);
     view.setUint32(28, sampleRate * 2, true); // Byte Rate
     view.setUint16(32, 2, true); // Block Align
-    view.setUint16(34, 16, true); // Bits por muestra
+    view.setUint16(34, 16, true); // Bits per sample
     writeString(36, 'data');
     view.setUint32(40, dataLength, true);
     return new Uint8Array(buffer);
@@ -287,7 +291,6 @@ export function createWavHeader(dataLength: number, sampleRate = 24000) {
 
 /**
  * cleanTextForSpeech: El 'Stripper' acústico de NicePod.
- * Elimina marcas visuales para garantizar una prosodia pura en el motor TTS.
  */
 export function cleanTextForSpeech(text: string | null | undefined): string {
     if (!text) return "";
