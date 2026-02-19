@@ -1,15 +1,15 @@
 // supabase/functions/generate-audio-from-script/index.ts
-// VERSIÓN: 25.0 (Master Audio Architect - Production Standard)
-// Misión: Forja binaria de audio neuronal de alta fidelidad optimizando CPU y RAM.
-// [OPTIMIZACIÓN]: Eliminación de Guard para maximizar CPU y sincronía con Gemini 2.5 Pro TTS.
+// VERSIÓN: 26.0 (Master Audio Architect - Performance & Metadata Integration)
+// Misión: Forja binaria de audio neuronal utilizando el 100% de los parámetros del usuario.
+// [ESTABILIZACIÓN]: Sincronización con Núcleo v12.0 y protocolo de seguridad Lite.
 
 import { decode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 
 /**
- * IMPORTACIONES DEL NÚCLEO SINCRO (v11.8)
- * Aseguramos la paridad de nombres con las exportaciones de _shared/ai.ts
+ * IMPORTACIONES DEL NÚCLEO SINCRO (v12.0)
+ * Aseguramos la integridad de los métodos compartidos para evitar SyntaxErrors.
  */
 import {
   AI_MODELS,
@@ -21,10 +21,12 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { generateDirectorNote } from "../_shared/vocal-director-map.ts";
 
 /**
- * CONSTANTES TÉCNICAS
- * SAMPLE_RATE: 24000Hz (Estándar de fidelidad NicePod)
+ * PARÁMETROS TÉCNICOS NOMINALES
+ * SAMPLE_RATE: 24000Hz (Estándar de fidelidad NicePod para Gemini TTS).
+ * MAX_CHUNK_SIZE: Tamaño óptimo para evitar degradación de contexto en la IA.
  */
 const SAMPLE_RATE = 24000;
+const MAX_CHUNK_SIZE = 4000;
 
 /**
  * INICIALIZACIÓN DE CLIENTE SUPABASE ADMIN
@@ -36,126 +38,176 @@ const supabaseAdmin: SupabaseClient = createClient(
 );
 
 /**
- * extractScript: Función de seguridad para normalizar el guion desde JSONB.
+ * extractScriptContent: Recupera el texto plano desde el objeto JSONB de la base de datos.
  */
-function extractScript(input: any): string {
-  if (!input) return "";
-  // Prioridad: script_plain sanitizado por la Sala de Forja
-  if (typeof input === 'object') {
-    return input.script_plain || input.script_body || "";
+function extractScriptContent(script_text: any): string {
+  if (!script_text) return "";
+
+  // Priorizamos 'script_plain' (limpio de Markdown) generado por el Agente 38.
+  if (typeof script_text === 'object' && script_text !== null) {
+    return script_text.script_plain || script_text.script_body || "";
   }
-  // Fallback por si existe rastro de texto plano legado
+
+  // Fallback para datos legacy o hilos malformados.
   try {
-    const parsed = typeof input === 'string' ? JSON.parse(input) : input;
+    const parsed = typeof script_text === 'string' ? JSON.parse(script_text) : script_text;
     return parsed.script_plain || parsed.script_body || "";
   } catch {
-    return String(input);
+    return String(script_text);
   }
 }
 
 /**
- * handler: Lógica central de materialización acústica.
+ * handler: Orquestador del flujo de materialización acústica.
  */
 async function handler(request: Request): Promise<Response> {
-  // 1. PROTOCOLO DE CONECTIVIDAD (CORS)
+  // 1. GESTIÓN DE PROTOCOLO CORS
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
-  // Trazabilidad por Correlation ID
   const correlationId = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
   let targetPodId: number | null = null;
 
   try {
-    // 2. RECEPCIÓN DE PAYLOAD
+    // 2. VALIDACIÓN DE SEGURIDAD LITE (Internal Service Only)
+    // Protegemos la función verificando la Service Role Key sin el costo de CPU de Arcjet.
+    const authHeader = request.headers.get('Authorization');
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    if (!authHeader?.includes(serviceKey ?? "PROTECTED")) {
+      console.warn(`🛑 [Security] Acceso no autorizado bloqueado en Audio Worker.`);
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
+    }
+
+    // 3. RECEPCIÓN Y BÚSQUEDA DE DATOS
     const payload = await request.json();
     const { podcast_id } = payload;
 
-    if (!podcast_id) throw new Error("IDENTIFICADOR_PODCAST_REQUERIDO");
+    if (!podcast_id) throw new Error("PODCAST_ID_REQUIRED");
     targetPodId = podcast_id;
 
-    console.log(`🎙️ [Audio-Worker][${correlationId}] Iniciando forja para Pod #${podcast_id}`);
+    console.log(`🎙️ [Audio-Worker][${correlationId}] Iniciando Pod #${podcast_id}`);
 
-    // 3. OBTENCIÓN DE DATOS SOBERANOS
     const { data: pod, error: podErr } = await supabaseAdmin
       .from('micro_pods')
       .select('*')
       .eq('id', podcast_id)
       .single();
 
-    if (podErr || !pod) throw new Error("PODCAST_DATA_NOT_FOUND");
+    if (podErr || !pod) throw new Error("PODCAST_NOT_FOUND");
 
-    // 4. PREPARACIÓN DE TEXTO E HIGIENE ACÚSTICA
-    const rawText = extractScript(pod.script_text);
+    // 4. NORMALIZACIÓN E HIGIENE ACÚSTICA
+    const rawText = extractScriptContent(pod.script_text);
     const cleanText = cleanTextForSpeech(rawText);
 
     if (!cleanText || cleanText.length < 20) {
-      throw new Error("CONTENIDO_GUION_INSUFICIENTE");
+      throw new Error("CONTENIDO_GUION_INSUFICIENTE_PARA_SINTESIS");
     }
 
-    // 5. DIRECCIÓN ACTORIAL (Vocal Director Map)
+    // 5. EXTRACCIÓN DE PARÁMETROS DEL USUARIO (Metadata Sync)
+    // Recuperamos las selecciones del formulario para personalizar la voz.
     const inputs = (pod.creation_data as any)?.inputs || {};
-    const directorNote = generateDirectorNote(
-      pod.creation_data?.agentName || "narrador",
-      inputs.voiceGender || "Masculino",
-      inputs.voiceStyle || "Profesional",
-      inputs.voicePace || "Moderado"
-    );
+    const agentName = pod.creation_data?.agentName || "narrador";
+    const voiceGender = inputs.voiceGender || "Masculino";
+    const voiceStyle = inputs.voiceStyle || "Profesional";
+    const voicePace = inputs.voicePace || "Moderado";
+
+    // Generamos las notas de dirección para la IA (Acting Notes)
+    const directorNote = generateDirectorNote(agentName, voiceGender, voiceStyle, voicePace);
 
     const voiceParams = {
-      gender: inputs.voiceGender || "Masculino",
-      style: inputs.voiceStyle || "Profesional"
+      gender: voiceGender,
+      style: voiceStyle
     };
 
-    // 6. SÍNTESIS NEURONAL (Llamada al modelo Gemini 2.5 Pro TTS)
-    console.log(`🧠 [Audio-Worker] Invocando motor: ${AI_MODELS.AUDIO}`);
+    // 6. FRAGMENTACIÓN SEMÁNTICA (Chunking)
+    // Dividimos el texto por párrafos para mantener la fluidez narrativa.
+    const paragraphs = cleanText.split(/\n+/);
+    const chunks: string[] = [];
+    let currentChunk = "";
 
-    // El núcleo v11.8 maneja el enrutamiento a la API de Google
-    const { data: base64Audio } = await callGeminiAudio(
-      cleanText.substring(0, 12000), // Límite de seguridad de ventana
-      directorNote,
-      voiceParams
-    );
+    for (const p of paragraphs) {
+      if ((currentChunk.length + p.length) < MAX_CHUNK_SIZE) {
+        currentChunk += (currentChunk ? "\n\n" : "") + p;
+      } else {
+        if (currentChunk) chunks.push(currentChunk);
+        currentChunk = p;
+      }
+    }
+    if (currentChunk) chunks.push(currentChunk);
 
-    // 7. ENSAMBLAJE BINARIO (Gestión de Memoria RAM)
-    // Decodificamos el Base64 a un buffer de bytes crudos
-    const audioBuffer = new Uint8Array(decode(base64Audio).buffer);
-    const wavHeader = createWavHeader(audioBuffer.length, SAMPLE_RATE);
+    console.log(`🧠 [Audio-Worker] Sintetizando ${chunks.length} bloques con modelo ${AI_MODELS.AUDIO}`);
 
-    // Creamos el contenedor final uniendo la cabecera RIFF con el cuerpo PCM
-    const finalFile = new Uint8Array(wavHeader.length + audioBuffer.length);
+    // 7. CICLO DE SÍNTESIS CON CONTROL DE RAM
+    const audioBuffers: Uint8Array[] = [];
+    let totalRawLength = 0;
+
+    for (let i = 0; i < chunks.length; i++) {
+      console.log(`   > Procesando fragmento ${i + 1}/${chunks.length}...`);
+
+      const { data: base64Audio } = await callGeminiAudio(
+        chunks[i],
+        directorNote,
+        voiceParams
+      );
+
+      // Decodificación inmediata para liberar el peso de la cadena Base64
+      const buffer = new Uint8Array(decode(base64Audio).buffer);
+      totalRawLength += buffer.length;
+      audioBuffers.push(buffer);
+    }
+
+    // 8. ENSAMBLAJE BINARIO QUIRÚRGICO (WAV RIFF)
+    const wavHeader = createWavHeader(totalRawLength, SAMPLE_RATE);
+    const finalFile = new Uint8Array(wavHeader.length + totalRawLength);
+
+    // Inyectamos cabecera maestra
     finalFile.set(wavHeader, 0);
-    finalFile.set(audioBuffer, wavHeader.length);
 
-    // 8. PERSISTENCIA EN STORAGE SOBERANO
+    // Concatenamos y anulamos referencias para el Garbage Collector (Anti-Crash)
+    let offset = wavHeader.length;
+    for (let i = 0; i < audioBuffers.length; i++) {
+      const chunk = audioBuffers[i];
+      if (chunk) {
+        finalFile.set(chunk, offset);
+        offset += chunk.length;
+        // Liberamos memoria del fragmento tras la copia
+        (audioBuffers as any)[i] = null;
+      }
+    }
+
+    // 9. PERSISTENCIA EN STORAGE SOBERANO
     const filePath = `public/${pod.user_id}/${podcast_id}-audio.wav`;
 
     const { error: uploadError } = await supabaseAdmin.storage
       .from('podcasts')
       .upload(filePath, finalFile, {
         contentType: 'audio/wav',
-        upsert: true
+        upsert: true,
+        cacheControl: '3600'
       });
 
     if (uploadError) throw new Error(`STORAGE_UPLOAD_ERROR: ${uploadError.message}`);
 
     const { data: { publicUrl } } = supabaseAdmin.storage.from('podcasts').getPublicUrl(filePath);
 
-    // 9. ACTUALIZACIÓN DE BASE DE DATOS Y LIBERACIÓN DE SEMÁFORO
-    // Calculamos duración estimada: bytes / (samples * canales * bits)
-    const duration = Math.round(audioBuffer.length / (SAMPLE_RATE * 2));
+    // 10. FINALIZACIÓN Y LIBERACIÓN DE SEMÁFORO
+    // Duración estimada: bytes / (sampleRate * channels * bytesPerSample)
+    const duration = Math.round(totalRawLength / (SAMPLE_RATE * 2));
 
     const { error: updateErr } = await supabaseAdmin
       .from('micro_pods')
       .update({
         audio_url: publicUrl,
-        audio_ready: true, // Gatillo para el trigger tr_check_integrity
+        audio_ready: true, // GATILLO FINAL
         duration_seconds: duration,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        admin_notes: null // Limpiamos rastro de errores anteriores si existen
       })
       .eq('id', podcast_id);
 
-    if (updateErr) throw new Error(`DB_FINAL_SYNC_ERROR: ${updateErr.message}`);
+    if (updateErr) throw new Error(`DATABASE_SYNC_ERROR: ${updateErr.message}`);
 
     console.log(`✅ [Audio-Worker] Sincronía completada para Pod #${podcast_id}.`);
 
@@ -171,16 +223,20 @@ async function handler(request: Request): Promise<Response> {
   } catch (error: any) {
     console.error(`🔥 [Audio-Worker-Fatal][${correlationId}]:`, error.message);
 
-    // [FALLBACK RESILIENTE]: Marcamos bandera para no bloquear la experiencia de usuario
+    /**
+     * [RESILIENCIA DE SEMÁFORO]:
+     * Si la síntesis falla, marcamos audio_ready = true para que el usuario
+     * no quede atrapado, registrando el error técnico en notas administrativas.
+     */
     if (targetPodId) {
       await supabaseAdmin.from('micro_pods').update({
         audio_ready: true,
-        admin_notes: `Audio Materialization Failure: ${error.message} | ID: ${correlationId}`
+        admin_notes: `Audio Failure: ${error.message} | Correlation: ${correlationId}`,
+        updated_at: new Date().toISOString()
       }).eq('id', targetPodId);
     }
 
     return new Response(JSON.stringify({
-      success: false,
       error: error.message,
       trace_id: correlationId
     }), {
