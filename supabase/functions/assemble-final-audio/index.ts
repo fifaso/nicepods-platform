@@ -1,14 +1,14 @@
 // supabase/functions/assemble-final-audio/index.ts
-// VERSIÓN: 1.0 (NSP Stitcher - Binary Integrity Master)
-// Misión: Recuperar fragmentos RAW PCM, concatenarlos y generar el archivo WAV maestro.
-// [ESTABILIZACIÓN]: Implementación de unión byte-a-byte para eliminar ruidos de transición.
+// VERSIÓN: 1.1 (NSP Stitcher - Latency Resilience & Precision Edition)
+// Misión: Unir fragmentos RAW PCM de forma atómica y coronarlos con el Header WAV oficial.
+// [ESTABILIZACIÓN]: Implementación de reintentos de descarga para mitigar latencia de Storage.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 
 /**
  * IMPORTACIONES DEL NÚCLEO SINCRO (v12.5)
- * Utilizamos AUDIO_CONFIG para asegurar que la cabecera WAV coincida con los fragmentos.
+ * AUDIO_CONFIG garantiza que el Header WAV coincida 1:1 con los fragmentos de Gemini.
  */
 import {
   AUDIO_CONFIG,
@@ -18,7 +18,6 @@ import { corsHeaders } from "../_shared/cors.ts";
 
 /**
  * INICIALIZACIÓN DE CLIENTE SUPABASE ADMIN
- * Necesario para operaciones de lectura/escritura en Storage y Tablas de Sistema.
  */
 const supabaseAdmin: SupabaseClient = createClient(
   Deno.env.get("SUPABASE_URL") ?? "",
@@ -26,10 +25,14 @@ const supabaseAdmin: SupabaseClient = createClient(
 );
 
 /**
- * handler: Especialista en ensamblaje binario de alta precisión.
+ * sleep: Utilidad para pausas tácticas entre reintentos.
+ */
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
+ * handler: Orquestador de la costura binaria.
  */
 async function handler(request: Request): Promise<Response> {
-  // 1. GESTIÓN DE CORS
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -38,26 +41,26 @@ async function handler(request: Request): Promise<Response> {
   let targetPodId: number | null = null;
 
   try {
-    // 2. VALIDACIÓN DE SEGURIDAD (Internal Service Only)
+    // 1. VALIDACIÓN DE SEGURIDAD INTERNA
     const authHeader = request.headers.get('Authorization');
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (!authHeader?.includes(serviceKey ?? "SECURED")) {
+    if (!authHeader?.includes(serviceKey ?? "SECURED_ENVIRONMENT")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
     }
 
-    // 3. RECEPCIÓN DE SOLICITUD DE COSTURA
+    // 2. RECEPCIÓN DE SOLICITUD
     const payload = await request.json();
-    const { podcast_id, total_segments } = payload;
+    const podcast_id = Number(payload.podcast_id);
+    const total_segments = Number(payload.total_segments);
 
     if (!podcast_id || !total_segments) {
-      throw new Error("DATOS_DE_ENSAMBLAJE_INCOMPLETOS");
+      throw new Error("PARAMETROS_INCOMPLETOS: podcast_id y total_segments requeridos.");
     }
     targetPodId = podcast_id;
 
     console.log(`🧵 [NSP-Stitcher][${correlationId}] Iniciando costura de ${total_segments} fragmentos para Pod #${podcast_id}`);
 
-    // 4. RECUPERACIÓN DEL MAPA BINARIO
-    // Obtenemos las rutas de los archivos .raw ordenadas por su índice secuencial.
+    // 3. RECUPERACIÓN DEL MAPA BINARIO
     const { data: segments, error: segmentsError } = await supabaseAdmin
       .from('audio_segments')
       .select('storage_path, byte_size, segment_index')
@@ -65,53 +68,61 @@ async function handler(request: Request): Promise<Response> {
       .order('segment_index', { ascending: true });
 
     if (segmentsError || !segments || segments.length !== total_segments) {
-      throw new Error(`INCONSISTENCIA_DE_SEGMENTOS: Se esperaban ${total_segments} pero se hallaron ${segments?.length || 0}`);
+      throw new Error(`INCONSISTENCIA_DE_MAPA: Se hallaron ${segments?.length || 0} de ${total_segments} esperados.`);
     }
 
-    // 5. CÁLCULO DE CAPACIDAD TOTAL
-    // Determinamos el tamaño final del archivo para realizar una pre-asignación de memoria eficiente.
+    // 4. PRE-ASIGNACIÓN DE MEMORIA (Eficiencia O(1) en Alloc)
     const totalPcmLength = segments.reduce((acc, curr) => acc + curr.byte_size, 0);
-    const headerSize = 44; // Estándar RIFF/WAVE
+    const HEADER_SIZE = 44;
+    const finalBuffer = new Uint8Array(HEADER_SIZE + totalPcmLength);
 
-    // Pre-asignamos el buffer final (Evita re-allocations costosas en CPU)
-    const finalBuffer = new Uint8Array(headerSize + totalPcmLength);
-
-    // 6. INYECCIÓN DE CABECERA MAESTRA
-    // Generamos el WAV Header basado en el tamaño total acumulado.
+    // 5. INYECCIÓN DE CABECERA MAESTRA (Frecuencia 24kHz)
     const wavHeader = createWavHeader(totalPcmLength, AUDIO_CONFIG.SAMPLE_RATE);
     finalBuffer.set(wavHeader, 0);
 
-    // 7. PROCESO DE UNIÓN QUIRÚRGICA (Byte-by-Byte)
-    let currentOffset = headerSize;
+    // 6. BUCLE DE ENSAMBLAJE CON PROTOCOLO DE RESILIENCIA
+    let currentOffset = HEADER_SIZE;
 
     for (const segment of segments) {
-      console.log(`   > Descargando e inyectando segmento ${segment.segment_index}...`);
+      let blob = null;
+      let retries = 3;
 
-      const { data: blob, error: downloadError } = await supabaseAdmin.storage
-        .from('podcasts')
-        .download(segment.storage_path);
+      // Protocolo de espera por propagación de Storage
+      while (retries > 0) {
+        const { data, error } = await supabaseAdmin.storage
+          .from('podcasts')
+          .download(segment.storage_path);
 
-      if (downloadError || !blob) {
-        throw new Error(`FALLO_DESCARGA_SEGMENTO_${segment.segment_index}: ${downloadError?.message}`);
+        if (!error && data) {
+          blob = data;
+          break;
+        }
+
+        console.warn(`⏳ [NSP-Stitcher] Reintentando descarga de segmento ${segment.segment_index}... (${retries} restantes)`);
+        await sleep(1000);
+        retries--;
       }
 
-      // Convertimos el BLOB a Uint8Array para manipulación binaria
-      const segmentArray = new Uint8Array(await blob.arrayBuffer());
+      if (!blob) {
+        throw new Error(`ERROR_DESC_SEGMENTO_${segment.segment_index}: El archivo no se propagó a tiempo.`);
+      }
 
-      // Inyectamos el fragmento en su posición exacta en el buffer maestro
+      const segmentArray = new Uint8Array(await blob.arrayBuffer());
       finalBuffer.set(segmentArray, currentOffset);
       currentOffset += segmentArray.length;
 
-      // [LIBERACIÓN]: Ayudamos al recolector de basura anulando el buffer temporal
+      // Liberación manual de memoria intermedia
       (segmentArray as any) = null;
     }
 
-    // 8. PERSISTENCIA DEL PODCAST SOBERANO
-    // Guardamos la pieza única final en la carpeta pública del usuario.
-    const { data: podInfo } = await supabaseAdmin.from('micro_pods').select('user_id').eq('id', podcast_id).single();
-    const finalPath = `public/${podInfo?.user_id}/${podcast_id}-audio.wav`;
+    // 7. PERSISTENCIA DEL PODCAST SOBERANO
+    const { data: podInfo } = await supabaseAdmin
+      .from('micro_pods')
+      .select('user_id')
+      .eq('id', podcast_id)
+      .single();
 
-    console.log(`💾 [NSP-Stitcher] Subiendo archivo final a: ${finalPath}`);
+    const finalPath = `public/${podInfo?.user_id}/${podcast_id}-audio.wav`;
 
     const { error: uploadError } = await supabaseAdmin.storage
       .from('podcasts')
@@ -125,13 +136,12 @@ async function handler(request: Request): Promise<Response> {
 
     const { data: { publicUrl } } = supabaseAdmin.storage.from('podcasts').getPublicUrl(finalPath);
 
-    // 9. CIERRE DE CICLO DE INTEGRIDAD (Fase V)
-    // Sincronizamos todas las banderas para liberar la UI del usuario.
+    // 8. CIERRE DE CICLO DE INTEGRIDAD (Handover a UI)
     const { error: finalizeError } = await supabaseAdmin
       .from('micro_pods')
       .update({
         audio_url: publicUrl,
-        audio_ready: true,
+        audio_ready: true, // Esto dispara el tr_check_integrity final
         audio_assembly_status: 'completed',
         updated_at: new Date().toISOString()
       })
@@ -139,17 +149,11 @@ async function handler(request: Request): Promise<Response> {
 
     if (finalizeError) throw finalizeError;
 
-    // [ELIMINACIÓN DIFERIDA]: 
-    // Los segmentos quedan en la tabla 'audio_segments' con status 'uploaded'.
-    // No los borramos físicamente del Storage aquí según instrucciones del Comandante.
-    // Quedan listos para el proceso de purga una vez el usuario valide la escucha.
-
-    console.log(`✅ [NSP-Stitcher] Podcast #${podcast_id} ensamblado y publicado con éxito.`);
+    console.log(`✅ [NSP-Stitcher] Podcast #${podcast_id} forjado y publicado.`);
 
     return new Response(JSON.stringify({
       success: true,
       url: publicUrl,
-      total_bytes: finalBuffer.length,
       trace_id: correlationId
     }), {
       status: 200,
@@ -159,7 +163,6 @@ async function handler(request: Request): Promise<Response> {
   } catch (error: any) {
     console.error(`🔥 [NSP-Stitcher-Fatal][${correlationId}]:`, error.message);
 
-    // Rollback de estado para informar al usuario
     if (targetPodId) {
       await supabaseAdmin.from('micro_pods').update({
         audio_assembly_status: 'failed',

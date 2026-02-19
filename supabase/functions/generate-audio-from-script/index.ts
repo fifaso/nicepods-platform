@@ -1,15 +1,14 @@
 // supabase/functions/generate-audio-from-script/index.ts
-// VERSIÓN: 27.0 (NSP Harvester - Segmented Binary Production)
-// Misión: Cosechar fragmentos de audio neuronal y sembrarlos en el Storage como RAW PCM.
-// [ESTABILIZACIÓN]: Implementación del Protocolo de Streaming para soporte de audios extensos (>150MB).
+// VERSIÓN: 29.0 (NSP Harvester - High-Precision Traceability Standard)
+// Misión: Cosechar fragmentos de audio neuronal y sembrarlos con trazabilidad absoluta.
+// [ESTABILIZACIÓN]: Resolución de 'Silent Shutdown' mediante logs atómicos y gestión de promesas.
 
 import { decode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 
 /**
- * IMPORTACIONES DEL NÚCLEO SINCRO (v12.5)
- * Utilizamos AUDIO_CONFIG para asegurar paridad binaria entre el Cosechador y el Ensamblador.
+ * IMPORTACIONES DEL NÚCLEO SINCRO (v13.0)
  */
 import {
   callGeminiAudio,
@@ -19,15 +18,14 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { generateDirectorNote } from "../_shared/vocal-director-map.ts";
 
 /**
- * LÍMITES TÉCNICOS OPERATIVOS
- * MAX_CHUNK_SIZE: 4000 caracteres para asegurar que Gemini mantenga la coherencia tonal.
- * HEADER_BYTE_SIZE: 44 bytes (Tamaño estándar de una cabecera WAV que debemos omitir en los segmentos).
+ * CONSTANTES DE PROTOCOLO NSP
  */
-const MAX_CHUNK_SIZE = 4000;
-const HEADER_BYTE_SIZE = 44;
+const MAX_CHUNK_SIZE = 3800; // Reducimos ligeramente para mayor estabilidad en el buffer
+const HEADER_BYTE_SIZE = 44; // Omitimos la cabecera WAV en los fragmentos RAW
 
 /**
  * INICIALIZACIÓN DE CLIENTE SUPABASE ADMIN
+ * Mantenemos la instancia fuera del handler para optimizar ejecuciones calientes.
  */
 const supabaseAdmin: SupabaseClient = createClient(
   Deno.env.get("SUPABASE_URL") ?? "",
@@ -35,26 +33,26 @@ const supabaseAdmin: SupabaseClient = createClient(
 );
 
 /**
- * extractScriptContent: Extrae el texto plano desde el JSONB soberano de la base de datos.
+ * extractScript: Normaliza el guion desde el formato JSONB souverano.
  */
-function extractScriptContent(script_text: any): string {
-  if (!script_text) return "";
-  if (typeof script_text === 'object' && script_text !== null) {
-    return script_text.script_plain || script_text.script_body || "";
+function extractScript(input: any): string {
+  if (!input) return "";
+  if (typeof input === 'object' && input !== null) {
+    return input.script_plain || input.script_body || "";
   }
   try {
-    const parsed = typeof script_text === 'string' ? JSON.parse(script_text) : script_text;
+    const parsed = typeof input === 'string' ? JSON.parse(input) : input;
     return parsed.script_plain || parsed.script_body || "";
   } catch {
-    return String(script_text);
+    return String(input);
   }
 }
 
 /**
- * handler: Orquestador de la Cosecha de Segmentos.
+ * handler: Orquestador de la Cosecha Binaria.
  */
 async function handler(request: Request): Promise<Response> {
-  // 1. PROTOCOLO CORS
+  // 1. GESTIÓN DE CORS (Pre-vuelo)
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -63,34 +61,37 @@ async function handler(request: Request): Promise<Response> {
   let targetPodId: number | null = null;
 
   try {
-    // 2. VALIDACIÓN DE SEGURIDAD LITE
+    // 2. VALIDACIÓN DE SEGURIDAD INTERNA
     const authHeader = request.headers.get('Authorization');
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     if (!authHeader?.includes(serviceKey ?? "PROTECTED")) {
+      console.error(`🛑 [Security][${correlationId}] Intento de acceso no autorizado.`);
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
     }
 
-    // 3. RECEPCIÓN DE DATOS
+    // 3. RECEPCIÓN Y ANÁLISIS DE DATOS
     const payload = await request.json();
     const { podcast_id } = payload;
-    if (!podcast_id) throw new Error("PODCAST_ID_REQUIRED");
+    if (!podcast_id) throw new Error("ID_DEL_PODCAST_REQUERIDO");
     targetPodId = podcast_id;
 
-    console.log(`📡 [NSP-Harvester][${correlationId}] Iniciando siembra de segmentos para Pod #${podcast_id}`);
+    console.info(`📡 [NSP-Harvester][${correlationId}] Iniciando Misión para Pod #${podcast_id}`);
 
+    // Obtenemos el registro maestro
     const { data: pod, error: podErr } = await supabaseAdmin
       .from('micro_pods')
       .select('*')
       .eq('id', podcast_id)
       .single();
 
-    if (podErr || !pod) throw new Error("PODCAST_NOT_FOUND");
+    if (podErr || !pod) throw new Error("PODCAST_NO_ENCONTRADO_EN_BÓVEDA");
 
     // 4. PREPARACIÓN NARRATIVA
-    const rawText = extractScriptContent(pod.script_text);
+    const rawText = extractScript(pod.script_text);
     const cleanText = cleanTextForSpeech(rawText);
     const inputs = (pod.creation_data as any)?.inputs || {};
 
+    // Dirección actorial basada en el ADN del podcast
     const directorNote = generateDirectorNote(
       pod.creation_data?.agentName || "narrador",
       inputs.voiceGender || "Masculino",
@@ -98,7 +99,7 @@ async function handler(request: Request): Promise<Response> {
       inputs.voicePace || "Moderado"
     );
 
-    // 5. SEGMENTACIÓN DEL GUION (Cubicaje)
+    // 5. SEGMENTACIÓN DEL GUION
     const paragraphs = cleanText.split(/\n+/);
     const textChunks: string[] = [];
     let currentChunk = "";
@@ -113,37 +114,38 @@ async function handler(request: Request): Promise<Response> {
     }
     if (currentChunk) textChunks.push(currentChunk);
 
-    // 6. ACTUALIZACIÓN DE CONTROL EN BASE DE DATOS
-    // Informamos a la DB cuántos fragmentos debe esperar para disparar el ensamblaje final.
-    await supabaseAdmin.from('micro_pods').update({
+    console.info(`📦 [NSP-Harvester][${correlationId}] Guion segmentado en ${textChunks.length} fragmentos.`);
+
+    // 6. INICIALIZACIÓN DE MALLA (Estado de Control)
+    const { error: initError } = await supabaseAdmin.from('micro_pods').update({
       total_audio_segments: textChunks.length,
       current_audio_segments: 0,
-      audio_assembly_status: 'collecting'
+      audio_assembly_status: 'collecting',
+      audio_ready: false
     }).eq('id', podcast_id);
 
-    console.log(`📦 [NSP-Harvester] Malla definida: ${textChunks.length} segmentos.`);
+    if (initError) throw new Error(`DB_INIT_FAIL: ${initError.message}`);
 
-    // 7. BUCLE DE COSECHA BINARIA (Anti-Memory Peak)
+    // 7. BUCLE DE COSECHA BINARIA (Rigor de RAM)
     for (let i = 0; i < textChunks.length; i++) {
-      console.log(`   > Cosechando segmento ${i + 1}/${textChunks.length}...`);
+      console.info(`   > [${i + 1}/${textChunks.length}] Sintetizando bloque neuronal...`);
 
-      // Invocación al motor TTS de Gemini
+      // Llamada al motor de voz de Google
       const { data: base64Audio } = await callGeminiAudio(
         textChunks[i],
         directorNote,
         { gender: inputs.voiceGender || "Masculino", style: inputs.voiceStyle || "Profesional" }
       );
 
-      /**
-       * [LIMPIEZA BINARIA]: 
-       * Gemini devuelve un archivo WAV con su propio header.
-       * Para concatenar perfectamente, extraemos solo el PCM crudo (slice 44).
-       */
-      const fullBuffer = new Uint8Array(decode(base64Audio).buffer);
-      const rawPcmData = fullBuffer.slice(HEADER_BYTE_SIZE);
+      console.info(`   > [${i + 1}/${textChunks.length}] Sintetización exitosa. Decodificando binario...`);
 
-      // 8. PERSISTENCIA INMEDIATA DEL FRAGMENTO (Liberación de RAM)
+      // Decodificación y extracción de PCM puro (Bypass de Header)
+      let fullBuffer: Uint8Array | null = new Uint8Array(decode(base64Audio).buffer);
+      let rawPcmData: Uint8Array | null = fullBuffer.slice(HEADER_BYTE_SIZE);
+
       const segmentPath = `temp/segments/${podcast_id}/part_${i}.raw`;
+
+      console.info(`   > [${i + 1}/${textChunks.length}] Subiendo fragmento a Storage: ${segmentPath}`);
 
       const { error: uploadError } = await supabaseAdmin.storage
         .from('podcasts')
@@ -152,12 +154,10 @@ async function handler(request: Request): Promise<Response> {
           upsert: true
         });
 
-      if (uploadError) throw new Error(`SEGMENT_UPLOAD_FAIL: ${uploadError.message}`);
+      if (uploadError) throw new Error(`STORAGE_UPLOAD_FAIL_SEGMENT_${i}: ${uploadError.message}`);
 
-      // 9. REGISTRO EN EL MAPA BINARIO
-      // Al insertar este registro, el trigger SQL 'tr_on_segment_uploaded' se encargará 
-      // de contar y disparar el ensamblador si es el último pedazo.
-      await supabaseAdmin.from('audio_segments').insert({
+      // 8. REGISTRO EN MAPA BINARIO (Dispara el trigger del ensamblador)
+      const { error: insertError } = await supabaseAdmin.from('audio_segments').insert({
         podcast_id: podcast_id,
         segment_index: i,
         storage_path: segmentPath,
@@ -165,33 +165,41 @@ async function handler(request: Request): Promise<Response> {
         status: 'uploaded'
       });
 
-      // [CRÍTICO]: Ayudamos al Garbage Collector nulificando las variables pesadas
-      (rawPcmData as any) = null;
-      (fullBuffer as any) = null;
+      if (insertError) throw new Error(`DB_SEGMENT_INSERT_FAIL_SEGMENT_${i}: ${insertError.message}`);
+
+      console.info(`   ✅ [${i + 1}/${textChunks.length}] Fragmento sembrado y registrado.`);
+
+      // [CRÍTICO]: Liberación manual de memoria RAM
+      rawPcmData = null;
+      fullBuffer = null;
     }
 
-    console.log(`✅ [NSP-Harvester] Siembra completada para Pod #${podcast_id}.`);
+    console.info(`🏁 [NSP-Harvester][${correlationId}] Misión de siembra completada con éxito.`);
 
     return new Response(JSON.stringify({
       success: true,
-      segments_total: textChunks.length,
+      message: "Cosecha de segmentos finalizada.",
       trace_id: correlationId
     }), {
-      status: 202, // Accepted: El proceso continúa asíncronamente en la DB
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
 
   } catch (error: any) {
     console.error(`🔥 [NSP-Harvester-Fatal][${correlationId}]:`, error.message);
 
+    // Reporte de fallo para el sistema de monitoreo
     if (targetPodId) {
       await supabaseAdmin.from('micro_pods').update({
         audio_assembly_status: 'failed',
-        admin_notes: `Harvester Error: ${error.message} | Trace: ${correlationId}`
+        admin_notes: `Harvester Error: ${error.message} | ID: ${correlationId}`
       }).eq('id', targetPodId);
     }
 
-    return new Response(JSON.stringify({ error: error.message, trace_id: correlationId }), {
+    return new Response(JSON.stringify({
+      error: error.message,
+      trace_id: correlationId
+    }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
