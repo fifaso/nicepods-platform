@@ -1,14 +1,14 @@
 // supabase/functions/assemble-final-audio/index.ts
-// VERSIÓN: 1.1 (NSP Stitcher - Latency Resilience & Precision Edition)
+// VERSIÓN: 1.2 (NSP Stitcher - Memory Management & Constant Fix)
 // Misión: Unir fragmentos RAW PCM de forma atómica y coronarlos con el Header WAV oficial.
-// [ESTABILIZACIÓN]: Implementación de reintentos de descarga para mitigar latencia de Storage.
+// [RESOLUCIÓN]: Fix de 'Assignment to constant variable' y optimización de ensamblaje universal.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 
 /**
- * IMPORTACIONES DEL NÚCLEO SINCRO (v12.5)
- * AUDIO_CONFIG garantiza que el Header WAV coincida 1:1 con los fragmentos de Gemini.
+ * IMPORTACIONES DEL NÚCLEO SINCRO (v13.0)
+ * Utilizamos AUDIO_CONFIG para garantizar que el Header WAV coincida 1:1 con el PCM.
  */
 import {
   AUDIO_CONFIG,
@@ -25,14 +25,15 @@ const supabaseAdmin: SupabaseClient = createClient(
 );
 
 /**
- * sleep: Utilidad para pausas tácticas entre reintentos.
+ * sleep: Utilidad para pausas tácticas en caso de latencia de propagación de red.
  */
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
- * handler: Orquestador de la costura binaria.
+ * handler: Orquestador del ensamblaje de alta precisión.
  */
 async function handler(request: Request): Promise<Response> {
+  // Protocolo CORS para pre-vuelo
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -41,26 +42,27 @@ async function handler(request: Request): Promise<Response> {
   let targetPodId: number | null = null;
 
   try {
-    // 1. VALIDACIÓN DE SEGURIDAD INTERNA
+    // 1. VALIDACIÓN DE SEGURIDAD INTERNA (Authorization Bearer Check)
     const authHeader = request.headers.get('Authorization');
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (!authHeader?.includes(serviceKey ?? "SECURED_ENVIRONMENT")) {
+    if (!authHeader?.includes(serviceKey ?? "INTERNAL_ONLY")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
     }
 
-    // 2. RECEPCIÓN DE SOLICITUD
+    // 2. RECEPCIÓN Y NORMALIZACIÓN DE PAYLOAD
     const payload = await request.json();
     const podcast_id = Number(payload.podcast_id);
     const total_segments = Number(payload.total_segments);
 
     if (!podcast_id || !total_segments) {
-      throw new Error("PARAMETROS_INCOMPLETOS: podcast_id y total_segments requeridos.");
+      throw new Error("PARAMETROS_INCOMPLETOS: Se requiere podcast_id y total_segments.");
     }
     targetPodId = podcast_id;
 
-    console.log(`🧵 [NSP-Stitcher][${correlationId}] Iniciando costura de ${total_segments} fragmentos para Pod #${podcast_id}`);
+    console.info(`🧵 [NSP-Stitcher][${correlationId}] Iniciando ensamblaje de ${total_segments} partes para Pod #${podcast_id}`);
 
-    // 3. RECUPERACIÓN DEL MAPA BINARIO
+    // 3. RECUPERACIÓN DEL MAPA BINARIO DESDE LA DB
+    // Obtenemos las rutas de los archivos .raw en el orden correcto
     const { data: segments, error: segmentsError } = await supabaseAdmin
       .from('audio_segments')
       .select('storage_path, byte_size, segment_index')
@@ -68,26 +70,29 @@ async function handler(request: Request): Promise<Response> {
       .order('segment_index', { ascending: true });
 
     if (segmentsError || !segments || segments.length !== total_segments) {
-      throw new Error(`INCONSISTENCIA_DE_MAPA: Se hallaron ${segments?.length || 0} de ${total_segments} esperados.`);
+      throw new Error(`INCONSISTENCIA_DE_MALLA: Hallados ${segments?.length || 0} de ${total_segments} prometidos.`);
     }
 
-    // 4. PRE-ASIGNACIÓN DE MEMORIA (Eficiencia O(1) en Alloc)
+    // 4. PRE-ASIGNACIÓN DE BUFFER MAESTRO
+    // Calculamos el espacio total necesario para evitar redimensionamiento de memoria (O(1))
     const totalPcmLength = segments.reduce((acc, curr) => acc + curr.byte_size, 0);
     const HEADER_SIZE = 44;
-    const finalBuffer = new Uint8Array(HEADER_SIZE + totalPcmLength);
 
-    // 5. INYECCIÓN DE CABECERA MAESTRA (Frecuencia 24kHz)
+    // Usamos 'let' para permitir la limpieza final del buffer maestro
+    let finalBuffer: Uint8Array | null = new Uint8Array(HEADER_SIZE + totalPcmLength);
+
+    // 5. INYECCIÓN DE CABECERA WAV (Frecuencia NicePod 24kHz)
     const wavHeader = createWavHeader(totalPcmLength, AUDIO_CONFIG.SAMPLE_RATE);
     finalBuffer.set(wavHeader, 0);
 
-    // 6. BUCLE DE ENSAMBLAJE CON PROTOCOLO DE RESILIENCIA
+    // 6. BUCLE DE COSTURA BINARIA CON RESILIENCIA
     let currentOffset = HEADER_SIZE;
 
     for (const segment of segments) {
-      let blob = null;
+      let blob: Blob | null = null;
       let retries = 3;
 
-      // Protocolo de espera por propagación de Storage
+      // Protocolo anti-latencia: Esperamos a que el Storage confirme la presencia del archivo
       while (retries > 0) {
         const { data, error } = await supabaseAdmin.storage
           .from('podcasts')
@@ -98,21 +103,25 @@ async function handler(request: Request): Promise<Response> {
           break;
         }
 
-        console.warn(`⏳ [NSP-Stitcher] Reintentando descarga de segmento ${segment.segment_index}... (${retries} restantes)`);
+        console.warn(`⏳ [NSP-Stitcher] Segmento ${segment.segment_index} no hallado. Reintentando en 1s...`);
         await sleep(1000);
         retries--;
       }
 
       if (!blob) {
-        throw new Error(`ERROR_DESC_SEGMENTO_${segment.segment_index}: El archivo no se propagó a tiempo.`);
+        throw new Error(`STORAGE_READ_ERROR: El segmento ${segment.segment_index} no se propagó al nodo de lectura.`);
       }
 
-      const segmentArray = new Uint8Array(await blob.arrayBuffer());
+      // [FIX]: Declaramos como 'let' para permitir la nulificación manual
+      let segmentArray: Uint8Array | null = new Uint8Array(await blob.arrayBuffer());
+
+      // Inyectamos el fragmento en la posición calculada
       finalBuffer.set(segmentArray, currentOffset);
       currentOffset += segmentArray.length;
 
-      // Liberación manual de memoria intermedia
-      (segmentArray as any) = null;
+      // LIBERACIÓN DE RAM INMEDIATA
+      segmentArray = null;
+      blob = null;
     }
 
     // 7. PERSISTENCIA DEL PODCAST SOBERANO
@@ -123,6 +132,7 @@ async function handler(request: Request): Promise<Response> {
       .single();
 
     const finalPath = `public/${podInfo?.user_id}/${podcast_id}-audio.wav`;
+    console.info(`💾 [NSP-Stitcher] Subiendo archivo final a Storage: ${finalPath}`);
 
     const { error: uploadError } = await supabaseAdmin.storage
       .from('podcasts')
@@ -136,20 +146,23 @@ async function handler(request: Request): Promise<Response> {
 
     const { data: { publicUrl } } = supabaseAdmin.storage.from('podcasts').getPublicUrl(finalPath);
 
-    // 8. CIERRE DE CICLO DE INTEGRIDAD (Handover a UI)
+    // 8. CIERRE DE CICLO DE INTEGRIDAD (Fase V)
     const { error: finalizeError } = await supabaseAdmin
       .from('micro_pods')
       .update({
         audio_url: publicUrl,
-        audio_ready: true, // Esto dispara el tr_check_integrity final
+        audio_ready: true,            // Gatillo final para revelar el podcast
         audio_assembly_status: 'completed',
         updated_at: new Date().toISOString()
       })
       .eq('id', podcast_id);
 
-    if (finalizeError) throw finalizeError;
+    if (finalizeError) throw new Error(`DB_FINALIZE_FAIL: ${finalizeError.message}`);
 
-    console.log(`✅ [NSP-Stitcher] Podcast #${podcast_id} forjado y publicado.`);
+    // Limpieza final de memoria
+    finalBuffer = null;
+
+    console.info(`✅ [NSP-Stitcher] Podcast #${podcast_id} ensamblado y listo para el usuario.`);
 
     return new Response(JSON.stringify({
       success: true,
@@ -163,14 +176,18 @@ async function handler(request: Request): Promise<Response> {
   } catch (error: any) {
     console.error(`🔥 [NSP-Stitcher-Fatal][${correlationId}]:`, error.message);
 
+    // Rollback administrativo para informar del fallo en la UI
     if (targetPodId) {
       await supabaseAdmin.from('micro_pods').update({
         audio_assembly_status: 'failed',
-        admin_notes: `Stitcher Error: ${error.message} | Trace: ${correlationId}`
+        admin_notes: `Stitcher Error: ${error.message} | ID: ${correlationId}`
       }).eq('id', targetPodId);
     }
 
-    return new Response(JSON.stringify({ error: error.message, trace_id: correlationId }), {
+    return new Response(JSON.stringify({
+      error: error.message,
+      trace_id: correlationId
+    }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
