@@ -1,32 +1,35 @@
 // supabase/functions/_shared/ai.ts
-// VERSIÓN: 12.0 (Master Intelligence Core - Unified Gemini API Standard)
-// Misión: Proveer el cerebro asíncrono de NicePod eliminando la dependencia de Vertex AI.
-// [ESTABILIZACIÓN]: Integración nativa de Audio y Imagen mediante protocolos de Google AI Studio.
+// VERSIÓN: 12.5 (Master Intelligence Core - NSP Streaming & Binary Standard)
+// Misión: Proveer el cerebro asíncrono de NicePod optimizado para el Protocolo de Streaming.
+// [ESTABILIZACIÓN]: Sincronización de parámetros PCM y utilidades de conversión binaria.
 
 /**
  * AI_MODELS: Inventario oficial de modelos validados para NicePod V2.5.
- * Utilizamos la serie Flash 2.5 para un rendimiento de baja latencia y alta eficiencia.
+ * Mantenemos estrictamente los modelos operativos confirmados por el Comandante.
  */
 export const AI_MODELS = {
-    // Inteligencia para redacción técnica y arquitectura de guiones.
     PRO: "gemini-3-flash-preview",
-
-    // Motor de investigación rápida y análisis de fuentes crudas.
     FLASH: "gemini-3-flash-preview",
-
-    // Motor de síntesis de voz neuronal (TTS) de última generación.
-    AUDIO: "gemini-2.5-flash-preview-tts",
-
-    // Generador de ADN semántico compatible con Supabase (768d).
+    AUDIO: "gemini-2.5-pro-preview-tts",
     EMBEDDING: "gemini-embedding-001",
-
-    // Motor de dirección de arte visual nativo en Gemini API.
-    IMAGE: "gemini-2.5-flash-image"
+    IMAGE: "imagen-3.0-generate-001"
 };
 
 /**
- * buildPrompt: Inyecta variables dinámicas en plantillas con eficiencia máxima.
- * Diseñado para manejar volúmenes masivos de fuentes sin desbordar el tiempo de CPU.
+ * ESTÁNDARES ACÚSTICOS NICEPOD (NSP)
+ * Definiciones inamovibles para garantizar que el ensamblaje de fragmentos sea perfecto.
+ */
+export const AUDIO_CONFIG = {
+    SAMPLE_RATE: 24000,
+    BIT_DEPTH: 16,
+    CHANNELS: 1, // Mono
+    MIME_TYPE: "audio/wav"
+};
+
+/**
+ * buildPrompt: Inyecta variables dinámicas en plantillas de instrucciones.
+ * Utiliza un algoritmo de reemplazo basado en expresiones regulares para optimizar
+ * el uso de CPU, vital para el ahorro de ciclos en el Edge.
  */
 export function buildPrompt(template: string, data: Record<string, unknown>): string {
     return template.replace(/{{(\w+)}}/g, (_, key) => {
@@ -37,7 +40,7 @@ export function buildPrompt(template: string, data: Record<string, unknown>): st
             ? JSON.stringify(value)
             : String(value);
 
-        // Escape de caracteres de control para inyección segura en esquemas JSON.
+        // Sanitización profunda para inyección segura en estructuras JSON.
         return stringValue
             .replace(/\\/g, "\\\\")
             .replace(/"/g, '\\"')
@@ -48,8 +51,8 @@ export function buildPrompt(template: string, data: Record<string, unknown>): st
 }
 
 /**
- * generateEmbedding: Transforma conocimiento en vectores de 768 dimensiones.
- * [RIGOR]: Forzamos la dimensionalidad para asegurar compatibilidad con HNSW de PostgreSQL.
+ * generateEmbedding: Transforma cadenas de texto en vectores numéricos de 768 dimensiones.
+ * Configurado específicamente para paridad con los índices HNSW de la base de datos.
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
     const apiKey = Deno.env.get("GOOGLE_AI_API_KEY");
@@ -85,7 +88,6 @@ export async function generateEmbedding(text: string): Promise<number[]> {
 
 /**
  * callGeminiMultimodal: Invocación estándar para tareas de texto y visión.
- * Utilizado por el Investigador de Inteligencia y el Router Semántico.
  */
 export async function callGeminiMultimodal(
     prompt: string,
@@ -127,15 +129,12 @@ export async function callGeminiMultimodal(
     }
 
     const data = await response.json();
-    const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!resultText) throw new Error("EMPTY_IA_RESPONSE");
-    return resultText;
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
 }
 
 /**
- * callGeminiAudio: Generación nativa de voz interpretativa (WAV Output).
- * Utiliza el modelo gemini-2.5-flash-preview-tts bajo el protocolo modal de la API.
+ * callGeminiAudio: Generación nativa de voz interpretativa (RAW Buffer Output).
+ * [NSP OPTIMIZATION]: Devuelve el flujo Base64 para ser procesado como segmento PCM.
  */
 export async function callGeminiAudio(prompt: string, directorNote: string, voiceParams: { gender: string, style: string }) {
     const apiKey = Deno.env.get("GOOGLE_AI_API_KEY");
@@ -193,14 +192,13 @@ export async function callGeminiAudio(prompt: string, directorNote: string, voic
     }
 
     return {
-        data: audioPart.inlineData.data, // Buffer Base64
+        data: audioPart.inlineData.data, // Base64 del PCM crudo
         mimeType: audioPart.inlineData.mimeType
     };
 }
 
 /**
  * callGeminiImage: Generación nativa de carátulas mediante Imagen 3.
- * [RESOLUCIÓN]: Implementación directa bajo Gemini API (AI Studio), eliminando Vertex AI.
  */
 export async function callGeminiImage(prompt: string) {
     const apiKey = Deno.env.get("GOOGLE_AI_API_KEY");
@@ -233,7 +231,7 @@ export async function callGeminiImage(prompt: string) {
     const imagePart = data.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
 
     if (!imagePart?.inlineData) {
-        throw new Error("IA_IMAGE_DATA_MISSING: No se generó el activo visual.");
+        throw new Error("IA_IMAGE_DATA_MISSING");
     }
 
     return {
@@ -247,7 +245,6 @@ export async function callGeminiImage(prompt: string) {
  */
 export function parseAIJson<T = unknown>(rawText: string): T {
     try {
-        // Limpiamos etiquetas de bloque de código Markdown frecuentemente incluidas por la IA.
         const cleanText = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
         const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
 
@@ -255,13 +252,14 @@ export function parseAIJson<T = unknown>(rawText: string): T {
 
         return JSON.parse(jsonMatch[0]) as T;
     } catch {
-        throw new Error("ERROR_PARSING_AI_JSON: El formato devuelto por la IA no es un JSON válido.");
+        throw new Error("ERROR_PARSING_AI_JSON: El formato devuelto por la IA es incompatible.");
     }
 }
 
 /**
  * createWavHeader: Construye una cabecera RIFF/WAVE de 44 bytes para audio PCM.
  * Sincronizado con el estándar de salida de Gemini TTS a 24kHz.
+ * [NSP]: Se usará en la función Stitcher para cerrar el archivo final.
  */
 export function createWavHeader(dataLength: number, sampleRate = 24000) {
     const buffer = new ArrayBuffer(44);
@@ -276,12 +274,12 @@ export function createWavHeader(dataLength: number, sampleRate = 24000) {
     writeString(8, 'WAVE');
     writeString(12, 'fmt ');
     view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true); // PCM
-    view.setUint16(22, 1, true); // Mono
+    view.setUint16(20, 1, true); // Formato PCM
+    view.setUint16(22, 1, true); // Mono canal
     view.setUint32(24, sampleRate, true);
     view.setUint32(28, sampleRate * 2, true); // Byte Rate
     view.setUint16(32, 2, true); // Block Align
-    view.setUint16(34, 16, true); // Bits per sample
+    view.setUint16(34, 16, true); // Bits por muestra
     writeString(36, 'data');
     view.setUint32(40, dataLength, true);
     return new Uint8Array(buffer);
@@ -294,12 +292,12 @@ export function createWavHeader(dataLength: number, sampleRate = 24000) {
 export function cleanTextForSpeech(text: string | null | undefined): string {
     if (!text) return "";
     return text
-        .replace(/\[.*?\]/g, "") // Elimina marcas técnicas [SFX], [MUSIC]
-        .replace(/^(Host|Narrador|Speaker\s?\d?):\s?/gim, "") // Elimina etiquetas de locutor
-        .replace(/\*\*/g, "") // Elimina negritas Markdown
-        .replace(/__/g, "") // Elimina cursivas Markdown
-        .replace(/[*#_~`>]/g, "") // Elimina restos de símbolos visuales
-        .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, "") // Elimina Emojis
-        .replace(/\s+/g, " ") // Normaliza espacios múltiples
+        .replace(/\[.*?\]/g, "")
+        .replace(/^(Host|Narrador|Speaker\s?\d?):\s?/gim, "")
+        .replace(/\*\*/g, "")
+        .replace(/__/g, "")
+        .replace(/[*#_~`>]/g, "")
+        .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, "")
+        .replace(/\s+/g, " ")
         .trim();
 }
