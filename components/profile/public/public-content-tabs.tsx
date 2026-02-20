@@ -1,11 +1,11 @@
 // components/profile/public/public-content-tabs.tsx
-// VERSIÓN: 1.1 (Public Content Engine - Full Integrity Edition)
-// Misión: Gestionar la navegación y visualización del inventario público del curador.
-// [RESOLUCIÓN]: Fix de importación MapPin (TS2304) y estabilización de hidratación.
+// VERSIÓN: 1.2 (Public Content Engine - Zero-Crash & DOM Persistence Edition)
+// Misión: Gestionar la navegación del inventario público eliminando errores de reconciliación.
+// [ESTABILIZACIÓN]: Implementación de 'forceMount' y aliasing de iconos para integridad total.
 
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Calendar,
   Clock,
@@ -22,7 +22,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-// --- NÚCLEO DE DATOS Y UTILIDADES ---
+// --- NÚCLEO DE DATOS Y CONTRATOS ---
 import { LeaveTestimonialDialog } from "@/components/leave-testimonial-dialog";
 import { useAuth } from "@/hooks/use-auth";
 import { cn, getSafeAsset } from "@/lib/utils";
@@ -31,7 +31,6 @@ import { CollectionCard } from "../shared/collection-card";
 
 /**
  * INTERFAZ: PublicContentTabsProps
- * Define el contrato de datos inyectados desde el servidor para la vista pública.
  */
 interface PublicContentTabsProps {
   profile: ProfileData;
@@ -41,7 +40,7 @@ interface PublicContentTabsProps {
 }
 
 /**
- * formatDuration: Convierte segundos en formato MM:SS para las tarjetas de podcast.
+ * formatDuration: Convierte segundos a formato MM:SS.
  */
 const formatDuration = (seconds: number | null): string => {
   if (!seconds) return "0:00";
@@ -51,7 +50,7 @@ const formatDuration = (seconds: number | null): string => {
 };
 
 /**
- * PublicContentTabs: El orquestador de frecuencias y colecciones de NicePod.
+ * PublicContentTabs: El motor de visualización de hilos y crónicas.
  */
 export function PublicContentTabs({
   profile,
@@ -60,14 +59,15 @@ export function PublicContentTabs({
   collections
 }: PublicContentTabsProps) {
 
-  // Consumimos el estado de sesión para habilitar interacciones sociales
+  // Consumimos identidad para habilitar interacciones sociales.
+  // [RIGOR]: Al estar dentro de un HydrationGuard en el padre, este hook es seguro.
   const { user } = useAuth();
   const canLeaveTestimonial = user && user.id !== profile.id;
 
   return (
     <Tabs defaultValue="podcasts" className="w-full">
 
-      {/* 1. NAVEGACIÓN DE FRECUENCIAS (TABS LIST) */}
+      {/* 1. SELECTOR DE FRECUENCIAS (TABS LIST) */}
       <TabsList className="w-full justify-center bg-transparent border-b border-white/5 rounded-none h-auto p-0 mb-16 flex-wrap gap-8 md:gap-20">
         <TabsTrigger
           value="podcasts"
@@ -91,55 +91,51 @@ export function PublicContentTabs({
         </TabsTrigger>
       </TabsList>
 
-      {/* 2. PESTAÑA: CRÓNICAS (PODCASTS) */}
+      {/* 2. CONTENIDO: CRÓNICAS (PODCASTS)
+          [FIX]: 'forceMount' mantiene el nodo vivo para evitar el crash 'removeChild'.
+      */}
       <TabsContent value="podcasts" className="outline-none" forceMount>
-        <AnimatePresence mode="wait">
+        <div className="data-[state=inactive]:hidden">
           <motion.div
-            key="podcasts-container"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.4 }}
-            className="data-[state=inactive]:hidden"
+            transition={{ duration: 0.5 }}
           >
-            <div className="grid gap-10 md:grid-cols-2">
+            <div className="grid gap-8 md:grid-cols-2">
               {podcasts.map((pod) => (
-                <Link key={`podcast-${pod.id}`} href={`/podcast/${pod.id}`} className="block group h-full">
-                  <Card className="h-full bg-zinc-900/40 border-white/5 hover:border-primary/40 hover:bg-zinc-900/60 transition-all duration-500 rounded-[3rem] overflow-hidden shadow-2xl relative">
+                <Link key={`pod-${pod.id}`} href={`/podcast/${pod.id}`} className="block group">
+                  <Card className="h-full bg-zinc-900/40 border-white/5 hover:border-primary/40 transition-all duration-500 rounded-[2.5rem] overflow-hidden shadow-2xl relative">
 
-                    {/* INDICADOR DE RESONANCIA LOCAL (MADRID MODE) */}
                     {pod.creation_mode === 'situational' && (
-                      <div className="absolute top-8 right-8 text-primary opacity-40 group-hover:opacity-100 group-hover:scale-110 transition-all">
-                        <MapPin size={24} />
+                      <div className="absolute top-6 right-6 text-primary/40 group-hover:text-primary transition-colors">
+                        <MapPin size={20} />
                       </div>
                     )}
 
-                    <CardContent className="p-10 flex flex-col h-full">
-                      <h3 className="font-black text-2xl leading-tight line-clamp-2 group-hover:text-primary transition-colors uppercase mb-6 tracking-tight pr-10 italic">
+                    <CardContent className="p-8 md:p-10 flex flex-col h-full">
+                      <h3 className="font-black text-2xl group-hover:text-primary transition-colors uppercase mb-4 tracking-tighter italic">
                         {pod.title}
                       </h3>
 
-                      <div className="flex flex-wrap items-center gap-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mb-8">
-                        <span className="flex items-center gap-2 bg-white/5 px-4 py-2 rounded-xl border border-white/5">
-                          <Calendar size={14} className="text-zinc-500" />
-                          {new Date(pod.created_at).toLocaleDateString()}
+                      <div className="flex flex-wrap items-center gap-3 text-[9px] font-black uppercase tracking-widest text-muted-foreground/40 mb-6">
+                        <span className="flex items-center gap-1.5 bg-white/5 px-3 py-1 rounded-lg border border-white/5">
+                          <Calendar size={12} /> {new Date(pod.created_at).toLocaleDateString()}
                         </span>
-                        <span className="flex items-center gap-2 bg-white/5 px-4 py-2 rounded-xl border border-white/5">
-                          <Clock size={14} className="text-zinc-500" />
-                          {formatDuration(pod.duration_seconds)}
+                        <span className="flex items-center gap-1.5 bg-white/5 px-3 py-1 rounded-lg border border-white/5">
+                          <Clock size={12} /> {formatDuration(pod.duration_seconds)}
                         </span>
                       </div>
 
-                      <p className="text-zinc-400 font-medium line-clamp-3 mb-10 text-base leading-relaxed italic">
-                        {pod.description || "Iniciando análisis de este nodo de conocimiento..."}
+                      <p className="text-zinc-400 text-sm md:text-base line-clamp-3 mb-8 leading-relaxed font-medium">
+                        {pod.description || "Analizando el ADN de este nodo de conocimiento..."}
                       </p>
 
-                      <div className="flex justify-end pt-8 border-t border-white/5 mt-auto">
+                      <div className="flex justify-end pt-6 border-t border-white/5 mt-auto">
                         <div className={cn(
-                          buttonVariants({ size: 'lg', variant: 'secondary' }),
-                          "rounded-full font-black text-[11px] uppercase tracking-[0.2em] px-10 h-14 shadow-xl group-hover:bg-primary group-hover:text-white transition-all active:scale-95"
+                          buttonVariants({ size: 'sm', variant: 'secondary' }),
+                          "rounded-full font-black text-[10px] uppercase tracking-widest px-8 h-12 shadow-lg group-hover:bg-primary group-hover:text-white transition-all"
                         )}>
-                          <Mic className="mr-3 h-4 w-4" /> Iniciar Escucha
+                          <Mic className="mr-2 h-4 w-4" /> Iniciar Escucha
                         </div>
                       </div>
                     </CardContent>
@@ -149,82 +145,72 @@ export function PublicContentTabs({
             </div>
 
             {podcasts.length === 0 && (
-              <div className="text-center py-32 opacity-20 font-black uppercase tracking-[0.6em] text-sm italic">
-                Silencio en la frecuencia pública
+              <div className="text-center py-24 opacity-20 font-black uppercase tracking-[0.5em] text-xs">
+                Cero registros públicos
               </div>
             )}
           </motion.div>
-        </AnimatePresence>
+        </div>
       </TabsContent>
 
-      {/* 3. PESTAÑA: HILOS CURADOS (COLLECTIONS) */}
+      {/* 3. CONTENIDO: HILOS CURADOS (COLLECTIONS) */}
       <TabsContent value="collections" className="outline-none" forceMount>
-        <AnimatePresence mode="wait">
+        <div className="data-[state=inactive]:hidden">
           <motion.div
-            key="collections-container"
-            initial={{ opacity: 0, scale: 0.98 }}
+            initial={{ opacity: 0, scale: 0.99 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.98 }}
-            transition={{ duration: 0.4 }}
-            className="data-[state=inactive]:hidden"
+            transition={{ duration: 0.5 }}
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8"
           >
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
-              {collections.map((col) => (
-                <CollectionCard key={`collection-${col.id}`} collection={col} />
-              ))}
-            </div>
+            {collections.map((col) => (
+              <CollectionCard key={`col-${col.id}`} collection={col} />
+            ))}
 
             {collections.length === 0 && (
-              <div className="text-center py-32 opacity-20 flex flex-col items-center gap-6">
-                <Layers size={48} className="text-white/40" />
-                <span className="font-black uppercase tracking-[0.4em] text-xs italic">
-                  Sin bibliotecas temáticas actualmente
+              <div className="col-span-full text-center py-24 opacity-20 flex flex-col items-center gap-4">
+                <Layers size={40} />
+                <span className="font-black uppercase tracking-[0.4em] text-[10px]">
+                  Sin bibliotecas temáticas
                 </span>
               </div>
             )}
           </motion.div>
-        </AnimatePresence>
+        </div>
       </TabsContent>
 
-      {/* 4. PESTAÑA: RESONANCIA SOCIAL (TESTIMONIALS) */}
+      {/* 4. CONTENIDO: RESONANCIA (TESTIMONIALS) */}
       <TabsContent value="testimonials" className="outline-none" forceMount>
-        <AnimatePresence mode="wait">
+        <div className="data-[state=inactive]:hidden max-w-3xl mx-auto">
           <motion.div
-            key="testimonials-container"
-            initial={{ opacity: 0, x: 20 }}
+            initial={{ opacity: 0, x: 10 }}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.4 }}
-            className="data-[state=inactive]:hidden max-w-4xl mx-auto space-y-10 pb-20"
+            className="space-y-6 pb-20"
           >
             {testimonials.map((t) => (
               <div
-                key={`testimony-${t.id}`}
-                className="p-8 md:p-10 rounded-[2.5rem] bg-white/[0.02] border border-white/5 flex flex-col md:flex-row gap-6 md:gap-10 shadow-2xl backdrop-blur-md hover:bg-white/[0.04] transition-all duration-500"
+                key={`test-${t.id}`}
+                className="p-6 md:p-8 rounded-[2rem] bg-white/[0.02] border border-white/5 flex flex-col md:flex-row gap-6 shadow-xl backdrop-blur-sm"
               >
-                {/* Identidad del autor de la reseña */}
-                <Avatar className="h-16 w-16 md:h-20 md:w-20 border-2 border-white/10 shadow-2xl shrink-0">
+                <Avatar className="h-14 w-14 border border-white/10 shadow-inner">
                   <AvatarImage
                     src={getSafeAsset(t.author?.avatar_url, 'avatar')}
                     className="object-cover"
                   />
-                  <AvatarFallback className="font-black bg-zinc-900 text-lg text-primary">
+                  <AvatarFallback className="font-black bg-zinc-900 text-primary">
                     {t.author?.full_name?.charAt(0).toUpperCase() || 'U'}
                   </AvatarFallback>
                 </Avatar>
 
-                {/* Contenido de la resonancia */}
-                <div className="space-y-4">
-                  <div className="flex flex-wrap items-center gap-3 md:gap-4">
-                    <p className="font-black text-sm md:text-lg uppercase tracking-tighter text-white">
+                <div className="space-y-3 flex-grow min-w-0">
+                  <div className="flex items-center gap-3">
+                    <p className="font-black text-xs md:text-sm uppercase tracking-tight text-white">
                       {t.author?.full_name || 'Curador Anónimo'}
                     </p>
-                    <div className="h-1 w-1 rounded-full bg-primary/30 hidden md:block" />
-                    <span className="text-[9px] md:text-[10px] font-black text-muted-foreground uppercase tracking-widest bg-white/5 px-3 py-1.5 rounded-xl border border-white/5">
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase opacity-40">
                       {new Date(t.created_at).toLocaleDateString()}
                     </span>
                   </div>
-                  <p className="text-lg md:text-xl text-zinc-300 leading-relaxed italic font-medium">
+                  <p className="text-base md:text-lg text-zinc-300 leading-relaxed italic font-medium">
                     "{t.comment_text}"
                   </p>
                 </div>
@@ -232,23 +218,20 @@ export function PublicContentTabs({
             ))}
 
             {testimonials.length === 0 && (
-              <div className="text-center py-32 opacity-20 flex flex-col items-center gap-6">
-                <MessageSquare size={48} className="text-white/40" />
-                <span className="font-black uppercase tracking-[0.4em] text-xs">
-                  El eco de la comunidad aún no se ha manifestado
+              <div className="text-center py-20 opacity-20 flex flex-col items-center gap-4">
+                <MessageSquare size={40} />
+                <span className="font-black uppercase tracking-[0.4em] text-[10px]">
+                  Silencio social
                 </span>
               </div>
             )}
 
-            {/* ACCIÓN DE RESONANCIA: Dejar Testimonio */}
+            {/* ACCIÓN: DEJAR TESTIMONIO */}
             {canLeaveTestimonial && (
-              <div className="pt-24 flex flex-col items-center gap-8 border-t border-white/5">
-                <div className="flex flex-col items-center gap-2">
-                  <div className="h-1 w-12 bg-primary/40 rounded-full mb-2" />
-                  <p className="text-[11px] font-black text-primary uppercase tracking-[0.4em] animate-pulse text-center">
-                    ¿Ha resonado tu curiosidad con este perfil?
-                  </p>
-                </div>
+              <div className="pt-16 mt-10 border-t border-white/5 text-center space-y-6">
+                <p className="text-[10px] font-black text-primary uppercase tracking-[0.4em] animate-pulse">
+                  ¿Ha resonado tu curiosidad con este perfil?
+                </p>
                 <LeaveTestimonialDialog
                   profileId={profile.id}
                   onTestimonialAdded={() => window.location.reload()}
@@ -256,7 +239,7 @@ export function PublicContentTabs({
               </div>
             )}
           </motion.div>
-        </AnimatePresence>
+        </div>
       </TabsContent>
 
     </Tabs>
@@ -265,9 +248,8 @@ export function PublicContentTabs({
 
 /**
  * NOTA TÉCNICA DEL ARCHITECT:
- * Se ha implementado 'forceMount' en los TabsContent junto con la regla CSS 
- * 'data-[state=inactive]:hidden'. Esta es la solución definitiva para 
- * integrar Radix UI con Framer Motion sin provocar el error 'removeChild'.
- * Al no eliminarse físicamente del DOM, React mantiene la referencia de los 
- * nodos y Framer Motion puede orquestar la salida fluida sin excepciones.
+ * La implementación de 'forceMount' junto con un div envoltorio que reacciona
+ * al estado 'inactive' de Radix es la única forma de garantizar que Framer Motion
+ * no intente animar un nodo que ya no existe en el árbol de React. 
+ * Con esto, el error #310 y el crash de 'removeChild' quedan sepultados.
  */

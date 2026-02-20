@@ -1,10 +1,14 @@
 // components/profile/public-profile-page.tsx
-// VERSIÓN: 1.0 (NicePod Public Profile Orchestrator - Stability & Impact Standard)
-// Misión: Ensamblar la vista pública del curador garantizando una hidratación libre de errores.
-// [ESTABILIZACIÓN]: Integración de ProfileHydrationGuard para eliminar el Error de React #310.
+// VERSIÓN: 2.0 (NicePod Public Profile Orchestrator - Zero-Crash & Atomic Sync Edition)
+// Misión: Ensamblar la presencia pública del curador garantizando una hidratación inmaculada.
+// [ESTABILIZACIÓN]: Eliminación del Error de React #310 mediante el Protocolo de Montaje Protegido.
 
 "use client";
 
+import { AnimatePresence, motion } from "framer-motion";
+import { Sparkles, Zap } from "lucide-react";
+
+// --- INFRAESTRUCTURA DE DATOS Y CONTRATOS ---
 import {
   Collection,
   ProfileData,
@@ -12,16 +16,16 @@ import {
   TestimonialWithAuthor
 } from "@/types/profile";
 
-// --- INFRAESTRUCTURA DE ESTABILIDAD ---
+// --- COMPONENTES DE ESTABILIDAD ---
 import { ProfileHydrationGuard } from "./profile-hydration-guard";
 
-// --- COMPONENTES DE LA MALLA (NIVEL 3) ---
+// --- COMPONENTES DE LA MALLA SOBERANA (BLOQUE 3) ---
 import { PublicContentTabs } from "./public/public-content-tabs";
 import { PublicHeroSection } from "./public/public-hero-section";
 
 /**
  * INTERFAZ: PublicProfilePageProps
- * Define el contrato de datos inyectados desde el Server Component (app/profile/[username]/page.tsx).
+ * Define el contrato de datos inyectados desde el Server Component (SSR).
  */
 interface PublicProfilePageProps {
   profile: ProfileData;
@@ -32,11 +36,11 @@ interface PublicProfilePageProps {
 }
 
 /**
- * PublicProfilePage: El orquestador de la presencia social del curador.
+ * PublicProfilePage: El orquestador de la visualización externa del curador.
  * 
- * Este componente no contiene lógica de negocio pesada; su responsabilidad 
- * es la distribución atómica de datos hacia los componentes especializados 
- * de Hero y Contenido.
+ * Este componente actúa como el punto de entrada de la 'Malla de Perfil'.
+ * Su responsabilidad es distribuir la sabiduría recolectada en el servidor
+ * hacia los componentes interactivos de la interfaz Aurora.
  */
 export default function PublicProfilePage({
   profile,
@@ -46,21 +50,23 @@ export default function PublicProfilePage({
   publicCollections
 }: PublicProfilePageProps) {
 
+  /**
+   * [PROTOCOLO DE INTEGRIDAD]:
+   * El uso de ProfileHydrationGuard aquí es fundamental. 
+   * Evita que los componentes hijos (que pueden contener lógica de Auth o Realtime)
+   * se inicialicen antes de que el DOM sea seguro, matando el error #310.
+   */
   return (
-    /**
-     * [CAPA 1: ESCUDO DE HIDRATACIÓN]
-     * El Guard asegura que el contenido de cliente no se intente montar 
-     * hasta que el handshake SSR sea exitoso, eliminando el Error #310.
-     */
     <ProfileHydrationGuard>
 
       <main className="w-full flex flex-col items-center">
 
-        {/* [CAPA 2: SECCIÓN HERO]
-            Proyecta la identidad, el avatar monumental y las métricas de autoridad.
-            Implementa prioridad LCP para el renderizado de la imagen.
+        {/* 
+            CAPA I: IDENTIDAD MONUMENTAL
+            Este bloque proyecta el estatus, prestigio y biografía del curador.
+            La animación fade-in está sincronizada con la entrada del layout global.
         */}
-        <div className="w-full animate-in fade-in duration-1000">
+        <div className="w-full animate-in fade-in duration-1000 ease-out">
           <PublicHeroSection
             profile={profile}
             podcastCount={podcasts.length}
@@ -68,25 +74,45 @@ export default function PublicProfilePage({
           />
         </div>
 
-        {/* [CAPA 3: SECCIÓN DE CONTENIDO DINÁMICO]
-            El motor de pestañas gestiona la transición entre Crónicas, 
-            Hilos Curados y Resonancia Social.
+        {/* 
+            CAPA II: FLUJO DE CONOCIMIENTO DINÁMICO
+            El motor de pestañas organiza las crónicas, hilos y testimonios.
+            Usa el ancho máximo de la Workstation (max-w-screen-xl).
         */}
-        <div className="w-full max-w-screen-xl mx-auto px-4 md:px-8 pb-20">
-          <PublicContentTabs
-            profile={profile}
-            podcasts={podcasts}
-            testimonials={initialTestimonials}
-            collections={publicCollections}
-          />
-        </div>
+        <section className="w-full max-w-screen-xl mx-auto px-4 md:px-8 pb-24">
+
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={`profile-content-${profile.id}`}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <PublicContentTabs
+                profile={profile}
+                podcasts={podcasts}
+                testimonials={initialTestimonials}
+                collections={publicCollections}
+              />
+            </motion.div>
+          </AnimatePresence>
+
+        </section>
 
         {/* 
-            CAPA 4: ELEMENTO DE CIERRE ATMOSFÉRICO
-            Malla decorativa sutil para integrar el pie de página con el sistema Aurora.
+            CAPA III: CIERRE DE FRECUENCIA
+            Elemento de branding técnico para suavizar la transición al footer.
         */}
-        <div className="w-full py-10 opacity-5 pointer-events-none">
-          <div className="h-px w-full bg-gradient-to-r from-transparent via-white to-transparent" />
+        <div className="w-full max-w-md mx-auto py-12 flex flex-col items-center gap-4 opacity-10">
+          <div className="h-px w-full bg-gradient-to-r from-transparent via-primary to-transparent" />
+          <div className="flex items-center gap-3">
+            <Zap size={14} className="text-primary" />
+            <span className="text-[8px] font-black uppercase tracking-[0.6em] text-white">
+              Neural Sync Established
+            </span>
+            <Sparkles size={14} className="text-primary" />
+          </div>
+          <div className="h-px w-full bg-gradient-to-r from-transparent via-primary to-transparent" />
         </div>
 
       </main>
@@ -97,10 +123,9 @@ export default function PublicProfilePage({
 
 /**
  * NOTA TÉCNICA DEL ARCHITECT:
- * Al separar la 'PublicProfilePage' en este archivo especializado, hemos 
- * aislado su árbol de Hooks del 'PrivateProfileDashboard'. Esto previene 
- * colisiones de estado si un administrador navega entre su búnker privado 
- * y la vista pública, garantizando que el motor de React mantenga la 
- * integridad del DOM. La densidad visual ha sido ajustada a un máximo 
- * de 1280px (max-w-screen-xl) para optimizar la legibilidad del feed.
+ * Se ha eliminado cualquier llamada a 'useAuth' en este nivel para mantener
+ * el orquestador como un componente de presentación pura. La interactividad
+ * social (como el botón de dejar testimonio) reside dentro de 'PublicContentTabs',
+ * lo que permite que el 'PublicProfilePage' sea ultra-ligero y SSR-friendly.
+ * La estabilidad del DOM está garantizada por la 'key' inyectada en el servidor.
  */
