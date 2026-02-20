@@ -1,7 +1,7 @@
 // hooks/use-podcast-sync.ts
-// VERSIÓN: 1.0 (Realtime Synchronization Engine - NicePod V2.5 Standard)
-// Misión: Orquestar la escucha de activos en tiempo real y la reactividad del inventario.
-// [ESTABILIZACIÓN]: Eliminación de loops de carga mediante actualización atómica de banderas.
+// VERSIÓN: 1.1 (NicePod Realtime Sync - Secured Handshake Edition)
+// Misión: Orquestar la escucha de activos en tiempo real eliminando errores de WebSocket.
+// [ESTABILIZACIÓN]: Implementación de guarda de estado Auth para sincronía nominal y tregua de red.
 
 "use client";
 
@@ -12,57 +12,72 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
- * usePodcastSync: Hook especializado en el ciclo de vida de visualización del podcast.
+ * usePodcastSync: Hook especializado en la reactividad del inventario multimedia.
  * 
- * @param initialData - Los datos del podcast recuperados inicialmente por el servidor (SSR).
- * @returns Un objeto con los estados reactivos del inventario multimedia.
+ * Este componente es el responsable de que la página de visualización del podcast
+ * se actualice automáticamente cuando la IA termina de generar el audio o la imagen.
+ * 
+ * @param initialData - El objeto podcast cargado inicialmente desde el servidor (SSR).
  */
 export function usePodcastSync(initialData: PodcastWithProfile) {
-  const { supabase, isAuthenticated } = useAuth();
+  const { supabase, isAuthenticated, isInitialLoading } = useAuth();
   const router = useRouter();
 
   // --- ESTADO SOBERANO DEL DATO ---
-  // Mantenemos una copia local sincronizada con la base de datos en tiempo real.
+  // Mantenemos la verdad local sincronizada con los cambios de la Bóveda.
   const [podcast, setPodcast] = useState<PodcastWithProfile>(initialData);
 
-  // --- ESTADOS REACTIVOS PRIMITIVOS ---
-  // Estos booleanos disparan los re-renders en los componentes hijos de forma atómica.
+  // --- ESTADOS REACTIVOS ATÓMICOS ---
+  // Booleanos primitivos para disparar re-renderizados sin parpadeos de objeto.
   const [isAudioReady, setIsAudioReady] = useState<boolean>(!!initialData.audio_ready);
   const [isImageReady, setIsImageReady] = useState<boolean>(!!initialData.image_ready);
   const [processingStatus, setProcessingStatus] = useState(initialData.processing_status);
 
   // --- REFERENCIAS DE INFRAESTRUCTURA ---
-  // Utilizamos una referencia para el canal para asegurar una limpieza impecable de sockets.
   const channelRef = useRef<any>(null);
 
   /**
-   * syncStates: Actualiza los estados locales basados en un nuevo payload de la DB.
+   * syncStates: Función quirúrgica para actualizar banderas de integridad.
    */
   const syncStates = useCallback((newData: Partial<PodcastWithProfile>) => {
     if (newData.audio_ready !== undefined) setIsAudioReady(!!newData.audio_ready);
     if (newData.image_ready !== undefined) setIsImageReady(!!newData.image_ready);
     if (newData.processing_status !== undefined) setProcessingStatus(newData.processing_status);
 
+    // Realizamos una mezcla (merge) profunda para no perder metadatos del perfil.
     setPodcast((prev) => ({ ...prev, ...newData }));
   }, []);
 
   useEffect(() => {
-    // Solo iniciamos la escucha si hay una sesión activa y estamos en el cliente.
-    if (!supabase || !isAuthenticated || !initialData.id) return;
-
-    // Si el podcast ya está completado, no abrimos el túnel para ahorrar recursos de red.
-    if (initialData.processing_status === 'completed') {
+    /**
+     * [PROTOCOLO DE SEGURIDAD]: Handshake Diferido
+     * Solo iniciamos el WebSocket si:
+     * 1. El cliente de base de datos está listo.
+     * 2. El sistema ya no está en fase de carga inicial de identidad.
+     * 3. El usuario está plenamente autenticado (para evitar el cierre por RLS).
+     */
+    if (!supabase || isInitialLoading || !isAuthenticated || !initialData.id) {
       return;
     }
 
-    nicepodLog(`🛰️ Radar de Sincronía activo para Pod #${initialData.id}`);
+    // Si el podcast ya fue completado, evitamos abrir túneles innecesarios.
+    if (podcast.processing_status === 'completed') {
+      return;
+    }
+
+    nicepodLog(`🛰️ [Realtime] Activando radar para Pod #${initialData.id}`);
+
+    // Limpieza de canales huérfanos para evitar el error 'WebSocket is closed'
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+    }
 
     /**
-     * CONFIGURACIÓN DEL CANAL REALTIME
-     * Escuchamos exclusivamente los cambios (UPDATE) en la fila de este podcast.
+     * CONFIGURACIÓN DEL CANAL SOBERANO
+     * Escuchamos únicamente los eventos de UPDATE para esta fila específica.
      */
     channelRef.current = supabase
-      .channel(`podcast_sync_${initialData.id}`)
+      .channel(`sync_pod_${initialData.id}`)
       .on(
         'postgres_changes',
         {
@@ -73,39 +88,48 @@ export function usePodcastSync(initialData: PodcastWithProfile) {
         },
         (payload) => {
           const updatedRecord = payload.new as PodcastWithProfile;
-          nicepodLog("🔔 Señal de Bóveda detectada:", updatedRecord.processing_status);
+          nicepodLog("🔔 [Realtime] Cambio detectado en Bóveda:", updatedRecord.processing_status);
 
-          // Sincronizamos los estados locales inmediatamente
+          // Sincronizamos estados primitivos para reacción inmediata de la UI
           syncStates(updatedRecord);
 
           /**
-           * HANDOVER AL SERVIDOR:
-           * Si el estado cambia a 'completed', forzamos a Next.js a refrescar 
-           * la ruta para traer los metadatos finales (tags, summary, etc.) vía SSR.
+           * HANDOVER A SERVIDOR:
+           * Si la forja multimedia termina, notificamos al servidor para que 
+           * refresque el cache de datos y traiga el ADN semántico (Tags, Resumen).
            */
           if (updatedRecord.processing_status === 'completed') {
-            nicepodLog("✅ Inventario completo. Sincronizando con el servidor.");
+            nicepodLog("✅ [Realtime] Inventario completo. Forzando refresco de ruta.");
             router.refresh();
           }
         }
       )
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
-          nicepodLog(`🟢 Túnel Realtime establecido con éxito.`);
+          nicepodLog(`🟢 [Realtime] Túnel establecido para Pod #${initialData.id}`);
         }
-        if (status === 'CHANNEL_ERROR') {
-          console.error("🔴 Error en el túnel Realtime. Intentando reconexión...");
+        if (status === 'CHANNEL_ERROR' || status === 'CLOSED') {
+          console.error(`🔴 [Realtime-Error] Conexión interrumpida para Pod #${initialData.id}`);
         }
       });
 
-    // LIMPIEZA DE SENSORES: Cerramos el canal al desmontar el componente.
+    // CIERRE TÉCNICO: Eliminamos la suscripción al desmontar el componente.
     return () => {
       if (channelRef.current) {
-        nicepodLog(`🔌 Desconectando radar de Pod #${initialData.id}`);
+        nicepodLog(`🔌 [Realtime] Desconectando radar de Pod #${initialData.id}`);
         supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
       }
     };
-  }, [supabase, isAuthenticated, initialData.id, initialData.processing_status, syncStates, router]);
+  }, [
+    supabase,
+    isAuthenticated,
+    isInitialLoading,
+    initialData.id,
+    podcast.processing_status,
+    syncStates,
+    router
+  ]);
 
   return {
     podcast,

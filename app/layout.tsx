@@ -1,22 +1,22 @@
 // app/layout.tsx
-// VERSIÓN: 20.2 (NicePod Core Identity - Unified PWA & Atomic Handshake)
-// Misión: Orquestar el núcleo global eliminando el pestañeo y consolidando el registro único PWA.
-// [RESOLUCIÓN]: Eliminación de referencia huérfana a ServiceWorkerRegister para corregir error TS2307.
+// VERSIÓN: 20.3 (NicePod Core Identity - Clean Console & Atomic Sync Edition)
+// Misión: Orquestar el núcleo global eliminando advertencias de consola y pestañeos de hidratación.
+// [RESOLUCIÓN]: Purga de metadatos duplicados (Apple Deprecation) y optimización de cadena de proveedores.
 
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import type React from "react";
 
 /**
- * --- CAPA DE ESTILOS CRÍTICOS ---
- * Importación del CSS de Mapbox en la raíz para evitar el flash de mapa sin estilos.
- * Los estilos globales se cargan después para permitir la personalización del sistema Aurora.
+ * --- CAPA 0: CIMIENTOS VISUALES ---
+ * Importamos los estilos de Mapbox y los globales en la raíz.
+ * El CSS de Mapbox es crítico para evitar el 'Layout Shift' del motor geográfico.
  */
 import "mapbox-gl/dist/mapbox-gl.css";
 import "./globals.css";
 
 /**
- * --- INFRAESTRUCTURA DE COMPONENTES Y SEGURIDAD ---
+ * --- INFRAESTRUCTURA DE COMPONENTES ---
  */
 import { ErrorBoundary } from "@/components/error-boundary";
 import { CSPostHogProvider } from '@/components/providers/posthog-provider';
@@ -27,17 +27,18 @@ import { createClient } from '@/lib/supabase/server';
 import { Tables } from "@/types/database.types";
 
 /**
- * CONFIGURACIÓN DE FUENTE: Inter
- * Priorizamos la carga del sistema operativo para evitar Layout Shifts tipográficos.
+ * FUENTE PRINCIPAL: Inter
+ * 'display: swap' asegura que el texto sea visible mientras se carga la fuente,
+ * cumpliendo con el protocolo de accesibilidad de NicePod.
  */
 const inter = Inter({
   subsets: ["latin"],
-  preload: false,
   display: "swap"
 });
 
 /**
- * VIEWPORT: Configuración táctica para dispositivos móviles.
+ * VIEWPORT API: Configuración nativa de visualización.
+ * [RESOLUCIÓN]: Sustituimos el tag manual de Apple por la API de Next.js para limpiar la consola.
  */
 export const viewport: Viewport = {
   themeColor: "#111827",
@@ -49,16 +50,23 @@ export const viewport: Viewport = {
 };
 
 /**
- * METADATA: Identidad Soberana NicePod V2.5.
+ * METADATA API: Identidad Soberana Digital.
+ * [FIX]: Se ha removido cualquier meta tag manual del <head> a favor de este objeto.
+ * 'appleWebApp' reemplaza de forma segura a 'apple-mobile-web-app-capable'.
  */
 export const metadata: Metadata = {
   title: "NicePod | Witness, Not Diarist",
-  description: "Terminal de inteligencia personal y memoria urbana colectiva. Forja sabiduría en audio.",
+  description: "Workstation de inteligencia personal y memoria urbana. Forja sabiduría en audio.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "NicePod",
+  },
+  formatDetection: {
+    telephone: false,
+    email: false,
+    address: false,
   },
   icons: {
     icon: "/nicepod-logo.png",
@@ -67,7 +75,7 @@ export const metadata: Metadata = {
 };
 
 /**
- * RootLayout: El Gran Orquestador Síncrono.
+ * RootLayout: El Gran Orquestador Síncrono de NicePod V2.5.
  */
 export default async function RootLayout({
   children
@@ -81,14 +89,14 @@ export default async function RootLayout({
    */
   const supabase = createClient();
 
-  // Handshake inicial de seguridad mediante validación de token
+  // Realizamos el handshake de seguridad en el servidor
   const { data: { user } } = await supabase.auth.getUser();
 
   let initialSession = null;
   let initialProfile: Tables<'profiles'> | null = null;
 
   if (user) {
-    // Si el usuario existe, recuperamos sesión y perfil en paralelo (Performance T0)
+    // Si el usuario existe, recuperamos sesión y perfil en paralelo para optimizar TTFB
     const [sessionRes, profileRes] = await Promise.all([
       supabase.auth.getSession(),
       supabase.from('profiles').select('*').eq('id', user.id).single()
@@ -100,11 +108,15 @@ export default async function RootLayout({
 
   return (
     /**
-     * suppressHydrationWarning: Necesario para la inyección síncrona del tema Aurora.
+     * suppressHydrationWarning: Necesario para que ThemeProvider pueda inyectar 
+     * clases en el <html> basándose en localStorage sin alertas de React.
      */
     <html lang="es" suppressHydrationWarning>
       <head>
-        {/* SCRIPT ANTI-PESTAÑEO DE TEMA (Ejecución Pre-React) */}
+        {/* 
+            SCRIPT ANTI-PESTAÑEO DE TEMA:
+            Inyecta la clase .dark antes de que React despierte, matando el flash blanco.
+        */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -114,8 +126,10 @@ export default async function RootLayout({
                   var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
                   if (storedTheme === 'dark' || (!storedTheme && prefersDark)) {
                     document.documentElement.classList.add('dark');
+                    document.documentElement.style.colorScheme = 'dark';
                   } else {
                     document.documentElement.classList.remove('dark');
+                    document.documentElement.style.colorScheme = 'light';
                   }
                 } catch (e) {}
               })();
@@ -127,19 +141,19 @@ export default async function RootLayout({
         className={`${inter.className} min-h-screen bg-background font-sans antialiased selection:bg-primary/30`}
         suppressHydrationWarning
       >
-        {/* NIVEL 1: Telemetría e Inteligencia */}
+        {/* CAPA 1: Telemetría Global (Analytics) */}
         <CSPostHogProvider>
 
-          {/* NIVEL 2: Orquestador Único PWA
-              [FIX]: Se ha eliminado ServiceWorkerRegister para evitar el conflicto de registro 
-              y errores de compilación TS2307.
-          */}
+          {/* CAPA 2: Ciclo de Vida PWA (Registro Único) */}
           <PwaLifecycle />
 
-          {/* NIVEL 3: Red de Seguridad */}
+          {/* CAPA 3: Red de Seguridad UI */}
           <ErrorBoundary>
 
-            {/* NIVEL 4: Motor de Diseño y Atmósfera */}
+            {/* CAPA 4: Motor de Atmósfera Aurora
+                disableTransitionOnChange={true} es vital para evitar pestañeos 
+                de color durante la navegación interna.
+            */}
             <ThemeProvider
               attribute="class"
               defaultTheme="dark"
@@ -148,21 +162,22 @@ export default async function RootLayout({
               storageKey="theme"
             >
 
-              {/* NIVEL 5: Soberanía de Identidad Atómica
-                  Inyectamos los datos de servidor para una hidratación sin latencia.
+              {/* CAPA 5: Soberanía de Identidad Atómica
+                  Inyectamos la sesión y el perfil de servidor para una hidratación sin latencia.
               */}
               <AuthProvider initialSession={initialSession} initialProfile={initialProfile}>
 
+                {/* --- ESCENARIO VISUAL NICEPOD V2.5 --- */}
                 <div className="min-h-screen gradient-mesh relative overflow-x-hidden">
 
-                  {/* IDENTIDAD VISUAL AURORA (Blobs Atmosféricos Cinematográficos) */}
+                  {/* IDENTIDAD VISUAL (Blobs Atmosféricos) */}
                   <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 opacity-40 dark:opacity-80">
                     <div className="absolute top-10 left-10 w-80 h-80 bg-purple-500/10 rounded-full blur-[120px] animate-float"></div>
                     <div className="absolute top-1/2 right-0 w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[160px] animate-float" style={{ animationDelay: "2s" }}></div>
                     <div className="absolute -bottom-20 left-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-[140px] animate-float" style={{ animationDelay: "4s" }}></div>
                   </div>
 
-                  {/* LIENZO DE INTERACCIÓN (Z-index superior para clics garantizados) */}
+                  {/* LIENZO DE INTERACCIÓN (Contenido Dinámico) */}
                   <div className="relative z-10">
                     {children}
                   </div>

@@ -1,65 +1,85 @@
 // app/profile/page.tsx
-// VERSIÓN: 7.0 (The Ultimate Dashboard Orchestrator: Multi-Source Curation & Reputation Hub)
+// VERSIÓN: 8.0 (The Ultimate Dashboard Orchestrator - Atomic Integrity Edition)
+// Misión: Orquestar la hidratación total del búnker de datos privado del curador.
+// [ESTABILIZACIÓN]: Implementación de force-dynamic y limpieza atómica de la Bóveda de Valor.
 
-import { createClient } from '@/lib/supabase/server'; 
-import { redirect } from 'next/navigation';
-import { 
-  PrivateProfileDashboard, 
+import {
+  PrivateProfileDashboard,
   type ProfileData,
   type TestimonialWithAuthor
 } from '@/components/profile-client-component';
+import { createClient } from '@/lib/supabase/server';
+import { Metadata } from 'next';
+import { redirect } from 'next/navigation';
 
 /**
- * PAGE COMPONENT: PrivateProfileRoute
- * Encargado de la hidratación total de datos para el Dashboard de Gestión.
- * Implementa fetch paralelo para minimizar el Time To Interactive (TTI).
+ * [CONFIGURACIÓN DE RED]: force-dynamic
+ * Es vital para el perfil privado, ya que gestiona cuotas de uso y estados 
+ * de suscripción que cambian en tiempo real. No podemos permitirnos caché aquí.
+ */
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+/**
+ * generateMetadata: Define la identidad de la pestaña del navegador.
+ */
+export const metadata: Metadata = {
+  title: "Búnker de Sabiduría | NicePod",
+  description: "Centro de mandos operativo y gestión de soberanía de datos.",
+  robots: { index: false, follow: false }, // Privacidad absoluta en rutas de gestión
+};
+
+/**
+ * PrivateProfileRoute: El orquestador de datos soberanos.
  */
 export default async function PrivateProfileRoute() {
   const supabase = createClient();
 
-  // 1. SEGURIDAD: Auth Check de sesión activa
+  // 1. PROTOCOLO DE IDENTIDAD (Handshake SSR)
+  // Validamos la sesión en el servidor para evitar que invitados accedan al búnker.
   const { data: { user }, error: authError } = await supabase.auth.getUser();
-  
+
   if (authError || !user) {
     redirect('/login?redirect=/profile');
   }
-  
-  // 2. ORQUESTACIÓN DE DATOS 360°
-  // Ejecutamos todas las consultas en paralelo para máxima velocidad.
+
+  // 2. COSECHA DE INTELIGENCIA 360° (Parallel Fetching)
+  // Recuperamos todos los módulos de datos en un único ciclo de I/O concurrente.
   const [
-    profileResponse, 
-    usageResponse, 
-    testimonialsResponse, 
-    collectionsResponse, 
+    profileResponse,
+    usageResponse,
+    testimonialsResponse,
+    collectionsResponse,
     vaultResponse
   ] = await Promise.all([
-    // A. IDENTIDAD & PLAN: Datos base, suscripción y metadatos de reputación.
+    // A. IDENTIDAD, RANGO Y PLAN: Incluimos reputación y el JOIN con planes.
     supabase
-        .from('profiles')
-        .select(`
+      .from('profiles')
+      .select(`
             *,
             subscriptions (
                 status,
                 plans (
                     name,
-                    monthly_creation_limit
+                    monthly_creation_limit,
+                    max_concurrent_drafts
                 )
             )
         `)
-        .eq('id', user.id)
-        .single<ProfileData>(),
-    
-    // B. CUOTA DE USO: Métrica crítica para la barra de progreso de creación.
-    supabase
-        .from('user_usage')
-        .select('podcasts_created_this_month')
-        .eq('user_id', user.id)
-        .single(),
+      .eq('id', user.id)
+      .single<ProfileData>(),
 
-    // C. MODERACIÓN SOCIAL: Todos los testimonios para gestión (Aprobados, Pendientes, Rechazados).
+    // B. MÉTRICA DE CONSUMO: Estado real de la cuota mensual de creación.
     supabase
-        .from('profile_testimonials')
-        .select(`
+      .from('user_usage')
+      .select('podcasts_created_this_month, drafts_created_this_month')
+      .eq('user_id', user.id)
+      .maybeSingle(),
+
+    // C. MODERACIÓN SOCIAL: Gestión integral de testimonios recibidos.
+    supabase
+      .from('profile_testimonials')
+      .select(`
             id,
             comment_text,
             status,
@@ -69,20 +89,19 @@ export default async function PrivateProfileRoute() {
                 avatar_url
             )
         `)
-        .eq('profile_user_id', user.id)
-        .order('created_at', { ascending: false })
-        .returns<TestimonialWithAuthor[]>(),
+      .eq('profile_user_id', user.id)
+      .order('created_at', { ascending: false })
+      .returns<TestimonialWithAuthor[]>(),
 
-    // D. CURADURÍA: Colecciones completas con conteo de items.
+    // D. CURADURÍA TEMÁTICA: Colecciones propias con telemetría de ítems.
     supabase
-        .from('collections')
-        .select('*, collection_items(count)')
-        .eq('owner_id', user.id)
-        .order('updated_at', { ascending: false }),
+      .from('collections')
+      .select('*, collection_items(count)')
+      .eq('owner_id', user.id)
+      .order('updated_at', { ascending: false }),
 
-    // E. BÓVEDA DE VALOR (PROOF OF ATTENTION): 
-    // Recuperamos podcasts que el usuario ha terminado al 100%. 
-    // Este dato es vital para alimentar el "Smart Selector" de nuevas listas curadas.
+    // E. BÓVEDA DE VALOR (Proof of Attention): 
+    // Podcasts finalizados por el usuario para alimentar el grafo de conocimiento.
     supabase
       .from('playback_events')
       .select(`
@@ -94,30 +113,32 @@ export default async function PrivateProfileRoute() {
               cover_image_url,
               duration_seconds,
               like_count,
-              play_count
+              play_count,
+              status
           )
       `)
       .eq('user_id', user.id)
       .eq('event_type', 'completed_playback')
+      .order('created_at', { ascending: false })
   ]);
 
-  // 3. VALIDACIÓN DE CARGA CRÍTICA
+  // 3. PROTOCOLO DE SEGURIDAD ANTE FALLO DE DATOS
   if (profileResponse.error || !profileResponse.data) {
-    console.error("Critical Profile Load Error:", profileResponse.error);
+    console.error("🔥 [NicePod-Bunker-Error]:", profileResponse.error?.message);
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black p-4">
-        <div className="text-center space-y-4">
-          <p className="text-white/60 font-medium">No pudimos sincronizar tu búnker de datos.</p>
-          <a href="/profile" className="text-primary font-black uppercase tracking-widest text-xs underline">
-            Reintentar Conexión
+      <div className="min-h-screen flex items-center justify-center bg-slate-950 p-6">
+        <div className="bg-white/5 border border-white/10 p-10 rounded-[3rem] text-center backdrop-blur-3xl shadow-2xl">
+          <p className="text-zinc-400 font-medium mb-6">No se pudo establecer conexión con tu Bóveda de Datos.</p>
+          <a href="/profile" className="inline-flex h-12 items-center px-8 bg-primary text-white font-black uppercase tracking-widest text-[10px] rounded-full hover:scale-105 transition-all">
+            REINTENTAR SINCRO
           </a>
         </div>
       </div>
     );
   }
 
-  // 4. PROCESAMIENTO ESTRATÉGICO DE LA BÓVEDA
-  // Un usuario puede terminar un podcast varias veces. Necesitamos una lista única (Set) para la curaduría.
+  // 4. LIMPIEZA BINARIA DE LA BÓVEDA
+  // Eliminamos duplicados de podcasts terminados para entregar una lista pura al cliente.
   const rawVaultData = vaultResponse.data || [];
   const uniqueFinishedPods = Array.from(
     new Map(
@@ -128,16 +149,16 @@ export default async function PrivateProfileRoute() {
     ).values()
   );
 
-  // 5. HANDOFF AL CLIENTE (PrivateProfileDashboard)
-  // Entregamos el objeto de datos completo para poblar todas las opciones (Biblioteca, Offline, Reseñas, Ajustes).
+  // 5. ENTREGA DE CONTROL AL DASHBOARD (Cliente)
   return (
-    <main className="min-h-screen bg-transparent">
-      <PrivateProfileDashboard 
-        profile={profileResponse.data} 
+    <main className="min-h-screen bg-transparent animate-in fade-in duration-1000">
+      <PrivateProfileDashboard
+        key={profileResponse.data.id} // [FIX]: Garantizamos re-montaje limpio en cambios de sesión
+        profile={profileResponse.data}
         podcastsCreatedThisMonth={usageResponse.data?.podcasts_created_this_month || 0}
         initialTestimonials={testimonialsResponse.data || []}
         initialCollections={collectionsResponse.data as any || []}
-        finishedPodcasts={uniqueFinishedPods} 
+        finishedPodcasts={uniqueFinishedPods}
       />
     </main>
   );
