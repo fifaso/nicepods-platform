@@ -1,7 +1,7 @@
-// components/profile-view.tsx
-// VERSIÓN: 10.0 (NicePod Profile Orchestrator - Master Assembly Standard)
-// Misión: Orquestar la visualización del podcast en el perfil mediante componentes atómicos.
-// [RESOLUCIÓN]: Eliminación de loops de carga, parpadeos y fragmentación de lógica.
+// components/profile/profile-podcast-orchestrator.tsx
+// VERSIÓN: 1.0 (NicePod Profile Orchestrator - Atomic Sync Standard)
+// Misión: Gestionar el estado soberano, la sincronía Realtime y la distribución de acciones para la vista de perfil.
+// [ESTABILIZACIÓN]: Integración del hook usePodcastSync y arquitectura de componentes desacoplados.
 
 "use client";
 
@@ -17,39 +17,39 @@ import { usePodcastSync } from '@/hooks/use-podcast-sync';
 import { useToast } from '@/hooks/use-toast';
 import { PodcastWithProfile } from '@/types/podcast';
 
-// --- COMPONENTES SATÉLITE (NSP Architecture) ---
-import { IntegrityShield } from './podcast/integrity-shield';
-import { ProfileActionHub } from './profile/profile-action-hub';
-import { ProfileAudioConsole } from './profile/profile-audio-console';
-import { ProfileContentVault } from './profile/profile-content-vault';
-import { ProfileCuratorFiche } from './profile/profile-curator-fiche';
-import { ProfileMediaStage } from './profile/profile-media-stage';
+// --- IMPORTACIÓN DE COMPONENTES ESPECIALIZADOS (FASE 2) ---
+// Nota: Estos componentes se desarrollarán en las siguientes ráfagas tácticas.
+import { IntegrityShield } from '../podcast/integrity-shield';
+import { ProfileActionHub } from './profile-action-hub';
+import { ProfileAudioConsole } from './profile-audio-console';
+import { ProfileContentVault } from './profile-content-vault';
+import { ProfileCuratorFiche } from './profile-curator-fiche';
+import { ProfileMediaStage } from './profile-media-stage';
 
 /**
- * INTERFAZ: ProfilePodcastViewProps
- * Recibe los datos iniciales inyectados desde el Server Component (page.tsx).
+ * INTERFAZ: ProfilePodcastOrchestratorProps
  */
-interface ProfilePodcastViewProps {
+interface ProfilePodcastOrchestratorProps {
   podcastData: PodcastWithProfile;
   user: User | null;
   initialIsLiked: boolean;
 }
 
 /**
- * PodcastView: El director de orquesta de la vista de perfil en NicePod V2.5.
+ * ProfilePodcastOrchestrator: El gestor inteligente de la vista de perfil.
  */
-export function PodcastView({
+export function ProfilePodcastOrchestrator({
   podcastData,
   user,
   initialIsLiked
-}: ProfilePodcastViewProps) {
+}: ProfilePodcastOrchestratorProps) {
 
   const { supabase } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
 
   // 1. ACTIVACIÓN DEL SISTEMA NERVIOSO (Realtime Sync)
-  // Gestiona la escucha de la DB y actualiza las banderas de forma atómica.
+  // Utilizamos el hook soberano para capturar actualizaciones de audio e imagen.
   const {
     podcast,
     isAudioReady,
@@ -58,7 +58,7 @@ export function PodcastView({
     isFailed
   } = usePodcastSync(podcastData);
 
-  // 2. INTEGRACIÓN CON EL MOTOR DE AUDIO GLOBAL
+  // 2. INTEGRACIÓN CON EL MOTOR DE AUDIO
   const {
     playPodcast,
     currentPodcast,
@@ -67,12 +67,13 @@ export function PodcastView({
     togglePlayPause
   } = useAudio();
 
-  // 3. ESTADOS SOCIALES Y DE INTERFAZ
+  // 3. ESTADOS SOCIALES LOCALES
   const [isLiked, setIsLiked] = useState<boolean>(initialIsLiked);
   const [likeCount, setLikeCount] = useState<number>(Number(podcast.like_count || 0));
   const [isLiking, setIsLiking] = useState<boolean>(false);
+  const [isEditingTags, setIsEditingTags] = useState<boolean>(false);
 
-  // 4. LÓGICA DE PERSISTENCIA OFFLINE (PWA)
+  // 4. LÓGICA OFFLINE (PWA Integration)
   const {
     isOfflineAvailable,
     isDownloading,
@@ -80,58 +81,56 @@ export function PodcastView({
     removeFromOffline
   } = useOfflineAudio(podcast);
 
-  // --- DERIVACIONES TÁCTICAS ---
+  // --- DERIVACIONES LÓGICAS ---
   const isOwner = useMemo(() => user?.id === podcast.user_id, [user?.id, podcast.user_id]);
   const isCurrentActive = useMemo(() => currentPodcast?.id === podcast.id, [currentPodcast?.id, podcast.id]);
 
-  // Sincronización de contador de likes tras cambios en tiempo real
+  // Sincronizamos el contador de likes si la base de datos se actualiza externamente.
   useEffect(() => {
     setLikeCount(Number(podcast.like_count || 0));
   }, [podcast.like_count]);
 
-  // --- 5. MANEJADORES DE ACCIÓN SOBERANA ---
+  // --- MANEJADORES DE ACCIÓN (BUSINESS LOGIC) ---
 
   /**
-   * handlePlay: Control inteligente de reproducción.
+   * handlePlayAction: Orquestación inteligente de reproducción.
    */
   const handlePlayAction = useCallback(() => {
     if (isCurrentActive) {
       togglePlayPause();
     } else {
-      // En el perfil, reproducimos el podcast individualmente
-      playPodcast(podcast);
+      playPodcast(podcast); // En el perfil, solemos reproducir piezas individuales.
     }
   }, [isCurrentActive, togglePlayPause, playPodcast, podcast]);
 
   /**
-   * handleLike: Gestión de resonancia en la Bóveda.
+   * handleLikeAction: Gestión de resonancia social.
    */
   const handleLikeAction = useCallback(async () => {
     if (!supabase || !user || isLiking) return;
     setIsLiking(true);
 
-    const podId = podcast.id;
     try {
       if (isLiked) {
         setIsLiked(false);
         setLikeCount(prev => Math.max(0, prev - 1));
-        await supabase.from('likes').delete().match({ user_id: user.id, podcast_id: podId });
+        await supabase.from('likes').delete().match({ user_id: user.id, podcast_id: podcast.id });
       } else {
         setIsLiked(true);
         setLikeCount(prev => prev + 1);
-        await supabase.from('likes').insert({ user_id: user.id, podcast_id: podId });
+        await supabase.from('likes').insert({ user_id: user.id, podcast_id: podcast.id });
       }
     } catch (err) {
-      console.error("🔥 [Profile-Like-Error]:", err);
+      console.error("🔥 [Profile-Orchestrator-Like]:", err);
     } finally {
       setIsLiking(false);
     }
   }, [supabase, user, isLiked, isLiking, podcast.id]);
 
   /**
-   * handleSaveTags: Persistencia del mapa semántico.
+   * handleSaveTags: Persistencia de etiquetas curadas por el dueño.
    */
-  const handleSaveTagsAction = useCallback(async (newTags: string[]) => {
+  const handleSaveTags = useCallback(async (newTags: string[]) => {
     if (!supabase) return;
     const { error } = await supabase
       .from('micro_pods')
@@ -144,7 +143,7 @@ export function PodcastView({
   }, [supabase, podcast.id, toast]);
 
   /**
-   * handleDownload: Gestión de Bóveda Local.
+   * handleDownloadAction: Gestión binaria de la Bóveda Local.
    */
   const handleDownloadAction = useCallback(() => {
     if (isOfflineAvailable) {
@@ -154,25 +153,10 @@ export function PodcastView({
     }
   }, [isOfflineAvailable, removeFromOffline, downloadForOffline]);
 
-  const handlePublishAction = useCallback(async () => {
-    if (!supabase) return;
-    const { error } = await supabase
-      .from('micro_pods')
-      .update({ status: 'published', published_at: new Date().toISOString() })
-      .eq('id', podcast.id);
-
-    if (!error) {
-      toast({ title: "Portal Abierto", description: "Wisdom shared successfully." });
-      router.refresh();
-    }
-  }, [supabase, podcast.id, toast, router]);
-
-  // --- RENDERIZADO SOBERANO ---
-
   return (
     <div className="container mx-auto max-w-7xl py-4 md:py-8 px-4 w-full animate-in fade-in duration-700">
 
-      {/* CAPA I: ESCUDO DE INTEGRIDAD (Alertas y QA) */}
+      {/* 1. NIVEL DE INTEGRIDAD: ALERTAS Y QA FLOW */}
       <IntegrityShield
         isFailed={isFailed}
         isConstructing={isConstructing}
@@ -180,23 +164,30 @@ export function PodcastView({
         status={podcast.status}
         listeningProgress={0}
         hasListenedFully={!!podcast.reviewed_by_user}
-        onPublish={handlePublishAction}
+        onPublish={async () => {
+          // Lógica de publicación rápida desde el perfil
+          await supabase?.from('micro_pods').update({ status: 'published' }).eq('id', podcast.id);
+          router.refresh();
+        }}
       />
 
-      {/* GRID OPERATIVO: DENSIDAD TÁCTICA */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
 
-        {/* COLUMNA DE CONOCIMIENTO (2/3) */}
+        {/* COLUMNA DE SABIDURÍA (2/3) */}
         <div className="lg:col-span-2 space-y-6">
 
-          {/* ESCENARIO MULTIMEDIA (Imagen 3) */}
+          {/* MÓDULO: ESCENARIO MULTIMEDIA
+              Se actualiza automáticamente gracias a 'isImageReady'.
+          */}
           <ProfileMediaStage
             imageUrl={podcast.cover_image_url}
             imageReady={isImageReady}
             title={podcast.title}
           />
 
-          {/* BÓVEDA DE CONTENIDO (Texto y Tags) */}
+          {/* MÓDULO: BÓVEDA DE CONTENIDO
+              Maneja el texto, guion y edición de etiquetas.
+          */}
           <ProfileContentVault
             title={podcast.title}
             description={podcast.description}
@@ -204,14 +195,16 @@ export function PodcastView({
             aiTags={podcast.ai_tags}
             userTags={podcast.user_tags}
             isOwner={isOwner}
-            onSaveTags={handleSaveTagsAction}
+            onSaveTags={handleSaveTags}
           />
         </div>
 
-        {/* COLUMNA LATERAL: TERMINAL (1/3) */}
+        {/* COLUMNA TÁCTICA: LATERAL (1/3) */}
         <div className="lg:col-span-1 space-y-6 lg:sticky lg:top-24">
 
-          {/* CONSOLA DE AUDIO (Player) */}
+          {/* MÓDULO: CONSOLA DE AUDIO
+              Sincronía total con el estado 'audio_ready'.
+          */}
           <ProfileAudioConsole
             audioReady={isAudioReady}
             audioLoading={audioLoading}
@@ -227,7 +220,9 @@ export function PodcastView({
             onDownload={handleDownloadAction}
           />
 
-          {/* FICHA DEL CURADOR (Identidad y Meta) */}
+          {/* MÓDULO: FICHA DEL CURADOR
+              Identidad, telemetría de creación y especificaciones de IA.
+          */}
           <ProfileCuratorFiche
             profile={podcast.profiles as any}
             createdAt={podcast.created_at}
@@ -236,17 +231,15 @@ export function PodcastView({
             sources={podcast.sources || []}
           />
 
-          {/* CENTRO DE ACCIÓN (Remix y Navegación) */}
+          {/* MÓDULO: CENTRO DE ACCIÓN
+              Botones de navegación y Remix.
+          */}
           <ProfileActionHub
             podcastId={podcast.id}
             status={podcast.status}
             isOwner={isOwner}
             isConstructing={isConstructing}
             isAuthenticated={!!user}
-            podcastTitle={podcast.title}
-            authorName={podcast.profiles?.full_name || 'Anónimo'}
-            authorAvatar={podcast.profiles?.avatar_url}
-            scriptPlain={(podcast.script_text as any)?.script_plain || ""}
           />
         </div>
 
@@ -254,11 +247,3 @@ export function PodcastView({
     </div>
   );
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT:
- * Esta versión 10.0 es el resultado final de la tregua de pestañeos. 
- * He eliminado toda lógica visual de este archivo para transformarlo en 
- * un 'Pure Data Provider'. El uso del casting 'as any' en la Ficha se 
- * corregirá automáticamente al sincronizar con el types/podcast.ts v7.5.
- */

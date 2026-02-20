@@ -1,11 +1,7 @@
 {
   "compilerOptions": {
-    /* Configuración de Lenguaje y Entorno */
+    /* --- CONFIGURACIÓN DE LENGUAJE Y ENTORNO --- */
     "target": "esnext",
-    "types": [
-      "node",
-      "@ducanh2912/next-pwa/workbox"
-    ],
     "lib": [
       "dom",
       "dom.iterable",
@@ -26,7 +22,12 @@
     "noImplicitAny": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    /* Resolución de Rutas (Fix para PNPM + Mapbox) */
+    /* --- SINCRO DE TIPOS (PWA & NODE) --- */
+    "types": [
+      "node",
+      "@ducanh2912/next-pwa/workbox"
+    ],
+    /* --- RESOLUCIÓN DE RUTAS (FIX PARA PNPM + MAPBOX) --- */
     "baseUrl": ".",
     "paths": {
       "@/*": [
@@ -39,7 +40,7 @@
         "./node_modules/mapbox-gl"
       ]
     },
-    /* Plugins */
+    /* --- PLUGINS DE NEXT.JS --- */
     "plugins": [
       {
         "name": "next"

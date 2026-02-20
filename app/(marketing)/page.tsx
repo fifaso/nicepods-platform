@@ -235,8 +235,7 @@ export default function LandingPage() {
                 src={`/images/universes/${uni.id}.png`}
                 alt={uni.title}
                 fill
-                className="object-cover opacity-40 group-hover:scale-110 transition-[transform,opacity] duration-[2000ms] group-hover:opacity-80" sizes="(max-width: 768px) 100vw, 25vw"
-              />
+                className="object-cover opacity-40 group-hover:scale-110 transition-[transform,opacity] duration-&lsqb;2000ms&rsqb; group-hover:opacity-80" sizes="(max-width: 768px) 100vw, 25vw" />
               {/* Overlay de Identidad Dimensional */}
               <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent z-10" />
               <div className="absolute inset-0 p-8 flex flex-col justify-end text-left z-20">

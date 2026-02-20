@@ -61,7 +61,7 @@ export function MediaStage({
                 alt={`Carátula de NicePod: ${title}`}
                 fill
                 priority
-                className="object-cover transition-transform duration-[3000ms] group-hover:scale-105"
+                className="object-cover transition-transform duration-&lsqb;3000ms&rsqb; group-hover:scale-105"
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 66vw, 50vw"
               />
 
