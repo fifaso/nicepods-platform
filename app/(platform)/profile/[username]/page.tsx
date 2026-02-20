@@ -1,37 +1,52 @@
-// app/profile/[username]/page.tsx
-// VERSIÓN: 7.0 (Sovereign Curator Integration - Zero-Flicker Standard)
-// Misión: Servir la identidad pública de un curador con integridad total y SEO optimizado.
-// [ESTABILIZACIÓN]: Resolución de error 'removeChild' mediante sincronía de datos SSR y canonical redirects.
+// app/(platform)/profile/[username]/page.tsx
+// VERSIÓN: 7.5 (Sovereign Curator Integration - Modular SSR Standard)
+// Misión: Servir la identidad pública de un curador con integridad total y SEO de alta fidelidad.
+// [ESTABILIZACIÓN]: Resolución de error TS2307 mediante conexión con la nueva arquitectura de componentes.
 
-import {
-  PublicProfilePage,
-  type ProfileData,
-  type PublicPodcast,
-  type TestimonialWithAuthor
-} from '@/components/profile-client-component';
 import { createClient } from '@/lib/supabase/server';
 import { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 
+// --- INFRAESTRUCTURA DE COMPONENTES MODULARES ---
+// Importamos el orquestador de cliente que ensambla el Hero y los Tabs.
+import PublicProfilePage from '@/components/profile/public-profile-page';
+
+// --- CONTRATOS DE DATOS (NIVEL 1) ---
+import {
+  Collection,
+  ProfileData,
+  PublicPodcast,
+  TestimonialWithAuthor
+} from '@/types/profile';
+
 /**
  * [CONFIGURACIÓN DE RED]: force-dynamic
- * Aseguramos que los datos de reputación y seguidores se consulten en tiempo real,
- * evitando que el navegador sirva perfiles desactualizados desde el caché.
+ * Forzamos que cada visita al perfil sea una consulta fresca a la Bóveda, 
+ * garantizando que el prestigio y los seguidores se actualicen en tiempo real.
  */
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+/**
+ * INTERFAZ: ProfilePageProps
+ * Define los parámetros de ruta y búsqueda para el motor de Next.js.
+ */
 interface ProfilePageProps {
-  params: { username: string };
-  searchParams: { [key: string]: string | string[] | undefined };
+  params: {
+    username: string
+  };
+  searchParams: {
+    [key: string]: string | string[] | undefined
+  };
 }
 
 /**
- * generateMetadata: Motor de SEO y Visibilidad Social.
- * Proyecta la autoridad del curador en los metadatos de la página (OpenGraph).
+ * generateMetadata: Motor de Visibilidad y Autoridad.
+ * Proyecta la identidad del curador hacia los indexadores de búsqueda y redes sociales.
  */
 export async function generateMetadata({ params }: ProfilePageProps): Promise<Metadata> {
   const supabase = createClient();
+  // Decodificamos el handle para soportar caracteres Unicode en la URL.
   const targetUsername = decodeURIComponent(params.username);
 
   const { data: profile } = await supabase
@@ -40,30 +55,40 @@ export async function generateMetadata({ params }: ProfilePageProps): Promise<Me
     .eq('username', targetUsername)
     .single();
 
-  if (!profile) return { title: "Perfil no encontrado | NicePod" };
+  if (!profile) {
+    return { title: "Perfil no encontrado | NicePod" };
+  }
+
+  const displayName = profile.full_name || targetUsername;
 
   return {
-    title: `${profile.full_name} (@${targetUsername}) | NicePod`,
-    description: profile.bio || `Explora las crónicas de sabiduría de ${profile.full_name} en NicePod.`,
+    title: `${displayName} (@${targetUsername}) | NicePod Intelligence`,
+    description: profile.bio || `Explora el archivo de sabiduría y las crónicas de voz de ${displayName}.`,
     openGraph: {
-      title: `${profile.full_name} en NicePod`,
+      title: `${displayName} en NicePod`,
       description: profile.bio || '',
+      images: [profile.avatar_url || '/nicepod-logo.png'],
+      type: 'profile',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${displayName} | NicePod`,
       images: [profile.avatar_url || '/nicepod-logo.png'],
     }
   };
 }
 
 /**
- * PublicProfileRoute: El orquestador de datos del perfil.
+ * PublicProfileRoute: El orquestador de datos del servidor.
  */
 export default async function PublicProfileRoute({ params, searchParams }: ProfilePageProps) {
   const supabase = createClient();
 
-  // 1. IDENTIFICACIÓN DE ACTORES (Handshake SSR)
-  // Obtenemos al visitante (si existe) y el perfil objetivo en paralelo.
+  // 1. HANDSHAKE DE IDENTIDAD (T0)
+  // Identificamos al visitante y el perfil objetivo de forma concurrente.
   const targetUsername = decodeURIComponent(params.username);
 
-  const [authRes, profileRes] = await Promise.all([
+  const [authResponse, profileResponse] = await Promise.all([
     supabase.auth.getUser(),
     supabase.from('profiles')
       .select('id, username, full_name, avatar_url, bio, reputation_score, is_verified, followers_count, following_count')
@@ -71,41 +96,46 @@ export default async function PublicProfileRoute({ params, searchParams }: Profi
       .single<ProfileData>()
   ]);
 
-  const visitor = authRes.data.user;
-  const targetProfile = profileRes.data;
+  const visitor = authResponse.data.user;
+  const targetProfile = profileResponse.data;
 
-  // 2. GUARDIA DE EXISTENCIA
-  if (profileRes.error || !targetProfile) {
+  // 2. PROTOCOLO DE SEGURIDAD Y EXISTENCIA
+  if (profileResponse.error || !targetProfile) {
     notFound();
   }
 
-  // 3. CANONICAL REDIRECT (Protocolo de Identidad)
-  // Si el usuario intenta ver su propio perfil público, lo redirigimos a su perfil privado
-  // a menos que especifique explícitamente el modo 'public'.
+  // 3. REDIRECCIÓN CANÓNICA (Soberanía de Cuenta)
+  // Si el curador intenta entrar a su propia URL pública, lo redirigimos a su Búnker de gestión,
+  // a menos que el parámetro 'view=public' esté presente en la URL.
   const isViewingPublicMode = searchParams?.view === 'public';
   if (visitor?.id === targetProfile.id && !isViewingPublicMode) {
     redirect('/profile');
   }
 
-  // 4. COSECHA DE DATOS DE BÓVEDA (Parallel Fetching)
-  // Recuperamos todo el inventario del curador en un único ciclo de I/O.
-  const [podcastsRes, likesRes, testimonialsRes, collectionsRes] = await Promise.all([
-    // A. Podcasts Publicados (Resonancia Pública)
+  // 4. COSECHA DE INTELIGENCIA (Fase SSR)
+  // Ejecutamos la recolección masiva de podcasts, likes, testimonios y hilos curados.
+  const [
+    podcastsResponse,
+    likesResponse,
+    testimonialsResponse,
+    collectionsResponse
+  ] = await Promise.all([
+    // A. Podcasts Publicados: La voz pública del curador.
     supabase
       .from('micro_pods')
-      .select('id, title, description, audio_url, created_at, duration_seconds, play_count, status')
+      .select('id, title, description, audio_url, created_at, duration_seconds, play_count, status, creation_mode')
       .eq('user_id', targetProfile.id)
       .eq('status', 'published')
       .order('created_at', { ascending: false }),
 
-    // B. Conteo de Resonancia Recibida (Likes)
+    // B. Conteo de Resonancia: Sumatoria de valor social recibido.
     supabase
       .from('micro_pods')
       .select('like_count')
       .eq('user_id', targetProfile.id)
       .eq('status', 'published'),
 
-    // C. Testimonios de Terceros (Validación de Sabiduría)
+    // C. Testimonios de Terceros: Validaciones de la comunidad aprobadas.
     supabase
       .from('profile_testimonials')
       .select('*, author:author_user_id(full_name, avatar_url)')
@@ -114,7 +144,7 @@ export default async function PublicProfileRoute({ params, searchParams }: Profi
       .order('created_at', { ascending: false })
       .returns<TestimonialWithAuthor[]>(),
 
-    // D. Colecciones de Bóveda (Curaduría Temática)
+    // D. Colecciones de Bóveda: Hilos de conocimiento curados.
     supabase
       .from('collections')
       .select('id, title, description, cover_image_url, updated_at, collection_items(count)')
@@ -123,30 +153,25 @@ export default async function PublicProfileRoute({ params, searchParams }: Profi
       .order('updated_at', { ascending: false })
   ]);
 
-  // 5. CONSOLIDACIÓN Y NORMALIZACIÓN
-  const podcasts = (podcastsRes.data || []) as PublicPodcast[];
-  const totalLikes = likesRes.data?.reduce((sum, p) => sum + (p.like_count || 0), 0) ?? 0;
-  const testimonials = testimonialsRes.data || [];
-  const publicCollections = collectionsRes.data || [];
+  // 5. NORMALIZACIÓN DE RESULTADOS
+  const podcasts = (podcastsResponse.data || []) as PublicPodcast[];
+  const totalLikes = likesResponse.data?.reduce((sum, current) => sum + (current.like_count || 0), 0) ?? 0;
+  const testimonials = testimonialsResponse.data || [];
+  const publicCollections = (collectionsResponse.data || []) as unknown as Collection[];
 
   /**
-   * [RESOLUCIÓN DEL CRASH REMOVECHILD]:
-   * Pasamos los datos al componente de cliente 'PublicProfilePage'.
-   * Inyectamos un key basado en el ID del perfil para forzar un montaje 
-   * limpio en el cliente, evitando que React intente reconciliar nodos 
-   * de una navegación anterior.
+   * 6. ENTREGA AL CLIENTE (PublicProfilePage)
+   * Inyectamos el ID del perfil como 'key' para garantizar un montaje de DOM 
+   * inmaculado y resolver el error de reconciliación 'removeChild'.
    */
   return (
     <PublicProfilePage
-      key={targetProfile.id} // <--- [ESTABILIZADOR DE DOM]
+      key={targetProfile.id}
       profile={targetProfile}
       podcasts={podcasts}
       totalLikes={totalLikes}
       initialTestimonials={testimonials}
-      publicCollections={publicCollections.map(c => ({
-        ...c,
-        is_public: true
-      }))}
+      publicCollections={publicCollections}
     />
   );
 }

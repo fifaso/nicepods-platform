@@ -1,50 +1,58 @@
-// app/profile/page.tsx
-// VERSIÓN: 8.0 (The Ultimate Dashboard Orchestrator - Atomic Integrity Edition)
-// Misión: Orquestar la hidratación total del búnker de datos privado del curador.
-// [ESTABILIZACIÓN]: Implementación de force-dynamic y limpieza atómica de la Bóveda de Valor.
+// app/(platform)/profile/page.tsx
+// VERSIÓN: 8.5 (Private Dashboard Orchestrator - Atomic Integrity Standard)
+// Misión: Orquestar la hidratación total del búnker de datos privado del curador logueado.
+// [ESTABILIZACIÓN]: Resolución de error TS2307 y optimización de carga paralela de cuotas y activos.
 
-import {
-  PrivateProfileDashboard,
-  type ProfileData,
-  type TestimonialWithAuthor
-} from '@/components/profile-client-component';
 import { createClient } from '@/lib/supabase/server';
 import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 
+// --- NUEVAS IMPORTACIONES MODULARES ---
+// Importamos el orquestador de cliente que ensambla los sub-módulos del Dashboard.
+import { PrivateProfileDashboard } from '@/components/profile/private-profile-dashboard';
+
+// --- CONTRATOS DE DATOS (NIVEL 1) ---
+import {
+  Collection,
+  ProfileData,
+  TestimonialWithAuthor
+} from '@/types/profile';
+
 /**
  * [CONFIGURACIÓN DE RED]: force-dynamic
- * Es vital para el perfil privado, ya que gestiona cuotas de uso y estados 
- * de suscripción que cambian en tiempo real. No podemos permitirnos caché aquí.
+ * El perfil privado gestiona cuotas de creación y estados de suscripción que cambian 
+ * dinámicamente. Forzamos la consulta a la Bóveda en cada petición para evitar 
+ * que el usuario vea límites de uso desactualizados.
  */
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 /**
- * generateMetadata: Define la identidad de la pestaña del navegador.
+ * generateMetadata: Define la identidad de la terminal en el navegador.
  */
 export const metadata: Metadata = {
-  title: "Búnker de Sabiduría | NicePod",
-  description: "Centro de mandos operativo y gestión de soberanía de datos.",
-  robots: { index: false, follow: false }, // Privacidad absoluta en rutas de gestión
+  title: "Búnker de Sabiduría | NicePod Intelligence",
+  description: "Centro de mandos operativo y gestión de soberanía de datos personales.",
+  robots: { index: false, follow: false }, // Privacidad absoluta para áreas de gestión.
 };
 
 /**
- * PrivateProfileRoute: El orquestador de datos soberanos.
+ * PrivateProfileRoute: El orquestador de datos soberanos del servidor.
  */
 export default async function PrivateProfileRoute() {
   const supabase = createClient();
 
   // 1. PROTOCOLO DE IDENTIDAD (Handshake SSR)
-  // Validamos la sesión en el servidor para evitar que invitados accedan al búnker.
+  // Validamos la sesión en el servidor para proteger el acceso al área privada.
   const { data: { user }, error: authError } = await supabase.auth.getUser();
 
   if (authError || !user) {
+    // Redirección de seguridad con preservación de intención de retorno.
     redirect('/login?redirect=/profile');
   }
 
   // 2. COSECHA DE INTELIGENCIA 360° (Parallel Fetching)
-  // Recuperamos todos los módulos de datos en un único ciclo de I/O concurrente.
+  // Recuperamos todos los dominios de datos en un único ciclo de I/O concurrente para minimizar el TTFB.
   const [
     profileResponse,
     usageResponse,
@@ -52,7 +60,7 @@ export default async function PrivateProfileRoute() {
     collectionsResponse,
     vaultResponse
   ] = await Promise.all([
-    // A. IDENTIDAD, RANGO Y PLAN: Incluimos reputación y el JOIN con planes.
+    // A. IDENTIDAD & RANGO: Datos base, reputación y JOIN con planes de suscripción.
     supabase
       .from('profiles')
       .select(`
@@ -62,21 +70,22 @@ export default async function PrivateProfileRoute() {
                 plans (
                     name,
                     monthly_creation_limit,
-                    max_concurrent_drafts
+                    max_concurrent_drafts,
+                    features
                 )
             )
         `)
       .eq('id', user.id)
       .single<ProfileData>(),
 
-    // B. MÉTRICA DE CONSUMO: Estado real de la cuota mensual de creación.
+    // B. MÉTRICA DE CONSUMO: Estado real de la forja mensual y slots de borradores.
     supabase
       .from('user_usage')
       .select('podcasts_created_this_month, drafts_created_this_month')
       .eq('user_id', user.id)
       .maybeSingle(),
 
-    // C. MODERACIÓN SOCIAL: Gestión integral de testimonios recibidos.
+    // C. MODERACIÓN SOCIAL: Todos los testimonios (Aprobados y Pendientes) para gestión.
     supabase
       .from('profile_testimonials')
       .select(`
@@ -84,6 +93,8 @@ export default async function PrivateProfileRoute() {
             comment_text,
             status,
             created_at,
+            profile_user_id,
+            author_user_id,
             author:author_user_id (
                 full_name,
                 avatar_url
@@ -93,7 +104,7 @@ export default async function PrivateProfileRoute() {
       .order('created_at', { ascending: false })
       .returns<TestimonialWithAuthor[]>(),
 
-    // D. CURADURÍA TEMÁTICA: Colecciones propias con telemetría de ítems.
+    // D. CURADURÍA TEMÁTICA: Colecciones propias con conteo de items en el hilo.
     supabase
       .from('collections')
       .select('*, collection_items(count)')
@@ -101,7 +112,7 @@ export default async function PrivateProfileRoute() {
       .order('updated_at', { ascending: false }),
 
     // E. BÓVEDA DE VALOR (Proof of Attention): 
-    // Podcasts finalizados por el usuario para alimentar el grafo de conocimiento.
+    // Recuperamos podcasts completados para alimentar el creador de colecciones.
     supabase
       .from('playback_events')
       .select(`
@@ -125,20 +136,11 @@ export default async function PrivateProfileRoute() {
   // 3. PROTOCOLO DE SEGURIDAD ANTE FALLO DE DATOS
   if (profileResponse.error || !profileResponse.data) {
     console.error("🔥 [NicePod-Bunker-Error]:", profileResponse.error?.message);
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950 p-6">
-        <div className="bg-white/5 border border-white/10 p-10 rounded-[3rem] text-center backdrop-blur-3xl shadow-2xl">
-          <p className="text-zinc-400 font-medium mb-6">No se pudo establecer conexión con tu Bóveda de Datos.</p>
-          <a href="/profile" className="inline-flex h-12 items-center px-8 bg-primary text-white font-black uppercase tracking-widest text-[10px] rounded-full hover:scale-105 transition-all">
-            REINTENTAR SINCRO
-          </a>
-        </div>
-      </div>
-    );
+    redirect('/login'); // Fallback de seguridad si el perfil es inaccesible.
   }
 
-  // 4. LIMPIEZA BINARIA DE LA BÓVEDA
-  // Eliminamos duplicados de podcasts terminados para entregar una lista pura al cliente.
+  // 4. LIMPIEZA BINARIA DE LA BÓVEDA (NKV Sync)
+  // Un usuario puede completar un audio varias veces; generamos una lista única de IDs.
   const rawVaultData = vaultResponse.data || [];
   const uniqueFinishedPods = Array.from(
     new Map(
@@ -149,15 +151,19 @@ export default async function PrivateProfileRoute() {
     ).values()
   );
 
-  // 5. ENTREGA DE CONTROL AL DASHBOARD (Cliente)
+  /**
+   * 5. ENTREGA DE CONTROL AL DASHBOARD (Cliente)
+   * Inyectamos el ID del perfil como 'key' para garantizar un re-montaje limpio 
+   * y evitar errores de reconciliación de React entre sesiones.
+   */
   return (
     <main className="min-h-screen bg-transparent animate-in fade-in duration-1000">
       <PrivateProfileDashboard
-        key={profileResponse.data.id} // [FIX]: Garantizamos re-montaje limpio en cambios de sesión
+        key={profileResponse.data.id}
         profile={profileResponse.data}
         podcastsCreatedThisMonth={usageResponse.data?.podcasts_created_this_month || 0}
         initialTestimonials={testimonialsResponse.data || []}
-        initialCollections={collectionsResponse.data as any || []}
+        initialCollections={(collectionsResponse.data || []) as unknown as Collection[]}
         finishedPodcasts={uniqueFinishedPods}
       />
     </main>
