@@ -119,6 +119,29 @@ CREATE TYPE "public"."agent_type" AS ENUM (
 ALTER TYPE "public"."agent_type" OWNER TO "postgres";
 
 
+CREATE TYPE "public"."assembly_status" AS ENUM (
+    'idle',
+    'collecting',
+    'assembling',
+    'completed',
+    'failed'
+);
+
+
+ALTER TYPE "public"."assembly_status" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."backlog_status" AS ENUM (
+    'pending',
+    'harvesting',
+    'completed',
+    'failed'
+);
+
+
+ALTER TYPE "public"."backlog_status" OWNER TO "postgres";
+
+
 CREATE TYPE "public"."consistency_level" AS ENUM (
     'high',
     'medium',
@@ -276,14 +299,20 @@ CREATE OR REPLACE FUNCTION "public"."check_podcast_integrity_and_release"() RETU
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
 BEGIN
-    -- Si ambos activos están listos, liberamos el podcast
+    -- [REVISIÓN DE INVENTARIO TOTAL]: 
+    -- Solo liberamos si Audio, Imagen Y (opcionalmente) el estado de proceso final son exitosos.
+    -- Añadimos lógica para que el embedding no bloquee la escucha pero sí la catalogación.
+    
     IF NEW.audio_ready = TRUE AND NEW.image_ready = TRUE THEN
         UPDATE public.micro_pods 
         SET 
             processing_status = 'completed',
+            published_at = COALESCE(published_at, now()),
             updated_at = now()
-        WHERE id = NEW.id;
+        WHERE id = NEW.id 
+        AND processing_status = 'processing'; -- Seguridad contra doble ejecución
     END IF;
+    
     RETURN NEW;
 END;
 $$;
@@ -402,8 +431,9 @@ BEGIN
         (1 - (ps.embedding <=> v_user_dna))::FLOAT as similarity
     FROM public.pulse_staging ps
     WHERE 
-        ps.expires_at > now()
-        AND (1 - (ps.embedding <=> v_user_dna)) > p_threshold
+        -- [MODIFICACIÓN]: Eliminamos la restricción de tiempo (expires_at)
+        -- Ahora el contenido es permanente por defecto.
+        (1 - (ps.embedding <=> v_user_dna)) > p_threshold
     ORDER BY (ps.authority_score * 0.4 + (1 - (ps.embedding <=> v_user_dna)) * 0.6) DESC
     LIMIT p_limit;
 END;
@@ -566,7 +596,6 @@ CREATE TABLE IF NOT EXISTS "public"."micro_pods" (
     "user_id" "uuid" NOT NULL,
     "title" "text" NOT NULL,
     "description" "text",
-    "script_text" "text",
     "audio_url" "text",
     "cover_image_url" "text",
     "duration_seconds" integer,
@@ -602,7 +631,11 @@ CREATE TABLE IF NOT EXISTS "public"."micro_pods" (
     "place_name" "text",
     "audio_ready" boolean DEFAULT false,
     "image_ready" boolean DEFAULT false,
-    CONSTRAINT "micro_pods_creation_mode_check" CHECK (("creation_mode" = ANY (ARRAY['standard'::"text", 'remix'::"text"]))),
+    "script_text" "jsonb",
+    "total_audio_segments" integer DEFAULT 0,
+    "current_audio_segments" integer DEFAULT 0,
+    "audio_assembly_status" "public"."assembly_status" DEFAULT 'idle'::"public"."assembly_status",
+    CONSTRAINT "micro_pods_creation_mode_check" CHECK (("creation_mode" = ANY (ARRAY['standard'::"text", 'remix'::"text", 'situational'::"text"]))),
     CONSTRAINT "micro_pods_title_check" CHECK (("char_length"("title") > 0))
 );
 
@@ -961,6 +994,21 @@ $$;
 ALTER FUNCTION "public"."increment_jobs_and_queue"("p_user_id" "uuid", "p_payload" "jsonb") OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."increment_paper_usage"("p_ids" "uuid"[]) RETURNS "void"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+BEGIN
+    UPDATE public.pulse_staging
+    SET usage_count = usage_count + 1,
+        updated_at = NOW()
+    WHERE id = ANY(p_ids);
+END;
+$$;
+
+
+ALTER FUNCTION "public"."increment_paper_usage"("p_ids" "uuid"[]) OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."increment_play_count"("podcast_id" bigint) RETURNS "void"
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
@@ -1090,6 +1138,56 @@ $$;
 ALTER FUNCTION "public"."mark_notifications_as_read"() OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."notify_segment_upload"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+DECLARE
+    v_total_expected INTEGER;
+    v_current_count INTEGER;
+BEGIN
+    -- Actuamos si el registro nace como 'uploaded' o si cambia a ese estado
+    IF (NEW.status = 'uploaded') THEN
+        
+        -- Incrementamos el contador real basándonos en un conteo físico (Soberanía de Verdad)
+        -- En lugar de sumar +1, contamos cuántos segmentos REALES existen para este podcast
+        UPDATE public.micro_pods 
+        SET 
+            current_audio_segments = (SELECT count(*) FROM public.audio_segments WHERE podcast_id = NEW.podcast_id AND status = 'uploaded'),
+            audio_assembly_status = 'collecting',
+            updated_at = NOW()
+        WHERE id = NEW.podcast_id
+        RETURNING total_audio_segments, current_audio_segments INTO v_total_expected, v_current_count;
+
+        -- Disparamos el ensamblaje si la malla está completa
+        IF v_current_count >= v_total_expected AND v_total_expected > 0 THEN
+            
+            -- Bloqueo preventivo para evitar disparos dobles en ráfagas rápidas
+            UPDATE public.micro_pods 
+            SET audio_assembly_status = 'assembling' 
+            WHERE id = NEW.podcast_id 
+            AND audio_assembly_status != 'assembling';
+
+            -- Si el update anterior afectó filas (significa que no estaba ya ensamblando)
+            IF FOUND THEN
+                PERFORM public.dispatch_edge_function(
+                    'assemble-final-audio',
+                    jsonb_build_object(
+                        'podcast_id', NEW.podcast_id,
+                        'total_segments', v_total_expected
+                    )
+                );
+            END IF;
+        END IF;
+    END IF;
+    
+    RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."notify_segment_upload"() OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."on_draft_created_trigger_research"() RETURNS "trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
@@ -1182,11 +1280,8 @@ DECLARE
     v_creation_data JSONB;
     v_internal_sources JSONB;
 BEGIN
-    -- 1. Identificar al dueño del proceso
     v_user_id := auth.uid();
 
-    -- 2. Recuperar metadatos y fuentes directamente desde la tabla de borradores
-    -- Esto evita que si el frontend envía un array vacío, perdamos la investigación.
     SELECT creation_data, sources INTO v_creation_data, v_internal_sources
     FROM public.podcast_drafts 
     WHERE id = p_draft_id AND user_id = v_user_id;
@@ -1196,14 +1291,12 @@ BEGIN
         RETURN;
     END IF;
 
-    -- 3. Insertar en Producción (micro_pods)
-    -- Inyectamos los activos con banderas en FALSE para activar el semáforo de integridad
     INSERT INTO public.micro_pods (
         user_id,
         title,
         description,
-        script_text,
-        sources, -- Usamos las fuentes recuperadas internamente
+        script_text, -- Ahora insertamos el objeto JSONB estructurado
+        sources,
         creation_data,
         status,
         processing_status,
@@ -1214,7 +1307,7 @@ BEGIN
         v_user_id,
         p_final_title,
         p_final_title, 
-        JSONB_BUILD_OBJECT(
+        jsonb_build_object(
             'script_body', p_final_script,
             'script_plain', regexp_replace(p_final_script, '<[^>]+>', ' ', 'g')
         ),
@@ -1227,7 +1320,6 @@ BEGIN
     )
     RETURNING id INTO v_new_pod_id;
 
-    -- 4. ELIMINAR BORRADOR (Liberación inmediata de cuota)
     DELETE FROM public.podcast_drafts WHERE id = p_draft_id;
 
     RETURN QUERY SELECT v_new_pod_id, TRUE, 'Producción iniciada exitosamente.';
@@ -1236,6 +1328,23 @@ $$;
 
 
 ALTER FUNCTION "public"."promote_draft_to_production_v2"("p_draft_id" bigint, "p_final_title" "text", "p_final_script" "text", "p_sources" "jsonb") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."push_to_research_backlog"("p_topic" "text", "p_metadata" "jsonb" DEFAULT '{}'::"jsonb") RETURNS "void"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+BEGIN
+    INSERT INTO public.research_backlog (topic, metadata)
+    VALUES (TRIM(p_topic), p_metadata)
+    ON CONFLICT (topic) 
+    DO UPDATE SET 
+        request_count = public.research_backlog.request_count + 1,
+        updated_at = NOW();
+END;
+$$;
+
+
+ALTER FUNCTION "public"."push_to_research_backlog"("p_topic" "text", "p_metadata" "jsonb") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."reset_monthly_quotas"() RETURNS "void"
@@ -1491,6 +1600,28 @@ $$;
 ALTER FUNCTION "public"."search_podcasts"("search_term" "text") OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."search_pulse_staging"("query_embedding" "extensions"."vector", "match_threshold" double precision, "match_count" integer) RETURNS TABLE("id" "uuid", "title" "text", "summary" "text", "url" "text", "similarity" double precision)
+    LANGUAGE "plpgsql"
+    AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    ps.id,
+    ps.title,
+    ps.summary,
+    ps.url,
+    1 - (ps.embedding <=> query_embedding) AS similarity
+  FROM pulse_staging ps
+  WHERE 1 - (ps.embedding <=> query_embedding) > match_threshold
+  ORDER BY similarity DESC
+  LIMIT match_count;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."search_pulse_staging"("query_embedding" "extensions"."vector", "match_threshold" double precision, "match_count" integer) OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."trigger_resonance_recalculation"() RETURNS "trigger"
     LANGUAGE "plpgsql"
     SET "search_path" TO 'public', 'extensions'
@@ -1731,6 +1862,21 @@ CREATE TABLE IF NOT EXISTS "public"."audio_echoes" (
 ALTER TABLE "public"."audio_echoes" OWNER TO "postgres";
 
 
+CREATE TABLE IF NOT EXISTS "public"."audio_segments" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "podcast_id" bigint,
+    "segment_index" integer NOT NULL,
+    "storage_path" "text" NOT NULL,
+    "byte_size" integer DEFAULT 0,
+    "status" "text" DEFAULT 'pending'::"text",
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    "updated_at" timestamp with time zone DEFAULT "now"()
+);
+
+
+ALTER TABLE "public"."audio_segments" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."collection_items" (
     "collection_id" "uuid" NOT NULL,
     "pod_id" bigint NOT NULL,
@@ -1938,7 +2084,8 @@ CREATE TABLE IF NOT EXISTS "public"."platform_limits" (
     "key_name" "text" NOT NULL,
     "max_podcasts_per_month" integer DEFAULT 3,
     "max_listening_minutes" integer DEFAULT 2000,
-    "created_at" timestamp with time zone DEFAULT "now"()
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    "value" "text"
 );
 
 
@@ -2199,11 +2346,39 @@ CREATE TABLE IF NOT EXISTS "public"."pulse_staging" (
     "veracity_verified" boolean DEFAULT false,
     "is_high_value" boolean DEFAULT false,
     "created_at" timestamp with time zone DEFAULT "now"(),
-    "expires_at" timestamp with time zone DEFAULT ("now"() + '48:00:00'::interval)
+    "expires_at" timestamp with time zone DEFAULT ("now"() + '48:00:00'::interval),
+    "usage_count" integer DEFAULT 0
 );
 
 
 ALTER TABLE "public"."pulse_staging" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."research_backlog" (
+    "id" bigint NOT NULL,
+    "topic" "text" NOT NULL,
+    "request_count" integer DEFAULT 1,
+    "priority_level" integer DEFAULT 1,
+    "status" "public"."backlog_status" DEFAULT 'pending'::"public"."backlog_status",
+    "last_error" "text",
+    "metadata" "jsonb" DEFAULT '{}'::"jsonb",
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    "updated_at" timestamp with time zone DEFAULT "now"()
+);
+
+
+ALTER TABLE "public"."research_backlog" OWNER TO "postgres";
+
+
+ALTER TABLE "public"."research_backlog" ALTER COLUMN "id" ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME "public"."research_backlog_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
 
 
 CREATE TABLE IF NOT EXISTS "public"."subscriptions" (
@@ -2286,6 +2461,11 @@ ALTER TABLE ONLY "public"."ai_usage_logs"
 
 ALTER TABLE ONLY "public"."audio_echoes"
     ADD CONSTRAINT "audio_echoes_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."audio_segments"
+    ADD CONSTRAINT "audio_segments_pkey" PRIMARY KEY ("id");
 
 
 
@@ -2434,6 +2614,11 @@ ALTER TABLE ONLY "public"."pulse_staging"
 
 
 
+ALTER TABLE ONLY "public"."research_backlog"
+    ADD CONSTRAINT "research_backlog_pkey" PRIMARY KEY ("id");
+
+
+
 ALTER TABLE ONLY "public"."subscriptions"
     ADD CONSTRAINT "subscriptions_pkey" PRIMARY KEY ("user_id");
 
@@ -2441,6 +2626,16 @@ ALTER TABLE ONLY "public"."subscriptions"
 
 ALTER TABLE ONLY "public"."subscriptions"
     ADD CONSTRAINT "subscriptions_stripe_subscription_id_key" UNIQUE ("stripe_subscription_id");
+
+
+
+ALTER TABLE ONLY "public"."audio_segments"
+    ADD CONSTRAINT "unique_segment_index" UNIQUE ("podcast_id", "segment_index");
+
+
+
+ALTER TABLE ONLY "public"."research_backlog"
+    ADD CONSTRAINT "unique_topic_backlog" UNIQUE ("topic");
 
 
 
@@ -2523,6 +2718,10 @@ CREATE INDEX "idx_playback_events_user_id_created_at" ON "public"."playback_even
 
 
 
+CREATE INDEX "idx_podcast_embeddings_hnsw" ON "public"."podcast_embeddings" USING "hnsw" ("embedding" "extensions"."vector_cosine_ops");
+
+
+
 CREATE UNIQUE INDEX "idx_profiles_username_btree" ON "public"."profiles" USING "btree" ("username");
 
 
@@ -2539,11 +2738,23 @@ CREATE INDEX "idx_pulse_staging_expires_at" ON "public"."pulse_staging" USING "b
 
 
 
+CREATE INDEX "idx_pulse_usage_authority" ON "public"."pulse_staging" USING "btree" ("usage_count", "authority_score");
+
+
+
 CREATE INDEX "notifications_user_id_created_at_idx" ON "public"."notifications" USING "btree" ("user_id", "created_at" DESC);
 
 
 
 CREATE INDEX "podcast_embeddings_embedding_idx" ON "public"."podcast_embeddings" USING "ivfflat" ("embedding" "extensions"."vector_cosine_ops") WITH ("lists"='100');
+
+
+
+CREATE OR REPLACE TRIGGER "on_audio_segments_update" BEFORE UPDATE ON "public"."audio_segments" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "on_backlog_update" BEFORE UPDATE ON "public"."research_backlog" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
 
 
 
@@ -2623,6 +2834,10 @@ CREATE OR REPLACE TRIGGER "tr_on_pod_created" AFTER INSERT ON "public"."micro_po
 
 
 
+CREATE OR REPLACE TRIGGER "tr_on_segment_uploaded" AFTER INSERT OR UPDATE ON "public"."audio_segments" FOR EACH ROW EXECUTE FUNCTION "public"."notify_segment_upload"();
+
+
+
 CREATE OR REPLACE TRIGGER "tr_update_dna_timestamp" BEFORE UPDATE ON "public"."user_interest_dna" FOR EACH ROW EXECUTE FUNCTION "public"."update_dna_timestamp"();
 
 
@@ -2639,6 +2854,11 @@ ALTER TABLE ONLY "public"."audio_echoes"
 
 ALTER TABLE ONLY "public"."audio_echoes"
     ADD CONSTRAINT "audio_echoes_parent_pod_id_fkey" FOREIGN KEY ("parent_pod_id") REFERENCES "public"."micro_pods"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."audio_segments"
+    ADD CONSTRAINT "audio_segments_podcast_id_fkey" FOREIGN KEY ("podcast_id") REFERENCES "public"."micro_pods"("id") ON DELETE CASCADE;
 
 
 
@@ -2892,6 +3112,14 @@ CREATE POLICY "Public read access memories" ON "public"."place_memories" FOR SEL
 
 
 
+CREATE POLICY "Service role manages backlog" ON "public"."research_backlog" USING (("auth"."role"() = 'service_role'::"text"));
+
+
+
+CREATE POLICY "Service role manages segments" ON "public"."audio_segments" USING (("auth"."role"() = 'service_role'::"text"));
+
+
+
 CREATE POLICY "Users can manage their own drafts" ON "public"."podcast_drafts" USING ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
 
 
@@ -2911,6 +3139,9 @@ ALTER TABLE "public"."audio_echoes" ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "audio_echoes_insert_policy" ON "public"."audio_echoes" FOR INSERT WITH CHECK ((( SELECT "auth"."uid"() AS "uid") = "author_id"));
 
+
+
+ALTER TABLE "public"."audio_segments" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."collection_items" ENABLE ROW LEVEL SECURITY;
@@ -3060,6 +3291,9 @@ CREATE POLICY "profiles_update_own" ON "public"."profiles" FOR UPDATE USING ((( 
 
 
 ALTER TABLE "public"."pulse_staging" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."research_backlog" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."subscriptions" ENABLE ROW LEVEL SECURITY;
@@ -6034,6 +6268,12 @@ GRANT ALL ON FUNCTION "public"."increment_jobs_and_queue"("p_user_id" "uuid", "p
 
 
 
+GRANT ALL ON FUNCTION "public"."increment_paper_usage"("p_ids" "uuid"[]) TO "anon";
+GRANT ALL ON FUNCTION "public"."increment_paper_usage"("p_ids" "uuid"[]) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."increment_paper_usage"("p_ids" "uuid"[]) TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."increment_play_count"("podcast_id" bigint) TO "anon";
 GRANT ALL ON FUNCTION "public"."increment_play_count"("podcast_id" bigint) TO "authenticated";
 GRANT ALL ON FUNCTION "public"."increment_play_count"("podcast_id" bigint) TO "service_role";
@@ -6069,6 +6309,12 @@ GRANT ALL ON FUNCTION "public"."mark_notifications_as_read"() TO "supabase_funct
 
 
 
+GRANT ALL ON FUNCTION "public"."notify_segment_upload"() TO "anon";
+GRANT ALL ON FUNCTION "public"."notify_segment_upload"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."notify_segment_upload"() TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."on_draft_created_trigger_research"() TO "anon";
 GRANT ALL ON FUNCTION "public"."on_draft_created_trigger_research"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."on_draft_created_trigger_research"() TO "service_role";
@@ -6094,6 +6340,12 @@ GRANT ALL ON FUNCTION "public"."promote_draft_to_production_v2"("p_draft_id" big
 GRANT ALL ON FUNCTION "public"."promote_draft_to_production_v2"("p_draft_id" bigint, "p_final_title" "text", "p_final_script" "text", "p_sources" "jsonb") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."promote_draft_to_production_v2"("p_draft_id" bigint, "p_final_title" "text", "p_final_script" "text", "p_sources" "jsonb") TO "service_role";
 GRANT ALL ON FUNCTION "public"."promote_draft_to_production_v2"("p_draft_id" bigint, "p_final_title" "text", "p_final_script" "text", "p_sources" "jsonb") TO "supabase_functions_admin";
+
+
+
+GRANT ALL ON FUNCTION "public"."push_to_research_backlog"("p_topic" "text", "p_metadata" "jsonb") TO "anon";
+GRANT ALL ON FUNCTION "public"."push_to_research_backlog"("p_topic" "text", "p_metadata" "jsonb") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."push_to_research_backlog"("p_topic" "text", "p_metadata" "jsonb") TO "service_role";
 
 
 
@@ -6138,6 +6390,9 @@ GRANT ALL ON FUNCTION "public"."search_podcasts"("search_term" "text") TO "anon"
 GRANT ALL ON FUNCTION "public"."search_podcasts"("search_term" "text") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."search_podcasts"("search_term" "text") TO "service_role";
 GRANT ALL ON FUNCTION "public"."search_podcasts"("search_term" "text") TO "supabase_functions_admin";
+
+
+
 
 
 
@@ -6305,6 +6560,12 @@ GRANT ALL ON SEQUENCE "public"."ai_usage_logs_id_seq" TO "service_role";
 GRANT ALL ON TABLE "public"."audio_echoes" TO "anon";
 GRANT ALL ON TABLE "public"."audio_echoes" TO "authenticated";
 GRANT ALL ON TABLE "public"."audio_echoes" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."audio_segments" TO "anon";
+GRANT ALL ON TABLE "public"."audio_segments" TO "authenticated";
+GRANT ALL ON TABLE "public"."audio_segments" TO "service_role";
 
 
 
@@ -6509,6 +6770,18 @@ GRANT ALL ON TABLE "public"."profiles" TO "service_role";
 GRANT ALL ON TABLE "public"."pulse_staging" TO "anon";
 GRANT ALL ON TABLE "public"."pulse_staging" TO "authenticated";
 GRANT ALL ON TABLE "public"."pulse_staging" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."research_backlog" TO "anon";
+GRANT ALL ON TABLE "public"."research_backlog" TO "authenticated";
+GRANT ALL ON TABLE "public"."research_backlog" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."research_backlog_id_seq" TO "anon";
+GRANT ALL ON SEQUENCE "public"."research_backlog_id_seq" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."research_backlog_id_seq" TO "service_role";
 
 
 
