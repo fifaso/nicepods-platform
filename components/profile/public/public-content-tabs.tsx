@@ -1,36 +1,37 @@
-// components/profile/public/public-content-tabs.tsx
-// VERSIÓN: 1.2 (Public Content Engine - Zero-Crash & DOM Persistence Edition)
-// Misión: Gestionar la navegación del inventario público eliminando errores de reconciliación.
-// [ESTABILIZACIÓN]: Implementación de 'forceMount' y aliasing de iconos para integridad total.
-
+//componentes/profile/public/public-content-tabs.tsx
+//VERSIÓN: 2.0 (NicePod Content Navigation - High-Density Standard)
 "use client";
 
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-  Calendar,
-  Clock,
   Layers,
-  MapPin,
+  Library,
   MessageSquare,
-  Mic
+  Mic2,
+  Sparkles
 } from "lucide-react";
-import Link from "next/link";
+import React, { useState } from "react";
 
-// --- INFRAESTRUCTURA UI ---
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { buttonVariants } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+// --- INFRAESTRUCTURA DE COMPONENTES DE INTERFAZ ---
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-// --- NÚCLEO DE DATOS Y CONTRATOS ---
-import { LeaveTestimonialDialog } from "@/components/leave-testimonial-dialog";
-import { useAuth } from "@/hooks/use-auth";
-import { cn, getSafeAsset } from "@/lib/utils";
-import { Collection, ProfileData, PublicPodcast, TestimonialWithAuthor } from "@/types/profile";
+// --- COMPONENTES SATÉLITES ESPECIALIZADOS ---
+import { ProfilePodcastOrchestrator } from "../profile-podcast-orchestrator";
 import { CollectionCard } from "../shared/collection-card";
+
+// --- CONTRATOS DE DATOS Y TIPADO SOBERANO ---
+import {
+  Collection,
+  ProfileData,
+  ProfileTabValue,
+  PublicPodcast,
+  TestimonialWithAuthor
+} from "@/types/profile";
 
 /**
  * INTERFAZ: PublicContentTabsProps
+ * Define el contrato de activos para la visualización segmentada del perfil.
  */
 interface PublicContentTabsProps {
   profile: ProfileData;
@@ -40,17 +41,13 @@ interface PublicContentTabsProps {
 }
 
 /**
- * formatDuration: Convierte segundos a formato MM:SS.
- */
-const formatDuration = (seconds: number | null): string => {
-  if (!seconds) return "0:00";
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = Math.floor(seconds % 60);
-  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-};
-
-/**
- * PublicContentTabs: El motor de visualización de hilos y crónicas.
+ * COMPONENTE: PublicContentTabs
+ * El motor de pestañas interactivo de la identidad pública.
+ * 
+ * Responsabilidades:
+ * 1. Proveer acceso rápido a las diferentes dimensiones de la Bóveda del curador.
+ * 2. Visualizar contadores de densidad (Badges) para feedback inmediato de valor.
+ * 3. Orquestar transiciones cinemáticas entre los diferentes módulos de contenido.
  */
 export function PublicContentTabs({
   profile,
@@ -59,197 +56,209 @@ export function PublicContentTabs({
   collections
 }: PublicContentTabsProps) {
 
-  // Consumimos identidad para habilitar interacciones sociales.
-  // [RIGOR]: Al estar dentro de un HydrationGuard en el padre, este hook es seguro.
-  const { user } = useAuth();
-  const canLeaveTestimonial = user && user.id !== profile.id;
+  // --- GESTIÓN DE ESTADO DE NAVEGACIÓN ---
+  const [activeTab, setActiveTab] = useState<ProfileTabValue>("podcasts");
+
+  /**
+   * TÁCTICA DE RENDERIZADO: Switch de Contenido
+   * Desacoplamos el renderizado de cada pestaña para mantener el componente limpio y escalable.
+   */
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case "podcasts":
+        return (
+          <ProfilePodcastOrchestrator
+            initialPodcasts={podcasts}
+            profile={profile}
+            isOwner={false} // En vista pública, el visitante no es dueño.
+          />
+        );
+
+      case "collections":
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {collections.length > 0 ? (
+              collections.map((collection) => (
+                <CollectionCard
+                  key={collection.id}
+                  collection={collection}
+                />
+              ))
+            ) : (
+              <EmptySectionState
+                icon={<Layers className="h-10 w-10" />}
+                title="Bóvedas sin catalogar"
+                description="Este curador aún no ha organizado sus crónicas en hilos de conocimiento."
+              />
+            )}
+          </div>
+        );
+
+      case "testimonials":
+        return (
+          <div className="max-w-3xl mx-auto space-y-8">
+            {testimonials.length > 0 ? (
+              testimonials.map((testimonial) => (
+                <TestimonialCard
+                  key={testimonial.id}
+                  testimonial={testimonial}
+                />
+              ))
+            ) : (
+              <EmptySectionState
+                icon={<MessageSquare className="h-10 w-10" />}
+                title="Frecuencia Silenciosa"
+                description="Aún no existen validaciones externas de otros curadores para esta identidad."
+              />
+            )}
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
 
   return (
-    <Tabs defaultValue="podcasts" className="w-full">
+    <div className="w-full space-y-10">
 
-      {/* 1. SELECTOR DE FRECUENCIAS (TABS LIST) */}
-      <TabsList className="w-full justify-center bg-transparent border-b border-white/5 rounded-none h-auto p-0 mb-16 flex-wrap gap-8 md:gap-20">
-        <TabsTrigger
-          value="podcasts"
-          className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 py-6 text-xs font-black uppercase tracking-[0.3em] transition-all"
-        >
-          Crónicas de Voz
-        </TabsTrigger>
-
-        <TabsTrigger
-          value="collections"
-          className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 py-6 text-xs font-black uppercase tracking-[0.3em] transition-all"
-        >
-          Hilos Curados ({collections.length})
-        </TabsTrigger>
-
-        <TabsTrigger
-          value="testimonials"
-          className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 py-6 text-xs font-black uppercase tracking-[0.3em] transition-all"
-        >
-          Resonancia Social
-        </TabsTrigger>
-      </TabsList>
-
-      {/* 2. CONTENIDO: CRÓNICAS (PODCASTS)
-          [FIX]: 'forceMount' mantiene el nodo vivo para evitar el crash 'removeChild'.
+      {/* 
+          BLOQUE I: SELECTOR DE FRECUENCIAS (TABS LIST)
+          Diseño Aurora con desenfoque de fondo y bordes de alta definición.
       */}
-      <TabsContent value="podcasts" className="outline-none" forceMount>
-        <div className="data-[state=inactive]:hidden">
+      <div className="flex justify-center w-full">
+        <Tabs
+          defaultValue="podcasts"
+          value={activeTab}
+          onValueChange={(v) => setActiveTab(v as ProfileTabValue)}
+          className="w-full max-w-2xl"
+        >
+          <TabsList className="grid grid-cols-3 h-16 bg-white/[0.02] border border-white/5 p-1 rounded-full backdrop-blur-xl">
+
+            <TabsTrigger
+              value="podcasts"
+              className="rounded-full data-[state=active]:bg-primary data-[state=active]:text-black transition-all duration-500 group"
+            >
+              <div className="flex items-center gap-2">
+                <Mic2 size={14} className="opacity-60 group-data-[state=active]:opacity-100" />
+                <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Biblioteca</span>
+                <Badge variant="outline" className="ml-1 h-5 px-1.5 text-[8px] border-white/10 group-data-[state=active]:border-black/20 group-data-[state=active]:text-black">
+                  {podcasts.length}
+                </Badge>
+              </div>
+            </TabsTrigger>
+
+            <TabsTrigger
+              value="collections"
+              className="rounded-full data-[state=active]:bg-primary data-[state=active]:text-black transition-all duration-500 group"
+            >
+              <div className="flex items-center gap-2">
+                <Library size={14} className="opacity-60 group-data-[state=active]:opacity-100" />
+                <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Colecciones</span>
+                <Badge variant="outline" className="ml-1 h-5 px-1.5 text-[8px] border-white/10 group-data-[state=active]:border-black/20 group-data-[state=active]:text-black">
+                  {collections.length}
+                </Badge>
+              </div>
+            </TabsTrigger>
+
+            <TabsTrigger
+              value="testimonials"
+              className="rounded-full data-[state=active]:bg-primary data-[state=active]:text-black transition-all duration-500 group"
+            >
+              <div className="flex items-center gap-2">
+                <MessageSquare size={14} className="opacity-60 group-data-[state=active]:opacity-100" />
+                <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Resonancia</span>
+                <Badge variant="outline" className="ml-1 h-5 px-1.5 text-[8px] border-white/10 group-data-[state=active]:border-black/20 group-data-[state=active]:text-black">
+                  {testimonials.length}
+                </Badge>
+              </div>
+            </TabsTrigger>
+
+          </TabsList>
+        </Tabs>
+      </div>
+
+      {/* 
+          BLOQUE II: ESCENARIO DE CONTENIDO (DYNAMIC STAGE)
+          Implementamos AnimatePresence para suavizar el cambio de faceta.
+      */}
+      <div className="min-h-[400px]">
+        <AnimatePresence mode="wait">
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
+            key={`tab-panel-${activeTab}`}
+            initial={{ opacity: 0, filter: "blur(4px)", y: 10 }}
+            animate={{ opacity: 1, filter: "blur(0px)", y: 0 }}
+            exit={{ opacity: 0, filter: "blur(4px)", y: -10 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
           >
-            <div className="grid gap-8 md:grid-cols-2">
-              {podcasts.map((pod) => (
-                <Link key={`pod-${pod.id}`} href={`/podcast/${pod.id}`} className="block group">
-                  <Card className="h-full bg-zinc-900/40 border-white/5 hover:border-primary/40 transition-all duration-500 rounded-[2.5rem] overflow-hidden shadow-2xl relative">
-
-                    {pod.creation_mode === 'situational' && (
-                      <div className="absolute top-6 right-6 text-primary/40 group-hover:text-primary transition-colors">
-                        <MapPin size={20} />
-                      </div>
-                    )}
-
-                    <CardContent className="p-8 md:p-10 flex flex-col h-full">
-                      <h3 className="font-black text-2xl group-hover:text-primary transition-colors uppercase mb-4 tracking-tighter italic">
-                        {pod.title}
-                      </h3>
-
-                      <div className="flex flex-wrap items-center gap-3 text-[9px] font-black uppercase tracking-widest text-muted-foreground/40 mb-6">
-                        <span className="flex items-center gap-1.5 bg-white/5 px-3 py-1 rounded-lg border border-white/5">
-                          <Calendar size={12} /> {new Date(pod.created_at).toLocaleDateString()}
-                        </span>
-                        <span className="flex items-center gap-1.5 bg-white/5 px-3 py-1 rounded-lg border border-white/5">
-                          <Clock size={12} /> {formatDuration(pod.duration_seconds)}
-                        </span>
-                      </div>
-
-                      <p className="text-zinc-400 text-sm md:text-base line-clamp-3 mb-8 leading-relaxed font-medium">
-                        {pod.description || "Analizando el ADN de este nodo de conocimiento..."}
-                      </p>
-
-                      <div className="flex justify-end pt-6 border-t border-white/5 mt-auto">
-                        <div className={cn(
-                          buttonVariants({ size: 'sm', variant: 'secondary' }),
-                          "rounded-full font-black text-[10px] uppercase tracking-widest px-8 h-12 shadow-lg group-hover:bg-primary group-hover:text-white transition-all"
-                        )}>
-                          <Mic className="mr-2 h-4 w-4" /> Iniciar Escucha
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
-            </div>
-
-            {podcasts.length === 0 && (
-              <div className="text-center py-24 opacity-20 font-black uppercase tracking-[0.5em] text-xs">
-                Cero registros públicos
-              </div>
-            )}
+            {renderTabContent()}
           </motion.div>
+        </AnimatePresence>
+      </div>
+
+    </div>
+  );
+}
+
+/**
+ * SUB-COMPONENTE: EmptySectionState
+ * Proyecta elegancia técnica incluso ante la ausencia de datos.
+ */
+function EmptySectionState({ icon, title, description }: { icon: React.ReactNode, title: string, description: string }) {
+  return (
+    <div className="col-span-full py-20 flex flex-col items-center text-center gap-4 bg-white/[0.01] border border-dashed border-white/5 rounded-[2.5rem]">
+      <div className="text-zinc-800">{icon}</div>
+      <div className="space-y-1">
+        <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">{title}</h4>
+        <p className="text-[9px] font-medium text-zinc-600 uppercase tracking-widest max-w-[280px] leading-relaxed">
+          {description}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * SUB-COMPONENTE: TestimonialCard
+ * Muestra las validaciones sociales con un enfoque tipográfico limpio.
+ */
+function TestimonialCard({ testimonial }: { testimonial: TestimonialWithAuthor }) {
+  return (
+    <div className="p-8 bg-zinc-900/50 border border-white/5 rounded-[2rem] hover:border-primary/20 transition-all duration-500 group">
+      <div className="flex items-start gap-4 mb-6">
+        <div className="h-10 w-10 rounded-full bg-zinc-800 border border-white/10 overflow-hidden">
+          {testimonial.author?.avatar_url && (
+            <img src={testimonial.author.avatar_url} alt={testimonial.author.full_name || ""} className="h-full w-full object-cover" />
+          )}
         </div>
-      </TabsContent>
-
-      {/* 3. CONTENIDO: HILOS CURADOS (COLLECTIONS) */}
-      <TabsContent value="collections" className="outline-none" forceMount>
-        <div className="data-[state=inactive]:hidden">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.99 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5 }}
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8"
-          >
-            {collections.map((col) => (
-              <CollectionCard key={`col-${col.id}`} collection={col} />
-            ))}
-
-            {collections.length === 0 && (
-              <div className="col-span-full text-center py-24 opacity-20 flex flex-col items-center gap-4">
-                <Layers size={40} />
-                <span className="font-black uppercase tracking-[0.4em] text-[10px]">
-                  Sin bibliotecas temáticas
-                </span>
-              </div>
-            )}
-          </motion.div>
+        <div className="flex-1">
+          <h5 className="text-[10px] font-black uppercase tracking-widest text-white group-hover:text-primary transition-colors">
+            {testimonial.author?.full_name || "Curador Anónimo"}
+          </h5>
+          <p className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest mt-0.5">
+            @{testimonial.author?.username || "unnamed"}
+          </p>
         </div>
-      </TabsContent>
-
-      {/* 4. CONTENIDO: RESONANCIA (TESTIMONIALS) */}
-      <TabsContent value="testimonials" className="outline-none" forceMount>
-        <div className="data-[state=inactive]:hidden max-w-3xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, x: 10 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="space-y-6 pb-20"
-          >
-            {testimonials.map((t) => (
-              <div
-                key={`test-${t.id}`}
-                className="p-6 md:p-8 rounded-[2rem] bg-white/[0.02] border border-white/5 flex flex-col md:flex-row gap-6 shadow-xl backdrop-blur-sm"
-              >
-                <Avatar className="h-14 w-14 border border-white/10 shadow-inner">
-                  <AvatarImage
-                    src={getSafeAsset(t.author?.avatar_url, 'avatar')}
-                    className="object-cover"
-                  />
-                  <AvatarFallback className="font-black bg-zinc-900 text-primary">
-                    {t.author?.full_name?.charAt(0).toUpperCase() || 'U'}
-                  </AvatarFallback>
-                </Avatar>
-
-                <div className="space-y-3 flex-grow min-w-0">
-                  <div className="flex items-center gap-3">
-                    <p className="font-black text-xs md:text-sm uppercase tracking-tight text-white">
-                      {t.author?.full_name || 'Curador Anónimo'}
-                    </p>
-                    <span className="text-[9px] font-bold text-muted-foreground uppercase opacity-40">
-                      {new Date(t.created_at).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <p className="text-base md:text-lg text-zinc-300 leading-relaxed italic font-medium">
-                    "{t.comment_text}"
-                  </p>
-                </div>
-              </div>
-            ))}
-
-            {testimonials.length === 0 && (
-              <div className="text-center py-20 opacity-20 flex flex-col items-center gap-4">
-                <MessageSquare size={40} />
-                <span className="font-black uppercase tracking-[0.4em] text-[10px]">
-                  Silencio social
-                </span>
-              </div>
-            )}
-
-            {/* ACCIÓN: DEJAR TESTIMONIO */}
-            {canLeaveTestimonial && (
-              <div className="pt-16 mt-10 border-t border-white/5 text-center space-y-6">
-                <p className="text-[10px] font-black text-primary uppercase tracking-[0.4em] animate-pulse">
-                  ¿Ha resonado tu curiosidad con este perfil?
-                </p>
-                <LeaveTestimonialDialog
-                  profileId={profile.id}
-                  onTestimonialAdded={() => window.location.reload()}
-                />
-              </div>
-            )}
-          </motion.div>
+        <div className="p-2 rounded-full bg-primary/10 text-primary">
+          <Sparkles size={12} />
         </div>
-      </TabsContent>
-
-    </Tabs>
+      </div>
+      <p className="text-[11px] leading-relaxed text-zinc-400 font-medium italic">
+        "{testimonial.comment_text}"
+      </p>
+      <div className="mt-6 pt-6 border-t border-white/5 text-[7px] font-black text-zinc-700 uppercase tracking-[0.4em]">
+        Validación Registrada: {new Date(testimonial.created_at).toLocaleDateString()}
+      </div>
+    </div>
   );
 }
 
 /**
  * NOTA TÉCNICA DEL ARCHITECT:
- * La implementación de 'forceMount' junto con un div envoltorio que reacciona
- * al estado 'inactive' de Radix es la única forma de garantizar que Framer Motion
- * no intente animar un nodo que ya no existe en el árbol de React. 
- * Con esto, el error #310 y el crash de 'removeChild' quedan sepultados.
+ * 1. Diseño Inmersivo: El uso de desenfoques y gradientes sutiles mantiene 
+ *    la estética Aurora sin penalizar el rendimiento del renderizado.
+ * 2. Feedback Instantáneo: Los Badges en las pestañas permiten al visitante 
+ *    conocer la profundidad del perfil antes de hacer clic.
+ * 3. Escalabilidad: El sistema está preparado para añadir nuevas pestañas 
+ *    (como 'Frecuencias en Vivo') simplemente extendiendo el tipo 'ProfileTabValue'.
  */

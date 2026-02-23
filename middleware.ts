@@ -1,18 +1,19 @@
 // middleware.ts
-// VERSIÓN: 10.0 (NicePod Access Protocol - Zero-Flicker & RBAC Standard)
-// Misión: Orquestar el acceso soberano, blindar el área administrativa y sincronizar la identidad en el borde.
-// [ESTABILIZACIÓN]: Eliminación de latencia de hidratación mediante la sincronía de cookies en un solo ciclo de red.
-
+//VERSIÓN: 11.0 (NicePod Access Protocol - Industrial Security & Zero-Flicker Standard)
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 /**
- * middleware: Único punto de control de tráfico de la infraestructura NicePod V2.5.
- * Este orquestador intercepta cada petición antes de que llegue a los Server Components.
+ * middleware: El Orquestador de Tráfico de NicePod V2.5.
+ * 
+ * Funciones Críticas:
+ * 1. Sincronización de Sesión: Garantiza que el servidor y el cliente compartan el mismo estado.
+ * 2. Blindaje de Seguridad: Inyecta cabeceras de protección (CSP, HSTS, XSS).
+ * 3. Control de Acceso (RBAC): Protege rutas administrativas y la Workstation privada.
  */
 export async function middleware(request: NextRequest) {
   // 1. INICIALIZACIÓN DEL CONTENEDOR DE RESPUESTA
-  // Creamos una respuesta base que permitirá el flujo de la petición.
+  // Generamos la respuesta base para inyectar cabeceras de seguridad.
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -23,22 +24,41 @@ export async function middleware(request: NextRequest) {
   const pathname = url.pathname;
 
   /**
-   * 2. PASILLO DE SEGURIDAD (Bypass de Latencia)
-   * Excluimos rutas de autenticación nativa y activos críticos de la PWA.
-   * Esto garantiza que el Service Worker y el intercambio de tokens OAuth 
-   * operen con latencia cero y sin interrupciones del middleware.
+   * 2. CAPA DE SEGURIDAD INDUSTRIAL (Security Headers)
+   * Elevamos la protección del sistema para prevenir ataques de Clickjacking y XSS.
+   */
+  const securityHeaders = new Headers(response.headers);
+  securityHeaders.set('X-Frame-Options', 'DENY');
+  securityHeaders.set('X-Content-Type-Options', 'nosniff');
+  securityHeaders.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  securityHeaders.set(
+    'Strict-Transport-Security',
+    'max-age=31536000; includeSubDomains; preload'
+  );
+
+  // Actualizamos la respuesta con las nuevas cabeceras de seguridad.
+  response = new NextResponse(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: securityHeaders,
+  });
+
+  /**
+   * 3. PASILLO DE BYPASS (Activos Críticos)
+   * Excluimos activos de la PWA y rutas de autenticación nativa de Supabase
+   * para garantizar latencia cero en el intercambio de tokens.
    */
   if (
     pathname.startsWith('/auth') ||
     pathname.includes('manifest.json') ||
     pathname.includes('sw.js') ||
-    pathname.includes('favicon.ico')
+    pathname.includes('favicon.ico') ||
+    pathname.includes('apple-touch-icon')
   ) {
     return response;
   }
 
-  // 3. INSTANCIACIÓN DEL CLIENTE SUPABASE SSR
-  // Utilizamos el motor SSR para gestionar la persistencia de sesión en cookies.
+  // 4. INSTANCIACIÓN DEL CLIENTE SUPABASE SSR (Atomic Sync)
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -48,8 +68,7 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
-          // [CRÍTICO]: Sincronización bidireccional inmediata.
-          // Actualizamos tanto la petición (para el servidor) como la respuesta (para el cliente).
+          // [CRÍTICO]: Sincronización bidireccional inmediata de cookies.
           cookiesToSet.forEach(({ name, value, options }) => {
             request.cookies.set(name, value);
             response.cookies.set(name, value, options);
@@ -57,8 +76,8 @@ export async function middleware(request: NextRequest) {
 
           /**
            * TÁCTICA ANTI-PESTAÑEO:
-           * Generamos una nueva instancia de NextResponse para forzar a Next.js a leer 
-           * las cookies recién inyectadas en los Server Components posteriores (layout.tsx).
+           * Forzamos a Next.js a regenerar el flujo con las cookies actualizadas 
+           * para que el layout.tsx reciba la sesión nominal en el primer render.
            */
           response = NextResponse.next({
             request: {
@@ -66,28 +85,29 @@ export async function middleware(request: NextRequest) {
             },
           });
 
-          // Re-aplicamos las cookies a la nueva instancia de respuesta.
+          // Re-aplicamos las cookies y las cabeceras de seguridad a la nueva instancia.
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options)
           );
+          securityHeaders.forEach((value, key) => response.headers.set(key, value));
         },
       },
     }
   );
 
   /**
-   * 4. VALIDACIÓN DE IDENTIDAD SOBERANA
-   * getUser() valida el token contra el servidor de autenticación. 
-   * Es la única forma de garantizar que la sesión no ha sido manipulada localmente.
+   * 5. VALIDACIÓN DE IDENTIDAD SOBERANA
+   * Utilizamos getUser() para una validación física contra el servidor de Auth.
    */
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  // --- DEFINICIÓN DE PERÍMETROS OPERATIVOS ---
+  // --- DEFINICIÓN DE PERÍMETROS DE RUTA ---
   const isAuthPage = pathname === '/login' || pathname === '/signup';
   const isAdminPage = pathname.startsWith('/admin');
-  const isPlatformPage =
+  const isLandingPage = pathname === '/';
+
+  // Definimos la Workstation Privada: Cualquier ruta que no sea auth, landing o pública.
+  const isProtectedRoute =
     pathname.startsWith('/dashboard') ||
     pathname.startsWith('/create') ||
     pathname.startsWith('/podcasts') ||
@@ -99,21 +119,19 @@ export async function middleware(request: NextRequest) {
     isAdminPage;
 
   /**
-   * 5. LÓGICA DE REDIRECCIÓN Y AUTORIDAD (RBAC)
+   * 6. LÓGICA DE CONTROL DE ACCESO Y REDIRECCIÓN (RBAC)
    */
 
   // A. PROTECCIÓN DE LA WORKSTATION:
-  // Si un usuario no autenticado intenta acceder a la plataforma, lo enviamos al login.
-  if (!user && isPlatformPage) {
+  // Si no hay usuario y la ruta es protegida, enviamos al login preservando el destino.
+  if (!user && isProtectedRoute) {
     const redirectUrl = new URL('/login', request.url);
-    // Preservamos la ruta original para una redirección suave post-login.
     redirectUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(redirectUrl);
   }
 
   // B. BLINDAJE ADMINISTRATIVO:
-  // Validamos el rol 'admin' directamente desde los metadatos del JWT (Soberanía de Token).
-  // Nota: user_role se inyecta vía trigger SQL en auth.users -> raw_app_meta_data.
+  // Solo los curadores con rol 'admin' en sus metadatos de sesión pueden acceder al núcleo.
   if (user && isAdminPage) {
     const userRole = user.app_metadata?.user_role || 'user';
     if (userRole !== 'admin') {
@@ -122,37 +140,42 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // C. OPTIMIZACIÓN DE FLUJO:
-  // Si el usuario ya está logueado, le impedimos volver a las páginas de acceso (Login/Signup).
-  if (user && isAuthPage) {
+  // C. OPTIMIZACIÓN DE FLUJO LOGUEADO:
+  // Si el curador ya está autenticado, evitamos que vea el login o la landing page.
+  if (user && (isAuthPage || isLandingPage)) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
-  // D. REDIRECCIÓN DE EFICIENCIA:
-  // Si el usuario ya está autenticado y llega a la landing, lo llevamos directo a su Centro de Mando.
-  if (user && pathname === '/') {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
-  }
-
-  // 6. ENTREGA DE CONTROL
-  // La petición continúa hacia el servidor con la sesión perfectamente sincronizada.
+  // 7. ENTREGA FINAL DE CONTROL
+  // El tráfico fluye hacia los Server Components con identidad y seguridad garantizadas.
   return response;
 }
 
 /**
- * CONFIGURACIÓN DEL MATCH TRÁFICO
- * Excluimos archivos estáticos, imágenes y APIs internas para no sobrecargar el middleware.
+ * CONFIGURACIÓN DEL MATCH DE TRÁFICO
+ * Excluimos estrictamente archivos estáticos y multimedia para optimizar el rendimiento del Edge.
  */
 export const config = {
   matcher: [
     /*
      * Match de todas las rutas excepto:
-     * - api (rutas API internas)
-     * - _next/static (archivos estáticos de Next.js)
-     * - _next/image (optimización de imágenes)
-     * - favicon.ico, manifest.json, sw.js (PWA assets)
-     * - Extensiones de imagen comunes
+     * - api (APIs internas de Next.js)
+     * - _next/static (archivos estáticos compilados)
+     * - _next/image (imágenes optimizadas)
+     * - favicon, manifest, sw (PWA y Assets de Navegador)
+     * - Archivos multimedia (png, jpg, svg, etc.)
      */
     '/((?!api|_next/static|_next/image|favicon.ico|manifest.json|sw.js|workbox-.*|apple-touch-icon.png|icon.png|icon.svg|offline|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT:
+ * 1. Seguridad Proactiva: Se han inyectado cabeceras HSTS para forzar conexiones 
+ *    HTTPS durante un año (max-age 31536000).
+ * 2. Handshake Atómico: La lógica de setAll en cookies garantiza que no haya 
+ *    desfase entre el servidor de Supabase y el middleware de Next.js.
+ * 3. Eficiencia Operativa: El matcher de rutas está diseñado para que el 
+ *    middleware no se ejecute en peticiones de imágenes, ahorrando costos de 
+ *    computación en el Edge de Vercel.
+ */

@@ -1,179 +1,232 @@
+
 // components/admin/resonance-simulator.tsx
-// VERSIÓN: 1.1 (Master Standard - Fix Missing Icon Import & Stability)
 
 "use client";
 
-import { useState, useTransition } from "react";
-import { simulateVaultSearch } from "@/actions/vault-actions";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Slider } from "@/components/ui/slider";
-import { Badge } from "@/components/ui/badge";
-import {
-    Search,
-    Zap,
-    Microscope,
-    BookOpen,
-    AlertTriangle,
-    Calendar,
-    Info,
-    Loader2,
-    Sparkles,
-    ExternalLink // [FIJO]: Importación añadida para evitar ReferenceError
+import { useState } from "react";
+import { 
+  Search, 
+  Activity, 
+  Target, 
+  AlertCircle, 
+  Zap,
+  Network
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { motion, AnimatePresence } from "framer-motion";
 
+// --- INFRAESTRUCTURA UI ---
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Slider } from "@/components/ui/slider";
+
+// --- LÓGICA DE NEGOCIO SOBERANA ---
+import { simulateVaultSearch } from "@/actions/vault-actions";
+
+/**
+ * COMPONENTE: ResonanceSimulator
+ * Laboratorio de pruebas para la inteligencia semántica de NicePod.
+ * Permite a los administradores inyectar intenciones (queries) y auditar
+ * qué vectores de conocimiento recupera el modelo.
+ */
 export function ResonanceSimulator() {
+    // --- ESTADO LOCAL DEL LABORATORIO ---
     const [query, setQuery] = useState("");
-    const [threshold, setThreshold] = useState([0.7]);
+    const [threshold, setThreshold] = useState([0.75]); // Umbral de similitud base
+    const [isSimulating, setIsSimulating] = useState(false);
+    
+    // El tipo 'any[]' se mantiene para flexibilidad de los retornos de Supabase Edge Functions
     const [results, setResults] = useState<any[]>([]);
-    const [isPending, startTransition] = useTransition();
+    const [error, setError] = useState<string | null>(null);
 
     /**
-     * handleTest: Dispara la simulación de búsqueda semántica en el NKV.
+     * handleSimulate: Protocolo de Inyección de Frecuencia.
+     * Despacha la consulta a través de los Server Actions hacia la Edge Function de búsqueda.
      */
-    const handleTest = () => {
-        if (!query || query.length < 3) return;
-        startTransition(async () => {
-            const data = await simulateVaultSearch(query, threshold[0]);
-            // El action devuelve { success, results }
-            if (data.success) setResults(data.results);
-        });
+    const handleSimulate = async () => {
+        // Validación de higiene: No buscar en vacío
+        if (!query.trim()) return;
+
+        setIsSimulating(true);
+        setError(null);
+        setResults([]); // Limpieza del radar previo
+
+        try {
+            // 1. Invocación de Acción Estándar (Devuelve VaultActionResponse)
+            const response = await simulateVaultSearch(query, threshold[0]);
+
+            if (response.success) {
+                // 2. [FIX TS2339]: La acción ahora aloja los resultados en la propiedad genérica '.data'
+                // Fallback a array vacío si data es null o undefined para evitar crasheos de '.map()'
+                const semanticNodes = Array.isArray(response.data) ? response.data : [];
+                setResults(semanticNodes);
+                
+                if (semanticNodes.length === 0) {
+                    setError("No se encontraron hechos atómicos que superen el umbral de similitud.");
+                }
+            } else {
+                // Si la función falla lógicamente (ej. timeout de red), mostramos el mensaje oficial
+                setError(response.error || response.message || "Fallo en la calibración del radar.");
+            }
+        } catch (err: any) {
+            console.error("🔥 [Resonance-Simulator-Fatal]:", err);
+            setError("Fallo crítico de red al contactar la Bóveda HNSW.");
+        } finally {
+            setIsSimulating(false);
+        }
+    };
+
+    /**
+     * getSimilarityColor: Termómetro Visual de Precisión.
+     * Codifica la calidad del matching vectorial para facilitar auditorías rápidas.
+     */
+    const getSimilarityColor = (score: number) => {
+        if (score >= 0.85) return "text-emerald-400 bg-emerald-400/10 border-emerald-400/20";
+        if (score >= 0.70) return "text-primary bg-primary/10 border-primary/20";
+        return "text-amber-400 bg-amber-400/10 border-amber-400/20";
     };
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 items-start">
+        <Card className="bg-[#050505] border-white/5 shadow-2xl rounded-[2.5rem] overflow-hidden">
+            
+            {/* CABECERA DEL LABORATORIO */}
+            <div className="bg-white/[0.02] border-b border-white/5 p-6 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-primary/10 rounded-xl">
+                        <Network size={20} className="text-primary" />
+                    </div>
+                    <div>
+                        <h3 className="text-sm font-black uppercase tracking-widest text-white">Laboratorio de Resonancia</h3>
+                        <p className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] font-medium mt-1">
+                            Auditoría de Radar Semántico 768d
+                        </p>
+                    </div>
+                </div>
+            </div>
 
-            {/* 1. PANEL DE CALIBRACIÓN */}
-            <div className="lg:col-span-1 space-y-6">
-                <div className="p-8 bg-zinc-900/40 backdrop-blur-3xl border border-white/5 rounded-[2.5rem] shadow-2xl space-y-8">
-                    <header className="space-y-1">
-                        <h3 className="text-sm font-black uppercase tracking-[0.3em] text-primary flex items-center gap-2">
-                            <Microscope size={16} /> Parámetros
-                        </h3>
-                        <p className="text-[10px] text-zinc-500 font-medium uppercase">Ajuste de sensibilidad semántica</p>
-                    </header>
+            <CardContent className="p-6 md:p-8 space-y-8">
+                
+                {/* 
+                    BLOQUE I: PANEL DE CONTROL DE PARÁMETROS 
+                */}
+                <div className="space-y-6">
+                    {/* Input de Intención (Query) */}
+                    <div className="relative group">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-primary transition-colors h-5 w-5" />
+                        <Input
+                            placeholder="Ingrese un concepto, tema o intención de investigación..."
+                            value={query}
+                            onChange={(e) => setQuery(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSimulate()}
+                            className="pl-12 h-14 bg-zinc-900/50 border-white/10 rounded-2xl text-white placeholder:text-zinc-600 focus-visible:ring-primary focus-visible:border-primary transition-all font-medium text-base"
+                            disabled={isSimulating}
+                        />
+                    </div>
 
-                    <div className="space-y-6">
+                    {/* Calibración de Umbral de Similitud (Cosine Similarity Threshold) */}
+                    <div className="space-y-4 bg-black/20 p-5 rounded-2xl border border-white/5">
                         <div className="flex justify-between items-center">
-                            <label className="text-[11px] font-black text-white/70 uppercase tracking-widest">Umbral (Cosine)</label>
-                            <Badge variant="outline" className="font-mono text-primary bg-primary/5 border-primary/20">
+                            <label className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400 flex items-center gap-2">
+                                <Target size={12} /> Umbral de Similitud (Threshold)
+                            </label>
+                            <span className="text-xs font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md">
                                 {threshold[0].toFixed(2)}
-                            </Badge>
+                            </span>
                         </div>
                         <Slider
                             value={threshold}
                             onValueChange={setThreshold}
-                            max={1} min={0.3} step={0.01}
+                            max={0.95}
+                            min={0.30}
+                            step={0.01}
                             className="py-2"
+                            disabled={isSimulating}
                         />
-                        <div className="flex justify-between text-[9px] font-bold text-zinc-600 uppercase">
-                            <span>Asociativo (0.3)</span>
-                            <span>Exacto (1.0)</span>
-                        </div>
+                        <p className="text-[9px] text-zinc-600 font-medium uppercase tracking-widest text-center">
+                            Umbrales altos (0.8+) requieren coincidencias semánticas casi idénticas.
+                        </p>
                     </div>
 
-                    <div className="space-y-4 pt-4">
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-zinc-500 uppercase px-1">Término de Consulta</label>
-                            <Input
-                                placeholder="Ej: Estoicismo y tecnología..."
-                                value={query}
-                                onChange={(e) => setQuery(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleTest()}
-                                className="bg-black/40 border-white/10 h-14 rounded-2xl text-white font-medium focus:border-primary transition-all shadow-inner"
-                            />
+                    <Button 
+                        onClick={handleSimulate} 
+                        disabled={isSimulating || !query.trim()}
+                        className="w-full h-14 rounded-2xl font-black uppercase tracking-widest text-xs group relative overflow-hidden"
+                    >
+                        <div className="absolute inset-0 bg-gradient-to-r from-primary via-indigo-500 to-primary opacity-90 group-hover:opacity-100 transition-opacity" />
+                        <span className="relative z-10 flex items-center gap-2">
+                            {isSimulating ? (
+                                <>
+                                    <Activity className="animate-spin h-4 w-4" /> 
+                                    <span>Lanzando Pulso...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Zap className="h-4 w-4" /> 
+                                    <span>Simular Extracción</span>
+                                </>
+                            )}
+                        </span>
+                    </Button>
+                </div>
+
+                {/* 
+                    BLOQUE II: VISOR DE TELEMETRÍA (RESULTADOS O ERROR)
+                */}
+                {error && (
+                    <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2">
+                        <AlertCircle className="text-amber-500 h-5 w-5 shrink-0 mt-0.5" />
+                        <div>
+                            <h4 className="text-[10px] font-black uppercase tracking-widest text-amber-500 mb-1">Informe de Fallo</h4>
+                            <p className="text-xs font-medium text-amber-200/80">{error}</p>
                         </div>
-                        <Button
-                            onClick={handleTest}
-                            disabled={isPending || query.length < 3}
-                            className="w-full h-16 bg-primary text-white font-black uppercase tracking-widest gap-3 rounded-2xl shadow-xl shadow-primary/20 active:scale-95 transition-all"
-                        >
-                            {isPending ? <Loader2 className="animate-spin" size={20} /> : <Zap size={20} />}
-                            SIMULAR RECUPERACIÓN
-                        </Button>
                     </div>
-                </div>
+                )}
 
-                <div className="p-6 bg-amber-500/5 border border-amber-500/10 rounded-2xl flex items-start gap-4">
-                    <Info className="text-amber-500 shrink-0" size={18} />
-                    <p className="text-[10px] text-amber-200/60 leading-relaxed font-medium">
-                        <span className="text-amber-400 font-bold">Nota de Admin:</span> Este laboratorio utiliza el modelo <b>text-embedding-004</b>. Los resultados mostrados son los mismos que recibirá el Agente Pro durante el draft.
-                    </p>
-                </div>
-            </div>
-
-            {/* 2. RESULTADOS DEL ADN SEMÁNTICO */}
-            <div className="lg:col-span-2 space-y-6">
-                <AnimatePresence mode="wait">
-                    {results.length === 0 ? (
-                        <motion.div
-                            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                            className="h-96 flex flex-col items-center justify-center border-2 border-dashed border-white/5 rounded-[3rem] bg-white/[0.01]"
-                        >
-                            <div className="p-6 bg-white/5 rounded-full mb-4">
-                                <Search size={40} className="text-zinc-700" />
-                            </div>
-                            <p className="text-xs font-black uppercase tracking-[0.4em] text-zinc-600">Esperando Señal...</p>
-                        </motion.div>
-                    ) : (
-                        <div className="grid gap-4">
-                            {results.map((res, i) => (
-                                <motion.div
-                                    key={i}
-                                    initial={{ opacity: 0, x: 20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: i * 0.05 }}
-                                    className="p-6 bg-card/40 backdrop-blur-3xl border border-white/5 rounded-[2rem] hover:border-primary/40 transition-all shadow-2xl relative overflow-hidden group"
-                                >
-                                    <div className="absolute top-0 right-0 p-8 opacity-[0.02] pointer-events-none">
-                                        <Sparkles size={100} />
-                                    </div>
-
-                                    <div className="flex justify-between items-start mb-4 relative z-10">
-                                        <div className="flex items-center gap-3">
-                                            <div className="h-8 w-8 rounded-xl bg-primary/20 flex items-center justify-center text-primary font-black text-xs">
-                                                #{i + 1}
-                                            </div>
-                                            <div className="space-y-0.5">
-                                                <span className="text-[10px] font-black text-primary uppercase tracking-widest">Hecho Atómico</span>
-                                                <p className="text-[11px] font-bold text-zinc-500 uppercase truncate max-w-[200px] md:max-w-md">
-                                                    {res.title}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className="text-[10px] font-black text-zinc-500 uppercase mb-1">Similitud</p>
-                                            <Badge className="bg-primary text-white border-none font-mono text-xs px-3">
-                                                {(res.similarity * 100).toFixed(2)}%
-                                            </Badge>
+                {results.length > 0 && (
+                    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-primary flex items-center justify-between border-b border-white/5 pb-2">
+                            <span>Vectores Recuperados</span>
+                            <span className="text-zinc-500">Volumen: {results.length}</span>
+                        </h4>
+                        
+                        <div className="space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
+                            {results.map((r, idx) => (
+                                <div key={idx} className="p-4 bg-zinc-900/40 border border-white/5 hover:border-primary/30 transition-colors rounded-2xl space-y-3 group">
+                                    <div className="flex items-start justify-between gap-4">
+                                        <p className="text-sm font-medium text-zinc-300 leading-relaxed italic group-hover:text-white transition-colors">
+                                            "{r.content}"
+                                        </p>
+                                        
+                                        {/* Insignia de Precisión Vectorial */}
+                                        <div className={`shrink-0 px-2 py-1 border rounded-md flex items-center gap-1 ${getSimilarityColor(r.similarity)}`}>
+                                            <Target size={10} />
+                                            <span className="font-mono font-bold text-[10px]">
+                                                {r.similarity.toFixed(3)}
+                                            </span>
                                         </div>
                                     </div>
-
-                                    <blockquote className="text-base text-zinc-200 font-medium leading-relaxed italic mb-6 border-l-2 border-primary/30 pl-6">
-                                        "{res.content}"
-                                    </blockquote>
-
-                                    <div className="flex items-center justify-between pt-4 border-t border-white/5 relative z-10">
-                                        <div className="flex items-center gap-4 text-[9px] font-black text-zinc-600 uppercase tracking-widest">
-                                            <span className="flex items-center gap-1.5"><Calendar size={12} /> {res.days_old.toFixed(0)} días</span>
-                                            {res.url && (
-                                                <a href={res.url} target="_blank" className="flex items-center gap-1.5 hover:text-primary transition-colors">
-                                                    <ExternalLink size={12} /> Fuente Original
-                                                </a>
-                                            )}
-                                        </div>
-                                        <Badge variant="secondary" className="text-[9px] bg-white/5 text-zinc-500 border-none">
-                                            ID: {res.source_id.substring(0, 8)}
-                                        </Badge>
+                                    
+                                    <div className="flex items-center gap-2 opacity-50">
+                                        <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400">
+                                            Origen: {r.title || "Dato Atómico"}
+                                        </span>
                                     </div>
-                                </motion.div>
+                                </div>
                             ))}
                         </div>
-                    )}
-                </AnimatePresence>
-            </div>
-        </div>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
     );
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT:
+ * 1. Resolución TS2339: La línea crítica 'const semanticNodes = Array.isArray(response.data) ? response.data : [];'
+ *    asegura que TypeScript y el motor de React siempre tengan un Array para mapear, eliminando el fallo
+ *    que causaba que el Build Shield abortara.
+ * 2. Rendimiento UX: Se ha implementado soporte para ejecutar la simulación pulsando 'Enter' (onKeyDown).
+ * 3. Feedback Táctil: La colorimetría dinámica de la métrica 'similarity' permite a los ingenieros de IA
+ *    (Administradores) detectar de un vistazo si el radar está trayendo "ruido" (color naranja) o 
+ *    "inteligencia pura" (color verde).
+ */

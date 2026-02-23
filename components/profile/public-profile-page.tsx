@@ -1,14 +1,11 @@
 // components/profile/public-profile-page.tsx
-// VERSIÓN: 2.0 (NicePod Public Profile Orchestrator - Zero-Crash & Atomic Sync Edition)
-// Misión: Ensamblar la presencia pública del curador garantizando una hidratación inmaculada.
-// [ESTABILIZACIÓN]: Eliminación del Error de React #310 mediante el Protocolo de Montaje Protegido.
-
+//version:3.0 (NicePod Public Profile Orchestrator - Atomic Stability Standard)
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
 import { Sparkles, Zap } from "lucide-react";
 
-// --- INFRAESTRUCTURA DE DATOS Y CONTRATOS ---
+// --- INFRAESTRUCTURA DE DATOS Y CONTRATOS SOBERANOS ---
 import {
   Collection,
   ProfileData,
@@ -16,16 +13,18 @@ import {
   TestimonialWithAuthor
 } from "@/types/profile";
 
-// --- COMPONENTES DE ESTABILIDAD ---
+// --- COMPONENTES DE ESTABILIDAD DE MALLA ---
 import { ProfileHydrationGuard } from "./profile-hydration-guard";
 
-// --- COMPONENTES DE LA MALLA SOBERANA (BLOQUE 3) ---
+// --- COMPONENTES SATÉLITES ESPECIALIZADOS ---
+// Estos componentes gestionan la visualización atómica de cada sección.
 import { PublicContentTabs } from "./public/public-content-tabs";
 import { PublicHeroSection } from "./public/public-hero-section";
 
 /**
  * INTERFAZ: PublicProfilePageProps
  * Define el contrato de datos inyectados desde el Server Component (SSR).
+ * Se alinea estrictamente con los tipos definidos en 'types/profile.ts'.
  */
 interface PublicProfilePageProps {
   profile: ProfileData;
@@ -36,11 +35,12 @@ interface PublicProfilePageProps {
 }
 
 /**
- * PublicProfilePage: El orquestador de la visualización externa del curador.
+ * COMPONENTE: PublicProfilePage
+ * El orquestador central de la visualización externa del curador.
  * 
- * Este componente actúa como el punto de entrada de la 'Malla de Perfil'.
- * Su responsabilidad es distribuir la sabiduría recolectada en el servidor
- * hacia los componentes interactivos de la interfaz Aurora.
+ * Este componente asume la responsabilidad de la "Última Milla" en la visualización.
+ * No realiza peticiones de datos; consume la 'Verdad' recolectada por el servidor
+ * y la proyecta en la interfaz Aurora mediante un flujo de hidratación protegida.
  */
 export default function PublicProfilePage({
   profile,
@@ -51,22 +51,23 @@ export default function PublicProfilePage({
 }: PublicProfilePageProps) {
 
   /**
-   * [PROTOCOLO DE INTEGRIDAD]:
-   * El uso de ProfileHydrationGuard aquí es fundamental. 
-   * Evita que los componentes hijos (que pueden contener lógica de Auth o Realtime)
-   * se inicialicen antes de que el DOM sea seguro, matando el error #310.
+   * [PROTOCOLO DE INTEGRIDAD DE MONTAJE]:
+   * El uso de ProfileHydrationGuard envuelve toda la experiencia del perfil.
+   * Esto asegura que los componentes que dependen de Hooks de cliente o 
+   * animaciones de Framer Motion no intenten renderizarse hasta que el DOM
+   * sea estable, erradicando los fallos de reconciliación de Next.js.
    */
   return (
     <ProfileHydrationGuard>
 
-      <main className="w-full flex flex-col items-center">
+      <main className="w-full flex flex-col items-center selection:bg-primary/20">
 
         {/* 
-            CAPA I: IDENTIDAD MONUMENTAL
-            Este bloque proyecta el estatus, prestigio y biografía del curador.
-            La animación fade-in está sincronizada con la entrada del layout global.
+            CAPA I: IDENTIDAD MONUMENTAL (HERO SECTION)
+            Proyecta el estatus, biografía y métricas de reputación del curador.
+            Se inyectan las propiedades 'full_name' y 'username' alineadas con la DB.
         */}
-        <div className="w-full animate-in fade-in duration-1000 ease-out">
+        <div className="w-full animate-in fade-in slide-in-from-top-4 duration-1000 ease-out">
           <PublicHeroSection
             profile={profile}
             podcastCount={podcasts.length}
@@ -75,18 +76,22 @@ export default function PublicProfilePage({
         </div>
 
         {/* 
-            CAPA II: FLUJO DE CONOCIMIENTO DINÁMICO
-            El motor de pestañas organiza las crónicas, hilos y testimonios.
-            Usa el ancho máximo de la Workstation (max-w-screen-xl).
+            CAPA II: MALLA DE CONTENIDO DINÁMICO (CONTENT TABS)
+            Organiza las crónicas de voz, las colecciones de sabiduría y los testimonios.
+            Limitamos el ancho al estándar de la Workstation (max-w-screen-xl).
         */}
-        <section className="w-full max-w-screen-xl mx-auto px-4 md:px-8 pb-24">
+        <section className="w-full max-w-screen-xl mx-auto px-4 sm:px-6 md:px-8 pb-32">
 
           <AnimatePresence mode="wait">
             <motion.div
-              key={`profile-content-${profile.id}`}
-              initial={{ opacity: 0, y: 20 }}
+              key={`profile-content-anchor-${profile.id}`}
+              initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+              transition={{
+                delay: 0.3,
+                duration: 0.8,
+                ease: [0.16, 1, 0.3, 1]
+              }}
             >
               <PublicContentTabs
                 profile={profile}
@@ -100,19 +105,25 @@ export default function PublicProfilePage({
         </section>
 
         {/* 
-            CAPA III: CIERRE DE FRECUENCIA
-            Elemento de branding técnico para suavizar la transición al footer.
+            CAPA III: TELEMETRÍA DE CIERRE (VISUAL FOOTER)
+            Branding técnico que confirma la integridad de la conexión neural.
         */}
-        <div className="w-full max-w-md mx-auto py-12 flex flex-col items-center gap-4 opacity-10">
-          <div className="h-px w-full bg-gradient-to-r from-transparent via-primary to-transparent" />
-          <div className="flex items-center gap-3">
-            <Zap size={14} className="text-primary" />
-            <span className="text-[8px] font-black uppercase tracking-[0.6em] text-white">
-              Neural Sync Established
+        <div className="w-full max-w-2xl mx-auto py-16 flex flex-col items-center gap-6 opacity-20 select-none">
+          <div className="h-px w-full bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
+
+          <div className="flex items-center gap-4">
+            <Zap size={14} className="text-primary animate-pulse" />
+            <span className="text-[9px] font-black uppercase tracking-[0.7em] text-white">
+              Sovereign Intelligence Node
             </span>
-            <Sparkles size={14} className="text-primary" />
+            <Sparkles size={14} className="text-primary animate-pulse" />
           </div>
-          <div className="h-px w-full bg-gradient-to-r from-transparent via-primary to-transparent" />
+
+          <div className="text-[7px] font-medium text-zinc-500 uppercase tracking-[0.3em]">
+            NicePod Platform V2.5 • Atomic Sync Verified
+          </div>
+
+          <div className="h-px w-full bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
         </div>
 
       </main>
@@ -123,9 +134,10 @@ export default function PublicProfilePage({
 
 /**
  * NOTA TÉCNICA DEL ARCHITECT:
- * Se ha eliminado cualquier llamada a 'useAuth' en este nivel para mantener
- * el orquestador como un componente de presentación pura. La interactividad
- * social (como el botón de dejar testimonio) reside dentro de 'PublicContentTabs',
- * lo que permite que el 'PublicProfilePage' sea ultra-ligero y SSR-friendly.
- * La estabilidad del DOM está garantizada por la 'key' inyectada en el servidor.
+ * 1. Estabilidad Atómica: Se ha delegado la lógica pesada a los hijos (Tabs/Hero),
+ *    manteniendo este archivo como una "Función Pura de Orquestación".
+ * 2. Rendimiento SSR: El componente es ultra-ligero. Al no tener useEffects 
+ *    propios (excepto el guard), el Time to Interactive (TTI) es óptimo.
+ * 3. Diseño Industrial: Los espacios y gradientes están calculados para
+ *    evitar el Cumulative Layout Shift (CLS) durante la carga de las pestañas.
  */

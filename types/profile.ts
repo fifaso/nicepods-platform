@@ -1,13 +1,11 @@
 // types/profile.ts
-// VERSIÓN: 1.0 (NicePod Profile Contracts - Integrity & Authority Standard)
-// Misión: Centralizar las definiciones de tipos para la gestión de perfiles, suscripciones y resonancia social.
-// [ESTABILIZACIÓN]: Eliminación de errores de asignación (TS2322) mediante contratos de datos serializables.
-
+//VERSIÓN: 2.0 (NicePod Profile Contracts - Sovereign Integrity Standard)
 import { Database } from './database.types';
 
 /** 
  * UTILIDADES DE EXTRACCIÓN SEMÁNTICA
- * Derivamos los tipos base directamente de la Fuente de Verdad (PostgreSQL).
+ * Derivamos los tipos base directamente de la Fuente de Verdad (PostgreSQL)
+ * para asegurar que cualquier cambio en el esquema se refleje en el tipado.
  */
 export type Tables<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row'];
 export type Enums<T extends keyof Database['public']['Enums']> = Database['public']['Enums'][T];
@@ -15,23 +13,36 @@ export type Enums<T extends keyof Database['public']['Enums']> = Database['publi
 /**
  * INTERFAZ: ProfileData
  * Define el contrato de identidad completo para curadores y administradores.
- * Incluye la jerarquía de suscripción y planes para el control de cuotas.
+ * 
+ * [ESTABILIZACIÓN]: 
+ * - Se consolida 'username' (antiguo handle) y 'full_name' (antiguo display_name).
+ * - Se añaden campos de biografía extendida y metadatos sociales.
  */
 export interface ProfileData {
+  // Datos Primarios de la tabla 'profiles'
   id: string;
-  username: string | null;
-  full_name: string | null;
+  username: string; // Handle único del curador
+  full_name: string | null; // Nombre público mostrado
   avatar_url: string | null;
   bio: string | null;
-  role: string;
+  bio_short: string | null; // Eslogan o descripción técnica rápida
+  role: string; // 'user' | 'admin'
+  website_url: string | null;
+
+  // Métricas de Resonancia y Autoridad
   reputation_score: number | null;
   is_verified: boolean | null;
   followers_count: number;
   following_count: number;
+
+  // Timestamps de Auditoría
   created_at: string;
   updated_at: string;
 
-  // Relaciones anidadas inyectadas por Supabase JOINs
+  /**
+   * RELACIONES ANIDADAS: Suscripciones y Planes
+   * Inyectadas mediante Joins en la capa SSR para el control de cuotas y features.
+   */
   subscriptions?: {
     status: Enums<'subscription_status'> | null;
     plans: {
@@ -46,6 +57,7 @@ export interface ProfileData {
 /**
  * INTERFAZ: PublicPodcast
  * Estructura de datos optimizada para la visualización en el feed del perfil público.
+ * Representa la 'Voz' del curador materializada en la plataforma.
  */
 export interface PublicPodcast {
   id: number;
@@ -58,12 +70,13 @@ export interface PublicPodcast {
   play_count: number;
   like_count: number;
   status: Enums<'podcast_status'>;
-  creation_mode: string | null;
+  creation_mode: 'standard' | 'remix' | 'situational' | 'pulse' | string | null;
 }
 
 /**
  * INTERFAZ: TestimonialWithAuthor
- * Define la estructura de las reseñas sociales incluyendo la identidad del autor.
+ * Define la estructura de las validaciones sociales (Testimonios).
+ * Incluye el objeto 'author' para renderizar la identidad de quien emite la reseña.
  */
 export interface TestimonialWithAuthor {
   id: number;
@@ -73,17 +86,20 @@ export interface TestimonialWithAuthor {
   status: Enums<'testimonial_status'>;
   created_at: string;
 
-  // Perfil del autor inyectado vía ForeignKey
+  /**
+   * author: Identidad del curador que firma el testimonio.
+   * [Sincronizado]: Usa 'username' y 'full_name'.
+   */
   author: {
     full_name: string | null;
     avatar_url: string | null;
-    username?: string;
+    username: string;
   } | null;
 }
 
 /**
  * INTERFAZ: Collection
- * Representa un 'Hilo de Sabiduría' (colección de podcasts) curado por el usuario.
+ * Representa un 'Hilo de Sabiduría' o Bóveda temática curada por el usuario.
  */
 export interface Collection {
   id: string;
@@ -95,7 +111,10 @@ export interface Collection {
   total_listened_count: number;
   updated_at: string;
 
-  // Conteo de elementos inyectado por la función count() de Supabase
+  /**
+   * collection_items: Conteo de activos dentro de la colección.
+   * Inyectado mediante la función .count() de Supabase.
+   */
   collection_items?: {
     count: number;
   }[];
@@ -103,16 +122,33 @@ export interface Collection {
 
 /**
  * TIPO: ProfileTabValue
- * Define los estados posibles del motor de pestañas del perfil para evitar strings 'mágicos'.
+ * Define los estados permitidos para el motor de pestañas (Tabs) de la interfaz.
+ * Evita el uso de strings 'mágicos' y asegura la consistencia de navegación.
  */
-export type ProfileTabValue = 'library' | 'offline' | 'testimonials' | 'settings' | 'podcasts' | 'collections';
+export type ProfileTabValue =
+  | 'podcasts'
+  | 'collections'
+  | 'testimonials'
+  | 'settings'
+  | 'library'
+  | 'offline';
 
 /**
  * INTERFAZ: ProfileActionResponse
- * Contrato de respuesta para las acciones de servidor (Server Actions) de perfil.
+ * Contrato de respuesta estándar para las Server Actions de perfil.
  */
 export interface ProfileActionResponse {
   success: boolean;
   message: string;
+  data?: any;
   errors?: Record<string, string[]>;
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT:
+ * 1. Paridad Absoluta: Este archivo es la traducción directa de 'schema_core.sql'.
+ * 2. Escalabilidad: Las interfaces están preparadas para recibir joins complejos
+ *    sin perder la seguridad de tipos (Type-Safety).
+ * 3. Legibilidad Industrial: Se han evitado abreviaciones para que cualquier 
+ *    agente de inteligencia o humano comprenda el propósito de cada campo.
+ */
