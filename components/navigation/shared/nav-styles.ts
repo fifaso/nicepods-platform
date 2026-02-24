@@ -1,92 +1,97 @@
 // components/navigation/shared/nav-styles.ts
-// VERSIÓN: 2.0
+// VERSIÓN: 2.1
 
 import { cn } from "@/lib/utils";
 
 /**
- * ESTILO: HEADER MAESTRO (Contenedor de Posicionamiento)
+ * ESTILO: HEADER MAESTRO (Contenedor Externo)
  * 
- * [ARQUITECTURA DE ANCLAJE]:
- * - fixed top-0: Se cambia sticky por fixed para asegurar la visibilidad permanente.
- * - z-[100]: Elevamos el índice de profundidad al máximo para superar capas WebGL.
- * - p-3 md:p-5: Aumentamos el padding para generar un marco visual respirable.
+ * [ARQUITECTURA]:
+ * - fixed top-0: Posicionamiento absoluto para visibilidad persistente.
+ * - z-[100]: Prioridad máxima sobre capas geoespaciales y modales.
+ * - animate-in: Entrada cinemática suavizada.
  */
 export const headerContainerClass = cn(
   "fixed top-0 left-0 right-0 z-[100] w-full p-3 md:p-5",
-  "animate-in fade-in slide-in-from-top-2 duration-700 ease-out"
+  "animate-in fade-in slide-in-from-top-2 duration-1000 ease-[0.16, 1, 0.3, 1]"
 );
 
 /**
- * ESTILO: PANEL DE VIDRIO (Glassmorphism)
+ * ESTILO: PANEL DE VIDRIO (El Bastidor de Navegación)
  * 
- * [RE-CALIBRACIÓN ERGONÓMICA]:
- * - Altura Móvil: h-14 (56px) -> h-[4.5rem] (72px). Incremento del ~28% para facilitar el pulso.
- * - Altura Desktop: h-16 (64px) -> h-20 (80px). Incremento del 25% para presencia institucional.
- * - rounded-[2rem]: Radio de curvatura suavizado para acompañar la nueva escala.
- * - backdrop-blur-2xl: Desenfoque de alta densidad para legibilidad sobre fondos complejos.
+ * [RE-CALIBRACIÓN DE LUJO]:
+ * - bg-black/60: Translucidez equilibrada para permitir el sangrado del fondo Aurora.
+ * - backdrop-blur-2xl: El estándar de NicePod para profundidad esmerilada.
+ * - rounded-[2rem]: Radio de curvatura industrial consistente.
  */
 export const glassPanelClass = cn(
   "relative max-w-screen-xl mx-auto flex items-center justify-between",
-  "rounded-[2rem] border border-white/10 bg-black/70 shadow-2xl",
-  "backdrop-blur-2xl supports-[backdrop-filter]:bg-black/50",
-  // Nuevas alturas industriales
+  "rounded-[2.5rem] border border-white/10 bg-black/60 shadow-2xl",
+  "backdrop-blur-2xl supports-[backdrop-filter]:bg-black/40",
   "h-[4.5rem] md:h-20",
-  // Padding lateral escalado para mantener la proporción aurea
   "px-6 md:px-10"
 );
 
 /**
- * ESTILO: BOTÓN AURORA (Acción Primaria)
+ * ESTILO: BOTÓN AURORA (Acción de Forja)
  * 
- * [IDENTIDAD DE FORJA]:
- * - Gradiente: Indigo-Primary-Fuchsia (El pulso de NicePod).
- * - h-11 md:h-13: Altura sincronizada con el panel para un aspecto masivo y profesional.
+ * [REFINAMIENTO]:
+ * - h-10 md:h-12: Altura calibrada para alineación perfecta con botones de texto.
+ * - hover:shadow: Aumento de la dispersión de luz en hover para efecto de 'activación'.
  */
 export const auroraButtonClass = cn(
   "bg-gradient-to-r from-indigo-600 via-primary to-fuchsia-600",
   "text-white border border-white/20 shadow-lg shadow-primary/20",
-  "transition-all duration-500 ease-out active:scale-95",
-  "hover:shadow-[0_0_35px_rgba(var(--primary),0.5)] hover:scale-[1.05]",
+  "transition-all duration-500 ease-[0.16, 1, 0.3, 1] active:scale-95",
+  "hover:shadow-[0_0_40px_-10px_rgba(139,92,246,0.5)] hover:scale-[1.03]",
   "relative overflow-hidden group/crear"
 );
 
 /**
- * ESTILO: ENLACES DE NAVEGACIÓN (Desktop Nav Links)
+ * ESTILO: ENLACES DE NAVEGACIÓN (Micro-Tipografía)
  * 
- * [LEGIBILIDAD]:
- * - text-[11px]: Aumento de legibilidad en tipografía institucional.
- * - px-6 py-3: Áreas de clic (hit-boxes) generosas.
+ * [ESTÁNDAR DE LUJO]:
+ * - text-[10px]: Reducción de tamaño para aumentar la elegancia y el aire visual.
+ * - tracking-[0.3em]: Espaciado entre letras expansivo, típico de interfaces profesionales.
+ * - transition-all duration-300: Curva de respuesta suave al tacto.
  */
 export const navLinkBaseClass = cn(
-  "rounded-full px-6 py-2.5 text-[11px] font-black uppercase tracking-[0.25em] transition-all block"
-);
-
-export const navLinkActiveClass = cn(
-  "bg-white text-black shadow-md shadow-white/10"
-);
-
-export const navLinkInactiveClass = cn(
-  "text-zinc-400 hover:text-white hover:bg-white/5"
+  "rounded-full px-7 py-2.5 text-[10px] font-black uppercase tracking-[0.3em] transition-all duration-300 block outline-none"
 );
 
 /**
- * ESTILO: CÁPSULA DE ACCIÓN MÓVIL (Pill)
- * 
- * [ERGONOMÍA]:
- * - h-11: Altura táctil ideal para pulgares.
- * - px-5: Ancho suficiente para albergar texto sin apretar el layout.
+ * ESTADO ACTIVO: La Pieza Resonante.
+ * - bg-white/90: Blanco con ligera transparencia para evitar el aspecto de 'plástico sólido'.
+ * - shadow-white/10: Brillo periférico sutil.
+ */
+export const navLinkActiveClass = cn(
+  "bg-white/95 text-black shadow-lg shadow-white/5"
+);
+
+/**
+ * ESTADO INACTIVO: La Sutileza del Fondo.
+ * - text-zinc-500: Color base neutro para no competir con la marca o el botón activo.
+ * - hover:text-white: Revelación progresiva al interactuar.
+ */
+export const navLinkInactiveClass = cn(
+  "text-zinc-500 hover:text-white hover:bg-white/5"
+);
+
+/**
+ * ESTILO: CÁPSULA DE ACCIÓN MÓVIL
+ * Sincronización perfecta con el diseño de mano.
  */
 export const mobileCreateButtonClass = cn(
   auroraButtonClass,
-  "h-11 px-5 rounded-2xl flex items-center justify-center gap-2",
-  "font-black text-[10px] uppercase tracking-[0.2em]"
+  "h-10 px-5 rounded-2xl flex items-center justify-center gap-2",
+  "font-black text-[9px] uppercase tracking-[0.25em]"
 );
 
 /**
  * NOTA TÉCNICA DEL ARCHITECT:
- * Este archivo dicta la 'Física de la Interfaz'. El cambio de 'sticky' a 'fixed' 
- * requiere que el contenido principal de la aplicación tenga un margen superior 
- * compensatorio (p.ej. pt-24 en el layout global) para evitar que el menú tape 
- * el inicio del contenido. La altura h-[4.5rem] garantiza que los iconos de 
- * Lucide (h-6) tengan un margen de seguridad (gutter) amplio.
+ * El cambio más significativo es el aumento del 'tracking' a 0.3em. Esto expande 
+ * visualmente la palabra sin ocupar más espacio de masa, creando una sensación 
+ * de precisión y limpieza. El uso de blancos al 95% (bg-white/95) en el estado 
+ * activo permite que el color del fondo Aurora 'ensucie' mínimamente el botón, 
+ * integrándolo orgánicamente en la atmósfera de la página.
  */
