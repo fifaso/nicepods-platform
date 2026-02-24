@@ -1,15 +1,15 @@
 // hooks/use-search-radar.ts
-// VERSIÓN: 2.0
+// VERSIÓN: 2.5
 
 "use client";
 
 import { SearchActionResponse, searchGlobalIntelligence } from "@/actions/search-actions";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 /**
  * TIPO: SearchResult
  * Define el contrato de datos unificado para los impactos localizados por el radar.
- * Refleja fielmente la salida del RPC 'unified_search_v4'.
+ * Soporta la nueva categorización multimodal de NicePod V2.5.
  */
 export type SearchResult = {
   result_type: 'podcast' | 'user' | 'vault_chunk' | 'place';
@@ -33,10 +33,9 @@ export type SearchResult = {
 
 /**
  * INTERFAZ: UseSearchRadarOptions
- * Configuración dinámica para el comportamiento del radar semántico.
+ * Configuración para el comportamiento del motor de búsqueda.
  */
 interface UseSearchRadarOptions {
-  debounceMs?: number;
   limit?: number;
   latitude?: number;
   longitude?: number;
@@ -44,46 +43,40 @@ interface UseSearchRadarOptions {
 
 /**
  * HOOK: useSearchRadar
- * El motor lógico que alimenta la terminal de búsqueda inmersiva de NicePod V2.5.
+ * El orquestador lógico del descubrimiento de sabiduría.
  * 
- * [RESPONSABILIDADES]:
- * 1. Gestionar el estado de la consulta (query) y los resultados (results).
- * 2. Orquestar el historial de exploraciones persistente en LocalStorage.
- * 3. Ejecutar el 'Debounce' para optimizar costos de API y rendimiento del hilo principal.
- * 4. Sincronizar el contexto geoespacial con el motor de búsqueda.
+ * [FILOSOFÍA DE DISEÑO]:
+ * Se ha eliminado el 'useEffect' de seguimiento de query. El radar ahora
+ * espera una llamada explícita a 'performSearch', optimizando el uso de la 
+ * Edge Function y garantizando que se procesen intenciones completas.
  */
 export function useSearchRadar(options: UseSearchRadarOptions = {}) {
   const {
-    debounceMs = 600,
-    limit = 20,
+    limit = 25,
     latitude,
     longitude
   } = options;
 
-  // --- ESTADOS DE CONTROL DEL RADAR ---
+  // --- ESTADOS DE CONTROL ---
   const [query, setQuery] = useState<string>("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<string[]>([]);
 
-  // Referencia para la gestión del temporizador de escritura (Debounce)
-  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
-
   /**
    * PROTOCOLO: loadRadarHistory
-   * Misión: Recuperar las exploraciones confirmadas desde la memoria física del dispositivo.
-   * [VERSIONAMIENTO]: v4 para asegurar compatibilidad con la nueva estructura de Lugares.
+   * Recupera las exploraciones previas de la memoria física del dispositivo.
    */
   useEffect(() => {
     const savedHistory = localStorage.getItem("nicepod_radar_history_v4");
     if (savedHistory) {
       try {
         const parsed = JSON.parse(savedHistory);
-        // Limitamos el historial a los 6 ecos más recientes para mantener la elegancia de la consola.
+        // Mantenemos solo los 6 ecos más recientes para una UI limpia.
         setHistory(Array.isArray(parsed) ? parsed.slice(0, 6) : []);
       } catch (err) {
-        console.warn("⚠️ [SearchRadar] Historial local corrupto. Iniciando purga.");
+        console.warn("⚠️ [SearchRadar] Historial local corrupto. Purgando...");
         localStorage.removeItem("nicepod_radar_history_v4");
       }
     }
@@ -91,14 +84,13 @@ export function useSearchRadar(options: UseSearchRadarOptions = {}) {
 
   /**
    * ACCIÓN: saveToHistory
-   * Misión: Almacenar un término de búsqueda de forma atómica y única.
+   * Almacena un término de búsqueda de forma atómica y única.
    */
   const saveToHistory = useCallback((term: string) => {
     const cleanTerm = term.trim();
     if (cleanTerm.length < 3) return;
 
     setHistory((prev) => {
-      // Evitamos duplicidad y movemos el término al inicio del array.
       const filtered = prev.filter((item) => item.toLowerCase() !== cleanTerm.toLowerCase());
       const newHistory = [cleanTerm, ...filtered].slice(0, 6);
       localStorage.setItem("nicepod_radar_history_v4", JSON.stringify(newHistory));
@@ -108,19 +100,16 @@ export function useSearchRadar(options: UseSearchRadarOptions = {}) {
 
   /**
    * ACCIÓN CORE: performSearch
-   * Misión: El Handshake final con el servidor para la extracción de inteligencia.
+   * Misión: Handshake único con el servidor para la extracción de inteligencia.
    * 
-   * [ARQUITECTURA]:
-   * Invoca a la Server Action 'searchGlobalIntelligence' la cual actúa como 
-   * pasarela hacia la Edge Function 'search-pro' en Deno 2.
+   * [DISPARO MANUAL]: Esta función debe invocarse en onSubmit o onKeyDown (Enter).
    */
   const performSearch = useCallback(async (searchTerm: string) => {
     const target = searchTerm.trim();
 
-    // Validación de Potencia: Mínimo 3 caracteres para activar el pulso semántico.
+    // Validación de Potencia Mínima
     if (target.length < 3) {
-      setResults([]);
-      setIsLoading(false);
+      setError("Se requieren al menos 3 caracteres.");
       return;
     }
 
@@ -128,8 +117,9 @@ export function useSearchRadar(options: UseSearchRadarOptions = {}) {
     setError(null);
 
     try {
-      console.info(`🔍 [SearchRadar] Lanzando pulso semántico: "${target}"`);
+      console.info(`🔍 [SearchRadar] Lanzando pulso semántico para: "${target}"`);
 
+      // Despacho hacia la Server Action (Fase de Transporte)
       const response: SearchActionResponse<SearchResult[]> = await searchGlobalIntelligence(
         target,
         latitude,
@@ -138,70 +128,35 @@ export function useSearchRadar(options: UseSearchRadarOptions = {}) {
       );
 
       if (response.success) {
+        // [SENSIBILIDAD]: El motor unificado ya viene con el threshold calibrado.
         setResults(response.results || []);
 
-        // Si el término es nuevo y exitoso, lo registramos en la memoria persistente.
-        if (target !== query) {
-          saveToHistory(target);
-        }
+        // Registro en memoria persistente
+        saveToHistory(target);
       } else {
-        // Reporte de error desde el subsistema (Edge / SQL)
-        setError(response.message || "La señal del radar es inestable.");
+        // Reporte de fallo de señal
+        setError(response.message || "Señal de radar inestable.");
         setResults([]);
       }
     } catch (err: any) {
       console.error("🔥 [SearchRadar-Fatal]:", err.message);
-      setError("Fallo crítico de comunicación con el motor semántico.");
+      setError("Fallo crítico de red en la Bóveda.");
       setResults([]);
     } finally {
       setIsLoading(false);
     }
-  }, [latitude, longitude, limit, query, saveToHistory]);
+  }, [latitude, longitude, limit, saveToHistory]);
 
   /**
    * ACCIÓN: clearRadar
-   * Misión: Restablecer la terminal a su estado original de silencio.
+   * Restablece la terminal a su estado original de silencio semántico.
    */
   const clearRadar = useCallback(() => {
     setQuery("");
     setResults([]);
     setError(null);
     setIsLoading(false);
-    if (debounceTimer.current) {
-      clearTimeout(debounceTimer.current);
-    }
   }, []);
-
-  /**
-   * EFECTO: Debounce Orchestrator
-   * Misión: Vigilar la escritura del curador y disparar el radar tras el reposo.
-   * Este protocolo ahorra tokens de IA y reduce la carga del servidor.
-   */
-  useEffect(() => {
-    // Cancelamos cualquier ejecución pendiente si el usuario sigue escribiendo.
-    if (debounceTimer.current) {
-      clearTimeout(debounceTimer.current);
-    }
-
-    if (query.trim().length >= 3) {
-      // Feedback Visual Instantáneo
-      setIsLoading(true);
-
-      debounceTimer.current = setTimeout(() => {
-        performSearch(query);
-      }, debounceMs);
-    } else if (query.trim().length === 0) {
-      // Limpieza instantánea si el input se vacía.
-      setResults([]);
-      setIsLoading(false);
-    }
-
-    return () => {
-      if (debounceTimer.current) {
-        clearTimeout(debounceTimer.current);
-      }
-    };
-  }, [query, debounceMs, performSearch]);
 
   return {
     // ESTADOS
@@ -212,7 +167,7 @@ export function useSearchRadar(options: UseSearchRadarOptions = {}) {
     history,
     // ACCIONES
     setQuery,
-    performSearch,
+    performSearch, // Exposición para invocación explícita
     clearRadar,
     saveToHistory
   };
@@ -220,12 +175,11 @@ export function useSearchRadar(options: UseSearchRadarOptions = {}) {
 
 /**
  * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Independencia de UI: Este hook puede alimentar tanto a la 'UnifiedSearchBar'
- *    de pantalla completa como a un buscador de comandos tipo Ctrl+P.
- * 2. Optimización Termodinámica: El uso de 'useCallback' y 'useRef' garantiza 
- *    que el hook no genere re-renderizados innecesarios en el Dashboard, 
- *    manteniendo la plataforma a 60 FPS consistentes.
- * 3. Escalabilidad Multimodal: La interfaz 'SearchResult' está preparada para 
- *    recibir metadatos variables (JSONB), permitiendo que el sistema crezca 
- *    con nuevos tipos de hallazgos sin modificar este código.
+ * 1. Eficiencia Energética: Se ha eliminado el 'setTimeout' y la lógica de 
+ *    limpieza de timers. El hook ahora es puramente reactivo a eventos externos.
+ * 2. Integridad de Tipos: El contrato 'SearchResult' es la base para que el 
+ *    Dashboard y el Mapa pinten la información multimodal sin errores.
+ * 3. UX de Control: Al delegar el disparo al usuario, NicePod transmite una 
+ *    sensación de 'Herramienta Profesional' (obediente) y no de 'Juguete Web' 
+ *    (asuntivo).
  */
