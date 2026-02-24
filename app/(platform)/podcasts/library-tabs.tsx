@@ -1,5 +1,5 @@
-// app/podcasts/library-tabs.tsx
-// VERSIÓN: 9.0
+// app/(platform)/podcasts/library-tabs.tsx
+// VERSIÓN: 9.1
 
 'use client';
 
@@ -9,12 +9,10 @@ import { User } from '@supabase/supabase-js';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 
-// --- INFRAESTRUCTURA DE COMPONENTES DE INTERFAZ ---
-import { CompactPodcastCard } from '@/components/compact-podcast-card';
+// --- INFRAESTRUCTURA DE COMPONENTES DE ALTA FIDELIDAD ---
 import { LibraryViewSwitcher } from '@/components/library-view-switcher';
-import { PulsePillCard } from '@/components/pulse-pill-card';
 import { SmartJobCard } from '@/components/smart-job-card';
 import { StackedPodcastCard } from '@/components/stacked-podcast-card';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -24,7 +22,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UniverseCard } from '@/components/universe-card';
 
-// --- NUEVO SISTEMA DE BÚSQUEDA UNIFICADA ---
+// --- NUEVO SISTEMA DE RADAR UNIFICADO ---
 import { UnifiedSearchBar } from "@/components/ui/unified-search-bar";
 import { SearchResult } from "@/hooks/use-search-radar";
 
@@ -34,12 +32,10 @@ import {
     History,
     Loader2,
     Mic2,
-    Sparkles,
     TrendingUp,
     User as UserIcon
 } from 'lucide-react';
 
-import { groupPodcastsByThread } from '@/lib/podcast-utils';
 import type { Tables } from '@/types/supabase';
 import { CuratedShelvesData } from './page';
 
@@ -59,7 +55,7 @@ interface LibraryTabsProps {
 }
 
 /**
- * Configuración de Universos Semánticos (Categorías).
+ * Configuración de Universos Semánticos (Frecuencias).
  */
 const universeCategories = [
     { key: 'most_resonant', title: 'Lo más resonante', image: '/images/universes/resonant.png' },
@@ -84,7 +80,6 @@ export function LibraryTabs({
 
     // --- ESTADOS DE NAVEGACIÓN Y FILTRADO ---
     const currentTab = searchParams.get('tab') || defaultTab;
-    const currentView = (searchParams.get('view') as LibraryViewMode) || 'grid';
     const activeUniverseKey = searchParams.get('universe') || (user ? 'most_resonant' : 'tech_and_innovation');
     const contentFilter = searchParams.get('filter') || 'all';
 
@@ -95,18 +90,8 @@ export function LibraryTabs({
     const [isSearching, setIsSearching] = useState<boolean>(false);
 
     /**
-     * segmentaciónEstratégica: Separa podcasts narrativos de píldoras Pulse.
-     */
-    const { regularPodcasts, pulsePills } = useMemo(() => {
-        return {
-            regularPodcasts: podcasts.filter(p => p.creation_mode !== 'pulse'),
-            pulsePills: podcasts.filter(p => p.creation_mode === 'pulse')
-        };
-    }, [podcasts]);
-
-    /**
      * [CORE] SINCRONIZACIÓN REALTIME
-     * Mantiene la biblioteca actualizada ante nuevos podcasts o tareas en curso.
+     * Mantiene la biblioteca actualizada ante nuevos podcasts o tareas de IA.
      */
     useEffect(() => {
         if (!user) return;
@@ -131,51 +116,6 @@ export function LibraryTabs({
             supabase.removeChannel(jobsChannel);
         };
     }, [user, supabase]);
-
-    /**
-     * handleFilterChange
-     * Sincroniza los filtros de contenido Pulse/Narrativa con la URL.
-     */
-    const handleFilterChange = useCallback((filter: string) => {
-        const params = new URLSearchParams(searchParams.toString());
-        params.set('filter', filter);
-        router.push(`${pathname}?${params.toString()}`, { scroll: false });
-    }, [router, pathname, searchParams]);
-
-    /**
-     * renderContent
-     * Renderizador condicional según el modo de vista (Grid/List).
-     */
-    const renderContent = (data: PodcastWithProfile[]) => {
-        if (data.length === 0) {
-            return (
-                <div className="py-24 text-center border-2 border-dashed border-white/5 rounded-[3rem] bg-white/[0.01] animate-in fade-in duration-700">
-                    <Sparkles className="mx-auto h-12 w-12 text-primary opacity-20 mb-4" />
-                    <p className="text-sm font-black uppercase tracking-[0.2em] text-white/30 italic">Silencio Semántico</p>
-                </div>
-            );
-        }
-
-        if (currentView === 'list') {
-            return (
-                <div className="space-y-4">
-                    {data.map(p => <CompactPodcastCard key={p.id} podcast={p} />)}
-                </div>
-            );
-        }
-
-        const displayData = contentFilter === 'pills' ? data : groupPodcastsByThread(data);
-
-        return (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                {displayData.map((p: any) => (
-                    contentFilter === 'pills'
-                        ? <PulsePillCard key={p.id} podcast={p} />
-                        : <StackedPodcastCard key={p.id} podcast={p} replies={p.replies} />
-                ))}
-            </div>
-        );
-    };
 
     /**
      * renderSearchResults (V4.0 - Master Intelligence Display)
@@ -205,8 +145,7 @@ export function LibraryTabs({
 
         return (
             <div className="space-y-20 animate-in fade-in slide-in-from-bottom-6 duration-1000">
-
-                {/* 1. SECCIÓN: CURADORES HALLADOS */}
+                {/* CURADORES HALLADOS */}
                 {userHits.length > 0 && (
                     <section className="space-y-8">
                         <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.5em] flex items-center gap-3">
@@ -231,7 +170,7 @@ export function LibraryTabs({
                     </section>
                 )}
 
-                {/* 2. SECCIÓN: IMPACTOS SONOROS (PODCASTS) */}
+                {/* CRÓNICAS SONORAS */}
                 {podcastHits.length > 0 && (
                     <section className="space-y-8">
                         <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.5em] flex items-center gap-3">
@@ -268,7 +207,7 @@ export function LibraryTabs({
                     </section>
                 )}
 
-                {/* 3. SECCIÓN: HECHOS DE LA BÓVEDA (NKV) */}
+                {/* HECHOS DE LA BÓVEDA NKV */}
                 {vaultHits.length > 0 && (
                     <section className="space-y-8">
                         <h3 className="text-[10px] font-black text-primary/60 uppercase tracking-[0.5em] flex items-center gap-3">
@@ -278,7 +217,7 @@ export function LibraryTabs({
                             {vaultHits.map(hit => (
                                 <div key={hit.id} className="p-8 rounded-[2.5rem] bg-primary/[0.02] border border-primary/10 hover:border-primary/30 transition-all shadow-inner group">
                                     <h4 className="text-[10px] font-black text-primary uppercase mb-4 tracking-[0.3em] opacity-60 flex items-center gap-3">
-                                        <History size={12} className="group-hover:animate-spin-slow" /> {hit.title}
+                                        <History size={12} /> {hit.title}
                                     </h4>
                                     <p className="text-xs text-zinc-400 font-medium italic leading-relaxed">
                                         "{hit.subtitle}"
@@ -295,13 +234,9 @@ export function LibraryTabs({
     return (
         <Tabs value={searchResults ? 'search' : currentTab} className="w-full">
 
-            {/* BARRA DE MANDO: RADAR UNIFICADO */}
+            {/* CABECERA TÁCTICA: RADAR UNIFICADO */}
             <div className="flex flex-col gap-10 md:gap-0 md:flex-row w-full items-center justify-between mb-16">
                 <div className="w-full md:max-w-2xl">
-                    {/* 
-                        INYECCIÓN SOBERANA: UnifiedSearchBar
-                        Sustituye a LibraryOmniSearch, eliminando redundancia.
-                    */}
                     <UnifiedSearchBar
                         onLoading={setIsSearching}
                         onResults={(res) => {
@@ -312,7 +247,6 @@ export function LibraryTabs({
                             setSearchResults(null);
                             setIsSearching(false);
                         }}
-                        variant="default"
                         placeholder="Escribe un concepto para activar el radar semántico..."
                     />
                 </div>
@@ -342,16 +276,14 @@ export function LibraryTabs({
                 )}
             </div>
 
-            {/* ESCENARIO DE CONTENIDO */}
+            {/* CUERPO DINÁMICO */}
             {searchResults ? (
                 <div className="animate-in fade-in duration-1000 outline-none">
                     {renderSearchResults()}
                 </div>
             ) : (
                 <>
-                    {/* PESTAÑA: DESCUBRIMIENTO GLOBAL */}
                     <TabsContent value="discover" className="mt-0 space-y-20 animate-in fade-in duration-1000 outline-none">
-                        {/* SELECTOR DE UNIVERSOS */}
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-5">
                             {universeCategories.map(cat => (
                                 <UniverseCard
@@ -364,45 +296,40 @@ export function LibraryTabs({
                             ))}
                         </div>
 
-                        {/* ESTANTE CURADO */}
                         <section className="space-y-12">
                             <div className="flex items-center justify-between border-b border-white/5 pb-8">
                                 <h2 className="text-4xl font-black uppercase tracking-tighter text-white italic">
                                     {universeCategories.find(c => c.key === activeUniverseKey)?.title || "Explora NicePod"}
                                 </h2>
-                                <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] font-black uppercase px-5 py-2 rounded-full shadow-[0_0_15px_rgba(var(--primary),0.2)]">
+                                <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] font-black uppercase px-5 py-2 rounded-full">
                                     {isSearching ? 'Sincronizando...' : 'Conexión Nominal'}
                                 </Badge>
                             </div>
-                            {renderContent(curatedShelves?.[activeUniverseKey as keyof CuratedShelvesData] || [])}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                                {(curatedShelves?.[activeUniverseKey as keyof CuratedShelvesData] || []).map(p => (
+                                    <StackedPodcastCard key={p.id} podcast={p} />
+                                ))}
+                            </div>
                         </section>
                     </TabsContent>
 
-                    {/* PESTAÑA: BIBLIOTECA PERSONAL */}
                     <TabsContent value="library" className="mt-0 space-y-20 animate-in slide-in-from-bottom-4 duration-1000 outline-none">
-                        {/* SALA DE FORJA (JOBS) */}
                         {jobs.length > 0 && (
                             <section className="space-y-8">
                                 <div className="flex items-center gap-4">
-                                    <div className="p-3 bg-primary/10 rounded-2xl border border-primary/20">
-                                        <Loader2 className="h-5 w-5 text-primary animate-spin" />
-                                    </div>
-                                    <h2 className="text-2xl font-black uppercase tracking-tighter text-white italic">
-                                        Procesando Crónicas
-                                    </h2>
+                                    <div className="p-3 bg-primary/10 rounded-2xl border border-primary/20"><Loader2 className="h-5 w-5 text-primary animate-spin" /></div>
+                                    <h2 className="text-2xl font-black uppercase tracking-tighter text-white italic">Procesando Crónicas</h2>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     {jobs.map((job) => <SmartJobCard key={job.id} job={job} />)}
                                 </div>
                             </section>
                         )}
-
-                        {/* INVENTARIO PERSONAL */}
                         <section className="space-y-10">
-                            <h2 className="text-4xl font-black uppercase tracking-tighter text-white px-2 italic">
-                                Mi Colección de Sabiduría
-                            </h2>
-                            {renderContent(podcasts)}
+                            <h2 className="text-4xl font-black uppercase tracking-tighter text-white px-2 italic">Mi Bóveda</h2>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                                {podcasts.map(p => <StackedPodcastCard key={p.id} podcast={p} />)}
+                            </div>
                         </section>
                     </TabsContent>
                 </>
@@ -410,13 +337,3 @@ export function LibraryTabs({
         </Tabs>
     );
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Unificación de Datos: El componente ya no maneja por separado podcasts y usuarios. 
- *    Consume el array 'searchResults' unificado que devuelve el radar.
- * 2. UX de Bóveda: Se ha añadido un diseño específico para 'Vault Chunks', mostrando
- *    fragmentos de conocimiento puro que enriquecen la experiencia de descubrimiento.
- * 3. Rendimiento (LCP): El uso de Next Image con 'sizes' calibrados y animaciones 
- *    desfasadas garantiza una carga percibida instantánea y profesional.
- */

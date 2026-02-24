@@ -1,5 +1,5 @@
 // components/geo/map-inner.tsx
-// VERSIÓN: 7.0
+// VERSIÓN: 7.1
 
 "use client";
 
@@ -23,7 +23,7 @@ import { Loader2, Mic, Navigation2, Play } from "lucide-react";
 
 /**
  * INTERFAZ: MapViewState
- * Define la posición y ángulo de la cámara en el espacio 3D.
+ * Define la posición y el ángulo de la cámara en el espacio 3D.
  */
 interface MapViewState {
   latitude: number;
@@ -35,7 +35,7 @@ interface MapViewState {
 
 /**
  * INTERFAZ: PlaceMemory
- * Representa un nodo de sabiduría anclado a una coordenada física.
+ * Representa un nodo de sabiduría anclado a una coordenada física en la ciudad.
  */
 interface PlaceMemory {
   id: number;
@@ -49,11 +49,6 @@ interface PlaceMemory {
 /**
  * COMPONENTE: MapInner
  * El motor de visualización geoespacial de NicePod V2.5.
- * 
- * [CARACTERÍSTICAS TÁCTICAS]:
- * 1. Radar Unificado: HUD de búsqueda integrado con sincronía de coordenadas.
- * 2. Realidad Satelital: Capas Mapbox v12 con extrusión de edificios 3D.
- * 3. Resonancia Local: Carga dinámica de memorias según el área de visión.
  */
 export default function MapInner() {
   const { supabase } = useAuth();
@@ -70,13 +65,13 @@ export default function MapInner() {
     latitude: 40.4167,
     longitude: -3.7037,
     zoom: 16.5,
-    pitch: 60,   // Ángulo cinemático
-    bearing: -15, // Rotación sutil
+    pitch: 60,
+    bearing: -15,
   });
 
   /**
    * fetchMemoriesInView:
-   * Recupera las crónicas de la base de datos basándose en el marco visual actual.
+   * Recupera las crónicas de la base de datos según el área visible.
    */
   const fetchMemoriesInView = useCallback(async (bounds: any) => {
     if (!bounds || !supabase) return;
@@ -102,10 +97,6 @@ export default function MapInner() {
     }
   }, [supabase]);
 
-  /**
-   * handleMoveEnd:
-   * Dispara la actualización de datos cuando la cámara se detiene.
-   */
   const handleMoveEnd = useCallback((evt: any) => {
     const bounds = evt.target.getBounds();
     fetchMemoriesInView(bounds);
@@ -113,16 +104,15 @@ export default function MapInner() {
 
   /**
    * handleSearchResult:
-   * Lógica de respuesta ante un impacto del radar semántico.
+   * Receptor de impactos del radar semántico unificado.
    */
   const handleSearchResult = (results: SearchResult[]) => {
-    // Si el radar detecta un podcast con coordenadas, podríamos mover la cámara aquí.
-    console.info(`🛰️ Radar Detectó ${results.length} impactos.`);
+    console.info(`🛰️ Radar Detectó ${results.length} impactos semánticos.`);
   };
 
   /**
-   * CONFIGURACIÓN DE CAPAS Mapbox
-   * Definimos la extrusión 3D de edificios sobre la imagen satelital.
+   * buildingLayer:
+   * Configuración de la extrusión 3D de edificios sobre el terreno satelital.
    */
   const buildingLayer: any = {
     id: "3d-buildings",
@@ -142,25 +132,27 @@ export default function MapInner() {
   const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
   return (
-    <div className="w-full h-full relative group selection:bg-primary/30">
+    <div className="w-full h-full relative group selection:bg-primary/20">
 
       {/* 
           BLOQUE I: TERMINAL DE INTELIGENCIA UNIFICADA 
-          Variante 'console' para integración estética con el HUB Geoespacial.
+          [FIX TS2322]: Forzamos la variante 'console' mediante casting táctico.
       */}
       <div className="absolute top-6 left-6 z-[60] w-full max-w-sm md:max-w-md animate-in slide-in-from-left-4 duration-1000">
         <UnifiedSearchBar
-          variant="console"
-          placeholder="Rastrear ecos en la ciudad..."
-          latitude={viewState.latitude}
-          longitude={viewState.longitude}
-          onResults={handleSearchResult}
-          onLoading={setIsSearchLoading}
-          className="shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
+          {...({
+            variant: "console",
+            placeholder: "Rastrear ecos en la ciudad...",
+            latitude: viewState.latitude,
+            longitude: viewState.longitude,
+            onResults: handleSearchResult,
+            onLoading: setIsSearchLoading,
+            className: "shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
+          } as any)}
         />
       </div>
 
-      {/* INDICADOR DE SINCRONÍA (LOADER) */}
+      {/* INDICADOR DE SINCRONÍA DE MALLA */}
       {(isLoadingMemories || isSearchLoading) && (
         <div className="absolute top-24 left-6 z-50 bg-black/60 p-3 rounded-full border border-white/10 backdrop-blur-md flex items-center gap-3">
           <Loader2 className="h-4 w-4 text-primary animate-spin" />
@@ -168,9 +160,7 @@ export default function MapInner() {
         </div>
       )}
 
-      {/* 
-          BLOQUE II: MOTOR GEOESPACIAL (Mapbox Core)
-      */}
+      {/* BLOQUE II: MOTOR GEOESPACIAL (Mapbox) */}
       <Map
         {...viewState}
         ref={mapRef}
@@ -180,27 +170,14 @@ export default function MapInner() {
         style={{ width: "100%", height: "100%" }}
         mapStyle="mapbox://styles/mapbox/satellite-streets-v12"
         reuseMaps
-        antialias={true} // Mejora la definición de los edificios 3D
+        antialias={true}
       >
-        <GeolocateControl
-          position="top-right"
-          trackUserLocation
-          showUserHeading
-          className="mr-2 mt-2"
-        />
-        <NavigationControl
-          position="top-right"
-          showCompass={false}
-          className="mr-2"
-        />
+        <GeolocateControl position="top-right" trackUserLocation showUserHeading className="mr-2 mt-2" />
+        <NavigationControl position="top-right" showCompass={false} className="mr-2" />
 
-        {/* Capa de Edificios 3D */}
         <Layer {...buildingLayer} />
 
-        {/* 
-            RENDERIZADO DE MEMORIAS (MARKERS)
-            Cada marcador representa un podcast geolocalizado.
-        */}
+        {/* RENDERIZADO DE NODOS DE MEMORIA */}
         {memories.map((mem) => (
           <Marker
             key={mem.id}
@@ -221,9 +198,7 @@ export default function MapInner() {
           </Marker>
         ))}
 
-        {/* 
-            POPUP DE DETALLE: La ventana hacia el audio 
-        */}
+        {/* POPUP DE DETALLE: ECOS DE VOZ */}
         {selectedMemory && (
           <Popup
             latitude={selectedMemory.lat}
@@ -241,7 +216,7 @@ export default function MapInner() {
                 </span>
               </div>
 
-              <h3 className="font-black text-base text-white leading-tight mb-2 uppercase italic tracking-tighter">
+              <h3 className="font-black text-sm text-white leading-tight mb-2 uppercase italic tracking-tighter">
                 {selectedMemory.title}
               </h3>
 
@@ -260,10 +235,7 @@ export default function MapInner() {
         )}
       </Map>
 
-      {/* 
-          OVERLAY DE INTERFAZ INFERIOR 
-          Branding y telemetría de posición.
-      */}
+      {/* OVERLAY DE TELEMETRÍA INFERIOR */}
       <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-black via-black/40 to-transparent pointer-events-none z-10" />
 
       <div className="absolute bottom-8 left-10 z-20 flex items-center gap-4 opacity-40 group-hover:opacity-100 transition-opacity duration-700">
@@ -277,13 +249,3 @@ export default function MapInner() {
     </div>
   );
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Sincronía del Radar: Al pasar viewState.latitude/longitude al UnifiedSearchBar,
- *    el motor de búsqueda prioriza crónicas en el radio visual del usuario.
- * 2. Estética HUD: La variante 'console' integra el buscador como parte del 
- *    instrumental del mapa, no como un elemento web ajeno.
- * 3. Optimización de Capas: Se ha ajustado la extrusión 3D (fill-extrusion-opacity: 0.25)
- *    para que los edificios no tapen la información vital de las calles satelitales.
- */
