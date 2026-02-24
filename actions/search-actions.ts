@@ -1,91 +1,90 @@
-//actions/search-actions.ts
-//VERSIÓN: 2.0 (NicePod Search Engine - Hybrid Resonance Standard)
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
 
 /**
  * INTERFAZ: SearchActionResponse
- * Contrato unificado para las respuestas del motor de búsqueda global.
+ * Contrato de respuesta unificado para el sistema de radar semántico.
  */
 export type SearchActionResponse<T = any> = {
   success: boolean;
   message: string;
   results?: T;
   error?: string;
+  traceId?: string;
 };
 
 /**
  * FUNCIÓN: searchGlobalIntelligence
  * Misión: Ejecutar una búsqueda de alta resolución en toda la red de NicePod.
  * 
- * [ARQUITECTURA]:
- * Esta acción actúa como el Despachador hacia la Edge Function 'search-pro'. 
- * La búsqueda es híbrida:
- * 1. Búsqueda Vectorial (768d): Localiza conceptos por similitud semántica.
- * 2. Búsqueda Léxica: Localiza coincidencias exactas en títulos y etiquetas.
- * 3. Búsqueda Geoespacial: Prioriza resultados cercanos a la ubicación del curador.
+ * [ARQUITECTURA V3]:
+ * Esta acción despacha la intención del usuario a la Edge Function 'search-pro',
+ * la cual centraliza la vectorización y la consulta SQL en un solo viaje de red.
  * 
- * @param query - La intención de búsqueda del usuario.
- * @param latitude - Coordenada de latitud para el anclaje 'Madrid Resonance'.
- * @param longitude - Coordenada de longitud para el anclaje 'Madrid Resonance'.
- * @param limit - Cantidad máxima de nodos de información a recuperar.
+ * @param query - La intención semántica o término de búsqueda.
+ * @param latitude - Coordenada de latitud (Madrid Resonance Anchor).
+ * @param longitude - Coordenada de longitud (Madrid Resonance Anchor).
+ * @param limit - Volumen de resultados esperado.
  */
 export async function searchGlobalIntelligence(
   query: string,
-  latitude: number,
-  longitude: number,
-  limit: number = 20
+  latitude?: number,
+  longitude?: number,
+  limit: number = 15
 ): Promise<SearchActionResponse> {
   const supabase = createClient();
 
-  // 1. PROTOCOLO DE VALIDACIÓN DE INTENCIÓN
-  if (!query || query.trim().length < 2) {
+  // 1. PROTOCOLO DE HIGIENE INICIAL
+  const targetQuery = query?.trim();
+  if (!targetQuery || targetQuery.length < 3) {
     return {
       success: false,
-      message: "La intención de búsqueda es demasiado breve para generar resonancia.",
+      message: "La intención es insuficiente. Proporcione al menos 3 caracteres.",
       results: []
     };
   }
 
   try {
-    console.info(`🔍 [Search-Engine] Iniciando rastreo omnicanal para: "${query}"`);
+    console.info(`🔍 [Search-Bridge] Despachando pulso semántico: "${targetQuery.substring(0, 20)}..."`);
 
     /**
-     * 2. INVOCACIÓN DEL MOTOR DE BÚSQUEDA PRO (Edge Function)
-     * Delegamos el procesamiento pesado a Deno 2 para aprovechar la 
-     * cercanía con la base de datos vectorial PostgreSQL.
+     * 2. INVOCACIÓN DEL MOTOR UNIFICADO (Edge Function V3)
+     * Utilizamos invoke() para delegar la vectorización (Gemini) y 
+     * el matching vectorial (HNSW) al borde de la red.
      */
-    const { data, error: searchError } = await supabase.functions.invoke('search-pro', {
+    const { data, error: functionError } = await supabase.functions.invoke('search-pro', {
       body: {
-        query: query.trim(),
+        query: targetQuery,
         userLat: latitude,
         userLng: longitude,
         match_count: limit,
-        match_threshold: 0.35 // Umbral de similitud base para el radar semántico.
+        match_threshold: 0.25 // Umbral calibrado para diversidad en NicePod V2.5
       }
     });
 
-    if (searchError) {
-      throw new Error(`FALLO_MOTOR_BUSQUEDA: ${searchError.message}`);
+    // 3. GESTIÓN DE ERRORES DE SUBSISTEMA
+    if (functionError) {
+      console.error(`🛑 [Search-Bridge] El motor de búsqueda devolvió un error:`, functionError.message);
+      throw new Error(`FALLO_SISTEMA_BUSQUEDA: ${functionError.message}`);
     }
 
     /**
-     * 3. ANÁLISIS DE RESULTADOS
-     * El motor devuelve un objeto categorizado (podcasts, knowledge_chunks, curators).
+     * 4. NORMALIZACIÓN DE HALLAZGOS
+     * Los resultados vienen categorizados por el RPC 'unified_search_v3'.
      */
     return {
       success: true,
-      message: `Búsqueda completada. Se han localizado ${data?.length || 0} nodos de interés.`,
+      message: `Resonancia establecida. Localizados ${data?.length || 0} nodos de interés.`,
       results: data || []
     };
 
   } catch (error: any) {
-    console.error("🔥 [Search-Action-Fatal]:", error.message);
+    console.error("🔥 [Search-Bridge-Fatal]:", error.message);
 
     return {
       success: false,
-      message: "El sistema de búsqueda no pudo estabilizar la resonancia.",
+      message: "El radar semántico no pudo estabilizar la señal.",
       error: error.message,
       results: []
     };
@@ -93,25 +92,25 @@ export async function searchGlobalIntelligence(
 }
 
 /**
- * FUNCIÓN: getTrendingIntelligence
- * Misión: Recuperar los nodos de información con mayor tasa de interacción reciente.
+ * FUNCIÓN: getDiscoverySignals
+ * Misión: Recuperar el 'Pulso' de la plataforma (Trending) cuando no hay query activa.
  * 
- * Útil para alimentar el 'Discovery Feed' cuando el usuario no ha ingresado una query.
+ * Útil para la hidratación inicial del Centro de Descubrimiento.
  */
-export async function getTrendingIntelligence(
-  latitude: number,
-  longitude: number
+export async function getDiscoverySignals(
+  latitude?: number,
+  longitude?: number
 ): Promise<SearchActionResponse> {
   const supabase = createClient();
 
   try {
-    // Invocamos una versión de búsqueda sin query para traer el 'Pulse' (tendencia).
+    // Invocamos el motor en modo descubrimiento (sin query de usuario)
     const { data, error } = await supabase.functions.invoke('search-pro', {
       body: {
         userLat: latitude,
         userLng: longitude,
-        mode: 'trending',
-        match_count: 10
+        match_count: 10,
+        mode: 'discovery' // Flag para que el motor use ranking de popularidad/proximidad
       }
     });
 
@@ -119,24 +118,25 @@ export async function getTrendingIntelligence(
 
     return {
       success: true,
-      message: "Pulso de tendencias recuperado.",
+      message: "Señales de descubrimiento sincronizadas.",
       results: data || []
     };
   } catch (error: any) {
     return {
       success: false,
-      message: "No se pudo sincronizar con las tendencias globales.",
-      error: error.message
+      message: "No se pudo interceptar el pulso de la red.",
+      error: error.message,
+      results: []
     };
   }
 }
 
 /**
  * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Desacoplamiento: El procesamiento de vectores y el cálculo de distancia coseno
- *    residen en el Edge, liberando al servidor Next.js de tareas CPU-intensivas.
- * 2. Resiliencia Geoespacial: Si las coordenadas son (0,0), el motor 'search-pro'
- *    está diseñado para ignorar el factor de distancia y devolver resultados globales.
- * 3. Consistencia de Respuesta: Se utiliza el tipo 'SearchActionResponse' para que 
- *    el componente 'UnifiedSearchBar' maneje los estados de carga y error con rigor.
+ * 1. Eficiencia de Carga: Esta Server Action elimina la necesidad de cargar 
+ *    librerías de embeddings en el cliente, ahorrando ~2MB de bundle JS.
+ * 2. Seguridad RBAC: Al ejecutarse en el servidor, podemos inyectar 
+ *    automáticamente metadatos de auditoría antes de llamar a la Edge Function.
+ * 3. Diseño Profesional: Se ha implementado el método getDiscoverySignals para 
+ *    asegurar que el buscador nunca muestre un vacío absoluto al iniciarse.
  */

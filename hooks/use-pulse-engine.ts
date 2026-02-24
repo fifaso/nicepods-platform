@@ -1,5 +1,5 @@
 // hooks/use-pulse-engine.ts
-// VERSIÓN: 1.0 (Pulse Engine Orchestrator - Logic Layer)
+// VERSIÓN: 2.0
 
 "use client";
 
@@ -9,35 +9,61 @@ import { PulseMatchResult } from "@/types/pulse";
 import { useCallback, useState } from "react";
 
 /**
- * usePulseEngine
- * Hook centralizado para la gestión de inteligencia proactiva NicePod.
+ * INTERFAZ: UsePulseEngineReturn
+ * Define el contrato de estado y acciones que este hook entrega a la Workstation.
  */
-export function usePulseEngine() {
+interface UsePulseEngineReturn {
+  isUpdating: boolean;
+  isScanning: boolean;
+  signals: PulseMatchResult[];
+  error: string | null;
+  updateDNA: (params: {
+    profile_text: string;
+    expertise_level?: number;
+    negative_interests?: string[];
+  }) => Promise<{ success: boolean; data?: any; error?: string }>;
+  getRadarSignals: () => Promise<{ success: boolean; signals: PulseMatchResult[]; is_fallback: boolean }>;
+  clearSignals: () => void;
+}
+
+/**
+ * HOOK: usePulseEngine
+ * El motor central para la gestión de inteligencia personalizada en NicePod V2.5.
+ */
+export function usePulseEngine(): UsePulseEngineReturn {
   const { supabase, user } = useAuth();
   const { toast } = useToast();
 
-  // --- ESTADOS DE CARGA Y DATOS ---
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [isScanning, setIsScanning] = useState(false);
+  // --- ESTADOS DE CARGA Y TELEMETRÍA ---
+  const [isUpdating, setIsUpdating] = useState<boolean>(false);
+  const [isScanning, setIsScanning] = useState<boolean>(false);
   const [signals, setSignals] = useState<PulseMatchResult[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   /**
-   * updateDNA
-   * Envía los resultados de la entrevista híbrida (Tags + Voz) para
-   * recalcular el vector de interés del usuario.
+   * ACCIÓN: updateDNA
+   * Misión: Recalcular el vector de interés (768d) del curador.
+   * 
+   * [PROCESAMIENTO]:
+   * Envía la narrativa del usuario a la Edge Function 'update-user-dna'
+   * para actualizar la tabla 'user_interest_dna' en PostgreSQL.
    */
   const updateDNA = useCallback(async (params: {
     profile_text: string;
     expertise_level?: number;
     negative_interests?: string[];
   }) => {
-    if (!user) return { success: false, error: "No authenticated user" };
+    // Verificación de Soberanía: Solo usuarios autenticados pueden mutar su ADN.
+    if (!user || !supabase) {
+      return { success: false, error: "AUTENTICACIÓN_REQUERIDA" };
+    }
 
     setIsUpdating(true);
     setError(null);
 
     try {
+      console.info("🧠 [Pulse-Engine] Sincronizando ADN Cognitivo...");
+
       const { data, error: functionError } = await supabase.functions.invoke('update-user-dna', {
         body: params
       });
@@ -46,14 +72,20 @@ export function usePulseEngine() {
 
       toast({
         title: "Sintonía Exitosa",
-        description: "Tu ADN cognitivo ha sido actualizado en la matriz.",
+        description: "Tu ADN cognitivo ha sido actualizado en la Bóveda.",
       });
 
       return { success: true, data };
+
     } catch (err: any) {
-      const msg = err.message || "Fallo al sincronizar ADN";
+      const msg = err.message || "Fallo al sincronizar ADN.";
+      console.error("🔥 [Pulse-Engine-Fatal][DNA]:", msg);
       setError(msg);
-      toast({ title: "Error de Sintonía", description: msg, variant: "destructive" });
+      toast({
+        title: "Error de Sintonía",
+        description: "No se pudo estabilizar la conexión con la matriz cognitiva.",
+        variant: "destructive"
+      });
       return { success: false, error: msg };
     } finally {
       setIsUpdating(false);
@@ -61,43 +93,54 @@ export function usePulseEngine() {
   }, [supabase, user, toast]);
 
   /**
-   * getRadarSignals
-   * Consulta el 'pulse-matcher' para obtener el Top 20 de noticias/papers
-   * personalizados para el ADN actual del usuario.
+   * ACCIÓN: getRadarSignals
+   * Misión: Interceptar señales de conocimiento fresco (noticias/papers) 
+   * que resuenen con el ADN del curador.
    */
   const getRadarSignals = useCallback(async () => {
-    if (!user) return { success: false, error: "No authenticated user" };
+    if (!user || !supabase) {
+      return { success: false, error: "IDENTIDAD_NO_VERIFICADA", signals: [], is_fallback: true };
+    }
 
     setIsScanning(true);
     setError(null);
 
     try {
+      console.info("🛰️ [Pulse-Engine] Iniciando escaneo de radar proactivo...");
+
+      // Llamada al trabajador de emparejamiento (Pulse Matcher)
       const { data, error: functionError } = await supabase.functions.invoke('pulse-matcher');
 
       if (functionError) throw new Error(functionError.message);
 
-      if (data.success) {
-        setSignals(data.signals);
+      if (data && data.success) {
+        const receivedSignals = data.signals as PulseMatchResult[];
+        setSignals(receivedSignals);
+
+        console.info(`✅ [Pulse-Engine] Escaneo finalizado. Señales captadas: ${receivedSignals.length}`);
+
         return {
           success: true,
-          signals: data.signals as PulseMatchResult[],
-          is_fallback: data.is_fallback
+          signals: receivedSignals,
+          is_fallback: data.is_fallback || false
         };
       } else {
-        throw new Error("El radar no devolvió señales válidas.");
+        throw new Error("El radar no devolvió señales válidas en este ciclo.");
       }
+
     } catch (err: any) {
-      const msg = err.message || "Fallo al interceptar señales";
+      const msg = err.message || "Fallo al interceptar señales del radar.";
+      console.error("🔥 [Pulse-Engine-Fatal][Scanner]:", msg);
       setError(msg);
-      return { success: false, error: msg };
+      return { success: false, error: msg, signals: [], is_fallback: true };
     } finally {
       setIsScanning(false);
     }
   }, [supabase, user]);
 
   /**
-   * clearSignals
-   * Limpia el búfer local de señales para forzar un nuevo escaneo.
+   * ACCIÓN: clearSignals
+   * Limpia el búfer de inteligencia local para permitir un re-escaneo limpio.
    */
   const clearSignals = useCallback(() => {
     setSignals([]);
@@ -105,14 +148,23 @@ export function usePulseEngine() {
   }, []);
 
   return {
-    // Estados
     isUpdating,
     isScanning,
     signals,
     error,
-    // Acciones
     updateDNA,
     getRadarSignals,
     clearSignals
   };
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT:
+ * 1. Independencia Semántica: Este hook no depende de la vectorización de query
+ *    del cliente (vectorize-query), ya que las Edge Functions invocadas 
+ *    realizan su propio procesamiento interno de embeddings.
+ * 2. Feedback UX: El estado 'isScanning' permite a componentes como el 
+ *    'PulseRadar' mostrar animaciones cinemáticas mientras la IA busca señales.
+ * 3. Resiliencia: Se ha implementado un manejo de errores que informa al usuario
+ *    mediante Toasts, manteniendo la transparencia técnica de la plataforma.
+ */
