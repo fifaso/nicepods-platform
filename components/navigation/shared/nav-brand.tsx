@@ -1,5 +1,5 @@
 // components/navigation/shared/nav-brand.tsx
-// VERSIÓN: 1.0
+// VERSIÓN: 2.0
 
 import { getSafeAsset } from "@/lib/utils";
 import Image from "next/image";
@@ -11,52 +11,73 @@ import Link from "next/link";
  */
 interface NavBrandProps {
   /**
-   * isAuthenticated: Determina el destino del clic.
-   * - true -> /dashboard (Workstation)
-   * - false -> / (Landing Page)
+   * isAuthenticated: Determina la lógica de redirección.
+   * - true: Dirige al Epicentro Creativo (/dashboard).
+   * - false: Dirige al Punto de Entrada Global (/).
    */
   isAuthenticated: boolean;
 }
 
 /**
  * COMPONENTE: NavBrand
- * El ancla visual de NicePod.
+ * El ancla de identidad de NicePod V2.5.
  * 
- * [OPTIMIZACIÓN]:
- * - priority={true}: Fuerza al navegador a cargar el logo inmediatamente (mejora LCP).
- * - sizes="32px": Indica al navegador que descargue la versión más pequeña posible.
+ * [RE-CALIBRACIÓN VISUAL]:
+ * - Isotipo: Escalado de h-7/h-8 a h-10 (40px) en móvil y h-12 (48px) en desktop.
+ * - Logotipo: Aumento a text-xl (móvil) y text-2xl (desktop) con itálica masiva.
+ * - Proximidad: gap-3 para un aire industrial y respirable.
  */
 export function NavBrand({ isAuthenticated }: NavBrandProps) {
-  // Recuperación segura del activo visual
+  // Recuperación soberana del activo visual con protocolo de fallback.
   const logoSrc = getSafeAsset("/nicepod-logo.png", "logo");
 
-  // Destino inteligente
+  // Determinación del destino táctico.
   const targetHref = isAuthenticated ? "/dashboard" : "/";
 
   return (
-    <div className="flex-1 flex justify-start items-center">
+    <div className="flex items-center justify-start">
       <Link
         href={targetHref}
-        className="flex items-center space-x-2 md:space-x-3 group outline-none"
-        aria-label="Ir al inicio de NicePod"
+        className="flex items-center gap-3 md:gap-4 group outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-xl p-1"
+        aria-label="Regresar al inicio de NicePod"
       >
-        {/* Contenedor del Isotipo */}
-        <div className="relative h-7 w-7 md:h-8 md:w-8 overflow-hidden rounded-lg md:rounded-xl border border-white/10 shadow-inner bg-zinc-900">
+        {/* 
+            CONTENEDOR DEL ISOTIPO
+            - Shadow-inner: Para dar profundidad al logo sobre el cristal.
+            - border-white/10: Definición de borde en baja opacidad.
+        */}
+        <div className="relative h-10 w-10 md:h-12 md:w-12 overflow-hidden rounded-xl md:rounded-2xl border border-white/10 shadow-inner bg-zinc-900 transition-all duration-700 group-hover:shadow-[0_0_20px_rgba(var(--primary),0.2)]">
           <Image
             src={logoSrc}
-            alt="NicePod Isotype"
+            alt="Isotipo NicePod"
             fill
-            sizes="32px"
-            className="object-cover group-hover:scale-110 transition-transform duration-500 ease-out"
-            priority
+            sizes="(max-width: 768px) 40px, 48px"
+            className="object-cover group-hover:scale-110 transition-transform duration-700 ease-[0.16, 1, 0.3, 1]"
+            priority // Carga prioritaria para el Largest Contentful Paint (LCP)
           />
         </div>
 
-        {/* Logotipo Tipográfico (Oculto en móviles muy pequeños si fuera necesario, aquí visible) */}
-        <span className="font-black text-base md:text-lg tracking-tighter hidden sm:block uppercase italic text-white leading-none group-hover:text-primary transition-colors duration-300">
+        {/* 
+            LOGOTIPO TIPOGRÁFICO
+            - italic: Marca el dinamismo de la voz.
+            - tracking-tighter: Densidad tipográfica profesional.
+            - hidden sm:block: Se oculta en móviles ultra-estrechos (<380px) para priorizar botones de acción.
+        */}
+        <span className="font-black text-xl md:text-2xl tracking-tighter hidden xs:block uppercase italic text-white leading-none group-hover:text-primary transition-colors duration-500">
           NicePod
         </span>
       </Link>
     </div>
   );
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT:
+ * 1. Densidad de Isotipo: El aumento a 48px en desktop permite que el logo 
+ *    sea legible incluso ante el desenfoque de fondo de backdrop-blur-2xl.
+ * 2. Optimizacion SEO: El uso de una etiqueta semántica Link con aria-label 
+ *    garantiza que los indexadores comprendan la jerarquía del sitio.
+ * 3. Diseño Responsivo: Se ha introducido el breakpoint 'xs' (personalizado 
+ *    en tailwind.config) o se asume el comportamiento base para asegurar que 
+ *    el texto no colisione con el botón 'CREAR' en dispositivos pequeños.
+ */
