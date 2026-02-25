@@ -1,5 +1,5 @@
 // components/ui/unified-search-bar.tsx
-// VERSIÓN: 3.0
+// VERSIÓN: 3.1
 
 "use client";
 
@@ -44,11 +44,6 @@ export interface UnifiedSearchBarProps {
   onClear?: () => void;
   latitude?: number;
   longitude?: number;
-  /**
-   * variant: 
-   * - 'default': Barra de texto simulada (ideal para la biblioteca).
-   * - 'console': Icono de Lupa minimalista (ideal para Dashboard/Mapa).
-   */
   variant?: 'default' | 'console';
   className?: string;
 }
@@ -68,7 +63,7 @@ export function UnifiedSearchBar({
   className
 }: UnifiedSearchBarProps) {
   
-  // --- ESTADOS DE GESTIÓN DEL PORTAL (THE VOID) ---
+  // --- ESTADOS DE GESTIÓN DEL PORTAL ---
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const portalRef = useRef<HTMLDivElement>(null);
 
@@ -81,22 +76,19 @@ export function UnifiedSearchBar({
     history,
     clearRadar,
     performSearch,
-    removeTermFromHistory // <--- Invocación de la nueva función de curaduría de historial
+    removeTermFromHistory
   } = useSearchRadar({ latitude, longitude, limit: 30 });
 
-  // --- SINCRONIZACIÓN DE ESTADOS HACIA AFUERA ---
+  // --- SINCRONIZACIÓN DE ESTADOS ---
   useEffect(() => {
     if (onResults) onResults(results);
-  }, [results, onResults]);
+  },[results, onResults]);
 
   useEffect(() => {
     if (onLoading) onLoading(isLoading);
-  }, [isLoading, onLoading]);
+  },[isLoading, onLoading]);
 
-  /**
-   * PROTOCOLO DE AISLAMIENTO: Scroll Lock
-   * Evita que el usuario mueva el Dashboard mientras navega por los resultados.
-   */
+  // --- SCROLL LOCK ---
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
@@ -108,10 +100,6 @@ export function UnifiedSearchBar({
     };
   }, [isOpen]);
 
-  /**
-   * ACCIÓN: handleToggle
-   * Cierre y purga atómica del portal.
-   */
   const handleToggle = useCallback(() => {
     setIsOpen((prev) => {
       const nextState = !prev;
@@ -123,19 +111,12 @@ export function UnifiedSearchBar({
     });
   }, [clearRadar, onClear]);
 
-  /**
-   * ACCIÓN: handleTriggerSearch
-   * El Único Gatillo de Fuego (Command-Driven).
-   */
   const handleTriggerSearch = () => {
     if (query.trim().length >= 3) {
       performSearch(query);
     }
   };
 
-  /**
-   * GESTIÓN DE TECLADO INTERNO
-   */
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Escape") handleToggle();
     if (e.key === "Enter") {
@@ -144,60 +125,49 @@ export function UnifiedSearchBar({
     }
   };
 
-  /**
-   * GESTIÓN DE TECLADO GLOBAL (Atajo Ninja Cmd+K)
-   */
   useEffect(() => {
     const handleGlobalKeys = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
         setIsOpen(true);
       }
+      if (e.key === "Escape" && isOpen) handleToggle();
     };
     window.addEventListener("keydown", handleGlobalKeys);
     return () => window.removeEventListener("keydown", handleGlobalKeys);
-  }, []);
+  }, [isOpen, handleToggle]);
 
   return (
-    <>
-      {/* 
-          I. ZONA DE DISPARO (THE TRIGGER) 
-          Viven en el flujo normal del DOM.
-      */}
-      <div className={cn("relative", className)}>
-        {!isOpen && (
-          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
-            {variant === 'console' ? (
-              // Variante Dashboard/Mapa: Un botón discreto y poderoso.
-              <Button
-                onClick={() => setIsOpen(true)}
-                variant="outline"
-                className="h-10 w-10 md:h-12 md:w-12 rounded-xl md:rounded-[1.25rem] bg-black/40 border-white/10 hover:bg-primary/20 hover:border-primary/40 transition-all shadow-xl group"
-                aria-label="Desplegar terminal de conocimiento"
-              >
-                <Search className="h-4 w-4 md:h-5 md:w-5 text-primary/80 group-hover:text-primary group-hover:scale-110 transition-transform" />
-              </Button>
-            ) : (
-              // Variante Biblioteca: Un falso input que invita a hacer clic.
-              <div 
-                onClick={() => setIsOpen(true)}
-                className="relative flex items-center bg-white/[0.03] border border-white/10 rounded-2xl h-12 px-5 cursor-pointer group hover:border-primary/30 transition-all shadow-inner"
-              >
-                <Search className="h-4 w-4 text-zinc-500 mr-3 group-hover:text-primary transition-colors" />
-                <span className="text-sm text-zinc-600 font-medium tracking-tight group-hover:text-zinc-400 transition-colors">Buscar conocimiento...</span>
-                <div className="ml-auto hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/5 border border-white/10 text-[8px] font-black text-zinc-700 uppercase tracking-widest">
-                  <Command size={8} /> K
-                </div>
+    <div className={cn("relative z-[60]", className)}>
+      
+      {/* I. ZONA DE DISPARO */}
+      {!isOpen && (
+        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
+          {variant === 'console' ? (
+            <Button
+              onClick={() => setIsOpen(true)}
+              variant="outline"
+              className="h-12 w-12 rounded-2xl bg-black/40 border-white/10 hover:bg-primary/20 hover:border-primary/40 transition-all shadow-xl group"
+              aria-label="Desplegar terminal de conocimiento"
+            >
+              <Search className="h-5 w-5 text-primary group-hover:scale-110 transition-transform" />
+            </Button>
+          ) : (
+            <div 
+              onClick={() => setIsOpen(true)}
+              className="relative flex items-center bg-white/[0.03] border border-white/10 rounded-2xl h-12 px-5 cursor-pointer group hover:border-primary/30 transition-all shadow-inner"
+            >
+              <Search className="h-4 w-4 text-zinc-500 mr-3 group-hover:text-primary transition-colors" />
+              <span className="text-sm text-zinc-600 font-medium tracking-tight group-hover:text-zinc-400 transition-colors">Buscar conocimiento...</span>
+              <div className="ml-auto hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/5 border border-white/10 text-[8px] font-black text-zinc-700 uppercase tracking-widest">
+                <Command size={8} /> K
               </div>
-            )}
-          </motion.div>
-        )}
-      </div>
+            </div>
+          )}
+        </motion.div>
+      )}
 
-      {/* 
-          II. PORTAL DE INMERSIÓN (THE VOID)
-          Rompe el flujo del DOM y se posa sobre toda la pantalla.
-      */}
+      {/* II. PORTAL DE INMERSIÓN */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -205,14 +175,13 @@ export function UnifiedSearchBar({
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.98, filter: "blur(10px)" }}
-            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }} // Curva de aceleración industrial
+            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
             className="fixed inset-0 z-[100] bg-[#020202]/95 backdrop-blur-xl flex flex-col selection:bg-primary/30"
           >
             
-            {/* ZONA 1: COMMAND HEADER (Optimizado para móvil) */}
+            {/* ZONA 1: COMMAND HEADER */}
             <div className="w-full max-w-4xl mx-auto flex items-center gap-3 md:gap-6 pt-12 md:pt-16 pb-6 px-4 md:px-0">
               <div className="relative flex-1">
-                {/* Gatillo de búsqueda integrado */}
                 <button 
                   onClick={handleTriggerSearch}
                   className="absolute left-4 md:left-6 top-1/2 -translate-y-1/2 z-20 outline-none"
@@ -235,7 +204,6 @@ export function UnifiedSearchBar({
                   )}
                 />
                 
-                {/* Tecla virtual de escape (Solo visible en Desktop) */}
                 <div className="absolute right-6 top-1/2 -translate-y-1/2 hidden md:flex items-center gap-4">
                   {isLoading && <Loader2 className="h-5 w-5 animate-spin text-primary" />}
                   <kbd className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[9px] font-black text-white/30 uppercase tracking-widest">
@@ -244,7 +212,6 @@ export function UnifiedSearchBar({
                 </div>
               </div>
               
-              {/* Botón de Cierre Táctico */}
               <Button 
                 variant="ghost" 
                 onClick={handleToggle}
@@ -255,12 +222,12 @@ export function UnifiedSearchBar({
               </Button>
             </div>
 
-            {/* ZONA 2: CUERPO DEL PORTAL (Historial vs Resultados) */}
+            {/* ZONA 2: CUERPO DEL PORTAL */}
             <div className="flex-1 w-full max-w-4xl mx-auto overflow-hidden flex flex-col px-4 md:px-0">
               
               <AnimatePresence mode="wait">
                 {query.length === 0 ? (
-                  /* --- ESCENARIO A: ECOS DEL PASADO (HISTORIAL) --- */
+                  /* --- ESCENARIO A: HISTORIAL --- */
                   <motion.div
                     key="history"
                     initial={{ opacity: 0, y: 10 }}
@@ -294,7 +261,6 @@ export function UnifiedSearchBar({
                               </span>
                               <ArrowUpRight size={18} className="text-zinc-700 group-hover:text-primary transition-all" />
                             </button>
-                            {/* Botón de purga individual del historial */}
                             <button 
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -315,7 +281,7 @@ export function UnifiedSearchBar({
                     )}
                   </motion.div>
                 ) : (
-                  /* --- ESCENARIO B: MALLA DE IMPACTOS HÍBRIDOS --- */
+                  /* --- ESCENARIO B: MALLA DE IMPACTOS --- */
                   <motion.div
                     key="results"
                     initial={{ opacity: 0 }}
@@ -330,7 +296,8 @@ export function UnifiedSearchBar({
                       </div>
                     ) : !isLoading && (
                       <div className="flex flex-col items-center justify-center py-32 opacity-10">
-                        <Zap size={64} md:size={80} className="mb-6 md:mb-8 animate-pulse" />
+                        {/* [FIX]: Se elimina el atributo md:size y se usa Tailwind para responsividad */}
+                        <Zap className="h-16 w-16 md:h-20 md:w-20 mb-6 md:mb-8 animate-pulse" />
                         <p className="text-lg md:text-2xl font-black uppercase tracking-[0.4em]">Frecuencia Inexistente</p>
                       </div>
                     )}
@@ -340,7 +307,7 @@ export function UnifiedSearchBar({
 
             </div>
 
-            {/* ZONA 3: FOOTER DE ESTADO (Desaparece en móviles muy pequeños para dar espacio) */}
+            {/* ZONA 3: FOOTER */}
             <div className="hidden md:flex w-full max-w-4xl mx-auto pt-6 border-t border-white/5 items-center justify-between mt-auto">
               <div className="flex items-center gap-5">
                 <div className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-emerald-500/5 border border-emerald-500/10 shadow-inner">
@@ -358,10 +325,6 @@ export function UnifiedSearchBar({
   );
 }
 
-/**
- * SUB-COMPONENTE: SearchResultItem
- * Misión: Renderizar cada impacto semántico con un diseño compacto en móvil y expansivo en desktop.
- */
 function SearchResultItem({ result, onClick }: { result: SearchResult, onClick: () => void }) {
   const href = 
     result.result_type === 'podcast' ? `/podcast/${result.id}` : 
@@ -373,7 +336,6 @@ function SearchResultItem({ result, onClick }: { result: SearchResult, onClick: 
     <Link href={href} onClick={onClick} className="group outline-none block">
       <div className="p-4 md:p-6 rounded-2xl md:rounded-[2rem] bg-white/[0.02] border border-white/5 hover:border-primary/40 hover:bg-white/[0.04] transition-all flex items-center gap-4 md:gap-6 shadow-xl">
         
-        {/* AVATAR / ICONO DE IMPACTO */}
         <div className="h-14 w-14 md:h-20 md:w-20 rounded-xl md:rounded-2xl bg-zinc-900 overflow-hidden flex-shrink-0 relative border border-white/5 shadow-inner">
           {result.image_url ? (
             <Image 
@@ -399,7 +361,6 @@ function SearchResultItem({ result, onClick }: { result: SearchResult, onClick: 
           )}
         </div>
 
-        {/* METADATOS Y RESONANCIA */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 md:gap-4 mb-1 md:mb-2">
             <div className="flex items-center gap-1.5 md:gap-2">
@@ -433,15 +394,3 @@ function SearchResultItem({ result, onClick }: { result: SearchResult, onClick: 
     </Link>
   );
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Independencia del DOM: Al usar 'fixed inset-0', el portal se libera del 
- *    flujo del Dashboard. El fondo bg-[#020202]/95 asegura que la interfaz base
- *    quede totalmente oculta en móviles, resolviendo el problema de legibilidad.
- * 2. Responsive Tipográfico: Se ajustaron las clases (text-base md:text-3xl) en 
- *    el input principal para que, al aparecer el teclado táctil, el contenido 
- *    no se asfixie.
- * 3. Curaduría UX: Se inyectó la función 'removeTermFromHistory' en el historial,
- *    permitiendo al usuario purgar búsquedas no deseadas directamente desde el UI.
- */
