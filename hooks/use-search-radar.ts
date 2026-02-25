@@ -1,5 +1,5 @@
 // hooks/use-search-radar.ts
-// VERSIÓN: 3.0
+// VERSIÓN: 3.5
 
 "use client";
 
@@ -8,8 +8,9 @@ import { searchGlobalIntelligence, SearchActionResponse } from "@/actions/search
 
 /**
  * TIPO: SearchResult
- * Define el contrato de datos inquebrantable para NicePod V2.5.
- * Proporciona una estructura unificada para Podcasts, Usuarios, Bóveda y Lugares.
+ * Define la estructura unificada de los nodos semánticos que devuelve el RPC.
+ * Garantiza que la interfaz pueda identificar si es un podcast, un usuario, un 
+ * hecho atómico o un lugar físico (Madrid Resonance).
  */
 export type SearchResult = {
   result_type: 'podcast' | 'user' | 'vault_chunk' | 'place';
@@ -26,59 +27,59 @@ export type SearchResult = {
     reputation?: number;
     category?: string;
     source_url?: string;
-    lat?: number; // Coordenada latitud para saltos al mapa
-    lng?: number; // Coordenada longitud para saltos al mapa
+    lat?: number;
+    lng?: number;
   };
 };
 
 /**
  * INTERFAZ: UseSearchRadarOptions
- * Configuración estratégica para el motor de búsqueda según el contexto (Mapa o Dashboard).
+ * Configura los parámetros de entrada del radar según el contexto donde se invoque.
  */
 interface UseSearchRadarOptions {
   limit?: number;
   latitude?: number;
   longitude?: number;
-  threshold?: number;
 }
 
 /**
  * HOOK: useSearchRadar
- * El orquestador de inteligencia reactiva para NicePod V2.5.
+ * El núcleo reactivo del descubrimiento en NicePod V2.5.
  * 
- * Responsabilidades:
- * 1. Gestionar la intención (query) y los hallazgos (results).
- * 2. Administrar el historial de resonancia persistente (v4).
- * 3. Ejecutar el protocolo de búsqueda única (Manual Trigger).
+ * [CARACTERÍSTICAS V3.5]:
+ * 1. Disparo Manual: No hay auto-search; protege la cuota de la API.
+ * 2. Persistencia V4: Soporta y purga el historial de búsquedas.
+ * 3. Auto-Saneamiento: La función clearRadar purga el input para evitar estados zombis.
  */
 export function useSearchRadar(options: UseSearchRadarOptions = {}) {
   const { 
     limit = 30, 
     latitude, 
-    longitude,
-    threshold = 0.18 // Sensibilidad optimizada para fase Alpha
+    longitude 
   } = options;
 
-  // --- ESTADOS DE CONTROL DE RADAR ---
+  // --- ESTADOS DE LA CONSOLA ---
   const [query, setQuery] = useState<string>("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // --- ESTADO DE LA MEMORIA (HISTORIAL) ---
   const [history, setHistory] = useState<string[]>([]);
 
   /**
-   * PROTOCOLO: loadRadarHistory
-   * Misión: Recuperar la memoria local del curador desde el almacenamiento físico.
+   * PROTOCOLO INICIAL: loadRadarHistory
+   * Recupera el historial confirmado desde el almacenamiento local del dispositivo.
    */
   useEffect(() => {
     const savedHistory = localStorage.getItem("nicepod_radar_history_v4");
     if (savedHistory) {
       try {
         const parsed = JSON.parse(savedHistory);
-        // Mantenemos solo los 6 ecos más recientes para una UX de alta densidad.
+        // Restringimos a 6 elementos para evitar que el dropdown sature la pantalla móvil.
         setHistory(Array.isArray(parsed) ? parsed.slice(0, 6) : []);
       } catch (err) {
-        console.warn("⚠️ [SearchRadar] Error en memoria local. Reiniciando historial.");
+        console.warn("⚠️ [SearchRadar] Historial local corrupto. Purgando sector de memoria.");
         localStorage.removeItem("nicepod_radar_history_v4");
       }
     }
@@ -86,14 +87,14 @@ export function useSearchRadar(options: UseSearchRadarOptions = {}) {
 
   /**
    * ACCIÓN: saveToHistory
-   * Misión: Registrar un término de búsqueda de forma atómica y única.
+   * Registra una búsqueda exitosa, asegurando que sea única y prioritaria.
    */
   const saveToHistory = useCallback((term: string) => {
     const cleanTerm = term.trim();
     if (cleanTerm.length < 3) return;
 
     setHistory((prev) => {
-      // Purgamos duplicados y priorizamos la entrada más reciente.
+      // Filtramos cualquier duplicado existente antes de insertarlo al principio.
       const filtered = prev.filter((item) => item.toLowerCase() !== cleanTerm.toLowerCase());
       const newHistory = [cleanTerm, ...filtered].slice(0, 6);
       localStorage.setItem("nicepod_radar_history_v4", JSON.stringify(newHistory));
@@ -103,18 +104,14 @@ export function useSearchRadar(options: UseSearchRadarOptions = {}) {
 
   /**
    * ACCIÓN CORE: performSearch
-   * Misión: Ejecutar la extracción de inteligencia desde la Bóveda Global.
-   * 
-   * [HANDSHAKE INDUSTRIAL]:
-   * Invoca a la Server Action 'searchGlobalIntelligence', delegando la 
-   * vectorización a la Edge Function protegida por Arcjet.
+   * Invoca el motor de inteligencia en el Edge (Deno) mediante el Server Action.
    */
   const performSearch = useCallback(async (searchTerm: string) => {
     const target = searchTerm.trim();
     
-    // Validación de Potencia Mínima para activar el motor.
+    // Barrera 1: No procesar intenciones vacías o demasiado cortas.
     if (target.length < 3) {
-      setError("Se requieren al menos 3 caracteres.");
+      setError("Se requieren al menos 3 caracteres para iniciar el radar.");
       return;
     }
 
@@ -122,7 +119,7 @@ export function useSearchRadar(options: UseSearchRadarOptions = {}) {
     setError(null);
 
     try {
-      console.info(`🔍 [SearchRadar] Iniciando escaneo de radar para: "${target}"`);
+      console.info(`🔍 [SearchRadar] Ejecutando pulso para intención: "${target}"`);
 
       const response: SearchActionResponse<SearchResult[]> = await searchGlobalIntelligence(
         target,
@@ -132,25 +129,17 @@ export function useSearchRadar(options: UseSearchRadarOptions = {}) {
       );
 
       if (response.success) {
-        // Normalizamos los resultados para asegurar que la UI reciba datos consistentes.
-        const normalizedResults = (response.results || []).map(hit => ({
-          ...hit,
-          similarity: hit.similarity || 0,
-          result_type: hit.result_type || 'podcast'
-        }));
-
-        setResults(normalizedResults);
+        setResults(response.results || []);
         
-        // Si el impacto es exitoso, registramos en el historial.
+        // Si el motor devuelve éxito, consideramos la búsqueda válida para el historial.
         saveToHistory(target);
       } else {
-        // Reporte de fallo de subsistema.
-        setError(response.message || "Señal de radar inestable.");
+        setError(response.message || "Fallo en la estabilización de la señal de radar.");
         setResults([]);
       }
     } catch (err: any) {
       console.error("🔥 [SearchRadar-Fatal]:", err.message);
-      setError("Fallo crítico de comunicación con la Bóveda.");
+      setError("Error crítico de red. La Bóveda no responde.");
       setResults([]);
     } finally {
       setIsLoading(false);
@@ -158,8 +147,10 @@ export function useSearchRadar(options: UseSearchRadarOptions = {}) {
   }, [latitude, longitude, limit, saveToHistory]);
 
   /**
-   * ACCIÓN: clearRadar
-   * Misión: Restablecer la terminal a su estado original de silencio semántico.
+   * ACCIÓN DE SANEAMIENTO: clearRadar
+   * Purga absoluta de la sesión de búsqueda actual.
+   * [UX]: Vital para asegurar que la próxima vez que el usuario abra la lupa,
+   * encuentre un lienzo en blanco (Historial) y no su búsqueda anterior a medias.
    */
   const clearRadar = useCallback(() => {
     setQuery("");
@@ -169,8 +160,8 @@ export function useSearchRadar(options: UseSearchRadarOptions = {}) {
   }, []);
 
   /**
-   * ACCIÓN: removeTermFromHistory
-   * Permite al usuario curar su propia memoria de búsqueda.
+   * ACCIÓN DE CURADURÍA: removeTermFromHistory
+   * Permite al usuario borrar elementos específicos de su memoria de búsqueda.
    */
   const removeTermFromHistory = useCallback((term: string) => {
     setHistory((prev) => {
@@ -181,13 +172,13 @@ export function useSearchRadar(options: UseSearchRadarOptions = {}) {
   }, []);
 
   return {
-    // ESTADOS
+    // Estados Reactivos
     query,
     results,
     isLoading,
     error,
     history,
-    // ACCIONES
+    // Acciones de Control
     setQuery,
     performSearch,
     clearRadar,
@@ -198,11 +189,10 @@ export function useSearchRadar(options: UseSearchRadarOptions = {}) {
 
 /**
  * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Protocolo de Comando: Al eliminar el autodisparo (debounce), convertimos
- *    el buscador en una herramienta técnica predecible. La intención solo se 
- *    procesa bajo la orden directa del usuario.
- * 2. Resiliencia de Datos: La versión v4 del historial asegura que los ecos 
- *    antiguos no colisionen con los nuevos tipos de datos multimodales.
- * 3. Diseño Profesional: Se expone 'removeTermFromHistory' para permitir una
- *    curaduría manual de la consola, típica de entornos Workstation.
+ * 1. Independencia Total: Al eliminar el Debounce (temporizador automático), 
+ *    el hook se vuelve predecible. La función performSearch solo corre cuando 
+ *    la interfaz se lo ordena explícitamente (Enter / Click).
+ * 2. Limpieza Garantizada: La función clearRadar garantiza que el estado de
+ *    la consola 'The Void' se resetee, ofreciendo una experiencia inmaculada
+ *    cada vez que el usuario acciona el trigger.
  */
