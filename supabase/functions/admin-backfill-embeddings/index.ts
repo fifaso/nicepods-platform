@@ -1,76 +1,98 @@
 // supabase/functions/admin-backfill-embeddings/index.ts
-// VERSIÓN: 1.0 (Admin Tool: Regenerate All Library Intelligence)
+// VERSIÓN: 1.0 (Retroactive Vectorizer)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { guard } from "../_shared/guard.ts"; 
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
+import { cleanTextForSpeech, generateEmbedding } from "../_shared/ai.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
-const handler = async (request: Request): Promise<Response> => {
-  // Solo POST
-  if (request.method !== 'POST') return new Response('Method Not Allowed', { status: 405 });
+const supabaseAdmin = createClient(
+  Deno.env.get("SUPABASE_URL") ?? "",
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+);
 
-  const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-  const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  
-  // Cliente con permisos de Dios
-  const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+function extractScript(input: any): string {
+  if (!input) return "";
+  if (typeof input === 'object') return input.script_plain || input.script_body || "";
+  try {
+    const parsed = typeof input === 'string' ? JSON.parse(input) : input;
+    return parsed.script_plain || parsed.script_body || "";
+  } catch { return String(input); }
+}
 
-  console.log("🚀 Iniciando Backfill de Embeddings...");
+serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
-  // 1. Obtener todos los podcasts PUBLICADOS
-  // (No gastamos dinero en borradores o fallidos)
-  const { data: podcasts, error } = await supabaseAdmin
-    .from('micro_pods')
-    .select('id, title')
-    .eq('status', 'published');
+  try {
+    // 1. Identificar Podcasts Huérfanos (Existen en micro_pods pero no en embeddings)
+    const { data: orphans, error: fetchError } = await supabaseAdmin
+      .from('micro_pods')
+      .select('id, title, script_text')
+      .eq('status', 'published') // Solo procesamos publicados para no gastar en borradores
+      .not('script_text', 'is', null); // Deben tener guion
 
-  if (error) throw error;
-  if (!podcasts || podcasts.length === 0) return new Response(JSON.stringify({ message: "No hay podcasts para procesar" }), { headers: corsHeaders });
+    if (fetchError) throw fetchError;
 
-  console.log(`Encontrados ${podcasts.length} podcasts para vectorizar.`);
+    // Filtramos manualmente los que ya tienen embedding (por si la query SQL falla en el anti-join)
+    // Nota: Para grandes volúmenes, esto debería ser un anti-join SQL, pero para <1000 es seguro en memoria.
+    const { data: existing } = await supabaseAdmin.from('podcast_embeddings').select('podcast_id');
+    const existingIds = new Set(existing?.map(e => e.podcast_id));
 
-  // 2. Disparar vectorización individual (Batching)
-  // Lo hacemos invocando la función 'generate-embedding' para cada uno.
-  // Usamos Promise.all con un límite de concurrencia simple para no saturar a Google.
-  
-  let successCount = 0;
-  let failCount = 0;
+    const targets = orphans?.filter(p => !existingIds.has(p.id)) || [];
 
-  // Procesamos en lotes de 5 para ser amables con el Rate Limit de la API
-  const BATCH_SIZE = 5;
-  
-  for (let i = 0; i < podcasts.length; i += BATCH_SIZE) {
-    const batch = podcasts.slice(i, i + BATCH_SIZE);
-    
-    const promises = batch.map(async (pod) => {
-        try {
-            console.log(`--> Procesando: ${pod.id} - ${pod.title}`);
-            const { error: invokeError } = await supabaseAdmin.functions.invoke('generate-embedding', {
-                body: { podcast_id: pod.id }
-            });
-            
-            if (invokeError) throw invokeError;
-            return true;
-        } catch (e) {
-            console.error(`X Fallo en ID ${pod.id}:`, e);
-            return false;
+    console.log(`🧠 [Backfill] Encontrados ${targets.length} podcasts sin vector.`);
+
+    let processed = 0;
+    const errors = [];
+
+    // 2. Procesamiento por Lotes (Batch Processing)
+    for (const pod of targets) {
+      try {
+        const plainText = extractScript(pod.script_text);
+        const cleanText = cleanTextForSpeech(plainText);
+
+        if (cleanText.length < 50) {
+          console.warn(`⚠️ [Backfill] Pod #${pod.id} tiene guion vacío. Saltando.`);
+          continue;
         }
+
+        // Vectorización
+        const embeddingContext = `${pod.title} ${cleanText}`.substring(0, 15000);
+        const embeddingValues = await generateEmbedding(embeddingContext);
+
+        // Persistencia
+        const { error: insertError } = await supabaseAdmin
+          .from('podcast_embeddings')
+          .upsert({
+            podcast_id: pod.id,
+            content: cleanText.substring(0, 1000),
+            embedding: embeddingValues
+          });
+
+        if (insertError) throw insertError;
+        processed++;
+        console.log(`✅ [Backfill] Pod #${pod.id} vectorizado (${processed}/${targets.length})`);
+
+      } catch (err: any) {
+        console.error(`🔥 [Backfill] Error en Pod #${pod.id}:`, err.message);
+        errors.push({ id: pod.id, error: err.message });
+      }
+    }
+
+    return new Response(JSON.stringify({
+      success: true,
+      processed,
+      total_targets: targets.length,
+      errors
+    }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200
     });
 
-    const results = await Promise.all(promises);
-    successCount += results.filter(r => r).length;
-    failCount += results.filter(r => !r).length;
+  } catch (error: any) {
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
   }
-
-  return new Response(
-    JSON.stringify({ 
-        success: true, 
-        message: `Proceso finalizado.`, 
-        stats: { total: podcasts.length, processed: successCount, failed: failCount } 
-    }),
-    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-  );
-};
-
-serve(guard(handler));
+});

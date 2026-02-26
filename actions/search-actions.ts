@@ -36,7 +36,7 @@ export async function searchGlobalIntelligence(
   query: string,
   latitude?: number,
   longitude?: number,
-  limit: number = 20
+  limit: number = 8
 ): Promise<SearchActionResponse> {
   const supabase = createClient();
 
@@ -55,7 +55,7 @@ export async function searchGlobalIntelligence(
     // 2. RECUPERACIÓN DE CREDENCIAL MAESTRA
     // Esta llave debe estar configurada en Vercel (Environment Variables).
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    
+
     if (!serviceRoleKey) {
       console.error("🔥 [Search-Bridge] CRITICAL ERROR: SUPABASE_SERVICE_ROLE_KEY no está definida en el entorno del servidor.");
       throw new Error("Error de configuración de infraestructura. Contacte al administrador.");
@@ -74,7 +74,7 @@ export async function searchGlobalIntelligence(
         userLat: latitude || null, // Normalización explícita para evitar 'undefined' en JSON
         userLng: longitude || null,
         match_count: limit,
-        match_threshold: 0.18, // Umbral calibrado para alta sensibilidad
+        match_threshold: 0.5, // Umbral calibrado para alta sensibilidad
         mode: 'search'
       },
       // [FIX CRÍTICO]: Inyección manual de la llave maestra
@@ -129,7 +129,7 @@ export async function getDiscoverySignals(
 
   try {
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    
+
     if (!serviceRoleKey) {
       throw new Error("Service Key Missing");
     }
