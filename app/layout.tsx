@@ -1,23 +1,15 @@
 // app/layout.tsx
-// VERSIÓN: 20.3 (NicePod Core Identity - Clean Console & Atomic Sync Edition)
-// Misión: Orquestar el núcleo global eliminando advertencias de consola y pestañeos de hidratación.
-// [RESOLUCIÓN]: Purga de metadatos duplicados (Apple Deprecation) y optimización de cadena de proveedores.
+// VERSIÓN: 21.0
 
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import type React from "react";
 
-/**
- * --- CAPA 0: CIMIENTOS VISUALES ---
- * Importamos los estilos de Mapbox y los globales en la raíz.
- * El CSS de Mapbox es crítico para evitar el 'Layout Shift' del motor geográfico.
- */
+// --- CAPA 0: CIMIENTOS VISUALES (ESTILOS CRÍTICOS) ---
 import "mapbox-gl/dist/mapbox-gl.css";
 import "./globals.css";
 
-/**
- * --- INFRAESTRUCTURA DE COMPONENTES ---
- */
+// --- INFRAESTRUCTURA DE COMPONENTES Y SERVICIOS ---
 import { ErrorBoundary } from "@/components/error-boundary";
 import { CSPostHogProvider } from '@/components/providers/posthog-provider';
 import { PwaLifecycle } from "@/components/pwa-lifecycle";
@@ -28,20 +20,20 @@ import { Tables } from "@/types/database.types";
 
 /**
  * FUENTE PRINCIPAL: Inter
- * 'display: swap' asegura que el texto sea visible mientras se carga la fuente,
- * cumpliendo con el protocolo de accesibilidad de NicePod.
+ * Optimizada con display swap para priorizar la visibilidad del texto técnico.
  */
 const inter = Inter({
   subsets: ["latin"],
-  display: "swap"
+  display: "swap",
+  variable: "--font-inter",
 });
 
 /**
- * VIEWPORT API: Configuración nativa de visualización.
- * [RESOLUCIÓN]: Sustituimos el tag manual de Apple por la API de Next.js para limpiar la consola.
+ * VIEWPORT API: Configuración de hardware de visualización.
+ * Bloqueamos el escalado manual para garantizar la integridad de la Workstation.
  */
 export const viewport: Viewport = {
-  themeColor: "#111827",
+  themeColor: "#020202",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -50,13 +42,12 @@ export const viewport: Viewport = {
 };
 
 /**
- * METADATA API: Identidad Soberana Digital.
- * [FIX]: Se ha removido cualquier meta tag manual del <head> a favor de este objeto.
- * 'appleWebApp' reemplaza de forma segura a 'apple-mobile-web-app-capable'.
+ * METADATA API: Identidad Digital Soberana.
+ * Centralizamos el branding y eliminamos las etiquetas manuales del <head>.
  */
 export const metadata: Metadata = {
   title: "NicePod | Witness, Not Diarist",
-  description: "Workstation de inteligencia personal y memoria urbana. Forja sabiduría en audio.",
+  description: "Workstation de inteligencia industrial y memoria urbana. Forja sabiduría en audio.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -75,7 +66,10 @@ export const metadata: Metadata = {
 };
 
 /**
- * RootLayout: El Gran Orquestador Síncrono de NicePod V2.5.
+ * RootLayout: El Gran Orquestador Síncrono.
+ * 
+ * Este componente es el primer código que se ejecuta en el servidor.
+ * Su diseño jerárquico asegura que ninguna capa superior bloquee a la inferior.
  */
 export default async function RootLayout({
   children
@@ -83,20 +77,18 @@ export default async function RootLayout({
   children: React.ReactNode
 }) {
   /**
-   * 1. PROTOCOLO DE IDENTIDAD ATÓMICA (SSR)
-   * Recuperamos la identidad completa en el servidor (T0).
-   * Esto garantiza que el cliente nazca con la sesión y el perfil hidratados.
+   * 1. PROTOCOLO DE IDENTIDAD ATÓMICA (SSR - T0)
+   * Recuperamos la sesión y el perfil en el metal del servidor.
+   * Al inyectarlos en el AuthProvider, el cliente nace con la verdad establecida.
    */
   const supabase = createClient();
-
-  // Realizamos el handshake de seguridad en el servidor
   const { data: { user } } = await supabase.auth.getUser();
 
   let initialSession = null;
   let initialProfile: Tables<'profiles'> | null = null;
 
   if (user) {
-    // Si el usuario existe, recuperamos sesión y perfil en paralelo para optimizar TTFB
+    // Cosecha concurrente para minimizar latencia de carga inicial.
     const [sessionRes, profileRes] = await Promise.all([
       supabase.auth.getSession(),
       supabase.from('profiles').select('*').eq('id', user.id).single()
@@ -107,15 +99,12 @@ export default async function RootLayout({
   }
 
   return (
-    /**
-     * suppressHydrationWarning: Necesario para que ThemeProvider pueda inyectar 
-     * clases en el <html> basándose en localStorage sin alertas de React.
-     */
-    <html lang="es" suppressHydrationWarning>
+    <html lang="es" suppressHydrationWarning className="dark">
       <head>
         {/* 
-            SCRIPT ANTI-PESTAÑEO DE TEMA:
-            Inyecta la clase .dark antes de que React despierte, matando el flash blanco.
+            SCRIPT DE PROTECCIÓN LUMÍNICA:
+            Inyecta el estado de tema antes de que el navegador procese el CSS de React.
+            Esto aniquila el flash blanco en el 100% de las cargas.
         */}
         <script
           dangerouslySetInnerHTML={{
@@ -138,22 +127,19 @@ export default async function RootLayout({
         />
       </head>
       <body
-        className={`${inter.className} min-h-screen bg-background font-sans antialiased selection:bg-primary/30`}
+        className={`${inter.className} min-h-screen bg-[#020202] font-sans antialiased selection:bg-primary/30`}
         suppressHydrationWarning
       >
-        {/* CAPA 1: Telemetría Global (Analytics) */}
+        {/* CAPA 1: Telemetría Global */}
         <CSPostHogProvider>
 
-          {/* CAPA 2: Ciclo de Vida PWA (Registro Único) */}
+          {/* CAPA 2: Ciclo de Vida PWA (Registro de Service Worker Único) */}
           <PwaLifecycle />
 
-          {/* CAPA 3: Red de Seguridad UI */}
+          {/* CAPA 3: Centinela de Fallos UI */}
           <ErrorBoundary>
 
-            {/* CAPA 4: Motor de Atmósfera Aurora
-                disableTransitionOnChange={true} es vital para evitar pestañeos 
-                de color durante la navegación interna.
-            */}
+            {/* CAPA 4: Motor de Atmósfera Aurora */}
             <ThemeProvider
               attribute="class"
               defaultTheme="dark"
@@ -162,23 +148,31 @@ export default async function RootLayout({
               storageKey="theme"
             >
 
-              {/* CAPA 5: Soberanía de Identidad Atómica
-                  Inyectamos la sesión y el perfil de servidor para una hidratación sin latencia.
-              */}
-              <AuthProvider initialSession={initialSession} initialProfile={initialProfile}>
+              {/* CAPA 5: Soberanía de Identidad (SSR Injected) */}
+              <AuthProvider
+                initialSession={initialSession}
+                initialProfile={initialProfile}
+              >
 
                 {/* --- ESCENARIO VISUAL NICEPOD V2.5 --- */}
-                <div className="min-h-screen gradient-mesh relative overflow-x-hidden">
+                <div className="min-h-screen relative overflow-x-hidden bg-background transition-colors duration-500">
 
-                  {/* IDENTIDAD VISUAL (Blobs Atmosféricos) */}
-                  <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 opacity-40 dark:opacity-80">
-                    <div className="absolute top-10 left-10 w-80 h-80 bg-purple-500/10 rounded-full blur-[120px] animate-float"></div>
-                    <div className="absolute top-1/2 right-0 w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[160px] animate-float" style={{ animationDelay: "2s" }}></div>
-                    <div className="absolute -bottom-20 left-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-[140px] animate-float" style={{ animationDelay: "4s" }}></div>
+                  {/* 
+                      IDENTIDAD VISUAL: Blobs Atmosféricos 
+                      - z-0: Siempre detrás de la interactividad.
+                      - fixed: Persisten durante el scroll.
+                  */}
+                  <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 opacity-40 dark:opacity-70">
+                    <div className="absolute top-[10%] left-[5%] w-96 h-96 bg-primary/10 rounded-full blur-[140px] animate-pulse"></div>
+                    <div className="absolute top-[40%] right-[-5%] w-[600px] h-[600px] bg-purple-600/10 rounded-full blur-[180px] animate-pulse" style={{ animationDelay: "3s" }}></div>
+                    <div className="absolute bottom-[-10%] left-[20%] w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[150px] animate-pulse" style={{ animationDelay: "6s" }}></div>
                   </div>
 
-                  {/* LIENZO DE INTERACCIÓN (Contenido Dinámico) */}
-                  <div className="relative z-10">
+                  {/* 
+                      LIENZO DE INTERACCIÓN (Z-10)
+                      Contenedor de alto rendimiento para el contenido dinámico.
+                  */}
+                  <div className="relative z-10 flex flex-col min-h-screen">
                     {children}
                   </div>
 
@@ -191,3 +185,15 @@ export default async function RootLayout({
     </html>
   );
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT:
+ * 1. Sincronía Atómica: El uso de 'supabase.auth.getUser()' en el servidor garantiza 
+ *    que los Server Components descendientes no tengan que re-validar la sesión, 
+ *    ahorrando peticiones redundantes.
+ * 2. Higiene de Consola: Se han eliminado los meta-tags 'apple-mobile-web-app' manuales 
+ *    que causaban advertencias en Chrome 120+, sustituyéndolos por el objeto Metadata oficial.
+ * 3. Jerarquía de Capas: El 'z-10' del contenedor de children asegura que los botones 
+ *    y modales (como el buscador Portal) capturen los clics sin que los Blobs 
+ *    decorativos interfieran en el puntero del mouse.
+ */

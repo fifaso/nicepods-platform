@@ -1,89 +1,127 @@
 // components/auth-guard.tsx
-// VERSIÓN: 2.0 (Identity Guard - NicePod Architecture Standard)
-// Misión: Validar la soberanía del usuario en rutas protegidas y prevenir fugas de acceso.
-// [FIX]: Resolución de error TS2339 'isLoading' mediante sincronía con use-auth V17.0.
+// VERSIÓN: 2.2
 
 "use client";
 
 import { useAuth } from "@/hooks/use-auth";
-import { Loader2 } from "lucide-react";
+import { Loader2, ShieldCheck, Zap } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { ReactNode, useEffect } from "react";
 
 /**
- * INTERFACE: AuthGuardProps
- * children: Contenido protegido.
- * requireAuth: Define si la ruta exige una sesión activa (por defecto true).
+ * INTERFAZ: AuthGuardProps
+ * Define el contrato de protección para los componentes y layouts de NicePod.
  */
 interface AuthGuardProps {
+  /**
+   * children: El contenido soberano que requiere protección de identidad.
+   */
   children: ReactNode;
+  /**
+   * requireAuth: Flag de autoridad. Por defecto es true para todas las rutas protegidas.
+   */
   requireAuth?: boolean;
 }
 
 /**
- * AuthGuard: El centinela de componentes de NicePod.
- * Actúa como una capa de seguridad de último nivel en el lado del cliente.
+ * COMPONENTE: AuthGuard
+ * El centinela de integridad de la Workstation NicePod V2.5.
+ * 
+ * [RESPONSABILIDADES TÁCTICAS]:
+ * 1. Monitorear el estado de carga inicial de la sesión (isInitialLoading).
+ * 2. Validar si el usuario posee un token JWT nominal y activo.
+ * 3. Ejecutar el protocolo de expulsión (Redirect) si el acceso es denegado.
  */
 export function AuthGuard({
   children,
   requireAuth = true
 }: AuthGuardProps) {
 
-  /**
-   * [SINCRO V17.0]: Consumo de estados granulares.
-   * Utilizamos 'isInitialLoading' para saber si el sistema aún está negociando 
-   * el handshake de sesión con Supabase.
-   */
+  // --- CONSUMO DE ESTADOS DE IDENTIDAD ---
   const { isAuthenticated, isInitialLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
   /**
-   * [LÓGICA DE PROTECCIÓN]
-   * Este efecto orquesta la expulsión de usuarios no autorizados.
+   * PROTOCOLO DE PROTECCIÓN:
+   * Este efecto vigila el cambio de estado de la sesión. Solo actúa una vez
+   * que el handshake inicial (T0) ha finalizado para evitar falsos negativos.
    */
   useEffect(() => {
-    // Solo tomamos decisiones una vez que la carga inicial ha terminado
-    if (!isInitialLoading) {
-      if (requireAuth && !isAuthenticated) {
-        console.warn(`🛡️ [AuthGuard] Acceso denegado a ${pathname}. Redirigiendo a Login.`);
+    // Si el sistema ya terminó de cargar y se requiere auth, pero no hay sesión...
+    if (!isInitialLoading && requireAuth && !isAuthenticated) {
+      console.warn(`🛡️ [AuthGuard] Acceso no autorizado detectado en: ${pathname}. Iniciando Protocolo de Expulsión.`);
 
-        // Redirección inteligente preservando la ruta de origen
-        const loginUrl = new URL('/login', window.location.origin);
-        loginUrl.searchParams.set('redirect', pathname);
+      // Construimos la URL de retorno para una navegación fluida post-login.
+      const redirectParams = new URLSearchParams();
+      redirectParams.set("redirect", pathname);
 
-        router.replace(loginUrl.pathname + loginUrl.search);
-      }
+      const loginUrl = `/login?${redirectParams.toString()}`;
+
+      // Ejecutamos el reemplazo de ruta para no ensuciar el historial de navegación.
+      router.replace(loginUrl);
     }
   }, [isAuthenticated, isInitialLoading, requireAuth, router, pathname]);
 
   /**
-   * [ESTADO DE ESPERA]: Pantalla de Sintonía
-   * Mientras el sistema está hidratando la sesión (Handshake), mostramos 
-   * una interfaz de carga mínima para evitar parpadeos de contenido privado.
+   * CAPA 0: PANTALLA DE SINTONÍA (VELO DE CARGA)
+   * Mientras el sistema negocia con Supabase Auth, bloqueamos el renderizado
+   * para evitar el 'Content Flash' de datos privados.
    */
   if (isInitialLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] w-full space-y-4">
-        <div className="relative">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full" />
+      <div className="flex flex-col items-center justify-center min-h-screen w-full bg-[#020202] z-[9999] selection:bg-primary/30">
+
+        {/* Visualización Industrial de Carga */}
+        <div className="relative mb-8">
+          <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full animate-pulse" />
+          <Loader2 className="h-12 w-12 animate-spin text-primary relative z-10" />
         </div>
-        <p className="text-[10px] font-black uppercase tracking-[0.4em] text-muted-foreground/40 animate-pulse">
-          Validando Frecuencia...
-        </p>
+
+        <div className="flex flex-col items-center gap-3">
+          <div className="flex items-center gap-3 opacity-40">
+            <ShieldCheck size={14} className="text-primary" />
+            <span className="text-[10px] font-black uppercase tracking-[0.5em] text-white">
+              Autenticando Nodo
+            </span>
+            <Zap size={14} className="text-primary" />
+          </div>
+          <div className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest animate-pulse">
+            NicePod Architecture V2.5 • Madrid Resonance
+          </div>
+        </div>
+
       </div>
     );
   }
 
   /**
-   * [FLUJO FINAL]
-   * Si no se requiere auth, o si el usuario está autenticado, liberamos el contenido.
-   * Si no está autenticado pero la ruta lo requiere, el useEffect anterior se encargará del redirect.
+   * CAPA 1: BARRERA DE SEGURIDAD
+   * Si la ruta exige auth y no la tenemos, devolvemos null mientras el useEffect 
+   * anterior orquesta la redirección física. Esto previene fugas de datos en el DOM.
    */
   if (requireAuth && !isAuthenticated) {
-    return null; // Evitamos renderizar contenido sensible antes del redirect
+    return (
+      <div className="min-h-screen w-full bg-[#020202]" /> // Pantalla negra de transición segura.
+    );
   }
 
+  /**
+   * CAPA 2: ACCESO CONCEDIDO
+   * Una vez superada la validación, liberamos los componentes hijos.
+   */
   return <>{children}</>;
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT:
+ * 1. Exportación Nombrada: El uso de 'export function AuthGuard' es imperativo 
+ *    para que el compilador TS identifique el miembro al ser importado en 
+ *    los layouts mediante desestructuración { AuthGuard }.
+ * 2. Z-Index y Fondo: El loader utiliza bg-[#020202] y un z-index elevado 
+ *    para asegurar que la pantalla de carga tape cualquier mapa o gradiente 
+ *    residual del Root Layout.
+ * 3. Gestión de Redirección: Al usar 'router.replace', evitamos que el usuario 
+ *    pueda volver atrás a una página protegida usando el botón del navegador, 
+ *    reforzando la seguridad de la sesión.
+ */
