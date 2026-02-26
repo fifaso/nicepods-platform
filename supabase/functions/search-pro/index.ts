@@ -1,80 +1,151 @@
 // supabase/functions/search-pro/index.ts
-// VERSIÓN: 4.0
+// VERSIÓN: 4.1
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
+
+// --- INFRAESTRUCTURA DE INTELIGENCIA UNIFICADA ---
+// Al importar 'generateEmbedding' desde _shared/ai.ts garantizamos que 
+// la vectorización de la búsqueda use EXACTAMENTE el mismo modelo (gemini-embedding-001)
+// que usamos para catalogar los podcasts. Esto cura la "Bóveda Ciega".
+import { generateEmbedding } from "../_shared/ai.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
-// --- CONFIGURACIÓN DE INTELIGENCIA DIRECTA ---
-const GOOGLE_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
-const EMBEDDING_MODEL = "models/gemini-embedding-001"; // Modelo optimizado v4
+/**
+ * INTERFACE: SearchPayload
+ * Define la estructura de entrada esperada desde la Server Action.
+ */
+interface SearchPayload {
+  query?: string;
+  userLat?: number;
+  userLng?: number;
+  match_threshold?: number;
+  match_count?: number;
+  mode?: 'search' | 'trending' | 'discovery';
+}
 
-const supabaseAdmin = createClient(
+/**
+ * CLIENTE SUPABASE ADMIN
+ * Declarado fuera del handler para maximizar la velocidad en invocaciones 'calientes'.
+ */
+const supabaseAdmin: SupabaseClient = createClient(
   Deno.env.get("SUPABASE_URL") ?? "",
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
 );
 
 /**
- * handler: Ejecución ultra-ligera para evitar 'CPU Timeout'.
+ * handler: Ejecución táctica (Lite). 
+ * Se ha retirado el wrapper guard() para evitar exceder el tiempo de CPU, 
+ * implementando en su lugar una validación de autorización directa.
  */
 serve(async (req) => {
-  // 1. GESTIÓN DE CORS (Costo CPU: 0ms)
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  // 1. GESTIÓN DE CORS (Respuesta en 0ms)
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  const correlationId = req.headers.get("x-correlation-id") ?? crypto.randomUUID();
 
   try {
-    // 2. VALIDACIÓN DE SEGURIDAD MANUAL (Bypass de guard() pesado)
+    // 2. PROTOCOLO DE SEGURIDAD INDUSTRIAL (Bypass Manual de CPU)
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader?.includes(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    // Verificamos que la petición viene firmada con el Service Role (desde nuestra Server Action)
+    if (!authHeader?.includes(serviceKey ?? "INTERNAL_ONLY")) {
+      console.warn(`🛑 [Search-Pro-Lite][${correlationId}] Intento de acceso denegado (Unauthorized).`);
+      return new Response(JSON.stringify({ error: "Unauthorized access" }), {
+        status: 401,
+        headers: corsHeaders
+      });
     }
 
-    const { query, userLat, userLng, match_threshold = 0.25, match_count = 15 } = await req.json();
-    if (!query || query.length < 3) throw new Error("QUERY_TOO_SHORT");
+    // 3. RECEPCIÓN Y SANEAMIENTO DEL PAYLOAD
+    const payload: SearchPayload = await req.json();
+    const {
+      query = "",
+      userLat,
+      userLng,
+      match_threshold = 0.18, // Umbral optimizado para alta sensibilidad
+      match_count = 20,
+      mode = 'search'
+    } = payload;
 
-    /**
-     * 3. VECTORIZACIÓN RAW (Ahorro masivo de ciclos de CPU)
-     * Usamos fetch directo para evitar el overhead de la librería de Google.
-     */
-    const googleResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/${EMBEDDING_MODEL}:embedContent?key=${GOOGLE_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content: { parts: [{ text: query }] },
-          taskType: "RETRIEVAL_QUERY",
-          outputDimensionality: 768 // Bloqueo estricto a nuestro estándar
-        })
+    const cleanQuery = query.trim();
+    let searchResult;
+
+    // --- BIFURCACIÓN DE FLUJO (Discovery vs Resonancia) ---
+
+    if (mode === 'trending' || mode === 'discovery' || cleanQuery.length < 3) {
+      // ESTADO A: MODO DESCUBRIMIENTO (Sin Vector)
+      // Si no hay query o estamos en modo descubrimiento, invocamos una búsqueda genérica
+      // usando un vector nulo o llamando a un RPC de trending (simulado aquí buscando podcasts destacados).
+      console.info(`🌍 [Search-Pro-Lite][${correlationId}] Ejecutando modo descubrimiento geoespacial.`);
+
+      const { data, error: discoveryError } = await supabaseAdmin
+        .from('micro_pods')
+        .select('*, profiles(username, full_name, avatar_url, reputation_score)')
+        .eq('status', 'published')
+        .order('play_count', { ascending: false })
+        .limit(match_count);
+
+      if (discoveryError) throw new Error(`DISCOVERY_FAIL: ${discoveryError.message}`);
+
+      // Normalización para simular el tipo de respuesta unificada
+      searchResult = (data || []).map(pod => ({
+        result_type: 'podcast',
+        id: pod.id,
+        title: pod.title,
+        subtitle: pod.profiles?.full_name || 'Curador',
+        image_url: pod.cover_image_url,
+        similarity: 1.0, // Match de popularidad
+        geo_distance: null,
+        metadata: {
+          author: pod.profiles?.username,
+          mode: pod.creation_mode
+        }
+      }));
+
+    } else {
+      // ESTADO B: MODO RADAR SEMÁNTICO HÍBRIDO
+      console.info(`🧠[Search-Pro-Lite][${correlationId}] Vectorizando intención: "${cleanQuery}"`);
+
+      // La clave de la sanación: Usamos la función maestra de _shared/ai.ts
+      const queryVector = await generateEmbedding(cleanQuery);
+
+      console.info(`🔍 [Search-Pro-Lite][${correlationId}] Invocando Motor Unificado v4 en PostgreSQL.`);
+
+      const { data, error: rpcError } = await supabaseAdmin.rpc("unified_search_v4", {
+        p_query_text: cleanQuery,
+        p_query_embedding: queryVector,
+        p_match_threshold: match_threshold,
+        p_match_count: match_count,
+        p_user_lat: userLat,
+        p_user_lng: userLng
+      });
+
+      if (rpcError) {
+        throw new Error(`RPC_HYBRID_FAIL: ${rpcError.message}`);
       }
-    );
 
-    if (!googleResponse.ok) throw new Error("GOOGLE_API_FAIL");
-    const googleData = await googleResponse.json();
-    const queryVector = googleData.embedding?.values;
+      searchResult = data || [];
+      console.info(`✅[Search-Pro-Lite][${correlationId}] Impactos localizados: ${searchResult.length}`);
+    }
 
-    /**
-     * 4. BÚSQUEDA HÍBRIDA UNIFICADA
-     */
-    const { data: searchResults, error: rpcError } = await supabaseAdmin.rpc("unified_search_v4", {
-      p_query_text: query,
-      p_query_embedding: queryVector,
-      p_match_threshold: match_threshold,
-      p_match_count: match_count,
-      p_user_lat: userLat,
-      p_user_lng: userLng
-    });
-
-    if (rpcError) throw rpcError;
-
-    // 5. RESPUESTA ATÓMICA
-    return new Response(JSON.stringify(searchResults), {
+    // 4. RETORNO DE INTELIGENCIA
+    return new Response(JSON.stringify(searchResult), {
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200
     });
 
   } catch (error: any) {
-    console.error("🔥 [Search-Pro-Lite-Fatal]:", error.message);
-    return new Response(JSON.stringify({ error: error.message }), {
+    const errorMsg = error instanceof Error ? error.message : "Desestabilización semántica desconocida";
+    console.error(`🔥[Search-Pro-Lite-Fatal][${correlationId}]:`, errorMsg);
+
+    return new Response(JSON.stringify({
+      error: errorMsg,
+      trace_id: correlationId
+    }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });

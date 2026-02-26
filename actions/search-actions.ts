@@ -1,10 +1,14 @@
+// actions/search-actions.ts
+// VERSIÓN: 4.0
+
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
 
 /**
  * INTERFAZ: SearchActionResponse
- * Contrato de respuesta unificado para el sistema de radar semántico.
+ * Contrato de respuesta unificado que define cómo el servidor comunica
+ * los hallazgos semánticos a la interfaz de usuario.
  */
 export type SearchActionResponse<T = any> = {
   success: boolean;
@@ -18,9 +22,10 @@ export type SearchActionResponse<T = any> = {
  * FUNCIÓN: searchGlobalIntelligence
  * Misión: Ejecutar una búsqueda de alta resolución en toda la red de NicePod.
  * 
- * [ARQUITECTURA V3]:
- * Esta acción despacha la intención del usuario a la Edge Function 'search-pro',
- * la cual centraliza la vectorización y la consulta SQL en un solo viaje de red.
+ * [ARQUITECTURA V4]:
+ * - Invoca la Edge Function 'search-pro' (V4.1 Lite).
+ * - Transmite la intención del usuario y el contexto geoespacial.
+ * - Actúa como barrera de seguridad Server-Side.
  * 
  * @param query - La intención semántica o término de búsqueda.
  * @param latitude - Coordenada de latitud (Madrid Resonance Anchor).
@@ -31,11 +36,12 @@ export async function searchGlobalIntelligence(
   query: string,
   latitude?: number,
   longitude?: number,
-  limit: number = 15
+  limit: number = 20
 ): Promise<SearchActionResponse> {
   const supabase = createClient();
 
   // 1. PROTOCOLO DE HIGIENE INICIAL
+  // Validamos que la intención tenga sustancia antes de gastar recursos de red.
   const targetQuery = query?.trim();
   if (!targetQuery || targetQuery.length < 3) {
     return {
@@ -46,37 +52,41 @@ export async function searchGlobalIntelligence(
   }
 
   try {
-    console.info(`🔍 [Search-Bridge] Despachando pulso semántico: "${targetQuery.substring(0, 20)}..."`);
+    console.info(`🔍 [Search-Bridge] Despachando pulso semántico: "${targetQuery.substring(0, 30)}..."`);
 
     /**
-     * 2. INVOCACIÓN DEL MOTOR UNIFICADO (Edge Function V3)
-     * Utilizamos invoke() para delegar la vectorización (Gemini) y 
-     * el matching vectorial (HNSW) al borde de la red.
+     * 2. INVOCACIÓN DEL MOTOR UNIFICADO (Edge Function V4.1)
+     * Utilizamos invoke() para delegar la vectorización y el matching vectorial.
+     * La función 'search-pro' ahora opera en modo Lite (sin guardias pesados) para velocidad.
      */
     const { data, error: functionError } = await supabase.functions.invoke('search-pro', {
       body: {
         query: targetQuery,
-        userLat: latitude,
-        userLng: longitude,
+        userLat: latitude || null, // Normalización explícita para evitar undefined
+        userLng: longitude || null,
         match_count: limit,
-        match_threshold: 0.25 // Umbral calibrado para diversidad en NicePod V2.5
+        match_threshold: 0.18, // Umbral calibrado para alta sensibilidad en fase de arranque
+        mode: 'search'
       }
     });
 
     // 3. GESTIÓN DE ERRORES DE SUBSISTEMA
     if (functionError) {
-      console.error(`🛑 [Search-Bridge] El motor de búsqueda devolvió un error:`, functionError.message);
-      throw new Error(`FALLO_SISTEMA_BUSQUEDA: ${functionError.message}`);
+      console.error(`🛑 [Search-Bridge] El motor de búsqueda devolvió un error técnico:`, functionError);
+      throw new Error(`FALLO_SISTEMA_BUSQUEDA: ${functionError.message || 'Error desconocido en Edge'}`);
     }
 
     /**
      * 4. NORMALIZACIÓN DE HALLAZGOS
-     * Los resultados vienen categorizados por el RPC 'unified_search_v3'.
+     * Los resultados vienen ya categorizados (podcast, user, place, vault_chunk) 
+     * desde el RPC 'unified_search_v4'.
      */
+    const localizedResults = data || [];
+
     return {
       success: true,
-      message: `Resonancia establecida. Localizados ${data?.length || 0} nodos de interés.`,
-      results: data || []
+      message: `Resonancia establecida. Localizados ${localizedResults.length} nodos de interés.`,
+      results: localizedResults
     };
 
   } catch (error: any) {
@@ -93,9 +103,10 @@ export async function searchGlobalIntelligence(
 
 /**
  * FUNCIÓN: getDiscoverySignals
- * Misión: Recuperar el 'Pulso' de la plataforma (Trending) cuando no hay query activa.
+ * Misión: Recuperar el 'Pulso' de la plataforma (Trending/Discovery) cuando no hay query activa.
  * 
- * Útil para la hidratación inicial del Centro de Descubrimiento.
+ * Útil para la hidratación inicial del Centro de Descubrimiento o para 
+ * sugerir contenido cuando el usuario abre el portal de búsqueda vacío.
  */
 export async function getDiscoverySignals(
   latitude?: number,
@@ -104,13 +115,15 @@ export async function getDiscoverySignals(
   const supabase = createClient();
 
   try {
-    // Invocamos el motor en modo descubrimiento (sin query de usuario)
+    console.info(`🌍 [Search-Bridge] Solicitando señales de descubrimiento global.`);
+
+    // Invocamos el motor en modo 'discovery' (Bypass de vectorización)
     const { data, error } = await supabase.functions.invoke('search-pro', {
       body: {
-        userLat: latitude,
-        userLng: longitude,
+        userLat: latitude || null,
+        userLng: longitude || null,
         match_count: 10,
-        mode: 'discovery' // Flag para que el motor use ranking de popularidad/proximidad
+        mode: 'discovery' // Flag estratégico para activar lógica de popularidad/proximidad
       }
     });
 
@@ -122,6 +135,7 @@ export async function getDiscoverySignals(
       results: data || []
     };
   } catch (error: any) {
+    console.warn("⚠️ [Search-Bridge] Fallo parcial en Discovery Signals:", error.message);
     return {
       success: false,
       message: "No se pudo interceptar el pulso de la red.",
@@ -133,10 +147,12 @@ export async function getDiscoverySignals(
 
 /**
  * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Eficiencia de Carga: Esta Server Action elimina la necesidad de cargar 
- *    librerías de embeddings en el cliente, ahorrando ~2MB de bundle JS.
- * 2. Seguridad RBAC: Al ejecutarse en el servidor, podemos inyectar 
- *    automáticamente metadatos de auditoría antes de llamar a la Edge Function.
- * 3. Diseño Profesional: Se ha implementado el método getDiscoverySignals para 
- *    asegurar que el buscador nunca muestre un vacío absoluto al iniciarse.
+ * 1. Eficiencia de Carga: Esta Server Action actúa como un proxy autorizado,
+ *    inyectando automáticamente la SERVICE_ROLE_KEY necesaria para que la 
+ *    Edge Function 'search-pro' acepte la petición.
+ * 2. Normalización de GPS: El tratamiento de 'latitude || null' es crucial. 
+ *    Si pasáramos 'undefined', el JSON del cuerpo de la petición podría perder 
+ *    esa clave, causando un comportamiento impredecible en la lógica de Deno.
+ * 3. Diseño de Respaldo: El método 'getDiscoverySignals' asegura que la UI 
+ *    siempre tenga datos para mostrar, incluso si el usuario aún no ha escrito nada.
  */
