@@ -1,5 +1,5 @@
 // actions/search-actions.ts
-// VERSIÓN: 4.0
+// VERSIÓN: 4.1
 
 "use server";
 
@@ -7,8 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 
 /**
  * INTERFAZ: SearchActionResponse
- * Contrato de respuesta unificado que define cómo el servidor comunica
- * los hallazgos semánticos a la interfaz de usuario.
+ * Contrato de respuesta unificado para el sistema de radar semántico.
  */
 export type SearchActionResponse<T = any> = {
   success: boolean;
@@ -22,10 +21,11 @@ export type SearchActionResponse<T = any> = {
  * FUNCIÓN: searchGlobalIntelligence
  * Misión: Ejecutar una búsqueda de alta resolución en toda la red de NicePod.
  * 
- * [ARQUITECTURA V4]:
- * - Invoca la Edge Function 'search-pro' (V4.1 Lite).
- * - Transmite la intención del usuario y el contexto geoespacial.
- * - Actúa como barrera de seguridad Server-Side.
+ * [ARQUITECTURA DE SEGURIDAD]:
+ * Esta acción actúa como un proxy privilegiado. Al ejecutarse en el servidor ('use server'),
+ * tiene acceso a las variables de entorno privadas (SUPABASE_SERVICE_ROLE_KEY).
+ * Inyecta esta llave en la cabecera 'Authorization' para que la Edge Function 'search-pro'
+ * acepte la petición y ejecute la vectorización y consulta SQL.
  * 
  * @param query - La intención semántica o término de búsqueda.
  * @param latitude - Coordenada de latitud (Madrid Resonance Anchor).
@@ -41,7 +41,7 @@ export async function searchGlobalIntelligence(
   const supabase = createClient();
 
   // 1. PROTOCOLO DE HIGIENE INICIAL
-  // Validamos que la intención tenga sustancia antes de gastar recursos de red.
+  // Validamos que la intención tenga sustancia antes de iniciar el proceso.
   const targetQuery = query?.trim();
   if (!targetQuery || targetQuery.length < 3) {
     return {
@@ -52,32 +52,45 @@ export async function searchGlobalIntelligence(
   }
 
   try {
-    console.info(`🔍 [Search-Bridge] Despachando pulso semántico: "${targetQuery.substring(0, 30)}..."`);
+    // 2. RECUPERACIÓN DE CREDENCIAL MAESTRA
+    // Esta llave debe estar configurada en Vercel (Environment Variables).
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    if (!serviceRoleKey) {
+      console.error("🔥 [Search-Bridge] CRITICAL ERROR: SUPABASE_SERVICE_ROLE_KEY no está definida en el entorno del servidor.");
+      throw new Error("Error de configuración de infraestructura. Contacte al administrador.");
+    }
+
+    console.info(`🔍 [Search-Bridge] Despachando pulso autorizado: "${targetQuery.substring(0, 30)}..."`);
 
     /**
-     * 2. INVOCACIÓN DEL MOTOR UNIFICADO (Edge Function V4.1)
-     * Utilizamos invoke() para delegar la vectorización y el matching vectorial.
-     * La función 'search-pro' ahora opera en modo Lite (sin guardias pesados) para velocidad.
+     * 3. INVOCACIÓN DEL MOTOR UNIFICADO (Edge Function V4.1)
+     * Utilizamos invoke() con una cabecera Authorization personalizada.
+     * Esto permite saltarse el RLS y ejecutar la lógica 'Lite' sin cargar middlewares pesados.
      */
     const { data, error: functionError } = await supabase.functions.invoke('search-pro', {
       body: {
         query: targetQuery,
-        userLat: latitude || null, // Normalización explícita para evitar undefined
+        userLat: latitude || null, // Normalización explícita para evitar 'undefined' en JSON
         userLng: longitude || null,
         match_count: limit,
-        match_threshold: 0.18, // Umbral calibrado para alta sensibilidad en fase de arranque
+        match_threshold: 0.18, // Umbral calibrado para alta sensibilidad
         mode: 'search'
+      },
+      // [FIX CRÍTICO]: Inyección manual de la llave maestra
+      headers: {
+        Authorization: `Bearer ${serviceRoleKey}`
       }
     });
 
-    // 3. GESTIÓN DE ERRORES DE SUBSISTEMA
+    // 4. GESTIÓN DE ERRORES DE SUBSISTEMA
     if (functionError) {
       console.error(`🛑 [Search-Bridge] El motor de búsqueda devolvió un error técnico:`, functionError);
       throw new Error(`FALLO_SISTEMA_BUSQUEDA: ${functionError.message || 'Error desconocido en Edge'}`);
     }
 
     /**
-     * 4. NORMALIZACIÓN DE HALLAZGOS
+     * 5. NORMALIZACIÓN DE HALLAZGOS
      * Los resultados vienen ya categorizados (podcast, user, place, vault_chunk) 
      * desde el RPC 'unified_search_v4'.
      */
@@ -115,7 +128,13 @@ export async function getDiscoverySignals(
   const supabase = createClient();
 
   try {
-    console.info(`🌍 [Search-Bridge] Solicitando señales de descubrimiento global.`);
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    if (!serviceRoleKey) {
+      throw new Error("Service Key Missing");
+    }
+
+    console.info(`🌍 [Search-Bridge] Solicitando señales de descubrimiento global (Autorizado).`);
 
     // Invocamos el motor en modo 'discovery' (Bypass de vectorización)
     const { data, error } = await supabase.functions.invoke('search-pro', {
@@ -124,6 +143,9 @@ export async function getDiscoverySignals(
         userLng: longitude || null,
         match_count: 10,
         mode: 'discovery' // Flag estratégico para activar lógica de popularidad/proximidad
+      },
+      headers: {
+        Authorization: `Bearer ${serviceRoleKey}`
       }
     });
 
@@ -147,12 +169,11 @@ export async function getDiscoverySignals(
 
 /**
  * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Eficiencia de Carga: Esta Server Action actúa como un proxy autorizado,
- *    inyectando automáticamente la SERVICE_ROLE_KEY necesaria para que la 
- *    Edge Function 'search-pro' acepte la petición.
- * 2. Normalización de GPS: El tratamiento de 'latitude || null' es crucial. 
- *    Si pasáramos 'undefined', el JSON del cuerpo de la petición podría perder 
- *    esa clave, causando un comportamiento impredecible en la lógica de Deno.
- * 3. Diseño de Respaldo: El método 'getDiscoverySignals' asegura que la UI 
- *    siempre tenga datos para mostrar, incluso si el usuario aún no ha escrito nada.
+ * 1. Seguridad Server-Side: Esta acción es la única autorizada para portar la 
+ *    SERVICE_ROLE_KEY. Al ejecutarse en el servidor de Next.js, la llave nunca 
+ *    se filtra al cliente.
+ * 2. Autenticación Edge: La cabecera 'Authorization: Bearer KEY' es el estándar 
+ *    que nuestra función 'search-pro' verifica manualmente en su línea 40.
+ * 3. Resiliencia: Si la llave falta en Vercel, el error es capturado y logueado 
+ *    claramente, evitando comportamientos zombis.
  */
