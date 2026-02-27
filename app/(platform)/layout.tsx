@@ -1,21 +1,31 @@
 // app/(platform)/layout.tsx
-// VERSIÓN: 2.1
+// VERSIÓN: 2.2
 
 import React from "react";
 
 // --- INFRAESTRUCTURA DE NAVEGACIÓN Y ACCESO ---
-//Navigation: Componente fixed (z-100) que flota sobre el contenido.
-import { Navigation } from "@/components/navigation";
-//AuthGuard: Centinela que bloquea el renderizado si no hay sesión activa.
+/**
+ * Navigation: Componente de mando fijo (fixed) con z-index: 100.
+ * AuthGuard: Centinela que valida la sesión antes de montar la lógica del cliente.
+ */
 import { AuthGuard } from "@/components/auth-guard";
+import { Navigation } from "@/components/navigation";
 
 // --- SERVICIOS DE INFRAESTRUCTURA Y PWA ---
+/**
+ * Estos componentes gestionan el estado técnico de la plataforma en segundo plano.
+ */
 import { InstallPwaButton } from '@/components/install-pwa-button';
 import { OfflineIndicator } from '@/components/offline-indicator';
 import { ScrollToTop } from "@/components/scroll-to-top";
 import { SmoothScrollWrapper } from "@/components/smooth-scroll-wrapper";
 
 // --- COMPONENTES DE SALIDA Y ANIMACIÓN ---
+/**
+ * PageTransition: Gestiona la entrada cinemática de las rutas.
+ * PlayerOrchestrator: Centro de mando del audio neuronal.
+ * Toaster: Gestor de notificaciones y alertas de sistema.
+ */
 import { PageTransition } from "@/components/page-transition";
 import { PlayerOrchestrator } from "@/components/player-orchestrator";
 import { Toaster } from "@/components/ui/toaster";
@@ -25,12 +35,12 @@ import { AudioProvider } from "@/contexts/audio-context";
 
 /**
  * COMPONENTE: PlatformLayout
- * El bastidor soberano para el área de trabajo (Login Side).
+ * El chasis soberano para la experiencia de usuario logueado.
  * 
  * [RESPONSABILIDAD ARQUITECTÓNICA]:
- * Este layout es responsable de la 'perforación visual'. Debe mantenerse
- * bg-transparent en todos sus niveles para que los gradientes Aurora
- * inyectados por el RootLayout sean visibles.
+ * 1. Persistencia: Mantiene vivo el AudioProvider durante el cambio de rutas.
+ * 2. Transparencia: No inyecta fondos sólidos para dejar pasar la atmósfera Aurora.
+ * 3. Ergonomía: Define el espacio sagrado debajo del menú superior.
  */
 export default function PlatformLayout({
   children
@@ -40,20 +50,19 @@ export default function PlatformLayout({
   return (
     /**
      * CAPA 1: CONTEXTO DE INTELIGENCIA ACÚSTICA
-     * Asegura que el hilo de audio persista durante la navegación.
+     * Envuelve toda la plataforma para permitir que el hilo de audio sea persistente.
      */
     <AudioProvider>
 
       {/* 
           CAPA 2: CENTINELA DE SOBERANÍA (AuthGuard)
-          Protege todas las rutas de la plataforma. Si el handshake falla,
-          nada de lo que hay dentro se monta en el DOM.
+          Valida el Handshake de identidad SSR-Client. Si falla, orquesta el redirect.
       */}
       <AuthGuard>
 
         {/* 
             CAPA 3: CONTROL DE DESPLAZAMIENTO (Smooth Scroll)
-            Gestiona la física del visor eliminando saltos bruscos.
+            Proporciona la inercia nativa y suavizado de scroll industrial.
         */}
         <SmoothScrollWrapper>
 
@@ -64,29 +73,31 @@ export default function PlatformLayout({
 
           {/* 
               CAPA 4: NAVEGACIÓN TÁCTICA (Header Fijo)
-              Ubicado físicamente arriba para prioridad de renderizado.
+              Se renderiza en el top del DOM para asegurar su anclaje visual.
           */}
           <Navigation />
 
           {/* 
               CAPA 5: CONTENEDOR MAESTRO DE CONTENIDO
-              [RE-CALIBRACIÓN DE ESPACIO NEGATIVO]:
-              - pt-[100px] en móvil: Header (72px) + Margen de seguridad (28px).
-              - md:pt-[140px] en desktop: Header (80px) + Aire industrial (60px).
+              [OPTIMIZACIÓN DE ESPACIO VERTICAL]:
+              Hemos reducido el padding-top (pt) al mínimo técnico para no perder 
+              espacio valioso, compensando exactamente el área del Header V2.0.
               
-              [FIX ATMOSFÉRICO]: 
-              Uso obligatorio de bg-transparent para evitar ocluir el BackgroundEngine.
+              Cálculo Técnico:
+              - Móvil: Header 72px + Padding de seguridad 12px = pt-[84px].
+              - Desktop: Header 80px + Margen de respiración 20px = md:pt-[100px].
+              
+              Uso estricto de bg-transparent para visibilidad de la atmósfera.
           */}
           <main
-            className="relative z-10 flex flex-col min-h-screen pt-[100px] md:pt-[140px] bg-transparent transition-all duration-500"
+            className="relative z-10 flex flex-col min-h-screen pt-[84px] md:pt-[100px] bg-transparent transition-all duration-300"
           >
             {/* 
                 CAPA 6: ORQUESTADOR DE MOVIMIENTO (Page Transitions)
-                Maneja la entrada cinemática del contenido. 
-                El div interno también debe ser transparente.
+                Sincroniza la entrada y salida de contenido (Opacity 0 -> 1).
             */}
             <PageTransition>
-              <div className="w-full flex-grow flex flex-col bg-transparent px-1 md:px-0">
+              <div className="w-full flex-grow flex flex-col bg-transparent px-2 md:px-0">
                 {children}
               </div>
             </PageTransition>
@@ -94,8 +105,8 @@ export default function PlatformLayout({
 
           {/* 
               CAPA 7: TERMINALES DE SALIDA
-              PlayerOrchestrator: Z-index 200 para flotar sobre el contenido.
-              Toaster: Notificaciones de sistema.
+              PlayerOrchestrator: Ubicado en Z-index: 200 (Capa superior).
+              Toaster: Notificaciones flotantes de sistema.
           */}
           <PlayerOrchestrator />
           <Toaster />
@@ -108,14 +119,12 @@ export default function PlatformLayout({
 
 /**
  * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Transparencia en Cascada: Al eliminar las clases 'bg-background' y 
- *    'bg-card' que existían en versiones previas, permitimos que la luz 
- *    del 'BackgroundEngine' atraviese el chasis, resolviendo el problema 
- *    de la pantalla gris detectado en el dashboard.
- * 2. Jerarquía de Z-Index: Mantenemos el contenido en 'z-10' para asegurar 
- *    que la interactividad (clics) esté por delante de la atmósfera (z-0), 
- *    pero por detrás del menú de navegación (z-100).
- * 3. Optimización de Layout: Al usar valores de padding fijos, eliminamos 
- *    la necesidad de que el navegador recalcule la posición del contenido 
- *    durante la hidratación, reduciendo el ruido de la consola (Violation rAF).
+ * 1. Eficiencia de Layout: Se ha reducido el padding superior de 140px a 100px 
+ *    en escritorio. Esto recupera 40px de área de trabajo, permitiendo que el 
+ *    saludo 'HOLA, FRAN' se sitúe justo debajo del cristal del menú.
+ * 2. Transparencia Operativa: La clase 'bg-transparent' aplicada en el 'main' 
+ *    y en el contenedor de 'PageTransition' elimina cualquier oclusión del 
+ *    BackgroundEngine, restaurando el colorismo Aurora solicitado.
+ * 3. Integridad de Tipos: El archivo está alineado con las exportaciones 
+ *    nombradas de AuthGuard y Navigation, garantizando un build sin errores.
  */

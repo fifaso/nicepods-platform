@@ -1,5 +1,5 @@
 // app/layout.tsx
-// VERSIÓN: 24.0
+// VERSIÓN: 25.0
 
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
@@ -7,15 +7,11 @@ import type React from "react";
 
 /**
  * --- CAPA 0: CIMIENTOS VISUALES ---
- * La importación de Mapbox debe ser la primera para asegurar que los estilos 
- * del mapa se carguen antes de la hidratación de los componentes geográficos.
  */
 import "mapbox-gl/dist/mapbox-gl.css";
 import "./globals.css";
 
-/**
- * --- INFRAESTRUCTURA DE COMPONENTES Y SERVICIOS ---
- */
+// Infraestructura de Componentes
 import { ErrorBoundary } from "@/components/error-boundary";
 import { CSPostHogProvider } from '@/components/providers/posthog-provider';
 import { PwaLifecycle } from "@/components/pwa-lifecycle";
@@ -24,7 +20,7 @@ import { AuthProvider } from "@/hooks/use-auth";
 import { createClient } from '@/lib/supabase/server';
 import { Tables } from "@/types/database.types";
 
-// Motor Visual Centralizado
+// Motor de Atmósfera
 import { BackgroundEngine } from "@/components/visuals/background-engine";
 
 const inter = Inter({
@@ -34,8 +30,7 @@ const inter = Inter({
 });
 
 /**
- * VIEWPORT API: Configuración de hardware de visualización.
- * Color base sincronizado con el fondo oscuro de la Bóveda.
+ * VIEWPORT API: Configuración de hardware.
  */
 export const viewport: Viewport = {
   themeColor: "#020202",
@@ -48,24 +43,32 @@ export const viewport: Viewport = {
 
 /**
  * METADATA API: Identidad Digital Soberana.
+ * [REMEDIACÍON]: Se elimina 'appleWebApp' para silenciar la advertencia de deprecación.
+ * NicePod ahora gestiona la 'capacidad app' exclusivamente vía /public/manifest.json.
  */
 export const metadata: Metadata = {
-  title: "NicePod | Witness, Not Diarist",
+  title: {
+    default: "NicePod | Witness, Not Diarist",
+    template: "%s | NicePod Intelligence"
+  },
   description: "Workstation de inteligencia industrial y memoria urbana. Forja sabiduría en audio.",
   manifest: "/manifest.json",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "NicePod",
+  formatDetection: {
+    telephone: false,
+    email: false,
+    address: false,
   },
   icons: {
-    icon: "/nicepod-logo.png",
+    icon: [
+      { url: "/nicepod-logo.png", sizes: "32x32" },
+      { url: "/nicepod-logo.png", sizes: "192x192" }
+    ],
     apple: "/nicepod-logo.png",
   },
 };
 
 /**
- * RootLayout: El Gran Orquestador Síncrono de NicePod V2.5.
+ * RootLayout: El Gran Orquestador Síncrono.
  */
 export default async function RootLayout({
   children
@@ -74,7 +77,6 @@ export default async function RootLayout({
 }) {
   /**
    * 1. PROTOCOLO DE IDENTIDAD ATÓMICA (SSR)
-   * Recuperamos la identidad completa en el servidor (T0) para evitar pestañeos.
    */
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -85,7 +87,7 @@ export default async function RootLayout({
   if (user) {
     const [sessionRes, profileRes] = await Promise.all([
       supabase.auth.getSession(),
-      supabase.from('profiles').select('*').eq('id', user.id).single()
+      supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
     ]);
 
     initialSession = sessionRes.data.session;
@@ -93,11 +95,15 @@ export default async function RootLayout({
   }
 
   return (
-    <html lang="es" suppressHydrationWarning className="dark">
+    /**
+     * [FIX]: Eliminamos 'className="dark"' para permitir que el script 
+     * anti-pestañeo inyecte la clase real preferida por el usuario.
+     */
+    <html lang="es" suppressHydrationWarning>
       <head>
         {/* 
-            SCRIPT ANTI-PESTAÑEO DE TEMA:
-            Inyecta la clase .dark antes de que React despierte.
+            SCRIPT DE PROTECCIÓN LUMÍNICA:
+            Calcula el tema antes de que el motor de renderizado procese el primer frame.
         */}
         <script
           dangerouslySetInnerHTML={{
@@ -120,8 +126,6 @@ export default async function RootLayout({
         />
       </head>
       <body
-        // [FIX CRÍTICO]: Se ha eliminado 'bg-background' del body. 
-        // Permitimos que el BackgroundEngine sea el único que pinte el lienzo.
         className={`${inter.className} min-h-screen font-sans antialiased selection:bg-primary/30`}
         suppressHydrationWarning
       >
@@ -143,16 +147,10 @@ export default async function RootLayout({
                 {/* --- ESCENARIO VISUAL NICEPOD V2.5 --- */}
                 <div className="min-h-screen relative overflow-x-hidden">
 
-                  {/* 
-                      CAPA 1: EL MOTOR DE ATMÓSFERA (Z-0)
-                      Componente centralizado que gestiona los Blobs Aurora.
-                  */}
+                  {/* CAPA 1: MOTOR DE ATMÓSFERA (Z-0) */}
                   <BackgroundEngine />
 
-                  {/* 
-                      CAPA 2: LIENZO DE INTERACCIÓN (Z-10)
-                      [FIX]: bg-transparent es imperativo para dejar pasar la luz del fondo.
-                  */}
+                  {/* CAPA 2: LIENZO DE INTERACCIÓN (Z-10) */}
                   <div className="relative z-10 flex flex-col min-h-screen bg-transparent">
                     {children}
                   </div>
@@ -169,11 +167,11 @@ export default async function RootLayout({
 
 /**
  * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Estrategia de Transparencia: Al eliminar el color de fondo del 'body' y 
- *    del contenedor de 'children', permitimos que el 'BackgroundEngine' (fixed) 
- *    sea visible perpetuamente.
- * 2. Rendimiento LCP: El orden de los imports asegura que el CSS crítico 
- *    de Mapbox no sea bloqueado por el procesamiento de otros estilos.
- * 3. Handshake Sincronizado: La inyección de metadatos SSR garantiza que el 
- *    cliente reconozca su identidad soberana desde el primer bit renderizado.
+ * 1. Silencio en Consola: Al centralizar la 'capacidad app' en el manifiesto, 
+ *    el navegador deja de arrojar advertencias de metadatos deprecados.
+ * 2. Estabilidad de Tema: Al eliminar la clase 'dark' estática, aseguramos que 
+ *    el ThemeProvider y el script inicial no colisionen durante la hidratación.
+ * 3. Rendimiento LCP: El uso de 'maybeSingle' en el perfil SSR previene 
+ *    errores de detención si el perfil de base de datos tarda en propagarse 
+ *    tras un registro nuevo.
  */

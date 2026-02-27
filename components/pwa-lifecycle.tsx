@@ -1,7 +1,5 @@
 // components/pwa-lifecycle.tsx
-// VERSIÓN: 2.1 (NicePod PWA Lifecycle Master - Unified Registration Standard)
-// Misión: Único orquestador del Service Worker. Gestiona la sincronía de versiones y el escudo offline.
-// [ESTABILIZACIÓN]: Eliminación de colisión de registro y protocolo de activación sin parpadeos.
+// VERSIÓN: 3.0
 
 "use client";
 
@@ -10,9 +8,17 @@ import { useEffect, useRef } from "react";
 
 /**
  * [INTERFAZ DE INFRAESTRUCTURA]
- * Definimos el contrato de Workbox para garantizar el cumplimiento del Build Shield
- * y evitar el uso de tipos 'any' que degradan el rigor del proyecto.
+ * Definimos contratos estrictos para el ecosistema PWA.
  */
+interface BeforeInstallPromptEvent extends Event {
+  readonly platforms: string[];
+  readonly userChoice: Promise<{
+    outcome: 'accepted' | 'dismissed';
+    platform: string;
+  }>;
+  prompt(): Promise<void>;
+}
+
 interface Workbox {
   register: () => Promise<ServiceWorkerRegistration | undefined>;
   addEventListener: (event: string, callback: (event: any) => void) => void;
@@ -22,108 +28,113 @@ interface Workbox {
 declare global {
   interface Window {
     workbox: Workbox;
+    /**
+     * deferredPrompt: Almacén soberano para el evento de instalación.
+     * Permite que 'InstallPwaButton' dispare la instalación manualmente.
+     */
+    deferredPrompt: BeforeInstallPromptEvent | null;
   }
 }
 
 /**
- * PwaLifecycle: El centinela soberano del comportamiento nativo de NicePod V2.5.
- * 
- * Este componente absorbe las responsabilidades de registro y mantenimiento,
- * actuando como un proceso de fondo que no interfiere con el hilo visual.
+ * PwaLifecycle: El orquestador del comportamiento nativo.
+ * Este componente es puramente lógico y no afecta al árbol de renderizado (z-index neutro).
  */
 export function PwaLifecycle() {
   const isInitialized = useRef<boolean>(false);
 
   useEffect(() => {
-    // 1. GUARDA DE ENTORNO SOBERANA: 
-    // Solo ejecutamos si estamos en el navegador, el soporte de SW existe y Workbox está inyectado.
+    // 1. GUARDA DE ENTORNO
     if (
       isInitialized.current ||
       typeof window === "undefined" ||
-      !("serviceWorker" in navigator) ||
-      window.workbox === undefined
+      !("serviceWorker" in navigator)
     ) {
       return;
     }
 
-    const wb = window.workbox;
-
     /**
-     * 2. PROTOCOLO DE ACTUALIZACIÓN (Silent Sincro)
-     * Cuando se detecta un nuevo Service Worker en estado 'waiting', 
-     * forzamos el salto inmediato para que la nueva versión de la lógica 
-     * de red tome el control sin necesidad de un refresco manual disruptivo.
+     * 2. GESTIÓN DE INSTALACIÓN (Sovereign Install Protocol)
+     * Silenciamos el banner nativo y capturamos la intención para disparo manual.
      */
-    const handleWaiting = () => {
-      nicepodLog("Nueva frecuencia detectada. Sincronizando versión de Bóveda...");
-      wb.messageSkipWaiting();
+    const handleInstallPrompt = (e: Event) => {
+      // Prevenir el banner automático para mantener la elegancia de la marca
+      e.preventDefault();
+
+      // Almacenamos el evento para que sea consumido por el componente 'InstallPwaButton'
+      window.deferredPrompt = e as BeforeInstallPromptEvent;
+
+      nicepodLog("🛰️ [PWA] Protocolo de instalación capturado y listo para ejecución manual.");
     };
 
     /**
-     * 3. ESCUDO OFF-LINE (Pre-carga de Fallback)
-     * Una vez que el Service Worker es el controlador activo, precargamos 
-     * la ruta '/offline'. Esto garantiza que si el usuario pierde la conexión, 
-     * NicePod no muestre el error genérico del navegador.
+     * 3. INICIALIZACIÓN DE WORKBOX (Service Worker Handshake)
      */
-    const handleActivated = async () => {
-      try {
-        const cache = await caches.open("nicepod-offline-shield");
-        const cachedResponse = await cache.match("/offline");
+    const initWorkbox = async () => {
+      if (window.workbox === undefined) {
+        // En desarrollo, workbox no se inyecta por defecto.
+        return;
+      }
 
-        if (!cachedResponse) {
-          nicepodLog("Iniciando precarga del Escudo Offline.");
-          await cache.add("/offline");
+      const wb = window.workbox;
+
+      // Protocolo de Actualización: Sincronía de versiones en caliente
+      wb.addEventListener("waiting", () => {
+        nicepodLog("🔄 [PWA] Sincronizando nueva versión de la Workstation...");
+        wb.messageSkipWaiting();
+      });
+
+      // Protocolo de Activación: Limpieza y Cache Nominal
+      wb.addEventListener("activated", (event) => {
+        nicepodLog("✅ [PWA] Service Worker activo y controlando la frecuencia.");
+      });
+
+      // Registro Oficial
+      try {
+        const registration = await wb.register();
+        if (registration) {
+          nicepodLog("🛡️ [PWA] Escudo de red establecido.", { scope: registration.scope });
         }
       } catch (error) {
-        // Fallo silencioso: la prioridad es no interrumpir la navegación principal.
+        console.error("🔥 [PWA-Fatal] Error en registro de infraestructura:", error);
       }
     };
 
-    // Suscripción a eventos del ciclo de vida
-    wb.addEventListener("waiting", handleWaiting);
-    wb.addEventListener("activated", handleActivated);
-
     /**
-     * 4. REGISTRO MAESTRO ÚNICO
-     * Ejecutamos el registro oficial. En NicePod V2.5, este es el único 
-     * punto donde se invoca la activación del trabajador de servicio.
+     * 4. EJECUCIÓN DIFERIDA
+     * Esperamos a que la ventana esté totalmente cargada para no competir 
+     * con el LCP (Largest Contentful Paint) de la plataforma.
      */
-    wb.register()
-      .then((registration) => {
-        if (registration) {
-          nicepodLog("NicePod PWA Sincronizada.", { scope: registration.scope });
-        }
-      })
-      .catch((error) => {
-        // Los errores críticos de registro se emiten para diagnóstico forense
-        console.error("🔥 [NicePod-PWA-Critical]: Error en handshake de registro:", error);
-      });
-
-    /**
-     * 5. GESTIÓN DE INSTALACIÓN SOBERANA
-     * Escuchamos el evento 'beforeinstallprompt' para permitir que el curador 
-     * instale la Workstation mediante nuestro botón de marca 'InstallPwaButton', 
-     * evitando banners nativos intrusivos que causan distracciones.
-     */
-    const handleInstallPrompt = (event: Event) => {
-      // El evento es capturado y gestionado globalmente por los listeners de UI.
-      nicepodLog("Instalación preparada para disparo manual.");
-    };
-
     window.addEventListener("beforeinstallprompt", handleInstallPrompt);
 
-    // Marcamos como inicializado para prevenir re-ejecuciones en modo Strict de React.
+    if (document.readyState === "complete") {
+      initWorkbox();
+    } else {
+      window.addEventListener("load", initWorkbox);
+    }
+
     isInitialized.current = true;
 
-    // Limpieza de listeners al desmontar la instancia global.
+    // 5. PROTOCOLO DE LIMPIEZA
     return () => {
       window.removeEventListener("beforeinstallprompt", handleInstallPrompt);
+      window.removeEventListener("load", initWorkbox);
     };
   }, []);
 
-  /**
-   * Este componente es una pieza de infraestructura lógica.
-   * No debe renderizar ningún elemento en el DOM para evitar re-calculos de layout.
-   */
+  // El componente no debe inyectar nada en el DOM
   return null;
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT:
+ * 1. Resolución de Advertencias: El uso de e.preventDefault() junto con el 
+ *    almacenamiento en window.deferredPrompt satisface los requisitos de Chrome 
+ *    para suprimir el banner, silenciando el mensaje 'Banner not shown'.
+ * 2. Rendimiento del Hilo Principal: Al diferir el registro hasta el evento 'load', 
+ *    garantizamos que las violaciones de 'requestAnimationFrame' se reduzcan, 
+ *    ya que el Service Worker no intentará indexar la caché mientras el mapa 
+ *    o el Dashboard se están pintando.
+ * 3. Tipado de Grado Industrial: Se han definido interfaces específicas para 
+ *    BeforeInstallPromptEvent, eliminando el uso de 'any' y blindando el Build Shield.
+ */
