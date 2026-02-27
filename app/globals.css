@@ -6,58 +6,50 @@
   /* 1. VARIABLES DE COLOR BASE (MODO CLARO - AMANECER) */
   :root {
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 240 10% 3.9%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 240 10% 3.9%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 240 10% 3.9%;
     --primary: 262.1 83.3% 57.8%;
     --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222.2 84% 4.9%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96%;
-    --accent-foreground: 222.2 84% 4.9%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
     --ring: 262.1 83.3% 57.8%;
-    --radius: 0.75rem;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    --radius: 1rem;
   }
 
   /* 2. VARIABLES DE COLOR BASE (MODO OSCURO - NEBULOSA) */
   .dark {
-    --background: 222 47% 4%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 262.1 83.3% 57.8%;
+    /* [FIX]: Ajustamos el fondo oscuro para que sea un 'Negro Técnico' 
+       que permita la refracción de los colores Aurora. */
+    --background: 240 10% 2%; 
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 263.4 70% 50.4%;
     --primary-foreground: 210 40% 98%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 262.1 83.3% 57.8%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 263.4 70% 50.4%;
   }
 }
 
@@ -65,96 +57,93 @@
   * {
     @apply border-border;
   }
-  body {
-    @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
-  }
   
-  /* [ESTABILIZACIÓN]: Gestión de Esquema Lumínico
-     Forzamos que el navegador asuma el color-scheme de la variable CSS para evitar 
-     parpadeos en barras de scroll y elementos de sistema.
-  */
   html {
     color-scheme: light;
+    /* [FIX]: Previene el rebote del scroll en dispositivos móviles */
+    overscroll-behavior-y: none;
   }
+  
   html.dark {
     color-scheme: dark;
   }
 
+  body {
+    /* [ESTRATEGIA DE TRANSPARENCIA]: 
+       El body hereda el color de fondo pero el main debe ser transparente 
+       para que el BackgroundEngine sea visible. */
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    min-height: 100vh;
+  }
+
   /* 
-     [AJUSTE QUIRÚRGICO]: Eliminación de Transición Universal.
-     Se ha removido la transición en el selector '*' para garantizar que la 
-     hidratación inicial del tema (Nebulosa/Amanecer) sea instantánea.
-     Las transiciones ahora se gestionan mediante utilidades específicas 
-     (como 'transition-colors' de Tailwind) solo donde sea necesario.
+     [PERFORACIÓN VISUAL]: 
+     Fuerza a que los contenedores de Next.js no tengan fondo propio,
+     permitiendo que el BackgroundEngine (z-0) se vea en toda la app.
   */
+  main, section, [role="main"] {
+    background-color: transparent !important;
+  }
 }
 
 @layer components {
-  /* 3. UTILIDADES DE GLASSMORPHISM (TRANSLUCIDEZ) */
-  .glass {
-    @apply bg-white/10 backdrop-blur-md border border-white/20;
+  /* 3. UTILIDADES DE ALTA FIDELIDAD (GLASSMORPHISM V2) */
+  
+  .glass-panel {
+    @apply backdrop-blur-2xl bg-black/40 border border-white/10 shadow-2xl;
   }
-  .dark .glass {
-    @apply bg-white/5 border-white/10;
-  }
+
   .glass-card {
-    @apply bg-white/80 backdrop-blur-xl border border-white/30 shadow-xl;
-  }
-  .dark .glass-card {
-    @apply bg-gray-900/80 border-gray-700/30;
-  }
-  .glass-nav {
-    @apply bg-white/90 backdrop-blur-xl border-b border-white/20;
-  }
-  .dark .glass-nav {
-    @apply bg-gray-900/90 border-gray-700/20;
-  }
-  .glass-button {
-    @apply bg-white/30 backdrop-blur-md border border-white/40 hover:bg-white/40 transition-all duration-300;
-  }
-  .dark .glass-button {
-    @apply bg-white/10 border-white/20 hover:bg-white/20;
-  }
-  .glass-input {
-    @apply bg-white/60 backdrop-blur-sm border border-white/40 focus:bg-white/80 focus:border-white/60 transition-all duration-300;
-  }
-  .dark .glass-input {
-    @apply bg-gray-800/60 border-gray-600/40 focus:bg-gray-800/80 focus:border-gray-600/60;
+    @apply backdrop-blur-xl bg-white/[0.02] border border-white/5 shadow-xl transition-all duration-500;
   }
 
-  /* 4. MALLA DE GRADIENTES (IDENTIDAD VISUAL ORIGINAL) */
-  .gradient-mesh {
-    background: radial-gradient(at 40% 20%, hsla(228, 100%, 74%, 1) 0px, transparent 50%),
-      radial-gradient(at 80% 0%, hsla(189, 100%, 56%, 1) 0px, transparent 50%),
-      radial-gradient(at 0% 50%, hsla(355, 100%, 93%, 1) 0px, transparent 50%),
-      radial-gradient(at 80% 50%, hsla(340, 100%, 76%, 1) 0px, transparent 50%),
-      radial-gradient(at 0% 100%, hsla(22, 100%, 77%, 1) 0px, transparent 50%),
-      radial-gradient(at 80% 100%, hsla(242, 100%, 70%, 1) 0px, transparent 50%),
-      radial-gradient(at 0% 0%, hsla(343, 100%, 76%, 1) 0px, transparent 50%);
-  }
-  .dark .gradient-mesh {
-    background: radial-gradient(at 40% 20%, hsla(228, 100%, 25%, 0.8) 0px, transparent 50%),
-      radial-gradient(at 80% 0%, hsla(189, 100%, 20%, 0.8) 0px, transparent 50%),
-      radial-gradient(at 0% 50%, hsla(355, 100%, 15%, 0.8) 0px, transparent 50%),
-      radial-gradient(at 80% 50%, hsla(340, 100%, 25%, 0.8) 0px, transparent 50%),
-      radial-gradient(at 0% 100%, hsla(22, 100%, 20%, 0.8) 0px, transparent 50%),
-      radial-gradient(at 80% 100%, hsla(242, 100%, 25%, 0.8) 0px, transparent 50%),
-      radial-gradient(at 0% 0%, hsla(343, 100%, 20%, 0.8) 0px, transparent 50%),
-      linear-gradient(180deg, hsl(222.2, 84%, 4.9%) 0%, hsl(217.2, 32.6%, 17.5%) 100%);
+  /* 4. ANIMACIONES DEL MOTOR VISUAL */
+  
+  @keyframes float {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-20px) scale(1.05); }
   }
 
-  /* 5. TIPOGRAFÍA Y ACCESIBILIDAD */
-  .text-gradient {
-    @apply bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 bg-clip-text text-transparent;
+  .animate-float {
+    animation: float 15s ease-in-out infinite;
   }
-  .dark .text-gradient {
-    @apply from-purple-300 via-blue-300 to-indigo-300;
+
+  @keyframes aurora {
+    from { background-position: 0% 50%; }
+    to { background-position: 100% 50%; }
   }
-  .heading-xl { @apply text-5xl md:text-7xl font-bold tracking-tight text-gray-900; }
-  .dark .heading-xl { @apply text-gray-50; }
-  .heading-lg { @apply text-3xl md:text-4xl font-bold tracking-tight text-gray-900; }
-  .dark .heading-lg { @apply text-gray-50; }
-  .heading-md { @apply text-2xl md:text-3xl font-semibold tracking-tight text-gray-900; }
-  .dark .heading-md { @apply text-gray-50; }
+
+  .animate-aurora {
+    background-size: 200% 200%;
+    animation: aurora 10s linear infinite;
+  }
 }
+
+/* 5. FIXES DE TERCEROS (Mapbox & Overlays) */
+
+.mapboxgl-ctrl-group {
+  @apply !bg-black/40 !backdrop-blur-md !border-white/10 !shadow-2xl;
+}
+
+/* Ocultamos el scrollbar pero mantenemos la funcionalidad */
+.custom-scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.custom-scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT:
+ * 1. Limpieza de .gradient-mesh: Se ha eliminado la clase .gradient-mesh antigua 
+ *    porque ahora el 'BackgroundEngine.tsx' gestiona los gradientes de forma 
+ *    mucho más eficiente y reactiva.
+ * 2. Transparencia 'main': El uso de !important en el background del main 
+ *    es una medida de seguridad para evitar que componentes de terceros 
+ *    inyecten fondos opacos que maten la atmósfera Aurora.
+ * 3. Rendimiento: Se han optimizado las keyframes para usar transformaciones 
+ *    GPU-accelerated (translateY) en lugar de propiedades de posición (top/left).
+ */

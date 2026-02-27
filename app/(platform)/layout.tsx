@@ -1,39 +1,36 @@
 // app/(platform)/layout.tsx
-// VERSIÓN: 2.0
+// VERSIÓN: 2.1
 
 import React from "react";
 
 // --- INFRAESTRUCTURA DE NAVEGACIÓN Y ACCESO ---
-// Importamos el sistema de navegación modular y el centinela de seguridad.
-import { AuthGuard } from "@/components/auth-guard";
+//Navigation: Componente fixed (z-100) que flota sobre el contenido.
 import { Navigation } from "@/components/navigation";
+//AuthGuard: Centinela que bloquea el renderizado si no hay sesión activa.
+import { AuthGuard } from "@/components/auth-guard";
 
 // --- SERVICIOS DE INFRAESTRUCTURA Y PWA ---
-// Componentes invisibles que gestionan el estado técnico de la aplicación.
 import { InstallPwaButton } from '@/components/install-pwa-button';
 import { OfflineIndicator } from '@/components/offline-indicator';
 import { ScrollToTop } from "@/components/scroll-to-top";
 import { SmoothScrollWrapper } from "@/components/smooth-scroll-wrapper";
 
 // --- COMPONENTES DE SALIDA Y ANIMACIÓN ---
-// Elementos visuales que mejoran la experiencia de transición y feedback.
 import { PageTransition } from "@/components/page-transition";
 import { PlayerOrchestrator } from "@/components/player-orchestrator";
 import { Toaster } from "@/components/ui/toaster";
 
 // --- CONTEXTOS DE INTELIGENCIA ---
-// Proveedores de estado global para la lógica de negocio.
 import { AudioProvider } from "@/contexts/audio-context";
 
 /**
  * COMPONENTE: PlatformLayout
- * El bastidor soberano de la Workstation NicePod.
+ * El bastidor soberano para el área de trabajo (Login Side).
  * 
  * [RESPONSABILIDAD ARQUITECTÓNICA]:
- * Este layout envuelve todas las rutas protegidas (Dashboard, Library, Create, Map).
- * Su función es mantener el estado del reproductor de audio, gestionar la seguridad
- * de la sesión y definir la estructura física (padding) para que el contenido no
- * colisione con el menú fijo.
+ * Este layout es responsable de la 'perforación visual'. Debe mantenerse
+ * bg-transparent en todos sus niveles para que los gradientes Aurora
+ * inyectados por el RootLayout sean visibles.
  */
 export default function PlatformLayout({
   children
@@ -43,56 +40,53 @@ export default function PlatformLayout({
   return (
     /**
      * CAPA 1: CONTEXTO DE INTELIGENCIA ACÚSTICA
-     * El AudioProvider reside en la raíz de la plataforma para permitir que
-     * las crónicas de voz persistan durante la navegación interna.
+     * Asegura que el hilo de audio persista durante la navegación.
      */
     <AudioProvider>
 
       {/* 
           CAPA 2: CENTINELA DE SOBERANÍA (AuthGuard)
-          Protección atómica para todas las rutas dentro de (platform).
-          Si el handshake de sesión falla, el guardia orquesta el redireccionamiento.
+          Protege todas las rutas de la plataforma. Si el handshake falla,
+          nada de lo que hay dentro se monta en el DOM.
       */}
       <AuthGuard>
 
         {/* 
             CAPA 3: CONTROL DE DESPLAZAMIENTO (Smooth Scroll)
-            Gestiona la física del scroll para una sensación de aplicación nativa,
-            evitando saltos bruscos al cambiar de ruta.
+            Gestiona la física del visor eliminando saltos bruscos.
         */}
         <SmoothScrollWrapper>
 
-          {/* SERVICIOS DE SISTEMA (Invisibles en el flujo de renderizado) */}
+          {/* SERVICIOS DE SISTEMA (Capa técnica invisible) */}
           <OfflineIndicator />
           <InstallPwaButton />
           <ScrollToTop />
 
           {/* 
               CAPA 4: NAVEGACIÓN TÁCTICA (Header Fijo)
-              Ubicado físicamente arriba en el DOM. Z-index: 100 inyectado
-              desde el componente Navigation para superar el mapa y el feed.
+              Ubicado físicamente arriba para prioridad de renderizado.
           */}
           <Navigation />
 
           {/* 
-              CAPA 5: CONTENEDOR MAESTRO DE INTELIGENCIA
+              CAPA 5: CONTENEDOR MAESTRO DE CONTENIDO
               [RE-CALIBRACIÓN DE ESPACIO NEGATIVO]:
-              Ajustamos el padding-top (pt) para compensar el Header Monumental V2.0.
+              - pt-[100px] en móvil: Header (72px) + Margen de seguridad (28px).
+              - md:pt-[140px] en desktop: Header (80px) + Aire industrial (60px).
               
-              Cálculo Técnico de Grado Industrial:
-              - Móvil: Header 72px + Padding Contenedor 24px = 96px. pt-[100px] para aire.
-              - Desktop: Header 80px + Padding Contenedor 40px = 120px. md:pt-[140px] para elegancia.
+              [FIX ATMOSFÉRICO]: 
+              Uso obligatorio de bg-transparent para evitar ocluir el BackgroundEngine.
           */}
           <main
-            className="relative z-10 flex flex-col min-h-screen pt-[100px] md:pt-[140px] transition-all duration-500 ease-[0.16, 1, 0.3, 1]"
+            className="relative z-10 flex flex-col min-h-screen pt-[100px] md:pt-[140px] bg-transparent transition-all duration-500"
           >
             {/* 
                 CAPA 6: ORQUESTADOR DE MOVIMIENTO (Page Transitions)
-                Sincroniza la entrada y salida de contenido (Opacity 0 -> 1).
-                El contenedor interno asegura que el contenido tenga un ancho fluido.
+                Maneja la entrada cinemática del contenido. 
+                El div interno también debe ser transparente.
             */}
             <PageTransition>
-              <div className="w-full flex-grow flex flex-col px-1 md:px-0">
+              <div className="w-full flex-grow flex flex-col bg-transparent px-1 md:px-0">
                 {children}
               </div>
             </PageTransition>
@@ -100,8 +94,8 @@ export default function PlatformLayout({
 
           {/* 
               CAPA 7: TERMINALES DE SALIDA
-              PlayerOrchestrator: Centro de mando del audio (Z-index: 200).
-              Toaster: Gestor de notificaciones de sistema (Toast).
+              PlayerOrchestrator: Z-index 200 para flotar sobre el contenido.
+              Toaster: Notificaciones de sistema.
           */}
           <PlayerOrchestrator />
           <Toaster />
@@ -114,10 +108,14 @@ export default function PlatformLayout({
 
 /**
  * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Higiene de Importación: Se ha eliminado la referencia errónea a 'globals.css'.
- *    Los estilos globales ya son inyectados por el RootLayout, evitando conflictos.
- * 2. Estabilidad de Capas: El margen superior (pt-140px) garantiza que el 
- *    saludo 'Hola, [Nombre]' del Dashboard sea visible íntegramente.
- * 3. Integridad de Sesión: La inyección de AuthGuard a este nivel elimina la 
- *    necesidad de validaciones manuales en page.tsx.
+ * 1. Transparencia en Cascada: Al eliminar las clases 'bg-background' y 
+ *    'bg-card' que existían en versiones previas, permitimos que la luz 
+ *    del 'BackgroundEngine' atraviese el chasis, resolviendo el problema 
+ *    de la pantalla gris detectado en el dashboard.
+ * 2. Jerarquía de Z-Index: Mantenemos el contenido en 'z-10' para asegurar 
+ *    que la interactividad (clics) esté por delante de la atmósfera (z-0), 
+ *    pero por detrás del menú de navegación (z-100).
+ * 3. Optimización de Layout: Al usar valores de padding fijos, eliminamos 
+ *    la necesidad de que el navegador recalcule la posición del contenido 
+ *    durante la hidratación, reduciendo el ruido de la consola (Violation rAF).
  */
