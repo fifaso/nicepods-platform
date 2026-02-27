@@ -1,5 +1,5 @@
-// app/podcasts/library-tabs.tsx
-// VERSIÓN: 10.0
+// app/(platform)/podcasts/library-tabs.tsx
+// VERSIÓN: 9.1
 
 'use client';
 
@@ -9,41 +9,39 @@ import { User } from '@supabase/supabase-js';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 
-// --- INFRAESTRUCTURA DE COMPONENTES ---
-import { CompactPodcastCard } from '@/components/compact-podcast-card';
+// --- INFRAESTRUCTURA DE COMPONENTES DE ALTA FIDELIDAD ---
 import { LibraryViewSwitcher } from '@/components/library-view-switcher';
-import { PulsePillCard } from '@/components/pulse-pill-card';
 import { SmartJobCard } from '@/components/smart-job-card';
 import { StackedPodcastCard } from '@/components/stacked-podcast-card';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UniverseCard } from '@/components/universe-card';
 
-// --- RADAR UNIFICADO (V3.0) ---
+// --- NUEVO SISTEMA DE RADAR UNIFICADO ---
 import { UnifiedSearchBar } from "@/components/ui/unified-search-bar";
 import { SearchResult } from "@/hooks/use-search-radar";
 
-// --- ICONOGRAFÍA ---
+// --- ICONOGRAFÍA TÉCNICA ---
 import {
-    Archive,
-    BrainCircuit,
+    BookOpen,
+    History,
     Loader2,
     Mic2,
-    Sparkles,
+    TrendingUp,
     User as UserIcon
 } from 'lucide-react';
 
-import { groupPodcastsByThread } from '@/lib/podcast-utils';
-import { cn } from '@/lib/utils';
 import type { Tables } from '@/types/supabase';
 import { CuratedShelvesData } from './page';
 
+/**
+ * Definiciones de tipos para el ecosistema de la biblioteca.
+ */
 type UserCreationJob = Tables<'podcast_creation_jobs'>;
 type LibraryViewMode = 'grid' | 'list' | 'compass';
 
@@ -56,6 +54,9 @@ interface LibraryTabsProps {
     compassProps: any;
 }
 
+/**
+ * Configuración de Universos Semánticos (Frecuencias).
+ */
 const universeCategories = [
     { key: 'most_resonant', title: 'Lo más resonante', image: '/images/universes/resonant.png' },
     { key: 'deep_thought', title: 'Pensamiento', image: '/images/universes/deep-thought.png' },
@@ -77,33 +78,20 @@ export function LibraryTabs({
     const pathname = usePathname();
     const searchParams = useSearchParams();
 
-    // --- ESTADOS DE NAVEGACIÓN ---
+    // --- ESTADOS DE NAVEGACIÓN Y FILTRADO ---
     const currentTab = searchParams.get('tab') || defaultTab;
-    const currentView = (searchParams.get('view') as LibraryViewMode) || 'grid';
     const activeUniverseKey = searchParams.get('universe') || (user ? 'most_resonant' : 'tech_and_innovation');
+    const contentFilter = searchParams.get('filter') || 'all';
 
-    // Filtro interno para la vista privada: 'narrative' | 'pulse'
-    const [privateFilter, setPrivateFilter] = useState<'narrative' | 'pulse'>('narrative');
-
-    // --- ESTADOS DE DATOS ---
+    // --- ESTADOS DE DATOS LOCALES ---
     const [jobs, setJobs] = useState<UserCreationJob[]>(initialJobs);
     const [podcasts, setPodcasts] = useState<PodcastWithProfile[]>(initialPodcasts);
     const [searchResults, setSearchResults] = useState<SearchResult[] | null>(null);
     const [isSearching, setIsSearching] = useState<boolean>(false);
 
     /**
-     * SEGMENTACIÓN INTELIGENTE:
-     * Dividimos la colección personal en Narrativa (Podcasts largos) y Pulse (Píldoras/Noticias).
-     */
-    const { regularPodcasts, pulsePills } = useMemo(() => {
-        return {
-            regularPodcasts: podcasts.filter(p => p.creation_mode !== 'pulse'),
-            pulsePills: podcasts.filter(p => p.creation_mode === 'pulse')
-        };
-    }, [podcasts]);
-
-    /**
-     * SINCRONIZACIÓN REALTIME (Bóveda Personal)
+     * [CORE] SINCRONIZACIÓN REALTIME
+     * Mantiene la biblioteca actualizada ante nuevos podcasts o tareas de IA.
      */
     useEffect(() => {
         if (!user) return;
@@ -124,76 +112,28 @@ export function LibraryTabs({
                 }
             ).subscribe();
 
-        const podsChannel = supabase.channel(`library_pods_${user.id}`)
-            .on<PodcastWithProfile>(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'micro_pods', filter: `user_id=eq.${user.id}` },
-                async (payload) => {
-                    if (payload.eventType === 'INSERT') {
-                        const { data } = await supabase.from('micro_pods').select('*, profiles(*)').eq('id', payload.new.id).single();
-                        if (data) setPodcasts((prev) => [data as PodcastWithProfile, ...prev]);
-                    }
-                }
-            ).subscribe();
-
         return () => {
             supabase.removeChannel(jobsChannel);
-            supabase.removeChannel(podsChannel);
         };
     }, [user, supabase]);
 
     /**
-     * RENDERIZADOR DE CONTENIDO (GRID/LISTA)
-     */
-    const renderContent = (data: PodcastWithProfile[]) => {
-        if (data.length === 0) {
-            return (
-                <div className="py-24 text-center border border-dashed border-white/10 rounded-[2rem] bg-white/[0.01] animate-in fade-in duration-700">
-                    <Archive className="mx-auto h-12 w-12 text-zinc-700 mb-4" />
-                    <p className="text-xs font-black uppercase tracking-[0.3em] text-zinc-500">Colección Vacía</p>
-                    <Link href="/create">
-                        <Button variant="link" className="mt-2 text-primary text-xs font-bold uppercase tracking-widest">
-                            Iniciar primera grabación
-                        </Button>
-                    </Link>
-                </div>
-            );
-        }
-
-        if (currentView === 'list') {
-            return (
-                <div className="space-y-3">
-                    {data.map(p => <CompactPodcastCard key={p.id} podcast={p} />)}
-                </div>
-            );
-        }
-
-        // Agrupación por hilos para vista Grid
-        const displayData = privateFilter === 'pulse' ? data : groupPodcastsByThread(data);
-
-        return (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {displayData.map((p: any) => (
-                    privateFilter === 'pulse'
-                        ? <PulsePillCard key={p.id} podcast={p} />
-                        : <StackedPodcastCard key={p.id} podcast={p} replies={p.replies} />
-                ))}
-            </div>
-        );
-    };
-
-    /**
-     * RENDERIZADOR DE RESULTADOS DE BÚSQUEDA (RADAR)
+     * renderSearchResults (V4.0 - Master Intelligence Display)
+     * Despliega impactos unificados: Podcasts, Usuarios y Hechos de la Bóveda.
      */
     const renderSearchResults = () => {
         if (!searchResults) return null;
 
         if (searchResults.length === 0) {
             return (
-                <div className="text-center py-32 bg-white/[0.02] rounded-[3rem] border border-white/5 animate-in fade-in">
-                    <p className="font-bold uppercase tracking-[0.3em] text-xs opacity-40 mb-6 text-white">Sin Resonancia</p>
-                    <Button variant="outline" className="rounded-full border-white/10 text-xs uppercase tracking-widest hover:bg-white hover:text-black" onClick={() => setSearchResults(null)}>
-                        Limpiar Radar
+                <div className="text-center py-32 border-2 border-dashed border-white/5 rounded-[3rem] bg-black/20 animate-in fade-in duration-500">
+                    <p className="font-bold uppercase tracking-[0.4em] text-[10px] opacity-30 mb-6 text-white">Frecuencia no detectada</p>
+                    <Button
+                        variant="ghost"
+                        className="text-primary font-black uppercase text-[10px] tracking-widest border border-primary/20 hover:bg-primary/10 rounded-full px-8"
+                        onClick={() => setSearchResults(null)}
+                    >
+                        Reiniciar Escáner
                     </Button>
                 </div>
             );
@@ -204,18 +144,24 @@ export function LibraryTabs({
         const vaultHits = searchResults.filter(r => r.result_type === 'vault_chunk');
 
         return (
-            <div className="space-y-16 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <div className="space-y-20 animate-in fade-in slide-in-from-bottom-6 duration-1000">
+                {/* CURADORES HALLADOS */}
                 {userHits.length > 0 && (
-                    <section>
-                        <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em] mb-6 flex items-center gap-2"><UserIcon size={12} /> Curadores</h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <section className="space-y-8">
+                        <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.5em] flex items-center gap-3">
+                            <UserIcon size={12} className="text-primary/60" /> Curadores del Archivo
+                        </h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
                             {userHits.map(hit => (
                                 <Link key={hit.id} href={`/profile/${hit.subtitle.replace('@', '')}`}>
-                                    <div className="flex items-center gap-4 p-4 rounded-2xl bg-white/[0.03] border border-white/5 hover:border-primary/40 transition-all group">
-                                        <Avatar className="h-10 w-10 border border-white/10"><AvatarImage src={hit.image_url} /><AvatarFallback>U</AvatarFallback></Avatar>
-                                        <div className="overflow-hidden">
-                                            <p className="font-bold text-sm text-white truncate group-hover:text-primary transition-colors">{hit.title}</p>
-                                            <p className="text-[9px] text-zinc-500 font-medium truncate">{hit.subtitle}</p>
+                                    <div className="flex items-center gap-4 p-4 rounded-[1.5rem] bg-white/[0.02] border border-white/5 hover:border-primary/40 hover:bg-white/[0.04] transition-all group shadow-xl">
+                                        <Avatar className="h-14 w-14 border border-white/10 group-hover:border-primary transition-colors">
+                                            <AvatarImage src={hit.image_url} />
+                                            <AvatarFallback className="font-black text-sm bg-zinc-900 text-primary">{hit.title.substring(0, 1).toUpperCase()}</AvatarFallback>
+                                        </Avatar>
+                                        <div className="min-w-0">
+                                            <p className="font-black text-sm text-white truncate uppercase tracking-tight group-hover:text-primary transition-colors">{hit.title}</p>
+                                            <p className="text-[10px] text-zinc-500 font-bold truncate tracking-widest uppercase mt-0.5">{hit.subtitle}</p>
                                         </div>
                                     </div>
                                 </Link>
@@ -224,22 +170,59 @@ export function LibraryTabs({
                     </section>
                 )}
 
+                {/* CRÓNICAS SONORAS */}
                 {podcastHits.length > 0 && (
-                    <section>
-                        <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em] mb-6 flex items-center gap-2"><Mic2 size={12} /> Podcasts</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <section className="space-y-8">
+                        <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.5em] flex items-center gap-3">
+                            <Mic2 size={12} className="text-primary/60" /> Crónicas de Sabiduría
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                             {podcastHits.map(hit => (
                                 <Link key={hit.id} href={`/podcast/${hit.id}`}>
-                                    <div className="group flex gap-4 p-4 rounded-3xl bg-white/[0.03] border border-white/5 hover:border-primary/40 transition-all h-full">
-                                        <div className="h-20 w-20 rounded-xl bg-zinc-900 overflow-hidden relative shrink-0">
-                                            <Image src={hit.image_url || '/placeholder.jpg'} alt="" fill className="object-cover" />
+                                    <div className="group flex gap-6 p-6 rounded-[2.5rem] bg-white/[0.02] border border-white/5 hover:border-primary/50 hover:bg-black/40 transition-all h-full shadow-2xl">
+                                        <div className="relative h-28 w-28 flex-shrink-0 rounded-3xl overflow-hidden border border-white/10 bg-black/20">
+                                            <Image
+                                                src={hit.image_url || '/placeholder.jpg'}
+                                                alt={hit.title}
+                                                fill
+                                                sizes="112px"
+                                                className="object-cover group-hover:scale-110 transition-transform duration-1000"
+                                            />
                                         </div>
-                                        <div className="flex-1 flex flex-col justify-center min-w-0">
-                                            <h4 className="font-bold text-sm text-white line-clamp-2 leading-tight group-hover:text-primary transition-colors">{hit.title}</h4>
-                                            <Badge variant="outline" className="mt-2 w-fit text-[9px] border-white/10 text-zinc-400">{Math.round(hit.similarity * 100)}% Match</Badge>
+                                        <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                            <h4 className="font-black text-sm md:text-base text-white group-hover:text-primary transition-colors line-clamp-2 uppercase tracking-tight leading-tight">
+                                                {hit.title}
+                                            </h4>
+                                            <div className="flex items-center gap-2 mt-4">
+                                                <div className="px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-[9px] font-black text-primary uppercase tracking-widest">
+                                                    <TrendingUp className="h-3 w-3 inline mr-1" />
+                                                    {Math.round(hit.similarity * 100)}% Resonancia
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </Link>
+                            ))}
+                        </div>
+                    </section>
+                )}
+
+                {/* HECHOS DE LA BÓVEDA NKV */}
+                {vaultHits.length > 0 && (
+                    <section className="space-y-8">
+                        <h3 className="text-[10px] font-black text-primary/60 uppercase tracking-[0.5em] flex items-center gap-3">
+                            <BookOpen size={12} /> Hechos Atómicos de la Bóveda
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {vaultHits.map(hit => (
+                                <div key={hit.id} className="p-8 rounded-[2.5rem] bg-primary/[0.02] border border-primary/10 hover:border-primary/30 transition-all shadow-inner group">
+                                    <h4 className="text-[10px] font-black text-primary uppercase mb-4 tracking-[0.3em] opacity-60 flex items-center gap-3">
+                                        <History size={12} /> {hit.title}
+                                    </h4>
+                                    <p className="text-xs text-zinc-400 font-medium italic leading-relaxed">
+                                        "{hit.subtitle}"
+                                    </p>
+                                </div>
                             ))}
                         </div>
                     </section>
@@ -249,151 +232,108 @@ export function LibraryTabs({
     };
 
     return (
-        <div className="w-full min-h-screen">
+        <Tabs value={searchResults ? 'search' : currentTab} className="w-full">
 
-            {/* 1. HEADER MONUMENTAL DE BIBLIOTECA */}
-            <header className="mb-10 space-y-8">
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-                    <div className="space-y-2">
-                        <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase italic text-white leading-none">
-                            Archivo <span className="text-primary">Global</span>
-                        </h1>
-                        <p className="text-xs font-bold text-zinc-500 uppercase tracking-[0.2em]">
-                            {currentTab === 'discover' ? 'Explorando la red neuronal' : 'Gestionando bóveda personal'}
-                        </p>
-                    </div>
-
-                    {/* SELECTOR DE MODO DE VISTA */}
-                    {!searchResults && (
-                        <div className="flex items-center gap-2 bg-zinc-900/50 p-1 rounded-xl border border-white/5">
-                            <Tabs list-none value={currentTab} className="w-auto">
-                                <TabsList className="bg-transparent h-9 p-0 gap-1">
-                                    <TabsTrigger
-                                        value="discover"
-                                        onClick={() => router.push('?tab=discover')}
-                                        className="rounded-lg px-4 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-black"
-                                    >
-                                        Descubrir
-                                    </TabsTrigger>
-                                    <TabsTrigger
-                                        value="library"
-                                        disabled={!user}
-                                        onClick={() => router.push('?tab=library')}
-                                        className="rounded-lg px-4 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-black"
-                                    >
-                                        Mi Estación
-                                    </TabsTrigger>
-                                </TabsList>
-                            </Tabs>
-                            <Separator orientation="vertical" className="h-5 bg-white/10" />
-                            <LibraryViewSwitcher />
-                        </div>
-                    )}
-                </div>
-
-                {/* BUSCADOR HEROICO */}
-                <div className="w-full">
+            {/* CABECERA TÁCTICA: RADAR UNIFICADO */}
+            <div className="flex flex-col gap-10 md:gap-0 md:flex-row w-full items-center justify-between mb-16">
+                <div className="w-full md:max-w-2xl">
                     <UnifiedSearchBar
                         onLoading={setIsSearching}
-                        onResults={(res) => { setSearchResults(res); setIsSearching(false); }}
-                        onClear={() => { setSearchResults(null); setIsSearching(false); }}
-                        placeholder="Buscar en el archivo global..."
-                        className="shadow-2xl"
+                        onResults={(res) => {
+                            setSearchResults(res);
+                            setIsSearching(false);
+                        }}
+                        onClear={() => {
+                            setSearchResults(null);
+                            setIsSearching(false);
+                        }}
+                        placeholder="Escribe un concepto para activar el radar semántico..."
                     />
                 </div>
-            </header>
 
-            {/* 2. CUERPO DE CONTENIDO */}
+                {!searchResults && (
+                    <div className="flex items-center gap-3 bg-black/40 p-1.5 rounded-[1.5rem] border border-white/5 backdrop-blur-3xl shadow-2xl">
+                        <TabsList className="bg-transparent border-none p-0 h-auto">
+                            <TabsTrigger
+                                value="discover"
+                                onClick={() => router.push('?tab=discover')}
+                                className="rounded-xl px-8 font-black text-[10px] uppercase tracking-widest h-10"
+                            >
+                                Descubrir
+                            </TabsTrigger>
+                            <TabsTrigger
+                                value="library"
+                                disabled={!user}
+                                onClick={() => router.push('?tab=library')}
+                                className="rounded-xl px-8 font-black text-[10px] uppercase tracking-widest h-10"
+                            >
+                                Mi Estación
+                            </TabsTrigger>
+                        </TabsList>
+                        <Separator orientation="vertical" className="h-8 bg-white/10 mx-1" />
+                        <LibraryViewSwitcher />
+                    </div>
+                )}
+            </div>
+
+            {/* CUERPO DINÁMICO */}
             {searchResults ? (
-                <div className="animate-in fade-in duration-500">{renderSearchResults()}</div>
-            ) : (
-                <div className="animate-in slide-in-from-bottom-4 duration-700">
-
-                    {/* VISTA: DESCUBRIR */}
-                    {currentTab === 'discover' && (
-                        <div className="space-y-12">
-                            {/* UNIVERSOS (SCROLL HORIZONTAL) */}
-                            <ScrollArea className="w-full whitespace-nowrap pb-4">
-                                <div className="flex w-max space-x-4">
-                                    {universeCategories.map(cat => (
-                                        <div key={cat.key} className="w-[160px] md:w-[200px]">
-                                            <UniverseCard
-                                                key={cat.key}
-                                                title={cat.title}
-                                                image={cat.image}
-                                                href={`${pathname}?tab=discover&universe=${cat.key}`}
-                                                isActive={activeUniverseKey === cat.key}
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-                                <ScrollBar orientation="horizontal" className="hidden" />
-                            </ScrollArea>
-
-                            {/* ESTANTE PRINCIPAL */}
-                            <section>
-                                <div className="flex items-center gap-3 mb-6">
-                                    <Sparkles className="text-primary h-5 w-5" />
-                                    <h2 className="text-xl font-black uppercase tracking-tighter text-white italic">
-                                        {universeCategories.find(c => c.key === activeUniverseKey)?.title || "Destacados"}
-                                    </h2>
-                                </div>
-                                {renderContent(curatedShelves?.[activeUniverseKey as keyof CuratedShelvesData] || [])}
-                            </section>
-                        </div>
-                    )}
-
-                    {/* VISTA: MI ESTACIÓN (PRIVADA) */}
-                    {currentTab === 'library' && (
-                        <div className="space-y-12">
-
-                            {/* FORJA ACTIVA (JOBS) */}
-                            {jobs.length > 0 && (
-                                <section className="bg-zinc-900/30 border border-white/5 rounded-[2rem] p-6">
-                                    <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em] mb-4 flex items-center gap-2">
-                                        <Loader2 className="animate-spin h-3 w-3" /> Procesando
-                                    </h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {jobs.map((job) => <SmartJobCard key={job.id} job={job} />)}
-                                    </div>
-                                </section>
-                            )}
-
-                            {/* FILTROS PRIVADOS (TOGGLE) */}
-                            <div className="flex items-center justify-between border-b border-white/5 pb-4">
-                                <h2 className="text-xl font-black uppercase tracking-tighter text-white italic">Inventario Personal</h2>
-                                <div className="flex items-center gap-1 bg-white/5 p-1 rounded-lg">
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => setPrivateFilter('narrative')}
-                                        className={cn(
-                                            "h-7 text-[9px] font-black uppercase tracking-widest rounded-md transition-all",
-                                            privateFilter === 'narrative' ? "bg-white text-black shadow-sm" : "text-zinc-500 hover:text-white"
-                                        )}
-                                    >
-                                        <Mic2 className="h-3 w-3 mr-1.5" /> Narrativa
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => setPrivateFilter('pulse')}
-                                        className={cn(
-                                            "h-7 text-[9px] font-black uppercase tracking-widest rounded-md transition-all",
-                                            privateFilter === 'pulse' ? "bg-primary text-black shadow-sm" : "text-zinc-500 hover:text-white"
-                                        )}
-                                    >
-                                        <BrainCircuit className="h-3 w-3 mr-1.5" /> Pulse
-                                    </Button>
-                                </div>
-                            </div>
-
-                            {/* CONTENIDO FILTRADO */}
-                            {renderContent(privateFilter === 'narrative' ? regularPodcasts : pulsePills)}
-                        </div>
-                    )}
+                <div className="animate-in fade-in duration-1000 outline-none">
+                    {renderSearchResults()}
                 </div>
+            ) : (
+                <>
+                    <TabsContent value="discover" className="mt-0 space-y-20 animate-in fade-in duration-1000 outline-none">
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-5">
+                            {universeCategories.map(cat => (
+                                <UniverseCard
+                                    key={cat.key}
+                                    title={cat.title}
+                                    image={cat.image}
+                                    href={`${pathname}?tab=discover&universe=${cat.key}`}
+                                    isActive={activeUniverseKey === cat.key}
+                                />
+                            ))}
+                        </div>
+
+                        <section className="space-y-12">
+                            <div className="flex items-center justify-between border-b border-white/5 pb-8">
+                                <h2 className="text-4xl font-black uppercase tracking-tighter text-white italic">
+                                    {universeCategories.find(c => c.key === activeUniverseKey)?.title || "Explora NicePod"}
+                                </h2>
+                                <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] font-black uppercase px-5 py-2 rounded-full">
+                                    {isSearching ? 'Sincronizando...' : 'Conexión Nominal'}
+                                </Badge>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                                {(curatedShelves?.[activeUniverseKey as keyof CuratedShelvesData] || []).map(p => (
+                                    <StackedPodcastCard key={p.id} podcast={p} />
+                                ))}
+                            </div>
+                        </section>
+                    </TabsContent>
+
+                    <TabsContent value="library" className="mt-0 space-y-20 animate-in slide-in-from-bottom-4 duration-1000 outline-none">
+                        {jobs.length > 0 && (
+                            <section className="space-y-8">
+                                <div className="flex items-center gap-4">
+                                    <div className="p-3 bg-primary/10 rounded-2xl border border-primary/20"><Loader2 className="h-5 w-5 text-primary animate-spin" /></div>
+                                    <h2 className="text-2xl font-black uppercase tracking-tighter text-white italic">Procesando Crónicas</h2>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {jobs.map((job) => <SmartJobCard key={job.id} job={job} />)}
+                                </div>
+                            </section>
+                        )}
+                        <section className="space-y-10">
+                            <h2 className="text-4xl font-black uppercase tracking-tighter text-white px-2 italic">Mi Bóveda</h2>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                                {podcasts.map(p => <StackedPodcastCard key={p.id} podcast={p} />)}
+                            </div>
+                        </section>
+                    </TabsContent>
+                </>
             )}
-        </div>
+        </Tabs>
     );
 }
