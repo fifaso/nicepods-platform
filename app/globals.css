@@ -3,50 +3,76 @@
 @tailwind utilities;
 
 @layer base {
-  /* 1. VARIABLES DE COLOR BASE (MODO CLARO - AMANECER) */
+  /**
+   * 1. VARIABLES DE COLOR: MODO CLARO (Amanecer)
+   * Enfocado en la frescura y la nitidez absoluta.
+   */
   :root {
-    --background: 0 0% 98%;
+    --background: 0 0% 100%;
     --foreground: 240 10% 3.9%;
+    
+    /* Contenedores */
     --card: 0 0% 100%;
     --card-foreground: 240 10% 3.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
+    
+    /* Identidad */
     --primary: 262.1 83.3% 57.8%;
     --primary-foreground: 210 40% 98%;
+    
+    /* Estados y Textos Secundarios */
     --secondary: 240 4.8% 95.9%;
     --secondary-foreground: 240 5.9% 10%;
+    
+    /* [FIX]: Muted-foreground ahora es un gris-indigo denso para legibilidad en blanco */
     --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
+    --muted-foreground: 240 5% 35%; 
+    
     --accent: 240 4.8% 95.9%;
     --accent-foreground: 240 5.9% 10%;
+    
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
+    
+    /* Bordes y Entradas */
     --border: 240 5.9% 90%;
     --input: 240 5.9% 90%;
     --ring: 262.1 83.3% 57.8%;
+    
     --radius: 1rem;
   }
 
-  /* 2. VARIABLES DE COLOR BASE (MODO OSCURO - NEBULOSA) */
+  /**
+   * 2. VARIABLES DE COLOR: MODO OSCURO (Nebulosa)
+   * Enfocado en la profundidad técnica y el contraste vibrante.
+   */
   .dark {
-    /* [FIX]: Ajustamos el fondo oscuro para que sea un 'Negro Técnico' 
-       que permita la refracción de los colores Aurora. */
+    /* [FIX]: Fondo 020202 real para permitir que los blobs Aurora 'respiren' */
     --background: 240 10% 2%; 
     --foreground: 0 0% 98%;
+    
     --card: 240 10% 3.9%;
     --card-foreground: 0 0% 98%;
     --popover: 240 10% 3.9%;
     --popover-foreground: 0 0% 98%;
+    
     --primary: 263.4 70% 50.4%;
     --primary-foreground: 210 40% 98%;
+    
     --secondary: 240 3.7% 15.9%;
     --secondary-foreground: 0 0% 98%;
+    
+    /* [FIX]: Muted-foreground en oscuro es un gris-lavanda suave */
     --muted: 240 3.7% 15.9%;
     --muted-foreground: 240 5% 64.9%;
+    
     --accent: 240 3.7% 15.9%;
     --accent-foreground: 0 0% 98%;
+    
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
+    
     --border: 240 3.7% 15.9%;
     --input: 240 3.7% 15.9%;
     --ring: 263.4 70% 50.4%;
@@ -59,9 +85,11 @@
   }
   
   html {
+    /* Gestión nativa del esquema para componentes de sistema (scrollbars) */
     color-scheme: light;
-    /* [FIX]: Previene el rebote del scroll en dispositivos móviles */
     overscroll-behavior-y: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
   
   html.dark {
@@ -69,81 +97,106 @@
   }
 
   body {
-    /* [ESTRATEGIA DE TRANSPARENCIA]: 
-       El body hereda el color de fondo pero el main debe ser transparente 
-       para que el BackgroundEngine sea visible. */
-    @apply bg-background text-foreground;
+    /* El body es el bastidor, el BackgroundEngine es la pintura */
+    @apply bg-background text-foreground transition-colors duration-500;
     font-feature-settings: "rlig" 1, "calt" 1;
-    min-height: 100vh;
+    min-height: 100dvh;
+    overflow-x: hidden;
+  }
+
+  /**
+   * [PERFORACIÓN ESTRUCTURAL]:
+   * Aseguramos que los contenedores de Next.js sean transparentes para 
+   * no bloquear la visibilidad del BackgroundEngine (z-index: -20).
+   */
+  main, section, [role="main"], [data-radix-collection] {
+    background-color: transparent !important;
   }
 
   /* 
-     [PERFORACIÓN VISUAL]: 
-     Fuerza a que los contenedores de Next.js no tengan fondo propio,
-     permitiendo que el BackgroundEngine (z-0) se vea en toda la app.
+     [RE-SINTONÍA DE TEXTOS GRISES]:
+     Forzamos que las clases muted de Tailwind usen nuestras variables adaptativas.
   */
-  main, section, [role="main"] {
-    background-color: transparent !important;
+  .text-muted-foreground {
+    color: hsl(var(--muted-foreground));
   }
 }
 
 @layer components {
-  /* 3. UTILIDADES DE ALTA FIDELIDAD (GLASSMORPHISM V2) */
+  /* 3. SISTEMA DE GLASSMORPHISM (IDENTIDAD INDUSTRIAL) */
   
   .glass-panel {
-    @apply backdrop-blur-2xl bg-black/40 border border-white/10 shadow-2xl;
+    @apply backdrop-blur-2xl bg-white/5 dark:bg-black/40 border border-black/5 dark:border-white/10 shadow-2xl;
   }
 
   .glass-card {
-    @apply backdrop-blur-xl bg-white/[0.02] border border-white/5 shadow-xl transition-all duration-500;
+    @apply backdrop-blur-xl bg-white/10 dark:bg-white/[0.02] border border-black/10 dark:border-white/5 shadow-xl transition-all duration-500;
   }
 
-  /* 4. ANIMACIONES DEL MOTOR VISUAL */
+  /* 4. ANIMACIONES DEL MOTOR ATMOSFÉRICO */
   
   @keyframes float {
     0%, 100% { transform: translateY(0) scale(1); }
-    50% { transform: translateY(-20px) scale(1.05); }
+    50% { transform: translateY(-25px) scale(1.03); }
   }
 
   .animate-float {
-    animation: float 15s ease-in-out infinite;
+    animation: float 18s ease-in-out infinite;
   }
 
-  @keyframes aurora {
-    from { background-position: 0% 50%; }
-    to { background-position: 100% 50%; }
+  @keyframes aurora-pulse {
+    0%, 100% { opacity: 0.8; filter: blur(120px); }
+    50% { opacity: 1; filter: blur(140px); }
   }
 
-  .animate-aurora {
-    background-size: 200% 200%;
-    animation: aurora 10s linear infinite;
+  .animate-aurora-pulse {
+    animation: aurora-pulse 10s ease-in-out infinite;
+  }
+
+  /* 5. MICRO-TIPOGRAFÍA TÉCNICA */
+  
+  .text-industrial {
+    @apply font-black uppercase tracking-[0.3em] leading-none;
+  }
+
+  .text-narrative {
+    @apply font-medium italic leading-relaxed tracking-tight;
   }
 }
 
-/* 5. FIXES DE TERCEROS (Mapbox & Overlays) */
+/* 6. OVERRIDES TÉCNICOS (Mapbox, Scrollbars & PWA) */
 
 .mapboxgl-ctrl-group {
-  @apply !bg-black/40 !backdrop-blur-md !border-white/10 !shadow-2xl;
+  @apply !bg-background/60 !backdrop-blur-xl !border-border !shadow-2xl !rounded-2xl;
 }
 
-/* Ocultamos el scrollbar pero mantenemos la funcionalidad */
-.custom-scrollbar-hide::-webkit-scrollbar {
-  display: none;
+/* Scrollbar Sutil (Estándar NicePod) */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-primary/20 rounded-full hover:bg-primary/40 transition-colors;
 }
 
 .custom-scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+.custom-scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
 
 /**
  * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Limpieza de .gradient-mesh: Se ha eliminado la clase .gradient-mesh antigua 
- *    porque ahora el 'BackgroundEngine.tsx' gestiona los gradientes de forma 
- *    mucho más eficiente y reactiva.
- * 2. Transparencia 'main': El uso de !important en el background del main 
- *    es una medida de seguridad para evitar que componentes de terceros 
- *    inyecten fondos opacos que maten la atmósfera Aurora.
- * 3. Rendimiento: Se han optimizado las keyframes para usar transformaciones 
- *    GPU-accelerated (translateY) en lugar de propiedades de posición (top/left).
+ * 1. Resolución de Contraste: Se ha calibrado '--muted-foreground' para que en 
+ *    Modo Claro tenga un contraste de ~7:1 contra el blanco, eliminando el 
+ *    aspecto de 'texto lavado' que reportaba el Comandante.
+ * 2. Transiciones Globales: La inyección de 'transition-colors' en el body 
+ *    asegura que el cambio entre temas sea una disolución fluida y no un salto brusco.
+ * 3. Optimización de Capas: El uso de '!important' en la transparencia de 'main' 
+ *    es la única forma de garantizar que componentes de librerías externas no 
+ *    introduzcan fondos opacos que maten la atmósfera Aurora.
  */
