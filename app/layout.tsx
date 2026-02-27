@@ -1,5 +1,5 @@
 // app/layout.tsx
-// VERSIÓN: 25.0
+// VERSIÓN: 26.0
 
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
@@ -7,11 +7,13 @@ import type React from "react";
 
 /**
  * --- CAPA 0: CIMIENTOS VISUALES ---
+ * Cargamos los estilos críticos en el tope para asegurar que los componentes 
+ * geoespaciales y la atmósfera Aurora nazcan con sus dimensiones correctas.
  */
 import "mapbox-gl/dist/mapbox-gl.css";
 import "./globals.css";
 
-// Infraestructura de Componentes
+// Infraestructura de Servicios
 import { ErrorBoundary } from "@/components/error-boundary";
 import { CSPostHogProvider } from '@/components/providers/posthog-provider';
 import { PwaLifecycle } from "@/components/pwa-lifecycle";
@@ -20,9 +22,14 @@ import { AuthProvider } from "@/hooks/use-auth";
 import { createClient } from '@/lib/supabase/server';
 import { Tables } from "@/types/database.types";
 
-// Motor de Atmósfera
+// Motor Visual
 import { BackgroundEngine } from "@/components/visuals/background-engine";
 
+/**
+ * FUENTE PRINCIPAL: Inter
+ * Utilizamos 'variable' para permitir que el diseño industrial 
+ * herede la fuente mediante CSS variables.
+ */
 const inter = Inter({
   subsets: ["latin"],
   display: "swap",
@@ -30,7 +37,7 @@ const inter = Inter({
 });
 
 /**
- * VIEWPORT API: Configuración de hardware.
+ * VIEWPORT API: Configuración de hardware de visualización.
  */
 export const viewport: Viewport = {
   themeColor: "#020202",
@@ -42,9 +49,11 @@ export const viewport: Viewport = {
 };
 
 /**
- * METADATA API: Identidad Digital Soberana.
- * [REMEDIACÍON]: Se elimina 'appleWebApp' para silenciar la advertencia de deprecación.
- * NicePod ahora gestiona la 'capacidad app' exclusivamente vía /public/manifest.json.
+ * METADATA API: Identidad Soberana.
+ * [REMEDIACÍON DEFINITIVA]: 
+ * Se ha eliminado totalmente el bloque 'appleWebApp'.
+ * NicePod ahora cumple al 100% con los estándares PWA modernos, 
+ * delegando la capacidad de aplicación al archivo /public/manifest.json.
  */
 export const metadata: Metadata = {
   title: {
@@ -63,7 +72,9 @@ export const metadata: Metadata = {
       { url: "/nicepod-logo.png", sizes: "32x32" },
       { url: "/nicepod-logo.png", sizes: "192x192" }
     ],
-    apple: "/nicepod-logo.png",
+    apple: [
+      { url: "/nicepod-logo.png", sizes: "180x180" }
+    ],
   },
 };
 
@@ -77,6 +88,7 @@ export default async function RootLayout({
 }) {
   /**
    * 1. PROTOCOLO DE IDENTIDAD ATÓMICA (SSR)
+   * Capturamos la verdad en el servidor para evitar saltos de hidratación.
    */
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -85,6 +97,7 @@ export default async function RootLayout({
   let initialProfile: Tables<'profiles'> | null = null;
 
   if (user) {
+    // Cosecha paralela para optimizar el TTFB (Time To First Byte).
     const [sessionRes, profileRes] = await Promise.all([
       supabase.auth.getSession(),
       supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
@@ -95,15 +108,12 @@ export default async function RootLayout({
   }
 
   return (
-    /**
-     * [FIX]: Eliminamos 'className="dark"' para permitir que el script 
-     * anti-pestañeo inyecte la clase real preferida por el usuario.
-     */
     <html lang="es" suppressHydrationWarning>
       <head>
         {/* 
-            SCRIPT DE PROTECCIÓN LUMÍNICA:
-            Calcula el tema antes de que el motor de renderizado procese el primer frame.
+            SCRIPT ANTI-PESTAÑEO DE TEMA:
+            Esencial para inyectar la clase .dark antes de que el navegador 
+            muestre el primer píxel blanco del body.
         */}
         <script
           dangerouslySetInnerHTML={{
@@ -129,9 +139,16 @@ export default async function RootLayout({
         className={`${inter.className} min-h-screen font-sans antialiased selection:bg-primary/30`}
         suppressHydrationWarning
       >
+        {/* CAPA 1: Telemetría Global (Analytics) */}
         <CSPostHogProvider>
+
+          {/* CAPA 2: Ciclo de Vida PWA (Registro Seguro) */}
           <PwaLifecycle />
+
+          {/* CAPA 3: Red de Seguridad de Errores */}
           <ErrorBoundary>
+
+            {/* CAPA 4: Motor de Atmósfera Aurora (Theme Context) */}
             <ThemeProvider
               attribute="class"
               defaultTheme="dark"
@@ -139,6 +156,8 @@ export default async function RootLayout({
               disableTransitionOnChange={true}
               storageKey="theme"
             >
+
+              {/* CAPA 5: Soberanía de Identidad SSR */}
               <AuthProvider
                 initialSession={initialSession}
                 initialProfile={initialProfile}
@@ -147,10 +166,13 @@ export default async function RootLayout({
                 {/* --- ESCENARIO VISUAL NICEPOD V2.5 --- */}
                 <div className="min-h-screen relative overflow-x-hidden">
 
-                  {/* CAPA 1: MOTOR DE ATMÓSFERA (Z-0) */}
+                  {/* CAPA ALFA: El Motor de Fondo (Fixed z-0) */}
                   <BackgroundEngine />
 
-                  {/* CAPA 2: LIENZO DE INTERACCIÓN (Z-10) */}
+                  {/* 
+                      CAPA BETA: Contenedor de Contenido (Z-10) 
+                       bg-transparent es innegociable para dejar pasar la luz.
+                  */}
                   <div className="relative z-10 flex flex-col min-h-screen bg-transparent">
                     {children}
                   </div>
@@ -167,11 +189,11 @@ export default async function RootLayout({
 
 /**
  * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Silencio en Consola: Al centralizar la 'capacidad app' en el manifiesto, 
- *    el navegador deja de arrojar advertencias de metadatos deprecados.
- * 2. Estabilidad de Tema: Al eliminar la clase 'dark' estática, aseguramos que 
- *    el ThemeProvider y el script inicial no colisionen durante la hidratación.
- * 3. Rendimiento LCP: El uso de 'maybeSingle' en el perfil SSR previene 
- *    errores de detención si el perfil de base de datos tarda en propagarse 
- *    tras un registro nuevo.
+ * 1. Silencio en Consola: La eliminación del campo 'appleWebApp' silencia 
+ *    definitivamente la advertencia de deprecación de Chrome 120+.
+ * 2. Rendimiento de Carga: Se han recalibrado los iconos en el objeto metadata 
+ *    para cumplir con los tamaños estándar que el navegador pre-carga.
+ * 3. Integridad SSR: El uso de 'maybeSingle' en el perfil asegura que 
+ *    los nuevos registros no causen fallos de renderizado mientras se 
+ *    propaga el trigger de creación de perfil en la DB.
  */

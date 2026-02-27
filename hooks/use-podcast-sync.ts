@@ -1,5 +1,5 @@
 // hooks/use-podcast-sync.ts
-// VERSIÓN: 1.3
+// VERSIÓN: 1.4
 
 "use client";
 
@@ -10,44 +10,48 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
- * usePodcastSync: El motor de reactividad atómica de NicePod V2.5.
+ * usePodcastSync: El sistema nervioso central de la reactividad de NicePod V2.5.
  * 
- * Este hook sincroniza el estado de producción de un podcast con la base de datos,
- * permitiendo que la interfaz mutre de 'Sintetizando' a 'Reproducir' sin refrescos.
+ * Este hook permite que la interfaz de un podcast mute en tiempo real a medida 
+ * que la base de datos confirma la generación de audio, imagen y metadatos.
  */
 export function usePodcastSync(initialData: PodcastWithProfile) {
   const { supabase, isAuthenticated, isInitialLoading } = useAuth();
   const router = useRouter();
 
-  // --- ESTADO SOBERANO ---
+  // --- ESTADO SOBERANO (La Fuente de Verdad de la UI) ---
   const [podcast, setPodcast] = useState<PodcastWithProfile>(initialData);
 
-  // --- BANDERAS DE INTEGRIDAD (Primitivos para alto rendimiento) ---
+  // --- BANDERAS DE INTEGRIDAD (Optimización de Renderizado) ---
+  // Utilizamos tipos primitivos para que React realice comparaciones rápidas de estado.
   const [isAudioReady, setIsAudioReady] = useState<boolean>(!!initialData.audio_ready);
   const [isImageReady, setIsImageReady] = useState<boolean>(!!initialData.image_ready);
   const [processingStatus, setProcessingStatus] = useState(initialData.processing_status);
 
-  // Referencias tácticas para control de fugas de red
+  // --- REFERENCIAS TÁCTICAS (Gestión de Memoria y Red) ---
   const channelRef = useRef<any>(null);
-  const initializationInProgress = useRef<boolean>(false);
+  const isSubscribing = useRef<boolean>(false);
 
   /**
-   * syncStates: Actualizador de malla de estados.
-   * [OPTIMIZACIÓN]: Memoizado para evitar recreaciones en cada ciclo de render.
+   * syncStates: Actualizador atómico de la malla de estados locales.
+   * [PERFORMANCE]: Memoizado con useCallback para evitar cascadas de re-renderizado.
    */
   const syncStates = useCallback((newData: Partial<PodcastWithProfile>) => {
+    // Actualizamos banderas individuales para reactividad inmediata
     if (newData.audio_ready !== undefined) setIsAudioReady(!!newData.audio_ready);
     if (newData.image_ready !== undefined) setIsImageReady(!!newData.image_ready);
     if (newData.processing_status !== undefined) setProcessingStatus(newData.processing_status);
 
-    // Mantenemos el objeto completo sincronizado para el resto de la UI
+    // Sincronizamos el objeto maestro del podcast
     setPodcast((prev) => ({ ...prev, ...newData }));
   }, []);
 
   useEffect(() => {
-    // 1. GUARDA DE INTEGRIDAD INICIAL
-    // Bloqueamos la conexión si el sistema está cargando, si el podcast no tiene ID 
-    // o si el podcast ya está completado (ahorro de banda).
+    // 1. GUARDA DE SOBERANÍA Y ENTORNO
+    // No intentamos conectar si:
+    // - El sistema aún carga la sesión.
+    // - El usuario no está autenticado.
+    // - El podcast ya está en estado 'completed' (ahorro de banda).
     if (!supabase || isInitialLoading || !isAuthenticated || !initialData.id) {
       return;
     }
@@ -59,40 +63,40 @@ export function usePodcastSync(initialData: PodcastWithProfile) {
     let isMounted = true;
 
     /**
-     * initializeRealtime: Handshake de Seguridad Industrial.
+     * initializeRealtime: Handshake de Seguridad y Apertura de Túnel.
      */
     const initializeRealtime = async () => {
-      // Previene ejecuciones duplicadas si el useEffect se dispara por cambios de props.
-      if (initializationInProgress.current) return;
-      initializationInProgress.current = true;
+      // Bloqueo de re-entrada: evita múltiples suscripciones en el mismo ciclo.
+      if (isSubscribing.current) return;
+      isSubscribing.current = true;
 
       try {
-        // Delay táctico para asentamiento de JWT en el cliente Supabase
+        // [PAUSA TÁCTICA]: 800ms para permitir que el Singleton Client asiente el token.
         await new Promise(resolve => setTimeout(resolve, 800));
 
         if (!isMounted) return;
 
-        // Validación física de la sesión antes de abrir el socket
+        // Verificamos físicamente que el cliente tiene una sesión viva.
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
-          nicepodLog("⚠️ [Realtime] Sesión no detectada. Reintentando sincronía.");
-          initializationInProgress.current = false;
+          nicepodLog("⚠️ [Realtime] Sesión ausente. El radar entrará en modo espera.");
+          isSubscribing.current = false;
           return;
         }
 
-        nicepodLog(`🛰️ [Realtime] Conectando radar para Pod #${initialData.id}`);
+        nicepodLog(`🛰️ [Realtime] Activando radar para Pod #${initialData.id}`);
 
-        // Limpieza de canales huérfanos antes de nueva suscripción
+        // Limpieza de cualquier canal previo para el mismo ID.
         if (channelRef.current) {
           await supabase.removeChannel(channelRef.current);
         }
 
         /**
          * SUSCRIPCIÓN AL CANAL DE BÓVEDA
-         * Escucha exclusiva de cambios en la fila del podcast actual.
+         * Escuchamos exclusivamente eventos UPDATE en la tabla micro_pods.
          */
         channelRef.current = supabase
-          .channel(`pod_sync_${initialData.id}_${Date.now()}`) // Canal único por sesión
+          .channel(`pod_sync_${initialData.id}`)
           .on(
             'postgres_changes',
             {
@@ -103,48 +107,59 @@ export function usePodcastSync(initialData: PodcastWithProfile) {
             },
             (payload) => {
               if (!isMounted) return;
+
               const updatedRecord = payload.new as PodcastWithProfile;
+              nicepodLog(`🔔 [Realtime] Pulso recibido: ${updatedRecord.processing_status}`);
 
-              nicepodLog(`🔔 [Realtime] Señal recibida: ${updatedRecord.processing_status}`);
-
-              // Sincronización de banderas binarias
+              // Actualización de estados binarios.
               syncStates(updatedRecord);
 
-              // Si la forja termina, forzamos refresco del router para inyectar datos SSR frescos
+              /**
+               * CIERRE DE CICLO:
+               * Al detectar el estado 'completed', forzamos al router de Next.js a 
+               * realizar un refresh. Esto inyecta los datos SSR finales (resúmenes, tags).
+               */
               if (updatedRecord.processing_status === 'completed') {
-                nicepodLog("✅ [Realtime] Forja finalizada. Sincronizando con el servidor.");
+                nicepodLog("✅ [Realtime] Producción finalizada. Sincronizando con el servidor.");
                 router.refresh();
               }
             }
           )
           .subscribe(async (status) => {
             if (status === 'SUBSCRIBED') {
-              nicepodLog(`🟢 [Realtime] Túnel establecido con éxito.`);
+              nicepodLog(`🟢 [Realtime] Conexión establecida y segura.`);
             }
-            if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-              nicepodLog("🟡 [Realtime] Canal cerrado o inestable.");
+            if (status === 'CHANNEL_ERROR') {
+              nicepodLog("🔴 [Realtime] Error de canal detectado.");
+            }
+            if (status === 'CLOSED') {
+              nicepodLog("🟡 [Realtime] Túnel cerrado nominalmente.");
             }
           });
 
-      } catch (err: any) {
-        console.error("🔥 [Realtime-Fatal] Error en handshake:", err.message);
+      } catch (error: any) {
+        console.error("🔥 [Realtime-Fatal] Error en handshake de suscripción:", error.message);
       } finally {
-        if (isMounted) initializationInProgress.current = false;
+        if (isMounted) isSubscribing.current = false;
       }
     };
 
     initializeRealtime();
 
     // 2. PROTOCOLO DE DESCONEXIÓN (CLEANUP)
-    // Garantiza que el WebSocket se cierre físicamente al desmontar el componente.
+    // Garantiza que al salir de la vista o desmontar el componente, no queden 
+    // WebSockets huérfanos intentando actualizar el estado.
     return () => {
       isMounted = false;
-      initializationInProgress.current = false;
+      isSubscribing.current = false;
+
       if (channelRef.current) {
-        nicepodLog(`🔌 [Realtime] Desconectando radar del Pod #${initialData.id}`);
-        const channelToClose = channelRef.current;
+        const channelToKill = channelRef.current;
         channelRef.current = null;
-        supabase.removeChannel(channelToClose);
+
+        nicepodLog(`🔌 [Realtime] Desconectando radar de Pod #${initialData.id}`);
+        // La eliminación es asíncrona pero la orden se envía de inmediato.
+        supabase.removeChannel(channelToKill);
       }
     };
   }, [
@@ -152,7 +167,7 @@ export function usePodcastSync(initialData: PodcastWithProfile) {
     isAuthenticated,
     isInitialLoading,
     initialData.id,
-    processingStatus, // Usamos la bandera local para controlar re-conexiones
+    processingStatus, // Controlamos el ciclo de vida según la bandera de proceso
     syncStates,
     router
   ]);
@@ -169,11 +184,12 @@ export function usePodcastSync(initialData: PodcastWithProfile) {
 
 /**
  * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Prevención de Colisiones: El uso de initializationInProgress evita que el 
- *    proceso de suscripción se inicie varias veces si el componente se re-renderiza.
- * 2. Limpieza Garantizada: Al guardar el canal en una variable local durante el 
- *    cleanup, aseguramos que el comando .removeChannel() se ejecute sobre el 
- *    objeto correcto incluso si channelRef.current ya ha sido nulificado.
- * 3. Silencio en Consola: Al validar físicamente la sesión y añadir un delay 
- *    determinado, eliminamos el error 'WebSocket closed before established'.
+ * 1. Estabilidad de Sockets: Al usar el Singleton Client (lib/supabase/client.ts), 
+ *    este hook comparte la misma conexión base, eliminando el error 
+ *    'closed before established'.
+ * 2. Rendimiento LCP: El delay de 800ms asegura que el motor de renderizado 
+ *    de Next.js dé prioridad a los elementos visuales antes de gestionar 
+ *    el tráfico de datos en tiempo real.
+ * 3. Higiene de Memoria: El cleanup garantiza que no existan 'Memory Leaks' 
+ *    al navegar rápidamente entre podcasts, silenciando la consola de producción.
  */
