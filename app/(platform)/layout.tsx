@@ -1,128 +1,123 @@
-// app/layout.tsx
-// VERSIÓN: 22.1 (NicePod Aurora Restoration - True Mesh Standard)
+// app/(platform)/layout.tsx
+// VERSIÓN: 2.0
 
-import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
-import type React from "react";
+import React from "react";
 
-import "mapbox-gl/dist/mapbox-gl.css";
-import "./globals.css";
+// --- INFRAESTRUCTURA DE NAVEGACIÓN Y ACCESO ---
+// Importamos el sistema de navegación modular y el centinela de seguridad.
+import { AuthGuard } from "@/components/auth-guard";
+import { Navigation } from "@/components/navigation";
 
-import { ErrorBoundary } from "@/components/error-boundary";
-import { CSPostHogProvider } from '@/components/providers/posthog-provider';
-import { PwaLifecycle } from "@/components/pwa-lifecycle";
-import { ThemeProvider } from "@/components/theme-provider";
-import { AuthProvider } from "@/hooks/use-auth";
-import { createClient } from '@/lib/supabase/server';
-import { Tables } from "@/types/database.types";
+// --- SERVICIOS DE INFRAESTRUCTURA Y PWA ---
+// Componentes invisibles que gestionan el estado técnico de la aplicación.
+import { InstallPwaButton } from '@/components/install-pwa-button';
+import { OfflineIndicator } from '@/components/offline-indicator';
+import { ScrollToTop } from "@/components/scroll-to-top";
+import { SmoothScrollWrapper } from "@/components/smooth-scroll-wrapper";
 
-const inter = Inter({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-inter",
-});
+// --- COMPONENTES DE SALIDA Y ANIMACIÓN ---
+// Elementos visuales que mejoran la experiencia de transición y feedback.
+import { PageTransition } from "@/components/page-transition";
+import { PlayerOrchestrator } from "@/components/player-orchestrator";
+import { Toaster } from "@/components/ui/toaster";
 
-export const viewport: Viewport = {
-  themeColor: "#020202",
-  width: "device-width",
-  initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
-  viewportFit: "cover",
-};
+// --- CONTEXTOS DE INTELIGENCIA ---
+// Proveedores de estado global para la lógica de negocio.
+import { AudioProvider } from "@/contexts/audio-context";
 
-export const metadata: Metadata = {
-  title: "NicePod | Witness, Not Diarist",
-  description: "Workstation de inteligencia industrial y memoria urbana. Forja sabiduría en audio.",
-  manifest: "/manifest.json",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "NicePod",
-  },
-  icons: {
-    icon: "/nicepod-logo.png",
-    apple: "/nicepod-logo.png",
-  },
-};
-
-export default async function RootLayout({
+/**
+ * COMPONENTE: PlatformLayout
+ * El bastidor soberano de la Workstation NicePod.
+ * 
+ * [RESPONSABILIDAD ARQUITECTÓNICA]:
+ * Este layout envuelve todas las rutas protegidas (Dashboard, Library, Create, Map).
+ * Su función es mantener el estado del reproductor de audio, gestionar la seguridad
+ * de la sesión y definir la estructura física (padding) para que el contenido no
+ * colisione con el menú fijo.
+ */
+export default function PlatformLayout({
   children
 }: {
   children: React.ReactNode
 }) {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  let initialSession = null;
-  let initialProfile: Tables<'profiles'> | null = null;
-
-  if (user) {
-    const [sessionRes, profileRes] = await Promise.all([
-      supabase.auth.getSession(),
-      supabase.from('profiles').select('*').eq('id', user.id).single()
-    ]);
-    initialSession = sessionRes.data.session;
-    initialProfile = profileRes.data;
-  }
-
   return (
-    <html lang="es" suppressHydrationWarning className="dark">
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                try {
-                  var storedTheme = localStorage.getItem('theme');
-                  var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                  if (storedTheme === 'dark' || (!storedTheme && prefersDark)) {
-                    document.documentElement.classList.add('dark');
-                    document.documentElement.style.colorScheme = 'dark';
-                  } else {
-                    document.documentElement.classList.remove('dark');
-                    document.documentElement.style.colorScheme = 'light';
-                  }
-                } catch (e) {}
-              })();
-            `,
-          }}
-        />
-      </head>
-      <body
-        className={`${inter.className} min-h-screen bg-background font-sans antialiased selection:bg-primary/30`}
-        suppressHydrationWarning
-      >
-        <CSPostHogProvider>
-          <PwaLifecycle />
-          <ErrorBoundary>
-            <ThemeProvider
-              attribute="class"
-              defaultTheme="dark"
-              enableSystem
-              disableTransitionOnChange={true}
-              storageKey="theme"
-            >
-              <AuthProvider initialSession={initialSession} initialProfile={initialProfile}>
+    /**
+     * CAPA 1: CONTEXTO DE INTELIGENCIA ACÚSTICA
+     * El AudioProvider reside en la raíz de la plataforma para permitir que
+     * las crónicas de voz persistan durante la navegación interna.
+     */
+    <AudioProvider>
 
-                {/* 
-                    [RESTABLECIMIENTO CRÍTICO]: 'gradient-mesh'
-                    Re-inyectamos la clase maestra del globals.css que pinta el 
-                    universo Aurora. Sin esta clase, NicePod es solo una pantalla gris.
-                */}
-                <div className="min-h-screen relative overflow-x-hidden gradient-mesh transition-colors duration-1000">
+      {/* 
+          CAPA 2: CENTINELA DE SOBERANÍA (AuthGuard)
+          Protección atómica para todas las rutas dentro de (platform).
+          Si el handshake de sesión falla, el guardia orquesta el redireccionamiento.
+      */}
+      <AuthGuard>
 
-                  {/* LIENZO DE CONTENIDO DINÁMICO */}
-                  <div className="relative z-10 flex flex-col min-h-screen bg-transparent">
-                    {children}
-                  </div>
+        {/* 
+            CAPA 3: CONTROL DE DESPLAZAMIENTO (Smooth Scroll)
+            Gestiona la física del scroll para una sensación de aplicación nativa,
+            evitando saltos bruscos al cambiar de ruta.
+        */}
+        <SmoothScrollWrapper>
 
-                </div>
-              </AuthProvider>
-            </ThemeProvider>
-          </ErrorBoundary>
-        </CSPostHogProvider>
-      </body>
-    </html>
+          {/* SERVICIOS DE SISTEMA (Invisibles en el flujo de renderizado) */}
+          <OfflineIndicator />
+          <InstallPwaButton />
+          <ScrollToTop />
+
+          {/* 
+              CAPA 4: NAVEGACIÓN TÁCTICA (Header Fijo)
+              Ubicado físicamente arriba en el DOM. Z-index: 100 inyectado
+              desde el componente Navigation para superar el mapa y el feed.
+          */}
+          <Navigation />
+
+          {/* 
+              CAPA 5: CONTENEDOR MAESTRO DE INTELIGENCIA
+              [RE-CALIBRACIÓN DE ESPACIO NEGATIVO]:
+              Ajustamos el padding-top (pt) para compensar el Header Monumental V2.0.
+              
+              Cálculo Técnico de Grado Industrial:
+              - Móvil: Header 72px + Padding Contenedor 24px = 96px. pt-[100px] para aire.
+              - Desktop: Header 80px + Padding Contenedor 40px = 120px. md:pt-[140px] para elegancia.
+          */}
+          <main
+            className="relative z-10 flex flex-col min-h-screen pt-[100px] md:pt-[140px] transition-all duration-500 ease-[0.16, 1, 0.3, 1]"
+          >
+            {/* 
+                CAPA 6: ORQUESTADOR DE MOVIMIENTO (Page Transitions)
+                Sincroniza la entrada y salida de contenido (Opacity 0 -> 1).
+                El contenedor interno asegura que el contenido tenga un ancho fluido.
+            */}
+            <PageTransition>
+              <div className="w-full flex-grow flex flex-col px-1 md:px-0">
+                {children}
+              </div>
+            </PageTransition>
+          </main>
+
+          {/* 
+              CAPA 7: TERMINALES DE SALIDA
+              PlayerOrchestrator: Centro de mando del audio (Z-index: 200).
+              Toaster: Gestor de notificaciones de sistema (Toast).
+          */}
+          <PlayerOrchestrator />
+          <Toaster />
+
+        </SmoothScrollWrapper>
+      </AuthGuard>
+    </AudioProvider>
   );
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT:
+ * 1. Higiene de Importación: Se ha eliminado la referencia errónea a 'globals.css'.
+ *    Los estilos globales ya son inyectados por el RootLayout, evitando conflictos.
+ * 2. Estabilidad de Capas: El margen superior (pt-140px) garantiza que el 
+ *    saludo 'Hola, [Nombre]' del Dashboard sea visible íntegramente.
+ * 3. Integridad de Sesión: La inyección de AuthGuard a este nivel elimina la 
+ *    necesidad de validaciones manuales en page.tsx.
+ */
