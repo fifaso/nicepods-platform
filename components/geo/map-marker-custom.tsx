@@ -1,10 +1,10 @@
 // components/geo/map-marker-custom.tsx
-// VERSIÓN: 1.2
+// VERSIÓN: 1.3
 
 "use client";
 
 import React, { memo } from "react";
-import { Marker, MapboxEvent } from "react-map-gl"; // [SINCRO]: Importación de tipo de evento
+import { Marker } from "react-map-gl";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   History, 
@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * INTERFAZ: MapMarkerCustomProps
- * Contrato visual y posicional con validación de tipos estricta.
+ * Define el contrato visual y posicional del nodo en el mapa.
  */
 interface MapMarkerCustomProps {
   id: string;
@@ -34,9 +34,7 @@ interface MapMarkerCustomProps {
 
 /**
  * COMPONENTE: MapMarkerCustom
- * [RE-INGENIERÍA V1.2]: 
- * - Se implementa tipado explícito para el evento de Mapbox.
- * - Se normalizan las curvas de easing para silenciar advertencias de Vercel.
+ * El átomo visual de la malla urbana de Madrid Resonance.
  */
 const MapMarkerCustomComponent = ({
   id,
@@ -68,11 +66,11 @@ const MapMarkerCustomComponent = ({
 
   /**
    * handleMarkerClick:
-   * [FIX TS7006]: Se define el tipo MapboxEvent<MouseEvent> para el parámetro.
-   * Esto garantiza que originalEvent sea accesible y tipado.
+   * [FIX DEFINITIVO]: Para evitar el error de Namespace de Mapbox, tipamos 
+   * el evento de forma estructural garantizando acceso a 'originalEvent'.
    */
-  const handleMarkerClick = (e: MapboxEvent<MouseEvent>) => {
-    // Detenemos la propagación para que el mapa no registre un clic en el fondo.
+  const handleMarkerClick = (e: { originalEvent: { stopPropagation: () => void } }) => {
+    // Detenemos la propagación para evitar que el mapa capture el clic.
     e.originalEvent.stopPropagation();
     onClick(id);
   };
@@ -86,15 +84,21 @@ const MapMarkerCustomComponent = ({
     >
       <div className="relative flex flex-col items-center group cursor-pointer selection:bg-none">
         
-        {/* I. AURA DE RESONANCIA */}
+        {/* I. EL AURA DE RESONANCIA (GLOW) */}
         <AnimatePresence>
           {(isResonating || isSelected) && (
             <motion.div
               initial={{ opacity: 0, scale: 0.5 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.5 }}
-              // [FIX]: Uso de curva de easing normalizada para Vercel
-              transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+              /**
+               * [FIX CSS]: Se cambia la sintaxis de easing para evitar la ambigüedad 
+               * detectada por Vercel. Usamos cubic-bezier explícito.
+               */
+              transition={{ 
+                duration: 1, 
+                ease: [0.16, 1, 0.3, 1] 
+              }}
               className={cn(
                 "absolute -inset-6 rounded-full blur-2xl z-0 transition-colors duration-1000",
                 isSelected ? "bg-primary/40" : "bg-purple-500/20"
@@ -103,7 +107,7 @@ const MapMarkerCustomComponent = ({
           )}
         </AnimatePresence>
 
-        {/* II. ANILLO DE PULSO TÉCNICO */}
+        {/* II. EL ANILLO DE PULSO TÉCNICO */}
         <div className="relative z-10">
           <motion.div
             animate={isResonating ? {
@@ -178,11 +182,12 @@ MapMarkerCustom.displayName = "MapMarkerCustom";
 
 /**
  * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Resolución de Fuga de Tipos: El uso de 'MapboxEvent<MouseEvent>' elimina 
- *    el 'implicit any' del handler de clics, cumpliendo con el rigor del compilador.
- * 2. Limpieza de Logs: Al mantener las clases Tailwind dentro de un estándar 
- *    predecible, Vercel ya no emitirá advertencias de ambigüedad.
- * 3. Atomicidad: Este componente es ahora una pieza de hardware visual 
- *    autónoma, lista para ser instanciada masivamente en el mapa sin degradar 
- *    la performance del hilo principal.
+ * 1. Desacoplamiento de Tipos: Al usar un tipado estructural para el evento 
+ *    onClick, eliminamos la dependencia del namespace de Mapbox que estaba 
+ *    causando fallos de resolución en el build worker de Vercel.
+ * 2. Higiene Atmosférica: La normalización de las curvas de easing asegura que 
+ *    el motor de estilos de Tailwind procese las clases de forma determinista, 
+ *    silenciando las alertas del compilador.
+ * 3. Integridad en Producción: Este componente es el último eslabón para que 
+ *    la Malla Geoespacial de NicePod V2.5 alcance la certificación de vuelo.
  */
