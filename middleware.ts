@@ -1,5 +1,5 @@
 // middleware.ts
-// VERSIÓN: 14.1
+// VERSIÓN: 14.3
 
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
@@ -125,7 +125,7 @@ export async function middleware(request: NextRequest) {
     isSovereignRoute;
 
   /**
-   * 6. LÓGICA DE CONTROL DE ACCESO Y REDIRECCIÓN (RBAC SINCRO)
+   * 6. LÓGICA DE CONTROL DE ACCESO (RBAC SINCRO)
    */
 
   // A. PROTECCIÓN DE ACCESO BASE:
@@ -136,21 +136,26 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
-  // B. BLINDAJE DE SOBERANÍA (GIRO ESTRATÉGICO):
+  // B. BLINDAJE DE SOBERANÍA (ADMIN ONLY):
   // Solo los curadores con rango 'admin' en el JWT pueden acceder a /admin y /geo.
-  // El usuario estándar tiene acceso a /create, pero el middleware bloquea el modo GEO.
   if (user && isSovereignRoute) {
     /**
-     * [AUDITORÍA DE RANGO]: 
-     * Verificamos 'user_role' (nuestro estándar) y 'role' (fallback de sistema) 
-     * para asegurar la detección en el borde de la red.
+     * [AUDITORÍA DE RANGO MULTI-KEY]: 
+     * Buscamos el rol en 'user_role' (nuestro estándar) y 'role' (estándar Supabase).
+     * Esto asegura la compatibilidad si la elevación SQL usó cualquiera de las dos llaves.
      */
-    const userRole = user.app_metadata?.user_role || user.app_metadata?.role || 'user';
+    const appMetadata = user.app_metadata || {};
+    const userRole = appMetadata.user_role || appMetadata.role || 'user';
     
     if (userRole !== 'admin') {
-      console.warn(`🛡️ [Gobernanza] Intento de acceso denegado a zona soberana por: ${user.email}`);
-      // Redirigimos al Dashboard para que continúe su experiencia de consumo estándar.
+      console.warn(`🛡️ [Gobernanza] Acceso denegado a zona soberana por rango insuficiente: ${user.email}`);
+      // El usuario estándar no tiene facultades GEO; lo devolvemos al Dashboard.
       return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+    
+    // Log técnico de auditoría (solo en desarrollo)
+    if (process.env.NODE_ENV === 'development') {
+        console.log(`✅ [RBAC] Acceso concedido a Administrador: ${user.email}`);
     }
   }
 
@@ -176,7 +181,7 @@ export const config = {
      * - api (Next.js internal)
      * - _next/static (archivos compilados)
      * - _next/image (optimización nativa)
-     * - Assets estáticos (iconos, logos, imágenes)
+     * - Assets estáticos y multimedia (png, jpg, svg, ico, manifest, sw)
      */
     '/((?!api|_next/static|_next/image|favicon.ico|manifest.json|sw.js|workbox-.*|apple-touch-icon.png|icon.png|icon.svg|offline|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
@@ -184,12 +189,11 @@ export const config = {
 
 /**
  * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Evolución de Flujo: Al permitir '/create' para todos y restringir '/geo', 
- *    hemos habilitado la creación de podcasts normales mientras mantenemos 
- *    el control total de lo que aparece en el mapa del Retiro.
- * 2. Integridad de Sesión: Al usar getUser() en lugar de getSession() en el 
- *    Middleware, forzamos una validación del token contra la base de datos de 
- *    Supabase en cada transición de ruta protegida, eliminando falsos positivos.
- * 3. Sincronía pt: Este middleware está coordinado con los layouts de plataforma 
- *    para asegurar que el handshake de sesión no genere saltos visuales.
+ * 1. Detección Redundante: Al verificar múltiples llaves de metadatos, eliminamos 
+ *    el riesgo de redirección falsa por desincronía de esquemas de Supabase.
+ * 2. Integridad de Red: El uso de 'next/server' en lugar de 'next/request' 
+ *    garantiza la compatibilidad con el motor de enrutamiento de Vercel 2026.
+ * 3. Soberanía de Forja: Se ha liberado '/create' para todos los usuarios 
+ *    autenticados, mientras que '/geo' permanece blindado para la administración, 
+ *    cumpliendo con la nueva hoja de ruta estratégica.
  */
