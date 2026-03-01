@@ -1,16 +1,16 @@
 // middleware.ts
-// VERSIÓN: 12.0
+// VERSIÓN: 13.0
 
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 /**
- * middleware: El Único Punto de Control de Tráfico de NicePod V2.5.
+ * middleware: El Orquestador de Tráfico y Rangos de NicePod V2.5.
  * 
  * [RESPONSABILIDADES TÁCTICAS]:
- * 1. Sincronización de Identidad: Asegura que el servidor Next.js lea la sesión nominal.
- * 2. Blindaje de Creación (RBAC): Protege las rutas de forja (/create, /admin).
- * 3. Seguridad Industrial: Inyecta cabeceras de protección de datos.
+ * 1. Sincronización de Identidad: Asegura que el servidor y el cliente compartan la sesión.
+ * 2. Control de Acceso Granular (RBAC): Diferencia entre creación estándar y soberanía GEO.
+ * 3. Seguridad Industrial: Mantiene el escudo contra ataques de inyección y clickjacking.
  */
 export async function middleware(request: NextRequest) {
   // 1. INICIALIZACIÓN DE RESPUESTA Y SEGURIDAD
@@ -25,7 +25,6 @@ export async function middleware(request: NextRequest) {
 
   /**
    * 2. CAPA DE SEGURIDAD INDUSTRIAL (Security Headers)
-   * Elevamos la resiliencia del sistema ante ataques de orquestación externa.
    */
   const securityHeaders = new Headers(response.headers);
   securityHeaders.set('X-Frame-Options', 'DENY');
@@ -43,8 +42,8 @@ export async function middleware(request: NextRequest) {
   });
 
   /**
-   * 3. PASILLO DE BYPASS (Activos Técnicos)
-   * Optimizamos el presupuesto de CPU del Edge ignorando archivos estáticos y PWA.
+   * 3. PASILLO DE BYPASS (Optimización de CPU)
+   * Ignoramos activos estáticos y flujos de auth para no penalizar el rendimiento.
    */
   if (
     pathname.startsWith('/auth') ||
@@ -66,13 +65,12 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
-          // Sincronía bidireccional inmediata para aniquilar el pestañeo visual.
           cookiesToSet.forEach(({ name, value, options }) => {
             request.cookies.set(name, value);
             response.cookies.set(name, value, options);
           });
 
-          // Táctica de Refresco de Contexto
+          // Handshake Anti-Pestañeo
           response = NextResponse.next({
             request: {
               headers: request.headers,
@@ -89,62 +87,59 @@ export async function middleware(request: NextRequest) {
   );
 
   /**
-   * 5. VALIDACIÓN DE IDENTIDAD SOBERANA (T0)
-   * Utilizamos getUser() para una verificación física inalterable contra el motor de Auth.
+   * 5. VALIDACIÓN DE IDENTIDAD SOBERANA
+   * Verificación física contra el motor de autenticación.
    */
   const { data: { user } } = await supabase.auth.getUser();
 
   // --- DEFINICIÓN DE PERÍMETROS OPERATIVOS ---
   const isAuthPage = pathname === '/login' || pathname === '/signup';
   const isLandingPage = pathname === '/';
-  
-  // Ruta de Creación: Ahora considerada ruta administrativa de facto.
-  const isCreationRoute = pathname.startsWith('/create');
-  const isAdminRoute = pathname.startsWith('/admin');
 
-  // Workstation Privada: Rutas que exigen al menos ser Voyager (Usuario logueado).
+  // ZONAS DE SOBERANÍA ADMINISTRATIVA: 
+  // El Admin gestiona el núcleo y la siembra geoespacial directamente.
+  const isSovereignRoute = pathname.startsWith('/admin') || pathname.startsWith('/geo');
+
+  // WORKSTATION PRIVADA:
+  // Rutas que exigen estar logueado (incluye /create para todos los curadores).
   const isProtectedRoute =
     pathname.startsWith('/dashboard') ||
     pathname.startsWith('/podcasts') ||
     pathname.startsWith('/profile') ||
-    pathname.startsWith('/geo') ||
-    pathname.startsWith('/map') ||
     pathname.startsWith('/notifications') ||
     pathname.startsWith('/collection') ||
-    isCreationRoute ||
-    isAdminRoute;
+    pathname.startsWith('/map') ||
+    pathname.startsWith('/create') || // <--- LIBERADO PARA TODOS LOS AUTENTICADOS
+    isSovereignRoute;
 
   /**
-   * 6. LÓGICA DE CONTROL DE ACCESO (RBAC SOBERANO)
+   * 6. LÓGICA DE CONTROL DE ACCESO (RBAC SINCRO)
    */
 
   // A. PROTECCIÓN DE ACCESO BASE:
-  // Si no hay sesión activa en una ruta protegida, enviamos al login.
   if (!user && isProtectedRoute) {
     const redirectUrl = new URL('/login', request.url);
     redirectUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(redirectUrl);
   }
 
-  // B. BLINDAJE DE CREACIÓN Y ADMINISTRACIÓN (EL GIRO ESTRATÉGICO):
-  // Solo los curadores con rango 'admin' pueden acceder a /create y /admin.
-  // El usuario estándar es espectador; se le deniega el acceso a la forja.
-  if (user && (isCreationRoute || isAdminRoute)) {
+  // B. BLINDAJE DE SOBERANÍA (ADMIN ONLY):
+  // Si el usuario intenta entrar a /admin o /geo, validamos que su rol sea 'admin'.
+  if (user && isSovereignRoute) {
     const userRole = user.app_metadata?.user_role || 'user';
     if (userRole !== 'admin') {
-      console.warn(`🛡️ [Gobernanza] Intento de acceso no autorizado a la Forja por: ${user.email}`);
-      // Redirigimos al Dashboard para que continúe su experiencia de consumo.
+      console.warn(`🛡️ [RBAC] Acceso restringido a zona soberana para: ${user.email}`);
+      // El usuario estándar no tiene facultades GEO; lo devolvemos al Dashboard.
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
   }
 
   // C. OPTIMIZACIÓN DE FLUJO LOGUEADO:
-  // Prevenimos que un usuario ya sintonizado regrese a las puertas de entrada.
   if (user && (isAuthPage || isLandingPage)) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
-  // 7. ENTREGA FINAL DE CONTROL
+  // 7. ENTREGA DE CONTROL
   return response;
 }
 
@@ -153,26 +148,18 @@ export async function middleware(request: NextRequest) {
  */
 export const config = {
   matcher: [
-    /*
-     * Match de todas las rutas excepto:
-     * - api (Next.js internal)
-     * - _next/static (archivos compilados)
-     * - _next/image (optimización nativa)
-     * - Assets estáticos y multimedia
-     */
     '/((?!api|_next/static|_next/image|favicon.ico|manifest.json|sw.js|workbox-.*|apple-touch-icon.png|icon.png|icon.svg|offline|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };
 
 /**
  * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Control de la Forja: Al incluir 'isCreationRoute' en la validación de 
- *    rol administrativo, NicePod V2.5 se transforma en una plataforma de 
- *    consumo masivo curada por una autoridad única.
- * 2. Integridad del JWT: La validación se basa en 'app_metadata.user_role', 
- *    el cual es inyectado en el servidor durante la creación del perfil, 
- *    impidiendo manipulaciones en el lado del cliente.
- * 3. Rendimiento en el Borde: El matcher excluye agresivamente activos 
- *    multimedia, asegurando que el middleware solo consuma ciclos de CPU 
- *    en decisiones lógicas de navegación.
+ * 1. Evolución Voyager: Se ha removido 'isCreationRoute' del bloque de restricción 
+ *    administrativa. Ahora todos los usuarios 'authenticated' pueden acceder a 
+ *    la forja estándar.
+ * 2. Protección GEO: Al añadir 'pathname.startsWith("/geo")' a 'isSovereignRoute', 
+ *    aseguramos que las herramientas de grabación situacional y anclaje 3D 
+ *    queden bajo control exclusivo de la administración.
+ * 3. Consistencia de Sesión: La lógica de 'getUser()' garantiza que el rol 
+ *    no pueda ser manipulado en el LocalStorage, manteniendo la integridad ACiD.
  */
