@@ -7,6 +7,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "13.0.5"
+  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -100,6 +105,175 @@ export type Database = {
         }
         Relationships: []
       }
+      audio_echoes: {
+        Row: {
+          audio_url: string
+          author_id: string
+          created_at: string | null
+          duration_seconds: number | null
+          id: string
+          parent_pod_id: number
+          transcript: string | null
+        }
+        Insert: {
+          audio_url: string
+          author_id: string
+          created_at?: string | null
+          duration_seconds?: number | null
+          id?: string
+          parent_pod_id: number
+          transcript?: string | null
+        }
+        Update: {
+          audio_url?: string
+          author_id?: string
+          created_at?: string | null
+          duration_seconds?: number | null
+          id?: string
+          parent_pod_id?: number
+          transcript?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audio_echoes_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audio_echoes_parent_pod_id_fkey"
+            columns: ["parent_pod_id"]
+            isOneToOne: false
+            referencedRelation: "micro_pods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      audio_segments: {
+        Row: {
+          byte_size: number | null
+          created_at: string | null
+          id: string
+          podcast_id: number | null
+          segment_index: number
+          status: string | null
+          storage_path: string
+          updated_at: string | null
+        }
+        Insert: {
+          byte_size?: number | null
+          created_at?: string | null
+          id?: string
+          podcast_id?: number | null
+          segment_index: number
+          status?: string | null
+          storage_path: string
+          updated_at?: string | null
+        }
+        Update: {
+          byte_size?: number | null
+          created_at?: string | null
+          id?: string
+          podcast_id?: number | null
+          segment_index?: number
+          status?: string | null
+          storage_path?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audio_segments_podcast_id_fkey"
+            columns: ["podcast_id"]
+            isOneToOne: false
+            referencedRelation: "micro_pods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      collection_items: {
+        Row: {
+          added_at: string | null
+          collection_id: string
+          curator_note: string | null
+          pod_id: number
+        }
+        Insert: {
+          added_at?: string | null
+          collection_id: string
+          curator_note?: string | null
+          pod_id: number
+        }
+        Update: {
+          added_at?: string | null
+          collection_id?: string
+          curator_note?: string | null
+          pod_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collection_items_collection_id_fkey"
+            columns: ["collection_id"]
+            isOneToOne: false
+            referencedRelation: "collections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collection_items_pod_id_fkey"
+            columns: ["pod_id"]
+            isOneToOne: false
+            referencedRelation: "micro_pods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      collections: {
+        Row: {
+          cover_image_url: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_public: boolean | null
+          likes_count: number | null
+          owner_id: string
+          title: string
+          total_listened_count: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          cover_image_url?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_public?: boolean | null
+          likes_count?: number | null
+          owner_id: string
+          title: string
+          total_listened_count?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          cover_image_url?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_public?: boolean | null
+          likes_count?: number | null
+          owner_id?: string
+          title?: string
+          total_listened_count?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collections_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       followers: {
         Row: {
           created_at: string
@@ -133,6 +307,128 @@ export type Database = {
           },
         ]
       }
+      geo_drafts_staging: {
+        Row: {
+          accuracy_meters: number | null
+          altitude: number | null
+          created_at: string | null
+          detected_place_id: string | null
+          heading: number | null
+          id: number
+          location: unknown
+          rejection_reason: string | null
+          status: string | null
+          user_id: string
+          vision_analysis: Json | null
+          weather_snapshot: Json | null
+        }
+        Insert: {
+          accuracy_meters?: number | null
+          altitude?: number | null
+          created_at?: string | null
+          detected_place_id?: string | null
+          heading?: number | null
+          id?: number
+          location: unknown
+          rejection_reason?: string | null
+          status?: string | null
+          user_id: string
+          vision_analysis?: Json | null
+          weather_snapshot?: Json | null
+        }
+        Update: {
+          accuracy_meters?: number | null
+          altitude?: number | null
+          created_at?: string | null
+          detected_place_id?: string | null
+          heading?: number | null
+          id?: number
+          location?: unknown
+          rejection_reason?: string | null
+          status?: string | null
+          user_id?: string
+          vision_analysis?: Json | null
+          weather_snapshot?: Json | null
+        }
+        Relationships: []
+      }
+      knowledge_chunks: {
+        Row: {
+          content: string
+          created_at: string | null
+          embedding: string | null
+          id: string
+          importance_score: number | null
+          source_id: string
+          token_count: number | null
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          embedding?: string | null
+          id?: string
+          importance_score?: number | null
+          source_id: string
+          token_count?: number | null
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          embedding?: string | null
+          id?: string
+          importance_score?: number | null
+          source_id?: string
+          token_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_chunks_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      knowledge_sources: {
+        Row: {
+          content_hash: string
+          created_at: string | null
+          id: string
+          is_public: boolean | null
+          last_cited_at: string | null
+          metadata: Json | null
+          reputation_score: number | null
+          source_type: string
+          title: string
+          url: string | null
+        }
+        Insert: {
+          content_hash: string
+          created_at?: string | null
+          id?: string
+          is_public?: boolean | null
+          last_cited_at?: string | null
+          metadata?: Json | null
+          reputation_score?: number | null
+          source_type: string
+          title: string
+          url?: string | null
+        }
+        Update: {
+          content_hash?: string
+          created_at?: string | null
+          id?: string
+          is_public?: boolean | null
+          last_cited_at?: string | null
+          metadata?: Json | null
+          reputation_score?: number | null
+          source_type?: string
+          title?: string
+          url?: string | null
+        }
+        Relationships: []
+      }
       likes: {
         Row: {
           created_at: string
@@ -159,6 +455,33 @@ export type Database = {
           },
         ]
       }
+      madrid_vault_knowledge: {
+        Row: {
+          content: string
+          created_at: string | null
+          embedding: string | null
+          id: string
+          source_authority: string | null
+          valid_geo_bounds: unknown
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          embedding?: string | null
+          id?: string
+          source_authority?: string | null
+          valid_geo_bounds?: unknown
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          embedding?: string | null
+          id?: string
+          source_authority?: string | null
+          valid_geo_bounds?: unknown
+        }
+        Relationships: []
+      }
       micro_pods: {
         Row: {
           admin_notes: string | null
@@ -167,6 +490,10 @@ export type Database = {
           ai_coordinates: unknown
           ai_summary: string | null
           ai_tags: string[] | null
+          audio_assembly_status:
+            | Database["public"]["Enums"]["assembly_status"]
+            | null
+          audio_ready: boolean | null
           audio_url: string | null
           category: string | null
           consistency_level:
@@ -177,14 +504,18 @@ export type Database = {
           creation_context: Json | null
           creation_data: Json | null
           creation_mode: string | null
+          current_audio_segments: number | null
           description: string | null
           duration_seconds: number | null
           final_coordinates: unknown
+          geo_location: unknown
           id: number
+          image_ready: boolean | null
           is_featured: boolean | null
           like_count: number
           narrative_lens: string | null
           parent_id: number | null
+          place_name: string | null
           play_count: number
           processing_status: Database["public"]["Enums"]["processing_status"]
           published_at: string | null
@@ -192,10 +523,11 @@ export type Database = {
           quote_timestamp: number | null
           reviewed_by_user: boolean | null
           root_id: number | null
-          script_text: string | null
+          script_text: Json | null
           sources: Json | null
           status: Database["public"]["Enums"]["podcast_status"]
           title: string
+          total_audio_segments: number | null
           updated_at: string
           user_id: string
           user_tags: string[] | null
@@ -207,6 +539,10 @@ export type Database = {
           ai_coordinates?: unknown
           ai_summary?: string | null
           ai_tags?: string[] | null
+          audio_assembly_status?:
+            | Database["public"]["Enums"]["assembly_status"]
+            | null
+          audio_ready?: boolean | null
           audio_url?: string | null
           category?: string | null
           consistency_level?:
@@ -217,14 +553,18 @@ export type Database = {
           creation_context?: Json | null
           creation_data?: Json | null
           creation_mode?: string | null
+          current_audio_segments?: number | null
           description?: string | null
           duration_seconds?: number | null
           final_coordinates?: unknown
+          geo_location?: unknown
           id?: number
+          image_ready?: boolean | null
           is_featured?: boolean | null
           like_count?: number
           narrative_lens?: string | null
           parent_id?: number | null
+          place_name?: string | null
           play_count?: number
           processing_status?: Database["public"]["Enums"]["processing_status"]
           published_at?: string | null
@@ -232,10 +572,11 @@ export type Database = {
           quote_timestamp?: number | null
           reviewed_by_user?: boolean | null
           root_id?: number | null
-          script_text?: string | null
+          script_text?: Json | null
           sources?: Json | null
           status?: Database["public"]["Enums"]["podcast_status"]
           title: string
+          total_audio_segments?: number | null
           updated_at?: string
           user_id: string
           user_tags?: string[] | null
@@ -247,6 +588,10 @@ export type Database = {
           ai_coordinates?: unknown
           ai_summary?: string | null
           ai_tags?: string[] | null
+          audio_assembly_status?:
+            | Database["public"]["Enums"]["assembly_status"]
+            | null
+          audio_ready?: boolean | null
           audio_url?: string | null
           category?: string | null
           consistency_level?:
@@ -257,14 +602,18 @@ export type Database = {
           creation_context?: Json | null
           creation_data?: Json | null
           creation_mode?: string | null
+          current_audio_segments?: number | null
           description?: string | null
           duration_seconds?: number | null
           final_coordinates?: unknown
+          geo_location?: unknown
           id?: number
+          image_ready?: boolean | null
           is_featured?: boolean | null
           like_count?: number
           narrative_lens?: string | null
           parent_id?: number | null
+          place_name?: string | null
           play_count?: number
           processing_status?: Database["public"]["Enums"]["processing_status"]
           published_at?: string | null
@@ -272,10 +621,11 @@ export type Database = {
           quote_timestamp?: number | null
           reviewed_by_user?: boolean | null
           root_id?: number | null
-          script_text?: string | null
+          script_text?: Json | null
           sources?: Json | null
           status?: Database["public"]["Enums"]["podcast_status"]
           title?: string
+          total_audio_segments?: number | null
           updated_at?: string
           user_id?: string
           user_tags?: string[] | null
@@ -339,12 +689,66 @@ export type Database = {
           },
         ]
       }
+      place_memories: {
+        Row: {
+          content_type: string | null
+          focus_entity: string | null
+          geo_location: unknown
+          pod_id: number
+          poi_id: number
+          relevance_score: number | null
+          vibe_vector: string | null
+        }
+        Insert: {
+          content_type?: string | null
+          focus_entity?: string | null
+          geo_location?: unknown
+          pod_id: number
+          poi_id: number
+          relevance_score?: number | null
+          vibe_vector?: string | null
+        }
+        Update: {
+          content_type?: string | null
+          focus_entity?: string | null
+          geo_location?: unknown
+          pod_id?: number
+          poi_id?: number
+          relevance_score?: number | null
+          vibe_vector?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "place_memories_pod_id_fkey"
+            columns: ["pod_id"]
+            isOneToOne: false
+            referencedRelation: "micro_pods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "place_memories_poi_id_fkey"
+            columns: ["poi_id"]
+            isOneToOne: false
+            referencedRelation: "points_of_interest"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "place_memories_poi_id_fkey"
+            columns: ["poi_id"]
+            isOneToOne: false
+            referencedRelation: "vw_map_resonance_active"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plans: {
         Row: {
           active: boolean
           description: string | null
           features: string[] | null
           id: number
+          max_concurrent_drafts: number | null
+          max_monthly_drafts: number | null
           monthly_creation_limit: number
           name: string
           price_monthly: number | null
@@ -354,6 +758,8 @@ export type Database = {
           description?: string | null
           features?: string[] | null
           id?: number
+          max_concurrent_drafts?: number | null
+          max_monthly_drafts?: number | null
           monthly_creation_limit?: number
           name: string
           price_monthly?: number | null
@@ -363,6 +769,8 @@ export type Database = {
           description?: string | null
           features?: string[] | null
           id?: number
+          max_concurrent_drafts?: number | null
+          max_monthly_drafts?: number | null
           monthly_creation_limit?: number
           name?: string
           price_monthly?: number | null
@@ -376,6 +784,7 @@ export type Database = {
           key_name: string
           max_listening_minutes: number | null
           max_podcasts_per_month: number | null
+          value: string | null
         }
         Insert: {
           created_at?: string | null
@@ -383,6 +792,7 @@ export type Database = {
           key_name: string
           max_listening_minutes?: number | null
           max_podcasts_per_month?: number | null
+          value?: string | null
         }
         Update: {
           created_at?: string | null
@@ -390,6 +800,7 @@ export type Database = {
           key_name?: string
           max_listening_minutes?: number | null
           max_podcasts_per_month?: number | null
+          value?: string | null
         }
         Relationships: []
       }
@@ -524,6 +935,45 @@ export type Database = {
           },
         ]
       }
+      podcast_drafts: {
+        Row: {
+          created_at: string | null
+          creation_data: Json
+          dossier_text: Json | null
+          id: number
+          script_text: Json
+          sources: Json | null
+          status: string | null
+          title: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          creation_data: Json
+          dossier_text?: Json | null
+          id?: number
+          script_text: Json
+          sources?: Json | null
+          status?: string | null
+          title: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          creation_data?: Json
+          dossier_text?: Json | null
+          id?: number
+          script_text?: Json
+          sources?: Json | null
+          status?: string | null
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       podcast_embeddings: {
         Row: {
           content: string | null
@@ -547,6 +997,81 @@ export type Database = {
           {
             foreignKeyName: "podcast_embeddings_podcast_id_fkey"
             columns: ["podcast_id"]
+            isOneToOne: false
+            referencedRelation: "micro_pods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      points_of_interest: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          description: string | null
+          embedding: string | null
+          entrance_radius_meters: number | null
+          gallery_urls: Json | null
+          geo_location: unknown
+          historical_fact: string | null
+          id: number
+          image_summary: string | null
+          importance_score: number | null
+          is_published: boolean | null
+          metadata: Json | null
+          name: string
+          reference_podcast_id: number | null
+          rich_description: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          embedding?: string | null
+          entrance_radius_meters?: number | null
+          gallery_urls?: Json | null
+          geo_location: unknown
+          historical_fact?: string | null
+          id?: number
+          image_summary?: string | null
+          importance_score?: number | null
+          is_published?: boolean | null
+          metadata?: Json | null
+          name: string
+          reference_podcast_id?: number | null
+          rich_description?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          embedding?: string | null
+          entrance_radius_meters?: number | null
+          gallery_urls?: Json | null
+          geo_location?: unknown
+          historical_fact?: string | null
+          id?: number
+          image_summary?: string | null
+          importance_score?: number | null
+          is_published?: boolean | null
+          metadata?: Json | null
+          name?: string
+          reference_podcast_id?: number | null
+          rich_description?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_poi_reference_podcast"
+            columns: ["reference_podcast_id"]
+            isOneToOne: false
+            referencedRelation: "micro_pods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "points_of_interest_reference_podcast_id_fkey"
+            columns: ["reference_podcast_id"]
             isOneToOne: false
             referencedRelation: "micro_pods"
             referencedColumns: ["id"]
@@ -632,43 +1157,145 @@ export type Database = {
           active_creation_jobs: number
           avatar_url: string | null
           bio: string | null
+          bio_short: string | null
           created_at: string
           followers_count: number
           following_count: number
           full_name: string | null
           id: string
+          is_verified: boolean | null
+          reputation_score: number | null
           role: string
           stripe_customer_id: string | null
           updated_at: string
           username: string
+          website_url: string | null
         }
         Insert: {
           active_creation_jobs?: number
           avatar_url?: string | null
           bio?: string | null
+          bio_short?: string | null
           created_at?: string
           followers_count?: number
           following_count?: number
           full_name?: string | null
           id: string
+          is_verified?: boolean | null
+          reputation_score?: number | null
           role?: string
           stripe_customer_id?: string | null
           updated_at?: string
           username: string
+          website_url?: string | null
         }
         Update: {
           active_creation_jobs?: number
           avatar_url?: string | null
           bio?: string | null
+          bio_short?: string | null
           created_at?: string
           followers_count?: number
           following_count?: number
           full_name?: string | null
           id?: string
+          is_verified?: boolean | null
+          reputation_score?: number | null
           role?: string
           stripe_customer_id?: string | null
           updated_at?: string
           username?: string
+          website_url?: string | null
+        }
+        Relationships: []
+      }
+      pulse_staging: {
+        Row: {
+          authority_score: number | null
+          cluster_id: string | null
+          content_hash: string
+          content_type: Database["public"]["Enums"]["content_category"]
+          created_at: string | null
+          embedding: string | null
+          expires_at: string | null
+          id: string
+          is_high_value: boolean | null
+          source_name: string
+          summary: string
+          title: string
+          url: string
+          usage_count: number | null
+          veracity_verified: boolean | null
+        }
+        Insert: {
+          authority_score?: number | null
+          cluster_id?: string | null
+          content_hash: string
+          content_type?: Database["public"]["Enums"]["content_category"]
+          created_at?: string | null
+          embedding?: string | null
+          expires_at?: string | null
+          id?: string
+          is_high_value?: boolean | null
+          source_name: string
+          summary: string
+          title: string
+          url: string
+          usage_count?: number | null
+          veracity_verified?: boolean | null
+        }
+        Update: {
+          authority_score?: number | null
+          cluster_id?: string | null
+          content_hash?: string
+          content_type?: Database["public"]["Enums"]["content_category"]
+          created_at?: string | null
+          embedding?: string | null
+          expires_at?: string | null
+          id?: string
+          is_high_value?: boolean | null
+          source_name?: string
+          summary?: string
+          title?: string
+          url?: string
+          usage_count?: number | null
+          veracity_verified?: boolean | null
+        }
+        Relationships: []
+      }
+      research_backlog: {
+        Row: {
+          created_at: string | null
+          id: number
+          last_error: string | null
+          metadata: Json | null
+          priority_level: number | null
+          request_count: number | null
+          status: Database["public"]["Enums"]["backlog_status"] | null
+          topic: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: number
+          last_error?: string | null
+          metadata?: Json | null
+          priority_level?: number | null
+          request_count?: number | null
+          status?: Database["public"]["Enums"]["backlog_status"] | null
+          topic: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: number
+          last_error?: string | null
+          metadata?: Json | null
+          priority_level?: number | null
+          request_count?: number | null
+          status?: Database["public"]["Enums"]["backlog_status"] | null
+          topic?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -717,6 +1344,36 @@ export type Database = {
           },
         ]
       }
+      user_interest_dna: {
+        Row: {
+          dna_vector: string
+          expertise_level: number | null
+          last_updated: string | null
+          negative_interests: string[] | null
+          professional_profile: string | null
+          total_pulses_generated: number | null
+          user_id: string
+        }
+        Insert: {
+          dna_vector: string
+          expertise_level?: number | null
+          last_updated?: string | null
+          negative_interests?: string[] | null
+          professional_profile?: string | null
+          total_pulses_generated?: number | null
+          user_id: string
+        }
+        Update: {
+          dna_vector?: string
+          expertise_level?: number | null
+          last_updated?: string | null
+          negative_interests?: string[] | null
+          professional_profile?: string | null
+          total_pulses_generated?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_resonance_profiles: {
         Row: {
           created_at: string
@@ -751,6 +1408,7 @@ export type Database = {
       }
       user_usage: {
         Row: {
+          drafts_created_this_month: number | null
           last_reset_date: string | null
           minutes_listened_this_month: number | null
           podcasts_created_this_month: number | null
@@ -758,6 +1416,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          drafts_created_this_month?: number | null
           last_reset_date?: string | null
           minutes_listened_this_month?: number | null
           podcasts_created_this_month?: number | null
@@ -765,6 +1424,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          drafts_created_this_month?: number | null
           last_reset_date?: string | null
           minutes_listened_this_month?: number | null
           podcasts_created_this_month?: number | null
@@ -783,9 +1443,54 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      vw_map_resonance_active: {
+        Row: {
+          category: string | null
+          geo_location: unknown
+          historical_fact: string | null
+          id: number | null
+          importance_score: number | null
+          name: string | null
+          reference_podcast_id: number | null
+        }
+        Insert: {
+          category?: string | null
+          geo_location?: unknown
+          historical_fact?: string | null
+          id?: number | null
+          importance_score?: number | null
+          name?: string | null
+          reference_podcast_id?: number | null
+        }
+        Update: {
+          category?: string | null
+          geo_location?: unknown
+          historical_fact?: string | null
+          id?: number | null
+          importance_score?: number | null
+          name?: string | null
+          reference_podcast_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_poi_reference_podcast"
+            columns: ["reference_podcast_id"]
+            isOneToOne: false
+            referencedRelation: "micro_pods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "points_of_interest_reference_podcast_id_fkey"
+            columns: ["reference_podcast_id"]
+            isOneToOne: false
+            referencedRelation: "micro_pods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
+      check_draft_quota: { Args: { p_user_id: string }; Returns: Json }
       check_rate_limit: {
         Args: {
           p_function_name: string
@@ -795,11 +1500,84 @@ export type Database = {
         }
         Returns: boolean
       }
+      claim_next_research_topic: {
+        Args: never
+        Returns: {
+          topic_id: number
+          topic_text: string
+        }[]
+      }
+      cleanup_expired_pulse: { Args: never; Returns: undefined }
+      create_collection_with_items_v1: {
+        Args: {
+          p_cover_image_url: string
+          p_description: string
+          p_is_public: boolean
+          p_owner_id: string
+          p_pod_ids: number[]
+          p_title: string
+        }
+        Returns: {
+          message: string
+          new_collection_id: string
+          success: boolean
+        }[]
+      }
+      dispatch_edge_function: {
+        Args: { function_name: string; payload: Json }
+        Returns: Json
+      }
+      fetch_personalized_pulse: {
+        Args: { p_limit?: number; p_threshold?: number; p_user_id: string }
+        Returns: {
+          authority_score: number
+          content_type: Database["public"]["Enums"]["content_category"]
+          id: string
+          similarity: number
+          source_name: string
+          summary: string
+          title: string
+          url: string
+        }[]
+      }
       get_curated_library_shelves: {
         Args: { p_user_id: string }
         Returns: Json
       }
       get_generic_library_shelves: { Args: never; Returns: Json }
+      get_memories_in_bounds: {
+        Args: {
+          max_lat: number
+          max_lng: number
+          min_lat: number
+          min_lng: number
+        }
+        Returns: {
+          content_type: string
+          focus_entity: string
+          id: number
+          lat: number
+          lng: number
+          title: string
+        }[]
+      }
+      get_nearby_podcasts: {
+        Args: {
+          p_lat: number
+          p_limit?: number
+          p_lng: number
+          p_radius_meters?: number
+        }
+        Returns: {
+          audio_url: string
+          cover_image_url: string
+          description: string
+          distance_meters: number
+          id: number
+          profiles: Json
+          title: string
+        }[]
+      }
       get_resonant_podcasts: {
         Args: { center_point: unknown; count_limit: number }
         Returns: {
@@ -809,6 +1587,10 @@ export type Database = {
           ai_coordinates: unknown
           ai_summary: string | null
           ai_tags: string[] | null
+          audio_assembly_status:
+            | Database["public"]["Enums"]["assembly_status"]
+            | null
+          audio_ready: boolean | null
           audio_url: string | null
           category: string | null
           consistency_level:
@@ -819,14 +1601,18 @@ export type Database = {
           creation_context: Json | null
           creation_data: Json | null
           creation_mode: string | null
+          current_audio_segments: number | null
           description: string | null
           duration_seconds: number | null
           final_coordinates: unknown
+          geo_location: unknown
           id: number
+          image_ready: boolean | null
           is_featured: boolean | null
           like_count: number
           narrative_lens: string | null
           parent_id: number | null
+          place_name: string | null
           play_count: number
           processing_status: Database["public"]["Enums"]["processing_status"]
           published_at: string | null
@@ -834,10 +1620,11 @@ export type Database = {
           quote_timestamp: number | null
           reviewed_by_user: boolean | null
           root_id: number | null
-          script_text: string | null
+          script_text: Json | null
           sources: Json | null
           status: Database["public"]["Enums"]["podcast_status"]
           title: string
+          total_audio_segments: number | null
           updated_at: string
           user_id: string
           user_tags: string[] | null
@@ -849,6 +1636,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      get_service_key: { Args: never; Returns: string }
       get_user_discovery_feed: { Args: { p_user_id: string }; Returns: Json }
       handle_zombie_jobs: { Args: never; Returns: undefined }
       hybrid_search: {
@@ -869,9 +1657,35 @@ export type Database = {
         Args: { p_payload: Json; p_user_id: string }
         Returns: number
       }
+      increment_paper_usage: { Args: { p_ids: string[] }; Returns: undefined }
       increment_play_count: { Args: { podcast_id: number }; Returns: undefined }
+      init_draft_process_v2: {
+        Args: { p_payload: Json }
+        Returns: {
+          allowed: boolean
+          draft_id: number
+          reason: string
+        }[]
+      }
       is_admin: { Args: never; Returns: boolean }
       mark_notifications_as_read: { Args: never; Returns: undefined }
+      promote_draft_to_production_v2: {
+        Args: {
+          p_draft_id: number
+          p_final_script: string
+          p_final_title: string
+          p_sources?: Json
+        }
+        Returns: {
+          message: string
+          pod_id: number
+          success: boolean
+        }[]
+      }
+      push_to_research_backlog: {
+        Args: { p_metadata?: Json; p_topic: string }
+        Returns: undefined
+      }
       reset_monthly_quotas: { Args: never; Returns: undefined }
       save_analysis_and_embedding: {
         Args: {
@@ -885,6 +1699,42 @@ export type Database = {
           p_podcast_id: number
         }
         Returns: undefined
+      }
+      search_geo_semantic: {
+        Args: {
+          match_count?: number
+          match_threshold?: number
+          query_embedding: string
+          radius_units?: number
+          user_lat: number
+          user_long: number
+        }
+        Returns: {
+          audio_url: string
+          author_handle: string
+          description: string
+          dist_val: number
+          id: number
+          image_url: string
+          similarity: number
+          title: string
+        }[]
+      }
+      search_knowledge_vault: {
+        Args: {
+          match_count?: number
+          match_threshold?: number
+          only_public?: boolean
+          query_embedding: string
+        }
+        Returns: {
+          content: string
+          days_old: number
+          similarity: number
+          source_id: string
+          title: string
+          url: string
+        }[]
       }
       search_omni: {
         Args: {
@@ -923,11 +1773,73 @@ export type Database = {
           user_id: string
         }[]
       }
+      search_pulse_staging: {
+        Args: {
+          match_count: number
+          match_threshold: number
+          query_embedding: string
+        }
+        Returns: {
+          id: string
+          similarity: number
+          summary: string
+          title: string
+          url: string
+        }[]
+      }
+      unified_search_v3: {
+        Args: {
+          p_match_count?: number
+          p_match_threshold?: number
+          p_query_embedding: string
+          p_query_text: string
+          p_user_lat?: number
+          p_user_lng?: number
+        }
+        Returns: {
+          geo_distance: number
+          id: string
+          image_url: string
+          metadata: Json
+          result_type: string
+          similarity: number
+          subtitle: string
+          title: string
+        }[]
+      }
+      unified_search_v4: {
+        Args: {
+          p_match_count?: number
+          p_match_threshold?: number
+          p_query_embedding: string
+          p_query_text: string
+          p_user_lat?: number
+          p_user_lng?: number
+        }
+        Returns: {
+          geo_distance: number
+          id: string
+          image_url: string
+          metadata: Json
+          result_type: string
+          similarity: number
+          subtitle: string
+          title: string
+        }[]
+      }
     }
     Enums: {
       agent_status: "active" | "experimental" | "archived"
       agent_type: "script" | "image"
+      assembly_status:
+        | "idle"
+        | "collecting"
+        | "assembling"
+        | "completed"
+        | "failed"
+      backlog_status: "pending" | "harvesting" | "completed" | "failed"
       consistency_level: "high" | "medium" | "low"
+      content_category: "paper" | "report" | "news" | "analysis" | "trend"
       interaction_event_type: "completed_playback" | "liked" | "shared"
       job_status:
         | "pending"
@@ -942,7 +1854,12 @@ export type Database = {
         | "new_like"
         | "new_podcast_from_followed_user"
         | "new_testimonial"
-      podcast_status: "pending_approval" | "published" | "archived" | "failed"
+      podcast_status:
+        | "pending_approval"
+        | "published"
+        | "archived"
+        | "failed"
+        | "draft"
       processing_status: "pending" | "processing" | "completed" | "failed"
       subscription_status: "active" | "inactive" | "trialing" | "past_due"
       testimonial_status: "pending" | "approved" | "rejected"
@@ -1094,7 +2011,16 @@ export const Constants = {
     Enums: {
       agent_status: ["active", "experimental", "archived"],
       agent_type: ["script", "image"],
+      assembly_status: [
+        "idle",
+        "collecting",
+        "assembling",
+        "completed",
+        "failed",
+      ],
+      backlog_status: ["pending", "harvesting", "completed", "failed"],
       consistency_level: ["high", "medium", "low"],
+      content_category: ["paper", "report", "news", "analysis", "trend"],
       interaction_event_type: ["completed_playback", "liked", "shared"],
       job_status: [
         "pending",
@@ -1111,11 +2037,16 @@ export const Constants = {
         "new_podcast_from_followed_user",
         "new_testimonial",
       ],
-      podcast_status: ["pending_approval", "published", "archived", "failed"],
+      podcast_status: [
+        "pending_approval",
+        "published",
+        "archived",
+        "failed",
+        "draft",
+      ],
       processing_status: ["pending", "processing", "completed", "failed"],
       subscription_status: ["active", "inactive", "trialing", "past_due"],
       testimonial_status: ["pending", "approved", "rejected"],
     },
   },
 } as const
-

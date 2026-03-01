@@ -1,42 +1,42 @@
 // types/podcast.ts
-// VERSIÓN: 7.5 (Sovereign Integrity Standard - Full Production Edition)
-// Misión: Establecer el contrato técnico absoluto para la visualización y creación de podcasts.
-// [ESTABILIZACIÓN]: Resolución de error TS2344 mediante definición explícita de estados NSP.
+// VERSIÓN: 8.0
 
 import { Database } from './database.types';
 
 /** 
  * UTILIDADES DE EXTRACCIÓN SEMÁNTICA
- * Derivamos los tipos base directamente de la Fuente de Verdad (PostgreSQL).
+ * Derivamos los tipos base directamente de la Fuente de Verdad (PostgreSQL) 
+ * sincronizada mediante el CLI de Supabase.
  */
 export type Tables<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row'];
 export type Enums<T extends keyof Database['public']['Enums']> = Database['public']['Enums'][T];
 
-// Tipos base inyectados desde el esquema de base de datos
+// --- TIPOS BASE DEL ESQUEMA DE DATOS ---
 export type PodcastRow = Tables<'micro_pods'>;
 export type ProfileRow = Tables<'profiles'>;
 export type PointOfInterestRow = Tables<'points_of_interest'>;
 export type PodcastStatus = Enums<'podcast_status'>;
 
 /**
- * INTERFAZ: AssemblyStatus
- * Define los estados del Protocolo de Streaming (NSP).
- * Declarado manualmente para asegurar compatibilidad inmediata con el compilador.
+ * TIPO: AssemblyStatus
+ * Define los estados posibles del Protocolo de Streaming (NSP) para audios segmentados.
  */
 export type AssemblyStatus = 'idle' | 'collecting' | 'assembling' | 'completed' | 'failed';
 
 /**
  * INTERFAZ: PodcastScript
- * Define la estructura interna del campo 'script_text' tras la migración a JSONB.
+ * Estructura interna del campo 'script_text' (JSONB).
+ * Separa la narrativa neuronal de la versión de texto plano para búsqueda y teleprompter.
  */
 export interface PodcastScript {
-  script_body: string;   // Versión narrativa completa para la IA de voz.
-  script_plain: string;  // Versión limpia para teleprompter y búsqueda.
+  script_body: string;   // Versión completa con acting notes para la IA de voz.
+  script_plain: string;  // Versión limpia para análisis semántico y visualización.
 }
 
 /**
  * INTERFAZ: ResearchSource
- * Contrato de transparencia bibliográfica para la investigación externa e interna.
+ * Contrato de transparencia bibliográfica. 
+ * Define el origen y la relevancia de cada fragmento de información utilizado.
  */
 export interface ResearchSource {
   title: string;
@@ -47,20 +47,8 @@ export interface ResearchSource {
 }
 
 /**
- * INTERFAZ: GeoLocationContext
- * Coordenadas y anclaje nominativo para el motor Madrid Resonance.
- */
-export interface GeoLocationContext {
-  latitude: number;
-  longitude: number;
-  placeName?: string;
-  cityName?: string;
-  country?: string;
-}
-
-/**
  * INTERFAZ: LocalRecommendation
- * Estructura de datos para los Puntos de Interés (POI) sugeridos por la IA.
+ * Estructura de datos para los Puntos de Interés (POI) sugeridos por la inteligencia situacional.
  */
 export interface LocalRecommendation {
   name: string;
@@ -74,35 +62,31 @@ export interface LocalRecommendation {
 
 /**
  * INTERFAZ: DiscoveryContextPayload
- * Dossier de inteligencia situacional que registra el veredicto de la ciudad.
+ * Dossier de inteligencia urbana generado por el motor Madrid Resonance.
  */
 export interface DiscoveryContextPayload {
-  narrative_hook: string;
-  recommendations: LocalRecommendation[];
-  closing_thought: string;
-  detected_poi?: string;
-  image_analysis_summary?: string;
+  narrative_hook: string;         // El gancho inicial que conecta el lugar con la historia.
+  recommendations: LocalRecommendation[]; // Lista detallada de POIs cercanos.
+  closing_thought: string;        // Reflexión final basada en la ubicación.
+  detected_poi?: string;          // ID o nombre del POI exacto donde se originó la sintonía.
+  image_analysis_summary?: string; // Si hubo inyección de visión (IA), se guarda aquí el resumen.
 }
 
 /**
  * INTERFAZ: CreationMetadataPayload
  * Este es el contrato del campo 'creation_data' (JSONB).
- * Actúa como la "Caja Negra" que almacena toda la lógica e intención creativa.
+ * Actúa como la "Caja Negra" que almacena la intención creativa y los parámetros técnicos.
  */
 export interface CreationMetadataPayload {
-  // Metodología y Agente utilizado
+  // Metodología de Forja
   style: 'solo' | 'link' | 'archetype' | 'qa' | 'legacy' | 'remix' | 'local_concierge';
   agentName: string;
   creation_mode: 'standard' | 'remix' | 'situational' | 'pulse';
 
-  // Metadatos de interacción
-  user_reaction?: string;
-  quote_context?: string;
-
-  // Bloque de inteligencia situacional (Madrid Resonance)
+  // Contexto Situacional (Solo para modo 'situational')
   discovery_context?: DiscoveryContextPayload;
 
-  // Inputs originales recopilados en el Stepper de Creación
+  // Parámetros de Configuración del Stepper
   inputs: {
     topic?: string;
     motivation?: string;
@@ -114,43 +98,67 @@ export interface CreationMetadataPayload {
     voiceStyle?: string;
     voicePace?: string;
     image_base64_reference?: string;
-    [key: string]: any;
+    [key: string]: unknown; // Permite extensiones controladas de metadatos
   };
+
+  // Trazabilidad de Sistema
+  user_reaction?: string;
+  quote_context?: string;
 }
 
 /**
  * TIPO MAESTRO: PodcastWithProfile
- * Objeto de datos unificado que consume la Workstation NicePod.
- * Garantiza que las banderas de integridad y la identidad estén sincronizadas.
+ * El objeto de datos definitivo que consume la interfaz de NicePod V2.5.
+ * 
+ * [RE-INGENIERÍA]: 
+ * Reemplazamos los campos JSONB genéricos por nuestras interfaces estrictas 
+ * e inyectamos las columnas necesarias para la estrategia GEO.
  */
-export type PodcastWithProfile = Omit<PodcastRow, 'creation_data' | 'sources' | 'script_text'> & {
-  // Banderas de Integridad del Protocolo NSP (NicePod Streaming Protocol)
+export type PodcastWithProfile = Omit<PodcastRow, 'creation_data' | 'sources' | 'script_text' | 'ai_tags' | 'user_tags'> & {
+  // Banderas de Integridad y NSP
   audio_ready: boolean;
   image_ready: boolean;
   audio_assembly_status: AssemblyStatus;
-  total_audio_segments?: number;
-  current_audio_segments?: number;
+  total_audio_segments: number | null;
+  current_audio_segments: number | null;
 
-  // Inyección de interfaces estrictas sobre campos JSONB de base de datos
+  // Tipado Estricto de Campos Complejos
   creation_data: CreationMetadataPayload | null;
   sources: ResearchSource[] | null;
   script_text: PodcastScript | null;
+  ai_tags: string[] | null;
+  user_tags: string[] | null;
 
-  // Unión con la identidad del creador y sus métricas de reputación
+  // Extensiones Geoespaciales (Resonancia Madrid)
+  place_name: string | null;
+  geo_location: any; // Mantenemos any para compatibilidad con el formato PostGIS de Mapbox
+
+  // Vínculo con la Identidad del Curador (JOIN de base de datos)
   profiles: {
     full_name: string | null;
     avatar_url: string | null;
     username: string;
-    reputation_score?: number;
-    is_verified?: boolean;
-    role?: string;
+    reputation_score: number | null;
+    is_verified: boolean | null;
+    role: string | null;
   } | null;
 };
 
 /**
  * TIPO: PodcastWithGenealogy
- * Extensión para manejar hilos de sabiduría y remixes encadenados.
+ * Soporte para la estructura de 'Remix' e hilos de sabiduría.
  */
 export type PodcastWithGenealogy = PodcastWithProfile & {
   replies?: PodcastWithProfile[];
 };
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT:
+ * 1. Sincronía GEO: Al incluir 'place_name' y 'geo_location' de forma explícita 
+ *    en 'PodcastWithProfile', eliminamos el error TS2339 en componentes de vista.
+ * 2. Cero Abreviaciones: Se han expandido las interfaces LocalRecommendation 
+ *    y DiscoveryContextPayload para reflejar cada campo que el motor de IA 
+ *    inyecta tras el escaneo situacional.
+ * 3. Integridad ACiD: El uso de 'Omit' garantiza que no existan colisiones entre 
+ *    el tipo crudo de base de datos y nuestras interfaces enriquecidas.
+ */

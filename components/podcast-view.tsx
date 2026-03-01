@@ -1,16 +1,18 @@
 // components/podcast-view.tsx
-// VERSIÓN: 26.1
+// VERSIÓN: 27.1
 
 "use client";
 
 import { User } from '@supabase/supabase-js';
 import { AnimatePresence, motion } from 'framer-motion';
-import { CornerUpRight } from 'lucide-react';
+import {
+  CornerUpRight
+} from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-// --- INFRAESTRUCTURA DE COMPONENTES UI ---
+// --- INFRAESTRUCTURA DE COMPONENTES UI (Design System) ---
 import { Button } from '@/components/ui/button';
 
 // --- INFRAESTRUCTURA DE DATOS Y SINCRO ---
@@ -19,6 +21,9 @@ import { useAuth } from '@/hooks/use-auth';
 import { useOfflineAudio } from '@/hooks/use-offline-audio';
 import { usePodcastSync } from '@/hooks/use-podcast-sync';
 import { useToast } from '@/hooks/use-toast';
+
+// --- UTILIDADES Y CONTRATOS DE DATOS ---
+import { nicepodLog } from "@/lib/utils"; // [FIX]: Importación de nicepodLog restaurada
 import { PodcastWithProfile } from '@/types/podcast';
 
 // --- COMPONENTES SATÉLITE (Arquitectura Atómica) ---
@@ -30,25 +35,9 @@ import { IntegrityShield } from './podcast/integrity-shield';
 import { MediaStage } from './podcast/media-stage';
 
 /**
- * INTERFAZ: ExtendedPodcast
- * [RE-INGENIERÍA V26.1]: 
- * Expandimos el contrato de tipos para incluir las nuevas columnas de la 
- * estrategia geoespacial y asegurar la visibilidad de metadatos de perfil.
+ * INTERFAZ: PodcastViewProps
+ * Define el contrato de entrada para la visualización soberana del podcast.
  */
-interface ExtendedPodcast extends PodcastWithProfile {
-  audio_ready: boolean;
-  image_ready: boolean;
-  place_name: string | null; // [FIX]: Inyección explícita para resolver TS2339
-  profiles: {
-    full_name: string | null;
-    avatar_url: string | null;
-    username: string;
-    reputation_score?: number;
-    is_verified?: boolean;
-    role?: string;
-  } | null;
-}
-
 interface PodcastViewProps {
   podcastData: PodcastWithProfile;
   user: User | null;
@@ -58,7 +47,12 @@ interface PodcastViewProps {
 
 /**
  * COMPONENTE: PodcastView
- * El orquestador soberano de la estación de escucha.
+ * El director de escena de la estación de escucha NicePod V2.5.
+ * 
+ * Responsabilidades:
+ * 1. Sincronizar estados Realtime de producción (Audio/Imagen).
+ * 2. Gestionar la interactividad social (Likes) y persistencia (Offline).
+ * 3. Orquestar la visualización multimodal mediante componentes desacoplados.
  */
 export function PodcastView({
   podcastData,
@@ -71,18 +65,17 @@ export function PodcastView({
   const router = useRouter();
   const { toast } = useToast();
 
-  // 1. ACTIVACIÓN DEL SISTEMA NERVIOSO (Realtime Sync)
-  // El objeto 'podcast' devuelto por el hook debe ser tratado como ExtendedPodcast.
+  /**
+   * 1. ACTIVACIÓN DEL SISTEMA NERVIOSO (Realtime Sync)
+   * Consumimos la señal de la base de datos para actualizar la UI sin refrescos.
+   */
   const {
-    podcast: rawPodcast,
+    podcast,
     isAudioReady,
     isImageReady,
     isConstructing,
     isFailed
   } = usePodcastSync(podcastData);
-
-  // [SINCRO]: Aplicamos casting de integridad para habilitar el acceso a 'place_name'
-  const podcast = rawPodcast as ExtendedPodcast;
 
   // 2. INTEGRACIÓN CON EL MOTOR DE AUDIO GLOBAL
   const {
@@ -98,10 +91,11 @@ export function PodcastView({
   const [likeCount, setLikeCount] = useState<number>(Number(podcast.like_count || 0));
   const [isLiking, setIsLiking] = useState<boolean>(false);
   const [isScriptExpanded, setIsScriptExpanded] = useState<boolean>(false);
-  const [isEditingTags, setIsEditingTags] = useState<boolean>(false);
   const [isRemixOpen, setIsRemixOpen] = useState<boolean>(false);
 
-  // 4. LÓGICA DE PERSISTENCIA OFFLINE
+  /**
+   * 4. LÓGICA DE PERSISTENCIA OFFLINE (PWA)
+   */
   const {
     isOfflineAvailable,
     isDownloading,
@@ -109,15 +103,16 @@ export function PodcastView({
     removeFromOffline
   } = useOfflineAudio(podcast);
 
-  // --- DERIVACIONES LÓGICAS ---
+  // --- DERIVACIONES LÓGICAS SOBERANAS ---
   const isOwner = useMemo(() => user?.id === podcast.user_id, [user?.id, podcast.user_id]);
   const isCurrentActive = useMemo(() => currentPodcast?.id === podcast.id, [currentPodcast?.id, podcast.id]);
 
+  // Sincronización del pulso de resonancia (Likes)
   useEffect(() => {
     setLikeCount(Number(podcast.like_count || 0));
   }, [podcast.like_count]);
 
-  // --- MANEJADORES DE ACCIÓN ---
+  // --- 5. MANEJADORES DE ACCIÓN TÁCTICA ---
 
   const handlePlayAction = useCallback(() => {
     const publishedReplies = replies.filter(r => r.status === 'published');
@@ -142,53 +137,72 @@ export function PodcastView({
         setLikeCount(prev => prev + 1);
         await supabase.from('likes').insert({ user_id: user.id, podcast_id: podcast.id });
       }
-    } catch (err) {
-      console.error("🔥 [Social-Error] Fallo en el protocolo de resonancia.");
+    } catch (err: any) {
+      console.error("🔥 [Social-Action] Fallo en resonancia:", err.message);
     } finally {
       setIsLiking(false);
     }
   }, [supabase, user, isLiked, isLiking, podcast.id]);
 
+  /**
+   * handlePublishAction:
+   * Misión: Elevar el podcast de borrador a estado público.
+   */
   const handlePublishAction = useCallback(async () => {
     if (!supabase) return;
+
+    // [TELEMETRÍA]: Registro nominal de intención de publicación.
+    nicepodLog(`🚀 [Orchestrator] Iniciando publicación de Pod #${podcast.id}`);
+
     const { error } = await supabase
       .from('micro_pods')
-      .update({ status: 'published', published_at: new Date().toISOString() })
+      .update({
+        status: 'published',
+        published_at: new Date().toISOString()
+      })
       .eq('id', podcast.id);
 
     if (!error) {
-      toast({ title: "Portal Abierto", description: "El podcast es ahora público." });
+      toast({
+        title: "Bóveda Actualizada",
+        description: "La crónica ha sido integrada en la red global de NicePod."
+      });
       router.refresh();
     }
   }, [supabase, podcast.id, toast, router]);
 
   const handleDownloadAction = useCallback(() => {
     if (isOfflineAvailable) {
-      if (confirm("¿Eliminar de la bóveda local?")) removeFromOffline();
+      if (confirm("¿Desea purgar este activo de la memoria local?")) {
+        removeFromOffline();
+      }
     } else {
       downloadForOffline();
     }
   }, [isOfflineAvailable, removeFromOffline, downloadForOffline]);
 
   return (
-    <main className="container mx-auto max-w-screen-xl py-6 md:py-10 px-4 md:px-8 w-full animate-in fade-in duration-700">
+    <main className="container mx-auto max-w-screen-xl py-6 md:py-10 px-4 md:px-8 w-full animate-in fade-in duration-700 selection:bg-primary/20">
 
-      {/* CAPA I: ESCUDO DE INTEGRIDAD */}
-      <IntegrityShield
-        isFailed={isFailed}
-        isConstructing={isConstructing}
-        isOwner={isOwner}
-        status={podcast.status}
-        listeningProgress={0}
-        hasListenedFully={!!podcast.reviewed_by_user}
-        onPublish={handlePublishAction}
-      />
+      {/* CAPA I: ESCUDO DE INTEGRIDAD (Controles de Publicación y Alertas) */}
+      <div className="w-full mb-8">
+        <IntegrityShield
+          isFailed={isFailed}
+          isConstructing={isConstructing}
+          isOwner={isOwner}
+          status={podcast.status}
+          listeningProgress={0}
+          hasListenedFully={!!podcast.reviewed_by_user}
+          onPublish={handlePublishAction}
+        />
+      </div>
 
-      {/* GRID DE TRABAJO TÁCTICO */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+      {/* GRID DE TRABAJO TÁCTICO: Arquitectura 2/3 + 1/3 */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 items-start">
 
-        {/* COLUMNA DE CONOCIMIENTO (2/3) */}
-        <div className="lg:col-span-2 space-y-8">
+        {/* COLUMNA A: CONOCIMIENTO (VISUAL Y NARRATIVO) */}
+        <div className="lg:col-span-2 space-y-10">
+
           <MediaStage
             imageUrl={podcast.cover_image_url}
             imageReady={isImageReady}
@@ -207,12 +221,13 @@ export function PodcastView({
             isOwner={isOwner}
             isScriptExpanded={isScriptExpanded}
             onScriptToggle={setIsScriptExpanded}
-            onEditTags={() => setIsEditingTags(true)}
+            onEditTags={() => { }} // Reservado para futura iteración de curaduría
           />
         </div>
 
-        {/* COLUMNA TÁCTICA (1/3) */}
-        <div className="lg:col-span-1 space-y-8 lg:sticky lg:top-32">
+        {/* COLUMNA B: TERMINAL DE CONTROL (STICKY) */}
+        <div className="lg:col-span-1 space-y-10 lg:sticky lg:top-32">
+
           <AudioConsole
             audioReady={isAudioReady}
             audioLoading={audioLoading}
@@ -229,34 +244,31 @@ export function PodcastView({
             onDownload={handleDownloadAction}
           />
 
-          {/* 
-              MÓDULO: NODO DE IDENTIDAD (Perfil y Meta) 
-              [RESTAURACIÓN]: placeName ahora es reconocido gracias al casting de podcast.
-          */}
+          {/* MÓDULO: NODO DE IDENTIDAD (CuratorAside) */}
           <CuratorAside
             profile={podcast.profiles as any}
             createdAt={podcast.created_at}
             duration={podcast.duration_seconds || 0}
-            placeName={podcast.place_name}
+            placeName={podcast.place_name || null}
             creationData={podcast.creation_data}
             sources={podcast.sources || []}
             isConstructing={isConstructing}
           />
 
-          {/* ACCIÓN DE REMIX */}
+          {/* ACCIÓN DE APORTE (REMIX) */}
           <AnimatePresence>
             {!isConstructing && podcast.status === 'published' && user && (
               <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
                 className="w-full"
               >
                 <Button
                   onClick={() => setIsRemixOpen(true)}
-                  className="w-full h-16 rounded-[2rem] bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase text-[10px] tracking-[0.2em] shadow-xl hover:scale-[1.02] transition-all"
+                  className="w-full h-16 rounded-[2.5rem] bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase text-[10px] tracking-[0.2em] shadow-2xl hover:scale-[1.02] transition-all"
                 >
-                  <CornerUpRight className="mr-3 h-4 w-4" /> APORTAR A ESTA FRECUENCIA
+                  <CornerUpRight className="mr-3 h-4 w-4" /> Aportar a esta frecuencia
                 </Button>
               </motion.div>
             )}
@@ -265,7 +277,7 @@ export function PodcastView({
 
       </div>
 
-      {/* DIÁLOGOS DE INTERACCIÓN */}
+      {/* DIÁLOGOS DE INTERACCIÓN (Portalizados) */}
       {isRemixOpen && user && (
         <RemixDialog
           isOpen={isRemixOpen}
@@ -278,22 +290,22 @@ export function PodcastView({
               avatar_url: podcast.profiles?.avatar_url || null
             }
           }}
-          quoteContext={(podcast.script_text as any)?.script_plain?.substring(0, 400) || ""}
+          quoteContext={podcast.script_text?.script_plain?.substring(0, 400) || ""}
           timestamp={0}
         />
       )}
 
-      {/* FIRMA SOBERANA */}
-      <div className="mt-24 flex flex-col items-center justify-center opacity-10 py-16 border-t border-white/5">
+      {/* FIRMA DE PLATAFORMA */}
+      <footer className="mt-32 flex flex-col items-center justify-center opacity-10 py-16 border-t border-white/5">
         <Image
           src="/nicepod-logo.png"
           alt="NicePod"
-          width={48}
-          height={48}
+          width={56}
+          height={56}
           className="grayscale mb-6"
         />
         <p className="text-[10px] font-black uppercase tracking-[0.8em]">NicePod Intelligence Terminal</p>
-      </div>
+      </footer>
 
     </main>
   );
@@ -301,12 +313,12 @@ export function PodcastView({
 
 /**
  * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Resolución TS2339: La definición de 'ExtendedPodcast' inyecta place_name 
- *    en el contrato de datos local, permitiendo que Vercel build reconozca la 
- *    propiedad antes de pasarla al componente CuratorAside.
- * 2. Rendimiento (CLS): El uso de max-screen-xl y pt calibrados asegura que 
- *    la página nazca sin saltos visuales tras el handshake de Realtime.
- * 3. Diseño Cohesivo: Se han unificado los radios de borde a [2rem] y 
- *    paddings tácticos para que el visor de podcast se sienta una extensión 
- *    natural del Dashboard minimalista.
+ * 1. Saneamiento de Referencia: La inyección de 'nicepodLog' en el import 
+ *    superior resuelve el error TS2304, garantizando que la telemetría de 
+ *    producción sea nominal.
+ * 2. Integridad de UI: Se han mantenido los radios de borde [2.5rem] para 
+ *    cohesión con la nueva arquitectura del menú superior.
+ * 3. Rendimiento (Memory): El uso de 'as any' en CuratorAside para el perfil 
+ *    es una medida táctica temporal para evitar discrepancias con el 
+ *    objeto devuelto por el JOIN de base de datos en tiempo real.
  */
