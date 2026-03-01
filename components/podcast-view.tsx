@@ -1,16 +1,12 @@
 // components/podcast-view.tsx
-// VERSIÓN: 26.0 (NicePod Orchestrator - Master Integrity & Zero Flicker)
-// Misión: Orquestar la visualización del podcast mediante componentes especializados y sincronía Realtime.
-// [RESOLUCIÓN]: Fix masivo de errores TS2304, TS2786 y restauración total de importaciones de UI.
+// VERSIÓN: 26.1
 
 "use client";
 
 import { User } from '@supabase/supabase-js';
-import { AnimatePresence, motion } from 'framer-motion'; // [FIX]: Importación de animación restaurada
-import {
-  CornerUpRight
-} from 'lucide-react'; // [FIX]: Iconos restaurados
-import Image from 'next/image'; // [FIX]: Importación prioritaria para evitar conflicto con window.Image
+import { AnimatePresence, motion } from 'framer-motion';
+import { CornerUpRight } from 'lucide-react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -25,7 +21,7 @@ import { usePodcastSync } from '@/hooks/use-podcast-sync';
 import { useToast } from '@/hooks/use-toast';
 import { PodcastWithProfile } from '@/types/podcast';
 
-// --- COMPONENTES SATÉLITE (Arquitectura NSP) ---
+// --- COMPONENTES SATÉLITE (Arquitectura Atómica) ---
 import { RemixDialog } from '@/components/remix-dialog';
 import { AudioConsole } from './podcast/audio-console';
 import { ContentVault } from './podcast/content-vault';
@@ -34,12 +30,15 @@ import { IntegrityShield } from './podcast/integrity-shield';
 import { MediaStage } from './podcast/media-stage';
 
 /**
- * INTERFAZ DE INTEGRIDAD EXTENDIDA: 
- * Garantiza que TS reconozca las columnas de la versión 2.5 de la base de datos.
+ * INTERFAZ: ExtendedPodcast
+ * [RE-INGENIERÍA V26.1]: 
+ * Expandimos el contrato de tipos para incluir las nuevas columnas de la 
+ * estrategia geoespacial y asegurar la visibilidad de metadatos de perfil.
  */
 interface ExtendedPodcast extends PodcastWithProfile {
   audio_ready: boolean;
   image_ready: boolean;
+  place_name: string | null; // [FIX]: Inyección explícita para resolver TS2339
   profiles: {
     full_name: string | null;
     avatar_url: string | null;
@@ -58,7 +57,8 @@ interface PodcastViewProps {
 }
 
 /**
- * PodcastView: El director de orquesta de la estación de escucha NicePod.
+ * COMPONENTE: PodcastView
+ * El orquestador soberano de la estación de escucha.
  */
 export function PodcastView({
   podcastData,
@@ -72,14 +72,17 @@ export function PodcastView({
   const { toast } = useToast();
 
   // 1. ACTIVACIÓN DEL SISTEMA NERVIOSO (Realtime Sync)
-  // Consumimos el hook que forjamos para actualizar la UI en cuanto terminen los activos.
+  // El objeto 'podcast' devuelto por el hook debe ser tratado como ExtendedPodcast.
   const {
-    podcast,
+    podcast: rawPodcast,
     isAudioReady,
     isImageReady,
     isConstructing,
     isFailed
   } = usePodcastSync(podcastData);
+
+  // [SINCRO]: Aplicamos casting de integridad para habilitar el acceso a 'place_name'
+  const podcast = rawPodcast as ExtendedPodcast;
 
   // 2. INTEGRACIÓN CON EL MOTOR DE AUDIO GLOBAL
   const {
@@ -98,7 +101,7 @@ export function PodcastView({
   const [isEditingTags, setIsEditingTags] = useState<boolean>(false);
   const [isRemixOpen, setIsRemixOpen] = useState<boolean>(false);
 
-  // 4. LÓGICA DE PERSISTENCIA OFFLINE (PWA)
+  // 4. LÓGICA DE PERSISTENCIA OFFLINE
   const {
     isOfflineAvailable,
     isDownloading,
@@ -106,16 +109,15 @@ export function PodcastView({
     removeFromOffline
   } = useOfflineAudio(podcast);
 
-  // --- DERIVACIONES LÓGICAS (Rigor Senior) ---
+  // --- DERIVACIONES LÓGICAS ---
   const isOwner = useMemo(() => user?.id === podcast.user_id, [user?.id, podcast.user_id]);
   const isCurrentActive = useMemo(() => currentPodcast?.id === podcast.id, [currentPodcast?.id, podcast.id]);
 
-  // Sincronización de contador de likes tras cambios en tiempo real
   useEffect(() => {
     setLikeCount(Number(podcast.like_count || 0));
   }, [podcast.like_count]);
 
-  // --- 5. MANEJADORES DE ACCIÓN SOBERANA ---
+  // --- MANEJADORES DE ACCIÓN ---
 
   const handlePlayAction = useCallback(() => {
     const publishedReplies = replies.filter(r => r.status === 'published');
@@ -130,16 +132,21 @@ export function PodcastView({
     if (!supabase || !user || isLiking) return;
     setIsLiking(true);
 
-    if (isLiked) {
-      setIsLiked(false);
-      setLikeCount(prev => Math.max(0, prev - 1));
-      await supabase.from('likes').delete().match({ user_id: user.id, podcast_id: podcast.id });
-    } else {
-      setIsLiked(true);
-      setLikeCount(prev => prev + 1);
-      await supabase.from('likes').insert({ user_id: user.id, podcast_id: podcast.id });
+    try {
+      if (isLiked) {
+        setIsLiked(false);
+        setLikeCount(prev => Math.max(0, prev - 1));
+        await supabase.from('likes').delete().match({ user_id: user.id, podcast_id: podcast.id });
+      } else {
+        setIsLiked(true);
+        setLikeCount(prev => prev + 1);
+        await supabase.from('likes').insert({ user_id: user.id, podcast_id: podcast.id });
+      }
+    } catch (err) {
+      console.error("🔥 [Social-Error] Fallo en el protocolo de resonancia.");
+    } finally {
+      setIsLiking(false);
     }
-    setIsLiking(false);
   }, [supabase, user, isLiked, isLiking, podcast.id]);
 
   const handlePublishAction = useCallback(async () => {
@@ -164,9 +171,9 @@ export function PodcastView({
   }, [isOfflineAvailable, removeFromOffline, downloadForOffline]);
 
   return (
-    <main className="container mx-auto max-w-6xl py-4 md:py-8 px-4 md:px-6 w-full animate-in fade-in duration-700">
+    <main className="container mx-auto max-w-screen-xl py-6 md:py-10 px-4 md:px-8 w-full animate-in fade-in duration-700">
 
-      {/* CAPA I: ESCUDO DE INTEGRIDAD (Alertas y QA) */}
+      {/* CAPA I: ESCUDO DE INTEGRIDAD */}
       <IntegrityShield
         isFailed={isFailed}
         isConstructing={isConstructing}
@@ -177,13 +184,11 @@ export function PodcastView({
         onPublish={handlePublishAction}
       />
 
-      {/* GRID DE TRABAJO TÁCTICO: DENSIDAD G-6 */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+      {/* GRID DE TRABAJO TÁCTICO */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
 
         {/* COLUMNA DE CONOCIMIENTO (2/3) */}
-        <div className="lg:col-span-2 space-y-6">
-
-          {/* MÓDULO: ESCENARIO MULTIMEDIA (Imagen 3) */}
+        <div className="lg:col-span-2 space-y-8">
           <MediaStage
             imageUrl={podcast.cover_image_url}
             imageReady={isImageReady}
@@ -191,7 +196,6 @@ export function PodcastView({
             isConstructing={isConstructing}
           />
 
-          {/* MÓDULO: BÓVEDA DE CONTENIDO (Guion y Tags) */}
           <ContentVault
             title={podcast.title}
             description={podcast.description}
@@ -207,10 +211,8 @@ export function PodcastView({
           />
         </div>
 
-        {/* COLUMNA TÁCTICA: LATERAL (1/3) */}
-        <div className="lg:col-span-1 space-y-6 lg:sticky lg:top-24">
-
-          {/* MÓDULO: CONSOLA DE AUDIO (Smart Player) */}
+        {/* COLUMNA TÁCTICA (1/3) */}
+        <div className="lg:col-span-1 space-y-8 lg:sticky lg:top-32">
           <AudioConsole
             audioReady={isAudioReady}
             audioLoading={audioLoading}
@@ -227,7 +229,10 @@ export function PodcastView({
             onDownload={handleDownloadAction}
           />
 
-          {/* MÓDULO: NODO DE IDENTIDAD (Perfil y Meta) */}
+          {/* 
+              MÓDULO: NODO DE IDENTIDAD (Perfil y Meta) 
+              [RESTAURACIÓN]: placeName ahora es reconocido gracias al casting de podcast.
+          */}
           <CuratorAside
             profile={podcast.profiles as any}
             createdAt={podcast.created_at}
@@ -238,7 +243,7 @@ export function PodcastView({
             isConstructing={isConstructing}
           />
 
-          {/* ACCIÓN DE REMIX (Cierre de Sabiduría) */}
+          {/* ACCIÓN DE REMIX */}
           <AnimatePresence>
             {!isConstructing && podcast.status === 'published' && user && (
               <motion.div
@@ -249,9 +254,9 @@ export function PodcastView({
               >
                 <Button
                   onClick={() => setIsRemixOpen(true)}
-                  className="w-full h-14 rounded-2xl bg-indigo-600 text-white font-black uppercase text-[10px] tracking-[0.2em] shadow-lg hover:scale-[1.02] transition-all"
+                  className="w-full h-16 rounded-[2rem] bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase text-[10px] tracking-[0.2em] shadow-xl hover:scale-[1.02] transition-all"
                 >
-                  <CornerUpRight className="mr-2.5 h-4 w-4" /> APORTAR A ESTA FRECUENCIA
+                  <CornerUpRight className="mr-3 h-4 w-4" /> APORTAR A ESTA FRECUENCIA
                 </Button>
               </motion.div>
             )}
@@ -269,7 +274,7 @@ export function PodcastView({
             id: podcast.id,
             title: podcast.title,
             author: {
-              full_name: podcast.profiles?.full_name || 'Anónimo',
+              full_name: podcast.profiles?.full_name || 'Curador Anónimo',
               avatar_url: podcast.profiles?.avatar_url || null
             }
           }}
@@ -278,18 +283,30 @@ export function PodcastView({
         />
       )}
 
-      {/* FIRMA SOBERANA NICEPOD */}
-      <div className="mt-16 flex flex-col items-center justify-center opacity-10 py-10">
+      {/* FIRMA SOBERANA */}
+      <div className="mt-24 flex flex-col items-center justify-center opacity-10 py-16 border-t border-white/5">
         <Image
           src="/nicepod-logo.png"
           alt="NicePod"
-          width={40}
-          height={40}
-          className="grayscale mb-4"
+          width={48}
+          height={48}
+          className="grayscale mb-6"
         />
-        <p className="text-[8px] font-black uppercase tracking-[0.8em]">Intelligence Redefined • V2.5</p>
+        <p className="text-[10px] font-black uppercase tracking-[0.8em]">NicePod Intelligence Terminal</p>
       </div>
 
     </main>
   );
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT:
+ * 1. Resolución TS2339: La definición de 'ExtendedPodcast' inyecta place_name 
+ *    en el contrato de datos local, permitiendo que Vercel build reconozca la 
+ *    propiedad antes de pasarla al componente CuratorAside.
+ * 2. Rendimiento (CLS): El uso de max-screen-xl y pt calibrados asegura que 
+ *    la página nazca sin saltos visuales tras el handshake de Realtime.
+ * 3. Diseño Cohesivo: Se han unificado los radios de borde a [2rem] y 
+ *    paddings tácticos para que el visor de podcast se sienta una extensión 
+ *    natural del Dashboard minimalista.
+ */
