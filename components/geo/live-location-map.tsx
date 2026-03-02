@@ -1,26 +1,25 @@
 // components/geo/live-location-map.tsx
-// VERSIÓN: 1.1
+// VERSIÓN: 1.3
 
 "use client";
 
-import React, { useEffect, useState, memo } from 'react';
-import Map, { Marker } from 'react-map-gl';
-import type { ViewStateChangeEvent } from 'react-map-gl'; // [FIX TS2709]: Importación de tipo explícita
-import 'mapbox-gl/dist/mapbox-gl.css';
+import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { Navigation2, Target } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import 'mapbox-gl/dist/mapbox-gl.css';
+import { memo, useEffect, useState } from 'react';
+import Map, { Marker } from 'react-map-gl';
 
 /**
  * INTERFAZ: LiveLocationMapProps
- * Define los parámetros de telemetría inyectados por el GeoEngine.
+ * Define los parámetros de telemetría inyectados por el motor geoespacial padre.
  */
 interface LiveLocationMapProps {
   latitude: number;
   longitude: number;
   /**
-   * accuracy: El radio de precisión del GPS en metros.
-   * Se visualiza como una malla pulsante alrededor del administrador.
+   * accuracy: El radio de precisión del hardware GPS en metros.
+   * Se visualiza como una malla pulsante de seguridad.
    */
   accuracy: number;
   className?: string;
@@ -28,33 +27,32 @@ interface LiveLocationMapProps {
 
 /**
  * COMPONENTE: LiveLocationMap
- * El visor de campo especializado para la siembra de sabiduría urbana.
+ * El visor de campo especializado para las operaciones del Administrador.
  * 
  * [ARQUITECTURA DE ALTA FIDELIDAD]:
- * 1. Satellite Streets V12: Máxima resolución de texturas y etiquetas.
- * 2. Inercia de Cámara: Seguimiento fluido del pulso del Administrador.
- * 3. Aislamiento de GPU: El uso de 'memo' previene recalentamiento por re-renders.
+ * 1. Satellite Streets V12: Empleado para asegurar la visibilidad de senderos y monumentos.
+ * 2. Inercia Síncrona: La cámara persigue las coordenadas con transiciones fluidas.
+ * 3. Memoización Táctica: Protege al WebGL de re-renderizados causados por la UI externa.
  */
-const LiveLocationMapComponent = ({ 
-  latitude, 
-  longitude, 
+const LiveLocationMapComponent = ({
+  latitude,
+  longitude,
   accuracy,
-  className 
+  className
 }: LiveLocationMapProps) => {
-  
-  // --- ESTADO DE CÁMARA TÁCTICA ---
+
+  // --- ESTADO DE LA CÁMARA TÁCTICA (VIEWPORT) ---
   const [viewState, setViewState] = useState({
     latitude: latitude,
     longitude: longitude,
-    zoom: 18,     // Zoom de grado arquitectónico
-    pitch: 45,    // Ángulo cinemático para profundidad 3D
-    bearing: 0
+    zoom: 18,     // Nivel de detalle arquitectónico
+    pitch: 45,    // Inclinación para volumen 3D
+    bearing: 0    // Rumbo norte geográfico
   });
 
   /**
-   * [SINCRO]: Auto-Tracking
-   * Asegura que la cámara se desplace automáticamente hacia las nuevas 
-   * coordenadas cada vez que el hardware GPS reporta movimiento.
+   * PROTOCOLO DE AUTO-SEGUIMIENTO
+   * Mantiene el epicentro visual sincronizado con los pasos del Administrador.
    */
   useEffect(() => {
     setViewState((prev) => ({
@@ -65,11 +63,13 @@ const LiveLocationMapComponent = ({
   }, [latitude, longitude]);
 
   /**
-   * handleMove:
-   * Gestiona el cambio manual de perspectiva si el Admin decide explorar 
-   * el entorno inmediato antes de forjar la crónica.
+   * GESTIÓN DE CÁMARA MANUAL
+   * [RESOLUCIÓN DEFINITIVA TS2709]:
+   * En lugar de importar el conflictivo 'ViewStateChangeEvent', definimos 
+   * estructuralmente que el evento contiene la propiedad 'viewState'. 
+   * Esto satisface al compilador de Vercel sin romper la lógica del mapa.
    */
-  const handleMove = (event: ViewStateChangeEvent) => {
+  const handleMove = (event: { viewState: any }) => {
     setViewState(event.viewState);
   };
 
@@ -81,8 +81,11 @@ const LiveLocationMapComponent = ({
       "shadow-[inset_0_0_60px_rgba(0,0,0,0.9)] bg-[#050505]",
       className
     )}>
-      
-      {/* I. MOTOR SATELITAL (MAPBOX V12) */}
+
+      {/* 
+          I. MOTOR MAPBOX (SATELLITE ENGINE) 
+          Desactivamos el attributionControl para mantener la estética de 'Instrumento'
+      */}
       <Map
         {...viewState}
         onMove={handleMove}
@@ -92,31 +95,33 @@ const LiveLocationMapComponent = ({
         attributionControl={false}
         reuseMaps
       >
-        
-        {/* II. MARCADOR DE SOBERANÍA (THE ADMIN NODE) */}
+
+        {/* 
+            II. MARCADOR SOBERANO (THE ADMIN NODE)
+            La representación visual de la autoridad en el terreno.
+        */}
         <Marker latitude={latitude} longitude={longitude} anchor="center">
           <div className="relative flex items-center justify-center">
-            
+
             {/* 
-                ANILLO DE INCERTIDUMBRE (ACCURACY VISUALIZER) 
-                Visualiza el margen de error real del satélite.
+                ANILLO DE INCERTIDUMBRE (GPS ACCURACY)
+                Su diámetro físico en píxeles refleja el margen de error de la señal satelital.
             */}
-            <motion.div 
-              animate={{ 
+            <motion.div
+              animate={{
                 scale: [1, 1.1, 1],
-                opacity: [0.2, 0.3, 0.2] 
+                opacity: [0.15, 0.25, 0.15]
               }}
-              transition={{ 
-                duration: 4, 
-                repeat: Infinity, 
-                ease: "easeInOut" 
+              transition={{
+                duration: 4,
+                repeat: Infinity,
+                ease: "easeInOut"
               }}
               className="absolute bg-primary/20 rounded-full border border-primary/40"
-              style={{ 
-                // Convertimos la precisión métrica en escala visual
-                width: `${Math.max(accuracy * 2, 40)}px`, 
-                height: `${Math.max(accuracy * 2, 40)}px` 
-              }} 
+              style={{
+                width: `${Math.max(accuracy * 2, 40)}px`,
+                height: `${Math.max(accuracy * 2, 40)}px`
+              }}
             />
 
             {/* El Puntero de Hardware */}
@@ -124,7 +129,7 @@ const LiveLocationMapComponent = ({
               <div className="p-2 bg-primary rounded-full shadow-[0_0_30px_rgba(var(--primary),0.8)] border-2 border-white ring-4 ring-black/50 transition-transform duration-500 hover:scale-110">
                 <Navigation2 className="w-4 h-4 text-black fill-current" />
               </div>
-              {/* Punto de anclaje físico */}
+              {/* Estaca física para anclaje visual preciso */}
               <div className="w-1 h-2 bg-white rounded-b-full shadow-2xl" />
             </div>
 
@@ -133,44 +138,38 @@ const LiveLocationMapComponent = ({
 
       </Map>
 
-      {/* III. CAPA DE ATMÓSFERA Y HUD */}
+      {/* 
+          III. CAPA DE ATMÓSFERA Y HUD (GLASS OVERLAY)
+          Integra cromáticamente el mapa satelital (verde/marrón) con el 
+          universo visual Aurora de NicePod (púrpura/negro).
+      */}
       <div className="absolute inset-0 pointer-events-none z-20">
-        {/* Viñeteado Industrial */}
+
+        {/* Lente de viñeteado para enfoque central */}
         <div className="absolute inset-0 shadow-[inset_0_0_150px_rgba(0,0,0,0.8)]" />
-        
-        {/* Indicador de Telemetría Superior */}
+
+        {/* Telemetría de Precisión (HUD Superior) */}
         <div className="absolute top-5 left-1/2 -translate-x-1/2">
           <div className="bg-black/70 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 flex items-center gap-3 shadow-2xl">
-              <Target size={12} className={cn(
-                "transition-colors",
-                accuracy < 10 ? "text-emerald-500" : "text-amber-500"
-              )} />
-              <span className="text-[8px] font-black text-white/60 uppercase tracking-[0.3em] tabular-nums">
-                Signal Accuracy: {accuracy.toFixed(1)}m
-              </span>
+            <Target size={12} className={cn(
+              "transition-colors duration-500",
+              accuracy < 15 ? "text-emerald-500" : "text-amber-500"
+            )} />
+            <span className="text-[8px] font-black text-white/60 uppercase tracking-[0.3em] tabular-nums">
+              Precisión GPS: {accuracy.toFixed(1)}m
+            </span>
           </div>
         </div>
+
       </div>
 
     </div>
   );
 };
 
-// [FIX]: Envolvemos en memo para asegurar que el motor WebGL no sufra 
-// micro-cortes por re-renders del formulario padre.
+// [MEMOIZACIÓN TÁCTICA]
+// Previene renderizados de WebGL cuando la UI externa cambia de estado.
 export const LiveLocationMap = memo(LiveLocationMapComponent);
 
-// [FIX DEFINITIVO]: Display name para cumplimiento del linter.
+// Propiedad obligatoria para el linter (ESLint) en componentes envueltos en memo.
 LiveLocationMap.displayName = "LiveLocationMap";
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Resolución de Build: Al importar ViewStateChangeEvent como 'import type', 
- *    el compilador de Vercel no intenta buscar el espacio de nombres en 
- *    tiempo de ejecución, eliminando el error fatal TS2709.
- * 2. Física de Cámara: El uso de useEffect para sincronizar la lat/lng con 
- *    el viewState garantiza un seguimiento determinista del Admin.
- * 3. Identidad Visual: El diseño circular y el uso del color 'primary' (262.1 83.3% 57.8%) 
- *    aseguran que esta herramienta de administración sea visualmente 
- *    compatible con el 'Portal de Búsqueda' y el 'Dashboard'.
- */

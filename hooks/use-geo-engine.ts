@@ -1,15 +1,15 @@
 // hooks/use-geo-engine.ts
-// VERSIÓN: 2.1
+// VERSIÓN: 2.2
 
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { nicepodLog } from "@/lib/utils";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
  * INTERFAZ: UserLocation
- * Registra la telemetría exacta del hardware GPS del curador.
+ * Registra las coordenadas y la precisión física del dispositivo.
  */
 export interface UserLocation {
   latitude: number;
@@ -20,7 +20,7 @@ export interface UserLocation {
 
 /**
  * INTERFAZ: ActivePOI
- * Nodo de interés que actualmente interactúa con la posición del administrador.
+ * Nodo de sabiduría que resuena actualmente con la posición del Administrador.
  */
 export interface ActivePOI {
   id: string;
@@ -32,13 +32,13 @@ export interface ActivePOI {
 
 /**
  * TIPO: GeoState
- * Define las fases del ciclo de vida de una misión de captura urbana.
+ * Define los estados lógicos de la misión de captura.
  */
 export type GeoState = 'IDLE' | 'SCANNING' | 'ANALYZING' | 'ACCEPTED' | 'REJECTED';
 
 /**
  * INTERFAZ: GeoContextData
- * Encapsula la información ambiental y de proceso recolectada.
+ * Almacén temporal de la inteligencia recolectada por la IA.
  */
 export interface GeoContextData {
   draftId?: string;
@@ -50,8 +50,8 @@ export interface GeoContextData {
 
 /**
  * INTERFAZ: GeoEngineReturn
- * [CONTRATO DE SOBERANÍA]: Define exactamente qué expone el hook.
- * Resuelve el error TS2339 al garantizar la existencia de 'userLocation'.
+ * [CONTRATO MAESTRO]: Define el objeto que el hook entrega a la UI.
+ * Al estar exportado, soluciona definitivamente el error TS2305 en los componentes.
  */
 export interface GeoEngineReturn {
   status: GeoState;
@@ -68,13 +68,13 @@ export interface GeoEngineReturn {
 
 /**
  * HOOK: useGeoEngine
- * El motor central de inteligencia situacional para NicePod V2.5.
+ * El director de orquesta de la sintonía geolocalizada de NicePod V2.5.
  */
 export function useGeoEngine(): GeoEngineReturn {
-  // Instanciamos el cliente único (Singleton)
+  // Consumo del cliente único (Singleton)
   const supabase = createClient();
 
-  // --- ESTADOS DE CONTROL ---
+  // --- ESTADOS REACTIVOS ---
   const [status, setStatus] = useState<GeoState>('IDLE');
   const [data, setData] = useState<GeoContextData>({});
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
@@ -88,24 +88,23 @@ export function useGeoEngine(): GeoEngineReturn {
   const lastSyncLocation = useRef<{ lat: number; lng: number } | null>(null);
 
   /**
-   * UTILIDAD: calculateDistance (Fórmula de Haversine)
-   * Calcula la distancia física en metros entre el usuario y un nodo.
+   * calculateDistance: Implementación de la Fórmula de Haversine.
+   * Calcula la brecha física entre el Admin y el nodo de sabiduría.
    */
-  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-    const R = 6371e3; // Radio de la Tierra en metros
+  const calculateDistance = useCallback((lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    const R = 6371e3; // Radio terrestre en metros
     const dLat = (lat2 - lat1) * (Math.PI / 180);
     const dLon = (lon2 - lon1) * (Math.PI / 180);
-    const a = 
+    const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * 
+      Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
       Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
-  };
+  }, []);
 
   /**
-   * ACCIÓN: fetchNearbyPOIs
-   * Sincroniza los nodos de sabiduría visibles desde la Bóveda.
+   * fetchNearbyPOIs: Recuperación de la malla urbana activa.
    */
   const fetchNearbyPOIs = useCallback(async () => {
     setIsSearching(true);
@@ -117,15 +116,14 @@ export function useGeoEngine(): GeoEngineReturn {
       if (dbError) throw dbError;
       setNearbyPOIs(poiData || []);
     } catch (err: any) {
-      console.error("🔥 [GeoEngine] Error de Bóveda:", err.message);
+      console.error("🔥 [GeoEngine] Fallo en sincronía de Bóveda:", err.message);
     } finally {
       setIsSearching(false);
     }
   }, [supabase]);
 
   /**
-   * ACCIÓN: evaluateResonance
-   * Determina si el administrador está dentro de un círculo de sintonía activa.
+   * evaluateResonance: Detecta si el Admin entra en zona de sintonía.
    */
   const evaluateResonance = useCallback((location: UserLocation) => {
     if (nearbyPOIs.length === 0) return;
@@ -134,35 +132,36 @@ export function useGeoEngine(): GeoEngineReturn {
     let minDistance = Infinity;
 
     nearbyPOIs.forEach((poi) => {
+      // Coordenadas extraídas del punto PostGIS [lng, lat]
       const poiLat = poi.geo_location.coordinates[1];
       const poiLng = poi.geo_location.coordinates[0];
-      const distance = calculateDistance(location.latitude, location.longitude, poiLat, poiLng);
+      const dist = calculateDistance(location.latitude, location.longitude, poiLat, poiLng);
 
-      if (distance < minDistance) {
-        minDistance = distance;
+      if (dist < minDistance) {
+        minDistance = dist;
         closest = {
           id: poi.id,
           name: poi.name,
-          distance: Math.round(distance),
-          isWithinRadius: distance <= (poi.entrance_radius_meters || 30),
+          distance: Math.round(dist),
+          isWithinRadius: dist <= (poi.entrance_radius_meters || 35),
           historical_fact: poi.historical_fact
         };
       }
     });
 
     setActivePOI(closest);
-  }, [nearbyPOIs]);
+  }, [nearbyPOIs, calculateDistance]);
 
   /**
-   * CICLO DE VIDA: RASTREO GPS
+   * LIFECYCLE: GESTIÓN DEL HARDWARE GPS
    */
   useEffect(() => {
     if (typeof window === "undefined" || !("geolocation" in navigator)) {
-      setError("HARDWARE_NO_SOPORTADO");
+      setError("HARDWARE_GPS_DESACTIVADO");
       return;
     }
 
-    const options = {
+    const geoOptions = {
       enableHighAccuracy: true,
       timeout: 10000,
       maximumAge: 0
@@ -170,33 +169,33 @@ export function useGeoEngine(): GeoEngineReturn {
 
     const handleSuccess = (position: GeolocationPosition) => {
       const { latitude, longitude, accuracy, heading } = position.coords;
-      const currentLocation = { latitude, longitude, accuracy, heading };
-      
+      const currentLocation: UserLocation = { latitude, longitude, accuracy, heading };
+
       setUserLocation(currentLocation);
       evaluateResonance(currentLocation);
 
-      // Sincronización inteligente: Solo pedimos datos si hay movimiento > 50m
-      if (!lastSyncLocation.current || 
-          calculateDistance(latitude, longitude, lastSyncLocation.current.lat, lastSyncLocation.current.lng) > 50) {
+      // Throttling: Solo actualizamos la malla si hay desplazamiento > 50m
+      if (!lastSyncLocation.current ||
+        calculateDistance(latitude, longitude, lastSyncLocation.current.lat, lastSyncLocation.current.lng) > 50) {
         fetchNearbyPOIs();
         lastSyncLocation.current = { lat: latitude, lng: longitude };
       }
     };
 
     const handleError = (err: GeolocationPositionError) => {
-      nicepodLog(`⚠️ [GeoEngine] Señal GPS inestable: ${err.message}`);
+      nicepodLog(`⚠️ [GeoEngine] Señal débil: ${err.message}`);
       setError(err.message);
     };
 
-    watchId.current = navigator.geolocation.watchPosition(handleSuccess, handleError, options);
+    watchId.current = navigator.geolocation.watchPosition(handleSuccess, handleError, geoOptions);
 
     return () => {
       if (watchId.current !== null) navigator.geolocation.clearWatch(watchId.current);
     };
-  }, [fetchNearbyPOIs, evaluateResonance]);
+  }, [fetchNearbyPOIs, evaluateResonance, calculateDistance]);
 
   /**
-   * ACCIONES DE MISIÓN (PLACEHOLDERS COMPLETOS)
+   * ACCIONES DE LA FORJA (Edge Functions Invocations)
    */
   const scanEnvironment = async (imageBase64: string) => {
     setStatus('SCANNING');
@@ -250,11 +249,10 @@ export function useGeoEngine(): GeoEngineReturn {
 
 /**
  * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Resolución de Errores de Interfaz: Al definir 'GeoEngineReturn' y asignar 
- *    el Hook a este tipo, aseguramos que cualquier componente que lo consuma 
- *    vea 'userLocation' como una propiedad legítima (Soluciona TS2339).
- * 2. Rendimiento (Throttling): La lógica de 'lastSyncLocation' previene la 
- *    saturación de la base de datos al filtrar actualizaciones GPS menores a 50m.
- * 3. Seguridad de Tipos: El uso de interfaces exportadas permite que el 
- *    Administrador mantenga el control total de la telemetría en el Mapa.
+ * 1. Sincronía Nominal: La exportación de interfaces asegura que la Workstation 
+ *    opere bajo un contrato de tipos 'Strict', eliminando el error TS2305.
+ * 2. Rendimiento (Haversine): El cálculo de distancia se realiza en el cliente 
+ *    para dar feedback instantáneo al Admin antes de pulsar 'Forjar'.
+ * 3. Robusto ante Nulos: El estado inicial 'IDLE' y la inicialización de 'data' 
+ *    como un objeto vacío garantizan que el desestructurado en la UI no falle.
  */
