@@ -1,5 +1,5 @@
 // hooks/use-geo-engine.ts
-// VERSIÓN: 2.0
+// VERSIÓN: 2.1
 
 "use client";
 
@@ -9,9 +9,9 @@ import { nicepodLog } from "@/lib/utils";
 
 /**
  * INTERFAZ: UserLocation
- * Registra la posición exacta y la orientación del curador.
+ * Registra la telemetría exacta del hardware GPS del curador.
  */
-interface UserLocation {
+export interface UserLocation {
   latitude: number;
   longitude: number;
   accuracy: number;
@@ -20,9 +20,9 @@ interface UserLocation {
 
 /**
  * INTERFAZ: ActivePOI
- * Nodo de interés que actualmente resuena con la posición del usuario.
+ * Nodo de interés que actualmente interactúa con la posición del administrador.
  */
-interface ActivePOI {
+export interface ActivePOI {
   id: string;
   name: string;
   distance: number;
@@ -31,13 +31,52 @@ interface ActivePOI {
 }
 
 /**
- * HOOK: useGeoEngine
- * El motor que otorga conciencia geográfica a la Workstation.
+ * TIPO: GeoState
+ * Define las fases del ciclo de vida de una misión de captura urbana.
  */
-export function useGeoEngine() {
+export type GeoState = 'IDLE' | 'SCANNING' | 'ANALYZING' | 'ACCEPTED' | 'REJECTED';
+
+/**
+ * INTERFAZ: GeoContextData
+ * Encapsula la información ambiental y de proceso recolectada.
+ */
+export interface GeoContextData {
+  draftId?: string;
+  script?: string;
+  weather?: any;
+  place?: any;
+  rejectionReason?: string;
+}
+
+/**
+ * INTERFAZ: GeoEngineReturn
+ * [CONTRATO DE SOBERANÍA]: Define exactamente qué expone el hook.
+ * Resuelve el error TS2339 al garantizar la existencia de 'userLocation'.
+ */
+export interface GeoEngineReturn {
+  status: GeoState;
+  data: GeoContextData;
+  userLocation: UserLocation | null;
+  activePOI: ActivePOI | null;
+  nearbyPOIs: any[];
+  isSearching: boolean;
+  error: string | null;
+  scanEnvironment: (imageBase64: string) => Promise<void>;
+  submitIntent: (intentText: string) => Promise<void>;
+  reset: () => void;
+}
+
+/**
+ * HOOK: useGeoEngine
+ * El motor central de inteligencia situacional para NicePod V2.5.
+ */
+export function useGeoEngine(): GeoEngineReturn {
+  // Instanciamos el cliente único (Singleton)
   const supabase = createClient();
 
-  // --- ESTADOS DE TELEMETRÍA ---
+  // --- ESTADOS DE CONTROL ---
+  const [status, setStatus] = useState<GeoState>('IDLE');
+  const [data, setData] = useState<GeoContextData>({});
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [activePOI, setActivePOI] = useState<ActivePOI | null>(null);
   const [nearbyPOIs, setNearbyPOIs] = useState<any[]>([]);
@@ -50,42 +89,35 @@ export function useGeoEngine() {
 
   /**
    * UTILIDAD: calculateDistance (Fórmula de Haversine)
-   * Calcula la distancia en metros entre dos puntos geográficos.
-   * Crucial para determinar si el usuario ha entrado en un Círculo de Resonancia.
+   * Calcula la distancia física en metros entre el usuario y un nodo.
    */
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
     const R = 6371e3; // Radio de la Tierra en metros
-    const φ1 = (lat1 * Math.PI) / 180;
-    const φ2 = (lat2 * Math.PI) / 180;
-    const Δφ = ((lat2 - lat1) * Math.PI) / 180;
-    const Δλ = ((lon2 - lon1) * Math.PI) / 180;
-
-    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-              Math.cos(φ1) * Math.cos(φ2) *
-              Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const dLat = (lat2 - lat1) * (Math.PI / 180);
+    const dLon = (lon2 - lon1) * (Math.PI / 180);
+    const a = 
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * 
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-    return R * c; // Distancia en metros
+    return R * c;
   };
 
   /**
    * ACCIÓN: fetchNearbyPOIs
-   * Recupera los nodos de sabiduría activos desde la vista 'vw_map_resonance_active'.
+   * Sincroniza los nodos de sabiduría visibles desde la Bóveda.
    */
-  const fetchNearbyPOIs = useCallback(async (lat: number, lng: number) => {
+  const fetchNearbyPOIs = useCallback(async () => {
     setIsSearching(true);
     try {
-      // Invocamos la vista optimizada que creamos en el SQL
-      const { data, error: dbError } = await supabase
+      const { data: poiData, error: dbError } = await supabase
         .from('vw_map_resonance_active')
         .select('*');
 
       if (dbError) throw dbError;
-
-      setNearbyPOIs(data || []);
-      nicepodLog(`🛰️ [GeoEngine] ${data?.length || 0} nodos de sabiduría localizados.`);
+      setNearbyPOIs(poiData || []);
     } catch (err: any) {
-      console.error("🔥 [GeoEngine-Fatal] Error al sincronizar POIs:", err.message);
+      console.error("🔥 [GeoEngine] Error de Bóveda:", err.message);
     } finally {
       setIsSearching(false);
     }
@@ -93,7 +125,7 @@ export function useGeoEngine() {
 
   /**
    * ACCIÓN: evaluateResonance
-   * Compara la posición del usuario contra los POIs para detectar sintonía.
+   * Determina si el administrador está dentro de un círculo de sintonía activa.
    */
   const evaluateResonance = useCallback((location: UserLocation) => {
     if (nearbyPOIs.length === 0) return;
@@ -101,18 +133,10 @@ export function useGeoEngine() {
     let closest: ActivePOI | null = null;
     let minDistance = Infinity;
 
-    for (const poi of nearbyPOIs) {
-      // Nota: geo_location viene como un punto de postgis. 
-      // Asumimos formato [lng, lat] o parseamos según el RPC.
+    nearbyPOIs.forEach((poi) => {
       const poiLat = poi.geo_location.coordinates[1];
       const poiLng = poi.geo_location.coordinates[0];
-
-      const distance = calculateDistance(
-        location.latitude, 
-        location.longitude, 
-        poiLat, 
-        poiLng
-      );
+      const distance = calculateDistance(location.latitude, location.longitude, poiLat, poiLng);
 
       if (distance < minDistance) {
         minDistance = distance;
@@ -124,76 +148,113 @@ export function useGeoEngine() {
           historical_fact: poi.historical_fact
         };
       }
-    }
+    });
 
     setActivePOI(closest);
   }, [nearbyPOIs]);
 
   /**
-   * EFECTO: SISTEMA DE RASTREO (LIFECYCLE)
-   * Inicia el hardware del GPS y gestiona la actualización continua.
+   * CICLO DE VIDA: RASTREO GPS
    */
   useEffect(() => {
     if (typeof window === "undefined" || !("geolocation" in navigator)) {
-      setError("HARDWARE_NO_COMPATIBLE: El dispositivo no soporta GPS.");
+      setError("HARDWARE_NO_SOPORTADO");
       return;
     }
 
     const options = {
-      enableHighAccuracy: true, // Priorizamos precisión sobre batería para el Retiro.
-      timeout: 15000,
-      maximumAge: 0,
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
     };
 
     const handleSuccess = (position: GeolocationPosition) => {
       const { latitude, longitude, accuracy, heading } = position.coords;
-      const newLocation = { latitude, longitude, accuracy, heading };
+      const currentLocation = { latitude, longitude, accuracy, heading };
+      
+      setUserLocation(currentLocation);
+      evaluateResonance(currentLocation);
 
-      setUserLocation(newLocation);
-      evaluateResonance(newLocation);
-
-      // Sincronía Inteligente: Solo pedimos nuevos POIs si el usuario se mueve > 50m
+      // Sincronización inteligente: Solo pedimos datos si hay movimiento > 50m
       if (!lastSyncLocation.current || 
           calculateDistance(latitude, longitude, lastSyncLocation.current.lat, lastSyncLocation.current.lng) > 50) {
-        fetchNearbyPOIs(latitude, longitude);
+        fetchNearbyPOIs();
         lastSyncLocation.current = { lat: latitude, lng: longitude };
       }
     };
 
     const handleError = (err: GeolocationPositionError) => {
-      nicepodLog(`⚠️ [GeoEngine] Error de señal GPS: ${err.message}`);
+      nicepodLog(`⚠️ [GeoEngine] Señal GPS inestable: ${err.message}`);
       setError(err.message);
     };
 
-    // Iniciamos la escucha activa
     watchId.current = navigator.geolocation.watchPosition(handleSuccess, handleError, options);
 
     return () => {
-      if (watchId.current !== null) {
-        navigator.geolocation.clearWatch(watchId.current);
-      }
+      if (watchId.current !== null) navigator.geolocation.clearWatch(watchId.current);
     };
   }, [fetchNearbyPOIs, evaluateResonance]);
 
-  return {
-    userLocation,   // Posición actual para centrar el mapa
-    activePOI,      // El POI que está 'vibrando' actualmente (Resonancia)
-    nearbyPOIs,     // Todos los nodos visibles en el radio
-    isSearching,    // Estado de carga del radar
-    error,          // Alertas de hardware/permisos
-    refresh: () => { // Función para forzar re-escaneo manual
-      if (userLocation) fetchNearbyPOIs(userLocation.latitude, userLocation.longitude);
+  /**
+   * ACCIONES DE MISIÓN (PLACEHOLDERS COMPLETOS)
+   */
+  const scanEnvironment = async (imageBase64: string) => {
+    setStatus('SCANNING');
+    try {
+      const { data: res, error: err } = await supabase.functions.invoke('geo-ingest-context', {
+        body: { image: imageBase64, location: userLocation }
+      });
+      if (err) throw err;
+      setData(res);
+      setStatus('ANALYZING');
+    } catch (e: any) {
+      setStatus('REJECTED');
+      setData({ rejectionReason: e.message });
     }
+  };
+
+  const submitIntent = async (intentText: string) => {
+    setStatus('SCANNING');
+    try {
+      const { data: res, error: err } = await supabase.functions.invoke('geo-generate-content', {
+        body: { intent: intentText, draftId: data.draftId }
+      });
+      if (err) throw err;
+      setData({ ...data, script: res.script });
+      setStatus('ACCEPTED');
+    } catch (e: any) {
+      setStatus('REJECTED');
+      setData({ rejectionReason: e.message });
+    }
+  };
+
+  const reset = () => {
+    setStatus('IDLE');
+    setData({});
+    setActivePOI(null);
+  };
+
+  return {
+    status,
+    data,
+    userLocation,
+    activePOI,
+    nearbyPOIs,
+    isSearching,
+    error,
+    scanEnvironment,
+    submitIntent,
+    reset
   };
 }
 
 /**
  * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Sincronía con vw_map_resonance_active: El hook consume la vista ligera que 
- *    diseñamos en el SQL, asegurando que la latencia de red sea mínima.
- * 2. Lógica de Umbral: El estado 'activePOI.isWithinRadius' es el disparador 
- *    para que la UI de NicePod 'despierte' al usuario con el Peek Card.
- * 3. Eficiencia Energética: Mediante 'lastSyncLocation', evitamos llamadas 
- *    redundantes a la base de datos si el usuario está quieto contemplando 
- *    un monumento del Retiro.
+ * 1. Resolución de Errores de Interfaz: Al definir 'GeoEngineReturn' y asignar 
+ *    el Hook a este tipo, aseguramos que cualquier componente que lo consuma 
+ *    vea 'userLocation' como una propiedad legítima (Soluciona TS2339).
+ * 2. Rendimiento (Throttling): La lógica de 'lastSyncLocation' previene la 
+ *    saturación de la base de datos al filtrar actualizaciones GPS menores a 50m.
+ * 3. Seguridad de Tipos: El uso de interfaces exportadas permite que el 
+ *    Administrador mantenga el control total de la telemetría en el Mapa.
  */
