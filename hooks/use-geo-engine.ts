@@ -1,5 +1,5 @@
 // hooks/use-geo-engine.ts
-// VERSIÓN: 3.1
+// VERSIÓN: 3.2
 
 "use client";
 
@@ -9,8 +9,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
  * IMPORTACIÓN DE ACCIONES SOBERANAS
- * Delegamos el procesamiento pesado al servidor para proteger la integridad 
- * de la llave maestra (SERVICE_ROLE_KEY).
+ * El despacho a través de Server Actions garantiza que la credencial
+ * SERVICE_ROLE_KEY se inyecte solo en el entorno seguro del servidor.
  */
 import {
   generateGeoContentAction,
@@ -19,7 +19,7 @@ import {
 
 /**
  * ---------------------------------------------------------------------------
- * I. CONTRATOS DE DATOS Y TIPADO (ESTÁNDAR V2.5)
+ * I. CONTRATOS DE DATOS (NICEPOD GEO STANDARD V2.5)
  * ---------------------------------------------------------------------------
  */
 
@@ -38,6 +38,9 @@ export interface ActivePOI {
   historical_fact?: string;
 }
 
+/**
+ * GeoState: Evolución de la máquina de estados para incluir sintonía.
+ */
 export type GeoState = 'IDLE' | 'SENSORS_READY' | 'SCANNING' | 'ANALYZING' | 'ACCEPTED' | 'REJECTED';
 
 export interface GeoContextData {
@@ -48,11 +51,6 @@ export interface GeoContextData {
   rejectionReason?: string;
 }
 
-/**
- * INTERFAZ: GeoEngineReturn
- * [CONTRATO DE SOBERANÍA]: Define exactamente qué expone el hook a la UI.
- * Resuelve el error TS2339 al garantizar la visibilidad de todas las propiedades.
- */
 export interface GeoEngineReturn {
   status: GeoState;
   data: GeoContextData;
@@ -60,14 +58,10 @@ export interface GeoEngineReturn {
   activePOI: ActivePOI | null;
   nearbyPOIs: any[];
   isSearching: boolean;
+  isLocked: boolean; // Indica si la posición de siembra está anclada
   error: string | null;
-  /**
-   * initSensors: Gatillo manual requerido por políticas de privacidad del navegador.
-   */
   initSensors: () => void;
-  /**
-   * scanEnvironment: Ingesta multimodal analítica (Imagen + Contexto).
-   */
+  lockPosition: () => void; // Permite al Admin fijar el punto de forja
   scanEnvironment: (params: {
     heroImage: string;
     ocrImage?: string;
@@ -75,19 +69,13 @@ export interface GeoEngineReturn {
     category: string;
     radius: number
   }) => Promise<void>;
-  /**
-   * submitIntent: Envío de la semilla narrativa final para forja de guion.
-   */
   submitIntent: (intentText: string) => Promise<void>;
-  /**
-   * reset: Limpieza de la terminal y regreso al estado de espera.
-   */
   reset: () => void;
 }
 
 /**
  * HOOK: useGeoEngine
- * El cerebro situacional de NicePod V2.5.
+ * El director sensorial de NicePod V2.5.
  */
 export function useGeoEngine(): GeoEngineReturn {
   const supabase = createClient();
@@ -99,19 +87,24 @@ export function useGeoEngine(): GeoEngineReturn {
   const [activePOI, setActivePOI] = useState<ActivePOI | null>(null);
   const [nearbyPOIs, setNearbyPOIs] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [isLocked, setIsLocked] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // --- REFERENCIAS DE MEMORIA (FILTRADO DE RUIDO TÉRMICO) ---
+  // --- REFERENCIAS TÁCTICAS (FILTRADO DE ENTROPÍA) ---
   const watchId = useRef<number | null>(null);
   const lastSyncLocation = useRef<{ lat: number; lng: number } | null>(null);
-  const MOVEMENT_THRESHOLD_METERS = 15; // Umbral para evitar ráfagas de red innecesarias.
+  const lastRequestTimestamp = useRef<number>(0);
+
+  // Constantes de Rigor Industrial
+  const MOVEMENT_THRESHOLD = 15; // Metros
+  const ACCURACY_LIMIT = 25;    // Ignorar señales con >25m de error
+  const NETWORK_COOLDOWN = 5000; // 5 segundos entre disparos de red
 
   /**
    * calculateDistance: Implementación de la Fórmula de Haversine.
-   * Calcula la brecha física entre el Administrador y el Punto de Interés.
    */
   const calculateDistance = useCallback((lat1: number, lon1: number, lat2: number, lon2: number): number => {
-    const R = 6371e3; // Radio terrestre en metros
+    const R = 6371e3;
     const dLat = (lat2 - lat1) * (Math.PI / 180);
     const dLon = (lon2 - lon1) * (Math.PI / 180);
     const a =
@@ -123,10 +116,16 @@ export function useGeoEngine(): GeoEngineReturn {
   }, []);
 
   /**
-   * fetchNearbyPOIs: Sincronización de la malla urbana desde la Bóveda SQL.
+   * fetchNearbyPOIs: Sincroniza los nodos de la ciudad.
    */
   const fetchNearbyPOIs = useCallback(async () => {
+    const now = Date.now();
+    // Bloqueo por Cooldown: Evita saturar la base de datos en ráfagas de movimiento.
+    if (now - lastRequestTimestamp.current < NETWORK_COOLDOWN) return;
+
     setIsSearching(true);
+    lastRequestTimestamp.current = now;
+
     try {
       const { data: poiData, error: dbError } = await supabase
         .from('vw_map_resonance_active')
@@ -135,14 +134,14 @@ export function useGeoEngine(): GeoEngineReturn {
       if (dbError) throw dbError;
       setNearbyPOIs(poiData || []);
     } catch (err: any) {
-      console.error("🔥 [GeoEngine] Fallo en recuperación de malla:", err.message);
+      console.error("🔥 [GeoEngine] Error de Bóveda:", err.message);
     } finally {
       setIsSearching(false);
     }
   }, [supabase]);
 
   /**
-   * evaluateResonance: Algoritmo de detección de sintonía activa.
+   * evaluateResonance: Detecta sintonía con crónicas locales.
    */
   const evaluateResonance = useCallback((location: UserLocation) => {
     if (nearbyPOIs.length === 0) return;
@@ -171,8 +170,21 @@ export function useGeoEngine(): GeoEngineReturn {
   }, [nearbyPOIs, calculateDistance]);
 
   /**
-   * initSensors: Protocolo de Activación por Gesto de Usuario.
-   * [RESOLUCIÓN]: Cumple con la política de seguridad del navegador.
+   * lockPosition: Fija el punto de siembra.
+   * [ESTRATEGIA]: Detiene el procesamiento de nuevas señales GPS para
+   * asegurar que la IA trabaje sobre una coordenada inmutable.
+   */
+  const lockPosition = useCallback(() => {
+    setIsLocked(true);
+    if (watchId.current !== null) {
+      navigator.geolocation.clearWatch(watchId.current);
+      watchId.current = null;
+    }
+    nicepodLog("🛡️ [GeoEngine] Posición de siembra anclada. Sensores en standby.");
+  }, []);
+
+  /**
+   * initSensors: Gatillo manual de sintonía.
    */
   const initSensors = useCallback(() => {
     if (typeof window === "undefined" || !("geolocation" in navigator)) {
@@ -180,25 +192,27 @@ export function useGeoEngine(): GeoEngineReturn {
       return;
     }
 
-    const geoOptions = {
-      enableHighAccuracy: true,
-      timeout: 10000,
-      maximumAge: 0
-    };
+    setIsLocked(false);
+    const options = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
 
     const handleSuccess = (position: GeolocationPosition) => {
+      // FILTRO 1: Calidad de Señal
+      if (position.coords.accuracy > ACCURACY_LIMIT) {
+        nicepodLog(`🟡 [GeoEngine] Señal imprecisa (${Math.round(position.coords.accuracy)}m). Ignorando...`);
+        return;
+      }
+
       const { latitude, longitude, accuracy, heading } = position.coords;
       const currentLocation: UserLocation = { latitude, longitude, accuracy, heading };
 
       setUserLocation(currentLocation);
       evaluateResonance(currentLocation);
 
-      // [PROTOCOLO STEADY PULSE]: Solo sincronizamos si hay desplazamiento real (>15m)
+      // FILTRO 2: Umbral de Movimiento
       const distFromLast = !lastSyncLocation.current ? Infinity :
         calculateDistance(latitude, longitude, lastSyncLocation.current.lat, lastSyncLocation.current.lng);
 
-      if (distFromLast > MOVEMENT_THRESHOLD_METERS) {
-        nicepodLog(`🛰️ [GeoEngine] Sintonía Geográfica Actualizada. Delta: ${Math.round(distFromLast)}m`);
+      if (distFromLast > MOVEMENT_THRESHOLD) {
         fetchNearbyPOIs();
         lastSyncLocation.current = { lat: latitude, lng: longitude };
       }
@@ -206,25 +220,24 @@ export function useGeoEngine(): GeoEngineReturn {
 
     const handleError = (err: GeolocationPositionError) => {
       setError(err.message);
-      nicepodLog(`⚠️ [GeoEngine] Señal GPS comprometida: ${err.message}`);
+      nicepodLog(`⚠️ [GeoEngine] Error de hardware: ${err.message}`);
     };
 
-    if (watchId.current !== null) navigator.geolocation.clearWatch(watchId.current);
-    watchId.current = navigator.geolocation.watchPosition(handleSuccess, handleError, geoOptions);
-
+    watchId.current = navigator.geolocation.watchPosition(handleSuccess, handleError, options);
     setStatus('SENSORS_READY');
-    nicepodLog("🟢 [GeoEngine] Sensores de campo en línea.");
   }, [fetchNearbyPOIs, evaluateResonance, calculateDistance]);
 
   /**
-   * scanEnvironment: Ingesta multimodal dirigida al Servidor.
+   * scanEnvironment: Ingesta analítica (vía Server Action).
    */
   const scanEnvironment = async (params: { heroImage: string; ocrImage?: string; intent: string; category: string; radius: number }) => {
     if (!userLocation) return;
 
+    // Anclamos la posición automáticamente al iniciar el escaneo
+    lockPosition();
     setStatus('SCANNING');
+
     try {
-      // Invocación segura mediante Server Action
       const result = await ingestContextAction({
         ...params,
         location: userLocation
@@ -234,16 +247,16 @@ export function useGeoEngine(): GeoEngineReturn {
 
       setData(result.data);
       setStatus('ANALYZING');
-      nicepodLog("🧠 [GeoEngine] Análisis de contexto ambiental completado.");
+      nicepodLog("🧠 [GeoEngine] Análisis ambiental sincronizado.");
     } catch (e: any) {
-      console.error("🔥 [GeoEngine] Error de Ingesta:", e.message);
       setStatus('REJECTED');
       setData({ rejectionReason: e.message });
+      setIsLocked(false); // Liberamos si hubo error para re-intentar
     }
   };
 
   /**
-   * submitIntent: Forja narrativa del guion de sabiduría.
+   * submitIntent: Forja de guion (vía Server Action).
    */
   const submitIntent = async (intentText: string) => {
     if (!data.draftId) return;
@@ -261,9 +274,7 @@ export function useGeoEngine(): GeoEngineReturn {
 
       setData({ ...data, script: result.data.script });
       setStatus('ACCEPTED');
-      nicepodLog("✍️ [GeoEngine] Crónica urbana sintetizada con éxito.");
     } catch (e: any) {
-      console.error("🔥 [GeoEngine] Error de Forja:", e.message);
       setStatus('REJECTED');
       setData({ rejectionReason: e.message });
     }
@@ -273,10 +284,10 @@ export function useGeoEngine(): GeoEngineReturn {
     setStatus('IDLE');
     setData({});
     setActivePOI(null);
-    nicepodLog("🧹 [GeoEngine] Terminal restablecida.");
+    setIsLocked(false);
+    initSensors();
   };
 
-  // Protocolo de Limpieza de Hardware
   useEffect(() => {
     return () => {
       if (watchId.current !== null) navigator.geolocation.clearWatch(watchId.current);
@@ -290,8 +301,10 @@ export function useGeoEngine(): GeoEngineReturn {
     activePOI,
     nearbyPOIs,
     isSearching,
+    isLocked,
     error,
     initSensors,
+    lockPosition,
     scanEnvironment,
     submitIntent,
     reset
@@ -300,12 +313,11 @@ export function useGeoEngine(): GeoEngineReturn {
 
 /**
  * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Resolución de Loop de Red: La implementación del MOVEMENT_THRESHOLD_METERS 
- *    garantiza que el navegador no sature la red por micro-variaciones del sensor, 
- *    silenciando la consola y optimizando el consumo energético del dispositivo.
- * 2. Integridad de Tipos: Al definir y exportar 'GeoEngineReturn', resolvemos 
- *    definitivamente el error TS2339 en 'scanner-ui.tsx', permitiendo un 
- *    flujo de datos tipado y seguro.
- * 3. Seguridad Industrial: Al delegar la comunicación pesada a 'geo-actions.ts', 
- *    eliminamos la necesidad de manejar tokens sensibles en el lado del cliente.
+ * 1. Protocolo Steady Pulse: El umbral de 15m y el filtro de precisión de 25m 
+ *    eliminan el ruido del GPS que causaba el loop infinito de peticiones.
+ * 2. CPU Safety: El 'NETWORK_COOLDOWN' de 5s garantiza que no se disparen 
+ *    múltiples llamadas a la base de datos en un solo movimiento brusco.
+ * 3. Atomicidad de Siembra: Al invocar 'lockPosition' dentro de 'scanEnvironment', 
+ *    aseguramos que la IA procese la imagen basándose en el punto geográfico 
+ *    donde se tomó la foto, sin desviaciones posteriores por movimiento del Admin.
  */
