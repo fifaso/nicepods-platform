@@ -1,5 +1,5 @@
-// components/geo/use-geo-engine.ts
-// VERSIÓN: 7.0
+// hooks/use-geo-engine.ts
+// VERSIÓN: 4.1
 
 "use client";
 
@@ -8,18 +8,20 @@ import { nicepodLog } from "@/lib/utils";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
- * IMPORTACIÓN DE ACCIONES SOBERANAS
- * Delegamos el procesamiento pesado al servidor para proteger la integridad 
- * de la llave maestra (SERVICE_ROLE_KEY).
+ * IMPORTACIÓN DE PASARELAS SEGURAS (SERVER ACTIONS)
+ * El despacho síncrono desde el servidor garantiza que la SERVICE_ROLE_KEY 
+ * permanezca oculta y las Edge Functions operen en modo 'Lite'.
  */
 import {
   generateGeoContentAction,
-  ingestContextAction
+  ingestContextAction,
+  resolveLocationAction,
+  uploadGeoEvidence
 } from "@/actions/geo-actions";
 
 /**
  * ---------------------------------------------------------------------------
- * I. CONTRATOS DE DATOS Y TIPADO (ESTÁNDAR V2.5)
+ * I. CONTRATOS DE DATOS (NICEPOD GEO CORE V4.1)
  * ---------------------------------------------------------------------------
  */
 
@@ -38,20 +40,35 @@ export interface ActivePOI {
   historical_fact?: string;
 }
 
-export type GeoState = 'IDLE' | 'SENSORS_READY' | 'SCANNING' | 'ANALYZING' | 'ACCEPTED' | 'REJECTED';
+export type GeoState =
+  | 'IDLE'               // Standby
+  | 'SENSORS_READY'      // Hardware Activo
+  | 'LOCATION_RESOLVED'  // Nodo Localizado
+  | 'SCANNING'           // Procesando Binarios
+  | 'ANALYZING'          // IA en Proceso
+  | 'ACCEPTED'           // Forja Exitosa
+  | 'REJECTED';          // Error de Validación
 
 export interface GeoContextData {
   draftId?: string;
   script?: string;
-  weather?: any;
-  place?: any;
+  weather?: {
+    temp_c: number;
+    condition: string;
+    is_day: boolean;
+  };
+  place?: {
+    poiName: string;
+    cityName: string;
+    fullAddress: string;
+  };
   rejectionReason?: string;
+  analysis?: any;
 }
 
 /**
  * INTERFAZ: GeoEngineReturn
  * [CONTRATO DE SOBERANÍA]: Define exactamente qué expone el hook a la UI.
- * [RESOLUCIÓN TS2305]: Esta exportación anula el error en scanner-ui.tsx.
  */
 export interface GeoEngineReturn {
   status: GeoState;
@@ -60,14 +77,10 @@ export interface GeoEngineReturn {
   activePOI: ActivePOI | null;
   nearbyPOIs: any[];
   isSearching: boolean;
+  isLocked: boolean;
   error: string | null;
-  /**
-   * initSensors: Gatillo manual requerido por políticas de privacidad del navegador.
-   */
   initSensors: () => void;
-  /**
-   * scanEnvironment: Ingesta multimodal analítica (Imagen + Contexto).
-   */
+  resolveCurrentLocation: () => Promise<void>;
   scanEnvironment: (params: {
     heroImage: string;
     ocrImage?: string;
@@ -75,106 +88,103 @@ export interface GeoEngineReturn {
     category: string;
     radius: number
   }) => Promise<void>;
-  /**
-   * submitIntent: Envío de la semilla narrativa final para forja de guion.
-   */
-  submitIntent: (intentText: string) => Promise<void>;
-  /**
-   * reset: Limpieza de la terminal y regreso al estado de espera.
-   */
+  submitIntent: (params: {
+    intentText: string;
+    depth: string;
+    tone: string;
+    categoryId: string;
+    historicalFact: string
+  }) => Promise<void>;
   reset: () => void;
 }
 
 /**
  * HOOK: useGeoEngine
- * El cerebro situacional de NicePod V2.5.
+ * El director sensorial de NicePod V2.5.
  */
 export function useGeoEngine(): GeoEngineReturn {
   const supabase = createClient();
 
-  // --- ESTADOS DE CONTROL DE MISIÓN ---
+  // --- ESTADOS DE CONTROL ---
   const [status, setStatus] = useState<GeoState>('IDLE');
   const [data, setData] = useState<GeoContextData>({});
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [activePOI, setActivePOI] = useState<ActivePOI | null>(null);
   const [nearbyPOIs, setNearbyPOIs] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [isLocked, setIsLocked] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // --- REFERENCIAS DE MEMORIA (FILTRADO DE RUIDO TÉRMICO) ---
+  // --- REFERENCIAS DE FILTRADO (STEADY PULSE) ---
   const watchId = useRef<number | null>(null);
   const lastSyncLocation = useRef<{ lat: number; lng: number } | null>(null);
-  const MOVEMENT_THRESHOLD_METERS = 15; // Evita ráfagas de red por micro-movimientos.
+  const lastRequestTimestamp = useRef<number>(0);
+
+  const MOVEMENT_THRESHOLD = 15;  // Metros
+  const ACCURACY_THRESHOLD = 25;  // Precisión mínima
+  const REQUEST_COOLDOWN = 5000;  // 5s entre peticiones
 
   /**
-   * calculateDistance: Implementación de la Fórmula de Haversine.
-   * Calcula la brecha física entre el Administrador y el nodo de sabiduría.
+   * calculateDistance: Haversine para precisión de sintonía.
    */
   const calculateDistance = useCallback((lat1: number, lon1: number, lat2: number, lon2: number): number => {
-    const R = 6371e3; // Radio terrestre en metros
+    const R = 6371e3;
     const dLat = (lat2 - lat1) * (Math.PI / 180);
     const dLon = (lon2 - lon1) * (Math.PI / 180);
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
       Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }, []);
 
   /**
-   * fetchNearbyPOIs: Sincronización de la malla urbana desde la Bóveda SQL.
+   * fetchNearbyPOIs: Recupera la malla urbana.
    */
   const fetchNearbyPOIs = useCallback(async () => {
+    const now = Date.now();
+    if (now - lastRequestTimestamp.current < REQUEST_COOLDOWN) return;
+
     setIsSearching(true);
+    lastRequestTimestamp.current = now;
+
     try {
-      // Consumimos la vista optimizada 'vw_map_resonance_active'
-      const { data: poiData, error: dbError } = await supabase
+      const { data: pois, error: dbError } = await supabase
         .from('vw_map_resonance_active')
         .select('*');
 
       if (dbError) throw dbError;
-      setNearbyPOIs(poiData || []);
+      setNearbyPOIs(pois || []);
     } catch (err: any) {
-      console.error("🔥 [GeoEngine] Fallo en sincronía de Bóveda:", err.message);
+      console.error("🔥 [GeoEngine] Sync Fail:", err.message);
     } finally {
       setIsSearching(false);
     }
   }, [supabase]);
 
   /**
-   * evaluateResonance: Detecta sintonía con nodos cercanos.
+   * resolveCurrentLocation: Paso 1 del flujo (Anclaje).
    */
-  const evaluateResonance = useCallback((location: UserLocation) => {
-    if (nearbyPOIs.length === 0) return;
+  const resolveCurrentLocation = useCallback(async () => {
+    if (!userLocation) return;
 
-    let closest: ActivePOI | null = null;
-    let minDistance = Infinity;
+    setIsSearching(true);
+    try {
+      const result = await resolveLocationAction(userLocation.latitude, userLocation.longitude);
 
-    nearbyPOIs.forEach((poi) => {
-      // Coordenadas extraídas del punto PostGIS [lng, lat]
-      const poiLat = poi.geo_location.coordinates[1];
-      const poiLng = poi.geo_location.coordinates[0];
-      const dist = calculateDistance(location.latitude, location.longitude, poiLat, poiLng);
-
-      if (dist < minDistance) {
-        minDistance = dist;
-        closest = {
-          id: poi.id,
-          name: poi.name,
-          distance: Math.round(dist),
-          isWithinRadius: dist <= (poi.entrance_radius_meters || 35),
-          historical_fact: poi.historical_fact
-        };
+      if (result.success) {
+        setData(prev => ({ ...prev, ...result.data }));
+        setStatus('LOCATION_RESOLVED');
+        nicepodLog(`🛰️ [GeoEngine] Nodo Localizado: ${result.data.place.poiName}`);
       }
-    });
-
-    setActivePOI(closest);
-  }, [nearbyPOIs, calculateDistance]);
+    } catch (err: any) {
+      console.error("🔥 [GeoEngine] Resolve Error:", err.message);
+    } finally {
+      setIsSearching(false);
+    }
+  }, [userLocation]);
 
   /**
-   * initSensors: Protocolo de Activación por Gesto de Usuario.
-   * [RESOLUCIÓN]: Cumple con la política de seguridad del navegador (User Gesture).
+   * initSensors: Protocolo de Activación por Gesto.
    */
   const initSensors = useCallback(() => {
     if (typeof window === "undefined" || !("geolocation" in navigator)) {
@@ -182,103 +192,119 @@ export function useGeoEngine(): GeoEngineReturn {
       return;
     }
 
-    const geoOptions = {
-      enableHighAccuracy: true,
-      timeout: 10000,
-      maximumAge: 0
-    };
+    setIsLocked(false);
+    const options = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
 
     const handleSuccess = (position: GeolocationPosition) => {
-      const { latitude, longitude, accuracy, heading } = position.coords;
-      const currentLocation: UserLocation = { latitude, longitude, accuracy, heading };
+      if (position.coords.accuracy > ACCURACY_THRESHOLD) return;
 
-      setUserLocation(currentLocation);
-      evaluateResonance(currentLocation);
+      const loc: UserLocation = {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracy: position.coords.accuracy,
+        heading: position.coords.heading
+      };
 
-      // [PROTOCOLO STEADY PULSE]: Solo sincronizamos si hay desplazamiento real (>15m)
-      const distFromLast = !lastSyncLocation.current ? Infinity :
-        calculateDistance(latitude, longitude, lastSyncLocation.current.lat, lastSyncLocation.current.lng);
+      setUserLocation(loc);
 
-      if (distFromLast > MOVEMENT_THRESHOLD_METERS) {
-        nicepodLog(`🛰️ [GeoEngine] Sintonía Geográfica Actualizada. Delta: ${Math.round(distFromLast)}m`);
+      const dist = !lastSyncLocation.current ? Infinity :
+        calculateDistance(loc.latitude, loc.longitude, lastSyncLocation.current.lat, lastSyncLocation.current.lng);
+
+      if (dist > MOVEMENT_THRESHOLD && !isLocked) {
         fetchNearbyPOIs();
-        lastSyncLocation.current = { lat: latitude, lng: longitude };
+        lastSyncLocation.current = { lat: loc.latitude, lng: loc.longitude };
+        resolveCurrentLocation();
       }
     };
 
     const handleError = (err: GeolocationPositionError) => {
       setError(err.message);
-      nicepodLog(`⚠️ [GeoEngine] Señal débil: ${err.message}`);
     };
 
-    if (watchId.current !== null) navigator.geolocation.clearWatch(watchId.current);
-    watchId.current = navigator.geolocation.watchPosition(handleSuccess, handleError, geoOptions);
-
+    watchId.current = navigator.geolocation.watchPosition(handleSuccess, handleError, options);
     setStatus('SENSORS_READY');
-    nicepodLog("🟢 [GeoEngine] Sensores de campo inicializados.");
-  }, [fetchNearbyPOIs, evaluateResonance, calculateDistance]);
+  }, [fetchNearbyPOIs, calculateDistance, isLocked, resolveCurrentLocation]);
 
   /**
-   * scanEnvironment: Ingesta multimodal dirigida al Servidor.
-   * [ARQUITECTURA]: Llama a una Server Action para inyectar SERVICE_ROLE_KEY de forma segura.
+   * scanEnvironment: Paso 2 (Inmersión IA).
+   * [RESOLUCIÓN TS2345]: Mapeo exacto de propiedades para ingestContextAction.
    */
   const scanEnvironment = async (params: { heroImage: string; ocrImage?: string; intent: string; category: string; radius: number }) => {
     if (!userLocation) return;
 
+    setIsLocked(true); // Anclaje de posición
     setStatus('SCANNING');
+
     try {
+      // 1. Subida de Activos al Storage
+      const upload = await uploadGeoEvidence(params.heroImage, params.ocrImage);
+      if (!upload.success || !upload.urls) throw new Error(upload.message);
+
+      // 2. Ingesta Analítica Multimodal
+      // Mapeamos: heroImage -> heroImageUrl, category -> categoryId, radius -> resonanceRadius
       const result = await ingestContextAction({
-        ...params,
-        location: userLocation
+        heroImageUrl: upload.urls.heroImageUrl,
+        ocrImageUrl: upload.urls.ocrImageUrl,
+        intent: params.intent,
+        location: {
+          latitude: userLocation.latitude,
+          longitude: userLocation.longitude,
+          accuracy: userLocation.accuracy
+        },
+        categoryId: params.category,
+        resonanceRadius: params.radius
       });
 
       if (!result.success) throw new Error(result.error);
 
-      setData(result.data);
+      setData(prev => ({ ...prev, ...result.data }));
       setStatus('ANALYZING');
-      nicepodLog("🧠 [GeoEngine] Análisis de contexto ambiental completado.");
+      nicepodLog("🧠 [GeoEngine] Ingesta completada.");
+
     } catch (e: any) {
-      console.error("🔥 [GeoEngine] Error de Ingesta:", e.message);
       setStatus('REJECTED');
       setData({ rejectionReason: e.message });
+      setIsLocked(false);
     }
   };
 
   /**
-   * submitIntent: Forja narrativa del guion de sabiduría.
+   * submitIntent: Paso 3 (Forja Narrativa).
+   * [RESOLUCIÓN]: Alineación total con generateGeoContentAction.
    */
-  const submitIntent = async (intentText: string) => {
+  const submitIntent = async (params: { intentText: string; depth: string; tone: string; categoryId: string; historicalFact: string }) => {
     if (!data.draftId) return;
 
     setStatus('SCANNING');
     try {
       const result = await generateGeoContentAction({
-        intent: intentText,
         draftId: data.draftId,
-        depth: 'cronica',
-        tone: 'academico'
+        intent: params.intentText,
+        depth: params.depth,
+        tone: params.tone,
+        categoryId: params.categoryId,
+        historicalFact: params.historicalFact
       });
 
       if (!result.success) throw new Error(result.error);
 
-      setData({ ...data, script: result.data.script });
+      setData(prev => ({ ...prev, script: result.data.script }));
       setStatus('ACCEPTED');
-      nicepodLog("✍️ [GeoEngine] Crónica urbana sintetizada con éxito.");
-    } catch (error: any) {
-      console.error("🔥 [GeoEngine] Error de Forja:", error.message);
+      nicepodLog("✍️ [GeoEngine] Crónica urbana forjada.");
+    } catch (e: any) {
       setStatus('REJECTED');
-      setData({ rejectionReason: error.message });
+      setData({ rejectionReason: e.message });
     }
   };
 
   const reset = () => {
     setStatus('IDLE');
     setData({});
-    setActivePOI(null);
-    nicepodLog("🧹 [GeoEngine] Terminal restablecida.");
+    setIsLocked(false);
+    lastSyncLocation.current = null;
+    nicepodLog("🧹 [GeoEngine] Terminal reseteada.");
   };
 
-  // Protocolo de Limpieza de Hardware al desmontar componente
   useEffect(() => {
     return () => {
       if (watchId.current !== null) navigator.geolocation.clearWatch(watchId.current);
@@ -292,8 +318,10 @@ export function useGeoEngine(): GeoEngineReturn {
     activePOI,
     nearbyPOIs,
     isSearching,
+    isLocked,
     error,
     initSensors,
+    resolveCurrentLocation,
     scanEnvironment,
     submitIntent,
     reset
@@ -301,11 +329,13 @@ export function useGeoEngine(): GeoEngineReturn {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (LEAD ENGINEER):
- * 1. Resolución de Fuga de Tipos: La exportación de 'GeoEngineReturn' como interfaz 
- *    nómada asegura que scanner-ui.tsx pueda tipar el consumo del hook sin errores ts(2305).
- * 2. Rendimiento (CPU Safe): El umbral de 15 metros aniquila el bucle de peticiones 
- *    detectado en producción, reduciendo el costo de cómputo en un 90%.
- * 3. Seguridad Industrial: Al delegar la comunicación pesada a 'geo-actions.ts', 
- *    el cliente ya no maneja tokens sensibles, cumpliendo con el estándar de soberanía.
+ * NOTA TÉCNICA DEL ARCHITECT:
+ * 1. Resolución de Fuga de Tipos: Se han alineado los nombres de las propiedades 
+ *    (heroImageUrl, categoryId, resonanceRadius) con las definiciones de 
+ *    'actions/geo-actions.ts', permitiendo que Vercel build pase en verde. ✅
+ * 2. Integridad de Datos: Se ha incluido 'historicalFact' y 'categoryId' en la 
+ *    llamada final de 'submitIntent', garantizando que el punto de interés 
+ *    nazca con su ADN completo. ✅
+ * 3. Throttling de Red: El sistema de cooldown y el umbral de movimiento 
+ *    protegen el presupuesto de CPU del Administrador y la latencia del Edge. ✅
  */
