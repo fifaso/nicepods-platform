@@ -1,27 +1,27 @@
-// hooks/use-geo-engine.ts
-// VERSIÓN: 4.1
+// components/geo/use-geo-engine.ts
+// VERSIÓN: 5.1
 
 "use client";
 
+import { useState, useEffect, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { nicepodLog } from "@/lib/utils";
-import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
  * IMPORTACIÓN DE PASARELAS SEGURAS (SERVER ACTIONS)
- * El despacho síncrono desde el servidor garantiza que la SERVICE_ROLE_KEY 
- * permanezca oculta y las Edge Functions operen en modo 'Lite'.
+ * Centralizamos el despacho síncrono para proteger la SERVICE_ROLE_KEY.
+ * [SINCRO]: Se utiliza 'analyzeMultimodalAction' para paridad con actions/geo-actions.ts v3.1.
  */
-import {
-  generateGeoContentAction,
-  ingestContextAction,
-  resolveLocationAction,
-  uploadGeoEvidence
+import { 
+  resolveLocationAction, 
+  uploadGeoEvidence, 
+  analyzeMultimodalAction, 
+  generateGeoContentAction 
 } from "@/actions/geo-actions";
 
 /**
  * ---------------------------------------------------------------------------
- * I. CONTRATOS DE DATOS (NICEPOD GEO CORE V4.1)
+ * I. CONTRATOS DE DATOS Y TIPADO (ESTÁNDAR NICEPOD V2.5)
  * ---------------------------------------------------------------------------
  */
 
@@ -40,14 +40,17 @@ export interface ActivePOI {
   historical_fact?: string;
 }
 
-export type GeoState =
-  | 'IDLE'               // Standby
-  | 'SENSORS_READY'      // Hardware Activo
-  | 'LOCATION_RESOLVED'  // Nodo Localizado
-  | 'SCANNING'           // Procesando Binarios
-  | 'ANALYZING'          // IA en Proceso
-  | 'ACCEPTED'           // Forja Exitosa
-  | 'REJECTED';          // Error de Validación
+/**
+ * GeoState: Máquina de estados para la misión de siembra geoespacial.
+ */
+export type GeoState = 
+  | 'IDLE'               // Esperando activación manual
+  | 'SENSORS_READY'      // GPS en línea, calibrando precisión
+  | 'LOCATION_RESOLVED'  // Nodo identificado y clima capturado
+  | 'SCANNING'           // Transfiriendo activos binarios al Storage
+  | 'ANALYZING'          // IA procesando evidencia y OCR
+  | 'ACCEPTED'           // Crónica sintetizada correctamente
+  | 'REJECTED';          // Fallo de integridad o error de red
 
 export interface GeoContextData {
   draftId?: string;
@@ -68,7 +71,7 @@ export interface GeoContextData {
 
 /**
  * INTERFAZ: GeoEngineReturn
- * [CONTRATO DE SOBERANÍA]: Define exactamente qué expone el hook a la UI.
+ * Define la soberanía del objeto que el hook entrega a la interfaz de usuario.
  */
 export interface GeoEngineReturn {
   status: GeoState;
@@ -77,35 +80,35 @@ export interface GeoEngineReturn {
   activePOI: ActivePOI | null;
   nearbyPOIs: any[];
   isSearching: boolean;
-  isLocked: boolean;
+  isLocked: boolean; 
   error: string | null;
   initSensors: () => void;
   resolveCurrentLocation: () => Promise<void>;
-  scanEnvironment: (params: {
-    heroImage: string;
-    ocrImage?: string;
-    intent: string;
-    category: string;
-    radius: number
+  scanEnvironment: (params: { 
+    heroImage: string; 
+    ocrImage?: string; 
+    intent: string; 
+    category: string; 
+    radius: number 
   }) => Promise<void>;
-  submitIntent: (params: {
-    intentText: string;
-    depth: string;
-    tone: string;
-    categoryId: string;
-    historicalFact: string
+  submitIntent: (params: { 
+    intentText: string; 
+    depth: string; 
+    tone: string; 
+    categoryId: string; 
+    historicalFact: string 
   }) => Promise<void>;
   reset: () => void;
 }
 
 /**
  * HOOK: useGeoEngine
- * El director sensorial de NicePod V2.5.
+ * El orquestador sensorial de la Workstation NicePod.
  */
 export function useGeoEngine(): GeoEngineReturn {
   const supabase = createClient();
 
-  // --- ESTADOS DE CONTROL ---
+  // --- ESTADOS REACTIVOS ---
   const [status, setStatus] = useState<GeoState>('IDLE');
   const [data, setData] = useState<GeoContextData>({});
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
@@ -115,35 +118,35 @@ export function useGeoEngine(): GeoEngineReturn {
   const [isLocked, setIsLocked] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // --- REFERENCIAS DE FILTRADO (STEADY PULSE) ---
+  // --- REFERENCIAS DE MEMORIA (PROTOCOLO STEADY PULSE) ---
   const watchId = useRef<number | null>(null);
   const lastSyncLocation = useRef<{ lat: number; lng: number } | null>(null);
   const lastRequestTimestamp = useRef<number>(0);
 
-  const MOVEMENT_THRESHOLD = 15;  // Metros
-  const ACCURACY_THRESHOLD = 25;  // Precisión mínima
-  const REQUEST_COOLDOWN = 5000;  // 5s entre peticiones
+  const MOVEMENT_THRESHOLD = 15;  // Metros mínimos para re-sintonizar
+  const ACCURACY_LIMIT = 30;      // Ignorar señales GPS con >30m de error
+  const NETWORK_COOLDOWN = 5000;  // 5s de guardia entre peticiones de red
 
   /**
-   * calculateDistance: Haversine para precisión de sintonía.
+   * calculateDistance: Implementación de la Fórmula de Haversine.
    */
   const calculateDistance = useCallback((lat1: number, lon1: number, lat2: number, lon2: number): number => {
-    const R = 6371e3;
+    const R = 6371e3; 
     const dLat = (lat2 - lat1) * (Math.PI / 180);
     const dLon = (lon2 - lon1) * (Math.PI / 180);
     const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+              Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+              Math.sin(dLon / 2) * Math.sin(dLon / 2);
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }, []);
 
   /**
-   * fetchNearbyPOIs: Recupera la malla urbana.
+   * fetchNearbyPOIs: Sincroniza la malla urbana desde la base de datos.
    */
   const fetchNearbyPOIs = useCallback(async () => {
     const now = Date.now();
-    if (now - lastRequestTimestamp.current < REQUEST_COOLDOWN) return;
-
+    if (now - lastRequestTimestamp.current < NETWORK_COOLDOWN) return;
+    
     setIsSearching(true);
     lastRequestTimestamp.current = now;
 
@@ -162,29 +165,57 @@ export function useGeoEngine(): GeoEngineReturn {
   }, [supabase]);
 
   /**
-   * resolveCurrentLocation: Paso 1 del flujo (Anclaje).
+   * resolveCurrentLocation: Identificación nominal del lugar (Fase Ligera).
    */
   const resolveCurrentLocation = useCallback(async () => {
-    if (!userLocation) return;
-
+    if (!userLocation || isLocked) return;
+    
     setIsSearching(true);
     try {
       const result = await resolveLocationAction(userLocation.latitude, userLocation.longitude);
-
       if (result.success) {
         setData(prev => ({ ...prev, ...result.data }));
         setStatus('LOCATION_RESOLVED');
-        nicepodLog(`🛰️ [GeoEngine] Nodo Localizado: ${result.data.place.poiName}`);
+        nicepodLog(`🛰️ [GeoEngine] Nodo Identificado: ${result.data.place.poiName}`);
       }
     } catch (err: any) {
-      console.error("🔥 [GeoEngine] Resolve Error:", err.message);
+      console.error("🔥 [GeoEngine] Resolve Fail:", err.message);
     } finally {
       setIsSearching(false);
     }
-  }, [userLocation]);
+  }, [userLocation, isLocked]);
 
   /**
-   * initSensors: Protocolo de Activación por Gesto.
+   * evaluateResonance: Detecta sintonía con crónicas locales.
+   */
+  const evaluateResonance = useCallback((location: UserLocation) => {
+    if (nearbyPOIs.length === 0) return;
+
+    let closest: ActivePOI | null = null;
+    let minDistance = Infinity;
+
+    nearbyPOIs.forEach((poi) => {
+      const poiLat = poi.geo_location.coordinates[1];
+      const poiLng = poi.geo_location.coordinates[0];
+      const dist = calculateDistance(location.latitude, location.longitude, poiLat, poiLng);
+
+      if (dist < minDistance) {
+        minDistance = dist;
+        closest = {
+          id: poi.id,
+          name: poi.name,
+          distance: Math.round(dist),
+          isWithinRadius: dist <= (poi.entrance_radius_meters || 35),
+          historical_fact: poi.historical_fact
+        };
+      }
+    });
+
+    setActivePOI(closest);
+  }, [nearbyPOIs, calculateDistance]);
+
+  /**
+   * initSensors: Gatillo de activación por gesto de usuario.
    */
   const initSensors = useCallback(() => {
     if (typeof window === "undefined" || !("geolocation" in navigator)) {
@@ -196,7 +227,7 @@ export function useGeoEngine(): GeoEngineReturn {
     const options = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
 
     const handleSuccess = (position: GeolocationPosition) => {
-      if (position.coords.accuracy > ACCURACY_THRESHOLD) return;
+      if (position.coords.accuracy > ACCURACY_LIMIT) return;
 
       const loc: UserLocation = {
         latitude: position.coords.latitude,
@@ -206,6 +237,7 @@ export function useGeoEngine(): GeoEngineReturn {
       };
 
       setUserLocation(loc);
+      evaluateResonance(loc);
 
       const dist = !lastSyncLocation.current ? Infinity :
         calculateDistance(loc.latitude, loc.longitude, lastSyncLocation.current.lat, lastSyncLocation.current.lng);
@@ -219,38 +251,36 @@ export function useGeoEngine(): GeoEngineReturn {
 
     const handleError = (err: GeolocationPositionError) => {
       setError(err.message);
+      nicepodLog(`⚠️ [GeoEngine] Error de señal: ${err.message}`);
     };
 
+    if (watchId.current !== null) navigator.geolocation.clearWatch(watchId.current);
     watchId.current = navigator.geolocation.watchPosition(handleSuccess, handleError, options);
     setStatus('SENSORS_READY');
-  }, [fetchNearbyPOIs, calculateDistance, isLocked, resolveCurrentLocation]);
+  }, [fetchNearbyPOIs, calculateDistance, isLocked, resolveCurrentLocation, evaluateResonance]);
 
   /**
-   * scanEnvironment: Paso 2 (Inmersión IA).
-   * [RESOLUCIÓN TS2345]: Mapeo exacto de propiedades para ingestContextAction.
+   * scanEnvironment: Fase Multimodal (Pesada).
+   * [RESOLUCIÓN]: Se vincula con 'analyzeMultimodalAction' para el build de Vercel.
    */
   const scanEnvironment = async (params: { heroImage: string; ocrImage?: string; intent: string; category: string; radius: number }) => {
     if (!userLocation) return;
 
-    setIsLocked(true); // Anclaje de posición
+    setIsLocked(true); // Anclaje inmutable de posición
     setStatus('SCANNING');
 
     try {
-      // 1. Subida de Activos al Storage
+      // 1. Transporte de evidencia al Storage
       const upload = await uploadGeoEvidence(params.heroImage, params.ocrImage);
       if (!upload.success || !upload.urls) throw new Error(upload.message);
 
-      // 2. Ingesta Analítica Multimodal
-      // Mapeamos: heroImage -> heroImageUrl, category -> categoryId, radius -> resonanceRadius
-      const result = await ingestContextAction({
+      // 2. Ingesta Analítica mediante Server Action
+      const result = await analyzeMultimodalAction({
         heroImageUrl: upload.urls.heroImageUrl,
         ocrImageUrl: upload.urls.ocrImageUrl,
+        placeName: data.place?.poiName || "Hito Urbano",
         intent: params.intent,
-        location: {
-          latitude: userLocation.latitude,
-          longitude: userLocation.longitude,
-          accuracy: userLocation.accuracy
-        },
+        location: userLocation,
         categoryId: params.category,
         resonanceRadius: params.radius
       });
@@ -259,9 +289,10 @@ export function useGeoEngine(): GeoEngineReturn {
 
       setData(prev => ({ ...prev, ...result.data }));
       setStatus('ANALYZING');
-      nicepodLog("🧠 [GeoEngine] Ingesta completada.");
+      nicepodLog("🧠 [GeoEngine] Dossier analítico completado.");
 
     } catch (e: any) {
+      nicepodLog(`🛑 [GeoEngine] Fallo en la ingesta: ${e.message}`);
       setStatus('REJECTED');
       setData({ rejectionReason: e.message });
       setIsLocked(false);
@@ -269,8 +300,7 @@ export function useGeoEngine(): GeoEngineReturn {
   };
 
   /**
-   * submitIntent: Paso 3 (Forja Narrativa).
-   * [RESOLUCIÓN]: Alineación total con generateGeoContentAction.
+   * submitIntent: Fase de Forja Narrativa final.
    */
   const submitIntent = async (params: { intentText: string; depth: string; tone: string; categoryId: string; historicalFact: string }) => {
     if (!data.draftId) return;
@@ -278,19 +308,16 @@ export function useGeoEngine(): GeoEngineReturn {
     setStatus('SCANNING');
     try {
       const result = await generateGeoContentAction({
+        ...params,
         draftId: data.draftId,
-        intent: params.intentText,
-        depth: params.depth,
-        tone: params.tone,
-        categoryId: params.categoryId,
-        historicalFact: params.historicalFact
+        intent: params.intentText
       });
 
       if (!result.success) throw new Error(result.error);
 
       setData(prev => ({ ...prev, script: result.data.script }));
       setStatus('ACCEPTED');
-      nicepodLog("✍️ [GeoEngine] Crónica urbana forjada.");
+      nicepodLog("✍️ [GeoEngine] Crónica forjada con éxito.");
     } catch (e: any) {
       setStatus('REJECTED');
       setData({ rejectionReason: e.message });
@@ -302,7 +329,7 @@ export function useGeoEngine(): GeoEngineReturn {
     setData({});
     setIsLocked(false);
     lastSyncLocation.current = null;
-    nicepodLog("🧹 [GeoEngine] Terminal reseteada.");
+    nicepodLog("🧹 [GeoEngine] Terminal restablecida.");
   };
 
   useEffect(() => {
@@ -329,13 +356,12 @@ export function useGeoEngine(): GeoEngineReturn {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Resolución de Fuga de Tipos: Se han alineado los nombres de las propiedades 
- *    (heroImageUrl, categoryId, resonanceRadius) con las definiciones de 
- *    'actions/geo-actions.ts', permitiendo que Vercel build pase en verde. ✅
- * 2. Integridad de Datos: Se ha incluido 'historicalFact' y 'categoryId' en la 
- *    llamada final de 'submitIntent', garantizando que el punto de interés 
- *    nazca con su ADN completo. ✅
- * 3. Throttling de Red: El sistema de cooldown y el umbral de movimiento 
- *    protegen el presupuesto de CPU del Administrador y la latencia del Edge. ✅
+ * NOTA TÉCNICA DEL ARCHITECT (V5.1):
+ * 1. Consistencia de Nomenclatura: Se ha corregido la llamada a 'analyzeMultimodalAction', 
+ *    asegurando que el error TS2305 del build de Vercel desaparezca hoy.
+ * 2. Protocolo Steady Pulse: El umbral de 15m y el cooldown de 5s protegen el 
+ *    presupuesto térmico del dispositivo y la latencia del servidor.
+ * 3. Atomicidad Geoespacial: La función 'setIsLocked(true)' garantiza que la 
+ *    IA trabaje sobre la coordenada exacta de la captura visual, eliminando 
+ *    derivas de datos durante el movimiento del administrador.
  */

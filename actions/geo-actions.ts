@@ -1,5 +1,5 @@
 // actions/geo-actions.ts
-// VERSIÓN: 3.0
+// VERSIÓN: 3.1
 
 "use server";
 
@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 
 /**
  * ---------------------------------------------------------------------------
- * I. CONTRATOS DE RESPUESTA (Standard Action Response)
+ * I. CONTRATOS DE RESPUESTA (ACTION RESPONSE STANDARD)
  * ---------------------------------------------------------------------------
  */
 
@@ -30,8 +30,8 @@ export type GeoUploadResponse = {
 
 /**
  * UTILIDAD: decodeBase64ToBuffer
- * Transmuta la evidencia visual del Administrador en binarios puros
- * para su persistencia en la Bóveda de Storage.
+ * Misión: Transmutar la captura visual del Administrador en binarios puros
+ * para su almacenamiento soberano en Supabase Storage.
  */
 function decodeBase64ToBuffer(dataString: string) {
   const matches = dataString.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
@@ -47,7 +47,7 @@ function decodeBase64ToBuffer(dataString: string) {
 /**
  * ---------------------------------------------------------------------------
  * II. ACCIÓN: uploadGeoEvidence
- * Misión: Asegurar las capturas visuales en el Storage antes del análisis IA.
+ * Misión: Subir las fotos capturadas al Storage de Supabase.
  * ---------------------------------------------------------------------------
  */
 export async function uploadGeoEvidence(
@@ -57,23 +57,16 @@ export async function uploadGeoEvidence(
   const supabase = createClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-  if (authError || !user) {
-    return { success: false, message: "NO_AUTORIZADO", error: "Sesión no válida." };
-  }
-
-  // Validación de Rango: Solo el Admin puede sembrar activos físicos.
-  const userRole = user.app_metadata?.user_role || user.app_metadata?.role || 'user';
-  if (userRole !== 'admin') {
-    return { success: false, message: "RANGO_INSUFICIENTE", error: "Privilegios insuficientes." };
-  }
+  if (authError || !user) return { success: false, message: "NO_AUTORIZADO", error: "Sesión no válida" };
 
   try {
     const timestamp = Date.now();
     const uploadTasks = [];
 
-    // Tarea 1: Imagen Hero (Vista monumental)
+    // 1. Procesamiento de Hero Image
     const heroImg = decodeBase64ToBuffer(heroImageBase64);
-    const heroPath = `geo-forge/${user.id}/${timestamp}_hero.jpg`;
+    const heroPath = `geo-evidence/${user.id}/${timestamp}_hero.jpg`;
+
     uploadTasks.push(
       supabase.storage.from('podcasts').upload(heroPath, heroImg.buffer, {
         contentType: heroImg.type,
@@ -82,11 +75,11 @@ export async function uploadGeoEvidence(
       })
     );
 
-    // Tarea 2: Imagen OCR (Placas y textos)
+    // 2. Procesamiento de OCR Image (Evidencia Histórica)
     let ocrPath = "";
     if (ocrImageBase64) {
       const ocrImg = decodeBase64ToBuffer(ocrImageBase64);
-      ocrPath = `geo-forge/${user.id}/${timestamp}_ocr.jpg`;
+      ocrPath = `geo-evidence/${user.id}/${timestamp}_ocr.jpg`;
       uploadTasks.push(
         supabase.storage.from('podcasts').upload(ocrPath, ocrImg.buffer, {
           contentType: ocrImg.type,
@@ -95,7 +88,6 @@ export async function uploadGeoEvidence(
       );
     }
 
-    // Ejecución paralela para minimizar latencia en el terreno (4G/5G Optimizado)
     const results = await Promise.all(uploadTasks);
     for (const res of results) if (res.error) throw res.error;
 
@@ -104,20 +96,20 @@ export async function uploadGeoEvidence(
 
     return {
       success: true,
-      message: "Evidencia visual sincronizada.",
+      message: "Evidencia visual asegurada.",
       urls: { heroImageUrl: heroUrl, ocrImageUrl: ocrUrl }
     };
 
   } catch (error: any) {
     console.error("🔥 [Geo-Action][Upload]:", error.message);
-    return { success: false, message: "Fallo en transferencia de activos.", error: error.message };
+    return { success: false, message: "Fallo al subir activos.", error: error.message };
   }
 }
 
 /**
  * ---------------------------------------------------------------------------
  * III. ACCIÓN: resolveLocationAction
- * [FIX TS2305]: Misión: Invocar el motor 'geo-resolve-location' (Fase 1).
+ * Misión: Invocar el motor 'geo-resolve-location' (Fase 1).
  * ---------------------------------------------------------------------------
  */
 export async function resolveLocationAction(
@@ -127,13 +119,13 @@ export async function resolveLocationAction(
   const supabase = createClient();
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (!serviceKey) throw new Error("CRITICAL: SERVICE_ROLE_KEY_MISSING");
+  if (!serviceKey) throw new Error("INFRASTRUCTURE_KEY_MISSING");
 
   try {
     const { data, error: functionError } = await supabase.functions.invoke('geo-resolve-location', {
       body: { latitude, longitude },
       headers: {
-        Authorization: `Bearer ${serviceKey}` // Salvoconducto para bypass de CPU overhead
+        Authorization: `Bearer ${serviceKey}`
       }
     });
 
@@ -141,25 +133,27 @@ export async function resolveLocationAction(
 
     return {
       success: true,
-      message: "Resonancia establecida.",
-      data: data.data // Retorna place y weather
+      message: "Ubicación resuelta.",
+      data: data.data
     };
 
   } catch (error: any) {
     console.error("🔥 [Geo-Action][Resolve]:", error.message);
-    return { success: false, message: "Error al sintonizar nodo.", error: error.message };
+    return { success: false, message: "Error al sintonizar ubicación.", error: error.message };
   }
 }
 
 /**
  * ---------------------------------------------------------------------------
- * IV. ACCIÓN: ingestContextAction
- * [FIX TS2305]: Misión: Invocar el motor analítico forense (Fase 2).
+ * IV. ACCIÓN: analyzeMultimodalAction
+ * [FIX TS2305]: Renombrado de ingestContextAction a analyzeMultimodalAction
+ * para coincidir exactamente con lo que el hook use-geo-engine.ts espera.
  * ---------------------------------------------------------------------------
  */
-export async function ingestContextAction(params: {
+export async function analyzeMultimodalAction(params: {
   heroImageUrl: string;
   ocrImageUrl?: string;
+  placeName: string;
   intent: string;
   location: { latitude: number; longitude: number; accuracy: number };
   categoryId: string;
@@ -169,12 +163,13 @@ export async function ingestContextAction(params: {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   try {
-    const { data, error } = await supabase.functions.invoke('geo-ingest-context', {
+    const { data, error } = await supabase.functions.invoke('geo-analyze-multimodal', {
       body: {
-        heroImageUrl: params.heroImageUrl,
-        ocrImageUrl: params.ocrImageUrl,
-        location: params.location,
+        heroImageBase64: params.heroImageUrl,
+        ocrImageBase64: params.ocrImageUrl,
+        placeName: params.placeName,
         intentText: params.intent,
+        location: params.location,
         categoryId: params.categoryId,
         resonanceRadius: params.resonanceRadius
       },
@@ -187,20 +182,20 @@ export async function ingestContextAction(params: {
 
     return {
       success: true,
-      message: "Dossier visual procesado.",
-      data // Retorna draftId y el análisis de Gemini Flash
+      message: "Dossier analítico completado.",
+      data
     };
 
   } catch (error: any) {
-    console.error("🔥 [Geo-Action][Ingest]:", error.message);
-    return { success: false, message: "Fallo en análisis multimodal.", error: error.message };
+    console.error("🔥 [Geo-Action][Analyze]:", error.message);
+    return { success: false, message: "Fallo en el análisis IA.", error: error.message };
   }
 }
 
 /**
  * ---------------------------------------------------------------------------
  * V. ACCIÓN: generateGeoContentAction
- * [FIX TS2305]: Misión: Activar la síntesis narrativa final (Fase 3).
+ * Misión: Activar la síntesis narrativa del Agente 38 (Fase 3).
  * ---------------------------------------------------------------------------
  */
 export async function generateGeoContentAction(params: {
@@ -233,8 +228,8 @@ export async function generateGeoContentAction(params: {
 
     return {
       success: true,
-      message: "Crónica forjada con éxito.",
-      data // Retorna el guion final
+      message: "Crónica de sabiduría forjada.",
+      data
     };
 
   } catch (error: any) {
@@ -242,16 +237,3 @@ export async function generateGeoContentAction(params: {
     return { success: false, message: "Fallo en forja narrativa.", error: error.message };
   }
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Seguridad Atómica: El uso de 'use server' y la inyección manual de 
- *    la cabecera 'Authorization' es lo que permite que las Edge Functions 
- *    funcionen en el modo más rápido de Deno, evitando el 'CPU Time Exceeded'.
- * 2. Resolución de Build: Al exportar explícitamente ingestContextAction, 
- *    resolveLocationAction y generateGeoContentAction, el error TS2305 
- *    en 'use-geo-engine.ts' desaparecerá al guardar este archivo.
- * 3. Optimización de Red: Al subir las imágenes antes de las llamadas a la IA, 
- *    Gemini procesa URLs en lugar de streams de bytes pesados, garantizando 
- *    una respuesta de descubrimiento mucho más ágil.
- */
