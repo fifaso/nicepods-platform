@@ -1,161 +1,144 @@
 // components/geo/scanner-ui.tsx
-// VERSIÓN: 10.3
+// VERSIÓN: 11.0
 
 "use client";
 
-import React, { ChangeEvent, useCallback, useRef, useState, useEffect } from "react";
-import dynamic from "next/dynamic";
-import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  AlertTriangle,
-  Camera,
-  Info,
-  Loader2,
-  RefreshCw,
-  Send,
-  Navigation2,
-  Zap,
-  Target,
-  Power,
   Activity,
-  ShieldCheck,
+  Loader2,
   Lock,
-  Sparkles
+  Power,
+  ShieldCheck,
+  Sparkles,
+  Terminal as TerminalIcon,
+  Zap
 } from "lucide-react";
+import { useEffect } from "react";
 
-// --- INFRAESTRUCTURA DE COMPONENTES DE INTERFAZ ---
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-
-// --- COMPONENTES SATELLITES Y LOGICA SOBERANA ---
-import { RadarHUD } from "./radar-hud";
-import { useGeoEngine, GeoEngineReturn } from "./use-geo-engine";
+// --- INFRAESTRUCTURA DE ESTADO Y MOTOR SOBERANO ---
+// ForgeProvider: Almacena la memoria de fotos y audios entre pantallas.
 import { useForge } from "./forge-context";
-import { GeoRecorder } from "./geo-recorder";
+// useGeoEngine: Sintoniza el hardware GPS y resuelve el clima.
+import { GeoEngineReturn, useGeoEngine } from "./use-geo-engine";
+// RadarHUD: HUD de telemetría constante.
+import { RadarHUD } from "./radar-hud";
+
+// --- COMPONENTES DE FASE (STEPPER MODULAR) ---
+// Extraemos la complejidad a archivos especialistas para un mantenimiento limpio.
+import { StepAnchoring } from "./steps/step-1-anchoring";
+import { StepEvidence } from "./steps/step-2-evidence";
+import { StepIntention } from "./steps/step-3-intention";
 
 // --- UTILIDADES DE SISTEMA ---
-import { cn, nicepodLog } from "@/lib/utils";
-
-/**
- * [SHIELD]: CARGA DINÁMICA DEL VISOR SATELITAL
- * Aislamos el motor WebGL para asegurar un renderizado inicial de 60 FPS
- * y evitar bloqueos de hidratación en dispositivos móviles.
- */
-const LiveLocationMap = dynamic(
-  () => import("./live-location-map").then((mod) => mod.LiveLocationMap),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="w-full h-full rounded-full bg-zinc-900/80 flex items-center justify-center animate-pulse border border-white/5">
-        <Loader2 className="h-6 w-6 animate-spin text-primary/20" />
-      </div>
-    )
-  }
-);
+import { nicepodLog } from "@/lib/utils";
 
 /**
  * COMPONENTE: GeoScannerUI
- * El puente sensorial para la forja de sabiduría urbana de NicePod V2.5.
+ * El centro de mando sensorial de NicePod V2.5.
+ * 
+ * [RESPONSABILIDAD ARQUITECTÓNICA]:
+ * Este componente actúa como el orquestador de alto nivel. Su única función es 
+ * gestionar el ciclo de vida de la misión de siembra, delegando la captura 
+ * física a los componentes satélites (Steps).
  */
 export function GeoScannerUI() {
-  /**
-   * CONSUMO DEL MOTOR GEOESPACIAL (V3.2):
-   * [SINCRO]: Aplicamos casting estructural para asegurar que el compilador 
-   * reconozca el inicializador de sensores, el estado de bloqueo y la telemetría.
-   */
+  // 1. CONSUMO DEL MOTOR GEOESPACIAL (V4.0)
+  // [SINCRO]: Casting a GeoEngineReturn para garantizar integridad de tipos.
   const geoEngine = useGeoEngine() as GeoEngineReturn;
-  const { 
-    status, 
-    data, 
-    userLocation, 
+  const {
+    status,
+    data,
+    userLocation,
     initSensors,
-    scanEnvironment, 
-    submitIntent, 
-    reset 
+    error: geoError
   } = geoEngine;
 
-  // Determine lock state based on scanning status
-  const isLocked = status === 'SCANNING' && !!data?.draftId;
-
-  // Consumo del contexto de persistencia de forja (Memoria entre pasos)
+  // 2. CONSUMO DE MEMORIA DE FORJA (Stepper State)
   const { state } = useForge();
 
-  // --- ESTADOS LOCALES DE INTERACCIÓN ---
-  const [intentText, setIntentText] = useState<string>("");
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  /**
+   * [LOG TÁCTICO]: Trazabilidad de Progresión
+   * Registramos el avance en la consola industrial para diagnóstico remoto.
+   */
+  useEffect(() => {
+    nicepodLog(`🛰️ [Geo-Orchestrator] Fase Activa: ${state.currentStep}`);
+  }, [state.currentStep]);
 
   /**
-   * handleImageCapture:
-   * Procesa la entrada visual y dispara el pipeline de inteligencia analítica.
+   * stepVariants: Curvas cinemáticas para la transición entre fases.
+   * Diseñadas para transmitir una sensación de fluidez nativa.
    */
-  const handleImageCapture = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64Content = reader.result as string;
-        setPreviewUrl(base64Content);
-        
-        nicepodLog("📸 [Scanner] Evidencia visual recibida. Iniciando análisis multimodal.");
-        
-        /**
-         * [SINCRO V10.3]: Invocación Multimodal
-         * Enviamos el Hero Shot y los metadatos de configuración.
-         * La función 'scanEnvironment' anclará automáticamente la posición (isLocked).
-         */
-        scanEnvironment({
-          heroImage: base64Content,
-          intent: intentText,
-          category: state.categoryId || "historia",
-          radius: state.resonanceRadius || 30
-        });
-      };
-      reader.readAsDataURL(file);
+  const stepVariants = {
+    initial: { x: 30, opacity: 0, filter: "blur(10px)" },
+    animate: {
+      x: 0,
+      opacity: 1,
+      filter: "blur(0px)",
+      transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] }
+    },
+    exit: {
+      x: -30,
+      opacity: 0,
+      filter: "blur(10px)",
+      transition: { duration: 0.4 }
     }
-  }, [scanEnvironment, intentText, state.categoryId, state.resonanceRadius]);
-
-  // --- LÓGICA DE SEGMENTACIÓN DE ESTADOS (MACHINE CONTROL) ---
-  const isIdleState = status === 'IDLE';
-  const isReadyToCapture = status === 'SENSORS_READY' || (status === 'SCANNING' && !data?.draftId);
-  const isInputState = status === 'ANALYZING' || status === 'REJECTED' || (status === 'SCANNING' && !!data?.draftId);
-  const isSuccessState = status === 'ACCEPTED';
+  };
 
   return (
-    <div className="flex flex-col h-full w-full max-w-2xl mx-auto relative px-4 pb-16 overflow-hidden selection:bg-primary/30">
+    <div className="flex flex-col h-full w-full max-w-2xl mx-auto relative overflow-hidden selection:bg-primary/30">
 
       {/* 
-          1. HUD DE TELEMETRÍA (CAPA SUPERIOR) 
-          Proyecta la precisión real del hardware (accuracy) eliminando el valor 0.0M.
+          I. HUD DE TELEMETRÍA (CONSTANTE) 
+          Mantiene al Administrador informado sin importar en qué paso se encuentre.
       */}
-      <div className="mb-6 animate-in fade-in slide-in-from-top-4 duration-1000">
+      <div className="flex-shrink-0 mb-6 px-4">
         <RadarHUD
           status={status}
           weather={data?.weather}
-          place={data?.place}
-          accuracy={userLocation?.accuracy || 0} 
+          place={data?.place?.poiName}
+          accuracy={userLocation?.accuracy || 0}
         />
+
+        {/* Notificación de Error de Sensores */}
+        <AnimatePresence>
+          {geoError && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              className="mt-4 p-4 bg-red-500/5 border border-red-500/20 rounded-2xl flex items-center gap-3 text-red-500 shadow-xl"
+            >
+              <Lock size={16} />
+              <span className="text-[10px] font-black uppercase tracking-widest leading-none">
+                Alerta de Señal: {geoError}
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
-      <div className="flex-1 flex flex-col justify-start min-h-0">
+      {/* 
+          II. EL BASTIDOR DINÁMICO (THE FORGE STAGE)
+          Aquí es donde se materializan las pantallas del Stepper.
+      */}
+      <div className="flex-1 relative w-full h-full overflow-hidden">
         <AnimatePresence mode="wait">
 
-          {/* ESTADO 0: ACTIVACIÓN DE TERMINAL (USER GESTURE POLICY) */}
-          {isIdleState && (
+          {/* FASE 0: ACTIVACIÓN (USER GESTURE POLICY) */}
+          {status === 'IDLE' && (
             <motion.div
-              key="idle_activation"
+              key="idle_init"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, y: -30 }}
-              className="flex flex-col items-center justify-center py-20 gap-14"
+              exit={{ opacity: 0, y: -20 }}
+              className="absolute inset-0 flex flex-col items-center justify-center gap-12"
             >
               <div className="text-center space-y-4">
                 <h2 className="text-4xl font-black text-white uppercase tracking-tighter italic leading-none">
                   Terminal <span className="text-primary not-italic">Geo-Locked</span>
                 </h2>
-                <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-[0.4em] max-w-xs mx-auto leading-relaxed">
-                  Autorice el acceso al hardware para sintonizar el pulso urbano.
+                <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.4em] max-w-xs mx-auto leading-relaxed">
+                  Active los sensores para sincronizar la frecuencia con la ciudad.
                 </p>
               </div>
 
@@ -168,236 +151,111 @@ export function GeoScannerUI() {
               </button>
 
               <div className="flex items-center gap-4 opacity-20">
-                <ShieldCheck size={16} className="text-primary" />
-                <span className="text-[10px] font-black uppercase tracking-[0.5em] text-white">Security Protocol v2.5</span>
+                <ShieldCheck size={16} className="text-zinc-500" />
+                <span className="text-[10px] font-black uppercase tracking-[0.5em] text-white">Security Handshake Ready</span>
               </div>
             </motion.div>
           )}
 
-          {/* ESTADO A: VISOR SATELITAL Y GATILLO DE CAPTURA (ACTIVE SCANNING) */}
-          {isReadyToCapture && (
+          {/* FASE 1: ANCLAJE GPS (ANCHORING) */}
+          {status !== 'IDLE' && state.currentStep === 'ANCHORING' && (
             <motion.div
-              key="ready_capture"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 1.05 }}
-              className="flex flex-col items-center gap-10 py-6"
+              key="step-anchoring"
+              variants={stepVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              className="absolute inset-0 w-full h-full"
             >
-              <div className="text-center space-y-2">
-                <h2 className="text-3xl font-black text-white uppercase tracking-tighter italic">
-                  Siembra de <span className="text-primary not-italic">Sabiduría</span>
-                </h2>
-                <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-[0.3em]">
-                  {isLocked ? "Coordenada Anclada" : "Alineando Frecuencia Satelital"}
-                </p>
-              </div>
-
-              {/* EPICENTRO: LENTE SATELITAL EN VIVO */}
-              <div className="relative group">
-                {/* Anillos de Resonancia Reactivos */}
-                <div className={cn(
-                    "absolute -inset-6 rounded-full border transition-all duration-1000",
-                    isLocked ? "border-emerald-500/20 scale-110" : "border-primary/10 animate-pulse"
-                )} />
-                
-                <div className={cn(
-                    "relative w-64 h-64 md:w-80 md:h-80 rounded-full border-2 shadow-[0_0_80px_rgba(0,0,0,1)] overflow-hidden transition-all duration-700",
-                    isLocked ? "border-emerald-500/40" : "border-white/5"
-                )}>
-                  
-                  {userLocation ? (
-                    <LiveLocationMap 
-                      latitude={userLocation.latitude}
-                      longitude={userLocation.longitude}
-                      accuracy={userLocation.accuracy}
-                    />
-                  ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center gap-4 bg-[#050505]">
-                       <Loader2 className="h-8 w-8 animate-spin text-primary/40" />
-                       <span className="text-[9px] font-black text-zinc-800 uppercase tracking-widest">Sintonizando...</span>
-                    </div>
-                  )}
-
-                  {/* GATILLO DE CÁMARA (Over-Map Interface) */}
-                  {!isLocked && (
-                    <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={status === 'SCANNING'}
-                        className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/30 hover:bg-black/10 transition-all group"
-                    >
-                        <div className="p-6 rounded-full bg-black/80 backdrop-blur-xl border border-white/10 group-hover:scale-110 group-hover:border-primary/60 transition-all shadow-2xl">
-                            <Camera size={40} className="text-white/60 group-hover:text-primary transition-colors" />
-                        </div>
-                        <span className="mt-6 text-[10px] font-black text-white/40 uppercase tracking-[0.3em] opacity-0 group-hover:opacity-100 transition-opacity">
-                            Capturar Entorno
-                        </span>
-                    </button>
-                  )}
-
-                  {/* Overlay de Bloqueo de Posición */}
-                  {isLocked && (
-                    <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-emerald-500/5 backdrop-blur-[2px]">
-                        <div className="p-5 rounded-full bg-emerald-500/10 border border-emerald-500/40 text-emerald-500 animate-in zoom-in-95">
-                            <Lock size={32} />
-                        </div>
-                        <span className="mt-4 text-[9px] font-black text-emerald-500 uppercase tracking-[0.4em]">
-                            Posición Fijada
-                        </span>
-                    </div>
-                  )}
-                </div>
-
-                {/* HUD DE COORDENADAS (Industrial Look) */}
-                <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 z-40 bg-[#020202] border border-white/10 px-6 py-3 rounded-full shadow-[0_15px_40px_rgba(0,0,0,1)] flex items-center gap-6">
-                    <div className="flex items-center gap-3">
-                        <Target size={12} className={cn("transition-colors", isLocked ? "text-emerald-500" : "text-primary animate-pulse")} />
-                        <span className="text-[11px] font-mono font-bold text-zinc-400 tabular-nums">
-                            {userLocation?.latitude.toFixed(6) || "0.000000"}
-                        </span>
-                    </div>
-                    <div className="w-px h-4 bg-white/10" />
-                    <div className="flex items-center gap-3">
-                        <Navigation2 size={12} className="text-zinc-600" />
-                        <span className="text-[11px] font-mono font-bold text-zinc-400 tabular-nums">
-                            {userLocation?.longitude.toFixed(6) || "0.000000"}
-                        </span>
-                    </div>
-                </div>
-              </div>
-
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                ref={fileInputRef}
-                onChange={handleImageCapture}
-              />
+              <StepAnchoring />
             </motion.div>
           )}
 
-          {/* ESTADO B: TERMINAL DE INTENCIÓN (FORJA COGNITIVA) */}
-          {isInputState && (
+          {/* FASE 2: EVIDENCIA MULTIMODAL (EVIDENCE) */}
+          {state.currentStep === 'EVIDENCE' && (
             <motion.div
-              key="intent_input_stage"
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="space-y-8"
+              key="step-evidence"
+              variants={stepVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              className="absolute inset-0 w-full h-full"
             >
-              {previewUrl && (
-                <div className="relative w-full h-56 rounded-[2.5rem] overflow-hidden border border-white/10 shadow-2xl bg-zinc-900 group">
-                  <Image
-                    src={previewUrl}
-                    alt="Evidencia"
-                    fill
-                    unoptimized
-                    className="object-cover opacity-50 grayscale hover:grayscale-0 transition-all duration-1000"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80" />
-                  <div className="absolute bottom-6 left-8 flex items-center gap-4">
-                    <div className="h-2.5 w-2.5 rounded-full bg-primary animate-ping" />
-                    <span className="text-[11px] font-black uppercase text-primary tracking-[0.4em]">
-                      Vínculo Visual Sincronizado
+              <StepEvidence />
+            </motion.div>
+          )}
+
+          {/* FASE 3: SEMILLA DE INTENCIÓN NARRATIVA (INTENTION) */}
+          {state.currentStep === 'INTENTION' && (
+            <motion.div
+              key="step-intention"
+              variants={stepVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              className="absolute inset-0 w-full h-full"
+            >
+              <StepIntention />
+            </motion.div>
+          )}
+
+          {/* ESTADO FINAL: FORJANDO (THE VOID PROCESSING) */}
+          {state.currentStep === 'FORGING' && (
+            <motion.div
+              key="forging-processing"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="absolute inset-0 w-full h-full z-50 flex flex-col items-center justify-center bg-[#020202] rounded-[3rem] border border-white/5 shadow-2xl"
+            >
+              <div className="relative mb-12">
+                <div className="absolute inset-0 bg-primary/30 blur-4xl animate-pulse rounded-full" />
+                <Loader2 className="h-20 w-20 animate-spin text-primary relative z-10" />
+              </div>
+
+              <div className="text-center space-y-5">
+                <div className="flex items-center justify-center gap-4 text-primary animate-pulse">
+                  <Zap size={20} className="fill-current" />
+                  <h2 className="text-4xl font-black uppercase tracking-[0.5em] text-white italic">
+                    Forjando
+                  </h2>
+                  <Zap size={20} className="fill-current" />
+                </div>
+                <div className="flex flex-col items-center gap-2 opacity-30 select-none">
+                  <div className="flex items-center gap-3">
+                    <Activity size={14} className="text-zinc-500" />
+                    <span className="text-[11px] font-black uppercase tracking-[0.6em] text-white">
+                      Sincronizando Bóveda Urbana
                     </span>
                   </div>
-                </div>
-              )}
-
-              {/* Manejo de Veredictos Negativos */}
-              {status === 'REJECTED' && (
-                <div className="bg-red-500/5 border border-red-500/20 p-8 rounded-[2.5rem] flex gap-6 items-center animate-in zoom-in-95 duration-500">
-                  <div className="h-14 w-14 rounded-2xl bg-red-500/10 flex items-center justify-center shrink-0 border border-red-500/20 shadow-inner">
-                    <AlertTriangle className="h-8 w-8 text-red-500" />
-                  </div>
-                  <div className="space-y-1">
-                    <span className="font-black uppercase block text-[10px] tracking-[0.4em] text-red-500/60">Fallo de Integridad</span>
-                    <p className="text-zinc-300 text-sm leading-relaxed font-medium italic">"{data?.rejectionReason}"</p>
-                  </div>
-                </div>
-              )}
-
-              <div className="relative group">
-                <div className="absolute -top-3.5 left-10 px-6 bg-[#020202] text-[10px] font-black text-primary tracking-[0.5em] uppercase z-10 border border-white/10 rounded-full shadow-2xl">
-                  Semilla Narrativa
-                </div>
-                <Textarea
-                  placeholder="Describe el secreto que oculta este lugar..."
-                  className="bg-white/[0.02] border-white/5 min-h-[240px] rounded-[3.5rem] p-12 text-lg text-white focus:border-primary/30 transition-all resize-none shadow-inner placeholder:text-zinc-800"
-                  value={intentText}
-                  disabled={status === 'SCANNING'}
-                  onChange={(event) => setIntentText(event.target.value)}
-                />
-              </div>
-
-              <div className="space-y-8">
-                <Button
-                  disabled={intentText.trim().length < 10 || status === 'SCANNING'}
-                  onClick={() => submitIntent(intentText)}
-                  className="w-full h-20 rounded-[2rem] bg-primary text-white font-black text-xl tracking-[0.4em] shadow-2xl shadow-primary/20 hover:brightness-110 active:scale-[0.98] transition-all group overflow-hidden relative"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-shimmer" />
-                  <span className="relative z-10 flex items-center gap-6">
-                    {status === 'SCANNING' ? (
-                      <>
-                        <RefreshCw className="w-7 h-7 animate-spin text-black" />
-                        <span className="text-black italic">SINTETIZANDO...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Zap size={28} className="fill-current" />
-                        <span>FORJAR CRÓNICA URBANA</span>
-                      </>
-                    )}
-                  </span>
-                </Button>
-
-                <div className="flex items-center justify-center gap-4 opacity-10 group cursor-help transition-opacity hover:opacity-30">
-                  <Activity size={14} className="text-zinc-500" />
-                  <span className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.8em]">Witness, Not Diarist</span>
+                  <p className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest">
+                    Consolidando evidencia en la malla semántica...
+                  </p>
                 </div>
               </div>
-            </motion.div>
-          )}
-
-          {/* ESTADO C: TERMINAL DE GRABACIÓN FINAL (AUDIO FORGE) */}
-          {isSuccessState && (
-            <motion.div
-              key="success_terminal_audio"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="flex-1 flex flex-col pt-6"
-            >
-              <GeoRecorder
-                draftId={data?.draftId}
-                script={data?.script}
-                onUploadComplete={() => {
-                  nicepodLog("🏁 [Scanner] Misión geoespacial completada. Navegando al mapa.");
-                  reset();
-                  setPreviewUrl(null);
-                  setIntentText("");
-                  window.location.href = '/map';
-                }}
-              />
             </motion.div>
           )}
 
         </AnimatePresence>
       </div>
 
-      {/* FOOTER: IDENTITY STATUS */}
+      {/* 
+          III. PIE DE TERMINAL (SISTEMA DE STATUS) 
+          Branding sutil que refuerza la identidad industrial de la Workstation.
+      */}
       <div className="flex-shrink-0 py-8 px-12 border-t border-white/5 opacity-20 select-none">
         <div className="flex justify-between items-center">
-            <div className="flex items-center gap-6">
-                <div className="flex items-center gap-3">
-                    <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-                    <span className="text-[9px] font-black uppercase tracking-[0.4em] text-white">Secure Uplink</span>
-                </div>
-                <div className="h-4 w-px bg-white/10" />
-                <span className="text-[9px] font-bold uppercase tracking-[0.4em] text-zinc-500 italic">NicePod Spatial Hub</span>
+          <div className="flex items-center gap-8">
+            <div className="flex items-center gap-3">
+              <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+              <span className="text-[9px] font-black uppercase tracking-[0.4em] text-white">Uplink Nominal</span>
             </div>
-            <Sparkles size={14} className="text-primary" />
+            <div className="h-4 w-px bg-white/10" />
+            <div className="flex items-center gap-3">
+              <TerminalIcon size={14} className="text-zinc-500" />
+              <span className="text-[9px] font-bold uppercase tracking-[0.4em] text-zinc-500 italic">NicePod Spatial Hub</span>
+            </div>
+          </div>
+          <Sparkles size={14} className="text-primary" />
         </div>
       </div>
 
@@ -407,12 +265,12 @@ export function GeoScannerUI() {
 
 /**
  * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Cumplimiento de Gesto de Usuario: El estado 'IDLE' detiene el acceso automático 
- *    al GPS, eliminando las advertencias de seguridad y preservando la vida 
- *    útil de la batería del dispositivo administrador.
- * 2. Feedback de Bloqueo: Al inyectar 'isLocked', informamos físicamente al Admin 
- *    que el sistema ya ha capturado las coordenadas de siembra, permitiendo 
- *    moverse del sitio sin miedo a desviar la coordenada del POI.
- * 3. Telemetría HUD: Se ha resuelto el error de propiedad 'accuracy' al 
- *    sincronizar los tipos con el componente RadarHUD v2.0.
+ * 1. Desacoplamiento de Lógica: El orquestador ya no conoce los detalles de la cámara o 
+ *    el mapa. Esto permite escalar cada fase de forma independiente sin riesgo 
+ *    de colapsar este archivo central.
+ * 2. Gestión de Estados: La transición a 'SENSORS_READY' tras el click manual es 
+ *    la garantía técnica contra las restricciones de geolocalización de Chrome 2026.
+ * 3. Consistencia Visual: Se ha unificado la tipografía 'font-black uppercase' y el 
+ *    radio de borde masivo [3rem] para que la terminal se sienta como un hardware 
+ *    profesional integrado en NicePod V2.5.
  */
