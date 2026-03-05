@@ -354,6 +354,30 @@ $$;
 ALTER FUNCTION "public"."check_rate_limit"("p_user_id" "uuid", "p_function_name" "text", "p_limit" integer, "p_window_seconds" integer) OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."claim_next_research_topic"() RETURNS TABLE("topic_id" bigint, "topic_text" "text")
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+BEGIN
+  RETURN QUERY
+  UPDATE public.research_backlog
+  SET status = 'researching', -- Marcamos como en proceso
+      updated_at = now()
+  WHERE id = (
+    SELECT id 
+    FROM public.research_backlog 
+    WHERE status = 'pending' 
+    ORDER BY request_count DESC, created_at ASC
+    LIMIT 1
+    FOR UPDATE SKIP LOCKED -- LA CLAVE: Bloquea la fila y salta si otra instancia ya la tiene
+  )
+  RETURNING id, topic;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."claim_next_research_topic"() OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."cleanup_expired_pulse"() RETURNS "void"
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public', 'extensions'
@@ -365,6 +389,84 @@ $$;
 
 
 ALTER FUNCTION "public"."cleanup_expired_pulse"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."create_collection_with_items_v1"("p_owner_id" "uuid", "p_title" "text", "p_description" "text", "p_is_public" boolean, "p_cover_image_url" "text", "p_pod_ids" bigint[]) RETURNS TABLE("new_collection_id" "uuid", "success" boolean, "message" "text")
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'extensions'
+    AS $$
+DECLARE
+    v_collection_id uuid;
+    v_pod_id bigint;
+    v_inserted_count integer := 0;
+BEGIN
+    -- 1. VERIFICACIÓN DE INTEGRIDAD PRIMARIA
+    IF p_title IS NULL OR trim(p_title) = '' THEN
+        RETURN QUERY SELECT NULL::uuid, false, 'ERROR: El título de la colección es obligatorio.'::text;
+        RETURN;
+    END IF;
+
+    IF array_length(p_pod_ids, 1) IS NULL OR array_length(p_pod_ids, 1) = 0 THEN
+        RETURN QUERY SELECT NULL::uuid, false, 'ERROR: Un hilo de sabiduría debe contener al menos un activo.'::text;
+        RETURN;
+    END IF;
+
+    -- 2. CREACIÓN DE LA CABECERA (Entity Creation)
+    -- Si esto falla, la función se detiene y nada se guarda.
+    INSERT INTO public.collections (
+        owner_id, 
+        title, 
+        description, 
+        is_public, 
+        cover_image_url
+    ) VALUES (
+        p_owner_id, 
+        trim(p_title), 
+        trim(p_description), 
+        p_is_public, 
+        p_cover_image_url
+    ) RETURNING id INTO v_collection_id;
+
+    -- 3. INSERCIÓN MASIVA (Bulk Insert Controlado)
+    -- Iteramos sobre el array de podcasts e insertamos las relaciones.
+    FOREACH v_pod_id IN ARRAY p_pod_ids
+    LOOP
+        -- Verificación de existencia del podcast (Previene error de Foreign Key)
+        IF EXISTS (SELECT 1 FROM public.micro_pods WHERE id = v_pod_id) THEN
+            INSERT INTO public.collection_items (
+                collection_id, 
+                pod_id
+            ) VALUES (
+                v_collection_id, 
+                v_pod_id
+            );
+            v_inserted_count := v_inserted_count + 1;
+        ELSE
+            -- Si un podcast no existe, ABORTAMOS TODA LA TRANSACCIÓN
+            -- Esto borrará automáticamente la cabecera creada en el Paso 2
+            RAISE EXCEPTION 'INTEGRIDAD_COMPROMETIDA: El activo #% no existe en la Bóveda.', v_pod_id;
+        END IF;
+    END LOOP;
+
+    -- 4. VALIDACIÓN FINAL DE IMPACTO
+    IF v_inserted_count = 0 THEN
+        RAISE EXCEPTION 'FALLO_ATÓMICO: Ningún activo pudo ser vinculado.';
+    END IF;
+
+    -- 5. CONFIRMACIÓN DE ÉXITO (Commit Implícito)
+    RETURN QUERY SELECT v_collection_id, true, 'Hilo de sabiduría materializado con éxito.'::text;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        -- Si cualquier RAISE EXCEPTION o error nativo de PostgreSQL ocurre, 
+        -- el flujo cae aquí. PostgreSQL ya hizo el Rollback de todo.
+        -- Devolvemos el error limpiamente al servidor Next.js.
+        RETURN QUERY SELECT NULL::uuid, false, SQLERRM::text;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."create_collection_with_items_v1"("p_owner_id" "uuid", "p_title" "text", "p_description" "text", "p_is_public" boolean, "p_cover_image_url" "text", "p_pod_ids" bigint[]) OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."create_profile_and_free_subscription"() RETURNS "trigger"
@@ -1651,6 +1753,236 @@ $$;
 ALTER FUNCTION "public"."trigger_resonance_recalculation"() OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."unified_search_v3"("p_query_text" "text", "p_query_embedding" "extensions"."vector", "p_match_threshold" double precision DEFAULT 0.25, "p_match_count" integer DEFAULT 15, "p_user_lat" double precision DEFAULT NULL::double precision, "p_user_lng" double precision DEFAULT NULL::double precision) RETURNS TABLE("result_type" "text", "id" "text", "title" "text", "subtitle" "text", "image_url" "text", "similarity" double precision, "geo_distance" double precision, "metadata" "jsonb")
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'extensions'
+    AS $$
+BEGIN
+    RETURN QUERY
+    WITH 
+    -- 1. BÚSQUEDA DE PODCASTS (Vectores + Geo)
+    podcast_results AS (
+        SELECT 
+            'podcast'::text as r_type,
+            mp.id::text as r_id,
+            mp.title as r_title,
+            prof.full_name as r_subtitle,
+            mp.cover_image_url as r_image_url,
+            (1 - (pe.embedding <=> p_query_embedding))::float as r_similarity,
+            CASE 
+                WHEN p_user_lat IS NOT NULL AND mp.geo_location IS NOT NULL 
+                THEN ST_Distance(mp.geo_location, ST_SetSRID(ST_MakePoint(p_user_lng, p_user_lat), 4326)::geography)
+                ELSE NULL 
+            END as r_distance,
+            jsonb_build_object(
+                'author_username', prof.username,
+                'duration', mp.duration_seconds,
+                'mode', mp.creation_mode
+            ) as r_metadata
+        FROM public.micro_pods mp
+        JOIN public.podcast_embeddings pe ON mp.id = pe.podcast_id
+        JOIN public.profiles prof ON mp.user_id = prof.id
+        WHERE mp.status = 'published'
+        AND (1 - (pe.embedding <=> p_query_embedding)) > p_match_threshold
+    ),
+    
+    -- 2. BÚSQUEDA DE CURADORES (Texto Léxico)
+    user_results AS (
+        SELECT 
+            'user'::text as r_type,
+            p.id::text as r_id,
+            p.full_name as r_title,
+            '@' || p.username as r_subtitle,
+            p.avatar_url as r_image_url,
+            0.9::float as r_similarity, -- Puntuación estática alta por coincidencia de nombre
+            NULL::float as r_distance,
+            jsonb_build_object('reputation', p.reputation_score) as r_metadata
+        FROM public.profiles p
+        WHERE p.username ILIKE '%' || p_query_text || '%'
+           OR p.full_name ILIKE '%' || p_query_text || '%'
+    ),
+
+    -- 3. BÚSQUEDA EN EL KNOWLEDGE VAULT (NKV - Hechos Atómicos)
+    vault_results AS (
+        SELECT 
+            'vault_chunk'::text as r_type,
+            kc.id::text as r_id,
+            ks.title as r_title,
+            substring(kc.content from 1 for 100) || '...' as r_subtitle,
+            NULL::text as r_image_url,
+            (1 - (kc.embedding <=> p_query_embedding))::float as r_similarity,
+            NULL::float as r_distance,
+            jsonb_build_object('source_url', ks.url) as r_metadata
+        FROM public.knowledge_chunks kc
+        JOIN public.knowledge_sources ks ON kc.source_id = ks.id
+        WHERE (1 - (kc.embedding <=> p_query_embedding)) > p_match_threshold + 0.1 -- Mayor rigor para la Bóveda
+    )
+
+    -- UNIFICACIÓN Y RANKING
+    SELECT * FROM (
+        SELECT * FROM podcast_results
+        UNION ALL
+        SELECT * FROM user_results
+        UNION ALL
+        SELECT * FROM vault_results
+    ) AS combined
+    ORDER BY 
+        -- Ponderación: Semántica (80%) + Proximidad Geo (20% si existe)
+        (r_similarity * 0.8) + (CASE WHEN r_distance IS NOT NULL THEN (1 / (r_distance + 1)) * 0.2 ELSE 0 END) DESC
+    LIMIT p_match_count;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."unified_search_v3"("p_query_text" "text", "p_query_embedding" "extensions"."vector", "p_match_threshold" double precision, "p_match_count" integer, "p_user_lat" double precision, "p_user_lng" double precision) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."unified_search_v4"("p_query_text" "text", "p_query_embedding" "extensions"."vector", "p_match_threshold" double precision DEFAULT 0.15, "p_match_count" integer DEFAULT 20, "p_user_lat" double precision DEFAULT NULL::double precision, "p_user_lng" double precision DEFAULT NULL::double precision) RETURNS TABLE("result_type" "text", "id" "text", "title" "text", "subtitle" "text", "image_url" "text", "similarity" double precision, "geo_distance" double precision, "metadata" "jsonb")
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'extensions'
+    AS $$
+BEGIN
+    RETURN QUERY
+    WITH all_results AS (
+        
+        -- ==========================================
+        -- CAPA 1: IMPACTOS SONOROS (PODCASTS)
+        -- Búsqueda puramente vectorial usando el índice HNSW
+        -- ==========================================
+        SELECT 
+            'podcast'::text AS r_type, 
+            mp.id::text AS r_id, 
+            mp.title AS r_title, 
+            prof.full_name AS r_subtitle, 
+            mp.cover_image_url AS r_image_url, 
+            (1 - (pe.embedding <=> p_query_embedding))::float AS r_similarity,
+            
+            -- Cálculo de distancia si el usuario y el podcast tienen coordenadas
+            CASE 
+                WHEN p_user_lat IS NOT NULL AND mp.geo_location IS NOT NULL 
+                THEN ST_Distance(mp.geo_location, ST_SetSRID(ST_MakePoint(p_user_lng, p_user_lat), 4326)::geography) 
+                ELSE NULL 
+            END AS r_distance,
+            
+            -- Metadatos adicionales para la UI
+            jsonb_build_object(
+                'author', prof.username,
+                'mode', mp.creation_mode,
+                'lat', ST_Y(mp.geo_location::geometry),
+                'lng', ST_X(mp.geo_location::geometry)
+            ) AS r_metadata
+            
+        FROM public.micro_pods mp 
+        JOIN public.podcast_embeddings pe ON mp.id = pe.podcast_id
+        JOIN public.profiles prof ON mp.user_id = prof.id
+        
+        -- [FIX CRÍTICO]: Permite encontrar podcasts recién forjados que aún no son públicos.
+        WHERE mp.status IN ('published', 'pending_approval') 
+        AND (1 - (pe.embedding <=> p_query_embedding)) > p_match_threshold
+
+        UNION ALL
+
+        -- ==========================================
+        -- CAPA 2: CURADORES SOBERANOS (USUARIOS)
+        -- Búsqueda léxica (Fuzzy Text Search)
+        -- ==========================================
+        SELECT 
+            'user'::text AS r_type, 
+            p.id::text AS r_id, 
+            p.full_name AS r_title, 
+            '@' || p.username AS r_subtitle, 
+            p.avatar_url AS r_image_url, 
+            
+            -- Puntuación estática alta si hay coincidencia de nombre
+            0.95::float AS r_similarity, 
+            NULL::float AS r_distance, 
+            
+            jsonb_build_object('reputation', p.reputation_score) AS r_metadata
+            
+        FROM public.profiles p
+        WHERE p.username ILIKE '%' || p_query_text || '%' 
+           OR p.full_name ILIKE '%' || p_query_text || '%'
+
+        UNION ALL
+
+        -- ==========================================
+        -- CAPA 3: PUNTOS DE INTERÉS Y MEMORIAS (LUGARES)
+        -- Búsqueda léxica con telemetría geoespacial
+        -- ==========================================
+        SELECT 
+            'place'::text AS r_type, 
+            poi.id::text AS r_id, 
+            poi.name AS r_title, 
+            poi.category AS r_subtitle, 
+            NULL::text AS r_image_url, 
+            
+            -- Priorizamos si la coincidencia es en el nombre exacto
+            (CASE WHEN poi.name ILIKE '%' || p_query_text || '%' THEN 0.85 ELSE 0.60 END)::float AS r_similarity,
+            
+            CASE 
+                WHEN p_user_lat IS NOT NULL AND poi.geo_location IS NOT NULL
+                THEN ST_Distance(poi.geo_location, ST_SetSRID(ST_MakePoint(p_user_lng, p_user_lat), 4326)::geography) 
+                ELSE NULL 
+            END AS r_distance,
+            
+            jsonb_build_object(
+                'category', poi.category,
+                'lat', ST_Y(poi.geo_location::geometry),
+                'lng', ST_X(poi.geo_location::geometry)
+            ) AS r_metadata
+            
+        FROM public.points_of_interest poi
+        WHERE poi.name ILIKE '%' || p_query_text || '%' 
+           OR poi.category ILIKE '%' || p_query_text || '%'
+
+        UNION ALL
+
+        -- ==========================================
+        -- CAPA 4: BÓVEDA DE CONOCIMIENTO (NKV CHUNKS)
+        -- Búsqueda vectorial de alta exigencia
+        -- ==========================================
+        SELECT 
+            'vault_chunk'::text AS r_type, 
+            kc.id::text AS r_id, 
+            ks.title AS r_title, 
+            substring(kc.content from 1 for 120) || '...' AS r_subtitle, 
+            NULL::text AS r_image_url, 
+            
+            (1 - (kc.embedding <=> p_query_embedding))::float AS r_similarity, 
+            NULL::float AS r_distance, 
+            
+            jsonb_build_object('source_url', ks.url) AS r_metadata
+            
+        FROM public.knowledge_chunks kc
+        JOIN public.knowledge_sources ks ON kc.source_id = ks.id
+        
+        -- Exigimos un match semántico más alto para los datos crudos para evitar ruido.
+        WHERE (1 - (kc.embedding <=> p_query_embedding)) > p_match_threshold + 0.1 
+    )
+    
+    -- ==========================================
+    -- MOTOR DE RANKING Y PONDERACIÓN FINAL
+    -- ==========================================
+    SELECT * FROM all_results 
+    ORDER BY 
+        -- Fórmula de Relevancia Híbrida:
+        -- 1. Si no hay distancia (ej. web), la similitud dicta la posición.
+        -- 2. Si hay distancia (ej. móvil en Madrid), sumamos puntos si el eco está cerca (< 5km).
+        (similarity * 0.8) + (
+            CASE 
+                WHEN geo_distance IS NOT NULL AND geo_distance < 5000 
+                THEN (1.0 / (geo_distance + 1)) * 0.2 
+                ELSE 0 
+            END
+        ) DESC
+    LIMIT p_match_count;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."unified_search_v4"("p_query_text" "text", "p_query_embedding" "extensions"."vector", "p_match_threshold" double precision, "p_match_count" integer, "p_user_lat" double precision, "p_user_lng" double precision) OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."update_curator_reputation"() RETURNS "trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public', 'extensions'
@@ -2239,11 +2571,38 @@ CREATE TABLE IF NOT EXISTS "public"."points_of_interest" (
     "reference_podcast_id" bigint,
     "metadata" "jsonb" DEFAULT '{}'::"jsonb",
     "created_at" timestamp with time zone DEFAULT "now"(),
-    "updated_at" timestamp with time zone DEFAULT "now"()
+    "updated_at" timestamp with time zone DEFAULT "now"(),
+    "gallery_urls" "jsonb" DEFAULT '[]'::"jsonb",
+    "rich_description" "text",
+    "historical_fact" "text",
+    "is_published" boolean DEFAULT false,
+    "importance_score" integer DEFAULT 1,
+    "entrance_radius_meters" integer DEFAULT 30,
+    "embedding" "extensions"."vector"(768),
+    "ambient_audio_url" "text",
+    "evidence_data" "jsonb" DEFAULT '{}'::"jsonb",
+    "category_id" character varying(50),
+    "resonance_radius" integer DEFAULT 30
 );
 
 
 ALTER TABLE "public"."points_of_interest" OWNER TO "postgres";
+
+
+COMMENT ON COLUMN "public"."points_of_interest"."gallery_urls" IS 'Almacena un array de strings con las rutas de Storage para la galería de la página de detalle.';
+
+
+
+COMMENT ON COLUMN "public"."points_of_interest"."entrance_radius_meters" IS 'Define a qué distancia el hook use-geo-engine disparará la notificación de proximidad.';
+
+
+
+COMMENT ON COLUMN "public"."points_of_interest"."ambient_audio_url" IS 'Audio físico capturado in situ para mezcla inmersiva en el Stitcher.';
+
+
+
+COMMENT ON COLUMN "public"."points_of_interest"."resonance_radius" IS 'Radio en metros para activar la vibración de sintonía en el dispositivo del Voyager.';
+
 
 
 ALTER TABLE "public"."points_of_interest" ALTER COLUMN "id" ADD GENERATED BY DEFAULT AS IDENTITY (
@@ -2433,6 +2792,27 @@ CREATE TABLE IF NOT EXISTS "public"."user_usage" (
 
 
 ALTER TABLE "public"."user_usage" OWNER TO "postgres";
+
+
+CREATE OR REPLACE VIEW "public"."vw_map_resonance_active" AS
+ SELECT "id",
+    "name",
+    (COALESCE("category_id", ("category")::character varying))::"text" AS "category",
+    "geo_location",
+    "importance_score",
+    "reference_podcast_id",
+    "historical_fact",
+    "gallery_urls",
+    "resonance_radius" AS "entrance_radius_meters"
+   FROM "public"."points_of_interest"
+  WHERE ("is_published" = true);
+
+
+ALTER VIEW "public"."vw_map_resonance_active" OWNER TO "postgres";
+
+
+COMMENT ON VIEW "public"."vw_map_resonance_active" IS 'Vista optimizada para el renderizado de PINS y cálculo de proximidad en el cliente.';
+
 
 
 ALTER TABLE ONLY "public"."platform_limits" ALTER COLUMN "id" SET DEFAULT "nextval"('"public"."platform_limits_id_seq"'::"regclass");
@@ -2722,6 +3102,14 @@ CREATE INDEX "idx_podcast_embeddings_hnsw" ON "public"."podcast_embeddings" USIN
 
 
 
+CREATE INDEX "idx_poi_embedding" ON "public"."points_of_interest" USING "hnsw" ("embedding" "extensions"."vector_cosine_ops");
+
+
+
+CREATE INDEX "idx_poi_geo_location" ON "public"."points_of_interest" USING "gist" ("geo_location");
+
+
+
 CREATE UNIQUE INDEX "idx_profiles_username_btree" ON "public"."profiles" USING "btree" ("username");
 
 
@@ -2838,6 +3226,10 @@ CREATE OR REPLACE TRIGGER "tr_on_segment_uploaded" AFTER INSERT OR UPDATE ON "pu
 
 
 
+CREATE OR REPLACE TRIGGER "tr_poi_handle_updated_at" BEFORE UPDATE ON "public"."points_of_interest" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
 CREATE OR REPLACE TRIGGER "tr_update_dna_timestamp" BEFORE UPDATE ON "public"."user_interest_dna" FOR EACH ROW EXECUTE FUNCTION "public"."update_dna_timestamp"();
 
 
@@ -2874,6 +3266,11 @@ ALTER TABLE ONLY "public"."collection_items"
 
 ALTER TABLE ONLY "public"."collections"
     ADD CONSTRAINT "collections_owner_id_fkey" FOREIGN KEY ("owner_id") REFERENCES "public"."profiles"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."points_of_interest"
+    ADD CONSTRAINT "fk_poi_reference_podcast" FOREIGN KEY ("reference_podcast_id") REFERENCES "public"."micro_pods"("id") ON DELETE SET NULL;
 
 
 
@@ -3354,6 +3751,10 @@ ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."podcast_creation_
 
 
 ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."podcast_drafts";
+
+
+
+ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."podcast_embeddings";
 
 
 
@@ -6122,10 +6523,22 @@ GRANT ALL ON FUNCTION "public"."check_rate_limit"("p_user_id" "uuid", "p_functio
 
 
 
+GRANT ALL ON FUNCTION "public"."claim_next_research_topic"() TO "anon";
+GRANT ALL ON FUNCTION "public"."claim_next_research_topic"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."claim_next_research_topic"() TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."cleanup_expired_pulse"() TO "anon";
 GRANT ALL ON FUNCTION "public"."cleanup_expired_pulse"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."cleanup_expired_pulse"() TO "service_role";
 GRANT ALL ON FUNCTION "public"."cleanup_expired_pulse"() TO "supabase_functions_admin";
+
+
+
+GRANT ALL ON FUNCTION "public"."create_collection_with_items_v1"("p_owner_id" "uuid", "p_title" "text", "p_description" "text", "p_is_public" boolean, "p_cover_image_url" "text", "p_pod_ids" bigint[]) TO "anon";
+GRANT ALL ON FUNCTION "public"."create_collection_with_items_v1"("p_owner_id" "uuid", "p_title" "text", "p_description" "text", "p_is_public" boolean, "p_cover_image_url" "text", "p_pod_ids" bigint[]) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."create_collection_with_items_v1"("p_owner_id" "uuid", "p_title" "text", "p_description" "text", "p_is_public" boolean, "p_cover_image_url" "text", "p_pod_ids" bigint[]) TO "service_role";
 
 
 
@@ -6400,6 +6813,12 @@ GRANT ALL ON FUNCTION "public"."trigger_resonance_recalculation"() TO "anon";
 GRANT ALL ON FUNCTION "public"."trigger_resonance_recalculation"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."trigger_resonance_recalculation"() TO "service_role";
 GRANT ALL ON FUNCTION "public"."trigger_resonance_recalculation"() TO "supabase_functions_admin";
+
+
+
+
+
+
 
 
 
@@ -6806,6 +7225,12 @@ GRANT ALL ON TABLE "public"."user_resonance_profiles" TO "service_role";
 GRANT ALL ON TABLE "public"."user_usage" TO "anon";
 GRANT ALL ON TABLE "public"."user_usage" TO "authenticated";
 GRANT ALL ON TABLE "public"."user_usage" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."vw_map_resonance_active" TO "anon";
+GRANT ALL ON TABLE "public"."vw_map_resonance_active" TO "authenticated";
+GRANT ALL ON TABLE "public"."vw_map_resonance_active" TO "service_role";
 
 
 
