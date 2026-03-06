@@ -1,16 +1,16 @@
 // hooks/use-search-radar.ts
-// VERSIÓN: 3.5
+// VERSIÓN: 4.0 (NicePod Search Intelligence - Stability & Hydration Master)
+// Misión: Núcleo reactivo del descubrimiento con discriminación de estado nulo.
+// [ESTABILIZACIÓN]: Cambio de inicialización de resultados de [] a null para evitar colapsos de hidratación.
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { searchGlobalIntelligence, SearchActionResponse } from "@/actions/search-actions";
+import { SearchActionResponse, searchGlobalIntelligence } from "@/actions/search-actions";
+import { useCallback, useEffect, useState } from "react";
 
 /**
  * TIPO: SearchResult
- * Define la estructura unificada de los nodos semánticos que devuelve el RPC.
- * Garantiza que la interfaz pueda identificar si es un podcast, un usuario, un 
- * hecho atómico o un lugar físico (Madrid Resonance).
+ * Define la estructura unificada de los nodos semánticos (Podcasts, Usuarios, Bóveda, Lugares).
  */
 export type SearchResult = {
   result_type: 'podcast' | 'user' | 'vault_chunk' | 'place';
@@ -34,7 +34,6 @@ export type SearchResult = {
 
 /**
  * INTERFAZ: UseSearchRadarOptions
- * Configura los parámetros de entrada del radar según el contexto donde se invoque.
  */
 interface UseSearchRadarOptions {
   limit?: number;
@@ -44,42 +43,44 @@ interface UseSearchRadarOptions {
 
 /**
  * HOOK: useSearchRadar
- * El núcleo reactivo del descubrimiento en NicePod V2.5.
- * 
- * [CARACTERÍSTICAS V3.5]:
- * 1. Disparo Manual: No hay auto-search; protege la cuota de la API.
- * 2. Persistencia V4: Soporta y purga el historial de búsquedas.
- * 3. Auto-Saneamiento: La función clearRadar purga el input para evitar estados zombis.
+ * Orquestador de la búsqueda semántica y la persistencia de memoria local.
  */
 export function useSearchRadar(options: UseSearchRadarOptions = {}) {
-  const { 
-    limit = 30, 
-    latitude, 
-    longitude 
+  const {
+    limit = 30,
+    latitude,
+    longitude
   } = options;
 
   // --- ESTADOS DE LA CONSOLA ---
   const [query, setQuery] = useState<string>("");
-  const [results, setResults] = useState<SearchResult[]>([]);
+
+  /**
+   * [FIX CRÍTICO V4.0]: results se inicializa en null.
+   * - null: El radar está apagado (Estado inicial/Reposo).
+   * - []: El radar se activó pero no detectó resonancia (Frecuencia no detectada).
+   * - [data]: El radar detectó nodos semánticos activos.
+   */
+  const [results, setResults] = useState<SearchResult[] | null>(null);
+
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // --- ESTADO DE LA MEMORIA (HISTORIAL) ---
   const [history, setHistory] = useState<string[]>([]);
 
   /**
    * PROTOCOLO INICIAL: loadRadarHistory
-   * Recupera el historial confirmado desde el almacenamiento local del dispositivo.
+   * Carga el historial de búsqueda desde el almacenamiento local persistente.
    */
   useEffect(() => {
     const savedHistory = localStorage.getItem("nicepod_radar_history_v4");
     if (savedHistory) {
       try {
         const parsed = JSON.parse(savedHistory);
-        // Restringimos a 6 elementos para evitar que el dropdown sature la pantalla móvil.
         setHistory(Array.isArray(parsed) ? parsed.slice(0, 6) : []);
       } catch (err) {
-        console.warn("⚠️ [SearchRadar] Historial local corrupto. Purgando sector de memoria.");
+        console.warn("⚠️ [SearchRadar] Historial local corrupto. Ejecutando purga de sector.");
         localStorage.removeItem("nicepod_radar_history_v4");
       }
     }
@@ -87,14 +88,13 @@ export function useSearchRadar(options: UseSearchRadarOptions = {}) {
 
   /**
    * ACCIÓN: saveToHistory
-   * Registra una búsqueda exitosa, asegurando que sea única y prioritaria.
+   * Persiste términos de búsqueda validados en el dispositivo.
    */
   const saveToHistory = useCallback((term: string) => {
     const cleanTerm = term.trim();
     if (cleanTerm.length < 3) return;
 
     setHistory((prev) => {
-      // Filtramos cualquier duplicado existente antes de insertarlo al principio.
       const filtered = prev.filter((item) => item.toLowerCase() !== cleanTerm.toLowerCase());
       const newHistory = [cleanTerm, ...filtered].slice(0, 6);
       localStorage.setItem("nicepod_radar_history_v4", JSON.stringify(newHistory));
@@ -104,14 +104,13 @@ export function useSearchRadar(options: UseSearchRadarOptions = {}) {
 
   /**
    * ACCIÓN CORE: performSearch
-   * Invoca el motor de inteligencia en el Edge (Deno) mediante el Server Action.
+   * Disparo físico del radar hacia la base de datos vectorial (pgvector).
    */
   const performSearch = useCallback(async (searchTerm: string) => {
     const target = searchTerm.trim();
-    
-    // Barrera 1: No procesar intenciones vacías o demasiado cortas.
+
     if (target.length < 3) {
-      setError("Se requieren al menos 3 caracteres para iniciar el radar.");
+      setError("Se requieren al menos 3 caracteres para activar el radar.");
       return;
     }
 
@@ -119,8 +118,7 @@ export function useSearchRadar(options: UseSearchRadarOptions = {}) {
     setError(null);
 
     try {
-      console.info(`🔍 [SearchRadar] Ejecutando pulso para intención: "${target}"`);
-
+      // Invocación al Server Action (Soberanía del Dato)
       const response: SearchActionResponse<SearchResult[]> = await searchGlobalIntelligence(
         target,
         latitude,
@@ -129,17 +127,20 @@ export function useSearchRadar(options: UseSearchRadarOptions = {}) {
       );
 
       if (response.success) {
+        /**
+         * [LOGICA DE RESILIENCIA]:
+         * Si no hay resultados, inyectamos un array vacío [].
+         * Esto dispara la interfaz de 'Sin Resonancia' en el cliente.
+         */
         setResults(response.results || []);
-        
-        // Si el motor devuelve éxito, consideramos la búsqueda válida para el historial.
         saveToHistory(target);
       } else {
-        setError(response.message || "Fallo en la estabilización de la señal de radar.");
-        setResults([]);
+        setError(response.message || "Fallo en la estabilización de la señal.");
+        setResults([]); // Tratamos el error de señal como ausencia de resultados
       }
     } catch (err: any) {
       console.error("🔥 [SearchRadar-Fatal]:", err.message);
-      setError("Error crítico de red. La Bóveda no responde.");
+      setError("Error crítico de infraestructura.");
       setResults([]);
     } finally {
       setIsLoading(false);
@@ -148,20 +149,17 @@ export function useSearchRadar(options: UseSearchRadarOptions = {}) {
 
   /**
    * ACCIÓN DE SANEAMIENTO: clearRadar
-   * Purga absoluta de la sesión de búsqueda actual.
-   * [UX]: Vital para asegurar que la próxima vez que el usuario abra la lupa,
-   * encuentre un lienzo en blanco (Historial) y no su búsqueda anterior a medias.
+   * Retorna el radar al estado de nulidad absoluta (Fase de Reposo).
    */
   const clearRadar = useCallback(() => {
     setQuery("");
-    setResults([]);
+    setResults(null); // [FIX]: Reset a null para que la UI recupere la biblioteca.
     setError(null);
     setIsLoading(false);
   }, []);
 
   /**
    * ACCIÓN DE CURADURÍA: removeTermFromHistory
-   * Permite al usuario borrar elementos específicos de su memoria de búsqueda.
    */
   const removeTermFromHistory = useCallback((term: string) => {
     setHistory((prev) => {
@@ -172,13 +170,11 @@ export function useSearchRadar(options: UseSearchRadarOptions = {}) {
   }, []);
 
   return {
-    // Estados Reactivos
     query,
     results,
     isLoading,
     error,
     history,
-    // Acciones de Control
     setQuery,
     performSearch,
     clearRadar,
@@ -188,11 +184,12 @@ export function useSearchRadar(options: UseSearchRadarOptions = {}) {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Independencia Total: Al eliminar el Debounce (temporizador automático), 
- *    el hook se vuelve predecible. La función performSearch solo corre cuando 
- *    la interfaz se lo ordena explícitamente (Enter / Click).
- * 2. Limpieza Garantizada: La función clearRadar garantiza que el estado de
- *    la consola 'The Void' se resetee, ofreciendo una experiencia inmaculada
- *    cada vez que el usuario acciona el trigger.
+ * NOTA TÉCNICA DEL ARCHITECT (Refinería V4.0):
+ * 1. Estabilidad de Pestañas: El cambio de [] a null en 'results' es lo que evita 
+ *    que 'LibraryTabs' desmonte el componente 'TabsList' durante el montaje inicial, 
+ *    eliminando el error de Radix UI.
+ * 2. Predictibilidad: El radar ahora tiene tres estados claros: Invisible (null), 
+ *    Buscando (isLoading) y Resultado (Array).
+ * 3. Protección de Memoria: El historial se limita estrictamente en cada inserción
+ *    para evitar el desbordamiento del localStorage.
  */

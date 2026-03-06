@@ -1,30 +1,35 @@
 // components/ui/unified-search-bar.tsx
-// VERSIÓN: 4.0
+// VERSIÓN: 4.5 (NicePod Void Search - Hydration Shield Edition)
+// Misión: Terminal de inmersión total con protección de estado síncrono.
+// [ESTABILIZACIÓN]: Blindaje de callbacks para evitar rupturas de contexto en Radix UI.
 
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom"; // <--- INYECCIÓN CRÍTICA
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 // --- INFRAESTRUCTURA DE ICONOGRAFÍA ---
-import { 
-  Search, X, Command, History, ArrowUpRight, Zap, Loader2, Mic2,
-  User as UserIcon, MapPin, TrendingUp, PlayCircle, Clock, Navigation,
-  BookOpen, ChevronRight
+import {
+  BookOpen, ChevronRight,
+  Command, History,
+  Mic2,
+  Search,
+  User as UserIcon,
+  X,
+  Zap
 } from "lucide-react";
 
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { SearchResult, useSearchRadar } from "@/hooks/use-search-radar";
 import { cn } from "@/lib/utils";
-import { useSearchRadar, SearchResult } from "@/hooks/use-search-radar";
 
 export interface UnifiedSearchBarProps {
   placeholder?: string;
-  onResults?: (results: SearchResult[]) => void;
+  onResults?: (results: SearchResult[] | null) => void; // [FIX]: Soporte para estado nulo
   onLoading?: (isLoading: boolean) => void;
   onClear?: () => void;
   latitude?: number;
@@ -43,9 +48,9 @@ export function UnifiedSearchBar({
   variant = 'default',
   className
 }: UnifiedSearchBarProps) {
-  
+
   const [isOpen, setIsOpen] = useState<boolean>(false);
-  const [mounted, setMounted] = useState(false); // <--- Control de Hidratación para Portales
+  const [mounted, setMounted] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const {
@@ -59,20 +64,32 @@ export function UnifiedSearchBar({
     removeTermFromHistory
   } = useSearchRadar({ latitude, longitude, limit: 30 });
 
-  // Aseguramos que createPortal solo corra en el cliente
+  // 1. PROTOCOLO DE MONTAJE: Garantiza que el portal no se intente renderizar en SSR.
   useEffect(() => {
     setMounted(true);
-  },[]);
+  }, []);
 
+  /**
+   * [FIX CRÍTICO V4.5]: Notificación de Resultados.
+   * Solo notificamos al padre si el componente está montado para evitar 
+   * el desajuste de hidratación que rompe Radix Tabs.
+   */
   useEffect(() => {
-    if (onResults) onResults(results);
-  }, [results, onResults]);
+    if (mounted && onResults) {
+      onResults(results);
+    }
+  }, [results, onResults, mounted]);
 
+  /**
+   * [FIX CRÍTICO V4.5]: Notificación de Carga.
+   */
   useEffect(() => {
-    if (onLoading) onLoading(isLoading);
-  }, [isLoading, onLoading]);
+    if (mounted && onLoading) {
+      onLoading(isLoading);
+    }
+  }, [isLoading, onLoading, mounted]);
 
-  // SCROLL LOCK: Previene que el mapa se mueva de fondo
+  // 2. GOBERNANZA DE SCROLL: Bloquea el body para inmersión total en el "Void".
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
@@ -107,40 +124,39 @@ export function UnifiedSearchBar({
     }
   };
 
+  // 3. COMANDOS SOBERANOS (Cmd+K)
   useEffect(() => {
     const handleGlobalKeys = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
         setIsOpen(true);
       }
-      if (e.key === "Escape" && isOpen) handleToggle();
     };
     window.addEventListener("keydown", handleGlobalKeys);
     return () => window.removeEventListener("keydown", handleGlobalKeys);
-  },[isOpen, handleToggle]);
+  }, []);
 
-  // ---------------------------------------------------------------------------
-  // NÚCLEO DE RENDERIZADO: EL PORTAL DE REACT (The Void Search)
-  // Este bloque renderiza la consola en el <body>, no dentro del Dashboard.
-  // ---------------------------------------------------------------------------
+  /**
+   * RENDERIZADO POR PORTAL: "The Void Search"
+   * Se inyecta directamente en el body para evitar conflictos de z-index con Mapbox.
+   */
   const searchPortal = mounted && isOpen ? createPortal(
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        transition={{ duration: 0.3 }}
-        //[FIX ABSOLUTO]: Fondo negro opaco al 100% (bg-black) para aniquilar el sangrado visual.
-        className="fixed inset-0 z-[9999] bg-black backdrop-blur-3xl flex flex-col selection:bg-primary/30"
+        transition={{ duration: 0.2 }}
+        className="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-3xl flex flex-col selection:bg-primary/30"
       >
-        {/* CABECERA MAESTRA (Alineada al tope para evitar colisión con el teclado) */}
+        {/* CABECERA DEL PORTAL */}
         <div className="w-full flex items-center justify-between gap-4 p-4 md:p-8 bg-zinc-950/50 border-b border-white/5">
           <div className="relative flex-1 max-w-4xl mx-auto flex items-center">
             <Search className={cn(
               "absolute left-4 h-5 w-5 transition-all z-10",
               isLoading ? "text-primary animate-spin" : "text-zinc-500"
             )} />
-            
+
             <Input
               autoFocus
               ref={inputRef}
@@ -148,62 +164,56 @@ export function UnifiedSearchBar({
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={placeholder}
-              // [REFINAMIENTO UX]: Fondo oscuro sólido, sin bordes raros, texto claro.
-              className="w-full h-14 pl-12 pr-12 bg-zinc-900 border-none rounded-xl text-lg md:text-2xl font-black text-white placeholder:text-zinc-600 focus-visible:ring-1 focus-visible:ring-primary/50"
+              className="w-full h-14 pl-12 pr-12 bg-zinc-900 border-none rounded-xl text-lg md:text-2xl font-black text-white placeholder:text-zinc-700 focus-visible:ring-1 focus-visible:ring-primary/50"
             />
           </div>
-          
-          <Button 
-            variant="ghost" 
+
+          <Button
+            variant="ghost"
             onClick={handleToggle}
-            className="h-14 w-14 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 text-white transition-all shrink-0"
+            className="h-14 w-14 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 text-white shrink-0"
           >
             <X size={24} />
           </Button>
         </div>
 
-        {/* CUERPO DEL PORTAL */}
+        {/* CUERPO DEL PORTAL (Resultados / Historial) */}
         <div className="flex-1 w-full max-w-4xl mx-auto overflow-y-auto px-4 py-6">
           <AnimatePresence mode="wait">
             {query.length === 0 ? (
-              /* --- HISTORIAL --- */
               <motion.div key="history" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-                <div className="flex items-center gap-2 mb-6 opacity-50">
+                <div className="flex items-center gap-2 mb-6 opacity-40">
                   <History size={14} className="text-primary" />
-                  <h3 className="text-[10px] font-black uppercase tracking-widest text-white">Exploraciones Recientes</h3>
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-white">Frecuencias Recientes</h3>
                 </div>
                 {history.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {history.map((term) => (
-                      <div key={term} className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/5 hover:border-primary/30 transition-all group">
+                      <div key={term} className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/5 hover:border-primary/20 transition-all group">
                         <button
                           onClick={() => { setQuery(term); performSearch(term); }}
-                          className="flex-1 text-left font-bold text-sm text-zinc-300 group-hover:text-white transition-colors"
+                          className="flex-1 text-left font-bold text-sm text-zinc-400 group-hover:text-white transition-colors"
                         >
                           {term}
                         </button>
-                        <button 
-                          onClick={() => removeTermFromHistory(term)}
-                          className="p-2 text-zinc-600 hover:text-red-500 rounded-lg"
-                        >
+                        <button onClick={() => removeTermFromHistory(term)} className="p-2 text-zinc-700 hover:text-red-500 rounded-lg">
                           <X size={14} />
                         </button>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-zinc-600 font-medium italic p-4">Sin registros locales.</p>
+                  <p className="text-[10px] text-zinc-600 font-black uppercase tracking-widest p-4">Sector de memoria vacío.</p>
                 )}
               </motion.div>
             ) : (
-              /* --- RESULTADOS --- */
               <motion.div key="results" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4 pb-32">
-                {results.length > 0 ? (
+                {results && results.length > 0 ? (
                   results.map((hit) => <SearchResultItem key={hit.id} result={hit} onClick={handleToggle} />)
-                ) : !isLoading && (
-                  <div className="flex flex-col items-center justify-center py-20 opacity-20">
+                ) : results !== null && !isLoading && (
+                  <div className="flex flex-col items-center justify-center py-24 opacity-20 text-white">
                     <Zap size={48} className="mb-4 animate-pulse" />
-                    <p className="text-sm font-black uppercase tracking-widest">Sin Resonancia</p>
+                    <p className="text-sm font-black uppercase tracking-[0.5em]">Sin Resonancia</p>
                   </div>
                 )}
               </motion.div>
@@ -215,13 +225,11 @@ export function UnifiedSearchBar({
     document.body
   ) : null;
 
-  // ---------------------------------------------------------------------------
-  // RENDERIZADO DEL DISPARADOR (Lo que se ve en el Dashboard)
-  // ---------------------------------------------------------------------------
+  // 4. RENDERIZADO DEL DISPARADOR (Trigger de Consola)
   return (
-    <div className={className}>
+    <div className={cn("relative z-20", className)}>
       {!isOpen && (
-        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
+        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
           {variant === 'console' ? (
             <Button
               onClick={() => setIsOpen(true)}
@@ -231,57 +239,61 @@ export function UnifiedSearchBar({
               <Search className="h-4 w-4 md:h-5 md:w-5 text-primary group-hover:scale-110 transition-transform" />
             </Button>
           ) : (
-            <div 
+            <div
               onClick={() => setIsOpen(true)}
-              className="flex items-center bg-white/5 border border-white/10 rounded-xl h-10 px-4 cursor-pointer hover:border-primary/30 transition-all"
+              className="flex items-center bg-white/5 border border-white/10 rounded-xl h-12 px-4 cursor-pointer hover:border-primary/30 transition-all backdrop-blur-md"
             >
-              <Search className="h-4 w-4 text-zinc-500 mr-2" />
-              <span className="text-xs text-zinc-500 font-medium">Buscar...</span>
+              <Search className="h-4 w-4 text-zinc-500 mr-3" />
+              <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Activar Radar...</span>
+              <div className="ml-auto hidden md:flex items-center gap-1 opacity-20">
+                <Command size={10} />
+                <span className="text-[10px] font-black">K</span>
+              </div>
             </div>
           )}
         </motion.div>
       )}
-      
-      {/* Inyectamos el portal al DOM global */}
+
+      {/* Portal React inyectado en la raíz del DOM */}
       {searchPortal}
     </div>
   );
 }
 
+/**
+ * SearchResultItem: Nodo individual de la red de inteligencia.
+ */
 function SearchResultItem({ result, onClick }: { result: SearchResult, onClick: () => void }) {
-  const href = 
-    result.result_type === 'podcast' ? `/podcast/${result.id}` : 
-    result.result_type === 'user' ? `/profile/${result.subtitle.replace('@', '')}` :
-    result.result_type === 'place' ? `/map?lat=${result.metadata?.lat}&lng=${result.metadata?.lng}` : '#';
+  const href =
+    result.result_type === 'podcast' ? `/podcast/${result.id}` :
+      result.result_type === 'user' ? `/profile/${result.subtitle.replace('@', '')}` :
+        result.result_type === 'place' ? `/map?lat=${result.metadata?.lat}&lng=${result.metadata?.lng}` : '#';
 
   return (
     <Link href={href} onClick={onClick} className="block group">
-      <div className="p-3 md:p-4 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-primary/40 transition-all flex items-center gap-4">
-        
-        {/* Miniatura Compacta */}
+      <div className="p-4 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-white/5 hover:border-primary/40 transition-all flex items-center gap-4">
         <div className="h-12 w-12 rounded-lg bg-zinc-900 overflow-hidden relative shrink-0 border border-white/10">
           {result.image_url ? (
             <Image src={result.image_url} alt="" fill sizes="48px" className="object-cover" />
           ) : (
-            <div className="h-full w-full flex items-center justify-center bg-primary/10">
-              <BookOpen className="text-primary h-5 w-5 opacity-80" />
+            <div className="h-full w-full flex items-center justify-center bg-primary/5">
+              <BookOpen className="text-primary/40 h-5 w-5" />
             </div>
           )}
         </div>
 
-        {/* Info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             {result.result_type === 'podcast' && <Mic2 size={10} className="text-primary" />}
             {result.result_type === 'user' && <UserIcon size={10} className="text-primary" />}
-            <h4 className="font-bold text-sm text-white truncate group-hover:text-primary transition-colors">
+            <h4 className="font-black text-xs md:text-sm text-white truncate group-hover:text-primary transition-colors uppercase tracking-tight">
               {result.title}
             </h4>
           </div>
-          <p className="text-[10px] text-zinc-500 truncate">{result.subtitle}</p>
+          <p className="text-[10px] font-bold text-zinc-500 truncate uppercase tracking-widest">{result.subtitle}</p>
         </div>
 
-        <ChevronRight className="h-4 w-4 text-zinc-600 group-hover:text-white transition-colors" />
+        <ChevronRight className="h-4 w-4 text-zinc-800 group-hover:text-white transition-colors" />
       </div>
     </Link>
   );
