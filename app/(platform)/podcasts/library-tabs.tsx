@@ -1,7 +1,7 @@
 // app/(platform)/podcasts/library-tabs.tsx
-// VERSIÓN: 11.0 (NicePod Intelligence Station - Unified Production Standard)
+// VERSIÓN: 12.0 (NicePod Intelligence Station - Full Integrity Edition)
 // Misión: Orquestar la intersección entre la red global y la soberanía privada.
-// [ESTABILIZACIÓN]: Blindaje total contra desajustes de hidratación y error de contexto Radix.
+// [ESTABILIZACIÓN]: Garantía de integridad estructural de JSX y protección Radix Context.
 
 "use client";
 
@@ -66,7 +66,7 @@ interface LibraryTabsProps {
   user: User | null;
   userCreationJobs: UserCreationJob[];
   userCreatedPodcasts: PodcastWithProfile[];
-  allPodcasts: PodcastWithProfile[]; // <--- Inyección global para fallbacks
+  allPodcasts: PodcastWithProfile[];
   curatedShelves: CuratedShelvesData;
 }
 
@@ -92,7 +92,7 @@ export function LibraryTabs({
   const searchParams = useSearchParams();
   const pathname = usePathname();
 
-  // 1. ESTADOS DE CONTROL DE HIDRATACIÓN (Build Shield)
+  // 1. ESTADOS DE CONTROL DE HIDRATACIÓN
   const [isMounted, setIsMounted] = useState(false);
 
   // 2. GESTIÓN DE DATOS DINÁMICOS
@@ -101,12 +101,11 @@ export function LibraryTabs({
   const [searchResults, setSearchResults] = useState<SearchResult[] | null>(null);
   const [isSearching, setIsSearching] = useState<boolean>(false);
 
-  // 3. SINCRONIZACIÓN DE PERSPECTIVA (URL)
+  // 3. SINCRONIZACIÓN DE PERSPECTIVA
   const activeTab = searchParams.get("tab") || defaultTab;
   const currentView = (searchParams.get("view") as LibraryViewMode) || "grid";
   const activeUniverseKey = searchParams.get("universe") || "most_resonant";
 
-  // Inicialización de montaje
   useEffect(() => {
     setIsMounted(true);
   }, []);
@@ -157,10 +156,6 @@ export function LibraryTabs({
     };
   }, [user, supabase, isMounted]);
 
-  /**
-   * isShowSearchResults: Lógica soberana para cambio de vista.
-   * [FIX]: Verificamos explícitamente que no sea null para diferenciar del estado inicial.
-   */
   const isShowSearchResults = useMemo(() => {
     return isMounted && searchResults !== null;
   }, [searchResults, isMounted]);
@@ -249,7 +244,7 @@ export function LibraryTabs({
   };
 
   /**
-   * RENDER: Listado Maatriz (Bóveda / Descubrimiento)
+   * RENDER: Listado Matriz (Bóveda / Descubrimiento)
    */
   const renderPodcastList = (data: PodcastWithProfile[]) => {
     if (data.length === 0) {
@@ -281,10 +276,7 @@ export function LibraryTabs({
     );
   };
 
-  /**
-   * PROTECCIÓN DE HIDRATACIÓN: 
-   * Retornamos un esqueleto estable hasta que el cliente tome el mando.
-   */
+  // PROTECCIÓN DE HIDRATACIÓN
   if (!isMounted) {
     return (
       <div className="w-full flex items-center justify-center py-40">
@@ -296,20 +288,27 @@ export function LibraryTabs({
   return (
     <div className="w-full space-y-16 animate-in fade-in duration-1000">
 
-      {/* --- HEADER TÁCTICO: RADAR SEMÁNICO --- */}
-      <section className="flex flex-col md:flex-row items-center justify-between gap-10">
-        <div className="w-full md:max-w-3xl">
-          <UnifiedSearchBar
-            onLoading={setIsSearching}
-            onResults={setSearchResults}
-            onClear={() => setSearchResults(null)}
-            placeholder="Escribe una idea para activar el radar de Madrid..."
-          />
-        </div>
+      {/* 
+          [FIX TOPOLÓGICO CRÍTICO]: Todo envuelto dentro del proveedor <Tabs>
+      */}
+      <Tabs value={isShowSearchResults ? 'search' : activeTab} className="w-full">
 
-        {/* SWITCHER DE VISTA (Solo visible si no hay búsqueda activa) */}
-        {!isShowSearchResults && (
-          <div className="flex items-center gap-4 p-2 bg-zinc-950/40 rounded-[2rem] border border-white/5 backdrop-blur-3xl shadow-inner">
+        {/* --- HEADER TÁCTICO --- */}
+        <section className="flex flex-col md:flex-row items-center justify-between gap-10 mb-16">
+          <div className="w-full md:max-w-3xl">
+            <UnifiedSearchBar
+              onLoading={setIsSearching}
+              onResults={setSearchResults}
+              onClear={() => setSearchResults(null)}
+              placeholder="Escribe una idea para activar el radar de Madrid..."
+            />
+          </div>
+
+          {/* 
+              SWITCHER DE VISTA (TabsList)
+              CSS gestiona la visibilidad sin desmontar el componente del DOM.
+          */}
+          <div className={`flex items-center gap-4 p-2 bg-zinc-950/40 rounded-[2rem] border border-white/5 backdrop-blur-3xl shadow-inner transition-all duration-500 ${isShowSearchResults ? 'opacity-0 pointer-events-none absolute' : 'opacity-100 relative'}`}>
             <TabsList className="bg-transparent border-none p-0 h-auto gap-1">
               <TabsTrigger
                 value="discover"
@@ -330,21 +329,17 @@ export function LibraryTabs({
             <Separator orientation="vertical" className="h-8 bg-white/10 mx-2" />
             <LibraryViewSwitcher />
           </div>
-        )}
-      </section>
+        </section>
 
-      {/* --- NÚCLEO REACTIVO (RADIX TABS) --- */}
-      <Tabs value={isShowSearchResults ? 'search' : activeTab} className="w-full">
+        {/* --- VISTAS DINÁMICAS --- */}
 
-        {/* VISTA A: RESULTADOS DEL RADAR (Void View) */}
+        {/* VISTA A: RESULTADOS RADAR */}
         <TabsContent value="search" className="mt-0 outline-none">
           {renderSearchResults()}
         </TabsContent>
 
-        {/* VISTA B: EXPLORACIÓN GLOBAL (Discovery View) */}
+        {/* VISTA B: DESCUBRIMIENTO GLOBAL */}
         <TabsContent value="discover" className="mt-0 space-y-24 outline-none animate-in fade-in duration-1000">
-
-          {/* Universos Visuales */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
             {universeCategories.map(cat => (
               <UniverseCard
@@ -357,7 +352,6 @@ export function LibraryTabs({
             ))}
           </div>
 
-          {/* Listado del Universo Seleccionado */}
           <section className="space-y-12">
             <div className="flex items-center gap-4 border-b border-white/5 pb-8">
               <div className="p-3 bg-primary/10 rounded-2xl">
@@ -371,10 +365,9 @@ export function LibraryTabs({
           </section>
         </TabsContent>
 
-        {/* VISTA C: SOBERANÍA PERSONAL (Library View) */}
+        {/* VISTA C: SOBERANÍA PERSONAL */}
         <TabsContent value="library" className="mt-0 space-y-20 outline-none animate-in slide-in-from-bottom-6 duration-1000">
 
-          {/* SECCIÓN DE LA FORJA (Jobs Activos) */}
           {jobs.length > 0 && (
             <section className="space-y-10 p-10 rounded-[3.5rem] bg-primary/[0.03] border border-primary/10 shadow-2xl">
               <div className="flex items-center gap-5">
@@ -393,7 +386,6 @@ export function LibraryTabs({
             </section>
           )}
 
-          {/* LISTADO DE LA BÓVEDA PRIVADA */}
           <section className="space-y-12">
             <div className="flex items-center justify-between px-2">
               <div className="flex items-center gap-4">
@@ -417,17 +409,3 @@ export function LibraryTabs({
     </div>
   );
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Estabilidad de Contexto: Al usar 'isShowSearchResults' (basado en 'searchResults !== null' 
- *    y 'isMounted'), garantizamos que el componente 'TabsList' no se desmonte 
- *    durante la fase de hidratación de Next.js, eliminando el error de Radix UI.
- * 2. Cosecha Realtime: El canal 'library_pods' re-hidrata el registro mediante 
- *    una consulta puntual a 'micro_pods' tras cada evento, asegurando que el perfil 
- *    del usuario esté siempre presente para 'PodcastCard'.
- * 3. Fallback Dinámico: Si una estantería de Universo está vacía en el servidor, 
- *    el cliente utiliza 'allPodcasts' como pool de datos para evitar huecos visuales.
- * 4. Inmersión Industrial: El uso de 'isMounted' previene el parpadeo de contenido 
- *    entre el renderizado del servidor y el cliente.
- */
