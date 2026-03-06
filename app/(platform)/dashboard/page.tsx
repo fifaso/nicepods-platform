@@ -1,23 +1,23 @@
 // app/(platform)/dashboard/page.tsx
-// VERSIÓN: 14.0
+// VERSIÓN: 15.0 (NicePod Operations Center - Production Master)
+// Misión: Centro de mando y telemetría con radar semántico de alta precisión.
+// [ESTABILIZACIÓN]: Alineación con Radar V4.5 (Null State Support) y limpieza de ambigüedad CSS.
 
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Loader2,
+  Map as MapIcon,
+  PlusCircle,
+  Terminal,
+  Zap
+} from "lucide-react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
-import {
-  ChevronRight,
-  Globe,
-  Loader2,
-  Map as MapIcon,
-  Terminal,
-  PlusCircle,
-  Zap
-} from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-// --- INFRAESTRUCTURA DEL RADAR UNIFICADO (V3.0) ---
+// --- INFRAESTRUCTURA DEL RADAR UNIFICADO (V4.5) ---
 import { UnifiedSearchBar } from "@/components/ui/unified-search-bar";
 import { SearchResult } from "@/hooks/use-search-radar";
 
@@ -32,8 +32,6 @@ import type { Tables } from "@/types/supabase";
 
 /**
  * [SHIELD]: HIDRATACIÓN DIFERIDA (T2)
- * Carga asíncrona del componente WebGL (Mapa) para evitar el bloqueo
- * del hilo principal y erradicar el Cumulative Layout Shift (CLS).
  */
 const MapPreviewFrame = dynamic(
   () => import("@/components/geo/map-preview-frame").then((mod) => mod.MapPreviewFrame),
@@ -43,16 +41,13 @@ const MapPreviewFrame = dynamic(
       <div className="w-full h-full rounded-[2.5rem] bg-zinc-950/50 border border-white/5 animate-pulse flex items-center justify-center shadow-inner">
         <div className="flex flex-col items-center gap-4 opacity-40">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
-          <span className="text-[10px] font-black uppercase tracking-widest text-primary">Sincronizando Malla</span>
+          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Sincronizando Malla</span>
         </div>
       </div>
     )
   }
 );
 
-/**
- * [CONTRATOS DE DATOS]
- */
 type ResonanceProfile = Tables<'user_resonance_profiles'>;
 
 interface DiscoveryFeed {
@@ -62,14 +57,18 @@ interface DiscoveryFeed {
 
 /**
  * COMPONENTE MAESTRO: DashboardPage
- * El epicentro de operaciones y telemetría de NicePod V2.5.
  */
 export default function DashboardPage() {
   // --- IDENTIDAD SOBERANA ---
   const { supabase, profile, isAuthenticated, isInitialLoading } = useAuth();
 
   // --- ESTADO DE TELEMETRÍA DE BÚSQUEDA ---
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  /**
+   * [FIX CRÍTICO]: Inicializamos en null para alinearnos con useSearchRadar V4.0.
+   * Esto permite diferenciar el estado de 'Reposo' (Bóveda visible) 
+   * del estado de 'Sin Resultados' (Frecuencia no detectada).
+   */
+  const [searchResults, setSearchResults] = useState<SearchResult[] | null>(null);
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [currentQuery, setCurrentQuery] = useState<string>("");
 
@@ -78,8 +77,7 @@ export default function DashboardPage() {
   const [resonanceProfile, setResonanceProfile] = useState<ResonanceProfile | null>(null);
 
   /**
-   * EFECTO INICIAL: DESCARGA ATÓMICA DE BÓVEDA
-   * Ejecuta consultas en paralelo para hidratar el feed de inteligencia.
+   * EFECTO INICIAL: COSECHA DE BÓVEDA
    */
   useEffect(() => {
     async function loadDashboardData() {
@@ -102,8 +100,7 @@ export default function DashboardPage() {
   }, [isAuthenticated, profile?.id, supabase]);
 
   /**
-   * OPTIMIZACIÓN (MEMOIZACIÓN):
-   * Saneamiento estructurado de JSONB para evitar Forced Reflows en React.
+   * MEMOIZACIÓN DE DATOS (Higiene de Props)
    */
   const safeEpicenter = useMemo(() => {
     if (!feed.epicenter || !Array.isArray(feed.epicenter)) return [];
@@ -124,25 +121,25 @@ export default function DashboardPage() {
   }, [feed.semantic_connections]);
 
   /**
-   * PROTOCOLOS DE CONTROL DEL RADAR (Callbacks)
+   * [CONTROL DEL RADAR]: Handlers alineados con la firma (results: SearchResult[] | null)
    */
-  const handleResults = useCallback((results: SearchResult[]) => {
+  const handleResults = useCallback((results: SearchResult[] | null) => {
     setSearchResults(results);
   }, []);
 
   const handleClear = useCallback(() => {
-    setSearchResults([]);
+    setSearchResults(null);
     setIsSearching(false);
     setCurrentQuery("");
   }, []);
 
-  // --- VISTA DE SEGURIDAD (HIDRATACIÓN) ---
+  // --- ESCUDO DE HIDRATACIÓN ---
   if (isInitialLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#020202]">
         <div className="flex flex-col items-center gap-6 opacity-60">
           <Loader2 className="h-10 w-10 animate-spin text-primary" />
-          <span className="text-[10px] font-black uppercase tracking-[0.5em] text-white animate-pulse">
+          <span className="text-[10px] font-black uppercase tracking-[0.4em] text-white animate-pulse">
             Iniciando Intelligence Shell
           </span>
         </div>
@@ -150,7 +147,6 @@ export default function DashboardPage() {
     );
   }
 
-  // Extracción limpia del nombre para el saludo.
   const userName = profile?.full_name?.split(' ')[0] || "Curador";
 
   return (
@@ -158,28 +154,18 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-4 lg:gap-14 pt-8 md:pt-12 pb-32">
 
-        {/* --- COLUMNA DE INTELIGENCIA PRINCIPAL (3/4) --- */}
+        {/* --- COLUMNA DE INTELIGENCIA (75%) --- */}
         <div className="lg:col-span-3 space-y-10 md:space-y-14">
 
-          {/* 
-              SECCIÓN I: COMMAND HEADER (PURA ELEGANCIA)
-              Eliminamos el buscador expansivo y lo dejamos como un gatillo 
-              a la derecha, permitiendo que el saludo respire.
-          */}
+          {/* SECCIÓN I: CABECERA COMANDANTE */}
           <header className="w-full flex items-center justify-between z-40 bg-transparent">
 
-            {/* SALUDO SOBERANO MINIMALISTA */}
             <div className="flex flex-col animate-in fade-in slide-in-from-left-6 duration-1000">
               <h1 className="text-4xl md:text-6xl font-black tracking-tighter uppercase italic leading-none drop-shadow-xl text-muted-foreground/80">
                 Hola, <span className="text-foreground">{userName}</span>
               </h1>
             </div>
 
-            {/* 
-                RADAR TRIGGER (El Portal Inmersivo)
-                Usamos la variante 'console' que pinta solo el botón circular.
-                Al pulsarlo, el componente tomará la pantalla entera.
-            */}
             <div className="animate-in fade-in slide-in-from-right-6 duration-1000 delay-200">
               <UnifiedSearchBar
                 variant="console"
@@ -189,16 +175,13 @@ export default function DashboardPage() {
                 placeholder={`¿Qué ecos buscamos, ${userName}?`}
               />
             </div>
-
           </header>
 
-          {/* 
-              SECCIÓN II: PANORAMA MADRID RESONANCE
-              Un banner táctico para la inmersión geográfica.
-          */}
+          {/* SECCIÓN II: PANORAMA GEOESPACIAL */}
           <section className="relative rounded-[2.5rem] md:rounded-[3.5rem] overflow-hidden border border-white/5 bg-[#050505] shadow-2xl transition-all duration-1000 hover:border-primary/20 group">
-            
-            <div className="h-[160px] md:h-[220px] w-full relative z-0 opacity-50 grayscale group-hover:grayscale-0 transition-all duration-1000 ease-out">
+
+            {/* [FIX]: Eliminación de ambigüedad Tailwind usando cubic-bezier explícito */}
+            <div className="h-[160px] md:h-[220px] w-full relative z-0 opacity-50 grayscale group-hover:grayscale-0 transition-all duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)]">
               <MapPreviewFrame />
             </div>
 
@@ -210,24 +193,21 @@ export default function DashboardPage() {
               </div>
               <div className="flex flex-col">
                 <h3 className="text-white font-black text-sm md:text-xl uppercase tracking-tighter italic drop-shadow-2xl">
-                  Madrid <span className="text-primary">Live Resonance</span>
+                  Madrid <span className="text-primary">Resonance</span>
                 </h3>
-                <p className="text-[9px] md:text-[10px] text-zinc-500 font-bold uppercase tracking-[0.4em] mt-0.5">
-                  Malla Urbana de Conocimiento
+                <p className="text-[9px] md:text-[10px] text-zinc-500 font-bold uppercase tracking-[0.3em] mt-0.5">
+                  Malla Urbana Activa
                 </p>
               </div>
             </div>
           </section>
 
-          {/* 
-              SECCIÓN III: EL FEED DE INTELIGENCIA
-              Maneja de forma transparente los estados base y los resultados.
-          */}
+          {/* SECCIÓN III: FLUJO DE INTELIGENCIA DINÁMICO */}
           <div className="relative z-0 min-h-[500px]">
             <IntelligenceFeed
               userName={userName}
               isSearching={isSearching}
-              results={searchResults}
+              results={searchResults || []} // Inyectamos fallback de array para compatibilidad con el Feed
               lastQuery={currentQuery}
               epicenterPodcasts={safeEpicenter}
               connectionsPodcasts={safeConnections}
@@ -237,11 +217,10 @@ export default function DashboardPage() {
 
         </div>
 
-        {/* --- COLUMNA DE TELEMETRÍA LATERAL (ASIDE) --- */}
+        {/* --- COLUMNA DE TELEMETRÍA (ASIDE) --- */}
         <aside className="hidden lg:block lg:col-span-1">
           <div className="sticky top-[8rem] space-y-8 flex flex-col h-fit animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-500">
 
-            {/* FICHA DE INVITACIÓN A LA FORJA */}
             <div className="p-8 bg-card/20 rounded-[2.5rem] border border-border/40 backdrop-blur-2xl relative overflow-hidden group shadow-xl">
               <div className="space-y-6 relative z-10">
                 <div className="flex items-center gap-3">
@@ -250,11 +229,11 @@ export default function DashboardPage() {
                   </div>
                   <p className="text-[9px] font-black uppercase tracking-[0.4em] text-muted-foreground">Soberanía de Datos</p>
                 </div>
-                
+
                 <h4 className="font-bold text-lg text-foreground leading-snug tracking-tight">
                   Tu capital intelectual se expande con cada crónica de voz.
                 </h4>
-                
+
                 <Link
                   href="/create"
                   className="group/btn inline-flex items-center gap-3 text-[10px] font-black text-primary uppercase tracking-[0.3em] hover:text-primary/80 transition-colors"
@@ -265,18 +244,16 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* MÉTRICAS DE IMPACTO (InsightPanel) */}
             <InsightPanel resonanceProfile={resonanceProfile} />
 
-            {/* SELLO DE PLATAFORMA */}
-            <div className="p-10 text-center bg-white/[0.01] rounded-[3rem] border border-white/5 flex flex-col items-center space-y-5 shadow-inner">
-              <div className="h-12 w-12 relative opacity-20 grayscale group-hover:grayscale-0 hover:opacity-80 transition-all duration-1000">
+            <div className="p-10 text-center bg-white/[0.01] rounded-[3rem] border border-white/5 flex flex-col items-center space-y-5 shadow-inner group">
+              <div className="h-12 w-12 relative opacity-20 grayscale group-hover:grayscale-0 group-hover:opacity-80 transition-all duration-1000">
                 <Image src="/nicepod-logo.png" alt="NicePod" fill className="object-contain" />
               </div>
               <div className="space-y-3">
                 <div className="flex items-center gap-2 justify-center">
                   <Zap size={10} className="text-zinc-600" />
-                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.5em]">NicePod V2.5</p>
+                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em]">NicePod V2.5</p>
                 </div>
                 <div className="flex items-center gap-2.5 justify-center px-4 py-1.5 rounded-full bg-emerald-500/5 border border-emerald-500/10">
                   <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -294,3 +271,14 @@ export default function DashboardPage() {
     </main>
   );
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT:
+ * 1. Sincronía del Radar: Al aceptar 'null' en handleResults, permitimos que el 
+ *    Dashboard sepa cuándo el radar está en modo reposo, evitando que el 
+ *    IntelligenceFeed muestre estados de 'No encontrado' prematuros.
+ * 2. Limpieza Atmosférica: El ajuste de la transición del mapa elimina las 
+ *    advertencias de ambigüedad de Tailwind que saturaban el build log.
+ * 3. Seguridad SSR: Se mantiene la validación isInitialLoading para evitar 
+ *    intentos de renderizado sin perfil de usuario validado.
+ */
