@@ -17,7 +17,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
     
-    /* Identidad */
+    /* Identidad (Púrpura NicePod) */
     --primary: 262.1 83.3% 57.8%;
     --primary-foreground: 210 40% 98%;
     
@@ -25,7 +25,7 @@
     --secondary: 240 4.8% 95.9%;
     --secondary-foreground: 240 5.9% 10%;
     
-    /* [FIX]: Muted-foreground ahora es un gris-indigo denso para legibilidad en blanco */
+    /* Textos Apagados (Legibilidad asegurada) */
     --muted: 240 4.8% 95.9%;
     --muted-foreground: 240 5% 35%; 
     
@@ -48,7 +48,7 @@
    * Enfocado en la profundidad técnica y el contraste vibrante.
    */
   .dark {
-    /* [FIX]: Fondo 020202 real para permitir que los blobs Aurora 'respiren' */
+    /* Fondo Soberano 020202 real */
     --background: 240 10% 2%; 
     --foreground: 0 0% 98%;
     
@@ -63,7 +63,6 @@
     --secondary: 240 3.7% 15.9%;
     --secondary-foreground: 0 0% 98%;
     
-    /* [FIX]: Muted-foreground en oscuro es un gris-lavanda suave */
     --muted: 240 3.7% 15.9%;
     --muted-foreground: 240 5% 64.9%;
     
@@ -85,7 +84,6 @@
   }
   
   html {
-    /* Gestión nativa del esquema para componentes de sistema (scrollbars) */
     color-scheme: light;
     overscroll-behavior-y: none;
     -webkit-font-smoothing: antialiased;
@@ -97,26 +95,27 @@
   }
 
   body {
-    /* El body es el bastidor, el BackgroundEngine es la pintura */
-    @apply bg-background text-foreground transition-colors duration-500;
+    /* Se asegura la inyección de la fuente Inter desde Next.js */
+    font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1;
+    @apply bg-background text-foreground transition-colors duration-500;
     min-height: 100dvh;
     overflow-x: hidden;
   }
 
+  /* INMERSIÓN DE SELECCIÓN DE TEXTO */
+  ::selection {
+    @apply bg-primary/30 text-white;
+  }
+
   /**
    * [PERFORACIÓN ESTRUCTURAL]:
-   * Aseguramos que los contenedores de Next.js sean transparentes para 
-   * no bloquear la visibilidad del BackgroundEngine (z-index: -20).
+   * Asegura que los contenedores de Next.js y Radix no oculten el BackgroundEngine.
    */
   main, section, [role="main"], [data-radix-collection] {
     background-color: transparent !important;
   }
 
-  /* 
-     [RE-SINTONÍA DE TEXTOS GRISES]:
-     Forzamos que las clases muted de Tailwind usen nuestras variables adaptativas.
-  */
   .text-muted-foreground {
     color: hsl(var(--muted-foreground));
   }
@@ -124,7 +123,6 @@
 
 @layer components {
   /* 3. SISTEMA DE GLASSMORPHISM (IDENTIDAD INDUSTRIAL) */
-  
   .glass-panel {
     @apply backdrop-blur-2xl bg-white/5 dark:bg-black/40 border border-black/5 dark:border-white/10 shadow-2xl;
   }
@@ -134,7 +132,6 @@
   }
 
   /* 4. ANIMACIONES DEL MOTOR ATMOSFÉRICO */
-  
   @keyframes float {
     0%, 100% { transform: translateY(0) scale(1); }
     50% { transform: translateY(-25px) scale(1.03); }
@@ -154,7 +151,6 @@
   }
 
   /* 5. MICRO-TIPOGRAFÍA TÉCNICA */
-  
   .text-industrial {
     @apply font-black uppercase tracking-[0.3em] leading-none;
   }
@@ -164,39 +160,40 @@
   }
 }
 
-/* 6. OVERRIDES TÉCNICOS (Mapbox, Scrollbars & PWA) */
-
-.mapboxgl-ctrl-group {
-  @apply !bg-background/60 !backdrop-blur-xl !border-border !shadow-2xl !rounded-2xl;
+@layer utilities {
+  /* 
+   * [REPARACIÓN TÁCTIL]: .hide-scrollbar
+   * Indispensable para los carruseles horizontales móviles.
+   */
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
 }
 
-/* Scrollbar Sutil (Estándar NicePod) */
+/* 6. OVERRIDES TÉCNICOS (Mapbox & Scrollbars Globales) */
+
+/* Optimización: Eliminamos el backdrop-blur de Mapbox para salvar FPS en móviles */
+.mapboxgl-ctrl-group {
+  @apply !bg-background/90 !border-border !shadow-xl !rounded-xl overflow-hidden;
+}
+
+.mapboxgl-ctrl-group button {
+  @apply hover:!bg-primary/20 transition-colors;
+}
+
+/* Scrollbar Sutil Global (Estándar NicePod) */
 ::-webkit-scrollbar {
   width: 6px;
+  height: 6px; /* Añadido para scrolls horizontales inevitables */
 }
 ::-webkit-scrollbar-track {
   @apply bg-transparent;
 }
 ::-webkit-scrollbar-thumb {
-  @apply bg-primary/20 rounded-full hover:bg-primary/40 transition-colors;
+  @apply bg-primary/30 rounded-full hover:bg-primary/60 transition-colors;
 }
-
-.custom-scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-.custom-scrollbar-hide::-webkit-scrollbar {
-  display: none;
-}
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Resolución de Contraste: Se ha calibrado '--muted-foreground' para que en 
- *    Modo Claro tenga un contraste de ~7:1 contra el blanco, eliminando el 
- *    aspecto de 'texto lavado' que reportaba el Comandante.
- * 2. Transiciones Globales: La inyección de 'transition-colors' en el body 
- *    asegura que el cambio entre temas sea una disolución fluida y no un salto brusco.
- * 3. Optimización de Capas: El uso de '!important' en la transparencia de 'main' 
- *    es la única forma de garantizar que componentes de librerías externas no 
- *    introduzcan fondos opacos que maten la atmósfera Aurora.
- */
