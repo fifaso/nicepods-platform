@@ -1,7 +1,7 @@
 // app/(platform)/podcasts/library-tabs.tsx
-// VERSIÓN: 12.0 (NicePod Intelligence Station - Full Integrity Edition)
-// Misión: Orquestar la intersección entre la red global y la soberanía privada.
-// [ESTABILIZACIÓN]: Garantía de integridad estructural de JSX y protección Radix Context.
+// VERSIÓN: 14.0 (NicePod Intelligence Station - Pure Integrity & Mobile Mastery Edition)
+// Misión: Orquestar la intersección entre la red global y la soberanía privada con UX táctil.
+// [ESTABILIZACIÓN]: Archivo 100% completo, sin omisiones. Carrusel Horizontal y Layout Flex-Wrap aplicados.
 
 "use client";
 
@@ -92,16 +92,12 @@ export function LibraryTabs({
   const searchParams = useSearchParams();
   const pathname = usePathname();
 
-  // 1. ESTADOS DE CONTROL DE HIDRATACIÓN
   const [isMounted, setIsMounted] = useState(false);
-
-  // 2. GESTIÓN DE DATOS DINÁMICOS
   const [jobs, setJobs] = useState<UserCreationJob[]>(initialJobs);
   const [podcasts, setPodcasts] = useState<PodcastWithProfile[]>(initialPodcasts);
   const [searchResults, setSearchResults] = useState<SearchResult[] | null>(null);
   const [isSearching, setIsSearching] = useState<boolean>(false);
 
-  // 3. SINCRONIZACIÓN DE PERSPECTIVA
   const activeTab = searchParams.get("tab") || defaultTab;
   const currentView = (searchParams.get("view") as LibraryViewMode) || "grid";
   const activeUniverseKey = searchParams.get("universe") || "most_resonant";
@@ -110,9 +106,6 @@ export function LibraryTabs({
     setIsMounted(true);
   }, []);
 
-  /**
-   * [LIFECYCLE]: Protocolo Realtime
-   */
   useEffect(() => {
     if (!user || !isMounted) return;
 
@@ -166,9 +159,6 @@ export function LibraryTabs({
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
-  /**
-   * RENDER: Resultados del Radar Semántico
-   */
   const renderSearchResults = () => {
     if (!searchResults) return null;
 
@@ -243,23 +233,20 @@ export function LibraryTabs({
     );
   };
 
-  /**
-   * RENDER: Listado Matriz (Bóveda / Descubrimiento)
-   */
   const renderPodcastList = (data: PodcastWithProfile[]) => {
     if (data.length === 0) {
       return (
-        <div className="py-32 text-center border border-dashed border-white/5 rounded-[3rem] bg-black/20 animate-in fade-in duration-700">
-          <Archive className="mx-auto h-12 w-12 text-zinc-800 mb-6" />
-          <h3 className="text-sm font-black uppercase tracking-[0.4em] text-zinc-600 italic">Silencio Semántico</h3>
-          <p className="text-[10px] font-bold text-zinc-700 uppercase tracking-widest mt-2">La Bóveda espera su primer nodo de conocimiento.</p>
+        <div className="py-24 md:py-32 text-center border border-dashed border-white/5 rounded-[2rem] md:rounded-[3rem] bg-black/20 animate-in fade-in duration-700">
+          <Archive className="mx-auto h-10 w-10 md:h-12 md:w-12 text-zinc-800 mb-4 md:mb-6" />
+          <h3 className="text-xs md:text-sm font-black uppercase tracking-[0.4em] text-zinc-600 italic">Silencio Semántico</h3>
+          <p className="text-[9px] md:text-[10px] font-bold text-zinc-700 uppercase tracking-widest mt-2">La Bóveda espera su primer nodo.</p>
         </div>
       );
     }
 
     if (currentView === 'list') {
       return (
-        <div className="space-y-4">
+        <div className="space-y-3 md:space-y-4">
           {data.map(p => <CompactPodcastCard key={p.id} podcast={p} />)}
         </div>
       );
@@ -268,7 +255,7 @@ export function LibraryTabs({
     const groupedData = groupPodcastsByThread(data);
 
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-10">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-10">
         {groupedData.map((p: any) => (
           <StackedPodcastCard key={p.id} podcast={p} replies={p.replies} />
         ))}
@@ -276,7 +263,6 @@ export function LibraryTabs({
     );
   };
 
-  // PROTECCIÓN DE HIDRATACIÓN
   if (!isMounted) {
     return (
       <div className="w-full flex items-center justify-center py-40">
@@ -286,61 +272,52 @@ export function LibraryTabs({
   }
 
   return (
-    <div className="w-full space-y-16 animate-in fade-in duration-1000">
+    <div className="w-full pt-28 md:pt-10 pb-20 space-y-12 md:space-y-16 animate-in fade-in duration-1000">
 
-      {/* 
-          [FIX TOPOLÓGICO CRÍTICO]: Todo envuelto dentro del proveedor <Tabs>
-      */}
       <Tabs value={isShowSearchResults ? 'search' : activeTab} className="w-full">
 
-        {/* --- HEADER TÁCTICO --- */}
-        <section className="flex flex-col md:flex-row items-center justify-between gap-10 mb-16">
-          <div className="w-full md:max-w-3xl">
+        <section className="flex flex-wrap items-center justify-between gap-4 md:gap-10 mb-8 md:mb-16">
+          <div className="w-full md:flex-1 md:max-w-3xl">
             <UnifiedSearchBar
               onLoading={setIsSearching}
               onResults={setSearchResults}
               onClear={() => setSearchResults(null)}
-              placeholder="Escribe una idea para activar el radar de Madrid..."
+              placeholder="Radar de Madrid..."
             />
           </div>
 
-          {/* 
-              SWITCHER DE VISTA (TabsList)
-              CSS gestiona la visibilidad sin desmontar el componente del DOM.
-          */}
-          <div className={`flex items-center gap-4 p-2 bg-zinc-950/40 rounded-[2rem] border border-white/5 backdrop-blur-3xl shadow-inner transition-all duration-500 ${isShowSearchResults ? 'opacity-0 pointer-events-none absolute' : 'opacity-100 relative'}`}>
-            <TabsList className="bg-transparent border-none p-0 h-auto gap-1">
-              <TabsTrigger
-                value="discover"
-                onClick={() => handleTabChange('discover')}
-                className="rounded-xl px-10 font-black text-[10px] uppercase tracking-[0.2em] h-12 data-[state=active]:bg-primary data-[state=active]:text-white transition-all"
-              >
-                <Zap className="h-3.5 w-3.5 mr-2" /> Descubrir
-              </TabsTrigger>
-              <TabsTrigger
-                value="library"
-                disabled={!user}
-                onClick={() => handleTabChange('library')}
-                className="rounded-xl px-10 font-black text-[10px] uppercase tracking-[0.2em] h-12 data-[state=active]:bg-primary data-[state=active]:text-white transition-all"
-              >
-                Mi Estación
-              </TabsTrigger>
-            </TabsList>
-            <Separator orientation="vertical" className="h-8 bg-white/10 mx-2" />
-            <LibraryViewSwitcher />
+          <div className={`flex flex-wrap md:flex-nowrap items-center gap-2 p-1.5 md:p-2 bg-zinc-950/40 rounded-[1.5rem] md:rounded-[2rem] border border-white/5 backdrop-blur-3xl shadow-inner transition-all duration-500 w-full md:w-auto ${isShowSearchResults ? 'opacity-0 pointer-events-none absolute' : 'opacity-100 relative'}`}>
+             <TabsList className="bg-transparent border-none p-0 h-auto gap-1 w-full md:w-auto overflow-x-auto hide-scrollbar">
+                <TabsTrigger
+                  value="discover"
+                  onClick={() => handleTabChange('discover')}
+                  className="rounded-xl px-4 md:px-10 font-black text-[9px] md:text-[10px] uppercase tracking-[0.2em] h-10 md:h-12 whitespace-nowrap data-[state=active]:bg-primary data-[state=active]:text-white transition-all flex-1 md:flex-none"
+                >
+                  <Zap className="h-3 w-3 mr-1.5 md:mr-2" /> Descubrir
+                </TabsTrigger>
+                <TabsTrigger
+                  value="library"
+                  disabled={!user}
+                  onClick={() => handleTabChange('library')}
+                  className="rounded-xl px-4 md:px-10 font-black text-[9px] md:text-[10px] uppercase tracking-[0.2em] h-10 md:h-12 whitespace-nowrap data-[state=active]:bg-primary data-[state=active]:text-white transition-all flex-1 md:flex-none"
+                >
+                  Mi Estación
+                </TabsTrigger>
+             </TabsList>
+             <Separator orientation="vertical" className="hidden md:block h-8 bg-white/10 mx-2" />
+             <div className="w-full md:w-auto flex justify-center md:justify-start mt-2 md:mt-0">
+               <LibraryViewSwitcher />
+             </div>
           </div>
         </section>
 
-        {/* --- VISTAS DINÁMICAS --- */}
-
-        {/* VISTA A: RESULTADOS RADAR */}
         <TabsContent value="search" className="mt-0 outline-none">
           {renderSearchResults()}
         </TabsContent>
 
-        {/* VISTA B: DESCUBRIMIENTO GLOBAL */}
-        <TabsContent value="discover" className="mt-0 space-y-24 outline-none animate-in fade-in duration-1000">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+        <TabsContent value="discover" className="mt-0 space-y-16 md:space-y-24 outline-none animate-in fade-in duration-1000">
+          
+          <div className="flex overflow-x-auto md:grid md:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-6 pb-4 md:pb-0 snap-x snap-mandatory hide-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
             {universeCategories.map(cat => (
               <UniverseCard
                 key={cat.key}
@@ -348,55 +325,55 @@ export function LibraryTabs({
                 image={cat.image}
                 isActive={activeUniverseKey === cat.key}
                 href={`${pathname}?tab=discover&universe=${cat.key}`}
+                className="w-[150px] sm:w-[180px] shrink-0 snap-start md:w-auto"
               />
             ))}
           </div>
 
-          <section className="space-y-12">
-            <div className="flex items-center gap-4 border-b border-white/5 pb-8">
-              <div className="p-3 bg-primary/10 rounded-2xl">
-                <Sparkles className="h-6 w-6 text-primary" />
+          <section className="space-y-8 md:space-y-12">
+            <div className="flex items-center gap-3 md:gap-4 border-b border-white/5 pb-4 md:pb-8">
+              <div className="p-2 md:p-3 bg-primary/10 rounded-xl md:rounded-2xl shrink-0">
+                <Sparkles className="h-5 w-5 md:h-6 md:w-6 text-primary" />
               </div>
-              <h2 className="text-4xl font-black uppercase tracking-tighter italic text-white">
+              <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter italic text-white truncate pr-4">
                 {universeCategories.find(c => c.key === activeUniverseKey)?.title || "Resonancias"}
               </h2>
             </div>
+            
             {renderPodcastList(curatedShelves[activeUniverseKey as keyof CuratedShelvesData] || allPodcasts)}
           </section>
         </TabsContent>
 
-        {/* VISTA C: SOBERANÍA PERSONAL */}
-        <TabsContent value="library" className="mt-0 space-y-20 outline-none animate-in slide-in-from-bottom-6 duration-1000">
-
+        <TabsContent value="library" className="mt-0 space-y-16 md:space-y-20 outline-none animate-in slide-in-from-bottom-6 duration-1000">
           {jobs.length > 0 && (
-            <section className="space-y-10 p-10 rounded-[3.5rem] bg-primary/[0.03] border border-primary/10 shadow-2xl">
-              <div className="flex items-center gap-5">
-                <div className="relative">
-                  <Loader2 className="h-10 w-10 text-primary animate-spin" />
-                  <Zap className="h-4 w-4 text-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+            <section className="space-y-6 md:space-y-10 p-6 md:p-10 rounded-[2.5rem] md:rounded-[3.5rem] bg-primary/[0.03] border border-primary/10 shadow-2xl">
+              <div className="flex items-center gap-4 md:gap-5">
+                <div className="relative shrink-0">
+                  <Loader2 className="h-8 w-8 md:h-10 md:w-10 text-primary animate-spin" />
+                  <Zap className="h-3 w-3 md:h-4 md:w-4 text-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
                 </div>
-                <div className="flex flex-col">
-                  <h2 className="text-3xl font-black uppercase tracking-tighter text-white italic">Forjando Sabiduría</h2>
-                  <p className="text-[10px] font-black text-primary/60 uppercase tracking-[0.3em]">Sincronía neuronal con Madrid en curso...</p>
+                <div className="flex flex-col min-w-0">
+                  <h2 className="text-xl md:text-3xl font-black uppercase tracking-tighter text-white italic truncate">Forjando Sabiduría</h2>
+                  <p className="text-[8px] md:text-[10px] font-black text-primary/60 uppercase tracking-[0.2em] md:tracking-[0.3em] truncate">Sincronía neuronal en curso...</p>
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-8">
                 {jobs.map(job => <SmartJobCard key={job.id} job={job} />)}
               </div>
             </section>
           )}
 
-          <section className="space-y-12">
-            <div className="flex items-center justify-between px-2">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-white/5 rounded-2xl border border-white/10">
-                  <Zap className="h-6 w-6 text-primary fill-primary" />
+          <section className="space-y-8 md:space-y-12">
+            <div className="flex items-center justify-between px-1 md:px-2">
+              <div className="flex items-center gap-3 md:gap-4 min-w-0">
+                <div className="p-2 md:p-3 bg-white/5 rounded-xl md:rounded-2xl border border-white/10 shrink-0">
+                  <Zap className="h-5 w-5 md:h-6 md:w-6 text-primary fill-primary" />
                 </div>
-                <h2 className="text-5xl font-black uppercase tracking-tighter text-white italic">Mi Bóveda</h2>
+                <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tighter text-white italic truncate">Mi Bóveda</h2>
               </div>
-              <div className="flex flex-col items-end">
-                <Badge variant="outline" className="border-white/10 text-zinc-500 font-black text-[10px] uppercase tracking-[0.3em] px-5 py-2 rounded-full backdrop-blur-xl">
-                  {podcasts.length} RESONANCIAS ACTIVAS
+              <div className="flex flex-col items-end shrink-0 pl-2">
+                <Badge variant="outline" className="border-white/10 text-zinc-500 font-black text-[8px] md:text-[10px] uppercase tracking-[0.2em] md:tracking-[0.3em] px-3 md:px-5 py-1.5 md:py-2 rounded-full backdrop-blur-xl">
+                  {podcasts.length} NODOS
                 </Badge>
               </div>
             </div>
