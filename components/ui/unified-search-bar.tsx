@@ -1,35 +1,30 @@
 // components/ui/unified-search-bar.tsx
-// VERSIÓN: 4.5 (NicePod Void Search - Hydration Shield Edition)
-// Misión: Terminal de inmersión total con protección de estado síncrono.
-// [ESTABILIZACIÓN]: Blindaje de callbacks para evitar rupturas de contexto en Radix UI.
+// VERSIÓN: 5.0 (NicePod Void Search - Tactical Visibility Edition)
+// Misión: Terminal de inmersión total optimizada para visibilidad extrema.
+// [ESTABILIZACIÓN]: Botones táctiles de alta densidad y blindaje de hidratación.
 
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
-import Image from "next/image";
-import Link from "next/link";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
+import Link from "next/link";
 
 // --- INFRAESTRUCTURA DE ICONOGRAFÍA ---
-import {
-  BookOpen, ChevronRight,
-  Command, History,
-  Mic2,
-  Search,
-  User as UserIcon,
-  X,
-  Zap
+import { 
+  Search, X, Command, History, Zap, Loader2, Mic2,
+  User as UserIcon, BookOpen, ChevronRight
 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { SearchResult, useSearchRadar } from "@/hooks/use-search-radar";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useSearchRadar, SearchResult } from "@/hooks/use-search-radar";
 
 export interface UnifiedSearchBarProps {
   placeholder?: string;
-  onResults?: (results: SearchResult[] | null) => void; // [FIX]: Soporte para estado nulo
+  onResults?: (results: SearchResult[] | null) => void;
   onLoading?: (isLoading: boolean) => void;
   onClear?: () => void;
   latitude?: number;
@@ -48,7 +43,7 @@ export function UnifiedSearchBar({
   variant = 'default',
   className
 }: UnifiedSearchBarProps) {
-
+  
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [mounted, setMounted] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -64,32 +59,22 @@ export function UnifiedSearchBar({
     removeTermFromHistory
   } = useSearchRadar({ latitude, longitude, limit: 30 });
 
-  // 1. PROTOCOLO DE MONTAJE: Garantiza que el portal no se intente renderizar en SSR.
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  /**
-   * [FIX CRÍTICO V4.5]: Notificación de Resultados.
-   * Solo notificamos al padre si el componente está montado para evitar 
-   * el desajuste de hidratación que rompe Radix Tabs.
-   */
   useEffect(() => {
     if (mounted && onResults) {
       onResults(results);
     }
   }, [results, onResults, mounted]);
 
-  /**
-   * [FIX CRÍTICO V4.5]: Notificación de Carga.
-   */
   useEffect(() => {
     if (mounted && onLoading) {
       onLoading(isLoading);
     }
   }, [isLoading, onLoading, mounted]);
 
-  // 2. GOBERNANZA DE SCROLL: Bloquea el body para inmersión total en el "Void".
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
@@ -124,7 +109,6 @@ export function UnifiedSearchBar({
     }
   };
 
-  // 3. COMANDOS SOBERANOS (Cmd+K)
   useEffect(() => {
     const handleGlobalKeys = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
@@ -136,10 +120,6 @@ export function UnifiedSearchBar({
     return () => window.removeEventListener("keydown", handleGlobalKeys);
   }, []);
 
-  /**
-   * RENDERIZADO POR PORTAL: "The Void Search"
-   * Se inyecta directamente en el body para evitar conflictos de z-index con Mapbox.
-   */
   const searchPortal = mounted && isOpen ? createPortal(
     <AnimatePresence>
       <motion.div
@@ -149,14 +129,9 @@ export function UnifiedSearchBar({
         transition={{ duration: 0.2 }}
         className="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-3xl flex flex-col selection:bg-primary/30"
       >
-        {/* CABECERA DEL PORTAL */}
         <div className="w-full flex items-center justify-between gap-4 p-4 md:p-8 bg-zinc-950/50 border-b border-white/5">
           <div className="relative flex-1 max-w-4xl mx-auto flex items-center">
-            <Search className={cn(
-              "absolute left-4 h-5 w-5 transition-all z-10",
-              isLoading ? "text-primary animate-spin" : "text-zinc-500"
-            )} />
-
+            <Search className={cn("absolute left-4 h-5 w-5 transition-all z-10", isLoading ? "text-primary animate-spin" : "text-zinc-500")} />
             <Input
               autoFocus
               ref={inputRef}
@@ -167,17 +142,11 @@ export function UnifiedSearchBar({
               className="w-full h-14 pl-12 pr-12 bg-zinc-900 border-none rounded-xl text-lg md:text-2xl font-black text-white placeholder:text-zinc-700 focus-visible:ring-1 focus-visible:ring-primary/50"
             />
           </div>
-
-          <Button
-            variant="ghost"
-            onClick={handleToggle}
-            className="h-14 w-14 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 text-white shrink-0"
-          >
+          <Button variant="ghost" onClick={handleToggle} className="h-14 w-14 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 text-white shrink-0">
             <X size={24} />
           </Button>
         </div>
 
-        {/* CUERPO DEL PORTAL (Resultados / Historial) */}
         <div className="flex-1 w-full max-w-4xl mx-auto overflow-y-auto px-4 py-6">
           <AnimatePresence mode="wait">
             {query.length === 0 ? (
@@ -190,10 +159,7 @@ export function UnifiedSearchBar({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {history.map((term) => (
                       <div key={term} className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/5 hover:border-primary/20 transition-all group">
-                        <button
-                          onClick={() => { setQuery(term); performSearch(term); }}
-                          className="flex-1 text-left font-bold text-sm text-zinc-400 group-hover:text-white transition-colors"
-                        >
+                        <button onClick={() => { setQuery(term); performSearch(term); }} className="flex-1 text-left font-bold text-sm text-zinc-400 group-hover:text-white transition-colors">
                           {term}
                         </button>
                         <button onClick={() => removeTermFromHistory(term)} className="p-2 text-zinc-700 hover:text-red-500 rounded-lg">
@@ -225,7 +191,6 @@ export function UnifiedSearchBar({
     document.body
   ) : null;
 
-  // 4. RENDERIZADO DEL DISPARADOR (Trigger de Consola)
   return (
     <div className={cn("relative z-20", className)}>
       {!isOpen && (
@@ -234,9 +199,9 @@ export function UnifiedSearchBar({
             <Button
               onClick={() => setIsOpen(true)}
               variant="outline"
-              className="h-10 w-10 md:h-12 md:w-12 rounded-xl bg-black/40 border-white/10 hover:bg-primary/20 shadow-xl group"
+              className="h-14 w-14 md:h-14 md:w-14 rounded-2xl bg-zinc-950/60 backdrop-blur-xl border border-white/10 hover:bg-primary/20 shadow-[0_10px_30px_rgba(0,0,0,0.5)] group active:scale-95 transition-all"
             >
-              <Search className="h-4 w-4 md:h-5 md:w-5 text-primary group-hover:scale-110 transition-transform" />
+              <Search className="h-6 w-6 text-primary group-hover:scale-110 transition-transform" />
             </Button>
           ) : (
             <div
@@ -245,29 +210,20 @@ export function UnifiedSearchBar({
             >
               <Search className="h-4 w-4 text-zinc-500 mr-3" />
               <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Activar Radar...</span>
-              <div className="ml-auto hidden md:flex items-center gap-1 opacity-20">
-                <Command size={10} />
-                <span className="text-[10px] font-black">K</span>
-              </div>
             </div>
           )}
         </motion.div>
       )}
-
-      {/* Portal React inyectado en la raíz del DOM */}
       {searchPortal}
     </div>
   );
 }
 
-/**
- * SearchResultItem: Nodo individual de la red de inteligencia.
- */
 function SearchResultItem({ result, onClick }: { result: SearchResult, onClick: () => void }) {
   const href =
-    result.result_type === 'podcast' ? `/podcast/${result.id}` :
-      result.result_type === 'user' ? `/profile/${result.subtitle.replace('@', '')}` :
-        result.result_type === 'place' ? `/map?lat=${result.metadata?.lat}&lng=${result.metadata?.lng}` : '#';
+    result.result_type === 'podcast' ? `/podcast/${result.id}` : 
+    result.result_type === 'user' ? `/profile/${result.subtitle.replace('@', '')}` :
+    result.result_type === 'place' ? `/map?lat=${result.metadata?.lat}&lng=${result.metadata?.lng}` : '#';
 
   return (
     <Link href={href} onClick={onClick} className="block group">
@@ -281,7 +237,6 @@ function SearchResultItem({ result, onClick }: { result: SearchResult, onClick: 
             </div>
           )}
         </div>
-
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             {result.result_type === 'podcast' && <Mic2 size={10} className="text-primary" />}
@@ -292,7 +247,6 @@ function SearchResultItem({ result, onClick }: { result: SearchResult, onClick: 
           </div>
           <p className="text-[10px] font-bold text-zinc-500 truncate uppercase tracking-widest">{result.subtitle}</p>
         </div>
-
         <ChevronRight className="h-4 w-4 text-zinc-800 group-hover:text-white transition-colors" />
       </div>
     </Link>
