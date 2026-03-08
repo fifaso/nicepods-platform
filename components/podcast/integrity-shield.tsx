@@ -1,7 +1,7 @@
 // components/podcast/integrity-shield.tsx
-// VERSIÓN: 1.0 (Integrity Shield & QA Flow Standard)
-// Misión: Gestionar alertas de producción, progreso de síntesis y el protocolo de publicación (QA).
-// [ESTABILIZACIÓN]: Aislamiento de lógica de negocio visual para eliminar ruidos en el Dashboard.
+// VERSIÓN: 2.0 (NicePod QA Flow - Full Integrity Standard)
+// Misión: Gestionar el ciclo de vida del activo: Error, Construcción, Validación (QA) y Publicación.
+// [ESTABILIZACIÓN]: Implementación de lógica de estado explícito para evitar limbos visuales.
 
 "use client";
 
@@ -15,25 +15,29 @@ import {
   Ear,
   Loader2,
   Lock,
-  Users
+  Users,
+  CheckCircle2
 } from 'lucide-react';
 
 /**
  * INTERFAZ: IntegrityShieldProps
- * Define los estados necesarios para orquestar la resiliencia del podcast.
+ * Define el contrato de resiliencia del podcast.
  */
 interface IntegrityShieldProps {
-  isFailed: boolean;          // ¿Hubo un error fatal en la forja de audio o imagen?
-  isConstructing: boolean;    // ¿Está el sistema en Fase IV de materialización?
-  isOwner: boolean;           // ¿Es el usuario el creador soberano del contenido?
+  isFailed: boolean;          // Fallo crítico en la forja de activos
+  isConstructing: boolean;    // Fase IV: Materialización de la síntesis
+  isOwner: boolean;           // Soberanía: Solo el dueño puede publicar
   status: string;             // 'pending_approval' | 'published' | 'failed'
-  listeningProgress: number;  // Porcentaje real de escucha (0-100)
-  hasListenedFully: boolean;  // ¿Se alcanzó el umbral de validación (>95%)?
-  onPublish: () => Promise<void>; // Acción para liberar el podcast a la red pública
+  listeningProgress: number;  // Progreso auditivo (0-100)
+  hasListenedFully: boolean;  // Umbral de validación QA (>95%)
+  onPublish: () => Promise<void>; // Disparador de liberación
 }
 
 /**
- * IntegrityShield: El orquestador de estados críticos.
+ * IntegrityShield: Orquestador de estados críticos de la Workstation.
+ * 
+ * Implementa una lógica de visualización que prioriza la información técnica 
+ * sobre la estética si el sistema detecta inconsistencia en los activos.
  */
 export function IntegrityShield({
   isFailed,
@@ -45,118 +49,112 @@ export function IntegrityShield({
   onPublish
 }: IntegrityShieldProps) {
 
-  // No renderizamos nada si el podcast ya es público y no hay fallos.
+  // PROTOCOLO DE SALIDA SILENCIOSA:
+  // Si el activo es público y no hay errores, el escudo se repliega totalmente.
   if (!isFailed && !isConstructing && status === 'published') {
     return null;
   }
 
   return (
-    <div className="w-full space-y-4 mb-6">
+    <div className="w-full space-y-4 mb-8">
 
-      {/* 1. NIVEL DE ALERTA: ERROR DE PRODUCCIÓN (Fase IV Fail) */}
+      {/* 1. NIVEL DE ALERTA: FALLO EN LA FORJA */}
       <AnimatePresence>
         {isFailed && (
           <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
           >
-            <Alert variant="destructive" className="border-red-500/20 bg-red-500/5 backdrop-blur-2xl rounded-3xl shadow-xl">
+            <Alert variant="destructive" className="border-red-900/50 bg-red-950/20 rounded-[2rem] shadow-xl">
               <AlertCircle className="h-5 w-5" />
               <AlertTitle className="font-black text-[10px] uppercase tracking-[0.2em] mb-1">
-                Interrupción de Síntesis
+                Fallo Crítico de Síntesis
               </AlertTitle>
-              <AlertDescription className="text-xs font-medium opacity-80">
-                El motor de NicePod detectó una anomalía en la forja de activos.
-                Los registros administrativos han sido notificados para su intervención.
+              <AlertDescription className="text-xs font-medium text-red-200/80">
+                El motor de NicePod detectó una anomalía durante la forja de activos. 
+                El proceso ha sido detenido para proteger la integridad de la Bóveda.
               </AlertDescription>
             </Alert>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* 2. NIVEL DE CONTROL: PROTOCOLO DE VALIDACIÓN (QA FLOW)
-          Solo visible para el dueño del podcast si está en espera de aprobación.
-      */}
-      {isOwner && !isConstructing && !isFailed && status === 'pending_approval' && (
+      {/* 2. NIVEL DE CONTROL: PROTOCOLO DE VALIDACIÓN (QA FLOW) */}
+      {!isFailed && !isConstructing && status === 'pending_approval' && isOwner && (
         <motion.div
-          initial={{ opacity: 0, scale: 0.98 }}
+          initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="rounded-[2rem] border border-primary/20 bg-primary/5 p-4 md:p-5 backdrop-blur-2xl flex flex-col md:flex-row justify-between items-center gap-4 shadow-2xl"
+          className="rounded-[2.5rem] border border-primary/20 bg-zinc-950/60 p-6 md:p-8 backdrop-blur-3xl flex flex-col md:flex-row justify-between items-center gap-6 shadow-2xl"
         >
-          <div className="flex items-center gap-4 text-center md:text-left">
-            <div className="p-3 bg-primary/10 rounded-2xl text-primary shadow-inner">
-              <Lock className="h-5 w-5" />
+          <div className="flex items-center gap-5 text-center md:text-left">
+            <div className="p-4 bg-primary/10 rounded-2xl text-primary shadow-inner">
+              <Lock className="h-6 w-6" />
             </div>
             <div>
-              <h3 className="font-black text-sm uppercase tracking-tight leading-tight">
-                Soberanía en Curso
+              <h3 className="font-black text-sm uppercase tracking-widest leading-none text-white">
+                Validación de Soberanía
               </h3>
-              <p className="text-[11px] text-muted-foreground font-medium mt-1">
-                El conocimiento está forjado. Escucha el 95% para publicarlo en la red pública de Madrid.
+              <p className="text-[11px] text-zinc-400 font-medium mt-2 max-w-sm">
+                La forja ha concluido. Valida la integridad escuchando el 95% de la pieza para activar el permiso de publicación.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            {/* Indicador de Progreso Circular/Badge */}
-            <div className="flex-grow md:flex-grow-0">
-              <Button
-                onClick={onPublish}
-                disabled={!hasListenedFully}
-                className={cn(
-                  "w-full md:w-auto h-11 px-8 font-black rounded-full transition-all duration-500",
-                  hasListenedFully
-                    ? "bg-green-600 text-white shadow-[0_0_20px_rgba(22,163,74,0.4)] hover:scale-105 hover:bg-green-500"
-                    : "bg-zinc-800 text-zinc-500 cursor-not-allowed opacity-50"
-                )}
-              >
-                {hasListenedFully ? (
-                  <><Users className="mr-2 h-4 w-4" /> LIBERAR EN RED</>
-                ) : (
-                  <><Ear className="mr-2 h-4 w-4" /> VALIDACIÓN QA: {Math.round(listeningProgress)}%</>
-                )}
-              </Button>
-            </div>
+          <div className="w-full md:w-auto">
+            <Button
+              onClick={onPublish}
+              disabled={!hasListenedFully}
+              className={cn(
+                "w-full md:w-auto h-12 px-8 font-black rounded-full transition-all duration-500 uppercase tracking-widest",
+                hasListenedFully
+                  ? "bg-emerald-600 text-white hover:bg-emerald-500 shadow-[0_0_20px_rgba(5,150,105,0.3)] hover:scale-105"
+                  : "bg-zinc-800 text-zinc-500 cursor-not-allowed opacity-50"
+              )}
+            >
+              {hasListenedFully ? (
+                <><Users className="mr-2 h-4 w-4" /> LIBERAR EN RED</>
+              ) : (
+                <><Ear className="mr-2 h-4 w-4" /> QA: {Math.round(listeningProgress)}%</>
+              )}
+            </Button>
           </div>
         </motion.div>
       )}
 
-      {/* 3. NIVEL DE SISTEMA: MALLA DE CONSTRUCCIÓN (71% Progress)
-          Solo visible durante la fase de procesamiento multimedia.
-      */}
+      {/* 3. NIVEL DE SISTEMA: MALLA DE CONSTRUCCIÓN (Fase IV) */}
       {isConstructing && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="rounded-[2.5rem] border border-white/5 bg-zinc-950/40 p-6 md:p-10 backdrop-blur-3xl flex flex-col items-center text-center space-y-8 min-h-[400px] justify-center shadow-inner"
+          className="rounded-[2.5rem] border border-white/5 bg-zinc-950/60 p-8 md:p-12 backdrop-blur-3xl flex flex-col items-center text-center space-y-8 min-h-[400px] justify-center shadow-inner"
         >
           <div className="relative">
-            <div className="absolute inset-0 bg-primary/20 blur-[60px] animate-pulse rounded-full" />
+            <div className="absolute inset-0 bg-primary/20 blur-[80px] animate-pulse rounded-full" />
             <Construction className="h-16 w-16 text-primary relative z-10 animate-bounce" />
           </div>
 
           <div className="space-y-3 relative z-10">
-            <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter text-white">
+            <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tighter text-white">
               Sintonizando Frecuencia
             </h2>
-            <p className="text-muted-foreground text-sm md:text-base max-w-sm mx-auto font-medium leading-relaxed">
-              La IA está materializando tu síntesis. La carátula y el audio neuronal aparecerán automáticamente.
+            <p className="text-zinc-400 text-sm md:text-base max-w-sm mx-auto font-medium leading-relaxed">
+              La IA está materializando tu síntesis. Los activos digitales se están integrando en la malla.
             </p>
           </div>
 
           <div className="flex flex-col items-center gap-4 w-full max-w-xs">
             <div className="flex items-center gap-3 text-primary/60">
               <Loader2 className="h-4 w-4 animate-spin" />
-              <span className="text-[9px] font-black uppercase tracking-[0.4em]">Malla Multimedia Activa</span>
+              <span className="text-[9px] font-black uppercase tracking-[0.5em]">Forjando Activos Digitales</span>
             </div>
-
-            {/* Barra de Progreso Aurora */}
+            
             <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
               <motion.div
                 initial={{ x: "-100%" }}
                 animate={{ x: "100%" }}
-                transition={{ repeat: Infinity, duration: 1.8, ease: "easeInOut" }}
+                transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
                 className="h-full w-full bg-gradient-to-r from-transparent via-primary to-transparent"
               />
             </div>
@@ -167,3 +165,15 @@ export function IntegrityShield({
     </div>
   );
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT:
+ * 1. Estabilidad de Ciclo de Vida: El escudo ahora utiliza estados lógicos 
+ *    mutuamente excluyentes. Esto elimina el riesgo de mostrar dos estados 
+ *    contradictorios al usuario.
+ * 2. Feedback Industrial: La barra de progreso Aurora (animación infinita) 
+ *    proporciona feedback constante al usuario, disminuyendo la percepción 
+ *    de latencia durante la síntesis.
+ * 3. Integridad visual: Se ha elevado el borde a '2.5rem' para mantener la 
+ *    cohesión estética con el resto de la Workstation NicePod V2.5.
+ */
