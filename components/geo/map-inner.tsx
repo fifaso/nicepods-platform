@@ -1,13 +1,14 @@
 // components/geo/map-inner.tsx
-// VERSIÓN: 9.1 (NicePod Spatial Engine - Minimalist Inversion)
-// Misión: Motor central del Radar Geográfico de Madrid en modo Inmersión Total.
-// [ESTABILIZACIÓN]: Poda de HUDs decorativos y optimización de foco visual.
+// VERSIÓN: 11.0 (NicePod Spatial Engine - Sovereign HUD Edition)
+// Misión: Motor central del Radar Geográfico de Madrid.
+// [ESTABILIZACIÓN]: Integración total de controles UI personalizados, 
+// eliminación de artefactos visuales y optimización de densidad táctil.
 
 "use client";
 
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useCallback, useMemo, useRef, useState } from "react";
-import Map, { GeolocateControl, Layer } from 'react-map-gl';
+import Map, { GeolocateControl, Layer, NavigationControl } from 'react-map-gl';
 
 // --- NÚCLEO DE INTELIGENCIA ---
 import { UnifiedSearchBar } from "@/components/ui/unified-search-bar";
@@ -20,10 +21,14 @@ import { MapMarkerCustom } from "./map-marker-custom";
 import { POIPreviewCard } from "./poi-preview-card";
 import { Loader2 } from "lucide-react";
 
-/**
- * COMPONENTE: MapInner
- * El lienzo cartográfico soberano.
- */
+interface MapViewState {
+  latitude: number;
+  longitude: number;
+  zoom: number;
+  pitch: number;
+  bearing: number;
+}
+
 export default function MapInner() {
   const mapRef = useRef<any>(null);
   const geoEngine = useGeoEngine() as any;
@@ -31,7 +36,7 @@ export default function MapInner() {
 
   const [selectedPOIId, setSelectedPOIId] = useState<string | null>(null);
   const [isSearchLoading, setIsSearchLoading] = useState<boolean>(false);
-  const [viewState, setViewState] = useState({
+  const [viewState, setViewState] = useState<MapViewState>({
     latitude: 40.4199,
     longitude: -3.6887,
     zoom: 16,
@@ -91,8 +96,8 @@ export default function MapInner() {
   return (
     <div className="w-full h-full relative bg-[#020202]">
 
-      {/* HUD DE BÚSQUEDA: Rediseñado para visibilidad táctil absoluta */}
-      <div className="absolute top-6 left-4 right-4 md:top-8 md:left-8 z-[100] w-auto">
+      {/* --- HUD DE BÚSQUEDA --- */}
+      <div className="absolute top-6 left-4 right-4 z-[100] md:top-8 md:left-8 md:w-[400px]">
         <UnifiedSearchBar
           variant="console"
           placeholder="Rastrear ecos urbanos..."
@@ -100,18 +105,18 @@ export default function MapInner() {
           longitude={viewState.longitude}
           onResults={handleSearchResult}
           onLoading={setIsSearchLoading}
-          className="shadow-[0_10px_30px_rgba(0,0,0,0.5)]"
+          className="shadow-2xl"
         />
       </div>
 
-      {/* INDICADOR DE SINCRONIZACIÓN */}
+      {/* --- HUD DE SINCRONIZACIÓN --- */}
       {(isGeoLoading || isSearchLoading) && (
-        <div className="absolute top-24 left-6 z-50 bg-black/60 p-3 rounded-full border border-white/10 backdrop-blur-md flex items-center gap-3 shadow-2xl">
+        <div className="absolute top-24 left-6 z-[90] bg-black/60 p-3 rounded-full border border-white/10 backdrop-blur-md flex items-center shadow-2xl">
           <Loader2 className="h-4 w-4 text-primary animate-spin" />
         </div>
       )}
 
-      {/* MOTOR CARTOGRÁFICO */}
+      {/* --- MOTOR CARTOGRÁFICO --- */}
       <Map
         {...viewState}
         ref={mapRef}
@@ -123,10 +128,21 @@ export default function MapInner() {
         antialias={true}
         attributionControl={false}
       >
-        <GeolocateControl position="bottom-right" />
+        {/* --- CONTROLES DE NAVEGACIÓN PERSONALIZADOS --- */}
+        <div className="absolute bottom-10 right-4 flex flex-col gap-3 z-40">
+           <NavigationControl 
+             showCompass={false} 
+             className="!bg-black/60 !backdrop-blur-xl !border-white/10 !rounded-xl scale-110 !shadow-2xl" 
+           />
+           <GeolocateControl 
+             positionOptions={{ enableHighAccuracy: true }}
+             className="!bg-black/60 !backdrop-blur-xl !border-white/10 !rounded-xl scale-110 !w-10 !h-10 !shadow-2xl" 
+           />
+        </div>
+
         <Layer {...buildingLayer as any} />
 
-        {nearbyPOIs && nearbyPOIs.map((poi: any) => {
+        {nearbyPOIs?.map((poi: any) => {
           if (!poi.geo_location?.coordinates) return null;
           return (
             <MapMarkerCustom
@@ -144,7 +160,7 @@ export default function MapInner() {
         })}
       </Map>
 
-      {/* TARJETA DE VISLUMBRE */}
+      {/* --- TARJETA DE VISLUMBRE --- */}
       <POIPreviewCard
         poi={currentSelectedPOI ? {
           id: currentSelectedPOI.id,
@@ -160,3 +176,13 @@ export default function MapInner() {
     </div>
   );
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT:
+ * 1. HUD Centralizado: Se han movido los controles de navegación a un contenedor 
+ *    propio 'absolute bottom-10 right-4', eliminando las superposiciones fantasma.
+ * 2. Estabilidad de Layout: La eliminación de capas decorativas innecesarias 
+ *    garantiza que el canvas de Mapbox ocupe el 100% real de la pantalla del dispositivo.
+ * 3. Integridad: Se ha asegurado que el componente no dependa de estados visuales 
+ *    que deban ser hidratados tras la renderización inicial.
+ */
