@@ -1,18 +1,19 @@
 // components/podcast-card.tsx
-// VERSIÓN: 7.0 (NicePod Interactive Card - Semantic & Accessibility Master)
+// VERSIÓN: 8.0 (NicePod Interactive Card - Click-Through Atomic Routing)
 // Misión: Renderizar la unidad de conocimiento con navegabilidad atómica y protección contra 400s.
-// [ESTABILIZACIÓN]: Implementación de Absolute Link Overlay y gestión de fallbacks visuales.
+// [ESTABILIZACIÓN]: Implementación de navegación programática y gestión de estados de Forja.
 
 "use client";
 
-import React, { useMemo } from "react";
+import { Clock, Lock, Pause, Play } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { Clock, Loader2, Lock, Pause, Play, Zap } from "lucide-react";
+import { useRouter } from "next/navigation";
+import React, { useMemo } from "react";
 
-import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 import { useAudio } from "@/contexts/audio-context";
 import { cn, formatTime, getSafeAsset } from "@/lib/utils";
 import { PodcastWithProfile } from "@/types/podcast";
@@ -21,27 +22,48 @@ interface PodcastCardProps {
   podcast: PodcastWithProfile;
 }
 
+/**
+ * COMPONENTE: PodcastCard
+ * Representa un nodo de conocimiento en la biblioteca de NicePod.
+ * 
+ * [ESTRATEGIA DE NAVEGACIÓN]: 
+ * Se ha eliminado el 'Link' absoluto que cubría la tarjeta para evitar colisiones 
+ * con elementos interactivos internos (Play, Perfil). Utilizamos navegación 
+ * programática y propagación controlada de eventos.
+ */
 export function PodcastCard({ podcast }: PodcastCardProps) {
+  const router = useRouter();
   const { playPodcast, currentPodcast, isPlaying } = useAudio();
 
   // 1. ESTADO DE INTEGRIDAD (La Forja)
   const isReady = podcast.processing_status === 'completed';
   const isCurrentlyPlaying = currentPodcast?.id === podcast.id && isPlaying;
 
-  // 2. METADATOS SEGUROS
+  // 2. METADATOS SOBERANOS
   const authorName = podcast.profiles?.full_name || "Creador NicePod";
   const authorUsername = podcast.profiles?.username || "admin";
 
   /**
    * [ESCUDO ANTI-400]: Sanitización de Activos Visuales.
-   * Usamos getSafeAsset para asegurar URLs de alta autoridad o placeholders locales.
+   * Evita errores 400 de Next/Image al no solicitar assets inexistentes.
    */
   const coverUrl = useMemo(() => getSafeAsset(podcast.cover_image_url, 'cover'), [podcast.cover_image_url]);
   const authorImage = useMemo(() => getSafeAsset(podcast.profiles?.avatar_url, 'avatar'), [podcast.profiles?.avatar_url]);
 
   /**
+   * ACCIÓN: handleCardClick
+   * Navegación programática. Solo ocurre si el activo está listo.
+   */
+  const handleCardClick = () => {
+    if (isReady) {
+      router.push(`/podcast/${podcast.id}`);
+    }
+  };
+
+  /**
    * ACCIÓN: handlePlay
-   * Disparo acústico atómico. Controlamos la propagación para evitar disparar la navegación.
+   * Disparo acústico atómico. Controlamos la propagación para no 
+   * activar la navegación a la página de detalle al pulsar Play.
    */
   const handlePlay = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
@@ -50,28 +72,24 @@ export function PodcastCard({ podcast }: PodcastCardProps) {
     playPodcast(podcast);
   };
 
+  /**
+   * ACCIÓN: handleProfileClick
+   * Permite ir al perfil del curador sin activar el clic de la tarjeta.
+   */
+  const handleProfileClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.stopPropagation();
+  };
+
   return (
-    <Card 
+    <Card
+      onClick={handleCardClick}
       className={cn(
-        "flex flex-col h-full overflow-hidden transition-all duration-500 group border shadow-lg bg-zinc-950/60 backdrop-blur-xl rounded-[2rem]",
-        isReady 
-          ? "border-white/5 hover:border-primary/40 hover:shadow-[0_0_20px_rgba(139,92,246,0.1)] hover:-translate-y-1" 
-          : "border-dashed border-zinc-800 opacity-70 grayscale-[0.5]"
+        "flex flex-col h-full overflow-hidden transition-all duration-500 group border shadow-lg bg-zinc-950/60 backdrop-blur-xl rounded-[2rem] cursor-pointer",
+        isReady
+          ? "border-white/5 hover:border-primary/40 hover:shadow-[0_0_20px_rgba(139,92,246,0.15)] hover:-translate-y-1"
+          : "border-dashed border-zinc-800 opacity-70 grayscale-[0.5] cursor-default"
       )}
     >
-      {/* 
-          3. EL ENLACE FANTASMA (ABSOLUTE OVERLAY ROUTING)
-          Esta capa z-10 cubre toda la tarjeta, permitiendo la navegación legal HTML5 
-          sin romper la interactividad de los botones internos (Play, Autor).
-      */}
-      {isReady && (
-        <Link 
-          href={`/podcast/${podcast.id}`} 
-          className="absolute inset-0 z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-[2rem]"
-          aria-label={`Escuchar el podcast: ${podcast.title}`}
-        />
-      )}
-
       {/* --- CAPA FONDO: PORTADA --- */}
       <div className="relative w-full h-48 flex-shrink-0">
         <Image
@@ -82,7 +100,7 @@ export function PodcastCard({ podcast }: PodcastCardProps) {
           quality={70}
           className="object-cover z-0 transition-transform duration-1000 group-hover:scale-105 opacity-50"
         />
-        
+
         {/* Gradiente de Legibilidad */}
         <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/40 to-transparent z-10" />
 
@@ -95,12 +113,12 @@ export function PodcastCard({ podcast }: PodcastCardProps) {
           )}
         </div>
 
-        {/* Botón de Reproducción (Nivel Z-30 para evitar el enlace fantasma) */}
+        {/* Botón de Reproducción: Accionable independientemente */}
         <div className="absolute bottom-4 right-4 z-30">
-          <Button 
-            onClick={handlePlay} 
+          <Button
+            onClick={handlePlay}
             disabled={!isReady}
-            size="icon" 
+            size="icon"
             className={cn(
               "w-12 h-12 rounded-full transition-all duration-300 border-none shadow-2xl",
               isReady
@@ -127,26 +145,26 @@ export function PodcastCard({ podcast }: PodcastCardProps) {
         </CardDescription>
 
         <div className="flex items-center text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 pt-6 mt-auto border-t border-white/5">
-          {/* Enlace al perfil (Posición Z-30 para prioridad de click) */}
-          <Link 
+          {/* Enlace al perfil con prevención de propagación */}
+          <Link
             href={`/profile/${authorUsername}`}
-            onClick={(e) => e.stopPropagation()}
-            className="flex items-center gap-2 hover:text-primary transition-colors relative z-30"
+            onClick={handleProfileClick}
+            className="flex items-center gap-2 hover:text-primary transition-colors"
           >
             <div className="h-6 w-6 rounded-full overflow-hidden border border-white/10">
               <Image src={authorImage} alt={authorName} width={24} height={24} className="object-cover" />
             </div>
             {authorName}
           </Link>
-          
+
           <div className="flex items-center gap-1.5 ml-auto text-zinc-600">
             {isReady ? (
               <>
                 <Clock className="h-3 w-3" />
-                {podcast.duration_seconds ? formatTime(podcast.duration_seconds) : '0:00'}
+                <span className="tracking-widest uppercase">{podcast.duration_seconds ? formatTime(podcast.duration_seconds) : '0:00'}</span>
               </>
             ) : (
-              <span className="text-primary animate-pulse flex items-center gap-1">
+              <span className="text-primary animate-pulse flex items-center gap-1 uppercase tracking-widest text-[9px]">
                 <Lock size={10} /> FORJA
               </span>
             )}
@@ -159,10 +177,11 @@ export function PodcastCard({ podcast }: PodcastCardProps) {
 
 /**
  * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Estabilidad de Ruteo: Al utilizar el 'Link' como overlay absoluto, 
- *    el componente es compatible con cualquier diseño sin romper el árbol DOM.
- * 2. Cero Errores 400: Al sanear las URLs antes de pasarlas a Next/Image, 
- *    hemos eliminado la raíz de los errores de red registrados en consola.
- * 3. UX de Forja: Se mantiene el estado visual 'grayscale' para nodos aún no 
- *    completados, manteniendo el orden jerárquico dentro de la Bóveda.
+ * 1. Independencia Funcional: Al usar 'router.push' en lugar de un <Link> envolvente, 
+ *    los componentes hijos (Play Button, Link al perfil) pueden tener sus propios 
+ *    eventos sin causar colisiones.
+ * 2. Cero Errores 400: La normalización mediante 'getSafeAsset' garantiza 
+ *    que ninguna URL de imagen vacía toque el componente <Image>.
+ * 3. UX de Forja: El estado 'grayscale' y el botón deshabilitado informan 
+ *    al usuario sobre la inmadurez del activo sin necesidad de alertas de sistema.
  */
