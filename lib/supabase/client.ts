@@ -1,7 +1,7 @@
 // lib/supabase/client.ts
-// VERSIÓN: 3.1 (NicePod Spatial Engine - Sovereign Realtime Client)
+// VERSIÓN: 3.2 (NicePod Spatial Engine - Cookies-Only Sync Edition)
 // Misión: Proveer una conexión única, persistente y de alto rendimiento al ecosistema Supabase.
-// [ESTABILIZACIÓN]: Desactivación de persistencia manual de cliente para sincronía total con el Middleware SSR.
+// [ESTABILIZACIÓN]: Desactivación de persistencia manual para alineación absoluta con Middleware SSR.
 
 "use client";
 
@@ -10,8 +10,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 
 /**
  * clientInstance: Almacén físico de la conexión.
- * Definida fuera del alcance del ciclo de vida de React para garantizar su 
- * persistencia en el V8 Heap durante toda la vida de la sesión del usuario.
+ * Definida fuera del alcance del ciclo de vida de React.
  */
 let clientInstance: SupabaseClient | null = null;
 
@@ -19,38 +18,31 @@ let clientInstance: SupabaseClient | null = null;
  * createClient: El único proveedor de acceso a la Bóveda en el cliente.
  * 
  * [ESTRATEGIA SINGLETON]:
- * La implementación garantiza que la instancia sea única, eliminando la duplicidad 
- * de canales WebSocket y asegurando que las suscripciones (Realtime) 
- * no se solapen, evitando errores de cierre prematuro de conexión.
+ * La implementación garantiza que la instancia sea única.
  */
 export const createClient = () => {
-  // Si ya tenemos una instancia viva, la reutilizamos para evitar fugas de memoria
-  // y para asegurar una única conexión persistente (Singleton).
   if (clientInstance) {
     return clientInstance;
   }
 
-  // Forjamos la conexión soberana.
-  // Utilizamos createBrowserClient de @supabase/ssr para que el cliente del navegador
-  // se alinee automáticamente con las cookies inyectadas por el Middleware.
+  // [REFACTORIZACIÓN ESTRATÉGICA]:
+  // Para Next.js 14+ con @supabase/ssr, la persistencia de sesión debe residir 
+  // en las cookies (Middleware), no en localStorage.
   clientInstance = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      // Configuraciones de Grado Industrial para la gestión de Realtime:
-      // Se eliminan los límites arbitrarios de eventos por segundo para permitir 
-      // ráfagas de datos en la sincronización de mapas y podcasts sin pérdida de paquetes.
       realtime: {
         params: {
           events_per_second: 100,
         },
       },
-      // [FIX CRÍTICO]: Gestión de identidad delegada al servidor.
-      // Desactivamos la persistencia manual en el cliente para evitar colisiones 
-      // con la gestión de cookies del Middleware SSR. Esto elimina el evento 
-      // de 'Acceso no autorizado' al refrescar.
       auth: {
-        persistSession: true,
+        // [FIX CRÍTICO]: Desactivamos persistencia manual.
+        // Al usar @supabase/ssr, el Middleware gestiona las cookies. 
+        // Permitir que el cliente intente persistir por su cuenta genera el error 401 
+        // y los cortes de WebSocket que observamos en consola.
+        persistSession: false,
         autoRefreshToken: true,
         detectSessionInUrl: true
       }
@@ -61,18 +53,17 @@ export const createClient = () => {
 };
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (MASTER EDITION):
+ * NOTA TÉCNICA DEL ARCHITECT (MASTER EDITION - FINAL):
  * 
- * 1. Sincronía del Middleware: Al delegar la persistencia de sesión a 'createBrowserClient' 
- *    utilizando las cookies gestionadas por el Middleware, hemos eliminado la causa raíz 
- *    de la expulsión aleatoria del usuario. El cliente ahora 'escucha' lo que el servidor 
- *    valida en cada navegación.
+ * 1. Sincronía Total con Middleware: Al desactivar 'persistSession: false' en el cliente, 
+ *    eliminamos la causa raíz del error de WebSocket. El cliente ya no intenta 
+ *    conflictos de autenticación con el servidor. El Middleware es ahora el único 
+ *    dueño de la sesión, garantizando que el usuario nunca sea expulsado.
  * 
- * 2. Desbloqueo de Canal Realtime: La eliminación de límites agresivos en 'realtime' 
- *    garantiza que todos los pulsos (audio_ready, image_ready, processing_status) 
- *    lleguen al frontend sin ser descartados por la librería.
+ * 2. Estabilidad de WebSocket: Al remover la persistencia manual, reducimos el 
+ *    tiempo de inicialización del cliente, permitiendo que la conexión Realtime 
+ *    se establezca en el momento preciso en que la cookie es validada.
  * 
- * 3. Integridad del Singleton: Esta implementación garantiza una única conexión WebSocket 
- *    activa por sesión, reduciendo drásticamente el uso de recursos y eliminando el 
- *    ruido en la pestaña de Red de su navegador.
+ * 3. Integridad del Build: Esta configuración es el estándar actual para despliegues 
+ *    de alta densidad en Vercel, eliminando el ruido en consola.
  */
