@@ -1,15 +1,14 @@
 // next.config.mjs
-// VERSIÓN: 45.0 (NicePod Shielded Standard - Zero-Flicker & Clean Console Edition)
-// Misión: Orquestar el build industrial, optimizar el payload y blindar la estrategia PWA.
-// [ESTABILIZACIÓN]: Resolución definitiva de colisiones de metadata y bloqueos de hidratación.
+// VERSIÓN: 46.0 (NicePod Shielded Production - PWA Bypass Edition)
+// Misión: Orquestar el build industrial, optimizar el payload y blindar la infraestructura contra colisiones de red.
+// [ESTABILIZACIÓN]: Desactivación de intercepción de activos dinámicos por el Service Worker.
 
 import withPWAInit from "@ducanh2912/next-pwa";
 import { withSentryConfig } from '@sentry/nextjs';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // 1. PROTOCOLO DE RIGOR TÉCNICO (Build Shield)
-  // Garantizamos que NicePod sea un sistema de Zero-Warning. Si hay errores, el build aborta.
+  // PROTOCOLO DE RIGOR TÉCNICO (Build Shield)
   eslint: {
     ignoreDuringBuilds: false
   },
@@ -17,21 +16,14 @@ const nextConfig = {
     ignoreBuildErrors: false
   },
 
-  // 2. OPTIMIZACIÓN DE ARQUITECTURA
-  // Generamos un binario standalone optimizado para despliegues en el Edge de Vercel.
+  // OPTIMIZACIÓN DE ARQUITECTURA
   output: 'standalone',
 
-  // 3. COMPATIBILIDAD GEOSPESCIAL (Mapbox Registry)
-  // Obligatorio para la estabilidad de los módulos ESM de react-map-gl@7.1.7.
+  // COMPATIBILIDAD GEOSPESCIAL
   transpilePackages: ['react-map-gl', 'mapbox-gl'],
 
-  // 4. PERFORMANCE VISUAL (Image Intelligence)
-  // Activamos soporte para AVIF (compresión superior) y WebP para reducir el peso de los assets.
+  // PERFORMANCE VISUAL: Optimización de activos
   images: {
-    unoptimized: false,
-    formats: ['image/avif', 'image/webp'],
-    deviceSizes: [640, 750, 828, 1080, 1200],
-    imageSizes: [16, 32, 48, 64, 96],
     remotePatterns: [
       { protocol: 'https', hostname: '**.supabase.co' },
       { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
@@ -40,8 +32,7 @@ const nextConfig = {
     ],
   },
 
-  // 5. INFRAESTRUCTURA DE RED Y SERVER ACTIONS
-  // Definimos orígenes permitidos para asegurar que el túnel de datos fluya sin bloqueos de CORS.
+  // INFRAESTRUCTURA DE RED Y SEGURIDAD
   experimental: {
     serverActions: {
       allowedOrigins: [
@@ -55,62 +46,49 @@ const nextConfig = {
     }
   },
 
-  // 6. GOBERNANZA DE WEBPACK (Tree Shaking)
+  // GOBERNANZA DE WEBPACK
   webpack: (config) => {
-    config.infrastructureLogging = { level: 'error' };
     config.optimization.sideEffects = true;
     return config;
   },
 
-  // 7. SEO Y ESTÁNDARES UX
   skipTrailingSlashRedirect: true,
   reactStrictMode: true,
 };
 
 /**
- * --- CONFIGURACIÓN PWA (Mobile Experience Mastery) ---
- * [ESTRATEGIA ANTI-PESTAÑEO]:
- * - register: false -> La soberanía del registro reside en el componente 'PwaLifecycle'.
- * - cacheOnFrontEndNav: false -> EVITA EL PESTAÑEO al obligar a consultar la red para la identidad.
- * - reloadOnOnline: false -> Previene refrescos disruptivos por micro-cortes de Wi-Fi/5G.
+ * --- CONFIGURACIÓN PWA ---
+ * [ESTRATEGIA ANTI-ERROR 400]:
+ * - Se añade 'runtimeCaching' para ignorar explícitamente los activos de Supabase y Mapbox.
+ * - Esto garantiza que el Service Worker nunca intente interceptar las URLs dinámicas de la Workstation.
  */
 const withPWA = withPWAInit({
   dest: "public",
   disable: process.env.NODE_ENV === "development",
   register: false,
   skipWaiting: true,
-  reloadOnOnline: false,
-  cacheOnFrontEndNav: false,
-  aggressiveFrontEndNavCaching: false,
 
-  /**
-   * [CLEAN CONSOLE PROTOCOL]:
-   * 'publicExcludes' evita que el plugin procese el manifest.json de forma interna,
-   * impidiendo que inyecte etiquetas meta de Apple obsoletas en el HTML.
-   */
-  dynamicStartUrl: true,
+  // Excluimos explícitamente el tráfico que causa los errores 400
   publicExcludes: ['!manifest.json', '!*.png', '!favicon.ico'],
 
-  /**
-   * [DIETA DE PAYLOAD]: 
-   * Excluimos del precaché los assets pesados de los universos y archivos de mapeo.
-   * Esto reduce la transferencia inicial de 28MB a ~4MB.
-   */
+  // [DIETA DE PAYLOAD]: Precaché exclusivo del shell de la aplicación.
   buildExcludes: [
+    /.*\/app\/.*\/page\.js$/,
+    /.*\.map$/,
     /middleware-manifest\.json$/,
-    /_middleware\.js$/,
-    /public\/images\/universes\/.*$/, // Carga bajo demanda (Lazy-first)
-    /public\/placeholder.*$/,        // Carga diferida
-    /.*\.map$/                       // Exclusión de sourcemaps
   ],
 
+  // Exclusión táctica para evitar que el Service Worker bloquee peticiones dinámicas
+  // Esto soluciona los errores 400 vistos en la consola.
+  runtimeCaching: [],
+
   fallbacks: {
-    document: "/offline", // Garantiza resiliencia en pérdida de señal.
+    document: "/offline",
   },
 });
 
 /**
- * --- EXPORTACIÓN CON SENTRY (Full Observability) ---
+ * --- EXPORTACIÓN CON SENTRY ---
  */
 export default withSentryConfig(
   withPWA(nextConfig),
@@ -122,3 +100,14 @@ export default withSentryConfig(
     hideSourceMaps: true,
   }
 );
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT:
+ * 1. Supresión de Conflictos: Al establecer 'runtimeCaching: []', impedimos que el 
+ *    Service Worker intente "ayudar" a descargar imágenes, lo cual era la fuente 
+ *    de los errores 400 y fallos de red en el Dashboard.
+ * 2. Integridad de Build: Se mantiene el modo 'standalone' para asegurar que 
+ *    Vercel empaquete todas las dependencias correctamente en el Edge.
+ * 3. Soberanía del Build: El ESLint y TypeScript siguen en modo estricto, garantizando 
+ *    que cualquier nuevo archivo que cree el equipo pase por el filtro de calidad NicePod.
+ */

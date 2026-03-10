@@ -1,7 +1,7 @@
 // components/podcast-view.tsx
-// VERSIÓN: 28.0 (NicePod Interactive Stage - Realtime Reactive Edition)
+// VERSIÓN: 30.0 (NicePod Interactive Stage - Unified Realtime Edition)
 // Misión: Director de escena que orquesta la transición entre la Forja IA y la experiencia de usuario.
-// [ESTABILIZACIÓN]: Integración total de usePodcastSync para reactividad de estado en tiempo real.
+// [ESTABILIZACIÓN]: Integración total de usePodcastSync como Fuente Única de Verdad (Single Source of Truth).
 
 "use client";
 
@@ -12,7 +12,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useCallback, useMemo, useState } from 'react';
 
-// --- INFRAESTRUCTURA DE COMPONENTES UI (Design System) ---
+// --- INFRAESTRUCTURA DE COMPONENTES UI ---
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 
@@ -53,9 +53,8 @@ export function PodcastView({
   const { toast } = useToast();
 
   /**
-   * [NÚCLEO REACTIVO]: Activación del sistema nervioso.
-   * Usamos el hook usePodcastSync para observar cambios en la base de datos en tiempo real.
-   * Esto reemplaza la dependencia estática de 'podcastData'.
+   * [NÚCLEO REACTIVO]: 
+   * La variable 'podcast' es ahora el estado vivo que viene del servidor (o del WebSocket).
    */
   const {
     podcast,
@@ -74,14 +73,13 @@ export function PodcastView({
     togglePlayPause
   } = useAudio();
 
-  // Estados locales de interactividad
+  // Estados locales de interactividad (No sincronizados con Realtime por diseño)
   const [isLiked, setIsLiked] = useState<boolean>(initialIsLiked);
   const [likeCount, setLikeCount] = useState<number>(Number(podcast.like_count || 0));
   const [isLiking, setIsLiking] = useState<boolean>(false);
   const [isScriptExpanded, setIsScriptExpanded] = useState<boolean>(false);
   const [isRemixOpen, setIsRemixOpen] = useState<boolean>(false);
 
-  // Persistencia Offline (PWA)
   const {
     isOfflineAvailable,
     isDownloading,
@@ -89,7 +87,7 @@ export function PodcastView({
     removeFromOffline
   } = useOfflineAudio(podcast);
 
-  // Derivaciones de soberanía
+  // Derivaciones de soberanía: Usamos 'podcast' (estado vivo) en lugar de 'podcastData' (estático)
   const isOwner = useMemo(() => user?.id === podcast.user_id, [user?.id, podcast.user_id]);
   const isCurrentActive = useMemo(() => currentPodcast?.id === podcast.id, [currentPodcast?.id, podcast.id]);
 
@@ -195,7 +193,7 @@ export function PodcastView({
             isOwner={isOwner}
             isScriptExpanded={isScriptExpanded}
             onScriptToggle={setIsScriptExpanded}
-            onEditTags={() => { }} 
+            onEditTags={() => { }}
           />
         </div>
 
@@ -274,3 +272,13 @@ export function PodcastView({
     </main>
   );
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (SINCRO V28.0):
+ * 1. Fuente única de verdad: 'PodcastView' ahora escucha el estado vivo del hook
+ *    'usePodcastSync'. La transición entre 'processing' y 'published' es ahora automática.
+ * 2. Integridad de renderizado: Se ha eliminado la dependencia sobre 'podcastData' 
+ *    estático, asegurando que la UI refleje el tiempo real de la base de datos.
+ * 3. Robusted operativa: La eliminación de las dependencias estáticas previene los 
+ *    "limbos" donde el audio estaba listo en la DB pero la consola no se habilitaba.
+ */
