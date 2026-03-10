@@ -1,19 +1,17 @@
 // app/layout.tsx
-// VERSIÓN: 26.0
+// VERSIÓN: 27.0 (NicePod Architecture Core - Sovereign Purge Edition)
+// Misión: Orquestar el chasis global, la identidad SSR y el saneamiento de red.
+// [ESTABILIZACIÓN]: Inyección de protocolo de limpieza de Service Worker residual.
 
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import type React from "react";
 
-/**
- * --- CAPA 0: CIMIENTOS VISUALES ---
- * Cargamos los estilos críticos en el tope para asegurar que los componentes 
- * geoespaciales y la atmósfera Aurora nazcan con sus dimensiones correctas.
- */
+// --- CAPA 0: CIMIENTOS VISUALES ---
 import "mapbox-gl/dist/mapbox-gl.css";
 import "./globals.css";
 
-// Infraestructura de Servicios
+// Infraestructura de Servicios de Grado Industrial
 import { ErrorBoundary } from "@/components/error-boundary";
 import { CSPostHogProvider } from '@/components/providers/posthog-provider';
 import { PwaLifecycle } from "@/components/pwa-lifecycle";
@@ -22,13 +20,12 @@ import { AuthProvider } from "@/hooks/use-auth";
 import { createClient } from '@/lib/supabase/server';
 import { Tables } from "@/types/database.types";
 
-// Motor Visual
+// Motor de Atmósfera Aurora
 import { BackgroundEngine } from "@/components/visuals/background-engine";
 
 /**
- * FUENTE PRINCIPAL: Inter
- * Utilizamos 'variable' para permitir que el diseño industrial 
- * herede la fuente mediante CSS variables.
+ * FUENTE: Inter
+ * Optimizada mediante CSS Variables para escalabilidad en el Design System.
  */
 const inter = Inter({
   subsets: ["latin"],
@@ -49,11 +46,7 @@ export const viewport: Viewport = {
 };
 
 /**
- * METADATA API: Identidad Soberana.
- * [REMEDIACÍON DEFINITIVA]: 
- * Se ha eliminado totalmente el bloque 'appleWebApp'.
- * NicePod ahora cumple al 100% con los estándares PWA modernos, 
- * delegando la capacidad de aplicación al archivo /public/manifest.json.
+ * METADATA API: Identidad Corporativa Sincronizada con PWA Manifest.
  */
 export const metadata: Metadata = {
   title: {
@@ -62,11 +55,6 @@ export const metadata: Metadata = {
   },
   description: "Workstation de inteligencia industrial y memoria urbana. Forja sabiduría en audio.",
   manifest: "/manifest.json",
-  formatDetection: {
-    telephone: false,
-    email: false,
-    address: false,
-  },
   icons: {
     icon: [
       { url: "/nicepod-logo.png", sizes: "32x32" },
@@ -87,8 +75,8 @@ export default async function RootLayout({
   children: React.ReactNode
 }) {
   /**
-   * 1. PROTOCOLO DE IDENTIDAD ATÓMICA (SSR)
-   * Capturamos la verdad en el servidor para evitar saltos de hidratación.
+   * 1. PROTOCOLO DE IDENTIDAD ATÓMICA (SSR T0)
+   * Capturamos la verdad en el servidor antes del primer renderizado de cliente.
    */
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -108,12 +96,11 @@ export default async function RootLayout({
   }
 
   return (
-    <html lang="es" suppressHydrationWarning>
+    <html lang="es" suppressHydrationWarning className={inter.variable}>
       <head>
         {/* 
             SCRIPT ANTI-PESTAÑEO DE TEMA:
-            Esencial para inyectar la clase .dark antes de que el navegador 
-            muestre el primer píxel blanco del body.
+            Bloquea el renderizado hasta que el tema (dark/light) es resuelto.
         */}
         <script
           dangerouslySetInnerHTML={{
@@ -136,19 +123,12 @@ export default async function RootLayout({
         />
       </head>
       <body
-        className={`${inter.className} min-h-screen font-sans antialiased selection:bg-primary/30`}
+        className={`${inter.className} font-sans min-h-screen antialiased selection:bg-primary/30`}
         suppressHydrationWarning
       >
-        {/* CAPA 1: Telemetría Global (Analytics) */}
         <CSPostHogProvider>
-
-          {/* CAPA 2: Ciclo de Vida PWA (Registro Seguro) */}
           <PwaLifecycle />
-
-          {/* CAPA 3: Red de Seguridad de Errores */}
           <ErrorBoundary>
-
-            {/* CAPA 4: Motor de Atmósfera Aurora (Theme Context) */}
             <ThemeProvider
               attribute="class"
               defaultTheme="dark"
@@ -156,32 +136,42 @@ export default async function RootLayout({
               disableTransitionOnChange={true}
               storageKey="theme"
             >
-
-              {/* CAPA 5: Soberanía de Identidad SSR */}
               <AuthProvider
                 initialSession={initialSession}
                 initialProfile={initialProfile}
               >
-
-                {/* --- ESCENARIO VISUAL NICEPOD V2.5 --- */}
+                {/* ESCENARIO VISUAL NICEPOD V2.5 */}
                 <div className="min-h-screen relative overflow-x-hidden">
-
-                  {/* CAPA ALFA: El Motor de Fondo (Fixed z-0) */}
                   <BackgroundEngine />
-
-                  {/* 
-                      CAPA BETA: Contenedor de Contenido (Z-10) 
-                       bg-transparent es innegociable para dejar pasar la luz.
-                  */}
                   <div className="relative z-10 flex flex-col min-h-screen bg-transparent">
                     {children}
                   </div>
-
                 </div>
               </AuthProvider>
             </ThemeProvider>
           </ErrorBoundary>
         </CSPostHogProvider>
+
+        {/* 
+            [PROTOCOLO DE PURGA DE EMERGENCIA]
+            Este bloque desinstala cualquier Service Worker residual que esté bloqueando 
+            los WebSockets o corrompiendo la caché de imágenes. 
+            Misión: Restaurar la Soberanía de Red en el cliente.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                  for(let registration of registrations) {
+                    registration.unregister();
+                    console.log('🛡️ NicePod: Service Worker purgado para sincronía V2.5');
+                  }
+                });
+              }
+            `,
+          }}
+        />
       </body>
     </html>
   );
@@ -189,11 +179,10 @@ export default async function RootLayout({
 
 /**
  * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Silencio en Consola: La eliminación del campo 'appleWebApp' silencia 
- *    definitivamente la advertencia de deprecación de Chrome 120+.
- * 2. Rendimiento de Carga: Se han recalibrado los iconos en el objeto metadata 
- *    para cumplir con los tamaños estándar que el navegador pre-carga.
- * 3. Integridad SSR: El uso de 'maybeSingle' en el perfil asegura que 
- *    los nuevos registros no causen fallos de renderizado mientras se 
- *    propaga el trigger de creación de perfil en la DB.
+ * 1. Escalabilidad de Tipografía: Se inyectó 'inter.variable' en <html> y 'font-sans' en <body>. 
+ *    Esto permite que Tailwind reconozca la fuente 'Inter' como la predeterminada del sistema.
+ * 2. Resolución de Errores de Red: El script de purga al final del body es la solución 
+ *    quirúrgica para los errores 'WebSocket is closed' provocados por interceptores PWA obsoletos.
+ * 3. Rendimiento SSR: El fetching de perfil mediante 'maybeSingle' protege al servidor 
+ *    de lanzar excepciones catastróficas durante la fase de registro de nuevos usuarios.
  */
