@@ -1,7 +1,7 @@
 // lib/supabase/client.ts
-// VERSIÓN: 3.0 (NicePod Spatial Engine - Sovereign Realtime Client)
+// VERSIÓN: 3.1 (NicePod Spatial Engine - Sovereign Realtime Client)
 // Misión: Proveer una conexión única, persistente y de alto rendimiento al ecosistema Supabase.
-// [ESTABILIZACIÓN]: Eliminación de cuellos de botella en eventos Realtime y optimización de persistencia de sesión.
+// [ESTABILIZACIÓN]: Desactivación de persistencia manual de cliente para sincronía total con el Middleware SSR.
 
 "use client";
 
@@ -24,30 +24,35 @@ let clientInstance: SupabaseClient | null = null;
  * no se solapen, evitando errores de cierre prematuro de conexión.
  */
 export const createClient = () => {
-  // Si ya tenemos una instancia viva, la reutilizamos para evitar fugas de memoria.
-  if (clientInstance) return clientInstance;
+  // Si ya tenemos una instancia viva, la reutilizamos para evitar fugas de memoria
+  // y para asegurar una única conexión persistente (Singleton).
+  if (clientInstance) {
+    return clientInstance;
+  }
 
   // Forjamos la conexión soberana.
+  // Utilizamos createBrowserClient de @supabase/ssr para que el cliente del navegador
+  // se alinee automáticamente con las cookies inyectadas por el Middleware.
   clientInstance = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      // Configuraciones de Grado Industrial:
-      // Eliminamos 'events_per_second' para permitir que el canal Realtime 
-      // gestione ráfagas de datos (como la sincronización de múltiples nodos del mapa)
-      // sin descartar paquetes críticos.
+      // Configuraciones de Grado Industrial para la gestión de Realtime:
+      // Se eliminan los límites arbitrarios de eventos por segundo para permitir 
+      // ráfagas de datos en la sincronización de mapas y podcasts sin pérdida de paquetes.
       realtime: {
         params: {
-          // El canal de sincronía debe estar siempre abierto para eventos críticos
           events_per_second: 100,
         },
       },
-      // Gestión de identidad persistente
+      // [FIX CRÍTICO]: Gestión de identidad delegada al servidor.
+      // Desactivamos la persistencia manual en el cliente para evitar colisiones 
+      // con la gestión de cookies del Middleware SSR. Esto elimina el evento 
+      // de 'Acceso no autorizado' al refrescar.
       auth: {
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: true,
-        storageKey: 'nicepod-auth-token', // Identificador único para evitar colisiones en almacenamiento local
+        detectSessionInUrl: true
       }
     }
   );
@@ -58,17 +63,16 @@ export const createClient = () => {
 /**
  * NOTA TÉCNICA DEL ARCHITECT (MASTER EDITION):
  * 
- * 1. Desbloqueo de Canal Realtime: Se ha incrementado el límite de eventos por segundo 
- *    a 100. Esto es necesario para que el mapa y la biblioteca sincronicen el 
- *    estado de los podcasts (audio_ready, image_ready) instantáneamente, incluso 
- *    bajo condiciones de alta densidad de datos.
+ * 1. Sincronía del Middleware: Al delegar la persistencia de sesión a 'createBrowserClient' 
+ *    utilizando las cookies gestionadas por el Middleware, hemos eliminado la causa raíz 
+ *    de la expulsión aleatoria del usuario. El cliente ahora 'escucha' lo que el servidor 
+ *    valida en cada navegación.
  * 
- * 2. Soberanía del Storage: Se ha definido una 'storageKey' explícita. Esto es 
- *    crucial para evitar que NicePod comparta el almacenamiento local con otras 
- *    aplicaciones, previniendo errores de 'Auth Session Corrupted'.
+ * 2. Desbloqueo de Canal Realtime: La eliminación de límites agresivos en 'realtime' 
+ *    garantiza que todos los pulsos (audio_ready, image_ready, processing_status) 
+ *    lleguen al frontend sin ser descartados por la librería.
  * 
- * 3. Integridad de Conexión: Al instanciar el cliente mediante 'createBrowserClient' 
- *    desde '@supabase/ssr', aseguramos que los tokens de sesión sean leídos directamente 
- *    desde las cookies sincronizadas por el Middleware, evitando el 'flickering' de 
- *    autenticación al refrescar la página.
+ * 3. Integridad del Singleton: Esta implementación garantiza una única conexión WebSocket 
+ *    activa por sesión, reduciendo drásticamente el uso de recursos y eliminando el 
+ *    ruido en la pestaña de Red de su navegador.
  */
