@@ -1,7 +1,7 @@
 // components/intelligence-feed.tsx
-// VERSIÓN: 3.0 (NicePod Intelligence Feed - Hydration Shield Edition)
+// VERSIÓN: 3.1 (NicePod Intelligence Feed - Empty State Mastery)
 // Misión: Orquestar el contenido dinámico del Dashboard con resiliencia de estado.
-// [ESTABILIZACIÓN]: Implementación de verificadores de estado para eliminar errores de renderizado.
+// [ESTABILIZACIÓN]: Implementación de estados vacíos inteligentes y corrección de enrutamiento.
 
 "use client";
 
@@ -10,6 +10,7 @@ import {
     BookOpen,
     BrainCircuit,
     Loader2,
+    Mic,
     Search,
     Sparkles,
     Zap
@@ -48,7 +49,7 @@ const PodcastShelf = dynamic(
 interface IntelligenceFeedProps {
     userName: string;
     isSearching: boolean;
-    results: SearchResult[] | null; // [FIX]: Soporte para estado nulo
+    results: SearchResult[] | null;
     lastQuery: string;
     epicenterPodcasts: PodcastWithProfile[];
     connectionsPodcasts: PodcastWithProfile[];
@@ -62,9 +63,6 @@ const discoveryHubCategories = [
     { key: "narrative_and_stories", title: "Narrativa", image: "/images/universes/narrative.png", href: "/podcasts?tab=discover&universe=narrative_and_stories" },
 ];
 
-/**
- * COMPONENTE: IntelligenceFeed
- */
 export function IntelligenceFeed({
     userName,
     isSearching,
@@ -81,7 +79,7 @@ export function IntelligenceFeed({
         setIsClient(true);
     }, []);
 
-    // Determinación lógica de estados para evitar el "Error de Nodo"
+    // Determinación lógica de estados
     const hasActiveResults = results !== null && (results.length > 0 || isSearching);
     const isIdle = results === null;
 
@@ -91,7 +89,7 @@ export function IntelligenceFeed({
         <div className="w-full space-y-12 selection:bg-primary/20">
 
             {isIdle ? (
-                /* ESTADO A: FRECUENCIA BASE */
+                /* --- ESTADO A: FRECUENCIA BASE --- */
                 <div className="space-y-16 animate-in fade-in duration-1000">
                     <section>
                         <div className="flex items-center justify-between mb-10 px-1">
@@ -117,6 +115,8 @@ export function IntelligenceFeed({
                     </section>
 
                     <div className="space-y-16">
+
+                        {/* --- ESTANTE 1: TU EPICENTRO --- */}
                         <div className="relative group">
                             <div className="flex items-center gap-3 mb-6 px-4 border-l-2 border-primary">
                                 <Zap size={18} className="text-primary fill-current shadow-primary" />
@@ -124,30 +124,53 @@ export function IntelligenceFeed({
                                     Tu Epicentro Creativo
                                 </h2>
                             </div>
-                            <PodcastShelf
-                                title="Tu Epicentro"
-                                podcasts={epicenterPodcasts}
-                                variant="compact"
-                            />
+
+                            {/* [LOGICA INTELIGENTE]: Estado vacío si no hay podcasts tras la purga */}
+                            {epicenterPodcasts.length > 0 ? (
+                                <PodcastShelf
+                                    title="Tu Epicentro"
+                                    podcasts={epicenterPodcasts}
+                                    variant="compact"
+                                />
+                            ) : (
+                                <div className="flex flex-col items-center justify-center p-10 bg-zinc-900/30 rounded-[2.5rem] border border-dashed border-white/10 text-center">
+                                    <div className="p-4 bg-primary/10 rounded-2xl mb-4">
+                                        <Mic className="h-6 w-6 text-primary" />
+                                    </div>
+                                    <h3 className="text-sm font-black uppercase tracking-widest text-white">Bóveda Vacía</h3>
+                                    <p className="text-[10px] text-zinc-500 font-medium mt-2 mb-6 max-w-sm">
+                                        Inicia la forja de tu primer activo acústico para establecer tu epicentro en la red.
+                                    </p>
+                                    <Link href="/create">
+                                        <Button variant="outline" className="rounded-full border-primary/40 hover:bg-primary/10 text-primary font-bold text-xs">
+                                            Forjar Sabiduría
+                                        </Button>
+                                    </Link>
+                                </div>
+                            )}
                         </div>
 
-                        <div className="relative group">
-                            <div className="flex items-center gap-3 mb-6 px-4 border-l-2 border-purple-600">
-                                <Sparkles size={18} className="text-purple-500 fill-current" />
-                                <h2 className="text-lg font-black uppercase tracking-tighter text-white italic">
-                                    Conexiones de Resonancia
-                                </h2>
+                        {/* --- ESTANTE 2: CONEXIONES --- */}
+                        {connectionsPodcasts.length > 0 && (
+                            <div className="relative group">
+                                <div className="flex items-center gap-3 mb-6 px-4 border-l-2 border-purple-600">
+                                    <Sparkles size={18} className="text-purple-500 fill-current" />
+                                    <h2 className="text-lg font-black uppercase tracking-tighter text-white italic">
+                                        Conexiones de Resonancia
+                                    </h2>
+                                </div>
+                                <PodcastShelf
+                                    title="Conexiones Inesperadas"
+                                    podcasts={connectionsPodcasts}
+                                    variant="compact"
+                                />
                             </div>
-                            <PodcastShelf
-                                title="Conexiones Inesperadas"
-                                podcasts={connectionsPodcasts}
-                                variant="compact"
-                            />
-                        </div>
+                        )}
+
                     </div>
                 </div>
             ) : (
-                /* ESTADO B: CONSOLA DE ANÁLISIS */
+                /* --- ESTADO B: CONSOLA DE ANÁLISIS --- */
                 <div className="space-y-10 animate-in fade-in slide-in-from-bottom-6 duration-700 pb-24">
                     <div className="flex items-center justify-between border-b border-white/5 pb-8 px-2">
                         <div className="flex items-center gap-5">
@@ -208,3 +231,12 @@ export function IntelligenceFeed({
         </div>
     );
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V3.1):
+ * 1. Ingeniería de Estados Vacíos: Se integró una validación sobre 'epicenterPodcasts'. 
+ *    Si la base de datos está vacía (ej. tras una purga), el sistema muestra un CTA 
+ *    invitando a la creación en lugar de un estante silencioso, mejorando la UX.
+ * 2. Ocultamiento Inteligente: La sección de "Conexiones" no se renderiza si 
+ *    la red no ofrece sugerencias válidas, manteniendo la interfaz limpia y libre de vacíos.
+ */
