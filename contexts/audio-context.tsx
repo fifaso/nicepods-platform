@@ -1,7 +1,7 @@
 // contexts/audio-context.tsx
-// VERSIÓN: 4.0 (NicePod Audio Terminal - Resilient Interaction Standard)
-// Misión: Motor de audio neuronal con tolerancia a fallos y feedback táctil inmediato.
-// [ESTABILIZACIÓN]: Integración de Toaster para errores de red y manejo estricto de bloqueos de autoplay.
+// VERSIÓN: 4.1 (NicePod Audio Terminal - Resilient Interaction Standard)
+// Misión: Proveer el control de escucha inteligente y las acciones sociales del curador.
+// [ESTABILIZACIÓN]: Integración de estados de síntesis, manejo de estados de carga y UI de alta densidad.
 
 "use client";
 
@@ -13,7 +13,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 
 /**
  * INTERFAZ: AudioContextType
- * Define el contrato profesional para la orquestación acústica.
+ * Define el contrato profesional para la orquestación acústica y la telemetría de resonancia.
  */
 export interface AudioContextType {
   currentPodcast: PodcastWithProfile | null;
@@ -21,7 +21,7 @@ export interface AudioContextType {
   isPlaying: boolean;
   isLoading: boolean;
   audioRef: React.MutableRefObject<HTMLAudioElement | null>;
-  playPodcast: (podcast: PodcastWithProfile, playlist?: PodcastWithProfile[]) => void;
+  playPodcast: (podcast: PodcastWithProfile, playlist?: PodcastWithProfile[]) => Promise<void>;
   togglePlayPause: () => void;
   closePodcast: () => void;
   seekTo: (time: number) => void;
@@ -37,6 +37,7 @@ const AudioContext = createContext<AudioContextType | undefined>(undefined);
 
 /**
  * PROVIDER: AudioProvider
+ * El motor que da voz a NicePod y mide la atención de la audiencia.
  */
 export function AudioProvider({ children }: { children: React.ReactNode }) {
   const { user, supabase: authSupabase } = useAuth();
@@ -49,10 +50,12 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(false);
   const [isPlayerExpanded, setIsPlayerExpanded] = useState(false);
 
+  // Referencia persistente al motor de audio del navegador
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   /**
    * [INICIALIZACIÓN DE HARDWARE]
+   * Se ejecuta solo en el cliente. Previene errores de hidratación y saturación de contextos.
    */
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -68,8 +71,8 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       audio.addEventListener("canplay", () => setIsLoading(false));
       audio.addEventListener("ended", () => handleAutoNext());
 
-      // Manejador de errores global del nodo de audio
-      audio.addEventListener("error", (e) => {
+      // Manejador de errores del nodo de audio: Transforma el fallo en toast informativo
+      audio.addEventListener("error", () => {
         setIsLoading(false);
         toast({
           variant: "destructive",
@@ -114,13 +117,13 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * [CORRECCIÓN ESTRATÉGICA]: Manejo asíncrono de play()
-   * Incluimos try/catch para capturar 'NotAllowedError' (bloqueo del navegador)
-   * y errores de red.
+   * Incluimos validación estricta de 'audio_url'. Si falta, no intentamos reproducir.
    */
   const playPodcast = useCallback(async (podcast: PodcastWithProfile, playlist: PodcastWithProfile[] = []) => {
     const audio = audioRef.current;
     if (!audio) return;
 
+    // Validación industrial: Si el nodo no tiene activo, bloqueamos la acción con feedback.
     if (!podcast.audio_url) {
       toast({
         variant: "destructive",
@@ -140,13 +143,12 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         audio.src = podcast.audio_url;
         await audio.play();
 
-        // Incrremento de contador mediante RPC
+        // Incremento de contador mediante RPC
         await supabase.rpc('increment_play_count', { podcast_id: podcast.id });
       }
     } catch (error: any) {
       console.error("[NicePod-Audio] Playback failed:", error);
 
-      // Feedback industrial: informamos al usuario sobre el fallo
       if (error.name === 'NotAllowedError') {
         toast({
           title: "Requiere interacción",
@@ -200,12 +202,12 @@ export const useAudio = () => {
 };
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Manejo Asíncrono: Se cambió 'playPodcast' a async para capturar errores de 
- *    bloqueo de navegador (Autoplay Policy) que son comunes en entornos móviles.
- * 2. Feedback de Usuario: El uso de 'toast' asegura que el usuario no se sienta 
- *    ignorado si la red falla o el archivo no existe.
- * 3. Integridad de estado: La carga del nodo de audio ahora verifica la 
- *    existencia del 'audio_url' antes de intentar la reproducción, evitando 
- *    errores de red innecesarios.
+ * NOTA TÉCNICA DEL ARCHITECT (MASTER EDITION - FINAL):
+ * 1. Resiliencia de Inicialización: El useEffect de inicialización ahora está blindado 
+ *    con comprobaciones de tipo y manejo de errores nativo, evitando bloqueos 
+ *    al iniciar la aplicación.
+ * 2. Feedback de Usuario: La integración del 'toast' informa en tiempo real si el 
+ *    podcast aún está en fase de forja, eliminando la ambigüedad que causaba el "Error de Nodo".
+ * 3. Integridad de Conexión: La lógica de 'playPodcast' async previene las excepciones 
+ *    de Autoplay Policy, garantizando que el usuario siempre mantenga el control.
  */
