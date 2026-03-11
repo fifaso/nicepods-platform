@@ -1,7 +1,7 @@
 // components/player/full-screen-player.tsx
-// VERSIÓN: 27.0 (NicePod Inmersive Stage - Studio Mastery Edition)
-// Misión: Orquestar la inmersión total con teleprompter síncrono y controles de alta fidelidad.
-// [ESTABILIZACIÓN]: Resolución definitiva de errores de ámbito (handleSeek) y optimización de Layout Desktop.
+// VERSIÓN: 28.0 (NicePod Immersive Stage - Industrial Studio Standard)
+// Misión: Proveer una terminal de escucha de alta fidelidad, síncrona y ergonómica.
+// [ESTABILIZACIÓN]: Rediseño total de la malla de control y motor de teleprompter activo.
 
 "use client";
 
@@ -31,9 +31,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { cn, formatTime, getSafeAsset, nicepodLog } from "@/lib/utils";
 
-/**
- * FullScreenPlayer: La terminal de inmersión definitiva.
- */
 export function FullScreenPlayer() {
   const {
     currentPodcast,
@@ -44,39 +41,41 @@ export function FullScreenPlayer() {
     skipForward,
     skipBackward,
     collapsePlayer,
-    logInteractionEvent
+    logInteractionEvent,
+    audioRef
   } = useAudio();
 
   const { supabase, user } = useAuth();
   const { toast } = useToast();
 
-  // --- TELEMETRÍA DE REPRODUCCIÓN (Sincronía de Hardware) ---
+  // --- TELEMETRÍA DE ALTA FRECUENCIA ---
   const [localTime, setLocalTime] = useState<number>(0);
   const [localDuration, setLocalDuration] = useState<number>(0);
   const [isLiked, setIsLiked] = useState<boolean>(false);
   const [isLiking, setIsLiking] = useState<boolean>(false);
 
   /**
-   * 1. SINCRO DE TIEMPO (Nerve System)
-   * Capturamos el latido del motor de audio global para alimentar la barra de progreso.
+   * [MOTOR DE SINCRO V5.0]: 
+   * Captura el pulso del hardware de audio. Si la duración en DB es nula,
+   * el sistema la extrae directamente del objeto de audio nativo.
    */
   useEffect(() => {
-    const handleSync = (event: Event) => {
-      const customEvent = event as CustomEvent<{ currentTime: number; duration: number }>;
-      const { currentTime, duration } = customEvent.detail;
+    const audio = audioRef.current;
+    if (!audio) return;
 
-      setLocalTime(currentTime);
-      if (duration > 0 && duration !== localDuration) {
-        setLocalDuration(duration);
+    const syncInternal = () => {
+      setLocalTime(audio.currentTime);
+      if (audio.duration && audio.duration !== localDuration) {
+        setLocalDuration(audio.duration);
       }
     };
 
-    window.addEventListener('nicepod-timeupdate', handleSync as EventListener);
-    return () => window.removeEventListener('nicepod-timeupdate', handleSync as EventListener);
-  }, [localDuration]);
+    audio.addEventListener('timeupdate', syncInternal);
+    return () => audio.removeEventListener('timeupdate', syncInternal);
+  }, [audioRef, localDuration]);
 
   /**
-   * 2. VERIFICACIÓN DE RESONANCIA (Bóveda de Likes)
+   * [VERIFICACIÓN DE RESONANCIA]
    */
   useEffect(() => {
     if (!user || !currentPodcast) return;
@@ -91,15 +90,10 @@ export function FullScreenPlayer() {
     checkLike();
   }, [user, currentPodcast, supabase]);
 
-  // Guardia de Seguridad: Evita el renderizado ante estados nulos del contexto.
   if (!currentPodcast) return null;
 
-  // --- MANEJADORES DE ACCIÓN (Saneados y Completos) ---
+  // --- MANEJADORES DE ACCIÓN ---
 
-  /**
-   * handleSeek: Sincroniza la posición del audio con el gesto del usuario.
-   * [FIX]: Nombre unificado para resolver error ts(2304).
-   */
   const handleSeek = (value: number[]) => {
     const newTime = value[0];
     setLocalTime(newTime);
@@ -123,35 +117,6 @@ export function FullScreenPlayer() {
     } finally { setIsLiking(false); }
   };
 
-  const handleShare = async () => {
-    const url = `${window.location.origin}/podcast/${currentPodcast.id}`;
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: currentPodcast.title, url });
-      } else {
-        await navigator.clipboard.writeText(url);
-        toast({ title: "Enlace copiado" });
-      }
-    } catch { nicepodLog("Share error"); }
-  };
-
-  const handleDownload = async () => {
-    if (!currentPodcast.audio_url) return;
-    toast({ title: "Preparando activo..." });
-    try {
-      const response = await fetch(currentPodcast.audio_url);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `NicePod-${currentPodcast.id}.wav`;
-      document.body.appendChild(link);
-      link.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(link);
-    } catch { toast({ title: "Error en descarga", variant: "destructive" }); }
-  };
-
   const coverImage = getSafeAsset(currentPodcast.cover_image_url, 'cover');
   const authorName = currentPodcast.profiles?.full_name || "Cronista NicePod";
 
@@ -161,72 +126,85 @@ export function FullScreenPlayer() {
         initial={{ y: "100%" }}
         animate={{ y: 0 }}
         exit={{ y: "100%" }}
-        transition={{ type: "spring", damping: 35, stiffness: 300 }}
-        className="fixed inset-0 z-[150] bg-[#020202] flex flex-col overflow-hidden"
+        transition={{ type: "spring", damping: 30, stiffness: 200 }}
+        className="fixed inset-0 z-[200] bg-[#020202] flex flex-col overflow-hidden"
       >
-        {/* FONDO AURORA (Optimización de Inmersión) */}
-        <div className="absolute inset-0 pointer-events-none opacity-30">
-          <div className="absolute -top-[20%] -left-[10%] w-[100%] h-[100%] bg-primary/10 rounded-full blur-[140px]" />
+        {/* --- CAPA 0: ATMÓSFERA AURORA --- */}
+        <div className="absolute inset-0 pointer-events-none opacity-40">
+          <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-primary/10 via-transparent to-indigo-950/20 blur-[120px]" />
         </div>
 
         <div className="relative z-10 flex flex-col h-full w-full max-w-screen-2xl mx-auto">
 
-          {/* CABECERA TÉCNICA */}
-          <header className="flex items-center justify-between p-6 md:p-10">
-            <Button onClick={collapsePlayer} variant="ghost" size="icon" className="text-white/20 hover:text-white rounded-full h-12 w-12 transition-all">
-              <ChevronDown className="h-8 w-8" />
+          {/* --- CAPA 1: CABECERA DE CONTROL --- */}
+          <header className="flex items-center justify-between p-6 md:p-10 flex-shrink-0">
+            <Button
+              onClick={collapsePlayer}
+              variant="ghost"
+              className="text-white/20 hover:text-white hover:bg-white/5 rounded-full h-14 w-14 transition-all"
+            >
+              <ChevronDown className="h-10 w-10" />
             </Button>
 
-            <div className="flex-1 px-8 overflow-hidden text-center flex flex-col items-center">
-              <span className="text-[9px] font-black uppercase tracking-[0.4em] text-primary/60 mb-2">Sincronía Nominal Activa</span>
-              <div className="w-full max-w-md overflow-hidden">
+            <div className="flex flex-col items-center text-center overflow-hidden px-4">
+              <span className="text-[9px] font-black uppercase tracking-[0.5em] text-primary/80 mb-2 animate-pulse">Sincronía Nominal Activa</span>
+              <div className="max-w-[280px] md:max-w-xl overflow-hidden">
                 <motion.h2
-                  animate={currentPodcast.title.length > 25 ? { x: [0, -150, 0] } : {}}
+                  animate={currentPodcast.title.length > 30 ? { x: [0, -200, 0] } : {}}
                   transition={{ repeat: Infinity, duration: 15, ease: "linear" }}
-                  className="font-black text-xs md:text-sm text-white uppercase italic tracking-[0.2em] whitespace-nowrap"
+                  className="font-black text-sm md:text-lg text-white uppercase italic tracking-[0.1em] whitespace-nowrap"
                 >
                   {currentPodcast.title}
                 </motion.h2>
               </div>
             </div>
 
-            <div className="bg-white/5 p-3 rounded-2xl border border-white/5">
-              <Volume2 className="h-5 w-5 text-primary/40" />
+            <div className="bg-white/5 p-4 rounded-2xl border border-white/5 shadow-inner">
+              <Volume2 className="h-6 w-6 text-primary/40" />
             </div>
           </header>
 
-          {/* CUERPO PRINCIPAL (Layout Dual) */}
-          <main className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-20 px-6 md:px-16 items-center">
+          {/* --- CAPA 2: ESCENARIO PRINCIPAL (DENSITY GRID) --- */}
+          <main className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-12 px-6 md:px-14 items-center">
 
-            {/* ÁREA VISUAL */}
-            <div className="hidden md:flex flex-col items-center justify-center space-y-10">
-              <div className="relative w-full max-w-sm aspect-square shadow-[0_40px_100px_rgba(0,0,0,0.8)] rounded-[3.5rem] overflow-hidden border border-white/10">
-                <Image src={coverImage} alt="" fill className="object-cover opacity-80" priority />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-              </div>
-              <div className="flex items-center gap-3 bg-primary/5 px-6 py-2.5 rounded-full border border-primary/20">
-                <Sparkles className="h-4 w-4 text-primary" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Resonancia Inteligente</span>
+            {/* IZQUIERDA: ARTE VISUAL (5 Columnas) */}
+            <div className="hidden lg:flex lg:col-span-5 flex-col items-center justify-center space-y-12">
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                className="relative w-full max-w-md aspect-square shadow-[0_50px_100px_rgba(0,0,0,0.9)] rounded-[4rem] overflow-hidden border border-white/10"
+              >
+                <Image src={coverImage} alt="" fill className="object-cover opacity-90" priority />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+              </motion.div>
+
+              <div className="flex items-center gap-4 bg-primary/5 px-8 py-4 rounded-3xl border border-primary/20 backdrop-blur-3xl shadow-2xl">
+                <Sparkles className="h-5 w-5 text-primary animate-pulse" />
+                <span className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-300">Resonancia Neural Activa</span>
               </div>
             </div>
 
-            {/* ÁREA NARRATIVA (Teleprompter) */}
-            <div className="h-full w-full bg-zinc-900/40 rounded-[2.5rem] border border-white/5 relative overflow-hidden shadow-inner group">
-              <ScriptViewer
-                scriptText={currentPodcast.script_text}
-                duration={localDuration}
-                className="no-scrollbar"
-              />
-              <div className="absolute top-0 inset-x-0 h-24 bg-gradient-to-b from-[#020202] to-transparent z-20 pointer-events-none" />
-              <div className="absolute bottom-0 inset-x-0 h-24 bg-gradient-to-t from-[#020202] to-transparent z-20 pointer-events-none" />
+            {/* DERECHA: TELEPROMPTER NARRATIVO (7 Columnas) */}
+            <div className="lg:col-span-7 h-full w-full bg-[#050505]/60 rounded-[3.5rem] border border-white/5 relative overflow-hidden shadow-2xl group">
+              {/* Desvanecimiento superior/inferior para enfoque central */}
+              <div className="absolute top-0 inset-x-0 h-40 bg-gradient-to-b from-[#020202] to-transparent z-20 pointer-events-none" />
+
+              <div className="h-full w-full overflow-hidden">
+                <ScriptViewer
+                  scriptText={currentPodcast.script_text}
+                  duration={localDuration}
+                  className="px-10 md:px-16"
+                />
+              </div>
+
+              <div className="absolute bottom-0 inset-x-0 h-40 bg-gradient-to-t from-[#020202] to-transparent z-20 pointer-events-none" />
             </div>
           </main>
 
-          {/* PIE DE PÁGINA: TERMINAL DE CONTROL */}
-          <footer className="p-8 md:p-14 space-y-10 md:space-y-14">
+          {/* --- CAPA 3: DOCK DE CONTROL (TELEMETRÍA) --- */}
+          <footer className="p-10 md:p-16 space-y-10 md:space-y-14 flex-shrink-0 bg-gradient-to-t from-black/80 to-transparent">
 
-            {/* PROGRESO */}
-            <div className="space-y-5 max-w-4xl mx-auto">
+            {/* BARRA DE AVANCE TÉCNICO */}
+            <div className="max-w-5xl mx-auto w-full space-y-6">
               <Slider
                 value={[localTime]}
                 max={localDuration || 100}
@@ -234,62 +212,80 @@ export function FullScreenPlayer() {
                 onValueChange={handleSeek}
                 className="cursor-pointer"
               />
-              <div className="flex justify-between items-center text-[11px] font-black font-mono text-white/20 tracking-[0.2em] px-1">
-                <span className="bg-white/5 px-3 py-1 rounded-lg">{formatTime(localTime)}</span>
-                <div className="h-px flex-1 mx-10 bg-white/5" />
-                <span className="bg-white/5 px-3 py-1 rounded-lg">{formatTime(localDuration)}</span>
+              <div className="flex justify-between items-center text-[12px] font-black font-mono text-white/30 tracking-[0.3em] uppercase px-2">
+                <span className="bg-white/5 px-4 py-1.5 rounded-xl border border-white/5 shadow-inner text-primary">
+                  {formatTime(localTime)}
+                </span>
+                <div className="h-px flex-1 mx-12 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                <span className="bg-white/5 px-4 py-1.5 rounded-xl border border-white/5 shadow-inner">
+                  {formatTime(localDuration)}
+                </span>
               </div>
             </div>
 
-            {/* CONTROLES CENTRALES */}
-            <div className="flex items-center justify-between max-w-4xl mx-auto w-full px-4 md:px-0">
+            {/* PANEL DE MANDOS ERGONÓMICO */}
+            <div className="flex items-center justify-between max-w-5xl mx-auto w-full">
 
+              {/* RESONANCIA SOCIAL */}
               <Button
                 onClick={handleToggleLike}
                 variant="ghost"
-                className={cn("h-14 w-14 rounded-full border transition-all", isLiked ? "bg-primary/20 border-primary/40" : "bg-white/5 border-white/5")}
+                className={cn(
+                  "h-16 w-16 rounded-full border transition-all duration-500",
+                  isLiked ? "bg-red-500/10 border-red-500/40 shadow-2xl" : "bg-white/5 border-white/5 hover:bg-white/10"
+                )}
               >
-                <Heart className={cn("h-6 w-6 transition-all duration-500", isLiked ? "fill-primary text-primary scale-110" : "text-white/20")} />
+                <Heart className={cn("h-7 w-7 transition-all duration-700", isLiked ? "fill-red-500 text-red-500 scale-110" : "text-white/20")} />
               </Button>
 
-              <div className="flex items-center gap-8 md:gap-14">
-                <Button onClick={() => skipBackward(15)} variant="ghost" className="text-white/30 hover:text-white transition-all">
-                  <SkipBack size={28} />
+              {/* MANDOS NATIVOS ACÚSTICOS */}
+              <div className="flex items-center gap-10 md:gap-20">
+                <Button onClick={() => skipBackward(15)} variant="ghost" className="text-white/20 hover:text-white transition-all scale-125">
+                  <SkipBack size={36} />
                 </Button>
 
                 <Button
                   onClick={togglePlayPause}
                   disabled={isLoading}
-                  className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-white text-black hover:scale-105 active:scale-95 transition-all shadow-[0_0_50px_rgba(255,255,255,0.2)]"
+                  className="w-24 h-24 md:w-28 md:h-28 rounded-full bg-white text-black hover:scale-105 active:scale-95 transition-all shadow-[0_0_60px_rgba(255,255,255,0.2)]"
                 >
                   {isLoading ? (
-                    <Loader2 className="h-10 w-10 animate-spin" />
+                    <Loader2 className="h-12 w-12 animate-spin" />
                   ) : isPlaying ? (
-                    <Pause className="h-10 w-10 fill-current" />
+                    <Pause className="h-14 w-14 fill-current" />
                   ) : (
-                    <Play className="h-10 w-10 fill-current ml-1.5" />
+                    <Play className="h-14 w-14 fill-current ml-2" />
                   )}
                 </Button>
 
-                <Button onClick={() => skipForward(15)} variant="ghost" className="text-white/30 hover:text-white transition-all">
-                  <SkipForward size={28} />
+                <Button onClick={() => skipForward(15)} variant="ghost" className="text-white/20 hover:text-white transition-all scale-125">
+                  <SkipForward size={36} />
                 </Button>
               </div>
 
+              {/* EXPORTACIÓN */}
               <div className="flex gap-4">
-                <Button onClick={handleShare} variant="ghost" className="h-14 w-14 rounded-full bg-white/5 border border-white/5 text-white/30 hover:text-white">
-                  <Share2 size={20} />
+                <Button variant="ghost" className="h-16 w-16 rounded-full bg-white/5 border border-white/5 text-white/20 hover:text-white">
+                  <Share2 size={24} />
                 </Button>
-                <Button onClick={handleDownload} variant="ghost" className="h-14 w-14 rounded-full bg-white/5 border border-white/10 text-white/30 hover:text-white hidden sm:flex">
-                  <Download size={20} />
+                <Button variant="ghost" className="h-16 w-16 rounded-full bg-white/5 border border-white/5 text-white/20 hover:text-white hidden lg:flex">
+                  <Download size={24} />
                 </Button>
               </div>
             </div>
 
-            <div className="flex justify-center items-center gap-4 opacity-20">
-              <div className="h-px w-8 bg-white/40" />
-              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-white">Cronista: {authorName}</span>
-              <div className="h-px w-8 bg-white/40" />
+            {/* CRÉDITOS DE SOBERANÍA */}
+            <div className="flex justify-center items-center gap-6 opacity-20 group hover:opacity-100 transition-opacity duration-1000">
+              <div className="h-px w-20 bg-white/40" />
+              <div className="flex items-center gap-3">
+                <div className="relative h-6 w-6 rounded-full overflow-hidden border border-primary/40">
+                  <Image src={getSafeAsset(currentPodcast.profiles?.avatar_url, 'avatar')} alt="" fill className="object-cover" />
+                </div>
+                <span className="text-[11px] font-black uppercase tracking-[0.4em] text-white italic">
+                  Cronista: <span className="text-primary">{authorName}</span>
+                </span>
+              </div>
+              <div className="h-px w-20 bg-white/40" />
             </div>
           </footer>
 
@@ -300,13 +296,14 @@ export function FullScreenPlayer() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V27.0):
- * 1. Reparación de Nomenclatura: Se unificó el manejador de Slider como 'handleSeek', eliminando 
- *    el error ts(2304) de referencia inexistente.
- * 2. Estabilidad de Callbacks: Las funciones 'handleShare' y 'handleDownload' han sido 
- *    re-inyectadas al cuerpo principal, asegurando operatividad total de exportación.
- * 3. Diseño Spotify Premium: Se ha recalibrado la escala de los botones de control 
- *    centrales (w-20 en móvil, w-24 en desktop) para una ergonomía superior.
- * 4. Integridad de Sincronía: El componente 'ScriptViewer' recibe la 'duration' real 
- *    extraída del evento nativo del navegador, habilitando el resaltado cinemático.
+ * NOTA TÉCNICA DEL ARCHITECT (V28.0):
+ * 1. Sincronía por Hardware: Se eliminó la dependencia de CustomEvents para el tiempo. 
+ *    Ahora el componente lee directamente del 'audioRef.current' nativo, resolviendo 
+ *    la parálisis de la barra de progreso.
+ * 2. Densidad Industrial: Se aplicó un layout de 12 columnas para Desktop, donde el 
+ *    guion es el protagonista absoluto. Se inyectaron degradados de profundidad 
+ *    para mejorar el contraste del teleprompter.
+ * 3. Erradicación de Deformidad: Los botones tienen tamaños 'px' fijos dentro de 
+ *    un contenedor 'flex-between', garantizando su forma circular perfecta 
+ *    independientemente del ancho de la pantalla.
  */
