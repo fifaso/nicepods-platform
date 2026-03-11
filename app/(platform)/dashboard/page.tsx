@@ -1,7 +1,7 @@
 // app/(platform)/dashboard/page.tsx
-// VERSIÓN: 17.0 (NicePod Operations Center - Interactive & Type-Safe Edition)
+// VERSIÓN: 18.0 (NicePod Operations Center - Production Master with Loading State)
 // Misión: Centro de mando y telemetría con radar semántico de inmersión total.
-// [ESTABILIZACIÓN]: Corrección de contrato TS2739 en el Feed y activación de enrutamiento del Mapa.
+// [ESTABILIZACIÓN]: Implementación de estado de carga del feed para evitar "falsos vacíos" durante el fetching.
 
 "use client";
 
@@ -57,57 +57,68 @@ interface DiscoveryFeed {
 export default function DashboardPage() {
   const { supabase, profile, isAuthenticated, isInitialLoading } = useAuth();
 
-  // [RESTAURACIÓN DE ESTADO]: Necesarios para cumplir el contrato con IntelligenceFeed
+  // [ESTADOS DE RADAR]
   const [searchResults, setSearchResults] = useState<SearchResult[] | null>(null);
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [currentQuery, setCurrentQuery] = useState<string>("");
 
+  // [ESTADOS DE DATOS DE BÓVEDA]
   const [feed, setFeed] = useState<DiscoveryFeed>({ epicenter: [], semantic_connections: [] });
   const [resonanceProfile, setResonanceProfile] = useState<ResonanceProfile | null>(null);
+
+  // [NUEVO ESTADO CRÍTICO]: Control de la cascada de renderizado
+  const [isFeedLoading, setIsFeedLoading] = useState<boolean>(true);
 
   useEffect(() => {
     async function loadDashboardData() {
       if (!isAuthenticated || !profile?.id || !supabase) return;
+
+      setIsFeedLoading(true);
+
       try {
         const [
-          { data: feedData },
+          { data: feedData, error: feedError },
           { data: resonanceData }
         ] = await Promise.all([
           supabase.rpc('get_user_discovery_feed', { p_user_id: profile.id }),
           supabase.from('user_resonance_profiles').select('*').eq('user_id', profile.id).maybeSingle()
         ]);
-        setFeed(feedData as DiscoveryFeed);
+
+        if (feedError) {
+          console.error("🔥 [Dashboard-RPC-Fail]:", feedError.message);
+        } else if (feedData) {
+          setFeed(feedData as DiscoveryFeed);
+        }
+
         setResonanceProfile(resonanceData as ResonanceProfile);
       } catch (error) {
         console.error("🔥 [Dashboard-Data-Fail]:", error);
+      } finally {
+        setIsFeedLoading(false);
       }
     }
+
     loadDashboardData();
   }, [isAuthenticated, profile?.id, supabase]);
 
   const safeEpicenter = useMemo(() => {
-    if (!feed.epicenter || !Array.isArray(feed.epicenter)) return [];
+    if (!feed?.epicenter || !Array.isArray(feed.epicenter)) return [];
     return feed.epicenter.map((pod) => ({
       ...pod,
       creation_data: typeof pod.creation_data === 'string' ? JSON.parse(pod.creation_data) : pod.creation_data || null,
       ai_tags: Array.isArray(pod.ai_tags) ? pod.ai_tags : [],
     })).filter((p) => p.id);
-  }, [feed.epicenter]);
+  }, [feed?.epicenter]);
 
   const safeConnections = useMemo(() => {
-    if (!feed.semantic_connections || !Array.isArray(feed.semantic_connections)) return [];
+    if (!feed?.semantic_connections || !Array.isArray(feed.semantic_connections)) return [];
     return feed.semantic_connections.map((pod) => ({
       ...pod,
       creation_data: typeof pod.creation_data === 'string' ? JSON.parse(pod.creation_data) : pod.creation_data || null,
       ai_tags: Array.isArray(pod.ai_tags) ? pod.ai_tags : [],
     })).filter((p) => p.id);
-  }, [feed.semantic_connections]);
+  }, [feed?.semantic_connections]);
 
-  /**
-   * [HANDLERS DEL RADAR]:
-   * Mantenemos la captura de eventos para informar al Feed Inferior si debe ocultarse
-   * mientras el portal de búsqueda está activo.
-   */
   const handleResults = useCallback((results: SearchResult[] | null) => {
     setSearchResults(results);
   }, []);
@@ -157,12 +168,7 @@ export default function DashboardPage() {
             </div>
           </header>
 
-          {/* 
-              [FIX CRÍTICO]: MAPA DE INMERSIÓN (Navegable)
-              La sección entera ha sido envuelta en un componente <Link>.
-              Esto transforma el panorama geoespacial de un cuadro decorativo 
-              a una puerta de entrada interactiva hacia el módulo /map.
-          */}
+          {/* MAPA DE INMERSIÓN (Navegable) */}
           <Link href="/map" className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-[2.5rem] md:rounded-[3.5rem]">
             <section className="relative rounded-[2.5rem] md:rounded-[3.5rem] overflow-hidden border border-white/5 bg-[#050505] shadow-2xl transition-all duration-1000 hover:border-primary/40 hover:shadow-[0_0_40px_rgba(139,92,246,0.15)] group cursor-pointer">
               <div className="h-[160px] md:h-[220px] w-full relative z-0 opacity-50 grayscale group-hover:grayscale-0 transition-all duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-105">
@@ -187,18 +193,24 @@ export default function DashboardPage() {
 
           {/* 
               FEED DE INTELIGENCIA 
-              [FIX TS2739]: Cumplimiento estricto del contrato IntelligenceFeedProps.
+              Solo renderizamos cuando la carga inicial ha finalizado para evitar parpadeos visuales.
           */}
           <div className="relative z-0 min-h-[500px]">
-            <IntelligenceFeed
-              userName={userName}
-              isSearching={isSearching}
-              results={searchResults}
-              lastQuery={currentQuery}
-              epicenterPodcasts={safeEpicenter}
-              connectionsPodcasts={safeConnections}
-              onClear={handleClear}
-            />
+            {isFeedLoading ? (
+              <div className="w-full flex items-center justify-center py-20">
+                <Loader2 className="h-8 w-8 text-primary/40 animate-spin" />
+              </div>
+            ) : (
+              <IntelligenceFeed
+                userName={userName}
+                isSearching={isSearching}
+                results={searchResults}
+                lastQuery={currentQuery}
+                epicenterPodcasts={safeEpicenter}
+                connectionsPodcasts={safeConnections}
+                onClear={handleClear}
+              />
+            )}
           </div>
         </div>
 
@@ -251,12 +263,13 @@ export default function DashboardPage() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V17.0):
- * 1. Resolución de Contrato (TS2739): Se han re-inyectado las propiedades de 
- *    estado (isSearching, results, lastQuery) al IntelligenceFeed. Esto garantiza 
- *    que el Dashboard pase la validación de tipos del compilador TypeScript.
- * 2. Navegabilidad Espacial: La previsualización de 'MapPreviewFrame' ha sido 
- *    envuelta en un <Link>. Esto transforma el elemento estático en una puerta 
- *    de enlace interactiva, permitiendo al usuario saltar de la vista de mando 
- *    a la exploración geográfica completa con un solo click.
+ * NOTA TÉCNICA DEL ARCHITECT (V18.0):
+ * 1. Control de Estado Activo: Se implementó 'isFeedLoading'. Al evitar el 
+ *    renderizado prematuro de IntelligenceFeed con un array vacío, erradicamos 
+ *    el 'flash' donde la pantalla mostraba "Bóveda Vacía" durante los milisegundos 
+ *    en los que la base de datos estaba enviando los datos reales.
+ * 2. Navegabilidad Espacial: La previsualización de 'MapPreviewFrame' sigue envuelta
+ *    en <Link> permitiendo el acceso inmersivo al mapa con un solo clic.
+ * 3. Contract Compliance: El Dashboard ahora envía 'searchResults' admitiendo valores nulos
+ *    hacia 'IntelligenceFeed', garantizando un build limpio en TypeScript.
  */
