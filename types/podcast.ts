@@ -1,13 +1,13 @@
 // types/podcast.ts
-// VERSIÓN: 9.0 (NicePod Intelligence Station - Strict Contract Edition)
-// Misión: Centralizar la tipificación de activos y estados del ecosistema NicePod V2.5.
-// [ESTABILIZACIÓN]: Eliminación de tipos 'any', unificación con PostgreSQL Enums y tipado geoespacial.
+// VERSIÓN: 10.0 (NicePod Intelligence Station - Full Contract Integrity)
+// Misión: Centralizar la tipificación de activos, estados y fuentes de investigación.
+// [ESTABILIZACIÓN]: Inyección de 'snippet' en ResearchSource y sincronía total con Schema V9.1.
 
 import { Database } from './database.types';
 
 /** 
  * UTILIDADES DE EXTRACCIÓN SEMÁNTICA
- * Derivamos los tipos base directamente de la Fuente de Verdad (PostgreSQL Autogenerado).
+ * Derivamos los tipos base directamente de la Fuente de Verdad (PostgreSQL).
  */
 export type Tables<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row'];
 export type Enums<T extends keyof Database['public']['Enums']> = Database['public']['Enums'][T];
@@ -20,7 +20,7 @@ export type AssemblyStatus = Enums<'assembly_status'>;
 
 /**
  * [TIPO GEOGRÁFICO]: Representación de PostGIS Geography(POINT, 4326)
- * Esta estructura asegura que TypeScript entienda la respuesta de PostGIS al consultar geo_location.
+ * Estándar de salida GeoJSON para la Malla de Madrid Resonance.
  */
 export interface GeoLocation {
   type: 'Point';
@@ -29,7 +29,7 @@ export interface GeoLocation {
 
 /**
  * [REMEDIACÍON TS2344]: PointOfInterestRow
- * Misión: Asegurar compatibilidad con el esquema evolutivo de Madrid Resonance.
+ * Misión: Asegurar compatibilidad incluso ante latencia de sincronía de Supabase CLI.
  */
 export type PointOfInterestRow = "points_of_interest" extends keyof Database['public']['Tables']
   ? Tables<"points_of_interest">
@@ -60,25 +60,27 @@ export type PointOfInterestRow = "points_of_interest" extends keyof Database['pu
  * Estructura interna del campo 'script_text' (JSONB).
  */
 export interface PodcastScript {
-  script_body: string;   // Versión narrativa para TTS neuronal.
-  script_plain: string;  // Versión limpia para teleprompter.
+  script_body: string;   // Narrativa para síntesis neuronal.
+  script_plain: string;  // Texto limpio para visualización.
 }
 
 /**
  * INTERFAZ: ResearchSource
- * Contrato de transparencia bibliográfica y origen del dato.
+ * [FIX CRÍTICO V10.0]: Inyección de 'snippet' y sincronía de orígenes.
+ * Esto resuelve el error ts(2339) en el paso final de creación.
  */
 export interface ResearchSource {
   title: string;
   url: string;
   content?: string;
+  snippet?: string; // <--- PROPIEDAD RESTAURADA
   origin: 'vault' | 'web' | 'fresh_research' | 'pulse_selection';
   relevance?: number;
 }
 
 /**
  * INTERFAZ: LocalRecommendation
- * Estructura para nodos de interés detectados por el Radar.
+ * Nodos de interés detectados por el motor situacional.
  */
 export interface LocalRecommendation {
   name: string;
@@ -92,7 +94,7 @@ export interface LocalRecommendation {
 
 /**
  * INTERFAZ: DiscoveryContextPayload
- * Dossier de inteligencia generado por el núcleo cognitivo de NicePod.
+ * Dossier de inteligencia generado por Madrid Resonance.
  */
 export interface DiscoveryContextPayload {
   narrative_hook: string;
@@ -107,19 +109,19 @@ export interface DiscoveryContextPayload {
  * Contrato estricto del campo 'creation_data' (JSONB).
  */
 export interface CreationMetadataPayload {
-  style: 'solo' | 'link' | 'archetype' | 'qa' | 'legacy' | 'remix' | 'local_concierge';
+  style: 'solo' | 'link' | 'archetype' | 'qa' | 'legacy' | 'remix' | 'local_concierge' | 'briefing';
   agentName: string;
   creation_mode: 'standard' | 'remix' | 'situational' | 'pulse';
-  discovery_context?: DiscoveryContextPayload;
+  discovery_context?: DiscoveryContextPayload | null;
   inputs: {
     topic?: string;
     motivation?: string;
     goal?: string;
     duration?: string;
-    narrativeDepth?: 'Superficial' | 'Intermedia' | 'Profunda';
+    narrativeDepth?: 'Superficial' | 'Intermedia' | 'Profunda' | string;
     tone?: string;
     voiceGender?: 'Masculino' | 'Femenino';
-    voiceStyle?: string;
+    voiceStyle?: 'Calmado' | 'Energético' | 'Profesional' | 'Inspirador' | string;
     voicePace?: string;
     image_base64_reference?: string;
     [key: string]: unknown;
@@ -130,29 +132,30 @@ export interface CreationMetadataPayload {
 
 /**
  * TIPO MAESTRO: PodcastWithProfile
- * Objeto de datos unificado para la Workstation. 
- * Combina la fila de base de datos con los metadatos de autoría y las estructuras expandidas JSONB.
+ * Objeto de datos unificado para toda la Workstation.
+ * Integra la fila de PostgreSQL con metadatos de autoría y estructuras JSONB.
  */
 export type PodcastWithProfile = Omit<PodcastRow, 'creation_data' | 'sources' | 'script_text' | 'ai_tags' | 'user_tags' | 'geo_location'> & {
-  // Integridad NSP
+  // Estado de Integridad Multimedia
   audio_ready: boolean;
   image_ready: boolean;
+  embedding_ready: boolean;
   audio_assembly_status: AssemblyStatus;
   total_audio_segments: number | null;
   current_audio_segments: number | null;
 
-  // Campos JSONB tipados rigurosamente
+  // Campos JSONB tipados
   creation_data: CreationMetadataPayload | null;
   sources: ResearchSource[] | null;
   script_text: PodcastScript | null;
   ai_tags: string[] | null;
   user_tags: string[] | null;
 
-  // Extensiones GEO: Tipado claro tras el saneamiento a PostGIS Geography
+  // Extensiones Geoespaciales
   place_name: string | null;
   geo_location: GeoLocation | null;
 
-  // Identidad del Curador (Resultado del JOIN en Supabase)
+  // Identidad del Curador (JOIN)
   profiles: {
     full_name: string | null;
     avatar_url: string | null;
@@ -165,7 +168,7 @@ export type PodcastWithProfile = Omit<PodcastRow, 'creation_data' | 'sources' | 
 
 /**
  * TIPO: PodcastWithGenealogy
- * Soporte para hilos de sabiduría (Reply threads).
+ * Soporte para la arquitectura social de hilos (Threads).
  */
 export type PodcastWithGenealogy = PodcastWithProfile & {
   replies?: PodcastWithProfile[];
@@ -173,12 +176,10 @@ export type PodcastWithGenealogy = PodcastWithProfile & {
 
 /**
  * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Saneamiento Geoespacial: 'GeoLocation' ahora define explícitamente [lon, lat], 
- *    eliminando el uso de 'any'. Esto permite al frontend navegar por los datos 
- *    con autocompletado y seguridad.
- * 2. Integridad de Estados: AssemblyStatus y PodcastStatus ahora dependen de 
- *    Enums reales de Postgres, evitando desincronías entre el backend y el cliente.
- * 3. Robustez JSONB: CreationMetadataPayload obliga a definir la estructura de 
- *    las herramientas de IA, lo que garantiza que no perderemos información 
- *    al procesar podcasts complejos.
+ * 1. Soldadura de Tipos: La inclusión de 'snippet' en 'ResearchSource' cierra el 
+ *    circuito de validación con el esquema de Zod V9.1.
+ * 2. Cero Abreviaciones: Se han expandido los tipos de 'voiceStyle' y 'narrativeDepth' 
+ *    para soportar los nuevos motores de síntesis de Gemini 3.0.
+ * 3. Protección de Datos: El uso de 'Omit' garantiza que no existan colisiones 
+ *    entre el tipo 'jsonb' genérico de Postgres y nuestras interfaces estructuradas.
  */
