@@ -22,11 +22,11 @@ import { UnifiedSearchBar } from "@/components/ui/unified-search-bar";
 import { SearchResult } from "@/hooks/use-search-radar";
 
 // --- COMPONENTES DE INTERFAZ DE ALTA DENSIDAD ---
-import { CompactPodcastCard } from "@/components/compact-podcast-card";
-import { LibraryViewSwitcher } from "@/components/library-view-switcher";
-import { SmartJobCard } from "@/components/smart-job-card";
-import { StackedPodcastCard } from "@/components/stacked-podcast-card";
-import { UniverseCard } from "@/components/universe-card";
+import { CompactPodcastCard } from "@/components/podcast/compact-podcast-card";
+import { LibraryViewSwitcher } from "@/components/feed/library-view-switcher";
+import { SmartJobCard } from "@/components/podcast/smart-job-card";
+import { StackedPodcastCard } from "@/components/podcast/stacked-podcast-card";
+import { UniverseCard } from "@/components/feed/universe-card";
 
 // --- UI ATÓMICA ---
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";

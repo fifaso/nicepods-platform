@@ -3,7 +3,7 @@
 
 "use client";
 
-import { StackedPodcastCard } from "@/components/stacked-podcast-card";
+import { StackedPodcastCard } from "@/components/podcast/stacked-podcast-card";
 import { Button } from "@/components/ui/button";
 import { groupPodcastsByThread } from "@/lib/podcast-utils";
 import { PodcastWithProfile } from "@/types/podcast";

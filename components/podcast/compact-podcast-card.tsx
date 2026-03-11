@@ -1,14 +1,14 @@
-// components/compact-podcast-card.tsx
+// components/podcast/compact-podcast-card.tsx
 // VERSIÓN: 6.0 (NicePod Shielded Compact Card - HTML5 Strict & Fallback Safe)
 // Misión: Renderizar la cápsula compacta asegurando ruteo atómico y estabilidad visual.
 // [ESTABILIZACIÓN]: Implementación de Absolute Overlay Routing y mitigación de Error 400 (Next Image).
 
 "use client";
 
-import React, { useMemo } from "react";
+import { Clock, Loader2, Pause, Play, Zap } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { Clock, Loader2, Pause, Play, Zap } from "lucide-react";
+import React, { useMemo } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -30,7 +30,7 @@ export function CompactPodcastCard({ podcast }: CompactPodcastCardProps) {
   // 2. METADATOS SOBERANOS
   const authorName = podcast.profiles?.full_name || "Comandante NicePod";
   const authorUsername = podcast.profiles?.username || "admin";
-  
+
   /**
    * [ESCUDO ANTI-400]: Sanitización de Activos Visuales.
    * Si la URL no es un HTTP válido, no usamos el componente Next/Image.
@@ -57,11 +57,11 @@ export function CompactPodcastCard({ podcast }: CompactPodcastCardProps) {
   };
 
   return (
-    <Card 
+    <Card
       className={cn(
         "relative overflow-hidden h-24 transition-all duration-500 group border shadow-lg bg-zinc-950/60 backdrop-blur-xl rounded-xl md:rounded-2xl",
-        isReady 
-          ? "border-white/5 hover:border-primary/40 hover:shadow-[0_0_20px_rgba(139,92,246,0.15)] hover:-translate-y-1" 
+        isReady
+          ? "border-white/5 hover:border-primary/40 hover:shadow-[0_0_20px_rgba(139,92,246,0.15)] hover:-translate-y-1"
           : "border-dashed border-white/5 opacity-60 grayscale-[0.7]"
       )}
     >
@@ -70,8 +70,8 @@ export function CompactPodcastCard({ podcast }: CompactPodcastCardProps) {
           Permite hacer click en toda la tarjeta sin anidar botones dentro de enlaces (HTML5 Válido).
       */}
       {isReady && (
-        <Link 
-          href={`/podcast/${podcast.id}`} 
+        <Link
+          href={`/podcast/${podcast.id}`}
           className="absolute inset-0 z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
           aria-label={`Escuchar el podcast: ${podcast.title}`}
         />
@@ -90,24 +90,24 @@ export function CompactPodcastCard({ podcast }: CompactPodcastCardProps) {
       ) : (
         <div className="absolute inset-0 z-0 bg-gradient-to-tr from-black to-primary/10 opacity-50" />
       )}
-      
+
       {/* Cortina de Oscuridad para asegurar que el texto blanco sea siempre legible */}
       <div className="absolute inset-0 bg-gradient-to-r from-[#020202] via-[#020202]/90 to-transparent z-0" />
 
       {/* --- CAPA SUPERFICIAL: INFORMACIÓN E INTERACCIÓN --- */}
       <div className="relative z-20 flex items-center justify-between h-full px-4 md:px-6">
-        
+
         {/* BLOQUE IZQUIERDO (Identidad y Título) */}
         <div className="flex items-center gap-4 flex-1 min-w-0">
-          
+
           <div className="relative h-12 w-12 md:h-14 md:w-14 rounded-xl overflow-hidden border border-white/10 flex-shrink-0 shadow-inner bg-[#050505] group-hover:border-primary/40 transition-colors">
             {hasValidAvatar ? (
-              <Image 
-                src={podcast.profiles!.avatar_url!} 
-                alt={authorName} 
-                fill 
-                sizes="56px" 
-                className="object-cover" 
+              <Image
+                src={podcast.profiles!.avatar_url!}
+                alt={authorName}
+                fill
+                sizes="56px"
+                className="object-cover"
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center bg-zinc-900 text-zinc-600 font-black uppercase">
@@ -127,20 +127,20 @@ export function CompactPodcastCard({ podcast }: CompactPodcastCardProps) {
             <h3 className="font-black text-sm md:text-base truncate text-white uppercase tracking-tight group-hover:text-primary transition-colors leading-tight">
               {podcast.title}
             </h3>
-            
+
             <div className="flex items-center gap-2.5 text-[9px] md:text-[10px] font-bold text-zinc-500 mt-1.5">
-              
+
               {/* 
                   Enlace al perfil del curador. 
                   z-30 lo pone "por encima" del Link Fantasma.
               */}
-              <Link 
+              <Link
                 href={`/profile/${authorUsername}`}
                 className="truncate hover:text-white transition-colors relative z-30"
               >
                 {authorName}
               </Link>
-              
+
               <span className="flex items-center gap-1.5 border-l border-white/10 pl-2.5">
                 {isReady ? (
                   <>

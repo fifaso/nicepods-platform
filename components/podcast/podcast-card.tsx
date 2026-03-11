@@ -1,4 +1,4 @@
-// components/podcast-card.tsx
+// components/podcast/podcast-card.tsx
 // VERSIÓN: 8.0 (NicePod Interactive Card - Click-Through Atomic Routing)
 // Misión: Renderizar la unidad de conocimiento con navegabilidad atómica y protección contra 400s.
 // [ESTABILIZACIÓN]: Implementación de navegación programática y gestión de estados de Forja.

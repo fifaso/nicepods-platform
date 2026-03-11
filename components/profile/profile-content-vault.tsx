@@ -41,7 +41,7 @@ import { cn } from "@/lib/utils";
  * Evita que el parseo de miles de palabras bloquee el renderizado inicial del perfil.
  */
 const ScriptEditor = dynamic(
-  () => import('../script-viewer').then((mod) => mod.ScriptViewer),
+  () => import('components/podcast/script-viewer').then((mod) => mod.ScriptViewer),
   {
     ssr: false,
     loading: () => (

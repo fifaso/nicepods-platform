@@ -4,9 +4,9 @@
 // [ESTABILIZACIÓN]: Integración de AudioProvider para persistencia de resonancia.
 
 import React from "react";
-import { AuthGuard } from "@/components/auth-guard";
+import { AuthGuard } from "@/components/auth/auth-guard";
 import { AudioProvider } from "@/contexts/audio-context";
-import { ErrorBoundary } from "@/components/error-boundary";
+import { ErrorBoundary } from "@/components/system/error-boundary";
 
 /**
  * COMPONENTE: MapLayout

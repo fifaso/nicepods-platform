@@ -34,7 +34,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // --- COMPONENTES DE LA MALLA DE PERFIL (DISECCIÓN) ---
-import { DownloadsManager } from "@/components/downloads-manager";
+import { DownloadsManager } from "@/components/player/downloads-manager";
 import { CreateCollectionModal } from "@/components/social/create-collection-modal";
 import { ReputationExplainer } from "@/components/social/reputation-explainer";
 import { IdentitySettingsForm } from "./private/identity-settings-form";

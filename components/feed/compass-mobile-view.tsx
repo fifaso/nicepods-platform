@@ -3,11 +3,11 @@
 
 "use client";
 
-import { useMemo } from 'react';
 import { PodcastWithProfile } from '@/types/podcast';
 import type { Tables } from '@/types/supabase';
-import { PodcastCard } from './podcast-card';
+import { PodcastCard } from 'components/podcast/podcast-card';
 import { motion } from 'framer-motion';
+import { useMemo } from 'react';
 
 type ResonanceProfile = Tables<'user_resonance_profiles'>;
 
@@ -17,20 +17,20 @@ interface CompassMobileViewProps {
 }
 
 // Función auxiliar para calcular la distancia euclidiana entre dos puntos.
-const calculateDistance = (p1: {x: number, y: number}, p2: {x: number, y: number}) => {
-    return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+const calculateDistance = (p1: { x: number, y: number }, p2: { x: number, y: number }) => {
+  return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
 }
 
 // Función auxiliar para parsear el tipo POINT de la base de datos a un objeto.
-const parsePoint = (point: unknown): {x: number, y: number} => {
-    if (typeof point === 'string') {
-        const match = point.match(/\(([^,]+),([^)]+)\)/);
-        return match ? { x: parseFloat(match[1]), y: parseFloat(match[2]) } : { x: 0, y: 0 };
-    }
-    if (typeof point === 'object' && point !== null && 'x' in point && 'y' in point) {
-        return { x: point.x as number, y: point.y as number };
-    }
-    return { x: 0, y: 0 };
+const parsePoint = (point: unknown): { x: number, y: number } => {
+  if (typeof point === 'string') {
+    const match = point.match(/\(([^,]+),([^)]+)\)/);
+    return match ? { x: parseFloat(match[1]), y: parseFloat(match[2]) } : { x: 0, y: 0 };
+  }
+  if (typeof point === 'object' && point !== null && 'x' in point && 'y' in point) {
+    return { x: point.x as number, y: point.y as number };
+  }
+  return { x: 0, y: 0 };
 }
 
 export function CompassMobileView({ userProfile, podcasts }: CompassMobileViewProps) {
@@ -66,7 +66,7 @@ export function CompassMobileView({ userProfile, podcasts }: CompassMobileViewPr
   };
 
   return (
-    <motion.div 
+    <motion.div
       className="space-y-8"
       variants={containerVariants}
       initial="hidden"
@@ -81,7 +81,7 @@ export function CompassMobileView({ userProfile, podcasts }: CompassMobileViewPr
           </div>
         </motion.div>
       )}
-      
+
       {orbit2.length > 0 && (
         <motion.div variants={itemVariants} className="space-y-4">
           <h2 className="text-xl font-bold">Alta Resonancia</h2>

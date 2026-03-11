@@ -10,7 +10,7 @@ import {
 import { useMemo, useState } from "react";
 
 // --- INFRAESTRUCTURA DE COMPONENTES DE INTERFAZ ---
-import { PodcastCard } from "@/components/podcast-card";
+import { PodcastCard } from "@/components/podcast/podcast-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 

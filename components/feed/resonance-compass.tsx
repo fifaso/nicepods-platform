@@ -3,14 +3,14 @@
 
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
 import { PodcastWithProfile } from '@/types/podcast';
 import type { Tables } from '@/types/supabase';
-import { motion } from 'framer-motion';
-import Image from 'next/image';
+import { PodcastCard } from 'components/podcast/podcast-card';
 import * as d3 from 'd3';
-import { PodcastCard } from './podcast-card';
+import { motion } from 'framer-motion';
 import { Compass, Loader2 } from 'lucide-react';
+import Image from 'next/image';
+import { useEffect, useState } from 'react';
 import useResizeObserver from 'use-resize-observer';
 
 type ResonanceProfile = Tables<'user_resonance_profiles'>;
@@ -39,7 +39,7 @@ function PodcastBubble({ node, onSelect }: { node: SimulationNode; onSelect: () 
       animate={{ opacity: 1, scale: 1 }}
       transition={{ type: 'spring', stiffness: 100 }}
     >
-      <div 
+      <div
         className="relative rounded-full overflow-hidden shadow-lg border-2 border-transparent group-hover:border-purple-400 transition-all bg-slate-800"
         style={{ width: `${bubbleRadius * 2}px`, height: `${bubbleRadius * 2}px` }}
       >
@@ -67,9 +67,9 @@ export function ResonanceCompass({ userProfile, podcasts, tags }: ResonanceCompa
       setIsLoading(false);
       return;
     }
-    
+
     setIsLoading(true);
-    
+
     const centerX = width / 2;
     const centerY = height / 2;
     const noFlyZoneRadius = Math.min(width, height) * 0.15;
@@ -107,11 +107,11 @@ export function ResonanceCompass({ userProfile, podcasts, tags }: ResonanceCompa
       )}
       {!isLoading && podcasts.length === 0 && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
-           <Compass className="w-12 h-12 text-slate-700" />
-           <p className="text-muted-foreground max-w-xs text-center">Aún no hay suficientes datos para construir tu universo. ¡Sigue explorando!</p>
+          <Compass className="w-12 h-12 text-slate-700" />
+          <p className="text-muted-foreground max-w-xs text-center">Aún no hay suficientes datos para construir tu universo. ¡Sigue explorando!</p>
         </div>
       )}
-      
+
       {!isLoading && podcasts.length > 0 && (
         <>
           <motion.div
@@ -126,13 +126,13 @@ export function ResonanceCompass({ userProfile, podcasts, tags }: ResonanceCompa
           ))}
 
           {selectedPodcast && (
-            <motion.div 
+            <motion.div
               className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-10"
               onClick={() => setSelectedPodcast(null)}
               initial={{ opacity: 0 }} animate={{ opacity: 1 }}
             >
-              <motion.div 
-                className="w-full max-w-sm" 
+              <motion.div
+                className="w-full max-w-sm"
                 onClick={(e) => e.stopPropagation()}
                 initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
               >

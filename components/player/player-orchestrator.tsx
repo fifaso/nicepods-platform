@@ -4,15 +4,15 @@
 "use client";
 
 import { useAudio } from "@/contexts/audio-context";
-import { MiniPlayerBar } from "@/components/mini-player-bar";
+import { MiniPlayerBar } from "@/components/player/mini-player-bar";
 // [ELIMINADO] Importación estática causante del error
-// import { FullScreenPlayer } from "@/components/full-screen-player";
+// import { FullScreenPlayer } from "@/components/player/full-screen-player";
 
 // [NUEVO] Importación Dinámica: Aísla el reproductor pesado del servidor
 import dynamic from "next/dynamic";
 
 const FullScreenPlayer = dynamic(
-  () => import("@/components/full-screen-player").then((mod) => mod.FullScreenPlayer),
+  () => import("@/components/player/full-screen-player").then((mod) => mod.FullScreenPlayer),
   { 
     ssr: false, // ¡CRÍTICO! Esto evita que el servidor intente renderizarlo y falle.
     loading: () => null // No mostramos nada mientras carga para evitar parpadeos

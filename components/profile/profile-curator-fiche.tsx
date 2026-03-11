@@ -21,7 +21,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { formatTime, getSafeAsset } from "@/lib/utils";
 import { ResearchSource } from "@/types/podcast";
-import { CreationMetadata } from "../creation-metadata";
+import { CreationMetadata } from "components/podcast/creation-metadata";
 
 /**
  * INTERFAZ: ProfileCuratorFicheProps

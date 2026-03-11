@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { NotificationHistoryClient } from "./notification-history-client";
 // Asegúrate de que NotificationBell exporte este tipo
-import type { Notification } from "@/components/notification-bell";
+import type { Notification } from "@/components/system/notification-bell";
 
 export default async function NotificationsPage() {
   const supabase = createClient();

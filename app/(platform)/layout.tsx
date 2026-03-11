@@ -8,17 +8,17 @@ import React from "react";
  * Navigation: Componente de mando fijo (fixed) con z-index: 100.
  * AuthGuard: Centinela que valida la sesión antes de montar la lógica del cliente.
  */
-import { AuthGuard } from "@/components/auth-guard";
+import { AuthGuard } from "@/components/auth/auth-guard";
 import { Navigation } from "@/components/navigation";
 
 // --- SERVICIOS DE INFRAESTRUCTURA Y PWA ---
 /**
  * Estos componentes gestionan el estado técnico de la plataforma en segundo plano.
  */
-import { InstallPwaButton } from '@/components/install-pwa-button';
-import { OfflineIndicator } from '@/components/offline-indicator';
-import { ScrollToTop } from "@/components/scroll-to-top";
-import { SmoothScrollWrapper } from "@/components/smooth-scroll-wrapper";
+import { InstallPwaButton } from '@/components/system/install-pwa-button';
+import { OfflineIndicator } from '@/components/system/offline-indicator';
+import { ScrollToTop } from "@/components/system/scroll-to-top";
+import { SmoothScrollWrapper } from "@/components/system/smooth-scroll-wrapper";
 
 // --- COMPONENTES DE SALIDA Y ANIMACIÓN ---
 /**
@@ -26,8 +26,8 @@ import { SmoothScrollWrapper } from "@/components/smooth-scroll-wrapper";
  * PlayerOrchestrator: Centro de mando del audio neuronal.
  * Toaster: Gestor de notificaciones y alertas de sistema.
  */
-import { PageTransition } from "@/components/page-transition";
-import { PlayerOrchestrator } from "@/components/player-orchestrator";
+import { PageTransition } from "@/components/system/page-transition";
+import { PlayerOrchestrator } from "@/components/player/player-orchestrator";
 import { Toaster } from "@/components/ui/toaster";
 
 // --- CONTEXTOS DE INTELIGENCIA ---

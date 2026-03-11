@@ -30,7 +30,7 @@ import { useAudio } from "@/contexts/audio-context";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { cn, formatTime, getSafeAsset, nicepodLog } from "@/lib/utils";
-import { ScriptViewer } from "./script-viewer";
+import { ScriptViewer } from "components/podcast/script-viewer";
 
 /**
  * FullScreenPlayer: La terminal de inmersión definitiva.

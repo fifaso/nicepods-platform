@@ -25,7 +25,7 @@ import {
 import { UserDropdown } from "./shared/user-dropdown";
 
 // --- INFRAESTRUCTURA UI (NicePod Design System) ---
-import { NotificationBell } from "@/components/notification-bell";
+import { NotificationBell } from "@/components/system/notification-bell";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";

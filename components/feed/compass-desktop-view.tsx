@@ -3,11 +3,11 @@
 
 "use client";
 
-import { useState } from 'react';
 import { PodcastWithProfile } from '@/types/podcast';
 import type { Tables } from '@/types/supabase';
+import { PodcastCard } from 'components/podcast/podcast-card';
 import { motion } from 'framer-motion';
-import { PodcastCard } from './podcast-card';
+import { useState } from 'react';
 
 type ResonanceProfile = Tables<'user_resonance_profiles'>;
 
@@ -72,18 +72,18 @@ export function CompassDesktopView({ userProfile, podcasts }: CompassDesktopView
       })}
 
       {selectedPodcast && (
-        <motion.div 
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-10"
-            onClick={() => setSelectedPodcast(null)}
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+        <motion.div
+          className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-10"
+          onClick={() => setSelectedPodcast(null)}
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }}
         >
-            <motion.div 
-                className="w-full max-w-sm" 
-                onClick={(e) => e.stopPropagation()}
-                initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
-            >
-                <PodcastCard podcast={selectedPodcast} />
-            </motion.div>
+          <motion.div
+            className="w-full max-w-sm"
+            onClick={(e) => e.stopPropagation()}
+            initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+          >
+            <PodcastCard podcast={selectedPodcast} />
+          </motion.div>
         </motion.div>
       )}
     </div>

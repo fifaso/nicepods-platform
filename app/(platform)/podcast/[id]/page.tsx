@@ -4,7 +4,7 @@
 // [ESTABILIZACIÓN]: Implementación de force-dynamic y optimización de metadatos síncronos.
 
 import { PodcastView } from "@/components/podcast-view";
-import { PulsePillView } from "@/components/pulse-pill-view";
+import { PulsePillView } from "@/components/feed/pulse-pill-view";
 import { createClient } from '@/lib/supabase/server';
 import { PodcastWithProfile } from '@/types/podcast';
 import { Metadata } from 'next';

@@ -10,7 +10,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { BellOff, Clock, History, Sparkles } from 'lucide-react';
 import { useMemo } from 'react';
 
-import { Notification, NotificationItem } from "@/components/notification-bell";
+import { Notification, NotificationItem } from "@/components/system/notification-bell";
 import { Card, CardContent } from '@/components/ui/card';
 
 interface NotificationHistoryClientProps {

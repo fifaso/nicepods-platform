@@ -1,4 +1,4 @@
-// components/script-viewer.tsx
+// components/podcast/script-viewer.tsx
 // VERSIÓN: 5.0 (Standard Script Display - Structured Support Edition)
 // Misión: Renderizar la trascripción del podcast gestionando múltiples formatos de datos.
 // [RESOLUCIÓN]: Fix de error TS2322 para compatibilidad con el tipo PodcastScript.

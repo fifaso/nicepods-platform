@@ -37,7 +37,7 @@ import { useMemo } from "react";
  * cuando el usuario decide expandir la trascripción.
  */
 const ScriptEditor = dynamic(
-  () => import('../script-viewer').then((mod) => mod.ScriptViewer),
+  () => import('components/podcast/script-viewer').then((mod) => mod.ScriptViewer),
   {
     ssr: false,
     loading: () => (

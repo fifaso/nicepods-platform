@@ -5,7 +5,7 @@
 
 "use client";
 
-import { PodcastCard } from "@/components/podcast-card";
+import { PodcastCard } from "@/components/podcast/podcast-card";
 import { PodcastWithProfile } from "@/types/podcast";
 import { MessageCircle } from "lucide-react";
 

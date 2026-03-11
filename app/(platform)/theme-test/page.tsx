@@ -1,6 +1,6 @@
+//app/(platform)/theme-test/page.tsx
 "use client"
 
-import { ThemeTestPanel } from "@/components/theme-test-panel"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -33,8 +33,6 @@ export default function ThemeTestPage() {
         <div className="grid lg:grid-cols-2 gap-8">
           {/* Main Test Panel */}
           <div className="space-y-6">
-            <ThemeTestPanel />
-
             {/* Cross-Platform Testing */}
             <Card className="glass-card border-0 shadow-glass">
               <CardHeader>

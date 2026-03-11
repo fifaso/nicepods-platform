@@ -23,6 +23,7 @@ import {
   BrainCircuit,
   Clock // [FIX]: Importación añadida
   ,
+
   FileText,
   Heart,
   Loader2,
@@ -34,8 +35,8 @@ import {
 
 import { useOfflineAudio } from '@/hooks/use-offline-audio';
 import { cn, formatTime, getSafeAsset } from '@/lib/utils';
-import { SourceEvidenceBoard } from './podcast/source-evidence-board';
-import { SovereignPublishTool } from './podcast/sovereign-publish-tool';
+import { SourceEvidenceBoard } from 'components/podcast/source-evidence-board';
+import { SovereignPublishTool } from 'components/podcast/sovereign-publish-tool';
 
 interface PulsePillViewProps {
   podcastData: PodcastWithProfile;

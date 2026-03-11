@@ -16,10 +16,10 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import "./globals.css";
 
 // Infraestructura de Servicios Sincronizados
-import { ErrorBoundary } from "@/components/error-boundary";
+import { ErrorBoundary } from "@/components/system/error-boundary";
 import { CSPostHogProvider } from '@/components/providers/posthog-provider';
-import { PwaLifecycle } from "@/components/pwa-lifecycle";
-import { ThemeProvider } from "@/components/theme-provider";
+import { PwaLifecycle } from "@/components/system/pwa-lifecycle";
+import { ThemeProvider } from "@/components/system/theme-provider";
 import { AuthProvider } from "@/hooks/use-auth";
 import { createClient } from '@/lib/supabase/server';
 import { Tables } from "@/types/database.types";

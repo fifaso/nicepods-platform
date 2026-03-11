@@ -4,7 +4,7 @@
 // [ESTABILIZACIÓN]: Sincronización de paddings con el chasis operativo y activación de transiciones.
 
 import { Navigation } from "@/components/navigation";
-import { PageTransition } from "@/components/page-transition";
+import { PageTransition } from "@/components/system/page-transition";
 import React from "react";
 
 /**

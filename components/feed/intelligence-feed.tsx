@@ -27,13 +27,13 @@ import { PodcastWithProfile } from "@/types/podcast";
 
 // --- COMPONENTES UI ---
 import { Button } from "@/components/ui/button";
-import { UniverseCard } from "@/components/universe-card";
+import { UniverseCard } from "@/components/feed/universe-card";
 
 /**
  * [SHIELD]: CARGA DIFERIDA DE ESTANTES (PodcastShelf)
  */
 const PodcastShelf = dynamic(
-    () => import("@/components/podcast-shelf").then((mod) => mod.PodcastShelf),
+    () => import("@/components/feed/podcast-shelf").then((mod) => mod.PodcastShelf),
     {
         ssr: false,
         loading: () => (

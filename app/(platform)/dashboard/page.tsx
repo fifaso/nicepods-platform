@@ -22,8 +22,8 @@ import { UnifiedSearchBar } from "@/components/ui/unified-search-bar";
 import { SearchResult } from "@/hooks/use-search-radar";
 
 // --- COMPONENTES SATÉLITES ---
-import { InsightPanel } from "@/components/insight-panel";
-import { IntelligenceFeed } from "@/components/intelligence-feed";
+import { InsightPanel } from "@/components/feed/insight-panel";
+import { IntelligenceFeed } from "@/components/feed/intelligence-feed";
 import { FloatingActionButton } from "@/components/ui/floating-action-button";
 
 // --- HOOKS DE IDENTIDAD Y TIPOS ---

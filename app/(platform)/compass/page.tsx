@@ -1,7 +1,7 @@
 // app/compass/page.tsx
 // VERSIÓN: 9.0 (Madrid Resonance - Full SSR Sync & Geo-Type Hardening)
 
-import { ResonanceCompass } from "@/components/resonance-compass";
+import { ResonanceCompass } from "@/components/feed/resonance-compass";
 import { createClient } from "@/lib/supabase/server";
 import type { PodcastWithProfile } from "@/types/podcast";
 import type { Tables } from "@/types/supabase";
