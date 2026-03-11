@@ -1,20 +1,26 @@
 // components/player/mini-player-bar.tsx
-// VERSIÓN: 3.0 (NicePod Audio Terminal - Robust Interaction Standard)
-// Misión: Barra de control de audio persistente con validación de estado industrial.
-// [ESTABILIZACIÓN]: Tipado estricto de eventos y bloqueo de navegación en estados de forja.
+// VERSIÓN: 4.0 (NicePod Mini-Terminal - Spotify Elegance Standard)
+// Misión: Proveer control persistente, síncrono y elegante de la reproducción global.
+// [ESTABILIZACIÓN]: Implementación de Marquee de título, tipado estricto y blindaje de hidratación.
 
 "use client";
 
 import { useToast } from "@/hooks/use-toast";
+import { motion } from "framer-motion";
 import { Mic, Pause, Play, X } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 
+// --- INFRAESTRUCTURA CORE ---
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useAudio } from "@/contexts/audio-context";
-import { cn, getSafeAsset } from "@/lib/utils";
+import { cn, formatTime, getSafeAsset } from "@/lib/utils";
 
+/**
+ * COMPONENTE: MiniPlayerBar
+ * El guardián de la continuidad acústica en la Workstation NicePod.
+ */
 export function MiniPlayerBar() {
   const {
     currentPodcast,
@@ -23,38 +29,47 @@ export function MiniPlayerBar() {
     closePodcast,
     expandPlayer
   } = useAudio();
+
   const { toast } = useToast();
 
-  const [progress, setProgress] = useState(0);
+  // --- TELEMETRÍA LOCAL ---
+  const [progress, setProgress] = useState<number>(0);
+  const [localTime, setLocalTime] = useState<number>(0);
+  const [localDuration, setLocalDuration] = useState<number>(0);
 
   /**
-   * Sincronización local con el pulso del motor de audio.
-   * [FIX]: Tipado estricto para eliminar cualquier 'any' residual.
+   * 1. PROTOCOLO DE SINCRO (Event-Driven)
+   * Captura el pulso del AudioProvider sin causar re-renders globales.
    */
   useEffect(() => {
-    const handleTimeUpdate = (event: Event) => {
+    const handleSync = (event: Event) => {
       const customEvent = event as CustomEvent<{ currentTime: number; duration: number }>;
       const { currentTime, duration } = customEvent.detail;
+
+      setLocalTime(currentTime);
       if (duration > 0) {
+        setLocalDuration(duration);
         setProgress((currentTime / duration) * 100);
       }
     };
 
-    window.addEventListener('nicepod-timeupdate', handleTimeUpdate as EventListener);
-    return () => window.removeEventListener('nicepod-timeupdate', handleTimeUpdate as EventListener);
+    window.addEventListener('nicepod-timeupdate', handleSync as EventListener);
+    return () => window.removeEventListener('nicepod-timeupdate', handleSync as EventListener);
   }, []);
 
-  // Validación industrial: El activo debe estar completo para ser funcional.
+  /**
+   * 2. VALIDACIÓN DE SOBERANÍA (Integrity Check)
+   */
   const isReady = useMemo(() =>
     currentPodcast?.processing_status === 'completed',
     [currentPodcast?.processing_status]
   );
 
-  const handleContainerClick = () => {
+  const handleActionClick = () => {
     if (!isReady) {
       toast({
         title: "Forja en curso",
-        description: "El contenido aún está siendo sintetizado por la IA.",
+        description: "El activo se está materializando. Paciencia, curador.",
         variant: "default"
       });
       return;
@@ -64,98 +79,132 @@ export function MiniPlayerBar() {
 
   if (!currentPodcast) return null;
 
+  const authorName = currentPodcast.profiles?.full_name || "Cronista NicePod";
+
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-[100] animate-in slide-in-from-bottom-2 duration-500">
-      {/* Barra de progreso de alta precisión */}
-      <Progress value={progress} className="h-1 w-full rounded-none bg-primary/20" />
+    <motion.div
+      initial={{ y: 100, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      exit={{ y: 100, opacity: 0 }}
+      className="fixed bottom-0 left-0 right-0 z-[120] px-4 pb-4 pointer-events-none"
+    >
+      <div className="max-w-5xl mx-auto w-full pointer-events-auto">
 
-      <div className="h-16 bg-zinc-950/95 backdrop-blur-3xl border-t border-white/5 flex items-center justify-between px-4 shadow-2xl">
+        {/* BARRA DE PROGRESO FLOTANTE (Sutil) */}
+        <div className="px-6 mb-[-2px] relative z-10">
+          <Progress value={progress} className="h-[2px] w-full rounded-none bg-primary/10" />
+        </div>
 
-        {/* LADO IZQUIERDO: INFORMACIÓN Y ESTADO */}
-        <div
-          className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer group"
-          onClick={handleContainerClick}
-        >
-          <div className={cn(
-            "relative w-10 h-10 rounded-lg overflow-hidden border border-white/5 transition-all duration-500",
-            !isReady && "grayscale opacity-50 blur-[1px]"
-          )}>
-            <Image
-              src={getSafeAsset(currentPodcast.cover_image_url, 'cover')}
-              alt={currentPodcast.title}
-              fill
-              sizes="40px"
-              className="object-cover group-hover:scale-110 transition-transform duration-500"
-            />
-          </div>
+        {/* CHASIS DEL REPRODUCTOR (Glassmorphism) */}
+        <div className="h-16 md:h-20 bg-[#0A0A0A]/90 backdrop-blur-3xl border border-white/5 rounded-2xl md:rounded-[2rem] flex items-center justify-between px-4 md:px-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)] group">
 
-          <div className="flex-1 min-w-0">
-            <p className="font-bold text-xs truncate uppercase tracking-tight text-white group-hover:text-primary transition-colors">
-              {currentPodcast.title}
-            </p>
-            <div className="flex items-center gap-2">
-              {isReady ? (
-                <p className="text-[9px] text-zinc-500 font-black uppercase tracking-widest truncate">
-                  {currentPodcast.profiles?.full_name || "NicePod Curator"}
-                </p>
-              ) : (
-                <span className="flex items-center gap-1.5 text-[8px] text-primary font-black uppercase animate-pulse tracking-widest">
-                  <Mic size={9} /> Sintetizando...
-                </span>
-              )}
+          {/* SECCIÓN A: INFO & MARQUEE */}
+          <div
+            className="flex items-center gap-4 flex-1 min-w-0 cursor-pointer"
+            onClick={handleActionClick}
+          >
+            {/* PORTADA MINI */}
+            <div className={cn(
+              "relative w-10 h-10 md:w-12 md:h-12 rounded-xl overflow-hidden border border-white/10 transition-all duration-700",
+              !isReady && "grayscale opacity-40 blur-[1px]"
+            )}>
+              <Image
+                src={getSafeAsset(currentPodcast.cover_image_url, 'cover')}
+                alt=""
+                fill
+                className="object-cover group-hover:scale-110 transition-transform duration-1000"
+              />
+            </div>
+
+            {/* TEXTOS (Con lógica de desplazamiento si es necesario) */}
+            <div className="flex-1 min-w-0 flex flex-col justify-center">
+              <div className="w-full max-w-[180px] md:max-w-md overflow-hidden relative">
+                <motion.p
+                  animate={{ x: currentPodcast.title.length > 25 ? [0, -150, 0] : 0 }}
+                  transition={{ repeat: Infinity, duration: 12, ease: "linear" }}
+                  className="font-black text-xs md:text-sm truncate uppercase tracking-tight text-white whitespace-nowrap italic"
+                >
+                  {currentPodcast.title}
+                </motion.p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                {isReady ? (
+                  <>
+                    <p className="text-[9px] md:text-[10px] text-zinc-500 font-black uppercase tracking-[0.2em] truncate">
+                      {authorName}
+                    </p>
+                    <span className="text-[8px] font-mono text-primary/40 hidden md:block">
+                      {formatTime(localTime)} / {formatTime(localDuration)}
+                    </span>
+                  </>
+                ) : (
+                  <span className="flex items-center gap-1.5 text-[8px] md:text-[9px] text-primary font-black uppercase animate-pulse tracking-widest">
+                    <Mic size={10} /> Sintetizando...
+                  </span>
+                )}
+              </div>
             </div>
           </div>
+
+          {/* SECCIÓN B: CONTROLES */}
+          <div className="flex items-center gap-2 md:gap-4 ml-4">
+
+            {/* BOTÓN PLAY/PAUSE */}
+            <Button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (isReady) togglePlayPause();
+              }}
+              variant="ghost"
+              size="icon"
+              disabled={!isReady}
+              className={cn(
+                "h-10 w-10 md:h-12 md:w-12 rounded-full transition-all duration-300",
+                isReady
+                  ? "bg-white text-black hover:bg-primary hover:text-white shadow-xl hover:scale-105"
+                  : "bg-zinc-900 text-zinc-700 opacity-20"
+              )}
+            >
+              {isPlaying && isReady ? (
+                <Pause className="h-5 w-5 fill-current" />
+              ) : (
+                <Play className="h-5 w-5 fill-current ml-0.5" />
+              )}
+            </Button>
+
+            {/* BOTÓN CERRAR (Purga de Sesión) */}
+            <Button
+              onClick={(e) => {
+                e.stopPropagation();
+                closePodcast();
+              }}
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10 text-zinc-600 hover:text-red-500 hover:bg-red-500/10 transition-all rounded-xl"
+            >
+              <X className="h-5 w-5" />
+            </Button>
+
+          </div>
         </div>
 
-        {/* LADO DERECHO: CONTROLES MAESTROS */}
-        <div className="flex items-center gap-1 ml-4">
-          <Button
-            onClick={(e) => {
-              e.stopPropagation();
-              if (isReady) togglePlayPause();
-            }}
-            variant="ghost"
-            size="icon"
-            disabled={!isReady}
-            className={cn(
-              "h-10 w-10 rounded-full transition-all duration-300",
-              isReady
-                ? "hover:bg-primary/10 text-white hover:text-primary"
-                : "opacity-20 cursor-not-allowed text-zinc-600"
-            )}
-          >
-            {isPlaying ? (
-              <Pause className="h-5 w-5 fill-current" />
-            ) : (
-              <Play className="h-5 w-5 fill-current" />
-            )}
-          </Button>
-
-          <Button
-            onClick={(e) => {
-              e.stopPropagation();
-              closePodcast();
-            }}
-            variant="ghost"
-            size="icon"
-            className="h-10 w-10 text-zinc-500 hover:text-red-400 hover:bg-red-950/30 transition-all rounded-xl"
-          >
-            <X className="h-5 w-5" />
-          </Button>
-        </div>
+        {/* BORDE DE RESONANCIA (Aurora Glow) */}
+        <div className="h-1 w-full bg-gradient-to-r from-transparent via-primary/20 to-transparent blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
       </div>
-    </div>
+    </motion.div>
   );
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V3.0):
- * 1. Sanitización de Eventos: El uso de 'as CustomEvent' junto a un listener tipado 
- *    elimina la advertencia sobre 'any', haciendo que el sistema de telemetría de 
- *    audio cumpla con el estándar de tipado estricto.
- * 2. Blindaje de Interacción: El componente ahora bloquea inteligentemente la 
- *    expansión al reproductor full-screen si el nodo no está listo, informando 
- *    al usuario mediante el componente 'toast'.
- * 3. Integridad de Cierre: Se ha refinado la lógica del 'AudioProvider' para 
- *    liberar recursos sin disparar falsos errores de 'src'.
+ * NOTA TÉCNICA DEL ARCHITECT (V4.0):
+ * 1. Ergonomía Marquee: Se inyectó una animación de desplazamiento lateral mediante 
+ *    Framer Motion que solo se activa visualmente si el título excede la zona de 
+ *    seguridad, evitando el truncamiento agresivo de información.
+ * 2. Métrica Síncrona: Al visualizar el tiempo local (mm:ss) junto al autor, 
+ *    cumplimos con el estándar de telemetría profesional de audio, permitiendo 
+ *    que el usuario sepa su posición sin expandir el reproductor.
+ * 3. Diseño de Inmersión: Se reemplazó el fondo 'background/95' por '#0A0A0A/90' 
+ *    con 'backdrop-blur-3xl', logrando el efecto de cristal oscuro de Spotify Premium, 
+ *    pero manteniendo la firma estética de la Workstation NicePod.
  */
