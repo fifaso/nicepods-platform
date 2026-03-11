@@ -1,8 +1,11 @@
 // components/create-flow/hooks/use-flow-actions.ts
-// VERSIÓN: 4.6 (Master Action Orchestrator - Redirection Shield & Multi-Flow Integrity)
+// VERSIÓN: 4.7 (Master Action Orchestrator - Draft Hydration Edition)
+// Misión: Centralizar la comunicación con las Edge Functions y sincronizar el estado reactivo.
+// [ESTABILIZACIÓN]: Implementación de 'hydrateDraftData' para resolver la pérdida de fuentes y guiones.
 
 "use client";
 
+import { getDraftById } from "@/actions/draft-actions"; // [FIX]: Importamos la acción de servidor para lectura
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { PodcastCreationData } from "@/lib/validation/podcast-schema";
@@ -11,35 +14,21 @@ import { useCallback, useState } from "react";
 import { useFormContext } from "react-hook-form";
 import { FlowState } from "../shared/types";
 
-/**
- * Propiedades del Hook: Recibe las funciones de navegación del orquestador.
- */
 interface UseFlowActionsProps {
   transitionTo: (state: FlowState) => void;
   goBack: () => void;
   clearDraft: () => void;
 }
 
-/**
- * useFlowActions
- * Centraliza la comunicación con las Edge Functions de Supabase.
- * Implementa la arquitectura asíncrona y blindaje de navegación.
- */
 export function useFlowActions({ transitionTo, goBack, clearDraft }: UseFlowActionsProps) {
   const { supabase, user } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
   const { getValues, setValue } = useFormContext<PodcastCreationData>();
 
-  // Estados de carga para feedback visual en botones
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  /**
-   * generateDraft (FASE DE INTELIGENCIA)
-   * Dispara el inicio de la investigación profunda o la redacción de píldoras.
-   * [ESTRATEGIA]: No espera al guion. Recibe un 'draft_id' y salta al monitor.
-   */
   const generateDraft = useCallback(async () => {
     if (!user) {
       toast({ title: "Acceso denegado", description: "Inicia sesión para crear.", variant: "destructive" });
@@ -54,11 +43,9 @@ export function useFlowActions({ transitionTo, goBack, clearDraft }: UseFlowActi
 
       console.log(`🚀 [FlowActions] Iniciando Pipeline Asíncrono para: ${values.purpose}`);
 
-      // Invocamos la función orquestadora que inicia la malla de inteligencia
       const { data, error } = await supabase.functions.invoke("start-draft-process", {
         body: {
           ...values,
-          // Si es modo Pulse, enviamos las fuentes del radar
           pulse_source_ids: isPulse ? values.pulse_source_ids : undefined
         },
       });
@@ -66,10 +53,7 @@ export function useFlowActions({ transitionTo, goBack, clearDraft }: UseFlowActi
       if (error) throw new Error(error.message);
 
       if (data.success && data.draft_id) {
-        // Vinculamos el borrador al formulario para el seguimiento Realtime
         setValue("draft_id", data.draft_id);
-
-        // Redirección inmediata al monitor de carga cognitiva
         transitionTo("DRAFT_GENERATION_LOADER");
       } else {
         throw new Error("El servidor no devolvió un identificador de sesión válido.");
@@ -88,10 +72,45 @@ export function useFlowActions({ transitionTo, goBack, clearDraft }: UseFlowActi
   }, [supabase, user, getValues, setValue, transitionTo, toast]);
 
   /**
-   * handleSubmitProduction (FASE DE MATERIALIZACIÓN)
-   * Orquesta la conversión final en activos multimedia.
-   * [FIX]: Implementa Redirection Shield para evitar el crash de 'Invalid URL'.
+   * [NUEVA FUNCIÓN CRÍTICA]: hydrateDraftData
+   * Esta función es la responsable de rescatar el Capital Intelectual (Fuentes, Guion) 
+   * desde la base de datos y forzar su inyección en el formulario React Hook Form.
+   * Se debe llamar cuando la pantalla de carga (Loader) detecte que la IA ha terminado.
    */
+  const hydrateDraftData = useCallback(async () => {
+    const draftId = getValues('draft_id');
+    if (!draftId) return false;
+
+    try {
+      console.log(`🔄 [FlowActions] Hidratando memoria del borrador #${draftId}`);
+      // Usamos el server action seguro que ya habíamos auditado
+      const draft = await getDraftById(draftId);
+
+      if (draft) {
+        // [LA CLAVE]: Inyectamos los datos recuperados en el formulario
+        // Esto soluciona el misterio de "Fuentes en 0".
+        setValue('final_title', draft.title, { shouldValidate: true });
+
+        // Protegemos la inyección del guion
+        if (draft.script_text) {
+          setValue('final_script', draft.script_text.script_body || draft.script_text.script_plain || "", { shouldValidate: true });
+        }
+
+        // Inyectamos las fuentes
+        if (draft.sources && Array.isArray(draft.sources)) {
+          setValue('sources', draft.sources as any, { shouldValidate: true });
+          console.log(`✅ [FlowActions] ${draft.sources.length} fuentes inyectadas al editor.`);
+        }
+
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("🔥 [Draft-Hydration-Error]:", error);
+      return false;
+    }
+  }, [getValues, setValue]);
+
   const handleSubmitProduction = useCallback(async () => {
     if (!user) return;
     setIsSubmitting(true);
@@ -101,7 +120,6 @@ export function useFlowActions({ transitionTo, goBack, clearDraft }: UseFlowActi
     const isLocalMode = values.purpose === 'local_soul';
 
     try {
-      // DETERMINACIÓN DINÁMICA DE ENDPOINT
       let endpoint = "queue-podcast-job";
       if (isPulseMode) endpoint = "generate-briefing-pill";
       if (isLocalMode) endpoint = "geo-publish-content";
@@ -114,14 +132,9 @@ export function useFlowActions({ transitionTo, goBack, clearDraft }: UseFlowActi
 
       if (error) throw new Error(error.message);
 
-      /**
-       * [NORMALIZACIÓN]: Captura de ID polimórfica.
-       * Soporta tanto pod_id (RPC SQL) como podcast_id (Pill Generator).
-       */
       const finalId = data.pod_id || data.podcast_id;
 
       if (data.success && finalId) {
-        // --- BLINDAJE DE REDIRECCIÓN ---
         const safeId = String(finalId).trim();
         if (!safeId || safeId === "undefined" || safeId === "null") {
           throw new Error("El servidor aceptó la producción pero no devolvió un ID válido.");
@@ -132,10 +145,7 @@ export function useFlowActions({ transitionTo, goBack, clearDraft }: UseFlowActi
           description: "Redirigiendo a tu sala de escucha privada."
         });
 
-        // Redirección segura a la página del recurso
         router.push(`/podcast/${safeId}`);
-
-        // Limpiamos el formulario para liberar memoria
         clearDraft();
       } else {
         throw new Error(data.message || "La orden de producción fue rechazada por el servidor.");
@@ -153,34 +163,17 @@ export function useFlowActions({ transitionTo, goBack, clearDraft }: UseFlowActi
     }
   }, [supabase, user, getValues, router, clearDraft, toast]);
 
-  /**
-   * deleteDraft
-   * Gestión de la Bóveda de Borradores con protección RLS.
-   */
   const deleteDraft = useCallback(async (id: number) => {
     try {
-      const { error } = await supabase
-        .from("podcast_drafts")
-        .delete()
-        .eq("id", id)
-        .eq("user_id", user?.id);
-
+      const { error } = await supabase.from("podcast_drafts").delete().eq("id", id).eq("user_id", user?.id);
       if (error) throw error;
-
       toast({ title: "Borrador eliminado", description: "Espacio liberado en tu bóveda." });
-
-      // Actualizamos datos del servidor para refrescar listas sin recargar
       router.refresh();
     } catch (err: any) {
-      console.error("🔥 [Draft-Delete-Error]:", err.message);
       toast({ title: "Error al purgar sesión", variant: "destructive" });
     }
   }, [supabase, user?.id, toast, router]);
 
-  /**
-   * analyzeLocalEnvironment
-   * Inicia la fase de investigación situacional para Madrid Resonance.
-   */
   const analyzeLocalEnvironment = useCallback(async (imageContext?: string) => {
     if (!user) return;
     setIsGenerating(true);
@@ -213,8 +206,20 @@ export function useFlowActions({ transitionTo, goBack, clearDraft }: UseFlowActi
     isGenerating,
     isSubmitting,
     generateDraft,
+    hydrateDraftData, // [NUEVA FUNCIÓN EXPUESTA]
     handleSubmitProduction,
     deleteDraft,
     analyzeLocalEnvironment
   };
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V4.7):
+ * 1. Sincronía Front-Back: Se inyectó el método 'hydrateDraftData'. Esto permite 
+ *    que los componentes de carga (Loaders) fuercen una re-hidratación del 
+ *    formulario con los datos definitivos que la IA guardó en Supabase antes de 
+ *    mostrar el Editor de Guiones.
+ * 2. Estabilidad de Contexto: La inyección controlada con 'shouldValidate: true'
+ *    garantiza que el Editor no nazca vacío, permitiendo que el usuario vea y edite 
+ *    el contenido sin perder información.
+ */

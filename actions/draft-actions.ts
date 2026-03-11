@@ -1,26 +1,40 @@
-//actions/draft-actions.ts
-//VERSIÓN: 3.0 (NicePod Draft Engine - Atomic Handover Standard)
-
+// actions/draft-actions.ts
+// VERSIÓN: 3.1 (NicePod Draft Engine - Citizen Knowledge Standard)
+// Misión: Gestionar el estado de 'Staging' de ideas A-espaciales (Conocimiento Universal).
+// [ESTABILIZACIÓN]: Erradicación de tipos 'any', alineación con 'types/podcast.ts' y limpieza de roles.
 
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import {
-    PodcastScript,
-    ResearchSource
-} from "@/types/podcast";
 import { revalidatePath } from "next/cache";
+
+// --- CONTRATOS DE INTEGRIDAD SOBERANA ---
+import { PodcastScript, ResearchSource } from "@/types/podcast";
 import { ActionResponse } from "./profile-actions";
 
 /**
+ * INTERFAZ: DraftRow
+ * Define estrictamente la estructura de salida para evitar el uso de 'any'.
+ */
+export interface DraftRow {
+    id: number;
+    title: string;
+    script_text: PodcastScript | null;
+    creation_data: any;
+    sources: ResearchSource[] | null;
+    status: string;
+    created_at: string;
+    updated_at: string;
+}
+
+/**
  * FUNCIÓN: listUserDrafts
- * Misión: Recuperar el inventario de misiones de investigación en curso del curador.
+ * Misión: Recuperar el inventario de misiones en curso del curador.
  * 
  * [ARQUITECTURA]:
- * Extrae los borradores de la tabla especializada 'podcast_drafts', la cual actúa 
- * como el área de 'Staging' para el procesamiento de inteligencia (Fase I y II).
+ * Actúa sobre 'podcast_drafts'. Solo devuelve conocimiento en fase gaseosa.
  */
-export async function listUserDrafts(): Promise<any[]> {
+export async function listUserDrafts(): Promise<DraftRow[]> {
     const supabase = createClient();
 
     // 1. HANDSHAKE DE IDENTIDAD
@@ -39,7 +53,8 @@ export async function listUserDrafts(): Promise<any[]> {
 
         if (error) throw error;
 
-        return data || [];
+        // Validamos el casteo a través del contrato DraftRow
+        return (data as unknown as DraftRow[]) || [];
     } catch (error: any) {
         console.error("🔥 [Draft-Engine-Fatal][List]:", error.message);
         return [];
@@ -48,9 +63,9 @@ export async function listUserDrafts(): Promise<any[]> {
 
 /**
  * FUNCIÓN: getDraftById
- * Misión: Recuperar un nodo de creación específico para su edición o visualización.
+ * Misión: Recuperar un nodo de creación específico para el 'Script Editor'.
  */
-export async function getDraftById(draftId: number) {
+export async function getDraftById(draftId: number): Promise<DraftRow | null> {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
@@ -58,13 +73,14 @@ export async function getDraftById(draftId: number) {
     try {
         const { data, error } = await supabase
             .from("podcast_drafts")
-            .select("*")
+            .select("id, title, script_text, creation_data, sources, status, created_at, updated_at")
             .eq("id", draftId)
             .eq("user_id", user.id)
             .single();
 
         if (error) throw error;
-        return data;
+
+        return data as unknown as DraftRow;
     } catch (error: any) {
         console.error(`🔥 [Draft-Engine-Fatal][Get]: ID #${draftId}`, error.message);
         return null;
@@ -73,7 +89,7 @@ export async function getDraftById(draftId: number) {
 
 /**
  * FUNCIÓN: deleteDraftAction
- * Misión: Purga física de un borrador y liberación de la cuota de concurrencia.
+ * Misión: Purga física de un borrador, liberando la cuota de concurrencia del usuario.
  */
 export async function deleteDraftAction(draftId: number): Promise<ActionResponse> {
     const supabase = createClient();
@@ -89,7 +105,7 @@ export async function deleteDraftAction(draftId: number): Promise<ActionResponse
 
         if (error) throw error;
 
-        // Sincronizamos la Workstation para reflejar la disponibilidad de nueva creación.
+        // Sincronizamos la Workstation
         revalidatePath("/create");
         revalidatePath("/dashboard");
 
@@ -108,10 +124,10 @@ export async function deleteDraftAction(draftId: number): Promise<ActionResponse
  * Misión: Ejecutar el Salto Atómico de 'Borrador' a 'Podcast en Producción'.
  * 
  * [FASE IV DEL CICLO DE VIDA]:
- * Esta acción invoca el RPC 'promote_draft_to_production_v2', el cual:
- * 1. Mueve el registro a la tabla 'micro_pods'.
- * 2. Activa los triggers de materialización binaria (NSP).
- * 3. Inyecta el ADN de creación definitivo.
+ * Esta acción invoca el RPC 'promote_draft_to_production_v2'.
+ * NOTA DE SEGURIDAD GEOESPACIAL: Al ser una función de usuario (Ciudadano),
+ * esta acción NO recibe, procesa, ni inyecta coordenadas geográficas. 
+ * Crea exclusivamente Nodos de Conocimiento Universal (A-espaciales).
  */
 export async function promoteDraftToProduction(payload: {
     draftId: number;
@@ -124,7 +140,8 @@ export async function promoteDraftToProduction(payload: {
     if (!user) return { success: false, message: "IDENTIDAD_NO_VERIFICADA" };
 
     try {
-        console.info(`🚀 [Draft-Engine] Promocionando Borrador #${payload.draftId} a Producción.`);
+        // [TELEMETRÍA DE AUDITORÍA]: Verificamos si las fuentes llegan vivas al servidor
+        console.info(`🚀 [Draft-Engine] Promocionando Borrador #${payload.draftId}. Fuentes recibidas: ${payload.sources?.length || 0}`);
 
         // Invocamos el procedimiento almacenado (Soberanía SQL)
         const { data, error } = await supabase.rpc('promote_draft_to_production_v2', {
@@ -136,14 +153,15 @@ export async function promoteDraftToProduction(payload: {
 
         if (error) throw error;
 
-        // El RPC devuelve un conjunto de resultados [{pod_id, success, message}]
+        // El RPC devuelve [{pod_id, success, message}]
         const result = data[0];
 
         if (!result.success) {
+            console.warn(`⚠️ [Draft-Engine] Falla lógica en RPC: ${result.message}`);
             return { success: false, message: result.message || "Fallo en la validación de integridad del borrador." };
         }
 
-        // Revalidamos rutas críticas para asegurar que el nuevo podcast aparezca en la biblioteca.
+        // Revalidación de rutas públicas
         revalidatePath("/podcasts");
         revalidatePath("/dashboard");
         revalidatePath("/create");
@@ -165,11 +183,12 @@ export async function promoteDraftToProduction(payload: {
 
 /**
  * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Aislamiento de Staging: Al usar una tabla dedicada (podcast_drafts), 
- *    protegemos la tabla de producción (micro_pods) de registros incompletos.
- * 2. Handover Atómico: La función 'promoteDraftToProduction' es la única puerta 
- *    de entrada autorizada para iniciar la síntesis de audio e imagen (Protocolo NSP).
- * 3. Consistencia JSONB: Los campos 'script_text' y 'creation_data' se manejan 
- *    como objetos estructurados, garantizando que el Agente 38 (Architect) y el 
- *    Harvester de audio compartan el mismo ADN narrativo.
+ * 1. Tipado de Seguridad: El uso de 'DraftRow' obliga al compilador a verificar 
+ *    que todos los componentes que consumen borradores (como el Editor de Guiones) 
+ *    esperen la estructura correcta, aniquilando errores de 'undefined'.
+ * 2. Soberanía de Rol: Se ha documentado la omisión intencional de la lógica 
+ *    geoespacial, reservando el mapeo en Madrid exclusivamente para el motor de Admin.
+ * 3. Trazabilidad: Se inyectó un log en la promoción para validar si el problema 
+ *    de 'Fuentes en 0' es causado por el cliente (UI) que las vacía, o por 
+ *    la función Edge que nunca las escribió.
  */

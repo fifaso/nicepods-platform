@@ -1,5 +1,7 @@
 // components/create-flow/steps/draft-generation-loader.tsx
-// VERSIÓN: 5.0 (Strict Logic Master - Reactive Integrity & Zero-Stale closures)
+// VERSIÓN: 5.1 (NicePod Intelligence Loader - Absolute Hydration Edition)
+// Misión: Orquestar la espera asíncrona y garantizar la inyección perfecta de datos antes de la edición.
+// [ESTABILIZACIÓN]: Delegación de hidratación a 'useFlowActions' para asegurar la integridad del JSONB.
 
 "use client";
 
@@ -18,16 +20,13 @@ import {
   SearchCheck
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useFormContext } from "react-hook-form";
+import { useFlowActions } from "../hooks/use-flow-actions"; // [FIX]: Importamos las acciones para acceder al hidratador
 import { useCreationContext } from "../shared/context";
 
 interface DraftLoaderProps {
   formData: PodcastCreationData;
 }
 
-/**
- * STATUS_MAP: Mapeo oficial de estados de la DB a índices de animación.
- */
 const STATUS_MAP: Record<string, number> = {
   'researching': 0,
   'writing': 1,
@@ -35,9 +34,6 @@ const STATUS_MAP: Record<string, number> = {
   'failed': -1
 };
 
-/**
- * PHASES: Definición de la narrativa visual de carga.
- */
 const PHASES = [
   {
     id: 0,
@@ -73,15 +69,20 @@ const PHASES = [
 
 export function DraftGenerationLoader({ formData }: DraftLoaderProps) {
   const supabase = createClient();
-  const { transitionTo } = useCreationContext();
-  const { setValue } = useFormContext();
+  const { transitionTo, goBack } = useCreationContext();
+
+  // Instanciamos las acciones para acceder al motor de hidratación
+  const { hydrateDraftData } = useFlowActions({
+    transitionTo,
+    goBack,
+    clearDraft: () => { } // Callback vacío ya que no se usa en esta vista
+  });
 
   const [progress, setProgress] = useState(10);
   const [currentPhaseIndex, setCurrentPhaseIndex] = useState(0);
   const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
-  // Refs para evitar doble ejecución en ráfagas de Realtime
   const isFinalizing = useRef(false);
 
   const draftId = formData.draft_id;
@@ -89,32 +90,31 @@ export function DraftGenerationLoader({ formData }: DraftLoaderProps) {
   const agentName = formData.agentName || "Especialista NicePod";
 
   /**
-   * [MEJORA 5.0]: finalizeIngestion con useCallback
-   * Estabiliza la función para su uso seguro dentro de useEffect sin causar re-renders infinitos.
+   * [NÚCLEO DE SOBERANÍA]: finalizeIngestion
+   * Delega la responsabilidad de inyección al hook especializado para evitar 
+   * la corrupción de datos por payloads parciales de WebSocket.
    */
-  const finalizeIngestion = useCallback((data: any) => {
+  const finalizeIngestion = useCallback(async () => {
     if (isFinalizing.current) return;
     isFinalizing.current = true;
 
-    console.log("🎯 [Loader] Ingesta final detectada. Sincronizando estado.");
+    console.log("🎯 [Loader] Ingesta final detectada. Invocando hidratación...");
     setProgress(100);
 
-    // Extracción segura del cuerpo del guion según nuevo esquema JSONB
-    const rawScript = data.script_text;
-    const scriptBody = rawScript?.script_body || (typeof rawScript === 'string' ? rawScript : "");
-    const sources = data.sources || [];
-    const title = data.title || topic;
+    // Esperamos a que la barra de progreso llegue al 100% visualmente
+    await new Promise(resolve => setTimeout(resolve, 800));
 
-    // Persistencia en el Store de React Hook Form
-    setValue("final_title", title, { shouldValidate: true, shouldDirty: true });
-    setValue("final_script", scriptBody, { shouldValidate: true, shouldDirty: true });
-    setValue("sources", sources, { shouldValidate: true, shouldDirty: true });
+    // Ejecutamos la hidratación profunda desde la base de datos
+    const isHydrated = await hydrateDraftData();
 
-    // Transición suave al editor tras la ingesta exitosa
-    setTimeout(() => {
+    if (isHydrated) {
+      console.log("✅ [Loader] Hidratación exitosa. Transición a edición.");
       transitionTo("SCRIPT_EDITING");
-    }, 1200);
-  }, [setValue, transitionTo, topic]);
+    } else {
+      setIsError(true);
+      setErrorMessage("Error de Sincronía: No se pudo recuperar el borrador completo de la base de datos.");
+    }
+  }, [hydrateDraftData, transitionTo]);
 
   useEffect(() => {
     if (!draftId) {
@@ -125,7 +125,6 @@ export function DraftGenerationLoader({ formData }: DraftLoaderProps) {
 
     console.log(`📡 [Loader] Vigilancia Realtime activa para Borrador #${draftId}`);
 
-    // 1. SUSCRIPCIÓN REALTIME (Canal dedicado por ID de borrador)
     const channel = supabase
       .channel(`draft_vanguard_${draftId}`)
       .on(
@@ -151,14 +150,14 @@ export function DraftGenerationLoader({ formData }: DraftLoaderProps) {
             setCurrentPhaseIndex(mappedIndex);
           }
 
+          // Si el estado es 'ready', disparamos la finalización
           if (status === 'ready') {
-            finalizeIngestion(payload.new);
+            finalizeIngestion();
           }
         }
       )
       .subscribe();
 
-    // 2. POLLING DE SEGURIDAD (Red de protección asíncrona)
     const safetyCheck = setInterval(async () => {
       const { data, error } = await supabase
         .from('podcast_drafts')
@@ -168,8 +167,8 @@ export function DraftGenerationLoader({ formData }: DraftLoaderProps) {
 
       if (!error && data) {
         if (data.status === 'ready') {
-          finalizeIngestion(data);
           clearInterval(safetyCheck);
+          finalizeIngestion();
         } else if (data.status === 'failed') {
           setIsError(true);
           setErrorMessage("El proceso de investigación fue interrumpido.");
@@ -183,7 +182,6 @@ export function DraftGenerationLoader({ formData }: DraftLoaderProps) {
       }
     }, 5000);
 
-    // Limpieza de recursos al desmontar el componente
     return () => {
       console.log(`🛑 [Loader] Limpiando vigilancia para Borrador #${draftId}`);
       supabase.removeChannel(channel);
@@ -191,7 +189,7 @@ export function DraftGenerationLoader({ formData }: DraftLoaderProps) {
     };
   }, [draftId, supabase, finalizeIngestion]);
 
-  // 3. ANIMACIÓN DE PROGRESO "SMOOTH"
+  // ANIMACIÓN DE PROGRESO
   useEffect(() => {
     if (isError) return;
     const target = PHASES[currentPhaseIndex]?.targetProgress || 95;
