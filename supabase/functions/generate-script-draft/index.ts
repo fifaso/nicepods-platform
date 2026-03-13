@@ -1,6 +1,7 @@
 // supabase/functions/generate-script-draft/index.ts
-// VERSIÓN: 27.1 (Architect-First Protocol - Stability Edition)
-// Misión: Garantizar que la primera redacción use el cerebro del Arquitecto, ignorando agentes legacy.
+// VERSIÓN: 28.0 (Architect-First Protocol - Word Limit & Thermal Sync Edition)
+// Misión: Garantizar una redacción de alta fidelidad respetando estrictamente los límites de RAM (Duración).
+// [ESTABILIZACIÓN]: Sincronización de fallbacks con Schema V10.0 y persistencia de trazabilidad (Citations).
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
@@ -36,8 +37,6 @@ async function handler(request: Request): Promise<Response> {
     console.log(`✍️ [Redactor][${correlationId}] Forjando borrador para: ${draft.title}`);
 
     // 2. POLÍTICA DE ARQUITECTO SOBERANO
-    // [FIX]: Forzamos 'script-architect-v1' porque es el único que entiende el formato de sources actual.
-    // El tono elegido se pasa como variable interna.
     const tone = draft.creation_data?.agentName || 'narrador';
 
     const { data: agent, error: agentErr } = await supabaseAdmin
@@ -48,16 +47,20 @@ async function handler(request: Request): Promise<Response> {
 
     if (agentErr || !agent) throw new Error("ARCHITECT_PROMPT_NOT_FOUND");
 
-    // 3. CONSTRUCCIÓN DEL PROMPT (Usando fuentes crudas)
+    // 3. CONSTRUCCIÓN DEL PROMPT SOBERANO
+    // [FIX CRÍTICO]: Alineación de fallbacks con el Zod Schema V10.0
+    const rawDuration = draft.creation_data?.inputs?.duration || "Entre 2 y 3 minutos";
+    const rawDepth = draft.creation_data?.inputs?.narrativeDepth || "Intermedia";
+
     const finalPrompt = buildPrompt(agent.prompt_template, {
       topic: draft.title,
       raw_sources: JSON.stringify(draft.sources),
-      duration: draft.creation_data?.inputs?.duration || "Media (6-9 min)",
-      depth: draft.creation_data?.inputs?.narrativeDepth || "Intermedia",
+      duration: rawDuration,
+      depth: rawDepth,
       tone: tone
     });
 
-    // 4. SÍNTESIS CON MODELO PRO (Gemini 3.0 Flash Preview)
+    // 4. SÍNTESIS NEURONAL (Gemini 3.0 Flash Preview)
     const scriptRaw = await callGeminiMultimodal(
       finalPrompt,
       draft.creation_data?.inputs?.image_base64_reference,
@@ -65,19 +68,21 @@ async function handler(request: Request): Promise<Response> {
       0.7
     );
 
-    // El nuevo parseAIJson 11.7 se encargará de limpiar la respuesta
-    const content = parseAIJson<{ title: string, script_body: string }>(scriptRaw);
+    // [AMPLIACIÓN DE CONTRATO]: Se incluye 'citations_used' para trazabilidad
+    const content = parseAIJson<{ title: string, script_body: string, citations_used?: string[] }>(scriptRaw);
 
-    // 5. PERSISTENCIA FINAL
+    // 5. HIGIENE ACÚSTICA
     const plainText = cleanTextForSpeech(content.script_body);
 
+    // 6. PERSISTENCIA FINAL EN STAGING
     const { error: updateError } = await supabaseAdmin
       .from('podcast_drafts')
       .update({
         title: content.title || draft.title,
         script_text: {
           script_body: content.script_body,
-          script_plain: plainText
+          script_plain: plainText,
+          citations: content.citations_used || [] // Salvaguardamos la auditoría de fuentes
         },
         status: 'ready',
         updated_at: new Date().toISOString()
