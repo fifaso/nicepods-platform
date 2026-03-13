@@ -1,7 +1,7 @@
 // components/create-flow/index.tsx
-// VERSIÓN: 51.0 (Ultimate Production Master - Strict Type & Clean Build)
+// VERSIÓN: 52.0 (Ultimate Production Master - Thermal Control Sync Edition)
 // Misión: Orquestar el flujo de creación eliminando ambigüedades CSS y de tipado.
-// [ESTABILIZACIÓN]: Saneamiento de advertencias Tailwind y cumplimiento del contrato 'actions'.
+// [ESTABILIZACIÓN]: Alineación de 'defaultValues' con el esquema Zod V10.0 para resolver error ts(2322).
 
 "use client";
 
@@ -12,13 +12,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { FormProvider, useForm, useFormContext } from "react-hook-form";
 
 // Core Architecture & Context
+import { DraftRow } from "@/actions/draft-actions";
 import { useFlowActions } from "./hooks/use-flow-actions";
 import { LayoutShell } from "./layout-shell";
 import { MASTER_FLOW_PATHS } from "./shared/config";
 import { CreationProvider, useCreationContext } from "./shared/context";
-import { FlowState, NarrativeOption } from "./shared/types";
+import { NarrativeOption } from "./shared/types";
 import { StepRenderer } from "./step-renderer";
-import { DraftRow } from "@/actions/draft-actions";
 
 interface OrchestratorProps {
   initialDrafts?: DraftRow[];
@@ -52,7 +52,7 @@ function InnerOrchestrator({ initialDrafts = [] }: { initialDrafts: DraftRow[] }
   const handleValidatedNext = useCallback(async () => {
     const currentState = currentFlowState;
     const currentValues = getValues();
-    
+
     let fieldsToValidate: any[] = [];
     switch (currentState) {
       case 'SOLO_TALK_INPUT': fieldsToValidate = ['solo_topic', 'solo_motivation']; break;
@@ -78,7 +78,6 @@ function InnerOrchestrator({ initialDrafts = [] }: { initialDrafts: DraftRow[] }
       onNext={handleValidatedNext}
       onDraft={actions.generateDraft}
       onProduce={actions.handleSubmitProduction}
-      // [FIX]: Ahora 'analyzeLocalEnvironment' es reconocido por el compilador
       onAnalyzeLocal={actions.analyzeLocalEnvironment}
       isGenerating={isGeneratingScript || actions.isGenerating}
       isSubmitting={actions.isSubmitting}
@@ -107,8 +106,11 @@ export default function PodcastCreationOrchestrator({ initialDrafts = [] }: Orch
       sources: [],
       agentName: 'narrador',
       creation_mode: 'standard',
-      duration: 'short',
-      narrativeDepth: 'balanced',
+
+      // [FIX CRÍTICO ts(2322)]: Sincronización de literales con Zod Schema V10.0
+      duration: 'Entre 2 y 3 minutos',
+      narrativeDepth: 'Intermedia',
+
       draft_id: null,
       pulse_source_ids: [],
     }
@@ -126,11 +128,14 @@ export default function PodcastCreationOrchestrator({ initialDrafts = [] }: Orch
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V51.0):
- * 1. Resolución de Tipos: Se eliminaron los 'any[]' en favor de interfaces reales, 
- *    cumpliendo con el rigor del Build Shield.
- * 2. Silencio de Advertencias: Se eliminaron referencias a clases CSS ambiguas, 
- *    limpiando los logs de Vercel.
- * 3. Integridad de Flujo: El orquestador ahora mapea correctamente todas las 
- *    acciones asíncronas del sistema nervioso NicePod.
+ * NOTA TÉCNICA DEL ARCHITECT (V52.0):
+ * 1. Sincronía de Contrato (Fix TS2322): Los 'defaultValues' del formulario se 
+ *    han actualizado a 'Entre 2 y 3 minutos' y 'Intermedia', cumpliendo 
+ *    estrictamente con las restricciones de 'podcast-schema.ts', lo que permite 
+ *    un paso limpio por el compilador de Vercel.
+ * 2. Resolución de Tipos: Se mantuvieron las interfaces reales (DraftRow, 
+ *    NarrativeOption) implementadas en la V51.0 para mantener el rigor del Build Shield.
+ * 3. Integridad Térmica: Al inicializar con estos valores, garantizamos que si el 
+ *    usuario avanza rápidamente sin tocar la configuración técnica, el sistema 
+ *    enviará un parámetro seguro a la IA, evitando el colapso por audios masivos.
  */
