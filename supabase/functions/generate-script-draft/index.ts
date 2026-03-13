@@ -1,11 +1,11 @@
 // supabase/functions/generate-script-draft/index.ts
-// VERSIÓN: 31.0 (NicePod Redactor - Absolute Length Control & Thermal Logic)
-// Misión: Forzar el cumplimiento de duración mediante restricciones físicas de API y Prompt Engineering.
-// [ESTABILIZACIÓN]: Implementación de parámetros dinámicos (Tokens/Temp) para erradicar la verbosidad.
+// VERSIÓN: 41.0 (NicePod Redactor - Professional Studio Standard)
+// Misión: Garantizar redacción de alta densidad sin riesgo de truncamiento.
+// [ESTABILIZACIÓN]: Expansión masiva de tokens y recalibración de rangos de duración.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
-import { AI_MODELS, buildPrompt, cleanTextForSpeech, parseAIJson } from "../_shared/ai.ts";
+import { AI_MODELS, buildPrompt, cleanTextForSpeech } from "../_shared/ai.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 const supabaseAdmin: SupabaseClient = createClient(
@@ -13,114 +13,98 @@ const supabaseAdmin: SupabaseClient = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
 );
 
+/**
+ * sovereignExtractor V3: Parser con soporte para variaciones de espacios en etiquetas.
+ */
+function sovereignExtractor(text: string, tag: string): string {
+  const regex = new RegExp(`\\$\\$\\$${tag}_START\\$\\$\\$([\\s\\S]*?)(?:\\$\\$\\$${tag}_END\\$\\$\\$|$)`, "i");
+  const match = text.match(regex);
+  return match ? match[1].trim() : "";
+}
+
 async function handler(request: Request): Promise<Response> {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   const correlationId = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
-  let targetDraftId: string | null = null;
+  let targetDraft: any = null;
 
   try {
     const payload = await request.json();
     const { draft_id } = payload;
     if (!draft_id) throw new Error("DRAFT_ID_REQUIRED");
-    targetDraftId = draft_id;
 
-    // 1. RECUPERACIÓN DEL SUMINISTRO (Dato Maestro)
     const { data: draft, error: fetchErr } = await supabaseAdmin.from('podcast_drafts').select('*').eq('id', draft_id).single();
     if (fetchErr || !draft) throw new Error("DRAFT_NOT_FOUND");
+    targetDraft = draft;
 
-    const agentName = draft.creation_data?.agentName || 'narrador';
+    const cData = draft.creation_data || {};
+    const inputs = cData.inputs || {};
+    const rawDuration = cData.duration || inputs.duration || "Entre 2 y 3 minutos";
+    const agentName = cData.agentName || inputs.agentName || 'narrador';
+
     const { data: personality } = await supabaseAdmin.from('ai_prompts').select('prompt_template').eq('agent_name', agentName).single();
     const { data: architect } = await supabaseAdmin.from('ai_prompts').select('prompt_template').eq('agent_name', 'script-architect-v1').single();
 
-    if (!architect) throw new Error("ARCHITECT_PROMPT_NOT_FOUND");
-
-    // 2. LÓGICA DE CALIBRACIÓN DE HARDWARE (Dinamismo por Duración)
-    const rawDuration = draft.creation_data?.inputs?.duration || "Entre 2 y 3 minutos";
-
     /**
-     * CONFIGURACIÓN DE LÍMITES FÍSICOS
-     * targetWords: Referencia para el prompt.
-     * maxTokens: Límite duro en la API (1 token ≈ 0.75 palabras).
-     * temperature: Grado de 'divagación' (0.1 = Robot obediente, 0.7 = Creativo).
+     * CALIBRACIÓN DE TOKENS V41: 
+     * Eliminamos la restricción agresiva. Damos un margen de 4000 tokens (aprox 3000 palabras)
+     * para que la IA nunca se corte, delegando el control de longitud al prompt.
      */
-    let targetWords = 350;
-    let maxTokens = 600;
-    let temperature = 0.4;
+    let temperature = 0.5;
+    if (rawDuration === "Menos de 1 minuto") temperature = 0.2;
 
-    if (rawDuration === "Menos de 1 minuto") {
-      targetWords = 100;
-      maxTokens = 200; // Bloqueo físico de expansión
-      temperature = 0.1; // Determinismo puro
-    } else if (rawDuration === "Entre 2 y 3 minutos") {
-      targetWords = 350;
-      maxTokens = 650;
-      temperature = 0.3;
-    } else if (rawDuration === "Hasta 5 minutos") {
-      targetWords = 650;
-      maxTokens = 1100;
-      temperature = 0.6;
-    }
-
-    // 3. CONSTRUCCIÓN DEL PROMPT SOBERANO
-    const finalPrompt = buildPrompt(architect.prompt_template, {
+    const finalPrompt = buildPrompt(architect!.prompt_template, {
       topic: draft.title,
       raw_sources: JSON.stringify(draft.sources),
       duration: rawDuration,
-      target_words: targetWords,
-      depth: draft.creation_data?.inputs?.narrativeDepth || "Intermedia",
-      tone_instructions: personality?.prompt_template || "Eres un redactor profesional."
+      depth: cData.narrativeDepth || inputs.narrativeDepth || "Intermedia",
+      tone_instructions: personality?.prompt_template || "Eres un redactor experto."
     });
 
-    // 4. INVOCACIÓN DIRECTA A GEMINI (Bypass de _shared para control total)
     const apiKey = Deno.env.get("GOOGLE_AI_API_KEY");
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${AI_MODELS.PRO}:generateContent?key=${apiKey}`;
+
+    console.info(`✍️ [Redactor-V41][${correlationId}] Solicitando: ${rawDuration}`);
 
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{
-          parts: [
-            { text: finalPrompt },
-            ...(draft.creation_data?.inputs?.image_base64_reference ? [{
-              inline_data: {
-                mime_type: "image/jpeg",
-                data: draft.creation_data.inputs.image_base64_reference.split(",")[1]
-              }
-            }] : [])
-          ]
-        }],
+        contents: [{ parts: [{ text: finalPrompt }] }],
         generationConfig: {
           temperature: temperature,
-          maxOutputTokens: maxTokens,
-          responseMimeType: "application/json"
+          maxOutputTokens: 4000, // Margen industrial absoluto
+          responseMimeType: "text/plain"
         }
       })
     });
 
-    if (!response.ok) throw new Error(`AI_API_ERROR: ${await response.text()}`);
+    if (!response.ok) throw new Error(`API_FAIL: ${await response.text()}`);
 
     const aiData = await response.json();
-    const scriptRaw = aiData.candidates?.[0]?.content?.parts?.[0]?.text;
+    const rawText = aiData.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!rawText) throw new Error("IA_EMPTY_RESPONSE");
 
-    // Parseo y Saneamiento
-    const content = parseAIJson<{ title: string, script_body: string, citations_used?: string[] }>(scriptRaw);
-    const plainText = cleanTextForSpeech(content.script_body);
+    const finalTitle = sovereignExtractor(rawText, 'TITLE') || draft.title;
+    const finalBody = sovereignExtractor(rawText, 'SCRIPT');
+    const citationsStr = sovereignExtractor(rawText, 'SOURCES');
 
-    // 5. PERSISTENCIA EN BÓVEDA STAGING
-    await supabaseAdmin.from('podcast_drafts').update({
-      title: content.title || draft.title,
+    if (!finalBody) throw new Error("ERROR_ESTRUCTURA_IA");
+
+    const plainText = cleanTextForSpeech(finalBody);
+
+    const { error: updateError } = await supabaseAdmin.from('podcast_drafts').update({
+      title: finalTitle,
       script_text: {
-        script_body: content.script_body,
+        script_body: finalBody,
         script_plain: plainText,
-        citations: content.citations_used || []
+        citations: citationsStr.split(',').map(s => s.trim()).filter(Boolean)
       },
       status: 'ready',
       updated_at: new Date().toISOString()
     }).eq('id', draft_id);
 
-    console.info(`✅ [Redactor][${correlationId}] Forja finalizada. Longitud: ${plainText.split(' ').length} palabras.`);
+    if (updateError) throw updateError;
 
     return new Response(JSON.stringify({ success: true, trace_id: correlationId }), {
       status: 200,
@@ -129,7 +113,12 @@ async function handler(request: Request): Promise<Response> {
 
   } catch (error: any) {
     console.error(`🔥 [Redactor-Fatal][${correlationId}]:`, error.message);
-    if (targetDraftId) await supabaseAdmin.from('podcast_drafts').update({ status: 'failed' }).eq('id', targetDraftId);
+    if (targetDraft) {
+      await supabaseAdmin.from('podcast_drafts').update({
+        status: 'failed',
+        creation_data: { ...(targetDraft.creation_data || {}), last_error: error.message }
+      }).eq('id', targetDraft.id);
+    }
     return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders });
   }
 }
