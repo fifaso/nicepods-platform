@@ -1,22 +1,24 @@
 // supabase/functions/generate-audio-from-script/index.ts
-// VERSIÓN: 3.3 (NSP Harvester - Atomic Handover Edition)
-// Misión: Cosechar audio neuronal garantizando el disparo del ensamblador final.
-// [ESTABILIZACIÓN]: Implementación de limpieza de segmentos previa y corrección de disparador SQL.
+// VERSIÓN: 4.1 (NicePod Audio Harvester - Direct Materialization & Time Metrics)
+// Misión: Forjar el activo acústico final y calcular su duración técnica exacta.
+// [ESTABILIZACIÓN]: Implementación de cálculo de 'duration_seconds' basado en el peso del buffer PCM.
 
 import { decode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 
 // Importaciones del núcleo NicePod sincronizado
-import { callGeminiAudio, cleanTextForSpeech } from "../_shared/ai.ts";
+import { AUDIO_CONFIG, callGeminiAudio, cleanTextForSpeech, createWavHeader } from "../_shared/ai.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { generateDirectorNote } from "../_shared/vocal-director-map.ts";
 
-// Estándares de audio de NicePod
-const MAX_CHUNK_SIZE = 3600;
-const HEADER_BYTE_SIZE = 44;
+const MAX_CHUNK_SIZE = 4000;
+const HEADER_SIZE = 44;
+
+// --- CONSTANTES DE TELEMETRÍA ACÚSTICA ---
 const SAMPLE_RATE = 24000;
-const BYTES_PER_SECOND = SAMPLE_RATE * 2;
+const BYTES_PER_SAMPLE = 2; // 16-bit
+const BYTES_PER_SECOND = SAMPLE_RATE * BYTES_PER_SAMPLE;
 
 const supabaseAdmin: SupabaseClient = createClient(
   Deno.env.get("SUPABASE_URL") ?? "",
@@ -44,11 +46,11 @@ async function handler(request: Request): Promise<Response> {
     if (!podcast_id) throw new Error("ID_PODCAST_REQUERIDO");
     targetPodId = podcast_id;
 
-    console.info(`📡 [Harvester-V3.3][${correlationId}] Iniciando para Pod #${podcast_id}`);
+    console.info(`📡 [Audio-Forge-V4.1][${correlationId}] Iniciando forja para Pod #${podcast_id}`);
 
-    // 1. RECUPERACIÓN Y SEGMENTACIÓN
+    // 1. RECUPERACIÓN DE DATOS
     const { data: pod, error: podErr } = await supabaseAdmin.from('micro_pods').select('*').eq('id', podcast_id).single();
-    if (podErr || !pod) throw new Error("NODO_NO_ENCONTRADO_EN_BOVEDA");
+    if (podErr || !pod) throw new Error("NODO_NO_ENCONTRADO");
 
     const cleanText = cleanTextForSpeech(extractScript(pod.script_text));
     const inputs = (pod.creation_data as any)?.inputs || {};
@@ -59,91 +61,75 @@ async function handler(request: Request): Promise<Response> {
       inputs.voicePace || "Moderado"
     );
 
+    // 2. SEGMENTACIÓN TÁCTICA
     const textChunks: string[] = cleanText.match(new RegExp(`.{1,${MAX_CHUNK_SIZE}}(\\s|$)`, 'g')) || [cleanText];
 
-    // =========================================================================
-    // 2. HIGIENE DE MALLA (Critical Fix)
-    // Borramos segmentos antiguos para garantizar que el Trigger 'AFTER INSERT' 
-    // se active siempre con los nuevos registros.
-    // =========================================================================
-    await supabaseAdmin.from('audio_segments').delete().eq('podcast_id', podcast_id);
+    const audioBuffers: Uint8Array[] = [];
+    let totalPcmLength = 0;
 
-    // 3. INICIALIZACIÓN ATÓMICA DE ESTADOS
-    const { error: initErr } = await supabaseAdmin.from('micro_pods').update({
-      total_audio_segments: textChunks.length,
-      current_audio_segments: 0,
-      audio_assembly_status: 'collecting',
-      audio_ready: false,
+    // 3. BUCLE DE SÍNTESIS
+    for (let i = 0; i < textChunks.length; i++) {
+      const { data: base64Audio } = await callGeminiAudio(
+        textChunks[i],
+        directorNote,
+        { gender: inputs.voiceGender || "Masculino", style: inputs.voiceStyle || "Profesional" }
+      );
+
+      const buffer = new Uint8Array(decode(base64Audio).buffer);
+      const pcmData = buffer.slice(HEADER_SIZE);
+      audioBuffers.push(pcmData);
+      totalPcmLength += pcmData.length;
+    }
+
+    // =========================================================================
+    // 4. CÁLCULO DE DURACIÓN (Métrica de Sabiduría)
+    // Determinamos el tiempo exacto antes de cerrar el archivo binario.
+    // =========================================================================
+    const durationSeconds = Math.round(totalPcmLength / BYTES_PER_SECOND);
+    console.info(`⏱️ Telemetría: ${totalPcmLength} bytes detectados. Duración: ${durationSeconds}s.`);
+
+    // 5. ENSAMBLAJE FINAL
+    const finalFileBuffer = new Uint8Array(HEADER_SIZE + totalPcmLength);
+    const wavHeader = createWavHeader(totalPcmLength, AUDIO_CONFIG.SAMPLE_RATE);
+
+    finalFileBuffer.set(wavHeader, 0);
+    let offset = HEADER_SIZE;
+    for (const chunk of audioBuffers) {
+      finalFileBuffer.set(chunk, offset);
+      offset += chunk.length;
+    }
+
+    // 6. PERSISTENCIA EN STORAGE
+    const finalPath = `public/${pod.user_id}/${podcast_id}-audio.wav`;
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from('podcasts')
+      .upload(finalPath, finalFileBuffer, {
+        contentType: 'audio/wav',
+        upsert: true
+      });
+
+    if (uploadError) throw new Error(`STORAGE_FAIL: ${uploadError.message}`);
+
+    const { data: { publicUrl } } = supabaseAdmin.storage.from('podcasts').getPublicUrl(finalPath);
+
+    // 7. CIERRE DE CICLO CON MÉTRICAS COMPLETAS
+    const { error: updateError } = await supabaseAdmin.from('micro_pods').update({
+      audio_url: publicUrl,
+      audio_ready: true,
+      duration_seconds: durationSeconds, // [INYECCIÓN DE VALOR]
+      audio_assembly_status: 'completed',
       updated_at: new Date().toISOString()
     }).eq('id', podcast_id);
 
-    if (initErr) throw new Error(`FAILED_TO_INIT_POD_STATUS: ${initErr.message}`);
+    if (updateError) throw new Error(`DATABASE_FAIL: ${updateError.message}`);
 
-    // 4. PROCESAMIENTO PARALELO CON CONTROL DE EXCEPCIONES
-    const tasks = textChunks.map(async (text, index) => {
-      try {
-        console.info(`   > Forjando fragmento [${index + 1}/${textChunks.length}]`);
-
-        const { data: base64Audio } = await callGeminiAudio(
-          text,
-          directorNote,
-          { gender: inputs.voiceGender || "Masculino", style: inputs.voiceStyle || "Profesional" }
-        );
-
-        const buffer = new Uint8Array(decode(base64Audio).buffer);
-        const pcmData = buffer.slice(HEADER_BYTE_SIZE);
-        const segmentPath = `temp/segments/${podcast_id}/part_${index}.raw`;
-
-        // Subida a Storage
-        const { error: uploadError } = await supabaseAdmin.storage
-          .from('podcasts')
-          .upload(segmentPath, pcmData, { contentType: 'application/octet-stream', upsert: true });
-
-        if (uploadError) throw new Error(uploadError.message);
-
-        // Registro en DB (Esto disparará el trigger 'notify_segment_upload')
-        const { error: insertError } = await supabaseAdmin.from('audio_segments').insert({
-          podcast_id: podcast_id,
-          segment_index: index,
-          storage_path: segmentPath,
-          byte_size: pcmData.length,
-          status: 'uploaded'
-        });
-
-        if (insertError) throw new Error(insertError.message);
-
-        return pcmData.length;
-      } catch (e: any) {
-        console.error(`❌ Fallo en fragmento ${index}: ${e.message}`);
-        throw e; // Rompemos Promise.all para ir al catch principal
-      }
-    });
-
-    const byteSizes = await Promise.all(tasks);
-    const totalBytes = byteSizes.reduce((acc, curr) => acc + curr, 0);
-    const finalDuration = Math.round(totalBytes / BYTES_PER_SECOND);
-
-    // 5. CIERRE DE EXPEDIENTE TÉCNICO
-    await supabaseAdmin.from('micro_pods').update({
-      duration_seconds: finalDuration,
-      updated_at: new Date().toISOString()
-    }).eq('id', podcast_id);
-
-    console.info(`✅ [Harvester] Cosecha terminada. Duración calculada: ${finalDuration}s.`);
-
-    return new Response(JSON.stringify({ success: true, duration: finalDuration }), {
+    return new Response(JSON.stringify({ success: true, duration: durationSeconds }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
 
   } catch (error: any) {
-    console.error(`🔥 [Harvester-Fatal][${correlationId}]:`, error.message);
-    if (targetPodId) {
-      await supabaseAdmin.from('micro_pods').update({
-        audio_assembly_status: 'failed',
-        admin_notes: `Harvester Error: ${error.message}`
-      }).eq('id', targetPodId);
-    }
+    console.error(`🔥 [Audio-Forge-Fatal]:`, error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
@@ -154,13 +140,10 @@ async function handler(request: Request): Promise<Response> {
 serve(handler);
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V3.3):
- * 1. Garantía de Disparo: El borrado previo de segmentos antiguos permite usar 
- *    'INSERT' puro. Esto asegura que el disparador SQL 'tr_on_segment_ready' 
- *    se ejecute siempre, eliminando el problema de los procesos que no terminaban.
- * 2. Integridad de Telemetría: La duración se calcula sumando los bytes reales 
- *    recibidos de Gemini, proporcionando una métrica de tiempo 100% exacta en la UI.
- * 3. Gestión de Concurrencia: Aunque los fragmentos se procesan en paralelo, la 
- *    función mantiene la integridad del 'total_audio_segments', permitiendo que 
- *    el Master Stitcher sepa exactamente cuándo cerrar el archivo WAV.
+ * NOTA TÉCNICA DEL ARCHITECT (V4.1):
+ * 1. Telemetría Binaria: La duración se deriva matemáticamente de la carga útil PCM, 
+ *    garantizando que el Dashboard y el reproductor muestren el tiempo exacto de 
+ *    vocalización neuronal, eliminando el valor 'n/a' de la interfaz.
+ * 2. Estabilidad de Memoria: Se mantiene la gestión de Uint8Array para evitar 
+ *    desbordamientos en el Edge Runtime de Deno durante la costura de audio.
  */
