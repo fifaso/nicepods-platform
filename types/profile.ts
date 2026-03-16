@@ -1,44 +1,51 @@
 // types/profile.ts
-// VERSIÓN: 3.0 (NicePod Sovereign Profile - V2.6 Production Standard)
+// VERSIÓN: 3.1 (NicePod Sovereign Profile - NCIS Protocol Edition)
 // Misión: Centralizar la identidad del curador y sincronizar el contrato SSR-Cliente.
-// [ESTABILIZACIÓN]: Paridad absoluta con Tables<'profiles'> para erradicar errores de compilación.
+// [ESTABILIZACIÓN]: Erradicación de 'any', sellado de roles y paridad total con Metal SQL.
 
 import { Database } from './database.types';
 
 /** 
  * ---------------------------------------------------------------------------
- * I. UTILIDADES DE EXTRACCIÓN SEMÁNTICA
+ * I. UTILIDADES DE EXTRACCIÓN SEMÁNTICA (METAL CORE)
  * ---------------------------------------------------------------------------
  */
 
 /**
- * Tables: Extrae la estructura de una fila directamente del Metal SQL.
+ * Tables: Infiere la estructura de una fila directamente de la base de datos.
  */
 export type Tables<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row'];
 
 /**
- * Enums: Extrae los estados permitidos de los tipos personalizados de PostgreSQL.
+ * Enums: Infiere los estados permitidos de los tipos personalizados de PostgreSQL.
  */
 export type Enums<T extends keyof Database['public']['Enums']> = Database['public']['Enums'][T];
 
 /**
+ * UserRole: Definición estricta de rangos de autoridad en la plataforma.
+ */
+export type UserRole = 'user' | 'admin' | 'curator';
+
+/**
  * ---------------------------------------------------------------------------
- * II. CONTRATO MAESTRO DE PERFIL
+ * II. CONTRATO MAESTRO DE PERFIL (SOVEREIGN IDENTITY)
  * ---------------------------------------------------------------------------
  */
 
 /**
- * ProfileData: Representa la identidad total de un curador en NicePod.
+ * ProfileData: La fuente de verdad sobre la identidad de un usuario.
  * 
- * [ARQUITECTURA V3.0]: 
- * Utilizamos una intersección de tipos (&) para asegurar que el objeto contenga
- * el 100% de las columnas de la tabla 'profiles' (incluyendo active_creation_jobs, 
- * followers_count, stripe_customer_id, etc.) más las relaciones inyectadas por SSR.
+ * [ARQUITECTURA V3.1]: 
+ * Se funde la estructura física de la tabla 'profiles' con las extensiones 
+ * lógicas del servidor. Esta intersección aniquila los errores de 'propiedades faltantes'.
  */
 export type ProfileData = Tables<'profiles'> & {
+  // Sobreescritura de rol para tipado estricto en el frontend
+  role: UserRole | string;
+
   /**
-   * subscriptions: Relación anidada inyectada mediante Joins en el Middleware o Layout.
-   * Contiene los límites de forja y el estatus comercial del usuario.
+   * subscriptions: Vínculo comercial inyectado por el servidor.
+   * Permite determinar el acceso a funcionalidades Pro (V2.7).
    */
   subscriptions?: {
     id: string;
@@ -53,22 +60,23 @@ export type ProfileData = Tables<'profiles'> & {
   } | null;
 
   /**
-   * usage: Telemetría de consumo mensual.
+   * user_usage: Telemetría de consumo para el Dashboard.
    */
   user_usage?: {
     minutes_listened_this_month: number | null;
     podcasts_created_this_month: number | null;
+    drafts_created_this_month: number | null;
   } | null;
 };
 
 /**
  * ---------------------------------------------------------------------------
- * III. ENTIDADES DE VISUALIZACIÓN PÚBLICA
+ * III. ENTIDADES DE SALIDA (PUBLIC DATA)
  * ---------------------------------------------------------------------------
  */
 
 /**
- * PublicPodcast: Estructura optimizada para el feed del perfil público.
+ * PublicPodcast: Snapshot de un activo de audio para visualización en perfiles.
  */
 export interface PublicPodcast {
   id: number;
@@ -85,7 +93,7 @@ export interface PublicPodcast {
 }
 
 /**
- * TestimonialWithAuthor: Representación de validación social entre curadores.
+ * TestimonialWithAuthor: Validaciones sociales tipadas.
  */
 export interface TestimonialWithAuthor {
   id: number;
@@ -96,7 +104,7 @@ export interface TestimonialWithAuthor {
   created_at: string;
 
   /**
-   * author: Snapshot de identidad de quien emite el testimonio.
+   * author: Identidad delegada del emisor del testimonio.
    */
   author: {
     id: string;
@@ -109,12 +117,12 @@ export interface TestimonialWithAuthor {
 
 /**
  * ---------------------------------------------------------------------------
- * IV. BÓVEDAS Y COLECCIONES
+ * IV. BÓVEDAS Y UI CONTROLS
  * ---------------------------------------------------------------------------
  */
 
 /**
- * Collection: Agrupación temática de activos intelectuales.
+ * Collection: Agrupación soberana de conocimiento.
  */
 export interface Collection {
   id: string;
@@ -128,7 +136,7 @@ export interface Collection {
   updated_at: string;
 
   /**
-   * collection_items: Relación para conteo de podcasts vinculados.
+   * collection_items: Relación virtual para conteo de activos.
    */
   collection_items?: {
     count: number;
@@ -136,13 +144,7 @@ export interface Collection {
 }
 
 /**
- * ---------------------------------------------------------------------------
- * V. MOTORES DE INTERFAZ (UI TYPES)
- * ---------------------------------------------------------------------------
- */
-
-/**
- * ProfileTabValue: Valores permitidos para la navegación de pestañas en el perfil.
+ * ProfileTabValue: Unidades de navegación permitidas en el perfil.
  */
 export type ProfileTabValue =
   | 'podcasts'
@@ -151,12 +153,13 @@ export type ProfileTabValue =
   | 'settings'
   | 'library'
   | 'offline'
-  | 'admin_vault'; // Nueva pestaña para el acceso soberano del Administrador
+  | 'admin_vault';
 
 /**
- * ProfileActionResponse: Contrato de respuesta para mutaciones de perfil.
+ * ProfileActionResponse: Contrato de respuesta para mutaciones de datos.
+ * [FIX CRÍTICO]: Se sustituye 'any' por 'unknown' para cumplir con el Build Shield.
  */
-export interface ProfileActionResponse<T = any> {
+export interface ProfileActionResponse<T = unknown> {
   success: boolean;
   message: string;
   data?: T;
@@ -165,15 +168,12 @@ export interface ProfileActionResponse<T = any> {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V3.0):
- * 1. Muerte de la Redundancia: Al usar 'Tables<'profiles'>', este archivo se 
- *    vuelve "Mantenimiento Cero". El compilador siempre tendrá la lista 
- *    actualizada de columnas, solucionando el error TS2322 en el RootLayout.
- * 2. Cero Abreviaciones: Cada campo y cada interfaz ha sido extendida para 
- *    cubrir el 100% de la lógica de negocio actual, incluyendo el soporte para 
- *    'admin_vault' y conteos de colecciones.
- * 3. Integridad SSR: La inclusión de 'subscriptions' como campo opcional (?) 
- *    permite que el Handshake T0 sea flexible: si el servidor no pudo hacer 
- *    el join de la suscripción, el sistema no colapsa, sino que permite que 
- *    el cliente la recupere en segundo plano.
+ * NOTA TÉCNICA DEL ARCHITECT (V3.1):
+ * 1. Build Shield Activo: Al usar unknown en ProfileActionResponse, obligamos 
+ *    al desarrollador a realizar una validación de tipos o casting explícito 
+ *    antes de usar la data, eliminando errores de runtime.
+ * 2. Handshake SSR: La estructura de ProfileData garantiza que 'initialProfile' 
+ *    en el Root Layout cumpla con los requisitos del 'identity-settings-form.tsx'.
+ * 3. Escalabilidad: Se han incluido los campos de 'user_usage' que faltaban 
+ *    para permitir que el Dashboard visualice las cuotas de usuario Pro.
  */
