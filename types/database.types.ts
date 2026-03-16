@@ -1,7 +1,7 @@
 // types/database.types.ts
-// VERSIÓN: 12.5 (NicePod V2.6 - Full Architecture Integration)
+// VERSIÓN: 12.6 (NicePod V2.6 - Sovereign DB Architecture Final)
 // Misión: Unificar el esquema global de la plataforma con la Soberanía Geoespacial.
-// [ESTABILIZACIÓN]: Fusión de tablas legacy, suscripciones y Malla Urbana V2.6.
+// [ESTABILIZACIÓN]: Re-inyección de website_url y campos sociales para eliminar fallos de build.
 
 export type Json =
   | string
@@ -39,7 +39,7 @@ export type Database = {
   }
   public: {
     Tables: {
-      // --- NÚCLEO DE INTELIGENCIA (AGENTES) ---
+      // --- CAPA DE INTELIGENCIA (AGENTES) ---
       ai_prompts: {
         Row: {
           agent_name: string
@@ -86,14 +86,14 @@ export type Database = {
         Relationships: []
       }
 
-      // --- SOBERANÍA GEOESPACIAL (MALLA URBANA V2.6) ---
+      // --- CAPA GEOESPACIAL (MALLA URBANA V2.6) ---
       points_of_interest: {
         Row: {
           id: number
           author_id: string
           name: string
           category_id: string
-          geo_location: any // PostGIS Geography(POINT)
+          geo_location: any // Mapeado a GeoPoint en geo-sovereignty.ts
           historical_fact: string | null
           rich_description: string | null
           gallery_urls: string[]
@@ -218,6 +218,9 @@ export type Database = {
           review_by_user: boolean | null
           reviewed_by_user: boolean | null
           admin_notes: string | null
+          narrative_lens: string | null
+          consistency_level: Database["public"]["Enums"]["consistency_level"] | null
+          audio_assembly_status: Database["public"]["Enums"]["assembly_status"] | null
         }
         Insert: {
           id?: number
@@ -285,6 +288,7 @@ export type Database = {
           updated_at: string
           bio: string | null
           bio_short: string | null
+          website_url: string | null // [FIX CRÍTICO]: Restaurado para eliminar error en Identity Form
           active_creation_jobs: number
           followers_count: number
           following_count: number
@@ -301,7 +305,10 @@ export type Database = {
           created_at?: string
           updated_at?: string
           bio?: string | null
+          bio_short?: string | null
+          website_url?: string | null
           active_creation_jobs?: number
+          is_verified?: boolean | null
         }
         Update: {
           username?: string
@@ -311,7 +318,10 @@ export type Database = {
           reputation_score?: number | null
           updated_at?: string
           bio?: string | null
+          bio_short?: string | null
+          website_url?: string | null
           active_creation_jobs?: number
+          is_verified?: boolean | null
         }
         Relationships: []
       }
@@ -337,6 +347,7 @@ export type Database = {
         Update: {
           status?: Database["public"]["Enums"]["subscription_status"]
           plan_id?: number
+          current_period_end?: string | null
         }
         Relationships: [
           {
@@ -355,6 +366,7 @@ export type Database = {
           features: string[] | null
           id: number
           monthly_creation_limit: number
+          max_concurrent_drafts: number | null
           name: string
           price_monthly: number | null
         }
@@ -365,6 +377,7 @@ export type Database = {
         Update: {
           active?: boolean
           name?: string
+          monthly_creation_limit?: number
         }
         Relationships: []
       }
@@ -393,6 +406,7 @@ export type Database = {
         Update: {
           status?: Database["public"]["Enums"]["job_status"]
           error_message?: string | null
+          retry_count?: number
         }
         Relationships: []
       }
@@ -445,9 +459,6 @@ export type Database = {
       testimonial_status: "pending" | "approved" | "rejected"
       consistency_level: "high" | "medium" | "low"
       notification_type: "podcast_created_success" | "podcast_created_failure" | "new_follower" | "new_like" | "new_podcast_from_followed_user" | "new_testimonial"
-    }
-    CompositeTypes: {
-      [_ in never]: never
     }
   }
 }
