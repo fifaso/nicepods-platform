@@ -1,7 +1,7 @@
 // hooks/use-auth.tsx
-// VERSIÓN: 20.0 (NiceCore V2.6 - Sovereign Identity Sync)
-// Misión: Orquestar la identidad atómica, el control de roles y la hidratación Zero-Flicker.
-// [ESTABILIZACIÓN]: Integración total con SSR para erradicar el flasheo de sesión.
+// VERSIÓN: 21.0 (NiceCore V2.6 - Sovereign Identity & Zero-Flicker Edition)
+// Misión: Orquestar la identidad atómica, el control de roles y la hidratación síncrona.
+// [ESTABILIZACIÓN]: Integración total con SSR para aniquilar el flasheo de sesión.
 
 "use client";
 
@@ -28,13 +28,13 @@ import { Tables } from "@/types/database.types";
 
 /**
  * [TIPADO SOBERANO]
- * Extraemos el contrato del perfil directamente del Metal V12.5.
+ * Extraemos el contrato del perfil directamente del esquema V12.6.
  */
 type Profile = Tables<'profiles'>;
 
 /**
  * INTERFAZ: AuthContextType
- * Define el contrato de identidad total para la Workstation NicePod V2.6.
+ * Define el contrato de identidad total para la Workstation NicePod.
  */
 interface AuthContextType {
   user: User | null;
@@ -57,7 +57,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
  * Orquestador síncrono del Handshake Servidor-Cliente (T0).
  * 
  * [ESTRATEGIA ZERO-FLICKER]:
- * Inicializa el estado con los datos inyectados por el Root Layout (SSR).
+ * Inicia el estado con los datos inyectados por el Root Layout (SSR), 
+ * evitando el salto visual de 'Invitado' a 'Usuario'.
  */
 export function AuthProvider({
   initialSession,
@@ -68,6 +69,7 @@ export function AuthProvider({
   initialProfile: Profile | null;
   children: React.ReactNode;
 }) {
+  // Singleton del cliente Supabase para evitar fugas de red.
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
@@ -77,27 +79,27 @@ export function AuthProvider({
   const [profile, setProfile] = useState<Profile | null>(initialProfile);
 
   /**
-   * [LÓGICA DE CARGA V2.6]:
-   * El sistema se considera 'Loading' si existe una sesión pero el servidor 
-   * no pudo recuperar el perfil (o viceversa). Esto detiene el flickering.
+   * [LÓGICA DE CARGA V21.0]:
+   * El sistema solo se considera en 'Carga' si el servidor detectó una sesión
+   * pero el perfil no llegó (o viceversa). 
+   * Si ambos son null (Guest) o ambos están presentes (User), isInitialLoading es false 
+   * desde el milisegundo cero, matando el flickering.
    */
   const [isInitialLoading, setIsInitialLoading] = useState<boolean>(
     !!initialSession && !initialProfile
   );
   const [isProfileLoading, setIsProfileLoading] = useState<boolean>(false);
 
-  // --- GUARDIAS DE CICLO DE VIDA ---
+  // --- GUARDIAS DE MEMORIA ---
   const isFetchingProfile = useRef<boolean>(false);
   const lastFetchedUserId = useRef<string | null>(initialProfile?.id || null);
   const isListenerInitialized = useRef<boolean>(false);
 
   /**
    * getProfile: Recuperación reactiva de metadatos desde PostgreSQL.
-   * [SINTONIZACIÓN]: Maneja el caso de carrera donde el usuario existe pero 
-   * el perfil SQL aún no ha sido creado por el trigger.
    */
   const getProfile = useCallback(async (userId: string, force: boolean = false) => {
-    // Evitamos peticiones redundantes si ya estamos procesando
+    // Protección contra peticiones redundantes
     if ((isFetchingProfile.current || lastFetchedUserId.current === userId) && !force) {
       setIsInitialLoading(false);
       return;
@@ -107,7 +109,7 @@ export function AuthProvider({
     setIsProfileLoading(true);
 
     try {
-      nicepodLog(`Sincronizando Bóveda para el Nodo: ${userId.substring(0, 8)}`);
+      nicepodLog(`Sincronizando Identidad para Nodo: ${userId.substring(0, 8)}`);
 
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
@@ -116,9 +118,9 @@ export function AuthProvider({
         .single();
 
       if (profileError) {
-        // PGRST116: Registro no encontrado (Típico en el primer segundo post-registro)
+        // Manejo de error de registro nuevo (perfil aún no creado por trigger SQL)
         if (profileError.code === 'PGRST116') {
-          nicepodLog("Perfil en fase de materialización. Reintentando...");
+          nicepodLog("Perfil en proceso de forja SQL. Reintentando...");
           setProfile(null);
         } else {
           throw profileError;
@@ -128,10 +130,9 @@ export function AuthProvider({
         lastFetchedUserId.current = userId;
       }
     } catch (error: any) {
-      console.error("🔥 [Auth-Fatal] Error en el Handshake de Perfil:", error.message);
+      console.error("🔥 [Auth-Fatal] Error en el Handshake:", error.message);
       setProfile(null);
     } finally {
-      // Liberación del Shield Visual
       isFetchingProfile.current = false;
       setIsProfileLoading(false);
       setIsInitialLoading(false);
@@ -139,23 +140,23 @@ export function AuthProvider({
   }, [supabase]);
 
   /**
-   * refreshProfile: Acción manual para refrescar privilegios (ej. tras suscripción).
+   * refreshProfile: Acción de actualización manual de privilegios.
    */
   const refreshProfile = useCallback(async () => {
     if (user?.id) await getProfile(user.id, true);
   }, [user, getProfile]);
 
   /**
-   * [LIFECYCLE]: Sincronización del Túnel de Eventos Realtime.
+   * [LIFECYCLE]: Sincronización del Túnel de Eventos Realtime (Supabase Auth).
    */
   useEffect(() => {
     let isMounted = true;
 
-    // Caso: El servidor detectó sesión pero no perfil. Reintentamos en cliente.
+    // Caso de emergencia: Sesión presente pero perfil ausente en hidratación.
     if (session?.user?.id && !profile && isMounted) {
       getProfile(session.user.id);
-    }
-    // Caso: No hay sesión en absoluto. Liberamos el loader.
+    } 
+    // Caso: Invitado confirmado.
     else if (!session && isMounted) {
       setIsInitialLoading(false);
     }
@@ -163,12 +164,11 @@ export function AuthProvider({
     if (isListenerInitialized.current) return;
     isListenerInitialized.current = true;
 
-    // Escuchamos cambios en la frecuencia de autenticación (Login/Logout/Refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
         if (!isMounted) return;
 
-        nicepodLog(`Evento de Frecuencia detectado: ${event}`);
+        nicepodLog(`Frecuencia de Auth: ${event}`);
 
         const newUser = newSession?.user || null;
         setSession(newSession);
@@ -178,10 +178,13 @@ export function AuthProvider({
           if (newUser.id !== lastFetchedUserId.current) {
             await getProfile(newUser.id);
           }
-          // Forzamos el refresco del Router para actualizar los Server Components
-          if (event === 'SIGNED_IN') router.refresh();
+          // El refresh del router asegura que los Server Components 
+          // (como el Middleware) reciban la nueva cookie.
+          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+            router.refresh();
+          }
         } else {
-          // Purga absoluta de memoria en desconexión
+          // Purga absoluta en desconexión.
           setProfile(null);
           lastFetchedUserId.current = null;
           setIsInitialLoading(false);
@@ -197,21 +200,21 @@ export function AuthProvider({
   }, [supabase, getProfile, router, profile, session]);
 
   /**
-   * signOut: Protocolo de desconexión física y limpieza de caché.
+   * signOut: Protocolo de desconexión física y limpieza de GPU.
    */
   const signOut = useCallback(async () => {
-    nicepodLog("Cerrando sesión soberana...");
+    nicepodLog("Desconectando Nodo Soberano...");
     await supabase.auth.signOut();
     setSession(null);
     setUser(null);
     setProfile(null);
     lastFetchedUserId.current = null;
-    // Forzamos redirección física para limpiar estados residuales de la GPU
+    // Forzamos recarga física para limpiar el caché del navegador y estados de memoria.
     window.location.href = "/";
   }, [supabase]);
 
   /**
-   * resetPassword: Inicia el flujo de recuperación de acceso.
+   * resetPassword: Flujo de recuperación de acceso.
    */
   const resetPassword = useCallback(async (email: string) => {
     return await supabase.auth.resetPasswordForEmail(email, {
@@ -220,10 +223,8 @@ export function AuthProvider({
   }, [supabase]);
 
   /**
-   * [SOBERANÍA DE RANGO]: isAdmin logic
-   * [LÓGICA BLINDADA V2.6]:
-   * Unifica la validación para que el mapa (/map) sea accesible si el 
-   * JWT (app_metadata) o la DB (profile) confirman el rol.
+   * [SOBERANÍA DE RANGO]: isAdmin
+   * Lógica de doble validación (JWT + DB) para máxima seguridad.
    */
   const isAdmin = useMemo(() => {
     const roleFromJWT =
@@ -237,7 +238,7 @@ export function AuthProvider({
 
   const isAuthenticated = useMemo(() => !!user, [user]);
 
-  // --- CONTEXTO UNIFICADO ---
+  // --- MEMOIZACIÓN DEL VALOR DEL CONTEXTO ---
   const contextValue = useMemo(() => ({
     session,
     user,
@@ -264,7 +265,7 @@ export function AuthProvider({
 }
 
 /**
- * useAuth: El Hook de Consumo Universal para NicePod.
+ * useAuth: El Hook de Consumo Universal.
  */
 export function useAuth() {
   const context = useContext(AuthContext);
@@ -275,13 +276,13 @@ export function useAuth() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V20.0):
- * 1. Erradicación del Flicker: Al setear 'isInitialLoading' basado en la 
- *    disponibilidad mutua de sesión y perfil (Líneas 78-80), garantizamos 
- *    que la aplicación solo se muestre cuando los datos son 100% consistentes.
- * 2. RBAC de Doble Capa: La lógica 'isAdmin' ahora es inmune a la latencia de 
- *    la base de datos gracias a la lectura directa de los claims del JWT.
- * 3. Sincronía del Router: 'router.refresh()' asegura que al cambiar el usuario, 
- *    las páginas SSR (como el Dashboard) vuelvan a ejecutar su lógica de servidor
- *    con la nueva identidad.
+ * NOTA TÉCNICA DEL ARCHITECT (V21.0):
+ * 1. Muerte del Pestañeo: Al alinear 'isInitialLoading' con el resultado dual 
+ *    del servidor (initialSession + initialProfile), el cliente sabe si debe 
+ *    mostrar el Dashboard o el Login desde el constructor.
+ * 2. Estabilidad de Rango: Al priorizar los claims del JWT en 'isAdmin', 
+ *    eliminamos el bloqueo en el acceso al mapa que ocurría por latencia de la DB.
+ * 3. Gestión de Memoria: El uso de 'window.location.href' en el signOut es 
+ *    intencional; asegura que todos los estados de React y variables de Mapbox
+ *    se purguen físicamente del dispositivo del usuario.
  */
