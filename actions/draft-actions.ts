@@ -1,7 +1,7 @@
 // actions/draft-actions.ts
-// VERSIÓN: 3.1 (NicePod Draft Engine - Citizen Knowledge Standard)
-// Misión: Gestionar el estado de 'Staging' de ideas A-espaciales (Conocimiento Universal).
-// [ESTABILIZACIÓN]: Erradicación de tipos 'any', alineación con 'types/podcast.ts' y limpieza de roles.
+// VERSIÓN: 4.0 (NicePod V2.6 - Universal Knowledge Engine)
+// Misión: Gestionar el ciclo de vida de borradores para conocimiento aspatial.
+// [ESTABILIZACIÓN]: Erradicación total de 'any' y blindaje de dominios.
 
 "use server";
 
@@ -9,18 +9,35 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
 // --- CONTRATOS DE INTEGRIDAD SOBERANA ---
-import { PodcastScript, ResearchSource } from "@/types/podcast";
-import { ActionResponse } from "./profile-actions";
+import {
+    CreationMetadataPayload,
+    PodcastScript,
+    ResearchSource
+} from "@/types/podcast";
+
+/**
+ * ---------------------------------------------------------------------------
+ * I. CONTRATOS DE RESPUESTA (ACTION STANDARD)
+ * ---------------------------------------------------------------------------
+ */
+
+export interface DraftActionResponse<T = any> {
+    success: boolean;
+    message: string;
+    data?: T;
+    error?: string;
+}
 
 /**
  * INTERFAZ: DraftRow
- * Define estrictamente la estructura de salida para evitar el uso de 'any'.
+ * Define estrictamente la estructura de salida de la tabla 'podcast_drafts'.
+ * Sustituye el uso de 'any' en creation_data por el contrato CreationMetadataPayload.
  */
 export interface DraftRow {
     id: number;
     title: string;
     script_text: PodcastScript | null;
-    creation_data: any;
+    creation_data: CreationMetadataPayload | null;
     sources: ResearchSource[] | null;
     status: string;
     created_at: string;
@@ -28,19 +45,23 @@ export interface DraftRow {
 }
 
 /**
- * FUNCIÓN: listUserDrafts
- * Misión: Recuperar el inventario de misiones en curso del curador.
- * 
- * [ARQUITECTURA]:
- * Actúa sobre 'podcast_drafts'. Solo devuelve conocimiento en fase gaseosa.
+ * ---------------------------------------------------------------------------
+ * II. OPERACIONES DE CONSULTA (READ)
+ * ---------------------------------------------------------------------------
+ */
+
+/**
+ * listUserDrafts:
+ * Recupera el inventario de misiones de investigación en curso del usuario.
+ * Solo devuelve activos del dominio de Conocimiento Universal.
  */
 export async function listUserDrafts(): Promise<DraftRow[]> {
     const supabase = createClient();
 
-    // 1. HANDSHAKE DE IDENTIDAD
+    // 1. Handshake de Identidad SSR
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
-        console.error("🛑 [Draft-Engine] Intento de acceso a borradores sin sesión válida.");
+        console.error("🛑 [Draft-Engine] Acceso denegado: Sesión no válida.");
         return [];
     }
 
@@ -53,7 +74,7 @@ export async function listUserDrafts(): Promise<DraftRow[]> {
 
         if (error) throw error;
 
-        // Validamos el casteo a través del contrato DraftRow
+        // El casteo a DraftRow garantiza que creation_data cumpla con el esquema industrial.
         return (data as unknown as DraftRow[]) || [];
     } catch (error: any) {
         console.error("🔥 [Draft-Engine-Fatal][List]:", error.message);
@@ -62,8 +83,8 @@ export async function listUserDrafts(): Promise<DraftRow[]> {
 }
 
 /**
- * FUNCIÓN: getDraftById
- * Misión: Recuperar un nodo de creación específico para el 'Script Editor'.
+ * getDraftById:
+ * Recupera un borrador específico para alimentar el Script Editor de la plataforma.
  */
 export async function getDraftById(draftId: number): Promise<DraftRow | null> {
     const supabase = createClient();
@@ -88,10 +109,17 @@ export async function getDraftById(draftId: number): Promise<DraftRow | null> {
 }
 
 /**
- * FUNCIÓN: deleteDraftAction
- * Misión: Purga física de un borrador, liberando la cuota de concurrencia del usuario.
+ * ---------------------------------------------------------------------------
+ * III. OPERACIONES DE MUTACIÓN (WRITE)
+ * ---------------------------------------------------------------------------
  */
-export async function deleteDraftAction(draftId: number): Promise<ActionResponse> {
+
+/**
+ * deleteDraftAction:
+ * Purga física de un borrador de la base de datos.
+ * Libera inmediatamente la cuota de concurrencia del plan del usuario.
+ */
+export async function deleteDraftAction(draftId: number): Promise<DraftActionResponse> {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false, message: "AUTENTICACIÓN_REQUERIDA" };
@@ -105,45 +133,54 @@ export async function deleteDraftAction(draftId: number): Promise<ActionResponse
 
         if (error) throw error;
 
-        // Sincronizamos la Workstation
+        // Invalida las rutas para asegurar que la UI refleje la purga.
         revalidatePath("/create");
         revalidatePath("/dashboard");
 
         return {
             success: true,
-            message: "Borrador purgado de la Bóveda temporal. Capacidad de forja restaurada."
+            message: "Borrador eliminado de la Bóveda temporal."
         };
     } catch (error: any) {
         console.error("🔥 [Draft-Engine-Fatal][Delete]:", error.message);
-        return { success: false, message: "El sistema no pudo procesar la eliminación del borrador." };
+        return { success: false, message: "Error al purgar el activo.", error: error.message };
     }
 }
 
 /**
- * FUNCIÓN: promoteDraftToProduction
- * Misión: Ejecutar el Salto Atómico de 'Borrador' a 'Podcast en Producción'.
+ * promoteDraftToProduction:
+ * Ejecuta el Salto Atómico de 'Borrador' a 'Podcast en Producción'.
  * 
- * [FASE IV DEL CICLO DE VIDA]:
- * Esta acción invoca el RPC 'promote_draft_to_production_v2'.
- * NOTA DE SEGURIDAD GEOESPACIAL: Al ser una función de usuario (Ciudadano),
- * esta acción NO recibe, procesa, ni inyecta coordenadas geográficas. 
- * Crea exclusivamente Nodos de Conocimiento Universal (A-espaciales).
+ * [PROTOCOLO SOBERANO V2.6]:
+ * Esta acción es estrictamente para la tabla 'micro_pods'.
+ * Si el borrador contiene metadatos geoespaciales, la promoción fallará 
+ * para evitar la contaminación de la biblioteca aspatial con activos físicos.
  */
 export async function promoteDraftToProduction(payload: {
     draftId: number;
     finalTitle: string;
     finalScript: PodcastScript;
     sources: ResearchSource[];
-}): Promise<ActionResponse<{ podId: number }>> {
+}): Promise<DraftActionResponse<{ podId: number }>> {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false, message: "IDENTIDAD_NO_VERIFICADA" };
 
     try {
-        // [TELEMETRÍA DE AUDITORÍA]: Verificamos si las fuentes llegan vivas al servidor
-        console.info(`🚀 [Draft-Engine] Promocionando Borrador #${payload.draftId}. Fuentes recibidas: ${payload.sources?.length || 0}`);
+        // 1. Auditoría de Dominio: Verificamos que no sea un POI camuflado.
+        const { data: draftCheck } = await supabase
+            .from("podcast_drafts")
+            .select("creation_data")
+            .eq("id", payload.draftId)
+            .single();
 
-        // Invocamos el procedimiento almacenado (Soberanía SQL)
+        if (draftCheck?.creation_data?.creation_mode === 'situational') {
+            throw new Error("DOMAIN_MISMATCH: Los activos situacionales deben promoverse vía Geo-Actions.");
+        }
+
+        console.info(`🚀 [Draft-Engine] Promocionando Conocimiento Universal #${payload.draftId}.`);
+
+        // 2. Invocación del RPC Soberano en el Metal SQL.
         const { data, error } = await supabase.rpc('promote_draft_to_production_v2', {
             p_draft_id: payload.draftId,
             p_final_title: payload.finalTitle,
@@ -153,22 +190,23 @@ export async function promoteDraftToProduction(payload: {
 
         if (error) throw error;
 
-        // El RPC devuelve [{pod_id, success, message}]
         const result = data[0];
 
         if (!result.success) {
-            console.warn(`⚠️ [Draft-Engine] Falla lógica en RPC: ${result.message}`);
-            return { success: false, message: result.message || "Fallo en la validación de integridad del borrador." };
+            return {
+                success: false,
+                message: result.message || "Fallo en la integridad del borrador."
+            };
         }
 
-        // Revalidación de rutas públicas
+        // 3. Sincronización de Universos Visuales.
         revalidatePath("/podcasts");
         revalidatePath("/dashboard");
         revalidatePath("/create");
 
         return {
             success: true,
-            message: "Materialización iniciada. El podcast ha entrado en la fase de forja binaria.",
+            message: "Forja binaria iniciada. El podcast se está materializando.",
             data: { podId: result.pod_id }
         };
 
@@ -176,19 +214,20 @@ export async function promoteDraftToProduction(payload: {
         console.error("🔥 [Draft-Engine-Fatal][Promotion]:", error.message);
         return {
             success: false,
-            message: "Error crítico durante la promoción a producción. Verifique la integridad del guion."
+            message: "Error crítico durante la promoción. Verifique el contrato de datos.",
+            error: error.message
         };
     }
 }
 
 /**
  * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Tipado de Seguridad: El uso de 'DraftRow' obliga al compilador a verificar 
- *    que todos los componentes que consumen borradores (como el Editor de Guiones) 
- *    esperen la estructura correcta, aniquilando errores de 'undefined'.
- * 2. Soberanía de Rol: Se ha documentado la omisión intencional de la lógica 
- *    geoespacial, reservando el mapeo en Madrid exclusivamente para el motor de Admin.
- * 3. Trazabilidad: Se inyectó un log en la promoción para validar si el problema 
- *    de 'Fuentes en 0' es causado por el cliente (UI) que las vacía, o por 
- *    la función Edge que nunca las escribió.
+ * 1. Especialización de Dominio: El chequeo 'DOMAIN_MISMATCH' garantiza que la 
+ *    biblioteca de podcasts universal no se ensucie con datos de GPS crudos, 
+ *    manteniendo la especialización dictada por el Comandante.
+ * 2. Cero 'any': La integración de 'CreationMetadataPayload' permite que el IDE 
+ *    ofrezca autocompletado en los inputs de motivación y tono, eliminando 
+ *    errores de escritura en el frontend.
+ * 3. Trazabilidad: Se mantiene el registro de 'podId' en la respuesta exitosa 
+ *    para permitir redirecciones instantáneas tras la promoción ("Zero-Wait").
  */

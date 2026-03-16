@@ -1,11 +1,14 @@
 // components/geo/steps/step-1-anchoring.tsx
-// VERSIÓN: 1.5
+// VERSIÓN: 2.6 (NicePod Sovereign Anchoring)
+// Misión: Definir la posición física, taxonomía y radio del nuevo nodo urbano.
+// [ESTABILIZACIÓN]: Erradicación de LiveLocationMap. Integración con SpatialEngine.
 
 "use client";
 
 import {
   ArrowRight,
   History,
+  Landmark,
   Leaf,
   Loader2,
   Navigation,
@@ -16,50 +19,41 @@ import {
 } from "lucide-react";
 import { useEffect } from "react";
 
-// --- INFRAESTRUCTURA DE ESTADO SOBERANA ---
+// --- INFRAESTRUCTURA DE SOBERANÍA ---
+import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { useForge } from "../forge-context";
-import { LiveLocationMap } from "../live-location-map";
-import { useGeoEngine } from "../use-geo-engine";
+import { SpatialEngine } from "../SpatialEngine"; // EL NUEVO MOTOR UNIFICADO V2.6
 
-// --- INFRAESTRUCTURA UI (NicePod Industrial System) ---
+// --- COMPONENTES UI ---
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 
-/**
- * CONFIGURACIÓN DE TAXONOMÍA
- */
+// --- CONTRATOS DE TAXONOMÍA V2.6 ---
+// (Alineados con el Enum de categories en validation/poi-schema.ts)
 const CATEGORIES = [
   { id: 'historia', label: 'Historia', icon: History },
+  { id: 'arquitectura', label: 'Arquitectura', icon: Landmark },
   { id: 'arte', label: 'Arte', icon: Palette },
   { id: 'naturaleza', label: 'Botánica', icon: Leaf },
   { id: 'secreto', label: 'Secreto', icon: Zap },
   { id: 'cultural', label: 'Resonancia', icon: Sparkles },
 ];
 
-/**
- * COMPONENTE: StepAnchoring
- * Fase 1: El Anclaje de Soberanía Geográfica.
- */
 export function StepAnchoring() {
   const { state, dispatch, nextStep } = useForge();
+  const geoEngine = useGeoEngine();
 
-  /**
-   * [RESOLUCIÓN FINAL TS2339]: 
-   * Extraemos las propiedades del hook mediante casting a 'any' para romper 
-   * el bucle de inferencia de TypeScript. Esto asegura que 'userLocation' 
-   * e 'isSearching' sean reconocidos sin importar el estado de la caché del compilador.
-   */
-  const geoEngine = useGeoEngine() as any;
   const {
     userLocation,
-    isSearching: isLocating
+    isSearching: isLocating,
+    setManualAnchor // Invocamos la nueva facultad de Anclaje Manual
   } = geoEngine;
 
   /**
    * PROTOCOLO DE SINCRONÍA:
-   * Persistimos la ubicación física en el contexto global de la forja.
+   * Mantenemos el estado de la forja (RAM) alineado con los sensores del motor.
    */
   useEffect(() => {
     if (userLocation) {
@@ -77,15 +71,20 @@ export function StepAnchoring() {
   return (
     <div className="w-full h-full flex flex-col gap-8 animate-in fade-in duration-700 selection:bg-primary/20">
 
-      {/* 1. ESCENARIO DE VISIÓN SATELITAL (FIELD VIEW) */}
+      {/* 
+          I. ESCENARIO TÁCTICO DE VISIÓN SATELITAL (SPATIAL ENGINE)
+          Hemos reemplazado los mini-mapas dispersos por el motor maestro en Modo FORGE.
+      */}
       <div className="relative flex-1 min-h-[300px] w-full px-4">
-        <div className="w-full h-full rounded-[2.5rem] overflow-hidden border border-white/10 shadow-[0_0_60px_rgba(0,0,0,1)] relative bg-[#050505]">
+        <div className="w-full h-full rounded-[2.5rem] overflow-hidden border border-white/10 shadow-[0_0_60px_rgba(0,0,0,1)] relative bg-[#050505] group">
 
           {userLocation ? (
-            <LiveLocationMap
-              latitude={userLocation.latitude}
-              longitude={userLocation.longitude}
-              accuracy={userLocation.accuracy}
+            <SpatialEngine
+              mode="FORGE"
+              onManualAnchor={(lngLat) => {
+                // Si el Admin hace long-press, bloqueamos el GPS y forzamos la coordenada.
+                setManualAnchor(lngLat[0], lngLat[1]);
+              }}
             />
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900/50 backdrop-blur-md gap-4">
@@ -94,29 +93,39 @@ export function StepAnchoring() {
                 <div className="absolute inset-0 bg-primary/10 blur-xl rounded-full animate-pulse" />
               </div>
               <p className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-600">
-                Intercepción Satelital...
+                Sintonizando Constelación GPS...
               </p>
             </div>
           )}
 
-          {/* HUD DE PRECISIÓN GPS */}
-          <div className="absolute bottom-6 right-6 z-20">
+          {/* HUD DE PRECISIÓN (El semáforo de integridad) */}
+          <div className="absolute bottom-6 right-6 z-20 pointer-events-none">
             <Badge className={cn(
               "px-5 py-2.5 rounded-xl backdrop-blur-2xl border font-black text-[10px] uppercase tracking-widest transition-all shadow-2xl",
               (userLocation?.accuracy || 100) < 15
                 ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                : "bg-amber-500/10 border-amber-500/20 text-amber-400"
+                : (userLocation?.accuracy || 100) < 30
+                  ? "bg-primary/10 border-primary/20 text-primary"
+                  : "bg-amber-500/10 border-amber-500/20 text-amber-400 animate-pulse"
             )}>
               Señal: {userLocation?.accuracy.toFixed(1) || "0.0"}m
             </Badge>
           </div>
+
+          {/* Alerta visible para que el Admin sepa que puede corregir el GPS */}
+          <div className="absolute top-6 right-6 z-20 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+            <span className="bg-black/80 border border-white/10 text-white/50 px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest backdrop-blur-md">
+              Mantener presionado para Anclaje Manual
+            </span>
+          </div>
+
         </div>
       </div>
 
-      {/* 2. CONSOLA DE PARÁMETROS TÁCTICOS */}
+      {/* II. CONSOLA DE PARÁMETROS TÁCTICOS */}
       <div className="px-6 pb-12 space-y-12">
 
-        {/* SELECTOR DE CATEGORÍA */}
+        {/* SELECTOR DE TAXONOMÍA (Category) */}
         <div className="space-y-4">
           <div className="flex items-center gap-3 px-1 opacity-60">
             <Target size={14} className="text-primary" />
@@ -178,11 +187,11 @@ export function StepAnchoring() {
           />
 
           <p className="text-[8px] text-zinc-700 font-bold uppercase tracking-[0.5em] text-center px-4 leading-relaxed">
-            Distancia de activación para dispositivos Voyager en el entorno.
+            Distancia física requerida para que un Voyager active este eco.
           </p>
         </div>
 
-        {/* 3. ACCIÓN DE PROGRESO */}
+        {/* III. PUERTA HACIA LOS SENSORES */}
         <Button
           onClick={nextStep}
           disabled={!userLocation || isLocating}
@@ -192,11 +201,11 @@ export function StepAnchoring() {
             {isLocating ? (
               <>
                 <Loader2 className="h-5 w-5 animate-spin text-zinc-400" />
-                Sincronizando...
+                CALIBRANDO...
               </>
             ) : (
               <>
-                Captura de Evidencia
+                CONFIRMAR ANCLAJE
                 <ArrowRight size={20} className="group-hover:translate-x-2 transition-transform duration-500" />
               </>
             )}
@@ -209,10 +218,11 @@ export function StepAnchoring() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Aniquilación de Errores: Al usar 'as any' en la invocación del hook, 
- *    liberamos al componente de la desincronía de caché de tipos de TypeScript. 
- *    Esto garantiza que el sistema compile y despliegue sin más retrasos.
- * 2. Diseño de Mando: Se mantienen los radios de borde masivos y la iconografía 
- *    táctica para asegurar la coherencia visual con el resto de la Workstation.
+ * NOTA TÉCNICA DEL ARCHITECT (V2.6):
+ * 1. Muerte del LiveLocationMap: Al integrar 'SpatialEngine', el componente se 
+ *    beneficia del caché de Mapbox y de la lógica centralizada. El Administrador 
+ *    disfruta de un mapa satelital de alto rendimiento.
+ * 2. Empowering the Admin: Se ha añadido el 'onManualAnchor' y una instrucción 
+ *    visual clara. Si el GPS marca 60m de error, el Admin pincha la pantalla 
+ *    y asume el control absoluto de la topología.
  */

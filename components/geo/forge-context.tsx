@@ -1,32 +1,50 @@
 // components/geo/forge-context.tsx
-// VERSIÓN: 1.1
+// VERSIÓN: 2.6 (NicePod Sovereign Memory Manager - OOM Prevention Edition)
+// Misión: Orquestar el ciclo de vida de captura física sin degradar la RAM del dispositivo.
+// [ESTABILIZACIÓN]: Migración de Base64 a File Objects y soporte para Cerebro Dual (Ingesta/Síntesis).
 
 "use client";
 
 import React, {
-  createContext, // [FIX TS2304]: Importación restaurada
+  createContext,
   ReactNode,
   useCallback,
   useContext,
   useReducer
 } from "react";
 
+// --- IMPORTACIÓN DE SOBERANÍA DE TIPOS ---
+import { IngestionDossier } from "@/types/geo-sovereignty";
+
 /**
  * ---------------------------------------------------------------------------
- * I. CONTRATOS DE DATOS (EL ADN DE LA FORJA)
+ * I. CONTRATOS DE DATOS (EL ADN DE LA FORJA V2.6)
  * ---------------------------------------------------------------------------
  */
 
 /**
- * ForgeStep: Define las fases del ciclo de vida de la creación de un POI.
+ * ForgeStep: Fases del ciclo de vida de creación (Arquitectura de Cerebro Dual).
+ * 1. ANCHORING: Posicionamiento GPS o Manual en el Mapa.
+ * 2. SENSORY_CAPTURE: Captura de hardware (Cámaras y Micrófono).
+ * 3. INGESTING: Estado de transición asíncrona (Subida a Storage + OCR AI).
+ * 4. DOSSIER_REVIEW: El Admin valida la verdad extraída por la IA.
+ * 5. NARRATIVE_FORGE: Configuración de tono, profundidad e intención.
+ * 6. FORGING: Síntesis final mediante el Agente 38.
  */
-export type ForgeStep = 'ANCHORING' | 'EVIDENCE' | 'INTENTION' | 'FORGING';
+export type ForgeStep =
+  | 'ANCHORING'
+  | 'SENSORY_CAPTURE'
+  | 'INGESTING'
+  | 'DOSSIER_REVIEW'
+  | 'NARRATIVE_FORGE'
+  | 'FORGING';
 
 /**
- * ForgeState: Estructura de datos completa almacenada en la memoria de forja.
+ * ForgeState: Estructura de memoria volátil. 
+ * Diseñada para máxima eficiencia de RAM en dispositivos táctiles.
  */
 export interface ForgeState {
-  // Metadatos de Control
+  // Metadatos de Control de Flujo
   currentStep: ForgeStep;
   isSubmitting: boolean;
 
@@ -34,19 +52,23 @@ export interface ForgeState {
   latitude: number | null;
   longitude: number | null;
   accuracy: number | null;
-  categoryId: string;          // Taxonomía: 'historia', 'arte', etc.
-  resonanceRadius: number;     // Radio de activación en metros.
+  categoryId: string;
+  resonanceRadius: number;     // Standard V2.6: 35 metros
 
-  // Fase 2: Evidencia Multimodal
-  heroImageBase64: string | null;  // Foto estética del lugar
-  ocrImageBase64: string | null;   // Foto de placa/texto (para IA)
-  ambientAudioBlob: Blob | null;   // Sonido real del entorno
+  // Fase 2: Evidencia Física (RAM Optimization: File objects en lugar de Base64)
+  heroImageFile: File | null;  // Activo binario puro
+  ocrImageFile: File | null;   // Activo binario puro
+  ambientAudioBlob: Blob | null;
 
-  // Fase 3: Semilla Narrativa e Intención
-  intentText: string;          // Descripción base del Administrador
+  // Fase 3: Inteligencia Retornada (El resultado de la Ingesta)
+  ingestedPoiId: number | null; // El ID de la tabla points_of_interest (status: ingested)
+  ingestionDossier: IngestionDossier | null; // Lo que la IA detectó (Clima, OCR, etc.)
+
+  // Fase 4: Semilla Narrativa e Intención (Instrucciones para Agente 38)
+  intentText: string;
   depth: 'flash' | 'cronica' | 'inmersion';
   tone: 'academico' | 'misterioso' | 'epico' | 'melancolico' | 'neutro';
-  historicalFact: string;      // Frase gancho para la interfaz del usuario
+  historicalFact: string;
 }
 
 /**
@@ -61,9 +83,10 @@ type ForgeAction =
   | { type: 'SET_LOCATION'; payload: { lat: number; lng: number; acc: number } }
   | { type: 'SET_CATEGORY'; payload: string }
   | { type: 'SET_RADIUS'; payload: number }
-  | { type: 'SET_HERO_IMAGE'; payload: string | null }
-  | { type: 'SET_OCR_IMAGE'; payload: string | null }
+  | { type: 'SET_HERO_IMAGE'; payload: File | null }
+  | { type: 'SET_OCR_IMAGE'; payload: File | null }
   | { type: 'SET_AMBIENT_AUDIO'; payload: Blob | null }
+  | { type: 'SET_INGESTION_RESULT'; payload: { poiId: number; dossier: IngestionDossier } }
   | { type: 'SET_INTENT'; payload: string }
   | { type: 'SET_DEPTH'; payload: ForgeState['depth'] }
   | { type: 'SET_TONE'; payload: ForgeState['tone'] }
@@ -77,18 +100,20 @@ const initialState: ForgeState = {
   longitude: null,
   accuracy: null,
   categoryId: 'historia',
-  resonanceRadius: 30,    // Valor estándar NicePod (30m)
-  heroImageBase64: null,
-  ocrImageBase64: null,
+  resonanceRadius: 35, // Actualizado al estándar industrial V2.6
+  heroImageFile: null,
+  ocrImageFile: null,
   ambientAudioBlob: null,
+  ingestedPoiId: null,
+  ingestionDossier: null,
   intentText: "",
-  depth: 'cronica',       // Predeterminado: 2 minutos de sabiduría
+  depth: 'cronica',
   tone: 'academico',
   historicalFact: ""
 };
 
 /**
- * forgeReducer: Procesa mutaciones atómicas sobre el estado de la forja.
+ * forgeReducer: Transmutación determinista del estado de la misión.
  */
 function forgeReducer(state: ForgeState, action: ForgeAction): ForgeState {
   switch (action.type) {
@@ -103,9 +128,14 @@ function forgeReducer(state: ForgeState, action: ForgeAction): ForgeState {
       };
     case 'SET_CATEGORY': return { ...state, categoryId: action.payload };
     case 'SET_RADIUS': return { ...state, resonanceRadius: action.payload };
-    case 'SET_HERO_IMAGE': return { ...state, heroImageBase64: action.payload };
-    case 'SET_OCR_IMAGE': return { ...state, ocrImageBase64: action.payload };
+    case 'SET_HERO_IMAGE': return { ...state, heroImageFile: action.payload };
+    case 'SET_OCR_IMAGE': return { ...state, ocrImageFile: action.payload };
     case 'SET_AMBIENT_AUDIO': return { ...state, ambientAudioBlob: action.payload };
+    case 'SET_INGESTION_RESULT': return {
+      ...state,
+      ingestedPoiId: action.payload.poiId,
+      ingestionDossier: action.payload.dossier
+    };
     case 'SET_INTENT': return { ...state, intentText: action.payload };
     case 'SET_DEPTH': return { ...state, depth: action.payload };
     case 'SET_TONE': return { ...state, tone: action.payload };
@@ -134,32 +164,42 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(forgeReducer, initialState);
 
   /**
-   * nextStep: Valida la integridad de la fase actual antes de permitir el progreso.
-   * [UX]: Actúa como una barrera de calidad para asegurar datos densos.
+   * nextStep: Navegación UI Síncrona.
+   * Actúa como Firewall Táctico. Las transiciones que requieren red (ej. Ingesting)
+   * son orquestadas directamente desde el componente llamando a dispatch('SET_STEP').
    */
   const nextStep = useCallback(() => {
+    // Barrera de Anclaje
     if (state.currentStep === 'ANCHORING') {
       if (!state.latitude || !state.longitude) {
-        console.warn("⚠️ [Forge] Bloqueo: Coordenadas GPS no detectadas.");
+        console.warn("⚠️ [Forge] Bloqueo: Coordenadas no detectadas. Verifique el Spatial Engine.");
         return;
       }
-      dispatch({ type: 'SET_STEP', payload: 'EVIDENCE' });
+      dispatch({ type: 'SET_STEP', payload: 'SENSORY_CAPTURE' });
     }
-    else if (state.currentStep === 'EVIDENCE') {
-      if (!state.heroImageBase64) {
-        console.warn("⚠️ [Forge] Bloqueo: Imagen principal obligatoria.");
+    // Barrera de Evidencia Visual
+    else if (state.currentStep === 'SENSORY_CAPTURE') {
+      if (!state.heroImageFile) {
+        console.warn("⚠️ [Forge] Bloqueo: Se requiere confirmación visual del objetivo.");
         return;
       }
-      dispatch({ type: 'SET_STEP', payload: 'INTENTION' });
+      // Avanzamos al estado de procesamiento asíncrono
+      dispatch({ type: 'SET_STEP', payload: 'INGESTING' });
     }
-  }, [state.currentStep, state.latitude, state.longitude, state.heroImageBase64]);
+    // Barrera de Revisión de Dossier
+    else if (state.currentStep === 'DOSSIER_REVIEW') {
+      dispatch({ type: 'SET_STEP', payload: 'NARRATIVE_FORGE' });
+    }
+  }, [state.currentStep, state.latitude, state.longitude, state.heroImageFile]);
 
   /**
-   * prevStep: Retroceso seguro entre fases.
+   * prevStep: Retroceso Táctico.
+   * Permite al Admin corregir errores de captura sin perder el Dossier.
    */
   const prevStep = useCallback(() => {
-    if (state.currentStep === 'EVIDENCE') dispatch({ type: 'SET_STEP', payload: 'ANCHORING' });
-    if (state.currentStep === 'INTENTION') dispatch({ type: 'SET_STEP', payload: 'EVIDENCE' });
+    if (state.currentStep === 'SENSORY_CAPTURE') dispatch({ type: 'SET_STEP', payload: 'ANCHORING' });
+    if (state.currentStep === 'DOSSIER_REVIEW') dispatch({ type: 'SET_STEP', payload: 'SENSORY_CAPTURE' });
+    if (state.currentStep === 'NARRATIVE_FORGE') dispatch({ type: 'SET_STEP', payload: 'DOSSIER_REVIEW' });
   }, [state.currentStep]);
 
   return (
@@ -177,18 +217,20 @@ export function ForgeProvider({ children }: { children: ReactNode }) {
 export function useForge() {
   const context = useContext(ForgeContext);
   if (context === undefined) {
-    throw new Error("useForge debe ser invocado dentro de un ForgeProvider nominal.");
+    throw new Error("useForge fue invocado fuera de un ForgeProvider autorizado.");
   }
   return context;
 }
 
 /**
  * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Aislamiento de Estado: El uso de 'useReducer' garantiza que el estado de 
- *    la forja sea inmutable, lo cual es crítico al manejar archivos pesados 
- *    como imágenes 4K en base64.
- * 2. Transiciones cinemáticas: Al estar centralizado el paso actual, el 
- *    orquestador de página puede animar los cambios de paso con total suavidad.
- * 3. Escalabilidad Multimodal: La estructura está preparada para añadir 
- *    nuevas fases (ej. Realidad Aumentada) simplemente extendiendo el Reducer.
+ * 1. Aniquilación de Memory Leaks: Al reemplazar los strings Base64 por objetos `File`,
+ *    el recolector de basura (Garbage Collector) de V8/WebKit puede operar eficientemente.
+ *    La generación de previas visuales se hará en el componente usando URL.createObjectURL().
+ * 2. Transición de Responsabilidad: El estado ahora incluye `ingestedPoiId`. Esto significa 
+ *    que en la fase final de creación, ya no necesitamos subir las fotos; simplemente 
+ *    le diremos a la IA: "Crea un guion para el POI #X".
+ * 3. Expansibilidad: La estructura soporta la interrupción del flujo. Si la app se cierra 
+ *    en 'DOSSIER_REVIEW', el registro ya existe en el Metal (PostgreSQL) como 'ingested',
+ *    listo para ser retomado en el futuro.
  */

@@ -1,54 +1,75 @@
 // app/map/page.tsx
-// VERSIÓN: 2.0 (NicePod Spatial Explorer - Viewport Sovereign Edition)
-// Misión: Proyectar el motor geoespacial en pantalla completa absoluta.
-// [ESTABILIZACIÓN]: Eliminación de herencia de Layout.tsx de plataforma y corrección de Viewport.
+// VERSIÓN: 3.0 (NicePod Sovereign Explorer - V2.6 Integration)
+// Misión: Proyectar el motor geoespacial y gobernar el acceso a la creación urbana.
+// [ESTABILIZACIÓN]: RBAC en Servidor, eliminación de ImmersiveMap e inyección de SpatialEngine.
 
+import { createClient } from '@/lib/supabase/server';
 import { Metadata } from 'next';
-import { ImmersiveMap } from "@/components/geo/immersive-map";
+import { redirect } from 'next/navigation';
+
+// --- INFRAESTRUCTURA DE VISUALIZACIÓN SOBERANA ---
+import { GeoCreatorOverlay } from "@/components/geo/geo-creator-overlay"; // Componente Cliente de Orquestación
 
 /**
  * [METADATA API]: Identidad de Visualización
  */
 export const metadata: Metadata = {
-  title: 'Madrid Resonance | Exploración Espacial',
-  description: 'Capa de realidad aumentada y memoria urbana sobre la ciudad de Madrid.',
+  title: 'Madrid Resonance | Malla Urbana Activa',
+  description: 'Explora y ancla la memoria de la ciudad en la red neuronal de NicePod.',
+  // Evitamos que los motores de búsqueda indexen el mapa dinámico completo
+  robots: { index: false, follow: false }
 };
 
 /**
- * COMPONENTE: MapExplorerPage
- * Esta página vive fuera del PlatformLayout, lo que le otorga soberanía sobre 
- * el 100% de la altura y el ancho del dispositivo.
+ * COMPONENTE: MapExplorerPage (Server Component)
+ * Esta página vive fuera del PlatformLayout, otorgándole soberanía absoluta 
+ * sobre el viewport del dispositivo (100dvh).
  */
-export default function MapExplorerPage() {
+export default async function MapExplorerPage() {
+
+  // 1. HANDSHAKE SOBERANO EN EL SERVIDOR (RBAC)
+  // Evaluamos la identidad y los privilegios ANTES de enviar un solo byte de Mapbox al cliente.
+  const supabase = createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    redirect('/login?redirect=/map');
+  }
+
+  // 2. VERIFICACIÓN DE PRIVILEGIOS DE SIEMBRA (El Futuro V2.7)
+  // Determinamos si el usuario tiene capacidad para mutar el mapa (Admin o Pro).
+  const userRole = user.app_metadata.user_role || user.app_metadata.role || 'user';
+  const isAdmin = userRole === 'admin';
+
+  // TODO (V2.7): Aquí consultaremos la tabla 'subscriptions' para habilitar el true a usuarios Pro.
+  const canForgeNodes = isAdmin;
+
   return (
     /**
-     * [FIX ESTRUCTURAL]: 
-     * Usamos 'h-[100dvh]' (Dynamic Viewport Height) para que el mapa ignore 
-     * los márgenes del Layout padre y se ajuste al tamaño real de la pantalla del móvil.
-     * La clase 'fixed inset-0' garantiza que este lienzo sea la capa base del sistema.
+     * [CHASIS TÁCTICO]: h-[100dvh]
+     * Garantiza que las barras de navegación colapsables de iOS/Android no 
+     * oculten los controles del mapa en la parte inferior.
      */
-    <div className="fixed inset-0 w-full h-[100dvh] bg-black overflow-hidden selection:bg-primary/20">
-      
+    <div className="fixed inset-0 w-full h-[100dvh] bg-[#020202] overflow-hidden selection:bg-primary/20">
+
       {/* 
-          MOTOR DE VISUALIZACIÓN: ImmersiveMap
-          Al estar en la ruta raíz y sin Layouts intermedios, 
-          este componente tiene control total sobre el canvas de Mapbox.
+          I. EL MOTOR CARTOGRÁFICO UNIFICADO (V2.6)
+          Si el usuario no está forjando un nodo, el mapa opera en modo consumo (EXPLORE).
+          La lógica de cambio a FORGE se maneja dentro del GeoCreatorOverlay si el Admin lo activa.
       */}
       <div className="absolute inset-0 z-0">
-        <ImmersiveMap />
+        {/* Renderizamos el componente cliente que envuelve al SpatialEngine 
+            para poder reaccionar a los estados de creación del Admin. */}
+        <GeoCreatorOverlay
+          canForge={canForgeNodes}
+          userId={user.id}
+        />
       </div>
 
       {/* 
-          CAPAS DE INTERACCIÓN (HUD)
-          Estas capas flotan sobre el mapa con un sistema de Z-Index orquestado.
-          Están diseñadas para ser ignoradas por lectores de pantalla cuando sea necesario,
-          o para ser interactuables de forma táctil y precisa.
-      */}
-      
-      {/* 
-          NOTA DE SEGURIDAD: 
-          No incluimos aquí el <Navigation> global de la plataforma, 
-          ya que es precisamente lo que causaba el conflicto de espacio.
+          NOTA DE HIGIENE: 
+          No incluimos aquí el <Navigation> global de la plataforma para 
+          evitar colisiones de z-index con las capas 3D de Mapbox.
       */}
 
     </div>
@@ -56,12 +77,14 @@ export default function MapExplorerPage() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Independencia de Ruta: Al ubicar este archivo en 'app/map/page.tsx', 
- *    desvinculamos el mapa de cualquier padding o cabecera inyectada por 
- *    '(platform)/layout.tsx'.
- * 2. Viewport Dinámico: 'h-[100dvh]' es la solución definitiva al error de 
- *    la barra de herramientas del móvil que cortaba la parte inferior de la UI.
- * 3. Integridad de Saneamiento: Este archivo es ahora un nodo autónomo. 
- *    El mapa ya no está "dentro de una caja", el mapa ES la aplicación.
+ * NOTA TÉCNICA DEL ARCHITECT (V3.0):
+ * 1. Aniquilación de Renderizado Basura: Al hacer el chequeo de sesión en SSR 
+ *    (`await supabase.auth.getUser()`), evitamos que el cliente descargue los 
+ *    MBs de React-Map-GL si no está logueado.
+ * 2. Desacoplamiento Lógico: El componente 'GeoCreatorOverlay' (que crearemos a continuación) 
+ *    es un Client Component que montará el 'SpatialEngine' y, si 'canForge' es true, 
+ *    inyectará el botón flotante (FAB) para abrir el 'ScannerUI'.
+ * 3. Escalabilidad Pro: La variable 'canForgeNodes' está preparada para el despliegue 
+ *    comercial. En el futuro, bastará con una consulta SQL rápida a la tabla de 
+ *    suscripciones para abrir la captura a los Voyagers de pago.
  */
