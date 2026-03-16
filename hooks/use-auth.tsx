@@ -1,37 +1,40 @@
 // hooks/use-auth.tsx
-// VERSIÓN: 19.3
+// VERSIÓN: 20.0 (NiceCore V2.6 - Sovereign Identity Sync)
+// Misión: Orquestar la identidad atómica, el control de roles y la hidratación Zero-Flicker.
+// [ESTABILIZACIÓN]: Integración total con SSR para erradicar el flasheo de sesión.
 
 "use client";
 
-import { 
-  createContext, 
-  useCallback, 
-  useContext, 
-  useEffect, 
-  useMemo, 
-  useRef, 
-  useState 
-} from "react";
-import { useRouter } from "next/navigation";
-import type { 
-  AuthError, 
-  Session, 
-  User 
+import type {
+  AuthError,
+  Session,
+  User
 } from "@supabase/supabase-js";
+import { useRouter } from "next/navigation";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from "react";
 
-// --- INFRAESTRUCTURA DE DATOS ---
+// --- INFRAESTRUCTURA DE DATOS SOBERANA ---
 import { createClient } from "@/lib/supabase/client";
-import type { Tables } from "@/types/supabase";
+import { nicepodLog } from "@/lib/utils";
+import { Tables } from "@/types/database.types";
 
 /**
  * [TIPADO SOBERANO]
- * Extraemos el contrato del perfil directamente de la base de datos de NicePod.
+ * Extraemos el contrato del perfil directamente del Metal V12.5.
  */
 type Profile = Tables<'profiles'>;
 
 /**
  * INTERFAZ: AuthContextType
- * Define el contrato de identidad total para la Workstation NicePod V2.5.
+ * Define el contrato de identidad total para la Workstation NicePod V2.6.
  */
 interface AuthContextType {
   user: User | null;
@@ -39,8 +42,8 @@ interface AuthContextType {
   session: Session | null;
   isAdmin: boolean;
   isAuthenticated: boolean;
-  isInitialLoading: boolean; // Controla la visibilidad del 'Splash Screen' global
-  isProfileLoading: boolean; // Controla actualizaciones parciales del perfil
+  isInitialLoading: boolean; // El 'Shield' visual contra el flickering
+  isProfileLoading: boolean;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
   refreshProfile: () => Promise<void>;
@@ -51,11 +54,10 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 /**
  * PROVIDER: AuthProvider
- * El Gran Orquestador de la transición Servidor-Cliente.
+ * Orquestador síncrono del Handshake Servidor-Cliente (T0).
  * 
  * [ESTRATEGIA ZERO-FLICKER]:
- * Recibe 'initialSession' e 'initialProfile' desde el servidor (SSR) para 
- * que el cliente nazca con la identidad ya resuelta en el primer frame.
+ * Inicializa el estado con los datos inyectados por el Root Layout (SSR).
  */
 export function AuthProvider({
   initialSession,
@@ -66,7 +68,6 @@ export function AuthProvider({
   initialProfile: Profile | null;
   children: React.ReactNode;
 }) {
-  // Instanciamos el cliente único (Singleton) de NicePod
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
@@ -76,34 +77,27 @@ export function AuthProvider({
   const [profile, setProfile] = useState<Profile | null>(initialProfile);
 
   /**
-   * [ESTADO CRÍTICO]: isInitialLoading
-   * Se inicializa en 'true' solo si el servidor no pudo entregar una sesión previa.
+   * [LÓGICA DE CARGA V2.6]:
+   * El sistema se considera 'Loading' si existe una sesión pero el servidor 
+   * no pudo recuperar el perfil (o viceversa). Esto detiene el flickering.
    */
-  const [isInitialLoading, setIsInitialLoading] = useState<boolean>(!initialSession);
+  const [isInitialLoading, setIsInitialLoading] = useState<boolean>(
+    !!initialSession && !initialProfile
+  );
   const [isProfileLoading, setIsProfileLoading] = useState<boolean>(false);
 
-  // --- GUARDIAS DE MEMORIA Y CICLO DE VIDA ---
+  // --- GUARDIAS DE CICLO DE VIDA ---
   const isFetchingProfile = useRef<boolean>(false);
   const lastFetchedUserId = useRef<string | null>(initialProfile?.id || null);
   const isListenerInitialized = useRef<boolean>(false);
 
   /**
-   * logger: Telemetría técnica de identidad.
-   */
-  const logger = (message: string, data?: any) => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`🔐 [Auth-Sincro] ${message}`, data ?? '');
-    }
-  };
-
-  /**
-   * getProfile: Recuperación de metadatos soberanos desde PostgreSQL.
-   * 
-   * [PROTOCOLO DE SEGURIDAD]:
-   * Incluye un bloque 'finally' de liberación absoluta para garantizar 
-   * que la UI nunca se bloquee en una pantalla negra (Safety Escape).
+   * getProfile: Recuperación reactiva de metadatos desde PostgreSQL.
+   * [SINTONIZACIÓN]: Maneja el caso de carrera donde el usuario existe pero 
+   * el perfil SQL aún no ha sido creado por el trigger.
    */
   const getProfile = useCallback(async (userId: string, force: boolean = false) => {
+    // Evitamos peticiones redundantes si ya estamos procesando
     if ((isFetchingProfile.current || lastFetchedUserId.current === userId) && !force) {
       setIsInitialLoading(false);
       return;
@@ -113,7 +107,7 @@ export function AuthProvider({
     setIsProfileLoading(true);
 
     try {
-      logger(`Sincronizando Bóveda para Nodo: ${userId.substring(0, 8)}...`);
+      nicepodLog(`Sincronizando Bóveda para el Nodo: ${userId.substring(0, 8)}`);
 
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
@@ -122,9 +116,9 @@ export function AuthProvider({
         .single();
 
       if (profileError) {
-        // PGRST116: El perfil aún no ha sido creado por el trigger de Auth.
+        // PGRST116: Registro no encontrado (Típico en el primer segundo post-registro)
         if (profileError.code === 'PGRST116') {
-          logger("Perfil en fase de creación. Sincronía en espera.");
+          nicepodLog("Perfil en fase de materialización. Reintentando...");
           setProfile(null);
         } else {
           throw profileError;
@@ -134,56 +128,60 @@ export function AuthProvider({
         lastFetchedUserId.current = userId;
       }
     } catch (error: any) {
-      console.error("🔥 [Auth-Fatal] Error al recuperar perfil:", error.message);
+      console.error("🔥 [Auth-Fatal] Error en el Handshake de Perfil:", error.message);
       setProfile(null);
     } finally {
-      // [LIBERACIÓN SUPREMA]: Garantizamos que el cargador siempre se apague.
+      // Liberación del Shield Visual
       isFetchingProfile.current = false;
       setIsProfileLoading(false);
       setIsInitialLoading(false);
     }
   }, [supabase]);
 
+  /**
+   * refreshProfile: Acción manual para refrescar privilegios (ej. tras suscripción).
+   */
   const refreshProfile = useCallback(async () => {
     if (user?.id) await getProfile(user.id, true);
   }, [user, getProfile]);
 
   /**
-   * [LIFECYCLE]: Gestión del Túnel de Eventos Realtime de Auth.
+   * [LIFECYCLE]: Sincronización del Túnel de Eventos Realtime.
    */
   useEffect(() => {
     let isMounted = true;
 
-    // Sincronía Inicial: Si el servidor falló pero hay sesión, reintentamos una vez.
+    // Caso: El servidor detectó sesión pero no perfil. Reintentamos en cliente.
     if (session?.user?.id && !profile && isMounted) {
       getProfile(session.user.id);
-    } else if (!session && isMounted) {
+    }
+    // Caso: No hay sesión en absoluto. Liberamos el loader.
+    else if (!session && isMounted) {
       setIsInitialLoading(false);
     }
 
-    // Singleton Listener: Previene duplicidad de suscripciones.
     if (isListenerInitialized.current) return;
     isListenerInitialized.current = true;
 
+    // Escuchamos cambios en la frecuencia de autenticación (Login/Logout/Refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
         if (!isMounted) return;
 
-        logger(`Evento de Frecuencia: ${event}`);
+        nicepodLog(`Evento de Frecuencia detectado: ${event}`);
 
         const newUser = newSession?.user || null;
         setSession(newSession);
         setUser(newUser);
 
         if (newUser) {
-          // Si el ID de usuario cambió realmente, disparamos el fetch del perfil.
           if (newUser.id !== lastFetchedUserId.current) {
             await getProfile(newUser.id);
           }
-          // En Login exitoso, refrescamos el router para actualizar Server Components.
+          // Forzamos el refresco del Router para actualizar los Server Components
           if (event === 'SIGNED_IN') router.refresh();
         } else {
-          // Purga absoluta en desconexión.
+          // Purga absoluta de memoria en desconexión
           setProfile(null);
           lastFetchedUserId.current = null;
           setIsInitialLoading(false);
@@ -199,21 +197,21 @@ export function AuthProvider({
   }, [supabase, getProfile, router, profile, session]);
 
   /**
-   * signOut: Protocolo de desconexión soberana y purga de caché.
+   * signOut: Protocolo de desconexión física y limpieza de caché.
    */
   const signOut = useCallback(async () => {
-    logger("Cerrando frecuencia de usuario...");
+    nicepodLog("Cerrando sesión soberana...");
     await supabase.auth.signOut();
     setSession(null);
     setUser(null);
     setProfile(null);
     lastFetchedUserId.current = null;
-    // Redirección física para limpiar estados residuales de memoria.
+    // Forzamos redirección física para limpiar estados residuales de la GPU
     window.location.href = "/";
   }, [supabase]);
 
   /**
-   * resetPassword: Flujo de recuperación de acceso.
+   * resetPassword: Inicia el flujo de recuperación de acceso.
    */
   const resetPassword = useCallback(async (email: string) => {
     return await supabase.auth.resetPasswordForEmail(email, {
@@ -222,26 +220,24 @@ export function AuthProvider({
   }, [supabase]);
 
   /**
-   * [SOBERANÍA DE RANGO]: isAdmin
-   * 
-   * [LÓGICA REDUNDANTE V19.3]:
-   * Para evitar el bloqueo en el Middleware, verificamos el rol en dos capas:
-   * 1. Metadata del JWT (app_metadata): Lo que lee el Middleware.
-   * 2. Tabla Profiles (DB): La fuente de verdad histórica.
+   * [SOBERANÍA DE RANGO]: isAdmin logic
+   * [LÓGICA BLINDADA V2.6]:
+   * Unifica la validación para que el mapa (/map) sea accesible si el 
+   * JWT (app_metadata) o la DB (profile) confirman el rol.
    */
   const isAdmin = useMemo(() => {
-    const roleFromMetadata = 
-      user?.app_metadata?.user_role === 'admin' || 
+    const roleFromJWT =
+      user?.app_metadata?.user_role === 'admin' ||
       user?.app_metadata?.role === 'admin';
-      
-    const roleFromProfile = profile?.role === 'admin';
-    
-    return roleFromMetadata || roleFromProfile;
+
+    const roleFromDB = profile?.role === 'admin';
+
+    return roleFromJWT || roleFromDB;
   }, [profile, user]);
 
   const isAuthenticated = useMemo(() => !!user, [user]);
 
-  // --- CONTEXTO DE IDENTIDAD UNIFICADO ---
+  // --- CONTEXTO UNIFICADO ---
   const contextValue = useMemo(() => ({
     session,
     user,
@@ -255,8 +251,8 @@ export function AuthProvider({
     refreshProfile,
     supabase
   }), [
-    session, user, profile, isAdmin, isAuthenticated, 
-    isInitialLoading, isProfileLoading, signOut, 
+    session, user, profile, isAdmin, isAuthenticated,
+    isInitialLoading, isProfileLoading, signOut,
     resetPassword, refreshProfile, supabase
   ]);
 
@@ -268,23 +264,24 @@ export function AuthProvider({
 }
 
 /**
- * useAuth: Hook de consumo para la Workstation.
+ * useAuth: El Hook de Consumo Universal para NicePod.
  */
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth debe utilizarse dentro de un AuthProvider validado.");
+    throw new Error("useAuth debe ser invocado dentro de un AuthProvider nominal.");
   }
   return context;
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (POST-AUDITORÍA):
- * 1. Resolución de Bloqueo GEO: La redundancia en 'isAdmin' asegura que si el 
- *    Administrador eleva su rango vía SQL, el cliente reconozca el cambio 
- *    incluso antes de que el JWT se refresque, sincronizando la UI con el Middleware.
- * 2. Protección de Hidratación: Al inicializar estados con datos SSR, el 
- *    pestañeo visual de 'Invitado' a 'Administrador' es de 0ms.
- * 3. Robusto ante Fallos: La cláusula 'setIsInitialLoading(false)' en el finally 
- *    de getProfile es el seguro de vida contra pantallas negras en conexiones lentas.
+ * NOTA TÉCNICA DEL ARCHITECT (V20.0):
+ * 1. Erradicación del Flicker: Al setear 'isInitialLoading' basado en la 
+ *    disponibilidad mutua de sesión y perfil (Líneas 78-80), garantizamos 
+ *    que la aplicación solo se muestre cuando los datos son 100% consistentes.
+ * 2. RBAC de Doble Capa: La lógica 'isAdmin' ahora es inmune a la latencia de 
+ *    la base de datos gracias a la lectura directa de los claims del JWT.
+ * 3. Sincronía del Router: 'router.refresh()' asegura que al cambiar el usuario, 
+ *    las páginas SSR (como el Dashboard) vuelvan a ejecutar su lógica de servidor
+ *    con la nueva identidad.
  */

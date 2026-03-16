@@ -1,7 +1,7 @@
 // app/layout.tsx
-// VERSIÓN: 28.0 (NicePod Architecture Core - Production Master)
-// Misión: Orquestar la infraestructura global, la identidad SSR y la atmósfera Aurora.
-// [ESTABILIZACIÓN]: Versión definitiva sin scripts de purga, optimizada para escalabilidad.
+// VERSIÓN: 29.0 (NicePod Architecture Core - Sovereign Sync Edition)
+// Misión: Orquestar la infraestructura global, la identidad atómica SSR y la atmósfera Aurora.
+// [ESTABILIZACIÓN]: Handshake T0 consolidado para erradicar el flasheo de hidratación.
 
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
@@ -16,15 +16,15 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import "./globals.css";
 
 // Infraestructura de Servicios Sincronizados
-import { ErrorBoundary } from "@/components/system/error-boundary";
 import { CSPostHogProvider } from '@/components/providers/posthog-provider';
+import { ErrorBoundary } from "@/components/system/error-boundary";
 import { PwaLifecycle } from "@/components/system/pwa-lifecycle";
 import { ThemeProvider } from "@/components/system/theme-provider";
 import { AuthProvider } from "@/hooks/use-auth";
 import { createClient } from '@/lib/supabase/server';
 import { Tables } from "@/types/database.types";
 
-// Motor de Inmersión Visual
+// Motor de Inmersión Visual (GPU-driven)
 import { BackgroundEngine } from "@/components/visuals/background-engine";
 
 /**
@@ -53,7 +53,6 @@ export const viewport: Viewport = {
 
 /**
  * METADATA API: Identidad Soberana.
- * Delegamos la lógica de instalación al archivo manifest.json para cumplimiento PWA.
  */
 export const metadata: Metadata = {
   title: {
@@ -79,10 +78,9 @@ export const metadata: Metadata = {
 };
 
 /**
- * RootLayout: El Gran Orquestador Síncrono.
- * 
- * Este Server Component realiza el Handshake de Identidad (T0) recuperando
- * la sesión nominal antes de entregar el control al árbol de componentes cliente.
+ * COMPONENTE: RootLayout (The Master Orchestrator)
+ * Realiza el Handshake de Identidad (T0) en el servidor para evitar 
+ * saltos visuales durante la hidratación del cliente.
  */
 export default async function RootLayout({
   children
@@ -90,10 +88,13 @@ export default async function RootLayout({
   children: React.ReactNode
 }) {
   /**
-   * 1. PROTOCOLO DE IDENTIDAD ATÓMICA (SSR)
-   * Validamos la existencia del usuario en el servidor para evitar saltos de hidratación.
+   * 1. PROTOCOLO DE IDENTIDAD SOBERANA (SSR)
+   * Validamos la existencia del usuario en el metal del servidor antes de 
+   * enviar el HTML al navegador.
    */
   const supabase = createClient();
+
+  // Obtenemos el usuario autenticado desde el JWT de la cookie
   const { data: { user } } = await supabase.auth.getUser();
 
   let initialSession = null;
@@ -101,26 +102,36 @@ export default async function RootLayout({
 
   if (user) {
     /**
-     * COSECHA PARALELA DE DATOS (Fan-Out):
-     * Optimizamos el rendimiento de carga ejecutando la validación de sesión
-     * y la recuperación de perfil de forma simultánea.
+     * COSECHA PARALELA DE DATOS (Fan-Out Pipeline):
+     * Optimizamos el rendimiento recuperando la sesión técnica y el perfil 
+     * nominal simultáneamente.
      */
     const [sessionRes, profileRes] = await Promise.all([
       supabase.auth.getSession(),
-      supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
+      supabase.from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single() // Usamos .single() para forzar la integridad del registro
     ]);
 
     initialSession = sessionRes.data.session;
     initialProfile = profileRes.data;
+
+    /**
+     * [AUTO-REMEDICACIÓN]: 
+     * Si hay usuario pero no hay perfil (caso de registro muy reciente), 
+     * dejamos el perfil en null para que el AuthProvider dispare 
+     * el reintento sintonizado en el cliente.
+     */
   }
 
   return (
     <html lang="es" suppressHydrationWarning className={inter.variable}>
       <head>
         {/* 
-            SCRIPT ANTI-PESTAÑEO DE TEMA:
-            Inyecta la clase CSS '.dark' antes del renderizado del body para 
-            asegurar una transición lumínica profesional sin artefactos visuales.
+            SCRIPT ANTI-PESTAÑEO DE TEMA (Lumen-Shield):
+            Inyecta la clase CSS '.dark' antes de que React se inicialice, 
+            evitando que el usuario vea una pantalla blanca antes del tema oscuro.
         */}
         <script
           dangerouslySetInnerHTML={{
@@ -146,16 +157,16 @@ export default async function RootLayout({
         className={`${inter.className} font-sans min-h-screen antialiased selection:bg-primary/30 bg-background text-foreground`}
         suppressHydrationWarning
       >
-        {/* CAPA 1: Telemetría y Análisis (Analytics) */}
+        {/* CAPA 1: Telemetría y Análisis Operativo */}
         <CSPostHogProvider>
 
-          {/* CAPA 2: Ciclo de Vida PWA (Gestión de Service Worker) */}
+          {/* CAPA 2: Orquestador de Ciclo de Vida PWA */}
           <PwaLifecycle />
 
-          {/* CAPA 3: Red de Seguridad de Errores (Fail-Safe) */}
+          {/* CAPA 3: Red de Seguridad y Captura de Excepciones */}
           <ErrorBoundary>
 
-            {/* CAPA 4: Motor Atmosférico (Gestor de Temas) */}
+            {/* CAPA 4: Motor Atmosférico Aurora (Gestor de Temas) */}
             <ThemeProvider
               attribute="class"
               defaultTheme="dark"
@@ -164,22 +175,23 @@ export default async function RootLayout({
               storageKey="theme"
             >
 
-              {/* CAPA 5: Soberanía de Identidad (Handshake T0) */}
+              {/* CAPA 5: EL HANDSHAKE T0 (AuthProvider)
+                  Inyectamos la identidad SSR para que el cliente nazca sintonizado. */}
               <AuthProvider
                 initialSession={initialSession}
                 initialProfile={initialProfile}
               >
 
-                {/* --- ESCENARIO VISUAL NICEPOD V2.8 --- */}
+                {/* --- ESCENARIO VISUAL NICEPOD V2.9 --- */}
                 <div className="min-h-screen relative overflow-x-hidden">
 
-                  {/* CAPA ALFA: La Aurora de Fondo (Fixed z-0) */}
+                  {/* CAPA ALFA: La Aurora (Fixed z-0)
+                      Dibuja los gradientes que reaccionan al hardware (Glow) */}
                   <BackgroundEngine />
 
                   {/* 
-                      CAPA BETA: Contenedor de Contenido (Z-10) 
-                      Mantenemos el fondo transparente para permitir que la luz 
-                      del BackgroundEngine atraviese la malla de la interfaz.
+                      CAPA BETA: El Chasis de Contenido (Z-10) 
+                      Transparente para permitir la visualización de la Aurora.
                   */}
                   <div className="relative z-10 flex flex-col min-h-screen bg-transparent">
                     {children}
@@ -196,13 +208,12 @@ export default async function RootLayout({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Consolidación de Identidad: Al inyectar 'initialSession' e 'initialProfile' 
- *    desde el servidor, garantizamos que el AuthProvider no tenga que realizar 
- *    peticiones adicionales al cargarse, eliminando el parpadeo de sesión.
- * 2. Rendimiento LCP: La organización de capas asegura que el BackgroundEngine 
- *    (GPU-driven) no bloquee la renderización de los componentes hijos.
- * 3. Seguridad Estructural: El uso de 'font-sans' en el body, vinculado a la 
- *    fuente 'Inter' mediante variables CSS, asegura la coherencia tipográfica 
- *    incluso en componentes cargados dinámicamente.
+ * NOTA TÉCNICA DEL ARCHITECT (V29.0):
+ * 1. Sincronía Atómica: Al utilizar 'supabase.auth.getUser()' en el servidor, 
+ *    el Middleware y el Layout actúan como un solo bloque lógico de seguridad.
+ * 2. Cero Pestañeo: La inyección de 'initialProfile' resuelve el problema donde 
+ *    el nombre del usuario aparecía vacío por milisegundos tras el refresco.
+ * 3. Aislamiento de Red: Las hojas de estilo de Mapbox se cargan aquí para que 
+ *    cualquier subpágina de la plataforma pueda renderizar el radar sin 
+ *    esperar descargas adicionales de CSS.
  */
