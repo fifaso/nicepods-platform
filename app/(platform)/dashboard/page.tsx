@@ -1,5 +1,5 @@
 // app/(platform)/dashboard/page.tsx
-// VERSIÓN: 18.0 (NicePod Operations Center - Production Master with Loading State)
+// VERSIÓN: 18.1 (NicePod Operations Center - Zero Flicker & Complete Edition)
 // Misión: Centro de mando y telemetría con radar semántico de inmersión total.
 // [ESTABILIZACIÓN]: Implementación de estado de carga del feed para evitar "falsos vacíos" durante el fetching.
 
@@ -7,8 +7,8 @@
 
 import {
   Loader2,
-  Map as MapIcon,
   PlusCircle,
+  ShieldCheck,
   Terminal,
   Zap
 } from "lucide-react";
@@ -55,7 +55,7 @@ interface DiscoveryFeed {
 }
 
 export default function DashboardPage() {
-  const { supabase, profile, isAuthenticated, isInitialLoading } = useAuth();
+  const { supabase, profile, isAuthenticated, isInitialLoading, isAdmin } = useAuth();
 
   // [ESTADOS DE RADAR]
   const [searchResults, setSearchResults] = useState<SearchResult[] | null>(null);
@@ -66,12 +66,13 @@ export default function DashboardPage() {
   const [feed, setFeed] = useState<DiscoveryFeed>({ epicenter: [], semantic_connections: [] });
   const [resonanceProfile, setResonanceProfile] = useState<ResonanceProfile | null>(null);
 
-  // [NUEVO ESTADO CRÍTICO]: Control de la cascada de renderizado
+  // [NUEVO ESTADO CRÍTICO]: Control de la cascada de renderizado (Zero-Flicker)
   const [isFeedLoading, setIsFeedLoading] = useState<boolean>(true);
 
   useEffect(() => {
     async function loadDashboardData() {
-      if (!isAuthenticated || !profile?.id || !supabase) return;
+      // Esperamos a que la identidad SSR esté completamente resuelta
+      if (isInitialLoading || !isAuthenticated || !profile?.id || !supabase) return;
 
       setIsFeedLoading(true);
 
@@ -94,12 +95,12 @@ export default function DashboardPage() {
       } catch (error) {
         console.error("🔥 [Dashboard-Data-Fail]:", error);
       } finally {
-        setIsFeedLoading(false);
+        setIsFeedLoading(false); // Levantamos la cortina de carga
       }
     }
 
     loadDashboardData();
-  }, [isAuthenticated, profile?.id, supabase]);
+  }, [isAuthenticated, isInitialLoading, profile?.id, supabase]);
 
   const safeEpicenter = useMemo(() => {
     if (!feed?.epicenter || !Array.isArray(feed.epicenter)) return [];
@@ -129,13 +130,17 @@ export default function DashboardPage() {
     setCurrentQuery("");
   }, []);
 
-  if (isInitialLoading) {
+  // [ZERO FLICKER GUARDIAN]: Si estamos negociando sesión o descargando bóveda, pantalla unificada.
+  if (isInitialLoading || isFeedLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#020202]">
         <div className="flex flex-col items-center gap-6 opacity-60">
-          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <div className="relative">
+            <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full animate-pulse" />
+            <Loader2 className="h-10 w-10 animate-spin text-primary relative z-10" />
+          </div>
           <span className="text-[10px] font-black uppercase tracking-[0.4em] text-white animate-pulse">
-            Iniciando Intelligence Shell
+            Sincronizando Bóveda de Resonancia
           </span>
         </div>
       </div>
@@ -150,14 +155,21 @@ export default function DashboardPage() {
         <div className="lg:col-span-3 space-y-10 md:space-y-14">
 
           {/* CABECERA Y BUSCADOR FLOTANTE */}
-          <header className="w-full flex items-center justify-between z-40 bg-transparent">
+          <header className="w-full flex flex-col md:flex-row md:items-center justify-between z-40 gap-6">
             <div className="flex flex-col animate-in fade-in slide-in-from-left-6 duration-1000">
               <h1 className="text-4xl md:text-6xl font-black tracking-tighter uppercase italic leading-none drop-shadow-xl text-muted-foreground/80">
                 Hola, <span className="text-foreground">{userName}</span>
               </h1>
+              {/* Feedback visual de Privilegios Soberanos */}
+              {isAdmin && (
+                <div className="flex items-center gap-2 mt-2 opacity-50">
+                  <ShieldCheck size={12} className="text-primary" />
+                  <span className="text-[9px] font-black uppercase tracking-widest text-primary">Acceso Soberano Concedido</span>
+                </div>
+              )}
             </div>
 
-            <div className="animate-in fade-in slide-in-from-right-6 duration-1000 delay-200">
+            <div className="animate-in fade-in slide-in-from-right-6 duration-1000 delay-200 w-full md:w-auto">
               <UnifiedSearchBar
                 variant="console"
                 onResults={handleResults}
@@ -168,55 +180,31 @@ export default function DashboardPage() {
             </div>
           </header>
 
-          {/* MAPA DE INMERSIÓN (Navegable) */}
-          <Link href="/map" className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-[2.5rem] md:rounded-[3.5rem]">
-            <section className="relative rounded-[2.5rem] md:rounded-[3.5rem] overflow-hidden border border-white/5 bg-[#050505] shadow-2xl transition-all duration-1000 hover:border-primary/40 hover:shadow-[0_0_40px_rgba(139,92,246,0.15)] group cursor-pointer">
-              <div className="h-[160px] md:h-[220px] w-full relative z-0 opacity-50 grayscale group-hover:grayscale-0 transition-all duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-105">
-                <MapPreviewFrame />
-              </div>
-              <div className="absolute inset-0 bg-gradient-to-t from-[#020202] via-black/40 to-transparent pointer-events-none z-10" />
-              <div className="absolute bottom-6 left-6 md:bottom-8 md:left-8 z-20 flex items-center gap-4 md:gap-5">
-                <div className="p-3 md:p-4 bg-primary/20 backdrop-blur-3xl rounded-2xl border border-primary/30 shadow-inner group-hover:scale-110 transition-transform duration-700">
-                  <MapIcon className="h-5 w-5 md:h-6 md:w-6 text-white" />
-                </div>
-                <div className="flex flex-col">
-                  <h3 className="text-white font-black text-sm md:text-xl uppercase tracking-tighter italic drop-shadow-2xl">
-                    Madrid <span className="text-primary">Resonance</span>
-                  </h3>
-                  <p className="text-[9px] md:text-[10px] text-zinc-400 font-bold uppercase tracking-[0.3em] mt-0.5 group-hover:text-primary/80 transition-colors">
-                    Explorar Malla Activa
-                  </p>
-                </div>
-              </div>
-            </section>
-          </Link>
+          {/* WIDGET DEL MAPA TÁCTICO (Navegable en vivo) */}
+          <section className="h-[200px] md:h-[260px] w-full animate-in fade-in zoom-in-95 duration-1000 delay-300">
+            <MapPreviewFrame />
+          </section>
 
           {/* 
               FEED DE INTELIGENCIA 
-              Solo renderizamos cuando la carga inicial ha finalizado para evitar parpadeos visuales.
+              Ya no sufre de parpadeos gracias a la cortina de carga global.
           */}
-          <div className="relative z-0 min-h-[500px]">
-            {isFeedLoading ? (
-              <div className="w-full flex items-center justify-center py-20">
-                <Loader2 className="h-8 w-8 text-primary/40 animate-spin" />
-              </div>
-            ) : (
-              <IntelligenceFeed
-                userName={userName}
-                isSearching={isSearching}
-                results={searchResults}
-                lastQuery={currentQuery}
-                epicenterPodcasts={safeEpicenter}
-                connectionsPodcasts={safeConnections}
-                onClear={handleClear}
-              />
-            )}
+          <div className="relative z-0 min-h-[500px] animate-in fade-in duration-1000 delay-500">
+            <IntelligenceFeed
+              userName={userName}
+              isSearching={isSearching}
+              results={searchResults}
+              lastQuery={currentQuery}
+              epicenterPodcasts={safeEpicenter}
+              connectionsPodcasts={safeConnections}
+              onClear={handleClear}
+            />
           </div>
         </div>
 
         {/* --- COLUMNA DE TELEMETRÍA (ASIDE) --- */}
         <aside className="hidden lg:block lg:col-span-1">
-          <div className="sticky top-[8rem] space-y-8 flex flex-col h-fit animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-500">
+          <div className="sticky top-[8rem] space-y-8 flex flex-col h-fit animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-700">
 
             <div className="p-8 bg-card/20 rounded-[2.5rem] border border-border/40 backdrop-blur-2xl relative overflow-hidden group shadow-xl">
               <div className="space-y-6 relative z-10">
@@ -245,7 +233,7 @@ export default function DashboardPage() {
               <div className="space-y-3">
                 <div className="flex items-center gap-2 justify-center">
                   <Zap size={10} className="text-zinc-600" />
-                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em]">NicePod V2.5</p>
+                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em]">NicePod V2.6</p>
                 </div>
                 <div className="flex items-center gap-2.5 justify-center px-4 py-1.5 rounded-full bg-emerald-500/5 border border-emerald-500/10">
                   <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -263,13 +251,12 @@ export default function DashboardPage() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V18.0):
- * 1. Control de Estado Activo: Se implementó 'isFeedLoading'. Al evitar el 
- *    renderizado prematuro de IntelligenceFeed con un array vacío, erradicamos 
- *    el 'flash' donde la pantalla mostraba "Bóveda Vacía" durante los milisegundos 
- *    en los que la base de datos estaba enviando los datos reales.
- * 2. Navegabilidad Espacial: La previsualización de 'MapPreviewFrame' sigue envuelta
- *    en <Link> permitiendo el acceso inmersivo al mapa con un solo clic.
- * 3. Contract Compliance: El Dashboard ahora envía 'searchResults' admitiendo valores nulos
- *    hacia 'IntelligenceFeed', garantizando un build limpio en TypeScript.
+ * NOTA TÉCNICA DEL ARCHITECT (V18.1):
+ * 1. Control de Estado Activo (Zero-Flicker): Se implementó 'isFeedLoading' global.
+ *    Al esperar a que todos los datos (perfil, feed, resonance) estén en memoria antes de
+ *    desmontar el loader, eliminamos cualquier artefacto visual o reflow de componentes.
+ * 2. Feedback Espacial Admin: El texto "Acceso Soberano Concedido" confirma visualmente
+ *    que el Middleware y el Cliente coinciden en los permisos del usuario para abrir el mapa.
+ * 3. Widget Interactivo: El componente del mapa ahora se delega a 'MapPreviewFrame'
+ *    como una entidad explorable real, no un mero enlace decorativo.
  */
