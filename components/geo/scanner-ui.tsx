@@ -1,7 +1,7 @@
 // components/geo/scanner-ui.tsx
-// VERSIÓN: 13.0 (NicePod V2.6 - Sovereign Oracle UI)
-// Misión: Orquestar el flujo de ingesta y narrativa bajo el mando del Agente 42.
-// [ESTABILIZACIÓN]: Sincronía de nombres manuales, gestión de conflictos y purga de ruido.
+// VERSIÓN: 14.0 (NicePod V2.6 - Sovereign Dual Brain UI - Scroll Liberated Edition)
+// Misión: Orquestar la captura táctil y la forja narrativa en un chasis responsivo.
+// [ESTABILIZACIÓN]: Erradicación de la "Caja Fantasma" (h-full) para reactivar el scroll nativo.
 
 "use client";
 
@@ -37,39 +37,31 @@ import { nicepodLog } from "@/lib/utils";
  * El puente de mando central de la Terminal de Captura Urbana.
  */
 export function GeoScannerUI() {
-  // 1. CONSUMO DEL MOTOR GEOESPACIAL OMNISCIENTE (V6.4)
   const geoEngine = useGeoEngine();
   const {
     status: engineStatus,
     data: engineData,
     userLocation,
     initSensors,
-    isLocked,
     error: geoError
   } = geoEngine;
 
-  // 2. CONSUMO DE MEMORIA DE FORJA
   const { state: forgeState } = useForge();
 
   /**
-   * RESOLUCIÓN DE IDENTIDAD NOMINATIVA:
-   * Determina el nombre que debe mostrar el HUD basándose en la jerarquía de verdad:
-   * 1. Nombre Manual (Admin) > 2. Nombre Detectado (IA) > 3. Placeholder
+   * RESOLUCIÓN DE IDENTIDAD NOMINATIVA (Cascada de Verdad):
    */
   const displayName = useMemo(() => {
     return (
-      forgeState.intentText || // Si el Admin lo corrigió en el Step 3
-      engineData?.manualPlaceName || // Si el Admin lo forzó en el Step 1
+      forgeState.intentText ||
+      engineData?.manualPlaceName ||
       engineData?.dossier?.visual_analysis_dossier?.detectedOfficialName ||
-      "Anclaje en Curso..."
+      "Interceptando Señal..."
     );
   }, [forgeState.intentText, engineData]);
 
-  /**
-   * Trazabilidad de Misión
-   */
   useEffect(() => {
-    nicepodLog(`🛰️ [Geo-Orchestrator] Fase: ${forgeState.currentStep} | Hardware: ${engineStatus}`);
+    nicepodLog(`🛰️ [Geo-Orchestrator] Fase UI: ${forgeState.currentStep} | Motor: ${engineStatus}`);
   }, [forgeState.currentStep, engineStatus]);
 
   /**
@@ -92,13 +84,16 @@ export function GeoScannerUI() {
   };
 
   return (
-    <div className="flex flex-col h-full w-full max-w-3xl mx-auto relative overflow-hidden selection:bg-primary/30">
+    // [FIX CRÍTICO TS/UX]: El contenedor maestro debe ser 'flex' y tener 'min-h-0' 
+    // para no colapsar la regla de desbordamiento de sus hijos. 
+    // Se elimina el 'overflow-hidden' global.
+    <div className="flex flex-col h-full w-full max-w-3xl mx-auto relative selection:bg-primary/30 min-h-0">
 
       {/* 
           I. HUD DE TELEMETRÍA (DYNAMIC ISLAND STYLE) 
-          Muestra la verdad de los sensores en tiempo real.
+          Mantiene la telemetría visible en todo momento (Fijo en la parte superior).
       */}
-      <div className="flex-shrink-0 mb-6 px-6 pt-2">
+      <div className="flex-shrink-0 mb-4 px-6 pt-4">
         <RadarHUD
           status={engineStatus}
           weather={engineData?.dossier?.weather_snapshot}
@@ -106,8 +101,8 @@ export function GeoScannerUI() {
           accuracy={userLocation?.accuracy || 0}
         />
 
-        {/* ALERTA DE ERROR DE HARDWARE */}
         <AnimatePresence>
+          {/* ALERTA DE ERROR DE HARDWARE */}
           {geoError && (
             <motion.div
               initial={{ height: 0, opacity: 0 }}
@@ -131,7 +126,7 @@ export function GeoScannerUI() {
             >
               <AlertTriangle size={16} />
               <p className="text-[9px] font-black uppercase tracking-widest leading-none">
-                Conflicto: Existe un eco activo a menos de 10 metros.
+                Conflicto: Un eco activo resuena a menos de 10 metros.
               </p>
             </motion.div>
           )}
@@ -139,9 +134,11 @@ export function GeoScannerUI() {
       </div>
 
       {/* 
-          II. EL BASTIDOR DE FORJA (DYNAMIC STAGE)
+          II. EL BASTIDOR DE FORJA (FLEXIBLE SCROLL AREA)
+          [FIX CRÍTICO]: 'flex-1' para tomar el espacio restante y 'overflow-y-auto' 
+          para que los Steps grandes (como el mapa + botones) puedan hacer scroll.
       */}
-      <div className="flex-1 relative w-full h-full overflow-hidden">
+      <div className="flex-1 overflow-y-auto custom-scrollbar px-2 pb-12 pt-2">
         <AnimatePresence mode="wait">
 
           {/* FASE 0: ACTIVACIÓN SENSORIAL */}
@@ -150,8 +147,8 @@ export function GeoScannerUI() {
               key="idle_activation"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, y: -40 }}
-              className="absolute inset-0 flex flex-col items-center justify-center gap-14"
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="h-[450px] flex flex-col items-center justify-center gap-14"
             >
               <div className="text-center space-y-4">
                 <div className="flex items-center justify-center gap-3 mb-2">
@@ -176,39 +173,47 @@ export function GeoScannerUI() {
             </motion.div>
           )}
 
+          {/* 
+              [LEY DE SOBERANÍA VISUAL]: 
+              Observe que aquí se ha eliminado 'absolute inset-0 h-full' de todos los 'motion.div'.
+              Ahora usan 'w-full'. Esto permite que empujen el contenedor hacia abajo.
+          */}
+
           {/* FASE 1: ANCLAJE */}
           {engineStatus !== 'IDLE' && forgeState.currentStep === 'ANCHORING' && (
-            <motion.div key="step-1" variants={stepVariants} initial="initial" animate="animate" exit="exit" className="absolute inset-0 w-full h-full px-2">
+            <motion.div key="step-1" variants={stepVariants} initial="initial" animate="animate" exit="exit" className="w-full">
               <StepAnchoring />
             </motion.div>
           )}
 
           {/* FASE 2: CAPTURA MULTIMODAL */}
           {forgeState.currentStep === 'SENSORY_CAPTURE' && (
-            <motion.div key="step-2" variants={stepVariants} initial="initial" animate="animate" exit="exit" className="absolute inset-0 w-full h-full px-2">
+            <motion.div key="step-2" variants={stepVariants} initial="initial" animate="animate" exit="exit" className="w-full">
               <StepSensoryCapture />
             </motion.div>
           )}
 
           {/* ESTADO INTERMEDIO: INGESTANDO */}
           {forgeState.currentStep === 'INGESTING' && (
-            <motion.div key="ingesting-state" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#020202] rounded-[3rem] border border-white/5">
+            <motion.div key="ingesting-state" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-[400px] flex flex-col items-center justify-center bg-[#020202] rounded-[3rem] border border-white/5 shadow-2xl mx-4">
               <Eye className="h-16 w-16 text-primary animate-pulse mb-8" />
               <h2 className="text-3xl font-black uppercase tracking-widest text-white italic mb-4">Ingestando</h2>
-              <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">El Oráculo analiza la evidencia física...</p>
+              <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest text-center px-8">
+                El Oráculo analiza la evidencia física...
+              </p>
             </motion.div>
           )}
 
           {/* FASE 3: AUDITORÍA DE DOSSIER */}
           {forgeState.currentStep === 'DOSSIER_REVIEW' && (
-            <motion.div key="step-3" variants={stepVariants} initial="initial" animate="animate" exit="exit" className="absolute inset-0 w-full h-full px-2">
+            <motion.div key="step-3" variants={stepVariants} initial="initial" animate="animate" exit="exit" className="w-full">
               <StepDossierReview />
             </motion.div>
           )}
 
           {/* FASE 4: CONFIGURACIÓN NARRATIVA */}
           {forgeState.currentStep === 'NARRATIVE_FORGE' && (
-            <motion.div key="step-4" variants={stepVariants} initial="initial" animate="animate" exit="exit" className="absolute inset-0 w-full h-full px-2">
+            <motion.div key="step-4" variants={stepVariants} initial="initial" animate="animate" exit="exit" className="w-full">
               <StepNarrativeForge />
             </motion.div>
           )}
@@ -219,7 +224,7 @@ export function GeoScannerUI() {
               key="forging-state"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="absolute inset-0 w-full h-full z-50 flex flex-col items-center justify-center bg-[#020202] rounded-[3rem] border border-white/5 shadow-2xl"
+              className="h-[400px] flex flex-col items-center justify-center bg-[#020202] rounded-[3rem] border border-white/5 shadow-2xl mx-4"
             >
               <div className="relative mb-14">
                 <div className="absolute inset-0 bg-primary/40 blur-[100px] animate-pulse rounded-full" />
@@ -241,7 +246,7 @@ export function GeoScannerUI() {
                       Agente 42 en Línea
                     </span>
                   </div>
-                  <p className="text-[9px] font-bold text-zinc-600 uppercase tracking-widest italic">
+                  <p className="text-[9px] font-bold text-zinc-600 uppercase tracking-widest italic text-center px-4">
                     Materializando sabiduría anclada en el metal...
                   </p>
                 </div>
@@ -252,32 +257,16 @@ export function GeoScannerUI() {
         </AnimatePresence>
       </div>
 
-      {/* 
-          III. FOOTER TÉCNICO MINIMALISTA 
-          Eliminamos el banner redundante y dejamos solo la marca de autoridad.
-      */}
-      <div className="flex-shrink-0 py-6 px-12 border-t border-white/5 bg-[#020202]/50">
-        <div className="flex justify-center items-center opacity-10 select-none">
-          <div className="flex items-center gap-3">
-            <span className="text-[8px] font-black uppercase tracking-[1em] text-white">NiceCore</span>
-            <div className="h-1.5 w-1.5 rounded-full bg-primary" />
-            <span className="text-[8px] font-black uppercase tracking-[1em] text-white">V2.6</span>
-          </div>
-        </div>
-      </div>
-
     </div>
   );
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V13.0):
- * 1. Especialización de Agente: Se ha erradicado cualquier referencia al 
- *    Agente 38. El 'Agente 42' es ahora el dueño oficial de la narrativa urbana.
- * 2. Visualización de Conflictos: La inyección de 'isProximityConflict' permite 
- *    que el Admin sepa que está sembrando en una zona saturada ANTES de 
- *    confirmar el anclaje, protegiendo la calidad de la Bóveda.
- * 3. Optimización Táctil: Al simplificar el footer, garantizamos que el 
- *    botón principal de cada Step siempre esté en la zona de pulsación ideal 
- *    del pulgar (Thumb-Zone), vital para el uso en exteriores.
+ * NOTA TÉCNICA DEL ARCHITECT (V14.0):
+ * 1. Scroll Táctico Desbloqueado: Al envolver los componentes de las fases 
+ *    dentro de un contenedor 'overflow-y-auto' (Línea 118) y eliminar el 'h-full' 
+ *    de las animaciones, erradicamos el bug de UI rígida en dispositivos con pantallas bajas.
+ * 2. Supresión de Elementos Residuales: El footer técnico ha sido purgado 
+ *    por completo. Esto libera espacio vital en pantalla para maximizar 
+ *    la experiencia inmersiva del mapa.
  */
