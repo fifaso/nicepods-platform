@@ -1,7 +1,7 @@
 // components/geo/geo-creator-overlay.tsx
-// VERSIÓN: 1.0 (NicePod V2.6 - Sovereign Ingestion Orchestrator)
-// Misión: Unificar el Motor Spatial con la Terminal de Captura Multimodal.
-// [ESTABILIZACIÓN]: Gestión de estados de creación, modo de mapa y anclaje manual.
+// VERSIÓN: 3.0 (NicePod V2.6 - Sovereign Ingestion Orchestrator Final)
+// Misión: Unificar el Motor Spatial con la Terminal de Captura y el Scroll.
+// [ESTABILIZACIÓN]: Inyección del GeoEngineProvider y flexibilización de contenedores (Scroll Fix).
 
 "use client";
 
@@ -11,11 +11,16 @@ import { useCallback, useState } from "react";
 
 // --- NÚCLEO DE INFRAESTRUCTURA ---
 import { Button } from "@/components/ui/button";
-import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { cn } from "@/lib/utils";
+
+// --- PROVEEDORES SOBERANOS (EL CEREBRO ÚNICO) ---
+import { GeoEngineProvider, useGeoEngine } from "@/hooks/use-geo-engine";
 import { ForgeProvider, useForge } from "./forge-context";
+
+// --- COMPONENTES VINCULADOS ---
 import { GeoScannerUI } from "./scanner-ui";
 import { SpatialEngine } from "./SpatialEngine";
+
 /**
  * INTERFAZ: GeoCreatorOverlayProps
  */
@@ -28,10 +33,10 @@ interface GeoCreatorOverlayProps {
 
 /**
  * COMPONENTE INTERNO: CreatorOverlayContent
- * Este componente vive dentro del ForgeProvider para poder acceder al dispatch.
+ * Este componente vive dentro de los Providers para acceder al estado compartido.
  */
 function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
-  const { state, dispatch } = useForge();
+  const { dispatch } = useForge();
   const { setManualAnchor, reset: resetSensors } = useGeoEngine();
 
   // Estado local para controlar la visibilidad de la Terminal de Ingesta
@@ -54,7 +59,7 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
 
   /**
    * handleManualAnchor:
-   * Puente entre el long-press del mapa y la memoria de la forja.
+   * Puente entre el long-press del mapa (SpatialEngine) y la memoria (ForgeContext).
    */
   const handleManualAnchor = useCallback((lngLat: [number, number]) => {
     if (!isTerminalOpen) return;
@@ -68,7 +73,7 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
       payload: {
         lat: lngLat[1],
         lng: lngLat[0],
-        acc: 1 // Precisión absoluta por ser anclaje manual
+        acc: 1 // Precisión absoluta por ser anclaje manual (Admin Authority)
       }
     });
   }, [isTerminalOpen, setManualAnchor, dispatch]);
@@ -79,7 +84,7 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
       {/* 
           I. EL MOTOR CARTOGRÁFICO UNIFICADO 
           El modo cambia según si la terminal está abierta para permitir 
-          la visión satelital durante la creación.
+          la visión satelital pura durante la siembra.
       */}
       <SpatialEngine
         mode={isTerminalOpen ? 'FORGE' : 'EXPLORE'}
@@ -88,17 +93,17 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
 
       {/* 
           II. BOTÓN FLOTANTE SOBERANO (FAB) 
-          Solo visible para usuarios con autoridad (Admin/Pro).
+          Solo visible para usuarios con autoridad de creación (Admin/Pro).
       */}
       {canForge && (
         <div className="absolute top-8 right-8 z-[110]">
           <Button
             onClick={toggleTerminal}
             className={cn(
-              "h-16 w-16 rounded-full shadow-2xl transition-all duration-500 group overflow-hidden",
+              "h-16 w-16 rounded-full shadow-[0_0_40px_rgba(0,0,0,0.8)] transition-all duration-500 group overflow-hidden border",
               isTerminalOpen
-                ? "bg-red-500 hover:bg-red-600 text-white rotate-90"
-                : "bg-white hover:bg-primary text-black hover:text-white"
+                ? "bg-red-500 hover:bg-red-600 text-white rotate-90 border-red-500/50"
+                : "bg-[#020202] hover:bg-primary text-white border-white/10 hover:border-primary/50"
             )}
           >
             <AnimatePresence mode="wait">
@@ -124,9 +129,9 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
               )}
             </AnimatePresence>
 
-            {/* Efecto de pulso cuando está en modo espera */}
+            {/* Efecto de pulso táctico cuando está en modo espera */}
             {!isTerminalOpen && (
-              <div className="absolute inset-0 bg-primary/20 animate-ping rounded-full -z-10" />
+              <div className="absolute inset-0 bg-white/5 animate-pulse rounded-full -z-10" />
             )}
           </Button>
         </div>
@@ -134,7 +139,7 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
 
       {/* 
           III. LA TERMINAL DE INGESTA (DRAWER / OVERLAY) 
-          Se proyecta desde la base cubriendo parcialmente el mapa.
+          Se proyecta desde la base. Ocupa el 85% de la pantalla para no tapar el mapa.
       */}
       <AnimatePresence>
         {isTerminalOpen && (
@@ -143,34 +148,34 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: "100%", opacity: 0 }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="absolute inset-0 z-[100] flex flex-col justify-end pointer-events-none"
+            // [FIX SCROLL 1]: pointer-events-auto garantiza que podamos interactuar con la terminal.
+            className="absolute inset-x-0 bottom-0 z-[100] flex flex-col justify-end pointer-events-auto h-[85vh]"
           >
-            {/* Overlay de fondo para enfocar la carga cognitiva */}
-            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm pointer-events-none" />
+            {/* Velo superior oscuro para dar foco al drawer */}
+            <div className="absolute -top-[15vh] inset-x-0 h-[15vh] bg-black/50 backdrop-blur-md pointer-events-none" />
 
-            {/* Contenedor de la Workstation Terminal */}
-            <div className="w-full h-[85vh] bg-[#020202]/90 backdrop-blur-3xl rounded-t-[3.5rem] border-t border-white/10 shadow-[0_-20px_50px_rgba(0,0,0,0.5)] pointer-events-auto overflow-hidden relative">
+            {/* [FIX SCROLL 2]: Chasis Principal. Eliminado el 'overflow-hidden' que rompía el scroll. */}
+            <div className="w-full h-full bg-[#020202]/95 backdrop-blur-3xl rounded-t-[3.5rem] border-t border-white/10 shadow-[0_-20px_50px_rgba(0,0,0,0.8)] flex flex-col relative">
 
-              {/* Indicador Táctil Superior (Drag Handle Visual) */}
-              <div className="w-full flex justify-center py-4">
-                <div className="w-12 h-1 bg-white/10 rounded-full" />
+              {/* Indicador Táctil Superior (Drag Handle) */}
+              <div className="w-full flex justify-center py-5 shrink-0 z-10">
+                <div className="w-12 h-1.5 bg-white/20 rounded-full" />
               </div>
 
-              {/* HUD de Modo (Indicador de Fase) */}
-              <div className="absolute top-6 left-12 flex items-center gap-4 opacity-40">
-                {isTerminalOpen && (
-                  <>
-                    <Satellite size={14} className="text-primary animate-pulse" />
-                    <span className="text-[10px] font-black uppercase tracking-[0.4em] text-white">
-                      Terminal de Siembra Activa
-                    </span>
-                  </>
-                )}
+              {/* Marca de Agua Activa */}
+              <div className="absolute top-6 left-10 flex items-center gap-3 opacity-30">
+                <Satellite size={12} className="text-primary animate-pulse" />
+                <span className="text-[9px] font-black uppercase tracking-[0.4em] text-white">
+                  Workstation Terminal
+                </span>
               </div>
 
-              <div className="w-full h-full overflow-hidden">
+              {/* [FIX SCROLL 3]: Este es el contenedor vital. 'overflow-y-auto' delega 
+                  el scroll a los Steps internos (ScannerUI), erradicando el bloqueo. */}
+              <div className="w-full flex-1 overflow-y-auto relative custom-scrollbar">
                 <GeoScannerUI />
               </div>
+
             </div>
           </motion.div>
         )}
@@ -178,14 +183,14 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
 
       {/* 
           IV. INDICADOR DE MODO (EXPLORE OVERLAY) 
-          Informa al usuario Voyager sobre la naturaleza de la vista.
+          Informa al Voyager sobre la naturaleza de la vista de consumo.
       */}
       {!isTerminalOpen && (
         <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-40 pointer-events-none">
-          <div className="bg-black/60 backdrop-blur-xl px-5 py-2 rounded-full border border-white/5 flex items-center gap-3 shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-1000">
+          <div className="bg-black/80 backdrop-blur-2xl px-6 py-2.5 rounded-full border border-white/10 flex items-center gap-3 shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-1000">
             <MapIcon size={14} className="text-primary/60" />
-            <span className="text-[9px] font-black text-white/40 uppercase tracking-[0.4em]">
-              Madrid Resonance Hub • <span className="text-primary/60">V2.6</span>
+            <span className="text-[9px] font-black text-white/50 uppercase tracking-[0.4em]">
+              Madrid Resonance <span className="text-primary/60 ml-2">V2.6</span>
             </span>
           </div>
         </div>
@@ -197,23 +202,26 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
 
 /**
  * COMPONENTE PRINCIPAL: GeoCreatorOverlay
- * Exportación nominal que provee el contexto necesario para el funcionamiento.
+ * Exportación nominal que provee la "Caja Craneal" para el Cerebro Dual.
  */
 export function GeoCreatorOverlay(props: GeoCreatorOverlayProps) {
   return (
-    <ForgeProvider>
-      <CreatorOverlayContent {...props} />
-    </ForgeProvider>
+    // [EL ESCUDO DE ESTADO]: GeoEngineProvider envuelve toda la UI.
+    // Esto garantiza que el mapa y los menús compartan EXACTAMENTE los mismos datos de GPS,
+    // erradicando las desincronizaciones de estado (Ghost States).
+    <GeoEngineProvider>
+      <ForgeProvider>
+        <CreatorOverlayContent {...props} />
+      </ForgeProvider>
+    </GeoEngineProvider>
   );
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Thumb-Driven Design: El botón FAB está posicionado para ser accionado 
- *    con el pulgar derecho en dispositivos móviles, iniciando la misión de forma ergonómica.
- * 2. Transición Táctica: El Drawer utiliza un 85% de la altura del viewport (85vh), 
- *    permitiendo que el Admin siga viendo la coordenada de anclaje en el mapa 
- *    mientras completa los pasos de ingesta.
- * 3. Aislamiento de Sensores: Al resetear el GeoEngine al cerrar la terminal, 
- *    liberamos el 'watchPosition' del GPS, ahorrando un 15% de batería en campo.
+ * NOTA TÉCNICA DEL ARCHITECT (V3.0):
+ * 1. Resiliencia de Scroll: El contenedor de 'GeoScannerUI' es ahora un flex-1 
+ *    con 'overflow-y-auto'. Esto permite que componentes altos como el Step 1 
+ *    puedan hacer scroll sin que el HUD se pierda ni la ventana se rompa.
+ * 2. Sincronía Total: La inclusión de <GeoEngineProvider> es la cura definitiva 
+ *    al problema donde el HUD decía "SENSORS READY" pero el mapa decía "CARGANDO".
  */
