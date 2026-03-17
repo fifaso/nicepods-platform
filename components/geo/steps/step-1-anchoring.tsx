@@ -1,7 +1,7 @@
 // components/geo/steps/step-1-anchoring.tsx
-// VERSIÓN: 2.6 (NicePod Sovereign Anchoring)
-// Misión: Definir la posición física, taxonomía y radio del nuevo nodo urbano.
-// [ESTABILIZACIÓN]: Erradicación de LiveLocationMap. Integración con SpatialEngine.
+// VERSIÓN: 2.8 (NicePod Sovereign Anchoring - Pro Edition)
+// Misión: Definir la posición física, taxonomía y radio con interfaz ultra-limpia.
+// [ESTABILIZACIÓN]: Fix 0.0M Accuracy, remoción de rastro técnico inferior y haptics.
 
 "use client";
 
@@ -22,7 +22,7 @@ import { useEffect } from "react";
 // --- INFRAESTRUCTURA DE SOBERANÍA ---
 import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { useForge } from "../forge-context";
-import { SpatialEngine } from "../SpatialEngine"; // EL NUEVO MOTOR UNIFICADO V2.6
+import { SpatialEngine } from "../SpatialEngine";
 
 // --- COMPONENTES UI ---
 import { Badge } from "@/components/ui/badge";
@@ -30,8 +30,10 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 
-// --- CONTRATOS DE TAXONOMÍA V2.6 ---
-// (Alineados con el Enum de categories en validation/poi-schema.ts)
+/**
+ * CONFIGURACIÓN DE TAXONOMÍA (NCIS V2.6)
+ * Alineada estrictamente con el esquema de validación 'poi-schema.ts'.
+ */
 const CATEGORIES = [
   { id: 'historia', label: 'Historia', icon: History },
   { id: 'arquitectura', label: 'Arquitectura', icon: Landmark },
@@ -41,6 +43,10 @@ const CATEGORIES = [
   { id: 'cultural', label: 'Resonancia', icon: Sparkles },
 ];
 
+/**
+ * COMPONENTE: StepAnchoring
+ * Fase 1: La materialización de la coordenada en la Malla Urbana.
+ */
 export function StepAnchoring() {
   const { state, dispatch, nextStep } = useForge();
   const geoEngine = useGeoEngine();
@@ -48,12 +54,14 @@ export function StepAnchoring() {
   const {
     userLocation,
     isSearching: isLocating,
-    setManualAnchor // Invocamos la nueva facultad de Anclaje Manual
+    setManualAnchor,
+    status: engineStatus
   } = geoEngine;
 
   /**
-   * PROTOCOLO DE SINCRONÍA:
-   * Mantenemos el estado de la forja (RAM) alineado con los sensores del motor.
+   * PROTOCOLO DE SINCRONÍA DE MEMORIA:
+   * Persiste la ubicación física en el ForgeContext para que la Fase 2 (Ingesta)
+   * tenga el punto exacto de siembra bloqueado.
    */
   useEffect(() => {
     if (userLocation) {
@@ -68,73 +76,86 @@ export function StepAnchoring() {
     }
   }, [userLocation, dispatch]);
 
+  /**
+   * handleManualPositioning:
+   * Intercepta el long-press del mapa satelital.
+   */
+  const handleManualPositioning = (lngLat: [number, number]) => {
+    setManualAnchor(lngLat[0], lngLat[1]);
+  };
+
   return (
-    <div className="w-full h-full flex flex-col gap-8 animate-in fade-in duration-700 selection:bg-primary/20">
+    <div className="w-full h-full flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-1000 selection:bg-primary/20">
 
       {/* 
-          I. ESCENARIO TÁCTICO DE VISIÓN SATELITAL (SPATIAL ENGINE)
-          Hemos reemplazado los mini-mapas dispersos por el motor maestro en Modo FORGE.
+          I. ESCENARIO TÁCTICO (MAPA SATELITAL V12)
+          Ocupa el eje central de la terminal de mando.
       */}
-      <div className="relative flex-1 min-h-[300px] w-full px-4">
-        <div className="w-full h-full rounded-[2.5rem] overflow-hidden border border-white/10 shadow-[0_0_60px_rgba(0,0,0,1)] relative bg-[#050505] group">
+      <div className="relative flex-1 min-h-[320px] w-full px-2">
+        <div className="w-full h-full rounded-[2.5rem] overflow-hidden border border-white/10 shadow-[0_0_60px_rgba(0,0,0,0.8)] relative bg-[#020202] group">
 
           {userLocation ? (
             <SpatialEngine
               mode="FORGE"
-              onManualAnchor={(lngLat) => {
-                // Si el Admin hace long-press, bloqueamos el GPS y forzamos la coordenada.
-                setManualAnchor(lngLat[0], lngLat[1]);
-              }}
+              onManualAnchor={handleManualPositioning}
             />
           ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900/50 backdrop-blur-md gap-4">
+            <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-950/50 backdrop-blur-md gap-6">
               <div className="relative">
                 <Loader2 className="h-10 w-10 animate-spin text-primary/40" />
-                <div className="absolute inset-0 bg-primary/10 blur-xl rounded-full animate-pulse" />
+                <div className="absolute inset-0 bg-primary/10 blur-2xl rounded-full animate-pulse" />
               </div>
-              <p className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-600">
-                Sintonizando Constelación GPS...
-              </p>
+              <div className="text-center space-y-1">
+                <p className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-500">
+                  Interceptando Señal
+                </p>
+                <p className="text-[8px] font-bold text-zinc-700 uppercase tracking-widest">
+                  Sintonizando Constelación GPS...
+                </p>
+              </div>
             </div>
           )}
 
-          {/* HUD DE PRECISIÓN (El semáforo de integridad) */}
-          <div className="absolute bottom-6 right-6 z-20 pointer-events-none">
-            <Badge className={cn(
-              "px-5 py-2.5 rounded-xl backdrop-blur-2xl border font-black text-[10px] uppercase tracking-widest transition-all shadow-2xl",
-              (userLocation?.accuracy || 100) < 15
-                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                : (userLocation?.accuracy || 100) < 30
-                  ? "bg-primary/10 border-primary/20 text-primary"
-                  : "bg-amber-500/10 border-amber-500/20 text-amber-400 animate-pulse"
-            )}>
-              Señal: {userLocation?.accuracy.toFixed(1) || "0.0"}m
-            </Badge>
-          </div>
+          {/* INDICADOR DE INTEGRIDAD DE SEÑAL (Reactivación del 0.0M) */}
+          {userLocation && (
+            <div className="absolute bottom-6 right-6 z-20">
+              <Badge className={cn(
+                "px-5 py-2.5 rounded-xl backdrop-blur-2xl border font-black text-[10px] uppercase tracking-[0.2em] transition-all shadow-2xl",
+                userLocation.accuracy < 15
+                  ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                  : userLocation.accuracy < 35
+                    ? "bg-primary/10 border-primary/20 text-primary"
+                    : "bg-amber-500/10 border-amber-500/20 text-amber-400 animate-pulse"
+              )}>
+                Señal: {userLocation.accuracy.toFixed(1)}m
+              </Badge>
+            </div>
+          )}
 
-          {/* Alerta visible para que el Admin sepa que puede corregir el GPS */}
-          <div className="absolute top-6 right-6 z-20 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
-            <span className="bg-black/80 border border-white/10 text-white/50 px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest backdrop-blur-md">
-              Mantener presionado para Anclaje Manual
-            </span>
+          {/* TOOLTIP TÁCTICO DE AYUDA */}
+          <div className="absolute top-6 left-1/2 -translate-x-1/2 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none">
+            <div className="bg-black/60 backdrop-blur-md border border-white/5 px-4 py-2 rounded-full">
+              <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/40">
+                Mantén presionado para anclaje manual
+              </p>
+            </div>
           </div>
-
         </div>
       </div>
 
-      {/* II. CONSOLA DE PARÁMETROS TÁCTICOS */}
-      <div className="px-6 pb-12 space-y-12">
+      {/* II. CONSOLA DE PARÁMETROS (La Intención) */}
+      <div className="px-6 space-y-10 pb-8">
 
-        {/* SELECTOR DE TAXONOMÍA (Category) */}
+        {/* SELECTOR DE TAXONOMÍA */}
         <div className="space-y-4">
-          <div className="flex items-center gap-3 px-1 opacity-60">
-            <Target size={14} className="text-primary" />
-            <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-white">
-              Clasificación del Nodo
+          <div className="flex items-center gap-3 px-1 opacity-40">
+            <Target size={12} className="text-primary" />
+            <h3 className="text-[9px] font-black uppercase tracking-[0.4em] text-white">
+              Categoría del Eco
             </h3>
           </div>
 
-          <div className="flex items-center gap-3 overflow-x-auto custom-scrollbar-hide pb-3">
+          <div className="flex items-center gap-3 overflow-x-auto custom-scrollbar-hide pb-2">
             {CATEGORIES.map((cat) => {
               const isActive = state.categoryId === cat.id;
               const Icon = cat.icon;
@@ -142,19 +163,23 @@ export function StepAnchoring() {
               return (
                 <button
                   key={cat.id}
-                  onClick={() => dispatch({ type: 'SET_CATEGORY', payload: cat.id })}
+                  onClick={() => {
+                    // Feedback táctico al seleccionar
+                    if (navigator.vibrate) navigator.vibrate(10);
+                    dispatch({ type: 'SET_CATEGORY', payload: cat.id });
+                  }}
                   className={cn(
-                    "flex items-center gap-4 px-6 py-4 rounded-[1.5rem] border transition-all duration-500 whitespace-nowrap group",
+                    "flex items-center gap-3 px-6 py-4 rounded-2xl border transition-all duration-500 whitespace-nowrap",
                     isActive
-                      ? "bg-white text-black border-white shadow-[0_10px_30px_rgba(255,255,255,0.15)] scale-105"
-                      : "bg-white/[0.03] border-white/5 text-zinc-500 hover:border-white/20 hover:text-white"
+                      ? "bg-white text-black border-white shadow-xl scale-105"
+                      : "bg-white/[0.02] border-white/5 text-zinc-500 hover:border-white/10 hover:text-white"
                   )}
                 >
                   <Icon className={cn(
-                    "h-5 w-5 transition-colors",
-                    isActive ? "text-primary" : "text-zinc-700 group-hover:text-zinc-400"
+                    "h-4 w-4 transition-colors",
+                    isActive ? "text-primary" : "text-zinc-700"
                   )} />
-                  <span className="text-[11px] font-black uppercase tracking-widest">
+                  <span className="text-[10px] font-black uppercase tracking-widest">
                     {cat.label}
                   </span>
                 </button>
@@ -164,49 +189,45 @@ export function StepAnchoring() {
         </div>
 
         {/* SELECTOR DE RADIO DE RESONANCIA */}
-        <div className="space-y-6 bg-white/[0.01] border border-white/5 p-8 rounded-[2.5rem] shadow-inner relative overflow-hidden">
-          <div className="flex justify-between items-center mb-2">
-            <div className="flex items-center gap-3">
-              <Navigation size={14} className="text-primary/60" />
-              <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-500">
-                Alcance de Sintonía
+        <div className="space-y-6">
+          <div className="flex justify-between items-center px-1">
+            <div className="flex items-center gap-2 opacity-40">
+              <Navigation size={12} className="text-zinc-400" />
+              <h3 className="text-[9px] font-black uppercase tracking-[0.3em] text-zinc-400">
+                Radio de Sintonía
               </h3>
             </div>
-            <Badge className="bg-primary/20 text-primary border-primary/20 font-mono text-xs px-3">
-              {state.resonanceRadius}m
-            </Badge>
+            <span className="text-xs font-black text-primary italic tabular-nums">
+              {state.resonanceRadius} metros
+            </span>
           </div>
 
           <Slider
             value={[state.resonanceRadius]}
-            min={10}
+            min={15}
             max={100}
             step={5}
             onValueChange={(val) => dispatch({ type: 'SET_RADIUS', payload: val[0] })}
-            className="py-4"
+            className="py-2"
           />
-
-          <p className="text-[8px] text-zinc-700 font-bold uppercase tracking-[0.5em] text-center px-4 leading-relaxed">
-            Distancia física requerida para que un Voyager active este eco.
-          </p>
         </div>
 
-        {/* III. PUERTA HACIA LOS SENSORES */}
+        {/* III. ACCIÓN DE PROGRESO */}
         <Button
           onClick={nextStep}
           disabled={!userLocation || isLocating}
-          className="w-full h-20 rounded-[2rem] bg-white text-black font-black uppercase tracking-[0.4em] shadow-2xl hover:bg-zinc-200 transition-all active:scale-[0.98] group"
+          className="w-full h-16 rounded-2xl bg-white text-black font-black uppercase tracking-[0.4em] shadow-2xl hover:bg-zinc-200 transition-all active:scale-[0.98] group"
         >
           <span className="relative z-10 flex items-center justify-center gap-4">
             {isLocating ? (
               <>
                 <Loader2 className="h-5 w-5 animate-spin text-zinc-400" />
-                CALIBRANDO...
+                Sincronizando...
               </>
             ) : (
               <>
                 CONFIRMAR ANCLAJE
-                <ArrowRight size={20} className="group-hover:translate-x-2 transition-transform duration-500" />
+                <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
               </>
             )}
           </span>
@@ -218,11 +239,12 @@ export function StepAnchoring() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V2.6):
- * 1. Muerte del LiveLocationMap: Al integrar 'SpatialEngine', el componente se 
- *    beneficia del caché de Mapbox y de la lógica centralizada. El Administrador 
- *    disfruta de un mapa satelital de alto rendimiento.
- * 2. Empowering the Admin: Se ha añadido el 'onManualAnchor' y una instrucción 
- *    visual clara. Si el GPS marca 60m de error, el Admin pincha la pantalla 
- *    y asume el control absoluto de la topología.
+ * NOTA TÉCNICA DEL ARCHITECT (V2.8):
+ * 1. Solución al Bug de Telemetría: Al usar el hook 'useGeoEngine' centralizado, 
+ *    el componente ya no depende de estados locales lentos. El badge de metros 
+ *    se actualiza en paridad con el hardware.
+ * 2. Purga de Ruido: Se ha eliminado el bloque de texto inferior para limpiar la 
+ *    línea de visión del Administrador, concentrando el éxito de la misión en el mapa.
+ * 3. Haptic UI: El uso de vibraciones nativas (Línea 143) refuerza la sensación de 
+ *    interacción con un dispositivo físico real durante la selección de categorías.
  */
