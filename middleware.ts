@@ -1,59 +1,58 @@
 // middleware.ts
-// VERSIÓN: 17.1 (NicePod Traffic Control - Sovereign Routing & Exorcism Edition)
-// Misión: Orquestar la identidad atómica, purgar cachés corruptos y gobernar el acceso.
-// [ESTABILIZACIÓN]: Erradicación del Bucle Admin, Inyección Clear-Site-Data y Refresco de Sesión.
+// VERSIÓN: 17.2 (NicePod Traffic Control - Supreme Integrity Edition)
+// Misión: Orquestar la identidad atómica y gobernar el acceso con validación activa.
+// [ESTABILIZACIÓN]: Migración a getUser() para eliminar advertencias de seguridad y bucles.
 
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 /**
  * EXPORTACIÓN PRINCIPAL: middleware
- * El punto de control único para todo el tráfico entrante al Edge de Vercel.
+ * Actúa como la aduana de seguridad en el Edge de Vercel antes de procesar cualquier ruta.
  */
 export async function middleware(request: NextRequest) {
   const url = request.nextUrl.clone();
   const pathname = url.pathname;
 
-  // 1. [VACUNA DE ENRUTAMIENTO]: REDIRECCIÓN PERMANENTE (308)
-  if (pathname === '/geo' || pathname.startsWith('/geo/')) {
-    url.pathname = '/map';
-    return NextResponse.redirect(url, 308);
-  }
-
-  // 2. [PROTOCOLO DE EXORCISMO]: PURGA DEL SERVICE WORKER ZOMBI
-  // Si el navegador intenta buscar los archivos del PWA que desactivamos,
-  // aprovechamos la petición para enviarle una "Bomba Lógica" que limpie su caché interno.
-  // Esto destruye el bucle de redirección causado por estados fantasma en el móvil del Admin.
+  // 1. [PROTOCOLO DE EXORCISMO]: LIMPIEZA DE RASTRO PWA
+  // Interceptamos activamente las peticiones al Service Worker residual
+  // e inyectamos la orden de purga de caché en el navegador del usuario.
   if (
     pathname.includes('sw.js') ||
     pathname.includes('workbox-') ||
     pathname.includes('fallback-')
   ) {
     const purgeResponse = NextResponse.next();
-    // Cabecera de Grado Militar: Obliga al navegador a borrar cachés y Service Workers.
-    purgeResponse.headers.set('Clear-Site-Data', '"cache", "executionContexts"');
+    // Borra físicamente el caché y los contextos de ejecución obsoletos del móvil
+    purgeResponse.headers.set('Clear-Site-Data', '"cache", "storage", "executionContexts"');
     return applySecurityHeaders(purgeResponse);
   }
 
-  // 3. INICIALIZACIÓN DE LA RESPUESTA BASE
+  // 2. [VACUNA DE ENRUTAMIENTO]: REDIRECCIÓN PERMANENTE (308)
+  // Saneamos el historial de navegación moviendo el tráfico de /geo a /map.
+  if (pathname === '/geo' || pathname.startsWith('/geo/')) {
+    url.pathname = '/map';
+    return NextResponse.redirect(url, 308);
+  }
+
+  // 3. INICIALIZACIÓN DE RESPUESTA
   let response = NextResponse.next({
     request: { headers: request.headers },
   });
 
-  // 4. PASILLO DE BYPASS (Velocidad Máxima para Activos Estáticos)
+  // 4. PASILLO DE BYPASS (Velocidad para Activos Estáticos)
+  // No ejecutamos lógica de base de datos para imágenes, iconos o manifiestos.
   if (
     pathname.startsWith('/auth') ||
     pathname.includes('manifest.json') ||
     pathname.includes('favicon.ico') ||
     pathname.includes('apple-touch-icon') ||
-    pathname.includes('.png') ||
-    pathname.includes('.jpg') ||
-    pathname.includes('.svg')
+    pathname.match(/\.(png|jpg|jpeg|svg|webp|woff2)$/)
   ) {
     return applySecurityHeaders(response);
   }
 
-  // 5. INSTANCIACIÓN DEL CLIENTE SOBERANO (SSR CLIENT)
+  // 5. INSTANCIACIÓN DEL CLIENTE SOBERANO (SSR)
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -64,7 +63,7 @@ export async function middleware(request: NextRequest) {
         },
         setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
           cookiesToSet.forEach(({ name, value, options }) => {
-            // Sincronía bidireccional de cookies para evitar deshidratación
+            // Sincronía atómica de cookies entre petición y respuesta
             request.cookies.set(name, value);
             response.cookies.set(name, value, options);
           });
@@ -74,26 +73,23 @@ export async function middleware(request: NextRequest) {
   );
 
   /**
-   * 6. VERIFICACIÓN DE IDENTIDAD (T0 - FORCED REFRESH)
-   * [FIX CRÍTICO]: En lugar de solo getUser(), primero verificamos la sesión.
-   * Esto obliga al cliente de Supabase a evaluar si el JWT necesita ser refrescado.
-   * Si usted se hizo Admin recientemente, este paso asegura que el nuevo token 
-   * (con el claim 'admin') se descargue y se guarde en sus cookies antes de evaluar.
+   * 6. VALIDACIÓN ACTIVA DE IDENTIDAD (T0 - ACTIVE CHECK)
+   * [CAMBIO ESTRATÉGICO]: Sustituimos getSession() por getUser().
+   * Esto elimina la advertencia de Vercel y garantiza que el token sea verificado
+   * directamente con el servidor de Supabase Auth en cada navegación. 
+   * Esto aniquila los bucles de redirección donde el cliente cree que es 
+   * Admin pero el servidor no lo ha confirmado.
    */
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-  // Extraemos el usuario de forma segura. Si hay sesión, el usuario existe.
-  const user = session?.user || null;
-
-  // --- DEFINICIÓN DE PERÍMETROS DE OPERACIÓN ---
+  // --- DEFINICIÓN DE PERÍMETROS OPERATIVOS ---
   const isAuthPage = pathname === '/login' || pathname === '/signup';
   const isLandingPage = pathname === '/';
 
-  // [ZONA SOBERANA]: Exclusiva para el Administrador (Moderación, Configuración Global)
-  // Nota: /map NO está aquí. El mapa es territorio libre.
+  // [ZONA SOBERANA]: Exclusiva para el Administrador
   const isSovereignRoute = pathname.startsWith('/admin') || pathname.startsWith('/theme-test');
 
-  // [ZONA PROTEGIDA]: Requiere sesión activa (Cualquier rango: Voyager, Pro, Admin)
+  // [ZONA PROTEGIDA]: Requiere sesión activa
   const isProtectedRoute =
     pathname.startsWith('/dashboard') ||
     pathname.startsWith('/podcasts') ||
@@ -101,50 +97,46 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/notifications') ||
     pathname.startsWith('/collection') ||
     pathname.startsWith('/create') ||
-    pathname.startsWith('/map') || // <--- [LIBERADO]: Todo usuario logueado entra.
+    pathname.startsWith('/map') ||
     isSovereignRoute;
 
   /**
    * ---------------------------------------------------------------------------
-   * II. LÓGICA DE GOBERNANZA (REDIRECCIONES)
+   * II. LÓGICA DE REDIRECCIÓN Y GOBERNANZA
    * ---------------------------------------------------------------------------
    */
 
-  // A. PROTOCOLO DE EXPULSIÓN: Invitado intentando acceder a zona protegida.
+  // A. PROTECCIÓN CONTRA INVITADOS: Expulsión a Login
   if (!user && isProtectedRoute) {
-    console.warn(`🛡️ [Middleware] Acceso denegado a ${pathname}. Redirigiendo a Login.`);
     url.pathname = '/login';
     url.searchParams.set('redirect', pathname);
     return NextResponse.redirect(url);
   }
 
-  // B. PROTOCOLO DE SOBERANÍA: Usuario autenticado pero sin rango en zona restringida.
+  // B. PROTECCIÓN CONTRA INTRUSOS: Expulsión de Zonas Admin
   if (user && isSovereignRoute) {
     const appMetadata = user.app_metadata || {};
-    // La fuente de verdad absoluta para el enrutamiento es el JWT.
     const userRole = appMetadata.user_role || appMetadata.role || 'user';
 
     if (userRole !== 'admin') {
-      console.warn(`🛡️ [Middleware] Usuario ${user.id} intentó acceder a zona Admin. Redirigiendo a Dashboard.`);
       url.pathname = '/dashboard';
-      // 307 Temporary Redirect: Mantiene el método HTTP original
       return NextResponse.redirect(url, 307);
     }
   }
 
-  // C. OPTIMIZACIÓN DE FLUJO: Usuario logueado intentando acceder a Login/Landing.
+  // C. OPTIMIZACIÓN DE FLUJO: Redirección post-autenticación
   if (user && (isAuthPage || isLandingPage)) {
     url.pathname = '/dashboard';
     return NextResponse.redirect(url, 307);
   }
 
-  // 7. CIERRE ESTRUCTURAL: INYECCIÓN DE HIGIENE PERIMETRAL
+  // 7. CIERRE ESTRUCTURAL: INYECCIÓN DE CABECERAS DE SEGURIDAD
   return applySecurityHeaders(response);
 }
 
 /**
  * HELPER: applySecurityHeaders
- * Misión: Inyectar las directivas de seguridad innegociables de NicePod.
+ * Misión: Blindar la respuesta HTTP con las directivas de seguridad NicePod.
  */
 function applySecurityHeaders(res: NextResponse): NextResponse {
   res.headers.set('X-Frame-Options', 'DENY');
@@ -155,28 +147,24 @@ function applySecurityHeaders(res: NextResponse): NextResponse {
 }
 
 /**
- * CONFIGURACIÓN DEL MATCHER (Edge Execution Router)
- * Define el alcance de interceptación del Middleware.
+ * CONFIGURACIÓN DEL MATCHER
  */
 export const config = {
   matcher: [
-    // Interceptamos todo excepto la API de Next.js y carpetas estáticas.
-    // [IMPORTANTE]: Hemos dejado sw.js y manifest.json dentro del alcance del matcher
-    // para que nuestro "Protocolo de Exorcismo" pueda interceptarlos.
+    // Interceptamos todo excepto la API nativa de Next.js
     '/((?!api|_next/static|_next/image).*)'
   ],
 };
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V17.1):
- * 1. Muerte del Bucle Admin: Al usar 'getSession()' en lugar de 'getUser()', 
- *    forzamos la validación del Token de Refresco. Si su cookie local estaba 
- *    desincronizada, este método la repara al vuelo antes de decidir si lo expulsa.
- * 2. La Bomba Lógica PWA: El cambio en el 'matcher' (Línea 145) permite que las 
- *    peticiones a 'sw.js' pasen por el Middleware. Cuando lo hacen (Línea 26), 
- *    inyectamos 'Clear-Site-Data'. Esto limpia remotamente el caché del navegador 
- *    de sus usuarios, solucionando problemas de red sin requerir acción manual.
- * 3. Aislamiento de Malla Urbana: La ruta '/map' ahora es evaluada exclusivamente 
- *    por el bloque A (isProtectedRoute), garantizando que cualquier cuenta con 
- *    una sesión válida pueda renderizar la interfaz cartográfica.
+ * NOTA TÉCNICA DEL ARCHITECT (V17.2):
+ * 1. Cumplimiento de Seguridad: El uso de 'supabase.auth.getUser()' es el estándar 
+ *    de oro. Aunque consume unos milisegundos más de red, elimina el riesgo de 
+ *    falsificación de identidad por cookies cacheadas en el móvil.
+ * 2. Purga Remota: La cabecera 'Clear-Site-Data' en el bloque de sw.js es una 
+ *    herramienta de gestión de flota. Limpiará los navegadores de sus usuarios 
+ *    sin que ellos tengan que hacer nada manual, resolviendo errores de red de raíz.
+ * 3. Robusto ante Redirecciones: Al clonar la URL con 'request.nextUrl.clone()', 
+ *    aseguramos que las redirecciones mantengan los parámetros de búsqueda 
+ *    (searchParams) necesarios para el flujo de 'redirect back'.
  */
