@@ -1,7 +1,7 @@
 // actions/geo-actions.ts
-// VERSIÓN: 5.1 (NicePod Sovereign Geo-Actions - Full Integrity Edition)
-// Misión: Orquestar el ciclo de vida multimodal de los POIs con rigor industrial.
-// [ESTABILIZACIÓN]: Restauración de resolveLocation, soporte para nombres manuales y tipado estricto.
+// VERSIÓN: 6.0 (NicePod Sovereign Geo-Actions - Multi-Evidence Pro)
+// Misión: Orquestar el ciclo de vida multimodal con soporte para colecciones de evidencia.
+// [ESTABILIZACIÓN]: Implementación de subida múltiple OCR, anclaje acústico y tipado estricto.
 
 "use server";
 
@@ -34,7 +34,7 @@ async function validateSovereignAccess() {
   const userRole = appMetadata.user_role || appMetadata.role || 'user';
 
   if (userRole !== 'admin') {
-    throw new Error("ACCESO_SOBERANO_REQUERIDO: Se requiere rango Administrador.");
+    throw new Error("ACCESO_SENSORIAL_DENEGADO: Solo el Administrador puede sembrar memoria.");
   }
 
   return user;
@@ -49,18 +49,19 @@ async function validateSovereignAccess() {
 function decodeBase64ToUint8Array(dataString: string) {
   const matches = dataString.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
   if (!matches || matches.length !== 3) {
-    throw new Error("CAPTURA_CORRUPTA: El activo binario no es válido.");
+    throw new Error("CAPTURA_CORRUPTA: Formato binario no reconocido.");
   }
 
   const contentType = matches[1];
-  const byteCharacters = atob(matches[2]);
-  const byteNumbers = new Array(byteCharacters.length);
+  const binaryStr = atob(matches[2]);
+  const len = binaryStr.length;
+  const bytes = new Uint8Array(len);
 
-  for (let i = 0; i < byteCharacters.length; i++) {
-    byteNumbers[i] = byteCharacters.charCodeAt(i);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryStr.charCodeAt(i);
   }
 
-  return { type: contentType, buffer: new Uint8Array(byteNumbers) };
+  return { type: contentType, buffer: bytes };
 }
 
 /**
@@ -69,10 +70,6 @@ function decodeBase64ToUint8Array(dataString: string) {
  * ---------------------------------------------------------------------------
  */
 
-/**
- * resolveLocationAction:
- * Convierte coordenadas en identidad (Lugar + Clima) para el HUD del Step 1.
- */
 export async function resolveLocationAction(
   latitude: number,
   longitude: number
@@ -91,7 +88,7 @@ export async function resolveLocationAction(
 
     return {
       success: true,
-      message: "Radar sincronizado.",
+      message: "Radar sincronizado con éxito.",
       data: data.data
     };
   } catch (error: any) {
@@ -102,23 +99,25 @@ export async function resolveLocationAction(
 
 /**
  * ---------------------------------------------------------------------------
- * IV. FASE 1: INGESTA SENSORIAL (THE SENSES)
+ * IV. FASE 1: INGESTA SENSORIAL (THE SENSES - MULTI-OCR)
  * ---------------------------------------------------------------------------
  */
 
 export async function ingestPhysicalEvidenceAction(
-  payload: POICreationPayload
+  payload: POICreationPayload & { ocrImages: string[] } // [V6.0]: Array de imágenes Base64
 ): Promise<GeoActionResponse<{ poiId: number; analysis: any; location: any }>> {
   try {
     const user = await validateSovereignAccess();
+
+    // [RIGOR]: Validación de esquema antes de iniciar transporte pesado.
     const validatedData = POIIngestionSchema.parse(payload);
 
     const supabase = createClient();
     const timestamp = Date.now();
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    // 1. Transporte de Imagen Hero
-    const heroImg = decodeBase64ToUint8Array(validatedData.heroImage);
+    // 1. Transporte Atómico de Imagen Hero
+    const heroImg = decodeBase64ToUint8Array(payload.heroImage);
     const heroPath = `poi-evidence/${user.id}/${timestamp}_hero.jpg`;
 
     const { error: heroError } = await supabase.storage
@@ -126,23 +125,35 @@ export async function ingestPhysicalEvidenceAction(
       .upload(heroPath, heroImg.buffer, { contentType: heroImg.type, upsert: true });
 
     if (heroError) throw heroError;
-
-    // 2. Transporte de Imagen OCR
-    let ocrUrl = undefined;
-    if (validatedData.ocrImage) {
-      const ocrImg = decodeBase64ToUint8Array(validatedData.ocrImage);
-      const ocrPath = `poi-evidence/${user.id}/${timestamp}_ocr.jpg`;
-      const { error: ocrError } = await supabase.storage
-        .from('podcasts')
-        .upload(ocrPath, ocrImg.buffer, { contentType: ocrImg.type, upsert: true });
-      if (!ocrError) ocrUrl = supabase.storage.from('podcasts').getPublicUrl(ocrPath).data.publicUrl;
-    }
-
     const heroUrl = supabase.storage.from('podcasts').getPublicUrl(heroPath).data.publicUrl;
 
-    // 3. Invocación de la IA Sensorial
+    // 2. Transporte Paralelo de Colección OCR (Mosaico de Evidencia)
+    const ocrUrls: string[] = [];
+    if (payload.ocrImages && payload.ocrImages.length > 0) {
+      const uploadTasks = payload.ocrImages.map((base64, index) => {
+        const img = decodeBase64ToUint8Array(base64);
+        const path = `poi-evidence/${user.id}/${timestamp}_ocr_${index}.jpg`;
+        return supabase.storage.from('podcasts').upload(path, img.buffer, { contentType: img.type, upsert: true });
+      });
+
+      const uploadResults = await Promise.all(uploadTasks);
+
+      // Recuperamos las URLs públicas de las subidas exitosas
+      uploadResults.forEach((res, index) => {
+        if (!res.error) {
+          const url = supabase.storage.from('podcasts').getPublicUrl(`poi-evidence/${user.id}/${timestamp}_ocr_${index}.jpg`).data.publicUrl;
+          ocrUrls.push(url);
+        }
+      });
+    }
+
+    // 3. Invocación del Ingestor Multimodal (Entrega de Mosaico)
     const { data, error: functionError } = await supabase.functions.invoke('geo-sensor-ingestor', {
-      body: { ...validatedData, heroImage: heroUrl, ocrImage: ocrUrl },
+      body: {
+        ...validatedData,
+        heroImage: heroUrl,
+        ocrImages: ocrUrls // Enviamos el array completo de URLs
+      },
       headers: { Authorization: `Bearer ${serviceKey}` }
     });
 
@@ -150,12 +161,13 @@ export async function ingestPhysicalEvidenceAction(
 
     return {
       success: true,
-      message: "Evidencia física procesada.",
+      message: "Expediente visual procesado.",
       data: data.data
     };
+
   } catch (error: any) {
     console.error("🔥 [Geo-Action][Ingest]:", error.message);
-    return { success: false, message: "Fallo en la ingesta.", error: error.message };
+    return { success: false, message: "Fallo en la ingesta multimodal.", error: error.message };
   }
 }
 
@@ -177,6 +189,7 @@ export async function attachAmbientAudioAction(params: {
     const audioData = decodeBase64ToUint8Array(params.audioBase64);
     const audioPath = `poi-evidence/${user.id}/${timestamp}_ambient.webm`;
 
+    // 1. Subida Segura al Storage
     const { error: uploadError } = await supabase.storage
       .from('podcasts')
       .upload(audioPath, audioData.buffer, { contentType: audioData.type, upsert: true });
@@ -185,6 +198,7 @@ export async function attachAmbientAudioAction(params: {
 
     const audioUrl = supabase.storage.from('podcasts').getPublicUrl(audioPath).data.publicUrl;
 
+    // 2. Anclaje en la Bóveda Principal
     const { error: dbError } = await supabase
       .from('points_of_interest')
       .update({ ambient_audio_url: audioUrl })
@@ -192,16 +206,21 @@ export async function attachAmbientAudioAction(params: {
 
     if (dbError) throw dbError;
 
-    return { success: true, message: "Audio ambiente anclado.", data: { audioUrl } };
+    return {
+      success: true,
+      message: "Frecuencia ambiental anclada.",
+      data: { audioUrl }
+    };
+
   } catch (error: any) {
     console.error("🔥 [Geo-Action][Audio]:", error.message);
-    return { success: false, message: "Error en el activo acústico.", error: error.message };
+    return { success: false, message: "Error al asegurar el activo acústico.", error: error.message };
   }
 }
 
 /**
  * ---------------------------------------------------------------------------
- * VI. FASE 3: SÍNTESIS NARRATIVA (THE BRAIN)
+ * VI. FASE 3: SÍNTESIS NARRATIVA (THE ORACLE)
  * ---------------------------------------------------------------------------
  */
 
@@ -223,10 +242,14 @@ export async function synthesizeNarrativeAction(params: {
 
     if (error) throw error;
 
-    return { success: true, message: "Sabiduría sintetizada.", data: data.data };
+    return {
+      success: true,
+      message: "Crónica de sabiduría sintetizada.",
+      data: data.data
+    };
   } catch (error: any) {
     console.error("🔥 [Geo-Action][Narrative]:", error.message);
-    return { success: false, message: "Fallo en la forja narrativa.", error: error.message };
+    return { success: false, message: "Fallo en la forja intelectual.", error: error.message };
   }
 }
 
@@ -253,20 +276,25 @@ export async function publishPOIAction(poiId: number): Promise<GeoActionResponse
     if (error) throw error;
 
     revalidatePath('/map');
-    return { success: true, message: "Nodo ONLINE en la malla urbana." };
+
+    return {
+      success: true,
+      message: "Nodo urbano activo en la frecuencia global."
+    };
   } catch (error: any) {
     console.error("🔥 [Geo-Action][Publish]:", error.message);
-    return { success: false, message: "Fallo en el anclaje final.", error: error.message };
+    return { success: false, message: "Error al materializar el nodo.", error: error.message };
   }
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V5.1):
- * 1. Recuperación de Radar: Se restauró 'resolveLocationAction' para que el 
- *    Step 1 pueda identificar el monumento antes de que el Admin pulse un botón.
- * 2. Cero Abreviaciones: Se han documentado todos los catch blocks con logs 
- *    específicos para auditoría forense en Vercel.
- * 3. Atomicidad Multimodal: Las funciones de subida de audio y fotos están 
- *    ahora preparadas para manejar fallos de red individuales sin corromper 
- *    el registro principal del POI.
+ * NOTA TÉCNICA DEL ARCHITECT (V6.0):
+ * 1. Mosaico de Evidencia: La Action ahora soporta el envío de múltiples URLs 
+ *    de placas al Ingestor Multimodal, permitiendo una extracción de datos 
+ *    mucho más rica desde diferentes ángulos físicos.
+ * 2. Rendimiento SSR: El uso de 'uploadTasks' con Promise.all() garantiza que 
+ *    el Admin no perciba una suma de latencias; la subida de 3 fotos tarda 
+ *    prácticamente lo mismo que la subida de una sola.
+ * 3. Seguridad de Metal: El chequeo de 'userRole' contra 'app_metadata' es 
+ *    imperativo para proteger el bucket de Storage contra usuarios malintencionados.
  */

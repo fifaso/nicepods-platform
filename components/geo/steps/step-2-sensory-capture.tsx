@@ -1,20 +1,24 @@
 // components/geo/steps/step-2-sensory-capture.tsx
-// VERSIÓN: 2.6 (NicePod Sovereign Sensory Capture - OOM Prevention Edition)
-// Misión: Capturar evidencia física (Visión y Sonido) manteniendo la RAM intacta.
-// [ESTABILIZACIÓN]: Erradicación de Base64. Uso de File Objects y Blob URLs locales.
+// VERSIÓN: 3.0 (NicePod Sovereign Sensory Capture - Multi-Evidence Pro)
+// Misión: Captura monumental, mosaico OCR y paisaje sonoro con validación acústica.
+// [ESTABILIZACIÓN]: Soporte para 3 imágenes OCR, pre-escucha de audio y JIT Blob URLs.
 
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   ArrowRight,
   Camera,
-  CheckCircle2,
   ChevronLeft,
   FileText,
   Loader2,
   Mic,
-  Volume2
+  Pause,
+  Play,
+  Plus,
+  Trash2,
+  Volume2,
+  X
 } from "lucide-react";
 import Image from "next/image";
 import React, { useEffect, useRef, useState } from "react";
@@ -31,254 +35,329 @@ export function StepSensoryCapture() {
   const { state, dispatch, prevStep } = useForge();
   const geoEngine = useGeoEngine();
 
-  // --- PUNTEROS DE MEMORIA LIGERA (BLOB URLs) ---
-  const [heroPreviewUrl, setHeroPreviewUrl] = useState<string | null>(null);
-  const [ocrPreviewUrl, setOcrPreviewUrl] = useState<string | null>(null);
-  const [isRecording, setIsRecording] = useState(false);
-  const [isIngesting, setIsIngesting] = useState(false); // Bloqueo de UI durante subida
+  // --- ESTADOS DE PREVISUALIZACIÓN (MEMORIA EFÍMERA) ---
+  const [heroUrl, setHeroUrl] = useState<string | null>(null);
+  const [ocrUrls, setOcrUrls] = useState<string[]>([]);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
 
-  // Referencias Tácticas
+  // Estados de Máquina de Grabación
+  const [isRecording, setIsRecording] = useState(false);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [isIngesting, setIsIngesting] = useState(false);
+
+  // Referencias de Hardware
   const heroInputRef = useRef<HTMLInputElement>(null);
   const ocrInputRef = useRef<HTMLInputElement>(null);
+  const audioPlayerRef = useRef<HTMLAudioElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
   /**
    * PROTOCOLO DE HIGIENE DE RAM (Garbage Collection)
-   * Libera la memoria de las Blob URLs cuando el componente se desmonta
-   * o cuando el Admin descarta una foto para tomar otra.
+   * Gestionamos el ciclo de vida de las URLs locales para evitar OOM.
    */
   useEffect(() => {
-    // Si ya existe un File en el contexto (ej. volver atrás desde otro paso), generamos la preview
-    if (state.heroImageFile && !heroPreviewUrl) {
-      setHeroPreviewUrl(URL.createObjectURL(state.heroImageFile));
+    // 1. Sincronía Hero
+    if (state.heroImageFile && !heroUrl) {
+      const url = URL.createObjectURL(state.heroImageFile);
+      setHeroUrl(url);
     }
-    if (state.ocrImageFile && !ocrPreviewUrl) {
-      setOcrPreviewUrl(URL.createObjectURL(state.ocrImageFile));
+    // 2. Sincronía OCR Mosaic
+    if (state.ocrImageFiles.length > 0 && ocrUrls.length === 0) {
+      const urls = state.ocrImageFiles.map(file => URL.createObjectURL(file));
+      setOcrUrls(urls);
+    }
+    // 3. Sincronía Audio
+    if (state.ambientAudioBlob && !audioUrl) {
+      const url = URL.createObjectURL(state.ambientAudioBlob);
+      setAudioUrl(url);
     }
 
     return () => {
-      // Limpieza exhaustiva al destruir el componente
-      if (heroPreviewUrl) URL.revokeObjectURL(heroPreviewUrl);
-      if (ocrPreviewUrl) URL.revokeObjectURL(ocrPreviewUrl);
+      if (heroUrl) URL.revokeObjectURL(heroUrl);
+      ocrUrls.forEach(url => URL.revokeObjectURL(url));
+      if (audioUrl) URL.revokeObjectURL(audioUrl);
     };
-  }, [state.heroImageFile, state.ocrImageFile]);
+  }, [state.heroImageFile, state.ocrImageFiles, state.ambientAudioBlob]);
 
   /**
-   * handleFileCapture:
-   * Captura el binario puro de la cámara y genera un puntero local efímero.
-   * Cero estrés térmico para el dispositivo móvil.
+   * handleHeroCapture: 
+   * Captura la imagen principal del monumento.
    */
-  const handleFileCapture = (e: React.ChangeEvent<HTMLInputElement>, type: 'HERO' | 'OCR') => {
+  const handleHeroCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    const localUrl = URL.createObjectURL(file);
-
-    if (type === 'HERO') {
-      if (heroPreviewUrl) URL.revokeObjectURL(heroPreviewUrl); // Purgamos la anterior
-      setHeroPreviewUrl(localUrl);
-      dispatch({ type: 'SET_HERO_IMAGE', payload: file });
-    } else {
-      if (ocrPreviewUrl) URL.revokeObjectURL(ocrPreviewUrl); // Purgamos la anterior
-      setOcrPreviewUrl(localUrl);
-      dispatch({ type: 'SET_OCR_IMAGE', payload: file });
-    }
+    if (heroUrl) URL.revokeObjectURL(heroUrl);
+    const url = URL.createObjectURL(file);
+    setHeroUrl(url);
+    dispatch({ type: 'SET_HERO_IMAGE', payload: file });
   };
 
   /**
-   * toggleRecording:
-   * Protocolo de captura de Soundscape ambiental.
+   * handleOcrCapture:
+   * Añade una nueva evidencia de texto al mosaico (Límite 3).
    */
-  const toggleRecording = async () => {
-    if (isRecording) {
-      mediaRecorderRef.current?.stop();
-      setIsRecording(false);
-      return;
-    }
+  const handleOcrCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || state.ocrImageFiles.length >= 3) return;
 
+    const url = URL.createObjectURL(file);
+    setOcrUrls(prev => [...prev, url]);
+    dispatch({ type: 'ADD_OCR_IMAGE', payload: file });
+
+    // Limpiamos el input para permitir capturar la misma foto si se desea
+    if (ocrInputRef.current) ocrInputRef.current.value = "";
+  };
+
+  /**
+   * removeOcrImage:
+   * Purgar una foto del mosaico de evidencia.
+   */
+  const removeOcrImage = (index: number) => {
+    URL.revokeObjectURL(ocrUrls[index]);
+    setOcrUrls(prev => prev.filter((_, i) => i !== index));
+    dispatch({ type: 'REMOVE_OCR_IMAGE', payload: index });
+  };
+
+  /**
+   * PROTOCOLO ACÚSTICO: Grabación de Paisaje Sonoro
+   */
+  const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream);
-      const chunks: Blob[] = [];
+      audioChunksRef.current = [];
 
-      recorder.ondataavailable = (e) => chunks.push(e.data);
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
       recorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'audio/webm' });
+        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const url = URL.createObjectURL(blob);
+        setAudioUrl(url);
         dispatch({ type: 'SET_AMBIENT_AUDIO', payload: blob });
-        stream.getTracks().forEach(track => track.stop());
+        stream.getTracks().forEach(t => t.stop());
       };
 
       recorder.start();
       mediaRecorderRef.current = recorder;
       setIsRecording(true);
+      if (navigator.vibrate) navigator.vibrate(50);
     } catch (err) {
-      console.error("🔥 [Step-Sensory] Error de hardware (Micrófono):", err);
+      console.error("🔥 [Acoustic-Fail]:", err);
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (navigator.vibrate) navigator.vibrate([20, 50]);
     }
   };
 
   /**
-   * handleInitiateIngestion:
-   * Ejecuta el salto cuántico entre Hardware y Servidor.
-   * Detona la acción que sube los binarios y llama a Gemini Flash para el OCR.
+   * handleInitiateIngestion: 
+   * Despacho atómico hacia el Ingestor Multimodal (Edge).
    */
   const handleInitiateIngestion = async () => {
     if (!state.heroImageFile) return;
-
     setIsIngesting(true);
 
     try {
       await geoEngine.ingestSensoryData({
         heroImage: state.heroImageFile,
-        ocrImage: state.ocrImageFile,
-        intent: state.intentText, // Pasamos la intención aunque esté vacía por ahora
+        ocrImages: state.ocrImageFiles,
+        ambientAudio: state.ambientAudioBlob,
+        intent: state.intentText,
         categoryId: state.categoryId,
         radius: state.resonanceRadius
       });
-
-      // Nota: No llamamos a nextStep() aquí manualmente.
-      // El motor cambiará su estado a 'DOSSIER_READY' tras el éxito, 
-      // y el scanner-ui.tsx lo detectará y renderizará el Step 3 automáticamente.
-
-    } catch (error) {
-      console.error("🔥 [Step-Sensory] Fallo al iniciar Ingesta:", error);
+      // El motor cambiará a DOSSIER_REVIEW automáticamente al terminar.
+    } catch (err) {
       setIsIngesting(false);
     }
   };
 
   return (
-    <div className="w-full h-full flex flex-col gap-8 animate-in fade-in duration-700 overflow-y-auto custom-scrollbar pb-20">
+    <div className="w-full h-full flex flex-col gap-8 animate-in fade-in duration-700 overflow-y-auto custom-scrollbar pb-24 px-6">
 
-      {/* --- HEADER TÁCTICO --- */}
-      <div className="px-6 flex items-center justify-between">
+      {/* --- CABECERA DE OPERACIONES --- */}
+      <div className="flex items-center justify-between">
         <Button
           variant="ghost"
           onClick={prevStep}
           disabled={isIngesting}
-          className="rounded-full h-10 w-10 p-0 bg-white/5 border border-white/5 text-zinc-500 hover:text-white"
+          className="rounded-full h-12 w-12 p-0 bg-white/5 border border-white/10 text-zinc-400 hover:text-white"
         >
-          <ChevronLeft size={20} />
+          <ChevronLeft size={24} />
         </Button>
         <div className="text-right">
           <p className="text-[10px] font-black uppercase tracking-[0.4em] text-primary">Fase 02</p>
-          <h2 className="text-xl font-black uppercase text-white italic">Sensores</h2>
+          <h2 className="text-2xl font-black uppercase text-white italic">Sensores</h2>
         </div>
       </div>
 
-      {/* --- I. MÓDULO DE VISIÓN (OPTICAL SENSORS) --- */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 px-6">
-
-        {/* Cámara 1: VISTA HERO (Obligatoria) */}
-        <div className="space-y-3">
-          <span className="text-[9px] font-black uppercase tracking-[0.3em] text-zinc-500 px-2 flex items-center gap-2">
-            <Camera size={12} className="text-primary" /> Captura Monumental
-          </span>
-          <div
-            onClick={() => !isIngesting && heroInputRef.current?.click()}
-            className={cn(
-              "relative aspect-video rounded-[2rem] border-2 border-dashed transition-all duration-500 cursor-pointer overflow-hidden",
-              heroPreviewUrl ? "border-primary/40" : "border-white/10 hover:border-white/20 bg-white/[0.02]",
-              isIngesting && "opacity-50 pointer-events-none"
-            )}
-          >
-            {heroPreviewUrl ? (
-              <Image src={heroPreviewUrl} alt="Hero Preview" fill className="object-cover animate-in zoom-in-95 duration-500" unoptimized />
-            ) : (
-              <div className="h-full flex flex-col items-center justify-center gap-2 opacity-20">
-                <Camera size={32} />
-                <span className="text-[8px] font-bold uppercase tracking-widest text-center px-4">Fijar objetivo principal</span>
-              </div>
-            )}
-            <input type="file" accept="image/*" capture="environment" ref={heroInputRef} className="hidden" onChange={(e) => handleFileCapture(e, 'HERO')} />
-          </div>
+      {/* --- I. CAPTURA MONUMENTAL (HERO) --- */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-3 px-2 opacity-50">
+          <Camera size={14} className="text-primary" />
+          <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white">Imagen Principal</h3>
         </div>
 
-        {/* Cámara 2: EVIDENCIA OCR (Opcional pero Recomendada) */}
-        <div className="space-y-3">
-          <span className="text-[9px] font-black uppercase tracking-[0.3em] text-zinc-500 px-2 flex items-center gap-2">
-            <FileText size={12} className="text-blue-500" /> Placa o Inscripción
-          </span>
-          <div
-            onClick={() => !isIngesting && ocrInputRef.current?.click()}
-            className={cn(
-              "relative aspect-video rounded-[2rem] border-2 border-dashed transition-all duration-500 cursor-pointer overflow-hidden",
-              ocrPreviewUrl ? "border-blue-500/40" : "border-white/10 hover:border-white/20 bg-white/[0.02]",
-              isIngesting && "opacity-50 pointer-events-none"
-            )}
-          >
-            {ocrPreviewUrl ? (
-              <Image src={ocrPreviewUrl} alt="OCR Preview" fill className="object-cover animate-in zoom-in-95 duration-500 grayscale" unoptimized />
-            ) : (
-              <div className="h-full flex flex-col items-center justify-center gap-2 opacity-20">
-                <FileText size={32} />
-                <span className="text-[8px] font-bold uppercase tracking-widest text-center px-4">Evidencia histórica para la IA</span>
+        <div
+          onClick={() => !isIngesting && heroInputRef.current?.click()}
+          className={cn(
+            "relative aspect-video rounded-[2.5rem] border-2 border-dashed transition-all duration-500 cursor-pointer overflow-hidden group",
+            heroUrl ? "border-primary/40 shadow-[0_0_40px_rgba(var(--primary),0.1)]" : "border-white/10 bg-white/[0.02] hover:border-white/20"
+          )}
+        >
+          {heroUrl ? (
+            <>
+              <Image src={heroUrl} alt="Monument" fill className="object-cover animate-in zoom-in-95 duration-700" unoptimized />
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <span className="text-[10px] font-black text-white uppercase tracking-widest bg-black/60 px-4 py-2 rounded-full">Cambiar Captura</span>
               </div>
-            )}
-            <input type="file" accept="image/*" capture="environment" ref={ocrInputRef} className="hidden" onChange={(e) => handleFileCapture(e, 'OCR')} />
-          </div>
-        </div>
-      </div>
-
-      {/* --- II. MÓDULO ACÚSTICO (SOUNDSCAPE) --- */}
-      <div className="px-6">
-        <div className="p-8 rounded-[2.5rem] bg-white/[0.02] border border-white/5 shadow-inner flex flex-col items-center gap-6">
-          <div className="text-center space-y-2">
-            <h3 className="text-xs font-black uppercase tracking-[0.4em] text-zinc-400 flex items-center justify-center gap-3">
-              <Volume2 size={14} className="text-primary" /> Paisaje Sonoro
-            </h3>
-            <p className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest">Congela el audio ambiente del lugar (15s)</p>
-          </div>
-
-          <button
-            onMouseDown={toggleRecording}
-            onMouseUp={toggleRecording}
-            onTouchStart={toggleRecording}
-            onTouchEnd={toggleRecording}
-            disabled={isIngesting}
-            className={cn(
-              "h-24 w-24 rounded-full flex items-center justify-center transition-all duration-500 relative",
-              isRecording ? "bg-red-500 scale-110" : "bg-primary/20 hover:bg-primary/30 border border-primary/40 shadow-2xl",
-              isIngesting && "opacity-30 cursor-not-allowed"
-            )}
-          >
-            <AnimatePresence>
-              {isRecording && (
-                <motion.div
-                  initial={{ scale: 1, opacity: 0.5 }}
-                  animate={{ scale: 2, opacity: 0 }}
-                  transition={{ duration: 1, repeat: Infinity }}
-                  className="absolute inset-0 bg-red-500 rounded-full"
-                />
-              )}
-            </AnimatePresence>
-            <Mic className={cn("relative z-10 h-10 w-10", isRecording ? "text-white" : "text-primary")} />
-          </button>
-
-          {state.ambientAudioBlob && !isRecording && (
-            <div className="flex items-center gap-2 text-emerald-500 animate-in fade-in zoom-in-95">
-              <CheckCircle2 size={14} />
-              <span className="text-[9px] font-black uppercase tracking-widest">Frecuencia asegurada</span>
+            </>
+          ) : (
+            <div className="h-full flex flex-col items-center justify-center gap-4 opacity-20">
+              <Camera size={40} />
+              <p className="text-[10px] font-bold uppercase tracking-widest text-center px-12">Capture el monumento principal</p>
             </div>
           )}
+          <input type="file" accept="image/*" ref={heroInputRef} className="hidden" onChange={handleHeroCapture} />
         </div>
       </div>
 
-      {/* --- III. DISPARADOR DE INGESTA (GATEWAY) --- */}
-      <div className="px-6 mt-auto pb-4">
+      {/* --- II. MOSAICO DE EVIDENCIA (OCR ARRAY) --- */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between px-2">
+          <div className="flex items-center gap-3 opacity-50">
+            <FileText size={14} className="text-blue-500" />
+            <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white">Mosaico de Placas</h3>
+          </div>
+          <span className="text-[9px] font-bold text-zinc-600 uppercase tracking-widest">{state.ocrImageFiles.length}/3 fotos</span>
+        </div>
+
+        <div className="grid grid-cols-3 gap-4">
+          {ocrUrls.map((url, index) => (
+            <div key={index} className="relative aspect-square rounded-2xl overflow-hidden border border-white/10 group animate-in zoom-in-90">
+              <Image src={url} alt={`Evidence ${index}`} fill className="object-cover" unoptimized />
+              <button
+                onClick={() => removeOcrImage(index)}
+                className="absolute top-2 right-2 p-1.5 bg-red-500 rounded-full text-white shadow-xl opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          ))}
+
+          {state.ocrImageFiles.length < 3 && (
+            <button
+              onClick={() => ocrInputRef.current?.click()}
+              className="aspect-square rounded-2xl border-2 border-dashed border-white/5 bg-white/[0.01] hover:bg-white/[0.03] hover:border-white/10 flex items-center justify-center transition-all"
+            >
+              <Plus size={24} className="text-zinc-700" />
+            </button>
+          )}
+        </div>
+        <input type="file" accept="image/*" ref={ocrInputRef} className="hidden" onChange={handleOcrCapture} />
+      </div>
+
+      {/* --- III. PAISAJE SONORO (VALIDACIÓN ACÚSTICA) --- */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-3 px-2 opacity-50">
+          <Volume2 size={14} className="text-emerald-500" />
+          <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white">Resonancia Ambiental</h3>
+        </div>
+
+        <div className="p-8 rounded-[3rem] bg-white/[0.02] border border-white/5 shadow-inner flex flex-col items-center gap-8 relative overflow-hidden">
+
+          {/* Monitor de Estado */}
+          <div className="text-center space-y-2 relative z-10">
+            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.4em]">
+              {isRecording ? "Capturando Frecuencia..." : audioUrl ? "Audio Listo para Auditoría" : "Graba 15s de ambiente"}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-6 relative z-10">
+            {/* Botón de Grabación */}
+            {!audioUrl && (
+              <button
+                onMouseDown={startRecording}
+                onMouseUp={stopRecording}
+                onTouchStart={startRecording}
+                onTouchEnd={stopRecording}
+                className={cn(
+                  "h-24 w-24 rounded-full flex items-center justify-center transition-all duration-500 relative",
+                  isRecording ? "bg-red-500 scale-110 shadow-[0_0_40px_rgba(239,68,68,0.4)]" : "bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/20"
+                )}
+              >
+                <Mic size={32} className={cn(isRecording && "animate-pulse")} />
+                {isRecording && (
+                  <motion.div
+                    initial={{ scale: 1, opacity: 0.6 }}
+                    animate={{ scale: 1.8, opacity: 0 }}
+                    transition={{ repeat: Infinity, duration: 1 }}
+                    className="absolute inset-0 bg-red-500 rounded-full"
+                  />
+                )}
+              </button>
+            )}
+
+            {/* Reproductor de Revisión */}
+            {audioUrl && (
+              <div className="flex items-center gap-4 animate-in slide-in-from-bottom-2">
+                <Button
+                  onClick={() => isPlayingAudio ? audioPlayerRef.current?.pause() : audioPlayerRef.current?.play()}
+                  className="h-16 w-16 rounded-full bg-white text-black hover:bg-zinc-200"
+                >
+                  {isPlayingAudio ? <Pause fill="currentColor" /> : <Play fill="currentColor" />}
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setAudioUrl(null);
+                    dispatch({ type: 'SET_AMBIENT_AUDIO', payload: null });
+                  }}
+                  className="h-16 w-16 rounded-full border border-white/5 text-red-500 hover:bg-red-500/10"
+                >
+                  <Trash2 size={20} />
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <audio
+            ref={audioPlayerRef}
+            src={audioUrl || ""}
+            onPlay={() => setIsPlayingAudio(true)}
+            onPause={() => setIsPlayingAudio(false)}
+            onEnded={() => setIsPlayingAudio(false)}
+            className="hidden"
+          />
+        </div>
+      </div>
+
+      {/* --- IV. ACCIÓN DE PROGRESO (THE GATEWAY) --- */}
+      <div className="mt-auto">
         <Button
           onClick={handleInitiateIngestion}
-          disabled={!state.heroImageFile || isIngesting}
-          className="w-full h-16 rounded-[1.5rem] bg-primary text-white font-black uppercase tracking-[0.3em] shadow-2xl hover:brightness-110 transition-all group overflow-hidden relative"
+          disabled={!state.heroImageFile || isIngesting || isRecording}
+          className="w-full h-20 rounded-[2.5rem] bg-primary text-black font-black uppercase tracking-[0.5em] shadow-2xl hover:brightness-110 active:scale-95 group relative overflow-hidden"
         >
           {isIngesting ? (
-            <div className="flex items-center gap-3">
-              <Loader2 className="h-5 w-5 animate-spin text-black/50" />
-              <span className="text-black">Ingestando...</span>
+            <div className="flex items-center gap-4">
+              <Loader2 className="h-6 w-6 animate-spin" />
+              <span>TRANSMITIENDO...</span>
             </div>
           ) : (
-            <span className="relative z-10 flex items-center gap-4 text-black">
-              PROCESAR EVIDENCIA
-              <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" />
-            </span>
+            <div className="flex items-center gap-4 text-xl">
+              PROCESAR DOSSIER
+              <ArrowRight size={24} className="group-hover:translate-x-2 transition-transform duration-500" />
+            </div>
           )}
         </Button>
       </div>
@@ -288,12 +367,11 @@ export function StepSensoryCapture() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V2.6):
- * 1. OOM Prevention Lograda: Al no usar Base64 en el componente, la memoria 
- *    RAM de la Workstation nunca excede el límite crítico de iOS/Android Safari.
- * 2. Upload en Background: Al pulsar 'PROCESAR EVIDENCIA', la Server Action
- *    inicia la subida binaria. El componente muestra el spinner sin bloquear el DOM.
- * 3. Transición Orgánica: El botón final llama a `geoEngine.ingestSensoryData()`. 
- *    Esto cambia el estado general a `INGESTING`, lo cual dispara la pantalla 
- *    de carga en el orquestador padre (`scanner-ui.tsx`), garantizando una UX cinemática.
+ * NOTA TÉCNICA DEL ARCHITECT (V3.0):
+ * 1. Monitor Acústico Real: Se ha implementado el flujo 'Grabación -> Pre-escucha -> Confirmación'. 
+ *    Esto garantiza que el Admin no suba sonidos accidentales o de baja calidad.
+ * 2. Mosaico Multimodal: El componente ahora maneja un array de hasta 3 fotos OCR. 
+ *    Al pulsar 'Procesar', el 'useGeoEngine' las sube en paralelo para alimentar la IA.
+ * 3. Gestión de Hardware Flex: Se eliminó el atributo 'capture' para permitir al Admin 
+ *    usar fotos de la galería, otorgando una soberanía total sobre el activo visual.
  */
