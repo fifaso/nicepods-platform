@@ -1,7 +1,7 @@
 // hooks/use-geo-engine.ts
-// VERSIÓN: 6.2 (NicePod V2.6 - Sovereign Geo-Engine & Dual Brain Pro)
+// VERSIÓN: 6.3 (NicePod V2.6 - Sovereign Geo-Engine Hybrid Edition)
 // Misión: Orquestar telemetría progresiva, anclaje manual y puentes de ingesta/síntesis.
-// [ESTABILIZACIÓN]: Solución al error visual 0.0M, optimización de batería y haptics.
+// [ESTABILIZACIÓN]: Solución al error visual 0.0M y soporte para PC/Móvil con anclaje de autoridad.
 
 "use client";
 
@@ -11,8 +11,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 // --- IMPORTACIÓN DE SOBERANÍA TÉCNICA (NICECORE V2.6) ---
 import {
-  attachAmbientAudioAction // Nuevo V5.0 para cerrar el ciclo multimodal
-  ,
+  attachAmbientAudioAction,
   ingestPhysicalEvidenceAction,
   synthesizeNarrativeAction
 } from "@/actions/geo-actions";
@@ -48,7 +47,7 @@ export interface ActivePOI {
  */
 export type GeoEngineState =
   | 'IDLE'             // Esperando activación.
-  | 'SENSORS_READY'    // GPS activo o Anclaje Manual fijado.
+  | 'SENSORS_READY'    // Sensores activos (GPS o WiFi).
   | 'INGESTING'        // Transfiriendo binarios y ejecutando IA Sensorial.
   | 'DOSSIER_READY'    // Ingesta exitosa, esperando revisión humana.
   | 'SYNTHESIZING'     // Forjando narrativa con el Agente 42.
@@ -73,7 +72,7 @@ export interface GeoEngineReturn {
   activePOI: ActivePOI | null;
   nearbyPOIs: any[];
   isSearching: boolean;
-  isLocked: boolean;
+  isLocked: boolean; // Si true, el GPS deja de actualizar para respetar el anclaje manual.
   error: string | null;
 
   initSensors: () => void;
@@ -82,7 +81,7 @@ export interface GeoEngineReturn {
   ingestSensoryData: (params: {
     heroImage: File;
     ocrImage: File | null;
-    ambientAudio?: Blob | null; // Soporte para sonido real
+    ambientAudio?: Blob | null;
     intent: string;
     categoryId: string;
     radius: number;
@@ -129,18 +128,16 @@ export function useGeoEngine(): GeoEngineReturn {
   const [isLocked, setIsLocked] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // --- REFERENCIAS TÁCTICAS (PROTOCOLO STEADY PULSE) ---
   const watchId = useRef<number | null>(null);
   const lastSyncLocation = useRef<{ lat: number; lng: number } | null>(null);
   const lastRequestTimestamp = useRef<number>(0);
 
-  // Constantes de Rigor Industrial
-  const MOVEMENT_THRESHOLD = 15;  // Metros mínimos para re-sintonizar DB
-  const ACCURACY_CRITICAL_LIMIT = 50; // Umbral de advertencia
-  const NETWORK_COOLDOWN = 5000;  // 5s de guardia entre peticiones de red
+  // Constantes de Misión
+  const MOVEMENT_THRESHOLD = 15;
+  const NETWORK_COOLDOWN = 5000;
 
   /**
-   * calculateDistance: Fórmula de Haversine.
+   * calculateDistance: Fórmula de Haversine para proximidad local.
    */
   const calculateDistance = useCallback((lat1: number, lon1: number, lat2: number, lon2: number): number => {
     const R = 6371e3;
@@ -153,7 +150,7 @@ export function useGeoEngine(): GeoEngineReturn {
   }, []);
 
   /**
-   * fetchNearbyPOIs: Sincroniza la malla urbana desde la vista SQL.
+   * fetchNearbyPOIs: Sincroniza la malla urbana activa.
    */
   const fetchNearbyPOIs = useCallback(async () => {
     const now = Date.now();
@@ -214,8 +211,8 @@ export function useGeoEngine(): GeoEngineReturn {
    */
 
   /**
-   * initSensors: Encendido de hardware GPS (Telemetría Progresiva).
-   * [FIX]: Se elimina el bloqueo de retorno si la señal es mala para dar feedback.
+   * initSensors: Encendido de hardware GPS (Telemetría Ubicua).
+   * [SINTONÍA V6.3]: Reportamos posición inmediata aunque la precisión sea baja (PC Support).
    */
   const initSensors = useCallback(() => {
     if (typeof window === "undefined" || !("geolocation" in navigator)) {
@@ -225,7 +222,31 @@ export function useGeoEngine(): GeoEngineReturn {
 
     if (isLocked) return;
 
+    setStatus('SENSORS_READY');
+
+    // 1. Captura Inmediata (WiFi / IP) para encender el mapa rápido
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const loc: UserLocation = {
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          accuracy: pos.coords.accuracy,
+          heading: null
+        };
+        setUserLocation(loc);
+        evaluateResonance(loc);
+        fetchNearbyPOIs();
+        nicepodLog(`🛰️ [GeoEngine] Posición inicial (WiFi/IP) resuelta: ${pos.coords.accuracy}m`);
+      },
+      (err) => console.warn("GPS Pre-check failed", err),
+      { enableHighAccuracy: false, timeout: 5000 }
+    );
+
+    // 2. Seguimiento de alta precisión (Sustituye a la anterior si mejora)
     const handleSuccess = (position: GeolocationPosition) => {
+      // Si el Admin bloqueó la posición manualmente, ignoramos los saltos del GPS.
+      if (isLocked) return;
+
       const loc: UserLocation = {
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
@@ -233,20 +254,13 @@ export function useGeoEngine(): GeoEngineReturn {
         heading: position.coords.heading
       };
 
-      // [FEEDBACK PROGRESIVO]: Enviamos la posición aunque la precisión sea mala.
-      // Solo restringimos la búsqueda en DB si la señal es demasiado ruidosa.
       setUserLocation(loc);
       evaluateResonance(loc);
-
-      if (loc.accuracy > ACCURACY_CRITICAL_LIMIT) {
-        nicepodLog(`🟡 [GeoEngine] Telemetría débil: ${Math.round(loc.accuracy)}m.`);
-      }
 
       const dist = !lastSyncLocation.current ? Infinity :
         calculateDistance(loc.latitude, loc.longitude, lastSyncLocation.current.lat, lastSyncLocation.current.lng);
 
-      // Sincronizamos la malla urbana solo si nos hemos movido lo suficiente
-      if (dist > MOVEMENT_THRESHOLD && !isLocked) {
+      if (dist > MOVEMENT_THRESHOLD) {
         fetchNearbyPOIs();
         lastSyncLocation.current = { lat: loc.latitude, lng: loc.longitude };
       }
@@ -254,7 +268,7 @@ export function useGeoEngine(): GeoEngineReturn {
 
     const handleError = (err: GeolocationPositionError) => {
       setError(err.message);
-      nicepodLog(`⚠️ [GeoEngine] Fallo de enlace GPS: ${err.message}`);
+      nicepodLog(`⚠️ [GeoEngine] Fallo de enlace: ${err.message}`);
     };
 
     if (watchId.current !== null) navigator.geolocation.clearWatch(watchId.current);
@@ -262,16 +276,15 @@ export function useGeoEngine(): GeoEngineReturn {
       enableHighAccuracy: true, timeout: 15000, maximumAge: 0
     });
 
-    setStatus('SENSORS_READY');
   }, [fetchNearbyPOIs, calculateDistance, isLocked, evaluateResonance]);
 
   /**
-   * setManualAnchor: Override táctico del Administrador.
+   * setManualAnchor: Sobreescritura manual del Administrador.
+   * Cancela el GPS y bloquea la posición a la mira del mapa.
    */
   const setManualAnchor = useCallback((lng: number, lat: number) => {
-    nicepodLog(`📍 [GeoEngine] Anclaje Manual en: [${lng.toFixed(5)}, ${lat.toFixed(5)}]`);
+    nicepodLog(`📍 [GeoEngine] Autoridad Admin: Posición bloqueada manualmente.`);
 
-    // Feedback táctil al Admin
     if (typeof window !== "undefined" && navigator.vibrate) {
       navigator.vibrate([10, 50, 10]);
     }
@@ -284,7 +297,7 @@ export function useGeoEngine(): GeoEngineReturn {
     const manualLocation: UserLocation = {
       latitude: lat,
       longitude: lng,
-      accuracy: 1,
+      accuracy: 1, // Precisión absoluta (Verificada por Admin)
       heading: null
     };
 
@@ -302,10 +315,6 @@ export function useGeoEngine(): GeoEngineReturn {
    * ---------------------------------------------------------------------------
    */
 
-  /**
-   * ingestSensoryData: Fase 1 (SENSES).
-   * Misión: Transporte de binarios -> Ingesta Multimodal.
-   */
   const ingestSensoryData = async (params: {
     heroImage: File;
     ocrImage: File | null;
@@ -315,7 +324,7 @@ export function useGeoEngine(): GeoEngineReturn {
     radius: number;
   }) => {
     if (!userLocation) {
-      setError("POSICIÓN_NO_BLOQUEADA");
+      setError("POSICIÓN_NO_ANCLADA");
       return;
     }
 
@@ -323,7 +332,7 @@ export function useGeoEngine(): GeoEngineReturn {
     setStatus('INGESTING');
 
     try {
-      nicepodLog("📦 [GeoEngine] Codificando evidencia multimodal...");
+      nicepodLog("📦 [GeoEngine] Preparando despacho multimodal...");
       const heroBase64 = await fileToBase64(params.heroImage);
       const ocrBase64 = params.ocrImage ? await fileToBase64(params.ocrImage) : undefined;
 
@@ -338,13 +347,12 @@ export function useGeoEngine(): GeoEngineReturn {
         adminIntent: params.intent
       };
 
-      // 1. Ingesta de Datos (Cámaras + Sensores)
       const result = await ingestPhysicalEvidenceAction(payload);
       if (!result.success || !result.data) throw new Error(result.error || result.message);
 
       const { poiId, analysis, location } = result.data;
 
-      // 2. Anclaje Acústico (Si el Admin capturó audio ambiente)
+      // Cierre de Misión Acústica (Fase 1.5)
       if (params.ambientAudio) {
         nicepodLog("🔊 [GeoEngine] Sincronizando Paisaje Sonoro...");
         const audioBase64 = await fileToBase64(params.ambientAudio);
@@ -356,7 +364,7 @@ export function useGeoEngine(): GeoEngineReturn {
         raw_ocr_text: analysis.ocrText || null,
         weather_snapshot: {
           temp_c: location.currentTemp || 0,
-          condition: "Sincronizado",
+          condition: "Capturado",
           is_day: true
         },
         visual_analysis_dossier: {
@@ -371,7 +379,7 @@ export function useGeoEngine(): GeoEngineReturn {
 
       setData(prev => ({ ...prev, poiId, dossier: newDossier }));
       setStatus('DOSSIER_READY');
-      nicepodLog(`✅ [GeoEngine] Ingesta nominal para POI #${poiId}`);
+      nicepodLog(`✅ [GeoEngine] Ingesta exitosa para POI #${poiId}`);
 
       return { poiId, dossier: newDossier };
 
@@ -383,9 +391,6 @@ export function useGeoEngine(): GeoEngineReturn {
     }
   };
 
-  /**
-   * synthesizeNarrative: Fase 2 (BRAIN).
-   */
   const synthesizeNarrative = async (params: {
     poiId: number;
     depth: 'flash' | 'cronica' | 'inmersion';
@@ -395,7 +400,7 @@ export function useGeoEngine(): GeoEngineReturn {
     setStatus('SYNTHESIZING');
 
     try {
-      nicepodLog(`🧠 [GeoEngine] Invocando Agente 42 para POI #${params.poiId}`);
+      nicepodLog(`🧠 [GeoEngine] Despertando al Agente 42 para POI #${params.poiId}`);
       const result = await synthesizeNarrativeAction(params);
 
       if (!result.success || !result.data) throw new Error(result.error || result.message);
@@ -410,10 +415,10 @@ export function useGeoEngine(): GeoEngineReturn {
       }));
 
       setStatus('NARRATIVE_READY');
-      nicepodLog("✍️ [GeoEngine] Crónica Urbana materializada.");
+      nicepodLog("✍️ [GeoEngine] Crónica Urbana forjada con éxito.");
 
     } catch (e: any) {
-      nicepodLog(`🛑 [GeoEngine] Error de Síntesis: ${e.message}`);
+      nicepodLog(`🛑 [GeoEngine] Fallo en la Síntesis: ${e.message}`);
       setStatus('REJECTED');
       setData(prev => ({ ...prev, rejectionReason: e.message }));
     }
@@ -429,7 +434,7 @@ export function useGeoEngine(): GeoEngineReturn {
     setIsLocked(false);
     lastSyncLocation.current = null;
     setUserLocation(null);
-    nicepodLog("🧹 [GeoEngine] Terminal Sensorial Restablecida.");
+    nicepodLog("🧹 [GeoEngine] Terminal Sensorial Purificada.");
   };
 
   useEffect(() => {
@@ -454,15 +459,3 @@ export function useGeoEngine(): GeoEngineReturn {
     reset
   };
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT (V6.2):
- * 1. Telemetría Progresiva: Al eliminar el filtro de precisión en el guardado 
- *    del estado visual (Línea 168), resolvemos el bug del "0.0M". El Admin verá 
- *    ahora cómo mejora su señal segundo a segundo.
- * 2. Cierre de Misión Acústica: Se integró 'attachAmbientAudioAction'. Si el 
- *    Admin grabó sonido en el paso anterior, el hook lo procesa atómicamente 
- *    tras la ingesta visual, garantizando la inmersión total.
- * 3. Haptics: Se añadió vibración nativa en el 'setManualAnchor' para proveer 
- *    una sensación de "herramienta física" al Administrador durante el anclaje.
- */
