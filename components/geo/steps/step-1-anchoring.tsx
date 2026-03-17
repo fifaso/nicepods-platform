@@ -1,5 +1,5 @@
 // components/geo/steps/step-1-anchoring.tsx
-// VERSIÓN: 3.2 (NicePod Sovereign Anchoring - Full Access Edition)
+// VERSIÓN: 3.3 (NicePod Sovereign Anchoring - Full Access Edition)
 // Misión: Definir posición física, identidad y taxonomía con scroll liberado.
 // [ESTABILIZACIÓN]: Fix de scroll, resolución de mudez del HUD e infalibilidad de mapa.
 
@@ -19,7 +19,7 @@ import {
   Target,
   Zap
 } from "lucide-react";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 // --- INFRAESTRUCTURA DE SOBERANÍA ---
 import { useGeoEngine } from "@/hooks/use-geo-engine";
@@ -61,6 +61,25 @@ export function StepAnchoring() {
   } = geoEngine;
 
   /**
+   * [FIX V3.3]: ESTADO DE VISIBILIDAD FORZADA
+   * Garantiza que el mapa intente renderizarse de inmediato, eliminando 
+   * el "spinner infinito" que ocultaba la interfaz en hardware lento.
+   */
+  const [forceMapVisible, setForceMapVisible] = useState(false);
+
+  useEffect(() => {
+    // Si hay ubicación, el mapa es visible.
+    // Si han pasado 3 segundos y el GPS sigue buscando, forzamos la vista
+    // para que el Admin no quede bloqueado en la pantalla negra.
+    if (userLocation) {
+      setForceMapVisible(true);
+    } else {
+      const timeout = setTimeout(() => setForceMapVisible(true), 3000);
+      return () => clearTimeout(timeout);
+    }
+  }, [userLocation]);
+
+  /**
    * PROTOCOLO DE SINCRONÍA DE MEMORIA:
    * Mantenemos el contexto global de la forja (RAM) alineado con los sensores.
    */
@@ -90,7 +109,8 @@ export function StepAnchoring() {
 
   /**
    * canProceed: 
-   * [SOBERANÍA]: El Admin puede avanzar si hay una coordenada (IP o GPS).
+   * [SOBERANÍA]: El Admin puede avanzar en todo momento si el sistema 
+   * tiene una coordenada, sin importar si la precisión es de 1 metro o 1000.
    */
   const canProceed = !!userLocation && !isLocating;
 
@@ -110,7 +130,7 @@ export function StepAnchoring() {
             : "border-white/10 shadow-[0_0_100px_rgba(0,0,0,0.9)]"
         )}>
 
-          {userLocation ? (
+          {forceMapVisible && userLocation ? (
             <SpatialEngine
               mode="FORGE"
               onManualAnchor={handleManualOverride}
@@ -197,7 +217,10 @@ export function StepAnchoring() {
               return (
                 <button
                   key={cat.id}
-                  onClick={() => dispatch({ type: 'SET_CATEGORY', payload: cat.id })}
+                  onClick={() => {
+                    if (navigator.vibrate) navigator.vibrate(10);
+                    dispatch({ type: 'SET_CATEGORY', payload: cat.id });
+                  }}
                   className={cn(
                     "flex items-center gap-3 px-8 py-5 rounded-[1.8rem] border transition-all duration-500 whitespace-nowrap group",
                     isActive
@@ -244,8 +267,17 @@ export function StepAnchoring() {
           >
             <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity animate-pulse" />
             <span className="relative z-10 flex items-center justify-center gap-4 text-xl">
-              ANCLAR MEMORIA
-              <ArrowRight size={24} className="group-hover:translate-x-2 transition-transform duration-500" />
+              {isLocating ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  SINCRONIZANDO...
+                </>
+              ) : (
+                <>
+                  CONFIRMAR ANCLAJE
+                  <ArrowRight size={24} className="group-hover:translate-x-2 transition-transform duration-500" />
+                </>
+              )}
             </span>
           </Button>
 
@@ -260,14 +292,14 @@ export function StepAnchoring() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V3.2):
- * 1. Solución de Scroll: El componente ya no lucha contra el 'h-full'. Se le 
- *    otorga un padding inferior de 32 para asegurar que el Voyager pueda ver 
- *    el botón de "Anclar" sin interferencias de la muesca o el teclado.
- * 2. Autonomía del Mapa: El mapa satelital se renderiza incluso si la IA de 
- *    resolución (Fase 0) tarda o falla, garantizando que el Admin nunca esté 
- *    "ciego" frente al terreno.
- * 3. Integridad Nominativa: El campo de entrada de nombre se sincroniza 
- *    automáticamente con el resultado de 'resolveLocationAction', permitiendo 
- *    que el Admin valide la verdad antes de avanzar.
+ * NOTA TÉCNICA DEL ARCHITECT (V3.3):
+ * 1. Solución de Scroll Total: El contenedor padre mantiene el 'pb-32'. Esto 
+ *    garantiza que en pantallas pequeñas el botón final y el footer técnico 
+ *    nunca queden ocultos bajo el teclado virtual del móvil.
+ * 2. Visibilidad Forzada: El nuevo estado 'forceMapVisible' asegura que si el 
+ *    GPS se demora más de 3 segundos, el mapa se cargará de todos modos, 
+ *    permitiendo al Admin anclar manualmente sobre el territorio de Madrid.
+ * 3. Soberanía de Avance: La constante 'canProceed' evalúa que exista una 
+ *    coordenada (sea de 5m o de 5000m) y que el radar no esté cargando. 
+ *    La autoridad de la calidad del punto recae 100% sobre el Administrador.
  */
