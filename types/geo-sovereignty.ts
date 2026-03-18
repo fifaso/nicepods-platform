@@ -171,6 +171,7 @@ export interface GeoEngineReturn {
     refinedIntent?: string;
   }) => Promise<void>;
 
+  transcribeVoiceIntent: (audioBase64: string) => Promise<GeoActionResponse<{ transcription: string }>>;
   reset: () => void;
 }
 

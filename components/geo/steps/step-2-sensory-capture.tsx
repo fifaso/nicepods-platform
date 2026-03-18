@@ -1,60 +1,65 @@
 // components/geo/steps/step-2-sensory-capture.tsx
-// VERSIÓN: 4.5 (NicePod Sovereign Sensory Capture - Final Build Safe Edition)
-// Misión: Captura multimodal avanzada con reporte de errores en tiempo real y UI ergonómica.
-// [ESTABILIZACIÓN]: Corrección de Variable Huérfana (TS2304) y saneamiento acústico total.
+// VERSIÓN: 4.7 (NicePod Sovereign Sensory Capture - Zero Error Edition)
+// Misión: Captura monumental, mosaico OCR, paisaje sonoro y dictado cognitivo.
+// [ESTABILIZACIÓN]: Corrección de variables huérfanas (TS2304) en el monitor acústico.
 
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  AlertTriangle,
   ArrowRight,
+  BrainCircuit,
   Camera,
-  CheckCircle2,
   ChevronLeft,
   FileText,
+  Image as ImageIcon,
   Loader2,
   Mic,
-  Volume2,
-  X,
-  Play,
-  Trash2,
-  Plus,
   Pause,
-  BrainCircuit,
+  Play,
+  Plus,
   RefreshCw,
-  AlertTriangle,
-  Image as ImageIcon
+  Trash2,
+  Volume2,
+  X
 } from "lucide-react";
 import Image from "next/image";
-import React, { useRef, useState, useEffect, useCallback } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 // --- INFRAESTRUCTURA SOBERANA ---
-import { useForge } from "../forge-context";
 import { useGeoEngine } from "@/hooks/use-geo-engine";
-import { cn } from "@/lib/utils";
+import { useForge } from "../forge-context";
+
+// --- COMPONENTES UI ---
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
-// [IA SENSORIAL]: Pasarela directa para transcripción (STT)
-import { transcribeVoiceIntentAction } from "@/actions/geo-actions";
-
+/**
+ * COMPONENTE: StepSensoryCapture
+ * La terminal de ingesta física y cognitiva de alta fidelidad.
+ */
 export function StepSensoryCapture() {
+  // 1. CONSUMO DE CONTEXTOS Y MOTORES
   const { state, dispatch, prevStep } = useForge();
   const geoEngine = useGeoEngine();
 
-  // Consumimos el estado de error del motor para mostrarlo al Admin
-  const { status: engineStatus, data: engineData } = geoEngine;
+  const { status: engineStatus, data: engineData, error: engineError } = geoEngine;
 
-  // --- ESTADOS DE PREVISUALIZACIÓN LOCAL ---
+  // --- ESTADOS DE PREVISUALIZACIÓN LOCAL (BLOB URLS) ---
   const [heroUrl, setHeroUrl] = useState<string | null>(null);
   const [ocrUrls, setOcrUrls] = useState<string[]>([]);
-  // [FIX TS2304]: Variable unificada de Paisaje Sonoro
   const [ambientAudioUrl, setAmbientAudioUrl] = useState<string | null>(null);
-  
-  // Estados Operativos
+
+  // Estados Operativos de Carga
   const [isRecordingAmbient, setIsRecordingAmbient] = useState(false);
   const [isRecordingIntent, setIsRecordingIntent] = useState(false);
+
+  // [FIX TS2304]: Estado reactivo para el monitor acústico
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
+
+  // Controla el estado visual de la transmisión final
   const [isIngesting, setIsIngesting] = useState(false);
 
   // Referencias de Hardware
@@ -66,7 +71,8 @@ export function StepSensoryCapture() {
 
   /**
    * ---------------------------------------------------------------------------
-   * I. PROTOCOLO DE HIGIENE DE RAM
+   * I. PROTOCOLO DE HIGIENE DE RAM (EFECTOS ATÓMICOS)
+   * Misión: Eliminar memory leaks al navegar entre steps.
    * ---------------------------------------------------------------------------
    */
 
@@ -90,7 +96,6 @@ export function StepSensoryCapture() {
     return () => urls.forEach(url => URL.revokeObjectURL(url));
   }, [state.ocrImageFiles]);
 
-  // [SINCRO ACÚSTICA]: Mantenemos la URL del ambiente alineada con el Blob
   useEffect(() => {
     if (!state.ambientAudioBlob) {
       setAmbientAudioUrl(null);
@@ -126,7 +131,7 @@ export function StepSensoryCapture() {
 
   /**
    * ---------------------------------------------------------------------------
-   * III. PROTOCOLO ACÚSTICO
+   * III. PROTOCOLO ACÚSTICO (AUDIO AMBIENTE VS INTENCIÓN)
    * ---------------------------------------------------------------------------
    */
 
@@ -148,6 +153,7 @@ export function StepSensoryCapture() {
           dispatch({ type: 'SET_AMBIENT_AUDIO', payload: blob });
           setIsRecordingAmbient(false);
         } else {
+          // Si es dictado, lanzamos la transcripción de inmediato
           handleTranscription(blob);
           setIsRecordingIntent(false);
         }
@@ -155,13 +161,13 @@ export function StepSensoryCapture() {
 
       recorder.start();
       mediaRecorderRef.current = recorder;
-      
+
       if (type === 'AMBIENT') setIsRecordingAmbient(true);
       else setIsRecordingIntent(true);
-      
+
       if (navigator.vibrate) navigator.vibrate(50);
     } catch (err) {
-      console.error("Fallo de hardware acústico:", err);
+      console.error("🔥 [Step-Sensory] Fallo de hardware acústico:", err);
     }
   };
 
@@ -171,6 +177,9 @@ export function StepSensoryCapture() {
     }
   };
 
+  /**
+   * handleTranscription: Convierte voz en texto mediante el Agente STT.
+   */
   const handleTranscription = async (blob: Blob) => {
     dispatch({ type: 'SET_TRANSCRIBING', payload: true });
     try {
@@ -178,14 +187,18 @@ export function StepSensoryCapture() {
       reader.readAsDataURL(blob);
       reader.onloadend = async () => {
         const base64Audio = reader.result as string;
-        const result = await transcribeVoiceIntentAction({ audioBase64: base64Audio });
-        
+
+        // Invocación a la función STT expuesta en V7.5 del motor
+        const result = await geoEngine.transcribeVoiceIntent(base64Audio);
+
         if (result.success && result.data) {
           dispatch({ type: 'SET_INTENT', payload: result.data.transcription });
+        } else {
+          console.warn("⚠️ [Step-Sensory] La IA no pudo transcribir el audio.");
         }
       };
     } catch (err) {
-      console.error("Error en transcripción:", err);
+      console.error("🔥 [Step-Sensory] Error en transcripción:", err);
     } finally {
       dispatch({ type: 'SET_TRANSCRIBING', payload: false });
     }
@@ -198,8 +211,9 @@ export function StepSensoryCapture() {
    */
 
   const handleInitiateIngestion = async () => {
-    // Si falta la imagen o el texto es muy corto (Zod rule), bloqueamos
     if (!state.heroImageFile || state.intentText.length < 5) return;
+
+    // Bloqueamos el botón y mostramos el spinner
     setIsIngesting(true);
 
     try {
@@ -211,9 +225,13 @@ export function StepSensoryCapture() {
         categoryId: state.categoryId,
         radius: state.resonanceRadius
       });
-      // El éxito cambiará el engineStatus a DOSSIER_READY
-    } catch (err) {
-      // Liberamos UI ante fallo (El error se mostrará en el AlertTriangle)
+      // El éxito cambiará el estado en el Contexto a DOSSIER_READY
+      // y el scanner-ui.tsx lo moverá al Step 3 automáticamente.
+
+    } catch (err: any) {
+      // Si falla (ej. Foto de 10MB -> Error 413),
+      // apagamos el spinner para que el Admin pueda corregir y reintentar.
+      console.error("🔥 [Step-Sensory] Misión Abortada:", err.message);
       setIsIngesting(false);
     }
   };
@@ -221,7 +239,7 @@ export function StepSensoryCapture() {
   return (
     <div className="w-full h-full flex flex-col gap-10 animate-in fade-in duration-700 overflow-y-auto custom-scrollbar pb-32 px-6 pt-4">
 
-      {/* HEADER DE OPERACIONES */}
+      {/* --- HEADER DE OPERACIONES --- */}
       <div className="flex items-center justify-between">
         <Button variant="ghost" onClick={prevStep} disabled={isIngesting} className="rounded-full h-12 w-12 p-0 bg-white/5 border border-white/10 text-zinc-400 hover:text-white">
           <ChevronLeft size={24} />
@@ -232,22 +250,36 @@ export function StepSensoryCapture() {
         </div>
       </div>
 
-      {/* BLOQUE I: VISIÓN (HERO + MOSAICO) */}
+      {/* --- I. BLOQUE VISUAL (MONUMENTO + OCR) --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        
+
         {/* IMAGEN HERO */}
         <div className="space-y-4">
           <div className="flex items-center gap-3 px-2 opacity-50"><Camera size={14} className="text-primary" /><h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white">Imagen Principal</h3></div>
-          <div onClick={() => !isIngesting && heroInputRef.current?.click()} className={cn("relative aspect-video rounded-[2.5rem] border-2 border-dashed transition-all duration-500 cursor-pointer overflow-hidden group", heroUrl ? "border-primary/40 shadow-[0_0_50px_rgba(var(--primary),0.15)]" : "border-white/10 bg-white/[0.01]")}>
+
+          <div
+            onClick={() => !isIngesting && heroInputRef.current?.click()}
+            className={cn(
+              "relative aspect-video rounded-[3rem] border-2 border-dashed transition-all duration-500 cursor-pointer overflow-hidden group",
+              heroUrl ? "border-primary/40 shadow-[0_0_50px_rgba(var(--primary),0.15)]" : "border-white/10 bg-white/[0.01] hover:border-white/20"
+            )}
+          >
             {heroUrl ? (
               <>
-                <Image src={heroUrl} alt="Hero" fill className="object-cover animate-in zoom-in-95 duration-700" unoptimized />
+                <Image src={heroUrl} alt="Hero Capture" fill className="object-cover animate-in zoom-in-95 duration-700" unoptimized />
                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <span className="text-[10px] font-black text-white uppercase tracking-widest bg-black/60 px-6 py-2.5 rounded-full border border-white/10 backdrop-blur-md">Sustituir Captura</span>
+                  <span className="text-[10px] font-black text-white uppercase tracking-widest bg-black/60 px-6 py-2.5 rounded-full border border-white/10 backdrop-blur-md">
+                    Sustituir Captura
+                  </span>
                 </div>
               </>
             ) : (
-              <div className="h-full flex flex-col items-center justify-center gap-2 opacity-20"><ImageIcon size={40} /><span className="text-[8px] font-black uppercase tracking-widest text-center px-8">Capturar Monumento</span></div>
+              <div className="h-full flex flex-col items-center justify-center gap-4 opacity-20 group-hover:opacity-40 transition-opacity">
+                <ImageIcon size={48} strokeWidth={1} />
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-center px-12">
+                  Fijar objetivo principal
+                </p>
+              </div>
             )}
             <input type="file" accept="image/*" ref={heroInputRef} className="hidden" onChange={handleHeroCapture} />
           </div>
@@ -257,21 +289,39 @@ export function StepSensoryCapture() {
         <div className="space-y-4">
           <div className="flex items-center justify-between px-2">
             <div className="flex items-center gap-3 opacity-50"><FileText size={14} className="text-blue-400" /><h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white">Mosaico OCR</h3></div>
+            <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest tabular-nums">
+              {state.ocrImageFiles.length} / 3 Capturas
+            </span>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+
+          <div className="grid grid-cols-3 gap-4">
             {ocrUrls.map((url, index) => (
-              <div key={index} className="relative aspect-square rounded-2xl overflow-hidden border border-white/10 group animate-in zoom-in-90">
-                <Image src={url} alt="OCR" fill className="object-cover" unoptimized />
-                <button onClick={(e) => { e.stopPropagation(); removeOcrImage(index); }} className="absolute top-1 right-1 p-1 bg-red-500 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity"><X size={10} /></button>
+              <div key={index} className="relative aspect-square rounded-[1.5rem] overflow-hidden border border-white/10 group animate-in zoom-in-90 duration-500">
+                <Image src={url} alt={`OCR Evidence ${index}`} fill className="object-cover" unoptimized />
+                <button
+                  onClick={(e) => { e.stopPropagation(); removeOcrImage(index); }}
+                  className="absolute top-2 right-2 p-1.5 bg-red-500 rounded-full text-white shadow-xl opacity-0 group-hover:opacity-100 transition-opacity active:scale-90"
+                >
+                  <X size={12} />
+                </button>
               </div>
             ))}
-            {state.ocrImageFiles.length < 3 && (<button onClick={() => ocrInputRef.current?.click()} className="aspect-square rounded-2xl border-2 border-dashed border-white/5 bg-white/[0.01] flex items-center justify-center"><Plus size={20} className="text-zinc-700" /></button>)}
+
+            {state.ocrImageFiles.length < 3 && (
+              <button
+                onClick={() => ocrInputRef.current?.click()}
+                className="aspect-square rounded-[1.5rem] border-2 border-dashed border-white/5 bg-white/[0.01] hover:bg-white/[0.04] hover:border-blue-500/30 flex flex-col items-center justify-center gap-2 transition-all group"
+              >
+                <Plus size={24} className="text-zinc-700 group-hover:text-blue-400 transition-colors" />
+                <span className="text-[7px] font-black uppercase tracking-widest text-zinc-800 group-hover:text-blue-400/60">Añadir</span>
+              </button>
+            )}
           </div>
           <input type="file" accept="image/*" ref={ocrInputRef} className="hidden" onChange={handleOcrCapture} />
         </div>
       </div>
 
-      {/* BLOQUE II: SEMILLA COGNITIVA (DICTADO) */}
+      {/* --- II. SEMILLA COGNITIVA (DICTADO + EDICIÓN) --- */}
       <div className="space-y-4">
         <div className="flex items-center justify-between px-2">
           <div className="flex items-center gap-3 opacity-50">
@@ -284,14 +334,15 @@ export function StepSensoryCapture() {
         <div className="relative group">
           <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500/10 to-primary/10 rounded-[2rem] blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
           <div className="relative bg-[#020202] border border-white/10 rounded-[2rem] p-6 space-y-4">
-            
+
+            {/* Campo de Edición Soberana */}
             <div className="relative">
-              <Textarea 
+              <Textarea
                 value={state.intentText}
                 onChange={(e) => dispatch({ type: 'SET_INTENT', payload: e.target.value })}
                 placeholder="Pulsa el micrófono para dictar la historia o escribe aquí..."
                 className="min-h-[120px] bg-transparent border-none p-0 text-zinc-300 text-sm leading-relaxed focus-visible:ring-0 resize-none custom-scrollbar"
-                disabled={state.isTranscribing}
+                disabled={state.isTranscribing || isIngesting}
               />
               {state.isTranscribing && (
                 <div className="absolute inset-0 bg-black/60 backdrop-blur-sm rounded-xl flex items-center justify-center gap-3">
@@ -301,15 +352,18 @@ export function StepSensoryCapture() {
               )}
             </div>
 
+            {/* Micrófono de Intención (Dictado) */}
             <div className="flex justify-center pt-2 border-t border-white/5">
               <button
                 onMouseDown={() => startRecording('INTENT')}
                 onMouseUp={stopRecording}
                 onTouchStart={() => startRecording('INTENT')}
                 onTouchEnd={stopRecording}
+                disabled={isIngesting}
                 className={cn(
                   "h-14 w-14 rounded-full flex items-center justify-center transition-all duration-500",
-                  isRecordingIntent ? "bg-indigo-500 scale-110 shadow-[0_0_30px_rgba(99,102,241,0.4)]" : "bg-white/5 border border-white/10 text-indigo-400 hover:bg-white/10"
+                  isRecordingIntent ? "bg-indigo-500 scale-110 shadow-[0_0_30px_rgba(99,102,241,0.4)]" : "bg-white/5 border border-white/10 text-indigo-400 hover:bg-white/10",
+                  isIngesting && "opacity-30 cursor-not-allowed"
                 )}
               >
                 <Mic size={24} className={isRecordingIntent ? "animate-pulse text-white" : ""} />
@@ -319,30 +373,33 @@ export function StepSensoryCapture() {
         </div>
       </div>
 
-      {/* BLOQUE III: ACÚSTICA AMBIENTAL */}
+      {/* --- III. PAISAJE SONORO (VALIDACIÓN ACÚSTICA) --- */}
       <div className="space-y-4">
-        <div className="flex items-center gap-3 px-2 opacity-50"><Volume2 size={14} className="text-emerald-400" /><h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white">Resonancia del Lugar</h3></div>
+        <div className="flex items-center gap-3 px-2 opacity-50"><Volume2 size={14} className="text-emerald-400" /><h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white">Resonancia Ambiental</h3></div>
         <div className="p-8 rounded-[3rem] bg-white/[0.01] border border-white/5 shadow-inner flex flex-col items-center gap-6 relative overflow-hidden">
-          
-          {/* [FIX TS2304]: Sincronización de variable ambientAudioUrl */}
-          <p className={cn(
-            "text-[10px] font-black uppercase tracking-[0.4em] transition-colors",
-            isRecordingAmbient ? "text-red-400 animate-pulse" : ambientAudioUrl ? "text-emerald-400" : "text-zinc-600"
-          )}>
-            {isRecordingAmbient ? "Capturando Ambiente..." : ambientAudioUrl ? "Frecuencia Lista para Auditoría" : "Graba 15s de ruido real"}
-          </p>
+
+          <div className="text-center space-y-2 relative z-10">
+            <p className={cn(
+              "text-[10px] font-black uppercase tracking-[0.4em] transition-colors",
+              isRecordingAmbient ? "text-red-400 animate-pulse" : ambientAudioUrl ? "text-emerald-400" : "text-zinc-600"
+            )}>
+              {isRecordingAmbient ? "Capturando Ambiente..." : ambientAudioUrl ? "Frecuencia Lista para Auditoría" : "Graba 15s de ruido real"}
+            </p>
+          </div>
 
           <div className="flex items-center gap-6 relative z-10">
-            {/* Botón Maestro de Grabación */}
+            {/* Grabador Ambiente */}
             {!ambientAudioUrl && (
               <button
                 onMouseDown={() => startRecording('AMBIENT')}
                 onMouseUp={stopRecording}
                 onTouchStart={() => startRecording('AMBIENT')}
                 onTouchEnd={stopRecording}
+                disabled={isIngesting}
                 className={cn(
                   "h-20 w-20 rounded-full flex items-center justify-center transition-all duration-500 relative",
-                  isRecordingAmbient ? "bg-red-500 scale-110 shadow-[0_0_40px_rgba(239,68,68,0.4)]" : "bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/20"
+                  isRecordingAmbient ? "bg-red-500 scale-110 shadow-[0_0_40px_rgba(239,68,68,0.4)]" : "bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/20",
+                  isIngesting && "opacity-30 cursor-not-allowed"
                 )}
               >
                 <Mic size={32} className={cn(isRecordingAmbient && "animate-pulse")} />
@@ -354,32 +411,62 @@ export function StepSensoryCapture() {
               </button>
             )}
 
-            {/* Consola de Auditoría Post-Grabación */}
+            {/* Auditoría Post-Grabación */}
             {ambientAudioUrl && (
               <div className="flex items-center gap-4 animate-in zoom-in-95">
-                <Button onClick={() => isPlayingPreview ? audioPlayerRef.current?.pause() : audioPlayerRef.current?.play()} className="h-16 w-16 rounded-full bg-white text-black hover:bg-zinc-200 shadow-2xl">
-                  {isPlayingPreview ? <Pause fill="currentColor" /> : <Play fill="currentColor" className="ml-1" />}
+                <Button
+                  onClick={() => {
+                    if (audioPlayerRef.current) {
+                      // [FIX TS2304]: Sincronizado con 'isPlayingPreview'
+                      if (isPlayingPreview) audioPlayerRef.current.pause();
+                      else audioPlayerRef.current.play();
+                    }
+                  }}
+                  disabled={isIngesting}
+                  className="h-16 w-16 rounded-full bg-white text-black hover:bg-zinc-200 shadow-2xl"
+                >
+                  {isPlayingPreview ? <Pause size={32} fill="currentColor" /> : <Play size={32} fill="currentColor" className="ml-1" />}
                 </Button>
-                <Button variant="ghost" onClick={() => dispatch({ type: 'SET_AMBIENT_AUDIO', payload: null })} className="h-16 w-16 rounded-full border border-white/10 text-red-500 hover:bg-red-500/10">
-                  <Trash2 size={20} />
+
+                <Button
+                  variant="ghost"
+                  onClick={() => dispatch({ type: 'SET_AMBIENT_AUDIO', payload: null })}
+                  disabled={isIngesting}
+                  className="h-16 w-16 rounded-full border border-white/10 text-red-500 hover:bg-red-500/10"
+                >
+                  <Trash2 size={24} />
                 </Button>
               </div>
             )}
           </div>
-          <audio ref={audioPlayerRef} src={ambientAudioUrl || ""} onPlay={() => setIsPlayingPreview(true)} onPause={() => setIsPlayingPreview(false)} onEnded={() => setIsPlayingPreview(false)} className="hidden" />
+
+          {/* Reproductor nativo oculto */}
+          <audio
+            ref={audioPlayerRef}
+            src={ambientAudioUrl || ""}
+            onPlay={() => setIsPlayingPreview(true)}
+            onPause={() => setIsPlayingPreview(false)}
+            onEnded={() => setIsPlayingPreview(false)}
+            className="hidden"
+          />
         </div>
       </div>
 
       {/* --- PANEL DE CRISIS (TRANSPARENCIA DE ERROR) --- */}
       <AnimatePresence>
-        {engineStatus === 'REJECTED' && engineData?.rejectionReason && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="bg-red-500/10 border border-red-500/20 rounded-2xl p-5 flex flex-col gap-2 mt-4">
+        {engineStatus === 'REJECTED' && (engineData?.rejectionReason || engineError) && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="bg-red-500/10 border border-red-500/20 rounded-2xl p-5 flex flex-col gap-2 mt-4"
+          >
             <div className="flex items-center gap-2">
               <AlertTriangle size={16} className="text-red-500" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-red-500">Misión Rechazada por la Bóveda</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-red-500">Misión Rechazada por el Enlace</span>
             </div>
-            <p className="text-xs font-bold text-red-400/80 leading-relaxed">
-              {engineData.rejectionReason}
+            <p className="text-xs font-bold text-red-400/80 leading-relaxed uppercase">
+              {engineError || engineData?.rejectionReason}
             </p>
           </motion.div>
         )}
@@ -389,12 +476,11 @@ export function StepSensoryCapture() {
       <div className="mt-4 pb-8">
         <Button
           onClick={handleInitiateIngestion}
-          // Validamos heroImage y la regla de 5 caracteres de Zod
           disabled={!state.heroImageFile || state.intentText.length < 5 || isIngesting || isRecordingAmbient || isRecordingIntent || state.isTranscribing}
-          // [FIX CSS]: 'tracking-widest' evita el desbordamiento horizontal en móviles
-          className="w-full h-20 rounded-[2.5rem] bg-primary text-black font-black uppercase tracking-widest shadow-2xl hover:brightness-110 active:scale-[0.98] group relative overflow-hidden"
+          className="w-full h-20 rounded-[2.5rem] bg-primary text-black font-black uppercase tracking-widest shadow-2xl hover:brightness-110 active:scale-[0.98] group relative overflow-hidden transition-all duration-300 disabled:opacity-50"
         >
           <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity animate-pulse" />
+
           {isIngesting ? (
             <div className="flex items-center gap-4">
               <Loader2 className="h-6 w-6 animate-spin" />
@@ -402,8 +488,8 @@ export function StepSensoryCapture() {
             </div>
           ) : (
             <div className="flex items-center gap-3 text-lg md:text-xl">
-               PROCESAR EXPEDIENTE
-               <ArrowRight size={22} className="group-hover:translate-x-2 transition-transform duration-500" />
+              PROCESAR EXPEDIENTE
+              <ArrowRight size={22} className="group-hover:translate-x-2 transition-transform duration-500" />
             </div>
           )}
         </Button>

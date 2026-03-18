@@ -1,7 +1,7 @@
 // actions/geo-actions.ts
-// VERSIÓN: 6.3 (NicePod Sovereign Geo-Actions - Cognitive Gateway Edition)
+// VERSIÓN: 6.4 (NicePod Sovereign Geo-Actions - Full Resilience Edition)
 // Misión: Orquestar el ciclo de vida multimodal incluyendo transcripción de voz (STT).
-// [ESTABILIZACIÓN]: Integración de transcribeVoiceIntentAction y optimización de payloads.
+// [ESTABILIZACIÓN]: Soporte para mosaico OCR opcional y blindaje de inyección de userId.
 
 "use server";
 
@@ -9,13 +9,13 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
 // --- IMPORTACIÓN DE CONTRATOS SOBERANOS (BUILD SHIELD) ---
-import { 
-  POIIngestionSchema 
+import {
+  POIIngestionSchema
 } from "@/lib/validation/poi-schema";
-import { 
-  GeoActionResponse, 
-  POILifecycle, 
-  POICreationPayload 
+import {
+  GeoActionResponse,
+  POICreationPayload,
+  POILifecycle
 } from "@/types/geo-sovereignty";
 
 /**
@@ -56,16 +56,16 @@ function decodeBase64ToUint8Array(dataString: string) {
     if (!matches || matches.length !== 3) {
       throw new Error("FORMATO_BINARIO_INVALIDO");
     }
-    
+
     const contentType = matches[1];
     const binaryStr = atob(matches[2]);
     const len = binaryStr.length;
     const bytes = new Uint8Array(len);
-    
+
     for (let i = 0; i < len; i++) {
       bytes[i] = binaryStr.charCodeAt(i);
     }
-    
+
     return { type: contentType, buffer: bytes };
   } catch (e) {
     throw new Error("FALLO_DECODIFICACION: Activo físico corrupto.");
@@ -83,7 +83,7 @@ function decodeBase64ToUint8Array(dataString: string) {
  * Identifica nombre y clima para el HUD inicial.
  */
 export async function resolveLocationAction(
-  latitude: number, 
+  latitude: number,
   longitude: number
 ): Promise<GeoActionResponse<any>> {
   try {
@@ -122,9 +122,9 @@ export async function transcribeVoiceIntentAction(params: {
     const audioData = decodeBase64ToUint8Array(params.audioBase64);
 
     const { data, error } = await supabase.functions.invoke('geo-transcribe-intent', {
-      body: { 
+      body: {
         audioBase64: params.audioBase64.split(',')[1], // Solo la data pura
-        contentType: audioData.type 
+        contentType: audioData.type
       },
       headers: { Authorization: `Bearer ${serviceKey}` }
     });
@@ -150,12 +150,22 @@ export async function transcribeVoiceIntentAction(params: {
  */
 
 export async function ingestPhysicalEvidenceAction(
-  payload: POICreationPayload
+  payload: POICreationPayload & { ocrImages?: string[] } // [V6.4]: El array es opcional
 ): Promise<GeoActionResponse<{ poiId: number; analysis: any; location: any }>> {
   try {
     const user = await validateSovereignAccess();
-    const validatedData = POIIngestionSchema.parse(payload);
-    
+
+    // Validamos estrictamente solo los campos que pide el esquema de Zod
+    const validatedData = POIIngestionSchema.parse({
+      latitude: payload.latitude,
+      longitude: payload.longitude,
+      accuracy: payload.accuracy,
+      heroImage: payload.heroImage,
+      categoryId: payload.categoryId,
+      resonanceRadius: payload.resonanceRadius,
+      adminIntent: payload.adminIntent
+    });
+
     const supabase = createClient();
     const timestamp = Date.now();
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -164,8 +174,9 @@ export async function ingestPhysicalEvidenceAction(
     const heroImg = decodeBase64ToUint8Array(payload.heroImage);
     const heroPath = `poi-evidence/${user.id}/${timestamp}_hero.jpg`;
     await supabase.storage.from('podcasts').upload(heroPath, heroImg.buffer, { contentType: heroImg.type, upsert: true });
+    const heroUrl = supabase.storage.from('podcasts').getPublicUrl(heroPath).data.publicUrl;
 
-    // 2. OCR Mosaico
+    // 2. OCR Mosaico (Opcional)
     const ocrUrls: string[] = [];
     if (payload.ocrImages && payload.ocrImages.length > 0) {
       const uploadTasks = payload.ocrImages.map((base64, i) => {
@@ -179,11 +190,14 @@ export async function ingestPhysicalEvidenceAction(
       });
     }
 
-    const heroUrl = supabase.storage.from('podcasts').getPublicUrl(heroPath).data.publicUrl;
-
     // 3. IA Sensorial (Ingestor)
     const { data, error } = await supabase.functions.invoke('geo-sensor-ingestor', {
-      body: { ...validatedData, heroImage: heroUrl, ocrImages: ocrUrls },
+      body: {
+        ...validatedData,
+        heroImage: heroUrl,
+        ocrImages: ocrUrls, // Mosaico de URLs o vacío
+        userId: user.id     // [MANDATO]: Inyección para anclaje PostGIS
+      },
       headers: { Authorization: `Bearer ${serviceKey}` }
     });
 
@@ -279,12 +293,10 @@ export async function publishPOIAction(poiId: number): Promise<GeoActionResponse
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V6.3):
- * 1. Cognitive Seed: Se añadió 'transcribeVoiceIntentAction' para habilitar 
- *    el flujo de dictado neuronal, cumpliendo con el protocolo de 
- *    'Siembra por Intención'.
- * 2. Limpieza de Payload STT: Se envía solo la cadena Base64 pura a la IA 
- *    (eliminando el prefijo MIME) para maximizar la velocidad de transcripción.
- * 3. Integridad Atómica: Todas las acciones mantienen el escudo RBAC y el 
- *    mapeo de errores operativos para una telemetría total en Vercel.
+ * NOTA TÉCNICA DEL ARCHITECT (V6.4):
+ * 1. Resolución Zod: Al destrabar el esquema de validación y pasar explícitamente 
+ *    los campos a POIIngestionSchema.parse, evitamos que Zod rechace un payload 
+ *    perfectamente válido solo por contener el array de OCR extra.
+ * 2. Inyección de Soberanía: 'userId' ha sido asegurado en el payload hacia 
+ *    la Edge Function para garantizar el anclaje RLS en la base de datos.
  */

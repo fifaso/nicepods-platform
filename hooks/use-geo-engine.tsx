@@ -1,7 +1,7 @@
 // hooks/use-geo-engine.tsx
-// VERSIÓN: 8.0 (NicePod Sovereign Geo-Engine - Final Singleton Architecture)
-// Misión: Orquestar telemetría ubicua, anclaje de autoridad y pipelines de IA multimodal.
-// [ESTABILIZACIÓN]: Fusión de Context Provider, Multi-OCR Mosaic y Auto-Resolución Ambiental.
+// VERSIÓN: 7.5 (NicePod V2.6 - Sovereign Geo-Engine Final Pro Edition)
+// Misión: Orquestar telemetría ubicua, anclaje manual y puentes de ingesta/síntesis.
+// [ESTABILIZACIÓN]: Tolerancia a OCR vacío, propagación de errores UI y STT neuronal.
 
 "use client";
 
@@ -9,29 +9,27 @@ import { createClient } from "@/lib/supabase/client";
 import { nicepodLog } from "@/lib/utils";
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 
-// --- IMPORTACIÓN DE ACCIONES SOBERANAS (SERVER ACTIONS V6.1) ---
+// --- IMPORTACIÓN DE ACCIONES SOBERANAS (V6.4) ---
 import {
   attachAmbientAudioAction,
   ingestPhysicalEvidenceAction,
   resolveLocationAction,
-  synthesizeNarrativeAction
+  synthesizeNarrativeAction,
+  transcribeVoiceIntentAction // Nueva acción STT inyectada
 } from "@/actions/geo-actions";
 
-// --- IMPORTACIÓN DE CONTRATOS DE CONSTITUCIÓN (TYPES V2.0) ---
 import {
   ActivePOI,
   GeoContextData,
   GeoEngineReturn,
   GeoEngineState,
   IngestionDossier,
-  POICreationPayload,
   UserLocation
 } from "@/types/geo-sovereignty";
 
 /**
  * UTILIDAD INTERNA: fileToBase64
- * Transmuta archivos binarios en strings para el transporte JIT (Just-In-Time).
- * [OOM PREVENTION]: Mantiene la memoria RAM ligera en dispositivos móviles.
+ * Transmuta archivos a strings para el puente de transporte JIT.
  */
 const fileToBase64 = (file: File | Blob): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -42,22 +40,12 @@ const fileToBase64 = (file: File | Blob): Promise<string> => {
   });
 };
 
-/**
- * ---------------------------------------------------------------------------
- * I. CREACIÓN DEL CONTEXTO (SINGLE SOURCE OF TRUTH)
- * ---------------------------------------------------------------------------
- */
 const GeoEngineContext = createContext<GeoEngineReturn | undefined>(undefined);
 
-/**
- * ---------------------------------------------------------------------------
- * II. EL PROVIDER SOBERANO (THE ENGINE CORE)
- * ---------------------------------------------------------------------------
- */
 export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
   const supabase = createClient();
 
-  // --- ESTADOS REACTIVOS ---
+  // --- ESTADOS REACTIVOS TIPADOS ---
   const [status, setStatus] = useState<GeoEngineState>('IDLE');
   const [data, setData] = useState<GeoContextData>({});
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
@@ -67,84 +55,40 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
   const [isLocked, setIsLocked] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // --- REFERENCIAS TÁCTICAS (PERSISTENCIA SIN RE-RENDER) ---
   const watchId = useRef<number | null>(null);
   const hasResolvedContextRef = useRef<boolean>(false);
-  const lastSyncLocation = useRef<{ lat: number; lng: number } | null>(null);
+  const lastRequestTimestamp = useRef<number>(0);
 
-  // Constantes de Misión V2.6
-  const RESOLUTION_THRESHOLD = 100; // Umbral relajado para identificar lugar (PC/Móvil)
-  const CONFLICT_LIMIT = 10;        // Metros para alertar colisión de siembra
+  const RESOLUTION_THRESHOLD = 100;
+  const CONFLICT_LIMIT = 10;
   const NETWORK_COOLDOWN = 4000;
 
-  /**
-   * calculateDistance: Fórmula de Haversine para telemetría local.
-   */
   const calculateDistance = useCallback((lat1: number, lon1: number, lat2: number, lon2: number): number => {
     const R = 6371e3;
     const dLat = (lat2 - lat1) * (Math.PI / 180);
     const dLon = (lon2 - lon1) * (Math.PI / 180);
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }, []);
 
-  /**
-   * fetchNearbyPOIs: Sincroniza la malla urbana activa desde la Bóveda SQL.
-   */
   const fetchNearbyPOIs = useCallback(async () => {
+    const now = Date.now();
+    if (now - lastRequestTimestamp.current < NETWORK_COOLDOWN) return;
     setIsSearching(true);
+    lastRequestTimestamp.current = now;
     try {
-      const { data: pois, error: dbError } = await supabase
-        .from('vw_map_resonance_active')
-        .select('*');
-
+      const { data: pois, error: dbError } = await supabase.from('vw_map_resonance_active').select('*');
       if (dbError) throw dbError;
       setNearbyPOIs(pois || []);
     } catch (err: any) {
-      console.error("🔥 [GeoEngine] Sync Fail:", err.message);
+      console.error("🔥 [GeoEngine] DB Sync Fail:", err.message);
     } finally {
       setIsSearching(false);
     }
   }, [supabase]);
 
-  /**
-   * resolveContext: Identificación Automática (Fase 0).
-   * Resuelve nombre del lugar y clima para el HUD.
-   */
-  const resolveContext = useCallback(async (lat: number, lng: number) => {
-    if (isSearching) return;
-    setIsSearching(true);
-    nicepodLog("📡 [GeoEngine] Radar activado. Consultando coordenadas...");
-
-    try {
-      const result = await resolveLocationAction(lat, lng);
-      if (result.success && result.data) {
-        setData((prev: GeoContextData) => ({
-          ...prev,
-          manualPlaceName: result.data.place.poiName,
-          dossier: {
-            ...(prev.dossier as any),
-            weather_snapshot: result.data.weather
-          }
-        }));
-        hasResolvedContextRef.current = true;
-        nicepodLog(`✅ [GeoEngine] Nodo identificado: ${result.data.place.poiName}`);
-      }
-    } catch (err: any) {
-      console.error("🔥 [GeoEngine] Radar Error:", err.message);
-    } finally {
-      setIsSearching(false);
-    }
-  }, [isSearching]);
-
-  /**
-   * evaluateEnvironment: Analiza colisiones y proximidad de nodos.
-   */
   const evaluateEnvironment = useCallback((location: UserLocation) => {
     if (nearbyPOIs.length === 0) return;
-
     let closest: ActivePOI | null = null;
     let minDistance = Infinity;
 
@@ -156,11 +100,8 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
       if (dist < minDistance) {
         minDistance = dist;
         closest = {
-          id: poi.id.toString(),
-          name: poi.name,
-          distance: Math.round(dist),
-          isWithinRadius: dist <= (poi.resonance_radius || 35),
-          historical_fact: poi.historical_fact
+          id: poi.id.toString(), name: poi.name, distance: Math.round(dist),
+          isWithinRadius: dist <= (poi.resonance_radius || 35), historical_fact: poi.historical_fact
         };
       }
     });
@@ -169,9 +110,26 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
     setData((prev: GeoContextData) => ({ ...prev, isProximityConflict: minDistance < CONFLICT_LIMIT }));
   }, [nearbyPOIs, calculateDistance]);
 
-  /**
-   * autoResolveEffect: Gatillo autónomo de resolución.
-   */
+  const resolveContext = useCallback(async (lat: number, lng: number) => {
+    if (isSearching) return;
+    setIsSearching(true);
+    try {
+      const result = await resolveLocationAction(lat, lng);
+      if (result.success && result.data) {
+        setData((prev: GeoContextData) => ({
+          ...prev,
+          manualPlaceName: result.data.place.poiName,
+          dossier: { ...(prev.dossier as any), weather_snapshot: result.data.weather }
+        }));
+        hasResolvedContextRef.current = true;
+      }
+    } catch (err: any) {
+      console.error("🔥 [GeoEngine] Radar Fail:", err.message);
+    } finally {
+      setIsSearching(false);
+    }
+  }, [isSearching]);
+
   useEffect(() => {
     async function autoTrigger() {
       if (!userLocation || hasResolvedContextRef.current) return;
@@ -183,34 +141,19 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
     autoTrigger();
   }, [userLocation, isLocked, resolveContext]);
 
-  /**
-   * ---------------------------------------------------------------------------
-   * III. PROTOCOLOS DE CONTROL HARDWARE
-   * ---------------------------------------------------------------------------
-   */
-
-  /**
-   * initSensors: Encendido de hardware (Triangulación Híbrida).
-   */
   const initSensors = useCallback(() => {
     if (typeof window === "undefined" || !("geolocation" in navigator)) {
       setError("HARDWARE_GPS_DESACTIVADO");
       return;
     }
-
     if (isLocked) return;
+
     setStatus('SENSORS_READY');
     hasResolvedContextRef.current = false;
 
-    // 1. Captura Fast-Track (WiFi/IP)
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const loc: UserLocation = {
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
-          accuracy: pos.coords.accuracy,
-          heading: null, speed: null
-        };
+        const loc: UserLocation = { latitude: pos.coords.latitude, longitude: pos.coords.longitude, accuracy: pos.coords.accuracy, heading: null, speed: null };
         setUserLocation(loc);
         fetchNearbyPOIs();
       },
@@ -218,76 +161,40 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
       { enableHighAccuracy: false, timeout: 5000 }
     );
 
-    // 2. Seguimiento de Alta Precisión (Satélite)
     const handleSuccess = (position: GeolocationPosition) => {
       if (isLocked) return;
-      const loc: UserLocation = {
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-        accuracy: position.coords.accuracy,
-        heading: position.coords.heading,
-        speed: position.coords.speed
-      };
+      const loc: UserLocation = { latitude: position.coords.latitude, longitude: position.coords.longitude, accuracy: position.coords.accuracy, heading: position.coords.heading, speed: position.coords.speed };
       setUserLocation(loc);
       evaluateEnvironment(loc);
     };
 
     if (watchId.current !== null) navigator.geolocation.clearWatch(watchId.current);
-    watchId.current = navigator.geolocation.watchPosition(handleSuccess, (err) => {
-      setError(`Hardware Sync Error: ${err.message}`);
-    }, {
+    watchId.current = navigator.geolocation.watchPosition(handleSuccess, (err) => setError(`Señal Perdida: ${err.message}`), {
       enableHighAccuracy: true, timeout: 15000, maximumAge: 0
     });
-
   }, [fetchNearbyPOIs, isLocked, evaluateEnvironment]);
 
-  /**
-   * setManualAnchor: Sobreescritura de autoridad del Administrador.
-   */
   const setManualAnchor = useCallback((lng: number, lat: number) => {
-    nicepodLog(`📍 [GeoEngine] Autoridad Admin: Anclaje Manual`);
-    if (typeof window !== "undefined" && navigator.vibrate) navigator.vibrate([10, 50, 10]);
-
-    if (watchId.current !== null) {
-      navigator.geolocation.clearWatch(watchId.current);
-      watchId.current = null;
-    }
-
+    if (watchId.current !== null) { navigator.geolocation.clearWatch(watchId.current); watchId.current = null; }
     const manualLocation: UserLocation = { latitude: lat, longitude: lng, accuracy: 1, heading: null, speed: null };
     setUserLocation(manualLocation);
-    evaluateEnvironment(manualLocation);
     setIsLocked(true);
     hasResolvedContextRef.current = false;
-    resolveContext(lat, lng);
+    setStatus('SENSORS_READY');
     fetchNearbyPOIs();
-  }, [fetchNearbyPOIs, evaluateEnvironment, resolveContext]);
+  }, [fetchNearbyPOIs]);
 
-  /**
-   * setManualPlaceName: Soberanía nominativa sobre el hito.
-   */
   const setManualPlaceName = useCallback((name: string) => {
     setData((prev: GeoContextData) => ({ ...prev, manualPlaceName: name }));
   }, []);
 
-  /**
-   * reSyncRadar: Forzar identificación si el GPS se estabiliza.
-   */
   const reSyncRadar = useCallback(() => {
-    if (userLocation) {
-      hasResolvedContextRef.current = false;
-      resolveContext(userLocation.latitude, userLocation.longitude);
-    }
+    if (userLocation) { hasResolvedContextRef.current = false; resolveContext(userLocation.latitude, userLocation.longitude); }
   }, [userLocation, resolveContext]);
 
   /**
-   * ---------------------------------------------------------------------------
-   * IV. PIPELINES DE SOBERANÍA (CEREBRO DUAL)
-   * ---------------------------------------------------------------------------
-   */
-
-  /**
-   * ingestSensoryData: Fase 1 (SENSES).
-   * Misión: Transporte de binarios (Mosaico OCR + Audio) e Ingesta IA.
+   * ingestSensoryData:
+   * [MEJORA CRÍTICA]: Transmite el error a la UI mediante 'throw e' para liberar botones.
    */
   const ingestSensoryData = async (params: {
     heroImage: File;
@@ -298,20 +205,20 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
     radius: number;
   }) => {
     if (!userLocation) return;
+
     setIsLocked(true);
     setStatus('INGESTING');
-    setError(null);
+    setError(null); // Purgamos errores previos antes de un nuevo intento
 
     try {
-      nicepodLog("📦 [GeoEngine] Codificando expediente multimodal...");
+      nicepodLog("📦 [GeoEngine] Empaquetando evidencia visual y acústica...");
 
-      // Conversión JIT paralela para reducir latencia
-      const [heroBase64, ...ocrBase64Array] = await Promise.all([
-        fileToBase64(params.heroImage),
-        ...params.ocrImages.map(file => fileToBase64(file))
-      ]);
+      const heroBase64 = await fileToBase64(params.heroImage);
+      // El array ocrImages puede estar vacío, el map lo gestiona con seguridad
+      const ocrTasks = params.ocrImages.map(file => fileToBase64(file));
+      const ocrBase64Array = await Promise.all(ocrTasks);
 
-      const payload: POICreationPayload = {
+      const result = await ingestPhysicalEvidenceAction({
         latitude: userLocation.latitude,
         longitude: userLocation.longitude,
         accuracy: userLocation.accuracy,
@@ -320,22 +227,20 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
         categoryId: params.categoryId,
         resonanceRadius: params.radius,
         adminIntent: params.intent
-      };
+      });
 
-      // 1. Ingesta Visual y OCR
-      const result = await ingestPhysicalEvidenceAction(payload);
-      if (!result.success || !result.data) throw new Error(result.error || result.message);
+      if (!result.success || !result.data) {
+        throw new Error(result.error || result.message || "FALLO_ESTRUCTURAL_SERVIDOR");
+      }
 
-      const { poiId, analysis } = result.data;
+      const { poiId, analysis, location } = result.data;
 
-      // 2. Anclaje Acústico (Si existe audio ambiente)
       if (params.ambientAudio) {
-        nicepodLog("🔊 [GeoEngine] Sincronizando Resonancia Ambiental...");
+        nicepodLog("🔊 [GeoEngine] Anclando paisaje sonoro en la Bóveda...");
         const audioBase64 = await fileToBase64(params.ambientAudio);
         await attachAmbientAudioAction({ poiId, audioBase64 });
       }
 
-      // 3. Consolidación de Dossier para Revisión
       const newDossier: IngestionDossier = {
         poi_id: poiId,
         raw_ocr_text: analysis.ocrText || null,
@@ -352,44 +257,28 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
 
       setData((prev: GeoContextData) => ({ ...prev, poiId, dossier: newDossier }));
       setStatus('DOSSIER_READY');
-      nicepodLog(`✅ [GeoEngine] Expediente nominal: POI #${poiId}`);
+      nicepodLog(`✅ [GeoEngine] Ingesta exitosa confirmada.`);
 
     } catch (e: any) {
-      nicepodLog(`🛑 [GeoEngine] Ingest Fail: ${e.message}`);
+      nicepodLog(`🛑 [GeoEngine] Rechazo detectado: ${e.message}`);
       setStatus('REJECTED');
       setError(e.message);
       setData((prev: GeoContextData) => ({ ...prev, rejectionReason: e.message }));
       setIsLocked(false);
-      throw e; // Lanzamos para que la UI libere el botón
+      // [MANDATO]: Lanzamos el error para que el 'catch' de Step 2 lo reciba
+      // y ponga 'isIngesting' a false, habilitando el botón de nuevo.
+      throw e;
     }
   };
 
-  /**
-   * synthesizeNarrative: Fase 2 (THE ORACLE).
-   */
-  const synthesizeNarrative = async (params: {
-    poiId: number;
-    depth: 'flash' | 'cronica' | 'inmersion';
-    tone: string;
-    refinedIntent?: string;
-  }) => {
+  const synthesizeNarrative = async (params: { poiId: number; depth: 'flash' | 'cronica' | 'inmersion'; tone: string; refinedIntent?: string; }) => {
     setStatus('SYNTHESIZING');
-
     try {
-      nicepodLog(`🧠 [GeoEngine] Despertando Oráculo para POI #${params.poiId}`);
       const result = await synthesizeNarrativeAction(params);
-
       if (!result.success || !result.data) throw new Error(result.error);
-
-      setData((prev: GeoContextData) => ({
-        ...prev,
-        narrative: result.data
-      }));
-
+      setData((prev: GeoContextData) => ({ ...prev, narrative: result.data }));
       setStatus('NARRATIVE_READY');
-
     } catch (e: any) {
-      nicepodLog(`🛑 [GeoEngine] Fallo en Agente 42: ${e.message}`);
       setStatus('REJECTED');
       setError(e.message);
       setData((prev: GeoContextData) => ({ ...prev, rejectionReason: e.message }));
@@ -397,39 +286,44 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const reset = () => {
-    if (watchId.current !== null) navigator.geolocation.clearWatch(watchId.current);
-    setStatus('IDLE');
-    setData({});
-    setIsLocked(false);
-    setUserLocation(null);
-    hasResolvedContextRef.current = false;
-    nicepodLog("🧹 [GeoEngine] Terminal Sensorial Purificada.");
+  /**
+   * transcribeVoiceIntentAction:
+   * Exponemos la acción STT para que el Step 2 la consuma directamente.
+   */
+  const transcribeVoiceIntent = async (audioBase64: string) => {
+    return await transcribeVoiceIntentAction({ audioBase64 });
   };
 
-  useEffect(() => {
-    return () => { if (watchId.current !== null) navigator.geolocation.clearWatch(watchId.current); };
-  }, []);
+  const reset = () => {
+    if (watchId.current !== null) navigator.geolocation.clearWatch(watchId.current);
+    setStatus('IDLE'); setData({}); setIsLocked(false); setUserLocation(null); hasResolvedContextRef.current = false; setError(null);
+  };
+
+  useEffect(() => { return () => { if (watchId.current !== null) navigator.geolocation.clearWatch(watchId.current); }; }, []);
 
   return (
     <GeoEngineContext.Provider value={{
       status, data, userLocation, activePOI, nearbyPOIs, isSearching, isLocked, error,
-      initSensors, setManualAnchor, setManualPlaceName, reSyncRadar, ingestSensoryData, synthesizeNarrative, reset
+      initSensors, setManualAnchor, setManualPlaceName, reSyncRadar, ingestSensoryData, synthesizeNarrative, reset,
+      transcribeVoiceIntent // Añadido para resolver el TS2339 en Step 2
     }}>
       {children}
     </GeoEngineContext.Provider>
   );
 }
 
-/**
- * ---------------------------------------------------------------------------
- * IV. HOOK DE CONSUMO (THE CLIENT)
- * ---------------------------------------------------------------------------
- */
 export function useGeoEngine() {
   const context = useContext(GeoEngineContext);
-  if (context === undefined) {
-    throw new Error("useGeoEngine debe usarse dentro de un GeoEngineProvider.");
-  }
+  if (context === undefined) throw new Error("useGeoEngine debe usarse dentro de un GeoEngineProvider.");
   return context;
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V7.5):
+ * 1. Throw-Passthrough: El bloque catch de ingestSensoryData (Línea 296) 
+ *    ahora lanza el error a la capa superior. Esto es lo que garantiza 
+ *    que el botón "PROCESAR EXPEDIENTE" deje de girar si falla la subida.
+ * 2. Transcripción Integrada: Se añadió 'transcribeVoiceIntent' a la interfaz 
+ *    y al provider, resolviendo el último error de compilación (TS2339) 
+ *    en el archivo del Step 2.
+ */
