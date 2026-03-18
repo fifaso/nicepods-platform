@@ -1,14 +1,14 @@
 // actions/geo-actions.ts
-// VERSIÓN: 6.1 (NicePod Sovereign Geo-Actions - Multi-Evidence & Error Resilient)
-// Misión: Orquestar el ciclo de vida multimodal con tolerancia a fallos y telemetría de errores.
-// [ESTABILIZACIÓN]: Gestión de excepciones atómicas para evitar bloqueos en la UI del Admin.
+// VERSIÓN: 6.2 (NicePod Sovereign Geo-Actions - Payload Resilient Edition)
+// Misión: Orquestar el ciclo de vida multimodal con tolerancia a fallos de red y tamaño.
+// [ESTABILIZACIÓN]: Gestión de Error 413, subida paralela de mosaico y anclaje acústico.
 
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
-// --- IMPORTACIÓN DE CONTRATOS SOBERANOS ---
+// --- IMPORTACIÓN DE CONTRATOS SOBERANOS (BUILD SHIELD) ---
 import {
   POIIngestionSchema
 } from "@/lib/validation/poi-schema";
@@ -27,7 +27,7 @@ import {
 /**
  * validateSovereignAccess:
  * Valida la identidad y el rango del actor directamente en el servidor.
- * Es la primera barrera del Build Shield.
+ * Garantiza que solo el Administrador pueda inyectar datos en la Malla de Madrid.
  */
 async function validateSovereignAccess() {
   const supabase = createClient();
@@ -35,12 +35,12 @@ async function validateSovereignAccess() {
 
   if (error || !user) throw new Error("IDENTIDAD_NO_VERIFICADA");
 
-  // Validación de Rango Admin innegociable para V2.6
+  // Verificación estricta de Claims de JWT
   const appMetadata = user.app_metadata || {};
   const userRole = appMetadata.user_role || appMetadata.role || 'user';
 
   if (userRole !== 'admin') {
-    throw new Error("ACCESO_DENEGADO: Se requiere autoridad de Administrador.");
+    throw new Error("ACCESO_SENSORIAL_DENEGADO: Autoridad insuficiente.");
   }
 
   return user;
@@ -52,6 +52,10 @@ async function validateSovereignAccess() {
  * ---------------------------------------------------------------------------
  */
 
+/**
+ * decodeBase64ToUint8Array:
+ * Transmuta capturas Base64 en binarios puros para el Storage de Supabase.
+ */
 function decodeBase64ToUint8Array(dataString: string) {
   try {
     const matches = dataString.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
@@ -70,7 +74,7 @@ function decodeBase64ToUint8Array(dataString: string) {
 
     return { type: contentType, buffer: bytes };
   } catch (e) {
-    throw new Error("FALLO_DECODIFICACION_BINARIA: El activo está corrupto.");
+    throw new Error("FALLO_DECODIFICACION: El activo visual está incompleto o corrupto.");
   }
 }
 
@@ -80,6 +84,10 @@ function decodeBase64ToUint8Array(dataString: string) {
  * ---------------------------------------------------------------------------
  */
 
+/**
+ * resolveLocationAction:
+ * Identifica el nombre del lugar y el clima para alimentar el HUD del Step 1.
+ */
 export async function resolveLocationAction(
   latitude: number,
   longitude: number
@@ -96,40 +104,46 @@ export async function resolveLocationAction(
       headers: { Authorization: `Bearer ${serviceKey}` }
     });
 
-    if (error) throw new Error(`EDGE_FUNCTION_FAIL: ${error.message}`);
+    if (error) throw new Error(`RADAR_SYNC_FAIL: ${error.message}`);
 
     return {
       success: true,
-      message: "Radar sincronizado con éxito.",
+      message: "Radar sincronizado.",
       data: data.data
     };
   } catch (error: any) {
-    console.error("🔥 [Geo-Action][Resolve-Error]:", error.message);
+    console.error("🔥 [Geo-Action][Resolve-Fatal]:", error.message);
     return { success: false, message: "Error al identificar el nodo.", error: error.message };
   }
 }
 
 /**
  * ---------------------------------------------------------------------------
- * IV. FASE 1: INGESTA SENSORIAL (MULTI-OCR PIPELINE)
+ * IV. FASE 1: INGESTA SENSORIAL (THE MULTIMODAL PIPELINE)
  * ---------------------------------------------------------------------------
  */
 
+/**
+ * ingestPhysicalEvidenceAction:
+ * Transporta la captura monumental y el mosaico de placas al Storage y activa la IA.
+ * [V6.2]: Manejo explícito de desbordamiento de carga (Error 413).
+ */
 export async function ingestPhysicalEvidenceAction(
-  payload: POICreationPayload & { ocrImages: string[] }
+  payload: POICreationPayload
 ): Promise<GeoActionResponse<{ poiId: number; analysis: any; location: any }>> {
   try {
     const user = await validateSovereignAccess();
 
-    // Validación de contrato Zod antes de gastar recursos de Storage
+    // 1. Validación de esquema Zod
     const validatedData = POIIngestionSchema.parse(payload);
 
     const supabase = createClient();
     const timestamp = Date.now();
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    // 1. Transporte Atómico de Imagen Hero (Captura Principal)
-    console.info(`📦 [Geo-Action] Subiendo Imagen Hero para usuario: ${user.id}`);
+    console.info(`📦 [Geo-Action] Iniciando despacho multimodal para usuario: ${user.id}`);
+
+    // 2. Transporte de Imagen Hero
     const heroImg = decodeBase64ToUint8Array(payload.heroImage);
     const heroPath = `poi-evidence/${user.id}/${timestamp}_hero.jpg`;
 
@@ -138,13 +152,10 @@ export async function ingestPhysicalEvidenceAction(
       .upload(heroPath, heroImg.buffer, { contentType: heroImg.type, upsert: true });
 
     if (heroError) throw new Error(`STORAGE_HERO_FAIL: ${heroError.message}`);
-    const heroUrl = supabase.storage.from('podcasts').getPublicUrl(heroPath).data.publicUrl;
 
-    // 2. Transporte Paralelo de Mosaico OCR (Evidencia Secundaria)
+    // 3. Transporte de Mosaico OCR (Array de imágenes)
     const ocrUrls: string[] = [];
     if (payload.ocrImages && payload.ocrImages.length > 0) {
-      console.info(`📦 [Geo-Action] Subiendo mosaico de ${payload.ocrImages.length} fotos OCR.`);
-
       const uploadTasks = payload.ocrImages.map((base64, index) => {
         const img = decodeBase64ToUint8Array(base64);
         const path = `poi-evidence/${user.id}/${timestamp}_ocr_${index}.jpg`;
@@ -154,12 +165,11 @@ export async function ingestPhysicalEvidenceAction(
         });
       });
 
-      const uploadResults = await Promise.all(uploadTasks);
+      const results = await Promise.all(uploadTasks);
 
-      // Verificamos integridad del mosaico
-      uploadResults.forEach((res, index) => {
+      results.forEach((res, index) => {
         if (res.error) {
-          console.warn(`⚠️ [Geo-Action] Foto OCR #${index} falló: ${res.error.message}`);
+          console.warn(`⚠️ [Geo-Action] Fallo en foto OCR #${index}: ${res.error.message}`);
         } else {
           const url = supabase.storage.from('podcasts').getPublicUrl(`poi-evidence/${user.id}/${timestamp}_ocr_${index}.jpg`).data.publicUrl;
           ocrUrls.push(url);
@@ -167,8 +177,9 @@ export async function ingestPhysicalEvidenceAction(
       });
     }
 
-    // 3. Invocación del Cerebro Sensorial (Edge Function)
-    console.info("🧠 [Geo-Action] Invocando Ingestor Multimodal en el Edge.");
+    const heroUrl = supabase.storage.from('podcasts').getPublicUrl(heroPath).data.publicUrl;
+
+    // 4. Invocación de Ingestor Multimodal (Edge Function)
     const { data, error: functionError } = await supabase.functions.invoke('geo-sensor-ingestor', {
       body: {
         ...validatedData,
@@ -178,23 +189,30 @@ export async function ingestPhysicalEvidenceAction(
       headers: { Authorization: `Bearer ${serviceKey}` }
     });
 
-    if (functionError) throw new Error(`AI_INGEST_FAIL: ${functionError.message}`);
+    if (functionError) throw new Error(`AI_INGESTOR_FAIL: ${functionError.message}`);
 
     return {
       success: true,
-      message: "Expediente visual procesado correctamente.",
+      message: "Expediente visual asegurado.",
       data: data.data
     };
 
   } catch (error: any) {
-    console.error("🔥 [Geo-Action][Ingest-Error]:", error.message);
-    return { success: false, message: "Fallo en la ingesta multimodal.", error: error.message };
+    // [GESTIÓN DE DESBORDAMIENTO V6.2]:
+    // Detectamos si el error proviene del límite de 1MB/4MB de la Server Action.
+    const isTooLarge = error.message.includes('exceeded') || error.status === 413;
+    const readableError = isTooLarge
+      ? "Evidencia demasiado pesada (Límite 4MB). Por favor, use imágenes comprimidas."
+      : error.message;
+
+    console.error("🔥 [Geo-Action][Ingest-Fatal]:", error.message);
+    return { success: false, message: "Fallo en la ingesta.", error: readableError };
   }
 }
 
 /**
  * ---------------------------------------------------------------------------
- * V. FASE 2: ANCLAJE ACÚSTICO (SOUNDSCAPE INTEGRITY)
+ * V. FASE 2: ANCLAJE ACÚSTICO (SOUNDSCAPE RECOVERY)
  * ---------------------------------------------------------------------------
  */
 
@@ -227,19 +245,18 @@ export async function attachAmbientAudioAction(params: {
 
     return {
       success: true,
-      message: "Frecuencia ambiental anclada.",
+      message: "Paisaje sonoro anclado.",
       data: { audioUrl }
     };
-
   } catch (error: any) {
-    console.error("🔥 [Geo-Action][Audio-Error]:", error.message);
-    return { success: false, message: "Error al asegurar el activo acústico.", error: error.message };
+    console.error("🔥 [Geo-Action][Audio-Fatal]:", error.message);
+    return { success: false, message: "Error al asegurar el audio.", error: error.message };
   }
 }
 
 /**
  * ---------------------------------------------------------------------------
- * VI. FASE 3: SÍNTESIS NARRATIVA (AGENTE 42)
+ * VI. FASE 3: SÍNTESIS NARRATIVA (EL ORÁCULO)
  * ---------------------------------------------------------------------------
  */
 
@@ -263,12 +280,12 @@ export async function synthesizeNarrativeAction(params: {
 
     return {
       success: true,
-      message: "Crónica de sabiduría sintetizada.",
+      message: "Crónica forjada por el Agente 42.",
       data: data.data
     };
   } catch (error: any) {
-    console.error("🔥 [Geo-Action][Narrative-Error]:", error.message);
-    return { success: false, message: "Fallo en la forja intelectual.", error: error.message };
+    console.error("🔥 [Geo-Action][Narrative-Fatal]:", error.message);
+    return { success: false, message: "Fallo en la síntesis intelectual.", error: error.message };
   }
 }
 
@@ -299,22 +316,22 @@ export async function publishPOIAction(poiId: number): Promise<GeoActionResponse
 
     return {
       success: true,
-      message: "Nodo urbano sincronizado con la Bóveda Global."
+      message: "Nodo publicado exitosamente."
     };
   } catch (error: any) {
-    console.error("🔥 [Geo-Action][Publish-Error]:", error.message);
-    return { success: false, message: "Error al materializar el nodo.", error: error.message };
+    console.error("🔥 [Geo-Action][Publish-Fatal]:", error.message);
+    return { success: false, message: "Fallo en la activación del nodo.", error: error.message };
   }
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V6.1):
- * 1. Mapeo de Errores Operativos: Cada bloque catch ahora devuelve un código de error 
- *    prefijado (ej. STORAGE_HERO_FAIL) para que el equipo de soporte pueda identificar 
- *    instantáneamente el punto de ruptura sin mirar el código.
- * 2. Robustez de Transporte: Se ha blindado la decodificación Base64 para evitar 
- *    que strings mal formateados por el hardware móvil bloqueen el servidor.
- * 3. Atomicidad Parcial: El mosaico de imágenes OCR ahora es resiliente; si una 
- *    foto falla pero las otras dos suben, el proceso continúa para no obligar 
- *    al Admin a repetir toda la captura.
+ * NOTA TÉCNICA DEL ARCHITECT (V6.2):
+ * 1. Resiliencia de Carga: La Action es ahora consciente de los límites de 
+ *    infraestructura (Vercel Action Body Limit). Captura el error 413 y lo 
+ *    traduce para el Admin, evitando el "cuadro rojo de pánico" de Next.js.
+ * 2. Cero Abreviaciones: Se ha mantenido el rigor en cada bloque de error 
+ *    para garantizar que el sistema sea 100% auditable.
+ * 3. Mosaico Multimodal Pro: El transporte paralelo de hasta 3 fotos OCR 
+ *    maximiza la densidad de información que recibe el Agente 42, 
+ *    sin penalizar el tiempo de respuesta.
  */
