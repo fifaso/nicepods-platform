@@ -1,7 +1,7 @@
 // components/geo/forge-context.tsx
-// VERSIÓN: 2.7 (NicePod Sovereign Memory Manager - Multi-Evidence Edition)
-// Misión: Orquestar el ciclo de vida de captura física con soporte para múltiples evidencias.
-// [ESTABILIZACIÓN]: Implementación de Array de imágenes OCR y gestión de memoria reactiva.
+// VERSIÓN: 2.8 (NicePod Sovereign Memory Manager - Cognitive Seed Edition)
+// Misión: Orquestar el ciclo de vida de captura multimodal incluyendo dictado sónico.
+// [ESTABILIZACIÓN]: Soporte para intentAudioBlob y estado de transcripción AI.
 
 "use client";
 
@@ -17,7 +17,7 @@ import { IngestionDossier } from "@/types/geo-sovereignty";
 
 /**
  * ---------------------------------------------------------------------------
- * I. CONTRATOS DE DATOS (EL ADN DE LA FORJA V2.7)
+ * I. CONTRATOS DE DATOS (EL ADN DE LA FORJA V2.8)
  * ---------------------------------------------------------------------------
  */
 
@@ -30,11 +30,13 @@ export type ForgeStep =
   | 'FORGING';
 
 /**
- * ForgeState: Estructura de memoria volátil. 
+ * ForgeState: Estructura de memoria volátil del Administrador.
+ * Diseñada para soportar la ingesta de datos físicos y cognitivos.
  */
 export interface ForgeState {
   currentStep: ForgeStep;
   isSubmitting: boolean;
+  isTranscribing: boolean; // [NUEVO]: Indica si la IA está convirtiendo voz a texto
 
   // Fase 1: Anclaje Geográfico
   latitude: number | null;
@@ -43,17 +45,20 @@ export interface ForgeState {
   categoryId: string;
   resonanceRadius: number;
 
-  // Fase 2: Evidencia Física (RAM Optimization & Multi-Capture)
-  heroImageFile: File | null;       // Imagen monumental principal
-  ocrImageFiles: File[];            // [NUEVO]: Colección de hasta 3 fotos de placas/inscripciones
-  ambientAudioBlob: Blob | null;    // Sonido ambiente real del lugar
+  // Fase 2: Evidencia Física (Visual y Acústica)
+  heroImageFile: File | null;       
+  ocrImageFiles: File[];            
+  ambientAudioBlob: Blob | null;    // Sonido real del lugar para el Voyager
 
-  // Fase 3: Inteligencia Retornada
-  ingestedPoiId: number | null;     // El ID en la tabla points_of_interest
-  ingestionDossier: IngestionDossier | null; // Datos capturados (OCR, Clima, IA)
+  // Fase 2.5: Semilla de Intención (Dictado Admin)
+  intentAudioBlob: Blob | null;     // [NUEVO]: Binario de voz para transcripción
 
-  // Fase 4: Semilla Narrativa e Intención (Instrucciones para Agente 42)
-  intentText: string;
+  // Fase 3: Inteligencia Retornada de la Ingesta
+  ingestedPoiId: number | null;     
+  ingestionDossier: IngestionDossier | null; 
+
+  // Fase 4: Configuración Editorial e Intención Final
+  intentText: string;               // Texto final corregido por el Admin
   depth: 'flash' | 'cronica' | 'inmersion';
   tone: 'academico' | 'misterioso' | 'epico' | 'melancolico' | 'neutro';
   historicalFact: string;
@@ -68,13 +73,15 @@ export interface ForgeState {
 type ForgeAction =
   | { type: 'SET_STEP'; payload: ForgeStep }
   | { type: 'SET_IS_SUBMITTING'; payload: boolean }
+  | { type: 'SET_TRANSCRIBING'; payload: boolean } // [NUEVO]
   | { type: 'SET_LOCATION'; payload: { lat: number; lng: number; acc: number } }
   | { type: 'SET_CATEGORY'; payload: string }
   | { type: 'SET_RADIUS'; payload: number }
   | { type: 'SET_HERO_IMAGE'; payload: File | null }
-  | { type: 'ADD_OCR_IMAGE'; payload: File } // Añadir a la colección
-  | { type: 'REMOVE_OCR_IMAGE'; payload: number } // Eliminar por índice
+  | { type: 'ADD_OCR_IMAGE'; payload: File } 
+  | { type: 'REMOVE_OCR_IMAGE'; payload: number } 
   | { type: 'SET_AMBIENT_AUDIO'; payload: Blob | null }
+  | { type: 'SET_INTENT_AUDIO'; payload: Blob | null } // [NUEVO]
   | { type: 'SET_INGESTION_RESULT'; payload: { poiId: number; dossier: IngestionDossier } }
   | { type: 'SET_INTENT'; payload: string }
   | { type: 'SET_DEPTH'; payload: ForgeState['depth'] }
@@ -85,14 +92,16 @@ type ForgeAction =
 const initialState: ForgeState = {
   currentStep: 'ANCHORING',
   isSubmitting: false,
+  isTranscribing: false,
   latitude: null,
   longitude: null,
   accuracy: null,
   categoryId: 'historia',
   resonanceRadius: 35,
   heroImageFile: null,
-  ocrImageFiles: [], // Inicializado como colección vacía
+  ocrImageFiles: [], 
   ambientAudioBlob: null,
+  intentAudioBlob: null, // Inicialización nula del dictado
   ingestedPoiId: null,
   ingestionDossier: null,
   intentText: "",
@@ -102,12 +111,13 @@ const initialState: ForgeState = {
 };
 
 /**
- * forgeReducer: Transmutación determinista de la memoria de forja.
+ * forgeReducer: Transmutación determinista de la memoria táctica.
  */
 function forgeReducer(state: ForgeState, action: ForgeAction): ForgeState {
   switch (action.type) {
     case 'SET_STEP': return { ...state, currentStep: action.payload };
     case 'SET_IS_SUBMITTING': return { ...state, isSubmitting: action.payload };
+    case 'SET_TRANSCRIBING': return { ...state, isTranscribing: action.payload };
     case 'SET_LOCATION':
       return {
         ...state,
@@ -118,15 +128,13 @@ function forgeReducer(state: ForgeState, action: ForgeAction): ForgeState {
     case 'SET_CATEGORY': return { ...state, categoryId: action.payload };
     case 'SET_RADIUS': return { ...state, resonanceRadius: action.payload };
     case 'SET_HERO_IMAGE': return { ...state, heroImageFile: action.payload };
-
-    // Gestión de Colección OCR (Límite físico de 3 fotos)
     case 'ADD_OCR_IMAGE':
       if (state.ocrImageFiles.length >= 3) return state;
       return { ...state, ocrImageFiles: [...state.ocrImageFiles, action.payload] };
     case 'REMOVE_OCR_IMAGE':
       return { ...state, ocrImageFiles: state.ocrImageFiles.filter((_, i) => i !== action.payload) };
-
     case 'SET_AMBIENT_AUDIO': return { ...state, ambientAudioBlob: action.payload };
+    case 'SET_INTENT_AUDIO': return { ...state, intentAudioBlob: action.payload };
     case 'SET_INGESTION_RESULT': return {
       ...state,
       ingestedPoiId: action.payload.poiId,
@@ -160,7 +168,7 @@ export function ForgeProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(forgeReducer, initialState);
 
   /**
-   * nextStep: Navegación UI Síncrona.
+   * nextStep: Navegación de Flujo Síncrono.
    */
   const nextStep = useCallback(() => {
     if (state.currentStep === 'ANCHORING') {
@@ -208,11 +216,13 @@ export function useForge() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V2.7):
- * 1. Soporte Multi-OCR: El cambio a 'ocrImageFiles' permite que el Administrador 
- *    recoja evidencia de múltiples ángulos de un monumento.
- * 2. Integridad de Autoridad: Las acciones 'ADD' y 'REMOVE' de OCR aseguran que 
- *    la UI sea reactiva y el Admin tenga el control total antes de la ingesta.
- * 3. Preparación Agente 42: La memoria está lista para entregarle al Oráculo
- *    un Dossier rico en datos visuales, acústicos y ambientales.
+ * NOTA TÉCNICA DEL ARCHITECT (V2.8):
+ * 1. Protocolo de Transcripción: La inyección de 'intentAudioBlob' y 'isTranscribing' 
+ *    permite que la UI del Step 2 maneje un hilo secundario de inteligencia (STT) 
+ *    sin contaminar el flujo principal de subida de imágenes.
+ * 2. Soberanía Editorial: Al centralizar 'intentText' como receptor de la 
+ *    transcripción, aseguramos que el Administrador siempre pueda editar el 
+ *    resultado antes de enviarlo al Agente 42.
+ * 3. Atomicidad: La acción 'RESET_FORGE' ahora purga también los binarios de 
+ *    dictado, garantizando que no existan fugas de contexto entre misiones.
  */
