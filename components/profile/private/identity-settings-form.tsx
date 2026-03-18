@@ -1,5 +1,5 @@
 // components/profile/private/identity-settings-form.tsx
-//VERSIÓN: 3.0 (NicePod Identity Forge - Industrial Integrity Standard)
+//VERSIÓN: 3.0 (NicePod Identity Forge - Industrial Integrity Standard) 
 
 "use client";
 
