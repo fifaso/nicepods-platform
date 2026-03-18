@@ -1,7 +1,7 @@
 // components/geo/steps/step-2-sensory-capture.tsx
-// VERSIÓN: 4.2 (NicePod Sovereign Sensory Capture - Cognitive Edition)
+// VERSIÓN: 4.3 (NicePod Sovereign Sensory Capture - Cognitive Edition Final)
 // Misión: Captura multimodal avanzada con dictado de intención y mosaico OCR.
-// [ESTABILIZACIÓN]: Integración de STT Neuronal, edición manual y gestión de 4 flujos binarios.
+// [ESTABILIZACIÓN]: Corrección de enrutamiento STT (TS2339).
 
 "use client";
 
@@ -21,21 +21,22 @@ import {
   Plus,
   Pause,
   BrainCircuit,
-  Type,
   RefreshCw,
   Image as ImageIcon
 } from "lucide-react";
 import Image from "next/image";
-import React, { useRef, useState, useEffect, useCallback } from "react";
+import React, { useRef, useState, useEffect } from "react";
 
 // --- INFRAESTRUCTURA SOBERANA ---
 import { useForge } from "../forge-context";
 import { useGeoEngine } from "@/hooks/use-geo-engine";
-
-// --- COMPONENTES UI ---
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
+
+// [FIX CRÍTICO]: Importamos la Server Action de Transcripción de forma directa.
+// Esto desacopla el STT del motor GPS, manteniendo la arquitectura limpia.
+import { transcribeVoiceIntentAction } from "@/actions/geo-actions";
 
 export function StepSensoryCapture() {
   // 1. CONSUMO DE CONTEXTOS Y MOTORES
@@ -165,20 +166,23 @@ export function StepSensoryCapture() {
 
   /**
    * handleTranscription: 
-   * Transforma el dictado del Admin en texto editable.
+   * Transforma el dictado del Admin en texto editable usando el Agente 42.
    */
   const handleTranscription = async (blob: Blob) => {
     dispatch({ type: 'SET_TRANSCRIBING', payload: true });
     try {
-      // Convertimos el Blob a Base64 para el transporte JIT
       const reader = new FileReader();
       reader.readAsDataURL(blob);
       reader.onloadend = async () => {
         const base64Audio = reader.result as string;
-        const result = await geoEngine.transcribeVoiceIntentAction({ audioBase64: base64Audio });
+        
+        // [FIX CRÍTICO TS2339]: Invocación directa a la Server Action.
+        const result = await transcribeVoiceIntentAction({ audioBase64: base64Audio });
         
         if (result.success && result.data) {
           dispatch({ type: 'SET_INTENT', payload: result.data.transcription });
+        } else {
+          console.warn("Fallo de transcripción:", result.error);
         }
       };
     } catch (err) {
@@ -217,7 +221,7 @@ export function StepSensoryCapture() {
 
       {/* --- HEADER --- */}
       <div className="flex items-center justify-between">
-        <Button variant="ghost" onClick={prevStep} disabled={isIngesting} className="rounded-full h-12 w-12 p-0 bg-white/5 border border-white/10 text-zinc-400">
+        <Button variant="ghost" onClick={prevStep} disabled={isIngesting} className="rounded-full h-12 w-12 p-0 bg-white/5 border border-white/10 text-zinc-400 hover:text-white">
           <ChevronLeft size={24} />
         </Button>
         <div className="text-right">
@@ -231,7 +235,7 @@ export function StepSensoryCapture() {
         <div className="space-y-4">
           <div className="flex items-center gap-3 px-2 opacity-50"><Camera size={14} className="text-primary" /><h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white">Imagen Principal</h3></div>
           <div onClick={() => !isIngesting && heroInputRef.current?.click()} className={cn("relative aspect-video rounded-[2.5rem] border-2 border-dashed transition-all duration-500 cursor-pointer overflow-hidden group", heroUrl ? "border-primary/40 shadow-[0_0_50px_rgba(var(--primary),0.15)]" : "border-white/10 bg-white/[0.01]")}>
-            {heroUrl ? (<Image src={heroUrl} alt="Hero" fill className="object-cover animate-in zoom-in-95 duration-700" unoptimized />) : (<div className="h-full flex flex-col items-center justify-center gap-2 opacity-20"><ImageIcon size={40} /><span className="text-[8px] font-black uppercase tracking-widest text-center px-8">Capturar Monumento</span></div>)}
+            {heroUrl ? (<><Image src={heroUrl} alt="Hero" fill className="object-cover animate-in zoom-in-95 duration-700" unoptimized /><div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"><span className="text-[10px] font-black text-white uppercase tracking-widest bg-black/60 px-6 py-2.5 rounded-full border border-white/10 backdrop-blur-md">Sustituir Captura</span></div></>) : (<div className="h-full flex flex-col items-center justify-center gap-2 opacity-20"><ImageIcon size={40} /><span className="text-[8px] font-black uppercase tracking-widest text-center px-8">Capturar Monumento</span></div>)}
             <input type="file" accept="image/*" ref={heroInputRef} className="hidden" onChange={handleHeroCapture} />
           </div>
         </div>
@@ -305,10 +309,10 @@ export function StepSensoryCapture() {
       <div className="space-y-4">
         <div className="flex items-center gap-3 px-2 opacity-50"><Volume2 size={14} className="text-emerald-400" /><h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white">Resonancia del Lugar</h3></div>
         <div className="p-8 rounded-[3rem] bg-white/[0.01] border border-white/5 shadow-inner flex flex-col items-center gap-6 relative overflow-hidden">
-          <p className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-600">{isRecordingAmbient ? "Capturando Ambiente..." : ambientAudioUrl ? "Frecuencia List" : "Graba 15s de ruido real"}</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-600">{isRecordingAmbient ? "Capturando Ambiente..." : ambientAudioUrl ? "Frecuencia Lista" : "Graba 15s de ruido real"}</p>
           <div className="flex items-center gap-6">
             {!ambientAudioUrl && (
-              <button onMouseDown={() => startRecording('AMBIENT')} onMouseUp={stopRecording} onTouchStart={() => startRecording('AMBIENT')} onTouchEnd={stopRecording} className={cn("h-20 w-20 rounded-full flex items-center justify-center transition-all duration-500", isRecordingAmbient ? "bg-red-500 scale-110 shadow-[0_0_30px_rgba(239,68,68,0.4)]" : "bg-emerald-500/10 border border-emerald-500/30 text-emerald-500")}><Mic size={28} /></button>
+              <button onMouseDown={() => startRecording('AMBIENT')} onMouseUp={stopRecording} onTouchStart={() => startRecording('AMBIENT')} onTouchEnd={stopRecording} className={cn("h-20 w-20 rounded-full flex items-center justify-center transition-all duration-500", isRecordingAmbient ? "bg-red-500 scale-110 shadow-[0_0_30px_rgba(239,68,68,0.4)]" : "bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/20")}><Mic size={28} /></button>
             )}
             {ambientAudioUrl && (
               <div className="flex items-center gap-4 animate-in zoom-in-95">
@@ -321,11 +325,11 @@ export function StepSensoryCapture() {
         </div>
       </div>
 
-      {/* --- IV. BOTÓN FINAL --- */}
+      {/* --- IV. ACCIÓN DE PROGRESO --- */}
       <div className="mt-8">
         <Button
           onClick={handleInitiateIngestion}
-          disabled={!state.heroImageFile || state.intentText.length < 5 || isIngesting || isRecordingAmbient || isRecordingIntent}
+          disabled={!state.heroImageFile || state.intentText.length < 5 || isIngesting || isRecordingAmbient || isRecordingIntent || state.isTranscribing}
           className="w-full h-20 rounded-[2.5rem] bg-primary text-black font-black uppercase tracking-[0.5em] shadow-2xl hover:brightness-110 active:scale-[0.98] group relative overflow-hidden"
         >
           <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity animate-pulse" />
@@ -336,16 +340,3 @@ export function StepSensoryCapture() {
     </div>
   );
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT (V4.2):
- * 1. Cognitive Seed STT: Implementación del flujo Voice-to-Text mediante el uso de 
- *    'intentAudioBlob' y la pasarela 'transcribeVoiceIntentAction'. Esto elimina 
- *    la fricción de entrada de datos en campo.
- * 2. Soberanía Editorial: El Admin mantiene el control absoluto del texto 
- *    transcrito, permitiendo ediciones en tiempo real para corregir nombres 
- *    propios o detalles técnicos antes del despacho al Agente 42.
- * 3. Gestión Dual Acústica: El componente diferencia entre el audio efímero de 
- *    la intención (dictado) y el audio persistente del paisaje sonoro (ambiente), 
- *    optimizando el consumo de Storage y créditos de IA.
- */
