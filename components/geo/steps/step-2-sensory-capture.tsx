@@ -1,7 +1,7 @@
 // components/geo/steps/step-2-sensory-capture.tsx
-// VERSIÓN: 4.0 (NicePod Sovereign Sensory Capture - Multimodal Pro)
-// Misión: Captura monumental, mosaico OCR y paisaje sonoro con validación acústica.
-// [ESTABILIZACIÓN]: Soporte para 3 imágenes OCR, auditoría de audio y JIT Blob URLs.
+// VERSIÓN: 4.1 (NicePod Sovereign Sensory Capture - Lint-Safe Pro)
+// Misión: Captura monumental, mosaico OCR y paisaje sonoro con gestión de memoria atómica.
+// [ESTABILIZACIÓN]: Erradicación de advertencias de linter y soporte multimodal completo.
 
 "use client";
 
@@ -22,7 +22,7 @@ import {
   X
 } from "lucide-react";
 import Image from "next/image";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 // --- INFRAESTRUCTURA SOBERANA ---
 import { useGeoEngine } from "@/hooks/use-geo-engine";
@@ -32,12 +32,16 @@ import { useForge } from "../forge-context";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+/**
+ * COMPONENTE: StepSensoryCapture
+ * La terminal de captura física de alta fidelidad.
+ */
 export function StepSensoryCapture() {
-  // 1. CONSUMO DE CONTEXTOS Y MOTORES
+  // 1. CONSUMO DE CONTEXTOS Y MOTORES SINCRO-ESTABLES
   const { state, dispatch, prevStep } = useForge();
   const geoEngine = useGeoEngine();
 
-  // --- ESTADOS DE PREVISUALIZACIÓN (Punteros de Memoria Efímera) ---
+  // --- ESTADOS DE PREVISUALIZACIÓN LOCAL ---
   const [heroUrl, setHeroUrl] = useState<string | null>(null);
   const [ocrUrls, setOcrUrls] = useState<string[]>([]);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -55,74 +59,74 @@ export function StepSensoryCapture() {
   const audioChunksRef = useRef<Blob[]>([]);
 
   /**
-   * PROTOCOLO DE HIGIENE DE RAM (Garbage Collection)
-   * Sincronizamos los archivos del ForgeContext con URLs locales para la UI.
+   * ---------------------------------------------------------------------------
+   * PROTOCOLO DE HIGIENE DE RAM (V4.1): EFECTOS ATÓMICOS
+   * Misión: Eliminar 'exhaustive-deps' y garantizar limpieza de memoria.
+   * ---------------------------------------------------------------------------
    */
-  useEffect(() => {
-    // Sincronía Hero
-    if (state.heroImageFile && !heroUrl) {
-      setHeroUrl(URL.createObjectURL(state.heroImageFile));
-    }
-    // Sincronía Mosaico OCR
-    if (state.ocrImageFiles.length > 0 && ocrUrls.length === 0) {
-      const urls = state.ocrImageFiles.map(file => URL.createObjectURL(file));
-      setOcrUrls(urls);
-    }
-    // Sincronía Audio
-    if (state.ambientAudioBlob && !audioUrl) {
-      setAudioUrl(URL.createObjectURL(state.ambientAudioBlob));
-    }
 
-    // Limpieza al desmontar para evitar Memory Leaks
-    return () => {
-      if (heroUrl) URL.revokeObjectURL(heroUrl);
-      ocrUrls.forEach(url => URL.revokeObjectURL(url));
-      if (audioUrl) URL.revokeObjectURL(audioUrl);
-    };
-  }, [state.heroImageFile, state.ocrImageFiles, state.ambientAudioBlob]);
+  // I. GESTIÓN SOBERANA DE IMAGEN HERO
+  useEffect(() => {
+    if (!state.heroImageFile) {
+      setHeroUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(state.heroImageFile);
+    setHeroUrl(url);
+    // Cleanup Protocol: Libera RAM al cambiar o desmontar
+    return () => URL.revokeObjectURL(url);
+  }, [state.heroImageFile]);
+
+  // II. GESTIÓN SOBERANA DE MOSAICO OCR
+  useEffect(() => {
+    if (state.ocrImageFiles.length === 0) {
+      setOcrUrls([]);
+      return;
+    }
+    const urls = state.ocrImageFiles.map(file => URL.createObjectURL(file));
+    setOcrUrls(urls);
+    // Cleanup Protocol: Purgar todas las URLs del mosaico
+    return () => urls.forEach(url => URL.revokeObjectURL(url));
+  }, [state.ocrImageFiles]);
+
+  // III. GESTIÓN SOBERANA DE AUDIO AMBIENTE
+  useEffect(() => {
+    if (!state.ambientAudioBlob) {
+      setAudioUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(state.ambientAudioBlob);
+    setAudioUrl(url);
+    // Cleanup Protocol: Libera el activo acústico de la memoria volátil
+    return () => URL.revokeObjectURL(url);
+  }, [state.ambientAudioBlob]);
 
   /**
-   * handleHeroCapture: 
-   * Captura la imagen principal (Monumento).
+   * ---------------------------------------------------------------------------
+   * IV. MANEJADORES DE CAPTURA FÍSICA
+   * ---------------------------------------------------------------------------
    */
+
   const handleHeroCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (heroUrl) URL.revokeObjectURL(heroUrl);
-    const url = URL.createObjectURL(file);
-    setHeroUrl(url);
-    dispatch({ type: 'SET_HERO_IMAGE', payload: file });
+    if (file) dispatch({ type: 'SET_HERO_IMAGE', payload: file });
   };
 
-  /**
-   * handleOcrCapture:
-   * Añade una nueva evidencia de texto al mosaico (Límite 3).
-   */
   const handleOcrCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || state.ocrImageFiles.length >= 3) return;
-
-    const url = URL.createObjectURL(file);
-    setOcrUrls(prev => [...prev, url]);
-    dispatch({ type: 'ADD_OCR_IMAGE', payload: file });
-
-    // Reseteamos el input para permitir capturar el mismo archivo si se desea
+    if (file && state.ocrImageFiles.length < 3) {
+      dispatch({ type: 'ADD_OCR_IMAGE', payload: file });
+    }
+    // Reseteamos el valor para permitir re-capturar el mismo nombre de archivo
     if (ocrInputRef.current) ocrInputRef.current.value = "";
   };
 
-  /**
-   * removeOcrImage:
-   * Purgar una foto del mosaico de evidencia.
-   */
-  const removeOcrImage = (index: number) => {
-    URL.revokeObjectURL(ocrUrls[index]);
-    setOcrUrls(prev => prev.filter((_, i) => i !== index));
+  const removeOcrImage = useCallback((index: number) => {
     dispatch({ type: 'REMOVE_OCR_IMAGE', payload: index });
-  };
+  }, [dispatch]);
 
   /**
-   * PROTOCOLO ACÚSTICO: Captura y Auditoría de Sonido
+   * PROTOCOLO ACÚSTICO: Captura Soundscape
    */
   const startRecording = async () => {
     try {
@@ -136,10 +140,8 @@ export function StepSensoryCapture() {
 
       recorder.onstop = () => {
         const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        const url = URL.createObjectURL(blob);
-        setAudioUrl(url);
         dispatch({ type: 'SET_AMBIENT_AUDIO', payload: blob });
-        stream.getTracks().forEach(t => t.stop()); // Cerramos hardware
+        stream.getTracks().forEach(t => t.stop());
       };
 
       recorder.start();
@@ -147,7 +149,7 @@ export function StepSensoryCapture() {
       setIsRecording(true);
       if (navigator.vibrate) navigator.vibrate(50);
     } catch (err) {
-      console.error("🔥 [Acoustic-Fail]:", err);
+      console.error("🔥 [Step-Sensory] Error de hardware (Micrófono):", err);
     }
   };
 
@@ -161,7 +163,7 @@ export function StepSensoryCapture() {
 
   /**
    * handleInitiateIngestion: 
-   * Despacho multimodal atómico hacia el Ingestor (V8.0).
+   * Despacho multimodal hacia el Ingestor V8.0.
    */
   const handleInitiateIngestion = async () => {
     if (!state.heroImageFile) return;
@@ -176,16 +178,17 @@ export function StepSensoryCapture() {
         categoryId: state.categoryId,
         radius: state.resonanceRadius
       });
-      // El éxito disparará el estado 'DOSSIER_READY' en el orquestador padre.
+      // El éxito disparará automáticamente el cambio a DOSSIER_REVIEW en el orquestador
     } catch (err) {
-      setIsIngesting(false); // Liberamos UI ante fallo
+      setIsIngesting(false);
+      console.error("Fallo en la cadena de ingesta Step 2.");
     }
   };
 
   return (
     <div className="w-full h-full flex flex-col gap-10 animate-in fade-in duration-700 overflow-y-auto custom-scrollbar pb-32 px-6 pt-2">
 
-      {/* --- HEADER DE OPERACIONES --- */}
+      {/* --- CABECERA DE OPERACIONES --- */}
       <div className="flex items-center justify-between">
         <Button
           variant="ghost"
@@ -217,10 +220,10 @@ export function StepSensoryCapture() {
         >
           {heroUrl ? (
             <>
-              <Image src={heroUrl} alt="Hero Capture" fill className="object-cover animate-in zoom-in-95 duration-700" unoptimized />
+              <Image src={heroUrl} alt="Hero Preview" fill className="object-cover animate-in zoom-in-95 duration-700" unoptimized />
               <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                 <span className="text-[10px] font-black text-white uppercase tracking-widest bg-black/60 px-6 py-2.5 rounded-full border border-white/10 backdrop-blur-md">
-                  Reemplazar Captura
+                  Sustituir Captura
                 </span>
               </div>
             </>
@@ -228,7 +231,7 @@ export function StepSensoryCapture() {
             <div className="h-full flex flex-col items-center justify-center gap-4 opacity-20 group-hover:opacity-40 transition-opacity">
               <ImageIcon size={48} strokeWidth={1} />
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-center px-12">
-                Pincha para capturar el monumento
+                Fijar objetivo principal
               </p>
             </div>
           )}
@@ -251,7 +254,7 @@ export function StepSensoryCapture() {
         <div className="grid grid-cols-3 gap-4">
           {ocrUrls.map((url, index) => (
             <div key={index} className="relative aspect-square rounded-[1.5rem] overflow-hidden border border-white/10 group animate-in zoom-in-90 duration-500">
-              <Image src={url} alt={`OCR Evidence ${index}`} fill className="object-cover" unoptimized />
+              <Image src={url} alt={`OCR ${index}`} fill className="object-cover" unoptimized />
               <button
                 onClick={(e) => { e.stopPropagation(); removeOcrImage(index); }}
                 className="absolute top-2 right-2 p-1.5 bg-red-500 rounded-full text-white shadow-xl opacity-0 group-hover:opacity-100 transition-opacity active:scale-90"
@@ -274,11 +277,11 @@ export function StepSensoryCapture() {
         <input type="file" accept="image/*" ref={ocrInputRef} className="hidden" onChange={handleOcrCapture} />
       </div>
 
-      {/* --- III. RESONANCIA AMBIENTAL (VALIDACIÓN ACÚSTICA) --- */}
+      {/* --- III. PAISAJE SONORO (VALIDACIÓN ACÚSTICA) --- */}
       <div className="space-y-4">
         <div className="flex items-center gap-3 px-2 opacity-50">
           <Volume2 size={14} className="text-emerald-400" />
-          <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white">Paisaje Sonoro</h3>
+          <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white">Resonancia Ambiental</h3>
         </div>
 
         <div className="p-10 rounded-[3.5rem] bg-white/[0.01] border border-white/5 shadow-inner flex flex-col items-center gap-8 relative overflow-hidden">
@@ -304,7 +307,7 @@ export function StepSensoryCapture() {
                   "h-28 w-28 rounded-full flex items-center justify-center transition-all duration-700 relative",
                   isRecording
                     ? "bg-red-500 scale-110 shadow-[0_0_60px_rgba(239,68,68,0.4)]"
-                    : "bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/20"
+                    : "bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/20"
                 )}
               >
                 <Mic size={40} className={cn(isRecording && "animate-pulse")} />
@@ -339,8 +342,6 @@ export function StepSensoryCapture() {
                 <Button
                   variant="ghost"
                   onClick={() => {
-                    if (audioUrl) URL.revokeObjectURL(audioUrl);
-                    setAudioUrl(null);
                     dispatch({ type: 'SET_AMBIENT_AUDIO', payload: null });
                   }}
                   className="h-16 w-16 rounded-full border border-white/10 text-red-500 hover:bg-red-500/10"
@@ -382,9 +383,6 @@ export function StepSensoryCapture() {
             </div>
           )}
         </Button>
-        <p className="text-center text-[7px] font-bold text-zinc-800 uppercase tracking-[0.8em] mt-8">
-          NiceCore Sensory Engine • Protocol 2.6
-        </p>
       </div>
 
     </div>
@@ -392,13 +390,13 @@ export function StepSensoryCapture() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V4.0):
- * 1. Mosaico Multimodal (Líneas 173-205): Se ha implementado una cuadrícula de 3 slots 
- *    que alimenta el array 'ocrImageFiles' del contexto. Esto triplica la capacidad 
- *    de recolección de datos sin comprometer la limpieza de la interfaz.
- * 2. Auditoría Acústica Real (Líneas 207-268): El Admin ya no graba "a ciegas". 
- *    El flujo de pre-escucha garantiza que la memoria urbana tenga una calidad 
- *    de sonido premium antes de ser anclada.
- * 3. Desbloqueo de Galería: Al eliminar 'capture="environment"', se otorga 
- *    soberanía al Admin para elegir la mejor herramienta óptica disponible.
+ * NOTA TÉCNICA DEL ARCHITECT (V4.1):
+ * 1. Muerte de la Advertencia react-hooks/exhaustive-deps: Al dividir el efecto monolítico
+ *    en 3 efectos atómicos (Líneas 64-94), eliminamos las dependencias cruzadas que 
+ *    Vercel marcaba como riesgo, garantizando un build 100% limpio.
+ * 2. Monitor Acústico Profesional: Se mantiene el flujo de auditoría sónica para 
+ *    garantizar que la sabiduría urbana de Madrid nazca con alta fidelidad.
+ * 3. Gestión JIT (Just-In-Time): Las URLs de previsualización se generan y 
+ *    revocan dinámicamente, manteniendo la huella de memoria del dispositivo 
+ *    móvil en su mínimo nivel histórico.
  */
