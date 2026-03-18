@@ -41,7 +41,7 @@ jobs:
         # [MANDATO]: Leemos la verdad desde el servidor real de Supabase.
         # Usamos el Project ID de 21 caracteres que confirmamos en el dashboard.
         run: |
-          supabase gen types typescript --project-id arbojlknwilqcsuzuqope > types/database.types.ts
+          supabase gen types typescript --project-id arbojlknwilqcszuqope > types/database.types.ts
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
