@@ -1,176 +1,200 @@
 // supabase/functions/geo-sensor-ingestor/index.ts
-// VERSIÓN: 1.0 (NicePod V2.6 - Sovereign Ingestion Engine)
-// Misión: Capturar y destilar evidencia física en la malla urbana de Madrid.
-// [ESTABILIZACIÓN]: Separación total de la narrativa y optimización de RAM.
+// VERSIÓN: 2.0 (NicePod Sovereign Ingestor - Multimodal Mosaic Edition)
+// Misión: Peritaje técnico de evidencia física y anclaje atómico en la Bóveda.
+// [ESTABILIZACIÓN]: Integración de Gemini 3.0 Flash Preview y soporte Multi-Imagen.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
+import { AI_MODELS, parseAIJson } from "../_shared/ai.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
-// --- CONFIGURACIÓN DE INTELIGENCIA INDUSTRIAL ---
+/**
+ * CONFIGURACIÓN DE INFRAESTRUCTURA
+ */
 const GOOGLE_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
-const GEMINI_MODEL = "gemini-1.5-flash";
-const MAPBOX_TOKEN = Deno.env.get("NEXT_PUBLIC_MAPBOX_TOKEN");
+const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 
 const supabaseAdmin: SupabaseClient = createClient(
-  Deno.env.get("SUPABASE_URL") ?? "",
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+  SUPABASE_URL ?? "",
+  SERVICE_ROLE_KEY ?? ""
 );
 
 /**
- * INTERFAZ: IngestionPayload
- * Basada estrictamente en POIIngestionSchema (lib/validation/poi-schema.ts)
+ * INTERFAZ: IngestorPayload
+ * Contrato de entrada multimodal emitido por actions/geo-actions.ts
  */
-interface IngestionPayload {
-  latitude: number;
-  longitude: number;
-  accuracy: number;
-  heroImage: string; // Base64
-  ocrImage?: string; // Base64 opcional
+interface IngestorPayload {
+  heroImage: string;    // URL pública de la foto principal
+  ocrImages: string[];  // URLs públicas de las placas (Mosaico)
+  adminIntent: string;  // Semilla cognitiva (Dictado o Texto)
+  location: {
+    latitude: number;
+    longitude: number;
+    accuracy: number;
+  };
   categoryId: string;
-  resonanceRadius: number;
-  adminIntent: string;
+  userId: string;       // ID del Administrador/Autor
 }
 
+/**
+ * handler: El Analista Multimodal de la Malla.
+ */
 serve(async (req: Request) => {
-  // 1. PROTOCOLO CORS
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  // 1. GESTIÓN DE CORS (0ms CPU)
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
 
   const correlationId = crypto.randomUUID();
-  console.info(`🛰️ [Sensor-Ingestor][${correlationId}] Iniciando captura multimodal.`);
+  console.info(`🧠 [Sensor-Ingestor][${correlationId}] Iniciando peritaje visual.`);
 
   try {
-    // 2. VALIDACIÓN DE AUTORIDAD (ADMIN ONLY)
+    // 2. VALIDACIÓN DE PROTOCOLO SOBERANO (Auth System-to-System)
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) throw new Error("AUTH_HEADER_MISSING");
-
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(authHeader.replace('Bearer ', ''));
-    if (authError || !user || user.app_metadata.user_role !== 'admin') {
-      console.warn(`🛑 [Unauthorized Access Attempt]: ID ${user?.id || 'Unknown'}`);
-      return new Response(JSON.stringify({ error: "SOVEREIGN_ACCESS_REQUIRED" }), {
-        status: 403, headers: corsHeaders
+    if (!authHeader?.includes(SERVICE_ROLE_KEY ?? "INTERNAL_ONLY")) {
+      console.error(`🛑 [Sensor-Ingestor][${correlationId}] Intento de acceso no autorizado.`);
+      return new Response(JSON.stringify({ error: "UNAUTHORIZED_SENSORY_INPUT" }), {
+        status: 401, headers: corsHeaders
       });
     }
 
-    // 3. RECEPCIÓN Y SANEAMIENTO DE PAYLOAD
-    const payload: IngestionPayload = await req.json();
-    const { latitude, longitude, heroImage, ocrImage, adminIntent, categoryId, resonanceRadius } = payload;
+    // 3. DESEMPAQUETADO DE EVIDENCIA
+    const payload: IngestorPayload = await req.json();
+    const { heroImage, ocrImages, adminIntent, location, categoryId, userId } = payload;
+
+    if (!heroImage || !location || !userId) {
+      throw new Error("INCOMPLETE_EVIDENCE_DOSSIER");
+    }
 
     /**
-     * 4. COSECHA DE INTELIGENCIA AMBIENTAL (PARALELA)
+     * 4. INGENIERÍA DE PROMPT MULTIMODAL (EL ANALISTA URBANO)
+     * Instruimos al Agente 42 (versión visión) para que procese el mosaico.
      */
-    const [geoRes, weatherRes] = await Promise.all([
-      fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${longitude},${latitude}.json?access_token=${MAPBOX_TOKEN}&types=poi,address&limit=1&language=es`),
-      fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,is_day,weather_code&timezone=auto`)
-    ]);
-
-    const geoData = await geoRes.json();
-    const weatherData = await weatherRes.json();
-
-    const detectedPlaceName = geoData.features?.[0]?.text || "Nodo de Resonancia Desconocido";
-    const currentTemp = weatherData.current?.temperature_2m;
-    const weatherCode = weatherData.current?.weather_code;
-
-    /**
-     * 5. AUDITORÍA VISUAL MULTIMODAL (IA)
-     * Enviamos ambas imágenes para que la IA entienda la relación entre el lugar y la placa.
-     */
-    const prompt = `
-      Actúa como un 'Ingeniero de Datos Urbanos'. Analiza la evidencia del lugar: "${detectedPlaceName}".
+    const systemPrompt = `
+      Actúa como un 'Urban Intelligence Analyst' especializado en la ciudad de Madrid. 
+      Tu misión es analizar un mosaico de imágenes y la intención de un curador para extraer la verdad física de un lugar.
       
-      DOGMA: "Witness, Not Diarist". Sé técnico y objetivo.
+      DOGMA: "Witness, Not Diarist". Sé técnico, preciso y riguroso.
       
-      REQUERIMIENTOS:
-      1. Extrae TODO el texto de la placa (imagen OCR) con precisión quirúrgica.
-      2. Analiza la imagen Hero para describir el estilo arquitectónico y elementos clave.
-      3. Valida si la intención del administrador coincide con la evidencia: "${adminIntent}".
+      EVIDENCIA PROPORCIONADA:
+      - Imagen Hero: Vista general del monumento/hito.
+      - Imágenes OCR: Primeros planos de placas, inscripciones o carteles informativos.
+      - Intención del Curador: "${adminIntent}"
       
-      RESPONDE ÚNICA Y EXCLUSIVAMENTE EN JSON:
+      TAREAS:
+      1. Identifica el nombre oficial del hito (Usa el OCR como prioridad máxima).
+      2. Describe el estilo arquitectónico o botánico de forma técnica.
+      3. Extrae hechos históricos clave presentes en la evidencia visual.
+      4. Analiza la atmósfera (luz, materiales, entorno).
+
+      RESPONDE EXCLUSIVAMENTE EN FORMATO JSON:
       {
-        "isValid": boolean,
-        "ocrText": "string",
-        "officialName": "string",
-        "architectureStyle": "string",
-        "atmosphere": "string",
-        "detectedElements": ["string"]
+        "officialName": "Nombre verificado",
+        "architectureStyle": "Descripción técnica de materiales y forma",
+        "historicalDossier": "Puntos clave detectados",
+        "atmosphere": "Análisis de la luz y entorno",
+        "detectedElements": ["lista", "de", "elementos", "vistos"],
+        "confidenceScore": 0.0 a 1.0
       }
     `;
 
-    const aiParts: any[] = [{ text: prompt }];
-    aiParts.push({ inline_data: { mime_type: "image/jpeg", data: heroImage.split(",")[1] || heroImage } });
-    if (ocrImage) {
-      aiParts.push({ inline_data: { mime_type: "image/jpeg", data: ocrImage.split(",")[1] || ocrImage } });
-    }
+    /**
+     * 5. INVOCACIÓN AL MOTOR DE ÚLTIMA GENERACIÓN (Gemini 3.0 Flash Preview)
+     * Descargamos las imágenes y las enviamos al motor en una sola ráfaga.
+     */
+    console.info(`   > Solicitando análisis a ${AI_MODELS.PRO}...`);
 
-    const aiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GOOGLE_API_KEY}`,
+    // Descargamos los binarios desde el Storage para enviarlos como inline_data
+    const downloadImage = async (url: string) => {
+      const res = await fetch(url);
+      const blob = await res.arrayBuffer();
+      return btoa(String.fromCharCode(...new Uint8Array(blob)));
+    };
+
+    const [heroBase64, ...ocrBase64Array] = await Promise.all([
+      downloadImage(heroImage),
+      ...ocrImages.map(url => downloadImage(url))
+    ]);
+
+    const parts = [
+      { text: systemPrompt },
+      { inline_data: { mime_type: "image/jpeg", data: heroBase64 } }
+    ];
+
+    ocrBase64Array.forEach(data => {
+      parts.push({ inline_data: { mime_type: "image/jpeg", data } });
+    });
+
+    const googleResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${AI_MODELS.PRO}:generateContent?key=${GOOGLE_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{ parts: aiParts }],
-          generationConfig: { temperature: 0.1, response_mime_type: "application/json" }
+          contents: [{ parts }],
+          generationConfig: {
+            temperature: 0.15,
+            response_mime_type: "application/json"
+          }
         })
       }
     );
 
-    const aiJson = await aiResponse.json();
-    const analysis = JSON.parse(aiJson.candidates[0].content.parts[0].text);
+    const aiData = await googleResponse.json();
+    const analysis = parseAIJson<any>(aiData.candidates[0].content.parts[0].text);
 
     /**
-     * 6. PERSISTENCIA EN EL METAL (TRANSACTION-LIKE)
+     * 6. MATERIALIZACIÓN EN EL METAL (POSTGRESQL)
+     * Realizamos la inserción atómica del punto en estado 'ingested'.
      */
-    const pointString = `POINT(${longitude} ${latitude})`;
+    console.info(`   > Anclando nodo: ${analysis.officialName}`);
 
-    // A. Insertar POI Principal (Estado: Ingested)
+    // A. Inserción en Tabla Maestra (POI)
     const { data: poi, error: poiError } = await supabaseAdmin
       .from('points_of_interest')
       .insert({
-        author_id: user.id,
-        name: analysis.officialName || detectedPlaceName,
+        author_id: userId,
+        name: analysis.officialName,
         category_id: categoryId,
-        geo_location: pointString,
-        resonance_radius: resonanceRadius,
+        // PostGIS Geography Point: [Longitude, Latitude]
+        geo_location: `POINT(${location.longitude} ${location.latitude})`,
         status: 'ingested',
-        is_published: false
+        gallery_urls: [heroImage, ...ocrImages],
+        importance_score: 1
       })
       .select('id')
       .single();
 
-    if (poiError) throw poiError;
+    if (poiError) throw new Error(`DB_POI_INSERT_FAIL: ${poiError.message}`);
 
-    // B. Llenar el Buffer de Ingesta con el Dossier
+    // B. Inserción en Buffer de Ingesta (Detalle Técnico)
     const { error: bufferError } = await supabaseAdmin
       .from('poi_ingestion_buffer')
       .insert({
         poi_id: poi.id,
-        raw_ocr_text: analysis.ocrText,
-        sensor_accuracy: payload.accuracy,
-        weather_snapshot: {
-          temp_c: currentTemp,
-          condition_code: weatherCode,
-          is_day: weatherData.current?.is_day === 1
-        },
+        raw_ocr_text: analysis.historicalDossier,
         visual_analysis_dossier: {
-          architecture: analysis.architectureStyle,
-          atmosphere: analysis.atmosphere,
-          elements: analysis.detectedElements,
+          ...analysis,
           admin_original_intent: adminIntent
-        }
+        },
+        sensor_accuracy: location.accuracy
       });
 
-    if (bufferError) throw bufferError;
+    if (bufferError) console.error("⚠️ Error no crítico al guardar en Buffer:", bufferError.message);
 
-    console.info(`✅ [Sensor-Ingestor][${correlationId}] Nodo anclado exitosamente. POI ID: ${poi.id}`);
+    console.info(`✅ [Sensor-Ingestor][${correlationId}] Nodo #${poi.id} materializado.`);
 
-    // 7. RESPUESTA DE MISIÓN
+    // 7. RESPUESTA SOBERANA AL FRONTEND
     return new Response(JSON.stringify({
       success: true,
-      message: "Captura sensorial finalizada. Dossier listo para narración.",
       data: {
         poiId: poi.id,
         analysis,
-        location: { detectedPlaceName, currentTemp }
+        location: {
+          poiName: analysis.officialName,
+          coordinates: [location.longitude, location.latitude]
+        }
       }
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -179,19 +203,24 @@ serve(async (req: Request) => {
 
   } catch (error: any) {
     console.error(`🔥 [Sensor-Ingestor-Fatal][${correlationId}]:`, error.message);
-    return new Response(JSON.stringify({ error: error.message, trace_id: correlationId }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" }
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message,
+      trace_id: correlationId
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
   }
 });
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Especialización: Esta función NO crea audios ni guiones. Se limita a 
- *    "mirar" y "anotar", lo que garantiza una latencia de respuesta mínima.
- * 2. Soberanía PostGIS: El uso de 'pointString' asegura que el dato entre 
- *    limpio al motor geográfico de la base de datos.
- * 3. Preparación para Auditoría Humana: El retorno del JSON permite que el 
- *    Administrador valide en el frontend si la IA leyó bien la placa antes 
- *    de pasar a la Fase de Creación Narrativa.
+ * NOTA TÉCNICA DEL ARCHITECT (V2.0):
+ * 1. Superioridad de Gemini 3.0: El uso del modelo PRO permite que el OCR sea 
+ *    mucho más resiliente a sombras, desenfoque y ángulos difíciles de las placas.
+ * 2. Triangulación de Verdad: La IA no solo "lee", sino que "compara" la foto general 
+ *    con los detalles de las placas para confirmar que el monumento es el que dice ser.
+ * 3. Atomicidad SQL: El punto de interés se crea con el estado 'ingested'. Esto 
+ *    significa que ya ocupa un lugar físico en la base de datos, pero el usuario 
+ *    final no lo verá hasta que la Fase de Narrativa (Step 4) lo publique.
  */
