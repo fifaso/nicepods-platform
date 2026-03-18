@@ -1,7 +1,7 @@
 // actions/geo-actions.ts
-// VERSIÓN: 6.0 (NicePod Sovereign Geo-Actions - Multi-Evidence Pro)
-// Misión: Orquestar el ciclo de vida multimodal con soporte para colecciones de evidencia.
-// [ESTABILIZACIÓN]: Implementación de subida múltiple OCR, anclaje acústico y tipado estricto.
+// VERSIÓN: 6.1 (NicePod Sovereign Geo-Actions - Multi-Evidence & Error Resilient)
+// Misión: Orquestar el ciclo de vida multimodal con tolerancia a fallos y telemetría de errores.
+// [ESTABILIZACIÓN]: Gestión de excepciones atómicas para evitar bloqueos en la UI del Admin.
 
 "use server";
 
@@ -24,17 +24,23 @@ import {
  * ---------------------------------------------------------------------------
  */
 
+/**
+ * validateSovereignAccess:
+ * Valida la identidad y el rango del actor directamente en el servidor.
+ * Es la primera barrera del Build Shield.
+ */
 async function validateSovereignAccess() {
   const supabase = createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
 
   if (error || !user) throw new Error("IDENTIDAD_NO_VERIFICADA");
 
+  // Validación de Rango Admin innegociable para V2.6
   const appMetadata = user.app_metadata || {};
   const userRole = appMetadata.user_role || appMetadata.role || 'user';
 
   if (userRole !== 'admin') {
-    throw new Error("ACCESO_SENSORIAL_DENEGADO: Solo el Administrador puede sembrar memoria.");
+    throw new Error("ACCESO_DENEGADO: Se requiere autoridad de Administrador.");
   }
 
   return user;
@@ -42,26 +48,30 @@ async function validateSovereignAccess() {
 
 /**
  * ---------------------------------------------------------------------------
- * II. UTILIDADES BINARIAS (METAL CORE)
+ * II. UTILIDADES DE PROCESAMIENTO BINARIO (METAL)
  * ---------------------------------------------------------------------------
  */
 
 function decodeBase64ToUint8Array(dataString: string) {
-  const matches = dataString.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-  if (!matches || matches.length !== 3) {
-    throw new Error("CAPTURA_CORRUPTA: Formato binario no reconocido.");
+  try {
+    const matches = dataString.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+    if (!matches || matches.length !== 3) {
+      throw new Error("FORMATO_BINARIO_INVALIDO");
+    }
+
+    const contentType = matches[1];
+    const binaryStr = atob(matches[2]);
+    const len = binaryStr.length;
+    const bytes = new Uint8Array(len);
+
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binaryStr.charCodeAt(i);
+    }
+
+    return { type: contentType, buffer: bytes };
+  } catch (e) {
+    throw new Error("FALLO_DECODIFICACION_BINARIA: El activo está corrupto.");
   }
-
-  const contentType = matches[1];
-  const binaryStr = atob(matches[2]);
-  const len = binaryStr.length;
-  const bytes = new Uint8Array(len);
-
-  for (let i = 0; i < len; i++) {
-    bytes[i] = binaryStr.charCodeAt(i);
-  }
-
-  return { type: contentType, buffer: bytes };
 }
 
 /**
@@ -79,12 +89,14 @@ export async function resolveLocationAction(
     const supabase = createClient();
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+    if (!serviceKey) throw new Error("INFRASTRUCTURE_KEY_MISSING");
+
     const { data, error } = await supabase.functions.invoke('geo-resolve-location', {
       body: { latitude, longitude },
       headers: { Authorization: `Bearer ${serviceKey}` }
     });
 
-    if (error) throw error;
+    if (error) throw new Error(`EDGE_FUNCTION_FAIL: ${error.message}`);
 
     return {
       success: true,
@@ -92,31 +104,32 @@ export async function resolveLocationAction(
       data: data.data
     };
   } catch (error: any) {
-    console.error("🔥 [Geo-Action][Resolve]:", error.message);
+    console.error("🔥 [Geo-Action][Resolve-Error]:", error.message);
     return { success: false, message: "Error al identificar el nodo.", error: error.message };
   }
 }
 
 /**
  * ---------------------------------------------------------------------------
- * IV. FASE 1: INGESTA SENSORIAL (THE SENSES - MULTI-OCR)
+ * IV. FASE 1: INGESTA SENSORIAL (MULTI-OCR PIPELINE)
  * ---------------------------------------------------------------------------
  */
 
 export async function ingestPhysicalEvidenceAction(
-  payload: POICreationPayload & { ocrImages: string[] } // [V6.0]: Array de imágenes Base64
+  payload: POICreationPayload & { ocrImages: string[] }
 ): Promise<GeoActionResponse<{ poiId: number; analysis: any; location: any }>> {
   try {
     const user = await validateSovereignAccess();
 
-    // [RIGOR]: Validación de esquema antes de iniciar transporte pesado.
+    // Validación de contrato Zod antes de gastar recursos de Storage
     const validatedData = POIIngestionSchema.parse(payload);
 
     const supabase = createClient();
     const timestamp = Date.now();
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    // 1. Transporte Atómico de Imagen Hero
+    // 1. Transporte Atómico de Imagen Hero (Captura Principal)
+    console.info(`📦 [Geo-Action] Subiendo Imagen Hero para usuario: ${user.id}`);
     const heroImg = decodeBase64ToUint8Array(payload.heroImage);
     const heroPath = `poi-evidence/${user.id}/${timestamp}_hero.jpg`;
 
@@ -124,56 +137,64 @@ export async function ingestPhysicalEvidenceAction(
       .from('podcasts')
       .upload(heroPath, heroImg.buffer, { contentType: heroImg.type, upsert: true });
 
-    if (heroError) throw heroError;
+    if (heroError) throw new Error(`STORAGE_HERO_FAIL: ${heroError.message}`);
     const heroUrl = supabase.storage.from('podcasts').getPublicUrl(heroPath).data.publicUrl;
 
-    // 2. Transporte Paralelo de Colección OCR (Mosaico de Evidencia)
+    // 2. Transporte Paralelo de Mosaico OCR (Evidencia Secundaria)
     const ocrUrls: string[] = [];
     if (payload.ocrImages && payload.ocrImages.length > 0) {
+      console.info(`📦 [Geo-Action] Subiendo mosaico de ${payload.ocrImages.length} fotos OCR.`);
+
       const uploadTasks = payload.ocrImages.map((base64, index) => {
         const img = decodeBase64ToUint8Array(base64);
         const path = `poi-evidence/${user.id}/${timestamp}_ocr_${index}.jpg`;
-        return supabase.storage.from('podcasts').upload(path, img.buffer, { contentType: img.type, upsert: true });
+        return supabase.storage.from('podcasts').upload(path, img.buffer, {
+          contentType: img.type,
+          upsert: true
+        });
       });
 
       const uploadResults = await Promise.all(uploadTasks);
 
-      // Recuperamos las URLs públicas de las subidas exitosas
+      // Verificamos integridad del mosaico
       uploadResults.forEach((res, index) => {
-        if (!res.error) {
+        if (res.error) {
+          console.warn(`⚠️ [Geo-Action] Foto OCR #${index} falló: ${res.error.message}`);
+        } else {
           const url = supabase.storage.from('podcasts').getPublicUrl(`poi-evidence/${user.id}/${timestamp}_ocr_${index}.jpg`).data.publicUrl;
           ocrUrls.push(url);
         }
       });
     }
 
-    // 3. Invocación del Ingestor Multimodal (Entrega de Mosaico)
+    // 3. Invocación del Cerebro Sensorial (Edge Function)
+    console.info("🧠 [Geo-Action] Invocando Ingestor Multimodal en el Edge.");
     const { data, error: functionError } = await supabase.functions.invoke('geo-sensor-ingestor', {
       body: {
         ...validatedData,
         heroImage: heroUrl,
-        ocrImages: ocrUrls // Enviamos el array completo de URLs
+        ocrImages: ocrUrls
       },
       headers: { Authorization: `Bearer ${serviceKey}` }
     });
 
-    if (functionError) throw functionError;
+    if (functionError) throw new Error(`AI_INGEST_FAIL: ${functionError.message}`);
 
     return {
       success: true,
-      message: "Expediente visual procesado.",
+      message: "Expediente visual procesado correctamente.",
       data: data.data
     };
 
   } catch (error: any) {
-    console.error("🔥 [Geo-Action][Ingest]:", error.message);
+    console.error("🔥 [Geo-Action][Ingest-Error]:", error.message);
     return { success: false, message: "Fallo en la ingesta multimodal.", error: error.message };
   }
 }
 
 /**
  * ---------------------------------------------------------------------------
- * V. FASE 2: ANCLAJE ACÚSTICO (THE SOUNDSCAPE)
+ * V. FASE 2: ANCLAJE ACÚSTICO (SOUNDSCAPE INTEGRITY)
  * ---------------------------------------------------------------------------
  */
 
@@ -189,22 +210,20 @@ export async function attachAmbientAudioAction(params: {
     const audioData = decodeBase64ToUint8Array(params.audioBase64);
     const audioPath = `poi-evidence/${user.id}/${timestamp}_ambient.webm`;
 
-    // 1. Subida Segura al Storage
     const { error: uploadError } = await supabase.storage
       .from('podcasts')
       .upload(audioPath, audioData.buffer, { contentType: audioData.type, upsert: true });
 
-    if (uploadError) throw uploadError;
+    if (uploadError) throw new Error(`STORAGE_AUDIO_FAIL: ${uploadError.message}`);
 
     const audioUrl = supabase.storage.from('podcasts').getPublicUrl(audioPath).data.publicUrl;
 
-    // 2. Anclaje en la Bóveda Principal
     const { error: dbError } = await supabase
       .from('points_of_interest')
       .update({ ambient_audio_url: audioUrl })
       .eq('id', params.poiId);
 
-    if (dbError) throw dbError;
+    if (dbError) throw new Error(`DB_AUDIO_LINK_FAIL: ${dbError.message}`);
 
     return {
       success: true,
@@ -213,14 +232,14 @@ export async function attachAmbientAudioAction(params: {
     };
 
   } catch (error: any) {
-    console.error("🔥 [Geo-Action][Audio]:", error.message);
+    console.error("🔥 [Geo-Action][Audio-Error]:", error.message);
     return { success: false, message: "Error al asegurar el activo acústico.", error: error.message };
   }
 }
 
 /**
  * ---------------------------------------------------------------------------
- * VI. FASE 3: SÍNTESIS NARRATIVA (THE ORACLE)
+ * VI. FASE 3: SÍNTESIS NARRATIVA (AGENTE 42)
  * ---------------------------------------------------------------------------
  */
 
@@ -240,7 +259,7 @@ export async function synthesizeNarrativeAction(params: {
       headers: { Authorization: `Bearer ${serviceKey}` }
     });
 
-    if (error) throw error;
+    if (error) throw new Error(`AI_NARRATIVE_FAIL: ${error.message}`);
 
     return {
       success: true,
@@ -248,7 +267,7 @@ export async function synthesizeNarrativeAction(params: {
       data: data.data
     };
   } catch (error: any) {
-    console.error("🔥 [Geo-Action][Narrative]:", error.message);
+    console.error("🔥 [Geo-Action][Narrative-Error]:", error.message);
     return { success: false, message: "Fallo en la forja intelectual.", error: error.message };
   }
 }
@@ -273,28 +292,29 @@ export async function publishPOIAction(poiId: number): Promise<GeoActionResponse
       })
       .eq('id', poiId);
 
-    if (error) throw error;
+    if (error) throw new Error(`DB_PUBLISH_FAIL: ${error.message}`);
 
+    // Refresco global de la malla urbana
     revalidatePath('/map');
 
     return {
       success: true,
-      message: "Nodo urbano activo en la frecuencia global."
+      message: "Nodo urbano sincronizado con la Bóveda Global."
     };
   } catch (error: any) {
-    console.error("🔥 [Geo-Action][Publish]:", error.message);
+    console.error("🔥 [Geo-Action][Publish-Error]:", error.message);
     return { success: false, message: "Error al materializar el nodo.", error: error.message };
   }
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V6.0):
- * 1. Mosaico de Evidencia: La Action ahora soporta el envío de múltiples URLs 
- *    de placas al Ingestor Multimodal, permitiendo una extracción de datos 
- *    mucho más rica desde diferentes ángulos físicos.
- * 2. Rendimiento SSR: El uso de 'uploadTasks' con Promise.all() garantiza que 
- *    el Admin no perciba una suma de latencias; la subida de 3 fotos tarda 
- *    prácticamente lo mismo que la subida de una sola.
- * 3. Seguridad de Metal: El chequeo de 'userRole' contra 'app_metadata' es 
- *    imperativo para proteger el bucket de Storage contra usuarios malintencionados.
+ * NOTA TÉCNICA DEL ARCHITECT (V6.1):
+ * 1. Mapeo de Errores Operativos: Cada bloque catch ahora devuelve un código de error 
+ *    prefijado (ej. STORAGE_HERO_FAIL) para que el equipo de soporte pueda identificar 
+ *    instantáneamente el punto de ruptura sin mirar el código.
+ * 2. Robustez de Transporte: Se ha blindado la decodificación Base64 para evitar 
+ *    que strings mal formateados por el hardware móvil bloqueen el servidor.
+ * 3. Atomicidad Parcial: El mosaico de imágenes OCR ahora es resiliente; si una 
+ *    foto falla pero las otras dos suben, el proceso continúa para no obligar 
+ *    al Admin a repetir toda la captura.
  */

@@ -1529,15 +1529,15 @@ CREATE INDEX "podcast_embeddings_embedding_idx" ON "public"."podcast_embeddings"
 
 
 
-CREATE OR REPLACE TRIGGER "Cognitive Core Orchestrator Trigger" AFTER INSERT ON "public"."micro_pods" FOR EACH ROW EXECUTE FUNCTION "supabase_functions"."http_request"('https://arbojlknwilqcszuqope.supabase.co/functions/v1/cognitive-core-orchestrator', 'POST', '{"Content-type":"application/json","Authorization":"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFyYm9qbGtud2lscWNzenVxb3BlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTkxMDMwMSwiZXhwIjoyMDc1NDg2MzAxfQ.-K-ZM6_0ea-fA9sA7rTvlMq8d9TL8gx-Ypcm6EE0Qjc"}', '{}', '5000');
+CREATE OR REPLACE TRIGGER "Cognitive Core Orchestrator Trigger" AFTER INSERT ON "public"."micro_pods" FOR EACH ROW EXECUTE FUNCTION "supabase_functions"."http_request"('https://arbojlknwilqcszuqope.supabase.co/functions/v1/cognitive-core-orchestrator', 'POST', '{"Content-type":"application/json","Authorization":"Bearer {{SUPABASE_SERVICE_ROLE_KEY_REMOVED}}"}', '{}', '5000');
 
 
 
-CREATE OR REPLACE TRIGGER "Resonance Profile Calculator Trigger" AFTER INSERT ON "public"."playback_events" FOR EACH ROW EXECUTE FUNCTION "supabase_functions"."http_request"('https://arbojlknwilqcszuqope.supabase.co/functions/v1/update-resonance-profile', 'POST', '{"Content-type":"application/json","Authorization":"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFyYm9qbGtud2lscWNzenVxb3BlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTkxMDMwMSwiZXhwIjoyMDc1NDg2MzAxfQ.-K-ZM6_0ea-fA9sA7rTvlMq8d9TL8gx-Ypcm6EE0Qjc"}', '{}', '5000');
+CREATE OR REPLACE TRIGGER "Resonance Profile Calculator Trigger" AFTER INSERT ON "public"."playback_events" FOR EACH ROW EXECUTE FUNCTION "supabase_functions"."http_request"('https://arbojlknwilqcszuqope.supabase.co/functions/v1/update-resonance-profile', 'POST', '{"Content-type":"application/json","Authorization":"Bearer {{SUPABASE_SERVICE_ROLE_KEY_REMOVED}}"}', '{}', '5000');
 
 
 
-CREATE OR REPLACE TRIGGER "Resonance Profile Trigger (Likes)" AFTER INSERT OR DELETE ON "public"."likes" FOR EACH ROW EXECUTE FUNCTION "supabase_functions"."http_request"('https://arbojlknwilqcszuqope.supabase.co/functions/v1/update-resonance-profile', 'POST', '{"Content-type":"application/json","Authorization":"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFyYm9qbGtud2lscWNzenVxb3BlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTkxMDMwMSwiZXhwIjoyMDc1NDg2MzAxfQ.-K-ZM6_0ea-fA9sA7rTvlMq8d9TL8gx-Ypcm6EE0Qjc"}', '{}', '5000');
+CREATE OR REPLACE TRIGGER "Resonance Profile Trigger (Likes)" AFTER INSERT OR DELETE ON "public"."likes" FOR EACH ROW EXECUTE FUNCTION "supabase_functions"."http_request"('https://arbojlknwilqcszuqope.supabase.co/functions/v1/update-resonance-profile', 'POST', '{"Content-type":"application/json","Authorization":"Bearer {{SUPABASE_SERVICE_ROLE_KEY_REMOVED}}"}', '{}', '5000');
 
 
 
@@ -1569,7 +1569,7 @@ CREATE OR REPLACE TRIGGER "on_new_testimonial" AFTER INSERT ON "public"."profile
 
 
 
-CREATE OR REPLACE TRIGGER "on_playback_event_recalculate_resonance" AFTER INSERT ON "public"."playback_events" FOR EACH ROW EXECUTE FUNCTION "supabase_functions"."http_request"('https://arbojlknwilqcszuqope.supabase.co/functions/v1/update-resonance-profile', 'POST', '{"Content-type":"application/json","Authorization":"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFyYm9qbGtud2lscWNzenVxb3BlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTkxMDMwMSwiZXhwIjoyMDc1NDg2MzAxfQ.-K-ZM6_0ea-fA9sA7rTvlMq8d9TL8gx-Ypcm6EE0Qjc"}', '{}', '5000');
+CREATE OR REPLACE TRIGGER "on_playback_event_recalculate_resonance" AFTER INSERT ON "public"."playback_events" FOR EACH ROW EXECUTE FUNCTION "supabase_functions"."http_request"('https://arbojlknwilqcszuqope.supabase.co/functions/v1/update-resonance-profile', 'POST', '{"Content-type":"application/json","Authorization":"Bearer {{SUPABASE_SERVICE_ROLE_KEY_REMOVED}}"}', '{}', '5000');
 
 
 
