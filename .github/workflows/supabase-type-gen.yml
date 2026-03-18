@@ -1,20 +1,28 @@
-name: "Supabase Type Generation"
+# .github/workflows/supabase-type-gen.yml
+# VERSIÓN: 2.0 (NicePod Sovereign Type Sync)
+# Misión: Sincronizar el contrato de tipos TypeScript con el Metal Cloud de Supabase.
+# [ESTABILIZACIÓN]: Eliminación de dependencia local y transición a Cloud Introspection.
+
+name: Supabase Type Generation
 
 on:
+  # Permite la ejecución manual desde la pestaña Actions (Recomendado)
+  workflow_dispatch:
+  # Se ejecuta automáticamente al hacer push en la rama principal
   push:
     branches:
       - main
     paths:
-      - 'supabase/migrations/**'
-  workflow_dispatch:
+      - 'supabase/migrations/**' # Solo si cambian las migraciones físicas
 
 jobs:
   update-types:
     runs-on: ubuntu-latest
-    # AGREGAMOS ESTO: Permisos explícitos para que el bot pueda escribir
+    
+    # [SEGURIDAD]: Solo permitimos que la acción escriba en el repositorio
     permissions:
       contents: write
-      
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -29,20 +37,24 @@ jobs:
         with:
           version: latest
 
-      - name: Generate Types from Local Migrations
+      - name: Generate Types from Cloud Database
+        # [MANDATO]: Leemos la verdad desde el servidor real de Supabase.
+        # Usamos el Project ID de 21 caracteres que confirmamos en el dashboard.
         run: |
-          supabase db start
-          supabase gen types typescript --local > types/database.types.ts
+          supabase gen types typescript --project-id arbojlknwilqcsuzuqope > types/database.types.ts
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
       - name: Commit and Push changes
         run: |
-          git config --global user.name "NicePod Bot"
-          git config --global user.email "bot@nicepod.io"
+          git config --local user.email "bot@nicepod.io"
+          git config --local user.name "NicePod Bot"
           git add types/database.types.ts
           
+          # Solo hacemos commit si el archivo realmente cambió
           if [ -n "$(git status --porcelain types/database.types.ts)" ]; then
-            git commit -m "chore: sync typescript types with database schema [skip ci]"
+            git commit -m "chore: automated sync of database types from cloud [skip ci]"
             git push origin main
           else
-            echo "No hay cambios en los tipos. Saltando commit."
+            echo "No changes detected in database types. Skipping push."
           fi
