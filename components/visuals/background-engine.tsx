@@ -1,5 +1,7 @@
 // components/visuals/background-engine.tsx
-// VERSIÓN: 6.0
+// VERSIÓN: 7.0 (NicePod Aurora Engine - Triadic Resonance Edition)
+// Misión: Orquestar una atmósfera visual dinámica, de alta densidad y con profundidad aeroespacial.
+// [ESTABILIZACIÓN]: Implementación de malla triádica (3 orbes) y paleta cromática de grado industrial para Light/Dark mode.
 
 "use client";
 
@@ -10,27 +12,29 @@ import { cn } from "@/lib/utils";
 
 /**
  * COMPONENTE: BackgroundEngine
- * El orquestador de la atmósfera visual optimizado para alto rendimiento.
+ * El motor GPU-driven que da vida al "Vacío" de NicePod.
  * 
- * [OPTIMIZACIONES TÁCTICAS V6.0]:
- * 1. Reducción de Capas: Pasamos de 4 a 2 Blobs dinámicos para reducir el 'GPU Overdraw'.
- * 2. Suavizado de Resorte: Calibración de 'springConfig' para minimizar ciclos de pintura.
- * 3. Aceleración por Hardware: Inyección de 'willChange' para pre-renderizado en GPU.
- * 4. Noise Filter Nativo: SVG optimizado para evitar bandas de color sin peso de imagen.
+ * [ARQUITECTURA VISUAL V7.0]:
+ * 1. Malla Triádica: Se utilizan 3 orbes de luz asíncronos para generar un volumen de color orgánico.
+ * 2. Psicología del Color: 
+ *    - Modo Oscuro: Índigo profundo, Púrpura eléctrico y un toque de Cobalto para la inmersión.
+ *    - Modo Claro: Cian vibrante, Violeta suave y Esmeralda tenue para evitar la fatiga del "blanco plano".
+ * 3. Rendimiento Absoluto: Uso estricto de transformaciones compuestas (translate3d) para evitar repintados del DOM.
  */
 export function BackgroundEngine() {
   const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState<boolean>(false);
 
-  // --- I. SISTEMA DE RESONANCIA DE MOUSE ---
+  // --- I. SISTEMA DE SEGUIMIENTO TÁCTICO (Mouse Resonance) ---
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
 
   /**
-   * springConfig:
-   * Calibrado para una persecución fluida pero de bajo impacto computacional.
+   * Física del Resorte (Spring Physics):
+   * Configurada con alta amortiguación (damping) para que la luz siga al 
+   * cursor con la inercia pesada de un fluido, proyectando solidez.
    */
-  const springConfig = { damping: 45, stiffness: 150, restDelta: 0.01 };
+  const springConfig = { damping: 50, stiffness: 100, restDelta: 0.001 };
   const smoothX = useSpring(mouseX, springConfig);
   const smoothY = useSpring(mouseY, springConfig);
 
@@ -38,12 +42,12 @@ export function BackgroundEngine() {
     setMounted(true);
 
     const handleMouseMove = (event: MouseEvent) => {
-      // Rastreamos el cursor y actualizamos los valores de movimiento
+      // Solo actualizamos los MotionValues, React no se entera (Zero Re-renders)
       mouseX.set(event.clientX);
       mouseY.set(event.clientY);
     };
 
-    // Escuchamos el movimiento solo si estamos en dispositivos con puntero (Desktop)
+    // Activamos la resonancia solo en hardware con ratón físico (ahorro de batería en móviles)
     if (typeof window !== "undefined" && window.matchMedia("(pointer: fine)").matches) {
       window.addEventListener("mousemove", handleMouseMove);
     }
@@ -51,78 +55,89 @@ export function BackgroundEngine() {
     return () => window.removeEventListener("mousemove", handleMouseMove);
   }, [mouseX, mouseY]);
 
-  // Protección de hidratación inicial
+  // Guardia de Hidratación: Evita el 'Flash' de colores incorrectos durante el SSR.
   if (!mounted) return null;
 
   const isDark = resolvedTheme === "dark";
 
   return (
-    <div className="fixed inset-0 -z-20 pointer-events-none overflow-hidden bg-background transition-colors duration-1000">
+    <div className={cn(
+      "fixed inset-0 -z-20 pointer-events-none overflow-hidden transition-colors duration-1000",
+      // El modo claro deja de ser blanco puro para ser un "Humo de Seda" muy sutil
+      isDark ? "bg-[#020202]" : "bg-[#f8f9fa]"
+    )}>
       
       {/* 
-          II. EL PUNTERO DE RESONANCIA (MOUSE BLOB)
-          Visible solo en Desktop para ahorrar batería y CPU en móviles.
+          II. EL PUNTERO DE RESONANCIA (Luz de Guía)
+          Un haz de luz sutil que sigue la intención del usuario.
       */}
       <motion.div
-        className="hidden md:block absolute w-[400px] h-[400px] rounded-full z-10 opacity-40"
+        className="hidden md:block absolute w-[500px] h-[500px] rounded-full z-20 opacity-30 mix-blend-screen"
         style={{
           x: smoothX,
           y: smoothY,
           translateX: "-50%",
           translateY: "-50%",
-          willChange: "transform", // Optimización de capa en GPU
+          willChange: "transform",
           background: isDark 
-            ? "radial-gradient(circle, rgba(139,92,246,0.15) 0%, transparent 70%)" 
-            : "radial-gradient(circle, rgba(139,92,246,0.08) 0%, transparent 70%)",
+            ? "radial-gradient(circle, rgba(139,92,246,0.15) 0%, transparent 60%)" // Púrpura NicePod
+            : "radial-gradient(circle, rgba(56,189,248,0.15) 0%, transparent 60%)", // Cian vibrante
         }}
       />
 
       {/* 
-          III. MALLA AURORA OPTIMIZADA
-          Dos ejes de color bastan para crear la ilusión de profundidad infinita.
+          III. MALLA AURORA (Triada de Profundidad)
+          Los tres orbes bailan en bucles asíncronos para que el patrón nunca se repita exactamente igual.
       */}
       <AnimatePresence mode="wait">
         <motion.div
-          key={isDark ? "dark-nebula" : "light-dawn"}
+          key={isDark ? "dark-void" : "light-canvas"}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 1.5, ease: "easeInOut" }}
           className="absolute inset-0"
         >
-          {/* BLOB ALFA: Indigo / Sky (Dominancia Superior) */}
+          {/* ORBE 1: Dominancia Superior Izquierda (El ancla del color) */}
           <motion.div
             animate={{
-              x: [0, 30, 0],
-              y: [0, 20, 0],
+              x: ["0%", "5%", "-2%", "0%"],
+              y: ["0%", "3%", "-4%", "0%"],
+              scale: [1, 1.05, 0.95, 1]
             }}
-            transition={{
-              duration: 20,
-              repeat: Infinity,
-              ease: "linear",
-            }}
+            transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" }}
             className={cn(
-              "absolute top-[-5%] left-[-5%] w-[85%] h-[85%] rounded-full blur-[100px] transition-colors duration-1000",
-              isDark ? "bg-indigo-600/15" : "bg-sky-400/25"
+              "absolute top-[-10%] left-[-10%] w-[70%] h-[70%] rounded-full blur-[120px] transition-colors duration-1000",
+              isDark ? "bg-indigo-600/15" : "bg-sky-400/20"
             )}
             style={{ willChange: "transform" }}
           />
 
-          {/* BLOB BETA: Purple / Fuchsia (Resonancia Inferior) */}
+          {/* ORBE 2: Resonancia Inferior Derecha (El contraste térmico) */}
           <motion.div
             animate={{
-              x: [0, -30, 0],
-              y: [0, 40, 0],
+              x: ["0%", "-4%", "3%", "0%"],
+              y: ["0%", "-5%", "4%", "0%"],
+              scale: [1, 0.95, 1.05, 1]
             }}
-            transition={{
-              duration: 25,
-              repeat: Infinity,
-              ease: "linear",
-              delay: 2,
-            }}
+            transition={{ duration: 28, repeat: Infinity, ease: "easeInOut", delay: 1 }}
             className={cn(
-              "absolute bottom-[-10%] right-[-10%] w-[75%] h-[75%] rounded-full blur-[110px] transition-colors duration-1000",
-              isDark ? "bg-purple-700/10" : "bg-fuchsia-400/15"
+              "absolute bottom-[-15%] right-[-10%] w-[80%] h-[80%] rounded-full blur-[130px] transition-colors duration-1000",
+              isDark ? "bg-purple-700/10" : "bg-violet-400/15"
+            )}
+            style={{ willChange: "transform" }}
+          />
+
+          {/* ORBE 3: Profundidad Central (El volumen del cristal) */}
+          <motion.div
+            animate={{
+              x: ["0%", "2%", "-2%", "0%"],
+              y: ["0%", "-2%", "2%", "0%"],
+            }}
+            transition={{ duration: 32, repeat: Infinity, ease: "linear", delay: 2 }}
+            className={cn(
+              "absolute top-[30%] left-[20%] w-[60%] h-[60%] rounded-full blur-[140px] transition-colors duration-1000",
+              isDark ? "bg-blue-900/10" : "bg-emerald-300/10"
             )}
             style={{ willChange: "transform" }}
           />
@@ -130,15 +145,19 @@ export function BackgroundEngine() {
       </AnimatePresence>
 
       {/* 
-          IV. FILTRO DE TEXTURA (NOISE)
-          Generado mediante SVG nativo para evitar descargas de imágenes y bandas de color.
+          IV. FILTRO DE TEXTURA (Ruido Analógico)
+          Aporta la sensación de "hardware premium" al cristal de la interfaz.
+          La opacidad se calibra según el tema para que no ensucie los fondos blancos.
       */}
-      <div className="absolute inset-0 opacity-[0.03] pointer-events-none mix-blend-overlay">
+      <div className={cn(
+        "absolute inset-0 pointer-events-none mix-blend-overlay transition-opacity duration-1000 z-10",
+        isDark ? "opacity-[0.04]" : "opacity-[0.02]"
+      )}>
         <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" className="h-full w-full">
           <filter id="noiseFilter">
             <feTurbulence 
               type="fractalNoise" 
-              baseFrequency="0.75" 
+              baseFrequency="0.8" 
               numOctaves="3" 
               stitchTiles="stitch" 
             />
@@ -148,16 +167,31 @@ export function BackgroundEngine() {
       </div>
 
       {/* 
-          V. VELO DE PROFUNDIDAD
-          Asegura el contraste perfecto para los componentes de la Workstation.
+          V. VELO DE CONTRASTE (Viñeta)
+          Oscurece sutilmente los bordes (o los aclara en light mode) para dirigir 
+          la vista del curador hacia el centro de la Workstation.
       */}
       <div className={cn(
-        "absolute inset-0 transition-opacity duration-1000",
+        "absolute inset-0 transition-all duration-1000 z-10 pointer-events-none",
         isDark 
-          ? "bg-gradient-to-b from-transparent via-transparent to-black/60" 
-          : "bg-gradient-to-b from-white/5 via-transparent to-white/30"
+          ? "bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(0,0,0,0.6)_100%)]" 
+          : "bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(255,255,255,0.5)_100%)]"
       )} />
 
     </div>
   );
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT:
+ * 1. Malla Triádica: La inclusión del 'Orbe 3' en el centro de la pantalla 
+ *    soluciona el problema de los "espacios muertos" en monitores ultrawide, 
+ *    garantizando que siempre haya información cromática detrás del contenido.
+ * 2. Viñeta Fotográfica: El 'Velo de Contraste' (Capa V) utiliza un gradiente 
+ *    radial inverso. En el modo claro, esto empuja el color hacia el centro y 
+ *    "lava" los bordes de la pantalla con blanco, dándole un aspecto inmaculado 
+ *    y profesional que reduce la fatiga visual.
+ * 3. Mix-Blend-Screen: El puntero del ratón ahora usa el modo de mezcla 'screen' 
+ *    para que la luz se sume a los orbes de fondo de forma realista, en lugar 
+ *    de simplemente superponerse con opacidad plana.
+ */
