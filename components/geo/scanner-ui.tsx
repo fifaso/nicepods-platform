@@ -9,7 +9,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   Activity,
   AlertTriangle,
-  Eye,
   Loader2,
   Lock,
   Power,
@@ -18,7 +17,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo } from "react";
 
-// --- INFRAESTRUCTURA DE ESTADO Y MOTOR SOBERANO ---
+// --- INFRAESTRUCTURA DE ESTADO Y MOTOR SOBERANO (V8.0) ---
 import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { useForge } from "./forge-context";
 import { RadarHUD } from "./radar-hud";
@@ -37,7 +36,7 @@ import { nicepodLog } from "@/lib/utils";
  * El puente de mando central de la Terminal de Captura Urbana.
  */
 export function GeoScannerUI() {
-  // 1. CONSUMO DEL MOTOR GEOESPACIAL OMNISCIENTE
+  // 1. CONSUMO DEL MOTOR GEOESPACIAL SINGLETON (V8.0)
   const geoEngine = useGeoEngine();
   const {
     status: engineStatus,
@@ -48,7 +47,7 @@ export function GeoScannerUI() {
   } = geoEngine;
 
   // 2. CONSUMO DE MEMORIA DE FORJA (Navegación Manual)
-  const { state: forgeState } = useForge();
+  const { state: forgeState, dispatch } = useForge();
 
   /**
    * RESOLUCIÓN DE IDENTIDAD NOMINATIVA (Cascada de Verdad)
@@ -56,33 +55,41 @@ export function GeoScannerUI() {
    */
   const displayName = useMemo(() => {
     return (
-      forgeState.intentText || 
-      engineData?.manualPlaceName || 
-      engineData?.dossier?.visual_analysis_dossier?.detectedOfficialName || 
-      "Sintonizando Coordenadas..."
+      forgeState.intentText ||
+      engineData?.manualPlaceName ||
+      engineData?.dossier?.visual_analysis_dossier?.detectedOfficialName ||
+      "Interceptando Señal..."
     );
   }, [forgeState.intentText, engineData]);
 
   /**
    * [MONITOR DE TELEMETRÍA]:
-   * Registramos los cambios de estado del motor y de la UI para auditoría técnica,
-   * pero YA NO forzamos el avance automático. El Administrador tiene el mando.
+   * Registramos los cambios de estado del motor y de la UI para auditoría técnica.
+   * [FIX V17.0]: Se eliminó el avance automático a 'DOSSIER_REVIEW' para devolver 
+   * el control táctico al Administrador (Manual Gate).
    */
   useEffect(() => {
     nicepodLog(`🛰️ [Geo-Orchestrator] Fase UI: ${forgeState.currentStep} | Motor: ${engineStatus}`);
-    
-    // Si el motor es rechazado, lo registramos claramente, pero dejamos que 
-    // el componente hijo (Step 2) maneje la liberación de sus propios botones.
-    if (engineStatus === 'REJECTED') {
-      nicepodLog(`🛑 [Geo-Orchestrator] Alerta del Motor: Misión detenida por fallo estructural.`);
+
+    // Transición Automática: Síntesis -> Finalización. 
+    // Esta sí se mantiene automática porque es el fin del flujo (no requiere validación).
+    if (engineStatus === 'NARRATIVE_READY' && forgeState.currentStep === 'FORGING') {
+      nicepodLog("🎯 [Orchestrator] Crónica forjada. Sincronización completa.");
     }
-  }, [forgeState.currentStep, engineStatus]);
+
+    // Gestión de Errores: Si el motor es rechazado durante la ingesta, 
+    // aseguramos que la terminal se quede en SENSORY_CAPTURE para que el Admin corrija.
+    if (engineStatus === 'REJECTED' && forgeState.currentStep === 'INGESTING') {
+      nicepodLog("🛑 [Orchestrator] Ingesta fallida. Reabriendo terminal sensorial.");
+      dispatch({ type: 'SET_STEP', payload: 'SENSORY_CAPTURE' });
+    }
+  }, [engineStatus, forgeState.currentStep, dispatch]);
 
   /**
-   * stepVariants: Curvas de movimiento industrial (Aurora Glass).
+   * stepVariants: Curvas de movimiento industrial.
    */
   const stepVariants = {
-    initial: { x: 30, opacity: 0, filter: "blur(10px)" },
+    initial: { x: 30, opacity: 0, filter: "blur(8px)" },
     animate: {
       x: 0,
       opacity: 1,
@@ -92,14 +99,14 @@ export function GeoScannerUI() {
     exit: {
       x: -30,
       opacity: 0,
-      filter: "blur(10px)",
+      filter: "blur(8px)",
       transition: { duration: 0.3 }
     }
   };
 
   return (
     // [ARQUITECTURA SOBERANA]: 'min-h-0' y 'flex-col' permiten que el contenedor
-    // ceda el control del scroll a sus hijos, erradicando el bloqueo en pantallas pequeñas.
+    // ceda el control del scroll a sus hijos, erradicando el bloqueo de interfaces largas.
     <div className="flex flex-col h-full w-full max-w-3xl mx-auto relative selection:bg-primary/30 min-h-0">
 
       {/* 
@@ -117,12 +124,7 @@ export function GeoScannerUI() {
         <AnimatePresence>
           {/* ALERTAS DE HARDWARE (Pérdida de Satélite) */}
           {geoError && (
-            <motion.div 
-              initial={{ height: 0, opacity: 0 }} 
-              animate={{ height: "auto", opacity: 1 }} 
-              exit={{ height: 0, opacity: 0 }}
-              className="mt-4 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-4 text-red-500 shadow-2xl"
-            >
+            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} className="mt-4 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-4 text-red-500 shadow-2xl">
               <Lock size={16} className="shrink-0" />
               <div className="flex flex-col">
                 <span className="text-[10px] font-black uppercase tracking-widest">Fallo Satelital</span>
@@ -133,15 +135,10 @@ export function GeoScannerUI() {
 
           {/* GUARDIA DE PROXIMIDAD (Prevención de Duplicados) */}
           {engineData?.isProximityConflict && forgeState.currentStep === 'ANCHORING' && (
-            <motion.div 
-              initial={{ opacity: 0, y: -10 }} 
-              animate={{ opacity: 1, y: 0 }} 
-              exit={{ opacity: 0, y: -10 }}
-              className="mt-4 p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center gap-4 text-amber-500 shadow-2xl"
-            >
+            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mt-4 p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center gap-4 text-amber-500 shadow-2xl">
               <AlertTriangle size={16} className="shrink-0" />
               <p className="text-[9px] font-black uppercase tracking-widest leading-none text-amber-500">
-                Conflicto: Un eco histórico resuena a menos de 10 metros.
+                Conflicto: Nodo detectado a menos de 10 metros.
               </p>
             </motion.div>
           )}
@@ -155,7 +152,7 @@ export function GeoScannerUI() {
       <div className="flex-1 overflow-y-auto custom-scrollbar px-2 pb-12 pt-2 relative z-10">
         <AnimatePresence mode="wait">
 
-          {/* FASE 0: IGNICIÓN SENSORIAL (Handshake T0) */}
+          {/* FASE 0: ACTIVACIÓN SENSORIAL */}
           {engineStatus === 'IDLE' && (
             <motion.div
               key="idle_activation"
@@ -173,7 +170,7 @@ export function GeoScannerUI() {
                   Terminal <span className="text-primary not-italic">Geo-Locked</span>
                 </h2>
                 <p className="text-[11px] text-zinc-500 font-bold uppercase tracking-[0.3em] max-w-xs mx-auto leading-relaxed text-center">
-                  Inicie el enlace con la Malla de Madrid para materializar la memoria física.
+                  Inicie el enlace con la Malla de Madrid para materializar memoria.
                 </p>
               </div>
 
@@ -187,14 +184,14 @@ export function GeoScannerUI() {
             </motion.div>
           )}
 
-          {/* FASE 1: ANCLAJE CARTOGRÁFICO */}
+          {/* FASE 1: ANCLAJE GPS / MANUAL */}
           {engineStatus !== 'IDLE' && forgeState.currentStep === 'ANCHORING' && (
             <motion.div key="step-1" variants={stepVariants} initial="initial" animate="animate" exit="exit" className="w-full">
               <StepAnchoring />
             </motion.div>
           )}
 
-          {/* FASE 2: CAPTURA MULTIMODAL (Hero, OCR, Sonido, Semilla) */}
+          {/* FASE 2: CAPTURA MULTIMODAL */}
           {forgeState.currentStep === 'SENSORY_CAPTURE' && (
             <motion.div key="step-2" variants={stepVariants} initial="initial" animate="animate" exit="exit" className="w-full">
               <StepSensoryCapture />
@@ -202,33 +199,31 @@ export function GeoScannerUI() {
           )}
 
           {/* 
-              [ESTADO DE TRANSICIÓN ELIMINADO]: 
-              El estado 'INGESTING' ya no tiene pantalla propia aquí. 
-              El feedback visual ('Transmitiendo Activos...') se manejará 
-              íntegramente dentro del botón del Step 2. Esto evita parpadeos 
-              y cambios bruscos de UI.
+              [ESTADO DE TRANSICIÓN ELIMINADO V17.0]: 
+              Se ha purgado la pantalla gigante "Ingestando". La carga 
+              visual se delega íntegramente al botón del Step 2.
           */}
 
-          {/* FASE 3: AUDITORÍA DE DOSSIER (El Filtro Humano) */}
+          {/* FASE 3: AUDITORÍA DE DOSSIER (Filtro Humano) */}
           {forgeState.currentStep === 'DOSSIER_REVIEW' && (
             <motion.div key="step-3" variants={stepVariants} initial="initial" animate="animate" exit="exit" className="w-full">
               <StepDossierReview />
             </motion.div>
           )}
 
-          {/* FASE 4: FORJA NARRATIVA (Agente 42) */}
+          {/* FASE 4: FORJA NARRATIVA */}
           {forgeState.currentStep === 'NARRATIVE_FORGE' && (
             <motion.div key="step-4" variants={stepVariants} initial="initial" animate="animate" exit="exit" className="w-full">
               <StepNarrativeForge />
             </motion.div>
           )}
 
-          {/* ESTADO FINAL: SÍNTESIS Y COMPILACIÓN (The Brain Stage) */}
+          {/* ESTADO FINAL: SÍNTESIS NARRATIVA (Agente 42) */}
           {forgeState.currentStep === 'FORGING' && (
-            <motion.div 
-              key="forging" 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
+            <motion.div
+              key="forging"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               className="h-[400px] flex flex-col items-center justify-center bg-[#020202] rounded-[3rem] border border-white/5 shadow-2xl mx-4"
             >
               <div className="relative mb-14">
@@ -267,10 +262,6 @@ export function GeoScannerUI() {
  *    'DOSSIER_READY', el componente respeta la decisión del Administrador de 
  *    permanecer en la pantalla de sensores hasta que él mismo decida avanzar.
  * 2. Purga de Pantalla de Transición: Se ha eliminado el 'motion.div' que 
- *    reemplazaba todo el Step 2 por un ojo gigante ("Ingestando"). Esta pantalla 
- *    intermedia causaba fricción cognitiva. Ahora el feedback de progreso 
- *    vivirá exclusivamente dentro del botón del Step 2.
- * 3. Aislamiento de Errores: Las alertas críticas (geoError o isProximityConflict) 
- *    tienen prioridad absoluta en el eje Z y empujan el contenido hacia abajo de 
- *    forma suave ('height: auto') sin romper el Layout principal.
+ *    reemplazaba todo el Step 2 por un ojo gigante ("Ingestando"). Ahora el feedback 
+ *    de progreso vivirá exclusivamente dentro del botón trifásico del Step 2.
  */
