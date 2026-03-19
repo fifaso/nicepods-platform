@@ -1,15 +1,13 @@
 // components/geo/steps/step-2-sensory-capture.tsx
-// VERSIÓN: 4.7 (NicePod Sovereign Sensory Capture - Zero Error Edition)
+// VERSIÓN: 5.0 (NicePod Sovereign Sensory Capture - Manual Gate Edition)
 // Misión: Captura monumental, mosaico OCR, paisaje sonoro y dictado cognitivo.
-// [ESTABILIZACIÓN]: Corrección de variables huérfanas (TS2304) en el monitor acústico.
+// [ESTABILIZACIÓN]: Integración de Botón Trifásico para avance manual de fase (DOSSIER_READY).
 
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  AlertTriangle,
   ArrowRight,
-  BrainCircuit,
   Camera,
   ChevronLeft,
   FileText,
@@ -19,47 +17,46 @@ import {
   Pause,
   Play,
   Plus,
-  RefreshCw,
   Trash2,
   Volume2,
-  X
+  X,
+  BrainCircuit,
+  RefreshCw,
+  AlertTriangle,
+  CheckCircle2
 } from "lucide-react";
 import Image from "next/image";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useRef, useState, useEffect, useCallback } from "react";
 
 // --- INFRAESTRUCTURA SOBERANA ---
-import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { useForge } from "../forge-context";
-
-// --- COMPONENTES UI ---
+import { useGeoEngine } from "@/hooks/use-geo-engine";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
 
-/**
- * COMPONENTE: StepSensoryCapture
- * La terminal de ingesta física y cognitiva de alta fidelidad.
- */
+// [IA SENSORIAL]: Pasarela directa para transcripción (STT)
+import { transcribeVoiceIntentAction } from "@/actions/geo-actions";
+
 export function StepSensoryCapture() {
   // 1. CONSUMO DE CONTEXTOS Y MOTORES
-  const { state, dispatch, prevStep } = useForge();
+  const { state, dispatch, prevStep, nextStep } = useForge();
   const geoEngine = useGeoEngine();
 
+  // Consumimos el estado reactivo del motor para gobernar el Botón Final
   const { status: engineStatus, data: engineData, error: engineError } = geoEngine;
 
   // --- ESTADOS DE PREVISUALIZACIÓN LOCAL (BLOB URLS) ---
   const [heroUrl, setHeroUrl] = useState<string | null>(null);
   const [ocrUrls, setOcrUrls] = useState<string[]>([]);
   const [ambientAudioUrl, setAmbientAudioUrl] = useState<string | null>(null);
-
-  // Estados Operativos de Carga
+  
+  // Estados Operativos de Hardware
   const [isRecordingAmbient, setIsRecordingAmbient] = useState(false);
   const [isRecordingIntent, setIsRecordingIntent] = useState(false);
-
-  // [FIX TS2304]: Estado reactivo para el monitor acústico
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
-
-  // Controla el estado visual de la transmisión final
+  
+  // Bloqueo temporal para la subida de datos pesados
   const [isIngesting, setIsIngesting] = useState(false);
 
   // Referencias de Hardware
@@ -72,7 +69,6 @@ export function StepSensoryCapture() {
   /**
    * ---------------------------------------------------------------------------
    * I. PROTOCOLO DE HIGIENE DE RAM (EFECTOS ATÓMICOS)
-   * Misión: Eliminar memory leaks al navegar entre steps.
    * ---------------------------------------------------------------------------
    */
 
@@ -153,7 +149,7 @@ export function StepSensoryCapture() {
           dispatch({ type: 'SET_AMBIENT_AUDIO', payload: blob });
           setIsRecordingAmbient(false);
         } else {
-          // Si es dictado, lanzamos la transcripción de inmediato
+          // Si es dictado (INTENT), lanzamos la transcripción inmediatamente
           handleTranscription(blob);
           setIsRecordingIntent(false);
         }
@@ -161,13 +157,12 @@ export function StepSensoryCapture() {
 
       recorder.start();
       mediaRecorderRef.current = recorder;
-
       if (type === 'AMBIENT') setIsRecordingAmbient(true);
       else setIsRecordingIntent(true);
-
+      
       if (navigator.vibrate) navigator.vibrate(50);
     } catch (err) {
-      console.error("🔥 [Step-Sensory] Fallo de hardware acústico:", err);
+      console.error("🔥 [Acoustic-Fail]:", err);
     }
   };
 
@@ -178,7 +173,7 @@ export function StepSensoryCapture() {
   };
 
   /**
-   * handleTranscription: Convierte voz en texto mediante el Agente STT.
+   * handleTranscription: Convierte voz en texto mediante el Agente STT (Server Action).
    */
   const handleTranscription = async (blob: Blob) => {
     dispatch({ type: 'SET_TRANSCRIBING', payload: true });
@@ -187,10 +182,8 @@ export function StepSensoryCapture() {
       reader.readAsDataURL(blob);
       reader.onloadend = async () => {
         const base64Audio = reader.result as string;
-
-        // Invocación a la función STT expuesta en V7.5 del motor
-        const result = await geoEngine.transcribeVoiceIntent(base64Audio);
-
+        const result = await transcribeVoiceIntentAction({ audioBase64: base64Audio });
+        
         if (result.success && result.data) {
           dispatch({ type: 'SET_INTENT', payload: result.data.transcription });
         } else {
@@ -206,14 +199,24 @@ export function StepSensoryCapture() {
 
   /**
    * ---------------------------------------------------------------------------
-   * IV. ACCIÓN DE PROGRESO (THE FINAL PUSH)
+   * IV. ACCIÓN SOBERANA: LA PUERTA MANUAL (THE MANUAL GATE)
    * ---------------------------------------------------------------------------
    */
 
-  const handleInitiateIngestion = async () => {
-    if (!state.heroImageFile || state.intentText.length < 5) return;
+  /**
+   * handlePrimaryAction:
+   * Evalúa el estado del motor y decide si inicia la ingesta o si avanza al Step 3.
+   */
+  const handlePrimaryAction = async () => {
+    // 1. CONDICIÓN DE AVANCE: Si el dossier ya está listo, saltamos de fase.
+    if (engineStatus === 'DOSSIER_READY') {
+      nextStep();
+      return;
+    }
 
-    // Bloqueamos el botón y mostramos el spinner
+    // 2. CONDICIÓN DE INGESTA: Si no está listo, iniciamos el transporte.
+    if (!state.heroImageFile || state.intentText.length < 5) return;
+    
     setIsIngesting(true);
 
     try {
@@ -225,14 +228,13 @@ export function StepSensoryCapture() {
         categoryId: state.categoryId,
         radius: state.resonanceRadius
       });
-      // El éxito cambiará el estado en el Contexto a DOSSIER_READY
-      // y el scanner-ui.tsx lo moverá al Step 3 automáticamente.
+      // El motor cambiará 'engineStatus' a 'DOSSIER_READY' en caso de éxito.
+      // Liberamos el botón para que muestre el estado de "Continuar".
+      setIsIngesting(false);
 
     } catch (err: any) {
-      // Si falla (ej. Foto de 10MB -> Error 413),
-      // apagamos el spinner para que el Admin pueda corregir y reintentar.
       console.error("🔥 [Step-Sensory] Misión Abortada:", err.message);
-      setIsIngesting(false);
+      setIsIngesting(false); 
     }
   };
 
@@ -252,11 +254,11 @@ export function StepSensoryCapture() {
 
       {/* --- I. BLOQUE VISUAL (MONUMENTO + OCR) --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
+        
         {/* IMAGEN HERO */}
         <div className="space-y-4">
           <div className="flex items-center gap-3 px-2 opacity-50"><Camera size={14} className="text-primary" /><h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white">Imagen Principal</h3></div>
-
+          
           <div
             onClick={() => !isIngesting && heroInputRef.current?.click()}
             className={cn(
@@ -306,7 +308,7 @@ export function StepSensoryCapture() {
                 </button>
               </div>
             ))}
-
+            
             {state.ocrImageFiles.length < 3 && (
               <button
                 onClick={() => ocrInputRef.current?.click()}
@@ -321,7 +323,7 @@ export function StepSensoryCapture() {
         </div>
       </div>
 
-      {/* --- II. SEMILLA COGNITIVA (DICTADO + EDICIÓN) --- */}
+      {/* --- II. SEMILLA COGNITIVA (DICTADO NEURONAL) --- */}
       <div className="space-y-4">
         <div className="flex items-center justify-between px-2">
           <div className="flex items-center gap-3 opacity-50">
@@ -334,10 +336,9 @@ export function StepSensoryCapture() {
         <div className="relative group">
           <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500/10 to-primary/10 rounded-[2rem] blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
           <div className="relative bg-[#020202] border border-white/10 rounded-[2rem] p-6 space-y-4">
-
-            {/* Campo de Edición Soberana */}
+            
             <div className="relative">
-              <Textarea
+              <Textarea 
                 value={state.intentText}
                 onChange={(e) => dispatch({ type: 'SET_INTENT', payload: e.target.value })}
                 placeholder="Pulsa el micrófono para dictar la historia o escribe aquí..."
@@ -352,18 +353,17 @@ export function StepSensoryCapture() {
               )}
             </div>
 
-            {/* Micrófono de Intención (Dictado) */}
             <div className="flex justify-center pt-2 border-t border-white/5">
               <button
                 onMouseDown={() => startRecording('INTENT')}
                 onMouseUp={stopRecording}
                 onTouchStart={() => startRecording('INTENT')}
                 onTouchEnd={stopRecording}
-                disabled={isIngesting}
+                disabled={isIngesting || engineStatus === 'DOSSIER_READY'}
                 className={cn(
                   "h-14 w-14 rounded-full flex items-center justify-center transition-all duration-500",
                   isRecordingIntent ? "bg-indigo-500 scale-110 shadow-[0_0_30px_rgba(99,102,241,0.4)]" : "bg-white/5 border border-white/10 text-indigo-400 hover:bg-white/10",
-                  isIngesting && "opacity-30 cursor-not-allowed"
+                  (isIngesting || engineStatus === 'DOSSIER_READY') && "opacity-30 cursor-not-allowed"
                 )}
               >
                 <Mic size={24} className={isRecordingIntent ? "animate-pulse text-white" : ""} />
@@ -377,14 +377,14 @@ export function StepSensoryCapture() {
       <div className="space-y-4">
         <div className="flex items-center gap-3 px-2 opacity-50"><Volume2 size={14} className="text-emerald-400" /><h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white">Resonancia Ambiental</h3></div>
         <div className="p-8 rounded-[3rem] bg-white/[0.01] border border-white/5 shadow-inner flex flex-col items-center gap-6 relative overflow-hidden">
-
+          
           <div className="text-center space-y-2 relative z-10">
-            <p className={cn(
-              "text-[10px] font-black uppercase tracking-[0.4em] transition-colors",
-              isRecordingAmbient ? "text-red-400 animate-pulse" : ambientAudioUrl ? "text-emerald-400" : "text-zinc-600"
-            )}>
-              {isRecordingAmbient ? "Capturando Ambiente..." : ambientAudioUrl ? "Frecuencia Lista para Auditoría" : "Graba 15s de ruido real"}
-            </p>
+             <p className={cn(
+               "text-[10px] font-black uppercase tracking-[0.4em] transition-colors",
+               isRecordingAmbient ? "text-red-400 animate-pulse" : ambientAudioUrl ? "text-emerald-400" : "text-zinc-600"
+             )}>
+               {isRecordingAmbient ? "Capturando Ambiente..." : ambientAudioUrl ? "Frecuencia Lista para Auditoría" : "Graba 15s de ruido real"}
+             </p>
           </div>
 
           <div className="flex items-center gap-6 relative z-10">
@@ -395,11 +395,11 @@ export function StepSensoryCapture() {
                 onMouseUp={stopRecording}
                 onTouchStart={() => startRecording('AMBIENT')}
                 onTouchEnd={stopRecording}
-                disabled={isIngesting}
+                disabled={isIngesting || engineStatus === 'DOSSIER_READY'}
                 className={cn(
                   "h-20 w-20 rounded-full flex items-center justify-center transition-all duration-500 relative",
                   isRecordingAmbient ? "bg-red-500 scale-110 shadow-[0_0_40px_rgba(239,68,68,0.4)]" : "bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/20",
-                  isIngesting && "opacity-30 cursor-not-allowed"
+                  (isIngesting || engineStatus === 'DOSSIER_READY') && "opacity-30 cursor-not-allowed"
                 )}
               >
                 <Mic size={32} className={cn(isRecordingAmbient && "animate-pulse")} />
@@ -414,10 +414,9 @@ export function StepSensoryCapture() {
             {/* Auditoría Post-Grabación */}
             {ambientAudioUrl && (
               <div className="flex items-center gap-4 animate-in zoom-in-95">
-                <Button
+                <Button 
                   onClick={() => {
                     if (audioPlayerRef.current) {
-                      // [FIX TS2304]: Sincronizado con 'isPlayingPreview'
                       if (isPlayingPreview) audioPlayerRef.current.pause();
                       else audioPlayerRef.current.play();
                     }
@@ -427,11 +426,11 @@ export function StepSensoryCapture() {
                 >
                   {isPlayingPreview ? <Pause size={32} fill="currentColor" /> : <Play size={32} fill="currentColor" className="ml-1" />}
                 </Button>
-
-                <Button
+                
+                <Button 
                   variant="ghost"
                   onClick={() => dispatch({ type: 'SET_AMBIENT_AUDIO', payload: null })}
-                  disabled={isIngesting}
+                  disabled={isIngesting || engineStatus === 'DOSSIER_READY'}
                   className="h-16 w-16 rounded-full border border-white/10 text-red-500 hover:bg-red-500/10"
                 >
                   <Trash2 size={24} />
@@ -439,31 +438,22 @@ export function StepSensoryCapture() {
               </div>
             )}
           </div>
-
-          {/* Reproductor nativo oculto */}
-          <audio
-            ref={audioPlayerRef}
-            src={ambientAudioUrl || ""}
-            onPlay={() => setIsPlayingPreview(true)}
-            onPause={() => setIsPlayingPreview(false)}
-            onEnded={() => setIsPlayingPreview(false)}
-            className="hidden"
-          />
+          <audio ref={audioPlayerRef} src={ambientAudioUrl || ""} onPlay={() => setIsPlayingPreview(true)} onPause={() => setIsPlayingPreview(false)} onEnded={() => setIsPlayingPreview(false)} className="hidden" />
         </div>
       </div>
 
-      {/* --- PANEL DE CRISIS (TRANSPARENCIA DE ERROR) --- */}
+      {/* --- PANEL DE CRISIS --- */}
       <AnimatePresence>
         {engineStatus === 'REJECTED' && (engineData?.rejectionReason || engineError) && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }} 
+            animate={{ opacity: 1, y: 0 }} 
             exit={{ opacity: 0, y: -10 }}
-            className="bg-red-500/10 border border-red-500/20 rounded-2xl p-5 flex flex-col gap-2 mt-4"
+            className="bg-red-500/10 border border-red-500/20 rounded-2xl p-5 flex flex-col gap-2 mt-4 shadow-xl"
           >
             <div className="flex items-center gap-2">
               <AlertTriangle size={16} className="text-red-500" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-red-500">Misión Rechazada por el Enlace</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-red-500">Misión Rechazada</span>
             </div>
             <p className="text-xs font-bold text-red-400/80 leading-relaxed uppercase">
               {engineError || engineData?.rejectionReason}
@@ -472,24 +462,40 @@ export function StepSensoryCapture() {
         )}
       </AnimatePresence>
 
-      {/* --- IV. ACCIÓN DE PROGRESO (THE GATEWAY) --- */}
+      {/* --- IV. ACCIÓN DE PROGRESO (THE MANUAL GATE) --- */}
       <div className="mt-4 pb-8">
         <Button
-          onClick={handleInitiateIngestion}
+          onClick={handlePrimaryAction}
           disabled={!state.heroImageFile || state.intentText.length < 5 || isIngesting || isRecordingAmbient || isRecordingIntent || state.isTranscribing}
-          className="w-full h-20 rounded-[2.5rem] bg-primary text-black font-black uppercase tracking-widest shadow-2xl hover:brightness-110 active:scale-[0.98] group relative overflow-hidden transition-all duration-300 disabled:opacity-50"
+          className={cn(
+            "w-full h-20 rounded-[2.5rem] font-black uppercase tracking-widest shadow-2xl hover:brightness-110 active:scale-[0.98] group relative overflow-hidden transition-all duration-500 disabled:opacity-50",
+            // Si el dossier está listo, el botón muta a un color de éxito (Púrpura/Indigo)
+            engineStatus === 'DOSSIER_READY' 
+              ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-[0_0_50px_rgba(99,102,241,0.3)] border border-white/20" 
+              : "bg-primary text-black"
+          )}
         >
           <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity animate-pulse" />
-
+          
+          {/* FASE DE VUELO */}
           {isIngesting ? (
             <div className="flex items-center gap-4">
               <Loader2 className="h-6 w-6 animate-spin" />
-              <span className="text-lg uppercase">Transmitiendo Activos...</span>
+              <span className="text-lg uppercase">Sincronizando Bóveda...</span>
             </div>
-          ) : (
+          ) 
+          /* FASE DE ÉXITO (DOSSIER_READY) */
+          : engineStatus === 'DOSSIER_READY' ? (
+            <div className="flex items-center gap-3 text-lg md:text-xl text-white">
+               DOSSIER LISTO • CONTINUAR
+               <CheckCircle2 size={24} className="ml-2 text-white" />
+            </div>
+          ) 
+          /* FASE INICIAL (IDLE) */
+          : (
             <div className="flex items-center gap-3 text-lg md:text-xl">
-              PROCESAR EXPEDIENTE
-              <ArrowRight size={22} className="group-hover:translate-x-2 transition-transform duration-500" />
+               PROCESAR EXPEDIENTE
+               <ArrowRight size={22} className="group-hover:translate-x-2 transition-transform duration-500" />
             </div>
           )}
         </Button>
@@ -498,3 +504,16 @@ export function StepSensoryCapture() {
     </div>
   );
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V5.0):
+ * 1. The Manual Gate: El avance al Step 3 ahora requiere una pulsación explícita 
+ *    del Administrador tras el éxito de la ingesta (Líneas 180-190). Esto otorga 
+ *    control absoluto y elimina la sensación de "pérdida de mando".
+ * 2. Cero Pestañeos de Carga: 'setIsIngesting(false)' se activa en la línea 198
+ *    apenas el motor resuelve. El botón cambia su texto e iluminación suavemente 
+ *    gracias al cn() dinámico de Tailwind.
+ * 3. Blindaje Multimodal: Los micrófonos (intent y ambient) y el capturador 
+ *    de imágenes se desactivan ('disabled') si el dossier ya fue enviado con éxito, 
+ *    previniendo desincronizaciones de datos post-ingesta.
+ */
