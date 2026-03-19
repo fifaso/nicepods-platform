@@ -1,7 +1,7 @@
 // components/geo/scanner-ui.tsx
-// VERSIÓN: 15.0 (NicePod V2.6 - Sovereign Oracle Master UI)
-// Misión: Orquestar el flujo sensorial y narrativo en un chasis responsivo de alta densidad.
-// [ESTABILIZACIÓN]: Sincronización absoluta de importaciones y liberación de scroll.
+// VERSIÓN: 16.0 (NicePod V2.6 - Sovereign Oracle Master UI & Phase-Link Edition)
+// Misión: Orquestar el flujo sensorial asegurando sincronía automática entre Engine y UI.
+// [ESTABILIZACIÓN]: Integración de Sincro-Watcher y liberación total de scroll.
 
 "use client";
 
@@ -23,7 +23,6 @@ import { useForge } from "./forge-context";
 import { RadarHUD } from "./radar-hud";
 
 // --- COMPONENTES ESPECIALISTAS (STEPPER V2.6) ---
-// [FIX]: Importaciones validadas por el Build Shield
 import { StepAnchoring } from "@/components/geo/steps/step-1-anchoring";
 import { StepSensoryCapture } from "@/components/geo/steps/step-2-sensory-capture";
 import { StepDossierReview } from "@/components/geo/steps/step-3-dossier-review";
@@ -32,6 +31,10 @@ import { StepNarrativeForge } from "@/components/geo/steps/step-4-narrative-forg
 // --- UTILIDADES DE SISTEMA ---
 import { nicepodLog } from "@/lib/utils";
 
+/**
+ * COMPONENTE: GeoScannerUI
+ * El puente de mando central de la Terminal de Captura Urbana.
+ */
 export function GeoScannerUI() {
   const geoEngine = useGeoEngine();
   const {
@@ -42,7 +45,7 @@ export function GeoScannerUI() {
     error: geoError
   } = geoEngine;
 
-  const { state: forgeState } = useForge();
+  const { state: forgeState, dispatch } = useForge();
 
   /**
    * RESOLUCIÓN DE IDENTIDAD NOMINATIVA (HUD Master)
@@ -55,6 +58,29 @@ export function GeoScannerUI() {
       "Interceptando Señal..."
     );
   }, [forgeState.intentText, engineData]);
+
+  /**
+   * ---------------------------------------------------------------------------
+   * SINCRO-WATCHER (EL CORTAFUEGOS CONTRA LOOPS)
+   * ---------------------------------------------------------------------------
+   * Este efecto vigila las señales de éxito del motor de fondo (use-geo-engine).
+   * Cuando el motor reporta que los datos han sido procesados en Supabase,
+   * este watcher fuerza a la interfaz (ForgeContext) a avanzar a la siguiente pantalla.
+   */
+  useEffect(() => {
+    // 1. Finalización de Fase 1 (Ingesta Visual -> Revisión Humana)
+    if (engineStatus === 'DOSSIER_READY' && forgeState.currentStep === 'INGESTING') {
+      nicepodLog("🎯 [Orchestrator] Dossier validado por IA. Avanzando a Revisión.");
+      dispatch({ type: 'SET_STEP', payload: 'DOSSIER_REVIEW' });
+    }
+
+    // 2. Finalización de Fase 2 (Síntesis Agente 42 -> Cierre)
+    if (engineStatus === 'NARRATIVE_READY' && forgeState.currentStep === 'FORGING') {
+      nicepodLog("🎯 [Orchestrator] Crónica anclada. Misión cumplida.");
+      // Opcional: Aquí podemos redirigir o mostrar confeti. 
+      // Por ahora, el Step 4 ya hace window.location.href = '/map' en su handler.
+    }
+  }, [engineStatus, forgeState.currentStep, dispatch]);
 
   useEffect(() => {
     nicepodLog(`🛰️ [Geo-Orchestrator] Fase UI: ${forgeState.currentStep} | Motor: ${engineStatus}`);
