@@ -1,7 +1,7 @@
 // actions/geo-actions.ts
-// VERSIÓN: 6.5 (NicePod Sovereign Geo-Actions - Zero-Latency Pipeline)
-// Misión: Orquestar el ciclo de vida multimodal eliminando cuellos de botella de red.
-// [ESTABILIZACIÓN]: Envío directo de Base64 al Edge (Bypass de Storage) y subida paralela.
+// VERSIÓN: 7.0 (NicePod Sovereign Geo-Actions - Circuit Breaker Edition)
+// Misión: Orquestar el ciclo de vida multimodal con garantía de persistencia visual.
+// [ESTABILIZACIÓN]: Implementación de Circuit Breaker para subidas críticas (Hero Image).
 
 "use server";
 
@@ -52,7 +52,7 @@ async function validateSovereignAccess() {
 
 /**
  * decodeBase64ToUint8Array:
- * Transmuta capturas Base64 en binarios puros para el Storage.
+ * Transmuta capturas Base64 en binarios puros para el Storage de Supabase.
  */
 function decodeBase64ToUint8Array(dataString: string) {
   try {
@@ -62,17 +62,14 @@ function decodeBase64ToUint8Array(dataString: string) {
     }
 
     const contentType = matches[1];
-    const binaryStr = atob(matches[2]);
-    const len = binaryStr.length;
-    const bytes = new Uint8Array(len);
+    const base64Content = matches[2];
 
-    for (let i = 0; i < len; i++) {
-      bytes[i] = binaryStr.charCodeAt(i);
-    }
+    // Optimizamos el buffer utilizando la API nativa de Node.js en Vercel
+    const buffer = Buffer.from(base64Content, 'base64');
 
-    return { type: contentType, buffer: bytes };
+    return { type: contentType, buffer: new Uint8Array(buffer) };
   } catch (e) {
-    throw new Error("FALLO_DECODIFICACION: Activo físico corrupto.");
+    throw new Error("FALLO_DECODIFICACION: El activo físico está corrupto.");
   }
 }
 
@@ -115,7 +112,6 @@ export async function transcribeVoiceIntentAction(params: {
     const supabase = createClient();
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    console.info("🎙️ [Geo-Action] Solicitando transcripción neuronal.");
     const audioData = decodeBase64ToUint8Array(params.audioBase64);
 
     const { data, error } = await supabase.functions.invoke('geo-transcribe-intent', {
@@ -128,7 +124,11 @@ export async function transcribeVoiceIntentAction(params: {
 
     if (error) throw new Error(`TRANSCRIPTION_IA_FAIL: ${error.message}`);
 
-    return { success: true, message: "Voz transmutada en texto.", data: { transcription: data.transcription } };
+    return {
+      success: true,
+      message: "Voz transmutada en texto.",
+      data: { transcription: data.transcription }
+    };
   } catch (error: any) {
     console.error("🔥 [Geo-Action][STT-Fatal]:", error.message);
     return { success: false, message: "Error al interpretar dictado.", error: error.message };
@@ -137,7 +137,7 @@ export async function transcribeVoiceIntentAction(params: {
 
 /**
  * ---------------------------------------------------------------------------
- * IV. FASE 1: INGESTA SENSORIAL (MULTIMODAL PRO & ZERO-LATENCY)
+ * IV. FASE 1: INGESTA SENSORIAL (CIRCUIT BREAKER EDITION)
  * ---------------------------------------------------------------------------
  */
 
@@ -162,11 +162,55 @@ export async function ingestPhysicalEvidenceAction(
     const timestamp = Date.now();
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    console.info(`📦 [Geo-Action] Despacho Atómico Directo para: ${user.id}`);
+    /**
+     * 2. CIRCUIT BREAKER: PERSISTENCIA FÍSICA BLOQUEANTE
+     * [MANDATO]: No llamamos a la IA hasta que la evidencia esté en el Storage.
+     */
+    console.info(`🛡️ [Geo-Action] Asegurando evidencia Hero para: ${user.id}`);
 
-    // 2. INVOCACIÓN DIRECTA A LA IA (EL BYPASS DE RED)
-    // Enviamos los binarios puros (Base64) a la Edge Function.
-    // Esto evita que Deno se cuelgue intentando descargar imágenes del Storage.
+    const heroImg = decodeBase64ToUint8Array(payload.heroImage);
+    const heroPath = `poi-evidence/${user.id}/${timestamp}_hero.jpg`;
+
+    // Subida BLOQUEANTE con await
+    const { error: heroUploadError } = await supabase.storage
+      .from('podcasts')
+      .upload(heroPath, heroImg.buffer, {
+        contentType: heroImg.type,
+        upsert: true,
+        cacheControl: '3600'
+      });
+
+    if (heroUploadError) {
+      console.error("🛑 [Circuit-Breaker] Fallo crítico al subir Hero Image:", heroUploadError.message);
+      throw new Error("STORAGE_UNAVAILABLE: No se pudo asegurar la evidencia visual principal. Ingesta abortada.");
+    }
+
+    /**
+     * 3. GESTIÓN DE EVIDENCIA SECUNDARIA (OCR)
+     * Usamos allSettled para no abortar si falla una placa OCR, pero registrar el evento.
+     */
+    let ocrPaths: string[] = [];
+    if (payload.ocrImages && payload.ocrImages.length > 0) {
+      const ocrTasks = payload.ocrImages.map((base64, i) => {
+        const img = decodeBase64ToUint8Array(base64);
+        const path = `poi-evidence/${user.id}/${timestamp}_ocr_${i}.jpg`;
+        return supabase.storage.from('podcasts').upload(path, img.buffer, { contentType: img.type, upsert: true });
+      });
+
+      const ocrResults = await Promise.allSettled(ocrTasks);
+      ocrResults.forEach((res, i) => {
+        if (res.status === 'fulfilled' && !res.value.error) {
+          ocrPaths.push(`poi-evidence/${user.id}/${timestamp}_ocr_${i}.jpg`);
+        } else {
+          console.warn(`⚠️ [Geo-Action] Fallo no crítico en placa OCR #${i}`);
+        }
+      });
+    }
+
+    /**
+     * 4. INVOCACIÓN AL INGESTOR DE IA (ZERO-LOOPBACK)
+     * Solo llegamos aquí si el Hero Image está a salvo.
+     */
     const { data, error: functionError } = await supabase.functions.invoke('geo-sensor-ingestor', {
       body: {
         ...validatedData,
@@ -179,34 +223,33 @@ export async function ingestPhysicalEvidenceAction(
 
     if (functionError) throw new Error(`AI_INGESTOR_FAIL: ${functionError.message}`);
 
-    // 3. SUBIDA PARALELA DE ACTIVOS (Background Storage Sync)
-    // Mientras devolvemos el éxito a la UI, aseguramos que los archivos 
-    // queden en Supabase Storage para que el visor público pueda cargarlos luego.
-    const heroImg = decodeBase64ToUint8Array(payload.heroImage);
-    const heroPath = `poi-evidence/${user.id}/${timestamp}_hero.jpg`;
+    const poiId = data.data.poiId;
 
-    // Lanzamos la promesa de subida sin esperar (fire-and-forget seguro en Vercel Edge)
-    supabase.storage.from('podcasts').upload(heroPath, heroImg.buffer, { contentType: heroImg.type, upsert: true })
-      .catch(e => console.warn(`⚠️ [Geo-Action] Fallo en background hero upload: ${e.message}`));
+    /**
+     * 5. VINCULACIÓN DE ACTIVOS EN EL METAL
+     * Actualizamos el POI recién creado con las rutas físicas del Storage.
+     */
+    const publicHeroUrl = supabase.storage.from('podcasts').getPublicUrl(heroPath).data.publicUrl;
+    const publicOcrUrls = ocrPaths.map(p => supabase.storage.from('podcasts').getPublicUrl(p).data.publicUrl);
 
-    if (payload.ocrImages && payload.ocrImages.length > 0) {
-      payload.ocrImages.forEach((base64, i) => {
-        const img = decodeBase64ToUint8Array(base64);
-        supabase.storage.from('podcasts')
-          .upload(`poi-evidence/${user.id}/${timestamp}_ocr_${i}.jpg`, img.buffer, { contentType: img.type, upsert: true })
-          .catch(e => console.warn(`⚠️ [Geo-Action] Fallo en background ocr upload: ${e.message}`));
-      });
-    }
+    const { error: dbUpdateError } = await supabase
+      .from('points_of_interest')
+      .update({
+        gallery_urls: [publicHeroUrl, ...publicOcrUrls]
+      })
+      .eq('id', poiId);
+
+    if (dbUpdateError) console.error("⚠️ [Geo-Action] Error vinculando URLs a DB:", dbUpdateError.message);
 
     return {
       success: true,
-      message: "Dossier analizado e ingestado.",
+      message: "Evidencia blindada y analizada.",
       data: data.data
     };
 
   } catch (error: any) {
     const isTooLarge = error.message.includes('exceeded') || error.status === 413;
-    const msg = isTooLarge ? "Evidencia muy pesada (Máx 4MB)." : error.message;
+    const msg = isTooLarge ? "Expediente muy pesado (Máx 4.5MB)." : error.message;
     console.error("🔥 [Geo-Action][Ingest-Error]:", error.message);
     return { success: false, message: "Fallo en la ingesta.", error: msg };
   }
@@ -214,7 +257,7 @@ export async function ingestPhysicalEvidenceAction(
 
 /**
  * ---------------------------------------------------------------------------
- * V. FASE 2: ANCLAJE ACÚSTICO (AMBIENT SOUND)
+ * V. FASE 2: ANCLAJE ACÚSTICO (BLOQUEANTE)
  * ---------------------------------------------------------------------------
  */
 
@@ -230,11 +273,12 @@ export async function attachAmbientAudioAction(params: {
     const audioData = decodeBase64ToUint8Array(params.audioBase64);
     const audioPath = `poi-evidence/${user.id}/${timestamp}_ambient.webm`;
 
+    // Subida bloqueante para asegurar la inmersión sonora
     const { error: uploadError } = await supabase.storage
       .from('podcasts')
       .upload(audioPath, audioData.buffer, { contentType: audioData.type, upsert: true });
 
-    if (uploadError) throw new Error(`STORAGE_AUDIO_FAIL: ${uploadError.message}`);
+    if (uploadError) throw new Error(`STORAGE_AUDIO_FAIL: No se pudo salvar el paisaje sonoro.`);
 
     const audioUrl = supabase.storage.from('podcasts').getPublicUrl(audioPath).data.publicUrl;
 
@@ -243,12 +287,12 @@ export async function attachAmbientAudioAction(params: {
       .update({ ambient_audio_url: audioUrl })
       .eq('id', params.poiId);
 
-    if (dbError) throw new Error(`DB_AUDIO_LINK_FAIL: ${dbError.message}`);
+    if (dbError) throw new Error(`DB_AUDIO_LINK_FAIL: Fallo al anclar audio en el metal.`);
 
-    return { success: true, message: "Audio anclado.", data: { audioUrl } };
+    return { success: true, message: "Audio asegurado.", data: { audioUrl } };
   } catch (error: any) {
     console.error("🔥 [Geo-Action][Audio-Fatal]:", error.message);
-    return { success: false, message: "Error al asegurar el activo acústico.", error: error.message };
+    return { success: false, message: "Error crítico acústico.", error: error.message };
   }
 }
 
@@ -313,14 +357,11 @@ export async function publishPOIAction(poiId: number): Promise<GeoActionResponse
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V6.5):
- * 1. Zero-Latency Pipeline (Línea 116): Al inyectar el payload en la Edge 
- *    Function ANTES de esperar al Storage de Supabase, cortamos el tiempo de 
- *    espera de la UI a la mitad.
- * 2. Background Upload (Líneas 131-137): Las promesas de subida se ejecutan de 
- *    fondo. Vercel mantendrá viva la instancia el tiempo suficiente para 
- *    garantizar que los archivos lleguen a salvo.
- * 3. Consistencia de Payload: Las nuevas claves 'heroImageBase64' y 
- *    'ocrImagesBase64' comunican al Ingestor que ya no debe realizar descargas, 
- *    eliminando el loopback de red (Timeout).
+ * NOTA TÉCNICA DEL ARCHITECT (V7.0):
+ * 1. Circuit Breaker Industrial: La línea 161 es la barrera de seguridad. Si el 
+ *    Storage falla, la función se detiene. No creamos datos incompletos.
+ * 2. Optimización Buffer: Se migró de 'atob' a 'Buffer.from' (Línea 75) para 
+ *    aprovechar el motor nativo de Node.js, reduciendo el uso de CPU en Vercel.
+ * 3. Consistencia Atómica: La actualización de 'gallery_urls' (Línea 211) ocurre 
+ *    inmediatamente tras la creación por la IA, cerrando el ciclo de vida del dato.
  */

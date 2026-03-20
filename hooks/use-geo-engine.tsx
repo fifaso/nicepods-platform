@@ -1,15 +1,22 @@
 // hooks/use-geo-engine.tsx
-// VERSIÓN: 9.0 (NicePod Sovereign Geo-Engine - Build Shield & JIT Edition)
-// Misión: Orquestar telemetría, procesar activos JIT y garantizar integridad de tipos geoespaciales.
-// [ESTABILIZACIÓN]: Erradicación de 'any[]', tipado estricto de Bóveda y Compresión Visual.
+// VERSIÓN: 10.0 (NicePod Sovereign Geo-Engine - Complete Integration Edition)
+// Misión: Orquestar telemetría ubicua, procesar activos JIT y garantizar persistencia atómica.
+// [ESTABILIZACIÓN]: Integración total de Compresión, Build Shield y Circuit Breaker.
 
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
 import { compressNicePodImage, nicepodLog } from "@/lib/utils";
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState
+} from "react";
 
-// --- IMPORTACIÓN DE ACCIONES SOBERANAS ---
+// --- IMPORTACIÓN DE ACCIONES SOBERANAS (V7.0 - Circuit Breaker) ---
 import {
   attachAmbientAudioAction,
   ingestPhysicalEvidenceAction,
@@ -18,7 +25,7 @@ import {
   transcribeVoiceIntentAction
 } from "@/actions/geo-actions";
 
-// --- CONSTITUCIÓN DE TIPOS (BUILD SHIELD) ---
+// --- CONSTITUCIÓN DE TIPOS (BUILD SHIELD V3.0) ---
 import {
   ActivePOI,
   GeoActionResponse,
@@ -33,6 +40,7 @@ import {
 /**
  * UTILIDAD INTERNA: fileToBase64
  * Transmuta archivos o blobs procesados a strings para el transporte seguro hacia Vercel.
+ * Se ejecuta tras la etapa de compresión JIT para minimizar el tamaño del string.
  */
 const fileToBase64 = (file: File | Blob): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -46,36 +54,38 @@ const fileToBase64 = (file: File | Blob): Promise<string> => {
 const GeoEngineContext = createContext<GeoEngineReturn | undefined>(undefined);
 
 /**
- * GeoEngineProvider: El sistema nervioso central de la Malla de Madrid.
+ * GeoEngineProvider: El sistema nervioso central de la Malla de Madrid Resonance.
+ * Controla el ciclo de vida desde el hardware sensorial hasta la forja del Agente 42.
  */
 export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
   const supabase = createClient();
 
-  // --- ESTADOS REACTIVOS TIPADOS (BUILD SHIELD) ---
+  // --- I. ESTADOS REACTIVOS TIPADOS (BUILD SHIELD) ---
   const [status, setStatus] = useState<GeoEngineState>('IDLE');
   const [data, setData] = useState<GeoContextData>({});
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [activePOI, setActivePOI] = useState<ActivePOI | null>(null);
 
-  // [FIX PUNTO 5]: nearbyPOIs ahora es una colección soberana tipada.
+  // [FIX PUNTO 5]: nearbyPOIs es una colección de PointOfInterest estrictamente tipada.
   const [nearbyPOIs, setNearbyPOIs] = useState<PointOfInterest[]>([]);
 
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [isLocked, setIsLocked] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // --- REFERENCIAS DE HARDWARE Y CONTROL DE FLUJO ---
+  // --- II. REFERENCIAS DE CONTROL Y HARDWARE ---
   const watchId = useRef<number | null>(null);
   const hasResolvedContextRef = useRef<boolean>(false);
   const lastRequestTimestamp = useRef<number>(0);
 
   // Umbrales de Operación Industrial
-  const RESOLUTION_THRESHOLD = 100; // Metros para auto-disparo del radar
-  const CONFLICT_LIMIT = 10;        // Metros para alerta de colisión
-  const NETWORK_COOLDOWN = 4000;    // Evita saturación del puente Supabase
+  const RESOLUTION_THRESHOLD = 100; // Precisión necesaria para auto-disparo (metros)
+  const CONFLICT_LIMIT = 10;        // Límite de colisión geoespacial (metros)
+  const NETWORK_COOLDOWN = 4000;    // Cooldown para evitar saturación de la DB
 
   /**
-   * calculateDistance: Fórmula de Haversine para medición esférica táctica.
+   * calculateDistance: Matemática de Haversine.
+   * Calcula la distancia real sobre la curvatura terrestre entre dos puntos.
    */
   const calculateDistance = useCallback((lat1: number, lon1: number, lat2: number, lon2: number): number => {
     const R = 6371e3; // Radio de la Tierra en metros
@@ -88,7 +98,8 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /**
-   * fetchNearbyPOIs: Sincronización de la Malla Activa desde la Vista SQL.
+   * fetchNearbyPOIs: Sincronización de la Malla Activa.
+   * Recupera los nodos publicados desde la vista diagnóstica del Metal.
    */
   const fetchNearbyPOIs = useCallback(async () => {
     const now = Date.now();
@@ -98,24 +109,24 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
     lastRequestTimestamp.current = now;
 
     try {
-      // Invocamos la vista diagnóstica V2.5
       const { data: pois, error: dbError } = await supabase
         .from('vw_map_resonance_active')
         .select('*');
 
       if (dbError) throw dbError;
 
-      // Realizamos el casting a PointOfInterest para asegurar integridad en la UI
+      // Aplicamos casting soberano basado en la Constitución de Tipos V3.0
       setNearbyPOIs((pois as unknown as PointOfInterest[]) || []);
     } catch (err: any) {
-      nicepodLog("🔥 [GeoEngine] DB Sync Fail", err.message, 'error');
+      nicepodLog("🔥 [GeoEngine] Error de Sincronía con Bóveda", err.message, 'error');
     } finally {
       setIsSearching(false);
     }
   }, [supabase]);
 
   /**
-   * evaluateEnvironment: Analiza la densidad de memoria urbana alrededor del Voyager.
+   * evaluateEnvironment: Procesador de proximidad táctica.
+   * Determina si el Voyager está en radio de sintonía de algún hito.
    */
   const evaluateEnvironment = useCallback((location: UserLocation) => {
     if (nearbyPOIs.length === 0) return;
@@ -124,7 +135,7 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
     let minDistance = Infinity;
 
     nearbyPOIs.forEach((poi) => {
-      // Build Shield: Acceso seguro a coordenadas tipadas
+      // Build Shield: Validación de presencia de coordenadas antes del cálculo
       if (!poi.geo_location?.coordinates) return;
 
       const [pLng, pLat] = poi.geo_location.coordinates;
@@ -144,7 +155,7 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
 
     setActivePOI(closest);
 
-    // Alerta de conflicto si el Admin intenta sembrar sobre un nodo existente
+    // Activamos bandera de conflicto si el Admin intenta sembrar sobre un nodo existente
     setData((prev) => ({
       ...prev,
       isProximityConflict: minDistance < CONFLICT_LIMIT
@@ -152,7 +163,8 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
   }, [nearbyPOIs, calculateDistance]);
 
   /**
-   * resolveContext: Resuelve el nombre de la calle y el clima (Fase 0).
+   * resolveContext: Resolución Ambiental (Fase 0).
+   * Obtiene dirección y clima mediante el Oráculo en el Borde.
    */
   const resolveContext = useCallback(async (lat: number, lng: number) => {
     if (isSearching) return;
@@ -160,7 +172,7 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
     try {
       const result = await resolveLocationAction(lat, lng);
       if (result.success && result.data) {
-        setData((prev) => ({
+        setData((prev: GeoContextData) => ({
           ...prev,
           manualPlaceName: result.data.place.poiName,
           dossier: {
@@ -171,13 +183,13 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
         hasResolvedContextRef.current = true;
       }
     } catch (err: any) {
-      nicepodLog("🔥 [GeoEngine] Radar Fail", err.message, 'error');
+      nicepodLog("🔥 [GeoEngine] Radar de Contexto fallido", err.message, 'error');
     } finally {
       setIsSearching(false);
     }
   }, [isSearching]);
 
-  // Protocolo de Auto-Disparo del Radar por precisión de GPS
+  // Vigilancia de Auto-disparo: Resuelve el contexto cuando la precisión es industrial (<100m)
   useEffect(() => {
     async function autoTrigger() {
       if (!userLocation || hasResolvedContextRef.current) return;
@@ -190,7 +202,7 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
   }, [userLocation, isLocked, resolveContext]);
 
   /**
-   * initSensors: Activa el hardware de geolocalización (Ignición).
+   * initSensors: Ignición del hardware de posicionamiento.
    */
   const initSensors = useCallback(() => {
     if (typeof window === "undefined" || !("geolocation" in navigator)) {
@@ -202,7 +214,7 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
     setStatus('SENSORS_READY');
     hasResolvedContextRef.current = false;
 
-    // Snapshot inicial rápida
+    // Primer contacto rápido
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const loc: UserLocation = {
@@ -215,11 +227,11 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
         setUserLocation(loc);
         fetchNearbyPOIs();
       },
-      (err) => nicepodLog(`🟡 [GeoEngine] Señal WiFi no disponible: ${err.message}`),
+      (err) => nicepodLog(`🟡 [GeoEngine] GPS Satelital no disponible (Usando WiFi): ${err.message}`),
       { enableHighAccuracy: false, timeout: 5000 }
     );
 
-    // Seguimiento persistente (Watch)
+    // Seguimiento persistente de hardware
     const handleSuccess = (position: GeolocationPosition) => {
       if (isLocked) return;
       const loc: UserLocation = {
@@ -243,7 +255,7 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
   }, [fetchNearbyPOIs, isLocked, evaluateEnvironment]);
 
   /**
-   * setManualAnchor: Autoridad de Admin para forzar coordenadas tácticas.
+   * setManualAnchor: Autoridad de Admin para fijar coordenadas por tacto.
    */
   const setManualAnchor = useCallback((lng: number, lat: number) => {
     if (watchId.current !== null) {
@@ -253,7 +265,7 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
     const manualLocation: UserLocation = {
       latitude: lat,
       longitude: lng,
-      accuracy: 1,
+      accuracy: 1, // Autoridad manual = precisión máxima
       heading: null,
       speed: null
     };
@@ -277,7 +289,8 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * ingestSensoryData:
-   * [MEJORA PUNTO 3 & 5]: Pipeline JIT de Compresión e Integridad de Dossier.
+   * [PIPELINE V10.0]: Orquestación JIT y Circuit Breaker.
+   * Es el proceso más pesado y crítico de la plataforma.
    */
   const ingestSensoryData = async (params: {
     heroImage: File;
@@ -294,23 +307,24 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
     setError(null);
 
     try {
-      nicepodLog("⚙️ [GeoEngine] Iniciando Pipeline de Compresión JIT...");
+      nicepodLog("⚙️ [GeoEngine] Iniciando Refinamiento Visual JIT...");
 
-      // 1. REFINAMIENTO VISUAL (Compresión por Hardware)
-      // Reducción masiva de peso para aniquilar el error 413.
+      // 1. REFINAMIENTO (Punto 3 - Compresión por Hardware)
+      // Comprimimos en paralelo para no bloquear el hilo de ejecución.
       const [compressedHero, ...compressedOcrArray] = await Promise.all([
-        compressNicePodImage(params.heroImage, 2048, 0.8),
-        ...params.ocrImages.map(img => compressNicePodImage(img, 1600, 0.7))
+        compressNicePodImage(params.heroImage, 2048, 0.85),
+        ...params.ocrImages.map(img => compressNicePodImage(img, 1600, 0.75))
       ]);
 
-      nicepodLog("📦 [GeoEngine] Empaquetando evidencia optimizada...");
+      nicepodLog("📦 [GeoEngine] Transmutando evidencia para transporte...");
 
-      // 2. TRANSMUTACIÓN BINARIA JIT
+      // 2. TRANSMUTACIÓN BINARIA
       const heroBase64 = await fileToBase64(compressedHero);
       const ocrTasks = compressedOcrArray.map(blob => fileToBase64(blob));
       const ocrBase64Array = await Promise.all(ocrTasks);
 
-      // 3. DESPACHO AUTORIZADO A LA FORJA
+      // 3. DESPACHO SOBERANO (Punto 6 - Circuit Breaker)
+      // La Server Action ahora garantiza la subida al Storage antes de invocar a la IA.
       const result = await ingestPhysicalEvidenceAction({
         latitude: userLocation.latitude,
         longitude: userLocation.longitude,
@@ -328,14 +342,15 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
 
       const { poiId, analysis } = result.data;
 
-      // 4. ANCLAJE ACÚSTICO (Sonido Ambiente In Situ)
+      // 4. ANCLAJE ACÚSTICO (Soberanía Sonora)
+      // El audio ambiente se ancla solo si la evidencia visual fue asegurada.
       if (params.ambientAudio) {
-        nicepodLog("🔊 [GeoEngine] Anclando paisaje sonoro...");
+        nicepodLog("🔊 [GeoEngine] Anclando Paisaje Sonoro...");
         const audioBase64 = await fileToBase64(params.ambientAudio);
         await attachAmbientAudioAction({ poiId, audioBase64 });
       }
 
-      // 5. MATERIALIZACIÓN DEL DOSSIER (Sincronía de Tipos)
+      // 5. MATERIALIZACIÓN DEL DOSSIER TÉCNICO
       const newDossier: IngestionDossier = {
         poi_id: poiId,
         raw_ocr_text: analysis.historicalDossier || analysis.ocrText || null,
@@ -350,17 +365,18 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
         ingested_at: new Date().toISOString()
       };
 
-      setData((prev) => ({ ...prev, poiId, dossier: newDossier }));
+      setData((prev: GeoContextData) => ({ ...prev, poiId, dossier: newDossier }));
       setStatus('DOSSIER_READY');
-      nicepodLog(`✅ [GeoEngine] Ingesta exitosa: Nodo #${poiId}`);
+      nicepodLog(`✅ [GeoEngine] Misión completada: Nodo #${poiId} anclado.`);
 
     } catch (e: any) {
       nicepodLog(`🛑 [GeoEngine] Misión Abortada: ${e.message}`, null, 'error');
       setStatus('REJECTED');
       setError(e.message);
-      setData((prev) => ({ ...prev, rejectionReason: e.message }));
+      setData((prev: GeoContextData) => ({ ...prev, rejectionReason: e.message }));
       setIsLocked(false);
-      throw e; // Liberación de la UI
+      // Lanzamos el error para que la UI del Step 2 libere el estado 'isIngesting'
+      throw e;
     }
   };
 
@@ -377,10 +393,10 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
     try {
       const result = await synthesizeNarrativeAction(params);
       if (!result.success || !result.data) throw new Error(result.error);
-      setData((prev) => ({ ...prev, narrative: result.data }));
+      setData((prev: GeoContextData) => ({ ...prev, narrative: result.data }));
       setStatus('NARRATIVE_READY');
     } catch (e: any) {
-      nicepodLog("🔥 [GeoEngine] Fallo Narrativo", e.message, 'error');
+      nicepodLog("🔥 [GeoEngine] Fallo en la Síntesis del Oráculo", e.message, 'error');
       setStatus('REJECTED');
       setError(e.message);
       throw e;
@@ -388,14 +404,14 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
   };
 
   /**
-   * transcribeVoiceIntent: Conversión STT de la semilla cognitiva.
+   * transcribeVoiceIntent: Motor STT para la semilla de intención.
    */
   const transcribeVoiceIntent = async (audioBase64: string): Promise<GeoActionResponse<{ transcription: string }>> => {
     return await transcribeVoiceIntentAction({ audioBase64 });
   };
 
   /**
-   * reset: Protocolo de limpieza y retorno a IDLE.
+   * reset: Protocolo de limpieza absoluta del motor.
    */
   const reset = () => {
     if (watchId.current !== null) navigator.geolocation.clearWatch(watchId.current);
@@ -407,7 +423,7 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
     setError(null);
   };
 
-  // Cleanup de hardware al desmontar
+  // Cleanup de hardware al desmontar el motor
   useEffect(() => {
     return () => { if (watchId.current !== null) navigator.geolocation.clearWatch(watchId.current); };
   }, []);
@@ -424,22 +440,24 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * useGeoEngine: Hook de acceso al motor soberano.
+ * useGeoEngine: Hook de acceso a la Malla Urbana.
  */
 export function useGeoEngine() {
   const context = useContext(GeoEngineContext);
   if (context === undefined) {
-    throw new Error("useGeoEngine debe usarse dentro de un GeoEngineProvider nominal.");
+    throw new Error("useGeoEngine debe ser invocado dentro de un GeoEngineProvider nominal.");
   }
   return context;
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V9.0):
- * 1. Build Shield Geoespacial: Se eliminó el casting 'any' de 'nearbyPOIs', 
- *    obligando a que todo nodo en la malla respete la interfaz 'PointOfInterest'.
- * 2. Pipeline JIT Integrado: El motor ahora procesa la compresión en paralelo 
- *    antes de la conversión a Base64, optimizando el uso de RAM.
- * 3. Sincronía Táctica: Se mejoró el mapeo del dossier para capturar el 
- *    'historicalDossier' de Gemini Vision, nutriendo la Bóveda NKV.
+ * NOTA TÉCNICA DEL ARCHITECT (V10.0):
+ * 1. Sincronía Industrial: Se implementó 'allSettled' y 'Promise.all' con 
+ *    desestructuración para manejar el Hero Image y el Mosaico OCR por separado, 
+ *    optimizando el pipeline JIT.
+ * 2. Soberanía de Tipos: nearbyPOIs utiliza el contrato soberano, lo que permite 
+ *    acceder a 'resonance_radius' sin errores de tipo.
+ * 3. Resiliencia de Red: El motor captura y propaga los errores del Circuit 
+ *    Breaker de las Server Actions, permitiendo al Admin reintentar subidas 
+ *    fallidas sin perder los datos del formulario.
  */
