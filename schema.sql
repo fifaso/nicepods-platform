@@ -233,6 +233,17 @@ CREATE TYPE "public"."podcast_shelf_item" AS (
 ALTER TYPE "public"."podcast_shelf_item" OWNER TO "postgres";
 
 
+CREATE TYPE "public"."poi_lifecycle" AS ENUM (
+    'ingested',
+    'narrated',
+    'published',
+    'archived'
+);
+
+
+ALTER TYPE "public"."poi_lifecycle" OWNER TO "postgres";
+
+
 CREATE TYPE "public"."processing_status" AS ENUM (
     'pending',
     'processing',
@@ -299,20 +310,33 @@ CREATE OR REPLACE FUNCTION "public"."check_podcast_integrity_and_release"() RETU
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
 BEGIN
-    -- [REVISIÓN DE INVENTARIO TOTAL]: 
-    -- Solo liberamos si Audio, Imagen Y (opcionalmente) el estado de proceso final son exitosos.
-    -- Añadimos lógica para que el embedding no bloquee la escucha pero sí la catalogación.
+    -- [ESTRICTA VALIDACIÓN DE FASE FINAL]
+    -- Solo permitimos la transición a 'completed' si ambos activos han sido forjados exitosamente.
+    -- La lógica BEFORE UPDATE permite al trigger modificar el estado de NEW antes de persistir.
     
-    IF NEW.audio_ready = TRUE AND NEW.image_ready = TRUE THEN
-        UPDATE public.micro_pods 
-        SET 
-            processing_status = 'completed',
-            published_at = COALESCE(published_at, now()),
-            updated_at = now()
-        WHERE id = NEW.id 
-        AND processing_status = 'processing'; -- Seguridad contra doble ejecución
+    IF NEW.processing_status = 'processing' THEN
+        
+        -- Validación de Integridad Estricta:
+        -- Solo pasamos a 'completed' si el orquestador ya marcó ambos activos como listos.
+        IF NEW.audio_ready = TRUE AND NEW.image_ready = TRUE THEN
+            
+            -- Aplicamos la consolidación del estado.
+            NEW.processing_status := 'completed';
+            NEW.published_at := COALESCE(NEW.published_at, now());
+            NEW.updated_at := now();
+            
+            -- [OPCIONAL: Logging de Sucesión]
+            -- nicepodLog('Soberanía alcanzada: Podcast liberado', jsonb_build_object('id', NEW.id));
+            
+        ELSIF NEW.audio_ready = FALSE OR NEW.image_ready = FALSE THEN
+            -- Si alguno falla tras una actualización, forzamos un estado de 'processing' 
+            -- o 'failed' si el job asociado ha expirado.
+            -- Por ahora, mantenemos 'processing' para permitir re-intentos asíncronos.
+            NEW.processing_status := 'processing';
+        END IF;
+        
     END IF;
-    
+
     RETURN NEW;
 END;
 $$;
@@ -714,11 +738,6 @@ CREATE TABLE IF NOT EXISTS "public"."micro_pods" (
     "narrative_lens" "text",
     "ai_tags" "text"[],
     "user_tags" "text"[],
-    "ai_coordinates" "point",
-    "final_coordinates" "point",
-    "ai_consistency_drift" "jsonb",
-    "consistency_level" "public"."consistency_level",
-    "creation_context" "jsonb",
     "sources" "jsonb" DEFAULT '[]'::"jsonb",
     "reviewed_by_user" boolean DEFAULT false,
     "published_at" timestamp with time zone,
@@ -737,6 +756,7 @@ CREATE TABLE IF NOT EXISTS "public"."micro_pods" (
     "total_audio_segments" integer DEFAULT 0,
     "current_audio_segments" integer DEFAULT 0,
     "audio_assembly_status" "public"."assembly_status" DEFAULT 'idle'::"public"."assembly_status",
+    "embedding_ready" boolean DEFAULT false,
     CONSTRAINT "micro_pods_creation_mode_check" CHECK (("creation_mode" = ANY (ARRAY['standard'::"text", 'remix'::"text", 'situational'::"text"]))),
     CONSTRAINT "micro_pods_title_check" CHECK (("char_length"("title") > 0))
 );
@@ -794,90 +814,79 @@ COMMENT ON FUNCTION "public"."get_service_key"() IS 'Recupera de forma segura la
 
 CREATE OR REPLACE FUNCTION "public"."get_user_discovery_feed"("p_user_id" "uuid") RETURNS json
     LANGUAGE "plpgsql" SECURITY DEFINER
-    SET "search_path" TO 'public'
     AS $$
 DECLARE
-  user_center point;
-  epicenter_tags text[];
-  result json;
+    v_epicenter json;
+    v_connections json;
 BEGIN
-  -- 1. Obtener el centro de gravedad del usuario. Si no existe, usar el origen (0,0).
-  SELECT COALESCE(current_center, point(0,0))
-  INTO user_center
-  FROM public.user_resonance_profiles
-  WHERE user_id = p_user_id;
+    -- 1. COSECHA DEL EPICENTRO (Podcasts propios del usuario)
+    -- Eliminamos referencias a 'ai_coordinates' y 'final_coordinates'
+    SELECT json_agg(
+        json_build_object(
+            'id', p.id,
+            'title', p.title,
+            'description', p.description,
+            'audio_url', p.audio_url,
+            'cover_image_url', p.cover_image_url,
+            'duration_seconds', p.duration_seconds,
+            'status', p.status,
+            'created_at', p.created_at,
+            'creation_data', p.creation_data,
+            'ai_tags', p.ai_tags,
+            'processing_status', p.processing_status,
+            'creation_mode', p.creation_mode,
+            -- Integración del anclaje urbano actual
+            'geo_location', p.geo_location,
+            'profiles', json_build_object(
+                'full_name', pr.full_name,
+                'avatar_url', pr.avatar_url,
+                'username', pr.username
+            )
+        ) ORDER BY p.created_at DESC
+    ) INTO v_epicenter
+    FROM public.micro_pods p
+    LEFT JOIN public.profiles pr ON p.user_id = pr.id
+    WHERE p.user_id = p_user_id;
 
-  -- Usamos Common Table Expressions (CTEs) para organizar las consultas.
-  WITH
-  -- Estantería 1: "Tu Epicentro Creativo" - Los 10 más cercanos al centro del usuario.
-  epicenter_shelf AS (
-    SELECT p.*, to_json(prof.*) as profiles
+    -- 2. COSECHA DE CONEXIONES (Podcasts de la red pública)
+    SELECT json_agg(
+        json_build_object(
+            'id', p.id,
+            'title', p.title,
+            'description', p.description,
+            'audio_url', p.audio_url,
+            'cover_image_url', p.cover_image_url,
+            'duration_seconds', p.duration_seconds,
+            'status', p.status,
+            'created_at', p.created_at,
+            'creation_data', p.creation_data,
+            'ai_tags', p.ai_tags,
+            'processing_status', p.processing_status,
+            'creation_mode', p.creation_mode,
+            'geo_location', p.geo_location,
+            'profiles', json_build_object(
+                'full_name', pr.full_name,
+                'avatar_url', pr.avatar_url,
+                'username', pr.username
+            )
+        ) ORDER BY p.created_at DESC
+    ) INTO v_connections
     FROM public.micro_pods p
-    LEFT JOIN public.profiles prof ON p.user_id = prof.id
-    WHERE p.status = 'published' AND p.final_coordinates IS NOT NULL
-    ORDER BY p.final_coordinates <-> user_center
-    LIMIT 10
-  ),
-  -- Obtenemos los tags más comunes del epicentro para la siguiente estantería.
-  common_tags AS (
-    SELECT unnest(ai_tags) as tag
-    FROM epicenter_shelf
-    GROUP BY tag
-    ORDER BY count(*) DESC
-    LIMIT 3
-  ),
-  -- Estantería 2: "Conexiones Inesperadas" - Podcasts con los mismos tags, pero lejos en el mapa.
-  semantic_connections_shelf AS (
-    SELECT p.*, to_json(prof.*) as profiles
-    FROM public.micro_pods p
-    LEFT JOIN public.profiles prof ON p.user_id = prof.id
-    CROSS JOIN common_tags ct
-    WHERE p.status = 'published'
-      AND p.ai_tags && ARRAY[ct.tag] -- Que contenga al menos uno de los tags comunes
-      AND p.final_coordinates IS NOT NULL
-      AND (p.final_coordinates <-> user_center) > 10 -- Umbral de distancia para que sea "inesperado"
-    ORDER BY p.created_at DESC
-    LIMIT 10
-  ),
-  -- Estantería 3: "Nuevos Horizontes" - Lo último en la plataforma.
-  new_horizons_shelf AS (
-    SELECT p.*, to_json(prof.*) as profiles
-    FROM public.micro_pods p
-    LEFT JOIN public.profiles prof ON p.user_id = prof.id
-    WHERE p.status = 'published'
-    ORDER BY p.created_at DESC
-    LIMIT 10
-  )
-  -- 2. Construir el objeto JSON final que se devolverá al frontend.
-  SELECT json_build_object(
-    'epicenter', (SELECT json_agg(t) FROM epicenter_shelf t),
-    'semantic_connections', (SELECT json_agg(t) FROM semantic_connections_shelf t),
-    'new_horizons', (SELECT json_agg(t) FROM new_horizons_shelf t)
-  )
-  INTO result;
+    LEFT JOIN public.profiles pr ON p.user_id = pr.id
+    WHERE p.user_id != p_user_id 
+      AND p.status = 'published'
+    LIMIT 15;
 
-  RETURN result;
+    -- 3. ENSAMBLAJE DE RESPUESTA
+    RETURN json_build_object(
+        'epicenter', COALESCE(v_epicenter, '[]'::json),
+        'semantic_connections', COALESCE(v_connections, '[]'::json)
+    );
 END;
 $$;
 
 
 ALTER FUNCTION "public"."get_user_discovery_feed"("p_user_id" "uuid") OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."handle_new_podcast_async"() RETURNS "trigger"
-    LANGUAGE "plpgsql" SECURITY DEFINER
-    AS $$
-BEGIN
-    PERFORM public.dispatch_edge_function(
-        'cognitive-core-orchestrator',
-        jsonb_build_object('record', row_to_json(NEW))
-    );
-    RETURN NEW;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."handle_new_podcast_async"() OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."handle_new_podcast_publication"() RETURNS "trigger"
@@ -1240,56 +1249,6 @@ $$;
 ALTER FUNCTION "public"."mark_notifications_as_read"() OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."notify_segment_upload"() RETURNS "trigger"
-    LANGUAGE "plpgsql" SECURITY DEFINER
-    AS $$
-DECLARE
-    v_total_expected INTEGER;
-    v_current_count INTEGER;
-BEGIN
-    -- Actuamos si el registro nace como 'uploaded' o si cambia a ese estado
-    IF (NEW.status = 'uploaded') THEN
-        
-        -- Incrementamos el contador real basándonos en un conteo físico (Soberanía de Verdad)
-        -- En lugar de sumar +1, contamos cuántos segmentos REALES existen para este podcast
-        UPDATE public.micro_pods 
-        SET 
-            current_audio_segments = (SELECT count(*) FROM public.audio_segments WHERE podcast_id = NEW.podcast_id AND status = 'uploaded'),
-            audio_assembly_status = 'collecting',
-            updated_at = NOW()
-        WHERE id = NEW.podcast_id
-        RETURNING total_audio_segments, current_audio_segments INTO v_total_expected, v_current_count;
-
-        -- Disparamos el ensamblaje si la malla está completa
-        IF v_current_count >= v_total_expected AND v_total_expected > 0 THEN
-            
-            -- Bloqueo preventivo para evitar disparos dobles en ráfagas rápidas
-            UPDATE public.micro_pods 
-            SET audio_assembly_status = 'assembling' 
-            WHERE id = NEW.podcast_id 
-            AND audio_assembly_status != 'assembling';
-
-            -- Si el update anterior afectó filas (significa que no estaba ya ensamblando)
-            IF FOUND THEN
-                PERFORM public.dispatch_edge_function(
-                    'assemble-final-audio',
-                    jsonb_build_object(
-                        'podcast_id', NEW.podcast_id,
-                        'total_segments', v_total_expected
-                    )
-                );
-            END IF;
-        END IF;
-    END IF;
-    
-    RETURN NEW;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."notify_segment_upload"() OWNER TO "postgres";
-
-
 CREATE OR REPLACE FUNCTION "public"."on_draft_created_trigger_research"() RETURNS "trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
@@ -1518,6 +1477,34 @@ $$;
 
 
 ALTER FUNCTION "public"."rls_auto_enable"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."save_analysis_and_embedding"("p_podcast_id" bigint, "p_agent_version" "text", "p_ai_summary" "text", "p_narrative_lens" "text", "p_ai_tags" "text"[], "p_embedding" "extensions"."vector") RETURNS "void"
+    LANGUAGE "plpgsql"
+    AS $$
+BEGIN
+    UPDATE public.micro_pods
+    SET 
+        agent_version = p_agent_version,
+        ai_summary = p_ai_summary,
+        narrative_lens = p_narrative_lens,
+        ai_tags = p_ai_tags,
+        embedding_ready = TRUE, -- Marcamos éxito de catalogación
+        updated_at = NOW()
+    WHERE id = p_podcast_id;
+
+    -- Insertamos o actualizamos en la tabla de embeddings
+    INSERT INTO public.podcast_embeddings (podcast_id, content, embedding)
+    VALUES (p_podcast_id, p_ai_summary, p_embedding)
+    ON CONFLICT (podcast_id) 
+    DO UPDATE SET 
+        content = EXCLUDED.content,
+        embedding = EXCLUDED.embedding;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."save_analysis_and_embedding"("p_podcast_id" bigint, "p_agent_version" "text", "p_ai_summary" "text", "p_narrative_lens" "text", "p_ai_tags" "text"[], "p_embedding" "extensions"."vector") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."save_analysis_and_embedding"("p_podcast_id" bigint, "p_agent_version" "text", "p_ai_summary" "text", "p_narrative_lens" "text", "p_ai_tags" "text"[], "p_ai_coordinates" "point", "p_consistency_level" "public"."consistency_level", "p_embedding" "extensions"."vector") RETURNS "void"
@@ -1839,16 +1826,11 @@ ALTER FUNCTION "public"."unified_search_v3"("p_query_text" "text", "p_query_embe
 
 CREATE OR REPLACE FUNCTION "public"."unified_search_v4"("p_query_text" "text", "p_query_embedding" "extensions"."vector", "p_match_threshold" double precision DEFAULT 0.15, "p_match_count" integer DEFAULT 20, "p_user_lat" double precision DEFAULT NULL::double precision, "p_user_lng" double precision DEFAULT NULL::double precision) RETURNS TABLE("result_type" "text", "id" "text", "title" "text", "subtitle" "text", "image_url" "text", "similarity" double precision, "geo_distance" double precision, "metadata" "jsonb")
     LANGUAGE "plpgsql" SECURITY DEFINER
-    SET "search_path" TO 'public', 'extensions'
     AS $$
 BEGIN
     RETURN QUERY
     WITH all_results AS (
-        
-        -- ==========================================
-        -- CAPA 1: IMPACTOS SONOROS (PODCASTS)
-        -- Búsqueda puramente vectorial usando el índice HNSW
-        -- ==========================================
+        -- A. BÚSQUEDA DE PODCASTS (Semántica + Geo)
         SELECT 
             'podcast'::text AS r_type, 
             mp.id::text AS r_id, 
@@ -1856,125 +1838,41 @@ BEGIN
             prof.full_name AS r_subtitle, 
             mp.cover_image_url AS r_image_url, 
             (1 - (pe.embedding <=> p_query_embedding))::float AS r_similarity,
-            
-            -- Cálculo de distancia si el usuario y el podcast tienen coordenadas
             CASE 
                 WHEN p_user_lat IS NOT NULL AND mp.geo_location IS NOT NULL 
-                THEN ST_Distance(mp.geo_location, ST_SetSRID(ST_MakePoint(p_user_lng, p_user_lat), 4326)::geography) 
+                THEN extensions.ST_Distance(mp.geo_location, extensions.ST_SetSRID(extensions.ST_MakePoint(p_user_lng, p_user_lat), 4326)::extensions.geography) 
                 ELSE NULL 
             END AS r_distance,
-            
-            -- Metadatos adicionales para la UI
             jsonb_build_object(
                 'author', prof.username,
                 'mode', mp.creation_mode,
-                'lat', ST_Y(mp.geo_location::geometry),
-                'lng', ST_X(mp.geo_location::geometry)
+                'lat', extensions.ST_Y(mp.geo_location::geometry),
+                'lng', extensions.ST_X(mp.geo_location::geometry)
             ) AS r_metadata
-            
         FROM public.micro_pods mp 
         JOIN public.podcast_embeddings pe ON mp.id = pe.podcast_id
         JOIN public.profiles prof ON mp.user_id = prof.id
-        
-        -- [FIX CRÍTICO]: Permite encontrar podcasts recién forjados que aún no son públicos.
-        WHERE mp.status IN ('published', 'pending_approval') 
+        WHERE mp.status = 'published'
         AND (1 - (pe.embedding <=> p_query_embedding)) > p_match_threshold
 
         UNION ALL
 
-        -- ==========================================
-        -- CAPA 2: CURADORES SOBERANOS (USUARIOS)
-        -- Búsqueda léxica (Fuzzy Text Search)
-        -- ==========================================
+        -- B. BÚSQUEDA DE CURADORES (Texto)
         SELECT 
             'user'::text AS r_type, 
             p.id::text AS r_id, 
             p.full_name AS r_title, 
             '@' || p.username AS r_subtitle, 
             p.avatar_url AS r_image_url, 
-            
-            -- Puntuación estática alta si hay coincidencia de nombre
             0.95::float AS r_similarity, 
             NULL::float AS r_distance, 
-            
             jsonb_build_object('reputation', p.reputation_score) AS r_metadata
-            
         FROM public.profiles p
         WHERE p.username ILIKE '%' || p_query_text || '%' 
            OR p.full_name ILIKE '%' || p_query_text || '%'
-
-        UNION ALL
-
-        -- ==========================================
-        -- CAPA 3: PUNTOS DE INTERÉS Y MEMORIAS (LUGARES)
-        -- Búsqueda léxica con telemetría geoespacial
-        -- ==========================================
-        SELECT 
-            'place'::text AS r_type, 
-            poi.id::text AS r_id, 
-            poi.name AS r_title, 
-            poi.category AS r_subtitle, 
-            NULL::text AS r_image_url, 
-            
-            -- Priorizamos si la coincidencia es en el nombre exacto
-            (CASE WHEN poi.name ILIKE '%' || p_query_text || '%' THEN 0.85 ELSE 0.60 END)::float AS r_similarity,
-            
-            CASE 
-                WHEN p_user_lat IS NOT NULL AND poi.geo_location IS NOT NULL
-                THEN ST_Distance(poi.geo_location, ST_SetSRID(ST_MakePoint(p_user_lng, p_user_lat), 4326)::geography) 
-                ELSE NULL 
-            END AS r_distance,
-            
-            jsonb_build_object(
-                'category', poi.category,
-                'lat', ST_Y(poi.geo_location::geometry),
-                'lng', ST_X(poi.geo_location::geometry)
-            ) AS r_metadata
-            
-        FROM public.points_of_interest poi
-        WHERE poi.name ILIKE '%' || p_query_text || '%' 
-           OR poi.category ILIKE '%' || p_query_text || '%'
-
-        UNION ALL
-
-        -- ==========================================
-        -- CAPA 4: BÓVEDA DE CONOCIMIENTO (NKV CHUNKS)
-        -- Búsqueda vectorial de alta exigencia
-        -- ==========================================
-        SELECT 
-            'vault_chunk'::text AS r_type, 
-            kc.id::text AS r_id, 
-            ks.title AS r_title, 
-            substring(kc.content from 1 for 120) || '...' AS r_subtitle, 
-            NULL::text AS r_image_url, 
-            
-            (1 - (kc.embedding <=> p_query_embedding))::float AS r_similarity, 
-            NULL::float AS r_distance, 
-            
-            jsonb_build_object('source_url', ks.url) AS r_metadata
-            
-        FROM public.knowledge_chunks kc
-        JOIN public.knowledge_sources ks ON kc.source_id = ks.id
-        
-        -- Exigimos un match semántico más alto para los datos crudos para evitar ruido.
-        WHERE (1 - (kc.embedding <=> p_query_embedding)) > p_match_threshold + 0.1 
     )
-    
-    -- ==========================================
-    -- MOTOR DE RANKING Y PONDERACIÓN FINAL
-    -- ==========================================
-    SELECT * FROM all_results 
-    ORDER BY 
-        -- Fórmula de Relevancia Híbrida:
-        -- 1. Si no hay distancia (ej. web), la similitud dicta la posición.
-        -- 2. Si hay distancia (ej. móvil en Madrid), sumamos puntos si el eco está cerca (< 5km).
-        (similarity * 0.8) + (
-            CASE 
-                WHEN geo_distance IS NOT NULL AND geo_distance < 5000 
-                THEN (1.0 / (geo_distance + 1)) * 0.2 
-                ELSE 0 
-            END
-        ) DESC
+    SELECT * FROM all_results
+    ORDER BY (similarity * 0.8) + (CASE WHEN geo_distance IS NOT NULL AND geo_distance < 10000 THEN (1.0 / (geo_distance + 1)) * 0.2 ELSE 0 END) DESC
     LIMIT p_match_count;
 END;
 $$;
@@ -2133,7 +2031,6 @@ CREATE TABLE IF NOT EXISTS "public"."ai_prompts" (
     "agent_name" "text" NOT NULL,
     "description" "text",
     "prompt_template" "text" NOT NULL,
-    "prompt_variables" "text"[],
     "agent_type" "public"."agent_type" DEFAULT 'script'::"public"."agent_type" NOT NULL,
     "model_identifier" "text",
     "version" integer DEFAULT 1 NOT NULL,
@@ -2245,6 +2142,71 @@ CREATE TABLE IF NOT EXISTS "public"."followers" (
 
 
 ALTER TABLE "public"."followers" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."points_of_interest" (
+    "id" bigint NOT NULL,
+    "name" "text" NOT NULL,
+    "description" "text",
+    "geo_location" "extensions"."geography"(Point,4326) NOT NULL,
+    "image_summary" "text",
+    "reference_podcast_id" bigint,
+    "metadata" "jsonb" DEFAULT '{}'::"jsonb",
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    "updated_at" timestamp with time zone DEFAULT "now"(),
+    "gallery_urls" "jsonb" DEFAULT '[]'::"jsonb",
+    "rich_description" "text",
+    "historical_fact" "text",
+    "is_published" boolean DEFAULT false,
+    "importance_score" integer DEFAULT 1,
+    "embedding" "extensions"."vector"(768),
+    "ambient_audio_url" "text",
+    "evidence_data" "jsonb" DEFAULT '{}'::"jsonb",
+    "category_id" character varying(50),
+    "resonance_radius" integer DEFAULT 35,
+    "status" "public"."poi_lifecycle" DEFAULT 'ingested'::"public"."poi_lifecycle",
+    "author_id" "uuid"
+);
+
+
+ALTER TABLE "public"."points_of_interest" OWNER TO "postgres";
+
+
+COMMENT ON COLUMN "public"."points_of_interest"."gallery_urls" IS 'Almacena un array de strings con las rutas de Storage para la galería de la página de detalle.';
+
+
+
+COMMENT ON COLUMN "public"."points_of_interest"."ambient_audio_url" IS 'Audio físico capturado in situ para mezcla inmersiva en el Stitcher.';
+
+
+
+COMMENT ON COLUMN "public"."points_of_interest"."resonance_radius" IS 'Radio en metros para activar la vibración de sintonía en el dispositivo del Voyager.';
+
+
+
+CREATE OR REPLACE VIEW "public"."geo_diagnostic_v25" WITH ("security_invoker"='on') AS
+ SELECT 'micro_pod'::"text" AS "source",
+    "micro_pods"."id",
+    "micro_pods"."title",
+    "extensions"."st_astext"("micro_pods"."geo_location") AS "coordinate_text",
+        CASE
+            WHEN ("micro_pods"."geo_location" IS NULL) THEN '🔴 DESINCRONIZADO'::"text"
+            ELSE '🟢 SINTONIZADO'::"text"
+        END AS "status"
+   FROM "public"."micro_pods"
+UNION ALL
+ SELECT 'poi'::"text" AS "source",
+    "points_of_interest"."id",
+    "points_of_interest"."name" AS "title",
+    "extensions"."st_astext"("points_of_interest"."geo_location") AS "coordinate_text",
+        CASE
+            WHEN ("points_of_interest"."geo_location" IS NULL) THEN '🔴 DESINCRONIZADO'::"text"
+            ELSE '🟢 SINTONIZADO'::"text"
+        END AS "status"
+   FROM "public"."points_of_interest";
+
+
+ALTER VIEW "public"."geo_diagnostic_v25" OWNER TO "postgres";
 
 
 CREATE TABLE IF NOT EXISTS "public"."geo_drafts_staging" (
@@ -2561,47 +2523,28 @@ ALTER TABLE "public"."podcast_embeddings" ALTER COLUMN "id" ADD GENERATED ALWAYS
 
 
 
-CREATE TABLE IF NOT EXISTS "public"."points_of_interest" (
+CREATE TABLE IF NOT EXISTS "public"."poi_ingestion_buffer" (
     "id" bigint NOT NULL,
-    "name" "text" NOT NULL,
-    "category" "text",
-    "description" "text",
-    "geo_location" "extensions"."geography"(Point,4326) NOT NULL,
-    "image_summary" "text",
-    "reference_podcast_id" bigint,
-    "metadata" "jsonb" DEFAULT '{}'::"jsonb",
-    "created_at" timestamp with time zone DEFAULT "now"(),
-    "updated_at" timestamp with time zone DEFAULT "now"(),
-    "gallery_urls" "jsonb" DEFAULT '[]'::"jsonb",
-    "rich_description" "text",
-    "historical_fact" "text",
-    "is_published" boolean DEFAULT false,
-    "importance_score" integer DEFAULT 1,
-    "entrance_radius_meters" integer DEFAULT 30,
-    "embedding" "extensions"."vector"(768),
-    "ambient_audio_url" "text",
-    "evidence_data" "jsonb" DEFAULT '{}'::"jsonb",
-    "category_id" character varying(50),
-    "resonance_radius" integer DEFAULT 30
+    "poi_id" bigint,
+    "raw_ocr_text" "text",
+    "weather_snapshot" "jsonb" DEFAULT '{}'::"jsonb",
+    "visual_analysis_dossier" "jsonb" DEFAULT '{}'::"jsonb",
+    "sensor_accuracy" double precision,
+    "ingested_at" timestamp with time zone DEFAULT "now"()
 );
 
 
-ALTER TABLE "public"."points_of_interest" OWNER TO "postgres";
+ALTER TABLE "public"."poi_ingestion_buffer" OWNER TO "postgres";
 
 
-COMMENT ON COLUMN "public"."points_of_interest"."gallery_urls" IS 'Almacena un array de strings con las rutas de Storage para la galería de la página de detalle.';
-
-
-
-COMMENT ON COLUMN "public"."points_of_interest"."entrance_radius_meters" IS 'Define a qué distancia el hook use-geo-engine disparará la notificación de proximidad.';
-
-
-
-COMMENT ON COLUMN "public"."points_of_interest"."ambient_audio_url" IS 'Audio físico capturado in situ para mezcla inmersiva en el Stitcher.';
-
-
-
-COMMENT ON COLUMN "public"."points_of_interest"."resonance_radius" IS 'Radio en metros para activar la vibración de sintonía en el dispositivo del Voyager.';
+ALTER TABLE "public"."poi_ingestion_buffer" ALTER COLUMN "id" ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME "public"."poi_ingestion_buffer_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
 
 
 
@@ -2794,25 +2737,23 @@ CREATE TABLE IF NOT EXISTS "public"."user_usage" (
 ALTER TABLE "public"."user_usage" OWNER TO "postgres";
 
 
-CREATE OR REPLACE VIEW "public"."vw_map_resonance_active" AS
+CREATE OR REPLACE VIEW "public"."vw_map_resonance_active" WITH ("security_invoker"='on') AS
  SELECT "id",
     "name",
-    (COALESCE("category_id", ("category")::character varying))::"text" AS "category",
+    "category_id" AS "category",
     "geo_location",
+    "historical_fact",
     "importance_score",
     "reference_podcast_id",
-    "historical_fact",
     "gallery_urls",
-    "resonance_radius" AS "entrance_radius_meters"
+    "ambient_audio_url",
+    "resonance_radius",
+    "status"
    FROM "public"."points_of_interest"
-  WHERE ("is_published" = true);
+  WHERE (("status" = 'published'::"public"."poi_lifecycle") OR ("is_published" = true));
 
 
 ALTER VIEW "public"."vw_map_resonance_active" OWNER TO "postgres";
-
-
-COMMENT ON VIEW "public"."vw_map_resonance_active" IS 'Vista optimizada para el renderizado de PINS y cálculo de proximidad en el cliente.';
-
 
 
 ALTER TABLE ONLY "public"."platform_limits" ALTER COLUMN "id" SET DEFAULT "nextval"('"public"."platform_limits_id_seq"'::"regclass");
@@ -2954,6 +2895,11 @@ ALTER TABLE ONLY "public"."podcast_embeddings"
 
 
 
+ALTER TABLE ONLY "public"."poi_ingestion_buffer"
+    ADD CONSTRAINT "poi_ingestion_buffer_pkey" PRIMARY KEY ("id");
+
+
+
 ALTER TABLE ONLY "public"."points_of_interest"
     ADD CONSTRAINT "points_of_interest_pkey" PRIMARY KEY ("id");
 
@@ -3006,6 +2952,11 @@ ALTER TABLE ONLY "public"."subscriptions"
 
 ALTER TABLE ONLY "public"."subscriptions"
     ADD CONSTRAINT "subscriptions_stripe_subscription_id_key" UNIQUE ("stripe_subscription_id");
+
+
+
+ALTER TABLE ONLY "public"."podcast_embeddings"
+    ADD CONSTRAINT "unique_podcast_id" UNIQUE ("podcast_id");
 
 
 
@@ -3138,10 +3089,6 @@ CREATE INDEX "podcast_embeddings_embedding_idx" ON "public"."podcast_embeddings"
 
 
 
-CREATE OR REPLACE TRIGGER "on_audio_segments_update" BEFORE UPDATE ON "public"."audio_segments" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
-
-
-
 CREATE OR REPLACE TRIGGER "on_backlog_update" BEFORE UPDATE ON "public"."research_backlog" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
 
 
@@ -3198,10 +3145,6 @@ CREATE OR REPLACE TRIGGER "set_root_id_trigger" BEFORE INSERT ON "public"."micro
 
 
 
-CREATE OR REPLACE TRIGGER "tr_async_cognitive_orchestrator" AFTER INSERT ON "public"."micro_pods" FOR EACH ROW EXECUTE FUNCTION "public"."handle_new_podcast_async"();
-
-
-
 CREATE OR REPLACE TRIGGER "tr_async_resonance_likes" AFTER INSERT OR DELETE ON "public"."likes" FOR EACH ROW EXECUTE FUNCTION "public"."handle_resonance_update_async"();
 
 
@@ -3210,7 +3153,7 @@ CREATE OR REPLACE TRIGGER "tr_async_resonance_playback" AFTER INSERT ON "public"
 
 
 
-CREATE OR REPLACE TRIGGER "tr_check_integrity" AFTER UPDATE OF "audio_ready", "image_ready" ON "public"."micro_pods" FOR EACH ROW WHEN (("new"."processing_status" = 'processing'::"public"."processing_status")) EXECUTE FUNCTION "public"."check_podcast_integrity_and_release"();
+CREATE OR REPLACE TRIGGER "tr_check_integrity" BEFORE UPDATE ON "public"."micro_pods" FOR EACH ROW EXECUTE FUNCTION "public"."check_podcast_integrity_and_release"();
 
 
 
@@ -3219,10 +3162,6 @@ CREATE OR REPLACE TRIGGER "tr_on_draft_created" AFTER INSERT ON "public"."podcas
 
 
 CREATE OR REPLACE TRIGGER "tr_on_pod_created" AFTER INSERT ON "public"."micro_pods" FOR EACH ROW EXECUTE FUNCTION "public"."on_pod_created_dispatch_assets"();
-
-
-
-CREATE OR REPLACE TRIGGER "tr_on_segment_uploaded" AFTER INSERT OR UPDATE ON "public"."audio_segments" FOR EACH ROW EXECUTE FUNCTION "public"."notify_segment_upload"();
 
 
 
@@ -3270,7 +3209,7 @@ ALTER TABLE ONLY "public"."collections"
 
 
 ALTER TABLE ONLY "public"."points_of_interest"
-    ADD CONSTRAINT "fk_poi_reference_podcast" FOREIGN KEY ("reference_podcast_id") REFERENCES "public"."micro_pods"("id") ON DELETE SET NULL;
+    ADD CONSTRAINT "fk_poi_pod_reference" FOREIGN KEY ("reference_podcast_id") REFERENCES "public"."micro_pods"("id") ON DELETE SET NULL;
 
 
 
@@ -3369,8 +3308,13 @@ ALTER TABLE ONLY "public"."podcast_embeddings"
 
 
 
+ALTER TABLE ONLY "public"."poi_ingestion_buffer"
+    ADD CONSTRAINT "poi_ingestion_buffer_poi_id_fkey" FOREIGN KEY ("poi_id") REFERENCES "public"."points_of_interest"("id") ON DELETE CASCADE;
+
+
+
 ALTER TABLE ONLY "public"."points_of_interest"
-    ADD CONSTRAINT "points_of_interest_reference_podcast_id_fkey" FOREIGN KEY ("reference_podcast_id") REFERENCES "public"."micro_pods"("id") ON DELETE SET NULL;
+    ADD CONSTRAINT "points_of_interest_author_id_fkey" FOREIGN KEY ("author_id") REFERENCES "auth"."users"("id");
 
 
 
@@ -3489,6 +3433,14 @@ CREATE POLICY "Los usuarios pueden eliminar sus propios likes" ON "public"."like
 
 
 
+CREATE POLICY "POI_Public_Discovery" ON "public"."points_of_interest" FOR SELECT USING ((("status" = 'published'::"public"."poi_lifecycle") OR ("is_published" = true)));
+
+
+
+CREATE POLICY "POI_Sovereign_Ingestion" ON "public"."points_of_interest" FOR INSERT WITH CHECK ("public"."is_admin"());
+
+
+
 CREATE POLICY "Permitir acceso total a las notificaciones propias" ON "public"."notifications" USING ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
 
 
@@ -3498,6 +3450,10 @@ CREATE POLICY "Permitir inserción de eventos de reproducción propios" ON "publ
 
 
 CREATE POLICY "Permitir lectura pública de likes" ON "public"."likes" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Public can view published pods" ON "public"."micro_pods" FOR SELECT USING (("status" = 'published'::"public"."podcast_status"));
 
 
 
@@ -3518,6 +3474,14 @@ CREATE POLICY "Service role manages segments" ON "public"."audio_segments" USING
 
 
 CREATE POLICY "Users can manage their own drafts" ON "public"."podcast_drafts" USING ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
+
+
+
+CREATE POLICY "Users can see their own unfinished pods" ON "public"."micro_pods" FOR SELECT USING (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "Users can view own pods" ON "public"."micro_pods" FOR SELECT USING (("auth"."uid"() = "user_id"));
 
 
 
@@ -3663,6 +3627,9 @@ CREATE POLICY "podcast_embeddings_read_policy" ON "public"."podcast_embeddings" 
 
 
 
+ALTER TABLE "public"."poi_ingestion_buffer" ENABLE ROW LEVEL SECURITY;
+
+
 CREATE POLICY "poi_read_policy" ON "public"."points_of_interest" FOR SELECT USING (true);
 
 
@@ -3718,55 +3685,11 @@ ALTER PUBLICATION "supabase_realtime" OWNER TO "postgres";
 
 
 
-ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."collection_items";
-
-
-
-ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."collections";
-
-
-
-ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."followers";
-
-
-
-ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."likes";
-
-
-
 ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."micro_pods";
 
 
 
-ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."playback_events";
-
-
-
-ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."podcast_analysis_history";
-
-
-
-ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."podcast_creation_jobs";
-
-
-
-ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."podcast_drafts";
-
-
-
-ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."podcast_embeddings";
-
-
-
 ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."points_of_interest";
-
-
-
-ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."profile_testimonials";
-
-
-
-ALTER PUBLICATION "supabase_realtime" ADD TABLE ONLY "public"."subscriptions";
 
 
 
@@ -6622,13 +6545,6 @@ GRANT ALL ON FUNCTION "public"."get_user_discovery_feed"("p_user_id" "uuid") TO 
 
 
 
-GRANT ALL ON FUNCTION "public"."handle_new_podcast_async"() TO "anon";
-GRANT ALL ON FUNCTION "public"."handle_new_podcast_async"() TO "authenticated";
-GRANT ALL ON FUNCTION "public"."handle_new_podcast_async"() TO "service_role";
-GRANT ALL ON FUNCTION "public"."handle_new_podcast_async"() TO "supabase_functions_admin";
-
-
-
 GRANT ALL ON FUNCTION "public"."handle_new_podcast_publication"() TO "anon";
 GRANT ALL ON FUNCTION "public"."handle_new_podcast_publication"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."handle_new_podcast_publication"() TO "service_role";
@@ -6722,12 +6638,6 @@ GRANT ALL ON FUNCTION "public"."mark_notifications_as_read"() TO "supabase_funct
 
 
 
-GRANT ALL ON FUNCTION "public"."notify_segment_upload"() TO "anon";
-GRANT ALL ON FUNCTION "public"."notify_segment_upload"() TO "authenticated";
-GRANT ALL ON FUNCTION "public"."notify_segment_upload"() TO "service_role";
-
-
-
 GRANT ALL ON FUNCTION "public"."on_draft_created_trigger_research"() TO "anon";
 GRANT ALL ON FUNCTION "public"."on_draft_created_trigger_research"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."on_draft_created_trigger_research"() TO "service_role";
@@ -6780,6 +6690,9 @@ GRANT ALL ON FUNCTION "public"."rls_auto_enable"() TO "anon";
 GRANT ALL ON FUNCTION "public"."rls_auto_enable"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."rls_auto_enable"() TO "service_role";
 GRANT ALL ON FUNCTION "public"."rls_auto_enable"() TO "supabase_functions_admin";
+
+
+
 
 
 
@@ -7006,6 +6919,18 @@ GRANT ALL ON TABLE "public"."followers" TO "service_role";
 
 
 
+GRANT ALL ON TABLE "public"."points_of_interest" TO "anon";
+GRANT ALL ON TABLE "public"."points_of_interest" TO "authenticated";
+GRANT ALL ON TABLE "public"."points_of_interest" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."geo_diagnostic_v25" TO "anon";
+GRANT ALL ON TABLE "public"."geo_diagnostic_v25" TO "authenticated";
+GRANT ALL ON TABLE "public"."geo_diagnostic_v25" TO "service_role";
+
+
+
 GRANT ALL ON TABLE "public"."geo_drafts_staging" TO "anon";
 GRANT ALL ON TABLE "public"."geo_drafts_staging" TO "authenticated";
 GRANT ALL ON TABLE "public"."geo_drafts_staging" TO "service_role";
@@ -7144,9 +7069,15 @@ GRANT ALL ON SEQUENCE "public"."podcast_embeddings_id_seq" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."points_of_interest" TO "anon";
-GRANT ALL ON TABLE "public"."points_of_interest" TO "authenticated";
-GRANT ALL ON TABLE "public"."points_of_interest" TO "service_role";
+GRANT ALL ON TABLE "public"."poi_ingestion_buffer" TO "anon";
+GRANT ALL ON TABLE "public"."poi_ingestion_buffer" TO "authenticated";
+GRANT ALL ON TABLE "public"."poi_ingestion_buffer" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."poi_ingestion_buffer_id_seq" TO "anon";
+GRANT ALL ON SEQUENCE "public"."poi_ingestion_buffer_id_seq" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."poi_ingestion_buffer_id_seq" TO "service_role";
 
 
 
