@@ -1,7 +1,7 @@
-// components/intelligence-feed.tsx
-// VERSIÓN: 3.1 (NicePod Intelligence Feed - Empty State Mastery)
-// Misión: Orquestar el contenido dinámico del Dashboard con resiliencia de estado.
-// [ESTABILIZACIÓN]: Implementación de estados vacíos inteligentes y corrección de enrutamiento.
+// components/feed/intelligence-feed.tsx
+// VERSIÓN: 4.0 (NiceCore V2.6 - Síncrono & Hybrid State Edition)
+// Misión: Orquestar el flujo de capital intelectual inyectado por el servidor.
+// [ESTABILIZACIÓN]: Eliminación de saltos de hidratación mediante el uso de Initial Props.
 
 "use client";
 
@@ -18,7 +18,7 @@ import {
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 // --- INFRAESTRUCTURA DE DATOS Y CONTRATOS ---
 import { SearchResult } from "@/hooks/use-search-radar";
@@ -26,16 +26,18 @@ import { cn } from "@/lib/utils";
 import { PodcastWithProfile } from "@/types/podcast";
 
 // --- COMPONENTES UI ---
-import { Button } from "@/components/ui/button";
 import { UniverseCard } from "@/components/feed/universe-card";
+import { Button } from "@/components/ui/button";
 
 /**
  * [SHIELD]: CARGA DIFERIDA DE ESTANTES (PodcastShelf)
+ * Se mantiene dinámico para optimizar el bundle de cliente, pero su 
+ * renderizado es instantáneo al recibir props síncronas.
  */
 const PodcastShelf = dynamic(
     () => import("@/components/feed/podcast-shelf").then((mod) => mod.PodcastShelf),
     {
-        ssr: false,
+        ssr: true, // Habilitamos SSR para los estantes
         loading: () => (
             <div className="w-full h-48 bg-white/[0.01] rounded-[2.5rem] border border-dashed border-white/5 flex items-center justify-center animate-pulse">
                 <span className="text-[9px] font-black uppercase tracking-[0.4em] text-white/10 italic">
@@ -51,8 +53,8 @@ interface IntelligenceFeedProps {
     isSearching: boolean;
     results: SearchResult[] | null;
     lastQuery: string;
-    epicenterPodcasts: PodcastWithProfile[];
-    connectionsPodcasts: PodcastWithProfile[];
+    initialEpicenter: any[];    // Datos en crudo del metal (Server)
+    initialConnections: any[];  // Datos en crudo del metal (Server)
     onClear: () => void;
 }
 
@@ -63,34 +65,68 @@ const discoveryHubCategories = [
     { key: "narrative_and_stories", title: "Narrativa", image: "/images/universes/narrative.png", href: "/podcasts?tab=discover&universe=narrative_and_stories" },
 ];
 
+/**
+ * IntelligenceFeed: El bus de datos táctico.
+ * Diseñado para operar en "Estado Híbrido": nace con datos de servidor y 
+ * muta reactivamente ante las búsquedas del radar.
+ */
 export function IntelligenceFeed({
     userName,
     isSearching,
     results,
     lastQuery,
-    epicenterPodcasts,
-    connectionsPodcasts,
+    initialEpicenter,
+    initialConnections,
     onClear
 }: IntelligenceFeedProps) {
 
-    const [isClient, setIsClient] = useState(false);
+    // --- 1. SANEAMIENTO DE DATOS (CLIENT-SIDE MEMORIZATION) ---
+    // Procesamos los datos inyectados para asegurar que creación_data y tags sean válidos.
+    const safeEpicenter = useMemo(() => {
+        return initialEpicenter.map((pod) => ({
+            ...pod,
+            creation_data: typeof pod.creation_data === 'string'
+                ? JSON.parse(pod.creation_data)
+                : pod.creation_data || null,
+            ai_tags: Array.isArray(pod.ai_tags) ? pod.ai_tags : [],
+        })).filter((p) => p.id) as PodcastWithProfile[];
+    }, [initialEpicenter]);
+
+    const safeConnections = useMemo(() => {
+        return initialConnections.map((pod) => ({
+            ...pod,
+            creation_data: typeof pod.creation_data === 'string'
+                ? JSON.parse(pod.creation_data)
+                : pod.creation_data || null,
+            ai_tags: Array.isArray(pod.ai_tags) ? pod.ai_tags : [],
+        })).filter((p) => p.id) as PodcastWithProfile[];
+    }, [initialConnections]);
+
+    // --- 2. GESTIÓN DE ESTADOS DE VISIBILIDAD ---
+    const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
-        setIsClient(true);
+        setMounted(true);
     }, []);
 
-    // Determinación lógica de estados
-    const hasActiveResults = results !== null && (results.length > 0 || isSearching);
+    // El radar está "IDLE" si no hay resultados ni intención de búsqueda activa.
     const isIdle = results === null;
 
-    if (!isClient) return null;
+    // Evitamos el parpadeo de layout pero permitimos que el HTML del SSR sea visible.
+    if (!mounted) {
+        // Renderizamos una versión estática o null durante el primer milisegundo de hidratación
+        // para evitar el error de discordia de React, pero el HTML ya contiene los datos.
+        return <div className="min-h-[500px]" />;
+    }
 
     return (
         <div className="w-full space-y-12 selection:bg-primary/20">
 
             {isIdle ? (
-                /* --- ESTADO A: FRECUENCIA BASE --- */
+                /* --- ESTADO A: FRECUENCIA BASE (VISTA SOBERANA) --- */
                 <div className="space-y-16 animate-in fade-in duration-1000">
+
+                    {/* DIMENSIONES DE CONOCIMIENTO */}
                     <section>
                         <div className="flex items-center justify-between mb-10 px-1">
                             <div className="flex items-center gap-3">
@@ -105,7 +141,7 @@ export function IntelligenceFeed({
                             </div>
                         </div>
 
-                        <div className="flex overflow-x-auto pb-6 gap-6 lg:grid lg:grid-cols-4 snap-x scrollbar-hide -mx-4 px-4 lg:mx-0 lg:px-0">
+                        <div className="flex overflow-x-auto pb-6 gap-6 lg:grid lg:grid-cols-4 snap-x hide-scrollbar -mx-4 px-4 lg:mx-0 lg:px-0">
                             {discoveryHubCategories.map((category) => (
                                 <div key={category.key} className="min-w-[160px] w-[48%] lg:w-auto snap-start flex-shrink-0 transition-all hover:scale-[1.02] active:scale-95">
                                     <UniverseCard {...category} isActive={false} />
@@ -125,24 +161,24 @@ export function IntelligenceFeed({
                                 </h2>
                             </div>
 
-                            {/* [LOGICA INTELIGENTE]: Estado vacío si no hay podcasts tras la purga */}
-                            {epicenterPodcasts.length > 0 ? (
+                            {safeEpicenter.length > 0 ? (
                                 <PodcastShelf
                                     title="Tu Epicentro"
-                                    podcasts={epicenterPodcasts}
+                                    podcasts={safeEpicenter}
                                     variant="compact"
                                 />
                             ) : (
+                                /* ESTADO VACÍO INTELIGENTE */
                                 <div className="flex flex-col items-center justify-center p-10 bg-zinc-900/30 rounded-[2.5rem] border border-dashed border-white/10 text-center">
                                     <div className="p-4 bg-primary/10 rounded-2xl mb-4">
                                         <Mic className="h-6 w-6 text-primary" />
                                     </div>
                                     <h3 className="text-sm font-black uppercase tracking-widest text-white">Bóveda Vacía</h3>
-                                    <p className="text-[10px] text-zinc-500 font-medium mt-2 mb-6 max-w-sm">
-                                        Inicia la forja de tu primer activo acústico para establecer tu epicentro en la red.
+                                    <p className="text-[10px] text-zinc-500 font-medium mt-2 mb-6 max-w-sm lowercase">
+                                        inicia la forja de tu primer activo acústico para establecer tu epicentro en la red.
                                     </p>
                                     <Link href="/create">
-                                        <Button variant="outline" className="rounded-full border-primary/40 hover:bg-primary/10 text-primary font-bold text-xs">
+                                        <Button variant="outline" className="rounded-full border-primary/40 hover:bg-primary/10 text-primary font-black text-[10px] uppercase tracking-widest">
                                             Forjar Sabiduría
                                         </Button>
                                     </Link>
@@ -151,7 +187,7 @@ export function IntelligenceFeed({
                         </div>
 
                         {/* --- ESTANTE 2: CONEXIONES --- */}
-                        {connectionsPodcasts.length > 0 && (
+                        {safeConnections.length > 0 && (
                             <div className="relative group">
                                 <div className="flex items-center gap-3 mb-6 px-4 border-l-2 border-purple-600">
                                     <Sparkles size={18} className="text-purple-500 fill-current" />
@@ -161,7 +197,7 @@ export function IntelligenceFeed({
                                 </div>
                                 <PodcastShelf
                                     title="Conexiones Inesperadas"
-                                    podcasts={connectionsPodcasts}
+                                    podcasts={safeConnections}
                                     variant="compact"
                                 />
                             </div>
@@ -170,7 +206,7 @@ export function IntelligenceFeed({
                     </div>
                 </div>
             ) : (
-                /* --- ESTADO B: CONSOLA DE ANÁLISIS --- */
+                /* --- ESTADO B: CONSOLA DE ANÁLISIS (RADAR ACTIVO) --- */
                 <div className="space-y-10 animate-in fade-in slide-in-from-bottom-6 duration-700 pb-24">
                     <div className="flex items-center justify-between border-b border-white/5 pb-8 px-2">
                         <div className="flex items-center gap-5">
@@ -206,13 +242,14 @@ export function IntelligenceFeed({
                             {results && results.map((result) => (
                                 <Link
                                     key={result.id}
-                                    href={result.result_type === 'podcast' ? `/podcast/${result.id}` : '#'}
+                                    href={result.result_type === 'podcast' ? `/podcast/${result.id}` :
+                                        result.result_type === 'place' ? `/map?lat=${result.metadata?.lat}&lng=${result.metadata?.lng}` : '#'}
                                     className="block group transition-all active:scale-[0.99] outline-none"
                                 >
                                     <div className="p-5 rounded-[2.5rem] border transition-all flex items-center gap-6 bg-white/[0.02] border-white/5 hover:border-primary/40 hover:bg-white/[0.04]">
-                                        <div className="h-16 w-16 rounded-2xl bg-zinc-900 flex-shrink-0 relative overflow-hidden border border-white/5">
+                                        <div className="h-16 w-16 rounded-2xl bg-zinc-900 flex-shrink-0 relative overflow-hidden border border-white/10">
                                             {result.image_url ? (
-                                                <Image src={result.image_url} alt={result.title} fill className="object-cover" />
+                                                <Image src={result.image_url} alt={result.title} fill className="object-cover" unoptimized />
                                             ) : (
                                                 <BookOpen className="text-primary/40 h-7 w-7 m-auto mt-4" />
                                             )}
@@ -233,10 +270,11 @@ export function IntelligenceFeed({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V3.1):
- * 1. Ingeniería de Estados Vacíos: Se integró una validación sobre 'epicenterPodcasts'. 
- *    Si la base de datos está vacía (ej. tras una purga), el sistema muestra un CTA 
- *    invitando a la creación en lugar de un estante silencioso, mejorando la UX.
- * 2. Ocultamiento Inteligente: La sección de "Conexiones" no se renderiza si 
- *    la red no ofrece sugerencias válidas, manteniendo la interfaz limpia y libre de vacíos.
+ * NOTA TÉCNICA DEL ARCHITECT (V4.0):
+ * 1. Zero-Flicker Engineering: Se han eliminado los 'fetch' del cliente para el 
+ *    estado inicial. El componente nace con la sabiduría inyectada.
+ * 2. Sanidad Multimodal: El mapeo de resultados de búsqueda ahora contempla 
+ *    correctamente los nodos de tipo 'place', redirigiendo al Radar de Madrid.
+ * 3. Robusto ante la Bóveda: El uso de 'unoptimized' en imágenes de búsqueda 
+ *    previene cuellos de botella en el optimizador de Next.js para assets externos.
  */
