@@ -1,7 +1,7 @@
 // components/podcast/script-viewer.tsx
-// VERSIÓN: 6.0 (NicePod Teleprompter Engine - Cinematic Sync Edition)
-// Misión: Renderizar la narrativa del podcast con resaltado de frase activa y auto-scroll.
-// [ESTABILIZACIÓN]: Integración de 'nicepod-timeupdate' y algoritmo de posicionamiento proporcional.
+// VERSIÓN: 7.0 (NicePod Teleprompter - High-Contrast Precision Edition)
+// Misión: Renderizar la narrativa con legibilidad industrial y sincronía de hardware.
+// [ESTABILIZACIÓN]: Erradicación de ceguera de contraste y tipado estricto (Zero-Any).
 
 "use client";
 
@@ -13,30 +13,33 @@ import { useEffect, useMemo, useRef, useState } from "react";
 /**
  * INTERFAZ: ScriptViewerProps
  * @param scriptText Objeto estructurado del guion o texto plano.
- * @param duration Duración total del audio en segundos para el cálculo de sincronía.
- * @param isInteractive Si es true, el usuario puede hacer click para saltar a ese punto (Futuro V3).
+ * @param duration Duración total del audio en segundos.
  */
 interface ScriptViewerProps {
-  scriptText: string | PodcastScript | null | any;
+  scriptText: string | PodcastScript | null;
   duration?: number;
   className?: string;
 }
 
+/**
+ * ScriptViewer: El motor de visualización narrativa.
+ * Utiliza el bus de eventos 'nicepod-timeupdate' para una sincronía de 60fps 
+ * sin penalizar el rendimiento de React.
+ */
 export const ScriptViewer = ({
   scriptText,
   duration = 0,
   className
 }: ScriptViewerProps) => {
 
-  // --- ESTADOS DE SINCRONÍA LOCAL ---
+  // --- I. ESTADOS DE SINCRONÍA DE HARDWARE ---
   const [currentTime, setCurrentTime] = useState<number>(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const activeParagraphRef = useRef<HTMLParagraphElement>(null);
 
   /**
-   * 1. PROTOCOLO DE ESCUCHA (Nerve System)
-   * Nos suscribimos al pulso global de tiempo emitido por el AudioProvider.
-   * Esto mantiene la UI actualizada sin re-renderizar el Layout de la plataforma.
+   * 1. SINTONÍA DEL PULSO GLOBAL
+   * Capturamos la telemetría del AudioProvider para el movimiento del Teleprompter.
    */
   useEffect(() => {
     const handleSync = (event: Event) => {
@@ -49,17 +52,19 @@ export const ScriptViewer = ({
   }, []);
 
   /**
-   * 2. NORMALIZACIÓN DE NARRATIVA
-   * Convertimos cualquier formato de entrada en un array de párrafos limpios.
+   * 2. REFINERÍA NARRATIVA (NORMALIZACIÓN)
+   * Procesa el JSONB de la Bóveda NKV y lo transmuta en párrafos atómicos.
    */
   const paragraphs = useMemo(() => {
     if (!scriptText) return [];
 
     let rawBody = "";
+    
+    // Gestión polimórfica de la entrada (Objeto vs String)
     if (typeof scriptText === 'object' && scriptText !== null) {
       rawBody = scriptText.script_body || scriptText.script_plain || "";
-    } else if (typeof scriptText === 'string') {
-      // Manejo de JSON stringificado accidentalmente
+    } else {
+      // Intento de recuperación si el dato llega como JSON stringificado
       if (scriptText.trim().startsWith('{')) {
         try {
           const parsed = JSON.parse(scriptText);
@@ -72,7 +77,7 @@ export const ScriptViewer = ({
       }
     }
 
-    // Limpieza de etiquetas HTML si existieran y división por saltos de línea
+    // Higiene final: Purga de etiquetas residuales y segmentación por bloques.
     return rawBody
       .replace(/<[^>]*>?/gm, '')
       .split(/\n+/)
@@ -80,16 +85,16 @@ export const ScriptViewer = ({
   }, [scriptText]);
 
   /**
-   * 3. CÁLCULO DE ÍNDICE ACTIVO
-   * Aplicamos el algoritmo de NicePod-Utils para determinar qué párrafo iluminar.
+   * 3. CÁLCULO DE POSICIONAMIENTO SEMÁNTICO
+   * Determinamos el foco basándonos en la telemetría actual.
    */
   const activeIndex = useMemo(() => {
     return calculateActiveParagraphIndex(currentTime, duration, paragraphs.length);
   }, [currentTime, duration, paragraphs.length]);
 
   /**
-   * 4. AUTO-SCROLL (Cinematografía de Interfaz)
-   * Desplazamos el contenedor para que el párrafo activo esté siempre a la vista.
+   * 4. CINEMATOGRAFÍA DE DESPLAZAMIENTO (AUTO-SCROLL)
+   * Aseguramos que el Voyager siempre tenga el conocimiento en el centro visual.
    */
   useEffect(() => {
     if (activeParagraphRef.current && scrollContainerRef.current) {
@@ -100,11 +105,13 @@ export const ScriptViewer = ({
     }
   }, [activeIndex]);
 
-  // Si no hay contenido, devolvemos un estado vacío profesional
+  // --- VISTA DEFENSIVA ---
   if (paragraphs.length === 0) {
     return (
-      <div className="py-20 text-center opacity-20 italic font-medium">
-        Cargando registro narrativo...
+      <div className="h-full w-full flex items-center justify-center opacity-40 animate-pulse">
+        <span className="text-[10px] font-black uppercase tracking-[0.6em] italic">
+          Sincronizando Registro Narrativo...
+        </span>
       </div>
     );
   }
@@ -113,7 +120,7 @@ export const ScriptViewer = ({
     <div
       ref={scrollContainerRef}
       className={cn(
-        "h-full w-full overflow-y-auto custom-scrollbar-hide space-y-10 md:space-y-14 py-20 px-4",
+        "h-full w-full overflow-y-auto no-scrollbar space-y-12 md:space-y-20 py-32 px-4",
         className
       )}
     >
@@ -125,10 +132,10 @@ export const ScriptViewer = ({
             key={index}
             ref={isActive ? activeParagraphRef : null}
             className={cn(
-              "text-lg md:text-3xl font-medium leading-tight tracking-tight transition-all duration-1000 ease-in-out",
+              "text-xl md:text-4xl font-bold leading-[1.2] tracking-tighter transition-all duration-700 ease-out",
               isActive
-                ? "text-white opacity-100 scale-105"
-                : "text-white/20 opacity-30 blur-[0.5px] scale-100"
+                ? "text-white opacity-100 scale-105 drop-shadow-[0_0_20px_rgba(255,255,255,0.15)]"
+                : "text-zinc-700 opacity-40 scale-100" // [MEJORA]: Zinc-700 garantiza legibilidad mínima vs white/20
             )}
           >
             {text}
@@ -136,24 +143,22 @@ export const ScriptViewer = ({
         );
       })}
 
-      {/* FIRMA DE INTEGRIDAD AL FINAL DEL TEXTO */}
-      <div className="pt-20 pb-40 flex flex-col items-center gap-4 opacity-5">
-        <div className="h-px w-20 bg-white" />
-        <span className="text-[10px] font-black uppercase tracking-[0.6em]">Fin de la Crónica</span>
+      {/* PROTOCOLO DE CIERRE VISUAL */}
+      <div className="pt-24 pb-60 flex flex-col items-center gap-6 opacity-10">
+        <div className="h-[1px] w-24 bg-white" />
+        <span className="text-[10px] font-black uppercase tracking-[0.8em]">Fin de la Crónica</span>
       </div>
     </div>
   );
 };
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (Teleprompter V6.0):
- * 1. Eficiencia de Scroll: El uso de 'scrollIntoView' con block: 'center' imita 
- *    la experiencia Spotify, manteniendo el texto actual en la 'zona dulce' 
- *    del campo visual del usuario.
- * 2. Estabilidad de Tiempo: Al no usar props de tiempo constantes del padre, 
- *    sino escuchar el evento 'nicepod-timeupdate', reducimos el consumo de 
- *    CPU en un 45% durante la reproducción.
- * 3. Diseño Inmersivo: El gradiente de opacidad y el ligero desenfoque (blur) 
- *    en los párrafos inactivos eliminan la distracción visual, permitiendo 
- *    una inmersión total en el capital intelectual del podcast.
+ * NOTA TÉCNICA DEL ARCHITECT (V7.0):
+ * 1. Resolución de Contraste: Se eliminó 'blur' y se cambió 'white/20' por 'zinc-700'. 
+ *    Esto permite que el ojo mantenga la referencia de los párrafos siguientes 
+ *    sin perder el foco en el actual.
+ * 2. Build Shield: Se eliminó el tipo 'any' de la interfaz de props. El componente 
+ *    ahora solo acepta contratos nominales de 'PodcastScript'.
+ * 3. Ergonomía de Lectura: Se aumentaron los 'gaps' entre párrafos (space-y-12/20) 
+ *    para dar aire al capital intelectual y evitar la saturación visual en móviles.
  */
