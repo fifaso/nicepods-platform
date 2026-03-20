@@ -1,7 +1,7 @@
 // contexts/audio-context.tsx
-// VERSIÓN: 5.0 (NicePod Audio Terminal - Pure Resilience Edition)
-// Misión: Motor de audio neuronal invulnerable a falsos positivos del DOM.
-// [ESTABILIZACIÓN]: Erradicación de errores de MediaSource y blindaje de Listeners.
+// VERSIÓN: 6.0 (NicePod Audio Terminal - Hardware Sync Edition)
+// Misión: Motor de audio neuronal con despacho de telemetría de alta frecuencia.
+// [ESTABILIZACIÓN]: Implementación de 'nicepod-timeupdate' para aniquilar el re-renderizado de React.
 
 "use client";
 
@@ -43,14 +43,12 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const [isPlayerExpanded, setIsPlayerExpanded] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  // Referencia mutada silenciosamente para que el listener de error sepa si hay un podcast activo
-  // sin necesidad de meter currentPodcast en las dependencias del useEffect (que causaría re-renders).
   const currentPodcastRef = useRef<PodcastWithProfile | null>(null);
+
   useEffect(() => { currentPodcastRef.current = currentPodcast; }, [currentPodcast]);
 
   /**
-   * [INICIALIZACIÓN DE HARDWARE Y EVENTOS NATIVOS]
+   * 1. INICIALIZACIÓN DE HARDWARE SOBERANO
    */
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -60,6 +58,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       audio.preload = 'metadata';
       audioRef.current = audio;
 
+      // Listeners de Estado Base
       audio.addEventListener("play", () => setIsPlaying(true));
       audio.addEventListener("pause", () => setIsPlaying(false));
       audio.addEventListener("loadstart", () => setIsLoading(true));
@@ -67,25 +66,33 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       audio.addEventListener("ended", () => handleAutoNext());
 
       /**
-       * [ESCUDO ANTI-FALSOS POSITIVOS]
-       * El motor de HTML5 lanza errores cuando se vacía el 'src' o cuando la carga se interrumpe
-       * intencionadamente al cambiar de página. Esta lógica filtra la "basura" del DOM.
+       * [TELEMETRÍA DE ALTA FRECUENCIA]
+       * Despachamos un evento nativo para que los componentes (ProgressBar, ScriptViewer)
+       * se actualicen mediante REFS de DOM, puenteando a React.
        */
+      audio.addEventListener("timeupdate", () => {
+        if (!audioRef.current) return;
+        const currentTime = audioRef.current.currentTime;
+        const duration = audioRef.current.duration || 0;
+        
+        window.dispatchEvent(new CustomEvent('nicepod-timeupdate', {
+          detail: { 
+            currentTime, 
+            duration,
+            percentage: duration > 0 ? (currentTime / duration) * 100 : 0
+          }
+        }));
+      });
+
       audio.addEventListener("error", (e) => {
         setIsLoading(false);
         const target = e.target as HTMLAudioElement;
-
-        // Si no hay un podcast activo en la UI, el error es producto de una purga de memoria. Lo ignoramos.
         if (!currentPodcastRef.current) return;
-
-        // Código 3: Error de red al descargar. Código 4: Formato no soportado (o URL rota).
-        // Ignoramos el error si el 'src' está vacío (provocado por closePodcast).
         if (target.error && target.src && target.src !== window.location.href) {
-          console.warn(`[AudioContext] Falla de reproducción. Código: ${target.error.code}`);
           toast({
             variant: "destructive",
             title: "Frecuencia Inestable",
-            description: "No se pudo recuperar el activo acústico. Verifique su conexión a la red de Madrid."
+            description: "No se pudo recuperar el activo acústico."
           });
         }
       });
@@ -98,9 +105,9 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         audioRef.current.load();
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [toast]);
 
+  // [LÓGICA DE INTERACCIÓN MANTENIDA...]
   const logInteractionEvent = useCallback(async (type: 'completed_playback' | 'liked' | 'shared') => {
     if (!user || !currentPodcast) return;
     try {
@@ -127,16 +134,10 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const playPodcast = useCallback(async (podcast: PodcastWithProfile, playlist: PodcastWithProfile[] = []) => {
     const audio = audioRef.current;
     if (!audio) return;
-
     if (!podcast.audio_url) {
-      toast({
-        variant: "destructive",
-        title: "Nodo Incompleto",
-        description: "El audio aún está siendo forjado por los agentes de IA."
-      });
+      toast({ variant: "destructive", title: "Nodo Incompleto", description: "Audio en forja." });
       return;
     }
-
     if (playlist.length > 0) setQueue(playlist);
 
     try {
@@ -146,27 +147,17 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         setCurrentPodcast(podcast);
         audio.src = podcast.audio_url;
         await audio.play();
-
-        // Operación "fire and forget" para telemetría
         supabase.rpc('increment_play_count', { podcast_id: podcast.id }).then();
       }
     } catch (error: any) {
       if (error.name === 'NotAllowedError') {
-        toast({
-          title: "Sistema Bloqueado",
-          description: "El navegador requiere una pulsación manual para iniciar el audio."
-        });
+        toast({ title: "Sistema Bloqueado", description: "Requiere interacción manual." });
       }
     }
   }, [currentPodcast, supabase, toast]);
 
   const value = useMemo(() => ({
-    currentPodcast,
-    queue,
-    isPlaying,
-    isLoading,
-    audioRef,
-    playPodcast,
+    currentPodcast, queue, isPlaying, isLoading, audioRef, playPodcast,
     togglePlayPause: () => {
       const audio = audioRef.current;
       if (audio) audio.paused ? audio.play().catch(console.error) : audio.pause();
@@ -174,7 +165,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     closePodcast: () => {
       if (audioRef.current) {
         audioRef.current.pause();
-        // [FIX CRÍTICO]: Eliminación del anti-patrón de asignación de cadena vacía.
         audioRef.current.removeAttribute("src");
         audioRef.current.load();
       }
@@ -199,13 +189,3 @@ export const useAudio = () => {
   if (!context) throw new Error("useAudio debe ser utilizado dentro de un AudioProvider");
   return context;
 };
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Erradicación de "Error de Nodo": Se reemplazó el anti-patrón 'audioRef.current.src = ""' 
- *    por '.removeAttribute("src")' en la función closePodcast, evitando que el navegador 
- *    dispare excepciones MediaError al cerrar el reproductor o navegar fuera de la vista.
- * 2. Auditoría Estricta de Listeners: El listener de 'error' utiliza ahora un 'currentPodcastRef' 
- *    para saber si la app tiene intención de reproducir audio o si el error del DOM 
- *    puede ser ignorado silenciosamente como parte de la gestión de memoria.
- */
