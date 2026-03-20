@@ -1,27 +1,32 @@
 // app/(platform)/dashboard/dashboard-client.tsx
-// VERSIÓN: 21.0 (NicePod Interactive Shell - Zero-Wait & Full Radar Edition)
-// Misión: Gestionar el estado del radar y renderizar el Dashboard con datos SSR inyectados.
+// VERSIÓN: 22.0 (NicePod Interactive Shell - Cinematic & Focus Mode Edition)
+// Misión: Gestionar el estado interactivo del radar y coreografiar la entrada visual.
+// [OPTIMIZACIÓN]: Orquestación Framer Motion, Strict Typing y Focus Mode Automático.
 
 "use client";
 
+import { motion } from "framer-motion";
 import { PlusCircle, ShieldCheck, Terminal, Zap } from "lucide-react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useState } from "react";
 
-// --- INFRAESTRUCTURA DEL RADAR UNIFICADO ---
-import { UnifiedSearchBar } from "@/components/ui/unified-search-bar";
+// --- INFRAESTRUCTURA DE DATOS Y CONTRATOS ---
 import { SearchResult } from "@/hooks/use-search-radar";
+import { cn } from "@/lib/utils";
+import type { Tables } from "@/types/database.types";
+import type { PodcastWithProfile } from "@/types/podcast";
 
 // --- COMPONENTES SATÉLITES ---
 import { InsightPanel } from "@/components/feed/insight-panel";
 import { IntelligenceFeed } from "@/components/feed/intelligence-feed";
 import { FloatingActionButton } from "@/components/ui/floating-action-button";
-import type { Tables } from "@/types/database.types";
+import { UnifiedSearchBar } from "@/components/ui/unified-search-bar";
 
 /**
- * [SHIELD]: HIDRATACIÓN DIFERIDA (T2)
+ * [SHIELD]: HIDRATACIÓN DIFERIDA Y PROTEGIDA (T2)
+ * El motor WebGL se aísla para proteger el Main Thread.
  */
 const MapPreviewFrame = dynamic(
   () => import("@/components/geo/map-preview-frame").then((mod) => mod.MapPreviewFrame),
@@ -38,12 +43,44 @@ const MapPreviewFrame = dynamic(
   }
 );
 
+/**
+ * INTERFAZ: DashboardClientProps
+ * [BUILD SHIELD]: Erradicación absoluta de 'any'. Contrato blindado con la base de datos.
+ */
 interface DashboardClientProps {
-  initialFeed: { epicenter: any[]; semantic_connections: any[] };
+  initialFeed: {
+    epicenter: PodcastWithProfile[];
+    semantic_connections: PodcastWithProfile[];
+  };
   initialProfile: Tables<'profiles'>;
   initialResonance: Tables<'user_resonance_profiles'> | null;
   isAdmin: boolean;
 }
+
+/**
+ * COREOGRAFÍA DE ENTRADA (Framer Motion Variants)
+ * Define la cascada de materialización de los componentes.
+ */
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.15, // Desfase matemático entre elementos
+      delayChildren: 0.1,    // Espera post-render SSR
+    }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 30, scale: 0.98 },
+  show: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { type: "spring", stiffness: 250, damping: 25 }
+  }
+};
 
 export function DashboardClient({
   initialFeed,
@@ -52,15 +89,14 @@ export function DashboardClient({
   isAdmin
 }: DashboardClientProps) {
 
-  // [ESTADOS DE RADAR RESTAURADOS]
-  // La interactividad táctica vuelve a estar disponible.
+  // --- ESTADOS DE CONSOLA (RADAR SEMÁNTICO) ---
   const [searchResults, setSearchResults] = useState<SearchResult[] | null>(null);
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [currentQuery, setCurrentQuery] = useState<string>("");
 
   const userName = initialProfile?.full_name?.split(' ')[0] || "Curador";
 
-  // Controladores de búsqueda
+  // --- CONTROLADORES DE ESTADO TÁCTICO ---
   const handleResults = useCallback((results: SearchResult[] | null) => {
     setSearchResults(results);
   }, []);
@@ -73,14 +109,24 @@ export function DashboardClient({
 
   return (
     <main className="container mx-auto max-w-screen-xl min-h-screen px-4 lg:px-8 selection:bg-primary/30">
-      <div className="grid grid-cols-1 lg:grid-cols-4 lg:gap-14 pt-8 md:pt-12 pb-32">
+
+      {/* 
+          ORQUESTADOR CINEMÁTICO 
+          Gobierna la aparición en cascada de todos los hijos.
+      */}
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
+        className="grid grid-cols-1 lg:grid-cols-4 lg:gap-14 pt-8 md:pt-12 pb-32"
+      >
 
         {/* COLUMNA PRINCIPAL: Inteligencia y Malla */}
         <div className="lg:col-span-3 space-y-10 md:space-y-14">
 
           {/* CABECERA SOBERANA */}
-          <header className="w-full flex flex-col md:flex-row md:items-center justify-between z-40 gap-6">
-            <div className="flex flex-col animate-in fade-in slide-in-from-left-6 duration-1000">
+          <motion.header variants={itemVariants} className="w-full flex flex-col md:flex-row md:items-center justify-between z-40 gap-6">
+            <div className="flex flex-col">
               <h1 className="text-4xl md:text-6xl font-black tracking-tighter uppercase italic leading-none drop-shadow-xl text-muted-foreground/80">
                 Hola, <span className="text-foreground">{userName}</span>
               </h1>
@@ -93,7 +139,7 @@ export function DashboardClient({
             </div>
 
             {/* RADAR DE BÚSQUEDA INTERACTIVO */}
-            <div className="animate-in fade-in slide-in-from-right-6 duration-1000 delay-200 w-full md:w-auto">
+            <div className="w-full md:w-auto z-50">
               <UnifiedSearchBar
                 variant="console"
                 placeholder={`¿Qué ecos buscamos, ${userName}?`}
@@ -102,18 +148,28 @@ export function DashboardClient({
                 onClear={handleClear}
               />
             </div>
-          </header>
-
-          {/* WIDGET DEL MAPA TÁCTICO */}
-          <section className="h-[200px] md:h-[260px] w-full animate-in fade-in zoom-in-95 duration-1000 delay-300">
-            <MapPreviewFrame />
-          </section>
+          </motion.header>
 
           {/* 
-              FEED DE INTELIGENCIA (Resolución TS2739)
-              Inyectamos los estados de búsqueda y los datos SSR simultáneamente.
+              WIDGET DEL MAPA TÁCTICO (FOCUS MODE)
+              [MEJORA]: Si el usuario está buscando, el mapa se atenúa visualmente 
+              para no competir por la atención con los resultados de la Bóveda.
           */}
-          <div className="relative z-0 min-h-[500px] animate-in fade-in duration-1000 delay-500">
+          <motion.section
+            variants={itemVariants}
+            className={cn(
+              "w-full transition-all duration-700 ease-in-out relative z-0",
+              isSearching || searchResults ? "h-[100px] opacity-30 saturate-0 scale-[0.98] pointer-events-none" : "h-[200px] md:h-[260px] opacity-100 scale-100"
+            )}
+          >
+            <MapPreviewFrame />
+          </motion.section>
+
+          {/* 
+              FEED DE INTELIGENCIA (EL BUS DE DATOS)
+              Inyectado de forma síncrona.
+          */}
+          <motion.div variants={itemVariants} className="relative z-10 min-h-[500px]">
             <IntelligenceFeed
               userName={userName}
               isSearching={isSearching}
@@ -123,14 +179,22 @@ export function DashboardClient({
               initialConnections={initialFeed.semantic_connections}
               onClear={handleClear}
             />
-          </div>
+          </motion.div>
         </div>
 
         {/* --- COLUMNA DE TELEMETRÍA (ASIDE) --- */}
         <aside className="hidden lg:block lg:col-span-1">
-          <div className="sticky top-[8rem] space-y-8 flex flex-col h-fit animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-700">
+          <motion.div
+            variants={itemVariants}
+            className={cn(
+              "sticky top-[8rem] space-y-8 flex flex-col h-fit transition-all duration-700",
+              // Focus Mode: Atenuar telemetría periférica durante la búsqueda
+              isSearching || searchResults ? "opacity-20 blur-[2px] grayscale pointer-events-none" : "opacity-100"
+            )}
+          >
 
-            <div className="p-8 bg-card/20 rounded-[2.5rem] border border-border/40 backdrop-blur-2xl relative overflow-hidden group shadow-xl">
+            {/* INVITACIÓN A LA FORJA */}
+            <div className="p-8 bg-card/20 rounded-[2.5rem] border border-border/40 backdrop-blur-2xl relative overflow-hidden group shadow-xl hover:border-primary/30 transition-colors">
               <div className="space-y-6 relative z-10">
                 <div className="flex items-center gap-3">
                   <div className="p-1.5 bg-primary/10 rounded-lg">
@@ -171,9 +235,10 @@ export function DashboardClient({
               </div>
             </div>
 
-          </div>
+          </motion.div>
         </aside>
-      </div>
+
+      </motion.div>
       <FloatingActionButton />
     </main>
   );

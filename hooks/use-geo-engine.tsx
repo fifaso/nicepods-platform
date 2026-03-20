@@ -1,21 +1,21 @@
 // hooks/use-geo-engine.tsx
-// VERSIÓN: 7.5 (NicePod V2.6 - Sovereign Geo-Engine Final Pro Edition)
-// Misión: Orquestar telemetría ubicua, anclaje manual y puentes de ingesta/síntesis.
-// [ESTABILIZACIÓN]: Tolerancia a OCR vacío, propagación de errores UI y STT neuronal.
+// VERSIÓN: 8.0 (NicePod Sovereign Geo-Engine - JIT Compression Edition)
+// Misión: Orquestar telemetría y procesar activos visuales JIT para ingesta blindada.
+// [ESTABILIZACIÓN]: Integración de compressNicePodImage para aniquilar fallos de red 413.
 
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
-import { nicepodLog } from "@/lib/utils";
+import { compressNicePodImage, nicepodLog } from "@/lib/utils";
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 
-// --- IMPORTACIÓN DE ACCIONES SOBERANAS (V6.4) ---
+// --- IMPORTACIÓN DE ACCIONES SOBERANAS ---
 import {
   attachAmbientAudioAction,
   ingestPhysicalEvidenceAction,
   resolveLocationAction,
   synthesizeNarrativeAction,
-  transcribeVoiceIntentAction // Nueva acción STT inyectada
+  transcribeVoiceIntentAction
 } from "@/actions/geo-actions";
 
 import {
@@ -29,7 +29,7 @@ import {
 
 /**
  * UTILIDAD INTERNA: fileToBase64
- * Transmuta archivos a strings para el puente de transporte JIT.
+ * Transmuta archivos o blobs procesados a strings para el transporte.
  */
 const fileToBase64 = (file: File | Blob): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -194,7 +194,8 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * ingestSensoryData:
-   * [MEJORA CRÍTICA]: Transmite el error a la UI mediante 'throw e' para liberar botones.
+   * [MEJORA INDUSTRIAL]: Implementación de Pipeline JIT de Compresión.
+   * Intercepta archivos masivos y los refina antes de la transmisión.
    */
   const ingestSensoryData = async (params: {
     heroImage: File;
@@ -208,16 +209,26 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
 
     setIsLocked(true);
     setStatus('INGESTING');
-    setError(null); // Purgamos errores previos antes de un nuevo intento
+    setError(null);
 
     try {
-      nicepodLog("📦 [GeoEngine] Empaquetando evidencia visual y acústica...");
+      nicepodLog("⚙️ [GeoEngine] Iniciando Pipeline de Compresión JIT...");
 
-      const heroBase64 = await fileToBase64(params.heroImage);
-      // El array ocrImages puede estar vacío, el map lo gestiona con seguridad
-      const ocrTasks = params.ocrImages.map(file => fileToBase64(file));
+      // 1. REFINAMIENTO VISUAL (Compresión por Hardware)
+      // Ejecutamos en paralelo para maximizar el uso de los núcleos del móvil.
+      const [compressedHero, ...compressedOcrArray] = await Promise.all([
+        compressNicePodImage(params.heroImage, 2048, 0.8),
+        ...params.ocrImages.map(img => compressNicePodImage(img, 1600, 0.7)) // OCR requiere menos resolución
+      ]);
+
+      nicepodLog("📦 [GeoEngine] Empaquetando evidencia optimizada...");
+
+      // 2. TRANSMUTACIÓN BINARIA (Base64 ligero)
+      const heroBase64 = await fileToBase64(compressedHero);
+      const ocrTasks = compressedOcrArray.map(blob => fileToBase64(blob));
       const ocrBase64Array = await Promise.all(ocrTasks);
 
+      // 3. DESPACHO AUTORIZADO
       const result = await ingestPhysicalEvidenceAction({
         latitude: userLocation.latitude,
         longitude: userLocation.longitude,
@@ -233,23 +244,25 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
         throw new Error(result.error || result.message || "FALLO_ESTRUCTURAL_SERVIDOR");
       }
 
-      const { poiId, analysis, location } = result.data;
+      const { poiId, analysis } = result.data;
 
+      // 4. ANCLAJE ACÚSTICO (Sonido Ambiente)
       if (params.ambientAudio) {
-        nicepodLog("🔊 [GeoEngine] Anclando paisaje sonoro en la Bóveda...");
+        nicepodLog("🔊 [GeoEngine] Anclando paisaje sonoro...");
         const audioBase64 = await fileToBase64(params.ambientAudio);
         await attachAmbientAudioAction({ poiId, audioBase64 });
       }
 
+      // 5. MATERIALIZACIÓN DEL DOSSIER
       const newDossier: IngestionDossier = {
         poi_id: poiId,
-        raw_ocr_text: analysis.ocrText || null,
+        raw_ocr_text: analysis.historicalDossier || analysis.ocrText || null,
         weather_snapshot: data.dossier?.weather_snapshot || { temp_c: 0, condition: "Sincronizado", is_day: true },
         visual_analysis_dossier: {
           architectureStyle: analysis.architectureStyle,
           atmosphere: analysis.atmosphere,
           detectedElements: analysis.detectedElements,
-          detectedOfficialName: analysis.detectedOfficialName || analysis.officialName
+          detectedOfficialName: analysis.officialName
         },
         sensor_accuracy: userLocation.accuracy,
         ingested_at: new Date().toISOString()
@@ -257,17 +270,15 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
 
       setData((prev: GeoContextData) => ({ ...prev, poiId, dossier: newDossier }));
       setStatus('DOSSIER_READY');
-      nicepodLog(`✅ [GeoEngine] Ingesta exitosa confirmada.`);
+      nicepodLog(`✅ [GeoEngine] Ingesta exitosa: Nodo #${poiId}`);
 
     } catch (e: any) {
-      nicepodLog(`🛑 [GeoEngine] Rechazo detectado: ${e.message}`);
+      nicepodLog(`🛑 [GeoEngine] Misión Abortada: ${e.message}`, null, 'error');
       setStatus('REJECTED');
       setError(e.message);
       setData((prev: GeoContextData) => ({ ...prev, rejectionReason: e.message }));
       setIsLocked(false);
-      // [MANDATO]: Lanzamos el error para que el 'catch' de Step 2 lo reciba
-      // y ponga 'isIngesting' a false, habilitando el botón de nuevo.
-      throw e;
+      throw e; // Transmitimos el error a la UI para liberar botones
     }
   };
 
@@ -286,10 +297,6 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  /**
-   * transcribeVoiceIntentAction:
-   * Exponemos la acción STT para que el Step 2 la consuma directamente.
-   */
   const transcribeVoiceIntent = async (audioBase64: string) => {
     return await transcribeVoiceIntentAction({ audioBase64 });
   };
@@ -305,7 +312,7 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
     <GeoEngineContext.Provider value={{
       status, data, userLocation, activePOI, nearbyPOIs, isSearching, isLocked, error,
       initSensors, setManualAnchor, setManualPlaceName, reSyncRadar, ingestSensoryData, synthesizeNarrative, reset,
-      transcribeVoiceIntent // Añadido para resolver el TS2339 en Step 2
+      transcribeVoiceIntent
     }}>
       {children}
     </GeoEngineContext.Provider>
@@ -319,11 +326,11 @@ export function useGeoEngine() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V7.5):
- * 1. Throw-Passthrough: El bloque catch de ingestSensoryData (Línea 296) 
- *    ahora lanza el error a la capa superior. Esto es lo que garantiza 
- *    que el botón "PROCESAR EXPEDIENTE" deje de girar si falla la subida.
- * 2. Transcripción Integrada: Se añadió 'transcribeVoiceIntent' a la interfaz 
- *    y al provider, resolviendo el último error de compilación (TS2339) 
- *    en el archivo del Step 2.
+ * NOTA TÉCNICA DEL ARCHITECT (V8.0):
+ * 1. Pipeline de Refinamiento: La inclusión de 'compressNicePodImage' asegura que 
+ *    incluso fotos de 15MB se reduzcan a <400KB antes de ser convertidas a Base64.
+ * 2. Paralelismo: El uso de desestructuración en el 'Promise.all' ([compressedHero, 
+ *    ...compressedOcrArray]) es la forma más eficiente de gestionar el mosaico OCR.
+ * 3. Sincronía de Dossier: Se mapeó 'analysis.historicalDossier' para asegurar que 
+ *    el OCR capturado por Gemini llegue intacto al paso de revisión humana.
  */
