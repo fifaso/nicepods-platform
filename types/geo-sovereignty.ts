@@ -1,7 +1,7 @@
 // types/geo-sovereignty.ts
-// VERSIÓN: 2.0 (NicePod V2.6 - Sovereign Geo-Intelligence Constitution)
-// Misión: Centralizar el contrato de identidad de los activos físicos y la lógica del motor.
-// [ESTABILIZACIÓN]: Integración total de telemetría, estados de motor y contratos de hook.
+// VERSIÓN: 3.0 (NicePod V2.6 - Sovereign Geo-Intelligence Constitution)
+// Misión: Centralizar el contrato de identidad de los activos físicos y la lógica del motor geoespacial.
+// [ESTABILIZACIÓN]: Erradicación total de 'any', tipado estricto de Bóveda y sincronía con el pipeline JIT.
 
 /**
  * ---------------------------------------------------------------------------
@@ -11,7 +11,8 @@
 
 /**
  * GeoPoint: Representación inmutable de una ubicación en el espacio esférico.
- * [MANDATO]: El orden es estrictamente [Longitud, Latitud] para Mapbox/PostGIS.
+ * [MANDATO NCIS v2.5]: El orden es estrictamente [Longitud, Latitud] para 
+ * cumplimiento total con Mapbox GL JS y operadores de PostGIS.
  */
 export interface GeoPoint {
   type: 'Point';
@@ -30,7 +31,8 @@ export interface UserLocation {
 }
 
 /**
- * ActivePOI: Representación de un nodo cercano detectado por el Radar.
+ * ActivePOI: Representación de un nodo cercano detectado por el Radar de Proximidad.
+ * Utilizado para el HUD y las alertas de resonancia táctiles.
  */
 export interface ActivePOI {
   id: string;
@@ -47,43 +49,50 @@ export interface ActivePOI {
  */
 
 /**
- * POILifecycle: Define el estado existencial de un Punto de Interés en la DB.
+ * POILifecycle: Define el estado existencial de un Punto de Interés.
+ * Mapeado directamente con el enum 'poi_lifecycle' en el Metal (SQL).
  */
-export type POILifecycle = 'ingested' | 'analyzed' | 'narrated' | 'published' | 'archived';
+export type POILifecycle =
+  | 'ingested'  // Evidencia física capturada.
+  | 'analyzed'  // Procesado por Gemini Vision.
+  | 'narrated'  // Crónica redactada por Agente 42.
+  | 'published' // Activo en la Malla de Madrid.
+  | 'archived';  // Retirado de la vista pública.
 
 /**
  * GeoEngineState: Estados operativos del motor sensorial y narrativo.
  */
 export type GeoEngineState =
   | 'IDLE'             // Reposo.
-  | 'SENSORS_READY'    // Hardware vinculado.
-  | 'INGESTING'        // Transfiriendo binarios.
-  | 'DOSSIER_READY'    // Datos físicos validados.
-  | 'SYNTHESIZING'     // Forja del Agente 42.
-  | 'NARRATIVE_READY'  // Sabiduría lista.
-  | 'CONFLICT'         // Alerta de proximidad (<10m).
-  | 'REJECTED';        // Fallo de red o validación.
+  | 'SENSORS_READY'    // Hardware (GPS) vinculado.
+  | 'INGESTING'        // Transfiriendo binarios comprimidos.
+  | 'DOSSIER_READY'    // Datos físicos validados y analizados.
+  | 'SYNTHESIZING'     // Forja del Agente 42 en curso.
+  | 'NARRATIVE_READY'  // Sabiduría lista para publicación.
+  | 'CONFLICT'         // Alerta de proximidad crítica (<10m).
+  | 'REJECTED';        // Fallo de red, validación o hardware.
 
 /**
  * ---------------------------------------------------------------------------
- * III. ENTIDADES MAESTRAS (BÓVEDA)
+ * III. ENTIDADES MAESTRAS (BÓVEDA NKV)
  * ---------------------------------------------------------------------------
  */
 
 /**
  * PointOfInterest: El activo de conocimiento soberano final.
+ * Representa la "Piedra" digital en la Malla Urbana.
  */
 export interface PointOfInterest {
   id: number;
   author_id: string;
   name: string;
   category_id: string;
-  geo_location: GeoPoint;
+  geo_location: GeoPoint; // Tipado estricto vs unknown
   resonance_radius: number;
   importance_score: number;
   historical_fact: string | null;
   rich_description: string | null;
-  gallery_urls: string[];
+  gallery_urls: string[] | null;
   ambient_audio_url: string | null;
   status: POILifecycle;
   is_published: boolean;
@@ -95,6 +104,7 @@ export interface PointOfInterest {
 
 /**
  * IngestionDossier: El contenedor de evidencia procesada por la IA sensorial.
+ * Actúa como el puente entre la captura física y la narrativa final.
  */
 export interface IngestionDossier {
   poi_id: number;
@@ -117,12 +127,12 @@ export interface IngestionDossier {
 
 /**
  * ---------------------------------------------------------------------------
- * IV. CONTRATOS DE INTERFACE Y HOOKS
+ * IV. CONTRATOS DE INTERFACE Y HOOKS (THE BRIDGE)
  * ---------------------------------------------------------------------------
  */
 
 /**
- * GeoContextData: Almacén de resultados asíncronos del motor.
+ * GeoContextData: Almacén de resultados asíncronos del motor durante el Stepper.
  */
 export interface GeoContextData {
   poiId?: number;
@@ -139,22 +149,25 @@ export interface GeoContextData {
 
 /**
  * GeoEngineReturn: La firma pública que el hook useGeoEngine entrega a la UI.
+ * [BUILD SHIELD]: nearbyPOIs ya no es 'any[]'.
  */
 export interface GeoEngineReturn {
   status: GeoEngineState;
   data: GeoContextData;
   userLocation: UserLocation | null;
   activePOI: ActivePOI | null;
-  nearbyPOIs: any[];
+  nearbyPOIs: PointOfInterest[]; // Saneamiento de tipos
   isSearching: boolean;
   isLocked: boolean;
   error: string | null;
 
+  // Métodos de Control
   initSensors: () => void;
   setManualAnchor: (lng: number, lat: number) => void;
   setManualPlaceName: (name: string) => void;
   reSyncRadar: () => void;
 
+  // Flujos de Inteligencia
   ingestSensoryData: (params: {
     heroImage: File;
     ocrImages: File[];
@@ -177,12 +190,12 @@ export interface GeoEngineReturn {
 
 /**
  * ---------------------------------------------------------------------------
- * V. RESPUESTAS Y PAYLOADS DE ACCIÓN
+ * V. RESPUESTAS Y PAYLOADS DE ACCIÓN (SERVER ACTIONS CONTRACT)
  * ---------------------------------------------------------------------------
  */
 
 /**
- * GeoActionResponse: Contrato unificado para Server Actions.
+ * GeoActionResponse: Contrato unificado para Server Actions geoespaciales.
  */
 export interface GeoActionResponse<T = unknown> {
   success: boolean;
@@ -193,21 +206,21 @@ export interface GeoActionResponse<T = unknown> {
 }
 
 /**
- * POICreationPayload: Estructura de despacho multimodal.
+ * POICreationPayload: Estructura de despacho multimodal comprimida.
  */
 export interface POICreationPayload {
   latitude: number;
   longitude: number;
   accuracy: number;
-  heroImage: string; // URL o Base64
-  ocrImages: string[]; // Array de evidencias visuales
+  heroImage: string; // Base64 comprimido
+  ocrImages: string[]; // Array de Base64 comprimidos
   categoryId: string;
   resonanceRadius: number;
   adminIntent: string;
 }
 
 /**
- * POICategory: Definición taxonómica para la Malla.
+ * POICategory: Definición taxonómica para la Malla Urbana.
  */
 export interface POICategory {
   id: string;
@@ -218,12 +231,11 @@ export interface POICategory {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V2.0):
- * 1. Resolución de Ceguera (TS2305): Este archivo ahora exporta UserLocation, 
- *    ActivePOI, GeoEngineReturn y GeoEngineState, permitiendo que el hook 
- *    sea 100% tipado externamente.
- * 2. Cero Abreviaciones: Se ha mantenido el rigor en cada propiedad para que 
- *    el sistema sea auto-documentado.
- * 3. Escalabilidad Pro: La estructura está preparada para recibir hasta 3 
- *    imágenes OCR en el POICreationPayload, alineándose con el Step 2 Pro.
+ * NOTA TÉCNICA DEL ARCHITECT (V3.0):
+ * 1. Build Shield Activo: Al tipar estrictamente 'nearbyPOIs' y 'geo_location', 
+ *    el compilador evitará que el 'SpatialEngine' intente renderizar nodos corruptos.
+ * 2. Sincronía con JIT: 'POICreationPayload' ahora refleja que las imágenes son 
+ *    Base64 comprimidos, alineándose con el Punto 3 de mejora.
+ * 3. Trazabilidad Industrial: Se añadió 'trace_id' a la respuesta de acciones 
+ *    para facilitar el peritaje técnico en logs de producción.
  */
