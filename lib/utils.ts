@@ -1,7 +1,7 @@
 // lib/utils.ts
-// VERSIÓN: 4.0 (NicePod Utility Core - Vision Compression & Asset Integrity Edition)
-// Misión: Centralizar el formateo, la higiene acústica y el procesamiento visual JIT.
-// [ESTABILIZACIÓN]: Inyección de compressNicePodImage para neutralizar errores 413.
+// VERSIÓN: 5.0 (NicePod Utility Core - Industrial Precision & Geospatial Standard)
+// Misión: Centralizar el formateo, la higiene acústica, la soberanía visual y el rigor geoespacial.
+// [ESTABILIZACIÓN]: Erradicación de 'any', formateo táctico de coordenadas e inyección de nitidez JIT.
 
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -14,22 +14,33 @@ import { twMerge } from "tailwind-merge";
 
 /**
  * cn: Función de combinación de clases de Tailwind.
- * Utiliza twMerge para resolver conflictos de especificidad CSS en tiempo de compilación.
+ * Utiliza twMerge para resolver conflictos de especificidad CSS en tiempo de ejecución.
  */
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
 /**
- * nicepodLog: Sistema de telemetría de desarrollo.
- * [ESTABILIZACIÓN]: Silencia la consola en producción para mantener la integridad de los logs en Vercel.
+ * nicepodLog: Sistema de telemetría soberano.
+ * [BUILD SHIELD]: Se eliminó 'any' en favor de 'unknown' para obligar al tipado.
+ * Silencia la consola en producción para mantener la higiene de logs en Vercel.
  */
-export function nicepodLog(message: string, data?: any, type: 'info' | 'warn' | 'error' = 'info') {
+export function nicepodLog(
+  message: string, 
+  data: unknown = null, 
+  type: 'info' | 'warn' | 'error' = 'info'
+) {
   if (process.env.NODE_ENV === 'development') {
-    const prefix = `[NicePod-Core]`;
-    if (type === 'error') console.error(prefix, message, data ?? '');
-    else if (type === 'warn') console.warn(prefix, message, data ?? '');
-    else console.log(prefix, message, data ?? '');
+    const prefix = `[NicePod-V2.6]`;
+    const timestamp = new Date().toLocaleTimeString();
+    
+    if (type === 'error') {
+      console.error(`${prefix} 🔥 [${timestamp}] ${message}`, data ?? '');
+    } else if (type === 'warn') {
+      console.warn(`${prefix} ⚠️ [${timestamp}] ${message}`, data ?? '');
+    } else {
+      console.log(`${prefix} 📡 [${timestamp}] ${message}`, data ?? '');
+    }
   }
 }
 
@@ -41,10 +52,12 @@ export function nicepodLog(message: string, data?: any, type: 'info' | 'warn' | 
 
 /**
  * formatTime: Convierte segundos a formato de minutaje MM:SS.
- * [ESTABILIZACIÓN]: Maneja entradas nulas o negativas para evitar visualización errónea en la UI.
+ * [ESTABILIZACIÓN]: Maneja entradas nulas o infinitas para evitar ruidos visuales en la UI.
  */
 export function formatTime(seconds: number | undefined | null): string {
-  if (seconds === undefined || seconds === null || isNaN(seconds) || seconds < 0) return "0:00";
+  if (seconds === undefined || seconds === null || isNaN(seconds) || !isFinite(seconds) || seconds < 0) {
+    return "0:00";
+  }
 
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = Math.floor(seconds % 60);
@@ -53,26 +66,27 @@ export function formatTime(seconds: number | undefined | null): string {
 }
 
 /**
- * cleanTextForSpeech: El "Stripper" de ruidos visuales.
- * Sanitiza el texto de Markdown, emojis y etiquetas para la API de Gemini TTS.
+ * cleanTextForSpeech: El "Stripper" de ruidos visuales para TTS.
+ * [MANDATO NCIS v2.5]: Sin Markdown, sin etiquetas, puramente acústico.
  */
 export function cleanTextForSpeech(text: string | null | undefined): string {
   if (!text) return "";
 
   return text
-    .replace(/\[.*?\]/g, "") // Elimina etiquetas técnicas como [SFX] o [MUSIC]
-    .replace(/^(Host|Narrador|Speaker\s?\d?):\s?/gim, "") // Elimina etiquetas de locutor
-    .replace(/\*\*/g, "") // Elimina negritas de Markdown
-    .replace(/__/g, "") // Elimina cursivas de Markdown
-    .replace(/[*#_~`>]/g, "") // Elimina restos de Markdown (títulos, citas, etc)
-    .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, "") // Elimina Emojis
-    .replace(/\s+/g, " ") // Normaliza espacios múltiples
+    .replace(/\$\$\$/g, "") // Elimina etiquetas triples de IA
+    .replace(/\[.*?\]/g, "") // Elimina metadatos técnicos [SFX], [PAUSE]
+    .replace(/^(Host|Narrador|Speaker\s?\d?):\s?/gim, "") // Elimina locutores
+    .replace(/\*\*/g, "") // Elimina negritas
+    .replace(/__/g, "") // Elimina cursivas
+    .replace(/[*#_~`>]/g, "") // Elimina restos de sintaxis MD
+    .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, "") // Purga de Emojis
+    .replace(/\s+/g, " ") // Colapsa espacios
     .trim();
 }
 
 /**
- * getSharedAudioCtx: Singleton para evitar el error "Too many AudioContexts".
- * [ESTABILIZACIÓN]: Garantiza que la capa de audio neuronal no sature el navegador.
+ * getSharedAudioCtx: Singleton de hardware acústico.
+ * Garantiza que la capa de audio neuronal no sature el bus de sonido del dispositivo.
  */
 let sharedAudioCtx: AudioContext | null = null;
 
@@ -93,15 +107,18 @@ export function getSharedAudioCtx() {
 
 /**
  * ---------------------------------------------------------------------------
- * III. GESTIÓN DE ASSETS Y SOBERANÍA VISUAL
+ * III. SOBERANÍA VISUAL Y ASSETS
  * ---------------------------------------------------------------------------
  */
 
 /**
- * getSafeAsset: Garantiza resiliencia visual ante recursos inexistentes.
- * [CORRECCIÓN CRÍTICA]: Evita el error '400 Bad Request' de Next.js Image al validar URLs mal formadas.
+ * getSafeAsset: Garantiza resiliencia visual ante recursos corruptos.
+ * Protege al componente next/image de lanzar errores 400 por URLs malformadas.
  */
-export function getSafeAsset(path: string | null | undefined, type: 'avatar' | 'cover' | 'logo' = 'cover'): string {
+export function getSafeAsset(
+  path: string | null | undefined, 
+  type: 'avatar' | 'cover' | 'logo' = 'cover'
+): string {
   const isValidUrl = path &&
     path.trim() !== "" &&
     !path.includes('placeholder.svg') &&
@@ -122,43 +139,50 @@ export function getSafeAsset(path: string | null | undefined, type: 'avatar' | '
 
 /**
  * ---------------------------------------------------------------------------
- * IV. PIPELINE DE COMPRESIÓN JIT (JUST-IN-TIME)
+ * IV. RIGOR GEOESPACIAL (MADRID RESONANCE HUD)
+ * ---------------------------------------------------------------------------
+ */
+
+/**
+ * formatCoordinates: 
+ * Transmuta [lng, lat] en un string técnico de alta precisión para el HUD.
+ */
+export function formatCoordinates(lng: number, lat: number): string {
+  return `${lat.toFixed(6)}°N, ${lng.toFixed(6)}°E`;
+}
+
+/**
+ * ---------------------------------------------------------------------------
+ * V. PIPELINE DE COMPRESIÓN JIT (JUST-IN-TIME)
  * ---------------------------------------------------------------------------
  */
 
 /**
  * compressNicePodImage:
- * Misión: Reducir capturas de alta resolución a activos industriales optimizados.
- * 
- * [ESTRATEGIA TÁCTICA]:
- * 1. Usa HTML5 Canvas para redimensionamiento por hardware.
- * 2. Transmuta cualquier formato a WebP (Calidad 0.8).
- * 3. Techo Resolutivo: 2048px (Equilibrio perfecto entre OCR y Ancho de Banda).
- * 4. Higiene de Memoria: Limpieza inmediata de punteros Blob.
+ * Misión: Reducir capturas de alta resolución a activos de grado industrial.
+ * [ESTRATEGIA]: Pixel-Perfect Scaling mediante Canvas y transmutación a WebP.
  */
 export async function compressNicePodImage(
   file: File,
   maxWidth: number = 2048,
-  quality: number = 0.8
+  quality: number = 0.85
 ): Promise<Blob> {
-  // Guardia de SSR: El canvas solo existe en el cliente.
   if (typeof window === 'undefined') return file;
 
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const img = new Image();
     const objectUrl = URL.createObjectURL(file);
 
     img.src = objectUrl;
 
     img.onload = () => {
-      // Liberamos el puntero original inmediatamente para recuperar RAM.
       URL.revokeObjectURL(objectUrl);
 
       const canvas = document.createElement('canvas');
       let width = img.width;
       let height = img.height;
 
-      // Cálculo de Proporciones Tácticas (Aspect Ratio Preservation)
+      // Preservación de la Relación de Aspecto (Soberanía Visual)
       if (width > maxWidth) {
         height = (maxWidth / width) * height;
         width = maxWidth;
@@ -169,20 +193,19 @@ export async function compressNicePodImage(
 
       const ctx = canvas.getContext('2d');
       if (!ctx) {
-        nicepodLog("Fallo de Contexto Canvas", null, 'error');
-        return resolve(file); // Fallback al archivo original si el hardware falla
+        nicepodLog("Fallo de motor Canvas", null, 'error');
+        return resolve(file);
       }
 
-      // Renderizado de alta fidelidad
+      // Algoritmo de suavizado de alta fidelidad
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(img, 0, 0, width, height);
 
-      // Transmutación a binario optimizado
       canvas.toBlob(
         (blob) => {
           if (blob) {
-            nicepodLog(`Compresión Exitosa: ${Math.round(file.size / 1024)}KB -> ${Math.round(blob.size / 1024)}KB`);
+            nicepodLog(`Refinamiento Visual: ${Math.round(file.size / 1024)}KB -> ${Math.round(blob.size / 1024)}KB`);
             resolve(blob);
           } else {
             resolve(file);
@@ -193,21 +216,19 @@ export async function compressNicePodImage(
       );
     };
 
-    img.onerror = (error) => {
+    img.onerror = () => {
       URL.revokeObjectURL(objectUrl);
-      nicepodLog("Error en el motor de compresión visual", error, 'error');
-      resolve(file); // Resiliencia: Si falla, enviamos el original.
+      nicepodLog("Fallo crítico en compresión visual", null, 'error');
+      resolve(file);
     };
   });
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V4.0):
- * 1. Aniquilación del Error 413: 'compressNicePodImage' es la pieza final que permite
- *    que dossiers de 20MB viajen como paquetes de 1.5MB hacia Vercel.
- * 2. Higiene de Memoria JIT: El uso sistemático de 'URL.revokeObjectURL' asegura
- *    que los dispositivos móviles no sufran crashes de RAM durante la captura.
- * 3. Fallback Resiliente: Si el navegador del usuario no soporta Canvas o WebP, 
- *    el sistema devuelve el archivo original silenciosamente, priorizando la 
- *    captura de la memoria urbana sobre la optimización.
+ * NOTA TÉCNICA DEL ARCHITECT (V5.0):
+ * 1. Cumplimiento NCIS v2.5: Se ha erradicado el uso de 'any' en todo el módulo.
+ * 2. Estándar de Radio: 'formatTime' ahora es inmune a valores no finitos, 
+ *    protegiendo la integridad del reproductor cuando el audio aún no ha cargado.
+ * 3. Telemetría HUD: 'formatCoordinates' provee el rigor decimal necesario 
+ *    para que el Administrador valide el anclaje manual en tiempo real.
  */
