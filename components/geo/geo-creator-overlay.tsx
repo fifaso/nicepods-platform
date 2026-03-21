@@ -1,7 +1,7 @@
 // components/geo/geo-creator-overlay.tsx
-// VERSIÓN: 4.1 (NicePod V2.6 - Sovereign Ingestion Orchestrator - Auto-Ignition Edition)
-// Misión: Unificar el Motor Spatial con la Terminal de Captura y activar telemetría proactiva.
-// [ESTABILIZACIÓN]: Implementación de Auto-Ignition (initSensors al montar) y Focus Mode.
+// VERSIÓN: 4.2 (NicePod V2.6 - Sovereign Ingestion Orchestrator - Clean Edition)
+// Misión: Unificar el Motor Spatial con la Terminal de Captura.
+// [ESTABILIZACIÓN]: Eliminación de GeoEngineProvider redundante (ahora heredado globalmente).
 
 "use client";
 
@@ -13,8 +13,8 @@ import React, { useCallback, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-// --- PROVEEDORES DE ESTADO (EL CEREBRO ÚNICO) ---
-import { GeoEngineProvider, useGeoEngine } from "@/hooks/use-geo-engine";
+// --- PROVEEDORES DE ESTADO (CEREBROS) ---
+import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { ForgeProvider, useForge } from "./forge-context";
 
 // --- MOTORES DE VISUALIZACIÓN Y CAPTURA ---
@@ -38,7 +38,7 @@ interface GeoCreatorOverlayProps {
  * Orquesta la interacción entre el mapa WebGL y la UI de captura.
  */
 function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
-  // 1. CONSUMO DE FACULTADES DEL MOTOR Y MEMORIA RAM
+  // 1. CONSUMO DE FACULTADES (El motor sensorial viene del Provider Global en Layout)
   const { state: forgeState, dispatch } = useForge();
   const { 
     setManualAnchor, 
@@ -46,7 +46,7 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
     status: engineStatus,
     data: engineData,
     userLocation,
-    initSensors // Función de ignición de hardware
+    initSensors 
   } = useGeoEngine();
 
   // Control de visibilidad de la terminal táctil
@@ -54,13 +54,13 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
 
   /**
    * [PROTOCOLO AUTO-IGNITION]:
-   * Misión: Iniciar la triangulación GPS en el milisegundo de montaje.
-   * Esto asegura que el Voyager esté localizado antes de interactuar.
+   * Inicia la triangulación GPS en el montaje.
    */
   useEffect(() => {
     initSensors();
     
-    // Cleanup de hardware al salir de la ruta /map para preservar batería
+    // Cleanup opcional al desmontar. El layout mantiene el engine vivo, 
+    // pero resetear asegura que la próxima entrada sea limpia.
     return () => {
       resetSensors();
     };
@@ -72,8 +72,7 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
    */
   const toggleTerminal = useCallback(() => {
     if (isTerminalOpen) {
-      // Al cerrar, purgamos la memoria de forja pero NO detenemos los sensores
-      // para mantener la ubicación en el modo exploración (EXPLORE).
+      // Solo purgamos la memoria de forja (RAM de creación), no el GPS.
       dispatch({ type: 'RESET_FORGE' });
       setIsTerminalOpen(false);
     } else {
@@ -88,16 +87,14 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
   const handleManualAnchor = useCallback((lngLat: [number, number]) => {
     if (!isTerminalOpen) return;
 
-    // Bloqueamos el motor en la coordenada física seleccionada
     setManualAnchor(lngLat[0], lngLat[1]);
 
-    // Actualizamos el contexto de la forja para los Steps subsiguientes
     dispatch({
       type: 'SET_LOCATION',
       payload: {
         lat: lngLat[1],
         lng: lngLat[0],
-        acc: 1 // Autoridad Admin: Precisión certificada por visión.
+        acc: 1 
       }
     });
   }, [isTerminalOpen, setManualAnchor, dispatch]);
@@ -111,16 +108,13 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
                       "Detectando Ubicación...";
 
   return (
-    // [FIX VIEWPORT]: Gestión de eventos de puntero para no bloquear el mapa de fondo.
+    // [FIX VIEWPORT]: Control de eventos de puntero.
     <div className={cn(
       "absolute inset-0 w-full h-full overflow-hidden flex flex-col transition-all duration-500",
       isTerminalOpen ? "bg-black/20 pointer-events-auto" : "bg-transparent pointer-events-none"
     )}>
 
-      {/* 
-          I. EL MOTOR CARTOGRÁFICO SOBERANO (SPATIAL ENGINE) 
-          Siempre activo en el fondo. El modo cambia dinámicamente.
-      */}
+      {/* I. EL MOTOR CARTOGRÁFICO SOBERANO (SPATIAL ENGINE) */}
       <div className="absolute inset-0 z-0 pointer-events-auto">
         <SpatialEngine
           mode={isTerminalOpen ? 'FORGE' : 'EXPLORE'}
@@ -128,9 +122,7 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
         />
       </div>
 
-      {/* 
-          II. EL GATILLO SOBERANO (BOTÓN DE INICIO DE MISIÓN) 
-      */}
+      {/* II. EL GATILLO SOBERANO (FAB) */}
       {canForge && (
         <div className="absolute top-8 right-6 md:right-8 z-[120] pointer-events-auto">
           <Button
@@ -173,10 +165,7 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
         </div>
       )}
 
-      {/* 
-          III. EL HUD DE TELEMETRÍA (PERSISTENCIA SUPERIOR)
-          Flota sobre la escena para mantener conciencia de la señal GPS.
-      */}
+      {/* III. EL HUD DE TELEMETRÍA (PERSISTENCIA SUPERIOR) */}
       <AnimatePresence>
         {isTerminalOpen && (
           <motion.div 
@@ -195,9 +184,7 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
         )}
       </AnimatePresence>
 
-      {/* 
-          IV. LA TERMINAL DE INGESTA (CENTRO DE FORJA) 
-      */}
+      {/* IV. LA TERMINAL DE INGESTA (DRAWER OVERLAY) */}
       <AnimatePresence>
         {isTerminalOpen && (
           <motion.div
@@ -207,17 +194,14 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
             className="absolute inset-x-0 bottom-0 z-[100] flex flex-col justify-end pointer-events-auto h-[75vh]"
           >
-            {/* Velo Aurora superior */}
             <div className="absolute -top-[15vh] inset-x-0 h-[15vh] bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />
 
             <div className="w-full h-full bg-[#020202]/95 backdrop-blur-3xl rounded-t-[3rem] md:rounded-t-[4rem] border-t border-white/10 shadow-[0_-30px_60px_rgba(0,0,0,0.9)] flex flex-col relative overflow-hidden">
               
-              {/* Barra de arrastre estética */}
               <div className="w-full flex justify-center py-5 shrink-0 z-20">
                 <div className="w-12 md:w-16 h-1.5 bg-white/10 rounded-full" />
               </div>
 
-              {/* Sello de la Estación Oráculo */}
               <div className="absolute top-6 left-6 md:left-12 flex items-center gap-3 opacity-30 pointer-events-none z-10">
                 <Satellite size={12} className="text-primary animate-pulse" />
                 <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.5em] text-white">
@@ -225,7 +209,6 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
                 </span>
               </div>
 
-              {/* ÁREA DE CONTENIDO: Pasos del Stepper */}
               <div className="w-full flex-1 relative flex flex-col min-h-0 mt-4 md:mt-8">
                 <GeoScannerUI />
               </div>
@@ -234,9 +217,7 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
         )}
       </AnimatePresence>
 
-      {/* 
-          V. INDICADOR DE RESONANCIA (MODO VOYAGER) 
-      */}
+      {/* V. INDICADOR DE RESONANCIA (MODO VOYAGER) */}
       {!isTerminalOpen && (
         <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-40 pointer-events-none">
           <div className="bg-black/70 backdrop-blur-2xl px-6 py-2.5 rounded-full border border-white/10 flex items-center gap-3 shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-1000">
@@ -254,24 +235,13 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
 
 /**
  * COMPONENTE PÚBLICO: GeoCreatorOverlay
- * Inyecta los proveedores soberanos requeridos por toda la malla geoespacial.
+ * Inyecta exclusivamente el ForgeProvider. La inteligencia sensorial (GeoEngineProvider) 
+ * es heredada globalmente desde PlatformLayout.
  */
 export function GeoCreatorOverlay(props: GeoCreatorOverlayProps) {
   return (
-    <GeoEngineProvider>
-      <ForgeProvider>
-        <CreatorOverlayContent {...props} />
-      </ForgeProvider>
-    </GeoEngineProvider>
+    <ForgeProvider>
+      <CreatorOverlayContent {...props} />
+    </ForgeProvider>
   );
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT (V4.1):
- * 1. Auto-Ignition: La llamada a 'initSensors()' en el useEffect inicial elimina 
- *    la mudez del mapa. El sistema ya sabe dónde estás antes de que abras la terminal.
- * 2. Focus Mode: Se mantiene el control de altura 'h-[75vh]' para permitir que 
- *    la mira telescópica sea operativa en la parte superior del visor.
- * 3. Sincronía de Estado: La resolución del 'displayName' (Línea 105) asegura que 
- *    el HUD muestre información coherente durante todo el proceso de forja.
- */
