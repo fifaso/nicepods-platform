@@ -1,7 +1,7 @@
 // components/geo/map-preview-frame.tsx
-// VERSIÓN: 9.1 (NicePod GO-Preview - Build Safe Edition)
-// Misión: Ventana táctica fotorrealista que rastrea y centra al Voyager.
-// [ESTABILIZACIÓN]: Resolución de advertencia de dependencias ESLint y sincronía de imports.
+// VERSIÓN: 9.2 (NicePod GO-Preview - High Fidelity & Contract-Integrity Edition)
+// Misión: Ventana táctica fotorrealista que rastrea y centra al Voyager sin fallos de tipos.
+// [ESTABILIZACIÓN]: Resolución de error ts(2322) mediante inyección de Children en MadridMapProps.
 
 "use client";
 
@@ -19,7 +19,8 @@ import { MapMarkerCustom } from "./map-marker-custom";
 import { PointOfInterest } from "@/types/geo-sovereignty";
 
 /**
- * MadridMapProps: Contrato de integridad para el motor Mapbox v3.
+ * INTERFAZ: MadridMapProps
+ * [FIX CRÍTICO]: Se añade 'children' para permitir el renderizado de marcadores y capas.
  */
 interface MadridMapProps {
   initialViewState: {
@@ -39,8 +40,14 @@ interface MadridMapProps {
   projection?: string;
   terrain?: any;
   maxPitch?: number;
+  // Soporte para componentes hijos (Marcadores, Capas, etc.)
+  children?: React.ReactNode; 
 }
 
+/**
+ * [SHIELD]: MapEngine
+ * Carga diferida del motor Mapbox apuntando al sub-path de Vercel.
+ */
 const MapEngine = dynamic<MadridMapProps>(
   () => import("react-map-gl/mapbox").then((mod) => (mod.default || mod.Map) as any),
   {
@@ -66,6 +73,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
 
   /**
    * 1. PROTOCOLO DE SEGURIDAD MATEMÁTICA
+   * Evita colapsos de GPU asegurando dimensiones > 0 antes de instanciar.
    */
   useEffect(() => {
     if (!containerRef.current) return;
@@ -83,6 +91,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
 
   /**
    * 2. CONFIGURACIÓN DE CÁMARA DINÁMICA
+   * Sintoniza el centro de la cámara con la posición real del Voyager.
    */
   const initialViewState = useMemo(() => ({
     latitude: userLocation?.latitude || 40.4167,
@@ -102,7 +111,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
   }), []);
 
   /**
-   * 3. MONITOR DE VISIBILIDAD E HIDRATACIÓN
+   * 3. MONITOR DE VISIBILIDAD E IGNICIÓN
    */
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -119,7 +128,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
       if ('requestIdleCallback' in window) {
         (window as any).requestIdleCallback(() => {
           setIsIdleReady(true);
-          initSensors();
+          initSensors(); // Despertar hardware GPS de forma proactiva
         }, { timeout: 3000 });
       } else {
         setIsIdleReady(true);
@@ -164,6 +173,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
               attributionControl={false}
               fog={fogConfig}
             >
+              {/* --- RENDERIZADO DE NODOS EN DASHBOARD --- */}
               {userLocation && (
                 <UserLocationMarker 
                   location={userLocation} 
@@ -181,7 +191,9 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
                   name={poi.name}
                   isResonating={activePOI?.id === poi.id.toString() && activePOI?.isWithinRadius}
                   isSelected={false}
-                  onClick={() => {}}
+                  onClick={() => {
+                    nicepodLog("Navegación solicitada desde Dashboard hacia el Mapa.");
+                  }}
                 />
               ))}
             </MapEngine>
