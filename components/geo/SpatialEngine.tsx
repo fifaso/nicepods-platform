@@ -1,7 +1,7 @@
 // components/geo/SpatialEngine.tsx
-// VERSIÓN: 7.0 (NiceCore V2.6 - Auto-Localization & Cinematic V3 Edition)
+// VERSIÓN: 7.1 (NiceCore V2.6 - Build Fix & Auto-Localization Edition)
 // Misión: Renderizado 3D inmersivo con auto-centrado proactivo y blindaje de tipos.
-// [ESTABILIZACIÓN]: Implementación de Initial Jump Protocol y Proyección Mercator Fotorrealista.
+// [ESTABILIZACIÓN]: Resolución de error 'nicepodLog' missing import.
 
 "use client";
 
@@ -14,7 +14,7 @@ import React, {
   useEffect 
 } from "react";
 
-// --- MOTOR CARTOGRÁFICO (SUB-PATH EXPLÍCITO PARA VERCEL) ---
+// --- MOTOR CARTOGRÁFICO ---
 import Map, { 
   Layer, 
   NavigationControl, 
@@ -31,7 +31,7 @@ import { AnimatePresence } from "framer-motion";
 
 // --- INFRAESTRUCTURA DE DOMINIO SOBERANO ---
 import { useGeoEngine } from "@/hooks/use-geo-engine";
-import { cn } from "@/lib/utils";
+import { cn, nicepodLog } from "@/lib/utils";
 import { PointOfInterest } from "@/types/geo-sovereignty";
 
 // --- COMPONENTES DE MALLA TÁCTICA ---
@@ -43,7 +43,7 @@ import { SearchResult } from "@/hooks/use-search-radar";
 
 /**
  * ---------------------------------------------------------------------------
- * I. [BUILD SHIELD]: CONTRATOS LOCALES ESTRICTOS
+ * [BUILD SHIELD]: CONTRATOS LOCALES ESTRICTOS
  * ---------------------------------------------------------------------------
  */
 interface NicePodMapMoveEvent {
@@ -76,34 +76,28 @@ const PHOTOREALISTIC_STYLE = "mapbox://styles/mapbox/satellite-streets-v12";
 const DARK_IMMERSIVE_STYLE = "mapbox://styles/mapbox/dark-v11";
 
 const FLY_CONFIG = {
-  duration: 3000, // Vuelo suave de 3 segundos para inmersión
+  duration: 3000,
   essential: true,
   curve: 1.2,
   easing: (t: number) => t * (2 - t)
 };
 
-/**
- * SpatialEngine: El motor visual fotorrealista de NicePod.
- */
 export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngineProps) {
   
-  // 1. REFERENCIAS DE HARDWARE Y CONTEXTOS
   const mapRef = useRef<MapRefInstance>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const geoEngine = useGeoEngine();
   const { userLocation, nearbyPOIs, activePOI } = geoEngine;
 
-  // 2. ESTADOS DE INTERACCIÓN Y CARGA
   const [selectedPOIId, setSelectedPOIId] = useState<string | null>(null);
   const [isMapLoaded, setIsMapLoaded] = useState<boolean>(false);
   const [isContainerReady, setIsContainerReady] = useState<boolean>(false);
   const [isSearchLoading, setIsSearchLoading] = useState<boolean>(false);
 
-  // Guardia de primer centrado: Evita saltos repetitivos tras la localización inicial.
   const hasInitialJumpPerformed = useRef<boolean>(false);
 
   /**
-   * PROTOCOLO DE SEGURIDAD MATEMÁTICA (Safe Mount)
+   * PROTOCOLO DE SEGURIDAD MATEMÁTICA
    */
   useEffect(() => {
     if (!containerRef.current) return;
@@ -121,7 +115,6 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
 
   /**
    * CONFIGURACIÓN DE CÁMARA INICIAL
-   * Nace en Madrid centro, pero lista para ser sobreescrita por el GPS.
    */
   const [viewState, setViewState] = useState({
     latitude: 40.4167,
@@ -147,11 +140,10 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
 
   /**
    * [MISIÓN: AUTO-LOCALIZACIÓN]
-   * Detecta la llegada de la primera coordenada válida y ordena el vuelo.
    */
   useEffect(() => {
     if (userLocation && isMapLoaded && !hasInitialJumpPerformed.current) {
-      nicepodLog("🎯 [SpatialEngine] Coordenada detectada. Iniciando salto táctico.");
+      nicepodLog("🎯 [SpatialEngine] Coordenada detectada. Iniciando salto táctico hacia Voyager.");
       flyToPosition(userLocation.longitude, userLocation.latitude, mode === 'FORGE' ? 18.5 : 16.5);
       hasInitialJumpPerformed.current = true;
     }
@@ -181,9 +173,6 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
     }
   }, [flyToPosition]);
 
-  /**
-   * ATMÓSFERA SOBERANA
-   */
   const fogConfig = useMemo(() => ({
     "range": [0.5, 10],
     "color": "#020202",
@@ -193,9 +182,6 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
     "star-intensity": 0.4
   }), []);
 
-  /**
-   * CAPA ARQUITECTÓNICA 3D (Cristal de Obsidiana)
-   */
   const buildingLayerConfig = useMemo(() => ({
     id: "3d-buildings",
     source: "composite",
@@ -211,9 +197,6 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
     },
   }), []);
 
-  /**
-   * [PROTOCOLO DE SILENCIO URBANO]
-   */
   const onMapLoad = useCallback((e: any) => {
     setIsMapLoaded(true);
     const map = e.target;
@@ -243,16 +226,15 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   return (
     <div ref={containerRef} className={cn("w-full h-full relative bg-[#010101]", className)}>
       
-      {/* HUD DE BÚSQUEDA SOBERANA */}
       {mode === 'EXPLORE' && (
         <div className="absolute top-6 left-4 right-4 z-[100] md:top-8 md:left-8 md:w-[400px]">
           <UnifiedSearchBar
             variant="console"
+            onResults={handleSearchResult}
+            onLoading={setIsSearchLoading}
             placeholder="Rastrear ecos urbanos..."
             latitude={viewState.latitude}
             longitude={viewState.longitude}
-            onResults={handleSearchResult}
-            onLoading={setIsSearchLoading}
             className="shadow-2xl"
           />
         </div>
@@ -267,17 +249,14 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
           onLoad={onMapLoad}
           mapboxAccessToken={MAPBOX_TOKEN}
           mapStyle={mode === 'FORGE' ? PHOTOREALISTIC_STYLE : DARK_IMMERSIVE_STYLE}
-          
           projection="mercator" 
           terrain={mode === 'EXPLORE' ? { source: 'mapbox-dem', exaggeration: 1.2 } : undefined}
           fog={mode === 'EXPLORE' ? fogConfig as any : undefined}
-          
           antialias={true}
           reuseMaps={true}
           maxPitch={80} 
           attributionControl={false}
         >
-          
           <GeolocateControl showUserLocation={false} className="hidden" />
 
           {userLocation && (
@@ -331,13 +310,3 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
     </div>
   );
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT (V7.0):
- * 1. Auto-Jump Protocol: El mapa ya no es estático al inicio. Vuela hacia el
- *    Voyager en cuanto el GPS confirma la señal.
- * 2. Estabilidad de Vuelo: El uso de una referencia 'hasInitialJumpPerformed'
- *    garantiza que el sistema no interrumpa la exploración manual del usuario.
- * 3. Fotorrealismo Táctico: Se integra el modo satélite para forja y cristal 
- *    oscuro para exploración, manteniendo 60fps en todo momento.
- */
