@@ -1,7 +1,7 @@
 // components/geo/SpatialEngine.tsx
-// VERSIÓN: 5.3 (NicePod GO-Engine - Ultimate Monolithic Edition)
-// Misión: Centralizar el renderizado 3D inmersivo erradicando fallos de compilación.
-// [ESTABILIZACIÓN]: Restauración completa de lógica de búsqueda, flyTo y bypass de Vercel.
+// VERSIÓN: 5.4 (NicePod GO-Engine - The Mercator Shield Edition)
+// Misión: Centralizar el renderizado 3D inmersivo garantizando un Build Shield impenetrable.
+// [ESTABILIZACIÓN]: Inyección de proyección Mercator para aniquilar el bucle infinito _calcMatrices.
 
 "use client";
 
@@ -14,7 +14,7 @@ import React, {
   useState
 } from "react";
 
-// --- MOTOR CARTOGRÁFICO (SUB-PATH EXPLÍCITO PARA VERCEL) ---
+// --- MOTOR CARTOGRÁFICO (COMPONENTES) ---
 import Map, {
   GeolocateControl,
   Layer,
@@ -28,7 +28,7 @@ import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { cn } from "@/lib/utils";
 import { PointOfInterest } from "@/types/geo-sovereignty";
 
-// --- COMPONENTES DE VUELO Y MALLA TÁCTICA ---
+// --- COMPONENTES DE MALLA TÁCTICA ---
 import { UnifiedSearchBar } from "@/components/ui/unified-search-bar";
 import { SearchResult } from "@/hooks/use-search-radar";
 import { MapMarkerCustom } from "./map-marker-custom";
@@ -76,11 +76,9 @@ const FLY_CONFIG = {
 
 export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngineProps) {
 
-  // 1. REFERENCIAS DE HARDWARE WEBGL
   const mapRef = useRef<MapRefInstance>(null);
   const geoEngine = useGeoEngine();
 
-  // 2. ESTADOS DE INTERACCIÓN
   const [selectedPOIId, setSelectedPOIId] = useState<string | null>(null);
   const [isMapLoaded, setIsMapLoaded] = useState<boolean>(false);
   const [isSearchLoading, setIsSearchLoading] = useState<boolean>(false);
@@ -107,7 +105,7 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   }, [geoEngine.userLocation, mode, isMapLoaded]);
 
   /**
-   * PROTOCOLOS DE VUELO (CÁMARA TÁCTICA)
+   * PROTOCOLOS DE VUELO TÁCTICO
    */
   const flyToPosition = useCallback((lng: number, lat: number, zoomLevel = 17) => {
     if (mapRef.current) {
@@ -158,7 +156,7 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
     },
   }), [mode]);
 
-  // --- MANEJADORES DE EVENTOS SOBERANOS ---
+  // --- MANEJADORES DE EVENTOS ---
 
   const handleMove = useCallback((event: NicePodMapMoveEvent) => {
     setViewState(event.viewState);
@@ -177,9 +175,6 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
     flyToPosition(lngLat[0], lngLat[1], 19);
   }, [mode, onManualAnchor, flyToPosition]);
 
-  /**
-   * [DATA MAPPER]: Saneamiento del contrato hacia la tarjeta de preview.
-   */
   const mappedSelectedPOI = useMemo(() => {
     if (!selectedPOIId || !geoEngine.nearbyPOIs) return null;
 
@@ -198,7 +193,6 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   return (
     <div className={cn("w-full h-full relative bg-[#010101]", className)}>
 
-      {/* --- HUD DE BÚSQUEDA SOBERANA (Solo Modo Explore) --- */}
       {mode === 'EXPLORE' && (
         <div className="absolute top-6 left-4 right-4 z-[100] md:top-8 md:left-8 md:w-[400px]">
           <UnifiedSearchBar
@@ -221,7 +215,12 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
         onLoad={() => setIsMapLoaded(true)}
         mapboxAccessToken={MAPBOX_TOKEN}
         mapStyle={mode === 'FORGE' ? "mapbox://styles/mapbox/satellite-streets-v12" : "mapbox://styles/mapbox/dark-v11"}
-        terrain={{ source: 'mapbox-dem', exaggeration: 1.5 }}
+
+        // [FIX CRÍTICO]: PROYECCIÓN MERCATOR
+        // Esta línea es el escudo contra el 'RangeError: Maximum call stack size exceeded'.
+        // Obliga a Mapbox v3 a usar matemática plana, permitiendo pitch de 75° sin colapsar WebGL.
+        projection="mercator"
+
         fog={fogConfig as any}
         antialias={true}
         reuseMaps={true}

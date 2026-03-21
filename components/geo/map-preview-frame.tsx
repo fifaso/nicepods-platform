@@ -1,7 +1,6 @@
 // components/geo/map-preview-frame.tsx
-// VERSIÓN: 7.2 (NicePod GO-Preview - Vercel Safe Edition)
-// Misión: Ventana táctica 3D con atmósfera de horizonte.
-// [ESTABILIZACIÓN]: Corrección de importación dinámica apuntando al sub-path explícito.
+// VERSIÓN: 7.4 (NicePod GO-Preview - The Mercator Shield Edition)
+// Misión: Ventana táctica 3D fluida e inmune a bucles de renderizado matricial.
 
 "use client";
 
@@ -27,12 +26,9 @@ interface MadridMapProps {
   attributionControl?: boolean;
   fog?: any;
   antialias?: boolean;
+  projection?: string; // Interfaz actualizada para soportar el Mercator Shield
 }
 
-/**
- * [FIX VERCEL]: La carga dinámica ahora exige el '.default || .Map' 
- * sobre la ruta '/mapbox' para evitar el error de Module Not Found.
- */
 const MapEngine = dynamic<MadridMapProps>(
   () => import("react-map-gl/mapbox").then((mod) => (mod.default || mod.Map) as any),
   {
@@ -115,6 +111,10 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
               mapboxAccessToken={MAPBOX_TOKEN}
               style={{ width: "100%", height: "100%" }}
               mapStyle="mapbox://styles/mapbox/dark-v11"
+
+              // [FIX CRÍTICO]: PROYECCIÓN MERCATOR
+              projection="mercator"
+
               reuseMaps={true}
               antialias={true}
               attributionControl={false}
