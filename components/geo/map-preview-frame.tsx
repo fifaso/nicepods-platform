@@ -1,7 +1,7 @@
 // components/geo/map-preview-frame.tsx
-// VERSIÓN: 9.0 (NicePod GO-Preview - Real-Time Discovery Edition)
-// Misión: Ventana táctica fotorrealista que rastrea y centra al Voyager en tiempo real.
-// [ESTABILIZACIÓN]: Integración de telemetría activa y auto-vuelo hacia la ubicación real.
+// VERSIÓN: 9.1 (NicePod GO-Preview - Build Safe Edition)
+// Misión: Ventana táctica fotorrealista que rastrea y centra al Voyager.
+// [ESTABILIZACIÓN]: Resolución de advertencia de dependencias ESLint y sincronía de imports.
 
 "use client";
 
@@ -12,7 +12,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Compass, Loader2, Maximize2, Zap } from "lucide-react";
 
 // --- INFRAESTRUCTURA CORE ---
-import { cn } from "@/lib/utils";
+import { cn, nicepodLog } from "@/lib/utils";
 import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { UserLocationMarker } from "./user-location-marker";
 import { MapMarkerCustom } from "./map-marker-custom";
@@ -58,7 +58,7 @@ const PHOTOREALISTIC_STYLE = "mapbox://styles/mapbox/satellite-streets-v12";
 export const MapPreviewFrame = memo(function MapPreviewFrame() {
   const containerRef = useRef<HTMLDivElement>(null);
   const geoEngine = useGeoEngine();
-  const { userLocation, nearbyPOIs, activePOI } = geoEngine;
+  const { userLocation, nearbyPOIs, activePOI, initSensors } = geoEngine;
 
   const [isVisible, setIsVisible] = useState<boolean>(false);
   const [isIdleReady, setIsIdleReady] = useState<boolean>(false);
@@ -66,7 +66,6 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
 
   /**
    * 1. PROTOCOLO DE SEGURIDAD MATEMÁTICA
-   * Asegura que el contenedor tenga dimensiones antes de activar WebGL.
    */
   useEffect(() => {
     if (!containerRef.current) return;
@@ -84,12 +83,11 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
 
   /**
    * 2. CONFIGURACIÓN DE CÁMARA DINÁMICA
-   * [MEJORA]: Centra la cámara en el usuario si la localización está disponible.
    */
   const initialViewState = useMemo(() => ({
     latitude: userLocation?.latitude || 40.4167,
     longitude: userLocation?.longitude || -3.7037,
-    zoom: 15.2, // Zoom ligeramente más inmersivo para el Dashboard
+    zoom: 15.2,
     pitch: 75,
     bearing: -15
   }), [userLocation]);
@@ -121,16 +119,15 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
       if ('requestIdleCallback' in window) {
         (window as any).requestIdleCallback(() => {
           setIsIdleReady(true);
-          // Al despertar, solicitamos una actualización de sensores para el Dashboard
-          geoEngine.initSensors();
+          initSensors();
         }, { timeout: 3000 });
       } else {
         setIsIdleReady(true);
-        geoEngine.initSensors();
+        initSensors();
       }
-    }, 500); // Agilidad mejorada
+    }, 500);
     return () => clearTimeout(timer);
-  }, [isVisible]);
+  }, [isVisible, initSensors]);
 
   const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
 
@@ -167,7 +164,6 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
               attributionControl={false}
               fog={fogConfig}
             >
-              {/* I. EL VOYAGER (Dashboard Avatar) */}
               {userLocation && (
                 <UserLocationMarker 
                   location={userLocation} 
@@ -175,7 +171,6 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
                 />
               )}
 
-              {/* II. MALLA DE ECOS CERCANOS */}
               {nearbyPOIs?.map((poi: PointOfInterest) => (
                 <MapMarkerCustom
                   key={poi.id}
@@ -185,8 +180,8 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
                   category_id={poi.category_id}
                   name={poi.name}
                   isResonating={activePOI?.id === poi.id.toString() && activePOI?.isWithinRadius}
-                  isSelected={false} // En el preview no hay selección para ahorrar recursos
-                  onClick={() => {}} // Redirección vía el botón de expansión
+                  isSelected={false}
+                  onClick={() => {}}
                 />
               ))}
             </MapEngine>
@@ -215,7 +210,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
             <h3 className="text-white font-black text-sm md:text-xl uppercase tracking-tighter italic leading-none drop-shadow-lg">
               Madrid <span className="text-primary">Resonance</span>
             </h3>
-            <p className="text-[8px] md:text-[9px] text-zinc-300 font-bold uppercase tracking-[0.3em] mt-1.5 group-hover/btn:text-primary transition-colors">
+            <p className="text-[8px] md:text-[9px] text-zinc-300 font-bold uppercase tracking-[0.3em] mt-1.5 group-hover/btn:text-primary transition-colors drop-shadow-md">
               Explorar Mapa en Vivo
             </p>
           </div>
@@ -230,13 +225,3 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
     </motion.div>
   );
 });
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT (V9.0):
- * 1. Sincronía T0: El Dashboard ahora nace intentando localizar al usuario 
- *    mediante 'geoEngine.initSensors()'.
- * 2. Monitor de Cercanía: Al integrar 'UserLocationMarker' y 'MapMarkerCustom', 
- *    el Voyager puede ver su entorno inmediato sin salir del Dashboard.
- * 3. Inmunidad a Colisiones: Se ha mantenido la proyección 'mercator' y el 'Safe Mount' 
- *    para asegurar que el widget sea estable incluso en conexiones intermitentes.
- */
