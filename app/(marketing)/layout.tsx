@@ -1,18 +1,42 @@
 // app/(marketing)/layout.tsx
-// VERSIÓN: 1.1 (NicePod Marketing Architecture - Structural Parity Edition)
-// Misión: Orquestar el bastidor de la landing page eliminando el salto de contenido (CLS).
-// [ESTABILIZACIÓN]: Sincronización de paddings con el chasis operativo y activación de transiciones.
+// VERSIÓN: 2.0 (NiceCore V2.6 - Global Sensory Anchor & Marketing Parity Edition)
+// Misión: Orquestar el bastidor de la landing page con soporte total para la Malla WebGL.
+// [ESTABILIZACIÓN]: Inyección de GeoEngineProvider para prevenir colapsos de contexto en modo Invitado.
 
-import { Navigation } from "@/components/navigation";
-import { PageTransition } from "@/components/system/page-transition";
 import React from "react";
 
+// --- INFRAESTRUCTURA DE NAVEGACIÓN Y ACCESO ---
 /**
- * MarketingLayout: El bastidor de primer impacto para NicePod V2.5.
+ * Navigation: Componente de mando fijo (fixed) con z-index: 100.
+ * Este componente es inteligente; adapta su UI si el usuario es un invitado.
+ */
+import { Navigation } from "@/components/navigation";
+
+// --- COMPONENTES DE SALIDA Y ANIMACIÓN ---
+/**
+ * PageTransition: Gestiona la entrada cinemática de las rutas.
+ * SmoothScrollWrapper: Otorga inercia nativa al scroll de la landing.
+ */
+import { PageTransition } from "@/components/system/page-transition";
+import { SmoothScrollWrapper } from "@/components/system/smooth-scroll-wrapper";
+
+// --- CONTEXTOS DE INTELIGENCIA Y TELEMETRÍA ---
+/**
+ * [SHIELD CRÍTICO]: GeoEngineProvider
+ * Envolvemos el layout de marketing con el motor de sensores. Aunque el usuario 
+ * no esté logueado, esto permite que componentes públicos interactúen con el 
+ * mapa (modo EXPLORE) sin causar un 'Fatal React Context Error'.
+ */
+import { GeoEngineProvider } from "@/hooks/use-geo-engine";
+
+/**
+ * COMPONENTE: MarketingLayout
+ * El bastidor de primer impacto para los Voyagers no registrados.
  * 
- * Este layout es el encargado de recibir a los nuevos curadores y testigos urbanos.
- * Para eliminar el pestañeo, debe compartir la misma geometría base que el 
- * resto de la Workstation, garantizando que la Navigation no desplace el DOM.
+ * [RESPONSABILIDAD ARQUITECTÓNICA]:
+ * 1. Paridad Visual: Mantiene exactamente la misma estructura de paddings que 
+ *    el PlatformLayout para eliminar saltos de contenido (CLS).
+ * 2. Inmunidad Sensorial: Permite renderizar ecos urbanos en la portada.
  */
 export default function MarketingLayout({
   children
@@ -21,56 +45,66 @@ export default function MarketingLayout({
 }) {
   return (
     <div className="relative flex flex-col min-h-screen">
-
+      
       {/* 
-          CAPA 1: Navegación Táctica (Invitado/Explorador)
-          Incluimos la Navigation de forma explícita. El componente detectará 
-          que el usuario no tiene sesión y mostrará los controles de 'Explorar' 
-          y 'Planes', pero ocupando el mismo espacio físico que en el Dashboard.
+          CAPA 1: RED NEURONAL SENSORIAL (GeoEngineProvider)
+          [MEJORA ESTRATÉGICA]: Si en el futuro añadimos un 'MapPreviewFrame' 
+          a la Landing Page para mostrar actividad en vivo, este provider 
+          garantiza que el motor WebGL encuentre su contexto de ejecución.
       */}
-      <Navigation />
-
-      {/* 
-          CAPA 2: Contenedor Maestro de Marketing
-          [INGENIERÍA DE SINCRO]: 
-          Bloqueamos el 'pt' (padding-top) exactamente igual que en PlatformLayout.
-          - pt-[80px] en móvil.
-          - md:pt-[100px] en desktop.
-          Esto mata el pestañeo de posición cuando el usuario refresca la landing.
-      */}
-      <main
-        className="relative z-10 flex-grow flex flex-col pt-[96px] md:pt-[100px]"
-      >
+      <GeoEngineProvider>
 
         {/* 
-            CAPA 3: Orquestador de Entrada Visual
-            Usamos PageTransition para que el contenido de la landing (Hero, Universos)
-            nazca con el mismo fade-in que el Dashboard, creando una sensación de
-            ecosistema único y profesional.
+            CAPA 2: CONTROL DE DESPLAZAMIENTO (Smooth Scroll)
+            Proporciona la inercia premium esperada en una landing industrial.
         */}
-        <PageTransition>
-          <div className="w-full flex-grow flex flex-col">
-            {children}
-          </div>
-        </PageTransition>
+        <SmoothScrollWrapper>
 
-      </main>
+          {/* 
+              CAPA 3: NAVEGACIÓN TÁCTICA (Header Fijo)
+              Se renderiza en el top del DOM para asegurar su anclaje visual.
+          */}
+          <Navigation />
 
-      {/* 
-          FOOTER DE MARCA (Placeholder para futura expansión):
-          Se mantiene fuera del flujo de PageTransition para actuar como 
-          ancla estática en el scroll.
-      */}
+          {/* 
+              CAPA 4: CONTENEDOR MAESTRO DE MARKETING
+              Bloqueamos el 'padding-top' exactamente igual que en PlatformLayout.
+              Esto mata el pestañeo de posición cuando el usuario refresca.
+          */}
+          <main
+            className="relative z-10 flex-grow flex flex-col pt-[84px] md:pt-[100px]"
+          >
+
+            {/* 
+                CAPA 5: ORQUESTADOR DE MOVIMIENTO (Page Transitions)
+                Sincroniza la entrada y salida de contenido (Opacity 0 -> 1).
+            */}
+            <PageTransition>
+              <div className="w-full flex-grow flex flex-col">
+                {children}
+              </div>
+            </PageTransition>
+
+          </main>
+
+          {/* 
+              FOOTER DE MARCA (Placeholder para futura expansión)
+          */}
+        </SmoothScrollWrapper>
+
+      </GeoEngineProvider>
     </div>
   );
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT:
- * La Versión 1.0 no incluía el componente <Navigation />. Esto causaba un 
- * conflicto de jerarquía: el RootLayout ponía el fondo, pero el contenido 
- * de la landing aparecía pegado al techo del navegador. Cuando React 
- * hidrataba, la Navigation aparecía de golpe, empujando todo el contenido 
- * hacia abajo. Con esta cirugía, el espacio superior está pre-asignado 
- * y el 'pestañeo' de movimiento desaparece por completo.
+ * NOTA TÉCNICA DEL ARCHITECT (V2.0):
+ * 1. Prevención de Colapsos: La inclusión del 'GeoEngineProvider' en esta capa es 
+ *    la cura definitiva para el error "useGeoEngine debe ser invocado dentro de 
+ *    un GeoEngineProvider nominal" que derribó la plataforma en el último despliegue.
+ * 2. Economía de Recursos: Aunque el Provider está montado, el hardware de GPS no se
+ *    encenderá (initSensors) a menos que un componente hijo lo solicite explícitamente, 
+ *    por lo que no hay consumo innecesario de batería para el invitado.
+ * 3. Experiencia Fluida: Se ha añadido el 'SmoothScrollWrapper' para mantener la 
+ *    paridad de interacción táctil entre el interior y el exterior de la bóveda.
  */
