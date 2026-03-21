@@ -6,19 +6,20 @@
 "use client";
 
 import {
+  Activity,
   AlertCircle,
   BookOpen,
+  CheckCircle2,
   ChevronLeft,
   Clock,
+  Cpu,
   Loader2,
   Sparkles,
   Wand2,
-  Zap,
-  Cpu,
-  CheckCircle2
+  Zap
 } from "lucide-react";
-import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useCallback, useState } from "react";
 
 // --- INFRAESTRUCTURA DE ESTADO Y MOTOR ---
 import { useGeoEngine } from "@/hooks/use-geo-engine";
@@ -52,7 +53,7 @@ export function StepNarrativeForge() {
   const router = useRouter();
   const { state, dispatch, prevStep } = useForge();
   const { synthesizeNarrative, status: engineStatus, data: engineData } = useGeoEngine();
-  
+
   const [error, setError] = useState<string | null>(null);
 
   const isSynthesizing = engineStatus === 'SYNTHESIZING';
@@ -92,7 +93,7 @@ export function StepNarrativeForge() {
 
       // Redirección soberana: Limpiamos el stack para forzar el refresco de la malla activa
       router.replace('/map');
-      
+
     } catch (err: any) {
       nicepodLog("🔥 [Forja] El Oráculo ha fallado.", err.message, 'error');
       setError(err.message || "Fallo en la conexión con el Agente 42.");
@@ -104,10 +105,10 @@ export function StepNarrativeForge() {
 
       {/* --- I. CABECERA TÁCTICA --- */}
       <div className="px-6 flex items-center justify-between">
-        <Button 
-          variant="ghost" 
-          onClick={prevStep} 
-          disabled={isSynthesizing} 
+        <Button
+          variant="ghost"
+          onClick={prevStep}
+          disabled={isSynthesizing}
           className="rounded-full h-12 w-12 p-0 bg-white/5 border border-white/10 text-zinc-400 hover:text-white transition-all"
         >
           <ChevronLeft size={24} />
@@ -119,7 +120,7 @@ export function StepNarrativeForge() {
       </div>
 
       <div className="px-8 space-y-12">
-        
+
         {/* --- II. DIRECCIÓN EDITORIAL (EL MATIZ) --- */}
         <div className="space-y-4">
           <div className="flex items-center gap-3 px-2 opacity-40">
@@ -142,7 +143,7 @@ export function StepNarrativeForge() {
 
         {/* --- III. PARÁMETROS DE INTELIGENCIA --- */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-          
+
           {/* SECTOR: PROFUNDIDAD */}
           <div className="space-y-5">
             <span className="text-[9px] font-black uppercase tracking-[0.5em] text-zinc-600 px-2 flex items-center gap-2">
@@ -158,8 +159,8 @@ export function StepNarrativeForge() {
                     onClick={() => dispatch({ type: 'SET_DEPTH', payload: opt.id })}
                     className={cn(
                       "flex flex-col items-center justify-center p-4 rounded-3xl border transition-all duration-500 group",
-                      isActive 
-                        ? "bg-white text-black border-white shadow-[0_0_30px_rgba(255,255,255,0.1)] scale-105" 
+                      isActive
+                        ? "bg-white text-black border-white shadow-[0_0_30px_rgba(255,255,255,0.1)] scale-105"
                         : "bg-white/[0.02] border-white/5 text-zinc-500 hover:border-white/20 hover:bg-white/[0.05]"
                     )}
                   >
@@ -187,8 +188,8 @@ export function StepNarrativeForge() {
                     onClick={() => dispatch({ type: 'SET_TONE', payload: opt.id })}
                     className={cn(
                       "h-14 rounded-2xl border text-[9px] font-black uppercase tracking-widest transition-all duration-500",
-                      isActive 
-                        ? "bg-white text-black border-white shadow-xl" 
+                      isActive
+                        ? "bg-white text-black border-white shadow-xl"
                         : "bg-white/[0.02] border-white/5 text-zinc-600 hover:text-zinc-300 hover:border-white/10"
                     )}
                   >
@@ -225,7 +226,7 @@ export function StepNarrativeForge() {
           >
             {/* Efecto de escaneo Aurora */}
             <div className="absolute inset-0 bg-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out" />
-            
+
             <span className="relative z-10 flex items-center justify-center gap-5 text-xl italic">
               {isSynthesizing ? (
                 <>
@@ -244,9 +245,9 @@ export function StepNarrativeForge() {
           {/* INDICADOR DE SEGURIDAD */}
           <div className="flex flex-col items-center gap-6 mt-16 pb-10">
             <div className="flex items-center gap-4 opacity-20">
-               <div className="h-[1px] w-12 bg-white" />
-               <CheckCircle2 size={16} />
-               <div className="h-[1px] w-12 bg-white" />
+              <div className="h-[1px] w-12 bg-white" />
+              <CheckCircle2 size={16} />
+              <div className="h-[1px] w-12 bg-white" />
             </div>
             <p className="text-[8px] font-black text-zinc-700 uppercase tracking-[0.8em] text-center">
               NicePod Security Protocol • Verified Authority

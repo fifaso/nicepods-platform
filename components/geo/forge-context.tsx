@@ -37,7 +37,7 @@ export type ForgeStep =
 export interface ForgeState {
   currentStep: ForgeStep;
   isSubmitting: boolean;
-  isTranscribing: boolean; 
+  isTranscribing: boolean;
 
   // Fase 1: Anclaje Geográfico (Soberanía GPS)
   latitude: number | null;
@@ -47,17 +47,17 @@ export interface ForgeState {
   resonanceRadius: number;
 
   // Fase 2: Evidencia Física
-  heroImageFile: File | null;       
-  ocrImageFiles: File[];            
+  heroImageFile: File | null;
+  ocrImageFiles: File[];
   ambientAudioBlob: Blob | null;    // Paisaje sonoro in situ.
   intentAudioBlob: Blob | null;     // Binario de voz para el Escriba.
 
   // Fase 3: Inteligencia Materializada (Retorno del Ingestor)
-  ingestedPoiId: number | null;     
-  ingestionDossier: IngestionDossier | null; 
+  ingestedPoiId: number | null;
+  ingestionDossier: IngestionDossier | null;
 
   // Fase 4: Configuración Editorial (El Oráculo Urbano)
-  intentText: string;               
+  intentText: string;
   depth: 'flash' | 'cronica' | 'inmersion';
   tone: 'academico' | 'misterioso' | 'epico' | 'melancolico' | 'neutro';
   historicalFact: string;           // Matiz específico para la forja final.
@@ -77,8 +77,8 @@ type ForgeAction =
   | { type: 'SET_CATEGORY'; payload: string }
   | { type: 'SET_RADIUS'; payload: number }
   | { type: 'SET_HERO_IMAGE'; payload: File | null }
-  | { type: 'ADD_OCR_IMAGE'; payload: File } 
-  | { type: 'REMOVE_OCR_IMAGE'; payload: number } 
+  | { type: 'ADD_OCR_IMAGE'; payload: File }
+  | { type: 'REMOVE_OCR_IMAGE'; payload: number }
   | { type: 'SET_AMBIENT_AUDIO'; payload: Blob | null }
   | { type: 'SET_INTENT_AUDIO'; payload: Blob | null }
   | { type: 'SET_INGESTION_RESULT'; payload: { poiId: number; dossier: IngestionDossier } }
@@ -98,7 +98,7 @@ const initialState: ForgeState = {
   categoryId: 'historia',
   resonanceRadius: 35,
   heroImageFile: null,
-  ocrImageFiles: [], 
+  ocrImageFiles: [],
   ambientAudioBlob: null,
   intentAudioBlob: null,
   ingestedPoiId: null,
@@ -227,6 +227,10 @@ export function useForge() {
     throw new Error("useForge debe ser invocado dentro de un ForgeProvider nominal.");
   }
   return context;
+}
+
+function nicepodLog(message: string) {
+  console.log(`[NiceCore] ${message}`);
 }
 
 /**
