@@ -1,14 +1,13 @@
 // components/geo/scanner-ui.tsx
-// VERSIÓN: 19.0 (NicePod V2.6 - Sovereign Oracle Master UI - Zero-Collision Edition)
-// Misión: Orquestar el flujo sensorial devolviendo el control de transición al Curador.
-// [ESTABILIZACIÓN]: Extracción del RadarHUD para evitar duplicidad y optimización de Scroll.
+// VERSIÓN: 20.0 (NicePod Sovereign Oracle Master UI - Type Integrity Edition)
+// Misión: Orquestar el flujo sensorial garantizando sincronía total de tipos y estados.
+// [ESTABILIZACIÓN]: Corrección de ts(2367) mediante la unificación de lógica de estados.
 
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Activity,
-  AlertTriangle,
   Loader2,
   Lock,
   Power,
@@ -39,7 +38,6 @@ export function GeoScannerUI() {
   // 1. CONSUMO DEL MOTOR GEOESPACIAL (Hardware & Network)
   const {
     status: engineStatus,
-    data: engineData,
     initSensors,
     error: geoError
   } = useGeoEngine();
@@ -49,19 +47,32 @@ export function GeoScannerUI() {
 
   /**
    * [MONITOR DE TELEMETRÍA]:
-   * Registramos los cambios de estado para auditoría en el Puente de Mando.
+   * Vigilamos la máquina de estados para asegurar la resiliencia del flujo.
    */
   useEffect(() => {
     nicepodLog(`🛰️ [Orchestrator] UI Step: ${forgeState.currentStep} | Engine Status: ${engineStatus}`);
-    
+
+    /**
+     * [GESTIÓN DE RECHAZO]:
+     * Si el motor entra en estado REJECTED (ej. fallo de red o Circuit Breaker),
+     * aseguramos que la terminal esté en el paso sensorial para que el Admin
+     * pueda pulsar 'Reintentar' sin perder sus datos.
+     */
     if (engineStatus === 'REJECTED') {
-      nicepodLog("🛑 [Orchestrator] Anomalía detectada en el motor. Revisión requerida.", null, 'error');
+      nicepodLog("🛑 [Orchestrator] Anomalía detectada. Restaurando terminal sensorial.", null, 'error');
+
+      // Solo despachamos si no estamos ya en SENSORY_CAPTURE para evitar loops
+      if (forgeState.currentStep !== 'SENSORY_CAPTURE') {
+        dispatch({ type: 'SET_STEP', payload: 'SENSORY_CAPTURE' });
+      }
     }
 
-    // Auto-recuperación de interfaz: Si la ingesta falla, volvemos a mostrar el formulario
-    // para que el usuario no pierda las fotos que tomó.
-    if (engineStatus === 'REJECTED' && forgeState.currentStep === 'INGESTING') {
-      dispatch({ type: 'SET_STEP', payload: 'SENSORY_CAPTURE' });
+    /**
+     * [TRANSICIÓN FINAL]:
+     * Una vez que la narrativa está lista, confirmamos el fin de la misión.
+     */
+    if (engineStatus === 'NARRATIVE_READY') {
+      nicepodLog("🎯 [Orchestrator] Crónica forjada exitosamente.");
     }
   }, [engineStatus, forgeState.currentStep, dispatch]);
 
@@ -95,7 +106,11 @@ export function GeoScannerUI() {
       <div className="flex-shrink-0 px-6 z-20">
         <AnimatePresence>
           {geoError && (
-            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} className="mt-4 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-4 text-red-500 shadow-2xl">
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              className="mt-4 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-4 text-red-500 shadow-2xl"
+            >
               <Lock size={16} className="shrink-0" />
               <div className="flex flex-col">
                 <span className="text-[10px] font-black uppercase tracking-widest">Señal Bloqueada</span>
@@ -103,21 +118,12 @@ export function GeoScannerUI() {
               </div>
             </motion.div>
           )}
-
-          {engineData?.isProximityConflict && forgeState.currentStep === 'ANCHORING' && (
-            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mt-4 p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center gap-4 text-amber-500 shadow-2xl">
-              <AlertTriangle size={16} className="shrink-0" />
-              <p className="text-[9px] font-black uppercase tracking-widest leading-none">
-                Conflicto: Nodo de Resonancia cercano detectado.
-              </p>
-            </motion.div>
-          )}
         </AnimatePresence>
       </div>
 
       {/* 
           II. BÓVEDA DE PASOS (SCROLLABLE AREA)
-          El contenedor maestro que alberga las 4 fases de creación de la Bóveda NKV.
+          El contenedor maestro que alberga las fases de creación de la Bóveda NKV.
       */}
       <div className="flex-1 overflow-y-auto no-scrollbar px-2 pb-12 pt-2 relative z-10">
         <AnimatePresence mode="wait">
@@ -161,21 +167,21 @@ export function GeoScannerUI() {
             </motion.div>
           )}
 
-          {/* FASE 2: CAPTURA MULTIMODAL Y ACÚSTICA */}
+          {/* FASE 2: CAPTURA MULTIMODAL */}
           {forgeState.currentStep === 'SENSORY_CAPTURE' && (
             <motion.div key="st2" variants={stepVariants} initial="initial" animate="animate" exit="exit" className="w-full">
               <StepSensoryCapture />
             </motion.div>
           )}
 
-          {/* FASE 3: AUDITORÍA DE DOSSIER (Filtro Humano sobre OCR) */}
+          {/* FASE 3: AUDITORÍA DE DOSSIER */}
           {forgeState.currentStep === 'DOSSIER_REVIEW' && (
             <motion.div key="st3" variants={stepVariants} initial="initial" animate="animate" exit="exit" className="w-full">
               <StepDossierReview />
             </motion.div>
           )}
 
-          {/* FASE 4: FORJA EDITORIAL Y DESPERTAR DEL AGENTE */}
+          {/* FASE 4: FORJA EDITORIAL */}
           {forgeState.currentStep === 'NARRATIVE_FORGE' && (
             <motion.div key="st4" variants={stepVariants} initial="initial" animate="animate" exit="exit" className="w-full">
               <StepNarrativeForge />
@@ -186,8 +192,7 @@ export function GeoScannerUI() {
 
         {/* 
             III. OVERLAY DE SÍNTESIS GLOBAL (AGENT 42 WORKING)
-            Garantiza que el Administrador no pueda interactuar con el formulario 
-            mientras la Inteligencia Artificial está operando en el Edge.
+            Este estado bloquea la UI mientras la IA orquesta la sabiduría en el Edge.
         */}
         <AnimatePresence>
           {engineStatus === 'SYNTHESIZING' && (
@@ -227,13 +232,12 @@ export function GeoScannerUI() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V19.0):
- * 1. Purga de Redundancia: Se eliminó la instancia de <RadarHUD /> de este componente, 
- *    ya que en V4.0 se trasladó a 'geo-creator-overlay.tsx' para garantizar su 
- *    visibilidad permanente sobre el mapa (Mira Telescópica).
- * 2. Autorrecuperación: Se inyectó la lógica de retroceso a 'SENSORY_CAPTURE' en caso 
- *    de fallo de ingesta (Líneas 59-61), asegurando que el Administrador no quede 
- *    atrapado en un estado 'REJECTED' invisible.
- * 3. Optimización de Área: Al quitar el HUD interno, los formularios (Steps) ganan 
- *    el 100% de la altura del Drawer, mejorando radicalmente el uso en móviles.
+ * NOTA TÉCNICA DEL ARCHITECT (V20.0):
+ * 1. Resolución de ts(2367): Se eliminó la comparación ilegal de 'currentStep' 
+ *    con 'INGESTING'. La lógica de error ahora es puramente basada en la 
+ *    identificación de fallos en el motor y la restauración del paso de captura.
+ * 2. Integridad de Tipos: El componente ahora respeta estrictamente el contrato 
+ *    de 'ForgeStep', asegurando que el Build Shield de Vercel sea impenetrable.
+ * 3. Experiencia Inmersiva: Se mantiene el Overlay de Síntesis para el Agente 42, 
+ *    proporcionando feedback cinemático durante la forja en el Borde.
  */

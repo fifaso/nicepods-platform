@@ -1,30 +1,66 @@
 // components/geo/SpatialEngine.tsx
-// VERSIÓN: 6.1 (NicePod GO-Engine - The Immersive Calibration)
-// Misión: Silenciar el ruido comercial y aplicar segregación visual estricta (Explore vs Forge).
+// VERSIÓN: 6.2 (NicePod GO-Engine - Photorealistic & Sovereign Shield Edition)
+// Misión: Renderizado 3D inmersivo, fotorrealista y blindado contra errores de tipos.
+// [ESTABILIZACIÓN]: Resolución de ts(2709) y ts(2304) mediante Contratos Locales y Restauración de Estados.
 
 "use client";
 
 import "mapbox-gl/dist/mapbox-gl.css";
-import React, { useCallback, useMemo, useRef, useState, useEffect } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from "react";
 
-import Map, { 
-  Layer, 
-  NavigationControl, 
-  GeolocateControl 
+// --- MOTOR CARTOGRÁFICO (SUB-PATH EXPLÍCITO PARA VERCEL) ---
+import Map, {
+  GeolocateControl,
+  Layer,
+  NavigationControl
 } from 'react-map-gl/mapbox';
 
-import type { MapRef, ViewStateChangeEvent, MapLayerMouseEvent } from 'react-map-gl';
 import { AnimatePresence } from "framer-motion";
 
+// --- INFRAESTRUCTURA DE DOMINIO SOBERANO ---
 import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { cn } from "@/lib/utils";
 import { PointOfInterest } from "@/types/geo-sovereignty";
 
-import { MapMarkerCustom } from "./map-marker-custom";
-import { UserLocationMarker } from "./user-location-marker";
-import { POIPreviewCard } from "./poi-preview-card";
+// --- COMPONENTES DE MALLA TÁCTICA ---
 import { UnifiedSearchBar } from "@/components/ui/unified-search-bar";
 import { SearchResult } from "@/hooks/use-search-radar";
+import { MapMarkerCustom } from "./map-marker-custom";
+import { POIPreviewCard } from "./poi-preview-card";
+import { UserLocationMarker } from "./user-location-marker";
+
+/**
+ * ---------------------------------------------------------------------------
+ * I. [BUILD SHIELD]: CONTRATOS LOCALES ESTRICTOS
+ * ---------------------------------------------------------------------------
+ * Erradicamos ts(2709) definiendo las interfaces localmente. 
+ * Esto nos hace inmunes a la inestabilidad de tipos de react-map-gl v8.
+ */
+interface NicePodMapMoveEvent {
+  viewState: {
+    latitude: number;
+    longitude: number;
+    zoom: number;
+    pitch: number;
+    bearing: number;
+  };
+}
+
+interface NicePodMapClickEvent {
+  lngLat: {
+    lng: number;
+    lat: number;
+  };
+}
+
+// Extracción del tipo de instancia para el MapRef
+type MapRefInstance = React.ElementRef<typeof Map>;
 
 interface SpatialEngineProps {
   mode: 'EXPLORE' | 'FORGE';
@@ -32,20 +68,39 @@ interface SpatialEngineProps {
   className?: string;
 }
 
-type MapRefInstance = React.ElementRef<typeof Map>;
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
+const PHOTOREALISTIC_STYLE = "mapbox://styles/mapbox/satellite-streets-v12";
+const DARK_IMMERSIVE_STYLE = "mapbox://styles/mapbox/dark-v11";
 
+const FLY_CONFIG = {
+  duration: 2000,
+  essential: true,
+  curve: 1.42,
+  easing: (t: number) => t * (2 - t)
+};
+
+/**
+ * SpatialEngine: El motor visual fotorrealista de NicePod.
+ */
 export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngineProps) {
-  
+
+  // 1. REFERENCIAS DE HARDWARE Y CONTEXTOS
   const mapRef = useRef<MapRefInstance>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const geoEngine = useGeoEngine();
 
+  // 2. ESTADOS DE INTERACCIÓN Y CARGA
   const [selectedPOIId, setSelectedPOIId] = useState<string | null>(null);
   const [isMapLoaded, setIsMapLoaded] = useState<boolean>(false);
   const [isContainerReady, setIsContainerReady] = useState<boolean>(false);
 
-  // Safe Mount Observer
+  // [FIX ts(2304)]: Restauración del estado de carga para el Radar
+  const [isSearchLoading, setIsSearchLoading] = useState<boolean>(false);
+
+  /**
+   * PROTOCOLO DE SEGURIDAD MATEMÁTICA (Safe Mount)
+   * Asegura que el mapa solo se inicialice cuando el contenedor tiene dimensiones.
+   */
   useEffect(() => {
     if (!containerRef.current) return;
     const resizeObserver = new ResizeObserver((entries) => {
@@ -61,17 +116,17 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   }, []);
 
   /**
-   * CÁMARA SEGREGADA: 
-   * Forge = Alta precisión cenital. Explore = Inmersión profunda.
+   * CONFIGURACIÓN DE CÁMARA "GO-EXPERIENCE"
    */
   const [viewState, setViewState] = useState({
     latitude: geoEngine.userLocation?.latitude || 40.4167,
     longitude: geoEngine.userLocation?.longitude || -3.7037,
     zoom: mode === 'FORGE' ? 18.5 : 15.8,
-    pitch: mode === 'FORGE' ? 0 : 70, // EXPLORE fuerza la mirada al frente
+    pitch: mode === 'FORGE' ? 0 : 70,
     bearing: mode === 'FORGE' ? 0 : -15,
   });
 
+  // Sincronía T0 con el GPS del Voyager
   useEffect(() => {
     if (geoEngine.userLocation && mode === 'FORGE' && !isMapLoaded) {
       setViewState(prev => ({
@@ -82,14 +137,16 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
     }
   }, [geoEngine.userLocation, mode, isMapLoaded]);
 
+  /**
+   * PROTOCOLOS DE VUELO (CÁMARA TÁCTICA)
+   */
   const flyToPosition = useCallback((lng: number, lat: number, zoomLevel = 17) => {
     if (mapRef.current) {
       mapRef.current.flyTo({
         center: [lng, lat],
         zoom: zoomLevel,
-        duration: 2000,
-        essential: true,
-        pitch: mode === 'EXPLORE' ? 70 : 0 // Mantiene la inmersión tras volar
+        ...FLY_CONFIG,
+        pitch: mode === 'EXPLORE' ? 70 : 0
       });
     }
   }, [mode]);
@@ -103,7 +160,9 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
     }
   }, [flyToPosition]);
 
-  // ATMÓSFERA SOBERANA
+  /**
+   * ATMÓSFERA SOBERANA
+   */
   const fogConfig = useMemo(() => ({
     "range": [0.5, 10],
     "color": "#020202",
@@ -114,8 +173,7 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   }), []);
 
   /**
-   * CAPA ARQUITECTÓNICA: Edificios de "Cristal de Obsidiana"
-   * Solo se activan en modo EXPLORE.
+   * CAPA ARQUITECTÓNICA 3D (Cristal de Obsidiana)
    */
   const buildingLayerConfig = useMemo(() => ({
     id: "3d-buildings",
@@ -125,63 +183,67 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
     type: "fill-extrusion",
     minzoom: 14,
     paint: {
-      "fill-extrusion-color": "#050505", // Negro abismal
+      "fill-extrusion-color": "#050505",
       "fill-extrusion-height": ["get", "height"],
       "fill-extrusion-base": ["get", "min_height"],
-      "fill-extrusion-opacity": 0.7, // Translúcido para ver los Ecos a través
+      "fill-extrusion-opacity": 0.7,
     },
   }), []);
 
-  const handleMove = useCallback((event: ViewStateChangeEvent) => {
+  // --- MANEJADORES DE EVENTOS SOBERANOS ---
+
+  const handleMove = useCallback((event: NicePodMapMoveEvent) => {
     setViewState(event.viewState);
   }, []);
 
-  const handleMapClick = useCallback((event: MapLayerMouseEvent) => {
+  const handleMapClick = useCallback((event: NicePodMapClickEvent) => {
     if (mode !== 'FORGE' || !onManualAnchor) return;
-    const lngLat: [number, number] = [event.lngLat.lng, event.lngLat.lat];
-    if (typeof window !== "undefined" && navigator.vibrate) navigator.vibrate([10, 30, 10]);
-    onManualAnchor(lngLat);
-  }, [mode, onManualAnchor]);
 
-  const mappedSelectedPOI = useMemo(() => {
-    if (!selectedPOIId || !geoEngine.nearbyPOIs) return null;
-    const rawPoi = geoEngine.nearbyPOIs.find(p => p.id.toString() === selectedPOIId);
-    if (!rawPoi) return null;
-    return {
-      id: rawPoi.id.toString(),
-      name: rawPoi.name,
-      category: rawPoi.category_id, 
-      historical_fact: rawPoi.historical_fact || undefined,
-      cover_image_url: rawPoi.gallery_urls?.[0] || undefined 
-    };
-  }, [selectedPOIId, geoEngine.nearbyPOIs]);
+    const lngLat: [number, number] = [event.lngLat.lng, event.lngLat.lat];
+
+    if (typeof window !== "undefined" && navigator.vibrate) {
+      navigator.vibrate([10, 30, 10]);
+    }
+
+    onManualAnchor(lngLat);
+    flyToPosition(lngLat[0], lngLat[1], 19);
+  }, [mode, onManualAnchor, flyToPosition]);
 
   /**
-   * [PROTOCOLO DE SILENCIO]: Evento 'onLoad' para purgar el mapa
-   * Elimina todas las etiquetas genéricas (tiendas, hoteles, transporte).
+   * [PROTOCOLO DE SILENCIO URBANO]
    */
   const onMapLoad = useCallback((e: any) => {
     setIsMapLoaded(true);
     const map = e.target;
-    
-    // Si estamos en modo EXPLORE, apagamos el ruido de la ciudad.
     if (mode === 'EXPLORE') {
       const layers = map.getStyle().layers;
       layers.forEach((layer: any) => {
-        // Apuntamos a las capas de texto (símbolos) de Mapbox
-        if (layer.type === 'symbol' && layer.id.includes('poi')) {
-          map.setLayoutProperty(layer.id, 'visibility', 'none');
-        }
-        if (layer.type === 'symbol' && layer.id.includes('transit')) {
+        if (layer.type === 'symbol' && (layer.id.includes('poi') || layer.id.includes('transit'))) {
           map.setLayoutProperty(layer.id, 'visibility', 'none');
         }
       });
     }
   }, [mode]);
 
+  const mappedSelectedPOI = useMemo(() => {
+    if (!selectedPOIId || !geoEngine.nearbyPOIs || geoEngine.nearbyPOIs.length === 0) return null;
+
+    const rawPoi = geoEngine.nearbyPOIs.find(p => p.id.toString() === selectedPOIId);
+    if (!rawPoi) return null;
+
+    return {
+      id: rawPoi.id.toString(),
+      name: rawPoi.name,
+      category: rawPoi.category_id,
+      historical_fact: rawPoi.historical_fact || undefined,
+      cover_image_url: rawPoi.gallery_urls?.[0] || undefined
+    };
+  }, [selectedPOIId, geoEngine.nearbyPOIs]);
+
   return (
     <div ref={containerRef} className={cn("w-full h-full relative bg-[#010101]", className)}>
-      
+
+      {/* HUD DE BÚSQUEDA SOBERANA */}
       {mode === 'EXPLORE' && (
         <div className="absolute top-6 left-4 right-4 z-[100] md:top-8 md:left-8 md:w-[400px]">
           <UnifiedSearchBar
@@ -204,37 +266,25 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
           onClick={handleMapClick as any}
           onLoad={onMapLoad}
           mapboxAccessToken={MAPBOX_TOKEN}
-          
-          // ESTILO SEGREGADO: Satélite para precisión (Admin), Dark para inmersión (Voyager)
-          mapStyle={mode === 'FORGE' ? "mapbox://styles/mapbox/satellite-streets-v12" : "mapbox://styles/mapbox/dark-v11"}
-          
-          projection="mercator" 
-          
-          // El terreno 3D solo se activa en EXPLORE para evitar fallos de Z-fighting con el satélite
+          mapStyle={mode === 'FORGE' ? PHOTOREALISTIC_STYLE : DARK_IMMERSIVE_STYLE}
+
+          // [SHIELD]: Prevención de colapso de matrices
+          projection="mercator"
           terrain={mode === 'EXPLORE' ? { source: 'mapbox-dem', exaggeration: 1.2 } : undefined}
-          
           fog={mode === 'EXPLORE' ? fogConfig as any : undefined}
+
           antialias={true}
           reuseMaps={true}
-          
-          // Restricciones de cámara según modo
-          minPitch={mode === 'EXPLORE' ? 45 : 0}
-          maxPitch={80} 
+          maxPitch={80}
           attributionControl={false}
         >
-          
-          {/* El punto azul nativo de Mapbox SE APAGA para usar nuestro Avatar */}
-          <GeolocateControl 
-            positionOptions={{ enableHighAccuracy: true }} 
-            trackUserLocation={true} 
-            showUserLocation={false} // OCULTA EL PUNTO AZUL GENÉRICO
-            className="hidden" 
-          />
+
+          <GeolocateControl showUserLocation={false} className="hidden" />
 
           {geoEngine.userLocation && (
-            <UserLocationMarker 
-              location={geoEngine.userLocation} 
-              isResonating={!!geoEngine.activePOI?.isWithinRadius} 
+            <UserLocationMarker
+              location={geoEngine.userLocation}
+              isResonating={!!geoEngine.activePOI?.isWithinRadius}
             />
           )}
 
@@ -258,18 +308,20 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
             />
           ))}
 
-          {/* Renderizado Arquitectónico Condicional */}
           {isMapLoaded && mode === 'EXPLORE' && (
             <Layer {...buildingLayerConfig as any} />
           )}
 
+          <div className="absolute bottom-10 right-4 flex flex-col gap-4 z-40">
+            <NavigationControl showCompass={false} className="!bg-black/60 !backdrop-blur-xl !border-white/10 !rounded-2xl" />
+          </div>
         </Map>
       )}
 
       <AnimatePresence>
         {mappedSelectedPOI && mode === 'EXPLORE' && (
-          <POIPreviewCard 
-            poi={mappedSelectedPOI} 
+          <POIPreviewCard
+            poi={mappedSelectedPOI}
             distance={geoEngine.activePOI?.id === selectedPOIId ? geoEngine.activePOI?.distance : null}
             isResonating={selectedPOIId === geoEngine.activePOI?.id && geoEngine.activePOI?.isWithinRadius}
             onClose={() => setSelectedPOIId(null)}
