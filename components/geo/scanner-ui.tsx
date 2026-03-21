@@ -1,7 +1,7 @@
 // components/geo/scanner-ui.tsx
-// VERSIÓN: 18.0 (NiceCore V2.6 - Seamless Transition & State Alignment Edition)
-// Misión: Orquestar el flujo de creación georreferenciada garantizando visibilidad continua.
-// [ESTABILIZACIÓN]: Resolución de 'Fase 3 Invisible' mediante el desacoplamiento de estados técnicos.
+// VERSIÓN: 19.0 (NicePod V2.6 - Sovereign Oracle Master UI - Zero-Collision Edition)
+// Misión: Orquestar el flujo sensorial devolviendo el control de transición al Curador.
+// [ESTABILIZACIÓN]: Extracción del RadarHUD para evitar duplicidad y optimización de Scroll.
 
 "use client";
 
@@ -15,12 +15,11 @@ import {
   ShieldAlert,
   Zap
 } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 
 // --- INFRAESTRUCTURA DE ESTADO Y MOTOR SOBERANO (V10.0) ---
 import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { useForge } from "./forge-context";
-import { RadarHUD } from "./radar-hud";
 
 // --- COMPONENTES ESPECIALISTAS (STEPPER V2.6) ---
 import { StepAnchoring } from "@/components/geo/steps/step-1-anchoring";
@@ -34,32 +33,19 @@ import { nicepodLog } from "@/lib/utils";
 /**
  * COMPONENTE: GeoScannerUI
  * El centro de control maestro para la siembra de capital intelectual en Madrid.
+ * Este componente vive dentro del Drawer generado por GeoCreatorOverlay.
  */
 export function GeoScannerUI() {
   // 1. CONSUMO DEL MOTOR GEOESPACIAL (Hardware & Network)
   const {
     status: engineStatus,
     data: engineData,
-    userLocation,
     initSensors,
     error: geoError
   } = useGeoEngine();
 
   // 2. CONSUMO DE MEMORIA DE FORJA (Human Intent)
-  const { state: forgeState } = useForge();
-
-  /**
-   * RESOLUCIÓN DE IDENTIDAD NOMINATIVA (Cascada de Verdad)
-   * Prioridad: Intención Editada > Nombre Manual > Detección IA > Placeholder
-   */
-  const displayName = useMemo(() => {
-    return (
-      forgeState.intentText ||
-      engineData?.manualPlaceName ||
-      engineData?.dossier?.visual_analysis_dossier?.detectedOfficialName ||
-      "Sincronizando Malla..."
-    );
-  }, [forgeState.intentText, engineData]);
+  const { state: forgeState, dispatch } = useForge();
 
   /**
    * [MONITOR DE TELEMETRÍA]:
@@ -71,10 +57,17 @@ export function GeoScannerUI() {
     if (engineStatus === 'REJECTED') {
       nicepodLog("🛑 [Orchestrator] Anomalía detectada en el motor. Revisión requerida.", null, 'error');
     }
-  }, [engineStatus, forgeState.currentStep]);
+
+    // Auto-recuperación de interfaz: Si la ingesta falla, volvemos a mostrar el formulario
+    // para que el usuario no pierda las fotos que tomó.
+    if (engineStatus === 'REJECTED' && forgeState.currentStep === 'INGESTING') {
+      dispatch({ type: 'SET_STEP', payload: 'SENSORY_CAPTURE' });
+    }
+  }, [engineStatus, forgeState.currentStep, dispatch]);
 
   /**
    * stepVariants: Coreografía de transición industrial.
+   * Diseñada para mantener la fluidez a 60fps durante el cambio de fases.
    */
   const stepVariants = {
     initial: { x: 30, opacity: 0, filter: "blur(8px)" },
@@ -96,51 +89,40 @@ export function GeoScannerUI() {
     <div className="flex flex-col h-full w-full max-w-3xl mx-auto relative selection:bg-primary/30 min-h-0">
 
       {/* 
-          I. HUD DE TELEMETRÍA (AVIONICS) 
-          Visible en todo momento (excepto en IDLE) para mantener conciencia situacional.
+          I. GESTIÓN DE ALERTAS DE HARDWARE Y CONFLICTOS
+          Estas alertas flotan sobre los pasos si el GPS falla o si hay un nodo muy cerca.
       */}
-      {engineStatus !== 'IDLE' && (
-        <div className="flex-shrink-0 mb-4 px-6 pt-4 z-20">
-          <RadarHUD
-            status={engineStatus}
-            weather={engineData?.dossier?.weather_snapshot}
-            place={displayName}
-            accuracy={userLocation?.accuracy || 0}
-          />
+      <div className="flex-shrink-0 px-6 z-20">
+        <AnimatePresence>
+          {geoError && (
+            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} className="mt-4 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-4 text-red-500 shadow-2xl">
+              <Lock size={16} className="shrink-0" />
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black uppercase tracking-widest">Señal Bloqueada</span>
+                <span className="text-[8px] font-bold uppercase opacity-60 leading-relaxed">{geoError}</span>
+              </div>
+            </motion.div>
+          )}
 
-          <AnimatePresence>
-            {/* ALERTAS DE HARDWARE */}
-            {geoError && (
-              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} className="mt-4 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-4 text-red-500 shadow-2xl">
-                <Lock size={16} className="shrink-0" />
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-black uppercase tracking-widest">Señal Bloqueada</span>
-                  <span className="text-[8px] font-bold uppercase opacity-60 leading-relaxed">{geoError}</span>
-                </div>
-              </motion.div>
-            )}
-
-            {/* GUARDIA DE PROXIMIDAD */}
-            {engineData?.isProximityConflict && forgeState.currentStep === 'ANCHORING' && (
-              <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mt-4 p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center gap-4 text-amber-500 shadow-2xl">
-                <AlertTriangle size={16} className="shrink-0" />
-                <p className="text-[9px] font-black uppercase tracking-widest leading-none">
-                  Conflicto: Nodo de Resonancia cercano detectado.
-                </p>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      )}
+          {engineData?.isProximityConflict && forgeState.currentStep === 'ANCHORING' && (
+            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mt-4 p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center gap-4 text-amber-500 shadow-2xl">
+              <AlertTriangle size={16} className="shrink-0" />
+              <p className="text-[9px] font-black uppercase tracking-widest leading-none">
+                Conflicto: Nodo de Resonancia cercano detectado.
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       {/* 
           II. BÓVEDA DE PASOS (SCROLLABLE AREA)
-          Implementación del protocolo de renderizado garantizado.
+          El contenedor maestro que alberga las 4 fases de creación de la Bóveda NKV.
       */}
       <div className="flex-1 overflow-y-auto no-scrollbar px-2 pb-12 pt-2 relative z-10">
         <AnimatePresence mode="wait">
 
-          {/* FASE 0: ACTIVACIÓN DE SENSORES */}
+          {/* FASE 0: IGNICIÓN DE SENSORES */}
           {engineStatus === 'IDLE' && (
             <motion.div
               key="idle_activation"
@@ -179,21 +161,21 @@ export function GeoScannerUI() {
             </motion.div>
           )}
 
-          {/* FASE 2: CAPTURA MULTIMODAL */}
+          {/* FASE 2: CAPTURA MULTIMODAL Y ACÚSTICA */}
           {forgeState.currentStep === 'SENSORY_CAPTURE' && (
             <motion.div key="st2" variants={stepVariants} initial="initial" animate="animate" exit="exit" className="w-full">
               <StepSensoryCapture />
             </motion.div>
           )}
 
-          {/* FASE 3: AUDITORÍA DE DOSSIER (La Verdad de la Piedra) */}
+          {/* FASE 3: AUDITORÍA DE DOSSIER (Filtro Humano sobre OCR) */}
           {forgeState.currentStep === 'DOSSIER_REVIEW' && (
             <motion.div key="st3" variants={stepVariants} initial="initial" animate="animate" exit="exit" className="w-full">
               <StepDossierReview />
             </motion.div>
           )}
 
-          {/* FASE 4: FORJA EDITORIAL (Despertar del Oráculo) */}
+          {/* FASE 4: FORJA EDITORIAL Y DESPERTAR DEL AGENTE */}
           {forgeState.currentStep === 'NARRATIVE_FORGE' && (
             <motion.div key="st4" variants={stepVariants} initial="initial" animate="animate" exit="exit" className="w-full">
               <StepNarrativeForge />
@@ -203,9 +185,9 @@ export function GeoScannerUI() {
         </AnimatePresence>
 
         {/* 
-            III. CAPA DE SÍNTESIS (INTELLIGENCE OVERLAY)
-            [MEJORA]: Sustituimos el paso de UI por un overlay dinámico.
-            Garantiza que el Administrador vea el progreso sin perder el renderizado base.
+            III. OVERLAY DE SÍNTESIS GLOBAL (AGENT 42 WORKING)
+            Garantiza que el Administrador no pueda interactuar con el formulario 
+            mientras la Inteligencia Artificial está operando en el Edge.
         */}
         <AnimatePresence>
           {engineStatus === 'SYNTHESIZING' && (
@@ -245,13 +227,13 @@ export function GeoScannerUI() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V18.0):
- * 1. Aniquilación de Pantallas en Blanco: Al centralizar el renderizado en los 
- *    4 pasos de decisión humana y delegar los estados de red a overlays, el 
- *    componente ya no devuelve null durante la ingesta.
- * 2. Transición Cinematográfica: El uso de 'AnimatePresence' con 'mode="wait"' 
- *    asegura que el Step anterior se desvanezca completamente antes de que el 
- *    siguiente (Fase 3) aparezca, manteniendo la inmersión táctil.
- * 3. Sincronía del Oráculo: La integración de la nomenclatura 'Agente 42' y el 
- *    estado 'SYNTHESIZING' alinea la UI con el cerebro narrativo del Edge.
+ * NOTA TÉCNICA DEL ARCHITECT (V19.0):
+ * 1. Purga de Redundancia: Se eliminó la instancia de <RadarHUD /> de este componente, 
+ *    ya que en V4.0 se trasladó a 'geo-creator-overlay.tsx' para garantizar su 
+ *    visibilidad permanente sobre el mapa (Mira Telescópica).
+ * 2. Autorrecuperación: Se inyectó la lógica de retroceso a 'SENSORY_CAPTURE' en caso 
+ *    de fallo de ingesta (Líneas 59-61), asegurando que el Administrador no quede 
+ *    atrapado en un estado 'REJECTED' invisible.
+ * 3. Optimización de Área: Al quitar el HUD interno, los formularios (Steps) ganan 
+ *    el 100% de la altura del Drawer, mejorando radicalmente el uso en móviles.
  */
