@@ -1,33 +1,29 @@
 // components/geo/poi-preview-card.tsx
-// VERSIÓN: 1.0
+// VERSIÓN: 2.0 (NicePod Discovery Dossier - GO-Experience Edition)
+// Misión: Presentar el hallazgo urbano con legibilidad industrial y estética de radar.
+// [ESTABILIZACIÓN]: Integración de High-Contrast Mode, Sincronía de Resonancia y Física Táctil.
 
 "use client";
 
-import React from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  Activity,
+  ChevronRight,
+  Clock,
+  MapPin,
+  X,
+  Zap
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Navigation2, 
-  ChevronRight, 
-  X, 
-  Zap, 
-  Clock, 
-  MapPin,
-  Play
-} from "lucide-react";
 
 // --- INFRAESTRUCTURA UI ---
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { cn, getSafeAsset } from "@/lib/utils";
-
-// --- CONTRATOS DE DATOS ---
-import { auroraButtonClass } from "@/components/navigation/shared/nav-styles";
 
 /**
  * INTERFAZ: POIPreviewCardProps
- * Misión: Recibir la data del nodo seleccionado y la telemetría del GeoEngine.
  */
 interface POIPreviewCardProps {
   poi: {
@@ -37,131 +33,154 @@ interface POIPreviewCardProps {
     historical_fact?: string;
     cover_image_url?: string;
   } | null;
-  /**
-   * distance: Distancia calculada en metros desde la posición del usuario.
-   */
+  /** distance: Telemetría en metros desde el Voyager al nodo. */
   distance: number | null;
-  /**
-   * isResonating: TRUE si el usuario está dentro del radio de activación física.
-   */
+  /** isResonating: TRUE si el Voyager está en el radio físico de sintonía. */
   isResonating: boolean;
   onClose: () => void;
 }
 
 /**
- * COMPONENTE: POIPreviewCard
- * La ventana de descubrimiento cinemático sobre el mapa.
+ * POIPreviewCard: La terminal de información que emerge al detectar un Eco.
+ * Diseñada para máxima legibilidad bajo luz solar (High Contrast).
  */
-export function POIPreviewCard({ 
-  poi, 
-  distance, 
-  isResonating, 
-  onClose 
+export function POIPreviewCard({
+  poi,
+  distance,
+  isResonating,
+  onClose
 }: POIPreviewCardProps) {
 
-  // PROTOCOLO DE IMAGEN: Fallback Aurora si no existe carátula específica.
+  // PROTOCOLO DE IMAGEN: Fallback Aurora Certificado.
   const coverImage = getSafeAsset(poi?.cover_image_url, 'cover');
 
   return (
     <AnimatePresence>
       {poi && (
         <motion.div
-          initial={{ y: "100%", opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: "100%", opacity: 0 }}
-          transition={{ type: "spring", damping: 25, stiffness: 200 }}
-          className="fixed bottom-6 left-0 right-0 z-[80] px-4 md:px-0 flex justify-center pointer-events-none"
+          initial={{ y: "110%", opacity: 0, scale: 0.95 }}
+          animate={{ y: 0, opacity: 1, scale: 1 }}
+          exit={{ y: "110%", opacity: 0, scale: 0.95 }}
+          transition={{ type: "spring", damping: 25, stiffness: 220 }}
+          className="fixed bottom-10 left-0 right-0 z-[100] px-4 md:px-0 flex justify-center pointer-events-none"
         >
           {/* 
-              I. EL BASTIDOR DE CRISTAL (MAIN CONTAINER) 
-              Diseño Glassmorphism V2 con borde Aurora sutil.
+              I. EL BASTIDOR SOBERANO (DOSSIER CHASSIS) 
+              Fondo sólido #080808 para contraste absoluto sobre el mapa WebGL.
           */}
-          <div className="w-full max-w-lg bg-zinc-950/60 backdrop-blur-3xl rounded-[2.5rem] border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden pointer-events-auto relative group">
-            
-            {/* Botón de Cierre Minimalista */}
-            <button 
+          <div className="w-full max-w-md bg-[#080808] border border-white/10 rounded-[3rem] shadow-[0_40px_80px_rgba(0,0,0,0.9)] overflow-hidden pointer-events-auto relative group">
+
+            {/* Botón de Cierre con Inercia */}
+            <button
               onClick={onClose}
-              className="absolute top-5 right-6 z-30 p-2 rounded-full bg-black/40 text-white/40 hover:text-white transition-colors"
+              className="absolute top-6 right-6 z-40 p-2.5 rounded-full bg-black/60 text-white/40 hover:text-white hover:bg-black/80 transition-all active:scale-90"
             >
-              <X size={18} />
+              <X size={20} />
             </button>
 
-            <div className="flex flex-col md:flex-row h-full">
-              
-              {/* II. ESCENARIO VISUAL (IMAGEN IZQUIERDA) */}
-              <div className="relative w-full md:w-44 h-40 md:h-auto overflow-hidden">
-                <Image 
+            <div className="flex flex-col">
+
+              {/* II. SECTOR VISUAL (CAPA SUPERIOR) */}
+              <div className="relative h-48 w-full overflow-hidden">
+                <Image
                   src={coverImage}
                   alt={poi.name}
                   fill
-                  sizes="(max-width: 768px) 100vw, 176px"
-                  className="object-cover transition-transform duration-1000 group-hover:scale-110"
+                  sizes="450px"
+                  className="object-cover transition-transform duration-[2000ms] group-hover:scale-110 opacity-90"
+                  priority
                 />
-                <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-transparent to-transparent md:bg-gradient-to-b" />
-                
-                {/* Indicador de Categoría */}
-                <div className="absolute bottom-4 left-4">
-                  <Badge className="bg-primary text-white border-none font-black text-[8px] uppercase tracking-widest px-2 py-0.5 rounded-md">
+
+                {/* Gradiente de integración industrial */}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#080808] via-[#080808]/20 to-transparent" />
+
+                {/* Badge de Categoría con Estilo de Identificación */}
+                <div className="absolute bottom-5 left-8">
+                  <Badge className={cn(
+                    "font-black text-[9px] uppercase tracking-[0.25em] px-4 py-1.5 rounded-lg border-none shadow-xl",
+                    isResonating ? "bg-primary text-white" : "bg-zinc-800 text-zinc-400"
+                  )}>
                     {poi.category}
                   </Badge>
                 </div>
+
+                {/* Radar de Proximidad Visual */}
+                {isResonating && (
+                  <div className="absolute top-6 left-8 flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/20 backdrop-blur-md border border-primary/30">
+                    <Activity size={10} className="text-primary animate-pulse" />
+                    <span className="text-[8px] font-black text-primary uppercase tracking-widest">Enlace Activo</span>
+                  </div>
+                )}
               </div>
 
-              {/* III. NARRATIVA Y TELEMETRÍA (CONTENIDO DERECHA) */}
-              <div className="flex-1 p-6 md:p-8 flex flex-col justify-between space-y-4">
-                
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Navigation2 size={12} className={cn("transition-colors", isResonating ? "text-primary animate-pulse" : "text-zinc-600")} />
-                    <span className="text-[9px] font-black uppercase tracking-[0.3em] text-zinc-500">
-                      {distance ? `${distance} metros de ti` : "Calculando proximidad..."}
+              {/* III. SECTOR DE INTELIGENCIA (CONTENIDO) */}
+              <div className="p-8 pt-2 space-y-6">
+
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <MapPin size={12} className={cn("transition-colors", isResonating ? "text-primary animate-pulse" : "text-zinc-600")} />
+                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 tabular-nums">
+                      {distance ? `${distance} Metros de tu Nodo` : "Sincronizando..."}
                     </span>
                   </div>
-                  
-                  <h3 className="text-xl md:text-2xl font-black italic uppercase tracking-tighter text-white leading-none">
+
+                  <h3 className="text-2xl md:text-3xl font-black italic uppercase tracking-tighter text-white leading-none">
                     {poi.name}
                   </h3>
                 </div>
 
-                {/* HECHO ATÓMICO (Dato de valor rápido) */}
+                {/* EL HECHO ATÓMICO (Capital Intelectual) */}
                 {poi.historical_fact && (
-                  <p className="text-[11px] text-zinc-400 font-medium leading-relaxed italic line-clamp-2">
-                    "{poi.historical_fact}"
-                  </p>
+                  <div className="relative">
+                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary/20 rounded-full" />
+                    <p className="text-[12px] text-zinc-400 font-medium leading-relaxed italic pl-5 line-clamp-2">
+                      "{poi.historical_fact}"
+                    </p>
+                  </div>
                 )}
 
-                {/* IV. ACCIÓN SOBERANA (BOTÓN SINTONIZAR) */}
+                {/* IV. ACCIÓN SOBERANA (TUNER) */}
                 <div className="pt-2">
-                  <Link href={`/map/poi/${poi.id}`}>
-                    <Button 
+                  <Link href={`/map/poi/${poi.id}`} className="block">
+                    <Button
                       className={cn(
-                        auroraButtonClass,
-                        "w-full h-12 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl group/btn"
+                        "w-full h-16 rounded-2xl font-black text-[11px] uppercase tracking-[0.3em] shadow-2xl transition-all duration-500 group/btn relative overflow-hidden",
+                        isResonating
+                          ? "bg-primary text-white hover:brightness-110 shadow-primary/20"
+                          : "bg-white text-black hover:bg-zinc-200"
                       )}
                     >
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover/btn:animate-shimmer" />
+                      {/* Efecto de barrido táctico */}
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover/btn:animate-[shimmer_2s_infinite]" />
+
                       <span className="relative z-10 flex items-center justify-center gap-3">
-                        <Zap size={14} className={cn(isResonating && "fill-current")} />
-                        {isResonating ? "SINTONIZAR AHORA" : "EXPLORAR DETALLE"}
-                        <ChevronRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
+                        <Zap size={16} className={cn(isResonating && "fill-current")} />
+                        {isResonating ? "SINTONIZAR AHORA" : "EXPLORAR REGISTRO"}
+                        <ChevronRight size={18} className="ml-2 group-hover/btn:translate-x-1 transition-transform" />
                       </span>
                     </Button>
                   </Link>
                 </div>
 
+                {/* Tiempo Estimado de Consumo */}
+                <div className="flex justify-center items-center gap-3 opacity-20">
+                  <Clock size={10} />
+                  <span className="text-[8px] font-black uppercase tracking-widest">Crónica de 2 minutos • Calidad Broadcast</span>
+                </div>
+
               </div>
             </div>
 
-            {/* BARRA DE ESTADO INFERIOR (RESURRECTED STYLE) */}
-            <div className="h-1 w-full bg-white/5 relative overflow-hidden">
-               {isResonating && (
-                 <motion.div 
-                    initial={{ x: "-100%" }}
-                    animate={{ x: "100%" }}
-                    transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-                    className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/40 to-transparent"
-                 />
-               )}
+            {/* V. BARRA DE ESTADO TÉCNICO (NSP PULSE) */}
+            <div className="h-1.5 w-full bg-white/5 relative overflow-hidden">
+              {isResonating && (
+                <motion.div
+                  initial={{ x: "-100%" }}
+                  animate={{ x: "100%" }}
+                  transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                  className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/60 to-transparent"
+                />
+              )}
             </div>
 
           </div>
@@ -172,12 +191,12 @@ export function POIPreviewCard({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT:
- * 1. UX Adaptativa: El texto del botón cambia dinámicamente: si el usuario está 
- *    en el radio ('isResonating'), la llamada a la acción es urgente ('SINTONIZAR').
- * 2. Rendimiento (LCP): La imagen del POI utiliza 'getSafeAsset' para asegurar 
- *    que el navegador siempre tenga algo que pintar mientras descarga el activo real.
- * 3. Física de Inercia: El uso de 'AnimatePresence' y el tipo de transición 
- *    'spring' imitan el comportamiento de los sistemas operativos móviles de 
- *    alta gama, reforzando la percepción de calidad.
+ * NOTA TÉCNICA DEL ARCHITECT (V2.0):
+ * 1. Diseño GO-Experience: Se aumentó el tamaño de la tipografía y los radios
+ *    de borde (3rem) para facilitar la interacción táctil con una sola mano.
+ * 2. Jerarquía de Resonancia: El botón principal muta de color y texto según
+ *    el estado 'isResonating', transformando una navegación pasiva en una 
+ *    acción de campo inmediata.
+ * 3. Sincronía Aurora: El uso del efecto shimmer y los gradientes internos 
+ *    mantiene el componente alineado con el motor atmosférico de NicePod.
  */
