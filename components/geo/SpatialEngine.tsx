@@ -1,7 +1,7 @@
 // components/geo/SpatialEngine.tsx
-// VERSIÓN: 5.1 (NicePod GO-Engine - Sovereign Contract Edition)
-// Misión: Centralizar el renderizado 3D inmersivo garantizando un Build Shield impenetrable.
-// [ESTABILIZACIÓN]: Erradicación de ts(18046) mediante Contratos Locales Estrictos (Zero-Unknown).
+// VERSIÓN: 5.3 (NicePod GO-Engine - Ultimate Monolithic Edition)
+// Misión: Centralizar el renderizado 3D inmersivo erradicando fallos de compilación.
+// [ESTABILIZACIÓN]: Restauración completa de lógica de búsqueda, flyTo y bypass de Vercel.
 
 "use client";
 
@@ -14,12 +14,12 @@ import React, {
   useState
 } from "react";
 
-// --- MOTOR CARTOGRÁFICO (COMPONENTES) ---
+// --- MOTOR CARTOGRÁFICO (SUB-PATH EXPLÍCITO PARA VERCEL) ---
 import Map, {
   GeolocateControl,
   Layer,
   NavigationControl
-} from 'react-map-gl';
+} from 'react-map-gl/mapbox';
 
 import { AnimatePresence } from "framer-motion";
 
@@ -28,7 +28,9 @@ import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { cn } from "@/lib/utils";
 import { PointOfInterest } from "@/types/geo-sovereignty";
 
-// --- COMPONENTES DE MALLA TÁCTICA ---
+// --- COMPONENTES DE VUELO Y MALLA TÁCTICA ---
+import { UnifiedSearchBar } from "@/components/ui/unified-search-bar";
+import { SearchResult } from "@/hooks/use-search-radar";
 import { MapMarkerCustom } from "./map-marker-custom";
 import { POIPreviewCard } from "./poi-preview-card";
 import { UserLocationMarker } from "./user-location-marker";
@@ -37,11 +39,7 @@ import { UserLocationMarker } from "./user-location-marker";
  * ---------------------------------------------------------------------------
  * [BUILD SHIELD]: CONTRATOS LOCALES ESTRICTOS
  * ---------------------------------------------------------------------------
- * Aniquilamos los errores ts(2709) y ts(18046) definiendo exactamente 
- * la estructura de datos que esperamos recibir de la librería externa.
- * Esto nos hace inmunes a cambios en las definiciones de react-map-gl.
  */
-
 interface NicePodMapMoveEvent {
   viewState: {
     latitude: number;
@@ -61,9 +59,6 @@ interface NicePodMapClickEvent {
 
 type MapRefInstance = React.ElementRef<typeof Map>;
 
-/**
- * INTERFAZ: SpatialEngineProps
- */
 interface SpatialEngineProps {
   mode: 'EXPLORE' | 'FORGE';
   onManualAnchor?: (lngLat: [number, number]) => void;
@@ -72,10 +67,13 @@ interface SpatialEngineProps {
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
 
-/**
- * SpatialEngine: La cara visual de NicePod V2.6.
- * Implementa la 'Experiencia GO' con pitch de 75° y atmósfera dinámica v3.
- */
+const FLY_CONFIG = {
+  duration: 2000,
+  essential: true,
+  curve: 1.42,
+  easing: (t: number) => t * (2 - t)
+};
+
 export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngineProps) {
 
   // 1. REFERENCIAS DE HARDWARE WEBGL
@@ -85,6 +83,7 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   // 2. ESTADOS DE INTERACCIÓN
   const [selectedPOIId, setSelectedPOIId] = useState<string | null>(null);
   const [isMapLoaded, setIsMapLoaded] = useState<boolean>(false);
+  const [isSearchLoading, setIsSearchLoading] = useState<boolean>(false);
 
   /**
    * CONFIGURACIÓN DE CÁMARA "GO-EXPERIENCE"
@@ -97,7 +96,6 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
     bearing: -12,
   });
 
-  // Sincronía T0 con el GPS del Voyager
   useEffect(() => {
     if (geoEngine.userLocation && mode === 'FORGE' && !isMapLoaded) {
       setViewState(prev => ({
@@ -107,6 +105,28 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
       }));
     }
   }, [geoEngine.userLocation, mode, isMapLoaded]);
+
+  /**
+   * PROTOCOLOS DE VUELO (CÁMARA TÁCTICA)
+   */
+  const flyToPosition = useCallback((lng: number, lat: number, zoomLevel = 17) => {
+    if (mapRef.current) {
+      mapRef.current.flyTo({
+        center: [lng, lat],
+        zoom: zoomLevel,
+        ...FLY_CONFIG
+      });
+    }
+  }, []);
+
+  const handleSearchResult = useCallback((results: SearchResult[] | null) => {
+    if (results && results.length > 0) {
+      const topHit = results[0];
+      if (topHit.metadata?.lat && topHit.metadata?.lng) {
+        flyToPosition(topHit.metadata.lng, topHit.metadata.lat, 17);
+      }
+    }
+  }, [flyToPosition]);
 
   /**
    * ATMÓSFERA SOBERANA (Mapbox v3 Fog API)
@@ -121,7 +141,7 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   }), []);
 
   /**
-   * CAPA ARQUITECTÓNICA 3D (Cristalización de Madrid)
+   * CAPA ARQUITECTÓNICA 3D
    */
   const buildingLayerConfig = useMemo(() => ({
     id: "3d-buildings",
@@ -154,10 +174,11 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
     }
 
     onManualAnchor(lngLat);
-  }, [mode, onManualAnchor]);
+    flyToPosition(lngLat[0], lngLat[1], 19);
+  }, [mode, onManualAnchor, flyToPosition]);
 
   /**
-   * [DATA MAPPER]: Transformación de contrato estricto
+   * [DATA MAPPER]: Saneamiento del contrato hacia la tarjeta de preview.
    */
   const mappedSelectedPOI = useMemo(() => {
     if (!selectedPOIId || !geoEngine.nearbyPOIs) return null;
@@ -177,10 +198,25 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   return (
     <div className={cn("w-full h-full relative bg-[#010101]", className)}>
 
+      {/* --- HUD DE BÚSQUEDA SOBERANA (Solo Modo Explore) --- */}
+      {mode === 'EXPLORE' && (
+        <div className="absolute top-6 left-4 right-4 z-[100] md:top-8 md:left-8 md:w-[400px]">
+          <UnifiedSearchBar
+            variant="console"
+            placeholder="Rastrear ecos urbanos..."
+            latitude={viewState.latitude}
+            longitude={viewState.longitude}
+            onResults={handleSearchResult}
+            onLoading={setIsSearchLoading}
+            className="shadow-2xl"
+          />
+        </div>
+      )}
+
       <Map
         {...viewState}
-        ref={mapRef as any} // Ref interno seguro (Bypass de react-map-gl)
-        onMove={handleMove as any} // Delegación segura del evento de hardware al contrato local
+        ref={mapRef as any}
+        onMove={handleMove as any}
         onClick={handleMapClick as any}
         onLoad={() => setIsMapLoaded(true)}
         mapboxAccessToken={MAPBOX_TOKEN}
@@ -193,7 +229,6 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
         attributionControl={false}
       >
 
-        {/* I. EL VOYAGER (Centro de la Red Neuronal) */}
         {geoEngine.userLocation && (
           <UserLocationMarker
             location={geoEngine.userLocation}
@@ -201,7 +236,6 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
           />
         )}
 
-        {/* II. LA MALLA DE ECOS (Marcadores Flotantes) */}
         {geoEngine.nearbyPOIs?.map((poi: PointOfInterest) => (
           <MapMarkerCustom
             key={poi.id}
@@ -212,17 +246,21 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
             name={poi.name}
             isResonating={geoEngine.activePOI?.id === poi.id.toString() && geoEngine.activePOI?.isWithinRadius}
             isSelected={selectedPOIId === poi.id.toString()}
-            onClick={(id) => setSelectedPOIId(id)}
+            onClick={(id) => {
+              if (mode === 'EXPLORE') {
+                setSelectedPOIId(id);
+                const p = geoEngine.nearbyPOIs.find(item => item.id.toString() === id);
+                if (p) flyToPosition(p.geo_location.coordinates[0], p.geo_location.coordinates[1], 17);
+              }
+            }}
           />
         ))}
 
-        {/* III. CAPA DE EDIFICIOS 3D */}
         {isMapLoaded && (
           <Layer {...buildingLayerConfig as any} />
         )}
 
-        {/* IV. CONTROLES DE VUELO */}
-        <div className="absolute bottom-10 left-6 flex flex-col gap-4 z-40">
+        <div className="absolute bottom-10 right-4 flex flex-col gap-4 z-40">
           <NavigationControl showCompass={false} className="!bg-black/60 !backdrop-blur-xl !border-white/10 !rounded-2xl" />
           <GeolocateControl
             positionOptions={{ enableHighAccuracy: true }}
@@ -233,9 +271,8 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
 
       </Map>
 
-      {/* V. TARGETA DE HALLAZGO (Dossier GO) */}
       <AnimatePresence>
-        {mappedSelectedPOI && (
+        {mappedSelectedPOI && mode === 'EXPLORE' && (
           <POIPreviewCard
             poi={mappedSelectedPOI}
             distance={geoEngine.activePOI?.id === selectedPOIId ? geoEngine.activePOI?.distance : null}
@@ -248,13 +285,3 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
     </div>
   );
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT (V5.1):
- * 1. Independencia de Tipos: Al usar 'NicePodMapMoveEvent' y 'NicePodMapClickEvent', 
- *    el compilador analiza y valida el interior de las funciones sin lanzar errores 
- *    'unknown', restaurando el Build Shield.
- * 2. Puente Táctico (Líneas 163-165): Utilizamos un 'as any' controlado EXCLUSIVAMENTE 
- *    en el paso de props al componente externo <Map />. Esto permite que nuestro 
- *    código interno sea 100% tipado, mientras puenteamos la inestabilidad de la librería.
- */
