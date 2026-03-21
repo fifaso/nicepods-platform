@@ -1,6 +1,6 @@
 // components/geo/map-preview-frame.tsx
-// VERSIÓN: 7.4 (NicePod GO-Preview - The Mercator Shield Edition)
-// Misión: Ventana táctica 3D fluida e inmune a bucles de renderizado matricial.
+// VERSIÓN: 8.0 (NicePod GO-Preview - Safe Mount & Satellite Edition)
+// Misión: Ventana táctica fotorrealista inmune al colapso de hidratación.
 
 "use client";
 
@@ -26,7 +26,9 @@ interface MadridMapProps {
   attributionControl?: boolean;
   fog?: any;
   antialias?: boolean;
-  projection?: string; // Interfaz actualizada para soportar el Mercator Shield
+  projection?: string;
+  terrain?: any;
+  maxPitch?: number;
 }
 
 const MapEngine = dynamic<MadridMapProps>(
@@ -41,10 +43,31 @@ const MapEngine = dynamic<MadridMapProps>(
   }
 );
 
+const PHOTOREALISTIC_STYLE = "mapbox://styles/mapbox/satellite-streets-v12";
+
 export const MapPreviewFrame = memo(function MapPreviewFrame() {
   const containerRef = useRef<HTMLDivElement>(null);
+
   const [isVisible, setIsVisible] = useState<boolean>(false);
   const [isIdleReady, setIsIdleReady] = useState<boolean>(false);
+  const [isContainerReady, setIsContainerReady] = useState<boolean>(false);
+
+  /**
+   * PROTOCOLO DE SEGURIDAD MATEMÁTICA (Safe Mount Observer)
+   */
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.contentRect.width > 0 && entry.contentRect.height > 0) {
+          setIsContainerReady(true);
+          resizeObserver.disconnect();
+        }
+      }
+    });
+    resizeObserver.observe(containerRef.current);
+    return () => resizeObserver.disconnect();
+  }, []);
 
   const initialViewState = useMemo(() => ({
     latitude: 40.4167,
@@ -58,9 +81,9 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
     "range": [0.8, 8],
     "color": "#020202",
     "horizon-blend": 0.3,
-    "high-color": "#242b4b",
-    "space-color": "#010101",
-    "star-intensity": 0.1
+    "high-color": "#0f172a",
+    "space-color": "#000000",
+    "star-intensity": 0.4
   }), []);
 
   useEffect(() => {
@@ -99,21 +122,25 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
       )}
     >
       <AnimatePresence>
-        {isIdleReady ? (
+        {isIdleReady && isContainerReady ? (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 1.5 }}
-            className="absolute inset-0 grayscale-[0.2] opacity-60 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-1000"
+            className="absolute inset-0 grayscale-[0.3] opacity-70 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-1000"
           >
             <MapEngine
               initialViewState={initialViewState}
               mapboxAccessToken={MAPBOX_TOKEN}
               style={{ width: "100%", height: "100%" }}
-              mapStyle="mapbox://styles/mapbox/dark-v11"
 
-              // [FIX CRÍTICO]: PROYECCIÓN MERCATOR
+              // [SALTO FOTORREALISTA]
+              mapStyle={PHOTOREALISTIC_STYLE}
+
+              // [FIX MATEMÁTICO CRÍTICO]
               projection="mercator"
+              terrain={{ source: 'mapbox-dem', exaggeration: 1.2 }}
+              maxPitch={80}
 
               reuseMaps={true}
               antialias={true}
@@ -128,13 +155,13 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
               <div className="absolute inset-0 bg-primary/5 blur-2xl rounded-full animate-pulse" />
             </div>
             <span className="text-[8px] font-black uppercase tracking-[0.5em] text-zinc-800 animate-pulse">
-              Inicializando Malla 3D
+              Inicializando Satélite...
             </span>
           </div>
         )}
       </AnimatePresence>
 
-      <div className="absolute inset-0 bg-gradient-to-t from-[#020202] via-transparent to-transparent z-10 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-t from-[#020202] via-[#020202]/30 to-transparent z-10 pointer-events-none" />
 
       <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8 z-20 flex justify-between items-end pointer-events-none">
 
@@ -143,18 +170,18 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
             <Compass className="h-5 w-5 text-primary animate-spin-slow" />
           </div>
           <div className="flex flex-col">
-            <h3 className="text-white font-black text-sm md:text-xl uppercase tracking-tighter italic leading-none">
+            <h3 className="text-white font-black text-sm md:text-xl uppercase tracking-tighter italic leading-none drop-shadow-lg">
               Madrid <span className="text-primary">Resonance</span>
             </h3>
-            <p className="text-[8px] md:text-[9px] text-zinc-500 font-bold uppercase tracking-[0.3em] mt-1.5 group-hover/btn:text-primary transition-colors">
-              Navegar Malla Activa
+            <p className="text-[8px] md:text-[9px] text-zinc-300 font-bold uppercase tracking-[0.3em] mt-1.5 group-hover/btn:text-primary transition-colors drop-shadow-md">
+              Navegar Malla Satelital
             </p>
           </div>
         </Link>
 
         <Link href="/map" className="pointer-events-auto focus:outline-none mb-1">
-          <div className="bg-white/5 backdrop-blur-md p-3 rounded-xl border border-white/10 hover:bg-white/10 hover:text-white transition-all duration-500 group-hover:scale-110">
-            <Maximize2 size={14} className="text-white/20 transition-colors" />
+          <div className="bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/20 hover:bg-white/20 hover:text-white transition-all duration-500 group-hover:scale-110">
+            <Maximize2 size={14} className="text-white transition-colors" />
           </div>
         </Link>
       </div>
