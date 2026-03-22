@@ -1,7 +1,7 @@
 // app/layout.tsx
-// VERSIÓN: 30.1 (NicePod Architecture Core - Zero-Flicker & Sovereign Identity Edition)
-// Misión: Orquestar la infraestructura global, inyectar el Handshake T0 y aniquilar el Flicker.
-// [ESTABILIZACIÓN]: Implementación de Data Attributes para CSS Shielding y Sincronía de Roles SSR.
+// VERSIÓN: 31.0 (NicePod Architecture Core - The Global Umbrella Edition)
+// Misión: Orquestar la infraestructura global y garantizar la persistencia absoluta de Audio y GPS.
+// [ESTABILIZACIÓN]: Elevación de AudioProvider y GeoEngineProvider a la raíz del árbol DOM.
 
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
@@ -23,6 +23,11 @@ import { ThemeProvider } from "@/components/system/theme-provider";
 import { AuthProvider } from "@/hooks/use-auth";
 import { createClient } from '@/lib/supabase/server';
 import { Tables } from "@/types/database.types";
+
+// --- CONTEXTOS DE INTELIGENCIA Y TELEMETRÍA (ROOT ELEVATION) ---
+// [MEJORA ESTRATÉGICA]: Extracción desde PlatformLayout hacia la Raíz Absoluta.
+import { AudioProvider } from "@/contexts/audio-context";
+import { GeoEngineProvider } from "@/hooks/use-geo-engine";
 
 // Motor de Inmersión Visual (GPU-driven)
 import { BackgroundEngine } from "@/components/visuals/background-engine";
@@ -185,29 +190,38 @@ export default async function RootLayout({
 
               {/* 
                   CAPA 5: EL HANDSHAKE T0 (AuthProvider)
-                  Entregamos la sesión y el perfil al cliente. Como ya vienen 
-                  del SSR, el hook no disparará 'isInitialLoading', aniquilando 
-                  el parpadeo del Dashboard.
+                  Entregamos la sesión y el perfil al cliente síncronamente.
               */}
               <AuthProvider
                 initialSession={initialSession}
                 initialProfile={initialProfile}
               >
 
-                {/* --- ESCENARIO VISUAL NICEPOD V2.9 --- */}
-                <div className="min-h-screen relative overflow-x-hidden">
+                {/* 
+                    CAPA 6: RED SENSORIAL Y ACÚSTICA GLOBAL [NUEVO]
+                    Al colocar los Providers aquí (La Raíz), garantizamos que:
+                    A) El Audio no se corte al cambiar de página.
+                    B) El GPS no se reinicie al entrar o salir del Mapa a pantalla completa.
+                */}
+                <AudioProvider>
+                  <GeoEngineProvider>
 
-                  {/* CAPA ALFA: Fondo Dinámico GPU-driven */}
-                  <BackgroundEngine />
+                    {/* --- ESCENARIO VISUAL NICEPOD V2.9 --- */}
+                    <div className="min-h-screen relative overflow-x-hidden">
 
-                  {/* 
-                      CAPA BETA: El Chasis de Contenido (Z-10) 
-                  */}
-                  <div className="relative z-10 flex flex-col min-h-screen bg-transparent">
-                    {children}
-                  </div>
+                      {/* CAPA ALFA: Fondo Dinámico GPU-driven */}
+                      <BackgroundEngine />
 
-                </div>
+                      {/* CAPA BETA: El Chasis de Contenido (Z-10) */}
+                      <div className="relative z-10 flex flex-col min-h-screen bg-transparent">
+                        {children}
+                      </div>
+
+                    </div>
+
+                  </GeoEngineProvider>
+                </AudioProvider>
+
               </AuthProvider>
             </ThemeProvider>
           </ErrorBoundary>
@@ -218,15 +232,14 @@ export default async function RootLayout({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V30.1):
- * 1. Resiliencia SSR: Al cambiar '.single()' por '.maybeSingle()' en la consulta 
- *    del perfil (Línea 90), garantizamos que si el Trigger de Auth de Supabase 
- *    está demorado al crear un nuevo usuario, el Root Layout no lance un Error 500, 
- *    permitiendo que el AuthProvider maneje el estado de carga ('PGRST116').
- * 2. Inyección de Atributos de Soberanía: Al colocar 'data-user-role' en la etiqueta 
- *    html, abrimos la puerta para que en 'globals.css' podamos definir reglas como:
- *    [data-user-role="user"] .admin-only { display: none !important; }.
- *    Esto erradica el parpadeo de botones que aparecen y desaparecen por milisegundos.
- * 3. Consistencia JWT: La lectura del rol prioriza el JWT ('app_metadata') sobre la DB,
+ * NOTA TÉCNICA DEL ARCHITECT (V31.0):
+ * 1. Resiliencia SSR: Al usar '.maybeSingle()', garantizamos que si el Trigger 
+ *    de Auth de Supabase está demorado al crear un nuevo usuario, el Root Layout 
+ *    no lance un Error 500.
+ * 2. Inmortalidad de Estado (Root Elevation): Al extraer el AudioProvider y el 
+ *    GeoEngineProvider de los layouts secundarios y anclarlos aquí, hemos resuelto 
+ *    la fragmentación de la memoria volátil. Las rutas en '(platform)' y '/map' 
+ *    ahora beben de la misma fuente de verdad física.
+ * 3. Sincronía JWT: La lectura del rol prioriza el JWT ('app_metadata') sobre la DB,
  *    alineándose al 100% con la nueva política de 'middleware.ts'.
  */
