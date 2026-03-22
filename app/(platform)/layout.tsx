@@ -1,7 +1,7 @@
 // app/(platform)/layout.tsx
-// VERSIÓN: 2.3 (NiceCore V2.6 - Global Sensory Anchor Edition)
-// Misión: Proveer infraestructura de identidad y sensores a toda la plataforma logueada.
-// [ESTABILIZACIÓN]: Inyección de GeoEngineProvider para aniquilar el error de "Provider faltante".
+// VERSIÓN: 3.0 (NiceCore V2.6 - Visual Chassis Edition)
+// Misión: Proveer el enrutamiento visual y la aduana de seguridad para la plataforma interna.
+// [ESTABILIZACIÓN]: Extirpación de Providers redundantes (Audio/Geo) elevados al RootLayout.
 
 import React from "react";
 
@@ -32,18 +32,14 @@ import { PageTransition } from "@/components/system/page-transition";
 import { PlayerOrchestrator } from "@/components/player/player-orchestrator";
 import { Toaster } from "@/components/ui/toaster";
 
-// --- CONTEXTOS DE INTELIGENCIA Y TELEMETRÍA ---
-import { AudioProvider } from "@/contexts/audio-context";
-import { GeoEngineProvider } from "@/hooks/use-geo-engine"; // [FIX CRÍTICO]: Motor Sensorial Global
-
 /**
  * COMPONENTE: PlatformLayout
- * El chasis soberano para la experiencia de usuario logueado.
+ * El chasis soberano para la experiencia de usuario logueado en escritorio.
  * 
  * [RESPONSABILIDAD ARQUITECTÓNICA]:
- * 1. Persistencia: Mantiene vivos los sensores de GPS y el AudioProvider entre rutas.
- * 2. Transparencia: No inyecta fondos sólidos para dejar pasar la atmósfera Aurora.
- * 3. Seguridad: Actúa como la aduana final antes de pintar información sensible.
+ * 1. Transparencia: No inyecta fondos sólidos para dejar pasar la atmósfera Aurora del Root.
+ * 2. Seguridad: Actúa como la aduana final antes de pintar información sensible.
+ * 3. Ergonomía: Define el espacio sagrado debajo del menú superior (padding-top).
  */
 export default function PlatformLayout({
   children
@@ -52,85 +48,79 @@ export default function PlatformLayout({
 }) {
   return (
     /**
-     * CAPA 1: CONTEXTO DE INTELIGENCIA ACÚSTICA
-     * Envuelve toda la plataforma para permitir que el hilo de audio sea persistente.
+     * CAPA 1: CENTINELA DE SOBERANÍA (AuthGuard)
+     * Valida que el usuario tenga un token nominal antes de renderizar 
+     * el esqueleto de la aplicación interna. Si falla, orquesta el redirect.
      */
-    <AudioProvider>
+    <AuthGuard>
 
       {/* 
-          CAPA 2: CENTINELA DE SOBERANÍA (AuthGuard)
-          Valida el Handshake de identidad SSR-Client. Si falla, orquesta el redirect.
+          CAPA 2: CONTROL DE DESPLAZAMIENTO (Smooth Scroll)
+          Proporciona la inercia nativa y suavizado de scroll industrial 
+          para las listas de podcasts y el Dashboard.
       */}
-      <AuthGuard>
+      <SmoothScrollWrapper>
+
+        {/* SERVICIOS DE SISTEMA (Capa técnica invisible) */}
+        <OfflineIndicator />
+        <InstallPwaButton />
+        <ScrollToTop />
 
         {/* 
-            CAPA 2.5: RED NEURONAL SENSORIAL (GeoEngineProvider)
-            [MEJORA ESTRATÉGICA]: Al inyectar el motor aquí, garantizamos que el 
-            Dashboard, el Explorador y cualquier vista futura puedan acceder a 
-            la telemetría del usuario sin provocar colapsos de Contexto React.
+            CAPA 3: NAVEGACIÓN TÁCTICA (Header Fijo)
+            Se renderiza en el top del DOM para asegurar su anclaje visual.
         */}
-        <GeoEngineProvider>
+        <Navigation />
 
+        {/* 
+            CAPA 4: CONTENEDOR MAESTRO DE CONTENIDO
+            [OPTIMIZACIÓN DE ESPACIO VERTICAL]:
+            Hemos reducido el padding-top (pt) al mínimo técnico para no perder 
+            espacio valioso, compensando exactamente el área del Header V2.0.
+            
+            Cálculo Técnico:
+            - Móvil: Header 72px + Padding de seguridad 12px = pt-[84px].
+            - Desktop: Header 80px + Margen de respiración 20px = md:pt-[100px].
+            
+            Uso estricto de bg-transparent para visibilidad de la atmósfera.
+        */}
+        <main
+          className="relative z-10 flex flex-col min-h-screen pt-[84px] md:pt-[100px] bg-transparent transition-all duration-300"
+        >
           {/* 
-              CAPA 3: CONTROL DE DESPLAZAMIENTO (Smooth Scroll)
-              Proporciona la inercia nativa y suavizado de scroll industrial.
+              CAPA 5: ORQUESTADOR DE MOVIMIENTO (Page Transitions)
+              Sincroniza la entrada y salida de contenido (Opacity 0 -> 1).
           */}
-          <SmoothScrollWrapper>
+          <PageTransition>
+            <div className="w-full flex-grow flex flex-col bg-transparent px-2 md:px-0">
+              {children}
+            </div>
+          </PageTransition>
+        </main>
 
-            {/* SERVICIOS DE SISTEMA (Capa técnica invisible) */}
-            <OfflineIndicator />
-            <InstallPwaButton />
-            <ScrollToTop />
+        {/* 
+            CAPA 6: TERMINALES DE SALIDA
+            PlayerOrchestrator: Ubicado en Z-index: 200 (Capa superior).
+            Toaster: Notificaciones flotantes de sistema.
+            
+            [NOTA]: El PlayerOrchestrator sigue viviendo aquí para que su 
+            lógica visual flote sobre la plataforma, pero consume el 
+            'AudioContext' que ahora reside en el RootLayout.
+        */}
+        <PlayerOrchestrator />
+        <Toaster />
 
-            {/* 
-                CAPA 4: NAVEGACIÓN TÁCTICA (Header Fijo)
-                Se renderiza en el top del DOM para asegurar su anclaje visual.
-            */}
-            <Navigation />
-
-            {/* 
-                CAPA 5: CONTENEDOR MAESTRO DE CONTENIDO
-                [OPTIMIZACIÓN DE ESPACIO VERTICAL]:
-                Hemos reducido el padding-top (pt) al mínimo técnico para no perder 
-                espacio valioso, compensando exactamente el área del Header V2.0.
-            */}
-            <main
-              className="relative z-10 flex flex-col min-h-screen pt-[84px] md:pt-[100px] bg-transparent transition-all duration-300"
-            >
-              {/* 
-                  CAPA 6: ORQUESTADOR DE MOVIMIENTO (Page Transitions)
-                  Sincroniza la entrada y salida de contenido.
-              */}
-              <PageTransition>
-                <div className="w-full flex-grow flex flex-col bg-transparent px-2 md:px-0">
-                  {children}
-                </div>
-              </PageTransition>
-            </main>
-
-            {/* 
-                CAPA 7: TERMINALES DE SALIDA
-                PlayerOrchestrator: Ubicado en Z-index: 200 (Capa superior).
-                Toaster: Notificaciones flotantes de sistema.
-            */}
-            <PlayerOrchestrator />
-            <Toaster />
-
-          </SmoothScrollWrapper>
-        </GeoEngineProvider>
-      </AuthGuard>
-    </AudioProvider>
+      </SmoothScrollWrapper>
+    </AuthGuard>
   );
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V2.3):
- * 1. Ubicuidad Sensorial: Al subir el GeoEngineProvider al layout, resolvemos el error
- *    de 'Provider no encontrado' en el Dashboard y otras subrutas.
- * 2. Jerarquía de Contexto: Se mantiene debajo del AuthGuard para asegurar que 
- *    los sensores solo se activen para usuarios autenticados, protegiendo la API 
- *    de Geolocalización de peticiones anónimas.
- * 3. Economía de Hardware: El estado de 'userLocation' ahora persiste. Si el 
- *    Voyager viaja del Dashboard al Mapa, el GPS no tiene que volver a triangular 
- *    desde cero, ahorrando batería y tiempo (Zero-Wait real).
+ * NOTA TÉCNICA DEL ARCHITECT (V3.0):
+ * 1. Purga de Shadow Contexts: Al eliminar <AudioProvider> y <GeoEngineProvider> 
+ *    de este archivo, garantizamos que los componentes consuman las instancias 
+ *    creadas en el app/layout.tsx, manteniendo la continuidad de la memoria.
+ * 2. Integridad de UI: Este layout se centra exclusivamente en el 'boxing' 
+ *    (paddings, márgenes, z-index) de la aplicación interna, separando el 
+ *    control de estado (Root) del control de presentación (Platform).
  */
