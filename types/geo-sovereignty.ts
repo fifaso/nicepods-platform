@@ -1,7 +1,7 @@
 // types/geo-sovereignty.ts
-// VERSIÓN: 3.0 (NicePod V2.6 - Sovereign Geo-Intelligence Constitution)
+// VERSIÓN: 4.0 (NicePod V2.6 - Permission Shield Edition)
 // Misión: Centralizar el contrato de identidad de los activos físicos y la lógica del motor geoespacial.
-// [ESTABILIZACIÓN]: Erradicación total de 'any', tipado estricto de Bóveda y sincronía con el pipeline JIT.
+// [ESTABILIZACIÓN]: Inyección del estado 'PERMISSION_DENIED' para manejar bloqueos de hardware en el SO.
 
 /**
  * ---------------------------------------------------------------------------
@@ -61,16 +61,18 @@ export type POILifecycle =
 
 /**
  * GeoEngineState: Estados operativos del motor sensorial y narrativo.
+ * [FIX V4.0]: Se añade PERMISSION_DENIED para habilitar el 'Permission Shield'.
  */
 export type GeoEngineState =
-  | 'IDLE'             // Reposo.
-  | 'SENSORS_READY'    // Hardware (GPS) vinculado.
-  | 'INGESTING'        // Transfiriendo binarios comprimidos.
-  | 'DOSSIER_READY'    // Datos físicos validados y analizados.
-  | 'SYNTHESIZING'     // Forja del Agente 42 en curso.
-  | 'NARRATIVE_READY'  // Sabiduría lista para publicación.
-  | 'CONFLICT'         // Alerta de proximidad crítica (<10m).
-  | 'REJECTED';        // Fallo de red, validación o hardware.
+  | 'IDLE'               // Reposo.
+  | 'SENSORS_READY'      // Hardware (GPS) vinculado y triangularizando.
+  | 'PERMISSION_DENIED'  // [NUEVO]: El SO o el Navegador bloqueó el acceso al GPS.
+  | 'INGESTING'          // Transfiriendo binarios comprimidos.
+  | 'DOSSIER_READY'      // Datos físicos validados y analizados.
+  | 'SYNTHESIZING'       // Forja del Agente 42 en curso.
+  | 'NARRATIVE_READY'    // Sabiduría lista para publicación.
+  | 'CONFLICT'           // Alerta de proximidad crítica (<10m).
+  | 'REJECTED';          // Fallo de red, validación o hardware secundario.
 
 /**
  * ---------------------------------------------------------------------------
@@ -149,7 +151,6 @@ export interface GeoContextData {
 
 /**
  * GeoEngineReturn: La firma pública que el hook useGeoEngine entrega a la UI.
- * [BUILD SHIELD]: nearbyPOIs ya no es 'any[]'.
  */
 export interface GeoEngineReturn {
   status: GeoEngineState;
@@ -231,11 +232,9 @@ export interface POICategory {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V3.0):
+ * NOTA TÉCNICA DEL ARCHITECT (V4.0):
  * 1. Build Shield Activo: Al tipar estrictamente 'nearbyPOIs' y 'geo_location', 
  *    el compilador evitará que el 'SpatialEngine' intente renderizar nodos corruptos.
- * 2. Sincronía con JIT: 'POICreationPayload' ahora refleja que las imágenes son 
- *    Base64 comprimidos, alineándose con el Punto 3 de mejora.
- * 3. Trazabilidad Industrial: Se añadió 'trace_id' a la respuesta de acciones 
- *    para facilitar el peritaje técnico en logs de producción.
+ * 2. Trazabilidad de Permisos: La inclusión de 'PERMISSION_DENIED' en el ciclo 
+ *    de vida permite aislar fallos de hardware de fallos humanos (privacidad).
  */
