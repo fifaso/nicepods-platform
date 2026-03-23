@@ -1,7 +1,7 @@
 // hooks/use-geo-engine.tsx
-// VERSIÓN: 11.1 (NicePod Sovereign Geo-Engine - Absolute Integrity Edition)
-// Misión: Orquestar telemetría ubicua protegiendo a React del 'Jitter' del hardware.
-// [ESTABILIZACIÓN]: Implementación de Filtro de Ruido Espacial para evitar tormentas de re-renderizado.
+// VERSIÓN: 12.0 (NicePod Sovereign Geo-Engine - Permission Shield Edition)
+// Misión: Orquestar telemetría ubicua con protección contra bloqueos de privacidad del SO.
+// [ESTABILIZACIÓN]: Implementación de captura y aislamiento de estado 'PERMISSION_DENIED'.
 
 "use client";
 
@@ -25,7 +25,7 @@ import {
   transcribeVoiceIntentAction
 } from "@/actions/geo-actions";
 
-// --- CONSTITUCIÓN DE TIPOS (BUILD SHIELD V3.0) ---
+// --- CONSTITUCIÓN DE TIPOS (BUILD SHIELD V4.0) ---
 import {
   ActivePOI,
   GeoActionResponse,
@@ -124,7 +124,7 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
 
       if (dbError) throw dbError;
       
-      // Aplicamos casting soberano basado en la Constitución de Tipos V3.0
+      // Aplicamos casting soberano basado en la Constitución de Tipos V4.0
       setNearbyPOIs((pois as unknown as PointOfInterest[]) || []);
     } catch (err: any) {
       nicepodLog("🔥 [GeoEngine] Error de Sincronía con Bóveda", err.message, 'error');
@@ -144,6 +144,7 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
     let minDistance = Infinity;
 
     nearbyPOIs.forEach((poi) => {
+      // Build Shield: Validación de presencia de coordenadas antes del cálculo
       if (!poi.geo_location?.coordinates) return;
 
       const [pLng, pLat] = poi.geo_location.coordinates;
@@ -210,20 +211,21 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
   }, [userLocation, isLocked, resolveContext]);
 
   /**
-   * initSensors: Ignición del hardware de posicionamiento.
-   * Implementa el FILTRO DE RUIDO ESPACIAL para proteger a React de micro-renders.
+   * [SISTEMA NERVIOSO]: Ignición del Hardware con Permission Shield
    */
   const initSensors = useCallback(() => {
     if (typeof window === "undefined" || !("geolocation" in navigator)) {
       setError("HARDWARE_GPS_DESACTIVADO");
       return;
     }
-    if (isLocked) return;
+    
+    // Si el usuario ya lo bloqueó explícitamente o el sistema está bloqueado manual (Admin)
+    if (isLocked || status === 'PERMISSION_DENIED') return;
 
     setStatus('SENSORS_READY');
     hasResolvedContextRef.current = false;
 
-    // Procesador central de telemetría
+    // Procesador central de telemetría (Con filtro de ruido)
     const handleNewPosition = (position: GeolocationPosition) => {
       if (isLocked) return;
 
@@ -254,7 +256,7 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
 
       const precisionImproved = newLocation.accuracy < lastEmittedLocationRef.current.accuracy - 5;
 
-      // Solo actualizamos el estado si el movimiento supera el umbral de ruido (2 metros)
+      // Solo actualizamos React si el movimiento supera el umbral de ruido (2 metros)
       // o si la precisión mejoró drásticamente.
       if (driftDistance > NOISE_FILTER_METERS || precisionImproved) {
         lastEmittedLocationRef.current = newLocation;
@@ -263,9 +265,29 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
+    /**
+     * [ESCUDO DE PRIVACIDAD]: Manejador de Errores de Hardware
+     * Diferencia entre un fallo de señal (ej. túnel) y un bloqueo intencionado del usuario.
+     */
+    const handleHardwareError = (err: GeolocationPositionError) => {
+      if (err.code === err.PERMISSION_DENIED) {
+        nicepodLog(`🛑 [GeoEngine] Permiso de ubicación denegado por el usuario o SO.`, null, 'warn');
+        setStatus('PERMISSION_DENIED');
+        setError("El acceso a los sensores de ubicación ha sido bloqueado por el sistema.");
+        // Detenemos el watchPosition inmediatamente para no drenar recursos inútilmente
+        if (watchId.current !== null) {
+          navigator.geolocation.clearWatch(watchId.current);
+          watchId.current = null;
+        }
+      } else {
+        nicepodLog(`🟡 [GeoEngine] Degradación de señal: ${err.message}`);
+        setError(`Señal GPS Perdida o Inestable.`);
+      }
+    };
+
     navigator.geolocation.getCurrentPosition(
       handleNewPosition,
-      (err) => nicepodLog(`🟡 [GeoEngine] Precisión inicial baja: ${err.message}`),
+      handleHardwareError,
       { enableHighAccuracy: false, timeout: 5000 }
     );
 
@@ -273,14 +295,11 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
 
     watchId.current = navigator.geolocation.watchPosition(
       handleNewPosition,
-      (err) => setError(`Señal GPS Perdida: ${err.message}`),
+      handleHardwareError,
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 2000 } 
     );
-  }, [fetchNearbyPOIs, isLocked, evaluateEnvironment, calculateDistance]);
+  }, [fetchNearbyPOIs, isLocked, evaluateEnvironment, calculateDistance, status]);
 
-  /**
-   * setManualAnchor: Autoridad de Admin para fijar coordenadas por tacto.
-   */
   const setManualAnchor = useCallback((lng: number, lat: number) => {
     if (watchId.current !== null) {
       navigator.geolocation.clearWatch(watchId.current);
@@ -333,7 +352,6 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
     try {
       nicepodLog("⚙️ [GeoEngine] Iniciando Pipeline de Compresión JIT...");
 
-      // 1. REFINAMIENTO VISUAL (Compresión por Hardware)
       const [compressedHero, ...compressedOcrArray] = await Promise.all([
         compressNicePodImage(params.heroImage, 2048, 0.85),
         ...params.ocrImages.map(img => compressNicePodImage(img, 1600, 0.75))
@@ -341,12 +359,10 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
 
       nicepodLog("📦 [GeoEngine] Empaquetando evidencia optimizada...");
 
-      // 2. TRANSMUTACIÓN BINARIA
       const heroBase64 = await fileToBase64(compressedHero);
       const ocrTasks = compressedOcrArray.map(blob => fileToBase64(blob));
       const ocrBase64Array = await Promise.all(ocrTasks);
 
-      // 3. DESPACHO AUTORIZADO (Circuit Breaker Activo)
       const result = await ingestPhysicalEvidenceAction({
         latitude: userLocation.latitude,
         longitude: userLocation.longitude,
@@ -364,14 +380,12 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
 
       const { poiId, analysis } = result.data;
 
-      // 4. ANCLAJE ACÚSTICO
       if (params.ambientAudio) {
         nicepodLog("🔊 [GeoEngine] Anclando Paisaje Sonoro...");
         const audioBase64 = await fileToBase64(params.ambientAudio);
         await attachAmbientAudioAction({ poiId, audioBase64 });
       }
 
-      // 5. MATERIALIZACIÓN DEL DOSSIER TÉCNICO
       const newDossier: IngestionDossier = {
         poi_id: poiId,
         raw_ocr_text: analysis.historicalDossier || analysis.ocrText || null,
@@ -388,7 +402,7 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
 
       setData((prev: GeoContextData) => ({ ...prev, poiId, dossier: newDossier }));
       setStatus('DOSSIER_READY');
-      nicepodLog(`✅ [GeoEngine] Ingesta exitosa: Nodo #${poiId}`);
+      nicepodLog(`✅ [GeoEngine] Misión completada: Nodo #${poiId} anclado.`);
 
     } catch (e: any) {
       nicepodLog(`🛑 [GeoEngine] Misión Abortada: ${e.message}`, null, 'error');
@@ -396,14 +410,10 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
       setError(e.message);
       setData((prev: GeoContextData) => ({ ...prev, rejectionReason: e.message }));
       setIsLocked(false);
-      // Lanzamos el error para que la UI del Step 2 libere el estado 'isIngesting'
       throw e; 
     }
   };
 
-  /**
-   * synthesizeNarrative: Inicia la forja lírica del Agente 42.
-   */
   const synthesizeNarrative = async (params: {
     poiId: number;
     depth: 'flash' | 'cronica' | 'inmersion';
@@ -424,16 +434,10 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  /**
-   * transcribeVoiceIntent: Motor STT para la semilla de intención.
-   */
   const transcribeVoiceIntent = async (audioBase64: string): Promise<GeoActionResponse<{ transcription: string }>> => {
     return await transcribeVoiceIntentAction({ audioBase64 });
   };
 
-  /**
-   * reset: Protocolo de limpieza absoluta del motor.
-   */
   const reset = () => {
     if (watchId.current !== null) navigator.geolocation.clearWatch(watchId.current);
     setStatus('IDLE');
@@ -445,7 +449,6 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
     setError(null);
   };
 
-  // Cleanup de hardware al desmontar el motor
   useEffect(() => {
     return () => { if (watchId.current !== null) navigator.geolocation.clearWatch(watchId.current); };
   }, []);
@@ -461,9 +464,6 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-/**
- * useGeoEngine: Hook de acceso a la Malla Urbana.
- */
 export function useGeoEngine() {
   const context = useContext(GeoEngineContext);
   if (context === undefined) {
@@ -471,3 +471,12 @@ export function useGeoEngine() {
   }
   return context;
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V12.0):
+ * 1. Permission Shield (Línea 235): La detección de 'err.code === err.PERMISSION_DENIED' 
+ *    garantiza que el motor no persista en buscar una señal imposible, ahorrando 
+ *    batería y cambiando el estado interno a 'PERMISSION_DENIED'.
+ * 2. Purga de Hardware (Línea 240): Al detectar un bloqueo de permisos, el 'clearWatch'
+ *    se ejecuta inmediatamente, desactivando el chip GPS a nivel de sistema operativo.
+ */
