@@ -1,7 +1,7 @@
 // components/geo/map-preview-frame.tsx
-// VERSIÓN: 9.3 (NicePod GO-Preview - The Safe Mount Final Edition)
-// Misión: Ventana táctica fotorrealista que rastrea y centra al Voyager.
-// [ESTABILIZACIÓN]: Fusión total de Auto-Centrado, Proyección Mercator y Fix de Tipos Vercel.
+// VERSIÓN: 10.0 (NicePod GO-Preview - Permission Shield & Build Safe Edition)
+// Misión: Ventana táctica fotorrealista inmune al colapso de hidratación y hardware bloqueado.
+// [ESTABILIZACIÓN]: Importación de nicepodLog, saneamiento de Tailwind y Escudo de Privacidad.
 
 "use client";
 
@@ -9,10 +9,10 @@ import React, { memo, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Compass, Loader2, Maximize2, Zap } from "lucide-react";
+import { Compass, Loader2, Maximize2, ShieldAlert, Zap } from "lucide-react";
 
 // --- INFRAESTRUCTURA CORE ---
-import { cn } from "@/lib/utils";
+import { cn, nicepodLog } from "@/lib/utils"; // [FIX VERCEL]: Inyección restaurada
 import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { UserLocationMarker } from "./user-location-marker";
 import { MapMarkerCustom } from "./map-marker-custom";
@@ -20,8 +20,6 @@ import { PointOfInterest } from "@/types/geo-sovereignty";
 
 /**
  * INTERFAZ: MadridMapProps
- * [BUILD SHIELD]: Contrato blindado para la importación dinámica del motor WebGL.
- * Incluye 'children' para evitar que el compilador rechace los marcadores anidados.
  */
 interface MadridMapProps {
   initialViewState: {
@@ -44,11 +42,6 @@ interface MadridMapProps {
   children?: React.ReactNode; 
 }
 
-/**
- * [SHIELD]: MapEngine
- * Carga diferida del motor Mapbox apuntando al sub-path explícito de Vercel.
- * Esto aniquila el error 'Module not found: Package path . is not exported'.
- */
 const MapEngine = dynamic<MadridMapProps>(
   () => import("react-map-gl/mapbox").then((mod) => (mod.default || mod.Map) as any),
   {
@@ -61,58 +54,53 @@ const MapEngine = dynamic<MadridMapProps>(
   }
 );
 
-// [SALTO FOTORREALISTA]: Estética base satelital
 const PHOTOREALISTIC_STYLE = "mapbox://styles/mapbox/satellite-streets-v12";
 
 export const MapPreviewFrame = memo(function MapPreviewFrame() {
   const containerRef = useRef<HTMLDivElement>(null);
   
-  // Consumo del cerebro geoespacial (Elevado desde RootLayout)
+  // CONSUMO DE TELEMETRÍA (El Cerebro Global)
   const geoEngine = useGeoEngine();
-  const { userLocation, nearbyPOIs, activePOI, initSensors } = geoEngine;
+  const { 
+    userLocation, 
+    nearbyPOIs, 
+    activePOI, 
+    initSensors,
+    status: engineStatus // Necesario para el Permission Shield
+  } = geoEngine;
 
-  // Máquina de estados de montaje seguro
   const [isVisible, setIsVisible] = useState<boolean>(false);
   const [isIdleReady, setIsIdleReady] = useState<boolean>(false);
   const [isContainerReady, setIsContainerReady] = useState<boolean>(false);
 
   /**
    * 1. PROTOCOLO DE SEGURIDAD MATEMÁTICA (Safe Mount Observer)
-   * Evita colapsos de GPU (RangeError) asegurando que el lienzo tenga 
-   * dimensiones reales (>0px) antes de despertar el motor WebGL.
    */
   useEffect(() => {
     if (!containerRef.current) return;
-    
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
         if (entry.contentRect.width > 0 && entry.contentRect.height > 0) {
           setIsContainerReady(true);
-          resizeObserver.disconnect(); // Solo necesitamos la primera confirmación vital
+          resizeObserver.disconnect();
         }
       }
     });
-    
     resizeObserver.observe(containerRef.current);
     return () => resizeObserver.disconnect();
   }, []);
 
   /**
-   * 2. CONFIGURACIÓN DE CÁMARA DINÁMICA (Auto-Centrado)
-   * Sintoniza el centro de la cámara con la posición real del Voyager si está disponible.
+   * 2. CONFIGURACIÓN DE CÁMARA (Centrado Automático)
    */
   const initialViewState = useMemo(() => ({
     latitude: userLocation?.latitude || 40.4167,
     longitude: userLocation?.longitude || -3.7037,
-    zoom: 15.2, // Zoom de escáner de media altitud
-    pitch: 75,  // Perspectiva 'Pokémon GO'
+    zoom: 15.2,
+    pitch: 75,
     bearing: -15
   }), [userLocation]);
 
-  /**
-   * ATMÓSFERA SOBERANA (Mapbox v3 Fog API)
-   * Fusiona el horizonte con el color de fondo para ahorrar texturas lejanas.
-   */
   const fogConfig = useMemo(() => ({
     "range": [0.8, 8],
     "color": "#020202",
@@ -124,7 +112,6 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
 
   /**
    * 3. MONITOR DE VISIBILIDAD E IGNICIÓN
-   * Activa los sensores solo cuando la ventana entra en el campo visual del usuario.
    */
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -141,7 +128,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
       if ('requestIdleCallback' in window) {
         (window as any).requestIdleCallback(() => {
           setIsIdleReady(true);
-          initSensors(); // Despertar hardware GPS proactivamente
+          initSensors(); 
         }, { timeout: 3000 });
       } else {
         setIsIdleReady(true);
@@ -158,6 +145,8 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
       ref={containerRef}
       initial={{ opacity: 0, scale: 0.98 }}
       animate={{ opacity: 1, scale: 1 }}
+      // [FIX TAILWIND]: Hemos purgado la clase conflictiva y delegado el easing 
+      // puro al objeto de transición de Framer Motion.
       transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
       className={cn(
         "relative w-full h-full overflow-hidden bg-[#030303] transition-all duration-700",
@@ -165,9 +154,35 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
         "hover:border-primary/40 hover:shadow-[0_0_60px_rgba(var(--primary),0.1)]"
       )}
     >
-      <AnimatePresence>
-        {isIdleReady && isContainerReady ? (
+      <AnimatePresence mode="wait">
+        
+        {/* ESCENARIO A: EL PERMISSION SHIELD */}
+        {/* Intercepta el flujo si el navegador bloqueó el acceso al hardware. */}
+        {engineStatus === 'PERMISSION_DENIED' ? (
+          <motion.div 
+            key="permission_denied"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-zinc-950 z-50 text-center"
+          >
+            <div className="relative mb-6">
+              <div className="absolute inset-0 bg-red-500/20 blur-xl rounded-full animate-pulse" />
+              <ShieldAlert className="h-10 w-10 text-red-500 relative z-10" />
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-[0.5em] text-red-400 mb-2">
+              GPS Interceptado
+            </span>
+            <p className="text-xs text-zinc-500 max-w-[200px] leading-relaxed">
+              NicePod necesita acceso a tu ubicación. Habilita los sensores en los ajustes del navegador.
+            </p>
+          </motion.div>
+        ) : 
+
+        /* ESCENARIO B: EL MOTOR INMERSIVO */
+        isIdleReady && isContainerReady ? (
           <motion.div
+            key="map_engine"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 1.5 }}
@@ -178,18 +193,14 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
               mapboxAccessToken={MAPBOX_TOKEN}
               style={{ width: "100%", height: "100%" }}
               mapStyle={PHOTOREALISTIC_STYLE}
-              
-              // [ESCUDO MATEMÁTICO]: Evita el colapso en pitch elevados
               projection="mercator"
               terrain={{ source: 'mapbox-dem', exaggeration: 1.2 }}
               maxPitch={80}
-              
               reuseMaps={true}
               antialias={true}
               attributionControl={false}
               fog={fogConfig}
             >
-              {/* I. EL VOYAGER (Avatar de Resonancia) */}
               {userLocation && (
                 <UserLocationMarker 
                   location={userLocation} 
@@ -197,7 +208,6 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
                 />
               )}
 
-              {/* II. LA MALLA ACTIVA (Ecos del Entorno) */}
               {nearbyPOIs?.map((poi: PointOfInterest) => (
                 <MapMarkerCustom
                   key={poi.id}
@@ -207,7 +217,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
                   category_id={poi.category_id}
                   name={poi.name}
                   isResonating={activePOI?.id === poi.id.toString() && activePOI?.isWithinRadius}
-                  isSelected={false} // Interacción delegada a la pantalla completa
+                  isSelected={false}
                   onClick={() => {
                     nicepodLog("Apertura de Malla solicitada por táctica visual.");
                   }}
@@ -215,8 +225,15 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
               ))}
             </MapEngine>
           </motion.div>
-        ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center space-y-5">
+        ) : 
+
+        /* ESCENARIO C: TRIANGULACIÓN INICIAL (LOADER) */
+        (
+          <motion.div 
+            key="radar_loader"
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 flex flex-col items-center justify-center space-y-5 bg-zinc-950/80"
+          >
             <div className="relative">
               <Zap className="h-8 w-8 text-primary/20 animate-pulse" />
               <div className="absolute inset-0 bg-primary/5 blur-2xl rounded-full animate-pulse" />
@@ -224,13 +241,14 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
             <span className="text-[8px] font-black uppercase tracking-[0.5em] text-zinc-800 animate-pulse">
               Localizando Nodo de Usuario...
             </span>
-          </div>
+          </motion.div>
         )}
+
       </AnimatePresence>
 
       <div className="absolute inset-0 bg-gradient-to-t from-[#020202] via-[#020202]/40 to-transparent z-10 pointer-events-none" />
 
-      {/* INTERFAZ DE EXPANSIÓN SOBERANA */}
+      {/* DOCK INFERIOR (BOTONES DE EXPANSIÓN) */}
       <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8 z-20 flex justify-between items-end pointer-events-none">
         <Link href="/map" className="flex items-center gap-4 pointer-events-auto group/btn focus:outline-none">
           <div className="bg-primary/10 p-3.5 rounded-2xl backdrop-blur-3xl border border-primary/20 group-hover/btn:bg-primary/30 group-hover/btn:scale-110 transition-all duration-700 shadow-inner">
@@ -241,7 +259,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
               Madrid <span className="text-primary">Resonance</span>
             </h3>
             <p className="text-[8px] md:text-[9px] text-zinc-300 font-bold uppercase tracking-[0.3em] mt-1.5 group-hover/btn:text-primary transition-colors drop-shadow-md">
-              Navegar Malla Satelital
+              Explorar Mapa en Vivo
             </p>
           </div>
         </Link>
@@ -255,3 +273,14 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
     </motion.div>
   );
 });
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V10.0):
+ * 1. Permission Shield: El Dashboard ya no se queda cargando infinitamente si el 
+ *    Voyager deniega el acceso al GPS. Muestra un estado claro y amigable, 
+ *    protegiendo la experiencia de usuario.
+ * 2. Higiene de Warnings: La purga de la clase 'ease-[0.16...]' elimina las 
+ *    advertencias del compilador de Tailwind, asegurando un CI/CD silencioso.
+ * 3. Trazabilidad Resuelta: 'nicepodLog' ha vuelto al arsenal para trazar los
+ *    clics tácticos sobre la Malla sin romper el Build de Vercel.
+ */
