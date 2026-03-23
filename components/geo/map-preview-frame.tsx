@@ -1,7 +1,7 @@
 // components/geo/map-preview-frame.tsx
-// VERSIÓN: 9.2 (NicePod GO-Preview - High Fidelity & Contract-Integrity Edition)
-// Misión: Ventana táctica fotorrealista que rastrea y centra al Voyager sin fallos de tipos.
-// [ESTABILIZACIÓN]: Resolución de error ts(2322) mediante inyección de Children en MadridMapProps.
+// VERSIÓN: 9.3 (NicePod GO-Preview - The Safe Mount Final Edition)
+// Misión: Ventana táctica fotorrealista que rastrea y centra al Voyager.
+// [ESTABILIZACIÓN]: Fusión total de Auto-Centrado, Proyección Mercator y Fix de Tipos Vercel.
 
 "use client";
 
@@ -12,7 +12,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Compass, Loader2, Maximize2, Zap } from "lucide-react";
 
 // --- INFRAESTRUCTURA CORE ---
-import { cn, nicepodLog } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { UserLocationMarker } from "./user-location-marker";
 import { MapMarkerCustom } from "./map-marker-custom";
@@ -20,7 +20,8 @@ import { PointOfInterest } from "@/types/geo-sovereignty";
 
 /**
  * INTERFAZ: MadridMapProps
- * [FIX CRÍTICO]: Se añade 'children' para permitir el renderizado de marcadores y capas.
+ * [BUILD SHIELD]: Contrato blindado para la importación dinámica del motor WebGL.
+ * Incluye 'children' para evitar que el compilador rechace los marcadores anidados.
  */
 interface MadridMapProps {
   initialViewState: {
@@ -40,13 +41,13 @@ interface MadridMapProps {
   projection?: string;
   terrain?: any;
   maxPitch?: number;
-  // Soporte para componentes hijos (Marcadores, Capas, etc.)
   children?: React.ReactNode; 
 }
 
 /**
  * [SHIELD]: MapEngine
- * Carga diferida del motor Mapbox apuntando al sub-path de Vercel.
+ * Carga diferida del motor Mapbox apuntando al sub-path explícito de Vercel.
+ * Esto aniquila el error 'Module not found: Package path . is not exported'.
  */
 const MapEngine = dynamic<MadridMapProps>(
   () => import("react-map-gl/mapbox").then((mod) => (mod.default || mod.Map) as any),
@@ -60,47 +61,58 @@ const MapEngine = dynamic<MadridMapProps>(
   }
 );
 
+// [SALTO FOTORREALISTA]: Estética base satelital
 const PHOTOREALISTIC_STYLE = "mapbox://styles/mapbox/satellite-streets-v12";
 
 export const MapPreviewFrame = memo(function MapPreviewFrame() {
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Consumo del cerebro geoespacial (Elevado desde RootLayout)
   const geoEngine = useGeoEngine();
   const { userLocation, nearbyPOIs, activePOI, initSensors } = geoEngine;
 
+  // Máquina de estados de montaje seguro
   const [isVisible, setIsVisible] = useState<boolean>(false);
   const [isIdleReady, setIsIdleReady] = useState<boolean>(false);
   const [isContainerReady, setIsContainerReady] = useState<boolean>(false);
 
   /**
-   * 1. PROTOCOLO DE SEGURIDAD MATEMÁTICA
-   * Evita colapsos de GPU asegurando dimensiones > 0 antes de instanciar.
+   * 1. PROTOCOLO DE SEGURIDAD MATEMÁTICA (Safe Mount Observer)
+   * Evita colapsos de GPU (RangeError) asegurando que el lienzo tenga 
+   * dimensiones reales (>0px) antes de despertar el motor WebGL.
    */
   useEffect(() => {
     if (!containerRef.current) return;
+    
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
         if (entry.contentRect.width > 0 && entry.contentRect.height > 0) {
           setIsContainerReady(true);
-          resizeObserver.disconnect();
+          resizeObserver.disconnect(); // Solo necesitamos la primera confirmación vital
         }
       }
     });
+    
     resizeObserver.observe(containerRef.current);
     return () => resizeObserver.disconnect();
   }, []);
 
   /**
-   * 2. CONFIGURACIÓN DE CÁMARA DINÁMICA
-   * Sintoniza el centro de la cámara con la posición real del Voyager.
+   * 2. CONFIGURACIÓN DE CÁMARA DINÁMICA (Auto-Centrado)
+   * Sintoniza el centro de la cámara con la posición real del Voyager si está disponible.
    */
   const initialViewState = useMemo(() => ({
     latitude: userLocation?.latitude || 40.4167,
     longitude: userLocation?.longitude || -3.7037,
-    zoom: 15.2,
-    pitch: 75,
+    zoom: 15.2, // Zoom de escáner de media altitud
+    pitch: 75,  // Perspectiva 'Pokémon GO'
     bearing: -15
   }), [userLocation]);
 
+  /**
+   * ATMÓSFERA SOBERANA (Mapbox v3 Fog API)
+   * Fusiona el horizonte con el color de fondo para ahorrar texturas lejanas.
+   */
   const fogConfig = useMemo(() => ({
     "range": [0.8, 8],
     "color": "#020202",
@@ -112,6 +124,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
 
   /**
    * 3. MONITOR DE VISIBILIDAD E IGNICIÓN
+   * Activa los sensores solo cuando la ventana entra en el campo visual del usuario.
    */
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -128,7 +141,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
       if ('requestIdleCallback' in window) {
         (window as any).requestIdleCallback(() => {
           setIsIdleReady(true);
-          initSensors(); // Despertar hardware GPS de forma proactiva
+          initSensors(); // Despertar hardware GPS proactivamente
         }, { timeout: 3000 });
       } else {
         setIsIdleReady(true);
@@ -165,15 +178,18 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
               mapboxAccessToken={MAPBOX_TOKEN}
               style={{ width: "100%", height: "100%" }}
               mapStyle={PHOTOREALISTIC_STYLE}
+              
+              // [ESCUDO MATEMÁTICO]: Evita el colapso en pitch elevados
               projection="mercator"
               terrain={{ source: 'mapbox-dem', exaggeration: 1.2 }}
               maxPitch={80}
+              
               reuseMaps={true}
               antialias={true}
               attributionControl={false}
               fog={fogConfig}
             >
-              {/* --- RENDERIZADO DE NODOS EN DASHBOARD --- */}
+              {/* I. EL VOYAGER (Avatar de Resonancia) */}
               {userLocation && (
                 <UserLocationMarker 
                   location={userLocation} 
@@ -181,6 +197,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
                 />
               )}
 
+              {/* II. LA MALLA ACTIVA (Ecos del Entorno) */}
               {nearbyPOIs?.map((poi: PointOfInterest) => (
                 <MapMarkerCustom
                   key={poi.id}
@@ -190,9 +207,9 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
                   category_id={poi.category_id}
                   name={poi.name}
                   isResonating={activePOI?.id === poi.id.toString() && activePOI?.isWithinRadius}
-                  isSelected={false}
+                  isSelected={false} // Interacción delegada a la pantalla completa
                   onClick={() => {
-                    nicepodLog("Navegación solicitada desde Dashboard hacia el Mapa.");
+                    nicepodLog("Apertura de Malla solicitada por táctica visual.");
                   }}
                 />
               ))}
@@ -213,6 +230,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
 
       <div className="absolute inset-0 bg-gradient-to-t from-[#020202] via-[#020202]/40 to-transparent z-10 pointer-events-none" />
 
+      {/* INTERFAZ DE EXPANSIÓN SOBERANA */}
       <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8 z-20 flex justify-between items-end pointer-events-none">
         <Link href="/map" className="flex items-center gap-4 pointer-events-auto group/btn focus:outline-none">
           <div className="bg-primary/10 p-3.5 rounded-2xl backdrop-blur-3xl border border-primary/20 group-hover/btn:bg-primary/30 group-hover/btn:scale-110 transition-all duration-700 shadow-inner">
@@ -223,7 +241,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
               Madrid <span className="text-primary">Resonance</span>
             </h3>
             <p className="text-[8px] md:text-[9px] text-zinc-300 font-bold uppercase tracking-[0.3em] mt-1.5 group-hover/btn:text-primary transition-colors drop-shadow-md">
-              Explorar Mapa en Vivo
+              Navegar Malla Satelital
             </p>
           </div>
         </Link>
