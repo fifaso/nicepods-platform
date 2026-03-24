@@ -1,79 +1,41 @@
 // components/geo/map-preview-frame.tsx
-// VERSIÓN: 10.2 (NicePod GO-Preview - Immutable Configuration Edition)
-// Misión: Ventana táctica fotorrealista con carga invisible y protección de motor WebGL.
-// [ESTABILIZACIÓN]: Memoización estricta de Terrain/Fog para evitar errores de 'Source removal'.
+// VERSIÓN: 11.0 (NicePod GO-Preview - Ultimate Architecture Edition)
+// Misión: Ventana táctica fotorrealista con carga invisible y persistencia de sensores.
+// [ESTABILIZACIÓN]: Integración del Smokescreen Protocol y el motor MapCore aislado.
 
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { Compass, Maximize2, ShieldAlert, Zap } from "lucide-react";
-import dynamic from "next/dynamic";
+import { Compass, Loader2, Maximize2, ShieldAlert, Zap } from "lucide-react";
 import Link from "next/link";
-import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-
-// --- MOTOR CARTOGRÁFICO (COMPONENTES) ---
-import { Layer, Source } from 'react-map-gl/mapbox';
+import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { MapRef } from "react-map-gl/mapbox";
 
 // --- INFRAESTRUCTURA CORE ---
 import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { cn, nicepodLog } from "@/lib/utils";
-import { PointOfInterest } from "@/types/geo-sovereignty";
-import { MapMarkerCustom } from "./map-marker-custom";
-import { UserLocationMarker } from "./user-location-marker";
+import { FLY_CONFIG, ZOOM_LEVELS } from "./map-constants";
 
-/**
- * INTERFAZ: MadridMapProps
- */
-interface MadridMapProps {
-  initialViewState: {
-    latitude: number;
-    longitude: number;
-    zoom: number;
-    pitch: number;
-    bearing: number;
-  };
-  mapboxAccessToken: string;
-  style: React.CSSProperties;
-  mapStyle: string;
-  reuseMaps?: boolean;
-  attributionControl?: boolean;
-  fog?: any;
-  antialias?: boolean;
-  projection?: string;
-  terrain?: any;
-  maxPitch?: number;
-  onLoad?: (e: any) => void;
-  onMoveEnd?: (e: any) => void;
-  children?: React.ReactNode;
-}
-
-const MapEngine = dynamic<MadridMapProps>(
-  () => import("react-map-gl/mapbox").then((mod) => (mod.default || mod.Map) as any),
-  { ssr: false }
-);
-
-const PHOTOREALISTIC_STYLE = "mapbox://styles/mapbox/satellite-streets-v12";
+// --- MOTOR CARTOGRÁFICO AISLADO ---
+import MapCore from "./SpatialEngine/map-core";
 
 /**
  * MapPreviewFrame: El widget de visualización táctica para el Dashboard inicial.
+ * Diseñado para ser liviano, inmersivo y 100% estable.
  */
 export const MapPreviewFrame = memo(function MapPreviewFrame() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<any>(null);
+  const mapRef = useRef<MapRef>(null);
 
-  // Consumo de Telemetría Global
+  // Consumo de Telemetría Global (Elevado en RootLayout)
   const geoEngine = useGeoEngine();
   const {
     userLocation,
-    nearbyPOIs,
-    activePOI,
-    initSensors,
-    status: engineStatus
+    status: engineStatus,
+    initSensors
   } = geoEngine;
 
   // --- MÁQUINA DE ESTADOS DEL REVELADO CINEMÁTICO ---
-  const [isVisible, setIsVisible] = useState<boolean>(false);
-  const [isIdleReady, setIsIdleReady] = useState<boolean>(false);
   const [isContainerReady, setIsContainerReady] = useState<boolean>(false);
   const [isMapLoaded, setIsMapLoaded] = useState<boolean>(false);
   const [isCameraSettled, setIsCameraSettled] = useState<boolean>(false);
@@ -81,26 +43,8 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
   const hasInitialJumpPerformed = useRef<boolean>(false);
 
   /**
-   * [FIX CRÍTICO]: MEMOIZACIÓN DE CONFIGURACIÓN
-   * Garantiza que las referencias a Terrain y Fog sean inmutables, 
-   * evitando que el motor intente remover fuentes en uso.
-   */
-  const terrainConfiguration = useMemo(() => ({
-    source: 'mapbox-dem',
-    exaggeration: 1.2
-  }), []);
-
-  const fogConfiguration = useMemo(() => ({
-    "range": [0.8, 8],
-    "color": "#020202",
-    "horizon-blend": 0.3,
-    "high-color": "#0f172a",
-    "space-color": "#000000",
-    "star-intensity": 0.4
-  }), []);
-
-  /**
    * 1. PROTOCOLO DE SEGURIDAD MATEMÁTICA (Safe Mount)
+   * Asegura que el contenedor tenga dimensiones físicas antes de instanciar WebGL.
    */
   useEffect(() => {
     if (!containerRef.current) return;
@@ -117,93 +61,47 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
   }, []);
 
   /**
-   * 2. CONFIGURACIÓN DE CÁMARA (Carga de Proximidad)
-   * Nacemos a poca altura (Z14) y con vista plana para reducir el consumo inicial de red.
+   * 2. IGNICIÓN PROACTIVA
+   * Solicitamos acceso a los sensores en cuanto el widget es visible.
    */
-  const initialViewState = useMemo(() => ({
-    latitude: userLocation?.latitude || 40.4167,
-    longitude: userLocation?.longitude || -3.7037,
-    zoom: 14.5,
-    pitch: 0,
-    bearing: 0
-  }), [userLocation]);
-
-  const buildingLayerConfig = useMemo(() => ({
-    id: "3d-buildings-preview",
-    source: "composite",
-    "source-layer": "building",
-    filter: ["==", "extrude", "true"],
-    type: "fill-extrusion",
-    minzoom: 14,
-    paint: {
-      "fill-extrusion-color": "#080808",
-      "fill-extrusion-height": ["get", "height"],
-      "fill-extrusion-base": ["get", "min_height"],
-      "fill-extrusion-opacity": 0.6,
-    },
-  }), []);
+  useEffect(() => {
+    if (isContainerReady) {
+      initSensors();
+    }
+  }, [isContainerReady, initSensors]);
 
   /**
-   * 3. MONITOR DE VISIBILIDAD E IGNICIÓN
+   * 3. PROTOCOLO DE VUELO EN LAS SOMBRAS (Ghost Flight)
+   * Cuando el motor está listo y tenemos al usuario, volamos hacia él 
+   * mientras el mapa permanece con opacidad cero.
    */
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) setIsVisible(true); },
-      { threshold: 0.1 }
-    );
-    if (containerRef.current) observer.observe(containerRef.current);
-    return () => observer.disconnect();
-  }, []);
+    if (!isMapLoaded || !userLocation || hasInitialJumpPerformed.current || !mapRef.current) return;
 
-  useEffect(() => {
-    if (!isVisible) return;
-    const timer = setTimeout(() => {
-      if ('requestIdleCallback' in window) {
-        (window as any).requestIdleCallback(() => {
-          setIsIdleReady(true);
-          initSensors();
-        }, { timeout: 3000 });
-      } else {
-        setIsIdleReady(true);
-        initSensors();
-      }
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [isVisible, initSensors]);
+    nicepodLog("🎯 [MapPreview] Nodo detectado. Iniciando vuelo de proximidad.");
 
-  /**
-   * 4. SALTO TÁCTICO EN LAS SOMBRAS
-   * Dispara el vuelo hacia la Experiencia GO solo cuando el motor está listo.
-   */
-  useEffect(() => {
-    if (isCameraSettled || !isMapLoaded || !userLocation || !mapInstanceRef.current) return;
-
-    nicepodLog("🎯 [MapPreview] Ejecutando vuelo cinemático hacia Voyager.");
-
-    mapInstanceRef.current.flyTo({
+    mapRef.current.flyTo({
       center: [userLocation.longitude, userLocation.latitude],
-      zoom: 15.8,
+      zoom: ZOOM_LEVELS.NEIGHBORHOOD,
       pitch: 75,
       bearing: -15,
-      duration: 2000,
-      essential: true,
-      easing: (t: number) => t * (2 - t)
+      ...FLY_CONFIG,
+      duration: 2000, // Vuelo más corto para el Dashboard
     });
 
     hasInitialJumpPerformed.current = true;
-  }, [isMapLoaded, userLocation, isCameraSettled]);
+  }, [isMapLoaded, userLocation]);
 
   /**
-   * 5. EL REVELADO (The Transition)
+   * 4. EL REVELADO (The Fade-In)
+   * Disparamos el levantamiento de la cortina cuando el vuelo se detiene físicamente.
    */
   const handleMoveEnd = useCallback(() => {
     if (hasInitialJumpPerformed.current && !isCameraSettled) {
       setIsCameraSettled(true);
-      nicepodLog("✨ [MapPreview] Malla fotorrealista estabilizada.");
+      nicepodLog("✨ [MapPreview] Sincronía completada. Revelando Malla.");
     }
   }, [isCameraSettled]);
-
-  const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
 
   return (
     <motion.div
@@ -218,23 +116,26 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
       )}
     >
       <AnimatePresence mode="wait">
-
-        {/* PERMISSION SHIELD */}
+        {/* ESCENARIO A: GPS BLOQUEADO */}
         {engineStatus === 'PERMISSION_DENIED' ? (
           <motion.div
-            key="p_denied" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            key="p_denied"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-zinc-950 z-50 text-center"
           >
             <ShieldAlert className="h-10 w-10 text-red-500 mb-4" />
-            <span className="text-[10px] font-black uppercase tracking-[0.5em] text-red-400">GPS Bloqueado</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.5em] text-red-400">GPS Interceptado</span>
             <p className="text-xs text-zinc-500 mt-2 max-w-[200px] leading-relaxed uppercase">Habilite el GPS para ver la red.</p>
           </motion.div>
         ) :
 
-          /* SMOKESCREEN LOADER */
+          /* ESCENARIO B: CORTINA DE CARGA (SMOKESCREEN) */
           !isCameraSettled ? (
             <motion.div
-              key="smokescreen" exit={{ opacity: 0 }}
+              key="smokescreen"
+              exit={{ opacity: 0 }}
               className="absolute inset-0 flex flex-col items-center justify-center space-y-5 bg-zinc-950 z-[90]"
             >
               <div className="relative">
@@ -243,74 +144,37 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
               </div>
               <div className="flex flex-col items-center gap-2">
                 <span className="text-[9px] font-black uppercase tracking-[0.5em] text-white italic">
-                  {!userLocation ? "Localizando Voyager" : "Calibrando 3D"}
+                  {!userLocation ? "Sintonizando Órbita" : "Calibrando 3D"}
                 </span>
+                <Loader2 className="h-3 w-3 animate-spin text-primary/40" />
               </div>
             </motion.div>
           ) : null}
       </AnimatePresence>
 
-      {/* MOTOR WEBGL (BACKGROUND WORKER) */}
-      {isIdleReady && isContainerReady && (
+      {/* 
+          V. EL MOTOR CARTOGRÁFICO AISLADO 
+          Delegamos el renderizado al MapCore, garantizando inmutabilidad.
+      */}
+      {isContainerReady && (
         <motion.div
           animate={{ opacity: isCameraSettled ? 1 : 0 }}
           transition={{ duration: 1.5 }}
           className="absolute inset-0 z-0"
         >
-          <MapEngine
-            initialViewState={initialViewState}
-            mapboxAccessToken={MAPBOX_TOKEN}
-            style={{ width: "100%", height: "100%" }}
-            mapStyle={PHOTOREALISTIC_STYLE}
-            projection="mercator"
-            terrain={terrainConfiguration}
-            maxPitch={82}
-            reuseMaps={true}
-            antialias={false}
-            attributionControl={false}
-            fog={fogConfiguration}
-            onLoad={(e) => {
-              mapInstanceRef.current = e.target;
-              setIsMapLoaded(true);
-            }}
+          <MapCore
+            ref={mapRef}
+            mode="EXPLORE"
+            selectedPOIId={null}
+            onLoad={() => setIsMapLoaded(true)}
             onMoveEnd={handleMoveEnd}
-          >
-            <Source
-              id="mapbox-dem"
-              type="raster-dem"
-              url="mapbox://mapbox.mapbox-terrain-dem-v1"
-              tileSize={512}
-              maxzoom={14}
-            />
-
-            {userLocation && (
-              <UserLocationMarker
-                location={userLocation}
-                isResonating={!!activePOI?.isWithinRadius}
-              />
-            )}
-
-            {nearbyPOIs?.map((poi: PointOfInterest) => (
-              <MapMarkerCustom
-                key={poi.id}
-                id={poi.id.toString()}
-                latitude={poi.geo_location.coordinates[1]}
-                longitude={poi.geo_location.coordinates[0]}
-                category_id={poi.category_id}
-                name={poi.name}
-                isResonating={activePOI?.id === poi.id.toString() && activePOI?.isWithinRadius}
-                isSelected={false}
-                onClick={() => { }}
-              />
-            ))}
-
-            {isMapLoaded && (
-              <Layer {...buildingLayerConfig as any} />
-            )}
-          </MapEngine>
+            onMapClick={() => { }} // Interacción limitada en Dashboard
+            onMarkerClick={() => { }} // Redirección vía los botones inferiores
+          />
         </motion.div>
       )}
 
+      {/* VI. INTERFAZ DE EXPANSIÓN SOBERANA */}
       <div className="absolute inset-0 bg-gradient-to-t from-[#020202] via-transparent to-transparent z-10 pointer-events-none" />
 
       <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8 z-[100] flex justify-between items-end pointer-events-none">
@@ -337,3 +201,14 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
     </motion.div>
   );
 });
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V11.0):
+ * 1. Unificación de Motor: Al consumir 'MapCore', el widget del Dashboard hereda 
+ *    automáticamente el blindaje contra el error de 'mapbox-dem removal'.
+ * 2. Smokescreen Táctico: La UI de carga oculta la compilación de polígonos 3D, 
+ *    permitiendo que el Voyager entre en un mundo ya renderizado y centrado.
+ * 3. Eficiencia de Datos: El widget no permite clics en marcadores para evitar 
+ *    que el usuario sobrecargue el Hilo Principal del Dashboard con tarjetas UI 
+ *    complejas; se le invita a la vista '/map' para una inmersión completa.
+ */
