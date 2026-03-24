@@ -1,19 +1,19 @@
 // components/geo/map-preview-frame.tsx
-// VERSIÓN: 12.0 (NicePod GO-Preview - Ultimate Dashboard Engine)
-// Misión: Ventana táctica fotorrealista con carga invisible y gestión de gestos.
-// [ESTABILIZACIÓN]: Integración del Smokescreen Protocol, motor MapCore y Rescate por Timeout.
+// VERSIÓN: 13.0 (NicePod GO-Preview - High Authority & Anti-Loop Edition)
+// Misión: Ventana táctica fotorrealista con ignición de sensores controlada.
+// [ESTABILIZACIÓN]: Erradicación de bucles de GPS mediante guardias de estado IDLE.
 
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
-import { Compass, Maximize2, Power, ShieldAlert, Zap } from "lucide-react";
+import React, { memo, useEffect, useMemo, useRef, useState, useCallback } from "react";
 import Link from "next/link";
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Compass, Maximize2, ShieldAlert, Zap, Loader2, Power } from "lucide-react";
 import { MapRef } from "react-map-gl/mapbox";
 
 // --- INFRAESTRUCTURA CORE ---
-import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { cn, nicepodLog } from "@/lib/utils";
+import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { FLY_CONFIG, ZOOM_LEVELS } from "./map-constants";
 
 // --- MOTOR CARTOGRÁFICO AISLADO ---
@@ -21,7 +21,7 @@ import MapCore from "./SpatialEngine/map-core";
 
 /**
  * MapPreviewFrame: El widget de visualización táctica para el Dashboard inicial.
- * Implementa la 'Operación Cortina de Humo' para asegurar fluidez en móviles.
+ * Implementa una carga síncrona y protegida para dispositivos móviles.
  */
 export const MapPreviewFrame = memo(function MapPreviewFrame() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -29,9 +29,9 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
 
   // Consumo de Telemetría Global
   const geoEngine = useGeoEngine();
-  const {
-    userLocation,
-    status: engineStatus,
+  const { 
+    userLocation, 
+    status: engineStatus, 
     initSensors,
     reset: resetSensors
   } = geoEngine;
@@ -42,10 +42,11 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
   const [isCameraSettled, setIsCameraSettled] = useState<boolean>(false);
 
   const hasInitialJumpPerformed = useRef<boolean>(false);
+  const ignitionAttempted = useRef<boolean>(false);
 
   /**
    * 1. PROTOCOLO DE SEGURIDAD MATEMÁTICA (Safe Mount)
-   * Asegura que el WebGL no colapse por falta de dimensiones en el DOM.
+   * Asegura que el WebGL tenga un contenedor con dimensiones antes de nacer.
    */
   useEffect(() => {
     if (!containerRef.current) return;
@@ -62,27 +63,39 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
   }, []);
 
   /**
+   * 2. IGNICIÓN CONTROLADA (Anti-Loop GPS)
+   * [MANDATO]: Solo disparamos los sensores si el componente es visible, 
+   * el contenedor está listo y el motor está en reposo absoluto (IDLE).
+   */
+  useEffect(() => {
+    if (isContainerReady && engineStatus === 'IDLE' && !ignitionAttempted.current) {
+      nicepodLog("📡 [MapPreview] Solicitando enlace satelital inicial...");
+      initSensors();
+      ignitionAttempted.current = true;
+    }
+  }, [isContainerReady, engineStatus, initSensors]);
+
+  /**
    * [RED DE SEGURIDAD]: TEMPORIZADOR DE RESCATE
-   * Si el motor WebGL se traba por red, forzamos el revelado a los 6 segundos.
    */
   useEffect(() => {
     if (isMapLoaded && !isCameraSettled) {
       const rescueTimer = setTimeout(() => {
-        nicepodLog("⚠️ [MapPreview] Revelado forzado por tiempo.");
+        nicepodLog("⚠️ [MapPreview] Estabilización forzada por timeout.");
         setIsCameraSettled(true);
-      }, 6000);
+      }, 7000);
       return () => clearTimeout(rescueTimer);
     }
   }, [isMapLoaded, isCameraSettled]);
 
   /**
-   * 2. PROTOCOLO DE VUELO EN LAS SOMBRAS
-   * Solo cuando el mapa está cargado y el GPS capturado, volamos hacia el Voyager.
+   * 3. PROTOCOLO DE VUELO EN LAS SOMBRAS
+   * Ejecuta el salto cinemático al detectar al Voyager, manteniendo el mapa oculto.
    */
   useEffect(() => {
     if (!isMapLoaded || !userLocation || hasInitialJumpPerformed.current || !mapRef.current) return;
 
-    nicepodLog("🎯 [MapPreview] Ejecutando salto táctico hacia el usuario.");
+    nicepodLog("🎯 [MapPreview] Voyager localizado. Iniciando aproximación.");
 
     mapRef.current.flyTo({
       center: [userLocation.longitude, userLocation.latitude],
@@ -90,19 +103,19 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
       pitch: 75,
       bearing: -15,
       ...FLY_CONFIG,
-      duration: 1800, // Salto rápido para el Dashboard
+      duration: 2500, 
     });
 
     hasInitialJumpPerformed.current = true;
   }, [isMapLoaded, userLocation]);
 
   /**
-   * 3. EL REVELADO (The Transition)
+   * 4. EL REVELADO (The Transition)
    */
   const handleMoveEnd = useCallback(() => {
     if (hasInitialJumpPerformed.current && !isCameraSettled) {
       setIsCameraSettled(true);
-      nicepodLog("✨ [MapPreview] Malla visual estabilizada.");
+      nicepodLog("✨ [MapPreview] Malla visual sintonizada.");
     }
   }, [isCameraSettled]);
 
@@ -119,7 +132,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
       )}
     >
       <AnimatePresence mode="wait">
-
+        
         {/* ESCENARIO A: PERMISOS BLOQUEADOS */}
         {engineStatus === 'PERMISSION_DENIED' ? (
           <motion.div
@@ -128,54 +141,54 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
             className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-zinc-950 z-50 text-center"
           >
             <ShieldAlert className="h-10 w-10 text-red-500 mb-4" />
-            <span className="text-[10px] font-black uppercase tracking-[0.5em] text-red-400">GPS Interceptado</span>
-            <p className="text-[10px] text-zinc-500 mt-2 max-w-[200px] leading-relaxed uppercase">
-              Habilite el acceso a la ubicación para proyectar la red local.
+            <span className="text-[10px] font-black uppercase tracking-[0.5em] text-red-400">Acceso Denegado</span>
+            <p className="text-[9px] text-zinc-500 mt-2 max-w-[220px] leading-relaxed uppercase">
+              El sistema requiere permisos de ubicación para proyectar la malla local.
             </p>
           </motion.div>
         ) :
 
-          /* ESCENARIO B: CORTINA DE CARGA Y GESTO DE USUARIO */
-          !isCameraSettled ? (
-            <motion.div
-              key="smokescreen"
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 flex flex-col items-center justify-center space-y-8 bg-[#020202] z-[90]"
-            >
-              <div className="relative">
-                <Zap className="h-8 w-8 text-primary/30 animate-pulse" />
-                <div className="absolute inset-0 bg-primary/10 blur-3xl rounded-full animate-pulse" />
+        /* ESCENARIO B: CORTINA DE CARGA (SMOKESCREEN) */
+        !isCameraSettled ? (
+          <motion.div
+            key="smokescreen"
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 flex flex-col items-center justify-center space-y-8 bg-[#020202] z-[90]"
+          >
+            <div className="relative">
+              <Zap className="h-8 w-8 text-primary/30 animate-pulse" />
+              <div className="absolute inset-0 bg-primary/10 blur-3xl rounded-full animate-pulse" />
+            </div>
+
+            <div className="flex flex-col items-center gap-6 text-center px-12">
+              <div className="space-y-2">
+                <span className="text-[9px] font-black uppercase tracking-[0.4em] text-white">
+                  Sincronización Órbital
+                </span>
+                <p className="text-[7px] font-bold uppercase tracking-[0.3em] text-primary/60 animate-pulse italic">
+                  {engineStatus === 'IDLE' ? "Esperando Autorización" : 
+                   !isMapLoaded ? "Cargando Motor 3D" : "Fijando Coordenadas"}
+                </p>
               </div>
 
-              <div className="flex flex-col items-center gap-6 text-center px-12">
-                <div className="space-y-2">
-                  <span className="text-[9px] font-black uppercase tracking-[0.4em] text-white">
-                    Conexión Neuronal
-                  </span>
-                  <p className="text-[7px] font-bold uppercase tracking-[0.3em] text-primary/60 animate-pulse italic">
-                    {engineStatus === 'IDLE' ? "Esperando Autorización de Sensores" :
-                      !isMapLoaded ? "Cargando Malla WebGL" : "Sincronizando Coordenadas"}
-                  </p>
-                </div>
-
-                {/* BOTÓN DE IGNICIÓN MANUAL (User Gesture Bypass) */}
-                {engineStatus === 'IDLE' && (
-                  <button
-                    onClick={() => initSensors()}
-                    className="px-6 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-black text-[8px] uppercase tracking-[0.4em] flex items-center gap-3 hover:bg-primary hover:text-black transition-all"
-                  >
-                    <Power size={12} />
-                    Activar Radar
-                  </button>
-                )}
-              </div>
-            </motion.div>
-          ) : null}
+              {/* [GESTO DE USUARIO]: Rompe el bloqueo de Safari/Chrome */}
+              {engineStatus === 'IDLE' && (
+                <button
+                  onClick={() => initSensors()}
+                  className="px-6 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-black text-[8px] uppercase tracking-[0.4em] flex items-center gap-3 hover:bg-primary hover:text-black transition-all active:scale-95"
+                >
+                  <Power size={12} />
+                  Iniciar Enlace
+                </button>
+              )}
+            </div>
+          </motion.div>
+        ) : null}
       </AnimatePresence>
 
       {/* 
-          VI. EL MOTOR CARTOGRÁFICO SOBERANO 
-          Solo visible tras la estabilización de cámara.
+          V. EL MOTOR DE RENDERIZADO (CORE)
+          Aislado para evitar conflictos de recursos.
       */}
       {isContainerReady && (
         <motion.div
@@ -188,28 +201,29 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
             mode="EXPLORE"
             selectedPOIId={null}
             onLoad={() => setIsMapLoaded(true)}
-            onMove={() => { }} // Widget pasivo en movimiento
+            onMove={() => {}} 
             onMoveEnd={handleMoveEnd}
-            onMapClick={() => { }}
-            onMarkerClick={() => { }}
+            onMapClick={() => {}} 
+            onMarkerClick={() => {}} 
           />
         </motion.div>
       )}
 
-      {/* VII. INTERFAZ DE NAVEGACIÓN PERIFÉRICA */}
+      {/* GRADIENTE PROTECTOR */}
       <div className="absolute inset-0 bg-gradient-to-t from-[#020202] via-[#020202]/30 to-transparent z-10 pointer-events-none" />
 
+      {/* UI PERIFÉRICA */}
       <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8 z-[100] flex justify-between items-end pointer-events-none">
         <Link href="/map" className="flex items-center gap-4 pointer-events-auto group/btn focus:outline-none">
           <div className="bg-primary/10 p-3.5 rounded-2xl backdrop-blur-3xl border border-primary/20 group-hover/btn:bg-primary/30 group-hover/btn:scale-110 transition-all duration-700 shadow-inner">
             <Compass className="h-5 w-5 text-primary animate-spin-slow" />
           </div>
-          <div className="flex flex-col">
+          <div className="flex flex-col text-left">
             <h3 className="text-white font-black text-sm md:text-xl uppercase tracking-tighter italic leading-none drop-shadow-lg">
               Madrid <span className="text-primary">Resonance</span>
             </h3>
             <p className="text-[8px] md:text-[9px] text-zinc-300 font-bold uppercase tracking-[0.3em] mt-1.5 group-hover/btn:text-primary transition-colors drop-shadow-md">
-              Explorar Malla Satelital
+              Malla Satelital Activa
             </p>
           </div>
         </Link>
@@ -223,13 +237,3 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
     </motion.div>
   );
 });
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT (V11.0):
- * 1. Unificación de Núcleo: El widget ahora usa 'MapCore', garantizando que
- *    todas las mejoras de estabilidad WebGL se apliquen alDashboard.
- * 2. User Gesture bypass: El botón de 'Activar Radar' asegura que NicePod
- *    pueda capturar el GPS incluso ante políticas de privacidad agresivas.
- * 3. Diseño Inmune: El 'rescueTimer' evita que un Voyager con red lenta quede
- *    atrapado viendo el cargador si un evento de Mapbox se pierde.
- */
