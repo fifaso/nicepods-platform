@@ -1,7 +1,7 @@
 // components/geo/map-preview-frame.tsx
-// VERSIÓN: 10.1 (NicePod GO-Preview - High Efficiency & Staged Reveal Edition)
-// Misión: Ventana táctica fotorrealista que rastrea y centra al Voyager con carga invisible.
-// [ESTABILIZACIÓN]: Implementación de Smokescreen Protocol, Carga de Proximidad y Fix de Tipos.
+// VERSIÓN: 10.2 (NicePod GO-Preview - Immutable Configuration Edition)
+// Misión: Ventana táctica fotorrealista con carga invisible y protección de motor WebGL.
+// [ESTABILIZACIÓN]: Memoización estricta de Terrain/Fog para evitar errores de 'Source removal'.
 
 "use client";
 
@@ -23,7 +23,6 @@ import { UserLocationMarker } from "./user-location-marker";
 
 /**
  * INTERFAZ: MadridMapProps
- * Contrato de integridad para el motor WebGL.
  */
 interface MadridMapProps {
   initialViewState: {
@@ -55,6 +54,9 @@ const MapEngine = dynamic<MadridMapProps>(
 
 const PHOTOREALISTIC_STYLE = "mapbox://styles/mapbox/satellite-streets-v12";
 
+/**
+ * MapPreviewFrame: El widget de visualización táctica para el Dashboard inicial.
+ */
 export const MapPreviewFrame = memo(function MapPreviewFrame() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
@@ -79,6 +81,25 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
   const hasInitialJumpPerformed = useRef<boolean>(false);
 
   /**
+   * [FIX CRÍTICO]: MEMOIZACIÓN DE CONFIGURACIÓN
+   * Garantiza que las referencias a Terrain y Fog sean inmutables, 
+   * evitando que el motor intente remover fuentes en uso.
+   */
+  const terrainConfiguration = useMemo(() => ({
+    source: 'mapbox-dem',
+    exaggeration: 1.2
+  }), []);
+
+  const fogConfiguration = useMemo(() => ({
+    "range": [0.8, 8],
+    "color": "#020202",
+    "horizon-blend": 0.3,
+    "high-color": "#0f172a",
+    "space-color": "#000000",
+    "star-intensity": 0.4
+  }), []);
+
+  /**
    * 1. PROTOCOLO DE SEGURIDAD MATEMÁTICA (Safe Mount)
    */
   useEffect(() => {
@@ -97,24 +118,15 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
 
   /**
    * 2. CONFIGURACIÓN DE CÁMARA (Carga de Proximidad)
-   * Nace en Pitch 0 y Zoom 14 para minimizar la descarga inicial de polígonos 3D.
+   * Nacemos a poca altura (Z14) y con vista plana para reducir el consumo inicial de red.
    */
   const initialViewState = useMemo(() => ({
-    latitude: 40.4167,
-    longitude: -3.7037,
-    zoom: 14.2,
+    latitude: userLocation?.latitude || 40.4167,
+    longitude: userLocation?.longitude || -3.7037,
+    zoom: 14.5,
     pitch: 0,
     bearing: 0
-  }), []);
-
-  const fogConfig = useMemo(() => ({
-    "range": [0.8, 8],
-    "color": "#020202",
-    "horizon-blend": 0.3,
-    "high-color": "#0f172a",
-    "space-color": "#000000",
-    "star-intensity": 0.4
-  }), []);
+  }), [userLocation]);
 
   const buildingLayerConfig = useMemo(() => ({
     id: "3d-buildings-preview",
@@ -132,7 +144,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
   }), []);
 
   /**
-   * 3. MONITOR DE VISIBILIDAD E IGNICIÓN PROACTIVA
+   * 3. MONITOR DE VISIBILIDAD E IGNICIÓN
    */
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -161,18 +173,19 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
 
   /**
    * 4. SALTO TÁCTICO EN LAS SOMBRAS
+   * Dispara el vuelo hacia la Experiencia GO solo cuando el motor está listo.
    */
   useEffect(() => {
     if (isCameraSettled || !isMapLoaded || !userLocation || !mapInstanceRef.current) return;
 
-    nicepodLog("🎯 [MapPreview] Ejecutando vuelo cinemático invisible.");
+    nicepodLog("🎯 [MapPreview] Ejecutando vuelo cinemático hacia Voyager.");
 
     mapInstanceRef.current.flyTo({
       center: [userLocation.longitude, userLocation.latitude],
-      zoom: 15.5,
+      zoom: 15.8,
       pitch: 75,
       bearing: -15,
-      duration: 1800,
+      duration: 2000,
       essential: true,
       easing: (t: number) => t * (2 - t)
     });
@@ -183,10 +196,10 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
   /**
    * 5. EL REVELADO (The Transition)
    */
-  const handleMoveEnd = useCallback((e: any) => {
+  const handleMoveEnd = useCallback(() => {
     if (hasInitialJumpPerformed.current && !isCameraSettled) {
       setIsCameraSettled(true);
-      nicepodLog("✨ [MapPreview] Nodo Localizado. Revelando Malla.");
+      nicepodLog("✨ [MapPreview] Malla fotorrealista estabilizada.");
     }
   }, [isCameraSettled]);
 
@@ -213,8 +226,8 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
             className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-zinc-950 z-50 text-center"
           >
             <ShieldAlert className="h-10 w-10 text-red-500 mb-4" />
-            <span className="text-[10px] font-black uppercase tracking-[0.5em] text-red-400">GPS Interceptado</span>
-            <p className="text-xs text-zinc-500 mt-2 max-w-[200px] leading-relaxed">Active la ubicación para ver la red local.</p>
+            <span className="text-[10px] font-black uppercase tracking-[0.5em] text-red-400">GPS Bloqueado</span>
+            <p className="text-xs text-zinc-500 mt-2 max-w-[200px] leading-relaxed uppercase">Habilite el GPS para ver la red.</p>
           </motion.div>
         ) :
 
@@ -230,7 +243,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
               </div>
               <div className="flex flex-col items-center gap-2">
                 <span className="text-[9px] font-black uppercase tracking-[0.5em] text-white italic">
-                  {!userLocation ? "Sintonizando Órbita" : "Calibrando Fotorrealismo"}
+                  {!userLocation ? "Localizando Voyager" : "Calibrando 3D"}
                 </span>
               </div>
             </motion.div>
@@ -250,12 +263,12 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
             style={{ width: "100%", height: "100%" }}
             mapStyle={PHOTOREALISTIC_STYLE}
             projection="mercator"
-            terrain={{ source: 'mapbox-dem', exaggeration: 1.2 }}
+            terrain={terrainConfiguration}
             maxPitch={82}
             reuseMaps={true}
             antialias={false}
             attributionControl={false}
-            fog={fogConfig}
+            fog={fogConfiguration}
             onLoad={(e) => {
               mapInstanceRef.current = e.target;
               setIsMapLoaded(true);
@@ -310,7 +323,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
               Madrid <span className="text-primary">Resonance</span>
             </h3>
             <p className="text-[8px] md:text-[9px] text-zinc-300 font-bold uppercase tracking-[0.3em] mt-1.5 group-hover/btn:text-primary transition-colors drop-shadow-md">
-              Explorar Malla Satelital
+              Malla Satelital Activa
             </p>
           </div>
         </Link>

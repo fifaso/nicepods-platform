@@ -1,7 +1,7 @@
 // components/geo/SpatialEngine.tsx
-// VERSIÓN: 11.1 (NicePod GO-Engine - Industrial Stability & Zero-Wait Ingress)
-// Misión: Renderizado fotorrealista de alta velocidad con protocolo de revelado cinemático.
-// [ESTABILIZACIÓN]: Carga de proximidad (Z14), proyección Mercator para ahorro de GPU y purga de ruido.
+// VERSIÓN: 12.0 (NicePod GO-Engine - Immutable Terrain & Deadlock Prevention Edition)
+// Misión: Renderizado fotorrealista inmersivo garantizando estabilidad del motor WebGL v3.
+// [ESTABILIZACIÓN]: Memoización estricta de Terrain/Fog para aniquilar el error 'mapbox-dem'.
 
 "use client";
 
@@ -43,7 +43,6 @@ import { UserLocationMarker } from "./user-location-marker";
  * ---------------------------------------------------------------------------
  * I. [BUILD SHIELD]: CONTRATOS LOCALES ESTRICTOS
  * ---------------------------------------------------------------------------
- * Independizamos el motor de NicePod de las definiciones volátiles de terceros.
  */
 interface NicePodMapMoveEvent {
   viewState: {
@@ -72,7 +71,6 @@ const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
 const PHOTOREALISTIC_STYLE = "mapbox://styles/mapbox/satellite-streets-v12";
 const DARK_IMMERSIVE_STYLE = "mapbox://styles/mapbox/dark-v11";
 
-// Configuración de vuelo cinemático de Madrid Resonance
 const FLY_CONFIG = {
   duration: 3500,
   essential: true,
@@ -104,8 +102,26 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   const hasInitialJumpPerformed = useRef<boolean>(false);
 
   /**
+   * [FIX CRÍTICO]: MEMOIZACIÓN DE CONFIGURACIÓN
+   * Evita que Mapbox intente reinstanciar el motor de terreno en cada re-render.
+   * Esto aniquila el error "Source cannot be removed while terrain is using it".
+   */
+  const terrainConfiguration = useMemo(() => ({
+    source: 'mapbox-dem',
+    exaggeration: 1.2
+  }), []);
+
+  const fogConfiguration = useMemo(() => ({
+    "range": [0.2, 8],
+    "color": "#020202",
+    "horizon-blend": 0.2,
+    "high-color": "#1e293b",
+    "space-color": "#000000",
+    "star-intensity": 0.5
+  }), []);
+
+  /**
    * PROTOCOLO DE SEGURIDAD MATEMÁTICA (Safe Mount)
-   * Bloquea la instanciación de WebGL si el contenedor no tiene dimensiones físicas.
    */
   useEffect(() => {
     if (!containerRef.current) return;
@@ -123,18 +139,18 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
 
   /**
    * CONFIGURACIÓN DE CÁMARA INICIAL (MODO AHORRO DE RED)
-   * Zoom 14 y Pitch 30 para minimizar la descarga de tiles en el milisegundo cero.
+   * Zoom 14 y Pitch 30 para reducir la carga inicial del satélite.
    */
   const [viewState, setViewState] = useState({
-    latitude: 40.4167,
-    longitude: -3.7037,
+    latitude: geoEngine.userLocation?.latitude || 40.4167,
+    longitude: geoEngine.userLocation?.longitude || -3.7037,
     zoom: 14,
     pitch: mode === 'FORGE' ? 0 : 30,
     bearing: 0,
   });
 
   /**
-   * PROTOCOLOS DE VUELO TÁCTICO (Cinematic Jump)
+   * PROTOCOLOS DE VUELO TÁCTICO
    */
   const flyToPosition = useCallback((lng: number, lat: number, zoomLevel = 17, targetPitch = 75) => {
     if (mapRef.current) {
@@ -148,12 +164,11 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   }, [mode]);
 
   /**
-   * [MISIÓN: AUTO-LOCALIZACIÓN CINETMÁTICA]
-   * Una vez triangulado el Voyager, disparamos el salto a la Experiencia GO.
+   * [MISIÓN: AUTO-LOCALIZACIÓN INVISIBLE]
    */
   useEffect(() => {
     if (userLocation && isMapLoaded && !hasInitialJumpPerformed.current) {
-      nicepodLog("🎯 [SpatialEngine] Coordenada detectada. Ejecutando salto hacia Voyager.");
+      nicepodLog("🎯 [SpatialEngine] Sintonía establecida. Iniciando salto táctico.");
       flyToPosition(userLocation.longitude, userLocation.latitude, mode === 'FORGE' ? 18.2 : 16.8, 75);
       hasInitialJumpPerformed.current = true;
     }
@@ -161,12 +176,11 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
 
   /**
    * EL REVELADO (The Fade-In Trigger)
-   * Levantamos la cortina de carga solo cuando la cámara está estable en su destino.
    */
   const handleMoveEnd = useCallback(() => {
     if (hasInitialJumpPerformed.current && !isCameraSettled) {
       setIsCameraSettled(true);
-      nicepodLog("✨ [SpatialEngine] Malla Fotorrealista Estabilizada.");
+      nicepodLog("✨ [SpatialEngine] Malla 3D lista para el Voyager.");
     }
   }, [isCameraSettled]);
 
@@ -195,7 +209,7 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   }, [flyToPosition]);
 
   /**
-   * CAPA ARQUITECTÓNICA 3D (Obsidiana Glass)
+   * CAPA ARQUITECTÓNICA 3D
    */
   const buildingLayerConfig = useMemo(() => ({
     id: "3d-buildings",
@@ -212,10 +226,6 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
     },
   }), [mode]);
 
-  /**
-   * [PROTOCOLO DE SILENCIO URBANO]
-   * Aniquila las etiquetas comerciales de Mapbox para una inmersión NicePod pura.
-   */
   const onMapLoad = useCallback((e: any) => {
     setIsMapLoaded(true);
     const map = e.target;
@@ -231,7 +241,6 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
     }
   }, [mode]);
 
-  // Transformación de datos para el Dossier de Hallazgo
   const mappedSelectedPOI = useMemo(() => {
     if (!selectedPOIId || !nearbyPOIs || nearbyPOIs.length === 0) return null;
     const rawPoi = nearbyPOIs.find(p => p.id.toString() === selectedPOIId);
@@ -248,7 +257,6 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   return (
     <div ref={containerRef} className={cn("w-full h-full relative bg-[#010101]", className)}>
 
-      {/* --- CORTINA DE HUMO SOBERANA --- */}
       <AnimatePresence>
         {!isCameraSettled && engineStatus !== 'PERMISSION_DENIED' && (
           <motion.div
@@ -258,16 +266,17 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
             className="absolute inset-0 z-[110] bg-[#020202] flex flex-col items-center justify-center space-y-5"
           >
             <Loader2 className="h-10 w-10 animate-spin text-primary" />
-            <div className="flex flex-col items-center gap-2">
+            <div className="flex flex-col items-center gap-2 text-center px-8">
               <span className="text-[9px] font-black uppercase tracking-[0.5em] text-white">Sincronizando Órbita</span>
               <span className="text-[7px] font-bold uppercase tracking-[0.3em] text-primary/60 animate-pulse italic">
-                {!userLocation ? "Buscando coordenadas satelitales..." : "Calibrando Fotorrealismo 3D..."}
+                {!isMapLoaded ? "Iniciando Motor WebGL..." :
+                  !userLocation ? "Buscando coordenadas satelitales..." :
+                    "Calibrando Malla Fotorrealista 3D..."}
               </span>
             </div>
           </motion.div>
         )}
 
-        {/* PERMISSION SHIELD */}
         {engineStatus === 'PERMISSION_DENIED' && (
           <motion.div
             key="p-shield"
@@ -277,13 +286,12 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
             <ShieldAlert className="h-10 w-10 text-red-500 mb-4" />
             <span className="text-[10px] font-black uppercase tracking-[0.5em] text-red-400">GPS Bloqueado</span>
             <p className="text-xs text-zinc-500 mt-4 max-w-[200px] leading-relaxed">
-              Habilite el acceso a la ubicación para proyectar la Malla de Madrid.
+              Habilite el acceso a la ubicación para proyectar la Malla de Madrid Resonance.
             </p>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* --- EL MOTOR DE RENDERIZADO (WEBGL) --- */}
       {isContainerReady && (
         <motion.div
           animate={{ opacity: isCameraSettled ? 1 : 0 }}
@@ -298,14 +306,18 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
             onLoad={onMapLoad}
             mapboxAccessToken={MAPBOX_TOKEN}
             mapStyle={mode === 'FORGE' ? PHOTOREALISTIC_STYLE : DARK_IMMERSIVE_STYLE}
-            projection="mercator" // Máxima estabilidad para la carga inicial
-            terrain={mode === 'EXPLORE' ? { source: 'mapbox-dem', exaggeration: 1.2 } : undefined}
-            antialias={false} // Ahorro de GPU
+            projection="mercator"
+
+            // [MEJORA]: Referencia memoizada para evitar Deadlocks
+            terrain={mode === 'EXPLORE' ? terrainConfiguration : undefined}
+            fog={mode === 'EXPLORE' ? fogConfiguration as any : undefined}
+
+            antialias={false}
             reuseMaps={true}
             maxPitch={82}
             attributionControl={false}
           >
-            {/* FUENTE DE ELEVACIÓN PARA MODO EXPLORADOR */}
+            {/* [MEJORA]: La fuente de datos DEM es síncrona con el objeto de terreno */}
             {mode === 'EXPLORE' && (
               <Source
                 id="mapbox-dem"
@@ -357,7 +369,7 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
         </motion.div>
       )}
 
-      {/* OVERLAY DE BÚSQUEDA Y DOSSIER */}
+      {/* OVERLAY DE BÚSQUEDA */}
       {mode === 'EXPLORE' && isCameraSettled && (
         <div className="absolute top-6 left-4 right-4 z-[100] md:top-8 md:left-8 md:w-[400px] animate-in fade-in duration-1000">
           <UnifiedSearchBar
