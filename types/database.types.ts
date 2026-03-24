@@ -1543,7 +1543,7 @@ export type Database = {
         }[]
       }
       dispatch_edge_function: {
-        Args: { function_name: string; payload: Json }
+        Args: { p_function_name: string; p_payload: Json }
         Returns: Json
       }
       fetch_personalized_pulse: {
