@@ -1,7 +1,7 @@
 // components/geo/SpatialEngine.tsx
-// VERSIÓN: 8.0 (NicePod GO-Engine - The Flawless Terrain Edition)
-// Misión: Renderizado 3D inmersivo, fotorrealista y blindado contra errores de tipos y fuentes.
-// [ESTABILIZACIÓN]: Inyección de Source DEM para evitar fallos de WebGL y limpieza estricta de imports.
+// VERSIÓN: 9.0 (NicePod GO-Engine - The Absolute Immersion Edition)
+// Misión: Renderizado 3D fotorrealista continuo con perspectiva Pokémon GO (Pitch 80°).
+// [ESTABILIZACIÓN]: Universalización de Satélite, ajuste de Niebla Volumétrica y Build Shield.
 
 "use client";
 
@@ -19,7 +19,7 @@ import Map, {
   GeolocateControl,
   Layer,
   NavigationControl,
-  Source // [FIX CRÍTICO]: Necesario para alimentar el Terreno 3D
+  Source // Alimentación del Terreno 3D
 } from 'react-map-gl/mapbox';
 
 import { AnimatePresence } from "framer-motion";
@@ -59,7 +59,6 @@ interface NicePodMapClickEvent {
   };
 }
 
-// Extracción segura del tipo de instancia para el MapRef
 type MapRefInstance = React.ElementRef<typeof Map>;
 
 interface SpatialEngineProps {
@@ -69,13 +68,17 @@ interface SpatialEngineProps {
 }
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
+
+/**
+ * [ESTÁNDAR VISUAL GO-EXPERIENCE]
+ * El Satélite de alta resolución es ahora la base innegociable de la plataforma.
+ */
 const PHOTOREALISTIC_STYLE = "mapbox://styles/mapbox/satellite-streets-v12";
-const DARK_IMMERSIVE_STYLE = "mapbox://styles/mapbox/dark-v11";
 
 const FLY_CONFIG = {
-  duration: 3000,
+  duration: 3500, // Vuelo ligeramente más largo para cinematografía
   essential: true,
-  curve: 1.2,
+  curve: 1.5,     // Curva de vuelo parabólica (se aleja y vuelve a acercarse)
   easing: (t: number) => t * (2 - t)
 };
 
@@ -97,6 +100,7 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
 
   /**
    * PROTOCOLO DE SEGURIDAD MATEMÁTICA (Safe Mount)
+   * Asegura que el mapa solo se inicialice cuando el contenedor tiene dimensiones reales (>0).
    */
   useEffect(() => {
     if (!containerRef.current) return;
@@ -113,25 +117,37 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   }, []);
 
   /**
-   * CONFIGURACIÓN DE CÁMARA INICIAL
+   * CONFIGURACIÓN DE CÁMARA INICIAL (GO-STYLE)
+   * Forzamos el pitch a 80 grados para lograr el horizonte infinito.
    */
   const [viewState, setViewState] = useState({
     latitude: geoEngine.userLocation?.latitude || 40.4167,
     longitude: geoEngine.userLocation?.longitude || -3.7037,
-    zoom: mode === 'FORGE' ? 18.5 : 15.5,
-    pitch: mode === 'FORGE' ? 0 : 75,
+    zoom: mode === 'FORGE' ? 18.5 : 16.5,
+    pitch: mode === 'FORGE' ? 0 : 80,
     bearing: -10,
   });
 
+  // Sincronía T0 con el GPS del Voyager (Solo afecta si no hay mapa cargado)
+  useEffect(() => {
+    if (geoEngine.userLocation && mode === 'FORGE' && !isMapLoaded) {
+      setViewState(prev => ({
+        ...prev,
+        latitude: geoEngine.userLocation!.latitude,
+        longitude: geoEngine.userLocation!.longitude
+      }));
+    }
+  }, [geoEngine.userLocation, mode, isMapLoaded]);
+
   /**
-   * PROTOCOLOS DE VUELO TÁCTICO
+   * PROTOCOLOS DE VUELO TÁCTICO (Cinematic Jump)
    */
   const flyToPosition = useCallback((lng: number, lat: number, zoomLevel = 17) => {
     if (mapRef.current) {
       mapRef.current.flyTo({
         center: [lng, lat],
         zoom: zoomLevel,
-        pitch: mode === 'EXPLORE' ? 75 : 0,
+        pitch: mode === 'EXPLORE' ? 80 : 0, // Inmersión agresiva
         ...FLY_CONFIG
       });
     }
@@ -142,8 +158,8 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
    */
   useEffect(() => {
     if (userLocation && isMapLoaded && !hasInitialJumpPerformed.current) {
-      nicepodLog("🎯 [SpatialEngine] Coordenada detectada. Iniciando salto táctico hacia Voyager.");
-      flyToPosition(userLocation.longitude, userLocation.latitude, mode === 'FORGE' ? 18.5 : 16.5);
+      nicepodLog("🎯 [SpatialEngine] Señal fijada. Vuelo inicial hacia Voyager.");
+      flyToPosition(userLocation.longitude, userLocation.latitude, mode === 'FORGE' ? 18.5 : 16.8);
       hasInitialJumpPerformed.current = true;
     }
   }, [userLocation, isMapLoaded, flyToPosition, mode]);
@@ -154,11 +170,13 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
 
   const handleMapClick = useCallback((event: NicePodMapClickEvent) => {
     if (mode !== 'FORGE' || !onManualAnchor) return;
+
     const lngLat: [number, number] = [event.lngLat.lng, event.lngLat.lat];
 
     if (typeof window !== "undefined" && navigator.vibrate) {
       navigator.vibrate([10, 30, 10]);
     }
+
     onManualAnchor(lngLat);
     flyToPosition(lngLat[0], lngLat[1], 19);
   }, [mode, onManualAnchor, flyToPosition]);
@@ -173,15 +191,17 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   }, [flyToPosition]);
 
   /**
-   * ATMÓSFERA SOBERANA
+   * ATMÓSFERA SOBERANA (Niebla Volumétrica)
+   * Se acerca el rango (0.2 a 8) para que el cielo oscuro envuelva 
+   * la ciudad más rápido, aumentando la sensación inmersiva.
    */
   const fogConfig = useMemo(() => ({
-    "range": [0.5, 10],
+    "range": [0.2, 8],
     "color": "#020202",
-    "horizon-blend": 0.2,
-    "high-color": "#1e293b",
+    "horizon-blend": 0.15,
+    "high-color": "#0f172a",
     "space-color": "#000000",
-    "star-intensity": 0.4
+    "star-intensity": 0.5
   }), []);
 
   /**
@@ -195,15 +215,17 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
     type: "fill-extrusion",
     minzoom: 14,
     paint: {
-      "fill-extrusion-color": "#050505",
+      "fill-extrusion-color": "#050505", // Negro abismal para contrastar con el suelo satelital
       "fill-extrusion-height": ["get", "height"],
       "fill-extrusion-base": ["get", "min_height"],
-      "fill-extrusion-opacity": 0.7,
+      "fill-extrusion-opacity": 0.7, // Translúcido
     },
   }), []);
 
   /**
    * [PROTOCOLO DE SILENCIO URBANO]
+   * Purgamos las etiquetas de tiendas y estaciones para que el mapa
+   * se sienta como una red neuronal privada.
    */
   const onMapLoad = useCallback((e: any) => {
     setIsMapLoaded(true);
@@ -218,9 +240,6 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
     }
   }, [mode]);
 
-  /**
-   * [DATA MAPPER]
-   */
   const mappedSelectedPOI = useMemo(() => {
     if (!selectedPOIId || !nearbyPOIs || nearbyPOIs.length === 0) return null;
     const rawPoi = nearbyPOIs.find(p => p.id.toString() === selectedPOIId);
@@ -260,21 +279,22 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
           onClick={handleMapClick as any}
           onLoad={onMapLoad}
           mapboxAccessToken={MAPBOX_TOKEN}
-          mapStyle={mode === 'FORGE' ? PHOTOREALISTIC_STYLE : DARK_IMMERSIVE_STYLE}
 
-          // [ESCUDO MATEMÁTICO]
+          // [FIX VISUAL]: Fotorrealismo universal.
+          mapStyle={PHOTOREALISTIC_STYLE}
+
+          // [ESCUDO MATEMÁTICO]: Evita el colapso del 'RangeError'.
           projection="mercator"
 
-          // Activamos el relieve geográfico solo en modo EXPLORE
+          // Terreno 3D (Montañas y desniveles)
           terrain={mode === 'EXPLORE' ? { source: 'mapbox-dem', exaggeration: 1.2 } : undefined}
-
           fog={mode === 'EXPLORE' ? fogConfig as any : undefined}
           antialias={true}
           reuseMaps={true}
-          maxPitch={80}
+          maxPitch={80} // Límite seguro
           attributionControl={false}
         >
-          {/* [FUENTE CRÍTICA]: Alimenta la elevación del Terreno 3D */}
+          {/* [FUENTE CRÍTICA]: Alimentación para el Terreno 3D */}
           {mode === 'EXPLORE' && (
             <Source
               id="mapbox-dem"
