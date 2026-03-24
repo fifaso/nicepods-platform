@@ -1,7 +1,7 @@
 // components/geo/map-preview-frame.tsx
-// VERSIÓN: 10.0 (NicePod GO-Preview - The Smokescreen Protocol)
-// Misión: Ocultar el estrés de renderizado WebGL hasta que el vuelo táctico haya concluido.
-// [ESTABILIZACIÓN]: Erradicación de Jittering móvil mediante Revelado Cinemático y Fix ESLint.
+// VERSIÓN: 10.1 (NicePod GO-Preview - High Efficiency & Staged Reveal Edition)
+// Misión: Ventana táctica fotorrealista que rastrea y centra al Voyager con carga invisible.
+// [ESTABILIZACIÓN]: Implementación de Smokescreen Protocol, Carga de Proximidad y Fix de Tipos.
 
 "use client";
 
@@ -9,18 +9,21 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Compass, Maximize2, ShieldAlert, Zap } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import React, { memo, useEffect, useMemo, useRef, useState } from "react";
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+// --- MOTOR CARTOGRÁFICO (COMPONENTES) ---
+import { Layer, Source } from 'react-map-gl/mapbox';
 
 // --- INFRAESTRUCTURA CORE ---
 import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { cn, nicepodLog } from "@/lib/utils";
 import { PointOfInterest } from "@/types/geo-sovereignty";
-import { Source } from 'react-map-gl/mapbox';
 import { MapMarkerCustom } from "./map-marker-custom";
 import { UserLocationMarker } from "./user-location-marker";
 
 /**
  * INTERFAZ: MadridMapProps
+ * Contrato de integridad para el motor WebGL.
  */
 interface MadridMapProps {
   initialViewState: {
@@ -40,22 +43,23 @@ interface MadridMapProps {
   projection?: string;
   terrain?: any;
   maxPitch?: number;
-  children?: React.ReactNode;
-  // [FIX ESLINT]: Añadimos el tipo explícito para el evento de carga
   onLoad?: (e: any) => void;
+  onMoveEnd?: (e: any) => void;
+  children?: React.ReactNode;
 }
 
 const MapEngine = dynamic<MadridMapProps>(
   () => import("react-map-gl/mapbox").then((mod) => (mod.default || mod.Map) as any),
-  { ssr: false } // Quitamos el loader de dynamic porque nosotros controlaremos la UI de carga
+  { ssr: false }
 );
 
 const PHOTOREALISTIC_STYLE = "mapbox://styles/mapbox/satellite-streets-v12";
 
 export const MapPreviewFrame = memo(function MapPreviewFrame() {
   const containerRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<any>(null);
 
-  // CONSUMO DE TELEMETRÍA (El Cerebro Global)
+  // Consumo de Telemetría Global
   const geoEngine = useGeoEngine();
   const {
     userLocation,
@@ -69,17 +73,13 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
   const [isVisible, setIsVisible] = useState<boolean>(false);
   const [isIdleReady, setIsIdleReady] = useState<boolean>(false);
   const [isContainerReady, setIsContainerReady] = useState<boolean>(false);
-
-  // Nivel 1: El motor WebGL descargó los tiles iniciales
   const [isMapLoaded, setIsMapLoaded] = useState<boolean>(false);
-  // Nivel 2: La cámara terminó de volar hacia el usuario
   const [isCameraSettled, setIsCameraSettled] = useState<boolean>(false);
 
-  // Referencia imperativa para el vuelo en las sombras
-  const mapInstanceRef = useRef<any>(null);
+  const hasInitialJumpPerformed = useRef<boolean>(false);
 
   /**
-   * 1. PROTOCOLO DE SEGURIDAD MATEMÁTICA (Safe Mount Observer)
+   * 1. PROTOCOLO DE SEGURIDAD MATEMÁTICA (Safe Mount)
    */
   useEffect(() => {
     if (!containerRef.current) return;
@@ -96,13 +96,13 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
   }, []);
 
   /**
-   * 2. CONFIGURACIÓN DE CÁMARA (Nacimiento Cenital Seguro)
-   * Nacemos con pitch 0 para que la compilación de matrices inicial sea barata en CPU.
+   * 2. CONFIGURACIÓN DE CÁMARA (Carga de Proximidad)
+   * Nace en Pitch 0 y Zoom 14 para minimizar la descarga inicial de polígonos 3D.
    */
   const initialViewState = useMemo(() => ({
     latitude: 40.4167,
     longitude: -3.7037,
-    zoom: 14.5,
+    zoom: 14.2,
     pitch: 0,
     bearing: 0
   }), []);
@@ -116,8 +116,23 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
     "star-intensity": 0.4
   }), []);
 
+  const buildingLayerConfig = useMemo(() => ({
+    id: "3d-buildings-preview",
+    source: "composite",
+    "source-layer": "building",
+    filter: ["==", "extrude", "true"],
+    type: "fill-extrusion",
+    minzoom: 14,
+    paint: {
+      "fill-extrusion-color": "#080808",
+      "fill-extrusion-height": ["get", "height"],
+      "fill-extrusion-base": ["get", "min_height"],
+      "fill-extrusion-opacity": 0.6,
+    },
+  }), []);
+
   /**
-   * 3. MONITOR DE VISIBILIDAD E IGNICIÓN
+   * 3. MONITOR DE VISIBILIDAD E IGNICIÓN PROACTIVA
    */
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -140,40 +155,40 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
         setIsIdleReady(true);
         initSensors();
       }
-    }, 500);
+    }, 400);
     return () => clearTimeout(timer);
   }, [isVisible, initSensors]);
 
   /**
-   * 4. VUELO EN LAS SOMBRAS (The Ghost Flight)
-   * Cuando el GPS da la señal y el mapa dice "estoy cargado", volamos
-   * sin que el usuario vea el movimiento tosco.
+   * 4. SALTO TÁCTICO EN LAS SOMBRAS
    */
   useEffect(() => {
-    // Si ya llegamos, no hacemos nada. Si falta el mapa o el GPS, esperamos.
     if (isCameraSettled || !isMapLoaded || !userLocation || !mapInstanceRef.current) return;
 
-    nicepodLog("🎯 [MapPreview] Ejecutando vuelo cinemático en las sombras.");
+    nicepodLog("🎯 [MapPreview] Ejecutando vuelo cinemático invisible.");
 
-    // Volamos hacia el Voyager con la perspectiva inmersiva
     mapInstanceRef.current.flyTo({
       center: [userLocation.longitude, userLocation.latitude],
-      zoom: 16.5,
+      zoom: 15.5,
       pitch: 75,
       bearing: -15,
-      duration: 1500, // Vuelo rápido porque está oculto
+      duration: 1800,
       essential: true,
       easing: (t: number) => t * (2 - t)
     });
 
-    // Cuando el vuelo de 1.5s termina, disolvemos la cortina de humo.
-    const revealTimer = setTimeout(() => {
-      setIsCameraSettled(true);
-      nicepodLog("✨ [MapPreview] Vuelo finalizado. Revelando Malla Urbana.");
-    }, 1600);
-
-    return () => clearTimeout(revealTimer);
+    hasInitialJumpPerformed.current = true;
   }, [isMapLoaded, userLocation, isCameraSettled]);
+
+  /**
+   * 5. EL REVELADO (The Transition)
+   */
+  const handleMoveEnd = useCallback((e: any) => {
+    if (hasInitialJumpPerformed.current && !isCameraSettled) {
+      setIsCameraSettled(true);
+      nicepodLog("✨ [MapPreview] Nodo Localizado. Revelando Malla.");
+    }
+  }, [isCameraSettled]);
 
   const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
 
@@ -182,7 +197,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
       ref={containerRef}
       initial={{ opacity: 0, scale: 0.98 }}
       animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 1.2, ease: "easeOut" }} // [FIX ESLINT]: Tailwind safe
+      transition={{ duration: 1.2, ease: "easeOut" }}
       className={cn(
         "relative w-full h-full overflow-hidden bg-[#030303] transition-all duration-700",
         "rounded-[2.5rem] md:rounded-[3rem] border border-white/5 shadow-2xl group",
@@ -191,35 +206,22 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
     >
       <AnimatePresence mode="wait">
 
-        {/* ESCENARIO A: EL PERMISSION SHIELD */}
+        {/* PERMISSION SHIELD */}
         {engineStatus === 'PERMISSION_DENIED' ? (
           <motion.div
-            key="permission_denied"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            key="p_denied" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-zinc-950 z-50 text-center"
           >
-            <div className="relative mb-6">
-              <div className="absolute inset-0 bg-red-500/20 blur-xl rounded-full animate-pulse" />
-              <ShieldAlert className="h-10 w-10 text-red-500 relative z-10" />
-            </div>
-            <span className="text-[10px] font-black uppercase tracking-[0.5em] text-red-400 mb-2">
-              GPS Interceptado
-            </span>
-            <p className="text-xs text-zinc-500 max-w-[200px] leading-relaxed">
-              Active la ubicación para ver la red local.
-            </p>
+            <ShieldAlert className="h-10 w-10 text-red-500 mb-4" />
+            <span className="text-[10px] font-black uppercase tracking-[0.5em] text-red-400">GPS Interceptado</span>
+            <p className="text-xs text-zinc-500 mt-2 max-w-[200px] leading-relaxed">Active la ubicación para ver la red local.</p>
           </motion.div>
         ) :
 
-          /* ESCENARIO B: CORTINA DE HUMO (Calibrando Malla) */
-          /* Esta pantalla se queda mientras el mapa carga por debajo y la cámara vuela */
+          /* SMOKESCREEN LOADER */
           !isCameraSettled ? (
             <motion.div
-              key="radar_loader"
-              exit={{ opacity: 0 }}
-              // El z-index alto asegura que tape al mapa imperfecto
+              key="smokescreen" exit={{ opacity: 0 }}
               className="absolute inset-0 flex flex-col items-center justify-center space-y-5 bg-zinc-950 z-[90]"
             >
               <div className="relative">
@@ -227,50 +229,38 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
                 <div className="absolute inset-0 bg-primary/10 blur-3xl rounded-full animate-pulse" />
               </div>
               <div className="flex flex-col items-center gap-2">
-                <span className="text-[9px] font-black uppercase tracking-[0.5em] text-white">
-                  Sincronizando Órbita
-                </span>
-                <span className="text-[7px] font-bold uppercase tracking-[0.3em] text-primary/60 italic">
-                  {!userLocation ? "Buscando coordenadas..." : "Calibrando Fotorrealismo 3D..."}
+                <span className="text-[9px] font-black uppercase tracking-[0.5em] text-white italic">
+                  {!userLocation ? "Sintonizando Órbita" : "Calibrando Fotorrealismo"}
                 </span>
               </div>
             </motion.div>
           ) : null}
       </AnimatePresence>
 
-      {/* 
-          EL MOTOR INMERSIVO (SIEMPRE CARGANDO EN SEGUNDO PLANO)
-          Al quitar las condicionales visuales de este bloque, obligamos al navegador
-          a iniciar el trabajo de GPU en cuanto tiene dimensiones (isContainerReady), 
-          pero estará oculto bajo la Cortina de Humo (z-index del loader) 
-          o bajo opacity-0 si preferimos fundido puro.
-      */}
+      {/* MOTOR WEBGL (BACKGROUND WORKER) */}
       {isIdleReady && isContainerReady && (
         <motion.div
-          initial={{ opacity: 0 }}
-          // El mapa solo se vuelve visible cuando la cámara aterrizó
           animate={{ opacity: isCameraSettled ? 1 : 0 }}
           transition={{ duration: 1.5 }}
-          className="absolute inset-0 grayscale-[0.3] opacity-70 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-1000 z-0"
+          className="absolute inset-0 z-0"
         >
           <MapEngine
             initialViewState={initialViewState}
             mapboxAccessToken={MAPBOX_TOKEN}
             style={{ width: "100%", height: "100%" }}
             mapStyle={PHOTOREALISTIC_STYLE}
-            projection="globe"
+            projection="mercator"
             terrain={{ source: 'mapbox-dem', exaggeration: 1.2 }}
-            maxPitch={85}
+            maxPitch={82}
             reuseMaps={true}
-            antialias={false} // Desactivado para ahorrar GPU móvil
+            antialias={false}
             attributionControl={false}
             fog={fogConfig}
-
-            // [FIX ESLINT]: Firma tipada correctamente en la interfaz
             onLoad={(e) => {
               mapInstanceRef.current = e.target;
               setIsMapLoaded(true);
             }}
+            onMoveEnd={handleMoveEnd}
           >
             <Source
               id="mapbox-dem"
@@ -300,12 +290,15 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
                 onClick={() => { }}
               />
             ))}
+
+            {isMapLoaded && (
+              <Layer {...buildingLayerConfig as any} />
+            )}
           </MapEngine>
         </motion.div>
       )}
 
-      {/* ELEMENTOS SUPERPUESTOS UI (Siempre Visibles) */}
-      <div className="absolute inset-0 bg-gradient-to-t from-[#020202] via-[#020202]/40 to-transparent z-10 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-t from-[#020202] via-transparent to-transparent z-10 pointer-events-none" />
 
       <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8 z-[100] flex justify-between items-end pointer-events-none">
         <Link href="/map" className="flex items-center gap-4 pointer-events-auto group/btn focus:outline-none">
@@ -317,7 +310,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
               Madrid <span className="text-primary">Resonance</span>
             </h3>
             <p className="text-[8px] md:text-[9px] text-zinc-300 font-bold uppercase tracking-[0.3em] mt-1.5 group-hover/btn:text-primary transition-colors drop-shadow-md">
-              Explorar Mapa en Vivo
+              Explorar Malla Satelital
             </p>
           </div>
         </Link>

@@ -1,12 +1,12 @@
 // components/geo/SpatialEngine.tsx
-// VERSIÓN: 10.0 (NicePod GO-Engine - The Cinematic Smokescreen Edition)
-// Misión: Renderizado fotorrealista inmersivo ocultando la compilación WebGL bajo una Cortina de Humo.
-// [ESTABILIZACIÓN]: Revelado diferido (onMoveEnd) y erradicación del Jittering móvil.
+// VERSIÓN: 11.1 (NicePod GO-Engine - Industrial Stability & Zero-Wait Ingress)
+// Misión: Renderizado fotorrealista de alta velocidad con protocolo de revelado cinemático.
+// [ESTABILIZACIÓN]: Carga de proximidad (Z14), proyección Mercator para ahorro de GPU y purga de ruido.
 
 "use client";
 
 import "mapbox-gl/dist/mapbox-gl.css";
-import React, {
+import {
   useCallback,
   useEffect,
   useMemo,
@@ -14,23 +14,25 @@ import React, {
   useState
 } from "react";
 
-// --- MOTOR CARTOGRÁFICO ---
+// --- MOTOR CARTOGRÁFICO (SUB-PATH EXPLÍCITO PARA VERCEL) ---
 import Map, {
   GeolocateControl,
   Layer,
+  MapRef,
   NavigationControl,
   Source
 } from 'react-map-gl/mapbox';
 
+// --- INFRAESTRUCTURA DE ANIMACIÓN Y UI ---
 import { AnimatePresence, motion } from "framer-motion";
-import { Compass, ShieldAlert } from "lucide-react";
+import { Loader2, ShieldAlert } from "lucide-react";
 
-// --- INFRAESTRUCTURA SOBERANA ---
+// --- INFRAESTRUCTURA DE DOMINIO SOBERANO ---
 import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { cn, nicepodLog } from "@/lib/utils";
 import { PointOfInterest } from "@/types/geo-sovereignty";
 
-// --- COMPONENTES DE MALLA ---
+// --- COMPONENTES DE MALLA TÁCTICA ---
 import { UnifiedSearchBar } from "@/components/ui/unified-search-bar";
 import { SearchResult } from "@/hooks/use-search-radar";
 import { MapMarkerCustom } from "./map-marker-custom";
@@ -39,8 +41,9 @@ import { UserLocationMarker } from "./user-location-marker";
 
 /**
  * ---------------------------------------------------------------------------
- * [BUILD SHIELD]: CONTRATOS LOCALES ESTRICTOS
+ * I. [BUILD SHIELD]: CONTRATOS LOCALES ESTRICTOS
  * ---------------------------------------------------------------------------
+ * Independizamos el motor de NicePod de las definiciones volátiles de terceros.
  */
 interface NicePodMapMoveEvent {
   viewState: {
@@ -59,8 +62,6 @@ interface NicePodMapClickEvent {
   };
 }
 
-type MapRefInstance = React.ElementRef<typeof Map>;
-
 interface SpatialEngineProps {
   mode: 'EXPLORE' | 'FORGE';
   onManualAnchor?: (lngLat: [number, number]) => void;
@@ -68,15 +69,25 @@ interface SpatialEngineProps {
 }
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
-
-// [ESTÁNDAR VISUAL GO-EXPERIENCE]
 const PHOTOREALISTIC_STYLE = "mapbox://styles/mapbox/satellite-streets-v12";
 const DARK_IMMERSIVE_STYLE = "mapbox://styles/mapbox/dark-v11";
 
+// Configuración de vuelo cinemático de Madrid Resonance
+const FLY_CONFIG = {
+  duration: 3500,
+  essential: true,
+  curve: 1.4,
+  easing: (t: number) => t * (2 - t)
+};
+
+/**
+ * SpatialEngine: El teatro de operaciones visual de NicePod.
+ * Optimizado para una carga inicial liviana y un salto a fotorrealismo 3D.
+ */
 export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngineProps) {
 
   // 1. REFERENCIAS DE HARDWARE Y CONTEXTOS
-  const mapRef = useRef<MapRefInstance>(null);
+  const mapRef = useRef<MapRef>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const geoEngine = useGeoEngine();
@@ -86,17 +97,15 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   const [selectedPOIId, setSelectedPOIId] = useState<string | null>(null);
   const [isSearchLoading, setIsSearchLoading] = useState<boolean>(false);
 
-  // Fases de Revelado Cinemático
   const [isContainerReady, setIsContainerReady] = useState<boolean>(false);
   const [isMapLoaded, setIsMapLoaded] = useState<boolean>(false);
   const [isCameraSettled, setIsCameraSettled] = useState<boolean>(false);
 
-  // Guardia de primer vuelo (impide que la cámara salte si el usuario panea)
   const hasInitialJumpPerformed = useRef<boolean>(false);
 
   /**
    * PROTOCOLO DE SEGURIDAD MATEMÁTICA (Safe Mount)
-   * Asegura que el WebGL no intente compilarse en un div de 0x0.
+   * Bloquea la instanciación de WebGL si el contenedor no tiene dimensiones físicas.
    */
   useEffect(() => {
     if (!containerRef.current) return;
@@ -113,77 +122,51 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   }, []);
 
   /**
-   * CONFIGURACIÓN DE CÁMARA (El Nacimiento en las Sombras)
-   * Nacemos con pitch bajo para optimizar CPU mientras la pantalla está negra.
+   * CONFIGURACIÓN DE CÁMARA INICIAL (MODO AHORRO DE RED)
+   * Zoom 14 y Pitch 30 para minimizar la descarga de tiles en el milisegundo cero.
    */
   const [viewState, setViewState] = useState({
-    latitude: geoEngine.userLocation?.latitude || 40.4167,
-    longitude: geoEngine.userLocation?.longitude || -3.7037,
-    zoom: mode === 'FORGE' ? 18.5 : 15.5,
-    pitch: mode === 'FORGE' ? 0 : 60,
-    bearing: -10,
+    latitude: 40.4167,
+    longitude: -3.7037,
+    zoom: 14,
+    pitch: mode === 'FORGE' ? 0 : 30,
+    bearing: 0,
   });
-
-  // Mantiene la cámara cenital pegada al GPS cuando el Admin forja (Mira Telescópica)
-  useEffect(() => {
-    if (geoEngine.userLocation && mode === 'FORGE' && isCameraSettled) {
-      setViewState(prev => ({
-        ...prev,
-        latitude: geoEngine.userLocation!.latitude,
-        longitude: geoEngine.userLocation!.longitude
-      }));
-    }
-  }, [geoEngine.userLocation, mode, isCameraSettled]);
 
   /**
    * PROTOCOLOS DE VUELO TÁCTICO (Cinematic Jump)
    */
-  const flyToPosition = useCallback((lng: number, lat: number, zoomLevel = 17, targetPitch = 80) => {
+  const flyToPosition = useCallback((lng: number, lat: number, zoomLevel = 17, targetPitch = 75) => {
     if (mapRef.current) {
       mapRef.current.flyTo({
         center: [lng, lat],
         zoom: zoomLevel,
         pitch: mode === 'EXPLORE' ? targetPitch : 0,
-        duration: 3500,
-        essential: true,
-        curve: 1.5,
-        easing: (t: number) => t * (2 - t)
+        ...FLY_CONFIG
       });
     }
   }, [mode]);
 
   /**
-   * [MISIÓN: AUTO-LOCALIZACIÓN INVISIBLE]
-   * Una vez que tenemos la coordenada y el mapa está compilado, volamos hacia
-   * el Voyager, pero el mapa sigue oculto (Opacity 0).
+   * [MISIÓN: AUTO-LOCALIZACIÓN CINETMÁTICA]
+   * Una vez triangulado el Voyager, disparamos el salto a la Experiencia GO.
    */
   useEffect(() => {
     if (userLocation && isMapLoaded && !hasInitialJumpPerformed.current) {
-      nicepodLog("🎯 [SpatialEngine] Coordenada detectada. Ejecutando vuelo en la sombra.");
-
-      // Vuelo ciego a alta velocidad y levantamos el horizonte (80°)
-      flyToPosition(userLocation.longitude, userLocation.latitude, mode === 'FORGE' ? 18.5 : 16.5, 80);
-
+      nicepodLog("🎯 [SpatialEngine] Coordenada detectada. Ejecutando salto hacia Voyager.");
+      flyToPosition(userLocation.longitude, userLocation.latitude, mode === 'FORGE' ? 18.2 : 16.8, 75);
       hasInitialJumpPerformed.current = true;
-
-      // Plan de Respaldo: Si la animación de Mapbox se traba, revelamos la malla
-      // de todos modos a los 4 segundos para evitar que el Voyager quede atrapado.
-      const fallbackReveal = setTimeout(() => {
-        setIsCameraSettled(true);
-      }, 4000);
-
-      return () => clearTimeout(fallbackReveal);
     }
   }, [userLocation, isMapLoaded, flyToPosition, mode]);
 
   /**
    * EL REVELADO (The Fade-In Trigger)
-   * Escuchamos cuándo el vuelo terminó. Es el momento perfecto para levantar el telón.
+   * Levantamos la cortina de carga solo cuando la cámara está estable en su destino.
    */
   const handleMoveEnd = useCallback(() => {
     if (hasInitialJumpPerformed.current && !isCameraSettled) {
-      nicepodLog("✨ [SpatialEngine] Vuelo concluido. Revelando Fotorrealismo 3D.");
       setIsCameraSettled(true);
+      nicepodLog("✨ [SpatialEngine] Malla Fotorrealista Estabilizada.");
     }
   }, [isCameraSettled]);
 
@@ -198,32 +181,22 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
     if (typeof window !== "undefined" && navigator.vibrate) {
       navigator.vibrate([10, 30, 10]);
     }
-
     onManualAnchor(lngLat);
-    flyToPosition(lngLat[0], lngLat[1], 19, 0); // Zoom cenital para precisión
+    flyToPosition(lngLat[0], lngLat[1], 19, 0);
   }, [mode, onManualAnchor, flyToPosition]);
 
   const handleSearchResult = useCallback((results: SearchResult[] | null) => {
     if (results && results.length > 0) {
       const topHit = results[0];
       if (topHit.metadata?.lat && topHit.metadata?.lng) {
-        flyToPosition(topHit.metadata.lng, topHit.metadata.lat, 17, 75);
+        flyToPosition(topHit.metadata.lng, topHit.metadata.lat, 17.5, 75);
       }
     }
   }, [flyToPosition]);
 
   /**
-   * ATMÓSFERA SOBERANA Y CRISTALIZACIÓN ARQUITECTÓNICA
+   * CAPA ARQUITECTÓNICA 3D (Obsidiana Glass)
    */
-  const fogConfig = useMemo(() => ({
-    "range": [0.5, 10],
-    "color": "#020202",
-    "horizon-blend": 0.2,
-    "high-color": "#1e293b",
-    "space-color": "#000000",
-    "star-intensity": 0.5
-  }), []);
-
   const buildingLayerConfig = useMemo(() => ({
     id: "3d-buildings",
     source: "composite",
@@ -232,30 +205,33 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
     type: "fill-extrusion",
     minzoom: 14,
     paint: {
-      "fill-extrusion-color": "#050505", // Cristal de Obsidiana
+      "fill-extrusion-color": mode === 'EXPLORE' ? "#050505" : "#ffffff",
       "fill-extrusion-height": ["get", "height"],
       "fill-extrusion-base": ["get", "min_height"],
-      "fill-extrusion-opacity": 0.8,
+      "fill-extrusion-opacity": 0.7,
     },
-  }), []);
+  }), [mode]);
 
   /**
    * [PROTOCOLO DE SILENCIO URBANO]
-   * Purgamos las etiquetas de tiendas y estaciones en modo Explorador.
+   * Aniquila las etiquetas comerciales de Mapbox para una inmersión NicePod pura.
    */
   const onMapLoad = useCallback((e: any) => {
     setIsMapLoaded(true);
     const map = e.target;
     if (mode === 'EXPLORE') {
-      const layers = map.getStyle().layers;
-      layers.forEach((layer: any) => {
-        if (layer.type === 'symbol' && (layer.id.includes('poi') || layer.id.includes('transit'))) {
-          map.setLayoutProperty(layer.id, 'visibility', 'none');
-        }
-      });
+      const style = map.getStyle();
+      if (style && style.layers) {
+        style.layers.forEach((layer: any) => {
+          if (layer.type === 'symbol' && (layer.id.includes('poi') || layer.id.includes('transit'))) {
+            map.setLayoutProperty(layer.id, 'visibility', 'none');
+          }
+        });
+      }
     }
   }, [mode]);
 
+  // Transformación de datos para el Dossier de Hallazgo
   const mappedSelectedPOI = useMemo(() => {
     if (!selectedPOIId || !nearbyPOIs || nearbyPOIs.length === 0) return null;
     const rawPoi = nearbyPOIs.find(p => p.id.toString() === selectedPOIId);
@@ -272,83 +248,64 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   return (
     <div ref={containerRef} className={cn("w-full h-full relative bg-[#010101]", className)}>
 
-      <AnimatePresence mode="wait">
-        {/* ESCENARIO A: PERMISSION SHIELD */}
-        {engineStatus === 'PERMISSION_DENIED' && (
-          <motion.div
-            key="shield"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-zinc-950 z-[150] text-center"
-          >
-            <div className="relative mb-6">
-              <div className="absolute inset-0 bg-red-500/20 blur-xl rounded-full animate-pulse" />
-              <ShieldAlert className="h-10 w-10 text-red-500 relative z-10" />
-            </div>
-            <span className="text-[10px] font-black uppercase tracking-[0.5em] text-red-400 mb-2">GPS Interceptado</span>
-            <p className="text-xs text-zinc-500 max-w-[250px] leading-relaxed">
-              NicePod necesita triangular su ubicación. Habilite el acceso al hardware satelital en su dispositivo.
-            </p>
-          </motion.div>
-        )}
-
-        {/* ESCENARIO B: CORTINA DE HUMO CINEMÁTICA */}
+      {/* --- CORTINA DE HUMO SOBERANA --- */}
+      <AnimatePresence>
         {!isCameraSettled && engineStatus !== 'PERMISSION_DENIED' && (
           <motion.div
             key="smokescreen"
-            exit={{ opacity: 0, scale: 1.05 }}
+            exit={{ opacity: 0 }}
             transition={{ duration: 1.2, ease: "easeOut" }}
-            className="absolute inset-0 flex flex-col items-center justify-center space-y-6 bg-[#020202] z-[90]"
+            className="absolute inset-0 z-[110] bg-[#020202] flex flex-col items-center justify-center space-y-5"
           >
-            <div className="relative">
-              <Compass className="h-10 w-10 text-primary/30 animate-spin-slow" />
-              <div className="absolute inset-0 bg-primary/10 blur-3xl rounded-full animate-pulse" />
-            </div>
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
             <div className="flex flex-col items-center gap-2">
-              <span className="text-[10px] font-black uppercase tracking-[0.5em] text-white">
-                Sincronizando Órbita
-              </span>
-              <span className="text-[8px] font-bold uppercase tracking-[0.3em] text-primary/60 italic">
-                {!isMapLoaded ? "Cargando Motor WebGL..." :
-                  !userLocation ? "Buscando Coordenadas Satelitales..." :
-                    "Calibrando Fotorrealismo 3D..."}
+              <span className="text-[9px] font-black uppercase tracking-[0.5em] text-white">Sincronizando Órbita</span>
+              <span className="text-[7px] font-bold uppercase tracking-[0.3em] text-primary/60 animate-pulse italic">
+                {!userLocation ? "Buscando coordenadas satelitales..." : "Calibrando Fotorrealismo 3D..."}
               </span>
             </div>
+          </motion.div>
+        )}
+
+        {/* PERMISSION SHIELD */}
+        {engineStatus === 'PERMISSION_DENIED' && (
+          <motion.div
+            key="p-shield"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            className="absolute inset-0 z-[150] bg-zinc-950 flex flex-col items-center justify-center p-8 text-center"
+          >
+            <ShieldAlert className="h-10 w-10 text-red-500 mb-4" />
+            <span className="text-[10px] font-black uppercase tracking-[0.5em] text-red-400">GPS Bloqueado</span>
+            <p className="text-xs text-zinc-500 mt-4 max-w-[200px] leading-relaxed">
+              Habilite el acceso a la ubicación para proyectar la Malla de Madrid.
+            </p>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* 
-          EL MOTOR DE RENDERIZADO INMERSIVO
-          Siempre se compila de fondo, pero su visibilidad ('opacity') depende de
-          que el vuelo táctico haya concluido ('isCameraSettled').
-      */}
+      {/* --- EL MOTOR DE RENDERIZADO (WEBGL) --- */}
       {isContainerReady && (
         <motion.div
           animate={{ opacity: isCameraSettled ? 1 : 0 }}
-          transition={{ duration: 1.5 }}
-          className="absolute inset-0 z-0"
+          className="w-full h-full"
         >
           <Map
             {...viewState}
-            ref={mapRef as any}
+            ref={mapRef}
             onMove={handleMove as any}
-            onMoveEnd={handleMoveEnd} // [NUEVO]: Detonador del Revelado
+            onMoveEnd={handleMoveEnd}
             onClick={handleMapClick as any}
             onLoad={onMapLoad}
             mapboxAccessToken={MAPBOX_TOKEN}
-
-            // Fotorrealismo para Forge y Explore. La inmersión es absoluta.
             mapStyle={mode === 'FORGE' ? PHOTOREALISTIC_STYLE : DARK_IMMERSIVE_STYLE}
-            projection="globe"
-
+            projection="mercator" // Máxima estabilidad para la carga inicial
             terrain={mode === 'EXPLORE' ? { source: 'mapbox-dem', exaggeration: 1.2 } : undefined}
-            fog={mode === 'EXPLORE' ? fogConfig as any : undefined}
-            antialias={false} // Desactivado para ahorrar GPU
+            antialias={false} // Ahorro de GPU
             reuseMaps={true}
-            maxPitch={85}
+            maxPitch={82}
             attributionControl={false}
           >
-            {/* FUENTE DE ELEVACIÓN */}
+            {/* FUENTE DE ELEVACIÓN PARA MODO EXPLORADOR */}
             {mode === 'EXPLORE' && (
               <Source
                 id="mapbox-dem"
@@ -361,7 +318,7 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
 
             <GeolocateControl showUserLocation={false} className="hidden" />
 
-            {/* AVATAR DEL VOYAGER */}
+            {/* AVATAR Y MARCADORES */}
             {userLocation && (
               <UserLocationMarker
                 location={userLocation}
@@ -369,8 +326,7 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
               />
             )}
 
-            {/* ECOS Y MARCADORES FLOTANTES */}
-            {geoEngine.nearbyPOIs?.map((poi: PointOfInterest) => (
+            {nearbyPOIs?.map((poi: PointOfInterest) => (
               <MapMarkerCustom
                 key={poi.id}
                 id={poi.id.toString()}
@@ -383,19 +339,17 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
                 onClick={(id: string) => {
                   if (mode === 'EXPLORE') {
                     setSelectedPOIId(id);
-                    const p = geoEngine.nearbyPOIs.find(item => item.id.toString() === id);
-                    if (p) flyToPosition(p.geo_location.coordinates[0], p.geo_location.coordinates[1], 17, 75);
+                    const p = nearbyPOIs.find(item => item.id.toString() === id);
+                    if (p) flyToPosition(p.geo_location.coordinates[0], p.geo_location.coordinates[1], 17.5, 75);
                   }
                 }}
               />
             ))}
 
-            {/* EDIFICIOS DE OBSIDIANA */}
             {isMapLoaded && mode === 'EXPLORE' && (
               <Layer {...buildingLayerConfig as any} />
             )}
 
-            {/* CONTROLES DE NAVEGACIÓN */}
             <div className="absolute bottom-10 right-4 flex flex-col gap-4 z-40">
               <NavigationControl showCompass={false} className="!bg-black/60 !backdrop-blur-xl !border-white/10 !rounded-2xl" />
             </div>
@@ -403,12 +357,9 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
         </motion.div>
       )}
 
-      {/* OVERLAYS UI DE NAVEGACIÓN Y BÚSQUEDA */}
-      {mode === 'EXPLORE' && (
-        <div className={cn(
-          "absolute top-6 left-4 right-4 z-[100] md:top-8 md:left-8 md:w-[400px] transition-opacity duration-1000",
-          isCameraSettled ? "opacity-100" : "opacity-0 pointer-events-none"
-        )}>
+      {/* OVERLAY DE BÚSQUEDA Y DOSSIER */}
+      {mode === 'EXPLORE' && isCameraSettled && (
+        <div className="absolute top-6 left-4 right-4 z-[100] md:top-8 md:left-8 md:w-[400px] animate-in fade-in duration-1000">
           <UnifiedSearchBar
             variant="console"
             onResults={handleSearchResult}
@@ -416,12 +367,10 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
             placeholder="Rastrear ecos urbanos..."
             latitude={viewState.latitude}
             longitude={viewState.longitude}
-            className="shadow-2xl"
           />
         </div>
       )}
 
-      {/* TARGETA DE DOSSIER (HALLAZGO) */}
       <AnimatePresence>
         {mappedSelectedPOI && mode === 'EXPLORE' && (
           <POIPreviewCard
@@ -436,14 +385,3 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
     </div>
   );
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT (V10.0):
- * 1. Smokescreen Protocol: El motor ahora aprovecha el evento 'onMoveEnd' de Mapbox 
- *    (Línea 197). La pantalla de carga ("Sincronizando Órbita") no se quita por un
- *    temporizador arbitrario, sino matemáticamente cuando la cámara llega a su destino.
- * 2. Feedback Informativo: El Loader indica exactamente qué está haciendo el sistema
- *    en cada milisegundo (Cargando Motor -> Buscando GPS -> Calibrando 3D).
- * 3. Economía de GPU: 'antialias=false' en móviles evita que la batería se consuma
- *    intentando suavizar los bordes de los edificios de cristal, mejorando los FPS.
- */
