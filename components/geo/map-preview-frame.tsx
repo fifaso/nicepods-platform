@@ -1,31 +1,24 @@
 // components/geo/map-preview-frame.tsx
-// VERSIÓN: 11.0 (NicePod GO-Preview - Ultimate Terrain & Shield Edition)
-// Misión: Ventana táctica fotorrealista inmune al colapso de hidratación y hardware bloqueado.
-// [ESTABILIZACIÓN]: Inyección de Source DEM, nicepodLog y Permission Shield.
+// VERSIÓN: 9.3 (NicePod GO-Preview - Horizon Restoration Edition)
+// Misión: Ventana táctica fotorrealista del Dashboard con horizonte infinito.
+// [ESTABILIZACIÓN]: Implementación de Cámara Escalonada para habilitar proyección Globe.
 
 "use client";
 
-import React, { memo, useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Compass, Loader2, Maximize2, ShieldAlert, Zap } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
-import { Compass, Loader2, Maximize2, ShieldAlert, Zap } from "lucide-react";
-
-// --- MOTOR CARTOGRÁFICO (RECURSOS ESTÁTICOS) ---
-// [FIX CRÍTICO]: Importamos Source nativo de v8 para alimentar el terreno 3D
-import { Source } from 'react-map-gl/mapbox';
+import React, { memo, useEffect, useMemo, useRef, useState } from "react";
 
 // --- INFRAESTRUCTURA CORE ---
-import { cn, nicepodLog } from "@/lib/utils";
 import { useGeoEngine } from "@/hooks/use-geo-engine";
-import { UserLocationMarker } from "./user-location-marker";
-import { MapMarkerCustom } from "./map-marker-custom";
+import { cn } from "@/lib/utils";
 import { PointOfInterest } from "@/types/geo-sovereignty";
+import { Source } from 'react-map-gl/mapbox';
+import { MapMarkerCustom } from "./map-marker-custom";
+import { UserLocationMarker } from "./user-location-marker";
 
-/**
- * INTERFAZ: MadridMapProps
- * Define el contrato inquebrantable para el motor WebGL asíncrono.
- */
 interface MadridMapProps {
   initialViewState: {
     latitude: number;
@@ -47,10 +40,6 @@ interface MadridMapProps {
   children?: React.ReactNode;
 }
 
-/**
- * [SHIELD]: MapEngine
- * Instanciación diferida del motor para proteger el Main Thread de React.
- */
 const MapEngine = dynamic<MadridMapProps>(
   () => import("react-map-gl/mapbox").then((mod) => (mod.default || mod.Map) as any),
   {
@@ -63,30 +52,20 @@ const MapEngine = dynamic<MadridMapProps>(
   }
 );
 
-// Estética Satelital de Alto Contraste
 const PHOTOREALISTIC_STYLE = "mapbox://styles/mapbox/satellite-streets-v12";
 
 export const MapPreviewFrame = memo(function MapPreviewFrame() {
   const containerRef = useRef<HTMLDivElement>(null);
-
-  // CONSUMO DE TELEMETRÍA (El Cerebro Global)
+  const mapRef = useRef<any>(null); // Ref for flyTo control
   const geoEngine = useGeoEngine();
-  const {
-    userLocation,
-    nearbyPOIs,
-    activePOI,
-    initSensors,
-    status: engineStatus
-  } = geoEngine;
+  const { userLocation, nearbyPOIs, activePOI, initSensors, status: engineStatus } = geoEngine;
 
   const [isVisible, setIsVisible] = useState<boolean>(false);
   const [isIdleReady, setIsIdleReady] = useState<boolean>(false);
   const [isContainerReady, setIsContainerReady] = useState<boolean>(false);
+  const [isMapLoaded, setIsMapLoaded] = useState<boolean>(false);
 
-  /**
-   * 1. PROTOCOLO DE SEGURIDAD MATEMÁTICA (Safe Mount Observer)
-   * Aniquila el 'RangeError' evitando el renderizado en contenedores de 0px.
-   */
+  // Safe Mount Observer
   useEffect(() => {
     if (!containerRef.current) return;
     const resizeObserver = new ResizeObserver((entries) => {
@@ -102,31 +81,42 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
   }, []);
 
   /**
-   * 2. CONFIGURACIÓN DE CÁMARA (Centrado Automático)
+   * CÁMARA ESCALONADA (Fase 1: Ignición)
+   * Nace en 60° para que el 'globe' no colapse al compilar matrices iniciales.
    */
   const initialViewState = useMemo(() => ({
     latitude: userLocation?.latitude || 40.4167,
     longitude: userLocation?.longitude || -3.7037,
     zoom: 15.2,
-    pitch: 75,
+    pitch: 60,
     bearing: -15
   }), [userLocation]);
 
   /**
-   * 3. ATMÓSFERA SOBERANA
+   * AUTO-LOCALIZACIÓN CINEMÁTICA (Fase 2: Inmersión)
+   * Una vez cargado el mapa, levanta la mirada hacia el horizonte (75°).
    */
+  useEffect(() => {
+    if (isMapLoaded && userLocation && mapRef.current) {
+      mapRef.current.flyTo({
+        center: [userLocation.longitude, userLocation.latitude],
+        zoom: 15.8,
+        pitch: 75,
+        duration: 3500,
+        curve: 1.2
+      });
+    }
+  }, [isMapLoaded, userLocation]);
+
   const fogConfig = useMemo(() => ({
-    "range": [0.8, 8],
+    "range": [0.5, 10],
     "color": "#020202",
-    "horizon-blend": 0.3,
+    "horizon-blend": 0.2,
     "high-color": "#0f172a",
     "space-color": "#000000",
-    "star-intensity": 0.4
+    "star-intensity": 0.5
   }), []);
 
-  /**
-   * 4. MONITOR DE VISIBILIDAD E IGNICIÓN
-   */
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => { if (entry.isIntersecting) setIsVisible(true); },
@@ -168,7 +158,6 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
     >
       <AnimatePresence mode="wait">
 
-        {/* ESCENARIO A: EL PERMISSION SHIELD */}
         {engineStatus === 'PERMISSION_DENIED' ? (
           <motion.div
             key="permission_denied"
@@ -185,12 +174,11 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
               GPS Interceptado
             </span>
             <p className="text-xs text-zinc-500 max-w-[200px] leading-relaxed">
-              NicePod necesita acceso a tu ubicación. Habilita los sensores en los ajustes del navegador.
+              NicePod necesita acceso a tu ubicación. Habilita los sensores en los ajustes.
             </p>
           </motion.div>
         ) :
 
-          /* ESCENARIO B: EL MOTOR INMERSIVO */
           isIdleReady && isContainerReady ? (
             <motion.div
               key="map_engine"
@@ -205,17 +193,24 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
                 style={{ width: "100%", height: "100%" }}
                 mapStyle={PHOTOREALISTIC_STYLE}
 
-                // [ESCUDO MATEMÁTICO]: Evita el colapso infinito de la GPU
-                projection="mercator"
+                // [RESTAURACIÓN DE INMERSIÓN]: Globe permite el horizonte, Safe Mount previene el crash.
+                projection="globe"
                 terrain={{ source: 'mapbox-dem', exaggeration: 1.2 }}
-                maxPitch={80}
+                maxPitch={85}
 
                 reuseMaps={true}
                 antialias={true}
                 attributionControl={false}
                 fog={fogConfig}
+
+                // Evento clave para disparar el salto cinematográfico
+                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                // @ts-ignore - Bypass temporal para el onReactLoad nativo
+                onLoad={(e) => {
+                  mapRef.current = e.target;
+                  setIsMapLoaded(true);
+                }}
               >
-                {/* [FUENTE CRÍTICA]: Alimenta la elevación del Terreno 3D */}
                 <Source
                   id="mapbox-dem"
                   type="raster-dem"
@@ -241,16 +236,12 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
                     name={poi.name}
                     isResonating={activePOI?.id === poi.id.toString() && activePOI?.isWithinRadius}
                     isSelected={false}
-                    onClick={() => {
-                      nicepodLog("Apertura de Malla solicitada por táctica visual.");
-                    }}
+                    onClick={() => { }}
                   />
                 ))}
               </MapEngine>
             </motion.div>
           ) :
-
-            /* ESCENARIO C: TRIANGULACIÓN INICIAL (LOADER) */
             (
               <motion.div
                 key="radar_loader"
@@ -269,10 +260,8 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
 
       </AnimatePresence>
 
-      {/* GRADIENTE INFERIOR PROTECTOR */}
       <div className="absolute inset-0 bg-gradient-to-t from-[#020202] via-[#020202]/40 to-transparent z-10 pointer-events-none" />
 
-      {/* DOCK INFERIOR (BOTONES DE EXPANSIÓN) */}
       <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8 z-20 flex justify-between items-end pointer-events-none">
         <Link href="/map" className="flex items-center gap-4 pointer-events-auto group/btn focus:outline-none">
           <div className="bg-primary/10 p-3.5 rounded-2xl backdrop-blur-3xl border border-primary/20 group-hover/btn:bg-primary/30 group-hover/btn:scale-110 transition-all duration-700 shadow-inner">

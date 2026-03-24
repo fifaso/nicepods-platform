@@ -1,7 +1,7 @@
 // components/geo/SpatialEngine.tsx
-// VERSIÓN: 9.0 (NicePod GO-Engine - The Absolute Immersion Edition)
-// Misión: Renderizado 3D fotorrealista continuo con perspectiva Pokémon GO (Pitch 80°).
-// [ESTABILIZACIÓN]: Universalización de Satélite, ajuste de Niebla Volumétrica y Build Shield.
+// VERSIÓN: 8.1 (NicePod GO-Engine - Staged Camera & Horizon Edition)
+// Misión: Renderizado fotorrealista con horizonte 3D inmersivo sin colapsos matemáticos.
+// [ESTABILIZACIÓN]: Recuperación de proyección 'globe' mediante inicialización escalonada de cámara.
 
 "use client";
 
@@ -14,34 +14,29 @@ import React, {
   useState
 } from "react";
 
-// --- MOTOR CARTOGRÁFICO (SUB-PATH EXPLÍCITO PARA VERCEL) ---
+// --- MOTOR CARTOGRÁFICO ---
 import Map, {
   GeolocateControl,
   Layer,
   NavigationControl,
-  Source // Alimentación del Terreno 3D
+  Source
 } from 'react-map-gl/mapbox';
+
 
 import { AnimatePresence } from "framer-motion";
 
-// --- INFRAESTRUCTURA DE DOMINIO SOBERANO ---
+// --- INFRAESTRUCTURA SOBERANA ---
 import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { cn, nicepodLog } from "@/lib/utils";
 import { PointOfInterest } from "@/types/geo-sovereignty";
 
-// --- COMPONENTES DE MALLA TÁCTICA ---
+// --- COMPONENTES DE MALLA ---
 import { UnifiedSearchBar } from "@/components/ui/unified-search-bar";
 import { SearchResult } from "@/hooks/use-search-radar";
 import { MapMarkerCustom } from "./map-marker-custom";
 import { POIPreviewCard } from "./poi-preview-card";
 import { UserLocationMarker } from "./user-location-marker";
 
-/**
- * ---------------------------------------------------------------------------
- * I. [BUILD SHIELD]: CONTRATOS LOCALES ESTRICTOS
- * ---------------------------------------------------------------------------
- * Erradicamos dependencias inestables de tipos externos.
- */
 interface NicePodMapMoveEvent {
   viewState: {
     latitude: number;
@@ -68,29 +63,23 @@ interface SpatialEngineProps {
 }
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
-
-/**
- * [ESTÁNDAR VISUAL GO-EXPERIENCE]
- * El Satélite de alta resolución es ahora la base innegociable de la plataforma.
- */
 const PHOTOREALISTIC_STYLE = "mapbox://styles/mapbox/satellite-streets-v12";
+const DARK_IMMERSIVE_STYLE = "mapbox://styles/mapbox/dark-v11";
 
 const FLY_CONFIG = {
-  duration: 3500, // Vuelo ligeramente más largo para cinematografía
+  duration: 4000, // Duración aumentada para un vuelo más cinematográfico
   essential: true,
-  curve: 1.5,     // Curva de vuelo parabólica (se aleja y vuelve a acercarse)
+  curve: 1.2,
   easing: (t: number) => t * (2 - t)
 };
 
 export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngineProps) {
 
-  // 1. REFERENCIAS DE HARDWARE Y CONTEXTOS
   const mapRef = useRef<MapRefInstance>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const geoEngine = useGeoEngine();
   const { userLocation, nearbyPOIs, activePOI } = geoEngine;
 
-  // 2. ESTADOS DE INTERACCIÓN Y CARGA
   const [selectedPOIId, setSelectedPOIId] = useState<string | null>(null);
   const [isMapLoaded, setIsMapLoaded] = useState<boolean>(false);
   const [isContainerReady, setIsContainerReady] = useState<boolean>(false);
@@ -98,10 +87,7 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
 
   const hasInitialJumpPerformed = useRef<boolean>(false);
 
-  /**
-   * PROTOCOLO DE SEGURIDAD MATEMÁTICA (Safe Mount)
-   * Asegura que el mapa solo se inicialice cuando el contenedor tiene dimensiones reales (>0).
-   */
+  // 1. SAFE MOUNT OBSERVER
   useEffect(() => {
     if (!containerRef.current) return;
     const resizeObserver = new ResizeObserver((entries) => {
@@ -117,18 +103,19 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   }, []);
 
   /**
-   * CONFIGURACIÓN DE CÁMARA INICIAL (GO-STYLE)
-   * Forzamos el pitch a 80 grados para lograr el horizonte infinito.
+   * 2. CÁMARA ESCALONADA (FASE 1: IGNICIÓN SEGURA)
+   * Nacemos con pitch de 60° para asegurar que el motor WebGL calcule 
+   * las matrices del globo sin colapsar.
    */
   const [viewState, setViewState] = useState({
     latitude: geoEngine.userLocation?.latitude || 40.4167,
     longitude: geoEngine.userLocation?.longitude || -3.7037,
-    zoom: mode === 'FORGE' ? 18.5 : 16.5,
-    pitch: mode === 'FORGE' ? 0 : 80,
+    zoom: mode === 'FORGE' ? 18.5 : 15.5,
+    pitch: mode === 'FORGE' ? 0 : 60, // Pitch seguro inicial
     bearing: -10,
   });
 
-  // Sincronía T0 con el GPS del Voyager (Solo afecta si no hay mapa cargado)
+  // Mantiene la vista sincronizada con el GPS en modo Forge (cenital)
   useEffect(() => {
     if (geoEngine.userLocation && mode === 'FORGE' && !isMapLoaded) {
       setViewState(prev => ({
@@ -140,26 +127,29 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   }, [geoEngine.userLocation, mode, isMapLoaded]);
 
   /**
-   * PROTOCOLOS DE VUELO TÁCTICO (Cinematic Jump)
+   * 3. PROTOCOLO DE VUELO (Cámara Inmersiva)
+   * Cuando volamos, forzamos el pitch a 80° para lograr el efecto Pokémon GO.
    */
-  const flyToPosition = useCallback((lng: number, lat: number, zoomLevel = 17) => {
+  const flyToPosition = useCallback((lng: number, lat: number, zoomLevel = 17, targetPitch = 80) => {
     if (mapRef.current) {
       mapRef.current.flyTo({
         center: [lng, lat],
         zoom: zoomLevel,
-        pitch: mode === 'EXPLORE' ? 80 : 0, // Inmersión agresiva
+        pitch: mode === 'EXPLORE' ? targetPitch : 0,
         ...FLY_CONFIG
       });
     }
   }, [mode]);
 
   /**
-   * [MISIÓN: AUTO-LOCALIZACIÓN CINETMÁTICA]
+   * 4. AUTO-LOCALIZACIÓN CINETMÁTICA (FASE 2: INMERSIÓN)
+   * Una vez que tenemos la coordenada Y el mapa está cargado (terreno listo),
+   * volamos hacia el Voyager levantando la cámara hasta el horizonte (80°).
    */
   useEffect(() => {
     if (userLocation && isMapLoaded && !hasInitialJumpPerformed.current) {
-      nicepodLog("🎯 [SpatialEngine] Señal fijada. Vuelo inicial hacia Voyager.");
-      flyToPosition(userLocation.longitude, userLocation.latitude, mode === 'FORGE' ? 18.5 : 16.8);
+      nicepodLog("🎯 [SpatialEngine] Coordenada detectada. Elevando cámara a horizonte 3D.");
+      flyToPosition(userLocation.longitude, userLocation.latitude, mode === 'FORGE' ? 18.5 : 16.5, 80);
       hasInitialJumpPerformed.current = true;
     }
   }, [userLocation, isMapLoaded, flyToPosition, mode]);
@@ -176,30 +166,28 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
     if (typeof window !== "undefined" && navigator.vibrate) {
       navigator.vibrate([10, 30, 10]);
     }
-
     onManualAnchor(lngLat);
-    flyToPosition(lngLat[0], lngLat[1], 19);
+    flyToPosition(lngLat[0], lngLat[1], 19, 0); // Vuelo cenital para forja
   }, [mode, onManualAnchor, flyToPosition]);
 
   const handleSearchResult = useCallback((results: SearchResult[] | null) => {
     if (results && results.length > 0) {
       const topHit = results[0];
       if (topHit.metadata?.lat && topHit.metadata?.lng) {
-        flyToPosition(topHit.metadata.lng, topHit.metadata.lat, 17);
+        flyToPosition(topHit.metadata.lng, topHit.metadata.lat, 17, 75);
       }
     }
   }, [flyToPosition]);
 
   /**
-   * ATMÓSFERA SOBERANA (Niebla Volumétrica)
-   * Se acerca el rango (0.2 a 8) para que el cielo oscuro envuelva 
-   * la ciudad más rápido, aumentando la sensación inmersiva.
+   * ATMÓSFERA SOBERANA
+   * Calibrada para fusionarse con el cielo oscuro de la plataforma.
    */
   const fogConfig = useMemo(() => ({
-    "range": [0.2, 8],
+    "range": [0.5, 10],
     "color": "#020202",
-    "horizon-blend": 0.15,
-    "high-color": "#0f172a",
+    "horizon-blend": 0.2,
+    "high-color": "#1e293b",
     "space-color": "#000000",
     "star-intensity": 0.5
   }), []);
@@ -215,18 +203,13 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
     type: "fill-extrusion",
     minzoom: 14,
     paint: {
-      "fill-extrusion-color": "#050505", // Negro abismal para contrastar con el suelo satelital
+      "fill-extrusion-color": "#050505",
       "fill-extrusion-height": ["get", "height"],
       "fill-extrusion-base": ["get", "min_height"],
-      "fill-extrusion-opacity": 0.7, // Translúcido
+      "fill-extrusion-opacity": 0.8, // Ligeramente más opaco para destacar sobre el satélite
     },
   }), []);
 
-  /**
-   * [PROTOCOLO DE SILENCIO URBANO]
-   * Purgamos las etiquetas de tiendas y estaciones para que el mapa
-   * se sienta como una red neuronal privada.
-   */
   const onMapLoad = useCallback((e: any) => {
     setIsMapLoaded(true);
     const map = e.target;
@@ -256,7 +239,6 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   return (
     <div ref={containerRef} className={cn("w-full h-full relative bg-[#010101]", className)}>
 
-      {/* HUD DE BÚSQUEDA SOBERANA */}
       {mode === 'EXPLORE' && (
         <div className="absolute top-6 left-4 right-4 z-[100] md:top-8 md:left-8 md:w-[400px]">
           <UnifiedSearchBar
@@ -279,22 +261,20 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
           onClick={handleMapClick as any}
           onLoad={onMapLoad}
           mapboxAccessToken={MAPBOX_TOKEN}
+          mapStyle={mode === 'FORGE' ? PHOTOREALISTIC_STYLE : DARK_IMMERSIVE_STYLE}
 
-          // [FIX VISUAL]: Fotorrealismo universal.
-          mapStyle={PHOTOREALISTIC_STYLE}
+          // [FIX CRÍTICO]: PROYECCIÓN GLOBE
+          // Restauramos 'globe' para permitir el horizonte profundo (Pitch > 60).
+          projection="globe"
 
-          // [ESCUDO MATEMÁTICO]: Evita el colapso del 'RangeError'.
-          projection="mercator"
-
-          // Terreno 3D (Montañas y desniveles)
           terrain={mode === 'EXPLORE' ? { source: 'mapbox-dem', exaggeration: 1.2 } : undefined}
           fog={mode === 'EXPLORE' ? fogConfig as any : undefined}
           antialias={true}
           reuseMaps={true}
-          maxPitch={80} // Límite seguro
+          maxPitch={85} // Límite máximo permitido
           attributionControl={false}
         >
-          {/* [FUENTE CRÍTICA]: Alimentación para el Terreno 3D */}
+          {/* FUENTE DE ELEVACIÓN */}
           {mode === 'EXPLORE' && (
             <Source
               id="mapbox-dem"
@@ -307,7 +287,6 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
 
           <GeolocateControl showUserLocation={false} className="hidden" />
 
-          {/* VOYAGER AVATAR */}
           {userLocation && (
             <UserLocationMarker
               location={userLocation}
@@ -315,7 +294,6 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
             />
           )}
 
-          {/* ECOS DE MEMORIA */}
           {nearbyPOIs?.map((poi: PointOfInterest) => (
             <MapMarkerCustom
               key={poi.id}
@@ -330,25 +308,22 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
                 if (mode === 'EXPLORE') {
                   setSelectedPOIId(id);
                   const p = nearbyPOIs.find(item => item.id.toString() === id);
-                  if (p) flyToPosition(p.geo_location.coordinates[0], p.geo_location.coordinates[1], 17);
+                  if (p) flyToPosition(p.geo_location.coordinates[0], p.geo_location.coordinates[1], 17, 75);
                 }
               }}
             />
           ))}
 
-          {/* CRISTALES ARQUITECTÓNICOS */}
           {isMapLoaded && mode === 'EXPLORE' && (
             <Layer {...buildingLayerConfig as any} />
           )}
 
-          {/* CONTROLES DE VUELO */}
           <div className="absolute bottom-10 right-4 flex flex-col gap-4 z-40">
             <NavigationControl showCompass={false} className="!bg-black/60 !backdrop-blur-xl !border-white/10 !rounded-2xl" />
           </div>
         </Map>
       )}
 
-      {/* TARJETA DE DOSSIER */}
       <AnimatePresence>
         {mappedSelectedPOI && mode === 'EXPLORE' && (
           <POIPreviewCard
