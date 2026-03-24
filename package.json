@@ -10,7 +10,7 @@
     "type-check": "tsc --noEmit",
     "unused-check": "pnpm exec knip",
     "security-check": "pnpm audit",
-    "health-check": "echo \"🔍 Iniciando Diagnóstico NicePod...\" && pnpm type-check && pnpm lint && pnpm security-check && echo \"✅ Salud del Proyecto: ÓPTIMA. Listo para Push.\"",
+    "health-check": "pnpm type-check && pnpm lint && pnpm security-check",
     "nuclear-clean": "rm -rf .next node_modules pnpm-lock.yaml && pnpm install"
   },
   "dependencies": {
@@ -47,7 +47,7 @@
     "@radix-ui/react-tooltip": "^1.1.4",
     "@sentry/nextjs": "^10.37.0",
     "@supabase/ssr": "^0.6.1",
-    "@supabase/supabase-js": "2.66.0",
+    "@supabase/supabase-js": "^2.45.4",
     "@tiptap/extension-placeholder": "^2.10.3",
     "@tiptap/react": "^2.10.3",
     "@tiptap/starter-kit": "^2.10.3",
