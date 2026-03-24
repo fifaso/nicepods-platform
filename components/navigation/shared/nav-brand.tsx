@@ -1,9 +1,15 @@
 // components/navigation/shared/nav-brand.tsx
-// VERSIÓN: 2.0
+// VERSIÓN: 3.0 (NicePod Static Asset Shield - Zero-Thrashing Edition)
+// Misión: El ancla de identidad visual con eficiencia de red absoluta.
+// [ESTABILIZACIÓN]: Importación estática y bypass de optimización para erradicar el Image Thrashing.
 
-import { getSafeAsset } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
+
+// [STATIC SHIELD]: Al importar directamente, Next.js extrae el ancho y alto 
+// en tiempo de compilación, eliminando la necesidad de adivinar el tamaño.
+import logoImg from "@/public/nicepod-logo.png";
 
 /**
  * INTERFAZ: NavBrandProps
@@ -20,18 +26,10 @@ interface NavBrandProps {
 
 /**
  * COMPONENTE: NavBrand
- * El ancla de identidad de NicePod V2.5.
- * 
- * [RE-CALIBRACIÓN VISUAL]:
- * - Isotipo: Escalado de h-7/h-8 a h-10 (40px) en móvil y h-12 (48px) en desktop.
- * - Logotipo: Aumento a text-xl (móvil) y text-2xl (desktop) con itálica masiva.
- * - Proximidad: gap-3 para un aire industrial y respirable.
+ * El ancla de identidad de NicePod V2.6.
  */
 export function NavBrand({ isAuthenticated }: NavBrandProps) {
-  // Recuperación soberana del activo visual con protocolo de fallback.
-  const logoSrc = getSafeAsset("/nicepod-logo.png", "logo");
-
-  // Determinación del destino táctico.
+  // Determinación del destino táctico sin pasar por middlewares complejos.
   const targetHref = isAuthenticated ? "/dashboard" : "/";
 
   return (
@@ -43,27 +41,29 @@ export function NavBrand({ isAuthenticated }: NavBrandProps) {
       >
         {/* 
             CONTENEDOR DEL ISOTIPO
-            - Shadow-inner: Para dar profundidad al logo sobre el cristal.
-            - border-white/10: Definición de borde en baja opacidad.
+            Mantenemos el bounding box estricto (40x40 en móvil, 48x48 en desktop).
         */}
-        <div className="relative h-10 w-10 md:h-12 md:w-12 overflow-hidden rounded-xl md:rounded-2xl border border-white/10 shadow-inner bg-zinc-900 transition-all duration-700 group-hover:shadow-[0_0_20px_rgba(var(--primary),0.2)]">
+        <div className="relative flex items-center justify-center h-10 w-10 md:h-12 md:w-12 overflow-hidden rounded-xl md:rounded-2xl border border-white/10 shadow-inner bg-zinc-900 transition-all duration-700 group-hover:shadow-[0_0_20px_rgba(var(--primary),0.2)]">
           <Image
-            src={logoSrc}
+            src={logoImg}
             alt="Isotipo NicePod"
-            fill
-            sizes="(max-width: 768px) 40px, 48px"
-            className="object-cover group-hover:scale-110 transition-transform duration-700 ease-[0.16, 1, 0.3, 1]"
-            priority // Carga prioritaria para el Largest Contentful Paint (LCP)
+            width={48}
+            height={48}
+            // [FIX LINTER & RENDER]: Eliminamos el 'fill' y forzamos w-full/h-full. 
+            // Sustituimos el ease arbitrario por 'ease-out' estándar.
+            className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+            priority
+            unoptimized // [CRÍTICO]: Bypass de Vercel Image Optimization API para activos estáticos SVG/PNG.
           />
         </div>
 
         {/* 
             LOGOTIPO TIPOGRÁFICO
-            - italic: Marca el dinamismo de la voz.
-            - tracking-tighter: Densidad tipográfica profesional.
-            - hidden sm:block: Se oculta en móviles ultra-estrechos (<380px) para priorizar botones de acción.
         */}
-        <span className="font-black text-xl md:text-2xl tracking-tighter hidden xs:block uppercase italic text-white leading-none group-hover:text-primary transition-colors duration-500">
+        <span className={cn(
+          "font-black text-xl md:text-2xl tracking-tighter uppercase italic leading-none transition-colors duration-500",
+          "hidden xs:block text-white group-hover:text-primary"
+        )}>
           NicePod
         </span>
       </Link>
@@ -72,12 +72,13 @@ export function NavBrand({ isAuthenticated }: NavBrandProps) {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Densidad de Isotipo: El aumento a 48px en desktop permite que el logo 
- *    sea legible incluso ante el desenfoque de fondo de backdrop-blur-2xl.
- * 2. Optimizacion SEO: El uso de una etiqueta semántica Link con aria-label 
- *    garantiza que los indexadores comprendan la jerarquía del sitio.
- * 3. Diseño Responsivo: Se ha introducido el breakpoint 'xs' (personalizado 
- *    en tailwind.config) o se asume el comportamiento base para asegurar que 
- *    el texto no colisione con el botón 'CREAR' en dispositivos pequeños.
+ * NOTA TÉCNICA DEL ARCHITECT (V3.0):
+ * 1. Aniquilación de Image Thrashing: La adición de 'unoptimized={true}' sobre un 'import' 
+ *    estático detiene la generación de múltiples versiones de la imagen por parte del servidor 
+ *    cada vez que el componente padre se redimensiona.
+ * 2. Supresión de 'getSafeAsset': Para archivos nativos del proyecto (locales), el uso 
+ *    de 'getSafeAsset' aportaba overhead innecesario. Esta función se reserva exclusivamente 
+ *    para URLs que provienen de la Bóveda (Supabase Storage).
+ * 3. Limpieza de CI/CD: La eliminación de clases Tailwind arbitrarias como 'ease-[0.16...]' 
+ *    silencia las advertencias amarillas del compilador de Vercel.
  */
