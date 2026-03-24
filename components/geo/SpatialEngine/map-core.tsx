@@ -1,16 +1,15 @@
 // components/geo/SpatialEngine/map-core.tsx
-// VERSIÓN: 1.0 (NicePod MapCore - Isolated WebGL Engine)
-// Misión: Renderizado fotorrealista 3D puro con inmutabilidad de configuración.
-// [ESTABILIZACIÓN]: Erradicación de colisiones WebGL mediante aislamiento de motor y constantes.
+// VERSIÓN: 2.0 (NicePod MapCore - Imperative Bypass Edition)
+// Misión: Renderizado WebGL inmune a Deadlocks mediante gestión imperativa de terreno.
+// [ESTABILIZACIÓN]: Eliminación de la prop 'terrain' y componente 'Source' para aniquilar el error 'mapbox-dem'.
 
 "use client";
 
-import { forwardRef, memo, useMemo } from "react";
+import { forwardRef, memo, useCallback, useMemo } from "react";
 import Map, {
   GeolocateControl,
   Layer,
-  MapRef,
-  Source
+  MapRef
 } from 'react-map-gl/mapbox';
 
 // --- INFRAESTRUCTURA DE MALLA TÁCTICA ---
@@ -25,17 +24,19 @@ import {
 } from "../map-constants";
 
 import { useGeoEngine } from "@/hooks/use-geo-engine";
+import { nicepodLog } from "@/lib/utils";
 import { PointOfInterest } from "@/types/geo-sovereignty";
 import { MapMarkerCustom } from "../map-marker-custom";
 import { UserLocationMarker } from "../user-location-marker";
 
 /**
  * INTERFAZ: MapCoreProps
- * Define las señales que el motor WebGL escucha del orquestador.
+ * Define las señales estrictas que el motor WebGL acepta.
  */
 interface MapCoreProps {
   mode: 'EXPLORE' | 'FORGE';
   onLoad: (e: any) => void;
+  onMove: (e: any) => void;
   onMoveEnd: () => void;
   onMapClick: (e: any) => void;
   onMarkerClick: (id: string) => void;
@@ -43,12 +44,14 @@ interface MapCoreProps {
 }
 
 /**
- * MapCore: El reactor visual WebGL de NicePod.
- * Utiliza 'forwardRef' para permitir el control imperativo de la cámara (vuelos).
+ * MapCore: El reactor visual de NicePod.
+ * Utiliza un patrón imperativo para gestionar el terreno 3D, evitando que React
+ * interfiera con el ciclo de vida de los recursos pesados de la GPU.
  */
 const MapCore = forwardRef<MapRef, MapCoreProps>(({
   mode,
   onLoad,
+  onMove,
   onMoveEnd,
   onMapClick,
   onMarkerClick,
@@ -57,43 +60,67 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
 
   const { userLocation, nearbyPOIs, activePOI } = useGeoEngine();
 
-  // Determinamos el estilo según el modo operativo
+  /**
+   * [PROTOCOLO DE INYECCIÓN IMPERATIVA]
+   * Misión: Registrar la fuente DEM y activar el relieve 3D sin usar props reactivas.
+   * Este método garantiza que Mapbox maneje el terreno internamente.
+   */
+  const handleStyleData = useCallback((e: any) => {
+    const map = e.target;
+
+    // 1. Verificamos si la fuente ya existe en el núcleo para evitar duplicados
+    if (!map.getSource(DEM_SOURCE_CONFIG.id)) {
+      nicepodLog("🏗️ [MapCore] Inyectando Fuente DEM Soberana.");
+      map.addSource(DEM_SOURCE_CONFIG.id, {
+        type: DEM_SOURCE_CONFIG.type,
+        url: DEM_SOURCE_CONFIG.url,
+        tileSize: DEM_SOURCE_CONFIG.tileSize
+      });
+    }
+
+    // 2. Activamos el terreno solo en modo EXPLORE para evitar conflictos en la Forja
+    if (mode === 'EXPLORE') {
+      map.setTerrain({
+        source: DEM_SOURCE_CONFIG.id,
+        exaggeration: TERRAIN_CONFIG.exaggeration
+      });
+    } else {
+      map.setTerrain(null); // Desactivamos relieve para precisión Admin
+    }
+  }, [mode]);
+
+  // Selección de estilo inmutable
   const currentMapStyle = useMemo(() =>
-    mode === 'FORGE' ? MAP_STYLES.PHOTOREALISTIC : MAP_STYLES.DARK_IMMERSIVE,
+    mode === 'FORGE' ? MAP_STYLES.PHOTOREALISTIC : MAP_STYLES.PHOTOREALISTIC,
     [mode]);
 
   return (
     <Map
       ref={ref}
-      {...INITIAL_VIEW_STATE} // Nacimiento controlado (Madrid Z14.5)
+      {...INITIAL_VIEW_STATE}
+      onMove={onMove}
       onMoveEnd={onMoveEnd}
       onLoad={onLoad}
+      onStyleData={handleStyleData} // [FIX]: Punto de inyección imperativa
       onClick={onMapClick}
       mapboxAccessToken={MAPBOX_TOKEN}
       mapStyle={currentMapStyle}
 
-      // [SOBERANÍA WEBGL]: Proyección e Inmutabilidad
-      projection={{ name: "globe" }} // El globo es ahora seguro gracias a map-constants
-      terrain={TERRAIN_CONFIG}
+      // Proyección persistente: 'globe' solo es seguro si el terreno se maneja imperativamente.
+      projection={{ name: "globe" }}
       fog={FOG_CONFIG as any}
 
-      // Optimización de hardware móvil
+      // Optimizaciones de hardware móvil industrial
       antialias={false}
       reuseMaps={true}
-      maxPitch={85}
+      maxPitch={82}
       attributionControl={false}
       style={{ width: '100%', height: '100%' }}
     >
 
       {/* 
-          I. FUENTE DE ALTURA (DEM) 
-          Alimentación síncrona para el relieve de la ciudad.
-      */}
-      <Source {...DEM_SOURCE_CONFIG} />
-
-      {/* 
-          II. EL VOYAGER (Avatar de Resonancia) 
-          Representación física del usuario en la Malla.
+          I. EL VOYAGER (Avatar de Resonancia) 
+          Consumido directamente del GeoEngine global.
       */}
       {userLocation && (
         <UserLocationMarker
@@ -103,8 +130,8 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
       )}
 
       {/* 
-          III. LOS ECOS URBANOS (Nodos NKV) 
-          Renderizado optimizado de marcadores flotantes.
+          II. LA MALLA DE ECOS (Nodos NKV) 
+          Sincronía de marcadores flotantes con sombras 3D.
       */}
       {nearbyPOIs.map((poi: PointOfInterest) => (
         <MapMarkerCustom
@@ -121,17 +148,14 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
       ))}
 
       {/* 
-          IV. CAPA ARQUITECTÓNICA (Obsidiana) 
-          Solo activa en modo EXPLORE para evitar ruidos durante la forja.
+          III. CAPA ARQUITECTÓNICA (Obsidiana) 
+          Renderizado condicional basado en la estabilidad de la cámara.
       */}
       {mode === 'EXPLORE' && (
         <Layer {...BUILDING_LAYER_STYLE} />
       )}
 
-      {/* CONTROL DE GEOLOCALIZACIÓN (OCULTO) 
-          Se mantiene para asegurar que el motor de Mapbox reciba los pulsos 
-          nativos del sistema operativo, aunque usemos nuestro propio marcador.
-      */}
+      {/* CONTROL DE GEOLOCALIZACIÓN NATIVO (BACKEND) */}
       <GeolocateControl
         showUserLocation={false}
         positionOptions={{ enableHighAccuracy: true }}
@@ -147,8 +171,8 @@ MapCore.displayName = "MapCore";
 
 /**
  * [OPTIMIZACIÓN SOBERANA]: React.memo
- * Evita que el motor WebGL se repinte si los cambios son menores.
- * El mapa solo reacciona a cambios estructurales de modo o selección.
+ * Bloqueamos cualquier re-renderizado que no sea un cambio de modo o selección.
+ * Esto protege al motor WebGL de los micro-saltos de telemetría.
  */
 export default memo(MapCore, (prevProps, nextProps) => {
   return (
@@ -159,11 +183,12 @@ export default memo(MapCore, (prevProps, nextProps) => {
 });
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V1.0):
- * 1. Estabilidad Total: Al usar 'Source' y 'Layer' dentro de un componente memoizado 
- *    que bebe de constantes externas, el error de 'mapbox-dem removal' desaparece.
- * 2. Rendimiento 60FPS: La eliminación de lógica de búsqueda y HUD dentro de este 
- *    archivo libera al Hilo Principal del mapa de tareas de procesamiento de strings.
- * 3. Inyección de Horizonte: La cámara nace con el 'globe' activo pero espera 
- *    la orden de 'flyTo' del orquestador para mostrar el horizonte fotorrealista.
+ * NOTA TÉCNICA DEL ARCHITECT (V2.0):
+ * 1. Aniquilación del Error de Fuente: Al eliminar la prop 'terrain' de la 
+ *    declaración JSX y moverla a 'map.setTerrain' en el evento 'onStyleData',
+ *    hemos puenteado la lógica de limpieza de React que causaba el crash.
+ * 2. Soberanía Fotorrealista: El mapa ahora nace con el satélite como verdad 
+ *    absoluta, inyectando el relieve de forma asíncrona y segura.
+ * 3. Aislamiento de Red: El motor ya no intenta 're-montar' el Source en cada 
+ *    pulso de GPS, reduciendo las peticiones canceladas en el inspector de red.
  */

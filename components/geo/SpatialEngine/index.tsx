@@ -1,12 +1,16 @@
 // components/geo/SpatialEngine/index.tsx
-// VERSIÓN: 1.1 (NicePod Spatial Hub - Orchestrator Edition)
-// Misión: Orquestar el motor WebGL, la telemetría viva y el revelado cinemático.
-// [ESTABILIZACIÓN]: Resolución de ts(2304) mediante sincronía de viewState para el Radar.
+// VERSIÓN: 2.0 (NicePod Spatial Hub - Gesture & Cinematic Reveal Edition)
+// Misión: Orquestar el motor WebGL, la telemetría viva y el revelado fotorrealista.
+// [ESTABILIZACIÓN]: Resolución de ts(17002) y gestión proactiva de permisos GPS.
 
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { Loader2, ShieldAlert } from "lucide-react";
+import {
+  Compass,
+  Power,
+  ShieldAlert
+} from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -79,7 +83,7 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   const [isMapLoaded, setIsMapLoaded] = useState<boolean>(false);
   const [isCameraSettled, setIsCameraSettled] = useState<boolean>(false);
 
-  // [FIX SINCRO]: Estado de cámara local para alimentar al Radar y HUD
+  // [SINCRO]: Coordenadas locales para el Radar de Búsqueda
   const [viewState, setViewState] = useState({
     latitude: INITIAL_VIEW_STATE.latitude,
     longitude: INITIAL_VIEW_STATE.longitude,
@@ -91,7 +95,7 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   const hasInitialJumpPerformed = useRef<boolean>(false);
 
   /**
-   * 3. PROTOCOLOS DE INICIALIZACIÓN
+   * 3. PROTOCOLOS DE INICIALIZACIÓN (Safe Mount)
    */
   useEffect(() => {
     if (!containerRef.current) return;
@@ -107,12 +111,17 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
     return () => observer.disconnect();
   }, []);
 
+  /**
+   * [SISTEMA]: Auto-Ignición de Sensores
+   */
   useEffect(() => {
-    initSensors();
-  }, [initSensors]);
+    if (isContainerReady) {
+      initSensors();
+    }
+  }, [isContainerReady, initSensors]);
 
   /**
-   * 4. PROTOCOLOS DE VUELO (CÁMARA TÁCTICA)
+   * 4. PROTOCOLOS DE VUELO CINEMÁTICO
    */
   const flyToPosition = useCallback((lng: number, lat: number, zoomLevel = ZOOM_LEVELS.STREET, targetPitch = 80) => {
     if (mapRef.current) {
@@ -126,13 +135,14 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   }, [mode]);
 
   /**
-   * [MISIÓN: AUTO-LOCALIZACIÓN CINEMÁTICA]
+   * [MISIÓN: AUTO-LOCALIZACIÓN EN LAS SOMBRAS]
+   * Solo iniciamos el vuelo si el motor WebGL ya está cargado.
    */
   useEffect(() => {
     if (userLocation && isMapLoaded && !hasInitialJumpPerformed.current) {
-      nicepodLog("🎯 [Orchestrator] Salto inicial hacia Voyager.");
+      nicepodLog("🎯 [Orchestrator] Posición confirmada. Iniciando vuelo táctico.");
 
-      const targetZoom = mode === 'FORGE' ? ZOOM_LEVELS.FORGE : ZOOM_LEVELS.NEIGHBORHOOD;
+      const targetZoom = mode === 'FORGE' ? ZOOM_LEVELS.FORGE : ZOOM_LEVELS.STREET;
       flyToPosition(userLocation.longitude, userLocation.latitude, targetZoom, 80);
 
       hasInitialJumpPerformed.current = true;
@@ -140,17 +150,17 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   }, [userLocation, isMapLoaded, flyToPosition, mode]);
 
   /**
-   * 5. MANEJADORES DE EVENTOS SOBERANOS
+   * 5. MANEJADORES DE EVENTOS
    */
   const handleMove = useCallback((event: NicePodMapMoveEvent) => {
-    // Actualizamos las coordenadas locales para que el Radar sepa dónde estamos
     setViewState(event.viewState);
   }, []);
 
   const handleMoveEnd = useCallback(() => {
+    // Cuando el 'flyTo' termina, es seguro revelar el mapa
     if (hasInitialJumpPerformed.current && !isCameraSettled) {
       setIsCameraSettled(true);
-      nicepodLog("✨ [Orchestrator] Posición estabilizada. Revelando.");
+      nicepodLog("✨ [Orchestrator] Malla 3D estabilizada. Fin de cortina de carga.");
     }
   }, [isCameraSettled]);
 
@@ -189,48 +199,85 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   }, [selectedPOIId, nearbyPOIs]);
 
   return (
-    <div ref={containerRef} className={cn("w-full h-full relative bg-black", className)}>
+    <div ref={containerRef} className={cn("w-full h-full relative bg-[#010101]", className)}>
 
-      {/* --- I. CORTINA DE CARGA (SMOKESCREEN) --- */}
-      <AnimatePresence>
-        {!isCameraSettled && engineStatus !== 'PERMISSION_DENIED' && (
+      {/* 
+          I. CORTINA DE CARGA SOBERANA (SMOKESCREEN)
+          Protege al Voyager del estrés de renderizado inicial.
+      */}
+      <AnimatePresence mode="wait">
+        {!isCameraSettled && (
           <motion.div
             key="smokescreen"
+            initial={{ opacity: 1 }}
             exit={{ opacity: 0, scale: 1.05 }}
             transition={{ duration: 1.2, ease: "easeOut" }}
-            className="absolute inset-0 z-[110] bg-[#020202] flex flex-col items-center justify-center space-y-5"
+            className="absolute inset-0 z-[110] bg-[#020202] flex flex-col items-center justify-center space-y-10"
           >
-            <Loader2 className="h-10 w-10 animate-spin text-primary" />
-            <div className="flex flex-col items-center gap-2 text-center px-12">
-              <span className="text-[10px] font-black uppercase tracking-[0.5em] text-white italic leading-none">
-                Sincronizando Órbita
-              </span>
-              <span className="text-[7px] font-bold uppercase tracking-[0.3em] text-primary/60 animate-pulse">
-                {!isMapLoaded ? "Inicializando Motor WebGL..." :
-                  !userLocation ? "Buscando Coordenadas..." :
-                    "Calibrando Malla Fotorrealista..."}
-              </span>
+            {/* Visualización de Radar Central */}
+            <div className="relative">
+              <motion.div
+                animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0.6, 0.3] }}
+                transition={{ duration: 3, repeat: Infinity }}
+                className="absolute inset-0 bg-primary/20 blur-3xl rounded-full"
+              />
+              <Compass className="h-16 w-16 text-primary relative z-10 animate-spin-slow" />
+            </div>
+
+            <div className="flex flex-col items-center gap-6 text-center px-12">
+              <div className="space-y-2">
+                <span className="text-[11px] font-black uppercase tracking-[0.6em] text-white">
+                  Sincronización Órbital
+                </span>
+                <p className="text-[9px] font-bold uppercase tracking-[0.3em] text-primary/60 animate-pulse italic">
+                  {engineStatus === 'IDLE' ? "Esperando Autorización de Sensores..." :
+                    !isMapLoaded ? "Cargando Malla WebGL..." :
+                      !userLocation ? "Buscando Coordenadas Satelitales..." :
+                        "Estabilizando Horizonte 3D..."}
+                </p>
+              </div>
+
+              {/* [GESTO DE USUARIO]: Si el navegador bloquea el GPS, permitimos ignición manual */}
+              {engineStatus === 'IDLE' && (
+                <motion.button
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  onClick={() => initSensors()}
+                  className="px-8 py-4 bg-primary text-black rounded-2xl font-black text-[10px] uppercase tracking-[0.4em] shadow-[0_0_40px_rgba(var(--primary),0.4)] flex items-center gap-4 hover:scale-105 transition-transform"
+                >
+                  <Power size={14} />
+                  Activar Sensores
+                </motion.button>
+              )}
             </div>
           </motion.div>
         )}
 
-        {/* PERMISSION SHIELD */}
+        {/* ESCENARIO B: PERMISSION SHIELD (ESTADO DE BLOQUEO) */}
         {engineStatus === 'PERMISSION_DENIED' && (
           <motion.div
             key="p-shield"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            className="absolute inset-0 z-[150] bg-zinc-950 flex flex-col items-center justify-center p-8 text-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-[150] bg-[#020202] flex flex-col items-center justify-center p-12 text-center"
           >
-            <ShieldAlert className="h-10 w-10 text-red-500 mb-4" />
-            <span className="text-[10px] font-black uppercase tracking-[0.5em] text-red-400">GPS Inaccesible</span>
-            <p className="text-xs text-zinc-500 mt-4 max-w-[200px] leading-relaxed">
-              Habilite el acceso a la ubicación en su navegador para entrar en la Malla.
+            <div className="relative mb-8">
+              <ShieldAlert className="h-16 w-16 text-red-500 relative z-10" />
+              <div className="absolute inset-0 bg-red-500/20 blur-3xl animate-pulse" />
+            </div>
+            <span className="text-sm font-black uppercase tracking-[0.5em] text-red-400">Acceso Interceptado</span>
+            <p className="text-xs text-zinc-500 mt-6 max-w-[280px] leading-relaxed uppercase font-bold tracking-widest">
+              La Malla de Madrid requiere acceso al hardware GPS. Habilite los permisos en la configuración de su dispositivo para continuar.
             </p>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* --- II. EL MOTOR DE RENDERIZADO (CORE) --- */}
+      {/* 
+          II. EL MOTOR DE RENDERIZADO (CORE)
+          Solo visible tras la confirmación del vuelo cinemático.
+      */}
       {isContainerReady && (
         <motion.div
           animate={{ opacity: isCameraSettled ? 1 : 0 }}
@@ -242,9 +289,10 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
             mode={mode}
             selectedPOIId={selectedPOIId}
             onLoad={() => setIsMapLoaded(true)}
+            onMove={handleMove as any}
             onMoveEnd={handleMoveEnd}
             onMapClick={handleMapClick}
-            onMarkerClick={(id) => {
+            onMarkerClick={(id: string) => {
               if (mode === 'EXPLORE') {
                 setSelectedPOIId(id);
                 const p = nearbyPOIs.find(item => item.id.toString() === id);
@@ -255,7 +303,7 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
         </motion.div>
       )}
 
-      {/* --- III. INTERFAZ TÁCTICA (HUD & RADAR) --- */}
+      {/* --- III. INTERFAZ TÁCTICA SUPERPUESTA --- */}
       {mode === 'EXPLORE' && isCameraSettled && (
         <div className="absolute top-6 left-4 right-4 z-[100] md:top-8 md:left-8 md:w-[400px] animate-in fade-in duration-1000">
           <UnifiedSearchBar
@@ -263,7 +311,6 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
             onResults={handleSearchResult}
             onLoading={setIsSearchLoading}
             placeholder="Rastrear ecos urbanos..."
-            // [RESOLUCIÓN TS2304]: Ahora viewState está disponible para el Radar
             latitude={viewState.latitude}
             longitude={viewState.longitude}
           />
@@ -284,3 +331,13 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
     </div>
   );
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V2.0):
+ * 1. Solución de Tags JSX: Se corrigió el cierre de etiquetas (Línea 268) 
+ *    eliminando el error de compilación ts(17002).
+ * 2. User Gesture bypass: El botón de 'Activar Sensores' en la cortina de carga
+ *    rompe el bloqueo de privacidad de los navegadores móviles.
+ * 3. Revelado por Evento: La transición se dispara mediante 'onMoveEnd', lo que
+ *    garantiza que el Voyager vea la ciudad solo cuando la cámara esté estable.
+ */
