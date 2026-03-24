@@ -1,24 +1,27 @@
 // components/geo/map-preview-frame.tsx
-// VERSIÓN: 9.3 (NicePod GO-Preview - Horizon Restoration Edition)
-// Misión: Ventana táctica fotorrealista del Dashboard con horizonte infinito.
-// [ESTABILIZACIÓN]: Implementación de Cámara Escalonada para habilitar proyección Globe.
+// VERSIÓN: 10.0 (NicePod GO-Preview - The Smokescreen Protocol)
+// Misión: Ocultar el estrés de renderizado WebGL hasta que el vuelo táctico haya concluido.
+// [ESTABILIZACIÓN]: Erradicación de Jittering móvil mediante Revelado Cinemático y Fix ESLint.
 
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { Compass, Loader2, Maximize2, ShieldAlert, Zap } from "lucide-react";
+import { Compass, Maximize2, ShieldAlert, Zap } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import React, { memo, useEffect, useMemo, useRef, useState } from "react";
 
 // --- INFRAESTRUCTURA CORE ---
 import { useGeoEngine } from "@/hooks/use-geo-engine";
-import { cn } from "@/lib/utils";
+import { cn, nicepodLog } from "@/lib/utils";
 import { PointOfInterest } from "@/types/geo-sovereignty";
 import { Source } from 'react-map-gl/mapbox';
 import { MapMarkerCustom } from "./map-marker-custom";
 import { UserLocationMarker } from "./user-location-marker";
 
+/**
+ * INTERFAZ: MadridMapProps
+ */
 interface MadridMapProps {
   initialViewState: {
     latitude: number;
@@ -38,34 +41,46 @@ interface MadridMapProps {
   terrain?: any;
   maxPitch?: number;
   children?: React.ReactNode;
+  // [FIX ESLINT]: Añadimos el tipo explícito para el evento de carga
+  onLoad?: (e: any) => void;
 }
 
 const MapEngine = dynamic<MadridMapProps>(
   () => import("react-map-gl/mapbox").then((mod) => (mod.default || mod.Map) as any),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-950/40">
-        <Loader2 className="h-5 w-5 text-primary/10 animate-spin" />
-      </div>
-    ),
-  }
+  { ssr: false } // Quitamos el loader de dynamic porque nosotros controlaremos la UI de carga
 );
 
 const PHOTOREALISTIC_STYLE = "mapbox://styles/mapbox/satellite-streets-v12";
 
 export const MapPreviewFrame = memo(function MapPreviewFrame() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<any>(null); // Ref for flyTo control
-  const geoEngine = useGeoEngine();
-  const { userLocation, nearbyPOIs, activePOI, initSensors, status: engineStatus } = geoEngine;
 
+  // CONSUMO DE TELEMETRÍA (El Cerebro Global)
+  const geoEngine = useGeoEngine();
+  const {
+    userLocation,
+    nearbyPOIs,
+    activePOI,
+    initSensors,
+    status: engineStatus
+  } = geoEngine;
+
+  // --- MÁQUINA DE ESTADOS DEL REVELADO CINEMÁTICO ---
   const [isVisible, setIsVisible] = useState<boolean>(false);
   const [isIdleReady, setIsIdleReady] = useState<boolean>(false);
   const [isContainerReady, setIsContainerReady] = useState<boolean>(false);
-  const [isMapLoaded, setIsMapLoaded] = useState<boolean>(false);
 
-  // Safe Mount Observer
+  // Nivel 1: El motor WebGL descargó los tiles iniciales
+  const [isMapLoaded, setIsMapLoaded] = useState<boolean>(false);
+  // Nivel 2: La cámara terminó de volar hacia el usuario
+  const [isCameraSettled, setIsCameraSettled] = useState<boolean>(false);
+
+  // Referencia imperativa para el vuelo en las sombras
+  const mapInstanceRef = useRef<any>(null);
+
+  /**
+   * 1. PROTOCOLO DE SEGURIDAD MATEMÁTICA (Safe Mount Observer)
+   */
   useEffect(() => {
     if (!containerRef.current) return;
     const resizeObserver = new ResizeObserver((entries) => {
@@ -81,42 +96,29 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
   }, []);
 
   /**
-   * CÁMARA ESCALONADA (Fase 1: Ignición)
-   * Nace en 60° para que el 'globe' no colapse al compilar matrices iniciales.
+   * 2. CONFIGURACIÓN DE CÁMARA (Nacimiento Cenital Seguro)
+   * Nacemos con pitch 0 para que la compilación de matrices inicial sea barata en CPU.
    */
   const initialViewState = useMemo(() => ({
-    latitude: userLocation?.latitude || 40.4167,
-    longitude: userLocation?.longitude || -3.7037,
-    zoom: 15.2,
-    pitch: 60,
-    bearing: -15
-  }), [userLocation]);
-
-  /**
-   * AUTO-LOCALIZACIÓN CINEMÁTICA (Fase 2: Inmersión)
-   * Una vez cargado el mapa, levanta la mirada hacia el horizonte (75°).
-   */
-  useEffect(() => {
-    if (isMapLoaded && userLocation && mapRef.current) {
-      mapRef.current.flyTo({
-        center: [userLocation.longitude, userLocation.latitude],
-        zoom: 15.8,
-        pitch: 75,
-        duration: 3500,
-        curve: 1.2
-      });
-    }
-  }, [isMapLoaded, userLocation]);
-
-  const fogConfig = useMemo(() => ({
-    "range": [0.5, 10],
-    "color": "#020202",
-    "horizon-blend": 0.2,
-    "high-color": "#0f172a",
-    "space-color": "#000000",
-    "star-intensity": 0.5
+    latitude: 40.4167,
+    longitude: -3.7037,
+    zoom: 14.5,
+    pitch: 0,
+    bearing: 0
   }), []);
 
+  const fogConfig = useMemo(() => ({
+    "range": [0.8, 8],
+    "color": "#020202",
+    "horizon-blend": 0.3,
+    "high-color": "#0f172a",
+    "space-color": "#000000",
+    "star-intensity": 0.4
+  }), []);
+
+  /**
+   * 3. MONITOR DE VISIBILIDAD E IGNICIÓN
+   */
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => { if (entry.isIntersecting) setIsVisible(true); },
@@ -142,6 +144,37 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
     return () => clearTimeout(timer);
   }, [isVisible, initSensors]);
 
+  /**
+   * 4. VUELO EN LAS SOMBRAS (The Ghost Flight)
+   * Cuando el GPS da la señal y el mapa dice "estoy cargado", volamos
+   * sin que el usuario vea el movimiento tosco.
+   */
+  useEffect(() => {
+    // Si ya llegamos, no hacemos nada. Si falta el mapa o el GPS, esperamos.
+    if (isCameraSettled || !isMapLoaded || !userLocation || !mapInstanceRef.current) return;
+
+    nicepodLog("🎯 [MapPreview] Ejecutando vuelo cinemático en las sombras.");
+
+    // Volamos hacia el Voyager con la perspectiva inmersiva
+    mapInstanceRef.current.flyTo({
+      center: [userLocation.longitude, userLocation.latitude],
+      zoom: 16.5,
+      pitch: 75,
+      bearing: -15,
+      duration: 1500, // Vuelo rápido porque está oculto
+      essential: true,
+      easing: (t: number) => t * (2 - t)
+    });
+
+    // Cuando el vuelo de 1.5s termina, disolvemos la cortina de humo.
+    const revealTimer = setTimeout(() => {
+      setIsCameraSettled(true);
+      nicepodLog("✨ [MapPreview] Vuelo finalizado. Revelando Malla Urbana.");
+    }, 1600);
+
+    return () => clearTimeout(revealTimer);
+  }, [isMapLoaded, userLocation, isCameraSettled]);
+
   const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
 
   return (
@@ -149,7 +182,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
       ref={containerRef}
       initial={{ opacity: 0, scale: 0.98 }}
       animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: 1.2, ease: "easeOut" }} // [FIX ESLINT]: Tailwind safe
       className={cn(
         "relative w-full h-full overflow-hidden bg-[#030303] transition-all duration-700",
         "rounded-[2.5rem] md:rounded-[3rem] border border-white/5 shadow-2xl group",
@@ -158,6 +191,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
     >
       <AnimatePresence mode="wait">
 
+        {/* ESCENARIO A: EL PERMISSION SHIELD */}
         {engineStatus === 'PERMISSION_DENIED' ? (
           <motion.div
             key="permission_denied"
@@ -174,95 +208,106 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
               GPS Interceptado
             </span>
             <p className="text-xs text-zinc-500 max-w-[200px] leading-relaxed">
-              NicePod necesita acceso a tu ubicación. Habilita los sensores en los ajustes.
+              Active la ubicación para ver la red local.
             </p>
           </motion.div>
         ) :
 
-          isIdleReady && isContainerReady ? (
+          /* ESCENARIO B: CORTINA DE HUMO (Calibrando Malla) */
+          /* Esta pantalla se queda mientras el mapa carga por debajo y la cámara vuela */
+          !isCameraSettled ? (
             <motion.div
-              key="map_engine"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 1.5 }}
-              className="absolute inset-0 grayscale-[0.3] opacity-70 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-1000"
+              key="radar_loader"
+              exit={{ opacity: 0 }}
+              // El z-index alto asegura que tape al mapa imperfecto
+              className="absolute inset-0 flex flex-col items-center justify-center space-y-5 bg-zinc-950 z-[90]"
             >
-              <MapEngine
-                initialViewState={initialViewState}
-                mapboxAccessToken={MAPBOX_TOKEN}
-                style={{ width: "100%", height: "100%" }}
-                mapStyle={PHOTOREALISTIC_STYLE}
-
-                // [RESTAURACIÓN DE INMERSIÓN]: Globe permite el horizonte, Safe Mount previene el crash.
-                projection="globe"
-                terrain={{ source: 'mapbox-dem', exaggeration: 1.2 }}
-                maxPitch={85}
-
-                reuseMaps={true}
-                antialias={true}
-                attributionControl={false}
-                fog={fogConfig}
-
-                // Evento clave para disparar el salto cinematográfico
-                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                // @ts-ignore - Bypass temporal para el onReactLoad nativo
-                onLoad={(e) => {
-                  mapRef.current = e.target;
-                  setIsMapLoaded(true);
-                }}
-              >
-                <Source
-                  id="mapbox-dem"
-                  type="raster-dem"
-                  url="mapbox://mapbox.mapbox-terrain-dem-v1"
-                  tileSize={512}
-                  maxzoom={14}
-                />
-
-                {userLocation && (
-                  <UserLocationMarker
-                    location={userLocation}
-                    isResonating={!!activePOI?.isWithinRadius}
-                  />
-                )}
-
-                {nearbyPOIs?.map((poi: PointOfInterest) => (
-                  <MapMarkerCustom
-                    key={poi.id}
-                    id={poi.id.toString()}
-                    latitude={poi.geo_location.coordinates[1]}
-                    longitude={poi.geo_location.coordinates[0]}
-                    category_id={poi.category_id}
-                    name={poi.name}
-                    isResonating={activePOI?.id === poi.id.toString() && activePOI?.isWithinRadius}
-                    isSelected={false}
-                    onClick={() => { }}
-                  />
-                ))}
-              </MapEngine>
-            </motion.div>
-          ) :
-            (
-              <motion.div
-                key="radar_loader"
-                exit={{ opacity: 0 }}
-                className="absolute inset-0 flex flex-col items-center justify-center space-y-5 bg-zinc-950/80"
-              >
-                <div className="relative">
-                  <Zap className="h-8 w-8 text-primary/20 animate-pulse" />
-                  <div className="absolute inset-0 bg-primary/5 blur-2xl rounded-full animate-pulse" />
-                </div>
-                <span className="text-[8px] font-black uppercase tracking-[0.5em] text-zinc-800 animate-pulse">
-                  Localizando Nodo de Usuario...
+              <div className="relative">
+                <Zap className="h-8 w-8 text-primary/30 animate-pulse" />
+                <div className="absolute inset-0 bg-primary/10 blur-3xl rounded-full animate-pulse" />
+              </div>
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-[9px] font-black uppercase tracking-[0.5em] text-white">
+                  Sincronizando Órbita
                 </span>
-              </motion.div>
-            )}
-
+                <span className="text-[7px] font-bold uppercase tracking-[0.3em] text-primary/60 italic">
+                  {!userLocation ? "Buscando coordenadas..." : "Calibrando Fotorrealismo 3D..."}
+                </span>
+              </div>
+            </motion.div>
+          ) : null}
       </AnimatePresence>
 
+      {/* 
+          EL MOTOR INMERSIVO (SIEMPRE CARGANDO EN SEGUNDO PLANO)
+          Al quitar las condicionales visuales de este bloque, obligamos al navegador
+          a iniciar el trabajo de GPU en cuanto tiene dimensiones (isContainerReady), 
+          pero estará oculto bajo la Cortina de Humo (z-index del loader) 
+          o bajo opacity-0 si preferimos fundido puro.
+      */}
+      {isIdleReady && isContainerReady && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          // El mapa solo se vuelve visible cuando la cámara aterrizó
+          animate={{ opacity: isCameraSettled ? 1 : 0 }}
+          transition={{ duration: 1.5 }}
+          className="absolute inset-0 grayscale-[0.3] opacity-70 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-1000 z-0"
+        >
+          <MapEngine
+            initialViewState={initialViewState}
+            mapboxAccessToken={MAPBOX_TOKEN}
+            style={{ width: "100%", height: "100%" }}
+            mapStyle={PHOTOREALISTIC_STYLE}
+            projection="globe"
+            terrain={{ source: 'mapbox-dem', exaggeration: 1.2 }}
+            maxPitch={85}
+            reuseMaps={true}
+            antialias={false} // Desactivado para ahorrar GPU móvil
+            attributionControl={false}
+            fog={fogConfig}
+
+            // [FIX ESLINT]: Firma tipada correctamente en la interfaz
+            onLoad={(e) => {
+              mapInstanceRef.current = e.target;
+              setIsMapLoaded(true);
+            }}
+          >
+            <Source
+              id="mapbox-dem"
+              type="raster-dem"
+              url="mapbox://mapbox.mapbox-terrain-dem-v1"
+              tileSize={512}
+              maxzoom={14}
+            />
+
+            {userLocation && (
+              <UserLocationMarker
+                location={userLocation}
+                isResonating={!!activePOI?.isWithinRadius}
+              />
+            )}
+
+            {nearbyPOIs?.map((poi: PointOfInterest) => (
+              <MapMarkerCustom
+                key={poi.id}
+                id={poi.id.toString()}
+                latitude={poi.geo_location.coordinates[1]}
+                longitude={poi.geo_location.coordinates[0]}
+                category_id={poi.category_id}
+                name={poi.name}
+                isResonating={activePOI?.id === poi.id.toString() && activePOI?.isWithinRadius}
+                isSelected={false}
+                onClick={() => { }}
+              />
+            ))}
+          </MapEngine>
+        </motion.div>
+      )}
+
+      {/* ELEMENTOS SUPERPUESTOS UI (Siempre Visibles) */}
       <div className="absolute inset-0 bg-gradient-to-t from-[#020202] via-[#020202]/40 to-transparent z-10 pointer-events-none" />
 
-      <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8 z-20 flex justify-between items-end pointer-events-none">
+      <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8 z-[100] flex justify-between items-end pointer-events-none">
         <Link href="/map" className="flex items-center gap-4 pointer-events-auto group/btn focus:outline-none">
           <div className="bg-primary/10 p-3.5 rounded-2xl backdrop-blur-3xl border border-primary/20 group-hover/btn:bg-primary/30 group-hover/btn:scale-110 transition-all duration-700 shadow-inner">
             <Compass className="h-5 w-5 text-primary animate-spin-slow" />
