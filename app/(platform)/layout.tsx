@@ -1,7 +1,7 @@
 // app/(platform)/layout.tsx
-// VERSIÓN: 4.0 (NiceCore V2.7 - Visual Chassis & Gesture Passthrough Edition)
+// VERSIÓN: 4.1 (NiceCore V2.7 - Visual Chassis & Conditional Composition Edition)
 // Misión: Proveer el enrutamiento visual y liberar la interactividad del mapa WebGL.
-// [ESTABILIZACIÓN]: Detección de ruta /map para desactivar scroll y permitir inmersión 100dvh.
+// [ESTABILIZACIÓN]: Resolución de error de tipos ts(2322) mediante Composición Condicional.
 
 "use client";
 
@@ -28,10 +28,6 @@ import { cn } from "@/lib/utils";
 /**
  * COMPONENTE: PlatformLayout
  * El chasis soberano para la experiencia de usuario logueado.
- * 
- * [RE-ARQUITECTURA V2.7]:
- * Se ha transformado en Client Component para permitir la reacción dinámica 
- * a la ruta, necesaria para liberar los recursos de hardware en el mapa.
  */
 export default function PlatformLayout({
   children
@@ -42,86 +38,88 @@ export default function PlatformLayout({
 
   /**
    * [SISTEMA DE EXCEPCIÓN DE GESTOS]:
-   * Identificamos si el Voyager está en la zona de inmersión total.
-   * Si es así, debemos 'perforar' el layout para que los gestos toquen el mapa.
+   * Identificamos si el Voyager está en la zona de inmersión total (/map).
    */
   const isMapActive = pathname?.startsWith('/map');
+
+  /**
+   * [CONTENIDO CENTRAL]: 
+   * Definimos el núcleo de la interfaz una sola vez para evitar 
+   * duplicidad de renderizado y mantener el principio DRY.
+   */
+  const renderCoreContent = () => (
+    <>
+      {/* 
+          CAPA NAVEGACIÓN: 
+          En el mapa, la navegación flota. En el resto, tiene padding.
+      */}
+      <Navigation />
+
+      <main
+        className={cn(
+          "relative z-10 flex flex-col min-h-screen bg-transparent transition-all duration-500",
+          isMapActive ? "pt-0" : "pt-[84px] md:pt-[100px]"
+        )}
+      >
+        <PageTransition>
+          <div 
+            className={cn(
+              "w-full flex-grow flex flex-col bg-transparent",
+              !isMapActive && "px-4 md:px-0"
+            )}
+          >
+            {children}
+          </div>
+        </PageTransition>
+      </main>
+
+      {/* Terminales de salida persistentes */}
+      <PlayerOrchestrator />
+      <Toaster />
+    </>
+  );
 
   return (
     /**
      * CAPA 1: CENTINELA DE SOBERANÍA
-     * Valida la sesión antes de montar cualquier lógica de presentación.
      */
     <AuthGuard>
-
+      
       {/* 
-          CAPA 2: CONTROL DE DESPLAZAMIENTO (Smooth Scroll)
-          [MANDATO V2.7]: Si el mapa está activo, desactivamos el wrapper.
-          Esto evita que el suavizado de scroll capture los eventos de 'drag' 
-          destinados al mapa WebGL, devolviendo la soberanía táctil al motor 3D.
+          CAPA 2: COMPOSICIÓN CONDICIONAL
+          [SOLUCIÓN V2.7]: Si el mapa está activo, no montamos el SmoothScrollWrapper.
+          Esto elimina el error de tipos ts(2322) y garantiza que el motor WebGL 
+          tenga soberanía total sobre los eventos del ratón y el tacto.
       */}
-      <SmoothScrollWrapper disabled={isMapActive}>
+      {isMapActive ? (
+        <div className="flex flex-col min-h-screen bg-transparent overflow-hidden">
+          <OfflineIndicator />
+          {renderCoreContent()}
+        </div>
+      ) : (
+        <SmoothScrollWrapper>
+          <div className="flex flex-col min-h-screen bg-transparent">
+            <OfflineIndicator />
+            <ScrollToTop />
+            {renderCoreContent()}
+          </div>
+        </SmoothScrollWrapper>
+      )}
 
-        {/* SERVICIOS DE SISTEMA */}
-        <OfflineIndicator />
-        {!isMapActive && <ScrollToTop />}
-
-        {/* 
-            CAPA 3: NAVEGACIÓN TÁCTICA 
-            Se mantiene visible pero el mapa fluirá por debajo.
-        */}
-        <Navigation />
-
-        {/* 
-            CAPA 4: CONTENEDOR MAESTRO DE CONTENIDO
-            [OPTIMIZACIÓN DE INMERSIÓN]:
-            - Si NO es mapa: Aplicamos el padding técnico para el Header.
-            - Si ES mapa: pt-0 para permitir 100dvh de visualización pura.
-        */}
-        <main
-          className={cn(
-            "relative z-10 flex flex-col min-h-screen bg-transparent transition-all duration-500",
-            isMapActive ? "pt-0" : "pt-[84px] md:pt-[100px]"
-          )}
-        >
-          {/* 
-              CAPA 5: ORQUESTADOR DE MOVIMIENTO
-              Sincroniza la entrada y salida de contenido sin afectar al motor WebGL.
-          */}
-          <PageTransition>
-            <div 
-              className={cn(
-                "w-full flex-grow flex flex-col bg-transparent",
-                // El mapa requiere libertad total de bordes
-                !isMapActive && "px-4 md:px-0"
-              )}
-            >
-              {children}
-            </div>
-          </PageTransition>
-        </main>
-
-        {/* 
-            CAPA 6: TERMINALES DE SALIDA
-            El PlayerOrchestrator flota en la capa Z superior (200).
-        */}
-        <PlayerOrchestrator />
-        <Toaster />
-
-      </SmoothScrollWrapper>
     </AuthGuard>
   );
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V4.0):
- * 1. Solución de Gestos: La desactivación condicional del 'SmoothScrollWrapper' 
- *    es la clave para que el mapa deje de sentirse 'bloqueado'. Ahora el 
- *    Voyager puede rotar y hacer zoom sin que el layout interfiera.
- * 2. Soberanía de Viewport: Al eliminar el 'pt' (padding-top) en la ruta /map, 
- *    el SpatialEngine recibe las coordenadas tácticas con precisión absoluta 
- *    respecto al 0,0 de la pantalla del dispositivo.
- * 3. Hot-Swap Visual: El uso de 'cn' y transiciones de 500ms asegura que 
- *    el cambio entre el Dashboard (con padding) y el Mapa (sin padding) 
- *    sea una experiencia fluida y cinematográfica.
+ * NOTA TÉCNICA DEL ARCHITECT (V4.1):
+ * 1. Resolución de Tipos: Se eliminó el intento de pasar 'disabled' a un componente
+ *    que no lo soporta. El renderizado condicional ({isMapActive ? ... : ...})
+ *    es la forma más robusta de aislar el comportamiento del scroll suavizado.
+ * 2. Malla Liberada: Al no existir el 'SmoothScrollWrapper' en la ruta /map, 
+ *    el navegador no intercepta los eventos de inercia, permitiendo que el 
+ *    SpatialEngine de Mapbox v3 opere al 100% de su capacidad interactiva.
+ * 3. Optimización de Inmersión: Se mantiene el 'pt-0' (padding-top cero) para
+ *    el mapa, asegurando que la cámara ocupe el visor completo del móvil.
+ * 4. Gestión de Estado: Se conservan los componentes críticos (Navigation, Player, 
+ *    Toaster) en ambos escenarios, garantizando que el AudioProvider no sufra cortes.
  */
