@@ -32,6 +32,7 @@
 │   │   ├── create
 │   │   │   └── page.tsx
 │   │   ├── dashboard
+│   │   │   ├── dashboard-client.tsx
 │   │   │   └── page.tsx
 │   │   ├── layout.tsx
 │   │   ├── map
@@ -126,10 +127,13 @@
 │   │   ├── resonance-compass.tsx
 │   │   └── universe-card.tsx
 │   ├── geo
-│   │   ├── SpatialEngine.tsx
+│   │   ├── SpatialEngine
+│   │   │   ├── index.tsx
+│   │   │   └── map-core.tsx
 │   │   ├── forge-context.tsx
 │   │   ├── geo-creator-overlay.tsx
 │   │   ├── geo-recorder.tsx
+│   │   ├── map-constants.ts
 │   │   ├── map-marker-custom.tsx
 │   │   ├── map-preview-frame.tsx
 │   │   ├── mapbox-env.d.ts
@@ -137,11 +141,12 @@
 │   │   ├── poi-preview-card.tsx
 │   │   ├── radar-hud.tsx
 │   │   ├── scanner-ui.tsx
-│   │   └── steps
-│   │       ├── step-1-anchoring.tsx
-│   │       ├── step-2-sensory-capture.tsx
-│   │       ├── step-3-dossier-review.tsx
-│   │       └── step-4-narrative-forge.tsx
+│   │   ├── steps
+│   │   │   ├── step-1-anchoring.tsx
+│   │   │   ├── step-2-sensory-capture.tsx
+│   │   │   ├── step-3-dossier-review.tsx
+│   │   │   └── step-4-narrative-forge.tsx
+│   │   └── user-location-marker.tsx
 │   ├── leave-testimonial-dialog.tsx
 │   ├── navigation
 │   │   ├── desktop-nav.tsx
@@ -164,7 +169,6 @@
 │   │   ├── content-vault.tsx
 │   │   ├── creation-metadata.tsx
 │   │   ├── curator-aside.tsx
-│   │   ├── dynamic-script-viewer.tsx
 │   │   ├── integrity-shield.tsx
 │   │   ├── media-stage.tsx
 │   │   ├── podcast-card.tsx
@@ -281,6 +285,7 @@
 ├── components.json
 ├── contexts
 │   └── audio-context.tsx
+├── distill_schema.py
 ├── hooks
 │   ├── use-auth.tsx
 │   ├── use-debounce.ts
@@ -415,15 +420,12 @@
 │   │   └── vault-refinery
 │   │       └── index.ts
 │   ├── migrations
-│   │   ├── 20251221000000_initial_schema.sql
-│   │   ├── 20260227_poi_deep_immersion.sql
-│   │   ├── 20260301_poi_multimodal.sql
-│   │   └── 20260305_poi_sovereign_schema.sql
 │   └── service-account.json
 ├── tailwind.config.ts
 ├── tsconfig.json
 ├── tsconfig.tsbuildinfo
 └── types
+    ├── database-overrides.d.ts
     ├── database.types.ts
     ├── geo-sovereignty.ts
     ├── podcast.ts
@@ -431,4 +433,4 @@
     ├── pulse.ts
     └── supabase.ts
 
-95 directories, 337 files
+96 directories, 338 files

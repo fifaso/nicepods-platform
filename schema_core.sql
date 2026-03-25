@@ -277,29 +277,50 @@ CREATE OR REPLACE FUNCTION "public"."create_profile_and_free_subscription"() RET
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO ''
     AS $$ DECLARE free_plan_id BIGINT; BEGIN SELECT id INTO free_plan_id FROM public.plans WHERE name = 'Gratuito' LIMIT 1; IF free_plan_id IS NULL THEN RAISE EXCEPTION 'Plan "Gratuito" no encontrado.'; END IF; INSERT INTO public.profiles (id, username, full_name, avatar_url, role) VALUES (NEW.id, COALESCE(NEW.raw_user_meta_data->>'user_name', NEW.id::text), NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'avatar_url', 'user'); INSERT INTO public.subscriptions (user_id, plan_id, status) VALUES (NEW.id, free_plan_id, 'active'); UPDATE auth.users SET raw_app_meta_data = raw_app_meta_data || jsonb_build_object('user_role', 'user') WHERE id = NEW.id; RETURN NEW; END; $$;
-CREATE OR REPLACE FUNCTION "public"."dispatch_edge_function"("function_name" "text", "payload" "jsonb") RETURNS "jsonb"
+CREATE OR REPLACE FUNCTION "public"."dispatch_edge_function"("p_function_name" "text", "p_payload" "jsonb") RETURNS "jsonb"
     LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'net', 'extensions'
     AS $$
 DECLARE
-    request_id bigint;
-    -- Descubrimos la URL dinámicamente para no fallar por Project ID
-    base_url text := (SELECT value FROM public.platform_limits WHERE key_name = 'supabase_url'); 
-    full_url text;
+    v_request_id bigint;
+    v_base_url text;
+    v_full_url text;
+    v_service_key text;
 BEGIN
-    -- Fallback si no está en la tabla de límites
-    IF base_url IS NULL THEN
-        base_url := 'https://arbojlknwilqcszuqope.supabase.co';
+    -- 1. Resolución de URL Dinámica
+    SELECT value INTO v_base_url 
+    FROM public.platform_limits 
+    WHERE key_name = 'supabase_url' 
+    LIMIT 1;
+    -- Fallback de seguridad (Madrid Region Node)
+    IF v_base_url IS NULL THEN
+        v_base_url := 'https://arbojlknwilqcszuqope.supabase.co';
     END IF;
-    full_url := base_url || '/functions/v1/' || function_name;
+    v_full_url := v_base_url || '/functions/v1/' || p_function_name;
+    -- 2. Recuperación de Autoridad desde la Vault
+    v_service_key := public.get_service_key();
+    IF v_service_key IS NULL THEN
+        RAISE EXCEPTION 'CRITICAL: SERVICE_ROLE_KEY no encontrada en Vault.';
+    END IF;
+    -- 3. Inserción en Cola de Red (No bloqueante)
+    -- El worker de pg_net procesará esto de forma independiente.
     SELECT net.http_post(
-        url := full_url,
-        body := payload,
+        url := v_full_url,
+        body := p_payload,
         headers := jsonb_build_object(
             'Content-Type', 'application/json',
-            'Authorization', 'Bearer ' || public.get_service_key()
+            'Authorization', 'Bearer ' || v_service_key,
+            'x-nicepod-source', 'postgresql-trigger-v2.6'
         )
-    ) INTO request_id;
-    RETURN jsonb_build_object('status', 'queued', 'request_id', request_id, 'url_used', full_url);
+    ) INTO v_request_id;
+    RETURN jsonb_build_object(
+        'status', 'queued_async',
+        'request_id', v_request_id
+    );
+EXCEPTION WHEN OTHERS THEN
+    -- Fallo silencioso para el usuario: El sistema sigue operando.
+    RAISE WARNING 'ASYNC_DISPATCH_FAIL: %', SQLERRM;
+    RETURN jsonb_build_object('status', 'error', 'message', SQLERRM);
 END;
 $$;
 CREATE OR REPLACE FUNCTION "public"."fetch_personalized_pulse"("p_user_id" "uuid", "p_limit" integer DEFAULT 20, "p_threshold" double precision DEFAULT 0.7) RETURNS TABLE("id" "uuid", "title" "text", "summary" "text", "url" "text", "source_name" "text", "content_type" "public"."content_category", "authority_score" double precision, "similarity" double precision)
@@ -903,20 +924,17 @@ CREATE OR REPLACE FUNCTION "public"."on_pod_created_dispatch_assets"() RETURNS "
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
 BEGIN
-    -- [CRÍTICO]: Solo disparamos si el podcast nace en estado 'processing'
-    -- Esto evita bucles infinitos en actualizaciones posteriores.
+    -- Mantenemos la guardia de estado para evitar recursividad
     IF NEW.processing_status = 'processing' THEN
-        -- A. DISPARO DE AUDIO
+        -- Ejecución masiva asíncrona (<10ms de CPU DB)
         PERFORM public.dispatch_edge_function(
             'generate-audio-from-script',
             jsonb_build_object('podcast_id', NEW.id)
         );
-        -- B. DISPARO DE IMAGEN
         PERFORM public.dispatch_edge_function(
             'generate-cover-image',
             jsonb_build_object('podcast_id', NEW.id)
         );
-        -- C. DISPARO DE VECTORIZACIÓN (Discovery Hub)
         PERFORM public.dispatch_edge_function(
             'generate-embedding',
             jsonb_build_object('podcast_id', NEW.id)
@@ -1248,25 +1266,27 @@ BEGIN
 END;
 $$;
 CREATE OR REPLACE FUNCTION "public"."trigger_resonance_recalculation"() RETURNS "trigger"
-    LANGUAGE "plpgsql"
+    LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public', 'extensions'
     AS $$
 DECLARE
-  user_id_to_update UUID;
+    v_user_id_to_update UUID;
 BEGIN
-  -- TG_OP nos dice si es un INSERT, UPDATE o DELETE.
-  IF (TG_OP = 'INSERT' OR TG_OP = 'UPDATE') THEN
-    user_id_to_update := NEW.user_id;
-  ELSE
-    user_id_to_update := OLD.user_id;
-  END IF;
-  -- Realiza la llamada HTTP no bloqueante a nuestra función "cerebro".
-  PERFORM http_post(
-    url := 'https://arbojlknwilqcszuqope.supabase.co/functions/v1/update-resonance-profile',
-    body := jsonb_build_object('record', jsonb_build_object('user_id', user_id_to_update)),
-    headers := jsonb_build_object('Content-Type', 'application/json')
-  );
-  RETURN NULL; -- El resultado no es importante para un trigger AFTER.
+    IF (TG_OP = 'DELETE') THEN
+        v_user_id_to_update := OLD.user_id;
+    ELSE
+        v_user_id_to_update := NEW.user_id;
+    END IF;
+    -- Disparo asíncrono: Transacción liberada instantáneamente.
+    PERFORM public.dispatch_edge_function(
+        'update-resonance-profile',
+        jsonb_build_object(
+            'user_id', v_user_id_to_update,
+            'event_source', TG_TABLE_NAME,
+            'event_op', TG_OP
+        )
+    );
+    RETURN NULL;
 END;
 $$;
 CREATE OR REPLACE FUNCTION "public"."unified_search_v3"("p_query_text" "text", "p_query_embedding" "extensions"."vector", "p_match_threshold" double precision DEFAULT 0.25, "p_match_count" integer DEFAULT 15, "p_user_lat" double precision DEFAULT NULL::double precision, "p_user_lng" double precision DEFAULT NULL::double precision) RETURNS TABLE("result_type" "text", "id" "text", "title" "text", "subtitle" "text", "image_url" "text", "similarity" double precision, "geo_distance" double precision, "metadata" "jsonb")
@@ -2344,10 +2364,9 @@ GRANT ALL ON FUNCTION "public"."create_profile_and_free_subscription"() TO "auth
 GRANT ALL ON FUNCTION "public"."create_profile_and_free_subscription"() TO "service_role";
 GRANT ALL ON FUNCTION "public"."create_profile_and_free_subscription"() TO "supabase_auth_admin";
 GRANT ALL ON FUNCTION "public"."create_profile_and_free_subscription"() TO "supabase_functions_admin";
-GRANT ALL ON FUNCTION "public"."dispatch_edge_function"("function_name" "text", "payload" "jsonb") TO "anon";
-GRANT ALL ON FUNCTION "public"."dispatch_edge_function"("function_name" "text", "payload" "jsonb") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."dispatch_edge_function"("function_name" "text", "payload" "jsonb") TO "service_role";
-GRANT ALL ON FUNCTION "public"."dispatch_edge_function"("function_name" "text", "payload" "jsonb") TO "supabase_functions_admin";
+GRANT ALL ON FUNCTION "public"."dispatch_edge_function"("p_function_name" "text", "p_payload" "jsonb") TO "anon";
+GRANT ALL ON FUNCTION "public"."dispatch_edge_function"("p_function_name" "text", "p_payload" "jsonb") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."dispatch_edge_function"("p_function_name" "text", "p_payload" "jsonb") TO "service_role";
 GRANT ALL ON FUNCTION "public"."fetch_personalized_pulse"("p_user_id" "uuid", "p_limit" integer, "p_threshold" double precision) TO "anon";
 GRANT ALL ON FUNCTION "public"."fetch_personalized_pulse"("p_user_id" "uuid", "p_limit" integer, "p_threshold" double precision) TO "authenticated";
 GRANT ALL ON FUNCTION "public"."fetch_personalized_pulse"("p_user_id" "uuid", "p_limit" integer, "p_threshold" double precision) TO "service_role";
