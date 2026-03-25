@@ -1,7 +1,7 @@
 // hooks/use-geo-engine.tsx
-// VERSIÓN: 17.0 (NicePod Sovereign Geo-Engine - Rapid Fix & Global Persistence Edition)
-// Misión: Orquestar telemetría estabilizada, eliminar el jitter y persistir la ubicación en toda la sesión.
-// [ESTABILIZACIÓN]: Captura agresiva de T0, IsTriangulated Persistence y Low-Pass Compass Filter.
+// VERSIÓN: 18.0 (NicePod Sovereign Geo-Engine - Hardware Lock & Rescue Protocol Edition)
+// Misión: Orquestar telemetría estabilizada, prevenir bloqueos de hardware y garantizar la visibilidad del Voyager.
+// [ESTABILIZACIÓN]: Implementación de isHardwareActiveRef, Rescue Timeout (4s) y Materialización Obligatoria.
 
 "use client";
 
@@ -38,6 +38,7 @@ import {
 
 /**
  * UTILIDAD INTERNA: fileToBase64
+ * Transmuta binarios en cadenas para transporte seguro.
  */
 const fileToBase64 = (file: File | Blob): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -50,7 +51,7 @@ const fileToBase64 = (file: File | Blob): Promise<string> => {
 
 /**
  * [FILTRO MATEMÁTICO]: applyCompassFilter (Low-Pass)
- * Mitiga el jitter magnético. Ignora variaciones menores a 2.5 grados.
+ * Elimina micro-vibraciones magnéticas menores a 2.5 grados.
  */
 const applyCompassFilter = (current: number | null, previous: number | null | undefined): number | null => {
   if (current === null || isNaN(current)) return previous ?? null;
@@ -66,7 +67,7 @@ const applyCompassFilter = (current: number | null, previous: number | null | un
 const GeoEngineContext = createContext<GeoEngineReturn | undefined>(undefined);
 
 /**
- * GeoEngineProvider: El Orquestador Maestro de Sensores.
+ * GeoEngineProvider: El Reactor Sensorial Maestro de NicePod.
  */
 export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
   const supabase = createClient();
@@ -80,12 +81,12 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [isLocked, setIsLocked] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Soberanía de Triangulación: Evita re-saltos de cámara innecesarios.
   const [isTriangulated, setIsTriangulated] = useState<boolean>(false);
 
   // --- II. REFERENCIAS DE CONTROL (MEMORIA TÉCNICA) ---
   const watchId = useRef<number | null>(null);
+  const isHardwareActiveRef = useRef<boolean>(false); // [CERROJO]: Evita múltiples instancias GPS
+  const rescueTimerRef = useRef<NodeJS.Timeout | null>(null);
   const hasResolvedContextRef = useRef<boolean>(false);
   const lastEmittedLocationRef = useRef<UserLocation | null>(null);
   const lastPOIRequestPosRef = useRef<{ lat: number, lng: number } | null>(null);
@@ -94,9 +95,10 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
   const NOISE_FILTER_METERS = 5.0;
   const QUALITY_THRESHOLD = 35;
   const POI_REFRESH_DISTANCE = 60;
+  const RESCUE_TIMEOUT_MS = 4000; // 4 segundos para materialización forzada
 
   /**
-   * calculateDistance: Matemática de Haversine.
+   * calculateDistance: Matemática de Haversine para distancias esféricas.
    */
   const calculateDistance = useCallback((lat1: number, lon1: number, lat2: number, lon2: number): number => {
     const R = 6371e3;
@@ -109,7 +111,7 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /**
-   * fetchNearbyPOIs: Sincronía con Bóveda NKV.
+   * fetchNearbyPOIs: Sincronía proactiva con la Bóveda NKV.
    */
   const fetchNearbyPOIs = useCallback(async () => {
     if (!lastEmittedLocationRef.current) return;
@@ -124,7 +126,7 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
 
     setIsSearching(true);
     try {
-      nicepodLog("📡 [GeoEngine] Consultando Bóveda NKV...");
+      nicepodLog("📡 [GeoEngine] Extrayendo sabiduría cercana...");
       const { data: pois, error: dbError } = await supabase
         .from('vw_map_resonance_active')
         .select('*');
@@ -146,7 +148,7 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
   }, [supabase, calculateDistance]);
 
   /**
-   * evaluateEnvironment: Radar de proximidad.
+   * evaluateEnvironment: Procesador de proximidad física.
    */
   const evaluateEnvironment = useCallback((location: UserLocation) => {
     if (nearbyPOIs.length === 0) return;
@@ -177,7 +179,7 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
   }, [nearbyPOIs, calculateDistance]);
 
   /**
-   * resolveContext: Fase 0 - Resolución de lugar y clima.
+   * resolveContext: Identidad del territorio (Clima y Nombre).
    */
   const resolveContext = useCallback(async (lat: number, lng: number) => {
     if (isSearching) return;
@@ -201,7 +203,7 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
   }, [isSearching]);
 
   /**
-   * initSensors: Ignición de hardware con protocolo de Inicio Rápido.
+   * initSensors: Ignición de hardware con Protocolo de Rescate Geográfico.
    */
   const initSensors = useCallback(() => {
     if (typeof window === "undefined" || !("geolocation" in navigator)) {
@@ -209,15 +211,42 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    if (isLocked || status === 'PERMISSION_DENIED') return;
+    // [CERROJO]: Si ya hay un proceso activo, ignoramos para proteger el chip GPS.
+    if (isHardwareActiveRef.current || isLocked || status === 'PERMISSION_DENIED') return;
 
+    isHardwareActiveRef.current = true;
     setStatus('SENSORS_READY');
+
+    /**
+     * [PROTOCOLO DE RESCATE]: Materialización Forzada
+     * Si en 4s el GPS no responde, inyectamos una ubicación de cortesía (Sol, Madrid)
+     * para que el Voyager aparezca en el mapa de forma obligatoria.
+     */
+    rescueTimerRef.current = setTimeout(() => {
+      if (!lastEmittedLocationRef.current) {
+        nicepodLog("🆘 [GeoEngine] Rescue Protocol activado. Materializando Voyager.");
+        const rescueLoc: UserLocation = {
+          latitude: 40.4167,
+          longitude: -3.7037,
+          accuracy: 999, // Marca técnica de rescate
+          heading: null,
+          speed: null
+        };
+        setUserLocation(rescueLoc);
+        fetchNearbyPOIs(); // Carga de datos base en Madrid Sol
+      }
+    }, RESCUE_TIMEOUT_MS);
 
     const handleHardwareSignal = (position: GeolocationPosition) => {
       if (isLocked) return;
 
-      const filteredHeading = applyCompassFilter(position.coords.heading, lastEmittedLocationRef.current?.heading);
+      // Limpiamos el rescate si llega señal real
+      if (rescueTimerRef.current) {
+        clearTimeout(rescueTimerRef.current);
+        rescueTimerRef.current = null;
+      }
 
+      const filteredHeading = applyCompassFilter(position.coords.heading, lastEmittedLocationRef.current?.heading);
       const newLoc: UserLocation = {
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
@@ -227,14 +256,12 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
       };
 
       const isFirstPulse = !lastEmittedLocationRef.current;
-
       const movement = isFirstPulse ? 0 : calculateDistance(
         lastEmittedLocationRef.current!.latitude, lastEmittedLocationRef.current!.longitude,
         newLoc.latitude, newLoc.longitude
       );
 
-      // PROTOCOLO DE CAPTURA AGRESIVA (V17.0):
-      // Emitimos el primer pulso inmediatamente sin importar el ruido para materializar al usuario.
+      // Emitimos el primer pulso real de inmediato (Protocolo Agresivo V17.0)
       const shouldUpdateUI = isFirstPulse ||
         movement > NOISE_FILTER_METERS ||
         (newLoc.accuracy < lastEmittedLocationRef.current!.accuracy - 15) ||
@@ -253,24 +280,21 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
     };
 
     const handleHardwareError = (err: GeolocationPositionError) => {
+      isHardwareActiveRef.current = false;
       if (err.code === err.PERMISSION_DENIED) {
-        nicepodLog("🛑 [GeoEngine] Permiso denegado.");
         setStatus('PERMISSION_DENIED');
-        setError("Ubicación bloqueada por privacidad.");
+        setError("Ubicación bloqueada.");
         if (watchId.current) navigator.geolocation.clearWatch(watchId.current);
-      } else {
-        nicepodLog(`🟡 [GeoEngine] Buscando señal...`);
-        setError("Sincronizando satélites...");
       }
     };
 
-    // 1. Instant Snapshot
+    // 1. Instant Snapshot (Carga Rápida)
     navigator.geolocation.getCurrentPosition(handleHardwareSignal, handleHardwareError, {
-      enableHighAccuracy: false, // Rápido primero
+      enableHighAccuracy: false,
       timeout: 5000
     });
 
-    // 2. High Accuracy Watch
+    // 2. High Accuracy Stream (Malla Viva)
     if (watchId.current) navigator.geolocation.clearWatch(watchId.current);
     watchId.current = navigator.geolocation.watchPosition(handleHardwareSignal, handleHardwareError, {
       enableHighAccuracy: true,
@@ -281,6 +305,8 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
 
   const setManualAnchor = useCallback((lng: number, lat: number) => {
     if (watchId.current) navigator.geolocation.clearWatch(watchId.current);
+    if (rescueTimerRef.current) clearTimeout(rescueTimerRef.current);
+
     const manualLoc: UserLocation = { latitude: lat, longitude: lng, accuracy: 1, heading: null, speed: null };
     lastEmittedLocationRef.current = manualLoc;
     setUserLocation(manualLoc);
@@ -291,7 +317,7 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
   }, [fetchNearbyPOIs]);
 
   /**
-   * ingestSensoryData: PROCESO COMPLETO (Sin abreviaciones)
+   * ingestSensoryData: Protocolo de Ingesta Multimodal Sincronizado.
    */
   const ingestSensoryData = async (params: {
     heroImage: File;
@@ -307,10 +333,8 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
     setError(null);
 
     try {
-      nicepodLog("⚙️ [GeoEngine] Compresión JIT en curso...");
-
-      // Yield al Event Loop para que React dibuje el estado de carga
-      await new Promise(resolve => setTimeout(resolve, 50));
+      nicepodLog("⚙️ [GeoEngine] Refinando evidencia...");
+      await new Promise(resolve => setTimeout(resolve, 50)); // Yield
 
       const [compressedHero, ...compressedOcr] = await Promise.all([
         compressNicePodImage(params.heroImage, 2048, 0.85),
@@ -343,7 +367,7 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
       const dossier: IngestionDossier = {
         poi_id: poiId,
         raw_ocr_text: analysis.historicalDossier || null,
-        weather_snapshot: data.dossier?.weather_snapshot || { temp_c: 0, condition: "Estable", is_day: true },
+        weather_snapshot: data.dossier?.weather_snapshot || { temp_c: 0, condition: "Sincronizado", is_day: true },
         visual_analysis_dossier: analysis,
         sensor_accuracy: userLocation.accuracy,
         ingested_at: new Date().toISOString()
@@ -351,7 +375,7 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
 
       setData(prev => ({ ...prev, poiId, dossier }));
       setStatus('DOSSIER_READY');
-      nicepodLog(`✅ [GeoEngine] Ingesta Exitosa Nodo #${poiId}`);
+      nicepodLog(`✅ [GeoEngine] Ingesta Completada Nodo #${poiId}`);
 
       return { poiId, dossier };
 
@@ -365,7 +389,7 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
   };
 
   /**
-   * synthesizeNarrative: PROCESO COMPLETO (Sin abreviaciones)
+   * synthesizeNarrative: Orquestación del Oráculo 42.
    */
   const synthesizeNarrative = async (params: {
     poiId: number;
@@ -377,7 +401,6 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
     try {
       const result = await synthesizeNarrativeAction(params);
       if (!result.success || !result.data) throw new Error(result.error || "SYNTH_FAIL");
-
       setData(prev => ({ ...prev, narrative: result.data }));
       setStatus('NARRATIVE_READY');
     } catch (e: unknown) {
@@ -390,13 +413,18 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
 
   const reset = () => {
     if (watchId.current) navigator.geolocation.clearWatch(watchId.current);
+    if (rescueTimerRef.current) clearTimeout(rescueTimerRef.current);
+    isHardwareActiveRef.current = false;
     setStatus('IDLE'); setData({}); setIsLocked(false); setUserLocation(null);
     lastEmittedLocationRef.current = null; lastPOIRequestPosRef.current = null;
     setError(null); setIsTriangulated(false);
   };
 
   useEffect(() => {
-    return () => { if (watchId.current) navigator.geolocation.clearWatch(watchId.current); };
+    return () => {
+      if (watchId.current) navigator.geolocation.clearWatch(watchId.current);
+      if (rescueTimerRef.current) clearTimeout(rescueTimerRef.current);
+    };
   }, []);
 
   return (
@@ -423,15 +451,13 @@ export function useGeoEngine() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V17.0):
- * 1. Protocolo de Inicio Rápido (Rapid Fix): Se ha priorizado la materialización inmediata del 
- *    usuario. El primer pulso de GPS se emite al UI ignorando los filtros de ruido, lo que 
- *    asegura que el mapa nunca se quede en negro esperando coordenadas perfectas.
- * 2. Soberanía de Triangulación (isTriangulated): El flag persistente permite que el widget
- *    del Dashboard y el Mapa de Pantalla Completa compartan la "Verdad Física" de la sesión.
- * 3. Low-Pass Compass Filter: Se ha implementado un filtro de 2.5 grados para la brújula, 
- *    aniquilando las vibraciones magnéticas del dispositivo y logrando un seguimiento 
- *    de cámara cinematográfico al estilo Pokémon GO.
- * 4. Build Shield Completo: Se han restaurado los cuerpos íntegros de todas las funciones de IA
- *    y se ha eliminado el uso de 'any' en favor de tipado defensivo 'unknown'.
+ * NOTA TÉCNICA DEL ARCHITECT (V18.0):
+ * 1. Protocolo de Rescate Geográfico: Se inyectó un Timer de 4 segundos que fuerza 
+ *    la materialización del Voyager en un punto base si el GPS no responde, 
+ *    garantizando que el avatar nunca sea invisible.
+ * 2. Cerrojo de Hardware Singleton: Se implementó 'isHardwareActiveRef' para 
+ *    prevenir bloqueos de chip GPS causados por múltiples observadores de navegación.
+ * 3. Persistencia de Sesión: La integración de 'isTriangulated' y 'isTriangulated' 
+ *    consolida la Verdad Física en toda la Workstation, habilitando el Hot-Swap de mapas.
+ * 4. Rigor Industrial: Se eliminaron todas las declaraciones 'any' y abreviaciones.
  */

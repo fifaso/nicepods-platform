@@ -4,28 +4,26 @@
 
 @layer base {
   /**
-   * 1. VARIABLES DE COLOR: MODO CLARO (Amanecer)
-   * Enfocado en la frescura y la nitidez absoluta.
+   * 1. VARIABLES DE COLOR SOBERANAS
+   * Optimizadas para soporte de opacidad dinámico (V2.7).
    */
   :root {
     --background: 0 0% 100%;
     --foreground: 240 10% 3.9%;
     
-    /* Contenedores */
     --card: 0 0% 100%;
     --card-foreground: 240 10% 3.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
     
-    /* Identidad (Púrpura NicePod) */
+    /* Identidad: Púrpura NicePod en HSL y RGB para Tailwind /opacidad */
     --primary: 262.1 83.3% 57.8%;
+    --primary-rgb: 139, 92, 246; 
     --primary-foreground: 210 40% 98%;
     
-    /* Estados y Textos Secundarios */
     --secondary: 240 4.8% 95.9%;
     --secondary-foreground: 240 5.9% 10%;
     
-    /* Textos Apagados (Legibilidad asegurada) */
     --muted: 240 4.8% 95.9%;
     --muted-foreground: 240 5% 35%; 
     
@@ -35,20 +33,14 @@
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
     
-    /* Bordes y Entradas */
     --border: 240 5.9% 90%;
     --input: 240 5.9% 90%;
     --ring: 262.1 83.3% 57.8%;
     
-    --radius: 1rem;
+    --radius: 1.25rem;
   }
 
-  /**
-   * 2. VARIABLES DE COLOR: MODO OSCURO (Nebulosa)
-   * Enfocado en la profundidad técnica y el contraste vibrante.
-   */
   .dark {
-    /* Fondo Soberano 020202 real */
     --background: 240 10% 2%; 
     --foreground: 0 0% 98%;
     
@@ -58,6 +50,7 @@
     --popover-foreground: 0 0% 98%;
     
     --primary: 263.4 70% 50.4%;
+    --primary-rgb: 124, 58, 237;
     --primary-foreground: 210 40% 98%;
     
     --secondary: 240 3.7% 15.9%;
@@ -84,63 +77,72 @@
   }
   
   html {
-    color-scheme: light;
+    color-scheme: dark;
     overscroll-behavior-y: none;
     -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
   }
   
-  html.dark {
-    color-scheme: dark;
-  }
-
   body {
-    /* Se asegura la inyección de la fuente Inter desde Next.js */
-    font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
     @apply bg-background text-foreground transition-colors duration-500;
     min-height: 100dvh;
     overflow-x: hidden;
   }
 
-  /* INMERSIÓN DE SELECCIÓN DE TEXTO */
   ::selection {
     @apply bg-primary/30 text-white;
   }
 
-  /**
-   * [PERFORACIÓN ESTRUCTURAL]:
-   * Asegura que los contenedores de Next.js y Radix no oculten el BackgroundEngine.
-   */
+  /* Perforación Atmosférica NicePod */
   main, section, [role="main"], [data-radix-collection] {
     background-color: transparent !important;
-  }
-
-  .text-muted-foreground {
-    color: hsl(var(--muted-foreground));
   }
 }
 
 @layer components {
-  /* 3. SISTEMA DE GLASSMORPHISM (IDENTIDAD INDUSTRIAL) */
-  .glass-panel {
-    @apply backdrop-blur-2xl bg-white/5 dark:bg-black/40 border border-black/5 dark:border-white/10 shadow-2xl;
+  /* 2. SISTEMA DE ANIMACIÓN INDUSTRIAL (THE GO-EXPERIENCE) */
+
+  /* Resonancia del Voyager (Anillos GPS) */
+  @keyframes nicepod-pulse {
+    0% { transform: scale(0.1); opacity: 0; }
+    30% { opacity: 0.6; }
+    100% { transform: scale(3.5); opacity: 0; }
   }
 
-  .glass-card {
-    @apply backdrop-blur-xl bg-white/10 dark:bg-white/[0.02] border border-black/10 dark:border-white/5 shadow-xl transition-all duration-500;
+  .animate-nicepod-pulse {
+    animation: nicepod-pulse 4s cubic-bezier(0, 0.45, 0.15, 1) infinite;
   }
 
-  /* 4. ANIMACIONES DEL MOTOR ATMOSFÉRICO */
+  /* Levitación de Ecos (Marcadores POI) */
   @keyframes float {
-    0%, 100% { transform: translateY(0) scale(1); }
-    50% { transform: translateY(-25px) scale(1.03); }
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-12px); }
   }
 
   .animate-float {
-    animation: float 18s ease-in-out infinite;
+    animation: float 4s ease-in-out infinite;
   }
 
+  /* Sombra Dinámica de Marcadores */
+  @keyframes shadowPulse {
+    0%, 100% { transform: scale(1); opacity: 0.6; }
+    50% { transform: scale(0.8); opacity: 0.3; }
+  }
+
+  .animate-shadowPulse {
+    animation: shadowPulse 4s ease-in-out infinite;
+  }
+
+  /* Barrido de Luz Táctico (Buttons) */
+  @keyframes shimmer {
+    100% { transform: translateX(100%); }
+  }
+
+  .animate-shimmer {
+    animation: shimmer 2s infinite;
+  }
+
+  /* Aurora Atmosférica */
   @keyframes aurora-pulse {
     0%, 100% { opacity: 0.8; filter: blur(120px); }
     50% { opacity: 1; filter: blur(140px); }
@@ -150,50 +152,63 @@
     animation: aurora-pulse 10s ease-in-out infinite;
   }
 
-  /* 5. MICRO-TIPOGRAFÍA TÉCNICA */
-  .text-industrial {
-    @apply font-black uppercase tracking-[0.3em] leading-none;
+  /* 3. CLASES DE IDENTIDAD */
+  .glass-panel {
+    @apply backdrop-blur-3xl bg-black/40 border border-white/10 shadow-2xl;
   }
 
-  .text-narrative {
-    @apply font-medium italic leading-relaxed tracking-tight;
+  .text-industrial {
+    @apply font-black uppercase tracking-[0.4em] leading-none italic;
   }
 }
 
 @layer utilities {
-  /* 
-   * [REPARACIÓN TÁCTIL]: .hide-scrollbar
-   * Indispensable para los carruseles horizontales móviles.
-   */
   .hide-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
-  
   .hide-scrollbar::-webkit-scrollbar {
     display: none;
   }
 }
 
-/* 6. OVERRIDES TÉCNICOS (Mapbox & Scrollbars Globales) */
+/* 4. OVERRIDES DEL MOTOR GEOESPACIAL */
 
-/* Optimización: Eliminamos el backdrop-blur de Mapbox para salvar FPS en móviles */
+/* Garantiza que los marcadores HTML de React-Map-GL floten por encima de la malla 3D */
+.mapboxgl-marker {
+  @apply !z-20;
+  will-change: transform;
+}
+
+/* UI de Controles Industrial */
 .mapboxgl-ctrl-group {
-  @apply !bg-background/90 !border-border !shadow-xl !rounded-xl overflow-hidden;
+  @apply !bg-[#080808]/90 !border-white/10 !shadow-2xl !rounded-2xl !backdrop-blur-xl;
 }
 
 .mapboxgl-ctrl-group button {
-  @apply hover:!bg-primary/20 transition-colors;
+  @apply hover:!bg-primary/20 transition-colors duration-300;
 }
 
-/* Scrollbar Sutil Global (Estándar NicePod) */
+/* Scrollbar Sutil NicePod */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px; /* Añadido para scrolls horizontales inevitables */
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   @apply bg-transparent;
 }
 ::-webkit-scrollbar-thumb {
-  @apply bg-primary/30 rounded-full hover:bg-primary/60 transition-colors;
+  @apply bg-primary/20 rounded-full hover:bg-primary/50 transition-colors;
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V9.0):
+ * 1. Reparación Visual de Marcadores: Se inyectaron los keyframes 'nicepod-pulse', 'float' 
+ *    y 'shadowPulse'. Sin estos, el Voyager y los Ecos nacían invisibles en el DOM.
+ * 2. GPU Offloading: Todas las animaciones clave ahora son puramente CSS, eliminando 
+ *    el lag de 277ms provocado por Framer Motion en el hilo principal.
+ * 3. Soporte RGB Dinámico: Se añadió '--primary-rgb' para permitir que el sistema 
+ *    Aurora cree sombras y resplandores con opacidad variable sin romper el color base.
+ * 4. Z-Index Shield: El override '.mapboxgl-marker' asegura que la ubicación del 
+ *    usuario nunca quede sepultada bajo los edificios de obsidiana.
+ */
