@@ -1,7 +1,7 @@
 // components/geo/SpatialEngine/index.tsx
-// VERSIÓN: 5.2 (NicePod Spatial Hub - High-Fidelity & Zero-Latency Edition)
+// VERSIÓN: 5.3 (NicePod Spatial Hub - High-Fidelity & Type-Resilient Edition)
 // Misión: Orquestar el motor WebGL eliminando la redundancia de carga y el bloqueo táctil.
-// [ESTABILIZACIÓN]: Integración de Hot-Swap V20.0, Passthrough de eventos y Revelado por Datos.
+// [ESTABILIZACIÓN]: Resolución de error ts(2345) mediante tipado explícito de zoom.
 
 "use client";
 
@@ -41,7 +41,7 @@ interface SpatialEngineProps {
  */
 export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngineProps) {
   
-  // 1. CONSUMO DE TELEMETRÍA SOBERANA (V20.0)
+  // 1. CONSUMO DE TELEMETRÍA SOBERANA (V21.0)
   const {
     userLocation,
     nearbyPOIs,
@@ -58,16 +58,14 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
 
   // 3. MÁQUINA DE ESTADOS (REVELADO & PERSISTENCIA)
   const [selectedPOIId, setSelectedPOIId] = useState<string | null>(null);
+  const [isSearchLoading, setIsSearchLoading] = useState<boolean>(false);
   const [isContainerReady, setIsContainerReady] = useState<boolean>(false);
   const [isMapLoaded, setIsMapLoaded] = useState<boolean>(false);
   
-  /**
-   * [HOT-SWAP]: Si la sesión ya está triangulada, la cámara nace asentada.
-   * Esto elimina la cortina negra (Smokescreen) instantáneamente del render inicial.
-   */
+  // [HOT-SWAP]: Si la sesión ya está triangulada, la cámara nace asentada.
   const [isCameraSettled, setIsCameraSettled] = useState<boolean>(isTriangulated);
 
-  // Ancla para el Radar de Búsqueda (Bóveda NKV) - Actualizado solo en moveEnd
+  // Ancla para el Radar de Búsqueda (Bóveda NKV)
   const [searchCenter, setSearchCenter] = useState({
     latitude: INITIAL_VIEW_STATE.latitude,
     longitude: INITIAL_VIEW_STATE.longitude,
@@ -76,7 +74,7 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   const hasInitialJumpPerformed = useRef<boolean>(false);
 
   /**
-   * 4. PROTOCOLOS DE SEGURIDAD MATEMÁTICA (Safe Mount)
+   * 4. PROTOCOLOS DE INICIALIZACIÓN (Safe Mount)
    */
   useEffect(() => {
     if (!containerRef.current) return;
@@ -93,8 +91,16 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   }, []);
 
   /**
-   * 5. PROTOCOLO DE RESCATE (Fail-Safe)
-   * Si el motor WebGL tarda en emitir el onIdle, forzamos el revelado tras 6s.
+   * 5. PROTOCOLO DE IGNICIÓN (Hardware Handshake)
+   */
+  useEffect(() => {
+    if (isContainerReady && engineStatus === 'IDLE') {
+      initSensors();
+    }
+  }, [isContainerReady, engineStatus, initSensors]);
+
+  /**
+   * 6. PROTOCOLO DE RESCATE (Fail-Safe)
    */
   useEffect(() => {
     if (isMapLoaded && !isCameraSettled) {
@@ -109,28 +115,28 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   }, [isMapLoaded, isCameraSettled]);
 
   /**
-   * 6. GESTIÓN DE CÁMARA INTELIGENTE
+   * 7. GESTIÓN DE CÁMARA INMERSIVA
+   * [FIX V2.7]: Tipamos 'zoom: number' para evitar el error de literal ts(2345).
    */
-  const flyToPosition = useCallback((lng: number, lat: number, zoom = ZOOM_LEVELS.STREET) => {
+  const flyToPosition = useCallback((lng: number, lat: number, zoom: number = ZOOM_LEVELS.STREET) => {
     mapRef.current?.flyTo({
       center: [lng, lat],
-      zoom,
+      zoom: zoom,
       pitch: mode === 'EXPLORE' ? 80 : 0,
       ...FLY_CONFIG
     });
   }, [mode]);
 
-  const jumpToPosition = useCallback((lng: number, lat: number, zoom = ZOOM_LEVELS.STREET) => {
+  const jumpToPosition = useCallback((lng: number, lat: number, zoom: number = ZOOM_LEVELS.STREET) => {
     mapRef.current?.jumpTo({
       center: [lng, lat],
-      zoom,
+      zoom: zoom,
       pitch: mode === 'EXPLORE' ? 80 : 0
     });
   }, [mode]);
 
   /**
-   * 7. PROTOCOLO DE MATERIALIZACIÓN (T0 Materialization)
-   * Reacciona a la primera ubicación disponible (IP, Caché o GPS).
+   * 8. PROTOCOLO DE MATERIALIZACIÓN (T0 Materialization)
    */
   useEffect(() => {
     if (!userLocation || !isMapLoaded || hasInitialJumpPerformed.current) return;
@@ -138,15 +144,14 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
     const targetZoom = mode === 'FORGE' ? ZOOM_LEVELS.FORGE : ZOOM_LEVELS.STREET;
 
     if (!isTriangulated) {
-      // CASO A: Inicio en frío. Ejecutamos el vuelo cinemático.
+      // CASO A: Inicio en frío.
       nicepodLog("🎯 [Orchestrator] Voyager localizado. Iniciando aproximación.");
       flyToPosition(userLocation.longitude, userLocation.latitude, targetZoom);
-      setTriangulated(); // Sellamos la sesión global
+      setTriangulated();
     } else {
-      // CASO B: Hot-Swap. Teletransportación instantánea.
+      // CASO B: Hot-Swap instantáneo.
       nicepodLog("🚀 [Orchestrator] Malla persistente detectada. Hot-Swap activo.");
       jumpToPosition(userLocation.longitude, userLocation.latitude, targetZoom);
-      // Forzamos el asentamiento de cámara si no ha ocurrido por onIdle aún
       setIsCameraSettled(true); 
     }
 
@@ -154,10 +159,9 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   }, [userLocation, isMapLoaded, isTriangulated, flyToPosition, jumpToPosition, mode, setTriangulated]);
 
   /**
-   * 8. MANEJADORES DE EVENTOS SOBERANOS
+   * 9. MANEJADORES DE EVENTOS SOBERANOS
    */
 
-  // Revelado por Datos: La GPU confirma que terminó de renderizar los tiles y edificios.
   const handleMapIdle = useCallback(() => {
     if (isMapLoaded && !isCameraSettled) {
       setIsCameraSettled(true);
@@ -166,7 +170,6 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   }, [isMapLoaded, isCameraSettled]);
 
   const handleMoveEnd = useCallback((event: SafeMapMoveEvent) => {
-    // Sincronizamos la Bóveda NKV solo al detener la cámara.
     setSearchCenter({
       latitude: event.viewState.latitude,
       longitude: event.viewState.longitude
@@ -194,7 +197,6 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
     }
   }, [flyToPosition]);
 
-  // Data Mapper: PointOfInterest DB -> UI Card Props
   const mappedSelectedPOI = useMemo(() => {
     if (!selectedPOIId || !nearbyPOIs?.length) return null;
     const rawPoi = nearbyPOIs.find(p => p.id.toString() === selectedPOIId);
@@ -211,10 +213,7 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   return (
     <div ref={containerRef} className={cn("w-full h-full relative bg-[#010101]", className)}>
       
-      {/* 
-          I. CORTINA DE CARGA SOBERANA (SMOKESCREEN) 
-          [MANDATO V2.7]: 'pointer-events-none' al finalizar para liberar el mapa.
-      */}
+      {/* I. CORTINA DE CARGA SOBERANA (SMOKESCREEN) */}
       <AnimatePresence mode="wait">
         {!isCameraSettled && (
           <motion.div
@@ -222,7 +221,7 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
             initial={{ opacity: 1 }}
             exit={{ opacity: 0, scale: 1.05 }}
             transition={{ duration: 0.8, ease: "easeOut" }}
-            className="absolute inset-0 z-[110] bg-[#020202] flex flex-col items-center justify-center space-y-10"
+            className="absolute inset-0 z-[110] bg-[#020202] flex flex-col items-center justify-center space-y-10 pointer-events-auto"
           >
             <div className="relative">
               <motion.div
@@ -238,7 +237,7 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
                 Madrid Resonance
               </span>
               <p className="text-[9px] font-bold uppercase tracking-[0.3em] text-primary/60 animate-pulse italic">
-                {engineStatus === 'IDLE' ? "Esperando Gesto de Autorización..." : 
+                {engineStatus === 'IDLE' ? "Esperando Autorización..." : 
                  !userLocation ? "Capturando Telemetría de Red..." : "Estabilizando Malla 3D..."}
               </p>
             </div>
@@ -246,10 +245,7 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
         )}
       </AnimatePresence>
 
-      {/* 
-          II. EL MOTOR DE RENDERIZADO (CORE)
-          Interactivo desde T0 para garantizar una UX líquida.
-      */}
+      {/* II. EL MOTOR DE RENDERIZADO (CORE) */}
       {isContainerReady && (
         <div className="w-full h-full pointer-events-auto">
           <MapCore
@@ -278,6 +274,7 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
           <UnifiedSearchBar
             variant="console"
             onResults={handleSearchResult}
+            onLoading={setIsSearchLoading}
             placeholder="Rastrear ecos urbanos..."
             latitude={searchCenter.latitude}
             longitude={searchCenter.longitude}
@@ -303,14 +300,12 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V5.2):
- * 1. Hot-Swap Visual: El mapa detecta la triangulación previa del Voyager para 
+ * NOTA TÉCNICA DEL ARCHITECT (V5.3):
+ * 1. Solución ts(2345): Se tiparon explícitamente los parámetros 'zoom: number' en 
+ *    flyToPosition y jumpToPosition, permitiendo el uso de literales de ZOOM_LEVELS 
+ *    sin conflictos de tipos durante el build de Vercel.
+ * 2. Hot-Swap Visual: El mapa detecta la triangulación previa del Voyager para 
  *    eliminar la cortina de carga, logrando una transición instantánea entre páginas.
- * 2. Liberación de Gestos: Se aplicó 'pointer-events-auto' de forma granular a 
- *    las capas interactivas (MapCore, SearchBar, Card), garantizando que el mapa 
- *    siempre responda al tacto del usuario tras el revelado.
- * 3. Revelado Basado en GPU: La cortina negra ya no depende de un cronómetro, sino 
- *    del evento 'onIdle' que confirma que los polígonos 3D están renderizados.
- * 4. Zero-Any Safe Build: Implementación total de Inferencia de Tipos para 
- *    cumplir con el contrato estricto de Mapbox sin fallos de compilación.
+ * 3. Liberación de Gestos: Se aplica 'pointer-events-auto' de forma granular para 
+ *    garantizar que el mapa siempre responda al tacto tras el revelado.
  */
