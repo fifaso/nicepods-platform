@@ -1,47 +1,68 @@
 // middleware.ts
-// VERSIÓN: 17.2 (NicePod Traffic Control - Supreme Integrity Edition)
-// Misión: Orquestar la identidad atómica y gobernar el acceso con validación activa.
-// [ESTABILIZACIÓN]: Migración a getUser() para eliminar advertencias de seguridad y bucles.
+// VERSIÓN: 18.0 (NicePod Traffic Control - Edge Intelligence & Geo-IP Edition)
+// Misión: Orquestar la identidad atómica y capturar la telemetría de cortesía de Vercel.
+// [ESTABILIZACIÓN]: Captura de Geo-IP headers para materialización de Voyager en fallo de GPS.
 
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 /**
  * EXPORTACIÓN PRINCIPAL: middleware
- * Actúa como la aduana de seguridad en el Edge de Vercel antes de procesar cualquier ruta.
+ * Actúa como la aduana de seguridad y el sensor de red en el Edge de Vercel.
  */
 export async function middleware(request: NextRequest) {
   const url = request.nextUrl.clone();
   const pathname = url.pathname;
 
   // 1. [PROTOCOLO DE EXORCISMO]: LIMPIEZA DE RASTRO PWA
-  // Interceptamos activamente las peticiones al Service Worker residual
-  // e inyectamos la orden de purga de caché en el navegador del usuario.
   if (
     pathname.includes('sw.js') ||
     pathname.includes('workbox-') ||
     pathname.includes('fallback-')
   ) {
     const purgeResponse = NextResponse.next();
-    // Borra físicamente el caché y los contextos de ejecución obsoletos del móvil
     purgeResponse.headers.set('Clear-Site-Data', '"cache", "storage", "executionContexts"');
     return applySecurityHeaders(purgeResponse);
   }
 
   // 2. [VACUNA DE ENRUTAMIENTO]: REDIRECCIÓN PERMANENTE (308)
-  // Saneamos el historial de navegación moviendo el tráfico de /geo a /map.
   if (pathname === '/geo' || pathname.startsWith('/geo/')) {
     url.pathname = '/map';
     return NextResponse.redirect(url, 308);
   }
 
-  // 3. INICIALIZACIÓN DE RESPUESTA
+  // 3. INICIALIZACIÓN DE RESPUESTA SOBERANA
   let response = NextResponse.next({
     request: { headers: request.headers },
   });
 
-  // 4. PASILLO DE BYPASS (Velocidad para Activos Estáticos)
-  // No ejecutamos lógica de base de datos para imágenes, iconos o manifiestos.
+  /**
+   * 4. [PROTOCOLO PARACAÍDAS]: CAPTURA GEO-IP DE VERCEL
+   * Misión: Si el GPS del móvil falla, el servidor ya sabe dónde está el Voyager.
+   * Extraemos la telemetría de red y la inyectamos en una cookie de sesión.
+   */
+  const vercelLat = request.headers.get('x-vercel-ip-latitude');
+  const vercelLng = request.headers.get('x-vercel-ip-longitude');
+  const vercelCity = request.headers.get('x-vercel-ip-city');
+
+  if (vercelLat && vercelLng) {
+    // Inyectamos la ubicación estimada para que el Layout y el Hook la consuman en T0
+    const geoData = JSON.stringify({
+      lat: parseFloat(vercelLat),
+      lng: parseFloat(vercelLng),
+      city: vercelCity ? decodeURIComponent(vercelCity) : 'Unknown',
+      source: 'edge-estimate'
+    });
+
+    response.cookies.set('nicepod-geo-fallback', geoData, {
+      path: '/',
+      maxAge: 60 * 60 * 24, // 24 horas de persistencia táctica
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production'
+    });
+  }
+
+  // 5. PASILLO DE BYPASS (Activos Estáticos)
   if (
     pathname.startsWith('/auth') ||
     pathname.includes('manifest.json') ||
@@ -52,7 +73,7 @@ export async function middleware(request: NextRequest) {
     return applySecurityHeaders(response);
   }
 
-  // 5. INSTANCIACIÓN DEL CLIENTE SOBERANO (SSR)
+  // 6. INSTANCIACIÓN DEL CLIENTE SUPABASE (SSR)
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -63,7 +84,6 @@ export async function middleware(request: NextRequest) {
         },
         setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
           cookiesToSet.forEach(({ name, value, options }) => {
-            // Sincronía atómica de cookies entre petición y respuesta
             request.cookies.set(name, value);
             response.cookies.set(name, value, options);
           });
@@ -72,24 +92,13 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  /**
-   * 6. VALIDACIÓN ACTIVA DE IDENTIDAD (T0 - ACTIVE CHECK)
-   * [CAMBIO ESTRATÉGICO]: Sustituimos getSession() por getUser().
-   * Esto elimina la advertencia de Vercel y garantiza que el token sea verificado
-   * directamente con el servidor de Supabase Auth en cada navegación. 
-   * Esto aniquila los bucles de redirección donde el cliente cree que es 
-   * Admin pero el servidor no lo ha confirmado.
-   */
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  // 7. VALIDACIÓN ACTIVA DE IDENTIDAD ( getUser() )
+  const { data: { user } } = await supabase.auth.getUser();
 
-  // --- DEFINICIÓN DE PERÍMETROS OPERATIVOS ---
+  // --- PERÍMETROS OPERATIVOS ---
   const isAuthPage = pathname === '/login' || pathname === '/signup';
   const isLandingPage = pathname === '/';
-
-  // [ZONA SOBERANA]: Exclusiva para el Administrador
   const isSovereignRoute = pathname.startsWith('/admin') || pathname.startsWith('/theme-test');
-
-  // [ZONA PROTEGIDA]: Requiere sesión activa
   const isProtectedRoute =
     pathname.startsWith('/dashboard') ||
     pathname.startsWith('/podcasts') ||
@@ -100,43 +109,34 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/map') ||
     isSovereignRoute;
 
-  /**
-   * ---------------------------------------------------------------------------
-   * II. LÓGICA DE REDIRECCIÓN Y GOBERNANZA
-   * ---------------------------------------------------------------------------
-   */
-
-  // A. PROTECCIÓN CONTRA INVITADOS: Expulsión a Login
+  // A. PROTECCIÓN CONTRA INVITADOS
   if (!user && isProtectedRoute) {
     url.pathname = '/login';
     url.searchParams.set('redirect', pathname);
     return NextResponse.redirect(url);
   }
 
-  // B. PROTECCIÓN CONTRA INTRUSOS: Expulsión de Zonas Admin
+  // B. PROTECCIÓN CONTRA INTRUSOS (RBAC)
   if (user && isSovereignRoute) {
     const appMetadata = user.app_metadata || {};
     const userRole = appMetadata.user_role || appMetadata.role || 'user';
-
     if (userRole !== 'admin') {
       url.pathname = '/dashboard';
       return NextResponse.redirect(url, 307);
     }
   }
 
-  // C. OPTIMIZACIÓN DE FLUJO: Redirección post-autenticación
+  // C. OPTIMIZACIÓN DE FLUJO POST-AUTH
   if (user && (isAuthPage || isLandingPage)) {
     url.pathname = '/dashboard';
     return NextResponse.redirect(url, 307);
   }
 
-  // 7. CIERRE ESTRUCTURAL: INYECCIÓN DE CABECERAS DE SEGURIDAD
   return applySecurityHeaders(response);
 }
 
 /**
  * HELPER: applySecurityHeaders
- * Misión: Blindar la respuesta HTTP con las directivas de seguridad NicePod.
  */
 function applySecurityHeaders(res: NextResponse): NextResponse {
   res.headers.set('X-Frame-Options', 'DENY');
@@ -151,20 +151,18 @@ function applySecurityHeaders(res: NextResponse): NextResponse {
  */
 export const config = {
   matcher: [
-    // Interceptamos todo excepto la API nativa de Next.js
     '/((?!api|_next/static|_next/image).*)'
   ],
 };
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V17.2):
- * 1. Cumplimiento de Seguridad: El uso de 'supabase.auth.getUser()' es el estándar 
- *    de oro. Aunque consume unos milisegundos más de red, elimina el riesgo de 
- *    falsificación de identidad por cookies cacheadas en el móvil.
- * 2. Purga Remota: La cabecera 'Clear-Site-Data' en el bloque de sw.js es una 
- *    herramienta de gestión de flota. Limpiará los navegadores de sus usuarios 
- *    sin que ellos tengan que hacer nada manual, resolviendo errores de red de raíz.
- * 3. Robusto ante Redirecciones: Al clonar la URL con 'request.nextUrl.clone()', 
- *    aseguramos que las redirecciones mantengan los parámetros de búsqueda 
- *    (searchParams) necesarios para el flujo de 'redirect back'.
+ * NOTA TÉCNICA DEL ARCHITECT (V18.0):
+ * 1. Malla de Emergencia Geo-IP: El middleware ahora intercepta la ubicación aproximada 
+ *    que Vercel detecta por IP y la guarda en la cookie 'nicepod-geo-fallback'. Esto 
+ *    permite que el sistema materialice al usuario instantáneamente incluso si 
+ *    el hardware GPS está bloqueado o tardando en responder.
+ * 2. Transparencia T0: Esta información se inyecta antes de que el Layout se renderice,
+ *    garantizando que la Workstation nazca con conocimiento de causa.
+ * 3. Atomicidad SSR: Se mantiene la validación de identidad 'getUser()' sincronizada 
+ *    con el despacho de telemetría de red.
  */
