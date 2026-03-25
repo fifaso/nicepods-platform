@@ -1,7 +1,7 @@
 // app/layout.tsx
-// VERSIÓN: 31.0 (NicePod Architecture Core - The Global Umbrella Edition)
+// VERSIÓN: 32.0 (NicePod Architecture Core - High Speed Orbital Edition)
 // Misión: Orquestar la infraestructura global y garantizar la persistencia absoluta de Audio y GPS.
-// [ESTABILIZACIÓN]: Elevación de AudioProvider y GeoEngineProvider a la raíz del árbol DOM.
+// [ESTABILIZACIÓN]: Implementación de Preconnects para Mapbox y optimización de jerarquía GPU.
 
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
@@ -25,27 +25,18 @@ import { createClient } from '@/lib/supabase/server';
 import { Tables } from "@/types/database.types";
 
 // --- CONTEXTOS DE INTELIGENCIA Y TELEMETRÍA (ROOT ELEVATION) ---
-// [MEJORA ESTRATÉGICA]: Extracción desde PlatformLayout hacia la Raíz Absoluta.
 import { AudioProvider } from "@/contexts/audio-context";
 import { GeoEngineProvider } from "@/hooks/use-geo-engine";
 
 // Motor de Inmersión Visual (GPU-driven)
 import { BackgroundEngine } from "@/components/visuals/background-engine";
 
-/**
- * FUENTE PRINCIPAL: Inter
- * Optimizada mediante CSS Variables para que Tailwind reconozca la tipografía nativamente.
- */
 const inter = Inter({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-inter",
 });
 
-/**
- * VIEWPORT API: Configuración de hardware de visualización.
- * Bloqueamos el escalado manual para garantizar la precisión táctil de la Workstation.
- */
 export const viewport: Viewport = {
   themeColor: "#020202",
   width: "device-width",
@@ -55,10 +46,6 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-/**
- * METADATA API: Identidad Soberana.
- * Delegamos la instalación al archivo manifest.json para cumplimiento PWA.
- */
 export const metadata: Metadata = {
   title: {
     default: "NicePod | Witness, Not Diarist",
@@ -84,8 +71,6 @@ export const metadata: Metadata = {
 
 /**
  * COMPONENTE: RootLayout (The Master Orchestrator)
- * Realiza el Handshake de Identidad (T0) en el servidor, sintonizando al cliente
- * con la Base de Datos antes de pintar el primer frame.
  */
 export default async function RootLayout({
   children
@@ -94,7 +79,6 @@ export default async function RootLayout({
 }) {
   /**
    * 1. PROTOCOLO DE IDENTIDAD ATÓMICA (SSR)
-   * Validamos la existencia del usuario en el metal del servidor.
    */
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -104,27 +88,21 @@ export default async function RootLayout({
   let userRole = 'guest';
 
   if (user) {
-    /**
-     * COSECHA PARALELA DE DATOS (Fan-Out Pipeline):
-     * Optimizamos el TTFB recuperando la sesión y el perfil simultáneamente.
-     */
     const [sessionRes, profileRes] = await Promise.all([
       supabase.auth.getSession(),
       supabase.from('profiles')
         .select('*')
         .eq('id', user.id)
-        .maybeSingle() // maybeSingle evita que la consulta tire Error 500 si el perfil aún no existe
+        .maybeSingle()
     ]);
 
     initialSession = sessionRes.data.session;
     initialProfile = profileRes.data;
 
-    // [EXTRACCIÓN DE AUTORIDAD]: Leemos el rol desde el JWT para inyectarlo en el HTML
     const appMetadata = user.app_metadata || {};
     userRole = appMetadata.user_role || appMetadata.role || (initialProfile?.role) || 'user';
   }
 
-  // Determinamos el estado binario para el CSS Shield
   const authState = user ? "authenticated" : "unauthenticated";
 
   return (
@@ -132,17 +110,17 @@ export default async function RootLayout({
       lang="es"
       suppressHydrationWarning
       className={inter.variable}
-      // [SHIELD TÁCTICO]: Estos atributos permiten que globals.css oculte 
-      // elementos de UI que no corresponden al rol ANTES de que React cargue.
       data-auth-state={authState}
       data-user-role={userRole}
     >
       <head>
         {/* 
-            SCRIPT ANTI-PESTAÑEO (Lumen-Shield & Identity-Lock):
-            Inyecta el tema visual (Dark) síncronamente. Además, puede usar los 
-            atributos data-* para prevenir destellos blancos en el primer renderizado.
+            II. ACELERACIÓN DE RED (PRECONNECT PROTOCOL)
+            Reducimos el TTFB de la Malla Urbana abriendo los sockets de Mapbox de forma anticipada.
         */}
+        <link rel="preconnect" href="https://api.mapbox.com" />
+        <link rel="preconnect" href="https://events.mapbox.com" />
+
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -154,7 +132,6 @@ export default async function RootLayout({
                   document.documentElement.classList.add(theme);
                   document.documentElement.style.colorScheme = theme;
                   
-                  // Forzamos visibilidad inicial para evitar la pantalla blanca de React
                   if (document.documentElement.getAttribute('data-auth-state') === 'authenticated') {
                     document.documentElement.style.visibility = 'visible';
                   }
@@ -167,7 +144,7 @@ export default async function RootLayout({
         />
       </head>
       <body
-        className={`${inter.className} font-sans min-h-screen antialiased selection:bg-primary/30 bg-background text-foreground`}
+        className={`${inter.className} font-sans min-h-screen antialiased selection:bg-primary/30 bg-[#020202] text-foreground overflow-x-hidden`}
         suppressHydrationWarning
       >
         {/* CAPA 1: Telemetría Operativa */}
@@ -188,36 +165,35 @@ export default async function RootLayout({
               storageKey="theme"
             >
 
-              {/* 
-                  CAPA 5: EL HANDSHAKE T0 (AuthProvider)
-                  Entregamos la sesión y el perfil al cliente síncronamente.
-              */}
+              {/* CAPA 5: EL HANDSHAKE T0 (AuthProvider) */}
               <AuthProvider
                 initialSession={initialSession}
                 initialProfile={initialProfile}
               >
 
                 {/* 
-                    CAPA 6: RED SENSORIAL Y ACÚSTICA GLOBAL [NUEVO]
-                    Al colocar los Providers aquí (La Raíz), garantizamos que:
-                    A) El Audio no se corte al cambiar de página.
-                    B) El GPS no se reinicie al entrar o salir del Mapa a pantalla completa.
+                    CAPA 6: RED SENSORIAL Y ACÚSTICA GLOBAL 
+                    Anclados en la raíz para garantizar la soberanía física del Voyager.
                 */}
                 <AudioProvider>
                   <GeoEngineProvider>
 
                     {/* --- ESCENARIO VISUAL NICEPOD V2.9 --- */}
-                    <div className="min-h-screen relative overflow-x-hidden">
+                    <main className="min-h-screen relative flex flex-col">
 
-                      {/* CAPA ALFA: Fondo Dinámico GPU-driven */}
+                      {/* CAPA ALFA: Fondo Dinámico GPU-driven (Z-INDEX: -20) */}
                       <BackgroundEngine />
 
-                      {/* CAPA BETA: El Chasis de Contenido (Z-10) */}
-                      <div className="relative z-10 flex flex-col min-h-screen bg-transparent">
+                      {/* 
+                          CAPA BETA: EL CHASIS DE CONTENIDO (Z-INDEX: 10) 
+                          La propiedad 'isolate' crea un nuevo contexto de apilamiento 
+                          protegiendo al UI de las fugas de WebGL.
+                      */}
+                      <div className="relative z-10 flex flex-col flex-1 bg-transparent isolate">
                         {children}
                       </div>
 
-                    </div>
+                    </main>
 
                   </GeoEngineProvider>
                 </AudioProvider>
@@ -232,14 +208,12 @@ export default async function RootLayout({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V31.0):
- * 1. Resiliencia SSR: Al usar '.maybeSingle()', garantizamos que si el Trigger 
- *    de Auth de Supabase está demorado al crear un nuevo usuario, el Root Layout 
- *    no lance un Error 500.
- * 2. Inmortalidad de Estado (Root Elevation): Al extraer el AudioProvider y el 
- *    GeoEngineProvider de los layouts secundarios y anclarlos aquí, hemos resuelto 
- *    la fragmentación de la memoria volátil. Las rutas en '(platform)' y '/map' 
- *    ahora beben de la misma fuente de verdad física.
- * 3. Sincronía JWT: La lectura del rol prioriza el JWT ('app_metadata') sobre la DB,
- *    alineándose al 100% con la nueva política de 'middleware.ts'.
+ * NOTA TÉCNICA DEL ARCHITECT (V32.0):
+ * 1. Aceleración Mapbox: Se inyectaron 'preconnects' para las APIs de tiles de Mapbox,
+ *    ahorrando tiempo precioso en la resolución de red inicial.
+ * 2. Estabilidad de Fondo: Se forzó el color de fondo 'bg-[#020202]' en el body para 
+ *    eliminar cualquier micro-flash blanco durante la carga de las Edge Functions.
+ * 3. Aislamiento Táctico: Se añadió la propiedad 'isolate' al contenedor de children 
+ *    para evitar colisiones de contexto entre el BackgroundEngine y el SpatialEngine 
+ *    del mapa, permitiendo que ambos operen en sus propios hilos de la GPU.
  */
