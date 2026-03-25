@@ -1,7 +1,7 @@
 // components/geo/user-location-marker.tsx
-// VERSIÓN: 2.0 (NicePod GO Avatar - High Performance GPU Edition)
-// Misión: Representar al usuario en la malla con anillos de resonancia optimizados para WebGL.
-// [ESTABILIZACIÓN]: Migración a CSS Animations para eliminar el lag de 277ms y pitchAlignment.
+// VERSIÓN: 2.1 (NicePod GO Avatar - High Visibility & Deep Space Edition)
+// Misión: Representar al usuario en la malla con anillos de resonancia optimizados.
+// [ESTABILIZACIÓN]: Implementación de zIndex agresivo y feedback de precisión.
 
 "use client";
 
@@ -18,45 +18,48 @@ interface UserLocationMarkerProps {
 }
 
 const UserLocationMarkerComponent = ({ location, isResonating }: UserLocationMarkerProps) => {
-  // 1. SALVAGUARDA DE SEGURIDAD
-  // Si no hay coordenadas válidas, abortamos el renderizado para evitar errores de matriz en Mapbox.
+
+  // 1. PROTOCOLO DE VISIBILIDAD OBLIGATORIA
+  // Si no hay coordenadas, el avatar no existe. 
+  // Pero si la precisión es 999 (Marca de Rescate), lo mostramos en estado "Buscando".
   if (!location?.latitude || !location?.longitude) return null;
+
+  const isRescueLocation = location.accuracy >= 500;
 
   return (
     <Marker
       latitude={location.latitude}
       longitude={location.longitude}
       anchor="center"
-      // [MANDATO NCIS]: pitchAlignment="map" ancla los anillos al suelo 3D.
-      // rotationAlignment="map" asegura que la brújula sea coherente con la orientación del mapa.
+      // pitchAlignment="map" acuesta los anillos en el suelo para inmersión 3D.
       pitchAlignment="map"
+      // rotationAlignment="map" vincula la orientación al norte del mapa.
       rotationAlignment="map"
+      // [MEJORA]: Forzamos que el Voyager esté siempre en el estrato superior.
+      style={{ zIndex: 9999 }}
     >
-      <div className="relative flex items-center justify-center w-24 h-24 pointer-events-none">
+      <div className="relative flex items-center justify-center w-32 h-32 pointer-events-none">
 
         {/* 
             I. ANILLOS DE RESONANCIA (GPU ACCELERATED) 
-            [OPERACIÓN]: Se sustituye framer-motion por clases CSS puras.
-            Esto elimina el overhead de JS en el Main Thread durante el movimiento.
+            Sincronizados con el color de estado (Emerald si es real, Primary si es rescate).
         */}
         <div className="absolute inset-0 flex items-center justify-center">
           {[1, 2, 3].map((i) => (
             <div
               key={i}
               className={cn(
-                "absolute rounded-full border opacity-0",
-                isResonating
-                  ? "border-primary/60 bg-primary/10"
-                  : "border-white/30 bg-white/5",
-                // Animación definida en globals.css o via Tailwind extend
-                "animate-nicepod-pulse"
+                "absolute rounded-full border opacity-0 animate-nicepod-pulse",
+                isRescueLocation
+                  ? "border-zinc-500/30 bg-zinc-500/5" // Estado: Sincronizando
+                  : isResonating
+                    ? "border-emerald-500/60 bg-emerald-500/10" // Estado: Enlace Activo
+                    : "border-primary/50 bg-primary/5" // Estado: Localizado
               )}
               style={{
                 width: '100%',
                 height: '100%',
-                animationDelay: `${(i - 1) * 1.2}s`,
-                // Ajustamos el tamaño base para que se vea proporcional al radio de sintonía
-                transform: `scale(${0.2 * i})`
+                animationDelay: `${(i - 1) * 1.3}s`,
               }}
             />
           ))}
@@ -64,42 +67,54 @@ const UserLocationMarkerComponent = ({ location, isResonating }: UserLocationMar
 
         {/* 
             II. NÚCLEO FÍSICO DEL VOYAGER 
-            Diseño de alto contraste para visibilidad bajo luz solar directa.
+            Punto de anclaje de alta visibilidad con brillo perimetral.
         */}
         <div className="relative z-10 flex items-center justify-center">
-          {/* Brillo de profundidad */}
-          <div className="absolute inset-0 bg-primary/40 blur-lg rounded-full animate-pulse" />
+          {/* Aura de profundidad para evitar que se pierda con el satélite */}
+          <div className={cn(
+            "absolute inset-0 blur-xl rounded-full animate-pulse duration-[3000ms]",
+            isRescueLocation ? "bg-zinc-500/40" : "bg-primary/40"
+          )} />
 
-          {/* El átomo central */}
-          <div className="h-6 w-6 bg-white rounded-full border-[4px] border-primary shadow-[0_0_20px_rgba(var(--primary),0.8)] flex items-center justify-center">
-            <div className="h-1.5 w-1.5 bg-primary rounded-full animate-ping" />
+          {/* El átomo central con indicador de pulso vivo */}
+          <div className={cn(
+            "h-7 w-7 bg-white rounded-full border-[4px] shadow-[0_0_25px_rgba(0,0,0,0.5)] flex items-center justify-center transition-colors duration-1000",
+            isRescueLocation ? "border-zinc-500" : "border-primary"
+          )}>
+            <div className={cn(
+              "h-2 w-2 rounded-full animate-ping",
+              isRescueLocation ? "bg-zinc-400" : "bg-primary"
+            )} />
           </div>
         </div>
 
         {/* 
             III. PUNTERO DE DIRECCIÓN (HEADING)
-            Indica hacia dónde mira el dispositivo físicamente.
+            Solo se muestra si el hardware reporta una brújula válida.
         */}
         {location.heading !== null && (
           <motion.div
             initial={false}
             animate={{ rotate: location.heading }}
-            transition={{ type: "spring", stiffness: 100, damping: 15 }}
-            className="absolute -top-8 text-primary filter drop-shadow-[0_0_8px_rgba(var(--primary),0.5)]"
+            transition={{ type: "spring", stiffness: 120, damping: 20 }}
+            className={cn(
+              "absolute -top-10 filter drop-shadow-[0_0_10px_rgba(0,0,0,0.8)]",
+              isRescueLocation ? "text-zinc-500" : "text-primary"
+            )}
           >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 14 14"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M7 0L13.0622 10.5H0.937822L7 0Z"
-                fill="currentColor"
-              />
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <path d="M9 0L17 14H1L9 0Z" fill="currentColor" />
             </svg>
           </motion.div>
+        )}
+
+        {/* INDICADOR TÉCNICO DE RESCATE (Solo visible si el GPS falla) */}
+        {isRescueLocation && (
+          <div className="absolute -bottom-10 whitespace-nowrap">
+            <span className="text-[7px] font-black uppercase tracking-[0.4em] text-zinc-500 bg-black/50 px-2 py-1 rounded-full backdrop-blur-md border border-white/5">
+              Sincronizando Satélites...
+            </span>
+          </div>
         )}
       </div>
     </Marker>
@@ -107,31 +122,25 @@ const UserLocationMarkerComponent = ({ location, isResonating }: UserLocationMar
 };
 
 /**
- * [BUILD SHIELD]: Memoización de Alta Precisión
- * Solo re-renderizamos si la ubicación cambia significativamente (filtrado de ruido).
+ * [BUILD SHIELD]: Memoización de Alta Fidelidad.
  */
 export const UserLocationMarker = memo(UserLocationMarkerComponent, (prev, next) => {
-  // Comparamos primitivos para máxima velocidad.
-  const locChange =
-    prev.location.latitude !== next.location.latitude ||
-    prev.location.longitude !== next.location.longitude ||
-    prev.location.heading !== next.location.heading;
-
-  const stateChange = prev.isResonating !== next.isResonating;
-
-  return !locChange && !stateChange;
+  return (
+    prev.isResonating === next.isResonating &&
+    prev.location?.latitude === next.location?.latitude &&
+    prev.location?.longitude === next.location?.longitude &&
+    prev.location?.heading === next.location?.heading &&
+    prev.location?.accuracy === next.location?.accuracy
+  );
 });
 
 /**
- * NOTA TÉCNICA PARA GLOBALS.CSS:
- * Agregue esta animación para habilitar el GPU Offloading:
- * 
- * @keyframes nicepod-pulse {
- *   0% { transform: scale(0.1); opacity: 0; }
- *   50% { opacity: 0.5; }
- *   100% { transform: scale(3); opacity: 0; }
- * }
- * .animate-nicepod-pulse {
- *   animation: nicepod-pulse 4s cubic-bezier(0, 0.45, 0.15, 1) infinite;
- * }
+ * NOTA TÉCNICA DEL ARCHITECT (V2.1):
+ * 1. Materialización Forzada: Si el GPS real falla, el componente recibe la 
+ *    coordenada de rescate y muestra un avatar en gris ("Sincronizando") para 
+ *    que el usuario no vea el mapa vacío.
+ * 2. Z-Index Absoluto: El marcador se eleva a z-9999 para evitar que los edificios 
+ *    3D de obsidiana ocluyan la posición del usuario.
+ * 3. Feedback Aeroespacial: Se incrementó el tamaño del puntero y se añadió un 
+ *    aura de profundidad ('blur-xl') para garantizar la visibilidad sobre texturas fotorrealistas.
  */
