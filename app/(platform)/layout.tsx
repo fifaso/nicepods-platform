@@ -1,98 +1,101 @@
 // app/(platform)/layout.tsx
-// VERSIÓN: 3.0 (NiceCore V2.6 - Visual Chassis Edition)
-// Misión: Proveer el enrutamiento visual y la aduana de seguridad para la plataforma interna.
-// [ESTABILIZACIÓN]: Extirpación de Providers redundantes (Audio/Geo) elevados al RootLayout.
+// VERSIÓN: 4.0 (NiceCore V2.7 - Visual Chassis & Gesture Passthrough Edition)
+// Misión: Proveer el enrutamiento visual y liberar la interactividad del mapa WebGL.
+// [ESTABILIZACIÓN]: Detección de ruta /map para desactivar scroll y permitir inmersión 100dvh.
+
+"use client";
 
 import React from "react";
+import { usePathname } from "next/navigation";
 
 // --- INFRAESTRUCTURA DE NAVEGACIÓN Y ACCESO ---
-/**
- * Navigation: Componente de mando fijo (fixed) con z-index: 100.
- * AuthGuard: Centinela que valida la sesión antes de montar la lógica del cliente.
- */
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { Navigation } from "@/components/navigation";
 
 // --- SERVICIOS DE INFRAESTRUCTURA Y PWA ---
-/**
- * Estos componentes gestionan el estado técnico de la plataforma en segundo plano.
- */
-import { InstallPwaButton } from '@/components/system/install-pwa-button';
 import { OfflineIndicator } from '@/components/system/offline-indicator';
 import { ScrollToTop } from "@/components/system/scroll-to-top";
 import { SmoothScrollWrapper } from "@/components/system/smooth-scroll-wrapper";
 
 // --- COMPONENTES DE SALIDA Y ANIMACIÓN ---
-/**
- * PageTransition: Gestiona la entrada cinemática de las rutas.
- * PlayerOrchestrator: Centro de mando del audio neuronal.
- * Toaster: Gestor de notificaciones y alertas de sistema.
- */
 import { PageTransition } from "@/components/system/page-transition";
 import { PlayerOrchestrator } from "@/components/player/player-orchestrator";
 import { Toaster } from "@/components/ui/toaster";
 
+// --- UTILIDADES DE DISEÑO ---
+import { cn } from "@/lib/utils";
+
 /**
  * COMPONENTE: PlatformLayout
- * El chasis soberano para la experiencia de usuario logueado en escritorio.
+ * El chasis soberano para la experiencia de usuario logueado.
  * 
- * [RESPONSABILIDAD ARQUITECTÓNICA]:
- * 1. Transparencia: No inyecta fondos sólidos para dejar pasar la atmósfera Aurora del Root.
- * 2. Seguridad: Actúa como la aduana final antes de pintar información sensible.
- * 3. Ergonomía: Define el espacio sagrado debajo del menú superior (padding-top).
+ * [RE-ARQUITECTURA V2.7]:
+ * Se ha transformado en Client Component para permitir la reacción dinámica 
+ * a la ruta, necesaria para liberar los recursos de hardware en el mapa.
  */
 export default function PlatformLayout({
   children
 }: {
   children: React.ReactNode
 }) {
+  const pathname = usePathname();
+
+  /**
+   * [SISTEMA DE EXCEPCIÓN DE GESTOS]:
+   * Identificamos si el Voyager está en la zona de inmersión total.
+   * Si es así, debemos 'perforar' el layout para que los gestos toquen el mapa.
+   */
+  const isMapActive = pathname?.startsWith('/map');
+
   return (
     /**
-     * CAPA 1: CENTINELA DE SOBERANÍA (AuthGuard)
-     * Valida que el usuario tenga un token nominal antes de renderizar 
-     * el esqueleto de la aplicación interna. Si falla, orquesta el redirect.
+     * CAPA 1: CENTINELA DE SOBERANÍA
+     * Valida la sesión antes de montar cualquier lógica de presentación.
      */
     <AuthGuard>
 
       {/* 
           CAPA 2: CONTROL DE DESPLAZAMIENTO (Smooth Scroll)
-          Proporciona la inercia nativa y suavizado de scroll industrial 
-          para las listas de podcasts y el Dashboard.
+          [MANDATO V2.7]: Si el mapa está activo, desactivamos el wrapper.
+          Esto evita que el suavizado de scroll capture los eventos de 'drag' 
+          destinados al mapa WebGL, devolviendo la soberanía táctil al motor 3D.
       */}
-      <SmoothScrollWrapper>
+      <SmoothScrollWrapper disabled={isMapActive}>
 
-        {/* SERVICIOS DE SISTEMA (Capa técnica invisible) */}
+        {/* SERVICIOS DE SISTEMA */}
         <OfflineIndicator />
-        <InstallPwaButton />
-        <ScrollToTop />
+        {!isMapActive && <ScrollToTop />}
 
         {/* 
-            CAPA 3: NAVEGACIÓN TÁCTICA (Header Fijo)
-            Se renderiza en el top del DOM para asegurar su anclaje visual.
+            CAPA 3: NAVEGACIÓN TÁCTICA 
+            Se mantiene visible pero el mapa fluirá por debajo.
         */}
         <Navigation />
 
         {/* 
             CAPA 4: CONTENEDOR MAESTRO DE CONTENIDO
-            [OPTIMIZACIÓN DE ESPACIO VERTICAL]:
-            Hemos reducido el padding-top (pt) al mínimo técnico para no perder 
-            espacio valioso, compensando exactamente el área del Header V2.0.
-            
-            Cálculo Técnico:
-            - Móvil: Header 72px + Padding de seguridad 12px = pt-[84px].
-            - Desktop: Header 80px + Margen de respiración 20px = md:pt-[100px].
-            
-            Uso estricto de bg-transparent para visibilidad de la atmósfera.
+            [OPTIMIZACIÓN DE INMERSIÓN]:
+            - Si NO es mapa: Aplicamos el padding técnico para el Header.
+            - Si ES mapa: pt-0 para permitir 100dvh de visualización pura.
         */}
         <main
-          className="relative z-10 flex flex-col min-h-screen pt-[84px] md:pt-[100px] bg-transparent transition-all duration-300"
+          className={cn(
+            "relative z-10 flex flex-col min-h-screen bg-transparent transition-all duration-500",
+            isMapActive ? "pt-0" : "pt-[84px] md:pt-[100px]"
+          )}
         >
           {/* 
-              CAPA 5: ORQUESTADOR DE MOVIMIENTO (Page Transitions)
-              Sincroniza la entrada y salida de contenido (Opacity 0 -> 1).
+              CAPA 5: ORQUESTADOR DE MOVIMIENTO
+              Sincroniza la entrada y salida de contenido sin afectar al motor WebGL.
           */}
           <PageTransition>
-            <div className="w-full flex-grow flex flex-col bg-transparent px-2 md:px-0">
+            <div 
+              className={cn(
+                "w-full flex-grow flex flex-col bg-transparent",
+                // El mapa requiere libertad total de bordes
+                !isMapActive && "px-4 md:px-0"
+              )}
+            >
               {children}
             </div>
           </PageTransition>
@@ -100,12 +103,7 @@ export default function PlatformLayout({
 
         {/* 
             CAPA 6: TERMINALES DE SALIDA
-            PlayerOrchestrator: Ubicado en Z-index: 200 (Capa superior).
-            Toaster: Notificaciones flotantes de sistema.
-            
-            [NOTA]: El PlayerOrchestrator sigue viviendo aquí para que su 
-            lógica visual flote sobre la plataforma, pero consume el 
-            'AudioContext' que ahora reside en el RootLayout.
+            El PlayerOrchestrator flota en la capa Z superior (200).
         */}
         <PlayerOrchestrator />
         <Toaster />
@@ -116,11 +114,14 @@ export default function PlatformLayout({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V3.0):
- * 1. Purga de Shadow Contexts: Al eliminar <AudioProvider> y <GeoEngineProvider> 
- *    de este archivo, garantizamos que los componentes consuman las instancias 
- *    creadas en el app/layout.tsx, manteniendo la continuidad de la memoria.
- * 2. Integridad de UI: Este layout se centra exclusivamente en el 'boxing' 
- *    (paddings, márgenes, z-index) de la aplicación interna, separando el 
- *    control de estado (Root) del control de presentación (Platform).
+ * NOTA TÉCNICA DEL ARCHITECT (V4.0):
+ * 1. Solución de Gestos: La desactivación condicional del 'SmoothScrollWrapper' 
+ *    es la clave para que el mapa deje de sentirse 'bloqueado'. Ahora el 
+ *    Voyager puede rotar y hacer zoom sin que el layout interfiera.
+ * 2. Soberanía de Viewport: Al eliminar el 'pt' (padding-top) en la ruta /map, 
+ *    el SpatialEngine recibe las coordenadas tácticas con precisión absoluta 
+ *    respecto al 0,0 de la pantalla del dispositivo.
+ * 3. Hot-Swap Visual: El uso de 'cn' y transiciones de 500ms asegura que 
+ *    el cambio entre el Dashboard (con padding) y el Mapa (sin padding) 
+ *    sea una experiencia fluida y cinematográfica.
  */
