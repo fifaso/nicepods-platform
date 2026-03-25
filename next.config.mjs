@@ -1,28 +1,60 @@
 // next.config.mjs
-// VERSIÓN: 48.0 (NicePod Shielded Production - Payload Expansion Edition)
-// Misión: Orquestar el build industrial y ampliar la frontera de las Server Actions.
-// [ESTABILIZACIÓN]: Solución al error 'Body exceeded 1 MB limit' (HTTP 413).
+// VERSIÓN: 49.0 (NicePod Shielded Production - Permissions & Payload Edition)
+// Misión: Orquestar el build industrial y garantizar el acceso al hardware GPS y WebGL.
+// [ESTABILIZACIÓN]: Inyección de Permissions-Policy y ampliación de límites para Ingesta Multimodal.
 
 import withPWAInit from "@ducanh2912/next-pwa";
 import { withSentryConfig } from '@sentry/nextjs';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // PROTOCOLO DE RIGOR TÉCNICO (Build Shield)
+  // --- I. PROTOCOLO DE RIGOR TÉCNICO (BUILD SHIELD) ---
   eslint: {
+    // Prohibimos el despliegue si existen errores de linting.
     ignoreDuringBuilds: false
   },
   typescript: {
+    // Un error de tipos es un fallo de misión. No se permite el bypass.
     ignoreBuildErrors: false
   },
 
-  // OPTIMIZACIÓN DE ARQUITECTURA
+  // --- II. OPTIMIZACIÓN DE ARQUITECTURA ---
+  // Standalone optimiza el tamaño de la imagen y el tiempo de respuesta en Vercel.
   output: 'standalone',
 
-  // COMPATIBILIDAD GEOESPACIAL (Mapbox GL JS Parity)
+  // Garantiza que Next.js compile correctamente las dependencias de motor pesado.
   transpilePackages: ['react-map-gl', 'mapbox-gl'],
 
-  // PERFORMANCE VISUAL: Aduana de Activos Dinámicos
+  /**
+   * III. CABECERAS DE AUTORIDAD (PERMISSIONS CONTROL)
+   * Misión: Ordenar al navegador que confíe en NicePod para acceder al hardware.
+   * Resuelve los bloqueos silenciosos de GPS en dispositivos móviles.
+   */
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Permissions-Policy',
+            // geolocation=(self) permite que el mapa acceda a los satélites.
+            // camera/microphone habilitan la futura Fase de Ingesta por voz/video.
+            value: 'geolocation=(self), camera=(self), microphone=(self)'
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff'
+          },
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY'
+          }
+        ],
+      },
+    ];
+  },
+
+  // --- IV. PERFORMANCE VISUAL: ADUANA DE ACTIVOS ---
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: '**.supabase.co' },
@@ -32,30 +64,24 @@ const nextConfig = {
     ],
   },
 
-  // INFRAESTRUCTURA DE RED Y SEGURIDAD (Server Actions)
+  // --- V. INFRAESTRUCTURA DE RED (SERVER ACTIONS) ---
   experimental: {
     serverActions: {
       /**
-       * [FIX CRÍTICO V48.0]: 
-       * Elevamos el límite de carga de 1MB a 4MB. 
-       * Esto permite el transporte de múltiples imágenes (Hero + 3 OCR) 
-       * y archivos de audio ambiente capturados por el Administrador.
+       * Elevamos el límite de carga a 4MB. 
+       * Requerido para el transporte de evidencia física comprimida JIT (V2.7).
        */
       bodySizeLimit: '4mb',
 
       allowedOrigins: [
         "localhost:3000",
-        "127.0.0.1:3000",
-        "*.github.dev",
-        "*.gitpod.io",
-        "*.app.github.dev",
         "*.vercel.app",
         "nicepod-alpha.vercel.app"
       ]
     }
   },
 
-  // GOBERNANZA DE WEBPACK (Performance Tuning)
+  // GOBERNANZA DE COMPILACIÓN
   webpack: (config) => {
     config.optimization.sideEffects = true;
     return config;
@@ -70,31 +96,24 @@ const nextConfig = {
  */
 const withPWA = withPWAInit({
   dest: "public",
-
-  // Mantenemos la PWA desactivada para forzar la carga limpia desde el Edge de Vercel
-  // y evitar que el Service Worker viejo intercepte las peticiones de gran tamaño.
-  disable: true,
-
-  register: false,
+  // Desactivado en desarrollo para evitar colisiones de caché con el motor WebGL.
+  disable: process.env.NODE_ENV === "development",
+  register: true,
   skipWaiting: true,
-
   publicExcludes: ['!manifest.json', '!*.png', '!favicon.ico'],
-
   buildExcludes: [
     /.*\/app\/.*\/page\.js$/,
     /.*\.map$/,
     /middleware-manifest\.json$/,
   ],
-
   runtimeCaching: [],
-
   fallbacks: {
     document: "/offline",
   },
 });
 
 /**
- * --- EXPORTACIÓN CON SENTRY ---
+ * --- EXPORTACIÓN CON SENTRY (OBSERVABILIDAD) ---
  */
 export default withSentryConfig(
   withPWA(nextConfig),
@@ -108,14 +127,11 @@ export default withSentryConfig(
 );
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V48.0):
- * 1. Solución de Escalabilidad: La inyección de 'bodySizeLimit: 4mb' es la llave 
- *    que desbloquea la Fase 2 de Ingesta. Sin este cambio, cualquier intento de 
- *    enviar evidencia fotográfica múltiple resultará en un Error 413.
- * 2. Blindaje de Dominio: Se ha verificado la lista de orígenes permitidos para 
- *    garantizar que las acciones de servidor solo respondan a peticiones 
- *    originadas dentro del ecosistema seguro de NicePod.
- * 3. Preparación de Memoria: Al operar en modo 'standalone', Vercel optimiza el 
- *    tiempo de arranque de las Server Actions, compensando el ligero aumento 
- *    en el tiempo de transferencia de los payloads más grandes.
+ * NOTA TÉCNICA DEL ARCHITECT (V49.0):
+ * 1. Solución de Acceso: La inyección de 'Permissions-Policy' es la pieza legal 
+ *    que faltaba para que el navegador libere el hardware GPS al motor Mapbox.
+ * 2. Escalabilidad de Datos: Se ha blindado el 'bodySizeLimit' para soportar 
+ *    la ingesta multimodal, previniendo errores 413 en campo.
+ * 3. Integridad de Build: Se eliminan todas las abreviaciones y se asegura que 
+ *    la configuración de Sentry y PWA no interfieran con el rendimiento WebGL.
  */
