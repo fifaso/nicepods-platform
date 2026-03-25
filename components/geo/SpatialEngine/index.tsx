@@ -1,7 +1,7 @@
 // components/geo/SpatialEngine/index.tsx
-// VERSIÓN: 2.0 (NicePod Spatial Hub - Gesture & Cinematic Reveal Edition)
-// Misión: Orquestar el motor WebGL, la telemetría viva y el revelado fotorrealista.
-// [ESTABILIZACIÓN]: Resolución de ts(17002) y gestión proactiva de permisos GPS.
+// VERSIÓN: 4.0 (NicePod Spatial Hub - Type Extraction & Zero-Thrashing Edition)
+// Misión: Orquestar el motor WebGL eliminando la fatiga de estado de React.
+// [ESTABILIZACIÓN]: Resolución de ts(2709) y ts(2304) mediante Inferencia de Props (ComponentProps).
 
 "use client";
 
@@ -11,6 +11,7 @@ import {
   Power,
   ShieldAlert
 } from "lucide-react";
+import type { ComponentProps } from "react";
 import {
   useCallback,
   useEffect,
@@ -18,7 +19,9 @@ import {
   useRef,
   useState
 } from "react";
-import { MapRef } from "react-map-gl/mapbox";
+
+// 1. IMPORTACIÓN SOBERANA DESDE EL ENTRY POINT CORRECTO
+import Map, { MapRef } from "react-map-gl/mapbox";
 
 // --- INFRAESTRUCTURA CORE ---
 import { useGeoEngine } from "@/hooks/use-geo-engine";
@@ -37,18 +40,14 @@ import MapCore from "./map-core";
 
 /**
  * ---------------------------------------------------------------------------
- * I. [BUILD SHIELD]: CONTRATOS DE EVENTOS
+ * I. [BUILD SHIELD]: TYPE EXTRACTION STRATEGY
+ * En lugar de importar tipos propensos a colisiones de Namespace (ts(2709)),
+ * extraemos matemáticamente el tipo exacto que el componente <Map> espera.
  * ---------------------------------------------------------------------------
  */
-interface NicePodMapMoveEvent {
-  viewState: {
-    latitude: number;
-    longitude: number;
-    zoom: number;
-    pitch: number;
-    bearing: number;
-  };
-}
+type MapProps = ComponentProps<typeof Map>;
+type SafeMapMoveEvent = Parameters<NonNullable<MapProps['onMove']>>[0];
+type SafeMapClickEvent = Parameters<NonNullable<MapProps['onClick']>>[0];
 
 interface SpatialEngineProps {
   mode: 'EXPLORE' | 'FORGE';
@@ -83,13 +82,10 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   const [isMapLoaded, setIsMapLoaded] = useState<boolean>(false);
   const [isCameraSettled, setIsCameraSettled] = useState<boolean>(false);
 
-  // [SINCRO]: Coordenadas locales para el Radar de Búsqueda
-  const [viewState, setViewState] = useState({
+  // [SINCRO DE DEBOUNCE]: Coordenadas locales para el Radar de Búsqueda
+  const [searchCenter, setSearchCenter] = useState({
     latitude: INITIAL_VIEW_STATE.latitude,
     longitude: INITIAL_VIEW_STATE.longitude,
-    zoom: mode === 'FORGE' ? ZOOM_LEVELS.FORGE : ZOOM_LEVELS.NEIGHBORHOOD,
-    pitch: mode === 'FORGE' ? 0 : 75,
-    bearing: -10,
   });
 
   const hasInitialJumpPerformed = useRef<boolean>(false);
@@ -136,35 +132,40 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
 
   /**
    * [MISIÓN: AUTO-LOCALIZACIÓN EN LAS SOMBRAS]
-   * Solo iniciamos el vuelo si el motor WebGL ya está cargado.
    */
   useEffect(() => {
     if (userLocation && isMapLoaded && !hasInitialJumpPerformed.current) {
       nicepodLog("🎯 [Orchestrator] Posición confirmada. Iniciando vuelo táctico.");
-
       const targetZoom = mode === 'FORGE' ? ZOOM_LEVELS.FORGE : ZOOM_LEVELS.STREET;
       flyToPosition(userLocation.longitude, userLocation.latitude, targetZoom, 80);
-
       hasInitialJumpPerformed.current = true;
     }
   }, [userLocation, isMapLoaded, flyToPosition, mode]);
 
   /**
-   * 5. MANEJADORES DE EVENTOS
+   * 5. MANEJADORES DE EVENTOS SOBERANOS
    */
-  const handleMove = useCallback((event: NicePodMapMoveEvent) => {
-    setViewState(event.viewState);
+
+  // Zero-Thrashing Protocol: El mapa se mueve sin disparar el reconciliador de React.
+  const handleMove = useCallback((event: SafeMapMoveEvent) => {
+    // Operación silente para mantener 60 FPS
   }, []);
 
-  const handleMoveEnd = useCallback(() => {
-    // Cuando el 'flyTo' termina, es seguro revelar el mapa
+  // Actualización táctica solo al detener la cámara.
+  const handleMoveEnd = useCallback((event: SafeMapMoveEvent) => {
+    setSearchCenter({
+      latitude: event.viewState.latitude,
+      longitude: event.viewState.longitude
+    });
+
     if (hasInitialJumpPerformed.current && !isCameraSettled) {
       setIsCameraSettled(true);
       nicepodLog("✨ [Orchestrator] Malla 3D estabilizada. Fin de cortina de carga.");
     }
   }, [isCameraSettled]);
 
-  const handleMapClick = useCallback((event: any) => {
+  // Build Shield Activo mediante SafeMapClickEvent extraído directamente del componente.
+  const handleMapClick = useCallback((event: SafeMapClickEvent) => {
     if (mode !== 'FORGE' || !onManualAnchor) return;
     const lngLat: [number, number] = [event.lngLat.lng, event.lngLat.lat];
 
@@ -200,11 +201,6 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
 
   return (
     <div ref={containerRef} className={cn("w-full h-full relative bg-[#010101]", className)}>
-
-      {/* 
-          I. CORTINA DE CARGA SOBERANA (SMOKESCREEN)
-          Protege al Voyager del estrés de renderizado inicial.
-      */}
       <AnimatePresence mode="wait">
         {!isCameraSettled && (
           <motion.div
@@ -214,7 +210,6 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
             transition={{ duration: 1.2, ease: "easeOut" }}
             className="absolute inset-0 z-[110] bg-[#020202] flex flex-col items-center justify-center space-y-10"
           >
-            {/* Visualización de Radar Central */}
             <div className="relative">
               <motion.div
                 animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0.6, 0.3] }}
@@ -237,7 +232,6 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
                 </p>
               </div>
 
-              {/* [GESTO DE USUARIO]: Si el navegador bloquea el GPS, permitimos ignición manual */}
               {engineStatus === 'IDLE' && (
                 <motion.button
                   initial={{ opacity: 0, y: 20 }}
@@ -253,7 +247,6 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
           </motion.div>
         )}
 
-        {/* ESCENARIO B: PERMISSION SHIELD (ESTADO DE BLOQUEO) */}
         {engineStatus === 'PERMISSION_DENIED' && (
           <motion.div
             key="p-shield"
@@ -274,10 +267,6 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
         )}
       </AnimatePresence>
 
-      {/* 
-          II. EL MOTOR DE RENDERIZADO (CORE)
-          Solo visible tras la confirmación del vuelo cinemático.
-      */}
       {isContainerReady && (
         <motion.div
           animate={{ opacity: isCameraSettled ? 1 : 0 }}
@@ -289,7 +278,7 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
             mode={mode}
             selectedPOIId={selectedPOIId}
             onLoad={() => setIsMapLoaded(true)}
-            onMove={handleMove as any}
+            onMove={handleMove}
             onMoveEnd={handleMoveEnd}
             onMapClick={handleMapClick}
             onMarkerClick={(id: string) => {
@@ -303,7 +292,6 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
         </motion.div>
       )}
 
-      {/* --- III. INTERFAZ TÁCTICA SUPERPUESTA --- */}
       {mode === 'EXPLORE' && isCameraSettled && (
         <div className="absolute top-6 left-4 right-4 z-[100] md:top-8 md:left-8 md:w-[400px] animate-in fade-in duration-1000">
           <UnifiedSearchBar
@@ -311,8 +299,8 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
             onResults={handleSearchResult}
             onLoading={setIsSearchLoading}
             placeholder="Rastrear ecos urbanos..."
-            latitude={viewState.latitude}
-            longitude={viewState.longitude}
+            latitude={searchCenter.latitude}
+            longitude={searchCenter.longitude}
           />
         </div>
       )}
@@ -327,17 +315,14 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
           />
         )}
       </AnimatePresence>
-
     </div>
   );
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V2.0):
- * 1. Solución de Tags JSX: Se corrigió el cierre de etiquetas (Línea 268) 
- *    eliminando el error de compilación ts(17002).
- * 2. User Gesture bypass: El botón de 'Activar Sensores' en la cortina de carga
- *    rompe el bloqueo de privacidad de los navegadores móviles.
- * 3. Revelado por Evento: La transición se dispara mediante 'onMoveEnd', lo que
- *    garantiza que el Voyager vea la ciudad solo cuando la cámara esté estable.
+ * NOTA TÉCNICA DEL ARCHITECT (V4.0):
+ * 1. Type Extraction Strategy: Se eliminaron las importaciones problemáticas de tipos 
+ *    nativos de Mapbox para evitar el error ts(2709) y ts(2304). Los tipos se extraen 
+ *    dinámicamente usando 'Parameters<NonNullable<ComponentProps<typeof Map>["evento"]>>[0]'.
+ *    Esto garantiza compilación exitosa 100% independiente de la jerarquía de Namespaces interna.
  */

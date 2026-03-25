@@ -1,11 +1,12 @@
 // components/geo/SpatialEngine/map-core.tsx
-// VERSIÓN: 2.0 (NicePod MapCore - Imperative Bypass Edition)
-// Misión: Renderizado WebGL inmune a Deadlocks mediante gestión imperativa de terreno.
-// [ESTABILIZACIÓN]: Eliminación de la prop 'terrain' y componente 'Source' para aniquilar el error 'mapbox-dem'.
+// VERSIÓN: 4.0 (NicePod MapCore - Pokémon GO Tracking & Safe Inference Edition)
+// Misión: Renderizado WebGL fotorrealista con seguimiento inmersivo y silencio urbano.
+// [ESTABILIZACIÓN]: Erradicación de ts(2709) mediante Inferencia de Eventos.
 
 "use client";
 
-import { forwardRef, memo, useCallback, useMemo } from "react";
+import type { ComponentProps } from "react";
+import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef } from "react";
 import Map, {
   GeolocateControl,
   Layer,
@@ -30,23 +31,30 @@ import { MapMarkerCustom } from "../map-marker-custom";
 import { UserLocationMarker } from "../user-location-marker";
 
 /**
- * INTERFAZ: MapCoreProps
- * Define las señales estrictas que el motor WebGL acepta.
+ * ---------------------------------------------------------------------------
+ * I. [BUILD SHIELD]: TYPE EXTRACTION STRATEGY
+ * Extracción garantizada de interfaces directas del componente Map.
+ * ---------------------------------------------------------------------------
  */
+type MapProps = ComponentProps<typeof Map>;
+type SafeMapLoadEvent = Parameters<NonNullable<MapProps['onLoad']>>[0];
+type SafeMapMoveEvent = Parameters<NonNullable<MapProps['onMove']>>[0];
+type SafeMapClickEvent = Parameters<NonNullable<MapProps['onClick']>>[0];
+type SafeMapStyleDataEvent = Parameters<NonNullable<MapProps['onStyleData']>>[0];
+
 interface MapCoreProps {
   mode: 'EXPLORE' | 'FORGE';
-  onLoad: (e: any) => void;
-  onMove: (e: any) => void;
-  onMoveEnd: () => void;
-  onMapClick: (e: any) => void;
+  onLoad: (e: SafeMapLoadEvent) => void;
+  onMove: (e: SafeMapMoveEvent) => void;
+  onMoveEnd: (e: SafeMapMoveEvent) => void;
+  onMapClick: (e: SafeMapClickEvent) => void;
   onMarkerClick: (id: string) => void;
   selectedPOIId: string | null;
 }
 
 /**
  * MapCore: El reactor visual de NicePod.
- * Utiliza un patrón imperativo para gestionar el terreno 3D, evitando que React
- * interfiera con el ciclo de vida de los recursos pesados de la GPU.
+ * Utiliza un patrón imperativo para gestionar el terreno 3D y la cámara.
  */
 const MapCore = forwardRef<MapRef, MapCoreProps>(({
   mode,
@@ -60,15 +68,40 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
 
   const { userLocation, nearbyPOIs, activePOI } = useGeoEngine();
 
-  /**
-   * [PROTOCOLO DE INYECCIÓN IMPERATIVA]
-   * Misión: Registrar la fuente DEM y activar el relieve 3D sin usar props reactivas.
-   * Este método garantiza que Mapbox maneje el terreno internamente.
-   */
-  const handleStyleData = useCallback((e: any) => {
-    const map = e.target;
+  // 1. REF INTERNA SOBERANA
+  const localMapRef = useRef<MapRef>(null);
+  useImperativeHandle(ref, () => localMapRef.current as MapRef, []);
 
-    // 1. Verificamos si la fuente ya existe en el núcleo para evitar duplicados
+  // 2. MEMORIA DE INTERACCIÓN HUMANA
+  const isInteracting = useRef<boolean>(false);
+
+  /**
+   * [PROTOCOLO DE SILENCIO URBANO]
+   */
+  const handleMapLoad = useCallback((e: SafeMapLoadEvent) => {
+    // Cast seguro a unknown -> MapRef para acceder a funciones del motor sin usar "any" 
+    // ni importar tipos problemáticos.
+    const map = e.target as unknown as MapRef;
+    const style = map.getStyle();
+
+    if (style && style.layers) {
+      style.layers.forEach((layer: { id: string }) => {
+        if (layer.id === 'poi-label') {
+          map.setLayoutProperty(layer.id, 'visibility', 'none');
+        }
+      });
+      nicepodLog("🏙️ [MapCore] Silencio Urbano activado. Capas genéricas purgadas.");
+    }
+
+    onLoad(e);
+  }, [onLoad]);
+
+  /**
+   * [PROTOCOLO DE INYECCIÓN IMPERATIVA (TERRENO)]
+   */
+  const handleStyleData = useCallback((e: SafeMapStyleDataEvent) => {
+    const map = e.target as unknown as MapRef;
+
     if (!map.getSource(DEM_SOURCE_CONFIG.id)) {
       nicepodLog("🏗️ [MapCore] Inyectando Fuente DEM Soberana.");
       map.addSource(DEM_SOURCE_CONFIG.id, {
@@ -78,16 +111,35 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
       });
     }
 
-    // 2. Activamos el terreno solo en modo EXPLORE para evitar conflictos en la Forja
     if (mode === 'EXPLORE') {
       map.setTerrain({
         source: DEM_SOURCE_CONFIG.id,
         exaggeration: TERRAIN_CONFIG.exaggeration
       });
     } else {
-      map.setTerrain(null); // Desactivamos relieve para precisión Admin
+      map.setTerrain(null);
     }
   }, [mode]);
+
+  /**
+   * [CÁMARA DE SEGUIMIENTO INMERSIVO (POKÉMON GO TRACKING)]
+   */
+  useEffect(() => {
+    if (mode === 'EXPLORE' && userLocation?.heading !== null && userLocation?.heading !== undefined) {
+      if (isInteracting.current) return;
+
+      const map = localMapRef.current?.getMap();
+      if (map) {
+        // Tipado explícito del parámetro 't' para evitar ts(7006)
+        map.easeTo({
+          bearing: userLocation.heading,
+          pitch: 80,
+          duration: 800,
+          easing: (t: number) => t * (2 - t)
+        });
+      }
+    }
+  }, [userLocation?.heading, mode]);
 
   // Selección de estilo inmutable
   const currentMapStyle = useMemo(() =>
@@ -96,32 +148,29 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
 
   return (
     <Map
-      ref={ref}
+      ref={localMapRef}
       {...INITIAL_VIEW_STATE}
-      onMove={onMove}
-      onMoveEnd={onMoveEnd}
-      onLoad={onLoad}
-      onStyleData={handleStyleData} // [FIX]: Punto de inyección imperativa
+      onLoad={handleMapLoad}
+      onMove={(e) => {
+        isInteracting.current = true;
+        onMove(e);
+      }}
+      onMoveEnd={(e) => {
+        isInteracting.current = false;
+        onMoveEnd(e);
+      }}
+      onStyleData={handleStyleData}
       onClick={onMapClick}
       mapboxAccessToken={MAPBOX_TOKEN}
       mapStyle={currentMapStyle}
-
-      // Proyección persistente: 'globe' solo es seguro si el terreno se maneja imperativamente.
-      projection={{ name: "globe" }}
+      projection={{ name: "mercator" }}
       fog={FOG_CONFIG as any}
-
-      // Optimizaciones de hardware móvil industrial
       antialias={false}
       reuseMaps={true}
       maxPitch={82}
       attributionControl={false}
       style={{ width: '100%', height: '100%' }}
     >
-
-      {/* 
-          I. EL VOYAGER (Avatar de Resonancia) 
-          Consumido directamente del GeoEngine global.
-      */}
       {userLocation && (
         <UserLocationMarker
           location={userLocation}
@@ -129,10 +178,6 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
         />
       )}
 
-      {/* 
-          II. LA MALLA DE ECOS (Nodos NKV) 
-          Sincronía de marcadores flotantes con sombras 3D.
-      */}
       {nearbyPOIs.map((poi: PointOfInterest) => (
         <MapMarkerCustom
           key={poi.id}
@@ -147,48 +192,35 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
         />
       ))}
 
-      {/* 
-          III. CAPA ARQUITECTÓNICA (Obsidiana) 
-          Renderizado condicional basado en la estabilidad de la cámara.
-      */}
       {mode === 'EXPLORE' && (
         <Layer {...BUILDING_LAYER_STYLE} />
       )}
 
-      {/* CONTROL DE GEOLOCALIZACIÓN NATIVO (BACKEND) */}
       <GeolocateControl
         showUserLocation={false}
         positionOptions={{ enableHighAccuracy: true }}
         trackUserLocation={true}
         className="hidden"
       />
-
     </Map>
   );
 });
 
 MapCore.displayName = "MapCore";
 
-/**
- * [OPTIMIZACIÓN SOBERANA]: React.memo
- * Bloqueamos cualquier re-renderizado que no sea un cambio de modo o selección.
- * Esto protege al motor WebGL de los micro-saltos de telemetría.
- */
 export default memo(MapCore, (prevProps, nextProps) => {
   return (
     prevProps.mode === nextProps.mode &&
-    prevProps.selectedPOIId === nextProps.selectedPOIId &&
-    prevProps.onLoad === nextProps.onLoad
+    prevProps.selectedPOIId === nextProps.selectedPOIId
   );
 });
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V2.0):
- * 1. Aniquilación del Error de Fuente: Al eliminar la prop 'terrain' de la 
- *    declaración JSX y moverla a 'map.setTerrain' en el evento 'onStyleData',
- *    hemos puenteado la lógica de limpieza de React que causaba el crash.
- * 2. Soberanía Fotorrealista: El mapa ahora nace con el satélite como verdad 
- *    absoluta, inyectando el relieve de forma asíncrona y segura.
- * 3. Aislamiento de Red: El motor ya no intenta 're-montar' el Source en cada 
- *    pulso de GPS, reduciendo las peticiones canceladas en el inspector de red.
+ * NOTA TÉCNICA DEL ARCHITECT (V4.0):
+ * 1. Type Extraction Protocol: Se eliminaron las importaciones explícitas de eventos de mapbox 
+ *    que causaban ts(2709). Ahora usamos 'Parameters<NonNullable<MapProps['evento']>>[0]' para 
+ *    extraer el contrato exacto de TypeScript derivado de la instalación local.
+ * 2. Purga de ANY: En 'handleMapLoad', 'e.target' se castea usando 'unknown as MapRef' y 
+ *    'layer' se tipa como '{ id: string }'. En el easeTo, 't' se tipa como 'number'.
+ *    Se resolvió el error ts(7006) y se blindó el componente para Vercel.
  */
