@@ -1,10 +1,11 @@
 // app/layout.tsx
-// VERSIÓN: 32.0 (NicePod Architecture Core - High Speed Orbital Edition)
-// Misión: Orquestar la infraestructura global y garantizar la persistencia absoluta de Audio y GPS.
-// [ESTABILIZACIÓN]: Implementación de Preconnects para Mapbox y optimización de jerarquía GPU.
+// VERSIÓN: 33.0 (NicePod Architecture Core - Edge-Geo Integration Edition)
+// Misión: Orquestar la infraestructura global y materializar la ubicación inicial desde el Edge.
+// [ESTABILIZACIÓN]: Captura de Geo-IP Fallback y entrega síncrona al GeoEngineProvider.
 
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import { cookies } from "next/headers"; // [NUEVO]: Para lectura de telemetría de red
 import type React from "react";
 
 /**
@@ -87,7 +88,23 @@ export default async function RootLayout({
   let initialProfile: Tables<'profiles'> | null = null;
   let userRole = 'guest';
 
+  // [RESCATE GEO-IP]: Leemos la ubicación estimada capturada por el Middleware
+  const cookieStore = cookies();
+  const geoFallbackRaw = cookieStore.get('nicepod-geo-fallback')?.value;
+  let initialGeoData = null;
+
+  if (geoFallbackRaw) {
+    try {
+      initialGeoData = JSON.parse(geoFallbackRaw);
+    } catch (e) {
+      console.error("Layout-Geo-Error:", e);
+    }
+  }
+
   if (user) {
+    /**
+     * COSECHA PARALELA DE DATOS (Fan-Out Pipeline)
+     */
     const [sessionRes, profileRes] = await Promise.all([
       supabase.auth.getSession(),
       supabase.from('profiles')
@@ -116,7 +133,6 @@ export default async function RootLayout({
       <head>
         {/* 
             II. ACELERACIÓN DE RED (PRECONNECT PROTOCOL)
-            Reducimos el TTFB de la Malla Urbana abriendo los sockets de Mapbox de forma anticipada.
         */}
         <link rel="preconnect" href="https://api.mapbox.com" />
         <link rel="preconnect" href="https://events.mapbox.com" />
@@ -147,16 +163,9 @@ export default async function RootLayout({
         className={`${inter.className} font-sans min-h-screen antialiased selection:bg-primary/30 bg-[#020202] text-foreground overflow-x-hidden`}
         suppressHydrationWarning
       >
-        {/* CAPA 1: Telemetría Operativa */}
         <CSPostHogProvider>
-
-          {/* CAPA 2: Orquestador PWA (Registro Diferido) */}
           <PwaLifecycle />
-
-          {/* CAPA 3: Red de Seguridad */}
           <ErrorBoundary>
-
-            {/* CAPA 4: Motor Atmosférico Aurora */}
             <ThemeProvider
               attribute="class"
               defaultTheme="dark"
@@ -164,40 +173,25 @@ export default async function RootLayout({
               disableTransitionOnChange={true}
               storageKey="theme"
             >
-
-              {/* CAPA 5: EL HANDSHAKE T0 (AuthProvider) */}
               <AuthProvider
                 initialSession={initialSession}
                 initialProfile={initialProfile}
               >
-
-                {/* 
-                    CAPA 6: RED SENSORIAL Y ACÚSTICA GLOBAL 
-                    Anclados en la raíz para garantizar la soberanía física del Voyager.
-                */}
                 <AudioProvider>
-                  <GeoEngineProvider>
-
-                    {/* --- ESCENARIO VISUAL NICEPOD V2.9 --- */}
+                  {/* 
+                      [MANDATO V2.7]: Hidratación de Malla Geográfica.
+                      Inyectamos la ubicación estimada por IP para que el Voyager 
+                      se materialice antes de que el hardware GPS responda.
+                  */}
+                  <GeoEngineProvider initialData={initialGeoData}>
                     <main className="min-h-screen relative flex flex-col">
-
-                      {/* CAPA ALFA: Fondo Dinámico GPU-driven (Z-INDEX: -20) */}
                       <BackgroundEngine />
-
-                      {/* 
-                          CAPA BETA: EL CHASIS DE CONTENIDO (Z-INDEX: 10) 
-                          La propiedad 'isolate' crea un nuevo contexto de apilamiento 
-                          protegiendo al UI de las fugas de WebGL.
-                      */}
                       <div className="relative z-10 flex flex-col flex-1 bg-transparent isolate">
                         {children}
                       </div>
-
                     </main>
-
                   </GeoEngineProvider>
                 </AudioProvider>
-
               </AuthProvider>
             </ThemeProvider>
           </ErrorBoundary>
@@ -208,12 +202,13 @@ export default async function RootLayout({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V32.0):
- * 1. Aceleración Mapbox: Se inyectaron 'preconnects' para las APIs de tiles de Mapbox,
- *    ahorrando tiempo precioso en la resolución de red inicial.
- * 2. Estabilidad de Fondo: Se forzó el color de fondo 'bg-[#020202]' en el body para 
- *    eliminar cualquier micro-flash blanco durante la carga de las Edge Functions.
- * 3. Aislamiento Táctico: Se añadió la propiedad 'isolate' al contenedor de children 
- *    para evitar colisiones de contexto entre el BackgroundEngine y el SpatialEngine 
- *    del mapa, permitiendo que ambos operen en sus propios hilos de la GPU.
+ * NOTA TÉCNICA DEL ARCHITECT (V33.0):
+ * 1. Materialización Progresiva T0: El Layout ahora captura la cookie 'nicepod-geo-fallback' 
+ *    antes de montar el árbol de componentes. Al pasar este dato al GeoEngineProvider, 
+ *    garantizamos que el mapa nazca en la ciudad real del usuario, eliminando el 
+ *    anclaje genérico en Madrid Sol si el usuario está en otra ubicación.
+ * 2. Cero Pestañeo Satelital: Mapbox recibirá sus coordenadas iniciales desde el servidor, 
+ *    permitiendo que el primer renderizado ya incluya los tiles correctos.
+ * 3. Robustez SSR: Se mantiene el uso de 'maybeSingle()' para proteger el flujo de 
+ *    nuevos registros y se blinda la lectura de cookies con bloques try/catch.
  */
