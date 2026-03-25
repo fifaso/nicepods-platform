@@ -1,4 +1,8 @@
 // tailwind.config.ts
+// VERSIÓN: 2.0 (NicePod Style Core - Visual Materialization Edition)
+// Misión: Registrar los activos de animación para la Malla de Madrid y evitar la purga en Vercel.
+// [ESTABILIZACIÓN]: Registro de nicepod-pulse, shimmer y spin-slow.
+
 import type { Config } from "tailwindcss";
 
 const config: Config = {
@@ -52,18 +56,38 @@ const config: Config = {
 				sm: 'calc(var(--radius) - 4px)'
 			},
 			keyframes: {
+        // [MANDATO V2.7]: Materialización del Voyager (Anillos GPS)
+        'nicepod-pulse': {
+          '0%': { transform: 'scale(0.1)', opacity: '0' },
+          '30%': { opacity: '0.6' },
+          '100%': { transform: 'scale(3.5)', opacity: '0' },
+        },
+        // Levitación de Ecos (Puntos de Interés)
 				float: {
 					'0%, 100%': { transform: 'translateY(0)' },
 					'50%': { transform: 'translateY(-12px)' },
 				},
+        // Sincronía de Sombras en el asfalto 3D
 				shadowPulse: {
 					'0%, 100%': { transform: 'scale(1)', opacity: '0.6' },
 					'50%': { transform: 'scale(0.8)', opacity: '0.3' },
-				}
+				},
+        // Barrido de luz para botones táctiles
+        shimmer: {
+          '100%': { transform: 'translateX(100%)' },
+        },
+        // Rotación cinemática para el Radar
+        'spin-slow': {
+          '0%': { transform: 'rotate(0deg)' },
+          '100%': { transform: 'rotate(360deg)' },
+        }
 			},
 			animation: {
+        'nicepod-pulse': 'nicepod-pulse 4s cubic-bezier(0, 0.45, 0.15, 1) infinite',
 				float: 'float 4s ease-in-out infinite',
 				shadowPulse: 'shadowPulse 4s ease-in-out infinite',
+        shimmer: 'shimmer 2s infinite',
+        'spin-slow': 'spin-slow 8s linear infinite',
 			}
 		}
 	},
@@ -72,4 +96,5 @@ const config: Config = {
 		require("tailwind-scrollbar"),
 	],
 };
+
 export default config;
