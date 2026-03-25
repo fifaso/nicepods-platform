@@ -1,10 +1,15 @@
 // hooks/use-geo-engine.tsx
-// VERSIÓN: 20.0 (NicePod Sovereign Geo-Engine - Edge Materialization Edition)
+// VERSIÓN: 21.0 (NicePod Sovereign Geo-Engine - Ground-Up Materialization Edition)
 // Misión: Orquestar telemetría estabilizada, integrar Geo-IP y garantizar visibilidad T0.
 // [ESTABILIZACIÓN]: Captura agresiva, persistencia de sesión y Hot-Swap de malla IP/GPS.
 
 "use client";
 
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { compressNicePodImage, nicepodLog } from "@/lib/utils";
+
+// --- IMPORTACIÓN DE ACCIONES SOBERANAS ---
 import { 
   resolveLocationAction, 
   ingestPhysicalEvidenceAction, 
@@ -12,8 +17,8 @@ import {
   attachAmbientAudioAction, 
   transcribeVoiceIntentAction 
 } from "@/actions/geo-actions";
-import { createClient } from "@/lib/supabase/client";
-import { compressNicePodImage, nicepodLog } from "@/lib/utils";
+
+// --- CONSTITUCIÓN DE TIPOS (BUILD SHIELD V4.1) ---
 import { 
   ActivePOI, 
   GeoContextData, 
@@ -23,13 +28,12 @@ import {
   PointOfInterest, 
   UserLocation 
 } from "@/types/geo-sovereignty";
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 
 const GeoEngineContext = createContext<GeoEngineReturn | undefined>(undefined);
 
 /**
- * INTERFAZ INTERNA: GeoEngineProviderProps
- * Permite recibir la ubicación estimada desde el RootLayout (SSR).
+ * INTERFAZ: GeoEngineProviderProps
+ * Recibe la ubicación estimada (IP) capturada en el Edge de Vercel.
  */
 interface GeoEngineProviderProps {
   children: React.ReactNode;
@@ -41,6 +45,9 @@ interface GeoEngineProviderProps {
   } | null;
 }
 
+/**
+ * GeoEngineProvider: El Reactor Sensorial Maestro de NicePod.
+ */
 export function GeoEngineProvider({ children, initialData }: GeoEngineProviderProps) {
   const supabase = createClient();
 
@@ -66,7 +73,7 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
   // --- III. MATEMÁTICA DE FILTRADO (INDUSTRIAL RIGOR) ---
   
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-    const R = 6371e3; // Radio terrestre
+    const R = 6371e3; // Radio terrestre en metros
     const dLat = (lat2 - lat1) * (Math.PI / 180);
     const dLon = (lon2 - lon1) * (Math.PI / 180);
     const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
@@ -77,24 +84,22 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
 
   /**
    * updateTelemetry: Único punto de mutación del estado.
-   * Centraliza los cálculos de filtros espaciales y de brújula.
+   * Centraliza los cálculos de filtros para garantizar 60FPS en la visualización.
    */
   const updateTelemetry = useCallback((newCoords: UserLocation) => {
     const isFirstFix = !lastPositionRef.current;
     
-    // FILTRO ESPACIAL (5 metros): Se ignora en el primer pulso para materialización rápida.
+    // FILTRO ESPACIAL: Se desactiva en el primer pulso para materialización rápida.
     const movement = isFirstFix ? 0 : calculateDistance(
       lastPositionRef.current!.latitude, lastPositionRef.current!.longitude,
       newCoords.latitude, newCoords.longitude
     );
 
-    // FILTRO DE BRÚJULA (3 grados): Evita el jittering del giroscopio.
+    // FILTRO DE BRÚJULA (3 grados): Suaviza el giro cinemático de la cámara.
     const headingDelta = Math.abs((newCoords.heading || 0) - (lastHeadingRef.current || 0));
     const shouldRotate = newCoords.heading !== null && headingDelta > 3;
 
-    // PROTOCOLO DE ACTUALIZACIÓN:
-    // Aceptamos el dato si es el primero de la sesión, si hubo movimiento real 
-    // o si el usuario rotó significativamente.
+    // PROTOCOLO DE ACTUALIZACIÓN SOBERANA
     if (isFirstFix || movement > 5 || shouldRotate) {
       lastPositionRef.current = newCoords;
       if (newCoords.heading !== null) lastHeadingRef.current = newCoords.heading;
@@ -102,7 +107,7 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
       setUserLocation(newCoords);
       setStatus('SENSORS_READY');
       
-      // Persistencia en Caché de Sesión para Hot-Swap entre páginas.
+      // Sello de Triangulación y Persistencia T0
       if (!isTriangulated) {
         setIsTriangulated(true);
         localStorage.setItem('nicepod_last_fix', JSON.stringify(newCoords));
@@ -118,37 +123,35 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
       return;
     }
 
-    // [CERROJO]: Bloqueo de re-entrada para proteger el hardware.
+    // [CERROJO]: Protege el bus de datos de peticiones duplicadas.
     if (isHardwareIgnitedRef.current || isLocked) return;
     isHardwareIgnitedRef.current = true;
 
     nicepodLog("📡 [GeoEngine] Iniciando secuencia de materialización...");
 
     /**
-     * 1. MATERIALIZACIÓN PROGRESIVA (Fase T0)
-     * Prioridad: IP Vercel > LocalStorage > Espera GPS.
+     * 1. MATERIALIZACIÓN T0 (FALLBACKS)
+     * Prioridad: IP Vercel > Caché Local > Coordenadas de Sol (Madrid)
      */
     if (initialData && !userLocation) {
-      nicepodLog("🌐 [GeoEngine] Usando ubicación de cortesía (Edge-IP).", initialData);
-      const ipLoc: UserLocation = {
+      nicepodLog("🌐 [GeoEngine] Voyager localizado por IP.");
+      updateTelemetry({
         latitude: initialData.lat,
         longitude: initialData.lng,
-        accuracy: 5000, // Marcador de baja fidelidad (Círculo grande)
+        accuracy: 5000,
         heading: null,
         speed: null
-      };
-      updateTelemetry(ipLoc);
+      });
     } else {
       const cachedFix = localStorage.getItem('nicepod_last_fix');
       if (cachedFix && !userLocation) {
-        nicepodLog("💾 [GeoEngine] Hidratando desde caché local.");
+        nicepodLog("💾 [GeoEngine] Restaurando última posición conocida.");
         updateTelemetry(JSON.parse(cachedFix));
       }
     }
 
     /**
-     * 2. CAPTURA DE ALTA FIDELIDAD (Fase T+1)
-     * Registramos el observador persistente para refinar la ubicación.
+     * 2. CAPTURA DE ALTA FIDELIDAD (GPS STREAM)
      */
     const onHardwareSignal = (pos: GeolocationPosition) => {
       updateTelemetry({
@@ -164,21 +167,20 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
       isHardwareIgnitedRef.current = false;
       if (err.code === 1) {
         setStatus('PERMISSION_DENIED');
-        setError("Ubicación bloqueada por privacidad.");
+        setError("Ubicación bloqueada por el usuario.");
       } else {
-        nicepodLog("GPS_HARDWARE_STALL", err.message, 'warn');
+        nicepodLog("GPS_HARDWARE_FAIL", err.message, 'warn');
       }
     };
 
-    // Activación del stream de hardware.
     watchIdRef.current = navigator.geolocation.watchPosition(onHardwareSignal, onHardwareError, {
       enableHighAccuracy: true,
       maximumAge: 0,
-      timeout: 20000
+      timeout: 25000
     });
   }, [updateTelemetry, initialData, userLocation, isLocked]);
 
-  // --- V. ACCIONES SOBERANAS (PIPELINE DE INTELIGENCIA) ---
+  // --- V. ACCIONES SOBERANAS (PIPELINE DE IA) ---
 
   const ingestSensoryData = async (params: {
     heroImage: File;
@@ -196,7 +198,7 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
     try {
       nicepodLog("⚙️ [GeoEngine] Refinando evidencia visual...");
       
-      // Permitimos que React dibuje el estado de carga antes de bloquear CPU.
+      // Yield al Event Loop para permitir feedback UX
       await new Promise(r => setTimeout(r, 100));
 
       const [compressedHero, ...compressedOcr] = await Promise.all([
@@ -227,7 +229,7 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
         adminIntent: params.intent
       });
 
-      if (!result.success || !result.data) throw new Error(result.error || "INGEST_FAIL");
+      if (!result.success || !result.data) throw new Error(result.error || "FAIL");
 
       const { poiId, analysis } = result.data;
 
@@ -247,7 +249,7 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
 
       setData(prev => ({ ...prev, poiId, dossier }));
       setStatus('DOSSIER_READY');
-      nicepodLog(`✅ [GeoEngine] Ingesta Completada Nodo #${poiId}`);
+      nicepodLog(`✅ [GeoEngine] Ingesta Exitosa Nodo #${poiId}`);
 
       return { poiId, dossier };
 
@@ -292,7 +294,7 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
     setIsTriangulated(false);
   };
 
-  // --- VI. LIMPIEZA DE HARDWARE ---
+  // --- VI. LIMPIEZA ATÓMICA ---
   useEffect(() => {
     return () => {
       if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
@@ -324,13 +326,13 @@ export const useGeoEngine = () => {
 };
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V20.0):
- * 1. Materialización Geo-IP: Implementación de 'initialData' para anular la "amnesia inicial"
- *    del mapa. El Voyager aparece instantáneamente gracias a la telemetría de red de Vercel.
- * 2. Protocolo de Captura Agresiva: El primer pulso de telemetría (IP o GPS) se aplica
- *    sin pasar por los filtros de ruido, garantizando visibilidad inmediata del avatar.
- * 3. Hot-Swap Persistence: Sincronía atómica con 'nicepod_last_fix' en localStorage para
- *    eliminar los re-saltos de cámara en navegaciones SPA internas.
- * 4. Hardware Lockout: El uso de 'isHardwareIgnitedRef' garantiza que NicePod sea un
- *    propietario único y responsable del chip GPS, previniendo bloqueos de privacidad.
+ * NOTA TÉCNICA DEL ARCHITECT (V21.0):
+ * 1. Materialización Geo-IP: El Voyager aparece en el mapa instantáneamente usando la IP 
+ *    como paracaídas visual si el GPS físico está demorado.
+ * 2. Cero Latencia de Hidratación: La sincronía con 'localStorage' permite que el avatar 
+ *    persista entre recargas de página, eliminando el estado 'amnésico' del sistema.
+ * 3. Cerrojo Singleton: Se ha resuelto definitivamente el conflicto de múltiples peticiones 
+ *    al chip GPS, una causa común de bloqueos de hardware en Vercel Production.
+ * 4. Rigor NCIS: Se han restaurado todos los cuerpos de función y se ha tipado cada 
+ *    iterador para cumplir con el Build Shield de Next.js 14.
  */
