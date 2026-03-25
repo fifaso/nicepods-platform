@@ -1,13 +1,13 @@
 // components/geo/user-location-marker.tsx
-// VERSIÓN: 2.1 (NicePod GO Avatar - High Visibility & Deep Space Edition)
-// Misión: Representar al usuario en la malla con anillos de resonancia optimizados.
-// [ESTABILIZACIÓN]: Implementación de zIndex agresivo y feedback de precisión.
+// VERSIÓN: 2.2 (NicePod GO Avatar - Precision Feedback & Materialization Edition)
+// Misión: Representar al usuario en la malla con visualización dinámica de precisión.
+// [ESTABILIZACIÓN]: Implementación de Accuracy Aura, jerarquía de color por estado y Z-Shield.
 
 "use client";
 
 import { cn } from "@/lib/utils";
 import { UserLocation } from "@/types/geo-sovereignty";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { memo } from "react";
 // [FIX VERCEL]: Enrutamiento explícito al motor Mapbox
 import { Marker } from "react-map-gl/mapbox";
@@ -19,42 +19,65 @@ interface UserLocationMarkerProps {
 
 const UserLocationMarkerComponent = ({ location, isResonating }: UserLocationMarkerProps) => {
 
-  // 1. PROTOCOLO DE VISIBILIDAD OBLIGATORIA
-  // Si no hay coordenadas, el avatar no existe. 
-  // Pero si la precisión es 999 (Marca de Rescate), lo mostramos en estado "Buscando".
+  // 1. PROTOCOLO DE MATERIALIZACIÓN OBLIGATORIA
+  // Si no hay coordenadas, el Voyager es un espectro. No renderizamos nada.
   if (!location?.latitude || !location?.longitude) return null;
 
-  const isRescueLocation = location.accuracy >= 500;
+  /**
+   * EVALUACIÓN DE AUTORIDAD DEL DATO
+   * - isRescue: Señal degradada (Geo-IP o Celda). Accuracy > 500m.
+   * - isHighPrecision: Señal satelital óptima. Accuracy < 20m.
+   */
+  const accuracy = location.accuracy || 0;
+  const isRescue = accuracy >= 500;
+  const isHighPrecision = accuracy > 0 && accuracy < 20;
+
+  // Selección de colorimetría industrial
+  const statusColorClass = isRescue 
+    ? "zinc" 
+    : isResonating 
+      ? "emerald" 
+      : "primary";
 
   return (
     <Marker
       latitude={location.latitude}
       longitude={location.longitude}
       anchor="center"
-      // pitchAlignment="map" acuesta los anillos en el suelo para inmersión 3D.
+      // [MANDATO]: 'map' asegura que el avatar se acueste sobre el asfalto 3D
       pitchAlignment="map"
-      // rotationAlignment="map" vincula la orientación al norte del mapa.
       rotationAlignment="map"
-      // [MEJORA]: Forzamos que el Voyager esté siempre en el estrato superior.
+      // Z-Shield: Elevación máxima para evitar ser tapado por edificios de obsidiana
       style={{ zIndex: 9999 }}
     >
-      <div className="relative flex items-center justify-center w-32 h-32 pointer-events-none">
+      <div className="relative flex items-center justify-center pointer-events-none">
 
         {/* 
-            I. ANILLOS DE RESONANCIA (GPU ACCELERATED) 
-            Sincronizados con el color de estado (Emerald si es real, Primary si es rescate).
+            I. ACCURACY AURA (Círculo de Incertidumbre)
+            Representa visualmente la precisión del GPS. Se expande si la señal es pobre.
         */}
-        <div className="absolute inset-0 flex items-center justify-center">
+        <div 
+          className={cn(
+            "absolute rounded-full transition-all duration-1000 ease-in-out border-2",
+            isRescue 
+              ? "w-64 h-64 bg-zinc-500/5 border-zinc-500/10 blur-sm" 
+              : "w-24 h-24 bg-primary/5 border-primary/20 blur-none"
+          )}
+        />
+
+        {/* 
+            II. ANILLOS DE RESONANCIA (GPU ACCELERATED) 
+            [MANDATO V2.7]: Uso de CSS keyframes para evitar lag en el Main Thread.
+        */}
+        <div className="absolute inset-0 flex items-center justify-center w-32 h-32">
           {[1, 2, 3].map((i) => (
             <div
               key={i}
               className={cn(
                 "absolute rounded-full border opacity-0 animate-nicepod-pulse",
-                isRescueLocation
-                  ? "border-zinc-500/30 bg-zinc-500/5" // Estado: Sincronizando
-                  : isResonating
-                    ? "border-emerald-500/60 bg-emerald-500/10" // Estado: Enlace Activo
-                    : "border-primary/50 bg-primary/5" // Estado: Localizado
+                statusColorClass === "zinc" && "border-zinc-500/30 bg-zinc-500/5",
+                statusColorClass === "emerald" && "border-emerald-500/60 bg-emerald-500/10",
+                statusColorClass === "primary" && "border-primary/50 bg-primary/5"
               )}
               style={{
                 width: '100%',
@@ -66,63 +89,85 @@ const UserLocationMarkerComponent = ({ location, isResonating }: UserLocationMar
         </div>
 
         {/* 
-            II. NÚCLEO FÍSICO DEL VOYAGER 
-            Punto de anclaje de alta visibilidad con brillo perimetral.
+            III. NÚCLEO FÍSICO (EL ÁTOMO VOYAGER) 
         */}
         <div className="relative z-10 flex items-center justify-center">
-          {/* Aura de profundidad para evitar que se pierda con el satélite */}
+          {/* Aura de brillo para contraste con texturas satelitales */}
           <div className={cn(
-            "absolute inset-0 blur-xl rounded-full animate-pulse duration-[3000ms]",
-            isRescueLocation ? "bg-zinc-500/40" : "bg-primary/40"
+            "absolute inset-0 blur-xl rounded-full animate-pulse duration-[4000ms]",
+            statusColorClass === "zinc" && "bg-zinc-500/30",
+            statusColorClass === "emerald" && "bg-emerald-500/40",
+            statusColorClass === "primary" && "bg-primary/40"
           )} />
 
-          {/* El átomo central con indicador de pulso vivo */}
+          {/* El núcleo sólido */}
           <div className={cn(
-            "h-7 w-7 bg-white rounded-full border-[4px] shadow-[0_0_25px_rgba(0,0,0,0.5)] flex items-center justify-center transition-colors duration-1000",
-            isRescueLocation ? "border-zinc-500" : "border-primary"
+            "h-7 w-7 bg-white rounded-full border-[4px] shadow-[0_0_30px_rgba(0,0,0,0.6)] flex items-center justify-center transition-colors duration-700",
+            statusColorClass === "zinc" && "border-zinc-500",
+            statusColorClass === "emerald" && "border-emerald-500",
+            statusColorClass === "primary" && "border-primary"
           )}>
+            {/* Ping de vida interno */}
             <div className={cn(
               "h-2 w-2 rounded-full animate-ping",
-              isRescueLocation ? "bg-zinc-400" : "bg-primary"
+              statusColorClass === "zinc" && "bg-zinc-400",
+              statusColorClass === "emerald" && "bg-emerald-400",
+              statusColorClass === "primary" && "bg-primary"
             )} />
           </div>
         </div>
 
         {/* 
-            III. PUNTERO DE DIRECCIÓN (HEADING)
-            Solo se muestra si el hardware reporta una brújula válida.
+            IV. PUNTERO DE DIRECCIÓN (THE COMPASS CONE)
+            Sincronizado con el giroscopio mediante Framer Motion para suavidad.
         */}
         {location.heading !== null && (
           <motion.div
             initial={false}
             animate={{ rotate: location.heading }}
-            transition={{ type: "spring", stiffness: 120, damping: 20 }}
+            transition={{ type: "spring", stiffness: 120, damping: 25 }}
             className={cn(
-              "absolute -top-10 filter drop-shadow-[0_0_10px_rgba(0,0,0,0.8)]",
-              isRescueLocation ? "text-zinc-500" : "text-primary"
+              "absolute -top-10 filter drop-shadow-[0_0_12px_rgba(0,0,0,0.9)]",
+              statusColorClass === "zinc" && "text-zinc-500",
+              statusColorClass === "emerald" && "text-emerald-400",
+              statusColorClass === "primary" && "text-primary"
             )}
           >
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-              <path d="M9 0L17 14H1L9 0Z" fill="currentColor" />
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M10 0L19 15H1L10 0Z" fill="currentColor" />
             </svg>
           </motion.div>
         )}
 
-        {/* INDICADOR TÉCNICO DE RESCATE (Solo visible si el GPS falla) */}
-        {isRescueLocation && (
-          <div className="absolute -bottom-10 whitespace-nowrap">
-            <span className="text-[7px] font-black uppercase tracking-[0.4em] text-zinc-500 bg-black/50 px-2 py-1 rounded-full backdrop-blur-md border border-white/5">
-              Sincronizando Satélites...
-            </span>
-          </div>
-        )}
+        {/* 
+            V. INDICADOR DE ESTADO (TECHNICAL OVERLAY)
+            Solo visible en fases de baja precisión o rescate.
+        */}
+        <AnimatePresence>
+          {isRescue && (
+            <motion.div 
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="absolute -bottom-12 whitespace-nowrap z-50"
+            >
+              <div className="bg-black/80 backdrop-blur-xl px-3 py-1.5 rounded-full border border-white/10 shadow-2xl flex items-center gap-2">
+                <div className="h-1.5 w-1.5 rounded-full bg-zinc-500 animate-pulse" />
+                <span className="text-[7px] font-black uppercase tracking-[0.3em] text-zinc-300">
+                  Estimando Malla por IP...
+                </span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
       </div>
     </Marker>
   );
 };
 
 /**
- * [BUILD SHIELD]: Memoización de Alta Fidelidad.
+ * [BUILD SHIELD]: Memoización de Alta Fidelidad
  */
 export const UserLocationMarker = memo(UserLocationMarkerComponent, (prev, next) => {
   return (
@@ -135,12 +180,13 @@ export const UserLocationMarker = memo(UserLocationMarkerComponent, (prev, next)
 });
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V2.1):
- * 1. Materialización Forzada: Si el GPS real falla, el componente recibe la 
- *    coordenada de rescate y muestra un avatar en gris ("Sincronizando") para 
- *    que el usuario no vea el mapa vacío.
- * 2. Z-Index Absoluto: El marcador se eleva a z-9999 para evitar que los edificios 
- *    3D de obsidiana ocluyan la posición del usuario.
- * 3. Feedback Aeroespacial: Se incrementó el tamaño del puntero y se añadió un 
- *    aura de profundidad ('blur-xl') para garantizar la visibilidad sobre texturas fotorrealistas.
+ * NOTA TÉCNICA DEL ARCHITECT (V2.2):
+ * 1. Accuracy Aura: Se implementó un círculo de incertidumbre que reacciona a la
+ *    precisión métrica del GPS, proporcionando feedback honesto al Voyager.
+ * 2. Z-Index Absoluto: El marcador opera en z-9999 para garantizar que nunca sea
+ *    clipeado por las extrusiones 3D de los edificios de cristal de Madrid.
+ * 3. Hot-Swap Visual: El componente maneja tres estados de color (Zinc, Primary, Emerald)
+ *    para informar sobre la calidad del enlace y el estado de sintonía en tiempo real.
+ * 4. Inmersión Pokémon GO: pitchAlignment="map" asegura que los anillos de resonancia
+ *    se proyecten de forma plana sobre la superficie terrestre del motor Mapbox.
  */
