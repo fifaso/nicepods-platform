@@ -1,7 +1,7 @@
 // types/geo-sovereignty.ts
-// VERSIÓN: 4.0 (NicePod V2.6 - Permission Shield Edition)
+// VERSIÓN: 4.1 (NicePod V2.7 - Persistent Mesh Contract Edition)
 // Misión: Centralizar el contrato de identidad de los activos físicos y la lógica del motor geoespacial.
-// [ESTABILIZACIÓN]: Inyección del estado 'PERMISSION_DENIED' para manejar bloqueos de hardware en el SO.
+// [ESTABILIZACIÓN]: Inyección de facultades de persistencia para el Hot-Swap de mapas y resolución de ts(2339).
 
 /**
  * ---------------------------------------------------------------------------
@@ -57,16 +57,15 @@ export type POILifecycle =
   | 'analyzed'  // Procesado por Gemini Vision.
   | 'narrated'  // Crónica redactada por Agente 42.
   | 'published' // Activo en la Malla de Madrid.
-  | 'archived';  // Retirado de la vista pública.
+  | 'archived'; // Retirado de la vista pública.
 
 /**
  * GeoEngineState: Estados operativos del motor sensorial y narrativo.
- * [FIX V4.0]: Se añade PERMISSION_DENIED para habilitar el 'Permission Shield'.
  */
 export type GeoEngineState =
   | 'IDLE'               // Reposo.
   | 'SENSORS_READY'      // Hardware (GPS) vinculado y triangularizando.
-  | 'PERMISSION_DENIED'  // [NUEVO]: El SO o el Navegador bloqueó el acceso al GPS.
+  | 'PERMISSION_DENIED'  // El SO o el Navegador bloqueó el acceso al GPS.
   | 'INGESTING'          // Transfiriendo binarios comprimidos.
   | 'DOSSIER_READY'      // Datos físicos validados y analizados.
   | 'SYNTHESIZING'       // Forja del Agente 42 en curso.
@@ -89,7 +88,7 @@ export interface PointOfInterest {
   author_id: string;
   name: string;
   category_id: string;
-  geo_location: GeoPoint; // Tipado estricto vs unknown
+  geo_location: GeoPoint; // Tipado estricto para SpatialEngine
   resonance_radius: number;
   importance_score: number;
   historical_fact: string | null;
@@ -151,16 +150,23 @@ export interface GeoContextData {
 
 /**
  * GeoEngineReturn: La firma pública que el hook useGeoEngine entrega a la UI.
+ * [FIX V2.7]: Inyección de 'isTriangulated' y 'setTriangulated' para habilitar Hot-Swap.
  */
 export interface GeoEngineReturn {
   status: GeoEngineState;
   data: GeoContextData;
   userLocation: UserLocation | null;
   activePOI: ActivePOI | null;
-  nearbyPOIs: PointOfInterest[]; // Saneamiento de tipos
+  nearbyPOIs: PointOfInterest[];
   isSearching: boolean;
   isLocked: boolean;
   error: string | null;
+
+  // --- FACULTADES DE PERSISTENCIA (V2.7) ---
+  /** isTriangulated: Indica si el 'salto inicial' ya ocurrió en la sesión. */
+  isTriangulated: boolean;
+  /** setTriangulated: Sella el estado de localización para toda la Workstation. */
+  setTriangulated: () => void;
 
   // Métodos de Control
   initSensors: () => void;
@@ -232,9 +238,11 @@ export interface POICategory {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V4.0):
- * 1. Build Shield Activo: Al tipar estrictamente 'nearbyPOIs' y 'geo_location', 
- *    el compilador evitará que el 'SpatialEngine' intente renderizar nodos corruptos.
- * 2. Trazabilidad de Permisos: La inclusión de 'PERMISSION_DENIED' en el ciclo 
- *    de vida permite aislar fallos de hardware de fallos humanos (privacidad).
+ * NOTA TÉCNICA DEL ARCHITECT (V4.1):
+ * 1. Restauración de Sincronía: La adición de 'isTriangulated' y 'setTriangulated' 
+ *    elimina los errores ts(2339) y ts(2353) en los archivos consumidores.
+ * 2. Build Shield Reforzado: El tipado estricto de 'nearbyPOIs' y 'geo_location' 
+ *    garantiza que el SpatialEngine opere sobre datos con estructura PostGIS válida.
+ * 3. Hot-Swap Ready: La interfaz ahora soporta oficialmente el estado persistente 
+ *    necesario para la carga veloz del mapa en el Dashboard e Inmersión.
  */

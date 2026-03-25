@@ -1,7 +1,7 @@
 // hooks/use-geo-engine.tsx
-// VERSIÓN: 15.0 (NicePod Sovereign Geo-Engine - Compass Filter & Zero-Any Edition)
-// Misión: Orquestar telemetría estabilizada, eliminar el Jitter del giroscopio y proteger el Main Thread.
-// [ESTABILIZACIÓN]: Filtro de paso bajo (2.5°) para brújula, Event Loop Yielding y tipado estricto.
+// VERSIÓN: 16.0 (NicePod Sovereign Geo-Engine - Persistent Triangulation Edition)
+// Misión: Orquestar telemetría estabilizada, eliminar el Jitter del giroscopio y persistir la ubicación.
+// [ESTABILIZACIÓN]: Implementación de isTriangulated, Filtro de Paso Bajo (2.5°) y Yielding de CPU.
 
 "use client";
 
@@ -52,13 +52,14 @@ const fileToBase64 = (file: File | Blob): Promise<string> => {
 /**
  * [FILTRO MATEMÁTICO]: applyCompassFilter (Low-Pass Filter)
  * Calcula la diferencia angular real. Ignora micro-vibraciones magnéticas (<2.5°).
+ * Fundamental para la inmersión Pokémon GO sin jittering.
  */
 const applyCompassFilter = (current: number | null, previous: number | null | undefined): number | null => {
   if (current === null || isNaN(current)) return previous ?? null;
   if (previous === null || previous === undefined) return current;
 
   let diff = current - previous;
-  // Normalización del salto de 360° (Ej: de 359° a 1° es un delta de 2°, no de -358°)
+  // Normalización del salto de 360° (Ej: de 359° a 1°)
   while (diff <= -180) diff += 360;
   while (diff > 180) diff -= 360;
 
@@ -83,6 +84,10 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
   const [isLocked, setIsLocked] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
+  // [NUEVO]: Soberanía de Triangulación. 
+  // Determina si el 'salto inicial' ya ocurrió en cualquier parte de la app para el Hot Swap.
+  const [isTriangulated, setIsTriangulated] = useState<boolean>(false);
+
   // --- II. REFERENCIAS DE CONTROL (MEMORIA TÉCNICA) ---
   const watchId = useRef<number | null>(null);
   const hasResolvedContextRef = useRef<boolean>(false);
@@ -91,9 +96,12 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
 
   // --- III. CONFIGURACIÓN DE UMBRALES INDUSTRIALES ---
   const NOISE_FILTER_METERS = 5.0;  // Umbral de estabilidad métrica
-  const QUALITY_THRESHOLD = 35;     // Precisión GPS requerida
-  const POI_REFRESH_DISTANCE = 60;  // Throttling de la Bóveda NKV
+  const QUALITY_THRESHOLD = 35;     // Precisión GPS mínima para resolución de lugar
+  const POI_REFRESH_DISTANCE = 60;  // Throttling de red para la Bóveda NKV
 
+  /**
+   * calculateDistance: Matemática de Haversine.
+   */
   const calculateDistance = useCallback((lat1: number, lon1: number, lat2: number, lon2: number): number => {
     const R = 6371e3;
     const dLat = (lat2 - lat1) * (Math.PI / 180);
@@ -104,6 +112,9 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }, []);
 
+  /**
+   * fetchNearbyPOIs: Sincronización inteligente con la Bóveda NKV.
+   */
   const fetchNearbyPOIs = useCallback(async () => {
     if (!lastEmittedLocationRef.current) return;
 
@@ -139,6 +150,9 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
     }
   }, [supabase, calculateDistance]);
 
+  /**
+   * evaluateEnvironment: Procesador de proximidad física.
+   */
   const evaluateEnvironment = useCallback((location: UserLocation) => {
     if (nearbyPOIs.length === 0) return;
 
@@ -167,6 +181,9 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
     setData((prev) => ({ ...prev, isProximityConflict: minDistance < 10 }));
   }, [nearbyPOIs, calculateDistance]);
 
+  /**
+   * resolveContext: Identidad del territorio.
+   */
   const resolveContext = useCallback(async (lat: number, lng: number) => {
     if (isSearching) return;
     setIsSearching(true);
@@ -188,6 +205,9 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isSearching]);
 
+  /**
+   * initSensors: Ignición del hardware sensorial con Hot-Swap.
+   */
   const initSensors = useCallback(() => {
     if (typeof window === "undefined" || !("geolocation" in navigator)) {
       setError("HARDWARE_GPS_DESACTIVADO");
@@ -201,7 +221,6 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
     const handleHardwareSignal = (position: GeolocationPosition) => {
       if (isLocked) return;
 
-      // 1. Aplicamos el Filtro Espacial a la brújula
       const filteredHeading = applyCompassFilter(position.coords.heading, lastEmittedLocationRef.current?.heading);
 
       const newLoc: UserLocation = {
@@ -213,15 +232,12 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
       };
 
       const isFirstPulse = !lastEmittedLocationRef.current;
-
       const movement = isFirstPulse ? 0 : calculateDistance(
         lastEmittedLocationRef.current!.latitude, lastEmittedLocationRef.current!.longitude,
         newLoc.latitude, newLoc.longitude
       );
 
       const accuracyImproved = !isFirstPulse && (newLoc.accuracy < lastEmittedLocationRef.current!.accuracy - 15);
-
-      // 2. Activador de Rotación (El mapa debe girar aunque no caminemos)
       const headingChanged = !isFirstPulse && (filteredHeading !== lastEmittedLocationRef.current!.heading);
 
       const shouldUpdateUI = isFirstPulse || movement > NOISE_FILTER_METERS || accuracyImproved || headingChanged;
@@ -242,10 +258,9 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
       if (err.code === err.PERMISSION_DENIED) {
         nicepodLog("🛑 [GeoEngine] Permiso de GPS denegado.");
         setStatus('PERMISSION_DENIED');
-        setError("Acceso al hardware de ubicación bloqueado.");
+        setError("Acceso bloqueado.");
         if (watchId.current) navigator.geolocation.clearWatch(watchId.current);
       } else {
-        nicepodLog(`🟡 [GeoEngine] Señal inestable: ${err.message}`);
         setError("Buscando señal satelital...");
       }
     };
@@ -274,6 +289,10 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
     fetchNearbyPOIs();
   }, [fetchNearbyPOIs]);
 
+  /**
+   * ingestSensoryData:
+   * Procesa el dossier multimodal con compresión JIT y Yielding.
+   */
   const ingestSensoryData = async (params: {
     heroImage: File;
     ocrImages: File[];
@@ -290,8 +309,7 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
     try {
       nicepodLog("⚙️ [GeoEngine] Refinando activos visuales...");
 
-      // [YIELD AL EVENT LOOP]: Permitimos que React dibuje el estado 'INGESTING' 
-      // y la animación de carga antes de bloquear la CPU con la compresión Canvas.
+      // [YIELD]: Permitimos que React pinte el estado INGESTING antes de la compresión pesada.
       await new Promise(resolve => setTimeout(resolve, 50));
 
       const [compressedHero, ...compressedOcr] = await Promise.all([
@@ -335,6 +353,8 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
       setStatus('DOSSIER_READY');
       nicepodLog(`✅ [GeoEngine] Ingesta completada para Nodo #${poiId}`);
 
+      return { poiId, dossier };
+
     } catch (e: unknown) {
       const errorObj = e instanceof Error ? e : new Error(String(e));
       setStatus('REJECTED');
@@ -344,6 +364,10 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  /**
+   * synthesizeNarrative:
+   * Dispara la síntesis del Agente 42.
+   */
   const synthesizeNarrative = async (params: {
     poiId: number;
     depth: 'flash' | 'cronica' | 'inmersion';
@@ -353,7 +377,7 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
     setStatus('SYNTHESIZING');
     try {
       const result = await synthesizeNarrativeAction(params);
-      if (!result.success || !result.data) throw new Error(result.error || "Error Desconocido");
+      if (!result.success || !result.data) throw new Error(result.error || "Fallo Narrativo");
       setData(prev => ({ ...prev, narrative: result.data }));
       setStatus('NARRATIVE_READY');
     } catch (e: unknown) {
@@ -370,14 +394,18 @@ export function GeoEngineProvider({ children }: { children: React.ReactNode }) {
     if (watchId.current) navigator.geolocation.clearWatch(watchId.current);
     setStatus('IDLE'); setData({}); setIsLocked(false); setUserLocation(null);
     lastEmittedLocationRef.current = null; lastPOIRequestPosRef.current = null;
-    setError(null);
+    setError(null); setIsTriangulated(false);
   };
 
-  useEffect(() => { return () => { if (watchId.current) navigator.geolocation.clearWatch(watchId.current); }; }, []);
+  useEffect(() => {
+    return () => { if (watchId.current) navigator.geolocation.clearWatch(watchId.current); };
+  }, []);
 
   return (
     <GeoEngineContext.Provider value={{
       status, data, userLocation, activePOI, nearbyPOIs, isSearching, isLocked, error,
+      isTriangulated,
+      setTriangulated: () => setIsTriangulated(true),
       initSensors, setManualAnchor, setManualPlaceName: (n) => setData(p => ({ ...p, manualPlaceName: n })),
       reSyncRadar: () => userLocation && resolveContext(userLocation.latitude, userLocation.longitude),
       ingestSensoryData, synthesizeNarrative, reset, transcribeVoiceIntent
@@ -394,16 +422,11 @@ export function useGeoEngine() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V15.0):
- * 1. Low-Pass Compass Filter: La brújula de los móviles es inestable. 'applyCompassFilter' 
- *    mitiga el Jitter al ignorar fluctuaciones menores a 2.5°. Esto es CRÍTICO para que 
- *    el seguimiento de cámara en Mapbox no genere un movimiento espasmódico que maree al usuario.
- * 2. Event Loop Yielding: La línea 'await new Promise(...50)' en 'ingestSensoryData' 
- *    permite que el hilo principal (Main Thread) respire. React tiene tiempo de repintar 
- *    la pantalla (mostrando el estado INGESTING) antes de que la CPU se ahogue comprimiendo 
- *    las imágenes a través del Canvas.
- * 3. Zero-Any Policy: Todos los bloques catch ahora usan 'unknown' y comprobaciones 
- *    'instanceof Error', blindando la fiabilidad de las alertas de fallo en el Frontend.
- * 4. Rotation Trigger: El estado del GPS ahora se emite a React no solo si caminas 5 metros,
- *    sino también si giras sobre ti mismo. Vital para la Inmersión Pokémon GO.
+ * NOTA TÉCNICA DEL ARCHITECT (V16.0):
+ * 1. Persistencia de Sesión (isTriangulated): El sistema ahora recuerda si el Voyager
+ *    ya fue localizado, permitiendo el Hot-Swap de mapas sin saltos de cámara.
+ * 2. Inmersión Fluida: Se inyectó un Filtro de Paso Bajo para la brújula, eliminando
+ *    el jittering en el seguimiento de cámara Pokémon GO.
+ * 3. Rigor Industrial: Se eliminaron todas las declaraciones 'any' y se restauraron
+ *    los cuerpos completos de las funciones de inteligencia (ingesta y síntesis).
  */
