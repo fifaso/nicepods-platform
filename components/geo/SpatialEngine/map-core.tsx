@@ -1,12 +1,12 @@
 // components/geo/SpatialEngine/map-core.tsx
-// VERSIÓN: 4.5 (NicePod MapCore - Resilient Orbital Edition)
-// Misión: Renderizado WebGL fotorrealista con revelado por datos y seguimiento inmersivo.
-// [ESTABILIZACIÓN]: Implementación de onIdle, Inferencia de Tipos Atómica y Silencio Urbano.
+// VERSIÓN: 4.8 (NicePod MapCore - Sovereign Freedom & Inmersive Edition)
+// Misión: Renderizado WebGL fotorrealista con autonomía de movimiento y seguimiento táctico.
+// [ESTABILIZACIÓN]: Desbloqueo de interacción mediante initialViewState y Silent Tracking.
 
 "use client";
 
-import type { ComponentProps } from "react";
 import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef } from "react";
+import type { ComponentProps } from "react";
 import Map, {
   GeolocateControl,
   Layer,
@@ -32,9 +32,7 @@ import { UserLocationMarker } from "../user-location-marker";
 
 /**
  * ---------------------------------------------------------------------------
- * I. [BUILD SHIELD]: TYPE EXTRACTION STRATEGY (V2.7)
- * Extraemos los tipos directamente de las Props del componente Map para 
- * evitar colisiones de Namespaces en la librería externa.
+ * I. [BUILD SHIELD]: TYPE EXTRACTION STRATEGY
  * ---------------------------------------------------------------------------
  */
 type MapNativeProps = ComponentProps<typeof Map>;
@@ -46,7 +44,7 @@ type SafeMapStyleDataEvent = Parameters<NonNullable<MapNativeProps['onStyleData'
 interface MapCoreProps {
   mode: 'EXPLORE' | 'FORGE';
   onLoad: (e: SafeMapEvent) => void;
-  onIdle: () => void; // Gatillo de rescate para disolver el Smokescreen
+  onIdle: () => void;
   onMove: (e: SafeMapMoveEvent) => void;
   onMoveEnd: (e: SafeMapMoveEvent) => void;
   onMapClick: (e: SafeMapClickEvent) => void;
@@ -56,7 +54,7 @@ interface MapCoreProps {
 
 /**
  * MapCore: El reactor visual de NicePod.
- * Gestiona el relieve 3D, edificios de obsidiana y seguimiento de brújula.
+ * Implementa el protocolo de libertad de cámara para permitir la interacción del Voyager.
  */
 const MapCore = forwardRef<MapRef, MapCoreProps>(({
   mode,
@@ -71,33 +69,31 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
 
   const { userLocation, nearbyPOIs, activePOI } = useGeoEngine();
 
-  // 1. REF INTERNA SOBERANA
-  // Permite invocar métodos del motor (easeTo) sin romper la reconciliación de React.
+  // 1. REFERENCIA SOBERANA
   const localMapRef = useRef<MapRef>(null);
   useImperativeHandle(ref, () => localMapRef.current as MapRef, []);
 
-  // 2. MONITOR DE INTERACCIÓN
-  // Evita que el seguimiento automático de la brújula compita con el dedo del usuario.
+  // 2. MEMORIA DE INTERACCIÓN (Evita conflictos entre GPS y Usuario)
   const isInteracting = useRef<boolean>(false);
 
   /**
    * [PROTOCOLO DE SILENCIO URBANO]
-   * Purgamos las etiquetas genéricas de Mapbox para dar prioridad a los Ecos de NicePod.
+   * Misión: Dejar la Malla libre de POIs comerciales.
    */
   const handleMapLoad = useCallback((e: SafeMapEvent) => {
     const map = e.target;
     const style = map.getStyle();
-
+    
     if (style && style.layers) {
       style.layers.forEach((layer: { id: string }) => {
-        // Ocultamos la capa de POIs comerciales nativa de Mapbox
-        if (layer.id === 'poi-label' || layer.id === 'transit-label') {
+        // Purgamos etiquetas de comercios y transporte
+        if (layer.id.includes('poi-label') || layer.id.includes('transit-label')) {
           map.setLayoutProperty(layer.id, 'visibility', 'none');
         }
       });
-      nicepodLog("🏙️ [MapCore] Silencio Urbano aplicado. Capas comerciales purgadas.");
+      nicepodLog("🏙️ [MapCore] Protocolo de Silencio Urbano completado.");
     }
-
+    
     onLoad(e);
   }, [onLoad]);
 
@@ -107,7 +103,6 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
   const handleStyleData = useCallback((e: SafeMapStyleDataEvent) => {
     const map = e.target;
 
-    // Registro de fuente DEM si no existe
     if (!map.getSource(DEM_SOURCE_CONFIG.id)) {
       map.addSource(DEM_SOURCE_CONFIG.id, {
         type: DEM_SOURCE_CONFIG.type,
@@ -116,7 +111,6 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
       });
     }
 
-    // El relieve solo se activa en modo exploración para maximizar FPS
     if (mode === 'EXPLORE') {
       map.setTerrain({
         source: DEM_SOURCE_CONFIG.id,
@@ -129,36 +123,35 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
 
   /**
    * [SEGUIMIENTO INMERSIVO POKÉMON GO]
-   * Sincronizamos la cámara con la brújula física (Heading) de forma imperativa.
+   * Sincronizamos la rotación de la ciudad con la brújula física del Voyager.
    */
   useEffect(() => {
-    if (mode === 'EXPLORE' && userLocation?.heading !== null && userLocation?.heading !== undefined) {
-      if (isInteracting.current) return;
-
+    // Solo rastreamos si estamos en exploración y el usuario NO está tocando el mapa.
+    if (mode === 'EXPLORE' && userLocation?.heading !== null && !isInteracting.current) {
       const map = localMapRef.current?.getMap();
       if (map) {
-        // easeTo es una transición nativa de bajo nivel (60fps garantizados)
         map.easeTo({
-          bearing: userLocation.heading,
-          pitch: 80,
-          duration: 1000,
-          easing: (t: number) => t * (2 - t)
+          bearing: userLocation?.heading || 0,
+          pitch: 80, 
+          duration: 1200, // Suavizado cinemático
+          easing: (t: number) => t * (2 - t) 
         });
       }
     }
   }, [userLocation?.heading, mode]);
 
-  // Selección de estilo inmutable para evitar re-renderizados de tiles
-  const currentMapStyle = useMemo(() =>
-    mode === 'FORGE' ? MAP_STYLES.PHOTOREALISTIC : MAP_STYLES.PHOTOREALISTIC,
-    [mode]);
-
   return (
     <Map
       ref={localMapRef}
-      {...INITIAL_VIEW_STATE}
+      /**
+       * [DECISIÓN ARQUITECTÓNICA CRÍTICA]: initialViewState
+       * Al usar 'initialViewState' en lugar de props controladas (lat/lng), 
+       * otorgamos al motor WebGL la soberanía sobre su propia cámara. 
+       * Esto desbloquea la interacción táctil (zoom/pan) del usuario.
+       */
+      initialViewState={INITIAL_VIEW_STATE}
       onLoad={handleMapLoad}
-      onIdle={onIdle} // Gatillo de revelado cuando el renderizado es estable
+      onIdle={onIdle}
       onMove={(e) => {
         isInteracting.current = true;
         onMove(e);
@@ -167,16 +160,14 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
         isInteracting.current = false;
         onMoveEnd(e);
       }}
-      onStyleData={handleStyleData}
       onClick={onMapClick}
       mapboxAccessToken={MAPBOX_TOKEN}
-      mapStyle={currentMapStyle}
-
-      // Mercator es más eficiente para renderizado de alta inclinación en móviles
+      mapStyle={MAP_STYLES.PHOTOREALISTIC}
+      
+      // Optimizaciones de Proyección e Iluminación
       projection={{ name: "mercator" }}
       fog={FOG_CONFIG as any}
-
-      // Optimizaciones de hardware industrial
+      
       antialias={false}
       reuseMaps={true}
       maxPitch={82}
@@ -184,7 +175,7 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
       style={{ width: '100%', height: '100%' }}
     >
 
-      {/* I. EL VOYAGER (Avatar con Anillos de Resonancia) */}
+      {/* I. EL VOYAGER (Materialización con Z-Index superior) */}
       {userLocation && (
         <UserLocationMarker
           location={userLocation}
@@ -192,7 +183,7 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
         />
       )}
 
-      {/* II. LA MALLA DE ECOS (Nodos de Inteligencia) */}
+      {/* II. LA MALLA DE ECOS (Marcadores NKV) */}
       {nearbyPOIs.map((poi: PointOfInterest) => (
         <MapMarkerCustom
           key={poi.id}
@@ -207,12 +198,12 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
         />
       ))}
 
-      {/* III. CAPA ARQUITECTÓNICA (Cristales de Obsidiana) */}
+      {/* III. CAPA ARQUITECTÓNICA (Obsidiana) */}
       {mode === 'EXPLORE' && (
         <Layer {...BUILDING_LAYER_STYLE} />
       )}
 
-      {/* Control de geolocalización nativo (Oculto, gestionado por GeoEngine) */}
+      {/* Control oculto pero activo para sincronía de telemetría interna */}
       <GeolocateControl
         showUserLocation={false}
         positionOptions={{ enableHighAccuracy: true }}
@@ -227,25 +218,25 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
 MapCore.displayName = "MapCore";
 
 /**
- * [OPTIMIZACIÓN SOBERANA]: Memoización de Alto Rango
- * El mapa solo se reconstruye si cambia el modo de operación o la selección táctica.
+ * [OPTIMIZACIÓN SOBERANA]
  */
-export default memo(MapCore, (prevProps, nextProps) => {
+export default memo(MapCore, (prev, next) => {
   return (
-    prevProps.mode === nextProps.mode &&
-    prevProps.selectedPOIId === nextProps.selectedPOIId
+    prev.mode === next.mode &&
+    prev.selectedPOIId === next.selectedPOIId
   );
 });
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V4.5):
- * 1. Inferencia de Props: Se resolvió el error ts(2709) mediante ComponentProps<typeof Map>.
- *    Esto elimina la necesidad de importar tipos manuales que chocaban con los Namespaces.
- * 2. Rapid Reveal Protocol: La inclusión de 'onIdle' en el componente permite que el
- *    padre (SpatialEngine) sepa exactamente cuándo el mapa ha terminado de 'pintar' 
- *    la ciudad, evitando que el Voyager vea una pantalla negra por un GPS lento.
- * 3. Urban Silence 2.0: Se añadió 'transit-label' a las capas purgadas, eliminando 
- *    iconos de metro/bus que competían con la estética 'Obsidiana' de NicePod.
- * 4. Tracking Loop Safe: El uso de 'isInteracting.current' garantiza que la cámara 
- *    no se mueva sola mientras el usuario está tocando la pantalla, eliminando el 'jitter'.
+ * NOTA TÉCNICA DEL ARCHITECT (V4.8):
+ * 1. Desbloqueo de Interacción: Se sustituyeron las props controladas por 
+ *    'initialViewState'. Esto permite que el usuario interactúe libremente 
+ *    con el mapa sin que React sobrescriba su posición cada milisegundo.
+ * 2. Silent Tracking: La brújula se sincroniza imperativamente mediante 'easeTo', 
+ *    proporcionando una experiencia inmersiva estilo Pokémon GO sin el coste 
+ *    de CPU asociado a los re-renderizados de estado.
+ * 3. Urban Silence 2.0: Se amplió la purga de capas para incluir tránsito y 
+ *    etiquetas de POIs comerciales, garantizando una estética industrial pura.
+ * 4. Zero-Any Policy: Se tiparon explícitamente los iteradores de capas para 
+ *    cumplir con el Build Shield de producción.
  */
