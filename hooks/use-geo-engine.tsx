@@ -1,7 +1,7 @@
 // hooks/use-geo-engine.tsx
-// VERSIÓN: 21.0 (NicePod Sovereign Geo-Engine - Ground-Up Materialization Edition)
-// Misión: Orquestar telemetría estabilizada, integrar Geo-IP y garantizar visibilidad T0.
-// [ESTABILIZACIÓN]: Captura agresiva, persistencia de sesión y Hot-Swap de malla IP/GPS.
+// VERSIÓN: 22.0 (NicePod Sovereign Geo-Engine - Precision Lock & Materialization Edition)
+// Misión: Orquestar telemetría estabilizada, integrar Geo-IP y garantizar el salto a ubicación real.
+// [ESTABILIZACIÓN]: Implementación de isGPSLock, Salto Forzado por Calidad y Persistencia T0.
 
 "use client";
 
@@ -33,7 +33,6 @@ const GeoEngineContext = createContext<GeoEngineReturn | undefined>(undefined);
 
 /**
  * INTERFAZ: GeoEngineProviderProps
- * Recibe la ubicación estimada (IP) capturada en el Edge de Vercel.
  */
 interface GeoEngineProviderProps {
   children: React.ReactNode;
@@ -62,9 +61,12 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [nearbyPOIs, setNearbyPOIs] = useState<PointOfInterest[]>([]);
   const [activePOI, setActivePOI] = useState<ActivePOI | null>(null);
-  const [isTriangulated, setIsTriangulated] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   
+  // [NUEVO V22.0]: Soberanía de Triangulación Progresiva
+  const [isTriangulated, setIsTriangulated] = useState<boolean>(false); // Alguna ubicación (IP/Caché/GPS)
+  const [isGPSLock, setIsGPSLock] = useState<boolean>(false);           // Ubicación real confirmada (<50m)
+
   // Memoria volátil de la Forja (IA & Ingesta)
   const [data, setData] = useState<GeoContextData>({});
   const [isSearching, setIsSearching] = useState<boolean>(false);
@@ -84,36 +86,48 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
 
   /**
    * updateTelemetry: Único punto de mutación del estado.
-   * Centraliza los cálculos de filtros para garantizar 60FPS en la visualización.
+   * Centraliza los filtros y detecta el paso de IP a GPS real.
    */
   const updateTelemetry = useCallback((newCoords: UserLocation) => {
     const isFirstFix = !lastPositionRef.current;
+    const isHighPrecision = newCoords.accuracy > 0 && newCoords.accuracy < 50;
     
-    // FILTRO ESPACIAL: Se desactiva en el primer pulso para materialización rápida.
+    // [LOGICA DE RESCATE V22.0]: 
+    // Si pasamos de una ubicación aproximada (IP) a una real (GPS Lock), 
+    // forzamos el salto ignorando los filtros de movimiento.
+    const justAchievedLock = isHighPrecision && !isGPSLock;
+
+    // Filtro Espacial (5 metros)
     const movement = isFirstFix ? 0 : calculateDistance(
       lastPositionRef.current!.latitude, lastPositionRef.current!.longitude,
       newCoords.latitude, newCoords.longitude
     );
 
-    // FILTRO DE BRÚJULA (3 grados): Suaviza el giro cinemático de la cámara.
+    // Filtro de Brújula (3 grados)
     const headingDelta = Math.abs((newCoords.heading || 0) - (lastHeadingRef.current || 0));
     const shouldRotate = newCoords.heading !== null && headingDelta > 3;
 
-    // PROTOCOLO DE ACTUALIZACIÓN SOBERANA
-    if (isFirstFix || movement > 5 || shouldRotate) {
+    // PROTOCOLO DE ACTUALIZACIÓN SOBERANA:
+    // Aceptamos el dato si: es el primero, es un GPS Lock nuevo, hubo movimiento real o rotación.
+    if (isFirstFix || justAchievedLock || movement > 5 || shouldRotate) {
       lastPositionRef.current = newCoords;
       if (newCoords.heading !== null) lastHeadingRef.current = newCoords.heading;
       
       setUserLocation(newCoords);
       setStatus('SENSORS_READY');
       
-      // Sello de Triangulación y Persistencia T0
+      // Persistencia en Caché y Estados de Misión
       if (!isTriangulated) {
         setIsTriangulated(true);
         localStorage.setItem('nicepod_last_fix', JSON.stringify(newCoords));
       }
+
+      if (isHighPrecision && !isGPSLock) {
+        nicepodLog("🔒 [GeoEngine] GPS Lock establecido. Precisión certificada.");
+        setIsGPSLock(true);
+      }
     }
-  }, [isTriangulated]);
+  }, [isTriangulated, isGPSLock]);
 
   // --- IV. PROTOCOLO DE IGNICIÓN (THE GPS HANDSHAKE) ---
 
@@ -123,35 +137,33 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
       return;
     }
 
-    // [CERROJO]: Protege el bus de datos de peticiones duplicadas.
     if (isHardwareIgnitedRef.current || isLocked) return;
     isHardwareIgnitedRef.current = true;
 
-    nicepodLog("📡 [GeoEngine] Iniciando secuencia de materialización...");
+    nicepodLog("📡 [GeoEngine] Iniciando materialización progresiva...");
 
     /**
-     * 1. MATERIALIZACIÓN T0 (FALLBACKS)
-     * Prioridad: IP Vercel > Caché Local > Coordenadas de Sol (Madrid)
+     * 1. FASE T0: MATERIALIZACIÓN POR IP/CACHÉ
      */
     if (initialData && !userLocation) {
-      nicepodLog("🌐 [GeoEngine] Voyager localizado por IP.");
+      nicepodLog("🌐 [GeoEngine] Voyager materializado por IP (Edge).");
       updateTelemetry({
         latitude: initialData.lat,
         longitude: initialData.lng,
-        accuracy: 5000,
+        accuracy: 5000, 
         heading: null,
         speed: null
       });
     } else {
       const cachedFix = localStorage.getItem('nicepod_last_fix');
       if (cachedFix && !userLocation) {
-        nicepodLog("💾 [GeoEngine] Restaurando última posición conocida.");
+        nicepodLog("💾 [GeoEngine] Restaurando última ubicación conocida.");
         updateTelemetry(JSON.parse(cachedFix));
       }
     }
 
     /**
-     * 2. CAPTURA DE ALTA FIDELIDAD (GPS STREAM)
+     * 2. FASE T+1: REFINAMIENTO POR HARDWARE GPS
      */
     const onHardwareSignal = (pos: GeolocationPosition) => {
       updateTelemetry({
@@ -167,9 +179,9 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
       isHardwareIgnitedRef.current = false;
       if (err.code === 1) {
         setStatus('PERMISSION_DENIED');
-        setError("Ubicación bloqueada por el usuario.");
+        setError("Ubicación bloqueada por privacidad.");
       } else {
-        nicepodLog("GPS_HARDWARE_FAIL", err.message, 'warn');
+        nicepodLog("GPS_STALL", err.message, 'warn');
       }
     };
 
@@ -197,9 +209,7 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
 
     try {
       nicepodLog("⚙️ [GeoEngine] Refinando evidencia visual...");
-      
-      // Yield al Event Loop para permitir feedback UX
-      await new Promise(r => setTimeout(r, 100));
+      await new Promise(r => setTimeout(r, 100)); // Yield
 
       const [compressedHero, ...compressedOcr] = await Promise.all([
         compressNicePodImage(params.heroImage, 2048, 0.85),
@@ -249,8 +259,7 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
 
       setData(prev => ({ ...prev, poiId, dossier }));
       setStatus('DOSSIER_READY');
-      nicepodLog(`✅ [GeoEngine] Ingesta Exitosa Nodo #${poiId}`);
-
+      nicepodLog(`✅ [GeoEngine] Ingesta Completada Nodo #${poiId}`);
       return { poiId, dossier };
 
     } catch (e: unknown) {
@@ -292,9 +301,9 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
     lastPositionRef.current = null;
     setError(null);
     setIsTriangulated(false);
+    setIsGPSLock(false);
   };
 
-  // --- VI. LIMPIEZA ATÓMICA ---
   useEffect(() => {
     return () => {
       if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
@@ -303,9 +312,11 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
 
   return (
     <GeoEngineContext.Provider value={{
-      status, userLocation, nearbyPOIs, activePOI, isTriangulated, error, data, isSearching, isLocked,
-      initSensors,
+      status, userLocation, nearbyPOIs, activePOI, error, data, isSearching, isLocked,
+      isTriangulated,
+      isGPSLock, // [NUEVO V22.0]: Expuesto para el refinamiento de cámara
       setTriangulated: () => setIsTriangulated(true),
+      initSensors,
       setManualAnchor: (lng, lat) => updateTelemetry({ latitude: lat, longitude: lng, accuracy: 1, heading: null, speed: null }),
       reSyncRadar: () => userLocation && resolveLocationAction(userLocation.latitude, userLocation.longitude),
       ingestSensoryData,
@@ -326,13 +337,14 @@ export const useGeoEngine = () => {
 };
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V21.0):
- * 1. Materialización Geo-IP: El Voyager aparece en el mapa instantáneamente usando la IP 
- *    como paracaídas visual si el GPS físico está demorado.
- * 2. Cero Latencia de Hidratación: La sincronía con 'localStorage' permite que el avatar 
- *    persista entre recargas de página, eliminando el estado 'amnésico' del sistema.
- * 3. Cerrojo Singleton: Se ha resuelto definitivamente el conflicto de múltiples peticiones 
- *    al chip GPS, una causa común de bloqueos de hardware en Vercel Production.
- * 4. Rigor NCIS: Se han restaurado todos los cuerpos de función y se ha tipado cada 
- *    iterador para cumplir con el Build Shield de Next.js 14.
+ * NOTA TÉCNICA DEL ARCHITECT (V22.0):
+ * 1. Lógica de Autoridad Progresiva: Se introdujo 'isGPSLock' para diferenciar entre 
+ *    el paracaídas visual de IP y la verdad física del hardware.
+ * 2. Salto Forzado por Calidad: El sistema ahora ignora los filtros de estabilidad 
+ *    ante el primer dato de alta precisión (<50m), garantizando que el Voyager 
+ *    se posicione sobre su casa lo antes posible tras el nacimiento en la ciudad.
+ * 3. Materialización Determinista: La prioridad T0 (IP > Caché > GPS) asegura que 
+ *    el mapa nunca se muestre vacío ni centrado erróneamente en Sol.
+ * 4. Rigor NCIS: Implementación completa sin abreviaciones, protegiendo la 
+ *    integridad de la IA y el Pipeline de Ingesta.
  */
