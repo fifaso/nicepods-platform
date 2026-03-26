@@ -1,16 +1,17 @@
 // components/geo/user-location-marker.tsx
-// VERSIÓN: 2.2 (NicePod GO Avatar - Precision Feedback & Materialization Edition)
-// Misión: Representar al usuario en la malla con visualización dinámica de precisión.
-// [ESTABILIZACIÓN]: Implementación de Accuracy Aura, jerarquía de color por estado y Z-Shield.
+// VERSIÓN: 3.0 (NicePod GO Avatar - Liquid Motion & LERP Edition)
+// Misión: Representar al usuario en la malla con interpolación de movimiento físico.
+// [ESTABILIZACIÓN]: Implementación de requestAnimationFrame LERP para eliminar saltos de GPS.
 
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Marker } from "react-map-gl/mapbox";
+
 import { cn } from "@/lib/utils";
 import { UserLocation } from "@/types/geo-sovereignty";
-import { motion, AnimatePresence } from "framer-motion";
-import { memo } from "react";
-// [FIX VERCEL]: Enrutamiento explícito al motor Mapbox
-import { Marker } from "react-map-gl/mapbox";
+import { interpolateCoords, calculateDistance, KinematicPosition } from "@/lib/geo-kinematics";
 
 interface UserLocationMarkerProps {
   location: UserLocation;
@@ -19,19 +20,72 @@ interface UserLocationMarkerProps {
 
 const UserLocationMarkerComponent = ({ location, isResonating }: UserLocationMarkerProps) => {
 
-  // 1. PROTOCOLO DE MATERIALIZACIÓN OBLIGATORIA
-  // Si no hay coordenadas, el Voyager es un espectro. No renderizamos nada.
-  if (!location?.latitude || !location?.longitude) return null;
+  // 1. ESTADO CINEMÁTICO (Interpolación Local)
+  // [MANDATO V2.7]: El avatar no salta, se desliza. Guardamos la posición actual 
+  // independiente de la que nos envía el GPS para calcular el camino intermedio.
+  const [currentPos, setCurrentPos] = useState<KinematicPosition>({
+    latitude: location.latitude,
+    longitude: location.longitude
+  });
+
+  const animationFrameRef = useRef<number | null>(null);
+
+  /**
+   * 2. MOTOR DE DESLIZAMIENTO (LERP LOOP)
+   * Misión: Mover el avatar hacia la nueva coordenada del GPS píxel a píxel a 60fps.
+   */
+  useEffect(() => {
+    if (!location?.latitude || !location?.longitude) return;
+
+    const targetPos: KinematicPosition = {
+      latitude: location.latitude,
+      longitude: location.longitude
+    };
+
+    const dist = calculateDistance(currentPos, targetPos);
+
+    // [FAIL-SAFE]: Si el salto es masivo (>50m, ej: IP Fallback a GPS Lock),
+    // no caminamos; nos teletransportamos para no frustrar al Voyager.
+    if (dist > 50) {
+      setCurrentPos(targetPos);
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+      return;
+    }
+
+    // Si la distancia es insignificante, detenemos el motor de render para salvar CPU.
+    if (dist < 0.1) {
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+      return;
+    }
+
+    const animateMovement = () => {
+      setCurrentPos(prev => {
+        // Interpolamos hacia el target usando la matemática central de NicePod
+        const next = interpolateCoords(prev, targetPos);
+        return next;
+      });
+
+      animationFrameRef.current = requestAnimationFrame(animateMovement);
+    };
+
+    if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+    animationFrameRef.current = requestAnimationFrame(animateMovement);
+
+    return () => {
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.latitude, location.longitude]); // Dependemos solo del target físico
+
+  // 3. PROTOCOLO DE VISIBILIDAD OBLIGATORIA
+  if (!currentPos.latitude || !currentPos.longitude) return null;
 
   /**
    * EVALUACIÓN DE AUTORIDAD DEL DATO
-   * - isRescue: Señal degradada (Geo-IP o Celda). Accuracy > 500m.
-   * - isHighPrecision: Señal satelital óptima. Accuracy < 20m.
    */
   const accuracy = location.accuracy || 0;
   const isRescue = accuracy >= 500;
-  const isHighPrecision = accuracy > 0 && accuracy < 20;
-
+  
   // Selección de colorimetría industrial
   const statusColorClass = isRescue 
     ? "zinc" 
@@ -41,20 +95,21 @@ const UserLocationMarkerComponent = ({ location, isResonating }: UserLocationMar
 
   return (
     <Marker
-      latitude={location.latitude}
-      longitude={location.longitude}
+      latitude={currentPos.latitude}
+      longitude={currentPos.longitude}
       anchor="center"
-      // [MANDATO]: 'map' asegura que el avatar se acueste sobre el asfalto 3D
+      // pitchAlignment="map" acuesta los anillos en el suelo para inmersión 3D.
       pitchAlignment="map"
+      // rotationAlignment="map" vincula la orientación al norte del mapa.
       rotationAlignment="map"
       // Z-Shield: Elevación máxima para evitar ser tapado por edificios de obsidiana
       style={{ zIndex: 9999 }}
     >
-      <div className="relative flex items-center justify-center pointer-events-none">
+      <div className="relative flex items-center justify-center w-32 h-32 pointer-events-none">
 
         {/* 
             I. ACCURACY AURA (Círculo de Incertidumbre)
-            Representa visualmente la precisión del GPS. Se expande si la señal es pobre.
+            Representa visualmente la precisión del GPS.
         */}
         <div 
           className={cn(
@@ -67,7 +122,7 @@ const UserLocationMarkerComponent = ({ location, isResonating }: UserLocationMar
 
         {/* 
             II. ANILLOS DE RESONANCIA (GPU ACCELERATED) 
-            [MANDATO V2.7]: Uso de CSS keyframes para evitar lag en el Main Thread.
+            [MANDATO V2.7]: Uso de CSS keyframes puros.
         */}
         <div className="absolute inset-0 flex items-center justify-center w-32 h-32">
           {[1, 2, 3].map((i) => (
@@ -166,27 +221,18 @@ const UserLocationMarkerComponent = ({ location, isResonating }: UserLocationMar
   );
 };
 
-/**
- * [BUILD SHIELD]: Memoización de Alta Fidelidad
- */
-export const UserLocationMarker = memo(UserLocationMarkerComponent, (prev, next) => {
-  return (
-    prev.isResonating === next.isResonating &&
-    prev.location?.latitude === next.location?.latitude &&
-    prev.location?.longitude === next.location?.longitude &&
-    prev.location?.heading === next.location?.heading &&
-    prev.location?.accuracy === next.location?.accuracy
-  );
-});
+// Se elimina el uso de React.memo para permitir que el requestAnimationFrame 
+// interno repinte las coordenadas de interpolación sin ser bloqueado por React.
+export const UserLocationMarker = UserLocationMarkerComponent;
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V2.2):
- * 1. Accuracy Aura: Se implementó un círculo de incertidumbre que reacciona a la
- *    precisión métrica del GPS, proporcionando feedback honesto al Voyager.
- * 2. Z-Index Absoluto: El marcador opera en z-9999 para garantizar que nunca sea
- *    clipeado por las extrusiones 3D de los edificios de cristal de Madrid.
- * 3. Hot-Swap Visual: El componente maneja tres estados de color (Zinc, Primary, Emerald)
- *    para informar sobre la calidad del enlace y el estado de sintonía en tiempo real.
- * 4. Inmersión Pokémon GO: pitchAlignment="map" asegura que los anillos de resonancia
- *    se proyecten de forma plana sobre la superficie terrestre del motor Mapbox.
+ * NOTA TÉCNICA DEL ARCHITECT (V3.0):
+ * 1. Liquid Motion (LERP): El avatar ya no usa directamente las coordenadas del GPS, 
+ *    sino un estado interpolado ('currentPos'). Cuando el GPS envía un nuevo dato, 
+ *    el avatar 'camina' hacia ese dato frame a frame, eliminando el efecto 'teletransporte'.
+ * 2. Sincronía Cinemática: Al usar la misma matemática de interpolación que el 
+ *    'CameraController', el movimiento del mapa y el del usuario son idénticos, 
+ *    creando una ilusión de estabilidad perfecta en el centro de la pantalla.
+ * 3. Z-Index y Oclusión: El marcador se eleva a z-9999 para garantizar visibilidad 
+ *    incluso en ángulos extremos con el motor Mapbox Standard.
  */
