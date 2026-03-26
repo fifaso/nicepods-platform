@@ -1,21 +1,19 @@
 // components/geo/SpatialEngine/map-core.tsx
-// VERSIÓN: 5.0 (NicePod MapCore - Zero-Flicker & Dynamic Birth Edition)
-// Misión: Renderizado WebGL fotorrealista con nacimiento en ubicación real del Voyager.
-// [ESTABILIZACIÓN]: Implementación de initialViewState dinámico y Silent Urban Protocol.
+// VERSIÓN: 6.0 (NicePod MapCore - Mapbox Standard & PBR Lighting Edition)
+// Misión: Renderizado WebGL de alta fidelidad con iluminación global y modelos 3D avanzados.
+// [ESTABILIZACIÓN]: Migración a Mapbox Standard, Configuración de LightPreset 'night' y Zero-Flicker.
 
 "use client";
 
-import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef } from "react";
 import type { ComponentProps } from "react";
+import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef } from "react";
 import Map, {
   GeolocateControl,
-  Layer,
   MapRef
 } from 'react-map-gl/mapbox';
 
 // --- INFRAESTRUCTURA DE MALLA TÁCTICA ---
 import {
-  BUILDING_LAYER_STYLE,
   DEM_SOURCE_CONFIG,
   FOG_CONFIG,
   MAPBOX_TOKEN,
@@ -33,7 +31,7 @@ import { UserLocationMarker } from "../user-location-marker";
 /**
  * ---------------------------------------------------------------------------
  * I. [BUILD SHIELD]: TYPE EXTRACTION STRATEGY
- * Extraemos los contratos de eventos directamente para evitar colisiones.
+ * Extraemos dinámicamente los tipos para garantizar paridad con Mapbox GL JS v3.
  * ---------------------------------------------------------------------------
  */
 type MapNativeProps = ComponentProps<typeof Map>;
@@ -44,7 +42,7 @@ type SafeMapStyleDataEvent = Parameters<NonNullable<MapNativeProps['onStyleData'
 
 interface MapCoreProps {
   mode: 'EXPLORE' | 'FORGE';
-  /** startCoords: Ubicación de nacimiento (IP, Caché o GPS fresco). */
+  /** startCoords: Ubicación de nacimiento resuelta por el GeoEngine (V22.0). */
   startCoords: UserLocation;
   onLoad: (e: SafeMapEvent) => void;
   onIdle: () => void;
@@ -57,6 +55,7 @@ interface MapCoreProps {
 
 /**
  * MapCore: El reactor visual de NicePod.
+ * Implementa el motor Mapbox Standard con iluminación PBR dinámica.
  */
 const MapCore = forwardRef<MapRef, MapCoreProps>(({
   mode,
@@ -80,10 +79,8 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
   const isInteracting = useRef<boolean>(false);
 
   /**
-   * 3. GENERACIÓN DE SEMILLA DINÁMICA
-   * [MANDATO]: Este objeto se calcula solo UNA vez en el nacimiento del motor.
-   * Al recibir 'startCoords' (que ya ha sido resuelta por el GeoEngine), 
-   * garantizamos que el mapa no nazca en Sol si el usuario está en otro lugar.
+   * 3. GENERACIÓN DE SEMILLA DE NACIMIENTO
+   * Misión: El motor WebGL nace físicamente en la ubicación real del Voyager.
    */
   const initialMapState = useMemo(() => {
     return getInitialViewState(
@@ -93,27 +90,34 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
   }, [startCoords]);
 
   /**
-   * [PROTOCOLO DE SILENCIO URBANO]
-   * Purgamos etiquetas genéricas antes de revelar la malla.
+   * [PROTOCOLO MAPBOX STANDARD]:
+   * Misión: Configurar el motor de iluminación y purgar el ruido urbano.
    */
   const handleMapLoad = useCallback((e: SafeMapEvent) => {
     const map = e.target;
-    const style = map.getStyle();
-    
-    if (style && style.layers) {
-      style.layers.forEach((layer: { id: string }) => {
-        if (layer.id.includes('poi-label') || layer.id.includes('transit-label')) {
-          map.setLayoutProperty(layer.id, 'visibility', 'none');
-        }
-      });
-      nicepodLog("🏙️ [MapCore] Silencio Urbano aplicado satisfactoriamente.");
+
+    /**
+     * CONFIGURACIÓN DE ILUMINACIÓN GLOBAL (PBR)
+     * Cambiamos el preset a 'night' para obtener un aspecto premium industrial.
+     * @ts-ignore - Propiedades específicas del motor Standard v3
+     */
+    if (map.setConfigProperty) {
+      // Activa el modo nocturno con luces de ciudad y sombras ambientales
+      map.setConfigProperty('basemap', 'lightPreset', 'night');
+
+      // Implementa el 'Silencio Urbano' mediante la desactivación de etiquetas
+      map.setConfigProperty('basemap', 'showPointOfInterestLabels', false);
+      map.setConfigProperty('basemap', 'showTransitLabels', false);
+      map.setConfigProperty('basemap', 'showRoadLabels', true); // Mantenemos calles para orientación
+
+      nicepodLog("🏙️ [MapCore] Motor Standard configurado: Modo Noche + Silencio Urbano.");
     }
-    
+
     onLoad(e);
   }, [onLoad]);
 
   /**
-   * [PROTOCOLO DE INYECCIÓN DE RELIEVE 3D]
+   * [PROTOCOLO DE INYECCIÓN DE TERRENO]
    */
   const handleStyleData = useCallback((e: SafeMapStyleDataEvent) => {
     const map = e.target;
@@ -138,7 +142,7 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
 
   /**
    * [SEGUIMIENTO INMERSIVO POKÉMON GO]
-   * Sincronización imperativa de la brújula (Bearing).
+   * Sincronización imperativa de la cámara con la brújula del Voyager.
    */
   useEffect(() => {
     if (mode === 'EXPLORE' && userLocation?.heading !== null && !isInteracting.current) {
@@ -146,9 +150,9 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
       if (map) {
         map.easeTo({
           bearing: userLocation?.heading || 0,
-          pitch: 80, 
-          duration: 1200, 
-          easing: (t: number) => t * (2 - t) 
+          pitch: 80,
+          duration: 1200,
+          easing: (t: number) => t * (2 - t)
         });
       }
     }
@@ -158,13 +162,11 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
     <Map
       ref={localMapRef}
       /**
-       * [SOBERANÍA WEBGL]: Usamos initialViewState dinámico.
-       * Esto permite que el mapa nazca en la ubicación real sin ser un 
-       * componente controlado, desbloqueando la interacción del Voyager.
+       * [SOBERANÍA]: El mapa nace en la ubicación real/IP.
        */
       initialViewState={initialMapState}
       onLoad={handleMapLoad}
-      onIdle={onIdle} // Gatillo de revelado (Smokescreen Off)
+      onIdle={onIdle}
       onMove={(e) => {
         isInteracting.current = true;
         onMove(e);
@@ -175,12 +177,17 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
       }}
       onClick={onMapClick}
       mapboxAccessToken={MAPBOX_TOKEN}
-      mapStyle={MAP_STYLES.PHOTOREALISTIC}
-      
+
+      /**
+       * ESTILO STANDARD:
+       * Es obligatorio usar este estilo para habilitar la iluminación PBR.
+       */
+      mapStyle={MAP_STYLES.STANDARD}
+
       projection={{ name: "mercator" }}
       fog={FOG_CONFIG as any}
-      
-      // Optimizaciones de hardware móvil
+
+      // Rendimiento móvil industrial
       antialias={false}
       reuseMaps={true}
       maxPitch={82}
@@ -188,7 +195,7 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
       style={{ width: '100%', height: '100%' }}
     >
 
-      {/* I. EL VOYAGER (Materialización con Z-Index 9999) */}
+      {/* I. EL VOYAGER (Materialización Prioritaria) */}
       {userLocation && (
         <UserLocationMarker
           location={userLocation}
@@ -196,7 +203,7 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
         />
       )}
 
-      {/* II. LA MALLA DE ECOS (Capital Intelectual) */}
+      {/* II. LA MALLA DE ECOS (Marcadores de Inteligencia) */}
       {nearbyPOIs.map((poi: PointOfInterest) => (
         <MapMarkerCustom
           key={poi.id}
@@ -211,12 +218,12 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
         />
       ))}
 
-      {/* III. CAPA ARQUITECTÓNICA (Edificios de Obsidiana) */}
-      {mode === 'EXPLORE' && (
-        <Layer {...BUILDING_LAYER_STYLE} />
-      )}
+      {/* 
+          NOTA: Ya no incluimos la capa de extrusión manual. 
+          Mapbox Standard renderiza los edificios automáticamente con 
+          iluminación dinámica y sombras de alta fidelidad.
+      */}
 
-      {/* Geolocalizador nativo oculto para mantenimiento de telemetría de fondo */}
       <GeolocateControl
         showUserLocation={false}
         positionOptions={{ enableHighAccuracy: true }}
@@ -230,9 +237,6 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
 
 MapCore.displayName = "MapCore";
 
-/**
- * [OPTIMIZACIÓN SOBERANA]
- */
 export default memo(MapCore, (prev, next) => {
   return (
     prev.mode === next.mode &&
@@ -243,12 +247,14 @@ export default memo(MapCore, (prev, next) => {
 });
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V5.0):
- * 1. Zero-Wait Materialization: El componente ahora utiliza 'startCoords' para 
- *    calcular su semilla de nacimiento. Esto garantiza que Mapbox cree la malla 
- *    3D directamente en la ubicación real del usuario, eliminando el error de Sol.
- * 2. Soberanía de Movimiento: Se mantiene el motor como componente no-controlado, 
- *    permitiendo que el Voyager interactúe (zoom/pan) sin que React lo bloquee.
- * 3. Pokémon GO Sync: Sincronía automática con brújula y edificios translúcidos.
- * 4. Rigor de Tipos: Satisface el contrato de Build Shield para despliegue industrial.
+ * NOTA TÉCNICA DEL ARCHITECT (V6.0):
+ * 1. Evolución Visual (Standard Style): Se ha migrado al motor PBR de Mapbox. Los 
+ *    edificios ya no son planos; tienen aristas, sombras y reaccionan a la luz 
+ *    nocturna, elevando la estética de NicePod a un nivel profesional.
+ * 2. Protocolo de Luz 'Night': Se configuró el preset nocturno para armonizar con 
+ *    la atmósfera Aurora de la plataforma, resaltando los 'Ecos' en el mapa.
+ * 3. Silencio Urbano Integrado: El uso de 'setConfigProperty' permite ocultar 
+ *    POI labels nativos de forma mucho más eficiente que el filtrado de capas manual.
+ * 4. Interactividad Total: Al mantener 'initialViewState', el usuario tiene 
+ *    soberanía absoluta sobre la cámara desde el frame 1.
  */

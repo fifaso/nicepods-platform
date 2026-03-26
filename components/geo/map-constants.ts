@@ -1,7 +1,7 @@
 // components/geo/map-constants.ts
-// VERSIÓN: 4.0 (NicePod Map Assets - Dynamic MESH Anchor Edition)
-// Misión: Proveer el ADN físico y visual para la materialización instantánea del Voyager.
-// [ESTABILIZACIÓN]: Implementación de Generador de Estado Inicial y Perspectiva GO.
+// VERSIÓN: 4.1 (NicePod Map Assets - Mapbox Standard & High-Fidelity Edition)
+// Misión: Centralizar el ADN físico y visual del motor WebGL con soporte Standard.
+// [ESTABILIZACIÓN]: Implementación de Iluminación PBR, Fog Deep-Space y Semilla Dinámica.
 
 /**
  * ---------------------------------------------------------------------------
@@ -13,15 +13,30 @@ export const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
 
 /**
  * ESTILOS DE MALLA SOBERANA
+ * STANDARD: El motor más avanzado de Mapbox con iluminación PBR y modelos 3D reales.
+ * PHOTOREALISTIC: Base satelital clásica para máxima fidelidad de textura.
  */
 export const MAP_STYLES = {
+  STANDARD: "mapbox://styles/mapbox/standard",
   PHOTOREALISTIC: "mapbox://styles/mapbox/satellite-streets-v12",
   DARK_IMMERSIVE: "mapbox://styles/mapbox/dark-v11",
 } as const;
 
 /**
+ * CONFIGURACIÓN DE ILUMINACIÓN TÁCTICA (STANDARD ONLY)
+ * Misión: Lograr un aspecto profesional, profundo y de alto contraste.
+ */
+export const STANDARD_CONFIG = {
+  lightPreset: 'night',         // dawn | day | dusk | night
+  showPointOfInterestLabels: false, // Purgamos POIs genéricos (Silencio Urbano)
+  showTransitLabels: false,     // Eliminamos ruido de transporte
+  showPlaceLabels: true,        // Mantenemos barrios para orientación
+  showRoadLabels: true          // Mantenemos calles para el Voyager
+} as const;
+
+/**
  * COORDENADAS DE RESCATE (FALLBACK ABSOLUTO)
- * Punto de anclaje: Puerta del Sol, Madrid.
+ * Punto de anclaje de seguridad: Puerta del Sol, Madrid.
  */
 export const MADRID_SOL_COORDS = {
   latitude: 40.4167,
@@ -30,17 +45,17 @@ export const MADRID_SOL_COORDS = {
 
 /**
  * STREET_VIEW_CONFIG: El estándar visual "NicePod GO"
- * Define los ángulos de cámara innegociables para la inmersión fotorrealista.
+ * Define los ángulos de cámara innegociables para la inmersión 3D.
  */
 export const STREET_VIEW_CONFIG = {
-  zoom: 17.2,    // Escala óptima para edificios de obsidiana
-  pitch: 80,     // Inclinación agresiva de horizonte
-  bearing: -15,  // Orientación táctica
+  zoom: 17.2,    // Escala ideal para apreciar oclusión ambiental
+  pitch: 80,     // Inclinación máxima de horizonte
+  bearing: -15,  // Orientación táctica inicial
 } as const;
 
 /**
  * getInitialViewState: Generador de Semilla de Cámara
- * Misión: Evitar que el mapa siempre nazca en Sol si el Voyager está en otro lugar.
+ * Misión: Asegurar que el mapa nazca en la ubicación real (IP o GPS).
  */
 export const getInitialViewState = (lat?: number, lng?: number) => {
   return {
@@ -51,18 +66,18 @@ export const getInitialViewState = (lat?: number, lng?: number) => {
 };
 
 /**
- * CAMERA_CONSTRAINTS: Límites físicos de seguridad.
+ * CAMERA_CONSTRAINTS: Límites físicos del motor.
  */
 export const CAMERA_CONSTRAINTS = {
-  MAX_PITCH: 82,
-  MIN_ZOOM: 3,
-  MAX_ZOOM: 20,
-  ANTIALIAS: false,
+  MAX_PITCH: 85, // Elevado para mayor drama visual en Standard
+  MIN_ZOOM: 2,
+  MAX_ZOOM: 22,
+  ANTIALIAS: false, // Optimización para FPS en móviles
 } as const;
 
 /**
  * ---------------------------------------------------------------------------
- * II. ATMÓSFERA Y FÍSICA (THE GO-EXPERIENCE)
+ * II. ATMÓSFERA Y FÍSICA (AURORA HARVEST)
  * ---------------------------------------------------------------------------
  */
 
@@ -71,20 +86,20 @@ export const CAMERA_CONSTRAINTS = {
  */
 export const TERRAIN_CONFIG = {
   source: 'mapbox-dem',
-  exaggeration: 1.2
+  exaggeration: 1.1 // Calibrado para el estilo Standard
 } as const;
 
 /**
- * FOG_CONFIG: Niebla Volumétrica Industrial
- * Optimizado para ocultar el popping de edificios y salvar ciclos de GPU.
+ * FOG_CONFIG: Niebla Volumétrica Deep-Space
+ * Sincronizado con el color base de la plataforma (#03040b).
  */
 export const FOG_CONFIG = {
-  "range": [0.5, 6],           // Foco estrecho sobre el Voyager
-  "color": "#020202",          // Fusión con el chasis de la Workstation
-  "horizon-blend": 0.25,       // Transición nítida hacia el espacio
-  "high-color": "#0a0a0a",
+  "range": [0.5, 8],
+  "color": "#03040b",          // Coincidencia con BackgroundEngine V9.0
+  "horizon-blend": 0.3,        // Mezcla progresiva
+  "high-color": "#000000",
   "space-color": "#000000",
-  "star-intensity": 0.15
+  "star-intensity": 0.3
 } as const;
 
 /**
@@ -100,39 +115,24 @@ export const DEM_SOURCE_CONFIG = {
 
 /**
  * ---------------------------------------------------------------------------
- * III. CAPAS ARQUITECTÓNICAS (OBSIDIANA GLASS)
+ * III. CINEMATOGRAFÍA Y TELEMETRÍA (FLIGHT PHYSICS)
  * ---------------------------------------------------------------------------
  */
 
-export const BUILDING_LAYER_STYLE = {
-  id: "3d-buildings-sovereign",
-  source: "composite",
-  "source-layer": "building",
-  filter: ["==", "extrude", "true"],
-  type: "fill-extrusion" as const,
-  minzoom: 14,
-  paint: {
-    "fill-extrusion-color": "#050505", 
-    "fill-extrusion-height": ["get", "height"],
-    "fill-extrusion-base": ["get", "min_height"],
-    "fill-extrusion-opacity": 0.75,
-  },
+/**
+ * FLY_CONFIG: Parámetros de salto táctico inmersivo.
+ */
+export const FLY_CONFIG = {
+  duration: 3200, // Ligeramente más rápido para evitar fatiga
+  essential: true,
+  curve: 1.42,
+  speed: 1.1,
+  easing: (t: number) => t * (2 - t)
 } as const;
 
 /**
- * ---------------------------------------------------------------------------
- * IV. CINEMATOGRAFÍA DE VUELO (FLIGHT PHYSICS)
- * ---------------------------------------------------------------------------
+ * ZOOM_LEVELS: Estándares de proximidad.
  */
-
-export const FLY_CONFIG = {
-  duration: 3500,
-  essential: true,
-  curve: 1.4,
-  speed: 1.2,
-  easing: (t: number) => t * (2 - t) 
-} as const;
-
 export const ZOOM_LEVELS = {
   CITY: 13,
   NEIGHBORHOOD: 15.5,
@@ -141,13 +141,14 @@ export const ZOOM_LEVELS = {
 } as const;
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V4.0):
- * 1. Semilla Dinámica: Se reemplazó el objeto estático INITIAL_VIEW_STATE por 
- *    la función 'getInitialViewState'. Esto permite que el mapa nazca en la 
- *    ubicación real del usuario (vía Geo-IP o caché) desde el primer render.
- * 2. Inmersión Forzada: Se integró 'STREET_VIEW_CONFIG' para asegurar que 
- *    cualquier materialización use el ángulo Pokémon GO (Pitch 80°) por defecto.
- * 3. Optimización de Niebla: Se redujo el 'horizon-blend' a 0.25 para mejorar 
- *    el rendimiento de la GPU en dispositivos móviles al ocluir texturas lejanas.
- * 4. Rigor NCIS: Se mantiene el uso de 'as const' para blindar el Build Shield.
+ * NOTA TÉCNICA DEL ARCHITECT (V4.1):
+ * 1. Soporte Mapbox Standard: Se habilitó el ADN para el nuevo motor PBR. Se 
+ *    eliminaron las capas de extrusión manual por ser obsoletas ante esta tecnología.
+ * 2. Iluminación Táctica: El objeto 'STANDARD_CONFIG' centraliza el control de 
+ *    la luz de la ciudad, permitiendo que el 'MapCore' aplique el preset 'night'
+ *    de forma inmediata al cargar.
+ * 3. Sincronía Atmosférica: El Fog ahora usa el color exacto del fondo de la 
+ *    aplicación, creando una transición perfecta entre el UI y el Mapa.
+ * 4. Persistencia de Semilla: Se mantiene 'getInitialViewState' para garantizar 
+ *    que el Voyager aparezca siempre en su punto real de materialización.
  */
