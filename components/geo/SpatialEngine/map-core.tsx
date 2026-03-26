@@ -1,7 +1,7 @@
 // components/geo/SpatialEngine/map-core.tsx
-// VERSIÓN: 4.9 (NicePod MapCore - Dynamic Seed & GO-Tracking Edition)
-// Misión: Renderizado WebGL fotorrealista con nacimiento en ubicación real.
-// [ESTABILIZACIÓN]: Implementación de startCoords para evitar el anclaje forzado en Sol.
+// VERSIÓN: 5.0 (NicePod MapCore - Zero-Flicker & Dynamic Birth Edition)
+// Misión: Renderizado WebGL fotorrealista con nacimiento en ubicación real del Voyager.
+// [ESTABILIZACIÓN]: Implementación de initialViewState dinámico y Silent Urban Protocol.
 
 "use client";
 
@@ -33,6 +33,7 @@ import { UserLocationMarker } from "../user-location-marker";
 /**
  * ---------------------------------------------------------------------------
  * I. [BUILD SHIELD]: TYPE EXTRACTION STRATEGY
+ * Extraemos los contratos de eventos directamente para evitar colisiones.
  * ---------------------------------------------------------------------------
  */
 type MapNativeProps = ComponentProps<typeof Map>;
@@ -43,8 +44,8 @@ type SafeMapStyleDataEvent = Parameters<NonNullable<MapNativeProps['onStyleData'
 
 interface MapCoreProps {
   mode: 'EXPLORE' | 'FORGE';
-  /** startCoords: Ubicación inicial de nacimiento (IP o GPS). */
-  startCoords: UserLocation | null;
+  /** startCoords: Ubicación de nacimiento (IP, Caché o GPS fresco). */
+  startCoords: UserLocation;
   onLoad: (e: SafeMapEvent) => void;
   onIdle: () => void;
   onMove: (e: SafeMapMoveEvent) => void;
@@ -56,7 +57,6 @@ interface MapCoreProps {
 
 /**
  * MapCore: El reactor visual de NicePod.
- * Gestiona el nacimiento dinámico y el seguimiento inmersivo.
  */
 const MapCore = forwardRef<MapRef, MapCoreProps>(({
   mode,
@@ -76,23 +76,25 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
   const localMapRef = useRef<MapRef>(null);
   useImperativeHandle(ref, () => localMapRef.current as MapRef, []);
 
-  // 2. MEMORIA DE INTERACCIÓN
+  // 2. MEMORIA DE INTERACCIÓN HUMANA
   const isInteracting = useRef<boolean>(false);
 
   /**
-   * 3. GENERACIÓN DE SEMILLA DE NACIMIENTO
-   * [MANDATO]: Este objeto solo se calcula una vez al montar el componente.
-   * Si startCoords existe (IP o Caché), el mapa nace allí, no en Sol.
+   * 3. GENERACIÓN DE SEMILLA DINÁMICA
+   * [MANDATO]: Este objeto se calcula solo UNA vez en el nacimiento del motor.
+   * Al recibir 'startCoords' (que ya ha sido resuelta por el GeoEngine), 
+   * garantizamos que el mapa no nazca en Sol si el usuario está en otro lugar.
    */
   const initialMapState = useMemo(() => {
     return getInitialViewState(
-      startCoords?.latitude,
-      startCoords?.longitude
+      startCoords.latitude,
+      startCoords.longitude
     );
   }, [startCoords]);
 
   /**
    * [PROTOCOLO DE SILENCIO URBANO]
+   * Purgamos etiquetas genéricas antes de revelar la malla.
    */
   const handleMapLoad = useCallback((e: SafeMapEvent) => {
     const map = e.target;
@@ -104,14 +106,14 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
           map.setLayoutProperty(layer.id, 'visibility', 'none');
         }
       });
-      nicepodLog("🏙️ [MapCore] Silencio Urbano aplicado al nacimiento.");
+      nicepodLog("🏙️ [MapCore] Silencio Urbano aplicado satisfactoriamente.");
     }
     
     onLoad(e);
   }, [onLoad]);
 
   /**
-   * [PROTOCOLO DE INYECCIÓN DE TERRENO 3D]
+   * [PROTOCOLO DE INYECCIÓN DE RELIEVE 3D]
    */
   const handleStyleData = useCallback((e: SafeMapStyleDataEvent) => {
     const map = e.target;
@@ -136,7 +138,7 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
 
   /**
    * [SEGUIMIENTO INMERSIVO POKÉMON GO]
-   * Rotación imperativa por brújula (Bearing Tracking).
+   * Sincronización imperativa de la brújula (Bearing).
    */
   useEffect(() => {
     if (mode === 'EXPLORE' && userLocation?.heading !== null && !isInteracting.current) {
@@ -156,12 +158,13 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
     <Map
       ref={localMapRef}
       /**
-       * [DECISIÓN CRÍTICA]: Inyección de Semilla Dinámica.
-       * Mapbox utiliza este objeto solo al instanciar el mapa.
+       * [SOBERANÍA WEBGL]: Usamos initialViewState dinámico.
+       * Esto permite que el mapa nazca en la ubicación real sin ser un 
+       * componente controlado, desbloqueando la interacción del Voyager.
        */
       initialViewState={initialMapState}
       onLoad={handleMapLoad}
-      onIdle={onIdle}
+      onIdle={onIdle} // Gatillo de revelado (Smokescreen Off)
       onMove={(e) => {
         isInteracting.current = true;
         onMove(e);
@@ -177,6 +180,7 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
       projection={{ name: "mercator" }}
       fog={FOG_CONFIG as any}
       
+      // Optimizaciones de hardware móvil
       antialias={false}
       reuseMaps={true}
       maxPitch={82}
@@ -184,7 +188,7 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
       style={{ width: '100%', height: '100%' }}
     >
 
-      {/* I. EL VOYAGER (Materialización con Z-Index superior) */}
+      {/* I. EL VOYAGER (Materialización con Z-Index 9999) */}
       {userLocation && (
         <UserLocationMarker
           location={userLocation}
@@ -192,7 +196,7 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
         />
       )}
 
-      {/* II. LA MALLA DE ECOS (Marcadores NKV) */}
+      {/* II. LA MALLA DE ECOS (Capital Intelectual) */}
       {nearbyPOIs.map((poi: PointOfInterest) => (
         <MapMarkerCustom
           key={poi.id}
@@ -207,11 +211,12 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
         />
       ))}
 
-      {/* III. CAPA ARQUITECTÓNICA (Obsidiana) */}
+      {/* III. CAPA ARQUITECTÓNICA (Edificios de Obsidiana) */}
       {mode === 'EXPLORE' && (
         <Layer {...BUILDING_LAYER_STYLE} />
       )}
 
+      {/* Geolocalizador nativo oculto para mantenimiento de telemetría de fondo */}
       <GeolocateControl
         showUserLocation={false}
         positionOptions={{ enableHighAccuracy: true }}
@@ -225,22 +230,25 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
 
 MapCore.displayName = "MapCore";
 
+/**
+ * [OPTIMIZACIÓN SOBERANA]
+ */
 export default memo(MapCore, (prev, next) => {
   return (
     prev.mode === next.mode &&
     prev.selectedPOIId === next.selectedPOIId &&
-    prev.startCoords?.latitude === next.startCoords?.latitude &&
-    prev.startCoords?.longitude === next.startCoords?.longitude
+    prev.startCoords.latitude === next.startCoords.latitude &&
+    prev.startCoords.longitude === next.startCoords.longitude
   );
 });
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V4.9):
- * 1. Solución de Semilla (Fixing Sol): El componente ahora recibe 'startCoords' y 
- *    utiliza la función 'getInitialViewState' para nacer en la ubicación correcta.
- * 2. Autonomía de Cámara: Al usar 'initialViewState' en lugar de props controladas, 
- *    el motor WebGL permite el movimiento táctil inmediato sin bloqueos de React.
- * 3. Inmersión Refinada: Se mantiene el pitch a 80° y el seguimiento de brújula 
- *    imperativo para la experiencia 'Pokémon GO' completa.
- * 4. Higiene de Vercel: Tipado explícito y eliminación de 'any' en iteradores.
+ * NOTA TÉCNICA DEL ARCHITECT (V5.0):
+ * 1. Zero-Wait Materialization: El componente ahora utiliza 'startCoords' para 
+ *    calcular su semilla de nacimiento. Esto garantiza que Mapbox cree la malla 
+ *    3D directamente en la ubicación real del usuario, eliminando el error de Sol.
+ * 2. Soberanía de Movimiento: Se mantiene el motor como componente no-controlado, 
+ *    permitiendo que el Voyager interactúe (zoom/pan) sin que React lo bloquee.
+ * 3. Pokémon GO Sync: Sincronía automática con brújula y edificios translúcidos.
+ * 4. Rigor de Tipos: Satisface el contrato de Build Shield para despliegue industrial.
  */
