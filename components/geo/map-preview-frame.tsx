@@ -1,7 +1,7 @@
 // components/geo/map-preview-frame.tsx
-// VERSIÓN: 17.0 (NicePod GO-Preview - Bi-Phasic Materialization & Precision Edition)
-// Misión: Ventana táctica fotorrealista con auto-refinamiento de ubicación IP a GPS.
-// [ESTABILIZACIÓN]: Integración de isGPSLock, Perspectiva GO 80° y Montaje Condicional.
+// VERSIÓN: 17.1 (NicePod GO-Preview - High-Fidelity & Theme-Synced Edition)
+// Misión: Ventana táctica fotorrealista sincronizada con la soberanía de triangulación global.
+// [ESTABILIZACIÓN]: Resolución de error ts(2741) inyectando 'theme' y paridad con MapCore V7.3.
 
 "use client";
 
@@ -14,7 +14,13 @@ import { MapRef } from "react-map-gl/mapbox";
 // --- INFRAESTRUCTURA CORE ---
 import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { cn, nicepodLog } from "@/lib/utils";
-import { FLY_CONFIG, ZOOM_LEVELS } from "./map-constants";
+
+// [FIX V2.7]: Sincronía con ADN de constantes para tema y física
+import {
+  ACTIVE_MAP_THEME,
+  FLY_CONFIG,
+  ZOOM_LEVELS
+} from "./map-constants";
 
 // --- MOTOR CARTOGRÁFICO AISLADO ---
 import MapCore from "./SpatialEngine/map-core";
@@ -100,7 +106,6 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
   useEffect(() => {
     if (!isMapLoaded || !userLocation || !mapRef.current) return;
 
-    // Configuración estándar Pokémon GO (80° de inclinación)
     const goView = {
       center: [userLocation.longitude, userLocation.latitude] as [number, number],
       zoom: ZOOM_LEVELS.STREET,
@@ -108,7 +113,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
       bearing: -15,
     };
 
-    // ETAPA 1: Salto Inicial (Cualquier ubicación: IP, Caché o GPS impreciso)
+    // ETAPA 1: Salto Inicial (IP o GPS impreciso)
     if (!hasInitialJumpPerformed.current) {
       if (!isTriangulated) {
         nicepodLog("🎯 [MapPreview] Primer anclaje. Vuelo de aproximación.");
@@ -217,7 +222,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
 
       {/* 
           VII. EL MOTOR DE RENDERIZADO (CORE)
-          Montaje condicional: Solo nace cuando hay ubicación (Materialización T0).
+          [FIX V17.1]: Inyección del prop 'theme' para cumplir con el contrato MapCore V7.3.
       */}
       {isContainerReady && userLocation && (
         <div className="absolute inset-0 z-0">
@@ -225,6 +230,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
             ref={mapRef}
             mode="EXPLORE"
             startCoords={userLocation}
+            theme={ACTIVE_MAP_THEME} // <--- Sincronía lumínica global
             selectedPOIId={null}
             onLoad={() => setIsMapLoaded(true)}
             onIdle={handleMapIdle}
@@ -266,15 +272,12 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
 });
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V17.0):
- * 1. Materialización Bi-Fásica: El widget ahora utiliza 'isGPSLock' para realizar 
- *    un vuelo de refinamiento automático. El usuario aparece primero en su área 
- *    (IP) y luego se desliza suavemente hacia su posición exacta (GPS).
- * 2. Montaje Condicional T0: El motor MapCore solo se instancia cuando existe 
- *    una ubicación de semilla (IP o GPS), eliminando definitivamente el nacimiento 
- *    erróneo en la Puerta del Sol.
- * 3. Perspectiva Pokémon GO: Se fuerza el ángulo de 80 grados desde el primer frame 
- *    para resaltar la profundidad de los edificios de cristal en el Dashboard.
- * 4. UX Transparente: El Smokescreen informa dinámicamente si el sistema está 
- *    usando telemetría de red o fijación satelital.
+ * NOTA TÉCNICA DEL ARCHITECT (V17.1):
+ * 1. Solución ts(2741): Se inyectó la propiedad 'theme' en la instancia de MapCore,
+ *    utilizando la constante global 'ACTIVE_MAP_THEME'. Esto garantiza que el 
+ *    widget del Dashboard comparta la misma estética que el mapa principal.
+ * 2. Refinamiento Automático: Se sincronizó la lógica de 'isGPSLock' para que el 
+ *    widget pequeño también realice el ajuste final de precisión satelital.
+ * 3. Montaje Seguro: Se mantiene el protocolo de nacimiento condicional (T0), 
+ *    asegurando que el mapa sea fotorrealista desde el primer frame visible.
  */
