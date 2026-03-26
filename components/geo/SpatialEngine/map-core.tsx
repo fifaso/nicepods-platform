@@ -1,7 +1,7 @@
 // components/geo/SpatialEngine/map-core.tsx
-// VERSIÓN: 6.0 (NicePod MapCore - Mapbox Standard & PBR Lighting Edition)
+// VERSIÓN: 6.1 (NicePod MapCore - Mapbox Standard PBR Edition)
 // Misión: Renderizado WebGL de alta fidelidad con iluminación global y modelos 3D avanzados.
-// [ESTABILIZACIÓN]: Migración a Mapbox Standard, Configuración de LightPreset 'night' y Zero-Flicker.
+// [ESTABILIZACIÓN]: Integración total de STANDARD_ENGINE_CONFIG y materialización T0.
 
 "use client";
 
@@ -18,6 +18,7 @@ import {
   FOG_CONFIG,
   MAPBOX_TOKEN,
   MAP_STYLES,
+  STANDARD_ENGINE_CONFIG,
   TERRAIN_CONFIG,
   getInitialViewState
 } from "../map-constants";
@@ -91,26 +92,27 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
 
   /**
    * [PROTOCOLO MAPBOX STANDARD]:
-   * Misión: Configurar el motor de iluminación y purgar el ruido urbano.
+   * Misión: Configurar el motor de iluminación y aplicar el Silencio Urbano.
    */
   const handleMapLoad = useCallback((e: SafeMapEvent) => {
     const map = e.target;
 
     /**
      * CONFIGURACIÓN DE ILUMINACIÓN GLOBAL (PBR)
-     * Cambiamos el preset a 'night' para obtener un aspecto premium industrial.
-     * @ts-ignore - Propiedades específicas del motor Standard v3
+     * Aplicamos los parámetros definidos en map-constants.ts
+     * @ts-ignore - Propiedades específicas del motor Standard v3 no siempre presentes en tipos base
      */
     if (map.setConfigProperty) {
-      // Activa el modo nocturno con luces de ciudad y sombras ambientales
-      map.setConfigProperty('basemap', 'lightPreset', 'night');
+      // 1. Aplicamos el tema (night/day/dawn/dusk)
+      map.setConfigProperty('basemap', 'lightPreset', STANDARD_ENGINE_CONFIG.lightPreset);
 
-      // Implementa el 'Silencio Urbano' mediante la desactivación de etiquetas
-      map.setConfigProperty('basemap', 'showPointOfInterestLabels', false);
-      map.setConfigProperty('basemap', 'showTransitLabels', false);
-      map.setConfigProperty('basemap', 'showRoadLabels', true); // Mantenemos calles para orientación
+      // 2. Ejecutamos el Silencio Urbano (Eliminación de ruido visual)
+      map.setConfigProperty('basemap', 'showPointOfInterestLabels', STANDARD_ENGINE_CONFIG.showPointOfInterestLabels);
+      map.setConfigProperty('basemap', 'showTransitLabels', STANDARD_ENGINE_CONFIG.showTransitLabels);
+      map.setConfigProperty('basemap', 'showPlaceLabels', STANDARD_ENGINE_CONFIG.showPlaceLabels);
+      map.setConfigProperty('basemap', 'showRoadLabels', STANDARD_ENGINE_CONFIG.showRoadLabels);
 
-      nicepodLog("🏙️ [MapCore] Motor Standard configurado: Modo Noche + Silencio Urbano.");
+      nicepodLog(`🏙️ [MapCore] Motor Standard configurado en modo: ${STANDARD_ENGINE_CONFIG.lightPreset}`);
     }
 
     onLoad(e);
@@ -162,11 +164,11 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
     <Map
       ref={localMapRef}
       /**
-       * [SOBERANÍA]: El mapa nace en la ubicación real/IP.
+       * [SOBERANÍA]: El mapa nace en la ubicación real/IP con ángulo Pokémon GO.
        */
       initialViewState={initialMapState}
       onLoad={handleMapLoad}
-      onIdle={onIdle}
+      onIdle={onIdle} // Gatillo de revelado (Smokescreen Off)
       onMove={(e) => {
         isInteracting.current = true;
         onMove(e);
@@ -180,14 +182,14 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
 
       /**
        * ESTILO STANDARD:
-       * Es obligatorio usar este estilo para habilitar la iluminación PBR.
+       * Habilita el renderizado PBR y modelos 3D de alta fidelidad.
        */
       mapStyle={MAP_STYLES.STANDARD}
 
       projection={{ name: "mercator" }}
       fog={FOG_CONFIG as any}
 
-      // Rendimiento móvil industrial
+      // Optimizaciones de hardware industrial
       antialias={false}
       reuseMaps={true}
       maxPitch={82}
@@ -195,7 +197,7 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
       style={{ width: '100%', height: '100%' }}
     >
 
-      {/* I. EL VOYAGER (Materialización Prioritaria) */}
+      {/* I. EL VOYAGER (Materialización con Z-Index superior) */}
       {userLocation && (
         <UserLocationMarker
           location={userLocation}
@@ -203,7 +205,7 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
         />
       )}
 
-      {/* II. LA MALLA DE ECOS (Marcadores de Inteligencia) */}
+      {/* II. LA MALLA DE ECOS (Capital Intelectual) */}
       {nearbyPOIs.map((poi: PointOfInterest) => (
         <MapMarkerCustom
           key={poi.id}
@@ -219,9 +221,10 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
       ))}
 
       {/* 
-          NOTA: Ya no incluimos la capa de extrusión manual. 
-          Mapbox Standard renderiza los edificios automáticamente con 
-          iluminación dinámica y sombras de alta fidelidad.
+          NOTA ARQUITECTÓNICA: 
+          Ya no es necesaria la capa manual de edificios. 
+          El estilo Standard gestiona la extrusión con iluminación 
+          global y sombras de forma nativa.
       */}
 
       <GeolocateControl
@@ -237,6 +240,10 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
 
 MapCore.displayName = "MapCore";
 
+/**
+ * [OPTIMIZACIÓN SOBERANA]: React.memo
+ * Previene re-renderizados innecesarios del motor WebGL.
+ */
 export default memo(MapCore, (prev, next) => {
   return (
     prev.mode === next.mode &&
@@ -247,14 +254,14 @@ export default memo(MapCore, (prev, next) => {
 });
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V6.0):
- * 1. Evolución Visual (Standard Style): Se ha migrado al motor PBR de Mapbox. Los 
- *    edificios ya no son planos; tienen aristas, sombras y reaccionan a la luz 
- *    nocturna, elevando la estética de NicePod a un nivel profesional.
- * 2. Protocolo de Luz 'Night': Se configuró el preset nocturno para armonizar con 
- *    la atmósfera Aurora de la plataforma, resaltando los 'Ecos' en el mapa.
- * 3. Silencio Urbano Integrado: El uso de 'setConfigProperty' permite ocultar 
- *    POI labels nativos de forma mucho más eficiente que el filtrado de capas manual.
- * 4. Interactividad Total: Al mantener 'initialViewState', el usuario tiene 
- *    soberanía absoluta sobre la cámara desde el frame 1.
+ * NOTA TÉCNICA DEL ARCHITECT (V6.1):
+ * 1. Evolución Estética Mapbox Standard: Se ha completado la migración al motor de 
+ *    iluminación global. Los edificios ahora presentan sombras y profundidad realista,
+ *    eliminando el aspecto de 'bloques negros'.
+ * 2. Control de Tema Centralizado: El componente lee 'STANDARD_ENGINE_CONFIG', permitiendo
+ *    que el mapa cambie entre modos (Día/Noche) instantáneamente desde las constantes.
+ * 3. Materialización T0: Gracias a 'startCoords', el mapa se instancia directamente 
+ *    en la ubicación real del Voyager, eliminando cualquier parpadeo visual desde Sol.
+ * 4. Silencio Urbano Pro: La purga de etiquetas se realiza mediante la API nativa de 
+ *    Mapbox v3, garantizando un mapa limpio y enfocado en la Memoria Urbana.
  */

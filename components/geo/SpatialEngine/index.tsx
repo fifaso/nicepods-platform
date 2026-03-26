@@ -1,7 +1,7 @@
 // components/geo/SpatialEngine/index.tsx
-// VERSIÓN: 5.8 (NicePod Spatial Hub - Bi-Phasic Precision & Contract Integrity Edition)
-// Misión: Orquestar el motor WebGL con refinamiento automático a GPS de alta precisión.
-// [ESTABILIZACIÓN]: Resolución de error ts(2339) y sincronización con types V4.2.
+// VERSIÓN: 5.9 (NicePod Spatial Hub - Bi-Phasic Precision & Auto-Materialization Edition)
+// Misión: Orquestar el motor WebGL garantizando el nacimiento en IP y el refinamiento a GPS.
+// [ESTABILIZACIÓN]: Implementación de GPS-Lock Trigger, Hot-Swap T0 y Perspectiva GO 80°.
 
 "use client";
 
@@ -17,10 +17,11 @@ import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { SearchResult } from "@/hooks/use-search-radar";
 import { cn, nicepodLog } from "@/lib/utils";
 
-// --- CONSTANTES DE FÍSICA Y CÁMARA ---
+// --- CONSTANTES DE FÍSICA Y CÁMARA V4.0 ---
 import {
   FLY_CONFIG,
   MADRID_SOL_COORDS,
+  STREET_VIEW_CONFIG,
   ZOOM_LEVELS
 } from "../map-constants";
 
@@ -48,7 +49,6 @@ interface SpatialEngineProps {
 export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngineProps) {
 
   // 1. CONSUMO DE TELEMETRÍA SOBERANA (V22.0)
-  // [FIX V2.7]: isGPSLock ahora está legalmente reconocido en el contrato de tipos.
   const {
     userLocation,
     nearbyPOIs,
@@ -56,7 +56,7 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
     status: engineStatus,
     initSensors,
     isTriangulated,
-    isGPSLock,
+    isGPSLock,       // Flag de autoridad satelital (<50m)
     setTriangulated,
     error: geoError
   } = useGeoEngine();
@@ -71,13 +71,16 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   const [isContainerReady, setIsContainerReady] = useState<boolean>(false);
   const [isMapLoaded, setIsMapLoaded] = useState<boolean>(false);
 
+  // [HOT-SWAP T0]: Si la sesión ya está triangulada, la cámara nace asentada.
   const [isCameraSettled, setIsCameraSettled] = useState<boolean>(isTriangulated);
 
+  // Coordenadas para el Radar de Búsqueda (Bóveda NKV)
   const [searchCenter, setSearchCenter] = useState({
     latitude: MADRID_SOL_COORDS.latitude,
     longitude: MADRID_SOL_COORDS.longitude,
   });
 
+  // MEMORIA DE ACCIÓN (Evita bucles de cámara)
   const hasInitialJumpPerformed = useRef<boolean>(false);
   const hasRefinedToGPS = useRef<boolean>(false);
 
@@ -115,7 +118,7 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
     if (isMapLoaded && !isCameraSettled) {
       const rescueTimer = setTimeout(() => {
         if (!isCameraSettled) {
-          nicepodLog("⚠️ [Orchestrator] Timeout alcanzado. Forzando paso de luz.");
+          nicepodLog("⚠️ [Orchestrator] Fail-Safe: Revelando malla por timeout.");
           setIsCameraSettled(true);
         }
       }, 7000);
@@ -124,15 +127,15 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   }, [isMapLoaded, isCameraSettled]);
 
   /**
-   * 7. GESTIÓN DE CÁMARA INMERSIVA
+   * 7. GESTIÓN DE CÁMARA INMERSIVA (Pokémon GO Style)
    */
   const flyToPosition = useCallback((lng: number, lat: number, zoom: number = ZOOM_LEVELS.STREET) => {
     if (!mapRef.current) return;
     mapRef.current.flyTo({
       center: [lng, lat],
       zoom: zoom,
-      pitch: mode === 'EXPLORE' ? 80 : 0,
-      bearing: -15,
+      pitch: mode === 'EXPLORE' ? STREET_VIEW_CONFIG.pitch : 0,
+      bearing: STREET_VIEW_CONFIG.bearing,
       ...FLY_CONFIG
     });
   }, [mode]);
@@ -142,27 +145,28 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
     mapRef.current.jumpTo({
       center: [lng, lat],
       zoom: zoom,
-      pitch: mode === 'EXPLORE' ? 80 : 0,
-      bearing: -15
+      pitch: mode === 'EXPLORE' ? STREET_VIEW_CONFIG.pitch : 0,
+      bearing: STREET_VIEW_CONFIG.bearing
     });
   }, [mode]);
 
   /**
-   * 8. PROTOCOLO DE MATERIALIZACIÓN PROGRESIVA
+   * 8. PROTOCOLO DE MATERIALIZACIÓN AUTOMÁTICA (Bi-Phasic Fix)
+   * Misión: De la ciudad (IP) a la calle (GPS) sin intervención humana.
    */
   useEffect(() => {
     if (!userLocation || !isMapLoaded) return;
 
     const targetZoom = mode === 'FORGE' ? ZOOM_LEVELS.FORGE : ZOOM_LEVELS.STREET;
 
-    // FASE 1: Primer Anclaje (IP o Caché)
+    // FASE 1: Primer Fix (IP, Caché o GPS Inicial)
     if (!hasInitialJumpPerformed.current) {
       if (!isTriangulated) {
-        nicepodLog("🎯 [Orchestrator] Primer Fix detectado. Iniciando aproximación.");
+        nicepodLog("🎯 [Orchestrator] Primer Fix detectado. Iniciando aproximación aérea.");
         flyToPosition(userLocation.longitude, userLocation.latitude, targetZoom);
         setTriangulated();
       } else {
-        nicepodLog("🚀 [Orchestrator] Hot-Swap activo. Ubicación persistente.");
+        nicepodLog("🚀 [Orchestrator] Malla persistente. Hot-Swap instantáneo.");
         jumpToPosition(userLocation.longitude, userLocation.latitude, targetZoom);
         setIsCameraSettled(true);
       }
@@ -170,9 +174,10 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
       return;
     }
 
-    // FASE 2: Refinamiento a GPS Lock
+    // FASE 2: Refinamiento GPS Lock (Precisión < 50m)
+    // Cuando el hardware certifica la posición exacta, realizamos el ajuste final.
     if (isGPSLock && !hasRefinedToGPS.current) {
-      nicepodLog("🔒 [Orchestrator] GPS Lock alcanzado. Refinando malla.");
+      nicepodLog("🔒 [Orchestrator] GPS Lock alcanzado. Refinando posición exacta.");
       flyToPosition(userLocation.longitude, userLocation.latitude, targetZoom);
       hasRefinedToGPS.current = true;
     }
@@ -186,7 +191,7 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   const handleMapIdle = useCallback(() => {
     if (isMapLoaded && !isCameraSettled) {
       setIsCameraSettled(true);
-      nicepodLog("✨ [Orchestrator] Malla 3D renderizada. Revelado completado.");
+      nicepodLog("✨ [Orchestrator] Malla 3D estabilizada al 100%.");
     }
   }, [isMapLoaded, isCameraSettled]);
 
@@ -234,6 +239,7 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   return (
     <div ref={containerRef} className={cn("w-full h-full relative bg-[#010101]", className)}>
 
+      {/* I. CORTINA DE CARGA SOBERANA (SMOKESCREEN) */}
       <AnimatePresence mode="wait">
         {!isCameraSettled && (
           <motion.div
@@ -258,7 +264,8 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
                   Madrid Resonance
                 </span>
                 <p className="text-[9px] font-bold uppercase tracking-[0.3em] text-primary/60 animate-pulse italic">
-                  {!userLocation ? "Capturando Telemetría de Red..." : "Estabilizando Malla 3D..."}
+                  {!userLocation ? "Capturando Telemetría de Red..." :
+                    !isGPSLock ? "Fijando Coordenadas Satelitales..." : "Estabilizando Malla 3D..."}
                 </p>
               </div>
 
@@ -278,6 +285,10 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
         )}
       </AnimatePresence>
 
+      {/* 
+          II. EL MOTOR DE RENDERIZADO (CORE)
+          [MANDATO]: El montaje condicional garantiza que el mapa nazca en la coordenada real.
+      */}
       {isContainerReady && userLocation && (
         <div className="w-full h-full pointer-events-auto">
           <MapCore
@@ -301,6 +312,7 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
         </div>
       )}
 
+      {/* --- III. INTERFAZ TÁCTICA SUPERPUESTA --- */}
       {mode === 'EXPLORE' && isCameraSettled && (
         <div className="absolute top-6 left-4 right-4 z-[100] md:top-8 md:left-8 md:w-[400px] animate-in fade-in duration-1000 pointer-events-auto">
           <UnifiedSearchBar
@@ -332,11 +344,14 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V5.8):
- * 1. Integridad de ContratoMaestro: Se resolvió el error ts(2339) mediante la actualización 
- *    de la interfaz 'GeoEngineReturn' en types/geo-sovereignty.ts.
- * 2. Materialización de Dos Etapas: El orquestador ahora utiliza 'isGPSLock' para 
- *    ejecutar un vuelo de refinamiento suave una vez alcanzada la precisión satelital.
- * 3. Montaje Seguro: Se mantiene el bloqueo de renderizado de MapCore hasta tener 
- *    'userLocation', garantizando que el mapa nazca en la ubicación real.
+ * NOTA TÉCNICA DEL ARCHITECT (V5.9):
+ * 1. Protocolo de Refinamiento Automático (IP to GPS): El orquestador ahora detecta 
+ *    el paso de una ubicación estimada (IP) a una real (GPS Lock), ejecutando 
+ *    un vuelo cinemático final para asegurar la precisión milimétrica del Voyager.
+ * 2. Montaje Condicional T0: Se mantiene el bloqueo de renderizado hasta tener 
+ *    ubicación inicial, garantizando que MapCore nazca en el lugar correcto.
+ * 3. Sincronía Pokémon GO: Se unificaron los parámetros de cámara (Pitch 80, Zoom 17.5)
+ *    en todos los saltos automáticos para una inmersión visual coherente.
+ * 4. Liberación de Gestos: El uso de 'pointer-events-auto' en capas críticas 
+ *    asegura que el mapa nunca se sienta 'bloqueado'.
  */

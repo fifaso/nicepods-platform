@@ -1,42 +1,57 @@
 // components/geo/map-constants.ts
-// VERSIÓN: 4.1 (NicePod Map Assets - Mapbox Standard & High-Fidelity Edition)
-// Misión: Centralizar el ADN físico y visual del motor WebGL con soporte Standard.
-// [ESTABILIZACIÓN]: Implementación de Iluminación PBR, Fog Deep-Space y Semilla Dinámica.
+// VERSIÓN: 5.0 (NicePod Map Assets - PBR Master Control & Global Theme Edition)
+// Misión: Centralizar la física lumínica y la estética del motor Mapbox Standard.
+// [ESTABILIZACIÓN]: Implementación de Interruptor de Tema, Exposición PBR y Fog Deep-Space.
 
 /**
  * ---------------------------------------------------------------------------
- * I. INFRAESTRUCTURA DE AUTORIDAD (THE METAL)
+ * I. GOBERNANZA DE ESTILO Y TEMA
  * ---------------------------------------------------------------------------
  */
 
 export const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
 
 /**
+ * MapboxLightPreset: Define los estados lumínicos autorizados por el motor Standard.
+ */
+export type MapboxLightPreset = 'night' | 'day' | 'dawn' | 'dusk';
+
+/**
+ * [INTERRUPTOR TÁCTICO]: Cambie este valor para alternar el modo del mapa.
+ * Misión: Controlar la estética global desde un único punto de verdad.
+ */
+export const ACTIVE_MAP_THEME: MapboxLightPreset = 'night';
+
+/**
  * ESTILOS DE MALLA SOBERANA
- * STANDARD: El motor más avanzado de Mapbox con iluminación PBR y modelos 3D reales.
- * PHOTOREALISTIC: Base satelital clásica para máxima fidelidad de textura.
+ * STANDARD: El motor más avanzado con iluminación global y modelos 3D detallados.
  */
 export const MAP_STYLES = {
   STANDARD: "mapbox://styles/mapbox/standard",
   PHOTOREALISTIC: "mapbox://styles/mapbox/satellite-streets-v12",
-  DARK_IMMERSIVE: "mapbox://styles/mapbox/dark-v11",
 } as const;
 
 /**
- * CONFIGURACIÓN DE ILUMINACIÓN TÁCTICA (STANDARD ONLY)
- * Misión: Lograr un aspecto profesional, profundo y de alto contraste.
+ * STANDARD_ENGINE_CONFIG: Configuración del motor de iluminación PBR.
+ * Diseñado para resaltar las aristas de los edificios y eliminar el aspecto plano.
  */
-export const STANDARD_CONFIG = {
-  lightPreset: 'night',         // dawn | day | dusk | night
-  showPointOfInterestLabels: false, // Purgamos POIs genéricos (Silencio Urbano)
-  showTransitLabels: false,     // Eliminamos ruido de transporte
-  showPlaceLabels: true,        // Mantenemos barrios para orientación
-  showRoadLabels: true          // Mantenemos calles para el Voyager
+export const STANDARD_ENGINE_CONFIG = {
+  lightPreset: ACTIVE_MAP_THEME,
+  showPointOfInterestLabels: false, // Protocolo de Silencio Urbano
+  showTransitLabels: false,         // Purgado de iconos de transporte
+  showPlaceLabels: true,            // Mantenemos distritos para orientación
+  showRoadLabels: true,             // Mantenemos viales para el Voyager
 } as const;
+
+/**
+ * ---------------------------------------------------------------------------
+ * II. CÁMARA Y TELEMETRÍA T0 (MATERIALIZACIÓN)
+ * ---------------------------------------------------------------------------
+ */
 
 /**
  * COORDENADAS DE RESCATE (FALLBACK ABSOLUTO)
- * Punto de anclaje de seguridad: Puerta del Sol, Madrid.
+ * Punto de anclaje: Puerta del Sol, Madrid.
  */
 export const MADRID_SOL_COORDS = {
   latitude: 40.4167,
@@ -45,17 +60,17 @@ export const MADRID_SOL_COORDS = {
 
 /**
  * STREET_VIEW_CONFIG: El estándar visual "NicePod GO"
- * Define los ángulos de cámara innegociables para la inmersión 3D.
+ * Pitch 80: Inclinación máxima para apreciar la volumetría de los edificios.
  */
 export const STREET_VIEW_CONFIG = {
-  zoom: 17.2,    // Escala ideal para apreciar oclusión ambiental
-  pitch: 80,     // Inclinación máxima de horizonte
-  bearing: -15,  // Orientación táctica inicial
+  zoom: 17.2,
+  pitch: 80,
+  bearing: -15,
 } as const;
 
 /**
- * getInitialViewState: Generador de Semilla de Cámara
- * Misión: Asegurar que el mapa nazca en la ubicación real (IP o GPS).
+ * getInitialViewState: Generador de Semilla de Cámara Dinámica.
+ * Misión: Garantizar que el mapa nazca en la ubicación real del usuario.
  */
 export const getInitialViewState = (lat?: number, lng?: number) => {
   return {
@@ -65,19 +80,16 @@ export const getInitialViewState = (lat?: number, lng?: number) => {
   };
 };
 
-/**
- * CAMERA_CONSTRAINTS: Límites físicos del motor.
- */
 export const CAMERA_CONSTRAINTS = {
-  MAX_PITCH: 85, // Elevado para mayor drama visual en Standard
+  MAX_PITCH: 85,
   MIN_ZOOM: 2,
   MAX_ZOOM: 22,
-  ANTIALIAS: false, // Optimización para FPS en móviles
+  ANTIALIAS: false, // Maximiza FPS en dispositivos móviles
 } as const;
 
 /**
  * ---------------------------------------------------------------------------
- * II. ATMÓSFERA Y FÍSICA (AURORA HARVEST)
+ * III. ATMÓSFERA Y FÍSICA (AURORA HARVEST)
  * ---------------------------------------------------------------------------
  */
 
@@ -86,7 +98,7 @@ export const CAMERA_CONSTRAINTS = {
  */
 export const TERRAIN_CONFIG = {
   source: 'mapbox-dem',
-  exaggeration: 1.1 // Calibrado para el estilo Standard
+  exaggeration: 1.1
 } as const;
 
 /**
@@ -95,16 +107,13 @@ export const TERRAIN_CONFIG = {
  */
 export const FOG_CONFIG = {
   "range": [0.5, 8],
-  "color": "#03040b",          // Coincidencia con BackgroundEngine V9.0
-  "horizon-blend": 0.3,        // Mezcla progresiva
+  "color": "#03040b",          // Coincidencia con el Chasis de la plataforma
+  "horizon-blend": 0.25,       // Transición nítida Pokémon GO
   "high-color": "#000000",
   "space-color": "#000000",
-  "star-intensity": 0.3
+  "star-intensity": 0.2
 } as const;
 
-/**
- * DEM_SOURCE_CONFIG: Fuente de datos para el relieve.
- */
 export const DEM_SOURCE_CONFIG = {
   id: "mapbox-dem",
   type: "raster-dem" as const,
@@ -115,24 +124,18 @@ export const DEM_SOURCE_CONFIG = {
 
 /**
  * ---------------------------------------------------------------------------
- * III. CINEMATOGRAFÍA Y TELEMETRÍA (FLIGHT PHYSICS)
+ * IV. CINEMATOGRAFÍA DE VUELO (FLIGHT PHYSICS)
  * ---------------------------------------------------------------------------
  */
 
-/**
- * FLY_CONFIG: Parámetros de salto táctico inmersivo.
- */
 export const FLY_CONFIG = {
-  duration: 3200, // Ligeramente más rápido para evitar fatiga
+  duration: 3200,
   essential: true,
   curve: 1.42,
   speed: 1.1,
   easing: (t: number) => t * (2 - t)
 } as const;
 
-/**
- * ZOOM_LEVELS: Estándares de proximidad.
- */
 export const ZOOM_LEVELS = {
   CITY: 13,
   NEIGHBORHOOD: 15.5,
@@ -141,14 +144,13 @@ export const ZOOM_LEVELS = {
 } as const;
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V4.1):
- * 1. Soporte Mapbox Standard: Se habilitó el ADN para el nuevo motor PBR. Se 
- *    eliminaron las capas de extrusión manual por ser obsoletas ante esta tecnología.
- * 2. Iluminación Táctica: El objeto 'STANDARD_CONFIG' centraliza el control de 
- *    la luz de la ciudad, permitiendo que el 'MapCore' aplique el preset 'night'
- *    de forma inmediata al cargar.
- * 3. Sincronía Atmosférica: El Fog ahora usa el color exacto del fondo de la 
- *    aplicación, creando una transición perfecta entre el UI y el Mapa.
- * 4. Persistencia de Semilla: Se mantiene 'getInitialViewState' para garantizar 
- *    que el Voyager aparezca siempre en su punto real de materialización.
+ * NOTA TÉCNICA DEL ARCHITECT (V5.0):
+ * 1. Control de Tema Centralizado: La constante 'ACTIVE_MAP_THEME' permite cambiar 
+ *    el aspecto del mapa (Día/Noche) sin tocar el motor de renderizado.
+ * 2. Iluminación PBR: Se definieron los parámetros para Mapbox Standard que eliminan
+ *    el aspecto de 'bloques negros', activando sombras y reflejos dinámicos.
+ * 3. Higiene Atmosférica: El Fog y el color base están sintonizados con el 
+ *    'BackgroundEngine' para una inmersión total 360 grados.
+ * 4. Rigor NCIS: Uso de 'as const' para garantizar la inmutabilidad de los objetos 
+ *    de configuración en el ciclo de vida de React.
  */
