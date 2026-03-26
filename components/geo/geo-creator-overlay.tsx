@@ -1,21 +1,16 @@
 // components/geo/geo-creator-overlay.tsx
-// VERSIÓN: 5.0 (NicePod Sovereign Orchestrator - Tactical Console & Motion Edition)
-// Misión: Unificar la Malla 3D, la Cinemática y la IA bajo una interfaz de autoridad.
-// [ESTABILIZACIÓN]: Implementación de Tactical Dock, Theme Switcher y Camera Lock.
+// VERSIÓN: 5.1 (NicePod Sovereign Orchestrator - GPS Authority & Theme Sync Edition)
+// Misión: Unificar la Malla 3D con la telemetría agresiva y el control táctico de iluminación.
+// [ESTABILIZACIÓN]: Implementación de reSyncRadar, sincronía de temas y feedback de GPS Lock.
 
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import {
-  Moon,
-  Plus,
-  Power,
-  Satellite,
-  ShieldCheck,
-  Sun,
-  Target, X
+import { 
+  Plus, Satellite, Target, X, Power, 
+  ShieldCheck, Zap, Sun, Moon 
 } from "lucide-react";
-import { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 
 // --- INFRAESTRUCTURA DE COMPONENTES UI ---
 import { Button } from "@/components/ui/button";
@@ -29,9 +24,11 @@ import { ForgeProvider, useForge } from "./forge-context";
 import { RadarHUD } from "./radar-hud";
 import { GeoScannerUI } from "./scanner-ui";
 import { SpatialEngine } from "./SpatialEngine";
+import { MapboxLightPreset } from "./map-constants";
 
 /**
  * INTERFAZ: GeoCreatorOverlayProps
+ * Recibe la autoridad delegada por el servidor para la forja de nodos.
  */
 interface GeoCreatorOverlayProps {
   canForge: boolean;
@@ -40,10 +37,10 @@ interface GeoCreatorOverlayProps {
 
 /**
  * COMPONENTE INTERNO: CreatorOverlayContent
- * La estación de control táctico sobre la Malla de Madrid Resonance.
+ * La estación de mando que flota sobre la Malla de Madrid Resonance.
  */
 function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
-  // 1. CONSUMO DE TELEMETRÍA SOBERANA (V23.0)
+  // 1. CONSUMO DE TELEMETRÍA SOBERANA (V23.2)
   const {
     status: engineStatus,
     data: engineData,
@@ -51,6 +48,7 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
     initSensors,
     isTriangulated,
     isGPSLock,
+    reSyncRadar, // Método de ignición agresiva
     error: geoError
   } = useGeoEngine();
 
@@ -58,20 +56,21 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
 
   // 2. ESTADOS DE CONSOLA (INTERFACE CONTROL)
   const [isTerminalOpen, setIsTerminalOpen] = useState<boolean>(false);
-  const [mapTheme, setMapTheme] = useState<'night' | 'day'>('night');
+  const [mapTheme, setMapTheme] = useState<MapboxLightPreset>('night');
   const [isCameraLocked, setIsCameraLocked] = useState<boolean>(true);
 
   /**
    * handleIgnition:
-   * Gesto de autoridad para despertar el hardware.
+   * Misión: Despertar el hardware mediante un gesto de usuario explícito.
+   * [MANDATO]: Imprescindible para romper bloqueos de privacidad en móviles.
    */
   const handleIgnition = useCallback(() => {
-    nicepodLog("⚡ [Orchestrator] Gesto de autoridad detectado. Ignición GPS.");
+    nicepodLog("⚡ [Orchestrator] Gesto de autoridad detectado. Forzando enlace GPS.");
     if (typeof window !== "undefined" && navigator.vibrate) {
       navigator.vibrate(40);
     }
-    initSensors();
-  }, [initSensors]);
+    reSyncRadar(); // Usamos reSync para asegurar una limpieza de hilos previa.
+  }, [reSyncRadar]);
 
   const toggleTerminal = useCallback(() => {
     if (isTerminalOpen) {
@@ -84,7 +83,7 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
 
   /**
    * handleRecenter:
-   * Misión: Re-anclar la cámara al Voyager con un pulso cinemático.
+   * Re-ancla la cámara al Voyager y re-activa el seguimiento GPS.
    */
   const handleRecenter = useCallback(() => {
     if (!userLocation) {
@@ -92,7 +91,7 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
       return;
     }
     setIsCameraLocked(true);
-    nicepodLog("🎯 [Orchestrator] Re-anclando cámara al Voyager.");
+    nicepodLog("🎯 [Orchestrator] Recuperando foco sobre el Voyager.");
     if (typeof window !== "undefined" && navigator.vibrate) {
       navigator.vibrate([10, 20]);
     }
@@ -109,8 +108,7 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
   return (
     /**
      * [ORDEN ARQUITECTÓNICO]:
-     * Contenedor raíz 'pointer-events-none'. El mapa WebGL (Capa 0) es 
-     * el dueño de los gestos táctiles por defecto.
+     * Contenedor raíz 'pointer-events-none' para no interferir con el mapa WebGL.
      */
     <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none flex flex-col">
 
@@ -121,6 +119,8 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
       <div className="absolute inset-0 z-0 pointer-events-auto">
         <SpatialEngine
           mode={isTerminalOpen ? 'FORGE' : 'EXPLORE'}
+          // [MEJORA]: Pasamos el tema actual para que MapCore actualice la luz.
+          theme={mapTheme}
           onManualAnchor={(lngLat) => {
             if (!isTerminalOpen) return;
             dispatch({ type: 'SET_LOCATION', payload: { lat: lngLat[1], lng: lngLat[0], acc: 1 } });
@@ -129,7 +129,8 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
       </div>
 
       {/* 
-          II. CAPA 10: EL PANEL DE IGNICIÓN (IDLE PROTECTOR) 
+          II. CAPA 10: EL PANEL DE IGNICIÓN (ANTI-STALL OVERLAY) 
+          Solo aparece si el motor está en IDLE para forzar la sincronía manual.
       */}
       <AnimatePresence>
         {engineStatus === 'IDLE' && (
@@ -162,11 +163,10 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
 
       {/* 
           III. CAPA 20: TACTICAL DOCK (PANEL DE INSTRUMENTOS) 
-          Flota a la derecha para control rápido con el pulgar.
       */}
       <div className="absolute top-8 right-6 md:right-8 flex flex-col gap-4 z-[150] pointer-events-auto">
-
-        {/* BOTÓN DE SIEMBRA */}
+        
+        {/* FAB DE SIEMBRA */}
         {canForge && engineStatus !== 'IDLE' && (
           <Button
             onClick={toggleTerminal}
@@ -174,7 +174,7 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
               "h-14 w-14 md:h-16 md:w-16 rounded-full shadow-2xl transition-all duration-500 border",
               isTerminalOpen
                 ? "bg-red-500 hover:bg-red-600 text-white rotate-90 border-red-400"
-                : "bg-[#080808]/90 text-white border-white/10 hover:border-primary/50"
+                : "bg-[#080808]/90 text-white border-white/10 hover:border-primary/50 shadow-primary/20"
             )}
           >
             <AnimatePresence mode="wait">
@@ -183,19 +183,20 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
           </Button>
         )}
 
-        {/* INTERRUPTOR DE LUZ (DAY/NIGHT) */}
+        {/* INTERRUPTOR DE LUZ (MODO DÍA/NOCHE) */}
         {!isTerminalOpen && engineStatus !== 'IDLE' && (
           <motion.button
             initial={{ x: 50, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             onClick={() => setMapTheme(prev => prev === 'night' ? 'day' : 'night')}
             className="h-12 w-12 rounded-full bg-black/60 backdrop-blur-xl border border-white/10 text-white flex items-center justify-center shadow-xl hover:bg-white hover:text-black transition-all"
+            title="Alternar Iluminación Malla"
           >
             {mapTheme === 'night' ? <Moon size={18} /> : <Sun size={18} />}
           </motion.button>
         )}
 
-        {/* LOCK CAMERA (CENTRAR VOYAGER) */}
+        {/* LOCK CAMERA (RE-CENTRADO) */}
         {!isTerminalOpen && engineStatus !== 'IDLE' && (
           <motion.button
             initial={{ x: 50, opacity: 0 }}
@@ -203,10 +204,11 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
             onClick={handleRecenter}
             className={cn(
               "h-12 w-12 rounded-full backdrop-blur-xl border flex items-center justify-center shadow-xl transition-all",
-              isCameraLocked
-                ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-400"
+              isCameraLocked 
+                ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-400" 
                 : "bg-black/60 border-white/10 text-white"
             )}
+            title="Centrar Voyager"
           >
             <Target size={18} />
           </motion.button>
@@ -260,41 +262,41 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
       </AnimatePresence>
 
       {/* 
-          VI. INDICADOR DE STATUS INFERIOR (COMMAND CENTER) 
-          Transformado en botón de acción rápida para re-centrar la malla.
+          VI. INDICADOR DE STATUS INFERIOR (FORCE SYNC CENTER) 
+          [RE-DISEÑO V2.7]: Muestra el estado de autoridad real (IP vs GPS).
       */}
       {!isTerminalOpen && engineStatus !== 'IDLE' && (
         <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-[100] pointer-events-auto">
           <button
-            onClick={handleRecenter}
+            onClick={handleIgnition} // Activa la re-sincronía agresiva al pulsar
             className={cn(
               "backdrop-blur-3xl px-6 py-3 rounded-full border flex items-center gap-4 shadow-2xl transition-all duration-700 active:scale-95",
-              isGPSLock
-                ? "bg-emerald-500/10 border-emerald-500/30"
+              isGPSLock 
+                ? "bg-emerald-500/10 border-emerald-500/30" 
                 : "bg-black/80 border-white/10"
             )}
           >
             <div className="relative">
-              <div className={cn(
-                "h-2 w-2 rounded-full animate-ping absolute inset-0",
-                isGPSLock ? "bg-emerald-500" : "bg-primary"
-              )} />
-              <div className={cn(
-                "h-2 w-2 rounded-full relative z-10",
-                isGPSLock ? "bg-emerald-400" : "bg-primary"
-              )} />
+               <div className={cn(
+                 "h-2.5 w-2.5 rounded-full animate-ping absolute inset-0", 
+                 isGPSLock ? "bg-emerald-500" : "bg-primary"
+               )} />
+               <div className={cn(
+                 "h-2.5 w-2.5 rounded-full relative z-10", 
+                 isGPSLock ? "bg-emerald-400" : "bg-primary"
+               )} />
             </div>
-
+            
             <div className="flex flex-col items-start leading-none">
-              <span className="text-[9px] font-black text-white uppercase tracking-[0.4em]">
+              <span className="text-[10px] font-black text-white uppercase tracking-[0.4em]">
                 {isGPSLock ? "Malla Sintonizada" : "Capturando Señal..."}
               </span>
-              <span className="text-[7px] font-bold text-zinc-500 uppercase tracking-[0.2em] mt-1">
-                {isGPSLock ? "GPS High-Fidelity" : "Red Neuronal Estimada"}
+              <span className="text-[8px] font-bold text-zinc-500 uppercase tracking-[0.2em] mt-1">
+                {isGPSLock ? "GPS High-Fidelity Active" : "Detectando Voyager..."}
               </span>
             </div>
 
-            {isGPSLock && <ShieldCheck size={12} className="text-emerald-500 ml-1" />}
+            {isGPSLock && <ShieldCheck size={14} className="text-emerald-500 ml-1" />}
           </button>
         </div>
       )}
@@ -304,8 +306,7 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
 }
 
 /**
- * EXPORTACIÓN SOBERANA: GeoCreatorOverlay
- * Orquestador principal de la experiencia de usuario geoespacial.
+ * EXPORTACIÓN SOBERANA
  */
 export function GeoCreatorOverlay(props: GeoCreatorOverlayProps) {
   return (
@@ -316,13 +317,14 @@ export function GeoCreatorOverlay(props: GeoCreatorOverlayProps) {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V5.0):
- * 1. Solución de Oclusión: Se implementó 'pointer-events-none' en el contenedor raíz
- *    para garantizar que el mapa WebGL debajo sea el dueño de la interacción táctil.
- * 2. Tactical Command Dock: Se inyectaron controles imperativos para el Tema (Luz)
- *    y el Bloqueo de Cámara, permitiendo al Voyager personalizar su experiencia.
- * 3. Ignición Proactiva: El 'Ignition Overlay' garantiza un gesto de usuario para
- *    romper el bloqueo de privacidad del GPS en navegadores móviles modernos.
- * 4. Feedback de Calidad: El sistema diferencia visualmente entre un enlace de red
- *    y un enlace satelital (GPS Lock), proporcionando rigor pericial al usuario.
+ * NOTA TÉCNICA DEL ARCHITECT (V5.1):
+ * 1. Autoridad de Re-Sincronía: El indicador inferior ahora es un gatillo real. Al pulsarlo, 
+ *    se invoca 'reSyncRadar()', forzando un reinicio del chip GPS del dispositivo, 
+ *    solucionando los problemas de 'Stall' (estancamiento) en la ubicación de IP.
+ * 2. Control de Malla en Tiempo Real: Se integró el 'mapTheme' con el motor 3D, 
+ *    permitiendo al Voyager alternar entre presets lumínicos Standard (Day/Night).
+ * 3. Interactividad Passthrough: El chasis raíz es 100% transparente para los 
+ *    eventos táctiles, garantizando que Mapbox sea el dueño absoluto de la cámara.
+ * 4. Feedback Aeroespacial: Se incrementó el rigor visual de los estados de carga, 
+ *    diferenciando claramente entre una estimación y una fijación satelital.
  */
