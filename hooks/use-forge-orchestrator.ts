@@ -1,28 +1,29 @@
 // hooks/use-forge-orchestrator.ts
-// VERSIÓN: 1.0 (NicePod Forge Orchestrator - Async AI Intelligence Edition)
+// VERSIÓN: 1.1 (NicePod Forge Orchestrator - Industrial Hardening Edition)
 // Misión: Gestionar el ciclo de vida de la ingesta sensorial e inteligencia narrativa.
 // [NCIS DOGMA]: Soberanía del Hilo Principal. Las tareas pesadas no bloquean el movimiento.
 
 "use client";
 
+import { useCallback, useState } from "react";
+import { compressNicePodImage, nicepodLog } from "@/lib/utils";
 import {
   attachAmbientAudioAction,
   ingestPhysicalEvidenceAction,
   synthesizeNarrativeAction,
   transcribeVoiceIntentAction
 } from "@/actions/geo-actions";
-import { compressNicePodImage, nicepodLog } from "@/lib/utils";
 import {
   GeoContextData,
   GeoEngineState,
   IngestionDossier,
   UserLocation
 } from "@/types/geo-sovereignty";
-import { useCallback, useState } from "react";
 
 /**
  * UTILIDAD INTERNA: fileToBase64
  * Transmuta archivos binarios en strings para el puente hacia las Edge Functions.
+ * Garantiza que el Payload no corrompa el transporte JSON.
  */
 const fileToBase64 = (file: File | Blob): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -150,6 +151,7 @@ export function useForgeOrchestrator() {
   }) => {
     setStatus('SYNTHESIZING');
     try {
+      nicepodLog(`🧠 [Forge-Orchestrator] Invocando al Oráculo 42 para Nodo #${params.poiId}...`);
       const result = await synthesizeNarrativeAction(params);
 
       if (!result.success || !result.data) {
@@ -179,7 +181,7 @@ export function useForgeOrchestrator() {
 
   /**
    * resetForge:
-   * Limpia la memoria volátil del proceso de forja.
+   * Limpia la memoria volátil del proceso de forja sin afectar el GPS.
    */
   const resetForge = useCallback(() => {
     setStatus('IDLE');
@@ -201,13 +203,15 @@ export function useForgeOrchestrator() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V1.0):
- * 1. Desacoplo Cognitivo: Este hook centraliza la 'Fuerza Bruta' de la aplicación. 
- *    Al estar separado del GPS, garantizamos que el hardware sensorial respire 
- *    mientras el software procesa imágenes de 12MB a través de Canvas.
- * 2. Robustez ante Fallos: El estado 'REJECTED' preserva los datos de error, 
- *    permitiendo que la UI de ScannerUI (Step 2) ofrezca un reintento limpio 
- *    sin perder el contexto de la captura.
- * 3. Preparado para Vercel: Uso estricto de Server Actions y transporte Base64, 
- *    cumpliendo con el 'bodySizeLimit' de 4MB configurado en next.config.mjs.
+ * NOTA TÉCNICA DEL ARCHITECT (V1.1):
+ * 1. Desacoplo Cognitivo (Dual Brain): Al separar este hook del 'SensorAuthority', 
+ *    garantizamos que las operaciones de 'Canvas API' (compresión de imágenes 4K) 
+ *    no bloqueen el callback de 'watchPosition' del hardware GPS, manteniendo 
+ *    el seguimiento del avatar 100% fluido en la malla.
+ * 2. Robustez de Transporte (Build Shield): Uso estricto de Server Actions y 
+ *    transporte Base64. Alineado con el 'bodySizeLimit' de 4MB de next.config.mjs 
+ *    para evitar fallos de payload (HTTP 413) en la nube de Vercel.
+ * 3. Fallback Seguro: Se captura rigurosamente cualquier excepción de la API de IA 
+ *    pasando a estado 'REJECTED'. Esto permite a la 'ScannerUI' mantener el 
+ *    formulario abierto y ofrecer un botón de reintento sin perder la foto.
  */
