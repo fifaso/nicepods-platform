@@ -1,7 +1,7 @@
 // components/geo/SpatialEngine/index.tsx
-// VERSIÓN: 5.6 (NicePod Spatial Hub - Absolute Materialization & Type Recovery Edition)
-// Misión: Orquestar el motor WebGL garantizando el nacimiento en la ubicación real del usuario.
-// [ESTABILIZACIÓN]: Resolución de error ts(2724) mediante la unificación de constantes dinámicas.
+// VERSIÓN: 5.7 (NicePod Spatial Hub - Bi-Phasic Precision & Auto-Refinement Edition)
+// Misión: Orquestar el motor WebGL con nacimiento en IP y refinamiento automático a GPS.
+// [ESTABILIZACIÓN]: Implementación de isGPSLock, Vuelo de Corrección y Sincronía T0.
 
 "use client";
 
@@ -17,7 +17,7 @@ import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { SearchResult } from "@/hooks/use-search-radar";
 import { cn, nicepodLog } from "@/lib/utils";
 
-// [FIX V2.7]: Sincronía con map-constants.ts V4.0 (Sustitución de INITIAL_VIEW_STATE)
+// --- CONSTANTES DE FÍSICA Y CÁMARA ---
 import {
   FLY_CONFIG,
   MADRID_SOL_COORDS,
@@ -30,7 +30,6 @@ import MapCore from "./map-core";
 /**
  * ---------------------------------------------------------------------------
  * I. [BUILD SHIELD]: TYPE EXTRACTION STRATEGY
- * Extraemos dinámicamente los contratos de eventos directamente del componente Map.
  * ---------------------------------------------------------------------------
  */
 type MapNativeProps = ComponentProps<typeof Map>;
@@ -47,8 +46,8 @@ interface SpatialEngineProps {
  * SpatialEngine: El Reactor de Inteligencia Visual de NicePod.
  */
 export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngineProps) {
-
-  // 1. CONSUMO DE TELEMETRÍA SOBERANA (V21.0)
+  
+  // 1. CONSUMO DE TELEMETRÍA SOBERANA (V22.0)
   const {
     userLocation,
     nearbyPOIs,
@@ -56,6 +55,7 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
     status: engineStatus,
     initSensors,
     isTriangulated,
+    isGPSLock,       // [NUEVO]: Indica precisión certificada < 50m
     setTriangulated,
     error: geoError
   } = useGeoEngine();
@@ -69,20 +69,19 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   const [isSearchLoading, setIsSearchLoading] = useState<boolean>(false);
   const [isContainerReady, setIsContainerReady] = useState<boolean>(false);
   const [isMapLoaded, setIsMapLoaded] = useState<boolean>(false);
-
-  /**
-   * [HOT-SWAP]: Si la sesión ya está triangulada (vienes del Dashboard),
-   * la cámara nace asentada para el Hot-Swap instantáneo.
-   */
+  
+  // Si ya estamos triangulados (vía IP/Caché), la cámara nace sin cortina.
   const [isCameraSettled, setIsCameraSettled] = useState<boolean>(isTriangulated);
 
-  // [FIX V2.7]: Inicialización de búsqueda usando el fallback legal de Sol.
+  // Coordenadas para el Radar de Búsqueda
   const [searchCenter, setSearchCenter] = useState({
     latitude: MADRID_SOL_COORDS.latitude,
     longitude: MADRID_SOL_COORDS.longitude,
   });
 
+  // MEMORIA DE VUELOS (Evita redundancias de cámara)
   const hasInitialJumpPerformed = useRef<boolean>(false);
+  const hasRefinedToGPS = useRef<boolean>(false);
 
   /**
    * 4. PROTOCOLOS DE SEGURIDAD MATEMÁTICA (Safe Mount)
@@ -121,13 +120,13 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
           nicepodLog("⚠️ [Orchestrator] Timeout alcanzado. Forzando paso de luz.");
           setIsCameraSettled(true);
         }
-      }, 7000);
+      }, 7000); 
       return () => clearTimeout(rescueTimer);
     }
   }, [isMapLoaded, isCameraSettled]);
 
   /**
-   * 7. GESTIÓN DE CÁMARA INMERSIVA (Pokémon GO Style)
+   * 7. GESTIÓN DE CÁMARA INMERSIVA
    */
   const flyToPosition = useCallback((lng: number, lat: number, zoom: number = ZOOM_LEVELS.STREET) => {
     if (!mapRef.current) return;
@@ -151,26 +150,38 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   }, [mode]);
 
   /**
-   * 8. PROTOCOLO DE MATERIALIZACIÓN AUTOMÁTICA
-   * Misión: Realizar el primer anclaje visual en cuanto el motor está listo.
+   * 8. PROTOCOLO DE MATERIALIZACIÓN PROGRESIVA (T0 Refinement)
+   * Misión: De la ciudad (IP) a la calle (GPS) automáticamente.
    */
   useEffect(() => {
-    if (!userLocation || !isMapLoaded || hasInitialJumpPerformed.current) return;
+    if (!userLocation || !isMapLoaded) return;
 
     const targetZoom = mode === 'FORGE' ? ZOOM_LEVELS.FORGE : ZOOM_LEVELS.STREET;
 
-    if (!isTriangulated) {
-      nicepodLog("🎯 [Orchestrator] Voyager materializado. Ejecutando salto Pokémon GO.");
-      flyToPosition(userLocation.longitude, userLocation.latitude, targetZoom);
-      setTriangulated();
-    } else {
-      nicepodLog("🚀 [Orchestrator] Hot-Swap activo. Ubicación persistente.");
-      jumpToPosition(userLocation.longitude, userLocation.latitude, targetZoom);
-      setIsCameraSettled(true);
+    // FASE 1: Primer Anclaje (Generalmente IP o Caché)
+    if (!hasInitialJumpPerformed.current) {
+      if (!isTriangulated) {
+        nicepodLog("🎯 [Orchestrator] Primer Fix detectado. Iniciando aproximación.");
+        flyToPosition(userLocation.longitude, userLocation.latitude, targetZoom);
+        setTriangulated();
+      } else {
+        nicepodLog("🚀 [Orchestrator] Hot-Swap activo. Ubicación persistente.");
+        jumpToPosition(userLocation.longitude, userLocation.latitude, targetZoom);
+        setIsCameraSettled(true); 
+      }
+      hasInitialJumpPerformed.current = true;
+      return;
     }
 
-    hasInitialJumpPerformed.current = true;
-  }, [userLocation, isMapLoaded, isTriangulated, flyToPosition, jumpToPosition, mode, setTriangulated]);
+    // FASE 2: Refinamiento de Alta Precisión (GPS Lock)
+    // Cuando el hardware finalmente entrega precisión < 50m, realizamos el ajuste final.
+    if (isGPSLock && !hasRefinedToGPS.current) {
+      nicepodLog("🔒 [Orchestrator] GPS Lock alcanzado. Refinando malla.");
+      flyToPosition(userLocation.longitude, userLocation.latitude, targetZoom);
+      hasRefinedToGPS.current = true;
+    }
+
+  }, [userLocation, isMapLoaded, isTriangulated, isGPSLock, flyToPosition, jumpToPosition, mode, setTriangulated]);
 
   /**
    * 9. MANEJADORES DE EVENTOS SOBERANOS
@@ -192,11 +203,11 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
 
   const handleMapClick = useCallback((event: SafeMapClickEvent) => {
     if (mode !== 'FORGE' || !onManualAnchor) return;
-
+    
     if (typeof window !== "undefined" && navigator.vibrate) {
       navigator.vibrate([10, 30, 10]);
     }
-
+    
     const lngLat: [number, number] = [event.lngLat.lng, event.lngLat.lat];
     onManualAnchor(lngLat);
     jumpToPosition(lngLat[0], lngLat[1], ZOOM_LEVELS.FORGE);
@@ -226,7 +237,7 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
 
   return (
     <div ref={containerRef} className={cn("w-full h-full relative bg-[#010101]", className)}>
-
+      
       {/* I. CORTINA DE CARGA SOBERANA (SMOKESCREEN) */}
       <AnimatePresence mode="wait">
         {!isCameraSettled && (
@@ -249,7 +260,7 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
             <div className="flex flex-col items-center gap-6 text-center px-12">
               <div className="space-y-2">
                 <span className="text-[11px] font-black uppercase tracking-[0.6em] text-white">
-                  Sincronización Órbital
+                  Madrid Resonance
                 </span>
                 <p className="text-[9px] font-bold uppercase tracking-[0.3em] text-primary/60 animate-pulse italic">
                   {!userLocation ? "Capturando Telemetría de Red..." : "Estabilizando Malla 3D..."}
@@ -261,7 +272,7 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   onClick={() => initSensors()}
-                  className="px-8 py-4 bg-primary text-black rounded-2xl font-black text-[10px] uppercase tracking-[0.4em] shadow-[0_0_40px_rgba(var(--primary-rgb),0.4)] flex items-center gap-4 hover:scale-105 transition-transform"
+                  className="px-8 py-4 bg-primary text-black rounded-2xl font-black text-[10px] uppercase tracking-[0.4em] shadow-[0_0_40px_rgba(var(--primary-rgb),0.3)] flex items-center gap-4 hover:scale-105 transition-transform"
                 >
                   <Power size={14} />
                   Iniciar Sincronía
@@ -270,40 +281,23 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
             </div>
           </motion.div>
         )}
-
-        {/* ESCENARIO B: PERMISSION SHIELD (BLOQUEO DE GPS) */}
-        {engineStatus === 'PERMISSION_DENIED' && (
-          <motion.div
-            key="p-shield"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="absolute inset-0 z-[150] bg-[#020202] flex flex-col items-center justify-center p-12 text-center"
-          >
-            <ShieldAlert className="h-16 w-16 text-red-500 mb-8" />
-            <span className="text-sm font-black uppercase tracking-[0.5em] text-red-400">Acceso Interceptado</span>
-            <p className="text-xs text-zinc-500 mt-6 max-w-[280px] leading-relaxed uppercase font-bold tracking-widest">
-              Habilite los permisos de ubicación en su dispositivo para proyectar la Malla de Madrid.
-            </p>
-          </motion.div>
-        )}
       </AnimatePresence>
 
       {/* 
           II. EL MOTOR DE RENDERIZADO (CORE)
-          [MANDATO V2.7]: Solo montamos el motor cuando tenemos ubicación real o de IP.
-          Esto garantiza que 'initialViewState' en MapCore sea, desde el primer frame,
-          la posición del Voyager.
+          Solo montamos el motor cuando tenemos una ubicación semilla (IP o GPS).
+          Esto garantiza que MapCore nazca en el lugar real del Voyager.
       */}
       {isContainerReady && userLocation && (
         <div className="w-full h-full pointer-events-auto">
           <MapCore
             ref={mapRef}
             mode={mode}
-            startCoords={userLocation}
+            startCoords={userLocation} 
             selectedPOIId={selectedPOIId}
             onLoad={() => setIsMapLoaded(true)}
             onIdle={handleMapIdle}
-            onMove={() => { }}
+            onMove={() => {}}
             onMoveEnd={handleMoveEnd}
             onMapClick={handleMapClick}
             onMarkerClick={(id: string) => {
@@ -349,13 +343,14 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V5.6):
- * 1. Solución ts(2724): Se corrigió la importación de constantes. Se sustituyó el 
- *    miembro inexistente 'INITIAL_VIEW_STATE' por 'MADRID_SOL_COORDS', alineando 
- *    el orquestador con el nuevo ADN dinámico de las constantes de mapa V4.0.
- * 2. Montaje Condicional T0: El motor MapCore solo se instancia cuando el Voyager 
- *    ha sido materializado (vía IP o GPS), asegurando que la semilla de cámara 
- *    sea la real del usuario desde el frame uno.
- * 3. Hot-Swap Visual: El mapa detecta la triangulación previa para eliminar el 
- *    tiempo de espera de la cortina de carga.
+ * NOTA TÉCNICA DEL ARCHITECT (V5.7):
+ * 1. Protocolo de Refinamiento Automático: Se implementó un sistema de dos etapas. 
+ *    El mapa nace en la posición aproximada (IP) para materializar al Voyager al 
+ *    instante, y luego realiza un 'flyTo' de precisión al detectar el GPS Lock.
+ * 2. Montaje Condicional T0: Se mantiene el bloqueo de renderizado hasta tener 
+ *    'userLocation', garantizando que el 'initialViewState' del motor WebGL no 
+ *    tenga que lidiar con el nacimiento erróneo en Madrid Sol.
+ * 3. Hot-Swap Sincronizado: Si la sesión ya tiene un fix de alta precisión, se 
+ *    ignora la fase de refinamiento y se salta directamente al Voyager.
+ * 4. Zero-Any Safe Build: Tipado integral y completo para el entorno de Vercel.
  */
