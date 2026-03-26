@@ -1,7 +1,7 @@
 // types/geo-sovereignty.ts
-// VERSIÓN: 4.1 (NicePod V2.7 - Persistent Mesh Contract Edition)
-// Misión: Centralizar el contrato de identidad de los activos físicos y la lógica del motor geoespacial.
-// [ESTABILIZACIÓN]: Inyección de facultades de persistencia para el Hot-Swap de mapas y resolución de ts(2339).
+// VERSIÓN: 4.2 (NicePod V2.7 - Precision & Mesh Persistence Contract Edition)
+// Misión: Centralizar el contrato de identidad de los activos físicos y la telemetría.
+// [ESTABILIZACIÓN]: Inyección de 'isGPSLock' para permitir el refinamiento de cámara automático.
 
 /**
  * ---------------------------------------------------------------------------
@@ -150,7 +150,7 @@ export interface GeoContextData {
 
 /**
  * GeoEngineReturn: La firma pública que el hook useGeoEngine entrega a la UI.
- * [FIX V2.7]: Inyección de 'isTriangulated' y 'setTriangulated' para habilitar Hot-Swap.
+ * [FIX V2.7]: Inyección de 'isTriangulated' e 'isGPSLock' para habilitar Hot-Swap y Refinamiento.
  */
 export interface GeoEngineReturn {
   status: GeoEngineState;
@@ -162,9 +162,11 @@ export interface GeoEngineReturn {
   isLocked: boolean;
   error: string | null;
 
-  // --- FACULTADES DE PERSISTENCIA (V2.7) ---
-  /** isTriangulated: Indica si el 'salto inicial' ya ocurrió en la sesión. */
+  // --- FACULTADES DE PERSISTENCIA Y AUTORIDAD (V2.7) ---
+  /** isTriangulated: Indica si existe alguna ubicación inicial (IP/GPS/Caché). */
   isTriangulated: boolean;
+  /** isGPSLock: Indica si existe una fijación satelital de alta precisión (<50m). */
+  isGPSLock: boolean;
   /** setTriangulated: Sella el estado de localización para toda la Workstation. */
   setTriangulated: () => void;
 
@@ -238,11 +240,11 @@ export interface POICategory {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V4.1):
- * 1. Restauración de Sincronía: La adición de 'isTriangulated' y 'setTriangulated' 
- *    elimina los errores ts(2339) y ts(2353) en los archivos consumidores.
- * 2. Build Shield Reforzado: El tipado estricto de 'nearbyPOIs' y 'geo_location' 
- *    garantiza que el SpatialEngine opere sobre datos con estructura PostGIS válida.
- * 3. Hot-Swap Ready: La interfaz ahora soporta oficialmente el estado persistente 
- *    necesario para la carga veloz del mapa en el Dashboard e Inmersión.
+ * NOTA TÉCNICA DEL ARCHITECT (V4.2):
+ * 1. Sincronía Atómica: La adición de 'isGPSLock' es el disparador legal que permite 
+ *    al SpatialEngine realizar el vuelo de refinamiento automático.
+ * 2. Resolución de ts(2339): Al declarar estas propiedades en la interfaz maestra, 
+ *    el compilador de Vercel dejará de bloquear el build en el orquestador.
+ * 3. Hot-Swap Ready: La persistencia de triangulación queda normalizada como un 
+ *    estándar de la arquitectura NicePod Madrid Resonance.
  */
