@@ -1,7 +1,7 @@
 // components/geo/SpatialEngine/index.tsx
-// VERSIÓN: 5.4 (NicePod Spatial Hub - Auto-Materialization & GO-Immersion Edition)
-// Misión: Orquestar el motor WebGL con ignición automática de cámara estilo Pokémon GO.
-// [ESTABILIZACIÓN]: Eliminación de intervención manual para localización inicial y Hot-Swap T0.
+// VERSIÓN: 5.5 (NicePod Spatial Hub - Absolute Materialization Edition)
+// Misión: Orquestar el motor WebGL garantizando el nacimiento en la ubicación real del usuario.
+// [ESTABILIZACIÓN]: Implementación de Montaje Condicional, Hot-Swap T0 y Pokémon GO Style.
 
 "use client";
 
@@ -23,6 +23,7 @@ import MapCore from "./map-core";
 /**
  * ---------------------------------------------------------------------------
  * I. [BUILD SHIELD]: TYPE EXTRACTION STRATEGY
+ * Extraemos dinámicamente los contratos de eventos directamente del componente Map.
  * ---------------------------------------------------------------------------
  */
 type MapNativeProps = ComponentProps<typeof Map>;
@@ -36,7 +37,7 @@ interface SpatialEngineProps {
 }
 
 /**
- * SpatialEngine: El Reactor de Inteligencia Visual de Madrid Resonance.
+ * SpatialEngine: El Reactor de Inteligencia Visual de NicePod.
  */
 export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngineProps) {
   
@@ -48,7 +49,8 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
     status: engineStatus,
     initSensors,
     isTriangulated,
-    setTriangulated
+    setTriangulated,
+    error: geoError
   } = useGeoEngine();
 
   // 2. REFERENCIAS DE CONTROL DE HARDWARE
@@ -61,7 +63,10 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   const [isContainerReady, setIsContainerReady] = useState<boolean>(false);
   const [isMapLoaded, setIsMapLoaded] = useState<boolean>(false);
   
-  // Si ya estamos triangulados, la cámara nace asentada para el Hot-Swap
+  /**
+   * [HOT-SWAP]: Si la sesión ya está triangulada (vienes del Dashboard),
+   * la cámara nace asentada para el Hot-Swap instantáneo.
+   */
   const [isCameraSettled, setIsCameraSettled] = useState<boolean>(isTriangulated);
 
   // Ancla para el Radar de Búsqueda (Bóveda NKV)
@@ -109,7 +114,7 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
           nicepodLog("⚠️ [Orchestrator] Timeout alcanzado. Forzando revelado de malla.");
           setIsCameraSettled(true);
         }
-      }, 7000); // 7s de gracia para redes lentas
+      }, 7000); 
       return () => clearTimeout(rescueTimer);
     }
   }, [isMapLoaded, isCameraSettled]);
@@ -140,7 +145,7 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
 
   /**
    * 8. PROTOCOLO DE MATERIALIZACIÓN AUTOMÁTICA
-   * Misión: Mover la cámara al usuario sin necesidad de clics manuales.
+   * Misión: Realizar el primer anclaje visual en cuanto el motor está listo.
    */
   useEffect(() => {
     // Si no hay motor o ubicación, o ya saltamos, abortamos.
@@ -149,13 +154,11 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
     const targetZoom = mode === 'FORGE' ? ZOOM_LEVELS.FORGE : ZOOM_LEVELS.STREET;
 
     if (!isTriangulated) {
-      // CASO A: Materialización inicial. Vuelo cinemático inmersivo.
-      nicepodLog("🎯 [Orchestrator] Voyager detectado. Ejecutando auto-fix Pokémon GO.");
+      nicepodLog("🎯 [Orchestrator] Voyager materializado. Ejecutando salto Pokémon GO.");
       flyToPosition(userLocation.longitude, userLocation.latitude, targetZoom);
       setTriangulated();
     } else {
-      // CASO B: Hot-Swap (Ubicación ya conocida). Salto instantáneo.
-      nicepodLog("🚀 [Orchestrator] Malla persistente detectada. Hot-Swap instantáneo.");
+      nicepodLog("🚀 [Orchestrator] Hot-Swap activo. Ubicación persistente.");
       jumpToPosition(userLocation.longitude, userLocation.latitude, targetZoom);
       setIsCameraSettled(true); 
     }
@@ -170,7 +173,7 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   const handleMapIdle = useCallback(() => {
     if (isMapLoaded && !isCameraSettled) {
       setIsCameraSettled(true);
-      nicepodLog("✨ [Orchestrator] Malla 3D estabilizada. Revelado completado.");
+      nicepodLog("✨ [Orchestrator] Malla 3D renderizada. Revelado completado.");
     }
   }, [isMapLoaded, isCameraSettled]);
 
@@ -237,36 +240,60 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
               <Compass className="h-16 w-16 text-primary relative z-10 animate-spin-slow" />
             </div>
 
-            <div className="flex flex-col items-center gap-4 text-center px-12">
-              <span className="text-[11px] font-black uppercase tracking-[0.6em] text-white">
-                Sincronización Órbital
-              </span>
-              <p className="text-[9px] font-bold uppercase tracking-[0.3em] text-primary/60 animate-pulse italic">
-                {!isMapLoaded ? "Cargando Malla WebGL..." : 
-                 !userLocation ? "Capturando Telemetría..." : "Estabilizando Horizonte 3D..."}
-              </p>
-              
-              {/* Botón de Rescate en IDLE (Si falla el auto-fix) */}
+            <div className="flex flex-col items-center gap-6 text-center px-12">
+              <div className="space-y-2">
+                <span className="text-[11px] font-black uppercase tracking-[0.6em] text-white">
+                  Sincronización Órbital
+                </span>
+                <p className="text-[9px] font-bold uppercase tracking-[0.3em] text-primary/60 animate-pulse italic">
+                  {!userLocation ? "Capturando Telemetría de Red..." : "Estabilizando Malla 3D..."}
+                </p>
+              </div>
+
               {engineStatus === 'IDLE' && (
-                <button 
+                <motion.button
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
                   onClick={() => initSensors()}
-                  className="mt-8 px-6 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-black text-[8px] uppercase tracking-[0.4em]"
+                  className="px-8 py-4 bg-primary text-black rounded-2xl font-black text-[10px] uppercase tracking-[0.4em] shadow-[0_0_40px_rgba(var(--primary-rgb),0.4)] flex items-center gap-4 hover:scale-105 transition-transform"
                 >
-                  <Power size={12} className="inline mr-2" />
+                  <Power size={14} />
                   Iniciar Sincronía
-                </button>
+                </motion.button>
               )}
             </div>
           </motion.div>
         )}
+
+        {/* ESCENARIO B: PERMISSION SHIELD (BLOQUEO DE GPS) */}
+        {engineStatus === 'PERMISSION_DENIED' && (
+          <motion.div
+            key="p-shield"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="absolute inset-0 z-[150] bg-[#020202] flex flex-col items-center justify-center p-12 text-center"
+          >
+            <ShieldAlert className="h-16 w-16 text-red-500 mb-8" />
+            <span className="text-sm font-black uppercase tracking-[0.5em] text-red-400">Acceso Interceptado</span>
+            <p className="text-xs text-zinc-500 mt-6 max-w-[280px] leading-relaxed uppercase font-bold tracking-widest">
+              Habilite los permisos de ubicación en su dispositivo para proyectar la Malla de Madrid.
+            </p>
+          </motion.div>
+        )}
       </AnimatePresence>
 
-      {/* II. EL MOTOR DE RENDERIZADO (CORE) */}
-      {isContainerReady && (
+      {/* 
+          II. EL MOTOR DE RENDERIZADO (CORE)
+          [MANDATO V2.7]: Solo montamos el motor cuando tenemos ubicación real o de IP.
+          Esto garantiza que 'initialViewState' en MapCore sea, desde el primer frame,
+          la posición del Voyager, aniquilando el nacimiento erróneo en Sol.
+      */}
+      {isContainerReady && userLocation && (
         <div className="w-full h-full pointer-events-auto">
           <MapCore
             ref={mapRef}
             mode={mode}
+            startCoords={userLocation} // <--- Inyección de Semilla Real
             selectedPOIId={selectedPOIId}
             onLoad={() => setIsMapLoaded(true)}
             onIdle={handleMapIdle}
@@ -316,15 +343,15 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V5.4):
- * 1. Automatización Total de Cámara: Se implementó un useEffect ejecutivo que 
- *    materializa al Voyager en el mapa de forma automática en cuanto se detecta 
- *    la primera coordenada, eliminando la necesidad de interacción manual.
- * 2. Estética Pokémon GO: Todos los saltos automáticos fuerzan un pitch de 80 y 
- *    zoom 17.5, garantizando la inmersión 3D fotorrealista solicitada.
- * 3. Hot-Swap Sincronizado: El sistema reconoce el estado 'isTriangulated' global, 
- *    permitiendo que el Voyager aparezca instantáneamente si ya fue localizado 
- *    en el Dashboard o en una visita previa.
- * 4. Liberación de Gestos: El uso de 'pointer-events-auto' en capas críticas 
- *    asegura que el mapa nunca se sienta "muerto" o bloqueado.
+ * NOTA TÉCNICA DEL ARCHITECT (V5.5):
+ * 1. Protocolo de Montaje Condicional: Se ha bloqueado la instanciación de 'MapCore' 
+ *    hasta que 'userLocation' no sea nulo. Esto obliga al motor WebGL a nacer 
+ *    exactamente en la ubicación real/IP del usuario, eliminando definitivamente 
+ *    el salto visual desde la Puerta del Sol.
+ * 2. Automatización T0: Se eliminó la necesidad de intervención manual. El sistema 
+ *    vuela al Voyager en cuanto detecta el primer latido de telemetría.
+ * 3. Hot-Swap Visual: El mapa detecta la triangulación previa de la sesión para 
+ *    eliminar la cortina de carga, logrando una transición instantánea entre páginas.
+ * 4. Zero-Any Safe Build: Implementación de Inferencia de Tipos para 
+ *    cumplir con el contrato estricto de Mapbox sin fallos de compilación.
  */
