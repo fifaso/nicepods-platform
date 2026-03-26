@@ -1,7 +1,7 @@
 // components/geo/SpatialEngine/index.tsx
-// VERSIÓN: 5.5 (NicePod Spatial Hub - Absolute Materialization Edition)
+// VERSIÓN: 5.6 (NicePod Spatial Hub - Absolute Materialization & Type Recovery Edition)
 // Misión: Orquestar el motor WebGL garantizando el nacimiento en la ubicación real del usuario.
-// [ESTABILIZACIÓN]: Implementación de Montaje Condicional, Hot-Swap T0 y Pokémon GO Style.
+// [ESTABILIZACIÓN]: Resolución de error ts(2724) mediante la unificación de constantes dinámicas.
 
 "use client";
 
@@ -16,7 +16,14 @@ import { UnifiedSearchBar } from "@/components/ui/unified-search-bar";
 import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { SearchResult } from "@/hooks/use-search-radar";
 import { cn, nicepodLog } from "@/lib/utils";
-import { FLY_CONFIG, INITIAL_VIEW_STATE, ZOOM_LEVELS } from "../map-constants";
+
+// [FIX V2.7]: Sincronía con map-constants.ts V4.0 (Sustitución de INITIAL_VIEW_STATE)
+import {
+  FLY_CONFIG,
+  MADRID_SOL_COORDS,
+  ZOOM_LEVELS
+} from "../map-constants";
+
 import { POIPreviewCard } from "../poi-preview-card";
 import MapCore from "./map-core";
 
@@ -40,7 +47,7 @@ interface SpatialEngineProps {
  * SpatialEngine: El Reactor de Inteligencia Visual de NicePod.
  */
 export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngineProps) {
-  
+
   // 1. CONSUMO DE TELEMETRÍA SOBERANA (V21.0)
   const {
     userLocation,
@@ -62,17 +69,17 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
   const [isSearchLoading, setIsSearchLoading] = useState<boolean>(false);
   const [isContainerReady, setIsContainerReady] = useState<boolean>(false);
   const [isMapLoaded, setIsMapLoaded] = useState<boolean>(false);
-  
+
   /**
    * [HOT-SWAP]: Si la sesión ya está triangulada (vienes del Dashboard),
    * la cámara nace asentada para el Hot-Swap instantáneo.
    */
   const [isCameraSettled, setIsCameraSettled] = useState<boolean>(isTriangulated);
 
-  // Ancla para el Radar de Búsqueda (Bóveda NKV)
+  // [FIX V2.7]: Inicialización de búsqueda usando el fallback legal de Sol.
   const [searchCenter, setSearchCenter] = useState({
-    latitude: INITIAL_VIEW_STATE.latitude,
-    longitude: INITIAL_VIEW_STATE.longitude,
+    latitude: MADRID_SOL_COORDS.latitude,
+    longitude: MADRID_SOL_COORDS.longitude,
   });
 
   const hasInitialJumpPerformed = useRef<boolean>(false);
@@ -111,10 +118,10 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
     if (isMapLoaded && !isCameraSettled) {
       const rescueTimer = setTimeout(() => {
         if (!isCameraSettled) {
-          nicepodLog("⚠️ [Orchestrator] Timeout alcanzado. Forzando revelado de malla.");
+          nicepodLog("⚠️ [Orchestrator] Timeout alcanzado. Forzando paso de luz.");
           setIsCameraSettled(true);
         }
-      }, 7000); 
+      }, 7000);
       return () => clearTimeout(rescueTimer);
     }
   }, [isMapLoaded, isCameraSettled]);
@@ -148,7 +155,6 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
    * Misión: Realizar el primer anclaje visual en cuanto el motor está listo.
    */
   useEffect(() => {
-    // Si no hay motor o ubicación, o ya saltamos, abortamos.
     if (!userLocation || !isMapLoaded || hasInitialJumpPerformed.current) return;
 
     const targetZoom = mode === 'FORGE' ? ZOOM_LEVELS.FORGE : ZOOM_LEVELS.STREET;
@@ -160,7 +166,7 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
     } else {
       nicepodLog("🚀 [Orchestrator] Hot-Swap activo. Ubicación persistente.");
       jumpToPosition(userLocation.longitude, userLocation.latitude, targetZoom);
-      setIsCameraSettled(true); 
+      setIsCameraSettled(true);
     }
 
     hasInitialJumpPerformed.current = true;
@@ -186,11 +192,11 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
 
   const handleMapClick = useCallback((event: SafeMapClickEvent) => {
     if (mode !== 'FORGE' || !onManualAnchor) return;
-    
+
     if (typeof window !== "undefined" && navigator.vibrate) {
       navigator.vibrate([10, 30, 10]);
     }
-    
+
     const lngLat: [number, number] = [event.lngLat.lng, event.lngLat.lat];
     onManualAnchor(lngLat);
     jumpToPosition(lngLat[0], lngLat[1], ZOOM_LEVELS.FORGE);
@@ -220,7 +226,7 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
 
   return (
     <div ref={containerRef} className={cn("w-full h-full relative bg-[#010101]", className)}>
-      
+
       {/* I. CORTINA DE CARGA SOBERANA (SMOKESCREEN) */}
       <AnimatePresence mode="wait">
         {!isCameraSettled && (
@@ -286,18 +292,18 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
           II. EL MOTOR DE RENDERIZADO (CORE)
           [MANDATO V2.7]: Solo montamos el motor cuando tenemos ubicación real o de IP.
           Esto garantiza que 'initialViewState' en MapCore sea, desde el primer frame,
-          la posición del Voyager, aniquilando el nacimiento erróneo en Sol.
+          la posición del Voyager.
       */}
       {isContainerReady && userLocation && (
         <div className="w-full h-full pointer-events-auto">
           <MapCore
             ref={mapRef}
             mode={mode}
-            startCoords={userLocation} // <--- Inyección de Semilla Real
+            startCoords={userLocation}
             selectedPOIId={selectedPOIId}
             onLoad={() => setIsMapLoaded(true)}
             onIdle={handleMapIdle}
-            onMove={() => {}}
+            onMove={() => { }}
             onMoveEnd={handleMoveEnd}
             onMapClick={handleMapClick}
             onMarkerClick={(id: string) => {
@@ -343,15 +349,13 @@ export function SpatialEngine({ mode, onManualAnchor, className }: SpatialEngine
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V5.5):
- * 1. Protocolo de Montaje Condicional: Se ha bloqueado la instanciación de 'MapCore' 
- *    hasta que 'userLocation' no sea nulo. Esto obliga al motor WebGL a nacer 
- *    exactamente en la ubicación real/IP del usuario, eliminando definitivamente 
- *    el salto visual desde la Puerta del Sol.
- * 2. Automatización T0: Se eliminó la necesidad de intervención manual. El sistema 
- *    vuela al Voyager en cuanto detecta el primer latido de telemetría.
- * 3. Hot-Swap Visual: El mapa detecta la triangulación previa de la sesión para 
- *    eliminar la cortina de carga, logrando una transición instantánea entre páginas.
- * 4. Zero-Any Safe Build: Implementación de Inferencia de Tipos para 
- *    cumplir con el contrato estricto de Mapbox sin fallos de compilación.
+ * NOTA TÉCNICA DEL ARCHITECT (V5.6):
+ * 1. Solución ts(2724): Se corrigió la importación de constantes. Se sustituyó el 
+ *    miembro inexistente 'INITIAL_VIEW_STATE' por 'MADRID_SOL_COORDS', alineando 
+ *    el orquestador con el nuevo ADN dinámico de las constantes de mapa V4.0.
+ * 2. Montaje Condicional T0: El motor MapCore solo se instancia cuando el Voyager 
+ *    ha sido materializado (vía IP o GPS), asegurando que la semilla de cámara 
+ *    sea la real del usuario desde el frame uno.
+ * 3. Hot-Swap Visual: El mapa detecta la triangulación previa para eliminar el 
+ *    tiempo de espera de la cortina de carga.
  */
