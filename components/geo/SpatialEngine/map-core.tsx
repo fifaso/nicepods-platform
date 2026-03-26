@@ -1,12 +1,12 @@
 // components/geo/SpatialEngine/map-core.tsx
-// VERSIÓN: 7.2 (NicePod MapCore - Pure Painter & Synced Seed Edition)
-// Misión: Renderizado WebGL de alta fidelidad con nacimiento en ubicación real.
-// [ESTABILIZACIÓN]: Resolución de error ts(2724) mediante sincronía con constantes V5.1.
+// VERSIÓN: 7.3 (NicePod MapCore - Dynamic Lighting & Theme Reactive Edition)
+// Misión: Renderizado de alta fidelidad reactivo al cambio de tema (Día/Noche).
+// [ESTABILIZACIÓN]: Inyección de prop 'theme' y useEffect para actualización PBR inmediata.
 
 "use client";
 
 import type { ComponentProps } from "react";
-import { forwardRef, memo, useCallback, useImperativeHandle, useMemo, useRef } from "react";
+import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef } from "react";
 import Map, {
   GeolocateControl,
   MapRef
@@ -18,9 +18,10 @@ import {
   FOG_CONFIG,
   MAPBOX_TOKEN,
   MAP_STYLES,
+  MapboxLightPreset,
   STANDARD_ENGINE_CONFIG,
   TERRAIN_CONFIG,
-  getInitialViewState // <--- [SYNC]: Importación nominal garantizada
+  getInitialViewState
 } from "../map-constants";
 
 import { useGeoEngine } from "@/hooks/use-geo-engine";
@@ -42,8 +43,8 @@ type SafeMapStyleDataEvent = Parameters<NonNullable<MapNativeProps['onStyleData'
 
 interface MapCoreProps {
   mode: 'EXPLORE' | 'FORGE';
-  /** startCoords: Ubicación de nacimiento resuelta por el GeoEngine. */
   startCoords: UserLocation;
+  theme: MapboxLightPreset; // <--- [FIX]: Propiedad ahora obligatoria en el contrato
   onLoad: (e: SafeMapEvent) => void;
   onIdle: () => void;
   onMove: (e: SafeMapMoveEvent) => void;
@@ -55,11 +56,11 @@ interface MapCoreProps {
 
 /**
  * MapCore: El reactor visual de NicePod.
- * [MANDATO V2.7]: Este componente SOLO se encarga de pintar. 
  */
 const MapCore = forwardRef<MapRef, MapCoreProps>(({
   mode,
   startCoords,
+  theme, // Consumimos el tema dinámico
   onLoad,
   onIdle,
   onMove,
@@ -77,7 +78,6 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
 
   /**
    * 2. GENERACIÓN DE SEMILLA DE NACIMIENTO
-   * [Sincronía T0]: Mapbox se instancia exactamente donde está el Voyager.
    */
   const initialMapState = useMemo(() => {
     return getInitialViewState(
@@ -87,25 +87,39 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
   }, [startCoords]);
 
   /**
-   * [PROTOCOLO MAPBOX STANDARD]:
-   * Misión: Configurar el motor de iluminación PBR y aplicar el Silencio Urbano.
+   * 3. ACTUALIZACIÓN DINÁMICA DE ILUMINACIÓN (PBR EFFECT)
+   * [MANDATO V2.7]: Este efecto escucha cambios en el prop 'theme'
+   * y ordena al motor Standard cambiar la luz sin re-renderizar el mapa.
+   */
+  useEffect(() => {
+    const map = localMapRef.current?.getMap();
+    /** @ts-ignore - Mapbox Standard API */
+    if (map && map.setConfigProperty) {
+      nicepodLog(`🕯️ [MapCore] Cambiando preset lumínico a: ${theme}`);
+      map.setConfigProperty('basemap', 'lightPreset', theme);
+    }
+  }, [theme]);
+
+  /**
+   * [PROTOCOLO MAPBOX STANDARD]: Carga Inicial
    */
   const handleMapLoad = useCallback((e: SafeMapEvent) => {
     const map = e.target;
 
     /** @ts-ignore - Mapbox Standard API */
     if (map.setConfigProperty) {
-      map.setConfigProperty('basemap', 'lightPreset', STANDARD_ENGINE_CONFIG.lightPreset);
+      // Aplicamos el tema inicial y el protocolo de silencio urbano
+      map.setConfigProperty('basemap', 'lightPreset', theme);
       map.setConfigProperty('basemap', 'showPointOfInterestLabels', STANDARD_ENGINE_CONFIG.showPointOfInterestLabels);
       map.setConfigProperty('basemap', 'showTransitLabels', STANDARD_ENGINE_CONFIG.showTransitLabels);
       map.setConfigProperty('basemap', 'showPlaceLabels', STANDARD_ENGINE_CONFIG.showPlaceLabels);
       map.setConfigProperty('basemap', 'showRoadLabels', STANDARD_ENGINE_CONFIG.showRoadLabels);
 
-      nicepodLog(`🏙️ [MapCore] Pintor WebGL listo. Modo: ${STANDARD_ENGINE_CONFIG.lightPreset}`);
+      nicepodLog(`🏙️ [MapCore] Pintor WebGL iniciado en modo ${theme}.`);
     }
 
     onLoad(e);
-  }, [onLoad]);
+  }, [onLoad, theme]);
 
   /**
    * [PROTOCOLO DE INYECCIÓN DE TERRENO]
@@ -187,6 +201,7 @@ MapCore.displayName = "MapCore";
 export default memo(MapCore, (prev, next) => {
   return (
     prev.mode === next.mode &&
+    prev.theme === next.theme && // Ahora comparamos el tema para re-renderizar si es necesario
     prev.selectedPOIId === next.selectedPOIId &&
     prev.startCoords.latitude === next.startCoords.latitude &&
     prev.startCoords.longitude === next.startCoords.longitude
