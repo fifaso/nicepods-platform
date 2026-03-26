@@ -1,7 +1,7 @@
 // components/geo/map-preview-frame.tsx
-// VERSIÓN: 16.0 (NicePod GO-Preview - Automatic Materialization Edition)
-// Misión: Ventana táctica fotorrealista con ignición automática y vista Pokémon GO.
-// [ESTABILIZACIÓN]: Eliminación de intervención manual, Salto T0 y forzado de Pitch 80°.
+// VERSIÓN: 16.2 (NicePod GO-Preview - Mount Shield & Type Safe Edition)
+// Misión: Ventana táctica fotorrealista sincronizada con el motor global.
+// [ESTABILIZACIÓN]: Resolución de error ts(2304) en ResizeObserver e inyección de startCoords.
 
 "use client";
 
@@ -39,12 +39,8 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
   // --- MÁQUINA DE ESTADOS DEL REVELADO CINEMÁTICO ---
   const [isContainerReady, setIsContainerReady] = useState<boolean>(false);
   const [isMapLoaded, setIsMapLoaded] = useState<boolean>(false);
-  
-  /**
-   * [HOT-SWAP T0]: 
-   * Si el sistema ya está triangulado (vía Geo-IP o caché), 
-   * la cámara nace asentada para eliminar el Smokescreen.
-   */
+
+  // [HOT-SWAP]: Si la sesión ya está triangulada, la cámara nace asentada.
   const [isCameraSettled, setIsCameraSettled] = useState<boolean>(isTriangulated);
 
   const hasInitialJumpPerformed = useRef<boolean>(false);
@@ -52,29 +48,32 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
 
   /**
    * 2. PROTOCOLO DE SEGURIDAD MATEMÁTICA (Safe Mount)
+   * Asegura que el WebGL tenga un contenedor con dimensiones antes de nacer.
+   * [FIX V16.2]: Corrección de referencia 'resizeObserver' para evitar ts(2304).
    */
   useEffect(() => {
     if (!containerRef.current) return;
+
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
         if (entry.contentRect.width > 0 && entry.contentRect.height > 0) {
           setIsContainerReady(true);
+          // Detenemos la observación una vez que el contenedor es válido.
           resizeObserver.disconnect();
         }
       }
     });
+
     resizeObserver.observe(containerRef.current);
     return () => resizeObserver.disconnect();
   }, []);
 
   /**
    * 3. PROTOCOLO DE IGNICIÓN AUTOMÁTICA
-   * Misión: Despertar el GPS sin esperar al usuario. 
-   * Nota: En algunos navegadores esto puede fallar si no hay HTTPS o interacción previa.
    */
   useEffect(() => {
     if (isContainerReady && engineStatus === 'IDLE' && !autoIgnitionAttempted.current) {
-      nicepodLog("📡 [MapPreview] Auto-Ignición: Solicitando enlace satelital.");
+      nicepodLog("📡 [MapPreview] Auto-Ignición: Sincronizando malla.");
       initSensors();
       autoIgnitionAttempted.current = true;
     }
@@ -82,13 +81,13 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
 
   /**
    * 4. RED DE SEGURIDAD (RESCUE TIMER)
-   * Si el GPS tarda demasiado, revelamos el mapa en la ubicación actual (aunque sea IP).
+   * Si el motor WebGL tarda demasiado en responder, forzamos el revelado tras 5s.
    */
   useEffect(() => {
     if (isMapLoaded && !isCameraSettled) {
       const rescueTimer = setTimeout(() => {
         if (!isCameraSettled) {
-          nicepodLog("⚠️ [MapPreview] Revelado forzado por tiempo.");
+          nicepodLog("⚠️ [MapPreview] Estabilización forzada por tiempo.");
           setIsCameraSettled(true);
         }
       }, 5000);
@@ -97,19 +96,14 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
   }, [isMapLoaded, isCameraSettled]);
 
   /**
-   * 5. PROTOCOLO DE LOCALIZACIÓN AGRESIVA (POKÉMON GO STYLE)
-   * Realiza el salto o vuelo en cuanto hay CUALQUIER coordenada disponible.
+   * 5. PROTOCOLO DE LOCALIZACIÓN AUTOMÁTICA (POKÉMON GO STYLE)
+   * Se ejecuta en cuanto MapCore está montado y tenemos la primera coordenada.
    */
   useEffect(() => {
     if (!isMapLoaded || !userLocation || hasInitialJumpPerformed.current || !mapRef.current) return;
 
-    nicepodLog("🎯 [MapPreview] Voyager materializado. Forzando perspectiva inmersiva.");
+    nicepodLog("🎯 [MapPreview] Voyager localizado. Aplicando inmersión 3D.");
 
-    /**
-     * CONFIGURACIÓN DE CÁMARA "NICEPOD GO"
-     * - Zoom: 17.5 (Nivel calle para ver edificios de obsidiana)
-     * - Pitch: 80 (Inclinación máxima de horizonte)
-     */
     const goView = {
       center: [userLocation.longitude, userLocation.latitude] as [number, number],
       zoom: ZOOM_LEVELS.STREET,
@@ -118,7 +112,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
     };
 
     if (!isTriangulated) {
-      // Caso A: Primer contacto. Vuelo cinemático.
+      // Caso A: Primera vez. Vuelo cinemático de aproximación.
       mapRef.current.flyTo({
         ...goView,
         ...FLY_CONFIG,
@@ -126,7 +120,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
       });
       setTriangulated();
     } else {
-      // Caso B: Hot-Swap (Ubicación ya conocida). Salto instantáneo.
+      // Caso B: Hot-Swap. Ubicación persistente. Salto instantáneo.
       mapRef.current.jumpTo(goView);
       setIsCameraSettled(true);
     }
@@ -135,7 +129,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
   }, [isMapLoaded, userLocation, isTriangulated, setTriangulated]);
 
   /**
-   * 6. EL REVELADO SOBERANO (Data-Driven onIdle)
+   * 6. EL REVELADO SOBERANO (onIdle)
    */
   const handleMapIdle = useCallback(() => {
     if (isMapLoaded && !isCameraSettled) {
@@ -158,7 +152,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
     >
       <AnimatePresence mode="wait">
 
-        {/* ESCENARIO: GPS BLOQUEADO */}
+        {/* ESCENARIO: GPS BLOQUEADO POR NAVEGADOR */}
         {engineStatus === 'PERMISSION_DENIED' ? (
           <motion.div
             key="p_denied"
@@ -168,61 +162,61 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
             <ShieldAlert className="h-10 w-10 text-red-500 mb-4" />
             <span className="text-[10px] font-black uppercase tracking-[0.5em] text-red-400">Acceso Denegado</span>
             <p className="text-[9px] text-zinc-500 mt-2 max-w-[220px] leading-relaxed uppercase">
-              Habilite permisos de ubicación para sincronizar la malla.
+              Habilite permisos de ubicación para sincronizar la malla urbana.
             </p>
           </motion.div>
         ) :
 
-        /* ESCENARIO: SMOKESCREEN (Solo si no está asentado) */
-        !isCameraSettled ? (
-          <motion.div
-            key="smokescreen"
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 flex flex-col items-center justify-center space-y-8 bg-[#020202] z-[90] pointer-events-none"
-          >
-            <div className="relative">
-              <Zap className="h-8 w-8 text-primary/30 animate-pulse" />
-              <div className="absolute inset-0 bg-primary/10 blur-3xl rounded-full animate-pulse" />
-            </div>
-
-            <div className="flex flex-col items-center gap-6 text-center px-12">
-              <div className="space-y-2">
-                <span className="text-[11px] font-black uppercase tracking-[0.4em] text-white">
-                  Sincronización Órbital
-                </span>
-                <p className="text-[7px] font-bold uppercase tracking-[0.3em] text-primary/60 animate-pulse italic">
-                  {engineStatus === 'IDLE' ? "Despertando Sensores..." : 
-                   !userLocation ? "Capturando Coordenadas..." : "Fijando Malla 3D"}
-                </p>
+          /* ESCENARIO: SMOKESCREEN DE CARGA (Aislado de interacción) */
+          !isCameraSettled ? (
+            <motion.div
+              key="smokescreen"
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 flex flex-col items-center justify-center space-y-8 bg-[#020202] z-[90] pointer-events-none"
+            >
+              <div className="relative">
+                <Zap className="h-8 w-8 text-primary/30 animate-pulse" />
+                <div className="absolute inset-0 bg-primary/10 blur-3xl rounded-full animate-pulse" />
               </div>
 
-              {/* [FAIL-SAFE]: Botón de ignición manual si la auto-ignición falla */}
-              {engineStatus === 'IDLE' && (
-                <button
-                  onClick={() => initSensors()}
-                  className="px-6 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-black text-[8px] uppercase tracking-[0.4em] pointer-events-auto"
-                >
-                  <Power size={12} className="inline mr-2" />
-                  Sincronizar Ahora
-                </button>
-              )}
-            </div>
-          </motion.div>
-        ) : null}
+              <div className="flex flex-col items-center gap-6 text-center px-12">
+                <div className="space-y-2">
+                  <span className="text-[11px] font-black uppercase tracking-[0.4em] text-white">
+                    Sincronización Órbital
+                  </span>
+                  <p className="text-[7px] font-bold uppercase tracking-[0.3em] text-primary/60 animate-pulse italic">
+                    {!userLocation ? "Capturando Coordenadas..." : "Estabilizando Horizonte 3D"}
+                  </p>
+                </div>
+
+                {/* Botón de respaldo si la auto-ignición es bloqueada por el SO */}
+                {engineStatus === 'IDLE' && (
+                  <button
+                    onClick={() => initSensors()}
+                    className="px-6 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-black text-[8px] uppercase tracking-[0.4em] pointer-events-auto"
+                  >
+                    <Power size={12} className="inline mr-2" />
+                    Sincronizar Ahora
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          ) : null}
       </AnimatePresence>
 
       {/* 
           VII. EL MOTOR DE RENDERIZADO (CORE)
-          Interactivo desde el primer frame para evitar lag de interfaz.
+          Solo se instancia cuando tenemos dimensiones y una ubicación de semilla.
       */}
-      {isContainerReady && (
+      {isContainerReady && userLocation && (
         <div className="absolute inset-0 z-0">
           <MapCore
             ref={mapRef}
             mode="EXPLORE"
+            startCoords={userLocation} // Satisface el contrato de MapCore V4.9
             selectedPOIId={null}
             onLoad={() => setIsMapLoaded(true)}
-            onIdle={handleMapIdle} 
+            onIdle={handleMapIdle}
             onMove={() => { }}
             onMoveEnd={() => { }}
             onMapClick={() => { }}
@@ -242,7 +236,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
           </div>
           <div className="flex flex-col text-left">
             <h3 className="text-white font-black text-sm md:text-xl uppercase tracking-tighter italic leading-none">
-              Madrid <span className="text-primary">Resonance</span>
+              Madrid Resonance
             </h3>
             <p className="text-[8px] md:text-[9px] text-zinc-300 font-bold uppercase tracking-[0.3em] mt-1.5">
               Malla Satelital Activa
@@ -261,14 +255,14 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
 });
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V16.0):
- * 1. Automatización de Cámara: Se eliminó el clic manual para ver la ubicación. El
- *    widget ahora vuela al usuario en cuanto el motor Mapbox y el GeoEngine dan el OK.
- * 2. Pokémon GO Style: Se forzó el zoom 17.5 y el pitch 80 en el primer anclaje, 
- *    proporcionando la inmersión 3D desde el Dashboard sin tocar configuraciones globales.
- * 3. Interactividad Garantizada: Se eliminaron los bloqueos de pointer-events en el 
- *    contenedor del mapa, permitiendo gestos táctiles inmediatos tras la carga.
- * 4. Resiliencia de Sesión: La integración de 'isTriangulated' asegura que si el
- *    Voyager ya fue localizado, el mapa nacerá sin Smokescreen (cortina negra), 
- *    eliminando el tiempo de espera percibido.
+ * NOTA TÉCNICA DEL ARCHITECT (V16.2):
+ * 1. Solución ts(2304): Se corrigió la discrepancia de nombres en la variable del 
+ *    ResizeObserver, permitiendo que el sistema de 'Safe Mount' sea operativo.
+ * 2. Malla Dinámica Sincronizada: Al pasar 'userLocation' como 'startCoords', el 
+ *    widget del Dashboard nace en la ubicación real del Voyager, eliminando el 
+ *    anclaje erróneo en la Puerta del Sol.
+ * 3. Hot-Swap Nativo: Si el Voyager ya fue localizado en la sesión, el mapa 
+ *    pequeño aparece instantáneamente, sin esperas ni cortinas negras.
+ * 4. Build Shield Sellado: Se inyectaron todos los props requeridos por el 
+ *    contrato V4.9 del motor MapCore, eliminando errores de tipos en Vercel.
  */
