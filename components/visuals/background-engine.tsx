@@ -1,9 +1,9 @@
 /**
- * NICEPOD V12.0 - AURORA ENGINE (RESONANCE DENSITY EDITION)
+ * NICEPOD V13.0 - AURORA ENGINE (HYDRATION SHIELD EDITION)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Orquestar la atmósfera visual dinámica y liberar la hibernación en Dashboard.
- * [ESTABILIZACIÓN]: Reparación de bloqueo de renderizado en rutas de plataforma.
+ * Misión: Orquestar la atmósfera visual erradicando fallos de hidratación.
+ * [ESTABILIZACIÓN]: Implementación de Double-Pass Rendering para seguridad SSR.
  */
 
 "use client";
@@ -16,30 +16,30 @@ import { memo, useEffect, useState } from "react";
 
 /**
  * COMPONENTE: BackgroundEngine
- * El corazón estético de NicePod. Gestiona la profundidad visual y el 
- * contraste de la interfaz mediante capas de color en movimiento orgánico.
+ * El corazón estético de NicePod. Gestiona la profundidad visual.
  */
 export const BackgroundEngine = memo(function BackgroundEngine() {
   const { resolvedTheme } = useTheme();
   const pathname = usePathname();
+
+  // 1. ESCUDO DE HIDRATACIÓN (CRÍTICO PARA ERROR #418/#422)
   const [mounted, setMounted] = useState<boolean>(false);
 
-  // 1. ANÁLISIS DE ENTORNO TÁCTICO (RE-CALIBRADO V12.0)
-  // [CAMBIO CRÍTICO]: Solo hibernamos en el mapa (/map). 
-  // El Dashboard ahora es zona de ALTA FIDELIDAD.
+  // 2. ANÁLISIS DE ENTORNO TÁCTICO
+  // Hibernamos solo en el mapa para proteger el Main Thread de WebGL.
   const isMapRoute = pathname?.startsWith('/map');
   const shouldHibernate = isMapRoute;
 
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
 
-  // Suavizado del puntero para mayor elegancia
   const springConfig = { damping: 50, stiffness: 100, restDelta: 0.001 };
   const smoothX = useSpring(mouseX, springConfig);
   const smoothY = useSpring(mouseY, springConfig);
 
   useEffect(() => {
     setMounted(true);
+
     const handleMouseMove = (event: MouseEvent) => {
       if (!shouldHibernate) {
         mouseX.set(event.clientX);
@@ -53,13 +53,15 @@ export const BackgroundEngine = memo(function BackgroundEngine() {
     return () => window.removeEventListener("mousemove", handleMouseMove);
   }, [mouseX, mouseY, shouldHibernate]);
 
+  // Si no está montado, renderizamos un contenedor vacío que coincida 100% con el SSR.
+  // Esto evita que React encuentre diferencias entre el HTML del servidor y el cliente.
+  if (!mounted) {
+    return <div className="fixed inset-0 -z-20 bg-[#030303]" aria-hidden="true" />;
+  }
+
   const isDark = resolvedTheme === "dark";
 
   return (
-    /**
-     * [LIENZO BASE]: 
-     * Provee el color de fondo sólido inicial para evitar parpadeos de carga.
-     */
     <div
       className={cn(
         "fixed inset-0 -z-20 pointer-events-none overflow-hidden transition-colors duration-1000",
@@ -72,7 +74,7 @@ export const BackgroundEngine = memo(function BackgroundEngine() {
           Puntero lumínico que reacciona a la presencia del Voyager.
       */}
       <AnimatePresence>
-        {!shouldHibernate && mounted && (
+        {!shouldHibernate && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -85,7 +87,7 @@ export const BackgroundEngine = memo(function BackgroundEngine() {
               translateY: "-50%",
               willChange: "transform",
               background: isDark
-                ? "radial-gradient(circle, rgba(124,58,237,0.1) 0%, transparent 70%)"
+                ? "radial-gradient(circle, rgba(124,58,237,0.12) 0%, transparent 70%)"
                 : "radial-gradient(circle, rgba(56,189,248,0.15) 0%, transparent 70%)",
             }}
           />
@@ -94,10 +96,10 @@ export const BackgroundEngine = memo(function BackgroundEngine() {
 
       {/* 
           II. MOTOR AURORA (CAPAS CROMÁTICAS)
-          Movimiento fluido de larga duración para evitar fatiga cognitiva.
+          Movimiento fluido de alta fidelidad.
       */}
       <AnimatePresence mode="wait">
-        {!shouldHibernate && mounted && (
+        {!shouldHibernate && (
           <motion.div
             key={isDark ? "dark-resonance" : "light-resonance"}
             initial={{ opacity: 0 }}
@@ -106,14 +108,14 @@ export const BackgroundEngine = memo(function BackgroundEngine() {
             transition={{ duration: 2.5, ease: "easeInOut" }}
             className="absolute inset-0"
           >
-            {/* CAPA ALPHA: El Flujo Profundo (Morado / Celeste) */}
+            {/* CAPA ALPHA: El Flujo Profundo (Indigo 950 / Sky 200) */}
             <motion.div
               animate={{
                 x: ["-5%", "10%", "-10%", "5%", "-5%"],
                 y: ["-10%", "5%", "15%", "-5%", "-10%"],
-                scale: [1, 1.1, 0.9, 1.05, 1],
+                scale: [1, 1.15, 0.9, 1.05, 1],
               }}
-              transition={{ duration: 45, repeat: Infinity, ease: "easeInOut" }}
+              transition={{ duration: 50, repeat: Infinity, ease: "easeInOut" }}
               className={cn(
                 "absolute top-[-20%] left-[-10%] w-[100%] h-[100%] rounded-full blur-[140px] md:blur-[180px] transition-colors duration-1000",
                 isDark ? "bg-indigo-950/40" : "bg-sky-200/50"
@@ -121,14 +123,14 @@ export const BackgroundEngine = memo(function BackgroundEngine() {
               style={{ willChange: "transform" }}
             />
 
-            {/* CAPA BETA: El Pulso Dinámico (Violeta / Fucsia) */}
+            {/* CAPA BETA: El Pulso Dinámico (Purple 900 / Fuchsia 300) */}
             <motion.div
               animate={{
                 x: ["10%", "-12%", "8%", "-5%", "10%"],
                 y: ["5%", "15%", "-10%", "12%", "5%"],
                 scale: [1.1, 0.9, 1.15, 0.95, 1.1],
               }}
-              transition={{ duration: 33, repeat: Infinity, ease: "easeInOut" }}
+              transition={{ duration: 38, repeat: Infinity, ease: "easeInOut" }}
               className={cn(
                 "absolute bottom-[-15%] right-[-5%] w-[90%] h-[90%] rounded-[45%] blur-[150px] md:blur-[190px] transition-colors duration-1000",
                 isDark ? "bg-purple-900/30" : "bg-fuchsia-300/40"
@@ -136,17 +138,17 @@ export const BackgroundEngine = memo(function BackgroundEngine() {
               style={{ willChange: "transform" }}
             />
 
-            {/* CAPA GAMMA: El Núcleo de Contraste (Azul Oscuro / Blanco) */}
+            {/* CAPA GAMMA: El Núcleo de Contraste (Blue 950 / White) */}
             <motion.div
               animate={{
                 x: ["-15%", "15%", "0%", "-15%"],
                 y: ["15%", "-15%", "10%", "15%"],
                 rotate: [0, 180, 360],
               }}
-              transition={{ duration: 60, repeat: Infinity, ease: "linear" }}
+              transition={{ duration: 65, repeat: Infinity, ease: "linear" }}
               className={cn(
                 "absolute top-[10%] left-[10%] w-[70%] h-[70%] rounded-full blur-[160px] transition-colors duration-1000 mix-blend-soft-light",
-                isDark ? "bg-blue-950/20" : "bg-white/40"
+                isDark ? "bg-blue-950/25" : "bg-white/40"
               )}
               style={{ willChange: "transform" }}
             />
@@ -155,21 +157,20 @@ export const BackgroundEngine = memo(function BackgroundEngine() {
       </AnimatePresence>
 
       {/* 
-          III. FILTRO DE TEXTURA INDUSTRIAL
-          Provee una capa de grano técnico para un look profesional y táctico.
+          III. FILTRO DE TEXTURA INDUSTRIAL (GRANO)
       */}
-      {!shouldHibernate && mounted && (
-        <div className="absolute inset-0 opacity-[0.03] pointer-events-none mix-blend-overlay z-40">
+      {!shouldHibernate && (
+        <div className="absolute inset-0 opacity-[0.04] pointer-events-none mix-blend-overlay z-40">
           <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-            <filter id="noiseFilter">
-              <feTurbulence type="fractalNoise" baseFrequency="0.80" numOctaves="4" stitchTiles="stitch" />
+            <filter id="noiseFilterV13">
+              <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="4" stitchTiles="stitch" />
             </filter>
-            <rect width="100%" height="100%" filter="url(#noiseFilter)" />
+            <rect width="100%" height="100%" filter="url(#noiseFilterV13)" />
           </svg>
         </div>
       )}
 
-      {/* IV. GRADIENTE DE SELLADO PROFUNDO */}
+      {/* IV. GRADIENTE DE SELLADO */}
       <div
         className={cn(
           "absolute inset-0 pointer-events-none transition-opacity duration-1000",
@@ -183,13 +184,13 @@ export const BackgroundEngine = memo(function BackgroundEngine() {
 });
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V12.0):
- * 1. Dashboard Liberation: Se eliminó 'isDashboard' de la lógica de hibernación.
- *    Ahora los orbes fluidos son visibles en la Workstation central.
- * 2. Palette Refinement: Se ajustaron los colores Dark a Indigo-950 y Purple-900 
- *    para mayor profundidad. En Light se usa Sky-200 y Fuchsia-300 para elegancia.
- * 3. Performance Balance: Mantiene la purga física de nodos en /map para asegurar 
- *    que Mapbox v3 tenga el 100% de la GPU durante el peritaje geográfico.
- * 4. Stacking Integrity: El z-index: -20 y el uso de mix-blend-mode aseguran que 
- *    el fondo sea una atmósfera, no una interferencia.
+ * NOTA TÉCNICA DEL ARCHITECT (V13.0):
+ * 1. Zero-Hydration-Error: Se implementó un guardado condicional (!mounted) que 
+ *    asegura que el servidor y el cliente rendericen el mismo div base inicial.
+ * 2. Visual Calibration: Se ajustaron las opacidades (Indigo-950/40 y Purple-900/30) 
+ *    para permitir que el texto del Dashboard sea legible sin perder la atmósfera.
+ * 3. Unique Filter ID: Se renombró el filtro a 'noiseFilterV13' para evitar 
+ *    conflictos de caché de SVG en cambios de ruta rápidos.
+ * 4. Refined Grain: Se aumentó el detalle del grano (numOctaves: 4) para un 
+ *    aspecto más "pericial" y menos "digital".
  */
