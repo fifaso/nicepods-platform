@@ -1,7 +1,7 @@
 // components/geo/SpatialEngine/index.tsx
-// VERSIÓN: 6.4 (NicePod Spatial Hub - Cinematic Director & T0 Materialization Edition)
-// Misión: Orquestar el motor WebGL con nacimiento en ubicación real y delegación LERP.
-// [ESTABILIZACIÓN]: Restauración de salto T0 y cesión de mando a CameraController.
+// VERSIÓN: 6.5 (NicePod Spatial Hub - Cinematic Director Sovereignty Edition)
+// Misión: Orquestar el motor WebGL delegando el seguimiento ABSOLUTO al CameraController.
+// [ESTABILIZACIÓN]: Purga de useEffects de cámara redundantes para evitar colisiones (Jitter).
 
 "use client";
 
@@ -27,8 +27,6 @@ import {
 
 import { POIPreviewCard } from "../poi-preview-card";
 import MapCore from "./map-core";
-
-// [MANDATO V2.7]: Inyección del Director Cinematográfico
 import { CameraController } from "./camera-controller";
 
 /**
@@ -52,7 +50,7 @@ interface SpatialEngineProps {
  */
 export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className }: SpatialEngineProps) {
 
-  // 1. CONSUMO DE TELEMETRÍA SOBERANA
+  // 1. CONSUMO DE TELEMETRÍA SOBERANA (V26.1)
   const {
     userLocation,
     nearbyPOIs,
@@ -60,19 +58,20 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
     status: engineStatus,
     initSensors,
     isTriangulated,
-    isGPSLock,
-    setTriangulated,
     error: geoError
   } = useGeoEngine();
 
+  // 2. REFERENCIAS DE CONTROL DE HARDWARE
   const mapRef = useRef<MapRef>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // 3. MÁQUINA DE ESTADOS (SMOKESCREEN & REVELADO)
   const [selectedPOIId, setSelectedPOIId] = useState<string | null>(null);
   const [isSearchLoading, setIsSearchLoading] = useState<boolean>(false);
   const [isContainerReady, setIsContainerReady] = useState<boolean>(false);
   const [isMapLoaded, setIsMapLoaded] = useState<boolean>(false);
 
+  // El mapa asume que la cámara está "asentada" si ya existía una triangulación previa
   const [isCameraSettled, setIsCameraSettled] = useState<boolean>(isTriangulated);
 
   const [searchCenter, setSearchCenter] = useState({
@@ -80,10 +79,8 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
     longitude: MADRID_SOL_COORDS.longitude,
   });
 
-  const hasInitialJumpPerformed = useRef<boolean>(false);
-
   /**
-   * 2. PROTOCOLOS DE INICIALIZACIÓN (Safe Mount)
+   * 4. PROTOCOLOS DE INICIALIZACIÓN (Safe Mount)
    */
   useEffect(() => {
     if (!containerRef.current) return;
@@ -100,7 +97,7 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
   }, []);
 
   /**
-   * 3. PROTOCOLO DE IGNICIÓN AUTOMÁTICA
+   * 5. PROTOCOLO DE IGNICIÓN AUTOMÁTICA
    */
   useEffect(() => {
     if (isContainerReady && engineStatus === 'IDLE') {
@@ -110,7 +107,7 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
   }, [isContainerReady, engineStatus, initSensors]);
 
   /**
-   * 4. PROTOCOLO DE RESCATE (Fail-Safe)
+   * 6. PROTOCOLO DE RESCATE (Fail-Safe)
    */
   useEffect(() => {
     if (isMapLoaded && !isCameraSettled) {
@@ -125,7 +122,9 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
   }, [isMapLoaded, isCameraSettled]);
 
   /**
-   * 5. VUELOS MANUALES & T0 (Intervención de Usuario y Primer Frame)
+   * 7. VUELOS MANUALES (Intervención de Usuario)
+   * Estas funciones SOLO se usan cuando el usuario TOCA la interfaz (Click o Búsqueda).
+   * El seguimiento automático al caminar es responsabilidad 100% del CameraController.
    */
   const flyToPosition = useCallback((lng: number, lat: number, zoom: number = ZOOM_LEVELS.STREET) => {
     if (!mapRef.current) return;
@@ -149,34 +148,12 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
   }, [mode]);
 
   /**
-   * 6. PROTOCOLO DE MATERIALIZACIÓN INICIAL (T0)
-   * Asegura que el mapa apunte a la ubicación real ANTES de pasarle el mando al CameraController.
-   */
-  useEffect(() => {
-    if (!userLocation || !isMapLoaded || hasInitialJumpPerformed.current) return;
-
-    const targetZoom = mode === 'FORGE' ? ZOOM_LEVELS.FORGE : ZOOM_LEVELS.STREET;
-
-    if (!isTriangulated) {
-      nicepodLog("🎯 [Orchestrator] Voyager detectado. Salto T0 Ejecutado.");
-      flyToPosition(userLocation.longitude, userLocation.latitude, targetZoom);
-      setTriangulated();
-    } else {
-      nicepodLog("🚀 [Orchestrator] Malla Persistente. Hot-Swap activo.");
-      jumpToPosition(userLocation.longitude, userLocation.latitude, targetZoom);
-      setIsCameraSettled(true);
-    }
-
-    hasInitialJumpPerformed.current = true;
-  }, [userLocation, isMapLoaded, isTriangulated, flyToPosition, jumpToPosition, mode, setTriangulated]);
-
-  /**
-   * 7. PROTOCOLO DE REVELADO SOBERANO
+   * 8. PROTOCOLO DE REVELADO SOBERANO (Data-Driven)
    */
   const handleMapIdle = useCallback(() => {
     if (isMapLoaded && !isCameraSettled) {
       setIsCameraSettled(true);
-      nicepodLog("✨ [Orchestrator] Malla 3D renderizada. Revelado completado.");
+      nicepodLog("✨ [Orchestrator] Malla 3D estabilizada. Revelado completado.");
     }
   }, [isMapLoaded, isCameraSettled]);
 
@@ -190,11 +167,6 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
   const handleMapClick = useCallback((event: SafeMapClickEvent) => {
     if (mode !== 'FORGE' || !onManualAnchor) return;
     const lngLat: [number, number] = [event.lngLat.lng, event.lngLat.lat];
-
-    if (typeof window !== "undefined" && navigator.vibrate) {
-      navigator.vibrate([10, 30, 10]);
-    }
-
     onManualAnchor(lngLat);
     jumpToPosition(lngLat[0], lngLat[1], ZOOM_LEVELS.FORGE);
   }, [mode, onManualAnchor, jumpToPosition]);
@@ -223,8 +195,8 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
 
   return (
     <div ref={containerRef} className={cn("w-full h-full relative bg-[#010101]", className)}>
+      
       <AnimatePresence mode="wait">
-        
         {engineStatus === 'PERMISSION_DENIED' ? (
           <motion.div key="p_denied" className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-zinc-950 z-50 text-center">
             <ShieldAlert className="h-10 w-10 text-red-500 mb-4" />
@@ -252,8 +224,10 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
       </AnimatePresence>
 
       {/* 
-          [MANDATO V2.7]: Montaje Condicional garantizado. 
+          [MANDATO V2.7]: Montaje Condicional Garantizado. 
           El motor no nace hasta que tenemos la semilla espacial inicial.
+          Como MapCore usa 'initialViewState' internamente, el mapa nacerá 
+          directamente donde esté el Voyager.
       */}
       {isContainerReady && userLocation && (
         <div className="w-full h-full pointer-events-auto">
@@ -265,7 +239,7 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
             selectedPOIId={selectedPOIId}
             onLoad={() => setIsMapLoaded(true)}
             onIdle={handleMapIdle}
-            onMove={() => { }} // Callback silente para permitir interactividad
+            onMove={() => { }} // Callback silente para permitir interactividad manual
             onMoveEnd={handleMoveEnd}
             onMapClick={handleMapClick}
             onMarkerClick={(id: string) => {
@@ -279,8 +253,8 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
           
           {/* 
               [CEREBRO CINEMÁTICO INYECTADO] 
-              Si estamos explorando, el Director toma el control de los motores WebGL 
-              para garantizar el seguimiento de 60fps estilo Google Maps / Pokémon GO.
+              Si estamos explorando, el Director toma el control absoluto 
+              de la cámara para garantizar el seguimiento líquido (LERP).
           */}
           {mode === 'EXPLORE' && isCameraSettled && (
              <CameraController />
@@ -306,14 +280,12 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V6.4):
- * 1. Materialización T0: Se reinstauró un useEffect inicial que obliga a la 
- *    cámara a centrarse en el 'userLocation' nada más montarse el mapa. Esto 
- *    garantiza que el 'CameraController' empiece a interpolar desde la ubicación 
- *    correcta y no desde Madrid Sol.
- * 2. Delegación de Seguimiento: Una vez hecho el salto inicial, este orquestador 
- *    se desentiende del movimiento del usuario, dejándolo al 'CameraController'.
- * 3. Permission Shield: Se inyectó laUI para informar al usuario si los permisos 
- *    GPS fueron denegados por el sistema operativo, permitiendo un manejo de UX 
- *    elegante en lugar de una pantalla de carga infinita.
+ * NOTA TÉCNICA DEL ARCHITECT (V6.5):
+ * 1. Cesión de Mando Total: Se eliminó el useEffect que ejecutaba flyToPosition al
+ *    detectar cambios en userLocation o isGPSLock. La cámara ahora es controlada 
+ *    EXCLUSIVAMENTE por el CameraController, erradicando los conflictos de "saltos".
+ * 2. Nacimiento Perfecto: MapCore usa startCoords para su initialViewState. Por tanto,
+ *    el mapa ya nace en la posición correcta, haciendo innecesario un "salto inicial".
+ * 3. Consola Táctica: Las funciones flyTo y jumpTo se mantienen solo para respuestas
+ *    a interacciones explícitas del usuario (clic en un Eco o búsqueda en el radar).
  */
