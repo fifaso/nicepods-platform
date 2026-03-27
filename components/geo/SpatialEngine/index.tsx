@@ -1,7 +1,7 @@
 // components/geo/SpatialEngine/index.tsx
-// VERSIÓN: 6.5 (NicePod Spatial Hub - Cinematic Director Sovereignty Edition)
-// Misión: Orquestar el motor WebGL delegando el seguimiento ABSOLUTO al CameraController.
-// [ESTABILIZACIÓN]: Purga de useEffects de cámara redundantes para evitar colisiones (Jitter).
+// VERSIÓN: 6.6 (NicePod Spatial Hub - Bi-Phasic Materialization & Precision Edition)
+// Misión: Orquestar el motor WebGL con refinamiento automático de IP a GPS real.
+// [ESTABILIZACIÓN]: Implementación de GPS-Lock Trigger y sincronía con CameraController.
 
 "use client";
 
@@ -17,7 +17,7 @@ import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { SearchResult } from "@/hooks/use-search-radar";
 import { cn, nicepodLog } from "@/lib/utils";
 
-// --- CONSTANTES DE FÍSICA Y CÁMARA ---
+// --- CONSTANTES DE FÍSICA Y CÁMARA V5.0 ---
 import {
   FLY_CONFIG,
   MADRID_SOL_COORDS,
@@ -26,8 +26,8 @@ import {
 } from "../map-constants";
 
 import { POIPreviewCard } from "../poi-preview-card";
-import MapCore from "./map-core";
 import { CameraController } from "./camera-controller";
+import MapCore from "./map-core";
 
 /**
  * ---------------------------------------------------------------------------
@@ -50,7 +50,7 @@ interface SpatialEngineProps {
  */
 export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className }: SpatialEngineProps) {
 
-  // 1. CONSUMO DE TELEMETRÍA SOBERANA (V26.1)
+  // 1. CONSUMO DE TELEMETRÍA SOBERANA (V27.0)
   const {
     userLocation,
     nearbyPOIs,
@@ -58,6 +58,8 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
     status: engineStatus,
     initSensors,
     isTriangulated,
+    isGPSLock,       // Flag de autoridad satelital (<80m)
+    setTriangulated,
     error: geoError
   } = useGeoEngine();
 
@@ -71,7 +73,7 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
   const [isContainerReady, setIsContainerReady] = useState<boolean>(false);
   const [isMapLoaded, setIsMapLoaded] = useState<boolean>(false);
 
-  // El mapa asume que la cámara está "asentada" si ya existía una triangulación previa
+  // El mapa nace asentado si la sesión ya era persistente (Hot-Swap)
   const [isCameraSettled, setIsCameraSettled] = useState<boolean>(isTriangulated);
 
   const [searchCenter, setSearchCenter] = useState({
@@ -79,8 +81,12 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
     longitude: MADRID_SOL_COORDS.longitude,
   });
 
+  // MEMORIA DE VUELOS (Evita bucles de cámara)
+  const hasInitialJumpPerformed = useRef<boolean>(false);
+  const hasRefinedToGPS = useRef<boolean>(false);
+
   /**
-   * 4. PROTOCOLOS DE INICIALIZACIÓN (Safe Mount)
+   * 4. PROTOCOLOS DE SEGURIDAD MATEMÁTICA (Safe Mount)
    */
   useEffect(() => {
     if (!containerRef.current) return;
@@ -107,24 +113,7 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
   }, [isContainerReady, engineStatus, initSensors]);
 
   /**
-   * 6. PROTOCOLO DE RESCATE (Fail-Safe)
-   */
-  useEffect(() => {
-    if (isMapLoaded && !isCameraSettled) {
-      const rescueTimer = setTimeout(() => {
-        if (!isCameraSettled) {
-          nicepodLog("⚠️ [Orchestrator] Timeout alcanzado. Forzando paso de luz.");
-          setIsCameraSettled(true);
-        }
-      }, 7000);
-      return () => clearTimeout(rescueTimer);
-    }
-  }, [isMapLoaded, isCameraSettled]);
-
-  /**
-   * 7. VUELOS MANUALES (Intervención de Usuario)
-   * Estas funciones SOLO se usan cuando el usuario TOCA la interfaz (Click o Búsqueda).
-   * El seguimiento automático al caminar es responsabilidad 100% del CameraController.
+   * 6. GESTIÓN DE CÁMARA CINEMÁTICA
    */
   const flyToPosition = useCallback((lng: number, lat: number, zoom: number = ZOOM_LEVELS.STREET) => {
     if (!mapRef.current) return;
@@ -148,12 +137,46 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
   }, [mode]);
 
   /**
-   * 8. PROTOCOLO DE REVELADO SOBERANO (Data-Driven)
+   * 7. PROTOCOLO DE MATERIALIZACIÓN PROGRESIVA (T0 -> GPS Refinement)
+   * Misión: Asegurar que el usuario llegue a su destino real sin intervención.
+   */
+  useEffect(() => {
+    if (!userLocation || !isMapLoaded) return;
+
+    const targetZoom = mode === 'FORGE' ? ZOOM_LEVELS.FORGE : ZOOM_LEVELS.STREET;
+
+    // FASE A: Primer Anclaje (Generalmente IP-Fallback o Caché)
+    if (!hasInitialJumpPerformed.current) {
+      if (!isTriangulated) {
+        nicepodLog("🎯 [Orchestrator] Primer Fix detectado. Iniciando aproximación aérea.");
+        flyToPosition(userLocation.longitude, userLocation.latitude, targetZoom);
+        setTriangulated();
+      } else {
+        nicepodLog("🚀 [Orchestrator] Hot-Swap activo. Ubicación persistente.");
+        jumpToPosition(userLocation.longitude, userLocation.latitude, targetZoom);
+        setIsCameraSettled(true);
+      }
+      hasInitialJumpPerformed.current = true;
+      return;
+    }
+
+    // FASE B: Refinamiento GPS Lock (Corrección final de precisión)
+    // Cuando el hardware finalmente entrega precisión certificada (<80m), realizamos el ajuste final.
+    if (isGPSLock && !hasRefinedToGPS.current) {
+      nicepodLog("🔒 [Orchestrator] GPS Lock alcanzado. Refinando posición exacta.");
+      flyToPosition(userLocation.longitude, userLocation.latitude, targetZoom);
+      hasRefinedToGPS.current = true;
+    }
+
+  }, [userLocation, isMapLoaded, isTriangulated, isGPSLock, flyToPosition, jumpToPosition, mode, setTriangulated]);
+
+  /**
+   * 8. MANEJADORES DE EVENTOS SOBERANOS
    */
   const handleMapIdle = useCallback(() => {
     if (isMapLoaded && !isCameraSettled) {
       setIsCameraSettled(true);
-      nicepodLog("✨ [Orchestrator] Malla 3D estabilizada. Revelado completado.");
+      nicepodLog("✨ [Orchestrator] Malla 3D renderizada. Revelado completado.");
     }
   }, [isMapLoaded, isCameraSettled]);
 
@@ -166,6 +189,11 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
 
   const handleMapClick = useCallback((event: SafeMapClickEvent) => {
     if (mode !== 'FORGE' || !onManualAnchor) return;
+
+    if (typeof window !== "undefined" && navigator.vibrate) {
+      navigator.vibrate([10, 30, 10]);
+    }
+
     const lngLat: [number, number] = [event.lngLat.lng, event.lngLat.lat];
     onManualAnchor(lngLat);
     jumpToPosition(lngLat[0], lngLat[1], ZOOM_LEVELS.FORGE);
@@ -195,51 +223,52 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
 
   return (
     <div ref={containerRef} className={cn("w-full h-full relative bg-[#010101]", className)}>
-      
+
+      {/* I. CORTINA DE CARGA SOBERANA (SMOKESCREEN) */}
       <AnimatePresence mode="wait">
+
         {engineStatus === 'PERMISSION_DENIED' ? (
           <motion.div key="p_denied" className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-zinc-950 z-50 text-center">
             <ShieldAlert className="h-10 w-10 text-red-500 mb-4" />
             <span className="text-[10px] font-black uppercase tracking-[0.5em] text-red-400">Acceso Denegado</span>
           </motion.div>
         ) :
-        
-        !isCameraSettled ? (
-          <motion.div key="smokescreen" exit={{ opacity: 0, scale: 1.05 }} transition={{ duration: 0.8, ease: "easeOut" }} className="absolute inset-0 z-[110] bg-[#020202] flex flex-col items-center justify-center space-y-10 pointer-events-auto">
-            <Compass className="h-16 w-16 text-primary animate-spin-slow" />
-            <div className="flex flex-col items-center gap-4 text-center px-12">
-              <span className="text-[11px] font-black uppercase tracking-[0.6em] text-white">Madrid Resonance</span>
-              <p className="text-[9px] font-bold uppercase tracking-[0.3em] text-primary/60 animate-pulse italic">
-                {!userLocation ? "Capturando Telemetría..." : "Estabilizando Malla 3D..."}
-              </p>
-            </div>
-            {engineStatus === 'IDLE' && (
-              <button onClick={() => initSensors()} className="mt-8 px-6 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-black text-[8px] uppercase tracking-[0.4em] shadow-[0_0_40px_rgba(var(--primary-rgb),0.3)] flex items-center gap-4 hover:scale-105 transition-transform">
-                <Power size={14} />
-                Iniciar Sincronía
-              </button>
-            )}
-          </motion.div>
-        ) : null}
+
+          !isCameraSettled ? (
+            <motion.div key="smokescreen" exit={{ opacity: 0, scale: 1.05 }} transition={{ duration: 0.8, ease: "easeOut" }} className="absolute inset-0 z-[110] bg-[#020202] flex flex-col items-center justify-center space-y-10 pointer-events-auto">
+              <div className="relative">
+                <motion.div animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0.6, 0.3] }} transition={{ duration: 3, repeat: Infinity }} className="absolute inset-0 bg-primary/20 blur-3xl rounded-full" />
+                <Compass className="h-16 w-16 text-primary relative z-10 animate-spin-slow" />
+              </div>
+              <div className="flex flex-col items-center gap-4 text-center px-12">
+                <span className="text-[11px] font-black uppercase tracking-[0.6em] text-white">Madrid Resonance</span>
+                <p className="text-[9px] font-bold uppercase tracking-[0.3em] text-primary/60 animate-pulse italic">
+                  {!userLocation ? "Capturando Telemetría de Red..." :
+                    !isGPSLock ? "Fijando Coordenadas Satelitales..." : "Estabilizando Malla 3D..."}
+                </p>
+              </div>
+              {engineStatus === 'IDLE' && (
+                <button onClick={() => initSensors()} className="mt-8 px-8 py-4 bg-primary text-black rounded-2xl font-black text-[10px] uppercase tracking-[0.4em] shadow-[0_0_40px_rgba(var(--primary-rgb),0.3)] flex items-center gap-4 hover:scale-105 transition-transform">
+                  <Power size={14} />
+                  Iniciar Sincronía
+                </button>
+              )}
+            </motion.div>
+          ) : null}
       </AnimatePresence>
 
-      {/* 
-          [MANDATO V2.7]: Montaje Condicional Garantizado. 
-          El motor no nace hasta que tenemos la semilla espacial inicial.
-          Como MapCore usa 'initialViewState' internamente, el mapa nacerá 
-          directamente donde esté el Voyager.
-      */}
+      {/* II. MOTOR DE RENDERIZADO (CORE) */}
       {isContainerReady && userLocation && (
         <div className="w-full h-full pointer-events-auto">
           <MapCore
             ref={mapRef}
             mode={mode}
             startCoords={userLocation}
-            theme={theme} 
+            theme={theme}
             selectedPOIId={selectedPOIId}
             onLoad={() => setIsMapLoaded(true)}
             onIdle={handleMapIdle}
-            onMove={() => { }} // Callback silente para permitir interactividad manual
+            onMove={() => { }}
             onMoveEnd={handleMoveEnd}
             onMapClick={handleMapClick}
             onMarkerClick={(id: string) => {
@@ -250,21 +279,18 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
               }
             }}
           />
-          
-          {/* 
-              [CEREBRO CINEMÁTICO INYECTADO] 
-              Si estamos explorando, el Director toma el control absoluto 
-              de la cámara para garantizar el seguimiento líquido (LERP).
-          */}
+
+          {/* [DIRECTOR CINEMÁTICO]: Solo toma el mando cuando el mapa es estable */}
           {mode === 'EXPLORE' && isCameraSettled && (
-             <CameraController />
+            <CameraController />
           )}
         </div>
       )}
 
+      {/* --- III. INTERFAZ TÁCTICA SUPERPUESTA --- */}
       {mode === 'EXPLORE' && isCameraSettled && (
         <div className="absolute top-6 left-4 right-4 z-[100] md:top-8 md:left-8 md:w-[400px] animate-in fade-in duration-1000 pointer-events-auto">
-          <UnifiedSearchBar variant="console" onResults={handleSearchResult} placeholder="Rastrear ecos urbanos..." latitude={searchCenter.latitude} longitude={searchCenter.longitude} />
+          <UnifiedSearchBar variant="console" onResults={handleSearchResult} onLoading={setIsSearchLoading} placeholder="Rastrear ecos urbanos..." latitude={searchCenter.latitude} longitude={searchCenter.longitude} />
         </div>
       )}
 
@@ -275,17 +301,20 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
           </div>
         )}
       </AnimatePresence>
+
     </div>
   );
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V6.5):
- * 1. Cesión de Mando Total: Se eliminó el useEffect que ejecutaba flyToPosition al
- *    detectar cambios en userLocation o isGPSLock. La cámara ahora es controlada 
- *    EXCLUSIVAMENTE por el CameraController, erradicando los conflictos de "saltos".
- * 2. Nacimiento Perfecto: MapCore usa startCoords para su initialViewState. Por tanto,
- *    el mapa ya nace en la posición correcta, haciendo innecesario un "salto inicial".
- * 3. Consola Táctica: Las funciones flyTo y jumpTo se mantienen solo para respuestas
- *    a interacciones explícitas del usuario (clic en un Eco o búsqueda en el radar).
+ * NOTA TÉCNICA DEL ARCHITECT (V6.6):
+ * 1. Protocolo de Refinamiento Automático: El orquestador ahora utiliza 'isGPSLock' 
+ *    para realizar el ajuste final de precisión. El Voyager aparece primero en su área 
+ *    (IP) y luego se desliza suavemente hacia su posición exacta (GPS satelital).
+ * 2. Montaje Condicional T0: Se mantiene el bloqueo de renderizado hasta tener 
+ *    ubicación inicial, garantizando que MapCore nazca en el lugar correcto.
+ * 3. Hot-Swap Visual: El mapa detecta la triangulación previa de la sesión para 
+ *    eliminar el tiempo de espera de la cortina de carga.
+ * 4. Sincronía Táctica: El Smokescreen informa dinámicamente sobre la calidad de 
+ *    la señal (Red vs Satélite), eliminando la incertidumbre del usuario.
  */

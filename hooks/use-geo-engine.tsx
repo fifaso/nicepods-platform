@@ -1,42 +1,40 @@
 // hooks/use-geo-engine.tsx
-// VERSIÓN: 26.1 (NicePod Sovereign Geo-Engine - Relaxed Authority & Force Emit Edition)
-// Misión: Orquestar el Cerebro Dual (Sensor + IA) con Throttling de Red y Override Manual.
-// [ESTABILIZACIÓN]: Ampliación de Umbral isGPSLock a 80m, Sincronía T0 y Bypass de Movimiento Crítico.
+// VERSIÓN: 27.0 (NicePod Sovereign Geo-Engine - Bi-Phasic Authority Edition)
+// Misión: Orquestar el Cerebro Dual diferenciando entre Estimación (IP) y Autoridad (GPS).
+// [ESTABILIZACIÓN]: Implementación de isGPSLock (80m), Throttling de 100m y Fusión de Contexto.
 
 "use client";
 
-import React, { 
-  createContext, 
-  useCallback, 
-  useContext, 
-  useEffect, 
-  useMemo, 
-  useRef, 
-  useState 
-} from "react";
 import { createClient } from "@/lib/supabase/client";
 import { nicepodLog } from "@/lib/utils";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from "react";
 
-// --- IMPORTACIÓN DE SENSORES Y CINEMÁTICA ---
-import { useSensorAuthority } from "./use-sensor-authority";
-import { useForgeOrchestrator } from "./use-forge-orchestrator";
+// --- SERVICIOS ESPECIALIZADOS ---
 import { calculateDistance } from "@/lib/geo-kinematics";
+import { useForgeOrchestrator } from "./use-forge-orchestrator";
+import { useSensorAuthority } from "./use-sensor-authority";
 
 // --- CONSTITUCIÓN DE TIPOS (BUILD SHIELD V4.2) ---
-import { 
-  ActivePOI, 
-  GeoContextData, 
-  GeoEngineReturn, 
-  GeoEngineState, 
-  PointOfInterest, 
-  UserLocation 
+import {
+  ActivePOI,
+  GeoEngineReturn,
+  GeoEngineState,
+  PointOfInterest,
+  UserLocation
 } from "@/types/geo-sovereignty";
 
 const GeoEngineContext = createContext<GeoEngineReturn | undefined>(undefined);
 
 interface GeoEngineProviderProps {
   children: React.ReactNode;
-  /** initialData: Ubicación estimada por IP capturada en el Edge de Vercel. */
   initialData?: {
     lat: number;
     lng: number;
@@ -46,24 +44,21 @@ interface GeoEngineProviderProps {
 }
 
 /**
- * GeoEngineProvider: El Orquestador de Misión de NicePod.
+ * GeoEngineProvider: El Orquestador Maestro de la Workstation.
  */
 export function GeoEngineProvider({ children, initialData }: GeoEngineProviderProps) {
   const supabase = createClient();
 
-  // --- I. CONSUMO DE ESPECIALISTAS (CEREBRO DUAL) ---
-  
-  // Delegación de captura de hardware (Con inyección de Paracaídas Geo-IP)
-  const { 
-    telemetry, 
-    isDenied, 
-    isAcquiring, 
-    startHardwareWatch, 
+  // --- I. CONSUMO DE ESPECIALISTAS (HARDWARE & IA) ---
+  const {
+    telemetry,
+    isDenied,
+    isAcquiring,
+    startHardwareWatch,
     killHardwareWatch,
-    reSync 
+    reSync
   } = useSensorAuthority({ initialData });
 
-  // Delegación de procesamiento pesado (Pipeline de Inteligencia)
   const {
     forgeStatus,
     forgeData,
@@ -81,20 +76,17 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [isTriangulated, setIsTriangulated] = useState<boolean>(false);
 
-  // Override Manual y Contexto Local
   const [manualAnchor, setManualAnchorState] = useState<UserLocation | null>(null);
   const [localData, setLocalData] = useState<{ isProximityConflict?: boolean; manualPlaceName?: string }>({});
 
-  // La "Verdad Efectiva" es el anclaje manual (si existe) o la telemetría del hardware.
   const effectiveLocation = manualAnchor || telemetry;
 
   // --- III. CONTROL DE TRÁFICO GEOESPACIAL (REFS) ---
-  const lastFetchPosRef = useRef<{lat: number, lng: number} | null>(null);
-  const lastEmittedLocationRef = useRef<UserLocation | null>(null); // [NUEVO]: Memoria para bypass de movimiento
+  const lastFetchPosRef = useRef<{ lat: number, lng: number } | null>(null);
   const FETCH_DISTANCE_THRESHOLD = 100; // Throttling de Red: 100 metros.
 
   /**
-   * fetchNearbyPOIs: Sincronización Inteligente con Bóveda NKV.
+   * fetchNearbyPOIs: Sincronización con Bóveda NKV.
    */
   const fetchNearbyPOIs = useCallback(async (location: UserLocation) => {
     if (lastFetchPosRef.current) {
@@ -102,15 +94,11 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
         { latitude: location.latitude, longitude: location.longitude },
         { latitude: lastFetchPosRef.current.lat, longitude: lastFetchPosRef.current.lng }
       );
-      
-      // Si nos movemos menos de 100m, anulamos la petición para salvar red y CPU.
       if (distanceTraveled < FETCH_DISTANCE_THRESHOLD) return;
     }
 
     setIsSearching(true);
     try {
-      nicepodLog(`🛰️ [Network] Sincronizando Bóveda para el cuadrante: ${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`);
-      
       const { data: pois, error: dbError } = await supabase
         .from('vw_map_resonance_active')
         .select('*');
@@ -119,18 +107,17 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
 
       setNearbyPOIs((pois as PointOfInterest[]) || []);
       lastFetchPosRef.current = { lat: location.latitude, lng: location.longitude };
-      
+
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      nicepodLog("🔥 [Network] Error al consultar la Bóveda NKV", msg, 'error');
+      nicepodLog("🔥 [Network] Error de Bóveda", msg, 'error');
     } finally {
       setIsSearching(false);
     }
   }, [supabase]);
 
   /**
-   * evaluateEnvironment: Procesador de Resonancia local (60fps).
-   * Detecta proximidad contra memoria RAM. Cero coste de red.
+   * evaluateEnvironment: Radar de proximidad local.
    */
   const evaluateEnvironment = useCallback((location: UserLocation) => {
     if (nearbyPOIs.length === 0) return;
@@ -140,21 +127,18 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
 
     nearbyPOIs.forEach((poi) => {
       if (!poi.geo_location?.coordinates) return;
-
       const [pLng, pLat] = poi.geo_location.coordinates;
       const dist = calculateDistance(
         { latitude: location.latitude, longitude: location.longitude },
         { latitude: pLat, longitude: pLng }
       );
-
       if (dist < minDistance) {
         minDistance = dist;
         closest = {
           id: poi.id.toString(),
           name: poi.name,
           distance: Math.round(dist),
-          isWithinRadius: dist <= (poi.resonance_radius || 35),
-          historical_fact: poi.historical_fact || undefined
+          isWithinRadius: dist <= (poi.resonance_radius || 35)
         };
       }
     });
@@ -165,42 +149,10 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
 
   // --- IV. SINCRONIZACIÓN DE CICLO DE VIDA ---
 
-  /**
-   * Efecto de Pulso Sensorial y Anclaje Manual:
-   * Reacciona a cada actualización de 'effectiveLocation' asegurando que 
-   * el entorno se re-evalúe instantáneamente.
-   */
   useEffect(() => {
     if (effectiveLocation) {
       evaluateEnvironment(effectiveLocation);
-      
-      /**
-       * [BYPASS DE MOVIMIENTO CRÍTICO]:
-       * Evaluamos cuánto se ha movido el Voyager desde el último ciclo de React.
-       * Si el movimiento es mayor a 30m, forzamos la actualización de red
-       * ignorando cualquier filtro pasivo, asegurando que el avatar "camine".
-       */
-      let forceEmit = false;
-      if (lastEmittedLocationRef.current) {
-        const stepDist = calculateDistance(
-          { latitude: effectiveLocation.latitude, longitude: effectiveLocation.longitude },
-          { latitude: lastEmittedLocationRef.current.latitude, longitude: lastEmittedLocationRef.current.longitude }
-        );
-        if (stepDist > 30) {
-          nicepodLog(`🏃 [Geo-Orchestrator] Movimiento detectado (${Math.round(stepDist)}m). Forzando emisión.`);
-          forceEmit = true;
-        }
-      }
-
-      // Intentamos sincronizar con la red (El Throttling de 100m protegerá la base de datos)
-      if (!isTriangulated || forceEmit || !lastFetchPosRef.current) {
-        fetchNearbyPOIs(effectiveLocation);
-      } else {
-        // En cada frame evaluamos si procede fetch, pero la función internamente retorna si no pasa el umbral de 100m.
-        fetchNearbyPOIs(effectiveLocation);
-      }
-      
-      lastEmittedLocationRef.current = effectiveLocation;
+      fetchNearbyPOIs(effectiveLocation);
 
       if (!isTriangulated) {
         setIsTriangulated(true);
@@ -208,65 +160,48 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
     }
   }, [effectiveLocation, evaluateEnvironment, fetchNearbyPOIs, isTriangulated]);
 
-  // --- V. ENSAMBLAJE DE LA API PÚBLICA (BUILD SHIELD) ---
+  // --- V. ENSAMBLAJE DE LA API PÚBLICA ---
 
   const derivedStatus = useMemo((): GeoEngineState => {
     if (forgeStatus !== 'IDLE') return forgeStatus;
     if (isDenied) return 'PERMISSION_DENIED';
-    if (isAcquiring) return 'SENSORS_READY';
-    if (effectiveLocation) return 'SENSORS_READY';
+    if (isAcquiring || effectiveLocation) return 'SENSORS_READY';
     return 'IDLE';
   }, [forgeStatus, isDenied, isAcquiring, effectiveLocation]);
 
   const api: GeoEngineReturn = {
     status: derivedStatus,
-    userLocation: effectiveLocation, 
+    userLocation: effectiveLocation,
     nearbyPOIs,
     activePOI,
     isTriangulated,
-    
-    /**
-     * [MANDATO V26.1 - RELAJACIÓN DE AUTORIDAD]:
-     * Se amplía el umbral de GPS Lock de 50m a 80m. 
-     * Esto permite que la cámara ejecute el vuelo de refinamiento cinemático 
-     * mucho antes, evitando que el usuario se sienta atascado en la "Ciudad".
-     */
-    isGPSLock: effectiveLocation?.accuracy ? effectiveLocation.accuracy < 80 : false,
-    
-    error: forgeError || (isDenied ? "ACCESO_GPS_DENEGADO" : null),
+
+    // [MANDATO V2.7]: Autoridad Progresiva. 
+    // isGPSLock solo es true si el hardware confirma precisión de calle (<80m).
+    isGPSLock: telemetry?.source === 'gps' && telemetry.accuracy < 80,
+
+    error: forgeError || (isDenied ? "GPS_BLOQUEADO" : null),
     data: { ...forgeData, ...localData },
     isSearching,
     isLocked: isForgeLocked,
 
-    // Métodos de Control Global
     setTriangulated: () => setIsTriangulated(true),
     initSensors: startHardwareWatch,
     reSyncRadar: reSync,
 
-    // Flujos de Inteligencia
     ingestSensoryData: (params) => ingestSensoryData(effectiveLocation, params),
     synthesizeNarrative,
     transcribeVoiceIntent,
-    
-    // Métodos de Gestión Manual
+
     setManualAnchor: (lng, lat) => {
-      nicepodLog(`📍 [Geo-Orchestrator] Anclaje manual aplicado: ${lat.toFixed(4)}, ${lng.toFixed(4)}`);
       setManualAnchorState({
-        latitude: lat,
-        longitude: lng,
-        accuracy: 1, // Precisión máxima al ser intencional (Fuerza isGPSLock a true)
-        heading: telemetry?.heading ?? null, 
-        speed: null
+        latitude: lat, longitude: lng,
+        accuracy: 1, heading: telemetry?.heading ?? null, speed: null
       });
     },
-    setManualPlaceName: (name) => {
-      nicepodLog(`🏷️ [Geo-Orchestrator] Nombre manual asignado: ${name}`);
-      setLocalData(prev => ({ ...prev, manualPlaceName: name }));
-    },
+    setManualPlaceName: (name) => setLocalData(prev => ({ ...prev, manualPlaceName: name })),
 
-    // Limpieza Atómica
     reset: () => {
-      nicepodLog("🧹 [Geo-Orchestrator] Purga de sesión ejecutada.");
       killHardwareWatch();
       resetForge();
       setIsTriangulated(false);
@@ -275,7 +210,6 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
       setManualAnchorState(null);
       setLocalData({});
       lastFetchPosRef.current = null;
-      lastEmittedLocationRef.current = null;
     }
   };
 
@@ -288,21 +222,6 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
 
 export function useGeoEngine() {
   const context = useContext(GeoEngineContext);
-  if (!context) {
-    throw new Error("useGeoEngine debe ser invocado dentro de un GeoEngineProvider nominal.");
-  }
+  if (!context) throw new Error("useGeoEngine out of bounds.");
   return context;
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT (V26.1):
- * 1. Protocolo de Confianza Urbana: Se aumentó el 'isGPSLock' a 80 metros. En 
- *    ciudades como Madrid, el rebote satelital retrasa el fix perfecto. Esta 
- *    relajación asegura que el Voyager vea su avatar en su calle rápidamente.
- * 2. Bypass de Movimiento Crítico: Se inyectó 'lastEmittedLocationRef' para forzar
- *    una actualización visual y de red si el usuario camina más de 30 metros de golpe,
- *    eliminando el problema del 'Efecto Estaca' donde el avatar se negaba a caminar.
- * 3. Solidificación de Override: Al asignar 'accuracy: 1' al 'setManualAnchor', 
- *    engañamos positivamente al sistema para que active el GPS Lock y el 
- *    mapa salte automáticamente a la posición elegida por el curador.
- */
