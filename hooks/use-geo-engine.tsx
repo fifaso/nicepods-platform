@@ -1,7 +1,7 @@
 // hooks/use-geo-engine.tsx
-// VERSIÓN: 26.0 (NicePod Sovereign Geo-Engine - Relaxed Authority & T0 Fast-Fix Edition)
-// Misión: Orquestar el Cerebro Dual (Sensor + IA) con Throttling de Red y Overrides Manuales.
-// [ESTABILIZACIÓN]: Ampliación de Umbral isGPSLock a 80m y consolidación de Sincronía T0.
+// VERSIÓN: 26.1 (NicePod Sovereign Geo-Engine - Relaxed Authority & Force Emit Edition)
+// Misión: Orquestar el Cerebro Dual (Sensor + IA) con Throttling de Red y Override Manual.
+// [ESTABILIZACIÓN]: Ampliación de Umbral isGPSLock a 80m, Sincronía T0 y Bypass de Movimiento Crítico.
 
 "use client";
 
@@ -90,6 +90,7 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
 
   // --- III. CONTROL DE TRÁFICO GEOESPACIAL (REFS) ---
   const lastFetchPosRef = useRef<{lat: number, lng: number} | null>(null);
+  const lastEmittedLocationRef = useRef<UserLocation | null>(null); // [NUEVO]: Memoria para bypass de movimiento
   const FETCH_DISTANCE_THRESHOLD = 100; // Throttling de Red: 100 metros.
 
   /**
@@ -173,9 +174,34 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
     if (effectiveLocation) {
       evaluateEnvironment(effectiveLocation);
       
+      /**
+       * [BYPASS DE MOVIMIENTO CRÍTICO]:
+       * Evaluamos cuánto se ha movido el Voyager desde el último ciclo de React.
+       * Si el movimiento es mayor a 30m, forzamos la actualización de red
+       * ignorando cualquier filtro pasivo, asegurando que el avatar "camine".
+       */
+      let forceEmit = false;
+      if (lastEmittedLocationRef.current) {
+        const stepDist = calculateDistance(
+          { latitude: effectiveLocation.latitude, longitude: effectiveLocation.longitude },
+          { latitude: lastEmittedLocationRef.current.latitude, longitude: lastEmittedLocationRef.current.longitude }
+        );
+        if (stepDist > 30) {
+          nicepodLog(`🏃 [Geo-Orchestrator] Movimiento detectado (${Math.round(stepDist)}m). Forzando emisión.`);
+          forceEmit = true;
+        }
+      }
+
       // Intentamos sincronizar con la red (El Throttling de 100m protegerá la base de datos)
-      fetchNearbyPOIs(effectiveLocation);
+      if (!isTriangulated || forceEmit || !lastFetchPosRef.current) {
+        fetchNearbyPOIs(effectiveLocation);
+      } else {
+        // En cada frame evaluamos si procede fetch, pero la función internamente retorna si no pasa el umbral de 100m.
+        fetchNearbyPOIs(effectiveLocation);
+      }
       
+      lastEmittedLocationRef.current = effectiveLocation;
+
       if (!isTriangulated) {
         setIsTriangulated(true);
       }
@@ -200,11 +226,10 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
     isTriangulated,
     
     /**
-     * [MANDATO V26.0 - RELAJACIÓN DE AUTORIDAD]:
+     * [MANDATO V26.1 - RELAJACIÓN DE AUTORIDAD]:
      * Se amplía el umbral de GPS Lock de 50m a 80m. 
      * Esto permite que la cámara ejecute el vuelo de refinamiento cinemático 
-     * mucho antes, evitando que el usuario se sienta atascado en la "Ciudad" 
-     * si su hardware móvil tarda en bajar de los 50 metros en zonas densas.
+     * mucho antes, evitando que el usuario se sienta atascado en la "Ciudad".
      */
     isGPSLock: effectiveLocation?.accuracy ? effectiveLocation.accuracy < 80 : false,
     
@@ -250,6 +275,7 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
       setManualAnchorState(null);
       setLocalData({});
       lastFetchPosRef.current = null;
+      lastEmittedLocationRef.current = null;
     }
   };
 
@@ -269,12 +295,14 @@ export function useGeoEngine() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V26.0):
+ * NOTA TÉCNICA DEL ARCHITECT (V26.1):
  * 1. Protocolo de Confianza Urbana: Se aumentó el 'isGPSLock' a 80 metros. En 
- *    ciudades como Madrid, el rebote satelital en edificios de obsidiana retrasa 
- *    el fix perfecto. Esta relajación asegura que el Voyager vea su avatar 
- *    en su calle en segundos, sin bloqueos visuales.
- * 2. Solidificación de Override: Al asignar 'accuracy: 1' al 'setManualAnchor', 
+ *    ciudades como Madrid, el rebote satelital retrasa el fix perfecto. Esta 
+ *    relajación asegura que el Voyager vea su avatar en su calle rápidamente.
+ * 2. Bypass de Movimiento Crítico: Se inyectó 'lastEmittedLocationRef' para forzar
+ *    una actualización visual y de red si el usuario camina más de 30 metros de golpe,
+ *    eliminando el problema del 'Efecto Estaca' donde el avatar se negaba a caminar.
+ * 3. Solidificación de Override: Al asignar 'accuracy: 1' al 'setManualAnchor', 
  *    engañamos positivamente al sistema para que active el GPS Lock y el 
  *    mapa salte automáticamente a la posición elegida por el curador.
  */
