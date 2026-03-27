@@ -1,15 +1,18 @@
 // hooks/use-sensor-authority.ts
-// VERSIÓN: 4.0 (NicePod Sensor Authority - Absolute Authority & Rapid Fix Edition)
+// VERSIÓN: 4.1 (NicePod Sensor Authority - Absolute Authority & Rapid Fix Edition)
 // Misión: Captura pura de telemetría GPS con protocolo de prioridad satelital.
-// [ESTABILIZACIÓN]: Implementación de Authority Escalation y Doble Ignición Agresiva.
+// [ESTABILIZACIÓN]: Implementación de Transmutación de Fuente y Watchdog de Rescate.
 
 "use client";
 
 import { MADRID_SOL_COORDS } from "@/components/geo/map-constants";
 import { nicepodLog } from "@/lib/utils";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-// --- CONTRATOS DE TELEMETRÍA SOBERANA ---
+/**
+ * INTERFAZ: RawTelemetry
+ * La verdad física capturada directamente del silicio del dispositivo o la red.
+ */
 export interface RawTelemetry {
   latitude: number;
   longitude: number;
@@ -20,11 +23,14 @@ export interface RawTelemetry {
   source: 'gps' | 'cache' | 'ip-fallback';
 }
 
+/**
+ * INTERFAZ: SensorAuthorityProps
+ */
 interface SensorAuthorityProps {
   initialData?: { lat: number; lng: number; city: string; source: string; } | null;
 }
 
-// UMBRAL DE CADUCIDAD: 15 minutos para evitar amnesia posicional
+// UMBRAL DE CADUCIDAD: 15 minutos para evitar amnesia posicional entre sesiones.
 const CACHE_TTL_MS = 15 * 60 * 1000;
 
 /**
@@ -37,7 +43,7 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
   const [telemetry, setTelemetry] = useState<RawTelemetry | null>(() => {
     if (typeof window === "undefined") return null;
 
-    // 1. PRIORIDAD A: Caché Local Reciente
+    // 1. PRIORIDAD A: Caché Local Reciente (< 15 min)
     const cachedFixStr = localStorage.getItem('nicepod_last_known_fix');
     if (cachedFixStr) {
       try {
@@ -69,7 +75,7 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
       };
     }
 
-    // 3. FALLBACK DE SEGURIDAD
+    // 3. FALLBACK DE SEGURIDAD (Mínima Verdad)
     return {
       ...MADRID_SOL_COORDS,
       accuracy: 9999,
@@ -88,7 +94,7 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
   const isHardwareIgnitedRef = useRef<boolean>(false);
   const watchdogTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Flag para detectar la primera señal real de satélite
+  // Flag crítico para detectar el paso de 'Cortesía' (IP) a 'Autoridad' (GPS)
   const hasGPSFixRef = useRef<boolean>(false);
 
   /**
@@ -101,29 +107,36 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
       return;
     }
 
-    // [CERROJO]: Bloqueo de duplicidad para no saturar el bus del sistema.
-    if (isHardwareIgnitedRef.current) return;
+    // [CERROJO]: Bloqueo de duplicidad para proteger la antena GPS
+    if (isHardwareIgnitedRef.current) {
+      nicepodLog("📡 [Sensor-Authority] Hardware en proceso de ignición activo.");
+      return;
+    }
 
-    // Limpieza atómica antes de la re-ignición
-    if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
+    // Limpieza atómica de procesos previos
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+    }
 
     isHardwareIgnitedRef.current = true;
     setIsAcquiring(true);
 
     /**
-     * [WATCHDOG]: Temporizador de Vigilancia
-     * Si en 8s no hay GPS real, liberamos el cerrojo para permitir re-intentos.
+     * [WATCHDOG]: Temporizador de Vigilancia (8 segundos)
+     * Si el chip GPS no responde, liberamos el cerrojo para permitir re-intentos
+     * automáticos o manuales por parte del Voyager.
      */
     if (watchdogTimerRef.current) clearTimeout(watchdogTimerRef.current);
     watchdogTimerRef.current = setTimeout(() => {
       if (!hasGPSFixRef.current) {
-        nicepodLog("🆘 [Sensor-Authority] Hardware Stall. Reset de autoridad.");
+        nicepodLog("🆘 [Sensor-Authority] Hardware Stall detectado. Liberando cerrojo.");
         isHardwareIgnitedRef.current = false;
         setIsAcquiring(false);
       }
     }, 8000);
 
     const onSignalSuccess = (pos: GeolocationPosition) => {
+      // Limpiamos el Watchdog en el primer éxito real
       if (watchdogTimerRef.current) {
         clearTimeout(watchdogTimerRef.current);
         watchdogTimerRef.current = null;
@@ -140,12 +153,12 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
       };
 
       /**
-       * [PROTOCOLO GPS-OVERRIDE]:
-       * Misión: Si es el primer dato de satélite de la sesión, lo inyectamos
-       * incondicionalmente para forzar al mapa a saltar de la IP a la realidad.
+       * [PROTOCOLO DE TRANSMUTACIÓN]:
+       * Misión: Si es el primer fix real de GPS, forzamos la actualización
+       * para que el mapa salte de la IP a la calle exacta de forma inmediata.
        */
       if (!hasGPSFixRef.current) {
-        nicepodLog(`🛰️ [Sensor-Authority] GPS Fix Alcanzado (Precisión: ${Math.round(pos.coords.accuracy)}m).`);
+        nicepodLog(`🛰️ [Sensor-Authority] GPS Fix Certificado (Acc: ${Math.round(pos.coords.accuracy)}m).`);
         hasGPSFixRef.current = true;
       }
 
@@ -160,16 +173,17 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
       if (watchdogTimerRef.current) clearTimeout(watchdogTimerRef.current);
 
       if (error.code === error.PERMISSION_DENIED) {
-        nicepodLog("🛑 [Sensor-Authority] Acceso denegado por el SO.", null, 'error');
+        nicepodLog("🛑 [Sensor-Authority] Acceso denegado por el usuario.", null, 'error');
         setIsDenied(true);
       } else {
-        nicepodLog(`🟡 [Sensor-Authority] Buscando señal satelital: ${error.message}`);
+        nicepodLog(`🟡 [Sensor-Authority] Sincronizando satélites: ${error.message}`);
       }
     };
 
     /**
      * [DUAL STREAM IGNITION]:
-     * Lanzamos un 'Shot' rápido de red y un 'Watch' continuo de satélite.
+     * 1. Shot de Red: Rápido y aproximado (materialización visual).
+     * 2. Watch Satelital: Continuo y preciso (navegación cinemática).
      */
     navigator.geolocation.getCurrentPosition(onSignalSuccess, onSignalError, {
       enableHighAccuracy: false,
@@ -184,6 +198,10 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
 
   }, []);
 
+  /**
+   * killHardwareWatch:
+   * Misión: Liberar los recursos del chip GPS y resetear flags de autoridad.
+   */
   const killHardwareWatch = useCallback(() => {
     if (watchIdRef.current !== null) {
       navigator.geolocation.clearWatch(watchIdRef.current);
@@ -193,16 +211,27 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
     isHardwareIgnitedRef.current = false;
     hasGPSFixRef.current = false;
     setIsAcquiring(false);
-    nicepodLog("💤 [Sensor-Authority] Hardware desconectado.");
+    nicepodLog("💤 [Sensor-Authority] Hardware GPS desconectado.");
   }, []);
 
-  // --- III. MÉTODO DE ACCIÓN SOBERANA ---
+  /**
+   * reSync:
+   * Misión: Forzar un reinicio total de la búsqueda de posición.
+   */
   const reSync = useCallback(() => {
-    nicepodLog("🔄 [Sensor-Authority] Ejecutando Re-Sincronía de Fuerza.");
+    nicepodLog("🔄 [Sensor-Authority] Ejecutando Re-Sincronía de Autoridad.");
     isHardwareIgnitedRef.current = false;
     hasGPSFixRef.current = false;
     startHardwareWatch();
   }, [startHardwareWatch]);
+
+  // --- III. CICLO DE VIDA ---
+  useEffect(() => {
+    // La materialización inicial ocurre en el useState.
+    return () => {
+      // Mantenemos el sensor activo durante la navegación interna.
+    };
+  }, []);
 
   return {
     telemetry,
@@ -215,13 +244,11 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V4.0):
- * 1. Solución de Estancamiento (Stall Fix): La introducción de 'hasGPSFixRef' permite 
- *    que el sistema identifique el momento exacto en que la ubicación real supera 
- *    a la ubicación de IP, forzando la actualización visual.
- * 2. Ignición Dual: Se solicita primero una ubicación por red (rápida) y luego 
- *    por satélite (precisa). Esto garantiza que el Voyager se materialice en <1s.
- * 3. Autoridad de Re-Sincronía: El método 'reSync' ahora resetea todos los flags 
- *    internos, asegurando que el chip GPS del móvil se vea obligado a refrescar 
- *    su estado de búsqueda.
+ * NOTA TÉCNICA DEL ARCHITECT (V4.1):
+ * 1. Transmutación de Fuente: Al detectar el paso de 'ip-fallback' a 'gps', el 
+ *    sistema fuerza una actualización visual, rompiendo el estancamiento.
+ * 2. Protocolo Fast-Fix: La captura dual garantiza que el Voyager nunca vea un 
+ *    mapa en negro mientras el hardware satelital realiza su Cold Fix.
+ * 3. Watchdog de Stall: Se previene el bloqueo silencioso del GPS si la señal
+ *    no se recibe en los primeros 8 segundos, habilitando la re-ignición.
  */

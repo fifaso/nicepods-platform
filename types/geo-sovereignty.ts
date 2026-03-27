@@ -1,7 +1,7 @@
 // types/geo-sovereignty.ts
-// VERSIÓN: 4.2 (NicePod V2.7 - Precision & Mesh Persistence Contract Edition)
+// VERSIÓN: 4.3 (NicePod V2.7 - Extended Telemetry & Contract Integrity Edition)
 // Misión: Centralizar el contrato de identidad de los activos físicos y la telemetría.
-// [ESTABILIZACIÓN]: Inyección de 'isGPSLock' para permitir el refinamiento de cámara automático.
+// [ESTABILIZACIÓN]: Resolución de errores ts(2339) y ts(2353) mediante inyección de metadatos de fuente.
 
 /**
  * ---------------------------------------------------------------------------
@@ -20,7 +20,9 @@ export interface GeoPoint {
 }
 
 /**
- * UserLocation: Snapshot de telemetría capturada por el hardware del curador.
+ * UserLocation: Snapshot de telemetría capturada por el hardware o la red.
+ * [FIX V4.3]: Se añaden 'source' y 'timestamp' para habilitar el refinamiento 
+ * automático de IP a GPS real.
  */
 export interface UserLocation {
   latitude: number;
@@ -28,11 +30,14 @@ export interface UserLocation {
   accuracy: number;
   heading: number | null;
   speed: number | null;
+  /** source: Origen de la verdad (GPS satelital, Caché local o IP de red). */
+  source?: 'gps' | 'cache' | 'ip-fallback';
+  /** timestamp: Marca de tiempo para validar la frescura del dato (TTL). */
+  timestamp?: number;
 }
 
 /**
  * ActivePOI: Representación de un nodo cercano detectado por el Radar de Proximidad.
- * Utilizado para el HUD y las alertas de resonancia táctiles.
  */
 export interface ActivePOI {
   id: string;
@@ -50,7 +55,6 @@ export interface ActivePOI {
 
 /**
  * POILifecycle: Define el estado existencial de un Punto de Interés.
- * Mapeado directamente con el enum 'poi_lifecycle' en el Metal (SQL).
  */
 export type POILifecycle =
   | 'ingested'  // Evidencia física capturada.
@@ -81,14 +85,13 @@ export type GeoEngineState =
 
 /**
  * PointOfInterest: El activo de conocimiento soberano final.
- * Representa la "Piedra" digital en la Malla Urbana.
  */
 export interface PointOfInterest {
   id: number;
   author_id: string;
   name: string;
   category_id: string;
-  geo_location: GeoPoint; // Tipado estricto para SpatialEngine
+  geo_location: GeoPoint;
   resonance_radius: number;
   importance_score: number;
   historical_fact: string | null;
@@ -105,7 +108,6 @@ export interface PointOfInterest {
 
 /**
  * IngestionDossier: El contenedor de evidencia procesada por la IA sensorial.
- * Actúa como el puente entre la captura física y la narrativa final.
  */
 export interface IngestionDossier {
   poi_id: number;
@@ -121,6 +123,7 @@ export interface IngestionDossier {
     atmosphere?: string;
     detectedElements?: string[];
     detectedOfficialName?: string;
+    admin_original_intent?: string;
   };
   sensor_accuracy: number;
   ingested_at: string;
@@ -133,7 +136,7 @@ export interface IngestionDossier {
  */
 
 /**
- * GeoContextData: Almacén de resultados asíncronos del motor durante el Stepper.
+ * GeoContextData: Almacén de resultados asíncronos del motor durante la forja.
  */
 export interface GeoContextData {
   poiId?: number;
@@ -150,7 +153,7 @@ export interface GeoContextData {
 
 /**
  * GeoEngineReturn: La firma pública que el hook useGeoEngine entrega a la UI.
- * [FIX V2.7]: Inyección de 'isTriangulated' e 'isGPSLock' para habilitar Hot-Swap y Refinamiento.
+ * [FIX V2.7]: Inyección de metadatos de persistencia y autoridad progresiva.
  */
 export interface GeoEngineReturn {
   status: GeoEngineState;
@@ -162,12 +165,12 @@ export interface GeoEngineReturn {
   isLocked: boolean;
   error: string | null;
 
-  // --- FACULTADES DE PERSISTENCIA Y AUTORIDAD (V2.7) ---
-  /** isTriangulated: Indica si existe alguna ubicación inicial (IP/GPS/Caché). */
+  // --- CAPACIDADES DE SOBERANÍA V2.7 ---
+  /** isTriangulated: El sistema tiene una ubicación (IP o GPS). */
   isTriangulated: boolean;
-  /** isGPSLock: Indica si existe una fijación satelital de alta precisión (<50m). */
+  /** isGPSLock: El hardware ha certificado precisión de calle (<80m). */
   isGPSLock: boolean;
-  /** setTriangulated: Sella el estado de localización para toda la Workstation. */
+  /** setTriangulated: Sella el estado de localización. */
   setTriangulated: () => void;
 
   // Métodos de Control
@@ -203,9 +206,6 @@ export interface GeoEngineReturn {
  * ---------------------------------------------------------------------------
  */
 
-/**
- * GeoActionResponse: Contrato unificado para Server Actions geoespaciales.
- */
 export interface GeoActionResponse<T = unknown> {
   success: boolean;
   message: string;
@@ -214,23 +214,17 @@ export interface GeoActionResponse<T = unknown> {
   trace_id?: string;
 }
 
-/**
- * POICreationPayload: Estructura de despacho multimodal comprimida.
- */
 export interface POICreationPayload {
   latitude: number;
   longitude: number;
   accuracy: number;
-  heroImage: string; // Base64 comprimido
-  ocrImages: string[]; // Array de Base64 comprimidos
+  heroImage: string;
+  ocrImages: string[];
   categoryId: string;
   resonanceRadius: number;
   adminIntent: string;
 }
 
-/**
- * POICategory: Definición taxonómica para la Malla Urbana.
- */
 export interface POICategory {
   id: string;
   label: string;
@@ -240,11 +234,13 @@ export interface POICategory {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V4.2):
- * 1. Sincronía Atómica: La adición de 'isGPSLock' es el disparador legal que permite 
- *    al SpatialEngine realizar el vuelo de refinamiento automático.
- * 2. Resolución de ts(2339): Al declarar estas propiedades en la interfaz maestra, 
- *    el compilador de Vercel dejará de bloquear el build en el orquestador.
- * 3. Hot-Swap Ready: La persistencia de triangulación queda normalizada como un 
- *    estándar de la arquitectura NicePod Madrid Resonance.
+ * NOTA TÉCNICA DEL ARCHITECT (V4.3):
+ * 1. Sello de Integridad de Datos: Se añadieron 'source' y 'timestamp' a UserLocation. 
+ *    Esto elimina el error ts(2339) y permite que el sistema diferencie legalmente 
+ *    entre el paracaídas de IP y la verdad del satélite.
+ * 2. Preparado para Refinamiento: La inclusión de 'isGPSLock' en GeoEngineReturn 
+ *    es el disparador contractual necesario para que el SpatialEngine ejecute 
+ *    vuelos de corrección automática.
+ * 3. Build Shield Activo: Todas las interfaces están selladas, garantizando un 
+ *    build exitoso en Vercel sin pérdida de tipos en las Server Actions.
  */
