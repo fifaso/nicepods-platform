@@ -1,7 +1,7 @@
 // hooks/use-geo-engine.tsx
-// VERSIÓN: 25.0 (NicePod Sovereign Geo-Engine - Absolute Integration Edition)
+// VERSIÓN: 26.0 (NicePod Sovereign Geo-Engine - Relaxed Authority & T0 Fast-Fix Edition)
 // Misión: Orquestar el Cerebro Dual (Sensor + IA) con Throttling de Red y Overrides Manuales.
-// [ESTABILIZACIÓN]: Inyección de initialData al SensorAuthority y fusión de Contexto Local.
+// [ESTABILIZACIÓN]: Ampliación de Umbral isGPSLock a 80m y consolidación de Sincronía T0.
 
 "use client";
 
@@ -53,7 +53,7 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
 
   // --- I. CONSUMO DE ESPECIALISTAS (CEREBRO DUAL) ---
   
-  // [FIX V25.0]: Inyectamos 'initialData' para que el SensorAuthority active el Paracaídas IP.
+  // Delegación de captura de hardware (Con inyección de Paracaídas Geo-IP)
   const { 
     telemetry, 
     isDenied, 
@@ -63,6 +63,7 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
     reSync 
   } = useSensorAuthority({ initialData });
 
+  // Delegación de procesamiento pesado (Pipeline de Inteligencia)
   const {
     forgeStatus,
     forgeData,
@@ -80,7 +81,7 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [isTriangulated, setIsTriangulated] = useState<boolean>(false);
 
-  // [NUEVO]: Override Manual y Contexto Local
+  // Override Manual y Contexto Local
   const [manualAnchor, setManualAnchorState] = useState<UserLocation | null>(null);
   const [localData, setLocalData] = useState<{ isProximityConflict?: boolean; manualPlaceName?: string }>({});
 
@@ -89,7 +90,7 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
 
   // --- III. CONTROL DE TRÁFICO GEOESPACIAL (REFS) ---
   const lastFetchPosRef = useRef<{lat: number, lng: number} | null>(null);
-  const FETCH_DISTANCE_THRESHOLD = 100; // Throttling: 100 metros.
+  const FETCH_DISTANCE_THRESHOLD = 100; // Throttling de Red: 100 metros.
 
   /**
    * fetchNearbyPOIs: Sincronización Inteligente con Bóveda NKV.
@@ -158,7 +159,6 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
     });
 
     setActivePOI(closest);
-    // Preservamos el estado local combinándolo con el anterior
     setLocalData(prev => ({ ...prev, isProximityConflict: minDistance < 10 }));
   }, [nearbyPOIs]);
 
@@ -194,14 +194,21 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
 
   const api: GeoEngineReturn = {
     status: derivedStatus,
-    userLocation: effectiveLocation, // Entregamos la verdad final (Auto o Manual)
+    userLocation: effectiveLocation, 
     nearbyPOIs,
     activePOI,
     isTriangulated,
-    isGPSLock: effectiveLocation?.accuracy ? effectiveLocation.accuracy < 50 : false,
-    error: forgeError || (isDenied ? "ACCESO_GPS_DENEGADO" : null),
     
-    // [FIX V25.0]: Fusionamos la memoria volátil de la IA con el contexto espacial local
+    /**
+     * [MANDATO V26.0 - RELAJACIÓN DE AUTORIDAD]:
+     * Se amplía el umbral de GPS Lock de 50m a 80m. 
+     * Esto permite que la cámara ejecute el vuelo de refinamiento cinemático 
+     * mucho antes, evitando que el usuario se sienta atascado en la "Ciudad" 
+     * si su hardware móvil tarda en bajar de los 50 metros en zonas densas.
+     */
+    isGPSLock: effectiveLocation?.accuracy ? effectiveLocation.accuracy < 80 : false,
+    
+    error: forgeError || (isDenied ? "ACCESO_GPS_DENEGADO" : null),
     data: { ...forgeData, ...localData },
     isSearching,
     isLocked: isForgeLocked,
@@ -222,8 +229,8 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
       setManualAnchorState({
         latitude: lat,
         longitude: lng,
-        accuracy: 1, // Precisión máxima al ser intencional
-        heading: telemetry?.heading ?? null, // Heredamos la brújula si existe
+        accuracy: 1, // Precisión máxima al ser intencional (Fuerza isGPSLock a true)
+        heading: telemetry?.heading ?? null, 
         speed: null
       });
     },
@@ -262,14 +269,12 @@ export function useGeoEngine() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V25.0):
- * 1. Paracaídas Sincronizado: Al pasar 'initialData' a 'useSensorAuthority', garantizamos 
- *    que el hardware despierte con la IP inyectada desde el Middleware T0.
- * 2. Override de Malla: 'setManualAnchor' ahora funciona correctamente, creando una 
- *    ubicación virtual de alta precisión que engaña positivamente al sistema para 
- *    forjar nodos a distancia (Remote Sensing).
- * 3. Híbrido de Datos: El objeto 'data' ahora es una fusión de 'forgeData' (Dossieres IA) 
- *    y 'localData' (Nombres manuales y conflictos de proximidad).
- * 4. Optimización Pura: El Throttling de 100m se mantiene, protegiendo a Supabase del 
- *    bombardeo de red ('Storm Request') mientras la UI reacciona a 60FPS.
+ * NOTA TÉCNICA DEL ARCHITECT (V26.0):
+ * 1. Protocolo de Confianza Urbana: Se aumentó el 'isGPSLock' a 80 metros. En 
+ *    ciudades como Madrid, el rebote satelital en edificios de obsidiana retrasa 
+ *    el fix perfecto. Esta relajación asegura que el Voyager vea su avatar 
+ *    en su calle en segundos, sin bloqueos visuales.
+ * 2. Solidificación de Override: Al asignar 'accuracy: 1' al 'setManualAnchor', 
+ *    engañamos positivamente al sistema para que active el GPS Lock y el 
+ *    mapa salte automáticamente a la posición elegida por el curador.
  */
