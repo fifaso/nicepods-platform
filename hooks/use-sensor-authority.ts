@@ -1,7 +1,7 @@
 // hooks/use-sensor-authority.ts
-// VERSIÓN: 3.0 (NicePod Sensor Authority - TTL Cache & Fast-Fix Edition)
+// VERSIÓN: 3.1 (NicePod Sensor Authority - TTL Cache & Fast-Fix Edition)
 // Misión: Captura pura de telemetría GPS con purga de caché y aceptación incondicional T0.
-// [ESTABILIZACIÓN]: Implementación de Caducidad de 15 min y Dual Stream de Ignición.
+// [ESTABILIZACIÓN]: Implementación de Caducidad de 15 min, Dual Stream y Zero-Amnesia.
 
 "use client";
 
@@ -135,7 +135,7 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
        * Esto fuerza a la UI a salir del modo 'Estimando por IP' al instante.
        */
       if (isFirstHardwarePing.current) {
-        nicepodLog("⚡ [Sensor-Authority] Primer Ping de Hardware aceptado incondicionalmente.");
+        nicepodLog(`⚡ [Sensor-Authority] Primer Ping aceptado incondicionalmente (Acc: ${pos.coords.accuracy}m).`);
         isFirstHardwarePing.current = false;
         setTelemetry(freshTelemetry);
         setIsAcquiring(false);
@@ -144,7 +144,6 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
       }
 
       // Si ya no es el primer ping, actualizamos normalmente.
-      // (El filtrado de 5m y 3° ocurrirá un nivel más arriba en el use-geo-engine).
       setTelemetry(freshTelemetry);
       setIsAcquiring(false);
       localStorage.setItem('nicepod_last_known_fix', JSON.stringify(freshTelemetry));
@@ -214,7 +213,7 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V3.0):
+ * NOTA TÉCNICA DEL ARCHITECT (V3.1):
  * 1. Protocolo Anti-Amnesia (TTL): Se implementó la purga de caché de 15 minutos. 
  *    Esto evita que el mapa nazca en la ubicación de ayer, forzando al sistema a 
  *    utilizar la IP o buscar señal fresca si el dato es viejo.
