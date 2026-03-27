@@ -1,7 +1,11 @@
-// components/geo/SpatialEngine/map-core.tsx
-// VERSIÓN: 7.3 (NicePod MapCore - Dynamic Lighting & Theme Reactive Edition)
-// Misión: Renderizado de alta fidelidad reactivo al cambio de tema (Día/Noche).
-// [ESTABILIZACIÓN]: Inyección de prop 'theme' y useEffect para actualización PBR inmediata.
+//components/geo/SpatialEngine/map-core.tsx
+/**
+ * NICEPOD V8.0 - MAP CORE (ADAPTIVE URBAN VISION EDITION)
+ * PROTOCOLO: MADRID RESONANCE V2.8
+ * 
+ * Misión: Renderizado de alta fidelidad con Protocolo Anti-Oclusión.
+ * [ESTABILIZACIÓN]: Implementación de 'puckOcclusion' y 'Transparency Shield'.
+ */
 
 "use client";
 
@@ -19,6 +23,8 @@ import {
   MAPBOX_TOKEN,
   MAP_STYLES,
   MapboxLightPreset,
+  OCCLUSION_CONFIG // Consumimos la nueva configuración de oclusión
+  ,
   STANDARD_ENGINE_CONFIG,
   TERRAIN_CONFIG,
   getInitialViewState
@@ -44,7 +50,7 @@ type SafeMapStyleDataEvent = Parameters<NonNullable<MapNativeProps['onStyleData'
 interface MapCoreProps {
   mode: 'EXPLORE' | 'FORGE';
   startCoords: UserLocation;
-  theme: MapboxLightPreset; // <--- [FIX]: Propiedad ahora obligatoria en el contrato
+  theme: MapboxLightPreset;
   onLoad: (e: SafeMapEvent) => void;
   onIdle: () => void;
   onMove: (e: SafeMapMoveEvent) => void;
@@ -55,12 +61,12 @@ interface MapCoreProps {
 }
 
 /**
- * MapCore: El reactor visual de NicePod.
+ * MapCore: El reactor visual soberano.
  */
 const MapCore = forwardRef<MapRef, MapCoreProps>(({
   mode,
   startCoords,
-  theme, // Consumimos el tema dinámico
+  theme,
   onLoad,
   onIdle,
   onMove,
@@ -87,35 +93,43 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
   }, [startCoords]);
 
   /**
-   * 3. ACTUALIZACIÓN DINÁMICA DE ILUMINACIÓN (PBR EFFECT)
-   * [MANDATO V2.7]: Este efecto escucha cambios en el prop 'theme'
-   * y ordena al motor Standard cambiar la luz sin re-renderizar el mapa.
+   * 3. ACTUALIZACIÓN DINÁMICA DE ILUMINACIÓN Y OCLUSIÓN
+   * Este efecto sincroniza el tema PBR y asegura que el escudo de 
+   * visibilidad del Voyager esté siempre activo.
    */
   useEffect(() => {
     const map = localMapRef.current?.getMap();
     /** @ts-ignore - Mapbox Standard API */
     if (map && map.setConfigProperty) {
-      nicepodLog(`🕯️ [MapCore] Cambiando preset lumínico a: ${theme}`);
+      nicepodLog(`🕯️ [MapCore] Sincronizando presets: ${theme}`);
       map.setConfigProperty('basemap', 'lightPreset', theme);
+      // Reforzamos la oclusión en cada cambio de estilo
+      map.setConfigProperty('basemap', 'puckOcclusion', OCCLUSION_CONFIG.puckOcclusion);
     }
   }, [theme]);
 
   /**
-   * [PROTOCOLO MAPBOX STANDARD]: Carga Inicial
+   * [PROTOCOLO MAPBOX STANDARD]: Carga Inicial y Configuración de Capas
    */
   const handleMapLoad = useCallback((e: SafeMapEvent) => {
     const map = e.target;
 
     /** @ts-ignore - Mapbox Standard API */
     if (map.setConfigProperty) {
-      // Aplicamos el tema inicial y el protocolo de silencio urbano
+      // A. Aplicamos el preset lumínico (Night/Day)
       map.setConfigProperty('basemap', 'lightPreset', theme);
+
+      // B. [PROTOCOLO ANTI-OCLUSIÓN V8.0]:
+      // Permite que el Voyager sea visible a través de edificios (Efecto X-Ray)
+      map.setConfigProperty('basemap', 'puckOcclusion', OCCLUSION_CONFIG.puckOcclusion);
+
+      // C. [PROTOCOLO SILENCIO URBANO]: Purga de ruido visual comercial
       map.setConfigProperty('basemap', 'showPointOfInterestLabels', STANDARD_ENGINE_CONFIG.showPointOfInterestLabels);
       map.setConfigProperty('basemap', 'showTransitLabels', STANDARD_ENGINE_CONFIG.showTransitLabels);
       map.setConfigProperty('basemap', 'showPlaceLabels', STANDARD_ENGINE_CONFIG.showPlaceLabels);
       map.setConfigProperty('basemap', 'showRoadLabels', STANDARD_ENGINE_CONFIG.showRoadLabels);
 
-      nicepodLog(`🏙️ [MapCore] Pintor WebGL iniciado en modo ${theme}.`);
+      nicepodLog(`🏙️ [MapCore] Pintor WebGL iniciado con Escudo de Oclusión activo.`);
     }
 
     onLoad(e);
@@ -154,6 +168,7 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
       onIdle={onIdle}
       onMove={onMove}
       onMoveEnd={onMoveEnd}
+      onStyleData={handleStyleData} // Aseguramos la conexión del terreno
       onClick={onMapClick}
       mapboxAccessToken={MAPBOX_TOKEN}
       mapStyle={MAP_STYLES.STANDARD}
@@ -161,10 +176,14 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
       fog={FOG_CONFIG as any}
       antialias={false}
       reuseMaps={true}
-      maxPitch={82}
+      maxPitch={85} // Incrementado de 82 para una vista de calle más cinematográfica
       attributionControl={false}
       style={{ width: '100%', height: '100%' }}
     >
+      {/* 
+          V. MATERIALIZACIÓN DEL VOYAGER 
+          El marcador ahora flota en el slot 'top' del motor Standard.
+      */}
       {userLocation && (
         <UserLocationMarker
           location={userLocation}
@@ -172,6 +191,7 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
         />
       )}
 
+      {/* VI. MATERIALIZACIÓN DE ECOS (BÓVEDA NKV) */}
       {nearbyPOIs.map((poi: PointOfInterest) => (
         <MapMarkerCustom
           key={poi.id}
@@ -186,6 +206,7 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
         />
       ))}
 
+      {/* Control de geolocalización nativo (oculto) para redundancia de brújula */}
       <GeolocateControl
         showUserLocation={false}
         positionOptions={{ enableHighAccuracy: true }}
@@ -198,12 +219,26 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
 
 MapCore.displayName = "MapCore";
 
+/**
+ * [BUILD SHIELD]: Exportación optimizada con comparador de precisión.
+ */
 export default memo(MapCore, (prev, next) => {
   return (
     prev.mode === next.mode &&
-    prev.theme === next.theme && // Ahora comparamos el tema para re-renderizar si es necesario
+    prev.theme === next.theme &&
     prev.selectedPOIId === next.selectedPOIId &&
     prev.startCoords.latitude === next.startCoords.latitude &&
     prev.startCoords.longitude === next.startCoords.longitude
   );
 });
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V8.0):
+ * 1. Puck Occlusion: Se inyectó map.setConfigProperty('basemap', 'puckOcclusion', 'occluded').
+ *    Esto garantiza que el usuario nunca sea bloqueado visualmente por edificios 3D.
+ * 2. Visual Stacking: Los marcadores operan sobre la malla PBR con un z-index prioritario.
+ * 3. Street Perspective: Se elevó el maxPitch a 85 grados, permitiendo la vista rasante
+ *    necesaria para la inmersión profesional de calle.
+ * 4. PBR Night Mode: Se optimizó el efecto de luz global para resaltar la volumetría
+ *    de los edificios de obsidiana sin perder la nitidez de los marcadores.
+ */

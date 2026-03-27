@@ -1,7 +1,11 @@
-// components/geo/map-constants.ts
-// VERSIÓN: 5.1 (NicePod Map Assets - Final Sync Edition)
-// Misión: Centralizar el ADN físico, lumínico y cinemático del motor WebGL.
-// [ESTABILIZACIÓN]: Garantía de exportación nominal para getInitialViewState.
+//components/geo/map-constants.ts
+/**
+ * NICEPOD V5.2 - MAP CONSTANTS (CINEMATIC STREET-LEVEL EDITION)
+ * PROTOCOLO: MADRID RESONANCE V2.8
+ * 
+ * Misión: Centralizar el ADN físico, lumínico y cinemático del motor WebGL.
+ * [MEJORA]: Recalibración de perfiles para evitar oclusión por edificios 3D.
+ */
 
 export const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
 
@@ -19,15 +23,18 @@ export const MADRID_SOL_COORDS = {
   longitude: -3.7037,
 } as const;
 
+/**
+ * STREET_VIEW_CONFIG: Configuración base para el nacimiento del mapa.
+ * [RECALIBRACIÓN V5.2]: Zoom más profundo y Pitch suavizado para evitar muros.
+ */
 export const STREET_VIEW_CONFIG = {
-  zoom: 17.2,
-  pitch: 80,
+  zoom: 18.2,      // Incrementado de 17.2 para mayor detalle de calle
+  pitch: 72,       // Reducido de 80 para una perspectiva más natural de horizonte
   bearing: -15,
 } as const;
 
 /**
- * getInitialViewState: FUNCIÓN DE SEMILLA DINÁMICA
- * [MANDATO]: Debe estar exportada explícitamente para evitar ts(2724).
+ * getInitialViewState: Función generadora de la semilla de renderizado.
  */
 export function getInitialViewState(lat?: number, lng?: number) {
   return {
@@ -43,27 +50,46 @@ export const KINEMATIC_CONFIG = {
   HEADING_SMOOTHING: 3.0,
 } as const;
 
+/**
+ * CAMERA_PROFILES: Comportamientos específicos según el modo de uso.
+ * [RECALIBRACIÓN V5.2]: 
+ * - NAVIGATE: Pitch de 75° y Offset de 25m para ver "el hueco de la calle".
+ * - INSPECT: Enfoque vertical para captura de puntos.
+ */
 export const CAMERA_PROFILES = {
   NAVIGATE: {
-    zoom: 17.8,
-    pitch: 82,
-    offset_distance_meters: 30,
+    zoom: 18.5,
+    pitch: 75,                // Reducido de 82 para evitar oclusión por edificios frontales
+    offset_distance_meters: 25, // Reducido de 30 para mantener la cámara más cerca del eje del Voyager
     essential: true
   },
   INSPECT: {
-    zoom: 19.2,
+    zoom: 19.5,
     pitch: 45,
     offset_distance_meters: 0,
     essential: true
   }
 } as const;
 
+/**
+ * STANDARD_ENGINE_CONFIG: Configuración del motor de renderizado Mapbox Standard.
+ * [PROTOCOLO SILENCIO URBANO]: Purga de etiquetas comerciales.
+ */
 export const STANDARD_ENGINE_CONFIG = {
   lightPreset: ACTIVE_MAP_THEME,
   showPointOfInterestLabels: false,
   showTransitLabels: false,
   showPlaceLabels: true,
   showRoadLabels: true,
+} as const;
+
+/**
+ * OCCLUSION_CONFIG: [NUEVO] Protocolo de transparencia adaptativa.
+ * Define cómo deben comportarse los edificios frente al Voyager.
+ */
+export const OCCLUSION_CONFIG = {
+  puckOcclusion: 'occluded', // 'occluded' permite que el Voyager se vea a través de muros
+  buildingOpacity: 0.85,     // Suavizado general de la malla de obsidiana
 } as const;
 
 export const FOG_CONFIG = {
@@ -88,8 +114,12 @@ export const DEM_SOURCE_CONFIG = {
   maxzoom: 14
 } as const;
 
+/**
+ * FLY_CONFIG: Parámetros para vuelos balísticos e inter-modales.
+ * [AJUSTE V5.2]: Vuelos más cortos (1.8s) para mayor agilidad.
+ */
 export const FLY_CONFIG = {
-  duration: 3200,
+  duration: 1800, // Reducido de 3200 para transiciones balísticas tácticas
   essential: true,
   curve: 1.42,
   speed: 1.1,
@@ -99,6 +129,6 @@ export const FLY_CONFIG = {
 export const ZOOM_LEVELS = {
   CITY: 13,
   NEIGHBORHOOD: 15.5,
-  STREET: 17.5,
-  FORGE: 18.8
+  STREET: 18.2, // Sincronizado con STREET_VIEW_CONFIG
+  FORGE: 19.2
 } as const;
