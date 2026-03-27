@@ -1,7 +1,10 @@
-// components/visuals/background-engine.tsx
-// VERSIÓN: 10.0 (NicePod Aurora Engine - Zero-Flicker & Critical Hibernation Edition)
-// Misión: Orquestar la atmósfera visual y liberar el 100% de la CPU para el GPS y WebGL.
-// [ESTABILIZACIÓN]: Eliminación de pestañeo inicial y purga física de nodos en rutas de mapa.
+/**
+ * NICEPOD V11.0 - AURORA ENGINE (RESONANCE EDITION)
+ * PROTOCOLO: MADRID RESONANCE V2.8
+ * 
+ * Misión: Orquestar la atmósfera visual con elegancia y economía de CPU.
+ * [ESTABILIZACIÓN]: Nuevas paletas de alto contraste y refinamiento de fluidos.
+ */
 
 "use client";
 
@@ -11,18 +14,12 @@ import { useTheme } from "next-themes";
 import { usePathname } from "next/navigation";
 import { memo, useEffect, useState } from "react";
 
-/**
- * COMPONENTE: BackgroundEngine
- * El motor de inmersión visual de NicePod. Implementa hibernación agresiva 
- * para proteger el hilo principal de ejecución (Main Thread).
- */
 export const BackgroundEngine = memo(function BackgroundEngine() {
   const { resolvedTheme } = useTheme();
   const pathname = usePathname();
   const [mounted, setMounted] = useState<boolean>(false);
 
   // 1. ANÁLISIS DE ENTORNO TÁCTICO
-  // Hibernamos si estamos en el mapa o en el dashboard para priorizar el hardware.
   const isMapRoute = pathname?.startsWith('/map');
   const isDashboard = pathname?.startsWith('/dashboard');
   const shouldHibernate = isMapRoute || isDashboard;
@@ -30,17 +27,14 @@ export const BackgroundEngine = memo(function BackgroundEngine() {
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
 
-  // Configuración de inercia para el puntero (Desactivada en hibernación)
   const springConfig = { damping: 50, stiffness: 100, restDelta: 0.001 };
   const smoothX = useSpring(mouseX, springConfig);
   const smoothY = useSpring(mouseY, springConfig);
 
-  // 2. PROTOCOLO DE ECONOMÍA DE CPU
+  // 2. PROTOCOLO DE CAPTURA DE RESONANCIA (MOUSE)
   useEffect(() => {
     setMounted(true);
-
     const handleMouseMove = (event: MouseEvent) => {
-      // Solo actualizamos si no estamos en modo ahorro de recursos
       if (!shouldHibernate) {
         mouseX.set(event.clientX);
         mouseY.set(event.clientY);
@@ -50,29 +44,22 @@ export const BackgroundEngine = memo(function BackgroundEngine() {
     if (typeof window !== "undefined" && window.matchMedia("(pointer: fine)").matches && !shouldHibernate) {
       window.addEventListener("mousemove", handleMouseMove);
     }
-
     return () => window.removeEventListener("mousemove", handleMouseMove);
   }, [mouseX, mouseY, shouldHibernate]);
 
   const isDark = resolvedTheme === "dark";
 
   return (
-    /**
-     * [ORDEN ARQUITECTÓNICA]: El contenedor base SIEMPRE se renderiza.
-     * Esto elimina el pestañeo (flickering) al navegar, ya que el color 
-     * de fondo está presente desde el servidor (SSR).
-     */
     <div
       className={cn(
         "fixed inset-0 -z-20 pointer-events-none overflow-hidden transition-colors duration-1000",
-        isDark ? "bg-[#03040B]" : "bg-slate-100"
+        isDark ? "bg-[#030303]" : "bg-[#FDFDFD]"
       )}
       aria-hidden="true"
     >
-
       {/* 
           I. PUNTERO DE RESONANCIA
-          Se desmonta físicamente si 'shouldHibernate' es true para liberar VRAM.
+          Efecto de halo que sigue al Voyager en páginas de contenido.
       */}
       <AnimatePresence>
         {!shouldHibernate && mounted && (
@@ -80,7 +67,7 @@ export const BackgroundEngine = memo(function BackgroundEngine() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="hidden md:block absolute w-[600px] h-[600px] rounded-full z-20 mix-blend-screen pointer-events-none"
+            className="hidden md:block absolute w-[800px] h-[800px] rounded-full z-20 mix-blend-plus-lighter pointer-events-none"
             style={{
               x: smoothX,
               y: smoothY,
@@ -88,69 +75,68 @@ export const BackgroundEngine = memo(function BackgroundEngine() {
               translateY: "-50%",
               willChange: "transform",
               background: isDark
-                ? "radial-gradient(circle, rgba(79,70,229,0.15) 0%, transparent 60%)"
-                : "radial-gradient(circle, rgba(56,189,248,0.25) 0%, transparent 60%)",
+                ? "radial-gradient(circle, rgba(76,29,149,0.12) 0%, transparent 70%)"
+                : "radial-gradient(circle, rgba(217,70,239,0.08) 0%, transparent 70%)",
             }}
           />
         )}
       </AnimatePresence>
 
       {/* 
-          II. MALLA AURORA ORGÁNICA (PROCESAMIENTO PESADO)
-          [MANDATO V2.7]: Purga absoluta de nodos blur en el Dashboard y Mapa.
-          Esto detiene el 100% de las tareas largas de renderizado de fondo.
+          II. MALLA AURORA DINÁMICA
+          Capas de color fluido con lógica de movimiento asíncrono.
       */}
       <AnimatePresence mode="wait">
         {!shouldHibernate && mounted && (
           <motion.div
-            key={isDark ? "dark-void" : "light-canvas"}
+            key={isDark ? "void-dark" : "canvas-light"}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 1.5, ease: "easeInOut" }}
+            transition={{ duration: 2, ease: "easeInOut" }}
             className="absolute inset-0"
           >
-            {/* ORBE 1: El Flujo Lento */}
+            {/* CAPA ALPHA: El Flujo Profundo (Indigo / Celeste) */}
             <motion.div
               animate={{
-                x: ["0%", "15%", "-5%", "8%", "-10%", "0%"],
-                y: ["0%", "-10%", "15%", "-5%", "10%", "0%"],
-                scale: [1, 1.15, 0.9, 1.05, 0.95, 1],
+                x: ["-10%", "10%", "-5%", "15%", "-10%"],
+                y: ["-5%", "15%", "10%", "-10%", "-5%"],
+                scale: [1, 1.2, 0.9, 1.1, 1],
               }}
-              transition={{ duration: 43, repeat: Infinity, ease: "easeInOut" }}
+              transition={{ duration: 55, repeat: Infinity, ease: "easeInOut" }}
               className={cn(
-                "absolute top-[-20%] left-[-10%] w-[90%] h-[90%] rounded-full blur-[140px] md:blur-[180px] transition-colors duration-1000",
-                isDark ? "bg-blue-900/20" : "bg-blue-400/30"
+                "absolute top-[-25%] left-[-15%] w-[110%] h-[110%] rounded-full blur-[120px] md:blur-[160px] transition-colors duration-1000",
+                isDark ? "bg-indigo-950/40" : "bg-sky-200/50"
               )}
               style={{ willChange: "transform" }}
             />
 
-            {/* ORBE 2: El Pulso Rápido */}
+            {/* CAPA BETA: El Pulso Vital (Violeta / Fucsia) */}
             <motion.div
               animate={{
-                x: ["0%", "-15%", "10%", "-12%", "5%", "0%"],
-                y: ["0%", "15%", "-8%", "12%", "-10%", "0%"],
-                scale: [1, 0.85, 1.1, 0.95, 1.05, 1],
+                x: ["10%", "-15%", "15%", "-10%", "10%"],
+                y: ["15%", "-10%", "-15%", "10%", "15%"],
+                scale: [1.1, 0.9, 1.15, 0.95, 1.1],
               }}
-              transition={{ duration: 29, repeat: Infinity, ease: "easeInOut" }}
+              transition={{ duration: 42, repeat: Infinity, ease: "easeInOut" }}
               className={cn(
-                "absolute bottom-[-15%] right-[-15%] w-[85%] h-[85%] rounded-[40%_60%_70%_30%] blur-[150px] md:blur-[190px] transition-colors duration-1000",
-                isDark ? "bg-indigo-900/30" : "bg-indigo-300/40"
+                "absolute bottom-[-20%] right-[-10%] w-[100%] h-[100%] rounded-[45%] blur-[130px] md:blur-[180px] transition-colors duration-1000",
+                isDark ? "bg-purple-900/30" : "bg-fuchsia-200/40"
               )}
               style={{ willChange: "transform" }}
             />
 
-            {/* ORBE 3: El Núcleo Errático */}
+            {/* CAPA GAMMA: El Núcleo de Contraste (Azul Oscuro / Blanco) */}
             <motion.div
               animate={{
-                x: ["0%", "20%", "-15%", "10%", "-5%", "0%"],
-                y: ["0%", "-15%", "20%", "-10%", "5%", "0%"],
-                rotate: [0, 90, 180, 270, 360],
+                x: ["-20%", "20%", "0%", "-20%"],
+                y: ["20%", "-20%", "10%", "20%"],
+                rotate: [0, 180, 360],
               }}
-              transition={{ duration: 37, repeat: Infinity, ease: "linear" }}
+              transition={{ duration: 65, repeat: Infinity, ease: "linear" }}
               className={cn(
-                "absolute top-[10%] left-[15%] w-[70%] h-[70%] rounded-[30%_70%_70%_30%] blur-[160px] transition-colors duration-1000 mix-blend-screen",
-                isDark ? "bg-violet-900/15" : "bg-purple-300/30"
+                "absolute top-[20%] left-[20%] w-[60%] h-[60%] rounded-full blur-[140px] transition-colors duration-1000 mix-blend-soft-light",
+                isDark ? "bg-blue-900/20" : "bg-white/60"
               )}
               style={{ willChange: "transform" }}
             />
@@ -159,47 +145,41 @@ export const BackgroundEngine = memo(function BackgroundEngine() {
       </AnimatePresence>
 
       {/* 
-          III. FILTRO DE TEXTURA (RUIDO FRACTAL)
-          El filtro SVG 'feTurbulence' es un asesino de FPS. 
-          Lo eliminamos totalmente en el Mapa y el Dashboard.
+          III. FILTRO DE GRANO TÉCNICO
+          Añade una textura de "papel industrial" o "interferencia analógica".
       */}
-      <AnimatePresence>
-        {!shouldHibernate && mounted && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: isDark ? 0.03 : 0.015 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 1.5 }}
-            className="absolute inset-0 pointer-events-none mix-blend-overlay z-30"
-          >
-            <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" className="h-full w-full">
-              <filter id="noiseFilter">
-                <feTurbulence
-                  type="fractalNoise"
-                  baseFrequency="0.85"
-                  numOctaves="3"
-                  stitchTiles="stitch"
-                />
-              </filter>
-              <rect width="100%" height="100%" filter="url(#noiseFilter)" />
-            </svg>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {!shouldHibernate && mounted && (
+        <div className="absolute inset-0 opacity-[0.03] md:opacity-[0.05] pointer-events-none mix-blend-overlay z-50">
+          <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+            <filter id="nicepodNoise">
+              <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch" />
+            </filter>
+            <rect width="100%" height="100%" filter="url(#nicepodNoise)" />
+          </svg>
+        </div>
+      )}
 
+      {/* IV. GRADIENTE DE SELLADO */}
+      <div
+        className={cn(
+          "absolute inset-0 pointer-events-none transition-opacity duration-1000",
+          isDark
+            ? "bg-gradient-to-b from-transparent via-transparent to-[#030303] opacity-80"
+            : "bg-gradient-to-b from-transparent via-transparent to-white opacity-40"
+        )}
+      />
     </div>
   );
 });
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V10.0):
- * 1. Solución de Inanición de CPU: Al desmontar los orbes y el filtro SVG en 
- *    '/map' y '/dashboard', liberamos el canal de procesamiento para que el 
- *    callback del GPS se ejecute en milisegundos, eliminando el lag de 277ms.
- * 2. Erradicación del Pestañeo: Al asegurar que el div raíz se renderiza 
- *    siempre (incluso antes de 'mounted'), el Voyager nunca verá un flash 
- *    blanco o negro al cargar la plataforma.
- * 3. Optimización de Memoria de Video: El uso de 'AnimatePresence' con el flag 
- *    'shouldHibernate' purga la VRAM del navegador, garantizando que Mapbox 
- *    tenga el 100% de la GPU para los edificios 3D y texturas PBR.
+ * NOTA TÉCNICA DEL ARCHITECT (V11.0):
+ * 1. Definición Cromática: Se han usado tonos 'indigo-950' y 'purple-900' para el modo oscuro,
+ *    garantizando un contraste perfecto con el texto 'muted-foreground'.
+ * 2. Elegancia Celeste: El modo claro ahora respira con tonos 'sky-200' y 'fuchsia-200', 
+ *    evitando la fatiga visual del blanco puro.
+ * 3. Mezcla 'Soft-Light': La Capa Gamma usa mezcla de luz suave para crear zonas de brillo 
+ *    que parecen orgánicas y no artificiales.
+ * 4. Preservación de Ciclo: Se mantiene la hibernación en rutas críticas. El fondo no 
+ *    competirá jamás con el Mapa de Inmersión.
  */
