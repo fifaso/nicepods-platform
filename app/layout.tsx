@@ -1,17 +1,16 @@
 // app/layout.tsx
-// VERSIÓN: 33.0 (NicePod Architecture Core - Edge-Geo Integration Edition)
-// Misión: Orquestar la infraestructura global y materializar la ubicación inicial desde el Edge.
-// [ESTABILIZACIÓN]: Captura de Geo-IP Fallback y entrega síncrona al GeoEngineProvider.
+// VERSIÓN: 34.0 (NicePod Architecture Core - Visual Breakthrough Edition)
+// Misión: Orquestar la infraestructura global y liberar el lienzo visual para el BackgroundEngine.
+// [ESTABILIZACIÓN]: Eliminación de oclusión por bg-body y refinamiento de stacking context.
 
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
-import { cookies } from "next/headers"; // [NUEVO]: Para lectura de telemetría de red
+import { cookies } from "next/headers";
 import type React from "react";
 
 /**
  * --- CAPA 0: CIMIENTOS VISUALES ---
- * Cargamos las hojas de estilo críticas en la raíz para asegurar que 
- * el motor WebGL (Mapbox) y el sistema de diseño Aurora nazcan sintonizados.
+ * Sincronización de estilos base para WebGL y diseño Aurora.
  */
 import "mapbox-gl/dist/mapbox-gl.css";
 import "./globals.css";
@@ -25,11 +24,11 @@ import { AuthProvider } from "@/hooks/use-auth";
 import { createClient } from '@/lib/supabase/server';
 import { Tables } from "@/types/database.types";
 
-// --- CONTEXTOS DE INTELIGENCIA Y TELEMETRÍA (ROOT ELEVATION) ---
+// Contextos de Inteligencia y Telemetría
 import { AudioProvider } from "@/contexts/audio-context";
 import { GeoEngineProvider } from "@/hooks/use-geo-engine";
 
-// Motor de Inmersión Visual (GPU-driven)
+// Motor de Inmersión Visual (V11.0)
 import { BackgroundEngine } from "@/components/visuals/background-engine";
 
 const inter = Inter({
@@ -38,8 +37,12 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
+/**
+ * VIEWPORT: Configuración de UI de bajo nivel.
+ * Se sincroniza con el color base del BackgroundEngine para evitar saltos en móviles.
+ */
 export const viewport: Viewport = {
-  themeColor: "#020202",
+  themeColor: "#030303", // Sincronizado con BackgroundEngine V11.0 (Dark)
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -88,7 +91,7 @@ export default async function RootLayout({
   let initialProfile: Tables<'profiles'> | null = null;
   let userRole = 'guest';
 
-  // [RESCATE GEO-IP]: Leemos la ubicación estimada capturada por el Middleware
+  // [RESCATE GEO-IP]: Telemetría de red para Handshake T0
   const cookieStore = cookies();
   const geoFallbackRaw = cookieStore.get('nicepod-geo-fallback')?.value;
   let initialGeoData = null;
@@ -131,9 +134,7 @@ export default async function RootLayout({
       data-user-role={userRole}
     >
       <head>
-        {/* 
-            II. ACELERACIÓN DE RED (PRECONNECT PROTOCOL)
-        */}
+        {/* II. ACELERACIÓN DE RED */}
         <link rel="preconnect" href="https://api.mapbox.com" />
         <link rel="preconnect" href="https://events.mapbox.com" />
 
@@ -160,7 +161,7 @@ export default async function RootLayout({
         />
       </head>
       <body
-        className={`${inter.className} font-sans min-h-screen antialiased selection:bg-primary/30 bg-[#020202] text-foreground overflow-x-hidden`}
+        className={`${inter.className} font-sans min-h-screen antialiased selection:bg-primary/30 bg-transparent text-foreground overflow-x-hidden`}
         suppressHydrationWarning
       >
         <CSPostHogProvider>
@@ -178,14 +179,12 @@ export default async function RootLayout({
                 initialProfile={initialProfile}
               >
                 <AudioProvider>
-                  {/* 
-                      [MANDATO V2.7]: Hidratación de Malla Geográfica.
-                      Inyectamos la ubicación estimada por IP para que el Voyager 
-                      se materialice antes de que el hardware GPS responda.
-                  */}
+                  {/* III. MOTOR GEO Y VISUAL */}
                   <GeoEngineProvider initialData={initialGeoData}>
                     <main className="min-h-screen relative flex flex-col">
+                      {/* El motor Aurora ahora es visible gracias a body bg-transparent */}
                       <BackgroundEngine />
+
                       <div className="relative z-10 flex flex-col flex-1 bg-transparent isolate">
                         {children}
                       </div>
@@ -202,13 +201,11 @@ export default async function RootLayout({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V33.0):
- * 1. Materialización Progresiva T0: El Layout ahora captura la cookie 'nicepod-geo-fallback' 
- *    antes de montar el árbol de componentes. Al pasar este dato al GeoEngineProvider, 
- *    garantizamos que el mapa nazca en la ciudad real del usuario, eliminando el 
- *    anclaje genérico en Madrid Sol si el usuario está en otra ubicación.
- * 2. Cero Pestañeo Satelital: Mapbox recibirá sus coordenadas iniciales desde el servidor, 
- *    permitiendo que el primer renderizado ya incluya los tiles correctos.
- * 3. Robustez SSR: Se mantiene el uso de 'maybeSingle()' para proteger el flujo de 
- *    nuevos registros y se blinda la lectura de cookies con bloques try/catch.
+ * NOTA TÉCNICA DEL ARCHITECT (V34.0):
+ * 1. Transparencia de Lienzo: Se ha eliminado bg-[#020202] del body. Esto permite
+ *    que el BackgroundEngine (V11.0) pinte los orbes morados y azules sin oclusión.
+ * 2. Sincronía de Viewport: Se actualizó themeColor a #030303 para coincidir con 
+ *    el nuevo fondo industrial, eliminando el borde gris en navegadores móviles.
+ * 3. Aislamiento Isolate: Se mantiene el contexto 'isolate' en el div de children 
+ *    para que los componentes UI no interfieran con el z-index del BackgroundEngine.
  */

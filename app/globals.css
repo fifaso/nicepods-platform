@@ -1,3 +1,7 @@
+/* globals.css */
+/* VERSIÓN: 10.0 (NicePod Style Core - Atmospheric Transparency Edition) */
+/* Misión: Erradicar la oclusión de fondo y potenciar la inmersión visual. */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -5,9 +9,10 @@
 @layer base {
   /**
    * 1. VARIABLES DE COLOR SOBERANAS
-   * Optimizadas para soporte de opacidad dinámico (V2.7).
+   * Calibradas para el modo "Obsidiana" y "Cristal Celeste".
    */
   :root {
+    /* Fondos transparentes para permitir ver el BackgroundEngine */
     --background: 0 0% 100%;
     --foreground: 240 10% 3.9%;
     
@@ -16,7 +21,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
     
-    /* Identidad: Púrpura NicePod en HSL y RGB para Tailwind /opacidad */
+    /* Identidad: Púrpura/Fucsia Táctico */
     --primary: 262.1 83.3% 57.8%;
     --primary-rgb: 139, 92, 246; 
     --primary-foreground: 210 40% 98%;
@@ -41,6 +46,7 @@
   }
 
   .dark {
+    /* Modo Obsidiana: Opacidad reducida en variables base */
     --background: 240 10% 2%; 
     --foreground: 0 0% 98%;
     
@@ -80,11 +86,17 @@
     color-scheme: dark;
     overscroll-behavior-y: none;
     -webkit-font-smoothing: antialiased;
+    /* Forzamos transparencia en la raíz para ver el motor visual */
+    background-color: transparent !important;
   }
   
   body {
     font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-    @apply bg-background text-foreground transition-colors duration-500;
+    /* 
+       IMPORTANTE: bg-transparent es vital aquí. 
+       El color de fondo lo da el BackgroundEngine. 
+    */
+    @apply bg-transparent text-foreground transition-colors duration-500;
     min-height: 100dvh;
     overflow-x: hidden;
   }
@@ -93,72 +105,49 @@
     @apply bg-primary/30 text-white;
   }
 
-  /* Perforación Atmosférica NicePod */
+  /* Perforación Atmosférica NicePod: Forzamos transparencia en contenedores raíz */
   main, section, [role="main"], [data-radix-collection] {
     background-color: transparent !important;
   }
 }
 
 @layer components {
-  /* 2. SISTEMA DE ANIMACIÓN INDUSTRIAL (THE GO-EXPERIENCE) */
+  /* 2. SISTEMA DE ANIMACIÓN INDUSTRIAL */
 
-  /* Resonancia del Voyager (Anillos GPS) */
+  /* Resonancia del Voyager */
   @keyframes nicepod-pulse {
     0% { transform: scale(0.1); opacity: 0; }
     30% { opacity: 0.6; }
     100% { transform: scale(3.5); opacity: 0; }
   }
-
   .animate-nicepod-pulse {
     animation: nicepod-pulse 4s cubic-bezier(0, 0.45, 0.15, 1) infinite;
   }
 
-  /* Levitación de Ecos (Marcadores POI) */
+  /* Levitación de Ecos */
   @keyframes float {
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-12px); }
   }
-
   .animate-float {
     animation: float 4s ease-in-out infinite;
   }
 
-  /* Sombra Dinámica de Marcadores */
-  @keyframes shadowPulse {
-    0%, 100% { transform: scale(1); opacity: 0.6; }
-    50% { transform: scale(0.8); opacity: 0.3; }
-  }
-
-  .animate-shadowPulse {
-    animation: shadowPulse 4s ease-in-out infinite;
-  }
-
-  /* Barrido de Luz Táctico (Buttons) */
-  @keyframes shimmer {
-    100% { transform: translateX(100%); }
-  }
-
-  .animate-shimmer {
-    animation: shimmer 2s infinite;
-  }
-
-  /* Aurora Atmosférica */
-  @keyframes aurora-pulse {
-    0%, 100% { opacity: 0.8; filter: blur(120px); }
-    50% { opacity: 1; filter: blur(140px); }
-  }
-
-  .animate-aurora-pulse {
-    animation: aurora-pulse 10s ease-in-out infinite;
-  }
-
-  /* 3. CLASES DE IDENTIDAD */
+  /* 3. CLASES DE IDENTIDAD Y CRISTALERÍA */
   .glass-panel {
-    @apply backdrop-blur-3xl bg-black/40 border border-white/10 shadow-2xl;
+    @apply backdrop-blur-3xl border border-white/10 shadow-2xl;
+    /* El fondo de los paneles debe ser sutil para dejar pasar la luz del fondo */
+    background-color: rgba(0, 0, 0, 0.2); 
   }
 
   .text-industrial {
     @apply font-black uppercase tracking-[0.4em] leading-none italic;
+  }
+  
+  /* Gradiente de botón dinámico NicePod */
+  .btn-resonance {
+    @apply relative overflow-hidden transition-all duration-500;
+    background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.8) 0%, rgba(var(--primary-rgb), 1) 100%);
   }
 }
 
@@ -174,19 +163,13 @@
 
 /* 4. OVERRIDES DEL MOTOR GEOESPACIAL */
 
-/* Garantiza que los marcadores HTML de React-Map-GL floten por encima de la malla 3D */
 .mapboxgl-marker {
   @apply !z-20;
   will-change: transform;
 }
 
-/* UI de Controles Industrial */
 .mapboxgl-ctrl-group {
   @apply !bg-[#080808]/90 !border-white/10 !shadow-2xl !rounded-2xl !backdrop-blur-xl;
-}
-
-.mapboxgl-ctrl-group button {
-  @apply hover:!bg-primary/20 transition-colors duration-300;
 }
 
 /* Scrollbar Sutil NicePod */
@@ -202,13 +185,11 @@
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V9.0):
- * 1. Reparación Visual de Marcadores: Se inyectaron los keyframes 'nicepod-pulse', 'float' 
- *    y 'shadowPulse'. Sin estos, el Voyager y los Ecos nacían invisibles en el DOM.
- * 2. GPU Offloading: Todas las animaciones clave ahora son puramente CSS, eliminando 
- *    el lag de 277ms provocado por Framer Motion en el hilo principal.
- * 3. Soporte RGB Dinámico: Se añadió '--primary-rgb' para permitir que el sistema 
- *    Aurora cree sombras y resplandores con opacidad variable sin romper el color base.
- * 4. Z-Index Shield: El override '.mapboxgl-marker' asegura que la ubicación del 
- *    usuario nunca quede sepultada bajo los edificios de obsidiana.
+ * NOTA TÉCNICA DEL ARCHITECT (V10.0):
+ * 1. Transparencia de Malla: Se ha forzado 'background-color: transparent' en html y body.
+ *    Sin esto, el motor visual V11.0 quedaba oculto bajo el HSL de --background.
+ * 2. Glass-Panel V2: Se redujo la opacidad de los paneles glass (bg-black/20) para 
+ *    que la resonancia púrpura/azul del fondo atraviese la interfaz.
+ * 3. Mantenimiento de Identidad: Se preservan las animaciones GPU para los marcadores
+ *    de mapa, asegurando que el Voyager sea visible en todo momento.
  */
