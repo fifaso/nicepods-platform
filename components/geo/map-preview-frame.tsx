@@ -1,7 +1,10 @@
-// components/geo/map-preview-frame.tsx
-// VERSIÓN: 17.1 (NicePod GO-Preview - High-Fidelity & Theme-Synced Edition)
-// Misión: Ventana táctica fotorrealista sincronizada con la soberanía de triangulación global.
-// [ESTABILIZACIÓN]: Resolución de error ts(2741) inyectando 'theme' y paridad con MapCore V7.3.
+/**
+ * NICEPOD V18.0 - MAP PREVIEW FRAME (DASHBOARD WIDGET)
+ * PROTOCOLO: MADRID RESONANCE V2.8
+ * 
+ * Misión: Ventana táctica fotorrealista sincronizada con el motor de cinemática global.
+ * [ESTABILIZACIÓN]: Delegación total al CameraController y sincronía con el Ballistic Protocol.
+ */
 
 "use client";
 
@@ -15,47 +18,42 @@ import { MapRef } from "react-map-gl/mapbox";
 import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { cn, nicepodLog } from "@/lib/utils";
 
-// [FIX V2.7]: Sincronía con ADN de constantes para tema y física
+// --- ADN DE CONSTANTES V5.1 ---
 import {
-  ACTIVE_MAP_THEME,
-  FLY_CONFIG,
-  ZOOM_LEVELS
+  ACTIVE_MAP_THEME
 } from "./map-constants";
 
-// --- MOTOR CARTOGRÁFICO AISLADO ---
+// --- MOTORES DE RENDERIZADO Y CINEMÁTICA ---
+import { CameraController } from "./SpatialEngine/camera-controller";
 import MapCore from "./SpatialEngine/map-core";
 
 /**
- * MapPreviewFrame: El widget de visualización táctica para el Dashboard inicial.
- * Misión: Mostrar la ubicación exacta del usuario de forma automática y fotorrealista.
+ * MapPreviewFrame: El widget de visualización para la Workstation.
  */
 export const MapPreviewFrame = memo(function MapPreviewFrame() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapRef>(null);
 
-  // 1. CONSUMO DE TELEMETRÍA SOBERANA (V22.0)
+  // 1. CONSUMO DE TELEMETRÍA SOBERANA (V30.0)
   const {
     userLocation,
     status: engineStatus,
     initSensors,
     isTriangulated,
-    isGPSLock,       // Flag de autoridad satelital (<50m)
-    setTriangulated
+    isIgnited,
+    needsBallisticLanding,
+    error: geoError
   } = useGeoEngine();
 
-  // --- MÁQUINA DE ESTADOS DEL REVELADO CINEMÁTICO ---
+  // 2. MÁQUINA DE ESTADOS VISUAL (SMOKESCREEN)
   const [isContainerReady, setIsContainerReady] = useState<boolean>(false);
   const [isMapLoaded, setIsMapLoaded] = useState<boolean>(false);
 
-  // [HOT-SWAP T0]: Nace sin cortina si la sesión ya fue triangulada previamente.
-  const [isCameraSettled, setIsCameraSettled] = useState<boolean>(isTriangulated);
-
-  const hasInitialJumpPerformed = useRef<boolean>(false);
-  const hasRefinedToGPS = useRef<boolean>(false);
-  const autoIgnitionAttempted = useRef<boolean>(false);
+  // El revelado final ocurre cuando Mapbox confirma estabilidad (onIdle)
+  const [isCameraSettled, setIsCameraSettled] = useState<boolean>(false);
 
   /**
-   * 2. PROTOCOLO DE SEGURIDAD MATEMÁTICA (Safe Mount)
+   * 3. PROTOCOLO DE SEGURIDAD DE MONTAJE (Safe Mount)
    */
   useEffect(() => {
     if (!containerRef.current) return;
@@ -74,24 +72,24 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
   }, []);
 
   /**
-   * 3. PROTOCOLO DE IGNICIÓN AUTOMÁTICA
+   * 4. AUTO-IGNICIÓN DE CORTESÍA
+   * El widget intenta despertar los sensores si el sistema está en reposo.
    */
   useEffect(() => {
-    if (isContainerReady && engineStatus === 'IDLE' && !autoIgnitionAttempted.current) {
-      nicepodLog("📡 [MapPreview] Auto-Ignición: Sincronizando malla.");
+    if (isContainerReady && !isIgnited && engineStatus === 'IDLE') {
+      nicepodLog("📡 [MapPreview] Auto-Ignición proactiva iniciada.");
       initSensors();
-      autoIgnitionAttempted.current = true;
     }
-  }, [isContainerReady, engineStatus, initSensors]);
+  }, [isContainerReady, isIgnited, engineStatus, initSensors]);
 
   /**
-   * 4. RED DE SEGURIDAD (RESCUE TIMER)
+   * 5. RED DE SEGURIDAD (RESCUE TIMER)
    */
   useEffect(() => {
     if (isMapLoaded && !isCameraSettled) {
       const rescueTimer = setTimeout(() => {
         if (!isCameraSettled) {
-          nicepodLog("⚠️ [MapPreview] Timeout de carga. Revelando mapa.");
+          nicepodLog("⚠️ [MapPreview] Timeout de revelado. Forzando visibilidad.");
           setIsCameraSettled(true);
         }
       }, 7000);
@@ -100,58 +98,12 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
   }, [isMapLoaded, isCameraSettled]);
 
   /**
-   * 5. PROTOCOLO DE MATERIALIZACIÓN BI-FÁSICA (IP -> GPS)
-   * Misión: Ajustar la cámara automáticamente en dos etapas de precisión.
-   */
-  useEffect(() => {
-    if (!isMapLoaded || !userLocation || !mapRef.current) return;
-
-    const goView = {
-      center: [userLocation.longitude, userLocation.latitude] as [number, number],
-      zoom: ZOOM_LEVELS.STREET,
-      pitch: 80,
-      bearing: -15,
-    };
-
-    // ETAPA 1: Salto Inicial (IP o GPS impreciso)
-    if (!hasInitialJumpPerformed.current) {
-      if (!isTriangulated) {
-        nicepodLog("🎯 [MapPreview] Primer anclaje. Vuelo de aproximación.");
-        mapRef.current.flyTo({
-          ...goView,
-          ...FLY_CONFIG,
-          duration: 2500,
-        });
-        setTriangulated();
-      } else {
-        nicepodLog("🚀 [MapPreview] Hot-Swap detectado. Salto instantáneo.");
-        mapRef.current.jumpTo(goView);
-        setIsCameraSettled(true);
-      }
-      hasInitialJumpPerformed.current = true;
-      return;
-    }
-
-    // ETAPA 2: Refinamiento GPS Lock (Corrección final de precisión)
-    if (isGPSLock && !hasRefinedToGPS.current) {
-      nicepodLog("🔒 [MapPreview] GPS Lock certificado. Refinando posición exacta.");
-      mapRef.current.flyTo({
-        ...goView,
-        duration: 1500,
-        essential: true
-      });
-      hasRefinedToGPS.current = true;
-    }
-
-  }, [isMapLoaded, userLocation, isTriangulated, isGPSLock, setTriangulated]);
-
-  /**
    * 6. EL REVELADO SOBERANO (Data-Driven onIdle)
    */
   const handleMapIdle = useCallback(() => {
     if (isMapLoaded && !isCameraSettled) {
       setIsCameraSettled(true);
-      nicepodLog("✨ [MapPreview] Malla 3D estabilizada.");
+      nicepodLog("✨ [MapPreview] Malla Dashboard estabilizada.");
     }
   }, [isMapLoaded, isCameraSettled]);
 
@@ -173,7 +125,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
           <motion.div
             key="p_denied"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-zinc-950 z-50 text-center"
+            className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-zinc-950 z-[200] text-center"
           >
             <ShieldAlert className="h-10 w-10 text-red-500 mb-4" />
             <span className="text-[10px] font-black uppercase tracking-[0.5em] text-red-400">Acceso Interceptado</span>
@@ -183,12 +135,12 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
           </motion.div>
         ) :
 
-          /* ESCENARIO: SMOKESCREEN DE CARGA */
+          /* ESCENARIO: SMOKESCREEN DE CARGA SINCRO */
           !isCameraSettled ? (
             <motion.div
               key="smokescreen"
               exit={{ opacity: 0 }}
-              className="absolute inset-0 flex flex-col items-center justify-center space-y-8 bg-[#020202] z-[90] pointer-events-none"
+              className="absolute inset-0 flex flex-col items-center justify-center space-y-8 bg-[#020202] z-[150] pointer-events-none"
             >
               <div className="relative">
                 <Zap className="h-8 w-8 text-primary/30 animate-pulse" />
@@ -201,12 +153,12 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
                     Sincronización Órbital
                   </span>
                   <p className="text-[9px] font-bold uppercase tracking-[0.3em] text-primary/60 animate-pulse italic">
-                    {!userLocation ? "Capturando Telemetría de Red..." :
-                      !isGPSLock ? "Fijando Coordenadas Satelitales..." : "Estabilizando Malla 3D"}
+                    {!isTriangulated ? "Capturando Telemetría de Red..." :
+                      needsBallisticLanding ? "Ejecutando Aterrizaje Satelital..." : "Estabilizando Malla 3D"}
                   </p>
                 </div>
 
-                {engineStatus === 'IDLE' && (
+                {engineStatus === 'IDLE' && !isIgnited && (
                   <button
                     onClick={() => initSensors()}
                     className="px-6 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-black text-[8px] uppercase tracking-[0.4em] pointer-events-auto hover:bg-primary hover:text-black transition-all"
@@ -222,15 +174,16 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
 
       {/* 
           VII. EL MOTOR DE RENDERIZADO (CORE)
-          [FIX V17.1]: Inyección del prop 'theme' para cumplir con el contrato MapCore V7.3.
+          Nace con la ubicación del GeoEngine (IP Fallback) y delega
+          el refinamiento al CameraController.
       */}
       {isContainerReady && userLocation && (
-        <div className="absolute inset-0 z-0">
+        <div className="absolute inset-0 z-0 pointer-events-auto">
           <MapCore
             ref={mapRef}
             mode="EXPLORE"
             startCoords={userLocation}
-            theme={ACTIVE_MAP_THEME} // <--- Sincronía lumínica global
+            theme={ACTIVE_MAP_THEME}
             selectedPOIId={null}
             onLoad={() => setIsMapLoaded(true)}
             onIdle={handleMapIdle}
@@ -239,6 +192,15 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
             onMapClick={() => { }}
             onMarkerClick={() => { }}
           />
+
+          {/* 
+              [CEREBRO CINEMÁTICO UNIFICADO]
+              Injectamos el mismo controlador que el mapa grande para
+              garantizar que el widget también ejecute el flyTo balístico.
+          */}
+          {isMapLoaded && (
+            <CameraController />
+          )}
         </div>
       )}
 
@@ -272,12 +234,14 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
 });
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V17.1):
- * 1. Solución ts(2741): Se inyectó la propiedad 'theme' en la instancia de MapCore,
- *    utilizando la constante global 'ACTIVE_MAP_THEME'. Esto garantiza que el 
- *    widget del Dashboard comparta la misma estética que el mapa principal.
- * 2. Refinamiento Automático: Se sincronizó la lógica de 'isGPSLock' para que el 
- *    widget pequeño también realice el ajuste final de precisión satelital.
- * 3. Montaje Seguro: Se mantiene el protocolo de nacimiento condicional (T0), 
- *    asegurando que el mapa sea fotorrealista desde el primer frame visible.
+ * NOTA TÉCNICA DEL ARCHITECT (V18.0):
+ * 1. Orchestration Unified: Se eliminó el useEffect bi-fásico local. Ahora el widget 
+ *    utiliza el CameraController global, garantizando que el Dashboard y el Mapa 
+ *    completo se muevan con el mismo rigor matemático.
+ * 2. Ballistic Landing: El widget ahora es capaz de mostrar el vuelo cinematográfico
+ *    desde la IP al GPS, mejorando drásticamente la percepción de "fijación de señal".
+ * 3. Auto-Ignition: Se integra con el V5.0 de useSensorAuthority para despertar 
+ *    el hardware de forma proactiva.
+ * 4. UX Stabilized: El Smokescreen solo desaparece tras la confirmación de 
+ *    estabilidad del motor WebGL (onIdle).
  */

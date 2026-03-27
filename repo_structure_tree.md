@@ -128,6 +128,7 @@
 │   │   └── universe-card.tsx
 │   ├── geo
 │   │   ├── SpatialEngine
+│   │   │   ├── camera-controller.tsx
 │   │   │   ├── index.tsx
 │   │   │   └── map-core.tsx
 │   │   ├── forge-context.tsx
@@ -289,6 +290,7 @@
 ├── hooks
 │   ├── use-auth.tsx
 │   ├── use-debounce.ts
+│   ├── use-forge-orchestrator.ts
 │   ├── use-geo-engine.tsx
 │   ├── use-mobile-viewport.ts
 │   ├── use-offline-audio.ts
@@ -296,6 +298,7 @@
 │   ├── use-podcast-sync.ts
 │   ├── use-pulse-engine.ts
 │   ├── use-search-radar.ts
+│   ├── use-sensor-authority.ts
 │   └── use-toast.ts
 ├── instrumentation-client.ts
 ├── instrumentation.ts
@@ -304,6 +307,7 @@
 │   │   └── actions.ts
 │   ├── agent-config.ts
 │   ├── arcjet.ts
+│   ├── geo-kinematics.ts
 │   ├── podcast-utils.ts
 │   ├── supabase
 │   │   ├── client.ts
@@ -433,4 +437,4 @@
     ├── pulse.ts
     └── supabase.ts
 
-96 directories, 338 files
+96 directories, 342 files

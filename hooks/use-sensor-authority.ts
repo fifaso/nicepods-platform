@@ -1,7 +1,11 @@
-// hooks/use-sensor-authority.ts
-// VERSIÓN: 4.1 (NicePod Sensor Authority - Absolute Authority & Rapid Fix Edition)
-// Misión: Captura pura de telemetría GPS con protocolo de prioridad satelital.
-// [ESTABILIZACIÓN]: Implementación de Transmutación de Fuente y Watchdog de Rescate.
+//hooks/use-sensor-authority.ts
+/**
+ * NICEPOD V5.0 - SENSOR AUTHORITY (PROACTIVE SENTINEL)
+ * PROTOCOLO: MADRID RESONANCE V2.8
+ * 
+ * El único punto de contacto con el silicio.
+ * Misión: Captura pura de telemetría con Auto-Ignición y Watchdog de Rescate.
+ */
 
 "use client";
 
@@ -11,7 +15,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
  * INTERFAZ: RawTelemetry
- * La verdad física capturada directamente del silicio del dispositivo o la red.
+ * Contrato de verdad física capturada directamente del hardware.
  */
 export interface RawTelemetry {
   latitude: number;
@@ -23,38 +27,28 @@ export interface RawTelemetry {
   source: 'gps' | 'cache' | 'ip-fallback';
 }
 
-/**
- * INTERFAZ: SensorAuthorityProps
- */
 interface SensorAuthorityProps {
   initialData?: { lat: number; lng: number; city: string; source: string; } | null;
 }
 
-// UMBRAL DE CADUCIDAD: 15 minutos para evitar amnesia posicional entre sesiones.
-const CACHE_TTL_MS = 15 * 60 * 1000;
+const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutos de memoria táctica
+const WATCHDOG_THRESHOLD_MS = 8000;  // 8 segundos para el Hardware Stall
 
-/**
- * HOOK: useSensorAuthority
- * El único componente autorizado para dialogar con el chip GPS del hardware.
- */
 export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
-
   // --- I. ESTADO SOBERANO CON MATERIALIZACIÓN T0 ---
   const [telemetry, setTelemetry] = useState<RawTelemetry | null>(() => {
     if (typeof window === "undefined") return null;
 
-    // 1. PRIORIDAD A: Caché Local Reciente (< 15 min)
+    // 1. PRIORIDAD A: Caché Local Reciente
     const cachedFixStr = localStorage.getItem('nicepod_last_known_fix');
     if (cachedFixStr) {
       try {
         const parsed: RawTelemetry = JSON.parse(cachedFixStr);
         const age = Date.now() - (parsed.timestamp || 0);
-
         if (age < CACHE_TTL_MS) {
           nicepodLog("💾 [Sensor-Authority] Memoria fresca detectada. Hidratación T0.");
           return { ...parsed, source: 'cache' };
         }
-        nicepodLog("🗑️ [Sensor-Authority] Memoria antigua purgada.");
         localStorage.removeItem('nicepod_last_known_fix');
       } catch (e) {
         nicepodLog("⚠️ [Sensor-Authority] Fallo en lectura de memoria.", null, 'warn');
@@ -75,7 +69,7 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
       };
     }
 
-    // 3. FALLBACK DE SEGURIDAD (Mínima Verdad)
+    // 3. FALLBACK DE SEGURIDAD
     return {
       ...MADRID_SOL_COORDS,
       accuracy: 9999,
@@ -93,13 +87,27 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
   const watchIdRef = useRef<number | null>(null);
   const isHardwareIgnitedRef = useRef<boolean>(false);
   const watchdogTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Flag crítico para detectar el paso de 'Cortesía' (IP) a 'Autoridad' (GPS)
   const hasGPSFixRef = useRef<boolean>(false);
 
   /**
+   * killHardwareWatch:
+   * Misión: Liberar recursos y resetear el cerrojo de hardware.
+   */
+  const killHardwareWatch = useCallback(() => {
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+    if (watchdogTimerRef.current) clearTimeout(watchdogTimerRef.current);
+    isHardwareIgnitedRef.current = false;
+    hasGPSFixRef.current = false;
+    setIsAcquiring(false);
+    nicepodLog("💤 [Sensor-Authority] Hardware GPS liberado.");
+  }, []);
+
+  /**
    * startHardwareWatch:
-   * Misión: Activar el hardware GPS con Protocolo de Ignición Agresiva.
+   * Misión: Ignición agresiva del GPS.
    */
   const startHardwareWatch = useCallback(() => {
     if (typeof window === "undefined" || !("geolocation" in navigator)) {
@@ -107,36 +115,22 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
       return;
     }
 
-    // [CERROJO]: Bloqueo de duplicidad para proteger la antena GPS
-    if (isHardwareIgnitedRef.current) {
-      nicepodLog("📡 [Sensor-Authority] Hardware en proceso de ignición activo.");
-      return;
-    }
-
-    // Limpieza atómica de procesos previos
-    if (watchIdRef.current !== null) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-    }
+    if (isHardwareIgnitedRef.current) return;
 
     isHardwareIgnitedRef.current = true;
     setIsAcquiring(true);
 
-    /**
-     * [WATCHDOG]: Temporizador de Vigilancia (8 segundos)
-     * Si el chip GPS no responde, liberamos el cerrojo para permitir re-intentos
-     * automáticos o manuales por parte del Voyager.
-     */
+    // Watchdog de Stall
     if (watchdogTimerRef.current) clearTimeout(watchdogTimerRef.current);
     watchdogTimerRef.current = setTimeout(() => {
       if (!hasGPSFixRef.current) {
-        nicepodLog("🆘 [Sensor-Authority] Hardware Stall detectado. Liberando cerrojo.");
+        nicepodLog("🆘 [Sensor-Authority] Hardware Stall detectado. Re-armando cerrojo.");
         isHardwareIgnitedRef.current = false;
         setIsAcquiring(false);
       }
-    }, 8000);
+    }, WATCHDOG_THRESHOLD_MS);
 
     const onSignalSuccess = (pos: GeolocationPosition) => {
-      // Limpiamos el Watchdog en el primer éxito real
       if (watchdogTimerRef.current) {
         clearTimeout(watchdogTimerRef.current);
         watchdogTimerRef.current = null;
@@ -152,13 +146,8 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
         source: 'gps'
       };
 
-      /**
-       * [PROTOCOLO DE TRANSMUTACIÓN]:
-       * Misión: Si es el primer fix real de GPS, forzamos la actualización
-       * para que el mapa salte de la IP a la calle exacta de forma inmediata.
-       */
       if (!hasGPSFixRef.current) {
-        nicepodLog(`🛰️ [Sensor-Authority] GPS Fix Certificado (Acc: ${Math.round(pos.coords.accuracy)}m).`);
+        nicepodLog(`🛰️ [Sensor-Authority] GPS Fix Certificado (${Math.round(pos.coords.accuracy)}m).`);
         hasGPSFixRef.current = true;
       }
 
@@ -168,23 +157,16 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
     };
 
     const onSignalError = (error: GeolocationPositionError) => {
-      isHardwareIgnitedRef.current = false;
-      setIsAcquiring(false);
-      if (watchdogTimerRef.current) clearTimeout(watchdogTimerRef.current);
-
       if (error.code === error.PERMISSION_DENIED) {
-        nicepodLog("🛑 [Sensor-Authority] Acceso denegado por el usuario.", null, 'error');
+        nicepodLog("🛑 [Sensor-Authority] Permiso Denegado.", null, 'error');
         setIsDenied(true);
+        killHardwareWatch();
       } else {
-        nicepodLog(`🟡 [Sensor-Authority] Sincronizando satélites: ${error.message}`);
+        nicepodLog(`🟡 [Sensor-Authority] Señal débil: ${error.message}`);
       }
     };
 
-    /**
-     * [DUAL STREAM IGNITION]:
-     * 1. Shot de Red: Rápido y aproximado (materialización visual).
-     * 2. Watch Satelital: Continuo y preciso (navegación cinemática).
-     */
+    // Ignición Dual: Get (Rápido) + Watch (Continuo)
     navigator.geolocation.getCurrentPosition(onSignalSuccess, onSignalError, {
       enableHighAccuracy: false,
       timeout: 5000
@@ -193,50 +175,71 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
     watchIdRef.current = navigator.geolocation.watchPosition(onSignalSuccess, onSignalError, {
       enableHighAccuracy: true,
       maximumAge: 0,
-      timeout: 25000
+      timeout: 20000
     });
+  }, [killHardwareWatch]);
 
-  }, []);
-
-  /**
-   * killHardwareWatch:
-   * Misión: Liberar los recursos del chip GPS y resetear flags de autoridad.
-   */
-  const killHardwareWatch = useCallback(() => {
-    if (watchIdRef.current !== null) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-      watchIdRef.current = null;
-    }
-    if (watchdogTimerRef.current) clearTimeout(watchdogTimerRef.current);
-    isHardwareIgnitedRef.current = false;
-    hasGPSFixRef.current = false;
-    setIsAcquiring(false);
-    nicepodLog("💤 [Sensor-Authority] Hardware GPS desconectado.");
-  }, []);
-
-  /**
-   * reSync:
-   * Misión: Forzar un reinicio total de la búsqueda de posición.
-   */
   const reSync = useCallback(() => {
-    nicepodLog("🔄 [Sensor-Authority] Ejecutando Re-Sincronía de Autoridad.");
-    isHardwareIgnitedRef.current = false;
-    hasGPSFixRef.current = false;
+    nicepodLog("🔄 [Sensor-Authority] Forzando Re-Sincronía.");
+    killHardwareWatch();
     startHardwareWatch();
+  }, [killHardwareWatch, startHardwareWatch]);
+
+  // --- III. PROTOCOLOS PROACTIVOS (AUTO-IGNICIÓN Y RESURRECCIÓN) ---
+
+  /**
+   * PROTOCOLO 1: Ignición Silenciosa (Permissions API)
+   * Si el usuario ya dio permiso, el GPS arranca solo al montar el componente.
+   */
+  useEffect(() => {
+    const checkPermissionAndStart = async () => {
+      if (typeof window !== "undefined" && "permissions" in navigator) {
+        try {
+          const result = await navigator.permissions.query({ name: 'geolocation' });
+          if (result.state === 'granted') {
+            nicepodLog("⚡ [Sensor-Authority] Autoridad previa detectada. Ignición silenciosa.");
+            startHardwareWatch();
+          }
+
+          // Escuchar cambios en permisos en tiempo real
+          result.onchange = () => {
+            if (result.state === 'granted') startHardwareWatch();
+            if (result.state === 'denied') setIsDenied(true);
+          };
+        } catch (e) {
+          // Algunos navegadores no soportan query para geolocation
+          nicepodLog("ℹ️ [Sensor-Authority] No se pudo interrogar permisos. Esperando gesto.");
+        }
+      }
+    };
+
+    checkPermissionAndStart();
   }, [startHardwareWatch]);
 
-  // --- III. CICLO DE VIDA ---
+  /**
+   * PROTOCOLO 2: Resurrección por Foco (Visibility API)
+   * Si la app vuelve de segundo plano, refrescamos el sensor para evitar datos estancados.
+   */
   useEffect(() => {
-    // La materialización inicial ocurre en el useState.
-    return () => {
-      // Mantenemos el sensor activo durante la navegación interna.
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && isHardwareIgnitedRef.current) {
+        nicepodLog("👁️ [Sensor-Authority] Voyager ha vuelto. Refrescando sensor.");
+        // Reset silencioso: clear y start sin cambiar estado de UI
+        if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
+        isHardwareIgnitedRef.current = false;
+        startHardwareWatch();
+      }
     };
-  }, []);
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [startHardwareWatch]);
 
   return {
     telemetry,
     isDenied,
     isAcquiring,
+    isIgnited: isHardwareIgnitedRef.current,
     startHardwareWatch,
     killHardwareWatch,
     reSync
@@ -244,11 +247,9 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V4.1):
- * 1. Transmutación de Fuente: Al detectar el paso de 'ip-fallback' a 'gps', el 
- *    sistema fuerza una actualización visual, rompiendo el estancamiento.
- * 2. Protocolo Fast-Fix: La captura dual garantiza que el Voyager nunca vea un 
- *    mapa en negro mientras el hardware satelital realiza su Cold Fix.
- * 3. Watchdog de Stall: Se previene el bloqueo silencioso del GPS si la señal
- *    no se recibe en los primeros 8 segundos, habilitando la re-ignición.
+ * NOTA TÉCNICA DEL ARCHITECT (V5.0):
+ * 1. Proactive Silent Ignition: Se acabó la espera. Si el permiso existe, el GPS nace con la app.
+ * 2. Visibility Sync: El sistema es consciente de cuándo el usuario mira o no la pantalla.
+ * 3. Singleton Guard: El cerrojo isHardwareIgnitedRef protege el bus de datos del móvil.
+ * 4. T0 Hydration: Mantiene la jerarquía Cache -> IP -> Default para Zero-Wait UI.
  */

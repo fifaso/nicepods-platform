@@ -1,7 +1,11 @@
-// components/geo/SpatialEngine/camera-controller.tsx
-// VERSIÓN: 2.0 (NicePod Camera Director - Liquid Motion & Precision Offset Edition)
-// Misión: Gestionar imperativamente la cámara para lograr la fluidez de Google Maps.
-// [ESTABILIZACIÓN]: Unificación de coordenadas lat/lng y protocolo de reconquista táctica.
+//components/geo/SpatialEngine/camera-controller.tsx
+/**
+ * NICEPOD V3.0 - CAMERA DIRECTOR (BALLISTIC & LIQUID MOTION)
+ * PROTOCOLO: MADRID RESONANCE V2.8
+ * 
+ * Misión: Gestionar la cámara WebGL imperativamente a 60FPS.
+ * [ESTABILIZACIÓN]: Implementación de Vuelo Balístico (IP to GPS) y Re-Sincronía Post-Vuelo.
+ */
 
 "use client";
 
@@ -17,31 +21,31 @@ import { useCallback, useEffect, useRef } from "react";
 import { useMap } from "react-map-gl/mapbox";
 import {
   CAMERA_PROFILES,
+  FLY_CONFIG,
 } from "../map-constants";
 
-/**
- * COMPONENTE: CameraController
- * Este componente no renderiza nada en el DOM. Es un controlador puro 
- * que interactúa imperativamente con la instancia WebGL del mapa.
- */
 export function CameraController() {
   // 1. CONEXIÓN CON EL MOTOR WEBGL
   const { current: mapInstance } = useMap();
 
-  // 2. CONSUMO DE TELEMETRÍA SOBERANA (V23.2)
-  const { userLocation, isTriangulated, isGPSLock } = useGeoEngine();
+  // 2. CONSUMO DE TELEMETRÍA Y SEÑALES DE AUTORIDAD (V30.0)
+  const {
+    userLocation,
+    needsBallisticLanding,
+    confirmLanding
+  } = useGeoEngine();
 
-  // 3. MEMORIA CINEMÁTICA (REFS)
-  // Usamos Refs para garantizar que el bucle de 60fps no dispare re-renderizados de React.
+  // 3. MEMORIA CINEMÁTICA Y ESTADO DE VUELO (REFS)
   const currentPosRef = useRef<KinematicPosition | null>(null);
   const currentBearingRef = useRef<number>(-15);
   const isManualModeRef = useRef<boolean>(false);
+  const isFlyingRef = useRef<boolean>(false); // Bloqueo de LERP durante animaciones flyTo
   const lastInteractionRef = useRef<number>(0);
   const animationFrameRef = useRef<number | null>(null);
 
   /**
    * handleUserInteraction:
-   * Detecta cuando el Voyager toma el mando manual del mapa.
+   * Detecta intervención manual para silenciar el seguimiento automático.
    */
   const handleUserInteraction = useCallback(() => {
     isManualModeRef.current = true;
@@ -50,7 +54,7 @@ export function CameraController() {
 
   /**
    * kinematicLoop:
-   * El corazón del movimiento líquido. Se ejecuta sincronizado con el refresco de la GPU.
+   * El corazón de 60FPS. Mueve la cámara frame a frame hacia la posición del Voyager.
    */
   const kinematicLoop = useCallback(() => {
     if (!mapInstance || !userLocation) {
@@ -61,48 +65,44 @@ export function CameraController() {
     const map = mapInstance.getMap();
 
     // A. EVALUACIÓN DE RECONQUISTA DE FOCO
-    // Si han pasado 6 segundos sin gestos táctiles, volvemos al modo automático.
     const now = Date.now();
     if (isManualModeRef.current && (now - lastInteractionRef.current > 6000)) {
       isManualModeRef.current = false;
-      nicepodLog("🎯 [Camera-Director] Reconquista de foco: Retomando seguimiento.");
+      nicepodLog("🎯 [Camera-Director] Reconquista de foco activada.");
     }
 
-    // Si el usuario está operando el mapa manualmente, pausamos el bucle de cámara.
-    if (isManualModeRef.current) {
+    // B. GUARDAS DE SILENCIO (MANUAL O VUELO ACTIVO)
+    if (isManualModeRef.current || isFlyingRef.current) {
       animationFrameRef.current = requestAnimationFrame(kinematicLoop);
       return;
     }
 
-    // B. CÁLCULO DE POSICIÓN INTERPOLADA (LERP)
+    // C. CÁLCULO DE POSICIÓN INTERPOLADA (LERP)
     const targetPos: KinematicPosition = {
       latitude: userLocation.latitude,
       longitude: userLocation.longitude
     };
 
-    // Si es el primer fix, saltamos instantáneamente.
     if (!currentPosRef.current) {
       currentPosRef.current = targetPos;
     } else {
-      // Suavizamos el movimiento geográfico
+      // Suavizado líquido de coordenadas
       currentPosRef.current = interpolateCoords(currentPosRef.current, targetPos);
     }
 
-    // C. CÁLCULO DE RUMBO (BEARING)
-    // El heading del GPS puede temblar; lo interpolamos para una rotación líquida.
+    // D. CÁLCULO DE RUMBO (BEARING)
     const targetBearing = userLocation.heading ?? currentBearingRef.current;
     currentBearingRef.current = interpolateAngle(currentBearingRef.current, targetBearing);
 
-    // D. CÁLCULO DEL FOLLOW-OFFSET (VISIÓN POKÉMON GO)
-    // Situamos el centro de la cámara X metros por detrás del Voyager basándonos en el rumbo.
+    // E. CÁLCULO DEL FOLLOW-OFFSET (30m detrás del Voyager)
     const cameraAnchor = calculateDestinationPoint(
       currentPosRef.current,
-      -CAMERA_PROFILES.NAVIGATE.offset_distance_meters, // Desplazamiento hacia atrás
+      -CAMERA_PROFILES.NAVIGATE.offset_distance_meters,
       currentBearingRef.current
     );
 
-    // E. EJECUCIÓN IMPERATIVA SOBRE EL METAL
-    // Usamos jumpTo para que la cámara siga nuestra interpolación manual frame a frame.
+    // F. EJECUCIÓN IMPERATIVA (JUMP)
+    // Usamos jumpTo para que no compita con las animaciones nativas de Mapbox
     map.jumpTo({
       center: [cameraAnchor.longitude, cameraAnchor.latitude],
       bearing: currentBearingRef.current,
@@ -113,13 +113,44 @@ export function CameraController() {
     animationFrameRef.current = requestAnimationFrame(kinematicLoop);
   }, [mapInstance, userLocation]);
 
-  // --- IV. ORQUESTACIÓN DEL CICLO DE VIDA ---
+  // --- IV. ORQUESTACIÓN DE VUELO BALÍSTICO (IP TO GPS) ---
 
   useEffect(() => {
-    // Iniciamos el motor de cinemática
+    if (needsBallisticLanding && mapInstance && userLocation && !isFlyingRef.current) {
+      const map = mapInstance.getMap();
+
+      nicepodLog("🚀 [Camera-Director] Iniciando Vuelo Balístico hacia el GPS.");
+      isFlyingRef.current = true;
+
+      // Sincronizamos la referencia interna antes del vuelo para que el LERP herede el final.
+      currentPosRef.current = {
+        latitude: userLocation.latitude,
+        longitude: userLocation.longitude
+      };
+
+      map.flyTo({
+        center: [userLocation.longitude, userLocation.latitude],
+        zoom: CAMERA_PROFILES.NAVIGATE.zoom,
+        pitch: CAMERA_PROFILES.NAVIGATE.pitch,
+        bearing: userLocation.heading ?? -15,
+        ...FLY_CONFIG,
+        duration: 1800, // Vuelo táctico rápido
+      });
+
+      // Al terminar el vuelo, devolvemos el control al motor LERP
+      map.once('moveend', () => {
+        nicepodLog("🏁 [Camera-Director] Aterrizaje completado. Retomando motor líquido.");
+        isFlyingRef.current = false;
+        confirmLanding();
+      });
+    }
+  }, [needsBallisticLanding, mapInstance, userLocation, confirmLanding]);
+
+  // --- V. CICLO DE VIDA Y SENSORES ---
+
+  useEffect(() => {
     animationFrameRef.current = requestAnimationFrame(kinematicLoop);
 
-    // Registramos los sensores de interacción en el canvas de Mapbox
     const canvas = mapInstance?.getMap().getCanvas();
     if (canvas) {
       canvas.addEventListener('mousedown', handleUserInteraction);
@@ -137,20 +168,17 @@ export function CameraController() {
     };
   }, [mapInstance, kinematicLoop, handleUserInteraction]);
 
-  return null; // Componente lógico, sin interfaz propia.
+  return null;
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V2.0):
- * 1. Solución de Nomenclatura: Se erradicó el uso de 'lat/lng' en favor del estándar 
- *    'latitude/longitude' de la interfaz KinematicPosition, resolviendo los 
- *    errores de tipos ts(2339) y ts(2739).
- * 2. Movimiento Líquido (60FPS): Al delegar el seguimiento a un bucle de 
- *    'requestAnimationFrame' fuera del estado de React, el mapa se desliza con la 
- *    suavidad de un motor de juego, eliminando los saltos bruscos del GPS.
- * 3. Follow-Distance Táctica: La cámara se sitúa 30m por detrás del Voyager. 
- *    Esto amplía el campo visual frontal y garantiza que los edificios 3D de 
- *    obsidiana no oculten el marcador del usuario.
- * 4. Build Shield Total: Se importó 'nicepodLog' desde '@/lib/utils' y se 
- *    blindaron los nulos mediante guardas de referencia en el bucle.
+ * NOTA TÉCNICA DEL ARCHITECT (V3.0):
+ * 1. Ballistic Landing: Se integra con el flag needsBallisticLanding para ejecutar un
+ *    flyTo cinematográfico cuando pasamos de IP a GPS.
+ * 2. LERP Suspension: El motor de 60FPS se detiene durante los vuelos automáticos
+ *    para evitar que dos comandos de cámara (jumpTo y flyTo) colisionen en la GPU.
+ * 3. Authority Handshake: Usa confirmLanding() para cerrar el ciclo de actualización
+ *    en el GeoEngine una vez la cámara está asentada.
+ * 4. Zero-Jitter: La interpolación angular y de coordenadas garantiza que el 
+ *    movimiento se sienta como un motor de juego (Pokémon GO Style).
  */

@@ -1,7 +1,11 @@
-// types/geo-sovereignty.ts
-// VERSIÓN: 4.3 (NicePod V2.7 - Extended Telemetry & Contract Integrity Edition)
-// Misión: Centralizar el contrato de identidad de los activos físicos y la telemetría.
-// [ESTABILIZACIÓN]: Resolución de errores ts(2339) y ts(2353) mediante inyección de metadatos de fuente.
+/**
+ * NICEPOD V5.0 - GEO-SOVEREIGNTY (THE CONSTITUTION)
+ * PROTOCOLO: MADRID RESONANCE V2.8
+ * 
+ * Misión: Centralizar el contrato de identidad de los activos físicos y la telemetría.
+ * [SELLADO]: Inyección de metadatos para Aterrizaje Balístico e Ignición Proactiva.
+ * Resolución final de fractura de Build Shield (ts2339/ts2353).
+ */
 
 /**
  * ---------------------------------------------------------------------------
@@ -11,8 +15,7 @@
 
 /**
  * GeoPoint: Representación inmutable de una ubicación en el espacio esférico.
- * [MANDATO NCIS v2.5]: El orden es estrictamente [Longitud, Latitud] para 
- * cumplimiento total con Mapbox GL JS y operadores de PostGIS.
+ * [MANDATO NCIS]: Longitud primero para Mapbox/PostGIS.
  */
 export interface GeoPoint {
   type: 'Point';
@@ -21,8 +24,6 @@ export interface GeoPoint {
 
 /**
  * UserLocation: Snapshot de telemetría capturada por el hardware o la red.
- * [FIX V4.3]: Se añaden 'source' y 'timestamp' para habilitar el refinamiento 
- * automático de IP a GPS real.
  */
 export interface UserLocation {
   latitude: number;
@@ -53,29 +54,23 @@ export interface ActivePOI {
  * ---------------------------------------------------------------------------
  */
 
-/**
- * POILifecycle: Define el estado existencial de un Punto de Interés.
- */
 export type POILifecycle =
-  | 'ingested'  // Evidencia física capturada.
-  | 'analyzed'  // Procesado por Gemini Vision.
-  | 'narrated'  // Crónica redactada por Agente 42.
-  | 'published' // Activo en la Malla de Madrid.
-  | 'archived'; // Retirado de la vista pública.
+  | 'ingested'
+  | 'analyzed'
+  | 'narrated'
+  | 'published'
+  | 'archived';
 
-/**
- * GeoEngineState: Estados operativos del motor sensorial y narrativo.
- */
 export type GeoEngineState =
-  | 'IDLE'               // Reposo.
-  | 'SENSORS_READY'      // Hardware (GPS) vinculado y triangularizando.
-  | 'PERMISSION_DENIED'  // El SO o el Navegador bloqueó el acceso al GPS.
-  | 'INGESTING'          // Transfiriendo binarios comprimidos.
-  | 'DOSSIER_READY'      // Datos físicos validados y analizados.
-  | 'SYNTHESIZING'       // Forja del Agente 42 en curso.
-  | 'NARRATIVE_READY'    // Sabiduría lista para publicación.
-  | 'CONFLICT'           // Alerta de proximidad crítica (<10m).
-  | 'REJECTED';          // Fallo de red, validación o hardware secundario.
+  | 'IDLE'
+  | 'SENSORS_READY'
+  | 'PERMISSION_DENIED'
+  | 'INGESTING'
+  | 'DOSSIER_READY'
+  | 'SYNTHESIZING'
+  | 'NARRATIVE_READY'
+  | 'CONFLICT'
+  | 'REJECTED';
 
 /**
  * ---------------------------------------------------------------------------
@@ -83,9 +78,6 @@ export type GeoEngineState =
  * ---------------------------------------------------------------------------
  */
 
-/**
- * PointOfInterest: El activo de conocimiento soberano final.
- */
 export interface PointOfInterest {
   id: number;
   author_id: string;
@@ -106,9 +98,6 @@ export interface PointOfInterest {
   metadata?: Record<string, unknown> | null;
 }
 
-/**
- * IngestionDossier: El contenedor de evidencia procesada por la IA sensorial.
- */
 export interface IngestionDossier {
   poi_id: number;
   raw_ocr_text: string | null;
@@ -135,9 +124,6 @@ export interface IngestionDossier {
  * ---------------------------------------------------------------------------
  */
 
-/**
- * GeoContextData: Almacén de resultados asíncronos del motor durante la forja.
- */
 export interface GeoContextData {
   poiId?: number;
   dossier?: IngestionDossier;
@@ -153,7 +139,7 @@ export interface GeoContextData {
 
 /**
  * GeoEngineReturn: La firma pública que el hook useGeoEngine entrega a la UI.
- * [FIX V2.7]: Inyección de metadatos de persistencia y autoridad progresiva.
+ * [FIX V5.0]: Integración de Ballistic Protocol y Proactive Ignition.
  */
 export interface GeoEngineReturn {
   status: GeoEngineState;
@@ -165,16 +151,26 @@ export interface GeoEngineReturn {
   isLocked: boolean;
   error: string | null;
 
-  // --- CAPACIDADES DE SOBERANÍA V2.7 ---
-  /** isTriangulated: El sistema tiene una ubicación (IP o GPS). */
+  // --- CAPACIDADES DE SOBERANÍA V5.0 ---
+
+  /** isIgnited: Indica si el hardware GPS está encendido y el singleton activo. */
+  isIgnited: boolean;
+
+  /** isTriangulated: El sistema tiene una ubicación inicial (IP o GPS). */
   isTriangulated: boolean;
+
   /** isGPSLock: El hardware ha certificado precisión de calle (<80m). */
   isGPSLock: boolean;
-  /** setTriangulated: Sella el estado de localización. */
-  setTriangulated: () => void;
+
+  /** needsBallisticLanding: Disparador para que la cámara ejecute flyTo cinematográfico. */
+  needsBallisticLanding: boolean;
+
+  /** confirmLanding: Callback para cerrar el ciclo de vuelo y volver al motor LERP. */
+  confirmLanding: () => void;
 
   // Métodos de Control
   initSensors: () => void;
+  setTriangulated: () => void;
   setManualAnchor: (lng: number, lat: number) => void;
   setManualPlaceName: (name: string) => void;
   reSyncRadar: () => void;
@@ -234,13 +230,10 @@ export interface POICategory {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V4.3):
- * 1. Sello de Integridad de Datos: Se añadieron 'source' y 'timestamp' a UserLocation. 
- *    Esto elimina el error ts(2339) y permite que el sistema diferencie legalmente 
- *    entre el paracaídas de IP y la verdad del satélite.
- * 2. Preparado para Refinamiento: La inclusión de 'isGPSLock' en GeoEngineReturn 
- *    es el disparador contractual necesario para que el SpatialEngine ejecute 
- *    vuelos de corrección automática.
- * 3. Build Shield Activo: Todas las interfaces están selladas, garantizando un 
- *    build exitoso en Vercel sin pérdida de tipos en las Server Actions.
+ * NOTA TÉCNICA DEL ARCHITECT (V5.0):
+ * 1. Build Shield Restoration: La adición de isIgnited, needsBallisticLanding 
+ *    y confirmLanding sana la fractura comunicacional entre el GeoEngine y 
+ *    los controladores visuales (CameraController/SpatialEngine).
+ * 2. Contract Integrity: Se mantienen los flujos multimodales y la topología 
+ *    PostGIS intactos para asegurar compatibilidad con la Bóveda NKV.
  */
