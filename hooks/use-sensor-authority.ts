@@ -1,18 +1,14 @@
 // hooks/use-sensor-authority.ts
-// VERSIÓN: 2.1 (NicePod Sensor Authority - Edge Ingestion & Absolute Priority Edition)
-// Misión: Captura pura de telemetría GPS con integración directa del Paracaídas Geo-IP.
-// [NCIS DOGMA]: El Hardware y la Red son la única verdad. Eliminación de fallbacks hardcodeados en el render.
+// VERSIÓN: 3.0 (NicePod Sensor Authority - TTL Cache & Fast-Fix Edition)
+// Misión: Captura pura de telemetría GPS con purga de caché y aceptación incondicional T0.
+// [ESTABILIZACIÓN]: Implementación de Caducidad de 15 min y Dual Stream de Ignición.
 
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { nicepodLog } from "@/lib/utils";
-import { MADRID_SOL_COORDS } from "@/components/geo/map-constants";
 
-/**
- * INTERFAZ: RawTelemetry
- * La verdad física capturada directamente del silicio o de la red (IP).
- */
+// --- CONTRATOS DE AUTORIDAD ---
 export interface RawTelemetry {
   latitude: number;
   longitude: number;
@@ -23,13 +19,12 @@ export interface RawTelemetry {
   source: 'gps' | 'cache' | 'ip-fallback';
 }
 
-/**
- * INTERFAZ: SensorAuthorityProps
- * Permite que el Orquestador Superior inyecte la ubicación de IP de Vercel.
- */
 interface SensorAuthorityProps {
   initialData?: { lat: number; lng: number; city: string; source: string; } | null;
 }
+
+// UMBRAL DE CADUCIDAD: 15 minutos en milisegundos
+const CACHE_TTL_MS = 15 * 60 * 1000;
 
 /**
  * HOOK: useSensorAuthority
@@ -37,31 +32,37 @@ interface SensorAuthorityProps {
  */
 export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
   
-  // --- I. ESTADO SOBERANO CON HIDRATACIÓN T0 ---
-  // Misión: El estado inicial se calcula sincrónicamente al montar el hook para evitar 
-  // parpadeos (flickering) entre un estado null y la ubicación de rescate.
+  // --- I. ESTADO SOBERANO CON HIDRATACIÓN INTELIGENTE ---
   const [telemetry, setTelemetry] = useState<RawTelemetry | null>(() => {
     if (typeof window === "undefined") return null;
 
-    // 1. Prioridad A: Caché Local (Última ubicación conocida exacta)
-    const cachedFix = localStorage.getItem('nicepod_last_known_fix');
-    if (cachedFix) {
+    // 1. PRIORIDAD A: Caché Local (Solo si está fresco)
+    const cachedFixStr = localStorage.getItem('nicepod_last_known_fix');
+    if (cachedFixStr) {
       try {
-        const parsed = JSON.parse(cachedFix);
-        nicepodLog("💾 [Sensor-Authority] Estado T0: Caché Local recuperado.");
-        return { ...parsed, source: 'cache', timestamp: Date.now() };
+        const parsed: RawTelemetry = JSON.parse(cachedFixStr);
+        const age = Date.now() - parsed.timestamp;
+        
+        // [MANDATO V2.7]: Purga de Amnesia. Si el dato es viejo, lo incineramos.
+        if (age < CACHE_TTL_MS) {
+          nicepodLog("💾 [Sensor-Authority] Caché válido. Hidratación T0.");
+          return { ...parsed, source: 'cache' };
+        } else {
+          nicepodLog("🗑️ [Sensor-Authority] Caché caducado. Purgando memoria.");
+          localStorage.removeItem('nicepod_last_known_fix');
+        }
       } catch (e) {
         nicepodLog("⚠️ [Sensor-Authority] Caché corrupto. Ignorando.", null, 'warn');
       }
     }
 
-    // 2. Prioridad B: Paracaídas de Red (Vercel Edge Geo-IP)
+    // 2. PRIORIDAD B: Paracaídas de Red (Vercel Edge Geo-IP)
     if (initialData) {
-      nicepodLog(`🌐 [Sensor-Authority] Estado T0: Paracaídas de Red (${initialData.city}).`);
+      nicepodLog(`🌐 [Sensor-Authority] Materialización T0 por IP (${initialData.city}).`);
       return {
         latitude: initialData.lat,
         longitude: initialData.lng,
-        accuracy: 5000, // Margen de error grande para indicar "Estimación"
+        accuracy: 5000, 
         heading: null,
         speed: null,
         timestamp: Date.now(),
@@ -69,7 +70,6 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
       };
     }
 
-    // 3. Fallback de Emergencia: Solo si todo lo demás falla.
     return null; 
   });
 
@@ -81,9 +81,12 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
   const isHardwareIgnitedRef = useRef<boolean>(false);
   const watchdogTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // [FLAG TÁCTICO]: Identifica si es el primer pulso del hardware en esta sesión
+  const isFirstHardwarePing = useRef<boolean>(true);
+
   /**
    * startHardwareWatch:
-   * Misión: Activar el stream de datos con Protocolo de Ignición Agresiva.
+   * Misión: Activar el stream de datos con Dual Stream (Red -> Satélite).
    */
   const startHardwareWatch = useCallback(() => {
     if (typeof window === "undefined" || !("geolocation" in navigator)) {
@@ -91,25 +94,18 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
       return;
     }
 
-    // [BLOQUEO DE SEGURIDAD]: Si ya está encendido, ignoramos para no saturar el bus.
-    if (isHardwareIgnitedRef.current) {
-      nicepodLog("📡 [Sensor-Authority] Hardware ya se encuentra en ignición.");
-      return;
-    }
-
-    // PROTOCOLO DE RE-IGNICIÓN: Limpiamos cualquier rastro previo de búsqueda.
+    if (isHardwareIgnitedRef.current) return;
+    
+    // Limpieza de procesos zombie
     if (watchIdRef.current !== null) {
       navigator.geolocation.clearWatch(watchIdRef.current);
     }
 
     isHardwareIgnitedRef.current = true;
     setIsAcquiring(true);
+    isFirstHardwarePing.current = true;
 
-    /**
-     * [WATCHDOG]: Temporizador de Vigilancia (6 segundos)
-     * Si el hardware no entrega datos reales en este tiempo, reseteamos el cerrojo
-     * para permitir un nuevo intento manual o automático.
-     */
+    // [WATCHDOG]: 6 segundos de gracia antes de liberar el cerrojo
     if (watchdogTimerRef.current) clearTimeout(watchdogTimerRef.current);
     watchdogTimerRef.current = setTimeout(() => {
       nicepodLog("🆘 [Sensor-Authority] Hardware Stall detectado. Liberando cerrojo.");
@@ -118,7 +114,6 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
     }, 6000);
 
     const onSignalSuccess = (pos: GeolocationPosition) => {
-      // Limpiamos el Watchdog al recibir señal real
       if (watchdogTimerRef.current) {
         clearTimeout(watchdogTimerRef.current);
         watchdogTimerRef.current = null;
@@ -134,6 +129,22 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
         source: 'gps'
       };
 
+      /**
+       * [PROTOCOLO FAST-FIX]: Aceptación Incondicional.
+       * Si es el primer latido del hardware, lo aceptamos sea como sea. 
+       * Esto fuerza a la UI a salir del modo 'Estimando por IP' al instante.
+       */
+      if (isFirstHardwarePing.current) {
+        nicepodLog("⚡ [Sensor-Authority] Primer Ping de Hardware aceptado incondicionalmente.");
+        isFirstHardwarePing.current = false;
+        setTelemetry(freshTelemetry);
+        setIsAcquiring(false);
+        localStorage.setItem('nicepod_last_known_fix', JSON.stringify(freshTelemetry));
+        return;
+      }
+
+      // Si ya no es el primer ping, actualizamos normalmente.
+      // (El filtrado de 5m y 3° ocurrirá un nivel más arriba en el use-geo-engine).
       setTelemetry(freshTelemetry);
       setIsAcquiring(false);
       localStorage.setItem('nicepod_last_known_fix', JSON.stringify(freshTelemetry));
@@ -148,25 +159,29 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
         nicepodLog("🛑 [Sensor-Authority] Permiso denegado por el Voyager.", null, 'error');
         setIsDenied(true);
       } else {
-        nicepodLog(`🟡 [Sensor-Authority] Estabilidad de señal: ${error.message}`);
+        nicepodLog(`🟡 [Sensor-Authority] Retraso de señal: ${error.message}`);
       }
     };
 
-    // Configuración de Alta Fidelidad para Malla Pokémon GO
-    const options: PositionOptions = {
+    /**
+     * [DUAL STREAM IGNITION]
+     * 1. Pedimos un 'shot' rápido usando antenas de red (Baja precisión, alta velocidad).
+     * 2. Inmediatamente encendemos el stream Satelital para la precisión fina.
+     */
+    navigator.geolocation.getCurrentPosition(onSignalSuccess, onSignalError, {
+      enableHighAccuracy: false, 
+      timeout: 3000,
+      maximumAge: 0
+    });
+
+    watchIdRef.current = navigator.geolocation.watchPosition(onSignalSuccess, onSignalError, {
       enableHighAccuracy: true, 
       maximumAge: 0,            
-      timeout: 20000            
-    };
+      timeout: 15000            
+    });
 
-    nicepodLog("📡 [Sensor-Authority] Ejecutando Gesto de Ignición Agresiva.");
-    watchIdRef.current = navigator.geolocation.watchPosition(onSignalSuccess, onSignalError, options);
   }, []);
 
-  /**
-   * killHardwareWatch:
-   * Misión: Liberar los recursos del chip GPS y resetear estados.
-   */
   const killHardwareWatch = useCallback(() => {
     if (watchIdRef.current !== null) {
       navigator.geolocation.clearWatch(watchIdRef.current);
@@ -175,14 +190,12 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
     if (watchdogTimerRef.current) clearTimeout(watchdogTimerRef.current);
     isHardwareIgnitedRef.current = false;
     setIsAcquiring(false);
-    nicepodLog("💤 [Sensor-Authority] Hardware GPS desconectado.");
+    nicepodLog("💤 [Sensor-Authority] Hardware GPS en reposo.");
   }, []);
 
-  // --- III. CICLO DE VIDA ---
   useEffect(() => {
     return () => {
-      // Mantenemos el watch vivo durante la navegación SPA para fluidez.
-      // Solo se limpiará si el Orquestador llama explícitamente a killHardwareWatch.
+      // Mantenemos el watch vivo durante la navegación SPA.
     };
   }, []);
 
@@ -192,11 +205,8 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
     isAcquiring,
     startHardwareWatch,
     killHardwareWatch,
-    /**
-     * reSync: Fuerza un reinicio del bus de datos GPS pase lo que pase.
-     */
     reSync: () => {
-      nicepodLog("🔄 [Sensor-Authority] Re-sincronía forzada por el Voyager.");
+      nicepodLog("🔄 [Sensor-Authority] Re-sincronía forzada (Force Overide).");
       isHardwareIgnitedRef.current = false;
       startHardwareWatch();
     }
@@ -204,13 +214,13 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V2.1):
- * 1. Materialización Síncrona: El estado 'telemetry' ahora nace inicializado con 
- *    los datos de Caché o Edge-IP. Esto elimina el 'efecto parpadeo' donde el 
- *    mapa intentaba renderizar Sol antes de corregirse.
- * 2. Integración de Red: Se añadió la interfaz 'SensorAuthorityProps' para que 
- *    el Orquestador Global (useGeoEngine) pueda inyectar el paracaídas de Vercel.
- * 3. Aislamiento de Errores: El Watchdog de 6s previene bloqueos eternos si el 
- *    usuario está en un túnel o interior sin señal satelital, permitiendo 
- *    que el botón de "Re-Sync" de la UI siempre funcione.
+ * NOTA TÉCNICA DEL ARCHITECT (V3.0):
+ * 1. Protocolo Anti-Amnesia (TTL): Se implementó la purga de caché de 15 minutos. 
+ *    Esto evita que el mapa nazca en la ubicación de ayer, forzando al sistema a 
+ *    utilizar la IP o buscar señal fresca si el dato es viejo.
+ * 2. Dual Stream Ignition: Al lanzar un 'getCurrentPosition' en baja precisión seguido
+ *    de un 'watchPosition' en alta precisión, logramos que el usuario se materialice
+ *    en menos de 1 segundo (usando WiFi/Celdas) mientras el Satélite calienta.
+ * 3. Fast-Fix Acceptance: La inyección incondicional del primer ping garantiza que 
+ *    el sistema nunca se auto-bloquee descartando la primera señal de hardware.
  */
