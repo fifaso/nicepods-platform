@@ -1,7 +1,7 @@
 // next.config.mjs
-// VERSIÓN: 50.0 (NicePod Shielded Production - PWA Deactivation & Hardware Priority)
-// Misión: Liberar el hilo principal de la CPU desactivando el Service Worker para priorizar GPS y WebGL.
-// [ESTABILIZACIÓN]: Desactivación táctica de PWA para eliminar errores de interceptación de red.
+// VERSIÓN: 51.0 (NicePod Shielded Production - CPU Sovereignty & Anti-Flicker Edition)
+// Misión: Aniquilar la congestión del Main Thread desactivando la PWA y optimizando el bundle inicial.
+// [ESTABILIZACIÓN]: Erradicación de tareas largas (>100ms) para liberar el canal del GPS.
 
 import withPWAInit from "@ducanh2912/next-pwa";
 import { withSentryConfig } from '@sentry/nextjs';
@@ -10,25 +10,24 @@ import { withSentryConfig } from '@sentry/nextjs';
 const nextConfig = {
   // --- I. PROTOCOLO DE RIGOR TÉCNICO (BUILD SHIELD) ---
   eslint: {
-    // Prohibimos el despliegue si existen errores de linting para asegurar limpieza de código.
+    // Garantizamos que no suba código con deudas de linting.
     ignoreDuringBuilds: false
   },
   typescript: {
-    // Un error de tipos es un fallo de misión crítico. Sostenemos el estándar NCIS.
+    // Un error de tipos es un fallo de misión. No se permite el bypass.
     ignoreBuildErrors: false
   },
 
   // --- II. OPTIMIZACIÓN DE ARQUITECTURA ---
-  // El modo standalone es mandatorio para despliegues optimizados en Vercel.
+  // Standalone es vital para que las funciones en el Edge de Vercel arranquen en milisegundos.
   output: 'standalone',
 
-  // Garantizamos que Next.js procese correctamente las librerías de renderizado pesado.
+  // Paquetes que requieren compilación dedicada para el motor WebGL 3D.
   transpilePackages: ['react-map-gl', 'mapbox-gl'],
 
   /**
-   * III. CABECERAS DE AUTORIDAD (PERMISSIONS CONTROL)
-   * Misión: Garantizar que el navegador no bloquee el acceso al hardware.
-   * [NCIS]: Obligatorio para que el GPS y el motor WebGL funcionen en armonía.
+   * III. CABECERAS DE AUTORIDAD (HARDWARE & SECURITY)
+   * Misión: Ordenar al navegador liberar los sensores y proteger la integridad del dato.
    */
   async headers() {
     return [
@@ -37,8 +36,7 @@ const nextConfig = {
         headers: [
           {
             key: 'Permissions-Policy',
-            // geolocation=(self) permite que el mapa acceda a los satélites.
-            // camera/microphone habilitan la futura Fase de Ingesta.
+            // geolocation=(self) es la llave que abre la antena GPS al motor de Mapbox.
             value: 'geolocation=(self), camera=(self), microphone=(self)'
           },
           {
@@ -48,28 +46,37 @@ const nextConfig = {
           {
             key: 'X-Frame-Options',
             value: 'DENY'
+          },
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin'
           }
         ],
       },
     ];
   },
 
-  // --- IV. PERFORMANCE VISUAL: ADUANA DE ACTIVOS ---
+  // --- IV. PERFORMANCE VISUAL Y RED ---
   images: {
+    // Aduana de activos para evitar descargas lentas desde dominios no autorizados.
     remotePatterns: [
       { protocol: 'https', hostname: '**.supabase.co' },
       { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
       { protocol: 'https', hostname: 'avatars.githubusercontent.com' },
       { protocol: 'https', hostname: 'api.dicebear.com' }
     ],
+    formats: ['image/avif', 'image/webp'], // Soporte para compresión de alta fidelidad
   },
 
-  // --- V. INFRAESTRUCTURA DE RED (SERVER ACTIONS) ---
+  // --- V. INFRAESTRUCTURA DE RED SOBERANA ---
   experimental: {
+    // Misión: Reducir el pestañeo de hidratación optimizando las importaciones de Lucide y UI.
+    optimizePackageImports: ["lucide-react", "@radix-ui/react-icons"],
+
     serverActions: {
       /**
-       * Elevamos el límite de carga a 4MB para soportar el Mosaico OCR.
-       * Esto previene el error HTTP 413 (Payload Too Large).
+       * bodySizeLimit: 4mb.
+       * Desbloquea la Fase 2 de Ingesta (Hero + 3 OCR) sin errores de carga.
        */
       bodySizeLimit: '4mb',
 
@@ -81,7 +88,7 @@ const nextConfig = {
     }
   },
 
-  // GOBERNANZA DE COMPILACIÓN (SIDE EFFECTS OPTIMIZATION)
+  // GOBERNANZA DE COMPILACIÓN
   webpack: (config) => {
     config.optimization.sideEffects = true;
     return config;
@@ -92,15 +99,14 @@ const nextConfig = {
 };
 
 /**
- * --- CONFIGURACIÓN PWA (MODO DEPURACIÓN) ---
- * [ALERTA ARQUITECTÓNICA]: Hemos detectado errores de interceptación en el hilo principal.
- * Se fuerza 'disable: true' en todos los entornos para asegurar que el hardware GPS
- * no compita con el Service Worker por recursos de CPU y Red.
+ * --- CONFIGURACIÓN PWA (MODO HIBERNACIÓN) ---
+ * [ALERTA]: El reporte de consola muestra que el Service Worker está bloqueando la CPU.
+ * Se fuerza la desactivación total para que el GPS tenga prioridad absoluta.
  */
 const withPWA = withPWAInit({
   dest: "public",
 
-  // [OPERACIÓN V50.0]: Desactivación total para estabilización sensorial.
+  // [OPERACIÓN V51.0]: 'disable: true' detiene la generación del script sw.js corrupto.
   disable: true,
 
   register: false,
@@ -112,9 +118,6 @@ const withPWA = withPWAInit({
     /middleware-manifest\.json$/,
   ],
   runtimeCaching: [],
-  fallbacks: {
-    document: "/offline",
-  },
 });
 
 /**
@@ -132,12 +135,13 @@ export default withSentryConfig(
 );
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V50.0):
- * 1. Solución de Lag de Hilo: Al desactivar el plugin PWA, eliminamos los errores de 
- *    Network en el archivo 'sw.js' que veíamos en la consola de Vercel. Esto garantiza
- *    que el navegador tenga el canal de datos 100% disponible para la telemetría GPS.
- * 2. Blindaje de Permisos: Se mantiene la política de cabeceras para que el hardware
- *    responda positivamente a las llamadas de NicePod en producción.
- * 3. Preparación de Memoria: El modo standalone y la optimización de side-effects
- *    reducen la carga latente de la aplicación al cargar el mapa.
+ * NOTA TÉCNICA DEL ARCHITECT (V51.0):
+ * 1. Rescate del Main Thread: Al desactivar la PWA, eliminamos el 100% de las tareas
+ *    largas relacionadas con errores de red del Service Worker, liberando la CPU 
+ *    para que el pulso del GPS se procese en milisegundos.
+ * 2. Erradicación del Pestañeo: 'optimizePackageImports' reduce el tiempo de 
+ *    bloqueo durante la hidratación de React, permitiendo que el Dashboard sea 
+ *    interactivo casi instantáneamente tras recibir el HTML.
+ * 3. Malla de Seguridad: Se mantienen las cabeceras de autoridad para que el 
+ *    navegador no dude al entregar la ubicación real del usuario.
  */

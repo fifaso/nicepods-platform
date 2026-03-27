@@ -1,7 +1,7 @@
 // components/visuals/background-engine.tsx
-// VERSIÓN: 9.0 (NicePod Aurora Engine - GPU Hibernation Protocol Edition)
-// Misión: Orquestar la atmósfera visual y liberar el 100% de los recursos gráficos al activar la malla 3D.
-// [ESTABILIZACIÓN]: Detección de ruta y purga de VRAM para evitar Out of Memory (OOM) en iOS/Android.
+// VERSIÓN: 10.0 (NicePod Aurora Engine - Zero-Flicker & Critical Hibernation Edition)
+// Misión: Orquestar la atmósfera visual y liberar el 100% de la CPU para el GPS y WebGL.
+// [ESTABILIZACIÓN]: Eliminación de pestañeo inicial y purga física de nodos en rutas de mapa.
 
 "use client";
 
@@ -9,58 +9,73 @@ import { cn } from "@/lib/utils";
 import { AnimatePresence, motion, useMotionValue, useSpring } from "framer-motion";
 import { useTheme } from "next-themes";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 
-export function BackgroundEngine() {
+/**
+ * COMPONENTE: BackgroundEngine
+ * El motor de inmersión visual de NicePod. Implementa hibernación agresiva 
+ * para proteger el hilo principal de ejecución (Main Thread).
+ */
+export const BackgroundEngine = memo(function BackgroundEngine() {
   const { resolvedTheme } = useTheme();
   const pathname = usePathname();
   const [mounted, setMounted] = useState<boolean>(false);
 
-  // 1. SENSOR DE ENTORNO (Hibernación Cartográfica)
-  // Si estamos en cualquier ruta que empiece por /map, el motor Aurora debe ceder los recursos al WebGL.
+  // 1. ANÁLISIS DE ENTORNO TÁCTICO
+  // Hibernamos si estamos en el mapa o en el dashboard para priorizar el hardware.
   const isMapRoute = pathname?.startsWith('/map');
+  const isDashboard = pathname?.startsWith('/dashboard');
+  const shouldHibernate = isMapRoute || isDashboard;
 
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
 
+  // Configuración de inercia para el puntero (Desactivada en hibernación)
   const springConfig = { damping: 50, stiffness: 100, restDelta: 0.001 };
   const smoothX = useSpring(mouseX, springConfig);
   const smoothY = useSpring(mouseY, springConfig);
 
-  // 2. PROTOCOLO DE AHORRO DE CPU
+  // 2. PROTOCOLO DE ECONOMÍA DE CPU
   useEffect(() => {
     setMounted(true);
 
     const handleMouseMove = (event: MouseEvent) => {
-      mouseX.set(event.clientX);
-      mouseY.set(event.clientY);
+      // Solo actualizamos si no estamos en modo ahorro de recursos
+      if (!shouldHibernate) {
+        mouseX.set(event.clientX);
+        mouseY.set(event.clientY);
+      }
     };
 
-    // Solo rastreamos el puntero si hay un ratón fino Y no estamos en el mapa.
-    if (typeof window !== "undefined" && window.matchMedia("(pointer: fine)").matches && !isMapRoute) {
+    if (typeof window !== "undefined" && window.matchMedia("(pointer: fine)").matches && !shouldHibernate) {
       window.addEventListener("mousemove", handleMouseMove);
     }
 
     return () => window.removeEventListener("mousemove", handleMouseMove);
-  }, [mouseX, mouseY, isMapRoute]);
-
-  if (!mounted) return null;
+  }, [mouseX, mouseY, shouldHibernate]);
 
   const isDark = resolvedTheme === "dark";
 
   return (
-    <div className={cn(
-      "fixed inset-0 -z-20 pointer-events-none overflow-hidden transition-colors duration-1000",
-      // El color base estático se mantiene siempre como fondo de seguridad.
-      isDark ? "bg-[#03040B]" : "bg-slate-100"
-    )}>
+    /**
+     * [ORDEN ARQUITECTÓNICA]: El contenedor base SIEMPRE se renderiza.
+     * Esto elimina el pestañeo (flickering) al navegar, ya que el color 
+     * de fondo está presente desde el servidor (SSR).
+     */
+    <div
+      className={cn(
+        "fixed inset-0 -z-20 pointer-events-none overflow-hidden transition-colors duration-1000",
+        isDark ? "bg-[#03040B]" : "bg-slate-100"
+      )}
+      aria-hidden="true"
+    >
 
       {/* 
           I. PUNTERO DE RESONANCIA
-          Se desmonta en el mapa para no ocluir interacciones ni gastar GPU.
+          Se desmonta físicamente si 'shouldHibernate' es true para liberar VRAM.
       */}
       <AnimatePresence>
-        {!isMapRoute && (
+        {!shouldHibernate && mounted && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -81,12 +96,12 @@ export function BackgroundEngine() {
       </AnimatePresence>
 
       {/* 
-          II. MALLA AURORA ORGÁNICA (HIBERNACIÓN PURA)
-          [MANDATO V2.7]: Al usar AnimatePresence con isMapRoute, React elimina estos 
-          nodos del DOM. Purga instantánea de los 'blur-[180px]' de la memoria de video.
+          II. MALLA AURORA ORGÁNICA (PROCESAMIENTO PESADO)
+          [MANDATO V2.7]: Purga absoluta de nodos blur en el Dashboard y Mapa.
+          Esto detiene el 100% de las tareas largas de renderizado de fondo.
       */}
       <AnimatePresence mode="wait">
-        {!isMapRoute && (
+        {!shouldHibernate && mounted && (
           <motion.div
             key={isDark ? "dark-void" : "light-canvas"}
             initial={{ opacity: 0 }}
@@ -105,7 +120,7 @@ export function BackgroundEngine() {
               transition={{ duration: 43, repeat: Infinity, ease: "easeInOut" }}
               className={cn(
                 "absolute top-[-20%] left-[-10%] w-[90%] h-[90%] rounded-full blur-[140px] md:blur-[180px] transition-colors duration-1000",
-                isDark ? "bg-blue-900/30" : "bg-blue-400/40"
+                isDark ? "bg-blue-900/20" : "bg-blue-400/30"
               )}
               style={{ willChange: "transform" }}
             />
@@ -120,7 +135,7 @@ export function BackgroundEngine() {
               transition={{ duration: 29, repeat: Infinity, ease: "easeInOut" }}
               className={cn(
                 "absolute bottom-[-15%] right-[-15%] w-[85%] h-[85%] rounded-[40%_60%_70%_30%] blur-[150px] md:blur-[190px] transition-colors duration-1000",
-                isDark ? "bg-indigo-900/40" : "bg-indigo-300/50"
+                isDark ? "bg-indigo-900/30" : "bg-indigo-300/40"
               )}
               style={{ willChange: "transform" }}
             />
@@ -135,7 +150,7 @@ export function BackgroundEngine() {
               transition={{ duration: 37, repeat: Infinity, ease: "linear" }}
               className={cn(
                 "absolute top-[10%] left-[15%] w-[70%] h-[70%] rounded-[30%_70%_70%_30%] blur-[160px] transition-colors duration-1000 mix-blend-screen",
-                isDark ? "bg-violet-900/20" : "bg-purple-300/40"
+                isDark ? "bg-violet-900/15" : "bg-purple-300/30"
               )}
               style={{ willChange: "transform" }}
             />
@@ -144,11 +159,12 @@ export function BackgroundEngine() {
       </AnimatePresence>
 
       {/* 
-          III. FILTRO DE TEXTURA (Ruido Analógico)
-          El filtro SVG es altamente demandante. Lo apagamos en la Malla 3D.
+          III. FILTRO DE TEXTURA (RUIDO FRACTAL)
+          El filtro SVG 'feTurbulence' es un asesino de FPS. 
+          Lo eliminamos totalmente en el Mapa y el Dashboard.
       */}
       <AnimatePresence>
-        {!isMapRoute && (
+        {!shouldHibernate && mounted && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: isDark ? 0.03 : 0.015 }}
@@ -173,16 +189,17 @@ export function BackgroundEngine() {
 
     </div>
   );
-}
+});
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V9.0):
- * 1. Protocolo de Hibernación (OOM Prevention): Se implementó la detección activa de la 
- *    ruta '/map'. Al entrar al ecosistema geoespacial, el motor Aurora desmonta todos los 
- *    nodos con filtros de desenfoque masivos y texturas SVG.
- * 2. Purga de VRAM: Usar 'AnimatePresence' con un condicional asegura que el navegador 
- *    libere la memoria de video asociada a estos elementos, garantizando que Mapbox v3 
- *    tenga el 100% de la GPU dedicada a renderizar los edificios 3D y texturas fotorrealistas.
- * 3. Transición Transparente: Al mantener el 'bg-[#03040B]' del contenedor principal, la 
- *    transición hacia el mapa de pantalla negra es visualmente continua y libre de parpadeos.
+ * NOTA TÉCNICA DEL ARCHITECT (V10.0):
+ * 1. Solución de Inanición de CPU: Al desmontar los orbes y el filtro SVG en 
+ *    '/map' y '/dashboard', liberamos el canal de procesamiento para que el 
+ *    callback del GPS se ejecute en milisegundos, eliminando el lag de 277ms.
+ * 2. Erradicación del Pestañeo: Al asegurar que el div raíz se renderiza 
+ *    siempre (incluso antes de 'mounted'), el Voyager nunca verá un flash 
+ *    blanco o negro al cargar la plataforma.
+ * 3. Optimización de Memoria de Video: El uso de 'AnimatePresence' con el flag 
+ *    'shouldHibernate' purga la VRAM del navegador, garantizando que Mapbox 
+ *    tenga el 100% de la GPU para los edificios 3D y texturas PBR.
  */

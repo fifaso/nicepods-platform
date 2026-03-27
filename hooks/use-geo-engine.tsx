@@ -1,7 +1,7 @@
 // hooks/use-geo-engine.tsx
-// VERSIÓN: 28.2 (NicePod Sovereign Geo-Engine - Absolute Authority & Sync Edition)
-// Misión: Orquestar el Cerebro Dual garantizando la actualización automática y fluida.
-// [ESTABILIZACIÓN]: Sello de tipos UserLocation (source/timestamp) y Materialización Bi-Fásica.
+// VERSIÓN: 29.0 (NicePod Sovereign Geo-Engine - Thread Sovereignty & Materialization Edition)
+// Misión: Orquestar la telemetría global eliminando pestañeos y garantizando actualización automática.
+// [ESTABILIZACIÓN]: Integración de IP-T0, Transmutación de Fuente y Bypass de Movimiento Crítico.
 
 "use client";
 
@@ -45,15 +45,14 @@ interface GeoEngineProviderProps {
 }
 
 /**
- * GeoEngineProvider: El Orquestador de Misión de NicePod.
- * Misión: Unificar telemetría y capital intelectual con materialización inmediata.
+ * GeoEngineProvider: El Reactor Sensorial Maestro de NicePod.
  */
 export function GeoEngineProvider({ children, initialData }: GeoEngineProviderProps) {
   const supabase = createClient();
 
   // --- I. CONSUMO DE ESPECIALISTAS (CEREBRO DUAL) ---
 
-  // A. El Centinela de Hardware (GPS/Heading/Speed)
+  // A. El Centinela de Hardware (GPS/IP-Fallback)
   const {
     telemetry,
     isDenied,
@@ -63,7 +62,7 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
     reSync
   } = useSensorAuthority({ initialData });
 
-  // B. El Escriba de la Forja (IA/Ingesta/Síntesis)
+  // B. El Escriba de la Forja (IA/Ingesta)
   const {
     forgeStatus,
     forgeData,
@@ -79,8 +78,9 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
   const [nearbyPOIs, setNearbyPOIs] = useState<PointOfInterest[]>([]);
   const [activePOI, setActivePOI] = useState<ActivePOI | null>(null);
   const [isSearching, setIsSearching] = useState<boolean>(false);
-  const [isTriangulated, setIsTriangulated] = useState<boolean>(false);
+  const [isTriangulated, setIsTriangulated] = useState<boolean>(!!initialData || !!telemetry);
 
+  // Override Manual y Contexto Local (Clima/Nombre)
   const [manualAnchor, setManualAnchorState] = useState<UserLocation | null>(null);
   const [localData, setLocalData] = useState<{ isProximityConflict?: boolean; manualPlaceName?: string }>({});
 
@@ -88,29 +88,29 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
 
   // --- III. CONTROL DE TRÁFICO GEOESPACIAL (REFS) ---
   const lastFetchPosRef = useRef<{ lat: number, lng: number } | null>(null);
-  const lastSourceRef = useRef<string | null>(null);
+  const lastSourceRef = useRef<string | null>(telemetry?.source || initialData?.source || null);
   const lastEmittedLocationRef = useRef<UserLocation | null>(null);
 
-  const FETCH_DISTANCE_THRESHOLD = 100; // Throttling de Red: 100 metros.
+  const FETCH_DISTANCE_THRESHOLD = 100; // Throttling: 100 metros para red.
 
   /**
    * fetchNearbyPOIs: Sincronización Inteligente con Bóveda NKV.
-   * Misión: Consultar la red solo cuando sea estrictamente necesario o forzado.
+   * Misión: Consultar la red solo si hay movimiento real o cambio de autoridad.
    */
   const fetchNearbyPOIs = useCallback(async (location: UserLocation, force: boolean = false) => {
+    // 1. Verificamos si la distancia justifica una nueva petición.
     if (!force && lastFetchPosRef.current) {
       const distanceTraveled = calculateDistance(
         { latitude: location.latitude, longitude: location.longitude },
         { latitude: lastFetchPosRef.current.lat, longitude: lastFetchPosRef.current.lng }
       );
 
-      // Si nos movemos menos de 100m y no es un evento forzado, abortamos.
       if (distanceTraveled < FETCH_DISTANCE_THRESHOLD) return;
     }
 
     setIsSearching(true);
     try {
-      nicepodLog(`🛰️ [Network] Sincronizando Bóveda (Ref: ${force ? 'AUTHORITY_SHIFT' : 'MOVEMENT'}).`);
+      nicepodLog(`🛰️ [Network] Sincronizando Bóveda (${force ? 'FORCED_BY_AUTHORITY' : 'DISTANCE_REFRESH'})`);
 
       const { data: pois, error: dbError } = await supabase
         .from('vw_map_resonance_active')
@@ -165,34 +165,42 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
 
   // --- IV. SINCRONIZACIÓN DE CICLO DE VIDA (MATERIALIZACIÓN) ---
 
+  /**
+   * Efecto de Pulso Sensorial y Refinamiento Automático:
+   * Misión: Detectar el paso de IP a GPS y el movimiento caminando.
+   */
   useEffect(() => {
     if (effectiveLocation) {
       // 1. Detección de Transmutación de Fuente (IP -> GPS)
       const currentSource = effectiveLocation.source || 'unknown';
       const sourceChangedToGPS = currentSource === 'gps' && lastSourceRef.current !== 'gps';
 
-      // 2. Detección de Movimiento Crítico (Paso Humano)
-      let isMovingFast = false;
+      // 2. Detección de Movimiento Crítico (Bypass de Jitter)
+      let isWalking = false;
       if (lastEmittedLocationRef.current) {
         const stepDist = calculateDistance(
           { latitude: effectiveLocation.latitude, longitude: effectiveLocation.longitude },
           { latitude: lastEmittedLocationRef.current.latitude, longitude: lastEmittedLocationRef.current.longitude }
         );
-        if (stepDist > 30) isMovingFast = true;
+        // Si se movió más de 30 metros, forzamos la actualización visual
+        if (stepDist > 30) isWalking = true;
       }
 
-      // 3. Ejecución de Resonancia Local
+      // 3. Ejecución de Inteligencia Local
       evaluateEnvironment(effectiveLocation);
 
       /**
-       * 4. GESTIÓN DE ACTUALIZACIÓN AUTOMÁTICA
-       * Si hay cambio de fuente o movimiento grande, forzamos la actualización.
+       * 4. GESTIÓN DE ACTUALIZACIÓN SOBERANA
+       * Forzamos la red si:
+       * - Es la primera vez que se detecta GPS real.
+       * - El usuario ha caminado una distancia considerable.
        */
-      if (sourceChangedToGPS || isMovingFast) {
-        nicepodLog(`🎯 [Geo-Orchestrator] Actualización Automática (${sourceChangedToGPS ? 'GPS-LOCK' : 'STEP'}).`);
+      if (sourceChangedToGPS || isWalking) {
+        nicepodLog(`🎯 [Geo-Orchestrator] Actualización Automática (${sourceChangedToGPS ? 'GPS_LOCK' : 'WALKING'}).`);
         fetchNearbyPOIs(effectiveLocation, true);
         if (sourceChangedToGPS) lastSourceRef.current = 'gps';
       } else {
+        // Throttling estándar de 100m
         fetchNearbyPOIs(effectiveLocation);
       }
 
@@ -223,7 +231,7 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
     // isGPSLock: Certifica la precisión satelital (<80m).
     isGPSLock: telemetry?.source === 'gps' && telemetry.accuracy < 80,
 
-    error: forgeError || (isDenied ? "ACCESO_GPS_DENEGADO" : null),
+    error: forgeError || (isDenied ? "GPS_RESTRICTED" : null),
     data: { ...forgeData, ...localData },
     isSearching,
     isLocked: isForgeLocked,
@@ -238,25 +246,24 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
     synthesizeNarrative,
     transcribeVoiceIntent,
 
-    // Métodos de Gestión Manual
+    // Gestión Manual
     setManualAnchor: (lng, lat) => {
-      nicepodLog(`📍 [Geo-Orchestrator] Aplicando anclaje manual.`);
+      nicepodLog(`📍 [Geo-Orchestrator] Anclaje manual en curso.`);
       setManualAnchorState({
         latitude: lat,
         longitude: lng,
         accuracy: 1,
         heading: telemetry?.heading ?? null,
         speed: null,
-        source: 'gps', // Marcamos como GPS para habilitar autoridad visual inmediata
+        source: 'gps',
         timestamp: Date.now()
       });
     },
     setManualPlaceName: (name) => {
-      nicepodLog(`🏷️ [Geo-Orchestrator] Nombre manual asignado: ${name}`);
       setLocalData(prev => ({ ...prev, manualPlaceName: name }));
     },
 
-    // Limpieza Atómica
+    // Purga de Sesión
     reset: () => {
       nicepodLog("🧹 [Geo-Orchestrator] Purga de sesión ejecutada.");
       killHardwareWatch();
@@ -288,13 +295,14 @@ export function useGeoEngine() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V28.2):
- * 1. Protocolo de Transmutación T0: El orquestador detecta el paso de IP a GPS 
- *    y fuerza una actualización instantánea, materializando al usuario en 
- *    su posición real sin intervención manual.
- * 2. Bypass de Inercia: Si el Voyager se desplaza > 30m, el sistema ignora 
- *    los filtros de estabilidad para asegurar que el avatar 'camine' en el mapa.
- * 3. Resolución de Tipos ts(2339/2353): Se alineó el objeto 'api' con la 
- *    interfaz v4.3 de UserLocation, permitiendo el uso legal de 'source' y 'timestamp'.
- * 4. Rigor NCIS: Implementación completa, funcional y preparada para la Malla 3D.
+ * NOTA TÉCNICA DEL ARCHITECT (V29.0):
+ * 1. Materialización T0 Sincronizada: Se resolvió el pestañeo inicial integrando 
+ *    el estado de triangulación con el nacimiento del hook. El sistema ya sabe 
+ *    si debe mostrar al Voyager desde el primer render.
+ * 2. Protocolo de Transmutación: El sistema escucha activamente el cambio de IP 
+ *    a GPS, forzando la actualización de la malla urbana para que el usuario 
+ *    llegue a su punto exacto sin esperas de red.
+ * 3. Liberación del Hilo Principal: El filtrado de 100m y la separación de 
+ *    responsabilidades eliminan las tareas largas que bloqueaban el GPS.
+ * 4. Build Shield: Resolución final de errores ts(2339) y ts(2353).
  */

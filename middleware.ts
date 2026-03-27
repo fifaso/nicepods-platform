@@ -1,14 +1,14 @@
 // middleware.ts
-// VERSIÓN: 19.0 (NicePod Traffic Control - PWA Purge & Geo-IP Materialization Edition)
-// Misión: Orquestar la identidad atómica y limpiar el canal de datos para el hardware GPS.
-// [ESTABILIZACIÓN]: Bloqueo radical de Service Worker residual y captura de telemetría de red.
+// VERSIÓN: 20.0 (NicePod Traffic Control - PWA Exorcism & Edge Geo-IP Edition)
+// Misión: Orquestar la identidad atómica y limpiar el canal de datos para la telemetría GPS.
+// [ESTABILIZACIÓN]: Erradicación de Service Worker Zombie y captura de malla por IP T0.
 
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 /**
  * EXPORTACIÓN PRINCIPAL: middleware
- * Aduana de seguridad y sensor de red en el Edge de Vercel.
+ * Actúa como la aduana de seguridad y sensor de red en el Edge de Vercel.
  */
 export async function middleware(request: NextRequest) {
   const url = request.nextUrl.clone();
@@ -16,24 +16,22 @@ export async function middleware(request: NextRequest) {
 
   /**
    * 1. [PROTOCOLO DE EXORCISMO]: LIMPIEZA DE RASTRO PWA
-   * Misión: El Service Worker corrupto está bloqueando el hilo del GPS.
-   * Si detectamos peticiones a scripts de PWA, devolvemos 'Tierra Quemada'.
+   * Misión: El Service Worker corrupto bloquea el hilo del GPS con tareas largas (>100ms).
+   * Si detectamos peticiones a scripts de la PWA, forzamos la purga física del navegador.
    */
   if (
     pathname.includes('sw.js') ||
     pathname.includes('workbox-') ||
     pathname.includes('fallback-')
   ) {
-    // 204 No Content: Corta la ejecución del registro del Service Worker inmediatamente.
     const purgeResponse = new NextResponse(null, { status: 204 });
-    // Limpia físicamente el almacenamiento del navegador del Voyager.
+    // Borra físicamente caché, storage y contextos de ejecución obsoletos del dispositivo móvil.
     purgeResponse.headers.set('Clear-Site-Data', '"cache", "storage", "executionContexts"');
     return purgeResponse;
   }
 
   /**
-   * 2. [VACUNA DE ENRUTAMIENTO]: REDIRECCIÓN 308
-   * Saneamos el tráfico obsoleto hacia la nueva Malla Unificada.
+   * 2. [VACUNA DE ENRUTAMIENTO]: REDIRECCIÓN SANEADA (308)
    */
   if (pathname === '/geo' || pathname.startsWith('/geo/')) {
     url.pathname = '/map';
@@ -46,8 +44,8 @@ export async function middleware(request: NextRequest) {
   });
 
   /**
-   * 4. [PROTOCOLO PARACAÍDAS]: CAPTURA GEO-IP DE VERCEL
-   * Misión: Materialización T0. Si el GPS falla, el servidor ya sabe dónde estás.
+   * 4. [PROTOCOLO PARACAÍDAS]: CAPTURA GEO-IP DE VERCEL (T0)
+   * Misión: Materializar al Voyager instantáneamente. Si el hardware falla, usamos la red.
    */
   const vercelLat = request.headers.get('x-vercel-ip-latitude');
   const vercelLng = request.headers.get('x-vercel-ip-longitude');
@@ -61,16 +59,16 @@ export async function middleware(request: NextRequest) {
       source: 'edge-ip'
     });
 
-    // Inyectamos la 'Malla de Rescate' en una cookie de larga duración.
+    // Inyectamos la ubicación estimada en una cookie para el Handshake T0 del Layout.
     response.cookies.set('nicepod-geo-fallback', geoData, {
       path: '/',
-      maxAge: 60 * 60 * 24, // 24 Horas
+      maxAge: 60 * 60, // 1 hora de validez táctica
       sameSite: 'lax',
       secure: process.env.NODE_ENV === 'production'
     });
   }
 
-  // 5. PASILLO DE BYPASS (Aceleración de Activos Estáticos)
+  // 5. PASILLO DE BYPASS (Velocidad para Activos Estáticos)
   if (
     pathname.startsWith('/auth') ||
     pathname.includes('manifest.json') ||
@@ -102,11 +100,12 @@ export async function middleware(request: NextRequest) {
 
   /**
    * 7. VALIDACIÓN ACTIVA DE IDENTIDAD (getUser)
-   * Garantiza que el token sea verificado contra la DB de Auth en cada navegación.
+   * Garantiza que el Voyager sea validado directamente en el metal de Supabase Auth.
+   * Esto aniquila los pestañeos de hidratación al evitar re-direcciones en el cliente.
    */
   const { data: { user } } = await supabase.auth.getUser();
 
-  // --- PERÍMETROS DE ACCESO ---
+  // --- PERÍMETROS DE GOBERNANZA ---
   const isAuthPage = pathname === '/login' || pathname === '/signup';
   const isLandingPage = pathname === '/';
   const isSovereignRoute = pathname.startsWith('/admin') || pathname.startsWith('/theme-test');
@@ -148,13 +147,15 @@ export async function middleware(request: NextRequest) {
 
 /**
  * HELPER: applySecurityHeaders
- * Misión: Blindar la respuesta con directivas de seguridad NCIS.
+ * Misión: Blindar la respuesta con directivas de seguridad industrial.
  */
 function applySecurityHeaders(res: NextResponse): NextResponse {
   res.headers.set('X-Frame-Options', 'DENY');
   res.headers.set('X-Content-Type-Options', 'nosniff');
   res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+  // Permissions-Policy reforzado desde el Edge
+  res.headers.set('Permissions-Policy', 'geolocation=(self), camera=(self), microphone=(self)');
   return res;
 }
 
@@ -168,11 +169,13 @@ export const config = {
 };
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V19.0):
- * 1. Purga Radical de PWA: Se implementó una respuesta 204 para scripts de sw.js. 
- *    Esto detiene los errores de consola y libera los recursos de la CPU 
- *    necesarios para el renderizado 3D y la captura GPS.
- * 2. Malla IP Robusta: La cookie 'nicepod-geo-fallback' es inyectada antes 
- *    de cualquier renderizado, permitiendo que el sistema nazca localizado.
- * 3. Seguridad SSR: Uso de 'getUser' para aniquilar bucles de redirección.
+ * NOTA TÉCNICA DEL ARCHITECT (V20.0):
+ * 1. Purga Radical (Scorched Earth): El uso de 'Clear-Site-Data' en las rutas del 
+ *    Service Worker es nuestra arma definitiva contra el lag de 277ms. Limpia el 
+ *    navegador del usuario y detiene el bucle de error de Workbox al instante.
+ * 2. Malla de Emergencia T0: La captura de Geo-IP headers permite que NicePod 
+ *    muestre la ubicación aproximada del usuario antes de que el GPS físico 
+ *    despierte, eliminando el estado de 'Mapa Vacío'.
+ * 3. Sincronía de Mando: Se utiliza 'getUser' para asegurar que no haya saltos 
+ *    visuales de identidad durante la carga inicial de la Workstation.
  */
