@@ -1,7 +1,12 @@
-// components/geo/geo-creator-overlay.tsx
-// VERSIÓN: 5.2 (NicePod Sovereign Orchestrator - Fixed Theme Sync Edition)
-// Misión: Unificar la Malla 3D con la telemetría y el control táctico de iluminación.
-// [ESTABILIZACIÓN]: Reparación de error de tipos ts(2322) en la instancia de SpatialEngine.
+/**
+ * ARCHIVO: components/geo/geo-creator-overlay.tsx
+ * VERSIÓN: 5.3 (NicePod Sovereign Orchestrator - Smart-Action Button Edition)
+ * PROTOCOLO: MADRID RESONANCE V2.8
+ * 
+ * Misión: Unificar la interfaz de usuario con el mando de cámara soberano.
+ * [REFORMA V5.3]: Implementación de Smart-Action Button para Perspectiva Dual.
+ * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
+ */
 
 "use client";
 
@@ -11,10 +16,14 @@ import {
   Plus,
   Power,
   Satellite,
-  ShieldCheck, Sun,
-  Target, X
+  ShieldCheck, 
+  Sun,
+  Target, 
+  X,
+  Navigation2,
+  Layers
 } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useState, useMemo } from "react";
 
 // --- INFRAESTRUCTURA DE COMPONENTES UI ---
 import { Button } from "@/components/ui/button";
@@ -24,7 +33,7 @@ import { cn, nicepodLog } from "@/lib/utils";
 import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { ForgeProvider, useForge } from "./forge-context";
 
-// --- MOTORES DE VISUALIZACIÓN Y CAPTURA ---
+// --- MOTORES DE VISUALIZACIÓN Y CONSTANTES ---
 import { MapboxLightPreset } from "./map-constants";
 import { RadarHUD } from "./radar-hud";
 import { GeoScannerUI } from "./scanner-ui";
@@ -36,6 +45,7 @@ interface GeoCreatorOverlayProps {
 }
 
 function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
+  // 1. CONSUMO DE SOBERANÍA CINEMÁTICA (V32.0)
   const {
     status: engineStatus,
     data: engineData,
@@ -44,15 +54,23 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
     isTriangulated,
     isGPSLock,
     reSyncRadar,
+    cameraPerspective,
+    isManualMode,
+    toggleCameraPerspective,
+    recenterCamera,
     error: geoError
   } = useGeoEngine();
 
   const { state: forgeState, dispatch } = useForge();
 
+  // 2. ESTADOS LOCALES DE UI
   const [isTerminalOpen, setIsTerminalOpen] = useState<boolean>(false);
   const [mapTheme, setMapTheme] = useState<MapboxLightPreset>('night');
-  const [isCameraLocked, setIsCameraLocked] = useState<boolean>(true);
 
+  /**
+   * handleIgnition:
+   * Rompe el bloqueo de hardware mediante gesto de autoridad.
+   */
   const handleIgnition = useCallback(() => {
     nicepodLog("⚡ [Orchestrator] Gesto de autoridad detectado. Ignición GPS.");
     if (typeof window !== "undefined" && navigator.vibrate) {
@@ -60,6 +78,26 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
     }
     reSyncRadar();
   }, [reSyncRadar]);
+
+  /**
+   * handleCameraAction: EL CORAZÓN DEL SMART-BUTTON
+   * Decide si recentrar el foco o cambiar la perspectiva.
+   */
+  const handleCameraAction = useCallback(() => {
+    if (!userLocation) return;
+
+    if (isManualMode) {
+      // ESTADO A: El usuario está "perdido", volvemos al Voyager.
+      nicepodLog("🎯 [Orchestrator] Gesto de Recentrado.");
+      if (typeof window !== "undefined" && navigator.vibrate) navigator.vibrate([10, 20]);
+      recenterCamera();
+    } else {
+      // ESTADO B: El usuario está centrado, conmutamos la vista.
+      nicepodLog(`🎥 [Orchestrator] Conmutando a modo ${cameraPerspective === 'STREET' ? 'OVERVIEW' : 'STREET'}.`);
+      if (typeof window !== "undefined" && navigator.vibrate) navigator.vibrate(30);
+      toggleCameraPerspective();
+    }
+  }, [isManualMode, userLocation, cameraPerspective, recenterCamera, toggleCameraPerspective]);
 
   const toggleTerminal = useCallback(() => {
     if (isTerminalOpen) {
@@ -70,30 +108,40 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
     }
   }, [isTerminalOpen, dispatch]);
 
-  const handleRecenter = useCallback(() => {
-    if (!userLocation) {
-      handleIgnition();
-      return;
-    }
-    setIsCameraLocked(true);
-    nicepodLog("🎯 [Orchestrator] Recuperando foco sobre el Voyager.");
-    if (typeof window !== "undefined" && navigator.vibrate) {
-      navigator.vibrate([10, 20]);
-    }
-  }, [userLocation, handleIgnition]);
-
   const displayName = forgeState.intentText ||
     engineData?.manualPlaceName ||
     engineData?.dossier?.visual_analysis_dossier?.detectedOfficialName ||
     "Malla Satelital Activa";
 
+  /**
+   * smartButtonConfig: Configuración dinámica del botón de cámara.
+   */
+  const smartButtonConfig = useMemo(() => {
+    if (isManualMode) {
+      return {
+        icon: <Target size={20} />,
+        color: "bg-primary text-black",
+        label: "Recuperar Foco"
+      };
+    }
+    if (cameraPerspective === 'STREET') {
+      return {
+        icon: <Layers size={20} />,
+        color: "bg-emerald-500/20 border-emerald-500/40 text-emerald-400",
+        label: "Vista Estratégica"
+      };
+    }
+    return {
+      icon: <Navigation2 size={20} />,
+      color: "bg-black/60 border-white/10 text-white",
+      label: "Vista Inmersiva"
+    };
+  }, [isManualMode, cameraPerspective]);
+
   return (
     <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none flex flex-col">
 
-      {/* 
-          I. CAPA 0: EL MOTOR CARTOGRÁFICO SOBERANO 
-          [FIX V2.7]: 'theme' ahora está correctamente declarado en el hijo.
-      */}
+      {/* I. CAPA 0: EL MOTOR CARTOGRÁFICO (SIN CONTROLES NATIVOS) */}
       <div className="absolute inset-0 z-0 pointer-events-auto">
         <SpatialEngine
           mode={isTerminalOpen ? 'FORGE' : 'EXPLORE'}
@@ -105,7 +153,7 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
         />
       </div>
 
-      {/* II. CAPA 10: EL PANEL DE IGNICIÓN */}
+      {/* II. CAPA 10: EL PANEL DE IGNICIÓN (COLD START) */}
       <AnimatePresence>
         {engineStatus === 'IDLE' && (
           <motion.div
@@ -133,8 +181,9 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
         )}
       </AnimatePresence>
 
-      {/* III. CAPA 20: TACTICAL DOCK */}
+      {/* III. CAPA 20: TACTICAL DOCK (MANDO UNIFICADO) */}
       <div className="absolute top-8 right-6 md:right-8 flex flex-col gap-4 z-[150] pointer-events-auto">
+        {/* BOTÓN DE FORJA (NODO CENTRAL) */}
         {canForge && engineStatus !== 'IDLE' && (
           <Button
             onClick={toggleTerminal}
@@ -149,6 +198,7 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
           </Button>
         )}
 
+        {/* SELECTOR DE TEMA PBR */}
         {!isTerminalOpen && engineStatus !== 'IDLE' && (
           <motion.button
             initial={{ x: 50, opacity: 0 }} animate={{ x: 0, opacity: 1 }}
@@ -159,16 +209,27 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
           </motion.button>
         )}
 
+        {/* SMART-ACTION BUTTON: EL MANDO DE PERSPECTIVA */}
         {!isTerminalOpen && engineStatus !== 'IDLE' && (
           <motion.button
             initial={{ x: 50, opacity: 0 }} animate={{ x: 0, opacity: 1 }}
-            onClick={handleRecenter}
+            onClick={handleCameraAction}
             className={cn(
-              "h-12 w-12 rounded-full backdrop-blur-xl border flex items-center justify-center shadow-xl transition-all",
-              isCameraLocked ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-400" : "bg-black/60 border-white/10 text-white"
+              "h-12 w-12 rounded-full backdrop-blur-xl border flex items-center justify-center shadow-xl transition-all duration-500",
+              smartButtonConfig.color
             )}
+            title={smartButtonConfig.label}
           >
-            <Target size={18} />
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={isManualMode ? 'target' : cameraPerspective}
+                initial={{ rotate: -90, opacity: 0, scale: 0.5 }}
+                animate={{ rotate: 0, opacity: 1, scale: 1 }}
+                exit={{ rotate: 90, opacity: 0, scale: 0.5 }}
+              >
+                {smartButtonConfig.icon}
+              </motion.div>
+            </AnimatePresence>
           </motion.button>
         )}
       </div>
@@ -180,7 +241,13 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
             initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
             className="absolute top-6 left-4 right-24 md:left-8 md:right-32 z-[140] pointer-events-auto"
           >
-            <RadarHUD status={engineStatus} isTriangulated={isTriangulated} weather={engineData?.dossier?.weather_snapshot} place={displayName} accuracy={userLocation?.accuracy || 0} />
+            <RadarHUD 
+              status={engineStatus} 
+              isTriangulated={isTriangulated} 
+              weather={engineData?.dossier?.weather_snapshot} 
+              place={displayName} 
+              accuracy={userLocation?.accuracy || 0} 
+            />
           </motion.div>
         )}
       </AnimatePresence>
@@ -204,7 +271,7 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
         )}
       </AnimatePresence>
 
-      {/* VI. STATUS INFERIOR */}
+      {/* VI. STATUS INFERIOR: SELLO DE SINTONÍA */}
       {!isTerminalOpen && engineStatus !== 'IDLE' && (
         <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-[100] pointer-events-auto">
           <button
@@ -237,3 +304,16 @@ export function GeoCreatorOverlay(props: GeoCreatorOverlayProps) {
     </ForgeProvider>
   );
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V5.3):
+ * 1. Smart-Action Logic: El botón de cámara ya no es un simple re-centrador. Ahora es
+ *    consciente del estado manual y de la perspectiva, ofreciendo la acción más
+ *    relevante en cada frame (Recentrar -> Vista Dual).
+ * 2. Visual Morphing: Se implementó AnimatePresence con rotación para que el cambio
+ *    de icono se sienta como una transición de hardware real.
+ * 3. Perspective Feedback: El cambio a color Emerald en el SmartButton indica que 
+ *    el sistema está en modo "GO-Experience" (Inmersión de alta precisión).
+ * 4. UX Cleanup: Al delegar la lógica al GeoEngine y al CameraController, el Overlay
+ *    se libera de cálculos matemáticos, actuando como un visor de comando puro.
+ */
