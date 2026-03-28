@@ -1,10 +1,10 @@
-//components/geo/map-constants.ts
 /**
- * NICEPOD V5.2 - MAP CONSTANTS (CINEMATIC STREET-LEVEL EDITION)
+ * ARCHIVO: components/geo/map-constants.ts
+ * VERSIÓN: 5.3 (NicePod Map Assets - Dual-Perspective Sovereignty Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
  * Misión: Centralizar el ADN físico, lumínico y cinemático del motor WebGL.
- * [MEJORA]: Recalibración de perfiles para evitar oclusión por edificios 3D.
+ * [REFORMA V5.3]: Definición de perfiles físicos para STREET y OVERVIEW.
  */
 
 export const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
@@ -25,11 +25,10 @@ export const MADRID_SOL_COORDS = {
 
 /**
  * STREET_VIEW_CONFIG: Configuración base para el nacimiento del mapa.
- * [RECALIBRACIÓN V5.2]: Zoom más profundo y Pitch suavizado para evitar muros.
  */
 export const STREET_VIEW_CONFIG = {
-  zoom: 18.2,      // Incrementado de 17.2 para mayor detalle de calle
-  pitch: 72,       // Reducido de 80 para una perspectiva más natural de horizonte
+  zoom: 18.2,
+  pitch: 72,
   bearing: -15,
 } as const;
 
@@ -51,16 +50,30 @@ export const KINEMATIC_CONFIG = {
 } as const;
 
 /**
- * CAMERA_PROFILES: Comportamientos específicos según el modo de uso.
- * [RECALIBRACIÓN V5.2]: 
- * - NAVIGATE: Pitch de 75° y Offset de 25m para ver "el hueco de la calle".
- * - INSPECT: Enfoque vertical para captura de puntos.
+ * PERSPECTIVE_PROFILES: [NUEVO V5.3] 
+ * Define la física de los dos modos de visión soberanos.
+ */
+export const PERSPECTIVE_PROFILES = {
+  STREET: {
+    zoom: 18.5,
+    pitch: 75,                 // Inmersión profesional (Pokémon GO Style)
+    offset_distance_meters: 25, // Cámara detrás del Voyager
+    bearing_follow: true       // La cámara rota con el usuario
+  },
+  OVERVIEW: {
+    zoom: 15.8,
+    pitch: 0,                  // Vista Cenital Pura (Estratégica)
+    offset_distance_meters: 0,  // Cámara sobre el Voyager
+    bearing_follow: false      // El Norte siempre arriba (Estabilidad)
+  }
+} as const;
+
+/**
+ * CAMERA_PROFILES: Comportamientos según el modo de uso.
  */
 export const CAMERA_PROFILES = {
   NAVIGATE: {
-    zoom: 18.5,
-    pitch: 75,                // Reducido de 82 para evitar oclusión por edificios frontales
-    offset_distance_meters: 25, // Reducido de 30 para mantener la cámara más cerca del eje del Voyager
+    ...PERSPECTIVE_PROFILES.STREET,
     essential: true
   },
   INSPECT: {
@@ -72,8 +85,7 @@ export const CAMERA_PROFILES = {
 } as const;
 
 /**
- * STANDARD_ENGINE_CONFIG: Configuración del motor de renderizado Mapbox Standard.
- * [PROTOCOLO SILENCIO URBANO]: Purga de etiquetas comerciales.
+ * STANDARD_ENGINE_CONFIG: Configuración del motor Mapbox Standard.
  */
 export const STANDARD_ENGINE_CONFIG = {
   lightPreset: ACTIVE_MAP_THEME,
@@ -84,12 +96,11 @@ export const STANDARD_ENGINE_CONFIG = {
 } as const;
 
 /**
- * OCCLUSION_CONFIG: [NUEVO] Protocolo de transparencia adaptativa.
- * Define cómo deben comportarse los edificios frente al Voyager.
+ * OCCLUSION_CONFIG: Protocolo de transparencia adaptativa.
  */
 export const OCCLUSION_CONFIG = {
-  puckOcclusion: 'occluded', // 'occluded' permite que el Voyager se vea a través de muros
-  buildingOpacity: 0.85,     // Suavizado general de la malla de obsidiana
+  puckOcclusion: 'occluded', 
+  buildingOpacity: 0.85,     
 } as const;
 
 export const FOG_CONFIG = {
@@ -116,10 +127,9 @@ export const DEM_SOURCE_CONFIG = {
 
 /**
  * FLY_CONFIG: Parámetros para vuelos balísticos e inter-modales.
- * [AJUSTE V5.2]: Vuelos más cortos (1.8s) para mayor agilidad.
  */
 export const FLY_CONFIG = {
-  duration: 1800, // Reducido de 3200 para transiciones balísticas tácticas
+  duration: 1800,
   essential: true,
   curve: 1.42,
   speed: 1.1,
@@ -129,6 +139,16 @@ export const FLY_CONFIG = {
 export const ZOOM_LEVELS = {
   CITY: 13,
   NEIGHBORHOOD: 15.5,
-  STREET: 18.2, // Sincronizado con STREET_VIEW_CONFIG
+  STREET: 18.2, 
   FORGE: 19.2
 } as const;
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V5.3):
+ * 1. Perspective Duality: Se formaliza PERSPECTIVE_PROFILES para desligar 
+ *    la física de la calle de la física estratégica.
+ * 2. Static Overview: El modo OVERVIEW se fija en Pitch 0 para optimizar 
+ *    la legibilidad de la malla urbana desde el aire.
+ * 3. Contract Alignment: Estos valores serán consumidos por el CameraController
+ *    para ejecutar transiciones líquidas entre ambos estados.
+ */
