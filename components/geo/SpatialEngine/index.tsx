@@ -1,9 +1,11 @@
 /**
- * NICEPOD V7.0 - SPATIAL HUB (ORCHESTRATOR)
+ * ARCHIVO: components/geo/SpatialEngine/index.tsx
+ * VERSIÓN: 7.1 (NicePod Spatial Hub - Unified Command & Real-time Radar Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Orquestar el motor WebGL delegando el movimiento al CameraController.
- * [ESTABILIZACIÓN]: Eliminación de lógica de vuelo redundante y unificación de Smokescreen.
+ * Misión: Orquestar el motor WebGL sincronizando la telemetría con la UI de comando.
+ * [REFORMA V7.1]: Implementación de captura de movimiento activo y sincronía de Radar.
+ * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
@@ -20,7 +22,7 @@ import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { SearchResult } from "@/hooks/use-search-radar";
 import { cn, nicepodLog } from "@/lib/utils";
 
-// --- CONSTANTES DE FÍSICA Y CONTRATOS ---
+// --- CONSTANTES DE FÍSICA Y CONTRATOS V5.3 ---
 import {
   FLY_CONFIG,
   MADRID_SOL_COORDS,
@@ -48,7 +50,7 @@ interface SpatialEngineProps {
 
 export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className }: SpatialEngineProps) {
 
-  // 1. CONSUMO DE TELEMETRÍA SOBERANA (V30.0)
+  // 1. CONSUMO DE SOBERANÍA CINEMÁTICA (V32.0)
   const {
     userLocation,
     nearbyPOIs,
@@ -56,25 +58,23 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
     status: engineStatus,
     initSensors,
     isTriangulated,
-    isGPSLock,
     isIgnited,
-    needsBallisticLanding // Flag central de autoridad
+    needsBallisticLanding,
+    setManualMode // [BLOQUEANTE RESUELTO]: Necesario para el Smart-Button
   } = useGeoEngine();
 
   // 2. REFERENCIAS DE CONTROL
   const mapRef = useRef<MapRef>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // 3. MÁQUINA DE ESTADOS VISUAL
+  // 3. MÁQUINA DE ESTADOS VISUAL (REVELADO)
   const [selectedPOIId, setSelectedPOIId] = useState<string | null>(null);
   const [isSearchLoading, setIsSearchLoading] = useState<boolean>(false);
   const [isContainerReady, setIsContainerReady] = useState<boolean>(false);
   const [isMapLoaded, setIsMapLoaded] = useState<boolean>(false);
-
-  // El mapa se considera asentado tras el primer renderizado exitoso de tiles (onIdle)
   const [isCameraSettled, setIsCameraSettled] = useState<boolean>(false);
 
-  // Ancla para el Radar de Búsqueda
+  // Ancla dinámica para el Radar de Búsqueda (Bóveda NKV)
   const [searchCenter, setSearchCenter] = useState({
     latitude: MADRID_SOL_COORDS.latitude,
     longitude: MADRID_SOL_COORDS.longitude,
@@ -98,12 +98,11 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
   }, []);
 
   /**
-   * 5. AUTO-IGNICIÓN DE CORTESÍA
-   * Se dispara automáticamente si el Engine está en IDLE.
+   * 5. AUTO-IGNICIÓN DE CORTESÍA (V5.0 compliant)
    */
   useEffect(() => {
     if (isContainerReady && !isIgnited && engineStatus === 'IDLE') {
-      nicepodLog("📡 [Orchestrator] Ignición automática de sensores.");
+      nicepodLog("📡 [SpatialHub] Despertando hardware sensorial.");
       initSensors();
     }
   }, [isContainerReady, isIgnited, engineStatus, initSensors]);
@@ -115,30 +114,41 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
     if (isMapLoaded && !isCameraSettled) {
       const rescueTimer = setTimeout(() => {
         if (!isCameraSettled) {
-          nicepodLog("⚠️ [Orchestrator] Timeout de materialización. Revelando Malla.");
+          nicepodLog("⚠️ [SpatialHub] Timeout de materialización. Forzando paso de luz.");
           setIsCameraSettled(true);
         }
-      }, 6000);
+      }, 7000);
       return () => clearTimeout(rescueTimer);
     }
   }, [isMapLoaded, isCameraSettled]);
 
   /**
-   * 7. MANEJADORES DE EVENTOS
+   * 7. MANEJADORES DE EVENTOS SOBERANOS
    */
+
   const handleMapIdle = useCallback(() => {
     if (isMapLoaded && !isCameraSettled) {
       setIsCameraSettled(true);
-      nicepodLog("✨ [Orchestrator] Malla 3D estabilizada.");
+      nicepodLog("✨ [SpatialHub] Malla PBR estabilizada.");
     }
   }, [isMapLoaded, isCameraSettled]);
 
-  const handleMoveEnd = useCallback((event: SafeMapMoveEvent) => {
+  /**
+   * handleMapMove: [MEJORA V7.1]
+   * Sincroniza el centro del radar con la vista actual del usuario.
+   */
+  const handleMapMove = useCallback((event: SafeMapMoveEvent) => {
+    // Actualizamos las coordenadas para la barra de búsqueda
     setSearchCenter({
       latitude: event.viewState.latitude,
       longitude: event.viewState.longitude
     });
-  }, []);
+
+    // Si el movimiento es fruto de un gesto humano, notificamos al GeoEngine
+    if (event.originalEvent) {
+      setManualMode(true);
+    }
+  }, [setManualMode]);
 
   const handleMapClick = useCallback((event: SafeMapClickEvent) => {
     if (mode !== 'FORGE' || !onManualAnchor) return;
@@ -147,7 +157,6 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
     const lngLat: [number, number] = [event.lngLat.lng, event.lngLat.lat];
     onManualAnchor(lngLat);
 
-    // Salto manual imperativo en modo Forja
     mapRef.current?.getMap().jumpTo({
       center: lngLat,
       zoom: ZOOM_LEVELS.FORGE,
@@ -160,6 +169,7 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
     if (results && results.length > 0) {
       const topHit = results[0];
       if (topHit.metadata?.lat && topHit.metadata?.lng && mapRef.current) {
+        setManualMode(true); // El mapa se desplaza a un resultado, entramos en manual
         mapRef.current.flyTo({
           center: [topHit.metadata.lng, topHit.metadata.lat],
           zoom: ZOOM_LEVELS.STREET,
@@ -167,7 +177,7 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
         });
       }
     }
-  }, []);
+  }, [setManualMode]);
 
   const mappedSelectedPOI = useMemo(() => {
     if (!selectedPOIId || !nearbyPOIs?.length) return null;
@@ -201,7 +211,11 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
             className="absolute inset-0 z-[110] bg-[#020202] flex flex-col items-center justify-center space-y-10 pointer-events-auto"
           >
             <div className="relative">
-              <motion.div animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0.6, 0.3] }} transition={{ duration: 3, repeat: Infinity }} className="absolute inset-0 bg-primary/20 blur-3xl rounded-full" />
+              <motion.div 
+                animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0.6, 0.3] }} 
+                transition={{ duration: 3, repeat: Infinity }} 
+                className="absolute inset-0 bg-primary/20 blur-3xl rounded-full" 
+              />
               <Compass className="h-16 w-16 text-primary relative z-10 animate-spin-slow" />
             </div>
 
@@ -227,14 +241,15 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
             selectedPOIId={selectedPOIId}
             onLoad={() => setIsMapLoaded(true)}
             onIdle={handleMapIdle}
-            onMove={() => { }}
-            onMoveEnd={handleMoveEnd}
+            onMove={handleMapMove} // [FIX]: Sincronía activa
+            onMoveEnd={(e) => nicepodLog(`📍 [SpatialHub] Cámara asentada en: ${e.viewState.latitude.toFixed(4)}`)}
             onMapClick={handleMapClick}
             onMarkerClick={(id: string) => {
               if (mode === 'EXPLORE') {
                 setSelectedPOIId(id);
                 const p = nearbyPOIs.find(item => item.id.toString() === id);
                 if (p && mapRef.current) {
+                  setManualMode(true);
                   mapRef.current.flyTo({
                     center: [p.geo_location.coordinates[0], p.geo_location.coordinates[1]],
                     zoom: ZOOM_LEVELS.STREET,
@@ -245,7 +260,7 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
             }}
           />
 
-          {/* EL DIRECTOR DE CÁMARA (Único responsable del movimiento) */}
+          {/* EL DIRECTOR DE CÁMARA (V4.1 compatible) */}
           {mode === 'EXPLORE' && isMapLoaded && (
             <CameraController />
           )}
@@ -283,12 +298,12 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V7.0):
- * 1. Passive Orchestration: Se eliminó la lógica de movimiento local. Ahora el Index
- *    solo reacciona al estado de carga y renderiza los componentes.
- * 2. Ballistic Awareness: El Smokescreen ahora informa al usuario cuando el sistema
- *    está realizando el "Aterrizaje Satelital" (needsBallisticLanding).
- * 3. Hot-Swap Nativo: El MapCore nace con las coordenadas del GeoEngine (IP o GPS),
- *    y el CameraController toma el mando inmediatamente después del onLoad.
- * 4. Build Shield: Tipado estricto de eventos y refs garantizado.
+ * NOTA TÉCNICA DEL ARCHITECT (V7.1):
+ * 1. Manual Mode Bridge: Se conectó handleMapMove con setManualMode(true) para que el
+ *    botón de UI reaccione instantáneamente cuando el usuario desplaza el mapa.
+ * 2. Real-time Radar: El searchCenter ahora se actualiza en cada frame de movimiento,
+ *    garantizando que la UnifiedSearchBar siempre sepa qué zona está viendo el Voyager.
+ * 3. Event Integrity: Se utiliza event.originalEvent para distinguir entre movimientos
+ *    automáticos (flyTo) y movimientos de usuario (Pan/Zoom).
+ * 4. UX Consistency: Se unificó el Smokescreen para informar sobre el estado balístico.
  */
