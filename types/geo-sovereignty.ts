@@ -1,10 +1,11 @@
 /**
- * NICEPOD V5.0 - GEO-SOVEREIGNTY (THE CONSTITUTION)
+ * ARCHIVO: types/geo-sovereignty.ts
+ * VERSIÓN: 6.0 (NicePod V2.8 - Universal Control & Perspective Sovereignty Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Centralizar el contrato de identidad de los activos físicos y la telemetría.
- * [SELLADO]: Inyección de metadatos para Aterrizaje Balístico e Ignición Proactiva.
- * Resolución final de fractura de Build Shield (ts2339/ts2353).
+ * Misión: Centralizar el contrato de identidad, telemetría y control de perspectiva.
+ * [SELLADO]: Inyección de estados de perspectiva dual y flags de modo manual.
+ * Resolución de soberanía visual para la eliminación de controles nativos.
  */
 
 /**
@@ -15,7 +16,7 @@
 
 /**
  * GeoPoint: Representación inmutable de una ubicación en el espacio esférico.
- * [MANDATO NCIS]: Longitud primero para Mapbox/PostGIS.
+ * [MANDATO NCIS]: Longitud primero para cumplimiento con Mapbox GL JS y PostGIS.
  */
 export interface GeoPoint {
   type: 'Point';
@@ -71,6 +72,13 @@ export type GeoEngineState =
   | 'NARRATIVE_READY'
   | 'CONFLICT'
   | 'REJECTED';
+
+/**
+ * CameraPerspective: Define los dos modos de visualización profesional.
+ * - STREET: Inmersión 75°, Zoom 18.5 (Estilo Pokémon GO).
+ * - OVERVIEW: Vista Cenital 0°, Zoom 16 (Estilo Satélite/Estratégico).
+ */
+export type CameraPerspective = 'STREET' | 'OVERVIEW';
 
 /**
  * ---------------------------------------------------------------------------
@@ -139,36 +147,54 @@ export interface GeoContextData {
 
 /**
  * GeoEngineReturn: La firma pública que el hook useGeoEngine entrega a la UI.
- * [FIX V5.0]: Integración de Ballistic Protocol y Proactive Ignition.
+ * [REFORMA V6.0]: Integración de Soberanía de Perspectiva y Mando de Cámara.
  */
 export interface GeoEngineReturn {
+  // Estados de Sensor y Red
   status: GeoEngineState;
   data: GeoContextData;
   userLocation: UserLocation | null;
-  activePOI: ActivePOI | null;
   nearbyPOIs: PointOfInterest[];
+  activePOI: ActivePOI | null;
   isSearching: boolean;
   isLocked: boolean;
   error: string | null;
 
-  // --- CAPACIDADES DE SOBERANÍA V5.0 ---
-
-  /** isIgnited: Indica si el hardware GPS está encendido y el singleton activo. */
+  // --- CAPACIDADES DE SOBERANÍA V6.0 ---
+  
+  /** isIgnited: Hardware GPS activo y singleton bloqueado. */
   isIgnited: boolean;
 
-  /** isTriangulated: El sistema tiene una ubicación inicial (IP o GPS). */
+  /** isTriangulated: Ubicación inicial disponible. */
   isTriangulated: boolean;
-
-  /** isGPSLock: El hardware ha certificado precisión de calle (<80m). */
+  
+  /** isGPSLock: Precisión certificada de alta fidelidad (<80m). */
   isGPSLock: boolean;
 
-  /** needsBallisticLanding: Disparador para que la cámara ejecute flyTo cinematográfico. */
+  /** needsBallisticLanding: Disparador de vuelo cinematográfico inicial. */
   needsBallisticLanding: boolean;
 
-  /** confirmLanding: Callback para cerrar el ciclo de vuelo y volver al motor LERP. */
+  /** confirmLanding: Cierre de ciclo de vuelo balístico. */
   confirmLanding: () => void;
 
-  // Métodos de Control
+  // --- NUEVA GOBERNANZA DE CÁMARA (V6.0) ---
+
+  /** cameraPerspective: El modo actual de visión (STREET vs OVERVIEW). */
+  cameraPerspective: CameraPerspective;
+
+  /** isManualMode: Indica si el usuario ha desplazado el mapa manualmente (Fuera de foco). */
+  isManualMode: boolean;
+
+  /** toggleCameraPerspective: Conmuta entre vista de calle y vista cenital. */
+  toggleCameraPerspective: () => void;
+
+  /** setManualMode: Informa al motor si el usuario está interactuando. */
+  setManualMode: (active: boolean) => void;
+
+  /** recenterCamera: Fuerza el regreso inmediato al Voyager. */
+  recenterCamera: () => void;
+
+  // Métodos de Control Tradicionales
   initSensors: () => void;
   setTriangulated: () => void;
   setManualAnchor: (lng: number, lat: number) => void;
@@ -230,10 +256,11 @@ export interface POICategory {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V5.0):
- * 1. Build Shield Restoration: La adición de isIgnited, needsBallisticLanding 
- *    y confirmLanding sana la fractura comunicacional entre el GeoEngine y 
- *    los controladores visuales (CameraController/SpatialEngine).
- * 2. Contract Integrity: Se mantienen los flujos multimodales y la topología 
- *    PostGIS intactos para asegurar compatibilidad con la Bóveda NKV.
+ * NOTA TÉCNICA DEL ARCHITECT (V6.0):
+ * 1. Control de Perspectiva: Se añade CameraPerspective para diferenciar los 
+ *    perfiles físicos de renderizado (Inmersión vs Estrategia).
+ * 2. Manual Mode Awareness: El flag isManualMode permite al UI reaccionar 
+ *    cuando el usuario se "pierde" en el mapa, habilitando el botón de Recentrar.
+ * 3. Unified Authority: Los métodos toggleCameraPerspective y recenterCamera
+ *    centralizan el mando visual, permitiendo la purga de controles nativos.
  */
