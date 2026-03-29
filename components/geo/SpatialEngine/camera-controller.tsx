@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/camera-controller.tsx
- * VERSIÓN: 4.1 (NicePod Camera Director - Dynamic Perspective Edition)
+ * VERSIÓN: 4.2 (NicePod Camera Director - Contextual Morphing Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Gestionar la cámara WebGL imperativamente con soporte para Perspectiva Dual.
- * [REFORMA V4.1]: Implementación de interpolación de Pitch/Zoom y sincronía de Modo Manual.
+ * Misión: Gestionar la cámara WebGL con transiciones de perspectiva inteligentes.
+ * [REFORMA V4.2]: Sincronía con ADN V5.4 (Overview Context vs Street Immersion).
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -23,7 +23,7 @@ import { useMap } from "react-map-gl/mapbox";
 import {
   PERSPECTIVE_PROFILES,
   FLY_CONFIG,
-  STREET_VIEW_CONFIG,
+  INITIAL_OVERVIEW_CONFIG,
   KINEMATIC_CONFIG
 } from "../map-constants";
 
@@ -34,7 +34,7 @@ export function CameraController() {
   // 1. CONEXIÓN CON EL MOTOR WEBGL SOBERANO
   const { current: mapInstance } = useMap();
 
-  // 2. CONSUMO DE TELEMETRÍA Y MANDO CINEMÁTICO (V32.0)
+  // 2. CONSUMO DE SOBERANÍA CINEMÁTICA (V32.0)
   const {
     userLocation,
     needsBallisticLanding,
@@ -45,11 +45,11 @@ export function CameraController() {
   } = useGeoEngine();
 
   // 3. MEMORIA TÉCNICA (REFS DE ALTA VELOCIDAD)
-  // Usamos Refs para mantener la suavidad de 60FPS sin disparar re-renders de React.
+  // Inicializamos con INITIAL_OVERVIEW_CONFIG para garantizar estabilidad en el Dashboard (Imagen 10)
   const currentPosRef = useRef<KinematicPosition | null>(null);
-  const currentBearingRef = useRef<number>(STREET_VIEW_CONFIG.bearing);
-  const currentPitchRef = useRef<number>(STREET_VIEW_CONFIG.pitch);
-  const currentZoomRef = useRef<number>(STREET_VIEW_CONFIG.zoom);
+  const currentBearingRef = useRef<number>(INITIAL_OVERVIEW_CONFIG.bearing);
+  const currentPitchRef = useRef<number>(INITIAL_OVERVIEW_CONFIG.pitch);
+  const currentZoomRef = useRef<number>(INITIAL_OVERVIEW_CONFIG.zoom);
   
   const isFlyingRef = useRef<boolean>(false);
   const lastInteractionRef = useRef<number>(0);
@@ -57,18 +57,18 @@ export function CameraController() {
 
   /**
    * handleUserInteraction:
-   * Sincroniza el estado manual local con el orquestador global.
+   * Notifica al sistema que el Voyager ha tomado el control manual.
    */
   const handleUserInteraction = useCallback(() => {
     lastInteractionRef.current = Date.now();
     if (!isManualMode) {
-      setManualMode(true); // Informamos al GeoEngine que el usuario tiene el mando
+      setManualMode(true);
     }
   }, [isManualMode, setManualMode]);
 
   /**
    * kinematicLoop: EL CORAZÓN DEL MOVIMIENTO LÍQUIDO
-   * Gestiona la interpolación de todas las variables físicas del visor.
+   * Interpola Posición, Rumbo, Pitch y Zoom a 60FPS.
    */
   const kinematicLoop = useCallback(() => {
     if (!mapInstance || !userLocation) {
@@ -78,8 +78,7 @@ export function CameraController() {
 
     const map = mapInstance.getMap();
 
-    // A. PROTOCOLO DE RECONQUISTA DE FOCO (Automatic Recenter)
-    // Si pasan 8 segundos sin interacción, el GeoEngine recuperará el control.
+    // A. PROTOCOLO DE RECONQUISTA DE FOCO
     const now = Date.now();
     if (isManualMode && (now - lastInteractionRef.current > 8000)) {
       nicepodLog("🎯 [Camera-Director] Timeout de inactividad. Recuperando autoridad.");
@@ -92,11 +91,12 @@ export function CameraController() {
       return;
     }
 
-    // C. OBTENCIÓN DEL PERFIL DE PERSPECTIVA (STREET vs OVERVIEW)
+    // C. OBTENCIÓN DEL PERFIL ACTIVO (V5.4)
     const profile = PERSPECTIVE_PROFILES[cameraPerspective];
 
     // D. INTERPOLACIÓN CINEMÁTICA (LERP)
-    // 1. Posición
+    
+    // 1. Posición Geográfica
     const targetPos: KinematicPosition = {
       latitude: userLocation.latitude,
       longitude: userLocation.longitude
@@ -108,26 +108,29 @@ export function CameraController() {
     }
 
     // 2. Rumbo (Bearing)
+    // STREET: Sigue al usuario | OVERVIEW: Siempre al Norte (0)
     const targetBearing = profile.bearing_follow 
       ? (userLocation.heading ?? currentBearingRef.current)
-      : 0; // En Overview el Norte siempre está arriba para estabilidad estratégica.
+      : 0; 
     currentBearingRef.current = interpolateAngle(currentBearingRef.current, targetBearing);
 
     // 3. Inclinación (Pitch)
+    // Morfismo suave hacia el pitch del perfil (0 para Overview, 75 para Street)
     currentPitchRef.current += (profile.pitch - currentPitchRef.current) * KINEMATIC_CONFIG.LERP_FACTOR;
 
     // 4. Escala (Zoom)
+    // Morfismo suave hacia el zoom del perfil
     currentZoomRef.current += (profile.zoom - currentZoomRef.current) * KINEMATIC_CONFIG.LERP_FACTOR;
 
-    // E. CÁLCULO DEL OFFSET DE SEGUIMIENTO (PRO-VIEW)
-    // Calculamos el ancla de la cámara basándonos en el offset del perfil activo.
+    // E. CÁLCULO DEL OFFSET DINÁMICO
+    // En Overview el offset es 0 (centrado), en Street es 25m (detrás).
     const cameraAnchor = calculateDestinationPoint(
       currentPosRef.current,
       -profile.offset_distance_meters, 
       currentBearingRef.current
     );
 
-    // F. EJECUCIÓN IMPERATIVA SOBRE LA GPU
+    // F. EJECUCIÓN IMPERATIVA SOBRE EL METAL
     map.jumpTo({
       center: [cameraAnchor.longitude, cameraAnchor.latitude],
       bearing: currentBearingRef.current,
@@ -139,8 +142,8 @@ export function CameraController() {
   }, [mapInstance, userLocation, cameraPerspective, isManualMode, setManualMode]);
 
   /**
-   * EFECTO: ORQUESTACIÓN DE VUELO BALÍSTICO
-   * Se activa para el Aterrizaje Inicial o para el Recentrado Forzado.
+   * EFECTO: ORQUESTACIÓN DE VUELO BALÍSTICO (IP -> GPS)
+   * Se dispara al inicio o al pulsar el botón de Recentrar.
    */
   useEffect(() => {
     if (needsBallisticLanding && mapInstance && userLocation && !isFlyingRef.current) {
@@ -150,7 +153,7 @@ export function CameraController() {
       nicepodLog(`🚀 [Camera-Director] Iniciando Vuelo Balístico (${cameraPerspective}).`);
       isFlyingRef.current = true;
 
-      // Sincronización de referencias antes de soltar el LERP
+      // Sincronización de referencias para evitar tirones post-vuelo
       currentPosRef.current = {
         latitude: userLocation.latitude,
         longitude: userLocation.longitude
@@ -165,9 +168,9 @@ export function CameraController() {
       });
 
       map.once('moveend', () => {
-        nicepodLog("🏁 [Camera-Director] Vuelo finalizado. Malla anclada.");
+        nicepodLog("🏁 [Camera-Director] Aterrizaje completado.");
         isFlyingRef.current = false;
-        // Sincronizamos las refs de pitch y zoom con el resultado del vuelo
+        // Actualizamos las refs para que el LERP herede la posición exacta del flyTo
         currentPitchRef.current = profile.pitch;
         currentZoomRef.current = profile.zoom;
         confirmLanding();
@@ -176,7 +179,7 @@ export function CameraController() {
   }, [needsBallisticLanding, mapInstance, userLocation, cameraPerspective, confirmLanding]);
 
   /**
-   * CICLO DE VIDA: Gestión de Eventos del Canvas
+   * CICLO DE VIDA: Gestión de Eventos del Canvas y Motor de Frames
    */
   useEffect(() => {
     animationFrameRef.current = requestAnimationFrame(kinematicLoop);
@@ -202,13 +205,13 @@ export function CameraController() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V4.1):
- * 1. Perspective Morphing: El controlador ahora interpola dinámicamente Pitch y Zoom, 
- *    haciendo que el cambio entre STREET y OVERVIEW sea cinematográfico.
- * 2. Manual Mode Handshake: Se integra el callback setManualMode(true) para que el
- *    GeoEngine y el Overlay sepan cuándo el usuario ha tomado el mando.
- * 3. Strategic Stability: En modo OVERVIEW, se fuerza bearing: 0 (Norte arriba) 
- *    para facilitar la lectura del mapa táctico, rompiendo el LERP de giro.
- * 4. Loop Protection: Se sincronizan las refs de Pitch/Zoom post-vuelo balístico 
- *    para evitar el "rebote visual" al retomar el motor líquido.
+ * NOTA TÉCNICA DEL ARCHITECT (V4.2):
+ * 1. Contextual Morphing: El controlador ahora interpola dinámicamente Pitch y Zoom
+ *    al cambiar entre el Dashboard (Cenital) y el Mapa (Inmersión).
+ * 2. Building Escape: Se recalibraron los límites de Pitch (V5.4) para asegurar 
+ *    que la cámara nunca quede atrapada dentro de mallas 3D (Imagen 11).
+ * 3. Strategic Bearing: En modo OVERVIEW, se ignora el giro del usuario para 
+ *    mantener la legibilidad estratégica de los nombres de las calles.
+ * 4. Zero-Wait Ready: La inicialización de refs con INITIAL_OVERVIEW_CONFIG 
+ *    elimina el pestañeo negro en el primer renderizado del Dashboard.
  */
