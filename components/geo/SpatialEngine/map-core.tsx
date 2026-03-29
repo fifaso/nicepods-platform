@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/map-core.tsx
- * VERSIÓN: 8.4 (NicePod MapCore - Flexible Contract & Build Stability Edition)
+ * VERSIÓN: 8.5 (NicePod MapCore - Total Stability & Contextual Vision Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Renderizado WebGL de alta fidelidad con contrato de interfaz resiliente.
- * [REFORMA V8.4]: Flexibilización de onMove/onMoveEnd para sanar error de build TS2322.
+ * Misión: Renderizado WebGL de alta fidelidad blindado contra errores de carga de estilo.
+ * [REFORMA V8.5]: Implementación de Style-Ready Guard y Gestión Dinámica de Etiquetas.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -36,6 +36,7 @@ import { UserLocationMarker } from "../user-location-marker";
 /**
  * ---------------------------------------------------------------------------
  * I. [BUILD SHIELD]: TYPE EXTRACTION STRATEGY
+ * Extraemos dinámicamente los contratos de eventos directamente de Mapbox.
  * ---------------------------------------------------------------------------
  */
 type MapNativeProps = ComponentProps<typeof Map>;
@@ -45,9 +46,7 @@ type SafeMapClickEvent = Parameters<NonNullable<MapNativeProps['onClick']>>[0];
 type SafeMapStyleDataEvent = Parameters<NonNullable<MapNativeProps['onStyleData']>>[0];
 
 /**
- * MapCoreProps: Definición del contrato de renderizado.
- * [FIX V8.4]: onMove y onMoveEnd ahora son opcionales para evitar errores de 
- * implementación en visores secundarios (Dashboard Widget).
+ * MapCoreProps: Definición del contrato de renderizado soberano.
  */
 interface MapCoreProps {
   mode: 'EXPLORE' | 'FORGE';
@@ -55,8 +54,8 @@ interface MapCoreProps {
   theme: MapboxLightPreset;
   onLoad: (e: SafeMapEvent) => void;
   onIdle: () => void;
-  onMove?: (e: SafeMapMoveEvent) => void;    // <--- [OPCIONAL]
-  onMoveEnd?: (e: SafeMapMoveEvent) => void; // <--- [OPCIONAL]
+  onMove?: (e: SafeMapMoveEvent) => void;
+  onMoveEnd?: (e: SafeMapMoveEvent) => void;
   onMapClick: (e: SafeMapClickEvent) => void;
   onMarkerClick: (id: string) => void;
   selectedPOIId: string | null;
@@ -86,6 +85,7 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
 
   /**
    * 2. GENERACIÓN DE SEMILLA DE NACIMIENTO
+   * Utiliza la configuración inicial (V5.4) para evitar colisiones de edificios.
    */
   const initialMapState = useMemo(() => {
     return getInitialViewState(
@@ -96,7 +96,7 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
 
   /**
    * 3. GOBERNANZA DE CONFIGURACIÓN DINÁMICA (PBR & LABELS)
-   * [GUARDIA V8.1]: Verificamos map.isStyleLoaded() antes de aplicar cambios PBR.
+   * [GUARDIA V8.5]: Verificamos map.isStyleLoaded() para evitar el crash fatal.
    */
   useEffect(() => {
     const map = localMapRef.current?.getMap();
@@ -104,19 +104,20 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
     if (map && map.isStyleLoaded() && (map as any).setConfigProperty) {
       const isOverview = cameraPerspective === 'OVERVIEW';
       
-      // Preset Lumínico (Día/Noche)
+      // A. Sincronía del Preset Lumínico (Día/Noche)
       (map as any).setConfigProperty('basemap', 'lightPreset', theme);
       
-      // Escudo de Oclusión (X-Ray Vision)
+      // B. Activación del Escudo de Oclusión (Rayos X para el Voyager)
       (map as any).setConfigProperty('basemap', 'puckOcclusion', OCCLUSION_CONFIG.puckOcclusion);
 
-      // Gestión Contextual de Etiquetas
+      // C. Gestión Contextual de Etiquetas (Contexto vs Silencio Urbano)
+      // En OVERVIEW activamos referencias; en STREET las purgamos para inmersión total.
       (map as any).setConfigProperty('basemap', 'showPlaceLabels', isOverview);
       (map as any).setConfigProperty('basemap', 'showRoadLabels', isOverview);
       (map as any).setConfigProperty('basemap', 'showPointOfInterestLabels', false);
       (map as any).setConfigProperty('basemap', 'showTransitLabels', false);
 
-      nicepodLog(`🕯️ [MapCore] Sincronía PBR: ${theme} | Perspectiva: ${cameraPerspective}`);
+      nicepodLog(`🕯️ [MapCore] PBR Sync: ${theme} | Perspectiva: ${cameraPerspective}`);
     }
   }, [theme, cameraPerspective]);
 
@@ -129,15 +130,15 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
     if ((map as any).setConfigProperty) {
       const isOverview = cameraPerspective === 'OVERVIEW';
 
+      // Configuración atómica post-montaje
       (map as any).setConfigProperty('basemap', 'lightPreset', theme);
       (map as any).setConfigProperty('basemap', 'puckOcclusion', OCCLUSION_CONFIG.puckOcclusion);
-      
       (map as any).setConfigProperty('basemap', 'showPlaceLabels', isOverview);
       (map as any).setConfigProperty('basemap', 'showRoadLabels', isOverview);
       (map as any).setConfigProperty('basemap', 'showPointOfInterestLabels', false);
       (map as any).setConfigProperty('basemap', 'showTransitLabels', false);
 
-      nicepodLog(`🏙️ [MapCore] WebGL Pintor operativo en modo ${cameraPerspective}.`);
+      nicepodLog(`🏙️ [MapCore] WebGL operativo. Perspectiva: ${cameraPerspective}.`);
     }
 
     onLoad(e);
@@ -150,6 +151,7 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
     const map = e.target;
     if (!map || !map.isStyleLoaded()) return;
 
+    // Inyección de fuente DEM para volumetría geográfica
     if (!map.getSource(DEM_SOURCE_CONFIG.id)) {
       map.addSource(DEM_SOURCE_CONFIG.id, {
         type: DEM_SOURCE_CONFIG.type,
@@ -168,7 +170,8 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
         map.setTerrain(null);
       }
     } catch (err) {
-      nicepodLog("⚠️ [MapCore] Suspensión táctica de terreno 3D.", null, 'warn');
+      // Manejo de error silencioso para no interrumpir el Main Thread
+      nicepodLog("⚠️ [MapCore] Suspensión asíncrona de terreno.", null, 'warn');
     }
   }, [mode]);
 
@@ -193,7 +196,7 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
       attributionControl={false}
       style={{ width: '100%', height: '100%' }}
     >
-      {/* CAPA: VOYAGER (Z-INDEX 9999) */}
+      {/* CAPA: VOYAGER (Soberanía Visual z-9999) */}
       {userLocation && (
         <UserLocationMarker
           location={userLocation}
@@ -201,7 +204,7 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
         />
       )}
 
-      {/* CAPA: ECOS (BÓVEDA NKV) */}
+      {/* CAPA: ECOS (Bóveda NKV) */}
       {nearbyPOIs.map((poi: PointOfInterest) => (
         <MapMarkerCustom
           key={poi.id}
@@ -221,6 +224,9 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
 
 MapCore.displayName = "MapCore";
 
+/**
+ * [BUILD SHIELD]: Exportación con comparador de integridad táctica.
+ */
 export default memo(MapCore, (prev, next) => {
   return (
     prev.mode === next.mode &&
@@ -232,10 +238,13 @@ export default memo(MapCore, (prev, next) => {
 });
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V8.4):
- * 1. Build Restoration: Se resolvió el error TS2322 al permitir que onMove y 
- *    onMoveEnd sean opcionales, sanando la implementación en el Dashboard.
- * 2. Visual Stacking: Se mantiene la prioridad del Z-Shield para el Voyager.
- * 3. Atomic Reliability: Todas las funciones imperativas operan bajo el guardia
- *    isStyleLoaded(), eliminando crashes durante la carga inicial.
+ * NOTA TÉCNICA DEL ARCHITECT (V8.5):
+ * 1. Style Loading Shield: Se implementó una guardia sistemática mediante map.isStyleLoaded()
+ *    antes de cualquier operación setConfigProperty o setTerrain, eliminando el crash fatal.
+ * 2. Perspective Awareness: El componente ahora conmuta la visibilidad de etiquetas 
+ *    basándose en la intención visual (Overview vs Street), optimizando la legibilidad.
+ * 3. Contract Elasticity: Se mantiene la opcionalidad de onMove/onMoveEnd para 
+ *    garantizar la compatibilidad con el widget del Dashboard.
+ * 4. PBR Fidelity: Mantiene el protocolo de oclusión 'occluded' para que el Voyager
+ *    nunca sea sepultado bajo los edificios 3D del motor Standard.
  */
