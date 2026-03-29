@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/camera-controller.tsx
- * VERSIÓN: 4.2 (NicePod Camera Director - Contextual Morphing Edition)
+ * VERSIÓN: 4.3 (NicePod Camera Director - Recursive Ballistics Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Gestionar la cámara WebGL con transiciones de perspectiva inteligentes.
- * [REFORMA V4.2]: Sincronía con ADN V5.4 (Overview Context vs Street Immersion).
+ * Misión: Gestionar la cámara WebGL con transiciones de autoridad y perspectiva dual.
+ * [REFORMA V4.3]: Implementación de Vuelos Recurrentes y Bloqueo de Interferencia LERP.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -15,6 +15,7 @@ import {
   calculateDestinationPoint,
   interpolateAngle,
   interpolateCoords,
+  lerpSimple,
   KinematicPosition
 } from "@/lib/geo-kinematics";
 import { nicepodLog } from "@/lib/utils";
@@ -28,13 +29,14 @@ import {
 } from "../map-constants";
 
 /**
- * CameraController: El Director de Fotografía imperativo.
+ * CameraController: El brazo ejecutor de la soberanía visual.
+ * Manipula directamente la instancia de Mapbox a 60FPS fuera del ciclo de React.
  */
 export function CameraController() {
   // 1. CONEXIÓN CON EL MOTOR WEBGL SOBERANO
   const { current: mapInstance } = useMap();
 
-  // 2. CONSUMO DE SOBERANÍA CINEMÁTICA (V32.0)
+  // 2. CONSUMO DE MANDO CINEMÁTICO (V33.0)
   const {
     userLocation,
     needsBallisticLanding,
@@ -44,8 +46,8 @@ export function CameraController() {
     setManualMode
   } = useGeoEngine();
 
-  // 3. MEMORIA TÉCNICA (REFS DE ALTA VELOCIDAD)
-  // Inicializamos con INITIAL_OVERVIEW_CONFIG para garantizar estabilidad en el Dashboard (Imagen 10)
+  // 3. MEMORIA TÉCNICA (REFS DE ALTA PRECISIÓN)
+  // Inicializamos con la verdad cenital para asegurar estabilidad en Dashboard.
   const currentPosRef = useRef<KinematicPosition | null>(null);
   const currentBearingRef = useRef<number>(INITIAL_OVERVIEW_CONFIG.bearing);
   const currentPitchRef = useRef<number>(INITIAL_OVERVIEW_CONFIG.pitch);
@@ -57,7 +59,7 @@ export function CameraController() {
 
   /**
    * handleUserInteraction:
-   * Notifica al sistema que el Voyager ha tomado el control manual.
+   * Sincroniza la acción táctica del Voyager con el GeoEngine.
    */
   const handleUserInteraction = useCallback(() => {
     lastInteractionRef.current = Date.now();
@@ -67,8 +69,8 @@ export function CameraController() {
   }, [isManualMode, setManualMode]);
 
   /**
-   * kinematicLoop: EL CORAZÓN DEL MOVIMIENTO LÍQUIDO
-   * Interpola Posición, Rumbo, Pitch y Zoom a 60FPS.
+   * kinematicLoop: EL CORAZÓN DE LA NAVEGACIÓN LÍQUIDA
+   * Ejecuta el desplazamiento y morfismo de perspectiva frame a frame.
    */
   const kinematicLoop = useCallback(() => {
     if (!mapInstance || !userLocation) {
@@ -78,25 +80,26 @@ export function CameraController() {
 
     const map = mapInstance.getMap();
 
-    // A. PROTOCOLO DE RECONQUISTA DE FOCO
+    // A. PROTOCOLO DE RECUPERACIÓN DE AUTORIDAD (8 segundos)
     const now = Date.now();
     if (isManualMode && (now - lastInteractionRef.current > 8000)) {
-      nicepodLog("🎯 [Camera-Director] Timeout de inactividad. Recuperando autoridad.");
+      nicepodLog("🎯 [Camera-Director] Inactividad detectada. Recuperando autoridad.");
       setManualMode(false);
     }
 
-    // B. GUARDAS DE SILENCIO (MANUAL O VUELO ACTIVO)
+    // B. GUARDA DE VUELO Y CONTROL MANUAL
+    // Si estamos en medio de un flyTo balístico o el usuario mueve el mapa, silenciamos el LERP.
     if (isManualMode || isFlyingRef.current) {
       animationFrameRef.current = requestAnimationFrame(kinematicLoop);
       return;
     }
 
-    // C. OBTENCIÓN DEL PERFIL ACTIVO (V5.4)
+    // C. PERFIL DE PERSPECTIVA ACTIVO (V5.4)
     const profile = PERSPECTIVE_PROFILES[cameraPerspective];
 
-    // D. INTERPOLACIÓN CINEMÁTICA (LERP)
+    // D. MOTOR LERP MULTI-VARIABLE (60FPS)
     
-    // 1. Posición Geográfica
+    // 1. Posicionamiento (Coordenadas)
     const targetPos: KinematicPosition = {
       latitude: userLocation.latitude,
       longitude: userLocation.longitude
@@ -107,30 +110,27 @@ export function CameraController() {
       currentPosRef.current = interpolateCoords(currentPosRef.current, targetPos);
     }
 
-    // 2. Rumbo (Bearing)
-    // STREET: Sigue al usuario | OVERVIEW: Siempre al Norte (0)
+    // 2. Orientación (Bearing)
+    // STREET: Brújula activa | OVERVIEW: Norte Fijo (0)
     const targetBearing = profile.bearing_follow 
       ? (userLocation.heading ?? currentBearingRef.current)
       : 0; 
     currentBearingRef.current = interpolateAngle(currentBearingRef.current, targetBearing);
 
-    // 3. Inclinación (Pitch)
-    // Morfismo suave hacia el pitch del perfil (0 para Overview, 75 para Street)
-    currentPitchRef.current += (profile.pitch - currentPitchRef.current) * KINEMATIC_CONFIG.LERP_FACTOR;
+    // 3. Inclinación y Escala (Pitch & Zoom)
+    // Aplicamos lerpSimple para un morfismo suave de la lente.
+    currentPitchRef.current = lerpSimple(currentPitchRef.current, profile.pitch);
+    currentZoomRef.current = lerpSimple(currentZoomRef.current, profile.zoom);
 
-    // 4. Escala (Zoom)
-    // Morfismo suave hacia el zoom del perfil
-    currentZoomRef.current += (profile.zoom - currentZoomRef.current) * KINEMATIC_CONFIG.LERP_FACTOR;
-
-    // E. CÁLCULO DEL OFFSET DINÁMICO
-    // En Overview el offset es 0 (centrado), en Street es 25m (detrás).
+    // E. CÁLCULO DEL ANCLA CINEMÁTICA (Follow-Offset)
     const cameraAnchor = calculateDestinationPoint(
       currentPosRef.current,
       -profile.offset_distance_meters, 
       currentBearingRef.current
     );
 
-    // F. EJECUCIÓN IMPERATIVA SOBRE EL METAL
+    // F. INYECCIÓN IMPERATIVA EN GPU
+    // Usamos jumpTo para máxima fidelidad con el cálculo del LERP local.
     map.jumpTo({
       center: [cameraAnchor.longitude, cameraAnchor.latitude],
       bearing: currentBearingRef.current,
@@ -142,18 +142,19 @@ export function CameraController() {
   }, [mapInstance, userLocation, cameraPerspective, isManualMode, setManualMode]);
 
   /**
-   * EFECTO: ORQUESTACIÓN DE VUELO BALÍSTICO (IP -> GPS)
-   * Se dispara al inicio o al pulsar el botón de Recentrar.
+   * EFECTO: ORQUESTACIÓN DE VUELO BALÍSTICO RECURRENTE
+   * [MEJORA V4.3]: Se dispara cada vez que needsBallisticLanding es true.
+   * Resuelve el recentrado profesional y el salto inicial.
    */
   useEffect(() => {
     if (needsBallisticLanding && mapInstance && userLocation && !isFlyingRef.current) {
       const map = mapInstance.getMap();
       const profile = PERSPECTIVE_PROFILES[cameraPerspective];
       
-      nicepodLog(`🚀 [Camera-Director] Iniciando Vuelo Balístico (${cameraPerspective}).`);
+      nicepodLog(`🚀 [Camera-Director] Ejecutando Vuelo Balístico (${cameraPerspective}).`);
       isFlyingRef.current = true;
 
-      // Sincronización de referencias para evitar tirones post-vuelo
+      // Sincronizamos la memoria física antes de soltar el mando al motor nativo.
       currentPosRef.current = {
         latitude: userLocation.latitude,
         longitude: userLocation.longitude
@@ -164,22 +165,28 @@ export function CameraController() {
         zoom: profile.zoom,
         pitch: profile.pitch,
         bearing: profile.bearing_follow ? (userLocation.heading ?? 0) : 0,
-        ...FLY_CONFIG
+        ...FLY_CONFIG,
+        // Si es un recentrado manual, aumentamos la velocidad para mayor respuesta.
+        duration: isManualMode ? 1200 : FLY_CONFIG.duration 
       });
 
+      // Handshake de finalización de maniobra
       map.once('moveend', () => {
-        nicepodLog("🏁 [Camera-Director] Aterrizaje completado.");
+        nicepodLog("🏁 [Camera-Director] Maniobra completada. Retomando motor LERP.");
         isFlyingRef.current = false;
-        // Actualizamos las refs para que el LERP herede la posición exacta del flyTo
+        
+        // Sincronizamos las referencias con el estado final de la cámara
         currentPitchRef.current = profile.pitch;
         currentZoomRef.current = profile.zoom;
-        confirmLanding();
+        currentBearingRef.current = profile.bearing_follow ? (userLocation.heading ?? 0) : 0;
+        
+        confirmLanding(); // Cerramos el pulso en el GeoEngine
       });
     }
-  }, [needsBallisticLanding, mapInstance, userLocation, cameraPerspective, confirmLanding]);
+  }, [needsBallisticLanding, mapInstance, userLocation, cameraPerspective, confirmLanding, isManualMode]);
 
   /**
-   * CICLO DE VIDA: Gestión de Eventos del Canvas y Motor de Frames
+   * CICLO DE VIDA: Gestión de Eventos y GPU
    */
   useEffect(() => {
     animationFrameRef.current = requestAnimationFrame(kinematicLoop);
@@ -205,13 +212,13 @@ export function CameraController() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V4.2):
- * 1. Contextual Morphing: El controlador ahora interpola dinámicamente Pitch y Zoom
- *    al cambiar entre el Dashboard (Cenital) y el Mapa (Inmersión).
- * 2. Building Escape: Se recalibraron los límites de Pitch (V5.4) para asegurar 
- *    que la cámara nunca quede atrapada dentro de mallas 3D (Imagen 11).
- * 3. Strategic Bearing: En modo OVERVIEW, se ignora el giro del usuario para 
- *    mantener la legibilidad estratégica de los nombres de las calles.
- * 4. Zero-Wait Ready: La inicialización de refs con INITIAL_OVERVIEW_CONFIG 
- *    elimina el pestañeo negro en el primer renderizado del Dashboard.
+ * NOTA TÉCNICA DEL ARCHITECT (V4.3):
+ * 1. Recursive Authority: Se ha habilitado flyTo reactivo al estado global, permitiendo
+ *    que el botón de Recentrar funcione con precisión infinita en cada pulsación.
+ * 2. Morphing Fidelity: El uso de lerpSimple para Zoom y Pitch asegura que la 
+ *    transmisión entre OVERVIEW y STREET sea cinematográfica.
+ * 3. Multi-Input Shield: Se bloquea el motor LERP durante animaciones flyTo para 
+ *    evitar jittering visual y colisiones de comandos de cámara en la GPU.
+ * 4. Precise Street-Lock: Se integra la lógica de bearing selectiva para maximizar
+ *    la legibilidad en modo táctico y la inmersión en modo calle.
  */
