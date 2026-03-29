@@ -113,8 +113,7 @@
       "core-js",
       "esbuild",
       "protobufjs",
-      "supabase",
-      "unrs-resolver"
+      "supabase"
     ]
   }
 }
