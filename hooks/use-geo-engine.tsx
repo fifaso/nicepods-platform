@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: hooks/use-geo-engine.tsx
- * VERSIÓN: 34.0 (NicePod Sovereign Geo-Engine - Tactical Pulse Edition)
+ * VERSIÓN: 35.0 (NicePod Sovereign Geo-Engine - Recursive Authority & Tactical Pulse Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Orquestar telemetría y soberanía cinematográfica mediante pulsos de autoridad.
- * [REFORMA V34.0]: Implementación de recenterTrigger para habilitar mando infinito.
+ * Misión: Orquestar telemetría y soberanía cinematográfica mediante pulsos de mando.
+ * [REFORMA V35.0]: Implementación de recenterTrigger y Gestión de Autoridad Recurrente.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -35,14 +35,15 @@ import {
   PointOfInterest,
   UserLocation,
   GeoContextData,
-  CameraPerspective
+  CameraPerspective,
+  GeoActionResponse
 } from "@/types/geo-sovereignty";
 
 const GeoEngineContext = createContext<GeoEngineReturn | undefined>(undefined);
 
 interface GeoEngineProviderProps {
   children: React.ReactNode;
-  /** initialData: Ubicación estimada por IP capturada en el Edge de Vercel. */
+  /** initialData: Ubicación estimada por IP capturada en el Edge de Vercel (Handshake T0). */
   initialData?: {
     lat: number;
     lng: number;
@@ -91,17 +92,17 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
   const [activePOI, setActivePOI] = useState<ActivePOI | null>(null);
   const [isSearching, setIsSearching] = useState<boolean>(false);
   
-  // Hydration Guard: Inicializado con la verdad del servidor (initialData)
+  // Hydration Guard: Inicializado estrictamente con la verdad del servidor.
   const [isTriangulated, setIsTriangulated] = useState<boolean>(!!initialData);
 
-  // [SISTEMA CINEMÁTICO V34.0]: Soberanía de Perspectiva y Mando
+  // [SISTEMA CINEMÁTICO V35.0]: Soberanía de Perspectiva y Mando
   const [cameraPerspective, setCameraPerspective] = useState<CameraPerspective>('OVERVIEW');
   const [isManualMode, setIsManualMode] = useState<boolean>(false);
   
-  // recenterTrigger: Pulso eléctrico incremental para forzar vuelos de cámara.
+  // recenterTrigger: Pulso eléctrico incremental para forzar vuelos de cámara bajo demanda.
   const [recenterTrigger, setRecenterTrigger] = useState<number>(0);
   
-  // needsBallisticLanding: Flag para el aterrizaje inicial (IP -> GPS).
+  // needsBallisticLanding: Señal para el primer aterrizaje (IP -> GPS).
   const [needsBallisticLanding, setNeedsBallisticLanding] = useState<boolean>(false);
   const hasPerformedInitialLandingRef = useRef<boolean>(false);
 
@@ -118,8 +119,10 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
 
   /**
    * fetchNearbyPOIs: Sincronización Inteligente con Bóveda NKV.
+   * [FIX V31.0]: Uso del RPC 'get_nearby_resonances' para evitar error 404.
    */
   const fetchNearbyPOIs = useCallback(async (location: UserLocation, force: boolean = false) => {
+    // Verificación de Throttling Geográfico
     if (!force && lastFetchPosRef.current) {
       const distanceTraveled = calculateDistance(
         { latitude: location.latitude, longitude: location.longitude },
@@ -130,7 +133,7 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
 
     setIsSearching(true);
     try {
-      nicepodLog(`🛰️ [GeoEngine] Consultando Bóveda NKV (${force ? 'FORCED' : 'THROTTLED'})`);
+      nicepodLog(`🛰️ [GeoEngine] Sintonizando Bóveda NKV (${force ? 'FORCED' : 'THROTTLED'})`);
       const { data, error: dbError } = await supabase.rpc('get_nearby_resonances', {
         user_lat: location.latitude,
         user_lng: location.longitude,
@@ -141,7 +144,7 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
       setNearbyPOIs((data as PointOfInterest[]) || []);
       lastFetchPosRef.current = { lat: location.latitude, lng: location.longitude };
     } catch (err) {
-      nicepodLog("🔥 [GeoEngine] Error en sintonía de Bóveda", err, 'error');
+      nicepodLog("🔥 [GeoEngine] Error fatal en sintonía de Bóveda", err, 'error');
     } finally {
       setIsSearching(false);
     }
@@ -192,7 +195,7 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
       const sourceJustChanged = currentSource === 'gps' && lastSourceRef.current !== 'gps';
 
       if (isGpsFix && sourceJustChanged && !hasPerformedInitialLandingRef.current) {
-        nicepodLog("🚀 [GeoEngine] Primer GPS Lock. Disparando Aterrizaje Balístico.");
+        nicepodLog("🚀 [GeoEngine] Primer GPS Lock detectado. Ordenando Vuelo Balístico.");
         setNeedsBallisticLanding(true);
         hasPerformedInitialLandingRef.current = true;
         fetchNearbyPOIs(effectiveLocation, true);
@@ -214,16 +217,16 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
     }
   }, [effectiveLocation, evaluateEnvironment, fetchNearbyPOIs, isTriangulated]);
 
-  // --- V. MÉTODOS DE SOBERANÍA CINEMÁTICA (REFORMA V34.0) ---
+  // --- V. MÉTODOS DE SOBERANÍA CINEMÁTICA (REFORMA V35.0) ---
 
   /**
-   * toggleCameraPerspective: Conmutación de vista.
-   * [MEJORA]: Incrementa el trigger para asegurar que el controlador visual reaccione.
+   * toggleCameraPerspective: Conmuta entre Inmersión (Street) y Estrategia (Overview).
+   * Incrementa el pulso para forzar el ajuste de la cámara.
    */
   const toggleCameraPerspective = useCallback(() => {
     setCameraPerspective(prev => {
       const next = prev === 'STREET' ? 'OVERVIEW' : 'STREET';
-      nicepodLog(`🎥 [GeoEngine] Transmutación de Lente: ${next}`);
+      nicepodLog(`🎥 [GeoEngine] Transmutación de Perspectiva: ${next}`);
       return next;
     });
     setRecenterTrigger(prev => prev + 1);
@@ -231,13 +234,13 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
 
   /**
    * recenterCamera: Protocolo de Recuperación de Foco.
-   * [REFORMA V34.0]: El uso de setRecenterTrigger garantiza que cada click sea efectivo.
+   * [REFORMA V35.0]: Activa el pulso incremental para recentrados infinitos.
    */
   const recenterCamera = useCallback(() => {
-    nicepodLog("🎯 [GeoEngine] Pulso de Recentrado: Incrementando Trigger de Autoridad.");
+    nicepodLog("🎯 [GeoEngine] Orden de Recentrado: Emitiendo Pulso de Autoridad.");
     setIsManualMode(false);
     setRecenterTrigger(prev => prev + 1);
-    // Mantenemos needsBallisticLanding como señal de respaldo para transiciones largas
+    // Reforzamos con needsBallisticLanding para asegurar interrupción en CameraController
     setNeedsBallisticLanding(true); 
   }, []);
 
@@ -263,13 +266,13 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
     error: forgeError || (isDenied ? "GPS_RESTRICTED" : null),
     data: { ...forgeData, ...localData } as GeoContextData,
 
-    // CAPACIDADES CINEMÁTICAS RECURSIVAS V34.0
+    // CAPACIDADES CINEMÁTICAS RECURSIVAS V35.0
     needsBallisticLanding,
-    recenterTrigger, // Exportamos el pulso para el CameraController
+    recenterTrigger,
     cameraPerspective,
     isManualMode,
     confirmLanding: () => {
-      nicepodLog("🏁 [GeoEngine] Maniobra de vuelo asentada.");
+      nicepodLog("🏁 [GeoEngine] Acknowledgment de maniobra recibido.");
       setNeedsBallisticLanding(false);
     },
     toggleCameraPerspective,
@@ -277,11 +280,11 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
     setManualMode: (active: boolean) => {
       if (active !== isManualMode) {
         setIsManualMode(active);
-        if (active) nicepodLog("🖐️ [GeoEngine] Control Manual Detectado.");
+        if (active) nicepodLog("🖐️ [GeoEngine] Control Manual Activado.");
       }
     },
 
-    // Métodos de Control
+    // Métodos de Control Tradicionales
     initSensors: startHardwareWatch,
     reSyncRadar: reSync,
     setTriangulated: () => setIsTriangulated(true),
@@ -301,12 +304,12 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
 
     // Flujos IA
     ingestSensoryData: (params) => ingestSensoryData(effectiveLocation, params),
-    synthesizeNarrative,
-    transcribeVoiceIntent,
+    synthesizeNarrative: (params) => synthesizeNarrative(params),
+    transcribeVoiceIntent: (audioBase64) => transcribeVoiceIntent(audioBase64),
 
     // Purga de Sesión (Deep Clean)
     reset: () => {
-      nicepodLog("🧹 [GeoEngine] Purga total ejecutada.");
+      nicepodLog("Sweep [GeoEngine] Ejecutando purga total de telemetría.");
       killHardwareWatch();
       resetForge();
       setIsTriangulated(false);
@@ -321,6 +324,7 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
       hasPerformedInitialLandingRef.current = false;
       lastFetchPosRef.current = null;
       lastSourceRef.current = null;
+      lastEmittedLocationRef.current = null;
     }
   };
 
@@ -333,17 +337,18 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
 
 export function useGeoEngine() {
   const context = useContext(GeoEngineContext);
-  if (!context) throw new Error("useGeoEngine fuera de Provider.");
+  if (!context) throw new Error("useGeoEngine debe invocarse dentro de un GeoEngineProvider.");
   return context;
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V34.0):
- * 1. Infinite Recenter Fix: Se implementó recenterTrigger (number) para sustituir
- *    la lógica de booleano estancado, asegurando respuesta al botón en cada click.
- * 2. High-Frequency Authority: El orquestador emite ahora un pulso detectable por
- *    el compilador de React, rompiendo el bloqueo del useEffect en CameraController.
- * 3. Perspective Sovereignty: Se mantiene el control bi-modal (STREET/OVERVIEW)
- *    alineado con la física industrial de Madrid Resonance.
- * 4. Build Shield Compliance: El contrato GeoEngineReturn V6.1 está 100% satisfecho.
+ * NOTA TÉCNICA DEL ARCHITECT (V35.0):
+ * 1. Tactical Pulse System: Se implementó recenterTrigger para asegurar que cada click
+ *    en el botón de UI genere un evento detectable por el controlador de cámara.
+ * 2. Deterministic Recentering: recenterCamera() ahora incrementa el pulso y limpia
+ *    el flag de modo manual, garantizando autoridad absoluta sobre el visor.
+ * 3. RPC Resilience: Se mantiene el nombre 'get_nearby_resonances' para erradicar
+ *    el error 404 de Supabase detectado en la consola.
+ * 4. Zero-Flicker Hydration: isTriangulated se inicializa síncronamente con initialData
+ *    para evitar discrepancias de renderizado entre el servidor y el cliente.
  */
