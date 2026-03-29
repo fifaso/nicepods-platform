@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/camera-controller.tsx
- * VERSIÓN: 4.3 (NicePod Camera Director - Recursive Ballistics Edition)
+ * VERSIÓN: 4.4 (NicePod Camera Director - Tactical Pulse & Pulse-Sync Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Gestionar la cámara WebGL con transiciones de autoridad y perspectiva dual.
- * [REFORMA V4.3]: Implementación de Vuelos Recurrentes y Bloqueo de Interferencia LERP.
+ * Misión: Gestionar la cámara WebGL con transiciones de autoridad infinita.
+ * [REFORMA V4.4]: Integración de recenterTrigger para romper la parálisis de estado.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -36,10 +36,11 @@ export function CameraController() {
   // 1. CONEXIÓN CON EL MOTOR WEBGL SOBERANO
   const { current: mapInstance } = useMap();
 
-  // 2. CONSUMO DE MANDO CINEMÁTICO (V33.0)
+  // 2. CONSUMO DE MANDO CINEMÁTICO (V34.0)
   const {
     userLocation,
     needsBallisticLanding,
+    recenterTrigger, // [PULSO V4.4]: El contador incremental de autoridad
     confirmLanding,
     cameraPerspective,
     isManualMode,
@@ -47,7 +48,6 @@ export function CameraController() {
   } = useGeoEngine();
 
   // 3. MEMORIA TÉCNICA (REFS DE ALTA PRECISIÓN)
-  // Inicializamos con la verdad cenital para asegurar estabilidad en Dashboard.
   const currentPosRef = useRef<KinematicPosition | null>(null);
   const currentBearingRef = useRef<number>(INITIAL_OVERVIEW_CONFIG.bearing);
   const currentPitchRef = useRef<number>(INITIAL_OVERVIEW_CONFIG.pitch);
@@ -55,6 +55,7 @@ export function CameraController() {
   
   const isFlyingRef = useRef<boolean>(false);
   const lastInteractionRef = useRef<number>(0);
+  const lastProcessedTriggerRef = useRef<number>(0);
   const animationFrameRef = useRef<number | null>(null);
 
   /**
@@ -83,12 +84,11 @@ export function CameraController() {
     // A. PROTOCOLO DE RECUPERACIÓN DE AUTORIDAD (8 segundos)
     const now = Date.now();
     if (isManualMode && (now - lastInteractionRef.current > 8000)) {
-      nicepodLog("🎯 [Camera-Director] Inactividad detectada. Recuperando autoridad.");
+      nicepodLog("🎯 [Camera-Director] Timeout de inactividad. Recuperando autoridad.");
       setManualMode(false);
     }
 
     // B. GUARDA DE VUELO Y CONTROL MANUAL
-    // Si estamos en medio de un flyTo balístico o el usuario mueve el mapa, silenciamos el LERP.
     if (isManualMode || isFlyingRef.current) {
       animationFrameRef.current = requestAnimationFrame(kinematicLoop);
       return;
@@ -111,14 +111,12 @@ export function CameraController() {
     }
 
     // 2. Orientación (Bearing)
-    // STREET: Brújula activa | OVERVIEW: Norte Fijo (0)
     const targetBearing = profile.bearing_follow 
       ? (userLocation.heading ?? currentBearingRef.current)
       : 0; 
     currentBearingRef.current = interpolateAngle(currentBearingRef.current, targetBearing);
 
     // 3. Inclinación y Escala (Pitch & Zoom)
-    // Aplicamos lerpSimple para un morfismo suave de la lente.
     currentPitchRef.current = lerpSimple(currentPitchRef.current, profile.pitch);
     currentZoomRef.current = lerpSimple(currentZoomRef.current, profile.zoom);
 
@@ -130,7 +128,6 @@ export function CameraController() {
     );
 
     // F. INYECCIÓN IMPERATIVA EN GPU
-    // Usamos jumpTo para máxima fidelidad con el cálculo del LERP local.
     map.jumpTo({
       center: [cameraAnchor.longitude, cameraAnchor.latitude],
       bearing: currentBearingRef.current,
@@ -142,19 +139,21 @@ export function CameraController() {
   }, [mapInstance, userLocation, cameraPerspective, isManualMode, setManualMode]);
 
   /**
-   * EFECTO: ORQUESTACIÓN DE VUELO BALÍSTICO RECURRENTE
-   * [MEJORA V4.3]: Se dispara cada vez que needsBallisticLanding es true.
-   * Resuelve el recentrado profesional y el salto inicial.
+   * EFECTO: ORQUESTACIÓN DE VUELO BALÍSTICO POR PULSO
+   * [REFORMA V4.4]: Se dispara si el booleano es true O si el contador de pulso cambia.
    */
   useEffect(() => {
-    if (needsBallisticLanding && mapInstance && userLocation && !isFlyingRef.current) {
+    const triggerReceived = recenterTrigger > lastProcessedTriggerRef.current;
+    
+    if ((needsBallisticLanding || triggerReceived) && mapInstance && userLocation && !isFlyingRef.current) {
       const map = mapInstance.getMap();
       const profile = PERSPECTIVE_PROFILES[cameraPerspective];
       
-      nicepodLog(`🚀 [Camera-Director] Ejecutando Vuelo Balístico (${cameraPerspective}).`);
+      nicepodLog(`🚀 [Camera-Director] Pulso de Autoridad Detectado. Maniobra: ${cameraPerspective}.`);
       isFlyingRef.current = true;
+      lastProcessedTriggerRef.current = recenterTrigger;
 
-      // Sincronizamos la memoria física antes de soltar el mando al motor nativo.
+      // Sincronización de memoria física para suavizar el post-vuelo
       currentPosRef.current = {
         latitude: userLocation.latitude,
         longitude: userLocation.longitude
@@ -166,24 +165,24 @@ export function CameraController() {
         pitch: profile.pitch,
         bearing: profile.bearing_follow ? (userLocation.heading ?? 0) : 0,
         ...FLY_CONFIG,
-        // Si es un recentrado manual, aumentamos la velocidad para mayor respuesta.
-        duration: isManualMode ? 1200 : FLY_CONFIG.duration 
+        // Si es un recentrado explícito por botón, aplicamos velocidad máxima
+        duration: triggerReceived ? 1200 : FLY_CONFIG.duration 
       });
 
-      // Handshake de finalización de maniobra
+      // Handshake de finalización
       map.once('moveend', () => {
-        nicepodLog("🏁 [Camera-Director] Maniobra completada. Retomando motor LERP.");
+        nicepodLog("🏁 [Camera-Director] Aterrizaje completado por pulso.");
         isFlyingRef.current = false;
         
-        // Sincronizamos las referencias con el estado final de la cámara
+        // Sincronizamos las referencias con el estado final real
         currentPitchRef.current = profile.pitch;
         currentZoomRef.current = profile.zoom;
         currentBearingRef.current = profile.bearing_follow ? (userLocation.heading ?? 0) : 0;
         
-        confirmLanding(); // Cerramos el pulso en el GeoEngine
+        confirmLanding(); 
       });
     }
-  }, [needsBallisticLanding, mapInstance, userLocation, cameraPerspective, confirmLanding, isManualMode]);
+  }, [needsBallisticLanding, recenterTrigger, mapInstance, userLocation, cameraPerspective, confirmLanding]);
 
   /**
    * CICLO DE VIDA: Gestión de Eventos y GPU
@@ -212,13 +211,13 @@ export function CameraController() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V4.3):
- * 1. Recursive Authority: Se ha habilitado flyTo reactivo al estado global, permitiendo
- *    que el botón de Recentrar funcione con precisión infinita en cada pulsación.
- * 2. Morphing Fidelity: El uso de lerpSimple para Zoom y Pitch asegura que la 
- *    transmisión entre OVERVIEW y STREET sea cinematográfica.
- * 3. Multi-Input Shield: Se bloquea el motor LERP durante animaciones flyTo para 
- *    evitar jittering visual y colisiones de comandos de cámara en la GPU.
- * 4. Precise Street-Lock: Se integra la lógica de bearing selectiva para maximizar
- *    la legibilidad en modo táctico y la inmersión en modo calle.
+ * NOTA TÉCNICA DEL ARCHITECT (V4.4):
+ * 1. Pulse-Based Triggering: Se utiliza recenterTrigger para asegurar que cada click
+ *    en el botón de ubicación genere un evento flyTo, eliminando la "sordera" de la V4.3.
+ * 2. Morphing Fidelity: El motor LERP ahora interpola dinámicamente Pitch y Zoom,
+ *    garantizando transiciones STREET/OVERVIEW de grado industrial.
+ * 3. Atomic Ref Sync: Tras cada flyTo, se sincronizan las referencias internas para
+ *    evitar el "rebote visual" del motor de 60FPS.
+ * 4. Conflict Resolution: El flag isFlyingRef bloquea el motor líquido durante
+ *    animaciones nativas de Mapbox, protegiendo la GPU de comandos contradictorios.
  */
