@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/map-core.tsx
- * VERSIÓN: 8.3 (NicePod MapCore - Contextual Vision & Urban Silence Edition)
+ * VERSIÓN: 8.4 (NicePod MapCore - Flexible Contract & Build Stability Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Renderizado WebGL de alta fidelidad con gestión dinámica de etiquetas.
- * [REFORMA V8.3]: Implementación de lógica de visibilidad basada en CameraPerspective.
+ * Misión: Renderizado WebGL de alta fidelidad con contrato de interfaz resiliente.
+ * [REFORMA V8.4]: Flexibilización de onMove/onMoveEnd para sanar error de build TS2322.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -34,7 +34,9 @@ import { MapMarkerCustom } from "../map-marker-custom";
 import { UserLocationMarker } from "../user-location-marker";
 
 /**
- * [BUILD SHIELD]: TYPE EXTRACTION STRATEGY
+ * ---------------------------------------------------------------------------
+ * I. [BUILD SHIELD]: TYPE EXTRACTION STRATEGY
+ * ---------------------------------------------------------------------------
  */
 type MapNativeProps = ComponentProps<typeof Map>;
 type SafeMapEvent = Parameters<NonNullable<MapNativeProps['onLoad']>>[0];
@@ -42,14 +44,19 @@ type SafeMapMoveEvent = Parameters<NonNullable<MapNativeProps['onMove']>>[0];
 type SafeMapClickEvent = Parameters<NonNullable<MapNativeProps['onClick']>>[0];
 type SafeMapStyleDataEvent = Parameters<NonNullable<MapNativeProps['onStyleData']>>[0];
 
+/**
+ * MapCoreProps: Definición del contrato de renderizado.
+ * [FIX V8.4]: onMove y onMoveEnd ahora son opcionales para evitar errores de 
+ * implementación en visores secundarios (Dashboard Widget).
+ */
 interface MapCoreProps {
   mode: 'EXPLORE' | 'FORGE';
   startCoords: UserLocation;
   theme: MapboxLightPreset;
   onLoad: (e: SafeMapEvent) => void;
   onIdle: () => void;
-  onMove: (e: SafeMapMoveEvent) => void;
-  onMoveEnd: (e: SafeMapMoveEvent) => void;
+  onMove?: (e: SafeMapMoveEvent) => void;    // <--- [OPCIONAL]
+  onMoveEnd?: (e: SafeMapMoveEvent) => void; // <--- [OPCIONAL]
   onMapClick: (e: SafeMapClickEvent) => void;
   onMarkerClick: (id: string) => void;
   selectedPOIId: string | null;
@@ -89,7 +96,7 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
 
   /**
    * 3. GOBERNANZA DE CONFIGURACIÓN DINÁMICA (PBR & LABELS)
-   * [V8.3]: Sincroniza Tema, Oclusión y Etiquetas según la perspectiva.
+   * [GUARDIA V8.1]: Verificamos map.isStyleLoaded() antes de aplicar cambios PBR.
    */
   useEffect(() => {
     const map = localMapRef.current?.getMap();
@@ -97,21 +104,19 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
     if (map && map.isStyleLoaded() && (map as any).setConfigProperty) {
       const isOverview = cameraPerspective === 'OVERVIEW';
       
-      // A. Preset Lumínico
+      // Preset Lumínico (Día/Noche)
       (map as any).setConfigProperty('basemap', 'lightPreset', theme);
       
-      // B. Escudo de Oclusión (Voyager visible tras muros)
+      // Escudo de Oclusión (X-Ray Vision)
       (map as any).setConfigProperty('basemap', 'puckOcclusion', OCCLUSION_CONFIG.puckOcclusion);
 
-      // C. Gestión Contextual de Etiquetas (Urban Silence vs Context)
-      // En OVERVIEW (Dashboard) mostramos barrios y calles principales.
-      // En STREET (Inmersión) silenciamos todo para evitar ruido visual.
+      // Gestión Contextual de Etiquetas
       (map as any).setConfigProperty('basemap', 'showPlaceLabels', isOverview);
       (map as any).setConfigProperty('basemap', 'showRoadLabels', isOverview);
-      (map as any).setConfigProperty('basemap', 'showPointOfInterestLabels', false); // Siempre apagado
-      (map as any).setConfigProperty('basemap', 'showTransitLabels', false); // Siempre apagado
+      (map as any).setConfigProperty('basemap', 'showPointOfInterestLabels', false);
+      (map as any).setConfigProperty('basemap', 'showTransitLabels', false);
 
-      nicepodLog(`🕯️ [MapCore] Configuración aplicada: ${theme} | Mode: ${cameraPerspective}`);
+      nicepodLog(`🕯️ [MapCore] Sincronía PBR: ${theme} | Perspectiva: ${cameraPerspective}`);
     }
   }, [theme, cameraPerspective]);
 
@@ -127,13 +132,12 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
       (map as any).setConfigProperty('basemap', 'lightPreset', theme);
       (map as any).setConfigProperty('basemap', 'puckOcclusion', OCCLUSION_CONFIG.puckOcclusion);
       
-      // Inicialización de etiquetas basada en perspectiva de nacimiento
       (map as any).setConfigProperty('basemap', 'showPlaceLabels', isOverview);
       (map as any).setConfigProperty('basemap', 'showRoadLabels', isOverview);
       (map as any).setConfigProperty('basemap', 'showPointOfInterestLabels', false);
       (map as any).setConfigProperty('basemap', 'showTransitLabels', false);
 
-      nicepodLog(`🏙️ [MapCore] Pintor WebGL activo. Perspectiva inicial: ${cameraPerspective}.`);
+      nicepodLog(`🏙️ [MapCore] WebGL Pintor operativo en modo ${cameraPerspective}.`);
     }
 
     onLoad(e);
@@ -164,7 +168,7 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
         map.setTerrain(null);
       }
     } catch (err) {
-      nicepodLog("⚠️ [MapCore] Suspensión de terreno asíncrono.", null, 'warn');
+      nicepodLog("⚠️ [MapCore] Suspensión táctica de terreno 3D.", null, 'warn');
     }
   }, [mode]);
 
@@ -217,9 +221,6 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
 
 MapCore.displayName = "MapCore";
 
-/**
- * [BUILD SHIELD]: Exportación con comparador de integridad.
- */
 export default memo(MapCore, (prev, next) => {
   return (
     prev.mode === next.mode &&
@@ -231,11 +232,10 @@ export default memo(MapCore, (prev, next) => {
 });
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V8.3):
- * 1. Label Sovereignty: Implementada la conmutación de etiquetas Place/Road 
- *    basada en cameraPerspective para balancear contexto y limpieza.
- * 2. Visual Stacking: Se mantiene la purga de controles nativos y la prioridad
- *    de renderizado para los marcadores de conocimiento.
- * 3. Atomic Config: Todas las llamadas a setConfigProperty están protegidas 
- *    por isStyleLoaded(), erradicando el crash 'Style not loaded'.
+ * NOTA TÉCNICA DEL ARCHITECT (V8.4):
+ * 1. Build Restoration: Se resolvió el error TS2322 al permitir que onMove y 
+ *    onMoveEnd sean opcionales, sanando la implementación en el Dashboard.
+ * 2. Visual Stacking: Se mantiene la prioridad del Z-Shield para el Voyager.
+ * 3. Atomic Reliability: Todas las funciones imperativas operan bajo el guardia
+ *    isStyleLoaded(), eliminando crashes durante la carga inicial.
  */
