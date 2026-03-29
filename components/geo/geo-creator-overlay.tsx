@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: components/geo/geo-creator-overlay.tsx
- * VERSIÓN: 5.4 (NicePod Sovereign Orchestrator - Universal Commander Edition)
+ * VERSIÓN: 5.5 (NicePod Sovereign Orchestrator - Tactical Pulse Hub Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Unificar la interfaz de usuario con la soberanía cinemática y perspectiva dual.
- * [REFORMA V5.4]: Consolidación del Mando Único y Refinamiento de Háptica Táctica.
+ * Misión: Unificar la interfaz con el motor de pulso cinemático y perspectiva dual.
+ * [REFORMA V5.5]: Vinculación total con recenterTrigger para mando infinito y preciso.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -21,12 +21,11 @@ import {
   Target, 
   X,
   Navigation2,
-  Layers,
-  Map as MapIcon
+  Layers
 } from "lucide-react";
 import { useCallback, useState, useMemo } from "react";
 
-// --- INFRAESTRUCTURA DE COMPONENTES UI ---
+// --- INFRAESTRUCTURA DE COMPONENTES UI (V11.0 Tactical) ---
 import { Button } from "@/components/ui/button";
 import { cn, nicepodLog } from "@/lib/utils";
 
@@ -46,10 +45,11 @@ interface GeoCreatorOverlayProps {
 }
 
 /**
- * CreatorOverlayContent: El puente de mando táctico.
+ * CreatorOverlayContent: El puente de mando de la Workstation.
  */
 function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
-  // 1. CONSUMO DE SOBERANÍA CINEMÁTICA (V33.0)
+  // 1. CONSUMO DE SOBERANÍA CINEMÁTICA (V34.0)
+  // Ahora el overlay es consciente del pulso (recenterTrigger)
   const {
     status: engineStatus,
     data: engineData,
@@ -67,25 +67,25 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
 
   const { state: forgeState, dispatch } = useForge();
 
-  // 2. ESTADOS LOCALES DE INTERFAZ
+  // 2. ESTADOS LOCALES DE UI
   const [isTerminalOpen, setIsTerminalOpen] = useState<boolean>(false);
   const [mapTheme, setMapTheme] = useState<MapboxLightPreset>('night');
 
   /**
    * handleIgnition:
-   * Activa los sensores mediante un gesto de autoridad explícito.
+   * Rompe el bloqueo de seguridad de los sensores mediante gesto humano.
    */
   const handleIgnition = useCallback(() => {
-    nicepodLog("⚡ [Orchestrator] Gesto de ignición detectado. Despertando hardware.");
+    nicepodLog("⚡ [Orchestrator] Gesto de autoridad detectado. Ignición hardware.");
     if (typeof window !== "undefined" && navigator.vibrate) {
-      navigator.vibrate(40); // Pulso de arranque
+      navigator.vibrate(40);
     }
     reSyncRadar();
   }, [reSyncRadar]);
 
   /**
-   * handleCameraAction: EL ALGORITMO DEL MANDO ÚNICO
-   * Gestiona la transición entre Recentrar, Modo Satélite y Modo Inmersivo.
+   * handleCameraAction: EL ALGORITMO DE MANDO ÚNICO (PULSE ENFORCED)
+   * Gestiona la lógica recursiva de Recentrar y Conmutar Vista.
    */
   const handleCameraAction = useCallback(() => {
     if (!userLocation) {
@@ -93,21 +93,22 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
       return;
     }
 
+    // [PROTOCOLOS HÁPTICOS V5.5]
     if (isManualMode) {
-      // ACCIÓN A: El usuario está desplazado. Prioridad: Recuperar Foco.
-      nicepodLog("🎯 [Orchestrator] Re-anclando visor al Voyager.");
+      // ACCIÓN A: Recuperar Foco. El Voyager se ha desplazado.
+      nicepodLog("🎯 [Orchestrator] Ejecutando Recentrado por Pulso.");
       if (typeof window !== "undefined" && navigator.vibrate) {
-        navigator.vibrate([10, 30]); // Doble pulso táctico
+        navigator.vibrate([15, 35]); // Vibración doble de "Confirmación de Regreso"
       }
-      recenterCamera();
+      recenterCamera(); // Este método ahora incrementa el contador en el GeoEngine
     } else {
-      // ACCIÓN B: El usuario está centrado. Prioridad: Conmutar Perspectiva.
+      // ACCIÓN B: Conmutar Perspectiva. El Voyager está centrado.
       const nextView = cameraPerspective === 'STREET' ? 'OVERVIEW' : 'STREET';
-      nicepodLog(`🎥 [Orchestrator] Transmutando visor a modo ${nextView}.`);
+      nicepodLog(`🎥 [Orchestrator] Cambiando arquitectura de lente a: ${nextView}.`);
       if (typeof window !== "undefined" && navigator.vibrate) {
-        navigator.vibrate(25); // Pulso de cambio suave
+        navigator.vibrate(25); // Vibración corta de "Cambio de Estado"
       }
-      toggleCameraPerspective();
+      toggleCameraPerspective(); // Este método también dispara un pulso de recentrado
     }
   }, [isManualMode, userLocation, cameraPerspective, recenterCamera, toggleCameraPerspective, handleIgnition]);
 
@@ -126,43 +127,35 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
     "Sintonía de Malla Activa";
 
   /**
-   * smartButtonConfig: Configuración dinámica basada en el estado cinemático.
-   * [V5.4]: Alineación con el motor de perfiles PERSPECTIVE_PROFILES.
+   * smartButtonConfig: Adaptación dinámica de identidad visual.
+   * [V5.5]: Alineación con el nuevo motor de variantes del Botón Táctico V11.0.
    */
   const smartButtonConfig = useMemo(() => {
-    // Escenario 1: Fuera de foco (Modo Manual)
     if (isManualMode) {
       return {
         icon: <Target size={22} className="animate-pulse" />,
-        variant: "default" as const,
-        className: "bg-primary text-black shadow-[0_0_30px_rgba(var(--primary-rgb),0.4)]",
-        label: "Recuperar Foco"
+        variant: "default" as const, // Púrpura NicePod
+        label: "Recuperar Foco Voyager"
       };
     }
-    
-    // Escenario 2: En Inmersión (Street/PokémonGO) -> Ofrecer Satélite
     if (cameraPerspective === 'STREET') {
       return {
         icon: <Layers size={22} />,
-        variant: "resonance" as const, // Variante Emerald V11.0
-        className: "",
-        label: "Vista Estratégica"
+        variant: "resonance" as const, // Verde Esmeralda (Inmersión)
+        label: "Cambiar a Vista Estratégica"
       };
     }
-    
-    // Escenario 3: En Estrategia (Overview/Satélite) -> Ofrecer Inmersión
     return {
       icon: <Navigation2 size={22} />,
-      variant: "glass" as const,
-      className: "border-white/20",
-      label: "Vista Inmersiva"
+      variant: "glass" as const, // Transparente (Estratégico)
+      label: "Cambiar a Vista Inmersiva"
     };
   }, [isManualMode, cameraPerspective]);
 
   return (
     <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none flex flex-col">
 
-      {/* I. CAPA 0: EL MOTOR CARTOGRÁFICO SOBERANO (REVELADO BI-MODAL) */}
+      {/* I. CAPA 0: MOTOR WEBGL (INPUT ACTIVO) */}
       <div className="absolute inset-0 z-0 pointer-events-auto">
         <SpatialEngine
           mode={isTerminalOpen ? 'FORGE' : 'EXPLORE'}
@@ -179,56 +172,56 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
         {engineStatus === 'IDLE' && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="absolute inset-0 z-[300] bg-black/50 backdrop-blur-2xl flex flex-col items-center justify-center p-8 pointer-events-auto"
+            className="absolute inset-0 z-[300] bg-black/60 backdrop-blur-2xl flex flex-col items-center justify-center p-8 pointer-events-auto"
           >
             <div className="max-w-xs w-full bg-[#080808] border border-white/10 rounded-[3.5rem] p-12 flex flex-col items-center text-center shadow-[0_50px_100px_rgba(0,0,0,0.9)]">
               <div className="relative mb-12">
                 <div className="absolute inset-0 bg-primary/20 blur-3xl animate-pulse" />
                 <Satellite className="h-16 w-16 text-primary relative z-10" />
               </div>
-              <h2 className="text-white font-black uppercase tracking-[0.5em] text-[10px] mb-4">Malla Desconectada</h2>
+              <h2 className="text-white font-black uppercase tracking-[0.5em] text-[10px] mb-4">Enlace Interrumpido</h2>
               <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-[0.3em] leading-relaxed mb-12 px-2">
-                Establezca enlace satelital para proyectar la inteligencia.
+                Active la telemetría para proyectar la malla de inteligencia.
               </p>
               <Button
                 onClick={handleIgnition}
                 size="lg"
-                className="w-full bg-primary text-black rounded-2xl"
+                variant="default"
+                className="w-full rounded-2xl"
               >
                 <Power size={18} className="mr-3" />
-                Sincronizar
+                CONECTAR
               </Button>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* III. CAPA 20: TACTICAL COMMAND DOCK */}
+      {/* III. CAPA 20: DOCK DE COMANDO TÁCTICO */}
       <div className="absolute top-8 right-6 md:right-8 flex flex-col gap-5 z-[150] pointer-events-auto">
         
-        {/* ACCIÓN PRIMARIA: LA FORJA */}
+        {/* ACCIÓN: FORJA DE CAPITAL INTELECTUAL */}
         {canForge && engineStatus !== 'IDLE' && (
           <Button
             onClick={toggleTerminal}
             variant={isTerminalOpen ? "destructive" : "glass"}
             size="tactical"
-            className={cn("shadow-2xl transition-all duration-500", !isTerminalOpen && "hover:border-primary/50")}
+            className="shadow-2xl transition-all duration-500"
           >
             <AnimatePresence mode="wait">
-              {isTerminalOpen ? (
-                <motion.div key="x" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }}>
-                  <X size={26} />
-                </motion.div>
-              ) : (
-                <motion.div key="plus" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }}>
-                  <Plus size={26} />
-                </motion.div>
-              )}
+              <motion.div
+                key={isTerminalOpen ? 'close' : 'open'}
+                initial={{ rotate: -90, opacity: 0 }}
+                animate={{ rotate: 0, opacity: 1 }}
+                exit={{ rotate: 90, opacity: 0 }}
+              >
+                {isTerminalOpen ? <X size={26} /> : <Plus size={26} />}
+              </motion.div>
             </AnimatePresence>
           </Button>
         )}
 
-        {/* SELECTOR DE TEMA AMBIENTAL */}
+        {/* ACCIÓN: SELECTOR DE TEMA AMBIENTAL */}
         {!isTerminalOpen && engineStatus !== 'IDLE' && (
           <Button
             onClick={() => setMapTheme(prev => prev === 'night' ? 'day' : 'night')}
@@ -239,9 +232,9 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
             <AnimatePresence mode="wait">
               <motion.div
                 key={mapTheme}
-                initial={{ y: 10, opacity: 0 }}
+                initial={{ y: 5, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
-                exit={{ y: -10, opacity: 0 }}
+                exit={{ y: -5, opacity: 0 }}
               >
                 {mapTheme === 'night' ? <Moon size={20} /> : <Sun size={20} />}
               </motion.div>
@@ -249,13 +242,13 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
           </Button>
         )}
 
-        {/* EL MANDO ÚNICO: SMART-ACTION BUTTON */}
+        {/* ACCIÓN: EL MANDO ÚNICO (SMART-BUTTON V5.5) */}
         {!isTerminalOpen && engineStatus !== 'IDLE' && (
           <Button
             onClick={handleCameraAction}
             variant={smartButtonConfig.variant}
             size="icon"
-            className={cn("rounded-full shadow-2xl transition-all duration-500", smartButtonConfig.className)}
+            className="rounded-full shadow-2xl transition-all duration-500"
             title={smartButtonConfig.label}
           >
             <AnimatePresence mode="wait">
@@ -273,7 +266,7 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
         )}
       </div>
 
-      {/* IV. CAPA 30: HUD DE TELEMETRÍA (SOLO EN FORJA) */}
+      {/* IV. CAPA 30: HUD TELEMETRÍA (FORJA) */}
       <AnimatePresence>
         {isTerminalOpen && (
           <motion.div
@@ -291,7 +284,7 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
         )}
       </AnimatePresence>
 
-      {/* V. CAPA 40: TERMINAL DE INGESTA IA */}
+      {/* V. CAPA 40: TERMINAL DE INGESTA */}
       <AnimatePresence>
         {isTerminalOpen && (
           <motion.div
@@ -310,7 +303,7 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
         )}
       </AnimatePresence>
 
-      {/* VI. ESTATUS DE SINTONÍA (FLOATING HUD) */}
+      {/* VI. STATUS INFERIOR (SINTONÍA NOMINAL) */}
       {!isTerminalOpen && engineStatus !== 'IDLE' && (
         <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-[100] pointer-events-auto">
           <button
@@ -340,9 +333,6 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
   );
 }
 
-/**
- * GeoCreatorOverlay: El contenedor con contexto de forja.
- */
 export function GeoCreatorOverlay(props: GeoCreatorOverlayProps) {
   return (
     <ForgeProvider>
@@ -352,13 +342,13 @@ export function GeoCreatorOverlay(props: GeoCreatorOverlayProps) {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V5.4):
- * 1. Universal Commander: El Smart-Button centraliza tres comportamientos físicos
- *    basados en la telemetría, eliminando la necesidad de controles nativos.
- * 2. Visual ACK: Se utiliza la variante 'resonance' del botón V11.0 para dar un
- *    feedback de "Malla de Alta Precisión" cuando estamos en modo STREET.
- * 3. Haptic Fidelity: Se calibraron patrones de vibración específicos para 
- *    confirmar acciones sin necesidad de mirar el botón (Recentrar vs Toggle).
- * 4. PWA Synergy: El diseño de bordes redondeados (3.5rem) y el uso de 
- *    backdrop-blur-3xl optimizan la estética "Mobile-First" industrial.
+ * NOTA TÉCNICA DEL ARCHITECT (V5.5):
+ * 1. Infinite Recenter Fix: Se vinculó el Smart-Button con el pulso incremental 
+ *    del GeoEngine V34.0, garantizando respuesta en cada pulsación.
+ * 2. Visual Authority: El uso de variantes 'resonance' y 'glass' del botón V11.0
+ *    comunica de forma intuitiva la intención de la cámara al Voyager.
+ * 3. Haptic Mapping: Implementados patrones de vibración diferenciados para 
+ *    confirmar acciones tácticas sin contacto visual permanente.
+ * 4. Layer Segregation: La configuración de pointer-events asegura que la 
+ *    interfaz no bloquee la interactividad del motor WebGL en zonas neutras.
  */
