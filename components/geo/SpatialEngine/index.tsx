@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/index.tsx
- * VERSIÓN: 7.2 (NicePod Spatial Hub - Immersion Authority Edition)
+ * VERSIÓN: 7.3 (NicePod Spatial Hub - Build Stability & Radar Sync Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Orquestar el motor WebGL forzando la inmersión STREET en modo pantalla completa.
- * [REFORMA V7.2]: Implementación de Auto-Immersion Trigger y Sincronía Táctica.
+ * Misión: Orquestar el motor WebGL sincronizando la telemetría con la UI de comando.
+ * [REFORMA V7.3]: Implementación de onMoveEnd para sanar error de build TS2322.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -37,6 +37,7 @@ import MapCore from "./map-core";
 
 /**
  * [BUILD SHIELD]: TYPE EXTRACTION
+ * Extraemos dinámicamente los contratos de eventos directamente del componente Map.
  */
 type MapNativeProps = ComponentProps<typeof Map>;
 type SafeMapMoveEvent = Parameters<NonNullable<MapNativeProps['onMove']>>[0];
@@ -49,6 +50,9 @@ interface SpatialEngineProps {
   className?: string;
 }
 
+/**
+ * SpatialEngine: El Reactor de Inteligencia Visual de NicePod.
+ */
 export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className }: SpatialEngineProps) {
 
   // 1. CONSUMO DE SOBERANÍA CINEMÁTICA (V32.0)
@@ -66,24 +70,25 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
     toggleCameraPerspective
   } = useGeoEngine();
 
-  // 2. REFERENCIAS DE CONTROL
+  // 2. REFERENCIAS DE CONTROL DE HARDWARE
   const mapRef = useRef<MapRef>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // 3. MÁQUINA DE ESTADOS VISUAL
+  // 3. MÁQUINA DE ESTADOS VISUAL (REVELADO)
   const [selectedPOIId, setSelectedPOIId] = useState<string | null>(null);
   const [isSearchLoading, setIsSearchLoading] = useState<boolean>(false);
   const [isContainerReady, setIsContainerReady] = useState<boolean>(false);
   const [isMapLoaded, setIsMapLoaded] = useState<boolean>(false);
   const [isCameraSettled, setIsCameraSettled] = useState<boolean>(false);
 
+  // Ancla dinámica para el Radar de Búsqueda (Bóveda NKV)
   const [searchCenter, setSearchCenter] = useState({
     latitude: MADRID_SOL_COORDS.latitude,
     longitude: MADRID_SOL_COORDS.longitude,
   });
 
   /**
-   * 4. PROTOCOLO DE SEGURIDAD DE MONTAJE
+   * 4. PROTOCOLO DE SEGURIDAD DE MONTAJE (Safe Mount)
    */
   useEffect(() => {
     if (!containerRef.current) return;
@@ -101,18 +106,17 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
 
   /**
    * 5. AUTO-IGNICIÓN Y DISPARADOR DE INMERSIÓN
-   * [V7.2]: Si entramos en el mapa y estamos en modo OVERVIEW, forzamos STREET.
+   * Si entramos en el mapa y estamos en modo OVERVIEW, forzamos STREET.
    */
   useEffect(() => {
     if (isContainerReady) {
-      // Ignición de hardware si está apagado
       if (!isIgnited && engineStatus === 'IDLE') {
+        nicepodLog("📡 [SpatialHub] Despertando hardware sensorial.");
         initSensors();
       }
 
-      // GATILLO POKÉMON-GO: Forzar inmersión al entrar en modo EXPLORE
       if (mode === 'EXPLORE' && cameraPerspective === 'OVERVIEW') {
-        nicepodLog("🎭 [SpatialHub] Detectada entrada en Mapa. Activando Inmersión de Calle.");
+        nicepodLog("🎭 [SpatialHub] Entrada en zona EXPLORE detectada. Forzando modo STREET.");
         toggleCameraPerspective();
       }
     }
@@ -125,6 +129,7 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
     if (isMapLoaded && !isCameraSettled) {
       const rescueTimer = setTimeout(() => {
         if (!isCameraSettled) {
+          nicepodLog("⚠️ [SpatialHub] Timeout de materialización. Forzando visibilidad.");
           setIsCameraSettled(true);
         }
       }, 7000);
@@ -133,24 +138,41 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
   }, [isMapLoaded, isCameraSettled]);
 
   /**
-   * 7. MANEJADORES DE EVENTOS
+   * 7. MANEJADORES DE EVENTOS SOBERANOS
    */
+
   const handleMapIdle = useCallback(() => {
     if (isMapLoaded && !isCameraSettled) {
       setIsCameraSettled(true);
-      nicepodLog("✨ [SpatialHub] Malla Inmersiva Estabilizada.");
+      nicepodLog("✨ [SpatialHub] Malla PBR estabilizada.");
     }
   }, [isMapLoaded, isCameraSettled]);
 
+  /**
+   * handleMapMove: Sincroniza el centro de búsqueda durante el desplazamiento.
+   */
   const handleMapMove = useCallback((event: SafeMapMoveEvent) => {
     setSearchCenter({
       latitude: event.viewState.latitude,
       longitude: event.viewState.longitude
     });
+    // Si hay evento original (ratón/tacto), activamos modo manual
     if (event.originalEvent) {
       setManualMode(true);
     }
   }, [setManualMode]);
+
+  /**
+   * handleMapMoveEnd: [REFORMA V7.3]
+   * Fija las coordenadas finales tras el movimiento para optimizar el radar.
+   */
+  const handleMapMoveEnd = useCallback((event: SafeMapMoveEvent) => {
+    nicepodLog(`📍 [SpatialHub] Cámara asentada en: ${event.viewState.latitude.toFixed(4)}`);
+    setSearchCenter({
+      latitude: event.viewState.latitude,
+      longitude: event.viewState.longitude
+    });
+  }, []);
 
   const handleMapClick = useCallback((event: SafeMapClickEvent) => {
     if (mode !== 'FORGE' || !onManualAnchor) return;
@@ -189,7 +211,7 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
   return (
     <div ref={containerRef} className={cn("w-full h-full relative bg-[#010101]", className)}>
 
-      {/* I. CORTINA DE CARGA SOBERANA */}
+      {/* I. CORTINA DE CARGA SOBERANA (SMOKESCREEN) */}
       <AnimatePresence mode="wait">
         {engineStatus === 'PERMISSION_DENIED' ? (
           <motion.div key="p_denied" className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-zinc-950 z-[200] text-center">
@@ -219,19 +241,20 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
         ) : null}
       </AnimatePresence>
 
-      {/* II. MOTOR WEBGL */}
+      {/* II. MOTOR WEBGL (MAP-CORE) */}
       {isContainerReady && userLocation && (
         <div className="w-full h-full pointer-events-auto">
           <MapCore
             ref={mapRef}
             mode={mode}
-            // En el mapa grande, si no hay ubicación de autoridad, nacemos arriba.
+            // En el mapa grande, si no hay ubicación de autoridad, nacemos arriba (Contexto).
             startCoords={!isIgnited ? { ...userLocation, ...INITIAL_OVERVIEW_CONFIG } : userLocation}
             theme={theme}
             selectedPOIId={selectedPOIId}
             onLoad={() => setIsMapLoaded(true)}
             onIdle={handleMapIdle}
             onMove={handleMapMove}
+            onMoveEnd={handleMapMoveEnd} // [FIX V7.3]: Propiedad requerida por el contrato MapCore.
             onMapClick={handleMapClick}
             onMarkerClick={(id: string) => {
               if (mode === 'EXPLORE') {
@@ -249,6 +272,7 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
             }}
           />
 
+          {/* EL DIRECTOR DE CÁMARA (V4.2 compatible) */}
           {mode === 'EXPLORE' && isMapLoaded && (
             <CameraController />
           )}
@@ -286,11 +310,11 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V7.2):
- * 1. Auto-Immersion Trigger: El Hub detecta automáticamente si el usuario necesita 
- *    la vista STREET al entrar en el mapa full-screen, eliminando la Imagen 11.
- * 2. Visual Narrative: El Smokescreen adapta su mensaje según la perspectiva 
- *    objetivo, mejorando la percepción de inteligencia del sistema.
- * 3. Consistent Start: Se hereda INITIAL_OVERVIEW_CONFIG si el hardware aún no
- *    ha certificado la posición, asegurando un nacimiento limpio "desde arriba".
+ * NOTA TÉCNICA DEL ARCHITECT (V7.3):
+ * 1. Build Stability: Se añadió onMoveEnd al componente MapCore, satisfaciendo el 
+ *    contrato de tipos y resolviendo el error fatal de compilación en Vercel.
+ * 2. Radar Settling: handleMapMoveEnd garantiza que las coordenadas de búsqueda 
+ *    sean definitivas, reduciendo ruidos en la consulta a la Bóveda NKV.
+ * 3. Contextual Animation: El Smokescreen ahora refleja fielmente la transición
+ *    entre el modo cenital y el inmersivo.
  */
