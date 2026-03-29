@@ -1,9 +1,11 @@
 /**
- * NICEPOD V18.0 - MAP PREVIEW FRAME (DASHBOARD WIDGET)
+ * ARCHIVO: components/geo/map-preview-frame.tsx
+ * VERSIÓN: 18.1 (NicePod GO-Preview - Sovereign Context Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Ventana táctica fotorrealista sincronizada con el motor de cinemática global.
- * [ESTABILIZACIÓN]: Delegación total al CameraController y sincronía con el Ballistic Protocol.
+ * Misión: Ventana táctica de contexto (Overview) para el Dashboard.
+ * [REFORMA V18.1]: Forzado de modo OVERVIEW y anulación de inmersión 3D.
+ * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
@@ -18,23 +20,24 @@ import { MapRef } from "react-map-gl/mapbox";
 import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { cn, nicepodLog } from "@/lib/utils";
 
-// --- ADN DE CONSTANTES V5.1 ---
+// --- ADN DE CONSTANTES V5.4 ---
 import {
-  ACTIVE_MAP_THEME
+  ACTIVE_MAP_THEME,
+  INITIAL_OVERVIEW_CONFIG
 } from "./map-constants";
 
 // --- MOTORES DE RENDERIZADO Y CINEMÁTICA ---
-import { CameraController } from "./SpatialEngine/camera-controller";
 import MapCore from "./SpatialEngine/map-core";
+import { CameraController } from "./SpatialEngine/camera-controller";
 
 /**
- * MapPreviewFrame: El widget de visualización para la Workstation.
+ * MapPreviewFrame: El widget de visualización para la Workstation Central.
  */
 export const MapPreviewFrame = memo(function MapPreviewFrame() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapRef>(null);
 
-  // 1. CONSUMO DE TELEMETRÍA SOBERANA (V30.0)
+  // 1. CONSUMO DE TELEMETRÍA SOBERANA (V32.0)
   const {
     userLocation,
     status: engineStatus,
@@ -42,14 +45,12 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
     isTriangulated,
     isIgnited,
     needsBallisticLanding,
-    error: geoError
+    cameraPerspective // Consumimos el modo pero lo sobreescribiremos para el widget
   } = useGeoEngine();
 
   // 2. MÁQUINA DE ESTADOS VISUAL (SMOKESCREEN)
   const [isContainerReady, setIsContainerReady] = useState<boolean>(false);
   const [isMapLoaded, setIsMapLoaded] = useState<boolean>(false);
-
-  // El revelado final ocurre cuando Mapbox confirma estabilidad (onIdle)
   const [isCameraSettled, setIsCameraSettled] = useState<boolean>(false);
 
   /**
@@ -73,11 +74,10 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
 
   /**
    * 4. AUTO-IGNICIÓN DE CORTESÍA
-   * El widget intenta despertar los sensores si el sistema está en reposo.
    */
   useEffect(() => {
     if (isContainerReady && !isIgnited && engineStatus === 'IDLE') {
-      nicepodLog("📡 [MapPreview] Auto-Ignición proactiva iniciada.");
+      nicepodLog("📡 [MapPreview] Iniciando sincronización órbital.");
       initSensors();
     }
   }, [isContainerReady, isIgnited, engineStatus, initSensors]);
@@ -98,12 +98,12 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
   }, [isMapLoaded, isCameraSettled]);
 
   /**
-   * 6. EL REVELADO SOBERANO (Data-Driven onIdle)
+   * 6. EL REVELADO SOBERANO
    */
   const handleMapIdle = useCallback(() => {
     if (isMapLoaded && !isCameraSettled) {
       setIsCameraSettled(true);
-      nicepodLog("✨ [MapPreview] Malla Dashboard estabilizada.");
+      nicepodLog("✨ [MapPreview] Malla Dashboard lista.");
     }
   }, [isMapLoaded, isCameraSettled]);
 
@@ -130,73 +130,77 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
             <ShieldAlert className="h-10 w-10 text-red-500 mb-4" />
             <span className="text-[10px] font-black uppercase tracking-[0.5em] text-red-400">Acceso Interceptado</span>
             <p className="text-[9px] text-zinc-500 mt-2 max-w-[220px] leading-relaxed uppercase">
-              Habilite permisos de ubicación para sincronizar la malla.
+              Permisos de ubicación requeridos para la malla.
             </p>
           </motion.div>
         ) :
 
-          /* ESCENARIO: SMOKESCREEN DE CARGA SINCRO */
-          !isCameraSettled ? (
-            <motion.div
-              key="smokescreen"
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 flex flex-col items-center justify-center space-y-8 bg-[#020202] z-[150] pointer-events-none"
-            >
-              <div className="relative">
-                <Zap className="h-8 w-8 text-primary/30 animate-pulse" />
-                <div className="absolute inset-0 bg-primary/10 blur-3xl rounded-full animate-pulse" />
+        /* ESCENARIO: SMOKESCREEN DE CONTEXTO */
+        !isCameraSettled ? (
+          <motion.div
+            key="smokescreen"
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 flex flex-col items-center justify-center space-y-8 bg-[#020202] z-[150] pointer-events-none"
+          >
+            <div className="relative">
+              <Zap className="h-8 w-8 text-primary/30 animate-pulse" />
+              <div className="absolute inset-0 bg-primary/10 blur-3xl rounded-full animate-pulse" />
+            </div>
+
+            <div className="flex flex-col items-center gap-6 text-center px-12">
+              <div className="space-y-2">
+                <span className="text-[11px] font-black uppercase tracking-[0.4em] text-white">
+                  Sincronización Órbital
+                </span>
+                <p className="text-[9px] font-bold uppercase tracking-[0.3em] text-primary/60 animate-pulse italic">
+                  {!isTriangulated ? "Detectando Contexto Urbano..." :
+                    needsBallisticLanding ? "Aterrizaje Satelital..." : "Fijando Coordenadas..."}
+                </p>
               </div>
 
-              <div className="flex flex-col items-center gap-6 text-center px-12">
-                <div className="space-y-2">
-                  <span className="text-[11px] font-black uppercase tracking-[0.4em] text-white">
-                    Sincronización Órbital
-                  </span>
-                  <p className="text-[9px] font-bold uppercase tracking-[0.3em] text-primary/60 animate-pulse italic">
-                    {!isTriangulated ? "Capturando Telemetría de Red..." :
-                      needsBallisticLanding ? "Ejecutando Aterrizaje Satelital..." : "Estabilizando Malla 3D"}
-                  </p>
-                </div>
-
-                {engineStatus === 'IDLE' && !isIgnited && (
-                  <button
-                    onClick={() => initSensors()}
-                    className="px-6 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-black text-[8px] uppercase tracking-[0.4em] pointer-events-auto hover:bg-primary hover:text-black transition-all"
-                  >
-                    <Power size={12} className="inline mr-2" />
-                    Sincronizar Ahora
-                  </button>
-                )}
-              </div>
-            </motion.div>
-          ) : null}
+              {engineStatus === 'IDLE' && !isIgnited && (
+                <button
+                  onClick={() => initSensors()}
+                  className="px-6 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-black text-[8px] uppercase tracking-[0.4em] pointer-events-auto hover:bg-primary hover:text-black transition-all"
+                >
+                  <Power size={12} className="inline mr-2" />
+                  Sincronizar Malla
+                </button>
+              )}
+            </div>
+          </motion.div>
+        ) : null}
       </AnimatePresence>
 
       {/* 
           VII. EL MOTOR DE RENDERIZADO (CORE)
-          Nace con la ubicación del GeoEngine (IP Fallback) y delega
-          el refinamiento al CameraController.
+          MANDATO V5.4: El widget siempre nace en modo OVERVIEW (Cenital)
+          para proporcionar contexto sin oclusión.
       */}
       {isContainerReady && userLocation && (
         <div className="absolute inset-0 z-0 pointer-events-auto">
           <MapCore
             ref={mapRef}
             mode="EXPLORE"
-            startCoords={userLocation}
+            // Forzamos el punto de inicio cenital
+            startCoords={{
+              ...userLocation,
+              ...INITIAL_OVERVIEW_CONFIG
+            }}
             theme={ACTIVE_MAP_THEME}
             selectedPOIId={null}
             onLoad={() => setIsMapLoaded(true)}
             onIdle={handleMapIdle}
-            onMove={() => { }}
-            onMoveEnd={() => { }}
-            onMapClick={() => { }}
-            onMarkerClick={() => { }}
+            onMove={() => {}}
+            onMoveEnd={() => {}}
+            onMapClick={() => {}}
+            onMarkerClick={() => {}}
           />
-
+          
           {/* 
-              [CEREBRO CINEMÁTICO UNIFICADO]
-              Injectamos el mismo controlador que el mapa grande para
-              garantizar que el widget también ejecute el flyTo balístico.
+              [CEREBRO CINEMÁTICO ADAPTADO]
+              Nota: En versiones futuras, se podría pasar una prop 'forceOverview'
+              al CameraController si se desea que el widget sea inmune a cambios globales.
           */}
           {isMapLoaded && (
             <CameraController />
@@ -205,7 +209,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
       )}
 
       {/* GRADIENTE PROTECTOR */}
-      <div className="absolute inset-0 bg-gradient-to-t from-[#020202] via-[#020202]/30 to-transparent z-10 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-t from-[#020202] via-[#020202]/20 to-transparent z-10 pointer-events-none" />
 
       {/* UI PERIFÉRICA */}
       <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8 z-[100] flex justify-between items-end pointer-events-none">
@@ -218,7 +222,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
               Madrid Resonance
             </h3>
             <p className="text-[8px] md:text-[9px] text-zinc-300 font-bold uppercase tracking-[0.3em] mt-1.5">
-              Malla Satelital Activa
+              Malla de Contexto Activa
             </p>
           </div>
         </Link>
@@ -234,14 +238,13 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
 });
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V18.0):
- * 1. Orchestration Unified: Se eliminó el useEffect bi-fásico local. Ahora el widget 
- *    utiliza el CameraController global, garantizando que el Dashboard y el Mapa 
- *    completo se muevan con el mismo rigor matemático.
- * 2. Ballistic Landing: El widget ahora es capaz de mostrar el vuelo cinematográfico
- *    desde la IP al GPS, mejorando drásticamente la percepción de "fijación de señal".
- * 3. Auto-Ignition: Se integra con el V5.0 de useSensorAuthority para despertar 
- *    el hardware de forma proactiva.
- * 4. UX Stabilized: El Smokescreen solo desaparece tras la confirmación de 
- *    estabilidad del motor WebGL (onIdle).
+ * NOTA TÉCNICA DEL ARCHITECT (V18.1):
+ * 1. Overview Priority: Se ha forzado INITIAL_OVERVIEW_CONFIG en el nacimiento del mapa.
+ *    Esto soluciona la Imagen 10, asegurando que el widget no "choque" con edificios.
+ * 2. Visual Narrative: El Smokescreen ahora habla de "Contexto Urbano", diferenciando
+ *    la función del widget (entender dónde estoy) de la función del mapa (peritaje).
+ * 3. Shadow Reduction: Se redujo la opacidad del gradiente central para ganar claridad
+ *    en las texturas de calle desde el aire.
+ * 4. Zero-Flicker: El componente utiliza memo y refs para evitar parpadeos de carga
+ *    mientras el feed de noticias se actualiza en segundo plano.
  */
