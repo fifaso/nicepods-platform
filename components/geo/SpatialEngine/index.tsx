@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/index.tsx
- * VERSIÓN: 7.3 (NicePod Spatial Hub - Build Stability & Radar Sync Edition)
+ * VERSIÓN: 7.4 (NicePod Spatial Hub - Flight-Shield & Mando Autoritario Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Orquestar el motor WebGL sincronizando la telemetría con la UI de comando.
- * [REFORMA V7.3]: Implementación de onMoveEnd para sanar error de build TS2322.
+ * Misión: Orquestar el motor WebGL protegiendo las maniobras programáticas.
+ * [REFORMA V7.4]: Implementación de Flight Shield para evitar colisiones entre LERP y FlyTo.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -37,7 +37,6 @@ import MapCore from "./map-core";
 
 /**
  * [BUILD SHIELD]: TYPE EXTRACTION
- * Extraemos dinámicamente los contratos de eventos directamente del componente Map.
  */
 type MapNativeProps = ComponentProps<typeof Map>;
 type SafeMapMoveEvent = Parameters<NonNullable<MapNativeProps['onMove']>>[0];
@@ -51,11 +50,11 @@ interface SpatialEngineProps {
 }
 
 /**
- * SpatialEngine: El Reactor de Inteligencia Visual de NicePod.
+ * SpatialEngine: El Reactor de Inteligencia Visual Soberano.
  */
 export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className }: SpatialEngineProps) {
 
-  // 1. CONSUMO DE SOBERANÍA CINEMÁTICA (V32.0)
+  // 1. CONSUMO DE SOBERANÍA CINEMÁTICA (V34.0)
   const {
     userLocation,
     nearbyPOIs,
@@ -64,7 +63,7 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
     initSensors,
     isTriangulated,
     isIgnited,
-    needsBallisticLanding,
+    needsBallisticLanding, // Flag de pulso de vuelo
     setManualMode,
     cameraPerspective,
     toggleCameraPerspective
@@ -106,17 +105,17 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
 
   /**
    * 5. AUTO-IGNICIÓN Y DISPARADOR DE INMERSIÓN
-   * Si entramos en el mapa y estamos en modo OVERVIEW, forzamos STREET.
    */
   useEffect(() => {
     if (isContainerReady) {
       if (!isIgnited && engineStatus === 'IDLE') {
-        nicepodLog("📡 [SpatialHub] Despertando hardware sensorial.");
+        nicepodLog("📡 [SpatialHub] Activando sensores por proximidad.");
         initSensors();
       }
 
+      // Sincronía Pokémon GO: Forzar vista de calle al entrar en mapa full
       if (mode === 'EXPLORE' && cameraPerspective === 'OVERVIEW') {
-        nicepodLog("🎭 [SpatialHub] Entrada en zona EXPLORE detectada. Forzando modo STREET.");
+        nicepodLog("🎭 [SpatialHub] Transmutando perspectiva para inmersión.");
         toggleCameraPerspective();
       }
     }
@@ -129,7 +128,7 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
     if (isMapLoaded && !isCameraSettled) {
       const rescueTimer = setTimeout(() => {
         if (!isCameraSettled) {
-          nicepodLog("⚠️ [SpatialHub] Timeout de materialización. Forzando visibilidad.");
+          nicepodLog("⚠️ [SpatialHub] Timeout de materialización. Forzando paso de luz.");
           setIsCameraSettled(true);
         }
       }, 7000);
@@ -149,25 +148,30 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
   }, [isMapLoaded, isCameraSettled]);
 
   /**
-   * handleMapMove: Sincroniza el centro de búsqueda durante el desplazamiento.
+   * handleMapMove: Sincronía de Radar con Escudo de Vuelo.
+   * [REFORMA V7.4]: Implementación de Flight-Shield para evitar auto-bloqueo.
    */
   const handleMapMove = useCallback((event: SafeMapMoveEvent) => {
+    // Actualizamos el centro para la UnifiedSearchBar en tiempo real
     setSearchCenter({
       latitude: event.viewState.latitude,
       longitude: event.viewState.longitude
     });
-    // Si hay evento original (ratón/tacto), activamos modo manual
-    if (event.originalEvent) {
+
+    /**
+     * FLIGHT-SHIELD LOGIC:
+     * Solo activamos el modo manual si:
+     * 1. El evento proviene de una interacción física (originalEvent).
+     * 2. NO existe un pulso balístico activo (needsBallisticLanding).
+     * Esto evita que el movimiento programático del recentrado se auto-cancele.
+     */
+    if (event.originalEvent && !needsBallisticLanding) {
       setManualMode(true);
     }
-  }, [setManualMode]);
+  }, [setManualMode, needsBallisticLanding]);
 
-  /**
-   * handleMapMoveEnd: [REFORMA V7.3]
-   * Fija las coordenadas finales tras el movimiento para optimizar el radar.
-   */
   const handleMapMoveEnd = useCallback((event: SafeMapMoveEvent) => {
-    nicepodLog(`📍 [SpatialHub] Cámara asentada en: ${event.viewState.latitude.toFixed(4)}`);
+    nicepodLog(`📍 [SpatialHub] Cámara anclada en: ${event.viewState.latitude.toFixed(4)}`);
     setSearchCenter({
       latitude: event.viewState.latitude,
       longitude: event.viewState.longitude
@@ -185,7 +189,8 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
     if (results && results.length > 0) {
       const topHit = results[0];
       if (topHit.metadata?.lat && topHit.metadata?.lng && mapRef.current) {
-        setManualMode(true);
+        // Al buscar, forzamos modo manual para permitir exploración libre tras el vuelo
+        setManualMode(true); 
         mapRef.current.flyTo({
           center: [topHit.metadata.lng, topHit.metadata.lat],
           zoom: ZOOM_LEVELS.STREET,
@@ -234,7 +239,7 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
             <div className="flex flex-col items-center gap-4 text-center px-12">
               <span className="text-[11px] font-black uppercase tracking-[0.6em] text-white">Madrid Resonance</span>
               <p className="text-[9px] font-bold uppercase tracking-[0.3em] text-primary/60 animate-pulse italic">
-                {cameraPerspective === 'OVERVIEW' ? "Sincronizando Contexto..." : "Iniciando Inmersión de Calle..."}
+                {needsBallisticLanding ? "Ejecutando Vuelo Balístico..." : "Sincronizando Malla..."}
               </p>
             </div>
           </motion.div>
@@ -247,14 +252,14 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
           <MapCore
             ref={mapRef}
             mode={mode}
-            // En el mapa grande, si no hay ubicación de autoridad, nacemos arriba (Contexto).
+            // En el mapa grande, si no hay ubicación de autoridad, nacemos arriba (V5.4 Context).
             startCoords={!isIgnited ? { ...userLocation, ...INITIAL_OVERVIEW_CONFIG } : userLocation}
             theme={theme}
             selectedPOIId={selectedPOIId}
             onLoad={() => setIsMapLoaded(true)}
             onIdle={handleMapIdle}
             onMove={handleMapMove}
-            onMoveEnd={handleMapMoveEnd} // [FIX V7.3]: Propiedad requerida por el contrato MapCore.
+            onMoveEnd={handleMapMoveEnd}
             onMapClick={handleMapClick}
             onMarkerClick={(id: string) => {
               if (mode === 'EXPLORE') {
@@ -272,7 +277,7 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
             }}
           />
 
-          {/* EL DIRECTOR DE CÁMARA (V4.2 compatible) */}
+          {/* EL DIRECTOR DE CÁMARA (V4.4 compatible) */}
           {mode === 'EXPLORE' && isMapLoaded && (
             <CameraController />
           )}
@@ -310,11 +315,14 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V7.3):
- * 1. Build Stability: Se añadió onMoveEnd al componente MapCore, satisfaciendo el 
- *    contrato de tipos y resolviendo el error fatal de compilación en Vercel.
- * 2. Radar Settling: handleMapMoveEnd garantiza que las coordenadas de búsqueda 
- *    sean definitivas, reduciendo ruidos en la consulta a la Bóveda NKV.
- * 3. Contextual Animation: El Smokescreen ahora refleja fielmente la transición
- *    entre el modo cenital y el inmersivo.
+ * NOTA TÉCNICA DEL ARCHITECT (V7.4):
+ * 1. Flight Shield: Se bloquea la detección de modo manual durante maniobras 
+ *    balísticas. Esto resuelve el fallo del botón de ubicación al permitir que 
+ *    el flyTo se complete sin interrupciones del sistema.
+ * 2. Gesture Discrimination: Solo los eventos 'originalEvent' (físicos) pueden 
+ *    activar el modo manual, blindando la cinemática programática.
+ * 3. Atomic Radar Sync: El buscador semántico se mantiene alineado con la cámara
+ *    tanto en movimiento activo como al finalizar el desplazamiento.
+ * 4. Contextual Narrative: El Smokescreen adapta su léxico técnicos según la 
+ *    acción en curso, reforzando la atmósfera industrial.
  */
