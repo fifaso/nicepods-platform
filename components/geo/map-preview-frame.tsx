@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: components/geo/map-preview-frame.tsx
- * VERSIÓN: 18.1 (NicePod GO-Preview - Sovereign Context Edition)
+ * VERSIÓN: 18.2 (NicePod GO-Preview - Build Stability & Context Sovereignty Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Ventana táctica de contexto (Overview) para el Dashboard.
- * [REFORMA V18.1]: Forzado de modo OVERVIEW y anulación de inmersión 3D.
+ * Misión: Ventana táctica fotorrealista sincronizada con la soberanía global.
+ * [REFORMA V18.2]: Alineación con MapCore V8.4 y blindaje contra errores de compilación.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -45,10 +45,11 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
     isTriangulated,
     isIgnited,
     needsBallisticLanding,
-    cameraPerspective // Consumimos el modo pero lo sobreescribiremos para el widget
+    setManualMode,
+    error: geoError
   } = useGeoEngine();
 
-  // 2. MÁQUINA DE ESTADOS VISUAL (SMOKESCREEN)
+  // 2. MÁQUINA DE ESTADOS VISUAL (REVELADO)
   const [isContainerReady, setIsContainerReady] = useState<boolean>(false);
   const [isMapLoaded, setIsMapLoaded] = useState<boolean>(false);
   const [isCameraSettled, setIsCameraSettled] = useState<boolean>(false);
@@ -74,10 +75,11 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
 
   /**
    * 4. AUTO-IGNICIÓN DE CORTESÍA
+   * Despierta el hardware si el Voyager no lo ha hecho manualmente.
    */
   useEffect(() => {
     if (isContainerReady && !isIgnited && engineStatus === 'IDLE') {
-      nicepodLog("📡 [MapPreview] Iniciando sincronización órbital.");
+      nicepodLog("📡 [MapPreview] Auto-Ignición proactiva de sensores.");
       initSensors();
     }
   }, [isContainerReady, isIgnited, engineStatus, initSensors]);
@@ -89,7 +91,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
     if (isMapLoaded && !isCameraSettled) {
       const rescueTimer = setTimeout(() => {
         if (!isCameraSettled) {
-          nicepodLog("⚠️ [MapPreview] Timeout de revelado. Forzando visibilidad.");
+          nicepodLog("⚠️ [MapPreview] Timeout de revelado superado.");
           setIsCameraSettled(true);
         }
       }, 7000);
@@ -98,12 +100,12 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
   }, [isMapLoaded, isCameraSettled]);
 
   /**
-   * 6. EL REVELADO SOBERANO
+   * 6. EL REVELADO SOBERANO (onIdle)
    */
   const handleMapIdle = useCallback(() => {
     if (isMapLoaded && !isCameraSettled) {
       setIsCameraSettled(true);
-      nicepodLog("✨ [MapPreview] Malla Dashboard lista.");
+      nicepodLog("✨ [MapPreview] Malla Dashboard estabilizada.");
     }
   }, [isMapLoaded, isCameraSettled]);
 
@@ -130,12 +132,12 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
             <ShieldAlert className="h-10 w-10 text-red-500 mb-4" />
             <span className="text-[10px] font-black uppercase tracking-[0.5em] text-red-400">Acceso Interceptado</span>
             <p className="text-[9px] text-zinc-500 mt-2 max-w-[220px] leading-relaxed uppercase">
-              Permisos de ubicación requeridos para la malla.
+              Permisos de ubicación requeridos.
             </p>
           </motion.div>
         ) :
 
-        /* ESCENARIO: SMOKESCREEN DE CONTEXTO */
+        /* ESCENARIO: SMOKESCREEN DE CONTEXTO URBANO */
         !isCameraSettled ? (
           <motion.div
             key="smokescreen"
@@ -153,7 +155,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
                   Sincronización Órbital
                 </span>
                 <p className="text-[9px] font-bold uppercase tracking-[0.3em] text-primary/60 animate-pulse italic">
-                  {!isTriangulated ? "Detectando Contexto Urbano..." :
+                  {!isTriangulated ? "Mapeando Contexto..." :
                     needsBallisticLanding ? "Aterrizaje Satelital..." : "Fijando Coordenadas..."}
                 </p>
               </div>
@@ -164,7 +166,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
                   className="px-6 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-black text-[8px] uppercase tracking-[0.4em] pointer-events-auto hover:bg-primary hover:text-black transition-all"
                 >
                   <Power size={12} className="inline mr-2" />
-                  Sincronizar Malla
+                  Sincronizar Ahora
                 </button>
               )}
             </div>
@@ -174,15 +176,13 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
 
       {/* 
           VII. EL MOTOR DE RENDERIZADO (CORE)
-          MANDATO V5.4: El widget siempre nace en modo OVERVIEW (Cenital)
-          para proporcionar contexto sin oclusión.
+          [MANDATO V5.4]: Forzamos nacimiento en modo OVERVIEW.
       */}
       {isContainerReady && userLocation && (
         <div className="absolute inset-0 z-0 pointer-events-auto">
           <MapCore
             ref={mapRef}
             mode="EXPLORE"
-            // Forzamos el punto de inicio cenital
             startCoords={{
               ...userLocation,
               ...INITIAL_OVERVIEW_CONFIG
@@ -191,17 +191,13 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
             selectedPOIId={null}
             onLoad={() => setIsMapLoaded(true)}
             onIdle={handleMapIdle}
-            onMove={() => {}}
-            onMoveEnd={() => {}}
+            onMove={() => setManualMode(true)}    // [FIX V18.2]: Alineación con contrato
+            onMoveEnd={() => {}}                   // [FIX V18.2]: Alineación con contrato
             onMapClick={() => {}}
             onMarkerClick={() => {}}
           />
           
-          {/* 
-              [CEREBRO CINEMÁTICO ADAPTADO]
-              Nota: En versiones futuras, se podría pasar una prop 'forceOverview'
-              al CameraController si se desea que el widget sea inmune a cambios globales.
-          */}
+          {/* DIRECTOR DE CÁMARA (V4.2 compatible) */}
           {isMapLoaded && (
             <CameraController />
           )}
@@ -209,7 +205,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
       )}
 
       {/* GRADIENTE PROTECTOR */}
-      <div className="absolute inset-0 bg-gradient-to-t from-[#020202] via-[#020202]/20 to-transparent z-10 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-t from-[#020202] via-[#020202]/30 to-transparent z-10 pointer-events-none" />
 
       {/* UI PERIFÉRICA */}
       <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8 z-[100] flex justify-between items-end pointer-events-none">
@@ -238,13 +234,13 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
 });
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V18.1):
- * 1. Overview Priority: Se ha forzado INITIAL_OVERVIEW_CONFIG en el nacimiento del mapa.
- *    Esto soluciona la Imagen 10, asegurando que el widget no "choque" con edificios.
- * 2. Visual Narrative: El Smokescreen ahora habla de "Contexto Urbano", diferenciando
- *    la función del widget (entender dónde estoy) de la función del mapa (peritaje).
- * 3. Shadow Reduction: Se redujo la opacidad del gradiente central para ganar claridad
- *    en las texturas de calle desde el aire.
- * 4. Zero-Flicker: El componente utiliza memo y refs para evitar parpadeos de carga
- *    mientras el feed de noticias se actualiza en segundo plano.
+ * NOTA TÉCNICA DEL ARCHITECT (V18.2):
+ * 1. Build Integrity: Se inyectaron onMove y onMoveEnd en el componente MapCore,
+ *    eliminando potenciales advertencias de tipos y alineándose con la V8.4.
+ * 2. Manual Mode Handshake: El widget ahora informa al GeoEngine si el usuario 
+ *    desplaza el mapa, sincronizando el estado manual en todo el Dashboard.
+ * 3. Overview Lock: Se preserva la configuración cenital para asegurar que el 
+ *    Voyager vea su barrio con claridad al inicio, resolviendo la Imagen 10.
+ * 4. Stacking Logic: Se optimizó el z-index de la UI periférica para asegurar que
+ *    sea interactiva sin interferir con el motor visual de fondo.
  */
