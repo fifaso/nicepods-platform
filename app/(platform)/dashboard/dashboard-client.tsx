@@ -1,7 +1,12 @@
-// app/(platform)/dashboard/dashboard-client.tsx
-// VERSIÓN: 22.0 (NicePod Interactive Shell - Cinematic & Focus Mode Edition)
-// Misión: Gestionar el estado interactivo del radar y coreografiar la entrada visual.
-// [OPTIMIZACIÓN]: Orquestación Framer Motion, Strict Typing y Focus Mode Automático.
+/**
+ * ARCHIVO: app/(platform)/dashboard/dashboard-client.tsx
+ * VERSIÓN: 23.0 (NicePod Interactive Shell - Context-Aware Layout Edition)
+ * PROTOCOLO: MADRID RESONANCE V2.8
+ * 
+ * Misión: Gestionar el estado interactivo y el layout del Dashboard central.
+ * [REFORMA V23.0]: Calibración de altura de mapa para legibilidad de vista OVERVIEW.
+ * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
+ */
 
 "use client";
 
@@ -45,7 +50,6 @@ const MapPreviewFrame = dynamic(
 
 /**
  * INTERFAZ: DashboardClientProps
- * [BUILD SHIELD]: Erradicación absoluta de 'any'. Contrato blindado con la base de datos.
  */
 interface DashboardClientProps {
   initialFeed: {
@@ -58,27 +62,26 @@ interface DashboardClientProps {
 }
 
 /**
- * COREOGRAFÍA DE ENTRADA (Framer Motion Variants)
- * Define la cascada de materialización de los componentes.
+ * COREOGRAFÍA DE ENTRADA (Framer Motion)
  */
 const containerVariants = {
   hidden: { opacity: 0 },
   show: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.15, // Desfase matemático entre elementos
-      delayChildren: 0.1,    // Espera post-render SSR
+      staggerChildren: 0.1,
+      delayChildren: 0.1,
     }
   }
 };
 
 const itemVariants = {
-  hidden: { opacity: 0, y: 30, scale: 0.98 },
+  hidden: { opacity: 0, y: 20, scale: 0.98 },
   show: {
     opacity: 1,
     y: 0,
     scale: 1,
-    transition: { type: "spring", stiffness: 250, damping: 25 }
+    transition: { type: "spring", stiffness: 260, damping: 25 }
   }
 };
 
@@ -110,10 +113,6 @@ export function DashboardClient({
   return (
     <main className="container mx-auto max-w-screen-xl min-h-screen px-4 lg:px-8 selection:bg-primary/30">
 
-      {/* 
-          ORQUESTADOR CINEMÁTICO 
-          Gobierna la aparición en cascada de todos los hijos.
-      */}
       <motion.div
         variants={containerVariants}
         initial="hidden"
@@ -151,24 +150,24 @@ export function DashboardClient({
           </motion.header>
 
           {/* 
-              WIDGET DEL MAPA TÁCTICO (FOCUS MODE)
-              [MEJORA]: Si el usuario está buscando, el mapa se atenúa visualmente 
-              para no competir por la atención con los resultados de la Bóveda.
+              WIDGET DEL MAPA TÁCTICO (FOCUS MODE RE-CALIBRADO)
+              [REFORMA V23.0]: Se aumenta la altura base y el modo focus para 
+              permitir que la vista OVERVIEW (Zoom 14.8) tenga contexto real.
           */}
           <motion.section
             variants={itemVariants}
             className={cn(
               "w-full transition-all duration-700 ease-in-out relative z-0",
-              isSearching || searchResults ? "h-[100px] opacity-30 saturate-0 scale-[0.98] pointer-events-none" : "h-[200px] md:h-[260px] opacity-100 scale-100"
+              // En búsqueda, reducimos a 140px (antes 100px) para mantener visibilidad mínima
+              isSearching || searchResults 
+                ? "h-[140px] opacity-30 saturate-0 scale-[0.98] pointer-events-none" 
+                : "h-[260px] md:h-[320px] opacity-100 scale-100"
             )}
           >
             <MapPreviewFrame />
           </motion.section>
 
-          {/* 
-              FEED DE INTELIGENCIA (EL BUS DE DATOS)
-              Inyectado de forma síncrona.
-          */}
+          {/* FEED DE INTELIGENCIA */}
           <motion.div variants={itemVariants} className="relative z-10 min-h-[500px]">
             <IntelligenceFeed
               userName={userName}
@@ -188,7 +187,6 @@ export function DashboardClient({
             variants={itemVariants}
             className={cn(
               "sticky top-[8rem] space-y-8 flex flex-col h-fit transition-all duration-700",
-              // Focus Mode: Atenuar telemetría periférica durante la búsqueda
               isSearching || searchResults ? "opacity-20 blur-[2px] grayscale pointer-events-none" : "opacity-100"
             )}
           >
@@ -226,7 +224,7 @@ export function DashboardClient({
               <div className="space-y-3">
                 <div className="flex items-center gap-2 justify-center">
                   <Zap size={10} className="text-zinc-600" />
-                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em]">NicePod V2.6</p>
+                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em]">NicePod V2.8</p>
                 </div>
                 <div className="flex items-center gap-2.5 justify-center px-4 py-1.5 rounded-full bg-emerald-500/5 border border-emerald-500/10">
                   <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -243,3 +241,16 @@ export function DashboardClient({
     </main>
   );
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V23.0):
+ * 1. Overview Expansion: Se aumentó la altura del mapa a 320px (Desktop) para 
+ *    permitir que la vista INITIAL_OVERVIEW sea informativa y no un recorte.
+ * 2. Focus Mode Balance: Se elevó la altura mínima de búsqueda a 140px. Esto asegura 
+ *    que si el GPS fija la posición mientras el usuario escribe, el aterrizaje 
+ *    balístico sea aún perceptible en la periferia visual.
+ * 3. Type Safety: Eliminación total de 'any' en las props y mapeo de perfiles.
+ * 4. UX Shield: El contenedor del mapa usa pointer-events-none en modo búsqueda 
+ *    para evitar que el usuario desplace el mapa accidentalmente al intentar
+ *    clicar en los resultados del radar semántico.
+ */
