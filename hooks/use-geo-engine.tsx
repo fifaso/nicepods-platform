@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: hooks/use-geo-engine.tsx
- * VERSIÓN: 33.0 (NicePod Sovereign Geo-Engine - Recursive Authority Edition)
+ * VERSIÓN: 34.0 (NicePod Sovereign Geo-Engine - Tactical Pulse Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Orquestar telemetría, red y soberanía cinematográfica dual.
- * [REFORMA V33.0]: Implementación de Recentrado Recurrente y Mando de Perspectiva.
+ * Misión: Orquestar telemetría y soberanía cinematográfica mediante pulsos de autoridad.
+ * [REFORMA V34.0]: Implementación de recenterTrigger para habilitar mando infinito.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -27,7 +27,7 @@ import { calculateDistance } from "@/lib/geo-kinematics";
 import { useForgeOrchestrator } from "./use-forge-orchestrator";
 import { useSensorAuthority } from "./use-sensor-authority";
 
-// --- CONSTITUCIÓN DE TIPOS V6.0 (BUILD SHIELD) ---
+// --- CONSTITUCIÓN DE TIPOS V6.1 (BUILD SHIELD) ---
 import {
   ActivePOI,
   GeoEngineReturn,
@@ -94,11 +94,14 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
   // Hydration Guard: Inicializado con la verdad del servidor (initialData)
   const [isTriangulated, setIsTriangulated] = useState<boolean>(!!initialData);
 
-  // [SISTEMA CINEMÁTICO V33.0]: Soberanía de Perspectiva y Mando
+  // [SISTEMA CINEMÁTICO V34.0]: Soberanía de Perspectiva y Mando
   const [cameraPerspective, setCameraPerspective] = useState<CameraPerspective>('OVERVIEW');
   const [isManualMode, setIsManualMode] = useState<boolean>(false);
   
-  // needsBallisticLanding: Ahora funciona como un pulso recurrente de autoridad.
+  // recenterTrigger: Pulso eléctrico incremental para forzar vuelos de cámara.
+  const [recenterTrigger, setRecenterTrigger] = useState<number>(0);
+  
+  // needsBallisticLanding: Flag para el aterrizaje inicial (IP -> GPS).
   const [needsBallisticLanding, setNeedsBallisticLanding] = useState<boolean>(false);
   const hasPerformedInitialLandingRef = useRef<boolean>(false);
 
@@ -211,31 +214,34 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
     }
   }, [effectiveLocation, evaluateEnvironment, fetchNearbyPOIs, isTriangulated]);
 
-  // --- V. MÉTODOS DE SOBERANÍA CINEMÁTICA (REFORMA V33.0) ---
+  // --- V. MÉTODOS DE SOBERANÍA CINEMÁTICA (REFORMA V34.0) ---
 
   /**
-   * toggleCameraPerspective: Conmutación atómica de vista.
+   * toggleCameraPerspective: Conmutación de vista.
+   * [MEJORA]: Incrementa el trigger para asegurar que el controlador visual reaccione.
    */
   const toggleCameraPerspective = useCallback(() => {
     setCameraPerspective(prev => {
       const next = prev === 'STREET' ? 'OVERVIEW' : 'STREET';
-      nicepodLog(`🎥 [GeoEngine] Transmutación de Perspectiva: ${next}`);
+      nicepodLog(`🎥 [GeoEngine] Transmutación de Lente: ${next}`);
       return next;
     });
+    setRecenterTrigger(prev => prev + 1);
   }, []);
 
   /**
    * recenterCamera: Protocolo de Recuperación de Foco.
-   * [MEJORA V33.0]: Fuerza un pulso balístico para garantizar el regreso inmediato.
+   * [REFORMA V34.0]: El uso de setRecenterTrigger garantiza que cada click sea efectivo.
    */
   const recenterCamera = useCallback(() => {
-    nicepodLog("🎯 [GeoEngine] Orden de Recentrado: Forzando Pulso Balístico.");
+    nicepodLog("🎯 [GeoEngine] Pulso de Recentrado: Incrementando Trigger de Autoridad.");
     setIsManualMode(false);
-    // Activamos el pulso para que el CameraController lo intercepte
-    setNeedsBallisticLanding(true);
+    setRecenterTrigger(prev => prev + 1);
+    // Mantenemos needsBallisticLanding como señal de respaldo para transiciones largas
+    setNeedsBallisticLanding(true); 
   }, []);
 
-  // --- VI. ENSAMBLAJE DE LA API PÚBLICA (BUILD SHIELD V6.0) ---
+  // --- VI. ENSAMBLAJE DE LA API PÚBLICA (BUILD SHIELD V6.1) ---
 
   const derivedStatus = useMemo((): GeoEngineState => {
     if (forgeStatus !== 'IDLE') return forgeStatus;
@@ -257,12 +263,13 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
     error: forgeError || (isDenied ? "GPS_RESTRICTED" : null),
     data: { ...forgeData, ...localData } as GeoContextData,
 
-    // CAPACIDADES CINEMÁTICAS RECURSIVAS V33.0
+    // CAPACIDADES CINEMÁTICAS RECURSIVAS V34.0
     needsBallisticLanding,
+    recenterTrigger, // Exportamos el pulso para el CameraController
     cameraPerspective,
     isManualMode,
     confirmLanding: () => {
-      nicepodLog("🏁 [GeoEngine] Acknowledgment de Vuelo recibido.");
+      nicepodLog("🏁 [GeoEngine] Maniobra de vuelo asentada.");
       setNeedsBallisticLanding(false);
     },
     toggleCameraPerspective,
@@ -270,7 +277,7 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
     setManualMode: (active: boolean) => {
       if (active !== isManualMode) {
         setIsManualMode(active);
-        if (active) nicepodLog("🖐️ [GeoEngine] Control Manual en curso.");
+        if (active) nicepodLog("🖐️ [GeoEngine] Control Manual Detectado.");
       }
     },
 
@@ -299,7 +306,7 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
 
     // Purga de Sesión (Deep Clean)
     reset: () => {
-      nicepodLog("🧹 [GeoEngine] Purga total de telemetría.");
+      nicepodLog("🧹 [GeoEngine] Purga total ejecutada.");
       killHardwareWatch();
       resetForge();
       setIsTriangulated(false);
@@ -308,12 +315,12 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
       setManualAnchorState(null);
       setLocalData({});
       setNeedsBallisticLanding(false);
+      setRecenterTrigger(0);
       setCameraPerspective('OVERVIEW');
       setIsManualMode(false);
       hasPerformedInitialLandingRef.current = false;
       lastFetchPosRef.current = null;
       lastSourceRef.current = null;
-      lastEmittedLocationRef.current = null;
     }
   };
 
@@ -331,12 +338,12 @@ export function useGeoEngine() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V33.0):
- * 1. Recursive Ballistics: needsBallisticLanding ahora puede re-activarse para 
- *    forzar el recentrado del Voyager tras un desplazamiento manual.
- * 2. Perspective Sovereignty: El estado cameraPerspective centraliza la intención
- *    visual, permitiendo que STREET y OVERVIEW sean perfiles globales.
- * 3. Manual Mode Handshake: Se integra la detección de control humano para habilitar
- *    la mutación dinámica del botón de UI (Recentrar vs Cambiar Vista).
- * 4. Zero-Latency ACK: confirmLanding() cierra el ciclo de autoridad de forma atómica.
+ * NOTA TÉCNICA DEL ARCHITECT (V34.0):
+ * 1. Infinite Recenter Fix: Se implementó recenterTrigger (number) para sustituir
+ *    la lógica de booleano estancado, asegurando respuesta al botón en cada click.
+ * 2. High-Frequency Authority: El orquestador emite ahora un pulso detectable por
+ *    el compilador de React, rompiendo el bloqueo del useEffect en CameraController.
+ * 3. Perspective Sovereignty: Se mantiene el control bi-modal (STREET/OVERVIEW)
+ *    alineado con la física industrial de Madrid Resonance.
+ * 4. Build Shield Compliance: El contrato GeoEngineReturn V6.1 está 100% satisfecho.
  */
