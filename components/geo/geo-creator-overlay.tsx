@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: components/geo/geo-creator-overlay.tsx
- * VERSIÓN: 5.3 (NicePod Sovereign Orchestrator - Smart-Action Button Edition)
+ * VERSIÓN: 5.4 (NicePod Sovereign Orchestrator - Universal Commander Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Unificar la interfaz de usuario con el mando de cámara soberano.
- * [REFORMA V5.3]: Implementación de Smart-Action Button para Perspectiva Dual.
+ * Misión: Unificar la interfaz de usuario con la soberanía cinemática y perspectiva dual.
+ * [REFORMA V5.4]: Consolidación del Mando Único y Refinamiento de Háptica Táctica.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -21,7 +21,8 @@ import {
   Target, 
   X,
   Navigation2,
-  Layers
+  Layers,
+  Map as MapIcon
 } from "lucide-react";
 import { useCallback, useState, useMemo } from "react";
 
@@ -44,8 +45,11 @@ interface GeoCreatorOverlayProps {
   userId: string;
 }
 
+/**
+ * CreatorOverlayContent: El puente de mando táctico.
+ */
 function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
-  // 1. CONSUMO DE SOBERANÍA CINEMÁTICA (V32.0)
+  // 1. CONSUMO DE SOBERANÍA CINEMÁTICA (V33.0)
   const {
     status: engineStatus,
     data: engineData,
@@ -63,41 +67,49 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
 
   const { state: forgeState, dispatch } = useForge();
 
-  // 2. ESTADOS LOCALES DE UI
+  // 2. ESTADOS LOCALES DE INTERFAZ
   const [isTerminalOpen, setIsTerminalOpen] = useState<boolean>(false);
   const [mapTheme, setMapTheme] = useState<MapboxLightPreset>('night');
 
   /**
    * handleIgnition:
-   * Rompe el bloqueo de hardware mediante gesto de autoridad.
+   * Activa los sensores mediante un gesto de autoridad explícito.
    */
   const handleIgnition = useCallback(() => {
-    nicepodLog("⚡ [Orchestrator] Gesto de autoridad detectado. Ignición GPS.");
+    nicepodLog("⚡ [Orchestrator] Gesto de ignición detectado. Despertando hardware.");
     if (typeof window !== "undefined" && navigator.vibrate) {
-      navigator.vibrate(40);
+      navigator.vibrate(40); // Pulso de arranque
     }
     reSyncRadar();
   }, [reSyncRadar]);
 
   /**
-   * handleCameraAction: EL CORAZÓN DEL SMART-BUTTON
-   * Decide si recentrar el foco o cambiar la perspectiva.
+   * handleCameraAction: EL ALGORITMO DEL MANDO ÚNICO
+   * Gestiona la transición entre Recentrar, Modo Satélite y Modo Inmersivo.
    */
   const handleCameraAction = useCallback(() => {
-    if (!userLocation) return;
+    if (!userLocation) {
+      handleIgnition();
+      return;
+    }
 
     if (isManualMode) {
-      // ESTADO A: El usuario está "perdido", volvemos al Voyager.
-      nicepodLog("🎯 [Orchestrator] Gesto de Recentrado.");
-      if (typeof window !== "undefined" && navigator.vibrate) navigator.vibrate([10, 20]);
+      // ACCIÓN A: El usuario está desplazado. Prioridad: Recuperar Foco.
+      nicepodLog("🎯 [Orchestrator] Re-anclando visor al Voyager.");
+      if (typeof window !== "undefined" && navigator.vibrate) {
+        navigator.vibrate([10, 30]); // Doble pulso táctico
+      }
       recenterCamera();
     } else {
-      // ESTADO B: El usuario está centrado, conmutamos la vista.
-      nicepodLog(`🎥 [Orchestrator] Conmutando a modo ${cameraPerspective === 'STREET' ? 'OVERVIEW' : 'STREET'}.`);
-      if (typeof window !== "undefined" && navigator.vibrate) navigator.vibrate(30);
+      // ACCIÓN B: El usuario está centrado. Prioridad: Conmutar Perspectiva.
+      const nextView = cameraPerspective === 'STREET' ? 'OVERVIEW' : 'STREET';
+      nicepodLog(`🎥 [Orchestrator] Transmutando visor a modo ${nextView}.`);
+      if (typeof window !== "undefined" && navigator.vibrate) {
+        navigator.vibrate(25); // Pulso de cambio suave
+      }
       toggleCameraPerspective();
     }
-  }, [isManualMode, userLocation, cameraPerspective, recenterCamera, toggleCameraPerspective]);
+  }, [isManualMode, userLocation, cameraPerspective, recenterCamera, toggleCameraPerspective, handleIgnition]);
 
   const toggleTerminal = useCallback(() => {
     if (isTerminalOpen) {
@@ -111,29 +123,38 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
   const displayName = forgeState.intentText ||
     engineData?.manualPlaceName ||
     engineData?.dossier?.visual_analysis_dossier?.detectedOfficialName ||
-    "Malla Satelital Activa";
+    "Sintonía de Malla Activa";
 
   /**
-   * smartButtonConfig: Configuración dinámica del botón de cámara.
+   * smartButtonConfig: Configuración dinámica basada en el estado cinemático.
+   * [V5.4]: Alineación con el motor de perfiles PERSPECTIVE_PROFILES.
    */
   const smartButtonConfig = useMemo(() => {
+    // Escenario 1: Fuera de foco (Modo Manual)
     if (isManualMode) {
       return {
-        icon: <Target size={20} />,
-        color: "bg-primary text-black",
+        icon: <Target size={22} className="animate-pulse" />,
+        variant: "default" as const,
+        className: "bg-primary text-black shadow-[0_0_30px_rgba(var(--primary-rgb),0.4)]",
         label: "Recuperar Foco"
       };
     }
+    
+    // Escenario 2: En Inmersión (Street/PokémonGO) -> Ofrecer Satélite
     if (cameraPerspective === 'STREET') {
       return {
-        icon: <Layers size={20} />,
-        color: "bg-emerald-500/20 border-emerald-500/40 text-emerald-400",
+        icon: <Layers size={22} />,
+        variant: "resonance" as const, // Variante Emerald V11.0
+        className: "",
         label: "Vista Estratégica"
       };
     }
+    
+    // Escenario 3: En Estrategia (Overview/Satélite) -> Ofrecer Inmersión
     return {
-      icon: <Navigation2 size={20} />,
-      color: "bg-black/60 border-white/10 text-white",
+      icon: <Navigation2 size={22} />,
+      variant: "glass" as const,
+      className: "border-white/20",
       label: "Vista Inmersiva"
     };
   }, [isManualMode, cameraPerspective]);
@@ -141,7 +162,7 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
   return (
     <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none flex flex-col">
 
-      {/* I. CAPA 0: EL MOTOR CARTOGRÁFICO (SIN CONTROLES NATIVOS) */}
+      {/* I. CAPA 0: EL MOTOR CARTOGRÁFICO SOBERANO (REVELADO BI-MODAL) */}
       <div className="absolute inset-0 z-0 pointer-events-auto">
         <SpatialEngine
           mode={isTerminalOpen ? 'FORGE' : 'EXPLORE'}
@@ -153,88 +174,106 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
         />
       </div>
 
-      {/* II. CAPA 10: EL PANEL DE IGNICIÓN (COLD START) */}
+      {/* II. CAPA 10: PANEL DE IGNICIÓN (COLD FIX) */}
       <AnimatePresence>
         {engineStatus === 'IDLE' && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="absolute inset-0 z-[300] bg-black/40 backdrop-blur-xl flex flex-col items-center justify-center p-8 pointer-events-auto"
+            className="absolute inset-0 z-[300] bg-black/50 backdrop-blur-2xl flex flex-col items-center justify-center p-8 pointer-events-auto"
           >
-            <div className="max-w-xs w-full bg-[#080808] border border-white/10 rounded-[3rem] p-12 flex flex-col items-center text-center shadow-[0_40px_80px_rgba(0,0,0,0.9)]">
-              <div className="relative mb-10">
-                <div className="absolute inset-0 bg-primary/30 blur-3xl animate-pulse" />
-                <Satellite className="h-14 w-14 text-primary relative z-10" />
+            <div className="max-w-xs w-full bg-[#080808] border border-white/10 rounded-[3.5rem] p-12 flex flex-col items-center text-center shadow-[0_50px_100px_rgba(0,0,0,0.9)]">
+              <div className="relative mb-12">
+                <div className="absolute inset-0 bg-primary/20 blur-3xl animate-pulse" />
+                <Satellite className="h-16 w-16 text-primary relative z-10" />
               </div>
-              <h2 className="text-white font-black uppercase tracking-[0.4em] text-xs mb-3">Enlace Desconectado</h2>
-              <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest leading-relaxed mb-12">
-                Sincronice su posición para proyectar la malla de inteligencia.
+              <h2 className="text-white font-black uppercase tracking-[0.5em] text-[10px] mb-4">Malla Desconectada</h2>
+              <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-[0.3em] leading-relaxed mb-12 px-2">
+                Establezca enlace satelital para proyectar la inteligencia.
               </p>
               <Button
                 onClick={handleIgnition}
-                className="w-full h-14 bg-primary text-black font-black uppercase tracking-[0.4em] text-[10px] rounded-2xl shadow-[0_0_40px_rgba(var(--primary-rgb),0.3)] hover:scale-105 transition-all"
+                size="lg"
+                className="w-full bg-primary text-black rounded-2xl"
               >
                 <Power size={18} className="mr-3" />
-                Sincronizar Malla
+                Sincronizar
               </Button>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* III. CAPA 20: TACTICAL DOCK (MANDO UNIFICADO) */}
-      <div className="absolute top-8 right-6 md:right-8 flex flex-col gap-4 z-[150] pointer-events-auto">
-        {/* BOTÓN DE FORJA (NODO CENTRAL) */}
+      {/* III. CAPA 20: TACTICAL COMMAND DOCK */}
+      <div className="absolute top-8 right-6 md:right-8 flex flex-col gap-5 z-[150] pointer-events-auto">
+        
+        {/* ACCIÓN PRIMARIA: LA FORJA */}
         {canForge && engineStatus !== 'IDLE' && (
           <Button
             onClick={toggleTerminal}
-            className={cn(
-              "h-14 w-14 md:h-16 md:w-16 rounded-full shadow-2xl transition-all duration-500 border",
-              isTerminalOpen ? "bg-red-500 text-white" : "bg-[#080808]/90 text-white border-white/10 hover:border-primary/50"
-            )}
+            variant={isTerminalOpen ? "destructive" : "glass"}
+            size="tactical"
+            className={cn("shadow-2xl transition-all duration-500", !isTerminalOpen && "hover:border-primary/50")}
           >
             <AnimatePresence mode="wait">
-              {isTerminalOpen ? <X size={24} /> : <Plus size={24} className="group-hover:scale-110" />}
+              {isTerminalOpen ? (
+                <motion.div key="x" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }}>
+                  <X size={26} />
+                </motion.div>
+              ) : (
+                <motion.div key="plus" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }}>
+                  <Plus size={26} />
+                </motion.div>
+              )}
             </AnimatePresence>
           </Button>
         )}
 
-        {/* SELECTOR DE TEMA PBR */}
+        {/* SELECTOR DE TEMA AMBIENTAL */}
         {!isTerminalOpen && engineStatus !== 'IDLE' && (
-          <motion.button
-            initial={{ x: 50, opacity: 0 }} animate={{ x: 0, opacity: 1 }}
+          <Button
             onClick={() => setMapTheme(prev => prev === 'night' ? 'day' : 'night')}
-            className="h-12 w-12 rounded-full bg-black/60 backdrop-blur-xl border border-white/10 text-white flex items-center justify-center shadow-xl hover:bg-white hover:text-black transition-all"
+            variant="glass"
+            size="icon"
+            className="rounded-full shadow-xl"
           >
-            {mapTheme === 'night' ? <Moon size={18} /> : <Sun size={18} />}
-          </motion.button>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={mapTheme}
+                initial={{ y: 10, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: -10, opacity: 0 }}
+              >
+                {mapTheme === 'night' ? <Moon size={20} /> : <Sun size={20} />}
+              </motion.div>
+            </AnimatePresence>
+          </Button>
         )}
 
-        {/* SMART-ACTION BUTTON: EL MANDO DE PERSPECTIVA */}
+        {/* EL MANDO ÚNICO: SMART-ACTION BUTTON */}
         {!isTerminalOpen && engineStatus !== 'IDLE' && (
-          <motion.button
-            initial={{ x: 50, opacity: 0 }} animate={{ x: 0, opacity: 1 }}
+          <Button
             onClick={handleCameraAction}
-            className={cn(
-              "h-12 w-12 rounded-full backdrop-blur-xl border flex items-center justify-center shadow-xl transition-all duration-500",
-              smartButtonConfig.color
-            )}
+            variant={smartButtonConfig.variant}
+            size="icon"
+            className={cn("rounded-full shadow-2xl transition-all duration-500", smartButtonConfig.className)}
             title={smartButtonConfig.label}
           >
             <AnimatePresence mode="wait">
               <motion.div
-                key={isManualMode ? 'target' : cameraPerspective}
-                initial={{ rotate: -90, opacity: 0, scale: 0.5 }}
-                animate={{ rotate: 0, opacity: 1, scale: 1 }}
-                exit={{ rotate: 90, opacity: 0, scale: 0.5 }}
+                key={isManualMode ? 'recenter' : cameraPerspective}
+                initial={{ scale: 0.5, opacity: 0, rotate: -45 }}
+                animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                exit={{ scale: 1.5, opacity: 0, rotate: 45 }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
               >
                 {smartButtonConfig.icon}
               </motion.div>
             </AnimatePresence>
-          </motion.button>
+          </Button>
         )}
       </div>
 
-      {/* IV. CAPA 30: HUD TELEMETRÍA */}
+      {/* IV. CAPA 30: HUD DE TELEMETRÍA (SOLO EN FORJA) */}
       <AnimatePresence>
         {isTerminalOpen && (
           <motion.div
@@ -252,18 +291,18 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
         )}
       </AnimatePresence>
 
-      {/* V. CAPA 40: TERMINAL DRAWER */}
+      {/* V. CAPA 40: TERMINAL DE INGESTA IA */}
       <AnimatePresence>
         {isTerminalOpen && (
           <motion.div
             initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
             className="absolute inset-x-0 bottom-0 z-[130] flex flex-col justify-end pointer-events-auto h-[75vh]"
           >
-            <div className="w-full h-full bg-[#020202]/95 backdrop-blur-3xl rounded-t-[3rem] md:rounded-t-[4rem] border-t border-white/10 shadow-[0_-30px_60px_rgba(0,0,0,0.9)] flex flex-col relative overflow-hidden">
-              <div className="w-full flex justify-center py-5 shrink-0 z-20">
-                <div className="w-12 h-1.5 bg-white/10 rounded-full" />
+            <div className="w-full h-full bg-[#020202]/98 backdrop-blur-3xl rounded-t-[3.5rem] border-t border-white/10 shadow-[0_-30px_60px_rgba(0,0,0,0.9)] flex flex-col relative overflow-hidden">
+              <div className="w-full flex justify-center py-6 shrink-0 z-20">
+                <div className="w-16 h-1.5 bg-white/10 rounded-full" />
               </div>
-              <div className="w-full flex-1 relative flex flex-col min-h-0 mt-4 md:mt-8">
+              <div className="w-full flex-1 relative flex flex-col min-h-0">
                 <GeoScannerUI />
               </div>
             </div>
@@ -271,25 +310,29 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
         )}
       </AnimatePresence>
 
-      {/* VI. STATUS INFERIOR: SELLO DE SINTONÍA */}
+      {/* VI. ESTATUS DE SINTONÍA (FLOATING HUD) */}
       {!isTerminalOpen && engineStatus !== 'IDLE' && (
         <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-[100] pointer-events-auto">
           <button
             onClick={handleIgnition}
             className={cn(
-              "backdrop-blur-3xl px-6 py-3 rounded-full border flex items-center gap-4 shadow-2xl transition-all duration-700 active:scale-95",
+              "backdrop-blur-3xl px-8 py-4 rounded-full border flex items-center gap-5 shadow-2xl transition-all duration-700 active:scale-95 group",
               isGPSLock ? "bg-emerald-500/10 border-emerald-500/30" : "bg-black/80 border-white/10"
             )}
           >
             <div className="relative">
-              <div className={cn("h-2.5 w-2.5 rounded-full animate-ping absolute inset-0", isGPSLock ? "bg-emerald-500" : "bg-primary")} />
-              <div className={cn("h-2.5 w-2.5 rounded-full relative z-10", isGPSLock ? "bg-emerald-400" : "bg-primary")} />
+              <div className={cn("h-3 w-3 rounded-full animate-ping absolute inset-0", isGPSLock ? "bg-emerald-500" : "bg-primary")} />
+              <div className={cn("h-3 w-3 rounded-full relative z-10", isGPSLock ? "bg-emerald-400" : "bg-primary")} />
             </div>
-            <div className="flex flex-col items-start leading-none">
-              <span className="text-[10px] font-black text-white uppercase tracking-[0.4em]">{isGPSLock ? "Malla Sintonizada" : "Capturando Señal..."}</span>
-              <span className="text-[8px] font-bold text-zinc-500 uppercase tracking-[0.2em] mt-1">{isGPSLock ? "GPS High-Fidelity Active" : "Detectando Voyager..."}</span>
+            <div className="flex flex-col items-start leading-none gap-1.5">
+              <span className="text-[11px] font-black text-white uppercase tracking-[0.5em]">
+                {isGPSLock ? "Malla Sintonizada" : "Capturando Señal"}
+              </span>
+              <span className="text-[8px] font-bold text-zinc-500 uppercase tracking-[0.2em]">
+                {isGPSLock ? "GPS High-Fidelity Active" : "Detectando Voyager..."}
+              </span>
             </div>
-            {isGPSLock && <ShieldCheck size={14} className="text-emerald-500 ml-1" />}
+            {isGPSLock && <ShieldCheck size={16} className="text-emerald-500 ml-2 group-hover:scale-110 transition-transform" />}
           </button>
         </div>
       )}
@@ -297,6 +340,9 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
   );
 }
 
+/**
+ * GeoCreatorOverlay: El contenedor con contexto de forja.
+ */
 export function GeoCreatorOverlay(props: GeoCreatorOverlayProps) {
   return (
     <ForgeProvider>
@@ -306,14 +352,13 @@ export function GeoCreatorOverlay(props: GeoCreatorOverlayProps) {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V5.3):
- * 1. Smart-Action Logic: El botón de cámara ya no es un simple re-centrador. Ahora es
- *    consciente del estado manual y de la perspectiva, ofreciendo la acción más
- *    relevante en cada frame (Recentrar -> Vista Dual).
- * 2. Visual Morphing: Se implementó AnimatePresence con rotación para que el cambio
- *    de icono se sienta como una transición de hardware real.
- * 3. Perspective Feedback: El cambio a color Emerald en el SmartButton indica que 
- *    el sistema está en modo "GO-Experience" (Inmersión de alta precisión).
- * 4. UX Cleanup: Al delegar la lógica al GeoEngine y al CameraController, el Overlay
- *    se libera de cálculos matemáticos, actuando como un visor de comando puro.
+ * NOTA TÉCNICA DEL ARCHITECT (V5.4):
+ * 1. Universal Commander: El Smart-Button centraliza tres comportamientos físicos
+ *    basados en la telemetría, eliminando la necesidad de controles nativos.
+ * 2. Visual ACK: Se utiliza la variante 'resonance' del botón V11.0 para dar un
+ *    feedback de "Malla de Alta Precisión" cuando estamos en modo STREET.
+ * 3. Haptic Fidelity: Se calibraron patrones de vibración específicos para 
+ *    confirmar acciones sin necesidad de mirar el botón (Recentrar vs Toggle).
+ * 4. PWA Synergy: El diseño de bordes redondeados (3.5rem) y el uso de 
+ *    backdrop-blur-3xl optimizan la estética "Mobile-First" industrial.
  */
