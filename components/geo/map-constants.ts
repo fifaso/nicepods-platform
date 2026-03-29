@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: components/geo/map-constants.ts
- * VERSIÓN: 5.3 (NicePod Map Assets - Dual-Perspective Sovereignty Edition)
+ * VERSIÓN: 5.4 (NicePod Map Assets - Context-Aware DNA Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Centralizar el ADN físico, lumínico y cinemático del motor WebGL.
- * [REFORMA V5.3]: Definición de perfiles físicos para STREET y OVERVIEW.
+ * Misión: Centralizar el ADN físico y cinemático del motor WebGL.
+ * [REFORMA V5.4]: Calibración bi-modal: Dashboard (Cenital) vs Mapa (Inmersión).
  */
 
 export const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
@@ -24,22 +24,24 @@ export const MADRID_SOL_COORDS = {
 } as const;
 
 /**
- * STREET_VIEW_CONFIG: Configuración base para el nacimiento del mapa.
+ * INITIAL_OVERVIEW_CONFIG: [NUEVO V5.4]
+ * Configuración para el nacimiento del sistema. Vista desde arriba para contexto.
  */
-export const STREET_VIEW_CONFIG = {
-  zoom: 18.2,
-  pitch: 72,
-  bearing: -15,
+export const INITIAL_OVERVIEW_CONFIG = {
+  zoom: 14.8,       // Vista de barrio/distrito (Contexto General)
+  pitch: 0,         // Cenital pura (Sin edificios 3D intrusivos)
+  bearing: 0,       // Orientación al Norte para legibilidad de mapa
 } as const;
 
 /**
  * getInitialViewState: Función generadora de la semilla de renderizado.
+ * [MANDATO V5.4]: El sistema siempre nace en modo OVERVIEW (Cenital).
  */
 export function getInitialViewState(lat?: number, lng?: number) {
   return {
     latitude: lat || MADRID_SOL_COORDS.latitude,
     longitude: lng || MADRID_SOL_COORDS.longitude,
-    ...STREET_VIEW_CONFIG,
+    ...INITIAL_OVERVIEW_CONFIG,
   };
 }
 
@@ -50,26 +52,25 @@ export const KINEMATIC_CONFIG = {
 } as const;
 
 /**
- * PERSPECTIVE_PROFILES: [NUEVO V5.3] 
- * Define la física de los dos modos de visión soberanos.
+ * PERSPECTIVE_PROFILES: Definición física de los modos de visión.
  */
 export const PERSPECTIVE_PROFILES = {
   STREET: {
-    zoom: 18.5,
-    pitch: 75,                 // Inmersión profesional (Pokémon GO Style)
+    zoom: 18.5,                // Inmersión profunda
+    pitch: 75,                 // Perspectiva profesional (Pokémon GO)
     offset_distance_meters: 25, // Cámara detrás del Voyager
-    bearing_follow: true       // La cámara rota con el usuario
+    bearing_follow: true       // Sincronía con brújula
   },
   OVERVIEW: {
-    zoom: 15.8,
-    pitch: 0,                  // Vista Cenital Pura (Estratégica)
-    offset_distance_meters: 0,  // Cámara sobre el Voyager
-    bearing_follow: false      // El Norte siempre arriba (Estabilidad)
+    zoom: 15.2,                // Un poco más cerca que el arranque, pero cenital
+    pitch: 0,                  // Plano estratégico
+    offset_distance_meters: 0,  // Centrado absoluto
+    bearing_follow: false      // Norte estático
   }
 } as const;
 
 /**
- * CAMERA_PROFILES: Comportamientos según el modo de uso.
+ * CAMERA_PROFILES: Comportamientos según el flujo de la Workstation.
  */
 export const CAMERA_PROFILES = {
   NAVIGATE: {
@@ -86,6 +87,7 @@ export const CAMERA_PROFILES = {
 
 /**
  * STANDARD_ENGINE_CONFIG: Configuración del motor Mapbox Standard.
+ * [V5.4]: Activamos PlaceLabels para el contexto en Overview.
  */
 export const STANDARD_ENGINE_CONFIG = {
   lightPreset: ACTIVE_MAP_THEME,
@@ -126,29 +128,30 @@ export const DEM_SOURCE_CONFIG = {
 } as const;
 
 /**
- * FLY_CONFIG: Parámetros para vuelos balísticos e inter-modales.
+ * FLY_CONFIG: Parámetros para vuelos balísticos.
  */
 export const FLY_CONFIG = {
-  duration: 1800,
+  duration: 2200, // Ajustado para transiciones de perspectiva elegantes
   essential: true,
-  curve: 1.42,
-  speed: 1.1,
+  curve: 1.2,
+  speed: 1.0,
   easing: (t: number) => t * (2 - t)
 } as const;
 
 export const ZOOM_LEVELS = {
   CITY: 13,
   NEIGHBORHOOD: 15.5,
-  STREET: 18.2, 
-  FORGE: 19.2
+  STREET: 18.5, 
+  FORGE: 19.5
 } as const;
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V5.3):
- * 1. Perspective Duality: Se formaliza PERSPECTIVE_PROFILES para desligar 
- *    la física de la calle de la física estratégica.
- * 2. Static Overview: El modo OVERVIEW se fija en Pitch 0 para optimizar 
- *    la legibilidad de la malla urbana desde el aire.
- * 3. Contract Alignment: Estos valores serán consumidos por el CameraController
- *    para ejecutar transiciones líquidas entre ambos estados.
+ * NOTA TÉCNICA DEL ARCHITECT (V5.4):
+ * 1. Overview First: Se implementó INITIAL_OVERVIEW_CONFIG para que la plataforma 
+ *    nazca con una vista cenital (Pitch 0, Zoom 14.8), eliminando el efecto 
+ *    de "estar dentro de un edificio" en el Dashboard.
+ * 2. Perspective Duality: Los perfiles STREET y OVERVIEW están ahora calibrados
+ *    para responder al botón de acción dual con fluidez.
+ * 3. Vision Depth: Se ajustaron los ZOOM_LEVELS para asegurar que la inmersión 
+ *    en modo calle sea lo suficientemente detallada sin perder la visión del asfalto.
  */
