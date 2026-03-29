@@ -1,11 +1,11 @@
 /**
  * ARCHIVO: types/geo-sovereignty.ts
- * VERSIÓN: 6.0 (NicePod V2.8 - Universal Control & Perspective Sovereignty Edition)
+ * VERSIÓN: 6.1 (NicePod V2.8 - Recursive Authority & Trigger Pulse Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Centralizar el contrato de identidad, telemetría y control de perspectiva.
- * [SELLADO]: Inyección de estados de perspectiva dual y flags de modo manual.
- * Resolución de soberanía visual para la eliminación de controles nativos.
+ * Misión: Centralizar el contrato de identidad, telemetría y control cinemático.
+ * [REFORMA V6.1]: Inyección de recenterTrigger para erradicar el estancamiento de estado.
+ * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
 /**
@@ -76,7 +76,7 @@ export type GeoEngineState =
 /**
  * CameraPerspective: Define los dos modos de visualización profesional.
  * - STREET: Inmersión 75°, Zoom 18.5 (Estilo Pokémon GO).
- * - OVERVIEW: Vista Cenital 0°, Zoom 16 (Estilo Satélite/Estratégico).
+ * - OVERVIEW: Vista Cenital 0°, Zoom 15.2 (Vista de Contexto / Dashboard).
  */
 export type CameraPerspective = 'STREET' | 'OVERVIEW';
 
@@ -147,7 +147,7 @@ export interface GeoContextData {
 
 /**
  * GeoEngineReturn: La firma pública que el hook useGeoEngine entrega a la UI.
- * [REFORMA V6.0]: Integración de Soberanía de Perspectiva y Mando de Cámara.
+ * [REFORMA V6.1]: Integración de recenterTrigger para autoridad infinita del botón.
  */
 export interface GeoEngineReturn {
   // Estados de Sensor y Red
@@ -160,38 +160,41 @@ export interface GeoEngineReturn {
   isLocked: boolean;
   error: string | null;
 
-  // --- CAPACIDADES DE SOBERANÍA V6.0 ---
+  // --- CAPACIDADES DE SOBERANÍA V6.1 ---
   
-  /** isIgnited: Hardware GPS activo y singleton bloqueado. */
+  /** isIgnited: Hardware GPS activo y singleton de hardware bloqueado. */
   isIgnited: boolean;
 
-  /** isTriangulated: Ubicación inicial disponible. */
+  /** isTriangulated: Ubicación inicial disponible (IP o GPS). */
   isTriangulated: boolean;
   
   /** isGPSLock: Precisión certificada de alta fidelidad (<80m). */
   isGPSLock: boolean;
 
-  /** needsBallisticLanding: Disparador de vuelo cinematográfico inicial. */
+  /** needsBallisticLanding: Flag para el primer vuelo cinematográfico de aterrizaje. */
   needsBallisticLanding: boolean;
 
-  /** confirmLanding: Cierre de ciclo de vuelo balístico. */
+  /** recenterTrigger: [NUEVO V6.1] Pulso incremental para forzar recentrados bajo demanda. */
+  recenterTrigger: number;
+
+  /** confirmLanding: Callback que cierra el ciclo de vuelo (inicial o de recentrado). */
   confirmLanding: () => void;
 
-  // --- NUEVA GOBERNANZA DE CÁMARA (V6.0) ---
+  // --- GOBERNANZA DE CÁMARA Y PERSPECTIVA ---
 
   /** cameraPerspective: El modo actual de visión (STREET vs OVERVIEW). */
   cameraPerspective: CameraPerspective;
 
-  /** isManualMode: Indica si el usuario ha desplazado el mapa manualmente (Fuera de foco). */
+  /** isManualMode: Indica si el usuario ha desplazado el mapa manualmente. */
   isManualMode: boolean;
 
-  /** toggleCameraPerspective: Conmuta entre vista de calle y vista cenital. */
+  /** toggleCameraPerspective: Conmuta entre inmersión y estrategia. */
   toggleCameraPerspective: () => void;
 
-  /** setManualMode: Informa al motor si el usuario está interactuando. */
+  /** setManualMode: Informa al motor que el usuario tiene el mando. */
   setManualMode: (active: boolean) => void;
 
-  /** recenterCamera: Fuerza el regreso inmediato al Voyager. */
+  /** recenterCamera: Fuerza el regreso inmediato al Voyager disparando el pulso. */
   recenterCamera: () => void;
 
   // Métodos de Control Tradicionales
@@ -256,11 +259,12 @@ export interface POICategory {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V6.0):
- * 1. Control de Perspectiva: Se añade CameraPerspective para diferenciar los 
- *    perfiles físicos de renderizado (Inmersión vs Estrategia).
- * 2. Manual Mode Awareness: El flag isManualMode permite al UI reaccionar 
- *    cuando el usuario se "pierde" en el mapa, habilitando el botón de Recentrar.
- * 3. Unified Authority: Los métodos toggleCameraPerspective y recenterCamera
- *    centralizan el mando visual, permitiendo la purga de controles nativos.
+ * NOTA TÉCNICA DEL ARCHITECT (V6.1):
+ * 1. Infinite Recenter Fix: Se añadió 'recenterTrigger' como un contador. Esto 
+ *    garantiza que cada click en el botón de UI dispare un cambio de estado,
+ *    eliminando la "sordera" de la cámara tras el primer uso.
+ * 2. Visual Perspective Duality: Se mantiene el soporte para STREET y OVERVIEW,
+ *    preparando el terreno para la conmutación profesional de cámara.
+ * 3. Type Safety Integrity: El Build Shield de Vercel reconocerá estas propiedades
+ *    en el GeoEngine, permitiendo una compilación limpia y robusta.
  */
