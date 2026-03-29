@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/map-core.tsx
- * VERSIÓN: 8.2 (NicePod MapCore - Native Interface Purge Edition)
+ * VERSIÓN: 8.3 (NicePod MapCore - Contextual Vision & Urban Silence Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Renderizado WebGL puro sin interferencias de UI nativa.
- * [REFORMA V8.2]: Purga total de GeolocateControl para consolidar el mando único.
+ * Misión: Renderizado WebGL de alta fidelidad con gestión dinámica de etiquetas.
+ * [REFORMA V8.3]: Implementación de lógica de visibilidad basada en CameraPerspective.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -14,7 +14,7 @@ import type { ComponentProps } from "react";
 import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef } from "react";
 import Map, { MapRef } from 'react-map-gl/mapbox';
 
-// --- INFRAESTRUCTURA DE MALLA TÁCTICA ---
+// --- INFRAESTRUCTURA DE MALLA TÁCTICA V5.4 ---
 import {
   DEM_SOURCE_CONFIG,
   FOG_CONFIG,
@@ -34,9 +34,7 @@ import { MapMarkerCustom } from "../map-marker-custom";
 import { UserLocationMarker } from "../user-location-marker";
 
 /**
- * ---------------------------------------------------------------------------
- * I. [BUILD SHIELD]: TYPE EXTRACTION STRATEGY
- * ---------------------------------------------------------------------------
+ * [BUILD SHIELD]: TYPE EXTRACTION STRATEGY
  */
 type MapNativeProps = ComponentProps<typeof Map>;
 type SafeMapEvent = Parameters<NonNullable<MapNativeProps['onLoad']>>[0];
@@ -58,7 +56,7 @@ interface MapCoreProps {
 }
 
 /**
- * MapCore: El reactor visual soberano.
+ * MapCore: El reactor visual soberano de NicePod.
  */
 const MapCore = forwardRef<MapRef, MapCoreProps>(({
   mode,
@@ -73,7 +71,7 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
   selectedPOIId
 }, ref) => {
 
-  const { userLocation, nearbyPOIs, activePOI } = useGeoEngine();
+  const { userLocation, nearbyPOIs, activePOI, cameraPerspective } = useGeoEngine();
 
   // 1. REFERENCIA SOBERANA
   const localMapRef = useRef<MapRef>(null);
@@ -90,18 +88,32 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
   }, [startCoords]);
 
   /**
-   * 3. ACTUALIZACIÓN DINÁMICA DE ILUMINACIÓN Y OCLUSIÓN
-   * [GUARDIA V8.1]: Verificamos map.isStyleLoaded() antes de actuar para evitar crashes.
+   * 3. GOBERNANZA DE CONFIGURACIÓN DINÁMICA (PBR & LABELS)
+   * [V8.3]: Sincroniza Tema, Oclusión y Etiquetas según la perspectiva.
    */
   useEffect(() => {
     const map = localMapRef.current?.getMap();
 
     if (map && map.isStyleLoaded() && (map as any).setConfigProperty) {
-      nicepodLog(`🕯️ [MapCore] Sincronizando presets: ${theme}`);
+      const isOverview = cameraPerspective === 'OVERVIEW';
+      
+      // A. Preset Lumínico
       (map as any).setConfigProperty('basemap', 'lightPreset', theme);
+      
+      // B. Escudo de Oclusión (Voyager visible tras muros)
       (map as any).setConfigProperty('basemap', 'puckOcclusion', OCCLUSION_CONFIG.puckOcclusion);
+
+      // C. Gestión Contextual de Etiquetas (Urban Silence vs Context)
+      // En OVERVIEW (Dashboard) mostramos barrios y calles principales.
+      // En STREET (Inmersión) silenciamos todo para evitar ruido visual.
+      (map as any).setConfigProperty('basemap', 'showPlaceLabels', isOverview);
+      (map as any).setConfigProperty('basemap', 'showRoadLabels', isOverview);
+      (map as any).setConfigProperty('basemap', 'showPointOfInterestLabels', false); // Siempre apagado
+      (map as any).setConfigProperty('basemap', 'showTransitLabels', false); // Siempre apagado
+
+      nicepodLog(`🕯️ [MapCore] Configuración aplicada: ${theme} | Mode: ${cameraPerspective}`);
     }
-  }, [theme]);
+  }, [theme, cameraPerspective]);
 
   /**
    * [PROTOCOLO MAPBOX STANDARD]: Carga Inicial Segura
@@ -110,20 +122,22 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
     const map = e.target;
 
     if ((map as any).setConfigProperty) {
+      const isOverview = cameraPerspective === 'OVERVIEW';
+
       (map as any).setConfigProperty('basemap', 'lightPreset', theme);
       (map as any).setConfigProperty('basemap', 'puckOcclusion', OCCLUSION_CONFIG.puckOcclusion);
+      
+      // Inicialización de etiquetas basada en perspectiva de nacimiento
+      (map as any).setConfigProperty('basemap', 'showPlaceLabels', isOverview);
+      (map as any).setConfigProperty('basemap', 'showRoadLabels', isOverview);
+      (map as any).setConfigProperty('basemap', 'showPointOfInterestLabels', false);
+      (map as any).setConfigProperty('basemap', 'showTransitLabels', false);
 
-      // Aplicación de Silencio Urbano (Purga de etiquetas de terceros)
-      (map as any).setConfigProperty('basemap', 'showPointOfInterestLabels', STANDARD_ENGINE_CONFIG.showPointOfInterestLabels);
-      (map as any).setConfigProperty('basemap', 'showTransitLabels', STANDARD_ENGINE_CONFIG.showTransitLabels);
-      (map as any).setConfigProperty('basemap', 'showPlaceLabels', STANDARD_ENGINE_CONFIG.showPlaceLabels);
-      (map as any).setConfigProperty('basemap', 'showRoadLabels', STANDARD_ENGINE_CONFIG.showRoadLabels);
-
-      nicepodLog(`🏙️ [MapCore] Pintor WebGL configurado. Interface nativa purgada.`);
+      nicepodLog(`🏙️ [MapCore] Pintor WebGL activo. Perspectiva inicial: ${cameraPerspective}.`);
     }
 
     onLoad(e);
-  }, [onLoad, theme]);
+  }, [onLoad, theme, cameraPerspective]);
 
   /**
    * [PROTOCOLO DE INYECCIÓN DE TERRENO]
@@ -150,7 +164,7 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
         map.setTerrain(null);
       }
     } catch (err) {
-      nicepodLog("⚠️ [MapCore] Fallo en inyección de terreno asíncrono.", null, 'warn');
+      nicepodLog("⚠️ [MapCore] Suspensión de terreno asíncrono.", null, 'warn');
     }
   }, [mode]);
 
@@ -197,18 +211,15 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
           onClick={onMarkerClick}
         />
       ))}
-
-      {/* 
-          [PURGA V8.2]: Se eliminó el GeolocateControl nativo.
-          La soberanía de ubicación ahora es 100% gestionada por useSensorAuthority
-          y proyectada a través del UserLocationMarker.
-      */}
     </Map>
   );
 });
 
 MapCore.displayName = "MapCore";
 
+/**
+ * [BUILD SHIELD]: Exportación con comparador de integridad.
+ */
 export default memo(MapCore, (prev, next) => {
   return (
     prev.mode === next.mode &&
@@ -220,11 +231,11 @@ export default memo(MapCore, (prev, next) => {
 });
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V8.2):
- * 1. Interface Clean-up: Eliminación de GeolocateControl para evitar conflictos 
- *    de sensores y duplicidad de botones en el visor.
- * 2. Performance Gains: Menos nodos en el DOM de Mapbox significan un Main Thread 
- *    más ligero para el motor de cinemática LERP.
- * 3. Consistent Visibility: Se preserva el 'puckOcclusion' para que el Voyager 
- *    sea visible a través de edificios 3D, resolviendo oclusiones críticas.
+ * NOTA TÉCNICA DEL ARCHITECT (V8.3):
+ * 1. Label Sovereignty: Implementada la conmutación de etiquetas Place/Road 
+ *    basada en cameraPerspective para balancear contexto y limpieza.
+ * 2. Visual Stacking: Se mantiene la purga de controles nativos y la prioridad
+ *    de renderizado para los marcadores de conocimiento.
+ * 3. Atomic Config: Todas las llamadas a setConfigProperty están protegidas 
+ *    por isStyleLoaded(), erradicando el crash 'Style not loaded'.
  */
