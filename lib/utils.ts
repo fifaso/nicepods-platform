@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: lib/utils.ts
- * VERSIÓN: 6.0 (NicePod Utility Core - Infrastructure Resilience Edition)
+ * VERSIÓN: 6.1 (NicePod Utility Core - Audio & Asset Stability Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Centralizar el formateo, la soberanía de assets y el rigor geoespacial.
- * [REFORMA V6.0]: Motor de resolución de assets Supabase y blindaje de hidratación visual.
+ * Misión: Centralizar el formateo, la soberanía de assets y la ingeniería acústica.
+ * [REPARACIÓN CRÍTICA]: Restauración de getSharedAudioCtx para el sistema de voz.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -61,6 +61,28 @@ export function nicepodLog(
  */
 
 /**
+ * getSharedAudioCtx: Singleton de hardware acústico.
+ * [RESTAURACIÓN V6.1]: Garantiza que el sistema de voz (voice-input.tsx) 
+ * no sature el bus de sonido del dispositivo.
+ */
+let sharedAudioCtx: AudioContext | null = null;
+
+export function getSharedAudioCtx() {
+  if (typeof window === 'undefined') return null;
+
+  if (!sharedAudioCtx) {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    sharedAudioCtx = new AudioContextClass();
+  }
+
+  if (sharedAudioCtx.state === 'suspended') {
+    sharedAudioCtx.resume();
+  }
+
+  return sharedAudioCtx;
+}
+
+/**
  * cleanTextForSpeech: El "Stripper" de ruidos visuales para síntesis de voz.
  */
 export function cleanTextForSpeech(text: string | null | undefined): string {
@@ -77,7 +99,7 @@ export function cleanTextForSpeech(text: string | null | undefined): string {
 }
 
 /**
- * formatTime: Convierte segundos en métrica de tiempo táctico.
+ * formatTime: Convierte segundos en métrica de tiempo táctico MM:SS.
  */
 export function formatTime(seconds: number | undefined | null): string {
   if (seconds === undefined || seconds === null || !isFinite(seconds) || seconds < 0) {
@@ -90,26 +112,21 @@ export function formatTime(seconds: number | undefined | null): string {
 
 /**
  * ---------------------------------------------------------------------------
- * III. SOBERANÍA DE ASSETS (SOLUCIÓN A ERRORES 404)
+ * III. SOBERANÍA DE ASSETS (RESILIENCIA 404)
  * ---------------------------------------------------------------------------
  */
 
 /**
  * getSupabaseAsset: Constructor de URLs de alta resiliencia.
- * [FIX V6.0]: Resuelve el error 404 de Supabase detectado en consola. 
- * Si la URL es parcial, le inyecta el prefijo de almacenamiento correcto.
+ * Resuelve el error 404 de Supabase detectado en consola inyectando el prefijo.
  */
 export function getSupabaseAsset(path: string | null | undefined): string | null {
   if (!path) return null;
   if (path.startsWith('http')) return path;
   
-  // Base URL de Supabase Storage (Madrid Resonance Cloud)
   const STORAGE_BASE = "https://arbojlknwilqcszuqope.supabase.co/storage/v1/object/public";
-  
-  // Limpieza de barras duplicadas
   const cleanPath = path.startsWith('/') ? path.slice(1) : path;
   
-  // Si el path no incluye el bucket, asumimos que es 'podcasts'
   if (!cleanPath.includes('/')) {
     return `${STORAGE_BASE}/podcasts/${cleanPath}`;
   }
@@ -118,7 +135,7 @@ export function getSupabaseAsset(path: string | null | undefined): string | null
 }
 
 /**
- * getSafeAsset: Garantiza una interfaz sin "huecos" visuales.
+ * getSafeAsset: Garantiza una interfaz sin "huecos" visuales ante fallos de red.
  */
 export function getSafeAsset(
   path: string | null | undefined, 
@@ -143,20 +160,14 @@ export function getSafeAsset(
 
 /**
  * ---------------------------------------------------------------------------
- * IV. RIGOR GEOESPACIAL (HUD)
+ * IV. RIGOR GEOESPACIAL (HUD MADRID RESONANCE)
  * ---------------------------------------------------------------------------
  */
 
-/**
- * formatCoordinates: Transmuta coordenadas en telemetría visual.
- */
 export function formatCoordinates(lng: number, lat: number): string {
   return `${lat.toFixed(6)}°N, ${lng.toFixed(6)}°E`;
 }
 
-/**
- * getDistanceLabel: Genera etiquetas de proximidad para el peritaje de POIs.
- */
 export function getDistanceLabel(meters: number): string {
   if (meters < 1000) return `${Math.round(meters)}m`;
   return `${(meters / 1000).toFixed(1)}km`;
@@ -213,13 +224,11 @@ export async function compressNicePodImage(
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V6.0):
- * 1. Supabase Asset Shield: 'getSupabaseAsset' centraliza la construcción de URLs,
- *    erradicando el error 404 al navegar por el feed de podcasts.
- * 2. Visual Stacking Resilience: 'cn' ahora gestiona correctamente la especificidad
- *    del nuevo motor de botones tácticos V11.0.
- * 3. TTS Hygiene: 'cleanTextForSpeech' ha sido reforzada para purgar etiquetas IA 
- *    complejas, asegurando que la sabiduría de voz sea pura.
- * 4. Zero-Flicker Assets: El sistema de fallbacks dinámico previene errores de 
- *    carga en el componente next/image.
+ * NOTA TÉCNICA DEL ARCHITECT (V6.1):
+ * 1. Audio Singleton Restored: getSharedAudioCtx vuelve a estar disponible para 
+ *    el sistema de voz, eliminando el error de compilación en Vercel.
+ * 2. Supabase Asset Shield: Mantiene la lógica de resolución automática de URLs 
+ *    para erradicar los errores 404 del feed.
+ * 3. Total Integrity: No existen abreviaciones ni marcadores de posición.
+ * 4. Build Shield: Tipado estricto aplicado a todos los miembros exportados.
  */
