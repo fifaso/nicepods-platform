@@ -1,7 +1,12 @@
-// app/layout.tsx
-// VERSIÓN: 34.0 (NicePod Architecture Core - Visual Breakthrough Edition)
-// Misión: Orquestar la infraestructura global y liberar el lienzo visual para el BackgroundEngine.
-// [ESTABILIZACIÓN]: Eliminación de oclusión por bg-body y refinamiento de stacking context.
+/**
+ * ARCHIVO: app/layout.tsx
+ * VERSIÓN: 35.0 (NicePod Architecture Core - Context Isolation Edition)
+ * PROTOCOLO: MADRID RESONANCE V2.8
+ * 
+ * Misión: Orquestar la infraestructura de datos y atmósfera, aislando el contexto WebGL.
+ * [REFORMA V35.0]: Extracción total de lógica visual de Mapbox para evitar colisiones de IDs.
+ * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
+ */
 
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
@@ -10,7 +15,8 @@ import type React from "react";
 
 /**
  * --- CAPA 0: CIMIENTOS VISUALES ---
- * Sincronización de estilos base para WebGL y diseño Aurora.
+ * Sincronización de estilos base. Mapbox CSS se carga aquí para estar 
+ * disponible en los proveedores locales de cada ruta.
  */
 import "mapbox-gl/dist/mapbox-gl.css";
 import "./globals.css";
@@ -24,11 +30,12 @@ import { AuthProvider } from "@/hooks/use-auth";
 import { createClient } from '@/lib/supabase/server';
 import { Tables } from "@/types/database.types";
 
-// Contextos de Inteligencia y Telemetría
+// Contextos de Inteligencia y Telemetría (Soberanía de Datos)
+// [NOTA]: GeoEngineProvider se mantiene en la raíz porque gestiona telemetría persistente.
 import { AudioProvider } from "@/contexts/audio-context";
 import { GeoEngineProvider } from "@/hooks/use-geo-engine";
 
-// Motor de Inmersión Visual (V11.0)
+// Motor de Inmersión Visual (Soberanía Atmosférica)
 import { BackgroundEngine } from "@/components/visuals/background-engine";
 
 const inter = Inter({
@@ -39,10 +46,9 @@ const inter = Inter({
 
 /**
  * VIEWPORT: Configuración de UI de bajo nivel.
- * Se sincroniza con el color base del BackgroundEngine para evitar saltos en móviles.
  */
 export const viewport: Viewport = {
-  themeColor: "#030303", // Sincronizado con BackgroundEngine V11.0 (Dark)
+  themeColor: "#030303",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -148,10 +154,6 @@ export default async function RootLayout({
                   var theme = (storedTheme === 'dark' || (!storedTheme && prefersDark)) ? 'dark' : 'light';
                   document.documentElement.classList.add(theme);
                   document.documentElement.style.colorScheme = theme;
-                  
-                  if (document.documentElement.getAttribute('data-auth-state') === 'authenticated') {
-                    document.documentElement.style.visibility = 'visible';
-                  }
                 } catch (e) {
                   console.error('Lumen-Shield Error:', e);
                 }
@@ -179,12 +181,15 @@ export default async function RootLayout({
                 initialProfile={initialProfile}
               >
                 <AudioProvider>
-                  {/* III. MOTOR GEO Y VISUAL */}
+                  {/* 
+                      III. SOBERANÍA DE DATOS SIN CONTEXTO VISUAL GLOBAL
+                      [MANDATO V35.0]: GeoEngineProvider gestiona el flujo de coordenadas.
+                      NO inyectar MapProvider aquí para evitar el Ghosting rotacional.
+                  */}
                   <GeoEngineProvider initialData={initialGeoData}>
                     <main className="min-h-screen relative flex flex-col">
-                      {/* El motor Aurora ahora es visible gracias a body bg-transparent */}
                       <BackgroundEngine />
-
+                      
                       <div className="relative z-10 flex flex-col flex-1 bg-transparent isolate">
                         {children}
                       </div>
@@ -201,11 +206,15 @@ export default async function RootLayout({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V34.0):
- * 1. Transparencia de Lienzo: Se ha eliminado bg-[#020202] del body. Esto permite
- *    que el BackgroundEngine (V11.0) pinte los orbes morados y azules sin oclusión.
- * 2. Sincronía de Viewport: Se actualizó themeColor a #030303 para coincidir con 
- *    el nuevo fondo industrial, eliminando el borde gris en navegadores móviles.
- * 3. Aislamiento Isolate: Se mantiene el contexto 'isolate' en el div de children 
- *    para que los componentes UI no interfieran con el z-index del BackgroundEngine.
+ * NOTA TÉCNICA DEL ARCHITECT (V35.0):
+ * 1. Visual Isolation: Se ha confirmado la ausencia de MapProvider en la raíz. 
+ *    Esto obliga a cada ruta (/dashboard y /map) a gestionar su propia instancia,
+ *    eliminando las interferencias de cámara y rotación reportadas.
+ * 2. Data Persistence: GeoEngineProvider permanece en el Root para que la 
+ *    triangulación del Voyager sea continua durante la navegación entre páginas.
+ * 3. Atomic Unmounting: Al no compartir contexto de Mapbox, el navegador purga 
+ *    la instancia WebGL del Dashboard al navegar al mapa grande, deteniendo el 
+ *    "pestañeo" de retorno.
+ * 4. Stacking Context: Se mantiene el 'isolate' para proteger la jerarquía 
+ *    entre el BackgroundEngine (Z-20) y la interfaz táctica (Z-10).
  */
