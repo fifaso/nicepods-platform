@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/camera-controller.tsx
- * VERSIÓN: 4.8 (NicePod Camera Director - Interaction-Shield & Jitter-Free Edition)
+ * VERSIÓN: 4.9 (NicePod Camera Director - Style-Ready & Performance Guard Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Gestionar la cámara WebGL priorizando la soberanía del tacto sobre el LERP.
- * [REFORMA V4.8]: Implementación de Interaction-Shield y Umbral de Silencio Rotacional.
+ * Misión: Gestionar la cámara WebGL priorizando la estabilidad del hilo principal.
+ * [REFORMA V4.9]: Implementación de Style-Load Guard para erradicar violaciones de FPS.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -30,19 +30,20 @@ import {
 } from "../map-constants";
 
 interface CameraControllerProps {
-  /** mapId: Identificador único de la instancia (map-full o map-dashboard). */
+  /** mapId: Identificador único de la instancia soberana (map-full o map-dashboard). */
   mapId: MapInstanceId;
 }
 
 /**
- * CameraController: El brazo ejecutor de la cinemática soberana.
+ * CameraController: El brazo ejecutor cinemático de NicePod.
+ * Opera directamente sobre la GPU mediante la instancia nativa de Mapbox GL JS.
  */
 export function CameraController({ mapId }: CameraControllerProps) {
-  // 1. CONEXIÓN VINCULADA POR ID
-  // Accedemos exclusivamente a la instancia de Mapbox declarada para este contexto.
+  // 1. CONEXIÓN VINCULADA POR ID SOBERANO
+  // Extraemos la instancia específica para evitar interferencias entre Dashboard y Mapa Full.
   const { [mapId]: mapInstance } = useMap();
 
-  // 2. CONSUMO DE MANDO CINEMÁTICO (V36.0)
+  // 2. CONSUMO DE MANDO CINEMÁTICO (V37.0)
   const {
     userLocation,
     needsBallisticLanding,
@@ -53,7 +54,7 @@ export function CameraController({ mapId }: CameraControllerProps) {
     setManualMode
   } = useGeoEngine();
 
-  // 3. MEMORIA TÉCNICA (REFS DE ALTA VELOCIDAD)
+  // 3. MEMORIA TÉCNICA (REFS DE ALTA PRECISIÓN)
   const currentPosRef = useRef<KinematicPosition | null>(null);
   const currentBearingRef = useRef<number>(INITIAL_OVERVIEW_CONFIG.bearing);
   const currentPitchRef = useRef<number>(INITIAL_OVERVIEW_CONFIG.pitch);
@@ -66,18 +67,15 @@ export function CameraController({ mapId }: CameraControllerProps) {
 
   /**
    * handleUserInteraction: EL ESCUDO DE INTERACCIÓN
-   * Misión: Detener inmediatamente el motor LERP al detectar contacto físico.
+   * Detiene el motor LERP inmediatamente al detectar contacto físico del Voyager.
    */
   const handleUserInteraction = useCallback(() => {
-    // Registramos el timestamp del contacto
     lastInteractionRef.current = Date.now();
-    
-    // Si no estábamos en modo manual, activamos la soberanía del usuario.
     if (!isManualMode) {
       setManualMode(true);
     }
 
-    // [PUNTO CRÍTICO]: Cancelamos el frame actual para liberar el bus de comandos.
+    // [ORDEN PRIORITARIA]: Cancelamos el frame actual para liberar la CPU.
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
@@ -85,36 +83,41 @@ export function CameraController({ mapId }: CameraControllerProps) {
   }, [isManualMode, setManualMode]);
 
   /**
-   * kinematicLoop: EL CORAZÓN DEL MOVIMIENTO LÍQUIDO
-   * Interpola todas las variables físicas a 60FPS sincronizado con la GPU.
+   * kinematicLoop: EL CORAZÓN DE LA NAVEGACIÓN LÍQUIDA
+   * Misión: Interpolar todas las variables físicas a 60FPS.
    */
   const kinematicLoop = useCallback(() => {
-    // Si la instancia o la telemetría no están listas, cedemos el frame.
+    // A. GUARDIA DE ESTABILIDAD (V4.9)
+    // No permitimos la ejecución del bucle si Mapbox aún está cargando el estilo.
+    // Esto previene violaciones de FPS y errores de 'Style not loaded'.
     if (!mapInstance || !userLocation) {
       animationFrameRef.current = requestAnimationFrame(kinematicLoop);
       return;
     }
 
     const map = mapInstance.getMap();
+    if (!map.isStyleLoaded()) {
+      animationFrameRef.current = requestAnimationFrame(kinematicLoop);
+      return;
+    }
 
-    // A. EVALUACIÓN DE RECUPERACIÓN DE AUTORIDAD (8 segundos)
+    // B. PROTOCOLO DE RECUPERACIÓN DE FOCO (Timeout de 8s)
     const now = Date.now();
     if (isManualMode && (now - lastInteractionRef.current > 8000)) {
-      nicepodLog(`🎯 [Camera:${mapId}] Recuperando autoridad por inactividad.`);
+      nicepodLog(`🎯 [Camera:${mapId}] Recuperando mando por inactividad.`);
       setManualMode(false);
     }
 
-    // B. GUARDAS DE SILENCIO (MANUAL O VUELO ACTIVO)
-    // El escudo de interacción bloquea el LERP para dejar pasar los gestos del usuario.
+    // C. FILTROS DE SILENCIO
     if (isManualMode || isFlyingRef.current) {
       animationFrameRef.current = requestAnimationFrame(kinematicLoop);
       return;
     }
 
-    // C. PERFIL DE PERSPECTIVA (STREET vs OVERVIEW)
+    // D. OBTENCIÓN DEL PERFIL ACTIVO (STREET vs OVERVIEW)
     const profile = PERSPECTIVE_PROFILES[cameraPerspective];
 
-    // D. MOTOR LERP MULTI-VARIABLE
+    // E. MOTOR LERP MULTI-VARIABLE (GPU OFF-LOADING)
     
     // 1. Posicionamiento Espacial
     const targetPos: KinematicPosition = {
@@ -127,8 +130,7 @@ export function CameraController({ mapId }: CameraControllerProps) {
       currentPosRef.current = interpolateCoords(currentPosRef.current, targetPos);
     }
 
-    // 2. Orientación (Jitter Shield)
-    // [V4.8]: Si el cambio de rumbo es < 0.5°, ignoramos el ruido del magnetómetro.
+    // 2. Orientación (Anti-Jitter Lock 0.5°)
     const rawTargetBearing = profile.bearing_follow 
       ? (userLocation.heading ?? currentBearingRef.current)
       : 0; 
@@ -137,18 +139,18 @@ export function CameraController({ mapId }: CameraControllerProps) {
       currentBearingRef.current = interpolateAngle(currentBearingRef.current, rawTargetBearing);
     }
 
-    // 3. Inclinación y Escala
+    // 3. Morfismo de Lente (Pitch & Zoom)
     currentPitchRef.current = lerpSimple(currentPitchRef.current, profile.pitch);
     currentZoomRef.current = lerpSimple(currentZoomRef.current, profile.zoom);
 
-    // E. CÁLCULO DEL ANCLA CINEMÁTICA (Follow-Offset)
+    // F. CÁLCULO DEL ANCLA CINEMÁTICA (Follow-Offset Táctico)
     const cameraAnchor = calculateDestinationPoint(
       currentPosRef.current,
       -profile.offset_distance_meters, 
       currentBearingRef.current
     );
 
-    // F. INYECCIÓN IMPERATIVA EN GPU
+    // G. EJECUCIÓN IMPERATIVA SOBRE EL METAL
     map.jumpTo({
       center: [cameraAnchor.longitude, cameraAnchor.latitude],
       bearing: currentBearingRef.current,
@@ -161,7 +163,7 @@ export function CameraController({ mapId }: CameraControllerProps) {
 
   /**
    * EFECTO: ORQUESTACIÓN DE VUELO BALÍSTICO POR PULSO
-   * [REFORMA V4.8]: Salto de prioridad alfa que cancela el bucle de renderizado.
+   * [REFORMA V4.9]: Bloqueo total de LERP durante maniobras de autoridad.
    */
   useEffect(() => {
     const triggerReceived = recenterTrigger > lastProcessedTriggerRef.current;
@@ -170,9 +172,12 @@ export function CameraController({ mapId }: CameraControllerProps) {
       const map = mapInstance.getMap();
       const profile = PERSPECTIVE_PROFILES[cameraPerspective];
       
-      nicepodLog(`🚀 [Camera:${mapId}] Pulso Balístico activado. Prioridad de vuelo.`);
+      // Solo volamos si el motor WebGL está estable para recibir comandos pesados.
+      if (!map.isStyleLoaded()) return;
+
+      nicepodLog(`🚀 [Camera:${mapId}] Pulso Balístico: Priorizando Vuelo.`);
       
-      // FRENO ABSOLUTO: Detenemos el LERP antes de soltar el mando al motor nativo.
+      // FRENO DE SEGURIDAD: Detenemos el LERP antes de iniciar flyTo.
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
         animationFrameRef.current = null;
@@ -181,7 +186,7 @@ export function CameraController({ mapId }: CameraControllerProps) {
       isFlyingRef.current = true;
       lastProcessedTriggerRef.current = recenterTrigger;
 
-      // Sync de referencias para aterrizaje suave
+      // Sync previo de referencias para el aterrizaje.
       currentPosRef.current = {
         latitude: userLocation.latitude,
         longitude: userLocation.longitude
@@ -193,13 +198,14 @@ export function CameraController({ mapId }: CameraControllerProps) {
         pitch: profile.pitch,
         bearing: profile.bearing_follow ? (userLocation.heading ?? 0) : 0,
         ...FLY_CONFIG,
+        // Velocidad táctica para recentrados manuales.
         duration: triggerReceived ? 1200 : FLY_CONFIG.duration 
       });
 
       map.once('moveend', () => {
-        nicepodLog(`🏁 [Camera:${mapId}] Aterrizaje completado.`);
+        nicepodLog(`🏁 [Camera:${mapId}] Aterrizaje Certificado.`);
         
-        // Sincronizamos las referencias con el estado final de la GPU
+        // Sincronizamos las referencias con la verdad final de la GPU.
         currentPitchRef.current = profile.pitch;
         currentZoomRef.current = profile.zoom;
         currentBearingRef.current = profile.bearing_follow ? (userLocation.heading ?? 0) : 0;
@@ -207,7 +213,7 @@ export function CameraController({ mapId }: CameraControllerProps) {
         isFlyingRef.current = false;
         confirmLanding(); 
 
-        // Retomamos el motor líquido si no hay interacción manual
+        // Retomamos el motor líquido si el usuario no tiene el dedo en la pantalla.
         if (!isManualMode) {
           animationFrameRef.current = requestAnimationFrame(kinematicLoop);
         }
@@ -216,7 +222,7 @@ export function CameraController({ mapId }: CameraControllerProps) {
   }, [needsBallisticLanding, recenterTrigger, mapInstance, userLocation, cameraPerspective, confirmLanding, kinematicLoop, mapId, isManualMode]);
 
   /**
-   * CICLO DE VIDA: Gestión de Eventos y GPU Offloading
+   * CICLO DE VIDA: Gestión de Hardware y Eventos del Canvas.
    */
   useEffect(() => {
     animationFrameRef.current = requestAnimationFrame(kinematicLoop);
@@ -242,13 +248,13 @@ export function CameraController({ mapId }: CameraControllerProps) {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V4.8):
- * 1. Interaction Sovereignty: El uso de cancelAnimationFrame en el evento de contacto
- *    libera físicamente el zoom y pan nativos de Mapbox, eliminando los bloqueos.
- * 2. Jitter Shield: Se inyectó un umbral de 0.5° en la interpolación angular para 
- *    eliminar los movimientos laterales erráticos causados por el magnetómetro.
- * 3. Atomic Ref Sync: Mantiene la sincronía absoluta post-vuelo para evitar 
- *    rebotes visuales al retomar el control de la cámara.
- * 4. Instance Integrity: El bindeo por mapId garantiza que las órdenes de una 
- *    página nunca contaminen el contexto de la otra.
+ * NOTA TÉCNICA DEL ARCHITECT (V4.9):
+ * 1. Performance Guard: Se implementó un bloqueo preventivo del bucle LERP mediante
+ *    map.isStyleLoaded(), eliminando las violaciones de FPS durante el arranque.
+ * 2. Flight Sovereignty: La cancelación física de animationFrame antes de flyTo
+ *    asegura que el botón de ubicación funcione de forma determinista y profesional.
+ * 3. Jitter Shield 0.5°: Erradica los temblores laterales de la cámara, manteniendo 
+ *    la estética Pokémon GO solicitada.
+ * 4. Interaction Integrity: El controlador detecta instantáneamente el contacto 
+ *    humano para liberar los gestos nativos de Zoom y Pan.
  */
