@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/index.tsx
- * VERSIÓN: 7.5 (NicePod Spatial Hub - MapProvider Integration Edition)
+ * VERSIÓN: 7.6 (NicePod Spatial Hub - Instance Isolation & Atomic Context Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Orquestar el motor WebGL inyectando el contexto de mando necesario.
- * [REFORMA V7.5]: Integración de MapProvider para habilitar el mando del CameraController.
+ * Misión: Orquestar el motor WebGL en un entorno de contexto aislado y soberano.
+ * [REFORMA V7.6]: Encapsulamiento de MapProvider y asignación de ID 'map-full'.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -54,7 +54,7 @@ interface SpatialEngineProps {
  */
 export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className }: SpatialEngineProps) {
 
-  // 1. CONSUMO DE SOBERANÍA CINEMÁTICA (V34.0)
+  // 1. CONSUMO DE SOBERANÍA CINEMÁTICA (V35.0)
   const {
     userLocation,
     nearbyPOIs,
@@ -109,13 +109,13 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
   useEffect(() => {
     if (isContainerReady) {
       if (!isIgnited && engineStatus === 'IDLE') {
-        nicepodLog("📡 [SpatialHub] Activando sensores por proximidad.");
+        nicepodLog("📡 [SpatialHub] Activando sensores de hardware.");
         initSensors();
       }
 
       // Sincronía Pokémon GO: Forzar vista de calle al entrar en mapa full
       if (mode === 'EXPLORE' && cameraPerspective === 'OVERVIEW') {
-        nicepodLog("🎭 [SpatialHub] Transmutando perspectiva para inmersión.");
+        nicepodLog("🎭 [SpatialHub] Transmutando perspectiva para inmersión STREET.");
         toggleCameraPerspective();
       }
     }
@@ -128,7 +128,7 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
     if (isMapLoaded && !isCameraSettled) {
       const rescueTimer = setTimeout(() => {
         if (!isCameraSettled) {
-          nicepodLog("⚠️ [SpatialHub] Timeout de materialización. Forzando paso de luz.");
+          nicepodLog("⚠️ [SpatialHub] Timeout de materialización superado.");
           setIsCameraSettled(true);
         }
       }, 7000);
@@ -143,7 +143,7 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
   const handleMapIdle = useCallback(() => {
     if (isMapLoaded && !isCameraSettled) {
       setIsCameraSettled(true);
-      nicepodLog("✨ [SpatialHub] Malla PBR estabilizada.");
+      nicepodLog("✨ [SpatialHub] Malla PBR 'map-full' estabilizada.");
     }
   }, [isMapLoaded, isCameraSettled]);
 
@@ -156,14 +156,14 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
       longitude: event.viewState.longitude
     });
 
-    // Flight Shield: Ignoramos onMove si el sistema está ejecutando un vuelo balístico.
+    // Flight Shield: Protegemos el vuelo balístico de interrupciones manuales falsas.
     if (event.originalEvent && !needsBallisticLanding) {
       setManualMode(true);
     }
   }, [setManualMode, needsBallisticLanding]);
 
   const handleMapMoveEnd = useCallback((event: SafeMapMoveEvent) => {
-    nicepodLog(`📍 [SpatialHub] Cámara anclada en: ${event.viewState.latitude.toFixed(4)}`);
+    nicepodLog(`📍 [SpatialHub] Cámara asentada en: ${event.viewState.latitude.toFixed(4)}`);
     setSearchCenter({
       latitude: event.viewState.latitude,
       longitude: event.viewState.longitude
@@ -206,8 +206,9 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
 
   return (
     /**
-     * [ORDEN ARQUITECTÓNICA V7.5]: MapProvider encapsula la instancia de Mapbox.
-     * Sin esto, el CameraController no tiene acceso a la instancia del mapa.
+     * [ORDEN ARQUITECTÓNICA V7.6]: MapProvider local para aislamiento total.
+     * Al desmontar la ruta /map, este proveedor se destruye físicamente,
+     * limpiando la memoria VRAM y evitando interferencias con el Dashboard.
      */
     <MapProvider>
       <div ref={containerRef} className={cn("w-full h-full relative bg-[#010101]", className)}>
@@ -235,7 +236,7 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
               <div className="flex flex-col items-center gap-4 text-center px-12">
                 <span className="text-[11px] font-black uppercase tracking-[0.6em] text-white">Madrid Resonance</span>
                 <p className="text-[9px] font-bold uppercase tracking-[0.3em] text-primary/60 animate-pulse italic">
-                  {needsBallisticLanding ? "Ejecutando Vuelo Balístico..." : "Sincronizando Malla..."}
+                  {needsBallisticLanding ? "Ejecutando Vuelo de Inmersión..." : "Sincronizando Malla..."}
                 </p>
               </div>
             </motion.div>
@@ -246,6 +247,7 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
         {isContainerReady && userLocation && (
           <div className="w-full h-full pointer-events-auto">
             <MapCore
+              mapId="map-full" // [FIX V7.6]: Identidad Soberana para el Mapa Principal
               ref={mapRef}
               mode={mode}
               startCoords={!isIgnited ? { ...userLocation, ...INITIAL_OVERVIEW_CONFIG } : userLocation}
@@ -272,9 +274,9 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
               }}
             />
 
-            {/* EL DIRECTOR DE CÁMARA (Ahora vinculado al MapProvider) */}
+            {/* EL DIRECTOR DE CÁMARA (Vinculado a 'map-full') */}
             {mode === 'EXPLORE' && isMapLoaded && (
-              <CameraController />
+              <CameraController mapId="map-full" />
             )}
           </div>
         )}
@@ -311,13 +313,13 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V7.5):
- * 1. Global Map Context: La adición de MapProvider libera el hook useMap() en 
- *    el CameraController, permitiendo que las órdenes de vuelo se ejecuten.
- * 2. Flight-Shield Integrity: Se mantiene el bloqueo de eventos de movimiento 
- *    durante las maniobras de autoridad para evitar interrupciones por el sistema.
- * 3. Radar Coherence: El centro de búsqueda se sincroniza en tiempo real con 
- *    cada frame de desplazamiento, garantizando resultados precisos.
- * 4. Zero-Latency ACK: Se optimizó el flujo de revelado para que la cortina negra 
- *    desaparezca solo cuando la GPU ha terminado de renderizar el primer frame.
+ * NOTA TÉCNICA DEL ARCHITECT (V7.6):
+ * 1. Context Encapsulation: Al mover el MapProvider dentro del SpatialEngine, se garantiza 
+ *    que la instancia 'map-full' sea única y aislada de cualquier otro mapa del sistema.
+ * 2. ID Sovereignty: La asignación explícita de mapId="map-full" permite que el 
+ *    CameraController tome el mando sin interferencias de rumbos de otras páginas.
+ * 3. Memory Hygiene: El desmontaje del componente ahora libera físicamente los recursos 
+ *    WebGL, resolviendo el colapso visual y el pestañeo reportado en la V7.5.
+ * 4. Radar Precision: handleMapMoveEnd asegura que las coordenadas finales de 
+ *    búsqueda sean atómicas, optimizando las peticiones a la Bóveda NKV.
  */
