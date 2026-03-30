@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: types/geo-sovereignty.ts
- * VERSIÓN: 6.1 (NicePod V2.8 - Recursive Authority & Trigger Pulse Edition)
+ * VERSIÓN: 6.2 (NicePod V2.8 - Instance Isolation & Identity Sovereignty Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Centralizar el contrato de identidad, telemetría y control cinemático.
- * [REFORMA V6.1]: Inyección de recenterTrigger para erradicar el estancamiento de estado.
+ * Misión: Centralizar el contrato de identidad, telemetría y aislamiento de instancias.
+ * [REFORMA V6.2]: Inyección de MapInstanceId para erradicar el Ghosting de Mapbox.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -81,6 +81,12 @@ export type GeoEngineState =
 export type CameraPerspective = 'STREET' | 'OVERVIEW';
 
 /**
+ * MapInstanceId: [NUEVO V6.2] Identificadores únicos de lienzo.
+ * Evita la colisión de contextos entre el Dashboard y el Mapa de Inmersión.
+ */
+export type MapInstanceId = 'map-full' | 'map-dashboard';
+
+/**
  * ---------------------------------------------------------------------------
  * III. ENTIDADES MAESTRAS (BÓVEDA NKV)
  * ---------------------------------------------------------------------------
@@ -147,7 +153,7 @@ export interface GeoContextData {
 
 /**
  * GeoEngineReturn: La firma pública que el hook useGeoEngine entrega a la UI.
- * [REFORMA V6.1]: Integración de recenterTrigger para autoridad infinita del botón.
+ * [REFORMA V6.2]: Integración de Soberanía de Instancia para aislamiento WebGL.
  */
 export interface GeoEngineReturn {
   // Estados de Sensor y Red
@@ -160,7 +166,7 @@ export interface GeoEngineReturn {
   isLocked: boolean;
   error: string | null;
 
-  // --- CAPACIDADES DE SOBERANÍA V6.1 ---
+  // --- CAPACIDADES DE SOBERANÍA ---
   
   /** isIgnited: Hardware GPS activo y singleton de hardware bloqueado. */
   isIgnited: boolean;
@@ -171,13 +177,13 @@ export interface GeoEngineReturn {
   /** isGPSLock: Precisión certificada de alta fidelidad (<80m). */
   isGPSLock: boolean;
 
-  /** needsBallisticLanding: Flag para el primer vuelo cinematográfico de aterrizaje. */
+  /** needsBallisticLanding: Flag para maniobras de aproximación automatizadas. */
   needsBallisticLanding: boolean;
 
-  /** recenterTrigger: [NUEVO V6.1] Pulso incremental para forzar recentrados bajo demanda. */
+  /** recenterTrigger: Pulso incremental para forzar recentrados bajo demanda. */
   recenterTrigger: number;
 
-  /** confirmLanding: Callback que cierra el ciclo de vuelo (inicial o de recentrado). */
+  /** confirmLanding: Callback que cierra el ciclo de vuelo balístico. */
   confirmLanding: () => void;
 
   // --- GOBERNANZA DE CÁMARA Y PERSPECTIVA ---
@@ -250,21 +256,12 @@ export interface POICreationPayload {
   adminIntent: string;
 }
 
-export interface POICategory {
-  id: string;
-  label: string;
-  icon_name: string;
-  description: string;
-  vibe_color: string;
-}
-
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V6.1):
- * 1. Infinite Recenter Fix: Se añadió 'recenterTrigger' como un contador. Esto 
- *    garantiza que cada click en el botón de UI dispare un cambio de estado,
- *    eliminando la "sordera" de la cámara tras el primer uso.
- * 2. Visual Perspective Duality: Se mantiene el soporte para STREET y OVERVIEW,
- *    preparando el terreno para la conmutación profesional de cámara.
- * 3. Type Safety Integrity: El Build Shield de Vercel reconocerá estas propiedades
- *    en el GeoEngine, permitiendo una compilación limpia y robusta.
+ * NOTA TÉCNICA DEL ARCHITECT (V6.2):
+ * 1. Isolation Foundations: La introducción de MapInstanceId permite que el sistema
+ *    desligue físicamente el mapa del Dashboard del mapa Full-screen.
+ * 2. Ghosting Eradication: Al definir IDs únicos, el CameraController podrá 
+ *    vincularse exclusivamente al lienzo activo, deteniendo las rotaciones fantasmales.
+ * 3. Atomic Integrity: Se mantienen los contratos cinemáticos bi-modales para 
+ *    garantizar la fluidez de la Malla de Madrid.
  */
