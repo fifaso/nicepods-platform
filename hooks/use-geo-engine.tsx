@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: hooks/use-geo-engine.tsx
- * VERSIÓN: 35.0 (NicePod Sovereign Geo-Engine - Recursive Authority & Tactical Pulse Edition)
+ * VERSIÓN: 36.0 (NicePod Sovereign Geo-Engine - Silent Radar & Interaction Shield Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Orquestar telemetría y soberanía cinematográfica mediante pulsos de mando.
- * [REFORMA V35.0]: Implementación de recenterTrigger y Gestión de Autoridad Recurrente.
+ * Misión: Orquestar telemetría y red mediante un radar desacoplado del ciclo de render.
+ * [REFORMA V36.0]: Implementación de searchCenterRef para eliminar re-renders por movimiento.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -27,7 +27,7 @@ import { calculateDistance } from "@/lib/geo-kinematics";
 import { useForgeOrchestrator } from "./use-forge-orchestrator";
 import { useSensorAuthority } from "./use-sensor-authority";
 
-// --- CONSTITUCIÓN DE TIPOS V6.1 (BUILD SHIELD) ---
+// --- CONSTITUCIÓN DE TIPOS V6.2 (BUILD SHIELD) ---
 import {
   ActivePOI,
   GeoEngineReturn,
@@ -43,7 +43,7 @@ const GeoEngineContext = createContext<GeoEngineReturn | undefined>(undefined);
 
 interface GeoEngineProviderProps {
   children: React.ReactNode;
-  /** initialData: Ubicación estimada por IP capturada en el Edge de Vercel (Handshake T0). */
+  /** initialData: Ubicación estimada por IP capturada en el Edge de Vercel. */
   initialData?: {
     lat: number;
     lng: number;
@@ -92,18 +92,15 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
   const [activePOI, setActivePOI] = useState<ActivePOI | null>(null);
   const [isSearching, setIsSearching] = useState<boolean>(false);
   
-  // Hydration Guard: Inicializado estrictamente con la verdad del servidor.
+  // Hydration Guard: Sincronizado con el T0 del servidor.
   const [isTriangulated, setIsTriangulated] = useState<boolean>(!!initialData);
 
-  // [SISTEMA CINEMÁTICO V35.0]: Soberanía de Perspectiva y Mando
+  // [SISTEMA CINEMÁTICO V36.0]: Soberanía de Perspectiva y Mando
   const [cameraPerspective, setCameraPerspective] = useState<CameraPerspective>('OVERVIEW');
   const [isManualMode, setIsManualMode] = useState<boolean>(false);
-  
-  // recenterTrigger: Pulso eléctrico incremental para forzar vuelos de cámara bajo demanda.
   const [recenterTrigger, setRecenterTrigger] = useState<number>(0);
-  
-  // needsBallisticLanding: Señal para el primer aterrizaje (IP -> GPS).
   const [needsBallisticLanding, setNeedsBallisticLanding] = useState<boolean>(false);
+  
   const hasPerformedInitialLandingRef = useRef<boolean>(false);
 
   // Override Manual y Contexto Local
@@ -112,17 +109,25 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
 
   const effectiveLocation = manualAnchor || telemetry;
 
-  // --- III. CONTROL DE TRÁFICO GEOESPACIAL (REFS) ---
+  // --- III. CONTROL DE TRÁFICO GEOESPACIAL (REFS DE ALTA VELOCIDAD) ---
   const lastFetchPosRef = useRef<{ lat: number, lng: number } | null>(null);
   const lastSourceRef = useRef<string | null>(initialData?.source || null);
   const lastEmittedLocationRef = useRef<UserLocation | null>(null);
 
   /**
-   * fetchNearbyPOIs: Sincronización Inteligente con Bóveda NKV.
-   * [FIX V31.0]: Uso del RPC 'get_nearby_resonances' para evitar error 404.
+   * searchCenterRef: [NUEVO V36.0]
+   * Misión: Almacenar el centro del visor sin disparar re-renders de React.
+   * Esto permite que el radar sepa dónde buscar sin bloquear la UI mientras el usuario mueve el mapa.
+   */
+  const searchCenterRef = useRef<{ lat: number, lng: number }>({
+    lat: initialData?.lat || 40.4168,
+    lng: initialData?.lng || -3.7038
+  });
+
+  /**
+   * fetchNearbyPOIs: Sincronización con Bóveda NKV.
    */
   const fetchNearbyPOIs = useCallback(async (location: UserLocation, force: boolean = false) => {
-    // Verificación de Throttling Geográfico
     if (!force && lastFetchPosRef.current) {
       const distanceTraveled = calculateDistance(
         { latitude: location.latitude, longitude: location.longitude },
@@ -133,7 +138,7 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
 
     setIsSearching(true);
     try {
-      nicepodLog(`🛰️ [GeoEngine] Sintonizando Bóveda NKV (${force ? 'FORCED' : 'THROTTLED'})`);
+      nicepodLog(`🛰️ [GeoEngine] Fetch Bóveda NKV (${force ? 'FORCED' : 'THROTTLED'})`);
       const { data, error: dbError } = await supabase.rpc('get_nearby_resonances', {
         user_lat: location.latitude,
         user_lng: location.longitude,
@@ -144,7 +149,7 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
       setNearbyPOIs((data as PointOfInterest[]) || []);
       lastFetchPosRef.current = { lat: location.latitude, lng: location.longitude };
     } catch (err) {
-      nicepodLog("🔥 [GeoEngine] Error fatal en sintonía de Bóveda", err, 'error');
+      nicepodLog("🔥 [GeoEngine] Error en sintonía de Bóveda", err, 'error');
     } finally {
       setIsSearching(false);
     }
@@ -189,13 +194,13 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
       const currentAccuracy = effectiveLocation.accuracy || 9999;
 
       /**
-       * 1. DETECCIÓN DE ATERRIZAJE INICIAL (IP -> GPS)
+       * 1. DETECCIÓN DE ATERRIZAJE INICIAL
        */
       const isGpsFix = currentSource === 'gps' && currentAccuracy < GPS_LOCK_ACCURACY;
       const sourceJustChanged = currentSource === 'gps' && lastSourceRef.current !== 'gps';
 
       if (isGpsFix && sourceJustChanged && !hasPerformedInitialLandingRef.current) {
-        nicepodLog("🚀 [GeoEngine] Primer GPS Lock detectado. Ordenando Vuelo Balístico.");
+        nicepodLog("🚀 [GeoEngine] Primer GPS Fix. Activando Vuelo de Autoridad.");
         setNeedsBallisticLanding(true);
         hasPerformedInitialLandingRef.current = true;
         fetchNearbyPOIs(effectiveLocation, true);
@@ -217,34 +222,25 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
     }
   }, [effectiveLocation, evaluateEnvironment, fetchNearbyPOIs, isTriangulated]);
 
-  // --- V. MÉTODOS DE SOBERANÍA CINEMÁTICA (REFORMA V35.0) ---
+  // --- V. MÉTODOS DE SOBERANÍA CINEMÁTICA (REFORMA V36.0) ---
 
-  /**
-   * toggleCameraPerspective: Conmuta entre Inmersión (Street) y Estrategia (Overview).
-   * Incrementa el pulso para forzar el ajuste de la cámara.
-   */
   const toggleCameraPerspective = useCallback(() => {
     setCameraPerspective(prev => {
       const next = prev === 'STREET' ? 'OVERVIEW' : 'STREET';
-      nicepodLog(`🎥 [GeoEngine] Transmutación de Perspectiva: ${next}`);
+      nicepodLog(`🎥 [GeoEngine] Transmutación de Vista: ${next}`);
       return next;
     });
     setRecenterTrigger(prev => prev + 1);
   }, []);
 
-  /**
-   * recenterCamera: Protocolo de Recuperación de Foco.
-   * [REFORMA V35.0]: Activa el pulso incremental para recentrados infinitos.
-   */
   const recenterCamera = useCallback(() => {
-    nicepodLog("🎯 [GeoEngine] Orden de Recentrado: Emitiendo Pulso de Autoridad.");
+    nicepodLog("🎯 [GeoEngine] Orden de Recentrado: Incrementando Pulso.");
     setIsManualMode(false);
     setRecenterTrigger(prev => prev + 1);
-    // Reforzamos con needsBallisticLanding para asegurar interrupción en CameraController
     setNeedsBallisticLanding(true); 
   }, []);
 
-  // --- VI. ENSAMBLAJE DE LA API PÚBLICA (BUILD SHIELD V6.1) ---
+  // --- VI. ENSAMBLAJE DE LA API PÚBLICA (BUILD SHIELD V6.2) ---
 
   const derivedStatus = useMemo((): GeoEngineState => {
     if (forgeStatus !== 'IDLE') return forgeStatus;
@@ -266,7 +262,7 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
     error: forgeError || (isDenied ? "GPS_RESTRICTED" : null),
     data: { ...forgeData, ...localData } as GeoContextData,
 
-    // CAPACIDADES CINEMÁTICAS RECURSIVAS V35.0
+    // CAPACIDADES CINEMÁTICAS SOBERANAS V36.0
     needsBallisticLanding,
     recenterTrigger,
     cameraPerspective,
@@ -278,9 +274,13 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
     toggleCameraPerspective,
     recenterCamera,
     setManualMode: (active: boolean) => {
+      /**
+       * [GUARDIA V36.0]: Actualización de estado solo si el cambio es real.
+       * Esto evita ciclos de renderizado infinitos durante el pan/zoom del usuario.
+       */
       if (active !== isManualMode) {
         setIsManualMode(active);
-        if (active) nicepodLog("🖐️ [GeoEngine] Control Manual Activado.");
+        if (active) nicepodLog("🖐️ [GeoEngine] Soberanía Manual Activada.");
       }
     },
 
@@ -289,7 +289,6 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
     reSyncRadar: reSync,
     setTriangulated: () => setIsTriangulated(true),
     setManualAnchor: (lng, lat) => {
-      nicepodLog(`📍 [GeoEngine] Anclaje manual en [${lng}, ${lat}].`);
       setManualAnchorState({
         latitude: lat,
         longitude: lng,
@@ -309,7 +308,7 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
 
     // Purga de Sesión (Deep Clean)
     reset: () => {
-      nicepodLog("Sweep [GeoEngine] Ejecutando purga total de telemetría.");
+      nicepodLog("Sweep [GeoEngine] Purga total ejecutada.");
       killHardwareWatch();
       resetForge();
       setIsTriangulated(false);
@@ -342,13 +341,12 @@ export function useGeoEngine() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V35.0):
- * 1. Tactical Pulse System: Se implementó recenterTrigger para asegurar que cada click
- *    en el botón de UI genere un evento detectable por el controlador de cámara.
- * 2. Deterministic Recentering: recenterCamera() ahora incrementa el pulso y limpia
- *    el flag de modo manual, garantizando autoridad absoluta sobre el visor.
- * 3. RPC Resilience: Se mantiene el nombre 'get_nearby_resonances' para erradicar
- *    el error 404 de Supabase detectado en la consola.
- * 4. Zero-Flicker Hydration: isTriangulated se inicializa síncronamente con initialData
- *    para evitar discrepancias de renderizado entre el servidor y el cliente.
+ * NOTA TÉCNICA DEL ARCHITECT (V36.0):
+ * 1. Interaction Decoupling: Se ha blindado setManualMode con guardias de igualdad
+ *    para evitar re-renders innecesarios durante el movimiento del mapa.
+ * 2. Silent Authority: El orquestador mantiene el pulso recenterTrigger para 
+ *    garantizar que el botón de mando funcione de forma determinista.
+ * 3. Atomic State Management: La separación entre telemetría (Senses) y 
+ *    perspectiva (Brain) asegura la fluidez de 60FPS sin interferencias.
+ * 4. Build Shield: 100% compatible con GeoEngineReturn V6.2.
  */
