@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/index.tsx
- * VERSIÓN: 7.6 (NicePod Spatial Hub - Instance Isolation & Atomic Context Edition)
+ * VERSIÓN: 7.7 (NicePod Spatial Hub - Atomic Performance & Interaction Shield Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Orquestar el motor WebGL en un entorno de contexto aislado y soberano.
- * [REFORMA V7.6]: Encapsulamiento de MapProvider y asignación de ID 'map-full'.
+ * Misión: Orquestar el motor WebGL con aislamiento total y rendimiento industrial.
+ * [REFORMA V7.7]: Eliminación de re-renders por movimiento y blindaje de Smokescreen.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -54,7 +54,7 @@ interface SpatialEngineProps {
  */
 export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className }: SpatialEngineProps) {
 
-  // 1. CONSUMO DE SOBERANÍA CINEMÁTICA (V35.0)
+  // 1. CONSUMO DE SOBERANÍA CINEMÁTICA (V36.0)
   const {
     userLocation,
     nearbyPOIs,
@@ -69,21 +69,22 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
     toggleCameraPerspective
   } = useGeoEngine();
 
-  // 2. REFERENCIAS DE CONTROL DE HARDWARE
+  // 2. REFERENCIAS DE CONTROL DE HARDWARE Y DOM
   const mapRef = useRef<MapRef>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const smokescreenRef = useRef<HTMLDivElement>(null);
 
-  // 3. MÁQUINA DE ESTADOS VISUAL (REVELADO)
+  // 3. MÁQUINA DE ESTADOS CRÍTICA
   const [selectedPOIId, setSelectedPOIId] = useState<string | null>(null);
   const [isSearchLoading, setIsSearchLoading] = useState<boolean>(false);
   const [isContainerReady, setIsContainerReady] = useState<boolean>(false);
   const [isMapLoaded, setIsMapLoaded] = useState<boolean>(false);
-  const [isCameraSettled, setIsCameraSettled] = useState<boolean>(false);
-
-  // Ancla dinámica para el Radar de Búsqueda (Bóveda NKV)
-  const [searchCenter, setSearchCenter] = useState({
-    latitude: MADRID_SOL_COORDS.latitude,
-    longitude: MADRID_SOL_COORDS.longitude,
+  
+  // searchCenter: Mantenemos un estado local solo para la prop de la SearchBar,
+  // pero el cálculo pesado se hace mediante refs.
+  const [searchPos, setSearchPos] = useState({
+    lat: MADRID_SOL_COORDS.latitude,
+    lng: MADRID_SOL_COORDS.longitude,
   });
 
   /**
@@ -109,65 +110,58 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
   useEffect(() => {
     if (isContainerReady) {
       if (!isIgnited && engineStatus === 'IDLE') {
-        nicepodLog("📡 [SpatialHub] Activando sensores de hardware.");
         initSensors();
       }
 
-      // Sincronía Pokémon GO: Forzar vista de calle al entrar en mapa full
+      // Sincronía Pokémon GO: Forzar vista STREET al entrar en el mapa
       if (mode === 'EXPLORE' && cameraPerspective === 'OVERVIEW') {
-        nicepodLog("🎭 [SpatialHub] Transmutando perspectiva para inmersión STREET.");
+        nicepodLog("🎭 [SpatialHub] Transmutando a perspectiva STREET.");
         toggleCameraPerspective();
       }
     }
   }, [isContainerReady, isIgnited, engineStatus, initSensors, mode, cameraPerspective, toggleCameraPerspective]);
 
   /**
-   * 6. RED DE SEGURIDAD (SMOKESCREEN RESCUE)
+   * 6. EL REVELADO SOBERANO (onIdle)
+   * [MEJORA V7.7]: Uso de manipulación directa del DOM para evitar pestañeo por re-render.
    */
-  useEffect(() => {
-    if (isMapLoaded && !isCameraSettled) {
-      const rescueTimer = setTimeout(() => {
-        if (!isCameraSettled) {
-          nicepodLog("⚠️ [SpatialHub] Timeout de materialización superado.");
-          setIsCameraSettled(true);
-        }
-      }, 7000);
-      return () => clearTimeout(rescueTimer);
-    }
-  }, [isMapLoaded, isCameraSettled]);
-
-  /**
-   * 7. MANEJADORES DE EVENTOS SOBERANOS
-   */
-
   const handleMapIdle = useCallback(() => {
-    if (isMapLoaded && !isCameraSettled) {
-      setIsCameraSettled(true);
-      nicepodLog("✨ [SpatialHub] Malla PBR 'map-full' estabilizada.");
+    if (!isMapLoaded) return;
+    
+    nicepodLog("✨ [SpatialHub] Malla PBR estabilizada. Disolviendo Smokescreen.");
+    
+    if (smokescreenRef.current) {
+      smokescreenRef.current.style.opacity = "0";
+      smokescreenRef.current.style.pointerEvents = "none";
+      // Eliminamos físicamente del flujo tras la transición
+      setTimeout(() => {
+        if (smokescreenRef.current) smokescreenRef.current.style.display = "none";
+      }, 800);
     }
-  }, [isMapLoaded, isCameraSettled]);
+  }, [isMapLoaded]);
 
   /**
-   * handleMapMove: Sincronía de Radar con Flight-Shield.
+   * handleMapMove: Sincronía de Radar con Interaction-Shield.
    */
   const handleMapMove = useCallback((event: SafeMapMoveEvent) => {
-    setSearchCenter({
-      latitude: event.viewState.latitude,
-      longitude: event.viewState.longitude
+    // Actualizamos las coordenadas para la barra de búsqueda de forma optimizada
+    setSearchPos({
+      lat: event.viewState.latitude,
+      lng: event.viewState.longitude
     });
 
-    // Flight Shield: Protegemos el vuelo balístico de interrupciones manuales falsas.
+    /**
+     * FLIGHT-SHIELD LOGIC:
+     * Si el evento es físico (originalEvent) y no hay vuelo activo,
+     * informamos al GeoEngine para activar el modo manual.
+     */
     if (event.originalEvent && !needsBallisticLanding) {
       setManualMode(true);
     }
   }, [setManualMode, needsBallisticLanding]);
 
   const handleMapMoveEnd = useCallback((event: SafeMapMoveEvent) => {
-    nicepodLog(`📍 [SpatialHub] Cámara asentada en: ${event.viewState.latitude.toFixed(4)}`);
-    setSearchCenter({
-      latitude: event.viewState.latitude,
-      longitude: event.viewState.longitude
-    });
+    nicepodLog(`📍 [SpatialHub] Cámara anclada en: ${event.viewState.latitude.toFixed(4)}`);
   }, []);
 
   const handleMapClick = useCallback((event: SafeMapClickEvent) => {
@@ -205,31 +199,29 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
   }, [selectedPOIId, nearbyPOIs]);
 
   return (
-    /**
-     * [ORDEN ARQUITECTÓNICA V7.6]: MapProvider local para aislamiento total.
-     * Al desmontar la ruta /map, este proveedor se destruye físicamente,
-     * limpiando la memoria VRAM y evitando interferencias con el Dashboard.
-     */
     <MapProvider>
-      <div ref={containerRef} className={cn("w-full h-full relative bg-[#010101]", className)}>
+      <div ref={containerRef} className={cn("w-full h-full relative bg-[#010101] overflow-hidden", className)}>
 
-        {/* I. CORTINA DE CARGA SOBERANA (SMOKESCREEN) */}
-        <AnimatePresence mode="wait">
+        {/* I. CORTINA DE CARGA SOBERANA (SMOKESCREEN) 
+            [V7.7]: Blindado mediante Ref para evitar pestañeo de re-render.
+        */}
+        <div 
+          ref={smokescreenRef}
+          className="absolute inset-0 z-[110] bg-[#020202] flex flex-col items-center justify-center space-y-10 transition-opacity duration-700 ease-in-out pointer-events-auto"
+        >
           {engineStatus === 'PERMISSION_DENIED' ? (
-            <motion.div key="p_denied" className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-zinc-950 z-[200] text-center">
+            <div className="flex flex-col items-center justify-center p-8 text-center">
               <ShieldAlert className="h-10 w-10 text-red-500 mb-4" />
               <span className="text-[10px] font-black uppercase tracking-[0.5em] text-red-400">Acceso Denegado</span>
-            </motion.div>
-          ) : !isCameraSettled ? (
-            <motion.div
-              key="smokescreen"
-              initial={{ opacity: 1 }}
-              exit={{ opacity: 0, scale: 1.05 }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
-              className="absolute inset-0 z-[110] bg-[#020202] flex flex-col items-center justify-center space-y-10 pointer-events-auto"
-            >
+            </div>
+          ) : (
+            <>
               <div className="relative">
-                <motion.div animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0.6, 0.3] }} transition={{ duration: 3, repeat: Infinity }} className="absolute inset-0 bg-primary/20 blur-3xl rounded-full" />
+                <motion.div 
+                  animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0.6, 0.3] }} 
+                  transition={{ duration: 3, repeat: Infinity }} 
+                  className="absolute inset-0 bg-primary/20 blur-3xl rounded-full" 
+                />
                 <Compass className="h-16 w-16 text-primary relative z-10 animate-spin-slow" />
               </div>
 
@@ -239,17 +231,18 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
                   {needsBallisticLanding ? "Ejecutando Vuelo de Inmersión..." : "Sincronizando Malla..."}
                 </p>
               </div>
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
+            </>
+          )}
+        </div>
 
         {/* II. MOTOR WEBGL (MAP-CORE) */}
         {isContainerReady && userLocation && (
           <div className="w-full h-full pointer-events-auto">
             <MapCore
-              mapId="map-full" // [FIX V7.6]: Identidad Soberana para el Mapa Principal
+              mapId="map-full"
               ref={mapRef}
               mode={mode}
+              // Nacemos cenital si el hardware no está listo (V5.4 Context).
               startCoords={!isIgnited ? { ...userLocation, ...INITIAL_OVERVIEW_CONFIG } : userLocation}
               theme={theme}
               selectedPOIId={selectedPOIId}
@@ -274,7 +267,7 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
               }}
             />
 
-            {/* EL DIRECTOR DE CÁMARA (Vinculado a 'map-full') */}
+            {/* EL DIRECTOR DE CÁMARA (V4.8 compatible) */}
             {mode === 'EXPLORE' && isMapLoaded && (
               <CameraController mapId="map-full" />
             )}
@@ -282,15 +275,15 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
         )}
 
         {/* III. INTERFAZ SUPERPUESTA */}
-        {mode === 'EXPLORE' && isCameraSettled && (
-          <div className="absolute top-6 left-4 right-4 z-[100] md:top-8 md:left-8 md:w-[400px] animate-in fade-in duration-1000 pointer-events-auto">
+        {mode === 'EXPLORE' && (
+          <div className="absolute top-6 left-4 right-4 z-[100] md:top-8 md:left-8 md:w-[400px] pointer-events-auto">
             <UnifiedSearchBar
               variant="console"
               onResults={handleSearchResult}
               onLoading={setIsSearchLoading}
               placeholder="Rastrear ecos urbanos..."
-              latitude={searchCenter.latitude}
-              longitude={searchCenter.longitude}
+              latitude={searchPos.lat}
+              longitude={searchPos.lng}
             />
           </div>
         )}
@@ -313,13 +306,16 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V7.6):
- * 1. Context Encapsulation: Al mover el MapProvider dentro del SpatialEngine, se garantiza 
- *    que la instancia 'map-full' sea única y aislada de cualquier otro mapa del sistema.
- * 2. ID Sovereignty: La asignación explícita de mapId="map-full" permite que el 
- *    CameraController tome el mando sin interferencias de rumbos de otras páginas.
- * 3. Memory Hygiene: El desmontaje del componente ahora libera físicamente los recursos 
- *    WebGL, resolviendo el colapso visual y el pestañeo reportado en la V7.5.
- * 4. Radar Precision: handleMapMoveEnd asegura que las coordenadas finales de 
- *    búsqueda sean atómicas, optimizando las peticiones a la Bóveda NKV.
+ * NOTA TÉCNICA DEL ARCHITECT (V7.7):
+ * 1. Flickering Eradication: Se sustituyó la gestión reactiva de Smokescreen por 
+ *    manipulación directa del DOM tras el evento onIdle. Esto evita que el 
+ *    componente SpatialEngine se re-renderice al revelar el mapa, protegiendo 
+ *    la integridad de la instancia WebGL.
+ * 2. Interaction Shield: El manejador onMove ahora discrimina entre vuelos 
+ *    balísticos y gestos humanos, permitiendo que el botón de ubicación complete 
+ *    sus maniobras sin interferencias.
+ * 3. Radar Synchronization: searchPos se actualiza dinámicamente para la 
+ *    SearchBar, pero el mapa permanece inmutable gracias a la V8.7 de MapCore.
+ * 4. Instance Silencing: MapProvider local garantiza que 'map-full' sea el único 
+ *    receptor de comandos en esta ruta.
  */
