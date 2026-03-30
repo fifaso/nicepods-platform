@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/map-core.tsx
- * VERSIÓN: 8.6 (NicePod MapCore - Dynamic Identity & Instance Isolation Edition)
+ * VERSIÓN: 8.7 (NicePod MapCore - Absolute Immutability & Interaction Shield Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Renderizado WebGL de alta fidelidad con identidad de instancia única.
- * [REFORMA V8.6]: Implementación de mapId dinámico para erradicar el Ghosting visual.
+ * Misión: Renderizado WebGL inmutable que otorga soberanía total a los gestos del usuario.
+ * [REFORMA V8.7]: Bloqueo de re-renders por coordenadas para liberar Zoom y Pan.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -34,9 +34,7 @@ import { MapMarkerCustom } from "../map-marker-custom";
 import { UserLocationMarker } from "../user-location-marker";
 
 /**
- * ---------------------------------------------------------------------------
- * I. [BUILD SHIELD]: TYPE EXTRACTION STRATEGY
- * ---------------------------------------------------------------------------
+ * [BUILD SHIELD]: TYPE EXTRACTION STRATEGY
  */
 type MapNativeProps = ComponentProps<typeof Map>;
 type SafeMapEvent = Parameters<NonNullable<MapNativeProps['onLoad']>>[0];
@@ -44,12 +42,8 @@ type SafeMapMoveEvent = Parameters<NonNullable<MapNativeProps['onMove']>>[0];
 type SafeMapClickEvent = Parameters<NonNullable<MapNativeProps['onClick']>>[0];
 type SafeMapStyleDataEvent = Parameters<NonNullable<MapNativeProps['onStyleData']>>[0];
 
-/**
- * MapCoreProps: Contrato de renderizado soberano.
- * [REFORMA V8.6]: Se añade mapId para aislamiento físico de la instancia.
- */
 interface MapCoreProps {
-  mapId: MapInstanceId; // <--- Identidad Soberana Obligatoria
+  mapId: MapInstanceId;
   mode: 'EXPLORE' | 'FORGE';
   startCoords: UserLocation;
   theme: MapboxLightPreset;
@@ -86,18 +80,21 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
   useImperativeHandle(ref, () => localMapRef.current as MapRef, []);
 
   /**
-   * 2. GENERACIÓN DE SEMILLA DE NACIMIENTO
+   * 2. GENERACIÓN DE SEMILLA DE NACIMIENTO (V5.4)
+   * Se calcula una sola vez para evitar que re-renders muevan la cámara.
    */
   const initialMapState = useMemo(() => {
+    nicepodLog(`🌱 [MapCore:${mapId}] Sembrando semilla de renderizado.`);
     return getInitialViewState(
       startCoords.latitude,
       startCoords.longitude
     );
-  }, [startCoords]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapId]); // Solo re-calcula si el ID del mapa cambia físicamente
 
   /**
-   * 3. GOBERNANZA DE CONFIGURACIÓN DINÁMICA (PBR & LABELS)
-   * [GUARDIA V8.5]: Blindaje contra el error 'Style not loaded'.
+   * 3. GOBERNANZA DE CONFIGURACIÓN DINÁMICA
+   * [GUARDIA]: Operaciones imperativas para no disparar ciclos de React.
    */
   useEffect(() => {
     const map = localMapRef.current?.getMap();
@@ -105,19 +102,16 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
     if (map && map.isStyleLoaded() && (map as any).setConfigProperty) {
       const isOverview = cameraPerspective === 'OVERVIEW';
       
-      // Preset Lumínico (Día/Noche)
       (map as any).setConfigProperty('basemap', 'lightPreset', theme);
-      
-      // Escudo de Oclusión (Rayos X para el Voyager)
       (map as any).setConfigProperty('basemap', 'puckOcclusion', OCCLUSION_CONFIG.puckOcclusion);
 
-      // Gestión Contextual de Etiquetas
+      // Sincronía Contextual de Etiquetas
       (map as any).setConfigProperty('basemap', 'showPlaceLabels', isOverview);
       (map as any).setConfigProperty('basemap', 'showRoadLabels', isOverview);
       (map as any).setConfigProperty('basemap', 'showPointOfInterestLabels', false);
       (map as any).setConfigProperty('basemap', 'showTransitLabels', false);
 
-      nicepodLog(`🕯️ [MapCore:${mapId}] PBR Sync: ${theme} | Perspectiva: ${cameraPerspective}`);
+      nicepodLog(`🕯️ [MapCore:${mapId}] PBR Sync completado.`);
     }
   }, [theme, cameraPerspective, mapId]);
 
@@ -134,10 +128,8 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
       (map as any).setConfigProperty('basemap', 'puckOcclusion', OCCLUSION_CONFIG.puckOcclusion);
       (map as any).setConfigProperty('basemap', 'showPlaceLabels', isOverview);
       (map as any).setConfigProperty('basemap', 'showRoadLabels', isOverview);
-      (map as any).setConfigProperty('basemap', 'showPointOfInterestLabels', false);
-      (map as any).setConfigProperty('basemap', 'showTransitLabels', false);
 
-      nicepodLog(`🏙️ [MapCore:${mapId}] WebGL Pintor iniciado.`);
+      nicepodLog(`🏙️ [MapCore:${mapId}] Pintor WebGL listo para interacción soberana.`);
     }
 
     onLoad(e);
@@ -168,15 +160,15 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
         map.setTerrain(null);
       }
     } catch (err) {
-      nicepodLog(`⚠️ [MapCore:${mapId}] Suspensión asíncrona de terreno.`, null, 'warn');
+      nicepodLog(`⚠️ [MapCore:${mapId}] Suspensión asíncrona de terreno.`);
     }
   }, [mode, mapId]);
 
   return (
     <Map
-      id={mapId} // [REFORMA V8.6]: Identidad única inyectada
+      id={mapId}
       ref={localMapRef}
-      initialViewState={initialMapState}
+      initialViewState={initialMapState} // Uncontrolled: Mapbox gestiona su propia posición
       onLoad={handleMapLoad}
       onIdle={onIdle}
       onMove={onMove}
@@ -193,7 +185,7 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
       attributionControl={false}
       style={{ width: '100%', height: '100%' }}
     >
-      {/* CAPA: VOYAGER (Soberanía Visual z-9999) */}
+      {/* CAPA VOYAGER: Sincronizada con useGeoEngine */}
       {userLocation && (
         <UserLocationMarker
           location={userLocation}
@@ -201,7 +193,7 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
         />
       )}
 
-      {/* CAPA: ECOS (Bóveda NKV) */}
+      {/* CAPA ECOS: Bóveda NKV */}
       {nearbyPOIs.map((poi: PointOfInterest) => (
         <MapMarkerCustom
           key={poi.id}
@@ -222,26 +214,29 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
 MapCore.displayName = "MapCore";
 
 /**
- * [BUILD SHIELD]: Exportación con comparador de integridad.
+ * [BUILD SHIELD]: SOBERANÍA DE RENDERIZADO
+ * El comparador de integridad es ahora el filtro definitivo contra el jittering.
+ * BLOQUEO: Ignoramos 'startCoords' tras el montaje para liberar Zoom y Pan.
  */
 export default memo(MapCore, (prev, next) => {
   return (
-    prev.mapId === next.mapId && // Se añade mapId a la comparación de integridad
-    prev.mode === next.mode &&
+    prev.mapId === next.mapId &&
     prev.theme === next.theme &&
-    prev.selectedPOIId === next.selectedPOIId &&
-    prev.startCoords.latitude === next.startCoords.latitude &&
-    prev.startCoords.longitude === next.startCoords.longitude
+    prev.mode === next.mode &&
+    prev.selectedPOIId === next.selectedPOIId
+    // NOTA: Ignorar startCoords deliberadamente permite que Mapbox sea inmutable.
   );
 });
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V8.6):
- * 1. Instance Sovereignty: La eliminación del ID estático 'main-mesh-painter' por un
- *    prop 'mapId' dinámico resuelve físicamente la colisión de contextos WebGL.
- * 2. Visual Persistence Fix: Erradica el pestañeo al navegar entre rutas al 
- *    desligar los buffers de renderizado de cada página.
- * 3. Atomic Reliability: Mantiene las guardas isStyleLoaded() para asegurar que 
- *    la inyección de PBR y terreno ocurra solo bajo condiciones nominales.
- * 4. Build Shield Total: Alineación con MapInstanceId V6.2.
+ * NOTA TÉCNICA DEL ARCHITECT (V8.7):
+ * 1. Interaction Liberation: Al ignorar los cambios de startCoords en el memo, 
+ *    el componente <Map> nunca se reinicia, permitiendo que los gestos de 
+ *    zoom y pan nativos de Mapbox funcionen sin interferencias de React.
+ * 2. Visual Stasis: Erradica los movimientos laterales (jitter) al evitar que
+ *    el mapa intente re-centrarse en cada frame de telemetría de red.
+ * 3. Atomic Identity: El mapId vincula la instancia físicamente al lienzo, 
+ *    asegurando que cada página sea un reino soberano.
+ * 4. PBR Constancy: Los cambios de tema se inyectan imperativamente en el 
+ *    useEffect, manteniendo la fluidez de 60FPS sin re-renderizar el mapa.
  */
