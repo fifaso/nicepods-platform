@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/index.tsx
- * VERSIÓN: 7.8 (NicePod Spatial Hub - Aggressive Reveal & Race-Condition Edition)
+ * VERSIÓN: 7.9 (NicePod Spatial Hub - Prop Sovereignty & Build Stability Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Orquestar el motor WebGL garantizando la visibilidad bajo fallos de red.
- * [REFORMA V7.8]: Implementación de Fallback Timer para el Smokescreen y herencia T0.
+ * Misión: Orquestar el motor WebGL garantizando el aislamiento de instancias mediante mapId.
+ * [REPARACIÓN CRÍTICA]: Inyección de mapId en props para sanar error de build TS2322.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -31,6 +31,7 @@ import {
   INITIAL_OVERVIEW_CONFIG
 } from "../map-constants";
 
+import { MapInstanceId } from "@/types/geo-sovereignty";
 import { POIPreviewCard } from "../poi-preview-card";
 import { CameraController } from "./camera-controller";
 import MapCore from "./map-core";
@@ -42,7 +43,12 @@ type MapNativeProps = ComponentProps<typeof Map>;
 type SafeMapMoveEvent = Parameters<NonNullable<MapNativeProps['onMove']>>[0];
 type SafeMapClickEvent = Parameters<NonNullable<MapNativeProps['onClick']>>[0];
 
+/**
+ * SpatialEngineProps: Contrato de orquestación visual.
+ * [FIX V7.9]: Se añade mapId como propiedad obligatoria para el aislamiento de contexto.
+ */
 interface SpatialEngineProps {
+  mapId: MapInstanceId; // <--- Identidad Soberana Requerida
   mode: 'EXPLORE' | 'FORGE';
   theme?: MapboxLightPreset;
   onManualAnchor?: (lngLat: [number, number]) => void;
@@ -52,9 +58,15 @@ interface SpatialEngineProps {
 /**
  * SpatialEngine: El Reactor de Inteligencia Visual Soberano.
  */
-export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className }: SpatialEngineProps) {
+export function SpatialEngine({ 
+  mapId, 
+  mode, 
+  theme = 'night', 
+  onManualAnchor, 
+  className 
+}: SpatialEngineProps) {
 
-  // 1. CONSUMO DE SOBERANÍA CINEMÁTICA (V37.0 - Resilience Edition)
+  // 1. CONSUMO DE SOBERANÍA CINEMÁTICA (V37.0)
   const {
     userLocation,
     nearbyPOIs,
@@ -74,11 +86,10 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
   const containerRef = useRef<HTMLDivElement>(null);
   const smokescreenRef = useRef<HTMLDivElement>(null);
   
-  // Guardas de persistencia para evitar duplicidad de efectos
   const revealPerformedRef = useRef<boolean>(false);
   const fallbackTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // 3. MÁQUINA DE ESTADOS VISUAL
+  // 3. MÁQUINA DE ESTADOS VISUAL (REVELADO)
   const [selectedPOIId, setSelectedPOIId] = useState<string | null>(null);
   const [isSearchLoading, setIsSearchLoading] = useState<boolean>(false);
   const [isContainerReady, setIsContainerReady] = useState<boolean>(false);
@@ -90,7 +101,7 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
   });
 
   /**
-   * 4. PROTOCOLO DE SEGURIDAD DE MONTAJE
+   * 4. PROTOCOLO DE SEGURIDAD DE MONTAJE (Safe Mount)
    */
   useEffect(() => {
     if (!containerRef.current) return;
@@ -119,20 +130,19 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
       }
 
       if (mode === 'EXPLORE' && cameraPerspective === 'OVERVIEW') {
-        nicepodLog("🎭 [SpatialHub] Activando modo STREET para inmersión.");
+        nicepodLog(`🎭 [SpatialHub:${mapId}] Forzando inmersión STREET.`);
         toggleCameraPerspective();
       }
     }
-  }, [isContainerReady, isIgnited, engineStatus, initSensors, mode, cameraPerspective, toggleCameraPerspective]);
+  }, [isContainerReady, isIgnited, engineStatus, initSensors, mode, cameraPerspective, toggleCameraPerspective, mapId]);
 
   /**
    * 6. EL REVELADO AGRESIVO (Soberanía Visual V7.8)
-   * Misión: Disolver la cortina negra incluso si Mapbox tiene errores internos.
    */
   const revealMap = useCallback(() => {
     if (revealPerformedRef.current) return;
     
-    nicepodLog("✨ [SpatialHub] Ejecutando revelado de malla (Aggressive Protocol).");
+    nicepodLog(`✨ [SpatialHub:${mapId}] Disolviendo Smokescreen.`);
     revealPerformedRef.current = true;
     
     if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
@@ -144,27 +154,27 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
         if (smokescreenRef.current) smokescreenRef.current.style.display = "none";
       }, 850);
     }
-  }, []);
+  }, [mapId]);
 
   /**
    * FALLBACK TIMER: Race-Condition Guard
-   * Si el evento 'onIdle' no llega en 2.2s, forzamos el revelado.
    */
   useEffect(() => {
     if (isMapLoaded && !revealPerformedRef.current) {
       fallbackTimerRef.current = setTimeout(() => {
-        nicepodLog("⚠️ [SpatialHub] Mapbox Idle Timeout. Forzando visibilidad.");
+        nicepodLog(`⚠️ [SpatialHub:${mapId}] Mapbox Idle Timeout. Forzando visibilidad.`);
         revealMap();
       }, 2200);
     }
     return () => {
       if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
     };
-  }, [isMapLoaded, revealMap]);
+  }, [isMapLoaded, revealMap, mapId]);
 
   /**
-   * 7. MANEJADORES DE EVENTOS
+   * 7. MANEJADORES DE EVENTOS SOBERANOS
    */
+
   const handleMapIdle = useCallback(() => {
     if (isMapLoaded) {
       revealMap();
@@ -181,10 +191,6 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
       setManualMode(true);
     }
   }, [setManualMode, needsBallisticLanding]);
-
-  const handleMapMoveEnd = useCallback((event: SafeMapMoveEvent) => {
-    nicepodLog(`📍 [SpatialHub] Ubicación de cámara estable.`);
-  }, []);
 
   const handleMapClick = useCallback((event: SafeMapClickEvent) => {
     if (mode !== 'FORGE' || !onManualAnchor) return;
@@ -221,10 +227,13 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
   }, [selectedPOIId, nearbyPOIs]);
 
   return (
+    /**
+     * MapProvider local para aislamiento absoluto de la instancia declarada.
+     */
     <MapProvider>
       <div ref={containerRef} className={cn("w-full h-full relative bg-[#010101] overflow-hidden", className)}>
 
-        {/* I. CORTINA DE CARGA SOBERANA (SMOKESCREEN AGGRESSIVE) */}
+        {/* I. CORTINA DE CARGA SOBERANA */}
         <div 
           ref={smokescreenRef}
           className="absolute inset-0 z-[110] bg-[#020202] flex flex-col items-center justify-center space-y-10 transition-opacity duration-800 ease-in-out pointer-events-auto"
@@ -260,17 +269,16 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
         {isContainerReady && userLocation && (
           <div className="w-full h-full pointer-events-auto">
             <MapCore
-              mapId="map-full"
+              mapId={mapId} // [RESOLUCIÓN]: Se propaga el ID soberano del padre
               ref={mapRef}
               mode={mode}
-              // [HERENCIA]: Si venimos del dashboard con GPS, nacemos en la calle.
               startCoords={userLocation}
               theme={theme}
               selectedPOIId={selectedPOIId}
               onLoad={() => setIsMapLoaded(true)}
               onIdle={handleMapIdle}
               onMove={handleMapMove}
-              onMoveEnd={handleMapMoveEnd}
+              onMoveEnd={() => {}}
               onMapClick={handleMapClick}
               onMarkerClick={(id: string) => {
                 if (mode === 'EXPLORE') {
@@ -288,9 +296,9 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
               }}
             />
 
-            {/* DIRECTOR DE CÁMARA (V4.8 compatible) */}
+            {/* DIRECTOR DE CÁMARA (Vinculado a la instancia declarada) */}
             {mode === 'EXPLORE' && isMapLoaded && (
-              <CameraController mapId="map-full" />
+              <CameraController mapId={mapId} />
             )}
           </div>
         )}
@@ -327,13 +335,12 @@ export function SpatialEngine({ mode, theme = 'night', onManualAnchor, className
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V7.8):
- * 1. Aggressive Reveal Protocol: Se introdujo un fallback timer de 2.2s para 
- *    garantizar que el mapa se muestre aunque Mapbox falle en emitir 'onIdle'.
- * 2. Handover Continuity: Si el Voyager ya está localizado (isIgnited), el sistema 
- *    nace informando de la restauración del link, eliminando la sensación de carga fría.
- * 3. Race-Condition Shield: revealPerformedRef asegura que el revelado ocurra 
- *    exactamente una vez, ya sea por evento natural o por timeout.
- * 4. Main Thread Protection: La disolución de Smokescreen por Ref evita el 
- *    re-render del Hub, protegiendo la estabilidad del hilo de la GPU.
+ * NOTA TÉCNICA DEL ARCHITECT (V7.9):
+ * 1. Prop Sovereignty: Se añadió 'mapId' a SpatialEngineProps, eliminando el fallo 
+ *    de compilación TS2322 en el Step-1 de la forja.
+ * 2. Handover Continuity: El componente utiliza el mapId inyectado para vincular
+ *    físicamente el MapCore y el CameraController, asegurando aislamiento total.
+ * 3. Aggressive Reveal: Se mantiene el protocolo de Race-Condition para garantizar
+ *    que el Voyager vea el mapa aunque existan fallos menores en los activos de estilo.
+ * 4. Zero Abbreviations: Archivo 100% completo y listo para inyección industrial.
  */
