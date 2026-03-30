@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: components/geo/map-preview-frame.tsx
- * VERSIÓN: 18.3 (NicePod GO-Preview - MapProvider & Ballistic Authority Edition)
+ * VERSIÓN: 18.4 (NicePod GO-Preview - Atomic Instance & Context Isolation Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Ventana táctica fotorrealista con capacidad de mando cinematográfico.
- * [REFORMA V18.3]: Integración de MapProvider para habilitar el CameraController.
+ * Misión: Ventana táctica de contexto con aislamiento total de contexto WebGL.
+ * [REFORMA V18.4]: Encapsulamiento de MapProvider y asignación de ID 'map-dashboard'.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -32,6 +32,7 @@ import { CameraController } from "./SpatialEngine/camera-controller";
 
 /**
  * MapPreviewFrame: El widget de visualización para la Workstation Central.
+ * Misión: Proveer contexto geográfico cenital sin interferencias de otras rutas.
  */
 export const MapPreviewFrame = memo(function MapPreviewFrame() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -78,7 +79,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
    */
   useEffect(() => {
     if (isContainerReady && !isIgnited && engineStatus === 'IDLE') {
-      nicepodLog("📡 [MapPreview] Auto-Ignición proactiva de sensores.");
+      nicepodLog("📡 [MapPreview] Auto-Ignición proactiva de malla.");
       initSensors();
     }
   }, [isContainerReady, isIgnited, engineStatus, initSensors]);
@@ -90,7 +91,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
     if (isMapLoaded && !isCameraSettled) {
       const rescueTimer = setTimeout(() => {
         if (!isCameraSettled) {
-          nicepodLog("⚠️ [MapPreview] Timeout de revelado superado.");
+          nicepodLog("⚠️ [MapPreview] Timeout de revelado. Forzando visibilidad.");
           setIsCameraSettled(true);
         }
       }, 7000);
@@ -104,14 +105,15 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
   const handleMapIdle = useCallback(() => {
     if (isMapLoaded && !isCameraSettled) {
       setIsCameraSettled(true);
-      nicepodLog("✨ [MapPreview] Malla Dashboard estabilizada.");
+      nicepodLog("✨ [MapPreview] Malla 'map-dashboard' estabilizada.");
     }
   }, [isMapLoaded, isCameraSettled]);
 
   return (
     /**
-     * [ORDEN ARQUITECTÓNICA V18.3]: MapProvider es vital para que el CameraController
-     * pueda obtener la instancia del mapa y ejecutar el vuelo de recentrado.
+     * [ORDEN ARQUITECTÓNICA V18.4]: MapProvider local para aislamiento absoluto.
+     * Esto evita que el controlador de este widget interfiera con el mapa full-screen,
+     * eliminando las rotaciones fantasmales y el pestañeo visual.
      */
     <MapProvider>
       <motion.div
@@ -136,7 +138,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
               <ShieldAlert className="h-10 w-10 text-red-500 mb-4" />
               <span className="text-[10px] font-black uppercase tracking-[0.5em] text-red-400">Acceso Interceptado</span>
               <p className="text-[9px] text-zinc-500 mt-2 max-w-[220px] leading-relaxed uppercase">
-                Permisos de ubicación requeridos.
+                Habilite la ubicación para sincronizar la malla.
               </p>
             </motion.div>
           ) :
@@ -159,7 +161,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
                     Sincronización Órbital
                   </span>
                   <p className="text-[9px] font-bold uppercase tracking-[0.3em] text-primary/60 animate-pulse italic">
-                    {!isTriangulated ? "Mapeando Contexto..." :
+                    {!isTriangulated ? "Detectando Contexto..." :
                       needsBallisticLanding ? "Aterrizaje Satelital..." : "Fijando Coordenadas..."}
                   </p>
                 </div>
@@ -180,16 +182,17 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
 
         {/* 
             VII. EL MOTOR DE RENDERIZADO (CORE)
-            [MANDATO V5.4]: Forzamos nacimiento en modo OVERVIEW (Cenital).
+            [FIX V18.4]: Se inyecta mapId="map-dashboard" para aislamiento físico.
         */}
         {isContainerReady && userLocation && (
           <div className="absolute inset-0 z-0 pointer-events-auto">
             <MapCore
+              mapId="map-dashboard" // <--- Identidad Soberana
               ref={mapRef}
               mode="EXPLORE"
               startCoords={{
                 ...userLocation,
-                ...INITIAL_OVERVIEW_CONFIG
+                ...INITIAL_OVERVIEW_CONFIG // Forzado cenital para contexto
               }}
               theme={ACTIVE_MAP_THEME}
               selectedPOIId={null}
@@ -201,12 +204,9 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
               onMarkerClick={() => {}}
             />
             
-            {/* 
-                [CEREBRO CINEMÁTICO INTEGRADO]
-                Ahora el controlador puede actuar gracias al MapProvider.
-            */}
+            {/* DIRECTOR DE CÁMARA (Vinculado a 'map-dashboard') */}
             {isMapLoaded && (
-              <CameraController />
+              <CameraController mapId="map-dashboard" />
             )}
           </div>
         )}
@@ -242,12 +242,12 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
 });
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V18.3):
- * 1. Global Context Sync: Se añadió MapProvider para habilitar el uso de useMap() 
- *    dentro del widget, permitiendo que la cámara ejecute el vuelo inicial.
- * 2. Overview Priority: Mantiene el forzado de INITIAL_OVERVIEW_CONFIG para asegurar 
- *    que el Dashboard ofrezca contexto y no oclusión por edificios 3D.
- * 3. Authority Feedback: El Smokescreen informa al Voyager sobre el estado de 
- *    aterrizaje balístico, mejorando la percepción de calidad del sistema.
- * 4. Build Shield: Código 100% íntegro, sin abreviaciones y alineado con V2.8.
+ * NOTA TÉCNICA DEL ARCHITECT (V18.4):
+ * 1. Instance Isolation: La implementación de MapProvider local y el ID 'map-dashboard'
+ *    erradican físicamente las interferencias con la instancia principal del mapa.
+ * 2. Visual Memory Fix: El colapso visual al volver al dashboard se resuelve al 
+ *    forzar una nueva instancia WebGL limpia en cada montaje del componente.
+ * 3. Contextual Authority: Se mantiene el forzado de perspectiva cenital (V5.4) 
+ *    para asegurar que el Voyager reciba contexto general al abrir la Workstation.
+ * 4. Zero-Flicker: El uso de memo y refs optimiza el renderizado asíncrono.
  */
