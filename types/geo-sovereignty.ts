@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: types/geo-sovereignty.ts
- * VERSIÓN: 6.3 (NicePod V2.8 - Full Instance Registry Edition)
+ * VERSIÓN: 6.4 (NicePod V2.8 - Full Type Integrity & Tone Sovereignty Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Centralizar el contrato de identidad, telemetría y aislamiento de instancias.
- * [REPARACIÓN CRÍTICA]: Inyección de 'map-forge' en MapInstanceId para sanar el Build.
+ * Misión: Centralizar el contrato de identidad, telemetría y control cinemático.
+ * [REPARACIÓN CRÍTICA]: Unificación de tipos para profundidad y tono narrativo.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -75,16 +75,23 @@ export type GeoEngineState =
 
 /**
  * CameraPerspective: Define los dos modos de visualización profesional.
- * - STREET: Inmersión 75°, Zoom 18.5 (Estilo Pokémon GO).
- * - OVERVIEW: Vista Cenital 0°, Zoom 15.2 (Vista de Contexto / Dashboard).
  */
 export type CameraPerspective = 'STREET' | 'OVERVIEW';
 
 /**
  * MapInstanceId: Identificadores únicos de lienzo para aislamiento WebGL.
- * [FIX V6.3]: Se añade 'map-forge' para permitir el aislamiento en el flujo de creación.
  */
 export type MapInstanceId = 'map-full' | 'map-dashboard' | 'map-forge';
+
+/**
+ * NarrativeDepth: Escalas de profundidad para la síntesis de IA.
+ */
+export type NarrativeDepth = 'flash' | 'cronica' | 'inmersion';
+
+/**
+ * NarrativeTone: Taxonomía editorial unificada para el Agente 42.
+ */
+export type NarrativeTone = 'academico' | 'misterioso' | 'epico' | 'neutro';
 
 /**
  * ---------------------------------------------------------------------------
@@ -153,6 +160,7 @@ export interface GeoContextData {
 
 /**
  * GeoEngineReturn: La firma pública que el hook useGeoEngine entrega a la UI.
+ * [REFORMA V6.4]: Alineación total de parámetros IA para sanar TS2345.
  */
 export interface GeoEngineReturn {
   // Estados de Sensor y Red
@@ -166,40 +174,18 @@ export interface GeoEngineReturn {
   error: string | null;
 
   // --- CAPACIDADES DE SOBERANÍA ---
-  
-  /** isIgnited: Hardware GPS activo y singleton de hardware bloqueado. */
   isIgnited: boolean;
-
-  /** isTriangulated: Ubicación inicial disponible (IP o GPS). */
   isTriangulated: boolean;
-  
-  /** isGPSLock: Precisión certificada de alta fidelidad (<80m). */
   isGPSLock: boolean;
-
-  /** needsBallisticLanding: Flag para maniobras de aproximación automatizadas. */
   needsBallisticLanding: boolean;
-
-  /** recenterTrigger: Pulso incremental para forzar recentrados bajo demanda. */
   recenterTrigger: number;
-
-  /** confirmLanding: Callback que cierra el ciclo de vuelo balístico. */
   confirmLanding: () => void;
 
   // --- GOBERNANZA DE CÁMARA Y PERSPECTIVA ---
-
-  /** cameraPerspective: El modo actual de visión (STREET vs OVERVIEW). */
   cameraPerspective: CameraPerspective;
-
-  /** isManualMode: Indica si el usuario ha desplazado el mapa manualmente. */
   isManualMode: boolean;
-
-  /** toggleCameraPerspective: Conmuta entre inmersión y estrategia. */
   toggleCameraPerspective: () => void;
-
-  /** setManualMode: Informa al motor que el usuario tiene el mando. */
   setManualMode: (active: boolean) => void;
-
-  /** recenterCamera: Fuerza el regreso inmediato al Voyager disparando el pulso. */
   recenterCamera: () => void;
 
   // Métodos de Control Tradicionales
@@ -219,10 +205,11 @@ export interface GeoEngineReturn {
     radius: number;
   }) => Promise<{ poiId: number; dossier: IngestionDossier } | void>;
 
+  // [FIX V6.4]: Parámetros tipados con uniones literales para el Oráculo.
   synthesizeNarrative: (params: {
     poiId: number;
-    depth: 'flash' | 'cronica' | 'inmersion';
-    tone: string;
+    depth: NarrativeDepth;
+    tone: NarrativeTone;
     refinedIntent?: string;
   }) => Promise<void>;
 
@@ -256,11 +243,11 @@ export interface POICreationPayload {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V6.3):
- * 1. Build Restoration: Se añadió 'map-forge' a la unión MapInstanceId. Esto 
- *    legaliza el uso del ID de aislamiento en el flujo de creación.
- * 2. Identity Consistency: Se mantiene el rigor PostGIS y la arquitectura de
- *    pulsos tácticos para asegurar la soberanía de mando visual.
- * 3. Zero Abbreviations: Archivo íntegro, sin marcadores de posición, listo
- *    para sellar la compilación en Vercel.
+ * NOTA TÉCNICA DEL ARCHITECT (V6.4):
+ * 1. Build Shield Enforcement: Al transmutar 'tone' de string a NarrativeTone, 
+ *    resolvemos el conflicto de asignación en use-geo-engine.tsx, permitiendo 
+ *    que el build de Vercel sea nominal.
+ * 2. Evolutionary Taxonomy: Se definen NarrativeDepth y NarrativeTone como 
+ *    tipos raíz, facilitando la expansión futura de estilos sin romper la malla.
+ * 3. Zero Abbreviations: Archivo 100% íntegro para despliegue industrial.
  */
