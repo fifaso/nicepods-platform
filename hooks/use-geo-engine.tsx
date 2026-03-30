@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: hooks/use-geo-engine.tsx
- * VERSIÓN: 38.0 (NicePod Sovereign Geo-Engine - Spatial Invalidation Edition)
+ * VERSIÓN: 38.1 (NicePod Sovereign Geo-Engine - Type Alignment & Build Stability Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Orquestar telemetría, red y resonancia con refresco forzado post-forja.
- * [REFORMA V38.0]: Implementación de reSyncRadar con anulación de throttling y AbortController.
+ * Misión: Orquestar telemetría y red sincronizando la interfaz con el motor de IA.
+ * [REPARACIÓN CRÍTICA]: Alineación de tipos 'tone' y 'depth' para sanar error TS2345.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -27,7 +27,7 @@ import { calculateDistance } from "@/lib/geo-kinematics";
 import { useForgeOrchestrator } from "./use-forge-orchestrator";
 import { useSensorAuthority } from "./use-sensor-authority";
 
-// --- CONSTITUCIÓN DE TIPOS V6.2 (BUILD SHIELD) ---
+// --- CONSTITUCIÓN DE TIPOS V6.4 (BUILD SHIELD) ---
 import {
   ActivePOI,
   GeoEngineReturn,
@@ -35,7 +35,9 @@ import {
   PointOfInterest,
   UserLocation,
   GeoContextData,
-  CameraPerspective
+  CameraPerspective,
+  NarrativeDepth,
+  NarrativeTone
 } from "@/types/geo-sovereignty";
 
 const GeoEngineContext = createContext<GeoEngineReturn | undefined>(undefined);
@@ -54,7 +56,6 @@ interface GeoEngineProviderProps {
 // CONSTANTES DE GOBERNANZA INDUSTRIAL
 const FETCH_DISTANCE_THRESHOLD = 100; // Throttling: 100 metros
 const GPS_LOCK_THRESHOLD = 80;        // Autoridad Satelital: 80 metros
-const LOCAL_RADAR_LIMIT = 15;         // Límite de procesamiento de POIs para proteger el Main Thread
 
 /**
  * GeoEngineProvider: El Reactor Sensorial Maestro de NicePod.
@@ -110,15 +111,12 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
   const lastSourceRef = useRef<string | null>(initialData?.source || null);
   const lastEmittedLocationRef = useRef<UserLocation | null>(null);
   
-  // AbortController para anular peticiones de red obsoletas
   const abortControllerRef = useRef<AbortController | null>(null);
 
   /**
    * fetchNearbyPOIs: Sincronización Inteligente con Bóveda NKV.
-   * [MEJORA V38.0]: Implementación de AbortController y lógica de refresco forzado.
    */
   const fetchNearbyPOIs = useCallback(async (location: UserLocation, force: boolean = false) => {
-    // 1. Verificación de Throttling Geográfico
     if (!force && lastFetchPosRef.current) {
       const distanceTraveled = calculateDistance(
         { latitude: location.latitude, longitude: location.longitude },
@@ -127,7 +125,6 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
       if (distanceTraveled < FETCH_DISTANCE_THRESHOLD) return;
     }
 
-    // 2. Gestión de Concurrencia de Red
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
@@ -145,9 +142,9 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
 
       if (dbError) {
         if (dbError.code === 'PGRST202') {
-          nicepodLog("⚠️ [GeoEngine] RPC no detectada. Modo pasivo activo.", null, 'warn');
-        } else if (dbError.message === 'Fetch is aborted') {
-          return; // Silencio táctico ante cancelación
+          nicepodLog("⚠️ [GeoEngine] RPC 'get_nearby_resonances' 404. Radar pasivo.", null, 'warn');
+        } else if (dbError.message?.includes('aborted')) {
+          return; 
         } else {
           throw dbError;
         }
@@ -157,7 +154,7 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
       lastFetchPosRef.current = { lat: location.latitude, lng: location.longitude };
 
     } catch (err) {
-      nicepodLog("🔥 [GeoEngine] Error de enlace Supabase.", err, 'error');
+      nicepodLog("🔥 [GeoEngine] Fallo en enlace de datos Supabase.", err, 'error');
     } finally {
       setIsSearching(false);
     }
@@ -165,7 +162,6 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
 
   /**
    * evaluateEnvironment: Procesador de Resonancia local (60fps).
-   * [OPTIMIZACIÓN V38.0]: Filtrado por proximidad para proteger el Main Thread.
    */
   const evaluateEnvironment = useCallback((location: UserLocation) => {
     if (nearbyPOIs.length === 0) return;
@@ -173,7 +169,6 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
     let closest: ActivePOI | null = null;
     let minDistance = Infinity;
 
-    // Solo procesamos los nodos con geometría válida
     nearbyPOIs.forEach((poi) => {
       if (!poi.geo_location?.coordinates) return;
 
@@ -199,28 +194,25 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
     setLocalData(prev => ({ ...prev, isProximityConflict: minDistance < 10 }));
   }, [nearbyPOIs]);
 
-  // --- IV. SINCRONIZACIÓN DE CICLO DE VIDA (MOTOR DE AUTORIDAD) ---
+  // --- IV. SINCRONIZACIÓN DE CICLO DE VIDA ---
 
   useEffect(() => {
     if (effectiveLocation) {
       const currentSource = effectiveLocation.source || 'unknown';
       const currentAccuracy = effectiveLocation.accuracy || 9999;
 
-      // 1. Detección de Aterrizaje Balístico (Transmutación IP -> GPS)
       const isGpsFix = currentSource === 'gps' && currentAccuracy < GPS_LOCK_THRESHOLD;
       const sourceJustChanged = currentSource === 'gps' && lastSourceRef.current !== 'gps';
 
       if (isGpsFix && sourceJustChanged && !hasPerformedLandingRef.current) {
-        nicepodLog("🚀 [GeoEngine] Primer GPS Lock. Disparando Vuelo Balístico.");
+        nicepodLog("🚀 [GeoEngine] GPS Lock detectado. Iniciando Aterrizaje.");
         setNeedsBallisticLanding(true);
         hasPerformedLandingRef.current = true;
         fetchNearbyPOIs(effectiveLocation, true);
       }
 
-      // 2. Inteligencia Local
       evaluateEnvironment(effectiveLocation);
 
-      // 3. Gobernanza de Red
       if (!lastFetchPosRef.current) {
         fetchNearbyPOIs(effectiveLocation, true);
       } else {
@@ -238,7 +230,7 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
   const toggleCameraPerspective = useCallback(() => {
     setCameraPerspective(prev => {
       const next = prev === 'STREET' ? 'OVERVIEW' : 'STREET';
-      nicepodLog(`🎥 [GeoEngine] Transmutación de Lente: ${next}`);
+      nicepodLog(`🎥 [GeoEngine] Cambio de Perspectiva: ${next}`);
       return next;
     });
     setRecenterTrigger(prev => prev + 1);
@@ -251,21 +243,16 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
     setNeedsBallisticLanding(true); 
   }, []);
 
-  /**
-   * reSyncRadar: [REFORMA V38.0]
-   * Misión: Forzar el refresco de la malla activa invalidando el throttling.
-   * Se invoca tras publicar un nuevo contenido para que aparezca instantáneamente.
-   */
   const reSyncRadar = useCallback(() => {
-    nicepodLog("🔄 [GeoEngine] Invalidación de Malla: Forzando sintonía de Bóveda.");
-    lastFetchPosRef.current = null; // Anulamos la memoria de posición
+    nicepodLog("🔄 [GeoEngine] Forzando sincronía total de malla.");
+    lastFetchPosRef.current = null;
     if (effectiveLocation) {
-      fetchNearbyPOIs(effectiveLocation, true); // Forzamos fetch síncrono
+      fetchNearbyPOIs(effectiveLocation, true);
     }
-    reSyncHardware(); // Refrescamos el hardware GPS/Compás
+    reSyncHardware();
   }, [effectiveLocation, fetchNearbyPOIs, reSyncHardware]);
 
-  // --- VI. ENSAMBLAJE DE LA API PÚBLICA (BUILD SHIELD V6.2) ---
+  // --- VI. ENSAMBLAJE DE LA API PÚBLICA (BUILD SHIELD V6.4) ---
 
   const derivedStatus = useMemo((): GeoEngineState => {
     if (forgeStatus !== 'IDLE') return forgeStatus;
@@ -287,13 +274,12 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
     error: forgeError || (isDenied ? "GPS_RESTRICTED" : null),
     data: { ...forgeData, ...localData } as GeoContextData,
 
-    // CAPACIDADES CINEMÁTICAS V38.0
     needsBallisticLanding,
     recenterTrigger,
     cameraPerspective,
     isManualMode,
     confirmLanding: () => {
-      nicepodLog("🏁 [GeoEngine] Acknowledgment de maniobra recibido.");
+      nicepodLog("🏁 [GeoEngine] Acknowledgment de cámara.");
       setNeedsBallisticLanding(false);
     },
     toggleCameraPerspective,
@@ -305,9 +291,8 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
       }
     },
 
-    // Métodos de Control
     initSensors: startHardwareWatch,
-    reSyncRadar, // Método de refresco total inyectado
+    reSyncRadar,
     setTriangulated: () => setIsTriangulated(true),
     setManualAnchor: (lng, lat) => {
       setManualAnchorState({
@@ -318,12 +303,18 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
     },
     setManualPlaceName: (name) => setLocalData(prev => ({ ...prev, manualPlaceName: name })),
 
-    // Flujos IA
     ingestSensoryData: (params) => ingestSensoryData(effectiveLocation, params),
-    synthesizeNarrative: (params) => synthesizeNarrative(params),
+    
+    // [FIX TS2345]: Alineación explícita con el contrato NarrativeTone y NarrativeDepth
+    synthesizeNarrative: (params: {
+      poiId: number;
+      depth: NarrativeDepth;
+      tone: NarrativeTone;
+      refinedIntent?: string;
+    }) => synthesizeNarrative(params),
+    
     transcribeVoiceIntent: (audioBase64) => transcribeVoiceIntent(audioBase64),
 
-    // Purga de Sesión (Deep Clean)
     reset: () => {
       nicepodLog("Sweep [GeoEngine] Purga total.");
       if (abortControllerRef.current) abortControllerRef.current.abort();
@@ -351,20 +342,23 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
   );
 }
 
+/**
+ * HOOK: useGeoEngine
+ * Único punto de acceso a la telemetría y mando visual.
+ */
 export function useGeoEngine() {
   const context = useContext(GeoEngineContext);
-  if (!context) throw new Error("useGeoEngine debe invocarse dentro de un GeoEngineProvider.");
+  if (!context) throw new Error("useGeoEngine fuera de Provider.");
   return context;
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V38.0):
- * 1. Forced Resonance Update: reSyncRadar() ahora anula el throttling geográfico,
- *    asegurando que los nuevos POIs aparezcan tras la publicación sin latencia.
- * 2. Race-Condition Shield: Se integró AbortController para cancelar peticiones
- *    de red redundantes durante movimientos rápidos de cámara.
- * 3. Authority Handover: Mantiene la lógica de herencia de GPS Dashboard -> Mapa
- *    para una experiencia Zero-Wait impecable.
- * 4. Main Thread Sovereignty: Optimización del bucle evaluateEnvironment para 
- *    garantizar fluidez de 60fps en entornos de alta densidad urbana.
+ * NOTA TÉCNICA DEL ARCHITECT (V38.1):
+ * 1. Build Shield Secured: Se implementó la firma tipada de synthesizeNarrative,
+ *    eliminando el error TS2345 al alinear los literales de 'tone' y 'depth'.
+ * 2. RPC Resilience: Mantiene el nombre 'get_nearby_resonances' para asegurar 
+ *    la conexión con la base de datos industrial de NicePod.
+ * 3. Atomic Handover: Garantiza la persistencia de la ubicación entre Dashboard 
+ *    y Mapa Full, optimizando el tiempo de carga percibido.
+ * 4. Zero Abbreviations: Archivo íntegro listo para despliegue nominal.
  */
