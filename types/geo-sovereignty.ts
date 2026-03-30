@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: types/geo-sovereignty.ts
- * VERSIÓN: 6.2 (NicePod V2.8 - Instance Isolation & Identity Sovereignty Edition)
+ * VERSIÓN: 6.3 (NicePod V2.8 - Full Instance Registry Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
  * Misión: Centralizar el contrato de identidad, telemetría y aislamiento de instancias.
- * [REFORMA V6.2]: Inyección de MapInstanceId para erradicar el Ghosting de Mapbox.
+ * [REPARACIÓN CRÍTICA]: Inyección de 'map-forge' en MapInstanceId para sanar el Build.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -81,10 +81,10 @@ export type GeoEngineState =
 export type CameraPerspective = 'STREET' | 'OVERVIEW';
 
 /**
- * MapInstanceId: [NUEVO V6.2] Identificadores únicos de lienzo.
- * Evita la colisión de contextos entre el Dashboard y el Mapa de Inmersión.
+ * MapInstanceId: Identificadores únicos de lienzo para aislamiento WebGL.
+ * [FIX V6.3]: Se añade 'map-forge' para permitir el aislamiento en el flujo de creación.
  */
-export type MapInstanceId = 'map-full' | 'map-dashboard';
+export type MapInstanceId = 'map-full' | 'map-dashboard' | 'map-forge';
 
 /**
  * ---------------------------------------------------------------------------
@@ -153,7 +153,6 @@ export interface GeoContextData {
 
 /**
  * GeoEngineReturn: La firma pública que el hook useGeoEngine entrega a la UI.
- * [REFORMA V6.2]: Integración de Soberanía de Instancia para aislamiento WebGL.
  */
 export interface GeoEngineReturn {
   // Estados de Sensor y Red
@@ -205,10 +204,10 @@ export interface GeoEngineReturn {
 
   // Métodos de Control Tradicionales
   initSensors: () => void;
+  reSyncRadar: () => void;
   setTriangulated: () => void;
   setManualAnchor: (lng: number, lat: number) => void;
   setManualPlaceName: (name: string) => void;
-  reSyncRadar: () => void;
 
   // Flujos de Inteligencia
   ingestSensoryData: (params: {
@@ -257,11 +256,11 @@ export interface POICreationPayload {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V6.2):
- * 1. Isolation Foundations: La introducción de MapInstanceId permite que el sistema
- *    desligue físicamente el mapa del Dashboard del mapa Full-screen.
- * 2. Ghosting Eradication: Al definir IDs únicos, el CameraController podrá 
- *    vincularse exclusivamente al lienzo activo, deteniendo las rotaciones fantasmales.
- * 3. Atomic Integrity: Se mantienen los contratos cinemáticos bi-modales para 
- *    garantizar la fluidez de la Malla de Madrid.
+ * NOTA TÉCNICA DEL ARCHITECT (V6.3):
+ * 1. Build Restoration: Se añadió 'map-forge' a la unión MapInstanceId. Esto 
+ *    legaliza el uso del ID de aislamiento en el flujo de creación.
+ * 2. Identity Consistency: Se mantiene el rigor PostGIS y la arquitectura de
+ *    pulsos tácticos para asegurar la soberanía de mando visual.
+ * 3. Zero Abbreviations: Archivo íntegro, sin marcadores de posición, listo
+ *    para sellar la compilación en Vercel.
  */
