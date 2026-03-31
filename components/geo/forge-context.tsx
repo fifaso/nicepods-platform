@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: components/geo/forge-context.tsx
- * VERSIÓN: 3.1 (NicePod Forge Context - Persistence & Dirty-State Guard Edition)
+ * VERSIÓN: 3.2 (NicePod Forge Context - Type Unified & Asset Guard Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Orquestar la memoria volátil de la forja con persistencia de metadatos.
- * [REFORMA V3.1]: Implementación de isDirty, unificación taxonómica y persistencia en sessionStorage.
+ * Misión: Orquestar la memoria volátil de la forja con persistencia y protección de binarios.
+ * [REFORMA V3.2]: Alineación con NarrativeTone/Depth, Guardia 'beforeunload' y Fallback SSR.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -15,35 +15,37 @@ import React, {
   useCallback,
   useContext,
   useEffect,
-  useReducer,
-  useMemo
+  useReducer
 } from "react";
 
-// --- IMPORTACIÓN DE SOBERANÍA DE TIPOS ---
-import { IngestionDossier } from "@/types/geo-sovereignty";
+// --- IMPORTACIÓN DE SOBERANÍA DE TIPOS (BUILD SHIELD V6.4) ---
+import { 
+  IngestionDossier, 
+  NarrativeDepth, 
+  NarrativeTone 
+} from "@/types/geo-sovereignty";
 import { nicepodLog } from "@/lib/utils";
 
 /**
  * ---------------------------------------------------------------------------
- * I. CONTRATOS DE DATOS (EL ADN DE LA FORJA V3.1)
+ * I. CONTRATOS DE DATOS (EL ADN DE LA FORJA V3.2)
  * ---------------------------------------------------------------------------
  */
 
 export type ForgeStep =
   | 'ANCHORING'         // Fase 1: Posicionamiento y Categoría.
   | 'SENSORY_CAPTURE'   // Fase 2: Captura Visual y Acústica.
-  | 'DOSSIER_REVIEW'    // Fase 3: Auditoría Humana.
-  | 'NARRATIVE_FORGE';  // Fase 4: Configuración Editorial.
+  | 'DOSSIER_REVIEW'    // Fase 3: Auditoría Humana del Peritaje de IA.
+  | 'NARRATIVE_FORGE';  // Fase 4: Configuración Editorial del Agente 42.
 
 /**
  * ForgeState: Estructura de memoria volátil del Administrador.
- * [V3.1]: Se añade isDirty para gobernanza de UI y persistencia de metadatos.
  */
 export interface ForgeState {
   currentStep: ForgeStep;
   isSubmitting: boolean;
   isTranscribing: boolean;
-  isDirty: boolean; // Indica si hay datos capturados sin persistir en la Bóveda NKV.
+  isDirty: boolean; // Flag de modificaciones no persistidas en DB.
 
   // Fase 1: Anclaje Geográfico
   latitude: number | null;
@@ -52,7 +54,7 @@ export interface ForgeState {
   categoryId: string;
   resonanceRadius: number;
 
-  // Fase 2: Evidencia Física (Objetos no serializables)
+  // Fase 2: Evidencia Física (Binarios no serializables en SessionStorage)
   heroImageFile: File | null;
   ocrImageFiles: File[];
   ambientAudioBlob: Blob | null;
@@ -63,10 +65,10 @@ export interface ForgeState {
   ingestionDossier: IngestionDossier | null;
 
   // Fase 4: Configuración Editorial
-  // Taxonomía Unificada: 'academico' | 'misterioso' | 'epico' | 'neutro'
+  // [FIX V3.2]: Tipos inyectados directamente de la Constitución para evitar TS2345.
   intentText: string;
-  depth: 'flash' | 'cronica' | 'inmersion';
-  tone: 'academico' | 'misterioso' | 'epico' | 'neutro';
+  depth: NarrativeDepth;
+  tone: NarrativeTone;
   historicalFact: string;
 }
 
@@ -90,8 +92,8 @@ type ForgeAction =
   | { type: 'SET_INTENT_AUDIO'; payload: Blob | null }
   | { type: 'SET_INGESTION_RESULT'; payload: { poiId: number; dossier: IngestionDossier } }
   | { type: 'SET_INTENT'; payload: string }
-  | { type: 'SET_DEPTH'; payload: ForgeState['depth'] }
-  | { type: 'SET_TONE'; payload: ForgeState['tone'] }
+  | { type: 'SET_DEPTH'; payload: NarrativeDepth }
+  | { type: 'SET_TONE'; payload: NarrativeTone }
   | { type: 'SET_HISTORICAL_FACT'; payload: string }
   | { type: 'HYDRATE_METADATA'; payload: Partial<ForgeState> }
   | { type: 'RESET_FORGE' };
@@ -119,8 +121,7 @@ const initialState: ForgeState = {
 };
 
 /**
- * forgeReducer: Transmutación de la memoria táctica.
- * [V3.1]: Se añade lógica de marcado isDirty automático.
+ * forgeReducer: Transmutación determinista de la memoria táctica.
  */
 function forgeReducer(state: ForgeState, action: ForgeAction): ForgeState {
   switch (action.type) {
@@ -142,7 +143,7 @@ function forgeReducer(state: ForgeState, action: ForgeAction): ForgeState {
     case 'SET_HERO_IMAGE': return { ...state, heroImageFile: action.payload, isDirty: true };
     
     case 'ADD_OCR_IMAGE':
-      if (state.ocrImageFiles.length >= 3) return state;
+      if (state.ocrImageFiles.length >= 3) return state; // Límite físico
       return { ...state, ocrImageFiles: [...state.ocrImageFiles, action.payload], isDirty: true };
       
     case 'REMOVE_OCR_IMAGE':
@@ -163,7 +164,21 @@ function forgeReducer(state: ForgeState, action: ForgeAction): ForgeState {
     case 'SET_TONE': return { ...state, tone: action.payload, isDirty: true };
     case 'SET_HISTORICAL_FACT': return { ...state, historicalFact: action.payload, isDirty: true };
     
-    case 'HYDRATE_METADATA': return { ...state, ...action.payload };
+    case 'HYDRATE_METADATA': {
+      const hydrated = { ...state, ...action.payload };
+      /**
+       * [FALLBACK DE RESILIENCIA]: 
+       * Si hidratamos desde SessionStorage, los objetos File/Blob se habrán perdido (no serializables).
+       * Si el Admin estaba en DOSSIER_REVIEW pero el dossier no está en memoria, lo devolvemos
+       * a SENSORY_CAPTURE para que re-inserte la foto, evitando un bloqueo en pantalla blanca.
+       */
+      if (hydrated.currentStep === 'DOSSIER_REVIEW' && !hydrated.ingestionDossier) {
+        nicepodLog("⚠️ [ForgeContext] Evidencia volátil perdida. Revirtiendo a captura sensorial.");
+        hydrated.currentStep = 'SENSORY_CAPTURE';
+      }
+      return hydrated;
+    }
+    
     case 'RESET_FORGE': 
       if (typeof window !== 'undefined') sessionStorage.removeItem('nicepod_forge_metadata');
       return initialState;
@@ -192,25 +207,23 @@ export function ForgeProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * EFECTO: RECUPERACIÓN T0 (HYDRATION)
-   * Intenta restaurar metadatos desde sessionStorage para mitigar recargas accidentales.
+   * Restaura textos y coordenadas tras un refresco accidental de página.
    */
   useEffect(() => {
     const saved = sessionStorage.getItem('nicepod_forge_metadata');
     if (saved) {
       try {
         const metadata = JSON.parse(saved);
-        nicepodLog("🧠 [ForgeContext] Restaurando metadatos de sesión.");
+        nicepodLog("🧠 [ForgeContext] Restaurando metadatos de sesión (Anti-Amnesia).");
         dispatch({ type: 'HYDRATE_METADATA', payload: metadata });
       } catch (e) {
-        nicepodLog("⚠️ [ForgeContext] Fallo en hidratación de sesión.");
+        nicepodLog("⚠️ [ForgeContext] Fallo en hidratación de sesión.", null, 'warn');
       }
     }
   }, []);
 
   /**
    * EFECTO: PERSISTENCIA SELECTIVA
-   * Mantiene los metadatos sincronizados con el Storage. 
-   * Blobs y Files se omiten por limitaciones de serialización.
    */
   useEffect(() => {
     if (state.isDirty) {
@@ -233,7 +246,27 @@ export function ForgeProvider({ children }: { children: React.ReactNode }) {
   }, [state]);
 
   /**
-   * nextStep: Navegación por fases.
+   * EFECTO: GUARDIÁN DE NAVEGACIÓN (ASSET GUARD)
+   * Evita que el usuario cierre o recargue la pestaña si tiene binarios (fotos/audio)
+   * en RAM que aún no han sido ingestados en Supabase.
+   */
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      const hasUnsavedBinaries = state.heroImageFile || state.ambientAudioBlob || state.ocrImageFiles.length > 0;
+      const isNotIngested = !state.ingestionDossier;
+
+      if (state.isDirty && hasUnsavedBinaries && isNotIngested) {
+        e.preventDefault();
+        e.returnValue = ''; // Gatilla el diálogo nativo del navegador ("¿Seguro que quieres salir?")
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [state.isDirty, state.heroImageFile, state.ambientAudioBlob, state.ocrImageFiles, state.ingestionDossier]);
+
+  /**
+   * nextStep: Navegación de Flujo Síncrono
    */
   const nextStep = useCallback(() => {
     switch (state.currentStep) {
@@ -243,7 +276,6 @@ export function ForgeProvider({ children }: { children: React.ReactNode }) {
         }
         break;
       case 'SENSORY_CAPTURE':
-        // Avanza si el dossier ya existe o si el Hero Image está presente
         if (state.ingestionDossier || state.heroImageFile) {
           dispatch({ type: 'SET_STEP', payload: 'DOSSIER_REVIEW' });
         }
@@ -271,9 +303,6 @@ export function ForgeProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-/**
- * useForge: Hook soberano de consumo.
- */
 export function useForge() {
   const context = useContext(ForgeContext);
   if (context === undefined) {
@@ -283,14 +312,11 @@ export function useForge() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V3.1):
- * 1. Dirty-State Logic: El flag isDirty permite al sistema saber que existen datos 
- *    volátiles, activando la persistencia en sessionStorage y preparando el 
- *    camino para avisos de navegación.
- * 2. Unrestricted Re-Hydration: Si el Administrador refresca la app, recuperará
- *    su posición, intenciones y peritaje previo, exigiendo solo re-subir los binarios.
- * 3. Unified Editorial Taxonomy: Los tonos se han alineado con el Agente 42 
- *    (academico, misterioso, epico, neutro), erradicando fallos de sintonía IA.
- * 4. Step Resilience: Se optimizó 'nextStep' para permitir el bypass de captura 
- *    si el dossier ya fue materializado en un intento previo de la misma sesión.
+ * NOTA TÉCNICA DEL ARCHITECT (V3.2):
+ * 1. Type Alignment: Se importa NarrativeTone y NarrativeDepth de geo-sovereignty
+ *    para sellar la compatibilidad estricta con las Server Actions.
+ * 2. Asset Guardian: El evento 'beforeunload' protege la evidencia física en 
+ *    RAM, advirtiendo al Voyager antes de que destruya sus fotos por accidente.
+ * 3. Hydration Fallback: Si se restaura la sesión pero los binarios se perdieron, 
+ *    el sistema revierte inteligentemente al Paso 2, evitando el crash fatal.
  */
