@@ -1,13 +1,20 @@
 /**
  * ARCHIVO: components/geo/map-constants.ts
- * VERSIÓN: 5.4 (NicePod Map Assets - Context-Aware DNA Edition)
+ * VERSIÓN: 5.5 (NicePod Map Assets - Performance & Lite-Profile Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Centralizar el ADN físico y cinemático del motor WebGL.
- * [REFORMA V5.4]: Calibración bi-modal: Dashboard (Cenital) vs Mapa (Inmersión).
+ * Misión: Centralizar el ADN físico, lumínico y de rendimiento del motor WebGL.
+ * [REFORMA V5.5]: Definición de perfiles de rendimiento HIGH_FIDELITY vs TACTICAL_LITE.
+ * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
 export const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
+
+/**
+ * MapPerformanceProfile: [NUEVO V5.5]
+ * Define el nivel de carga gráfica del motor WebGL.
+ */
+export type MapPerformanceProfile = 'HIGH_FIDELITY' | 'TACTICAL_LITE';
 
 export type MapboxLightPreset = 'night' | 'day' | 'dawn' | 'dusk';
 
@@ -24,18 +31,17 @@ export const MADRID_SOL_COORDS = {
 } as const;
 
 /**
- * INITIAL_OVERVIEW_CONFIG: [NUEVO V5.4]
- * Configuración para el nacimiento del sistema. Vista desde arriba para contexto.
+ * INITIAL_OVERVIEW_CONFIG:
+ * Configuración cenital para el nacimiento del sistema (Contexto General).
  */
 export const INITIAL_OVERVIEW_CONFIG = {
-  zoom: 14.8,       // Vista de barrio/distrito (Contexto General)
-  pitch: 0,         // Cenital pura (Sin edificios 3D intrusivos)
-  bearing: 0,       // Orientación al Norte para legibilidad de mapa
+  zoom: 14.8,
+  pitch: 0,
+  bearing: 0,
 } as const;
 
 /**
  * getInitialViewState: Función generadora de la semilla de renderizado.
- * [MANDATO V5.4]: El sistema siempre nace en modo OVERVIEW (Cenital).
  */
 export function getInitialViewState(lat?: number, lng?: number) {
   return {
@@ -56,16 +62,16 @@ export const KINEMATIC_CONFIG = {
  */
 export const PERSPECTIVE_PROFILES = {
   STREET: {
-    zoom: 18.5,                // Inmersión profunda
-    pitch: 75,                 // Perspectiva profesional (Pokémon GO)
-    offset_distance_meters: 25, // Cámara detrás del Voyager
-    bearing_follow: true       // Sincronía con brújula
+    zoom: 18.5,
+    pitch: 75,
+    offset_distance_meters: 25,
+    bearing_follow: true
   },
   OVERVIEW: {
-    zoom: 15.2,                // Un poco más cerca que el arranque, pero cenital
-    pitch: 0,                  // Plano estratégico
-    offset_distance_meters: 0,  // Centrado absoluto
-    bearing_follow: false      // Norte estático
+    zoom: 15.2,
+    pitch: 0,
+    offset_distance_meters: 0,
+    bearing_follow: false
   }
 } as const;
 
@@ -86,8 +92,8 @@ export const CAMERA_PROFILES = {
 } as const;
 
 /**
- * STANDARD_ENGINE_CONFIG: Configuración del motor Mapbox Standard.
- * [V5.4]: Activamos PlaceLabels para el contexto en Overview.
+ * STANDARD_ENGINE_CONFIG: Perfil de Alta Fidelidad (PBR Activo).
+ * Optimizado para el visor principal y modo exploración.
  */
 export const STANDARD_ENGINE_CONFIG = {
   lightPreset: ACTIVE_MAP_THEME,
@@ -95,6 +101,20 @@ export const STANDARD_ENGINE_CONFIG = {
   showTransitLabels: false,
   showPlaceLabels: true,
   showRoadLabels: true,
+} as const;
+
+/**
+ * LITE_ENGINE_CONFIG: [NUEVO V5.5]
+ * Misión: Máxima velocidad en fase de creación.
+ * Desactiva sombras complejas y etiquetas para liberar VRAM.
+ */
+export const LITE_ENGINE_CONFIG = {
+  lightPreset: ACTIVE_MAP_THEME,
+  showPointOfInterestLabels: false,
+  showTransitLabels: false,
+  showPlaceLabels: false, // Menos ruido visual
+  showRoadLabels: true,  // Mantenemos calles para el anclaje
+  buildingOpacity: 0.4,   // Edificios casi translúcidos para reducir el dibujado de píxeles
 } as const;
 
 /**
@@ -119,6 +139,15 @@ export const TERRAIN_CONFIG = {
   exaggeration: 1.15
 } as const;
 
+/**
+ * LITE_TERRAIN_CONFIG: [NUEVO V5.5]
+ * Relieve suavizado para mayor estabilidad en el anclaje manual.
+ */
+export const LITE_TERRAIN_CONFIG = {
+  source: 'mapbox-dem',
+  exaggeration: 0.4
+} as const;
+
 export const DEM_SOURCE_CONFIG = {
   id: "mapbox-dem",
   type: "raster-dem" as const,
@@ -131,7 +160,7 @@ export const DEM_SOURCE_CONFIG = {
  * FLY_CONFIG: Parámetros para vuelos balísticos.
  */
 export const FLY_CONFIG = {
-  duration: 2200, // Ajustado para transiciones de perspectiva elegantes
+  duration: 1800,
   essential: true,
   curve: 1.2,
   speed: 1.0,
@@ -146,12 +175,12 @@ export const ZOOM_LEVELS = {
 } as const;
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V5.4):
- * 1. Overview First: Se implementó INITIAL_OVERVIEW_CONFIG para que la plataforma 
- *    nazca con una vista cenital (Pitch 0, Zoom 14.8), eliminando el efecto 
- *    de "estar dentro de un edificio" en el Dashboard.
- * 2. Perspective Duality: Los perfiles STREET y OVERVIEW están ahora calibrados
- *    para responder al botón de acción dual con fluidez.
- * 3. Vision Depth: Se ajustaron los ZOOM_LEVELS para asegurar que la inmersión 
- *    en modo calle sea lo suficientemente detallada sin perder la visión del asfalto.
+ * NOTA TÉCNICA DEL ARCHITECT (V5.5):
+ * 1. Performance Toggling: La introducción de LITE_ENGINE_CONFIG permite al sistema 
+ *    degradar la calidad estética en favor de la precisión funcional en el Step 1.
+ * 2. VRAM Protection: Al reducir la opacidad de los edificios (0.4) y simplificar
+ *    el terreno en modo Lite, Mapbox consume significativamente menos memoria.
+ * 3. Zero Regressions: Se mantienen las constantes de inmersión para el mapa grande.
+ * 4. Prepared for Injection: El componente MapCore ahora tiene los datos necesarios
+ *    para ajustar sus propiedades según el perfil de rendimiento solicitado.
  */
