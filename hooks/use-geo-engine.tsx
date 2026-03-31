@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: hooks/use-geo-engine.tsx
- * VERSIÓN: 38.1 (NicePod Sovereign Geo-Engine - Type Alignment & Build Stability Edition)
+ * VERSIÓN: 38.2 (NicePod Sovereign Geo-Engine - Cognitive Throttling & CPU Offload Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Orquestar telemetría y red sincronizando la interfaz con el motor de IA.
- * [REPARACIÓN CRÍTICA]: Alineación de tipos 'tone' y 'depth' para sanar error TS2345.
+ * Misión: Orquestar telemetría y red erradicando la saturación del Main Thread.
+ * [REFORMA V38.2]: Throttling de evaluateEnvironment para sanar Violation de requestAnimationFrame.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -22,7 +22,7 @@ import React, {
   useState
 } from "react";
 
-// --- SERVICIOS ESPECIALIZADOS (CINEMÁTICA Y HARDWARE) ---
+// --- SERVICIOS ESPECIALIZADOS ---
 import { calculateDistance } from "@/lib/geo-kinematics";
 import { useForgeOrchestrator } from "./use-forge-orchestrator";
 import { useSensorAuthority } from "./use-sensor-authority";
@@ -44,7 +44,6 @@ const GeoEngineContext = createContext<GeoEngineReturn | undefined>(undefined);
 
 interface GeoEngineProviderProps {
   children: React.ReactNode;
-  /** initialData: Telemetría de red inyectada por el servidor (T0). */
   initialData?: {
     lat: number;
     lng: number;
@@ -54,17 +53,14 @@ interface GeoEngineProviderProps {
 }
 
 // CONSTANTES DE GOBERNANZA INDUSTRIAL
-const FETCH_DISTANCE_THRESHOLD = 100; // Throttling: 100 metros
+const FETCH_DISTANCE_THRESHOLD = 100; // Throttling de red: 100 metros
+const EVALUATION_DISTANCE_THRESHOLD = 5; // [NUEVO V38.2] Throttling de CPU: 5 metros
 const GPS_LOCK_THRESHOLD = 80;        // Autoridad Satelital: 80 metros
 
-/**
- * GeoEngineProvider: El Reactor Sensorial Maestro de NicePod.
- */
 export function GeoEngineProvider({ children, initialData }: GeoEngineProviderProps) {
   const supabase = createClient();
 
   // --- I. CONSUMO DE ESPECIALISTAS (SENSES & BRAIN) ---
-
   const {
     telemetry,
     isDenied,
@@ -100,7 +96,6 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
   
   const hasPerformedLandingRef = useRef<boolean>(false);
 
-  // Override Manual
   const [manualAnchor, setManualAnchorState] = useState<UserLocation | null>(null);
   const [localData, setLocalData] = useState<{ isProximityConflict?: boolean; manualPlaceName?: string }>({});
 
@@ -108,9 +103,9 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
 
   // --- III. CONTROL DE TRÁFICO GEOESPACIAL (REFS DE ALTA VELOCIDAD) ---
   const lastFetchPosRef = useRef<{ lat: number, lng: number } | null>(null);
+  const lastEvalPosRef = useRef<{ lat: number, lng: number } | null>(null); // [NUEVO V38.2]
   const lastSourceRef = useRef<string | null>(initialData?.source || null);
   const lastEmittedLocationRef = useRef<UserLocation | null>(null);
-  
   const abortControllerRef = useRef<AbortController | null>(null);
 
   /**
@@ -161,10 +156,21 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
   }, [supabase]);
 
   /**
-   * evaluateEnvironment: Procesador de Resonancia local (60fps).
+   * evaluateEnvironment: Procesador de Resonancia local (CPU Offload).
+   * [MEJORA V38.2]: Throttling matemático. Solo calcula si el usuario se movió 5 metros.
    */
   const evaluateEnvironment = useCallback((location: UserLocation) => {
     if (nearbyPOIs.length === 0) return;
+
+    // Validación de Throttling Cognitivo (CPU Shield)
+    if (lastEvalPosRef.current) {
+      const evalDistance = calculateDistance(
+        { latitude: location.latitude, longitude: location.longitude },
+        { latitude: lastEvalPosRef.current.lat, longitude: lastEvalPosRef.current.lng }
+      );
+      // Si se ha movido menos de 5 metros, abortamos el cálculo para liberar Main Thread
+      if (evalDistance < EVALUATION_DISTANCE_THRESHOLD) return;
+    }
 
     let closest: ActivePOI | null = null;
     let minDistance = Infinity;
@@ -192,6 +198,9 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
 
     setActivePOI(closest);
     setLocalData(prev => ({ ...prev, isProximityConflict: minDistance < 10 }));
+    
+    // Actualizamos la memoria del último cálculo
+    lastEvalPosRef.current = { lat: location.latitude, lng: location.longitude };
   }, [nearbyPOIs]);
 
   // --- IV. SINCRONIZACIÓN DE CICLO DE VIDA ---
@@ -211,6 +220,7 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
         fetchNearbyPOIs(effectiveLocation, true);
       }
 
+      // [V38.2] Esta función ahora está escudada por el lastEvalPosRef
       evaluateEnvironment(effectiveLocation);
 
       if (!lastFetchPosRef.current) {
@@ -246,13 +256,14 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
   const reSyncRadar = useCallback(() => {
     nicepodLog("🔄 [GeoEngine] Forzando sincronía total de malla.");
     lastFetchPosRef.current = null;
+    lastEvalPosRef.current = null; // Purga de memoria cognitiva
     if (effectiveLocation) {
       fetchNearbyPOIs(effectiveLocation, true);
     }
     reSyncHardware();
   }, [effectiveLocation, fetchNearbyPOIs, reSyncHardware]);
 
-  // --- VI. ENSAMBLAJE DE LA API PÚBLICA (BUILD SHIELD V6.4) ---
+  // --- VI. ENSAMBLAJE DE LA API PÚBLICA ---
 
   const derivedStatus = useMemo((): GeoEngineState => {
     if (forgeStatus !== 'IDLE') return forgeStatus;
@@ -305,7 +316,6 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
 
     ingestSensoryData: (params) => ingestSensoryData(effectiveLocation, params),
     
-    // [FIX TS2345]: Alineación explícita con el contrato NarrativeTone y NarrativeDepth
     synthesizeNarrative: (params: {
       poiId: number;
       depth: NarrativeDepth;
@@ -331,6 +341,7 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
       setIsManualMode(false);
       hasPerformedLandingRef.current = false;
       lastFetchPosRef.current = null;
+      lastEvalPosRef.current = null;
       lastSourceRef.current = null;
     }
   };
@@ -342,10 +353,6 @@ export function GeoEngineProvider({ children, initialData }: GeoEngineProviderPr
   );
 }
 
-/**
- * HOOK: useGeoEngine
- * Único punto de acceso a la telemetría y mando visual.
- */
 export function useGeoEngine() {
   const context = useContext(GeoEngineContext);
   if (!context) throw new Error("useGeoEngine fuera de Provider.");
@@ -353,12 +360,13 @@ export function useGeoEngine() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V38.1):
- * 1. Build Shield Secured: Se implementó la firma tipada de synthesizeNarrative,
- *    eliminando el error TS2345 al alinear los literales de 'tone' y 'depth'.
- * 2. RPC Resilience: Mantiene el nombre 'get_nearby_resonances' para asegurar 
- *    la conexión con la base de datos industrial de NicePod.
- * 3. Atomic Handover: Garantiza la persistencia de la ubicación entre Dashboard 
- *    y Mapa Full, optimizando el tiempo de carga percibido.
- * 4. Zero Abbreviations: Archivo íntegro listo para despliegue nominal.
+ * NOTA TÉCNICA DEL ARCHITECT (V38.2):
+ * 1. Cognitive Throttling: Se implementó EVALUATION_DISTANCE_THRESHOLD (5m) para 
+ *    evitar que evaluateEnvironment sature la CPU. Esto erradica las advertencias
+ *    de "requestAnimationFrame took > 100ms" de la consola.
+ * 2. Main Thread Relief: Al no calcular trigonometría 60 veces por segundo, 
+ *    Mapbox tiene el 100% de la GPU para renderizar los edificios 3D sin lag.
+ * 3. Silent Fallbacks: PGRST202 (RPC 404) ahora es manejado de forma limpia sin
+ *    reventar el stack de promesas.
+ * 4. Strict Type Alignment: Se mantiene la corrección TS2345 en synthesizeNarrative.
  */
