@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: actions/geo-actions.ts
- * VERSIÓN: 7.2 (NicePod Sovereign Geo-Actions - Atomic Integrity & Janitor Edition)
+ * VERSIÓN: 7.3 (NicePod Sovereign Geo-Actions - Contract Alignment Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Orquestar la persistencia de capital intelectual con garantía de limpieza de activos.
- * [REFORMA V7.2]: Refinamiento de Protocolo Janitor y validación de orden PostGIS inmutable.
+ * Misión: Orquestar el ciclo de vida de persistencia con garantía de limpieza y rigor de tipos.
+ * [REFORMA V7.3]: Alineación con NarrativeTone/Depth y optimización del Protocolo Janitor.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -13,14 +13,16 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
-// --- IMPORTACIÓN DE CONTRATOS SOBERANOS (BUILD SHIELD) ---
+// --- IMPORTACIÓN DE CONTRATOS SOBERANOS (BUILD SHIELD V6.4) ---
 import {
   POIIngestionSchema
 } from "@/lib/validation/poi-schema";
 import {
   GeoActionResponse,
   POICreationPayload,
-  POILifecycle
+  POILifecycle,
+  NarrativeDepth,
+  NarrativeTone
 } from "@/types/geo-sovereignty";
 
 /**
@@ -31,7 +33,7 @@ import {
 
 /**
  * validateSovereignAccess:
- * Valida la identidad y el rango de Administrador directamente en el Borde.
+ * Valida la identidad y el rango de Administrador directamente en el Borde de Vercel.
  */
 async function validateSovereignAccess() {
   const supabase = createClient();
@@ -58,7 +60,7 @@ async function validateSovereignAccess() {
 /**
  * decodeBase64ToUint8Array:
  * Transmuta capturas Base64 en binarios puros optimizando el uso de RAM.
- * Utiliza el motor de Buffer nativo de Node.js en el entorno Vercel.
+ * Utiliza el motor de Buffer nativo de Node.js.
  */
 function decodeBase64ToUint8Array(dataString: string) {
   try {
@@ -103,7 +105,7 @@ export async function resolveLocationAction(
     return { success: true, message: "Radar sincronizado.", data: data.data };
   } catch (error: any) {
     console.error("🔥 [Geo-Action][Resolve-Fatal]:", error.message);
-    return { success: false, message: "Error de radar.", error: error.message };
+    return { success: false, message: "Error de radar ambiental.", error: error.message };
   }
 }
 
@@ -148,17 +150,13 @@ export async function ingestPhysicalEvidenceAction(
   payload: POICreationPayload & { ocrImages?: string[] }
 ): Promise<GeoActionResponse<{ poiId: number; analysis: any; location: any }>> {
   
-  // Array de rastreo de activos para el protocolo Janitor
   let uploadedPaths: string[] = [];
   const supabase = createClient();
 
   try {
     const user = await validateSovereignAccess();
 
-    /**
-     * 1. RIGOR POSTGIS:
-     * Validamos la estructura y el orden [longitud, latitud].
-     */
+    // 1. RIGOR POSTGIS: Validación Zod de coordenadas y límites de payload
     const validatedData = POIIngestionSchema.parse({
       latitude: payload.latitude,
       longitude: payload.longitude,
@@ -202,10 +200,7 @@ export async function ingestPhysicalEvidenceAction(
       });
     }
 
-    /**
-     * 4. INVOCACIÓN AL SENSOR-INGESTOR IA
-     * [MANDATO]: Transporte directo de binarios sanitizados al Borde.
-     */
+    // 4. INVOCACIÓN AL SENSOR-INGESTOR IA
     const { data, error: functionError } = await supabase.functions.invoke('geo-sensor-ingestor', {
       body: {
         ...validatedData,
@@ -220,10 +215,7 @@ export async function ingestPhysicalEvidenceAction(
 
     const poiId = data.data.poiId;
 
-    /**
-     * 5. VINCULACIÓN DE ACTIVOS (COMMIT FÍSICO)
-     * Generamos URLs públicas y las anclamos al registro en PostgreSQL.
-     */
+    // 5. VINCULACIÓN DE ACTIVOS (COMMIT FÍSICO)
     const publicHeroUrl = supabase.storage.from('podcasts').getPublicUrl(heroPath).data.publicUrl;
     const publicOcrUrls = uploadedPaths
       .filter(p => p.includes('_ocr_'))
@@ -238,6 +230,9 @@ export async function ingestPhysicalEvidenceAction(
 
     if (dbUpdateError) throw new Error(`DB_LINKING_FAIL: ${dbUpdateError.message}`);
 
+    // Si todo es exitoso, limpiamos el tracker de fallos
+    uploadedPaths = [];
+
     return {
       success: true,
       message: "Evidencia física blindada y analizada.",
@@ -245,16 +240,6 @@ export async function ingestPhysicalEvidenceAction(
     };
 
   } catch (error: any) {
-    /**
-     * PROTOCOLO JANITOR (AUTO-LIMPIEZA):
-     * Si la misión falla en cualquier punto tras la subida de archivos, 
-     * purgamos el Storage para evitar activos huérfanos.
-     */
-    if (uploadedPaths.length > 0) {
-      console.warn("🧹 [Janitor] Purga de activos huérfanos ejecutada tras fallo crítico.");
-      await supabase.storage.from('podcasts').remove(uploadedPaths);
-    }
-
     const isTooLarge = error.message.includes('exceeded') || error.status === 413;
     console.error("🔥 [Geo-Action][Ingest-Error]:", error.message);
     
@@ -263,6 +248,17 @@ export async function ingestPhysicalEvidenceAction(
       message: "Fallo en la ingesta sensorial.", 
       error: isTooLarge ? "Expediente sobrepasa el límite industrial (4.5MB)." : error.message 
     };
+  } finally {
+    /**
+     * PROTOCOLO JANITOR (AUTO-LIMPIEZA DE EMERGENCIA):
+     * Si la variable uploadedPaths aún tiene elementos en este punto,
+     * significa que el bloque try no se completó (ej. Fallo en IA o DB).
+     * Ejecutamos la purga para evitar activos huérfanos.
+     */
+    if (uploadedPaths.length > 0) {
+      console.warn("🧹 [Janitor] Purga de activos huérfanos ejecutada tras fallo crítico.");
+      supabase.storage.from('podcasts').remove(uploadedPaths).catch(() => {});
+    }
   }
 }
 
@@ -304,10 +300,15 @@ export async function attachAmbientAudioAction(params: {
   }
 }
 
+/**
+ * synthesizeNarrativeAction:
+ * [REFORMA V7.3]: Alineación estricta con NarrativeDepth y NarrativeTone para 
+ * sanar el contrato de compilación (TS2345).
+ */
 export async function synthesizeNarrativeAction(params: {
   poiId: number;
-  depth: 'flash' | 'cronica' | 'inmersion';
-  tone: string;
+  depth: NarrativeDepth;
+  tone: NarrativeTone;
   refinedIntent?: string;
 }): Promise<GeoActionResponse<any>> {
   try {
@@ -350,11 +351,8 @@ export async function publishPOIAction(poiId: number): Promise<GeoActionResponse
 
     if (error) throw new Error("DB_PUBLISH_FAIL");
 
-    /**
-     * [MANDATO V2.8]: Revalidación de Malla Activa.
-     * Fuerza a Next.js a purgar la caché del servidor para que el nuevo 
-     * nodo sea visible instantáneamente en el mapa de todos los usuarios.
-     */
+    // [MANDATO V2.8]: Revalidación de Malla Activa.
+    // Fuerza a Next.js a purgar la caché del servidor para que el nuevo nodo sea visible.
     revalidatePath('/map');
     
     return { success: true, message: "Nodo materializado en la Malla." };
@@ -365,13 +363,11 @@ export async function publishPOIAction(poiId: number): Promise<GeoActionResponse
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V7.2):
- * 1. Protocolo Janitor: La limpieza física de binarios huérfanos es ahora un
- *    estándar en la ingesta, protegiendo la cuota de almacenamiento.
- * 2. PostGIS Compliance: Se garantiza el flujo de coordenadas bajo validación
- *    Zod antes de la invocación de funciones de base de datos.
- * 3. Zero-Wait Revalidation: El uso de revalidatePath('/map') asegura la
- *    consistencia visual inmediata tras el éxito de la misión.
- * 4. Sovereign Buffers: La decodificación Base64 nativa de Node.js optimiza el
- *    consumo de CPU durante la captura de evidencia multimodal.
+ * NOTA TÉCNICA DEL ARCHITECT (V7.3):
+ * 1. Type Alignment (TS2345): Se inyectaron los tipos NarrativeDepth y NarrativeTone 
+ *    en synthesizeNarrativeAction para garantizar la compatibilidad con el UI.
+ * 2. Deterministic Janitor: El bloque 'finally' asegura que, si existe una excepción
+ *    tras la creación de los binarios, el Storage se purgue sin falta.
+ * 3. Cache Purge: revalidatePath('/map') cierra el ciclo de creación informando al
+ *    sistema que la bóveda NKV tiene un nuevo registro activo.
  */
