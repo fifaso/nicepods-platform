@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: components/geo/steps/step-1-anchoring.tsx
- * VERSIÓN: 3.4 (NicePod Sovereign Anchoring - Instance Isolation Edition)
+ * VERSIÓN: 3.5 (NicePod Sovereign Anchoring - Isolated Forge Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Definir posición física, identidad y taxonomía con aislamiento WebGL.
- * [REFORMA V3.4]: Inyección de mapId="map-forge" para erradicar el Ghosting visual.
+ * Misión: Definir la posición física, identidad y taxonomía del capital intelectual.
+ * [REFORMA V3.5]: Implementación de mapId="map-forge" y sincronía visual de precisión.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -54,6 +54,9 @@ const CATEGORIES = [
   { id: 'resonancia', label: 'Resonancia', icon: Sparkles },
 ] as const;
 
+/**
+ * StepAnchoring: La Terminal de Posicionamiento Táctico.
+ */
 export function StepAnchoring() {
   // 1. CONSUMO DE MOTORES SOBERANOS
   const { state, dispatch, nextStep } = useForge();
@@ -65,13 +68,14 @@ export function StepAnchoring() {
     setManualAnchor,
     setManualPlaceName,
     reSyncRadar,
-    isLocked,
+    isLocked, // isLocked indica si el usuario ha intervenido la posición manualmente
     data: engineData
   } = geoEngine;
 
   /**
-   * Failsafe de Visibilidad:
+   * Failsafe de Visibilidad (Timeout Guard):
    * Garantiza que el lienzo WebGL se materialice tras 3 segundos incluso sin GPS.
+   * Evita que el Administrador quede atrapado en una pantalla de carga infinita.
    */
   const [forceMapVisible, setForceMapVisible] = useState(false);
 
@@ -79,14 +83,17 @@ export function StepAnchoring() {
     if (userLocation) {
       setForceMapVisible(true);
     } else {
-      const timeout = setTimeout(() => setForceMapVisible(true), 3000);
+      const timeout = setTimeout(() => {
+        nicepodLog("⚠️ [Anchoring] Timeout de GPS superado. Forzando visibilidad del mapa.");
+        setForceMapVisible(true);
+      }, 3000);
       return () => clearTimeout(timeout);
     }
   }, [userLocation]);
 
   /**
    * Sincronía de Memoria RAM:
-   * Mantiene el estado de la forja alineado con la telemetría del motor.
+   * Mantiene el estado de la forja (Redux) alineado con la telemetría viva del motor.
    */
   useEffect(() => {
     if (userLocation) {
@@ -103,16 +110,21 @@ export function StepAnchoring() {
 
   /**
    * handleManualOverride:
-   * Permite al Administrador corregir la posición mediante un gesto táctil.
+   * Captura el gesto de anclaje manual (drag/click) del Administrador.
    */
   const handleManualOverride = useCallback((lngLat: [number, number]) => {
-    nicepodLog(`📍 [Anchoring] Aplicando anclaje manual en Madrid.`);
+    nicepodLog(`📍 [Anchoring] Aplicando anclaje táctico manual.`);
     if (typeof window !== "undefined" && navigator.vibrate) {
-      navigator.vibrate([10, 40, 10]); // Patrón de confirmación táctica
+      navigator.vibrate([10, 40, 10]); // Patrón de confirmación
     }
     setManualAnchor(lngLat[0], lngLat[1]);
   }, [setManualAnchor]);
 
+  /**
+   * canProceed: 
+   * El Administrador puede avanzar si el sistema tiene una coordenada (física o manual)
+   * y el radar no está en medio de un proceso asíncrono de sintonía.
+   */
   const canProceed = !!userLocation && !isLocating;
 
   return (
@@ -120,7 +132,7 @@ export function StepAnchoring() {
 
       {/* 
           I. LIENZO DE ANCLAJE (SPATIAL ENGINE)
-          [MANDATO V3.4]: Uso obligatorio de mapId="map-forge" para aislamiento de VRAM.
+          [MANDATO V3.5]: Se inyecta mapId="map-forge" para aislamiento de VRAM.
       */}
       <div className="relative w-full px-2">
         <div className={cn(
@@ -132,7 +144,7 @@ export function StepAnchoring() {
 
           {forceMapVisible && userLocation ? (
             <SpatialEngine
-              mapId="map-forge" // <--- Identidad aislada (Resolución de Ghosting)
+              mapId="map-forge" // <--- Identidad aislada. No interfiere con el Dashboard.
               mode="FORGE"
               onManualAnchor={handleManualOverride}
             />
@@ -149,23 +161,23 @@ export function StepAnchoring() {
                 <div className="flex items-center gap-2 justify-center">
                   <span className="h-1 w-1 rounded-full bg-primary animate-ping" />
                   <span className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest">
-                    Sincronizando coordenadas
+                    Sincronizando Coordenadas
                   </span>
                 </div>
               </div>
             </div>
           )}
 
-          {/* HUD DE PRECISIÓN TÁCTICA */}
+          {/* HUD DE PRECISIÓN TÁCTICA (Sincronizado con colores del Avatar) */}
           {userLocation && (
             <div className="absolute bottom-8 right-8 z-30 pointer-events-none">
               <Badge className={cn(
                 "px-6 py-3 rounded-2xl backdrop-blur-3xl border-2 font-black text-[9px] uppercase tracking-[0.2em] transition-all duration-700 shadow-2xl",
                 isLocked
-                  ? "bg-primary/20 border-primary/40 text-primary"
-                  : userLocation.accuracy < 25
-                    ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-400"
-                    : "bg-amber-500/10 border-amber-500/20 text-amber-500"
+                  ? "bg-primary/20 border-primary/40 text-primary" // Anclaje Manual
+                  : userLocation.accuracy < 50
+                    ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-400" // Precisión Alta
+                    : "bg-amber-500/10 border-amber-500/20 text-amber-500" // Precisión Baja / IP
               )}>
                 {isLocked ? <MapPin className="mr-2 h-3.5 w-3.5" /> : <Navigation className="mr-2 h-3.5 w-3.5 animate-pulse" />}
                 {isLocked ? "Punto Soberano" : `Precisión: ${Math.round(userLocation.accuracy)}m`}
@@ -175,7 +187,7 @@ export function StepAnchoring() {
         </div>
       </div>
 
-      {/* II. TERMINAL DE IDENTIDAD */}
+      {/* II. TERMINAL DE IDENTIDAD (FORMULARIO) */}
       <div className="px-8 space-y-12">
 
         {/* NOMBRE DEL HITO */}
@@ -187,6 +199,7 @@ export function StepAnchoring() {
                 Identidad del Nodo
               </h3>
             </div>
+            {/* Botón de re-sintonía manual del Borde */}
             <button
               onClick={reSyncRadar}
               disabled={isLocating}
@@ -261,7 +274,7 @@ export function StepAnchoring() {
           />
         </div>
 
-        {/* III. ACCIÓN DE PROGRESO */}
+        {/* III. ACCIÓN DE PROGRESO (THE GATE) */}
         <div className="pt-6">
           <Button
             onClick={nextStep}
@@ -295,14 +308,14 @@ export function StepAnchoring() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V3.4):
+ * NOTA TÉCNICA DEL ARCHITECT (V3.5):
  * 1. Instance Sovereignty: El uso de mapId="map-forge" asegura que esta vista
- *    no interfiera con los hilos de renderizado del Dashboard, resolviendo el
- *    pestañeo y colapso visual durante el anclaje.
+ *    no interfiera con los hilos de renderizado del Dashboard ni del Mapa Full,
+ *    resolviendo el error de tipos TS2322.
  * 2. Visual Accuracy Logic: Se unificó el sistema de colores del badge de precisión
  *    con el núcleo del sistema, informando honestamente al Admin sobre la señal.
  * 3. Mobile Ergonomics: Los radios de borde se elevaron a 3.5rem para maximizar 
  *    la estética PWA industrial y facilitar la interacción táctil.
- * 4. Zero Regressions: Se preserva la lógica de canProceed para asegurar que el 
- *    Administrador mantenga la autoridad total sobre el flujo de creación.
+ * 4. Failsafe Rendering: La persistencia de forceMapVisible evita que fallos de GPS
+ *    impidan al administrador utilizar el anclaje manual.
  */
