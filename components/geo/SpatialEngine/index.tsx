@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/index.tsx
- * VERSIÓN: 7.9 (NicePod Spatial Hub - Prop Sovereignty & Build Stability Edition)
+ * VERSIÓN: 7.10 (NicePod Spatial Hub - Performance Profiling Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Orquestar el motor WebGL garantizando el aislamiento de instancias mediante mapId.
- * [REPARACIÓN CRÍTICA]: Inyección de mapId en props para sanar error de build TS2322.
+ * Misión: Orquestar el motor WebGL con soporte para perfiles de carga variable.
+ * [REFORMA V7.10]: Implementación de performanceProfile (HIGH_FIDELITY vs TACTICAL_LITE).
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -22,11 +22,12 @@ import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { SearchResult } from "@/hooks/use-search-radar";
 import { cn, nicepodLog } from "@/lib/utils";
 
-// --- CONSTANTES DE FÍSICA Y CONTRATOS V5.4 ---
+// --- CONSTANTES DE FÍSICA Y CONTRATOS V5.5 ---
 import {
   FLY_CONFIG,
   MADRID_SOL_COORDS,
   MapboxLightPreset,
+  MapPerformanceProfile, // [NUEVO V5.5]
   ZOOM_LEVELS,
   INITIAL_OVERVIEW_CONFIG
 } from "../map-constants";
@@ -38,19 +39,21 @@ import MapCore from "./map-core";
 
 /**
  * [BUILD SHIELD]: TYPE EXTRACTION
+ * Extraemos dinámicamente los contratos de eventos de la instancia nativa.
  */
 type MapNativeProps = ComponentProps<typeof Map>;
 type SafeMapMoveEvent = Parameters<NonNullable<MapNativeProps['onMove']>>[0];
 type SafeMapClickEvent = Parameters<NonNullable<MapNativeProps['onClick']>>[0];
 
 /**
- * SpatialEngineProps: Contrato de orquestación visual.
- * [FIX V7.9]: Se añade mapId como propiedad obligatoria para el aislamiento de contexto.
+ * SpatialEngineProps: Contrato de orquestación visual soberano.
+ * [V7.10]: Integración de performanceProfile para optimización de VRAM.
  */
 interface SpatialEngineProps {
-  mapId: MapInstanceId; // <--- Identidad Soberana Requerida
+  mapId: MapInstanceId;
   mode: 'EXPLORE' | 'FORGE';
   theme?: MapboxLightPreset;
+  performanceProfile?: MapPerformanceProfile; // [NUEVO]
   onManualAnchor?: (lngLat: [number, number]) => void;
   className?: string;
 }
@@ -62,6 +65,7 @@ export function SpatialEngine({
   mapId, 
   mode, 
   theme = 'night', 
+  performanceProfile = 'HIGH_FIDELITY', // Por defecto, máxima calidad
   onManualAnchor, 
   className 
 }: SpatialEngineProps) {
@@ -89,7 +93,7 @@ export function SpatialEngine({
   const revealPerformedRef = useRef<boolean>(false);
   const fallbackTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // 3. MÁQUINA DE ESTADOS VISUAL (REVELADO)
+  // 3. MÁQUINA DE ESTADOS VISUAL
   const [selectedPOIId, setSelectedPOIId] = useState<string | null>(null);
   const [isSearchLoading, setIsSearchLoading] = useState<boolean>(false);
   const [isContainerReady, setIsContainerReady] = useState<boolean>(false);
@@ -129,8 +133,9 @@ export function SpatialEngine({
         initSensors();
       }
 
+      // Sincronía Pokémon GO: Forzar vista STREET al entrar en el mapa full-screen
       if (mode === 'EXPLORE' && cameraPerspective === 'OVERVIEW') {
-        nicepodLog(`🎭 [SpatialHub:${mapId}] Forzando inmersión STREET.`);
+        nicepodLog(`🎭 [SpatialHub:${mapId}] Activando inmersión de calle.`);
         toggleCameraPerspective();
       }
     }
@@ -142,7 +147,7 @@ export function SpatialEngine({
   const revealMap = useCallback(() => {
     if (revealPerformedRef.current) return;
     
-    nicepodLog(`✨ [SpatialHub:${mapId}] Disolviendo Smokescreen.`);
+    nicepodLog(`✨ [SpatialHub:${mapId}] Malla materializada. Perfil: ${performanceProfile}`);
     revealPerformedRef.current = true;
     
     if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
@@ -154,7 +159,7 @@ export function SpatialEngine({
         if (smokescreenRef.current) smokescreenRef.current.style.display = "none";
       }, 850);
     }
-  }, [mapId]);
+  }, [mapId, performanceProfile]);
 
   /**
    * FALLBACK TIMER: Race-Condition Guard
@@ -162,7 +167,7 @@ export function SpatialEngine({
   useEffect(() => {
     if (isMapLoaded && !revealPerformedRef.current) {
       fallbackTimerRef.current = setTimeout(() => {
-        nicepodLog(`⚠️ [SpatialHub:${mapId}] Mapbox Idle Timeout. Forzando visibilidad.`);
+        nicepodLog(`⚠️ [SpatialHub:${mapId}] Timeout Mapbox onIdle. Forzando paso de luz.`);
         revealMap();
       }, 2200);
     }
@@ -191,6 +196,10 @@ export function SpatialEngine({
       setManualMode(true);
     }
   }, [setManualMode, needsBallisticLanding]);
+
+  const handleMapMoveEnd = useCallback((event: SafeMapMoveEvent) => {
+    nicepodLog(`📍 [SpatialHub:${mapId}] Cámara asentada.`);
+  }, [mapId]);
 
   const handleMapClick = useCallback((event: SafeMapClickEvent) => {
     if (mode !== 'FORGE' || !onManualAnchor) return;
@@ -227,9 +236,6 @@ export function SpatialEngine({
   }, [selectedPOIId, nearbyPOIs]);
 
   return (
-    /**
-     * MapProvider local para aislamiento absoluto de la instancia declarada.
-     */
     <MapProvider>
       <div ref={containerRef} className={cn("w-full h-full relative bg-[#010101] overflow-hidden", className)}>
 
@@ -257,8 +263,8 @@ export function SpatialEngine({
               <div className="flex flex-col items-center gap-4 text-center px-12">
                 <span className="text-[11px] font-black uppercase tracking-[0.6em] text-white">Madrid Resonance</span>
                 <p className="text-[9px] font-bold uppercase tracking-[0.3em] text-primary/60 animate-pulse italic">
-                  {needsBallisticLanding ? "Ejecutando Vuelo de Inmersión..." : 
-                   isIgnited ? "Restaurando Enlace Neural..." : "Sincronizando Malla..."}
+                  {needsBallisticLanding ? "Ejecutando Salto Balístico..." : 
+                   isIgnited ? "Restaurando Link..." : "Sincronizando Malla..."}
                 </p>
               </div>
             </>
@@ -269,16 +275,17 @@ export function SpatialEngine({
         {isContainerReady && userLocation && (
           <div className="w-full h-full pointer-events-auto">
             <MapCore
-              mapId={mapId} // [RESOLUCIÓN]: Se propaga el ID soberano del padre
-              ref={mapRef}
+              mapId={mapId}
               mode={mode}
+              // [V7.10]: Propagación del perfil de rendimiento
+              performanceProfile={performanceProfile}
               startCoords={userLocation}
               theme={theme}
               selectedPOIId={selectedPOIId}
               onLoad={() => setIsMapLoaded(true)}
               onIdle={handleMapIdle}
               onMove={handleMapMove}
-              onMoveEnd={() => {}}
+              onMoveEnd={handleMapMoveEnd}
               onMapClick={handleMapClick}
               onMarkerClick={(id: string) => {
                 if (mode === 'EXPLORE') {
@@ -296,7 +303,7 @@ export function SpatialEngine({
               }}
             />
 
-            {/* DIRECTOR DE CÁMARA (Vinculado a la instancia declarada) */}
+            {/* DIRECTOR DE CÁMARA (Sincronizado con mapId) */}
             {mode === 'EXPLORE' && isMapLoaded && (
               <CameraController mapId={mapId} />
             )}
@@ -335,12 +342,13 @@ export function SpatialEngine({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V7.9):
- * 1. Prop Sovereignty: Se añadió 'mapId' a SpatialEngineProps, eliminando el fallo 
- *    de compilación TS2322 en el Step-1 de la forja.
- * 2. Handover Continuity: El componente utiliza el mapId inyectado para vincular
- *    físicamente el MapCore y el CameraController, asegurando aislamiento total.
- * 3. Aggressive Reveal: Se mantiene el protocolo de Race-Condition para garantizar
- *    que el Voyager vea el mapa aunque existan fallos menores en los activos de estilo.
- * 4. Zero Abbreviations: Archivo 100% completo y listo para inyección industrial.
+ * NOTA TÉCNICA DEL ARCHITECT (V7.10):
+ * 1. Resource Sovereignty: Se inyectó performanceProfile para permitir que el 
+ *    sistema degrade la calidad visual en favor de la respuesta física en el Step 1.
+ * 2. Atomic Identity: El bindeo por mapId garantiza que el CameraController 
+ *    esté vinculado quirúrgicamente al lienzo activo, erradicando el ghosting visual.
+ * 3. Memory Hygiene: El encapsulamiento del MapProvider asegura que la VRAM sea 
+ *    liberada al desmontar la ruta, protegiendo el hilo principal.
+ * 4. Interaction Shield: handleMapMove mantiene el Flight-Shield, permitiendo 
+ *    maniobras de autoridad sin interrupciones manuales falsas.
  */
