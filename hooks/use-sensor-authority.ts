@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: hooks/use-sensor-authority.ts
- * VERSIÓN: 5.1 (NicePod Sensor Authority - Compass Fusion & Street-Ready Edition)
+ * VERSIÓN: 5.2 (NicePod Sensor Authority - Vectorial Signal Purification Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Captura pura de telemetría GPS y Compás Magnetométrico.
- * [REFORMA V5.1]: Integración de DeviceOrientation para navegación STREET estable.
+ * Misión: Captura pura de telemetría eliminando el jitter magnético (movimientos laterales).
+ * [REFORMA V5.2]: Implementación de Filtro Vectorial (VAF) para un Heading inmutable.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -16,13 +16,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
  * INTERFAZ: RawTelemetry
- * Contrato de verdad física absoluta del dispositivo.
+ * La verdad física definitiva. El 'heading' ahora llega purificado.
  */
 export interface RawTelemetry {
   latitude: number;
   longitude: number;
   accuracy: number;
-  heading: number | null; // Rumbo magnético (0-360)
+  heading: number | null;
   speed: number | null;
   timestamp: number;
   source: 'gps' | 'cache' | 'ip-fallback';
@@ -35,20 +35,22 @@ interface SensorAuthorityProps {
 const CACHE_TTL_MS = 15 * 60 * 1000; 
 const WATCHDOG_THRESHOLD_MS = 8000;
 
+// Configuración del Filtro de Purificación (VAF)
+const SMOOTHING_WINDOW_SIZE = 12; // Muestras para promediar el ruido urbano
+
 export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
   
   // --- I. ESTADO SOBERANO (MATERIALIZACIÓN T0) ---
   const [telemetry, setTelemetry] = useState<RawTelemetry | null>(() => {
     if (typeof window === "undefined") return null;
 
-    // 1. Prioridad: Memoria Táctica Reciente
     const cachedFixStr = localStorage.getItem('nicepod_last_known_fix');
     if (cachedFixStr) {
       try {
         const parsed: RawTelemetry = JSON.parse(cachedFixStr);
         const age = Date.now() - (parsed.timestamp || 0);
         if (age < CACHE_TTL_MS) {
-          nicepodLog("💾 [Sensor-Authority] Hidratación por memoria táctica.");
+          nicepodLog("💾 [Sensor-Authority] Memoria táctica restaurada.");
           return { ...parsed, source: 'cache' };
         }
         localStorage.removeItem('nicepod_last_known_fix');
@@ -57,9 +59,7 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
       }
     }
 
-    // 2. Prioridad: Paracaídas Geo-IP
     if (initialData) {
-      nicepodLog(`🌐 [Sensor-Authority] Materialización T0 por IP (${initialData.city}).`);
       return {
         latitude: initialData.lat,
         longitude: initialData.lng,
@@ -71,7 +71,6 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
       };
     }
 
-    // 3. Fallback: Punto Cero (Madrid)
     return {
       ...MADRID_SOL_COORDS,
       accuracy: 9999,
@@ -91,24 +90,54 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
   const watchdogTimerRef = useRef<NodeJS.Timeout | null>(null);
   const hasGPSFixRef = useRef<boolean>(false);
   
-  // Ref para capturar el rumbo magnético independientemente del GPS
-  const currentHeadingRef = useRef<number | null>(null);
+  // Buffer para el Filtro de Media Vectorial
+  const headingHistoryRef = useRef<{sin: number, cos: number}[]>([]);
 
   /**
-   * handleOrientation:
-   * Captura el giro del magnetómetro para alimentar la brújula de 60fps.
+   * getPurifiedHeading:
+   * Aplica matemática vectorial para suavizar el rumbo sin errores de wrap-around (359° a 0°).
    */
-  const handleOrientation = useCallback((event: DeviceOrientationEvent) => {
-    // Soporte para brújula absoluta (Android/Chrome) y relativa corregida (iOS/Safari)
-    const heading = (event as any).webkitCompassHeading || (360 - (event.alpha || 0));
-    if (heading !== undefined && heading !== null) {
-      currentHeadingRef.current = heading;
+  const getPurifiedHeading = useCallback((rawHeading: number): number => {
+    const rad = (rawHeading * Math.PI) / 180;
+    
+    // Añadimos la muestra al buffer circular
+    headingHistoryRef.current.push({ sin: Math.sin(rad), cos: Math.cos(rad) });
+    if (headingHistoryRef.current.length > SMOOTH_WINDOW_SIZE) {
+      headingHistoryRef.current.shift();
     }
+
+    // Calculamos la media de los vectores
+    const sumSin = headingHistoryRef.current.reduce((acc, val) => acc + val.sin, 0);
+    const sumCos = headingHistoryRef.current.reduce((acc, val) => acc + val.cos, 0);
+    
+    const avgRad = Math.atan2(sumSin, sumCos);
+    const avgDeg = (avgRad * 180) / Math.PI;
+    
+    return (avgDeg + 360) % 360;
   }, []);
 
   /**
+   * handleOrientation:
+   * Captura el magnetómetro y purifica la señal antes de emitirla.
+   */
+  const handleOrientation = useCallback((event: DeviceOrientationEvent) => {
+    const rawHeading = (event as any).webkitCompassHeading || (360 - (event.alpha || 0));
+    
+    if (rawHeading !== undefined && rawHeading !== null) {
+      const purifiedHeading = getPurifiedHeading(rawHeading);
+      
+      setTelemetry(prev => {
+        if (!prev) return null;
+        // Solo actualizamos si la diferencia es significativa para ahorrar ciclos de render
+        if (prev.heading !== null && Math.abs(purifiedHeading - prev.heading) < 0.2) return prev;
+        return { ...prev, heading: purifiedHeading };
+      });
+    }
+  }, [getPurifiedHeading]);
+
+  /**
    * killHardwareWatch:
-   * Purga total de procesos de hardware.
+   * Desconexión atómica de sensores.
    */
   const killHardwareWatch = useCallback(() => {
     if (watchIdRef.current !== null) {
@@ -123,43 +152,39 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
     isHardwareIgnitedRef.current = false;
     hasGPSFixRef.current = false;
     setIsAcquiring(false);
-    nicepodLog("💤 [Sensor-Authority] Hardware liberado.");
+    nicepodLog("💤 [Sensor-Authority] Sensores en reposo.");
   }, [handleOrientation]);
 
   /**
    * startHardwareWatch:
-   * Ignición del GPS y Magnetómetro con Bypass de seguridad iOS.
+   * Ignición sincronizada de GPS y Compás.
    */
   const startHardwareWatch = useCallback(async () => {
-    if (typeof window === "undefined" || !("geolocation" in navigator)) {
-      nicepodLog("🔥 [Sensor-Authority] Sensores no disponibles.", null, 'error');
-      return;
-    }
-
+    if (typeof window === "undefined" || !("geolocation" in navigator)) return;
     if (isHardwareIgnitedRef.current) return;
+    
     isHardwareIgnitedRef.current = true;
     setIsAcquiring(true);
 
-    // [COMPÁS]: Solicitar permiso de orientación para iOS (Gesto de usuario requerido)
+    // Permiso de Compás (Especial para iOS WebKit)
     if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
       try {
         const permission = await (DeviceOrientationEvent as any).requestPermission();
         if (permission === 'granted') {
-          window.addEventListener("deviceorientation", handleOrientation);
+          window.addEventListener("deviceorientation", handleOrientation, true);
         }
       } catch (e) {
-        nicepodLog("⚠️ [Sensor-Authority] Permiso de compás denegado por el SO.");
+        nicepodLog("⚠️ [Sensor-Authority] Bloqueo de Magnetómetro.");
       }
     } else {
-      // Navegadores estándar
-      window.addEventListener("deviceorientation", handleOrientation);
+      window.addEventListener("deviceorientation", handleOrientation, true);
     }
 
-    // [GPS]: Watchdog de Stall
+    // Watchdog de Stall
     if (watchdogTimerRef.current) clearTimeout(watchdogTimerRef.current);
     watchdogTimerRef.current = setTimeout(() => {
       if (!hasGPSFixRef.current) {
-        nicepodLog("🆘 [Sensor-Authority] GPS Stall. Reiniciando cerrojo.");
+        nicepodLog("🆘 [Sensor-Authority] GPS Stall detectado.");
         isHardwareIgnitedRef.current = false;
         setIsAcquiring(false);
       }
@@ -171,10 +196,11 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
         watchdogTimerRef.current = null;
       }
 
-      // Fusión de Sensores: Usamos el compás si el GPS no da rumbo (detenido)
-      const finalHeading = pos.coords.heading !== null 
-        ? pos.coords.heading 
-        : currentHeadingRef.current;
+      // Prioridad al rumbo del GPS si está en movimiento (> 2m/s)
+      // De lo contrario, confiar en el magnetómetro suavizado
+      const finalHeading = (pos.coords.speed && pos.coords.speed > 2 && pos.coords.heading !== null)
+        ? pos.coords.heading
+        : (telemetry?.heading || null);
 
       const freshTelemetry: RawTelemetry = {
         latitude: pos.coords.latitude,
@@ -186,11 +212,7 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
         source: 'gps'
       };
 
-      if (!hasGPSFixRef.current) {
-        nicepodLog(`🛰️ [Sensor-Authority] GPS Fix Certificado (${Math.round(pos.coords.accuracy)}m).`);
-        hasGPSFixRef.current = true;
-      }
-
+      hasGPSFixRef.current = true;
       setTelemetry(freshTelemetry);
       setIsAcquiring(false);
       localStorage.setItem('nicepod_last_known_fix', JSON.stringify(freshTelemetry));
@@ -198,15 +220,11 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
 
     const onSignalError = (error: GeolocationPositionError) => {
       if (error.code === error.PERMISSION_DENIED) {
-        nicepodLog("🛑 [Sensor-Authority] Permiso de ubicación denegado.", null, 'error');
         setIsDenied(true);
         killHardwareWatch();
-      } else {
-        nicepodLog(`🟡 [Sensor-Authority] Señal de satélite débil: ${error.message}`);
       }
     };
 
-    // Ignición Dual (Shot & Watch)
     navigator.geolocation.getCurrentPosition(onSignalSuccess, onSignalError, {
       enableHighAccuracy: false,
       timeout: 5000
@@ -217,54 +235,35 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
       maximumAge: 0,
       timeout: 25000
     });
-  }, [handleOrientation, killHardwareWatch]);
+  }, [handleOrientation, killHardwareWatch, telemetry?.heading]);
 
   const reSync = useCallback(() => {
-    nicepodLog("🔄 [Sensor-Authority] Reiniciando autoridad de sensores.");
-    killHardwareWatch();
+    nicepodLog("🔄 [Sensor-Authority] Re-sintonizando hardware.");
+    isHardwareIgnitedRef.current = false;
     startHardwareWatch();
-  }, [killHardwareWatch, startHardwareWatch]);
+  }, [startHardwareWatch]);
 
   // --- III. PROTOCOLOS PROACTIVOS ---
 
-  /**
-   * PROTOCOLO 1: Ignición Silenciosa (Permissions API)
-   */
   useEffect(() => {
-    const checkPermissionAndStart = async () => {
-      if (typeof window !== "undefined" && "permissions" in navigator) {
-        try {
-          const result = await navigator.permissions.query({ name: 'geolocation' });
-          if (result.state === 'granted') {
-            nicepodLog("⚡ [Sensor-Authority] Autoridad previa detectada. Despertando hardware.");
-            startHardwareWatch();
-          }
-          result.onchange = () => {
-            if (result.state === 'granted') startHardwareWatch();
-            if (result.state === 'denied') setIsDenied(true);
-          };
-        } catch (e) {
-          nicepodLog("ℹ️ [Sensor-Authority] Protocolo automático suspendido. Esperando usuario.");
-        }
-      }
-    };
-    checkPermissionAndStart();
+    if (typeof window !== "undefined" && "permissions" in navigator) {
+      navigator.permissions.query({ name: 'geolocation' }).then(result => {
+        if (result.state === 'granted') startHardwareWatch();
+        result.onchange = () => { if (result.state === 'granted') startHardwareWatch(); };
+      });
+    }
   }, [startHardwareWatch]);
 
-  /**
-   * PROTOCOLO 2: Resurrección por Foco (Visibility API)
-   */
   useEffect(() => {
-    const handleVisibilityChange = () => {
+    const handleVisibility = () => {
       if (document.visibilityState === 'visible' && isHardwareIgnitedRef.current) {
-        nicepodLog("👁️ [Sensor-Authority] Voyager activo. Refrescando compás y GPS.");
         if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
         isHardwareIgnitedRef.current = false;
         startHardwareWatch();
       }
     };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, [startHardwareWatch]);
 
   return {
@@ -279,12 +278,12 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V5.1):
- * 1. Compass Fusion: Se integra 'deviceorientation' para proveer rumbo constante, 
- *    vital para la estabilidad de la cámara en modo STREET.
- * 2. WebKit Shield: Se implementó 'requestPermission' para el magnetómetro, 
- *    garantizando funcionalidad en dispositivos iOS 13+.
- * 3. Proactive Ignition: Mantiene el arranque automático si el permiso ya existe.
- * 4. Zero-Flicker Authority: El sensor unifica posición y rotación en un único stream
- *    de telemetría para que el GeoEngine no sufra colisiones de estado.
+ * NOTA TÉCNICA DEL ARCHITECT (V5.2):
+ * 1. Vectorial Averaging Filter (VAF): Se utiliza atan2 sobre la suma de senos/cosenos
+ *    para promediar ángulos de forma matemáticamente correcta, eliminando el jitter.
+ * 2. Adaptive Authority: El sistema prioriza el 'heading' del GPS en movimiento y
+ *    conmuta al magnetómetro filtrado al detenerse, ideal para el modo STREET.
+ * 3. Render Throttling: Se añadió una guarda de 0.2° para evitar que micro-cambios
+ *    irrelevantes en la brújula disparen el ciclo de reconciliación de React.
+ * 4. Full Cycle Integrity: Mantiene los protocolos de auto-ignición y resurrección.
  */
