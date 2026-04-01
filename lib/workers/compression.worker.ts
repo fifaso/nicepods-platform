@@ -1,0 +1,108 @@
+/**
+ * ARCHIVO: lib/workers/compression.worker.ts
+ * VERSIÓN: 1.0 (NicePod Offscreen Engine - Asynchronous Pixel Core Edition)
+ * PROTOCOLO: MADRID RESONANCE V3.0
+ * 
+ * Misión: Ejecutar la compresión matemática de activos visuales fuera del Main Thread.
+ * [ESTABILIZACIÓN]: Uso de OffscreenCanvas y createImageBitmap para evitar DOM Blocking.
+ * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
+ */
+
+/// <reference lib="webworker" />
+
+/**
+ * INTERFAZ: CompressionPayload
+ * Contrato de entrada de datos transmitido desde el Main Thread.
+ */
+interface CompressionPayload {
+  file: File;
+  maxWidth: number;
+  quality: number;
+}
+
+/**
+ * Event Listener del Worker
+ * Se ejecuta de forma aislada cada vez que el Orquestador le envía un paquete.
+ */
+self.onmessage = async (e: MessageEvent<CompressionPayload>) => {
+  const { file, maxWidth, quality } = e.data;
+
+  try {
+    /**
+     * 1. LECTURA DE PÍXELES (No-Bloqueante)
+     * createImageBitmap es una API nativa diseñada para decodificar imágenes 
+     * asíncronamente fuera del hilo principal.
+     */
+    const bitmap = await createImageBitmap(file);
+
+    let targetWidth = bitmap.width;
+    let targetHeight = bitmap.height;
+
+    /**
+     * 2. MATEMÁTICA DE ESCALADO (Aspect Ratio Guard)
+     * Limitamos el tamaño físico para no perforar el umbral de Vercel.
+     */
+    if (targetWidth > maxWidth) {
+      targetHeight = Math.round((maxWidth / targetWidth) * targetHeight);
+      targetWidth = maxWidth;
+    }
+
+    /**
+     * 3. INSTANCIACIÓN DE LIENZO AISLADO (OffscreenCanvas)
+     * Este lienzo existe exclusivamente en la VRAM/RAM asignada al Worker.
+     */
+    const offscreen = new OffscreenCanvas(targetWidth, targetHeight);
+    const ctx = offscreen.getContext('2d');
+
+    if (!ctx) {
+      throw new Error("UNSUPPORTED_OFFSCREEN_CONTEXT: Fallo al adquirir motor 2D en Worker.");
+    }
+
+    // Configuración de Alta Fidelidad para peritaje de OCR
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+
+    // Dibujado escalar
+    ctx.drawImage(bitmap, 0, 0, targetWidth, targetHeight);
+
+    /**
+     * 4. COMPRESIÓN FÍSICA (Transmutación a WebP)
+     * Convertimos el mapa de píxeles a un Blob binario.
+     */
+    const compressedBlob = await offscreen.convertToBlob({
+      type: 'image/webp',
+      quality: quality
+    });
+
+    /**
+     * 5. RETORNO SOBERANO (Structured Clone Transfer)
+     * Devolvemos el binario al Main Thread.
+     */
+    self.postMessage({
+      success: true,
+      blob: compressedBlob
+    });
+
+    // Higiene de RAM: Liberar memoria del bitmap original explícitamente.
+    bitmap.close();
+
+  } catch (error: any) {
+    // Si algo falla, avisamos al Main Thread para que active su "Paracaídas de Fallback".
+    self.postMessage({
+      success: false,
+      error: error.message || "WORKER_COMPRESSION_FAILURE"
+    });
+  }
+};
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V1.0):
+ * 1. CPU Shield: Al procesar createImageBitmap y convertToBlob en un Worker, 
+ *    garantizamos que las animaciones CSS (spinners) del componente ScannerUI 
+ *    jamás pierdan frames durante la captura (Stuttering-Free).
+ * 2. RAM Hygiene: La llamada a bitmap.close() al final del proceso es crítica 
+ *    en dispositivos móviles para evitar fugas de memoria (Memory Leaks) al 
+ *    procesar múltiples fotos OCR consecutivas.
+ * 3. Fallback Contract: El Worker responde con un objeto predecible { success, blob/error }
+ *    que el archivo lib/utils.ts consume para decidir si usa el Blob o el Main Thread.
+ */

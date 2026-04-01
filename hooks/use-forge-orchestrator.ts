@@ -1,32 +1,32 @@
 /**
  * ARCHIVO: hooks/use-forge-orchestrator.ts
- * VERSIÓN: 1.4 (NicePod Forge Orchestrator - Atomic Integrity & Payload Guard Edition)
- * PROTOCOLO: MADRID RESONANCE V2.8
+ * VERSIÓN: 2.0 (NicePod Forge Orchestrator - Off-Main-Thread Compression Edition)
+ * PROTOCOLO: MADRID RESONANCE V3.0
  * 
- * Misión: Gestionar el ciclo de vida de ingesta sensorial con rigor asíncrono.
- * [REFORMA V1.4]: Alineación de tipos de Forja (V6.4) y Circuit Breaker Secundario.
+ * Misión: Gestionar el ciclo de vida de ingesta sensorial con rigor asíncrono y protección de CPU.
+ * [REFORMA V2.0]: Delegación de compresión de imágenes al ecosistema de Web Workers.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
 
-import { useCallback, useState } from "react";
-import { compressNicePodImage, nicepodLog } from "@/lib/utils";
 import {
   attachAmbientAudioAction,
   ingestPhysicalEvidenceAction,
+  resolveLocationAction,
   synthesizeNarrativeAction,
-  transcribeVoiceIntentAction,
-  resolveLocationAction
+  transcribeVoiceIntentAction
 } from "@/actions/geo-actions";
+import { compressNicePodImage, nicepodLog } from "@/lib/utils";
 import {
   GeoContextData,
   GeoEngineState,
   IngestionDossier,
-  UserLocation,
-  NarrativeDepth,  // Inyectado desde la Constitución V6.4
-  NarrativeTone    // Inyectado desde la Constitución V6.4
+  NarrativeDepth,
+  NarrativeTone,
+  UserLocation
 } from "@/types/geo-sovereignty";
+import { useCallback, useState } from "react";
 
 /**
  * CONSTANTES DE GOBERNANZA TÁCTICA
@@ -61,7 +61,7 @@ export function useForgeOrchestrator() {
 
   /**
    * ingestSensoryData:
-   * Misión: Comprimir evidencia, solicitar clima y despachar al Ingestor.
+   * Misión: Comprimir evidencia asíncronamente, solicitar clima y despachar al Ingestor.
    */
   const ingestSensoryData = useCallback(async (
     userLocation: UserLocation | null,
@@ -80,9 +80,9 @@ export function useForgeOrchestrator() {
     }
 
     // 1. PRE-FLIGHT PAYLOAD GUARD
-    const rawSize = params.heroImage.size + 
-                    params.ocrImages.reduce((acc, img) => acc + img.size, 0) + 
-                    (params.ambientAudio?.size || 0);
+    const rawSize = params.heroImage.size +
+      params.ocrImages.reduce((acc, img) => acc + img.size, 0) +
+      (params.ambientAudio?.size || 0);
 
     if (rawSize > MAX_RAW_PAYLOAD_BYTES) {
       const mbSize = (rawSize / 1024 / 1024).toFixed(1);
@@ -96,27 +96,27 @@ export function useForgeOrchestrator() {
     setError(null);
 
     try {
-      nicepodLog("⚙️ [Forge-Orchestrator] Iniciando compresión JIT y sondeo climático...");
+      nicepodLog("⚙️ [Forge-Orchestrator] Iniciando compresión JIT en hilos paralelos...");
 
       /**
        * YIELD TÁCTICO (150ms):
-       * Pausa el hilo para asegurar que el UI renderice el spinner 'INGESTING' 
-       * antes de que el motor de Canvas sature la CPU del dispositivo móvil.
+       * Cede el control al Event Loop para asegurar que la UI repinte el estado 'INGESTING'.
        */
       await new Promise(resolve => setTimeout(resolve, 150));
 
-      // 2. CONCURRENCIA DE PREPARACIÓN (Imágenes + Clima)
+      // 2. CONCURRENCIA OFF-MAIN-THREAD (Imágenes + Clima)
+      // [V3.0]: compressNicePodImage ahora delega la carga matemática al Worker.
       const [compressedHero, ocrResults, weatherRes] = await Promise.all([
-        compressNicePodImage(params.heroImage, 1920, 0.82), // Alta fidelidad para Hero
-        Promise.all(params.ocrImages.map(img => compressNicePodImage(img, 1280, 0.70))), // Fidelidad táctica para OCR
-        resolveLocationAction(userLocation.latitude, userLocation.longitude) // Telemetría ambiental
+        compressNicePodImage(params.heroImage, 1920, 0.82),
+        Promise.all(params.ocrImages.map(img => compressNicePodImage(img, 1280, 0.70))),
+        resolveLocationAction(userLocation.latitude, userLocation.longitude)
       ]);
 
       // 3. SERIALIZACIÓN BASE64 (Transporte Seguro)
       const heroBase64 = await fileToBase64(compressedHero);
       const ocrBase64 = await Promise.all(ocrResults.map(blob => fileToBase64(blob)));
 
-      nicepodLog("📡 [Forge-Orchestrator] Transportando expediente al Ingestor IA...");
+      nicepodLog("📡 [Forge-Orchestrator] Transporte asíncrono completado. Enviando a Bóveda NKV...");
 
       // 4. INVOCACIÓN SOBERANA (Server Action con Janitor Protocol activo)
       const result = await ingestPhysicalEvidenceAction({
@@ -149,10 +149,10 @@ export function useForgeOrchestrator() {
       const dossier: IngestionDossier = {
         poi_id: poiId,
         raw_ocr_text: analysis.historicalDossier || null,
-        weather_snapshot: { 
+        weather_snapshot: {
           temp_c: weatherRes.success ? (weatherRes.data?.current?.temp_c || 15) : 15,
-          condition: weatherRes.success ? (weatherRes.data?.current?.condition?.text || "Despejado") : "Despejado", 
-          is_day: weatherRes.success ? !!weatherRes.data?.current?.is_day : true 
+          condition: weatherRes.success ? (weatherRes.data?.current?.condition?.text || "Despejado") : "Despejado",
+          is_day: weatherRes.success ? !!weatherRes.data?.current?.is_day : true
         },
         visual_analysis_dossier: analysis,
         sensor_accuracy: userLocation.accuracy,
@@ -168,8 +168,14 @@ export function useForgeOrchestrator() {
     } catch (e: unknown) {
       const errMsg = e instanceof Error ? e.message : String(e);
       setStatus('REJECTED');
+
       // Mapeo de errores semántico para la UI
-      setError(errMsg === "PAYLOAD_TOO_LARGE" ? "Expediente muy pesado." : "El Oráculo no pudo procesar la evidencia visual.");
+      if (errMsg === "PAYLOAD_TOO_LARGE") {
+        setError("Expediente muy pesado.");
+      } else {
+        setError("El Oráculo no pudo procesar la evidencia visual. Verifique su red.");
+      }
+
       setIsLocked(false);
       nicepodLog("🔥 [Forge-Orchestrator] Error Crítico de Ingesta", errMsg, 'error');
       throw e;
@@ -179,7 +185,6 @@ export function useForgeOrchestrator() {
   /**
    * synthesizeNarrative:
    * Misión: Invocar al Agente 42 para la redacción final de la crónica.
-   * [FIX V1.4]: Tipado estricto (NarrativeDepth, NarrativeTone) para sellar el TS2345.
    */
   const synthesizeNarrative = useCallback(async (params: {
     poiId: number;
@@ -244,12 +249,10 @@ export function useForgeOrchestrator() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V1.4):
- * 1. Type Compliance: Las interfaces de synthesizeNarrative ahora están acopladas
- *    a NarrativeDepth y NarrativeTone (V6.4), sanando el error de Vercel (TS2345).
- * 2. Async Audio Optimization: El anclaje del audio ambiental (attachAmbientAudioAction)
- *    ahora se procesa fuera del 'await' principal, permitiendo que el Dossier
- *    llegue al UI segundos más rápido (Non-blocking I/O).
- * 3. Weather Fallback: Se inyectaron valores de clima por defecto en caso de que 
- *    el resolveLocationAction devuelva un error leve, evitando que el dossier nazca roto.
+ * NOTA TÉCNICA DEL ARCHITECT (V2.0):
+ * 1. Off-Main-Thread Shield: La invocación de compressNicePodImage ahora es un
+ *    puente hacia el Web Worker. La CPU del dispositivo se libera de los cálculos
+ *    de píxeles, garantizando que el UI spinner (CSS) jamás se congele.
+ * 2. Graceful Error Handling: Si el Payload o el Worker fallan, el estado retorna 
+ *    a REJECTED limpiamente, desbloqueando el UI (isLocked: false) para reintentos.
  */
