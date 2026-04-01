@@ -77,6 +77,7 @@
     "react-map-gl": "8.1.0",
     "react-resizable-panels": "^2.1.7",
     "recharts": "^2.15.0",
+    "sharp": "^0.34.5",
     "sonner": "^1.7.1",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
@@ -113,7 +114,11 @@
       "core-js",
       "esbuild",
       "protobufjs",
-      "supabase"
+      "supabase",
+      "sharp"
+    ],
+    "ignoredBuiltDependencies": [
+      "unrs-resolver"
     ]
   }
 }
