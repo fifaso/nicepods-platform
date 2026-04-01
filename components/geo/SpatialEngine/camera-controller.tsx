@@ -13,21 +13,21 @@
 import { useGeoEngine } from "@/hooks/use-geo-engine";
 import {
   calculateDestinationPoint,
+  calculateDistance,
   interpolateAngle,
   interpolateCoords,
-  lerpSimple,
-  calculateDistance,
-  KinematicPosition
+  KinematicPosition,
+  lerpSimple
 } from "@/lib/geo-kinematics";
 import { nicepodLog } from "@/lib/utils";
+import { CameraPerspective, MapInstanceId } from "@/types/geo-sovereignty";
 import { useCallback, useEffect, useRef } from "react";
 import { useMap } from "react-map-gl/mapbox";
-import { CameraPerspective, MapInstanceId } from "@/types/geo-sovereignty";
 import {
-  PERSPECTIVE_PROFILES,
   FLY_CONFIG,
   INITIAL_OVERVIEW_CONFIG,
-  KINEMATIC_CONFIG
+  KINEMATIC_CONFIG,
+  PERSPECTIVE_PROFILES
 } from "../map-constants";
 
 interface CameraControllerProps {
@@ -68,7 +68,7 @@ export function CameraController({ mapId, forcedPerspective }: CameraControllerP
   const currentBearingRef = useRef<number>(INITIAL_OVERVIEW_CONFIG.bearing);
   const currentPitchRef = useRef<number>(INITIAL_OVERVIEW_CONFIG.pitch);
   const currentZoomRef = useRef<number>(INITIAL_OVERVIEW_CONFIG.zoom);
-  
+
   const isFlyingRef = useRef<boolean>(false);
   const lastInteractionRef = useRef<number>(0);
   const lastProcessedTriggerRef = useRef<number>(0);
@@ -150,17 +150,17 @@ export function CameraController({ mapId, forcedPerspective }: CameraControllerP
      * [ORDEN V4.11]: Si el cambio es ruido sensorial (< umbrales), abortamos el jumpTo.
      * Esto erradica los movimientos laterales y ahorra ciclos de GPU.
      */
-    if (distDelta < STASIS_CONFIG.DISTANCE_THRESHOLD && 
-        bearingDelta < STASIS_CONFIG.BEARING_THRESHOLD &&
-        pitchDelta < STASIS_CONFIG.PITCH_THRESHOLD &&
-        zoomDelta < STASIS_CONFIG.ZOOM_THRESHOLD) {
+    if (distDelta < STASIS_CONFIG.DISTANCE_THRESHOLD &&
+      bearingDelta < STASIS_CONFIG.BEARING_THRESHOLD &&
+      pitchDelta < STASIS_CONFIG.PITCH_THRESHOLD &&
+      zoomDelta < STASIS_CONFIG.ZOOM_THRESHOLD) {
       animationFrameRef.current = requestAnimationFrame(kinematicLoop);
       return;
     }
 
     // F. INTERPOLACIÓN CINEMÁTICA (LERP)
     const factor = KINEMATIC_CONFIG.LERP_FACTOR;
-    
+
     currentPosRef.current = interpolateCoords(currentPosRef.current, targetPos, factor);
     currentBearingRef.current = interpolateAngle(currentBearingRef.current, targetBearing, factor);
     currentPitchRef.current = lerpSimple(currentPitchRef.current, profile.pitch, factor);
@@ -169,7 +169,7 @@ export function CameraController({ mapId, forcedPerspective }: CameraControllerP
     // G. CÁLCULO DEL FOLLOW-OFFSET
     const cameraAnchor = calculateDestinationPoint(
       currentPosRef.current,
-      -profile.offset_distance_meters, 
+      -profile.offset_distance_meters,
       currentBearingRef.current
     );
 
@@ -190,16 +190,16 @@ export function CameraController({ mapId, forcedPerspective }: CameraControllerP
    */
   useEffect(() => {
     const triggerReceived = recenterTrigger > lastProcessedTriggerRef.current;
-    
+
     if ((needsBallisticLanding || triggerReceived) && mapInstance && userLocation && !isFlyingRef.current) {
       const map = mapInstance.getMap();
       const activePerspective = forcedPerspective || globalPerspective;
       const profile = PERSPECTIVE_PROFILES[activePerspective];
-      
+
       if (!map.isStyleLoaded()) return;
 
       nicepodLog(`🚀 [Camera:${mapId}] Iniciando Vuelo Balístico (${activePerspective}).`);
-      
+
       // FRENO FÍSICO: Detenemos el motor LERP para liberar la GPU
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
@@ -222,19 +222,19 @@ export function CameraController({ mapId, forcedPerspective }: CameraControllerP
         bearing: profile.bearing_follow ? (userLocation.heading ?? 0) : 0,
         ...FLY_CONFIG,
         // Si es recentrado manual (trigger), aplicamos velocidad táctica
-        duration: triggerReceived ? 1200 : FLY_CONFIG.duration 
+        duration: triggerReceived ? 1200 : FLY_CONFIG.duration
       });
 
       map.once('moveend', () => {
         nicepodLog(`🏁 [Camera:${mapId}] Aterrizaje completado.`);
-        
+
         // Sincronía post-vuelo para evitar el rebote LERP
         currentPitchRef.current = profile.pitch;
         currentZoomRef.current = profile.zoom;
         currentBearingRef.current = profile.bearing_follow ? (userLocation.heading ?? 0) : 0;
-        
+
         isFlyingRef.current = false;
-        confirmLanding(); 
+        confirmLanding();
 
         // Reiniciamos el bucle y el reloj del Delta-Time
         lastFrameTimeRef.current = 0;
@@ -266,7 +266,7 @@ export function CameraController({ mapId, forcedPerspective }: CameraControllerP
     };
   }, [mapInstance, kinematicLoop, handleUserInteraction]);
 
-  return null; 
+  return null;
 }
 
 /**
