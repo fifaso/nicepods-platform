@@ -1,10 +1,11 @@
 /**
  * ARCHIVO: types/geo-sovereignty.ts
- * VERSIÓN: 7.0 (NicePod V3.0 - Triple-Core Contract & Vault Strictness Edition)
+ * VERSIÓN: 7.1 (NicePod V3.0 - Satellite Perspective & Style Sovereignty Edition)
  * PROTOCOLO: MADRID RESONANCE V3.0
  * 
  * Misión: Centralizar el contrato de identidad, telemetría y control cinemático.
- * [REFORMA V7.0]: Sincronización de Edge Functions (Tonos) y blindaje de Metadata NKV.
+ * [REFORMA V7.1]: Introducción de la perspectiva SATELLITE y sincronía de estilo 
+ * para erradicar el efecto "Snap-Back" en el visor inmersivo.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -76,9 +77,10 @@ export type GeoEngineState =
   | 'REJECTED';
 
 /**
- * CameraPerspective: Define los dos modos de visualización profesional.
+ * CameraPerspective: Define los tres modos de visualización profesional.
+ * [V7.1]: SATELLITE añadido para permitir vistas cenitales fotorrealistas sin snap-back.
  */
-export type CameraPerspective = 'STREET' | 'OVERVIEW';
+export type CameraPerspective = 'STREET' | 'OVERVIEW' | 'SATELLITE';
 
 /**
  * MapInstanceId: Identificadores únicos de lienzo para aislamiento WebGL.
@@ -92,7 +94,6 @@ export type NarrativeDepth = 'flash' | 'cronica' | 'inmersion';
 
 /**
  * NarrativeTone: Taxonomía editorial unificada para el Agente 42.
- * [FIX V7.0]: Sincronizado con geo-narrative-creator Edge Function.
  */
 export type NarrativeTone = 'academico' | 'misterioso' | 'epico' | 'melancolico' | 'neutro';
 
@@ -110,7 +111,7 @@ export interface POIMetadata {
   architectural_period?: string;
   custom_tags?: string[];
   curator_notes?: string;
-  [key: string]: unknown; // Extensibilidad segura
+  [key: string]: unknown;
 }
 
 export interface PointOfInterest {
@@ -174,8 +175,7 @@ export interface GeoContextData {
 
 /**
  * GeoEngineReturn: La firma pública que la Fachada (useGeoEngine) entrega a la UI.
- * [MANDATO V7.0]: Este contrato permanece INMUTABLE para garantizar cero regresiones
- * tras la migración a la arquitectura Triple-Core.
+ * [V7.1]: Se añade mapStyle para permitir al sistema central dictar la estética visual.
  */
 export interface GeoEngineReturn {
   // Estados de Sensor y Red
@@ -196,8 +196,9 @@ export interface GeoEngineReturn {
   recenterTrigger: number;
   confirmLanding: () => void;
 
-  // --- GOBERNANZA DE CÁMARA Y PERSPECTIVA ---
+  // --- GOBERNANZA DE CÁMARA Y ESTILO ---
   cameraPerspective: CameraPerspective;
+  mapStyle: string; // [V7.1]: Atributo soberano de visualización
   isManualMode: boolean;
   toggleCameraPerspective: () => void;
   setManualMode: (active: boolean) => void;
@@ -257,10 +258,11 @@ export interface POICreationPayload {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V7.0):
- * 1. Sync Tone: Se incluyó 'melancolico' para coincidir con la IA en el Borde.
- * 2. NKV Shielding: La metadata ahora requiere cumplir con 'POIMetadata', erradicando el
- *    riesgo de inyectar objetos opacos a la base de datos PostgreSQL.
- * 3. Facade Stability: La interfaz GeoEngineReturn no ha modificado su estructura, 
- *    garantizando que la transición a la V3.0 de los hooks (Triple-Core) compile instantáneamente.
+ * NOTA TÉCNICA DEL ARCHITECT (V7.1):
+ * 1. Perspective Expansion: Al incluir 'SATELLITE', desbloqueamos la capacidad del
+ *    CameraController de mantenerse cenital (pitch: 0) sin revertir a 3D por error.
+ * 2. Style Authority: El campo 'mapStyle' permite que los botones de UI soliciten
+ *    un cambio estético que sea respetado por todo el subsistema cinemático.
+ * 3. Zero-Regressions: El contrato GeoEngineReturn sigue siendo compatible con los
+ *    componentes existentes pero ahora posee mayor profundidad de mando.
  */

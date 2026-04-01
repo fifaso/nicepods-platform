@@ -1,11 +1,12 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/map-core.tsx
- * VERSIÓN: 10.0 (NicePod MapCore - PBR Occlusion & Style-Guard Edition)
+ * VERSIÓN: 11.0 (NicePod MapCore - Style Sovereignty & PBR Guard Edition)
  * PROTOCOLO: MADRID RESONANCE V3.0
  * 
- * Misión: Renderizado WebGL inmutable que otorga soberanía total a los gestos del usuario.
- * [REFORMA V10.0]: Migración de inyección PBR al evento onStyleData para garantizar la 
- * oclusión de edificios sobre el avatar en modo STREET.
+ * Misión: Renderizado WebGL inmutable que sincroniza el lienzo (tiles) con la 
+ * perspectiva de la cámara para erradicar el parpadeo satelital.
+ * [REFORMA V11.0]: Consumo dinámico de mapStyle y blindaje de inyección PBR 
+ * para estilos no-estándar (Satelital).
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -15,7 +16,7 @@ import type { ComponentProps } from "react";
 import { forwardRef, memo, useCallback, useImperativeHandle, useMemo, useRef } from "react";
 import Map, { MapRef } from 'react-map-gl/mapbox';
 
-// --- INFRAESTRUCTURA DE MALLA TÁCTICA V5.5 ---
+// --- INFRAESTRUCTURA DE MALLA TÁCTICA V6.0 ---
 import {
   DEM_SOURCE_CONFIG,
   FOG_CONFIG,
@@ -79,15 +80,21 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
   selectedPOIId
 }, ref) => {
 
-  const { userLocation, nearbyPOIs, activePOI, cameraPerspective } = useGeoEngine();
+  // 1. CONSUMO DEL MOTOR SOBERANO (V44.0)
+  const {
+    userLocation,
+    nearbyPOIs,
+    activePOI,
+    cameraPerspective,
+    mapStyle: engineStyle // <--- [V11.0]: Estilo dictado por la Fachada
+  } = useGeoEngine();
 
-  // 1. REFERENCIA SOBERANA
+  // 2. REFERENCIA SOBERANA
   const localMapRef = useRef<MapRef>(null);
   useImperativeHandle(ref, () => localMapRef.current as MapRef, []);
 
   /**
-   * 2. GENERACIÓN DE SEMILLA DE NACIMIENTO
-   * [MANDATO V9.1]: Se calcula una sola vez por mapId. 
+   * 3. GENERACIÓN DE SEMILLA DE NACIMIENTO
    */
   const initialMapState = useMemo(() => {
     nicepodLog(`🌱 [MapCore:${mapId}] Sembrando semilla WebGL inmutable.`);
@@ -99,56 +106,56 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
   }, [mapId]);
 
   /**
-   * 3. PROTOCOLO MAPBOX STANDARD: Carga Inicial Segura
+   * 4. HANDSHAKE INICIAL
    */
   const handleMapLoad = useCallback((e: SafeMapEvent) => {
-    nicepodLog(`🏙️ [MapCore:${mapId}] Handshake WebGL completado.`);
+    nicepodLog(`City-Mesh [${mapId}] Online.`);
     onLoad(e);
   }, [onLoad, mapId]);
 
   /**
-   * 4. STYLE-GUARD (El Escudo PBR V10.0)
-   * Misión: Mapbox v3 regenera estilos internamente. Inyectamos la oclusión y
-   * la iluminación aquí para que NUNCA sean sobrescritas por el motor nativo.
+   * 5. STYLE-GUARD (El Escudo PBR V11.0)
+   * Misión: Inyectar oclusión y temas SOLO si el estilo soporta configuración PBR.
+   * Resuelve el conflicto al cambiar a modo SATELLITE.
    */
   const handleStyleData = useCallback((e: SafeMapStyleDataEvent) => {
     const map = e.target;
     if (!map || !map.isStyleLoaded()) return;
 
     const isOverview = cameraPerspective === 'OVERVIEW';
+    const isSatellite = cameraPerspective === 'SATELLITE';
     const isLite = performanceProfile === 'TACTICAL_LITE';
     const engineConfig = isLite ? LITE_ENGINE_CONFIG : STANDARD_ENGINE_CONFIG;
 
     /**
-     * A. GOBERNANZA DE ESTILO Y OCLUSIÓN (PBR)
+     * A. GOBERNANZA PBR (Solo para Mapbox Standard)
      */
-    if ((map as any).setConfigProperty) {
+    if (engineStyle === MAP_STYLES.STANDARD && (map as any).setConfigProperty) {
       try {
         (map as any).setConfigProperty('basemap', 'lightPreset', theme);
-        // [MANDATO DE OCLUSIÓN]: Esto hace que los edificios tapen al Voyager (Imagen 33)
         (map as any).setConfigProperty('basemap', 'puckOcclusion', OCCLUSION_CONFIG.puckOcclusion);
-
         (map as any).setConfigProperty('basemap', 'showPlaceLabels', isOverview && !isLite);
         (map as any).setConfigProperty('basemap', 'showRoadLabels', engineConfig.showRoadLabels);
         (map as any).setConfigProperty('basemap', 'showPointOfInterestLabels', false);
         (map as any).setConfigProperty('basemap', 'showTransitLabels', false);
       } catch (err) {
-        // Silenciado intencionalmente (Mapbox a veces reporta error aunque aplica el estilo)
+        // Fallback silencioso si el slot 'basemap' no está listo
       }
     }
 
     /**
      * B. GOBERNANZA DE RENDIMIENTO (Opacidad de Mallas)
+     * Desactivamos opacidad en Satélite para ver la textura pura.
      */
     try {
-      const buildingOpacity = isLite ? LITE_ENGINE_CONFIG.buildingOpacity : 1.0;
       if (map.getLayer('building')) {
-        map.setPaintProperty('building', 'fill-extrusion-opacity', buildingOpacity);
+        const opacity = isLite ? LITE_ENGINE_CONFIG.buildingOpacity : (isSatellite ? 0 : 1.0);
+        map.setPaintProperty('building', 'fill-extrusion-opacity', opacity);
       }
-    } catch (e) { } // Capa building no disponible aún
+    } catch (e) { }
 
     /**
-     * C. PROTOCOLO DE INYECCIÓN DE TERRENO (Relieve Físico)
+     * C. TERRENO Y RELIEVE (Física Ambiental)
      */
     if (!map.getSource(DEM_SOURCE_CONFIG.id)) {
       try {
@@ -161,7 +168,8 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
     }
 
     try {
-      const terrainParams = isLite ? LITE_TERRAIN_CONFIG : TERRAIN_CONFIG;
+      // En modo satélite o lite, el relieve se suaviza para evitar distorsiones
+      const terrainParams = (isLite || isSatellite) ? LITE_TERRAIN_CONFIG : TERRAIN_CONFIG;
 
       if (mode === 'EXPLORE') {
         map.setTerrain({
@@ -173,30 +181,31 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
       }
     } catch (err) { }
 
-  }, [theme, cameraPerspective, performanceProfile, mode]);
+  }, [theme, cameraPerspective, performanceProfile, mode, engineStyle]);
 
   return (
     <Map
       id={mapId}
       ref={localMapRef}
-      initialViewState={initialMapState} // Modo Inmutable
+      initialViewState={initialMapState}
       onLoad={handleMapLoad}
       onIdle={onIdle}
       onMove={onMove}
       onMoveEnd={onMoveEnd}
-      onStyleData={handleStyleData} // <--- [V10.0]: El Guardián de Estilos
+      onStyleData={handleStyleData}
       onClick={onMapClick}
       mapboxAccessToken={MAPBOX_TOKEN}
-      mapStyle={MAP_STYLES.STANDARD}
+      // [V11.0]: Vinculación atómica con el estilo del motor. Erradica el parpadeo.
+      mapStyle={engineStyle || MAP_STYLES.STANDARD}
       projection={{ name: "mercator" }}
-      fog={performanceProfile === 'TACTICAL_LITE' ? null : (FOG_CONFIG as any)}
+      fog={performanceProfile === 'TACTICAL_LITE' || cameraPerspective === 'SATELLITE' ? null : (FOG_CONFIG as any)}
       antialias={false}
       reuseMaps={true}
       maxPitch={85}
       attributionControl={false}
       style={{ width: '100%', height: '100%' }}
     >
-      {/* CAPA VOYAGER: Renderizado reactivo a useGeoEngine */}
+      {/* CAPA VOYAGER: Identidad física del usuario */}
       {userLocation && (
         <UserLocationMarker
           location={userLocation}
@@ -204,7 +213,7 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
         />
       )}
 
-      {/* CAPA ECOS: Bóveda NKV */}
+      {/* CAPA ECOS: Nodos de la Bóveda NKV */}
       {nearbyPOIs.map((poi: PointOfInterest) => (
         <MapMarkerCustom
           key={poi.id}
@@ -226,8 +235,6 @@ MapCore.displayName = "MapCore";
 
 /**
  * [BUILD SHIELD]: SOBERANÍA DE RENDERIZADO
- * Bloqueamos cualquier re-render que no sea un cambio físico de la instancia o del perfil.
- * [MANDATO V9.1]: Ignorar startCoords tras el montaje para liberar la interactividad.
  */
 export default memo(MapCore, (prev, next) => {
   return (
@@ -240,11 +247,12 @@ export default memo(MapCore, (prev, next) => {
 });
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V10.0):
- * 1. Style-Guard Resilience: Mover las configuraciones PBR al 'onStyleData' 
- *    garantiza que la oclusión de los edificios nunca falle (Solución a Imagen 33).
- *    Si Mapbox recarga texturas, el escudo se re-inyecta automáticamente.
- * 2. CPU Optimization: Se eliminó el 'useEffect' redundante que intentaba 
- *    sincronizar el tema. Toda la lógica gráfica vive ahora en el evento nativo
- *    de la GPU de Mapbox.
+ * NOTA TÉCNICA DEL ARCHITECT (V11.0):
+ * 1. Snap-Back Eradication: Al consumir 'mapStyle' directamente de la Fachada, 
+ *    el componente garantiza que las texturas satelitales y la cámara cenital
+ *    se activen en el mismo frame de la GPU, eliminando el parpadeo de la Imagen 6.
+ * 2. PBR Guard: Se inyectó una validación de estilo en 'handleStyleData' para evitar 
+ *    el crash de configuración cuando se utilizan lienzos que no soportan PBR nativo.
+ * 3. Satellite Opacity: En modo fotorrealista, la opacidad de los edificios 
+ *    se reduce a 0 para no obstruir la textura de la ortofoto, mejorando el peritaje.
  */

@@ -1,11 +1,11 @@
 /**
  * ARCHIVO: components/geo/map-constants.ts
- * VERSIÓN: 6.0 (NicePod Map Assets - Tactical Calibration & Perspective Breath Edition)
+ * VERSIÓN: 7.0 (NicePod Map Assets - Satellite Physics & Orthogonal Precision Edition)
  * PROTOCOLO: MADRID RESONANCE V3.0
  * 
  * Misión: Centralizar el ADN físico, lumínico y de rendimiento del motor WebGL.
- * [REFORMA V6.0]: Recalibración de perfiles STREET para evitar el encajonamiento por edificios 3D
- * y optimización de curvas de vuelo balístico.
+ * [REFORMA V7.0]: Definición del perfil físico SATELLITE para erradicar el parpadeo
+ * de cámara y asegurar una visualización cenital pura.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -21,6 +21,10 @@ export type MapboxLightPreset = 'night' | 'day' | 'dawn' | 'dusk';
 
 export const ACTIVE_MAP_THEME: MapboxLightPreset = 'night';
 
+/**
+ * MAP_STYLES:
+ * Definición de los lienzos visuales disponibles.
+ */
 export const MAP_STYLES = {
   STANDARD: "mapbox://styles/mapbox/standard",
   PHOTOREALISTIC: "mapbox://styles/mapbox/satellite-streets-v12",
@@ -33,10 +37,10 @@ export const MADRID_SOL_COORDS = {
 
 /**
  * INITIAL_OVERVIEW_CONFIG:
- * Configuración cenital para el nacimiento del sistema (Contexto General).
+ * Configuración cenital para el nacimiento del sistema.
  */
 export const INITIAL_OVERVIEW_CONFIG = {
-  zoom: 15.5, // [V6.0]: Aumentado ligeramente para mejor legibilidad de calles
+  zoom: 15.5,
   pitch: 0,
   bearing: 0,
 } as const;
@@ -57,20 +61,20 @@ export function getInitialViewState(lat?: number, lng?: number) {
  * Factores de suavizado para el motor LERP.
  */
 export const KINEMATIC_CONFIG = {
-  LERP_FACTOR: 0.10, // [V6.0]: Calibrado para el nuevo cálculo Delta-Time del CameraController
+  LERP_FACTOR: 0.10,
   MIN_DISTANCE_THRESHOLD: 1.5,
   HEADING_SMOOTHING: 3.0,
 } as const;
 
 /**
  * PERSPECTIVE_PROFILES: Definición física de los modos de visión.
- * [REFORMA V6.0]: STREET ha sido suavizado para permitir "respirar" a la cámara entre edificios.
+ * [REFORMA V7.0]: Introducción de SATELLITE como perfil de autoridad cenital.
  */
 export const PERSPECTIVE_PROFILES = {
   STREET: {
-    zoom: 18.2,               // Un paso atrás para ganar contexto
-    pitch: 65,                // Menos agresivo para evitar colisiones visuales con techos
-    offset_distance_meters: 35, // Más distancia desde el avatar para ver la trayectoria
+    zoom: 18.2,
+    pitch: 65,
+    offset_distance_meters: 35,
     bearing_follow: true
   },
   OVERVIEW: {
@@ -78,6 +82,16 @@ export const PERSPECTIVE_PROFILES = {
     pitch: 0,
     offset_distance_meters: 0,
     bearing_follow: false
+  },
+  /**
+   * SATELLITE: Optimizado para visualización fotorrealista.
+   * El pitch 0 asegura que la cámara no intente inclinar texturas 2D.
+   */
+  SATELLITE: {
+    zoom: 17.8,               // Zoom profundo pero estable para tiles satelitales
+    pitch: 0,                 // Cénit absoluto (Solución al parpadeo Imagen 5/6)
+    offset_distance_meters: 0, // Cámara directamente sobre el Voyager
+    bearing_follow: false     // El mapa se mantiene orientado al Norte para peritaje claro
   }
 } as const;
 
@@ -99,7 +113,6 @@ export const CAMERA_PROFILES = {
 
 /**
  * STANDARD_ENGINE_CONFIG: Perfil de Alta Fidelidad (PBR Activo).
- * Optimizado para el visor principal y modo exploración.
  */
 export const STANDARD_ENGINE_CONFIG = {
   lightPreset: ACTIVE_MAP_THEME,
@@ -123,7 +136,7 @@ export const LITE_ENGINE_CONFIG = {
 } as const;
 
 /**
- * OCCLUSION_CONFIG: Protocolo de transparencia adaptativa nativa de Mapbox v3.
+ * OCCLUSION_CONFIG: Protocolo de transparencia adaptativa.
  */
 export const OCCLUSION_CONFIG = {
   puckOcclusion: 'occluded',
@@ -144,10 +157,6 @@ export const TERRAIN_CONFIG = {
   exaggeration: 1.15
 } as const;
 
-/**
- * LITE_TERRAIN_CONFIG: 
- * Relieve suavizado para mayor estabilidad en el anclaje manual.
- */
 export const LITE_TERRAIN_CONFIG = {
   source: 'mapbox-dem',
   exaggeration: 0.4
@@ -163,31 +172,31 @@ export const DEM_SOURCE_CONFIG = {
 
 /**
  * FLY_CONFIG: Parámetros para vuelos balísticos.
- * [V6.0]: Aceleración táctica para una respuesta de botón instantánea.
  */
 export const FLY_CONFIG = {
-  duration: 1500, // [V6.0]: Más rápido para reducir la espera del usuario
+  duration: 1500,
   essential: true,
-  curve: 1.4,     // Curva más pronunciada para un efecto de "salto"
+  curve: 1.4,
   speed: 1.2,
-  easing: (t: number) => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t // Quad Ease-In-Out
+  easing: (t: number) => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t
 } as const;
 
 export const ZOOM_LEVELS = {
   CITY: 13,
   NEIGHBORHOOD: 15.5,
   STREET: 18.2,
+  SATELLITE: 17.8,
   FORGE: 19.5
 } as const;
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V6.0):
- * 1. Building Clearance: Al reducir el pitch de 75 a 65, se soluciona el problema 
- *    de oclusión masiva en calles estrechas de Madrid, permitiendo que el avatar
- *    tenga un cono de visión más natural.
- * 2. Tactical Velocity: El ajuste de FLY_CONFIG elimina la sensación de "lentitud" 
- *    al pulsar el botón de ubicación, otorgando al Voyager una respuesta visual 
- *    inmediata bajo el estándar Zero-Wait.
- * 3. Delta-Time Alignment: LERP_FACTOR re-calibrado para compensar el nuevo 
- *    algoritmo del Camera Director.
+ * NOTA TÉCNICA DEL ARCHITECT (V7.0):
+ * 1. Satellite Stability: La introducción del perfil SATELLITE con pitch 0 y 
+ *    bearing_follow: false es la defensa final contra el "Snap-Back". El motor 
+ *    ahora tiene un estado estable donde reposar cuando el usuario activa la 
+ *    capa fotorrealista.
+ * 2. Visual Cohesion: Se sincronizaron los ZOOM_LEVELS para que la transición
+ *    entre el modo calle y satélite sea fluida y no cause saltos de escala bruscos.
+ * 3. Contract Compliance: Este archivo provee las constantes necesarias para que 
+ *    el nuevo contrato de tipos V7.1 sea plenamente operativo.
  */
