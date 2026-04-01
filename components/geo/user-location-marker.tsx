@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: components/geo/user-location-marker.tsx
- * VERSIÓN: 3.3 (NicePod GO Avatar - Stabilized Kinematics Edition)
+ * VERSIÓN: 3.4 (NicePod GO Avatar - Passive Alignment & Jitter-Shield Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Representar al Voyager con escala dinámica y movimiento líquido estable.
- * [REFORMA V3.3]: Refactorización de LERP con Refs para sanar advertencia de ESLint y optimizar GPU.
+ * Misión: Representar al Voyager con escala dinámica y sincronía total con la cámara.
+ * [REFORMA V3.4]: Integración de Deadzone Shield y alineación dinámica de Pitch/Rotation.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -14,13 +14,15 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState, useMemo } from "react";
 import { Marker, useMap } from "react-map-gl/mapbox";
 
-// --- SERVICIOS CINEMÁTICOS ---
+// --- SERVICIOS CINEMÁTICOS SOBERANOS (V1.2) ---
 import {
   calculateDistance,
   interpolateCoords,
+  interpolateAngle,
   KinematicPosition
 } from "@/lib/geo-kinematics";
-import { cn } from "@/lib/utils";
+import { useGeoEngine } from "@/hooks/use-geo-engine";
+import { cn, nicepodLog } from "@/lib/utils";
 import { UserLocation } from "@/types/geo-sovereignty";
 
 interface UserLocationMarkerProps {
@@ -29,22 +31,26 @@ interface UserLocationMarkerProps {
 }
 
 /**
- * UserLocationMarker: La representación física soberana del Voyager.
+ * UserLocationMarker: La entidad física del Voyager en la Malla de Madrid.
  */
 const UserLocationMarkerComponent = ({ location, isResonating }: UserLocationMarkerProps) => {
   const { current: mapInstance } = useMap();
+  
+  // Consumimos la perspectiva para ajustar el alineamiento (3D vs 2D)
+  const { cameraPerspective, isManualMode } = useGeoEngine();
 
   // 1. ESTADO DE RENDERIZADO Y ESCALA
   const [renderPos, setRenderPos] = useState<KinematicPosition | null>(null);
   const [currentZoom, setCurrentZoom] = useState<number>(15);
   
-  // 2. MEMORIA TÉCNICA (REFS)
-  // visualPosRef: Almacena la ubicación visual exacta para el cálculo del LERP sin disparar efectos.
+  // 2. MEMORIA TÉCNICA (REFS DE ALTA VELOCIDAD)
   const visualPosRef = useRef<KinematicPosition | null>(null);
+  const visualHeadingRef = useRef<number>(0);
   const animationFrameRef = useRef<number | null>(null);
 
   /**
-   * 3. SINCRO DE ZOOM (RECEPTOR DE ESCALA)
+   * 3. SINCRO DE ZOOM
+   * Misión: Capturar la escala del visor para el algoritmo de dimensionamiento.
    */
   useEffect(() => {
     if (!mapInstance) return;
@@ -52,7 +58,7 @@ const UserLocationMarkerComponent = ({ location, isResonating }: UserLocationMar
     
     const updateZoom = () => setCurrentZoom(map.getZoom());
     map.on('zoom', updateZoom);
-    updateZoom(); // Captura inicial
+    updateZoom();
 
     return () => {
       map.off('zoom', updateZoom);
@@ -60,9 +66,8 @@ const UserLocationMarkerComponent = ({ location, isResonating }: UserLocationMar
   }, [mapInstance]);
 
   /**
-   * 4. MOTOR DE DESLIZAMIENTO (LERP ENGINE V3.3)
-   * Misión: Mover el avatar hacia la telemetría cruda de forma líquida.
-   * [FIX]: Se utiliza visualPosRef para eliminar la dependencia de estado en el efecto.
+   * 4. MOTOR DE DESLIZAMIENTO (LERP ENGINE V3.4)
+   * [SINCRO]: Utiliza la matemática de Deadzone Shield para evitar el Jitter.
    */
   useEffect(() => {
     if (!location?.latitude || !location?.longitude) return;
@@ -81,59 +86,59 @@ const UserLocationMarkerComponent = ({ location, isResonating }: UserLocationMar
 
     const distanceToTarget = calculateDistance(visualPosRef.current, targetPos);
 
-    // Caso B: Salto de Autoridad (IP to GPS > 80m) -> Teletransporte inmediato
+    // Caso B: Salto de Autoridad (>80m) -> Teletransporte
     if (distanceToTarget > 80) {
       visualPosRef.current = targetPos;
       setRenderPos(targetPos);
-      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
       return;
     }
 
-    // Caso C: Reposo técnico (<10cm) -> Suspensión de motor para ahorro de energía
-    if (distanceToTarget < 0.1) {
-      return;
-    }
-
-    // Caso D: Deslizamiento Cinematográfico (LERP 60FPS)
+    // Caso C: Deslizamiento Cinematográfico
     const runAnimation = () => {
       if (!visualPosRef.current) return;
 
-      // Calculamos el siguiente paso de la interpolación
+      // Usamos el motor LERP unificado del sistema
       const nextStep = interpolateCoords(visualPosRef.current, targetPos);
-      
-      // Actualizamos la referencia (Verdad física del dibujo)
       visualPosRef.current = nextStep;
-      
-      // Actualizamos el estado (Trigger de renderizado UI)
       setRenderPos(nextStep);
 
-      // Verificamos si hemos llegado para detener el bucle
       const remainingDist = calculateDistance(nextStep, targetPos);
       if (remainingDist > 0.05) {
         animationFrameRef.current = requestAnimationFrame(runAnimation);
       }
     };
 
-    // Limpieza de bucles previos antes de iniciar uno nuevo
     if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
     animationFrameRef.current = requestAnimationFrame(runAnimation);
 
     return () => {
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
     };
-  }, [location.latitude, location.longitude]); // Dependencias limpias: solo la telemetría activa el motor.
+  }, [location.latitude, location.longitude]);
 
-  // 5. CÁLCULO DE ESCALA TÁCTICA
+  /**
+   * 5. PROCESAMIENTO DE RUMBO (COMPASS SHIELD)
+   * Misión: Suavizar el ladeo del avatar usando la Deadzone del Bloque A.
+   */
+  const smoothedHeading = useMemo(() => {
+    if (location.heading === null) return visualHeadingRef.current;
+    
+    const nextHeading = interpolateAngle(visualHeadingRef.current, location.heading);
+    visualHeadingRef.current = nextHeading;
+    return nextHeading;
+  }, [location.heading]);
+
+  // 6. CÁLCULO DE ESCALA TÁCTICA
   const visualScale = useMemo(() => {
-    if (currentZoom >= 17.5) return 1.0;
-    if (currentZoom <= 14) return 0.65;
-    return 0.65 + (currentZoom - 14) * (0.35 / 3.5);
+    if (currentZoom >= 18) return 1.0;
+    if (currentZoom <= 14) return 0.6;
+    return 0.6 + (currentZoom - 14) * (0.4 / 4);
   }, [currentZoom]);
 
   if (!renderPos) return null;
 
-  const accuracy = location.accuracy || 0;
-  const isRescue = accuracy >= 500; 
+  const isRescue = (location.accuracy || 0) >= 500; 
+  const isStreetView = cameraPerspective === 'STREET';
 
   const statusColorClass = isRescue
     ? "zinc"
@@ -146,8 +151,10 @@ const UserLocationMarkerComponent = ({ location, isResonating }: UserLocationMar
       latitude={renderPos.latitude}
       longitude={renderPos.longitude}
       anchor="center"
-      pitchAlignment="map"
-      rotationAlignment="map"
+      // [V3.4]: Alineamiento dinámico. En Dashboard (Overview) es 'viewport' (2D).
+      // En Mapa Full (Street) es 'map' (3D) para proyectarse en el asfalto.
+      pitchAlignment={isStreetView ? "map" : "viewport"}
+      rotationAlignment={isStreetView ? "map" : "viewport"}
       style={{ zIndex: 9999 }}
     >
       <div 
@@ -159,17 +166,17 @@ const UserLocationMarkerComponent = ({ location, isResonating }: UserLocationMar
         }}
       >
 
-        {/* I. AURA DE PRECISIÓN (ACCURACY CONE) */}
+        {/* I. AURA DE INCERTIDUMBRE (ACCURACY CONE) */}
         <div
           className={cn(
             "absolute rounded-full transition-all duration-1000 ease-in-out border-2",
             isRescue
-              ? "w-[220%] h-[220%] bg-zinc-500/5 border-zinc-500/10 blur-md"
-              : "w-[90%] h-[90%] bg-primary/5 border-primary/20 blur-none"
+              ? "w-[240%] h-[240%] bg-zinc-500/5 border-zinc-500/10 blur-md"
+              : "w-[100%] h-[100%] bg-primary/5 border-primary/20 blur-none"
           )}
         />
 
-        {/* II. ANILLOS DE RESONANCIA SINCRO-POKÉMON */}
+        {/* II. ANILLOS DE RESONANCIA SOBERANA */}
         <div className="absolute inset-0 flex items-center justify-center w-full h-full">
           {[1, 2, 3].map((i) => (
             <div
@@ -211,12 +218,12 @@ const UserLocationMarkerComponent = ({ location, isResonating }: UserLocationMar
           </div>
         </div>
 
-        {/* IV. PUNTERO DE RUMBO (MAGNETIC COMPASS) */}
+        {/* IV. PUNTERO DE RUMBO (COMPASS CONE) */}
         {location.heading !== null && (
           <motion.div
             initial={false}
-            animate={{ rotate: location.heading }}
-            transition={{ type: "spring", stiffness: 100, damping: 20 }}
+            animate={{ rotate: smoothedHeading }}
+            transition={{ type: "spring", stiffness: 120, damping: 25 }}
             className={cn(
               "absolute filter drop-shadow-[0_0_15px_rgba(0,0,0,0.9)]",
               currentZoom > 17 ? "-top-14" : "-top-10",
@@ -224,17 +231,17 @@ const UserLocationMarkerComponent = ({ location, isResonating }: UserLocationMar
             )}
           >
             <svg 
-              width={currentZoom > 17 ? "26" : "18"} 
-              height={currentZoom > 17 ? "26" : "18"} 
+              width={currentZoom > 17 ? "28" : "18"} 
+              height={currentZoom > 17 ? "28" : "18"} 
               viewBox="0 0 20 20" 
               fill="none"
             >
-              <path d="M10 0L19 16H1L10 0Z" fill="currentColor" />
+              <path d="M10 0L20 16H0L10 0Z" fill="currentColor" />
             </svg>
           </motion.div>
         )}
 
-        {/* V. INDICADOR TÉCNICO DE MATERIALIZACIÓN */}
+        {/* V. INDICADOR DE MATERIALIZACIÓN T0 */}
         <AnimatePresence>
           {isRescue && currentZoom > 14 && (
             <motion.div
@@ -246,7 +253,7 @@ const UserLocationMarkerComponent = ({ location, isResonating }: UserLocationMar
               <div className="bg-black/90 backdrop-blur-2xl px-4 py-2 rounded-full border border-white/10 shadow-2xl flex items-center gap-2.5">
                 <div className="h-1.5 w-1.5 rounded-full bg-zinc-500 animate-pulse" />
                 <span className="text-[7.5px] font-black uppercase tracking-[0.4em] text-zinc-300">
-                  Detectando Contexto...
+                  Estimando Malla...
                 </span>
               </div>
             </motion.div>
@@ -261,13 +268,12 @@ const UserLocationMarkerComponent = ({ location, isResonating }: UserLocationMar
 export const UserLocationMarker = UserLocationMarkerComponent;
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V3.3):
- * 1. Dependency Shield: Se resolvió la advertencia de ESLint en Vercel mediante el uso
- *    de visualPosRef, desligando el estado de renderizado de la lógica del efecto.
- * 2. Visual Proportionality: El avatar ajusta su escala de 0.65x a 1.0x basándose en 
- *    el zoom real de Mapbox, eliminando el ruido visual en el Dashboard.
- * 3. Atomic LERP: El bucle de animación se detiene automáticamente si la distancia
- *    al objetivo es insignificante, liberando ciclos de CPU para el motor PBR.
- * 4. High-Authority UI: Los anillos y el puntero de dirección reflejan la verdad
- *    física de la sintonía (Zinc/Emerald/Primary) con total nitidez.
+ * NOTA TÉCNICA DEL ARCHITECT (V3.4):
+ * 1. Ghosting Eradication: Se sincronizó el motor LERP del avatar con las constantes
+ *    del CameraController, asegurando que ambos se muevan en el mismo frame de la GPU.
+ * 2. Perspective Awareness: El uso de pitchAlignment dinámico soluciona el ladeo 3D 
+ *    accidental en el Dashboard (Imagen 37), forzando una vista 2D en modo OVERVIEW.
+ * 3. Jitter Shield 0.5°: El avatar consume ahora la lógica de Deadzone del Bloque A, 
+ *    eliminando los movimientos laterales nerviosos cuando el usuario está quieto.
+ * 4. Zero-Regressions: Se mantiene el Z-Shield 9999 para perforar edificios PBR.
  */
