@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: components/geo/forge-context.tsx
- * VERSIÓN: 3.2 (NicePod Forge Context - Type Unified & Asset Guard Edition)
- * PROTOCOLO: MADRID RESONANCE V2.8
+ * VERSIÓN: 4.0 (NicePod Forge Context - Atomic State Machine & Debounce Edition)
+ * PROTOCOLO: MADRID RESONANCE V3.0
  * 
- * Misión: Orquestar la memoria volátil de la forja con persistencia y protección de binarios.
- * [REFORMA V3.2]: Alineación con NarrativeTone/Depth, Guardia 'beforeunload' y Fallback SSR.
+ * Misión: Orquestar la memoria volátil de la forja con persistencia de alto rendimiento y FSM.
+ * [REFORMA V4.0]: Transiciones de estado deterministas y Throttling en SessionStorage.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -15,7 +15,8 @@ import React, {
   useCallback,
   useContext,
   useEffect,
-  useReducer
+  useReducer,
+  useRef
 } from "react";
 
 // --- IMPORTACIÓN DE SOBERANÍA DE TIPOS (BUILD SHIELD V6.4) ---
@@ -28,7 +29,7 @@ import { nicepodLog } from "@/lib/utils";
 
 /**
  * ---------------------------------------------------------------------------
- * I. CONTRATOS DE DATOS (EL ADN DE LA FORJA V3.2)
+ * I. CONTRATOS DE DATOS Y MÁQUINA DE ESTADOS FINITA (FSM)
  * ---------------------------------------------------------------------------
  */
 
@@ -38,14 +39,11 @@ export type ForgeStep =
   | 'DOSSIER_REVIEW'    // Fase 3: Auditoría Humana del Peritaje de IA.
   | 'NARRATIVE_FORGE';  // Fase 4: Configuración Editorial del Agente 42.
 
-/**
- * ForgeState: Estructura de memoria volátil del Administrador.
- */
 export interface ForgeState {
   currentStep: ForgeStep;
   isSubmitting: boolean;
   isTranscribing: boolean;
-  isDirty: boolean; // Flag de modificaciones no persistidas en DB.
+  isDirty: boolean; // Flag de sincronización con Bóveda.
 
   // Fase 1: Anclaje Geográfico
   latitude: number | null;
@@ -54,7 +52,7 @@ export interface ForgeState {
   categoryId: string;
   resonanceRadius: number;
 
-  // Fase 2: Evidencia Física (Binarios no serializables en SessionStorage)
+  // Fase 2: Evidencia Física (Blobs en RAM)
   heroImageFile: File | null;
   ocrImageFiles: File[];
   ambientAudioBlob: Blob | null;
@@ -65,38 +63,11 @@ export interface ForgeState {
   ingestionDossier: IngestionDossier | null;
 
   // Fase 4: Configuración Editorial
-  // [FIX V3.2]: Tipos inyectados directamente de la Constitución para evitar TS2345.
   intentText: string;
   depth: NarrativeDepth;
   tone: NarrativeTone;
   historicalFact: string;
 }
-
-/**
- * ---------------------------------------------------------------------------
- * II. MÁQUINA DE ESTADOS (REDUCER ACTIONS)
- * ---------------------------------------------------------------------------
- */
-
-type ForgeAction =
-  | { type: 'SET_STEP'; payload: ForgeStep }
-  | { type: 'SET_IS_SUBMITTING'; payload: boolean }
-  | { type: 'SET_TRANSCRIBING'; payload: boolean }
-  | { type: 'SET_LOCATION'; payload: { lat: number; lng: number; acc: number } }
-  | { type: 'SET_CATEGORY'; payload: string }
-  | { type: 'SET_RADIUS'; payload: number }
-  | { type: 'SET_HERO_IMAGE'; payload: File | null }
-  | { type: 'ADD_OCR_IMAGE'; payload: File }
-  | { type: 'REMOVE_OCR_IMAGE'; payload: number }
-  | { type: 'SET_AMBIENT_AUDIO'; payload: Blob | null }
-  | { type: 'SET_INTENT_AUDIO'; payload: Blob | null }
-  | { type: 'SET_INGESTION_RESULT'; payload: { poiId: number; dossier: IngestionDossier } }
-  | { type: 'SET_INTENT'; payload: string }
-  | { type: 'SET_DEPTH'; payload: NarrativeDepth }
-  | { type: 'SET_TONE'; payload: NarrativeTone }
-  | { type: 'SET_HISTORICAL_FACT'; payload: string }
-  | { type: 'HYDRATE_METADATA'; payload: Partial<ForgeState> }
-  | { type: 'RESET_FORGE' };
 
 const initialState: ForgeState = {
   currentStep: 'ANCHORING',
@@ -121,8 +92,31 @@ const initialState: ForgeState = {
 };
 
 /**
- * forgeReducer: Transmutación determinista de la memoria táctica.
+ * ---------------------------------------------------------------------------
+ * II. REDUCER DETERMINISTA (THE VAULT CORE)
+ * ---------------------------------------------------------------------------
  */
+
+type ForgeAction =
+  | { type: 'SET_STEP'; payload: ForgeStep }
+  | { type: 'SET_IS_SUBMITTING'; payload: boolean }
+  | { type: 'SET_TRANSCRIBING'; payload: boolean }
+  | { type: 'SET_LOCATION'; payload: { lat: number; lng: number; acc: number } }
+  | { type: 'SET_CATEGORY'; payload: string }
+  | { type: 'SET_RADIUS'; payload: number }
+  | { type: 'SET_HERO_IMAGE'; payload: File | null }
+  | { type: 'ADD_OCR_IMAGE'; payload: File }
+  | { type: 'REMOVE_OCR_IMAGE'; payload: number }
+  | { type: 'SET_AMBIENT_AUDIO'; payload: Blob | null }
+  | { type: 'SET_INTENT_AUDIO'; payload: Blob | null }
+  | { type: 'SET_INGESTION_RESULT'; payload: { poiId: number; dossier: IngestionDossier } }
+  | { type: 'SET_INTENT'; payload: string }
+  | { type: 'SET_DEPTH'; payload: NarrativeDepth }
+  | { type: 'SET_TONE'; payload: NarrativeTone }
+  | { type: 'SET_HISTORICAL_FACT'; payload: string }
+  | { type: 'HYDRATE_METADATA'; payload: Partial<ForgeState> }
+  | { type: 'RESET_FORGE' };
+
 function forgeReducer(state: ForgeState, action: ForgeAction): ForgeState {
   switch (action.type) {
     case 'SET_STEP': return { ...state, currentStep: action.payload };
@@ -130,20 +124,13 @@ function forgeReducer(state: ForgeState, action: ForgeAction): ForgeState {
     case 'SET_TRANSCRIBING': return { ...state, isTranscribing: action.payload };
     
     case 'SET_LOCATION':
-      return {
-        ...state,
-        latitude: action.payload.lat,
-        longitude: action.payload.lng,
-        accuracy: action.payload.acc,
-        isDirty: true
-      };
-      
+      return { ...state, latitude: action.payload.lat, longitude: action.payload.lng, accuracy: action.payload.acc, isDirty: true };
     case 'SET_CATEGORY': return { ...state, categoryId: action.payload, isDirty: true };
     case 'SET_RADIUS': return { ...state, resonanceRadius: action.payload, isDirty: true };
     case 'SET_HERO_IMAGE': return { ...state, heroImageFile: action.payload, isDirty: true };
     
     case 'ADD_OCR_IMAGE':
-      if (state.ocrImageFiles.length >= 3) return state; // Límite físico
+      if (state.ocrImageFiles.length >= 3) return state; // Límite balístico
       return { ...state, ocrImageFiles: [...state.ocrImageFiles, action.payload], isDirty: true };
       
     case 'REMOVE_OCR_IMAGE':
@@ -153,10 +140,7 @@ function forgeReducer(state: ForgeState, action: ForgeAction): ForgeState {
     case 'SET_INTENT_AUDIO': return { ...state, intentAudioBlob: action.payload, isDirty: true };
     
     case 'SET_INGESTION_RESULT': return {
-      ...state,
-      ingestedPoiId: action.payload.poiId,
-      ingestionDossier: action.payload.dossier,
-      isDirty: true
+      ...state, ingestedPoiId: action.payload.poiId, ingestionDossier: action.payload.dossier, isDirty: true
     };
     
     case 'SET_INTENT': return { ...state, intentText: action.payload, isDirty: true };
@@ -167,13 +151,14 @@ function forgeReducer(state: ForgeState, action: ForgeAction): ForgeState {
     case 'HYDRATE_METADATA': {
       const hydrated = { ...state, ...action.payload };
       /**
-       * [FALLBACK DE RESILIENCIA]: 
-       * Si hidratamos desde SessionStorage, los objetos File/Blob se habrán perdido (no serializables).
-       * Si el Admin estaba en DOSSIER_REVIEW pero el dossier no está en memoria, lo devolvemos
-       * a SENSORY_CAPTURE para que re-inserte la foto, evitando un bloqueo en pantalla blanca.
+       * [FALLBACK DE RESILIENCIA V4.0]: 
+       * Evaluación de integridad estructural post-hidratación.
        */
-      if (hydrated.currentStep === 'DOSSIER_REVIEW' && !hydrated.ingestionDossier) {
-        nicepodLog("⚠️ [ForgeContext] Evidencia volátil perdida. Revirtiendo a captura sensorial.");
+      const isMissingDossier = hydrated.currentStep === 'DOSSIER_REVIEW' && !hydrated.ingestionDossier;
+      const isMissingNarrative = hydrated.currentStep === 'NARRATIVE_FORGE' && !hydrated.ingestionDossier;
+
+      if (isMissingDossier || isMissingNarrative) {
+        nicepodLog("⚠️ [ForgeContext] Malla de Evidencia rota. Revirtiendo a Captura Sensorial.");
         hydrated.currentStep = 'SENSORY_CAPTURE';
       }
       return hydrated;
@@ -204,60 +189,65 @@ const ForgeContext = createContext<ForgeContextProps | undefined>(undefined);
 
 export function ForgeProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(forgeReducer, initialState);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   /**
-   * EFECTO: RECUPERACIÓN T0 (HYDRATION)
-   * Restaura textos y coordenadas tras un refresco accidental de página.
+   * 1. RECUPERACIÓN T0 (Hydration Guard)
    */
   useEffect(() => {
     const saved = sessionStorage.getItem('nicepod_forge_metadata');
     if (saved) {
       try {
         const metadata = JSON.parse(saved);
-        nicepodLog("🧠 [ForgeContext] Restaurando metadatos de sesión (Anti-Amnesia).");
+        nicepodLog("🧠 [ForgeContext] Restaurando memoria de sesión (Anti-Amnesia).");
         dispatch({ type: 'HYDRATE_METADATA', payload: metadata });
       } catch (e) {
-        nicepodLog("⚠️ [ForgeContext] Fallo en hidratación de sesión.", null, 'warn');
+        nicepodLog("⚠️ [ForgeContext] Fallo en hidratación. Iniciando forja limpia.", null, 'warn');
+        sessionStorage.removeItem('nicepod_forge_metadata');
       }
     }
   }, []);
 
   /**
-   * EFECTO: PERSISTENCIA SELECTIVA
+   * 2. PERSISTENCIA DE ALTO RENDIMIENTO (Debounced Sync)
+   * [MANDATO V4.0]: Evita saturar el bus del navegador en formularios rápidos.
    */
   useEffect(() => {
     if (state.isDirty) {
-      const serializableState = {
-        currentStep: state.currentStep,
-        latitude: state.latitude,
-        longitude: state.longitude,
-        accuracy: state.accuracy,
-        categoryId: state.categoryId,
-        resonanceRadius: state.resonanceRadius,
-        intentText: state.intentText,
-        depth: state.depth,
-        tone: state.tone,
-        historicalFact: state.historicalFact,
-        ingestedPoiId: state.ingestedPoiId,
-        ingestionDossier: state.ingestionDossier
-      };
-      sessionStorage.setItem('nicepod_forge_metadata', JSON.stringify(serializableState));
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      
+      debounceTimerRef.current = setTimeout(() => {
+        const serializableState = {
+          currentStep: state.currentStep,
+          latitude: state.latitude,
+          longitude: state.longitude,
+          accuracy: state.accuracy,
+          categoryId: state.categoryId,
+          resonanceRadius: state.resonanceRadius,
+          intentText: state.intentText,
+          depth: state.depth,
+          tone: state.tone,
+          historicalFact: state.historicalFact,
+          ingestedPoiId: state.ingestedPoiId,
+          ingestionDossier: state.ingestionDossier
+        };
+        sessionStorage.setItem('nicepod_forge_metadata', JSON.stringify(serializableState));
+      }, 500); // 500ms Debounce
     }
   }, [state]);
 
   /**
-   * EFECTO: GUARDIÁN DE NAVEGACIÓN (ASSET GUARD)
-   * Evita que el usuario cierre o recargue la pestaña si tiene binarios (fotos/audio)
-   * en RAM que aún no han sido ingestados en Supabase.
+   * 3. GUARDIÁN DE NAVEGACIÓN (Asset Shield)
+   * Protege los binarios en RAM de cierres accidentales.
    */
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      const hasUnsavedBinaries = state.heroImageFile || state.ambientAudioBlob || state.ocrImageFiles.length > 0;
+      const hasUnsavedBinaries = !!state.heroImageFile || !!state.ambientAudioBlob || state.ocrImageFiles.length > 0;
       const isNotIngested = !state.ingestionDossier;
 
       if (state.isDirty && hasUnsavedBinaries && isNotIngested) {
         e.preventDefault();
-        e.returnValue = ''; // Gatilla el diálogo nativo del navegador ("¿Seguro que quieres salir?")
+        e.returnValue = ''; // Gatilla modal nativo del OS
       }
     };
 
@@ -266,25 +256,35 @@ export function ForgeProvider({ children }: { children: React.ReactNode }) {
   }, [state.isDirty, state.heroImageFile, state.ambientAudioBlob, state.ocrImageFiles, state.ingestionDossier]);
 
   /**
-   * nextStep: Navegación de Flujo Síncrono
+   * 4. CONTROL DE TRANSICIÓN DETERMINISTA (FSM Navigation)
+   * Valida estrictamente los requisitos de cada fase antes de permitir el avance.
    */
   const nextStep = useCallback(() => {
     switch (state.currentStep) {
       case 'ANCHORING':
-        if (state.latitude && state.longitude) {
+        // Guard: Telemetría obligatoria
+        if (state.latitude !== null && state.longitude !== null) {
           dispatch({ type: 'SET_STEP', payload: 'SENSORY_CAPTURE' });
+        } else {
+          nicepodLog("🛑 [ForgeContext] FSM Rechazo: Anchoring sin GPS.");
         }
         break;
       case 'SENSORY_CAPTURE':
+        // Guard: O bien tenemos el Dossier (ya subido) o tenemos la foto (lista para subir)
         if (state.ingestionDossier || state.heroImageFile) {
           dispatch({ type: 'SET_STEP', payload: 'DOSSIER_REVIEW' });
+        } else {
+          nicepodLog("🛑 [ForgeContext] FSM Rechazo: Evidencia Hero requerida.");
         }
         break;
       case 'DOSSIER_REVIEW':
-        dispatch({ type: 'SET_STEP', payload: 'NARRATIVE_FORGE' });
+        // Guard: IA debe haber procesado antes de pasar a la narrativa
+        if (state.ingestionDossier) {
+          dispatch({ type: 'SET_STEP', payload: 'NARRATIVE_FORGE' });
+        }
         break;
       default:
-        nicepodLog("🚩 [ForgeContext] Fin del secuenciador.");
+        nicepodLog("🚩 [ForgeContext] Límite final del pipeline.");
     }
   }, [state.currentStep, state.latitude, state.longitude, state.heroImageFile, state.ingestionDossier]);
 
@@ -312,11 +312,14 @@ export function useForge() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V3.2):
- * 1. Type Alignment: Se importa NarrativeTone y NarrativeDepth de geo-sovereignty
- *    para sellar la compatibilidad estricta con las Server Actions.
- * 2. Asset Guardian: El evento 'beforeunload' protege la evidencia física en 
- *    RAM, advirtiendo al Voyager antes de que destruya sus fotos por accidente.
- * 3. Hydration Fallback: Si se restaura la sesión pero los binarios se perdieron, 
- *    el sistema revierte inteligentemente al Paso 2, evitando el crash fatal.
+ * NOTA TÉCNICA DEL ARCHITECT (V4.0):
+ * 1. Debounced Persistence: El uso de 'setTimeout' antes de escribir en sessionStorage
+ *    elimina el micro-stuttering del Main Thread cuando el usuario escribe rápidamente 
+ *    en los textareas del intent.
+ * 2. Deterministic FSM: La función 'nextStep' ahora actúa como un guardián de estado. 
+ *    Es físicamente imposible llegar a 'DOSSIER_REVIEW' sin haber adjuntado una HeroImage
+ *    o poseer un Dossier previamente ingestados.
+ * 3. Deep Hydration Guard: El fallback 'HYDRATE_METADATA' ahora evalúa todas las 
+ *    posibles fugas de memoria post-refresh, asegurando que si el usuario pierde 
+ *    su dossier en la fase narrativa, el sistema lo devuelva a la fase de captura visual.
  */
