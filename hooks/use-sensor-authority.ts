@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: hooks/use-sensor-authority.ts
- * VERSIÓN: 5.2 (NicePod Sensor Authority - Vectorial Signal Purification Edition)
+ * VERSIÓN: 5.3 (NicePod Sensor Authority - Vectorial Logic Fix Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Captura pura de telemetría eliminando el jitter magnético (movimientos laterales).
- * [REFORMA V5.2]: Implementación de Filtro Vectorial (VAF) para un Heading inmutable.
+ * Misión: Captura pura de telemetría GPS y Compás Magnetométrico sin Jitter.
+ * [REPARACIÓN V5.3]: Corrección de variable SMOOTHING_WINDOW_SIZE y blindaje de filtro.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -16,13 +16,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
  * INTERFAZ: RawTelemetry
- * La verdad física definitiva. El 'heading' ahora llega purificado.
+ * La verdad física capturada directamente del silicio del dispositivo.
  */
 export interface RawTelemetry {
   latitude: number;
   longitude: number;
   accuracy: number;
-  heading: number | null;
+  heading: number | null; // Rumbo purificado (0-360)
   speed: number | null;
   timestamp: number;
   source: 'gps' | 'cache' | 'ip-fallback';
@@ -35,22 +35,27 @@ interface SensorAuthorityProps {
 const CACHE_TTL_MS = 15 * 60 * 1000; 
 const WATCHDOG_THRESHOLD_MS = 8000;
 
-// Configuración del Filtro de Purificación (VAF)
-const SMOOTHING_WINDOW_SIZE = 12; // Muestras para promediar el ruido urbano
+// Configuración del Filtro de Purificación Vectorial (VAF)
+const SMOOTHING_WINDOW_SIZE = 12; // Muestras para promediar el ruido magnético
 
+/**
+ * HOOK: useSensorAuthority
+ * El único componente autorizado para dialogar con el hardware del dispositivo.
+ */
 export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
   
   // --- I. ESTADO SOBERANO (MATERIALIZACIÓN T0) ---
   const [telemetry, setTelemetry] = useState<RawTelemetry | null>(() => {
     if (typeof window === "undefined") return null;
 
+    // 1. Prioridad: Memoria Táctica Reciente (< 15 min)
     const cachedFixStr = localStorage.getItem('nicepod_last_known_fix');
     if (cachedFixStr) {
       try {
         const parsed: RawTelemetry = JSON.parse(cachedFixStr);
         const age = Date.now() - (parsed.timestamp || 0);
         if (age < CACHE_TTL_MS) {
-          nicepodLog("💾 [Sensor-Authority] Memoria táctica restaurada.");
+          nicepodLog("💾 [Sensor-Authority] Hidratación por memoria táctica.");
           return { ...parsed, source: 'cache' };
         }
         localStorage.removeItem('nicepod_last_known_fix');
@@ -59,7 +64,9 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
       }
     }
 
+    // 2. Prioridad: Paracaídas de Red (Geo-IP)
     if (initialData) {
+      nicepodLog(`🌐 [Sensor-Authority] Materialización T0 por IP (${initialData.city}).`);
       return {
         latitude: initialData.lat,
         longitude: initialData.lng,
@@ -71,6 +78,7 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
       };
     }
 
+    // 3. Fallback: Madrid Sol (Último recurso)
     return {
       ...MADRID_SOL_COORDS,
       accuracy: 9999,
@@ -90,37 +98,41 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
   const watchdogTimerRef = useRef<NodeJS.Timeout | null>(null);
   const hasGPSFixRef = useRef<boolean>(false);
   
-  // Buffer para el Filtro de Media Vectorial
+  // Buffer para el Filtro de Media Vectorial (VAF)
+  // Almacenamos los componentes Seno y Coseno para evitar errores de promedio en el Norte (0/360).
   const headingHistoryRef = useRef<{sin: number, cos: number}[]>([]);
 
   /**
    * getPurifiedHeading:
-   * Aplica matemática vectorial para suavizar el rumbo sin errores de wrap-around (359° a 0°).
+   * [FIX V5.3]: Sincronización de constante SMOOTHING_WINDOW_SIZE.
+   * Transmuta el ruido del magnetómetro en un rumbo estable para la cámara.
    */
   const getPurifiedHeading = useCallback((rawHeading: number): number => {
     const rad = (rawHeading * Math.PI) / 180;
     
-    // Añadimos la muestra al buffer circular
+    // Inserción en el buffer circular de la Malla
     headingHistoryRef.current.push({ sin: Math.sin(rad), cos: Math.cos(rad) });
-    if (headingHistoryRef.current.length > SMOOTH_WINDOW_SIZE) {
+    if (headingHistoryRef.current.length > SMOOTHING_WINDOW_SIZE) {
       headingHistoryRef.current.shift();
     }
 
-    // Calculamos la media de los vectores
+    // Cálculo de la resultante vectorial media
     const sumSin = headingHistoryRef.current.reduce((acc, val) => acc + val.sin, 0);
     const sumCos = headingHistoryRef.current.reduce((acc, val) => acc + val.cos, 0);
     
     const avgRad = Math.atan2(sumSin, sumCos);
     const avgDeg = (avgRad * 180) / Math.PI;
     
+    // Normalización de rango (0 - 360)
     return (avgDeg + 360) % 360;
   }, []);
 
   /**
    * handleOrientation:
-   * Captura el magnetómetro y purifica la señal antes de emitirla.
+   * Captura el giro físico y aplica el filtro antes de actualizar la telemetría.
    */
   const handleOrientation = useCallback((event: DeviceOrientationEvent) => {
+    // Soporte multiplataforma (iOS CompassHeading vs Android Alpha)
     const rawHeading = (event as any).webkitCompassHeading || (360 - (event.alpha || 0));
     
     if (rawHeading !== undefined && rawHeading !== null) {
@@ -128,7 +140,7 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
       
       setTelemetry(prev => {
         if (!prev) return null;
-        // Solo actualizamos si la diferencia es significativa para ahorrar ciclos de render
+        // Throttling de renderizado: Ignoramos cambios menores a 0.2 grados para ahorrar CPU.
         if (prev.heading !== null && Math.abs(purifiedHeading - prev.heading) < 0.2) return prev;
         return { ...prev, heading: purifiedHeading };
       });
@@ -137,7 +149,7 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
 
   /**
    * killHardwareWatch:
-   * Desconexión atómica de sensores.
+   * Desconexión atómica de sensores y liberación del bus de datos.
    */
   const killHardwareWatch = useCallback(() => {
     if (watchIdRef.current !== null) {
@@ -152,12 +164,12 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
     isHardwareIgnitedRef.current = false;
     hasGPSFixRef.current = false;
     setIsAcquiring(false);
-    nicepodLog("💤 [Sensor-Authority] Sensores en reposo.");
+    nicepodLog("💤 [Sensor-Authority] Hardware liberado.");
   }, [handleOrientation]);
 
   /**
    * startHardwareWatch:
-   * Ignición sincronizada de GPS y Compás.
+   * Ignición sincronizada de GPS de alta precisión y Magnetómetro.
    */
   const startHardwareWatch = useCallback(async () => {
     if (typeof window === "undefined" || !("geolocation" in navigator)) return;
@@ -166,7 +178,7 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
     isHardwareIgnitedRef.current = true;
     setIsAcquiring(true);
 
-    // Permiso de Compás (Especial para iOS WebKit)
+    // Protocolo de seguridad WebKit (iOS 13+) para Brújula
     if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
       try {
         const permission = await (DeviceOrientationEvent as any).requestPermission();
@@ -174,13 +186,13 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
           window.addEventListener("deviceorientation", handleOrientation, true);
         }
       } catch (e) {
-        nicepodLog("⚠️ [Sensor-Authority] Bloqueo de Magnetómetro.");
+        nicepodLog("⚠️ [Sensor-Authority] Permiso de magnetómetro denegado.", null, 'warn');
       }
     } else {
       window.addEventListener("deviceorientation", handleOrientation, true);
     }
 
-    // Watchdog de Stall
+    // Watchdog de Stall: Reinicia el cerrojo si el chip GPS no responde en 8s.
     if (watchdogTimerRef.current) clearTimeout(watchdogTimerRef.current);
     watchdogTimerRef.current = setTimeout(() => {
       if (!hasGPSFixRef.current) {
@@ -196,8 +208,7 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
         watchdogTimerRef.current = null;
       }
 
-      // Prioridad al rumbo del GPS si está en movimiento (> 2m/s)
-      // De lo contrario, confiar en el magnetómetro suavizado
+      // El rumbo del GPS es más preciso a alta velocidad (> 2m/s)
       const finalHeading = (pos.coords.speed && pos.coords.speed > 2 && pos.coords.heading !== null)
         ? pos.coords.heading
         : (telemetry?.heading || null);
@@ -225,6 +236,7 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
       }
     };
 
+    // Ignición Dual: Shot de Red (Rápido) + Watch Satelital (Preciso)
     navigator.geolocation.getCurrentPosition(onSignalSuccess, onSignalError, {
       enableHighAccuracy: false,
       timeout: 5000
@@ -238,12 +250,12 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
   }, [handleOrientation, killHardwareWatch, telemetry?.heading]);
 
   const reSync = useCallback(() => {
-    nicepodLog("🔄 [Sensor-Authority] Re-sintonizando hardware.");
+    nicepodLog("🔄 [Sensor-Authority] Reiniciando autoridad física.");
     isHardwareIgnitedRef.current = false;
     startHardwareWatch();
   }, [startHardwareWatch]);
 
-  // --- III. PROTOCOLOS PROACTIVOS ---
+  // --- III. PROTOCOLOS PROACTIVOS (AUTO-IGNICIÓN Y VISIBILITY) ---
 
   useEffect(() => {
     if (typeof window !== "undefined" && "permissions" in navigator) {
@@ -278,12 +290,12 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProps = {}) {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V5.2):
- * 1. Vectorial Averaging Filter (VAF): Se utiliza atan2 sobre la suma de senos/cosenos
- *    para promediar ángulos de forma matemáticamente correcta, eliminando el jitter.
- * 2. Adaptive Authority: El sistema prioriza el 'heading' del GPS en movimiento y
- *    conmuta al magnetómetro filtrado al detenerse, ideal para el modo STREET.
- * 3. Render Throttling: Se añadió una guarda de 0.2° para evitar que micro-cambios
- *    irrelevantes en la brújula disparen el ciclo de reconciliación de React.
- * 4. Full Cycle Integrity: Mantiene los protocolos de auto-ignición y resurrección.
+ * NOTA TÉCNICA DEL ARCHITECT (V5.3):
+ * 1. Bug Sanity Check: Se corrigió la referencia a SMOOTHING_WINDOW_SIZE, eliminando
+ *    el error de compilación TS2552.
+ * 2. Vectorial Resilience: La brújula ahora utiliza promedios vectoriales, 
+ *    eliminando los movimientos laterales y ladeos erráticos de la cámara.
+ * 3. Mobile Performance: El throttling de 0.2° reduce la carga del Main Thread
+ *    al evitar re-renders innecesarios por ruido magnético despreciable.
+ * 4. Production Ready: El archivo es un bloque íntegro listo para despliegue.
  */
