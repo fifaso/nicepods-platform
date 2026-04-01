@@ -1,28 +1,21 @@
 /**
  * ARCHIVO: components/geo/user-location-marker.tsx
- * VERSIÓN: 3.4 (NicePod GO Avatar - Passive Alignment & Jitter-Shield Edition)
- * PROTOCOLO: MADRID RESONANCE V2.8
+ * VERSIÓN: 4.0 (NicePod GO Avatar - Native PBR & Zero-Jitter Edition)
+ * PROTOCOLO: MADRID RESONANCE V3.0
  * 
- * Misión: Representar al Voyager con escala dinámica y sincronía total con la cámara.
- * [REFORMA V3.4]: Integración de Deadzone Shield y alineación dinámica de Pitch/Rotation.
+ * Misión: Representar al Voyager con escala dinámica, oclusión PBR nativa y cero Jitter.
+ * [REFORMA V4.0]: Eliminación de doble-LERP y cesión de autoridad al motor WebGL.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Marker, useMap } from "react-map-gl/mapbox";
 
-// --- SERVICIOS CINEMÁTICOS SOBERANOS (V1.2) ---
-import {
-  calculateDistance,
-  interpolateCoords,
-  interpolateAngle,
-  KinematicPosition
-} from "@/lib/geo-kinematics";
 import { useGeoEngine } from "@/hooks/use-geo-engine";
-import { cn, nicepodLog } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { UserLocation } from "@/types/geo-sovereignty";
 
 interface UserLocationMarkerProps {
@@ -33,29 +26,23 @@ interface UserLocationMarkerProps {
 /**
  * UserLocationMarker: La entidad física del Voyager en la Malla de Madrid.
  */
-const UserLocationMarkerComponent = ({ location, isResonating }: UserLocationMarkerProps) => {
+export const UserLocationMarker = ({ location, isResonating }: UserLocationMarkerProps) => {
   const { current: mapInstance } = useMap();
-  
-  // Consumimos la perspectiva para ajustar el alineamiento (3D vs 2D)
-  const { cameraPerspective, isManualMode } = useGeoEngine();
 
-  // 1. ESTADO DE RENDERIZADO Y ESCALA
-  const [renderPos, setRenderPos] = useState<KinematicPosition | null>(null);
+  // Consumimos la perspectiva para ajustar el alineamiento (3D vs 2D)
+  const { cameraPerspective } = useGeoEngine();
+
+  // 1. ESTADO DE ZOOM TÁCTICO
   const [currentZoom, setCurrentZoom] = useState<number>(15);
-  
-  // 2. MEMORIA TÉCNICA (REFS DE ALTA VELOCIDAD)
-  const visualPosRef = useRef<KinematicPosition | null>(null);
-  const visualHeadingRef = useRef<number>(0);
-  const animationFrameRef = useRef<number | null>(null);
 
   /**
-   * 3. SINCRO DE ZOOM
-   * Misión: Capturar la escala del visor para el algoritmo de dimensionamiento.
+   * 2. SINCRO DE ZOOM
+   * Misión: Capturar la escala del visor para el algoritmo de dimensionamiento visual.
    */
   useEffect(() => {
     if (!mapInstance) return;
     const map = mapInstance.getMap();
-    
+
     const updateZoom = () => setCurrentZoom(map.getZoom());
     map.on('zoom', updateZoom);
     updateZoom();
@@ -66,78 +53,19 @@ const UserLocationMarkerComponent = ({ location, isResonating }: UserLocationMar
   }, [mapInstance]);
 
   /**
-   * 4. MOTOR DE DESLIZAMIENTO (LERP ENGINE V3.4)
-   * [SINCRO]: Utiliza la matemática de Deadzone Shield para evitar el Jitter.
+   * 3. CÁLCULO DE ESCALA VISUAL
+   * Permite que el avatar mantenga proporción en la vista de pájaro y no
+   * cubra toda la calle en modo inmersivo.
    */
-  useEffect(() => {
-    if (!location?.latitude || !location?.longitude) return;
-
-    const targetPos: KinematicPosition = {
-      latitude: location.latitude,
-      longitude: location.longitude
-    };
-
-    // Caso A: Materialización inicial
-    if (!visualPosRef.current) {
-      visualPosRef.current = targetPos;
-      setRenderPos(targetPos);
-      return;
-    }
-
-    const distanceToTarget = calculateDistance(visualPosRef.current, targetPos);
-
-    // Caso B: Salto de Autoridad (>80m) -> Teletransporte
-    if (distanceToTarget > 80) {
-      visualPosRef.current = targetPos;
-      setRenderPos(targetPos);
-      return;
-    }
-
-    // Caso C: Deslizamiento Cinematográfico
-    const runAnimation = () => {
-      if (!visualPosRef.current) return;
-
-      // Usamos el motor LERP unificado del sistema
-      const nextStep = interpolateCoords(visualPosRef.current, targetPos);
-      visualPosRef.current = nextStep;
-      setRenderPos(nextStep);
-
-      const remainingDist = calculateDistance(nextStep, targetPos);
-      if (remainingDist > 0.05) {
-        animationFrameRef.current = requestAnimationFrame(runAnimation);
-      }
-    };
-
-    if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-    animationFrameRef.current = requestAnimationFrame(runAnimation);
-
-    return () => {
-      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-    };
-  }, [location.latitude, location.longitude]);
-
-  /**
-   * 5. PROCESAMIENTO DE RUMBO (COMPASS SHIELD)
-   * Misión: Suavizar el ladeo del avatar usando la Deadzone del Bloque A.
-   */
-  const smoothedHeading = useMemo(() => {
-    if (location.heading === null) return visualHeadingRef.current;
-    
-    const nextHeading = interpolateAngle(visualHeadingRef.current, location.heading);
-    visualHeadingRef.current = nextHeading;
-    return nextHeading;
-  }, [location.heading]);
-
-  // 6. CÁLCULO DE ESCALA TÁCTICA
   const visualScale = useMemo(() => {
     if (currentZoom >= 18) return 1.0;
     if (currentZoom <= 14) return 0.6;
     return 0.6 + (currentZoom - 14) * (0.4 / 4);
   }, [currentZoom]);
 
-  if (!renderPos) return null;
+  if (!location.latitude || !location.longitude) return null;
 
-  const isRescue = (location.accuracy || 0) >= 500; 
+  const isRescue = (location.accuracy || 0) >= 500;
   const isStreetView = cameraPerspective === 'STREET';
 
   const statusColorClass = isRescue
@@ -148,19 +76,20 @@ const UserLocationMarkerComponent = ({ location, isResonating }: UserLocationMar
 
   return (
     <Marker
-      latitude={renderPos.latitude}
-      longitude={renderPos.longitude}
+      latitude={location.latitude}
+      longitude={location.longitude}
       anchor="center"
-      // [V3.4]: Alineamiento dinámico. En Dashboard (Overview) es 'viewport' (2D).
-      // En Mapa Full (Street) es 'map' (3D) para proyectarse en el asfalto.
+      // [V4.0]: El pitchAlignment="map" es MANDATORIO para la oclusión PBR de Mapbox v3.
+      // Proyecta el div como una textura sobre el asfalto, permitiendo que los edificios
+      // 3D lo cubran si el Voyager camina tras ellos.
       pitchAlignment={isStreetView ? "map" : "viewport"}
       rotationAlignment={isStreetView ? "map" : "viewport"}
-      style={{ zIndex: 9999 }}
+    // [V4.0]: Eliminamos el zIndex:9999 forzado. Delegamos al engine interno de Mapbox.
     >
-      <div 
-        className="relative flex items-center justify-center pointer-events-none transition-transform duration-500 ease-out"
-        style={{ 
-          width: `${120 * visualScale}px`, 
+      <div
+        className="relative flex items-center justify-center transition-transform ease-out pointer-events-none"
+        style={{
+          width: `${120 * visualScale}px`,
           height: `${120 * visualScale}px`,
           transform: `scale(${visualScale})`
         }}
@@ -219,21 +148,22 @@ const UserLocationMarkerComponent = ({ location, isResonating }: UserLocationMar
         </div>
 
         {/* IV. PUNTERO DE RUMBO (COMPASS CONE) */}
+        {/* [V4.0]: Delegamos el smoothing a Framer Motion y al VAF del Telemetry Core */}
         {location.heading !== null && (
           <motion.div
             initial={false}
-            animate={{ rotate: smoothedHeading }}
-            transition={{ type: "spring", stiffness: 120, damping: 25 }}
+            animate={{ rotate: location.heading }}
+            transition={{ type: "spring", stiffness: 60, damping: 20 }}
             className={cn(
-              "absolute filter drop-shadow-[0_0_15px_rgba(0,0,0,0.9)]",
+              "absolute filter drop-shadow-[0_0_15px_rgba(0,0,0,0.9)] origin-bottom",
               currentZoom > 17 ? "-top-14" : "-top-10",
               statusColorClass === "zinc" ? "text-zinc-500" : (statusColorClass === "emerald" ? "text-emerald-400" : "text-primary")
             )}
           >
-            <svg 
-              width={currentZoom > 17 ? "28" : "18"} 
-              height={currentZoom > 17 ? "28" : "18"} 
-              viewBox="0 0 20 20" 
+            <svg
+              width={currentZoom > 17 ? "28" : "18"}
+              height={currentZoom > 17 ? "28" : "18"}
+              viewBox="0 0 20 20"
               fill="none"
             >
               <path d="M10 0L20 16H0L10 0Z" fill="currentColor" />
@@ -265,15 +195,15 @@ const UserLocationMarkerComponent = ({ location, isResonating }: UserLocationMar
   );
 };
 
-export const UserLocationMarker = UserLocationMarkerComponent;
-
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V3.4):
- * 1. Ghosting Eradication: Se sincronizó el motor LERP del avatar con las constantes
- *    del CameraController, asegurando que ambos se muevan en el mismo frame de la GPU.
- * 2. Perspective Awareness: El uso de pitchAlignment dinámico soluciona el ladeo 3D 
- *    accidental en el Dashboard (Imagen 37), forzando una vista 2D en modo OVERVIEW.
- * 3. Jitter Shield 0.5°: El avatar consume ahora la lógica de Deadzone del Bloque A, 
- *    eliminando los movimientos laterales nerviosos cuando el usuario está quieto.
- * 4. Zero-Regressions: Se mantiene el Z-Shield 9999 para perforar edificios PBR.
+ * NOTA TÉCNICA DEL ARCHITECT (V4.0):
+ * 1. CPU Liberation (Zero-Jitter): Se eliminó la interpolación manual basada en 
+ *    requestAnimationFrame. El avatar ahora se posiciona usando las coordenadas 
+ *    purificadas que el GeoEngine emite cada 80cm, reduciendo a cero las colisiones 
+ *    de renderizado detectadas en la consola ("Violation: requestAnimationFrame...").
+ * 2. True PBR Occlusion: Al remover zIndex y usar pitchAlignment="map", permitimos 
+ *    físicamente al motor Standard v3 que aplique su "puckOcclusion" y oculte el avatar
+ *    cuando camine tras un edificio.
+ * 3. Spring Compass: Framer Motion asume la labor de suavizado angular de la brújula 
+ *    con una configuración de "spring" relajada, eliminando temblores.
  */

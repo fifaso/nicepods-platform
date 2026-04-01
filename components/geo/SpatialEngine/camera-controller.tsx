@@ -1,10 +1,11 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/camera-controller.tsx
- * VERSIÓN: 4.11 (NicePod Camera Director - Autonomous Sovereignty Edition)
- * PROTOCOLO: MADRID RESONANCE V2.8
+ * VERSIÓN: 5.0 (NicePod Camera Director - Atomic Sovereignty & Jitter-Free Edition)
+ * PROTOCOLO: MADRID RESONANCE V3.0
  * 
- * Misión: Gestionar la cámara WebGL con aislamiento de perspectiva y blindaje anti-jitter.
- * [REFORMA V4.11]: Implementación de forcedPerspective y Estasis de Alta Precisión.
+ * Misión: Gestionar la cámara WebGL con autoridad absoluta, aislamiento de perspectiva y 
+ * erradicación del "Camera Fighting" entre gestos humanos y LERP.
+ * [REFORMA V5.0]: Sincronización Pasiva, Freno Hidráulico Atómico y True Delta-Time LERP.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -38,12 +39,12 @@ interface CameraControllerProps {
 }
 
 /**
- * UMBRALES DE ESTASIS CINEMÁTICA (RE-CALIBRADOS V4.11)
- * Definen la "Zona de Silencio" para erradicar el pestañeo y el jitter.
+ * UMBRALES DE ESTASIS CINEMÁTICA
+ * Definen la "Zona de Silencio" para erradicar el pestañeo y el jitter de hardware.
  */
 const STASIS_CONFIG = {
-  DISTANCE_THRESHOLD: 0.10, // 10 centímetros (Margen de error GPS urbano)
-  BEARING_THRESHOLD: 0.8,   // 0.8 grados (Umbral de ruido magnético)
+  DISTANCE_THRESHOLD: 0.10, // 10 centímetros
+  BEARING_THRESHOLD: 0.8,   // 0.8 grados
   PITCH_THRESHOLD: 0.5,
   ZOOM_THRESHOLD: 0.01
 };
@@ -52,7 +53,7 @@ export function CameraController({ mapId, forcedPerspective }: CameraControllerP
   // 1. CONEXIÓN VINCULADA POR ID SOBERANO
   const { [mapId]: mapInstance } = useMap();
 
-  // 2. CONSUMO DE MANDO CINEMÁTICO (V41.0)
+  // 2. CONSUMO DE MANDO CINEMÁTICO
   const {
     userLocation,
     needsBallisticLanding,
@@ -63,12 +64,14 @@ export function CameraController({ mapId, forcedPerspective }: CameraControllerP
     setManualMode
   } = useGeoEngine();
 
-  // 3. MEMORIA TÉCNICA (REFS DE ALTA VELOCIDAD)
+  // 3. MEMORIA TÉCNICA Y ESCUDOS ATÓMICOS
   const currentPosRef = useRef<KinematicPosition | null>(null);
   const currentBearingRef = useRef<number>(INITIAL_OVERVIEW_CONFIG.bearing);
   const currentPitchRef = useRef<number>(INITIAL_OVERVIEW_CONFIG.pitch);
   const currentZoomRef = useRef<number>(INITIAL_OVERVIEW_CONFIG.zoom);
 
+  // [REFORMA V5.0]: isInteractingRef es síncrono. Resuelve el Camera Fighting.
+  const isInteractingRef = useRef<boolean>(false);
   const isFlyingRef = useRef<boolean>(false);
   const lastInteractionRef = useRef<number>(0);
   const lastProcessedTriggerRef = useRef<number>(0);
@@ -76,24 +79,32 @@ export function CameraController({ mapId, forcedPerspective }: CameraControllerP
   const animationFrameRef = useRef<number | null>(null);
 
   /**
-   * handleUserInteraction: EL ESCUDO DE INTERACCIÓN
-   * Libera el Zoom y Pan nativos al detectar contacto físico.
+   * handleUserInteraction: EL ESCUDO DE INTERACCIÓN ATÓMICO
+   * Otorga autoridad absoluta e instantánea a los gestos humanos.
    */
   const handleUserInteraction = useCallback(() => {
     lastInteractionRef.current = Date.now();
-    if (!isManualMode) {
-      setManualMode(true);
+
+    if (!isInteractingRef.current) {
+      nicepodLog(`🛡️ [Camera:${mapId}] Escudo de Interacción Activado (Mando Humano).`);
     }
-    // Cancelación inmediata del LERP para evitar el "Camera Fighting"
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = null;
+
+    isInteractingRef.current = true;
+    if (!isManualMode) setManualMode(true);
+
+    // FRENO HIDRÁULICO DE EMERGENCIA: Si el mapa estaba volando por IA o botón, 
+    // el toque humano lo aborta FÍSICAMENTE en la GPU.
+    if (isFlyingRef.current) {
+      const map = mapInstance?.getMap();
+      if (map) map.stop();
+      isFlyingRef.current = false;
+      confirmLanding();
     }
-  }, [isManualMode, setManualMode]);
+  }, [isManualMode, setManualMode, mapInstance, confirmLanding, mapId]);
 
   /**
    * kinematicLoop: EL CORAZÓN DEL MOVIMIENTO LÍQUIDO
-   * Misión: Ejecutar la cinemática adaptativa sincronizada con la GPU.
+   * Misión: Ejecutar la cinemática adaptativa respetando las jerarquías de control.
    */
   const kinematicLoop = useCallback((timestamp: number) => {
     if (!mapInstance || !userLocation) {
@@ -107,37 +118,48 @@ export function CameraController({ mapId, forcedPerspective }: CameraControllerP
       return;
     }
 
-    // A. CÁLCULO DE DELTA-TIME (Fluidez independiente de FPS)
+    // A. CÁLCULO DE DELTA-TIME (True LERP)
     if (!lastFrameTimeRef.current) lastFrameTimeRef.current = timestamp;
-    const deltaTime = (timestamp - lastFrameTimeRef.current) / 1000;
+    let deltaTime = (timestamp - lastFrameTimeRef.current) / 1000;
     lastFrameTimeRef.current = timestamp;
 
-    // B. TIMEOUT DE RECUPERACIÓN (Recentrado Automático tras 8s)
+    // CLAMPING: Evita que el Delta-Time se dispare si el usuario cambia de pestaña, 
+    // lo que causaría un "teletransporte" al regresar.
+    if (deltaTime > 0.1) deltaTime = 0.1;
+
+    // B. TIMEOUT DE RECUPERACIÓN (Recentrado Automático tras 8s de soltar la pantalla)
     const now = Date.now();
-    if (isManualMode && (now - lastInteractionRef.current > 8000)) {
+    if (isInteractingRef.current && (now - lastInteractionRef.current > 8000)) {
+      nicepodLog(`🦅 [Camera:${mapId}] Recuperación de Autoridad tras inactividad.`);
+      isInteractingRef.current = false;
       setManualMode(false);
     }
 
-    // C. GUARDAS DE SILENCIO (MANUAL O VUELO)
-    if (isManualMode || isFlyingRef.current) {
+    // C. SINCRONIZACIÓN PASIVA (EVITA LOS SNAPS)
+    if (isInteractingRef.current || isFlyingRef.current) {
+      // Mientras el usuario o el flyTo controlan el mapa, el motor LERP copia 
+      // pasivamente las coordenadas de la GPU. Así, cuando retome el control, 
+      // lo hará desde el punto exacto donde lo dejó el usuario.
+      const center = map.getCenter();
+      currentPosRef.current = { latitude: center.lat, longitude: center.lng };
+      currentBearingRef.current = map.getBearing();
+      currentPitchRef.current = map.getPitch();
+      currentZoomRef.current = map.getZoom();
+
       animationFrameRef.current = requestAnimationFrame(kinematicLoop);
       return;
     }
 
-    // D. DETERMINACIÓN DE PERSPECTIVA (LOCAL vs GLOBAL)
-    // [V4.11]: Si hay forcedPerspective (Dashboard), ignoramos el estado global.
+    // D. DETERMINACIÓN DE PERSPECTIVA (Forced vs Global)
     const activePerspective = forcedPerspective || globalPerspective;
     const profile = PERSPECTIVE_PROFILES[activePerspective];
 
-    // E. MOTOR LERP CON PROTOCOLO DE ESTASIS
     const targetPos: KinematicPosition = {
       latitude: userLocation.latitude,
       longitude: userLocation.longitude
     };
 
-    if (!currentPosRef.current) {
-      currentPosRef.current = targetPos;
-    }
+    if (!currentPosRef.current) currentPosRef.current = targetPos;
 
     // 1. Evaluación de Diferenciales para Estasis
     const distDelta = calculateDistance(currentPosRef.current, targetPos);
@@ -146,10 +168,6 @@ export function CameraController({ mapId, forcedPerspective }: CameraControllerP
     const pitchDelta = Math.abs(currentPitchRef.current - profile.pitch);
     const zoomDelta = Math.abs(currentZoomRef.current - profile.zoom);
 
-    /**
-     * [ORDEN V4.11]: Si el cambio es ruido sensorial (< umbrales), abortamos el jumpTo.
-     * Esto erradica los movimientos laterales y ahorra ciclos de GPU.
-     */
     if (distDelta < STASIS_CONFIG.DISTANCE_THRESHOLD &&
       bearingDelta < STASIS_CONFIG.BEARING_THRESHOLD &&
       pitchDelta < STASIS_CONFIG.PITCH_THRESHOLD &&
@@ -158,22 +176,23 @@ export function CameraController({ mapId, forcedPerspective }: CameraControllerP
       return;
     }
 
-    // F. INTERPOLACIÓN CINEMÁTICA (LERP)
-    const factor = KINEMATIC_CONFIG.LERP_FACTOR;
+    // E. TRUE DELTA-TIME LERP
+    // Transforma el factor constante en un factor dependiente del tiempo real.
+    const baseFactor = KINEMATIC_CONFIG.LERP_FACTOR;
+    const timeAdjustedFactor = 1 - Math.pow(1 - baseFactor, deltaTime * 60);
 
-    currentPosRef.current = interpolateCoords(currentPosRef.current, targetPos, factor);
-    currentBearingRef.current = interpolateAngle(currentBearingRef.current, targetBearing, factor);
-    currentPitchRef.current = lerpSimple(currentPitchRef.current, profile.pitch, factor);
-    currentZoomRef.current = lerpSimple(currentZoomRef.current, profile.zoom, factor);
+    currentPosRef.current = interpolateCoords(currentPosRef.current, targetPos, timeAdjustedFactor);
+    currentBearingRef.current = interpolateAngle(currentBearingRef.current, targetBearing, timeAdjustedFactor);
+    currentPitchRef.current = lerpSimple(currentPitchRef.current, profile.pitch, timeAdjustedFactor);
+    currentZoomRef.current = lerpSimple(currentZoomRef.current, profile.zoom, timeAdjustedFactor);
 
-    // G. CÁLCULO DEL FOLLOW-OFFSET
+    // F. INYECCIÓN IMPERATIVA EN GPU
     const cameraAnchor = calculateDestinationPoint(
       currentPosRef.current,
       -profile.offset_distance_meters,
       currentBearingRef.current
     );
 
-    // H. INYECCIÓN IMPERATIVA EN GPU
     map.jumpTo({
       center: [cameraAnchor.longitude, cameraAnchor.latitude],
       bearing: currentBearingRef.current,
@@ -182,11 +201,11 @@ export function CameraController({ mapId, forcedPerspective }: CameraControllerP
     });
 
     animationFrameRef.current = requestAnimationFrame(kinematicLoop);
-  }, [mapInstance, userLocation, globalPerspective, forcedPerspective, isManualMode, setManualMode, mapId]);
+  }, [mapInstance, userLocation, globalPerspective, forcedPerspective, setManualMode, mapId]);
 
   /**
    * EFECTO: ORQUESTACIÓN DE VUELO BALÍSTICO POR PULSO
-   * [REFORMA V4.11]: Se dispara ante cualquier incremento del recenterTrigger.
+   * [REFORMA V5.0]: El botón de ubicación recobra la Autoridad Absoluta.
    */
   useEffect(() => {
     const triggerReceived = recenterTrigger > lastProcessedTriggerRef.current;
@@ -198,18 +217,18 @@ export function CameraController({ mapId, forcedPerspective }: CameraControllerP
 
       if (!map.isStyleLoaded()) return;
 
-      nicepodLog(`🚀 [Camera:${mapId}] Iniciando Vuelo Balístico (${activePerspective}).`);
+      nicepodLog(`🚀 [Camera:${mapId}] Ejecutando Vuelo Soberano (Trigger: ${recenterTrigger}).`);
 
-      // FRENO FÍSICO: Detenemos el motor LERP para liberar la GPU
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = null;
-      }
+      // 1. TOMA DE CONTROL ABSOLUTA
+      isInteractingRef.current = false;
+      if (isManualMode) setManualMode(false);
+
+      map.stop(); // Purgamos la cola de la GPU
 
       isFlyingRef.current = true;
       lastProcessedTriggerRef.current = recenterTrigger;
 
-      // Sincronía previa de posición
+      // 2. SINCRONIZACIÓN T0 PARA EL VUELO
       currentPosRef.current = {
         latitude: userLocation.latitude,
         longitude: userLocation.longitude
@@ -221,30 +240,27 @@ export function CameraController({ mapId, forcedPerspective }: CameraControllerP
         pitch: profile.pitch,
         bearing: profile.bearing_follow ? (userLocation.heading ?? 0) : 0,
         ...FLY_CONFIG,
-        // Si es recentrado manual (trigger), aplicamos velocidad táctica
         duration: triggerReceived ? 1200 : FLY_CONFIG.duration
       });
 
       map.once('moveend', () => {
-        nicepodLog(`🏁 [Camera:${mapId}] Aterrizaje completado.`);
+        // Validación post-vuelo: Solo confirmamos aterrizaje si el usuario 
+        // no abortó el vuelo tocando la pantalla (isInteractingRef).
+        if (!isInteractingRef.current) {
+          nicepodLog(`🏁 [Camera:${mapId}] Aterrizaje táctico exitoso.`);
+          currentPitchRef.current = profile.pitch;
+          currentZoomRef.current = profile.zoom;
+          currentBearingRef.current = profile.bearing_follow ? (userLocation.heading ?? 0) : 0;
 
-        // Sincronía post-vuelo para evitar el rebote LERP
-        currentPitchRef.current = profile.pitch;
-        currentZoomRef.current = profile.zoom;
-        currentBearingRef.current = profile.bearing_follow ? (userLocation.heading ?? 0) : 0;
-
+          confirmLanding();
+        }
         isFlyingRef.current = false;
-        confirmLanding();
-
-        // Reiniciamos el bucle y el reloj del Delta-Time
-        lastFrameTimeRef.current = 0;
-        animationFrameRef.current = requestAnimationFrame(kinematicLoop);
       });
     }
-  }, [needsBallisticLanding, recenterTrigger, mapInstance, userLocation, globalPerspective, forcedPerspective, confirmLanding, kinematicLoop, mapId]);
+  }, [needsBallisticLanding, recenterTrigger, mapInstance, userLocation, globalPerspective, forcedPerspective, confirmLanding, isManualMode, setManualMode, mapId]);
 
   /**
-   * CICLO DE VIDA: Gestión de Hardware y Canvas
+   * CICLO DE VIDA Y LISTENERS
    */
   useEffect(() => {
     animationFrameRef.current = requestAnimationFrame(kinematicLoop);
@@ -253,6 +269,7 @@ export function CameraController({ mapId, forcedPerspective }: CameraControllerP
     if (canvas) {
       canvas.addEventListener('mousedown', handleUserInteraction);
       canvas.addEventListener('touchstart', handleUserInteraction, { passive: true });
+      canvas.addEventListener('touchmove', handleUserInteraction, { passive: true }); // V5.0: Sostiene el estado durante el arrastre
       canvas.addEventListener('wheel', handleUserInteraction, { passive: true });
     }
 
@@ -261,6 +278,7 @@ export function CameraController({ mapId, forcedPerspective }: CameraControllerP
       if (canvas) {
         canvas.removeEventListener('mousedown', handleUserInteraction);
         canvas.removeEventListener('touchstart', handleUserInteraction);
+        canvas.removeEventListener('touchmove', handleUserInteraction);
         canvas.removeEventListener('wheel', handleUserInteraction);
       }
     };
@@ -270,13 +288,16 @@ export function CameraController({ mapId, forcedPerspective }: CameraControllerP
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V4.11):
- * 1. Perspective Isolation: El uso de forcedPerspective permite que el widget del 
- *    Dashboard ignore las órdenes globales de 3D, resolviendo el ladeo de la Imagen 37.
- * 2. Tactical Stasis: El umbral de BEARING_THRESHOLD (0.8°) erradica los movimientos
- *    laterales causados por el ruido del magnetómetro detectado en la Imagen 33.
- * 3. Delta-Time LERP: La fluidez del movimiento es ahora constante e independiente
- *    de la carga del navegador, eliminando los saltos de cámara erráticos.
- * 4. Loop Sync: Se sincronizan las refs de Pitch y Zoom tras cada vuelo balístico,
- *    asegurando que el motor líquido herede la posición exacta de la GPU.
+ * NOTA TÉCNICA DEL ARCHITECT (V5.0):
+ * 1. Atomic Detachment (Anti-Fighting): El uso de isInteractingRef sincrónico y 
+ *    map.stop() garantiza que el motor LERP y los vuelos balísticos se apaguen
+ *    instantáneamente en el momento que el humano toca el cristal.
+ * 2. True Delta-Time: Se ha implementado un cálculo no lineal para el LERP 
+ *    (timeAdjustedFactor) junto con un CLAMP de 0.1s. Esto erradica el Jitter 
+ *    y mantiene el movimiento de cámara idéntico en pantallas de 60Hz y 120Hz.
+ * 3. Passive Sync: Al rotar el mapa a mano, el motor copia la posición. Así, tras 
+ *    8s de inactividad, la cámara "respira" suavemente desde donde se dejó, sin 
+ *    saltos bruscos que rompan la inmersión.
+ * 4. Sovereign Trigger: El botón de ubicación ahora toma el control forzoso
+ *    anulando cualquier estado manual previo.
  */
