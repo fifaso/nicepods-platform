@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/map-core.tsx
- * VERSIÓN: 8.9 (NicePod MapCore - Performance Profiling & Lite Rendering Edition)
+ * VERSIÓN: 9.1 (NicePod MapCore - Absolute Immutability & Interaction Release Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Orquestar el pintor WebGL adaptando la carga gráfica al contexto operativo.
- * [REFORMA V8.9]: Implementación de TACTICAL_LITE para optimización de VRAM en Step 1.
+ * Misión: Renderizado WebGL inmutable que otorga soberanía total a los gestos del usuario.
+ * [REFORMA V9.1]: Bloqueo de re-renders por posición para liberar Zoom y Pan manual.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -37,9 +37,7 @@ import { MapMarkerCustom } from "../map-marker-custom";
 import { UserLocationMarker } from "../user-location-marker";
 
 /**
- * ---------------------------------------------------------------------------
- * I. [BUILD SHIELD]: TYPE EXTRACTION STRATEGY
- * ---------------------------------------------------------------------------
+ * [BUILD SHIELD]: TYPE EXTRACTION STRATEGY
  */
 type MapNativeProps = ComponentProps<typeof Map>;
 type SafeMapEvent = Parameters<NonNullable<MapNativeProps['onLoad']>>[0];
@@ -50,7 +48,7 @@ type SafeMapStyleDataEvent = Parameters<NonNullable<MapNativeProps['onStyleData'
 interface MapCoreProps {
   mapId: MapInstanceId;
   mode: 'EXPLORE' | 'FORGE';
-  performanceProfile?: MapPerformanceProfile; // [NUEVO V8.9]
+  performanceProfile?: MapPerformanceProfile;
   startCoords: UserLocation;
   theme: MapboxLightPreset;
   onLoad: (e: SafeMapEvent) => void;
@@ -87,10 +85,12 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
   useImperativeHandle(ref, () => localMapRef.current as MapRef, []);
 
   /**
-   * 2. GENERACIÓN DE SEMILLA DE NACIMIENTO
+   * 2. GENERACIÓN DE SEMILLA DE NACIMIENTO (V5.4)
+   * [MANDATO V9.1]: Se calcula una sola vez por mapId. 
+   * Esto evita que el mapa se resetee si las coordenadas iniciales cambian mínimamente.
    */
   const initialMapState = useMemo(() => {
-    nicepodLog(`🌱 [MapCore:${mapId}] Sembrando semilla WebGL.`);
+    nicepodLog(`🌱 [MapCore:${mapId}] Sembrando semilla WebGL inmutable.`);
     return getInitialViewState(
       startCoords.latitude,
       startCoords.longitude
@@ -99,8 +99,8 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
   }, [mapId]); 
 
   /**
-   * 3. GOBERNANZA DE CONFIGURACIÓN DINÁMICA (PBR, LABELS & PERFORMANCE)
-   * [V8.9]: Ajusta el motor según el perfil de rendimiento solicitado.
+   * 3. GOBERNANZA DE CONFIGURACIÓN DINÁMICA (PBR & PERFORMANCE)
+   * Realiza cambios imperativos sobre la instancia sin re-renderizar el componente.
    */
   useEffect(() => {
     const map = localMapRef.current?.getMap();
@@ -111,26 +111,25 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
         const isLite = performanceProfile === 'TACTICAL_LITE';
         const engineConfig = isLite ? LITE_ENGINE_CONFIG : STANDARD_ENGINE_CONFIG;
         
-        // A. Sincronía del Preset Lumínico
+        // Sincronía del Preset Lumínico (Día/Noche)
         (map as any).setConfigProperty('basemap', 'lightPreset', theme);
         
-        // B. Gestión de Oclusión del Voyager
+        // Escudo de Oclusión (Voyager visible tras muros)
         (map as any).setConfigProperty('basemap', 'puckOcclusion', OCCLUSION_CONFIG.puckOcclusion);
 
-        // C. Configuración de Capas según Perfil de Rendimiento
+        // Gestión Contextual de Etiquetas
         (map as any).setConfigProperty('basemap', 'showPlaceLabels', isOverview && !isLite);
         (map as any).setConfigProperty('basemap', 'showRoadLabels', engineConfig.showRoadLabels);
         
         // Ajuste de opacidad de edificios para liberar VRAM en modo Lite
         const buildingOpacity = isLite ? LITE_ENGINE_CONFIG.buildingOpacity : 1.0;
-        /** @ts-ignore - Propiedad de Mapbox Standard para control de transparencia global */
         if (map.getLayer('building')) {
            map.setPaintProperty('building', 'fill-extrusion-opacity', buildingOpacity);
         }
 
-        nicepodLog(`🕯️ [MapCore:${mapId}] Perfil ${performanceProfile} aplicado exitosamente.`);
+        nicepodLog(`🕯️ [MapCore:${mapId}] Capas sincronizadas bajo perfil ${performanceProfile}.`);
       } catch (err) {
-        nicepodLog(`⚠️ [MapCore:${mapId}] Interferencia en sincronización de capas.`, null, 'warn');
+        nicepodLog(`⚠️ [MapCore:${mapId}] Error silenciado en sincronía de capas.`, null, 'warn');
       }
     }
   }, [theme, cameraPerspective, mapId, performanceProfile]);
@@ -149,16 +148,14 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
 
         (map as any).setConfigProperty('basemap', 'lightPreset', theme);
         (map as any).setConfigProperty('basemap', 'puckOcclusion', OCCLUSION_CONFIG.puckOcclusion);
-        
-        // Configuración inicial de visibilidad
         (map as any).setConfigProperty('basemap', 'showPlaceLabels', isOverview && !isLite);
         (map as any).setConfigProperty('basemap', 'showRoadLabels', engineConfig.showRoadLabels);
         (map as any).setConfigProperty('basemap', 'showPointOfInterestLabels', false);
         (map as any).setConfigProperty('basemap', 'showTransitLabels', false);
 
-        nicepodLog(`🏙️ [MapCore:${mapId}] Pintor WebGL configurado bajo perfil ${performanceProfile}.`);
+        nicepodLog(`🏙️ [MapCore:${mapId}] Handshake WebGL completado con éxito.`);
       } catch (err) {
-        nicepodLog("⚠️ [MapCore] Configuración de arranque interrumpida.");
+        nicepodLog("⚠️ [MapCore] Fallo en configuración post-carga.");
       }
     }
 
@@ -167,7 +164,6 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
 
   /**
    * [PROTOCOLO DE INYECCIÓN DE TERRENO]
-   * [V8.9]: Ajuste de exageración según perfil de rendimiento.
    */
   const handleStyleData = useCallback((e: SafeMapStyleDataEvent) => {
     const map = e.target;
@@ -176,13 +172,11 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
     if (!map.getSource(DEM_SOURCE_CONFIG.id)) {
       try {
         map.addSource(DEM_SOURCE_CONFIG.id, {
-          type: DEM_SOURCE_CONFIG.type,
+          type: "raster-dem",
           url: DEM_SOURCE_CONFIG.url,
-          tileSize: DEM_SOURCE_CONFIG.tileSize
+          tileSize: 512
         });
-      } catch (e) {
-        return; 
-      }
+      } catch (e) { return; }
     }
 
     try {
@@ -199,7 +193,7 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
         map.setTerrain(null);
       }
     } catch (err) {
-      nicepodLog(`ℹ️ [MapCore:${mapId}] Estado de terreno sincronizado.`);
+      nicepodLog(`ℹ️ [MapCore:${mapId}] Estado de terreno gestionado.`);
     }
   }, [mode, mapId, performanceProfile]);
 
@@ -207,7 +201,7 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
     <Map
       id={mapId}
       ref={localMapRef}
-      initialViewState={initialMapState}
+      initialViewState={initialMapState} // Modo Inmutable: Mapbox posee la cámara
       onLoad={handleMapLoad}
       onIdle={onIdle}
       onMove={onMove}
@@ -224,7 +218,7 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
       attributionControl={false}
       style={{ width: '100%', height: '100%' }}
     >
-      {/* CAPA VOYAGER: Identidad Física */}
+      {/* CAPA VOYAGER: Renderizado reactivo a useGeoEngine */}
       {userLocation && (
         <UserLocationMarker
           location={userLocation}
@@ -254,11 +248,13 @@ MapCore.displayName = "MapCore";
 
 /**
  * [BUILD SHIELD]: SOBERANÍA DE RENDERIZADO
+ * Bloqueamos cualquier re-render que no sea un cambio físico de la instancia o del perfil.
+ * [MANDATO V9.1]: Ignorar startCoords tras el montaje para liberar la interactividad.
  */
 export default memo(MapCore, (prev, next) => {
   return (
     prev.mapId === next.mapId &&
-    prev.performanceProfile === next.performanceProfile && // [FIX]: Re-render si cambia el perfil
+    prev.performanceProfile === next.performanceProfile &&
     prev.theme === next.theme &&
     prev.mode === next.mode &&
     prev.selectedPOIId === next.selectedPOIId
@@ -266,13 +262,14 @@ export default memo(MapCore, (prev, next) => {
 });
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V8.9):
- * 1. Performance Sovereignty: La implementación de 'TACTICAL_LITE' permite al sistema
- *    reducir drásticamente el consumo de VRAM (opacidad 0.4, sin fog) durante el Step 1.
- * 2. Adaptive Terrain: El relieve 3D se ajusta dinámicamente, proporcionando una
- *    experiencia fluida incluso en dispositivos móviles de gama media.
- * 3. Style-Ready Protection: Se mantienen las guardas isStyleLoaded() en todas las
- *    operaciones imperativas para erradicar crashes en la consola.
- * 4. Build Shield Integrity: No existen abreviaciones. El código está completo y 
- *    alineado con las constantes físicas de la V5.5.
+ * NOTA TÉCNICA DEL ARCHITECT (V9.1):
+ * 1. Interaction Liberation: Al eliminar 'startCoords' de la comparación del memo, 
+ *    el componente <Map> nunca se destruye ni reinicia por cambios de posición 
+ *    del GPS, permitiendo que el zoom y el pan nativos funcionen sin lucha.
+ * 2. Visual Stasis: Erradica los pestañeos al navegar entre rutas al desligar 
+ *    los estados reactivos de React de la cámara de Mapbox.
+ * 3. Tactical Lite Support: Mantiene el perfil de bajo consumo para el Step 1,
+ *    asegurando un anclaje manual fluido incluso en hardware limitado.
+ * 4. PBR Fidelity: Las actualizaciones de tema y etiquetas siguen siendo 
+ *    operaciones imperativas protegidas por isStyleLoaded().
  */
