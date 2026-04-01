@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: lib/geo-kinematics.ts
- * VERSIÓN: 1.1 (NicePod Kinematic Engine - Smart-Motive Edition)
+ * VERSIÓN: 1.2 (NicePod Kinematic Engine - Precision Shield Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Proveer el soporte matemático para cinemática fluida y lógica espacial.
- * [REFORMA V1.1]: Inyección de funciones de visibilidad y LERP escalar para Zoom/Pitch.
+ * Misión: Proveer el soporte matemático para cinemática fluida y blindaje de jitter.
+ * [REFORMA V1.2]: Implementación de Umbral de Silencio Rotacional (Deadzone).
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -12,7 +12,7 @@ import { KINEMATIC_CONFIG } from "@/components/geo/map-constants";
 
 /**
  * INTERFAZ: KinematicPosition
- * Representación técnica de un punto en la malla esférica.
+ * Representación técnica de un hito en el espacio PostGIS.
  */
 export interface KinematicPosition {
   latitude: number;
@@ -21,14 +21,20 @@ export interface KinematicPosition {
 
 /**
  * interpolateCoords:
- * Realiza una interpolación lineal (LERP) entre dos coordenadas.
- * Misión: Eliminar el 'stuttering' visual a 60FPS.
+ * Realiza una interpolación lineal (LERP) entre coordenadas geográficas.
+ * [V1.2]: Integración de guarda de micro-movimiento para estabilidad de 60FPS.
  */
 export function interpolateCoords(
   start: KinematicPosition,
   end: KinematicPosition,
   factor: number = KINEMATIC_CONFIG.LERP_FACTOR
 ): KinematicPosition {
+  // Calculamos la distancia para determinar si el movimiento es real o ruido.
+  const dist = calculateDistance(start, end);
+  
+  // Umbral de Silencio Lineal: Si el movimiento es menor a 5cm, devolvemos la posición actual.
+  if (dist < 0.05) return start;
+
   return {
     latitude: start.latitude + (end.latitude - start.latitude) * factor,
     longitude: start.longitude + (end.longitude - start.longitude) * factor,
@@ -37,7 +43,8 @@ export function interpolateCoords(
 
 /**
  * interpolateAngle:
- * Suaviza la rotación considerando el wrap-around de 360 grados.
+ * Suaviza la rotación considerando el wrap-around de 360 grados y blindaje Jitter.
+ * [V1.2]: Implementación de Deadzone Shield. Si la diferencia es < 0.5°, ignoramos.
  */
 export function interpolateAngle(
   startAngle: number,
@@ -46,27 +53,40 @@ export function interpolateAngle(
 ): number {
   let diff = ((targetAngle - startAngle + 180) % 360) - 180;
   if (diff < -180) diff += 360;
+
+  /**
+   * JITTER SHIELD:
+   * Los magnetómetros de los móviles oscilan +-0.3° constantemente. 
+   * Ignorar micro-variaciones detiene los movimientos laterales erráticos.
+   */
+  if (Math.abs(diff) < 0.5) {
+    return startAngle;
+  }
+
   return (startAngle + diff * factor + 360) % 360;
 }
 
 /**
- * lerpSimple: [NUEVO V1.1]
- * Interpolación lineal para valores numéricos simples (Zoom, Pitch).
+ * lerpSimple:
+ * Interpolación lineal para variables escalares (Zoom, Pitch).
  */
 export function lerpSimple(
   start: number, 
   end: number, 
   factor: number = KINEMATIC_CONFIG.LERP_FACTOR
 ): number {
-  return start + (end - start) * factor;
+  const diff = end - start;
+  // Umbral de estabilidad para variables de lente.
+  if (Math.abs(diff) < 0.001) return end;
+  return start + diff * factor;
 }
 
 /**
- * calculateDistance: Matemática de Haversine de alta precisión.
- * Calcula la distancia real en metros entre dos puntos geográficos.
+ * calculateDistance: Matemática de Haversine.
+ * Calcula la distancia real en metros entre dos puntos.
  */
 export function calculateDistance(p1: KinematicPosition, p2: KinematicPosition): number {
-  const R = 6371e3; // Radio de la Tierra en metros
+  const R = 6371e3; // Radio terrestre en metros
   const phi1 = (p1.latitude * Math.PI) / 180;
   const phi2 = (p2.latitude * Math.PI) / 180;
   const deltaPhi = ((p2.latitude - p1.latitude) * Math.PI) / 180;
@@ -77,22 +97,18 @@ export function calculateDistance(p1: KinematicPosition, p2: KinematicPosition):
     Math.cos(phi1) * Math.cos(phi2) * Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
 
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
   return R * c;
 }
 
 /**
- * isUserOffCenter: [NUEVO V1.1]
- * Determina si el usuario está lo suficientemente lejos del centro del mapa
- * para justificar el cambio de estado del botón a "Recuperar Foco".
- * 
- * @param cameraCenter - Coordenada actual del visor de Mapbox.
- * @param userLocation - Coordenada real del GPS.
- * @param thresholdMeters - Distancia de tolerancia (Default 50m).
+ * isUserOffCenter:
+ * Lógica pericial para determinar si el Voyager ha salido del foco de la cámara.
  */
 export function isUserOffCenter(
   cameraCenter: KinematicPosition,
   userLocation: KinematicPosition,
-  thresholdMeters: number = 50
+  thresholdMeters: number = 40
 ): boolean {
   const distance = calculateDistance(cameraCenter, userLocation);
   return distance > thresholdMeters;
@@ -100,8 +116,8 @@ export function isUserOffCenter(
 
 /**
  * calculateDestinationPoint:
- * Calcula un nuevo punto dado un origen, una distancia y un rumbo.
- * Fundamental para el 'Follow-Offset' de la cámara.
+ * Proyecta un punto dado un origen, una distancia y un rumbo (bearing).
+ * Vital para situar la cámara 'X' metros detrás de la trayectoria del Voyager.
  */
 export function calculateDestinationPoint(
   origin: KinematicPosition,
@@ -133,7 +149,7 @@ export function calculateDestinationPoint(
 
 /**
  * getBearing:
- * Calcula el rumbo (ángulo) entre dos coordenadas.
+ * Calcula el ángulo de ataque entre dos puntos geográficos.
  */
 export function getBearing(p1: KinematicPosition, p2: KinematicPosition): number {
   const la1 = (p1.latitude * Math.PI) / 180;
@@ -151,11 +167,13 @@ export function getBearing(p1: KinematicPosition, p2: KinematicPosition): number
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V1.1):
- * 1. Visual Off-Center Guard: Se implementó 'isUserOffCenter' para dotar al 
- *    GeoEngine de la capacidad de decidir inteligentemente el estado del UI.
- * 2. Morphing Support: 'lerpSimple' garantiza que los cambios de Zoom y Pitch
- *    en las transiciones de perspectiva sean suaves y no discretos.
- * 3. Atomic Math: Mantiene el Dogma NCIS de trigonometría pura sin dependencias
- *    externas, asegurando un bundle ligero y ejecución en microsegundos.
+ * NOTA TÉCNICA DEL ARCHITECT (V1.2):
+ * 1. Deadzone Shielding: Se ha implementado un umbral de 0.5° para anular el temblor
+ *    de la cámara en modo reposo, garantizando una visualización profesional.
+ * 2. Static Recovery: lerpSimple ahora retorna el valor final si la diferencia es 
+ *    despreciable, ahorrando ciclos de CPU en el controlador de cámara.
+ * 3. Atomic Math: Mantiene el rigor de trigonometría pura sin dependencias 
+ *    externas, asegurando la soberanía del hilo principal.
+ * 4. Micro-Movement Guard: La interpolación de coordenadas ignora cambios de 
+ *    menos de 5cm para estabilizar el marcador del Voyager.
  */
