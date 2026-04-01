@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: types/geo-sovereignty.ts
- * VERSIÓN: 6.4 (NicePod V2.8 - Full Type Integrity & Tone Sovereignty Edition)
- * PROTOCOLO: MADRID RESONANCE V2.8
+ * VERSIÓN: 7.0 (NicePod V3.0 - Triple-Core Contract & Vault Strictness Edition)
+ * PROTOCOLO: MADRID RESONANCE V3.0
  * 
  * Misión: Centralizar el contrato de identidad, telemetría y control cinemático.
- * [REPARACIÓN CRÍTICA]: Unificación de tipos para profundidad y tono narrativo.
+ * [REFORMA V7.0]: Sincronización de Edge Functions (Tonos) y blindaje de Metadata NKV.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -23,6 +23,8 @@ export interface GeoPoint {
   coordinates: [number, number]; // [longitude, latitude]
 }
 
+export type TelemetrySource = 'gps' | 'cache' | 'ip-fallback' | 'manual-anchor' | 'edge-ip';
+
 /**
  * UserLocation: Snapshot de telemetría capturada por el hardware o la red.
  */
@@ -33,7 +35,7 @@ export interface UserLocation {
   heading: number | null;
   speed: number | null;
   /** source: Origen de la verdad (GPS satelital, Caché local o IP de red). */
-  source?: 'gps' | 'cache' | 'ip-fallback';
+  source?: TelemetrySource;
   /** timestamp: Marca de tiempo para validar la frescura del dato (TTL). */
   timestamp?: number;
 }
@@ -81,7 +83,7 @@ export type CameraPerspective = 'STREET' | 'OVERVIEW';
 /**
  * MapInstanceId: Identificadores únicos de lienzo para aislamiento WebGL.
  */
-export type MapInstanceId = 'map-full' | 'map-dashboard' | 'map-forge';
+export type MapInstanceId = 'map-full' | 'map-dashboard' | 'map-forge' | 'map-sentinel';
 
 /**
  * NarrativeDepth: Escalas de profundidad para la síntesis de IA.
@@ -90,14 +92,26 @@ export type NarrativeDepth = 'flash' | 'cronica' | 'inmersion';
 
 /**
  * NarrativeTone: Taxonomía editorial unificada para el Agente 42.
+ * [FIX V7.0]: Sincronizado con geo-narrative-creator Edge Function.
  */
-export type NarrativeTone = 'academico' | 'misterioso' | 'epico' | 'neutro';
+export type NarrativeTone = 'academico' | 'misterioso' | 'epico' | 'melancolico' | 'neutro';
 
 /**
  * ---------------------------------------------------------------------------
  * III. ENTIDADES MAESTRAS (BÓVEDA NKV)
  * ---------------------------------------------------------------------------
  */
+
+/**
+ * POIMetadata: Tipado estricto para evitar el antipatrón Record<string, unknown>.
+ */
+export interface POIMetadata {
+  urban_context?: string;
+  architectural_period?: string;
+  custom_tags?: string[];
+  curator_notes?: string;
+  [key: string]: unknown; // Extensibilidad segura
+}
 
 export interface PointOfInterest {
   id: number;
@@ -116,7 +130,7 @@ export interface PointOfInterest {
   reference_podcast_id: number | null;
   created_at: string;
   updated_at: string;
-  metadata?: Record<string, unknown> | null;
+  metadata?: POIMetadata | null;
 }
 
 export interface IngestionDossier {
@@ -159,8 +173,9 @@ export interface GeoContextData {
 }
 
 /**
- * GeoEngineReturn: La firma pública que el hook useGeoEngine entrega a la UI.
- * [REFORMA V6.4]: Alineación total de parámetros IA para sanar TS2345.
+ * GeoEngineReturn: La firma pública que la Fachada (useGeoEngine) entrega a la UI.
+ * [MANDATO V7.0]: Este contrato permanece INMUTABLE para garantizar cero regresiones
+ * tras la migración a la arquitectura Triple-Core.
  */
 export interface GeoEngineReturn {
   // Estados de Sensor y Red
@@ -205,7 +220,6 @@ export interface GeoEngineReturn {
     radius: number;
   }) => Promise<{ poiId: number; dossier: IngestionDossier } | void>;
 
-  // [FIX V6.4]: Parámetros tipados con uniones literales para el Oráculo.
   synthesizeNarrative: (params: {
     poiId: number;
     depth: NarrativeDepth;
@@ -243,11 +257,10 @@ export interface POICreationPayload {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V6.4):
- * 1. Build Shield Enforcement: Al transmutar 'tone' de string a NarrativeTone, 
- *    resolvemos el conflicto de asignación en use-geo-engine.tsx, permitiendo 
- *    que el build de Vercel sea nominal.
- * 2. Evolutionary Taxonomy: Se definen NarrativeDepth y NarrativeTone como 
- *    tipos raíz, facilitando la expansión futura de estilos sin romper la malla.
- * 3. Zero Abbreviations: Archivo 100% íntegro para despliegue industrial.
+ * NOTA TÉCNICA DEL ARCHITECT (V7.0):
+ * 1. Sync Tone: Se incluyó 'melancolico' para coincidir con la IA en el Borde.
+ * 2. NKV Shielding: La metadata ahora requiere cumplir con 'POIMetadata', erradicando el
+ *    riesgo de inyectar objetos opacos a la base de datos PostgreSQL.
+ * 3. Facade Stability: La interfaz GeoEngineReturn no ha modificado su estructura, 
+ *    garantizando que la transición a la V3.0 de los hooks (Triple-Core) compile instantáneamente.
  */
