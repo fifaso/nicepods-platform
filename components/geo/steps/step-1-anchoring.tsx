@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: components/geo/steps/step-1-anchoring.tsx
- * VERSIÓN: 3.6 (NicePod Sovereign Anchoring - Tactical-Lite Performance Edition)
+ * VERSIÓN: 3.7 (NicePod Sovereign Anchoring - Tactical-Lite & VRAM Sovereignty Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Definir la posición física e identidad del nodo optimizando recursos.
- * [REFORMA V3.6]: Implementación de performanceProfile="TACTICAL_LITE" para fluidez en Step 1.
+ * Misión: Definir posición física, identidad y taxonomía optimizando el uso de la GPU.
+ * [REFORMA V3.7]: Implementación de TACTICAL_LITE y aislamiento total de instancia 'map-forge'.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -43,6 +43,7 @@ import { cn, nicepodLog } from "@/lib/utils";
 
 /**
  * TAXONOMÍA INDUSTRIAL NICEPOD (V2.8)
+ * Categorías oficiales para la clasificación de capital intelectual.
  */
 const CATEGORIES = [
   { id: 'historia', label: 'Historia', icon: History },
@@ -54,10 +55,10 @@ const CATEGORIES = [
 ] as const;
 
 /**
- * StepAnchoring: La Terminal de Posicionamiento Táctico.
+ * StepAnchoring: La Terminal de Posicionamiento Táctico de NicePod.
  */
 export function StepAnchoring() {
-  // 1. CONSUMO DE MOTORES SOBERANOS
+  // 1. CONSUMO DE MOTORES Y CONTEXTOS
   const { state, dispatch, nextStep } = useForge();
   const geoEngine = useGeoEngine();
 
@@ -73,7 +74,7 @@ export function StepAnchoring() {
 
   /**
    * Failsafe de Visibilidad:
-   * Garantiza la materialización del mapa tras 3 segundos para evitar bloqueos.
+   * Garantiza que el lienzo WebGL se materialice tras 3 segundos incluso sin GPS.
    */
   const [forceMapVisible, setForceMapVisible] = useState(false);
 
@@ -81,14 +82,17 @@ export function StepAnchoring() {
     if (userLocation) {
       setForceMapVisible(true);
     } else {
-      const timeout = setTimeout(() => setForceMapVisible(true), 3000);
+      const timeout = setTimeout(() => {
+        nicepodLog("⚠️ [Anchoring] Latencia de GPS detectada. Forzando despliegue de malla.");
+        setForceMapVisible(true);
+      }, 3000);
       return () => clearTimeout(timeout);
     }
   }, [userLocation]);
 
   /**
    * Sincronía de Memoria RAM:
-   * Mantiene el estado de la forja alineado con la telemetría viva del motor.
+   * Alinea el estado de la forja con la telemetría viva para el Handshake final.
    */
   useEffect(() => {
     if (userLocation) {
@@ -105,10 +109,10 @@ export function StepAnchoring() {
 
   /**
    * handleManualOverride:
-   * Captura el gesto de anclaje manual del Administrador.
+   * Captura el gesto de anclaje manual (Pan/Click) del Administrador.
    */
   const handleManualOverride = useCallback((lngLat: [number, number]) => {
-    nicepodLog(`📍 [Anchoring] Ajuste manual de coordenadas en progreso.`);
+    nicepodLog(`📍 [Anchoring] Ejecutando anclaje manual soberano.`);
     if (typeof window !== "undefined" && navigator.vibrate) {
       navigator.vibrate([10, 40, 10]);
     }
@@ -121,22 +125,24 @@ export function StepAnchoring() {
     <div className="w-full flex flex-col gap-10 animate-in fade-in slide-in-from-bottom-6 duration-1000 pb-32 px-1">
 
       {/* 
-          I. ESCENARIO TÁCTICO (MAPA DE PRECISIÓN)
-          [MANDATO V3.6]: Se activa el perfil 'TACTICAL_LITE' para maximizar FPS.
+          I. LIENZO DE ANCLAJE AISLADO
+          [MANDATO V3.7]: Implementación del Protocolo de Bajo Consumo.
+          mapId="map-forge": Aislamiento total de contexto WebGL.
+          performanceProfile="TACTICAL_LITE": Liberación masiva de VRAM.
       */}
       <div className="relative w-full px-2">
         <div className={cn(
           "w-full h-[340px] rounded-[3.5rem] overflow-hidden border-2 transition-all duration-1000 relative bg-[#010101]",
           engineData?.isProximityConflict
-            ? "border-amber-500/40 shadow-[0_0_50px_rgba(245,158,11,0.15)]"
+            ? "border-amber-500/40 shadow-[0_0_60px_rgba(245,158,11,0.15)]"
             : "border-white/10 shadow-[0_0_80px_rgba(0,0,0,0.8)]"
         )}>
 
           {forceMapVisible && userLocation ? (
             <SpatialEngine
-              mapId="map-forge"
+              mapId="map-forge" 
               mode="FORGE"
-              performanceProfile="TACTICAL_LITE" // <--- Optimización de VRAM activada
+              performanceProfile="TACTICAL_LITE" // <--- Soberanía de rendimiento
               onManualAnchor={handleManualOverride}
             />
           ) : (
@@ -147,16 +153,16 @@ export function StepAnchoring() {
               </div>
               <div className="text-center space-y-3">
                 <p className="text-[11px] font-black uppercase tracking-[0.6em] text-white/40">
-                  Iniciando Malla
+                  Estableciendo Link
                 </p>
                 <span className="text-[9px] font-bold text-zinc-600 uppercase tracking-widest animate-pulse">
-                  Estableciendo enlace de precisión...
+                  Sincronizando con el Territorio...
                 </span>
               </div>
             </div>
           )}
 
-          {/* HUD DE AUTORIDAD (Color-Coded Feedback) */}
+          {/* HUD DE PRECISIÓN EN TIEMPO REAL */}
           {userLocation && (
             <div className="absolute bottom-8 right-8 z-30 pointer-events-none">
               <Badge className={cn(
@@ -168,14 +174,14 @@ export function StepAnchoring() {
                     : "bg-amber-500/10 border-amber-500/20 text-amber-500" 
               )}>
                 {isLocked ? <MapPin className="mr-2 h-3.5 w-3.5" /> : <Navigation className="mr-2 h-3.5 w-3.5 animate-pulse" />}
-                {isLocked ? "Anclaje Manual" : `Precisión: ${Math.round(userLocation.accuracy)}m`}
+                {isLocked ? "Soberanía Manual" : `Frecuencia: ${Math.round(userLocation.accuracy)}m`}
               </Badge>
             </div>
           )}
         </div>
       </div>
 
-      {/* II. TERMINAL DE IDENTIDAD (FORMULARIO) */}
+      {/* II. TERMINAL DE IDENTIDAD (DATOS DE NODO) */}
       <div className="px-8 space-y-12">
 
         {/* NOMBRE DEL HITO */}
@@ -184,7 +190,7 @@ export function StepAnchoring() {
             <div className="flex items-center gap-3 opacity-40">
               <Edit3 size={14} className="text-primary" />
               <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-white">
-                Nombre del Nodo
+                Identidad del Nodo
               </h3>
             </div>
             <button
@@ -197,19 +203,19 @@ export function StepAnchoring() {
             </button>
           </div>
           <Input
-            placeholder={isLocating ? "Identificando..." : "¿Cómo se llama este hito?"}
+            placeholder={isLocating ? "Detectando..." : "¿Cómo se llama este hito?"}
             value={engineData?.manualPlaceName || ""}
             onChange={(e) => setManualPlaceName(e.target.value)}
             className="h-16 bg-white/[0.03] border-white/10 rounded-2xl px-8 text-base font-bold text-white focus:border-primary/40 transition-all placeholder:text-zinc-800"
           />
         </div>
 
-        {/* CATEGORÍA SOBERANA */}
+        {/* TAXONOMÍA DE SABIDURÍA */}
         <div className="space-y-6">
           <div className="flex items-center gap-3 px-2 opacity-40">
             <Landmark size={14} className="text-primary" />
             <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white">
-              Taxonomía
+              Clasificación Táctica
             </h3>
           </div>
 
@@ -239,11 +245,11 @@ export function StepAnchoring() {
           </div>
         </div>
 
-        {/* ALCANCE DE RESONANCIA */}
+        {/* ALCANCE DE RESONANCIA (ESFERA DE INFLUENCIA) */}
         <div className="bg-white/[0.01] border border-white/5 p-10 rounded-[3.5rem] space-y-8 shadow-inner">
           <div className="flex justify-between items-end px-2">
             <div className="flex flex-col gap-1.5">
-              <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-600">Esfera de Resonancia</h3>
+              <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-600">Esfera de Sintonía</h3>
               <p className="text-[8px] font-bold text-zinc-800 uppercase tracking-widest leading-none">Radio de activación Voyager</p>
             </div>
             <span className="text-lg font-black text-primary italic tabular-nums">
@@ -261,19 +267,19 @@ export function StepAnchoring() {
           />
         </div>
 
-        {/* III. ACCIÓN DE PROGRESO */}
+        {/* III. ACCIÓN DE PROGRESO (PUERTA SENSORIAL) */}
         <div className="pt-6">
           <Button
             onClick={nextStep}
             disabled={!canProceed}
             className="w-full h-24 rounded-[3rem] bg-primary text-black font-black uppercase tracking-[0.5em] shadow-[0_20px_50px_rgba(var(--primary-rgb),0.3)] hover:brightness-110 active:scale-[0.98] transition-all group relative overflow-hidden"
           >
-            <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity animate-shimmer" />
+            <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity animate-pulse" />
             <span className="relative z-10 flex items-center justify-center gap-5 text-xl">
               {isLocating ? (
                 <>
                   <Loader2 className="h-6 w-6 animate-spin" />
-                  Sincronizando...
+                  SINCRONIZANDO...
                 </>
               ) : (
                 <>
@@ -295,13 +301,13 @@ export function StepAnchoring() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V3.6):
- * 1. Tactical-Lite Profile: Se activó performanceProfile="TACTICAL_LITE" para 
- *    liberar el hilo principal, asegurando que el anclaje manual sea fluido a 60FPS.
- * 2. Identity Isolation: El uso de mapId="map-forge" erradica el Ghosting visual,
- *    garantizando que no haya colisiones con el mapa de fondo (ahora hibernado).
- * 3. Mobile Stability: Se optimizó el Skeleton de carga con una base de color 
- *    más densa (zinc-950/90) para prevenir fugas de luz en el primer renderizado.
- * 4. UX Integrity: Mantiene todas las validaciones de taxonomía y radio de 
- *    resonancia, blindando la integridad de los datos antes del Paso 2.
+ * NOTA TÉCNICA DEL ARCHITECT (V3.7):
+ * 1. Performance Toggling: Se inyectó performanceProfile="TACTICAL_LITE" para liberar 
+ *    ciclos de CPU durante la fase de anclaje manual, garantizando 60FPS.
+ * 2. Resource Sovereignty: Colabora con la V5.8 de CreatorOverlay para asegurar 
+ *    que este sea el único mapa consumiendo VRAM durante el proceso de forja.
+ * 3. Atomic Identity: mapId="map-forge" sella el aislamiento de instancia, 
+ *    erradicando interferencias de rotación o posicionamiento.
+ * 4. UX Integrity: El HUD de precisión y la taxonomía están 100% alineados con 
+ *    los estándares de inteligencia industrial de la plataforma.
  */
