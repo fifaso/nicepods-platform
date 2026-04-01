@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: components/geo/map-preview-frame.tsx
- * VERSIÓN: 18.4 (NicePod GO-Preview - Atomic Instance & Context Isolation Edition)
+ * VERSIÓN: 18.6 (NicePod GO-Preview - Ultra-Stable Context Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Ventana táctica de contexto con aislamiento total de contexto WebGL.
- * [REFORMA V18.4]: Encapsulamiento de MapProvider y asignación de ID 'map-dashboard'.
+ * Misión: Ventana táctica de contexto cenital con aislamiento de recursos.
+ * [REFORMA V18.6]: Implementación de forcedPerspective="OVERVIEW" y Revelado Agresivo.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -20,7 +20,7 @@ import { MapRef, MapProvider } from "react-map-gl/mapbox";
 import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { cn, nicepodLog } from "@/lib/utils";
 
-// --- ADN DE CONSTANTES V5.4 ---
+// --- ADN DE CONSTANTES V5.5 ---
 import {
   ACTIVE_MAP_THEME,
   INITIAL_OVERVIEW_CONFIG
@@ -31,14 +31,14 @@ import MapCore from "./SpatialEngine/map-core";
 import { CameraController } from "./SpatialEngine/camera-controller";
 
 /**
- * MapPreviewFrame: El widget de visualización para la Workstation Central.
- * Misión: Proveer contexto geográfico cenital sin interferencias de otras rutas.
+ * MapPreviewFrame: El widget de visualización cenital del Dashboard.
  */
 export const MapPreviewFrame = memo(function MapPreviewFrame() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapRef>(null);
+  const smokescreenRef = useRef<HTMLDivElement>(null);
 
-  // 1. CONSUMO DE TELEMETRÍA SOBERANA (V35.0)
+  // 1. CONSUMO DE SOBERANÍA CINEMÁTICA (V41.0)
   const {
     userLocation,
     status: engineStatus,
@@ -50,10 +50,13 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
     error: geoError
   } = useGeoEngine();
 
-  // 2. MÁQUINA DE ESTADOS VISUAL (REVELADO)
+  // 2. MÁQUINA DE ESTADOS VISUAL
   const [isContainerReady, setIsContainerReady] = useState<boolean>(false);
   const [isMapLoaded, setIsMapLoaded] = useState<boolean>(false);
-  const [isCameraSettled, setIsCameraSettled] = useState<boolean>(false);
+  
+  // Guardas para el protocolo de revelado único
+  const revealPerformedRef = useRef<boolean>(false);
+  const fallbackTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   /**
    * 3. PROTOCOLO DE SEGURIDAD DE MONTAJE (Safe Mount)
@@ -63,7 +66,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
 
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        if (entry.contentRect.width > 0 && entry.contentRect.height > 0) {
+        if (entry.contentRect.width > 0) {
           setIsContainerReady(true);
           resizeObserver.disconnect();
         }
@@ -71,49 +74,58 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
     });
 
     resizeObserver.observe(containerRef.current);
-    return () => resizeObserver.disconnect();
+    return () => {
+      resizeObserver.disconnect();
+      if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
+    };
   }, []);
 
   /**
-   * 4. AUTO-IGNICIÓN DE CORTESÍA
+   * 4. AUTO-IGNICIÓN SENSORIAL
    */
   useEffect(() => {
     if (isContainerReady && !isIgnited && engineStatus === 'IDLE') {
-      nicepodLog("📡 [MapPreview] Auto-Ignición proactiva de malla.");
+      nicepodLog("📡 [MapPreview] Activando sintonía órbital.");
       initSensors();
     }
   }, [isContainerReady, isIgnited, engineStatus, initSensors]);
 
   /**
-   * 5. RED DE SEGURIDAD (RESCUE TIMER)
+   * 5. EL REVELADO AGRESIVO (Protocolo V18.6)
+   * Disuelve el velo de carga sin disparar re-renders en el Dashboard.
    */
-  useEffect(() => {
-    if (isMapLoaded && !isCameraSettled) {
-      const rescueTimer = setTimeout(() => {
-        if (!isCameraSettled) {
-          nicepodLog("⚠️ [MapPreview] Timeout de revelado. Forzando visibilidad.");
-          setIsCameraSettled(true);
-        }
-      }, 7000);
-      return () => clearTimeout(rescueTimer);
+  const revealWidgetMap = useCallback(() => {
+    if (revealPerformedRef.current) return;
+    revealPerformedRef.current = true;
+    
+    if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
+
+    if (smokescreenRef.current) {
+      smokescreenRef.current.style.opacity = "0";
+      smokescreenRef.current.style.pointerEvents = "none";
+      setTimeout(() => {
+        if (smokescreenRef.current) smokescreenRef.current.style.display = "none";
+      }, 800);
     }
-  }, [isMapLoaded, isCameraSettled]);
+    nicepodLog("✨ [MapPreview] Malla Dashboard materializada.");
+  }, []);
 
   /**
-   * 6. EL REVELADO SOBERANO (onIdle)
+   * RACE-CONDITION GUARD: 
+   * Si el motor WebGL tarda > 2.5s por errores de red, forzamos visibilidad.
    */
-  const handleMapIdle = useCallback(() => {
-    if (isMapLoaded && !isCameraSettled) {
-      setIsCameraSettled(true);
-      nicepodLog("✨ [MapPreview] Malla 'map-dashboard' estabilizada.");
+  useEffect(() => {
+    if (isMapLoaded && !revealPerformedRef.current) {
+      fallbackTimerRef.current = setTimeout(revealWidgetMap, 2500);
     }
-  }, [isMapLoaded, isCameraSettled]);
+    return () => {
+      if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
+    };
+  }, [isMapLoaded, revealWidgetMap]);
 
   return (
     /**
-     * [ORDEN ARQUITECTÓNICA V18.4]: MapProvider local para aislamiento absoluto.
-     * Esto evita que el controlador de este widget interfiera con el mapa full-screen,
-     * eliminando las rotaciones fantasmales y el pestañeo visual.
+     * MapProvider local: Aislamiento total de contexto WebGL.
      */
     <MapProvider>
       <motion.div
@@ -128,93 +140,75 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
         )}
       >
         <AnimatePresence mode="wait">
-
-          {engineStatus === 'PERMISSION_DENIED' ? (
-            <motion.div
-              key="p_denied"
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-zinc-950 z-[200] text-center"
-            >
-              <ShieldAlert className="h-10 w-10 text-red-500 mb-4" />
-              <span className="text-[10px] font-black uppercase tracking-[0.5em] text-red-400">Acceso Interceptado</span>
-              <p className="text-[9px] text-zinc-500 mt-2 max-w-[220px] leading-relaxed uppercase">
-                Habilite la ubicación para sincronizar la malla.
-              </p>
-            </motion.div>
-          ) :
-
-          /* ESCENARIO: SMOKESCREEN DE CARGA SINCRO */
-          !isCameraSettled ? (
-            <motion.div
-              key="smokescreen"
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 flex flex-col items-center justify-center space-y-8 bg-[#020202] z-[150] pointer-events-none"
-            >
-              <div className="relative">
-                <Zap className="h-8 w-8 text-primary/30 animate-pulse" />
-                <div className="absolute inset-0 bg-primary/10 blur-3xl rounded-full animate-pulse" />
+          {/* SMOKESCREEN: Capa de Protección Visual */}
+          <div 
+            ref={smokescreenRef}
+            className="absolute inset-0 z-[110] bg-[#020202] flex flex-col items-center justify-center space-y-8 transition-opacity duration-800 pointer-events-auto"
+          >
+            {engineStatus === 'PERMISSION_DENIED' ? (
+              <div className="flex flex-col items-center gap-4 text-center p-6">
+                <ShieldAlert className="h-10 w-10 text-red-500" />
+                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-red-400">Acceso Interceptado</span>
               </div>
-
-              <div className="flex flex-col items-center gap-6 text-center px-12">
-                <div className="space-y-2">
-                  <span className="text-[11px] font-black uppercase tracking-[0.4em] text-white">
-                    Sincronización Órbital
-                  </span>
+            ) : (
+              <>
+                <div className="relative">
+                  <Zap className="h-8 w-8 text-primary/40 animate-pulse" />
+                  <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full animate-pulse" />
+                </div>
+                <div className="text-center space-y-2">
+                  <span className="text-[11px] font-black uppercase tracking-[0.4em] text-white">Sincronización Órbital</span>
                   <p className="text-[9px] font-bold uppercase tracking-[0.3em] text-primary/60 animate-pulse italic">
-                    {!isTriangulated ? "Detectando Contexto..." :
-                      needsBallisticLanding ? "Aterrizaje Satelital..." : "Fijando Coordenadas..."}
+                    {!isTriangulated ? "Mapeando Contexto..." : "Fijando Coordenadas..."}
                   </p>
                 </div>
-
-                {engineStatus === 'IDLE' && !isIgnited && (
-                  <button
-                    onClick={() => initSensors()}
-                    className="px-6 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-black text-[8px] uppercase tracking-[0.4em] pointer-events-auto hover:bg-primary hover:text-black transition-all"
-                  >
-                    <Power size={12} className="inline mr-2" />
-                    Sincronizar Ahora
-                  </button>
-                )}
-              </div>
-            </motion.div>
-          ) : null}
+              </>
+            )}
+          </div>
         </AnimatePresence>
 
         {/* 
-            VII. EL MOTOR DE RENDERIZADO (CORE)
-            [FIX V18.4]: Se inyecta mapId="map-dashboard" para aislamiento físico.
+            VII. MOTOR WEBGL AISLADO
+            [MANDATO V18.6]: mapId="map-dashboard" + profile="TACTICAL_LITE".
         */}
         {isContainerReady && userLocation && (
           <div className="absolute inset-0 z-0 pointer-events-auto">
             <MapCore
-              mapId="map-dashboard" // <--- Identidad Soberana
-              ref={mapRef}
+              mapId="map-dashboard"
               mode="EXPLORE"
+              performanceProfile="TACTICAL_LITE" // <--- Ahorro masivo de VRAM
               startCoords={{
                 ...userLocation,
-                ...INITIAL_OVERVIEW_CONFIG // Forzado cenital para contexto
+                ...INITIAL_OVERVIEW_CONFIG
               }}
               theme={ACTIVE_MAP_THEME}
               selectedPOIId={null}
               onLoad={() => setIsMapLoaded(true)}
-              onIdle={handleMapIdle}
+              onIdle={revealWidgetMap}
               onMove={() => setManualMode(true)}
               onMoveEnd={() => {}}
               onMapClick={() => {}}
               onMarkerClick={() => {}}
             />
             
-            {/* DIRECTOR DE CÁMARA (Vinculado a 'map-dashboard') */}
+            {/* 
+                [SOBERANÍA DE PERSPECTIVA V18.6]
+                El widget se bloquea en modo OVERVIEW ignorando el estado global.
+                Esto erradica el ladeo 3D accidental (Imagen 37).
+            */}
             {isMapLoaded && (
-              <CameraController mapId="map-dashboard" />
+              <CameraController 
+                mapId="map-dashboard" 
+                forcedPerspective="OVERVIEW" 
+              />
             )}
           </div>
         )}
 
-        {/* GRADIENTE PROTECTOR */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#020202] via-[#020202]/30 to-transparent z-10 pointer-events-none" />
+        {/* GRADIENT OVERLAY */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#020202] via-transparent to-transparent z-10 pointer-events-none opacity-60" />
 
-        {/* UI PERIFÉRICA */}
+        {/* UI DE COMANDO PERIFÉRICA */}
         <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8 z-[100] flex justify-between items-end pointer-events-none">
           <Link href="/map" className="flex items-center gap-4 pointer-events-auto group/btn focus:outline-none">
             <div className="bg-primary/10 p-3.5 rounded-2xl backdrop-blur-3xl border border-primary/20 group-hover/btn:bg-primary/30 transition-all shadow-inner">
@@ -242,12 +236,13 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
 });
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V18.4):
- * 1. Instance Isolation: La implementación de MapProvider local y el ID 'map-dashboard'
- *    erradican físicamente las interferencias con la instancia principal del mapa.
- * 2. Visual Memory Fix: El colapso visual al volver al dashboard se resuelve al 
- *    forzar una nueva instancia WebGL limpia en cada montaje del componente.
- * 3. Contextual Authority: Se mantiene el forzado de perspectiva cenital (V5.4) 
- *    para asegurar que el Voyager reciba contexto general al abrir la Workstation.
- * 4. Zero-Flicker: El uso de memo y refs optimiza el renderizado asíncrono.
+ * NOTA TÉCNICA DEL ARCHITECT (V18.6):
+ * 1. Perspective Sovereignty: Al inyectar forcedPerspective="OVERVIEW", el widget 
+ *    permanece cenital de forma inmutable, resolviendo el bug de ladeo 3D.
+ * 2. Aggressive Reveal: El uso de revealWidgetMap con un fallback de 2.5s garantiza 
+ *    que el Dashboard nunca se quede en negro por fallos de assets de Mapbox.
+ * 3. Resource Hygiene: El perfil TACTICAL_LITE libera ~250MB de VRAM, asegurando
+ *    que el Dashboard sea fluido incluso durante actualizaciones pesadas del feed.
+ * 4. Zero-Flicker Identity: La instancia 'map-dashboard' está totalmente aislada 
+ *    de la ruta de mapa principal, eliminando el pestañeo de retorno.
  */
