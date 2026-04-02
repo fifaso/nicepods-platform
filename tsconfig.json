@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     /* --- CONFIGURACIÓN DE LENGUAJE Y ENTORNO --- */
+    "ignoreDeprecations": "6.0",
     "target": "esnext",
     "lib": [
       "dom",
