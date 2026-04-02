@@ -3,7 +3,7 @@
  * VERSIÓN: 4.1 (NicePod Sovereign Narrative Forge - Recursive Sync Edition)
  * PROTOCOLO: MADRID RESONANCE V2.8
  * 
- * Misión: Configurar parámetros editoriales y ejecutar la síntesis final del activo.
+ * Misi ón: Configurar  parámetros editoriales y ejecutar la síntesis final del activo.
  * [REFORMA V4.1]: Unificación taxonómica y protocolo de refresco forzado de malla.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
