@@ -1,11 +1,12 @@
 /**
  * ARCHIVO: hooks/use-geo-engine.tsx
- * VERSIÓN: 44.1 (NicePod Sovereign Geo-Engine - Build Shield & Sync Edition)
+ * VERSIÓN: 45.0 (NicePod Sovereign Geo-Engine - Triple-Core Facade Edition)
  * PROTOCOLO: MADRID RESONANCE V3.0
  * 
- * Misión: Actuar como Fachada Transparente unificando los 3 núcleos y garantizando 
- * la integridad de tipos en el ensamblaje de la API pública.
- * [FIX V44.1]: Resolución de error TS2339 mediante sincronía de interfaz mapStyle.
+ * Misión: Actuar como Fachada Transparente unificando los núcleos de Telemetría, 
+ * Radar e Interfaz. Provee el contrato GeoEngineReturn sin generar competencia 
+ * de hilos ni bucles de re-renderizado.
+ * [REFORMA V45.0]: Integración nativa de mapStyle y optimización de Handshake T0.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -18,141 +19,179 @@ import { InterfaceProvider, useGeoInterface } from "./geo-engine/interface-core"
 import { RadarProvider, useGeoRadar } from "./geo-engine/radar-core";
 import { TelemetryProvider, useGeoTelemetry } from "./geo-engine/telemetry-core";
 
-// --- CONTRATOS Y IA ---
-import { MAP_STYLES } from "@/components/geo/map-constants";
+// --- CONTRATOS SOBERANOS Y IA ---
 import { GeoContextData, GeoEngineReturn, GeoEngineState } from "@/types/geo-sovereignty";
 import { useForgeOrchestrator } from "./use-forge-orchestrator";
 
 const GeoEngineContext = createContext<GeoEngineReturn | undefined>(undefined);
 
 /**
- * GeoFacade: El Cerebro Sincronizador.
+ * GeoFacadeComponent: El Cerebro Sincronizador.
  * Misión: Consumir los 3 núcleos y orquestar sus interacciones transversales.
  */
-function GeoFacade({ children }: { children: React.ReactNode }) {
-  const telemetry = useGeoTelemetry();
-  const radar = useGeoRadar();
-  const ui = useGeoInterface();
-  const forge = useForgeOrchestrator();
+function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
+  const telemetryCore = useGeoTelemetry();
+  const radarCore = useGeoRadar();
+  const interfaceCore = useGeoInterface();
+  const forgeOrchestrator = useForgeOrchestrator();
 
-  const lastSourceRef = useRef<string | null>(telemetry.telemetrySource);
-  const hasPerformedLandingRef = useRef<boolean>(false);
+  const lastSourceReference = useRef<string | null>(telemetryCore.telemetrySource);
+  const hasPerformedInitialLandingReference = useRef<boolean>(false);
 
   /**
-   * ORQUESTACIÓN CROSS-DOMAIN: Sincronización Telemetría -> Radar -> UI
+   * EFECTO: ORQUESTACIÓN CROSS-DOMAIN
+   * Misión: Sincronizar el hardware con la lógica de red y la interfaz.
    */
   useEffect(() => {
-    if (telemetry.userLocation) {
-      const loc = telemetry.userLocation;
-      const sourceJustChanged = telemetry.telemetrySource === 'gps' && lastSourceRef.current !== 'gps';
+    const currentLocation = telemetryCore.userLocation;
 
-      // 1. Detección de Aterrizaje Balístico (IP -> GPS)
-      if (telemetry.isGPSLock && sourceJustChanged && !hasPerformedLandingRef.current) {
-        ui.triggerLanding();
-        hasPerformedLandingRef.current = true;
-        radar.fetchRadar(loc, true);
+    if (currentLocation) {
+      const sourceJustChangedToGPS = 
+        telemetryCore.telemetrySource === 'gps' && 
+        lastSourceReference.current !== 'gps';
+
+      /**
+       * 1. DETECCIÓN DE ATERRIZAJE BALÍSTICO (Handshake T0):
+       * Si pasamos de IP a GPS de alta fidelidad, forzamos un vuelo de cámara
+       * y una descarga profunda de la Bóveda NKV.
+       */
+      if (telemetryCore.isGPSLock && sourceJustChangedToGPS && !hasPerformedInitialLandingReference.current) {
+        interfaceCore.triggerLanding();
+        hasPerformedInitialLandingReference.current = true;
+        radarCore.fetchRadar(currentLocation, true); // Cosecha forzada
       }
 
-      // 2. Inteligencia de Proximidad filtrada
-      radar.evaluateProximity(loc);
-      radar.fetchRadar(loc, false);
+      /**
+       * 2. INTELIGENCIA DE PROXIMIDAD:
+       * Evaluamos la resonancia de los nodos cercanos basándonos en la 
+       * telemetría purificada por el TelemetryCore.
+       */
+      radarCore.evaluateProximity(currentLocation);
+      radarCore.fetchRadar(currentLocation, false); // Cosecha con throttling (150m)
 
-      lastSourceRef.current = telemetry.telemetrySource;
+      lastSourceReference.current = telemetryCore.telemetrySource;
     }
-  }, [telemetry.userLocation, telemetry.isGPSLock, telemetry.telemetrySource, radar, ui]);
+  }, [
+    telemetryCore.userLocation, 
+    telemetryCore.isGPSLock, 
+    telemetryCore.telemetrySource, 
+    radarCore, 
+    interfaceCore
+  ]);
 
   /**
-   * derivedStatus: FSM Derivada para la UI.
+   * derivedStatus: Máquina de Estados Finita Derivada.
+   * Misión: Informar a la UI del estado global del sistema de peritaje.
    */
   const derivedStatus = useMemo((): GeoEngineState => {
-    if (forge.forgeStatus !== 'IDLE') return forge.forgeStatus;
-    if (telemetry.isDenied) return 'PERMISSION_DENIED';
-    return (telemetry.isIgnited || telemetry.userLocation) ? 'SENSORS_READY' : 'IDLE';
-  }, [forge.forgeStatus, telemetry.isDenied, telemetry.isIgnited, telemetry.userLocation]);
+    if (forgeOrchestrator.forgeStatus !== 'IDLE') return forgeOrchestrator.forgeStatus;
+    if (telemetryCore.isDenied) return 'PERMISSION_DENIED';
+    return (telemetryCore.isIgnited || telemetryCore.userLocation) ? 'SENSORS_READY' : 'IDLE';
+  }, [forgeOrchestrator.forgeStatus, telemetryCore.isDenied, telemetryCore.isIgnited, telemetryCore.userLocation]);
 
   /**
-   * ENSAMBLAJE DE LA API PÚBLICA V3.0
-   * [BUILD SHIELD]: Se garantiza que 'mapStyle' provenga del núcleo de interfaz.
-   * Si el compilador protesta, aplicamos un fallback seguro a MAP_STYLES.STANDARD.
+   * ENSAMBLAJE DE LA API PÚBLICA (CONTRATO SOBERANO V7.1)
+   * Misión: Devolver un objeto íntegro donde los núcleos colaboran.
    */
-  const api: GeoEngineReturn = {
-    // I. Estados y Telemetría
+  const geoEngineApi: GeoEngineReturn = {
+    // I. Estados de Verdad y Telemetría
     status: derivedStatus,
-    userLocation: telemetry.userLocation,
-    nearbyPOIs: radar.nearbyPOIs,
-    activePOI: radar.activePOI,
-    isTriangulated: telemetry.isTriangulated,
-    isGPSLock: telemetry.isGPSLock,
-    isSearching: radar.isSearching,
-    isLocked: forge.isForgeLocked,
-    isIgnited: telemetry.isIgnited,
-    error: forge.forgeError || (telemetry.isDenied ? "GPS_RESTRICTED" : null),
-    data: { ...forge.forgeData, ...radar.localData } as GeoContextData,
+    userLocation: telemetryCore.userLocation,
+    nearbyPOIs: radarCore.nearbyPOIs,
+    activePOI: radarCore.activePOI,
+    isTriangulated: telemetryCore.isTriangulated,
+    isGPSLock: telemetryCore.isGPSLock,
+    isSearching: radarCore.isSearching,
+    isLocked: forgeOrchestrator.isForgeLocked,
+    isIgnited: telemetryCore.isIgnited,
+    error: forgeOrchestrator.forgeError || (telemetryCore.isDenied ? "GPS_RESTRICTED" : null),
+    data: { 
+      ...forgeOrchestrator.forgeData, 
+      ...radarCore.localData 
+    } as GeoContextData,
 
-    // II. Gobernanza de Cámara y Estética
-    cameraPerspective: ui.cameraPerspective,
-    // [FIX V44.1]: Acceso seguro a mapStyle con fallback de infraestructura
-    mapStyle: (ui as any).mapStyle || MAP_STYLES.STANDARD,
-    isManualMode: ui.isManualMode,
-    needsBallisticLanding: ui.needsBallisticLanding,
-    recenterTrigger: ui.recenterTrigger,
-
-    confirmLanding: ui.confirmLanding,
-    toggleCameraPerspective: ui.togglePerspective,
-    setManualMode: ui.setManualMode,
-
+    // II. Gobernanza Visual y Cinemática
+    cameraPerspective: interfaceCore.cameraPerspective,
+    mapStyle: interfaceCore.mapStyle, // Sincronía atómica estilo-perspectiva
+    isManualMode: interfaceCore.isManualMode,
+    needsBallisticLanding: interfaceCore.needsBallisticLanding,
+    recenterTrigger: interfaceCore.recenterTrigger,
+    
+    confirmLanding: interfaceCore.confirmLanding,
+    toggleCameraPerspective: interfaceCore.togglePerspective,
+    setManualMode: interfaceCore.setManualMode,
+    
+    /**
+     * recenterCamera: 
+     * Misión: Recuperar el Voyager con autoridad máxima.
+     */
     recenterCamera: () => {
-      if (telemetry.userLocation) {
-        radar.fetchRadar(telemetry.userLocation, true);
+      if (telemetryCore.userLocation) {
+        radarCore.fetchRadar(telemetryCore.userLocation, true);
       }
-      ui.triggerRecenter();
+      interfaceCore.triggerRecenter();
     },
 
-    // III. Operaciones de Mando
-    initSensors: telemetry.initSensors,
+    // III. Operaciones de Mando de Campo
+    initSensors: telemetryCore.initSensors,
     reSyncRadar: () => {
-      radar.clearRadar();
-      if (telemetry.userLocation) {
-        radar.fetchRadar(telemetry.userLocation, true);
+      radarCore.clearRadar();
+      if (telemetryCore.userLocation) {
+        radarCore.fetchRadar(telemetryCore.userLocation, true);
       }
-      telemetry.reSyncSensors();
+      telemetryCore.reSyncSensors();
     },
-    setTriangulated: () => telemetry.setTriangulated(true),
-    setManualAnchor: telemetry.setManualAnchor,
-    setManualPlaceName: radar.setManualPlaceName,
+    setTriangulated: () => telemetryCore.setTriangulated(true),
+    setManualAnchor: telemetryCore.setManualAnchor,
+    setManualPlaceName: radarCore.setManualPlaceName,
 
-    // IV. Pipeline de Inteligencia
-    ingestSensoryData: (params) => forge.ingestSensoryData(telemetry.userLocation, params),
-    synthesizeNarrative: forge.synthesizeNarrative,
-    transcribeVoiceIntent: forge.transcribeVoiceIntent,
+    // IV. Pipeline de Inteligencia (Agente 42)
+    ingestSensoryData: (params) => forgeOrchestrator.ingestSensoryData(telemetryCore.userLocation, params),
+    synthesizeNarrative: forgeOrchestrator.synthesizeNarrative,
+    transcribeVoiceIntent: forgeOrchestrator.transcribeVoiceIntent,
 
-    // V. Purga
+    /**
+     * reset: 
+     * Misión: Purga absoluta de memoria táctica y desconexión de hardware.
+     */
     reset: () => {
-      telemetry.killSensors();
-      telemetry.clearManualAnchor();
-      telemetry.setTriangulated(false);
-      radar.clearRadar();
-      ui.resetInterface();
-      forge.resetForge();
-      hasPerformedLandingRef.current = false;
-      lastSourceRef.current = null;
+      telemetryCore.killSensors();
+      telemetryCore.clearManualAnchor();
+      telemetryCore.setTriangulated(false);
+      radarCore.clearRadar();
+      interfaceCore.resetInterface();
+      forgeOrchestrator.resetForge();
+      hasPerformedInitialLandingReference.current = false;
+      lastSourceReference.current = null;
+      nicepodLog("🧹 [GeoEngine] Memoria del motor purgada íntegramente.");
     }
   };
 
-  return <GeoEngineContext.Provider value={api}>{children}</GeoEngineContext.Provider>;
+  return (
+    <GeoEngineContext.Provider value={geoEngineApi}>
+      {children}
+    </GeoEngineContext.Provider>
+  );
 }
 
 /**
- * GeoEngineProvider: El Wrapper Maestro.
+ * GeoEngineProvider: El Contenedor de Infraestructura.
+ * Envuelve la plataforma en la jerarquía de núcleos necesaria para el peritaje urbano.
  */
-export function GeoEngineProvider({ children, initialData }: { children: React.ReactNode, initialData?: any }) {
+export function GeoEngineProvider({ 
+  children, 
+  initialData 
+}: { 
+  children: React.ReactNode, 
+  initialData?: any 
+}) {
   return (
     <TelemetryProvider initialData={initialData}>
       <RadarProvider>
         <InterfaceProvider>
-          <GeoFacade>
+          <GeoFacadeComponent>
             {children}
-          </GeoFacade>
+          </GeoFacadeComponent>
         </InterfaceProvider>
       </RadarProvider>
     </TelemetryProvider>
@@ -160,21 +199,24 @@ export function GeoEngineProvider({ children, initialData }: { children: React.R
 }
 
 /**
- * useGeoEngine: Consumo único de soberanía.
+ * useGeoEngine:
+ * Punto de consumo único para la soberanía geoespacial de la plataforma.
  */
 export function useGeoEngine() {
   const context = useContext(GeoEngineContext);
-  if (!context) throw new Error("useGeoEngine fuera de GeoEngineProvider.");
+  if (!context) {
+    throw new Error("CRITICAL_ERROR: useGeoEngine debe invocarse dentro de un GeoEngineProvider.");
+  }
   return context;
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V44.1):
- * 1. Type Synchronization: El casting temporal (ui as any) resuelve el bloqueo de 
- *    compilación TS2339 mientras el motor de tipos de Next.js refresca la caché 
- *    de los archivos secundarios de la carpeta geo-engine.
- * 2. Absolute Reliability: Se añadió un fallback explícito a MAP_STYLES.STANDARD 
- *    en el ensamblaje para asegurar que el MapCore jamás reciba un estilo indefinido.
- * 3. Architecture Integrity: Se mantiene la tripartición del núcleo (Fase 1) 
- *    sin comprometer el despliegue en Vercel.
+ * NOTA TÉCNICA DEL ARCHITECT (V45.0):
+ * 1. Facade Reliability: La tripartición del núcleo permite que el sistema 
+ *    sea modular. Un cambio en la lógica de proximidad del radarCore no afecta 
+ *    la estabilidad de la cámara en interfaceCore.
+ * 2. Performance Symmetry: Al usar useEffect como sincronizador pasivo, 
+ *    liberamos al hilo principal de tareas de comparación pesadas en cada frame.
+ * 3. Zero Ambiguity: El objeto 'geoEngineApi' es ahora una constante determinista 
+ *    que hereda la purificación de los tres sub-motores.
  */
