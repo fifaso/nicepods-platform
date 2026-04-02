@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: components/geo/map-preview-frame.tsx
- * VERSIÓN: 19.0 (NicePod GO-Preview - Triple-Core Synergy Edition)
+ * VERSIÓN: 20.0 (NicePod GO-Preview - Triple-Core Synergy & Contract Fix)
  * PROTOCOLO: MADRID RESONANCE V3.0
  * 
  * Misión: Ventana táctica de contexto cenital con aislamiento absoluto de recursos.
- * [REFORMA V19.0]: Integración con la arquitectura Triple-Core y eliminación de 
- * competencia sensorial en el arranque.
- * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
+ * [FIX V20.0]: Alineación de contratos nominales (mapInstanceId, startCoordinates) 
+ * para satisfacer al Build Shield y permitir el despliegue en Vercel.
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
@@ -21,22 +21,22 @@ import { MapProvider } from "react-map-gl/mapbox";
 import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { cn, nicepodLog } from "@/lib/utils";
 
-// --- ADN DE CONSTANTES V6.0 ---
+// --- ADN DE CONSTANTES V7.0 ---
 import {
   ACTIVE_MAP_THEME,
   INITIAL_OVERVIEW_CONFIG
 } from "./map-constants";
 
 // --- MOTORES DE RENDERIZADO Y CINEMÁTICA ---
-import { CameraController } from "./SpatialEngine/camera-controller";
 import MapCore from "./SpatialEngine/map-core";
+import { CameraController } from "./SpatialEngine/camera-controller";
 
 /**
  * MapPreviewFrame: El widget de visualización cenital del Dashboard.
  */
 export const MapPreviewFrame = memo(function MapPreviewFrame() {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const smokescreenRef = useRef<HTMLDivElement>(null);
+  const containerReference = useRef<HTMLDivElement>(null);
+  const smokescreenReference = useRef<HTMLDivElement>(null);
 
   // 1. CONSUMO DE LA FACHADA SOBERANA (Triple-Core Facade)
   const {
@@ -44,22 +44,22 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
     status: engineStatus,
     isTriangulated,
     setManualMode,
-    error: geoError
+    error: geographicError
   } = useGeoEngine();
 
   // 2. MÁQUINA DE ESTADOS VISUAL LOCAL
   const [isContainerReady, setIsContainerReady] = useState<boolean>(false);
   const [isMapLoaded, setIsMapLoaded] = useState<boolean>(false);
-
-  const revealPerformedRef = useRef<boolean>(false);
-  const fallbackTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  const revealPerformedReference = useRef<boolean>(false);
+  const fallbackTimerReference = useRef<NodeJS.Timeout | null>(null);
 
   /**
    * 3. PROTOCOLO DE SEGURIDAD DE MONTAJE (Safe Mount)
    * Garantiza que el contenedor tenga dimensiones reales antes de inyectar WebGL.
    */
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!containerReference.current) return;
 
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
@@ -70,54 +70,61 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
       }
     });
 
-    resizeObserver.observe(containerRef.current);
+    resizeObserver.observe(containerReference.current);
     return () => {
       resizeObserver.disconnect();
-      if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
+      if (fallbackTimerReference.current) {
+        clearTimeout(fallbackTimerReference.current);
+      }
     };
   }, []);
 
   /**
-   * 4. EL REVELADO AGRESIVO (Protocolo V19.0)
+   * 4. EL REVELADO SOBERANO (Protocolo V20.0)
    * Disuelve el velo de carga de forma fluida.
    */
   const revealWidgetMap = useCallback(() => {
-    if (revealPerformedRef.current) return;
-    revealPerformedRef.current = true;
-
-    if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
-
-    if (smokescreenRef.current) {
-      smokescreenRef.current.style.opacity = "0";
-      smokescreenRef.current.style.pointerEvents = "none";
-      setTimeout(() => {
-        if (smokescreenRef.current) smokescreenRef.current.style.display = "none";
-      }, 800);
+    if (revealPerformedReference.current) return;
+    revealPerformedReference.current = true;
+    
+    if (fallbackTimerReference.current) {
+      clearTimeout(fallbackTimerReference.current);
     }
-    nicepodLog("✨ [MapPreview] Malla Dashboard sincronizada y visible.");
+
+    if (smokescreenReference.current) {
+      smokescreenReference.current.style.opacity = "0";
+      smokescreenReference.current.style.pointerEvents = "none";
+      setTimeout(() => {
+        if (smokescreenReference.current) {
+          smokescreenReference.current.style.display = "none";
+        }
+      }, 1000);
+    }
+    nicepodLog("✨ [MapPreview] Malla Dashboard sincronizada.");
   }, []);
 
   /**
    * RACE-CONDITION GUARD: 
-   * Fallback de visibilidad por si Mapbox tarda demasiado en emitir 'onIdle'.
+   * Fallback de visibilidad si Mapbox no emite 'onIdle' en 3 segundos.
    */
   useEffect(() => {
-    if (isMapLoaded && !revealPerformedRef.current) {
-      fallbackTimerRef.current = setTimeout(revealWidgetMap, 3000);
+    if (isMapLoaded && !revealPerformedReference.current) {
+      fallbackTimerReference.current = setTimeout(revealWidgetMap, 3000);
     }
     return () => {
-      if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
+      if (fallbackTimerReference.current) {
+        clearTimeout(fallbackTimerReference.current);
+      }
     };
   }, [isMapLoaded, revealWidgetMap]);
 
   return (
     /**
      * MapProvider local: Aislamiento total de contexto WebGL.
-     * Previene que el mapa principal y el widget compartan ID de cámara.
      */
     <MapProvider>
       <motion.div
-        ref={containerRef}
+        ref={containerReference}
         initial={{ opacity: 0, scale: 0.98 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 1.2, ease: "easeOut" }}
@@ -129,8 +136,8 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
       >
         <AnimatePresence mode="wait">
           {/* SMOKESCREEN: Capa de Protección Visual SSR & Loading */}
-          <div
-            ref={smokescreenRef}
+          <div 
+            ref={smokescreenReference}
             className="absolute inset-0 z-[110] bg-[#020202] flex flex-col items-center justify-center space-y-8 transition-opacity duration-1000 pointer-events-auto"
           >
             {engineStatus === 'PERMISSION_DENIED' ? (
@@ -157,43 +164,41 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
 
         {/* 
             VII. MOTOR WEBGL AISLADO (TACTICAL_LITE)
-            [MANDATO V19.0]: mapId="map-dashboard" garantiza que el CameraController
-            solo envíe comandos a este canvas específico.
+            [FIX V20.0]: Uso de nombres de propiedad completos (mapInstanceId, startCoordinates).
         */}
         {isContainerReady && userLocation && (
           <div className="absolute inset-0 z-0 pointer-events-auto">
             <MapCore
-              mapId="map-dashboard"
+              mapInstanceId="map-dashboard"
               mode="EXPLORE"
-              performanceProfile="TACTICAL_LITE" // <--- Ahorro de VRAM crítico en Dashboard
-              startCoords={{
+              performanceProfile="TACTICAL_LITE"
+              startCoordinates={{
                 ...userLocation,
                 ...INITIAL_OVERVIEW_CONFIG
               }}
-              theme={ACTIVE_MAP_THEME}
-              selectedPOIId={null}
+              lightTheme={ACTIVE_MAP_THEME}
+              selectedPointOfInterestId={null}
               onLoad={() => setIsMapLoaded(true)}
               onIdle={revealWidgetMap}
               onMove={() => setManualMode(true)}
-              onMapClick={() => { }}
-              onMarkerClick={() => { }}
+              onMapClick={() => {}}
+              onMarkerClick={() => {}}
             />
-
+            
             {/* 
                 [SOBERANÍA DE PERSPECTIVA DASHBOARD]
-                Forzamos OVERVIEW. El widget jamás se ladeará a 3D, manteniendo 
-                la estética de maqueta profesional del Dashboard.
+                [FIX V20.0]: Uso de mapInstanceId para sincronía con el motor.
             */}
             {isMapLoaded && (
-              <CameraController
-                mapId="map-dashboard"
-                forcedPerspective="OVERVIEW"
+              <CameraController 
+                mapInstanceId="map-dashboard" 
+                forcedPerspective="OVERVIEW" 
               />
             )}
           </div>
         )}
 
-        {/* GRADIENT OVERLAY: Mejora de legibilidad sobre el mapa */}
+        {/* GRADIENT OVERLAY */}
         <div className="absolute inset-0 bg-gradient-to-t from-[#020202] via-transparent to-transparent z-10 pointer-events-none opacity-60" />
 
         {/* UI DE COMANDO PERIFÉRICA */}
@@ -222,14 +227,3 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
     </MapProvider>
   );
 });
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT (V19.0):
- * 1. Zero-Competition: Se eliminó la ignición de sensores desde el widget. Ahora 
- *    el frame espera pasivamente a que el sistema central entregue 'userLocation', 
- *    liberando al Main Thread de negociaciones de permisos duplicadas.
- * 2. Absolute Isolation: MapProvider local + mapId="map-dashboard" aseguran que 
- *    el recolector de basura (GC) del navegador limpie la VRAM al salir del Dashboard.
- * 3. Perspective Lock: forcedPerspective="OVERVIEW" soluciona de raíz el ladeo 
- *    accidental (Imagen 37), blindando la visualización cenital.
- */
