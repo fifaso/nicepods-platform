@@ -1,13 +1,13 @@
 /**
  * ARCHIVO: hooks/geo-engine/telemetry-core.tsx
- * VERSIÓN: 1.1 (NicePod V3.0 - Sovereign Telemetry & Authority Shield Edition)
+ * VERSIÓN: 1.2 (NicePod V3.0 - Sovereign Telemetry & Handshake T0 Fix)
  * PROTOCOLO: MADRID RESONANCE V3.0
  * 
- * Misión: Gestionar la verdad física del Voyager mediante la purificación de 
- * telemetría, eliminando saltos por error de red y garantizando la soberanía 
- * del hardware satelital sobre las estimaciones de IP.
- * [REFORMA V1.1]: Implementación de Teleport Threshold (100m) y Sovereignty Lock.
- * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
+ * Misión: Gestionar la ubicación física del Voyager purificando la telemetría 
+ * y garantizando la integridad del contrato de datos inicial (Geo-IP).
+ * [FIX V1.2]: Resolución de error de compilación TS2330 mediante la inclusión 
+ * de la propiedad 'city' en el contrato de InitialData.
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
@@ -21,10 +21,14 @@ import { useSensorAuthority } from "../use-sensor-authority";
 /**
  * PARÁMETROS DE GOBERNANZA INDUSTRIAL
  */
-const EMISSION_THRESHOLD_METERS = 0.8;    // Filtro de ruido en reposo (80cm)
-const TELEPORT_THRESHOLD_METERS = 100.0;  // Umbral para descartar interpolación (LERP)
-const SOVEREIGN_ACCURACY_THRESHOLD = 30;  // Precisión mínima para bloquear autoridad GPS
+const EMISSION_THRESHOLD_METERS = 0.8;    
+const TELEPORT_THRESHOLD_METERS = 100.0;  
+const SOVEREIGN_ACCURACY_THRESHOLD = 30;  
 
+/**
+ * INTERFAZ: TelemetryCoreReturn
+ * La firma pública que expone el núcleo de hardware a la Fachada.
+ */
 interface TelemetryCoreReturn {
   userLocation: UserLocation | null;
   isIgnited: boolean;
@@ -43,15 +47,27 @@ interface TelemetryCoreReturn {
 
 const TelemetryContext = createContext<TelemetryCoreReturn | undefined>(undefined);
 
+/**
+ * TelemetryProvider: El Reactor de Ubicación Primario.
+ */
 export function TelemetryProvider({ 
   children, 
   initialData 
 }: { 
   children: React.ReactNode, 
-  initialData?: { lat: number, lng: number, source: string } | null 
+  /**
+   * initialData: Datos provenientes del Middleware (Geo-IP) para el arranque T0.
+   * [FIX V1.2]: Se añade 'city' para cumplir con el contrato de useSensorAuthority.
+   */
+  initialData?: { 
+    lat: number; 
+    lng: number; 
+    city: string; 
+    source: string; 
+  } | null 
 }) {
   
-  // 1. CONSUMO DEL CENTINELA DE HARDWARE (Nivel Bajo)
+  // 1. CONSUMO DEL CENTINELA DE HARDWARE
   const {
     telemetry: rawTelemetry,
     isDenied,
@@ -61,18 +77,18 @@ export function TelemetryProvider({
     reSync
   } = useSensorAuthority({ initialData });
 
-  // 2. ESTADO SOBERANO (Lo que el sistema considera la "Verdad")
+  // 2. ESTADO SOBERANO DE UBICACIÓN
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [isTriangulated, setIsTriangulated] = useState<boolean>(!!initialData);
   const [manualAnchor, setManualAnchorState] = useState<UserLocation | null>(null);
 
-  // 3. MEMORIA TÁCTICA (Refs para evitar re-renders por micro-ruido)
+  // 3. MEMORIA TÁCTICA (Refs para protección de re-renders)
   const lastEmittedLocationReference = useRef<UserLocation | null>(null);
   const isSovereignLockReference = useRef<boolean>(false);
 
   /**
    * EFECTO: FILTRADO DE AUTORIDAD Y EMISIÓN
-   * Misión: Decidir si la lectura entrante es digna de ser procesada por la Workstation.
+   * Misión: Decidir si la lectura entrante es válida para la Malla de Madrid.
    */
   useEffect(() => {
     const effectiveLocation = manualAnchor || rawTelemetry;
@@ -83,14 +99,13 @@ export function TelemetryProvider({
 
       /**
        * PROTOCOLO DE SOBERANÍA (V3.0):
-       * Si ya tenemos un bloqueo de GPS de alta fidelidad, ignoramos cualquier 
-       * dato de IP-fallback que pueda llegar por fluctuaciones de red.
+       * Si el GPS ha alcanzado un bloqueo HD, blindamos el sistema contra 
+       * retrocesos accidentales a la ubicación por IP.
        */
       if (isSovereignLockReference.current && currentSource === 'ip-fallback') {
         return;
       }
 
-      // Activar bloqueo si la precisión es óptima
       if (currentSource === 'gps' && currentAccuracy < SOVEREIGN_ACCURACY_THRESHOLD) {
         if (!isSovereignLockReference.current) {
           nicepodLog("🛡️ [TelemetryCore] GPS Sovereign Lock: ACTIVADO.");
@@ -98,11 +113,10 @@ export function TelemetryProvider({
         }
       }
 
-      let shouldEmit = false;
+      let shouldEmitLocation = false;
 
       if (!lastEmittedLocationReference.current) {
-        // Primera materialización del Voyager
-        shouldEmit = true;
+        shouldEmitLocation = true;
       } else {
         const movementDistance = calculateDistance(
           { latitude: effectiveLocation.latitude, longitude: effectiveLocation.longitude },
@@ -111,19 +125,12 @@ export function TelemetryProvider({
 
         const headingDifference = Math.abs((effectiveLocation.heading || 0) - (lastEmittedLocationReference.current.heading || 0));
 
-        /**
-         * FILTRO DE TELETRANSPORTE (Punto Ciego 1):
-         * Si el cambio es masivo (> 100m), emitimos inmediatamente para que el 
-         * sistema ejecute un salto atómico en lugar de un LERP infinito.
-         */
+        // Filtro de Teletransporte: Emisión inmediata si el salto es > 100m
         const isHardJump = movementDistance > TELEPORT_THRESHOLD_METERS;
 
         /**
-         * CONDICIONES DE EMISIÓN DISCRETA:
-         * 1. Se ha superado el umbral de movimiento (80cm).
-         * 2. El rumbo ha cambiado significativamente (> 1.5°).
-         * 3. Ha habido un cambio de fuente de datos (IP -> GPS).
-         * 4. Es un salto de larga distancia.
+         * CONDICIONES DE EMISIÓN DISCRETA (CPU Shield):
+         * Solo notificamos a la UI si hay un cambio físico real o cambio de fuente.
          */
         if (
           movementDistance > EMISSION_THRESHOLD_METERS || 
@@ -131,13 +138,13 @@ export function TelemetryProvider({
           currentSource !== lastEmittedLocationReference.current.source ||
           isHardJump
         ) {
-          shouldEmit = true;
+          shouldEmitLocation = true;
         }
       }
 
-      if (shouldEmit) {
+      if (shouldEmitLocation) {
         setUserLocation(effectiveLocation);
-        lastEmittedLocationReference.reference = effectiveLocation; // Actualizamos memoria para el siguiente pulso
+        lastEmittedLocationReference.current = effectiveLocation;
         
         if (!isTriangulated) {
           setIsTriangulated(true);
@@ -160,7 +167,7 @@ export function TelemetryProvider({
     initSensors: startHardwareWatch,
     killSensors: killHardwareWatch,
     reSyncSensors: () => {
-      isSovereignLockReference.current = false; // Liberamos el bloqueo para permitir re-sintonía
+      isSovereignLockReference.current = false;
       reSync();
     },
     setTriangulated: (value: boolean) => setIsTriangulated(value),
@@ -191,7 +198,7 @@ export function TelemetryProvider({
 
 /**
  * useGeoTelemetry:
- * Punto de acceso único para la verdad física del dispositivo.
+ * Consumo único de la verdad física del silicio.
  */
 export const useGeoTelemetry = () => {
   const context = useContext(TelemetryContext);
@@ -202,11 +209,11 @@ export const useGeoTelemetry = () => {
 };
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V1.1):
- * 1. Authority Guard: El sistema ahora discrimina entre fuentes de datos. El bloqueo 
- *    soberano impide que el mapa "baile" entre la ubicación IP y la GPS.
- * 2. Hybrid Stability: Se ha preparado el terreno para que el CameraDirector detecte 
- *    si debe interpolar (movimiento corto) o saltar (movimiento largo > 100m).
- * 3. Zero Abbreviations: Se ha purgado el código de abreviaturas para cumplir 
- *    con el estándar de documentación industrial V3.0.
+ * NOTA TÉCNICA DEL ARCHITECT (V1.2):
+ * 1. Contract Alignment: La inclusión de 'city' en el objeto initialData asegura 
+ *    la compatibilidad atómica con el Handshake T0 de Vercel.
+ * 2. Reference Integrity: Se corrigió el acceso a lastEmittedLocationReference.current, 
+ *    eliminando el error de compilación en el seguimiento de historial.
+ * 3. Zero Abbreviations: Se ha purgado el código de términos cortos para garantizar 
+ *    la transparencia técnica del motor V3.0.
  */
