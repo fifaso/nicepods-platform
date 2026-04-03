@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: hooks/use-geo-engine.tsx
- * VERSIÓN: 45.0 (NicePod Sovereign Geo-Engine - Triple-Core Facade Edition)
+ * VERSIÓN: 45.1 (NicePod Sovereign Geo-Engine - Log Integrity & Triple-Core Facade)
  * PROTOCOLO: MADRID RESONANCE V3.0
  * 
  * Misión: Actuar como Fachada Transparente unificando los núcleos de Telemetría, 
  * Radar e Interfaz. Provee el contrato GeoEngineReturn sin generar competencia 
  * de hilos ni bucles de re-renderizado.
- * [REFORMA V45.0]: Integración nativa de mapStyle y optimización de Handshake T0.
+ * [FIX V45.1]: Inclusión de importación nicepodLog para resolver error de compilación.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -22,6 +22,9 @@ import { TelemetryProvider, useGeoTelemetry } from "./geo-engine/telemetry-core"
 // --- CONTRATOS SOBERANOS Y IA ---
 import { GeoContextData, GeoEngineReturn, GeoEngineState } from "@/types/geo-sovereignty";
 import { useForgeOrchestrator } from "./use-forge-orchestrator";
+
+// --- UTILIDADES DE INFRAESTRUCTURA ---
+import { nicepodLog } from "@/lib/utils";
 
 const GeoEngineContext = createContext<GeoEngineReturn | undefined>(undefined);
 
@@ -40,7 +43,7 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
 
   /**
    * EFECTO: ORQUESTACIÓN CROSS-DOMAIN
-   * Misión: Sincronizar el hardware con la lógica de red y la interfaz.
+   * Misión: Sincronizar el hardware con la lógica de red y la interfaz táctica.
    */
   useEffect(() => {
     const currentLocation = telemetryCore.userLocation;
@@ -52,22 +55,20 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
 
       /**
        * 1. DETECCIÓN DE ATERRIZAJE BALÍSTICO (Handshake T0):
-       * Si pasamos de IP a GPS de alta fidelidad, forzamos un vuelo de cámara
-       * y una descarga profunda de la Bóveda NKV.
+       * Si pasamos de IP a GPS de alta fidelidad, disparamos el aterrizaje.
        */
       if (telemetryCore.isGPSLock && sourceJustChangedToGPS && !hasPerformedInitialLandingReference.current) {
         interfaceCore.triggerLanding();
         hasPerformedInitialLandingReference.current = true;
-        radarCore.fetchRadar(currentLocation, true); // Cosecha forzada
+        radarCore.fetchRadar(currentLocation, true); 
       }
 
       /**
        * 2. INTELIGENCIA DE PROXIMIDAD:
-       * Evaluamos la resonancia de los nodos cercanos basándonos en la 
-       * telemetría purificada por el TelemetryCore.
+       * Evaluación de resonancia basada en telemetría purificada.
        */
       radarCore.evaluateProximity(currentLocation);
-      radarCore.fetchRadar(currentLocation, false); // Cosecha con throttling (150m)
+      radarCore.fetchRadar(currentLocation, false); 
 
       lastSourceReference.current = telemetryCore.telemetrySource;
     }
@@ -80,8 +81,7 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
   ]);
 
   /**
-   * derivedStatus: Máquina de Estados Finita Derivada.
-   * Misión: Informar a la UI del estado global del sistema de peritaje.
+   * derivedStatus: Máquina de Estados Finita Derivada para la UI.
    */
   const derivedStatus = useMemo((): GeoEngineState => {
     if (forgeOrchestrator.forgeStatus !== 'IDLE') return forgeOrchestrator.forgeStatus;
@@ -91,7 +91,6 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
 
   /**
    * ENSAMBLAJE DE LA API PÚBLICA (CONTRATO SOBERANO V7.1)
-   * Misión: Devolver un objeto íntegro donde los núcleos colaboran.
    */
   const geoEngineApi: GeoEngineReturn = {
     // I. Estados de Verdad y Telemetría
@@ -112,7 +111,7 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
 
     // II. Gobernanza Visual y Cinemática
     cameraPerspective: interfaceCore.cameraPerspective,
-    mapStyle: interfaceCore.mapStyle, // Sincronía atómica estilo-perspectiva
+    mapStyle: interfaceCore.mapStyle, 
     isManualMode: interfaceCore.isManualMode,
     needsBallisticLanding: interfaceCore.needsBallisticLanding,
     recenterTrigger: interfaceCore.recenterTrigger,
@@ -121,10 +120,6 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
     toggleCameraPerspective: interfaceCore.togglePerspective,
     setManualMode: interfaceCore.setManualMode,
     
-    /**
-     * recenterCamera: 
-     * Misión: Recuperar el Voyager con autoridad máxima.
-     */
     recenterCamera: () => {
       if (telemetryCore.userLocation) {
         radarCore.fetchRadar(telemetryCore.userLocation, true);
@@ -176,7 +171,6 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
 
 /**
  * GeoEngineProvider: El Contenedor de Infraestructura.
- * Envuelve la plataforma en la jerarquía de núcleos necesaria para el peritaje urbano.
  */
 export function GeoEngineProvider({ 
   children, 
@@ -209,14 +203,3 @@ export function useGeoEngine() {
   }
   return context;
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT (V45.0):
- * 1. Facade Reliability: La tripartición del núcleo permite que el sistema 
- *    sea modular. Un cambio en la lógica de proximidad del radarCore no afecta 
- *    la estabilidad de la cámara en interfaceCore.
- * 2. Performance Symmetry: Al usar useEffect como sincronizador pasivo, 
- *    liberamos al hilo principal de tareas de comparación pesadas en cada frame.
- * 3. Zero Ambiguity: El objeto 'geoEngineApi' es ahora una constante determinista 
- *    que hereda la purificación de los tres sub-motores.
- */
