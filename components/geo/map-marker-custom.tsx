@@ -1,67 +1,142 @@
-// components/geo/map-marker-custom.tsx
-// VERSIÓN: 4.0 (NicePod Floating Echo - GPU Acceleration & Zero-Thrashing Edition)
-// [ESTABILIZACIÓN]: Migración a CSS Keyframes para animaciones masivas. OOM Prevention.
+/**
+ * ARCHIVO: components/geo/map-marker-custom.tsx
+ * VERSIÓN: 5.0 (NicePod Floating Echo - Multidimensional Identity Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.0
+ * 
+ * Misión: Representar los Nodos de Inteligencia con identidad visual única basada 
+ * en la taxonomía de dos capas, garantizando el reconocimiento cognitivo inmediato.
+ * [REFORMA V5.0]: Implementación de estilos por Misión, mapeo total de Entidades 
+ * y purificación total de nomenclatura (Sin abreviaciones).
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ */
 
 "use client";
 
 import { cn } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
-import { Camera, History, Landmark, Leaf, Music, Palette, Sparkles, Zap } from "lucide-react";
+import { 
+  Camera, 
+  History, 
+  Landmark, 
+  Leaf, 
+  Music, 
+  Palette, 
+  Sparkles, 
+  Zap, 
+  Droplets, 
+  Wind, 
+  BatteryCharging, 
+  ShieldCheck, 
+  Building2, 
+  ScrollText, 
+  Gem, 
+  Library, 
+  Binary, 
+  Paintbrush, 
+  Telescope, 
+  Waves, 
+  Coffee,
+  ShoppingBag,
+  MapPin
+} from "lucide-react";
 import { memo, useMemo } from "react";
-
-// [FIX VERCEL]: Enrutamiento explícito al motor Mapbox
 import { Marker } from "react-map-gl/mapbox";
 
+// --- SOBERANÍA DE TIPOS ---
+import { CategoryEntity, CategoryMission } from "@/types/geo-sovereignty";
+
 interface MapMarkerCustomProps {
-  id: string;
+  identification: string;
   latitude: number;
   longitude: number;
-  category_id: string;
-  name: string;
+  categoryMission: CategoryMission;
+  categoryEntity: CategoryEntity;
+  pointOfInterestName: string;
   isResonating: boolean;
   isSelected: boolean;
-  onClick: (id: string) => void;
+  onMarkerInteraction: (identification: string) => void;
 }
 
+/**
+ * MapMarkerCustomComponent: La representación física de un Eco en la Malla.
+ */
 const MapMarkerCustomComponent = ({
-  id,
+  identification,
   latitude,
   longitude,
-  category_id,
-  name,
+  categoryMission,
+  categoryEntity,
+  pointOfInterestName,
   isResonating,
   isSelected,
-  onClick
+  onMarkerInteraction
 }: MapMarkerCustomProps) => {
 
-  // Memoización estricta del Icono para evitar re-creación de SVG en cada render
-  const IconComponent = useMemo(() => {
-    const iconClass = "w-5 h-5";
-    switch (category_id.toLowerCase()) {
-      case 'historia': return <History className={iconClass} />;
-      case 'arquitectura': return <Landmark className={iconClass} />;
-      case 'arte': return <Palette className={iconClass} />;
-      case 'naturaleza': return <Leaf className={iconClass} />;
-      case 'musica': return <Music className={iconClass} />;
-      case 'foto': return <Camera className={iconClass} />;
-      case 'secreto': return <Zap className={iconClass} />;
-      default: return <Sparkles className={iconClass} />;
+  /**
+   * configuracionVisual: 
+   * Misión: Definir colores y sombras según el cuadrante de misión.
+   */
+  const configuracionVisual = useMemo(() => {
+    switch (categoryMission) {
+      case 'infraestructura_vital':
+        return { color: "text-amber-500", glow: "bg-amber-500/20", border: "border-amber-500/30" };
+      case 'memoria_soberana':
+        return { color: "text-emerald-500", glow: "bg-emerald-500/20", border: "border-emerald-500/30" };
+      case 'capital_intelectual':
+        return { color: "text-primary", glow: "bg-primary/20", border: "border-primary/30" };
+      case 'resonancia_sensorial':
+        return { color: "text-rose-500", glow: "bg-rose-500/20", border: "border-rose-500/30" };
+      default:
+        return { color: "text-zinc-500", glow: "bg-zinc-500/20", border: "border-zinc-500/30" };
     }
-  }, [category_id]);
+  }, [categoryMission]);
+
+  /**
+   * IconoEntidad:
+   * Misión: Mapeo quirúrgico de la iconografía según la entidad física.
+   */
+  const IconoEntidad = useMemo(() => {
+    const claseIcono = "w-5 h-5";
+    const mapeo: Record<CategoryEntity, React.ReactNode> = {
+      // Infraestructura Vital
+      aseo_premium: <ShieldCheck className={claseIcono} />,
+      nodo_hidratacion: <Droplets className={claseIcono} />,
+      refugio_climatico: <Wind className={claseIcono} />,
+      terminal_energia: <BatteryCharging className={claseIcono} />,
+      zona_segura: <MapPin className={claseIcono} />,
+      // Memoria Soberana
+      monumento_nacional: <Landmark className={claseIcono} />,
+      placa_sintonia: <ScrollText className={claseIcono} />,
+      yacimiento_ruina: <History className={claseIcono} />,
+      leyenda_urbana: <Zap className={claseIcono} />,
+      arquitectura_epoca: <Building2 className={claseIcono} />,
+      // Capital Intelectual
+      museo_sabiduria: <Library className={claseIcono} />,
+      atelier_galeria: <Palette className={claseIcono} />,
+      libreria_autor: <Gem className={claseIcono} />,
+      centro_innovacion: <Binary className={claseIcono} />,
+      intervencion_plastica: <Paintbrush className={claseIcono} />,
+      // Resonancia Sensorial
+      mirador_estrategico: <Telescope className={claseIcono} />,
+      paisaje_sonoro: <Waves className={claseIcono} />,
+      pasaje_secreto: <Sparkles className={claseIcono} />,
+      mercado_origen: <ShoppingBag className={claseIcono} />,
+      obrador_tradicion: <Coffee className={claseIcono} />
+    };
+
+    return mapeo[categoryEntity] || <Sparkles className={claseIcono} />;
+  }, [categoryEntity]);
 
   return (
-    // pitchAlignment="auto" permite que el marcador se mantenga siempre de pie frente a la cámara (Billboard)
-    // a diferencia de los anillos del Voyager que deben estar pegados al asfalto.
     <Marker latitude={latitude} longitude={longitude} anchor="bottom">
       <div
         className="relative flex flex-col items-center group cursor-pointer"
-        onClick={(e) => { e.stopPropagation(); onClick(id); }}
+        onClick={(event) => { 
+          event.stopPropagation(); 
+          onMarkerInteraction(identification); 
+        }}
       >
-        {/* 
-            I. LA SOMBRA DE GRAVEDAD (Static/Dynamic Toggle)
-            Si el marcador no resuena/selecciona, la sombra es una elipse estática ligera.
-            Si se activa, el CSS maneja la respiración de la sombra en sincronía con la levitación.
-        */}
+        {/* I. LA SOMBRA DE GRAVEDAD */}
         <div
           className={cn(
             "absolute bottom-0 w-8 h-2 bg-black/60 rounded-full blur-[4px] transform transition-transform duration-700",
@@ -70,10 +145,7 @@ const MapMarkerCustomComponent = ({
           style={{ willChange: 'transform, opacity' }}
         />
 
-        {/* 
-            II. HALO DE ENERGÍA SOBERANO
-            Montaje condicional. El 'blur-3xl' es costoso. Solo existe cuando hay contacto táctico.
-        */}
+        {/* II. HALO DE ENERGÍA SOBERANO */}
         <AnimatePresence>
           {(isResonating || isSelected) && (
             <motion.div
@@ -82,41 +154,38 @@ const MapMarkerCustomComponent = ({
               exit={{ opacity: 0, scale: 0.5 }}
               className={cn(
                 "absolute -inset-10 rounded-full blur-3xl z-0",
-                isSelected ? "bg-primary/30" : "bg-indigo-500/10"
+                configuracionVisual.glow
               )}
             />
           )}
         </AnimatePresence>
 
-        {/* 
-            III. NÚCLEO FÍSICO LEVITANTE (GPU Accelerated)
-            [MANDATO V2.7]: 'animate-[float_4s_ease-in-out_infinite]' transfiere el trabajo 
-            de React/JS directamente a la GPU móvil, permitiendo renderizar 100 marcadores a 60fps.
-        */}
+        {/* III. NÚCLEO FÍSICO LEVITANTE (GPU Accelerated) */}
         <div
           className={cn(
             "relative z-20 h-12 w-12 rounded-2xl flex items-center justify-center transition-all duration-500",
             "bg-[#020202] border-2 shadow-[0_20px_40px_rgba(0,0,0,0.8)]",
-            "animate-[float_4s_ease-in-out_infinite]", // <--- Física CSS Pura
+            "animate-[float_4s_ease-in-out_infinite]",
             isSelected
-              ? "border-primary scale-125 shadow-[0_0_30px_rgba(var(--primary),0.5)]"
-              : "border-white/10 group-hover:border-primary/50"
+              ? "border-primary scale-125 shadow-[0_0_30px_rgba(var(--primary-rgb),0.5)]"
+              : cn("border-white/10 group-hover:border-white/30", configuracionVisual.border)
           )}
-          style={{ willChange: 'transform' }} // Capa de composición forzada
+          style={{ willChange: 'transform' }}
         >
-          <div className={cn("transition-colors duration-500", isSelected || isResonating ? "text-primary" : "text-zinc-500")}>
-            {IconComponent}
+          <div className={cn(
+            "transition-colors duration-500", 
+            isSelected || isResonating ? "text-primary" : configuracionVisual.color
+          )}>
+            {IconoEntidad}
           </div>
 
-          {/* ONDA EXPANSIVA (Solo activa durante resonancia) */}
+          {/* ONDA EXPANSIVA DE RESONANCIA */}
           {isResonating && (
             <div className="absolute inset-0 rounded-2xl border-2 border-primary animate-[ping_1.5s_cubic-bezier(0,0,0.2,1)_infinite] opacity-50" />
           )}
         </div>
 
-        {/* 
-            IV. CHAPA DE IDENTIFICACIÓN (TOOLTIP TÁCTICO)
-        */}
+        {/* IV. CHAPA DE IDENTIFICACIÓN NOMINATIVA */}
         <AnimatePresence>
           {isSelected && (
             <motion.div
@@ -125,8 +194,10 @@ const MapMarkerCustomComponent = ({
               exit={{ opacity: 0, y: 5 }}
               className="absolute -bottom-14 whitespace-nowrap z-30 pointer-events-none"
             >
-              <div className="bg-black/90 backdrop-blur-2xl px-5 py-2.5 rounded-[1.2rem] border border-white/10 shadow-[0_15px_30px_rgba(0,0,0,0.8)]">
-                <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white italic">{name}</span>
+              <div className="bg-black/95 backdrop-blur-3xl px-5 py-2.5 rounded-[1.2rem] border border-white/10 shadow-2xl">
+                <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white italic">
+                  {pointOfInterestName}
+                </span>
               </div>
             </motion.div>
           )}
@@ -138,31 +209,28 @@ const MapMarkerCustomComponent = ({
 };
 
 /**
- * [BUILD SHIELD]: Memoización Estricta (Zero-Thrashing)
- * Evita que React reconstruya los Nodos de Inteligencia cuando el Voyager 
- * camina o la brújula cambia, a menos que el estado de Selección o Resonancia del Nodo cambie.
+ * [BUILD SHIELD]: SOBERANÍA DE RENDERIZADO
+ * Evitamos que React reconstruya los Nodos de Inteligencia ante movimientos del GPS,
+ * a menos que cambie su estado de sintonía o su identidad básica.
  */
-export const MapMarkerCustom = memo(MapMarkerCustomComponent, (prev, next) => {
+export const MapMarkerCustom = memo(MapMarkerCustomComponent, (previousProps, nextProps) => {
   return (
-    prev.id === next.id &&
-    prev.isResonating === next.isResonating &&
-    prev.isSelected === next.isSelected &&
-    // No comparamos lat/lng porque los "Ecos" son inmutables en posición física
-    prev.category_id === next.category_id
+    previousProps.identification === nextProps.identification &&
+    previousProps.isResonating === nextProps.isResonating &&
+    previousProps.isSelected === nextProps.isSelected &&
+    previousProps.categoryMission === nextProps.categoryMission &&
+    previousProps.categoryEntity === nextProps.categoryEntity
   );
 });
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V4.0):
- * 1. CPU Offloading (Físicas de Levitación CSS): Se eliminó 'framer-motion' 
- *    del contenedor principal del marcador (`y: [0, -12, 0]`). Se sustituyó 
- *    por clases de Tailwind ('animate-[float_...]') respaldadas por 'will-change: transform'.
- *    Esto garantiza 60FPS fluidos incluso si el mapa renderiza 50 Ecos simultáneamente.
- *    (Requiere inyección de keyframes 'float' y 'shadowPulse' en tailwind.config.ts).
- * 2. Overdraw Control: El Halo de Energía (blur-3xl) y las ondas expansivas 
- *    (ping) solo existen en el DOM si el nodo está Activo o Resonando. Los 
- *    marcadores "dormidos" son extremadamente ligeros para la memoria de video.
- * 3. Billboard Effect: 'anchor="bottom"' asegura que la base del marcador 
- *    apunte siempre a la coordenada exacta del suelo 3D de Mapbox, manteniendo 
- *    su perspectiva al rotar la cámara.
+ * NOTA TÉCNICA DEL ARCHITECT (V5.0):
+ * 1. Cognitive Recognition: La asociación de colores a Misiones y de iconos a Entidades 
+ *    permite al Voyager realizar un peritaje visual instantáneo del mapa, reduciendo 
+ *    la carga cognitiva y elevando la percepción de "Herramienta de Grado Industrial".
+ * 2. Visual Stasis: Al integrar 'categoryMission' y 'categoryEntity' en el comparador 
+ *    del memo, aseguramos que el marcador solo se repinte si el Oráculo modifica su 
+ *    clasificación tras un re-análisis.
+ * 3. Atomic Identity: El uso de 'identification' en lugar de 'id' alinea este 
+ *    componente con el estándar de nomenclatura del resto de la arquitectura V3.0.
  */
