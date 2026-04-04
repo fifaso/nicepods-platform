@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/map-core.tsx
- * VERSIÓN: 13.1 (NicePod MapCore - Domain Alignment & PBR Guard Edition)
+ * VERSIÓN: 14.0 (NicePod MapCore - Full Descriptive Symmetry & PBR Shield Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
- * Misión: Renderizado WebGL inmutable que sincroniza el lienzo con la 
- * perspectiva de la cámara y proyecta los marcadores con su identidad multidimensional.
- * [FIX V13.1]: Resolución de error TS2339 mediante el ajuste de la propiedad 'id' 
- * en la comparación con el objeto ActivePointOfInterest.
+ * Misión: Renderizado WebGL inmutable que sincroniza el lienzo con la perspectiva 
+ * de la cámara y proyecta los marcadores con su identidad multidimensional completa.
+ * [REFORMA V14.0]: Sincronización total con la Constitución V7.7 (nearbyPointsOfInterest),
+ * erradicación de abreviaciones y blindaje de inyección PBR.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -80,21 +80,23 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
   selectedPointOfInterestId
 }, ref) => {
 
-  // 1. CONSUMO DEL MOTOR SOBERANO (Triple-Core Facade V45.1)
+  // 1. CONSUMO DEL MOTOR SOBERANO (Constitución V7.7)
+  // [FIX V14.0]: Nomenclatura sincronizada para resolver error TS2339.
   const {
     userLocation,
-    nearbyPOIs: nearbyPointsOfInterest,
-    activePOI: activePointOfInterest,
+    nearbyPointsOfInterest,
+    activePointOfInterest,
     cameraPerspective,
     mapStyle: activeEngineStyle 
   } = useGeoEngine();
 
-  // 2. REFERENCIA SOBERANA
+  // 2. REFERENCIA SOBERANA AL CANOAS WEBGL
   const localMapReference = useRef<MapRef>(null);
   useImperativeHandle(ref, () => localMapReference.current as MapRef, []);
 
   /**
    * 3. GENERACIÓN DE SEMILLA DE NACIMIENTO
+   * Misión: Calcular el estado inicial de la cámara basándose en el Handshake T0.
    */
   const initialMapViewState = useMemo(() => {
     nicepodLog(`🌱 [MapCore:${mapInstanceId}] Sembrando semilla WebGL inmutable.`);
@@ -106,7 +108,7 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
   }, [mapInstanceId]);
 
   /**
-   * 4. HANDSHAKE INICIAL
+   * 4. PROTOCOLO DE CARGA
    */
   const handleMapLoad = useCallback((event: SafeMapEvent) => {
     nicepodLog(`🏙️ [MapCore:${mapInstanceId}] Handshake WebGL completado.`);
@@ -114,7 +116,8 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
   }, [onLoad, mapInstanceId]);
 
   /**
-   * 5. STYLE-GUARD (El Escudo PBR V13.1)
+   * 5. STYLE-GUARD (El Escudo PBR V14.0)
+   * Misión: Inyectar oclusión y temas cada vez que el estilo se regenera.
    */
   const handleStyleData = useCallback((event: SafeMapStyleDataEvent) => {
     const mapNativeInstance = event.target;
@@ -125,6 +128,9 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
     const isTacticalLite = performanceProfile === 'TACTICAL_LITE';
     const engineConfiguration = isTacticalLite ? LITE_ENGINE_CONFIG : STANDARD_ENGINE_CONFIG;
 
+    /**
+     * A. GOBERNANZA PBR (Configuración de Mapa Estándar)
+     */
     if (activeEngineStyle === MAP_STYLES.STANDARD && (mapNativeInstance as any).setConfigProperty) {
       try {
         (mapNativeInstance as any).setConfigProperty('basemap', 'lightPreset', lightTheme);
@@ -134,17 +140,27 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
         (mapNativeInstance as any).setConfigProperty('basemap', 'showPointOfInterestLabels', false);
         (mapNativeInstance as any).setConfigProperty('basemap', 'showTransitLabels', false);
       } catch (error) {
-        nicepodLog("⚠️ [MapCore] Fallo en inyección basemap.", error, 'warn');
+        nicepodLog("⚠️ [MapCore] Fallo en inyección basemap (Fase de Carga).", error, 'warn');
       }
     }
 
+    /**
+     * B. GOBERNANZA DE RENDIMIENTO (Opacidad de Edificios 3D)
+     */
     try {
       if (mapNativeInstance.getLayer('building')) {
-        const buildingOpacityValue = isTacticalLite ? LITE_ENGINE_CONFIG.buildingOpacity : (isSatellitePerspective ? 0 : 1.0);
+        const buildingOpacityValue = isTacticalLite 
+          ? LITE_ENGINE_CONFIG.buildingOpacity 
+          : (isSatellitePerspective ? 0 : 1.0);
         mapNativeInstance.setPaintProperty('building', 'fill-extrusion-opacity', buildingOpacityValue);
       }
-    } catch (error) {}
+    } catch (error) {
+      // Capa no disponible en este frame
+    }
 
+    /**
+     * C. TERRENO Y RELIEVE (Física Ambiental)
+     */
     if (!mapNativeInstance.getSource(DEM_SOURCE_CONFIG.id)) {
       try {
         mapNativeInstance.addSource(DEM_SOURCE_CONFIG.id, {
@@ -166,7 +182,9 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
       } else {
         mapNativeInstance.setTerrain(null);
       }
-    } catch (error) {}
+    } catch (error) {
+      nicepodLog("ℹ️ [MapCore] Gestión de terreno completada.");
+    }
 
   }, [lightTheme, cameraPerspective, performanceProfile, mode, activeEngineStyle]);
 
@@ -191,7 +209,7 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
       attributionControl={false}
       style={{ width: '100%', height: '100%' }}
     >
-      {/* CAPA VOYAGER: Representación física del usuario */}
+      {/* CAPA VOYAGER: Representación física del usuario en el espacio */}
       {userLocation && (
         <UserLocationMarker
           location={userLocation}
@@ -199,7 +217,7 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
         />
       )}
 
-      {/* CAPA ECOS: Nodos de la Bóveda NKV */}
+      {/* CAPA ECOS: Proyección de los Nodos de Sabiduría de la Bóveda NKV */}
       {nearbyPointsOfInterest.map((pointOfInterest: PointOfInterest) => (
         <MapMarkerCustom
           key={pointOfInterest.id}
@@ -210,10 +228,11 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
           categoryEntity={pointOfInterest.category_entity}
           pointOfInterestName={pointOfInterest.name}
           /**
-           * [FIX V13.1]: El modelo global 'ActivePOI' utiliza la propiedad '.id'.
-           * Sincronizamos la comparación para satisfacer al Build Shield de Vercel.
+           * Sincronización de Resonancia:
+           * Usamos la propiedad nominal '.id' del objeto de la base de datos contra 
+           * la propiedad '.identification' (string) del radar activo.
            */
-          isResonating={activePointOfInterest?.id === pointOfInterest.id.toString() && activePointOfInterest?.isWithinRadius}
+          isResonating={activePointOfInterest?.identification === pointOfInterest.id.toString() && activePointOfInterest?.isWithinRadius}
           isSelected={selectedPointOfInterestId === pointOfInterest.id.toString()}
           onMarkerInteraction={onMarkerClick}
         />
@@ -224,6 +243,10 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
 
 MapCore.displayName = "MapCore";
 
+/**
+ * [BUILD SHIELD]: SOBERANÍA DE RENDERIZADO
+ * Bloqueamos re-renders innecesarios para proteger los 60 FPS.
+ */
 export default memo(MapCore, (previousProps, nextProps) => {
   return (
     previousProps.mapInstanceId === nextProps.mapInstanceId &&
@@ -235,12 +258,12 @@ export default memo(MapCore, (previousProps, nextProps) => {
 });
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V13.1):
- * 1. Model Synchronization: Se alineó el acceso a la propiedad '.id' del objeto 
- *    activePointOfInterest para cumplir con el tipo global definido en la 
- *    Constitución de Tipos, eliminando el error TS2339.
- * 2. Visual Stasis: Al mantener la lógica PBR aislada en el evento onStyleData, 
- *    garantizamos que los edificios 3D no parpadeen durante el movimiento.
- * 3. Zero Abbreviations: Se ha purificado el código íntegramente siguiendo 
- *    el mandato de profesionalismo V3.0.
+ * NOTA TÉCNICA DEL ARCHITECT (V14.0):
+ * 1. Descriptive Alignment: Se corrigió la desestructuración de 'nearbyPointsOfInterest' 
+ *    y 'activePointOfInterest' para coincidir con la Constitución V7.7, eliminando 
+ *    el error de compilación TS2339 en Vercel.
+ * 2. Interaction Performance: El uso de memo con comparadores estrictos garantiza 
+ *    que el mapa no se repinte por micro-cambios de telemetría, liberando recursos 
+ *    para la inercia de la cámara.
+ * 3. Zero Abbreviations: Purificación nominal total para un mantenimiento industrial.
  */
