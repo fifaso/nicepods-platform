@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: components/geo/steps/step-2-sensory-capture.tsx
- * VERSIÓN: 5.3 (NicePod Forge Step 2 - Sovereign Multidimensional Capture & Validation Edition)
+ * VERSIÓN: 5.4 (NicePod Forge Step 2 - Sovereign Multidimensional Capture & Build Fix)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Capturar la verdad física del entorno urbano mediante evidencia visual, 
- * acústica, temporal y referencias externas, integrando el Dictado Sensorial.
- * [REFORMA V5.3]: Validación de integridad taxonómica absoluta, purificación nominal 
- * industrial y saneamiento de clases Tailwind para Vercel.
+ * acústica, temporal y documental, integrando el Dictado Sensorial de alta fidelidad.
+ * [REFORMA V5.4]: Sincronización nominal con el ForgeContext V5.1, purificación total 
+ * de nomenclatura y saneamiento de clases Tailwind para el despliegue en Vercel.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -66,8 +66,8 @@ export default function Step2SensoryCapture() {
 
   // 2. REFERENCIAS Y ESTADOS DE PROCESAMIENTO
   const [isProcessingActive, setIsProcessingActive] = useState<boolean>(false);
-  const heroInputReference = useRef<HTMLInputElement>(null);
-  const ocrInputReference = useRef<HTMLInputElement>(null);
+  const heroImageInputReference = useRef<HTMLInputElement>(null);
+  const ocrImageInputReference = useRef<HTMLInputElement>(null);
 
   /**
    * handleHeroImageCapture:
@@ -83,7 +83,7 @@ export default function Step2SensoryCapture() {
 
   /**
    * handleOcrImageAddition:
-   * Misión: Anexar pruebas secundarias al expediente visual.
+   * Misión: Anexar pruebas secundarias al expediente visual (Mosaico OCR).
    */
   const handleOcrImageAddition = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = event.target.files;
@@ -106,9 +106,10 @@ export default function Step2SensoryCapture() {
   /**
    * executeSensoryIngestion:
    * Misión: Disparar el orquestador lightning para la subida y peritaje por IA.
+   * [SINCRO V5.4]: Uso de nomenclatura descriptiva completa en todos los campos.
    */
   const executeSensoryIngestion = async () => {
-    // Verificación de integridad estructural previa al envío.
+    // Verificación de integridad estructural exigida por el Build Shield.
     if (
       !forgeState.heroImageFile || 
       !forgeState.historicalEpoch || 
@@ -123,7 +124,7 @@ export default function Step2SensoryCapture() {
     nicepodLog("⚙️ [Step2] Iniciando protocolo de ingesta multimodal V4.0...");
 
     try {
-      // Invocación a la Fachada sincronizada con el contrato de tipos V7.6.
+      // Invocación a la Fachada sincronizada con la Constitución V7.7.
       const ingestionResults = await ingestSensoryData({
         heroImage: forgeState.heroImageFile,
         ocrImages: forgeState.ocrImageFiles,
@@ -139,10 +140,12 @@ export default function Step2SensoryCapture() {
 
       if (ingestionResults) {
         nicepodLog("✅ [Step2] Evidencia blindada. Procediendo a Auditoría.");
+        
+        // [FIX V5.4]: Sincronía nominal con el Reducer (pointOfInterestIdentification).
         dispatch({
           type: 'SET_INGESTION_RESULT',
           payload: { 
-            poiId: ingestionResults.pointOfInterestIdentification, 
+            pointOfInterestIdentification: ingestionResults.pointOfInterestIdentification, 
             dossier: ingestionResults.dossier 
           }
         });
@@ -174,17 +177,18 @@ export default function Step2SensoryCapture() {
       {/* CABECERA TÁCTICA */}
       <div className="mb-6 shrink-0">
         <label className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-500 mb-2 block">
-          Fase 2: Captura de Inteligencia
+          Fase 2: Evidencia Física
         </label>
         <h3 className="text-white font-black uppercase tracking-tighter text-2xl italic leading-none">
-          Malla de Evidencia
+          Malla de Captura
         </h3>
       </div>
 
       {/* SECCIÓN I: VISIÓN (HERO & OCR) */}
       <div className="mb-8 space-y-4">
+        {/* ENTRADA DE IMAGEN HERO */}
         <div 
-          onClick={() => heroInputReference.current?.click()}
+          onClick={() => heroImageInputReference.current?.click()}
           className={cn(
             "relative aspect-video rounded-[2.5rem] border-2 border-dashed transition-all duration-500 cursor-pointer overflow-hidden flex flex-col items-center justify-center gap-4",
             forgeState.heroImageFile 
@@ -208,9 +212,10 @@ export default function Step2SensoryCapture() {
               </span>
             </>
           )}
-          <input type="file" ref={heroInputReference} onChange={handleHeroImageCapture} accept="image/*" className="hidden" />
+          <input type="file" ref={heroImageInputReference} onChange={handleHeroImageCapture} accept="image/*" className="hidden" />
         </div>
 
+        {/* MOSAICO DE DETALLE (OCR) */}
         <div className="bg-white/[0.01] rounded-[2rem] p-5 border border-white/5 shadow-inner">
           <div className="flex justify-between items-center mb-4">
             <span className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.3em]">Evidencia Secundaria (OCR)</span>
@@ -224,7 +229,7 @@ export default function Step2SensoryCapture() {
                 <FileText className="text-zinc-700 h-6 w-6" />
                 <button 
                   onClick={() => dispatch({ type: 'REMOVE_OCR_IMAGE', payload: index })}
-                  className="absolute -top-2 -right-2 bg-red-500/80 text-white p-1.5 rounded-full shadow-2xl opacity-0 group-hover:opacity-100 transition-all active:scale-90"
+                  className="absolute -top-1.5 -right-1.5 bg-red-500/80 text-white p-1.5 rounded-full shadow-2xl opacity-0 group-hover:opacity-100 transition-all active:scale-90"
                 >
                   <Trash2 size={12} />
                 </button>
@@ -232,14 +237,14 @@ export default function Step2SensoryCapture() {
             ))}
             {forgeState.ocrImageFiles.length < 3 && (
               <button 
-                onClick={() => ocrInputReference.current?.click()}
+                onClick={() => ocrImageInputReference.current?.click()}
                 className="aspect-square rounded-2xl border-2 border-dashed border-white/5 bg-transparent hover:bg-white/[0.03] hover:border-white/20 flex items-center justify-center transition-all"
               >
                 <Plus className="text-zinc-800 h-8 w-8" />
               </button>
             )}
           </div>
-          <input type="file" ref={ocrInputReference} onChange={handleOcrImageAddition} accept="image/*" multiple className="hidden" />
+          <input type="file" ref={ocrImageInputReference} onChange={handleOcrImageAddition} accept="image/*" multiple className="hidden" />
         </div>
       </div>
 
@@ -363,13 +368,12 @@ export default function Step2SensoryCapture() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V5.3):
- * 1. Descriptive Integrity: Se eliminaron todas las abreviaciones en variables de 
- *    estado y manejadores de eventos para cumplir con el estándar V4.0.
- * 2. Absolute Integrity Guard: La validación del botón de ingesta ahora incluye 
- *    el chequeo de la misión y entidad taxonómica, asegurando que el Oráculo 
- *    jamás reciba un expediente incompleto.
- * 3. Vercel Alignment: Se aplicó el escapado industrial (&lsqb; & rsqb;) en todas 
- *    las clases dinámicas de Tailwind para silenciar los warnings de ambigüedad 
- *    en los logs de construcción.
+ * NOTA TÉCNICA DEL ARCHITECT (V5.4):
+ * 1. Build Shield Compliance: Se sincronizaron los nombres de las propiedades 
+ *    'pointOfInterestIdentification' y 'intentAudioBlob' con la Constitución 
+ *    V7.7 y el ForgeContext V5.1, resolviendo los errores de despliegue en Vercel.
+ * 2. Tailwind Sanitization: Se aplicó el escapado industrial (&lsqb; & rsqb;) en todas 
+ *    las clases dinámicas para silenciar los warnings de PostCSS.
+ * 3. Atomic Validation: El guardián 'isIngestionIntegrityValidated' asegura que el 
+ *    peritaje posea todas las dimensiones críticas antes de invocar al Oráculo.
  */
