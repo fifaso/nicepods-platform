@@ -1,213 +1,213 @@
 /**
  * ARCHIVO: components/geo/geo-recorder.tsx
- * VERSIÓN: 2.0 (NicePod Tactical Recorder - RAM Hygiene & Vault Alignment Edition)
- * PROTOCOLO: MADRID RESONANCE V3.0
+ * VERSIÓN: 3.0 (NicePod Sovereign Acoustic Emitter - Polymorphic Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.0
  * 
- * Misión: Capturar la crónica acústica del Administrador con rigor industrial.
- * [REFORMA V2.0]: Implementación de revocación de Blobs, limpieza de hardware 
- * y alineación con el bucket de evidencias de la Bóveda NKV.
- * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
+ * Misión: Componente de hardware puro para la captura acústica del Administrador.
+ * [REFORMA V3.0]: Implementación de Patrón Emisor (Emitter Pattern), extirpación 
+ * de lógica de red (Supabase) y soporte dual: Dictado de Intención y Crónica Final.
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { cn, nicepodLog } from "@/lib/utils";
-import { CheckCircle2, Loader2, Mic, Play, RotateCcw, Square, UploadCloud } from "lucide-react";
+import { 
+  CheckCircle2, 
+  Loader2, 
+  Mic, 
+  Play, 
+  RotateCcw, 
+  Square, 
+  UploadCloud, 
+  BrainCircuit 
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-interface GeoRecorderProps {
-  draftId: string | undefined;
-  script: string | undefined;
-  onUploadComplete: () => void;
+/**
+ * INTERFAZ SOBERANA
+ * Define el contrato de comunicación con los Orquestadores de Pasos.
+ */
+export interface GeoRecorderProps {
+  mode: 'DICTATION' | 'CHRONICLE';
+  script?: string; // Solo requerido en modo CHRONICLE
+  isProcessingExternal: boolean; // Permite al padre bloquear la UI mientras procesa
+  onCaptureComplete: (audioBlob: Blob, durationSeconds: number) => Promise<void>;
 }
 
-export function GeoRecorder({ draftId, script, onUploadComplete }: GeoRecorderProps) {
-  const { supabase, user } = useAuth();
+export function GeoRecorder({ 
+  mode, 
+  script, 
+  isProcessingExternal, 
+  onCaptureComplete 
+}: GeoRecorderProps) {
+  
   const { toast } = useToast();
 
-  // --- I. ESTADO DE LA MÁQUINA DE GRABACIÓN ---
-  const [permission, setPermission] = useState<boolean>(false);
-  const [isRecording, setIsRecording] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [duration, setDuration] = useState(0);
+  // --- I. MÁQUINA DE ESTADOS DE HARDWARE ---
+  const [hasMicrophonePermission, setHasMicrophonePermission] = useState<boolean>(false);
+  const [isRecording, setIsRecording] = useState<boolean>(false);
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  
+  const [capturedAudioBlob, setCapturedAudioBlob] = useState<Blob | null>(null);
+  const [capturedAudioUrl, setCapturedAudioUrl] = useState<string | null>(null);
+  const [recordingDurationSeconds, setRecordingDurationSeconds] = useState<number>(0);
 
-  // Referencias de hardware y memoria
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
+  // --- II. REFERENCIAS DE MEMORIA (High-Speed Pointers) ---
+  const mediaRecorderReference = useRef<MediaRecorder | null>(null);
+  const audioChunksReference = useRef<Blob[]>([]);
+  const timerIntervalReference = useRef<NodeJS.Timeout | null>(null);
+  const audioPlayerReference = useRef<HTMLAudioElement | null>(null);
 
   /**
-   * 1. PROTOCOLO DE HIGIENE DE RAM
-   * Misión: Revocar URLs de objetos para liberar memoria de video/sistema.
+   * PROTOCOLO DE HIGIENE DE RAM
+   * Misión: Revocar URLs de objetos para liberar memoria del sistema operativo móvil.
    */
-  const cleanupAudioUrl = useCallback(() => {
-    if (audioUrl) {
-      URL.revokeObjectURL(audioUrl);
-      setAudioUrl(null);
+  const cleanupAudioMemory = useCallback(() => {
+    if (capturedAudioUrl) {
+      URL.revokeObjectURL(capturedAudioUrl);
+      setCapturedAudioUrl(null);
     }
-  }, [audioUrl]);
+  }, [capturedAudioUrl]);
 
-  // Limpieza al desmontar el componente
   useEffect(() => {
-    return () => cleanupAudioUrl();
-  }, [cleanupAudioUrl]);
+    // Purga atómica al desmontar el componente
+    return () => cleanupAudioMemory();
+  }, [cleanupAudioMemory]);
 
   /**
-   * 2. SOLICITUD DE AUTORIDAD DE HARDWARE
+   * SOLICITUD DE AUTORIDAD DE HARDWARE
    */
   useEffect(() => {
-    async function getMicPermission() {
+    async function requestMicrophoneAuthority() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        setPermission(true);
-        // Liberamos el micro inmediatamente tras verificar el permiso
-        stream.getTracks().forEach(track => track.stop());
-        nicepodLog("🎙️ [GeoRecorder] Autoridad de hardware concedida.");
-      } catch (err) {
-        nicepodLog("🛑 [GeoRecorder] Micrófono bloqueado por el sistema.", err, 'error');
+        const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        setHasMicrophonePermission(true);
+        // Liberamos el bus de audio inmediatamente tras verificar el permiso
+        audioStream.getTracks().forEach(track => track.stop());
+        nicepodLog(`🎙️ [GeoRecorder:${mode}] Autoridad de hardware concedida.`);
+      } catch (error) {
+        nicepodLog(`🛑 [GeoRecorder:${mode}] Hardware acústico interceptado.`, error, 'error');
         toast({
-          title: "Acceso Interceptado",
-          description: "Habilite el micrófono para registrar su peritaje acústico.",
+          title: "Acceso Denegado",
+          description: "La plataforma requiere acceso al micrófono para el peritaje urbano.",
           variant: "destructive"
         });
       }
     }
-    getMicPermission();
-  }, [toast]);
+    requestMicrophoneAuthority();
+  }, [toast, mode]);
 
   /**
-   * 3. LÓGICA DE CAPTURA (IGNICIÓN)
+   * IGNICIÓN DE CAPTURA
    */
-  const startRecording = async () => {
-    if (!permission) return;
+  const executeStartRecording = async () => {
+    if (!hasMicrophonePermission) return;
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(audioStream, { mimeType: 'audio/webm' });
 
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
+      mediaRecorderReference.current = mediaRecorder;
+      audioChunksReference.current = [];
 
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) audioChunksRef.current.push(event.data);
+      mediaRecorder.ondataavailable = (event: BlobEvent) => {
+        if (event.data.size > 0) {
+          audioChunksReference.current.push(event.data);
+        }
       };
 
       mediaRecorder.onstop = () => {
-        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        const url = URL.createObjectURL(blob);
-        setAudioBlob(blob);
-        setAudioUrl(url);
-        stream.getTracks().forEach(track => track.stop()); // Apagado físico de hardware
+        const finalBlob = new Blob(audioChunksReference.current, { type: 'audio/webm' });
+        const generatedUrl = URL.createObjectURL(finalBlob);
+        
+        setCapturedAudioBlob(finalBlob);
+        setCapturedAudioUrl(generatedUrl);
+        
+        // Apagado físico del hardware (Luz roja de grabación)
+        audioStream.getTracks().forEach(track => track.stop()); 
       };
 
       mediaRecorder.start();
       setIsRecording(true);
-      setDuration(0);
+      setRecordingDurationSeconds(0);
 
-      timerRef.current = setInterval(() => {
-        setDuration(prev => prev + 1);
+      timerIntervalReference.current = setInterval(() => {
+        setRecordingDurationSeconds(previous => previous + 1);
       }, 1000);
 
-      nicepodLog("⏺️ [GeoRecorder] Grabación en curso...");
-    } catch (err) {
-      nicepodLog("🔥 [GeoRecorder] Fallo al iniciar captura.", err, 'error');
-      toast({ title: "Fallo de Ignición", description: "No se pudo iniciar el MediaRecorder.", variant: "destructive" });
-    }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      if (timerRef.current) clearInterval(timerRef.current);
+      nicepodLog(`⏺️ [GeoRecorder:${mode}] Captura acústica en progreso...`);
+    } catch (error) {
+      nicepodLog(`🔥 [GeoRecorder:${mode}] Fallo mecánico en ignición.`, error, 'error');
+      toast({ title: "Fallo de Ignición", description: "El hardware no respondió.", variant: "destructive" });
     }
   };
 
   /**
-   * 4. LÓGICA DE PERSISTENCIA (COMMIT EN BÓVEDA NKV)
+   * DETENCIÓN DE CAPTURA
    */
-  const handlePublish = async () => {
-    if (!audioBlob || !draftId || !user) return;
-    setIsUploading(true);
-
-    try {
-      // A. SUBIDA SOBERANA (Alineada con el Protocolo Janitor)
-      const timestamp = Date.now();
-      const filePath = `poi-evidence/${user.id}/${draftId}_${timestamp}_vocal.webm`;
-
-      nicepodLog(`📡 [GeoRecorder] Transportando crónica acústica: ${filePath}`);
-
-      const { error: uploadError } = await supabase.storage
-        .from('podcasts')
-        .upload(filePath, audioBlob, {
-          contentType: 'audio/webm',
-          upsert: true
-        });
-
-      if (uploadError) throw new Error(`STORAGE_FAIL: ${uploadError.message}`);
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('podcasts')
-        .getPublicUrl(filePath);
-
-      // B. CIERRE DE EXPEDIENTE (Edge Function)
-      const { data: funcData, error: funcError } = await supabase.functions.invoke('geo-publish-geo-content', {
-        body: {
-          draft_id: draftId,
-          audio_url: publicUrl,
-          duration: duration
-        }
-      });
-
-      if (funcError || !funcData.success) throw new Error(funcError?.message || "FAIL_POST_INGESTION");
-
-      toast({
-        title: "¡Sabiduría Anclada!",
-        description: "Su crónica ha sido materializada en la Malla de Madrid.",
-        className: "bg-emerald-600 border-emerald-700 text-white font-bold"
-      });
-
-      onUploadComplete();
-
-    } catch (error: any) {
-      nicepodLog("🔥 [GeoRecorder] Error en publicación final.", error, 'error');
-      toast({
-        title: "Error de Sincronía",
-        description: error.message || "Fallo en la comunicación con el metal.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsUploading(false);
+  const executeStopRecording = () => {
+    if (mediaRecorderReference.current && isRecording) {
+      mediaRecorderReference.current.stop();
+      setIsRecording(false);
+      if (timerIntervalReference.current) {
+        clearInterval(timerIntervalReference.current);
+      }
     }
   };
 
-  const formatTimeDisplay = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  /**
+   * EMISIÓN DE CAPITAL INTELECTUAL (Emitter Pattern)
+   * Delega la responsabilidad de red al componente orquestador padre.
+   */
+  const handleDataEmission = async () => {
+    if (!capturedAudioBlob) return;
+    nicepodLog(`📡 [GeoRecorder:${mode}] Emitiendo binarios al orquestador padre.`);
+    await onCaptureComplete(capturedAudioBlob, recordingDurationSeconds);
+  };
+
+  /**
+   * UTILIDAD: Formateo de cronómetro táctico
+   */
+  const formatTimeDisplay = (totalSeconds: number) => {
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
   return (
     <div className="flex flex-col gap-5 w-full h-full">
 
-      {/* 1. TELEPROMPTER SOBERANO */}
-      <div className="flex-1 bg-black/60 border border-white/5 rounded-2xl p-5 overflow-y-auto max-h-[320px] shadow-2xl backdrop-blur-xl">
-        <h4 className="text-[9px] font-black uppercase tracking-[0.3em] text-zinc-500 mb-3 sticky top-0 bg-transparent py-1">
-          Guion de Inteligencia
-        </h4>
-        <p className="text-xl font-medium leading-relaxed text-zinc-100 whitespace-pre-wrap font-serif antialiased">
-          {script || "No se detectó narrativa previa."}
-        </p>
-      </div>
+      {/* I. CHASSIS DE CONTEXTO (POLIMÓRFICO) */}
+      {mode === 'CHRONICLE' ? (
+        // MODO CRÓNICA: Teleprompter Soberano
+        <div className="flex-1 bg-black/60 border border-white/5 rounded-2xl p-5 overflow-y-auto custom-scrollbar max-h-[320px] shadow-2xl backdrop-blur-xl">
+          <h4 className="text-[9px] font-black uppercase tracking-[0.3em] text-zinc-500 mb-3 sticky top-0 bg-transparent py-1">
+            Guion de Inteligencia
+          </h4>
+          <p className="text-xl font-medium leading-relaxed text-zinc-100 whitespace-pre-wrap font-serif antialiased">
+            {script || "No se detectó narrativa previa."}
+          </p>
+        </div>
+      ) : (
+        // MODO DICTADO: Interfaz Minimalista de Enfoque Cognitivo
+        <div className="flex-1 flex flex-col items-center justify-center bg-white/[0.02] border border-white/5 rounded-2xl p-8 shadow-inner">
+          <BrainCircuit className={cn(
+            "h-16 w-16 transition-all duration-1000",
+            isRecording ? "text-red-500 animate-pulse" : "text-zinc-600"
+          )} />
+          <h3 className="text-white font-black uppercase tracking-[0.3em] text-[10px] mt-6 mb-2">
+            Dictado Sensorial
+          </h3>
+          <p className="text-xs text-zinc-500 font-medium text-center leading-relaxed">
+            Hable con claridad. El Oráculo procesará su intención para extraer la esencia del lugar.
+          </p>
+        </div>
+      )}
 
-      {/* 2. CHASSIS DE COMANDO */}
+      {/* II. CHASSIS DE COMANDO ACÚSTICO */}
       <div className="bg-white/[0.03] border-t border-white/10 -mx-6 -mb-6 p-6 mt-auto backdrop-blur-3xl">
 
         {/* Telemetría de Grabación */}
@@ -215,13 +215,13 @@ export function GeoRecorder({ draftId, script, onUploadComplete }: GeoRecorderPr
           <div className="flex items-center gap-3">
             {isRecording && <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.5)]" />}
             <span className={cn("font-mono text-2xl font-black tracking-tighter", isRecording ? "text-red-400" : "text-zinc-500")}>
-              {formatTimeDisplay(duration)}
+              {formatTimeDisplay(recordingDurationSeconds)}
             </span>
           </div>
-          {audioBlob && !isRecording && (
+          {capturedAudioBlob && !isRecording && (
             <div className="bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
               <span className="text-[9px] text-emerald-400 flex items-center gap-1.5 font-black uppercase tracking-widest">
-                <CheckCircle2 className="h-3 w-3" /> Captura Blindada
+                <CheckCircle2 className="h-3 w-3" /> Pista Estabilizada
               </span>
             </div>
           )}
@@ -229,39 +229,53 @@ export function GeoRecorder({ draftId, script, onUploadComplete }: GeoRecorderPr
 
         {/* Mallas de Acción */}
         <div className="flex gap-4 h-16">
-          {!audioBlob ? (
+          {!capturedAudioBlob ? (
             isRecording ? (
               <Button
-                onClick={stopRecording}
+                onClick={executeStopRecording}
                 className="flex-1 bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/50 transition-all rounded-2xl"
               >
                 <Square className="fill-current h-6 w-6" />
               </Button>
             ) : (
               <Button
-                onClick={startRecording}
-                disabled={!permission}
-                className="flex-1 bg-white text-black hover:bg-zinc-200 rounded-2xl font-black text-xs tracking-[0.2em] shadow-xl"
+                onClick={executeStartRecording}
+                disabled={!hasMicrophonePermission}
+                className="flex-1 bg-white text-black hover:bg-zinc-200 rounded-2xl font-black text-[10px] tracking-[0.2em] shadow-xl uppercase"
               >
-                <Mic className="mr-3 h-5 w-5" /> INICIAR CRÓNICA
+                <Mic className="mr-3 h-5 w-5" /> 
+                {mode === 'CHRONICLE' ? "Iniciar Crónica" : "Iniciar Dictado"}
               </Button>
             )
           ) : (
             <>
+              {/* Reset Control */}
               <Button
                 variant="outline"
-                onClick={() => { cleanupAudioUrl(); setAudioBlob(null); setDuration(0); }}
+                disabled={isProcessingExternal}
+                onClick={() => { 
+                  cleanupAudioMemory(); 
+                  setCapturedAudioBlob(null); 
+                  setRecordingDurationSeconds(0); 
+                }}
                 className="w-16 px-0 rounded-2xl border-white/10 bg-transparent text-zinc-400 hover:bg-white/5 hover:text-white"
               >
                 <RotateCcw className="h-5 w-5" />
               </Button>
 
+              {/* Playback Control */}
               <Button
+                disabled={isProcessingExternal}
                 className="flex-1 flex gap-3 items-center justify-center bg-white/5 hover:bg-white/10 text-white rounded-2xl border border-white/10"
                 onClick={() => {
-                  if (audioPlayerRef.current) {
-                    if (isPlaying) { audioPlayerRef.current.pause(); setIsPlaying(false); }
-                    else { audioPlayerRef.current.play(); setIsPlaying(true); }
+                  if (audioPlayerReference.current) {
+                    if (isPlaying) { 
+                      audioPlayerReference.current.pause(); 
+                      setIsPlaying(false); 
+                    } else { 
+                      audioPlayerReference.current.play(); 
+                      setIsPlaying(true); 
+                    }
                   }
                 }}
               >
@@ -269,26 +283,30 @@ export function GeoRecorder({ draftId, script, onUploadComplete }: GeoRecorderPr
                 <span className="text-[10px] font-black uppercase tracking-widest">{isPlaying ? "PAUSAR" : "AUDITAR"}</span>
               </Button>
 
+              {/* Emission Control */}
               <Button
-                onClick={handlePublish}
-                disabled={isUploading}
-                className="flex-1 bg-primary text-primary-foreground font-black text-[10px] tracking-widest rounded-2xl shadow-2xl shadow-primary/20 hover:opacity-90"
+                onClick={handleDataEmission}
+                disabled={isProcessingExternal}
+                className="flex-1 bg-primary text-primary-foreground font-black text-[10px] tracking-widest rounded-2xl shadow-2xl shadow-primary/20 hover:opacity-90 uppercase"
               >
-                {isUploading ? (
+                {isProcessingExternal ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
-                  <><UploadCloud className="mr-2 h-5 w-5" /> PUBLICAR</>
+                  <>
+                    <UploadCloud className="mr-2 h-5 w-5" /> 
+                    {mode === 'CHRONICLE' ? "PUBLICAR" : "TRANSCRIBIR"}
+                  </>
                 )}
               </Button>
             </>
           )}
         </div>
 
-        {/* Puente de Audio Helper */}
-        {audioUrl && (
+        {/* Reproductor de Hardware Oculto */}
+        {capturedAudioUrl && (
           <audio
-            ref={audioPlayerRef}
-            src={audioUrl}
+            ref={audioPlayerReference}
+            src={capturedAudioUrl}
             onEnded={() => setIsPlaying(false)}
             className="hidden"
           />
@@ -299,11 +317,13 @@ export function GeoRecorder({ draftId, script, onUploadComplete }: GeoRecorderPr
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V2.0):
- * 1. RAM Hygiene: Se implementó cleanupAudioUrl para evitar que los Blobs de audio
- *    persistan en la memoria del dispositivo móvil tras múltiples tomas.
- * 2. Path Alignment: Se cambió la ruta de subida a 'poi-evidence/' para cumplir con 
- *    el contrato del Protocolo Janitor y la estructura de la Bóveda NKV.
- * 3. Industrial UI: Se refinaron las escalas, tipografías (serif para guion) y 
- *    contrastes para un peritaje urbano bajo condiciones de luz solar.
+ * NOTA TÉCNICA DEL ARCHITECT (V3.0):
+ * 1. Emitter Pattern: El componente ya no interactúa con Supabase o Edge Functions.
+ *    Actúa como un sensor de hardware que emite un Blob limpio a su padre, 
+ *    permitiendo su reutilización en cualquier paso de la Forja (DRY Principle).
+ * 2. Polymorphic UI: El prop 'mode' altera el DOM y los copys de los botones 
+ *    para adaptarse al contexto cognitivo del Administrador (Dictado vs Lectura).
+ * 3. External State Control: El prop 'isProcessingExternal' permite al Orquestador 
+ *    bloquear la interfaz de grabación mientras la IA transcribe o sube archivos, 
+ *    evitando race conditions por doble click.
  */
