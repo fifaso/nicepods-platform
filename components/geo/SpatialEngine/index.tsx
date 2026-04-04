@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/index.tsx
- * VERSIÓN: 9.3 (NicePod Spatial Hub - Module Resolution & Build Shield Edition)
+ * VERSIÓN: 9.4 (NicePod Spatial Hub - Final Integrity & Build Shield Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Orquestar el motor WebGL garantizando el montaje inmediato, la visibilidad 
- * reactiva y la resolución atómica de módulos en el entorno de producción de Vercel.
- * [FIX V9.3]: Resolución de error 'Module not found' mediante la restauración del 
- * punto de entrada /mapbox y saneamiento de sintaxis JSX.
+ * reactiva y la resolución atómica de tipos en el entorno de producción de Vercel.
+ * [FIX V9.4]: Resolución de error 'Cannot find name SafeMapMoveEvent' mediante 
+ * importación explícita de MapProps y purificación total de nomenclatura.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -14,13 +14,12 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { Compass, ShieldAlert } from "lucide-react";
-import type { ComponentProps } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-// --- INFRAESTRUCTURA DE MOTOR ESPACIAL (PUNTO DE ENTRADA AUTORIZADO) ---
-import { MapProvider, MapRef } from "react-map-gl/mapbox";
+// --- INFRAESTRUCTURA DE MOTOR ESPACIAL ---
+import { MapProvider, MapRef, MapProps } from "react-map-gl/mapbox";
 
-// --- INFRAESTRUCTURA CORE V3.0 ---
+// --- INFRAESTRUCTURA CORE V4.0 ---
 import { UnifiedSearchBar } from "@/components/ui/unified-search-bar";
 import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { SearchResult } from "@/hooks/use-search-radar";
@@ -42,6 +41,25 @@ import { CameraController } from "./camera-controller";
 import MapCore from "./map-core";
 
 /**
+ * [BUILD SHIELD]: DEFINICIÓN DE TIPOS DE EVENTOS
+ * Extraemos el tipo exacto que espera la propiedad onMove de Mapbox.
+ */
+type SafeMapMoveEvent = Parameters<NonNullable<MapProps['onMove']>>[0];
+
+/**
+ * INTERFAZ: SpatialEngineProps
+ * Define el contrato de entrada para el Hub de Orquestación.
+ */
+interface SpatialEngineProps {
+  mapInstanceId: MapInstanceId;
+  mode: 'EXPLORE' | 'FORGE';
+  theme?: MapboxLightPreset;
+  performanceProfile?: MapPerformanceProfile;
+  onManualAnchor?: (longitudeLatitude: [number, number]) => void;
+  className?: string;
+}
+
+/**
  * SpatialEngine: El Reactor de Inteligencia Visual Soberano.
  */
 export function SpatialEngine({
@@ -53,7 +71,7 @@ export function SpatialEngine({
   className
 }: SpatialEngineProps) {
 
-  // 1. CONSUMO DE LA FACHADA SOBERANA (Triple-Core Synergy V3.0)
+  // 1. CONSUMO DE LA FACHADA SOBERANA (Triple-Core Synergy V3.1)
   const {
     userLocation,
     nearbyPointsOfInterest,
@@ -67,11 +85,12 @@ export function SpatialEngine({
     toggleCameraPerspective
   } = useGeoEngine();
 
-  // 2. REFERENCIAS DE CONTROL E INTEGRIDAD (Nomenclatura Completa)
+  // 2. REFERENCIAS DE CONTROL (Nomenclatura Completa)
   const mapInstanceReference = useRef<MapRef>(null);
   const containerReference = useRef<HTMLDivElement>(null);
   const smokescreenReference = useRef<HTMLDivElement>(null);
   const lastSearchUpdatePositionReference = useRef<{ latitude: number, longitude: number }>({ latitude: 0, longitude: 0 });
+  const revealPerformedReference = useRef<boolean>(false);
   const fallbackTimerReference = useRef<NodeJS.Timeout | null>(null);
 
   // 3. ESTADOS DE INTERFAZ Y REVELADO
@@ -81,6 +100,7 @@ export function SpatialEngine({
   const [isMapLoaded, setIsMapLoaded] = useState<boolean>(false);
   const [isMapVisible, setIsMapVisible] = useState<boolean>(false);
 
+  // searchPosition: Coordenadas Throttled para el Radar Semántico
   const [searchPosition, setSearchPosition] = useState({
     latitude: MADRID_SOL_COORDS.latitude,
     longitude: MADRID_SOL_COORDS.longitude,
@@ -107,6 +127,7 @@ export function SpatialEngine({
 
   /**
    * 5. PROTOCOLO DE REVELADO REACTIVO
+   * Misión: Cambiar el estado de visibilidad una vez confirmada la estabilidad de WebGL.
    */
   const handleMapStability = useCallback(() => {
     if (isMapVisible) return;
@@ -132,7 +153,7 @@ export function SpatialEngine({
   }, [isContainerReady, isIgnited, engineStatus, initSensors, mode, cameraPerspective, toggleCameraPerspective, mapInstanceId]);
 
   /**
-   * 7. RACE-CONDITION GUARD
+   * 7. FALLBACK DE VISIBILIDAD (Safety Timer)
    */
   useEffect(() => {
     if (isMapLoaded && !isMapVisible) {
@@ -163,7 +184,7 @@ export function SpatialEngine({
   }, [userLocation]);
 
   /**
-   * 9. MANEJADORES DE EVENTOS
+   * 9. MANEJADORES DE EVENTOS CON DAMPING
    */
   const handleMapMove = useCallback((event: SafeMapMoveEvent) => {
     const { latitude, longitude } = event.viewState;
@@ -183,6 +204,24 @@ export function SpatialEngine({
     }
   }, [setManualMode, needsBallisticLanding]);
 
+  const handleSearchResult = useCallback((results: SearchResult[] | null) => {
+    if (results && results.length > 0) {
+      const topResult = results[0];
+      if (topResult.metadata?.lat && topResult.metadata?.lng && mapInstanceReference.current) {
+        setManualMode(true);
+        mapInstanceReference.current.flyTo({
+          center: [topResult.metadata.lng, topResult.metadata.lat],
+          zoom: ZOOM_LEVELS.STREET,
+          ...FLY_CONFIG
+        });
+      }
+    }
+  }, [setManualMode]);
+
+  /**
+   * mappedSelectedPointOfInterest: 
+   * Misión: Construcción del dossier de previsualización para la UI.
+   */
   const mappedSelectedPointOfInterest = useMemo(() => {
     if (!selectedPointOfInterestId || !nearbyPointsOfInterest?.length) return null;
     const rawPoint = nearbyPointsOfInterest.find((item) => item.id.toString() === selectedPointOfInterestId);
@@ -208,9 +247,10 @@ export function SpatialEngine({
         style={{ minHeight: '100dvh' }}
       >
         <AnimatePresence>
+          {/* I. SMOKESCREEN REACTIVO */}
           {!isMapVisible && (
             <motion.div 
-              key="smokescreen"
+              key="smokescreen-portal"
               initial={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 1, ease: "easeInOut" }}
@@ -219,7 +259,7 @@ export function SpatialEngine({
               {engineStatus === 'PERMISSION_DENIED' ? (
                 <div className="flex flex-col items-center gap-4 text-center p-8">
                   <ShieldAlert className="h-12 w-12 text-red-500 mb-2" />
-                  <span className="text-[10px] font-black uppercase tracking-[0.5em] text-red-400 px-6">Acceso Geográfico Interceptado</span>
+                  <span className="text-[10px] font-black uppercase tracking-[0.5em] text-red-400 px-6">Acceso Geográfico Bloqueado</span>
                 </div>
               ) : (
                 <div className="flex flex-col items-center gap-8">
@@ -232,7 +272,7 @@ export function SpatialEngine({
                     <Compass className="h-16 w-16 text-primary animate-spin-slow relative z-10" />
                   </div>
                   <span className="text-[11px] font-black uppercase tracking-[0.6em] text-white animate-pulse italic">
-                    Sincronizando Malla
+                    Sincronizando Madrid
                   </span>
                 </div>
               )}
@@ -240,7 +280,7 @@ export function SpatialEngine({
           )}
         </AnimatePresence>
 
-        {/* MOTOR WEBGL (MAP-CORE) */}
+        {/* II. MOTOR WEBGL (MAP-CORE) */}
         <div className="absolute inset-0 z-0">
           <MapCore
             ref={mapInstanceReference}
@@ -265,21 +305,12 @@ export function SpatialEngine({
           )}
         </div>
 
-        {/* INTERFAZ TÁCTICA */}
+        {/* III. INTERFAZ TÁCTICA */}
         {mode === 'EXPLORE' && (
           <div className="absolute top-6 left-4 right-4 z-[100] md:top-8 md:left-8 md:w-[420px] pointer-events-auto">
             <UnifiedSearchBar
               variant="console"
-              onResults={(results) => {
-                if (results && results.length > 0 && mapInstanceReference.current) {
-                  setManualMode(true);
-                  mapInstanceReference.current.flyTo({ 
-                    center: [results[0].metadata!.lng, results[0].metadata!.lat], 
-                    zoom: ZOOM_LEVELS.STREET, 
-                    ...FLY_CONFIG 
-                  });
-                }
-              }}
+              onResults={handleSearchResult}
               onLoading={setIsSearchLoading}
               latitude={searchPosition.latitude}
               longitude={searchPosition.longitude}
@@ -300,16 +331,4 @@ export function SpatialEngine({
       </div>
     </MapProvider>
   );
-}
-
-/**
- * [TYPES]: Interfaz local para cumplimiento de contrato.
- */
-interface SpatialEngineProps {
-  mapInstanceId: MapInstanceId;
-  mode: 'EXPLORE' | 'FORGE';
-  theme?: MapboxLightPreset;
-  performanceProfile?: MapPerformanceProfile;
-  onManualAnchor?: (longitudeLatitude: [number, number]) => void;
-  className?: string;
 }
