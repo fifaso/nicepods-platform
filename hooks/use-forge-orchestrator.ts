@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: hooks/use-forge-orchestrator.ts
- * VERSIÓN: 5.0 (NicePod Forge Orchestrator - Lightning Protocol & Build Shield Edition)
+ * VERSIÓN: 6.0 (NicePod Forge Orchestrator - Sovereign Integrity & Lightning Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Gestionar el ciclo de vida de ingesta sensorial orquestando la compresión JIT, 
- * la transcripción de voz y la evasión de los límites de Vercel mediante Subida Directa.
- * [REFORMA V5.0]: Eliminación de acciones obsoletas (Vercel Fix), implementación de 
- * carga paralela lightning y purificación total de nomenclatura.
+ * la transcripción de voz y la transmisión directa de binarios (Lightning Protocol).
+ * [REFORMA V6.0]: Sincronización total con la Constitución V7.7 y las Acciones V11.0, 
+ * eliminando abreviaturas y garantizando la integridad del contrato industrial.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -34,15 +34,15 @@ import {
 } from "@/types/geo-sovereignty";
 
 /**
- * UTILIDAD INTERNA: fileToBase64
- * Misión: Transmutar binarios de voz (pequeños) en cadenas seguras para transcripción.
+ * UTILIDAD INTERNA: transmutarArchivoABase64
+ * Misión: Convertir binarios pequeños (voz) en cadenas seguras para transcripción.
  */
-const fileToBase64 = (file: File | Blob): Promise<string> => {
+const transmutarArchivoABase64 = (archivo: File | Blob): Promise<string> => {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = (exception) => reject(exception);
+    const lector = new FileReader();
+    lector.readAsDataURL(archivo);
+    lector.onload = () => resolve(lector.result as string);
+    lector.onerror = (exception) => reject(exception);
   });
 };
 
@@ -86,36 +86,36 @@ export function useForgeOrchestrator() {
     setError(null);
 
     try {
-      nicepodLog("⚙️ [ForgeOrchestrator] Iniciando Protocolo Lightning (Fase Concurrente)...");
+      nicepodLog("⚙️ [ForgeOrchestrator] Iniciando Protocolo Lightning (Fase Concurrente V4.0)...");
 
-      // Carga visual síncrona: Aseguramos que la UI repinte el estado de proceso.
+      // Carga visual síncrona: Aseguramos que la interfaz repinte el estado de proceso.
       await new Promise((resolve) => setTimeout(resolve, 150));
 
       /**
        * 1. RESOLUCIÓN DE INTENCIONALIDAD COGNITIVA (Voz + Texto)
-       * Misión: Fusionar el dictado acústico con las notas manuales antes de la ingesta visual.
+       * Misión: Fusionar el dictado acústico con las notas manuales.
        */
-      let finalAdminIntent = parameters.intentText;
+      let finalAdminIntentText = parameters.intentText;
       if (parameters.intentAudioBlob) {
-        nicepodLog("🎙️ [ForgeOrchestrator] Despachando dictado para transcripción neuronal...");
-        const intentBase64 = await fileToBase64(parameters.intentAudioBlob);
-        const transcriptionResults = await transcribeVoiceIntentAction({ audioBase64: intentBase64 });
+        nicepodLog("🎙️ [ForgeOrchestrator] Transcribiendo intención dictada...");
+        const audioBase64 = await transmutarArchivoABase64(parameters.intentAudioBlob);
+        const transcriptionResults = await transcribeVoiceIntentAction({ audioBase64 });
         
         if (transcriptionResults.success && transcriptionResults.data?.transcription) {
-          finalAdminIntent = parameters.intentText.trim() !== "" 
+          finalAdminIntentText = parameters.intentText.trim() !== "" 
             ? `${transcriptionResults.data.transcription}\n\n[Notas Adicionales]: ${parameters.intentText}`
             : transcriptionResults.data.transcription;
           nicepodLog("✅ [ForgeOrchestrator] Fusión de inteligencia completada.");
         }
       }
 
-      if (!finalAdminIntent || finalAdminIntent.trim() === "") {
-        finalAdminIntent = "Captura de contexto urbano sin directriz explícita.";
+      if (!finalAdminIntentText || finalAdminIntentText.trim() === "") {
+        finalAdminIntentText = "Captura de contexto urbano sin directriz explícita.";
       }
 
       /**
-       * 2. CONCURRENCIA DE PREPARACIÓN DE ACTIVOS
-       * Disparamos compresión de imágenes, sondeo de clima y solicitud de tokens de forma paralela.
+       * 2. CONCURRENCIA DE PREPARACIÓN DE ACTIVOS (OFF-MAIN-THREAD)
+       * Misión: Procesar imágenes y sondeo climático mientras se autoriza la subida.
        */
       const [
         compressedHeroImageBlob, 
@@ -137,14 +137,14 @@ export function useForgeOrchestrator() {
       }
 
       const { paths: storagePaths, uploadUrls } = tokensResponse.data;
-      const heroStoragePath = storagePaths[0];
-      const ocrStoragePaths = storagePaths.slice(1);
+      const heroImageStoragePath = storagePaths[0];
+      const ocrImageStoragePaths = storagePaths.slice(1);
 
       /**
-       * 3. TRANSMISIÓN DIRECTA A BÓVEDA (Lightning Protocol)
-       * Misión: El navegador sube los binarios directamente a Supabase Storage.
+       * 3. TRANSMISIÓN DIRECTA (Protocolo Lightning V4.0)
+       * Misión: El navegador sube los binarios directamente a Supabase.
        */
-      nicepodLog("🚀 [ForgeOrchestrator] Transmitiendo binarios pesados al Storage Soberano...");
+      nicepodLog("🚀 [ForgeOrchestrator] Transfiriendo binarios pesados a la Bóveda...");
 
       const allBinaryBlobs = [compressedHeroImageBlob, ...ocrCompressionBlobArray];
       
@@ -158,40 +158,40 @@ export function useForgeOrchestrator() {
         })
       );
       
-      const hasFailedUploads = uploadExecutionResults.some(response => !response.ok);
-      if (hasFailedUploads) {
+      const hasFailedTransmissions = uploadExecutionResults.some(response => !response.ok);
+      if (hasFailedTransmissions) {
         throw new Error("STORAGE_UPLOAD_ERROR: Fricción detectada durante la transmisión directa.");
       }
 
       /**
        * 4. INVOCACIÓN AL ORÁCULO DE BORDE (Agente 42)
-       * Enviamos un payload ligero (solo rutas) evitando el colapso de Vercel.
+       * Misión: Peritaje multidimensional basado en las rutas del Storage.
        */
-      nicepodLog("📡 [ForgeOrchestrator] Despertando inteligencia visual para peritaje...");
+      nicepodLog("📡 [ForgeOrchestrator] Expediente visual sellado. Solicitando peritaje...");
 
-      const ingestionFinalResults = await ingestIntelligenceDossierAction({
+      const ingestionResults = await ingestIntelligenceDossierAction({
         latitude: userLocation.latitude,
         longitude: userLocation.longitude,
         accuracy: userLocation.accuracy,
-        heroImagePath: heroStoragePath,
-        ocrImagePaths: ocrStoragePaths,
+        heroImageStoragePath: heroImageStoragePath,
+        ocrImageStoragePaths: ocrImageStoragePaths,
         categoryMission: parameters.categoryMission,
         categoryEntity: parameters.categoryEntity,
         historicalEpoch: parameters.historicalEpoch,
         resonanceRadius: parameters.resonanceRadius,
-        adminIntent: finalAdminIntent,
+        adminIntent: finalAdminIntentText,
         referenceUrl: parameters.referenceUrl
       });
 
-      if (!ingestionFinalResults.success || !ingestionFinalResults.data) {
-        throw new Error(ingestionFinalResults.error || "FAIL_AI_INGESTION");
+      if (!ingestionResults.success || !ingestionResults.data) {
+        throw new Error(ingestionResults.error || "FAIL_AI_INGESTION");
       }
 
-      const { poiId, analysis } = ingestionFinalResults.data;
+      const { pointOfInterestIdentification, analysis } = ingestionResults.data;
 
-      // 5. MATERIALIZACIÓN DEL DOSSIER FINAL PARA LA UI
+      // 5. MATERIALIZACIÓN DEL DOSSIER FINAL
       const compiledDossier: IngestionDossier = {
-        poi_id: poiId,
+        point_of_interest_id: pointOfInterestIdentification,
         raw_ocr_text: analysis.historicalDossier || null,
         weather_snapshot: {
           temp_c: weatherResolution.success ? (weatherResolution.data?.current?.temp_c || 15) : 15,
@@ -203,34 +203,39 @@ export function useForgeOrchestrator() {
         ingested_at: new Date().toISOString()
       };
 
-      setData(previousData => ({ ...previousData, poiId, dossier: compiledDossier }));
+      setData(previousData => ({ 
+        ...previousData, 
+        pointOfInterestIdentification, 
+        dossier: compiledDossier 
+      }));
+      
       setStatus('DOSSIER_READY');
-      nicepodLog(`✅ [ForgeOrchestrator] Misión completada. Nodo #${poiId} anclado.`);
+      nicepodLog(`✅ [ForgeOrchestrator] Nodo #${pointOfInterestIdentification} anclado con éxito.`);
 
-      return { poiId, dossier: compiledDossier };
+      return { pointOfInterestIdentification, dossier: compiledDossier };
 
     } catch (exception: unknown) {
       const errorMessage = exception instanceof Error ? exception.message : String(exception);
       setStatus('REJECTED');
 
       if (errorMessage.includes("STORAGE_UPLOAD_ERROR")) {
-        setError("Fricción en la red de almacenamiento. Reintente el proceso.");
+        setError("Fricción en la red de almacenamiento. Reintente la captura.");
       } else {
         setError("El Oráculo no pudo procesar la evidencia. Verifique su sintonía.");
       }
 
       setIsLocked(false);
-      nicepodLog("🔥 [ForgeOrchestrator] Colapso en el Pipeline de Ingesta.", errorMessage, 'error');
+      nicepodLog("🔥 [ForgeOrchestrator] Colapso crítico en el Pipeline.", errorMessage, 'error');
       throw exception;
     }
   }, []);
 
   /**
    * synthesizeNarrative:
-   * Misión: Invocar la síntesis final de sabiduría anclada.
+   * Misión: Ordenar al Agente 42 la síntesis final de sabiduría.
    */
-  const synthesizeNarrative = useCallback(async (params: {
-    poiId: number;
+  const synthesizeNarrative = useCallback(async (parameters: {
+    pointOfInterestIdentification: number;
     depth: NarrativeDepth;
     tone: NarrativeTone;
     refinedIntent?: string;
@@ -239,8 +244,8 @@ export function useForgeOrchestrator() {
     setError(null);
 
     try {
-      nicepodLog(`🧠 [ForgeOrchestrator] Despertando Agente de Síntesis para Nodo #${params.poiId}...`);
-      const results = await synthesizeNarrativeAction(params);
+      nicepodLog(`🧠 [ForgeOrchestrator] Despertando Agente de Síntesis para Nodo #${parameters.pointOfInterestIdentification}...`);
+      const results = await synthesizeNarrativeAction(parameters);
 
       if (!results.success || !results.data) {
         throw new Error(results.error || "NARRATIVE_SYNTHESIS_FAILED");
@@ -253,8 +258,8 @@ export function useForgeOrchestrator() {
     } catch (exception: unknown) {
       const errorMessage = exception instanceof Error ? exception.message : String(exception);
       setStatus('REJECTED');
-      setError("El Oráculo ha fallado en la síntesis. Verifique su red.");
-      nicepodLog("🔥 [ForgeOrchestrator] Falla en la forja narrativa.", errorMessage, 'error');
+      setError("El Oráculo ha fallado en la síntesis narrativa. Reintente.");
+      nicepodLog("🔥 [ForgeOrchestrator] Falla en motor de crónica.", errorMessage, 'error');
       throw exception;
     }
   }, []);
@@ -268,7 +273,7 @@ export function useForgeOrchestrator() {
     setData({});
     setIsLocked(false);
     setError(null);
-    nicepodLog("🧹 [ForgeOrchestrator] Memoria purgada.");
+    nicepodLog("🧹 [ForgeOrchestrator] Memoria de forja purificada.");
   }, []);
 
   return {
