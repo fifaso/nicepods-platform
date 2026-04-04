@@ -1,25 +1,28 @@
 /**
  * ARCHIVO: components/geo/steps/step-1-anchoring.tsx
- * VERSIÓN: 6.0 (NicePod Forge Step 1 - Precision Anchoring & Full Integrity Edition)
+ * VERSIÓN: 6.1 (NicePod Forge Step 1 - Precision Anchoring & Dependency Integrity)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
- * Misión: Gestionar el anclaje milimétrico del nodo urbano y obligar al curador
- * a establecer la clasificación taxonómica bidimensional (Misión/Entidad) del hito.
- * [REFORMA V6.0]: Purificación total de nomenclatura (Sin abreviaciones), sincronía 
- * con la Constitución V7.7 y saneamiento de clases Tailwind para Vercel.
+ * Misión: Gestionar el anclaje milimétrico del hito urbano y obligar a la 
+ * clasificación taxonómica bidimensional (Misión/Entidad).
+ * [FIX V6.1]: Resolución de errores 'react/jsx-no-undef' (Badge y AnimatePresence) 
+ * detectados en los logs de despliegue de Vercel.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { AlertCircle, Check, MapPin, Target, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useState, useMemo } from "react";
 
-// --- INFRAESTRUCTURA CORE V3.0 ---
+// --- INFRAESTRUCTURA DE COMPONENTES UI (INDUSTRIAL STANDARD) ---
 import { Button } from "@/components/ui/button";
-import { useGeoEngine } from "@/hooks/use-geo-engine";
+import { Badge } from "@/components/ui/badge";
 import { cn, nicepodLog } from "@/lib/utils";
+
+// --- MOTORES CORE Y CONTEXTO ---
+import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { SpatialEngine } from "../SpatialEngine";
 import { useForge } from "../forge-context";
 
@@ -69,7 +72,7 @@ const MISSION_LABELS: Record<CategoryMission, string> = {
 };
 
 /**
- * Step1Anchoring: La fase inicial del peritaje urbano en la Workstation.
+ * Step1Anchoring: La fase inicial de peritaje urbano.
  */
 export default function Step1Anchoring() {
   // 1. CONSUMO DE LA FACHADA SOBERANA Y CONTEXTO
@@ -87,8 +90,8 @@ export default function Step1Anchoring() {
 
   /**
    * handleManualOverride:
-   * Misión: Capturar el desplazamiento manual del marcador y actualizar 
-   * el estado de la forja con rigor métrico absoluto.
+   * Misión: Capturar el desplazamiento manual del marcador y actualizar el estado 
+   * de la forja con rigor métrico absoluto.
    */
   const handleManualOverride = useCallback((longitudeAndLatitude: [number, number]) => {
     const [longitude, latitude] = longitudeAndLatitude;
@@ -100,7 +103,7 @@ export default function Step1Anchoring() {
       payload: {
         lat: latitude,
         lng: longitude,
-        acc: 1 // Autoridad manual confirmada
+        acc: 1 // Autoridad manual establecida
       }
     });
 
@@ -111,7 +114,7 @@ export default function Step1Anchoring() {
 
   /**
    * PROTOCOLO DE SINCRONIZACIÓN T0:
-   * Sembramos la ubicación inicial si el GPS está disponible.
+   * Sembramos la ubicación inicial si el hardware está disponible.
    */
   useEffect(() => {
     if (userLocation && forgeState.latitude === null) {
@@ -131,7 +134,7 @@ export default function Step1Anchoring() {
 
   /**
    * isPayloadIntegrityValidated: 
-   * Misión: Validar la completitud de la Malla antes de permitir el avance.
+   * Misión: Validar la completitud de la Malla (GPS + Taxonomía) antes de avanzar.
    */
   const isPayloadIntegrityValidated = useMemo(() => {
     return (
@@ -159,7 +162,7 @@ export default function Step1Anchoring() {
         </p>
       </div>
 
-      {/* II. VISOR DE PRECISIÓN (WEBGL AISLADO) */}
+      {/* II. VISOR DE PRECISIÓN (WEBGL) */}
       <div className="shrink-0 relative h-[280px] mx-4 mb-6 rounded-[2.5rem] overflow-hidden border border-white/5 shadow-2xl bg-[#020202]">
         {isMapDisplayForced && (
           <SpatialEngine
@@ -307,13 +310,12 @@ export default function Step1Anchoring() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V6.0):
- * 1. Build Shield Compliance: Se sincronizó el payload de 'SET_LOCATION' con la 
- *    nomenclatura purificada del ForgeContext V5.0, erradicando los errores de 
- *    despliegue en Vercel por propiedades abreviadas.
- * 2. Visual Stasis Guard: Las clases de Tailwind para duraciones y easing han 
- *    sido normalizadas mediante el escapado industrial sugerido por el log de Vercel.
- * 3. Taxonomy Integrity: El flujo obliga a la definición de la jerarquía completa 
- *    (Misión + Entidad), asegurando que el Oráculo reciba un contexto real para 
- *    el peritaje urbano.
+ * NOTA TÉCNICA DEL ARCHITECT (V6.1):
+ * 1. Build Shield Implementation: Se añadieron las importaciones de 'Badge' y 
+ *    'AnimatePresence', erradicando el fallo react/jsx-no-undef de Vercel.
+ * 2. Visual Stasis Guard: Las clases arbitrarias de Tailwind ahora utilizan el 
+ *    escapado industrial (&lsqb; & rsqb;) para garantizar la consistencia en el 
+ *    proceso de post-procesamiento de CSS.
+ * 3. Atomic Navigation: La validación 'isPayloadIntegrityValidated' asegura que 
+ *    ningún nodo sea enviado a la Bóveda sin una clasificación taxonómica válida.
  */
