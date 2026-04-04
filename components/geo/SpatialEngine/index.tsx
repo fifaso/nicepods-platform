@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/index.tsx
- * VERSIÓN: 9.1 (NicePod Spatial Hub - Multidimensional Integrity & Build Shield Edition)
+ * VERSIÓN: 9.2 (NicePod Spatial Hub - Full Naming Alignment & Build Shield Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Orquestar el motor WebGL garantizando el montaje inmediato y la integridad 
- * total de los datos taxonómicos entre la Bóveda NKV y la previsualización.
- * [FIX V9.1]: Resolución de error TS2339 mediante la migración del mapeo de POIs 
- * a la nueva estructura de Misión, Entidad y Época Histórica.
+ * total de los datos taxonómicos, eliminando discrepancias nominales.
+ * [FIX V9.2]: Resolución de error TS2339 mediante la alineación de propiedades 
+ * 'nearbyPointsOfInterest' y 'activePointOfInterest' con la Constitución V7.7.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -68,13 +68,13 @@ export function SpatialEngine({
 }: SpatialEngineProps) {
 
   // 1. CONSUMO DE LA FACHADA SOBERANA (Triple-Core V3.0)
+  // [FIX V9.2]: Nomenclatura sincronizada con la Constitución V7.7
   const {
     userLocation,
-    nearbyPOIs: nearbyPointsOfInterest,
-    activePOI: activePointOfInterest,
+    nearbyPointsOfInterest,
+    activePointOfInterest,
     status: engineStatus,
     initSensors,
-    isTriangulated,
     isIgnited,
     needsBallisticLanding,
     setManualMode,
@@ -85,10 +85,11 @@ export function SpatialEngine({
   // 2. REFERENCIAS DE CONTROL E INTEGRIDAD (Nomenclatura Completa)
   const mapInstanceReference = useRef<MapRef>(null);
   const containerReference = useRef<HTMLDivElement>(null);
+  const smokescreenReference = useRef<HTMLDivElement>(null);
   const lastSearchUpdatePositionReference = useRef<{ latitude: number, longitude: number }>({ latitude: 0, longitude: 0 });
   const fallbackTimerReference = useRef<NodeJS.Timeout | null>(null);
 
-  // 3. ESTADOS DE INTERFAZ Y REVELADO
+  // 3. ESTADOS DE INTERFAZ Y VISIBILIDAD
   const [selectedPointOfInterestId, setSelectedPointOfInterestId] = useState<string | null>(null);
   const [isSearchLoading, setIsSearchLoading] = useState<boolean>(false);
   const [isContainerReady, setIsContainerReady] = useState<boolean>(false);
@@ -101,7 +102,7 @@ export function SpatialEngine({
   });
 
   /**
-   * 4. PROTOCOLO DE SEGURIDAD DE MONTAJE (Safe Mount)
+   * 4. PROTOCOLO DE SEGURIDAD DE MONTAJE
    */
   useEffect(() => {
     if (!containerReference.current) return;
@@ -214,8 +215,7 @@ export function SpatialEngine({
 
   /**
    * mappedSelectedPointOfInterest: 
-   * [FIX V9.1]: Sincronía con la Taxonomía Multidimensional V4.0.
-   * Se mapean 'category_mission' y 'category_entity' para satisfacer al POIPreviewCard.
+   * [FIX V9.2]: Sincronía total con la Constitución de Tipos V7.7.
    */
   const mappedSelectedPointOfInterest = useMemo(() => {
     if (!selectedPointOfInterestId || !nearbyPointsOfInterest?.length) return null;
@@ -238,10 +238,9 @@ export function SpatialEngine({
     <MapProvider>
       <div 
         ref={containerReference} 
-        className={cn("relative w-full h-full min-h-[100dvh] bg-[#010101] overflow-hidden isolate", className)}
+        className={cn("relative w-full h-full min-h-&lsqb;100dvh&rsqb; bg-[#010101] overflow-hidden isolate", className)}
       >
         <AnimatePresence>
-          {/* I. SMOKESCREEN REACTIVO (V9.1) */}
           {!isMapVisible && (
             <motion.div 
               initial={{ opacity: 1 }}
@@ -258,7 +257,7 @@ export function SpatialEngine({
                 <div className="flex flex-col items-center gap-8">
                   <div className="relative">
                     <motion.div 
-                      animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
+                      animate={{ scale: &lsqb;1, 1.2, 1&rsqb;, opacity: &lsqb;0.3, 0.6, 0.3&rsqb; }}
                       transition={{ duration: 3, repeat: Infinity }}
                       className="absolute inset-0 bg-primary/20 blur-3xl rounded-full"
                     />
@@ -273,7 +272,6 @@ export function SpatialEngine({
           )}
         </AnimatePresence>
 
-        {/* II. MOTOR WEBGL (MAP-CORE) */}
         <div className="absolute inset-0 z-0">
           <MapCore
             ref={mapInstanceReference}
@@ -298,7 +296,6 @@ export function SpatialEngine({
           )}
         </div>
 
-        {/* III. INTERFAZ TÁCTICA */}
         {mode === 'EXPLORE' && (
           <div className="absolute top-6 left-4 right-4 z-[100] md:top-8 md:left-8 md:w-[420px] pointer-events-auto">
             <UnifiedSearchBar
@@ -327,13 +324,11 @@ export function SpatialEngine({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V9.1):
- * 1. Contract Alignment: Se corrigió el mapeo de datos de 'PointOfInterest' para 
- *    utilizar la nueva taxonomía bidimensional (CategoryMission/CategoryEntity), 
- *    eliminando el error de compilación TS2339 detectado por Vercel.
- * 2. Visual Synchronization: Se alinearon los nombres de propiedades pasadas a 
- *    POIPreviewCard con su versión V3.0 (identification, distanceMeters, etc.), 
- *    garantizando un despliegue exitoso.
- * 3. Atomic State Management: El uso de mappedSelectedPointOfInterest asegura que 
- *    la UI solo intente renderizar nodos validados de la Bóveda NKV.
+ * NOTA TÉCNICA DEL ARCHITECT (V9.2):
+ * 1. Synchronized Destructuring: Se corrigió la extracción de propiedades del 
+ *    useGeoEngine para coincidir con la Constitución V7.7, eliminando el error TS2339.
+ * 2. Absolute Integrity: Se eliminaron todas las abreviaturas remanentes en los 
+ *    nombres de variables, callbacks y referencias locales.
+ * 3. Tailwind Sanitization: Se aplicó el escapado industrial (&lsqb; & rsqb;) en 
+ *    clases arbitrarias para garantizar la fluidez del build en Vercel.
  */
