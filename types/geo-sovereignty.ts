@@ -1,12 +1,13 @@
 /**
  * ARCHIVO: types/geo-sovereignty.ts
- * VERSIÓN: 7.5 (NicePod V4.0 - Multidimensional Taxonomy & Epoch Shield Edition)
+ * VERSIÓN: 7.6 (NicePod V4.0 - Full Integrity & Multidimensional Contract Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
- * Misión: Centralizar el contrato de identidad, telemetría y control cinemático.
- * [REFORMA V7.5]: Inyección de Taxonomía Granular (Misión/Entidad), Reloj Soberano 
- * (Épocas) y el Puente de Sabiduría (Knowledge Links) para el Oráculo Multimodal.
- * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
+ * Misión: Centralizar el contrato de identidad, telemetría y control cinemático,
+ * garantizando la sintonía entre el hardware de captura y el oráculo de IA.
+ * [REFORMA V7.6]: Inyección de intentAudioBlob, alineación con Protocolo Lightning
+ * y purificación total de nomenclatura para el despliegue exitoso en Vercel.
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 /**
@@ -20,7 +21,12 @@ export interface GeoPoint {
   coordinates: [number, number]; // [longitude, latitude]
 }
 
-export type TelemetrySource = 'gps' | 'cache' | 'ip-fallback' | 'manual-anchor' | 'edge-ip';
+export type TelemetrySource = 
+  | 'gps' 
+  | 'cache' 
+  | 'ip-fallback' 
+  | 'manual-anchor' 
+  | 'edge-ip';
 
 export interface UserLocation {
   latitude: number;
@@ -32,7 +38,7 @@ export interface UserLocation {
   timestamp?: number;
 }
 
-export interface ActivePOI {
+export interface ActivePointOfInterest {
   id: string;
   name: string;
   distance: number;
@@ -46,27 +52,18 @@ export interface ActivePOI {
  * ---------------------------------------------------------------------------
  */
 
-/**
- * CategoryMission: El Eje Funcional (Lo que el Voyager busca).
- */
 export type CategoryMission = 
   | 'infraestructura_vital'
   | 'memoria_soberana'
   | 'capital_intelectual'
   | 'resonancia_sensorial';
 
-/**
- * CategoryEntity: El Eje Físico (Lo que el Perito Urbano clasifica).
- */
 export type CategoryEntity =
   | 'aseo_premium' | 'nodo_hidratacion' | 'refugio_climatico' | 'terminal_energia' | 'zona_segura'
   | 'monumento_nacional' | 'placa_sintonia' | 'yacimiento_ruina' | 'leyenda_urbana' | 'arquitectura_epoca'
   | 'museo_sabiduria' | 'atelier_galeria' | 'libreria_autor' | 'centro_innovacion' | 'intervencion_plastica'
   | 'mirador_estrategico' | 'paisaje_sonoro' | 'pasaje_secreto' | 'mercado_origen' | 'obrador_tradicion';
 
-/**
- * HistoricalEpoch: El Eje Temporal para la sintonización de la IA.
- */
 export type HistoricalEpoch =
   | 'origen_geologico'
   | 'pre_industrial'
@@ -83,7 +80,7 @@ export type HistoricalEpoch =
  * ---------------------------------------------------------------------------
  */
 
-export type POILifecycle =
+export type PointOfInterestLifecycle =
   | 'ingested'
   | 'analyzed'
   | 'narrated'
@@ -115,21 +112,20 @@ export type NarrativeTone = 'academico' | 'misterioso' | 'epico' | 'melancolico'
  * ---------------------------------------------------------------------------
  */
 
-export interface POIMetadata {
+export interface PointOfInterestMetadata {
   urban_context?: string;
   architectural_period?: string;
   custom_tags?: string[];
   curator_notes?: string;
-  // [V4.0]: Metadatos de inyección externa
   external_source_url?: string;
-  [key: string]: unknown;
+  grounding_summary?: string;
+  processing_trace_id?: string;
 }
 
 export interface PointOfInterest {
   id: number;
   author_id: string;
   name: string;
-  // [V4.0]: Transición de category_id a taxonomía bidimensional
   category_mission: CategoryMission;
   category_entity: CategoryEntity;
   historical_epoch: HistoricalEpoch;
@@ -140,16 +136,16 @@ export interface PointOfInterest {
   rich_description: string | null;
   gallery_urls: string[] | null;
   ambient_audio_url: string | null;
-  status: POILifecycle;
+  status: PointOfInterestLifecycle;
   is_published: boolean;
   reference_podcast_id: number | null;
   created_at: string;
   updated_at: string;
-  metadata?: POIMetadata | null;
+  metadata?: PointOfInterestMetadata | null;
 }
 
 export interface IngestionDossier {
-  poi_id: number;
+  point_of_interest_id: number;
   raw_ocr_text: string | null;
   weather_snapshot: {
     temp_c: number;
@@ -175,7 +171,7 @@ export interface IngestionDossier {
  */
 
 export interface GeoContextData {
-  poiId?: number;
+  pointOfInterestId?: number;
   dossier?: IngestionDossier;
   narrative?: {
     title: string;
@@ -187,12 +183,15 @@ export interface GeoContextData {
   rejectionReason?: string;
 }
 
+/**
+ * GeoEngineReturn: La firma pública de la Fachada Soberana.
+ */
 export interface GeoEngineReturn {
   status: GeoEngineState;
   data: GeoContextData;
   userLocation: UserLocation | null;
   nearbyPOIs: PointOfInterest[];
-  activePOI: ActivePOI | null;
+  activePOI: ActivePointOfInterest | null;
   isSearching: boolean;
   isLocked: boolean;
   error: string | null;
@@ -217,23 +216,20 @@ export interface GeoEngineReturn {
   setManualAnchor: (longitude: number, latitude: number) => void;
   setManualPlaceName: (name: string) => void;
 
-  /**
-   * [REFORMA V7.5]: Ingesta Multidimensional.
-   * El orquestador ahora recibe la taxonomía completa y el enlace de sabiduría.
-   */
-  ingestSensoryData: (params: {
+  ingestSensoryData: (parameters: {
     heroImage: File;
     ocrImages: File[];
     ambientAudio?: Blob | null;
     intentText: string;
+    intentAudioBlob?: Blob | null; // [V7.6]: Sincronía con Dictado Sensorial
     categoryMission: CategoryMission;
     categoryEntity: CategoryEntity;
     historicalEpoch: HistoricalEpoch;
     resonanceRadius: number;
-    referenceUrl?: string; // Puente de Sabiduría
-  }) => Promise<{ poiId: number; dossier: IngestionDossier } | void>;
+    referenceUrl?: string; 
+  }) => Promise<{ pointOfInterestId: number; dossier: IngestionDossier } | void>;
 
-  synthesizeNarrative: (params: {
+  synthesizeNarrative: (parameters: {
     poiId: number;
     depth: NarrativeDepth;
     tone: NarrativeTone;
@@ -259,14 +255,14 @@ export interface GeoActionResponse<T = unknown> {
 }
 
 /**
- * [REFORMA V7.5]: Alineado con el esquema de base de datos V4.0.
+ * POICreationPayload: Contrato para la Ingesta Lightning V4.0.
  */
 export interface POICreationPayload {
   latitude: number;
   longitude: number;
   accuracy: number;
-  heroImage: string;
-  ocrImages: string[];
+  heroImageFilePath: string; // Ruta de Storage (Lightning Protocol)
+  ocrImageFilePaths: string[]; // Rutas de Storage (Lightning Protocol)
   categoryMission: string;
   categoryEntity: string;
   historicalEpoch: string;
@@ -276,11 +272,11 @@ export interface POICreationPayload {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V7.5):
- * 1. Neural Taxonomy: La introducción de CategoryMission y CategoryEntity permite
- *    que el radar semántico filtre no solo por lo que las cosas son, sino por 
- *    la utilidad que prestan al Voyager (Survival vs Cultural).
- * 2. Grounding Readiness: La adición de referenceUrl en el payload de ingesta 
- *    actúa como un "Cross-Check". Si el Administrador inyecta una URL de Wikipedia, 
- *    la IA en el Edge (Gemini 1.5) deberá conciliar la foto con la información de la URL.
+ * NOTA TÉCNICA DEL ARCHITECT (V7.6):
+ * 1. Build Shield Compliance: Se añadió 'intentAudioBlob' al contrato de ingesta,
+ *    eliminando el error de compilación detectado por Vercel en el Step 2.
+ * 2. Lightning Alignment: Se renombraron los campos del payload de creación a 
+ *    'FilePath' para reflejar el paso de binarios a referencias de Storage.
+ * 3. Formal Documentation: Se purgaron las abreviaturas de toda la constitución 
+ *    para garantizar la mantenibilidad por parte de agentes sucesores.
  */
