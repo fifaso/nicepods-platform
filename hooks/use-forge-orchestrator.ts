@@ -1,12 +1,13 @@
 /**
  * ARCHIVO: hooks/use-forge-orchestrator.ts
- * VERSIÓN: 4.0 (NicePod Forge Orchestrator - Sovereign Lightning Protocol Edition)
+ * VERSIÓN: 5.0 (NicePod Forge Orchestrator - Lightning Protocol & Build Shield Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Gestionar el ciclo de vida de ingesta sensorial orquestando la compresión JIT, 
- * la transcripción de voz y la evasión de los límites de Vercel mediante Subida Directa (Signed URLs).
- * [REFORMA V4.0]: Erradicación de Base64 visual. Implementación de Subida Directa paralela a Supabase.
- * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
+ * la transcripción de voz y la evasión de los límites de Vercel mediante Subida Directa.
+ * [REFORMA V5.0]: Eliminación de acciones obsoletas (Vercel Fix), implementación de 
+ * carga paralela lightning y purificación total de nomenclatura.
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
@@ -14,9 +15,8 @@
 import { useCallback, useState } from "react";
 import { compressNicePodImage, nicepodLog } from "@/lib/utils";
 import {
-  attachAmbientAudioAction,
-  ingestIntelligenceDossierAction, // [V4.0] Acción actualizada para rutas de Storage
-  requestUploadTokensAction,       // [V4.0] Generador de Signed URLs
+  ingestIntelligenceDossierAction, 
+  requestUploadTokensAction,       
   resolveLocationAction,
   synthesizeNarrativeAction,
   transcribeVoiceIntentAction
@@ -35,20 +35,20 @@ import {
 
 /**
  * UTILIDAD INTERNA: fileToBase64
- * Aún requerida para el audio de intención (muy pequeño) y el audio ambiental.
+ * Misión: Transmutar binarios de voz (pequeños) en cadenas seguras para transcripción.
  */
 const fileToBase64 = (file: File | Blob): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onload = () => resolve(reader.result as string);
-    reader.onerror = (error) => reject(error);
+    reader.onerror = (exception) => reject(exception);
   });
 };
 
 /**
  * HOOK: useForgeOrchestrator
- * El motor lógico para la creación de capital intelectual en el Borde.
+ * El reactor lógico para la creación de capital intelectual en el Borde.
  */
 export function useForgeOrchestrator() {
   // --- I. ESTADO DE LA MÁQUINA DE FORJA ---
@@ -86,25 +86,26 @@ export function useForgeOrchestrator() {
     setError(null);
 
     try {
-      nicepodLog("⚙️ [ForgeOrchestrator] Iniciando Protocolo Lightning (Compresión paralela)...");
+      nicepodLog("⚙️ [ForgeOrchestrator] Iniciando Protocolo Lightning (Fase Concurrente)...");
 
-      // Cede control al navegador para mostrar spinner de carga.
+      // Carga visual síncrona: Aseguramos que la UI repinte el estado de proceso.
       await new Promise((resolve) => setTimeout(resolve, 150));
 
       /**
        * 1. RESOLUCIÓN DE INTENCIONALIDAD COGNITIVA (Voz + Texto)
+       * Misión: Fusionar el dictado acústico con las notas manuales antes de la ingesta visual.
        */
       let finalAdminIntent = parameters.intentText;
       if (parameters.intentAudioBlob) {
-        nicepodLog("🎙️ [ForgeOrchestrator] Transcribiendo dictado sensorial acústico...");
+        nicepodLog("🎙️ [ForgeOrchestrator] Despachando dictado para transcripción neuronal...");
         const intentBase64 = await fileToBase64(parameters.intentAudioBlob);
-        const transcriptionResult = await transcribeVoiceIntentAction({ audioBase64: intentBase64 });
+        const transcriptionResults = await transcribeVoiceIntentAction({ audioBase64: intentBase64 });
         
-        if (transcriptionResult.success && transcriptionResult.data?.transcription) {
+        if (transcriptionResults.success && transcriptionResults.data?.transcription) {
           finalAdminIntent = parameters.intentText.trim() !== "" 
-            ? `${transcriptionResult.data.transcription}\n\n[Notas del Curador]: ${parameters.intentText}`
-            : transcriptionResult.data.transcription;
-          nicepodLog("✅ [ForgeOrchestrator] Fusión de intención cognitivo-manual completada.");
+            ? `${transcriptionResults.data.transcription}\n\n[Notas Adicionales]: ${parameters.intentText}`
+            : transcriptionResults.data.transcription;
+          nicepodLog("✅ [ForgeOrchestrator] Fusión de inteligencia completada.");
         }
       }
 
@@ -113,22 +114,23 @@ export function useForgeOrchestrator() {
       }
 
       /**
-       * 2. CONCURRENCIA OFF-MAIN-THREAD (Imágenes + Clima)
+       * 2. CONCURRENCIA DE PREPARACIÓN DE ACTIVOS
+       * Disparamos compresión de imágenes, sondeo de clima y solicitud de tokens de forma paralela.
        */
-      const [compressedHeroImageBlob, ocrCompressionBlobArray, weatherResolution] = await Promise.all([
+      const [
+        compressedHeroImageBlob, 
+        ocrCompressionBlobArray, 
+        weatherResolution, 
+        tokensResponse
+      ] = await Promise.all([
         compressNicePodImage(parameters.heroImage, 1920, 0.82),
         Promise.all(parameters.ocrImages.map(image => compressNicePodImage(image, 1280, 0.70))),
-        resolveLocationAction(userLocation.latitude, userLocation.longitude)
+        resolveLocationAction(userLocation.latitude, userLocation.longitude),
+        requestUploadTokensAction([
+          'hero.jpg', 
+          ...parameters.ocrImages.map((_, index) => `ocr_${index}.jpg`)
+        ])
       ]);
-
-      /**
-       * 3. PROTOCOLO LIGHTNING: SOLICITUD DE TOKENS (Signed URLs)
-       * [MANDATO V4.0]: Evadir la barrera de 4MB de Vercel.
-       */
-      nicepodLog("🔑 [ForgeOrchestrator] Solicitando pasaportes de subida directa a la Bóveda...");
-      
-      const fileNamesToUpload = ['hero.jpg', ...ocrCompressionBlobArray.map((_, index) => `ocr_${index}.jpg`)];
-      const tokensResponse = await requestUploadTokensAction(fileNamesToUpload);
 
       if (!tokensResponse.success || !tokensResponse.data) {
         throw new Error(tokensResponse.error || "FALLO_ADQUISICION_TOKENS");
@@ -139,39 +141,40 @@ export function useForgeOrchestrator() {
       const ocrStoragePaths = storagePaths.slice(1);
 
       /**
-       * 4. SUBIDA DIRECTA EN PARALELO (Navegador -> Supabase Storage)
+       * 3. TRANSMISIÓN DIRECTA A BÓVEDA (Lightning Protocol)
+       * Misión: El navegador sube los binarios directamente a Supabase Storage.
        */
-      nicepodLog("🚀 [ForgeOrchestrator] Transmitiendo binarios directamente a Supabase...");
+      nicepodLog("🚀 [ForgeOrchestrator] Transmitiendo binarios pesados al Storage Soberano...");
 
-      const allBlobs = [compressedHeroImageBlob, ...ocrCompressionBlobArray];
+      const allBinaryBlobs = [compressedHeroImageBlob, ...ocrCompressionBlobArray];
       
-      const uploadPromises = allBlobs.map((blob, index) => {
-        return fetch(uploadUrls[index], {
-          method: 'PUT',
-          body: blob,
-          headers: { 'Content-Type': 'image/jpeg' }
-        });
-      });
-
-      const uploadResults = await Promise.all(uploadPromises);
+      const uploadExecutionResults = await Promise.all(
+        allBinaryBlobs.map((blob, index) => {
+          return fetch(uploadUrls[index], {
+            method: 'PUT',
+            body: blob,
+            headers: { 'Content-Type': 'image/jpeg' }
+          });
+        })
+      );
       
-      const failedUploads = uploadResults.filter(response => !response.ok);
-      if (failedUploads.length > 0) {
+      const hasFailedUploads = uploadExecutionResults.some(response => !response.ok);
+      if (hasFailedUploads) {
         throw new Error("STORAGE_UPLOAD_ERROR: Fricción detectada durante la transmisión directa.");
       }
 
       /**
-       * 5. INVOCACIÓN SOBERANA AL METAL (Server Action de Borde)
-       * Ahora enviamos un Payload ultraligero que contiene solo rutas de texto.
+       * 4. INVOCACIÓN AL ORÁCULO DE BORDE (Agente 42)
+       * Enviamos un payload ligero (solo rutas) evitando el colapso de Vercel.
        */
-      nicepodLog("📡 [ForgeOrchestrator] Transmisión exitosa. Despertando al Oráculo (Agente 42)...");
+      nicepodLog("📡 [ForgeOrchestrator] Despertando inteligencia visual para peritaje...");
 
-      const ingestionExecutionResult = await ingestIntelligenceDossierAction({
+      const ingestionFinalResults = await ingestIntelligenceDossierAction({
         latitude: userLocation.latitude,
         longitude: userLocation.longitude,
         accuracy: userLocation.accuracy,
-        heroImagePath: heroStoragePath, // [V4.0]: Ruta de texto
-        ocrImagePaths: ocrStoragePaths, // [V4.0]: Array de rutas de texto
+        heroImagePath: heroStoragePath,
+        ocrImagePaths: ocrStoragePaths,
         categoryMission: parameters.categoryMission,
         categoryEntity: parameters.categoryEntity,
         historicalEpoch: parameters.historicalEpoch,
@@ -180,22 +183,13 @@ export function useForgeOrchestrator() {
         referenceUrl: parameters.referenceUrl
       });
 
-      if (!ingestionExecutionResult.success || !ingestionExecutionResult.data) {
-        throw new Error(ingestionExecutionResult.error || "FAIL_AI_INGESTION");
+      if (!ingestionFinalResults.success || !ingestionFinalResults.data) {
+        throw new Error(ingestionFinalResults.error || "FAIL_AI_INGESTION");
       }
 
-      const { poiId, analysis } = ingestionExecutionResult.data;
+      const { poiId, analysis } = ingestionFinalResults.data;
 
-      // 6. ANCLAJE ACÚSTICO DE FONDO (Opcional y no bloqueante)
-      if (parameters.ambientAudio) {
-        fileToBase64(parameters.ambientAudio).then(audioBase64 => {
-          attachAmbientAudioAction({ poiId, audioBase64 }).catch(err => {
-            nicepodLog("⚠️ [ForgeOrchestrator] Fricción en anclaje acústico de ambiente.", err, 'warn');
-          });
-        });
-      }
-
-      // 7. MATERIALIZACIÓN DEL DOSSIER FINAL
+      // 5. MATERIALIZACIÓN DEL DOSSIER FINAL PARA LA UI
       const compiledDossier: IngestionDossier = {
         poi_id: poiId,
         raw_ocr_text: analysis.historicalDossier || null,
@@ -211,7 +205,7 @@ export function useForgeOrchestrator() {
 
       setData(previousData => ({ ...previousData, poiId, dossier: compiledDossier }));
       setStatus('DOSSIER_READY');
-      nicepodLog(`✅ [ForgeOrchestrator] Malla Cognitiva sellada. Nodo #${poiId} materializado.`);
+      nicepodLog(`✅ [ForgeOrchestrator] Misión completada. Nodo #${poiId} anclado.`);
 
       return { poiId, dossier: compiledDossier };
 
@@ -219,21 +213,21 @@ export function useForgeOrchestrator() {
       const errorMessage = exception instanceof Error ? exception.message : String(exception);
       setStatus('REJECTED');
 
-      if (errorMessage.includes("FALLO_ADQUISICION_TOKENS") || errorMessage.includes("STORAGE_UPLOAD_ERROR")) {
-        setError("Fricción en la infraestructura de almacenamiento. Reintente transmisión.");
+      if (errorMessage.includes("STORAGE_UPLOAD_ERROR")) {
+        setError("Fricción en la red de almacenamiento. Reintente el proceso.");
       } else {
-        setError("El Oráculo no pudo procesar la evidencia visual o acústica.");
+        setError("El Oráculo no pudo procesar la evidencia. Verifique su sintonía.");
       }
 
       setIsLocked(false);
-      nicepodLog("🔥 [ForgeOrchestrator] Colapso Crítico en la Forja", errorMessage, 'error');
+      nicepodLog("🔥 [ForgeOrchestrator] Colapso en el Pipeline de Ingesta.", errorMessage, 'error');
       throw exception;
     }
   }, []);
 
   /**
    * synthesizeNarrative:
-   * Misión: Ordenar al Agente 42 la transmutación del dossier en una crónica.
+   * Misión: Invocar la síntesis final de sabiduría anclada.
    */
   const synthesizeNarrative = useCallback(async (params: {
     poiId: number;
@@ -246,21 +240,21 @@ export function useForgeOrchestrator() {
 
     try {
       nicepodLog(`🧠 [ForgeOrchestrator] Despertando Agente de Síntesis para Nodo #${params.poiId}...`);
-      const synthesisResult = await synthesizeNarrativeAction(params);
+      const results = await synthesizeNarrativeAction(params);
 
-      if (!synthesisResult.success || !synthesisResult.data) {
-        throw new Error(synthesisResult.error || "NARRATIVE_SYNTHESIS_FAILED");
+      if (!results.success || !results.data) {
+        throw new Error(results.error || "NARRATIVE_SYNTHESIS_FAILED");
       }
 
-      setData(previousData => ({ ...previousData, narrative: synthesisResult.data }));
+      setData(previousData => ({ ...previousData, narrative: results.data }));
       setStatus('NARRATIVE_READY');
       nicepodLog(`🎯 [ForgeOrchestrator] Sabiduría sintetizada y lista para propagación.`);
 
     } catch (exception: unknown) {
       const errorMessage = exception instanceof Error ? exception.message : String(exception);
       setStatus('REJECTED');
-      setError("El Oráculo ha fallado en la síntesis. Verifique red y reintente.");
-      nicepodLog("🔥 [ForgeOrchestrator] Falla en motor narrativo.", errorMessage, 'error');
+      setError("El Oráculo ha fallado en la síntesis. Verifique su red.");
+      nicepodLog("🔥 [ForgeOrchestrator] Falla en la forja narrativa.", errorMessage, 'error');
       throw exception;
     }
   }, []);
@@ -274,7 +268,7 @@ export function useForgeOrchestrator() {
     setData({});
     setIsLocked(false);
     setError(null);
-    nicepodLog("🧹 [ForgeOrchestrator] Memoria de forja purgada.");
+    nicepodLog("🧹 [ForgeOrchestrator] Memoria purgada.");
   }, []);
 
   return {
@@ -288,15 +282,3 @@ export function useForgeOrchestrator() {
     resetForge
   };
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT (V4.0):
- * 1. Lightning Protocol: Se reemplazó el transporte Base64 por peticiones 'fetch' PUT
- *    directas al Bucket mediante Signed URLs. Esto erradica la saturación de Vercel y 
- *    multiplica x10 la velocidad de subida en redes móviles.
- * 2. Cross-Check Multidimensional: El orquestador transmite la misión, entidad y época
- *    junto con la referencia web, asegurando que la IA en el borde realice Grounding
- *    histórico real y no una simple descripción de imagen.
- * 3. Janitor Reliance: Al mandar las rutas y no los blobs, el backend (geo-actions.ts) 
- *    ejecutará un purgado inmediato del Storage si la IA falla en extraer sabiduría.
- */
