@@ -5,8 +5,8 @@
  * 
  * Misión: Centralizar el contrato de identidad, telemetría y control cinemático,
  * garantizando la sintonía entre el hardware de captura y el oráculo de IA.
- * [REFORMA V7.7]: Purificación total de nomenclatura (Sin abreviaciones). Sustitución 
- * definitiva de términos 'POI' por 'PointOfInterest' para erradicar errores de importación.
+ * [REFORMA V7.7]: Purificación total de nomenclatura. Sustitución definitiva del
+ * término 'POI' por 'PointOfInterest' para erradicar errores de importación.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -42,7 +42,7 @@ export interface UserLocation {
  * ActivePointOfInterest: Representación de un nodo cercano detectado por el Radar.
  */
 export interface ActivePointOfInterest {
-  id: string;
+  identification: string;
   name: string;
   distance: number;
   isWithinRadius: boolean;
@@ -83,9 +83,6 @@ export type HistoricalEpoch =
  * ---------------------------------------------------------------------------
  */
 
-/**
- * PointOfInterestLifecycle: Estados legales de un nodo en la Bóveda NKV.
- */
 export type PointOfInterestLifecycle =
   | 'ingested'
   | 'analyzed'
@@ -151,7 +148,7 @@ export interface PointOfInterest {
 }
 
 export interface IngestionDossier {
-  point_of_interest_id: number;
+  point_of_interest_identification: number;
   raw_ocr_text: string | null;
   weather_snapshot: {
     temp_c: number;
@@ -177,7 +174,7 @@ export interface IngestionDossier {
  */
 
 export interface GeoContextData {
-  pointOfInterestId?: number;
+  pointOfInterestIdentification?: number;
   dossier?: IngestionDossier;
   narrative?: {
     title: string;
@@ -196,8 +193,8 @@ export interface GeoEngineReturn {
   status: GeoEngineState;
   data: GeoContextData;
   userLocation: UserLocation | null;
-  nearbyPointsOfInterest: PointOfInterest[]; // [V7.7]: Nomenclatura completa
-  activePointOfInterest: ActivePointOfInterest | null; // [V7.7]: Nomenclatura completa
+  nearbyPointsOfInterest: PointOfInterest[];
+  activePointOfInterest: ActivePointOfInterest | null;
   isSearching: boolean;
   isLocked: boolean;
   error: string | null;
@@ -233,10 +230,10 @@ export interface GeoEngineReturn {
     historicalEpoch: HistoricalEpoch;
     resonanceRadius: number;
     referenceUrl?: string; 
-  }) => Promise<{ pointOfInterestId: number; dossier: IngestionDossier } | void>;
+  }) => Promise<{ pointOfInterestIdentification: number; dossier: IngestionDossier } | void>;
 
   synthesizeNarrative: (parameters: {
-    pointOfInterestId: number; // [V7.7]: Nomenclatura completa
+    pointOfInterestIdentification: number;
     depth: NarrativeDepth;
     tone: NarrativeTone;
     refinedIntent?: string;
@@ -261,7 +258,7 @@ export interface GeoActionResponse<T = unknown> {
 }
 
 /**
- * POICreationPayload: Contrato para la Ingesta Lightning V4.0.
+ * PointOfInterestCreationPayload: Contrato para la Ingesta Lightning V4.0.
  */
 export interface PointOfInterestCreationPayload {
   latitude: number;
@@ -276,15 +273,3 @@ export interface PointOfInterestCreationPayload {
   adminIntent: string;
   referenceUrl?: string;
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT (V7.7):
- * 1. Zero Abbreviations Enforcement: Se eliminaron los términos 'POI', 'poiId' y 
- *    'nearbyPOIs' de las exportaciones públicas, forzando al resto del sistema a 
- *    utilizar descriptores industriales completos.
- * 2. Contract Unification: Al centralizar estos nombres aquí, el Build Shield 
- *    detectará automáticamente qué archivos necesitan actualización en la siguiente 
- *    fase del despliegue.
- * 3. Type Resilience: La estructura se ha diseñado para ser escalable, permitiendo 
- *    añadir nuevas misiones o entidades sin romper la jerarquía base.
- */
