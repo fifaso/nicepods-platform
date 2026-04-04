@@ -1,27 +1,35 @@
-// components/create-flow/step-renderer.tsx
-// VERSIÓN: 3.0 (Master View Orchestrator - Full Flow Integration & Realtime Handover)
+/**
+ * ARCHIVO: components/create-flow/step-renderer.tsx
+ * VERSIÓN: 3.1 (NicePod Master View Orchestrator - Universal Recorder Integration)
+ * PROTOCOLO: MADRID RESONANCE V3.0
+ * 
+ * Misión: Orquestar la visualización determinista de los pasos de creación, 
+ * garantizando la compatibilidad entre flujos estándar y el hardware pericial.
+ * [REFORMA V3.1]: Adaptación de GeoRecorder V3.0 mediante el patrón de captura 
+ * polimórfica y eliminación de errores de contrato (draftId).
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ */
 
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
 import dynamic from 'next/dynamic';
-import { useMemo } from "react";
+import React, { useMemo, useCallback, useState } from "react";
 import { useFormContext } from "react-hook-form";
 import { useCreationContext } from "./shared/context";
 
-// --- IMPORTACIONES DE PASOS: NÚCLEO ---
-import { PurposeSelectionStep } from "./steps/purpose-selection-step";
-
-// --- IMPORTACIONES: FLUJO PULSE (ACTUALIDAD) ---
-import { DnaInterviewStep } from "./steps/dna-interview-step";
-import { PulseRadarStep } from "./steps/pulse-radar-step";
-
-// --- IMPORTACIONES: FLUJO GEO-ALMA (VIVE LO LOCAL) ---
+// --- INFRAESTRUCTURA DE HARDWARE Y MALLA ---
 import { GeoRecorder } from "../geo/geo-recorder";
 import { GeoScannerUI } from "../geo/scanner-ui";
+import { nicepodLog } from "@/lib/utils";
+
+// --- IMPORTACIONES DE PASOS: NÚCLEO ---
+import { PurposeSelectionStep } from "./steps/purpose-selection-step";
+import { DnaInterviewStep } from "./steps/dna-interview-step";
+import { PulseRadarStep } from "./steps/pulse-radar-step";
 import { LocalDiscoveryStep } from "./steps/local-discovery-step";
 
-// --- IMPORTACIONES: FLUJOS NARRATIVOS (LEARN, EXPLORE, REFLECT, INSPIRE) ---
+// --- IMPORTACIONES: FLUJOS NARRATIVOS ---
 import { InspireSubStep } from "./steps/inspire-sub-step";
 import { LearnSubStep } from "./steps/learn-sub-step";
 import { LegacyStep } from "./steps/legacy-step";
@@ -31,22 +39,22 @@ import { QuestionStep } from "./steps/question-step";
 import { SoloTalkStep } from "./steps/solo-talk-step";
 import { StyleSelectionStep } from "./steps/style-selection";
 
-// --- IMPORTACIONES: FASES TRANSVERSALES DE PRODUCCIÓN ---
+// --- IMPORTACIONES: PRODUCCIÓN ---
 import { AudioStudio } from "./steps/audio-studio";
 import { DetailsStep } from "./steps/details-step";
 import { DraftGenerationLoader } from "./steps/draft-generation-loader";
 import { FinalStep } from "./steps/final-step";
 import { ToneSelectionStep } from "./steps/tone-selection-step";
 
-// CARGA DINÁMICA: Aísla el peso del editor de texto para maximizar performance
+// CARGA DINÁMICA: Aislamiento de carga para el Editor de Guiones
 const ScriptEditorStep = dynamic(
-  () => import('./steps/script-editor-step').then((m) => m.ScriptEditorStep),
+  () => import('./steps/script-editor-step').then((module) => module.ScriptEditorStep),
   {
     ssr: false,
     loading: () => (
-      <div className="h-full w-full flex flex-col items-center justify-center space-y-4 opacity-40">
-        <div className="h-10 w-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Sincronizando Editor...</span>
+      <div className="h-full w-full flex flex-col items-center justify-center space-y-6 opacity-50">
+        <div className="h-12 w-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-primary">Sincronizando Terminal Editorial...</span>
       </div>
     )
   }
@@ -58,27 +66,50 @@ interface StepRendererProps {
 }
 
 /**
- * StepRenderer
- * Orquesta la visualización de los componentes según el estado de la FlowState Machine.
+ * StepRenderer: El Reactor de Vistas Maestro de NicePod.
  */
 export function StepRenderer({ narrativeOptions, initialDrafts }: StepRendererProps) {
-  const { currentFlowState } = useCreationContext();
-  const { watch } = useFormContext();
+  const { currentFlowState, nextStep } = useCreationContext();
+  const { watch, setValue } = useFormContext();
 
-  // Observamos el formData para inyectar estados persistidos (como draft_id) en los sub-pasos
+  // 1. MONITORIZACIÓN DE DATOS PERSISTENTES
   const formData = watch();
+  const [isProcessingAudio, setIsProcessingAudio] = useState<boolean>(false);
 
   /**
-   * stepContent
-   * Mapeo determinista entre el estado lógico y el componente físico.
+   * handleChronicleCapture:
+   * Misión: Recibir el binario acústico desde el hardware y prepararlo para la 
+   * persistencia en el flujo de creación.
    */
-  const stepContent = useMemo(() => {
+  const handleChronicleCapture = useCallback(async (audioBlob: Blob, durationSeconds: number) => {
+    setIsProcessingAudio(true);
+    nicepodLog(`🎙️ [StepRenderer] Crónica capturada: ${durationSeconds} segundos.`);
+    
+    try {
+      // Almacenamos el blob en el estado del formulario para su posterior publicación
+      setValue('final_audio_blob', audioBlob);
+      setValue('final_audio_duration', durationSeconds);
+      
+      // En este flujo, el éxito de la captura permite avanzar al cierre
+      nextStep();
+    } catch (error) {
+      nicepodLog("🔥 [StepRenderer] Fallo al procesar binario acústico.", error, 'error');
+    } finally {
+      setIsProcessingAudio(false);
+    }
+  }, [setValue, nextStep]);
+
+  /**
+   * activeStepContent:
+   * Misión: Mapeo determinista entre el estado de la FlowState Machine y el componente físico.
+   */
+  const activeStepContent = useMemo(() => {
     switch (currentFlowState) {
-      // --- FASE 1: DEFINICIÓN DE INTENCIÓN ---
+      // --- FASE 1: INTENCIONALIDAD ---
       case 'SELECTING_PURPOSE':
         return <PurposeSelectionStep existingDrafts={initialDrafts} />;
 
-      // --- RUTA: PULSE (ACTUALIDAD E INTELIGENCIA) ---
+      // --- RUTA: PULSE (INTELIGENCIA Y ACTUALIDAD) ---
       case 'DNA_CHECK':
         return <DnaInterviewStep />;
       case 'PULSE_RADAR':
@@ -91,18 +122,23 @@ export function StepRenderer({ narrativeOptions, initialDrafts }: StepRendererPr
         return <LocalDiscoveryStep />;
       case 'LOCAL_ANALYSIS_LOADER':
       case 'LOCAL_RESULT_STEP':
-        // GeoScannerUI gestiona internamente el estado de carga y resultado geosemántico
         return <GeoScannerUI />;
+      
       case 'GEO_RECORDER_STEP':
+        /**
+         * [INTEGRACIÓN V3.1]: Uso del GeoRecorder Universal.
+         * Se elimina la dependencia de draftId y se pasa al modo CHRONICLE.
+         */
         return (
           <GeoRecorder
-            draftId={formData.draft_id?.toString()}
+            mode="CHRONICLE"
             script={formData.final_script}
-            onUploadComplete={() => { }}
+            isProcessingExternal={isProcessingAudio}
+            onCaptureComplete={handleChronicleCapture}
           />
         );
 
-      // --- RUTAS NARRATIVAS (LEARN / INSPIRE / EXPLORE / REFLECT) ---
+      // --- RUTAS NARRATIVAS MULTIDIMENSIONALES ---
       case 'LEARN_SUB_SELECTION': return <LearnSubStep />;
       case 'SOLO_TALK_INPUT': return <SoloTalkStep />;
       case 'INSPIRE_SUB_SELECTION': return <InspireSubStep />;
@@ -111,11 +147,10 @@ export function StepRenderer({ narrativeOptions, initialDrafts }: StepRendererPr
         return <NarrativeSelectionStep narrativeOptions={narrativeOptions} />;
       case 'LEGACY_INPUT': return <LegacyStep />;
 
-      // --- FASES COMUNES DE PRODUCCIÓN ---
+      // --- FASES DE PRODUCCIÓN INDUSTRIAL ---
       case 'DETAILS_STEP': return <DetailsStep />;
       case 'TONE_SELECTION': return <ToneSelectionStep />;
 
-      // Monitor de Inteligencia Realtime (Asíncrono)
       case 'DRAFT_GENERATION_LOADER':
         return <DraftGenerationLoader formData={formData as any} />;
 
@@ -123,41 +158,41 @@ export function StepRenderer({ narrativeOptions, initialDrafts }: StepRendererPr
       case 'AUDIO_STUDIO_STEP': return <AudioStudio />;
       case 'FINAL_STEP': return <FinalStep />;
 
-      // --- COMPATIBILIDAD ---
+      // --- COMPATIBILIDAD DE LEGADO ---
       case 'QUESTION_INPUT': return <QuestionStep />;
       case 'FREESTYLE_SELECTION': return <StyleSelectionStep />;
 
       default:
         return (
-          <div className="h-full flex flex-col items-center justify-center text-center p-12 space-y-6">
-            <div className="relative">
-              <div className="absolute inset-0 bg-primary/20 blur-2xl animate-pulse rounded-full" />
-              <div className="h-12 w-12 border-2 border-primary border-t-transparent rounded-full animate-spin relative z-10" />
+          <div className="h-full flex flex-col items-center justify-center space-y-8 py-20 opacity-60">
+            <div className="relative h-16 w-16">
+              <div className="absolute inset-0 bg-primary/10 blur-3xl animate-pulse rounded-full" />
+              <div className="h-full w-full border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
             </div>
-            <p className="font-black uppercase tracking-[0.4em] text-[10px] text-white/40">
-              Sincronizando Malla de Inteligencia...
+            <p className="font-black uppercase tracking-[0.5em] text-[9px] text-zinc-500">
+              Sincronizando Malla...
             </p>
           </div>
         );
     }
-  }, [currentFlowState, formData, narrativeOptions, initialDrafts]);
+  }, [currentFlowState, formData, narrativeOptions, initialDrafts, isProcessingAudio, handleChronicleCapture]);
 
   return (
-    <div className="relative flex-1 flex flex-col min-h-0 w-full overflow-hidden">
+    <div className="relative flex-1 flex flex-col min-h-0 w-full overflow-hidden isolate">
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={currentFlowState}
-          initial={{ opacity: 0, x: 20, scale: 0.98 }}
-          animate={{ opacity: 1, x: 0, scale: 1 }}
-          exit={{ opacity: 0, x: -20, scale: 1.02 }}
+          initial={{ opacity: 0, x: 15 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -15 }}
           transition={{
-            duration: 0.4,
-            ease: [0.4, 0, 0.2, 1]
+            duration: 0.5,
+            ease: [0.16, 1, 0.3, 1] // Industrial Quint Ease-Out
           }}
           className="flex-1 flex flex-col min-h-0 h-full"
         >
           <div className="flex-1 overflow-y-auto custom-scrollbar-hide px-4 md:px-0">
-            {stepContent}
+            {activeStepContent}
           </div>
         </motion.div>
       </AnimatePresence>
