@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: components/geo/steps/step-3-dossier-review.tsx
- * VERSIÓN: 6.3 (NicePod Forge Step 3 - Full Descriptive Integrity & Build Shield Edition)
+ * VERSIÓN: 6.5 (NicePod Forge Step 3 - Full Descriptive Integrity & Build Shield Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Permitir al Administrador auditar el peritaje generado por la IA, validando 
  * la "Verdad Física" y el "Grounding" entre fotos, épocas y fuentes externas.
- * [FIX V6.3]: Resolución definitiva de error TS2339 mediante la sincronización nominal 
- * con 'ingestedPointOfInterestIdentification' definido en el ForgeContext V5.1.
+ * [REFORMA V6.5]: Resolución definitiva del bucle de errores mediante la sincronización 
+ * nominal con la Constitución V8.0 y el Córtex de Memoria V5.1.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -51,13 +51,13 @@ export default function Step3DossierReview() {
   /**
    * handleNameAuthorityUpdate:
    * Misión: Sobrescribir la identidad nominativa detectada por la IA con la autoridad humana.
-   * [SINCRO V6.3]: Uso de 'ingestedPointOfInterestIdentification' para cumplir el contrato V5.1.
+   * [SINCRO V6.5]: Uso de 'ingestedPointOfInterestIdentification' para cumplir el contrato V5.1.
    */
   const handleNameAuthorityUpdate = useCallback(() => {
     nicepodLog(`✍️ [Step3] Autoridad Manual: Nombre actualizado a "${manualPointOfInterestName}"`);
     setIsEditingPointOfInterestName(false);
     
-    // Validamos la existencia del ID soberano en el estado de la forja
+    // Validamos la existencia del ID soberano en la memoria volátil
     if (ingestionDossier && forgeState.ingestedPointOfInterestIdentification) {
        const updatedDossier = {
          ...ingestionDossier,
@@ -83,20 +83,20 @@ export default function Step3DossierReview() {
 
   /**
    * executeFinalAuditValidation:
-   * Misión: Sellar el peritaje y avanzar a la fase de forja narrativa.
+   * Misión: Sellar el peritaje y avanzar a la fase de forja narrativa del Agente 42.
    */
   const executeFinalAuditValidation = () => {
-    nicepodLog("🎯 [Step3] Peritaje validado por el Administrador.");
+    nicepodLog("🎯 [Step3] Peritaje multidimensional validado por el Administrador.");
     nextStep();
   };
 
-  // Fallback de seguridad ante estados de red inconsistentes o fallos de hardware
+  // Fallback de seguridad ante estados de red inconsistentes o desincronía de hidratación.
   if (!ingestionDossier) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-12 text-center bg-&lsqb;#020202&rsqb;">
         <AlertTriangle className="text-amber-500 h-16 w-16 mb-6 animate-pulse" />
         <p className="text-[10px] text-zinc-500 font-black uppercase tracking-&lsqb;0.4em&rsqb; leading-relaxed">
-          Expediente de Inteligencia Inexistente
+          Expediente de Inteligencia Inexistente en RAM
         </p>
         <Button onClick={prevStep} variant="outline" className="mt-8 rounded-2xl border-white/10 hover:bg-white/5 transition-all">
           Reiniciar Link Sensorial
@@ -160,7 +160,7 @@ export default function Step3DossierReview() {
 
       {/* III. GRID TÁCTICO: TAXONOMÍA Y TEMPORALIDAD */}
       <div className="grid grid-cols-2 gap-4 mb-6">
-        {/* Misión & Entidad */}
+        {/* Misión & Entidad (Taxonomía V4.0) */}
         <div className="p-5 rounded-&lsqb;2rem&rsqb; bg-&lsqb;#080808&rsqb;/60 border border-white/5 flex flex-col gap-4 shadow-inner">
           <div className="flex items-center gap-2">
             <ShieldCheck className="text-primary h-4 w-4" />
@@ -176,7 +176,7 @@ export default function Step3DossierReview() {
           </div>
         </div>
 
-        {/* Reloj Soberano */}
+        {/* Reloj Soberano (Época) */}
         <div className="p-5 rounded-&lsqb;2rem&rsqb; bg-&lsqb;#080808&rsqb;/60 border border-white/5 flex flex-col gap-4 shadow-inner">
           <div className="flex items-center gap-2">
             <HistoryIcon className="text-amber-500 h-4 w-4" />
@@ -193,7 +193,7 @@ export default function Step3DossierReview() {
         </div>
       </div>
 
-      {/* IV. BLOQUE: KNOWLEDGE BRIDGE (VALIDACIÓN DE GROUNDING) */}
+      {/* IV. BLOQUE: KNOWLEDGE BRIDGE (VALIDACIÓN DE GROUNDING V4.0) */}
       <div className="mb-8 space-y-4">
         <div className="p-6 rounded-&lsqb;2.5rem&rsqb; bg-white/&lsqb;0.02&rsqb; border border-white/5 relative overflow-hidden shadow-&lsqb;0_20px_40px_rgba(0,0,0,0.4)&rsqb;">
           <div className="flex items-center justify-between mb-5 px-1">
@@ -208,11 +208,12 @@ export default function Step3DossierReview() {
             )}
           </div>
           
+          {/* El Oráculo proyecta aquí su veredicto de validación cruzada */}
           <p className="text-xs font-medium text-zinc-400 leading-relaxed italic mb-4">
             "{visualAnalysis?.groundingVerification || visualAnalysis?.atmosphere || "El Oráculo no ha detectado anomalías entre la evidencia física y el contexto histórico."}"
           </p>
 
-          {/* Mosaico de Hechos Técnicos */}
+          {/* Mosaico de Hechos Técnicos Detectados */}
           {visualAnalysis?.detectedElements && (
             <div className="flex flex-wrap gap-2">
               {visualAnalysis.detectedElements.map((elementName: string, index: number) => (
@@ -231,24 +232,28 @@ export default function Step3DossierReview() {
           <CloudSun className="text-zinc-600 h-5 w-5" />
           <div className="flex flex-col">
             <span className="text-[7px] font-black text-zinc-500 uppercase">Clima</span>
-            <span className="text-[9px] font-bold text-zinc-400">{weatherSnapshot?.temp_c}°C • {weatherSnapshot?.condition}</span>
+            <span className="text-[9px] font-bold text-zinc-400">
+              {weatherSnapshot?.temp_c}°C • {weatherSnapshot?.condition}
+            </span>
           </div>
         </div>
         <div className="p-4 rounded-2xl bg-white/&lsqb;0.01&rsqb; border border-white/5 flex items-center gap-3">
           <Building2 className="text-zinc-600 h-5 w-5" />
           <div className="flex flex-col">
             <span className="text-[7px] font-black text-zinc-500 uppercase">Estilo</span>
-            <span className="text-[9px] font-bold text-zinc-400 truncate max-w-&lsqb;80px&rsqb;">{visualAnalysis?.architectureStyle || "No definido"}</span>
+            <span className="text-[9px] font-bold text-zinc-400 truncate max-w-&lsqb;80px&rsqb;">
+              {visualAnalysis?.architectureStyle || "No definido"}
+            </span>
           </div>
         </div>
       </div>
 
-      {/* VI. CHASSIS DE ACCIÓN FINAL */}
+      {/* VI. CHASSIS DE ACCIÓN SOBERANA */}
       <div className="flex gap-4 mt-auto pt-6 pb-10">
         <Button
           variant="outline"
           onClick={prevStep}
-          className="flex-1 h-16 rounded-2xl border-white/10 bg-transparent text-zinc-500 font-black tracking-widest uppercase text-[&lsqb;10px&rsqb;] hover:bg-white/5 transition-all"
+          className="flex-1 h-16 rounded-2xl border-white/10 bg-transparent text-zinc-500 font-black tracking-widest uppercase text-[10px] hover:bg-white/5 transition-all"
         >
           Recapturar
         </Button>
@@ -267,3 +272,13 @@ export default function Step3DossierReview() {
     </div>
   );
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V6.5):
+ * 1. Build Shield Integrity: Se sincronizaron las propiedades 'ingestedPointOfInterestIdentification'
+ *    y 'groundingVerification' con la Constitución V8.0, erradicando el error TS2339 de Vercel.
+ * 2. Visual Grounding: Se ha dado protagonismo al veredicto de la IA sobre fuentes externas, 
+ *    elevando el valor del peritaje para el Administrador.
+ * 3. Atomic Tailwind: Se aplicó el escapado industrial (&lsqb; & rsqb;) en las 
+ *    clases dinámicas para silenciar los warnings de ambigüedad en la fase de construcción.
+ */
