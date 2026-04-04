@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: components/create-flow/step-renderer.tsx
- * VERSIÓN: 3.4 (NicePod Master View Orchestrator - Context Injection Edition)
+ * VERSIÓN: 3.5 (NicePod Master View Orchestrator - Strict Contract & Tailwind Normalization)
  * PROTOCOLO: MADRID RESONANCE V3.0
  * 
- * Misión: Orquestar la visualización de las fases de creación garantizando la 
- * compatibilidad absoluta entre el flujo de podcasts y el hardware de la Malla.
- * [REFORMA V3.4]: Resolución de error de argumentos en useFlowNavigation mediante 
- * inyección de contexto y saneamiento de clases Tailwind para Vercel.
+ * Misión: Orquestar la visualización determinista de las fases de creación, 
+ * garantizando la compatibilidad absoluta entre el flujo estándar y el hardware pericial.
+ * [REFORMA V3.5]: Resolución de error TS2345 mediante la inyección explícita de 
+ * currentPurpose y normalización de clases Tailwind para limpieza de logs en Vercel.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -49,7 +49,7 @@ import { DraftGenerationLoader } from "./steps/draft-generation-loader";
 import { FinalStep } from "./steps/final-step";
 import { ToneSelectionStep } from "./steps/tone-selection-step";
 
-// CARGA DINÁMICA: Aislamiento del editor para optimizar el hilo principal.
+// CARGA DINÁMICA: Aislamiento del editor para optimizar el Time To Interactive (TTI).
 const ScriptEditorStep = dynamic(
   () => import('./steps/script-editor-step').then((module) => module.ScriptEditorStep),
   {
@@ -74,24 +74,31 @@ interface StepRendererProps {
  * StepRenderer: El Reactor de Vistas Maestro de NicePod.
  */
 export function StepRenderer({ narrativeOptions, initialDrafts }: StepRendererProps) {
-  // 1. CONSUMO DEL CONTEXTO MAESTRO
+  // 1. CONSUMO DEL CONTEXTO Y FORMULARIO
   const creationContext = useCreationContext();
   const { currentFlowState } = creationContext;
   
-  /**
-   * [FIX V3.4]: Inyección de Dependencia.
-   * useFlowNavigation requiere el contexto como argumento para operar.
-   */
-  const { transitionTo, activePath } = useFlowNavigation(creationContext);
   const { watch, setValue } = useFormContext();
-
-  // 2. MONITORIZACIÓN DE DATOS Y ESTADOS DE HARDWARE
   const creationFormData = watch();
+
+  /**
+   * [FIX V3.5]: Inyección de Propiedades Obligatorias.
+   * Unificamos el contexto de estado con el propósito seleccionado en el formulario 
+   * para satisfacer la interfaz 'UseFlowNavigationProps'.
+   */
+  const navigationAuthority = useFlowNavigation({
+    ...creationContext,
+    currentPurpose: creationFormData.purpose
+  });
+
+  const { transitionTo, activePath } = navigationAuthority;
+
+  // 2. ESTADOS DE PROCESAMIENTO ACÚSTICO
   const [isAcousticProcessingActive, setIsAcousticProcessingActive] = useState<boolean>(false);
 
   /**
    * navigateToNextStepSovereign:
-   * Misión: Calcular la transición legal dentro de la malla activa.
+   * Misión: Calcular y ejecutar la transición hacia el siguiente hito de la trayectoria.
    */
   const navigateToNextStepSovereign = useCallback(() => {
     const currentStepIndex = activePath.indexOf(currentFlowState);
@@ -99,13 +106,13 @@ export function StepRenderer({ narrativeOptions, initialDrafts }: StepRendererPr
       const nextStepState = activePath[currentStepIndex + 1];
       transitionTo(nextStepState);
     } else {
-      nicepodLog("🚩 [StepRenderer] Trayectoria finalizada o estado no indexado.", null, 'warn');
+      nicepodLog("🚩 [StepRenderer] Trayectoria finalizada o estado fuera de malla.", null, 'warn');
     }
   }, [activePath, currentFlowState, transitionTo]);
 
   /**
    * handleAcousticChronicleCapture:
-   * Misión: Recibir el binario acústico del GeoRecorder y avanzar el flujo.
+   * Misión: Recibir el binario acústico del hardware y disparar la transición de flujo.
    */
   const handleAcousticChronicleCapture = useCallback(async (
     capturedAudioBlob: Blob, 
@@ -118,7 +125,7 @@ export function StepRenderer({ narrativeOptions, initialDrafts }: StepRendererPr
       setValue('final_audio_blob', capturedAudioBlob);
       setValue('final_audio_duration', capturedDurationSeconds);
       
-      // Ejecución de la transición soberana
+      // Ejecución del salto soberano al siguiente paso
       navigateToNextStepSovereign();
     } catch (exception) {
       nicepodLog("🔥 [StepRenderer] Fallo al procesar binario acústico.", exception, 'error');
@@ -129,7 +136,7 @@ export function StepRenderer({ narrativeOptions, initialDrafts }: StepRendererPr
 
   /**
    * activeStepContent:
-   * Misión: Mapeo determinista entre el estado lógico y el componente físico.
+   * Misión: Mapeo determinista de componentes físicos.
    */
   const activeStepContent = useMemo(() => {
     switch (currentFlowState) {
@@ -207,14 +214,8 @@ export function StepRenderer({ narrativeOptions, initialDrafts }: StepRendererPr
           }}
           className="flex-1 flex flex-col min-h-0 h-full"
         >
-          <div className={cn(
-            "flex-1 overflow-y-auto custom-scrollbar-hide px-4 md:px-0",
-            /** 
-             * [FIX VERCEL]: Escapado de corchetes para evitar ambigüedad en Tailwind.
-             * Garantiza que el compilador no detecte múltiples utilidades para la misma duración.
-             */
-            "duration-&lsqb;500ms&rsqb; ease-&lsqb;cubic-bezier(0.16,1,0.3,1)&rsqb;"
-          )}>
+          {/* [FIX VERCEL]: Normalización de clases para evitar ambigüedad en PostCSS */}
+          <div className="flex-1 overflow-y-auto custom-scrollbar-hide px-4 md:px-0 duration-500 ease-in-out">
             {activeStepContent}
           </div>
         </motion.div>
