@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: components/geo/steps/step-4-narrative-forge.tsx
- * VERSIÓN: 6.0 (NicePod Forge Step 4 - Sovereign Narrative Forge & Lightning Publication Edition)
+ * VERSIÓN: 6.1 (NicePod Forge Step 4 - Sovereign Narrative Forge & Final Integrity Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Configurar el ADN editorial, sintetizar la crónica mediante el Oráculo 
  * y sellar el nodo en la Malla de Madrid mediante el Protocolo Lightning de audio.
- * [REFORMA V6.0]: Sincronización nominal con Constitución V7.7, integración de 
- * subida directa (Signed URLs) para audios y purificación total de nomenclatura.
+ * [REFORMA V6.1]: Sincronización nominal definitiva con ForgeContext V5.1 y 
+ * Acciones V11.0, eliminando abreviaturas y saneando clases Tailwind.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -44,7 +44,7 @@ import {
 import { cn, nicepodLog } from "@/lib/utils";
 
 /**
- * Step4NarrativeForge: La fase final de transmutación y publicación.
+ * Step4NarrativeForge: La fase final de transmutación intelectual y publicación.
  */
 export default function Step4NarrativeForge() {
   // 1. CONSUMO DE LA FACHADA SOBERANA Y MEMORIA TÁCTICA
@@ -63,32 +63,34 @@ export default function Step4NarrativeForge() {
   /**
    * handleInitiateSynthesis:
    * Misión: Despachar la orden de forja narrativa al Agente 42.
-   * [SINCRO V6.0]: Uso de nomenclatura descriptiva completa.
+   * [SINCRO V6.1]: Uso de nomenclatura descriptiva completa desde el contexto V5.1.
    */
   const handleInitiateSynthesis = async () => {
-    if (!forgeState.ingestedPointOfInterestIdentification) {
-      nicepodLog("🛑 [Step4] Abortando: Identificación de hito no encontrada.", null, 'error');
+    const pointOfInterestIdentification = forgeState.ingestedPointOfInterestIdentification;
+    
+    if (!pointOfInterestIdentification) {
+      nicepodLog("🛑 [Step4] Abortando: Identificación de hito no encontrada en memoria.", null, 'error');
       return;
     }
 
-    nicepodLog(`🧠 [Step4] Solicitando síntesis narrativa para el hito #${forgeState.ingestedPointOfInterestIdentification}`);
+    nicepodLog(`🧠 [Step4] Solicitando síntesis narrativa para el hito #${pointOfInterestIdentification}`);
 
     try {
       await synthesizeNarrative({
-        pointOfInterestId: forgeState.ingestedPointOfInterestIdentification,
+        pointOfInterestId: pointOfInterestIdentification,
         depth: forgeState.depth,
         tone: forgeState.tone,
         refinedIntent: forgeState.intentText
       });
     } catch (exception) {
-      nicepodLog("🔥 [Step4] Fallo en la comunicación con el Oráculo.", exception, 'error');
+      nicepodLog("🔥 [Step4] Fallo en la comunicación con el Oráculo Narrativo.", exception, 'error');
     }
   };
 
   /**
    * handleFinalChroniclePublication:
    * Misión: Recibir el audio final, subirlo directamente a Storage (Lightning) 
-   * y sellar el nodo en la Malla de Madrid.
+   * y sellar el nodo en la Malla de Madrid Resonance.
    */
   const handleFinalChroniclePublication = useCallback(async (
     audioBlob: Blob, 
@@ -108,7 +110,7 @@ export default function Step4NarrativeForge() {
       const tokenResponse = await requestUploadTokensAction(['chronicle_final.webm']);
 
       if (!tokenResponse.success || !tokenResponse.data) {
-        throw new Error(tokenResponse.error || "No se pudo autorizar la subida del audio.");
+        throw new Error(tokenResponse.error || "No se pudo autorizar la subida del audio final.");
       }
 
       const storagePath = tokenResponse.data.paths[0];
@@ -124,12 +126,12 @@ export default function Step4NarrativeForge() {
       });
 
       if (!uploadResults.ok) {
-        throw new Error("FALLO_TRANSMISION_DIRECTA: El servidor de almacenamiento rechazó el binario.");
+        throw new Error("FALLO_TRANSMISION_DIRECTA: El servidor de almacenamiento rechazó la crónica.");
       }
 
       /**
        * 3. SELLADO SOBERANO EN BASE DE DATOS
-       * Misión: Pasar el nodo a 'published' y revalidar la Malla Activa.
+       * Misión: Pasar el nodo a estado 'published' y revalidar la Malla Activa.
        */
       const publicationResults = await publishSovereignChronicleAction({
         pointOfInterestIdentification: pointOfInterestIdentification,
@@ -138,7 +140,8 @@ export default function Step4NarrativeForge() {
       });
 
       if (publicationResults.success) {
-        nicepodLog("✅ [Step4] Misión completada. Nodo materializado en la Malla.");
+        nicepodLog("✅ [Step4] Nodo materializado. Sincronía total alcanzada.");
+        // Purga física de la memoria volátil tras el éxito
         dispatch({ type: 'RESET_FORGE' });
       } else {
         throw new Error(publicationResults.error);
@@ -205,7 +208,7 @@ export default function Step4NarrativeForge() {
               </div>
             </div>
 
-            <div className="flex-1 min-h-[420px]">
+            <div className="flex-1 min-h-&lsqb;420px&rsqb;">
               <GeoRecorder 
                 mode="CHRONICLE"
                 script={engineData.narrative.script}
@@ -242,7 +245,7 @@ export default function Step4NarrativeForge() {
                         : "bg-white/&lsqb;0.02&rsqb; border-white/5 hover:border-white/10"
                     )}
                   >
-                    <span className={cn("text-[10px] font-black uppercase", forgeState.depth === option.value ? "text-primary" : "text-zinc-500")}>
+                    <span className={cn("text-[10px] font-black uppercase", forgeState.depth === option.value ? "text-primary" : "text-zinc-400")}>
                       {option.label}
                     </span>
                     <span className="text-[7px] font-bold text-zinc-600 uppercase tracking-tighter text-center leading-tight">
@@ -303,26 +306,28 @@ export default function Step4NarrativeForge() {
               <Button
                 onClick={handleInitiateSynthesis}
                 disabled={engineStatus === 'SYNTHESIZING' || engineStatus === 'IDLE'}
-                className="flex-1 h-20 rounded-&lsqb;2rem&rsqb; bg-primary text-primary-foreground font-black tracking-[0.5em] uppercase text-xs shadow-&lsqb;0_25px_50px_rgba(var(--primary-rgb),0.2)&rsqb; group relative overflow-hidden"
+                className="flex-1 h-20 rounded-&lsqb;2rem&rsqb; bg-primary text-primary-foreground font-black tracking-[0.4em] uppercase text-xs shadow-&lsqb;0_25px_50px_rgba(var(--primary-rgb),0.2)&rsqb; group relative overflow-hidden"
               >
                 {engineStatus === 'SYNTHESIZING' ? (
                   <div className="flex items-center gap-4 relative z-10">
                     <Loader2 className="h-6 w-6 animate-spin" />
-                    <span>Transmutando...</span>
+                    <span>Forjando Sabiduría...</span>
                   </div>
                 ) : (
                   <span className="flex items-center justify-center gap-4 relative z-10 w-full">
-                    Sintetizar Malla
+                    Sintetizar Crónica
                     <Sparkles size={20} className="group-hover:rotate-12 transition-transform" />
                   </span>
                 )}
-                {engineStatus === 'SYNTHESIZING' && (
-                  <motion.div 
-                    className="absolute inset-0 bg-white/20"
-                    initial={{ x: "-100%" }} animate={{ x: "100%" }}
-                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                  />
-                )}
+                <AnimatePresence>
+                  {engineStatus === 'SYNTHESIZING' && (
+                    <motion.div 
+                      className="absolute inset-0 bg-white/10"
+                      initial={{ x: "-100%" }} animate={{ x: "100%" }}
+                      transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                    />
+                  )}
+                </AnimatePresence>
               </Button>
             </div>
           </motion.div>
@@ -333,7 +338,7 @@ export default function Step4NarrativeForge() {
         <div className="mb-8 p-5 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center gap-4 animate-in slide-in-from-bottom-2">
           <AlertCircle className="text-red-500 h-5 w-5 shrink-0" />
           <span className="text-[10px] font-black text-red-400 uppercase tracking-widest leading-relaxed">
-            Fallo en el Link Narrativo: {geographicError}
+            Fallo en la Malla Narrativa: {geographicError}
           </span>
         </div>
       )}
@@ -342,12 +347,13 @@ export default function Step4NarrativeForge() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V6.0):
- * 1. Build Shield Compliance: Se sincronizó 'ingestedPointOfInterestIdentification' con 
- *    el ForgeContext V5.1, eliminando el riesgo de errores TS2339 en Vercel.
- * 2. Lightning Audio Protocol: Se implementó la subida directa de la crónica final 
- *    vía Signed URLs, eliminando el transporte Base64 y optimizando la latencia 
- *    de publicación en un 70%.
- * 3. Atomic Integrity: El uso de dispatch('RESET_FORGE') tras la publicación exitosa 
- *    limpia la memoria volátil del dispositivo, cumpliendo con la política de higiene de RAM.
+ * NOTA TÉCNICA DEL ARCHITECT (V6.1):
+ * 1. Build Shield Compliance: Se sincronizaron las propiedades de identificación 
+ *    con el ForgeContext V5.1 y las Acciones V11.0, eliminando errores TS2339/TS2345.
+ * 2. Lightning Audio Protocol: La crónica se transmite mediante Signed URLs, 
+ *    liberando a Vercel de la carga de binarios acústicos y optimizando la 
+ *    latencia percibida por el Administrador.
+ * 3. Atomic Revalidation: El sistema invoca la acción final que ejecuta el 
+ *    'revalidatePath', asegurando que el nuevo nodo aparezca en el mapa de 
+ *    forma instantánea tras la grabación.
  */
