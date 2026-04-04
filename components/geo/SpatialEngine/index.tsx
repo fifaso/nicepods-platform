@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/index.tsx
- * VERSIÓN: 9.2 (NicePod Spatial Hub - Syntax Integrity & Build Shield Edition)
+ * VERSIÓN: 9.3 (NicePod Spatial Hub - Module Resolution & Build Shield Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Orquestar el motor WebGL garantizando el montaje inmediato, la visibilidad 
- * reactiva y la integridad total de tipos exigida por el compilador de Vercel.
- * [FIX V9.2]: Resolución de error de parseo JSX 'Unexpected token MapProvider' 
- * y saneamiento de clases ambiguas de Tailwind.
+ * reactiva y la resolución atómica de módulos en el entorno de producción de Vercel.
+ * [FIX V9.3]: Resolución de error 'Module not found' mediante la restauración del 
+ * punto de entrada /mapbox y saneamiento de sintaxis JSX.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -17,8 +17,8 @@ import { Compass, ShieldAlert } from "lucide-react";
 import type { ComponentProps } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-// --- INFRAESTRUCTURA DE MOTOR ESPACIAL ---
-import Map, { MapProvider, MapRef } from "react-map-gl"; // Importación unificada para estabilidad
+// --- INFRAESTRUCTURA DE MOTOR ESPACIAL (PUNTO DE ENTRADA AUTORIZADO) ---
+import { MapProvider, MapRef } from "react-map-gl/mapbox";
 
 // --- INFRAESTRUCTURA CORE V3.0 ---
 import { UnifiedSearchBar } from "@/components/ui/unified-search-bar";
@@ -33,30 +33,13 @@ import {
   MADRID_SOL_COORDS,
   MapboxLightPreset,
   MapPerformanceProfile,
-  ZOOM_LEVELS,
-  MAP_STYLES
+  ZOOM_LEVELS
 } from "../map-constants";
 
 import { MapInstanceId, UserLocation, TelemetrySource } from "@/types/geo-sovereignty";
 import { POIPreviewCard } from "../poi-preview-card";
 import { CameraController } from "./camera-controller";
 import MapCore from "./map-core";
-
-/**
- * [BUILD SHIELD]: EXTRACCIÓN DE TIPOS SOBERANOS
- */
-type MapNativeProps = ComponentProps<typeof Map>;
-type SafeMapMoveEvent = Parameters<NonNullable<MapNativeProps['onMove']>>[0];
-
-interface SpatialEngineProps {
-  /** mapInstanceId: Identificador único para el aislamiento de VRAM en la GPU. */
-  mapInstanceId: MapInstanceId;
-  mode: 'EXPLORE' | 'FORGE';
-  theme?: MapboxLightPreset;
-  performanceProfile?: MapPerformanceProfile;
-  onManualAnchor?: (longitudeLatitude: [number, number]) => void;
-  className?: string;
-}
 
 /**
  * SpatialEngine: El Reactor de Inteligencia Visual Soberano.
@@ -70,7 +53,7 @@ export function SpatialEngine({
   className
 }: SpatialEngineProps) {
 
-  // 1. CONSUMO DE LA FACHADA SOBERANA (Triple-Core Synergy)
+  // 1. CONSUMO DE LA FACHADA SOBERANA (Triple-Core Synergy V3.0)
   const {
     userLocation,
     nearbyPointsOfInterest,
@@ -84,12 +67,11 @@ export function SpatialEngine({
     toggleCameraPerspective
   } = useGeoEngine();
 
-  // 2. REFERENCIAS DE CONTROL (Nomenclatura Completa)
+  // 2. REFERENCIAS DE CONTROL E INTEGRIDAD (Nomenclatura Completa)
   const mapInstanceReference = useRef<MapRef>(null);
   const containerReference = useRef<HTMLDivElement>(null);
   const smokescreenReference = useRef<HTMLDivElement>(null);
   const lastSearchUpdatePositionReference = useRef<{ latitude: number, longitude: number }>({ latitude: 0, longitude: 0 });
-  const revealPerformedReference = useRef<boolean>(false);
   const fallbackTimerReference = useRef<NodeJS.Timeout | null>(null);
 
   // 3. ESTADOS DE INTERFAZ Y REVELADO
@@ -128,7 +110,7 @@ export function SpatialEngine({
    */
   const handleMapStability = useCallback(() => {
     if (isMapVisible) return;
-    nicepodLog(`✨ [SpatialHub:${mapInstanceId}] Malla estabilizada.`);
+    nicepodLog(`✨ [SpatialHub:${mapInstanceId}] Malla sincronizada.`);
     setIsMapVisible(true);
     if (fallbackTimerReference.current) {
       clearTimeout(fallbackTimerReference.current);
@@ -201,10 +183,6 @@ export function SpatialEngine({
     }
   }, [setManualMode, needsBallisticLanding]);
 
-  /**
-   * mappedSelectedPointOfInterest: 
-   * Misión: Construcción del dossier de previsualización para la UI.
-   */
   const mappedSelectedPointOfInterest = useMemo(() => {
     if (!selectedPointOfInterestId || !nearbyPointsOfInterest?.length) return null;
     const rawPoint = nearbyPointsOfInterest.find((item) => item.id.toString() === selectedPointOfInterestId);
@@ -241,7 +219,7 @@ export function SpatialEngine({
               {engineStatus === 'PERMISSION_DENIED' ? (
                 <div className="flex flex-col items-center gap-4 text-center p-8">
                   <ShieldAlert className="h-12 w-12 text-red-500 mb-2" />
-                  <span className="text-[10px] font-black uppercase tracking-[0.5em] text-red-400 px-6">Acceso Geográfico Bloqueado</span>
+                  <span className="text-[10px] font-black uppercase tracking-[0.5em] text-red-400 px-6">Acceso Geográfico Interceptado</span>
                 </div>
               ) : (
                 <div className="flex flex-col items-center gap-8">
@@ -254,7 +232,7 @@ export function SpatialEngine({
                     <Compass className="h-16 w-16 text-primary animate-spin-slow relative z-10" />
                   </div>
                   <span className="text-[11px] font-black uppercase tracking-[0.6em] text-white animate-pulse italic">
-                    Sincronizando Madrid
+                    Sincronizando Malla
                   </span>
                 </div>
               )}
@@ -325,11 +303,13 @@ export function SpatialEngine({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V9.2):
- * 1. Syntax Integrity: Se corrigió el error de parseo JSX asegurando que el 'return' 
- *    no herede contextos de hooks mal cerrados. Se unificó la importación de 'react-map-gl'.
- * 2. Tailwind Normalization: Se sustituyó la clase arbitraria de altura dinámica por 
- *    un estilo en línea 'minHeight: 100dvh', silenciando los warnings de Vercel.
- * 3. Zero Abbreviations: Purificación total del archivo para alinearse con los 
- *    estándares de profesionalismo de NicePod V4.0.
+ * [TYPES]: Interfaz local para cumplimiento de contrato.
  */
+interface SpatialEngineProps {
+  mapInstanceId: MapInstanceId;
+  mode: 'EXPLORE' | 'FORGE';
+  theme?: MapboxLightPreset;
+  performanceProfile?: MapPerformanceProfile;
+  onManualAnchor?: (longitudeLatitude: [number, number]) => void;
+  className?: string;
+}
