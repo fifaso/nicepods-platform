@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: components/geo/steps/step-3-dossier-review.tsx
- * VERSIÓN: 6.2 (NicePod Forge Step 3 - Final Sovereignty & Build Shield Edition)
+ * VERSIÓN: 6.3 (NicePod Forge Step 3 - Full Descriptive Integrity & Build Shield Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Permitir al Administrador auditar el peritaje generado por la IA, validando 
  * la "Verdad Física" y el "Grounding" entre fotos, épocas y fuentes externas.
- * [FIX V6.2]: Resolución definitiva del bucle de errores mediante el uso de la 
- * propiedad nominal 'pointOfInterestIdentification' en sincronía con el Reducer V5.1.
+ * [FIX V6.3]: Resolución definitiva de error TS2339 mediante la sincronización nominal 
+ * con 'ingestedPointOfInterestIdentification' definido en el ForgeContext V5.1.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -38,7 +38,7 @@ import { nicepodLog } from "@/lib/utils";
  * Step3DossierReview: El panel de auditoría pericial de la workstation.
  */
 export default function Step3DossierReview() {
-  // 1. CONSUMO DEL CONTEXTO DE FORJA SOBERANO
+  // 1. CONSUMO DEL CONTEXTO DE FORJA SOBERANO (V5.1)
   const { state: forgeState, dispatch, nextStep, prevStep } = useForge();
   const { ingestionDossier } = forgeState;
 
@@ -51,13 +51,14 @@ export default function Step3DossierReview() {
   /**
    * handleNameAuthorityUpdate:
    * Misión: Sobrescribir la identidad nominativa detectada por la IA con la autoridad humana.
-   * [SINCRO V6.2]: Uso de nomenclatura descriptiva completa para el despacho del Reducer.
+   * [SINCRO V6.3]: Uso de 'ingestedPointOfInterestIdentification' para cumplir el contrato V5.1.
    */
   const handleNameAuthorityUpdate = useCallback(() => {
     nicepodLog(`✍️ [Step3] Autoridad Manual: Nombre actualizado a "${manualPointOfInterestName}"`);
     setIsEditingPointOfInterestName(false);
     
-    if (ingestionDossier && forgeState.ingestedPoiId) {
+    // Validamos la existencia del ID soberano en el estado de la forja
+    if (ingestionDossier && forgeState.ingestedPointOfInterestIdentification) {
        const updatedDossier = {
          ...ingestionDossier,
          visual_analysis_dossier: {
@@ -67,37 +68,37 @@ export default function Step3DossierReview() {
        };
 
        /**
-        * [MANDATO V4.0]: Despacho de Integridad.
-        * Utilizamos la propiedad completa exigida por el nuevo contrato del Contexto.
+        * [MANDATO V4.0]: Despacho de Integridad Nominal.
+        * Sincronizamos con la firma del Reducer: pointOfInterestIdentification.
         */
        dispatch({ 
          type: 'SET_INGESTION_RESULT', 
          payload: { 
-           pointOfInterestIdentification: forgeState.ingestedPoiId, 
+           pointOfInterestIdentification: forgeState.ingestedPointOfInterestIdentification, 
            dossier: updatedDossier 
          } 
        });
     }
-  }, [manualPointOfInterestName, ingestionDossier, dispatch, forgeState.ingestedPoiId]);
+  }, [manualPointOfInterestName, ingestionDossier, dispatch, forgeState.ingestedPointOfInterestIdentification]);
 
   /**
    * executeFinalAuditValidation:
    * Misión: Sellar el peritaje y avanzar a la fase de forja narrativa.
    */
   const executeFinalAuditValidation = () => {
-    nicepodLog("🎯 [Step3] Peritaje validado. Iniciando motor de síntesis narrativa.");
+    nicepodLog("🎯 [Step3] Peritaje validado por el Administrador.");
     nextStep();
   };
 
-  // Fallback de seguridad ante estados de red inconsistentes
+  // Fallback de seguridad ante estados de red inconsistentes o fallos de hardware
   if (!ingestionDossier) {
     return (
-      <div className="flex flex-col items-center justify-center h-full p-12 text-center bg-[#020202]">
+      <div className="flex flex-col items-center justify-center h-full p-12 text-center bg-&lsqb;#020202&rsqb;">
         <AlertTriangle className="text-amber-500 h-16 w-16 mb-6 animate-pulse" />
-        <p className="text-[10px] text-zinc-500 font-black uppercase tracking-[0.4em] leading-relaxed">
+        <p className="text-[10px] text-zinc-500 font-black uppercase tracking-&lsqb;0.4em&rsqb; leading-relaxed">
           Expediente de Inteligencia Inexistente
         </p>
-        <Button onClick={prevStep} variant="outline" className="mt-8 rounded-2xl border-white/10 hover:bg-white/5">
+        <Button onClick={prevStep} variant="outline" className="mt-8 rounded-2xl border-white/10 hover:bg-white/5 transition-all">
           Reiniciar Link Sensorial
         </Button>
       </div>
@@ -111,22 +112,22 @@ export default function Step3DossierReview() {
     <div className="flex flex-col h-full w-full bg-transparent overflow-y-auto custom-scrollbar px-6 py-6">
       
       {/* I. CABECERA TÁCTICA */}
-      <div className="mb-8 shrink-0">
+      <div className="mb-8 shrink-0 px-1">
         <div className="flex items-center gap-3 mb-2">
           <div className="h-6 w-1 bg-emerald-500 rounded-full shadow-&lsqb;0_0_15px_rgba(16,185,129,0.4)&rsqb;" />
-          <h3 className="text-white font-black uppercase tracking-[0.3em] text-xs">
+          <h3 className="text-white font-black uppercase tracking-&lsqb;0.3em&rsqb; text-xs">
             Fase 3: Auditoría Pericial
           </h3>
         </div>
         <p className="text-[10px] text-zinc-500 font-medium uppercase tracking-widest leading-relaxed">
-          Valide el contraste entre la evidencia física y la sabiduría documental.
+          Valide el contraste entre la evidencia física y la sabiduría documental capturada por el Oráculo.
         </p>
       </div>
 
       {/* II. BLOQUE: IDENTIDAD NOMINATIVA (SOVEREIGN BYPASS) */}
       <div className="mb-6 p-6 rounded-&lsqb;2.5rem&rsqb; bg-white/&lsqb;0.03&rsqb; border border-white/5 shadow-2xl relative overflow-hidden group isolate">
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500/30 to-transparent" />
-        <label className="text-[9px] font-black uppercase tracking-[0.4em] text-zinc-600 mb-4 block">
+        <label className="text-[9px] font-black uppercase tracking-&lsqb;0.4em&rsqb; text-zinc-600 mb-4 block">
           Identidad Verificada del Hito
         </label>
         
@@ -138,7 +139,7 @@ export default function Step3DossierReview() {
               className="bg-black/40 border-emerald-500/30 h-14 rounded-2xl font-bold text-sm text-emerald-400 focus:ring-0"
               autoFocus
             />
-            <Button size="icon" onClick={handleNameAuthorityUpdate} className="h-14 w-14 bg-emerald-500 hover:bg-emerald-600 rounded-2xl shadow-lg">
+            <Button size="icon" onClick={handleNameAuthorityUpdate} className="h-14 w-14 bg-emerald-500 hover:bg-emerald-600 rounded-2xl shadow-lg shrink-0">
               <Check size={20} />
             </Button>
           </div>
@@ -149,7 +150,7 @@ export default function Step3DossierReview() {
             </h2>
             <button 
               onClick={() => setIsEditingPointOfInterestName(true)}
-              className="p-3 rounded-xl bg-white/5 text-zinc-500 hover:text-white hover:bg-white/10 transition-all"
+              className="p-3 rounded-xl bg-white/5 text-zinc-500 hover:text-white hover:bg-white/10 transition-all active:scale-90"
             >
               <Edit3 size={16} />
             </button>
@@ -159,6 +160,7 @@ export default function Step3DossierReview() {
 
       {/* III. GRID TÁCTICO: TAXONOMÍA Y TEMPORALIDAD */}
       <div className="grid grid-cols-2 gap-4 mb-6">
+        {/* Misión & Entidad */}
         <div className="p-5 rounded-&lsqb;2rem&rsqb; bg-&lsqb;#080808&rsqb;/60 border border-white/5 flex flex-col gap-4 shadow-inner">
           <div className="flex items-center gap-2">
             <ShieldCheck className="text-primary h-4 w-4" />
@@ -174,6 +176,7 @@ export default function Step3DossierReview() {
           </div>
         </div>
 
+        {/* Reloj Soberano */}
         <div className="p-5 rounded-&lsqb;2rem&rsqb; bg-&lsqb;#080808&rsqb;/60 border border-white/5 flex flex-col gap-4 shadow-inner">
           <div className="flex items-center gap-2">
             <HistoryIcon className="text-amber-500 h-4 w-4" />
@@ -184,7 +187,7 @@ export default function Step3DossierReview() {
               {forgeState.historicalEpoch?.replace('_', ' ')}
             </span>
             <span className="text-[8px] font-bold text-amber-500 uppercase tracking-widest opacity-80">
-              Época Sincronizada
+              Contexto Sincronizado
             </span>
           </div>
         </div>
@@ -209,6 +212,7 @@ export default function Step3DossierReview() {
             "{visualAnalysis?.groundingVerification || visualAnalysis?.atmosphere || "El Oráculo no ha detectado anomalías entre la evidencia física y el contexto histórico."}"
           </p>
 
+          {/* Mosaico de Hechos Técnicos */}
           {visualAnalysis?.detectedElements && (
             <div className="flex flex-wrap gap-2">
               {visualAnalysis.detectedElements.map((elementName: string, index: number) => (
@@ -221,19 +225,37 @@ export default function Step3DossierReview() {
         </div>
       </div>
 
-      {/* V. CHASSIS DE ACCIÓN FINAL */}
+      {/* V. GRID SECUNDARIO: AMBIENTE URBANO */}
+      <div className="grid grid-cols-2 gap-4 mb-10">
+        <div className="p-4 rounded-2xl bg-white/&lsqb;0.01&rsqb; border border-white/5 flex items-center gap-3">
+          <CloudSun className="text-zinc-600 h-5 w-5" />
+          <div className="flex flex-col">
+            <span className="text-[7px] font-black text-zinc-500 uppercase">Clima</span>
+            <span className="text-[9px] font-bold text-zinc-400">{weatherSnapshot?.temp_c}°C • {weatherSnapshot?.condition}</span>
+          </div>
+        </div>
+        <div className="p-4 rounded-2xl bg-white/&lsqb;0.01&rsqb; border border-white/5 flex items-center gap-3">
+          <Building2 className="text-zinc-600 h-5 w-5" />
+          <div className="flex flex-col">
+            <span className="text-[7px] font-black text-zinc-500 uppercase">Estilo</span>
+            <span className="text-[9px] font-bold text-zinc-400 truncate max-w-&lsqb;80px&rsqb;">{visualAnalysis?.architectureStyle || "No definido"}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* VI. CHASSIS DE ACCIÓN FINAL */}
       <div className="flex gap-4 mt-auto pt-6 pb-10">
         <Button
           variant="outline"
           onClick={prevStep}
-          className="flex-1 h-16 rounded-2xl border-white/10 bg-transparent text-zinc-500 font-black tracking-widest uppercase text-[10px] hover:bg-white/5 transition-all"
+          className="flex-1 h-16 rounded-2xl border-white/10 bg-transparent text-zinc-500 font-black tracking-widest uppercase text-[&lsqb;10px&rsqb;] hover:bg-white/5 transition-all"
         >
           Recapturar
         </Button>
         
         <Button
           onClick={executeFinalAuditValidation}
-          className="flex-&lsqb;2&rsqb; h-16 rounded-2xl bg-white text-black hover:bg-zinc-200 font-black tracking-&lsqb;0.2em&rsqb; uppercase text-[10px] shadow-2xl group"
+          className="flex-&lsqb;2&rsqb; h-16 rounded-2xl bg-white text-black hover:bg-zinc-200 font-black tracking-&lsqb;0.2em&rsqb; uppercase text-[10px] shadow-2xl group transition-all"
         >
           <span className="flex items-center gap-3">
             Confirmar Peritaje
