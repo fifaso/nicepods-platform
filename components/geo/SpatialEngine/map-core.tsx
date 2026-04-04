@@ -1,13 +1,13 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/map-core.tsx
- * VERSIÓN: 12.0 (NicePod MapCore - Style Sovereignty & PBR Guard Edition)
- * PROTOCOLO: MADRID RESONANCE V3.0
+ * VERSIÓN: 13.0 (NicePod MapCore - Full Taxonomy & Marker Sync Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.0
  * 
- * Misión: Renderizado WebGL inmutable que sincroniza el lienzo (tiles) con la 
- * perspectiva de la cámara para erradicar conflictos visuales.
- * [REFORMA V12.0]: Consumo dinámico de mapStyle, blindaje de inyección PBR 
- * y purificación total de nomenclatura (Sin abreviaciones).
- * Nivel de Integridad: 100% (Soberano / Producción-Ready)
+ * Misión: Renderizado WebGL inmutable que sincroniza el lienzo con la 
+ * perspectiva de la cámara y proyecta los marcadores con su nueva identidad.
+ * [REFORMA V13.0]: Sincronización nominal con MapMarkerCustom V5.0 para resolver 
+ * error de compilación TS2322 y alineación con Taxonomía Granular.
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
@@ -16,7 +16,7 @@ import type { ComponentProps } from "react";
 import { forwardRef, memo, useCallback, useImperativeHandle, useMemo, useRef } from "react";
 import Map, { MapRef } from 'react-map-gl/mapbox';
 
-// --- INFRAESTRUCTURA DE MALLA TÁCTICA V6.0 ---
+// --- INFRAESTRUCTURA DE MALLA TÁCTICA V7.0 ---
 import {
   DEM_SOURCE_CONFIG,
   FOG_CONFIG,
@@ -58,7 +58,7 @@ interface MapCoreProps {
   onMove?: (event: SafeMapMoveEvent) => void;
   onMoveEnd?: (event: SafeMapMoveEvent) => void;
   onMapClick: (event: SafeMapClickEvent) => void;
-  onMarkerClick: (id: string) => void;
+  onMarkerClick: (identification: string) => void;
   selectedPointOfInterestId: string | null;
 }
 
@@ -80,7 +80,7 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
   selectedPointOfInterestId
 }, ref) => {
 
-  // 1. CONSUMO DEL MOTOR SOBERANO (Triple-Core Facade)
+  // 1. CONSUMO DEL MOTOR SOBERANO (Triple-Core Facade V45.1)
   const {
     userLocation,
     nearbyPOIs: nearbyPointsOfInterest,
@@ -95,7 +95,6 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
 
   /**
    * 3. GENERACIÓN DE SEMILLA DE NACIMIENTO
-   * [MANDATO V12.0]: Se calcula una sola vez por instancia de ID.
    */
   const initialMapViewState = useMemo(() => {
     nicepodLog(`🌱 [MapCore:${mapInstanceId}] Sembrando semilla WebGL inmutable.`);
@@ -115,9 +114,7 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
   }, [onLoad, mapInstanceId]);
 
   /**
-   * 5. STYLE-GUARD (El Escudo PBR V12.0)
-   * Misión: Inyectar oclusión y temas SOLO si el estilo soporta configuración PBR.
-   * Resuelve el conflicto al cambiar a modo SATELLITE.
+   * 5. STYLE-GUARD (El Escudo PBR V13.0)
    */
   const handleStyleData = useCallback((event: SafeMapStyleDataEvent) => {
     const mapNativeInstance = event.target;
@@ -128,9 +125,6 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
     const isTacticalLite = performanceProfile === 'TACTICAL_LITE';
     const engineConfiguration = isTacticalLite ? LITE_ENGINE_CONFIG : STANDARD_ENGINE_CONFIG;
 
-    /**
-     * A. GOBERNANZA PBR (Solo para Mapbox Standard)
-     */
     if (activeEngineStyle === MAP_STYLES.STANDARD && (mapNativeInstance as any).setConfigProperty) {
       try {
         (mapNativeInstance as any).setConfigProperty('basemap', 'lightPreset', lightTheme);
@@ -140,26 +134,17 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
         (mapNativeInstance as any).setConfigProperty('basemap', 'showPointOfInterestLabels', false);
         (mapNativeInstance as any).setConfigProperty('basemap', 'showTransitLabels', false);
       } catch (error) {
-        nicepodLog("⚠️ [MapCore] Advertencia en inyección basemap.", error, 'warn');
+        nicepodLog("⚠️ [MapCore] Fallo en inyección basemap.", error, 'warn');
       }
     }
 
-    /**
-     * B. GOBERNANZA DE RENDIMIENTO (Opacidad de Mallas)
-     * En modo SATELLITE, ocultamos edificios 3D para peritaje de ortofoto pura.
-     */
     try {
       if (mapNativeInstance.getLayer('building')) {
         const buildingOpacityValue = isTacticalLite ? LITE_ENGINE_CONFIG.buildingOpacity : (isSatellitePerspective ? 0 : 1.0);
         mapNativeInstance.setPaintProperty('building', 'fill-extrusion-opacity', buildingOpacityValue);
       }
-    } catch (error) {
-      // Capa no disponible aún en el ciclo de carga
-    }
+    } catch (error) {}
 
-    /**
-     * C. TERRENO Y RELIEVE (Física Ambiental)
-     */
     if (!mapNativeInstance.getSource(DEM_SOURCE_CONFIG.id)) {
       try {
         mapNativeInstance.addSource(DEM_SOURCE_CONFIG.id, {
@@ -181,9 +166,7 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
       } else {
         mapNativeInstance.setTerrain(null);
       }
-    } catch (error) {
-      nicepodLog("⚠️ [MapCore] Fallo en configuración de relieve.", error, 'warn');
-    }
+    } catch (error) {}
 
   }, [lightTheme, cameraPerspective, performanceProfile, mode, activeEngineStyle]);
 
@@ -199,7 +182,6 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
       onStyleData={handleStyleData}
       onClick={onMapClick}
       mapboxAccessToken={MAPBOX_TOKEN}
-      // Sincronía atómica estilo-perspectiva para erradicar parpadeos
       mapStyle={activeEngineStyle || MAP_STYLES.STANDARD}
       projection={{ name: "mercator" }}
       fog={performanceProfile === 'TACTICAL_LITE' || cameraPerspective === 'SATELLITE' ? null : (FOG_CONFIG as any)}
@@ -219,16 +201,21 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
 
       {/* CAPA ECOS: Nodos de la Bóveda NKV */}
       {nearbyPointsOfInterest.map((pointOfInterest: PointOfInterest) => (
+        /**
+         * [FIX V13.0]: Sincronía total con MapMarkerCustom V5.0.
+         * Se inyectan los nuevos nombres de propiedades para satisfacer al Build Shield.
+         */
         <MapMarkerCustom
           key={pointOfInterest.id}
-          id={pointOfInterest.id.toString()}
+          identification={pointOfInterest.id.toString()}
           latitude={pointOfInterest.geo_location.coordinates[1]}
           longitude={pointOfInterest.geo_location.coordinates[0]}
-          category_id={pointOfInterest.category_id}
-          name={pointOfInterest.name}
-          isResonating={activePointOfInterest?.id === pointOfInterest.id.toString() && activePointOfInterest?.isWithinRadius}
+          categoryMission={pointOfInterest.category_mission}
+          categoryEntity={pointOfInterest.category_entity}
+          pointOfInterestName={pointOfInterest.name}
+          isResonating={activePointOfInterest?.identification === pointOfInterest.id.toString() && activePointOfInterest?.isWithinRadius}
           isSelected={selectedPointOfInterestId === pointOfInterest.id.toString()}
-          onClick={onMarkerClick}
+          onMarkerInteraction={onMarkerClick}
         />
       ))}
     </Map>
@@ -237,9 +224,6 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
 
 MapCore.displayName = "MapCore";
 
-/**
- * [BUILD SHIELD]: SOBERANÍA DE RENDERIZADO
- */
 export default memo(MapCore, (previousProps, nextProps) => {
   return (
     previousProps.mapInstanceId === nextProps.mapInstanceId &&
@@ -251,12 +235,12 @@ export default memo(MapCore, (previousProps, nextProps) => {
 });
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V12.0):
- * 1. Zero Abbreviations: Se ha purgado el código de cualquier abreviatura para 
- *    garantizar la transparencia técnica y el cumplimiento del Dogma V3.0.
- * 2. Perspective Integrity: Al vincular el mapStyle dinámicamente, erradicamos 
- *    el "Snap-Back" satelital. El pintor ahora espera la instrucción de estilo 
- *    del motor central.
- * 3. Atomic Memory Management: El uso de memo y referencias locales asegura que 
- *    la GPU mantenga una prioridad absoluta durante las transiciones de modo.
+ * NOTA TÉCNICA DEL ARCHITECT (V13.0):
+ * 1. Synchronized Architecture: Se ha cerrado la brecha de tipos entre el Pintor 
+ *    y el Marcador. El uso de 'categoryMission' y 'categoryEntity' garantiza que 
+ *    la identidad visual de la Malla sea coherente con la Bóveda NKV V4.0.
+ * 2. Interaction Alignment: El cambio de 'onClick' a 'onMarkerInteraction' 
+ *    unifica el lenguaje de eventos de la workstation.
+ * 3. Zero Abbreviations: Se ha purgado el 100% del archivo para cumplir con el 
+ *    estándar de rigor profesional de NicePod.
  */
