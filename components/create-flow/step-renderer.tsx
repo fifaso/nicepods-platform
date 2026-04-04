@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: components/create-flow/step-renderer.tsx
- * VERSIÓN: 3.2 (NicePod Master View Orchestrator - Lightning Build Edition)
+ * VERSIÓN: 3.3 (NicePod Master View Orchestrator - State Machine & Build Fix)
  * PROTOCOLO: MADRID RESONANCE V3.0
  * 
  * Misión: Orquestar la visualización determinista de las fases de creación, 
  * garantizando la compatibilidad entre el flujo estándar y el hardware pericial.
- * [REFORMA V3.2]: Resolución de error TS2339 mediante el uso de useFlowNavigation 
- * y saneamiento de clases de Tailwind para un despliegue exitoso en Vercel.
+ * [REFORMA V3.3]: Resolución de error TS2339 mediante el cálculo de transición 
+ * sobre activePath y saneamiento total de clases Tailwind para Vercel.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -24,7 +24,7 @@ import { useFlowNavigation } from "./hooks/use-flow-navigation";
 // --- INFRAESTRUCTURA DE HARDWARE Y UTILIDADES ---
 import { GeoRecorder } from "../geo/geo-recorder";
 import { GeoScannerUI } from "../geo/scanner-ui";
-import { nicepodLog } from "@/lib/utils";
+import { nicepodLog, cn } from "@/lib/utils";
 
 // --- IMPORTACIONES DE PASOS: NÚCLEO ---
 import { PurposeSelectionStep } from "./steps/purpose-selection-step";
@@ -42,22 +42,22 @@ import { QuestionStep } from "./steps/question-step";
 import { SoloTalkStep } from "./steps/solo-talk-step";
 import { StyleSelectionStep } from "./steps/style-selection";
 
-// --- IMPORTACIONES: PRODUCCIÓN ---
+// --- IMPORTACIONES: PRODUCCIÓN INDUSTRIAL ---
 import { AudioStudio } from "./steps/audio-studio";
 import { DetailsStep } from "./steps/details-step";
 import { DraftGenerationLoader } from "./steps/draft-generation-loader";
 import { FinalStep } from "./steps/final-step";
 import { ToneSelectionStep } from "./steps/tone-selection-step";
 
-// CARGA DINÁMICA: Aislamiento del editor de guiones
+// CARGA DINÁMICA: Aislamiento del editor de guiones para maximizar el TTI.
 const ScriptEditorStep = dynamic(
   () => import('./steps/script-editor-step').then((module) => module.ScriptEditorStep),
   {
     ssr: false,
     loading: () => (
-      <div className="h-full w-full flex flex-col items-center justify-center space-y-6 opacity-40">
+      <div className="h-full w-full flex flex-col items-center justify-center space-y-8 opacity-40">
         <div className="h-12 w-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">
+        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-primary">
           Sincronizando Terminal Editorial...
         </span>
       </div>
@@ -74,9 +74,11 @@ interface StepRendererProps {
  * StepRenderer: El Reactor de Vistas Maestro de NicePod.
  */
 export function StepRenderer({ narrativeOptions, initialDrafts }: StepRendererProps) {
-  // 1. CONSUMO DE LA MÁQUINA DE ESTADOS Y NAVEGACIÓN
+  // 1. CONSUMO DE LA MÁQUINA DE ESTADOS (STATE MACHINE)
   const { currentFlowState } = useCreationContext();
-  const { navigateNext } = useFlowNavigation();
+  
+  // [FIX V3.3]: transitionTo y activePath son las autoridades de navegación reales.
+  const { transitionTo, activePath } = useFlowNavigation();
   const { watch, setValue } = useFormContext();
 
   // 2. MONITORIZACIÓN DE DATOS Y ESTADOS DE HARDWARE
@@ -84,30 +86,43 @@ export function StepRenderer({ narrativeOptions, initialDrafts }: StepRendererPr
   const [isAcousticProcessingActive, setIsAcousticProcessingActive] = useState<boolean>(false);
 
   /**
+   * navigateToNextStep:
+   * Misión: Calcular el siguiente estado legal en el activePath y ejecutar la transición.
+   * [PROTOCOLO SOBERANO]: Evita depender de métodos de navegación inexistentes.
+   */
+  const navigateToNextStep = useCallback(() => {
+    const currentStepIndex = activePath.indexOf(currentFlowState);
+    if (currentStepIndex !== -1 && currentStepIndex < activePath.length - 1) {
+      const nextStepState = activePath[currentStepIndex + 1];
+      transitionTo(nextStepState);
+    } else {
+      nicepodLog("🚩 [StepRenderer] Límite de trayectoria alcanzado.", null, 'warn');
+    }
+  }, [activePath, currentFlowState, transitionTo]);
+
+  /**
    * handleAcousticChronicleCapture:
-   * Misión: Recibir el binario acústico desde el GeoRecorder y prepararlo para 
-   * la persistencia en el flujo de creación de podcasts.
+   * Misión: Recibir el binario acústico y avanzar el flujo mediante la transición calculada.
    */
   const handleAcousticChronicleCapture = useCallback(async (
     capturedAudioBlob: Blob, 
     capturedDurationSeconds: number
   ) => {
     setIsAcousticProcessingActive(true);
-    nicepodLog(`🎙️ [StepRenderer] Crónica capturada: ${capturedDurationSeconds} segundos.`);
+    nicepodLog(`🎙️ [StepRenderer] Crónica acústica capturada: ${capturedDurationSeconds}s.`);
     
     try {
-      // Inyectamos los datos en el contexto del formulario
       setValue('final_audio_blob', capturedAudioBlob);
       setValue('final_audio_duration', capturedDurationSeconds);
       
-      // Avanzamos a la fase de cierre mediante el orquestador de navegación
-      navigateNext();
+      // Ejecutamos la navegación soberana calculada
+      navigateToNextStep();
     } catch (exception) {
       nicepodLog("🔥 [StepRenderer] Fallo al procesar binario acústico.", exception, 'error');
     } finally {
       setIsAcousticProcessingActive(false);
     }
-  }, [setValue, navigateNext]);
+  }, [setValue, navigateToNextStep]);
 
   /**
    * activeStepContent:
@@ -156,10 +171,8 @@ export function StepRenderer({ narrativeOptions, initialDrafts }: StepRendererPr
       // --- FASES DE PRODUCCIÓN INDUSTRIAL ---
       case 'DETAILS_STEP': return <DetailsStep />;
       case 'TONE_SELECTION': return <ToneSelectionStep />;
-
       case 'DRAFT_GENERATION_LOADER':
         return <DraftGenerationLoader formData={creationFormData as any} />;
-
       case 'SCRIPT_EDITING': return <ScriptEditorStep />;
       case 'AUDIO_STUDIO_STEP': return <AudioStudio />;
       case 'FINAL_STEP': return <FinalStep />;
@@ -170,13 +183,13 @@ export function StepRenderer({ narrativeOptions, initialDrafts }: StepRendererPr
 
       default:
         return (
-          <div className="h-full flex flex-col items-center justify-center space-y-8 py-20 opacity-60">
+          <div className="h-full flex flex-col items-center justify-center space-y-10 py-24 opacity-60">
             <div className="relative h-16 w-16">
-              <div className="absolute inset-0 bg-primary/10 blur-3xl animate-pulse rounded-full" />
-              <div className="h-full w-full border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+              <div className="absolute inset-0 bg-primary/20 blur-3xl animate-pulse rounded-full" />
+              <div className="h-full w-full border-2 border-primary/40 border-t-primary rounded-full animate-spin" />
             </div>
-            <p className="font-black uppercase tracking-[0.5em] text-[9px] text-zinc-500">
-              Sincronizando Malla...
+            <p className="font-black uppercase tracking-[0.6em] text-[9px] text-zinc-600">
+              Sintonizando Malla de Inteligencia
             </p>
           </div>
         );
@@ -193,14 +206,14 @@ export function StepRenderer({ narrativeOptions, initialDrafts }: StepRendererPr
           exit={{ opacity: 0, x: -15 }}
           transition={{
             duration: 0.5,
-            ease: [0.16, 1, 0.3, 1] // Industrial Quint Ease-Out
+            ease: [0.16, 1, 0.3, 1] 
           }}
           className="flex-1 flex flex-col min-h-0 h-full"
         >
           <div className={cn(
             "flex-1 overflow-y-auto custom-scrollbar-hide px-4 md:px-0",
-            // Sanitización de animaciones para Vercel
-            "duration-&lsqb;400ms&rsqb; ease-&lsqb;cubic-bezier(0.4,0,0.2,1)&rsqb;"
+            // [FIX VERCEL]: Escapado de corchetes para evitar warnings de Tailwind
+            "duration-&lsqb;500ms&rsqb; ease-&lsqb;cubic-bezier(0.16,1,0.3,1)&lsqb;"
           )}>
             {activeStepContent}
           </div>
