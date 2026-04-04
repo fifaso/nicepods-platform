@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/index.tsx
- * VERSIÓN: 9.0 (NicePod Spatial Hub - Reactive Reveal & Seed-Birth Edition)
- * PROTOCOLO: MADRID RESONANCE V3.0
+ * VERSIÓN: 9.1 (NicePod Spatial Hub - Multidimensional Integrity & Build Shield Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.0
  * 
- * Misión: Orquestar el motor WebGL garantizando el montaje inmediato mediante 
- * el uso de semillas de ubicación T0 para erradicar el bloqueo visual (Black Screen).
- * [REFORMA V9.0]: Migración a Smokescreen reactivo, purificación de nomenclatura 
- * y sincronía total con la arquitectura Triple-Core.
+ * Misión: Orquestar el motor WebGL garantizando el montaje inmediato y la integridad 
+ * total de los datos taxonómicos entre la Bóveda NKV y la previsualización.
+ * [FIX V9.1]: Resolución de error TS2339 mediante la migración del mapeo de POIs 
+ * a la nueva estructura de Misión, Entidad y Época Histórica.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -40,7 +40,7 @@ import { CameraController } from "./camera-controller";
 import MapCore from "./map-core";
 
 /**
- * [BUILD SHIELD]: EXTRACCIÓN DE TIPOS
+ * [BUILD SHIELD]: EXTRACCIÓN DE TIPOS SOBERANOS
  */
 type MapNativeProps = ComponentProps<typeof Map>;
 type SafeMapMoveEvent = Parameters<NonNullable<MapNativeProps['onMove']>>[0];
@@ -67,13 +67,14 @@ export function SpatialEngine({
   className
 }: SpatialEngineProps) {
 
-  // 1. CONSUMO DE LA FACHADA SOBERANA (Triple-Core Synergy)
+  // 1. CONSUMO DE LA FACHADA SOBERANA (Triple-Core V3.0)
   const {
     userLocation,
     nearbyPOIs: nearbyPointsOfInterest,
     activePOI: activePointOfInterest,
     status: engineStatus,
     initSensors,
+    isTriangulated,
     isIgnited,
     needsBallisticLanding,
     setManualMode,
@@ -87,14 +88,13 @@ export function SpatialEngine({
   const lastSearchUpdatePositionReference = useRef<{ latitude: number, longitude: number }>({ latitude: 0, longitude: 0 });
   const fallbackTimerReference = useRef<NodeJS.Timeout | null>(null);
 
-  // 3. ESTADOS DE INTERFAZ Y VISIBILIDAD
+  // 3. ESTADOS DE INTERFAZ Y REVELADO
   const [selectedPointOfInterestId, setSelectedPointOfInterestId] = useState<string | null>(null);
   const [isSearchLoading, setIsSearchLoading] = useState<boolean>(false);
   const [isContainerReady, setIsContainerReady] = useState<boolean>(false);
   const [isMapLoaded, setIsMapLoaded] = useState<boolean>(false);
   const [isMapVisible, setIsMapVisible] = useState<boolean>(false);
 
-  // searchPosition: Coordenadas que alimentan el Radar Semántico (Damped)
   const [searchPosition, setSearchPosition] = useState({
     latitude: MADRID_SOL_COORDS.latitude,
     longitude: MADRID_SOL_COORDS.longitude,
@@ -102,7 +102,6 @@ export function SpatialEngine({
 
   /**
    * 4. PROTOCOLO DE SEGURIDAD DE MONTAJE (Safe Mount)
-   * Misión: Verificar dimensiones del DOM antes de inicializar WebGL.
    */
   useEffect(() => {
     if (!containerReference.current) return;
@@ -110,6 +109,7 @@ export function SpatialEngine({
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
         if (entry.contentRect.width > 0 && entry.contentRect.height > 0) {
+          nicepodLog(`📐 [SpatialHub:${mapInstanceId}] Chasis validado.`);
           setIsContainerReady(true);
           resizeObserver.disconnect();
         }
@@ -118,11 +118,10 @@ export function SpatialEngine({
 
     resizeObserver.observe(containerReference.current);
     return () => resizeObserver.disconnect();
-  }, []);
+  }, [mapInstanceId]);
 
   /**
    * 5. PROTOCOLO DE REVELADO REACTIVO
-   * Misión: Cambiar el estado de visibilidad una vez confirmada la estabilidad.
    */
   const handleMapStability = useCallback(() => {
     if (isMapVisible) return;
@@ -148,8 +147,7 @@ export function SpatialEngine({
   }, [isContainerReady, isIgnited, engineStatus, initSensors, mode, cameraPerspective, toggleCameraPerspective, mapInstanceId]);
 
   /**
-   * 7. RACE-CONDITION GUARD: 
-   * Forzamos visibilidad a los 3 segundos si Mapbox se demora en emitir onIdle.
+   * 7. RACE-CONDITION GUARD
    */
   useEffect(() => {
     if (isMapLoaded && !isMapVisible) {
@@ -164,7 +162,6 @@ export function SpatialEngine({
 
   /**
    * 8. LA SEMILLA T0 (IP-Fallback Seed)
-   * [MANDATO V9.0]: Garantiza que el mapa siempre tenga coordenadas para nacer.
    */
   const birthLocation: UserLocation = useMemo(() => {
     if (userLocation) return userLocation;
@@ -186,7 +183,6 @@ export function SpatialEngine({
   const handleMapMove = useCallback((event: SafeMapMoveEvent) => {
     const { latitude, longitude } = event.viewState;
 
-    // Search Damping: Solo actualizamos si el Voyager se mueve más de 25 metros.
     const movementDistance = calculateDistance(
       { latitude, longitude },
       { latitude: lastSearchUpdatePositionReference.current.latitude, longitude: lastSearchUpdatePositionReference.current.longitude }
@@ -218,7 +214,8 @@ export function SpatialEngine({
 
   /**
    * mappedSelectedPointOfInterest: 
-   * Construcción del objeto de previsualización para la UI.
+   * [FIX V9.1]: Sincronía con la Taxonomía Multidimensional V4.0.
+   * Se mapean 'category_mission' y 'category_entity' para satisfacer al POIPreviewCard.
    */
   const mappedSelectedPointOfInterest = useMemo(() => {
     if (!selectedPointOfInterestId || !nearbyPointsOfInterest?.length) return null;
@@ -226,11 +223,14 @@ export function SpatialEngine({
     if (!rawPoint) return null;
 
     return {
-      id: rawPoint.id.toString(),
+      identification: rawPoint.id.toString(),
       name: rawPoint.name,
-      category: rawPoint.category_id,
-      historical_fact: rawPoint.historical_fact || undefined,
-      cover_image_url: rawPoint.gallery_urls?.[0] || undefined
+      categoryMission: rawPoint.category_mission,
+      categoryEntity: rawPoint.category_entity,
+      historicalEpoch: rawPoint.historical_epoch,
+      historicalFact: rawPoint.historical_fact || undefined,
+      coverImageUniformResourceLocator: rawPoint.gallery_urls?.[0] || undefined,
+      externalReferenceUniformResourceLocator: (rawPoint.metadata as any)?.external_source_url || undefined
     };
   }, [selectedPointOfInterestId, nearbyPointsOfInterest]);
 
@@ -241,7 +241,7 @@ export function SpatialEngine({
         className={cn("relative w-full h-full min-h-[100dvh] bg-[#010101] overflow-hidden isolate", className)}
       >
         <AnimatePresence>
-          {/* I. SMOKESCREEN REACTIVO (V9.0) */}
+          {/* I. SMOKESCREEN REACTIVO (V9.1) */}
           {!isMapVisible && (
             <motion.div 
               initial={{ opacity: 1 }}
@@ -314,8 +314,8 @@ export function SpatialEngine({
         <AnimatePresence>
           {mappedSelectedPointOfInterest && (
             <POIPreviewCard
-              poi={mappedSelectedPointOfInterest}
-              distance={activePointOfInterest?.id === selectedPointOfInterestId ? activePointOfInterest.distance : null}
+              pointOfInterest={mappedSelectedPointOfInterest}
+              distanceMeters={activePointOfInterest?.id === selectedPointOfInterestId ? activePointOfInterest.distance : null}
               isResonating={activePointOfInterest?.id === selectedPointOfInterestId && activePointOfInterest.isWithinRadius}
               onClose={() => setSelectedPointOfInterestId(null)}
             />
@@ -327,12 +327,13 @@ export function SpatialEngine({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V9.0):
- * 1. Persistent Reveal: Al migrar a un estado reactivo 'isMapVisible', eliminamos 
- *    la posibilidad de que un re-render del GPS vuelva a mostrar la cortina 
- *    negra, resolviendo el bug de desaparición del mapa.
- * 2. T0-Acceleration: El motor WebGL se monta utilizando birthLocation (IP Seed),
- *    disparando la descarga de texturas sin esperar al hardware satelital.
- * 3. Z-Index Sovereignty: La jerarquía z-[200] para carga, z-[100] para UI y 
- *    z-0 para el motor garantiza una profundidad visual coherente y profesional.
+ * NOTA TÉCNICA DEL ARCHITECT (V9.1):
+ * 1. Contract Alignment: Se corrigió el mapeo de datos de 'PointOfInterest' para 
+ *    utilizar la nueva taxonomía bidimensional (CategoryMission/CategoryEntity), 
+ *    eliminando el error de compilación TS2339 detectado por Vercel.
+ * 2. Visual Synchronization: Se alinearon los nombres de propiedades pasadas a 
+ *    POIPreviewCard con su versión V3.0 (identification, distanceMeters, etc.), 
+ *    garantizando un despliegue exitoso.
+ * 3. Atomic State Management: El uso de mappedSelectedPointOfInterest asegura que 
+ *    la UI solo intente renderizar nodos validados de la Bóveda NKV.
  */
