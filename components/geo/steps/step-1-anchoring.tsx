@@ -1,27 +1,71 @@
 /**
  * ARCHIVO: components/geo/steps/step-1-anchoring.tsx
- * VERSIÓN: 4.0 (NicePod Forge Step 1 - Precision Anchoring & Contract Fix)
- * PROTOCOLO: MADRID RESONANCE V3.0
+ * VERSIÓN: 5.0 (NicePod Forge Step 1 - Precision Anchoring & Neural Taxonomy Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.0
  * 
- * Misión: Gestionar el anclaje milimétrico del nodo urbano, permitiendo el 
- * ajuste manual de coordenadas antes de la ingesta sensorial.
- * [FIX V4.0]: Alineación de contrato nominal (mapInstanceId) para satisfacer 
- * al Build Shield y permitir el despliegue en Vercel.
+ * Misión: Gestionar el anclaje milimétrico del nodo urbano y obligar al curador
+ * a establecer la clasificación taxonómica bidimensional (Misión/Entidad) del hito.
+ * [REFORMA V5.0]: Integración de la Taxonomía Granular de 2 capas para alimentar el Oráculo.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
 
 import { motion } from "framer-motion";
-import { MapPin, Target, Check, AlertCircle } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { AlertCircle, Check, MapPin, Target, ChevronRight } from "lucide-react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 
-// --- INFRAESTRUCTURA CORE V3.0 ---
-import { useGeoEngine } from "@/hooks/use-geo-engine";
-import { useForge } from "../forge-context";
-import { SpatialEngine } from "../SpatialEngine";
+// --- INFRAESTRUCTURA CORE ---
 import { Button } from "@/components/ui/button";
+import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { cn, nicepodLog } from "@/lib/utils";
+import { SpatialEngine } from "../SpatialEngine";
+import { useForge } from "../forge-context";
+
+// --- SOBERANÍA DE TIPOS (V7.5) ---
+import { CategoryEntity, CategoryMission } from "@/types/geo-sovereignty";
+
+/**
+ * TAXONOMÍA SOBERANA: DICCIONARIO DE ENTIDADES
+ * Mapeo de la Misión (Nivel 1) con las Entidades (Nivel 2).
+ */
+const TAXONOMY_MAP: Record<CategoryMission, { id: CategoryEntity; label: string }[]> = {
+  infraestructura_vital: [
+    { id: 'aseo_premium', label: 'Aseo Premium' },
+    { id: 'nodo_hidratacion', label: 'Nodo de Hidratación' },
+    { id: 'refugio_climatico', label: 'Refugio Climático' },
+    { id: 'terminal_energia', label: 'Terminal de Energía' },
+    { id: 'zona_segura', label: 'Zona de Seguridad' }
+  ],
+  memoria_soberana: [
+    { id: 'monumento_nacional', label: 'Monumento' },
+    { id: 'arquitectura_epoca', label: 'Edificio Histórico' },
+    { id: 'placa_sintonia', label: 'Placa/Inscripción' },
+    { id: 'yacimiento_ruina', label: 'Yacimiento/Ruina' },
+    { id: 'leyenda_urbana', label: 'Leyenda Urbana' }
+  ],
+  capital_intelectual: [
+    { id: 'museo_sabiduria', label: 'Museo/Pinacoteca' },
+    { id: 'atelier_galeria', label: 'Galería/Atelier' },
+    { id: 'libreria_autor', label: 'Librería de Autor' },
+    { id: 'centro_innovacion', label: 'Centro de Innovación' },
+    { id: 'intervencion_plastica', label: 'Intervención Arte' }
+  ],
+  resonancia_sensorial: [
+    { id: 'mirador_estrategico', label: 'Mirador Estratégico' },
+    { id: 'paisaje_sonoro', label: 'Paisaje Sonoro' },
+    { id: 'pasaje_secreto', label: 'Pasaje/Secreto' },
+    { id: 'mercado_origen', label: 'Mercado de Origen' },
+    { id: 'obrador_tradicion', label: 'Obrador/Tradición' }
+  ]
+};
+
+const MISSION_LABELS: Record<CategoryMission, string> = {
+  infraestructura_vital: "Infraestructura Vital",
+  memoria_soberana: "Memoria Soberana",
+  capital_intelectual: "Capital Intelectual",
+  resonancia_sensorial: "Resonancia Sensorial"
+};
 
 /**
  * Step1Anchoring: La fase inicial del peritaje urbano.
@@ -80,81 +124,156 @@ export default function Step1Anchoring() {
       });
     }
     
-    // Pequeño retardo técnico para asegurar el repinte del contenedor antes de WebGL
+    // Retardo técnico para asegurar el repinte del contenedor antes de instanciar WebGL
     const timer = setTimeout(() => setForceMapVisible(true), 300);
     return () => clearTimeout(timer);
   }, [userLocation, forgeState.latitude, dispatch]);
 
+  /**
+   * isPayloadReady: Validación de integridad antes de saltar al Step 2.
+   */
+  const isPayloadReady = useMemo(() => {
+    return (
+      forgeState.latitude !== null &&
+      forgeState.longitude !== null &&
+      forgeState.categoryMission !== undefined &&
+      forgeState.categoryEntity !== undefined &&
+      engineStatus !== 'IDLE'
+    );
+  }, [forgeState.latitude, forgeState.longitude, forgeState.categoryMission, forgeState.categoryEntity, engineStatus]);
+
   return (
-    <div className="flex flex-col h-full w-full bg-transparent overflow-hidden">
+    <div className="flex flex-col h-full w-full bg-transparent overflow-y-auto custom-scrollbar">
       
       {/* I. CABECERA TÁCTICA */}
-      <div className="px-6 pt-2 pb-6 shrink-0">
+      <div className="px-6 pt-6 pb-4 shrink-0">
         <div className="flex items-center gap-3 mb-2">
           <div className="h-6 w-1 bg-primary rounded-full" />
           <h3 className="text-white font-black uppercase tracking-[0.3em] text-xs">
-            Fase 1: Anclaje Geográfico
+            Fase 1: Anclaje y Clasificación
           </h3>
         </div>
         <p className="text-[10px] text-zinc-500 font-medium uppercase tracking-widest leading-relaxed">
-          Sintonice la ubicación exacta del hito. Arrastre el mapa para un ajuste milimétrico.
+          Sintonice la ubicación y clasifique la naturaleza de la evidencia.
         </p>
       </div>
 
       {/* II. VISOR DE PRECISIÓN (WEBGL) */}
-      <div className="flex-1 relative mx-4 mb-6 rounded-[2.5rem] overflow-hidden border border-white/5 shadow-2xl bg-[#020202]">
+      <div className="shrink-0 relative h-[300px] mx-4 mb-6 rounded-[2.5rem] overflow-hidden border border-white/5 shadow-2xl bg-[#020202]">
         {forceMapVisible && (
           <SpatialEngine
-            mapInstanceId="map-forge" // [FIX V4.0]: Nomenclatura alineada con V9.0
+            mapInstanceId="map-forge" 
             mode="FORGE"
-            performanceProfile="TACTICAL_LITE" // Máxima fluidez para el anclaje
+            performanceProfile="TACTICAL_LITE" 
             onManualAnchor={handleManualOverride}
             className="w-full h-full"
           />
         )}
 
-        {/* CONTROLES FLOTANTES DEL VISOR */}
-        <div className="absolute bottom-6 right-6 flex flex-col gap-3">
+        {/* Controles Flotantes del Visor */}
+        <div className="absolute bottom-4 right-4 flex flex-col gap-3 z-10">
           <Button
             size="icon"
             variant={isManualMode ? "resonance" : "glass"}
-            className="rounded-2xl shadow-2xl h-12 w-12"
+            className="rounded-2xl shadow-2xl h-10 w-10"
             onClick={recenterCamera}
             title="Recuperar Voyager"
           >
-            <Target size={20} className={cn(isManualMode && "animate-pulse")} />
+            <Target size={18} className={cn(isManualMode && "animate-pulse")} />
           </Button>
         </div>
 
-        {/* INDICADOR DE COORDENADAS VIVAS */}
-        <div className="absolute top-6 left-6 right-6 pointer-events-none">
-          <div className="bg-black/80 backdrop-blur-xl border border-white/10 rounded-2xl px-5 py-3 flex items-center justify-between shadow-2xl">
+        {/* Indicador de Coordenadas Vivas */}
+        <div className="absolute top-4 left-4 right-4 pointer-events-none z-10">
+          <div className="bg-black/80 backdrop-blur-xl border border-white/10 rounded-2xl px-4 py-2 flex items-center justify-between shadow-2xl">
             <div className="flex items-center gap-3">
-              <MapPin size={14} className="text-primary" />
+              <MapPin size={12} className="text-primary" />
               <div className="flex flex-col">
-                <span className="text-[9px] font-black text-white tabular-nums tracking-tighter">
+                <span className="text-[8px] font-black text-white tabular-nums tracking-tighter">
                   {forgeState.latitude?.toFixed(6)}°N, {forgeState.longitude?.toFixed(6)}°E
-                </span>
-                <span className="text-[7px] font-bold text-zinc-500 uppercase tracking-widest">
-                  Puntero de Malla
                 </span>
               </div>
             </div>
             {isManualMode && (
-              <div className="flex items-center gap-2 bg-primary/10 px-2.5 py-1 rounded-lg border border-primary/20">
+              <div className="flex items-center gap-1.5 bg-primary/10 px-2 py-0.5 rounded-lg border border-primary/20">
                 <div className="h-1 w-1 rounded-full bg-primary animate-ping" />
-                <span className="text-[7px] font-black text-primary uppercase tracking-widest">Manual</span>
+                <span className="text-[6px] font-black text-primary uppercase tracking-widest">Manual</span>
               </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* III. CHASSIS DE ACCIÓN INFERIOR */}
-      <div className="px-6 pb-8 pt-2 mt-auto bg-gradient-to-t from-black to-transparent">
+      {/* III. MATRIZ DE TAXONOMÍA (NUEVO V5.0) */}
+      <div className="px-6 flex flex-col gap-6 mb-8 flex-1">
+        
+        {/* Nivel 1: Misión (Cuadrante) */}
+        <div>
+          <label className="text-[9px] font-black uppercase tracking-[0.3em] text-zinc-500 mb-3 block">
+            Cuadrante Funcional (Nivel 1)
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            {(Object.keys(TAXONOMY_MAP) as CategoryMission[]).map((mission) => (
+              <button
+                key={mission}
+                onClick={() => {
+                  dispatch({ type: 'SET_MISSION', payload: mission });
+                  // Al cambiar la misión, limpiamos la entidad para evitar inconsistencias
+                  dispatch({ type: 'SET_ENTITY', payload: undefined as any }); 
+                }}
+                className={cn(
+                  "px-3 py-2.5 rounded-xl border transition-all duration-300 text-left flex justify-between items-center",
+                  forgeState.categoryMission === mission
+                    ? "bg-white text-black border-white shadow-xl"
+                    : "bg-white/[0.02] border-white/5 text-zinc-400 hover:text-white hover:bg-white/[0.05]"
+                )}
+              >
+                <span className="text-[9px] font-black uppercase tracking-tighter truncate">
+                  {MISSION_LABELS[mission]}
+                </span>
+                {forgeState.categoryMission === mission && <ChevronRight size={12} />}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Nivel 2: Entidad (Solo visible si hay Misión seleccionada) */}
+        {forgeState.categoryMission && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col"
+          >
+            <label className="text-[9px] font-black uppercase tracking-[0.3em] text-zinc-500 mb-3 block">
+              Entidad Específica (Nivel 2)
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {TAXONOMY_MAP[forgeState.categoryMission].map((entity) => (
+                <button
+                  key={entity.id}
+                  onClick={() => dispatch({ type: 'SET_ENTITY', payload: entity.id })}
+                  className={cn(
+                    "px-3 py-2 rounded-full border transition-all duration-300",
+                    forgeState.categoryEntity === entity.id
+                      ? "bg-primary/20 border-primary text-primary shadow-[0_0_15px_rgba(var(--primary-rgb),0.2)]"
+                      : "bg-transparent border-white/10 text-zinc-500 hover:border-white/30 hover:text-zinc-300"
+                  )}
+                >
+                  <span className="text-[8px] font-black uppercase tracking-widest">
+                    {entity.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </div>
+
+      {/* IV. CHASSIS DE ACCIÓN INFERIOR */}
+      <div className="px-6 pb-8 mt-auto shrink-0 bg-gradient-to-t from-[#020202] to-transparent pt-4">
         <Button
           onClick={nextStep}
-          disabled={forgeState.latitude === null || engineStatus === 'IDLE'}
+          disabled={!isPayloadReady}
           className="w-full h-16 rounded-[1.5rem] bg-white text-black hover:bg-zinc-200 transition-all shadow-2xl shadow-white/5 font-black text-xs tracking-[0.3em] uppercase group"
         >
           <span className="flex items-center gap-3">
@@ -177,12 +296,14 @@ export default function Step1Anchoring() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V4.0):
- * 1. Build Shield Compliance: Se corrigió el nombre de la propiedad 'mapInstanceId',
- *    garantizando que el compilador de Next.js reconozca la interfaz de SpatialEngine.
- * 2. Visual Performance: El uso de TACTICAL_LITE asegura que, durante el anclaje, 
- *    el dispositivo móvil no procese sombras ni oclusiones pesadas, otorgando 
- *    prioridad al refresco del marcador manual.
- * 3. Atomic Dispatch: La actualización de la ubicación en la forja ahora incluye 
- *    el 'acc: 1' para informar al Oráculo que el anclaje posee autoridad humana.
+ * NOTA TÉCNICA DEL ARCHITECT (V5.0):
+ * 1. Multidimensional Injection: El formulario ahora requiere 2 pasos cognitivos 
+ *    antes de habilitar el botón "Fijar Coordenadas", garantizando que la Bóveda 
+ *    reciba datos periciales altamente segmentados.
+ * 2. Visual Hierarchy: Se limitó la altura del mapa a 300px para permitir que 
+ *    los selectores de taxonomía respiren visualmente sin obligar al Voyager 
+ *    a realizar scroll excesivo en móviles.
+ * 3. Contract Anticipation: Este archivo asume que el `forgeReducer` ya ha sido 
+ *    actualizado para aceptar 'SET_MISSION' y 'SET_ENTITY', un paso vital para 
+ *    el ensamblaje final.
  */
