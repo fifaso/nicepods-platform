@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: types/geo-sovereignty.ts
- * VERSIÓN: 7.6 (NicePod V4.0 - Full Integrity & Multidimensional Contract Edition)
+ * VERSIÓN: 7.7 (NicePod V4.0 - Full Descriptive Integrity & Build Shield Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Centralizar el contrato de identidad, telemetría y control cinemático,
  * garantizando la sintonía entre el hardware de captura y el oráculo de IA.
- * [REFORMA V7.6]: Inyección de intentAudioBlob, alineación con Protocolo Lightning
- * y purificación total de nomenclatura para el despliegue exitoso en Vercel.
+ * [REFORMA V7.7]: Purificación total de nomenclatura (Sin abreviaciones). Sustitución 
+ * definitiva de términos 'POI' por 'PointOfInterest' para erradicar errores de importación.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -38,6 +38,9 @@ export interface UserLocation {
   timestamp?: number;
 }
 
+/**
+ * ActivePointOfInterest: Representación de un nodo cercano detectado por el Radar.
+ */
 export interface ActivePointOfInterest {
   id: string;
   name: string;
@@ -80,6 +83,9 @@ export type HistoricalEpoch =
  * ---------------------------------------------------------------------------
  */
 
+/**
+ * PointOfInterestLifecycle: Estados legales de un nodo en la Bóveda NKV.
+ */
 export type PointOfInterestLifecycle =
   | 'ingested'
   | 'analyzed'
@@ -190,8 +196,8 @@ export interface GeoEngineReturn {
   status: GeoEngineState;
   data: GeoContextData;
   userLocation: UserLocation | null;
-  nearbyPOIs: PointOfInterest[];
-  activePOI: ActivePointOfInterest | null;
+  nearbyPointsOfInterest: PointOfInterest[]; // [V7.7]: Nomenclatura completa
+  activePointOfInterest: ActivePointOfInterest | null; // [V7.7]: Nomenclatura completa
   isSearching: boolean;
   isLocked: boolean;
   error: string | null;
@@ -221,7 +227,7 @@ export interface GeoEngineReturn {
     ocrImages: File[];
     ambientAudio?: Blob | null;
     intentText: string;
-    intentAudioBlob?: Blob | null; // [V7.6]: Sincronía con Dictado Sensorial
+    intentAudioBlob?: Blob | null;
     categoryMission: CategoryMission;
     categoryEntity: CategoryEntity;
     historicalEpoch: HistoricalEpoch;
@@ -230,7 +236,7 @@ export interface GeoEngineReturn {
   }) => Promise<{ pointOfInterestId: number; dossier: IngestionDossier } | void>;
 
   synthesizeNarrative: (parameters: {
-    poiId: number;
+    pointOfInterestId: number; // [V7.7]: Nomenclatura completa
     depth: NarrativeDepth;
     tone: NarrativeTone;
     refinedIntent?: string;
@@ -257,12 +263,12 @@ export interface GeoActionResponse<T = unknown> {
 /**
  * POICreationPayload: Contrato para la Ingesta Lightning V4.0.
  */
-export interface POICreationPayload {
+export interface PointOfInterestCreationPayload {
   latitude: number;
   longitude: number;
   accuracy: number;
-  heroImageFilePath: string; // Ruta de Storage (Lightning Protocol)
-  ocrImageFilePaths: string[]; // Rutas de Storage (Lightning Protocol)
+  heroImageFilePath: string;
+  ocrImageFilePaths: string[]; 
   categoryMission: string;
   categoryEntity: string;
   historicalEpoch: string;
@@ -272,11 +278,13 @@ export interface POICreationPayload {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V7.6):
- * 1. Build Shield Compliance: Se añadió 'intentAudioBlob' al contrato de ingesta,
- *    eliminando el error de compilación detectado por Vercel en el Step 2.
- * 2. Lightning Alignment: Se renombraron los campos del payload de creación a 
- *    'FilePath' para reflejar el paso de binarios a referencias de Storage.
- * 3. Formal Documentation: Se purgaron las abreviaturas de toda la constitución 
- *    para garantizar la mantenibilidad por parte de agentes sucesores.
+ * NOTA TÉCNICA DEL ARCHITECT (V7.7):
+ * 1. Zero Abbreviations Enforcement: Se eliminaron los términos 'POI', 'poiId' y 
+ *    'nearbyPOIs' de las exportaciones públicas, forzando al resto del sistema a 
+ *    utilizar descriptores industriales completos.
+ * 2. Contract Unification: Al centralizar estos nombres aquí, el Build Shield 
+ *    detectará automáticamente qué archivos necesitan actualización en la siguiente 
+ *    fase del despliegue.
+ * 3. Type Resilience: La estructura se ha diseñado para ser escalable, permitiendo 
+ *    añadir nuevas misiones o entidades sin romper la jerarquía base.
  */
