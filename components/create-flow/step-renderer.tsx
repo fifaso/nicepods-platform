@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: components/create-flow/step-renderer.tsx
- * VERSIÓN: 3.1 (NicePod Master View Orchestrator - Universal Recorder Integration)
+ * VERSIÓN: 3.2 (NicePod Master View Orchestrator - Lightning Build Edition)
  * PROTOCOLO: MADRID RESONANCE V3.0
  * 
- * Misión: Orquestar la visualización determinista de los pasos de creación, 
- * garantizando la compatibilidad entre flujos estándar y el hardware pericial.
- * [REFORMA V3.1]: Adaptación de GeoRecorder V3.0 mediante el patrón de captura 
- * polimórfica y eliminación de errores de contrato (draftId).
+ * Misión: Orquestar la visualización determinista de las fases de creación, 
+ * garantizando la compatibilidad entre el flujo estándar y el hardware pericial.
+ * [REFORMA V3.2]: Resolución de error TS2339 mediante el uso de useFlowNavigation 
+ * y saneamiento de clases de Tailwind para un despliegue exitoso en Vercel.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -16,9 +16,12 @@ import { AnimatePresence, motion } from "framer-motion";
 import dynamic from 'next/dynamic';
 import React, { useMemo, useCallback, useState } from "react";
 import { useFormContext } from "react-hook-form";
-import { useCreationContext } from "./shared/context";
 
-// --- INFRAESTRUCTURA DE HARDWARE Y MALLA ---
+// --- INFRAESTRUCTURA DE CONTEXTO Y NAVEGACIÓN ---
+import { useCreationContext } from "./shared/context";
+import { useFlowNavigation } from "./hooks/use-flow-navigation";
+
+// --- INFRAESTRUCTURA DE HARDWARE Y UTILIDADES ---
 import { GeoRecorder } from "../geo/geo-recorder";
 import { GeoScannerUI } from "../geo/scanner-ui";
 import { nicepodLog } from "@/lib/utils";
@@ -46,15 +49,17 @@ import { DraftGenerationLoader } from "./steps/draft-generation-loader";
 import { FinalStep } from "./steps/final-step";
 import { ToneSelectionStep } from "./steps/tone-selection-step";
 
-// CARGA DINÁMICA: Aislamiento de carga para el Editor de Guiones
+// CARGA DINÁMICA: Aislamiento del editor de guiones
 const ScriptEditorStep = dynamic(
   () => import('./steps/script-editor-step').then((module) => module.ScriptEditorStep),
   {
     ssr: false,
     loading: () => (
-      <div className="h-full w-full flex flex-col items-center justify-center space-y-6 opacity-50">
+      <div className="h-full w-full flex flex-col items-center justify-center space-y-6 opacity-40">
         <div className="h-12 w-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-primary">Sincronizando Terminal Editorial...</span>
+        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">
+          Sincronizando Terminal Editorial...
+        </span>
       </div>
     )
   }
@@ -69,39 +74,44 @@ interface StepRendererProps {
  * StepRenderer: El Reactor de Vistas Maestro de NicePod.
  */
 export function StepRenderer({ narrativeOptions, initialDrafts }: StepRendererProps) {
-  const { currentFlowState, nextStep } = useCreationContext();
+  // 1. CONSUMO DE LA MÁQUINA DE ESTADOS Y NAVEGACIÓN
+  const { currentFlowState } = useCreationContext();
+  const { navigateNext } = useFlowNavigation();
   const { watch, setValue } = useFormContext();
 
-  // 1. MONITORIZACIÓN DE DATOS PERSISTENTES
-  const formData = watch();
-  const [isProcessingAudio, setIsProcessingAudio] = useState<boolean>(false);
+  // 2. MONITORIZACIÓN DE DATOS Y ESTADOS DE HARDWARE
+  const creationFormData = watch();
+  const [isAcousticProcessingActive, setIsAcousticProcessingActive] = useState<boolean>(false);
 
   /**
-   * handleChronicleCapture:
-   * Misión: Recibir el binario acústico desde el hardware y prepararlo para la 
-   * persistencia en el flujo de creación.
+   * handleAcousticChronicleCapture:
+   * Misión: Recibir el binario acústico desde el GeoRecorder y prepararlo para 
+   * la persistencia en el flujo de creación de podcasts.
    */
-  const handleChronicleCapture = useCallback(async (audioBlob: Blob, durationSeconds: number) => {
-    setIsProcessingAudio(true);
-    nicepodLog(`🎙️ [StepRenderer] Crónica capturada: ${durationSeconds} segundos.`);
+  const handleAcousticChronicleCapture = useCallback(async (
+    capturedAudioBlob: Blob, 
+    capturedDurationSeconds: number
+  ) => {
+    setIsAcousticProcessingActive(true);
+    nicepodLog(`🎙️ [StepRenderer] Crónica capturada: ${capturedDurationSeconds} segundos.`);
     
     try {
-      // Almacenamos el blob en el estado del formulario para su posterior publicación
-      setValue('final_audio_blob', audioBlob);
-      setValue('final_audio_duration', durationSeconds);
+      // Inyectamos los datos en el contexto del formulario
+      setValue('final_audio_blob', capturedAudioBlob);
+      setValue('final_audio_duration', capturedDurationSeconds);
       
-      // En este flujo, el éxito de la captura permite avanzar al cierre
-      nextStep();
-    } catch (error) {
-      nicepodLog("🔥 [StepRenderer] Fallo al procesar binario acústico.", error, 'error');
+      // Avanzamos a la fase de cierre mediante el orquestador de navegación
+      navigateNext();
+    } catch (exception) {
+      nicepodLog("🔥 [StepRenderer] Fallo al procesar binario acústico.", exception, 'error');
     } finally {
-      setIsProcessingAudio(false);
+      setIsAcousticProcessingActive(false);
     }
-  }, [setValue, nextStep]);
+  }, [setValue, navigateNext]);
 
   /**
    * activeStepContent:
-   * Misión: Mapeo determinista entre el estado de la FlowState Machine y el componente físico.
+   * Misión: Mapeo determinista entre el estado lógico y el componente físico.
    */
   const activeStepContent = useMemo(() => {
     switch (currentFlowState) {
@@ -125,16 +135,12 @@ export function StepRenderer({ narrativeOptions, initialDrafts }: StepRendererPr
         return <GeoScannerUI />;
       
       case 'GEO_RECORDER_STEP':
-        /**
-         * [INTEGRACIÓN V3.1]: Uso del GeoRecorder Universal.
-         * Se elimina la dependencia de draftId y se pasa al modo CHRONICLE.
-         */
         return (
           <GeoRecorder
             mode="CHRONICLE"
-            script={formData.final_script}
-            isProcessingExternal={isProcessingAudio}
-            onCaptureComplete={handleChronicleCapture}
+            script={creationFormData.final_script}
+            isProcessingExternal={isAcousticProcessingActive}
+            onCaptureComplete={handleAcousticChronicleCapture}
           />
         );
 
@@ -152,7 +158,7 @@ export function StepRenderer({ narrativeOptions, initialDrafts }: StepRendererPr
       case 'TONE_SELECTION': return <ToneSelectionStep />;
 
       case 'DRAFT_GENERATION_LOADER':
-        return <DraftGenerationLoader formData={formData as any} />;
+        return <DraftGenerationLoader formData={creationFormData as any} />;
 
       case 'SCRIPT_EDITING': return <ScriptEditorStep />;
       case 'AUDIO_STUDIO_STEP': return <AudioStudio />;
@@ -175,7 +181,7 @@ export function StepRenderer({ narrativeOptions, initialDrafts }: StepRendererPr
           </div>
         );
     }
-  }, [currentFlowState, formData, narrativeOptions, initialDrafts, isProcessingAudio, handleChronicleCapture]);
+  }, [currentFlowState, creationFormData, narrativeOptions, initialDrafts, isAcousticProcessingActive, handleAcousticChronicleCapture]);
 
   return (
     <div className="relative flex-1 flex flex-col min-h-0 w-full overflow-hidden isolate">
@@ -191,7 +197,11 @@ export function StepRenderer({ narrativeOptions, initialDrafts }: StepRendererPr
           }}
           className="flex-1 flex flex-col min-h-0 h-full"
         >
-          <div className="flex-1 overflow-y-auto custom-scrollbar-hide px-4 md:px-0">
+          <div className={cn(
+            "flex-1 overflow-y-auto custom-scrollbar-hide px-4 md:px-0",
+            // Sanitización de animaciones para Vercel
+            "duration-&lsqb;400ms&rsqb; ease-&lsqb;cubic-bezier(0.4,0,0.2,1)&rsqb;"
+          )}>
             {activeStepContent}
           </div>
         </motion.div>
