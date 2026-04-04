@@ -1,10 +1,12 @@
 /**
  * ARCHIVO: actions/geo-actions.ts
- * VERSIÓN: 7.3 (NicePod Sovereign Geo-Actions - Contract Alignment Edition)
- * PROTOCOLO: MADRID RESONANCE V2.8
+ * VERSIÓN: 8.0 (NicePod Sovereign Geo-Actions - Multidimensional Pipeline Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.0
  * 
- * Misión: Orquestar el ciclo de vida de persistencia con garantía de limpieza y rigor de tipos.
- * [REFORMA V7.3]: Alineación con NarrativeTone/Depth y optimización del Protocolo Janitor.
+ * Misión: Orquestar el ciclo de vida de persistencia con garantía de limpieza,
+ * rigor de tipos y consolidación de publicación acústica/visual.
+ * [REFORMA V8.0]: Integración de Taxonomía Granular, Época, Referencias y 
+ * unificación atómica de la publicación (Sovereign Publish).
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -13,10 +15,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
-// --- IMPORTACIÓN DE CONTRATOS SOBERANOS (BUILD SHIELD V6.4) ---
-import {
-  POIIngestionSchema
-} from "@/lib/validation/poi-schema";
+// --- IMPORTACIÓN DE CONTRATOS SOBERANOS (BUILD SHIELD V7.5) ---
+import { POIIngestionSchema } from "@/lib/validation/poi-schema";
 import {
   GeoActionResponse,
   POICreationPayload,
@@ -33,16 +33,16 @@ import {
 
 /**
  * validateSovereignAccess:
- * Valida la identidad y el rango de Administrador directamente en el Borde de Vercel.
+ * Valida la identidad y el rango de Administrador en el Borde de Vercel.
  */
 async function validateSovereignAccess() {
   const supabase = createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-  if (error || !user) throw new Error("IDENTIDAD_NO_VERIFICADA");
+  if (authError || !user) throw new Error("IDENTIDAD_NO_VERIFICADA");
 
-  const appMetadata = user.app_metadata || {};
-  const userRole = appMetadata.user_role || appMetadata.role || 'user';
+  const applicationMetadata = user.app_metadata || {};
+  const userRole = applicationMetadata.user_role || applicationMetadata.role || 'user';
 
   if (userRole !== 'admin') {
     throw new Error("ACCESO_DENEGADO: Autoridad de nivel Administrador requerida.");
@@ -60,7 +60,6 @@ async function validateSovereignAccess() {
 /**
  * decodeBase64ToUint8Array:
  * Transmuta capturas Base64 en binarios puros optimizando el uso de RAM.
- * Utiliza el motor de Buffer nativo de Node.js.
  */
 function decodeBase64ToUint8Array(dataString: string) {
   try {
@@ -74,7 +73,7 @@ function decodeBase64ToUint8Array(dataString: string) {
     const buffer = Buffer.from(base64Content, 'base64');
 
     return { type: contentType, buffer: new Uint8Array(buffer) };
-  } catch (e) {
+  } catch (exception) {
     throw new Error("FALLO_DECODIFICACION: Activo físico corrupto o malformado.");
   }
 }
@@ -96,15 +95,15 @@ export async function resolveLocationAction(
 
     if (!serviceKey) throw new Error("INFRASTRUCTURE_KEY_MISSING");
 
-    const { data, error } = await supabase.functions.invoke('geo-resolve-location', {
+    const { data, error: functionError } = await supabase.functions.invoke('geo-resolve-location', {
       body: { latitude, longitude },
       headers: { Authorization: `Bearer ${serviceKey}` }
     });
 
-    if (error) throw new Error(`RADAR_SYNC_FAIL: ${error.message}`);
+    if (functionError) throw new Error(`RADAR_SYNC_FAIL: ${functionError.message}`);
     return { success: true, message: "Radar sincronizado.", data: data.data };
   } catch (error: any) {
-    console.error("🔥 [Geo-Action][Resolve-Fatal]:", error.message);
+    console.error("🔥 [GeoAction][ResolveFatal]:", error.message);
     return { success: false, message: "Error de radar ambiental.", error: error.message };
   }
 }
@@ -119,7 +118,7 @@ export async function transcribeVoiceIntentAction(params: {
 
     const audioData = decodeBase64ToUint8Array(params.audioBase64);
 
-    const { data, error } = await supabase.functions.invoke('geo-transcribe-intent', {
+    const { data, error: functionError } = await supabase.functions.invoke('geo-transcribe-intent', {
       body: {
         audioBase64: params.audioBase64.split(',')[1],
         contentType: audioData.type
@@ -127,7 +126,7 @@ export async function transcribeVoiceIntentAction(params: {
       headers: { Authorization: `Bearer ${serviceKey}` }
     });
 
-    if (error) throw new Error(`STT_IA_FAIL: ${error.message}`);
+    if (functionError) throw new Error(`STT_IA_FAIL: ${functionError.message}`);
 
     return {
       success: true,
@@ -135,7 +134,7 @@ export async function transcribeVoiceIntentAction(params: {
       data: { transcription: data.transcription }
     };
   } catch (error: any) {
-    console.error("🔥 [Geo-Action][STT-Fatal]:", error.message);
+    console.error("🔥 [GeoAction][STT-Fatal]:", error.message);
     return { success: false, message: "Error en dictado sensorial.", error: error.message };
   }
 }
@@ -156,28 +155,31 @@ export async function ingestPhysicalEvidenceAction(
   try {
     const user = await validateSovereignAccess();
 
-    // 1. RIGOR POSTGIS: Validación Zod de coordenadas y límites de payload
+    // 1. RIGOR POSTGIS Y TAXONOMÍA: Validación Zod Multidimensional
     const validatedData = POIIngestionSchema.parse({
       latitude: payload.latitude,
       longitude: payload.longitude,
       accuracy: payload.accuracy,
       heroImage: payload.heroImage,
-      categoryId: payload.categoryId,
+      categoryMission: payload.categoryMission,
+      categoryEntity: payload.categoryEntity,
+      historicalEpoch: payload.historicalEpoch,
       resonanceRadius: payload.resonanceRadius,
-      adminIntent: payload.adminIntent
+      adminIntent: payload.adminIntent,
+      referenceUrl: payload.referenceUrl
     });
 
     const timestamp = Date.now();
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     // 2. Persistencia Bloqueante de Evidencia Visual Principal
-    const heroImg = decodeBase64ToUint8Array(payload.heroImage);
+    const heroImageBinary = decodeBase64ToUint8Array(payload.heroImage);
     const heroPath = `poi-evidence/${user.id}/${timestamp}_hero.jpg`;
 
     const { error: heroUploadError } = await supabase.storage
       .from('podcasts')
-      .upload(heroPath, heroImg.buffer, {
-        contentType: heroImg.type,
+      .upload(heroPath, heroImageBinary.buffer, {
+        contentType: heroImageBinary.type,
         upsert: true
       });
 
@@ -186,22 +188,22 @@ export async function ingestPhysicalEvidenceAction(
 
     // 3. Persistencia de Evidencia Secundaria (Mosaico OCR)
     if (payload.ocrImages && payload.ocrImages.length > 0) {
-      const ocrTasks = payload.ocrImages.map((base64, i) => {
-        const img = decodeBase64ToUint8Array(base64);
-        const path = `poi-evidence/${user.id}/${timestamp}_ocr_${i}.jpg`;
-        return supabase.storage.from('podcasts').upload(path, img.buffer, { contentType: img.type, upsert: true });
+      const ocrTasks = payload.ocrImages.map((base64String, index) => {
+        const imageBinary = decodeBase64ToUint8Array(base64String);
+        const ocrPath = `poi-evidence/${user.id}/${timestamp}_ocr_${index}.jpg`;
+        return supabase.storage.from('podcasts').upload(ocrPath, imageBinary.buffer, { contentType: imageBinary.type, upsert: true });
       });
 
       const ocrResults = await Promise.allSettled(ocrTasks);
-      ocrResults.forEach((res, i) => {
-        if (res.status === 'fulfilled' && !res.value.error) {
-          uploadedPaths.push(`poi-evidence/${user.id}/${timestamp}_ocr_${i}.jpg`);
+      ocrResults.forEach((result, index) => {
+        if (result.status === 'fulfilled' && !result.value.error) {
+          uploadedPaths.push(`poi-evidence/${user.id}/${timestamp}_ocr_${index}.jpg`);
         }
       });
     }
 
-    // 4. INVOCACIÓN AL SENSOR-INGESTOR IA
-    const { data, error: functionError } = await supabase.functions.invoke('geo-sensor-ingestor', {
+    // 4. INVOCACIÓN AL SENSOR-INGESTOR IA (Con Taxonomía V4.0)
+    const { data: aiData, error: functionError } = await supabase.functions.invoke('geo-sensor-ingestor', {
       body: {
         ...validatedData,
         heroImageBase64: payload.heroImage,
@@ -213,13 +215,13 @@ export async function ingestPhysicalEvidenceAction(
 
     if (functionError) throw new Error(`AI_INGESTOR_FAIL: ${functionError.message}`);
 
-    const poiId = data.data.poiId;
+    const poiId = aiData.data.poiId;
 
     // 5. VINCULACIÓN DE ACTIVOS (COMMIT FÍSICO)
     const publicHeroUrl = supabase.storage.from('podcasts').getPublicUrl(heroPath).data.publicUrl;
     const publicOcrUrls = uploadedPaths
-      .filter(p => p.includes('_ocr_'))
-      .map(p => supabase.storage.from('podcasts').getPublicUrl(p).data.publicUrl);
+      .filter(path => path.includes('_ocr_'))
+      .map(path => supabase.storage.from('podcasts').getPublicUrl(path).data.publicUrl);
 
     const { error: dbUpdateError } = await supabase
       .from('points_of_interest')
@@ -230,33 +232,30 @@ export async function ingestPhysicalEvidenceAction(
 
     if (dbUpdateError) throw new Error(`DB_LINKING_FAIL: ${dbUpdateError.message}`);
 
-    // Si todo es exitoso, limpiamos el tracker de fallos
+    // Éxito: Limpiamos el tracker del Janitor
     uploadedPaths = [];
 
     return {
       success: true,
       message: "Evidencia física blindada y analizada.",
-      data: data.data
+      data: aiData.data
     };
 
   } catch (error: any) {
     const isTooLarge = error.message.includes('exceeded') || error.status === 413;
-    console.error("🔥 [Geo-Action][Ingest-Error]:", error.message);
+    console.error("🔥 [GeoAction][IngestError]:", error.message);
     
     return { 
       success: false, 
       message: "Fallo en la ingesta sensorial.", 
-      error: isTooLarge ? "Expediente sobrepasa el límite industrial (4.5MB)." : error.message 
+      error: isTooLarge ? "Expediente sobrepasa el límite industrial de transporte." : error.message 
     };
   } finally {
     /**
-     * PROTOCOLO JANITOR (AUTO-LIMPIEZA DE EMERGENCIA):
-     * Si la variable uploadedPaths aún tiene elementos en este punto,
-     * significa que el bloque try no se completó (ej. Fallo en IA o DB).
-     * Ejecutamos la purga para evitar activos huérfanos.
+     * PROTOCOLO JANITOR (AUTO-LIMPIEZA DE EMERGENCIA)
      */
     if (uploadedPaths.length > 0) {
-      console.warn("🧹 [Janitor] Purga de activos huérfanos ejecutada tras fallo crítico.");
+      console.warn("🧹 [Janitor] Purga de activos visuales huérfanos ejecutada.");
       supabase.storage.from('podcasts').remove(uploadedPaths).catch(() => {});
     }
   }
@@ -295,16 +294,11 @@ export async function attachAmbientAudioAction(params: {
 
     return { success: true, message: "Paisaje sonoro anclado.", data: { audioUrl } };
   } catch (error: any) {
-    console.error("🔥 [Geo-Action][Audio-Fatal]:", error.message);
+    console.error("🔥 [GeoAction][AudioFatal]:", error.message);
     return { success: false, message: "Error acústico.", error: error.message };
   }
 }
 
-/**
- * synthesizeNarrativeAction:
- * [REFORMA V7.3]: Alineación estricta con NarrativeDepth y NarrativeTone para 
- * sanar el contrato de compilación (TS2345).
- */
 export async function synthesizeNarrativeAction(params: {
   poiId: number;
   depth: NarrativeDepth;
@@ -316,58 +310,93 @@ export async function synthesizeNarrativeAction(params: {
     const supabase = createClient();
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    const { data, error } = await supabase.functions.invoke('geo-narrative-creator', {
+    const { data, error: functionError } = await supabase.functions.invoke('geo-narrative-creator', {
       body: params,
       headers: { Authorization: `Bearer ${serviceKey}` }
     });
 
-    if (error) throw new Error(`AI_NARRATIVE_FAIL: ${error.message}`);
+    if (functionError) throw new Error(`AI_NARRATIVE_FAIL: ${functionError.message}`);
     return { success: true, message: "Sabiduría sintetizada.", data: data.data };
   } catch (error: any) {
-    console.error("🔥 [Geo-Action][Narrative-Fatal]:", error.message);
+    console.error("🔥 [GeoAction][NarrativeFatal]:", error.message);
     return { success: false, message: "Fallo en la forja narrativa.", error: error.message };
   }
 }
 
 /**
  * ---------------------------------------------------------------------------
- * VI. FASE 4: PUBLICACIÓN FINAL (THE COMMIT)
+ * VI. FASE 4: PUBLICACIÓN SOBERANA UNIFICADA (NUEVO V8.0)
+ * Misión: Subir el audio de la crónica dictada y activar el nodo en la malla 
+ * en una sola transacción atómica, eliminando Edge Functions fantasma.
  * ---------------------------------------------------------------------------
  */
 
-export async function publishPOIAction(poiId: number): Promise<GeoActionResponse> {
-  try {
-    await validateSovereignAccess();
-    const supabase = createClient();
+export async function finalPublishSovereignAction(params: {
+  poiId: number;
+  audioBase64: string;
+  durationSeconds: number;
+}): Promise<GeoActionResponse> {
+  
+  let uploadedAudioPath: string | null = null;
+  const supabase = createClient();
 
-    const { error } = await supabase
+  try {
+    const user = await validateSovereignAccess();
+    const timestamp = Date.now();
+
+    // 1. Persistencia de la Crónica Acústica
+    const audioBinary = decodeBase64ToUint8Array(params.audioBase64);
+    const audioPath = `poi-evidence/${user.id}/${timestamp}_chronicle.webm`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('podcasts')
+      .upload(audioPath, audioBinary.buffer, { 
+        contentType: audioBinary.type, 
+        upsert: true 
+      });
+
+    if (uploadError) throw new Error(`STORAGE_CHRONICLE_FAIL: ${uploadError.message}`);
+    uploadedAudioPath = audioPath;
+
+    const publicAudioUrl = supabase.storage.from('podcasts').getPublicUrl(audioPath).data.publicUrl;
+
+    // 2. Commit Físico y Activación de Estado (Publicación)
+    const { error: dbUpdateError } = await supabase
       .from('points_of_interest')
       .update({
+        ambient_audio_url: publicAudioUrl, // Reutilizamos este campo para la crónica principal en la V4.0
         status: 'published' as POILifecycle,
         is_published: true,
         updated_at: new Date().toISOString()
       })
-      .eq('id', poiId);
+      .eq('id', params.poiId);
 
-    if (error) throw new Error("DB_PUBLISH_FAIL");
+    if (dbUpdateError) throw new Error(`DB_PUBLISH_FAIL: ${dbUpdateError.message}`);
 
-    // [MANDATO V2.8]: Revalidación de Malla Activa.
-    // Fuerza a Next.js a purgar la caché del servidor para que el nuevo nodo sea visible.
+    // 3. Revalidación de Caché (Resonancia Inmediata)
+    uploadedAudioPath = null; // Limpieza de Janitor
     revalidatePath('/map');
     
-    return { success: true, message: "Nodo materializado en la Malla." };
+    return { success: true, message: "Crónica materializada en la Malla Activa." };
+
   } catch (error: any) {
-    console.error("🔥 [Geo-Action][Publish-Fatal]:", error.message);
-    return { success: false, message: "Error de publicación final.", error: error.message };
+    console.error("🔥 [GeoAction][PublishFatal]:", error.message);
+    return { success: false, message: "Error de publicación soberana.", error: error.message };
+  } finally {
+    // Protocolo Janitor Acústico
+    if (uploadedAudioPath) {
+      console.warn("🧹 [Janitor] Purga de crónica huérfana ejecutada.");
+      supabase.storage.from('podcasts').remove([uploadedAudioPath]).catch(() => {});
+    }
   }
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V7.3):
- * 1. Type Alignment (TS2345): Se inyectaron los tipos NarrativeDepth y NarrativeTone 
- *    en synthesizeNarrativeAction para garantizar la compatibilidad con el UI.
- * 2. Deterministic Janitor: El bloque 'finally' asegura que, si existe una excepción
- *    tras la creación de los binarios, el Storage se purgue sin falta.
- * 3. Cache Purge: revalidatePath('/map') cierra el ciclo de creación informando al
- *    sistema que la bóveda NKV tiene un nuevo registro activo.
+ * NOTA TÉCNICA DEL ARCHITECT (V8.0):
+ * 1. Ghost Function Eradicated: Se ha implementado 'finalPublishSovereignAction' 
+ *    para sustituir a la Edge Function inexistente. Esta Server Action gestiona 
+ *    la subida del audio y el cambio de estado atómicamente.
+ * 2. Multidimensional Sync: La acción de ingesta principal (ingestPhysicalEvidenceAction) 
+ *    ahora valida y transporta la taxonomía bidimensional, la época y el link de 
+ *    sabiduría hacia la capa de Inteligencia Artificial en el Borde.
  */
