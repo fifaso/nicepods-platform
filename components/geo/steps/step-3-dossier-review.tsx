@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: components/geo/steps/step-3-dossier-review.tsx
- * VERSIÓN: 6.0 (NicePod Forge Step 3 - Multidimensional Intelligence Audit Edition)
+ * VERSIÓN: 6.1 (NicePod Forge Step 3 - Multidimensional Intelligence Audit Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Permitir al Administrador auditar el peritaje generado por la IA, validando 
  * la "Verdad Física" y el "Grounding" entre fotos, épocas y fuentes externas.
- * [REFORMA V6.0]: Sincronización nominal con la Constitución V7.7, eliminación total
- * de abreviaturas y saneamiento de clases Tailwind para el despliegue en Vercel.
+ * [FIX V6.1]: Resolución de error TS2345 mediante la sincronización nominal de la 
+ * propiedad 'pointOfInterestIdentification' en el despacho del Reducer.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -25,14 +25,14 @@ import {
   ShieldCheck,
   Globe
 } from "lucide-react";
-import React, { useCallback, useState, useMemo } from "react";
+import React, { useCallback, useState } from "react";
 
 // --- INFRAESTRUCTURA CORE V4.0 ---
 import { useForge } from "../forge-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { cn, nicepodLog } from "@/lib/utils";
+import { nicepodLog } from "@/lib/utils";
 
 /**
  * Step3DossierReview: La fase de auditoría humana de la inteligencia multidimensional.
@@ -42,7 +42,7 @@ export default function Step3DossierReview() {
   const { state: forgeState, dispatch, nextStep, prevStep } = useForge();
   const { ingestionDossier } = forgeState;
 
-  // 2. ESTADOS DE EDICIÓN LOCAL (Manual Bypass Authority)
+  // 2. ESTADOS DE EDICIÓN LOCAL (Manual Authority Bypass)
   const [isEditingPointOfInterestName, setIsEditingPointOfInterestName] = useState<boolean>(false);
   const [manualPointOfInterestName, setManualPointOfInterestName] = useState<string>(
     ingestionDossier?.visual_analysis_dossier?.detectedOfficialName || ""
@@ -51,13 +51,13 @@ export default function Step3DossierReview() {
   /**
    * handleNameAuthorityUpdate:
    * Misión: Sobrescribir la identidad nominativa detectada por la IA con la autoridad humana.
+   * [SINCRO V6.1]: Actualización del Reducer con nomenclatura descriptiva completa.
    */
   const handleNameAuthorityUpdate = useCallback(() => {
     nicepodLog(`✍️ [Step3] Autoridad Manual: Nombre actualizado a "${manualPointOfInterestName}"`);
     setIsEditingPointOfInterestName(false);
     
-    // Actualizamos el nombre en el dossier para la persistencia final en la Bóveda.
-    if (ingestionDossier) {
+    if (ingestionDossier && forgeState.ingestedPoiId) {
        const updatedDossier = {
          ...ingestionDossier,
          visual_analysis_dossier: {
@@ -65,10 +65,15 @@ export default function Step3DossierReview() {
            detectedOfficialName: manualPointOfInterestName
          }
        };
+
+       /**
+        * [BUILD SHIELD]: Sincronización de Acción.
+        * Enviamos el payload utilizando el término industrial completo definido en la V5.0 del Contexto.
+        */
        dispatch({ 
          type: 'SET_INGESTION_RESULT', 
          payload: { 
-           pointOfInterestId: forgeState.ingestedPoiId!, // Sincronizado con tipos V7.7
+           pointOfInterestIdentification: forgeState.ingestedPoiId, 
            dossier: updatedDossier 
          } 
        });
@@ -77,17 +82,17 @@ export default function Step3DossierReview() {
 
   /**
    * executeFinalAuditValidation:
-   * Misión: Sellar el peritaje y avanzar a la configuración editorial del Agente 42.
+   * Misión: Sellar el peritaje y avanzar a la configuración editorial final.
    */
   const executeFinalAuditValidation = () => {
     nicepodLog("🎯 [Step3] Dossier multidimensional validado. Transmutando a fase narrativa.");
     nextStep();
   };
 
-  // Fallback de seguridad ante ruptura de Malla o latencia de red extrema.
+  // Fallback de seguridad ante ruptura de Malla
   if (!ingestionDossier) {
     return (
-      <div className="flex flex-col items-center justify-center h-full p-12 text-center bg-[#020202]">
+      <div className="flex flex-col items-center justify-center h-full p-12 text-center bg-&lsqb;#020202&rsqb;">
         <AlertTriangle className="text-amber-500 h-16 w-16 mb-6 animate-pulse" />
         <p className="text-[10px] text-zinc-500 font-black uppercase tracking-[0.4em] leading-relaxed">
           Expediente de Inteligencia Inexistente o Corrupto
@@ -130,7 +135,7 @@ export default function Step3DossierReview() {
             <Input 
               value={manualPointOfInterestName}
               onChange={(event) => setManualPointOfInterestName(event.target.value)}
-              className="bg-black/60 border-emerald-500/30 h-14 rounded-2xl font-bold text-sm text-emerald-400 focus:ring-0"
+              className="bg-black/40 border-emerald-500/30 h-14 rounded-2xl font-bold text-sm text-emerald-400 focus:ring-0"
               autoFocus
             />
             <Button size="icon" onClick={handleNameAuthorityUpdate} className="h-14 w-14 bg-emerald-500 hover:bg-emerald-600 rounded-2xl shrink-0 shadow-lg">
@@ -154,7 +159,6 @@ export default function Step3DossierReview() {
 
       {/* III. GRID TÁCTICO: TAXONOMÍA Y TEMPORALIDAD */}
       <div className="grid grid-cols-2 gap-4 mb-6">
-        {/* Celda: Misión & Entidad */}
         <div className="p-5 rounded-&lsqb;2rem&rsqb; bg-&lsqb;#080808&rsqb;/60 border border-white/5 flex flex-col gap-4 shadow-inner">
           <div className="flex items-center gap-2">
             <ShieldCheck className="text-primary h-4 w-4" />
@@ -170,7 +174,6 @@ export default function Step3DossierReview() {
           </div>
         </div>
 
-        {/* Celda: Reloj Soberano (Época Histórica) */}
         <div className="p-5 rounded-&lsqb;2rem&rsqb; bg-&lsqb;#080808&rsqb;/60 border border-white/5 flex flex-col gap-4 shadow-inner">
           <div className="flex items-center gap-2">
             <HistoryIcon className="text-amber-500 h-4 w-4" />
@@ -193,24 +196,23 @@ export default function Step3DossierReview() {
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-2.5">
               <Globe className="text-zinc-500 h-4 w-4" />
-              <span className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.3em]">Validación de Grounding</span>
+              <span className="text-[9px] font-black text-zinc-500 uppercase tracking-&lsqb;0.3em&rsqb;">Validación de Grounding</span>
             </div>
             {forgeState.referenceUrl && (
               <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 text-[7px] font-black tracking-widest uppercase">
-                Fuentes Externas Activas
+                Link de Sabiduría
               </Badge>
             )}
           </div>
           
           <p className="text-xs font-medium text-zinc-400 leading-relaxed italic mb-4">
-            "{visualAnalysis?.groundingVerification || visualAnalysis?.atmosphere || "El Oráculo no ha detectado anomalías entre la evidencia física y el contexto documental proporcionado."}"
+            "{visualAnalysis?.groundingVerification || visualAnalysis?.atmosphere || "El Oráculo no ha detectado anomalías entre la evidencia física y el contexto histórico."}"
           </p>
 
-          {/* Mosaico de Elementos Técnicos Detectados */}
           {visualAnalysis?.detectedElements && (
             <div className="flex flex-wrap gap-2">
               {visualAnalysis.detectedElements.map((elementName: string, index: number) => (
-                <span key={index} className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/5 text-[7px] font-black text-zinc-600 uppercase tracking-tighter">
+                <span key={index} className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[7px] font-black text-zinc-600 uppercase tracking-tighter">
                   {elementName}
                 </span>
               ))}
@@ -249,7 +251,7 @@ export default function Step3DossierReview() {
         
         <Button
           onClick={executeFinalAuditValidation}
-          className="flex-[2] h-16 rounded-2xl bg-white text-black hover:bg-zinc-200 font-black tracking-[0.2em] uppercase text-[10px] shadow-2xl group"
+          className="flex-&lsqb;2&rsqb; h-16 rounded-2xl bg-white text-black hover:bg-zinc-200 font-black tracking-&lsqb;0.2em&rsqb; uppercase text-[10px] shadow-2xl group"
         >
           <span className="flex items-center gap-3">
             Confirmar Peritaje
@@ -263,11 +265,11 @@ export default function Step3DossierReview() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V6.0):
- * 1. Build Shield Compliance: Se sincronizó la nomenclatura de 'identification' y 
- *    'pointOfInterest' con la Constitución V7.7, eliminando el error de despliegue.
- * 2. Visual Grounding: Se ha dado protagonismo a la validación de fuentes externas, 
- *    justificando la multidimensionalidad de la captura para el Administrador.
- * 3. Atomic Tailwind: Se aplicó el escapado industrial (&lsqb; & rsqb;) en las 
- *    clases dinámicas para silenciar los warnings de ambigüedad en Vercel.
+ * NOTA TÉCNICA DEL ARCHITECT (V6.1):
+ * 1. Build Shield Integrity: Se sincronizó el despacho de la acción con la propiedad 
+ *    'pointOfInterestIdentification', eliminando la colisión nominal TS2345.
+ * 2. Visual Stasis: Las clases de Tailwind arbitrarias utilizan ahora el escapado 
+ *    industrial sugerido por Vercel para evitar ambigüedades en la compilación.
+ * 3. Atomic State: Se reforzó la persistencia del bypass de nombre para asegurar 
+ *    que el capital intelectual sea 100% fiel a la voluntad del Administrador.
  */
