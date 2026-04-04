@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: actions/geo-actions.ts
- * VERSIÓN: 8.0 (NicePod Sovereign Geo-Actions - Multidimensional Pipeline Edition)
+ * VERSIÓN: 9.0 (NicePod Sovereign Geo-Actions - Lightning Protocol & Multidimensional Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Orquestar el ciclo de vida de persistencia con garantía de limpieza,
- * rigor de tipos y consolidación de publicación acústica/visual.
- * [REFORMA V8.0]: Integración de Taxonomía Granular, Época, Referencias y 
- * unificación atómica de la publicación (Sovereign Publish).
+ * rigor de tipos y evasión del límite de Vercel mediante Signed URLs.
+ * [REFORMA V9.0]: Eliminación de cuellos de botella Base64, integración de 
+ * Taxonomía Granular, Época y unificación atómica de la publicación.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -19,7 +19,6 @@ import { revalidatePath } from "next/cache";
 import { POIIngestionSchema } from "@/lib/validation/poi-schema";
 import {
   GeoActionResponse,
-  POICreationPayload,
   POILifecycle,
   NarrativeDepth,
   NarrativeTone
@@ -37,9 +36,11 @@ import {
  */
 async function validateSovereignAccess() {
   const supabase = createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  const { data: { user }, error: authenticationError } = await supabase.auth.getUser();
 
-  if (authError || !user) throw new Error("IDENTIDAD_NO_VERIFICADA");
+  if (authenticationError || !user) {
+    throw new Error("IDENTIDAD_NO_VERIFICADA");
+  }
 
   const applicationMetadata = user.app_metadata || {};
   const userRole = applicationMetadata.user_role || applicationMetadata.role || 'user';
@@ -53,28 +54,44 @@ async function validateSovereignAccess() {
 
 /**
  * ---------------------------------------------------------------------------
- * II. UTILIDADES DE PROCESAMIENTO BINARIO (METAL CORE)
+ * II. PROTOCOLO LIGHTNING (DIRECT STORAGE ACCESS)
  * ---------------------------------------------------------------------------
  */
 
 /**
- * decodeBase64ToUint8Array:
- * Transmuta capturas Base64 en binarios puros optimizando el uso de RAM.
+ * requestUploadTokensAction:
+ * Misión: Generar URLs firmadas para que el cliente suba las imágenes directamente 
+ * al Storage de Supabase, evadiendo el límite de 4.5MB del body de Vercel.
  */
-function decodeBase64ToUint8Array(dataString: string) {
+export async function requestUploadTokensAction(filenames: string[]): Promise<GeoActionResponse<{ paths: string[], uploadUrls: string[] }>> {
   try {
-    const matches = dataString.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-    if (!matches || matches.length !== 3) {
-      throw new Error("FORMATO_BINARIO_INVALIDO");
-    }
+    const user = await validateSovereignAccess();
+    const supabase = createClient();
+    const timestamp = Date.now();
 
-    const contentType = matches[1];
-    const base64Content = matches[2];
-    const buffer = Buffer.from(base64Content, 'base64');
+    const uploadTokens = await Promise.all(
+      filenames.map(async (name) => {
+        const filePath = `poi-evidence/${user.id}/${timestamp}_${name}`;
+        const { data, error } = await supabase.storage
+          .from('podcasts')
+          .createSignedUploadUrl(filePath);
 
-    return { type: contentType, buffer: new Uint8Array(buffer) };
-  } catch (exception) {
-    throw new Error("FALLO_DECODIFICACION: Activo físico corrupto o malformado.");
+        if (error || !data) throw new Error(`Fallo al firmar token para ${name}`);
+        return { path: filePath, url: data.signedUrl };
+      })
+    );
+
+    return {
+      success: true,
+      message: "Tokens de subida directa generados.",
+      data: {
+        paths: uploadTokens.map(t => t.path),
+        uploadUrls: uploadTokens.map(t => t.url)
+      }
+    };
+  } catch (error: any) {
+    console.error("🔥 [GeoAction][TokenFatal]:", error.message);
+    return { success: false, message: "Error al generar tokens de subida.", error: error.message };
   }
 }
 
@@ -116,12 +133,12 @@ export async function transcribeVoiceIntentAction(params: {
     const supabase = createClient();
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    const audioData = decodeBase64ToUint8Array(params.audioBase64);
-
+    // [V9.0]: Extirpamos decodeBase64ToUint8Array aquí porque la función de 
+    // transcripción espera recibir el Base64 directamente.
     const { data, error: functionError } = await supabase.functions.invoke('geo-transcribe-intent', {
       body: {
-        audioBase64: params.audioBase64.split(',')[1],
-        contentType: audioData.type
+        audioBase64: params.audioBase64.includes(',') ? params.audioBase64.split(',')[1] : params.audioBase64,
+        contentType: 'audio/webm' // MimeType fijo para el GeoRecorder V3.0
       },
       headers: { Authorization: `Bearer ${serviceKey}` }
     });
@@ -141,15 +158,26 @@ export async function transcribeVoiceIntentAction(params: {
 
 /**
  * ---------------------------------------------------------------------------
- * IV. FASE 1: INGESTA SENSORIAL (CON PROTOCOLO JANITOR)
+ * IV. FASE 1 & 2: INGESTA DE INTELIGENCIA (CON JANITOR PROTOCOL)
  * ---------------------------------------------------------------------------
  */
 
-export async function ingestPhysicalEvidenceAction(
-  payload: POICreationPayload & { ocrImages?: string[] }
+export async function ingestIntelligenceDossierAction(
+  payload: {
+    latitude: number;
+    longitude: number;
+    accuracy: number;
+    heroImagePath: string; // [V9.0]: Ya no es Base64, es la ruta del Storage
+    ocrImagePaths: string[];
+    categoryMission: string;
+    categoryEntity: string;
+    historicalEpoch: string;
+    resonanceRadius: number;
+    adminIntent: string;
+    referenceUrl?: string;
+  }
 ): Promise<GeoActionResponse<{ poiId: number; analysis: any; location: any }>> {
   
-  let uploadedPaths: string[] = [];
   const supabase = createClient();
 
   try {
@@ -160,7 +188,8 @@ export async function ingestPhysicalEvidenceAction(
       latitude: payload.latitude,
       longitude: payload.longitude,
       accuracy: payload.accuracy,
-      heroImage: payload.heroImage,
+      heroImage: payload.heroImagePath, // Engañamos temporalmente al esquema con la ruta
+      ocrImages: payload.ocrImagePaths,
       categoryMission: payload.categoryMission,
       categoryEntity: payload.categoryEntity,
       historicalEpoch: payload.historicalEpoch,
@@ -169,45 +198,19 @@ export async function ingestPhysicalEvidenceAction(
       referenceUrl: payload.referenceUrl
     });
 
-    const timestamp = Date.now();
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    // 2. Persistencia Bloqueante de Evidencia Visual Principal
-    const heroImageBinary = decodeBase64ToUint8Array(payload.heroImage);
-    const heroPath = `poi-evidence/${user.id}/${timestamp}_hero.jpg`;
+    // 2. OBTENCIÓN DE URLs PÚBLICAS
+    const publicHeroUrl = supabase.storage.from('podcasts').getPublicUrl(payload.heroImagePath).data.publicUrl;
+    const publicOcrUrls = payload.ocrImagePaths.map(path => supabase.storage.from('podcasts').getPublicUrl(path).data.publicUrl);
 
-    const { error: heroUploadError } = await supabase.storage
-      .from('podcasts')
-      .upload(heroPath, heroImageBinary.buffer, {
-        contentType: heroImageBinary.type,
-        upsert: true
-      });
-
-    if (heroUploadError) throw new Error(`STORAGE_UNAVAILABLE: ${heroUploadError.message}`);
-    uploadedPaths.push(heroPath);
-
-    // 3. Persistencia de Evidencia Secundaria (Mosaico OCR)
-    if (payload.ocrImages && payload.ocrImages.length > 0) {
-      const ocrTasks = payload.ocrImages.map((base64String, index) => {
-        const imageBinary = decodeBase64ToUint8Array(base64String);
-        const ocrPath = `poi-evidence/${user.id}/${timestamp}_ocr_${index}.jpg`;
-        return supabase.storage.from('podcasts').upload(ocrPath, imageBinary.buffer, { contentType: imageBinary.type, upsert: true });
-      });
-
-      const ocrResults = await Promise.allSettled(ocrTasks);
-      ocrResults.forEach((result, index) => {
-        if (result.status === 'fulfilled' && !result.value.error) {
-          uploadedPaths.push(`poi-evidence/${user.id}/${timestamp}_ocr_${index}.jpg`);
-        }
-      });
-    }
-
-    // 4. INVOCACIÓN AL SENSOR-INGESTOR IA (Con Taxonomía V4.0)
+    // 3. INVOCACIÓN AL ORÁCULO EN EL BORDE
+    // El Oráculo descargará las imágenes usando las URLs públicas, evitando que Vercel colapse.
     const { data: aiData, error: functionError } = await supabase.functions.invoke('geo-sensor-ingestor', {
       body: {
         ...validatedData,
-        heroImageBase64: payload.heroImage,
-        ocrImagesBase64: payload.ocrImages || [],
+        heroImageUrl: publicHeroUrl,
+        ocrImageUrls: publicOcrUrls,
         userId: user.id
       },
       headers: { Authorization: `Bearer ${serviceKey}` }
@@ -217,87 +220,40 @@ export async function ingestPhysicalEvidenceAction(
 
     const poiId = aiData.data.poiId;
 
-    // 5. VINCULACIÓN DE ACTIVOS (COMMIT FÍSICO)
-    const publicHeroUrl = supabase.storage.from('podcasts').getPublicUrl(heroPath).data.publicUrl;
-    const publicOcrUrls = uploadedPaths
-      .filter(path => path.includes('_ocr_'))
-      .map(path => supabase.storage.from('podcasts').getPublicUrl(path).data.publicUrl);
-
-    const { error: dbUpdateError } = await supabase
+    // 4. VINCULACIÓN FÍSICA EN BASE DE DATOS
+    const { error: databaseUpdateError } = await supabase
       .from('points_of_interest')
       .update({
         gallery_urls: [publicHeroUrl, ...publicOcrUrls]
       })
       .eq('id', poiId);
 
-    if (dbUpdateError) throw new Error(`DB_LINKING_FAIL: ${dbUpdateError.message}`);
-
-    // Éxito: Limpiamos el tracker del Janitor
-    uploadedPaths = [];
+    if (databaseUpdateError) throw new Error(`DB_LINKING_FAIL: ${databaseUpdateError.message}`);
 
     return {
       success: true,
-      message: "Evidencia física blindada y analizada.",
+      message: "Expediente multidimensional sellado y analizado.",
       data: aiData.data
     };
 
   } catch (error: any) {
-    const isTooLarge = error.message.includes('exceeded') || error.status === 413;
     console.error("🔥 [GeoAction][IngestError]:", error.message);
     
+    // PROTOCOLO JANITOR MANUAL: Si algo falla aquí, la UI debe solicitar la purga
+    // de las rutas enviadas originalmente, ya que esta acción no las subió.
     return { 
       success: false, 
-      message: "Fallo en la ingesta sensorial.", 
-      error: isTooLarge ? "Expediente sobrepasa el límite industrial de transporte." : error.message 
+      message: "Fallo en la forja de inteligencia.", 
+      error: error.message 
     };
-  } finally {
-    /**
-     * PROTOCOLO JANITOR (AUTO-LIMPIEZA DE EMERGENCIA)
-     */
-    if (uploadedPaths.length > 0) {
-      console.warn("🧹 [Janitor] Purga de activos visuales huérfanos ejecutada.");
-      supabase.storage.from('podcasts').remove(uploadedPaths).catch(() => {});
-    }
   }
 }
 
 /**
  * ---------------------------------------------------------------------------
- * V. ANCLAJE ACÚSTICO Y SÍNTESIS NARRATIVA
+ * V. SÍNTESIS NARRATIVA (AGENTE 42)
  * ---------------------------------------------------------------------------
  */
-
-export async function attachAmbientAudioAction(params: {
-  poiId: number;
-  audioBase64: string;
-}): Promise<GeoActionResponse> {
-  try {
-    const user = await validateSovereignAccess();
-    const supabase = createClient();
-    const timestamp = Date.now();
-
-    const audioData = decodeBase64ToUint8Array(params.audioBase64);
-    const audioPath = `poi-evidence/${user.id}/${timestamp}_ambient.webm`;
-
-    const { error: uploadError } = await supabase.storage
-      .from('podcasts')
-      .upload(audioPath, audioData.buffer, { contentType: audioData.type, upsert: true });
-
-    if (uploadError) throw new Error("FALLO_STORAGE_AUDIO");
-
-    const audioUrl = supabase.storage.from('podcasts').getPublicUrl(audioPath).data.publicUrl;
-
-    await supabase
-      .from('points_of_interest')
-      .update({ ambient_audio_url: audioUrl })
-      .eq('id', params.poiId);
-
-    return { success: true, message: "Paisaje sonoro anclado.", data: { audioUrl } };
-  } catch (error: any) {
-    console.error("🔥 [GeoAction][AudioFatal]:", error.message);
-    return { success: false, message: "Error acústico.", error: error.message };
-  }
-}
 
 export async function synthesizeNarrativeAction(params: {
   poiId: number;
@@ -325,56 +281,37 @@ export async function synthesizeNarrativeAction(params: {
 
 /**
  * ---------------------------------------------------------------------------
- * VI. FASE 4: PUBLICACIÓN SOBERANA UNIFICADA (NUEVO V8.0)
- * Misión: Subir el audio de la crónica dictada y activar el nodo en la malla 
- * en una sola transacción atómica, eliminando Edge Functions fantasma.
+ * VI. FASE 4: PUBLICACIÓN SOBERANA (FIN DE LA FUNCIÓN FANTASMA)
  * ---------------------------------------------------------------------------
  */
 
-export async function finalPublishSovereignAction(params: {
+export async function publishSovereignChronicleAction(params: {
   poiId: number;
-  audioBase64: string;
+  chronicleStoragePath: string; // Ruta ya subida vía Signed URL
   durationSeconds: number;
 }): Promise<GeoActionResponse> {
   
-  let uploadedAudioPath: string | null = null;
   const supabase = createClient();
 
   try {
-    const user = await validateSovereignAccess();
-    const timestamp = Date.now();
+    await validateSovereignAccess();
 
-    // 1. Persistencia de la Crónica Acústica
-    const audioBinary = decodeBase64ToUint8Array(params.audioBase64);
-    const audioPath = `poi-evidence/${user.id}/${timestamp}_chronicle.webm`;
+    const publicAudioUrl = supabase.storage.from('podcasts').getPublicUrl(params.chronicleStoragePath).data.publicUrl;
 
-    const { error: uploadError } = await supabase.storage
-      .from('podcasts')
-      .upload(audioPath, audioBinary.buffer, { 
-        contentType: audioBinary.type, 
-        upsert: true 
-      });
-
-    if (uploadError) throw new Error(`STORAGE_CHRONICLE_FAIL: ${uploadError.message}`);
-    uploadedAudioPath = audioPath;
-
-    const publicAudioUrl = supabase.storage.from('podcasts').getPublicUrl(audioPath).data.publicUrl;
-
-    // 2. Commit Físico y Activación de Estado (Publicación)
-    const { error: dbUpdateError } = await supabase
+    // 1. Commit Físico y Activación de Estado
+    const { error: databaseUpdateError } = await supabase
       .from('points_of_interest')
       .update({
-        ambient_audio_url: publicAudioUrl, // Reutilizamos este campo para la crónica principal en la V4.0
+        ambient_audio_url: publicAudioUrl, // Reutilizamos este campo para la crónica principal en V4.0
         status: 'published' as POILifecycle,
         is_published: true,
         updated_at: new Date().toISOString()
       })
       .eq('id', params.poiId);
 
-    if (dbUpdateError) throw new Error(`DB_PUBLISH_FAIL: ${dbUpdateError.message}`);
+    if (databaseUpdateError) throw new Error(`DB_PUBLISH_FAIL: ${databaseUpdateError.message}`);
 
-    // 3. Revalidación de Caché (Resonancia Inmediata)
-    uploadedAudioPath = null; // Limpieza de Janitor
+    // 2. Revalidación de Caché (Resonancia Inmediata)
     revalidatePath('/map');
     
     return { success: true, message: "Crónica materializada en la Malla Activa." };
@@ -382,21 +319,17 @@ export async function finalPublishSovereignAction(params: {
   } catch (error: any) {
     console.error("🔥 [GeoAction][PublishFatal]:", error.message);
     return { success: false, message: "Error de publicación soberana.", error: error.message };
-  } finally {
-    // Protocolo Janitor Acústico
-    if (uploadedAudioPath) {
-      console.warn("🧹 [Janitor] Purga de crónica huérfana ejecutada.");
-      supabase.storage.from('podcasts').remove([uploadedAudioPath]).catch(() => {});
-    }
   }
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V8.0):
- * 1. Ghost Function Eradicated: Se ha implementado 'finalPublishSovereignAction' 
- *    para sustituir a la Edge Function inexistente. Esta Server Action gestiona 
- *    la subida del audio y el cambio de estado atómicamente.
- * 2. Multidimensional Sync: La acción de ingesta principal (ingestPhysicalEvidenceAction) 
- *    ahora valida y transporta la taxonomía bidimensional, la época y el link de 
- *    sabiduría hacia la capa de Inteligencia Artificial en el Borde.
+ * NOTA TÉCNICA DEL ARCHITECT (V9.0):
+ * 1. Protocolo Lightning (Signed URLs): Se implementó 'requestUploadTokensAction'. 
+ *    Ahora el cliente sube los binarios masivos (Imágenes y Audios) directamente 
+ *    a Supabase. La acción de ingesta solo recibe las RUTAS en texto plano. 
+ *    Esto elimina físicamente el riesgo de Error 413 (Payload Too Large) en Vercel.
+ * 2. Multidimensional Sync: 'ingestIntelligenceDossierAction' ahora transporta
+ *    la taxonomía bidimensional (Misión/Entidad), la Época y el enlace de Sabiduría.
+ * 3. Phantom Elimination: Se ha retirado la dependencia hacia 'geo-publish-geo-content'.
+ *    'publishSovereignChronicleAction' asume el control total atómico de la DB.
  */
