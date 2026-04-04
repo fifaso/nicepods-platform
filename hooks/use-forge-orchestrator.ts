@@ -1,15 +1,18 @@
 /**
  * ARCHIVO: hooks/use-forge-orchestrator.ts
- * VERSIÓN: 2.0 (NicePod Forge Orchestrator - Off-Main-Thread Compression Edition)
- * PROTOCOLO: MADRID RESONANCE V3.0
+ * VERSIÓN: 3.0 (NicePod Forge Orchestrator - Multidimensional & Voice-Intent Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.0
  * 
- * Misión: Gestionar el ciclo de vida de ingesta sensorial con rigor asíncrono y protección de CPU.
- * [REFORMA V2.0]: Delegación de compresión de imágenes al ecosistema de Web Workers.
- * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
+ * Misión: Gestionar el ciclo de vida de ingesta sensorial orquestando la 
+ * validación de taxonomía, compresión JIT y transcripción de voz en paralelo.
+ * [REFORMA V3.0]: Alineación con el Contrato Taxonómico V7.5 y fusión de intenciones (Voz+Texto).
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
 
+import { useCallback, useState } from "react";
+import { compressNicePodImage, nicepodLog } from "@/lib/utils";
 import {
   attachAmbientAudioAction,
   ingestPhysicalEvidenceAction,
@@ -17,21 +20,21 @@ import {
   synthesizeNarrativeAction,
   transcribeVoiceIntentAction
 } from "@/actions/geo-actions";
-import { compressNicePodImage, nicepodLog } from "@/lib/utils";
 import {
+  CategoryEntity,
+  CategoryMission,
   GeoContextData,
   GeoEngineState,
+  HistoricalEpoch,
   IngestionDossier,
   NarrativeDepth,
   NarrativeTone,
   UserLocation
 } from "@/types/geo-sovereignty";
-import { useCallback, useState } from "react";
 
 /**
  * CONSTANTES DE GOBERNANZA TÁCTICA
- * Límite de 2.8MB. El Base64 aumenta el tamaño un ~33%. 
- * 2.8 * 1.33 = ~3.7MB (Seguro para el límite de 4MB de Vercel Next.js).
+ * Límite de 2.8MB en origen para evitar rebasar los 4.5MB tras Base64 en Vercel.
  */
 const MAX_RAW_PAYLOAD_BYTES = 2.8 * 1024 * 1024;
 
@@ -61,33 +64,39 @@ export function useForgeOrchestrator() {
 
   /**
    * ingestSensoryData:
-   * Misión: Comprimir evidencia asíncronamente, solicitar clima y despachar al Ingestor.
+   * Misión: Comprimir evidencia, transcribir voz, solicitar clima y despachar al Ingestor.
    */
   const ingestSensoryData = useCallback(async (
     userLocation: UserLocation | null,
-    params: {
+    parameters: {
       heroImage: File;
       ocrImages: File[];
-      intent: string;
-      categoryId: string;
-      radius: number;
       ambientAudio?: Blob | null;
+      intentText: string;
+      intentAudioBlob?: Blob | null; // [V3.0]: Soporte para Dictado Sensorial
+      categoryMission: CategoryMission;
+      categoryEntity: CategoryEntity;
+      historicalEpoch: HistoricalEpoch;
+      resonanceRadius: number;
+      referenceUrl?: string; // [V3.0]: Puente de Sabiduría (URL)
     }
   ) => {
     if (!userLocation) {
-      nicepodLog("🛑 [Forge-Orchestrator] Ingesta abortada: Voyager sin anclaje GPS.", null, 'error');
+      nicepodLog("🛑 [ForgeOrchestrator] Ingesta abortada: Voyager sin anclaje GPS.", null, 'error');
       throw new Error("UBICACION_REQUERIDA");
     }
 
     // 1. PRE-FLIGHT PAYLOAD GUARD
-    const rawSize = params.heroImage.size +
-      params.ocrImages.reduce((acc, img) => acc + img.size, 0) +
-      (params.ambientAudio?.size || 0);
+    // Calculamos el peso total de los binarios visuales y acústicos
+    const rawSize = parameters.heroImage.size +
+      parameters.ocrImages.reduce((accumulated, image) => accumulated + image.size, 0) +
+      (parameters.ambientAudio?.size || 0) +
+      (parameters.intentAudioBlob?.size || 0);
 
     if (rawSize > MAX_RAW_PAYLOAD_BYTES) {
-      const mbSize = (rawSize / 1024 / 1024).toFixed(1);
-      nicepodLog(`⚠️ [Forge-Orchestrator] Payload excesivo detectado: ${mbSize}MB`, null, 'warn');
-      setError("La suma de imágenes supera el límite industrial (Recomendado < 2.5MB).");
+      const megabytesSize = (rawSize / 1024 / 1024).toFixed(1);
+      nicepodLog(`⚠️ [ForgeOrchestrator] Payload excesivo detectado: ${megabytesSize}MB`, null, 'warn');
+      setError("La evidencia física supera el límite industrial de transporte (< 2.8MB).");
       throw new Error("PAYLOAD_TOO_LARGE");
     }
 
@@ -96,7 +105,7 @@ export function useForgeOrchestrator() {
     setError(null);
 
     try {
-      nicepodLog("⚙️ [Forge-Orchestrator] Iniciando compresión JIT en hilos paralelos...");
+      nicepodLog("⚙️ [ForgeOrchestrator] Iniciando protocolo de concurrencia multimodal...");
 
       /**
        * YIELD TÁCTICO (150ms):
@@ -104,81 +113,115 @@ export function useForgeOrchestrator() {
        */
       await new Promise(resolve => setTimeout(resolve, 150));
 
-      // 2. CONCURRENCIA OFF-MAIN-THREAD (Imágenes + Clima)
-      // [V3.0]: compressNicePodImage ahora delega la carga matemática al Worker.
-      const [compressedHero, ocrResults, weatherRes] = await Promise.all([
-        compressNicePodImage(params.heroImage, 1920, 0.82),
-        Promise.all(params.ocrImages.map(img => compressNicePodImage(img, 1280, 0.70))),
+      /**
+       * 2. RESOLUCIÓN DE INTENCIONALIDAD (V3.0)
+       * Misión: Si existe un dictado por voz, transcribirlo y fusionarlo con el texto manual.
+       */
+      let finalAdminIntent = parameters.intentText;
+      if (parameters.intentAudioBlob) {
+        nicepodLog("🎙️ [ForgeOrchestrator] Transcribiendo dictado sensorial...");
+        const intentBase64 = await fileToBase64(parameters.intentAudioBlob);
+        const transcriptionResult = await transcribeVoiceIntentAction({ audioBase64: intentBase64 });
+        
+        if (transcriptionResult.success && transcriptionResult.data?.transcription) {
+          // Fusionamos el texto dictado con las notas manuales (si las hay)
+          finalAdminIntent = parameters.intentText.trim() !== "" 
+            ? `${transcriptionResult.data.transcription}\n\n[Notas del Curador]: ${parameters.intentText}`
+            : transcriptionResult.data.transcription;
+          nicepodLog("✅ [ForgeOrchestrator] Fusión de intención completada.");
+        } else {
+          nicepodLog("⚠️ [ForgeOrchestrator] Fallo en transcripción de voz. Usando intención manual.", null, 'warn');
+        }
+      }
+
+      // Si después de la fusión la intención sigue vacía, inyectamos un fallback seguro.
+      if (!finalAdminIntent || finalAdminIntent.trim() === "") {
+        finalAdminIntent = "Captura de contexto urbano sin directriz explícita.";
+      }
+
+      /**
+       * 3. CONCURRENCIA OFF-MAIN-THREAD (Imágenes + Clima)
+       * El Worker procesa los píxeles mientras el servidor resuelve la atmósfera.
+       */
+      const [compressedHeroImage, ocrCompressionResults, weatherResolution] = await Promise.all([
+        compressNicePodImage(parameters.heroImage, 1920, 0.82),
+        Promise.all(parameters.ocrImages.map(image => compressNicePodImage(image, 1280, 0.70))),
         resolveLocationAction(userLocation.latitude, userLocation.longitude)
       ]);
 
-      // 3. SERIALIZACIÓN BASE64 (Transporte Seguro)
-      const heroBase64 = await fileToBase64(compressedHero);
-      const ocrBase64 = await Promise.all(ocrResults.map(blob => fileToBase64(blob)));
+      // 4. SERIALIZACIÓN BASE64 (Transporte al Borde)
+      const heroBase64 = await fileToBase64(compressedHeroImage);
+      const ocrBase64Array = await Promise.all(ocrCompressionResults.map(blob => fileToBase64(blob)));
 
-      nicepodLog("📡 [Forge-Orchestrator] Transporte asíncrono completado. Enviando a Bóveda NKV...");
+      nicepodLog("📡 [ForgeOrchestrator] Empaquetado finalizado. Invocando Oráculo (Edge)...");
 
-      // 4. INVOCACIÓN SOBERANA (Server Action con Janitor Protocol activo)
-      const result = await ingestPhysicalEvidenceAction({
+      /**
+       * 5. INVOCACIÓN SOBERANA AL METAL (Server Action)
+       * [MANDATO V4.0]: Transmisión de la taxonomía completa y el enlace de sabiduría.
+       */
+      const ingestionExecutionResult = await ingestPhysicalEvidenceAction({
         latitude: userLocation.latitude,
         longitude: userLocation.longitude,
         accuracy: userLocation.accuracy,
         heroImage: heroBase64,
-        ocrImages: ocrBase64,
-        categoryId: params.categoryId,
-        resonanceRadius: params.radius,
-        adminIntent: params.intent
+        ocrImages: ocrBase64Array,
+        categoryMission: parameters.categoryMission,
+        categoryEntity: parameters.categoryEntity,
+        historicalEpoch: parameters.historicalEpoch,
+        resonanceRadius: parameters.resonanceRadius,
+        adminIntent: finalAdminIntent,
+        referenceUrl: parameters.referenceUrl
       });
 
-      if (!result.success || !result.data) {
-        throw new Error(result.error || "FAIL_AI_INGESTION");
+      if (!ingestionExecutionResult.success || !ingestionExecutionResult.data) {
+        throw new Error(ingestionExecutionResult.error || "FAIL_AI_INGESTION");
       }
 
-      const { poiId, analysis } = result.data;
+      const { poiId, analysis } = ingestionExecutionResult.data;
 
-      // 5. ANCLAJE ACÚSTICO (Operación paralela no bloqueante)
-      if (params.ambientAudio) {
-        fileToBase64(params.ambientAudio).then(audioBase64 => {
+      // 6. ANCLAJE ACÚSTICO (Operación paralela no bloqueante)
+      if (parameters.ambientAudio) {
+        fileToBase64(parameters.ambientAudio).then(audioBase64 => {
           attachAmbientAudioAction({ poiId, audioBase64 }).catch(err => {
-            nicepodLog("⚠️ [Forge-Orchestrator] El anclaje de ruido ambiente falló, pero el Dossier es válido.", err, 'warn');
+            nicepodLog("⚠️ [ForgeOrchestrator] El anclaje del ruido ambiente falló (No crítico).", err, 'warn');
           });
         });
       }
 
-      // 6. MATERIALIZACIÓN DEL DOSSIER (Unificando IA y Clima)
-      const dossier: IngestionDossier = {
+      // 7. MATERIALIZACIÓN DEL DOSSIER (Unificando IA y Clima para la UI)
+      const compiledDossier: IngestionDossier = {
         poi_id: poiId,
         raw_ocr_text: analysis.historicalDossier || null,
         weather_snapshot: {
-          temp_c: weatherRes.success ? (weatherRes.data?.current?.temp_c || 15) : 15,
-          condition: weatherRes.success ? (weatherRes.data?.current?.condition?.text || "Despejado") : "Despejado",
-          is_day: weatherRes.success ? !!weatherRes.data?.current?.is_day : true
+          temp_c: weatherResolution.success ? (weatherResolution.data?.current?.temp_c || 15) : 15,
+          condition: weatherResolution.success ? (weatherResolution.data?.current?.condition?.text || "Despejado") : "Despejado",
+          is_day: weatherResolution.success ? !!weatherResolution.data?.current?.is_day : true
         },
         visual_analysis_dossier: analysis,
         sensor_accuracy: userLocation.accuracy,
         ingested_at: new Date().toISOString()
       };
 
-      setData(prev => ({ ...prev, poiId, dossier }));
+      setData(previousData => ({ ...previousData, poiId, dossier: compiledDossier }));
       setStatus('DOSSIER_READY');
-      nicepodLog(`✅ [Forge-Orchestrator] Nodo #${poiId} materializado con éxito en la Malla.`);
+      nicepodLog(`✅ [ForgeOrchestrator] Nodo #${poiId} materializado en la Malla.`);
 
-      return { poiId, dossier };
+      return { poiId, dossier: compiledDossier };
 
-    } catch (e: unknown) {
-      const errMsg = e instanceof Error ? e.message : String(e);
+    } catch (exception: unknown) {
+      const errorMessage = exception instanceof Error ? exception.message : String(exception);
       setStatus('REJECTED');
 
-      // Mapeo de errores semántico para la UI
-      if (errMsg === "PAYLOAD_TOO_LARGE") {
-        setError("Expediente muy pesado.");
+      // Mapeo semántico de errores para la UI
+      if (errorMessage === "PAYLOAD_TOO_LARGE") {
+        setError("El expediente excede el peso permitido. Intente eliminar imágenes OCR.");
       } else {
-        setError("El Oráculo no pudo procesar la evidencia visual. Verifique su red.");
+        setError("El Oráculo no pudo procesar la evidencia. Verifique su red.");
       }
 
       setIsLocked(false);
-      nicepodLog("🔥 [Forge-Orchestrator] Error Crítico de Ingesta", errMsg, 'error');
-      throw e;
+      nicepodLog("🔥 [ForgeOrchestrator] Error Crítico en la forja.", errorMessage, 'error');
+      throw exception;
     }
   }, []);
 
@@ -196,29 +239,29 @@ export function useForgeOrchestrator() {
     setError(null);
 
     try {
-      nicepodLog(`🧠 [Forge-Orchestrator] Despertando Agente 42 para Nodo #${params.poiId}...`);
-      const result = await synthesizeNarrativeAction(params);
+      nicepodLog(`🧠 [ForgeOrchestrator] Despertando Agente 42 para Nodo #${params.poiId}...`);
+      const synthesisResult = await synthesizeNarrativeAction(params);
 
-      if (!result.success || !result.data) {
-        throw new Error(result.error || "NARRATIVE_SYNTHESIS_FAILED");
+      if (!synthesisResult.success || !synthesisResult.data) {
+        throw new Error(synthesisResult.error || "NARRATIVE_SYNTHESIS_FAILED");
       }
 
-      setData(prev => ({ ...prev, narrative: result.data }));
+      setData(previousData => ({ ...previousData, narrative: synthesisResult.data }));
       setStatus('NARRATIVE_READY');
-      nicepodLog(`🎯 [Forge-Orchestrator] Sabiduría sintetizada y lista para publicación.`);
+      nicepodLog(`🎯 [ForgeOrchestrator] Sabiduría sintetizada y lista para publicación.`);
 
-    } catch (e: unknown) {
-      const errMsg = e instanceof Error ? e.message : String(e);
+    } catch (exception: unknown) {
+      const errorMessage = exception instanceof Error ? exception.message : String(exception);
       setStatus('REJECTED');
-      setError("El Oráculo ha fallado en la síntesis. Verifique su conexión y reintente.");
-      nicepodLog("🔥 [Forge-Orchestrator] Fallo Narrativo", errMsg, 'error');
-      throw e;
+      setError("El Oráculo ha fallado en la síntesis. Reintente la operación.");
+      nicepodLog("🔥 [ForgeOrchestrator] Fallo en la fase narrativa.", errorMessage, 'error');
+      throw exception;
     }
   }, []);
 
   /**
    * transcribeVoiceIntent:
-   * Misión: Transmutar dictado acústico en semilla de intención de texto.
+   * Exposición directa de la transcripción para usos fuera de la ingesta principal.
    */
   const transcribeVoiceIntent = useCallback(async (audioBase64: string) => {
     return await transcribeVoiceIntentAction({ audioBase64 });
@@ -233,7 +276,7 @@ export function useForgeOrchestrator() {
     setData({});
     setIsLocked(false);
     setError(null);
-    nicepodLog("🧹 [Forge-Orchestrator] Memoria táctica purgada.");
+    nicepodLog("🧹 [ForgeOrchestrator] Memoria táctica purgada.");
   }, []);
 
   return {
@@ -249,10 +292,13 @@ export function useForgeOrchestrator() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V2.0):
- * 1. Off-Main-Thread Shield: La invocación de compressNicePodImage ahora es un
- *    puente hacia el Web Worker. La CPU del dispositivo se libera de los cálculos
- *    de píxeles, garantizando que el UI spinner (CSS) jamás se congele.
- * 2. Graceful Error Handling: Si el Payload o el Worker fallan, el estado retorna 
- *    a REJECTED limpiamente, desbloqueando el UI (isLocked: false) para reintentos.
+ * NOTA TÉCNICA DEL ARCHITECT (V3.0):
+ * 1. Cognitive Fusion: Si el Voyager dicta una intención (intentAudioBlob) y también 
+ *    escribe (intentText), el orquestador fusiona ambos datos. Esto permite un peritaje 
+ *    en dos niveles: dictado fluido en la calle + precisiones técnicas en texto.
+ * 2. Multidimensional Routing: El paso de CategoryMission y HistoricalEpoch asegura 
+ *    que el Agente 42 no "alucine" la funcionalidad o la antigüedad del hito.
+ * 3. Atomic Fallbacks: Si la transcripción por voz falla por error de red, el sistema 
+ *    no se detiene; utiliza el texto manual (si lo hay) o un fallback de seguridad 
+ *    y continúa la ingesta visual.
  */
