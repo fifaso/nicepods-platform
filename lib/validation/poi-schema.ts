@@ -1,7 +1,14 @@
-// lib/validation/poi-schema.ts
-// VERSIÓN: 2.0 (NicePod Sovereign Validation Core - Multimodal & Integrity Edition)
-// Misión: Gobernar la integridad de la ingesta sensorial y la calidad de la sabiduría anclada.
-// [ESTABILIZACIÓN]: Soporte para Mosaico OCR, validación de coordenadas PostGIS y blindaje narrativo.
+/**
+ * ARCHIVO: lib/validation/poi-schema.ts
+ * VERSIÓN: 3.0 (NicePod Sovereign Validation Core - Multidimensional Custom Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.0
+ * 
+ * Misión: Gobernar la integridad de la ingesta sensorial y la calidad de la 
+ * sabiduría anclada, protegiendo a la Bóveda NKV de datos asimétricos o maliciosos.
+ * [REFORMA V3.0]: Soporte para Taxonomía Granular (Misión/Entidad), Reloj Soberano 
+ * (Época) y validación estricta de Enlaces de Sabiduría (HTTPS).
+ * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
+ */
 
 import { z } from 'zod';
 
@@ -41,39 +48,63 @@ const geoInputString = z.string()
  * II. ESQUEMA DE INGESTA SENSORIAL (PHASE 1 & 2)
  * ---------------------------------------------------------------------------
  * Valida el dossier físico capturado por el Admin en el Step 2.
+ * [MANDATO V3.0]: Adaptado a la Taxonomía Multidimensional.
  */
 export const POIIngestionSchema = z.object({
-  // Telemetría Geoespacial (Estándar esférico 4326)
+  // A. Telemetría Geoespacial (Estándar esférico 4326)
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
-
-  // Precisión GPS: El Circuit Breaker exige < 50m para garantizar la sintonía.
   accuracy: z.number().max(50, "Señal de hardware insuficiente para un anclaje soberano."),
-
-  // Evidencia Visual (Base64 comprimido por el JIT Pipeline)
-  heroImage: z.string().min(1, "La evidencia visual principal (Hero) es obligatoria."),
-
-  // [FIX]: Mosaico OCR ahora es un Array de strings para soportar múltiples placas.
-  ocrImages: z.array(z.string()).max(3, "Máximo 3 capturas de evidencia secundaria.").default([]),
-
-  // Clasificación Taxonómica
-  categoryId: z.enum([
-    'historia',
-    'arte',
-    'naturaleza',
-    'secreto',
-    'cultural',
-    'arquitectura',
-    'anecdota'
-  ], {
-    required_error: "Debe clasificar la resonancia en una dimensión válida."
-  }),
-
-  // Radio de Sintonía (Metros)
   resonanceRadius: z.number().min(10).max(200).default(35),
 
-  // Semilla Cognitiva (Dictado o Texto)
+  // B. Evidencia Visual (Base64 o Rutas Storage en V4.0)
+  heroImage: z.string().min(1, "La evidencia visual principal (Hero) es obligatoria."),
+  ocrImages: z.array(z.string()).max(3, "Máximo 3 capturas de evidencia secundaria.").default([]),
+
+  // C. Clasificación Taxonómica (Doble Capa)
+  categoryMission: z.enum([
+    'infraestructura_vital',
+    'memoria_soberana',
+    'capital_intelectual',
+    'resonancia_sensorial'
+  ], {
+    required_error: "Debe clasificar el cuadrante funcional del hito."
+  }),
+  
+  categoryEntity: z.enum([
+    'aseo_premium', 'nodo_hidratacion', 'refugio_climatico', 'terminal_energia', 'zona_segura',
+    'monumento_nacional', 'placa_sintonia', 'yacimiento_ruina', 'leyenda_urbana', 'arquitectura_epoca',
+    'museo_sabiduria', 'atelier_galeria', 'libreria_autor', 'centro_innovacion', 'intervencion_plastica',
+    'mirador_estrategico', 'paisaje_sonoro', 'pasaje_secreto', 'mercado_origen', 'obrador_tradicion'
+  ], {
+    required_error: "Debe definir la entidad física específica del hito."
+  }),
+
+  // D. Coordenada Temporal
+  historicalEpoch: z.enum([
+    'origen_geologico',
+    'pre_industrial',
+    'siglo_de_oro',
+    'ilustracion_borbonica',
+    'modernismo_expansion',
+    'contemporaneo',
+    'futuro_especulativo',
+    'atemporal'
+  ], {
+    required_error: "La temporalidad es obligatoria para sintonizar el lenguaje del Oráculo."
+  }),
+
+  // E. Capital Cognitivo
   adminIntent: geoInputString,
+
+  // F. Puente de Sabiduría (Cross-Link opcional)
+  referenceUrl: z.string()
+    .url("El enlace de referencia debe ser una URL válida.")
+    .refine((url) => url.startsWith('https://'), {
+      message: "Por seguridad, solo se admiten fuentes de verdad mediante protocolo seguro (HTTPS)."
+    })
+    .optional()
+    .or(z.literal('')), // Permite strings vacíos si el usuario limpia el input
 });
 
 /**
@@ -83,44 +114,35 @@ export const POIIngestionSchema = z.object({
  * Valida el activo de conocimiento final antes de la publicación oficial.
  */
 export const POINarrativeSchema = z.object({
-  // Identidad del Hito
   name: z.string()
     .min(3, "Nombre muy corto.")
     .max(100, "Nombre demasiado extenso para el Radar."),
 
-  // El "Hecho Atómico" (Para Tooltips y Notificaciones)
   historical_fact: z.string()
     .min(10, "El hecho histórico carece de sustancia.")
     .max(85, "El hecho debe ser atómico (máximo 85 caracteres)."),
 
-  // Crónica Maestra (Para el Teleprompter y Escucha Inmersiva)
   rich_description: z.string()
     .min(100, "La crónica es demasiado superficial para la Bóveda.")
     .max(4000, "La crónica excede la capacidad de almacenamiento de voz."),
 
-  // Estado del Ciclo de Vida
   status: z.enum(['narrated', 'published', 'archived']),
 
-  // Vínculos de Sabiduría
   reference_podcast_id: z.number().nullable().optional(),
 
-  // Ponderación de Autoridad (1-10)
   importance_score: z.number().min(1).max(10).default(1),
 })
-  /**
-   * [REFINAMIENTO DE CALIDAD]:
-   * Bloquea la publicación si detecta patrones de alucinación o placeholders genéricos.
-   */
   .superRefine((data, ctx) => {
     const genericPlaceholders = [
       "Descifrando la memoria",
       "Ubicado en el corazón de",
       "Un testimonio de",
-      "Información no disponible"
+      "Información no disponible",
+      "No se ha podido determinar"
     ];
 
     if (data.status === 'published') {
-      const isGeneric = genericPlaceholders.some(p => data.rich_description.includes(p));
+      const isGeneric = genericPlaceholders.some(pattern => data.rich_description.includes(pattern));
 
       if (isGeneric) {
         ctx.addIssue({
@@ -130,7 +152,6 @@ export const POINarrativeSchema = z.object({
         });
       }
 
-      // Validación de longitud para publicación real
       if (data.rich_description.length < 300) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
@@ -143,18 +164,21 @@ export const POINarrativeSchema = z.object({
 
 /**
  * ---------------------------------------------------------------------------
- * IV. EXPORTACIÓN DE TIPOS (BUILD SHIELD)
+ * IV. EXPORTACIÓN DE TIPOS E INFERENCIA SOBERANA
  * ---------------------------------------------------------------------------
  */
 export type POIIngestionData = z.infer<typeof POIIngestionSchema>;
 export type POINarrativeData = z.infer<typeof POINarrativeSchema>;
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V2.0):
- * 1. Mosaico Ready: El esquema ahora acepta un array de imágenes OCR, permitiendo
- *    que el 'geo-sensor-ingestor' reciba toda la evidencia en una sola trama.
- * 2. Filtro Anti-Alucinación: La expansión del 'superRefine' actúa como un 
- *    perito editorial, forzando al Admin a revisar el contenido de la IA.
- * 3. Consistencia PostGIS: Se añadieron límites estrictos a lat/lng para evitar
- *    errores de 'OutOfRange' al intentar insertar en el Metal de PostgreSQL.
+ * NOTA TÉCNICA DEL ARCHITECT (V3.0):
+ * 1. Neural Routing Guard: La inclusión de 'categoryMission' y 'categoryEntity' 
+ *    garantiza que la UI del Step 1 no pueda enviar un formulario incompleto si 
+ *    el Administrador no define ambas capas del nodo.
+ * 2. TLS/SSL Enforcement: El campo 'referenceUrl' implementa una regla 'refine' 
+ *    que aborta cualquier intento de inyección HTTP simple o esquemas extraños, 
+ *    blindando al Oráculo (Agente 42) de consumir datos de repositorios no seguros.
+ * 3. Graceful Optionality: La estructura `.optional().or(z.literal(''))` en el 
+ *    puente de sabiduría previene colisiones cuando los componentes de React 
+ *    envían strings vacíos en lugar de valores 'undefined'.
  */
