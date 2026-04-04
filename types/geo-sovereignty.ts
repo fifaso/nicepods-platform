@@ -1,11 +1,11 @@
 /**
  * ARCHIVO: types/geo-sovereignty.ts
- * VERSIÓN: 7.1 (NicePod V3.0 - Satellite Perspective & Style Sovereignty Edition)
- * PROTOCOLO: MADRID RESONANCE V3.0
+ * VERSIÓN: 7.5 (NicePod V4.0 - Multidimensional Taxonomy & Epoch Shield Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Centralizar el contrato de identidad, telemetría y control cinemático.
- * [REFORMA V7.1]: Introducción de la perspectiva SATELLITE y sincronía de estilo 
- * para erradicar el efecto "Snap-Back" en el visor inmersivo.
+ * [REFORMA V7.5]: Inyección de Taxonomía Granular (Misión/Entidad), Reloj Soberano 
+ * (Épocas) y el Puente de Sabiduría (Knowledge Links) para el Oráculo Multimodal.
  * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
@@ -15,10 +15,6 @@
  * ---------------------------------------------------------------------------
  */
 
-/**
- * GeoPoint: Representación inmutable de una ubicación en el espacio esférico.
- * [MANDATO NCIS]: Longitud primero para cumplimiento con Mapbox GL JS y PostGIS.
- */
 export interface GeoPoint {
   type: 'Point';
   coordinates: [number, number]; // [longitude, latitude]
@@ -26,24 +22,16 @@ export interface GeoPoint {
 
 export type TelemetrySource = 'gps' | 'cache' | 'ip-fallback' | 'manual-anchor' | 'edge-ip';
 
-/**
- * UserLocation: Snapshot de telemetría capturada por el hardware o la red.
- */
 export interface UserLocation {
   latitude: number;
   longitude: number;
   accuracy: number;
   heading: number | null;
   speed: number | null;
-  /** source: Origen de la verdad (GPS satelital, Caché local o IP de red). */
   source?: TelemetrySource;
-  /** timestamp: Marca de tiempo para validar la frescura del dato (TTL). */
   timestamp?: number;
 }
 
-/**
- * ActivePOI: Representación de un nodo cercano detectado por el Radar de Proximidad.
- */
 export interface ActivePOI {
   id: string;
   name: string;
@@ -54,7 +42,44 @@ export interface ActivePOI {
 
 /**
  * ---------------------------------------------------------------------------
- * II. CICLO DE VIDA Y MÁQUINA DE ESTADOS
+ * II. TAXONOMÍA GRANULAR Y RELOJ SOBERANO (LA RED NEURONAL V4.0)
+ * ---------------------------------------------------------------------------
+ */
+
+/**
+ * CategoryMission: El Eje Funcional (Lo que el Voyager busca).
+ */
+export type CategoryMission = 
+  | 'infraestructura_vital'
+  | 'memoria_soberana'
+  | 'capital_intelectual'
+  | 'resonancia_sensorial';
+
+/**
+ * CategoryEntity: El Eje Físico (Lo que el Perito Urbano clasifica).
+ */
+export type CategoryEntity =
+  | 'aseo_premium' | 'nodo_hidratacion' | 'refugio_climatico' | 'terminal_energia' | 'zona_segura'
+  | 'monumento_nacional' | 'placa_sintonia' | 'yacimiento_ruina' | 'leyenda_urbana' | 'arquitectura_epoca'
+  | 'museo_sabiduria' | 'atelier_galeria' | 'libreria_autor' | 'centro_innovacion' | 'intervencion_plastica'
+  | 'mirador_estrategico' | 'paisaje_sonoro' | 'pasaje_secreto' | 'mercado_origen' | 'obrador_tradicion';
+
+/**
+ * HistoricalEpoch: El Eje Temporal para la sintonización de la IA.
+ */
+export type HistoricalEpoch =
+  | 'origen_geologico'
+  | 'pre_industrial'
+  | 'siglo_de_oro'
+  | 'ilustracion_borbonica'
+  | 'modernismo_expansion'
+  | 'contemporaneo'
+  | 'futuro_especulativo'
+  | 'atemporal';
+
+/**
+ * ---------------------------------------------------------------------------
+ * III. CICLO DE VIDA Y MÁQUINA DE ESTADOS
  * ---------------------------------------------------------------------------
  */
 
@@ -76,41 +101,27 @@ export type GeoEngineState =
   | 'CONFLICT'
   | 'REJECTED';
 
-/**
- * CameraPerspective: Define los tres modos de visualización profesional.
- * [V7.1]: SATELLITE añadido para permitir vistas cenitales fotorrealistas sin snap-back.
- */
 export type CameraPerspective = 'STREET' | 'OVERVIEW' | 'SATELLITE';
 
-/**
- * MapInstanceId: Identificadores únicos de lienzo para aislamiento WebGL.
- */
 export type MapInstanceId = 'map-full' | 'map-dashboard' | 'map-forge' | 'map-sentinel';
 
-/**
- * NarrativeDepth: Escalas de profundidad para la síntesis de IA.
- */
 export type NarrativeDepth = 'flash' | 'cronica' | 'inmersion';
 
-/**
- * NarrativeTone: Taxonomía editorial unificada para el Agente 42.
- */
 export type NarrativeTone = 'academico' | 'misterioso' | 'epico' | 'melancolico' | 'neutro';
 
 /**
  * ---------------------------------------------------------------------------
- * III. ENTIDADES MAESTRAS (BÓVEDA NKV)
+ * IV. ENTIDADES MAESTRAS (BÓVEDA NKV)
  * ---------------------------------------------------------------------------
  */
 
-/**
- * POIMetadata: Tipado estricto para evitar el antipatrón Record<string, unknown>.
- */
 export interface POIMetadata {
   urban_context?: string;
   architectural_period?: string;
   custom_tags?: string[];
   curator_notes?: string;
+  // [V4.0]: Metadatos de inyección externa
+  external_source_url?: string;
   [key: string]: unknown;
 }
 
@@ -118,7 +129,10 @@ export interface PointOfInterest {
   id: number;
   author_id: string;
   name: string;
-  category_id: string;
+  // [V4.0]: Transición de category_id a taxonomía bidimensional
+  category_mission: CategoryMission;
+  category_entity: CategoryEntity;
+  historical_epoch: HistoricalEpoch;
   geo_location: GeoPoint;
   resonance_radius: number;
   importance_score: number;
@@ -156,7 +170,7 @@ export interface IngestionDossier {
 
 /**
  * ---------------------------------------------------------------------------
- * IV. CONTRATOS DE INTERFACE Y HOOKS (THE BRIDGE)
+ * V. CONTRATOS DE INTERFACE Y HOOKS (THE BRIDGE)
  * ---------------------------------------------------------------------------
  */
 
@@ -173,12 +187,7 @@ export interface GeoContextData {
   rejectionReason?: string;
 }
 
-/**
- * GeoEngineReturn: La firma pública que la Fachada (useGeoEngine) entrega a la UI.
- * [V7.1]: Se añade mapStyle para permitir al sistema central dictar la estética visual.
- */
 export interface GeoEngineReturn {
-  // Estados de Sensor y Red
   status: GeoEngineState;
   data: GeoContextData;
   userLocation: UserLocation | null;
@@ -188,7 +197,6 @@ export interface GeoEngineReturn {
   isLocked: boolean;
   error: string | null;
 
-  // --- CAPACIDADES DE SOBERANÍA ---
   isIgnited: boolean;
   isTriangulated: boolean;
   isGPSLock: boolean;
@@ -196,29 +204,33 @@ export interface GeoEngineReturn {
   recenterTrigger: number;
   confirmLanding: () => void;
 
-  // --- GOBERNANZA DE CÁMARA Y ESTILO ---
   cameraPerspective: CameraPerspective;
-  mapStyle: string; // [V7.1]: Atributo soberano de visualización
+  mapStyle: string; 
   isManualMode: boolean;
   toggleCameraPerspective: () => void;
   setManualMode: (active: boolean) => void;
   recenterCamera: () => void;
 
-  // Métodos de Control Tradicionales
   initSensors: () => void;
   reSyncRadar: () => void;
   setTriangulated: () => void;
-  setManualAnchor: (lng: number, lat: number) => void;
+  setManualAnchor: (longitude: number, latitude: number) => void;
   setManualPlaceName: (name: string) => void;
 
-  // Flujos de Inteligencia
+  /**
+   * [REFORMA V7.5]: Ingesta Multidimensional.
+   * El orquestador ahora recibe la taxonomía completa y el enlace de sabiduría.
+   */
   ingestSensoryData: (params: {
     heroImage: File;
     ocrImages: File[];
     ambientAudio?: Blob | null;
-    intent: string;
-    categoryId: string;
-    radius: number;
+    intentText: string;
+    categoryMission: CategoryMission;
+    categoryEntity: CategoryEntity;
+    historicalEpoch: HistoricalEpoch;
+    resonanceRadius: number;
+    referenceUrl?: string; // Puente de Sabiduría
   }) => Promise<{ poiId: number; dossier: IngestionDossier } | void>;
 
   synthesizeNarrative: (params: {
@@ -234,7 +246,7 @@ export interface GeoEngineReturn {
 
 /**
  * ---------------------------------------------------------------------------
- * V. RESPUESTAS Y PAYLOADS DE ACCIÓN (SERVER ACTIONS CONTRACT)
+ * VI. RESPUESTAS Y PAYLOADS DE ACCIÓN (SERVER ACTIONS CONTRACT)
  * ---------------------------------------------------------------------------
  */
 
@@ -246,23 +258,29 @@ export interface GeoActionResponse<T = unknown> {
   trace_id?: string;
 }
 
+/**
+ * [REFORMA V7.5]: Alineado con el esquema de base de datos V4.0.
+ */
 export interface POICreationPayload {
   latitude: number;
   longitude: number;
   accuracy: number;
   heroImage: string;
   ocrImages: string[];
-  categoryId: string;
+  categoryMission: string;
+  categoryEntity: string;
+  historicalEpoch: string;
   resonanceRadius: number;
   adminIntent: string;
+  referenceUrl?: string;
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V7.1):
- * 1. Perspective Expansion: Al incluir 'SATELLITE', desbloqueamos la capacidad del
- *    CameraController de mantenerse cenital (pitch: 0) sin revertir a 3D por error.
- * 2. Style Authority: El campo 'mapStyle' permite que los botones de UI soliciten
- *    un cambio estético que sea respetado por todo el subsistema cinemático.
- * 3. Zero-Regressions: El contrato GeoEngineReturn sigue siendo compatible con los
- *    componentes existentes pero ahora posee mayor profundidad de mando.
+ * NOTA TÉCNICA DEL ARCHITECT (V7.5):
+ * 1. Neural Taxonomy: La introducción de CategoryMission y CategoryEntity permite
+ *    que el radar semántico filtre no solo por lo que las cosas son, sino por 
+ *    la utilidad que prestan al Voyager (Survival vs Cultural).
+ * 2. Grounding Readiness: La adición de referenceUrl en el payload de ingesta 
+ *    actúa como un "Cross-Check". Si el Administrador inyecta una URL de Wikipedia, 
+ *    la IA en el Edge (Gemini 1.5) deberá conciliar la foto con la información de la URL.
  */
