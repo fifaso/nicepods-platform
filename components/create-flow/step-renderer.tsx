@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: components/create-flow/step-renderer.tsx
- * VERSIÓN: 3.3 (NicePod Master View Orchestrator - State Machine & Build Fix)
+ * VERSIÓN: 3.4 (NicePod Master View Orchestrator - Context Injection Edition)
  * PROTOCOLO: MADRID RESONANCE V3.0
  * 
- * Misión: Orquestar la visualización determinista de las fases de creación, 
- * garantizando la compatibilidad entre el flujo estándar y el hardware pericial.
- * [REFORMA V3.3]: Resolución de error TS2339 mediante el cálculo de transición 
- * sobre activePath y saneamiento total de clases Tailwind para Vercel.
+ * Misión: Orquestar la visualización de las fases de creación garantizando la 
+ * compatibilidad absoluta entre el flujo de podcasts y el hardware de la Malla.
+ * [REFORMA V3.4]: Resolución de error de argumentos en useFlowNavigation mediante 
+ * inyección de contexto y saneamiento de clases Tailwind para Vercel.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -49,7 +49,7 @@ import { DraftGenerationLoader } from "./steps/draft-generation-loader";
 import { FinalStep } from "./steps/final-step";
 import { ToneSelectionStep } from "./steps/tone-selection-step";
 
-// CARGA DINÁMICA: Aislamiento del editor de guiones para maximizar el TTI.
+// CARGA DINÁMICA: Aislamiento del editor para optimizar el hilo principal.
 const ScriptEditorStep = dynamic(
   () => import('./steps/script-editor-step').then((module) => module.ScriptEditorStep),
   {
@@ -57,7 +57,7 @@ const ScriptEditorStep = dynamic(
     loading: () => (
       <div className="h-full w-full flex flex-col items-center justify-center space-y-8 opacity-40">
         <div className="h-12 w-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-primary">
+        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">
           Sincronizando Terminal Editorial...
         </span>
       </div>
@@ -74,11 +74,15 @@ interface StepRendererProps {
  * StepRenderer: El Reactor de Vistas Maestro de NicePod.
  */
 export function StepRenderer({ narrativeOptions, initialDrafts }: StepRendererProps) {
-  // 1. CONSUMO DE LA MÁQUINA DE ESTADOS (STATE MACHINE)
-  const { currentFlowState } = useCreationContext();
+  // 1. CONSUMO DEL CONTEXTO MAESTRO
+  const creationContext = useCreationContext();
+  const { currentFlowState } = creationContext;
   
-  // [FIX V3.3]: transitionTo y activePath son las autoridades de navegación reales.
-  const { transitionTo, activePath } = useFlowNavigation();
+  /**
+   * [FIX V3.4]: Inyección de Dependencia.
+   * useFlowNavigation requiere el contexto como argumento para operar.
+   */
+  const { transitionTo, activePath } = useFlowNavigation(creationContext);
   const { watch, setValue } = useFormContext();
 
   // 2. MONITORIZACIÓN DE DATOS Y ESTADOS DE HARDWARE
@@ -86,43 +90,42 @@ export function StepRenderer({ narrativeOptions, initialDrafts }: StepRendererPr
   const [isAcousticProcessingActive, setIsAcousticProcessingActive] = useState<boolean>(false);
 
   /**
-   * navigateToNextStep:
-   * Misión: Calcular el siguiente estado legal en el activePath y ejecutar la transición.
-   * [PROTOCOLO SOBERANO]: Evita depender de métodos de navegación inexistentes.
+   * navigateToNextStepSovereign:
+   * Misión: Calcular la transición legal dentro de la malla activa.
    */
-  const navigateToNextStep = useCallback(() => {
+  const navigateToNextStepSovereign = useCallback(() => {
     const currentStepIndex = activePath.indexOf(currentFlowState);
     if (currentStepIndex !== -1 && currentStepIndex < activePath.length - 1) {
       const nextStepState = activePath[currentStepIndex + 1];
       transitionTo(nextStepState);
     } else {
-      nicepodLog("🚩 [StepRenderer] Límite de trayectoria alcanzado.", null, 'warn');
+      nicepodLog("🚩 [StepRenderer] Trayectoria finalizada o estado no indexado.", null, 'warn');
     }
   }, [activePath, currentFlowState, transitionTo]);
 
   /**
    * handleAcousticChronicleCapture:
-   * Misión: Recibir el binario acústico y avanzar el flujo mediante la transición calculada.
+   * Misión: Recibir el binario acústico del GeoRecorder y avanzar el flujo.
    */
   const handleAcousticChronicleCapture = useCallback(async (
     capturedAudioBlob: Blob, 
     capturedDurationSeconds: number
   ) => {
     setIsAcousticProcessingActive(true);
-    nicepodLog(`🎙️ [StepRenderer] Crónica acústica capturada: ${capturedDurationSeconds}s.`);
+    nicepodLog(`🎙️ [StepRenderer] Crónica capturada: ${capturedDurationSeconds}s.`);
     
     try {
       setValue('final_audio_blob', capturedAudioBlob);
       setValue('final_audio_duration', capturedDurationSeconds);
       
-      // Ejecutamos la navegación soberana calculada
-      navigateToNextStep();
+      // Ejecución de la transición soberana
+      navigateToNextStepSovereign();
     } catch (exception) {
       nicepodLog("🔥 [StepRenderer] Fallo al procesar binario acústico.", exception, 'error');
     } finally {
       setIsAcousticProcessingActive(false);
     }
-  }, [setValue, navigateToNextStep]);
+  }, [setValue, navigateToNextStepSovereign]);
 
   /**
    * activeStepContent:
@@ -130,11 +133,9 @@ export function StepRenderer({ narrativeOptions, initialDrafts }: StepRendererPr
    */
   const activeStepContent = useMemo(() => {
     switch (currentFlowState) {
-      // --- FASE 1: INTENCIONALIDAD ---
       case 'SELECTING_PURPOSE':
         return <PurposeSelectionStep existingDrafts={initialDrafts} />;
 
-      // --- RUTA: PULSE (INTELIGENCIA Y ACTUALIDAD) ---
       case 'DNA_CHECK':
         return <DnaInterviewStep />;
       case 'PULSE_RADAR':
@@ -142,7 +143,6 @@ export function StepRenderer({ narrativeOptions, initialDrafts }: StepRendererPr
       case 'BRIEFING_SANITIZATION':
         return <ScriptEditorStep />;
 
-      // --- RUTA: LOCAL SOUL (MADRID RESONANCE) ---
       case 'LOCAL_DISCOVERY_STEP':
         return <LocalDiscoveryStep />;
       case 'LOCAL_ANALYSIS_LOADER':
@@ -159,7 +159,6 @@ export function StepRenderer({ narrativeOptions, initialDrafts }: StepRendererPr
           />
         );
 
-      // --- RUTAS NARRATIVAS MULTIDIMENSIONALES ---
       case 'LEARN_SUB_SELECTION': return <LearnSubStep />;
       case 'SOLO_TALK_INPUT': return <SoloTalkStep />;
       case 'INSPIRE_SUB_SELECTION': return <InspireSubStep />;
@@ -168,7 +167,6 @@ export function StepRenderer({ narrativeOptions, initialDrafts }: StepRendererPr
         return <NarrativeSelectionStep narrativeOptions={narrativeOptions} />;
       case 'LEGACY_INPUT': return <LegacyStep />;
 
-      // --- FASES DE PRODUCCIÓN INDUSTRIAL ---
       case 'DETAILS_STEP': return <DetailsStep />;
       case 'TONE_SELECTION': return <ToneSelectionStep />;
       case 'DRAFT_GENERATION_LOADER':
@@ -177,19 +175,18 @@ export function StepRenderer({ narrativeOptions, initialDrafts }: StepRendererPr
       case 'AUDIO_STUDIO_STEP': return <AudioStudio />;
       case 'FINAL_STEP': return <FinalStep />;
 
-      // --- COMPATIBILIDAD DE LEGADO ---
       case 'QUESTION_INPUT': return <QuestionStep />;
       case 'FREESTYLE_SELECTION': return <StyleSelectionStep />;
 
       default:
         return (
-          <div className="h-full flex flex-col items-center justify-center space-y-10 py-24 opacity-60">
-            <div className="relative h-16 w-16">
+          <div className="h-full flex flex-col items-center justify-center space-y-12 py-32 opacity-40">
+            <div className="relative h-14 w-14">
               <div className="absolute inset-0 bg-primary/20 blur-3xl animate-pulse rounded-full" />
               <div className="h-full w-full border-2 border-primary/40 border-t-primary rounded-full animate-spin" />
             </div>
             <p className="font-black uppercase tracking-[0.6em] text-[9px] text-zinc-600">
-              Sintonizando Malla de Inteligencia
+              Sincronizando Malla de Inteligencia
             </p>
           </div>
         );
@@ -212,8 +209,11 @@ export function StepRenderer({ narrativeOptions, initialDrafts }: StepRendererPr
         >
           <div className={cn(
             "flex-1 overflow-y-auto custom-scrollbar-hide px-4 md:px-0",
-            // [FIX VERCEL]: Escapado de corchetes para evitar warnings de Tailwind
-            "duration-&lsqb;500ms&rsqb; ease-&lsqb;cubic-bezier(0.16,1,0.3,1)&lsqb;"
+            /** 
+             * [FIX VERCEL]: Escapado de corchetes para evitar ambigüedad en Tailwind.
+             * Garantiza que el compilador no detecte múltiples utilidades para la misma duración.
+             */
+            "duration-&lsqb;500ms&rsqb; ease-&lsqb;cubic-bezier(0.16,1,0.3,1)&rsqb;"
           )}>
             {activeStepContent}
           </div>
