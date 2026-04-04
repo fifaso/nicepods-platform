@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/map-core.tsx
- * VERSIÓN: 13.0 (NicePod MapCore - Full Taxonomy & Marker Sync Edition)
+ * VERSIÓN: 13.1 (NicePod MapCore - Domain Alignment & PBR Guard Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Renderizado WebGL inmutable que sincroniza el lienzo con la 
- * perspectiva de la cámara y proyecta los marcadores con su nueva identidad.
- * [REFORMA V13.0]: Sincronización nominal con MapMarkerCustom V5.0 para resolver 
- * error de compilación TS2322 y alineación con Taxonomía Granular.
+ * perspectiva de la cámara y proyecta los marcadores con su identidad multidimensional.
+ * [FIX V13.1]: Resolución de error TS2339 mediante el ajuste de la propiedad 'id' 
+ * en la comparación con el objeto ActivePointOfInterest.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -114,7 +114,7 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
   }, [onLoad, mapInstanceId]);
 
   /**
-   * 5. STYLE-GUARD (El Escudo PBR V13.0)
+   * 5. STYLE-GUARD (El Escudo PBR V13.1)
    */
   const handleStyleData = useCallback((event: SafeMapStyleDataEvent) => {
     const mapNativeInstance = event.target;
@@ -201,10 +201,6 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
 
       {/* CAPA ECOS: Nodos de la Bóveda NKV */}
       {nearbyPointsOfInterest.map((pointOfInterest: PointOfInterest) => (
-        /**
-         * [FIX V13.0]: Sincronía total con MapMarkerCustom V5.0.
-         * Se inyectan los nuevos nombres de propiedades para satisfacer al Build Shield.
-         */
         <MapMarkerCustom
           key={pointOfInterest.id}
           identification={pointOfInterest.id.toString()}
@@ -213,7 +209,11 @@ const MapCore = forwardRef<MapRef, MapCoreProps>(({
           categoryMission={pointOfInterest.category_mission}
           categoryEntity={pointOfInterest.category_entity}
           pointOfInterestName={pointOfInterest.name}
-          isResonating={activePointOfInterest?.identification === pointOfInterest.id.toString() && activePointOfInterest?.isWithinRadius}
+          /**
+           * [FIX V13.1]: El modelo global 'ActivePOI' utiliza la propiedad '.id'.
+           * Sincronizamos la comparación para satisfacer al Build Shield de Vercel.
+           */
+          isResonating={activePointOfInterest?.id === pointOfInterest.id.toString() && activePointOfInterest?.isWithinRadius}
           isSelected={selectedPointOfInterestId === pointOfInterest.id.toString()}
           onMarkerInteraction={onMarkerClick}
         />
@@ -235,12 +235,12 @@ export default memo(MapCore, (previousProps, nextProps) => {
 });
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V13.0):
- * 1. Synchronized Architecture: Se ha cerrado la brecha de tipos entre el Pintor 
- *    y el Marcador. El uso de 'categoryMission' y 'categoryEntity' garantiza que 
- *    la identidad visual de la Malla sea coherente con la Bóveda NKV V4.0.
- * 2. Interaction Alignment: El cambio de 'onClick' a 'onMarkerInteraction' 
- *    unifica el lenguaje de eventos de la workstation.
- * 3. Zero Abbreviations: Se ha purgado el 100% del archivo para cumplir con el 
- *    estándar de rigor profesional de NicePod.
+ * NOTA TÉCNICA DEL ARCHITECT (V13.1):
+ * 1. Model Synchronization: Se alineó el acceso a la propiedad '.id' del objeto 
+ *    activePointOfInterest para cumplir con el tipo global definido en la 
+ *    Constitución de Tipos, eliminando el error TS2339.
+ * 2. Visual Stasis: Al mantener la lógica PBR aislada en el evento onStyleData, 
+ *    garantizamos que los edificios 3D no parpadeen durante el movimiento.
+ * 3. Zero Abbreviations: Se ha purificado el código íntegramente siguiendo 
+ *    el mandato de profesionalismo V3.0.
  */
