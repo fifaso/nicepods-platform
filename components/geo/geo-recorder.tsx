@@ -1,11 +1,12 @@
 /**
  * ARCHIVO: components/geo/geo-recorder.tsx
- * VERSIÓN: 3.0 (NicePod Sovereign Acoustic Emitter - Polymorphic Edition)
+ * VERSIÓN: 3.1 (NicePod Sovereign Acoustic Emitter - Industrial Standard Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
- * Misión: Componente de hardware puro para la captura acústica del Administrador.
- * [REFORMA V3.0]: Implementación de Patrón Emisor (Emitter Pattern), extirpación 
- * de lógica de red (Supabase) y soporte dual: Dictado de Intención y Crónica Final.
+ * Misión: Proveer una interfaz de hardware puro para la captura acústica del Voyager,
+ * garantizando higiene de memoria y polimorfismo entre los pasos de la forja.
+ * [REFORMA V3.1]: Purificación total de nomenclatura, blindaje de estados de proceso
+ * y eliminación de cualquier acoplamiento con la persistencia de datos.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -27,16 +28,23 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
- * INTERFAZ SOBERANA
- * Define el contrato de comunicación con los Orquestadores de Pasos.
+ * INTERFAZ SOBERANA: GeoRecorderProps
+ * Define el contrato de comunicación con los componentes orquestadores de la plataforma.
  */
 export interface GeoRecorderProps {
+  /** mode: Define la lógica visual y operativa (Dictado rápido o Crónica leída). */
   mode: 'DICTATION' | 'CHRONICLE';
-  script?: string; // Solo requerido en modo CHRONICLE
-  isProcessingExternal: boolean; // Permite al padre bloquear la UI mientras procesa
+  /** script: El texto sugerido por la IA para ser leído en modo crónica. */
+  script?: string;
+  /** isProcessingExternal: Flag que indica si el orquestador está realizando tareas de red. */
+  isProcessingExternal: boolean;
+  /** onCaptureComplete: Callback que emite el binario capturado hacia el orquestador. */
   onCaptureComplete: (audioBlob: Blob, durationSeconds: number) => Promise<void>;
 }
 
+/**
+ * GeoRecorder: El Centinela Acústico de NicePod.
+ */
 export function GeoRecorder({ 
   mode, 
   script, 
@@ -49,61 +57,65 @@ export function GeoRecorder({
   // --- I. MÁQUINA DE ESTADOS DE HARDWARE ---
   const [hasMicrophonePermission, setHasMicrophonePermission] = useState<boolean>(false);
   const [isRecording, setIsRecording] = useState<boolean>(false);
-  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [isPlaybackActive, setIsPlaybackActive] = useState<boolean>(false);
   
   const [capturedAudioBlob, setCapturedAudioBlob] = useState<Blob | null>(null);
-  const [capturedAudioUrl, setCapturedAudioUrl] = useState<string | null>(null);
+  const [capturedAudioUniformResourceLocator, setCapturedAudioUniformResourceLocator] = useState<string | null>(null);
   const [recordingDurationSeconds, setRecordingDurationSeconds] = useState<number>(0);
 
-  // --- II. REFERENCIAS DE MEMORIA (High-Speed Pointers) ---
+  // --- II. REFERENCIAS DE MEMORIA Y HARDWARE (MutableRef) ---
   const mediaRecorderReference = useRef<MediaRecorder | null>(null);
   const audioChunksReference = useRef<Blob[]>([]);
   const timerIntervalReference = useRef<NodeJS.Timeout | null>(null);
   const audioPlayerReference = useRef<HTMLAudioElement | null>(null);
 
   /**
-   * PROTOCOLO DE HIGIENE DE RAM
+   * cleanupAcousticMemory:
    * Misión: Revocar URLs de objetos para liberar memoria del sistema operativo móvil.
    */
-  const cleanupAudioMemory = useCallback(() => {
-    if (capturedAudioUrl) {
-      URL.revokeObjectURL(capturedAudioUrl);
-      setCapturedAudioUrl(null);
+  const cleanupAcousticMemory = useCallback(() => {
+    if (capturedAudioUniformResourceLocator) {
+      URL.revokeObjectURL(capturedAudioUniformResourceLocator);
+      setCapturedAudioUniformResourceLocator(null);
     }
-  }, [capturedAudioUrl]);
+  }, [capturedAudioUniformResourceLocator]);
 
   useEffect(() => {
-    // Purga atómica al desmontar el componente
-    return () => cleanupAudioMemory();
-  }, [cleanupAudioMemory]);
+    // Purga física de memoria al desmontar el componente.
+    return () => cleanupAcousticMemory();
+  }, [cleanupAcousticMemory]);
 
   /**
-   * SOLICITUD DE AUTORIDAD DE HARDWARE
+   * requestMicrophoneAuthority:
+   * Misión: Solicitar el permiso de uso del bus de audio al navegador.
    */
   useEffect(() => {
-    async function requestMicrophoneAuthority() {
+    async function requestMicrophonePermission() {
+      if (typeof window === "undefined") return;
+
       try {
         const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
         setHasMicrophonePermission(true);
-        // Liberamos el bus de audio inmediatamente tras verificar el permiso
+        // Liberamos el stream inmediatamente tras verificar el permiso.
         audioStream.getTracks().forEach(track => track.stop());
-        nicepodLog(`🎙️ [GeoRecorder:${mode}] Autoridad de hardware concedida.`);
+        nicepodLog(`🎙️ [GeoRecorder:${mode}] Autoridad acústica concedida.`);
       } catch (error) {
-        nicepodLog(`🛑 [GeoRecorder:${mode}] Hardware acústico interceptado.`, error, 'error');
+        nicepodLog(`🛑 [GeoRecorder:${mode}] Hardware bloqueado por política de seguridad.`, error, 'error');
         toast({
-          title: "Acceso Denegado",
-          description: "La plataforma requiere acceso al micrófono para el peritaje urbano.",
+          title: "Acceso Interceptado",
+          description: "Habilite el micrófono para registrar su peritaje en la Malla.",
           variant: "destructive"
         });
       }
     }
-    requestMicrophoneAuthority();
+    requestMicrophonePermission();
   }, [toast, mode]);
 
   /**
-   * IGNICIÓN DE CAPTURA
+   * executeIgnitionOfRecording:
+   * Misión: Iniciar la captura de audio en formato WebM de alta fidelidad.
    */
-  const executeStartRecording = async () => {
+  const executeIgnitionOfRecording = async () => {
     if (!hasMicrophonePermission) return;
 
     try {
@@ -120,13 +132,13 @@ export function GeoRecorder({
       };
 
       mediaRecorder.onstop = () => {
-        const finalBlob = new Blob(audioChunksReference.current, { type: 'audio/webm' });
-        const generatedUrl = URL.createObjectURL(finalBlob);
+        const finalAudioBlob = new Blob(audioChunksReference.current, { type: 'audio/webm' });
+        const generatedUniformResourceLocator = URL.createObjectURL(finalAudioBlob);
         
-        setCapturedAudioBlob(finalBlob);
-        setCapturedAudioUrl(generatedUrl);
+        setCapturedAudioBlob(finalAudioBlob);
+        setCapturedAudioUniformResourceLocator(generatedUniformResourceLocator);
         
-        // Apagado físico del hardware (Luz roja de grabación)
+        // Apagado físico de los sensores para ahorro de batería.
         audioStream.getTracks().forEach(track => track.stop()); 
       };
 
@@ -135,20 +147,21 @@ export function GeoRecorder({
       setRecordingDurationSeconds(0);
 
       timerIntervalReference.current = setInterval(() => {
-        setRecordingDurationSeconds(previous => previous + 1);
+        setRecordingDurationSeconds(previousValue => previousValue + 1);
       }, 1000);
 
-      nicepodLog(`⏺️ [GeoRecorder:${mode}] Captura acústica en progreso...`);
+      nicepodLog(`⏺️ [GeoRecorder:${mode}] Captura acústica en progreso.`);
     } catch (error) {
-      nicepodLog(`🔥 [GeoRecorder:${mode}] Fallo mecánico en ignición.`, error, 'error');
-      toast({ title: "Fallo de Ignición", description: "El hardware no respondió.", variant: "destructive" });
+      nicepodLog(`🔥 [GeoRecorder:${mode}] Fallo crítico en la ignición.`, error, 'error');
+      toast({ title: "Fallo de Hardware", description: "El dispositivo no respondió al comando.", variant: "destructive" });
     }
   };
 
   /**
-   * DETENCIÓN DE CAPTURA
+   * executeCeaseOfRecording:
+   * Misión: Detener la grabación y liberar el reloj del sistema.
    */
-  const executeStopRecording = () => {
+  const executeCeaseOfRecording = () => {
     if (mediaRecorderReference.current && isRecording) {
       mediaRecorderReference.current.stop();
       setIsRecording(false);
@@ -159,155 +172,154 @@ export function GeoRecorder({
   };
 
   /**
-   * EMISIÓN DE CAPITAL INTELECTUAL (Emitter Pattern)
-   * Delega la responsabilidad de red al componente orquestador padre.
+   * handleIntellectualEmission:
+   * Misión: Emitir el binario capturado hacia el componente padre (Orquestador).
    */
-  const handleDataEmission = async () => {
+  const handleIntellectualEmission = async () => {
     if (!capturedAudioBlob) return;
-    nicepodLog(`📡 [GeoRecorder:${mode}] Emitiendo binarios al orquestador padre.`);
+    nicepodLog(`📡 [GeoRecorder:${mode}] Emitiendo evidencia al orquestador.`);
     await onCaptureComplete(capturedAudioBlob, recordingDurationSeconds);
   };
 
   /**
-   * UTILIDAD: Formateo de cronómetro táctico
+   * formatTimerDisplay:
+   * Utilidad de formato para cronometría industrial.
    */
-  const formatTimeDisplay = (totalSeconds: number) => {
+  const formatTimerDisplay = (totalSeconds: number) => {
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
   return (
-    <div className="flex flex-col gap-5 w-full h-full">
+    <div className="flex flex-col gap-5 w-full h-full min-h-0">
 
-      {/* I. CHASSIS DE CONTEXTO (POLIMÓRFICO) */}
+      {/* I. CHASSIS DE CONTEXTO COGNITIVO */}
       {mode === 'CHRONICLE' ? (
-        // MODO CRÓNICA: Teleprompter Soberano
-        <div className="flex-1 bg-black/60 border border-white/5 rounded-2xl p-5 overflow-y-auto custom-scrollbar max-h-[320px] shadow-2xl backdrop-blur-xl">
+        <div className="flex-1 bg-black/60 border border-white/5 rounded-2xl p-5 overflow-y-auto custom-scrollbar shadow-2xl backdrop-blur-xl">
           <h4 className="text-[9px] font-black uppercase tracking-[0.3em] text-zinc-500 mb-3 sticky top-0 bg-transparent py-1">
-            Guion de Inteligencia
+            Narrativa de Inteligencia
           </h4>
           <p className="text-xl font-medium leading-relaxed text-zinc-100 whitespace-pre-wrap font-serif antialiased">
-            {script || "No se detectó narrativa previa."}
+            {script || "Error de sincronía: No se recibió narrativa del Oráculo."}
           </p>
         </div>
       ) : (
-        // MODO DICTADO: Interfaz Minimalista de Enfoque Cognitivo
-        <div className="flex-1 flex flex-col items-center justify-center bg-white/[0.02] border border-white/5 rounded-2xl p-8 shadow-inner">
+        <div className="flex-1 flex flex-col items-center justify-center bg-white/[0.01] border border-white/5 rounded-[2.5rem] p-8 shadow-inner">
           <BrainCircuit className={cn(
-            "h-16 w-16 transition-all duration-1000",
-            isRecording ? "text-red-500 animate-pulse" : "text-zinc-600"
+            "h-16 w-16 transition-all duration-[1000ms]",
+            isRecording ? "text-red-500 animate-pulse" : "text-zinc-700"
           )} />
-          <h3 className="text-white font-black uppercase tracking-[0.3em] text-[10px] mt-6 mb-2">
-            Dictado Sensorial
+          <h3 className="text-white font-black uppercase tracking-[0.4em] text-[10px] mt-8 mb-2">
+            Dictado Sensorial Activo
           </h3>
-          <p className="text-xs text-zinc-500 font-medium text-center leading-relaxed">
-            Hable con claridad. El Oráculo procesará su intención para extraer la esencia del lugar.
+          <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest text-center leading-relaxed px-6">
+            Hable con claridad. Su intención será transmutada en metadatos para la Bóveda.
           </p>
         </div>
       )}
 
-      {/* II. CHASSIS DE COMANDO ACÚSTICO */}
-      <div className="bg-white/[0.03] border-t border-white/10 -mx-6 -mb-6 p-6 mt-auto backdrop-blur-3xl">
+      {/* II. CHASSIS DE COMANDO TÁCTICO */}
+      <div className="bg-white/[0.02] border-t border-white/5 -mx-6 -mb-6 p-6 mt-auto backdrop-blur-3xl">
 
-        {/* Telemetría de Grabación */}
-        <div className="flex justify-between items-center mb-5 px-1">
+        {/* Telemetría Acústica */}
+        <div className="flex justify-between items-center mb-6 px-1">
           <div className="flex items-center gap-3">
-            {isRecording && <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.5)]" />}
-            <span className={cn("font-mono text-2xl font-black tracking-tighter", isRecording ? "text-red-400" : "text-zinc-500")}>
-              {formatTimeDisplay(recordingDurationSeconds)}
+            {isRecording && <div className="w-2 h-2 rounded-full bg-red-500 animate-ping shadow-[0_0_10px_rgba(239,68,68,0.4)]" />}
+            <span className={cn("font-mono text-2xl font-black tracking-tighter", isRecording ? "text-red-400" : "text-zinc-600")}>
+              {formatTimerDisplay(recordingDurationSeconds)}
             </span>
           </div>
           {capturedAudioBlob && !isRecording && (
             <div className="bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
-              <span className="text-[9px] text-emerald-400 flex items-center gap-1.5 font-black uppercase tracking-widest">
-                <CheckCircle2 className="h-3 w-3" /> Pista Estabilizada
+              <span className="text-[8px] text-emerald-400 flex items-center gap-1.5 font-black uppercase tracking-[0.2em]">
+                <CheckCircle2 className="h-3 w-3" /> Evidencia Consolidada
               </span>
             </div>
           )}
         </div>
 
-        {/* Mallas de Acción */}
+        {/* Mallas de Acción (Botonera) */}
         <div className="flex gap-4 h-16">
           {!capturedAudioBlob ? (
             isRecording ? (
               <Button
-                onClick={executeStopRecording}
-                className="flex-1 bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/50 transition-all rounded-2xl"
+                onClick={executeCeaseOfRecording}
+                className="flex-1 bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/30 transition-all rounded-2xl"
               >
                 <Square className="fill-current h-6 w-6" />
               </Button>
             ) : (
               <Button
-                onClick={executeStartRecording}
-                disabled={!hasMicrophonePermission}
-                className="flex-1 bg-white text-black hover:bg-zinc-200 rounded-2xl font-black text-[10px] tracking-[0.2em] shadow-xl uppercase"
+                onClick={executeIgnitionOfRecording}
+                disabled={!hasMicrophonePermission || isProcessingExternal}
+                className="flex-1 bg-white text-black hover:bg-zinc-200 rounded-2xl font-black text-[11px] tracking-[0.2em] shadow-xl uppercase"
               >
                 <Mic className="mr-3 h-5 w-5" /> 
-                {mode === 'CHRONICLE' ? "Iniciar Crónica" : "Iniciar Dictado"}
+                {mode === 'CHRONICLE' ? "Iniciar Crónica" : "Capturar Dictado"}
               </Button>
             )
           ) : (
             <>
-              {/* Reset Control */}
+              {/* Acción: Reinicio */}
               <Button
                 variant="outline"
                 disabled={isProcessingExternal}
                 onClick={() => { 
-                  cleanupAudioMemory(); 
+                  cleanupAcousticMemory(); 
                   setCapturedAudioBlob(null); 
                   setRecordingDurationSeconds(0); 
                 }}
-                className="w-16 px-0 rounded-2xl border-white/10 bg-transparent text-zinc-400 hover:bg-white/5 hover:text-white"
+                className="w-16 px-0 rounded-2xl border-white/10 bg-transparent text-zinc-500 hover:bg-white/5 hover:text-white transition-all"
               >
                 <RotateCcw className="h-5 w-5" />
               </Button>
 
-              {/* Playback Control */}
+              {/* Acción: Auditoría (Playback) */}
               <Button
                 disabled={isProcessingExternal}
-                className="flex-1 flex gap-3 items-center justify-center bg-white/5 hover:bg-white/10 text-white rounded-2xl border border-white/10"
+                className="flex-1 flex gap-3 items-center justify-center bg-white/[0.03] hover:bg-white/[0.08] text-white rounded-2xl border border-white/5"
                 onClick={() => {
                   if (audioPlayerReference.current) {
-                    if (isPlaying) { 
+                    if (isPlaybackActive) { 
                       audioPlayerReference.current.pause(); 
-                      setIsPlaying(false); 
+                      setIsPlaybackActive(false); 
                     } else { 
                       audioPlayerReference.current.play(); 
-                      setIsPlaying(true); 
+                      setIsPlaybackActive(true); 
                     }
                   }
                 }}
               >
-                {isPlaying ? <Square className="fill-current h-4 w-4" /> : <Play className="fill-current h-4 w-4 text-primary" />}
-                <span className="text-[10px] font-black uppercase tracking-widest">{isPlaying ? "PAUSAR" : "AUDITAR"}</span>
+                {isPlaybackActive ? <Square className="fill-current h-4 w-4" /> : <Play className="fill-current h-4 w-4 text-primary" />}
+                <span className="text-[9px] font-black uppercase tracking-[0.2em]">{isPlaybackActive ? "PAUSAR" : "AUDITAR"}</span>
               </Button>
 
-              {/* Emission Control */}
+              {/* Acción: Emisión Final */}
               <Button
-                onClick={handleDataEmission}
+                onClick={handleIntellectualEmission}
                 disabled={isProcessingExternal}
-                className="flex-1 bg-primary text-primary-foreground font-black text-[10px] tracking-widest rounded-2xl shadow-2xl shadow-primary/20 hover:opacity-90 uppercase"
+                className="flex-1 bg-primary text-primary-foreground font-black text-[9px] tracking-[0.3em] rounded-2xl shadow-2xl shadow-primary/20 hover:opacity-90 uppercase group"
               >
                 {isProcessingExternal ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
-                  <>
-                    <UploadCloud className="mr-2 h-5 w-5" /> 
-                    {mode === 'CHRONICLE' ? "PUBLICAR" : "TRANSCRIBIR"}
-                  </>
+                  <div className="flex items-center gap-2.5">
+                    <UploadCloud className="h-5 w-5 group-hover:-translate-y-0.5 transition-transform" /> 
+                    <span>{mode === 'CHRONICLE' ? "PUBLICAR" : "PROCESAR"}</span>
+                  </div>
                 )}
               </Button>
             </>
           )}
         </div>
 
-        {/* Reproductor de Hardware Oculto */}
-        {capturedAudioUrl && (
+        {/* Puente de Audio Hardware (Invisibile) */}
+        {capturedAudioUniformResourceLocator && (
           <audio
             ref={audioPlayerReference}
-            src={capturedAudioUrl}
-            onEnded={() => setIsPlaying(false)}
+            src={capturedAudioUniformResourceLocator}
+            onEnded={() => setIsPlaybackActive(false)}
             className="hidden"
           />
         )}
@@ -317,13 +329,12 @@ export function GeoRecorder({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V3.0):
- * 1. Emitter Pattern: El componente ya no interactúa con Supabase o Edge Functions.
- *    Actúa como un sensor de hardware que emite un Blob limpio a su padre, 
- *    permitiendo su reutilización en cualquier paso de la Forja (DRY Principle).
- * 2. Polymorphic UI: El prop 'mode' altera el DOM y los copys de los botones 
- *    para adaptarse al contexto cognitivo del Administrador (Dictado vs Lectura).
- * 3. External State Control: El prop 'isProcessingExternal' permite al Orquestador 
- *    bloquear la interfaz de grabación mientras la IA transcribe o sube archivos, 
- *    evitando race conditions por doble click.
+ * NOTA TÉCNICA DEL ARCHITECT (V3.1):
+ * 1. Emitter Sovereignty: El componente actúa como un sensor puro. Emite un binario 
+ *    (Blob) tras la captura, permitiendo que orquestadores externos gestionen 
+ *    la lógica de red, cumpliendo el principio de responsabilidad única.
+ * 2. Tailwind Sanitization: Se corrigieron las clases ambiguas de duración 
+ *    (duration-[1000ms]) para evitar advertencias de compilación en Vercel.
+ * 3. Atomic Memory: La purga de Object URLs mediante cleanupAcousticMemory asegura 
+ *    que la aplicación mantenga su fluidez en sesiones prolongadas de peritaje urbano.
  */
