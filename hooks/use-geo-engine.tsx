@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: hooks/use-geo-engine.tsx
- * VERSIÓN: 46.0 (NicePod Sovereign Geo-Engine - Full Descriptive Symmetry Edition)
+ * VERSIÓN: 46.2 (NicePod Sovereign Geo-Engine - Final Contract Symmetry Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Actuar como Fachada Transparente unificando los núcleos de Telemetría, 
  * Radar e Interfaz bajo el estándar de "Cero Abreviaciones".
- * [FIX V46.0]: Resolución de error TS2339 mediante la sincronización nominal de las 
- * propiedades 'nearbyPointsOfInterest' y 'activePointOfInterest' del RadarCore.
+ * [REFORMA V46.2]: Sincronización total con la Constitución V8.5, eliminando 
+ * errores de compilación TS2339 y garantizando la integridad del contrato.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -19,7 +19,7 @@ import { InterfaceProvider, useGeoInterface } from "./geo-engine/interface-core"
 import { RadarProvider, useGeoRadar } from "./geo-engine/radar-core";
 import { TelemetryProvider, useGeoTelemetry } from "./geo-engine/telemetry-core";
 
-// --- CONTRATOS SOBERANOS Y INTELIGENCIA ---
+// --- CONTRATOS SOBERANOS E INTELIGENCIA V4.0 ---
 import { GeoContextData, GeoEngineReturn, GeoEngineState } from "@/types/geo-sovereignty";
 import { useForgeOrchestrator } from "./use-forge-orchestrator";
 
@@ -38,7 +38,7 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
   const interfaceCore = useGeoInterface();
   const forgeOrchestrator = useForgeOrchestrator();
 
-  const lastSourceReference = useRef<string | null>(telemetryCore.telemetrySource);
+  const lastTelemetrySourceReference = useRef<string | null>(telemetryCore.telemetrySource);
   const hasPerformedInitialLandingReference = useRef<boolean>(false);
 
   /**
@@ -51,16 +51,17 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
     if (currentUserLocation) {
       const sourceJustChangedToGPS = 
         telemetryCore.telemetrySource === 'gps' && 
-        lastSourceReference.current !== 'gps';
+        lastTelemetrySourceReference.current !== 'gps';
 
       /**
-       * 1. DETECCIÓN DE ATERRIZAJE BALÍSTICO (IP -> GPS)
-       * Si el sistema alcanza precisión satelital, disparamos el aterrizaje visual.
+       * 1. DETECCIÓN DE ATERRIZAJE BALÍSTICO (Handshake T0):
+       * Si el sistema alcanza precisión satelital soberana, disparamos el aterrizaje.
        */
       if (telemetryCore.isGPSLock && sourceJustChangedToGPS && !hasPerformedInitialLandingReference.current) {
         interfaceCore.triggerLanding();
         hasPerformedInitialLandingReference.current = true;
-        radarCore.fetchRadar(currentUserLocation, true); // Cosecha forzada
+        // Cosecha forzada al obtener precisión métrica real
+        radarCore.fetchRadar(currentUserLocation, true); 
       }
 
       /**
@@ -68,9 +69,9 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
        * Evaluación de resonancia basada en la telemetría purificada.
        */
       radarCore.evaluateProximity(currentUserLocation);
-      radarCore.fetchRadar(currentUserLocation, false); // Cosecha Throttled (150m)
+      radarCore.fetchRadar(currentUserLocation, false); 
 
-      lastSourceReference.current = telemetryCore.telemetrySource;
+      lastTelemetrySourceReference.current = telemetryCore.telemetrySource;
     }
   }, [
     telemetryCore.userLocation, 
@@ -90,15 +91,15 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
   }, [forgeOrchestrator.forgeStatus, telemetryCore.isDenied, telemetryCore.isIgnited, telemetryCore.userLocation]);
 
   /**
-   * ENSAMBLAJE DE LA API PÚBLICA (CONTRATO SOBERANO V8.0)
-   * Misión: Devolver un objeto íntegro donde los núcleos colaboran sin competir.
+   * ENSAMBLAJE DE LA API PÚBLICA (CONTRATO SOBERANO V8.5)
+   * Misión: Devolver un objeto íntegro que satisfaga el Build Shield de Vercel.
    */
   const geoEngineApi: GeoEngineReturn = {
     // I. Estados de Verdad y Telemetría Purificada
     status: derivedEngineStatus,
     userLocation: telemetryCore.userLocation,
-    nearbyPointsOfInterest: radarCore.nearbyPointsOfInterest, // [FIX V46.0]
-    activePointOfInterest: radarCore.activePointOfInterest,   // [FIX V46.0]
+    nearbyPointsOfInterest: radarCore.nearbyPointsOfInterest,
+    activePointOfInterest: radarCore.activePointOfInterest,
     isTriangulated: telemetryCore.isTriangulated,
     isGPSLock: telemetryCore.isGPSLock,
     isSearching: radarCore.isSearching,
@@ -147,7 +148,18 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
 
     // IV. Pipeline de Inteligencia (Cerebro en el Borde)
     ingestSensoryData: (parameters) => forgeOrchestrator.ingestSensoryData(telemetryCore.userLocation, parameters),
-    synthesizeNarrative: (parameters) => forgeOrchestrator.synthesizeNarrative(parameters),
+    
+    /**
+     * synthesizeNarrative:
+     * [MANDATO V46.2]: Adaptación explícita de parámetros para cumplir con la V8.5.
+     */
+    synthesizeNarrative: (parameters) => forgeOrchestrator.synthesizeNarrative({
+      pointOfInterestIdentification: parameters.pointOfInterestIdentification,
+      depth: parameters.depth,
+      tone: parameters.tone,
+      refinedIntent: parameters.refinedIntent
+    }),
+    
     transcribeVoiceIntent: (audioBase64) => forgeOrchestrator.transcribeVoiceIntent(audioBase64),
 
     /**
@@ -162,7 +174,7 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
       interfaceCore.resetInterface();
       forgeOrchestrator.resetForge();
       hasPerformedInitialLandingReference.current = false;
-      lastSourceReference.current = null;
+      lastTelemetrySourceReference.current = null;
       nicepodLog("🧹 [GeoEngine] Memoria del motor purgada íntegramente.");
     }
   };
@@ -176,14 +188,14 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
 
 /**
  * GeoEngineProvider: El Contenedor de Infraestructura.
- * Misión: Envolver la plataforma en la jerarquía de núcleos necesaria.
+ * Envuelve la plataforma en la jerarquía de núcleos necesaria para el peritaje urbano.
  */
 export function GeoEngineProvider({ 
   children, 
   initialData 
 }: { 
   children: React.ReactNode, 
-  initialData?: any 
+  initialData?: { lat: number, lng: number, city: string, source: string } | null 
 }) {
   return (
     <TelemetryProvider initialData={initialData}>
@@ -209,3 +221,14 @@ export function useGeoEngine() {
   }
   return context;
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V46.2):
+ * 1. Descriptive Symmetry: Se ha alcanzado la paridad nominal absoluta entre la 
+ *    Constitución de Tipos y la implementación de la Fachada, eliminando el loop 
+ *    de errores TS2339 en Vercel.
+ * 2. Handshake T0: El Provider ahora acepta explícitamente el objeto initialData 
+ *    purificado del RootLayout, garantizando la visibilidad instantánea del mapa.
+ * 3. Atomic Orchestration: La fachada actúa como un escudo térmico, protegiendo 
+ *    a la UI de la complejidad de los tres núcleos subyacentes.
+ */
