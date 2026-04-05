@@ -1,25 +1,25 @@
 /**
  * ARCHIVO: hooks/use-geo-engine.tsx
- * VERSIÓN: 45.1 (NicePod Sovereign Geo-Engine - Log Integrity & Triple-Core Facade)
- * PROTOCOLO: MADRID RESONANCE V3.0
+ * VERSIÓN: 46.0 (NicePod Sovereign Geo-Engine - Full Descriptive Symmetry Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Actuar como Fachada Transparente unificando los núcleos de Telemetría, 
- * Radar e Interfaz. Provee el contrato GeoEngineReturn sin generar competencia 
- * de hilos ni bucles de re-renderizado.
- * [FIX V45.1]: Inclusión de importación nicepodLog para resolver error de compilación.
- * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
+ * Radar e Interfaz bajo el estándar de "Cero Abreviaciones".
+ * [FIX V46.0]: Resolución de error TS2339 mediante la sincronización nominal de las 
+ * propiedades 'nearbyPointsOfInterest' y 'activePointOfInterest' del RadarCore.
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
 
 import React, { createContext, useContext, useEffect, useMemo, useRef } from "react";
 
-// --- TRIPARTICIÓN DEL NÚCLEO (V3.0) ---
+// --- TRIPARTICIÓN DEL NÚCLEO (V3.0 - TRIPLE CORE) ---
 import { InterfaceProvider, useGeoInterface } from "./geo-engine/interface-core";
 import { RadarProvider, useGeoRadar } from "./geo-engine/radar-core";
 import { TelemetryProvider, useGeoTelemetry } from "./geo-engine/telemetry-core";
 
-// --- CONTRATOS SOBERANOS Y IA ---
+// --- CONTRATOS SOBERANOS Y INTELIGENCIA ---
 import { GeoContextData, GeoEngineReturn, GeoEngineState } from "@/types/geo-sovereignty";
 import { useForgeOrchestrator } from "./use-forge-orchestrator";
 
@@ -29,7 +29,7 @@ import { nicepodLog } from "@/lib/utils";
 const GeoEngineContext = createContext<GeoEngineReturn | undefined>(undefined);
 
 /**
- * GeoFacadeComponent: El Cerebro Sincronizador.
+ * GeoFacadeComponent: El Cerebro Sincronizador de la Workstation.
  * Misión: Consumir los 3 núcleos y orquestar sus interacciones transversales.
  */
 function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
@@ -43,32 +43,32 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
 
   /**
    * EFECTO: ORQUESTACIÓN CROSS-DOMAIN
-   * Misión: Sincronizar el hardware con la lógica de red y la interfaz táctica.
+   * Misión: Sincronizar el hardware con la lógica de red y la intención de la UI.
    */
   useEffect(() => {
-    const currentLocation = telemetryCore.userLocation;
+    const currentUserLocation = telemetryCore.userLocation;
 
-    if (currentLocation) {
+    if (currentUserLocation) {
       const sourceJustChangedToGPS = 
         telemetryCore.telemetrySource === 'gps' && 
         lastSourceReference.current !== 'gps';
 
       /**
-       * 1. DETECCIÓN DE ATERRIZAJE BALÍSTICO (Handshake T0):
-       * Si pasamos de IP a GPS de alta fidelidad, disparamos el aterrizaje.
+       * 1. DETECCIÓN DE ATERRIZAJE BALÍSTICO (IP -> GPS)
+       * Si el sistema alcanza precisión satelital, disparamos el aterrizaje visual.
        */
       if (telemetryCore.isGPSLock && sourceJustChangedToGPS && !hasPerformedInitialLandingReference.current) {
         interfaceCore.triggerLanding();
         hasPerformedInitialLandingReference.current = true;
-        radarCore.fetchRadar(currentLocation, true); 
+        radarCore.fetchRadar(currentUserLocation, true); // Cosecha forzada
       }
 
       /**
        * 2. INTELIGENCIA DE PROXIMIDAD:
-       * Evaluación de resonancia basada en telemetría purificada.
+       * Evaluación de resonancia basada en la telemetría purificada.
        */
-      radarCore.evaluateProximity(currentLocation);
-      radarCore.fetchRadar(currentLocation, false); 
+      radarCore.evaluateProximity(currentUserLocation);
+      radarCore.fetchRadar(currentUserLocation, false); // Cosecha Throttled (150m)
 
       lastSourceReference.current = telemetryCore.telemetrySource;
     }
@@ -81,23 +81,24 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
   ]);
 
   /**
-   * derivedStatus: Máquina de Estados Finita Derivada para la UI.
+   * derivedEngineStatus: Máquina de Estados Finita Derivada para la UI.
    */
-  const derivedStatus = useMemo((): GeoEngineState => {
+  const derivedEngineStatus = useMemo((): GeoEngineState => {
     if (forgeOrchestrator.forgeStatus !== 'IDLE') return forgeOrchestrator.forgeStatus;
     if (telemetryCore.isDenied) return 'PERMISSION_DENIED';
     return (telemetryCore.isIgnited || telemetryCore.userLocation) ? 'SENSORS_READY' : 'IDLE';
   }, [forgeOrchestrator.forgeStatus, telemetryCore.isDenied, telemetryCore.isIgnited, telemetryCore.userLocation]);
 
   /**
-   * ENSAMBLAJE DE LA API PÚBLICA (CONTRATO SOBERANO V7.1)
+   * ENSAMBLAJE DE LA API PÚBLICA (CONTRATO SOBERANO V8.0)
+   * Misión: Devolver un objeto íntegro donde los núcleos colaboran sin competir.
    */
   const geoEngineApi: GeoEngineReturn = {
-    // I. Estados de Verdad y Telemetría
-    status: derivedStatus,
+    // I. Estados de Verdad y Telemetría Purificada
+    status: derivedEngineStatus,
     userLocation: telemetryCore.userLocation,
-    nearbyPOIs: radarCore.nearbyPOIs,
-    activePOI: radarCore.activePOI,
+    nearbyPointsOfInterest: radarCore.nearbyPointsOfInterest, // [FIX V46.0]
+    activePointOfInterest: radarCore.activePointOfInterest,   // [FIX V46.0]
     isTriangulated: telemetryCore.isTriangulated,
     isGPSLock: telemetryCore.isGPSLock,
     isSearching: radarCore.isSearching,
@@ -120,6 +121,10 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
     toggleCameraPerspective: interfaceCore.togglePerspective,
     setManualMode: interfaceCore.setManualMode,
     
+    /**
+     * recenterCamera: 
+     * Misión: Recuperar el Voyager con autoridad máxima y refresco de malla.
+     */
     recenterCamera: () => {
       if (telemetryCore.userLocation) {
         radarCore.fetchRadar(telemetryCore.userLocation, true);
@@ -140,14 +145,14 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
     setManualAnchor: telemetryCore.setManualAnchor,
     setManualPlaceName: radarCore.setManualPlaceName,
 
-    // IV. Pipeline de Inteligencia (Agente 42)
-    ingestSensoryData: (params) => forgeOrchestrator.ingestSensoryData(telemetryCore.userLocation, params),
-    synthesizeNarrative: forgeOrchestrator.synthesizeNarrative,
-    transcribeVoiceIntent: forgeOrchestrator.transcribeVoiceIntent,
+    // IV. Pipeline de Inteligencia (Cerebro en el Borde)
+    ingestSensoryData: (parameters) => forgeOrchestrator.ingestSensoryData(telemetryCore.userLocation, parameters),
+    synthesizeNarrative: (parameters) => forgeOrchestrator.synthesizeNarrative(parameters),
+    transcribeVoiceIntent: (audioBase64) => forgeOrchestrator.transcribeVoiceIntent(audioBase64),
 
     /**
      * reset: 
-     * Misión: Purga absoluta de memoria táctica y desconexión de hardware.
+     * Misión: Purga absoluta de memoria táctica y desconexión física de hardware.
      */
     reset: () => {
       telemetryCore.killSensors();
@@ -171,6 +176,7 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
 
 /**
  * GeoEngineProvider: El Contenedor de Infraestructura.
+ * Misión: Envolver la plataforma en la jerarquía de núcleos necesaria.
  */
 export function GeoEngineProvider({ 
   children, 
