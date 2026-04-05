@@ -1,7 +1,13 @@
 /**
  * ARCHIVO: hooks/geo-engine/radar-core.tsx
- * VERSIÓN: 1.0 (NicePod V3.0 - Triple-Core Architecture)
- * Misión: Evaluar el entorno geográfico y sincronizar con Supabase (NKV) independientemente de la UI.
+ * VERSIÓN: 1.1 (NicePod Radar Core - Full Descriptive Integrity & Contract Sync)
+ * PROTOCOLO: MADRID RESONANCE V4.0
+ * 
+ * Misión: Evaluar el entorno geográfico y sincronizar con la Bóveda NKV (Supabase)
+ * de forma independiente a la interfaz de usuario, garantizando sintonía de proximidad.
+ * [REFORMA V1.1]: Sincronización total con la Constitución V8.0, eliminación de 
+ * abreviaturas 'POI' y resolución de error de importación TS2305 para Vercel.
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
@@ -9,18 +15,25 @@
 import { calculateDistance } from "@/lib/geo-kinematics";
 import { createClient } from "@/lib/supabase/client";
 import { nicepodLog } from "@/lib/utils";
-import { ActivePOI, PointOfInterest, UserLocation } from "@/types/geo-sovereignty";
+import { 
+  ActivePointOfInterest, 
+  PointOfInterest, 
+  UserLocation 
+} from "@/types/geo-sovereignty";
 import React, { createContext, useCallback, useContext, useRef, useState } from "react";
 
-const FETCH_DISTANCE_THRESHOLD = 150;
-const EVALUATION_DISTANCE_THRESHOLD = 3;
+/**
+ * UMBRALES DE GOBERNANZA TÁCTICA
+ */
+const FETCH_DISTANCE_THRESHOLD_METERS = 150;
+const EVALUATION_DISTANCE_THRESHOLD_METERS = 3;
 
 interface RadarCoreReturn {
-  nearbyPOIs: PointOfInterest[];
-  activePOI: ActivePOI | null;
+  nearbyPointsOfInterest: PointOfInterest[];
+  activePointOfInterest: ActivePointOfInterest | null;
   isSearching: boolean;
   localData: { isProximityConflict?: boolean; manualPlaceName?: string };
-  fetchRadar: (location: UserLocation, force?: boolean) => Promise<void>;
+  fetchRadar: (location: UserLocation, forceRefresh?: boolean) => Promise<void>;
   evaluateProximity: (location: UserLocation) => void;
   setManualPlaceName: (name: string) => void;
   clearRadar: () => void;
@@ -28,97 +41,179 @@ interface RadarCoreReturn {
 
 const RadarContext = createContext<RadarCoreReturn | undefined>(undefined);
 
+/**
+ * RadarProvider: El subsistema de inteligencia de proximidad.
+ */
 export function RadarProvider({ children }: { children: React.ReactNode }) {
-  const supabase = createClient();
+  const supabaseClient = createClient();
 
-  const [nearbyPOIs, setNearbyPOIs] = useState<PointOfInterest[]>([]);
-  const [activePOI, setActivePOI] = useState<ActivePOI | null>(null);
+  // --- I. ESTADOS DE MALLA LOCAL ---
+  const [nearbyPointsOfInterest, setNearbyPointsOfInterest] = useState<PointOfInterest[]>([]);
+  const [activePointOfInterest, setActivePointOfInterest] = useState<ActivePointOfInterest | null>(null);
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [localData, setLocalData] = useState<{ isProximityConflict?: boolean; manualPlaceName?: string }>({});
 
-  const lastFetchPosRef = useRef<{ lat: number, lng: number } | null>(null);
-  const lastEvalPosRef = useRef<{ lat: number, lng: number } | null>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
+  // --- II. MEMORIA TÁCTICA (Refs para evitar colisiones de red) ---
+  const lastFetchPositionReference = useRef<{ latitude: number, longitude: number } | null>(null);
+  const lastEvaluationPositionReference = useRef<{ latitude: number, longitude: number } | null>(null);
+  const abortControllerReference = useRef<AbortController | null>(null);
 
-  const fetchRadar = useCallback(async (location: UserLocation, force: boolean = false) => {
-    if (!force && lastFetchPosRef.current) {
-      const dist = calculateDistance(
+  /**
+   * fetchRadar:
+   * Misión: Sincronizar los nodos de la Bóveda NKV con la malla local del dispositivo.
+   */
+  const fetchRadar = useCallback(async (location: UserLocation, forceRefresh: boolean = false) => {
+    if (!forceRefresh && lastFetchPositionReference.current) {
+      const distanceFromLastFetch = calculateDistance(
         { latitude: location.latitude, longitude: location.longitude },
-        { latitude: lastFetchPosRef.current.lat, longitude: lastFetchPosRef.current.lng }
+        { 
+          latitude: lastFetchPositionReference.current.latitude, 
+          longitude: lastFetchPositionReference.current.longitude 
+        }
       );
-      if (dist < FETCH_DISTANCE_THRESHOLD) return;
+      
+      if (distanceFromLastFetch < FETCH_DISTANCE_THRESHOLD_METERS) return;
     }
 
-    if (abortControllerRef.current) abortControllerRef.current.abort();
-    abortControllerRef.current = new AbortController();
+    // Protocolo de Higiene de Red: Abortamos peticiones obsoletas.
+    if (abortControllerReference.current) {
+      abortControllerReference.current.abort();
+    }
+    abortControllerReference.current = new AbortController();
 
     setIsSearching(true);
     try {
-      nicepodLog(`🛰️ [RadarCore] Sincronizando Bóveda NKV (${force ? 'FORCED' : 'THROTTLED'})`);
-      const { data: pois, error } = await supabase.from('vw_map_resonance_active').select('*');
-      if (error) throw error;
+      nicepodLog(`🛰️ [RadarCore] Sincronizando Bóveda NKV (${forceRefresh ? 'FORZADO' : 'THROTTLED'})`);
+      
+      const { data: pointOfInterestsResults, error: databaseError } = await supabaseClient
+        .from('vw_map_resonance_active')
+        .select('*');
 
-      setNearbyPOIs((pois as PointOfInterest[]) || []);
-      lastFetchPosRef.current = { lat: location.latitude, lng: location.longitude };
-    } catch (err: any) {
-      if (err.name !== 'AbortError') nicepodLog("🔥 [RadarCore] Error Supabase", err, 'error');
+      if (databaseError) throw databaseError;
+
+      setNearbyPointsOfInterest((pointOfInterestsResults as PointOfInterest[]) || []);
+      
+      lastFetchPositionReference.current = { 
+        latitude: location.latitude, 
+        longitude: location.longitude 
+      };
+    } catch (exception: any) {
+      if (exception.name !== 'AbortError') {
+        nicepodLog("🔥 [RadarCore] Fallo en conexión con Bóveda NKV.", exception, 'error');
+      }
     } finally {
       setIsSearching(false);
     }
-  }, [supabase]);
+  }, [supabaseClient]);
 
+  /**
+   * evaluateProximity:
+   * Misión: Procesar en el cliente el radio de resonancia de los nodos cercanos.
+   */
   const evaluateProximity = useCallback((location: UserLocation) => {
-    if (nearbyPOIs.length === 0) return;
+    if (nearbyPointsOfInterest.length === 0) return;
 
-    if (lastEvalPosRef.current) {
-      const dist = calculateDistance(
+    if (lastEvaluationPositionReference.current) {
+      const distanceFromLastEvaluation = calculateDistance(
         { latitude: location.latitude, longitude: location.longitude },
-        { latitude: lastEvalPosRef.current.lat, longitude: lastEvalPosRef.current.lng }
+        { 
+          latitude: lastEvaluationPositionReference.current.latitude, 
+          longitude: lastEvaluationPositionReference.current.longitude 
+        }
       );
-      if (dist < EVALUATION_DISTANCE_THRESHOLD) return;
+      
+      if (distanceFromLastEvaluation < EVALUATION_DISTANCE_THRESHOLD_METERS) return;
     }
 
-    let closest: ActivePOI | null = null;
-    let minDistance = Infinity;
+    let closestPoint: ActivePointOfInterest | null = null;
+    let minimumDistanceObserved = Infinity;
 
-    nearbyPOIs.forEach((poi) => {
-      const [pLng, pLat] = poi.geo_location.coordinates;
-      const dist = calculateDistance({ latitude: location.latitude, longitude: location.longitude }, { latitude: pLat, longitude: pLng });
-      if (dist < minDistance) {
-        minDistance = dist;
-        closest = {
-          id: poi.id.toString(), name: poi.name, distance: Math.round(dist),
-          isWithinRadius: dist <= (poi.resonance_radius || 35),
-          historical_fact: poi.historical_fact || undefined
+    nearbyPointsOfInterest.forEach((pointOfInterest) => {
+      // Rigor PostGIS: Longitud es el índice 0, Latitud es el índice 1.
+      const [pointLongitude, pointLatitude] = pointOfInterest.geo_location.coordinates;
+      
+      const distanceToPoint = calculateDistance(
+        { latitude: location.latitude, longitude: location.longitude }, 
+        { latitude: pointLatitude, longitude: pointLongitude }
+      );
+
+      if (distanceToPoint < minimumDistanceObserved) {
+        minimumDistanceObserved = distanceToPoint;
+        closestPoint = {
+          identification: pointOfInterest.id.toString(), 
+          name: pointOfInterest.name, 
+          distance: Math.round(distanceToPoint),
+          isWithinRadius: distanceToPoint <= (pointOfInterest.resonance_radius || 35),
+          historical_fact: pointOfInterest.historical_fact || undefined
         };
       }
     });
 
-    setActivePOI(closest);
-    setLocalData(prev => ({ ...prev, isProximityConflict: minDistance < 10 }));
-    lastEvalPosRef.current = { lat: location.latitude, lng: location.longitude };
-  }, [nearbyPOIs]);
+    setActivePointOfInterest(closestPoint);
+    
+    // Conflicto de Proximidad: Alerta si el Voyager está a menos de 10m de otro nodo.
+    setLocalData(previousData => ({ 
+      ...previousData, 
+      isProximityConflict: minimumDistanceObserved < 10 
+    }));
 
+    lastEvaluationPositionReference.current = { 
+      latitude: location.latitude, 
+      longitude: location.longitude 
+    };
+  }, [nearbyPointsOfInterest]);
+
+  /**
+   * clearRadar:
+   * Misión: Purga física de la memoria del radar y cancelación de procesos de red.
+   */
   const clearRadar = useCallback(() => {
-    if (abortControllerRef.current) abortControllerRef.current.abort();
-    setNearbyPOIs([]);
-    setActivePOI(null);
+    if (abortControllerReference.current) {
+      abortControllerReference.current.abort();
+    }
+    setNearbyPointsOfInterest([]);
+    setActivePointOfInterest(null);
     setLocalData({});
-    lastFetchPosRef.current = null;
-    lastEvalPosRef.current = null;
+    lastFetchPositionReference.current = null;
+    lastEvaluationPositionReference.current = null;
+    nicepodLog("🧹 [RadarCore] Malla de proximidad purgada.");
   }, []);
 
-  const api: RadarCoreReturn = {
-    nearbyPOIs, activePOI, isSearching, localData,
-    fetchRadar, evaluateProximity, clearRadar,
-    setManualPlaceName: (name) => setLocalData(prev => ({ ...prev, manualPlaceName: name }))
+  const radarApi: RadarCoreReturn = {
+    nearbyPointsOfInterest, 
+    activePointOfInterest, 
+    isSearching, 
+    localData,
+    fetchRadar, 
+    evaluateProximity, 
+    clearRadar,
+    setManualPlaceName: (name) => setLocalData(previousData => ({ 
+      ...previousData, 
+      manualPlaceName: name 
+    }))
   };
 
-  return <RadarContext.Provider value={api}>{children}</RadarContext.Provider>;
+  return <RadarContext.Provider value={radarApi}>{children}</RadarContext.Provider>;
 }
 
+/**
+ * useGeoRadar:
+ * Punto de acceso único para la inteligencia de proximidad.
+ */
 export const useGeoRadar = () => {
-  const ctx = useContext(RadarContext);
-  if (!ctx) throw new Error("useGeoRadar debe usarse dentro de RadarProvider");
-  return ctx;
+  const context = useContext(RadarContext);
+  if (!context) {
+    throw new Error("CRITICAL_ERROR: useGeoRadar debe usarse dentro de un RadarProvider.");
+  }
+  return context;
 };
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V1.1):
+ * 1. Build Shield Compliance: Se resolvió el error TS2305 al sincronizar el 
+ *    archivo con el tipo 'ActivePointOfInterest' de la Constitución V8.0.
+ * 2. Zero Abbreviations: Se purgaron términos como 'POI', 'dist' y 'lat/lng' 
+ *    para cumplir con el estándar industrial de NicePod V4.0.
+ * 3. CPU Shielding: La lógica de evaluateProximity ahora utiliza nombres descriptivos 
+ *    y mantiene el throttling de 3m para proteger el hilo principal de la GPU.
+ */
