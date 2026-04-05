@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: hooks/use-forge-orchestrator.ts
- * VERSIÓN: 6.0 (NicePod Forge Orchestrator - Sovereign Integrity & Lightning Edition)
+ * VERSIÓN: 6.1 (NicePod Forge Orchestrator - Full Descriptive Integrity Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Gestionar el ciclo de vida de ingesta sensorial orquestando la compresión JIT, 
  * la transcripción de voz y la transmisión directa de binarios (Lightning Protocol).
- * [REFORMA V6.0]: Sincronización total con la Constitución V7.7 y las Acciones V11.0, 
- * eliminando abreviaturas y garantizando la integridad del contrato industrial.
+ * [REFORMA V6.1]: Resolución de error TS2322 mediante la sincronización nominal 
+ * absoluta con la Constitución V8.5 (point_of_interest_identification).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -93,11 +93,10 @@ export function useForgeOrchestrator() {
 
       /**
        * 1. RESOLUCIÓN DE INTENCIONALIDAD COGNITIVA (Voz + Texto)
-       * Misión: Fusionar el dictado acústico con las notas manuales.
        */
       let finalAdminIntentText = parameters.intentText;
       if (parameters.intentAudioBlob) {
-        nicepodLog("🎙️ [ForgeOrchestrator] Transcribiendo intención dictada...");
+        nicepodLog("🎙️ [ForgeOrchestrator] Despachando dictado para transcripción neuronal...");
         const audioBase64 = await transmutarArchivoABase64(parameters.intentAudioBlob);
         const transcriptionResults = await transcribeVoiceIntentAction({ audioBase64 });
         
@@ -115,12 +114,11 @@ export function useForgeOrchestrator() {
 
       /**
        * 2. CONCURRENCIA DE PREPARACIÓN DE ACTIVOS (OFF-MAIN-THREAD)
-       * Misión: Procesar imágenes y sondeo climático mientras se autoriza la subida.
        */
       const [
         compressedHeroImageBlob, 
         ocrCompressionBlobArray, 
-        weatherResolution, 
+        weatherResolutionResults, 
         tokensResponse
       ] = await Promise.all([
         compressNicePodImage(parameters.heroImage, 1920, 0.82),
@@ -141,8 +139,7 @@ export function useForgeOrchestrator() {
       const ocrImageStoragePaths = storagePaths.slice(1);
 
       /**
-       * 3. TRANSMISIÓN DIRECTA (Protocolo Lightning V4.0)
-       * Misión: El navegador sube los binarios directamente a Supabase.
+       * 3. TRANSMISIÓN DIRECTA (Protocolo Lightning)
        */
       nicepodLog("🚀 [ForgeOrchestrator] Transfiriendo binarios pesados a la Bóveda...");
 
@@ -165,11 +162,11 @@ export function useForgeOrchestrator() {
 
       /**
        * 4. INVOCACIÓN AL ORÁCULO DE BORDE (Agente 42)
-       * Misión: Peritaje multidimensional basado en las rutas del Storage.
+       * [MANDATO V4.0]: Enviamos rutas de Storage para peritaje multidimensional.
        */
       nicepodLog("📡 [ForgeOrchestrator] Expediente visual sellado. Solicitando peritaje...");
 
-      const ingestionResults = await ingestIntelligenceDossierAction({
+      const ingestionFinalResults = await ingestIntelligenceDossierAction({
         latitude: userLocation.latitude,
         longitude: userLocation.longitude,
         accuracy: userLocation.accuracy,
@@ -183,26 +180,34 @@ export function useForgeOrchestrator() {
         referenceUrl: parameters.referenceUrl
       });
 
-      if (!ingestionResults.success || !ingestionResults.data) {
-        throw new Error(ingestionResults.error || "FAIL_AI_INGESTION");
+      if (!ingestionFinalResults.success || !ingestionFinalResults.data) {
+        throw new Error(ingestionFinalResults.error || "FAIL_AI_INGESTION");
       }
 
-      const { pointOfInterestIdentification, analysis } = ingestionResults.data;
+      const { pointOfInterestIdentification, analysis } = ingestionFinalResults.data;
 
-      // 5. MATERIALIZACIÓN DEL DOSSIER FINAL
+      /**
+       * 5. MATERIALIZACIÓN DEL DOSSIER FINAL
+       * [FIX V6.1]: Sincronización nominal con la Constitución V8.5.
+       * Se utiliza 'point_of_interest_identification' para satisfacer al Build Shield.
+       */
       const compiledDossier: IngestionDossier = {
-        point_of_interest_id: pointOfInterestIdentification,
+        point_of_interest_identification: pointOfInterestIdentification,
         raw_ocr_text: analysis.historicalDossier || null,
         weather_snapshot: {
-          temp_c: weatherResolution.success ? (weatherResolution.data?.current?.temp_c || 15) : 15,
-          condition: weatherResolution.success ? (weatherResolution.data?.current?.condition?.text || "Despejado") : "Despejado",
-          is_day: weatherResolution.success ? !!weatherResolution.data?.current?.is_day : true
+          temp_c: weatherResolutionResults.success ? (weatherResolutionResults.data?.current?.temp_c || 15) : 15,
+          condition: weatherResolutionResults.success ? (weatherResolutionResults.data?.current?.condition?.text || "Despejado") : "Despejado",
+          is_day: weatherResolutionResults.success ? !!weatherResolutionResults.data?.current?.is_day : true
         },
-        visual_analysis_dossier: analysis,
+        visual_analysis_dossier: {
+          ...analysis,
+          grounding_verification: analysis.groundingVerification // Asegura compatibilidad con el Step 3
+        },
         sensor_accuracy: userLocation.accuracy,
         ingested_at: new Date().toISOString()
       };
 
+      // 6. ACTUALIZACIÓN DEL ESTADO GLOBAL
       setData(previousData => ({ 
         ...previousData, 
         pointOfInterestIdentification, 
@@ -245,13 +250,13 @@ export function useForgeOrchestrator() {
 
     try {
       nicepodLog(`🧠 [ForgeOrchestrator] Despertando Agente de Síntesis para Nodo #${parameters.pointOfInterestIdentification}...`);
-      const results = await synthesizeNarrativeAction(parameters);
+      const synthesisResults = await synthesizeNarrativeAction(parameters);
 
-      if (!results.success || !results.data) {
-        throw new Error(results.error || "NARRATIVE_SYNTHESIS_FAILED");
+      if (!synthesisResults.success || !synthesisResults.data) {
+        throw new Error(synthesisResults.error || "NARRATIVE_SYNTHESIS_FAILED");
       }
 
-      setData(previousData => ({ ...previousData, narrative: results.data }));
+      setData(previousData => ({ ...previousData, narrative: synthesisResults.data }));
       setStatus('NARRATIVE_READY');
       nicepodLog(`🎯 [ForgeOrchestrator] Sabiduría sintetizada y lista para propagación.`);
 
@@ -273,7 +278,7 @@ export function useForgeOrchestrator() {
     setData({});
     setIsLocked(false);
     setError(null);
-    nicepodLog("🧹 [ForgeOrchestrator] Memoria de forja purificada.");
+    nicepodLog("🧹 [ForgeOrchestrator] Memoria purgada.");
   }, []);
 
   return {
