@@ -1,13 +1,13 @@
 /**
  * ARCHIVO: types/geo-sovereignty.ts
- * VERSIÓN: 8.0 (NicePod Sovereign Constitution - Full Multidimensional Integrity)
+ * VERSIÓN: 8.5 (NicePod Sovereign Constitution - Full Descriptive Integrity Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Centralizar el contrato de identidad, telemetría y control cinemático,
  * garantizando la sintonía absoluta entre el hardware, el oráculo y el pintor WebGL.
- * [REFORMA V8.0]: Erradicación total de abreviaciones, inyección de Grounding Pericial,
- * sincronía de Estilo Soberano y alineación con el Protocolo Lightning.
- * Nivel de Integridad: 100% (Sin abreviaciones / Sin errores / Producción-Ready)
+ * [REFORMA V8.5]: Erradicación total y absoluta de abreviaciones. Implementación 
+ * de la Taxonomía Granular V4.0, Reloj Soberano y Grounding Pericial.
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 /**
@@ -25,6 +25,9 @@ export interface GeoPoint {
   coordinates: [number, number]; // [longitude, latitude]
 }
 
+/**
+ * TelemetrySource: Definición del origen de la verdad geográfica.
+ */
 export type TelemetrySource = 
   | 'gps' 
   | 'cache' 
@@ -33,7 +36,7 @@ export type TelemetrySource =
   | 'edge-ip';
 
 /**
- * UserLocation: Snapshot de telemetría purificada por el hardware.
+ * UserLocation: Snapshot de telemetría purificada capturada por el hardware.
  */
 export interface UserLocation {
   latitude: number;
@@ -46,7 +49,7 @@ export interface UserLocation {
 }
 
 /**
- * ActivePointOfInterest: Representación de un nodo cercano detectado por el Radar.
+ * ActivePointOfInterest: Representación de un hito cercano detectado por el Radar.
  */
 export interface ActivePointOfInterest {
   identification: string;
@@ -63,7 +66,7 @@ export interface ActivePointOfInterest {
  */
 
 /**
- * CategoryMission: El Eje Funcional (Lo que el Voyager busca).
+ * CategoryMission: El Eje Funcional (Lo que el Voyager busca satisfacer).
  */
 export type CategoryMission = 
   | 'infraestructura_vital'
@@ -72,7 +75,7 @@ export type CategoryMission =
   | 'resonancia_sensorial';
 
 /**
- * CategoryEntity: El Eje Físico (Lo que el Perito Urbano clasifica).
+ * CategoryEntity: El Eje Físico (Clasificación pericial del hito).
  */
 export type CategoryEntity =
   | 'aseo_premium' | 'nodo_hidratacion' | 'refugio_climatico' | 'terminal_energia' | 'zona_segura'
@@ -81,7 +84,7 @@ export type CategoryEntity =
   | 'mirador_estrategico' | 'paisaje_sonoro' | 'pasaje_secreto' | 'mercado_origen' | 'obrador_tradicion';
 
 /**
- * HistoricalEpoch: El Eje Temporal para la sintonización del lenguaje del Oráculo.
+ * HistoricalEpoch: El Eje Temporal para la sintonización prosódica de la IA.
  */
 export type HistoricalEpoch =
   | 'origen_geologico'
@@ -99,6 +102,9 @@ export type HistoricalEpoch =
  * ---------------------------------------------------------------------------
  */
 
+/**
+ * PointOfInterestLifecycle: Estados legales de un nodo en la base de datos.
+ */
 export type PointOfInterestLifecycle =
   | 'ingested'
   | 'analyzed'
@@ -106,6 +112,9 @@ export type PointOfInterestLifecycle =
   | 'published'
   | 'archived';
 
+/**
+ * GeoEngineState: Estados operativos de la Workstation.
+ */
 export type GeoEngineState =
   | 'IDLE'
   | 'SENSORS_READY'
@@ -131,6 +140,9 @@ export type NarrativeTone = 'academico' | 'misterioso' | 'epico' | 'melancolico'
  * ---------------------------------------------------------------------------
  */
 
+/**
+ * PointOfInterestMetadata: Tipado estricto para la inteligencia extendida.
+ */
 export interface PointOfInterestMetadata {
   urban_context?: string;
   architectural_period?: string;
@@ -138,12 +150,15 @@ export interface PointOfInterestMetadata {
   curator_notes?: string;
   external_source_url?: string;
   grounding_summary?: string;
-  processing_trace_id?: string;
+  processing_trace_identification?: string;
 }
 
+/**
+ * PointOfInterest: El objeto de conocimiento central.
+ */
 export interface PointOfInterest {
   id: number;
-  author_id: string;
+  author_identification: string;
   name: string;
   category_mission: CategoryMission;
   category_entity: CategoryEntity;
@@ -157,17 +172,17 @@ export interface PointOfInterest {
   ambient_audio_url: string | null;
   status: PointOfInterestLifecycle;
   is_published: boolean;
-  reference_podcast_id: number | null;
+  reference_podcast_identification: number | null;
   created_at: string;
   updated_at: string;
   metadata?: PointOfInterestMetadata | null;
 }
 
 /**
- * IngestionDossier: El resultado del peritaje de Gemini Vision.
+ * IngestionDossier: El resultado del peritaje técnico de la IA.
  */
 export interface IngestionDossier {
-  point_of_interest_id: number;
+  point_of_interest_identification: number;
   raw_ocr_text: string | null;
   weather_snapshot: {
     temp_c: number;
@@ -181,7 +196,7 @@ export interface IngestionDossier {
     detectedElements?: string[];
     detectedOfficialName?: string;
     admin_original_intent?: string;
-    groundingVerification?: string; // [FIX V8.0]: Obligatorio para el peritaje Step 3
+    groundingVerification?: string; // [FIX V8.5]: Requerido para Step 3
   };
   sensor_accuracy: number;
   ingested_at: string;
@@ -230,7 +245,7 @@ export interface GeoEngineReturn {
 
   // Gobernanza de Cámara y Estilo
   cameraPerspective: CameraPerspective;
-  mapStyle: string; // Sincronizador de tiles para evitar parpadeos
+  mapStyle: string; 
   isManualMode: boolean;
   toggleCameraPerspective: () => void;
   setManualMode: (active: boolean) => void;
@@ -243,7 +258,7 @@ export interface GeoEngineReturn {
   setManualAnchor: (longitude: number, latitude: number) => void;
   setManualPlaceName: (name: string) => void;
 
-  // Flujos de Inteligencia
+  // Flujos de Inteligencia Multidimensional
   ingestSensoryData: (parameters: {
     heroImage: File;
     ocrImages: File[];
@@ -258,7 +273,7 @@ export interface GeoEngineReturn {
   }) => Promise<{ pointOfInterestIdentification: number; dossier: IngestionDossier } | void>;
 
   synthesizeNarrative: (parameters: {
-    pointOfInterestId: number;
+    pointOfInterestIdentification: number; 
     depth: NarrativeDepth;
     tone: NarrativeTone;
     refinedIntent?: string;
@@ -279,7 +294,7 @@ export interface GeoActionResponse<T = unknown> {
   message: string;
   data?: T;
   error?: string;
-  trace_id?: string;
+  trace_identification?: string;
 }
 
 /**
@@ -289,8 +304,8 @@ export interface PointOfInterestCreationPayload {
   latitude: number;
   longitude: number;
   accuracy: number;
-  heroImageFilePath: string; // [MANDATO V8.0]: Ruta, no binario
-  ocrImageFilePaths: string[]; 
+  heroImageStoragePath: string; 
+  ocrImageStoragePaths: string[]; 
   categoryMission: string;
   categoryEntity: string;
   historicalEpoch: string;
