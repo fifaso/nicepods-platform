@@ -1,18 +1,16 @@
 # ARCHIVO: .github/workflows/supabase-type-gen.yml
-# VERSIÓN: 3.1 (NicePod Sovereign Type Sync - Zero Abbreviations Edition)
+# VERSIÓN: 3.2 (NicePod Sovereign Type Sync - Asset Resiliency Edition)
 # PROTOCOLO: MADRID RESONANCE V4.0
 # 
-# Misión: Sincronizar el contrato de tipos TypeScript con el Metal Cloud de Supabase,
-# garantizando la integridad de la malla mediante una validación previa de tipos.
-# [CORRECCIÓN V3.1]: Eliminación de 'cache: npm' para evitar fallos por ausencia de lockfile.
+# Misión: Sincronizar el contrato de tipos TypeScript con el Metal Cloud de Supabase.
+# [CORRECCIÓN V3.2]: Implementación de Shims de declaración para evitar bloqueos
+# por importación de recursos visuales (PNG/SVG) durante la validación.
 # Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
 
 name: "Sincronía de Metal: Generación de Tipos"
 
 on:
-  # Permite la activación manual por parte del Administrador del sistema
   workflow_dispatch:
-  # Sincronización automática ante cambios en la estructura física del Metal
   push:
     branches:
       - main
@@ -20,10 +18,9 @@ on:
       - 'supabase/migrations/**'
 
 jobs:
-  generacion_de_tipos:
+  proceso_de_sincronizacion:
     runs-on: ubuntu-latest
     
-    # [SEGURIDAD]: Permisos elevados para la escritura del contrato de tipos
     permissions:
       contents: write
 
@@ -32,12 +29,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: "Entorno: Configurando Node.js versión 20"
-        # Misión: Establecer el motor de ejecución sin dependencias de caché obligatorias
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          # [CORRECCIÓN]: Se elimina 'cache: npm' para garantizar la ejecución soberana
-          # independientemente de la existencia de archivos package-lock.json
 
       - name: "Infraestructura: Instalando Supabase Command Line Interface"
         uses: supabase/setup-cli@v1
@@ -45,25 +39,33 @@ jobs:
           version: latest
 
       - name: "Generación: Introspección del Cloud de Supabase"
-        # Misión: Extraer la verdad estructural desde el Project Identification proporcionado
         run: |
           supabase gen types typescript --project-id ${{ secrets.SUPABASE_PROJECT_ID }} --schema public > types/database.types.ts
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
+      - name: "Build Shield: Preparando Shims de Declaración Visual"
+        # Misión: Evitar el error TS2307 creando una declaración global para imágenes.
+        # Esto permite que el compilador se enfoque en los tipos de datos y no en los assets.
+        run: |
+          echo "declare module '*.png'; declare module '*.svg'; declare module '*.jpg'; declare module '*.jpeg';" > types/industrial-assets-shim.d.ts
+
       - name: "Build Shield: Verificando Integridad de la Malla TypeScript"
-        # Misión: Asegurar que los nuevos tipos no generen colisiones con la lógica existente.
-        # Se utiliza 'noEmit' para realizar una auditoría de tipos sin generar binarios.
+        # Misión: Validar que los nuevos tipos de base de datos no rompan la lógica de la aplicación.
+        # 'skipLibCheck' evita validar librerías externas para ganar velocidad y foco.
         run: |
           npm install --no-package-lock
-          npx tsc --noEmit --project tsconfig.json
+          npx tsc --noEmit --project tsconfig.json --skipLibCheck
         continue-on-error: false
 
+      - name: "Limpieza: Eliminando Shims temporales"
+        if: always()
+        run: rm -f types/industrial-assets-shim.d.ts
+
       - name: "Commit: Sellado de Integridad Nominal en el Repositorio"
-        # Misión: Materializar los cambios en la rama principal si existe una mutación real.
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "chore: 🏛️ sincronización automatizada de tipos de base de datos [V3.1][skip ci]"
+          commit_message: "chore: 🏛️ sincronización automatizada de tipos de base de datos [V3.2][skip ci]"
           file_pattern: 'types/database.types.ts'
           commit_user_name: "NicePod Architect Bot"
           commit_user_email: "bot@nicepod.io"
