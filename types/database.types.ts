@@ -691,7 +691,7 @@ export type Database = {
             columns: ["poi_id"]
             isOneToOne: false
             referencedRelation: "vw_map_resonance_active"
-            referencedColumns: ["id"]
+            referencedColumns: ["identification"]
           },
         ]
       }
@@ -957,29 +957,32 @@ export type Database = {
           },
         ]
       }
-      poi_ingestion_buffer: {
+      point_of_interest_ingestion_buffer: {
         Row: {
+          grounding_analysis_summary: string | null
           id: number
           ingested_at: string | null
-          poi_id: number | null
+          point_of_interest_identification: number | null
           raw_ocr_text: string | null
           sensor_accuracy: number | null
           visual_analysis_dossier: Json | null
           weather_snapshot: Json | null
         }
         Insert: {
+          grounding_analysis_summary?: string | null
           id?: number
           ingested_at?: string | null
-          poi_id?: number | null
+          point_of_interest_identification?: number | null
           raw_ocr_text?: string | null
           sensor_accuracy?: number | null
           visual_analysis_dossier?: Json | null
           weather_snapshot?: Json | null
         }
         Update: {
+          grounding_analysis_summary?: string | null
           id?: number
           ingested_at?: string | null
-          poi_id?: number | null
+          point_of_interest_identification?: number | null
           raw_ocr_text?: string | null
           sensor_accuracy?: number | null
           visual_analysis_dossier?: Json | null
@@ -988,31 +991,39 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "poi_ingestion_buffer_poi_id_fkey"
-            columns: ["poi_id"]
+            columns: ["point_of_interest_identification"]
             isOneToOne: false
             referencedRelation: "points_of_interest"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "poi_ingestion_buffer_poi_id_fkey"
-            columns: ["poi_id"]
+            columns: ["point_of_interest_identification"]
             isOneToOne: false
             referencedRelation: "vw_map_resonance_active"
-            referencedColumns: ["id"]
+            referencedColumns: ["identification"]
           },
         ]
       }
       points_of_interest: {
         Row: {
           ambient_audio_url: string | null
-          author_id: string | null
+          author_identification: string | null
+          category_entity: Database["public"]["Enums"]["category_entity"] | null
           category_id: string | null
+          category_mission:
+            | Database["public"]["Enums"]["category_mission"]
+            | null
           created_at: string | null
           description: string | null
           embedding: string | null
           evidence_data: Json | null
+          external_reference_url: string | null
           gallery_urls: Json | null
           geo_location: unknown
+          historical_epoch:
+            | Database["public"]["Enums"]["historical_epoch"]
+            | null
           historical_fact: string | null
           id: number
           image_summary: string | null
@@ -1028,14 +1039,24 @@ export type Database = {
         }
         Insert: {
           ambient_audio_url?: string | null
-          author_id?: string | null
+          author_identification?: string | null
+          category_entity?:
+            | Database["public"]["Enums"]["category_entity"]
+            | null
           category_id?: string | null
+          category_mission?:
+            | Database["public"]["Enums"]["category_mission"]
+            | null
           created_at?: string | null
           description?: string | null
           embedding?: string | null
           evidence_data?: Json | null
+          external_reference_url?: string | null
           gallery_urls?: Json | null
           geo_location: unknown
+          historical_epoch?:
+            | Database["public"]["Enums"]["historical_epoch"]
+            | null
           historical_fact?: string | null
           id?: number
           image_summary?: string | null
@@ -1051,14 +1072,24 @@ export type Database = {
         }
         Update: {
           ambient_audio_url?: string | null
-          author_id?: string | null
+          author_identification?: string | null
+          category_entity?:
+            | Database["public"]["Enums"]["category_entity"]
+            | null
           category_id?: string | null
+          category_mission?:
+            | Database["public"]["Enums"]["category_mission"]
+            | null
           created_at?: string | null
           description?: string | null
           embedding?: string | null
           evidence_data?: Json | null
+          external_reference_url?: string | null
           gallery_urls?: Json | null
           geo_location?: unknown
+          historical_epoch?:
+            | Database["public"]["Enums"]["historical_epoch"]
+            | null
           historical_fact?: string | null
           id?: number
           image_summary?: string | null
@@ -1460,52 +1491,63 @@ export type Database = {
       vw_map_resonance_active: {
         Row: {
           ambient_audio_url: string | null
-          category: string | null
+          category_entity: Database["public"]["Enums"]["category_entity"] | null
+          category_mission:
+            | Database["public"]["Enums"]["category_mission"]
+            | null
+          external_reference_url: string | null
           gallery_urls: Json | null
           geo_location: unknown
+          historical_epoch:
+            | Database["public"]["Enums"]["historical_epoch"]
+            | null
           historical_fact: string | null
-          id: number | null
+          identification: number | null
           importance_score: number | null
-          name: string | null
-          reference_podcast_id: number | null
+          point_of_interest_name: string | null
           resonance_radius: number | null
-          status: Database["public"]["Enums"]["poi_lifecycle"] | null
         }
         Insert: {
           ambient_audio_url?: string | null
-          category?: string | null
+          category_entity?:
+            | Database["public"]["Enums"]["category_entity"]
+            | null
+          category_mission?:
+            | Database["public"]["Enums"]["category_mission"]
+            | null
+          external_reference_url?: string | null
           gallery_urls?: Json | null
           geo_location?: unknown
+          historical_epoch?:
+            | Database["public"]["Enums"]["historical_epoch"]
+            | null
           historical_fact?: string | null
-          id?: number | null
+          identification?: number | null
           importance_score?: number | null
-          name?: string | null
-          reference_podcast_id?: number | null
+          point_of_interest_name?: string | null
           resonance_radius?: number | null
-          status?: Database["public"]["Enums"]["poi_lifecycle"] | null
         }
         Update: {
           ambient_audio_url?: string | null
-          category?: string | null
+          category_entity?:
+            | Database["public"]["Enums"]["category_entity"]
+            | null
+          category_mission?:
+            | Database["public"]["Enums"]["category_mission"]
+            | null
+          external_reference_url?: string | null
           gallery_urls?: Json | null
           geo_location?: unknown
+          historical_epoch?:
+            | Database["public"]["Enums"]["historical_epoch"]
+            | null
           historical_fact?: string | null
-          id?: number | null
+          identification?: number | null
           importance_score?: number | null
-          name?: string | null
-          reference_podcast_id?: number | null
+          point_of_interest_name?: string | null
           resonance_radius?: number | null
-          status?: Database["public"]["Enums"]["poi_lifecycle"] | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "fk_poi_pod_reference"
-            columns: ["reference_podcast_id"]
-            isOneToOne: false
-            referencedRelation: "micro_pods"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
     }
     Functions: {
@@ -1863,8 +1905,43 @@ export type Database = {
         | "completed"
         | "failed"
       backlog_status: "pending" | "harvesting" | "completed" | "failed"
+      category_entity:
+        | "aseo_premium"
+        | "nodo_hidratacion"
+        | "refugio_climatico"
+        | "terminal_energia"
+        | "zona_segura"
+        | "monumento_nacional"
+        | "placa_sintonia"
+        | "yacimiento_ruina"
+        | "leyenda_urbana"
+        | "arquitectura_epoca"
+        | "museo_sabiduria"
+        | "atelier_galeria"
+        | "libreria_autor"
+        | "centro_innovacion"
+        | "intervencion_plastica"
+        | "mirador_estrategico"
+        | "paisaje_sonoro"
+        | "pasaje_secreto"
+        | "mercado_origen"
+        | "obrador_tradicion"
+      category_mission:
+        | "infraestructura_vital"
+        | "memoria_soberana"
+        | "capital_intelectual"
+        | "resonancia_sensorial"
       consistency_level: "high" | "medium" | "low"
       content_category: "paper" | "report" | "news" | "analysis" | "trend"
+      historical_epoch:
+        | "origen_geologico"
+        | "pre_industrial"
+        | "siglo_de_oro"
+        | "ilustracion_borbonica"
+        | "modernismo_expansion"
+        | "contemporaneo"
+        | "futuro_especulativo"
+        | "atemporal"
       interaction_event_type: "completed_playback" | "liked" | "shared"
       job_status:
         | "pending"
@@ -2042,8 +2119,46 @@ export const Constants = {
         "failed",
       ],
       backlog_status: ["pending", "harvesting", "completed", "failed"],
+      category_entity: [
+        "aseo_premium",
+        "nodo_hidratacion",
+        "refugio_climatico",
+        "terminal_energia",
+        "zona_segura",
+        "monumento_nacional",
+        "placa_sintonia",
+        "yacimiento_ruina",
+        "leyenda_urbana",
+        "arquitectura_epoca",
+        "museo_sabiduria",
+        "atelier_galeria",
+        "libreria_autor",
+        "centro_innovacion",
+        "intervencion_plastica",
+        "mirador_estrategico",
+        "paisaje_sonoro",
+        "pasaje_secreto",
+        "mercado_origen",
+        "obrador_tradicion",
+      ],
+      category_mission: [
+        "infraestructura_vital",
+        "memoria_soberana",
+        "capital_intelectual",
+        "resonancia_sensorial",
+      ],
       consistency_level: ["high", "medium", "low"],
       content_category: ["paper", "report", "news", "analysis", "trend"],
+      historical_epoch: [
+        "origen_geologico",
+        "pre_industrial",
+        "siglo_de_oro",
+        "ilustracion_borbonica",
+        "modernismo_expansion",
+        "contemporaneo",
+        "futuro_especulativo",
+        "atemporal",
+      ],
       interaction_event_type: ["completed_playback", "liked", "shared"],
       job_status: [
         "pending",
