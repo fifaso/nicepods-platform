@@ -4,7 +4,7 @@
 import { ResonanceCompass } from "@/components/feed/resonance-compass";
 import { createClient } from "@/lib/supabase/server";
 import type { PodcastWithProfile } from "@/types/podcast";
-import type { Tables } from "@/types/supabase";
+import type { Tables } from "@/types/database.types";
 import { redirect } from "next/navigation";
 
 /**
