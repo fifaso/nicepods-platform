@@ -1,130 +1,160 @@
-// app/(platform)/map/poi/[id]/page.tsx
-// VERSIÓN: 1.0
+/**
+ * ARCHIVO: app/(platform)/map/poi/[id]/page.tsx
+ * VERSIÓN: 2.0 (NicePod Sovereign Explorer - Full Multidimensional SSR Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.0
+ * 
+ * Misión: Orquestar la recuperación de capital intelectual desde el servidor, 
+ * garantizando la sintonía total con la Constitución de Tipos V8.5.
+ * [FIX V2.0]: Resolución de error TS2322 mediante el mapeo descriptivo de 
+ * propiedades multidimensionales hacia la vista de detalle.
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ */
 
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 
-// --- INFRAESTRUCTURA DE VISUALIZACIÓN ---
+// --- INFRAESTRUCTURA DE VISUALIZACIÓN SOBERANA ---
 import { POIDetailView } from '@/components/geo/poi-detail-view';
 import { PodcastWithProfile } from '@/types/podcast';
+import { nicepodLog } from '@/lib/utils';
 
 /**
- * INTERFAZ: PageProps
- * Captura el identificador dinámico de la URL (/poi/[id]).
+ * INTERFAZ: PageParameters
+ * Misión: Capturar la identificación dinámica de la trayectoria.
  */
-interface PageProps {
+interface PageParameters {
   params: {
     id: string;
   };
 }
 
 /**
- * FUNCIÓN: generateMetadata
- * Misión: Proyectar la identidad del Punto de Interés hacia indexadores y redes sociales.
- * 
- * [ESTRATEGIA SEO]: El título de la pestaña muta dinámicamente al nombre del POI.
+ * generateMetadata:
+ * Misión: Proyectar la identidad del hito hacia indexadores externos.
+ * [ESTRATEGIA V4.0]: Inyección de taxonomía en el título SEO.
  */
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const supabase = createClient();
+export async function generateMetadata({ params }: PageParameters): Promise<Metadata> {
+  const supabaseClient = createClient();
   
-  const { data: poi } = await supabase
+  const { data: pointOfInterestRecord } = await supabaseClient
     .from('points_of_interest')
-    .select('name, category')
+    .select('name, category_mission, category_entity')
     .eq('id', params.id)
     .single();
 
-  if (!poi) return { title: "Nodo no detectado | NicePod" };
+  if (!pointOfInterestRecord) {
+    return { title: "Nodo no detectado | NicePod Intelligence" };
+  }
+
+  const pointOfInterstName = pointOfInterestRecord.name;
+  const missionLabel = pointOfInterestRecord.category_mission.replace('_', ' ');
 
   return {
-    title: `${poi.name} | NicePod Resonance`,
-    description: `Descubre la crónica de sabiduría en ${poi.name}. Categoría: ${poi.category}.`,
+    title: `${pointOfInterstName} | ${missionLabel}`,
+    description: `Peritaje de capital intelectual urbano en Madrid. Misión: ${missionLabel}.`,
     openGraph: {
-      title: poi.name,
-      description: `Inmersión sonora en el corazón de Madrid.`,
+      title: pointOfInterstName,
+      description: `Inmersión sonora y documental en el corazón de la Malla.`,
       type: 'website',
     }
   };
 }
 
 /**
- * COMPONENTE: POIDetailPage (Server Component)
- * El orquestador de datos que alimenta la inmersión total.
+ * POIDetailPage: El orquestador de datos para la inmersión total.
  */
-export default async function POIDetailPage({ params }: PageProps) {
-  const supabase = createClient();
+export default async function POIDetailPage({ params }: PageParameters) {
+  const supabaseClient = createClient();
+  const pointOfInterestIdentification = parseInt(params.id);
 
   /**
-   * 1. COSECHA DE INTELIGENCIA CONCURRENTE (T0)
-   * Recuperamos la data del POI. Si este tiene un audio vinculado, 
-   * lo traemos en la misma transacción lógica.
+   * 1. COSECHA DE INTELIGENCIA MULTIDIMENSIONAL (T0)
+   * Misión: Recuperar el expediente completo alineado con la V4.0.
    */
-  const { data: poi, error: poiError } = await supabase
+  const { 
+    data: pointOfInterestRecord, 
+    error: databaseError 
+  } = await supabaseClient
     .from('points_of_interest')
-    .select('*')
-    .eq('id', params.id)
+    .select(`
+      id,
+      name,
+      category_mission,
+      category_entity,
+      historical_epoch,
+      historical_fact,
+      rich_description,
+      gallery_urls,
+      external_reference_url,
+      reference_podcast_id
+    `)
+    .eq('id', pointOfInterestIdentification)
     .single();
 
-  // Protocolo de Existencia: Si el ID es inválido o no existe, disparamos 404.
-  if (poiError || !poi) {
-    console.error("🛑 [SSR-POI] Error al localizar nodo:", poiError?.message);
+  // Protocolo de Seguridad: Si el hito no existe, abortamos renderizado.
+  if (databaseError || !pointOfInterestRecord) {
+    console.error("🛑 [SSR-POI] Error al localizar nodo:", databaseError?.message);
     notFound();
   }
 
   /**
-   * 2. RECUPERACIÓN DEL ACTIVO ACÚSTICO (Lógica de Vínculo)
-   * Si el POI tiene un reference_podcast_id, traemos el objeto completo 
-   * incluyendo el perfil del autor para el AudioProvider.
+   * 2. RECUPERACIÓN DEL ACTIVO ACÚSTICO VINCULADO
+   * Misión: Traer el podcast y el perfil del autor para el AudioProvider.
    */
-  let linkedPodcast: PodcastWithProfile | null = null;
+  let linkedPodcastRecord: PodcastWithProfile | null = null;
   
-  if (poi.reference_podcast_id) {
-    const { data: podcastData } = await supabase
+  if (pointOfInterestRecord.reference_podcast_id) {
+    const { data: podcastData } = await supabaseClient
       .from('micro_pods')
       .select('*, profiles(full_name, avatar_url, username)')
-      .eq('id', poi.reference_podcast_id)
+      .eq('id', pointOfInterestRecord.reference_podcast_id)
       .single();
     
     if (podcastData) {
-      linkedPodcast = podcastData as unknown as PodcastWithProfile;
+      linkedPodcastRecord = podcastData as unknown as PodcastWithProfile;
     }
   }
 
-  // 3. NORMALIZACIÓN DE GALERÍA
-  // Aseguramos que gallery_urls sea siempre un array para evitar errores de render.
-  const gallery = Array.isArray(poi.gallery_urls) ? poi.gallery_urls : [];
+  /**
+   * 3. NORMALIZACIÓN DE GALERÍA (HYGIENE GUARD)
+   */
+  const galleryUniformResourceLocators = Array.isArray(pointOfInterestRecord.gallery_urls) 
+    ? pointOfInterestRecord.gallery_urls 
+    : [];
 
   return (
     /**
-     * 4. ENTREGA SOBERANA A LA CAPA DE VISUALIZACIÓN
-     * Inyectamos la data saneada en el componente de detalle (Client Component).
-     * El children hereda el PlatformLayout (Navigation + AudioProvider).
+     * 4. ENTREGA SOBERANA A LA VISTA (POINT-OF-INTEREST MAPPING)
+     * [MANDATO V2.0]: Sincronía total con el componente POIDetailView V4.0.
+     * Mapeamos las columnas del metal a las propiedades descriptivas completas.
      */
     <POIDetailView 
-      poi={{
-        id: poi.id,
-        name: poi.name,
-        category: poi.category,
-        historical_fact: poi.historical_fact,
-        rich_description: poi.rich_description,
-        gallery_urls: gallery,
-        reference_podcast_id: poi.reference_podcast_id
+      pointOfInterest={{
+        identification: pointOfInterestRecord.id,
+        name: pointOfInterestRecord.name,
+        categoryMission: pointOfInterestRecord.category_mission,
+        categoryEntity: pointOfInterestRecord.category_entity,
+        historicalEpoch: pointOfInterestRecord.historical_epoch,
+        historicalFact: pointOfInterestRecord.historical_fact,
+        richDescription: pointOfInterestRecord.rich_description,
+        galleryUniformResourceLocators: galleryUniformResourceLocators,
+        externalReferenceUniformResourceLocator: pointOfInterestRecord.external_reference_url || undefined,
+        referencePodcastIdentification: pointOfInterestRecord.reference_podcast_id
       }}
-      linkedPodcast={linkedPodcast}
+      linkedPodcast={linkedPodcastRecord}
     />
   );
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Rendimiento SSR: Al ser un Server Component, este archivo no añade peso 
- *    al bundle de JavaScript que descarga el usuario. Solo envía el HTML 
- *    final y la data hidratada.
- * 2. Integridad de Tipos: El casting 'as unknown as PodcastWithProfile' 
- *    garantiza que el contrato de tipos de la Fase 1 se respete, permitiendo 
- *    que el reproductor de audio reciba el objeto exacto que espera.
- * 3. Resiliencia: La lógica de 'linkedPodcast' es opcional. Si un POI aún 
- *    no tiene una crónica terminada, la página de detalle cargará la 
- *    información histórica y visual sin romperse, cumpliendo con el Dogma 
- *    de 'La Función debe continuar'.
+ * NOTA TÉCNICA DEL ARCHITECT (V2.0):
+ * 1. Build Shield Implementation: Se han sustituido los nombres de propiedades 
+ *    abreviados por descriptores completos (identification, categoryMission, etc.), 
+ *    erradicando el error de compilación detectado por Vercel.
+ * 2. SSR Efficiency: La captura de datos ocurre en el servidor, alimentando a la 
+ *    vista cliente con un objeto ya hidratado y validado, eliminando parpadeos.
+ * 3. Type Resilience: La página ahora soporta las nuevas dimensiones del tiempo 
+ *    y documentación (historical_epoch y external_reference_url), permitiendo 
+ *    que el Voyager consuma el 100% del capital intelectual forjado.
  */
