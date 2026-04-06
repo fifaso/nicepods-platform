@@ -4,7 +4,7 @@
 "use client";
 
 import { PodcastWithProfile } from '@/types/podcast';
-import type { Tables } from '@/types/supabase';
+import type { Tables } from '@/types/database.types';
 import { PodcastCard } from 'components/podcast/podcast-card';
 import * as d3 from 'd3';
 import { motion } from 'framer-motion';
