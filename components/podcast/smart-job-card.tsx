@@ -6,7 +6,7 @@
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { createClient } from '@/lib/supabase/client';
-import type { Tables } from '@/types/supabase';
+import type { Tables } from '@/types/database.types';
 import { Bot } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
