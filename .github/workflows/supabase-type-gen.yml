@@ -1,60 +1,55 @@
-# .github/workflows/supabase-type-gen.yml
-# VERSIÓN: 2.0 (NicePod Sovereign Type Sync)
-# Misión: Sincronizar el contrato de tipos TypeScript con el Metal Cloud de Supabase.
-# [ESTABILIZACIÓN]: Eliminación de dependencia local y transición a Cloud Introspection.
+# VERSIÓN: 3.0 (NicePod Sovereign Type Sync - Industrial Grade)
+# [MEJORAS]: Build Shield, Inyección de Secretos, Validación de Esquema y Error Handling.
 
-name: Supabase Type Generation
+name: "Sincronía de Metal: Generación de Tipos"
 
 on:
-  # Permite la ejecución manual desde la pestaña Actions (Recomendado)
-  workflow_dispatch:
-  # Se ejecuta automáticamente al hacer push en la rama principal
+  workflow_dispatch: # Ejecución manual (Control del Administrador)
   push:
-    branches:
-      - main
+    branches: [main]
     paths:
-      - 'supabase/migrations/**' # Solo si cambian las migraciones físicas
+      - 'supabase/migrations/**' # Sincronía al cambiar el Metal físico
 
 jobs:
   update-types:
     runs-on: ubuntu-latest
-    
-    # [SEGURIDAD]: Solo permitimos que la acción escriba en el repositorio
     permissions:
       contents: write
 
     steps:
-      - name: Checkout code
+      - name: "Checkout: Adquiriendo código fuente"
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: "Entorno: Configurando Node.js 20"
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
 
-      - name: Setup Supabase CLI
+      - name: "CLI: Instalando Supabase"
         uses: supabase/setup-cli@v1
         with:
           version: latest
 
-      - name: Generate Types from Cloud Database
-        # [MANDATO]: Leemos la verdad desde el servidor real de Supabase.
-        # Usamos el Project ID de 21 caracteres que confirmamos en el dashboard.
+      - name: "Generación: Introspección del Cloud"
+        # Usamos el Project ID como variable de entorno para mayor limpieza
+        # Forzamos el esquema 'public' para evitar ruidos de otros esquemas
         run: |
-          supabase gen types typescript --project-id arbojlknwilqcszuqope > types/database.types.ts
+          supabase gen types typescript --project-id ${{ secrets.SUPABASE_PROJECT_ID }} --schema public > types/database.types.ts
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
-      - name: Commit and Push changes
+      - name: "Build Shield: Verificando Integridad de la Malla"
+        # Este paso es VITAL. Si los nuevos tipos rompen el código (ej. por un cambio de nombre), 
+        # la acción se detiene y no hace commit.
         run: |
-          git config --local user.email "bot@nicepod.io"
-          git config --local user.name "NicePod Bot"
-          git add types/database.types.ts
-          
-          # Solo hacemos commit si el archivo realmente cambió
-          if [ -n "$(git status --porcelain types/database.types.ts)" ]; then
-            git commit -m "chore: automated sync of database types from cloud [skip ci]"
-            git push origin main
-          else
-            echo "No changes detected in database types. Skipping push."
-          fi
+          npm install --no-package-lock
+          npx tsc --noEmit --project tsconfig.json
+
+      - name: "Commit: Sellado de Integridad Nominal"
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: 🏛️ automated sync of database types [V3.0][skip ci]"
+          file_pattern: 'types/database.types.ts'
+          commit_user_name: "NicePod Architect Bot"
+          commit_user_email: "bot@nicepod.io"
