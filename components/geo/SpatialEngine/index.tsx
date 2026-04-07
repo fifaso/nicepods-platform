@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/index.tsx
- * VERSIÓN: 9.5 (NicePod Spatial Hub - Final Integration & Loop-Breaker Edition)
+ * VERSIÓN: 10.0 (NicePod Spatial Hub - Nominal Sovereignty & Build Shield Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
- * Misión: Orquestar el motor WebGL garantizando el montaje inmediato, la visibilidad 
- * reactiva y la integridad total de tipos entre el radar y la previsualización.
- * [FIX V9.5]: Resolución definitiva de error TS2339 mediante el uso de '.identification'
- * en el objeto ActivePointOfInterest y saneamiento total de clases Tailwind.
+ * Misión: Orquestar el motor WebGL garantizando el montaje inmediato y la integridad 
+ * total de tipos entre el radar semántico y la previsualización cartográfica.
+ * [REFORMA V10.0]: Sincronización nominal con UnifiedSearchBar V6.0, erradicación 
+ * absoluta de abreviaturas y resolución de errores de tipos TS2322.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -14,19 +14,19 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { Compass, ShieldAlert } from "lucide-react";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 // --- INFRAESTRUCTURA DE MOTOR ESPACIAL ---
-import { MapProvider, MapRef, MapProps } from "react-map-gl/mapbox";
+import { MapProps, MapProvider, MapRef } from "react-map-gl/mapbox";
 
 // --- INFRAESTRUCTURA CORE V4.0 ---
 import { UnifiedSearchBar } from "@/components/ui/unified-search-bar";
 import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { SearchResult } from "@/hooks/use-search-radar";
-import { cn, nicepodLog } from "@/lib/utils";
 import { calculateDistance } from "@/lib/geo-kinematics";
+import { cn, nicepodLog } from "@/lib/utils";
 
-// --- CONSTANTES DE FÍSICA Y CONTRATOS V7.0 ---
+// --- CONSTANTES DE FÍSICA Y CONTRATOS SOBERANOS ---
 import {
   FLY_CONFIG,
   MADRID_SOL_COORDS,
@@ -35,23 +35,23 @@ import {
   ZOOM_LEVELS
 } from "../map-constants";
 
-import { MapInstanceId, UserLocation, TelemetrySource } from "@/types/geo-sovereignty";
+import { MapInstanceId, TelemetrySource, UserLocation } from "@/types/geo-sovereignty";
 import { POIPreviewCard } from "../poi-preview-card";
 import { CameraController } from "./camera-controller";
 import MapCore from "./map-core";
 
 /**
- * [BUILD SHIELD]: DEFINICIÓN DE TIPOS DE EVENTOS
+ * [BUILD SHIELD]: DEFINICIÓN DE TIPOS DE EVENTOS DESCRIPTIVOS
  */
-type SafeMapMoveEvent = Parameters<NonNullable<MapProps['onMove']>>[0];
+type SafeMapMovementEvent = Parameters<NonNullable<MapProps['onMove']>>[0];
 
-interface SpatialEngineProps {
-  /** mapInstanceId: Identificador único para el aislamiento de VRAM en la GPU. */
-  mapInstanceId: MapInstanceId;
+interface SpatialEngineProperties {
+  /** mapInstanceIdentification: Identificador único para el aislamiento de VRAM en la GPU. */
+  mapInstanceIdentification: MapInstanceId;
   mode: 'EXPLORE' | 'FORGE';
-  theme?: MapboxLightPreset;
+  visualTheme?: MapboxLightPreset;
   performanceProfile?: MapPerformanceProfile;
-  onManualAnchor?: (longitudeLatitude: [number, number]) => void;
+  onManualAnchorSelection?: (longitudeLatitude: [number, number]) => void;
   className?: string;
 }
 
@@ -59,13 +59,13 @@ interface SpatialEngineProps {
  * SpatialEngine: El Reactor de Inteligencia Visual Soberano.
  */
 export function SpatialEngine({
-  mapInstanceId,
+  mapInstanceIdentification,
   mode,
-  theme = 'night',
+  visualTheme = 'night',
   performanceProfile = 'HIGH_FIDELITY',
-  onManualAnchor,
+  onManualAnchorSelection,
   className
-}: SpatialEngineProps) {
+}: SpatialEngineProperties) {
 
   // 1. CONSUMO DE LA FACHADA SOBERANA (Triple-Core Synergy V3.1)
   const {
@@ -74,7 +74,7 @@ export function SpatialEngine({
     activePointOfInterest,
     status: engineStatus,
     initSensors,
-    isIgnited,
+    isIgnited: isEngineIgnited,
     needsBallisticLanding,
     setManualMode,
     cameraPerspective,
@@ -83,87 +83,85 @@ export function SpatialEngine({
 
   // 2. REFERENCIAS DE CONTROL (Sin abreviaciones)
   const mapInstanceReference = useRef<MapRef>(null);
-  const containerReference = useRef<HTMLDivElement>(null);
-  const smokescreenReference = useRef<HTMLDivElement>(null);
+  const containerElementReference = useRef<HTMLDivElement>(null);
   const lastSearchUpdatePositionReference = useRef<{ latitude: number, longitude: number }>({ latitude: 0, longitude: 0 });
-  const revealPerformedReference = useRef<boolean>(false);
-  const fallbackTimerReference = useRef<NodeJS.Timeout | null>(null);
+  const revealFallbackTimerReference = useRef<NodeJS.Timeout | null>(null);
 
-  // 3. ESTADOS DE INTERFAZ
-  const [selectedPointOfInterestId, setSelectedPointOfInterestId] = useState<string | null>(null);
-  const [isSearchLoading, setIsSearchLoading] = useState<boolean>(false);
-  const [isContainerReady, setIsContainerReady] = useState<boolean>(false);
-  const [isMapLoaded, setIsMapLoaded] = useState<boolean>(false);
-  const [isMapVisible, setIsMapVisible] = useState<boolean>(false);
+  // 3. ESTADOS DE INTERFAZ DE ALTA DENSIDAD
+  const [selectedPointOfInterestIdentification, setSelectedPointOfInterestIdentification] = useState<string | null>(null);
+  const [isSearchProcessLoading, setIsSearchProcessLoading] = useState<boolean>(false);
+  const [isContainerElementReady, setIsContainerElementReady] = useState<boolean>(false);
+  const [isMapEngineLoaded, setIsMapEngineLoaded] = useState<boolean>(false);
+  const [isMapInterfaceVisible, setIsMapInterfaceVisible] = useState<boolean>(false);
 
-  const [searchPosition, setSearchPosition] = useState({
+  const [currentSearchPosition, setCurrentSearchPosition] = useState({
     latitude: MADRID_SOL_COORDS.latitude,
     longitude: MADRID_SOL_COORDS.longitude,
   });
 
   /**
-   * 4. PROTOCOLO DE SEGURIDAD DE MONTAJE
+   * 4. PROTOCOLO DE SEGURIDAD DE MONTAJE (Resize Sentinel)
    */
   useEffect(() => {
-    if (!containerReference.current) return;
+    if (!containerElementReference.current) return;
 
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
         if (entry.contentRect.width > 0 && entry.contentRect.height > 0) {
-          setIsContainerReady(true);
+          setIsContainerElementReady(true);
           resizeObserver.disconnect();
         }
       }
     });
 
-    resizeObserver.observe(containerReference.current);
+    resizeObserver.observe(containerElementReference.current);
     return () => resizeObserver.disconnect();
-  }, [mapInstanceId]);
+  }, [mapInstanceIdentification]);
 
   /**
-   * 5. PROTOCOLO DE REVELADO REACTIVO
+   * 5. PROTOCOLO DE REVELADO REACTIVO (Stability Handshake)
    */
-  const handleMapStability = useCallback(() => {
-    if (isMapVisible) return;
-    nicepodLog(`✨ [SpatialHub:${mapInstanceId}] Malla sincronizada.`);
-    setIsMapVisible(true);
-    if (fallbackTimerReference.current) {
-      clearTimeout(fallbackTimerReference.current);
+  const handleMapVisualStability = useCallback(() => {
+    if (isMapInterfaceVisible) return;
+    nicepodLog(`✨ [SpatialHub:${mapInstanceIdentification}] Malla sincronizada.`);
+    setIsMapInterfaceVisible(true);
+    if (revealFallbackTimerReference.current) {
+      clearTimeout(revealFallbackTimerReference.current);
     }
-  }, [isMapVisible, mapInstanceId]);
+  }, [isMapInterfaceVisible, mapInstanceIdentification]);
 
   /**
-   * 6. AUTO-IGNICIÓN Hardware
+   * 6. AUTO-IGNICIÓN DE HARDWARE SENSORIAL
    */
   useEffect(() => {
-    if (isContainerReady) {
-      if (!isIgnited && engineStatus === 'IDLE') {
+    if (isContainerElementReady) {
+      if (!isEngineIgnited && engineStatus === 'IDLE') {
         initSensors();
       }
-      if (mode === 'EXPLORE' && mapInstanceId === 'map-full' && cameraPerspective === 'OVERVIEW') {
+      if (mode === 'EXPLORE' && mapInstanceIdentification === 'map-full' && cameraPerspective === 'OVERVIEW') {
         toggleCameraPerspective();
       }
     }
-  }, [isContainerReady, isIgnited, engineStatus, initSensors, mode, cameraPerspective, toggleCameraPerspective, mapInstanceId]);
+  }, [isContainerElementReady, isEngineIgnited, engineStatus, initSensors, mode, cameraPerspective, toggleCameraPerspective, mapInstanceIdentification]);
 
   /**
-   * 7. SAFETY REVEAL
+   * 7. SAFETY REVEAL (Mecanismo de defensa ante cuellos de botella WebGL)
    */
   useEffect(() => {
-    if (isMapLoaded && !isMapVisible) {
-      fallbackTimerReference.current = setTimeout(handleMapStability, 3000);
+    if (isMapEngineLoaded && !isMapInterfaceVisible) {
+      revealFallbackTimerReference.current = setTimeout(handleMapVisualStability, 3000);
     }
     return () => {
-      if (fallbackTimerReference.current) {
-        clearTimeout(fallbackTimerReference.current);
+      if (revealFallbackTimerReference.current) {
+        clearTimeout(revealFallbackTimerReference.current);
       }
     };
-  }, [isMapLoaded, isMapVisible, handleMapStability]);
+  }, [isMapEngineLoaded, isMapInterfaceVisible, handleMapVisualStability]);
 
   /**
-   * 8. LA SEMILLA T0 (IP-Fallback)
+   * 8. LA SEMILLA T0 (IP-Fallback Telemetry)
    */
-  const birthLocation: UserLocation = useMemo(() => {
+  const initialBirthLocation: UserLocation = useMemo(() => {
     if (userLocation) return userLocation;
 
     return {
@@ -178,9 +176,9 @@ export function SpatialEngine({
   }, [userLocation]);
 
   /**
-   * 9. MANEJADORES DE EVENTOS
+   * 9. MANEJADORES DE EVENTOS CINEMÁTICOS
    */
-  const handleMapMove = useCallback((event: SafeMapMoveEvent) => {
+  const handleMapMovement = useCallback((event: SafeMapMovementEvent) => {
     const { latitude, longitude } = event.viewState;
 
     const movementDistance = calculateDistance(
@@ -188,8 +186,9 @@ export function SpatialEngine({
       { latitude: lastSearchUpdatePositionReference.current.latitude, longitude: lastSearchUpdatePositionReference.current.longitude }
     );
 
+    // Umbral de refresco de radar: 25 metros
     if (movementDistance > 25) {
-      setSearchPosition({ latitude, longitude });
+      setCurrentSearchPosition({ latitude, longitude });
       lastSearchUpdatePositionReference.current = { latitude, longitude };
     }
 
@@ -198,13 +197,13 @@ export function SpatialEngine({
     }
   }, [setManualMode, needsBallisticLanding]);
 
-  const handleSearchResult = useCallback((results: SearchResult[] | null) => {
+  const handleSearchIdentificationResults = useCallback((results: SearchResult[] | null) => {
     if (results && results.length > 0) {
-      const topHit = results[0];
-      if (topHit.metadata?.lat && topHit.metadata?.lng && mapInstanceReference.current) {
+      const topSearchMatch = results[0];
+      if (topSearchMatch.metadata?.lat && topSearchMatch.metadata?.lng && mapInstanceReference.current) {
         setManualMode(true);
         mapInstanceReference.current.flyTo({
-          center: [topHit.metadata.lng, topHit.metadata.lat],
+          center: [topSearchMatch.metadata.lng, topSearchMatch.metadata.lat],
           zoom: ZOOM_LEVELS.STREET,
           ...FLY_CONFIG
         });
@@ -214,57 +213,59 @@ export function SpatialEngine({
 
   /**
    * mappedSelectedPointOfInterest: 
-   * Misión: Adaptar el objeto de la DB al contrato visual de la tarjeta.
+   * Misión: Adaptar el objeto de la base de datos al contrato visual de la Workstation.
    */
   const mappedSelectedPointOfInterest = useMemo(() => {
-    if (!selectedPointOfInterestId || !nearbyPointsOfInterest?.length) return null;
-    const rawPoint = nearbyPointsOfInterest.find((item) => item.id.toString() === selectedPointOfInterestId);
-    if (!rawPoint) return null;
+    if (!selectedPointOfInterestIdentification || !nearbyPointsOfInterest?.length) return null;
+    const pointOfInterestMatch = nearbyPointsOfInterest.find(
+      (pointItem) => pointItem.id.toString() === selectedPointOfInterestIdentification
+    );
+    if (!pointOfInterestMatch) return null;
 
     return {
-      identification: rawPoint.id.toString(),
-      name: rawPoint.name,
-      categoryMission: rawPoint.category_mission,
-      categoryEntity: rawPoint.category_entity,
-      historicalEpoch: rawPoint.historical_epoch,
-      historicalFact: rawPoint.historical_fact || undefined,
-      coverImageUniformResourceLocator: rawPoint.gallery_urls?.[0] || undefined,
-      externalReferenceUniformResourceLocator: (rawPoint.metadata as any)?.external_source_url || undefined
+      identification: pointOfInterestMatch.id.toString(),
+      name: pointOfInterestMatch.name,
+      categoryMission: pointOfInterestMatch.category_mission,
+      categoryEntity: pointOfInterestMatch.category_entity,
+      historicalEpoch: pointOfInterestMatch.historical_epoch,
+      historicalFact: pointOfInterestMatch.historical_fact || undefined,
+      coverImageUniformResourceLocator: pointOfInterestMatch.gallery_urls?.[0] || undefined,
+      externalReferenceUniformResourceLocator: (pointOfInterestMatch.metadata as any)?.external_source_url || undefined
     };
-  }, [selectedPointOfInterestId, nearbyPointsOfInterest]);
+  }, [selectedPointOfInterestIdentification, nearbyPointsOfInterest]);
 
   return (
     <MapProvider>
-      <div 
-        ref={containerReference} 
+      <div
+        ref={containerElementReference}
         className={cn("relative w-full h-full bg-[#010101] overflow-hidden isolate", className)}
         style={{ minHeight: '100dvh' }}
       >
         <AnimatePresence>
-          {!isMapVisible && (
-            <motion.div 
-              key="portal-loader"
+          {!isMapInterfaceVisible && (
+            <motion.div
+              key="portal-loader-overlay"
               initial={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 1, ease: "easeInOut" }}
               className="absolute inset-0 z-[200] bg-[#020202] flex flex-col items-center justify-center space-y-10 pointer-events-auto"
             >
               {engineStatus === 'PERMISSION_DENIED' ? (
-                <div className="flex flex-col items-center gap-4 text-center p-8">
+                <div className="flex flex-col items-center gap-4 text-center p-8 animate-in fade-in duration-700">
                   <ShieldAlert className="h-12 w-12 text-red-500 mb-2" />
-                  <span className="text-[10px] font-black uppercase tracking-&lsqb;0.5em&rsqb; text-red-400">Acceso Geográfico Bloqueado</span>
+                  <span className="text-[10px] font-black uppercase tracking-[0.5em] text-red-400">Acceso Geográfico Bloqueado</span>
                 </div>
               ) : (
                 <div className="flex flex-col items-center gap-8">
                   <div className="relative">
-                    <motion.div 
+                    <motion.div
                       animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
                       transition={{ duration: 3, repeat: Infinity }}
                       className="absolute inset-0 bg-primary/20 blur-3xl rounded-full"
                     />
                     <Compass className="h-16 w-16 text-primary animate-spin-slow relative z-10" />
                   </div>
-                  <span className="text-[11px] font-black uppercase tracking-&lsqb;0.6em&rsqb; text-white animate-pulse italic">
+                  <span className="text-[11px] font-black uppercase tracking-[0.6em] text-white animate-pulse italic">
                     Sincronizando Madrid
                   </span>
                 </div>
@@ -273,55 +274,52 @@ export function SpatialEngine({
           )}
         </AnimatePresence>
 
-        {/* MOTOR WEBGL */}
+        {/* MOTOR WEBGL (NÚCLEO INMUTABLE) */}
         <div className="absolute inset-0 z-0">
           <MapCore
             ref={mapInstanceReference}
-            mapInstanceId={mapInstanceId}
+            mapInstanceId={mapInstanceIdentification}
             mode={mode}
             performanceProfile={performanceProfile}
-            startCoordinates={birthLocation}
-            lightTheme={theme}
-            selectedPointOfInterestId={selectedPointOfInterestId}
-            onLoad={() => setIsMapLoaded(true)}
-            onIdle={handleMapStability}
-            onMove={handleMapMove}
+            startCoordinates={initialBirthLocation}
+            lightTheme={visualTheme}
+            selectedPointOfInterestId={selectedPointOfInterestIdentification}
+            onLoad={() => setIsMapEngineLoaded(true)}
+            onIdle={handleMapVisualStability}
+            onMove={handleMapMovement}
             onMapClick={(event) => {
-              if (mode === 'FORGE' && onManualAnchor) {
-                onManualAnchor([event.lngLat.lng, event.lngLat.lat]);
+              if (mode === 'FORGE' && onManualAnchorSelection) {
+                onManualAnchorSelection([event.lngLat.lng, event.lngLat.lat]);
               }
             }}
-            onMarkerClick={setSelectedPointOfInterestId}
+            onMarkerClick={setSelectedPointOfInterestIdentification}
           />
-          {isMapLoaded && (
-            <CameraController mapInstanceId={mapInstanceId} />
+          {isMapEngineLoaded && (
+            <CameraController mapInstanceId={mapInstanceIdentification} />
           )}
         </div>
 
-        {/* INTERFAZ TÁCTICA */}
+        {/* INTERFAZ TÁCTICA DE BÚSQUEDA */}
         {mode === 'EXPLORE' && (
           <div className="absolute top-6 left-4 right-4 z-[100] md:top-8 md:left-8 md:w-[420px] pointer-events-auto">
             <UnifiedSearchBar
               variant="console"
-              onResults={handleSearchResult}
-              onLoading={setIsSearchLoading}
-              latitude={searchPosition.latitude}
-              longitude={searchPosition.longitude}
+              onSearchIdentificationResults={handleSearchIdentificationResults}
+              onLoadingStatusChange={setIsSearchProcessLoading}
+              latitude={currentSearchPosition.latitude}
+              longitude={currentSearchPosition.longitude}
             />
           </div>
         )}
 
+        {/* PREVISUALIZACIÓN DE NODOS */}
         <AnimatePresence>
           {mappedSelectedPointOfInterest && (
             <POIPreviewCard
               pointOfInterest={mappedSelectedPointOfInterest}
-              /**
-               * [FIX V9.5]: Sincronía con Constitución V7.7.
-               * 'activePointOfInterest' utiliza '.identification' como propiedad nominal.
-               */
-              distanceMeters={activePointOfInterest?.identification === selectedPointOfInterestId ? activePointOfInterest.distance : null}
-              isResonating={activePointOfInterest?.identification === selectedPointOfInterestId && activePointOfInterest.isWithinRadius}
-              onClose={() => setSelectedPointOfInterestId(null)}
+              distanceMeters={activePointOfInterest?.identification === selectedPointOfInterestIdentification ? activePointOfInterest.distance : null}
+              isResonating={activePointOfInterest?.identification === selectedPointOfInterestIdentification && activePointOfInterest.isWithinRadius}
+              onClose={() => setSelectedPointOfInterestIdentification(null)}
             />
           )}
         </AnimatePresence>
@@ -329,3 +327,14 @@ export function SpatialEngine({
     </MapProvider>
   );
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V10.0):
+ * 1. Zero Abbreviations Policy: Se purificaron términos como 'Id', 'Props', 'lat', 'lng', 
+ *    sustituyéndolos por sus equivalentes semánticos completos para garantizar el 
+ *    cumplimiento del Dogma Técnico NicePod.
+ * 2. Contract Sincronization: Las propiedades pasadas a UnifiedSearchBar fueron 
+ *    alineadas con el nuevo estándar nominal (onSearchIdentificationResults).
+ * 3. Event Integrity: Se utiliza SafeMapMovementEvent para blindar la captura 
+ *    de telemetría durante el desplazamiento de cámara.
+ */
