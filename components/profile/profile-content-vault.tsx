@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: components/profile/profile-content-vault.tsx
- * VERSIÓN: 2.0 (NicePod Profile Content Vault - Intelligence Architecture Edition)
+ * VERSIÓN: 2.1 (NicePod Profile Content Vault - Absolute Contract Sync Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Renderizar la narrativa, descripción técnica y fuentes bibliográficas 
  * del podcast dentro del perfil del curador, garantizando la soberanía del dato.
- * [REFORMA V2.0]: Resolución de Path Aliasing, erradicación de abreviaturas,
- * tipado estricto de fuentes y sincronía nominal con ScriptViewer V2.0.
+ * [REFORMA V2.1]: Sincronización nominal estricta con ScriptViewer V8.0
+ * (narrativeScriptContent) para evitar colisiones en el Build Shield.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -222,8 +222,8 @@ export function ProfileContentVault({
               </div>
 
               <div className="relative z-10">
-                {/* [FIX V2.0]: Propiedad sincronizada con el contrato de ScriptViewer */}
-                <ScriptEditor narrativeScriptText={normalizedNarrativeScript} />
+                {/* [FIX V2.1]: Propiedad 'narrativeScriptContent' sincronizada con ScriptViewer V8.0 */}
+                <ScriptEditor narrativeScriptContent={normalizedNarrativeScript} />
               </div>
             </div>
           </CollapsibleContent>
@@ -260,13 +260,3 @@ export function ProfileContentVault({
     </Card>
   );
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT (V2.0):
- * 1. Path Aliasing Implementation: Se corrigió la importación de 'ScriptViewer' 
- *    utilizando el alias @/ para cumplimiento con el Build Shield.
- * 2. Nominal Contract Synchronization: El componente ScriptEditor ahora recibe 
- *    'narrativeScriptText', eliminando el error de tipos TS2322.
- * 3. Zero Abbreviations Policy: Purificación total de variables (sourceItem, 
- *    sourceIndex, isScriptInterfaceExpanded, narrativeScriptContent).
- */
