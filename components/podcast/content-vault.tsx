@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: components/podcast/content-vault.tsx
- * VERSIÓN: 2.0 (NicePod Content Vault - Knowledge Architecture Edition)
+ * VERSIÓN: 2.1 (NicePod Content Vault - Absolute Contract Sync Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Renderizar el núcleo narrativo, la descripción técnica y el mapa de 
  * etiquetas periciales, garantizando la inmersión en el capital intelectual.
- * [REFORMA V2.0]: Resolución de Path Aliasing, erradicación de abreviaturas,
- * tipado estricto del guion y sincronía nominal con ScriptViewer.
+ * [REFORMA V2.1]: Sincronización nominal estricta con ScriptViewer V8.0
+ * (narrativeScriptContent) para evitar colisiones en el Build Shield.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -228,8 +228,8 @@ export function ContentVault({
               </div>
 
               <div className="relative z-10">
-                {/* [FIX V2.0]: Propiedad alineada con el contrato esperado por ScriptViewer */}
-                <ScriptEditor narrativeScriptText={normalizedNarrativeScript} />
+                {/* [FIX V2.1]: Propiedad 'narrativeScriptContent' sincronizada con ScriptViewer V8.0 */}
+                <ScriptEditor narrativeScriptContent={normalizedNarrativeScript} />
               </div>
             </div>
           </CollapsibleContent>
@@ -241,11 +241,11 @@ export function ContentVault({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V2.0):
- * 1. Path Aliasing: Se sustituyó la importación relativa por '@/' para asegurar 
+ * NOTA TÉCNICA DEL ARCHITECT (V2.1):
+ * 1. Contract Synchronization: La propiedad inyectada en ScriptEditor ha sido 
+ *    ajustada de 'narrativeScriptText' a 'narrativeScriptContent' para coincidir 
+ *    con exactitud con la interfaz ScriptViewerProperties.
+ * 2. Path Aliasing: Se sustituyó la importación relativa por '@/' para asegurar 
  *    la resolución de módulos en el entorno de compilación de Vercel.
- * 2. Zero Abbreviations: Se purificaron términos como 'props', 'mod', 'id', 'ai' y 'user'.
- * 3. Contract Synchronization: El componente ScriptEditor ahora recibe 'narrativeScriptText', 
- *    resolviendo el error TS2322 al sincronizarlo con el estándar nominal de la plataforma.
- * 4. Strict Typing: Se erradicó el uso de 'any' en el contenido del guion narrativo.
+ * 3. Zero Abbreviations: Se purificaron términos como 'props', 'mod', 'id', 'ai' y 'user'.
  */
