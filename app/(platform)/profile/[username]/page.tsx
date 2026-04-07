@@ -1,5 +1,15 @@
-// app/(platform)/profile/[username]/page.tsx
-//version:8.0 (Sovereign Curator Integration - High-Density SSR Standard)
+/**
+ * ARCHIVO: app/(platform)/profile/[username]/page.tsx
+ * VERSIÓN: 9.0 (NicePod Sovereign Profile - Industrial SSR Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.0
+ * 
+ * Misión: Orquestador de servidor para la visualización de perfiles públicos,
+ * recolectando la identidad, colecciones y capital intelectual del curador.
+ * [REFORMA V9.0]: Sincronización nominal con PublicContentTabs V3.0, unificación 
+ * de tipos (PodcastWithProfile) y cumplimiento estricto de la Zero Abbreviations Policy.
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ */
+
 import { createClient } from '@/lib/supabase/server';
 import { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
@@ -7,27 +17,24 @@ import { notFound, redirect } from 'next/navigation';
 // --- INFRAESTRUCTURA DE COMPONENTES DE ALTA DENSIDAD ---
 import PublicProfilePage from '@/components/profile/public-profile-page';
 
-// --- CONTRATOS DE DATOS (INTEGRIDAD SOBERANA) ---
+// --- CONTRATOS DE DATOS SOBERANOS ---
 import {
   Collection,
   ProfileData,
-  PublicPodcast,
   TestimonialWithAuthor
 } from '@/types/profile';
+import { PodcastWithProfile } from '@/types/podcast';
 
 /**
  * [CONFIGURACIÓN DE RED]: force-dynamic
- * Forzamos que cada visita al perfil sea una consulta fresca a la Bóveda de NicePod.
- * Esto asegura que la Reputación Líquida y el conteo de Seguidores sean exactos.
  */
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 /**
- * INTERFAZ: ProfilePageProps
- * Contrato de parámetros para el motor de rutas de Next.js 14.
+ * INTERFAZ: ProfilePageProperties
  */
-interface ProfilePageProps {
+interface ProfilePageProperties {
   params: {
     username: string;
   };
@@ -37,64 +44,58 @@ interface ProfilePageProps {
 }
 
 /**
- * FUNCIÓN: generateMetadata
+ * generateMetadata:
  * Misión: Proyectar la autoridad del curador hacia indexadores y redes sociales.
- * [ESTABILIZACIÓN]: Búsqueda corregida por columna 'username'.
  */
-export async function generateMetadata({ params }: ProfilePageProps): Promise<Metadata> {
-  const supabase = createClient();
-  const targetUsername = decodeURIComponent(params.username);
+export async function generateMetadata({ params: routeParameters }: ProfilePageProperties): Promise<Metadata> {
+  const supabaseClient = createClient();
+  const targetUsernameIdentification = decodeURIComponent(routeParameters.username);
 
-  const { data: profile } = await supabase
+  const { data: administratorProfile } = await supabaseClient
     .from('profiles')
     .select('full_name, bio, avatar_url')
-    .eq('username', targetUsername)
+    .eq('username', targetUsernameIdentification)
     .single();
 
-  if (!profile) {
+  if (!administratorProfile) {
     return { title: "Perfil no localizado | NicePod" };
   }
 
-  const displayName = profile.full_name || `@${targetUsername}`;
+  const userDisplayName = administratorProfile.full_name || `@${targetUsernameIdentification}`;
 
   return {
-    title: `${displayName} | NicePod Intelligence Archive`,
-    description: profile.bio || `Explora las crónicas de sabiduría y el archivo de voz neuronal de ${displayName}.`,
+    title: `${userDisplayName} | NicePod Intelligence Archive`,
+    description: administratorProfile.bio || `Archivo de sabiduria y registro de voz de ${userDisplayName}.`,
     openGraph: {
-      title: `${displayName} en NicePod`,
-      description: profile.bio || '',
-      images: [profile.avatar_url || '/nicepod-logo.png'],
+      title: `${userDisplayName} en NicePod`,
+      description: administratorProfile.bio || '',
+      images: [administratorProfile.avatar_url || '/nicepod-logo.png'],
       type: 'profile',
-      username: targetUsername,
+      username: targetUsernameIdentification,
     },
     twitter: {
       card: 'summary_large_image',
-      title: `${displayName} | NicePod Sovereign Curator`,
-      images: [profile.avatar_url || '/nicepod-logo.png'],
-    },
-    robots: {
-      index: true,
-      follow: true,
+      title: `${userDisplayName} | NicePod Sovereign Curator`,
+      images: [administratorProfile.avatar_url || '/nicepod-logo.png'],
     }
   };
 }
 
 /**
- * COMPONENTE: PublicProfileRoute (Server Side)
- * El orquestador de datos que alimenta la visualización del curador.
+ * PublicProfileRoute: El orquestador de datos Server-Side.
  */
-export default async function PublicProfileRoute({ params, searchParams }: ProfilePageProps) {
-  const supabase = createClient();
+export default async function PublicProfileRoute({ 
+  params: routeParameters, 
+  searchParams: urlSearchParameters 
+}: ProfilePageProperties) {
+  
+  const supabaseClient = createClient();
+  const targetUsernameIdentification = decodeURIComponent(routeParameters.username);
 
-  // 1. DESCODIFICACIÓN DE IDENTIDAD
-  // Soportamos caracteres internacionales y handles complejos.
-  const targetUsername = decodeURIComponent(params.username);
-
-  // 2. HANDSHAKE DE DATOS CONCURRENTE (T0)
-  // Ejecutamos todas las consultas en paralelo para minimizar el tiempo de respuesta del servidor.
-  const [authResponse, profileResponse] = await Promise.all([
-    supabase.auth.getUser(),
-    supabase
+  // 1. HANDSHAKE DE DATOS CONCURRENTE (T0)
+  const [authenticationResponse, profileQueryResponse] = await Promise.all([
+    supabaseClient.auth.getUser(),
+    supabaseClient
       .from('profiles')
       .select(`
         id, 
@@ -110,100 +111,103 @@ export default async function PublicProfileRoute({ params, searchParams }: Profi
         created_at,
         updated_at
       `)
-      .eq('username', targetUsername)
+      .eq('username', targetUsernameIdentification)
       .single<ProfileData>()
   ]);
 
-  const visitor = authResponse.data.user;
-  const targetProfile = profileResponse.data;
+  const activeAuthenticatedUser = authenticationResponse.data.user;
+  const targetAdministratorProfile = profileQueryResponse.data;
 
-  // 3. PROTOCOLO DE EXISTENCIA
-  // Si la columna 'username' no coincide con la búsqueda, abortamos con 404 limpio.
-  if (profileResponse.error || !targetProfile) {
-    console.warn(`🛑 [SSR-Profile] Intento de acceso a perfil inexistente: ${targetUsername}`);
+  // 2. PROTOCOLO DE EXISTENCIA
+  if (profileQueryResponse.error || !targetAdministratorProfile) {
+    console.warn(`🛑 [SSR-Profile] Acceso a perfil inexistente: ${targetUsernameIdentification}`);
     notFound();
   }
 
-  // 4. REDIRECCIÓN DE SOBERANÍA
-  // Si el curador intenta ver su propio perfil público, lo enviamos a su Dashboard privado
-  // para permitirle la gestión, a menos que fuerce el modo visualización (?view=public).
-  const isViewingPublicMode = searchParams?.view === 'public';
-  if (visitor?.id === targetProfile.id && !isViewingPublicMode) {
+  // 3. REDIRECCIÓN DE SOBERANÍA (Autogestión vs Visualización)
+  const isViewingPublicInterfaceMode = urlSearchParameters?.view === 'public';
+  if (activeAuthenticatedUser?.id === targetAdministratorProfile.id && !isViewingPublicInterfaceMode) {
     redirect('/profile');
   }
 
-  // 5. COSECHA DE ACTIVOS INTELECTUALES (Fase II)
-  // Extraemos podcasts, likes y colecciones asociados al ID del perfil validado.
+  // 4. COSECHA DE ACTIVOS INTELECTUALES (Malla Completa)
   const [
-    podcastsResponse,
-    likesResponse,
+    publishedPodcastsResponse,
+    resonanceMetricsResponse,
     testimonialsResponse,
     collectionsResponse
   ] = await Promise.all([
-    // A. Podcasts: El registro histórico de la voz del curador.
-    supabase
+    // A. Podcasts: Registro histórico de la voz (Incluyendo perfil para tipado PodcastWithProfile)
+    supabaseClient
       .from('micro_pods')
-      .select('id, title, description, audio_url, cover_image_url, created_at, duration_seconds, play_count, like_count, status, creation_mode')
-      .eq('user_id', targetProfile.id)
+      .select('*, profiles:user_id(full_name, avatar_url, username, reputation_score, is_verified)')
+      .eq('user_id', targetAdministratorProfile.id)
       .eq('status', 'published')
       .order('created_at', { ascending: false }),
 
-    // B. Resonancia: Sumatoria de likes para el cálculo de prestigio en la UI.
-    supabase
+    // B. Resonancia: Sumatoria de interacciones
+    supabaseClient
       .from('micro_pods')
       .select('like_count')
-      .eq('user_id', targetProfile.id)
+      .eq('user_id', targetAdministratorProfile.id)
       .eq('status', 'published'),
 
-    // C. Testimonios: Validaciones sociales aprobadas por el curador.
-    supabase
+    // C. Testimonios: Validaciones aprobadas
+    supabaseClient
       .from('profile_testimonials')
       .select('*, author:author_user_id(full_name, avatar_url, username)')
-      .eq('profile_user_id', targetProfile.id)
+      .eq('profile_user_id', targetAdministratorProfile.id)
       .eq('status', 'approved')
       .order('created_at', { ascending: false })
       .returns<TestimonialWithAuthor[]>(),
 
-    // D. Colecciones: Hilos de conocimiento públicos.
-    supabase
+    // D. Colecciones: Hilos de conocimiento
+    supabaseClient
       .from('collections')
       .select('id, title, description, cover_image_url, updated_at, collection_items(count)')
-      .eq('owner_id', targetProfile.id)
+      .eq('owner_id', targetAdministratorProfile.id)
       .eq('is_public', true)
       .order('updated_at', { ascending: false })
   ]);
 
-  // 6. NORMALIZACIÓN Y CÁLCULO DE MÉTRICAS
-  const podcasts = (podcastsResponse.data || []) as PublicPodcast[];
-  const totalLikes = likesResponse.data?.reduce((sum, current) => sum + (current.like_count || 0), 0) ?? 0;
-  const testimonials = testimonialsResponse.data || [];
+  // 5. NORMALIZACIÓN Y CÁLCULO DE MÉTRICAS PERICIALES
+  const publishedPodcastsCollection = (publishedPodcastsResponse.data || []) as unknown as PodcastWithProfile[];
+  
+  const accumulatedResonanceCount = resonanceMetricsResponse.data?.reduce(
+    (totalAccumulator, currentItem) => totalAccumulator + (currentItem.like_count || 0), 0
+  ) ?? 0;
+  
+  const approvedTestimonialsCollection = testimonialsResponse.data || [];
 
-  // Transformación del conteo de ítems de colección (Supabase format to Interface)
-  const publicCollections = (collectionsResponse.data || []).map(col => ({
-    ...col,
-    collection_items: Array.isArray(col.collection_items) ? col.collection_items : [{ count: 0 }]
+  const publicCollectionsCollection = (collectionsResponse.data || []).map((collectionItem) => ({
+    ...collectionItem,
+    collection_items: Array.isArray(collectionItem.collection_items) 
+        ? collectionItem.collection_items 
+        : [{ count: 0 }]
   })) as unknown as Collection[];
 
   /**
-   * 7. ENTREGA ATÓMICA AL CLIENTE
-   * Inyectamos el ID como 'key' para forzar la estabilidad de la reconciliación de React.
+   * 6. ENTREGA ATÓMICA AL CLIENTE
+   * [FIX V9.0]: Sincronización nominal total con PublicProfilePageProperties.
    */
   return (
     <PublicProfilePage
-      key={targetProfile.id}
-      profile={targetProfile}
-      podcasts={podcasts}
-      totalLikes={totalLikes}
-      initialTestimonials={testimonials}
-      publicCollections={publicCollections}
+      key={targetAdministratorProfile.id}
+      administratorProfile={targetAdministratorProfile}
+      publishedPodcastsCollection={publishedPodcastsCollection}
+      accumulatedResonanceCount={accumulatedResonanceCount}
+      initialTestimonialsCollection={approvedTestimonialsCollection}
+      publicCollectionsCollection={publicCollectionsCollection}
     />
   );
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT:
- * Este orquestador elimina la 'Mentira' de los nombres de columnas (handle -> username).
- * Al utilizar Promise.all, el tiempo de ejecución en el servidor es equivalente
- * a la consulta más lenta, optimizando el TTFB (Time To First Byte).
- * La redirección automática protege la experiencia del usuario propietario.
+ * NOTA TÉCNICA DEL ARCHITECT (V9.0):
+ * 1. Zero Abbreviations Policy: Purificación absoluta de nomenclatura en todo el pipeline de datos.
+ * 2. Type Unification: Al obtener los podcasts con su relación de perfil, garantizamos que 
+ *    el 'publishedPodcastsCollection' satisfaga el tipo 'PodcastWithProfile[]', eliminando 
+ *    los errores de asignabilidad en los componentes hijos.
+ * 3. Contract Alignment: Se ajustaron las propiedades de salida para coincidir con el 
+ *    nuevo estándar de los componentes de perfil (V3.0).
  */
