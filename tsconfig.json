@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    /* --- CONFIGURACIÓN DE LENGUAJE Y ENTORNO --- */
+    /* --- CONFIGURACIÓN DE LENGUAJE Y ENTORNO DE EJECUCIÓN --- */
     "target": "esnext",
     "lib": [
       "dom",
@@ -22,13 +22,13 @@
     "noImplicitAny": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    /* --- SINCRO DE TIPOS (PWA & NODE) --- */
+    /* --- SINCRONIZACIÓN DE TIPOS (PROGRESSIVE WEB APP Y NODE) --- */
     "types": [
       "node",
       "@ducanh2912/next-pwa/workbox"
     ],
-    /* --- RESOLUCIÓN DE RUTAS (FIX PARA PNPM + MAPBOX) --- */
-    "baseUrl": ".",
+    /* --- RESOLUCIÓN DE RUTAS (REPARACIÓN PARA COMPATIBILIDAD CON MAPBOX) --- */
+    /* [REFORMA V4.1]: Se elimina 'baseUrl' para resolver la advertencia de obsolescencia en TypeScript 5.0+ */
     "paths": {
       "@/*": [
         "./*"
