@@ -1,7 +1,14 @@
-// components/player/full-screen-player.tsx
-// VERSIÓN: 30.0 (NicePod Studio - High Contrast & Performance Edition)
-// Misión: Orquestar inmersión total con legibilidad industrial y sincronía de hardware.
-// [ESTABILIZACIÓN]: Resolución de ceguera de contraste y optimización de Main Thread.
+/**
+ * ARCHIVO: components/player/full-screen-player.tsx
+ * VERSIÓN: 31.0 (NicePod Studio - High Contrast & Absolute Nominal Integrity)
+ * PROTOCOLO: MADRID RESONANCE V4.0
+ * 
+ * Misión: Orquestar la inmersión total del Voyager, garantizando legibilidad industrial,
+ * sincronía milimétrica con el hardware de audio y persistencia de resonancia.
+ * [REFORMA V31.0]: Sincronización nominal total con ScriptViewer V8.0, erradicación 
+ * absoluta de abreviaturas y cumplimiento del Dogma Técnico NicePod.
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ */
 
 "use client";
 
@@ -20,9 +27,9 @@ import {
   Volume2
 } from "lucide-react";
 import Image from "next/image";
-import { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 
-// --- INFRAESTRUCTURA NICEPOD ---
+// --- INFRAESTRUCTURA CORE NICEPOD ---
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { useAudio } from "@/contexts/audio-context";
@@ -32,13 +39,13 @@ import { cn, formatTime, getSafeAsset, nicepodLog } from "@/lib/utils";
 import { ScriptViewer } from "@/components/podcast/script-viewer";
 
 /**
- * FullScreenPlayer: La terminal de inmersión definitiva.
+ * FullScreenPlayer: La terminal de inmersión y peritaje narrativo definitiva.
  */
 export function FullScreenPlayer() {
   const {
     currentPodcast,
     isPlaying,
-    isLoading,
+    isLoading: isPlaybackLoading,
     togglePlayPause,
     seekTo,
     skipForward,
@@ -47,103 +54,129 @@ export function FullScreenPlayer() {
     logInteractionEvent
   } = useAudio();
 
-  const { supabase, user, profile } = useAuth();
+  const { supabase: supabaseClient, user: authenticatedUser, profile: administratorProfile } = useAuth();
   const { toast } = useToast();
 
-  // --- REFERENCIAS DE HARDWARE (Zero-Wait Sync) ---
-  const [localTime, setLocalTime] = useState<number>(0);
-  const [localDuration, setLocalDuration] = useState<number>(0);
-  const [isLiked, setIsLiked] = useState<boolean>(false);
-  const [isLiking, setIsLiking] = useState<boolean>(false);
+  // --- REFERENCIAS DE TELEMETRÍA DE HARDWARE ---
+  const [currentPlaybackTimeSeconds, setCurrentPlaybackTimeSeconds] = useState<number>(0);
+  const [totalAudioDurationSeconds, setTotalAudioDurationSeconds] = useState<number>(0);
+  const [isLikedByVoyager, setIsLikedByVoyager] = useState<boolean>(false);
+  const [isInteractionProcessActive, setIsInteractionProcessActive] = useState<boolean>(false);
 
   /**
-   * 1. PROTOCOLO DE SINCRONÍA POR HARDWARE (60FPS)
-   * Capturamos el evento nativo para actualizar el Slider sin despertar a todo el árbol de React.
+   * 1. PROTOCOLO DE SINCRONÍA POR HARDWARE (60 FPS)
+   * Capturamos la telemetría emitida por el AudioProvider para actualizar 
+   * el deslizador (Slider) sin penalizar el rendimiento del hilo principal.
    */
   useEffect(() => {
-    const handleSync = (event: Event) => {
+    const handleHardwarePulseSynchronization = (event: Event) => {
       const customEvent = event as CustomEvent<{ currentTime: number; duration: number }>;
       const { currentTime, duration } = customEvent.detail;
       
-      // Solo actualizamos el estado local para el Slider.
-      // El ScriptViewer ya se suscribe internamente al mismo evento para su propia lógica.
-      setLocalTime(currentTime);
-      if (duration > 0 && duration !== localDuration) {
-        setLocalDuration(duration);
+      setCurrentPlaybackTimeSeconds(currentTime);
+      if (duration > 0 && duration !== totalAudioDurationSeconds) {
+        setTotalAudioDurationSeconds(duration);
       }
     };
 
-    window.addEventListener('nicepod-timeupdate', handleSync as EventListener);
-    return () => window.removeEventListener('nicepod-timeupdate', handleSync as EventListener);
-  }, [localDuration]);
+    window.addEventListener('nicepod-timeupdate', handleHardwarePulseSynchronization as EventListener);
+    return () => {
+      window.removeEventListener('nicepod-timeupdate', handleHardwarePulseSynchronization as EventListener);
+    };
+  }, [totalAudioDurationSeconds]);
 
   /**
-   * 2. VERIFICACIÓN DE RESONANCIA (Like Status)
+   * 2. VERIFICACIÓN DE RESONANCIA EN BÓVEDA
    */
   useEffect(() => {
-    if (!user || !currentPodcast?.id) return;
+    if (!authenticatedUser || !currentPodcast?.id) {
+      return;
+    }
 
-    const checkLikeStatus = async () => {
+    const checkResonanceStatus = async () => {
       try {
-        const { data } = await supabase
+        const { data: resonanceData } = await supabaseClient
           .from('likes')
           .select('id')
-          .match({ user_id: user.id, podcast_id: currentPodcast.id })
+          .match({ user_id: authenticatedUser.id, podcast_id: currentPodcast.id })
           .maybeSingle();
-        setIsLiked(!!data);
-      } catch (err) {
-        nicepodLog("Falla en verificación de Bóveda", err, 'error');
+        
+        setIsLikedByVoyager(!!resonanceData);
+      } catch (exception) {
+        nicepodLog("Falla en verificación de Bóveda NKV", exception, 'error');
       }
     };
     
-    checkLikeStatus();
-  }, [user, currentPodcast?.id, supabase]);
+    checkResonanceStatus();
+  }, [authenticatedUser, currentPodcast?.id, supabaseClient]);
 
-  if (!currentPodcast) return null;
+  if (!currentPodcast) {
+    return null;
+  }
 
-  // --- MANEJADORES DE ACCIÓN ---
+  // --- MANEJADORES DE ACCIÓN TÁCTICA ---
 
-  const handleSeek = (value: number[]) => {
-    const newTime = value[0];
-    setLocalTime(newTime);
-    seekTo(newTime);
+  const handleTimelineAdjustmentAction = (value: number[]) => {
+    const targetTimeSeconds = value[0];
+    setCurrentPlaybackTimeSeconds(targetTimeSeconds);
+    seekTo(targetTimeSeconds);
   };
 
-  const handleToggleLike = async () => {
-    if (!user || !currentPodcast?.id || isLiking) return;
-    setIsLiking(true);
-    const originalState = isLiked;
-    setIsLiked(!originalState); // Optimistic UI update
+  const handleResonanceInteractionAction = async () => {
+    if (!authenticatedUser || !currentPodcast?.id || isInteractionProcessActive) {
+      return;
+    }
+
+    setIsInteractionProcessActive(true);
+    const originalResonanceState = isLikedByVoyager;
+    setIsLikedByVoyager(!originalResonanceState); // Actualización optimista de UI
 
     try {
-      if (originalState) {
-        await supabase.from('likes').delete().match({ user_id: user.id, podcast_id: currentPodcast.id });
+      if (originalResonanceState) {
+        await supabaseClient
+          .from('likes')
+          .delete()
+          .match({ user_id: authenticatedUser.id, podcast_id: currentPodcast.id });
       } else {
-        await supabase.from('likes').insert({ user_id: user.id, podcast_id: currentPodcast.id });
+        await supabaseClient
+          .from('likes')
+          .insert({ user_id: authenticatedUser.id, podcast_id: currentPodcast.id });
+        
         await logInteractionEvent('liked');
-        toast({ title: "Resonancia Registrada", className: "bg-primary text-white border-none" });
+        
+        toast({ 
+          title: "Resonancia Registrada", 
+          className: "bg-primary text-white border-none font-black uppercase tracking-widest text-[10px]" 
+        });
       }
-    } catch (err: any) {
-      setIsLiked(originalState); // Rollback
-      nicepodLog("🔥 [Social-Fail]", err.message, 'error');
-    } finally { setIsLiking(false); }
+    } catch (exception: any) {
+      setIsLikedByVoyager(originalResonanceState); // Reversión de estado (Rollback)
+      nicepodLog("🔥 [Resonance-Fail]:", exception.message, 'error');
+    } finally {
+      setIsInteractionProcessActive(false);
+    }
   };
 
-  const handleShare = async () => {
-    const url = `${window.location.origin}/podcast/${currentPodcast.id}`;
+  const handleKnowledgeSharingAction = async () => {
+    const resourceUniformResourceLocator = `${window.location.origin}/podcast/${currentPodcast.id}`;
     try {
       if (navigator.share) {
-        await navigator.share({ title: currentPodcast.title, url });
+        await navigator.share({ 
+          title: currentPodcast.title, 
+          url: resourceUniformResourceLocator 
+        });
         await logInteractionEvent('shared');
       } else {
-        await navigator.clipboard.writeText(url);
+        await navigator.clipboard.writeText(resourceUniformResourceLocator);
         toast({ title: "Enlace copiado al sector de memoria." });
       }
-    } catch { nicepodLog("Share protocol interrupted."); }
+    } catch {
+      nicepodLog("Share protocol interrupted by hardware.");
+    }
   };
 
-  const coverImage = getSafeAsset(currentPodcast.cover_image_url, 'cover');
-  const authorName = currentPodcast.profiles?.full_name || profile?.full_name || "Cronista Soberano";
+  const coverImageUniformResourceLocator = getSafeAsset(currentPodcast.cover_image_url, 'cover');
+  const authorDisplayName = currentPodcast.profiles?.full_name || administratorProfile?.full_name || "Cronista Soberano";
 
   return (
     <AnimatePresence>
@@ -154,14 +187,14 @@ export function FullScreenPlayer() {
         transition={{ type: "spring", damping: 30, stiffness: 200 }}
         className="fixed inset-0 z-[200] bg-[#020202] flex flex-col overflow-hidden selection:bg-primary/30"
       >
-        {/* FONDO AURORA (Calibración de Contraste) */}
+        {/* ATMÓSFERA AURORA (CALIBRACIÓN DE CONTRASTE INDUSTRIAL) */}
         <div className="absolute inset-0 pointer-events-none opacity-20 overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-primary/20 via-transparent to-indigo-950/30 blur-[150px]" />
         </div>
 
         <div className="relative z-10 flex flex-col h-full w-full max-w-screen-2xl mx-auto">
           
-          {/* --- ZONA 1: HEADER (Mando y Control) --- */}
+          {/* --- ZONA 1: CABECERA (MANDO Y CONTROL SOBERANO) --- */}
           <header className="flex items-center justify-between p-6 md:p-10 flex-shrink-0">
             <Button 
               onClick={collapsePlayer} 
@@ -176,7 +209,7 @@ export function FullScreenPlayer() {
               <span className="text-[10px] font-black uppercase tracking-[0.5em] text-primary/80 mb-2 animate-pulse">
                 Sincronía Nominal Activa
               </span>
-              <h2 className="max-w-[240px] md:max-w-xl font-black text-xs md:text-sm text-zinc-400 uppercase tracking-widest truncate italic">
+              <h2 className="max-w-[240px] md:max-w-xl font-black text-xs md:text-sm text-zinc-400 uppercase tracking-widest truncate italic font-serif">
                 {currentPodcast.title}
               </h2>
             </div>
@@ -186,37 +219,37 @@ export function FullScreenPlayer() {
             </div>
           </header>
 
-          {/* --- ZONA 2: ESCENARIO (Alta Fidelidad) --- */}
+          {/* --- ZONA 2: ESCENARIO DE PERITAJE (ALTA FIDELIDAD) --- */}
           <main className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-8 md:gap-16 px-6 md:px-14 items-center overflow-hidden">
             
-            {/* COLUMNA IZQUIERDA: EVIDENCIA VISUAL (5 Cols) */}
+            {/* COLUMNA IZQUIERDA: EVIDENCIA VISUAL (5 COLS) */}
             <div className="hidden lg:flex lg:col-span-5 flex-col items-center justify-center space-y-12">
               <motion.div 
                 whileHover={{ scale: 1.02 }}
                 className="relative w-full max-w-sm aspect-square shadow-[0_50px_100px_rgba(0,0,0,0.9)] rounded-[3rem] overflow-hidden border-2 border-white/10"
               >
-                <Image src={coverImage} alt={currentPodcast.title} fill className="object-cover" priority />
+                <Image src={coverImageUniformResourceLocator} alt={currentPodcast.title} fill className="object-cover" priority />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
               </motion.div>
               
               <div className="flex items-center gap-4 bg-zinc-900/50 px-8 py-4 rounded-3xl border border-white/10 backdrop-blur-3xl shadow-2xl">
                  <Sparkles className="h-5 w-5 text-primary animate-pulse" />
                  <span className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-100">
-                   Neural Link: {profile?.role === 'admin' ? 'Administrador' : 'Voyager'}
+                   Neural Link: {administratorProfile?.role === 'admin' ? 'Administrador' : 'Voyager'}
                  </span>
               </div>
             </div>
 
-            {/* COLUMNA DERECHA: CÁMARA NARRATIVA (7 Cols) */}
-            {/* [MEJORA CRÍTICA]: Se aumentó el contraste del fondo para legibilidad total */}
+            {/* COLUMNA DERECHA: CÁMARA NARRATIVA (7 COLS) */}
             <div className="lg:col-span-7 h-full w-full bg-[#080808] rounded-[3.5rem] border border-white/10 relative overflow-hidden shadow-[inset_0_0_100px_rgba(0,0,0,0.8)]">
-              {/* Máscaras de fundido para el Teleprompter */}
+              {/* Máscaras de fundido para el Teleprompter Industrial */}
               <div className="absolute top-0 inset-x-0 h-32 bg-gradient-to-b from-[#080808] to-transparent z-20 pointer-events-none" />
               
               <div className="h-full w-full">
+                {/* [FIX V31.0]: Sincronización nominal total con ScriptViewer properties */}
                 <ScriptViewer 
-                  scriptText={currentPodcast.script_text} 
-                  duration={currentPodcast.duration_seconds || localDuration}
+                  narrativeScriptContent={currentPodcast.script_text} 
+                  playbackDurationSeconds={currentPodcast.duration_seconds || totalAudioDurationSeconds}
                   className="px-8 md:px-16" 
                 />
               </div>
@@ -225,41 +258,41 @@ export function FullScreenPlayer() {
             </div>
           </main>
 
-          {/* --- ZONA 3: DOCK DE TELEMETRÍA (Footer) --- */}
+          {/* --- ZONA 3: DOCK DE TELEMETRÍA (FOOTER) --- */}
           <footer className="p-8 md:p-12 space-y-10 flex-shrink-0">
             
-            {/* BARRA DE PROGRESO INDUSTRIAL */}
+            {/* BARRA DE PROGRESO DE GRADO INDUSTRIAL */}
             <div className="max-w-4xl mx-auto w-full space-y-6">
               <Slider 
-                value={[localTime]} 
-                max={currentPodcast.duration_seconds || localDuration || 100} 
+                value={[currentPlaybackTimeSeconds]} 
+                max={currentPodcast.duration_seconds || totalAudioDurationSeconds || 100} 
                 step={0.1} 
-                onValueChange={handleSeek} 
+                onValueChange={handleTimelineAdjustmentAction} 
                 className="cursor-pointer" 
               />
               <div className="flex justify-between items-center text-[11px] font-black font-mono tracking-[0.4em] uppercase px-1">
                 <span className="text-primary tabular-nums">
-                  {formatTime(localTime)}
+                  {formatTime(currentPlaybackTimeSeconds)}
                 </span>
                 <div className="h-[1px] flex-1 mx-10 bg-white/10" />
                 <span className="text-zinc-600 tabular-nums">
-                  {formatTime(currentPodcast.duration_seconds || localDuration)}
+                  {formatTime(currentPodcast.duration_seconds || totalAudioDurationSeconds)}
                 </span>
               </div>
             </div>
 
-            {/* MANDOS TÁCTICOS CENTRALES */}
+            {/* MANDOS TÁCTICOS DE REPRODUCCIÓN */}
             <div className="flex items-center justify-between max-w-4xl mx-auto w-full">
               
               <Button 
-                onClick={handleToggleLike} 
+                onClick={handleResonanceInteractionAction} 
                 variant="ghost" 
                 className={cn(
                   "h-14 w-14 rounded-2xl border transition-all duration-500 active:scale-90", 
-                  isLiked ? "bg-red-500/10 border-red-500/30 text-red-500 shadow-[0_0_30px_rgba(239,68,68,0.2)]" : "bg-white/5 border-white/5 text-zinc-600 hover:text-white"
+                  isLikedByVoyager ? "bg-red-500/10 border-red-500/30 text-red-500 shadow-[0_0_30px_rgba(239,68,68,0.2)]" : "bg-white/5 border-white/5 text-zinc-600 hover:text-white"
                 )}
               >
-                <Heart className={cn("h-6 w-6 transition-all duration-700", isLiked && "fill-current scale-110")} />
+                <Heart className={cn("h-6 w-6 transition-all duration-700", isLikedByVoyager && "fill-current scale-110")} />
               </Button>
 
               <div className="flex items-center gap-6 md:gap-14">
@@ -273,10 +306,10 @@ export function FullScreenPlayer() {
 
                 <Button 
                   onClick={togglePlayPause} 
-                  disabled={isLoading}
+                  disabled={isPlaybackLoading}
                   className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-white text-black hover:bg-primary hover:text-white hover:scale-105 active:scale-95 transition-all shadow-[0_0_50px_rgba(255,255,255,0.15)]"
                 >
-                  {isLoading ? (
+                  {isPlaybackLoading ? (
                     <Loader2 className="h-10 w-10 animate-spin" />
                   ) : isPlaying ? (
                     <Pause className="h-12 w-12 fill-current" />
@@ -295,10 +328,17 @@ export function FullScreenPlayer() {
               </div>
 
               <div className="flex gap-3">
-                <Button onClick={handleShare} variant="ghost" className="h-14 w-14 rounded-2xl bg-white/5 border border-white/5 text-zinc-600 hover:text-white active:scale-90">
+                <Button 
+                  onClick={handleKnowledgeSharingAction} 
+                  variant="ghost" 
+                  className="h-14 w-14 rounded-2xl bg-white/5 border border-white/5 text-zinc-600 hover:text-white active:scale-90"
+                >
                   <Share2 size={22} />
                 </Button>
-                <Button variant="ghost" className="h-14 w-14 rounded-2xl bg-white/5 border border-white/5 text-zinc-600 hover:text-white hidden md:flex active:scale-90">
+                <Button 
+                  variant="ghost" 
+                  className="h-14 w-14 rounded-2xl bg-white/5 border border-white/5 text-zinc-600 hover:text-white hidden md:flex active:scale-90"
+                >
                   <Download size={22} />
                 </Button>
               </div>
@@ -308,7 +348,7 @@ export function FullScreenPlayer() {
             <div className="flex justify-center items-center gap-6 opacity-30 pb-2">
                <div className="h-[1px] w-12 bg-white/20" />
                <span className="text-[9px] font-black uppercase tracking-[0.5em] text-zinc-400 italic">
-                 Cronista: {authorName}
+                 Cronista: {authorDisplayName}
                </span>
                <div className="h-[1px] w-12 bg-white/20" />
             </div>
@@ -321,14 +361,11 @@ export function FullScreenPlayer() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V30.0):
- * 1. Cámara de Lectura: Se ha sustituido el fondo translúcido '#050505/40' por 
- *    un sólido profundo '#080808' con borde reforzado 'white/10'. Esto resuelve 
- *    la ceguera de contraste detectada en el peritaje visual.
- * 2. Hardware Sync: El uso del evento 'nicepod-timeupdate' garantiza que el 
- *    Slider se mueva con fluidez táctil sin saturar el Bridge de React.
- * 3. Diseño Atómico: Se ha redimensionado la cabecera y el footer para maximizar 
- *    el área de la 'Malla Narrativa', priorizando el capital intelectual.
- * 4. UX Optimizada: Se integró el 'profile.full_name' como fallback para la 
- *    identidad del autor, asegurando que el crédito siempre sea visible.
+ * NOTA TÉCNICA DEL ARCHITECT (V31.0):
+ * 1. Contract Synchronization: Se neutralizó el error TS2322 inyectando 'narrativeScriptContent' 
+ *    y 'playbackDurationSeconds' en el ScriptViewer, alineándose con el estándar V8.0.
+ * 2. Zero Abbreviations Policy: Purificación absoluta de términos (isPlaybackLoading, 
+ *    isLikedByVoyager, currentPlaybackTimeSeconds, exception).
+ * 3. High Fidelity UI: El uso de fondos sólidos en la columna de lectura garantiza que no 
+ *    exista degradación del capital intelectual ante cambios en la portada del podcast.
  */
