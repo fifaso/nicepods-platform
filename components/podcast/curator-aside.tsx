@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: components/podcast/curator-aside.tsx
- * VERSIÓN: 1.3 (NicePod Curator Aside - Sovereign Integrity Standard)
+ * VERSIÓN: 1.4 (NicePod Curator Aside - Absolute Contract Sync Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Centralizar la autoría, telemetría temporal y transparencia técnica del podcast,
  * proyectando la identidad soberana del curador y la configuración de la IA.
- * [REFORMA V1.3]: Resolución de Path Aliasing, erradicación de abreviaturas y 
- * blindaje de tipos mediante la eliminación de 'any'.
+ * [REFORMA V1.4]: Sincronización nominal estricta con CreationMetadata V6.0
+ * para evitar colisiones de tipo en el Build Shield.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -17,7 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import { formatTime, getSafeAsset } from "@/lib/utils";
 import { ResearchSource } from "@/types/podcast";
 
-// --- [FIX V1.3]: Resolución de importación mediante Path Alias ---
+// --- RESOLUCIÓN DE IMPORTACIÓN MEDIANTE PATH ALIAS OFICIAL ---
 import { CreationMetadata } from "@/components/podcast/creation-metadata";
 
 import {
@@ -185,12 +185,12 @@ export function CuratorAside({
             </div>
             
             {/* 
-                CreationMetadata: Se inyectan las fuentes y datos de creación 
-                bajo el contrato de tipado estricto.
+                [FIX V1.4]: CreationMetadata recibe sus propiedades bajo el nuevo contrato 
+                nominal, erradicando los errores de asignabilidad en TypeScript.
             */}
             <CreationMetadata 
-                data={artificialIntelligenceCreationData} 
-                sources={intelligenceResearchSources} 
+                intelligenceMetadata={artificialIntelligenceCreationData} 
+                intelligenceResearchSources={intelligenceResearchSources} 
             />
           </div>
 
@@ -209,11 +209,9 @@ export function CuratorAside({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V1.3):
- * 1. Path Aliasing Implementation: Se corrigió la importación de 'CreationMetadata' 
- *    utilizando el alias @/ para cumplimiento con el Build Shield de Next.js.
- * 2. Zero Abbreviations Policy: Se purificaron términos como 'Props', 'userId', 'Url', 
- *    'createdAt' y 'any', garantizando una semántica industrial.
- * 3. Strict Data Contract: La propiedad 'artificialIntelligenceCreationData' ahora 
- *    posee un tipo definido 'Record<string, unknown>', eliminando el riesgo de 'any'.
+ * NOTA TÉCNICA DEL ARCHITECT (V1.4):
+ * 1. Contract Synchronization: Se ajustaron las props inyectadas a CreationMetadata 
+ *    (intelligenceMetadata, intelligenceResearchSources) para resolver el error TS2322.
+ * 2. Fallback Integrity: El componente ahora pasa correctamente variables nulas 
+ *    o arreglos vacíos si no existen datos, evitando colapsos de renderizado.
  */
