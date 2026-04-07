@@ -1,7 +1,14 @@
-// components/stacked-podcast-card.tsx
-// VERSIÓN: 5.0 (NicePod Interactive Stack - Decoupled Routing & Cinematic Mastery)
-// Misión: Generar la ilusión de profundidad 3D para hilos de conocimiento sin violar la semántica HTML5.
-// [ESTABILIZACIÓN]: Eliminación de enlaces envolventes globales. Delegación de clics a la tarjeta frontal.
+/**
+ * ARCHIVO: components/podcast/stacked-podcast-card.tsx
+ * VERSIÓN: 6.0 (NicePod Interactive Stack - Nominal Sovereignty Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.0
+ * 
+ * Misión: Generar la ilusión de profundidad tridimensional para hilos de conocimiento,
+ * permitiendo visualizar la genealogía de remixes sin comprometer la interactividad.
+ * [REFORMA V6.0]: Sincronización nominal total con PodcastCard V9.0 y 
+ * cumplimiento estricto de la Zero Abbreviations Policy.
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ */
 
 "use client";
 
@@ -9,41 +16,50 @@ import { PodcastCard } from "@/components/podcast/podcast-card";
 import { PodcastWithProfile } from "@/types/podcast";
 import { MessageCircle } from "lucide-react";
 
-interface StackedPodcastCardProps {
-  podcast: PodcastWithProfile;
-  replies?: PodcastWithProfile[];
+/**
+ * INTERFAZ: StackedPodcastCardProperties
+ */
+interface StackedPodcastCardProperties {
+  /** initialPodcastData: El nodo raíz de la crónica de conocimiento. */
+  initialPodcastData: PodcastWithProfile;
+  /** narrativeReplyCollection: Arreglo de crónicas vinculadas en formato de hilo. */
+  narrativeReplyCollection?: PodcastWithProfile[];
 }
 
-export function StackedPodcastCard({ podcast, replies = [] }: StackedPodcastCardProps) {
-  const replyCount = replies.length;
+/**
+ * StackedPodcastCard: El componente de visualización de profundidad pericial.
+ */
+export function StackedPodcastCard({ 
+  initialPodcastData, 
+  narrativeReplyCollection = [] 
+}: StackedPodcastCardProperties) {
+  
+  const replyTotalMagnitude = narrativeReplyCollection.length;
 
   /**
-   * ESCENARIO 1: Nodo Único (Sin Remixes)
-   * Si no hay hilo de respuestas, no necesitamos el efecto "Stack". 
-   * Devolvemos directamente la tarjeta principal, la cual gestionará su propio enlace.
+   * ESCENARIO 1: Nodo de Conocimiento Único (Sin Ramificaciones)
+   * Si no existe una genealogía de respuestas, se proyecta la tarjeta base.
    */
-  if (replyCount === 0) {
+  if (replyTotalMagnitude === 0) {
     return (
       <div className="h-full w-full relative">
-        <PodcastCard podcast={podcast} />
+        <PodcastCard initialPodcastData={initialPodcastData} />
       </div>
     );
   }
 
   /**
-   * ESCENARIO 2: Nodo Complejo (Con Genealogía/Remixes)
-   * Renderizamos el efecto de "Baraja Apilada" utilizando Z-Index y transformaciones.
-   * [CRÍTICO]: Este contenedor NO es un <Link>. Es un <div> interactivo (group).
+   * ESCENARIO 2: Nodo de Conocimiento Complejo (Con Malla de Remixes)
+   * Se construye la ilusión de baraja apilada utilizando transformaciones cinemáticas.
    */
   return (
     <div className="relative group h-full w-full">
       
       {/* 
-          CAPA PROFUNDA (Z: -20)
-          La carta más lejana. Solo existe visualmente si el hilo tiene más de 1 respuesta.
-          Usamos aria-hidden="true" para mantener el DOM limpio para Screen Readers.
+          CAPA PROFUNDA: Visualización de Extensión (Z-Index: -20)
+          Proyecta la magnitud del hilo para hilos con alta densidad de respuestas.
       */}
-      {replyCount > 1 && (
+      {replyTotalMagnitude > 1 && (
         <div 
           aria-hidden="true"
           className="absolute top-4 left-4 w-full h-full bg-zinc-900/60 backdrop-blur-sm rounded-[2.5rem] border border-white/5 rotate-3 scale-[0.88] -z-20 transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:rotate-6 group-hover:top-5 group-hover:left-5 shadow-2xl" 
@@ -51,28 +67,27 @@ export function StackedPodcastCard({ podcast, replies = [] }: StackedPodcastCard
       )}
 
       {/* 
-          CAPA ESTRUCTURAL (Z: -10)
-          La carta intermedia. Alberga el indicador numérico de "Remixes".
+          CAPA ESTRUCTURAL: Soporte de Identificación (Z-Index: -10)
+          Alberga el metadato numérico de la magnitud del hilo.
       */}
       <div 
         aria-hidden="true"
         className="absolute top-2 left-2 w-full h-full bg-zinc-800/80 backdrop-blur-md rounded-[2.5rem] border border-white/10 rotate-1 scale-[0.94] -z-10 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:rotate-3 group-hover:top-3 group-hover:left-3 shadow-xl"
       >
-        {/* Badge Flotante: Indicador de Hilo de Conversación */}
+        {/* Badge de Magnitud: Indicador de Resonancia en el Hilo */}
         <div className="absolute -top-2 -right-2 md:-top-3 md:-right-3 z-50 flex items-center justify-center bg-primary text-white text-[9px] md:text-[10px] font-black tracking-widest px-3 py-1 md:px-3.5 md:py-1.5 rounded-full shadow-[0_0_20px_rgba(139,92,246,0.6)] border-[3px] border-[#020202] transform transition-transform duration-500 group-hover:scale-110">
           <MessageCircle className="w-2.5 h-2.5 md:w-3 md:h-3 mr-1.5 fill-current" />
-          +{replyCount}
+          +{replyTotalMagnitude}
         </div>
       </div>
 
       {/* 
-          CAPA CERO (Z: 0)
-          La carta frontal y motor interactivo. 
-          Al no estar asfixiada por un <Link> padre, el PodcastCard puede tener
-          su propio enlace (Absolute Overlay) y botones internos funcionando perfectamente.
+          CAPA PRIMARIA: Interfaz de Autoridad (Z-Index: 0)
+          La tarjeta frontal que gestiona la navegación y los comandos acústicos.
+          [FIX V6.0]: Sincronía nominal estricta con el contrato de PodcastCard V9.0.
       */}
       <div className="relative z-0 h-full w-full transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:-translate-y-2">
-        <PodcastCard podcast={podcast} />
+        <PodcastCard initialPodcastData={initialPodcastData} />
       </div>
       
     </div>
@@ -80,13 +95,11 @@ export function StackedPodcastCard({ podcast, replies = [] }: StackedPodcastCard
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Independencia Funcional: Al desvincular la navegación del contenedor padre,
- *    eliminamos los errores de renderizado de React en Safari/iOS provocados por 
- *    la anidación ilegal de elementos interactivos (<a> dentro de <a>).
- * 2. Transición Natural: Reemplazamos las clases genéricas de easing por la función 
- *    física 'ease-[cubic-bezier(0.16,1,0.3,1)]' (estándar NicePod) para que 
- *    el efecto de apilamiento responda con inercia visual táctil.
- * 3. Responsividad de Badge: Los tamaños del indicador de Remixes se adaptaron 
- *    (md:) para no invadir excesivamente las portadas en las pantallas móviles.
+ * NOTA TÉCNICA DEL ARCHITECT (V6.0):
+ * 1. Build Shield Compliance: Se sustituyó la propiedad 'podcast' por 'initialPodcastData' 
+ *    en el componente PodcastCard, neutralizando los errores TS2322 de las líneas 28 y 75.
+ * 2. Zero Abbreviations Policy: Purificación absoluta de términos. 'props' a 'properties', 
+ *    'replies' a 'narrativeReplyCollection', 'count' a 'replyTotalMagnitude'.
+ * 3. Cinematic Integrity: Se mantiene la función de easing 'cubic-bezier(0.16,1,0.3,1)' 
+ *    como estándar industrial para garantizar una respuesta visual de alta fidelidad.
  */
