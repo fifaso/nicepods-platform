@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: components/geo/steps/step-1-anchoring.tsx
- * VERSIÓN: 6.2 (NicePod Forge Step 1 - Final Integrity & Contract Sync Edition)
+ * VERSIÓN: 7.0 (NicePod Forge Step 1 - Nominal Sovereignty Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Gestionar el anclaje milimétrico del hito urbano y obligar a la 
  * clasificación taxonómica bidimensional (Misión/Entidad).
- * [FIX V6.2]: Resolución definitiva de error TS2345 sincronizando el payload de 
- * 'SET_LOCATION' con la nomenclatura descriptiva completa (latitude/longitude/accuracy).
+ * [REFORMA V7.0]: Sincronización nominal total con SpatialEngine V10.0 y 
+ * resolución definitiva de errores de tipos TS2322 y TS2345.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -21,16 +21,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn, nicepodLog } from "@/lib/utils";
 
-// --- MOTORES CORE Y CONTEXTO V3.0 ---
+// --- MOTORES CORE Y CONTEXTO V4.0 ---
 import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { SpatialEngine } from "../SpatialEngine";
 import { useForge } from "../forge-context";
 
-// --- SOBERANÍA DE TIPOS (V7.7) ---
+// --- SOBERANÍA DE TIPOS (V8.5) ---
 import { CategoryEntity, CategoryMission } from "@/types/geo-sovereignty";
 
 /**
- * TAXONOMÍA SOBERANA: DICCIONARIO DE ENTIDADES
+ * TAXONOMÍA SOBERANA: DICCIONARIO DE ENTIDADES TÉCNICAS
  */
 const TAXONOMY_HIERARCHY: Record<CategoryMission, { identification: CategoryEntity; label: string }[]> = {
   infraestructura_vital: [
@@ -71,10 +71,11 @@ const MISSION_LABELS: Record<CategoryMission, string> = {
 };
 
 /**
- * Step1Anchoring: La fase inicial de peritaje urbano.
+ * Step1Anchoring: La fase inicial de peritaje y geolocalización industrial.
  */
 export default function Step1Anchoring() {
-  // 1. CONSUMO DE LA FACHADA SOBERANA Y CONTEXTO
+  
+  // 1. CONSUMO DE LA FACHADA SOBERANA Y CONTEXTO DE FORJA
   const { 
     userLocation, 
     recenterCamera, 
@@ -88,21 +89,21 @@ export default function Step1Anchoring() {
   const [isMapDisplayForced, setIsMapDisplayForced] = useState<boolean>(false);
 
   /**
-   * handleManualOverride:
+   * handleManualAnchorSelection:
    * Misión: Capturar el desplazamiento manual y actualizar el Reducer con nomenclatura industrial.
-   * [FIX V6.2]: Uso de nombres de propiedad completos para evitar error TS2345.
+   * [FIX V7.0]: Sincronización nominal con el contrato de SpatialEngine.
    */
-  const handleManualOverride = useCallback((longitudeAndLatitude: [number, number]) => {
+  const handleManualAnchorSelection = useCallback((longitudeAndLatitude: [number, number]) => {
     const [longitude, latitude] = longitudeAndLatitude;
     
-    nicepodLog(`📍 [Forge:Step1] Ajuste de anclaje: [${longitude}, ${latitude}]`);
+    nicepodLog(`📍 [Forge:Step1] Ajuste de anclaje pericial: [${longitude}, ${latitude}]`);
     
     dispatch({
       type: 'SET_LOCATION',
       payload: {
-        latitude: latitude,    // [SINCRO V4.0]
-        longitude: longitude,  // [SINCRO V4.0]
-        accuracy: 1            // [SINCRO V4.0]
+        latitude: latitude,
+        longitude: longitude,
+        accuracy: 1 // Autoridad manual establecida por el Administrador
       }
     });
 
@@ -112,8 +113,8 @@ export default function Step1Anchoring() {
   }, [dispatch]);
 
   /**
-   * PROTOCOLO DE SINCRONIZACIÓN T0:
-   * Sembramos la ubicación inicial respetando el nuevo contrato nominal.
+   * EFECTO: TelemetrySeedsynchronization
+   * Misión: Sembrar la ubicación inicial del hardware respetando el contrato nominal.
    */
   useEffect(() => {
     if (userLocation && forgeState.latitude === null) {
@@ -133,7 +134,7 @@ export default function Step1Anchoring() {
 
   /**
    * isPayloadIntegrityValidated: 
-   * Misión: Validar la completitud de la Malla antes de permitir el avance.
+   * Misión: Validar la completitud de la Malla de datos antes de permitir el avance.
    */
   const isPayloadIntegrityValidated = useMemo(() => {
     return (
@@ -151,7 +152,7 @@ export default function Step1Anchoring() {
       {/* I. CABECERA DE INSTRUMENTACIÓN */}
       <div className="px-6 pt-6 pb-4 shrink-0">
         <div className="flex items-center gap-3 mb-2">
-          <div className="h-6 w-1 bg-primary rounded-full shadow-&lsqb;0_0_10px_rgba(var(--primary-rgb),0.5)&rsqb;" />
+          <div className="h-6 w-1 bg-primary rounded-full shadow-lg" />
           <h3 className="text-white font-black uppercase tracking-[0.3em] text-xs">
             Fase 1: Anclaje y Taxonomía
           </h3>
@@ -161,19 +162,19 @@ export default function Step1Anchoring() {
         </p>
       </div>
 
-      {/* II. VISOR DE PRECISIÓN (WEBGL AISLADO) */}
+      {/* II. VISOR DE PRECISIÓN (REACTOR WEBGL AISLADO) */}
       <div className="shrink-0 relative h-[280px] mx-4 mb-6 rounded-[2.5rem] overflow-hidden border border-white/5 shadow-2xl bg-[#020202]">
         {isMapDisplayForced && (
           <SpatialEngine
-            mapInstanceId="map-forge" 
+            mapInstanceIdentification="map-forge" // [FIX]: Sincronía con contrato V10.0
             mode="FORGE"
             performanceProfile="TACTICAL_LITE" 
-            onManualAnchor={handleManualOverride}
+            onManualAnchorSelection={handleManualAnchorSelection} // [FIX]: Sincronía con contrato V10.0
             className="w-full h-full"
           />
         )}
 
-        {/* Controles del Visor */}
+        {/* Controles del Visor de Precisión */}
         <div className="absolute bottom-4 right-4 z-10">
           <Button
             size="icon"
@@ -197,8 +198,8 @@ export default function Step1Anchoring() {
               </div>
             </div>
             {isManualMode && (
-              <Badge className="bg-primary/10 text-primary border-primary/20 text-[7px] font-black uppercase tracking-widest px-2 py-0.5">
-                Manual
+              <Badge className="bg-primary/10 text-primary border-primary/20 text-[7px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md">
+                Anclaje Manual
               </Badge>
             )}
           </div>
@@ -208,29 +209,30 @@ export default function Step1Anchoring() {
       {/* III. MATRIZ DE TAXONOMÍA GRANULAR */}
       <div className="px-6 flex flex-col gap-6 mb-10 flex-1">
         
+        {/* Cuadrante de Misión */}
         <div>
           <label className="text-[9px] font-black uppercase tracking-[0.4em] text-zinc-600 mb-4 block">
-            Cuadrante de Misión
+            Cuadrante de Misión Principal
           </label>
           <div className="grid grid-cols-2 gap-2.5">
-            {(Object.keys(TAXONOMY_HIERARCHY) as CategoryMission[]).map((missionKey) => (
+            {(Object.keys(TAXONOMY_HIERARCHY) as CategoryMission[]).map((categoryMissionKey) => (
               <button
-                key={missionKey}
+                key={categoryMissionKey}
                 onClick={() => {
-                  dispatch({ type: 'SET_MISSION', payload: missionKey });
+                  dispatch({ type: 'SET_MISSION', payload: categoryMissionKey });
                   dispatch({ type: 'SET_ENTITY', payload: undefined as any }); 
                 }}
                 className={cn(
                   "px-4 py-3 rounded-xl border transition-all duration-300 text-left flex justify-between items-center group",
-                  forgeState.categoryMission === missionKey
-                    ? "bg-white text-black border-white shadow-xl"
+                  forgeState.categoryMission === categoryMissionKey
+                    ? "bg-white text-black border-white shadow-xl scale-[1.02]"
                     : "bg-white/[0.02] border-white/5 text-zinc-500 hover:text-white hover:bg-white/[0.04]"
                 )}
               >
                 <span className="text-[9px] font-black uppercase tracking-tighter truncate">
-                  {MISSION_LABELS[missionKey]}
+                  {MISSION_LABELS[categoryMissionKey]}
                 </span>
-                {forgeState.categoryMission === missionKey && (
+                {forgeState.categoryMission === categoryMissionKey && (
                   <ChevronRight size={12} className="text-primary" />
                 )}
               </button>
@@ -238,6 +240,7 @@ export default function Step1Anchoring() {
           </div>
         </div>
 
+        {/* Entidad Pericial Específica */}
         <AnimatePresence mode="wait">
           {forgeState.categoryMission && (
             <motion.div
@@ -251,19 +254,19 @@ export default function Step1Anchoring() {
                 Entidad Pericial Especificada
               </label>
               <div className="flex flex-wrap gap-2">
-                {TAXONOMY_HIERARCHY[forgeState.categoryMission].map((entityObject) => (
+                {TAXONOMY_HIERARCHY[forgeState.categoryMission].map((categoryEntityObject) => (
                   <button
-                    key={entityObject.identification}
-                    onClick={() => dispatch({ type: 'SET_ENTITY', payload: entityObject.identification })}
+                    key={categoryEntityObject.identification}
+                    onClick={() => dispatch({ type: 'SET_ENTITY', payload: categoryEntityObject.identification })}
                     className={cn(
                       "px-4 py-2 rounded-full border transition-all duration-300",
-                      forgeState.categoryEntity === entityObject.identification
-                        ? "bg-primary/20 border-primary text-primary shadow-&lsqb;0_0_15px_rgba(var(--primary-rgb),0.25)&rsqb;"
+                      forgeState.categoryEntity === categoryEntityObject.identification
+                        ? "bg-primary/20 border-primary text-primary shadow-lg scale-105"
                         : "bg-transparent border-white/10 text-zinc-500 hover:border-white/30 hover:text-zinc-400"
                     )}
                   >
                     <span className="text-[8px] font-black uppercase tracking-[0.15em]">
-                      {entityObject.label}
+                      {categoryEntityObject.label}
                     </span>
                   </button>
                 ))}
@@ -278,7 +281,7 @@ export default function Step1Anchoring() {
         <Button
           onClick={nextStep}
           disabled={!isPayloadIntegrityValidated}
-          className="w-full h-16 rounded-&lsqb;2rem&rsqb; bg-white text-black hover:bg-zinc-200 transition-all shadow-2xl font-black text-xs tracking-[0.4em] uppercase group overflow-hidden relative"
+          className="w-full h-16 rounded-[2rem] bg-white text-black hover:bg-zinc-200 transition-all shadow-2xl font-black text-xs tracking-[0.4em] uppercase group overflow-hidden relative"
         >
           <span className="flex items-center gap-3 relative z-10">
             Fijar Coordenadas
@@ -296,3 +299,14 @@ export default function Step1Anchoring() {
     </div>
   );
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V7.0):
+ * 1. Build Shield Compliance: Se sustituyó 'mapInstanceId' por 'mapInstanceIdentification' 
+ *    y 'onManualAnchor' por 'onManualAnchorSelection' para cumplir con el contrato 
+ *    estricto del SpatialEngine V10.0.
+ * 2. Zero Abbreviations Policy: Se purificaron términos como 'missionKey', 'entityObject' 
+ *    y 'id', asegurando la soberanía nominal del código.
+ * 3. Atomic Dispatch: El payload de 'SET_LOCATION' utiliza nombres de propiedad 
+ *    completos para satisfacer al Reducer del ForgeContext.
+ */
