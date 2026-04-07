@@ -288,6 +288,10 @@
 │   └── audio-context.tsx
 ├── distill_schema.py
 ├── hooks
+│   ├── geo-engine
+│   │   ├── interface-core.tsx
+│   │   ├── radar-core.tsx
+│   │   └── telemetry-core.tsx
 │   ├── use-auth.tsx
 │   ├── use-debounce.ts
 │   ├── use-forge-orchestrator.ts
@@ -313,15 +317,16 @@
 │   │   ├── client.ts
 │   │   └── server.ts
 │   ├── utils.ts
-│   └── validation
-│       ├── podcast-schema.ts
-│       ├── poi-schema.ts
-│       └── social-schema.ts
+│   ├── validation
+│   │   ├── podcast-schema.ts
+│   │   ├── poi-schema.ts
+│   │   └── social-schema.ts
+│   └── workers
+│       └── compression.worker.ts
 ├── middleware.ts
 ├── next-env.d.ts
 ├── next.config.mjs
 ├── package.json
-├── pnpm-lock.yaml
 ├── postcss.config.mjs
 ├── posthog.ts
 ├── public
@@ -423,18 +428,18 @@
 │   │   │   └── index.ts
 │   │   └── vault-refinery
 │   │       └── index.ts
-│   ├── migrations
 │   └── service-account.json
 ├── tailwind.config.ts
 ├── tsconfig.json
 ├── tsconfig.tsbuildinfo
 └── types
     ├── database-overrides.d.ts
-    ├── database.types.ts
-    ├── geo-sovereignty.ts
-    ├── podcast.ts
-    ├── profile.ts
-    ├── pulse.ts
-    └── supabase.ts
+        ├── database.types.ts
+            ├── geo-sovereignty.ts
+                ├── podcast.ts
+                    ├── profile.ts
+                        ├── pulse.ts
+                            └── supabase.ts
 
-96 directories, 342 files
+                            97 directories, 345 files
+                            
