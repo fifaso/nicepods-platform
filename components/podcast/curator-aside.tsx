@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: components/podcast/curator-aside.tsx
- * VERSIÓN: 1.4 (NicePod Curator Aside - Absolute Contract Sync Edition)
+ * VERSIÓN: 1.5 (NicePod Curator Aside - Sovereign Integrity Standard)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Centralizar la autoría, telemetría temporal y transparencia técnica del podcast,
  * proyectando la identidad soberana del curador y la configuración de la IA.
- * [REFORMA V1.4]: Sincronización nominal estricta con CreationMetadata V6.0
- * para evitar colisiones de tipo en el Build Shield.
+ * [REFORMA V1.5]: Sincronización nominal total con CreationMetadataPayload V11.0, 
+ * erradicación de 'any' y resolución definitiva de la colisión de nulabilidad (TS2322).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -15,7 +15,9 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { formatTime, getSafeAsset } from "@/lib/utils";
-import { ResearchSource } from "@/types/podcast";
+
+// --- CONTRATOS DE DATOS Y TIPADO SOBERANO (V11.0) ---
+import { ResearchSource, CreationMetadataPayload } from "@/types/podcast";
 
 // --- RESOLUCIÓN DE IMPORTACIÓN MEDIANTE PATH ALIAS OFICIAL ---
 import { CreationMetadata } from "@/components/podcast/creation-metadata";
@@ -41,20 +43,20 @@ interface CuratorAsideProperties {
     full_name: string | null;
     avatar_url: string | null;
     username: string;
-    reputation_score?: number;
-    is_verified?: boolean;
-    role?: string;
+    reputation_score?: number | null;
+    is_verified?: boolean | null;
+    role?: string | null;
   } | null;
   creationDateString: string;
   playbackDurationSeconds: number;
   geographicPlaceName: string | null;
-  artificialIntelligenceCreationData: Record<string, unknown> | null;
+  artificialIntelligenceCreationData: CreationMetadataPayload | null; // [FIX]: Tipado Soberano
   intelligenceResearchSources: ResearchSource[];
   isIntelligenceConstructing: boolean;
 }
 
 /**
- * CuratorAside: El nodo de identidad soberana y metadatos técnicos.
+ * CuratorAside: El nodo de identidad soberana y metadatos técnicos de la Workstation.
  */
 export function CuratorAside({
   administratorProfile,
@@ -72,10 +74,10 @@ export function CuratorAside({
     : null;
 
   return (
-    <aside className="space-y-4 w-full animate-in slide-in-from-right-4 duration-700">
+    <aside className="space-y-4 w-full animate-in slide-in-from-right-4 duration-1000">
 
       {/* 1. TARJETA DE IDENTIDAD Y MÉTRICAS PERICIALES */}
-      <Card className="bg-card/20 backdrop-blur-xl border-border/40 shadow-xl rounded-[2rem] overflow-hidden w-full transition-all duration-500">
+      <Card className="bg-card/20 backdrop-blur-xl border-border/40 shadow-2xl rounded-[2rem] overflow-hidden w-full transition-all duration-500">
         <CardContent className="p-5 space-y-5">
 
           {/* SECCIÓN: CABECERA DE AUTORÍA SOBERANA */}
@@ -93,12 +95,12 @@ export function CuratorAside({
                   <div className="relative h-12 w-12 flex-shrink-0">
                     <Image
                       src={getSafeAsset(administratorProfile?.avatar_url, 'avatar')}
-                      alt={administratorProfile?.full_name || "Curador"}
+                      alt={administratorProfile?.full_name || "Identidad del Curador"}
                       fill
                       className="rounded-2xl object-cover border border-white/5 shadow-md"
                     />
                     {administratorProfile?.is_verified && (
-                      <div className="absolute -top-1 -right-1 bg-primary rounded-full p-0.5 border-2 border-background">
+                      <div className="absolute -top-1 -right-1 bg-primary rounded-full p-0.5 border-2 border-background shadow-lg">
                         <Zap size={8} className="text-white fill-current" />
                       </div>
                     )}
@@ -125,7 +127,7 @@ export function CuratorAside({
             )}
           </div>
 
-          {/* 2. SECCIÓN: TELEMETRÍA DE CREACIÓN Y CRONOMETRÍA */}
+          {/* 2. SECCIÓN: TELEMETRÍA DE REGISTRO Y CRONOMETRÍA */}
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col p-4 bg-white/[0.03] rounded-2xl border border-white/5 group hover:bg-white/[0.05] transition-colors">
               <div className="flex items-center gap-2 mb-2">
@@ -166,7 +168,7 @@ export function CuratorAside({
                 <span className="text-[7px] font-black uppercase text-primary/60 tracking-widest block mb-1">
                   Resonancia Local
                 </span>
-                <p className="text-[10px] font-bold text-foreground truncate uppercase tracking-tight leading-none">
+                <p className="text-[10px] font-bold text-foreground truncate uppercase tracking-tight leading-none italic">
                   {geographicPlaceName}
                 </p>
               </div>
@@ -175,18 +177,18 @@ export function CuratorAside({
 
           <Separator className="opacity-10" />
 
-          {/* 4. SECCIÓN: METADATOS DE INTELIGENCIA Y AGENTES */}
+          {/* 4. SECCIÓN: ESPECIFICACIONES DE INTELIGENCIA Y AGENTES */}
           <div className="pt-1">
             <div className="flex items-center gap-2 mb-4 px-1">
               <Info size={12} className="text-muted-foreground/40" />
               <span className="text-[8px] font-black uppercase tracking-[0.4em] text-muted-foreground/60">
-                Especificaciones de IA
+                Malla de Inteligencia
               </span>
             </div>
             
             {/* 
-                [FIX V1.4]: CreationMetadata recibe sus propiedades bajo el nuevo contrato 
-                nominal, erradicando los errores de asignabilidad en TypeScript.
+                [BUILD SHIELD FIX]: Se utiliza la interfaz CreationMetadataPayload 
+                para garantizar que el componente hijo reciba el contrato exacto.
             */}
             <CreationMetadata 
                 intelligenceMetadata={artificialIntelligenceCreationData} 
@@ -197,10 +199,10 @@ export function CuratorAside({
         </CardContent>
       </Card>
 
-      {/* FIRMA DE INTEGRIDAD (Cierre Estético) */}
-      <div className="px-6 py-2 flex items-center justify-center gap-3 opacity-20 hover:opacity-40 transition-opacity duration-1000">
+      {/* FIRMA DE INTEGRIDAD NOMINAL (Cierre Estético) */}
+      <div className="px-6 py-2 flex items-center justify-center gap-4 opacity-20 hover:opacity-50 transition-opacity duration-1000">
         <div className="h-px flex-grow bg-gradient-to-r from-transparent to-white/50" />
-        <Zap size={10} className="text-primary" />
+        <Zap size={10} className="text-primary animate-pulse" />
         <div className="h-px flex-grow bg-gradient-to-l from-transparent to-white/50" />
       </div>
 
@@ -209,9 +211,11 @@ export function CuratorAside({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V1.4):
- * 1. Contract Synchronization: Se ajustaron las props inyectadas a CreationMetadata 
- *    (intelligenceMetadata, intelligenceResearchSources) para resolver el error TS2322.
- * 2. Fallback Integrity: El componente ahora pasa correctamente variables nulas 
- *    o arreglos vacíos si no existen datos, evitando colapsos de renderizado.
+ * NOTA TÉCNICA DEL ARCHITECT (V1.5):
+ * 1. Build Shield Compliance: Se sustituyó 'Record<string, unknown>' por 'CreationMetadataPayload', 
+ *    resolviendo el error TS2322 en la integración con CreationMetadata V6.0.
+ * 2. Zero Abbreviations Policy: Purificación absoluta de variables descriptivas 
+ *    (profileUniformResourceLocator, playbackDurationSeconds, artificialIntelligenceCreationData).
+ * 3. Path Protocol: Se implementó el ruteo absoluto mediante alias (@/) para todas 
+ *    las dependencias de componentes y tipos, evitando fallos de resolución en entornos Edge.
  */
