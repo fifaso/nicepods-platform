@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: components/profile/profile-curator-fiche.tsx
- * VERSIÓN: 2.0 (NicePod Profile Curator Fiche - Sovereign Identity Edition)
+ * VERSIÓN: 2.1 (NicePod Profile Curator Fiche - Absolute Contract Sync Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Centralizar la autoría, reputación y metadatos de creación del podcast,
  * garantizando la transparencia técnica y la autoridad del curador.
- * [REFORMA V2.0]: Resolución de Path Aliasing, erradicación de abreviaturas y 
- * blindaje de tipos mediante eliminación de 'any' y contratos descriptivos.
+ * [REFORMA V2.1]: Sincronización nominal estricta con CreationMetadata V6.0 
+ * para resolver inconsistencias de propiedades (data -> intelligenceMetadata).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -29,7 +29,7 @@ import { Separator } from "@/components/ui/separator";
 import { formatTime, getSafeAsset } from "@/lib/utils";
 import { ResearchSource } from "@/types/podcast";
 
-// --- [FIX V2.0]: Resolución de importación mediante Path Alias oficial ---
+// --- RESOLUCIÓN DE IMPORTACIÓN MEDIANTE PATH ALIAS OFICIAL ---
 import { CreationMetadata } from "@/components/podcast/creation-metadata";
 
 /**
@@ -160,12 +160,12 @@ export function ProfileCuratorFiche({
             </span>
           </div>
           {/* 
-              CreationMetadata: Proyecta el historial de investigación y agentes 
-              bajo el contrato de tipado estricto.
+              CreationMetadata: [FIX V2.1] Se inyectan las fuentes y datos de creación 
+              bajo el contrato de tipado estricto exigido por la V6.0.
           */}
           <CreationMetadata 
-            data={artificialIntelligenceCreationData} 
-            sources={intelligenceResearchSources} 
+            intelligenceMetadata={artificialIntelligenceCreationData} 
+            intelligenceResearchSources={intelligenceResearchSources} 
           />
         </div>
 
@@ -175,11 +175,11 @@ export function ProfileCuratorFiche({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V2.0):
- * 1. Path Aliasing Implementation: Se corrigió la importación de 'CreationMetadata' 
+ * NOTA TÉCNICA DEL ARCHITECT (V2.1):
+ * 1. Contract Synchronization: Se ajustaron las props inyectadas a CreationMetadata 
+ *    (intelligenceMetadata, intelligenceResearchSources) para resolver el error TS2322.
+ * 2. Path Aliasing Implementation: Se corrigió la importación de 'CreationMetadata' 
  *    utilizando el alias @/ para cumplimiento con el Build Shield de Next.js.
- * 2. Zero Abbreviations Policy: Se purificaron términos legacy (Props, Url, id, metadata, any), 
- *    sustituyéndolos por descriptores periciales completos.
  * 3. Strict Data Integrity: Se definió 'Record<string, unknown>' para la metadata de IA, 
- *    eliminando el riesgo de colapso por tipado débil.
+ *    eliminando el riesgo de colapso por tipado débil ('any').
  */
