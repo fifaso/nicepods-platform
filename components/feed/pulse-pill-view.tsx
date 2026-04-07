@@ -1,29 +1,45 @@
-// components/pulse-pill-view.tsx
-// VERSIÓN: 1.1 (Strategic Pulse Console - Zero Error & High-Authority Integration)
+/**
+ * ARCHIVO: components/feed/pulse-pill-view.tsx
+ * VERSIÓN: 1.3 (NicePod Sovereign Pulse Console - Build Shield Certified)
+ * PROTOCOLO: MADRID RESONANCE V4.0
+ * 
+ * Misión: Terminal de alta fidelidad para el consumo de píldoras estratégicas.
+ * [CORRECCIÓN V1.3]: Resolución de desincronía en AuthContext y tipado 
+ * explícito de payloads de tiempo real (Realtime Postgres Changes).
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ */
 
 "use client";
 
-import { User } from '@supabase/supabase-js';
+import { RealtimePostgresChangesPayload, User } from '@supabase/supabase-js';
 import { AnimatePresence, motion } from 'framer-motion';
 import Image from 'next/image';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'; // [FIX]: Importación añadida
+// --- INFRAESTRUCTURA DE INTERFAZ (UI) ---
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+
+// --- NÚCLEO DE ESTADOS Y GOBERNANZA ---
 import { useAudio } from '@/contexts/audio-context';
 import { useAuth } from '@/hooks/use-auth';
+import { useOfflineAudio } from '@/hooks/use-offline-audio';
 import { useToast } from '@/hooks/use-toast';
+import { cn, formatTime, getSafeAsset } from '@/lib/utils';
 import { PodcastWithProfile } from '@/types/podcast';
 
+// --- COMPONENTES DE PERITAJE TÉCNICO ---
+import { SourceEvidenceBoard } from '@/components/podcast/source-evidence-board';
+import { SovereignPublishTool } from '@/components/podcast/sovereign-publish-tool';
+
+// --- ICONOGRAFÍA INDUSTRIAL (LUCIDE-REACT) ---
 import {
   AlertCircle,
   BrainCircuit,
-  Clock // [FIX]: Importación añadida
-  ,
-
+  Clock,
   FileText,
   Heart,
   Loader2,
@@ -33,139 +49,190 @@ import {
   Zap
 } from 'lucide-react';
 
-import { useOfflineAudio } from '@/hooks/use-offline-audio';
-import { cn, formatTime, getSafeAsset } from '@/lib/utils';
-import { SourceEvidenceBoard } from 'components/podcast/source-evidence-board';
-import { SovereignPublishTool } from 'components/podcast/sovereign-publish-tool';
-
-interface PulsePillViewProps {
-  podcastData: PodcastWithProfile;
-  user: User | null;
-  initialIsLiked: boolean;
+/**
+ * INTERFAZ: PulsePillViewProperties
+ */
+interface PulsePillViewProperties {
+  initialPodcastData: PodcastWithProfile;
+  authenticatedUser: User | null;
+  initialIsLikedStatus: boolean;
   replies?: PodcastWithProfile[];
 }
 
-export function PulsePillView({ podcastData, user, initialIsLiked, replies = [] }: PulsePillViewProps) {
-  const { supabase } = useAuth();
+/**
+ * INTERFAZ: AudioPulseEventDetail
+ */
+interface AudioPulseEventDetail {
+  currentTime: number;
+  duration: number;
+}
+
+/**
+ * PulsePillView: El escenario de absorción de inteligencia estratégica.
+ */
+export function PulsePillView({
+  initialPodcastData,
+  authenticatedUser,
+  initialIsLikedStatus,
+  replies = []
+}: PulsePillViewProperties) {
+
+  // [FIX V1.3]: Aliasing nominal de 'supabase' a 'supabaseClient' para cumplir con el Dogma.
+  const { supabase: supabaseClient } = useAuth();
   const { toast } = useToast();
   const {
     playPodcast,
     currentPodcast,
     isPlaying,
-    isLoading: audioLoading,
+    isLoading: isAudioLoading,
     togglePlayPause,
-    seekTo
   } = useAudio();
 
-  // --- ESTADOS DE HIDRATACIÓN Y TIEMPO ---
-  const [isClient, setIsClient] = useState(false);
-  const [localTime, setLocalTime] = useState(0);
-  const [localDuration, setLocalDuration] = useState(podcastData.duration_seconds || 0);
+  // --- ESTADOS DE HIDRATACIÓN Y CRONOMETRÍA ---
+  const [isClientSideMounted, setIsClientSideMounted] = useState<boolean>(false);
+  const [localPlaybackTime, setLocalPlaybackTime] = useState<number>(0);
+  const [localAudioDuration, setLocalAudioDuration] = useState<number>(initialPodcastData.duration_seconds || 0);
 
-  useEffect(() => { setIsClient(true); }, []);
+  useEffect(() => {
+    setIsClientSideMounted(true);
+  }, []);
 
-  // --- ESTADOS DE DATOS LOCALES ---
-  const [localPodcastData, setLocalPodcastData] = useState<PodcastWithProfile>(podcastData);
-  const [isLiked, setIsLiked] = useState<boolean>(initialIsLiked);
-  const [likeCount, setLikeCount] = useState<number>(Number(localPodcastData.like_count || 0));
-  const [isLiking, setIsLiking] = useState<boolean>(false);
+  // --- ESTADOS DE DATOS SOBERANOS ---
+  const [localPodcastData, setLocalPodcastData] = useState<PodcastWithProfile>(initialPodcastData);
+  const [isLikedByVoyager, setIsLikedByVoyager] = useState<boolean>(initialIsLikedStatus);
+  const [resonanceCount, setResonanceCount] = useState<number>(Number(localPodcastData.like_count || 0));
+  const [isInteractionProcessActive, setIsInteractionProcessActive] = useState<boolean>(false);
 
-  // --- LÓGICA DE INTEGRIDAD ---
-  const isConstructing = localPodcastData.processing_status !== 'completed' && localPodcastData.processing_status !== 'failed';
-  const isFailed = localPodcastData.processing_status === 'failed';
-  const isOwner = user?.id === localPodcastData.user_id;
+  // --- LÓGICA DE INTEGRIDAD Y AUTORÍA ---
+  const isIntelligenceConstructing = localPodcastData.processing_status !== 'completed' && localPodcastData.processing_status !== 'failed';
+  const isSynthesisFailed = localPodcastData.processing_status === 'failed';
+  const isAdministratorOwner = authenticatedUser?.id === localPodcastData.user_id;
 
-  // --- QA PROGRESS ---
-  const [listeningProgress, setListeningProgress] = useState(0);
-  const hasUpdatedDbRef = useRef(false);
+  const hasUpdatedDatabaseReference = useRef<boolean>(false);
 
-  // --- OFFLINE ---
+  // --- CAPACIDADES OFFLINE ---
   const { isOfflineAvailable, downloadForOffline, removeFromOffline, isDownloading } = useOfflineAudio(localPodcastData);
 
-  const isCurrentActive = useMemo(() => currentPodcast?.id === localPodcastData.id, [currentPodcast?.id, localPodcastData.id]);
+  const isCurrentPillActive = useMemo(() =>
+    currentPodcast?.id === localPodcastData.id,
+    [currentPodcast?.id, localPodcastData.id]
+  );
 
-  // 1. SINCRONIZACIÓN DE AUDIO PULSE (Event-Driven)
+  /**
+   * EFECTO: AudioPulseSincronization
+   */
   useEffect(() => {
-    if (!isClient || !isCurrentActive) return;
+    if (!isClientSideMounted || !isCurrentPillActive) return;
 
-    const handlePulse = (e: any) => {
-      const { currentTime, duration } = e.detail;
-      setLocalTime(currentTime);
-      if (duration && duration !== localDuration) setLocalDuration(duration);
+    const handleHardwarePulse = (event: CustomEvent<AudioPulseEventDetail>) => {
+      const { currentTime, duration } = event.detail;
+      setLocalPlaybackTime(currentTime);
+
+      if (duration && duration !== localAudioDuration) {
+        setLocalAudioDuration(duration);
+      }
 
       if (!localPodcastData.reviewed_by_user && duration > 0) {
-        const percent = (currentTime / duration) * 100;
-        setListeningProgress(percent);
-        if (percent > 95 && user && !hasUpdatedDbRef.current) {
-          hasUpdatedDbRef.current = true;
-          supabase.from('micro_pods').update({ reviewed_by_user: true }).eq('id', localPodcastData.id).then();
+        const completionPercentage = (currentTime / duration) * 100;
+        if (completionPercentage > 95 && authenticatedUser && !hasUpdatedDatabaseReference.current) {
+          hasUpdatedDatabaseReference.current = true;
+          supabaseClient
+            .from('micro_pods')
+            .update({ reviewed_by_user: true })
+            .eq('id', localPodcastData.id)
+            .then();
         }
       }
     };
 
-    window.addEventListener('nicepod-timeupdate', handlePulse);
-    return () => window.removeEventListener('nicepod-timeupdate', handlePulse);
-  }, [isCurrentActive, isClient, user, localDuration, localPodcastData.id, localPodcastData.reviewed_by_user, supabase]);
+    window.addEventListener('nicepod-timeupdate', handleHardwarePulse as EventListener);
+    return () => window.removeEventListener('nicepod-timeupdate', handleHardwarePulse as EventListener);
+  }, [isCurrentPillActive, isClientSideMounted, authenticatedUser, localAudioDuration, localPodcastData.id, localPodcastData.reviewed_by_user, supabaseClient]);
 
-  // 2. SINCRONIZACIÓN REALTIME (Revelación automática)
+  /**
+   * EFECTO: RealtimeRevelationSentinel
+   * [FIX V1.3]: Tipado estricto del payload para evitar error TS7006.
+   */
   useEffect(() => {
-    if (!supabase || !isClient) return;
-    const channel = supabase.channel(`pill_revelation_${localPodcastData.id}`)
+    if (!supabaseClient || !isClientSideMounted) return;
+
+    const revelationChannel = supabaseClient.channel(`pill_revelation_${localPodcastData.id}`)
       .on<PodcastWithProfile>(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'micro_pods', filter: `id=eq.${localPodcastData.id}` },
-        (payload) => {
-          setLocalPodcastData(prev => ({ ...prev, ...(payload.new as PodcastWithProfile) }));
+        (payload: RealtimePostgresChangesPayload<PodcastWithProfile>) => {
+          setLocalPodcastData(previousData => ({ ...previousData, ...(payload.new as PodcastWithProfile) }));
         }
       ).subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [supabase, localPodcastData.id, isClient]);
 
-  // 3. NORMALIZADOR DE GUION (Resuelve bug [object Object])
-  const renderedScript = useMemo(() => {
-    const raw = localPodcastData.script_text;
-    if (!raw) return "";
+    return () => {
+      supabaseClient.removeChannel(revelationChannel);
+    };
+  }, [supabaseClient, localPodcastData.id, isClientSideMounted]);
+
+  /**
+   * renderedScriptTranscription:
+   * Misión: Normalizar la salida del guion para evitar errores de renderizado de objetos.
+   */
+  const renderedScriptTranscription = useMemo(() => {
+    const rawScript = localPodcastData.script_text;
+    if (!rawScript) return "";
     try {
-      const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-      if (Array.isArray(parsed)) {
-        return parsed.map((s: any) => `${s.speaker || 'Analista'}: ${s.line || s.text || ''}`).join('\n\n');
+      const parsedScript = typeof rawScript === 'string' ? JSON.parse(rawScript) : rawScript;
+      if (Array.isArray(parsedScript)) {
+        return parsedScript.map((segment: { speaker?: string, line?: string, text?: string }) =>
+          `${segment.speaker || 'Analista'}: ${segment.line || segment.text || ''}`
+        ).join('\n\n');
       }
-      return parsed.script_body || parsed.text || String(raw);
-    } catch {
-      return String(raw);
+      return parsedScript.script_body || parsedScript.text || String(rawScript);
+    } catch (exception) {
+      return String(rawScript);
     }
   }, [localPodcastData.script_text]);
 
-  // --- MANEJADORES ---
-  const handlePlay = () => {
-    if (isCurrentActive) togglePlayPause();
-    else playPodcast(localPodcastData);
-  };
+  // --- MANEJADORES DE ACCIÓN ---
 
-  const handleLike = async () => {
-    if (!supabase || !user) return;
-    setIsLiking(true);
-    const podId = localPodcastData.id;
-    if (isLiked) {
-      setIsLiked(false);
-      setLikeCount(c => Math.max(0, c - 1));
-      await supabase.from('likes').delete().match({ user_id: user.id, podcast_id: podId });
+  const handlePlaybackControl = () => {
+    if (isCurrentPillActive) {
+      togglePlayPause();
     } else {
-      setIsLiked(true);
-      setLikeCount(c => c + 1);
-      await supabase.from('likes').insert({ user_id: user.id, podcast_id: podId });
+      playPodcast(localPodcastData);
     }
-    setIsLiking(false);
   };
 
-  if (!isClient) return null;
+  const handleResonanceInteraction = async () => {
+    if (!supabaseClient || !authenticatedUser) return;
+    setIsInteractionProcessActive(true);
+
+    const podcastIdentification = localPodcastData.id;
+    const userIdentification = authenticatedUser.id;
+
+    if (isLikedByVoyager) {
+      setIsLikedByVoyager(false);
+      setResonanceCount(previousCount => Math.max(0, previousCount - 1));
+      await supabaseClient.from('likes').delete().match({
+        user_id: userIdentification,
+        podcast_id: podcastIdentification
+      });
+    } else {
+      setIsLikedByVoyager(true);
+      setResonanceCount(previousCount => previousCount + 1);
+      await supabaseClient.from('likes').insert({
+        user_id: userIdentification,
+        podcast_id: podcastIdentification
+      });
+    }
+    setIsInteractionProcessActive(false);
+  };
+
+  if (!isClientSideMounted) return null;
 
   return (
     <div className="container mx-auto max-w-7xl py-6 md:py-12 px-4 md:px-6 overflow-x-hidden">
 
       <AnimatePresence mode="wait">
-        {isConstructing ? (
-          <motion.div key="constructing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+        {isIntelligenceConstructing ? (
+          <motion.div key="constructing_state" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <Card className="bg-slate-900/40 backdrop-blur-3xl border-white/5 rounded-[3rem] p-12 flex flex-col items-center text-center space-y-8 min-h-[500px] justify-center shadow-2xl">
               <div className="relative">
                 <div className="absolute inset-0 bg-primary/20 blur-3xl animate-pulse rounded-full" />
@@ -183,8 +250,8 @@ export function PulsePillView({ podcastData, user, initialIsLiked, replies = [] 
               </div>
             </Card>
           </motion.div>
-        ) : isFailed ? (
-          <motion.div key="failed" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+        ) : isSynthesisFailed ? (
+          <motion.div key="failed_state" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <Alert variant="destructive" className="bg-red-500/10 border-red-500/50 backdrop-blur-xl rounded-[2rem] p-8 shadow-2xl">
               <AlertCircle className="h-8 w-8 text-red-500" />
               <div className="ml-4 space-y-2">
@@ -196,7 +263,7 @@ export function PulsePillView({ podcastData, user, initialIsLiked, replies = [] 
             </Alert>
           </motion.div>
         ) : (
-          <motion.div key="ready" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
+          <motion.div key="ready_state" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
 
             <div className="grid lg:grid-cols-5 gap-8 items-start">
 
@@ -222,13 +289,13 @@ export function PulsePillView({ podcastData, user, initialIsLiked, replies = [] 
 
                     <div className="pt-4 space-y-6">
                       <Button
-                        onClick={handlePlay}
-                        disabled={audioLoading && !isCurrentActive}
+                        onClick={handlePlaybackControl}
+                        disabled={isAudioLoading && !isCurrentPillActive}
                         className="w-full h-20 rounded-[1.5rem] bg-white text-slate-950 hover:bg-zinc-200 transition-all shadow-xl shadow-white/5 group"
                       >
-                        {audioLoading && isCurrentActive ? (
+                        {isAudioLoading && isCurrentPillActive ? (
                           <Loader2 className="h-8 w-8 animate-spin" />
-                        ) : (isPlaying && isCurrentActive) ? (
+                        ) : (isPlaying && isCurrentPillActive) ? (
                           <div className="flex items-center gap-3">
                             <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity }} className="w-3 h-3 bg-primary rounded-full" />
                             <span className="font-black text-xl uppercase tracking-tighter">PAUSAR BRIEFING</span>
@@ -242,21 +309,22 @@ export function PulsePillView({ podcastData, user, initialIsLiked, replies = [] 
 
                       <div className="flex justify-between items-center px-2">
                         <div className="flex items-center gap-4">
-                          <button onClick={handleLike} disabled={isLiking} className="group flex items-center gap-2 transition-all">
-                            <Heart className={cn("h-6 w-6 transition-colors", isLiked ? "fill-primary text-primary" : "text-white/20 group-hover:text-white/60")} />
-                            <span className="text-xs font-black text-white/40 tabular-nums">{likeCount}</span>
+                          <button onClick={handleResonanceInteraction} disabled={isInteractionProcessActive} className="group flex items-center gap-2 transition-all">
+                            <Heart className={cn("h-6 w-6 transition-colors", isLikedByVoyager ? "fill-primary text-primary" : "text-white/20 group-hover:text-white/60")} />
+                            <span className="text-xs font-black text-white/40 tabular-nums">{resonanceCount}</span>
                           </button>
                           <button className="text-white/20 hover:text-white/60 transition-colors"><Share2 size={20} /></button>
                         </div>
                         <div className="flex items-center gap-4 text-white/20">
                           <Clock size={16} />
-                          <span className="text-xs font-mono font-bold">{formatTime(localTime)} / {formatTime(localDuration)}</span>
+                          <span className="text-xs font-mono font-bold">{formatTime(localPlaybackTime)} / {formatTime(localAudioDuration)}</span>
                         </div>
                       </div>
                     </div>
                   </div>
                 </Card>
 
+                {/* FICHA DEL CURADOR */}
                 <Card className="bg-white/5 border-white/5 rounded-2xl p-6 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="relative h-10 w-10 rounded-full overflow-hidden border border-white/10">
@@ -284,13 +352,13 @@ export function PulsePillView({ podcastData, user, initialIsLiked, replies = [] 
 
                 <SourceEvidenceBoard sources={localPodcastData.sources as any[]} />
 
-                {isOwner && (
+                {isAdministratorOwner && (
                   <div className="mt-12">
                     <SovereignPublishTool
                       podcastId={localPodcastData.id}
                       currentStatus={localPodcastData.status}
-                      isOwner={isOwner}
-                      onPublished={() => setLocalPodcastData(prev => ({ ...prev, status: 'published' }))}
+                      isOwner={isAdministratorOwner}
+                      onPublished={() => setLocalPodcastData(previousData => ({ ...previousData, status: 'published' }))}
                     />
                   </div>
                 )}
@@ -300,12 +368,13 @@ export function PulsePillView({ podcastData, user, initialIsLiked, replies = [] 
 
             <Separator className="bg-white/5 my-12" />
 
+            {/* TRANSCRIPCIÓN MAESTRA */}
             <div className="max-w-3xl mx-auto opacity-40 hover:opacity-100 transition-opacity">
               <h3 className="text-center font-black uppercase tracking-[0.3em] text-[10px] text-white/60 mb-6 flex items-center justify-center gap-2">
                 <FileText size={12} /> Master Transcription
               </h3>
               <div className="p-8 md:p-12 bg-black/20 rounded-[2.5rem] border border-white/5 font-medium leading-relaxed text-zinc-400 whitespace-pre-wrap">
-                {renderedScript}
+                {renderedScriptTranscription}
               </div>
             </div>
 
