@@ -1,7 +1,14 @@
-// components/podcast/content-vault.tsx
-// VERSIÓN: 1.0 (NicePod Content Vault - Knowledge Architecture Standard)
-// Misión: Renderizar el núcleo narrativo, descripción y mapa de etiquetas del podcast.
-// [ESTABILIZACIÓN]: Aislamiento de renderizado de texto masivo y gestión de metadatos visuales.
+/**
+ * ARCHIVO: components/podcast/content-vault.tsx
+ * VERSIÓN: 2.0 (NicePod Content Vault - Knowledge Architecture Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.0
+ * 
+ * Misión: Renderizar el núcleo narrativo, la descripción técnica y el mapa de 
+ * etiquetas periciales, garantizando la inmersión en el capital intelectual.
+ * [REFORMA V2.0]: Resolución de Path Aliasing, erradicación de abreviaturas,
+ * tipado estricto del guion y sincronía nominal con ScriptViewer.
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ */
 
 "use client";
 
@@ -32,16 +39,14 @@ import dynamic from "next/dynamic";
 import { useMemo } from "react";
 
 /**
- * ScriptViewer: Carga diferida estratégica.
- * El editor de guiones es un componente pesado que solo debe cargarse 
- * cuando el usuario decide expandir la trascripción.
+ * ScriptViewer: Carga diferida estratégica para proteger el rendimiento del Main Thread.
  */
 const ScriptEditor = dynamic(
-  () => import('components/podcast/script-viewer').then((mod) => mod.ScriptViewer),
+  () => import('@/components/podcast/script-viewer').then((module) => module.ScriptViewer),
   {
     ssr: false,
     loading: () => (
-      <div className="h-40 w-full flex flex-col items-center justify-center bg-black/20 rounded-[2rem] border border-dashed border-white/10">
+      <div className="h-40 w-full flex flex-col items-center justify-center bg-black/20 rounded-[2rem] border border-white/5 animate-pulse">
         <Loader2 className="h-6 w-6 animate-spin text-primary/40 mb-3" />
         <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/20">
           Sincronizando Guion Maestro...
@@ -52,66 +57,74 @@ const ScriptEditor = dynamic(
 );
 
 /**
- * INTERFAZ: ContentVaultProps
+ * INTERFAZ: ContentVaultProperties
  */
-interface ContentVaultProps {
+interface ContentVaultProperties {
   title: string;
   description: string | null;
   status: string;
-  isConstructing: boolean;
-  scriptText: any;
-  aiTags: string[] | null;
-  userTags: string[] | null;
-  isOwner: boolean;
+  isIntelligenceConstructing: boolean;
+  narrativeScriptContent: string | Record<string, string> | null;
+  artificialIntelligenceTags: string[] | null;
+  administratorCuratedTags: string[] | null;
+  isAdministratorOwner: boolean;
   isScriptExpanded: boolean;
-  onScriptToggle: (open: boolean) => void;
-  onEditTags: () => void;
+  onScriptVisibilityToggle: (isExpanded: boolean) => void;
+  onTagEditAction: () => void;
 }
 
 /**
- * ContentVault: El bastidor de conocimiento de NicePod V2.5.
+ * ContentVault: El bastidor de conocimiento central de la Workstation.
  */
 export function ContentVault({
   title,
   description,
   status,
-  isConstructing,
-  scriptText,
-  aiTags,
-  userTags,
-  isOwner,
+  isIntelligenceConstructing,
+  narrativeScriptContent,
+  artificialIntelligenceTags,
+  administratorCuratedTags,
+  isAdministratorOwner,
   isScriptExpanded,
-  onScriptToggle,
-  onEditTags
-}: ContentVaultProps) {
+  onScriptVisibilityToggle,
+  onTagEditAction
+}: ContentVaultProperties) {
 
   /**
-   * normalizedScript: Procesa el objeto JSONB para extraer la versión de lectura.
+   * normalizedNarrativeScript: 
+   * Misión: Procesar el contenido de la Bóveda para extraer la versión de lectura purificada.
    */
-  const normalizedScript = useMemo(() => {
-    if (!scriptText) return "";
-    try {
-      const parsed = typeof scriptText === 'string' ? JSON.parse(scriptText) : scriptText;
-      return parsed.script_body || parsed.script_plain || String(scriptText);
-    } catch {
-      return String(scriptText);
+  const normalizedNarrativeScript = useMemo(() => {
+    if (!narrativeScriptContent) {
+      return "";
     }
-  }, [scriptText]);
+    try {
+      const parsedContent = typeof narrativeScriptContent === 'string' 
+        ? JSON.parse(narrativeScriptContent) 
+        : narrativeScriptContent;
+        
+      return parsedContent.script_body || parsedContent.script_plain || parsedContent.text || String(narrativeScriptContent);
+    } catch (exception) {
+      return String(narrativeScriptContent);
+    }
+  }, [narrativeScriptContent]);
 
   /**
-   * displayTags: Prioriza las etiquetas curadas por el usuario sobre las de la IA.
+   * displayTaxonomyTags: 
+   * Misión: Priorizar la curaduría humana sobre la inferencia de la máquina.
    */
-  const displayTags = useMemo(() => {
-    const finalTags = userTags?.length ? userTags : (aiTags || []);
-    return finalTags;
-  }, [userTags, aiTags]);
+  const displayTaxonomyTags = useMemo(() => {
+    return (administratorCuratedTags && administratorCuratedTags.length > 0) 
+      ? administratorCuratedTags 
+      : (artificialIntelligenceTags || []);
+  }, [administratorCuratedTags, artificialIntelligenceTags]);
 
   return (
     <Card className="bg-card/40 backdrop-blur-3xl border-border/40 shadow-2xl rounded-[2.5rem] overflow-hidden w-full transition-all duration-500">
 
       <CardHeader className="p-6 md:p-10">
 
-        {/* LÍNEA DE ESTADO Y BANDERAS */}
+        {/* INDICADORES DE ESTADO SOBERANO */}
         <div className="flex items-center gap-3 mb-5">
           <Badge
             variant="secondary"
@@ -123,7 +136,7 @@ export function ContentVault({
             {status === 'published' ? 'PÚBLICO' : 'BÓVEDA PRIVADA'}
           </Badge>
 
-          {isConstructing && (
+          {isIntelligenceConstructing && (
             <div className="flex items-center gap-2 px-3 py-1 rounded-full border border-primary/40 bg-primary/5 animate-pulse">
               <Loader2 className="h-3 w-3 animate-spin text-primary" />
               <span className="text-[9px] font-black text-primary uppercase tracking-tighter">
@@ -133,7 +146,7 @@ export function ContentVault({
           )}
         </div>
 
-        {/* CABECERA MONUMENTAL */}
+        {/* CABECERA MONUMENTAL DE LA CRÓNICA */}
         <div className="flex flex-col md:flex-row justify-between items-start gap-4">
           <div className="space-y-4 flex-grow">
             <CardTitle className="text-3xl md:text-5xl font-black leading-[0.9] tracking-tighter uppercase italic text-foreground text-balance">
@@ -144,12 +157,12 @@ export function ContentVault({
             </CardDescription>
           </div>
 
-          {/* ACCIÓN DE CURADURÍA: Solo dueño */}
-          {isOwner && (
+          {/* ACCIÓN DE CURADURÍA TÁCTICA */}
+          {isAdministratorOwner && (
             <Button
               variant="ghost"
               size="icon"
-              onClick={onEditTags}
+              onClick={onTagEditAction}
               className="rounded-2xl hover:bg-primary/10 hover:text-primary transition-all flex-shrink-0"
             >
               <Pencil size={20} />
@@ -157,17 +170,17 @@ export function ContentVault({
           )}
         </div>
 
-        {/* MAPA SEMÁNTICO (Etiquetas) */}
+        {/* MAPA SEMÁNTICO (TAXONOMÍA DE ETIQUETAS) */}
         <div className="flex flex-wrap gap-2.5 mt-8">
-          {displayTags.length > 0 ? (
-            displayTags.map((tag) => (
+          {displayTaxonomyTags.length > 0 ? (
+            displayTaxonomyTags.map((tagIdentification) => (
               <Badge
-                key={tag}
+                key={tagIdentification}
                 variant="outline"
                 className="bg-white/5 border-white/10 hover:border-primary/40 px-4 py-1.5 rounded-2xl text-[10px] font-black uppercase tracking-wider text-muted-foreground/80 transition-colors"
               >
                 <Hash className="h-3 w-3 mr-1 opacity-40" />
-                {tag}
+                {tagIdentification}
               </Badge>
             ))
           ) : (
@@ -181,10 +194,10 @@ export function ContentVault({
       <CardContent className="p-6 md:p-10 pt-0">
         <Separator className="mb-8 opacity-10" />
 
-        {/* SECCIÓN: TRANSCRIPCIÓN MAESTRA */}
+        {/* SECCIÓN: TRANSCRIPCIÓN MAESTRA DEL PERITAJE */}
         <Collapsible
           open={isScriptExpanded}
-          onOpenChange={onScriptToggle}
+          onOpenChange={onScriptVisibilityToggle}
           className="w-full"
         >
           <div className="flex items-center justify-between mb-6">
@@ -210,13 +223,13 @@ export function ContentVault({
 
           <CollapsibleContent className="animate-in slide-in-from-top-3 duration-500">
             <div className="relative p-6 md:p-10 bg-black/40 rounded-[2.5rem] border border-white/5 shadow-inner overflow-hidden group">
-              {/* Efecto decorativo de fondo para el visor */}
               <div className="absolute top-0 right-0 p-8 opacity-[0.02] pointer-events-none">
                 <FileText size={120} />
               </div>
 
               <div className="relative z-10">
-                <ScriptEditor scriptText={normalizedScript} />
+                {/* [FIX V2.0]: Propiedad alineada con el contrato esperado por ScriptViewer */}
+                <ScriptEditor narrativeScriptText={normalizedNarrativeScript} />
               </div>
             </div>
           </CollapsibleContent>
@@ -228,10 +241,11 @@ export function ContentVault({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT:
- * Este componente es el responsable de gestionar el 'Heavy Content'. Al utilizar 
- * 'useMemo' para la normalización del guion, garantizamos que el parseo de JSON 
- * no bloquee el hilo de UI durante los eventos de Realtime. El diseño denso 
- * (p-6 a p-10) elimina el aire innecesario y centra la atención en la sabiduría 
- * del texto forjado.
+ * NOTA TÉCNICA DEL ARCHITECT (V2.0):
+ * 1. Path Aliasing: Se sustituyó la importación relativa por '@/' para asegurar 
+ *    la resolución de módulos en el entorno de compilación de Vercel.
+ * 2. Zero Abbreviations: Se purificaron términos como 'props', 'mod', 'id', 'ai' y 'user'.
+ * 3. Contract Synchronization: El componente ScriptEditor ahora recibe 'narrativeScriptText', 
+ *    resolviendo el error TS2322 al sincronizarlo con el estándar nominal de la plataforma.
+ * 4. Strict Typing: Se erradicó el uso de 'any' en el contenido del guion narrativo.
  */
