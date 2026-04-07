@@ -1,7 +1,13 @@
-// app/podcast/[id]/page.tsx
-// VERSIÓN: 7.8 (View Switcher Architecture - Dynamic Integrity Standard)
-// Misión: Punto de entrada de servidor para visualización de podcasts.
-// [ESTABILIZACIÓN]: Implementación de force-dynamic y optimización de metadatos síncronos.
+/**
+ * ARCHIVO: app/(platform)/podcast/[id]/page.tsx
+ * VERSIÓN: 8.0 (NicePod View Orchestrator - Nominal Integrity Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.0
+ * 
+ * Misión: Punto de entrada de servidor para la visualización inmersiva de crónicas.
+ * [REFORMA V8.0]: Sincronización nominal total con PulsePillView V1.3 y 
+ * cumplimiento estricto de la Zero Abbreviations Policy.
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ */
 
 import { PodcastView } from "@/components/podcast-view";
 import { PulsePillView } from "@/components/feed/pulse-pill-view";
@@ -12,62 +18,67 @@ import { notFound } from 'next/navigation';
 
 /**
  * [CONFIGURACIÓN DE RED]: force-dynamic
- * Garantizamos que el servidor siempre consulte la base de datos en cada petición.
- * Esto es vital para que, si el podcast termina de procesarse, el usuario vea 
- * el estado real sin depender exclusivamente del WebSocket del cliente.
+ * Misión: Garantizar que el servidor consulte el Metal en cada petición.
  */
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-type PodcastPageProps = {
+/**
+ * INTERFAZ: PodcastPageProperties
+ */
+interface PodcastPageProperties {
   params: {
     id: string;
   };
-};
+}
 
 /**
- * generateMetadata: Motor de visibilidad y SEO técnico.
+ * generateMetadata: Motor de visibilidad y SEO técnico de grado industrial.
  */
-export async function generateMetadata({ params }: PodcastPageProps): Promise<Metadata> {
-  const supabase = createClient();
-  const { data: podcast } = await supabase
+export async function generateMetadata({ params: routeParameters }: PodcastPageProperties): Promise<Metadata> {
+  const supabaseClient = createClient();
+  const { data: pointOfKnowledge } = await supabaseClient
     .from("micro_pods")
     .select("title, description, cover_image_url, processing_status")
-    .eq('id', params.id)
+    .eq('id', routeParameters.id)
     .single();
 
-  if (!podcast) return { title: "Punto de Sabiduría no localizado | NicePod" };
+  if (!pointOfKnowledge) {
+    return { title: "Punto de Sabiduria no localizado | NicePod" };
+  }
 
-  // Usamos el placeholder oficial si la imagen aún no está lista
-  const ogImage = podcast.cover_image_url || 'https://arbojlknwilqcszuqope.supabase.co/storage/v1/object/public/podcasts/static/placeholder-logo.png';
+  const openGraphImageUniformResourceLocator = pointOfKnowledge.cover_image_url || 
+    'https://arbojlknwilqcszuqope.supabase.co/storage/v1/object/public/podcasts/static/placeholder-logo.png';
 
   return {
-    title: `${podcast.title} | NicePod Intelligence`,
-    description: podcast.description || "Escucha esta crónica de sabiduría generada en NicePod.",
+    title: `${pointOfKnowledge.title} | NicePod Intelligence`,
+    description: pointOfKnowledge.description || "Escucha esta crónica de sabiduria generada en NicePod.",
     openGraph: {
-      title: podcast.title,
-      description: podcast.description || '',
-      images: [ogImage],
+      title: pointOfKnowledge.title,
+      description: pointOfKnowledge.description || '',
+      images: [openGraphImageUniformResourceLocator],
       type: 'music.song',
     },
     twitter: {
       card: 'summary_large_image',
-      title: podcast.title,
-      description: podcast.description || '',
-      images: [ogImage],
+      title: pointOfKnowledge.title,
+      description: pointOfKnowledge.description || '',
+      images: [openGraphImageUniformResourceLocator],
     }
   };
 }
 
-export default async function PodcastDisplayPage({ params }: PodcastPageProps) {
-  const supabase = createClient();
+/**
+ * PodcastDisplayPage: El orquestador de datos en el servidor (SSR T0).
+ */
+export default async function PodcastDisplayPage({ params: routeParameters }: PodcastPageProperties) {
+  const supabaseClient = createClient();
+  const podcastIdentification = routeParameters.id;
 
   /**
    * [CORE]: Selección de campos de alta fidelidad.
-   * Incluimos todas las banderas de integridad para que PodcastView (v22.0)
-   * reciba el estado exacto del inventario multimedia.
    */
-  const fullFields = `
+  const highFidelityFields = `
     *,
     profiles:user_id (
       full_name,
@@ -78,67 +89,80 @@ export default async function PodcastDisplayPage({ params }: PodcastPageProps) {
     )
   `;
 
-  // 1. FETCHING PARALELO DE ALTA VELOCIDAD (SSR T0)
-  const [podcastResponse, repliesResponse, authResponse] = await Promise.all([
-    supabase.from("micro_pods").select(fullFields).eq('id', params.id).single(),
-    supabase.from('micro_pods').select(fullFields).eq('parent_id', params.id).order('created_at', { ascending: true }),
-    supabase.auth.getUser()
+  // 1. COSECHA PARALELA DE INTELIGENCIA (SSR T0)
+  const [
+    podcastQueryResponse, 
+    repliesQueryResponse, 
+    authenticationResponse
+  ] = await Promise.all([
+    supabaseClient.from("micro_pods").select(highFidelityFields).eq('id', podcastIdentification).single(),
+    supabaseClient.from('micro_pods').select(highFidelityFields).eq('parent_id', podcastIdentification).order('created_at', { ascending: true }),
+    supabaseClient.auth.getUser()
   ]);
 
-  const podcastData = podcastResponse.data;
-  const user = authResponse.data.user;
+  const rawPodcastData = podcastQueryResponse.data;
+  const authenticatedUser = authenticationResponse.data.user;
 
   // 2. GUARDIA DE PERSISTENCIA
-  if (podcastResponse.error || !podcastData) {
-    console.error(`🛑 [NicePod-Router] Recurso inexistente: ${params.id}`);
+  if (podcastQueryResponse.error || !rawPodcastData) {
+    console.error(`🛑 [NicePod-Router] Recurso inexistente: ${podcastIdentification}`);
     notFound();
   }
 
-  // 3. CAPTURA DE INTERACCIONES SOCIALES (Private State)
-  let initialIsLiked = false;
-  if (user) {
-    const { data: likeData } = await supabase
+  // 3. CAPTURA DE ESTADO SOCIAL PRIVADO
+  let initialIsLikedStatus = false;
+  if (authenticatedUser) {
+    const { data: interactionLikeData } = await supabaseClient
       .from('likes')
       .select('user_id')
-      .eq('user_id', user.id)
-      .eq('podcast_id', params.id)
+      .eq('user_id', authenticatedUser.id)
+      .eq('podcast_id', podcastIdentification)
       .maybeSingle();
 
-    initialIsLiked = !!likeData;
+    initialIsLikedStatus = !!interactionLikeData;
   }
 
-  // 4. NORMALIZACIÓN DE TIPOS (Rigor TypeScript)
-  const typedPodcast = podcastData as unknown as PodcastWithProfile;
-  const typedReplies = (repliesResponse.data || []) as unknown as PodcastWithProfile[];
+  // 4. NORMALIZACIÓN DE TIPOS SOBERANOS
+  const typeValidatedPodcast = rawPodcastData as unknown as PodcastWithProfile;
+  const typeValidatedReplies = (repliesQueryResponse.data || []) as unknown as PodcastWithProfile[];
 
   /**
    * [BIFURCACIÓN DE VISTA SOBERANA]:
-   * Decidimos el componente basándonos en la intención original de creación.
+   * Misión: Decidir el componente basado en la intención original (creation_mode).
    */
-  const isPulsePill = typedPodcast.creation_mode === 'pulse';
+  const isPulsePillMode = typeValidatedPodcast.creation_mode === 'pulse';
 
-  if (isPulsePill) {
+  if (isPulsePillMode) {
     return (
       <PulsePillView
-        podcastData={typedPodcast}
-        user={user}
-        initialIsLiked={initialIsLiked}
-        replies={typedReplies}
+        initialPodcastData={typeValidatedPodcast} // [FIX]: Sincronía con V1.3
+        authenticatedUser={authenticatedUser}     // [FIX]: Sincronía con V1.3
+        initialIsLikedStatus={initialIsLikedStatus} // [FIX]: Sincronía con V1.3
+        replies={typeValidatedReplies}
       />
     );
   }
 
   /**
-   * [REVELACIÓN]:
-   * Entregamos el control a PodcastView (v22.0), que gestionará
-   * la actualización Realtime de audio e imagen si el estado es 'processing'.
+   * [DESPACHO ESTÁNDAR]:
+   * Se utiliza el chasis PodcastView para crónicas narrativas convencionales.
    */
   return (
     <PodcastView
-      podcastData={typedPodcast}
-      user={user}
-      initialIsLiked={initialIsLiked}
-      replies={typedReplies}
+      initialPodcastData={typeValidatedPodcast}
+      authenticatedUser={authenticatedUser}
+      initialIsLikedStatus={initialIsLikedStatus}
+      replies={typeValidatedReplies}
     />
   );
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V8.0):
+ * 1. Zero Abbreviations Policy: Purificación total de nomenclatura (routeParameters, 
+ *    podcastIdentification, authenticatedUser).
+ * 2. Build Shield Synchronization: Se corrigieron las propiedades de PulsePillView 
+ *    y PodcastView para coincidir con la arquitectura de Grado Industrial.
+ * 3. Parallel Efficiency: El Handshake T0 se realiza mediante concurrencia pura 
+ *    para minimizar la latencia de renderizado en el primer byte.
+ */
