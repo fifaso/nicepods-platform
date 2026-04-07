@@ -1,12 +1,12 @@
 /**
- * ARCHIVO: components/profile/public-profile-page.tsx
- * VERSIÓN: 4.0 (NicePod Public Profile Orchestrator - Sovereign Stability Edition)
+ * ARCHIVO: components/profile/public/public-profile-page.tsx
+ * VERSIÓN: 4.1 (NicePod Public Profile Orchestrator - Absolute Contract Sync Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Orquestar la visualización externa del curador, proyectando la identidad
  * y el capital intelectual mediante un flujo de hidratación protegida.
- * [REFORMA V4.0]: Sincronización nominal total con PublicContentTabs V3.0, 
- * unificación de tipos industriales y cumplimiento estricto de la Zero Abbreviations Policy.
+ * [REFORMA V4.1]: Resolución definitiva del error TS2322 mediante la sincronización 
+ * exacta de nombres de propiedades con PublicContentTabs V4.0.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -24,11 +24,11 @@ import {
 import { PodcastWithProfile } from "@/types/podcast";
 
 // --- COMPONENTES DE ESTABILIDAD DE MALLA ---
-import { ProfileHydrationGuard } from "./profile-hydration-guard";
+import { ProfileHydrationGuard } from "../profile-hydration-guard";
 
 // --- COMPONENTES SATÉLITES ESPECIALIZADOS ---
-import { PublicContentTabs } from "./public/public-content-tabs";
-import { PublicHeroSection } from "./public/public-hero-section";
+import { PublicContentTabs } from "./public-content-tabs";
+import { PublicHeroSection } from "./public-hero-section";
 
 /**
  * INTERFAZ: PublicProfilePageProperties
@@ -74,8 +74,8 @@ export default function PublicProfilePage({
 
         {/* 
             CAPA II: MALLA DE CONTENIDO DINÁMICO (CONTENT TABS)
-            Misión: Organizar el acceso a la biblioteca, colecciones y validaciones.
-            [FIX V4.0]: Sincronización nominal absoluta con PublicContentTabsProperties V3.0.
+            Misión: Organizar el acceso a la biblioteca, colecciones y testimonios.
+            [FIX V4.1]: Sincronización nominal absoluta con la interfaz de PublicContentTabs V4.0.
         */}
         <section className="w-full max-w-screen-xl mx-auto px-4 sm:px-6 md:px-8 pb-32">
 
@@ -92,9 +92,10 @@ export default function PublicProfilePage({
             >
               <PublicContentTabs
                 administratorProfile={administratorProfile}
-                podcastsCollection={publishedPodcastsCollection}
-                testimonialsCollection={initialTestimonialsCollection}
-                collectionsCollection={publicCollectionsCollection}
+                // [FIX]: Nombres de propiedades sincronizados con el contrato del componente hijo.
+                publishedPodcastsCollection={publishedPodcastsCollection}
+                initialTestimonialsCollection={initialTestimonialsCollection}
+                publicCollectionsCollection={publicCollectionsCollection}
               />
             </motion.div>
           </AnimatePresence>
@@ -130,11 +131,11 @@ export default function PublicProfilePage({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V4.0):
- * 1. Build Shield Compliance: Se corrigieron las propiedades inyectadas a PublicContentTabs 
- *    y PublicHeroSection, eliminando el error TS2322 detectado en Vercel.
- * 2. Zero Abbreviations Policy: Se purificó el 100% de la nomenclatura interna, sustituyendo 
- *    términos como 'Props', 'id', 'totalLikes' y 'podcasts'.
- * 3. Type Integrity: Se migró de 'PublicPodcast' a 'PodcastWithProfile' para garantizar que 
- *    el orquestador cliente maneje objetos con la densidad técnica que exige la V4.0.
+ * NOTA TÉCNICA DEL ARCHITECT (V4.1):
+ * 1. Contract Alignment: Se neutralizó el error TS2322 en la línea 95 mediante la 
+ *    sincronización exacta de las propiedades inyectadas al componente PublicContentTabs.
+ * 2. Zero Abbreviations Policy: Se purificó la lógica interna del orquestador, asegurando 
+ *    que cada proceso de transferencia de datos sea nominalmente transparente.
+ * 3. Type Integrity Seal: Se garantiza que el flujo de capital intelectual (Podcasts) 
+ *    mantenga su densidad técnica (PodcastWithProfile) a través de toda la malla del perfil.
  */
