@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: components/geo/geo-creator-overlay.tsx
- * VERSIÓN: 7.1 (NicePod Sovereign Orchestrator - Contract Sync & PBR Edition)
- * PROTOCOLO: MADRID RESONANCE V3.0
+ * VERSIÓN: 8.0 (NicePod Sovereign Orchestrator - Nominal Integrity Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Orquestar la interfaz táctica y el ciclo de vida de los motores WebGL 
  * garantizando la sincronía absoluta de contratos entre la UI y el SpatialEngine.
- * [FIX V7.1]: Alineación de la propiedad mapInstanceId para satisfacer al Build Shield
- * y resolución de colisión de tipos en el despliegue de Vercel.
+ * [REFORMA V8.0]: Sincronización nominal total con SpatialEngine V10.0 y 
+ * cumplimiento estricto de la Zero Abbreviations Policy.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -31,7 +31,7 @@ import { useCallback, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn, nicepodLog } from "@/lib/utils";
 
-// --- PROVEEDORES DE ESTADO (CEREBROS V3.0) ---
+// --- PROVEEDORES DE ESTADO (CEREBROS V4.0) ---
 import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { ForgeProvider, useForge } from "./forge-context";
 
@@ -41,16 +41,20 @@ import { GeoScannerUI } from "./scanner-ui";
 import { SpatialEngine } from "./SpatialEngine";
 import { MAP_STYLES } from "./map-constants";
 
-interface GeoCreatorOverlayProps {
-  canForge: boolean;
-  userId: string;
+/**
+ * INTERFAZ: GeoCreatorOverlayProperties
+ */
+interface GeoCreatorOverlayProperties {
+  isForgeAuthorityGranted: boolean; // Corregido: Anteriormente 'canForge'
+  userIdentification: string;       // Corregido: Anteriormente 'userId'
 }
 
 /**
  * CreatorOverlayContent: El puente de mando táctico de la Workstation.
  */
-function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
-  // 1. CONSUMO DE LA FACHADA SOBERANA (Triple-Core Facade V45.0)
+function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGranted: boolean }) {
+  
+  // 1. CONSUMO DE LA FACHADA SOBERANA (Triple-Core Facade V4.0)
   const {
     status: engineStatus,
     data: engineData,
@@ -59,7 +63,7 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
     isTriangulated,
     isGPSLock,
     cameraPerspective,
-    mapStyle: activeEngineStyle, 
+    mapStyle: activeEngineVisualStyle, 
     isManualMode,
     toggleCameraPerspective,
     recenterCamera
@@ -67,8 +71,8 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
 
   const { state: forgeState, dispatch } = useForge();
 
-  // 2. ESTADOS LOCALES DE INTERFAZ
-  const [isTerminalOpen, setIsTerminalOpen] = useState<boolean>(false);
+  // 2. ESTADOS LOCALES DE INTERFAZ DESCRIPTIVOS
+  const [isForgeTerminalOpen, setIsForgeTerminalOpen] = useState<boolean>(false);
 
   /**
    * handleHardwareIgnition:
@@ -108,28 +112,28 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
   }, [isManualMode, userLocation, recenterCamera, toggleCameraPerspective, handleHardwareIgnition]);
 
   /**
-   * toggleForgeTerminal:
+   * toggleForgeTerminalInterface:
    * Apertura de terminal con gestión de recursos asíncrona.
    */
-  const toggleForgeTerminal = useCallback(() => {
-    if (isTerminalOpen) {
+  const toggleForgeTerminalInterface = useCallback(() => {
+    if (isForgeTerminalOpen) {
       nicepodLog("🛡️ [Orchestrator] Restaurando malla de exploración.");
       dispatch({ type: 'RESET_FORGE' });
-      setIsTerminalOpen(false);
+      setIsForgeTerminalOpen(false);
     } else {
       nicepodLog("⚒️ [Orchestrator] Aislamiento de recursos para la Forja.");
-      setIsTerminalOpen(true);
+      setIsForgeTerminalOpen(true);
     }
-  }, [isTerminalOpen, dispatch]);
+  }, [isForgeTerminalOpen, dispatch]);
 
-  const displayPlaceName = forgeState.intentText ||
+  const displayCurrentPlaceName = forgeState.intentText ||
     engineData?.manualPlaceName ||
     engineData?.dossier?.visual_analysis_dossier?.detectedOfficialName ||
     "Sintonía de Malla Activa";
 
   /**
    * smartButtonConfiguration:
-   * Mapeo de la voluntad de la UI según el estado del motor.
+   * Mapeo de la voluntad de la UI según el estado del motor cinemático.
    */
   const smartButtonConfiguration = useMemo(() => {
     if (isManualMode) {
@@ -163,19 +167,13 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
   }, [isManualMode, cameraPerspective]);
 
   return (
-    /**
-     * [ORDEN ARQUITECTÓNICA V7.1]: Pointer Isolation.
-     */
     <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none flex flex-col z-[100] isolate">
 
-      {/* 
-          I. CAPA 0: REACTOR VISUAL (SPATIAL ENGINE)
-          [FIX V7.1]: Cambio de 'mapId' a 'mapInstanceId' para cumplir el contrato V9.0.
-      */}
+      {/* I. CAPA 0: REACTOR VISUAL (SPATIAL ENGINE) */}
       <AnimatePresence mode="popLayout">
-        {!isTerminalOpen && (
+        {!isForgeTerminalOpen && (
           <motion.div
-            key="background-map-instance"
+            key="background-spatial-instance"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -183,10 +181,9 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
             className="absolute inset-0 z-0 pointer-events-auto"
           >
             <SpatialEngine
-              mapInstanceId="map-full"
+              mapInstanceIdentification="map-full" // [FIX]: Sincronía con contrato V10.0
               mode="EXPLORE"
-              // [V7.1]: La luz reacciona al estilo para evitar texturas oscuras en satélite
-              theme={activeEngineStyle === MAP_STYLES.PHOTOREALISTIC ? 'day' : 'night'}
+              visualTheme={activeEngineVisualStyle === MAP_STYLES.PHOTOREALISTIC ? 'day' : 'night'}
               className="w-full h-full"
             />
           </motion.div>
@@ -227,29 +224,29 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
       {/* III. CAPA 20: DOCK DE COMANDO TÁCTICO */}
       <div className="absolute top-8 right-6 md:right-8 flex flex-col gap-6 z-[200] pointer-events-none">
 
-        {/* LA FORJA */}
-        {canForge && engineStatus !== 'IDLE' && (
+        {/* BOTÓN DE ACCESO A LA FORJA */}
+        {isForgeAuthorityGranted && engineStatus !== 'IDLE' && (
           <Button
-            onClick={toggleForgeTerminal}
-            variant={isTerminalOpen ? "destructive" : "glass"}
+            onClick={toggleForgeTerminalInterface}
+            variant={isForgeTerminalOpen ? "destructive" : "glass"}
             size="tactical"
             className="shadow-2xl transition-all duration-500 pointer-events-auto rounded-2xl h-14 w-14"
           >
             <AnimatePresence mode="wait">
               <motion.div
-                key={isTerminalOpen ? 'close' : 'open'}
+                key={isForgeTerminalOpen ? 'close_action' : 'open_action'}
                 initial={{ rotate: -90, opacity: 0 }}
                 animate={{ rotate: 0, opacity: 1 }}
                 exit={{ rotate: 90, opacity: 0 }}
               >
-                {isTerminalOpen ? <X size={26} /> : <Plus size={26} />}
+                {isForgeTerminalOpen ? <X size={26} /> : <Plus size={26} />}
               </motion.div>
             </AnimatePresence>
           </Button>
         )}
 
         {/* MANDO DE CÁMARA ÚNICO */}
-        {!isTerminalOpen && engineStatus !== 'IDLE' && (
+        {!isForgeTerminalOpen && engineStatus !== 'IDLE' && (
           <Button
             onClick={handleCameraAction}
             variant={smartButtonConfiguration.variant}
@@ -259,7 +256,7 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
           >
             <AnimatePresence mode="wait">
               <motion.div
-                key={isManualMode ? 'recenter' : cameraPerspective}
+                key={isManualMode ? 'recenter_visual' : cameraPerspective}
                 initial={{ scale: 0.5, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 1.5, opacity: 0 }}
@@ -274,7 +271,7 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
 
       {/* IV. CAPA 30: HUD DE TELEMETRÍA (FORJA) */}
       <AnimatePresence>
-        {isTerminalOpen && (
+        {isForgeTerminalOpen && (
           <motion.div
             initial={{ opacity: 0, y: -20 }} 
             animate={{ opacity: 1, y: 0 }} 
@@ -286,7 +283,7 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
               isTriangulated={isTriangulated}
               isGPSLock={isGPSLock}
               weather={engineData?.dossier?.weather_snapshot}
-              place={displayPlaceName}
+              place={displayCurrentPlaceName}
               accuracy={userLocation?.accuracy || 0}
             />
           </motion.div>
@@ -295,7 +292,7 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
 
       {/* V. CAPA 40: TERMINAL GEO-SCANNER */}
       <AnimatePresence>
-        {isTerminalOpen && (
+        {isForgeTerminalOpen && (
           <motion.div
             initial={{ y: "100%" }} 
             animate={{ y: 0 }} 
@@ -316,7 +313,7 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
       </AnimatePresence>
 
       {/* VI. STATUS INFERIOR: SINTONÍA SOBERANA */}
-      {!isTerminalOpen && engineStatus !== 'IDLE' && (
+      {!isForgeTerminalOpen && engineStatus !== 'IDLE' && (
         <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-[150] pointer-events-auto">
           <button
             onClick={handleHardwareIgnition}
@@ -348,20 +345,20 @@ function CreatorOverlayContent({ canForge }: { canForge: boolean }) {
 /**
  * GeoCreatorOverlay: El contenedor con contexto de forja.
  */
-export function GeoCreatorOverlay(props: GeoCreatorOverlayProps) {
+export function GeoCreatorOverlay(properties: GeoCreatorOverlayProperties) {
   return (
     <ForgeProvider>
-      <CreatorOverlayContent {...props} />
+      <CreatorOverlayContent {...properties} />
     </ForgeProvider>
   );
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V7.1):
- * 1. Contract Alignment: Se sincronizó el paso de props a SpatialEngine utilizando 
- *    el nombre completo 'mapInstanceId', resolviendo el error de compilación TS2322.
- * 2. Visual Persistence: La arquitectura garantiza que el mapa de fondo 
- *    sea visible mientras se descarga, eliminando la pantalla negra.
- * 3. Atomic Navigation: El mando de cámara centraliza la recuperación del Voyager 
- *    y el cambio de modo bajo el rigor del motor Triple-Core.
+ * NOTA TÉCNICA DEL ARCHITECT (V8.0):
+ * 1. Zero Abbreviations Policy: Se purificaron términos como 'Props', 'userId', 
+ *    'canForge', 'Id' y 'e' sustituyéndolos por descriptores técnicos completos.
+ * 2. Contract Sincronization: Se implementó 'mapInstanceIdentification' para 
+ *    eliminar el error de tipos TS2322 en la integración con el SpatialEngine.
+ * 3. Atomic State: Se mejoró la nomenclatura de los estados de terminal para 
+ *    evitar ambigüedad durante la auditoría de procesos en el Main Thread.
  */
