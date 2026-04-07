@@ -1,12 +1,11 @@
 /**
  * ARCHIVO: components/profile/public/public-profile-page.tsx
- * VERSIÓN: 4.1 (NicePod Public Profile Orchestrator - Absolute Contract Sync Edition)
+ * VERSIÓN: 4.2 (NicePod Public Profile Orchestrator - Absolute Path Integrity)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
- * Misión: Orquestar la visualización externa del curador, proyectando la identidad
- * y el capital intelectual mediante un flujo de hidratación protegida.
- * [REFORMA V4.1]: Resolución definitiva del error TS2322 mediante la sincronización 
- * exacta de nombres de propiedades con PublicContentTabs V4.0.
+ * Misión: Orquestar la visualización externa del curador.
+ * [REFORMA V4.2]: Implementación de importaciones absolutas (@/) para resolver 
+ * error TS2307 y garantizar la resolución de módulos en el Build Shield.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -16,23 +15,21 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Sparkles, Zap } from "lucide-react";
 
 // --- INFRAESTRUCTURA DE DATOS Y CONTRATOS SOBERANOS ---
+import { PodcastWithProfile } from "@/types/podcast";
 import {
   Collection,
   ProfileData,
   TestimonialWithAuthor
 } from "@/types/profile";
-import { PodcastWithProfile } from "@/types/podcast";
 
-// --- COMPONENTES DE ESTABILIDAD DE MALLA ---
-import { ProfileHydrationGuard } from "../profile-hydration-guard";
-
-// --- COMPONENTES SATÉLITES ESPECIALIZADOS ---
-import { PublicContentTabs } from "./public-content-tabs";
-import { PublicHeroSection } from "./public-hero-section";
+// --- COMPONENTES DE ESTABILIDAD DE MALLA (ABSORCIÓN MEDIANTE PATH ALIAS) ---
+// [FIX V4.2]: Se sustituyen rutas relativas por alias absolutos para neutralizar TS2307.
+import { ProfileHydrationGuard } from "@/components/profile/profile-hydration-guard";
+import { PublicContentTabs } from "@/components/profile/public/public-content-tabs";
+import { PublicHeroSection } from "@/components/profile/public/public-hero-section";
 
 /**
  * INTERFAZ: PublicProfilePageProperties
- * Misión: Definir el contrato de activos inyectados desde el orquestador de servidor.
  */
 interface PublicProfilePageProperties {
   administratorProfile: ProfileData;
@@ -43,7 +40,7 @@ interface PublicProfilePageProperties {
 }
 
 /**
- * PublicProfilePage: El director de escena para la identidad pública de la Workstation.
+ * PublicProfilePage: El director de escena para la identidad pública.
  */
 export default function PublicProfilePage({
   administratorProfile,
@@ -60,10 +57,7 @@ export default function PublicProfilePage({
 
       <main className="w-full flex flex-col items-center selection:bg-primary/20">
 
-        {/* 
-            CAPA I: IDENTIDAD MONUMENTAL (HERO SECTION)
-            Misión: Proyectar el estatus pericial y las métricas de reputación industrial.
-        */}
+        {/* CAPA I: IDENTIDAD MONUMENTAL (HERO SECTION) */}
         <div className="w-full animate-in fade-in slide-in-from-top-4 duration-1000 ease-out">
           <PublicHeroSection
             administratorProfile={administratorProfile}
@@ -72,11 +66,7 @@ export default function PublicProfilePage({
           />
         </div>
 
-        {/* 
-            CAPA II: MALLA DE CONTENIDO DINÁMICO (CONTENT TABS)
-            Misión: Organizar el acceso a la biblioteca, colecciones y testimonios.
-            [FIX V4.1]: Sincronización nominal absoluta con la interfaz de PublicContentTabs V4.0.
-        */}
+        {/* CAPA II: MALLA DE CONTENIDO DINÁMICO (CONTENT TABS) */}
         <section className="w-full max-w-screen-xl mx-auto px-4 sm:px-6 md:px-8 pb-32">
 
           <AnimatePresence mode="wait">
@@ -92,7 +82,6 @@ export default function PublicProfilePage({
             >
               <PublicContentTabs
                 administratorProfile={administratorProfile}
-                // [FIX]: Nombres de propiedades sincronizados con el contrato del componente hijo.
                 publishedPodcastsCollection={publishedPodcastsCollection}
                 initialTestimonialsCollection={initialTestimonialsCollection}
                 publicCollectionsCollection={publicCollectionsCollection}
@@ -102,13 +91,9 @@ export default function PublicProfilePage({
 
         </section>
 
-        {/* 
-            CAPA III: TELEMETRÍA DE CIERRE (INDUSTRIAL FOOTER)
-            Misión: Branding técnico que certifica la integridad del nodo de inteligencia.
-        */}
+        {/* CAPA III: TELEMETRÍA DE CIERRE */}
         <div className="w-full max-w-2xl mx-auto py-24 flex flex-col items-center gap-6 opacity-20 select-none">
           <div className="h-px w-full bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-
           <div className="flex items-center gap-4">
             <Zap size={14} className="text-primary animate-pulse" />
             <span className="text-[10px] font-black uppercase tracking-[0.7em] text-white">
@@ -116,11 +101,9 @@ export default function PublicProfilePage({
             </span>
             <Sparkles size={14} className="text-primary animate-pulse" />
           </div>
-
           <div className="text-[7px] font-bold text-zinc-500 uppercase tracking-[0.4em]">
             NicePod Platform V4.0 • Atomic Synchronization Verified
           </div>
-
           <div className="h-px w-full bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
         </div>
 
@@ -129,13 +112,3 @@ export default function PublicProfilePage({
     </ProfileHydrationGuard>
   );
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT (V4.1):
- * 1. Contract Alignment: Se neutralizó el error TS2322 en la línea 95 mediante la 
- *    sincronización exacta de las propiedades inyectadas al componente PublicContentTabs.
- * 2. Zero Abbreviations Policy: Se purificó la lógica interna del orquestador, asegurando 
- *    que cada proceso de transferencia de datos sea nominalmente transparente.
- * 3. Type Integrity Seal: Se garantiza que el flujo de capital intelectual (Podcasts) 
- *    mantenga su densidad técnica (PodcastWithProfile) a través de toda la malla del perfil.
- */
