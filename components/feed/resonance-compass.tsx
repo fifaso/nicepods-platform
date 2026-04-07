@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: components/feed/resonance-compass.tsx
- * VERSIÓN: 2.0 (NicePod Resonance Compass - Mathematical Sovereignty Edition)
+ * VERSIÓN: 3.0 (NicePod Resonance Compass - Absolute Nominal Integrity)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Visualizar el universo semántico del Voyager mediante una simulación 
- * de fuerzas, permitiendo la exploración orgánica de crónicas y ecos.
- * [REFORMA V2.0]: Resolución de Path Aliasing, erradicación absoluta de 
- * abreviaturas y blindaje de tipos en la simulación D3.js.
+ * de fuerzas matemáticas, permitiendo la exploración orgánica de crónicas y ecos.
+ * [REFORMA V3.0]: Sincronización nominal total con PodcastCard V9.0, erradicación 
+ * absoluta de abreviaturas y blindaje de tipos en el motor de física D3.js.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -15,17 +15,17 @@
 import { PodcastWithProfile } from '@/types/podcast';
 import type { Tables } from '@/types/database.types';
 
-// --- [FIX V2.0]: Resolución de importación mediante Path Alias ---
+// --- INFRAESTRUCTURA DE COMPONENTES SOBERANOS ---
 import { PodcastCard } from '@/components/podcast/podcast-card';
 
 import * as d3 from 'd3';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Compass, Loader2 } from 'lucide-react';
 import Image from 'next/image';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import useResizeObserver from 'use-resize-observer';
 
-type ResonanceProfile = Tables<'user_resonance_profiles'>;
+type UserResonanceProfile = Tables<'user_resonance_profiles'>;
 
 /**
  * INTERFAZ: ResonanceSimulationNode
@@ -40,7 +40,7 @@ interface ResonanceSimulationNode extends d3.SimulationNodeDatum {
  * INTERFAZ: ResonanceCompassProperties
  */
 interface ResonanceCompassProperties {
-  userResonanceProfile: ResonanceProfile | null;
+  userResonanceProfile: UserResonanceProfile | null;
   podcastCollection: PodcastWithProfile[];
   semanticTags: string[];
 }
@@ -51,10 +51,10 @@ interface ResonanceCompassProperties {
  */
 function PodcastResonanceBubble({ 
   simulationNode, 
-  onPodcastSelection 
+  onPodcastSelectionAction 
 }: { 
   simulationNode: ResonanceSimulationNode; 
-  onPodcastSelection: () => void 
+  onPodcastSelectionAction: () => void 
 }) {
   const bubbleRadiusPixels = 48;
 
@@ -66,7 +66,7 @@ function PodcastResonanceBubble({
         top: `${simulationNode.y}px`, 
         transform: 'translate(-50%, -50%)' 
       }}
-      onClick={onPodcastSelection}
+      onClick={onPodcastSelectionAction}
       whileHover={{ scale: 1.1 }}
       initial={{ opacity: 0, scale: 0.5 }}
       animate={{ opacity: 1, scale: 1 }}
@@ -89,7 +89,7 @@ function PodcastResonanceBubble({
           </div>
         )}
       </div>
-      <p className="text-[10px] font-black uppercase tracking-widest text-center text-white/60 group-hover:text-white truncate w-32 transition-colors">
+      <p className="text-[10px] font-black uppercase tracking-widest text-center text-white/60 group-hover:text-white truncate w-32 transition-colors italic">
         {simulationNode.podcast.title}
       </p>
     </motion.div>
@@ -97,7 +97,7 @@ function PodcastResonanceBubble({
 }
 
 /**
- * ResonanceCompass: El reactor de visualización semántica de NicePod.
+ * ResonanceCompass: El reactor de visualización semántica de la Workstation.
  */
 export function ResonanceCompass({ 
   userResonanceProfile, 
@@ -106,44 +106,44 @@ export function ResonanceCompass({
 }: ResonanceCompassProperties) {
   
   const [simulationNodes, setSimulationNodes] = useState<ResonanceSimulationNode[]>([]);
-  const [isSimulationLoading, setIsSimulationLoading] = useState<boolean>(true);
-  const [selectedPodcastMatch, setSelectedPodcastMatch] = useState<PodcastWithProfile | null>(null);
+  const [isSimulationEngineLoading, setIsSimulationEngineLoading] = useState<boolean>(true);
+  const [selectedPodcastIntelligence, setSelectedPodcastIntelligence] = useState<PodcastWithProfile | null>(null);
   
   const { ref: containerElementReference, width = 0, height = 0 } = useResizeObserver<HTMLDivElement>();
 
   /**
    * EFECTO: MathematicalSimulationEngine
-   * Misión: Orquestar la simulación de fuerzas para el posicionamiento de nodos.
+   * Misión: Orquestar la simulación de fuerzas para el posicionamiento orgánico de nodos.
    */
   useEffect(() => {
     if (!width || !height || podcastCollection.length === 0) {
-      setIsSimulationLoading(false);
+      setIsSimulationEngineLoading(false);
       return;
     }
 
-    setIsSimulationLoading(true);
+    setIsSimulationEngineLoading(true);
 
-    const centerX = width / 2;
-    const centerY = height / 2;
+    const centerXCoordinate = width / 2;
+    const centerYCoordinate = height / 2;
     const exclusionZoneRadius = Math.min(width, height) * 0.15;
 
     const initialNodes: ResonanceSimulationNode[] = podcastCollection.map((podcastItem) => ({
       identification: podcastItem.id,
-      x: centerX + (Math.random() - 0.5) * 200,
-      y: centerY + (Math.random() - 0.5) * 200,
+      x: centerXCoordinate + (Math.random() - 0.5) * 200,
+      y: centerYCoordinate + (Math.random() - 0.5) * 200,
       podcast: podcastItem,
     }));
 
     const forceSimulation = d3.forceSimulation<ResonanceSimulationNode>(initialNodes)
       .force('charge', d3.forceManyBody().strength(50))
-      .force('radial', d3.forceRadial(exclusionZoneRadius, centerX, centerY).strength(0.6))
+      .force('radial', d3.forceRadial(exclusionZoneRadius, centerXCoordinate, centerYCoordinate).strength(0.6))
       .force('collision', d3.forceCollide<ResonanceSimulationNode>().radius(65))
       .on('tick', () => {
-        // [SHIELD]: Se realiza una copia superficial para forzar el re-renderizado reactivo.
+        // Realizamos una copia superficial para forzar la actualización reactiva del árbol de componentes.
         setSimulationNodes([...initialNodes]);
       })
       .on('end', () => {
-        setIsSimulationLoading(false);
+        setIsSimulationEngineLoading(false);
       });
 
     return () => {
@@ -151,8 +151,8 @@ export function ResonanceCompass({
     };
   }, [podcastCollection, width, height]);
 
-  const handleSelectionReset = useCallback(() => {
-    setSelectedPodcastMatch(null);
+  const handleSelectionResetAction = useCallback(() => {
+    setSelectedPodcastIntelligence(null);
   }, []);
 
   return (
@@ -160,9 +160,9 @@ export function ResonanceCompass({
       ref={containerElementReference} 
       className="relative w-full aspect-video max-h-[70vh] max-w-6xl mx-auto bg-gradient-to-br from-zinc-950 to-zinc-900 rounded-[3rem] overflow-hidden shadow-[0_50px_100px_rgba(0,0,0,0.5)] border border-white/5 isolate"
     >
-      {/* CAPA DE CARGA (SINCRO EN CURSO) */}
+      {/* CAPA I: INTERFAZ DE CARGA (SINCRO T0) */}
       <AnimatePresence>
-        {isSimulationLoading && (
+        {isSimulationEngineLoading && (
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="absolute inset-0 flex flex-col items-center justify-center gap-6 bg-black/60 backdrop-blur-xl z-50"
@@ -176,20 +176,20 @@ export function ResonanceCompass({
         )}
       </AnimatePresence>
 
-      {/* ESTADO DE VACÍO SEMÁNTICO */}
-      {!isSimulationLoading && podcastCollection.length === 0 && (
+      {/* CAPA II: ESTADO DE VACÍO SEMÁNTICO */}
+      {!isSimulationEngineLoading && podcastCollection.length === 0 && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-5">
           <Compass className="w-12 h-12 text-zinc-800" />
           <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-600 max-w-xs text-center">
-            Densidad de datos insuficiente para proyectar resonancia.
+            Densidad de datos insuficiente para proyectar la malla de resonancia.
           </p>
         </div>
       )}
 
-      {/* MALLA DE RESONANCIA ACTIVA */}
-      {!isSimulationLoading && podcastCollection.length > 0 && (
+      {/* CAPA III: MALLA DE RESONANCIA ACTIVA (WEBGL EMULATION) */}
+      {!isSimulationEngineLoading && podcastCollection.length > 0 && (
         <>
-          {/* Eje de Gravedad Central */}
+          {/* Eje de Gravedad Central (El Voyager) */}
           <motion.div
             className="absolute w-8 h-8 bg-primary/30 rounded-full shadow-[0_0_40px_rgba(var(--primary-rgb),0.5)]"
             style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
@@ -197,35 +197,37 @@ export function ResonanceCompass({
             <div className="absolute w-full h-full bg-primary/40 rounded-full animate-ping" />
           </motion.div>
 
-          {/* Renderizado de Nodos Vectoriales */}
+          {/* Renderizado de Nodos Vectoriales de Conocimiento */}
           {simulationNodes.map((nodeItem) => (
             <PodcastResonanceBubble 
               key={nodeItem.identification} 
               simulationNode={nodeItem} 
-              onPodcastSelection={() => setSelectedPodcastMatch(nodeItem.podcast)} 
+              onPodcastSelectionAction={() => setSelectedPodcastIntelligence(nodeItem.podcast)} 
             />
           ))}
 
-          {/* OVERLAY DE DETALLE PERICIAL */}
+          {/* OVERLAY DE DETALLE PERICIAL (FOCUS MODE) */}
           <AnimatePresence>
-            {selectedPodcastMatch && (
+            {selectedPodcastIntelligence && (
               <motion.div
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 className="absolute inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-6 z-[60]"
-                onClick={handleSelectionReset}
+                onClick={handleSelectionResetAction}
               >
                 <motion.div
                   initial={{ y: 50, scale: 0.9, opacity: 0 }} 
                   animate={{ y: 0, scale: 1, opacity: 1 }}
                   exit={{ y: 50, scale: 0.9, opacity: 0 }}
                   className="w-full max-w-md"
-                  onClick={(event) => event.stopPropagation()}
+                  onClick={(interactionEvent) => interactionEvent.stopPropagation()}
                 >
-                  <PodcastCard podcast={selectedPodcastMatch} />
-                  <div className="mt-8 flex justify-center">
+                  {/* [FIX V3.0]: Sincronización nominal con el contrato PodcastCardProperties V9.0 */}
+                  <PodcastCard initialPodcastData={selectedPodcastIntelligence} />
+                  
+                  <div className="mt-10 flex justify-center">
                     <button 
-                        onClick={handleSelectionReset}
-                        className="text-[9px] font-black uppercase tracking-[0.4em] text-zinc-500 hover:text-white transition-colors"
+                        onClick={handleSelectionResetAction}
+                        className="text-[10px] font-black uppercase tracking-[0.5em] text-zinc-500 hover:text-white transition-all border-b border-zinc-800 hover:border-white pb-1"
                     >
                         Cerrar Enfoque
                     </button>
@@ -241,12 +243,11 @@ export function ResonanceCompass({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V2.0):
- * 1. Build Shield Compliance: Se corrigió el error TS2307 alineando la importación 
- *    de 'PodcastCard' con el estándar de Path Aliasing (@/).
- * 2. Zero Abbreviations Policy: Se purificaron términos como 'props', 'id', 'p', 'e' 
- *    y 'ref', elevando el código al estándar industrial Madrid Resonance.
- * 3. Reactive Simulation: La copia superficial del array de nodos en cada 'tick' 
- *    garantiza que la UI de React se sincronice con el motor de física de D3.js 
- *    sin pérdidas de frames.
+ * NOTA TÉCNICA DEL ARCHITECT (V3.0):
+ * 1. Contract Synchronization: Se sustituyó la propiedad 'podcast' por 'initialPodcastData' 
+ *    para satisfacer la interfaz de PodcastCard V9.0, neutralizando el error TS2322.
+ * 2. Zero Abbreviations Policy: Purificación total de la nomenclatura (simulationNodes, 
+ *    onPodcastSelectionAction, containerElementReference).
+ * 3. Physics Integrity: La simulación utiliza tipos estrictos (ResonanceSimulationNode), 
+ *    eliminando el uso de 'any' y garantizando que el Build Shield valide cada tick.
  */
