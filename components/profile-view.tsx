@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: components/profile-view.tsx
- * VERSIÓN: 12.0 (NicePod Profile Orchestrator - Industrial Integrity Standard)
+ * VERSIÓN: 13.0 (NicePod Profile Orchestrator - Industrial Integrity Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Orquestar la visualización del podcast dentro del perfil del curador,
  * garantizando la sintonía entre los datos en tiempo real y los componentes de autoridad.
- * [REFORMA V12.0]: Resolución de errores de importación (nicepodLog), mapeo de 
- * nulabilidad para reputación y sincronía de contrato con el Hub de Acción.
+ * [REFORMA V13.0]: Sincronización nominal total con ProfileCuratorFiche V3.0, 
+ * resolución de conflictos de nulabilidad (null vs undefined) y blindaje de tipos.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -16,15 +16,15 @@ import { User } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-// --- INFRAESTRUCTURA DE DATOS Y SINCRO ---
+// --- INFRAESTRUCTURA DE DATOS Y SINCRONIZACIÓN ---
 import { useAudio } from '@/contexts/audio-context';
 import { useAuth } from '@/hooks/use-auth';
 import { useOfflineAudio } from '@/hooks/use-offline-audio';
 import { usePodcastSync } from '@/hooks/use-podcast-sync';
 import { useToast } from '@/hooks/use-toast';
-import { PodcastWithProfile, PodcastScript } from '@/types/podcast';
+import { PodcastWithProfile, CreationMetadataPayload } from '@/types/podcast';
 
-// --- [FIX V12.0]: Importación de utilidades industriales ---
+// --- UTILIDADES INDUSTRIALES ---
 import { nicepodLog, cn, formatTime } from "@/lib/utils";
 
 // --- COMPONENTES SATÉLITE (Arquitectura Atómica V4.0) ---
@@ -37,7 +37,6 @@ import { ProfileMediaStage } from './profile/profile-media-stage';
 
 /**
  * INTERFAZ: ProfilePodcastViewProperties
- * Misión: Recibir los datos iniciales inyectados desde el servidor (SSR).
  */
 interface ProfilePodcastViewProperties {
   initialPodcastData: PodcastWithProfile;
@@ -64,7 +63,7 @@ export function PodcastView({
     isAudioReady,
     isImageReady,
     isConstructing: isIntelligenceConstructing,
-    isFailed: isSynthesisFailed
+    isFailed: isIntelligenceSynthesisFailed
   } = usePodcastSync(initialPodcastData);
 
   // 2. INTEGRACIÓN CON EL MOTOR DE AUDIO GLOBAL
@@ -72,19 +71,19 @@ export function PodcastView({
     playPodcast,
     currentPodcast,
     isPlaying,
-    isLoading: isAudioLoading,
+    isLoading: isAudioPlaybackLoading,
     togglePlayPause
   } = useAudio();
 
   // 3. ESTADOS SOCIALES Y DE RESONANCIA
   const [isLikedByVoyager, setIsLikedByVoyager] = useState<boolean>(initialIsLikedStatus);
   const [resonanceCount, setResonanceCount] = useState<number>(Number(livePodcastData.like_count || 0));
-  const [isInteractionProcessActive, setIsInteractionProcessActive] = useState<boolean>(false);
+  const [isPlaybackProcessActive, setIsPlaybackProcessActive] = useState<boolean>(false);
 
   // 4. LÓGICA DE PERSISTENCIA OFFLINE (Progressive Web App Standard)
   const {
     isOfflineAvailable,
-    isDownloading,
+    isDownloading: isOfflineDownloading,
     downloadForOffline,
     removeFromOffline
   } = useOfflineAudio(livePodcastData);
@@ -102,18 +101,20 @@ export function PodcastView({
 
   /**
    * mappedAdministratorProfile:
-   * Misión: Resolver la incompatibilidad de nulabilidad entre el Metal y la Interfaz.
-   * [FIX V12.0]: Transforma null en undefined para satisfacer el Build Shield.
+   * Misión: Sincronizar el perfil con el contrato de ProfileCuratorFiche.
+   * [FIX V13.0]: Se mantienen los valores 'null' originales para coincidir con el Metal.
    */
   const mappedAdministratorProfile = useMemo(() => {
     if (!livePodcastData.profiles) {
       return null;
     }
     return {
-      ...livePodcastData.profiles,
-      reputation_score: livePodcastData.profiles.reputation_score ?? undefined,
-      is_verified: livePodcastData.profiles.is_verified ?? undefined,
-      role: livePodcastData.profiles.role ?? undefined
+      full_name: livePodcastData.profiles.full_name,
+      avatar_url: livePodcastData.profiles.avatar_url,
+      username: livePodcastData.profiles.username,
+      reputation_score: livePodcastData.profiles.reputation_score,
+      is_verified: livePodcastData.profiles.is_verified,
+      role: livePodcastData.profiles.role
     };
   }, [livePodcastData.profiles]);
 
@@ -133,8 +134,8 @@ export function PodcastView({
   }, [isCurrentPillActive, togglePlayPause, playPodcast, livePodcastData]);
 
   const handleResonanceInteractionAction = useCallback(async () => {
-    if (!supabaseClient || !authenticatedUser || isInteractionProcessActive) return;
-    setIsInteractionProcessActive(true);
+    if (!supabaseClient || !authenticatedUser || isPlaybackProcessActive) return;
+    setIsPlaybackProcessActive(true);
 
     const podcastIdentification = livePodcastData.id;
     try {
@@ -148,11 +149,11 @@ export function PodcastView({
         await supabaseClient.from('likes').insert({ user_id: authenticatedUser.id, podcast_id: podcastIdentification });
       }
     } catch (exception: any) {
-      nicepodLog("🔥 [Profile-Like-Error]:", exception.message, 'error');
+      nicepodLog("🔥 [Profile-Like-Fatal]:", exception.message, 'error');
     } finally {
-      setIsInteractionProcessActive(false);
+      setIsPlaybackProcessActive(false);
     }
-  }, [supabaseClient, authenticatedUser, isLikedByVoyager, isInteractionProcessActive, livePodcastData.id]);
+  }, [supabaseClient, authenticatedUser, isLikedByVoyager, isPlaybackProcessActive, livePodcastData.id]);
 
   const handleTagPersistenceAction = useCallback(async (updatedTaxonomyTags: string[]) => {
     if (!supabaseClient) return;
@@ -168,6 +169,8 @@ export function PodcastView({
 
   const handleSovereignPublishAction = useCallback(async () => {
     if (!supabaseClient) return;
+    nicepodLog(`🚀 [Orchestrator] Liberando Pod #${livePodcastData.id} a la red pública.`);
+
     const { error: databaseUpdateError } = await supabaseClient
       .from('micro_pods')
       .update({ status: 'published', published_at: new Date().toISOString() })
@@ -180,11 +183,11 @@ export function PodcastView({
   }, [supabaseClient, livePodcastData.id, toast, navigationRouter]);
 
   return (
-    <div className="container mx-auto max-w-7xl py-4 md:py-8 px-4 w-full animate-in fade-in duration-700 selection:bg-primary/20">
+    <div className="container mx-auto max-w-7xl py-4 md:py-8 px-4 w-full animate-in fade-in duration-1000 selection:bg-primary/20">
 
       {/* CAPA I: ESCUDO DE INTEGRIDAD (QA & Liberación) */}
       <IntegrityShield
-        isFailed={isSynthesisFailed}
+        isFailed={isIntelligenceSynthesisFailed}
         isConstructing={isIntelligenceConstructing}
         isOwner={isAdministratorOwner}
         status={livePodcastData.status}
@@ -193,11 +196,11 @@ export function PodcastView({
         onPublish={handleSovereignPublishAction}
       />
 
-      {/* GRID OPERATIVO: DENSIDAD TÁCTICA */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+      {/* GRID OPERATIVO: DENSIDAD TÁCTICA INDUSTRIAL */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
 
         {/* COLUMNA DE CONOCIMIENTO (2/3) */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-8">
           <ProfileMediaStage
             imageUrl={livePodcastData.cover_image_url}
             imageReady={isImageReady}
@@ -207,7 +210,6 @@ export function PodcastView({
           <ProfileContentVault
             title={livePodcastData.title}
             description={livePodcastData.description}
-            // [FIX V12.0]: Casting controlado para satisfacer la firma de índice (TS2322)
             narrativeScriptContent={livePodcastData.script_text as Record<string, string> | null}
             artificialIntelligenceTags={livePodcastData.ai_tags}
             administratorCuratedTags={livePodcastData.user_tags}
@@ -217,28 +219,28 @@ export function PodcastView({
         </div>
 
         {/* COLUMNA LATERAL: TERMINAL DE CONTROL (1/3) */}
-        <div className="lg:col-span-1 space-y-6 lg:sticky lg:top-24">
+        <div className="lg:col-span-1 space-y-8 lg:sticky lg:top-24">
           <ProfileAudioConsole
             audioReady={isAudioReady}
-            audioLoading={isAudioLoading}
+            audioLoading={isAudioPlaybackLoading}
             isPlaying={isPlaying}
             isCurrentActive={isCurrentPillActive}
             likeCount={resonanceCount}
             isLiked={isLikedByVoyager}
-            isLiking={isInteractionProcessActive}
+            isLiking={isPlaybackProcessActive}
             isOfflineAvailable={isOfflineAvailable}
-            isDownloading={isDownloading}
+            isDownloading={isOfflineDownloading}
             onPlay={handlePlaybackControlAction}
             onLike={handleResonanceInteractionAction}
             onDownload={() => isOfflineAvailable ? removeFromOffline() : downloadForOffline()}
           />
 
           <ProfileCuratorFiche
-            administratorProfile={mappedAdministratorProfile} // [FIX V12.0]: Sincronización nominal y tipado saneado
+            administratorProfile={mappedAdministratorProfile} 
             creationDateString={livePodcastData.created_at}
             playbackDurationSeconds={livePodcastData.duration_seconds || 0}
-            // [FIX V12.0]: Casting para CreationMetadataPayload
-            artificialIntelligenceCreationData={livePodcastData.creation_data as Record<string, unknown> | null}
+            // [FIX V13.0]: Sincronización absoluta con CreationMetadataPayload
+            artificialIntelligenceCreationData={livePodcastData.creation_data as CreationMetadataPayload | null}
             intelligenceResearchSources={livePodcastData.sources || []}
           />
 
@@ -247,7 +249,7 @@ export function PodcastView({
             publicationStatus={livePodcastData.status}
             isAdministratorOwner={isAdministratorOwner}
             isIntelligenceConstructing={isIntelligenceConstructing}
-            // [FIX V12.0]: Propiedad corregida 'isUserAuthenticated' (Neutraliza error TS2322 línea 248)
+            // [FIX V13.0]: Sincronización con el contrato de ProfileActionHub V2.0
             isUserAuthenticated={!!authenticatedUser}
             podcastTitle={livePodcastData.title}
             authorDisplayName={livePodcastData.profiles?.full_name || 'Curador Anónimo'}
@@ -262,10 +264,11 @@ export function PodcastView({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V12.0):
- * 1. Build Shield Neutralization: Se importó 'nicepodLog' y se mapearon los perfiles 
- *    para resolver las incompatibilidades de nulabilidad entre DB y Props.
- * 2. Contract Alignment: Se sincronizó 'isUserAuthenticated' con la interfaz de 
- *    ProfileActionHub V2.0, erradicando el error en la línea 248 del reporte de Vercel.
- * 3. Zero Abbreviations Policy: Se purificó el 100% de la nomenclatura interna del orquestador.
+ * NOTA TÉCNICA DEL ARCHITECT (V13.0):
+ * 1. Contract Synchronization: Se neutralizaron los errores TS2322 en las líneas 237, 241 y 248 
+ *    mediante el ajuste de nulabilidad del perfil y el casting estricto a CreationMetadataPayload.
+ * 2. Zero Abbreviations Policy: Purificación absoluta de la nomenclatura interna del orquestador, 
+ *    asegurando que cada proceso táctico sea autodescriptivo.
+ * 3. Metal-to-UI Harmony: El orquestador ahora actúa como un puente perfecto entre la base de 
+ *    datos (PostgreSQL) y las interfaces periciales de NicePod.
  */
