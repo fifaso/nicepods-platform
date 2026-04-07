@@ -1,11 +1,12 @@
 /**
  * ARCHIVO: components/podcast-view.tsx
- * VERSIÓN: 32.0 (NicePod Interactive Stage - Absolute Contract Sync)
+ * VERSIÓN: 33.0 (NicePod Interactive Stage - Industrial Integrity Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
- * Misión: Director de escena que orquesta el ciclo de vida del podcast desde la Forja hasta la Liberación.
- * [REFORMA V32.0]: Sincronización nominal estricta con ContentVault V2.1 y CuratorAside V1.4
- * para neutralizar los errores de propagación de contrato (Build Shield TS2322).
+ * Misión: Director de escena que orquesta el ciclo de vida del podcast desde la Forja 
+ * hasta la Liberación, garantizando la sintonía entre el hardware y la Bóveda NKV.
+ * [REFORMA V33.0]: Resolución de incompatibilidad de nulabilidad (TS2322) y 
+ * sincronía de firmas de índice para objetos estructurados.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -26,7 +27,7 @@ import { useOfflineAudio } from '@/hooks/use-offline-audio';
 import { usePodcastSync } from '@/hooks/use-podcast-sync';
 
 // --- UTILIDADES ---
-import { nicepodLog } from "@/lib/utils";
+import { nicepodLog, cn, formatTime } from "@/lib/utils";
 import { PodcastWithProfile } from '@/types/podcast';
 
 // --- COMPONENTES SATÉLITE ---
@@ -38,7 +39,6 @@ import { MediaStage } from './podcast/media-stage';
 
 /**
  * INTERFAZ: PodcastViewProperties
- * [FIX V32.0]: Sincronía con el punto de entrada SSR (app/(platform)/podcast/[id]/page.tsx)
  */
 interface PodcastViewProperties {
   initialPodcastData: PodcastWithProfile;
@@ -47,6 +47,9 @@ interface PodcastViewProperties {
   replies?: PodcastWithProfile[];
 }
 
+/**
+ * PodcastView: El director de orquesta de la visualización industrial.
+ */
 export function PodcastView({
   initialPodcastData,
   authenticatedUser,
@@ -68,7 +71,13 @@ export function PodcastView({
   } = usePodcastSync(initialPodcastData);
 
   // 2. Control de Audio
-  const { playPodcast, currentPodcast, isPlaying, isLoading: isAudioLoading, togglePlayPause } = useAudio();
+  const { 
+    playPodcast, 
+    currentPodcast, 
+    isPlaying, 
+    isLoading: isAudioLoading, 
+    togglePlayPause 
+  } = useAudio();
 
   // 3. Estado de Escucha para QA (95%)
   const [listeningProgressPercentage, setListeningProgressPercentage] = useState<number>(0);
@@ -78,7 +87,6 @@ export function PodcastView({
   const [resonanceCount, setResonanceCount] = useState<number>(Number(livePodcastData.like_count || 0));
   const [isInteractionProcessActive, setIsInteractionProcessActive] = useState<boolean>(false);
   const [isScriptInterfaceExpanded, setIsScriptInterfaceExpanded] = useState<boolean>(false);
-  const [isRemixConsoleOpen, setIsRemixConsoleOpen] = useState<boolean>(false);
 
   const { isOfflineAvailable, isDownloading, downloadForOffline, removeFromOffline } = useOfflineAudio(livePodcastData);
 
@@ -93,8 +101,7 @@ export function PodcastView({
   );
 
   /**
-   * [SINCRO DE PROGRESO QA]:
-   * Escuchamos el evento global del AudioProvider para actualizar el escudo.
+   * EFECTO: AudioHardwarePulseSincronization
    */
   useEffect(() => {
     const handleHardwarePlaybackTimeUpdate = (event: Event) => {
@@ -111,7 +118,24 @@ export function PodcastView({
 
   const hasVoyagerListenedFully = useMemo(() => listeningProgressPercentage >= 95, [listeningProgressPercentage]);
 
-  // --- MANEJADORES DE ACCIÓN ---
+  /**
+   * mappedAdministratorProfile:
+   * Misión: Transformar la nulabilidad de la DB (null) a la opcionalidad de la UI (undefined).
+   * Esto resuelve el error TS2322 de la línea 227.
+   */
+  const mappedAdministratorProfile = useMemo(() => {
+    if (!livePodcastData.profiles) {
+        return null;
+    }
+    return {
+      ...livePodcastData.profiles,
+      reputation_score: livePodcastData.profiles.reputation_score ?? undefined,
+      is_verified: livePodcastData.profiles.is_verified ?? undefined,
+      role: livePodcastData.profiles.role ?? undefined
+    };
+  }, [livePodcastData.profiles]);
+
+  // --- MANEJADORES DE ACCIÓN SOBERANA ---
 
   const handlePlaybackControlAction = useCallback(() => {
     const publishedRepliesCollection = replies.filter(replyItem => replyItem.status === 'published');
@@ -164,7 +188,6 @@ export function PodcastView({
   return (
     <main className="container mx-auto max-w-screen-xl py-6 md:py-10 px-4 md:px-8 w-full animate-in fade-in duration-700 selection:bg-primary/20">
 
-      {/* SHIELD DE CALIDAD Y LIBERACIÓN */}
       <div className="w-full mb-8">
         <IntegrityShield
           isFailed={isSynthesisFailed}
@@ -179,7 +202,6 @@ export function PodcastView({
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 items-start">
         
-        {/* COLUMNA PRINCIPAL (MEDIA & CONTENIDO) */}
         <div className="lg:col-span-2 space-y-10">
           <MediaStage
             imageUrl={livePodcastData.cover_image_url}
@@ -188,23 +210,22 @@ export function PodcastView({
             isConstructing={isIntelligenceConstructing}
           />
           
-          {/* [FIX V32.0]: Sincronización de Contrato con ContentVaultProperties V2.1 */}
           <ContentVault
             title={livePodcastData.title}
             description={livePodcastData.description}
             status={livePodcastData.status}
             isIntelligenceConstructing={isIntelligenceConstructing}
-            narrativeScriptContent={livePodcastData.script_text}
+            // [FIX V33.0]: Casting a Record para satisfacer la firma de índice del contrato V2.1
+            narrativeScriptContent={livePodcastData.script_text as Record<string, string> | null}
             artificialIntelligenceTags={livePodcastData.ai_tags}
             administratorCuratedTags={livePodcastData.user_tags}
             isAdministratorOwner={isAdministratorOwner}
             isScriptExpanded={isScriptInterfaceExpanded}
             onScriptVisibilityToggle={setIsScriptInterfaceExpanded}
-            onTagEditAction={() => { nicepodLog("📝 [Orchestrator] Edición de etiquetas solicitada."); }}
+            onTagEditAction={() => { nicepodLog("📝 Edición de etiquetas solicitada."); }}
           />
         </div>
 
-        {/* COLUMNA LATERAL (CONSOLA & METADATOS) */}
         <div className="lg:col-span-1 space-y-10 lg:sticky lg:top-32">
           <AudioConsole
             audioReady={isAudioReady}
@@ -222,13 +243,13 @@ export function PodcastView({
             onDownload={handleOfflineAvailabilityAction}
           />
 
-          {/* [FIX V32.0]: Sincronización de Contrato con CuratorAsideProperties V1.4 */}
           <CuratorAside
-            administratorProfile={livePodcastData.profiles}
+            administratorProfile={mappedAdministratorProfile} // [FIX V33.0]: Perfil sanitizado
             creationDateString={livePodcastData.created_at}
             playbackDurationSeconds={livePodcastData.duration_seconds || 0}
             geographicPlaceName={livePodcastData.place_name || null}
-            artificialIntelligenceCreationData={livePodcastData.creation_data}
+            // [FIX V33.0]: Casting controlado para asegurar compatibilidad con CreationMetadataPayload
+            artificialIntelligenceCreationData={livePodcastData.creation_data as Record<string, unknown> | null}
             intelligenceResearchSources={livePodcastData.sources || []}
             isIntelligenceConstructing={isIntelligenceConstructing}
           />
@@ -244,12 +265,10 @@ export function PodcastView({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V32.0):
- * 1. Contract Synchronization: Se han inyectado las propiedades exactas exigidas 
- *    por ContentVault (narrativeScriptContent, isIntelligenceConstructing, etc.) y 
- *    CuratorAside (administratorProfile, creationDateString), erradicando TS2322.
- * 2. Zero Abbreviations Policy: Purificación de variables de estado y referencias, 
- *    como 'isFailed' a 'isSynthesisFailed' y 'e' a 'event'.
- * 3. Type Safety: Se eliminó el uso de 'as any' en la inyección del perfil, 
- *    confiando en la estructura blindada del tipo 'PodcastWithProfile' (V11.0).
+ * NOTA TÉCNICA DEL ARCHITECT (V33.0):
+ * 1. Build Shield Compliance: Se implementó 'mappedAdministratorProfile' para resolver 
+ *    la incompatibilidad entre 'null' (DB) y 'undefined' (Props), erradicando el error TS2322.
+ * 2. Signature Sync: Se aplicaron castings controlados a 'Record<string, unknown>' para 
+ *    los campos de script y metadatos, neutralizando los errores de firma de índice.
+ * 3. Nominal Integrity: Se mantiene el cumplimiento estricto de la Zero Abbreviations Policy.
  */
