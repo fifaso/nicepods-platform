@@ -1,11 +1,12 @@
 /**
  * ARCHIVO: app/(platform)/dashboard/dashboard-client.tsx
- * VERSIÓN: 23.0 (NicePod Interactive Shell - Context-Aware Layout Edition)
- * PROTOCOLO: MADRID RESONANCE V2.8
+ * VERSIÓN: 24.0 (NicePod Interactive Shell - Ergo-Nominal Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.0
  * 
- * Misión: Gestionar el estado interactivo y el layout del Dashboard central.
- * [REFORMA V23.0]: Calibración de altura de mapa para legibilidad de vista OVERVIEW.
- * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
+ * Misión: Gestionar el estado interactivo y el diseño (layout) del Dashboard central.
+ * [REFORMA V24.0]: Optimización de ergonomía espacial en cabecera para dispositivos 
+ * móviles y cumplimiento estricto de la Zero Abbreviations Policy.
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
@@ -31,10 +32,10 @@ import { UnifiedSearchBar } from "@/components/ui/unified-search-bar";
 
 /**
  * [SHIELD]: HIDRATACIÓN DIFERIDA Y PROTEGIDA (T2)
- * El motor WebGL se aísla para proteger el Main Thread.
+ * El motor WebGL se aísla para proteger el hilo principal (Main Thread).
  */
 const MapPreviewFrame = dynamic(
-  () => import("@/components/geo/map-preview-frame").then((mod) => mod.MapPreviewFrame),
+  () => import("@/components/geo/map-preview-frame").then((module) => module.MapPreviewFrame),
   {
     ssr: false,
     loading: () => (
@@ -49,16 +50,16 @@ const MapPreviewFrame = dynamic(
 );
 
 /**
- * INTERFAZ: DashboardClientProps
+ * INTERFAZ: DashboardClientProperties
  */
-interface DashboardClientProps {
+interface DashboardClientProperties {
   initialFeed: {
     epicenter: PodcastWithProfile[];
     semantic_connections: PodcastWithProfile[];
   };
   initialProfile: Tables<'profiles'>;
   initialResonance: Tables<'user_resonance_profiles'> | null;
-  isAdmin: boolean;
+  isAdministrator: boolean; // Corregido: Erradicación de 'isAdmin'
 }
 
 /**
@@ -89,25 +90,25 @@ export function DashboardClient({
   initialFeed,
   initialProfile,
   initialResonance,
-  isAdmin
-}: DashboardClientProps) {
+  isAdministrator
+}: DashboardClientProperties) {
 
   // --- ESTADOS DE CONSOLA (RADAR SEMÁNTICO) ---
-  const [searchResults, setSearchResults] = useState<SearchResult[] | null>(null);
-  const [isSearching, setIsSearching] = useState<boolean>(false);
-  const [currentQuery, setCurrentQuery] = useState<string>("");
+  const [searchIdentificationResults, setSearchIdentificationResults] = useState<SearchResult[] | null>(null);
+  const [isSearchInterfaceActive, setIsSearchInterfaceActive] = useState<boolean>(false);
+  const [currentSearchQuery, setCurrentSearchQuery] = useState<string>("");
 
-  const userName = initialProfile?.full_name?.split(' ')[0] || "Curador";
+  const userDisplayName = initialProfile?.full_name?.split(' ')[0] || "Curador";
 
   // --- CONTROLADORES DE ESTADO TÁCTICO ---
-  const handleResults = useCallback((results: SearchResult[] | null) => {
-    setSearchResults(results);
+  const handleSearchIdentificationResults = useCallback((results: SearchResult[] | null) => {
+    setSearchIdentificationResults(results);
   }, []);
 
-  const handleClear = useCallback(() => {
-    setSearchResults(null);
-    setIsSearching(false);
-    setCurrentQuery("");
+  const handleClearSearchInterface = useCallback(() => {
+    setSearchIdentificationResults(null);
+    setIsSearchInterfaceActive(false);
+    setCurrentSearchQuery("");
   }, []);
 
   return (
@@ -117,51 +118,55 @@ export function DashboardClient({
         variants={containerVariants}
         initial="hidden"
         animate="show"
-        className="grid grid-cols-1 lg:grid-cols-4 lg:gap-14 pt-8 md:pt-12 pb-32"
+        className="grid grid-cols-1 lg:grid-cols-4 lg:gap-14 pt-6 md:pt-12 pb-32"
       >
 
         {/* COLUMNA PRINCIPAL: Inteligencia y Malla */}
-        <div className="lg:col-span-3 space-y-10 md:space-y-14">
+        <div className="lg:col-span-3 space-y-8 md:space-y-14">
 
-          {/* CABECERA SOBERANA */}
-          <motion.header variants={itemVariants} className="w-full flex flex-col md:flex-row md:items-center justify-between z-40 gap-6">
-            <div className="flex flex-col">
-              <h1 className="text-4xl md:text-6xl font-black tracking-tighter uppercase italic leading-none drop-shadow-xl text-muted-foreground/80">
-                Hola, <span className="text-foreground">{userName}</span>
+          {/* 
+              CABECERA SOBERANA 
+              [REFACTOR V24.0]: Se implementa flex-row para móviles con gap optimizado.
+          */}
+          <motion.header 
+            variants={itemVariants} 
+            className="w-full flex flex-row items-center justify-between z-40 gap-4"
+          >
+            <div className="flex flex-col min-w-0">
+              <h1 className="text-3xl md:text-6xl font-black tracking-tighter uppercase italic leading-none drop-shadow-xl text-muted-foreground/80 truncate">
+                Hola, <span className="text-foreground">{userDisplayName}</span>
               </h1>
-              {isAdmin && (
-                <div className="flex items-center gap-2 mt-2 opacity-50">
+              {isAdministrator && (
+                <div className="flex items-center gap-2 mt-1 md:mt-2 opacity-50">
                   <ShieldCheck size={12} className="text-primary" />
                   <span className="text-[9px] font-black uppercase tracking-widest text-primary">Acceso Soberano Concedido</span>
                 </div>
               )}
             </div>
 
-            {/* RADAR DE BÚSQUEDA INTERACTIVO */}
-            <div className="w-full md:w-auto z-50">
+            {/* RADAR DE BÚSQUEDA INTERACTIVO: Ubicación Axial Optimizada */}
+            <div className="shrink-0 z-50">
               <UnifiedSearchBar
                 variant="console"
-                placeholder={`¿Qué ecos buscamos, ${userName}?`}
-                onResults={handleResults}
-                onLoading={setIsSearching}
-                onClear={handleClear}
+                placeholder={`¿Qué ecos buscamos, ${userDisplayName}?`}
+                onSearchIdentificationResults={handleSearchIdentificationResults}
+                onLoadingStatusChange={setIsSearchInterfaceActive}
+                onClearAction={handleClearSearchInterface}
               />
             </div>
           </motion.header>
 
           {/* 
               WIDGET DEL MAPA TÁCTICO (FOCUS MODE RE-CALIBRADO)
-              [REFORMA V23.0]: Se aumenta la altura base y el modo focus para 
-              permitir que la vista OVERVIEW (Zoom 14.8) tenga contexto real.
+              [REFORMA V23.0]: Se mantiene la altura estratégica para vista OVERVIEW.
           */}
           <motion.section
             variants={itemVariants}
             className={cn(
               "w-full transition-all duration-700 ease-in-out relative z-0",
-              // En búsqueda, reducimos a 140px (antes 100px) para mantener visibilidad mínima
-              isSearching || searchResults 
-                ? "h-[140px] opacity-30 saturate-0 scale-[0.98] pointer-events-none" 
-                : "h-[260px] md:h-[320px] opacity-100 scale-100"
+              isSearchInterfaceActive || searchIdentificationResults 
+                ? "h-[120px] opacity-30 saturate-0 scale-[0.98] pointer-events-none" 
+                : "h-[260px] md:h-[340px] opacity-100 scale-100"
             )}
           >
             <MapPreviewFrame />
@@ -170,13 +175,13 @@ export function DashboardClient({
           {/* FEED DE INTELIGENCIA */}
           <motion.div variants={itemVariants} className="relative z-10 min-h-[500px]">
             <IntelligenceFeed
-              userName={userName}
-              isSearching={isSearching}
-              results={searchResults}
-              lastQuery={currentQuery}
+              userName={userDisplayName}
+              isSearching={isSearchInterfaceActive}
+              results={searchIdentificationResults}
+              lastQuery={currentSearchQuery}
               initialEpicenter={initialFeed.epicenter}
               initialConnections={initialFeed.semantic_connections}
-              onClear={handleClear}
+              onClear={handleClearSearchInterface}
             />
           </motion.div>
         </div>
@@ -187,7 +192,7 @@ export function DashboardClient({
             variants={itemVariants}
             className={cn(
               "sticky top-[8rem] space-y-8 flex flex-col h-fit transition-all duration-700",
-              isSearching || searchResults ? "opacity-20 blur-[2px] grayscale pointer-events-none" : "opacity-100"
+              isSearchInterfaceActive || searchIdentificationResults ? "opacity-20 blur-[2px] grayscale pointer-events-none" : "opacity-100"
             )}
           >
 
@@ -224,7 +229,7 @@ export function DashboardClient({
               <div className="space-y-3">
                 <div className="flex items-center gap-2 justify-center">
                   <Zap size={10} className="text-zinc-600" />
-                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em]">NicePod V2.8</p>
+                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em]">NicePod V4.0</p>
                 </div>
                 <div className="flex items-center gap-2.5 justify-center px-4 py-1.5 rounded-full bg-emerald-500/5 border border-emerald-500/10">
                   <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -243,14 +248,12 @@ export function DashboardClient({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V23.0):
- * 1. Overview Expansion: Se aumentó la altura del mapa a 320px (Desktop) para 
- *    permitir que la vista INITIAL_OVERVIEW sea informativa y no un recorte.
- * 2. Focus Mode Balance: Se elevó la altura mínima de búsqueda a 140px. Esto asegura 
- *    que si el GPS fija la posición mientras el usuario escribe, el aterrizaje 
- *    balístico sea aún perceptible en la periferia visual.
- * 3. Type Safety: Eliminación total de 'any' en las props y mapeo de perfiles.
- * 4. UX Shield: El contenedor del mapa usa pointer-events-none en modo búsqueda 
- *    para evitar que el usuario desplace el mapa accidentalmente al intentar
- *    clicar en los resultados del radar semántico.
+ * NOTA TÉCNICA DEL ARCHITECT (V24.0):
+ * 1. Axial Header Refactor: Se eliminó el apilamiento (stacking) en móviles mediante 
+ *    el uso de flex-row. El componente de saludo incluye 'truncate' para proteger 
+ *    la integridad visual del radar de búsqueda en pantallas de baja densidad.
+ * 2. Zero Abbreviations Policy: Se purificaron términos legacy como 'isAdmin', 
+ *    'userName' y 'mod' sustituyéndolos por sus descriptores completos.
+ * 3. Search Coordination: Las propiedades de UnifiedSearchBar han sido alineadas 
+ *    con el contrato nominal del Sprint 4.1.
  */
