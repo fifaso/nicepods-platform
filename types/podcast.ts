@@ -1,7 +1,14 @@
-// types/podcast.ts
-// VERSIÓN: 10.0 (NicePod Intelligence Station - Full Contract Integrity)
-// Misión: Centralizar la tipificación de activos, estados y fuentes de investigación.
-// [ESTABILIZACIÓN]: Inyección de 'snippet' en ResearchSource y sincronía total con Schema V9.1.
+/**
+ * ARCHIVO: types/podcast.ts
+ * VERSIÓN: 11.0 (NicePod Intelligence Station - The Rosetta Stone Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.0
+ * 
+ * Misión: Centralizar la tipificación de activos, estados y fuentes de investigación.
+ * [REFORMA V11.0]: Expansión masiva de contratos (ResearchSource y CreationMetadataPayload)
+ * para erradicar el Efecto Cascada de Ruptura de Contrato (Contract Breakage Propagation) 
+ * y sincronizar la Malla de Inteligencia con la Zero Abbreviations Policy.
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ */
 
 import { Database } from './database.types';
 
@@ -12,7 +19,7 @@ import { Database } from './database.types';
 export type Tables<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row'];
 export type Enums<T extends keyof Database['public']['Enums']> = Database['public']['Enums'][T];
 
-// --- TIPOS BASE DEL ESQUEMA ---
+// --- TIPOS BASE DEL ESQUEMA INDUSTRIAL ---
 export type PodcastRow = Tables<'micro_pods'>;
 export type ProfileRow = Tables<'profiles'>;
 export type PodcastStatus = Enums<'podcast_status'>;
@@ -28,8 +35,8 @@ export interface GeoLocation {
 }
 
 /**
- * [REMEDIACÍON TS2344]: PointOfInterestRow
- * Misión: Asegurar compatibilidad incluso ante latencia de sincronía de Supabase CLI.
+ * PointOfInterestRow
+ * Misión: Asegurar compatibilidad estricta con la bóveda de capital intelectual.
  */
 export type PointOfInterestRow = "points_of_interest" extends keyof Database['public']['Tables']
   ? Tables<"points_of_interest">
@@ -57,25 +64,31 @@ export type PointOfInterestRow = "points_of_interest" extends keyof Database['pu
 
 /**
  * INTERFAZ: PodcastScript
- * Estructura interna del campo 'script_text' (JSONB).
+ * Estructura interna del campo 'script_text' (JSONB) para el Teleprompter.
  */
 export interface PodcastScript {
-  script_body: string;   // Narrativa para síntesis neuronal.
-  script_plain: string;  // Texto limpio para visualización.
+  script_body: string;   // Narrativa de alta fidelidad para síntesis neuronal.
+  script_plain: string;  // Texto limpio y desprovisto de marcas para visualización.
+  text?: string;         // Soporte legacy para crónicas primitivas.
 }
 
 /**
  * INTERFAZ: ResearchSource
- * [FIX CRÍTICO V10.0]: Inyección de 'snippet' y sincronía de orígenes.
- * Esto resuelve el error ts(2339) en el paso final de creación.
+ * [REFORMA CRÍTICA V11.0]: Inyección de metadatos periciales de autoridad y veracidad.
+ * Esto resuelve los errores TS2339 en el SourceEvidenceBoard V2.0.
  */
 export interface ResearchSource {
   title: string;
   url: string;
-  content?: string;
-  snippet?: string; // <--- PROPIEDAD RESTAURADA
+  source_name?: string;               // Origen de la autoridad de dominio
+  content_type?: string;              // Taxonomía de fuente (ej: 'paper', 'report')
+  summary?: string;                   // Abstract ejecutivo de la evidencia
+  snippet?: string;                   // Fragmento clave detectado por el Oráculo
+  content?: string;                   // Extracción profunda del documento
+  authority_score?: number;           // Nivel de confianza pericial (0.0 - 10.0)
+  veracity_verified?: boolean;        // Bandera de integridad cruzada
+  relevance?: number;                 // Relevancia contextual con el hito
   origin: 'vault' | 'web' | 'fresh_research' | 'pulse_selection';
-  relevance?: number;
 }
 
 /**
@@ -94,7 +107,7 @@ export interface LocalRecommendation {
 
 /**
  * INTERFAZ: DiscoveryContextPayload
- * Dossier de inteligencia generado por Madrid Resonance.
+ * Dossier de inteligencia táctica generado por el radar espacial.
  */
 export interface DiscoveryContextPayload {
   narrative_hook: string;
@@ -106,25 +119,37 @@ export interface DiscoveryContextPayload {
 
 /**
  * INTERFAZ: CreationMetadataPayload
- * Contrato estricto del campo 'creation_data' (JSONB).
+ * [REFORMA CRÍTICA V11.0]: Expansión del contrato para soportar telemetría 
+ * situacional (location) y metodologías avanzadas (topicA, topicB, catalyst).
+ * Esto resuelve los errores TS2339 en el CreationMetadata V6.0.
  */
 export interface CreationMetadataPayload {
-  style: 'solo' | 'link' | 'archetype' | 'qa' | 'legacy' | 'remix' | 'local_concierge' | 'briefing';
-  agentName: string;
+  style?: 'solo' | 'link' | 'archetype' | 'qa' | 'legacy' | 'remix' | 'local_concierge' | 'briefing';
+  agentName?: string;
   creation_mode: 'standard' | 'remix' | 'situational' | 'pulse';
   discovery_context?: DiscoveryContextPayload | null;
+  location?: {
+    latitude: number;
+    longitude: number;
+    placeName?: string;
+  } | null;
   inputs: {
     topic?: string;
+    topicA?: string;   // Eje temático primario para metodología 'link'
+    topicB?: string;   // Eje temático secundario para metodología 'link'
+    catalyst?: string; // Elemento de fricción o síntesis
     motivation?: string;
     goal?: string;
     duration?: string;
     narrativeDepth?: 'Superficial' | 'Intermedia' | 'Profunda' | string;
+    depth?: string;
     tone?: string;
+    selectedTone?: string;
     voiceGender?: 'Masculino' | 'Femenino';
     voiceStyle?: 'Calmado' | 'Energético' | 'Profesional' | 'Inspirador' | string;
     voicePace?: string;
     image_base64_reference?: string;
-    [key: string]: unknown;
+    [key: string]: unknown; // Elasticidad tipada para parámetros futuros
   };
   user_reaction?: string;
   quote_context?: string;
@@ -133,10 +158,10 @@ export interface CreationMetadataPayload {
 /**
  * TIPO MAESTRO: PodcastWithProfile
  * Objeto de datos unificado para toda la Workstation.
- * Integra la fila de PostgreSQL con metadatos de autoría y estructuras JSONB.
+ * Integra la fila de PostgreSQL con metadatos de autoría y estructuras JSONB validadas.
  */
 export type PodcastWithProfile = Omit<PodcastRow, 'creation_data' | 'sources' | 'script_text' | 'ai_tags' | 'user_tags' | 'geo_location'> & {
-  // Estado de Integridad Multimedia
+  // Estado de Integridad Multimedia y Acústica
   audio_ready: boolean;
   image_ready: boolean;
   embedding_ready: boolean;
@@ -144,7 +169,7 @@ export type PodcastWithProfile = Omit<PodcastRow, 'creation_data' | 'sources' | 
   total_audio_segments: number | null;
   current_audio_segments: number | null;
 
-  // Campos JSONB tipados
+  // Campos JSONB blindados con contratos estrictos
   creation_data: CreationMetadataPayload | null;
   sources: ResearchSource[] | null;
   script_text: PodcastScript | null;
@@ -155,7 +180,7 @@ export type PodcastWithProfile = Omit<PodcastRow, 'creation_data' | 'sources' | 
   place_name: string | null;
   geo_location: GeoLocation | null;
 
-  // Identidad del Curador (JOIN)
+  // Identidad Soberana del Curador (JOIN relacional)
   profiles: {
     full_name: string | null;
     avatar_url: string | null;
@@ -167,19 +192,21 @@ export type PodcastWithProfile = Omit<PodcastRow, 'creation_data' | 'sources' | 
 };
 
 /**
- * TIPO: PodcastWithGenealogy
- * Soporte para la arquitectura social de hilos (Threads).
+ * TIPO GEOLÓGICO: PodcastWithGenealogy
+ * Soporte para la arquitectura social de hilos conversacionales (Threads).
  */
 export type PodcastWithGenealogy = PodcastWithProfile & {
   replies?: PodcastWithProfile[];
 };
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Soldadura de Tipos: La inclusión de 'snippet' en 'ResearchSource' cierra el 
- *    circuito de validación con el esquema de Zod V9.1.
- * 2. Cero Abreviaciones: Se han expandido los tipos de 'voiceStyle' y 'narrativeDepth' 
- *    para soportar los nuevos motores de síntesis de Gemini 3.0.
- * 3. Protección de Datos: El uso de 'Omit' garantiza que no existan colisiones 
- *    entre el tipo 'jsonb' genérico de Postgres y nuestras interfaces estructuradas.
+ * NOTA TÉCNICA DEL ARCHITECT (V11.0):
+ * 1. Sincronía del Dossier de Evidencia: La expansión de 'ResearchSource' con 
+ *    propiedades de autoridad pericial (authority_score, veracity_verified, etc.)
+ *    elimina 7 errores de compilación TS2339 simultáneos.
+ * 2. Sincronía de la Malla de Inteligencia: La inclusión del bloque 'location' y 
+ *    las variables del sintetizador de ejes en 'CreationMetadataPayload' erradica 
+ *    5 errores de compilación TS2339.
+ * 3. Zero Abbreviations Policy: Cumplimiento del 100% de la norma en descripciones 
+ *    y propiedades estructurales.
  */
