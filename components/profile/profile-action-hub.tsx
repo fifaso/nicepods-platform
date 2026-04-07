@@ -1,7 +1,14 @@
-// components/profile/profile-action-hub.tsx
-// VERSIÓN: 1.0 (NicePod Profile Action Hub - Social Interaction Standard)
-// Misión: Gestionar los accesos a la Bóveda Global y el disparo del protocolo Remix.
-// [ESTABILIZACIÓN]: Lógica de visibilidad condicional basada en el estado de publicación y seguridad.
+/**
+ * ARCHIVO: components/profile/profile-action-hub.tsx
+ * VERSIÓN: 2.0 (NicePod Profile Action Hub - Sovereign Interaction Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.0
+ * 
+ * Misión: Gestionar los accesos de autoridad a la Bóveda Global y orquestar 
+ * el inicio del protocolo de Remix para la expansión del capital intelectual.
+ * [REFORMA V2.0]: Sincronización nominal total con ProfileView V11.0, erradicación 
+ * absoluta de abreviaturas y blindaje de contratos para el Build Shield.
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ */
 
 "use client";
 
@@ -20,52 +27,52 @@ import { RemixDialog } from "@/components/remix-dialog";
 import { Button } from "@/components/ui/button";
 
 /**
- * INTERFAZ: ProfileActionHubProps
- * Define el contrato de visibilidad para las acciones de salida.
+ * INTERFAZ: ProfileActionHubProperties
+ * Misión: Definir el contrato de visibilidad para las acciones de salida pericial.
+ * [FIX V2.0]: Alineación con el despacho del orquestador superior.
  */
-interface ProfileActionHubProps {
-  podcastId: number;
-  status: string;           // 'published', 'pending_approval', etc.
-  isOwner: boolean;         // Permisos de propietario
-  isConstructing: boolean;  // Bloqueo de interactividad durante la forja
-  isAuthenticated: boolean; // Estado de sesión del visitante
+interface ProfileActionHubProperties {
+  podcastIdentification: number;
+  publicationStatus: string;           
+  isAdministratorOwner: boolean;         
+  isIntelligenceConstructing: boolean;  
+  isUserAuthenticated: boolean; 
   podcastTitle?: string;
-  authorName?: string;
-  authorAvatar?: string | null;
-  scriptPlain?: string;
+  authorDisplayName?: string;
+  authorAvatarUniformResourceLocator?: string | null;
+  narrativeScriptPlain?: string;
 }
 
 /**
- * ProfileActionHub: La terminal de saltos y contribuciones.
+ * ProfileActionHub: La terminal de saltos y contribuciones de la Workstation.
  */
 export function ProfileActionHub({
-  podcastId,
-  status,
-  isOwner,
-  isConstructing,
-  isAuthenticated,
+  podcastIdentification,
+  publicationStatus,
+  isAdministratorOwner,
+  isIntelligenceConstructing,
+  isUserAuthenticated,
   podcastTitle = "Podcast",
-  authorName = "Anónimo",
-  authorAvatar = null,
-  scriptPlain = ""
-}: ProfileActionHubProps) {
+  authorDisplayName = "Curador Anónimo",
+  authorAvatarUniformResourceLocator = null,
+  narrativeScriptPlain = ""
+}: ProfileActionHubProperties) {
 
-  const router = useRouter();
-  const [isRemixOpen, setIsRemixOpen] = useState<boolean>(false);
+  const navigationRouter = useRouter();
+  const [isRemixInterfaceOpen, setIsRemixInterfaceOpen] = useState<boolean>(false);
 
-  // No renderizamos acciones si el contenido aún se está materializando en la Bóveda.
-  if (isConstructing) return null;
+  // No renderizamos comandos de acción si la inteligencia aún se está materializando.
+  if (isIntelligenceConstructing) {
+    return null;
+  }
 
   return (
-    <div className="w-full space-y-3">
+    <div className="w-full space-y-4">
 
       <AnimatePresence mode="wait">
-        {/* 
-            ACCIÓN I: VER EN BÓVEDA GLOBAL
-            Visible solo para el dueño cuando el podcast ya es público.
-            Permite navegar a la visualización inmersiva completa.
-        */}
-        {isOwner && status === 'published' && (
+        
+        {/* ACCIÓN I: ACCESO A BÓVEDA GLOBAL (Navegación Inmersiva) */}
+        {isAdministratorOwner && publicationStatus === 'published' && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -73,56 +80,52 @@ export function ProfileActionHub({
             transition={{ duration: 0.5 }}
           >
             <Button
-              onClick={() => router.push(`/podcast/${podcastId}`)}
+              onClick={() => navigationRouter.push(`/podcast/${podcastIdentification}`)}
               variant="outline"
-              className="w-full h-12 rounded-2xl border-white/5 bg-white/[0.03] hover:bg-white/[0.08] text-zinc-400 hover:text-white font-black uppercase text-[9px] tracking-[0.2em] transition-all group"
+              className="w-full h-14 rounded-2xl border-white/5 bg-white/[0.03] hover:bg-white/[0.08] text-zinc-400 hover:text-white font-black uppercase text-[10px] tracking-[0.2em] transition-all group"
             >
-              <Globe className="mr-2 h-3.5 w-3.5 opacity-50 group-hover:text-primary transition-colors" />
+              <Globe className="mr-3 h-4 w-4 opacity-50 group-hover:text-primary transition-colors" />
               Ver en Bóveda Global
-              <ChevronRight className="ml-auto h-3.5 w-3.5 opacity-30 group-hover:translate-x-1 transition-transform" />
+              <ChevronRight className="ml-auto h-4 w-4 opacity-30 group-hover:translate-x-1 transition-transform" />
             </Button>
           </motion.div>
         )}
 
-        {/* 
-            ACCIÓN II: APORTAR RESPUESTA (REMIX)
-            Punto de entrada a la conversación asíncrona de NicePod.
-            Visible si el podcast es público y el visitante está autenticado.
-        */}
-        {status === 'published' && isAuthenticated && (
+        {/* ACCIÓN II: PROTOCOLO REMIX (Expansión de Frecuencia) */}
+        {publicationStatus === 'published' && isUserAuthenticated && (
           <motion.div
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.2, duration: 0.6 }}
           >
             <Button
-              onClick={() => setIsRemixOpen(true)}
-              className="w-full h-14 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase text-[10px] tracking-[0.2em] shadow-lg shadow-indigo-900/20 hover:scale-[1.02] active:scale-95 transition-all group"
+              onClick={() => setIsRemixInterfaceOpen(true)}
+              className="w-full h-16 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase text-[11px] tracking-[0.2em] shadow-[0_15px_30px_rgba(79,70,229,0.2)] hover:scale-[1.02] active:scale-95 transition-all group relative overflow-hidden"
             >
-              <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:rotate-12 transition-transform">
-                <Sparkles size={20} />
+              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:rotate-45 transition-transform duration-1000">
+                <Sparkles size={24} />
               </div>
-              <CornerUpRight className="mr-2.5 h-4 w-4" />
+              <CornerUpRight className="mr-3 h-5 w-5" />
               Aportar a esta frecuencia
             </Button>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* DIÁLOGO DE REMIX: Inyección de contexto atómico */}
-      {isRemixOpen && (
+      {/* DIÁLOGO DE REMIX: Inyección de contexto de inteligencia */}
+      {isRemixInterfaceOpen && (
         <RemixDialog
-          isOpen={isRemixOpen}
-          onOpenChange={setIsRemixOpen}
+          isOpen={isRemixInterfaceOpen}
+          onOpenChange={setIsRemixInterfaceOpen}
           parentPodcast={{
-            id: podcastId,
+            id: podcastIdentification,
             title: podcastTitle,
             author: {
-              full_name: authorName,
-              avatar_url: authorAvatar
+              full_name: authorDisplayName,
+              avatar_url: authorAvatarUniformResourceLocator
             }
           }}
-          quoteContext={scriptPlain.substring(0, 400)}
+          quoteContext={narrativeScriptPlain.substring(0, 500)}
           timestamp={0}
         />
       )}
@@ -132,10 +135,11 @@ export function ProfileActionHub({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT:
- * Este componente encapsula el diálogo RemixDialog para evitar que el Orchestrator 
- * tenga que gestionar estados de modales secundarios. Al utilizar AnimatePresence, 
- * garantizamos que los botones aparezcan de forma fluida en cuanto el estado 
- * 'status' cambie a 'published' vía Realtime, reforzando la sensación de 
- * una Workstation viva y reactiva.
+ * NOTA TÉCNICA DEL ARCHITECT (V2.0):
+ * 1. Build Shield Compliance: Se sustituyó 'podcastId' por 'podcastIdentification', 
+ *    resolviendo el error TS2322 detectado en el orquestador de perfil.
+ * 2. Zero Abbreviations Policy: Purificación absoluta de términos (navigationRouter, 
+ *    isRemixInterfaceOpen, authorAvatarUniformResourceLocator).
+ * 3. Atomic State Management: El componente centraliza el disparo del RemixDialog 
+ *    utilizando el contexto purificado de la narrativa (narrativeScriptPlain).
  */
