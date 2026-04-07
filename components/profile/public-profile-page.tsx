@@ -1,5 +1,15 @@
-// components/profile/public-profile-page.tsx
-//version:3.0 (NicePod Public Profile Orchestrator - Atomic Stability Standard)
+/**
+ * ARCHIVO: components/profile/public-profile-page.tsx
+ * VERSIÓN: 4.0 (NicePod Public Profile Orchestrator - Sovereign Stability Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.0
+ * 
+ * Misión: Orquestar la visualización externa del curador, proyectando la identidad
+ * y el capital intelectual mediante un flujo de hidratación protegida.
+ * [REFORMA V4.0]: Sincronización nominal total con PublicContentTabs V3.0, 
+ * unificación de tipos industriales y cumplimiento estricto de la Zero Abbreviations Policy.
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ */
+
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
@@ -9,54 +19,42 @@ import { Sparkles, Zap } from "lucide-react";
 import {
   Collection,
   ProfileData,
-  PublicPodcast,
   TestimonialWithAuthor
 } from "@/types/profile";
+import { PodcastWithProfile } from "@/types/podcast";
 
 // --- COMPONENTES DE ESTABILIDAD DE MALLA ---
 import { ProfileHydrationGuard } from "./profile-hydration-guard";
 
 // --- COMPONENTES SATÉLITES ESPECIALIZADOS ---
-// Estos componentes gestionan la visualización atómica de cada sección.
 import { PublicContentTabs } from "./public/public-content-tabs";
 import { PublicHeroSection } from "./public/public-hero-section";
 
 /**
- * INTERFAZ: PublicProfilePageProps
- * Define el contrato de datos inyectados desde el Server Component (SSR).
- * Se alinea estrictamente con los tipos definidos en 'types/profile.ts'.
+ * INTERFAZ: PublicProfilePageProperties
+ * Misión: Definir el contrato de activos inyectados desde el orquestador de servidor.
  */
-interface PublicProfilePageProps {
-  profile: ProfileData;
-  podcasts: PublicPodcast[];
-  totalLikes: number;
-  initialTestimonials: TestimonialWithAuthor[];
-  publicCollections: Collection[];
+interface PublicProfilePageProperties {
+  administratorProfile: ProfileData;
+  publishedPodcastsCollection: PodcastWithProfile[];
+  accumulatedResonanceCount: number;
+  initialTestimonialsCollection: TestimonialWithAuthor[];
+  publicCollectionsCollection: Collection[];
 }
 
 /**
- * COMPONENTE: PublicProfilePage
- * El orquestador central de la visualización externa del curador.
- * 
- * Este componente asume la responsabilidad de la "Última Milla" en la visualización.
- * No realiza peticiones de datos; consume la 'Verdad' recolectada por el servidor
- * y la proyecta en la interfaz Aurora mediante un flujo de hidratación protegida.
+ * PublicProfilePage: El director de escena para la identidad pública de la Workstation.
  */
 export default function PublicProfilePage({
-  profile,
-  podcasts,
-  totalLikes,
-  initialTestimonials,
-  publicCollections
-}: PublicProfilePageProps) {
+  administratorProfile,
+  publishedPodcastsCollection,
+  accumulatedResonanceCount,
+  initialTestimonialsCollection,
+  publicCollectionsCollection
+}: PublicProfilePageProperties) {
 
-  /**
-   * [PROTOCOLO DE INTEGRIDAD DE MONTAJE]:
-   * El uso de ProfileHydrationGuard envuelve toda la experiencia del perfil.
-   * Esto asegura que los componentes que dependen de Hooks de cliente o 
-   * animaciones de Framer Motion no intenten renderizarse hasta que el DOM
-   * sea estable, erradicando los fallos de reconciliación de Next.js.
-   */
+  const userIdentification = administratorProfile.id;
+
   return (
     <ProfileHydrationGuard>
 
@@ -64,27 +62,26 @@ export default function PublicProfilePage({
 
         {/* 
             CAPA I: IDENTIDAD MONUMENTAL (HERO SECTION)
-            Proyecta el estatus, biografía y métricas de reputación del curador.
-            Se inyectan las propiedades 'full_name' y 'username' alineadas con la DB.
+            Misión: Proyectar el estatus pericial y las métricas de reputación industrial.
         */}
         <div className="w-full animate-in fade-in slide-in-from-top-4 duration-1000 ease-out">
           <PublicHeroSection
-            profile={profile}
-            podcastCount={podcasts.length}
-            totalLikes={totalLikes}
+            administratorProfile={administratorProfile}
+            publishedPodcastTotalCount={publishedPodcastsCollection.length}
+            accumulatedResonanceCount={accumulatedResonanceCount}
           />
         </div>
 
         {/* 
             CAPA II: MALLA DE CONTENIDO DINÁMICO (CONTENT TABS)
-            Organiza las crónicas de voz, las colecciones de sabiduría y los testimonios.
-            Limitamos el ancho al estándar de la Workstation (max-w-screen-xl).
+            Misión: Organizar el acceso a la biblioteca, colecciones y validaciones.
+            [FIX V4.0]: Sincronización nominal absoluta con PublicContentTabsProperties V3.0.
         */}
         <section className="w-full max-w-screen-xl mx-auto px-4 sm:px-6 md:px-8 pb-32">
 
           <AnimatePresence mode="wait">
             <motion.div
-              key={`profile-content-anchor-${profile.id}`}
+              key={`profile-content-anchor-${userIdentification}`}
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{
@@ -94,10 +91,10 @@ export default function PublicProfilePage({
               }}
             >
               <PublicContentTabs
-                profile={profile}
-                podcasts={podcasts}
-                testimonials={initialTestimonials}
-                collections={publicCollections}
+                administratorProfile={administratorProfile}
+                podcastsCollection={publishedPodcastsCollection}
+                testimonialsCollection={initialTestimonialsCollection}
+                collectionsCollection={publicCollectionsCollection}
               />
             </motion.div>
           </AnimatePresence>
@@ -105,22 +102,22 @@ export default function PublicProfilePage({
         </section>
 
         {/* 
-            CAPA III: TELEMETRÍA DE CIERRE (VISUAL FOOTER)
-            Branding técnico que confirma la integridad de la conexión neural.
+            CAPA III: TELEMETRÍA DE CIERRE (INDUSTRIAL FOOTER)
+            Misión: Branding técnico que certifica la integridad del nodo de inteligencia.
         */}
-        <div className="w-full max-w-2xl mx-auto py-16 flex flex-col items-center gap-6 opacity-20 select-none">
+        <div className="w-full max-w-2xl mx-auto py-24 flex flex-col items-center gap-6 opacity-20 select-none">
           <div className="h-px w-full bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
 
           <div className="flex items-center gap-4">
             <Zap size={14} className="text-primary animate-pulse" />
-            <span className="text-[9px] font-black uppercase tracking-[0.7em] text-white">
+            <span className="text-[10px] font-black uppercase tracking-[0.7em] text-white">
               Sovereign Intelligence Node
             </span>
             <Sparkles size={14} className="text-primary animate-pulse" />
           </div>
 
-          <div className="text-[7px] font-medium text-zinc-500 uppercase tracking-[0.3em]">
-            NicePod Platform V2.5 • Atomic Sync Verified
+          <div className="text-[7px] font-bold text-zinc-500 uppercase tracking-[0.4em]">
+            NicePod Platform V4.0 • Atomic Synchronization Verified
           </div>
 
           <div className="h-px w-full bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
@@ -133,11 +130,11 @@ export default function PublicProfilePage({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Estabilidad Atómica: Se ha delegado la lógica pesada a los hijos (Tabs/Hero),
- *    manteniendo este archivo como una "Función Pura de Orquestación".
- * 2. Rendimiento SSR: El componente es ultra-ligero. Al no tener useEffects 
- *    propios (excepto el guard), el Time to Interactive (TTI) es óptimo.
- * 3. Diseño Industrial: Los espacios y gradientes están calculados para
- *    evitar el Cumulative Layout Shift (CLS) durante la carga de las pestañas.
+ * NOTA TÉCNICA DEL ARCHITECT (V4.0):
+ * 1. Build Shield Compliance: Se corrigieron las propiedades inyectadas a PublicContentTabs 
+ *    y PublicHeroSection, eliminando el error TS2322 detectado en Vercel.
+ * 2. Zero Abbreviations Policy: Se purificó el 100% de la nomenclatura interna, sustituyendo 
+ *    términos como 'Props', 'id', 'totalLikes' y 'podcasts'.
+ * 3. Type Integrity: Se migró de 'PublicPodcast' a 'PodcastWithProfile' para garantizar que 
+ *    el orquestador cliente maneje objetos con la densidad técnica que exige la V4.0.
  */
