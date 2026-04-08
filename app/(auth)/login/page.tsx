@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: app/(auth)/login/page.tsx
- * VERSIÓN: 6.0 (NicePod Sovereign Entry - Nominal Integrity & Local Asset Edition)
+ * VERSIÓN: 7.0 (NicePod Sovereign Entry - Compact Industrial Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
- * Misión: Terminal de acceso a la Workstation NicePod, garantizando la carga 
- * instantánea de marca y la seguridad del túnel de identidad.
- * [REFORMA V6.0]: Sincronización de activos locales (Fix Error 400), erradicación 
- * absoluta de abreviaturas y blindaje de tipos para el Build Shield.
+ * Misión: Terminal de acceso a la Workstation NicePod, optimizada para 
+ * visualización en una sola pantalla (Zero-Scroll) y carga instantánea de marca.
+ * [REFORMA V7.0]: Eliminación de activos erráticos, compactación de layout para 
+ * dispositivos móviles y cumplimiento estricto de la Zero Abbreviations Policy.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -17,9 +17,9 @@ import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 
-// --- COMPONENTES DE INTERFAZ (SHADCN UI STANDARD) ---
+// --- INFRAESTRUCTURA DE COMPONENTES DE INTERFAZ (UI) ---
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -40,16 +40,18 @@ import {
   Loader2,
   Lock,
   LogIn,
-  Mail
+  Mail,
+  ChevronLeft
 } from "lucide-react";
 
 // --- UTILIDADES ---
 import { nicepodLog } from "@/lib/utils";
 
 /**
- * LoginPage: El orquestador del túnel de acceso industrial para curadores registrados.
+ * LoginPage: El orquestador del túnel de acceso industrial.
  */
 export default function LoginPage() {
+  
   // --- I. ESTADOS DE GESTIÓN DE IDENTIDAD ---
   const [emailAddress, setEmailAddress] = useState<string>("");
   const [accessPassword, setAccessPassword] = useState<string>("");
@@ -62,14 +64,14 @@ export default function LoginPage() {
 
   /**
    * handleEmailAuthenticationAction:
-   * Misión: Ejecutar la validación de credenciales en el metal de Supabase Auth.
+   * Misión: Validar credenciales en el metal de Supabase Auth.
    */
   const handleEmailAuthenticationAction = async (formEvent: React.FormEvent) => {
     formEvent.preventDefault();
     setIsAuthenticationProcessActive(true);
 
     try {
-      nicepodLog("🔐 [Login] Iniciando secuencia de autenticación por dirección de red.");
+      nicepodLog("🔐 [Login] Iniciando secuencia de autenticación.");
 
       const { error: authenticationError } = await supabaseClient.auth.signInWithPassword({
         email: emailAddress,
@@ -88,28 +90,25 @@ export default function LoginPage() {
 
       toast({
         title: "Sincronía Exitosa",
-        description: "Accediendo a la estación de mando industrial."
+        description: "Accediendo a la estación de mando."
       });
 
-      // Sincronización del router para la re-validación de componentes de servidor.
       navigationRouter.refresh();
       navigationRouter.push("/dashboard");
 
     } catch (authenticationException: unknown) {
       const errorObject = authenticationException as Error;
-      console.error("🔥 [Login-Fatal-Error]:", errorObject.message);
+      nicepodLog("🔥 [Login-Fatal]:", errorObject.message, 'error');
       setIsAuthenticationProcessActive(false);
     }
   };
 
   /**
-   * handleGoogleCloudIdentitySignInAction:
-   * Misión: Iniciar el flujo de identidad federada mediante el protocolo OAuth2.
+   * handleGoogleSignInAction:
+   * Misión: Delegar la autoridad a Google Cloud Identity.
    */
-  const handleGoogleCloudIdentitySignInAction = async () => {
+  const handleGoogleSignInAction = async () => {
     setIsAuthenticationProcessActive(true);
-    nicepodLog("🌐 [Login] Desviando autoridad hacia Google Cloud Identity.");
-    
     await supabaseClient.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -119,149 +118,165 @@ export default function LoginPage() {
   };
 
   return (
-    <Card className="w-full backdrop-blur-3xl bg-[#050505]/60 border-white/5 shadow-2xl rounded-[3rem] overflow-hidden animate-in fade-in zoom-in-95 duration-1000 isolate">
+    <main className="h-[100dvh] w-full flex flex-col items-center justify-center p-4 md:p-6 bg-transparent overflow-hidden">
       
-      {/* CABECERA CON MARCA SOBERANA (LOCAL-FIRST) */}
-      <CardHeader className="space-y-4 text-center pt-12 pb-8">
-        <div className="flex justify-center mb-2">
-            <div className="h-20 w-20 relative p-4 rounded-3xl bg-zinc-900 border border-white/10 shadow-2xl transition-transform hover:scale-105 duration-700">
+      {/* BOTÓN DE RETORNO (CERRAR TÚNEL) - Compactado */}
+      <div className="w-full max-w-md mb-4 flex justify-start">
+        <Link href="/">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="rounded-full bg-white/5 border border-white/10 text-zinc-500 hover:text-white transition-all h-10 px-4"
+          >
+            <ChevronLeft size={16} className="mr-2" />
+            <span className="text-[9px] font-black uppercase tracking-widest">Cerrar Túnel</span>
+          </Button>
+        </Link>
+      </div>
+
+      <Card className="w-full max-w-md backdrop-blur-3xl bg-[#050505]/80 border-white/5 shadow-2xl rounded-[2.5rem] overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-1000 isolate">
+        
+        {/* CABECERA: Identidad Unificada (Local-First) */}
+        <CardHeader className="space-y-3 text-center pt-8 pb-4">
+          <div className="flex justify-center mb-1">
+            <div className="h-14 w-14 relative p-3 rounded-2xl bg-zinc-900 border border-white/10 shadow-inner">
                 <Image 
-                    // [FIX V6.0]: Uso de asset local para aniquilar el Error 400 y garantizar 0ms de latencia.
                     src="/nicepod-logo.png" 
-                    alt="NicePod Intelligence Isotype" 
+                    alt="NicePod" 
                     fill 
-                    className="object-contain p-3" 
+                    className="object-contain p-2" 
                     priority
                     unoptimized
                 />
             </div>
-        </div>
-        <CardTitle className="text-4xl font-black tracking-tighter uppercase italic font-serif text-white">
-          Ingresar
-        </CardTitle>
-        <CardDescription className="text-xs font-black text-primary uppercase tracking-[0.4em]">
-          Terminal de Inteligencia Personal
-        </CardDescription>
-      </CardHeader>
-
-      <CardContent className="px-10 pb-10 space-y-8">
-        <form onSubmit={handleEmailAuthenticationAction} className="space-y-6">
-
-          {/* CAMPO: DIRECCIÓN DE RED (EMAIL) */}
-          <div className="space-y-3">
-            <Label htmlFor="email" className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 ml-1">
-              Dirección de Red
-            </Label>
-            <div className="relative">
-              <Mail className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-600" />
-              <Input
-                id="email"
-                type="email"
-                placeholder="nombre@dominio.com"
-                value={emailAddress}
-                onChange={(inputEvent) => setEmailAddress(inputEvent.target.value)}
-                className="pl-14 h-16 rounded-2xl bg-zinc-900/50 border-white/5 focus:ring-primary/20 text-base font-medium transition-all"
-                required
-                autoComplete="email"
-              />
-            </div>
           </div>
+          <CardTitle className="text-3xl font-black tracking-tighter uppercase italic font-serif text-white leading-none">
+            Ingresar
+          </CardTitle>
+          <CardDescription className="text-[10px] font-black text-primary uppercase tracking-[0.3em]">
+            Terminal de Inteligencia Personal
+          </CardDescription>
+        </CardHeader>
 
-          {/* CAMPO: LLAVE DE ACCESO (PASSWORD) */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between px-1">
-              <Label htmlFor="password" className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">
-                Llave de Acceso
+        <CardContent className="px-6 pb-6 space-y-5">
+          <form onSubmit={handleEmailAuthenticationAction} className="space-y-4">
+
+            {/* CAMPO: IDENTIFICACIÓN DE RED */}
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500 ml-1">
+                Dirección de Red
               </Label>
-              <Link 
-                href="/forgot-password" 
-                className="text-[9px] font-black uppercase tracking-widest text-zinc-600 hover:text-primary transition-colors"
-              >
-                ¿Olvidaste la clave?
-              </Link>
+              <div className="relative">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-600" />
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="nombre@dominio.com"
+                  value={emailAddress}
+                  onChange={(event) => setEmailAddress(event.target.value)}
+                  className="pl-12 h-14 rounded-xl bg-zinc-900/50 border-white/5 focus:ring-primary/20 text-sm font-medium"
+                  required
+                />
+              </div>
             </div>
-            <div className="relative">
-              <Lock className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-600" />
-              <Input
-                id="password"
-                type={isPasswordVisibilityActive ? "text" : "password"}
-                placeholder="••••••••"
-                value={accessPassword}
-                onChange={(inputEvent) => setAccessPassword(inputEvent.target.value)}
-                className="pl-14 pr-14 h-16 rounded-2xl bg-zinc-900/50 border-white/5 focus:ring-primary/20 text-base font-medium transition-all"
-                required
-                autoComplete="current-password"
-              />
-              <button
-                type="button"
-                onClick={() => setIsPasswordVisibilityActive(!isPasswordVisibilityActive)}
-                className="absolute right-5 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-white transition-colors"
-                tabIndex={-1}
-              >
-                {isPasswordVisibilityActive ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-              </button>
+
+            {/* CAMPO: LLAVE DE ACCESO */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between px-1">
+                <Label htmlFor="password" className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500">
+                  Llave de Acceso
+                </Label>
+                <Link href="/forgot-password" title="Recuperar Clave" className="text-[8px] font-black uppercase tracking-widest text-zinc-600 hover:text-primary">
+                  ¿Olvido?
+                </Link>
+              </div>
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-600" />
+                <Input
+                  id="password"
+                  type={isPasswordVisibilityActive ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={accessPassword}
+                  onChange={(event) => setAccessPassword(event.target.value)}
+                  className="pl-12 pr-12 h-14 rounded-xl bg-zinc-900/50 border-white/5 focus:ring-primary/20 text-sm font-medium"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setIsPasswordVisibilityActive(!isPasswordVisibilityActive)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-white"
+                  tabIndex={-1}
+                >
+                  {isPasswordVisibilityActive ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full h-14 rounded-2xl font-black text-base uppercase tracking-widest shadow-2xl transition-all active:scale-[0.98] group bg-white text-black hover:bg-zinc-200"
+              disabled={isAuthenticationProcessActive}
+            >
+              {isAuthenticationProcessActive ? (
+                <Loader2 className="mr-3 h-5 w-5 animate-spin" />
+              ) : (
+                <span className="flex items-center gap-3">
+                  <LogIn size={20} className="group-hover:translate-x-1 transition-transform" />
+                  CONECTAR FRECUENCIA
+                </span>
+              )}
+            </Button>
+          </form>
+
+          <div className="relative py-2">
+            <div className="absolute inset-0 flex items-center"><Separator className="opacity-10" /></div>
+            <div className="relative flex justify-center text-[8px] uppercase font-black tracking-[0.4em]">
+              <span className="bg-[#080808] px-4 text-zinc-700">Identidad Federada</span>
             </div>
           </div>
 
-          {/* ACCIÓN DE CONEXIÓN */}
           <Button
-            type="submit"
-            className="w-full h-20 rounded-[2rem] font-black text-lg uppercase tracking-widest shadow-2xl transition-all active:scale-[0.98] group bg-white text-black hover:bg-zinc-200"
+            variant="outline"
             disabled={isAuthenticationProcessActive}
+            className="w-full h-14 rounded-xl bg-white/5 border-white/10 font-bold uppercase tracking-widest text-[9px] hover:bg-white/10 group"
+            onClick={handleGoogleSignInAction}
           >
-            {isAuthenticationProcessActive ? (
-              <Loader2 className="mr-3 h-6 w-6 animate-spin text-primary" />
-            ) : (
-              <span className="flex items-center gap-4">
-                <LogIn className="h-6 w-6 group-hover:translate-x-2 transition-transform" />
-                CONECTAR FRECUENCIA
-              </span>
-            )}
+            <svg className="h-4 w-4 mr-3 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+            </svg>
+            Google Cloud Identity
           </Button>
-        </form>
+        </CardContent>
 
-        <div className="relative py-4">
-          <div className="absolute inset-0 flex items-center"><Separator className="opacity-10" /></div>
-          <div className="relative flex justify-center text-[9px] uppercase font-black tracking-[0.5em]">
-            <span className="bg-[#050505] px-6 text-zinc-700 font-bold">Identidad Federada</span>
-          </div>
-        </div>
+        <CardFooter className="justify-center border-t border-white/5 py-6 bg-black/40">
+          <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
+            ¿Sin cuenta?{" "}
+            <Link href="/signup" className="text-primary font-black hover:text-white transition-colors">
+              Registrar ADN
+            </Link>
+          </p>
+        </CardFooter>
+      </Card>
 
-        {/* ACCIÓN: GOOGLE SIGN-IN */}
-        <Button
-          variant="outline"
-          disabled={isAuthenticationProcessActive}
-          className="w-full h-16 rounded-2xl bg-white/5 border-white/10 font-black uppercase tracking-widest text-[10px] hover:bg-white/10 transition-all group"
-          onClick={handleGoogleCloudIdentitySignInAction}
-        >
-          <svg className="h-5 w-5 mr-4 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
-            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-          </svg>
-          Google Cloud Identity
-        </Button>
-      </CardContent>
-
-      <CardFooter className="justify-center border-t border-white/5 py-10 bg-black/40">
-        <p className="text-xs text-zinc-500 font-bold uppercase tracking-widest">
-          ¿No tienes una cuenta registrada?{" "}
-          <Link href="/signup" className="text-primary font-black hover:text-white transition-colors">
-            Registrar mi ADN
-          </Link>
-        </p>
-      </CardFooter>
-    </Card>
+      <footer className="mt-8 opacity-20">
+         <p className="text-[7px] font-black text-white uppercase tracking-[0.6em]">
+            Sovereign Identity Access V4.0
+         </p>
+      </footer>
+    </main>
   );
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V6.0):
- * 1. Zero Abbreviations Policy: Erradicación total de términos cortos (e, err, id, email, password) 
- *    sustituyéndolos por descriptores periciales (inputEvent, authenticationException, etc.).
- * 2. Visual Sovereignty: El uso de '/nicepod-logo.png' local neutraliza el Error 400 de red 
- *    y garantiza que la marca corporativa cargue en el primer ciclo de renderizado.
- * 3. Hardware Hygiene: Se mantiene el atributo 'tabIndex={-1}' en el botón de visibilidad 
- *    para no romper el flujo de navegación por teclado industrial.
+ * NOTA TÉCNICA DEL ARCHITECT (V7.0):
+ * 1. Zero-Scroll Architecture: El uso de 'h-[100dvh]' y la reducción proporcional de los 
+ *    espaciados internos garantiza que la terminal de acceso sea visible íntegramente 
+ *    en dispositivos móviles sin necesidad de desplazamiento.
+ * 2. Artifact Eradication: Se eliminó el renderizado duplicado del logo fuera de la Card, 
+ *    resolviendo la anomalía visual detectada en el peritaje de la Imagen 21.
+ * 3. Local-First Assets: Se mantiene la carga del logo desde la raíz local para asegurar 
+ *    latencia cero y eludir el Error 400 de red.
  */
