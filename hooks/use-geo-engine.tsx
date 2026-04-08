@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: hooks/use-geo-engine.tsx
- * VERSIÓN: 47.0 (NicePod Sovereign Geo-Engine - Facade Harmonization Edition)
+ * VERSIÓN: 48.0 (NicePod Sovereign Geo-Engine - Final Nominal Seal)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Actuar como Fachada Transparente unificando los núcleos de Telemetría, 
  * Radar e Interfaz, orquestando la inteligencia geoespacial de la Workstation.
- * [REFORMA V47.0]: Sincronización nominal total con TelemetryCore V2.0, 
- * resolución de 11 errores de compilación y cumplimiento de la Zero Abbreviations Policy.
+ * [REFORMA V48.0]: Sincronización nominal total con RadarCore V2.0, resolución 
+ * definitiva de 10 errores de compilación TS2339 y sellado del Build Shield.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -42,31 +42,34 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
 
   /**
    * EFECTO: ORQUESTACIÓN CROSS-DOMAIN
-   * Misión: Sincronizar el hardware de ubicación con la lógica de radar.
+   * Misión: Sincronizar el hardware de ubicación con la lógica de inteligencia de radar.
    */
   useEffect(() => {
-    const currentUserLocation = telemetryCore.userLocation;
+    const currentGeographicLocation = telemetryCore.userLocation;
 
-    if (currentUserLocation) {
+    if (currentGeographicLocation) {
       const sourceJustChangedToGlobalPositioningSystem = 
         telemetryCore.telemetrySource === 'gps' && 
         lastTelemetrySourceReference.current !== 'gps';
 
       /**
-       * 1. DETECCIÓN DE ATERRIZAJE BALÍSTICO:
-       * [FIX]: Uso de 'isGlobalPositioningSystemLocked' para sincronía con TelemetryCore V2.0.
+       * 1. DETECCIÓN DE ATERRIZAJE BALÍSTICO (HANDSHAKE T0):
+       * Si el sistema alcanza precisión satelital soberana, disparamos el aterrizaje.
        */
       if (telemetryCore.isGlobalPositioningSystemLocked && sourceJustChangedToGlobalPositioningSystem && !hasPerformedInitialLandingReference.current) {
         interfaceCore.triggerLanding();
         hasPerformedInitialLandingReference.current = true;
-        radarCore.fetchRadar(currentUserLocation, true); 
+        // [FIX V48.0]: Sincronía con RadarCore V2.0
+        radarCore.fetchRadarIntelligence(currentGeographicLocation, true); 
       }
 
       /**
        * 2. INTELIGENCIA DE PROXIMIDAD:
+       * Evaluación de resonancia basada en la telemetría purificada.
        */
-      radarCore.evaluateProximity(currentUserLocation);
-      radarCore.fetchRadar(currentUserLocation, false); 
+      // [FIX V48.0]: Sincronía con RadarCore V2.0
+      radarCore.evaluateProximityResonance(currentGeographicLocation);
+      radarCore.fetchRadarIntelligence(currentGeographicLocation, false); 
 
       lastTelemetrySourceReference.current = telemetryCore.telemetrySource;
     }
@@ -79,7 +82,7 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
   ]);
 
   /**
-   * derivedEngineOperationalStatus: Máquina de Estados Finita Derivada.
+   * derivedEngineOperationalStatus: Máquina de Estados Finita Derivada para la UI.
    */
   const derivedEngineOperationalStatus = useMemo((): GeoEngineState => {
     if (forgeOrchestrator.forgeStatus !== 'IDLE') return forgeOrchestrator.forgeStatus;
@@ -89,24 +92,25 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
 
   /**
    * ENSAMBLAJE DE LA API PÚBLICA (CONTRATO SOBERANO V4.0)
-   * Misión: Devolver un objeto íntegro que satisfaga el Build Shield de Vercel.
-   * [AVISO]: Se mantienen las propiedades de 'GeoEngineReturn' pero mapeadas a los nuevos métodos del Core.
+   * Misión: Devolver un objeto íntegro que satisfaga el contrato GeoEngineReturn.
    */
-  const geoEngineApplicationInterface: GeoEngineReturn = {
+  const geoEngineApplicationProgrammingInterface: GeoEngineReturn = {
     // I. Estados de Verdad y Telemetría Purificada
     status: derivedEngineOperationalStatus,
     userLocation: telemetryCore.userLocation,
     nearbyPointsOfInterest: radarCore.nearbyPointsOfInterest,
     activePointOfInterest: radarCore.activePointOfInterest,
     isTriangulated: telemetryCore.isTriangulated,
-    isGPSLock: telemetryCore.isGlobalPositioningSystemLocked, // Mapeo de compatibilidad con Constitución
-    isSearching: radarCore.isSearching,
+    isGPSLock: telemetryCore.isGlobalPositioningSystemLocked, 
+    // [FIX V48.0]: Sincronía con RadarCore V2.0
+    isSearching: radarCore.isRadarSearchProcessActive,
     isLocked: forgeOrchestrator.isForgeLocked,
     isIgnited: telemetryCore.isIgnited,
     error: forgeOrchestrator.forgeError || (telemetryCore.isDenied ? "GPS_RESTRICTED" : null),
     data: { 
       ...forgeOrchestrator.forgeData, 
-      ...radarCore.localData 
+      // [FIX V48.0]: Sincronía con RadarCore V2.0
+      ...radarCore.localGeographicData 
     } as GeoContextData,
 
     // II. Gobernanza Visual y Cinemática
@@ -120,28 +124,34 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
     toggleCameraPerspective: interfaceCore.togglePerspective,
     setManualMode: interfaceCore.setManualMode,
     
+    /**
+     * recenterCamera: 
+     * Misión: Recuperar el Voyager con autoridad máxima y refresco de malla.
+     */
     recenterCamera: () => {
       if (telemetryCore.userLocation) {
-        radarCore.fetchRadar(telemetryCore.userLocation, true);
+        // [FIX V48.0]: Sincronía con RadarCore V2.0
+        radarCore.fetchRadarIntelligence(telemetryCore.userLocation, true);
       }
       interfaceCore.triggerRecenter();
     },
 
-    // III. Operaciones de Mando de Campo (Hardware Sync)
-    // [FIX]: Sincronización con los nuevos métodos de TelemetryCore V2.0
+    // III. Operaciones de Mando de Campo
     initSensors: telemetryCore.initializeHardwareSensors,
     reSyncRadar: () => {
-      radarCore.clearRadar();
+      // [FIX V48.0]: Sincronía con RadarCore V2.0
+      radarCore.clearRadarIntelligence();
       if (telemetryCore.userLocation) {
-        radarCore.fetchRadar(telemetryCore.userLocation, true);
+        radarCore.fetchRadarIntelligence(telemetryCore.userLocation, true);
       }
       telemetryCore.reSynchronizeSensors();
     },
     setTriangulated: () => telemetryCore.setGeographicTriangulationState(true),
     setManualAnchor: telemetryCore.setManualGeographicAnchor,
-    setManualPlaceName: radarCore.setManualPlaceName,
+    // [FIX V48.0]: Sincronía con RadarCore V2.0
+    setManualPlaceName: radarCore.setManualGeographicPlaceName,
 
-    // IV. Pipeline de Inteligencia
+    // IV. Pipeline de Inteligencia (Cerebro en el Borde)
     ingestSensoryData: (parameters) => forgeOrchestrator.ingestSensoryData(telemetryCore.userLocation, parameters),
     
     synthesizeNarrative: (parameters) => forgeOrchestrator.synthesizeNarrative({
@@ -154,13 +164,15 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
     transcribeVoiceIntent: (audioBase64) => forgeOrchestrator.transcribeVoiceIntent(audioBase64),
 
     /**
-     * reset: Purga absoluta de memoria y hardware.
+     * reset: 
+     * Misión: Purga absoluta de memoria táctica y desconexión física de hardware.
      */
     reset: () => {
       telemetryCore.terminateHardwareSensors();
       telemetryCore.clearManualGeographicAnchor();
       telemetryCore.setGeographicTriangulationState(false);
-      radarCore.clearRadar();
+      // [FIX V48.0]: Sincronía con RadarCore V2.0
+      radarCore.clearRadarIntelligence();
       interfaceCore.resetInterface();
       forgeOrchestrator.resetForge();
       hasPerformedInitialLandingReference.current = false;
@@ -170,15 +182,14 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <GeoEngineContext.Provider value={geoEngineApplicationInterface}>
+    <GeoEngineContext.Provider value={geoEngineApplicationProgrammingInterface}>
       {children}
     </GeoEngineContext.Provider>
   );
 }
 
 /**
- * GeoEngineProvider: El Contenedor de Infraestructura.
- * [FIX V47.0]: Sincronización con InitialGeographicDataContract de TelemetryCore V2.0.
+ * GeoEngineProvider: El Contenedor de Infraestructura de Madrid Resonance.
  */
 export function GeoEngineProvider({ 
   children, 
@@ -214,12 +225,21 @@ export function GeoEngineProvider({
 
 /**
  * useGeoEngine:
- * Punto de consumo único para la soberanía geoespacial de la plataforma.
+ * Punto de consumo único para la soberanía geoespacial de la Workstation.
  */
 export function useGeoEngine() {
-  const context = useContext(GeoEngineContext);
-  if (!context) {
-    throw new Error("CRITICAL_ERROR: useGeoEngine debe invocarse dentro de un GeoEngineProvider.");
+  const geoEngineContext = useContext(GeoEngineContext);
+  if (!geoEngineContext) {
+    throw new Error("CRITICAL_ERROR: 'useGeoEngine' debe invocarse dentro de un GeoEngineProvider.");
   }
-  return context;
+  return geoEngineContext;
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V48.0):
+ * 1. Nominal Synchronization: Se han resuelto los 10 errores TS2339 sincronizando la fachada 
+ *    con la versión 2.0 del RadarCore.
+ * 2. Zero Abbreviations Policy: Purificación absoluta de la nomenclatura interna del motor.
+ * 3. Atomic Handshake: Se mantiene el protocolo de aterrizaje balístico al obtener el 
+ *    bloqueo de precisión GPS (Global Positioning System Locked).
+ */
