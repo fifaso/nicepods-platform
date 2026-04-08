@@ -1,19 +1,19 @@
 /**
  * ARCHIVO: hooks/geo-engine/telemetry-core.tsx
- * VERSIÓN: 2.0 (NicePod Sovereign Telemetry - Thermal Isolation Edition)
+ * VERSIÓN: 2.1 (NicePod Sovereign Telemetry - Kinematic Sync Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Gestionar la ubicación física del Voyager purificando la telemetría, 
  * garantizando la integridad del contrato de datos inicial y aplicando 
- * el protocolo de Aislamiento Térmico (Hibernación de Hardware en Background).
- * [REFORMA V2.0]: Implementación de Page Visibility API para apagar el GPS al minimizar, 
- * y cumplimiento absoluto de la Zero Abbreviations Policy.
+ * el protocolo de Aislamiento Térmico (Hibernación de Hardware).
+ * [REFORMA V2.1]: Sincronización nominal total con KinematicEngine V3.0, 
+ * resolución de error TS2305 y cumplimiento estricto de la Zero Abbreviations Policy.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
 
-import { calculateDistance } from "@/lib/geo-kinematics";
+import { calculateDistanceBetweenPoints } from "@/lib/geo-kinematics";
 import { UserLocation, TelemetrySource } from "@/types/geo-sovereignty";
 import { nicepodLog } from "@/lib/utils";
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
@@ -23,19 +23,19 @@ import { useSensorAuthority } from "../use-sensor-authority";
  * PARÁMETROS DE GOBERNANZA INDUSTRIAL Y TERMODINÁMICA
  */
 const EMISSION_THRESHOLD_METERS = 0.8;    // Escudo de micro-vibraciones
-const TELEPORT_THRESHOLD_METERS = 100.0;  // Detección de salto cuántico (Red de Metro)
+const TELEPORT_THRESHOLD_METERS = 100.0;  // Detección de salto cuántico
 const SOVEREIGN_ACCURACY_THRESHOLD = 30;  // Precisión mínima para bloqueo GPS (metros)
 
 /**
  * INTERFAZ: TelemetryCoreReturn
- * La firma pública que expone el núcleo de hardware a la Fachada.
+ * La firma pública que expone el núcleo de hardware a la Fachada del motor.
  */
 interface TelemetryCoreReturn {
   userLocation: UserLocation | null;
   isIgnited: boolean;
   isDenied: boolean;
   isTriangulated: boolean;
-  isGlobalPositioningSystemLocked: boolean; // [FIX]: Nominal Sovereignty
+  isGlobalPositioningSystemLocked: boolean; 
   telemetrySource: TelemetrySource | null;
   
   initializeHardwareSensors: () => void;
@@ -50,7 +50,7 @@ const TelemetryContext = createContext<TelemetryCoreReturn | undefined>(undefine
 
 /**
  * INTERFAZ: InitialGeographicDataContract
- * [FIX V2.0]: Contrato nominal estricto para el Handshake T0 (Geo-IP Middleware).
+ * Contrato nominal estricto para el Handshake T0 (Geo-IP Middleware).
  */
 interface InitialGeographicDataContract {
   latitudeCoordinate: number; 
@@ -60,7 +60,7 @@ interface InitialGeographicDataContract {
 }
 
 /**
- * TelemetryProvider: El Reactor de Ubicación Primario.
+ * TelemetryProvider: El Reactor de Ubicación Primario de NicePod.
  */
 export function TelemetryProvider({ 
   children, 
@@ -71,39 +71,37 @@ export function TelemetryProvider({
 }) {
   
   // 1. CONSUMO DEL CENTINELA DE HARDWARE
-  // [NOTA]: Asumimos que useSensorAuthority será capaz de manejar este contrato purificado.
   const {
     telemetry: rawHardwareTelemetry,
     isDenied: isHardwareAccessDenied,
     isIgnited: isHardwareIgnited,
-    startHardwareWatch,
-    killHardwareWatch,
-    reSync: reSynchronizeHardware
+    startHardwareWatch: startHardwareObservationAction,
+    killHardwareWatch: terminateHardwareObservationAction,
+    reSync: reSynchronizeHardwareAction
   } = useSensorAuthority({ initialData: initialGeographicData as any });
 
-  // 2. ESTADO SOBERANO DE UBICACIÓN
+  // 2. ESTADOS SOBERANOS DE UBICACIÓN
   const [userGeographicLocation, setUserGeographicLocation] = useState<UserLocation | null>(null);
   const [isGeographicallyTriangulated, setIsGeographicallyTriangulated] = useState<boolean>(!!initialGeographicData);
   const [manualGeographicAnchor, setManualGeographicAnchorState] = useState<UserLocation | null>(null);
 
-  // 3. MEMORIA TÁCTICA (Referencias mutables para protección de re-renderizados)
-  const lastEmittedLocationReference = useRef<UserLocation | null>(null);
+  // 3. MEMORIA TÁCTICA (REFERENCIAS MUTABLES)
+  const lastEmittedGeographicLocationReference = useRef<UserLocation | null>(null);
   const isSovereignAccuracyLockActiveReference = useRef<boolean>(false);
 
   /**
-   * EFECTO V2.0: AISLAMIENTO TÉRMICO (SOBERANÍA DE BATERÍA)
-   * Misión: Apagar la antena GPS si la aplicación no está en el campo visual del usuario.
+   * EFECTO: AISLAMIENTO TÉRMICO (SOBERANÍA DE BATERÍA)
+   * Misión: Apagar la antena GPS si la aplicación pierde el foco visual del usuario.
    */
   useEffect(() => {
     const handleDocumentVisibilityChangeAction = () => {
       if (document.hidden) {
-        nicepodLog("💤 [TelemetryCore] Workstation minimizada. Apagando hardware sensorial.");
-        killHardwareWatch();
+        nicepodLog("💤 [TelemetryCore] Workstation minimizada. Suspendiendo hardware sensorial.");
+        terminateHardwareObservationAction();
       } else {
-        // Solo reencendemos si el sistema ya había sido ignitado previamente por el Voyager.
         if (isHardwareIgnited && !isHardwareAccessDenied) {
           nicepodLog("⚡ [TelemetryCore] Workstation activa. Restaurando enlace satelital.");
-          startHardwareWatch();
+          startHardwareObservationAction();
         }
       }
     };
@@ -112,29 +110,28 @@ export function TelemetryProvider({
     return () => {
       document.removeEventListener("visibilitychange", handleDocumentVisibilityChangeAction);
     };
-  }, [isHardwareIgnited, isHardwareAccessDenied, killHardwareWatch, startHardwareWatch]);
+  }, [isHardwareIgnited, isHardwareAccessDenied, terminateHardwareObservationAction, startHardwareObservationAction]);
 
   /**
    * EFECTO: FILTRADO DE AUTORIDAD Y EMISIÓN CINEMÁTICA
-   * Misión: Decidir si la lectura de hardware entrante es válida para la Malla.
+   * Misión: Decidir si la lectura de hardware entrante posee la calidad necesaria para la Malla.
    */
   useEffect(() => {
     const effectiveGeographicLocation = manualGeographicAnchor || rawHardwareTelemetry;
 
     if (effectiveGeographicLocation) {
       const currentTelemetrySource = (effectiveGeographicLocation.source as TelemetrySource) || 'ip-fallback';
-      const currentHardwareAccuracy = effectiveGeographicLocation.accuracy || 9999;
+      const currentHardwareAccuracyMagnitude = effectiveGeographicLocation.accuracy || 9999;
 
       /**
-       * PROTOCOLO DE SOBERANÍA (V4.0):
-       * Si el GPS ha alcanzado un bloqueo de alta fidelidad, blindamos el sistema 
-       * contra retrocesos accidentales a la ubicación aproximada por IP.
+       * PROTOCOLO DE SOBERANÍA:
+       * Blindaje del sistema contra retrocesos a ubicaciones por IP una vez alcanzado el bloqueo HD.
        */
       if (isSovereignAccuracyLockActiveReference.current && currentTelemetrySource === 'ip-fallback') {
         return;
       }
 
-      if (currentTelemetrySource === 'gps' && currentHardwareAccuracy < SOVEREIGN_ACCURACY_THRESHOLD) {
+      if (currentTelemetrySource === 'gps' && currentHardwareAccuracyMagnitude < SOVEREIGN_ACCURACY_THRESHOLD) {
         if (!isSovereignAccuracyLockActiveReference.current) {
           nicepodLog("🛡️ [TelemetryCore] Bloqueo Soberano GPS: ACTIVADO.");
           isSovereignAccuracyLockActiveReference.current = true;
@@ -143,36 +140,31 @@ export function TelemetryProvider({
 
       let shouldEmitNewLocationToFacade = false;
 
-      if (!lastEmittedLocationReference.current) {
+      if (!lastEmittedGeographicLocationReference.current) {
         shouldEmitNewLocationToFacade = true;
       } else {
-        const physicalMovementDistanceMeters = calculateDistance(
+        // [FIX V2.1]: Sincronía con calculateDistanceBetweenPoints (V3.0)
+        const physicalMovementDistanceMagnitude = calculateDistanceBetweenPoints(
           { 
             latitude: effectiveGeographicLocation.latitude, 
             longitude: effectiveGeographicLocation.longitude 
           },
           { 
-            latitude: lastEmittedLocationReference.current.latitude, 
-            longitude: lastEmittedLocationReference.current.longitude 
+            latitude: lastEmittedGeographicLocationReference.current.latitude, 
+            longitude: lastEmittedGeographicLocationReference.current.longitude 
           }
         );
 
         const headingAngularDifference = Math.abs(
-            (effectiveGeographicLocation.heading || 0) - (lastEmittedLocationReference.current.heading || 0)
+            (effectiveGeographicLocation.heading || 0) - (lastEmittedGeographicLocationReference.current.heading || 0)
         );
 
-        // Filtro de Teletransporte: Emisión inmediata si el salto es > 100m
-        const isHardJumpDetected = physicalMovementDistanceMeters > TELEPORT_THRESHOLD_METERS;
+        const isHardJumpDetected = physicalMovementDistanceMagnitude > TELEPORT_THRESHOLD_METERS;
 
-        /**
-         * CONDICIONES DE EMISIÓN DISCRETA (CPU Shield):
-         * Solo notificamos a la Interfaz de Usuario si hay un cambio físico real 
-         * que supere el umbral del filtro, o si cambia la fuente de verdad.
-         */
         if (
-          physicalMovementDistanceMeters > EMISSION_THRESHOLD_METERS || 
+          physicalMovementDistanceMagnitude > EMISSION_THRESHOLD_METERS || 
           headingAngularDifference > 1.5 || 
-          currentTelemetrySource !== lastEmittedLocationReference.current.source ||
+          currentTelemetrySource !== lastEmittedGeographicLocationReference.current.source ||
           isHardJumpDetected
         ) {
           shouldEmitNewLocationToFacade = true;
@@ -181,7 +173,7 @@ export function TelemetryProvider({
 
       if (shouldEmitNewLocationToFacade) {
         setUserGeographicLocation(effectiveGeographicLocation);
-        lastEmittedLocationReference.current = effectiveGeographicLocation;
+        lastEmittedGeographicLocationReference.current = effectiveGeographicLocation;
         
         if (!isGeographicallyTriangulated) {
           setIsGeographicallyTriangulated(true);
@@ -191,7 +183,7 @@ export function TelemetryProvider({
   }, [rawHardwareTelemetry, manualGeographicAnchor, isGeographicallyTriangulated]);
 
   /**
-   * API SOBERANA DE TELEMETRÍA (Fachada Pública)
+   * API SOBERANA DE TELEMETRÍA (Fachada Pública del Núcleo)
    */
   const telemetryApplicationProgrammingInterface: TelemetryCoreReturn = {
     userLocation: userGeographicLocation,
@@ -201,11 +193,11 @@ export function TelemetryProvider({
     isGlobalPositioningSystemLocked: rawHardwareTelemetry?.source === 'gps' && (rawHardwareTelemetry.accuracy || 9999) < SOVEREIGN_ACCURACY_THRESHOLD,
     telemetrySource: (rawHardwareTelemetry?.source as TelemetrySource) || null,
     
-    initializeHardwareSensors: startHardwareWatch,
-    terminateHardwareSensors: killHardwareWatch,
+    initializeHardwareSensors: startHardwareObservationAction,
+    terminateHardwareSensors: terminateHardwareObservationAction,
     reSynchronizeSensors: () => {
       isSovereignAccuracyLockActiveReference.current = false;
-      reSynchronizeHardware();
+      reSynchronizeHardwareAction();
     },
     setGeographicTriangulationState: (isTriangulatedValue: boolean) => setIsGeographicallyTriangulated(isTriangulatedValue),
     setManualGeographicAnchor: (longitudeCoordinate: number, latitudeCoordinate: number) => {
@@ -213,7 +205,7 @@ export function TelemetryProvider({
       setManualGeographicAnchorState({
         latitude: latitudeCoordinate,
         longitude: longitudeCoordinate,
-        accuracy: 1, // Autoridad humana indiscutible
+        accuracy: 1, 
         heading: rawHardwareTelemetry?.heading ?? null,
         speed: null,
         source: 'manual-anchor',
@@ -246,14 +238,11 @@ export const useGeoTelemetry = () => {
 };
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V2.0):
- * 1. Thermal Isolation: La inyección de la API de Visibilidad del Documento 
- *    (visibilitychange) garantiza que el GPS se suspenda físicamente al cambiar 
- *    de pestaña, reduciendo el consumo de batería a cero en background.
- * 2. Zero Abbreviations Policy: Se purificó el 100% del código, erradicando 
- *    términos como 'lat', 'lng', 'isGPSLock' (ahora isGlobalPositioningSystemLocked),
- *    y 'initData'.
- * 3. Atomic Re-Render Shield: El uso estricto de useRef para variables de control 
- *    (lastEmittedLocationReference) previene que el cálculo matemático sature 
- *    el ciclo de vida de React.
+ * NOTA TÉCNICA DEL ARCHITECT (V2.1):
+ * 1. Kinematic Engine Sync: Se resolvió el error TS2305 al sustituir 'calculateDistance' 
+ *    por 'calculateDistanceBetweenPoints', alineando el núcleo con la librería V3.0.
+ * 2. Zero Abbreviations Policy: Purificación absoluta de términos (isHardwareIgnited, 
+ *    physicalMovementDistanceMagnitude, lastEmittedGeographicLocationReference).
+ * 3. Atomic Re-Render Shield: El uso de referencias para el bloqueo de precisión GPS 
+ *    previene bucles de renderizado infinitos durante la transición IP -> GPS.
  */
