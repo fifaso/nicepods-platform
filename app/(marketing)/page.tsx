@@ -1,13 +1,20 @@
-// app/(marketing)/page.tsx
-// VERSIÓN: 2.5 (NicePod Marketing Canvas - Unified Architecture Standard)
-// Misión: Proyectar la visión industrial de NicePod eliminando la duplicidad visual y optimizando el LCP.
-// [ESTABILIZACIÓN]: Remoción de <Navigation /> para delegar al layout soberano y optimización de assets.
+/**
+ * ARCHIVO: app/(marketing)/page.tsx
+ * VERSIÓN: 3.0 (NicePod Marketing Canvas - Sovereign Industrial Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.0
+ * 
+ * Misión: Proyectar la visión industrial de NicePod, garantizando la carga 
+ * instantánea de marca y la inmersión visual en el ecosistema de inteligencia.
+ * [REFORMA V3.0]: Sincronización de logo local (Fix Error 400), purificación 
+ * nominal absoluta y optimización de jerarquía tipográfica.
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ */
 
 "use client";
 
 import { MapPreviewFrame } from "@/components/geo/map-preview-frame";
 import { Button } from "@/components/ui/button";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowRight,
   BookOpen,
@@ -22,15 +29,12 @@ import Image from "next/image";
 import Link from "next/link";
 
 /**
- * LandingPage: El punto de contacto inicial con el ecosistema NicePod V2.5.
- * 
- * Implementa el sistema de diseño Aurora: tipografía monumental, 
- * glassmorphism avanzado y una jerarquía de información orientada a la autoridad técnica.
+ * LandingPage: El punto de contacto inicial con el ecosistema de inteligencia.
  */
 export default function LandingPage() {
 
-  // Variantes de animación optimizadas para GPU (Hardware Accelerated)
-  const containerVariants = {
+  // --- I. CONFIGURACIÓN DE CINEMÁTICA VISUAL (CPU OPTIMIZED) ---
+  const containerAnimationVariants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
@@ -41,86 +45,90 @@ export default function LandingPage() {
     }
   };
 
-  const itemVariants = {
+  const itemAnimationVariants = {
     hidden: { y: 15, opacity: 0 },
-    visible: { y: 0, opacity: 1, transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] } }
+    visible: { 
+      y: 0, 
+      opacity: 1, 
+      transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] } 
+    }
   };
 
   /**
-   * UNIVERSOS DE CONOCIMIENTO (NKV Dimensions)
-   * Mapeo de activos visuales optimizados para el descubrimiento.
+   * knowledgeUniversesCollection:
+   * Mapeo de dimensiones de sabiduría con nomenclatura descriptiva completa.
    */
-  const knowledgeUniverses = [
+  const knowledgeUniversesCollection = [
     {
+      identification: "deep-thought",
       title: "Pensamiento",
-      id: "deep-thought",
-      icon: BookOpen,
-      desc: "Análisis de papers y filosofía sistémica."
+      IconComponent: BookOpen,
+      descriptionDescription: "Análisis de papers científicos y filosofía de sistemas complejos."
     },
     {
+      identification: "practical-tools",
       title: "Práctico",
-      id: "practical-tools",
-      icon: Zap,
-      desc: "Sistemas de optimización y productividad real."
+      IconComponent: Zap,
+      descriptionDescription: "Sistemas de optimización y protocolos de productividad real."
     },
     {
       title: "Tecnología",
-      id: "tech",
-      icon: BrainCircuit,
-      desc: "La frontera de la Inteligencia Artificial y el código."
+      identification: "tech",
+      IconComponent: BrainCircuit,
+      descriptionDescription: "La frontera de la Inteligencia Artificial y la arquitectura de código."
     },
     {
       title: "Narrativa",
-      id: "narrative",
-      icon: Globe,
-      desc: "Crónicas urbanas y memoria colectiva Madrid Resonance."
+      identification: "narrative",
+      IconComponent: Globe,
+      descriptionDescription: "Crónicas urbanas y memoria colectiva anclada en Madrid Resonance."
     }
   ];
 
   return (
-    <div className="flex flex-col items-center w-full selection:bg-primary/30">
+    <div className="flex flex-col items-center w-full selection:bg-primary/30 antialiased">
 
-      {/* --- SECCIÓN I: HERO MONUMENTAL (PULSE & RESONANCE) --- */}
-      <section className="relative w-full flex flex-col items-center justify-center pt-12 pb-24 px-6 overflow-hidden">
+      {/* --- SECCIÓN I: HERO MONUMENTAL (PROYECCIÓN DE AUTORIDAD) --- */}
+      <section className="relative w-full flex flex-col items-center justify-center pt-16 pb-28 px-6 overflow-hidden">
         <motion.div
-          className="container mx-auto max-w-7xl text-center space-y-10 relative z-10"
-          variants={containerVariants}
+          className="container mx-auto max-w-7xl text-center space-y-12 relative z-10"
+          variants={containerAnimationVariants}
           initial="hidden"
           animate="visible"
         >
-          {/* Badge de Versión (Authority Indicator) */}
-          <motion.div variants={itemVariants} className="flex justify-center">
-            <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-[0.4em] backdrop-blur-xl">
-              <Sparkles className="h-3.5 w-3.5 fill-current" /> NicePod V2.5: Intelligence Redefined
+          {/* Indicador de Rango Técnico */}
+          <motion.div variants={itemAnimationVariants} className="flex justify-center">
+            <div className="inline-flex items-center gap-3 px-6 py-2.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-[0.5em] backdrop-blur-2xl">
+              <Sparkles className="h-4 w-4 fill-current animate-pulse" /> 
+              NicePod V4.0: Intelligence Sovereign Edition
             </div>
           </motion.div>
 
-          {/* Título de Impacto (Aurora Typography) */}
+          {/* Título Monumental (Aurora Typography) */}
           <motion.h1
-            variants={itemVariants}
-            className="text-6xl md:text-8xl lg:text-[10rem] font-black tracking-tighter leading-[0.8] text-zinc-900 dark:text-white uppercase italic"
+            variants={itemAnimationVariants}
+            className="text-6xl md:text-8xl lg:text-[11rem] font-black tracking-tighter leading-[0.8] text-white uppercase italic font-serif"
           >
             SINTETIZA EL <br />
-            <span className="text-gradient not-italic">MUNDO</span>
+            <span className="text-primary not-italic drop-shadow-[0_0_60px_rgba(var(--primary-rgb),0.35)]">MUNDO</span>
           </motion.h1>
 
-          {/* Subtítulo Táctico */}
           <motion.p
-            variants={itemVariants}
-            className="max-w-3xl mx-auto text-base lg:text-xl text-muted-foreground font-medium leading-relaxed px-4"
+            variants={itemAnimationVariants}
+            className="max-w-4xl mx-auto text-base lg:text-2xl text-zinc-500 font-medium leading-relaxed px-8"
           >
-            NicePod es la Workstation de inteligencia soberana que destila la frontera de la ciencia, la actualidad estratégica y la memoria urbana en una sola experiencia auditiva.
+            NicePod es la Workstation de inteligencia industrial que destila la frontera del conocimiento y la memoria urbana en una sola frecuencia acústica.
           </motion.p>
 
-          {/* Call to Action (High Conversion) */}
-          <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center justify-center gap-6 pt-8">
+          {/* Call to Action (Conversión Táctica) */}
+          <motion.div variants={itemAnimationVariants} className="flex flex-col sm:flex-row items-center justify-center gap-8 pt-10">
             <Link href="/signup" className="w-full sm:w-auto">
-              <Button size="lg" className="w-full sm:w-auto h-16 px-12 rounded-2xl text-base font-black uppercase tracking-widest shadow-2xl shadow-primary/30 bg-primary text-white hover:scale-105 transition-all group">
-                Comenzar Forja <ArrowRight className="ml-3 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+              <Button size="lg" className="w-full sm:w-auto h-20 px-16 rounded-[2rem] text-lg font-black uppercase tracking-widest shadow-2xl shadow-primary/40 bg-white text-black hover:scale-105 transition-all group">
+                Comenzar Forja <ArrowRight className="ml-4 h-6 w-6 group-hover:translate-x-2 transition-transform" />
               </Button>
             </Link>
             <Link href="/podcasts" className="w-full sm:w-auto">
-              <Button variant="outline" size="lg" className="w-full sm:w-auto h-16 px-10 rounded-2xl text-base font-black uppercase tracking-widest backdrop-blur-xl bg-white/5 border-white/10 hover:bg-white/10 transition-all">
+              <Button variant="outline" size="lg" className="w-full sm:w-auto h-20 px-12 rounded-[2rem] text-lg font-black uppercase tracking-widest backdrop-blur-3xl bg-white/5 border-white/10 hover:bg-white/10 transition-all text-white">
                 Explorar Red
               </Button>
             </Link>
@@ -128,42 +136,34 @@ export default function LandingPage() {
         </motion.div>
       </section>
 
-      {/* --- SECCIÓN II: PORTAL MADRID RESONANCE (TACTICAL BANNER) --- */}
-      <section className="w-full max-w-screen-xl mx-auto px-6 pb-32">
+      {/* --- SECCIÓN II: PORTAL MADRID RESONANCE (TACTICAL MAP BANNER) --- */}
+      <section className="w-full max-w-screen-xl mx-auto px-6 pb-40">
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-100px" }}
           transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-          className="relative aspect-video md:aspect-[21/9] rounded-[3rem] overflow-hidden border border-white/10 bg-zinc-950 shadow-[0_0_100px_-20px_rgba(139,92,246,0.2)] group"
+          className="relative aspect-video md:aspect-[21/9] rounded-[4rem] overflow-hidden border border-white/10 bg-zinc-950 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] group isolate"
         >
-          {/* Capa de Identificación Geoespacial */}
-          <div className="absolute top-8 left-8 z-20 hidden md:flex flex-col gap-3">
-            <div className="bg-black/60 backdrop-blur-xl px-6 py-2.5 rounded-2xl border border-white/10 flex items-center gap-4">
-              <div className="w-2.5 h-2.5 rounded-full bg-primary animate-ping" />
-              <span className="text-[10px] font-black text-white uppercase tracking-[0.3em]">Madrid: Active Resonance Node</span>
-            </div>
-          </div>
-
-          {/* Motor WebGL (Diferido por el componente interno) */}
+          {/* Motor WebGL (Diferido) */}
           <div className="absolute inset-0 z-0">
             <MapPreviewFrame />
           </div>
 
-          {/* Overlays de Contraste Aurora */}
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent z-10 pointer-events-none" />
+          {/* Gradiente de Sellado Aurora */}
+          <div className="absolute inset-0 bg-gradient-to-t from-[#010101] via-transparent to-transparent z-10 pointer-events-none" />
 
-          <div className="absolute bottom-10 left-10 right-10 z-20 flex flex-col md:flex-row justify-between items-end gap-6 text-left">
-            <div className="space-y-3">
-              <h3 className="text-white font-black text-4xl lg:text-5xl uppercase tracking-tighter italic leading-none drop-shadow-2xl">
+          <div className="absolute bottom-12 left-12 right-12 z-20 flex flex-col md:flex-row justify-between items-end gap-8 text-left">
+            <div className="space-y-4">
+              <h3 className="text-white font-black text-5xl lg:text-7xl uppercase tracking-tighter italic leading-none drop-shadow-2xl font-serif">
                 La Ciudad es <span className="text-primary">Tu Bóveda</span>
               </h3>
-              <p className="text-white/50 text-xs md:text-sm font-bold uppercase tracking-[0.2em] max-w-lg">
-                Ancla tus ideas al territorio. Descubre crónicas sonoras situacionales y libera la historia latente de Madrid.
+              <p className="text-zinc-500 text-sm font-bold uppercase tracking-[0.3em] max-w-xl leading-relaxed">
+                Ancla tus ideas al territorio físico. Descubre crónicas sonoras situacionales y libera la historia latente de Madrid.
               </p>
             </div>
             <Link href="/map">
-              <Button className="rounded-full bg-white text-black hover:bg-zinc-200 font-black px-10 h-12 text-[10px] uppercase tracking-widest shadow-xl">
+              <Button className="rounded-full bg-white text-black hover:bg-zinc-200 font-black px-12 h-14 text-xs uppercase tracking-widest shadow-2xl transition-transform hover:scale-105">
                 ABRIR MAPA 3D
               </Button>
             </Link>
@@ -172,45 +172,42 @@ export default function LandingPage() {
       </section>
 
       {/* --- SECCIÓN III: PILARES DE INTELIGENCIA INDUSTRIAL --- */}
-      <section className="w-full py-32 bg-zinc-900/30 border-y border-white/5 backdrop-blur-md">
-        <div className="container mx-auto max-w-7xl px-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-16 lg:gap-24">
+      <section className="w-full py-40 bg-[#050505] border-y border-white/5 backdrop-blur-3xl shadow-inner">
+        <div className="container mx-auto max-w-7xl px-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-20 lg:gap-32">
 
-            {/* Pilar 1: Pulse Harvester (High Reputation) */}
-            <div className="space-y-6 group">
-              <div className="h-16 w-16 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500 border border-blue-500/20 group-hover:scale-110 group-hover:bg-blue-500/20 transition-all duration-500">
-                <ShieldCheck size={32} />
+            <div className="space-y-8 group">
+              <div className="h-20 w-20 rounded-3xl bg-blue-500/10 flex items-center justify-center text-blue-500 border border-blue-500/20 group-hover:scale-110 group-hover:bg-blue-500/20 transition-all duration-700 shadow-xl">
+                <ShieldCheck size={40} />
               </div>
-              <div className="space-y-3">
-                <h3 className="text-2xl font-black uppercase tracking-tighter text-white italic">Inteligencia de Élite</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed font-medium">
-                  NicePod Pulse recolecta papers científicos de arXiv y fuentes de alta reputación. Accede a conocimiento validado, libre de sesgos comerciales.
+              <div className="space-y-4">
+                <h3 className="text-3xl font-black uppercase tracking-tighter text-white italic font-serif leading-none">Inteligencia de Élite</h3>
+                <p className="text-zinc-500 text-base leading-relaxed font-medium">
+                  NicePod recolecta papers científicos y fuentes de alta reputación. Acceda a conocimiento validado, libre de sesgos comerciales.
                 </p>
               </div>
             </div>
 
-            {/* Pilar 2: Synthesis Engine (Gemini 3.0) */}
-            <div className="space-y-6 group">
-              <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary border border-primary/20 group-hover:scale-110 group-hover:bg-primary/20 transition-all duration-500">
-                <BrainCircuit size={32} />
+            <div className="space-y-8 group">
+              <div className="h-20 w-20 rounded-3xl bg-primary/10 flex items-center justify-center text-primary border border-primary/20 group-hover:scale-110 group-hover:bg-primary/20 transition-all duration-700 shadow-xl">
+                <BrainCircuit size={40} />
               </div>
-              <div className="space-y-3">
-                <h3 className="text-2xl font-black uppercase tracking-tighter text-white italic">Síntesis Neuronal</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed font-medium">
-                  Transformamos fuentes crudas en monólogos sonoros cinematográficos. Una IA de redacción soberana que entiende tu intención profunda.
+              <div className="space-y-4">
+                <h3 className="text-3xl font-black uppercase tracking-tighter text-white italic font-serif leading-none">Síntesis Neuronal</h3>
+                <p className="text-zinc-500 text-base leading-relaxed font-medium">
+                  Transformamos fuentes crudas en monólogos sonoros cinematográficos. Una IA de redacción soberana que entiende su intención profunda.
                 </p>
               </div>
             </div>
 
-            {/* Pilar 3: Knowledge Vault (NKV Economy) */}
-            <div className="space-y-6 group">
-              <div className="h-16 w-16 rounded-2xl bg-purple-500/10 flex items-center justify-center text-purple-500 border border-purple-500/20 group-hover:scale-110 group-hover:bg-purple-500/20 transition-all duration-500">
-                <Database size={32} />
+            <div className="space-y-8 group">
+              <div className="h-20 w-20 rounded-3xl bg-purple-500/10 flex items-center justify-center text-purple-500 border border-purple-500/20 group-hover:scale-110 group-hover:bg-purple-500/20 transition-all duration-700 shadow-xl">
+                <Database size={40} />
               </div>
-              <div className="space-y-3">
-                <h3 className="text-2xl font-black uppercase tracking-tighter text-white italic">Economía del Saber</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed font-medium">
-                  Cada investigación alimenta tu Bóveda (NKV). La economía circular de datos reduce costes y genera un archivo de sabiduría perpetuo.
+              <div className="space-y-4">
+                <h3 className="text-3xl font-black uppercase tracking-tighter text-white italic font-serif leading-none">Bóveda NKV</h3>
+                <p className="text-zinc-500 text-base leading-relaxed font-medium">
+                  Cada peritaje alimenta su Bóveda de Capital Intelectual. La economía circular de datos genera un archivo de sabiduría perpetuo.
                 </p>
               </div>
             </div>
@@ -219,30 +216,31 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* --- SECCIÓN IV: DIMENSIONES DE SABIDURÍA (VISUAL PREVIEW) --- */}
-      <section className="w-full py-32 container mx-auto max-w-7xl px-6 text-center">
-        <div className="mb-20 space-y-4">
-          <p className="text-primary font-black uppercase tracking-[0.5em] text-[10px]">Cámaras de Aprendizaje</p>
-          <h2 className="text-5xl md:text-7xl font-black tracking-tighter uppercase text-white leading-none">
-            EXPLORA LAS <span className="text-primary italic">DIMENSIONES</span>
+      {/* --- SECCIÓN IV: DIMENSIONES DE SABIDURÍA (PREVISUALIZACIÓN) --- */}
+      <section className="w-full py-40 container mx-auto max-w-7xl px-8 text-center isolate">
+        <div className="mb-24 space-y-6">
+          <p className="text-primary font-black uppercase tracking-[0.5em] text-[11px]">Cámaras de Aprendizaje</p>
+          <h2 className="text-6xl md:text-8xl font-black tracking-tighter uppercase text-white leading-none font-serif italic">
+            EXPLORA LAS <span className="text-primary">DIMENSIONES</span>
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-          {knowledgeUniverses.map((uni) => (
-            <div key={uni.id} className="relative aspect-[4/5] rounded-[2.5rem] overflow-hidden border border-white/5 bg-zinc-900 group shadow-2xl transition-all hover:border-primary/40">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
+          {knowledgeUniversesCollection.map((universeCategoryItem) => (
+            <div key={universeCategoryItem.identification} className="relative aspect-[4/5] rounded-[3rem] overflow-hidden border border-white/5 bg-zinc-900 group shadow-2xl transition-all hover:border-primary/40">
               <Image
-                src={`/images/universes/${uni.id}.png`}
-                alt={uni.title}
+                src={`/images/universes/${universeCategoryItem.identification}.png`}
+                alt={universeCategoryItem.title}
                 fill
-                className="object-cover opacity-40 group-hover:scale-110 transition-[transform,opacity] duration-&lsqb;2000ms&rsqb; group-hover:opacity-80" sizes="(max-width: 768px) 100vw, 25vw" />
-              {/* Overlay de Identidad Dimensional */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent z-10" />
-              <div className="absolute inset-0 p-8 flex flex-col justify-end text-left z-20">
-                <uni.icon className="h-8 w-8 text-primary mb-4 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                <h4 className="text-xl font-black uppercase tracking-tighter text-white mb-2 italic">{uni.title}</h4>
-                <p className="text-[10px] text-white/50 font-bold uppercase tracking-widest leading-relaxed">
-                  {uni.desc}
+                className="object-cover opacity-40 group-hover:scale-110 transition-all duration-[3000ms] group-hover:opacity-80" 
+                sizes="(max-width: 768px) 100vw, 25vw" 
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#010101] via-black/20 to-transparent z-10" />
+              <div className="absolute inset-0 p-10 flex flex-col justify-end text-left z-20">
+                <universeCategoryItem.IconComponent className="h-10 w-10 text-primary mb-6 opacity-0 group-hover:opacity-100 transition-all duration-700 -translate-y-4 group-hover:translate-y-0" />
+                <h4 className="text-2xl font-black uppercase tracking-tighter text-white mb-3 italic font-serif">{universeCategoryItem.title}</h4>
+                <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest leading-relaxed">
+                  {universeCategoryItem.descriptionDescription}
                 </p>
               </div>
             </div>
@@ -250,34 +248,39 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* --- SECCIÓN V: FOOTER DE CONVERSIÓN SOBERANA --- */}
-      <footer className="w-full py-24 border-t border-white/5 bg-black/40 text-center relative overflow-hidden">
-        {/* Resplandor de Bóveda */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-primary/5 blur-[160px] rounded-full pointer-events-none" />
+      {/* --- SECCIÓN V: CIERRE DE CONVERSIÓN SOBERANA (FOOTER) --- */}
+      <footer className="w-full py-32 border-t border-white/5 bg-black/60 text-center relative overflow-hidden isolate">
+        {/* Resplandor de Bóveda Central */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-primary/5 blur-[180px] rounded-full pointer-events-none" />
 
-        <div className="container mx-auto max-w-5xl px-6 space-y-16 relative z-10">
-          <div className="flex flex-col items-center gap-8">
-            <div className="h-20 w-20 relative opacity-90 p-4 rounded-3xl bg-zinc-900 border border-white/10 shadow-2xl">
-              <Image src="/nicepod-logo.png" alt="NicePod Intelligence" fill className="object-contain" />
+        <div className="container mx-auto max-w-5xl px-8 space-y-20 relative z-10">
+          <div className="flex flex-col items-center gap-10">
+            <div className="h-24 w-24 relative p-5 rounded-[2rem] bg-zinc-900 border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.8)] transition-transform hover:scale-110 duration-700">
+              <Image 
+                src="/nicepod-logo.png" 
+                alt="NicePod Intelligence Isotype" 
+                fill 
+                className="object-contain p-4" 
+                unoptimized
+              />
             </div>
-            <h2 className="text-5xl md:text-7xl font-black tracking-tighter uppercase italic text-white leading-none">
-              Sé el <span className="text-primary">Testigo</span> de tu tiempo.
+            <h2 className="text-6xl md:text-8xl font-black tracking-[calc(-0.05em)] uppercase italic text-white leading-[0.85] font-serif">
+              Sé el <span className="text-primary not-italic">Testigo</span> <br /> de tu tiempo.
             </h2>
             <Link href="/signup">
-              <Button size="lg" className="h-16 px-16 rounded-full font-black text-xl shadow-2xl shadow-primary/40 hover:scale-105 transition-all bg-primary text-white uppercase tracking-tighter">
+              <Button size="lg" className="h-20 px-20 rounded-full font-black text-xl shadow-[0_25px_60px_rgba(var(--primary-rgb),0.4)] hover:scale-110 transition-all bg-white text-black uppercase tracking-widest">
                 UNIRSE A LA RED
               </Button>
             </Link>
           </div>
 
-          {/* Mapa de Navegación de Marca */}
-          <div className="flex flex-col md:flex-row justify-between items-center gap-8 text-[9px] font-black text-muted-foreground/60 uppercase tracking-[0.4em]">
-            <div className="flex gap-10">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-10 text-[10px] font-black text-zinc-600 uppercase tracking-[0.5em] pt-12 border-t border-white/5">
+            <div className="flex gap-12">
               <Link href="/pricing" className="hover:text-primary transition-colors">Suscripciones</Link>
               <Link href="/podcasts" className="hover:text-primary transition-colors">Bóveda Global</Link>
               <Link href="/geo" className="hover:text-primary transition-colors">Resonancia</Link>
             </div>
-            <p className="italic">© 2026 NICEPOD. PROTOCOLO NCIS V1.0. INTELLIGENCE SOVEREIGNTY.</p>
+            <p className="italic text-[8px] opacity-40">© 2026 NICEPOD. MADRID RESONANCE V4.0. INTELLIGENCE SOVEREIGNTY.</p>
           </div>
         </div>
       </footer>
@@ -286,9 +289,12 @@ export default function LandingPage() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT:
- * Se ha erradicado el componente <Navigation /> del cuerpo de la página. 
- * El encabezado ahora se sirve exclusivamente a través de app/(marketing)/layout.tsx (v1.1).
- * Esto resuelve la duplicidad visual en dispositivos móviles y garantiza que 
- * la navegación no pestañee durante el intercambio de sesión.
+ * NOTA TÉCNICA DEL ARCHITECT (V3.0):
+ * 1. Visual Integrity (Fix Error 400): Se forzó el uso del logo local ('/nicepod-logo.png') 
+ *    con el atributo 'unoptimized' en el pie de página, erradicando los fallos de red 
+ *    detectados en la consola de Vercel.
+ * 2. Zero Abbreviations Policy: Se purificaron las colecciones de datos y sus iteradores, 
+ *    elevando la semántica de marketing al estándar industrial (universeCategoryItem).
+ * 3. Typography & Branding: Se inyectó la fuente 'serif' para consolidar la autoridad 
+ *    de marca y la coherencia visual con la terminal de acceso.
  */
