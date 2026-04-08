@@ -1,7 +1,14 @@
-// components/navigation/desktop-nav.tsx
-// VERSIÓN: 3.0 (NicePod Navigation Master - Desktop Sovereign Edition)
-// Misión: Especialista en renderizado de alta densidad para centros de mando.
-// [ESTABILIZACIÓN]: Integración de rutas de Admin, Radar /map y optimización de simetría.
+/**
+ * ARCHIVO: components/navigation/desktop-nav.tsx
+ * VERSIÓN: 4.0 (NicePod Desktop Command - Absolute Nominal Integrity Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.0
+ * 
+ * Misión: Orquestar la navegación de escritorio de alta densidad, gestionando 
+ * la autoridad administrativa y la simetría visual del centro de mando.
+ * [REFORMA V4.0]: Sincronización nominal total con NavBrand V4.0, erradicación 
+ * absoluta de abreviaturas y blindaje de tipos para el Build Shield.
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ */
 
 "use client";
 
@@ -26,129 +33,123 @@ import {
 } from "./shared/nav-styles";
 import { UserDropdown } from "./shared/user-dropdown";
 
-// --- INFRAESTRUCTURA UI (NicePod Industrial Design) ---
+// --- INFRAESTRUCTURA UI (NICEPOD INDUSTRIAL DESIGN) ---
 import { NotificationBell } from "@/components/system/notification-bell";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-// --- CONTRATOS DE DATOS ---
+// --- CONTRATOS DE DATOS SOBERANOS ---
 import { ProfileData } from "@/types/profile";
 
 /**
- * INTERFAZ: DesktopNavProps
- * Define el contrato de identidad inyectado por el Master Navigator (T0).
+ * INTERFAZ: DesktopNavigationProperties
+ * Misión: Definir el contrato de identidad inyectado por el orquestador de navegación.
  */
-interface DesktopNavProps {
-  isAuthenticated: boolean;
-  isInitialLoading: boolean;
-  profile: ProfileData | null;
-  isAdmin: boolean;
-  onLogout: () => void;
+interface DesktopNavigationProperties {
+  isUserAuthenticated: boolean;
+  isInitialLoadingState: boolean;
+  administratorProfile: ProfileData | null;
+  isAdministratorAuthority: boolean;
+  onAuthenticationLogoutAction: () => void;
 }
 
 /**
- * COMPONENTE: DesktopNav
- * El director de navegación para pantallas de alta resolución.
+ * DesktopNav: El director de navegación para terminales de alta resolución.
  */
 export function DesktopNav({
-  isAuthenticated,
-  isInitialLoading,
-  profile,
-  isAdmin,
-  onLogout
-}: DesktopNavProps) {
-  const pathname = usePathname();
+  isUserAuthenticated,
+  isInitialLoadingState,
+  administratorProfile,
+  isAdministratorAuthority,
+  onAuthenticationLogoutAction
+}: DesktopNavigationProperties) {
+  
+  const currentNavigationPathname = usePathname();
 
   /**
-   * RESOLUCIÓN DINÁMICA DE RUTAS:
-   * Utilizamos useMemo para calcular la topología del menú según el rango del usuario.
-   * Si es Admin, fusionamos los USER_ITEMS con los ADMIN_ITEMS para control total.
+   * navigationItemsCollection:
+   * Misión: Calcular la topología del menú según el rango de autoridad del Voyager.
    */
-  const navItems = useMemo(() => {
-    if (!isAuthenticated) return GUEST_NAV_ITEMS;
+  const navigationItemsCollection = useMemo(() => {
+    if (!isUserAuthenticated) {
+        return GUEST_NAV_ITEMS;
+    }
 
-    // Si es administrador, inyectamos las herramientas soberanas al final del menú
-    if (isAdmin) {
+    // Si el usuario posee autoridad administrativa, se anexan las herramientas soberanas.
+    if (isAdministratorAuthority) {
       return [...USER_NAV_ITEMS, ...ADMIN_NAV_ITEMS];
     }
 
     return USER_NAV_ITEMS;
-  }, [isAuthenticated, isAdmin]);
+  }, [isUserAuthenticated, isAdministratorAuthority]);
 
   return (
-    /**
-     * CONTENEDOR MAESTRO:
-     * Aplica el chasis de cristal Aurora definido en las constantes de estilo.
-     */
     <div className={cn(
       glassPanelClass,
-      "hidden md:flex items-center h-20 px-8 transition-all duration-1000"
+      "hidden lg:flex items-center h-20 px-8 transition-all duration-1000 isolate"
     )}>
 
-      {/* I. NÚCLEO IZQUIERDO: IDENTIDAD DE MARCA */}
+      {/* I. NÚCLEO IZQUIERDO: IDENTIDAD DE MARCA SOBERANA */}
       <div className="flex-1 flex items-center">
-        <NavBrand isAuthenticated={isAuthenticated} />
+        
+        {/* [FIX V4.0]: Sincronía nominal con NavBrandProperties V4.0 */}
+        <NavBrand isUserAuthenticated={isUserAuthenticated} />
 
-        {/* Indicador de Rango: Solo visible para el Administrador */}
-        {isAdmin && !isInitialLoading && (
-          <div className="ml-6 flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 animate-in fade-in slide-in-from-left-4 duration-1000">
+        {/* Indicador de Rango Administrativo */}
+        {isAdministratorAuthority && !isInitialLoadingState && (
+          <div className="ml-8 flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 animate-in fade-in slide-in-from-left-4 duration-1000 shadow-sm">
             <ShieldCheck size={12} className="text-primary" />
-            <span className="text-[8px] font-black uppercase tracking-[0.2em] text-primary">
-              Admin Mode
+            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-primary">
+              Modo Administrador
             </span>
           </div>
         )}
       </div>
 
-      {/* 
-          II. NÚCLEO CENTRAL: LA CÁPSULA DE COMANDO 
-          Este es el nodo interactivo principal. Utiliza posicionamiento absoluto 
-          para garantizar la simetría visual en cualquier resolución.
-      */}
-      <nav className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+      {/* II. NÚCLEO CENTRAL: LA CÁPSULA DE COMANDO INTERACTIVA */}
+      <nav className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50">
         <ul className={cn(
-          "flex items-center space-x-1.5 p-1.5 rounded-full",
+          "flex items-center space-x-2 p-1.5 rounded-full",
           "bg-black/40 border border-white/10 shadow-2xl backdrop-blur-3xl",
           "transition-all duration-700 hover:border-white/20"
         )}>
-          {navItems.map((item: NavItem) => {
+          {navigationItemsCollection.map((navigationItem: NavItem) => {
 
-            // CASO A: BOTÓN DE ACCIÓN PRIMARIA (CREAR)
-            if (item.isPrimary) {
+            // CASO A: BOTÓN DE ACCIÓN PRIMARIA (FORJA DE CAPITAL INTELECTUAL)
+            if (navigationItem.isPrimary) {
               return (
-                <li key={item.href} className="flex items-center">
+                <li key={navigationItem.href} className="flex items-center">
                   <CreateButton
                     variant="full"
-                    className="h-10 px-6 rounded-full"
+                    className="h-11 px-8 rounded-full shadow-lg shadow-primary/20"
                   />
                 </li>
               );
             }
 
             // CASO B: ENLACES ESTÁNDAR Y SOBERANOS
-            const active = isRouteActive(item.href, pathname);
+            const isNavigationItemActive = isRouteActive(navigationItem.href, currentNavigationPathname);
 
             return (
-              <li key={item.href}>
+              <li key={navigationItem.href}>
                 <Link
-                  href={item.href}
+                  href={navigationItem.href}
                   className={cn(
                     navLinkBaseClass,
-                    "h-10 px-5 flex items-center justify-center rounded-full text-[10px] font-black uppercase tracking-[0.15em] transition-all duration-500",
-                    active
-                      ? "bg-white text-black shadow-lg scale-105"
+                    "h-11 px-6 flex items-center justify-center rounded-full text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-700",
+                    isNavigationItemActive
+                      ? "bg-white text-black shadow-[0_10px_30px_rgba(255,255,255,0.2)] scale-105"
                       : "text-zinc-500 hover:text-white hover:bg-white/5",
-                    // Estilo especial para ítems de moderación
-                    item.isSovereign && "text-amber-500/80 hover:text-amber-400"
+                    navigationItem.isSovereign && "text-amber-500/90 hover:text-amber-400"
                   )}
                 >
-                  <div className="flex items-center gap-2.5">
-                    <item.icon size={14} className={cn(
-                      "transition-colors duration-500",
-                      active ? "text-black" : "text-zinc-600 group-hover:text-primary"
+                  <div className="flex items-center gap-3">
+                    <navigationItem.icon size={15} className={cn(
+                      "transition-transform duration-700",
+                      isNavigationItemActive ? "text-black scale-110" : "text-zinc-700"
                     )} />
-                    <span>{item.label}</span>
+                    <span>{navigationItem.label}</span>
                   </div>
                 </Link>
               </li>
@@ -157,38 +158,38 @@ export function DesktopNav({
         </ul>
       </nav>
 
-      {/* III. NÚCLEO DERECHO: HERRAMIENTAS Y PERFIL */}
-      <div className="flex-1 flex items-center justify-end gap-5">
+      {/* III. NÚCLEO DERECHO: HERRAMIENTAS AMBIENTALES Y PERFIL */}
+      <div className="flex-1 flex items-center justify-end gap-6">
 
-        {/* Control Ambiental: Cambio de Tema */}
-        <div className="h-10 w-10 flex items-center justify-center bg-white/5 rounded-2xl border border-white/5 hover:border-white/20 hover:bg-white/10 transition-all duration-500 cursor-pointer">
+        {/* Control Ambiental Táctico */}
+        <div className="h-11 w-11 flex items-center justify-center bg-white/5 rounded-2xl border border-white/5 hover:border-primary/30 hover:bg-primary/5 transition-all duration-700 cursor-pointer shadow-inner group">
           <ThemeToggle />
         </div>
 
-        {/* Lógica de Identidad Atómica */}
-        {isInitialLoading ? (
-          <div className="h-10 w-10 flex items-center justify-center">
+        {/* Lógica de Identidad Atómica NicePod */}
+        {isInitialLoadingState ? (
+          <div className="h-11 w-11 flex items-center justify-center bg-zinc-950 rounded-full border border-white/5 animate-pulse">
             <Loader2 className="h-5 w-5 animate-spin text-primary/40" />
           </div>
-        ) : isAuthenticated ? (
-          <div className="flex items-center gap-4 animate-in fade-in zoom-in-95 duration-700">
-            {/* Campana de Notificaciones Sincronizada */}
-            <div className="h-10 w-10 flex items-center justify-center bg-white/5 rounded-2xl border border-white/5 hover:border-white/20 hover:bg-white/10 transition-all cursor-pointer">
+        ) : isUserAuthenticated ? (
+          <div className="flex items-center gap-5 animate-in fade-in zoom-in-95 duration-1000">
+            {/* Sistema de Notificaciones Sincronizado */}
+            <div className="h-11 w-11 flex items-center justify-center bg-white/5 rounded-2xl border border-white/5 hover:border-white/20 transition-all cursor-pointer group">
               <NotificationBell />
             </div>
 
             {/* Menú Desplegable SOBERANO */}
             <UserDropdown
-              profile={profile}
-              isAdmin={isAdmin}
-              onLogout={onLogout}
+              profile={administratorProfile}
+              isAdmin={isAdministratorAuthority}
+              onLogout={onAuthenticationLogoutAction}
             />
           </div>
         ) : (
           <Link href="/login">
             <Button
               variant="outline"
-              className="h-11 rounded-full px-10 font-black text-[11px] uppercase tracking-[0.25em] border-white/10 hover:bg-white hover:text-black transition-all duration-500 shadow-xl"
+              className="h-12 rounded-2xl px-10 font-black text-[11px] uppercase tracking-[0.3em] border-white/10 hover:bg-white hover:text-black transition-all duration-700 shadow-2xl shadow-primary/10"
             >
               Iniciar Frecuencia
             </Button>
@@ -201,14 +202,12 @@ export function DesktopNav({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V3.0):
- * 1. Consolidación del Radar: Al usar 'navItems' dinámicos, el botón "Radar" (/map) 
- *    definido en 'nav-config.ts' aparece ahora en el centro de la cápsula, 
- *    otorgándole la importancia jerárquica que requiere la V2.6.
- * 2. Visualización de Rango: El 'ShieldCheck' en el núcleo izquierdo provee 
- *    una confirmación psicológica inmediata al Admin de que su sesión tiene 
- *    los privilegios correctos de siembra.
- * 3. Ergonomía Premium: Se ha aumentado el padding horizontal ('px-5') y la 
- *    altura de respuesta en los enlaces centrales, logrando que la interacción 
- *    en monitores de alta resolución (4K) sea precisa y satisfactoria.
+ * NOTA TÉCNICA DEL ARCHITECT (V4.0):
+ * 1. Contract Synchronization: Se neutralizó el error TS2322 inyectando la propiedad 
+ *    'isUserAuthenticated' en NavBrand, resolviendo el desfase nominal del Sprint 5.5.
+ * 2. Zero Abbreviations Policy: Purificación absoluta de nomenclatura (isAdministratorAuthority, 
+ *    onAuthenticationLogoutAction, navigationItemsCollection), elevando el archivo al 
+ *    estándar de grado industrial de la Workstation.
+ * 3. Layered Stacking: Se inyectó 'isolate' y se ajustaron los Z-Index para garantizar 
+ *    que la cápsula de comando central no sufra oclusión por parte del BackgroundEngine.
  */
