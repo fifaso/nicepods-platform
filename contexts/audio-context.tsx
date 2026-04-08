@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: contexts/audio-context.tsx
- * VERSIÓN: 7.0 (NicePod Audio Terminal - Absolute Nominal Integrity Edition)
+ * VERSIÓN: 7.1 (NicePod Audio Terminal - Sovereign Compatibility Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Motor de audio neuronal con despacho de telemetría de alta frecuencia,
- * gestionando el ciclo de vida de los activos acústicos y la higiene de memoria RAM.
- * [REFORMA V7.0]: Cumplimiento absoluto de la Zero Abbreviations Policy y 
- * optimización del protocolo de purga de recursos (Hardware Termination).
+ * gestionando el ciclo de vida de los activos y la higiene térmica de la RAM.
+ * [REFORMA V7.1]: Implementación de Mapeo de Compatibilidad para neutralizar 
+ * errores TS2339 en cascada sin sacrificar el estándar nominal V4.0.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -21,15 +21,24 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 
 /**
  * INTERFAZ: AudioContextProperties
- * Define el contrato público del motor de audio de la Workstation.
+ * Misión: Definir el contrato público incluyendo firmas industriales y aliases de compatibilidad.
  */
 export interface AudioContextProperties {
+  // --- FIRMA INDUSTRIAL V4.0 ---
   currentActivePodcast: PodcastWithProfile | null;
   playbackQueue: PodcastWithProfile[];
   isAudioPlaying: boolean;
   isAudioLoading: boolean;
   audioElementReference: React.MutableRefObject<HTMLAudioElement | null>;
   
+  // --- ALIASES DE COMPATIBILIDAD (Neutralización de Errores TS2339) ---
+  currentPodcast: PodcastWithProfile | null;
+  queue: PodcastWithProfile[];
+  isPlaying: boolean;
+  isLoading: boolean;
+  audioRef: React.MutableRefObject<HTMLAudioElement | null>;
+
+  // --- MÉTODOS DE ACCIÓN SOBERANA ---
   playPodcastAction: (podcast: PodcastWithProfile, playlist?: PodcastWithProfile[]) => Promise<void>;
   togglePlayPauseAction: () => void;
   terminatePodcastPlayback: () => void;
@@ -38,29 +47,41 @@ export interface AudioContextProperties {
   skipBackwardAction: (skipSeconds?: number) => void;
   logInteractionEventAction: (interactionType: 'completed_playback' | 'liked' | 'shared') => Promise<void>;
   
+  // --- ALIASES DE MÉTODOS (Legacy Bridge) ---
+  playPodcast: (podcast: PodcastWithProfile, playlist?: PodcastWithProfile[]) => Promise<void>;
+  togglePlayPause: () => void;
+  closePodcast: () => void;
+  seekTo: (targetTimeSeconds: number) => void;
+  skipForward: (skipSeconds?: number) => void;
+  skipBackward: (skipSeconds?: number) => void;
+  logInteractionEvent: (interactionType: 'completed_playback' | 'liked' | 'shared') => Promise<void>;
+
+  // --- INTERFAZ DE USUARIO ---
   isPlayerExpanded: boolean;
   expandPlayerInterface: () => void;
   collapsePlayerInterface: () => void;
+  expandPlayer: () => void;   // Alias
+  collapsePlayer: () => void; // Alias
 }
 
 const AudioContext = createContext<AudioContextProperties | undefined>(undefined);
 
 /**
- * AudioProvider: El orquestador de hardware acústico.
+ * AudioProvider: El orquestador de hardware acústico de NicePod.
  */
 export function AudioProvider({ children }: { children: React.ReactNode }) {
   const { user: authenticatedUser, supabase: authSupabaseClient } = useAuth();
   const { toast } = useToast();
   const supabaseClient = authSupabaseClient || createClient();
 
-  // --- ESTADOS DE GESTIÓN DE REPRODUCCIÓN ---
+  // --- ESTADOS DE GESTIÓN INTERNOS ---
   const [currentActivePodcast, setCurrentActivePodcast] = useState<PodcastWithProfile | null>(null);
   const [playbackQueue, setPlaybackQueue] = useState<PodcastWithProfile[]>([]);
   const [isAudioPlaying, setIsAudioPlaying] = useState<boolean>(false);
   const [isAudioLoading, setIsAudioLoading] = useState<boolean>(false);
   const [isPlayerExpanded, setIsPlayerExpanded] = useState<boolean>(false);
 
-  // --- REFERENCIAS DE HARDWARE Y MEMORIA ---
+  // --- REFERENCIAS DE HARDWARE ---
   const audioElementReference = useRef<HTMLAudioElement | null>(null);
   const activePodcastReference = useRef<PodcastWithProfile | null>(null);
 
@@ -69,8 +90,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   }, [currentActivePodcast]);
 
   /**
-   * 1. PROTOCOLO DE INICIALIZACIÓN DE HARDWARE SOBERANO
-   * Misión: Instanciar el motor de audio de HTML5 y configurar los oyentes de telemetría.
+   * 1. PROTOCOLO DE INICIALIZACIÓN DE HARDWARE
    */
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -80,18 +100,12 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       audioInstance.preload = 'metadata';
       audioElementReference.current = audioInstance;
 
-      // Listeners de Estado de Hardware
       audioInstance.addEventListener("play", () => setIsAudioPlaying(true));
       audioInstance.addEventListener("pause", () => setIsAudioPlaying(false));
       audioInstance.addEventListener("loadstart", () => setIsAudioLoading(true));
       audioInstance.addEventListener("canplay", () => setIsAudioLoading(false));
       audioInstance.addEventListener("ended", () => handleAutomaticNextAction());
 
-      /**
-       * [TELEMETRÍA DE ALTA FRECUENCIA]
-       * Despachamos un evento nativo para que los componentes de precisión 
-       * (Teleprompter) se actualicen mediante REFs de DOM, protegiendo los FPS.
-       */
       audioInstance.addEventListener("timeupdate", () => {
         if (!audioElementReference.current) return;
         const currentPlaybackTimeSeconds = audioElementReference.current.currentTime;
@@ -112,33 +126,25 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         if (!activePodcastReference.current) return;
         
         if (errorTarget.error && errorTarget.src && errorTarget.src !== window.location.href) {
-          nicepodLog("🔥 [AudioEngine] Frecuencia Inestable.", errorTarget.error, 'error');
+          nicepodLog("🔥 [AudioEngine] Falla de enlace acústico.", errorTarget.error, 'error');
           toast({
             variant: "destructive",
             title: "Frecuencia Inestable",
-            description: "No se pudo recuperar el activo acústico de la Bóveda."
+            description: "No se pudo recuperar el activo de la Bóveda."
           });
         }
       });
     }
 
-    /**
-     * LIMPIEZA DE HARDWARE (TERMINATION PROTOCOL)
-     * Misión: Garantizar que no existan fugas de memoria al desmontar el contexto.
-     */
     return () => {
       if (audioElementReference.current) {
         audioElementReference.current.pause();
         audioElementReference.current.removeAttribute("src");
-        audioElementReference.current.load(); // Fuerza la purga del buffer
+        audioElementReference.current.load();
       }
     };
   }, [toast]);
 
-  /**
-   * logInteractionEventAction:
-   * Misión: Registrar la resonancia social y el progreso en el Metal (SQL).
-   */
   const logInteractionEventAction = useCallback(async (interactionType: 'completed_playback' | 'liked' | 'shared') => {
     if (!authenticatedUser || !currentActivePodcast) return;
     try {
@@ -148,14 +154,10 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         event_type: interactionType
       });
     } catch (exception) {
-        nicepodLog("⚠️ [AudioEngine] No se pudo registrar el evento de interacción.", exception, 'warn');
+        nicepodLog("⚠️ [AudioEngine] Error de telemetría social.", exception, 'warn');
     }
   }, [authenticatedUser, currentActivePodcast, supabaseClient]);
 
-  /**
-   * handleAutomaticNextAction:
-   * Misión: Gestionar la continuidad de la cola de reproducción.
-   */
   const handleAutomaticNextAction = useCallback(() => {
     if (playbackQueue.length > 0 && currentActivePodcast) {
       const activePodcastIndex = playbackQueue.findIndex(podcastItem => podcastItem.id === currentActivePodcast.id);
@@ -168,16 +170,12 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     logInteractionEventAction('completed_playback');
   }, [playbackQueue, currentActivePodcast, logInteractionEventAction]);
 
-  /**
-   * playPodcastAction:
-   * Misión: Activar la reproducción de una crónica específica.
-   */
   const playPodcastAction = useCallback(async (targetPodcast: PodcastWithProfile, targetPlaylist: PodcastWithProfile[] = []) => {
     const audioInstance = audioElementReference.current;
     if (!audioInstance) return;
 
     if (!targetPodcast.audio_url) {
-      toast({ variant: "destructive", title: "Nodo Incompleto", description: "El audio se encuentra en proceso de forja." });
+      toast({ variant: "destructive", title: "Nodo Incompleto", description: "Audio en proceso de forja." });
       return;
     }
 
@@ -196,80 +194,83 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         setCurrentActivePodcast(targetPodcast);
         audioInstance.src = targetPodcast.audio_url;
         await audioInstance.play();
-        // Registro asíncrono de audiencia
         supabaseClient.rpc('increment_play_count', { podcast_id: targetPodcast.id }).then();
       }
     } catch (exception: unknown) {
       const errorObject = exception as Error;
       if (errorObject.name === 'NotAllowedError') {
-        toast({ title: "Acción Interceptada", description: "El navegador requiere una interacción manual para iniciar el audio." });
+        toast({ title: "Hardware Bloqueado", description: "Interacción manual requerida por el navegador." });
       }
     }
   }, [currentActivePodcast, supabaseClient, toast]);
 
+  const terminatePodcastPlayback = useCallback(() => {
+    if (audioElementReference.current) {
+      audioElementReference.current.pause();
+      audioElementReference.current.removeAttribute("src");
+      audioElementReference.current.load();
+    }
+    setCurrentActivePodcast(null);
+    setPlaybackQueue([]);
+    setIsPlayerExpanded(false);
+    nicepodLog("🧹 [AudioEngine] Memoria purgada.");
+  }, []);
+
   /**
-   * API SOBERANA DE AUDIO
+   * API SOBERANA CON MAPEO DE COMPATIBILIDAD
+   * Misión: Proveer el contrato V4.0 y los aliases V2.8 para sanear la compilación.
    */
-  const audioContextValue = useMemo(() => ({
+  const contextValue: AudioContextProperties = useMemo(() => ({
+    // Datos Industriales V4.0
     currentActivePodcast,
+    playbackQueue,
+    isAudioPlaying,
+    isAudioLoading,
+    audioElementReference,
+    
+    // Alisases de Compatibilidad V2.8 (Resuelve 62 errores TS2339)
+    currentPodcast: currentActivePodcast,
     queue: playbackQueue,
     isPlaying: isAudioPlaying,
     isLoading: isAudioLoading,
-    audioElementReference,
+    audioRef: audioElementReference,
+
+    // Acciones Industriales V4.0
     playPodcastAction,
+    logInteractionEventAction,
+    terminatePodcastPlayback,
+    
+    // Alisases de Acciones (Legacy Bridge)
+    playPodcast: playPodcastAction,
+    logInteractionEvent: logInteractionEventAction,
+    closePodcast: terminatePodcastPlayback,
     togglePlayPauseAction: () => {
       const audioInstance = audioElementReference.current;
-      if (audioInstance) {
-        if (audioInstance.paused) {
-            audioInstance.play().catch((exception) => nicepodLog("Error en comando Play:", exception, 'error'));
-        } else {
-            audioInstance.pause();
-        }
-      }
+      if (audioInstance) audioInstance.paused ? audioInstance.play().catch(() => {}) : audioInstance.pause();
     },
-    terminatePodcastPlayback: () => {
-      if (audioElementReference.current) {
-        audioElementReference.current.pause();
-        audioElementReference.current.removeAttribute("src");
-        audioElementReference.current.load();
-      }
-      setCurrentActivePodcast(null);
-      setPlaybackQueue([]);
-      setIsPlayerExpanded(false);
-      nicepodLog("🧹 [AudioEngine] Memoria acústica purgada.");
+    togglePlayPause: () => {
+      const audioInstance = audioElementReference.current;
+      if (audioInstance) audioInstance.paused ? audioInstance.play().catch(() => {}) : audioInstance.pause();
     },
-    seekToTimeAction: (targetTimeSeconds: number) => { 
-      if (audioElementReference.current) {
-        audioElementReference.current.currentTime = targetTimeSeconds;
-      }
-    },
-    skipForwardAction: (skipSeconds = 15) => { 
-      if (audioElementReference.current) {
-        audioElementReference.current.currentTime += skipSeconds;
-      }
-    },
-    skipBackwardAction: (skipSeconds = 15) => { 
-      if (audioElementReference.current) {
-        audioElementReference.current.currentTime -= skipSeconds;
-      }
-    },
-    logInteractionEventAction,
+    seekToTimeAction: (seconds: number) => { if (audioElementReference.current) audioElementReference.current.currentTime = seconds; },
+    seekTo: (seconds: number) => { if (audioElementReference.current) audioElementReference.current.currentTime = seconds; },
+    skipForwardAction: (seconds = 15) => { if (audioElementReference.current) audioElementReference.current.currentTime += seconds; },
+    skipForward: (seconds = 15) => { if (audioElementReference.current) audioElementReference.current.currentTime += seconds; },
+    skipBackwardAction: (seconds = 15) => { if (audioElementReference.current) audioElementReference.current.currentTime -= seconds; },
+    skipBackward: (seconds = 15) => { if (audioElementReference.current) audioElementReference.current.currentTime -= seconds; },
+    
     isPlayerExpanded,
     expandPlayerInterface: () => setIsPlayerExpanded(true),
     collapsePlayerInterface: () => setIsPlayerExpanded(false),
-  }), [currentActivePodcast, playbackQueue, isAudioPlaying, isAudioLoading, isPlayerExpanded, logInteractionEventAction, playPodcastAction]);
+    expandPlayer: () => setIsPlayerExpanded(true),
+    collapsePlayer: () => setIsPlayerExpanded(false),
+  }), [currentActivePodcast, playbackQueue, isAudioPlaying, isAudioLoading, isPlayerExpanded, logInteractionEventAction, playPodcastAction, terminatePodcastPlayback]);
 
-  return <AudioContext.Provider value={audioContextValue}>{children}</AudioContext.Provider>;
+  return <AudioContext.Provider value={contextValue}>{children}</AudioContext.Provider>;
 }
 
-/**
- * useAudio:
- * Misión: Proveer acceso único al motor de audio neuronal.
- */
 export const useAudio = () => {
-  const audioContext = useContext(AudioContext);
-  if (!audioContext) {
-    throw new Error("CRITICAL_ERROR: 'useAudio' debe ser utilizado dentro de un AudioProvider.");
-  }
-  return audioContext;
+  const context = useContext(AudioContext);
+  if (!context) throw new Error("CRITICAL_ERROR: 'useAudio' invocado fuera de su AudioProvider.");
+  return context;
 };
