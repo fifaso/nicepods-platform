@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/map-core.tsx
- * VERSIÓN: 15.0 (NicePod MapCore - VRAM Purge & Nominal Sovereignty Edition)
+ * VERSIÓN: 15.1 (NicePod MapCore - VRAM Purge & Build Shield Stabilization)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Renderizado WebGL inmutable que sincroniza el lienzo con la perspectiva 
  * de la cámara y gestiona la destrucción atómica de contextos gráficos.
- * [REFORMA V15.0]: Implementación del Protocolo de Aniquilación WebGL para liberar 
- * VRAM y cumplimiento absoluto de la Zero Abbreviations Policy.
+ * [REFORMA V15.1]: Corrección de referencia circular en el comparador de memoria,
+ * purificación nominal de iteradores y blindaje total de tipos.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -135,7 +135,7 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
   }, [onLoad, mapInstanceIdentification]);
 
   /**
-   * 6. STYLE-GUARD (El Escudo PBR V15.0)
+   * 6. STYLE-GUARD (El Escudo PBR V15.1)
    * Misión: Inyectar oclusión y temas periciales cada vez que el estilo se regenera.
    */
   const handleStyleDataAction = useCallback((event: SafeMapStyleDataEvent) => {
@@ -154,7 +154,6 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
      */
     if (activeEngineVisualStyle === MAP_STYLES.STANDARD) {
       try {
-        // Tipado seguro para la API interna de Mapbox Standard
         const mapboxInternalInstance = mapNativeInstance as any;
         if (mapboxInternalInstance.setConfigProperty) {
           mapboxInternalInstance.setConfigProperty('basemap', 'lightPreset', lightTheme);
@@ -180,7 +179,7 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
         
         mapNativeInstance.setPaintProperty('building', 'fill-extrusion-opacity', buildingOpacityTargetValue);
       }
-    } catch (exception) { /* Capa temporalmente inaccesible */ }
+    } catch (exception) { /* Capa no disponible */ }
 
     /**
      * C. RELIEVE GEOGRÁFICO (Terrain Engine)
@@ -241,18 +240,18 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
         />
       )}
 
-      {/* CAPA ECOS: Nodos de Sabiduría Multidimensionales */}
-      {nearbyPointsOfInterest.map((pointOfInterest: PointOfInterest) => (
+      {/* CAPA ECOS: Nodos de Sabiduría de la Bóveda NKV */}
+      {nearbyPointsOfInterest.map((pointOfInterestEntry: PointOfInterest) => (
         <MapMarkerCustom
-          key={pointOfInterest.id}
-          identification={pointOfInterest.id.toString()}
-          latitude={pointOfInterest.geo_location.coordinates[1]}
-          longitude={pointOfInterest.geo_location.coordinates[0]}
-          categoryMission={pointOfInterest.category_mission}
-          categoryEntity={pointOfInterest.category_entity}
-          pointOfInterestName={pointOfInterest.name}
-          isResonating={activePointOfInterest?.identification === pointOfInterest.id.toString() && activePointOfInterest?.isWithinRadius}
-          isSelected={selectedPointOfInterestIdentification === pointOfInterest.id.toString()}
+          key={pointOfInterestEntry.id}
+          identification={pointOfInterestEntry.id.toString()}
+          latitude={pointOfInterestEntry.geo_location.coordinates[1]}
+          longitude={pointOfInterestEntry.geo_location.coordinates[0]}
+          categoryMission={pointOfInterestEntry.category_mission}
+          categoryEntity={pointOfInterestEntry.category_entity}
+          pointOfInterestName={pointOfInterestEntry.name}
+          isResonating={activePointOfInterest?.identification === pointOfInterestEntry.id.toString() && activePointOfInterest?.isWithinRadius}
+          isSelected={selectedPointOfInterestIdentification === pointOfInterestEntry.id.toString()}
           onMarkerInteraction={onMarkerClick}
         />
       ))}
@@ -265,11 +264,12 @@ MapCore.displayName = "MapCore";
 /**
  * [BUILD SHIELD]: SOBERANÍA DE RENDERIZADO
  * Bloqueamos ciclos de CPU innecesarios para proteger la tasa de 60 FPS.
+ * [FIX V15.1]: Corrección de referencia de propiedad para estabilizar la comparación.
  */
 export default memo(MapCore, (previousProperties, nextProperties) => {
   return (
     previousProperties.mapInstanceIdentification === nextProperties.mapInstanceIdentification &&
-    previousProperties.performanceProfile === nextProperties.nextProperties?.performanceProfile &&
+    previousProperties.performanceProfile === nextProperties.performanceProfile &&
     previousProperties.lightTheme === nextProperties.lightTheme &&
     previousProperties.mode === nextProperties.mode &&
     previousProperties.selectedPointOfInterestIdentification === nextProperties.selectedPointOfInterestIdentification
