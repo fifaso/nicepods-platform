@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: components/geo/steps/step-4-narrative-forge.tsx
- * VERSIÓN: 7.0 (NicePod Forge Step 4 - Sovereign Narrative Forge Edition)
+ * VERSIÓN: 7.1 (NicePod Forge Step 4 - Absolute Transaction Integrity Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Configurar el ADN editorial, sintetizar la crónica mediante el Oráculo 
  * y sellar el nodo en la Malla de Madrid mediante el protocolo de publicación soberana.
- * [REFORMA V7.0]: Sincronización nominal total con GeoRecorder V4.1, erradicación 
- * absoluta de abreviaturas y blindaje de tipos en el pipeline de publicación.
+ * [REFORMA V7.1]: Resolución definitiva de error TS2345 inyectando la magnitud 
+ * temporal (durationSeconds) en el sellado final y purificación nominal absoluta.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -90,6 +90,7 @@ export default function Step4NarrativeForge() {
   /**
    * handleFinalChroniclePublicationAction:
    * Misión: Recibir el binario acústico, transmitirlo a la Bóveda y sellar el nodo en la Malla.
+   * [FIX V7.1]: Inyección obligatoria de 'durationSeconds' para cumplir con el contrato de la Server Action.
    */
   const handleFinalChroniclePublicationAction = useCallback(async (
     capturedAudioBinaryBlob: Blob, 
@@ -131,10 +132,12 @@ export default function Step4NarrativeForge() {
 
       /**
        * 3. SELLADO SOBERANO EN BASE DE DATOS
+       * [FIX V7.1]: Resolución del error TS2345 inyectando la magnitud temporal exacta.
        */
       const publicationCommitResults = await publishSovereignChronicleAction({
         pointOfInterestIdentification: pointOfInterestIdentification,
         chronicleStoragePath: audioStoragePath,
+        durationSeconds: recordingDurationSecondsMagnitude // Mapeo de integridad completado
       });
 
       if (publicationCommitResults.success) {
@@ -143,8 +146,8 @@ export default function Step4NarrativeForge() {
       } else {
         throw new Error(publicationCommitResults.error);
       }
-    } catch (exception) {
-      nicepodLog("🔥 [Step4] Error crítico en la publicación final.", exception, 'error');
+    } catch (networkException) {
+      nicepodLog("🔥 [Step4] Error crítico en la publicación final.", networkException, 'error');
     } finally {
       setIsPublishingProcessActive(false);
     }
@@ -206,7 +209,6 @@ export default function Step4NarrativeForge() {
             </div>
 
             <div className="flex-1 min-h-[450px]">
-              {/* [FIX V7.0]: Sincronización nominal absoluta con GeoRecorderProperties V4.1 */}
               <GeoRecorder 
                 mode="CHRONICLE"
                 narrativeScriptContent={engineOperationalData.narrative.script}
@@ -310,7 +312,7 @@ export default function Step4NarrativeForge() {
               >
                 {engineOperationalStatus === 'SYNTHESIZING' ? (
                   <div className="flex items-center gap-5 relative z-10">
-                    <Loader2 className="h-8 w-8 animate-spin" />
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
                     <span>Forjando Sabiduria...</span>
                   </div>
                 ) : (
@@ -346,11 +348,12 @@ export default function Step4NarrativeForge() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V7.0):
- * 1. Build Shield Compliance: Se corrigió el error TS2322 sincronizando las propiedades 
- *    del GeoRecorder con su interfaz industrial V4.1 (narrativeScriptContent).
+ * NOTA TÉCNICA DEL ARCHITECT (V7.1):
+ * 1. Build Shield Compliance: Se resolvió el error TS2345 inyectando la propiedad 
+ *    'durationSeconds' en el objeto de publicación soberana, sincronizando el 
+ *    componente con la Server Action V11.0.
  * 2. Zero Abbreviations Policy: Purificación absoluta de términos (narrativeDepthOptions, 
- *    isPublishingProcessActive, capturedAudioBinaryBlob, recordingDurationSecondsMagnitude).
- * 3. Atomic Integrity: El protocolo de publicación Lightning asegura que el binario 
- *    acústico sea transferido antes de realizar el sellado atómico en la Bóveda NKV.
+ *    publicationCommitResults, capturedAudioBinaryBlob, recordingDurationSecondsMagnitude).
+ * 3. Transaction Safety: El flujo garantiza que la magnitud acústica sea persistida 
+ *    correctamente en el Metal, habilitando el cálculo preciso de reputación.
  */
