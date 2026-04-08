@@ -1,5 +1,14 @@
-// components/navigation/mobile-nav.tsx
-// VERSIÓN: 2.0
+/**
+ * ARCHIVO: components/navigation/mobile-nav.tsx
+ * VERSIÓN: 4.0 (NicePod Mobile Command - Nominal Integrity Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.0
+ * 
+ * Misión: Especialista en interacción táctil y renderizado de alta densidad para 
+ * dispositivos móviles, gestionando el acceso a la Bóveda y la autoridad del usuario.
+ * [REFORMA V4.0]: Sincronización nominal total con Navigation Master V21.0, 
+ * erradicación absoluta de abreviaturas y blindaje de activos locales.
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ */
 
 "use client";
 
@@ -23,8 +32,8 @@ import {
 } from "./shared/nav-styles";
 import { UserDropdown } from "./shared/user-dropdown";
 
-// --- INFRAESTRUCTURA UI (NicePod Industrial Design) ---
-import { ThemeToggle } from "@/components/theme-toggle"; // Control ambiental Sol/Luna
+// --- INFRAESTRUCTURA UI (NICEPOD INDUSTRIAL DESIGN) ---
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -33,105 +42,84 @@ import {
   SheetTitle,
   SheetTrigger
 } from "@/components/ui/sheet";
-import { cn, getSafeAsset } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
-// --- CONTRATOS DE DATOS ---
+// --- CONTRATOS DE DATOS SOBERANOS ---
 import { ProfileData } from "@/types/profile";
 
 /**
- * INTERFAZ: MobileNavProps
- * Define los datos necesarios para la orquestación móvil inyectados por el Master Navigator.
+ * INTERFAZ: MobileNavigationProperties
+ * Misión: Definir los activos necesarios para la orquestación móvil inyectados por el Master Navigator.
  */
-interface MobileNavProps {
-  isAuthenticated: boolean;
-  isInitialLoading: boolean;
-  profile: ProfileData | null;
-  isAdmin: boolean;
-  onLogout: () => void;
+interface MobileNavigationProperties {
+  isUserAuthenticated: boolean;
+  isInitialLoadingState: boolean;
+  administratorProfile: ProfileData | null;
+  isAdministratorAuthority: boolean;
+  onAuthenticationLogoutAction: () => void;
 }
 
 /**
- * COMPONENTE: MobileNav
- * El especialista en interacción táctil para NicePod V2.5.
- * 
- * [ARQUITECTURA VISUAL]:
- * - Altura: 72px (h-[4.5rem]) para máxima ergonomía.
- * - Glassmorphism: Backdrop blur de alta densidad (2xl).
- * - Layout: Distribución simétrica entre Identidad (Izquierda) y Acción (Derecha).
+ * MobileNav: El motor de interacción táctica para el Voyager en movilidad.
  */
 export function MobileNav({
-  isAuthenticated,
-  isInitialLoading,
-  profile,
-  isAdmin,
-  onLogout
-}: MobileNavProps) {
-  const pathname = usePathname();
-  const [isOpen, setIsOpen] = useState(false);
+  isUserAuthenticated,
+  isInitialLoadingState,
+  administratorProfile,
+  isAdministratorAuthority,
+  onAuthenticationLogoutAction
+}: MobileNavigationProperties) {
+  
+  const currentNavigationPathname = usePathname();
+  const [isNavigationSheetOpen, setIsNavigationSheetOpen] = useState<boolean>(false);
 
-  // Selección de estrategia de navegación basada en la sesión.
-  const navItems = isAuthenticated ? USER_NAV_ITEMS : GUEST_NAV_ITEMS;
-  const logoSrc = getSafeAsset("/nicepod-logo.png", "logo");
+  /**
+   * navigationItemsCollection: 
+   * Misión: Seleccionar la estrategia de navegación basada en la autoridad de la sesión.
+   */
+  const navigationItemsCollection = isUserAuthenticated ? USER_NAV_ITEMS : GUEST_NAV_ITEMS;
 
   return (
-    <div className={cn(glassPanelClass, "flex md:hidden")}>
+    <div className={cn(glassPanelClass, "flex md:hidden isolate")}>
 
-      {/* 
-          I. NÚCLEO DE MARCA (IZQUIERDA) 
-          Renderiza el isotipo y el logotipo con el nuevo escalado 2.0.
-      */}
-      <NavBrand isAuthenticated={isAuthenticated} />
+      {/* I. NÚCLEO DE MARCA (IZQUIERDA) */}
+      <NavBrand isUserAuthenticated={isUserAuthenticated} />
 
-      {/* 
-          II. CENTRO DE CONTROL TÁCTICO (DERECHA) 
-          Agrupa las herramientas de alta frecuencia en un clúster organizado.
-      */}
+      {/* II. CENTRO DE CONTROL TÁCTICO (DERECHA) */}
       <div className="flex items-center gap-2.5 sm:gap-4">
 
-        {/* 
-            1. ACCIÓN PRIMARIA: CREAR 
-            Sustituye al antiguo (+) por una cápsula explícita para máxima conversión.
-        */}
-        {isAuthenticated && !isInitialLoading && (
+        {/* 1. ACCIÓN PRIMARIA: CREACIÓN DE CAPITAL INTELECTUAL */}
+        {isUserAuthenticated && !isInitialLoadingState && (
           <CreateButton
             variant="full"
-            className="h-10 px-4 scale-95 origin-right"
+            className="h-10 px-4 scale-95 origin-right shadow-lg shadow-primary/10"
           />
         )}
 
-        {/* 
-            2. CONTROL AMBIENTAL: THEME TOGGLE 
-            Ubicado en el primer nivel para facilitar el cambio ágil entre Modo Nebulosa y Modo Luz.
-        */}
+        {/* 2. CONTROL AMBIENTAL: THEME TOGGLE */}
         <div className="flex items-center justify-center h-10 w-10 rounded-2xl bg-white/5 border border-white/10 shadow-inner">
           <ThemeToggle />
         </div>
 
-        {/* 
-            3. NODO DE IDENTIDAD: AVATAR 
-            Acceso directo a la soberanía del perfil, siempre visible si hay sesión activa.
-        */}
-        {isAuthenticated && !isInitialLoading && (
+        {/* 3. NODO DE IDENTIDAD: AVATAR SOBERANO */}
+        {isUserAuthenticated && !isInitialLoadingState && (
           <div className="scale-105">
             <UserDropdown
-              profile={profile}
-              isAdmin={isAdmin}
-              onLogout={onLogout}
+              profile={administratorProfile}
+              isAdmin={isAdministratorAuthority}
+              onLogout={onAuthenticationLogoutAction}
             />
           </div>
         )}
 
-        {/* 
-            4. NAVEGACIÓN PROFUNDA: MENÚ HAMBURGUESA 
-            Despliega el Sheet lateral para acceso a biblioteca, planes y soporte.
-        */}
-        <Sheet open={isOpen} onOpenChange={setIsOpen}>
+        {/* 4. NAVEGACIÓN PROFUNDA: MENÚ LATERAL (SHEET) */}
+        <Sheet open={isNavigationSheetOpen} onOpenChange={setIsNavigationSheetOpen}>
           <SheetTrigger asChild>
             <Button
               variant="ghost"
               size="icon"
-              className="rounded-2xl h-10 w-10 bg-white/5 border border-white/10 text-zinc-400 hover:text-white transition-all active:scale-90"
-              aria-label="Abrir mapa de navegación"
+              className="rounded-2xl h-10 w-10 bg-white/5 border border-white/10 text-zinc-500 hover:text-white transition-all active:scale-90"
+              aria-label="Abrir terminal de navegación"
             >
               <Menu className="h-6 w-6" />
             </Button>
@@ -139,62 +127,67 @@ export function MobileNav({
 
           <SheetContent
             side="right"
-            className="w-[320px] border-l-white/10 bg-black/95 backdrop-blur-3xl p-0 flex flex-col"
+            className="w-[320px] border-l border-white/5 bg-black/95 backdrop-blur-3xl p-0 flex flex-col isolate"
           >
-            {/* INTERIOR DEL MENÚ LATERAL (THE VAULT LINKS) */}
             <div className="flex flex-col h-full p-8">
 
               <SheetHeader className="text-left mb-12">
                 <SheetTitle className="flex items-center space-x-4 text-white">
-                  <div className="h-10 w-10 relative rounded-xl overflow-hidden border border-white/10 shadow-2xl">
-                    <Image src={logoSrc} alt="NicePod" fill className="object-cover" />
+                  <div className="h-10 w-10 relative rounded-xl overflow-hidden border border-white/10 shadow-2xl bg-zinc-900">
+                    <Image 
+                        src="/nicepod-logo.png" 
+                        alt="NicePod Intelligence Isotype" 
+                        fill 
+                        className="object-cover p-2" 
+                        unoptimized
+                    />
                   </div>
-                  <span className="font-black text-2xl tracking-tighter uppercase italic">
+                  <span className="font-black text-2xl tracking-tighter uppercase italic font-serif">
                     NicePod
                   </span>
                 </SheetTitle>
               </SheetHeader>
 
               {/* LISTA DE NAVEGACIÓN VERTICAL */}
-              <nav className="flex flex-col space-y-3">
-                {navItems.map((item: NavItem) => {
-                  const active = isRouteActive(item.href, pathname);
+              <nav className="flex flex-col space-y-4">
+                {navigationItemsCollection.map((navigationItem: NavItem) => {
+                  const isNavigationItemActive = isRouteActive(navigationItem.href, currentNavigationPathname);
 
                   return (
                     <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={() => setIsOpen(false)}
+                      key={navigationItem.href}
+                      href={navigationItem.href}
+                      onClick={() => setIsNavigationSheetOpen(false)}
                       className="group"
                     >
                       <Button
                         variant="ghost"
                         className={cn(
-                          "w-full justify-between text-[11px] h-14 rounded-2xl font-black px-5 uppercase tracking-[0.2em] transition-all",
-                          active
-                            ? "bg-white text-black shadow-[0_10px_20px_rgba(255,255,255,0.1)]"
-                            : "text-zinc-500 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10"
+                          "w-full justify-between text-[11px] h-16 rounded-2xl font-black px-6 uppercase tracking-[0.2em] transition-all duration-500",
+                          isNavigationItemActive
+                            ? "bg-white text-black shadow-2xl scale-[1.02]"
+                            : "text-zinc-500 hover:text-white hover:bg-white/5 border border-transparent"
                         )}
                       >
-                        <div className="flex items-center">
-                          <item.icon className={cn("mr-4 h-5 w-5", active ? "text-black" : "text-zinc-600 group-hover:text-primary")} />
-                          {item.label}
+                        <div className="flex items-center gap-4">
+                          <navigationItem.icon className={cn("h-5 w-5", isNavigationItemActive ? "text-black" : "text-zinc-700 group-hover:text-primary")} />
+                          {navigationItem.label}
                         </div>
-                        <ChevronRight className={cn("h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity", active && "text-black opacity-30")} />
+                        <ChevronRight className={cn("h-4 w-4 opacity-0 group-hover:opacity-100 transition-all", isNavigationItemActive && "text-black opacity-30")} />
                       </Button>
                     </Link>
                   );
                 })}
               </nav>
 
-              {/* FOOTER DEL MENÚ (PROTOCOLO DE SALIDA) */}
-              <div className="mt-auto pt-8 border-t border-white/5 space-y-4">
-                {isAuthenticated ? (
+              {/* FOOTER DEL MENÚ: PROTOCOLO DE SALIDA */}
+              <div className="mt-auto pt-10 border-t border-white/5 space-y-4">
+                {isUserAuthenticated ? (
                   <Button
                     variant="ghost"
                     onClick={() => {
-                      onLogout();
-                      setIsOpen(false);
+                      onAuthenticationLogoutAction();
+                      setIsNavigationSheetOpen(false);
                     }}
                     className="w-full justify-start text-[10px] h-14 rounded-2xl font-black text-red-500/80 hover:bg-red-500/10 hover:text-red-500 uppercase tracking-widest transition-all border border-red-500/5"
                   >
@@ -202,15 +195,15 @@ export function MobileNav({
                     Desconectar Nodo
                   </Button>
                 ) : (
-                  <Link href="/login" onClick={() => setIsOpen(false)}>
+                  <Link href="/login" onClick={() => setIsNavigationSheetOpen(false)}>
                     <Button className="w-full h-14 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] bg-white text-black hover:bg-zinc-200 transition-all shadow-xl">
                       Iniciar Frecuencia
                     </Button>
                   </Link>
                 )}
 
-                <p className="text-center text-[7px] font-bold text-zinc-700 uppercase tracking-[0.4em] pt-4">
-                  NicePod Workstation V2.5
+                <p className="text-center text-[7px] font-bold text-zinc-800 uppercase tracking-[0.4em] pt-6 italic">
+                  NicePod Workstation V4.0 • Atomic Navigation
                 </p>
               </div>
 
@@ -224,11 +217,11 @@ export function MobileNav({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Ergonomía de Pulgar: Al aumentar la altura del header a h-[4.5rem] y los 
- *    botones a h-10/h-11, reducimos drásticamente los errores de pulsación.
- * 2. Rendimiento Visual: El uso de 'backdrop-blur-3xl' en el Sheet proporciona
- *    una profundidad premium sin afectar al scroll suave del Main Content.
- * 3. Sincronía Theme: La inyección del ThemeToggle en este nivel asegura que 
- *    el usuario pueda testear el contraste de las tarjetas Aurora al instante.
+ * NOTA TÉCNICA DEL ARCHITECT (V4.0):
+ * 1. Contract Alignment: Se resolvió el error TS2322 al sincronizar la interfaz 
+ *    con 'isUserAuthenticated' y el resto de propiedades industriales de la V4.0.
+ * 2. Zero Abbreviations Policy: Purificación absoluta de nomenclatura interna 
+ *    (isNavigationSheetOpen, navigationItemsCollection, onAuthenticationLogoutAction).
+ * 3. Asset Integrity: El logo utiliza la ruta local absoluta para neutralizar el 
+ *    Error 400 y garantizar visibilidad instantánea en condiciones de baja red.
  */
