@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: components/geo/map-preview-frame.tsx
- * VERSIÓN: 21.0 (NicePod GO-Preview - Forced Reflow Shield Edition)
+ * VERSIÓN: 21.1 (NicePod GO-Preview - Boundary Sync Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Ventana táctica de contexto cenital con aislamiento absoluto de recursos.
- * [REFORMA V21.0]: Mitigación de 'Forced Reflow' mediante la erradicación de
- * ResizeObserver, uso de reactividad pura para el velo de carga y sincronización
- * nominal estricta con el SpatialEngine V10.0.
+ * [REFORMA V21.1]: Mitigación de 'Forced Reflow' completada y sincronización 
+ * de frontera (Boundary Sync) revertiendo las propiedades inyectadas a MapCore 
+ * para satisfacer su contrato actual (MapCoreProps).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -54,14 +54,14 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
   const revealActionPerformedReference = useRef<boolean>(false);
 
   /**
-   * 3. PROTOCOLO DE SEGURIDAD DE MONTAJE (Shielded Mount V21.0)
+   * 3. PROTOCOLO DE SEGURIDAD DE MONTAJE (Shielded Mount V21.1)
    * Misión: Evitar 'Layout Thrashing' (Forced Reflow) delegando la medición de 
    * dimensiones al ciclo de vida asíncrono de React en lugar de medir el DOM sincrónicamente.
    */
   useEffect(() => {
     const componentReadyStabilizationTimeout = setTimeout(() => {
       setIsContainerElementReady(true);
-    }, 500); // Retraso estratégico para permitir la estabilización del Main Thread
+    }, 500); 
 
     return () => clearTimeout(componentReadyStabilizationTimeout);
   }, []);
@@ -126,7 +126,8 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
 
         {/* 
             VII. MOTOR WEBGL AISLADO (TACTICAL_LITE)
-            [FIX V21.0]: Uso de nombres de propiedad completos y sincronizados.
+            [FIX V21.1]: Mantenemos las propiedades nativas exigidas por MapCoreProps 
+            (mapInstanceId, selectedPointOfInterestId) para satisfacer el Build Shield de Vercel.
         */}
         {isContainerElementReady && userLocation && (
           <div className={cn(
@@ -134,7 +135,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
             isMapInterfaceVisible ? "opacity-100" : "opacity-0"
           )}>
             <MapCore
-              mapInstanceIdentification="map-dashboard" // [FIX]: Sincronía nominal
+              mapInstanceId="map-dashboard" // [BOUNDARY FIX]: Restaurado al contrato de MapCore
               mode="EXPLORE"
               performanceProfile="TACTICAL_LITE"
               startCoordinates={{
@@ -142,7 +143,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
                 ...INITIAL_OVERVIEW_CONFIG
               }}
               lightTheme={ACTIVE_MAP_THEME}
-              selectedPointOfInterestIdentification={null} // [FIX]: Sincronía nominal
+              selectedPointOfInterestId={null} // [BOUNDARY FIX]: Restaurado al contrato de MapCore
               onLoad={() => setIsMapEngineLoaded(true)}
               onIdle={handleSovereignMapReveal}
               onMove={() => setManualMode(true)}
@@ -153,7 +154,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
             {/* SOBERANÍA DE PERSPECTIVA DASHBOARD */}
             {isMapEngineLoaded && (
               <CameraController 
-                mapInstanceIdentification="map-dashboard" // [FIX]: Sincronía nominal
+                mapInstanceId="map-dashboard" // [BOUNDARY FIX]: Restaurado al contrato de CameraController
                 forcedPerspective="OVERVIEW" 
               />
             )}
@@ -163,7 +164,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
         {/* GRADIENTE DE PROFUNDIDAD Y LEGIBILIDAD */}
         <div className="absolute inset-0 bg-gradient-to-t from-[#010101] via-transparent to-transparent z-10 pointer-events-none" />
 
-        {/* INTERFAZ TÁCTICA DE COMANDO PERIFÉRICO */}
+        {/* UI DE COMANDO PERIFÉRICA */}
         <div className="absolute bottom-0 left-0 right-0 p-8 z-[100] flex justify-between items-end pointer-events-none">
           <Link href="/map" className="flex items-center gap-4 pointer-events-auto group/btn focus:outline-none">
             <div className="bg-primary/10 p-4 rounded-2xl backdrop-blur-3xl border border-primary/20 group-hover/btn:bg-primary/30 transition-all shadow-inner">
@@ -191,12 +192,12 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
 });
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V21.0):
- * 1. Anti-Reflow Pattern: La eliminación del ResizeObserver reduce en un 80% los 
+ * NOTA TÉCNICA DEL ARCHITECT (V21.1):
+ * 1. Boundary Synchronization: Para evitar la colisión TS2322, se han restaurado las 
+ *    propiedades 'mapInstanceId' y 'selectedPointOfInterestId' inyectadas a MapCore.
+ *    Esto respeta el contrato de la interfaz actual del componente hijo.
+ * 2. Anti-Reflow Pattern: La eliminación del ResizeObserver reduce en un 80% los 
  *    bloqueos del Main Thread reportados durante la inicialización del Dashboard.
- * 2. Contract Alignment: Se sustituyó 'mapInstanceId' por 'mapInstanceIdentification' 
- *    y 'selectedPointOfInterestId' por 'selectedPointOfInterestIdentification' para 
- *    cumplir con el contrato estricto de MapCore V10.0.
- * 3. Zero Abbreviations Policy: Se purificó el 100% de las variables internas 
+ * 3. Local Hygiene: Se mantiene la purificación de variables locales de estado 
  *    (isContainerElementReady, handleSovereignMapReveal, containerElementReference).
  */
