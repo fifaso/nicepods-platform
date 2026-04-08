@@ -1,9 +1,13 @@
 /**
- * NICEPOD V13.0 - AURORA ENGINE (HYDRATION SHIELD EDITION)
- * PROTOCOLO: MADRID RESONANCE V2.8
+ * ARCHIVO: components/visuals/background-engine.tsx
+ * VERSIÓN: 15.0 (NicePod Aurora Engine - Nominal Integrity Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.0
  * 
- * Misión: Orquestar la atmósfera visual erradicando fallos de hidratación.
- * [ESTABILIZACIÓN]: Implementación de Double-Pass Rendering para seguridad SSR.
+ * Misión: Orquestar la atmósfera visual de grado industrial erradicando 
+ * advertencias de consola y fallos de hidratación.
+ * [REFORMA V15.0]: Purificación de textura SVG (Data URI) para evitar 'unknown variables',
+ * sincronía con layout.tsx (Anti-Flicker) y cumplimiento estricto del Dogma.
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
@@ -16,78 +20,78 @@ import { memo, useEffect, useState } from "react";
 
 /**
  * COMPONENTE: BackgroundEngine
- * El corazón estético de NicePod. Gestiona la profundidad visual.
+ * El corazón estético de NicePod. Gestiona la profundidad visual y la termodinámica de colores.
  */
 export const BackgroundEngine = memo(function BackgroundEngine() {
   const { resolvedTheme } = useTheme();
-  const pathname = usePathname();
+  const currentNavigationPathname = usePathname();
 
-  // 1. ESCUDO DE HIDRATACIÓN (CRÍTICO PARA ERROR #418/#422)
-  const [mounted, setMounted] = useState<boolean>(false);
+  // 1. ESCUDO DE HIDRATACIÓN (Zero-Flicker Shield)
+  const [isComponentMounted, setIsComponentMounted] = useState<boolean>(false);
 
   // 2. ANÁLISIS DE ENTORNO TÁCTICO
-  // Hibernamos solo en el mapa para proteger el Main Thread de WebGL.
-  const isMapRoute = pathname?.startsWith('/map');
-  const shouldHibernate = isMapRoute;
+  // Hibernamos la atmósfera solo en el mapa para proteger el Main Thread del WebGL.
+  const isGeographicInterfaceActive = currentNavigationPathname?.startsWith('/map');
+  const shouldHibernateAtmosphere = isGeographicInterfaceActive;
 
-  const mouseX = useMotionValue(0);
-  const mouseY = useMotionValue(0);
+  const horizontalPointerCoordinate = useMotionValue(0);
+  const verticalPointerCoordinate = useMotionValue(0);
 
-  const springConfig = { damping: 50, stiffness: 100, restDelta: 0.001 };
-  const smoothX = useSpring(mouseX, springConfig);
-  const smoothY = useSpring(mouseY, springConfig);
+  const motionSpringConfiguration = { damping: 50, stiffness: 100, restDelta: 0.001 };
+  const smoothHorizontalPointer = useSpring(horizontalPointerCoordinate, motionSpringConfiguration);
+  const smoothVerticalPointer = useSpring(verticalPointerCoordinate, motionSpringConfiguration);
 
   useEffect(() => {
-    setMounted(true);
+    setIsComponentMounted(true);
 
-    const handleMouseMove = (event: MouseEvent) => {
-      if (!shouldHibernate) {
-        mouseX.set(event.clientX);
-        mouseY.set(event.clientY);
+    const handlePointerMovementAction = (mouseEvent: MouseEvent) => {
+      if (!shouldHibernateAtmosphere) {
+        horizontalPointerCoordinate.set(mouseEvent.clientX);
+        verticalPointerCoordinate.set(mouseEvent.clientY);
       }
     };
 
-    if (typeof window !== "undefined" && window.matchMedia("(pointer: fine)").matches && !shouldHibernate) {
-      window.addEventListener("mousemove", handleMouseMove);
+    if (typeof window !== "undefined" && window.matchMedia("(pointer: fine)").matches && !shouldHibernateAtmosphere) {
+      window.addEventListener("mousemove", handlePointerMovementAction);
     }
-    return () => window.removeEventListener("mousemove", handleMouseMove);
-  }, [mouseX, mouseY, shouldHibernate]);
+    return () => window.removeEventListener("mousemove", handlePointerMovementAction);
+  }, [horizontalPointerCoordinate, verticalPointerCoordinate, shouldHibernateAtmosphere]);
 
-  // Si no está montado, renderizamos un contenedor vacío que coincida 100% con el SSR.
-  // Esto evita que React encuentre diferencias entre el HTML del servidor y el cliente.
-  if (!mounted) {
-    return <div className="fixed inset-0 -z-20 bg-[#030303]" aria-hidden="true" />;
+  // [FIX V15.0]: Si no está montado, renderizamos un contenedor vacío que coincida 100% 
+  // con la capa de layout.tsx (#010101). Esto aniquila el pestañeo de hidratación.
+  if (!isComponentMounted) {
+    return <div className="fixed inset-0 -z-20 bg-[#010101]" aria-hidden="true" />;
   }
 
-  const isDark = resolvedTheme === "dark";
+  const isDarkModeActive = resolvedTheme === "dark";
 
   return (
     <div
       className={cn(
         "fixed inset-0 -z-20 pointer-events-none overflow-hidden transition-colors duration-1000",
-        isDark ? "bg-[#030303]" : "bg-[#F8FAFC]"
+        isDarkModeActive ? "bg-[#010101]" : "bg-[#F8FAFC]"
       )}
       aria-hidden="true"
     >
       {/* 
-          I. HALO DE RESONANCIA
+          I. HALO DE RESONANCIA REACTIVA
           Puntero lumínico que reacciona a la presencia del Voyager.
       */}
       <AnimatePresence>
-        {!shouldHibernate && (
+        {!shouldHibernateAtmosphere && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="hidden md:block absolute w-[800px] h-[800px] rounded-full z-10 mix-blend-plus-lighter pointer-events-none"
             style={{
-              x: smoothX,
-              y: smoothY,
+              x: smoothHorizontalPointer,
+              y: smoothVerticalPointer,
               translateX: "-50%",
               translateY: "-50%",
               willChange: "transform",
-              background: isDark
-                ? "radial-gradient(circle, rgba(124,58,237,0.12) 0%, transparent 70%)"
+              background: isDarkModeActive
+                ? "radial-gradient(circle, rgba(124,58,237,0.10) 0%, transparent 70%)"
                 : "radial-gradient(circle, rgba(56,189,248,0.15) 0%, transparent 70%)",
             }}
           />
@@ -95,20 +99,19 @@ export const BackgroundEngine = memo(function BackgroundEngine() {
       </AnimatePresence>
 
       {/* 
-          II. MOTOR AURORA (CAPAS CROMÁTICAS)
-          Movimiento fluido de alta fidelidad.
+          II. MOTOR AURORA (CAPAS CROMÁTICAS DE ALTA DENSIDAD)
       */}
       <AnimatePresence mode="wait">
-        {!shouldHibernate && (
+        {!shouldHibernateAtmosphere && (
           <motion.div
-            key={isDark ? "dark-resonance" : "light-resonance"}
+            key={isDarkModeActive ? "dark_resonance_mode" : "light_resonance_mode"}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 2.5, ease: "easeInOut" }}
             className="absolute inset-0"
           >
-            {/* CAPA ALPHA: El Flujo Profundo (Indigo 950 / Sky 200) */}
+            {/* CAPA ALPHA: El Flujo Profundo (Indigo / Sky) */}
             <motion.div
               animate={{
                 x: ["-5%", "10%", "-10%", "5%", "-5%"],
@@ -118,12 +121,12 @@ export const BackgroundEngine = memo(function BackgroundEngine() {
               transition={{ duration: 50, repeat: Infinity, ease: "easeInOut" }}
               className={cn(
                 "absolute top-[-20%] left-[-10%] w-[100%] h-[100%] rounded-full blur-[140px] md:blur-[180px] transition-colors duration-1000",
-                isDark ? "bg-indigo-950/40" : "bg-sky-200/50"
+                isDarkModeActive ? "bg-indigo-950/40" : "bg-sky-200/50"
               )}
               style={{ willChange: "transform" }}
             />
 
-            {/* CAPA BETA: El Pulso Dinámico (Purple 900 / Fuchsia 300) */}
+            {/* CAPA BETA: El Pulso Dinámico (Purple / Fuchsia) */}
             <motion.div
               animate={{
                 x: ["10%", "-12%", "8%", "-5%", "10%"],
@@ -133,12 +136,12 @@ export const BackgroundEngine = memo(function BackgroundEngine() {
               transition={{ duration: 38, repeat: Infinity, ease: "easeInOut" }}
               className={cn(
                 "absolute bottom-[-15%] right-[-5%] w-[90%] h-[90%] rounded-[45%] blur-[150px] md:blur-[190px] transition-colors duration-1000",
-                isDark ? "bg-purple-900/30" : "bg-fuchsia-300/40"
+                isDarkModeActive ? "bg-purple-900/30" : "bg-fuchsia-300/40"
               )}
               style={{ willChange: "transform" }}
             />
 
-            {/* CAPA GAMMA: El Núcleo de Contraste (Blue 950 / White) */}
+            {/* CAPA GAMMA: El Núcleo de Contraste (Blue / White) */}
             <motion.div
               animate={{
                 x: ["-15%", "15%", "0%", "-15%"],
@@ -148,7 +151,7 @@ export const BackgroundEngine = memo(function BackgroundEngine() {
               transition={{ duration: 65, repeat: Infinity, ease: "linear" }}
               className={cn(
                 "absolute top-[10%] left-[10%] w-[70%] h-[70%] rounded-full blur-[160px] transition-colors duration-1000 mix-blend-soft-light",
-                isDark ? "bg-blue-950/25" : "bg-white/40"
+                isDarkModeActive ? "bg-blue-950/25" : "bg-white/40"
               )}
               style={{ willChange: "transform" }}
             />
@@ -158,39 +161,27 @@ export const BackgroundEngine = memo(function BackgroundEngine() {
 
       {/* 
           III. FILTRO DE TEXTURA INDUSTRIAL (GRANO)
+          [FIX V15.0]: Se implementa como Data URI para evitar advertencias de React
+          sobre variables y atributos de imagen desconocidos en el DOM.
       */}
-      {!shouldHibernate && (
-        <div className="absolute inset-0 opacity-[0.04] pointer-events-none mix-blend-overlay z-40">
-          <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-            <filter id="noiseFilterV13">
-              <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="4" stitchTiles="stitch" />
-            </filter>
-            <rect width="100%" height="100%" filter="url(#noiseFilterV13)" />
-          </svg>
-        </div>
+      {!shouldHibernateAtmosphere && (
+        <div 
+          className="absolute inset-0 opacity-[0.035] pointer-events-none mix-blend-overlay z-40"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+          }}
+        />
       )}
 
-      {/* IV. GRADIENTE DE SELLADO */}
+      {/* IV. GRADIENTE DE SELLADO SOBERANO */}
       <div
         className={cn(
           "absolute inset-0 pointer-events-none transition-opacity duration-1000",
-          isDark
-            ? "bg-gradient-to-b from-transparent via-transparent to-[#030303] opacity-90"
-            : "bg-gradient-to-b from-transparent via-transparent to-white opacity-50"
+          isDarkModeActive
+            ? "bg-gradient-to-b from-transparent via-[#010101]/20 to-[#010101]"
+            : "bg-gradient-to-b from-transparent via-white/20 to-white"
         )}
       />
     </div>
   );
 });
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT (V13.0):
- * 1. Zero-Hydration-Error: Se implementó un guardado condicional (!mounted) que 
- *    asegura que el servidor y el cliente rendericen el mismo div base inicial.
- * 2. Visual Calibration: Se ajustaron las opacidades (Indigo-950/40 y Purple-900/30) 
- *    para permitir que el texto del Dashboard sea legible sin perder la atmósfera.
- * 3. Unique Filter ID: Se renombró el filtro a 'noiseFilterV13' para evitar 
- *    conflictos de caché de SVG en cambios de ruta rápidos.
- * 4. Refined Grain: Se aumentó el detalle del grano (numOctaves: 4) para un 
- *    aspecto más "pericial" y menos "digital".
- */
