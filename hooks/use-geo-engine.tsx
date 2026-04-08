@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: hooks/use-geo-engine.tsx
- * VERSIÓN: 46.2 (NicePod Sovereign Geo-Engine - Final Contract Symmetry Edition)
+ * VERSIÓN: 47.0 (NicePod Sovereign Geo-Engine - Facade Harmonization Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Actuar como Fachada Transparente unificando los núcleos de Telemetría, 
- * Radar e Interfaz bajo el estándar de "Cero Abreviaciones".
- * [REFORMA V46.2]: Sincronización total con la Constitución V8.5, eliminando 
- * errores de compilación TS2339 y garantizando la integridad del contrato.
+ * Radar e Interfaz, orquestando la inteligencia geoespacial de la Workstation.
+ * [REFORMA V47.0]: Sincronización nominal total con TelemetryCore V2.0, 
+ * resolución de 11 errores de compilación y cumplimiento de la Zero Abbreviations Policy.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -14,7 +14,7 @@
 
 import React, { createContext, useContext, useEffect, useMemo, useRef } from "react";
 
-// --- TRIPARTICIÓN DEL NÚCLEO (V3.0 - TRIPLE CORE) ---
+// --- TRIPARTICIÓN DEL NÚCLEO (V4.0 - TRIPLE CORE) ---
 import { InterfaceProvider, useGeoInterface } from "./geo-engine/interface-core";
 import { RadarProvider, useGeoRadar } from "./geo-engine/radar-core";
 import { TelemetryProvider, useGeoTelemetry } from "./geo-engine/telemetry-core";
@@ -30,7 +30,6 @@ const GeoEngineContext = createContext<GeoEngineReturn | undefined>(undefined);
 
 /**
  * GeoFacadeComponent: El Cerebro Sincronizador de la Workstation.
- * Misión: Consumir los 3 núcleos y orquestar sus interacciones transversales.
  */
 function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
   const telemetryCore = useGeoTelemetry();
@@ -43,30 +42,28 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
 
   /**
    * EFECTO: ORQUESTACIÓN CROSS-DOMAIN
-   * Misión: Sincronizar el hardware con la lógica de red y la intención de la UI.
+   * Misión: Sincronizar el hardware de ubicación con la lógica de radar.
    */
   useEffect(() => {
     const currentUserLocation = telemetryCore.userLocation;
 
     if (currentUserLocation) {
-      const sourceJustChangedToGPS = 
+      const sourceJustChangedToGlobalPositioningSystem = 
         telemetryCore.telemetrySource === 'gps' && 
         lastTelemetrySourceReference.current !== 'gps';
 
       /**
-       * 1. DETECCIÓN DE ATERRIZAJE BALÍSTICO (Handshake T0):
-       * Si el sistema alcanza precisión satelital soberana, disparamos el aterrizaje.
+       * 1. DETECCIÓN DE ATERRIZAJE BALÍSTICO:
+       * [FIX]: Uso de 'isGlobalPositioningSystemLocked' para sincronía con TelemetryCore V2.0.
        */
-      if (telemetryCore.isGPSLock && sourceJustChangedToGPS && !hasPerformedInitialLandingReference.current) {
+      if (telemetryCore.isGlobalPositioningSystemLocked && sourceJustChangedToGlobalPositioningSystem && !hasPerformedInitialLandingReference.current) {
         interfaceCore.triggerLanding();
         hasPerformedInitialLandingReference.current = true;
-        // Cosecha forzada al obtener precisión métrica real
         radarCore.fetchRadar(currentUserLocation, true); 
       }
 
       /**
        * 2. INTELIGENCIA DE PROXIMIDAD:
-       * Evaluación de resonancia basada en la telemetría purificada.
        */
       radarCore.evaluateProximity(currentUserLocation);
       radarCore.fetchRadar(currentUserLocation, false); 
@@ -75,33 +72,34 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
     }
   }, [
     telemetryCore.userLocation, 
-    telemetryCore.isGPSLock, 
+    telemetryCore.isGlobalPositioningSystemLocked, 
     telemetryCore.telemetrySource, 
     radarCore, 
     interfaceCore
   ]);
 
   /**
-   * derivedEngineStatus: Máquina de Estados Finita Derivada para la UI.
+   * derivedEngineOperationalStatus: Máquina de Estados Finita Derivada.
    */
-  const derivedEngineStatus = useMemo((): GeoEngineState => {
+  const derivedEngineOperationalStatus = useMemo((): GeoEngineState => {
     if (forgeOrchestrator.forgeStatus !== 'IDLE') return forgeOrchestrator.forgeStatus;
     if (telemetryCore.isDenied) return 'PERMISSION_DENIED';
     return (telemetryCore.isIgnited || telemetryCore.userLocation) ? 'SENSORS_READY' : 'IDLE';
   }, [forgeOrchestrator.forgeStatus, telemetryCore.isDenied, telemetryCore.isIgnited, telemetryCore.userLocation]);
 
   /**
-   * ENSAMBLAJE DE LA API PÚBLICA (CONTRATO SOBERANO V8.5)
+   * ENSAMBLAJE DE LA API PÚBLICA (CONTRATO SOBERANO V4.0)
    * Misión: Devolver un objeto íntegro que satisfaga el Build Shield de Vercel.
+   * [AVISO]: Se mantienen las propiedades de 'GeoEngineReturn' pero mapeadas a los nuevos métodos del Core.
    */
-  const geoEngineApi: GeoEngineReturn = {
+  const geoEngineApplicationInterface: GeoEngineReturn = {
     // I. Estados de Verdad y Telemetría Purificada
-    status: derivedEngineStatus,
+    status: derivedEngineOperationalStatus,
     userLocation: telemetryCore.userLocation,
     nearbyPointsOfInterest: radarCore.nearbyPointsOfInterest,
     activePointOfInterest: radarCore.activePointOfInterest,
     isTriangulated: telemetryCore.isTriangulated,
-    isGPSLock: telemetryCore.isGPSLock,
+    isGPSLock: telemetryCore.isGlobalPositioningSystemLocked, // Mapeo de compatibilidad con Constitución
     isSearching: radarCore.isSearching,
     isLocked: forgeOrchestrator.isForgeLocked,
     isIgnited: telemetryCore.isIgnited,
@@ -122,10 +120,6 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
     toggleCameraPerspective: interfaceCore.togglePerspective,
     setManualMode: interfaceCore.setManualMode,
     
-    /**
-     * recenterCamera: 
-     * Misión: Recuperar el Voyager con autoridad máxima y refresco de malla.
-     */
     recenterCamera: () => {
       if (telemetryCore.userLocation) {
         radarCore.fetchRadar(telemetryCore.userLocation, true);
@@ -133,26 +127,23 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
       interfaceCore.triggerRecenter();
     },
 
-    // III. Operaciones de Mando de Campo
-    initSensors: telemetryCore.initSensors,
+    // III. Operaciones de Mando de Campo (Hardware Sync)
+    // [FIX]: Sincronización con los nuevos métodos de TelemetryCore V2.0
+    initSensors: telemetryCore.initializeHardwareSensors,
     reSyncRadar: () => {
       radarCore.clearRadar();
       if (telemetryCore.userLocation) {
         radarCore.fetchRadar(telemetryCore.userLocation, true);
       }
-      telemetryCore.reSyncSensors();
+      telemetryCore.reSynchronizeSensors();
     },
-    setTriangulated: () => telemetryCore.setTriangulated(true),
-    setManualAnchor: telemetryCore.setManualAnchor,
+    setTriangulated: () => telemetryCore.setGeographicTriangulationState(true),
+    setManualAnchor: telemetryCore.setManualGeographicAnchor,
     setManualPlaceName: radarCore.setManualPlaceName,
 
-    // IV. Pipeline de Inteligencia (Cerebro en el Borde)
+    // IV. Pipeline de Inteligencia
     ingestSensoryData: (parameters) => forgeOrchestrator.ingestSensoryData(telemetryCore.userLocation, parameters),
     
-    /**
-     * synthesizeNarrative:
-     * [MANDATO V46.2]: Adaptación explícita de parámetros para cumplir con la V8.5.
-     */
     synthesizeNarrative: (parameters) => forgeOrchestrator.synthesizeNarrative({
       pointOfInterestIdentification: parameters.pointOfInterestIdentification,
       depth: parameters.depth,
@@ -163,13 +154,12 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
     transcribeVoiceIntent: (audioBase64) => forgeOrchestrator.transcribeVoiceIntent(audioBase64),
 
     /**
-     * reset: 
-     * Misión: Purga absoluta de memoria táctica y desconexión física de hardware.
+     * reset: Purga absoluta de memoria y hardware.
      */
     reset: () => {
-      telemetryCore.killSensors();
-      telemetryCore.clearManualAnchor();
-      telemetryCore.setTriangulated(false);
+      telemetryCore.terminateHardwareSensors();
+      telemetryCore.clearManualGeographicAnchor();
+      telemetryCore.setGeographicTriangulationState(false);
       radarCore.clearRadar();
       interfaceCore.resetInterface();
       forgeOrchestrator.resetForge();
@@ -180,7 +170,7 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <GeoEngineContext.Provider value={geoEngineApi}>
+    <GeoEngineContext.Provider value={geoEngineApplicationInterface}>
       {children}
     </GeoEngineContext.Provider>
   );
@@ -188,7 +178,7 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
 
 /**
  * GeoEngineProvider: El Contenedor de Infraestructura.
- * Envuelve la plataforma en la jerarquía de núcleos necesaria para el peritaje urbano.
+ * [FIX V47.0]: Sincronización con InitialGeographicDataContract de TelemetryCore V2.0.
  */
 export function GeoEngineProvider({ 
   children, 
@@ -197,8 +187,20 @@ export function GeoEngineProvider({
   children: React.ReactNode, 
   initialData?: { lat: number, lng: number, city: string, source: string } | null 
 }) {
+  
+  // Mapeamos los datos legacy del Middleware al nuevo contrato industrial del Core
+  const initialGeographicData = useMemo(() => {
+    if (!initialData) return null;
+    return {
+      latitudeCoordinate: initialData.lat,
+      longitudeCoordinate: initialData.lng,
+      cityName: initialData.city,
+      geographicSource: initialData.source
+    };
+  }, [initialData]);
+
   return (
-    <TelemetryProvider initialData={initialData}>
+    <TelemetryProvider initialGeographicData={initialGeographicData}>
       <RadarProvider>
         <InterfaceProvider>
           <GeoFacadeComponent>
@@ -221,14 +223,3 @@ export function useGeoEngine() {
   }
   return context;
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT (V46.2):
- * 1. Descriptive Symmetry: Se ha alcanzado la paridad nominal absoluta entre la 
- *    Constitución de Tipos y la implementación de la Fachada, eliminando el loop 
- *    de errores TS2339 en Vercel.
- * 2. Handshake T0: El Provider ahora acepta explícitamente el objeto initialData 
- *    purificado del RootLayout, garantizando la visibilidad instantánea del mapa.
- * 3. Atomic Orchestration: La fachada actúa como un escudo térmico, protegiendo 
- *    a la UI de la complejidad de los tres núcleos subyacentes.
- */
