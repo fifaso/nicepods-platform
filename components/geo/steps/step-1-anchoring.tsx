@@ -7,7 +7,7 @@
  * clasificación taxonómica bidimensional (Misión/Entidad).
  * [REFORMA V7.1]: Eliminación de 'any' en el reseteo taxonómico, aplicación 
  * del Path Protocol y cumplimiento estricto de la Zero Abbreviations Policy.
- * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * Nivel de Integridad:  100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
