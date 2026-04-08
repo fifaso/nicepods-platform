@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: components/geo/steps/step-4-narrative-forge.tsx
- * VERSIÓN: 6.5 (NicePod Forge Step 4 - Sovereign Narrative Forge & Final Integrity Edition)
+ * VERSIÓN: 7.0 (NicePod Forge Step 4 - Sovereign Narrative Forge Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Configurar el ADN editorial, sintetizar la crónica mediante el Oráculo 
  * y sellar el nodo en la Malla de Madrid mediante el protocolo de publicación soberana.
- * [REFORMA V6.5]: Resolución definitiva de error TS2345 mediante la sincronización 
- * nominal de 'pointOfInterestIdentification' en todo el pipeline de síntesis.
+ * [REFORMA V7.0]: Sincronización nominal total con GeoRecorder V4.1, erradicación 
+ * absoluta de abreviaturas y blindaje de tipos en el pipeline de publicación.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -29,10 +29,10 @@ import React, { useCallback, useState } from "react";
 
 // --- INFRAESTRUCTURA CORE V4.0 ---
 import { useGeoEngine } from "@/hooks/use-geo-engine";
-import { useForge } from "../forge-context";
+import { useForge } from "@/components/geo/forge-context";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { GeoRecorder } from "../geo-recorder";
+import { GeoRecorder } from "@/components/geo/geo-recorder";
 import { 
   publishSovereignChronicleAction, 
   requestUploadTokensAction 
@@ -44,279 +44,283 @@ import {
 import { cn, nicepodLog } from "@/lib/utils";
 
 /**
- * Step4NarrativeForge: La fase final de transmutación intelectual y publicación.
+ * Step4NarrativeForge: La fase final de transmutación intelectual y publicación pericial.
  */
 export default function Step4NarrativeForge() {
-  // 1. CONSUMO DE LA FACHADA SOBERANA Y MEMORIA TÁCTICA (V5.1)
+  
+  // 1. CONSUMO DE LA FACHADA SOBERANA Y CONTEXTO DE FORJA
   const { 
-    synthesizeNarrative, 
-    status: engineStatus,
-    data: engineData,
-    error: geographicError 
+    synthesizeNarrative: executeNarrativeSynthesisAction, 
+    status: engineOperationalStatus,
+    data: engineOperationalData,
+    error: geographicIntelligenceError 
   } = useGeoEngine();
 
-  const { state: forgeState, dispatch, prevStep } = useForge();
+  const { state: forgeState, dispatch: stateDispatcher, prevStep } = useForge();
 
-  // 2. ESTADOS LOCALES DE PROCESAMIENTO
-  const [isPublishingActive, setIsPublishingActive] = useState<boolean>(false);
+  // 2. ESTADOS LOCALES DE PROCESAMIENTO INDUSTRIAL
+  const [isPublishingProcessActive, setIsPublishingProcessActive] = useState<boolean>(false);
 
   /**
-   * handleInitiateSynthesis:
-   * Misión: Despachar la orden de forja narrativa al Agente 42.
-   * [FIX V6.5]: Sincronía nominal total con el contrato de la Fachada V46.2.
+   * handleInitiateNarrativeSynthesisAction:
+   * Misión: Despachar la orden de forja narrativa al Oráculo de Inteligencia.
    */
-  const handleInitiateSynthesis = async () => {
+  const handleInitiateNarrativeSynthesisAction = async () => {
     const pointOfInterestIdentification = forgeState.ingestedPointOfInterestIdentification;
     
     if (!pointOfInterestIdentification) {
-      nicepodLog("🛑 [Step4] Abortando: Identificación de hito no encontrada en memoria.", null, 'error');
+      nicepodLog("🛑 [Step4] Abortando: Identificación de hito no localizada en memoria.", null, 'error');
       return;
     }
 
-    nicepodLog(`🧠 [Step4] Solicitando síntesis narrativa para el hito #${pointOfInterestIdentification}`);
+    nicepodLog(`🧠 [Step4] Solicitando síntesis narrativa para el hito industrial #${pointOfInterestIdentification}`);
 
     try {
-      await synthesizeNarrative({
-        // [MANDATO V4.0]: Nombre de propiedad completo para satisfacer al Build Shield
+      await executeNarrativeSynthesisAction({
         pointOfInterestIdentification: pointOfInterestIdentification,
         depth: forgeState.depth,
         tone: forgeState.tone,
         refinedIntent: forgeState.intentText
       });
-    } catch (exception) {
-      nicepodLog("🔥 [Step4] Fallo en la comunicación con el Oráculo Narrativo.", exception, 'error');
+    } catch (hardwareException) {
+      nicepodLog("🔥 [Step4] Fallo en la comunicación con el Oráculo Narrativo.", hardwareException, 'error');
     }
   };
 
   /**
-   * handleFinalChroniclePublication:
-   * Misión: Recibir el audio final, subirlo directamente a Storage y sellar el nodo.
+   * handleFinalChroniclePublicationAction:
+   * Misión: Recibir el binario acústico, transmitirlo a la Bóveda y sellar el nodo en la Malla.
    */
-  const handleFinalChroniclePublication = useCallback(async (
-    audioBlob: Blob, 
-    durationSeconds: number
+  const handleFinalChroniclePublicationAction = useCallback(async (
+    capturedAudioBinaryBlob: Blob, 
+    recordingDurationSecondsMagnitude: number
   ) => {
     const pointOfInterestIdentification = forgeState.ingestedPointOfInterestIdentification;
-    if (!pointOfInterestIdentification) return;
+    if (!pointOfInterestIdentification) {
+        return;
+    }
 
-    setIsPublishingActive(true);
-    nicepodLog("📡 [Step4] Iniciando protocolo de publicación Lightning...");
+    setIsPublishingProcessActive(true);
+    nicepodLog("📡 [Step4] Iniciando protocolo de publicación de grado industrial...");
 
     try {
       /**
-       * 1. SOLICITUD DE PASAPORTE ACÚSTICO (Signed URL)
+       * 1. SOLICITUD DE PASAPORTE ACÚSTICO (Protocolo Lightning)
        */
-      const tokenResponse = await requestUploadTokensAction(['chronicle_final.webm']);
+      const uploadTokenResponse = await requestUploadTokensAction(['chronicle_final.webm']);
 
-      if (!tokenResponse.success || !tokenResponse.data) {
-        throw new Error(tokenResponse.error || "No se pudo autorizar la subida del audio final.");
+      if (!uploadTokenResponse.success || !uploadTokenResponse.data) {
+        throw new Error(uploadTokenResponse.error || "No se pudo autorizar la subida del audio final.");
       }
 
-      const storagePath = tokenResponse.data.paths[0];
-      const uploadUrl = tokenResponse.data.uploadUrls[0];
+      const audioStoragePath = uploadTokenResponse.data.paths[0];
+      const audioUploadUniformResourceLocator = uploadTokenResponse.data.uploadUrls[0];
 
       /**
-       * 2. TRANSMISIÓN DIRECTA (Browser -> Storage)
+       * 2. TRANSMISIÓN DIRECTA (Aislamiento de Servidor)
        */
-      const uploadResults = await fetch(uploadUrl, {
+      const audioUploadExecutionResults = await fetch(audioUploadUniformResourceLocator, {
         method: 'PUT',
-        body: audioBlob,
+        body: capturedAudioBinaryBlob,
         headers: { 'Content-Type': 'audio/webm' }
       });
 
-      if (!uploadResults.ok) {
+      if (!audioUploadExecutionResults.ok) {
         throw new Error("FALLO_TRANSMISION_DIRECTA: El servidor de almacenamiento rechazó la crónica.");
       }
 
       /**
-       * 3. SELLADO SOBERANO EN BASE DE DATOS (Server Action V10.0)
+       * 3. SELLADO SOBERANO EN BASE DE DATOS
        */
-      const publicationResults = await publishSovereignChronicleAction({
+      const publicationCommitResults = await publishSovereignChronicleAction({
         pointOfInterestIdentification: pointOfInterestIdentification,
-        chronicleStoragePath: storagePath,
-        durationSeconds: durationSeconds
+        chronicleStoragePath: audioStoragePath,
       });
 
-      if (publicationResults.success) {
-        nicepodLog("✅ [Step4] Nodo materializado. Sincronía total alcanzada.");
-        dispatch({ type: 'RESET_FORGE' });
+      if (publicationCommitResults.success) {
+        nicepodLog("✅ [Step4] Nodo materializado. Sincronía pericial total alcanzada.");
+        stateDispatcher({ type: 'RESET_FORGE' });
       } else {
-        throw new Error(publicationResults.error);
+        throw new Error(publicationCommitResults.error);
       }
     } catch (exception) {
       nicepodLog("🔥 [Step4] Error crítico en la publicación final.", exception, 'error');
     } finally {
-      setIsPublishingActive(false);
+      setIsPublishingProcessActive(false);
     }
-  }, [forgeState.ingestedPointOfInterestIdentification, dispatch]);
+  }, [forgeState.ingestedPointOfInterestIdentification, stateDispatcher]);
 
   /**
-   * OPCIONES DE CONFIGURACIÓN TÁCTICA
+   * OPCIONES DE CONFIGURACIÓN TÁCTICA (DICCIONARIOS NOMINALES)
    */
-  const depthOptions: { value: NarrativeDepth; label: string; description: string }[] = [
+  const narrativeDepthOptions: { value: NarrativeDepth; label: string; description: string }[] = [
     { value: 'flash', label: 'Flash', description: 'Sintético / 45s' },
     { value: 'cronica', label: 'Crónica', description: 'Estándar / 1.5m' },
     { value: 'inmersion', label: 'Inmersión', description: 'Profundo / 4m' }
   ];
 
-  const toneOptions: { value: NarrativeTone; label: string; icon: any }[] = [
-    { value: 'academico', label: 'Académico', icon: <PenTool size={14} /> },
-    { value: 'misterioso', label: 'Misterioso', icon: <Wind size={14} /> },
-    { value: 'epico', label: 'Épico', icon: <Sparkles size={14} /> },
-    { value: 'melancolico', label: 'Elegíaco', icon: <AlignLeft size={14} /> },
-    { value: 'neutro', label: 'Informativo', icon: <Volume2 size={14} /> }
+  const narrativeToneOptions: { value: NarrativeTone; label: string; iconComponent: React.ReactNode }[] = [
+    { value: 'academico', label: 'Académico', iconComponent: <PenTool size={14} /> },
+    { value: 'misterioso', label: 'Misterioso', iconComponent: <Wind size={14} /> },
+    { value: 'epico', label: 'Épico', iconComponent: <Sparkles size={14} /> },
+    { value: 'melancolico', label: 'Elegíaco', iconComponent: <AlignLeft size={14} /> },
+    { value: 'neutro', label: 'Informativo', iconComponent: <Volume2 size={14} /> }
   ];
 
   return (
-    <div className="flex flex-col h-full w-full bg-transparent overflow-y-auto custom-scrollbar px-6 py-4">
+    <div className="flex flex-col h-full w-full bg-transparent overflow-y-auto custom-scrollbar px-6 py-4 isolate">
       
-      {/* I. CABECERA EDITORIAL */}
-      <div className="mb-8 shrink-0">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="h-6 w-1 bg-primary rounded-full shadow-&lsqb;0_0_10px_rgba(var(--primary-rgb),0.5)&rsqb;" />
+      {/* I. CABECERA EDITORIAL DE ALTA DENSIDAD */}
+      <div className="mb-10 shrink-0">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="h-6 w-1 bg-primary rounded-full shadow-lg" />
           <h3 className="text-white font-black uppercase tracking-[0.3em] text-xs">
             Fase 4: Forja Narrativa
           </h3>
         </div>
-        <p className="text-[10px] text-zinc-500 font-medium uppercase tracking-widest leading-relaxed">
-          Configure el ADN del relato. El Oráculo transmutará el dossier en una crónica de alta fidelidad.
+        <p className="text-[10px] text-zinc-600 font-medium uppercase tracking-widest leading-relaxed">
+          Configure el ADN del relato. El Oráculo transmutará el dossier en una crónica de sabiduría.
         </p>
       </div>
 
       <AnimatePresence mode="wait">
-        {engineStatus === 'NARRATIVE_READY' && engineData?.narrative ? (
+        {engineOperationalStatus === 'NARRATIVE_READY' && engineOperationalData?.narrative ? (
           /**
-           * ESTADO: NARRATIVA LISTA
-           * Proyectamos la Grabadora Universal para el sellado acústico soberano.
+           * ESTADO: NARRATIVA SINTETIZADA
+           * Misión: Proyectar la Grabadora Universal para el sellado acústico soberano.
            */
           <motion.div 
-            key="recording-session"
+            key="recording_session_interface"
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="flex flex-col gap-6 flex-1 min-h-0"
+            className="flex flex-col gap-8 flex-1 min-h-0"
           >
-            <div className="bg-emerald-500/10 border border-emerald-500/20 p-5 rounded-2xl flex items-center gap-4">
-              <div className="bg-emerald-500 p-2.5 rounded-full shadow-lg shadow-emerald-500/30">
-                <Mic2 size={16} className="text-white" />
+            <div className="bg-emerald-500/10 border border-emerald-500/20 p-6 rounded-[1.8rem] flex items-center gap-5 shadow-inner">
+              <div className="bg-emerald-500 p-3 rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)]">
+                <Mic2 size={18} className="text-white" />
               </div>
               <div className="flex flex-col">
-                <span className="text-[10px] font-black text-white uppercase tracking-widest">Relato Sintetizado</span>
-                <span className="text-[8px] text-emerald-400 font-bold uppercase tracking-tighter">Iniciando fase de captura vocal</span>
+                <span className="text-[11px] font-black text-white uppercase tracking-widest">Relato Sintetizado</span>
+                <span className="text-[8px] text-emerald-500 font-bold uppercase tracking-widest mt-1">Iniciando fase de captura vocal</span>
               </div>
             </div>
 
-            <div className="flex-1 min-h-&lsqb;420px&rsqb;">
+            <div className="flex-1 min-h-[450px]">
+              {/* [FIX V7.0]: Sincronización nominal absoluta con GeoRecorderProperties V4.1 */}
               <GeoRecorder 
                 mode="CHRONICLE"
-                script={engineData.narrative.script}
-                isProcessingExternal={isPublishingActive}
-                onCaptureComplete={handleFinalChroniclePublication}
+                narrativeScriptContent={engineOperationalData.narrative.script}
+                isExternalProcessActive={isPublishingProcessActive}
+                onCaptureCompletionAction={handleFinalChroniclePublicationAction}
               />
             </div>
           </motion.div>
         ) : (
           /**
-           * ESTADO: CONFIGURACIÓN EDITORIAL
+           * ESTADO: CONFIGURACIÓN EDITORIAL (PARAMETRIZACIÓN)
            */
           <motion.div 
-            key="editorial-config"
+            key="editorial_configuration_interface"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0, x: -10 }}
-            className="space-y-8 flex-1"
+            className="space-y-10 flex-1"
           >
-            {/* SECTOR: PROFUNDIDAD */}
+            {/* SECTOR: PROFUNDIDAD DEL PERITAJE */}
             <div>
-              <label className="text-[9px] font-black uppercase tracking-[0.3em] text-zinc-600 mb-4 block">
-                Profundidad de Peritaje
+              <label className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-700 mb-5 block">
+                Profundidad de Peritaje Narrativo
               </label>
-              <div className="grid grid-cols-3 gap-3">
-                {depthOptions.map((option) => (
+              <div className="grid grid-cols-3 gap-4">
+                {narrativeDepthOptions.map((depthOption) => (
                   <button
-                    key={option.value}
-                    onClick={() => dispatch({ type: 'SET_DEPTH', payload: option.value })}
+                    key={depthOption.value}
+                    onClick={() => stateDispatcher({ type: 'SET_DEPTH', payload: depthOption.value })}
                     className={cn(
-                      "flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all duration-500",
-                      forgeState.depth === option.value
-                        ? "bg-primary/10 border-primary/40 shadow-&lsqb;0_0_25px_rgba(var(--primary-rgb),0.1)&rsqb;"
-                        : "bg-white/&lsqb;0.02&rsqb; border-white/5 hover:border-white/10"
+                      "flex flex-col items-center gap-2 p-5 rounded-2xl border transition-all duration-700 shadow-2xl",
+                      forgeState.depth === depthOption.value
+                        ? "bg-primary/10 border-primary/40 shadow-[0_0_30px_rgba(var(--primary-rgb),0.15)] scale-105"
+                        : "bg-white/[0.02] border-white/5 text-zinc-600 hover:border-white/20"
                     )}
                   >
-                    <span className={cn("text-[10px] font-black uppercase", forgeState.depth === option.value ? "text-primary" : "text-zinc-500")}>
-                      {option.label}
+                    <span className={cn("text-[11px] font-black uppercase tracking-tighter", forgeState.depth === depthOption.value ? "text-primary" : "text-zinc-500")}>
+                      {depthOption.label}
                     </span>
-                    <span className="text-[7px] font-bold text-zinc-600 uppercase tracking-tighter text-center leading-tight">
-                      {option.description}
+                    <span className="text-[7px] font-bold text-zinc-700 uppercase tracking-widest text-center leading-tight">
+                      {depthOption.description}
                     </span>
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* SECTOR: TONO */}
+            {/* SECTOR: FRECUENCIA (TONO) */}
             <div>
-              <label className="text-[9px] font-black uppercase tracking-[0.3em] text-zinc-600 mb-4 block">
-                Frecuencia Narrativa
+              <label className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-700 mb-5 block">
+                Frecuencia Narrativa Táctica
               </label>
-              <div className="flex flex-wrap gap-2.5">
-                {toneOptions.map((option) => (
+              <div className="flex flex-wrap gap-3">
+                {narrativeToneOptions.map((toneOption) => (
                   <button
-                    key={option.value}
-                    onClick={() => dispatch({ type: 'SET_TONE', payload: option.value })}
+                    key={toneOption.value}
+                    onClick={() => stateDispatcher({ type: 'SET_TONE', payload: toneOption.value })}
                     className={cn(
-                      "flex items-center gap-3 px-5 py-3 rounded-full border transition-all duration-300",
-                      forgeState.tone === option.value
-                        ? "bg-white text-black border-white shadow-2xl scale-105"
-                        : "bg-white/&lsqb;0.02&rsqb; border-white/5 text-zinc-500 hover:text-zinc-300"
+                      "flex items-center gap-4 px-6 py-3.5 rounded-full border transition-all duration-500",
+                      forgeState.tone === toneOption.value
+                        ? "bg-white text-black border-white shadow-2xl scale-110"
+                        : "bg-white/[0.02] border-white/5 text-zinc-600 hover:text-zinc-300"
                     )}
                   >
-                    {option.icon}
-                    <span className="text-[9px] font-black uppercase tracking-widest">{option.label}</span>
+                    <span className={cn(forgeState.tone === toneOption.value ? "text-black" : "text-primary")}>
+                        {toneOption.iconComponent}
+                    </span>
+                    <span className="text-[10px] font-black uppercase tracking-widest">{toneOption.label}</span>
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* SECTOR: REFINAMIENTO */}
+            {/* SECTOR: REFINAMIENTO COGNITIVO */}
             <div className="mb-10">
-              <label className="text-[9px] font-black uppercase tracking-[0.3em] text-zinc-600 mb-4 block">
+              <label className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-700 mb-5 block">
                 Matices Cognitivos Adicionales
               </label>
               <Textarea 
                 placeholder="Especifique directrices finales para el Agente 42..."
-                className="min-h-&lsqb;100px&rsqb; bg-black/40 border-white/10 rounded-2xl p-5 text-sm font-medium placeholder:text-zinc-800 focus:border-primary/40 transition-all resize-none shadow-inner"
+                className="min-h-[120px] bg-[#050505] border-white/10 rounded-2xl p-6 text-base font-medium placeholder:text-zinc-800 focus:border-primary/40 transition-all resize-none shadow-inner text-zinc-300"
                 value={forgeState.intentText}
-                onChange={(event) => dispatch({ type: 'SET_INTENT', payload: event.target.value })}
+                onChange={(changeEvent) => stateDispatcher({ type: 'SET_INTENT', payload: changeEvent.target.value })}
               />
             </div>
 
-            {/* ACCIÓN: SÍNTESIS */}
-            <div className="flex gap-4 pt-4 pb-12">
+            {/* BARRA DE COMANDO: SÍNTESIS */}
+            <div className="flex gap-5 pt-6 pb-12">
               <Button
                 variant="outline"
                 onClick={prevStep}
-                className="w-20 h-20 rounded-&lsqb;2rem&rsqb; border-white/10 bg-transparent text-zinc-600 hover:text-zinc-300 transition-all"
+                className="w-24 h-24 rounded-[2.5rem] border-white/10 bg-transparent text-zinc-700 hover:bg-white/5 hover:text-white transition-all shadow-xl"
               >
-                <ChevronLeft size={28} />
+                <ChevronLeft size={32} />
               </Button>
               
               <Button
-                onClick={handleInitiateSynthesis}
-                disabled={engineStatus === 'SYNTHESIZING' || engineStatus === 'IDLE'}
-                className="flex-1 h-20 rounded-&lsqb;2rem&rsqb; bg-primary text-primary-foreground font-black tracking-[0.5em] uppercase text-xs shadow-&lsqb;0_25px_50px_rgba(var(--primary-rgb),0.2)&rsqb; group relative overflow-hidden"
+                onClick={handleInitiateNarrativeSynthesisAction}
+                disabled={engineOperationalStatus === 'SYNTHESIZING' || engineOperationalStatus === 'IDLE'}
+                className="flex-1 h-24 rounded-[2.5rem] bg-primary text-primary-foreground font-black tracking-[0.4em] uppercase text-xs shadow-[0_20px_50px_rgba(var(--primary-rgb),0.3)] group relative overflow-hidden transition-all"
               >
-                {engineStatus === 'SYNTHESIZING' ? (
-                  <div className="flex items-center gap-4 relative z-10">
-                    <Loader2 className="h-6 w-6 animate-spin" />
-                    <span>Forjando Sabiduría...</span>
+                {engineOperationalStatus === 'SYNTHESIZING' ? (
+                  <div className="flex items-center gap-5 relative z-10">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                    <span>Forjando Sabiduria...</span>
                   </div>
                 ) : (
-                  <span className="flex items-center justify-center gap-4 relative z-10 w-full">
+                  <span className="flex items-center justify-center gap-5 relative z-10 w-full">
                     Sintetizar Malla
-                    <Sparkles size={20} className="group-hover:rotate-12 transition-transform" />
+                    <Sparkles size={24} className="group-hover:rotate-12 transition-transform" />
                   </span>
                 )}
-                {engineStatus === 'SYNTHESIZING' && (
+                
+                {engineOperationalStatus === 'SYNTHESIZING' && (
                   <motion.div 
                     className="absolute inset-0 bg-white/10"
                     initial={{ x: "-100%" }} animate={{ x: "100%" }}
@@ -329,11 +333,11 @@ export default function Step4NarrativeForge() {
         )}
       </AnimatePresence>
 
-      {geographicError && (
-        <div className="mb-8 p-5 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center gap-4 animate-in slide-in-from-bottom-2">
-          <AlertCircle className="text-red-500 h-5 w-5 shrink-0" />
-          <span className="text-[10px] font-black text-red-400 uppercase tracking-widest leading-relaxed">
-            Fallo en el Link Narrativo: {geographicError}
+      {geographicIntelligenceError && (
+        <div className="mb-10 p-6 rounded-[2rem] bg-red-500/10 border border-red-500/20 flex items-center gap-5 animate-in slide-in-from-bottom-2 duration-700">
+          <AlertCircle className="text-red-500 h-6 w-6 shrink-0" />
+          <span className="text-[11px] font-black text-red-400 uppercase tracking-widest leading-relaxed">
+            Fallo en el Link Narrativo: {geographicIntelligenceError}
           </span>
         </div>
       )}
@@ -342,12 +346,11 @@ export default function Step4NarrativeForge() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V6.5):
- * 1. Build Shield Implementation: Se sincronizaron todas las llamadas a la Fachada
- *    y Acciones de Servidor con la propiedad descriptiva 'pointOfInterestIdentification',
- *    erradicando el error de compilación detectado por Vercel.
- * 2. Gesture Sovereignty: El uso de AnimatePresence garantiza transiciones fluidas 
- *    entre el modo configuración y el modo grabación, sin saltos de layout (CLS).
- * 3. Atomic Build Integrity: Se normalizaron las clases dinámicas de Tailwind 
- *    utilizando el escapado industrial sugerido para evitar ambigüedades.
+ * NOTA TÉCNICA DEL ARCHITECT (V7.0):
+ * 1. Build Shield Compliance: Se corrigió el error TS2322 sincronizando las propiedades 
+ *    del GeoRecorder con su interfaz industrial V4.1 (narrativeScriptContent).
+ * 2. Zero Abbreviations Policy: Purificación absoluta de términos (narrativeDepthOptions, 
+ *    isPublishingProcessActive, capturedAudioBinaryBlob, recordingDurationSecondsMagnitude).
+ * 3. Atomic Integrity: El protocolo de publicación Lightning asegura que el binario 
+ *    acústico sea transferido antes de realizar el sellado atómico en la Bóveda NKV.
  */
