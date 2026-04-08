@@ -1,11 +1,12 @@
 /**
  * ARCHIVO: app/layout.tsx
- * VERSIÓN: 35.0 (NicePod Architecture Core - Context Isolation Edition)
- * PROTOCOLO: MADRID RESONANCE V2.8
+ * VERSIÓN: 36.0 (NicePod Architecture Core - Zero Flicker Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Orquestar la infraestructura de datos y atmósfera, aislando el contexto WebGL.
- * [REFORMA V35.0]: Extracción total de lógica visual de Mapbox para evitar colisiones de IDs.
- * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
+ * [REFORMA V36.0]: Eliminación de pestañeo de carga inicial mediante inyección síncrona
+ * de color de fondo y cumplimiento absoluto de la Zero Abbreviations Policy.
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 import type { Metadata, Viewport } from "next";
@@ -15,13 +16,13 @@ import type React from "react";
 
 /**
  * --- CAPA 0: CIMIENTOS VISUALES ---
- * Sincronización de estilos base. Mapbox CSS se carga aquí para estar 
- * disponible en los proveedores locales de cada ruta.
+ * Sincronización de estilos base. El CSS del motor geoespacial se carga aquí 
+ * para estar disponible en los proveedores locales de cada ruta.
  */
 import "mapbox-gl/dist/mapbox-gl.css";
 import "./globals.css";
 
-// Infraestructura de Servicios Sincronizados
+// --- INFRAESTRUCTURA DE SERVICIOS SINCRONIZADOS ---
 import { CSPostHogProvider } from '@/components/providers/posthog-provider';
 import { ErrorBoundary } from "@/components/system/error-boundary";
 import { PwaLifecycle } from "@/components/system/pwa-lifecycle";
@@ -30,25 +31,26 @@ import { AuthProvider } from "@/hooks/use-auth";
 import { createClient } from '@/lib/supabase/server';
 import { Tables } from "@/types/database.types";
 
-// Contextos de Inteligencia y Telemetría (Soberanía de Datos)
-// [NOTA]: GeoEngineProvider se mantiene en la raíz porque gestiona telemetría persistente.
+// --- CONTEXTOS DE INTELIGENCIA Y TELEMETRÍA (SOBERANÍA DE DATOS) ---
 import { AudioProvider } from "@/contexts/audio-context";
 import { GeoEngineProvider } from "@/hooks/use-geo-engine";
 
-// Motor de Inmersión Visual (Soberanía Atmosférica)
+// --- MOTOR DE INMERSIÓN VISUAL (SOBERANÍA ATMOSFÉRICA) ---
 import { BackgroundEngine } from "@/components/visuals/background-engine";
 
-const inter = Inter({
+import { cn } from "@/lib/utils";
+
+const interFontConfiguration = Inter({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-inter",
 });
 
 /**
- * VIEWPORT: Configuración de UI de bajo nivel.
+ * VIEWPORT: Configuración de la Interfaz de Usuario de Bajo Nivel.
  */
 export const viewport: Viewport = {
-  themeColor: "#030303",
+  themeColor: "#010101",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -80,7 +82,7 @@ export const metadata: Metadata = {
 };
 
 /**
- * COMPONENTE: RootLayout (The Master Orchestrator)
+ * COMPONENTE: RootLayout (El Orquestador Maestro)
  */
 export default async function RootLayout({
   children
@@ -88,74 +90,79 @@ export default async function RootLayout({
   children: React.ReactNode
 }) {
   /**
-   * 1. PROTOCOLO DE IDENTIDAD ATÓMICA (SSR)
+   * 1. PROTOCOLO DE IDENTIDAD ATÓMICA EN SERVIDOR
    */
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const supabaseClient = createClient();
+  const { data: { user: authenticatedUser } } = await supabaseClient.auth.getUser();
 
-  let initialSession = null;
-  let initialProfile: Tables<'profiles'> | null = null;
-  let userRole = 'guest';
+  let initialAuthenticationSession = null;
+  let initialAdministratorProfile: Tables<'profiles'> | null = null;
+  let userAuthorityRole = 'guest';
 
-  // [RESCATE GEO-IP]: Telemetría de red para Handshake T0
-  const cookieStore = cookies();
-  const geoFallbackRaw = cookieStore.get('nicepod-geo-fallback')?.value;
-  let initialGeoData = null;
+  // [RESCATE GEO-IP]: Telemetría de red pasiva para establecer el epicentro inicial
+  const browserCookiesStore = cookies();
+  const geographicFallbackRawValue = browserCookiesStore.get('nicepod-geo-fallback')?.value;
+  let initialGeographicData = null;
 
-  if (geoFallbackRaw) {
+  if (geographicFallbackRawValue) {
     try {
-      initialGeoData = JSON.parse(geoFallbackRaw);
-    } catch (e) {
-      console.error("Layout-Geo-Error:", e);
+      initialGeographicData = JSON.parse(geographicFallbackRawValue);
+    } catch (parseException) {
+      console.error("Layout-Geo-Error:", parseException);
     }
   }
 
-  if (user) {
+  if (authenticatedUser) {
     /**
      * COSECHA PARALELA DE DATOS (Fan-Out Pipeline)
      */
-    const [sessionRes, profileRes] = await Promise.all([
-      supabase.auth.getSession(),
-      supabase.from('profiles')
+    const [sessionQueryResponse, profileQueryResponse] = await Promise.all([
+      supabaseClient.auth.getSession(),
+      supabaseClient.from('profiles')
         .select('*')
-        .eq('id', user.id)
+        .eq('id', authenticatedUser.id)
         .maybeSingle()
     ]);
 
-    initialSession = sessionRes.data.session;
-    initialProfile = profileRes.data;
+    initialAuthenticationSession = sessionQueryResponse.data.session;
+    initialAdministratorProfile = profileQueryResponse.data;
 
-    const appMetadata = user.app_metadata || {};
-    userRole = appMetadata.user_role || appMetadata.role || (initialProfile?.role) || 'user';
+    const userApplicationMetadata = authenticatedUser.app_metadata || {};
+    userAuthorityRole = userApplicationMetadata.user_role || userApplicationMetadata.role || (initialAdministratorProfile?.role) || 'user';
   }
 
-  const authState = user ? "authenticated" : "unauthenticated";
+  const authenticationStateDescriptor = authenticatedUser ? "authenticated" : "unauthenticated";
 
   return (
     <html
       lang="es"
       suppressHydrationWarning
-      className={inter.variable}
-      data-auth-state={authState}
-      data-user-role={userRole}
+      // [FIX V36.0]: Inyección síncrona de fondo oscuro para evitar salto blanco pre-hidratación.
+      className={cn(interFontConfiguration.variable, "bg-[#010101] dark")}
+      data-auth-state={authenticationStateDescriptor}
+      data-user-role={userAuthorityRole}
     >
       <head>
-        {/* II. ACELERACIÓN DE RED */}
+        {/* II. ACELERACIÓN DE RED PARA EL MOTOR WEBGL */}
         <link rel="preconnect" href="https://api.mapbox.com" />
         <link rel="preconnect" href="https://events.mapbox.com" />
 
+        {/* 
+            SCRIPT DE TEMA: Evalúa preferencias del sistema antes de que React despierte.
+            Se purifican las variables para cumplir con el Dogma NicePod.
+        */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
                 try {
-                  var storedTheme = localStorage.getItem('theme');
-                  var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                  var theme = (storedTheme === 'dark' || (!storedTheme && prefersDark)) ? 'dark' : 'light';
-                  document.documentElement.classList.add(theme);
-                  document.documentElement.style.colorScheme = theme;
-                } catch (e) {
-                  console.error('Lumen-Shield Error:', e);
+                  var storedSystemTheme = localStorage.getItem('theme');
+                  var prefersDarkModeActive = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                  var finalAppliedTheme = (storedSystemTheme === 'dark' || (!storedSystemTheme && prefersDarkModeActive)) ? 'dark' : 'light';
+                  document.documentElement.classList.add(finalAppliedTheme);
+                  document.documentElement.style.colorScheme = finalAppliedTheme;
+                } catch (themeException) {
+                  console.error('Lumen-Shield Error:', themeException);
                 }
               })();
             `,
@@ -163,7 +170,8 @@ export default async function RootLayout({
         />
       </head>
       <body
-        className={`${inter.className} font-sans min-h-screen antialiased selection:bg-primary/30 bg-transparent text-foreground overflow-x-hidden`}
+        // [FIX V36.0]: Fondo sólido oscuro en el body para sellar la protección Anti-Pestañeo
+        className={`${interFontConfiguration.className} font-sans min-h-screen antialiased selection:bg-primary/30 bg-[#010101] text-foreground overflow-x-hidden`}
         suppressHydrationWarning
       >
         <CSPostHogProvider>
@@ -172,13 +180,13 @@ export default async function RootLayout({
             <ThemeProvider
               attribute="class"
               defaultTheme="dark"
-              enableSystem
+              enableSystem={false} // Desactivado para mantener consistencia de estilo industrial
               disableTransitionOnChange={true}
               storageKey="theme"
             >
               <AuthProvider
-                initialSession={initialSession}
-                initialProfile={initialProfile}
+                initialSession={initialAuthenticationSession}
+                initialProfile={initialAdministratorProfile}
               >
                 <AudioProvider>
                   {/* 
@@ -186,8 +194,8 @@ export default async function RootLayout({
                       [MANDATO V35.0]: GeoEngineProvider gestiona el flujo de coordenadas.
                       NO inyectar MapProvider aquí para evitar el Ghosting rotacional.
                   */}
-                  <GeoEngineProvider initialData={initialGeoData}>
-                    <main className="min-h-screen relative flex flex-col">
+                  <GeoEngineProvider initialData={initialGeographicData}>
+                    <main className="min-h-screen relative flex flex-col bg-[#010101]">
                       <BackgroundEngine />
                       
                       <div className="relative z-10 flex flex-col flex-1 bg-transparent isolate">
@@ -206,15 +214,11 @@ export default async function RootLayout({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V35.0):
- * 1. Visual Isolation: Se ha confirmado la ausencia de MapProvider en la raíz. 
- *    Esto obliga a cada ruta (/dashboard y /map) a gestionar su propia instancia,
- *    eliminando las interferencias de cámara y rotación reportadas.
- * 2. Data Persistence: GeoEngineProvider permanece en el Root para que la 
- *    triangulación del Voyager sea continua durante la navegación entre páginas.
- * 3. Atomic Unmounting: Al no compartir contexto de Mapbox, el navegador purga 
- *    la instancia WebGL del Dashboard al navegar al mapa grande, deteniendo el 
- *    "pestañeo" de retorno.
- * 4. Stacking Context: Se mantiene el 'isolate' para proteger la jerarquía 
- *    entre el BackgroundEngine (Z-20) y la interfaz táctica (Z-10).
+ * NOTA TÉCNICA DEL ARCHITECT (V36.0):
+ * 1. Anti-Flicker Shield: La inyección de clases 'bg-[#010101] dark' en html y body 
+ *    garantiza que el lienzo de pintura inicial sea negro puro.
+ * 2. Zero Abbreviations Policy: Se purificaron términos legacy (e, user, sessionRes, 
+ *    geoFallbackRaw) sustituyéndolos por sus descriptores nominales de grado pericial.
+ * 3. Typography Unification: El utilitario 'inter' se renombra a 'interFontConfiguration' 
+ *    para evitar ambigüedad léxica en la inyección de clases.
  */
