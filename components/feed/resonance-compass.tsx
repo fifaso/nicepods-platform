@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: components/feed/resonance-compass.tsx
- * VERSIÓN: 4.0 (NicePod Resonance Compass - Multithreaded Physics Edition)
+ * VERSIÓN: 4.1 (NicePod Resonance Compass - Multithreaded & Nominal Integrity Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Visualizar el universo semántico mediante una simulación de fuerzas 
  * delegada a un Web Worker, garantizando la fluidez total del hilo principal.
- * [REFORMA V4.0]: Migración a arquitectura de hilos secundarios (Main Thread Isolation),
- * eliminación de dependencias de D3 en el cliente y purificación nominal absoluta.
+ * [REFORMA V4.1]: Importación de nicepodLog (Fix TS2304), purificación nominal absoluta 
+ * y sincronización de tipos para el motor de físicas multihilo.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -24,16 +24,19 @@ import Image from 'next/image';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import useResizeObserver from 'use-resize-observer';
 
+// --- UTILIDADES INDUSTRIALES ---
+import { nicepodLog } from "@/lib/utils";
+
 type UserResonanceProfile = Tables<'user_resonance_profiles'>;
 
 /**
  * INTERFAZ: ProcessedPhysicsNode
- * Misión: Definir la estructura de datos para el nodo tras su procesamiento matemático.
+ * Misión: Definir la estructura de datos para el nodo tras su procesamiento matemático en el Worker.
  */
 interface ProcessedPhysicsNode {
   identification: number;
-  x: number;
-  y: number;
+  horizontalCoordinate: number;
+  verticalCoordinate: number;
 }
 
 /**
@@ -64,8 +67,8 @@ function PodcastResonanceBubble({
     <motion.div
       className="absolute flex flex-col items-center gap-2 cursor-pointer group"
       style={{ 
-        left: `${processedNode.x}px`, 
-        top: `${processedNode.y}px`, 
+        left: `${processedNode.horizontalCoordinate}px`, 
+        top: `${processedNode.verticalCoordinate}px`, 
         transform: 'translate(-50%, -50%)' 
       }}
       onClick={onPodcastSelectionAction}
@@ -107,10 +110,11 @@ export function ResonanceCompass({
   semanticTags 
 }: ResonanceCompassProperties) {
   
-  const [processedNodes, setProcessedNodes] = useState<ProcessedPhysicsNode[]>([]);
+  const [processedPhysicsNodesCollection, setProcessedPhysicsNodesCollection] = useState<ProcessedPhysicsNode[]>([]);
   const [isPhysicsEngineLoading, setIsPhysicsEngineLoading] = useState<boolean>(true);
   const [selectedPodcastIntelligence, setSelectedPodcastIntelligence] = useState<PodcastWithProfile | null>(null);
   
+  // [REFACTOR]: Uso de nomenclatura descriptiva para la referencia del contenedor
   const { ref: containerElementReference, width = 0, height = 0 } = useResizeObserver<HTMLDivElement>();
   const physicsWorkerReference = useRef<Worker | null>(null);
 
@@ -130,7 +134,7 @@ export function ResonanceCompass({
     const centerYCoordinate = height / 2;
     const exclusionZoneRadius = Math.min(width, height) * 0.15;
 
-    // 1. Inicialización del Trabajador (Web Worker)
+    // 1. Inicialización del Trabajador (Web Worker) utilizando Path Alias
     const workerInstance = new Worker(
       new URL('@/lib/workers/resonance-physics.worker.ts', import.meta.url)
     );
@@ -141,10 +145,18 @@ export function ResonanceCompass({
       const { type, processedNodesCollection } = messageEvent.data;
 
       if (type === "TICK" || type === "STABILITY_REACHED") {
-        setProcessedNodes(processedNodesCollection);
+        // Mapeamos los nombres cortos del Worker (x, y) a los nombres largos de la UI
+        const mappedNodes = processedNodesCollection.map((node: any) => ({
+          identification: node.identification,
+          horizontalCoordinate: node.x,
+          verticalCoordinate: node.y
+        }));
+
+        setProcessedPhysicsNodesCollection(mappedNodes);
+
         if (type === "STABILITY_REACHED") {
           setIsPhysicsEngineLoading(false);
-          nicepodLog("🏁 [ResonanceCompass] Estabilidad cinemática alcanzada.");
+          nicepodLog("🏁 [ResonanceCompass] Estabilidad cinemática multihilo alcanzada.");
         }
       }
     };
@@ -152,7 +164,6 @@ export function ResonanceCompass({
     // 3. Emisión del Comando de Inicio al Hilo Secundario
     const initialNodes = podcastCollection.map((podcastItem) => ({
       identification: podcastItem.id,
-      // Posicionamiento inicial aleatorio alrededor del centro
       x: centerXCoordinate + (Math.random() - 0.5) * 100,
       y: centerYCoordinate + (Math.random() - 0.5) * 100
     }));
@@ -185,7 +196,7 @@ export function ResonanceCompass({
       ref={containerElementReference} 
       className="relative w-full aspect-video max-h-[70vh] max-w-6xl mx-auto bg-gradient-to-br from-zinc-950 to-zinc-900 rounded-[3rem] overflow-hidden shadow-[0_50px_100px_rgba(0,0,0,0.5)] border border-white/5 isolate"
     >
-      {/* CAPA I: INTERFAZ DE CARGA (SINCRO EN HILO SECUNDARIO) */}
+      {/* CAPA I: INTERFAZ DE CARGA */}
       <AnimatePresence>
         {isPhysicsEngineLoading && (
           <motion.div 
@@ -206,7 +217,7 @@ export function ResonanceCompass({
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-5">
           <Compass className="w-12 h-12 text-zinc-800" />
           <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-600 max-w-xs text-center">
-            Densidad de datos insuficiente para proyectar la malla de resonancia.
+            Densidad de datos insuficiente para proyectar resonancia.
           </p>
         </div>
       )}
@@ -223,16 +234,21 @@ export function ResonanceCompass({
           </motion.div>
 
           {/* Renderizado de Nodos (Pintura pasiva de datos procesados) */}
-          {processedNodes.map((nodeItem) => {
-            const podcastMatch = podcastCollection.find(p => p.id === nodeItem.identification);
-            if (!podcastMatch) return null;
+          {processedPhysicsNodesCollection.map((nodeItem) => {
+            const podcastCollectionCandidate = podcastCollection.find(
+                (podcastItem) => podcastItem.id === nodeItem.identification
+            );
+            
+            if (!podcastCollectionCandidate) {
+                return null;
+            }
             
             return (
               <PodcastResonanceBubble 
                 key={nodeItem.identification} 
                 processedNode={nodeItem} 
-                associatedPodcast={podcastMatch}
-                onPodcastSelectionAction={() => setSelectedPodcastIntelligence(podcastMatch)} 
+                associatedPodcast={podcastCollectionCandidate}
+                onPodcastSelectionAction={() => setSelectedPodcastIntelligence(podcastCollectionCandidate)} 
               />
             );
           })}
@@ -271,15 +287,3 @@ export function ResonanceCompass({
     </div>
   );
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT (V4.0):
- * 1. Main Thread Isolation: Al eliminar 'd3.forceSimulation' del componente React, 
- *    hemos liberado el hilo de UI de miles de cálculos por segundo, eliminando el calentamiento.
- * 2. Web Worker Integration: La comunicación asíncrona vía 'postMessage' permite que 
- *    el navegador ejecute la física en un núcleo de CPU dedicado.
- * 3. Zero Abbreviations Policy: Se purificaron términos como 'id', 'p', 'e', 'ref', 
- *    'centerX', 'centerY', cumpliendo con el Dogma V4.0.
- * 4. Resource Hygiene: El método 'worker.terminate()' garantiza que no existan procesos 
- *    zombies consumiendo memoria al navegar fuera de la Brújula.
- */
