@@ -1,33 +1,41 @@
-// next.config.mjs
-// VERSIÓN: 51.0 (NicePod Shielded Production - CPU Sovereignty & Anti-Flicker Edition)
-// Misión: Aniquilar la congestión del Main Thread desactivando la PWA y optimizando el bundle inicial.
-// [ESTABILIZACIÓN]: Erradicación de tareas largas (>100ms) para liberar el canal del GPS.
+/**
+ * ARCHIVO: next.config.mjs
+ * VERSIÓN: 52.0 (NicePod Shielded Production - Global Asset Sovereignty)
+ * PROTOCOLO: MADRID RESONANCE V4.0
+ * 
+ * Misión: Gobernar la compilación, la seguridad de red y el comportamiento 
+ * del servidor de la Workstation.
+ * [REFORMA V52.0]: Autorización del dominio de Unsplash (Resolución Error 400), 
+ * expansión del límite de carga para activos de alta fidelidad y cumplimiento 
+ * estricto de la Zero Abbreviations Policy.
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ */
 
-import withPWAInit from "@ducanh2912/next-pwa";
+import withProgressiveWebAppInitialization from "@ducanh2912/next-pwa";
 import { withSentryConfig } from '@sentry/nextjs';
 
 /** @type {import('next').NextConfig} */
-const nextConfig = {
+const nextConfiguration = {
   // --- I. PROTOCOLO DE RIGOR TÉCNICO (BUILD SHIELD) ---
   eslint: {
-    // Garantizamos que no suba código con deudas de linting.
+    // Garantizamos que no se despliegue código con deudas de análisis estático.
     ignoreDuringBuilds: false
   },
   typescript: {
-    // Un error de tipos es un fallo de misión. No se permite el bypass.
+    // Un error de tipos es un fallo de misión. No se permite evasión de validación.
     ignoreBuildErrors: false
   },
 
-  // --- II. OPTIMIZACIÓN DE ARQUITECTURA ---
-  // Standalone es vital para que las funciones en el Edge de Vercel arranquen en milisegundos.
+  // --- II. OPTIMIZACIÓN DE ARQUITECTURA (EDGE DEPLOYMENT) ---
+  // La salida independiente es vital para que las funciones en los nodos perimetrales arranquen instantáneamente.
   output: 'standalone',
 
-  // Paquetes que requieren compilación dedicada para el motor WebGL 3D.
+  // Paquetes que requieren compilación dedicada para el motor tridimensional.
   transpilePackages: ['react-map-gl', 'mapbox-gl'],
 
   /**
    * III. CABECERAS DE AUTORIDAD (HARDWARE & SECURITY)
-   * Misión: Ordenar al navegador liberar los sensores y proteger la integridad del dato.
+   * Misión: Ordenar al navegador la liberación de sensores y proteger la integridad del dato.
    */
   async headers() {
     return [
@@ -36,7 +44,7 @@ const nextConfig = {
         headers: [
           {
             key: 'Permissions-Policy',
-            // geolocation=(self) es la llave que abre la antena GPS al motor de Mapbox.
+            // geolocation=(self) es la llave que abre la antena de posicionamiento global al motor de Mapbox.
             value: 'geolocation=(self), camera=(self), microphone=(self)'
           },
           {
@@ -56,29 +64,32 @@ const nextConfig = {
     ];
   },
 
-  // --- IV. PERFORMANCE VISUAL Y RED ---
+  // --- IV. RENDIMIENTO VISUAL Y RED ---
   images: {
-    // Aduana de activos para evitar descargas lentas desde dominios no autorizados.
+    // Aduana de activos para evitar descargas lentas o rechazos desde dominios externos.
     remotePatterns: [
       { protocol: 'https', hostname: '**.supabase.co' },
       { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
       { protocol: 'https', hostname: 'avatars.githubusercontent.com' },
-      { protocol: 'https', hostname: 'api.dicebear.com' }
+      { protocol: 'https', hostname: 'api.dicebear.com' },
+      // [BUILD SHIELD FIX]: Autorización explícita para resolver el Error 400 (Bad Request).
+      { protocol: 'https', hostname: 'images.unsplash.com' } 
     ],
-    formats: ['image/avif', 'image/webp'], // Soporte para compresión de alta fidelidad
+    // Soporte para algoritmos de compresión de alta fidelidad geométrica.
+    formats: ['image/avif', 'image/webp'], 
   },
 
   // --- V. INFRAESTRUCTURA DE RED SOBERANA ---
   experimental: {
-    // Misión: Reducir el pestañeo de hidratación optimizando las importaciones de Lucide y UI.
+    // Misión: Reducir el tiempo de bloqueo optimizando las importaciones de iconografía y componentes visuales.
     optimizePackageImports: ["lucide-react", "@radix-ui/react-icons"],
 
     serverActions: {
       /**
-       * bodySizeLimit: 4mb.
-       * Desbloquea la Fase 2 de Ingesta (Hero + 3 OCR) sin errores de carga.
+       * [MEJORA INDUSTRIAL]: Expansión a 10 Megabytes.
+       * Desbloquea la captura de inteligencia fotorrealista sin colapsar el servidor de acciones.
        */
-      bodySizeLimit: '4mb',
+      bodySizeLimit: '10mb',
 
       allowedOrigins: [
         "localhost:3000",
@@ -88,10 +99,10 @@ const nextConfig = {
     }
   },
 
-  // GOBERNANZA DE COMPILACIÓN
-  webpack: (config) => {
-    config.optimization.sideEffects = true;
-    return config;
+  // GOBERNANZA DE COMPILACIÓN ESTRUCTURAL
+  webpack: (webpackConfiguration) => {
+    webpackConfiguration.optimization.sideEffects = true;
+    return webpackConfiguration;
   },
 
   skipTrailingSlashRedirect: true,
@@ -99,14 +110,15 @@ const nextConfig = {
 };
 
 /**
- * --- CONFIGURACIÓN PWA (MODO HIBERNACIÓN) ---
- * [ALERTA]: El reporte de consola muestra que el Service Worker está bloqueando la CPU.
- * Se fuerza la desactivación total para que el GPS tenga prioridad absoluta.
+ * --- CONFIGURACIÓN DE APLICACIÓN WEB PROGRESIVA (MODO HIBERNACIÓN) ---
+ * [ALERTA PERICIAL]: El reporte de consola confirmó que el Trabajador de Servicio 
+ * estaba bloqueando la Unidad Central de Procesamiento (CPU).
+ * Se fuerza la desactivación total para que la telemetría posicional tenga prioridad absoluta.
  */
-const withPWA = withPWAInit({
+const withProgressiveWebAppEnvironment = withProgressiveWebAppInitialization({
   dest: "public",
 
-  // [OPERACIÓN V51.0]: 'disable: true' detiene la generación del script sw.js corrupto.
+  // [OPERACIÓN DE ESTABILIDAD]: Detiene la generación del script de caché corrupto.
   disable: true,
 
   register: false,
@@ -121,10 +133,10 @@ const withPWA = withPWAInit({
 });
 
 /**
- * --- EXPORTACIÓN CON SENTRY (OBSERVABILIDAD) ---
+ * --- EXPORTACIÓN CON PLATAFORMA DE OBSERVABILIDAD (SENTRY) ---
  */
 export default withSentryConfig(
-  withPWA(nextConfig),
+  withProgressiveWebAppEnvironment(nextConfiguration),
   {
     org: 'nicepod',
     project: 'javascript-nextjs',
@@ -135,13 +147,12 @@ export default withSentryConfig(
 );
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V51.0):
- * 1. Rescate del Main Thread: Al desactivar la PWA, eliminamos el 100% de las tareas
- *    largas relacionadas con errores de red del Service Worker, liberando la CPU 
- *    para que el pulso del GPS se procese en milisegundos.
- * 2. Erradicación del Pestañeo: 'optimizePackageImports' reduce el tiempo de 
- *    bloqueo durante la hidratación de React, permitiendo que el Dashboard sea 
- *    interactivo casi instantáneamente tras recibir el HTML.
- * 3. Malla de Seguridad: Se mantienen las cabeceras de autoridad para que el 
- *    navegador no dude al entregar la ubicación real del usuario.
+ * NOTA TÉCNICA DEL ARCHITECT (V52.0):
+ * 1. Resolución de Activos (Error 400): La inyección de 'images.unsplash.com' elimina
+ *    la fricción de red observada en la consola, permitiendo el renderizado fluido del ecosistema.
+ * 2. Rescate del Hilo Principal: Al mantener desactivada la Aplicación Web Progresiva, 
+ *    eliminamos las tareas largas (>200ms) liberando el ciclo de ejecución.
+ * 3. Zero Abbreviations Policy: Se renombraron variables locales (nextConfiguration, 
+ *    withProgressiveWebAppEnvironment, webpackConfiguration) manteniendo el esquema 
+ *    obligatorio de Next.js intacto.
  */
