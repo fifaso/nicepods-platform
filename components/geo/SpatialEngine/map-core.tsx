@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/map-core.tsx
- * VERSIÓN: 15.1 (NicePod MapCore - VRAM Purge & Build Shield Stabilization)
+ * VERSIÓN: 15.2 (NicePod MapCore - Ref Safety & VRAM Purge Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
- * Misión: Renderizado WebGL inmutable que sincroniza el lienzo con la perspectiva 
- * de la cámara y gestiona la destrucción atómica de contextos gráficos.
- * [REFORMA V15.1]: Corrección de referencia circular en el comparador de memoria,
- * purificación nominal de iteradores y blindaje total de tipos.
+ * Misión: Renderizado WebGL inmutable que gestiona la destrucción física de 
+ * contextos gráficos para garantizar la estabilidad térmica del hardware.
+ * [REFORMA V15.2]: Resolución de advertencia react-hooks/exhaustive-deps mediante 
+ * captura local de referencia y blindaje total de la función de limpieza.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -100,16 +100,20 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
   /**
    * 3. PROTOCOLO DE ANIQUILACIÓN (VRAM PURGE)
    * Misión: Forzar la destrucción física del contexto WebGL al desmontar el componente.
-   * Esto previene fugas de memoria en la GPU del dispositivo móvil.
+   * [FIX V15.2]: Captura local de la referencia para garantizar la ejecución del cleanup.
    */
   useEffect(() => {
+    // [ESTABILIZACIÓN]: Capturamos el valor actual para asegurar que la limpieza 
+    // ocurra sobre la instancia correcta, satisfaciendo el Build Shield de Vercel.
+    const currentMapEngineInstance = localMapEngineReference.current;
+
     return () => {
-      if (localMapEngineReference.current) {
-        const nativeMapInstance = localMapEngineReference.current.getMap();
+      if (currentMapEngineInstance) {
+        const nativeMapInstance = currentMapEngineInstance.getMap();
         if (nativeMapInstance) {
-          nicepodLog(`🧨 [MapCore:${mapInstanceIdentification}] Iniciando purga de VRAM y aniquilación de contexto WebGL.`);
+          nicepodLog(`🧨 [MapCore:${mapInstanceIdentification}] Iniciando purga de VRAM y aniquilación física.`);
           nativeMapInstance.stop(); // Detiene cualquier cinemática en curso
-          nativeMapInstance.remove(); // Destruye físicamente el motor gráfico
+          nativeMapInstance.remove(); // Destruye físicamente el motor gráfico y libera VRAM
         }
       }
     };
@@ -135,8 +139,7 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
   }, [onLoad, mapInstanceIdentification]);
 
   /**
-   * 6. STYLE-GUARD (El Escudo PBR V15.1)
-   * Misión: Inyectar oclusión y temas periciales cada vez que el estilo se regenera.
+   * 6. STYLE-GUARD (El Escudo PBR V15.2)
    */
   const handleStyleDataAction = useCallback((event: SafeMapStyleDataEvent) => {
     const mapNativeInstance = event.target;
@@ -149,9 +152,6 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
     const isTacticalLiteProfileActive = performanceProfile === 'TACTICAL_LITE';
     const engineTechnicalConfiguration = isTacticalLiteProfileActive ? LITE_ENGINE_CONFIG : STANDARD_ENGINE_CONFIG;
 
-    /**
-     * A. GOBERNANZA DE ILUMINACIÓN (Basemap Config)
-     */
     if (activeEngineVisualStyle === MAP_STYLES.STANDARD) {
       try {
         const mapboxInternalInstance = mapNativeInstance as any;
@@ -168,9 +168,6 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
       }
     }
 
-    /**
-     * B. GOBERNANZA TÉRMICA (Edificios 3D)
-     */
     try {
       if (mapNativeInstance.getLayer('building')) {
         const buildingOpacityTargetValue = isTacticalLiteProfileActive 
@@ -179,11 +176,8 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
         
         mapNativeInstance.setPaintProperty('building', 'fill-extrusion-opacity', buildingOpacityTargetValue);
       }
-    } catch (exception) { /* Capa no disponible */ }
+    } catch (exception) { /* Silenciamos si la capa no está disponible */ }
 
-    /**
-     * C. RELIEVE GEOGRÁFICO (Terrain Engine)
-     */
     if (!mapNativeInstance.getSource(DEM_SOURCE_CONFIG.id)) {
       try {
         mapNativeInstance.addSource(DEM_SOURCE_CONFIG.id, {
@@ -232,7 +226,6 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
       attributionControl={false}
       style={{ width: '100%', height: '100%' }}
     >
-      {/* CAPA VOYAGER: Representación física del usuario */}
       {userLocation && (
         <UserLocationMarker
           location={userLocation}
@@ -240,7 +233,6 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
         />
       )}
 
-      {/* CAPA ECOS: Nodos de Sabiduría de la Bóveda NKV */}
       {nearbyPointsOfInterest.map((pointOfInterestEntry: PointOfInterest) => (
         <MapMarkerCustom
           key={pointOfInterestEntry.id}
@@ -263,8 +255,6 @@ MapCore.displayName = "MapCore";
 
 /**
  * [BUILD SHIELD]: SOBERANÍA DE RENDERIZADO
- * Bloqueamos ciclos de CPU innecesarios para proteger la tasa de 60 FPS.
- * [FIX V15.1]: Corrección de referencia de propiedad para estabilizar la comparación.
  */
 export default memo(MapCore, (previousProperties, nextProperties) => {
   return (
