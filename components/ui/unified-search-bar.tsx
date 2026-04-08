@@ -1,11 +1,11 @@
 /**
  * ARCHIVO: components/ui/unified-search-bar.tsx
- * VERSIÓN: 6.0 (NicePod Void Search - Nominal Sovereignty Edition)
+ * VERSIÓN: 6.1 (NicePod Void Search - Ergonomic Fix Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Terminal de inmersión total optimizada para visibilidad extrema (Void Search).
- * [REFORMA V6.0]: Cumplimiento absoluto de la Zero Abbreviations Policy y 
- * blindaje de hidratación para entornos de alta densidad.
+ * [REFORMA V6.1]: Corrección quirúrgica de contrastes CSS y proporciones de iconos 
+ * en dispositivos móviles, manteniendo la integridad nominal estricta.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -178,11 +178,11 @@ export function UnifiedSearchBar({
         className="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-3xl flex flex-col selection:bg-primary/30"
       >
         {/* BARRA DE ENTRADA SUPERIOR */}
-        <div className="w-full flex items-center justify-between gap-4 p-4 md:p-8 bg-zinc-950/50 border-b border-white/5">
+        <div className="w-full flex items-center justify-between gap-3 p-4 md:p-8 bg-[#050505]/80 border-b border-white/5">
           <div className="relative flex-1 max-w-4xl mx-auto flex items-center">
             <Search className={cn(
-              "absolute left-4 h-5 w-5 transition-all z-10", 
-              isLoading ? "text-primary animate-spin" : "text-zinc-500"
+              "absolute left-4 md:left-5 h-5 w-5 transition-all z-10", 
+              isLoading ? "text-primary animate-spin" : "text-zinc-400"
             )} />
             <Input
               autoFocus
@@ -191,31 +191,34 @@ export function UnifiedSearchBar({
               onChange={(event) => setQuery(event.target.value)}
               onKeyDown={handleKeyboardNavigation}
               placeholder={placeholder}
-              className="w-full h-14 pl-12 pr-12 bg-zinc-900 border-none rounded-xl text-lg md:text-2xl font-black text-white placeholder:text-zinc-700 focus-visible:ring-1 focus-visible:ring-primary/50"
+              // [FIX V6.1]: padding-right ajustado para que el texto no pise la X
+              className="w-full h-14 md:h-16 pl-12 md:pl-14 pr-4 bg-zinc-900/50 border border-white/5 rounded-2xl text-base md:text-2xl font-black text-white placeholder:text-zinc-600 focus-visible:ring-1 focus-visible:ring-primary/40 transition-all"
             />
           </div>
+          {/* [FIX V6.1]: Botón de cierre más grande y ergonómico para móviles */}
           <Button 
             variant="ghost" 
             onClick={handleInterfaceToggle} 
-            className="h-14 w-14 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 text-white shrink-0"
+            className="p-3 md:p-4 h-auto w-auto rounded-2xl bg-white/5 border border-white/10 hover:bg-red-500/20 hover:text-red-400 text-zinc-400 shrink-0 transition-colors"
+            aria-label="Cerrar Radar"
           >
-            <X size={24} />
+            <X size={28} strokeWidth={2.5} />
           </Button>
         </div>
 
         {/* CONTENEDOR DE RESULTADOS Y MEMORIA */}
-        <div className="flex-1 w-full max-w-4xl mx-auto overflow-y-auto px-4 py-6">
+        <div className="flex-1 w-full max-w-4xl mx-auto overflow-y-auto px-4 py-6 custom-scrollbar">
           <AnimatePresence mode="wait">
             {query.length === 0 ? (
               <motion.div key="history_section" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-                <div className="flex items-center gap-2 mb-6 opacity-40">
+                <div className="flex items-center gap-2 mb-6 opacity-60">
                   <History size={14} className="text-primary" />
                   <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-white">Frecuencias Recientes</h3>
                 </div>
                 {history.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {history.map((historySearchTerm) => (
-                      <div key={historySearchTerm} className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/5 hover:border-primary/20 transition-all group">
+                      <div key={historySearchTerm} className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/5 hover:border-primary/30 transition-all group">
                         <button 
                           onClick={() => { setQuery(historySearchTerm); performSearch(historySearchTerm); }} 
                           className="flex-1 text-left font-bold text-sm text-zinc-400 group-hover:text-white transition-colors"
@@ -224,15 +227,18 @@ export function UnifiedSearchBar({
                         </button>
                         <button 
                           onClick={() => removeTermFromHistory(historySearchTerm)} 
-                          className="p-2 text-zinc-700 hover:text-red-500 rounded-lg"
+                          className="p-2 text-zinc-600 hover:text-red-500 rounded-lg transition-colors"
+                          title="Eliminar del registro"
                         >
-                          <X size={14} />
+                          <X size={16} />
                         </button>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-[10px] text-zinc-600 font-black uppercase tracking-widest p-4">Sector de memoria vacío.</p>
+                  <p className="text-[10px] text-zinc-600 font-black uppercase tracking-widest p-4 italic">
+                    Sector de memoria vacío.
+                  </p>
                 )}
               </motion.div>
             ) : (
@@ -246,8 +252,8 @@ export function UnifiedSearchBar({
                     />
                   ))
                 ) : results !== null && !isLoading && (
-                  <div className="flex flex-col items-center justify-center py-24 opacity-20 text-white">
-                    <Zap size={48} className="mb-4 animate-pulse" />
+                  <div className="flex flex-col items-center justify-center py-24 opacity-30 text-white">
+                    <Zap size={48} className="mb-4 animate-pulse text-primary" />
                     <p className="text-sm font-black uppercase tracking-[0.5em]">Sin Resonancia</p>
                   </div>
                 )}
@@ -265,12 +271,14 @@ export function UnifiedSearchBar({
       {!isSearchInterfaceOpen && (
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
           {variant === 'console' ? (
+            /* [FIX V6.1]: Ajuste de contraste para el botón en modo 'console' */
             <Button
               onClick={() => setIsSearchInterfaceOpen(true)}
               variant="outline"
-              className="h-12 w-12 md:h-14 md:w-14 rounded-2xl bg-zinc-950/60 backdrop-blur-xl border border-white/10 hover:bg-primary/20 shadow-[0_10px_30px_rgba(0,0,0,0.5)] group active:scale-95 transition-all"
+              className="h-12 w-12 md:h-14 md:w-14 rounded-2xl bg-[#080808]/80 backdrop-blur-2xl border border-white/10 shadow-[0_10px_40px_rgba(0,0,0,0.8)] group active:scale-95 transition-all hover:bg-white/10 hover:border-primary/50"
+              aria-label="Abrir radar semántico"
             >
-              <Search className="h-5 w-5 md:h-6 md:w-6 text-primary group-hover:scale-110 transition-transform" />
+              <Search className="h-5 w-5 md:h-6 md:w-6 text-primary group-hover:scale-110 transition-transform drop-shadow-[0_0_8px_rgba(var(--primary-rgb),0.8)]" />
             </Button>
           ) : (
             <div
@@ -299,7 +307,6 @@ function SearchResultItem({
   onSelectionAction: () => void 
 }) {
   
-  // Determinamos el destino de navegación utilizando nombres descriptivos para los parámetros de geolocalización.
   const navigationTarget =
     searchMatchResult.result_type === 'podcast' ? `/podcast/${searchMatchResult.id}` : 
     searchMatchResult.result_type === 'user' ? `/profile/${searchMatchResult.subtitle.replace('@', '')}` :
@@ -338,13 +345,3 @@ function SearchResultItem({
     </Link>
   );
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT (V6.0):
- * 1. Zero Abbreviations Policy: Se han erradicado términos cortos como 'isOpen', 'id', 'hit' y 'e', 
- *    asegurando que la semántica del código sea profesional y autodescriptiva.
- * 2. Navigation Integrity: Los parámetros de la URL para lugares han sido expandidos de 'lat/lng' 
- *    a 'latitude/longitude' para mantener la coherencia con el resto del sistema.
- * 3. Tactical UI: Se mantiene el portal de búsqueda como una capa de aislamiento táctico, 
- *    garantizando que la experiencia de usuario no sufra interferencias del layout base.
- */
