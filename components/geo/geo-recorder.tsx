@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: components/geo/geo-recorder.tsx
- * VERSIÓN: 4.0 (NicePod Sovereign Acoustic Emitter - Track Killer Edition)
+ * VERSIÓN: 4.1 (NicePod Sovereign Acoustic Emitter - Consolidated Integrity Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Proveer una interfaz de hardware puro para la captura acústica del Voyager,
- * garantizando el apagado atómico del micrófono para preservar la batería y la privacidad.
- * [REFORMA V4.0]: Implementación del 'Track Killer Protocol' para aniquilar el MediaStream, 
- * purga absoluta de memoria VRAM/RAM y cumplimiento estricto del Dogma Nominal.
+ * garantizando higiene térmica, aniquilación de procesos huérfanos y privacidad.
+ * [REFORMA V4.1]: Blindaje del ciclo de vida para aniquilar intervalos y pistas 
+ * de audio durante el desmontaje abrupto del componente.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -31,10 +31,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * INTERFAZ SOBERANA: GeoRecorderProperties
  */
 export interface GeoRecorderProperties {
+  /** mode: Define la lógica operativa (Dictado rápido o Crónica narrativa). */
   mode: 'DICTATION' | 'CHRONICLE';
+  /** narrativeScriptContent: El texto sugerido por el Oráculo para el peritaje. */
   narrativeScriptContent?: string;
+  /** isExternalProcessActive: Flag que indica tareas de red o IA en curso. */
   isExternalProcessActive: boolean;
-  onCaptureCompletionAction: (capturedAudioBlob: Blob, recordingDurationSeconds: number) => Promise<void>;
+  /** onCaptureCompletionAction: Callback que emite el binario final al orquestador. */
+  onCaptureCompletionAction: (capturedAudioBinaryBlob: Blob, recordingDurationSeconds: number) => Promise<void>;
 }
 
 /**
@@ -60,7 +64,7 @@ export function GeoRecorder({
 
   // --- II. REFERENCIAS DE MEMORIA Y HARDWARE (MutableRef) ---
   const mediaRecorderReference = useRef<MediaRecorder | null>(null);
-  const activeAudioStreamReference = useRef<MediaStream | null>(null); // [NUEVO]: Track Killer Ref
+  const activeAudioStreamReference = useRef<MediaStream | null>(null); 
   const audioChunksCollectionReference = useRef<Blob[]>([]);
   const timerIntervalReference = useRef<NodeJS.Timeout | null>(null);
   const audioPlayerReference = useRef<HTMLAudioElement | null>(null);
@@ -72,7 +76,7 @@ export function GeoRecorder({
   const cleanupAcousticMemory = useCallback(() => {
     if (audioPlayerReference.current) {
       audioPlayerReference.current.pause();
-      audioPlayerReference.current.removeAttribute('src'); // Forzamos la liberación del buffer
+      audioPlayerReference.current.removeAttribute('src'); 
       audioPlayerReference.current.load();
     }
     
@@ -84,29 +88,37 @@ export function GeoRecorder({
 
   /**
    * terminateActiveAudioTracks (The Track Killer):
-   * Misión: Asesinar físicamente las pistas de audio para apagar la luz del micrófono en el SO.
+   * Misión: Asesinar físicamente las pistas para apagar el indicador de grabación del SO.
    */
   const terminateActiveAudioTracks = useCallback(() => {
     if (activeAudioStreamReference.current) {
-      activeAudioStreamReference.current.getTracks().forEach(audioTrack => {
+      activeAudioStreamReference.current.getTracks().forEach((audioTrack) => {
         audioTrack.stop();
       });
       activeAudioStreamReference.current = null;
-      nicepodLog(`🔇 [GeoRecorder:${mode}] Pistas de hardware aniquiladas.`);
+      nicepodLog(`🔇 [GeoRecorder:${mode}] Pistas de hardware aniquiladas físicamente.`);
     }
   }, [mode]);
 
+  /**
+   * EFECTO: HARDWARE_LIFECYCLE_SENTINEL
+   * Misión: Garantizar que ningún proceso sensorial sobreviva al cierre del componente.
+   */
   useEffect(() => {
-    // Purga física de memoria y hardware al desmontar el componente.
     return () => {
+      nicepodLog(`🧹 [GeoRecorder:${mode}] Ejecutando protocolo de limpieza atómica.`);
       terminateActiveAudioTracks();
       cleanupAcousticMemory();
+      
+      if (timerIntervalReference.current) {
+        clearInterval(timerIntervalReference.current);
+      }
     };
-  }, [cleanupAcousticMemory, terminateActiveAudioTracks]);
+  }, [cleanupAcousticMemory, terminateActiveAudioTracks, mode]);
 
   /**
-   * requestMicrophoneAuthority:
-   * Misión: Solicitar el permiso de uso del bus de audio al navegador.
+   * requestMicrophoneHardwareAuthority:
+   * Misión: Validar la disponibilidad del bus de audio.
    */
   useEffect(() => {
     async function requestMicrophoneHardwarePermission() {
@@ -115,11 +127,11 @@ export function GeoRecorder({
       try {
         const audioHardwareStream = await navigator.mediaDevices.getUserMedia({ audio: true });
         setHasMicrophoneHardwarePermission(true);
-        // Liberamos el stream inmediatamente tras verificar el permiso.
-        audioHardwareStream.getTracks().forEach(audioTrack => audioTrack.stop());
+        // Liberación inmediata tras validación.
+        audioHardwareStream.getTracks().forEach((audioTrack) => audioTrack.stop());
         nicepodLog(`🎙️ [GeoRecorder:${mode}] Autoridad acústica concedida.`);
-      } catch (exception) {
-        nicepodLog(`🛑 [GeoRecorder:${mode}] Hardware bloqueado por política de seguridad.`, exception, 'error');
+      } catch (hardwareException) {
+        nicepodLog(`🛑 [GeoRecorder:${mode}] Hardware interceptado por política de seguridad.`, hardwareException, 'error');
         toast({
           title: "Acceso Interceptado",
           description: "Habilite el micrófono para registrar su peritaje en la Malla.",
@@ -132,17 +144,16 @@ export function GeoRecorder({
 
   /**
    * executeIgnitionOfRecording:
-   * Misión: Iniciar la captura de audio abriendo un stream persistente.
+   * Misión: Abrir el flujo de captura en formato de alta fidelidad (WebM).
    */
   const executeIgnitionOfRecording = async () => {
     if (!hasMicrophoneHardwarePermission) return;
 
     try {
       const audioHardwareStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      activeAudioStreamReference.current = audioHardwareStream; // Guardamos la referencia para el Killer
+      activeAudioStreamReference.current = audioHardwareStream;
 
       const mediaRecorderInstance = new MediaRecorder(audioHardwareStream, { mimeType: 'audio/webm' });
-
       mediaRecorderReference.current = mediaRecorderInstance;
       audioChunksCollectionReference.current = [];
 
@@ -159,7 +170,7 @@ export function GeoRecorder({
         setCapturedAudioBinaryBlob(finalAudioBinaryBlob);
         setCapturedAudioUniformResourceLocator(generatedUniformResourceLocator);
         
-        // Apagado físico atómico (Track Killer)
+        // Protocolo Track Killer post-captura
         terminateActiveAudioTracks(); 
       };
 
@@ -168,19 +179,19 @@ export function GeoRecorder({
       setRecordingDurationSeconds(0);
 
       timerIntervalReference.current = setInterval(() => {
-        setRecordingDurationSeconds(previousDurationValue => previousDurationValue + 1);
+        setRecordingDurationSeconds((previousDurationValue) => previousDurationValue + 1);
       }, 1000);
 
       nicepodLog(`⏺️ [GeoRecorder:${mode}] Captura acústica en progreso.`);
-    } catch (exception) {
-      nicepodLog(`🔥 [GeoRecorder:${mode}] Fallo crítico en la ignición.`, exception, 'error');
+    } catch (hardwareException) {
+      nicepodLog(`🔥 [GeoRecorder:${mode}] Fallo crítico en la ignición.`, hardwareException, 'error');
       toast({ title: "Fallo de Hardware", description: "El dispositivo no respondió al comando.", variant: "destructive" });
     }
   };
 
   /**
    * executeCeaseOfRecording:
-   * Misión: Detener la grabación y liberar el reloj del sistema.
+   * Misión: Detener la captura y liberar el reloj de telemetría.
    */
   const executeCeaseOfRecording = () => {
     if (mediaRecorderReference.current && isRecordingProcessActive) {
@@ -195,7 +206,7 @@ export function GeoRecorder({
 
   /**
    * handleIntellectualEmissionAction:
-   * Misión: Emitir el binario capturado hacia el componente orquestador.
+   * Misión: Traspasar el binario consolidado al orquestador superior.
    */
   const handleIntellectualEmissionAction = async () => {
     if (!capturedAudioBinaryBlob) return;
@@ -205,56 +216,56 @@ export function GeoRecorder({
 
   /**
    * formatChronometryDisplay:
-   * Utilidad de formato para cronometría industrial.
+   * Misión: Formatear la magnitud temporal para visualización industrial.
    */
-  const formatChronometryDisplay = (totalSecondsCount: number) => {
-    const calculatedMinutes = Math.floor(totalSecondsCount / 60);
-    const calculatedSeconds = totalSecondsCount % 60;
+  const formatChronometryDisplay = (totalSecondsMagnitude: number) => {
+    const calculatedMinutes = Math.floor(totalSecondsMagnitude / 60);
+    const calculatedSeconds = totalSecondsMagnitude % 60;
     return `${calculatedMinutes}:${calculatedSeconds.toString().padStart(2, '0')}`;
   };
 
   return (
     <div className="flex flex-col gap-5 w-full h-full min-h-0">
 
-      {/* I. CHASIS DE CONTEXTO COGNITIVO */}
+      {/* I. CHASSIS DE CONTEXTO COGNITIVO */}
       {mode === 'CHRONICLE' ? (
         <div className="flex-1 bg-black/60 border border-white/5 rounded-2xl p-5 overflow-y-auto custom-scrollbar shadow-2xl backdrop-blur-xl">
           <h4 className="text-[9px] font-black uppercase tracking-[0.3em] text-zinc-500 mb-3 sticky top-0 bg-transparent py-1">
             Narrativa de Inteligencia
           </h4>
-          <p className="text-xl font-medium leading-relaxed text-zinc-100 whitespace-pre-wrap font-serif antialiased">
-            {narrativeScriptContent || "Error de sincronía: No se recibió narrativa del Oráculo."}
+          <p className="text-xl font-medium leading-relaxed text-zinc-100 whitespace-pre-wrap font-serif antialiased selection:bg-primary/30">
+            {narrativeScriptContent || "Sincronizando flujo del Oráculo..."}
           </p>
         </div>
       ) : (
         <div className="flex-1 flex flex-col items-center justify-center bg-white/[0.01] border border-white/5 rounded-[2.5rem] p-8 shadow-inner">
           <BrainCircuit className={cn(
             "h-16 w-16 transition-all duration-1000",
-            isRecordingProcessActive ? "text-red-500 animate-pulse" : "text-zinc-700"
+            isRecordingProcessActive ? "text-red-500 animate-pulse scale-110" : "text-zinc-700"
           )} />
           <h3 className="text-white font-black uppercase tracking-[0.4em] text-[10px] mt-8 mb-2">
             Dictado Sensorial Activo
           </h3>
           <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest text-center leading-relaxed px-6">
-            Hable con claridad. Su intención será transmutada en metadatos para la Bóveda.
+            Sintonice su intención. La voz será transmutada en capital intelectual.
           </p>
         </div>
       )}
 
-      {/* II. CHASIS DE COMANDO TÁCTICO */}
-      <div className="bg-white/[0.02] border-t border-white/5 -mx-6 -mb-6 p-6 mt-auto backdrop-blur-3xl">
+      {/* II. CHASSIS DE COMANDO TÁCTICO */}
+      <div className="bg-[#050505] border-t border-white/5 -mx-6 -mb-6 p-6 mt-auto backdrop-blur-3xl shadow-[0_-20px_50px_rgba(0,0,0,0.5)]">
 
         {/* Telemetría Acústica */}
         <div className="flex justify-between items-center mb-6 px-1">
           <div className="flex items-center gap-3">
-            {isRecordingProcessActive && <div className="w-2 h-2 rounded-full bg-red-500 animate-ping shadow-[0_0_10px_rgba(239,68,68,0.4)]" />}
-            <span className={cn("font-mono text-2xl font-black tracking-tighter", isRecordingProcessActive ? "text-red-400" : "text-zinc-600")}>
+            {isRecordingProcessActive && <div className="w-2 h-2 rounded-full bg-red-500 animate-ping" />}
+            <span className={cn("font-mono text-2xl font-black tracking-tighter tabular-nums", isRecordingProcessActive ? "text-red-400" : "text-zinc-600")}>
               {formatChronometryDisplay(recordingDurationSeconds)}
             </span>
           </div>
           {capturedAudioBinaryBlob && !isRecordingProcessActive && (
-            <div className="bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
-              <span className="text-[8px] text-emerald-400 flex items-center gap-1.5 font-black uppercase tracking-[0.2em]">
+            <div className="bg-emerald-500/10 px-4 py-1.5 rounded-full border border-emerald-500/20 shadow-inner">
+              <span className="text-[8px] text-emerald-400 flex items-center gap-2 font-black uppercase tracking-[0.2em]">
                 <CheckCircle2 className="h-3 w-3" /> Evidencia Consolidada
               </span>
             </div>
@@ -275,7 +286,7 @@ export function GeoRecorder({
               <Button
                 onClick={executeIgnitionOfRecording}
                 disabled={!hasMicrophoneHardwarePermission || isExternalProcessActive}
-                className="flex-1 bg-white text-black hover:bg-zinc-200 rounded-2xl font-black text-[11px] tracking-[0.2em] shadow-xl uppercase"
+                className="flex-1 bg-white text-black hover:bg-zinc-200 rounded-2xl font-black text-[11px] tracking-[0.2em] shadow-xl uppercase transition-all"
               >
                 <Mic className="mr-3 h-5 w-5" /> 
                 {mode === 'CHRONICLE' ? "Iniciar Crónica" : "Capturar Dictado"}
@@ -300,7 +311,7 @@ export function GeoRecorder({
               {/* Acción: Auditoría Acústica (Playback) */}
               <Button
                 disabled={isExternalProcessActive}
-                className="flex-1 flex gap-3 items-center justify-center bg-white/[0.03] hover:bg-white/[0.08] text-white rounded-2xl border border-white/5"
+                className="flex-1 flex gap-3 items-center justify-center bg-white/[0.03] hover:bg-white/[0.08] text-white rounded-2xl border border-white/5 transition-all"
                 onClick={() => {
                   if (audioPlayerReference.current) {
                     if (isPlaybackProcessActive) { 
@@ -321,13 +332,13 @@ export function GeoRecorder({
               <Button
                 onClick={handleIntellectualEmissionAction}
                 disabled={isExternalProcessActive}
-                className="flex-1 bg-primary text-primary-foreground font-black text-[9px] tracking-[0.3em] rounded-2xl shadow-2xl shadow-primary/20 hover:opacity-90 uppercase group"
+                className="flex-1 bg-primary text-primary-foreground font-black text-[9px] tracking-[0.3em] rounded-2xl shadow-2xl shadow-primary/20 hover:scale-[1.02] active:scale-95 uppercase group transition-all"
               >
                 {isExternalProcessActive ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
                   <div className="flex items-center gap-2.5">
-                    <UploadCloud className="h-5 w-5 group-hover:-translate-y-0.5 transition-transform" /> 
+                    <UploadCloud className="h-5 w-5 group-hover:-translate-y-1 transition-transform" /> 
                     <span>{mode === 'CHRONICLE' ? "PUBLICAR" : "PROCESAR"}</span>
                   </div>
                 )}
@@ -351,12 +362,10 @@ export function GeoRecorder({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V4.0):
- * 1. Track Killer Protocol: La implementación de 'terminateActiveAudioTracks' asegura 
- *    que el hardware del micrófono se libere atómicamente, eliminando la luz roja del SO 
- *    y previniendo el drenaje de batería.
- * 2. VRAM Hygiene: Se forzó la liberación del buffer del elemento <audio> ('removeAttribute') 
- *    antes de revocar la URL del objeto, resolviendo el memory leak en Safari.
- * 3. Zero Abbreviations Policy: Erradicación absoluta de términos ambiguos ('script', 
- *    'isProcessingExternal', 'audioBlob').
+ * NOTA TÉCNICA DEL ARCHITECT (V4.1):
+ * 1. Clock Integrity Seal: Se inyectó la limpieza de 'timerIntervalReference' en el bloque 
+ *    de desmontaje, evitando que el reloj de grabación siga consumiendo CPU tras el cierre.
+ * 2. Absolute Privacy: El 'Track Killer Protocol' se ejecuta ahora tanto al detener la 
+ *    grabación como al destruir el componente, garantizando el apagado del hardware.
+ * 3. Zero Abbreviations: Purificación nominal total en argumentos y variables de captura.
  */
