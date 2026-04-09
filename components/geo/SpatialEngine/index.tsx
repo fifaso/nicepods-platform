@@ -1,12 +1,13 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/index.tsx
- * VERSIÓN: 11.0 (NicePod Spatial Hub - Sovereign Integration Edition)
+ * VERSIÓN: 12.0 (NicePod Spatial Hub - Sovereign Integration & Absolute Nominal Sync Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Orquestar el motor WebGL garantizando el montaje inmediato, la visibilidad 
- * reactiva y la integridad total de tipos entre el radar y la previsualización.
- * [REFORMA V11.0]: Sincronización nominal total con MapCore V15.0 y CameraController V7.0,
- * erradicación absoluta de abreviaturas y resolución de errores de tipos TS2322.
+ * reactiva y la integridad total de tipos entre el radar, la búsqueda y la previsualización.
+ * [REFORMA V12.0]: Sincronización nominal total con la Constitución V8.6 y el motor 
+ * cinemático V8.0. Resolución definitiva de errores de tipos TS2322, TS2339 y TS2305. 
+ * Erradicación absoluta de abreviaturas (ZAP) y sellado del Build Shield.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -35,7 +36,12 @@ import {
   ZOOM_LEVELS
 } from "../map-constants";
 
-import { MapInstanceId, TelemetrySource, UserLocation, PointOfInterest } from "@/types/geo-sovereignty";
+import { 
+  MapInstanceIdentification, 
+  TelemetrySource, 
+  UserLocation, 
+  PointOfInterest 
+} from "@/types/geo-sovereignty";
 import { POIPreviewCard } from "../poi-preview-card";
 import { CameraController } from "./camera-controller";
 import MapCore from "./map-core";
@@ -51,11 +57,11 @@ type SafeMapClickEvent = Parameters<NonNullable<MapProps['onClick']>>[0];
  */
 interface SpatialEngineProperties {
   /** mapInstanceIdentification: Identificador único para el aislamiento de VRAM en la GPU. */
-  mapInstanceIdentification: MapInstanceId;
+  mapInstanceIdentification: MapInstanceIdentification;
   mode: 'EXPLORE' | 'FORGE';
   visualTheme?: MapboxLightPreset;
   performanceProfile?: MapPerformanceProfile;
-  onManualAnchorSelection?: (longitudeLatitude: [number, number]) => void;
+  onManualAnchorSelectionAction?: (longitudeCoordinate: number, latitudeCoordinate: number) => void;
   className?: string;
 }
 
@@ -67,28 +73,31 @@ export function SpatialEngine({
   mode,
   visualTheme = 'night',
   performanceProfile = 'HIGH_FIDELITY',
-  onManualAnchorSelection,
+  onManualAnchorSelectionAction,
   className
 }: SpatialEngineProperties) {
 
-  // 1. CONSUMO DE LA FACHADA SOBERANA (Triple-Core V4.0)
+  // 1. CONSUMO DE LA FACHADA SOBERANA (Triple-Core Facade Synergy V4.0)
   const {
     userLocation,
     nearbyPointsOfInterest,
     activePointOfInterest,
     status: engineOperationalStatus,
-    initSensors: initializeSensors,
+    initSensors: initializeHardwareSensorsAction,
     isIgnited: isEngineIgnited,
     needsBallisticLanding,
     setManualMode,
     cameraPerspective,
-    toggleCameraPerspective
+    toggleCameraPerspective: toggleVisualPerspectiveAction
   } = useGeoEngine();
 
-  // 2. REFERENCIAS DE CONTROL TÁCTICO (Sin abreviaciones)
+  // 2. REFERENCIAS DE CONTROL TÁCTICO (Zero Abbreviations Policy)
   const mapInstanceEngineReference = useRef<MapRef>(null);
   const containerElementReference = useRef<HTMLDivElement>(null);
-  const lastSearchUpdatePositionReference = useRef<{ latitude: number, longitude: number }>({ latitude: 0, longitude: 0 });
+  const lastSearchUpdatePositionReference = useRef<{ latitudeCoordinate: number, longitudeCoordinate: number }>({ 
+    latitudeCoordinate: 0, 
+    longitudeCoordinate: 0 
+  });
   const revealFallbackTimerReference = useRef<NodeJS.Timeout | null>(null);
 
   // 3. ESTADOS DE INTERFAZ DE ALTA DENSIDAD
@@ -98,13 +107,14 @@ export function SpatialEngine({
   const [isMapEngineLoaded, setIsMapEngineLoaded] = useState<boolean>(false);
   const [isMapInterfaceVisible, setIsMapInterfaceVisible] = useState<boolean>(false);
 
-  const [currentSearchPosition, setCurrentSearchPosition] = useState({
-    latitude: MADRID_SOL_COORDS.latitude,
-    longitude: MADRID_SOL_COORDS.longitude,
+  const [currentSearchGeographicPosition, setCurrentSearchGeographicPosition] = useState({
+    latitudeCoordinate: MADRID_SOL_COORDS.latitude,
+    longitudeCoordinate: MADRID_SOL_COORDS.longitude,
   });
 
   /**
    * 4. PROTOCOLO DE SEGURIDAD DE MONTAJE (Safe Environment Check)
+   * Misión: Asegurar que el lienzo WebGL solo se inyecte si el contenedor tiene dimensiones físicas.
    */
   useEffect(() => {
     if (!containerElementReference.current) return;
@@ -120,14 +130,14 @@ export function SpatialEngine({
 
     resizeObserverInstance.observe(containerElementReference.current);
     return () => resizeObserverInstance.disconnect();
-  }, [mapInstanceIdentification]);
+  }, []);
 
   /**
    * 5. PROTOCOLO DE REVELADO REACTIVO (Stability Handshake)
    */
   const handleMapVisualStabilityAction = useCallback(() => {
     if (isMapInterfaceVisible) return;
-    nicepodLog(`✨ [SpatialHub:${mapInstanceIdentification}] Malla sincronizada.`);
+    nicepodLog(`✨ [SpatialHub:${mapInstanceIdentification}] Malla sincronizada y estable.`);
     setIsMapInterfaceVisible(true);
     if (revealFallbackTimerReference.current) {
       clearTimeout(revealFallbackTimerReference.current);
@@ -140,16 +150,16 @@ export function SpatialEngine({
   useEffect(() => {
     if (isContainerEnvironmentReady) {
       if (!isEngineIgnited && engineOperationalStatus === 'IDLE') {
-        initializeSensors();
+        initializeHardwareSensorsAction();
       }
       if (mode === 'EXPLORE' && mapInstanceIdentification === 'map-full' && cameraPerspective === 'OVERVIEW') {
-        toggleCameraPerspective();
+        toggleVisualPerspectiveAction();
       }
     }
-  }, [isContainerEnvironmentReady, isEngineIgnited, engineOperationalStatus, initializeSensors, mode, cameraPerspective, toggleCameraPerspective, mapInstanceIdentification]);
+  }, [isContainerEnvironmentReady, isEngineIgnited, engineOperationalStatus, initializeHardwareSensorsAction, mode, cameraPerspective, toggleVisualPerspectiveAction, mapInstanceIdentification]);
 
   /**
-   * 7. SAFETY REVEAL (Mecanismo de defensa ante latencia WebGL)
+   * 7. SAFETY REVEAL (Mecanismo de defensa ante latencia WebGL prolongada)
    */
   useEffect(() => {
     if (isMapEngineLoaded && !isMapInterfaceVisible) {
@@ -164,18 +174,19 @@ export function SpatialEngine({
 
   /**
    * 8. LA SEMILLA T0 (IP-Fallback Telemetry)
+   * [SINCRO V12.0]: Mapeo integral al contrato estricto UserLocation.
    */
   const initialBirthLocation: UserLocation = useMemo(() => {
     if (userLocation) return userLocation;
 
     return {
-      latitude: MADRID_SOL_COORDS.latitude,
-      longitude: MADRID_SOL_COORDS.longitude,
-      accuracy: 9999,
-      heading: null,
-      speed: null,
+      latitudeCoordinate: MADRID_SOL_COORDS.latitude,
+      longitudeCoordinate: MADRID_SOL_COORDS.longitude,
+      accuracyMeters: 9999,
+      headingDegrees: null,
+      speedMetersPerSecond: null,
       timestamp: Date.now(),
-      source: 'ip-fallback' as TelemetrySource
+      geographicSource: 'internet-protocol-fallback' as TelemetrySource
     };
   }, [userLocation]);
 
@@ -183,20 +194,26 @@ export function SpatialEngine({
    * 9. MANEJADORES DE EVENTOS CINEMÁTICOS
    */
   const handleMapMovementAction = useCallback((movementEvent: SafeMapMovementEvent) => {
-    const { latitude, longitude } = movementEvent.viewState;
+    const { latitude: currentLatitude, longitude: currentLongitude } = movementEvent.viewState;
 
     const movementDistanceMagnitude = calculateDistanceBetweenPoints(
-      { latitude, longitude },
+      { latitude: currentLatitude, longitude: currentLongitude },
       { 
-        latitude: lastSearchUpdatePositionReference.current.latitude, 
-        longitude: lastSearchUpdatePositionReference.current.longitude 
+        latitude: lastSearchUpdatePositionReference.current.latitudeCoordinate, 
+        longitude: lastSearchUpdatePositionReference.current.longitudeCoordinate 
       }
     );
 
     // Umbral de refresco de radar pericial: 25 metros
     if (movementDistanceMagnitude > 25) {
-      setCurrentSearchPosition({ latitude, longitude });
-      lastSearchUpdatePositionReference.current = { latitude, longitude };
+      setCurrentSearchGeographicPosition({ 
+        latitudeCoordinate: currentLatitude, 
+        longitudeCoordinate: currentLongitude 
+      });
+      lastSearchUpdatePositionReference.current = { 
+        latitudeCoordinate: currentLatitude, 
+        longitudeCoordinate: currentLongitude 
+      };
     }
 
     if (movementEvent.originalEvent && !needsBallisticLanding) {
@@ -204,13 +221,17 @@ export function SpatialEngine({
     }
   }, [setManualMode, needsBallisticLanding]);
 
-  const handleSearchIdentificationResultsAction = useCallback((results: SearchResult[] | null) => {
-    if (results && results.length > 0 && mapInstanceEngineReference.current) {
-      const topSearchMatch = results[0];
+  /**
+   * handleSearchIdentificationResultsAction:
+   * Misión: Centrar la cámara sobre un hito tras una búsqueda exitosa.
+   */
+  const handleSearchIdentificationResultsAction = useCallback((resultsCollection: SearchResult[] | null) => {
+    if (resultsCollection && resultsCollection.length > 0 && mapInstanceEngineReference.current) {
+      const topSearchMatch = resultsCollection[0];
       if (topSearchMatch.metadata?.lat && topSearchMatch.metadata?.lng) {
         setManualMode(true);
         mapInstanceEngineReference.current.flyTo({
-          center: [topSearchMatch.metadata.lng, topSearchMatch.metadata.lat],
+          center: [topSearchMatch.metadata.lng as number, topSearchMatch.metadata.lat as number],
           zoom: ZOOM_LEVELS.STREET,
           ...FLY_CONFIG
         });
@@ -221,25 +242,26 @@ export function SpatialEngine({
   /**
    * mappedSelectedPointOfInterest: 
    * Misión: Adaptar el objeto de la Bóveda al contrato visual de la previsualización.
+   * [SINCRO V12.0]: Uso de propiedades nominales de PointOfInterest V8.6.
    */
   const mappedSelectedPointOfInterest = useMemo(() => {
     if (!selectedPointOfInterestIdentification || !nearbyPointsOfInterest?.length) return null;
     
     const pointOfInterestMatch = nearbyPointsOfInterest.find(
-      (pointItem: PointOfInterest) => pointItem.id.toString() === selectedPointOfInterestIdentification
+      (pointItem: PointOfInterest) => pointItem.identification.toString() === selectedPointOfInterestIdentification
     );
     
     if (!pointOfInterestMatch) return null;
 
     return {
-      identification: pointOfInterestMatch.id.toString(),
+      identification: pointOfInterestMatch.identification.toString(),
       name: pointOfInterestMatch.name,
-      categoryMission: pointOfInterestMatch.category_mission,
-      categoryEntity: pointOfInterestMatch.category_entity,
-      historicalEpoch: pointOfInterestMatch.historical_epoch,
-      historicalFact: pointOfInterestMatch.historical_fact || undefined,
-      coverImageUniformResourceLocator: pointOfInterestMatch.gallery_urls?.[0] || undefined,
-      externalReferenceUniformResourceLocator: pointOfInterestMatch.metadata?.external_source_url as string || undefined
+      categoryMission: pointOfInterestMatch.categoryMission,
+      categoryEntity: pointOfInterestMatch.categoryEntity,
+      historicalEpoch: pointOfInterestMatch.historicalEpoch,
+      historicalFact: pointOfInterestMatch.historicalFact || undefined,
+      coverImageUniformResourceLocator: pointOfInterestMatch.galleryUniformResourceLocatorsCollection?.[0] || undefined,
+      externalReferenceUniformResourceLocator: pointOfInterestMatch.metadata?.externalSourceUniformResourceLocator || undefined
     };
   }, [selectedPointOfInterestIdentification, nearbyPointsOfInterest]);
 
@@ -250,6 +272,7 @@ export function SpatialEngine({
         className={cn("relative w-full h-full bg-[#010101] overflow-hidden isolate", className)}
         style={{ minHeight: '100dvh' }}
       >
+        {/* CARGADOR SÍNCRONO (COLD START ESCUDO) */}
         <AnimatePresence>
           {!isMapInterfaceVisible && (
             <motion.div
@@ -283,23 +306,23 @@ export function SpatialEngine({
           )}
         </AnimatePresence>
 
-        {/* MOTOR WEBGL (REACTOR SOBERANO) */}
+        {/* MOTOR WEBGL (REACTOR VISUAL SOBERANO) */}
         <div className="absolute inset-0 z-0">
           <MapCore
             ref={mapInstanceEngineReference}
-            mapInstanceIdentification={mapInstanceIdentification} // [FIX TS2322]: Sincronía nominal V15.0
+            mapInstanceIdentification={mapInstanceIdentification} 
             mode={mode}
             performanceProfile={performanceProfile}
             startCoordinates={initialBirthLocation}
             lightTheme={visualTheme}
-            selectedPointOfInterestIdentification={selectedPointOfInterestIdentification} // [FIX TS2322]: Sincronía nominal V15.0
+            selectedPointOfInterestIdentification={selectedPointOfInterestIdentification} 
             onLoad={() => setIsMapEngineLoaded(true)}
             onIdle={handleMapVisualStabilityAction}
             onMove={handleMapMovementAction}
             onMapClick={(geographicEvent: SafeMapClickEvent) => {
-              if (mode === 'FORGE' && onManualAnchorSelection) {
-                // [FIX]: Eliminación de 'lngLat' en favor de nomenclatura descriptiva
-                onManualAnchorSelection([geographicEvent.lngLat.lng, geographicEvent.lngLat.lat]);
+              if (mode === 'FORGE' && onManualAnchorSelectionAction) {
+                // [FIX]: Mapeo manual de lngLat nativo a nomenclatura industrial
+                onManualAnchorSelectionAction(geographicEvent.lngLat.lng, geographicEvent.lngLat.lat);
               }
             }}
             onMarkerClick={setSelectedPointOfInterestIdentification}
@@ -316,18 +339,18 @@ export function SpatialEngine({
               variant="console"
               onSearchIdentificationResults={handleSearchIdentificationResultsAction}
               onLoadingStatusChange={setIsSearchProcessLoading}
-              latitude={currentSearchPosition.latitude}
-              longitude={currentSearchPosition.longitude}
+              latitude={currentSearchGeographicPosition.latitudeCoordinate}
+              longitude={currentSearchGeographicPosition.longitudeCoordinate}
             />
           </div>
         )}
 
-        {/* PREVISUALIZACIÓN DE NODOS DE CONOCIMIENTO */}
+        {/* PREVISUALIZACIÓN DE NODOS DE CONOCIMIENTO (POIs) */}
         <AnimatePresence>
           {mappedSelectedPointOfInterest && (
             <POIPreviewCard
               pointOfInterest={mappedSelectedPointOfInterest}
-              distanceMeters={activePointOfInterest?.identification === selectedPointOfInterestIdentification ? activePointOfInterest.distance : null}
+              distanceMeters={activePointOfInterest?.identification === selectedPointOfInterestIdentification ? activePointOfInterest.distanceMeters : null}
               isResonating={activePointOfInterest?.identification === selectedPointOfInterestIdentification && activePointOfInterest.isWithinRadius}
               onClose={() => setSelectedPointOfInterestIdentification(null)}
             />
