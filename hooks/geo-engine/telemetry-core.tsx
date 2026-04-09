@@ -1,14 +1,14 @@
 /**
  * ARCHIVO: hooks/geo-engine/telemetry-core.tsx
- * VERSIÓN: 3.0 (NicePod Sovereign Telemetry - Final Nominal Sync Edition)
+ * VERSIÓN: 3.2 (NicePod Sovereign Telemetry - Hardware Handshake & Type Safety Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Gestionar la ubicación física del Voyager purificando la telemetría, 
  * garantizando la integridad del contrato de datos inicial y aplicando 
  * el protocolo de Aislamiento Térmico (Hibernación de Hardware).
- * [REFORMA V3.0]: Sincronización nominal total con la Constitución de Soberanía V8.6. 
- * Erradicación absoluta de abreviaturas, eliminación del tipo 'any' (BSS) y 
- * normalización de orígenes de datos industriales (Global Positioning System).
+ * [REFORMA V3.2]: Resolución definitiva de errores TS2322 (initialData mismatch) 
+ * y TS2367 (TelemetrySource comparison). Sincronización nominal total con 
+ * la Constitución de Soberanía V8.6.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -24,8 +24,8 @@ import { useSensorAuthority } from "../use-sensor-authority";
  * PARÁMETROS DE GOBERNANZA INDUSTRIAL Y TERMODINÁMICA
  */
 const EMISSION_THRESHOLD_METERS = 0.8;    // Escudo contra micro-vibraciones del sensor
-const TELEPORT_THRESHOLD_METERS = 100.0;  // Detección de salto cuántico (anomalía de hardware)
-const SOVEREIGN_ACCURACY_THRESHOLD_METERS = 30; // Precisión mínima para bloqueo satelital
+const TELEPORT_THRESHOLD_METERS = 100.0;  // Detección de anomalías de salto de hardware
+const SOVEREIGN_ACCURACY_THRESHOLD_METERS = 30; // Precisión requerida para bloqueo satelital
 
 /**
  * INTERFAZ: TelemetryCoreReturn
@@ -72,8 +72,9 @@ export function TelemetryProvider({
 }) {
   
   /**
-   * 1. CONSUMO DEL CENTINELA DE HARDWARE
-   * [SINCRO V3.0]: Mapeo explícito del contrato inicial para evitar el uso de 'any'.
+   * 1. CONSUMO DEL CENTINELA DE HARDWARE (NATIVO)
+   * [FIX V3.2]: Mapeo de adaptación para satisfacer la interfaz de useSensorAuthority.
+   * Se transforman las propiedades industriales a las propiedades esperadas por el hook base.
    */
   const {
     telemetry: rawHardwareTelemetry,
@@ -84,10 +85,11 @@ export function TelemetryProvider({
     reSync: reSynchronizeHardwareAction
   } = useSensorAuthority({ 
     initialData: initialGeographicData ? {
-      latitude: initialGeographicData.latitudeCoordinate,
-      longitude: initialGeographicData.longitudeCoordinate,
+      lat: initialGeographicData.latitudeCoordinate,
+      lng: initialGeographicData.longitudeCoordinate,
+      city: initialGeographicData.cityName,
       source: initialGeographicData.geographicSource
-    } : undefined 
+    } : null 
   });
 
   // 2. ESTADOS SOBERANOS DE UBICACIÓN (NOMINAL INTEGRITY)
@@ -101,7 +103,6 @@ export function TelemetryProvider({
 
   /**
    * EFECTO: AISLAMIENTO TÉRMICO (SOBERANÍA DE BATERÍA - PILAR 2)
-   * Misión: Apagar físicamente el hardware si la aplicación pierde el foco visual.
    */
   useEffect(() => {
     const handleDocumentVisibilityChangeAction = () => {
@@ -124,10 +125,10 @@ export function TelemetryProvider({
 
   /**
    * EFECTO: FILTRADO DE AUTORIDAD Y EMISIÓN CINEMÁTICA
-   * Misión: Transformar la lectura cruda de hardware en telemetría purificada para la Malla.
+   * Misión: Transformar la lectura cruda de hardware en telemetría purificada.
    */
   useEffect(() => {
-    // Si existe anclaje manual, tiene prioridad absoluta sobre el hardware.
+    // El anclaje manual prevalece sobre la telemetría de hardware en la toma de decisiones.
     if (manualGeographicAnchor) {
       setUserGeographicLocation(manualGeographicAnchor);
       return;
@@ -135,19 +136,23 @@ export function TelemetryProvider({
 
     if (rawHardwareTelemetry) {
       /**
-       * TRANSFORMACIÓN NOMINAL:
-       * Mapeamos los nombres cortos del sensor (lat, lng) a descriptores industriales.
+       * MAPEADOR DE FUENTE DE TELEMETRÍA:
+       * [FIX V3.2]: Se elimina la comparación errónea con 'manual-anchor' en el bloque de 
+       * hardware, ya que el sensor físico nunca emitirá una fuente de tipo manual.
        */
-      const currentHardwareAccuracyMagnitude = rawHardwareTelemetry.accuracy || 9999;
-      
       let currentTelemetrySource: TelemetrySource = 'internet-protocol-fallback';
-      if (rawHardwareTelemetry.source === 'gps') currentTelemetrySource = 'global-positioning-system';
-      if (rawHardwareTelemetry.source === 'cache') currentTelemetrySource = 'cache';
-      if (rawHardwareTelemetry.source === 'manual-anchor') currentTelemetrySource = 'manual-anchor';
+      
+      if (rawHardwareTelemetry.source === 'gps') {
+        currentTelemetrySource = 'global-positioning-system';
+      } else if (rawHardwareTelemetry.source === 'cache') {
+        currentTelemetrySource = 'cache';
+      }
+
+      const currentHardwareAccuracyMagnitude = rawHardwareTelemetry.accuracy || 9999;
 
       /**
        * PROTOCOLO DE SOBERANÍA:
-       * Blindaje del sistema contra retrocesos a ubicaciones por IP una vez alcanzado el bloqueo HD.
+       * Blindaje del sistema contra retrocesos a IP una vez alcanzado el bloqueo HD satelital.
        */
       if (isSovereignAccuracyLockActiveReference.current && currentTelemetrySource === 'internet-protocol-fallback') {
         return;
@@ -155,7 +160,7 @@ export function TelemetryProvider({
 
       if (currentTelemetrySource === 'global-positioning-system' && currentHardwareAccuracyMagnitude < SOVEREIGN_ACCURACY_THRESHOLD_METERS) {
         if (!isSovereignAccuracyLockActiveReference.current) {
-          nicepodLog("🛡️ [TelemetryCore] Bloqueo Soberano GPS: ACTIVADO.");
+          nicepodLog("🛡️ [TelemetryCore] Bloqueo Soberano satelital (GPS): ACTIVADO.");
           isSovereignAccuracyLockActiveReference.current = true;
         }
       }
@@ -175,7 +180,6 @@ export function TelemetryProvider({
       if (!lastEmittedGeographicLocationReference.current) {
         shouldEmitNewLocationToFacade = true;
       } else {
-        // [SINCRO V3.0]: Uso de coordenadas descriptivas para la matemática Haversine
         const physicalMovementDistanceMagnitude = calculateDistanceBetweenPoints(
           { 
             latitude: sanitizedLocation.latitudeCoordinate, 
@@ -194,8 +198,8 @@ export function TelemetryProvider({
         const isHardJumpDetected = physicalMovementDistanceMagnitude > TELEPORT_THRESHOLD_METERS;
 
         /**
-         * FILTRADO CINEMÁTICO:
-         * Solo emitimos si hay movimiento real significativo para preservar el Main Thread.
+         * FILTRADO CINEMÁTICO: Solo emitimos si hay cambios tangibles en el espacio 
+         * para evitar el Main Thread Thrashing.
          */
         if (
           physicalMovementDistanceMagnitude > EMISSION_THRESHOLD_METERS || 
@@ -219,7 +223,7 @@ export function TelemetryProvider({
   }, [rawHardwareTelemetry, manualGeographicAnchor, isGeographicallyTriangulated]);
 
   /**
-   * API SOBERANA DE TELEMETRÍA (Fachada Pública del Núcleo)
+   * API SOBERANA DE TELEMETRÍA (Contrato Final V3.2)
    */
   const telemetryApplicationProgrammingInterface: TelemetryCoreReturn = {
     userLocation: userGeographicLocation,
@@ -274,11 +278,11 @@ export const useGeoTelemetry = () => {
 };
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V3.0):
- * 1. Zero Abbreviations Policy: Se han renombrado todas las propiedades internas y del 
- *    estado (latitudeCoordinate, longitudeCoordinate, geographicSource) cumpliendo con el Dogma.
- * 2. Build Shield Sovereignty: Se eliminó el casting 'as any' en la inicialización de useSensorAuthority 
- *    mediante un mapeo de datos manual y seguro.
- * 3. Contractual Symmetry: El estado 'isGlobalPositioningSystemLocked' ahora depende de la 
- *    referencia de precisión soberana, garantizando que no haya jitter en el aterrizaje balístico.
+ * NOTA TÉCNICA DEL ARCHITECT (V3.2):
+ * 1. Hardware Adaptability: Se resolvió el error de tipos TS2322 mapeando los datos 
+ *    purificados a la interfaz propietaria del sensor (lat/lng/city).
+ * 2. Logical Purity: Se corrigió el error TS2367 eliminando comparaciones imposibles 
+ *    entre el sensor de hardware y tipos de anclaje manual.
+ * 3. Build Shield Sovereignty: El código es ahora 100% tipado y alineado con la 
+ *    Constitución de Soberanía V8.6. No se detectan regresiones nominales.
  */
