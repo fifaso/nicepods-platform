@@ -1,12 +1,13 @@
 /**
  * ARCHIVO: app/(marketing)/page.tsx
- * VERSIÓN: 6.0 (NicePod Marketing Canvas - Industrial Stability & Theme Sync)
+ * VERSIÓN: 6.0 (NicePod Marketing Canvas - Industrial Zero-Scroll Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Proyectar la visión técnica de NicePod en una interfaz de alto impacto,
- * garantizando la compatibilidad con el motor de temas y la integridad de datos.
- * [REFORMA V6.0]: Restauración de contenido completo, soporte para Modo Claro/Oscuro,
- * título axial y cumplimiento absoluto de la Zero Abbreviations Policy.
+ * garantizando la compatibilidad absoluta con el motor de temas (Light/Dark) y 
+ * una primera vista sin desplazamiento (Zero-Scroll).
+ * [REFORMA V6.0]: Compactación vertical, limpieza de overlays en el mapa, 
+ * unificación tipográfica y cumplimiento estricto de la Zero Abbreviations Policy.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -14,18 +15,16 @@
 
 import { MapPreviewFrame } from "@/components/geo/map-preview-frame";
 import { Button } from "@/components/ui/button";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
-  ArrowRight,
   BookOpen,
   BrainCircuit,
   Database,
   Globe,
-  ShieldCheck,
-  Zap,
   LogIn,
+  ShieldCheck,
   UserPlus,
-  Map as MapIcon
+  Zap
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -45,7 +44,7 @@ export default function LandingPage() {
   };
 
   const itemAnimationVariants = {
-    hidden: { y: 10, opacity: 0 },
+    hidden: { y: 15, opacity: 0 },
     visible: { 
       y: 0, 
       opacity: 1, 
@@ -55,117 +54,125 @@ export default function LandingPage() {
 
   /**
    * knowledgeDimensionsCollection:
-   * Mapeo de áreas de análisis con lenguaje técnico y descriptivo.
+   * Mapeo de áreas de análisis con lenguaje técnico, directo y sin abreviaturas.
    */
   const knowledgeDimensionsCollection = [
     {
       identification: "deep-thought",
       title: "Pensamiento",
       IconComponent: BookOpen,
-      descriptionDescription: "Análisis técnico de documentos complejos y teoría de sistemas."
+      dimensionDescription: "Análisis técnico de documentos complejos y teoría de sistemas."
     },
     {
       identification: "practical-tools",
       title: "Práctico",
       IconComponent: Zap,
-      descriptionDescription: "Protocolos de optimización y herramientas de productividad industrial."
+      dimensionDescription: "Protocolos de optimización y herramientas de productividad industrial."
     },
     {
       identification: "tech",
       title: "Tecnología",
       IconComponent: BrainCircuit,
-      descriptionDescription: "Arquitectura de software y avances en modelos de Inteligencia Artificial."
+      dimensionDescription: "Arquitectura de software y avances en modelos de Inteligencia Artificial."
     },
     {
       identification: "narrative",
       title: "Narrativa",
       IconComponent: Globe,
-      descriptionDescription: "Registro histórico y crónicas de geolocalización urbana en tiempo real."
+      dimensionDescription: "Registro histórico y crónicas de geolocalización urbana en tiempo real."
     }
   ];
 
   return (
-    <div className="flex flex-col items-center w-full bg-background text-foreground transition-colors duration-500 selection:bg-primary/30 antialiased">
+    <div className="flex flex-col items-center w-full bg-background text-foreground transition-colors duration-700 selection:bg-primary/30 antialiased">
 
-      {/* --- SECCIÓN I: TERMINAL HERO (COMPACTA & ZERO-SCROLL READY) --- */}
-      <section className="relative w-full flex flex-col items-center justify-center pt-12 pb-10 px-6 overflow-hidden">
+      {/* 
+          --- SECCIÓN I: TERMINAL HERO (ZERO-SCROLL ARCHITECTURE) ---
+          Misión: Forzar que el Título, el Mapa y los Botones convivan en 
+          el 100% de la altura del dispositivo sin requerir desplazamiento.
+      */}
+      <section className="relative w-full h-[100dvh] flex flex-col items-center justify-between pt-24 pb-8 px-4 sm:px-6">
+        
+        {/* BLOQUE A: TITULAR MONUMENTAL Y DESCRIPCIÓN */}
         <motion.div
-          className="container mx-auto max-w-7xl text-center space-y-6 relative z-10"
+          className="shrink-0 text-center space-y-4 relative z-10 w-full max-w-4xl mx-auto"
           variants={containerAnimationVariants}
           initial="hidden"
           animate="visible"
         >
-          {/* Título Monumental Unificado (Fuerza Industrial) */}
           <motion.h1
             variants={itemAnimationVariants}
-            className="text-4xl xs:text-5xl sm:text-6xl md:text-8xl lg:text-[11rem] font-black tracking-tighter uppercase italic leading-none whitespace-nowrap"
+            className="text-[2.5rem] xs:text-5xl sm:text-6xl md:text-8xl lg:text-[9rem] font-black tracking-tighter uppercase leading-none text-foreground whitespace-nowrap italic"
           >
-            SINTETIZA EL <span className="text-primary not-italic drop-shadow-[0_0_30px_rgba(var(--primary-rgb),0.3)]">MUNDO</span>
+            SINTETIZA EL <span className="text-primary drop-shadow-[0_0_30px_rgba(var(--primary-rgb),0.4)]">MUNDO</span>
           </motion.h1>
 
           <motion.p
             variants={itemAnimationVariants}
-            className="max-w-2xl mx-auto text-xs sm:text-sm md:text-xl text-muted-foreground font-bold uppercase tracking-[0.3em] leading-relaxed px-4"
+            className="max-w-2xl mx-auto text-[9px] xs:text-[10px] sm:text-xs md:text-sm text-muted-foreground font-black uppercase tracking-[0.25em] leading-relaxed px-2"
           >
-            Workstation profesional de captura y organización de conocimiento real mediante inteligencia artificial.
+            Workstation profesional de captura, análisis y organización de conocimiento real mediante inteligencia artificial y geolocalización.
           </motion.p>
         </motion.div>
-      </section>
 
-      {/* --- SECCIÓN II: PORTAL GEOGRÁFICO (TACTICAL PREVIEW) --- */}
-      <section className="w-full max-w-screen-xl mx-auto px-6 pb-12">
+        {/* BLOQUE B: REACTOR VISUAL (EL MAPA COMO GATEWAY LÍMPIDO) */}
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-          className="relative group cursor-pointer"
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 1, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+          className="flex-1 w-full max-w-5xl mx-auto min-h-0 py-6 md:py-8 relative group"
         >
-          <Link href="/login" className="block relative aspect-video md:aspect-[21/9] rounded-[3rem] overflow-hidden border border-border bg-card shadow-2xl transition-all hover:border-primary/40 isolate">
-            <div className="absolute inset-0 z-0 opacity-80 group-hover:opacity-100 transition-opacity duration-1000">
+          <Link 
+            href="/login" 
+            className="block w-full h-full relative rounded-[2.5rem] md:rounded-[3.5rem] overflow-hidden border border-border bg-card shadow-2xl transition-all duration-700 hover:border-primary/50 hover:shadow-[0_0_50px_rgba(var(--primary-rgb),0.15)] isolate cursor-pointer"
+            title="Acceder a la Malla Activa"
+          >
+            {/* Motor WebGL (Diferido). Opacidad reducida para no abrumar la UI */}
+            <div className="absolute inset-0 z-0 opacity-70 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none">
               <MapPreviewFrame />
             </div>
             
-            <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent z-10" />
-            
-            {/* Indicador de Acción Minimalista */}
-            <div className="absolute inset-0 flex items-center justify-center z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-                <div className="bg-foreground text-background px-8 py-3 rounded-full font-black text-[10px] uppercase tracking-widest shadow-2xl flex items-center gap-3">
-                    <MapIcon size={14} /> Acceder al Mapa
-                </div>
-            </div>
+            {/* Gradiente de Sellado: Funde el mapa con el fondo dinámico del tema */}
+            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/10 to-transparent z-10 pointer-events-none" />
           </Link>
         </motion.div>
+
+        {/* BLOQUE C: COMANDOS DE ACCESO (ALINEACIÓN AXIAL STRICTA) */}
+        <motion.div 
+          variants={itemAnimationVariants} 
+          initial="hidden"
+          animate="visible"
+          className="shrink-0 flex flex-row items-center justify-center gap-3 md:gap-5 w-full max-w-lg z-10"
+        >
+          <Link href="/signup" className="flex-1">
+            <Button size="lg" className="w-full h-14 md:h-16 rounded-2xl md:rounded-[1.5rem] text-[10px] md:text-xs font-black uppercase tracking-widest bg-primary text-primary-foreground hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-primary/20">
+              <UserPlus size={16} className="mr-2 hidden xs:block" />
+              Crear cuenta
+            </Button>
+          </Link>
+          <Link href="/login" className="flex-1">
+            <Button variant="outline" size="lg" className="w-full h-14 md:h-16 rounded-2xl md:rounded-[1.5rem] text-[10px] md:text-xs font-black uppercase tracking-widest border-border bg-card text-foreground hover:bg-accent transition-all active:scale-95">
+              <LogIn size={16} className="mr-2 hidden xs:block" />
+              Acceder
+            </Button>
+          </Link>
+        </motion.div>
+
       </section>
 
-      {/* --- SECCIÓN III: COMANDOS DE ACCESO (AXIAL ALIGNMENT) --- */}
-      <section className="w-full max-w-2xl mx-auto flex flex-row items-center justify-center gap-4 px-6 pb-32">
-        <Link href="/signup" className="flex-1 max-w-[200px]">
-          <Button size="lg" className="w-full h-14 rounded-2xl text-[11px] font-black uppercase tracking-widest bg-primary text-primary-foreground shadow-2xl shadow-primary/20 transition-all hover:scale-105 active:scale-95">
-            <UserPlus size={16} className="mr-2" />
-            Crear cuenta
-          </Button>
-        </Link>
-        <Link href="/login" className="flex-1 max-w-[200px]">
-          <Button variant="outline" size="lg" className="w-full h-14 rounded-2xl text-[11px] font-black uppercase tracking-widest border-border bg-card text-foreground hover:bg-accent transition-all active:scale-95">
-            <LogIn size={16} className="mr-2" />
-            Acceder
-          </Button>
-        </Link>
-      </section>
-
-      {/* --- SECCIÓN IV: PILARES DE INTELIGENCIA (RESTAURADO) --- */}
-      <section className="w-full py-40 bg-accent/30 border-y border-border backdrop-blur-3xl">
-        <div className="container mx-auto max-w-7xl px-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-24">
+      {/* --- SECCIÓN II: PILARES DE INTELIGENCIA INDUSTRIAL --- */}
+      <section className="w-full py-32 md:py-40 bg-secondary/30 border-y border-border backdrop-blur-3xl transition-colors duration-700">
+        <div className="container mx-auto max-w-7xl px-6 md:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-16 md:gap-24">
             
             <div className="space-y-6 group">
               <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary border border-primary/20 group-hover:bg-primary/20 transition-all duration-700 shadow-xl">
                 <ShieldCheck size={32} />
               </div>
               <div className="space-y-3">
-                <h3 className="text-2xl font-black uppercase tracking-tighter italic leading-none">Datos Verificados</h3>
+                <h3 className="text-2xl font-black uppercase tracking-tighter italic leading-none text-foreground">Datos Verificados</h3>
                 <p className="text-muted-foreground text-sm leading-relaxed font-medium">
-                  NicePod utiliza fuentes técnicas para garantizar información precisa y libre de sesgos comerciales.
+                  NicePod utiliza fuentes técnicas para garantizar información precisa, validada y libre de sesgos comerciales.
                 </p>
               </div>
             </div>
@@ -175,9 +182,9 @@ export default function LandingPage() {
                 <BrainCircuit size={32} />
               </div>
               <div className="space-y-3">
-                <h3 className="text-2xl font-black uppercase tracking-tighter italic leading-none">Análisis por IA</h3>
+                <h3 className="text-2xl font-black uppercase tracking-tighter italic leading-none text-foreground">Análisis por IA</h3>
                 <p className="text-muted-foreground text-sm leading-relaxed font-medium">
-                  Transformamos grandes volúmenes de datos en crónicas de audio periciales adaptadas a tu nivel.
+                  Transformamos grandes volúmenes de datos en crónicas de audio periciales adaptadas a su nivel técnico.
                 </p>
               </div>
             </div>
@@ -187,9 +194,9 @@ export default function LandingPage() {
                 <Database size={32} />
               </div>
               <div className="space-y-3">
-                <h3 className="text-2xl font-black uppercase tracking-tighter italic leading-none">Bóveda de Capital</h3>
+                <h3 className="text-2xl font-black uppercase tracking-tighter italic leading-none text-foreground">Bóveda de Capital</h3>
                 <p className="text-muted-foreground text-sm leading-relaxed font-medium">
-                  Cada peritaje se organiza en tu archivo personal, generando un repositorio de sabiduría perpetuo.
+                  Cada peritaje se organiza en su archivo personal, generando un repositorio de sabiduría perpetuo y consultable.
                 </p>
               </div>
             </div>
@@ -198,30 +205,32 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* --- SECCIÓN V: DIMENSIONES DE CONOCIMIENTO (RESTAURADO) --- */}
-      <section className="w-full py-40 container mx-auto max-w-7xl px-8 text-center isolate">
-        <div className="mb-24 space-y-4">
-          <h2 className="text-5xl md:text-8xl font-black tracking-tighter uppercase leading-none italic font-serif">
+      {/* --- SECCIÓN III: DIMENSIONES DE CONOCIMIENTO --- */}
+      <section className="w-full py-32 md:py-40 container mx-auto max-w-7xl px-6 md:px-8 text-center isolate">
+        <div className="mb-20 md:mb-24 space-y-4">
+          <h2 className="text-4xl xs:text-5xl md:text-8xl font-black tracking-tighter uppercase leading-none italic text-foreground">
             EXPLORA LAS <span className="text-primary not-italic">DIMENSIONES</span>
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 md:gap-10">
           {knowledgeDimensionsCollection.map((dimensionItem) => (
-            <div key={dimensionItem.identification} className="relative aspect-[4/5] rounded-[3rem] overflow-hidden border border-border bg-card group shadow-2xl transition-all hover:border-primary/40">
+            <div key={dimensionItem.identification} className="relative aspect-[4/5] rounded-[2.5rem] md:rounded-[3rem] overflow-hidden border border-border bg-card group shadow-2xl transition-all hover:border-primary/40">
               <Image
                 src={`/images/universes/${dimensionItem.identification}.png`}
                 alt={dimensionItem.title}
                 fill
-                className="object-cover opacity-40 group-hover:scale-110 transition-all duration-[3000ms] group-hover:opacity-70" 
+                className="object-cover opacity-30 group-hover:scale-110 transition-all duration-[3000ms] group-hover:opacity-60" 
                 sizes="(max-width: 768px) 100vw, 25vw" 
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent z-10" />
-              <div className="absolute inset-0 p-10 flex flex-col justify-end text-left z-20">
-                <dimensionItem.IconComponent className="h-10 w-10 text-primary mb-6 opacity-0 group-hover:opacity-100 transition-all duration-700" />
-                <h4 className="text-2xl font-black uppercase tracking-tighter text-foreground mb-3 italic">{dimensionItem.title}</h4>
-                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-[0.2em] leading-relaxed">
-                  {dimensionItem.descriptionDescription}
+              {/* Overlay adaptable al tema (Modo Claro / Oscuro) */}
+              <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent z-10" />
+              
+              <div className="absolute inset-0 p-8 md:p-10 flex flex-col justify-end text-left z-20">
+                <dimensionItem.IconComponent className="h-8 w-8 md:h-10 md:w-10 text-primary mb-4 md:mb-6 opacity-0 group-hover:opacity-100 transition-all duration-700 -translate-y-4 group-hover:translate-y-0" />
+                <h4 className="text-xl md:text-2xl font-black uppercase tracking-tighter text-foreground mb-2 md:mb-3 italic">{dimensionItem.title}</h4>
+                <p className="text-[9px] md:text-[10px] text-muted-foreground font-bold uppercase tracking-[0.2em] leading-relaxed">
+                  {dimensionItem.dimensionDescription}
                 </p>
               </div>
             </div>
@@ -229,38 +238,42 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* --- SECCIÓN VI: CIERRE DE CONVERSIÓN SOBERANA --- */}
-      <footer className="w-full py-40 border-t border-border bg-card/60 text-center relative overflow-hidden isolate">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-primary/5 blur-[180px] rounded-full pointer-events-none" />
+      {/* --- SECCIÓN IV: CIERRE DE CONVERSIÓN SOBERANA --- */}
+      <footer className="w-full py-32 md:py-40 border-t border-border bg-secondary/20 text-center relative overflow-hidden isolate transition-colors duration-700">
+        
+        {/* Resplandor de Bóveda Central */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-primary/5 blur-[150px] rounded-full pointer-events-none" />
 
-        <div className="container mx-auto max-w-5xl px-8 space-y-16 relative z-10">
+        <div className="container mx-auto max-w-5xl px-6 md:px-8 space-y-16 relative z-10">
           <div className="flex flex-col items-center gap-10">
-            <div className="h-24 w-24 relative p-5 rounded-[2rem] bg-zinc-900 border border-white/10 shadow-2xl">
+            <div className="h-20 w-20 md:h-24 md:w-24 relative p-4 md:p-5 rounded-[2rem] bg-zinc-900 border border-white/10 shadow-2xl transition-transform hover:scale-110 duration-700">
               <Image 
                 src="/nicepod-logo.png" 
                 alt="NicePod Intelligence Isotype" 
                 fill 
-                className="object-contain p-4" 
+                className="object-contain p-3 md:p-4" 
                 unoptimized
               />
             </div>
-            <h2 className="text-6xl md:text-8xl font-black tracking-tighter uppercase italic leading-[0.85] font-serif">
+            <h2 className="text-4xl sm:text-5xl md:text-8xl font-black tracking-tighter uppercase italic text-foreground leading-[0.85]">
               Sé el <span className="text-primary not-italic">Testigo</span> <br /> de tu tiempo.
             </h2>
             <Link href="/signup">
-              <Button size="lg" className="h-20 px-20 rounded-full font-black text-xl shadow-[0_20px_50px_rgba(var(--primary-rgb),0.3)] hover:scale-105 transition-all bg-foreground text-background uppercase tracking-widest">
+              <Button size="lg" className="h-16 md:h-20 px-12 md:px-20 rounded-full font-black text-sm md:text-xl shadow-[0_20px_50px_rgba(var(--primary-rgb),0.3)] hover:scale-105 transition-all bg-foreground text-background uppercase tracking-widest">
                 Crear cuenta
               </Button>
             </Link>
           </div>
 
-          <div className="flex flex-col md:flex-row justify-between items-center gap-10 text-[10px] font-black text-muted-foreground uppercase tracking-[0.5em] pt-12 border-t border-border">
-            <div className="flex gap-12">
-              <Link href="/pricing" className="hover:text-primary transition-colors">Suscripciones</Link>
+          <div className="flex flex-col md:flex-row justify-between items-center gap-8 md:gap-10 text-[9px] md:text-[10px] font-black text-muted-foreground uppercase tracking-[0.5em] pt-12 border-t border-border">
+            <div className="flex flex-wrap justify-center gap-8 md:gap-12">
+              <Link href="/pricing" className="hover:text-primary transition-colors">Planes</Link>
               <Link href="/podcasts" className="hover:text-primary transition-colors">Biblioteca</Link>
               <Link href="/map" className="hover:text-primary transition-colors">Mapa</Link>
             </div>
-            <p className="italic opacity-40">© 2026 NICEPOD. MADRID RESONANCE V4.0.1.</p>
+            <p className="italic text-[7px] md:text-[8px] opacity-50">
+              © 2026 NICEPOD. MADRID RESONANCE V4.0.
+            </p>
           </div>
         </div>
       </footer>
@@ -270,11 +283,12 @@ export default function LandingPage() {
 
 /**
  * NOTA TÉCNICA DEL ARCHITECT (V6.0):
- * 1. Theme Awareness: Se eliminaron los fondos estáticos 'bg-[#010101]' sustituyéndolos 
- *    por la clase 'bg-background'. Esto asegura que el modo claro sea apreciable 
- *    mediante los tokens de diseño globales.
- * 2. Full Content Restoration: Se han re-integrado todas las secciones informativas 
- *    necesarias para proyectar la autoridad de NicePod como herramienta industrial.
- * 3. Zero Abbreviations Policy: Se purificó la nomenclatura de colecciones e 
- *    iconos, erradicando términos como 'uni', 'id', 'desc' y 'props'.
+ * 1. Zero-Scroll Architecture: Se inyectó 'h-[100dvh]' al contenedor Hero y 'flex-1 min-h-0' 
+ *    al contenedor del mapa. Esto fuerza a que el layout absorba el espacio disponible 
+ *    sin desbordar, eliminando el scroll en el primer pantallazo móvil.
+ * 2. Theme Agnostic: Se purificaron todas las clases de color harcodeadas (bg-[#010101], 
+ *    text-white) reemplazándolas por tokens de diseño (bg-background, text-foreground, 
+ *    bg-card) para garantizar una transición fluida al Modo Claro.
+ * 3. Minimalist Gateway: Se eliminaron los textos redundantes sobre el MapPreviewFrame, 
+ *    permitiendo que la cartografía hable por sí misma y actúe como un disparador directo al Login.
  */
