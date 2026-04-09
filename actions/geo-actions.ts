@@ -1,12 +1,14 @@
 /**
  * ARCHIVO: actions/geo-actions.ts
- * VERSIÓN: 11.0 (NicePod Sovereign Geo-Actions - Full Descriptive Integrity Edition)
+ * VERSIÓN: 12.0 (NicePod Sovereign Geo-Actions - Absolute Nominal Integrity Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Orquestar el ciclo de vida de persistencia multidimensional con garantía 
- * de limpieza, rigor de tipos y evasión del límite de Vercel (Signed URLs).
- * [REFORMA V11.0]: Sincronización total con la Constitución V7.7, eliminación de 
- * abreviaturas 'POI' y consolidación del Protocolo Lightning.
+ * de limpieza, rigor de tipos y evasión del límite de Vercel mediante el uso de 
+ * URLs Firmadas (Signed Uniform Resource Locators).
+ * [REFORMA V12.0]: Sincronización nominal total con el Esquema de Validación V4.1, 
+ * eliminación absoluta de acrónimos (ZAP), erradicación del tipo 'any' (BSS) 
+ * e implementación de validación de salida para la Inteligencia Artificial.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -15,12 +17,16 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
-// --- IMPORTACIÓN DE CONTRATOS SOBERANOS (BUILD SHIELD V7.7) ---
-import { POIIngestionSchema } from "@/lib/validation/poi-schema";
+// --- IMPORTACIÓN DE CONTRATOS SOBERANOS (BUILD SHIELD V4.1) ---
+import { 
+  PointOfInterestIngestionSchema, 
+  IntelligenceAgencyAnalysisSchema,
+  IntelligenceAgencyAnalysisData
+} from "@/lib/validation/poi-schema";
+
 import {
   GeoActionResponse,
   PointOfInterestLifecycle,
-  PointOfInterestCreationPayload,
   NarrativeDepth,
   NarrativeTone
 } from "@/types/geo-sovereignty";
@@ -34,23 +40,24 @@ import {
 /**
  * validateSovereignAccess:
  * Valida la identidad y el rango de Administrador directamente en el Borde de Vercel.
+ * Misión: Asegurar que solo personal autorizado pueda alterar la Bóveda de Conocimiento.
  */
 async function validateSovereignAccess() {
   const supabaseClient = createClient();
-  const { data: { user }, error: authenticationError } = await supabaseClient.auth.getUser();
+  const { data: { user: authenticatedUser }, error: authenticationException } = await supabaseClient.auth.getUser();
 
-  if (authenticationError || !user) {
+  if (authenticationException || !authenticatedUser) {
     throw new Error("IDENTIDAD_NO_VERIFICADA: Sesión inexistente o expirada.");
   }
 
-  const applicationMetadata = user.app_metadata || {};
+  const applicationMetadata = authenticatedUser.app_metadata || {};
   const userRole = applicationMetadata.user_role || applicationMetadata.role || 'user';
 
   if (userRole !== 'admin') {
-    throw new Error("ACCESO_DENEGADO: Se requiere autoridad de nivel Administrador.");
+    throw new Error("ACCESO_DENEGADO: Se requiere autoridad de nivel Administrador para realizar esta operación.");
   }
 
-  return user;
+  return authenticatedUser;
 }
 
 /**
@@ -62,25 +69,27 @@ async function validateSovereignAccess() {
 /**
  * requestUploadTokensAction:
  * Misión: Generar URLs firmadas para que el cliente suba binarios directamente 
- * al Storage, eliminando el transporte Base64 y el riesgo de error 413.
+ * al Almacenamiento (Storage), eliminando el transporte Base64 y el riesgo de error 413.
  */
-export async function requestUploadTokensAction(filenames: string[]): Promise<GeoActionResponse<{ paths: string[], uploadUrls: string[] }>> {
+export async function requestUploadTokensAction(
+  fileNamesCollection: string[]
+): Promise<GeoActionResponse<{ pathsCollection: string[], uploadUrlsCollection: string[] }>> {
   try {
-    const userAuthor = await validateSovereignAccess();
+    const authorizedUserAuthor = await validateSovereignAccess();
     const supabaseClient = createClient();
-    const currentTimestamp = Date.now();
+    const currentUnixTimestamp = Date.now();
 
-    const uploadTokens = await Promise.all(
-      filenames.map(async (name) => {
-        const filePath = `point-of-interest-evidence/${userAuthor.id}/${currentTimestamp}_${name}`;
-        const { data, error } = await supabaseClient.storage
+    const uploadTokensCollection = await Promise.all(
+      fileNamesCollection.map(async (fileName) => {
+        const fileStoragePath = `point-of-interest-evidence/${authorizedUserAuthor.id}/${currentUnixTimestamp}_${fileName}`;
+        const { data: signedUrlData, error: storageException } = await supabaseClient.storage
           .from('podcasts')
-          .createSignedUploadUrl(filePath);
+          .createSignedUploadUrl(fileStoragePath);
 
-        if (error || !data) {
-          throw new Error(`FALLO_FIRMA_TOKEN: No se pudo autorizar la subida de ${name}`);
+        if (storageException || !signedUrlData) {
+          throw new Error(`FALLO_FIRMA_TOKEN: No se pudo autorizar la subida de ${fileName}`);
         }
-        return { path: filePath, url: data.signedUrl };
+        return { path: fileStoragePath, url: signedUrlData.signedUrl };
       })
     );
 
@@ -88,13 +97,18 @@ export async function requestUploadTokensAction(filenames: string[]): Promise<Ge
       success: true,
       message: "Pasaportes de subida directa generados con éxito.",
       data: {
-        paths: uploadTokens.map(token => token.path),
-        uploadUrls: uploadTokens.map(token => token.url)
+        pathsCollection: uploadTokensCollection.map(token => token.path),
+        uploadUrlsCollection: uploadTokensCollection.map(token => token.url)
       }
     };
-  } catch (exception: any) {
-    console.error("🔥 [GeoAction][TokenFatal]:", exception.message);
-    return { success: false, message: "Error de infraestructura en generación de tokens.", error: exception.message };
+  } catch (operationalException: unknown) {
+    const exceptionMessage = operationalException instanceof Error ? operationalException.message : String(operationalException);
+    console.error("🔥 [GeoAction][TokenFatal]:", exceptionMessage);
+    return { 
+      success: false, 
+      message: "Error de infraestructura en generación de tokens.", 
+      error: exceptionMessage 
+    };
   }
 }
 
@@ -104,56 +118,79 @@ export async function requestUploadTokensAction(filenames: string[]): Promise<Ge
  * ---------------------------------------------------------------------------
  */
 
+/**
+ * resolveLocationAction:
+ * Misión: Obtener metadatos geográficos y climáticos basados en coordenadas.
+ */
 export async function resolveLocationAction(
-  latitude: number,
-  longitude: number
-): Promise<GeoActionResponse<any>> {
+  latitudeCoordinate: number,
+  longitudeCoordinate: number
+): Promise<GeoActionResponse<Record<string, unknown>>> {
   try {
     await validateSovereignAccess();
     const supabaseClient = createClient();
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const serviceRoleSecretKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!serviceRoleKey) throw new Error("INFRASTRUCTURE_KEY_MISSING");
+    if (!serviceRoleSecretKey) throw new Error("INFRASTRUCTURE_KEY_MISSING: Clave de rol de servicio no configurada.");
 
-    const { data: results, error: functionError } = await supabaseClient.functions.invoke('geo-resolve-location', {
-      body: { latitude, longitude },
-      headers: { Authorization: `Bearer ${serviceRoleKey}` }
+    const { data: resolutionResults, error: functionInvokeException } = await supabaseClient.functions.invoke('geo-resolve-location', {
+      body: { latitude: latitudeCoordinate, longitude: longitudeCoordinate },
+      headers: { Authorization: `Bearer ${serviceRoleSecretKey}` }
     });
 
-    if (functionError) throw new Error(`RADAR_SYNC_FAIL: ${functionError.message}`);
-    return { success: true, message: "Sintonía ambiental establecida.", data: results.data };
-  } catch (exception: any) {
-    console.error("🔥 [GeoAction][ResolveFatal]:", exception.message);
-    return { success: false, message: "Error en el radar de contexto.", error: exception.message };
+    if (functionInvokeException) throw new Error(`RADAR_SYNC_FAIL: ${functionInvokeException.message}`);
+    
+    return { 
+      success: true, 
+      message: "Sintonía ambiental establecida con éxito.", 
+      data: resolutionResults.data as Record<string, unknown> 
+    };
+  } catch (operationalException: unknown) {
+    const exceptionMessage = operationalException instanceof Error ? operationalException.message : String(operationalException);
+    console.error("🔥 [GeoAction][ResolveFatal]:", exceptionMessage);
+    return { 
+      success: false, 
+      message: "Error en el radar de contexto geográfico.", 
+      error: exceptionMessage 
+    };
   }
 }
 
+/**
+ * transcribeVoiceIntentAction:
+ * Misión: Convertir el dictado de voz del administrador en texto mediante inteligencia artificial.
+ */
 export async function transcribeVoiceIntentAction(parameters: {
-  audioBase64: string;
-}): Promise<GeoActionResponse<{ transcription: string }>> {
+  audioBase64Data: string;
+}): Promise<GeoActionResponse<{ transcriptionText: string }>> {
   try {
     await validateSovereignAccess();
     const supabaseClient = createClient();
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const serviceRoleSecretKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    const { data: results, error: functionError } = await supabaseClient.functions.invoke('geo-transcribe-intent', {
+    const { data: transcriptionResults, error: functionInvokeException } = await supabaseClient.functions.invoke('geo-transcribe-intent', {
       body: {
-        audioBase64: parameters.audioBase64.includes(',') ? parameters.audioBase64.split(',')[1] : parameters.audioBase64,
+        audioBase64: parameters.audioBase64Data.includes(',') ? parameters.audioBase64Data.split(',')[1] : parameters.audioBase64Data,
         contentType: 'audio/webm' 
       },
-      headers: { Authorization: `Bearer ${serviceRoleKey}` }
+      headers: { Authorization: `Bearer ${serviceRoleSecretKey}` }
     });
 
-    if (functionError) throw new Error(`STT_IA_FAIL: ${functionError.message}`);
+    if (functionInvokeException) throw new Error(`SPEECH_TO_TEXT_IA_FAIL: ${functionInvokeException.message}`);
 
     return {
       success: true,
-      message: "Dictado transmutado en capital intelectual.",
-      data: { transcription: results.transcription }
+      message: "Dictado transmutado en capital intelectual con éxito.",
+      data: { transcriptionText: transcriptionResults.transcription }
     };
-  } catch (exception: any) {
-    console.error("🔥 [GeoAction][STT-Fatal]:", exception.message);
-    return { success: false, message: "Fallo en el peritaje acústico de la intención.", error: exception.message };
+  } catch (operationalException: unknown) {
+    const exceptionMessage = operationalException instanceof Error ? operationalException.message : String(operationalException);
+    console.error("🔥 [GeoAction][STT-Fatal]:", exceptionMessage);
+    return { 
+      success: false, 
+      message: "Fallo en el peritaje acústico de la intención.", 
+      error: exceptionMessage 
+    };
   }
 }
 
@@ -163,124 +200,151 @@ export async function transcribeVoiceIntentAction(parameters: {
  * ---------------------------------------------------------------------------
  */
 
+/**
+ * ingestIntelligenceDossierAction:
+ * Misión: Validar evidencia visual, invocar peritaje de IA y anclar el nodo en la Bóveda.
+ */
 export async function ingestIntelligenceDossierAction(
   payload: {
-    latitude: number;
-    longitude: number;
-    accuracy: number;
+    latitudeCoordinate: number;
+    longitudeCoordinate: number;
+    accuracyMeters: number;
     heroImageStoragePath: string; 
-    ocrImageStoragePaths: string[];
+    opticalCharacterRecognitionImagePaths: string[];
     categoryMission: string;
     categoryEntity: string;
     historicalEpoch: string;
-    resonanceRadius: number;
-    adminIntent: string;
-    referenceUrl?: string;
+    resonanceRadiusMeters: number;
+    administratorIntent: string;
+    referenceUniformResourceLocator?: string;
   }
-): Promise<GeoActionResponse<{ pointOfInterestIdentification: number; analysis: any; location: any }>> {
+): Promise<GeoActionResponse<{ pointOfInterestIdentification: number; analysisResults: IntelligenceAgencyAnalysisData; locationMetadata: Record<string, unknown> }>> {
   
   const supabaseClient = createClient();
 
   try {
-    const userAuthor = await validateSovereignAccess();
+    const authorizedUserAuthor = await validateSovereignAccess();
 
-    // 1. RIGOR POSTGIS Y TAXONOMÍA: Validación Zod Multidimensional V4.0
-    const validatedData = POIIngestionSchema.parse({
-      latitude: payload.latitude,
-      longitude: payload.longitude,
-      accuracy: payload.accuracy,
-      heroImage: payload.heroImageStoragePath, 
-      ocrImages: payload.ocrImageStoragePaths,
+    // 1. RIGOR POSTGIS Y TAXONOMÍA: Validación Zod Multidimensional V4.1
+    // Mapeamos el payload a la estructura estricta del esquema nominal.
+    const validatedIngestionData = PointOfInterestIngestionSchema.parse({
+      latitudeCoordinate: payload.latitudeCoordinate,
+      longitudeCoordinate: payload.longitudeCoordinate,
+      accuracyMeters: payload.accuracyMeters,
+      heroImageStoragePath: payload.heroImageStoragePath, 
+      opticalCharacterRecognitionImagePaths: payload.opticalCharacterRecognitionImagePaths,
       categoryMission: payload.categoryMission,
       categoryEntity: payload.categoryEntity,
       historicalEpoch: payload.historicalEpoch,
-      resonanceRadius: payload.resonanceRadius,
-      adminIntent: payload.adminIntent,
-      referenceUrl: payload.referenceUrl
+      resonanceRadiusMeters: payload.resonanceRadiusMeters,
+      administratorIntent: payload.administratorIntent,
+      referenceUniformResourceLocator: payload.referenceUniformResourceLocator
     });
 
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const serviceRoleSecretKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    // 2. OBTENCIÓN DE URLs PÚBLICAS PARA EL ORÁCULO
+    // 2. OBTENCIÓN DE URLs PÚBLICAS PARA EL CONSUMO DE LA IA
     const publicHeroUniformResourceLocator = supabaseClient.storage.from('podcasts').getPublicUrl(payload.heroImageStoragePath).data.publicUrl;
-    const publicOcrUniformResourceLocators = payload.ocrImageStoragePaths.map(path => supabaseClient.storage.from('podcasts').getPublicUrl(path).data.publicUrl);
+    const publicOcrUniformResourceLocatorsCollection = payload.opticalCharacterRecognitionImagePaths.map(path => 
+      supabaseClient.storage.from('podcasts').getPublicUrl(path).data.publicUrl
+    );
 
     // 3. INVOCACIÓN AL ORÁCULO DE BORDE (AGENTE 42)
-    const { data: results, error: functionError } = await supabaseClient.functions.invoke('geo-sensor-ingestor', {
+    const { data: agentResponseResults, error: functionInvokeException } = await supabaseClient.functions.invoke('geo-sensor-ingestor', {
       body: {
-        ...validatedData,
+        ...validatedIngestionData,
+        // Adaptamos nombres para la Edge Function si es necesario, pero mantenemos la lógica interna.
         heroImageUrl: publicHeroUniformResourceLocator,
-        ocrImageUrls: publicOcrUniformResourceLocators,
-        userId: userAuthor.id
+        ocrImageUrls: publicOcrUniformResourceLocatorsCollection,
+        userId: authorizedUserAuthor.id
       },
-      headers: { Authorization: `Bearer ${serviceRoleKey}` }
+      headers: { Authorization: `Bearer ${serviceRoleSecretKey}` }
     });
 
-    if (functionError) throw new Error(`AI_INGESTOR_FAIL: ${functionError.message}`);
+    if (functionInvokeException) throw new Error(`INTELLIGENCE_AGENCY_INGESTOR_FAIL: ${functionInvokeException.message}`);
 
-    const pointOfInterestIdentification = results.data.poiId;
+    // 4. VALIDACIÓN DE SALIDA DE LA IA (ADUANA DE CONTRATO)
+    // Utilizamos el nuevo esquema para garantizar que la respuesta de Gemini es íntegra.
+    const validatedAnalysisResults = IntelligenceAgencyAnalysisSchema.parse(agentResponseResults.data.analysis);
+    const pointOfInterestIdentification = agentResponseResults.data.poiId;
 
-    // 4. VINCULACIÓN FÍSICA Y SELLADO EN BASE DE DATOS
-    const { error: databaseUpdateError } = await supabaseClient
+    // 5. VINCULACIÓN FÍSICA Y SELLADO EN LA BASE DE DATOS
+    const { error: databaseUpdateException } = await supabaseClient
       .from('points_of_interest')
       .update({
-        gallery_urls: [publicHeroUniformResourceLocator, ...publicOcrUniformResourceLocators]
+        gallery_urls: [publicHeroUniformResourceLocator, ...publicOcrUniformResourceLocatorsCollection]
       })
       .eq('id', pointOfInterestIdentification);
 
-    if (databaseUpdateError) throw new Error(`DB_LINKING_FAIL: ${databaseUpdateError.message}`);
+    if (databaseUpdateException) throw new Error(`DATABASE_LINKING_FAIL: ${databaseUpdateException.message}`);
 
     return {
       success: true,
-      message: "Expediente multidimensional validado y anclado en la Bóveda.",
+      message: "Expediente multidimensional validado y anclado en la Bóveda NKV con éxito.",
       data: {
-        ...results.data,
-        pointOfInterestIdentification 
+        analysisResults: validatedAnalysisResults,
+        pointOfInterestIdentification: pointOfInterestIdentification,
+        locationMetadata: agentResponseResults.data.location as Record<string, unknown>
       }
     };
 
-  } catch (exception: any) {
-    console.error("🔥 [GeoAction][IngestError]:", exception.message);
+  } catch (operationalException: unknown) {
+    const exceptionMessage = operationalException instanceof Error ? operationalException.message : String(operationalException);
+    console.error("🔥 [GeoAction][IngestError]:", exceptionMessage);
     return { 
       success: false, 
-      message: "Fallo en la forja de inteligencia urbana.", 
-      error: exception.message 
+      message: "Fallo en la forja de inteligencia urbana profunda.", 
+      error: exceptionMessage 
     };
   }
 }
 
 /**
  * ---------------------------------------------------------------------------
- * V. SÍNTESIS NARRATIVA (PROCESAMIENTO LITERARIO)
+ * V. SÍNTESIS NARRATIVA (PROCESAMIENTO LITERARIO NEURONAL)
  * ---------------------------------------------------------------------------
  */
 
+/**
+ * synthesizeNarrativeAction:
+ * Misión: Ordenar a la IA la síntesis final de sabiduría basada en el dossier de ingesta.
+ */
 export async function synthesizeNarrativeAction(parameters: {
   pointOfInterestIdentification: number;
-  depth: NarrativeDepth;
-  tone: NarrativeTone;
-  refinedIntent?: string;
-}): Promise<GeoActionResponse<any>> {
+  narrativeDepth: NarrativeDepth;
+  narrativeTone: NarrativeTone;
+  refinedAdministratorIntent?: string;
+}): Promise<GeoActionResponse<Record<string, unknown>>> {
   try {
     await validateSovereignAccess();
     const supabaseClient = createClient();
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const serviceRoleSecretKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    const { data: results, error: functionError } = await supabaseClient.functions.invoke('geo-narrative-creator', {
+    const { data: synthesisResults, error: functionInvokeException } = await supabaseClient.functions.invoke('geo-narrative-creator', {
       body: {
         poiId: parameters.pointOfInterestIdentification,
-        depth: parameters.depth,
-        tone: parameters.tone,
-        refinedIntent: parameters.refinedIntent
+        depth: parameters.narrativeDepth,
+        tone: parameters.narrativeTone,
+        refinedIntent: parameters.refinedAdministratorIntent
       },
-      headers: { Authorization: `Bearer ${serviceRoleKey}` }
+      headers: { Authorization: `Bearer ${serviceRoleSecretKey}` }
     });
 
-    if (functionError) throw new Error(`AI_NARRATIVE_FAIL: ${functionError.message}`);
-    return { success: true, message: "Sabiduría sintetizada por el Agente 42.", data: results.data };
-  } catch (exception: any) {
-    console.error("🔥 [GeoAction][NarrativeFatal]:", exception.message);
-    return { success: false, message: "Fallo en la síntesis narrativa del hito.", error: exception.message };
+    if (functionInvokeException) throw new Error(`INTELLIGENCE_AGENCY_NARRATIVE_FAIL: ${functionInvokeException.message}`);
+    
+    return { 
+      success: true, 
+      message: "Sabiduría sintetizada con éxito por el Agente 42.", 
+      data: synthesisResults.data as Record<string, unknown> 
+    };
+  } catch (operationalException: unknown) {
+    const exceptionMessage = operationalException instanceof Error ? operationalException.message : String(operationalException);
+    console.error("🔥 [GeoAction][NarrativeFatal]:", exceptionMessage);
+    return { 
+      success: false, 
+      message: "Fallo en la síntesis narrativa del hito histórico.", 
+      error: exceptionMessage 
+    };
   }
 }
 
@@ -290,6 +354,10 @@ export async function synthesizeNarrativeAction(parameters: {
  * ---------------------------------------------------------------------------
  */
 
+/**
+ * publishSovereignChronicleAction:
+ * Misión: Realizar el commit final, activar el audio y publicar el nodo en la Malla global.
+ */
 export async function publishSovereignChronicleAction(parameters: {
   pointOfInterestIdentification: number;
   chronicleStoragePath: string; 
@@ -301,10 +369,12 @@ export async function publishSovereignChronicleAction(parameters: {
   try {
     await validateSovereignAccess();
 
-    const publicAudioUniformResourceLocator = supabaseClient.storage.from('podcasts').getPublicUrl(parameters.chronicleStoragePath).data.publicUrl;
+    const publicAudioUniformResourceLocator = supabaseClient.storage
+      .from('podcasts')
+      .getPublicUrl(parameters.chronicleStoragePath).data.publicUrl;
 
     // 1. Commit Físico y Activación de Resonancia en la Malla
-    const { error: databaseUpdateError } = await supabaseClient
+    const { error: databaseUpdateException } = await supabaseClient
       .from('points_of_interest')
       .update({
         ambient_audio_url: publicAudioUniformResourceLocator, 
@@ -314,26 +384,35 @@ export async function publishSovereignChronicleAction(parameters: {
       })
       .eq('id', parameters.pointOfInterestIdentification);
 
-    if (databaseUpdateError) throw new Error(`DB_PUBLISH_FAIL: ${databaseUpdateError.message}`);
+    if (databaseUpdateException) throw new Error(`DATABASE_PUBLISH_FAIL: ${databaseUpdateException.message}`);
 
-    // 2. REVALIDACIÓN SÍNCRONA DE MALLA
+    // 2. REVALIDACIÓN SÍNCRONA DE LA MALLA GEOGRÁFICA
     revalidatePath('/map');
     
-    return { success: true, message: "Nodo intelectual materializado con éxito en la Malla Activa." };
+    return { 
+      success: true, 
+      message: "Nodo intelectual materializado con éxito en la Malla Activa de Madrid Resonance." 
+    };
 
-  } catch (exception: any) {
-    console.error("🔥 [GeoAction][PublishFatal]:", exception.message);
-    return { success: false, message: "Fallo en el sellado final del nodo.", error: exception.message };
+  } catch (operationalException: unknown) {
+    const exceptionMessage = operationalException instanceof Error ? operationalException.message : String(operationalException);
+    console.error("🔥 [GeoAction][PublishFatal]:", exceptionMessage);
+    return { 
+      success: false, 
+      message: "Fallo en el sellado final y publicación del nodo.", 
+      error: exceptionMessage 
+    };
   }
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V11.0):
- * 1. Build Shield Synchronization: Se sustituyó 'POILifecycle' por 'PointOfInterestLifecycle',
- *    resolviendo el error TS2305 detectado por Vercel.
- * 2. Lightning Protocol Integrity: Las acciones ahora operan exclusivamente con 
- *    rutas de almacenamiento, garantizando que el servidor de aplicaciones nunca 
- *    se vea saturado por binarios visuales o acústicos.
- * 3. Atomic Revalidation: El uso de revalidatePath('/map') asegura que el peritaje 
- *    sea visible para todos los Voyagers de forma inmediata tras el commit.
+ * NOTA TÉCNICA DEL ARCHITECT (V12.0):
+ * 1. Zero Abbreviations Policy (ZAP): Se han purificado términos como 'id' (identification), 
+ *    'poi' (pointOfInterest), 'err' (exception), 'stt' (speechToText), 'url' (uniformResourceLocator),
+ *    cumpliendo estrictamente con el dogma industrial.
+ * 2. Build Shield Sovereignty (BSS): Se ha erradicado el uso de 'any'. Las respuestas de 
+ *    servidor están tipadas mediante 'GeoActionResponse' y los resultados de la IA son 
+ *    validados contra 'IntelligenceAgencyAnalysisSchema'.
+ * 3. Lightning Protocol Integrity: Se mantiene la gestión de binarios mediante rutas de 
+ *    almacenamiento, evitando la saturación del hilo de ejecución del servidor.
  */
