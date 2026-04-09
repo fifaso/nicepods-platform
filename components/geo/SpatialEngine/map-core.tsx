@@ -1,12 +1,14 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/map-core.tsx
- * VERSIÓN: 15.2 (NicePod MapCore - Ref Safety & VRAM Purge Edition)
+ * VERSIÓN: 16.0 (NicePod MapCore - Final Nominal Sync & VRAM Purge Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
- * Misión: Renderizado WebGL inmutable que gestiona la destrucción física de 
- * contextos gráficos para garantizar la estabilidad térmica del hardware.
- * [REFORMA V15.2]: Resolución de advertencia react-hooks/exhaustive-deps mediante 
- * captura local de referencia y blindaje total de la función de limpieza.
+ * Misión: Reactor WebGL inmutable que gestiona la renderización de la malla 3D 
+ * y la destrucción física de contextos gráficos para garantizar la estabilidad 
+ * térmica del hardware y la liberación de memoria de video (VRAM).
+ * [REFORMA V16.0]: Sincronización nominal absoluta con la Constitución V8.6. 
+ * Resolución definitiva de errores TS2339 (UserLocation properties), TS2305 
+ * (MapInstanceIdentification) y TS2322 (Contract mismatches). 
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -26,7 +28,7 @@ import {
   MAP_STYLES,
   MapPerformanceProfile,
   MapboxLightPreset,
-  OCCLUSION_CONFIG,
+  OCC_CONFIG, // OCCLUSION_CONFIG -> OCC_CONFIG (Internal constant)
   STANDARD_ENGINE_CONFIG,
   TERRAIN_CONFIG,
   getInitialViewState
@@ -34,7 +36,7 @@ import {
 
 import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { nicepodLog } from "@/lib/utils";
-import { MapInstanceId, PointOfInterest, UserLocation } from "@/types/geo-sovereignty";
+import { MapInstanceIdentification, PointOfInterest, UserLocation } from "@/types/geo-sovereignty";
 import { MapMarkerCustom } from "../map-marker-custom";
 import { UserLocationMarker } from "../user-location-marker";
 
@@ -51,7 +53,7 @@ type SafeMapStyleDataEvent = Parameters<NonNullable<MapNativeProperties['onStyle
  * INTERFAZ: MapCoreProperties
  */
 interface MapCoreProperties {
-  mapInstanceIdentification: MapInstanceId;
+  mapInstanceIdentification: MapInstanceIdentification;
   mode: 'EXPLORE' | 'FORGE';
   performanceProfile?: MapPerformanceProfile;
   startCoordinates: UserLocation;
@@ -98,13 +100,12 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
   useImperativeHandle(componentForwardedReference, () => localMapEngineReference.current as MapRef, []);
 
   /**
-   * 3. PROTOCOLO DE ANIQUILACIÓN (VRAM PURGE)
+   * 3. PROTOCOLO DE ANIQUILACIÓN (VRAM PURGE - PILAR 3)
    * Misión: Forzar la destrucción física del contexto WebGL al desmontar el componente.
-   * [FIX V15.2]: Captura local de la referencia para garantizar la ejecución del cleanup.
    */
   useEffect(() => {
     // [ESTABILIZACIÓN]: Capturamos el valor actual para asegurar que la limpieza 
-    // ocurra sobre la instancia correcta, satisfaciendo el Build Shield de Vercel.
+    // ocurra sobre la instancia correcta del hardware gráfico.
     const currentMapEngineInstance = localMapEngineReference.current;
 
     return () => {
@@ -112,8 +113,8 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
         const nativeMapInstance = currentMapEngineInstance.getMap();
         if (nativeMapInstance) {
           nicepodLog(`🧨 [MapCore:${mapInstanceIdentification}] Iniciando purga de VRAM y aniquilación física.`);
-          nativeMapInstance.stop(); // Detiene cualquier cinemática en curso
-          nativeMapInstance.remove(); // Destruye físicamente el motor gráfico y libera VRAM
+          nativeMapInstance.stop(); // Detiene cualquier interpolación cinemática
+          nativeMapInstance.remove(); // Destruye el motor WebGL y libera la GPU
         }
       }
     };
@@ -121,25 +122,27 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
 
   /**
    * 4. GENERACIÓN DE SEMILLA DE NACIMIENTO (INITIAL VIEW)
+   * [SINCRO V16.0]: Uso de latitudeCoordinate y longitudeCoordinate.
    */
   const initialMapViewState = useMemo(() => {
     nicepodLog(`🌱 [MapCore:${mapInstanceIdentification}] Sembrando semilla WebGL inmutable.`);
     return getInitialViewState(
-      startCoordinates.latitude,
-      startCoordinates.longitude
+      startCoordinates.latitudeCoordinate,
+      startCoordinates.longitudeCoordinate
     );
-  }, [mapInstanceIdentification, startCoordinates.latitude, startCoordinates.longitude]);
+  }, [mapInstanceIdentification, startCoordinates.latitudeCoordinate, startCoordinates.longitudeCoordinate]);
 
   /**
    * 5. MANEJADOR DE CARGA NOMINAL
    */
   const handleMapLoadAction = useCallback((event: SafeMapLoadEvent) => {
-    nicepodLog(`🏙️ [MapCore:${mapInstanceIdentification}] Handshake WebGL completado.`);
+    nicepodLog(`🏙️ [MapCore:${mapInstanceIdentification}] Handshake WebGL completado con éxito.`);
     onLoad(event);
   }, [onLoad, mapInstanceIdentification]);
 
   /**
-   * 6. STYLE-GUARD (El Escudo PBR V15.2)
+   * 6. STYLE-GUARD (El Escudo PBR V16.0)
+   * Misión: Configurar dinámicamente las propiedades del motor Mapbox Standard.
    */
   const handleStyleDataAction = useCallback((event: SafeMapStyleDataEvent) => {
     const mapNativeInstance = event.target;
@@ -154,20 +157,23 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
 
     if (activeEngineVisualStyle === MAP_STYLES.STANDARD) {
       try {
+        // [NOTA]: Se mantiene casting a 'any' para setConfigProperty mientras los tipos nativos se estabilizan.
         const mapboxInternalInstance = mapNativeInstance as any;
         if (mapboxInternalInstance.setConfigProperty) {
           mapboxInternalInstance.setConfigProperty('basemap', 'lightPreset', lightTheme);
-          mapboxInternalInstance.setConfigProperty('basemap', 'puckOcclusion', OCCLUSION_CONFIG.puckOcclusion);
+          // Oclusión del Voyager en la malla 3D
+          mapboxInternalInstance.setConfigProperty('basemap', 'puckOcclusion', 'always');
           mapboxInternalInstance.setConfigProperty('basemap', 'showPlaceLabels', isOverviewPerspectiveActive && !isTacticalLiteProfileActive);
           mapboxInternalInstance.setConfigProperty('basemap', 'showRoadLabels', engineTechnicalConfiguration.showRoadLabels);
           mapboxInternalInstance.setConfigProperty('basemap', 'showPointOfInterestLabels', false);
           mapboxInternalInstance.setConfigProperty('basemap', 'showTransitLabels', false);
         }
-      } catch (exception) {
-        nicepodLog("⚠️ [MapCore] Fallo en inyección basemap.", exception, 'warn');
+      } catch (hardwareException) {
+        nicepodLog("⚠️ [MapCore] Fallo en la inyección de propiedades del basemap.", hardwareException, 'warn');
       }
     }
 
+    // Gestión de transparencia de edificios en modo Satélite o Lite
     try {
       if (mapNativeInstance.getLayer('building')) {
         const buildingOpacityTargetValue = isTacticalLiteProfileActive 
@@ -176,8 +182,9 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
         
         mapNativeInstance.setPaintProperty('building', 'fill-extrusion-opacity', buildingOpacityTargetValue);
       }
-    } catch (exception) { /* Silenciamos si la capa no está disponible */ }
+    } catch (hardwareException) { /* Capa no disponible en este estilo */ }
 
+    // Inyección de terreno dinámico (Raster DEM)
     if (!mapNativeInstance.getSource(DEM_SOURCE_CONFIG.id)) {
       try {
         mapNativeInstance.addSource(DEM_SOURCE_CONFIG.id, {
@@ -185,7 +192,7 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
           url: DEM_SOURCE_CONFIG.url,
           tileSize: 512
         });
-      } catch (exception) { return; }
+      } catch (hardwareException) { return; }
     }
 
     try {
@@ -199,8 +206,8 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
       } else {
         mapNativeInstance.setTerrain(null);
       }
-    } catch (exception) {
-      nicepodLog("ℹ️ [MapCore] Gestión de relieve finalizada.");
+    } catch (hardwareException) {
+      nicepodLog("ℹ️ [MapCore] Gestión de relieve geográfico finalizada.");
     }
 
   }, [lightTheme, cameraPerspective, performanceProfile, mode, activeEngineVisualStyle]);
@@ -235,15 +242,15 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
 
       {nearbyPointsOfInterest.map((pointOfInterestEntry: PointOfInterest) => (
         <MapMarkerCustom
-          key={pointOfInterestEntry.id}
-          identification={pointOfInterestEntry.id.toString()}
-          latitude={pointOfInterestEntry.geo_location.coordinates[1]}
-          longitude={pointOfInterestEntry.geo_location.coordinates[0]}
-          categoryMission={pointOfInterestEntry.category_mission}
-          categoryEntity={pointOfInterestEntry.category_entity}
+          key={pointOfInterestEntry.identification}
+          identification={pointOfInterestEntry.identification.toString()}
+          latitude={pointOfInterestEntry.geographicLocation.coordinates[1]}
+          longitude={pointOfInterestEntry.geographicLocation.coordinates[0]}
+          categoryMission={pointOfInterestEntry.categoryMission}
+          categoryEntity={pointOfInterestEntry.categoryEntity}
           pointOfInterestName={pointOfInterestEntry.name}
-          isResonating={activePointOfInterest?.identification === pointOfInterestEntry.id.toString() && activePointOfInterest?.isWithinRadius}
-          isSelected={selectedPointOfInterestIdentification === pointOfInterestEntry.id.toString()}
+          isResonating={!!(activePointOfInterest?.identification === pointOfInterestEntry.identification.toString() && activePointOfInterest?.isWithinRadius)}
+          isSelected={selectedPointOfInterestIdentification === pointOfInterestEntry.identification.toString()}
           onMarkerInteraction={onMarkerClick}
         />
       ))}
@@ -255,6 +262,7 @@ MapCore.displayName = "MapCore";
 
 /**
  * [BUILD SHIELD]: SOBERANÍA DE RENDERIZADO
+ * Misión: Prevenir re-renderizados de la GPU mediante comparación estricta de propiedades.
  */
 export default memo(MapCore, (previousProperties, nextProperties) => {
   return (
