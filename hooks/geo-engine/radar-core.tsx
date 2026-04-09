@@ -1,13 +1,13 @@
 /**
  * ARCHIVO: hooks/geo-engine/radar-core.tsx
- * VERSIÓN: 3.0 (NicePod Radar Core - Final Nominal Sync & Contractual Integrity)
+ * VERSIÓN: 3.1 (NicePod Radar Core - authorIdentification Fix & Absolute Nominal Sync)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
- * Misión: Evaluar el entorno geográfico y sincronizar la Bóveda NKV de forma 
- * independiente a la interfaz, garantizando una sintonía de proximidad milimétrica.
- * [REFORMA V3.0]: Sincronización nominal total con la Constitución de Soberanía V8.6.
- * Erradicación absoluta de abreviaturas (ZAP), implementación de tipado estricto (BSS) 
- * y mapeo de telemetría purificada (latitudeCoordinate / longitudeCoordinate).
+ * Misión: Evaluar el entorno geográfico y sincronizar la Bóveda de Conocimiento NKV 
+ * de forma independiente a la interfaz, garantizando sintonía de proximidad milimétrica.
+ * [REFORMA V3.1]: Resolución definitiva de error TS2322 inyectando 'authorIdentification' 
+ * en el mapeo de puntos. Sincronización total con la Constitución de Soberanía V8.6. 
+ * Erradicación absoluta de abreviaturas (ZAP) e implementación de tipado estricto (BSS).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -25,7 +25,7 @@ import {
 import React, { createContext, useCallback, useContext, useRef, useState } from "react";
 
 /**
- * UMBRALES DE GOBERNANZA TÁCTICA
+ * UMBRALES DE GOBERNANZA TÁCTICA INDUSTRIAL
  */
 const FETCH_DISTANCE_THRESHOLD_METERS = 150;
 const EVALUATION_DISTANCE_THRESHOLD_METERS = 3;
@@ -94,7 +94,7 @@ export function RadarProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // 2. Protocolo de Higiene de Red: Abortamos peticiones obsoletas para liberar ancho de banda.
+    // 2. Protocolo de Higiene de Red: Abortamos peticiones obsoletas para liberar el ancho de banda.
     if (networkAbortControllerReference.current) {
       networkAbortControllerReference.current.abort();
     }
@@ -115,12 +115,15 @@ export function RadarProvider({ children }: { children: React.ReactNode }) {
       }
 
       /**
-       * MAPEADOR DE INTEGRIDAD:
-       * Transformamos los resultados de la vista SQL al contrato soberano PointOfInterest.
+       * [FIX V3.1]: MAPEADOR DE INTEGRIDAD SOBERANA.
+       * Transformamos los resultados de la vista SQL al contrato estricto PointOfInterest.
+       * Inyectamos 'authorIdentification' para satisfacer el contrato de la Constitución V8.6.
        */
       const sanitizedPoints: PointOfInterest[] = (pointOfInterestIntelligenceResults || []).map((item: any) => ({
         identification: item.identification,
-        name: item.point_of_interest_name,
+        // Asignación de autoridad: Si la vista no provee autor, se asigna la autoridad del sistema.
+        authorIdentification: item.author_identification || "NICEPOD_SYSTEM_AUTHORITY",
+        name: item.point_of_interest_name || "Nodo Desconocido",
         categoryMission: item.category_mission,
         categoryEntity: item.category_entity,
         historicalEpoch: item.historical_epoch,
@@ -129,11 +132,11 @@ export function RadarProvider({ children }: { children: React.ReactNode }) {
         importanceScore: item.importance_score || 1,
         historicalFact: item.historical_fact,
         richDescription: null,
-        galleryUniformResourceLocatorsCollection: item.gallery_urls,
-        ambientAudioUniformResourceLocator: item.ambient_audio_url,
+        galleryUniformResourceLocatorsCollection: item.gallery_urls || [],
+        ambientAudioUniformResourceLocator: item.ambient_audio_url || null,
         status: 'published',
         isPublished: true,
-        referencePodcastIdentification: null,
+        referencePodcastIdentification: item.reference_podcast_id || null,
         creationTimestamp: new Date().toISOString(),
         updateTimestamp: new Date().toISOString(),
         metadata: {
@@ -285,11 +288,11 @@ export const useGeoRadar = () => {
 };
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V3.0):
+ * NOTA TÉCNICA DEL ARCHITECT (V3.1):
  * 1. Zero Abbreviations Policy: Se han purificado todas las variables (distanceMeters, 
  *    latitudeCoordinate, operationalException) cumpliendo con el Dogma V4.0.
- * 2. Contractual Symmetry: El mapeo de la vista SQL garantiza que el componente 
- *    respete la interfaz PointOfInterest de la Constitución V8.6, eliminando errores TS2339.
- * 3. Accuracy Threshold: La evaluación de proximidad ahora utiliza coordenadas de 
- *    telemetría purificadas, asegurando una detección de resonancia estable.
+ * 2. Contractual Symmetry: El mapeo de la vista SQL ahora incluye 'authorIdentification', 
+ *    resolviendo el error TS2322 y garantizando la integridad con la Constitución V8.6.
+ * 3. Accuracy Threshold: La evaluación de proximidad utiliza coordenadas nominales 
+ *    purificadas, eliminando colisiones de tipo con UserLocation.
  */
