@@ -1,12 +1,13 @@
 /**
  * ARCHIVO: components/geo/geo-creator-overlay.tsx
- * VERSIÓN: 8.1 (NicePod Sovereign Orchestrator - Absolute Nominal Edition)
+ * VERSIÓN: 9.0 (NicePod Sovereign Orchestrator - Final Nominal & Contractual Sync)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Orquestar la interfaz táctica y el ciclo de vida de los motores WebGL 
  * garantizando la sincronía absoluta de contratos entre la interfaz y el SpatialEngine.
- * [REFORMA V8.1]: Resolución definitiva de error TS2322, purificación mediante Aliasing 
- * de componentes (HUD/UI) y cumplimiento estricto de la Zero Abbreviations Policy.
+ * [REFORMA V9.0]: Sincronización total con la Constitución V8.6 y el RadarHUD V6.0. 
+ * Resolución definitiva de errores TS2322 (weather mapping) y TS2339 (accuracyMeters). 
+ * Erradicación absoluta de acrónimos (ZAP) y sellado del Build Shield.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -36,11 +37,11 @@ import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { ForgeProvider, useForge } from "./forge-context";
 
 // --- MOTORES DE VISUALIZACIÓN Y ALIASING NOMINAL ---
-// Utilizamos 'as' para cumplir con la Zero Abbreviations Policy internamente sin romper rutas.
 import { RadarHUD as RadarHeadsUpDisplay } from "./radar-hud";
 import { GeoScannerUI as GeographicScannerUserInterface } from "./scanner-ui";
 import { SpatialEngine } from "./SpatialEngine";
 import { MAP_STYLES } from "./map-constants";
+import { MapInstanceIdentification } from "@/types/geo-sovereignty";
 
 /**
  * INTERFAZ: GeoCreatorOverlayProperties
@@ -55,19 +56,19 @@ interface GeoCreatorOverlayProperties {
  */
 function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGranted: boolean }) {
   
-  // 1. CONSUMO DE LA FACHADA SOBERANA (Triple-Core Facade V4.0)
+  // 1. CONSUMO DE LA FACHADA SOBERANA (Triple-Core Facade Synergy V4.0)
   const {
     status: engineOperationalStatus,
     data: engineOperationalData,
     userLocation,
-    initSensors: initializeSensors,
+    initSensors: initializeHardwareSensorsAction,
     isTriangulated: isGeographicallyTriangulated,
     isGPSLock: isGlobalPositioningSystemLocked,
     cameraPerspective,
     mapStyle: activeEngineVisualStyle, 
     isManualMode,
-    toggleCameraPerspective,
-    recenterCamera: recenterVisualCamera
+    toggleCameraPerspective: toggleVisualPerspectiveAction,
+    recenterCamera: recenterVisualCameraAction
   } = useGeoEngine();
 
   const { state: forgeState, dispatch: stateDispatcher } = useForge();
@@ -76,16 +77,16 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
   const [isForgeTerminalInterfaceOpen, setIsForgeTerminalInterfaceOpen] = useState<boolean>(false);
 
   /**
-   * handleHardwareIgnition:
+   * handleHardwareIgnitionAction:
    * Misión: Activar los sensores de telemetría mediante un gesto de autoridad del Voyager.
    */
-  const handleHardwareIgnition = useCallback(() => {
-    nicepodLog("⚡ [Orchestrator] Iniciando ignición hardware.");
+  const handleHardwareIgnitionAction = useCallback(() => {
+    nicepodLog("⚡ [Orchestrator] Iniciando ignición de sensores de hardware.");
     if (typeof window !== "undefined" && navigator.vibrate) {
       navigator.vibrate(40);
     }
-    initializeSensors();
-  }, [initializeSensors]);
+    initializeHardwareSensorsAction();
+  }, [initializeHardwareSensorsAction]);
 
   /**
    * handleCameraCinematicAction: EL ALGORITMO DEL MANDO ÚNICO
@@ -93,7 +94,7 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
    */
   const handleCameraCinematicAction = useCallback(() => {
     if (!userLocation) {
-      handleHardwareIgnition();
+      handleHardwareIgnitionAction();
       return;
     }
 
@@ -102,21 +103,21 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
       if (typeof window !== "undefined" && navigator.vibrate) {
         navigator.vibrate([15, 35]);
       }
-      recenterVisualCamera();
+      recenterVisualCameraAction();
     } else {
       nicepodLog("🎥 [Orchestrator] Rotando ciclo de perspectiva visual.");
       if (typeof window !== "undefined" && navigator.vibrate) {
         navigator.vibrate(25);
       }
-      toggleCameraPerspective();
+      toggleVisualPerspectiveAction();
     }
-  }, [isManualMode, userLocation, recenterVisualCamera, toggleCameraPerspective, handleHardwareIgnition]);
+  }, [isManualMode, userLocation, recenterVisualCameraAction, toggleVisualPerspectiveAction, handleHardwareIgnitionAction]);
 
   /**
-   * toggleForgeTerminalInterface:
+   * toggleForgeTerminalInterfaceAction:
    * Misión: Apertura de terminal de forja con gestión de recursos asíncrona.
    */
-  const toggleForgeTerminalInterface = useCallback(() => {
+  const toggleForgeTerminalInterfaceAction = useCallback(() => {
     if (isForgeTerminalInterfaceOpen) {
       nicepodLog("🛡️ [Orchestrator] Restaurando malla de exploración.");
       stateDispatcher({ type: 'RESET_FORGE' });
@@ -127,6 +128,10 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
     }
   }, [isForgeTerminalInterfaceOpen, stateDispatcher]);
 
+  /**
+   * displayCurrentPlaceName:
+   * Resolución heurística de la identidad nominativa del nodo.
+   */
   const displayCurrentPlaceName = forgeState.intentText ||
     engineOperationalData?.manualPlaceName ||
     engineOperationalData?.dossier?.visual_analysis_dossier?.detectedOfficialName ||
@@ -141,7 +146,7 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
       return {
         iconComponent: <Target size={22} className="animate-pulse text-primary" />,
         visualVariant: "default" as const,
-        accessibilityLabel: "Recuperar Foco"
+        accessibilityLabel: "Recuperar Foco Visual"
       };
     }
     
@@ -150,7 +155,7 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
         return {
           iconComponent: <Satellite size={22} />,
           visualVariant: "resonance" as const,
-          accessibilityLabel: "Capa Satelital"
+          accessibilityLabel: "Capa Satelital Fotorrealista"
         };
       case 'SATELLITE':
         return {
@@ -162,7 +167,7 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
         return {
           iconComponent: <Navigation2 size={22} />,
           visualVariant: "glass" as const,
-          accessibilityLabel: "Vista Inmersiva"
+          accessibilityLabel: "Vista Inmersiva de Campo"
         };
     }
   }, [isManualMode, cameraPerspective]);
@@ -182,7 +187,7 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
             className="absolute inset-0 z-0 pointer-events-auto"
           >
             <SpatialEngine
-              mapInstanceIdentification="map-full" // [BUILD SHIELD FIX]: Resuelve el error TS2322.
+              mapInstanceIdentification={"map-full" as MapInstanceIdentification} 
               mode="EXPLORE"
               visualTheme={activeEngineVisualStyle === MAP_STYLES.PHOTOREALISTIC ? 'day' : 'night'}
               className="w-full h-full"
@@ -191,7 +196,7 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
         )}
       </AnimatePresence>
 
-      {/* II. CAPA 10: VELO DE IGNICIÓN (COLD START TIMEOUT) */}
+      {/* II. CAPA 10: VELO DE IGNICIÓN (COLD START TERMINAL) */}
       <AnimatePresence>
         {engineOperationalStatus === 'IDLE' && (
           <motion.div
@@ -207,10 +212,10 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
               </div>
               <h2 className="text-white font-black uppercase tracking-[0.5em] text-[10px] mb-4">Enlace Interrumpido</h2>
               <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-[0.3em] leading-relaxed mb-12">
-                Conecte el enlace sensorial para proyectar la malla urbana de Madrid.
+                Conecte el enlace sensorial para proyectar la malla urbana de la Workstation.
               </p>
               <Button
-                onClick={handleHardwareIgnition}
+                onClick={handleHardwareIgnitionAction}
                 size="lg"
                 className="w-full rounded-2xl font-black tracking-widest bg-white text-black hover:bg-zinc-200"
               >
@@ -228,7 +233,7 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
         {/* BOTÓN DE ACCESO A LA FORJA SOBERANA */}
         {isForgeAuthorityGranted && engineOperationalStatus !== 'IDLE' && (
           <Button
-            onClick={toggleForgeTerminalInterface}
+            onClick={toggleForgeTerminalInterfaceAction}
             variant={isForgeTerminalInterfaceOpen ? "destructive" : "glass"}
             size="tactical"
             className="shadow-2xl transition-all duration-500 pointer-events-auto rounded-2xl h-14 w-14"
@@ -246,7 +251,7 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
           </Button>
         )}
 
-        {/* MANDO DE CÁMARA ÚNICO (JOYSTICK) */}
+        {/* MANDO DE CÁMARA ÚNICO (JOYSTICK CINEMÁTICO) */}
         {!isForgeTerminalInterfaceOpen && engineOperationalStatus !== 'IDLE' && (
           <Button
             onClick={handleCameraCinematicAction}
@@ -270,7 +275,8 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
         )}
       </div>
 
-      {/* IV. CAPA 30: PANTALLA DE DATOS EN CABEZA (HEADS-UP DISPLAY) */}
+      {/* IV. CAPA 30: PANTALLA DE DATOS EN CABEZA (HEADS-UP DISPLAY) 
+          [FIX V9.0]: Sincronía total con RadarHUD V6.0 y IngestionDossier V8.6. */}
       <AnimatePresence>
         {isForgeTerminalInterfaceOpen && (
           <motion.div
@@ -282,10 +288,10 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
             <RadarHeadsUpDisplay
               status={engineOperationalStatus}
               isTriangulated={isGeographicallyTriangulated}
-              isGPSLock={isGlobalPositioningSystemLocked}
+              isGlobalPositioningSystemLocked={isGlobalPositioningSystemLocked}
               weather={engineOperationalData?.dossier?.weather_snapshot}
-              place={displayCurrentPlaceName}
-              accuracy={userLocation?.accuracy || 0}
+              placeName={displayCurrentPlaceName}
+              accuracyMeters={userLocation?.accuracyMeters || 0}
             />
           </motion.div>
         )}
@@ -317,7 +323,7 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
       {!isForgeTerminalInterfaceOpen && engineOperationalStatus !== 'IDLE' && (
         <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-[150] pointer-events-auto">
           <button
-            onClick={handleHardwareIgnition}
+            onClick={handleHardwareIgnitionAction}
             className={cn(
               "backdrop-blur-3xl px-8 py-4 rounded-full border flex items-center gap-5 shadow-2xl transition-all duration-700 active:scale-95 group",
               isGlobalPositioningSystemLocked ? "bg-emerald-500/10 border-emerald-500/30" : "bg-black/80 border-white/10"
@@ -332,7 +338,7 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
                 {isGlobalPositioningSystemLocked ? "Malla Sintonizada" : "Capturando Señal"}
               </span>
               <span className="text-[8px] font-bold text-zinc-500 uppercase tracking-[0.2em]">
-                {isGlobalPositioningSystemLocked ? "GPS High-Fidelity Active" : "Detectando Voyager..."}
+                {isGlobalPositioningSystemLocked ? "Global Positioning System High-Fidelity Active" : "Detectando Voyager..."}
               </span>
             </div>
             {isGlobalPositioningSystemLocked && <ShieldCheck size={16} className="text-emerald-500 ml-2 group-hover:scale-110 transition-transform" />}
