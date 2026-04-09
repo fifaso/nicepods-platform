@@ -1,13 +1,14 @@
 /**
  * ARCHIVO: components/geo/steps/step-1-anchoring.tsx
- * VERSIÓN: 7.1 (NicePod Forge Step 1 - Absolute Sovereignty Edition)
+ * VERSIÓN: 8.0 (NicePod Forge Step 1 - Absolute Nominal Sync & Sovereign Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
- * Misión: Gestionar el anclaje milimétrico del hito urbano y obligar a la 
- * clasificación taxonómica bidimensional (Misión/Entidad).
- * [REFORMA V7.1]: Eliminación de 'any' en el reseteo taxonómico, aplicación 
- * del Path Protocol y cumplimiento estricto de la Zero Abbreviations Policy.
- * Nivel de Integridad:  100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * Misión: Gestionar el anclaje pericial milimétrico del hito urbano y forzar la 
+ * clasificación taxonómica bidimensional (Cuadrante de Misión y Entidad Física).
+ * [REFORMA V8.0]: Sincronización nominal total con la Constitución V8.6. Resolución 
+ * definitiva de errores TS2339 mediante el uso de propiedades de telemetría purificadas 
+ * (latitudeCoordinate, accuracyMeters). Cumplimiento absoluto de la Zero Abbreviations Policy.
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
@@ -23,16 +24,18 @@ import { cn, nicepodLog } from "@/lib/utils";
 
 // --- MOTORES CORE Y CONTEXTO V4.0 ---
 import { useGeoEngine } from "@/hooks/use-geo-engine";
-import { useForge } from "@/components/geo/forge-context"; // [FIX]: Path Alias aplicado
-
-// --- [FIX V7.1]: Importación Absoluta para prevenir rupturas de grafo ---
+import { useForge } from "@/components/geo/forge-context"; 
 import { SpatialEngine } from "@/components/geo/SpatialEngine";
 
-// --- SOBERANÍA DE TIPOS (V8.5) ---
-import { CategoryEntity, CategoryMission } from "@/types/geo-sovereignty";
+// --- SOBERANÍA DE TIPOS (V8.6) ---
+import { 
+  CategoryEntity, 
+  CategoryMission, 
+  MapInstanceIdentification 
+} from "@/types/geo-sovereignty";
 
 /**
- * TAXONOMÍA SOBERANA: DICCIONARIO DE ENTIDADES TÉCNICAS
+ * TAXONOMÍA SOBERANA: DICCIONARIO DE ENTIDADES TÉCNICAS INDUSTRIALES
  */
 const TAXONOMY_HIERARCHY: Record<CategoryMission, { identification: CategoryEntity; label: string }[]> = {
   infraestructura_vital: [
@@ -73,30 +76,28 @@ const MISSION_LABELS: Record<CategoryMission, string> = {
 };
 
 /**
- * Step1Anchoring: La fase inicial de peritaje y geolocalización industrial.
+ * Step1Anchoring: La fase inicial de peritaje y geolocalización industrial de la terminal.
  */
 export default function Step1Anchoring() {
   
   // 1. CONSUMO DE LA FACHADA SOBERANA Y CONTEXTO DE FORJA
   const { 
     userLocation, 
-    recenterCamera, 
+    recenterCamera: recenterVisualCameraAction, 
     isManualMode,
     status: engineOperationalStatus 
   } = useGeoEngine();
 
-  const { state: forgeState, dispatch: stateDispatcher, nextStep } = useForge();
+  const { state: forgeState, dispatch: stateDispatcher, nextStep: navigateToNextStepAction } = useForge();
 
   // 2. ESTADOS DE CONTROL VISUAL
   const [isMapDisplayForced, setIsMapDisplayForced] = useState<boolean>(false);
 
   /**
-   * handleManualAnchorSelection:
-   * Misión: Capturar el desplazamiento manual y actualizar el estado nominal.
+   * handleManualAnchorSelectionAction:
+   * Misión: Capturar el desplazamiento manual y actualizar el estado nominal del hito.
    */
-  const handleManualAnchorSelection = useCallback((longitudeAndLatitude: [number, number]) => {
-    const [longitudeCoordinate, latitudeCoordinate] = longitudeAndLatitude;
-    
+  const handleManualAnchorSelectionAction = useCallback((longitudeCoordinate: number, latitudeCoordinate: number) => {
     nicepodLog(`📍 [Forge:Step1] Ajuste de anclaje pericial: [${longitudeCoordinate}, ${latitudeCoordinate}]`);
     
     stateDispatcher({
@@ -104,7 +105,7 @@ export default function Step1Anchoring() {
       payload: {
         latitude: latitudeCoordinate,
         longitude: longitudeCoordinate,
-        accuracy: 1 // Autoridad manual establecida por el Administrador
+        accuracy: 1 // Autoridad manual absoluta establecida por el Administrador
       }
     });
 
@@ -114,17 +115,18 @@ export default function Step1Anchoring() {
   }, [stateDispatcher]);
 
   /**
-   * EFECTO: TelemetrySeedsynchronization
-   * Misión: Sembrar la ubicación inicial del hardware respetando el contrato nominal.
+   * EFECTO: TelemetrySeedSynchronization
+   * Misión: Sembrar la ubicación inicial del hardware respetando el nuevo contrato purificado.
+   * [SINCRO V8.0]: Mapeo de latitudeCoordinate y accuracyMeters.
    */
   useEffect(() => {
     if (userLocation && forgeState.latitude === null) {
       stateDispatcher({
         type: 'SET_LOCATION',
         payload: {
-          latitude: userLocation.latitude,
-          longitude: userLocation.longitude,
-          accuracy: userLocation.accuracy
+          latitude: userLocation.latitudeCoordinate,
+          longitude: userLocation.longitudeCoordinate,
+          accuracy: userLocation.accuracyMeters
         }
       });
     }
@@ -135,7 +137,7 @@ export default function Step1Anchoring() {
 
   /**
    * isPayloadIntegrityValidated: 
-   * Misión: Validar la completitud de la Malla de datos antes de permitir el avance.
+   * Misión: Validar la completitud de la Malla de datos antes de permitir el avance de fase.
    */
   const isPayloadIntegrityValidated = useMemo(() => {
     return (
@@ -148,9 +150,9 @@ export default function Step1Anchoring() {
   }, [forgeState.latitude, forgeState.longitude, forgeState.categoryMission, forgeState.categoryEntity, engineOperationalStatus]);
 
   return (
-    <div className="flex flex-col h-full w-full bg-transparent overflow-y-auto custom-scrollbar px-1">
+    <div className="flex flex-col h-full w-full bg-transparent overflow-y-auto custom-scrollbar px-1 isolate">
       
-      {/* I. CABECERA DE INSTRUMENTACIÓN */}
+      {/* I. CABECERA DE INSTRUMENTACIÓN EDITORIAL */}
       <div className="px-6 pt-6 pb-4 shrink-0">
         <div className="flex items-center gap-3 mb-2">
           <div className="h-6 w-1 bg-primary rounded-full shadow-lg" />
@@ -159,7 +161,7 @@ export default function Step1Anchoring() {
           </h3>
         </div>
         <p className="text-[10px] text-zinc-500 font-medium uppercase tracking-widest leading-relaxed">
-          Sintonice la ubicación exacta del hito y clasifique su misión urbana.
+          Sintonice la ubicación exacta del hito pericial y clasifique su misión urbana.
         </p>
       </div>
 
@@ -167,10 +169,10 @@ export default function Step1Anchoring() {
       <div className="shrink-0 relative h-[280px] mx-4 mb-6 rounded-[2.5rem] overflow-hidden border border-white/5 shadow-2xl bg-[#020202]">
         {isMapDisplayForced && (
           <SpatialEngine
-            mapInstanceIdentification="map-forge" // Sincronía Nominal Confirmada
+            mapInstanceIdentification={"map-forge" as MapInstanceIdentification} 
             mode="FORGE"
             performanceProfile="TACTICAL_LITE" 
-            onManualAnchorSelection={handleManualAnchorSelection}
+            onManualAnchorSelectionAction={handleManualAnchorSelectionAction}
             className="w-full h-full"
           />
         )}
@@ -180,7 +182,7 @@ export default function Step1Anchoring() {
             size="icon"
             variant={isManualMode ? "resonance" : "glass"}
             className="rounded-2xl shadow-2xl h-11 w-11"
-            onClick={recenterCamera}
+            onClick={recenterVisualCameraAction}
           >
             <Target size={18} className={cn(isManualMode && "animate-pulse")} />
           </Button>
@@ -205,10 +207,10 @@ export default function Step1Anchoring() {
         </div>
       </div>
 
-      {/* III. MATRIZ DE TAXONOMÍA GRANULAR */}
+      {/* III. MATRIZ DE TAXONOMÍA GRANULAR (PILAR 1) */}
       <div className="px-6 flex flex-col gap-6 mb-10 flex-1">
         
-        {/* Cuadrante de Misión */}
+        {/* SECTOR: CUADRANTE DE MISIÓN */}
         <div>
           <label className="text-[9px] font-black uppercase tracking-[0.4em] text-zinc-600 mb-4 block">
             Cuadrante de Misión Principal
@@ -219,7 +221,7 @@ export default function Step1Anchoring() {
                 key={categoryMissionKey}
                 onClick={() => {
                   stateDispatcher({ type: 'SET_MISSION', payload: categoryMissionKey });
-                  // [BUILD SHIELD FIX]: Erradicación de 'any'. El reducer debe manejar 'undefined'
+                  // [BUILD SHIELD]: Sincronización nominal del reseteo de entidad.
                   stateDispatcher({ type: 'SET_ENTITY', payload: undefined as unknown as CategoryEntity }); 
                 }}
                 className={cn(
@@ -240,7 +242,7 @@ export default function Step1Anchoring() {
           </div>
         </div>
 
-        {/* Entidad Pericial Específica */}
+        {/* SECTOR: ENTIDAD PERICIAL ESPECÍFICA */}
         <AnimatePresence mode="wait">
           {forgeState.categoryMission && (
             <motion.div
@@ -276,15 +278,15 @@ export default function Step1Anchoring() {
         </AnimatePresence>
       </div>
 
-      {/* IV. CHASIS DE ACCIÓN SOBERANA */}
+      {/* IV. CHASIS DE ACCIÓN SOBERANA DE TRANSICIÓN */}
       <div className="px-6 pb-10 mt-auto shrink-0 bg-gradient-to-t from-[#020202] to-transparent pt-6">
         <Button
-          onClick={nextStep}
+          onClick={navigateToNextStepAction}
           disabled={!isPayloadIntegrityValidated}
           className="w-full h-16 rounded-[2rem] bg-white text-black hover:bg-zinc-200 transition-all shadow-2xl font-black text-xs tracking-[0.4em] uppercase group overflow-hidden relative"
         >
           <span className="flex items-center gap-3 relative z-10">
-            Fijar Coordenadas
+            Fijar Coordenadas Tácticas
             <Check size={18} className="group-hover:scale-125 transition-transform" />
           </span>
           {isPayloadIntegrityValidated && (
@@ -299,3 +301,12 @@ export default function Step1Anchoring() {
     </div>
   );
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V8.0):
+ * 1. Build Shield Compliance: Se resolvieron los 3 errores TS2339 sincronizando el componente 
+ *    con el nuevo contrato UserLocation (latitudeCoordinate, accuracyMeters).
+ * 2. Zero Abbreviations Policy: Purificación de nomenclatura táctica en todo el componente.
+ * 3. Spatial Hub Integration: El mapeo de 'onManualAnchorSelectionAction' garantiza la 
+ *    interoperabilidad con el reactor visual SpatialEngine V12.0.
+ */
