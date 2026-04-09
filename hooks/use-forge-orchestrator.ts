@@ -1,14 +1,14 @@
 /**
  * ARCHIVO: hooks/use-forge-orchestrator.ts
- * VERSIÓN: 7.0 (NicePod Forge Orchestrator - Sovereign Nominal & Integrity Edition)
+ * VERSIÓN: 8.0 (NicePod Forge Orchestrator - Sovereign Nominal & Multidimensional Integrity Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Gestionar el ciclo de vida de ingesta sensorial orquestando la compresión 
  * Just-In-Time (JIT), la transcripción de voz y la transmisión directa de binarios 
  * mediante el Protocolo Lightning (Signed Uniform Resource Locators).
- * [REFORMA V7.0]: Sincronización nominal absoluta con el Esquema de Validación V4.1 
- * y las Acciones Geográficas V12.0. Erradicación total de acrónimos (ZAP) y 
- * blindaje total contra el tipo 'any' (BSS).
+ * [REFORMA V8.0]: Sincronización nominal total con la Constitución de Soberanía V8.6 
+ * y las Acciones Geográficas V12.0. Resolución definitiva de errores de tipado en 
+ * el bloque meteorológico y ensamblaje del dossier. Erradicación total de acrónimos (ZAP).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -37,6 +37,20 @@ import {
 import { IntelligenceAgencyAnalysisData } from "@/lib/validation/poi-schema";
 
 /**
+ * INTERFAZ: WeatherResolutionPayload
+ * Misión: Definir la estructura de los datos meteorológicos provenientes del Oráculo.
+ */
+interface WeatherResolutionPayload {
+  current?: {
+    temp_c: number;
+    condition?: {
+      text: string;
+    };
+    is_day: number;
+  };
+}
+
+/**
  * UTILIDAD INTERNA: transmuteFileToAudioBase64Data
  * Misión: Convertir binarios pequeños (voz) en cadenas seguras para transcripción neuronal.
  */
@@ -45,7 +59,7 @@ const transmuteFileToAudioBase64Data = (fileOrBlob: File | Blob): Promise<string
     const fileReader = new FileReader();
     fileReader.readAsDataURL(fileOrBlob);
     fileReader.onload = () => resolve(fileReader.result as string);
-    fileReader.onerror = (exception) => reject(exception);
+    fileReader.onerror = (hardwareException) => reject(hardwareException);
   });
 };
 
@@ -90,7 +104,7 @@ export function useForgeOrchestrator() {
     setForgeOperationalError(null);
 
     try {
-      nicepodLog("⚙️ [ForgeOrchestrator] Iniciando Protocolo Lightning (Fase Concurrente V7.0)...");
+      nicepodLog("⚙️ [ForgeOrchestrator] Iniciando Protocolo Lightning (Fase Concurrente V8.0)...");
 
       // Latencia de estabilización visual para asegurar el repintado de la interfaz de usuario.
       await new Promise((resolve) => setTimeout(resolve, 150));
@@ -128,7 +142,7 @@ export function useForgeOrchestrator() {
       ] = await Promise.all([
         compressNicePodImage(parameters.heroImage, 1920, 0.82),
         Promise.all(parameters.opticalCharacterRecognitionImages.map(image => compressNicePodImage(image, 1280, 0.70))),
-        resolveLocationAction(userGeographicLocation.latitude, userGeographicLocation.longitude),
+        resolveLocationAction(userGeographicLocation.latitudeCoordinate, userGeographicLocation.longitudeCoordinate),
         requestUploadTokensAction([
           'hero_primary_evidence.jpg', 
           ...parameters.opticalCharacterRecognitionImages.map((_, itemIndex) => `optical_character_recognition_evidence_${itemIndex}.jpg`)
@@ -145,7 +159,6 @@ export function useForgeOrchestrator() {
 
       /**
        * 3. TRANSMISIÓN DIRECTA (Protocolo Lightning V4.0)
-       * Misión: Eludir el hilo de ejecución de Vercel transmitiendo directamente al Metal.
        */
       nicepodLog("🚀 [ForgeOrchestrator] Transfiriendo binarios visuales pesados a la Bóveda...");
 
@@ -168,14 +181,12 @@ export function useForgeOrchestrator() {
 
       /**
        * 4. INVOCACIÓN AL ORÁCULO DE INTELIGENCIA (Agente 42)
-       * [MANDATO BSS]: Despachamos parámetros tipados según el esquema de validación V4.1.
+       * [MANDATO BSS]: Sincronización con PointOfInterestIngestionSchema V4.1.
        */
-      nicepodLog("📡 [ForgeOrchestrator] Expediente visual sellado. Solicitando peritaje al Oráculo...");
-
       const ingestionFinalResults = await ingestIntelligenceDossierAction({
-        latitudeCoordinate: userGeographicLocation.latitude,
-        longitudeCoordinate: userGeographicLocation.longitude,
-        accuracyMeters: userGeographicLocation.accuracy,
+        latitudeCoordinate: userGeographicLocation.latitudeCoordinate,
+        longitudeCoordinate: userGeographicLocation.longitudeCoordinate,
+        accuracyMeters: userGeographicLocation.accuracyMeters,
         heroImageStoragePath: heroImageStoragePath,
         opticalCharacterRecognitionImagePaths: opticalCharacterRecognitionStoragePaths,
         categoryMission: parameters.categoryMission,
@@ -191,25 +202,31 @@ export function useForgeOrchestrator() {
       }
 
       const { pointOfInterestIdentification, analysisResults } = ingestionFinalResults.data;
+      const weatherData = weatherResolutionResults.data as WeatherResolutionPayload | undefined;
 
       /**
        * 5. MATERIALIZACIÓN DEL DOSSIER DE INTELIGENCIA FINAL
-       * [MANDATO BSS]: Se utiliza tipado estricto IntelligenceAgencyAnalysisData para el análisis.
+       * [FIX V8.0]: Sincronización con el tipo IngestionDossier (Soberanía V8.6).
        */
       const compiledIntelligenceDossier: IngestionDossier = {
         point_of_interest_identification: pointOfInterestIdentification,
-        raw_ocr_text: analysisResults.historicalDossier || null,
+        raw_optical_character_recognition_text: analysisResults.historicalDossier || null,
         weather_snapshot: {
-          temp_c: weatherResolutionResults.success ? (weatherResolutionResults.data?.current?.temp_c || 15) : 15,
-          condition: weatherResolutionResults.success ? (weatherResolutionResults.data?.current?.condition?.text || "Despejado") : "Despejado",
-          is_day: weatherResolutionResults.success ? !!weatherResolutionResults.data?.current?.is_day : true
+          temperatureCelsius: weatherData?.current?.temp_c || 15,
+          conditionText: weatherData?.current?.condition?.text || "Despejado",
+          isDaytime: weatherData ? weatherData.current?.is_day === 1 : true
         },
         visual_analysis_dossier: {
-          ...analysisResults,
-          grounding_verification: analysisResults.groundingVerification
+          historicalDossier: analysisResults.historicalDossier,
+          architectureStyle: analysisResults.architectureStyle,
+          atmosphere: analysisResults.atmosphere,
+          detectedElementsCollection: analysisResults.detectedElements,
+          detectedOfficialName: analysisResults.detectedOfficialName,
+          administratorOriginalIntent: finalAdministratorIntentText,
+          groundingVerification: analysisResults.groundingVerification
         },
-        sensor_accuracy: userGeographicLocation.accuracy,
-        ingested_at: new Date().toISOString()
+        hardware_sensor_accuracy: userGeographicLocation.accuracyMeters,
+        ingested_at_timestamp: new Date().toISOString()
       };
 
       // 6. ACTUALIZACIÓN DEL ESTADO GLOBAL DE LA FORJA
