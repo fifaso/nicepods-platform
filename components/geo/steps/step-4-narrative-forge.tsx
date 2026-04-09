@@ -1,12 +1,14 @@
 /**
  * ARCHIVO: components/geo/steps/step-4-narrative-forge.tsx
- * VERSIÓN: 7.1 (NicePod Forge Step 4 - Absolute Transaction Integrity Edition)
+ * VERSIÓN: 8.0 (NicePod Forge Step 4 - Sovereign Nominal & Contractual Integrity Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Configurar el ADN editorial, sintetizar la crónica mediante el Oráculo 
- * y sellar el nodo en la Malla de Madrid mediante el protocolo de publicación soberana.
- * [REFORMA V7.1]: Resolución definitiva de error TS2345 inyectando la magnitud 
- * temporal (durationSeconds) en el sellado final y purificación nominal absoluta.
+ * de Inteligencia y sellar el nodo en la Malla de Madrid mediante el protocolo 
+ * de publicación soberana y transmisión directa de binarios (Lightning Protocol).
+ * [REFORMA V8.0]: Sincronización nominal absoluta con la Constitución V8.6 y las 
+ * Acciones Geográficas V12.0. Resolución definitiva de errores TS2339 mediante 
+ * el uso de 'pathsCollection' y 'uploadUrlsCollection'. Cumplimiento total de ZAP.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -16,7 +18,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   Sparkles, 
   ChevronLeft, 
-  CheckCircle2, 
   PenTool, 
   Wind,
   AlignLeft,
@@ -56,7 +57,7 @@ export default function Step4NarrativeForge() {
     error: geographicIntelligenceError 
   } = useGeoEngine();
 
-  const { state: forgeState, dispatch: stateDispatcher, prevStep } = useForge();
+  const { state: forgeState, dispatch: stateDispatcher, prevStep: navigateToPreviousStepAction } = useForge();
 
   // 2. ESTADOS LOCALES DE PROCESAMIENTO INDUSTRIAL
   const [isPublishingProcessActive, setIsPublishingProcessActive] = useState<boolean>(false);
@@ -64,12 +65,13 @@ export default function Step4NarrativeForge() {
   /**
    * handleInitiateNarrativeSynthesisAction:
    * Misión: Despachar la orden de forja narrativa al Oráculo de Inteligencia.
+   * [SINCRO V8.0]: Adaptado a los nuevos nombres de propiedad de la Fachada V49.0.
    */
   const handleInitiateNarrativeSynthesisAction = async () => {
     const pointOfInterestIdentification = forgeState.ingestedPointOfInterestIdentification;
     
     if (!pointOfInterestIdentification) {
-      nicepodLog("🛑 [Step4] Abortando: Identificación de hito no localizada en memoria.", null, 'error');
+      nicepodLog("🛑 [Step4] Abortando: Identificación de hito no localizada en la memoria táctica.", null, 'error');
       return;
     }
 
@@ -78,9 +80,9 @@ export default function Step4NarrativeForge() {
     try {
       await executeNarrativeSynthesisAction({
         pointOfInterestIdentification: pointOfInterestIdentification,
-        depth: forgeState.depth,
-        tone: forgeState.tone,
-        refinedIntent: forgeState.intentText
+        narrativeDepth: forgeState.depth,
+        narrativeTone: forgeState.tone,
+        refinedAdministratorIntent: forgeState.intentText
       });
     } catch (hardwareException) {
       nicepodLog("🔥 [Step4] Fallo en la comunicación con el Oráculo Narrativo.", hardwareException, 'error');
@@ -90,7 +92,7 @@ export default function Step4NarrativeForge() {
   /**
    * handleFinalChroniclePublicationAction:
    * Misión: Recibir el binario acústico, transmitirlo a la Bóveda y sellar el nodo en la Malla.
-   * [FIX V7.1]: Inyección obligatoria de 'durationSeconds' para cumplir con el contrato de la Server Action.
+   * [FIX V8.0]: Resolución de errores TS2339 sincronizando con 'pathsCollection' y 'uploadUrlsCollection'.
    */
   const handleFinalChroniclePublicationAction = useCallback(async (
     capturedAudioBinaryBlob: Blob, 
@@ -102,23 +104,25 @@ export default function Step4NarrativeForge() {
     }
 
     setIsPublishingProcessActive(true);
-    nicepodLog("📡 [Step4] Iniciando protocolo de publicación de grado industrial...");
+    nicepodLog("📡 [Step4] Iniciando protocolo de publicación soberana (Lightning Protocol)...");
 
     try {
       /**
-       * 1. SOLICITUD DE PASAPORTE ACÚSTICO (Protocolo Lightning)
+       * 1. SOLICITUD DE PASAPORTE ACÚSTICO (Protocolo Lightning V4.0)
        */
-      const uploadTokenResponse = await requestUploadTokensAction(['chronicle_final.webm']);
+      const uploadTokenResponse = await requestUploadTokensAction(['chronicle_final_master.webm']);
 
       if (!uploadTokenResponse.success || !uploadTokenResponse.data) {
-        throw new Error(uploadTokenResponse.error || "No se pudo autorizar la subida del audio final.");
+        throw new Error(uploadTokenResponse.error || "No se pudo autorizar la subida del activo acústico final.");
       }
 
-      const audioStoragePath = uploadTokenResponse.data.paths[0];
-      const audioUploadUniformResourceLocator = uploadTokenResponse.data.uploadUrls[0];
+      // [SINCRO NOMINAL V8.0]: Uso de nombres descriptivos purificados
+      const audioStoragePath = uploadTokenResponse.data.pathsCollection[0];
+      const audioUploadUniformResourceLocator = uploadTokenResponse.data.uploadUrlsCollection[0];
 
       /**
-       * 2. TRANSMISIÓN DIRECTA (Aislamiento de Servidor)
+       * 2. TRANSMISIÓN DIRECTA (Aislamiento de Hilo de Servidor)
+       * Misión: Evitar el desbordamiento de memoria en Vercel enviando el binario al Storage.
        */
       const audioUploadExecutionResults = await fetch(audioUploadUniformResourceLocator, {
         method: 'PUT',
@@ -127,27 +131,27 @@ export default function Step4NarrativeForge() {
       });
 
       if (!audioUploadExecutionResults.ok) {
-        throw new Error("FALLO_TRANSMISION_DIRECTA: El servidor de almacenamiento rechazó la crónica.");
+        throw new Error("FALLO_TRANSMISION_DIRECTA: El servidor de almacenamiento rechazó la crónica de audio.");
       }
 
       /**
-       * 3. SELLADO SOBERANO EN BASE DE DATOS
-       * [FIX V7.1]: Resolución del error TS2345 inyectando la magnitud temporal exacta.
+       * 3. SELLADO SOBERANO EN BASE DE DATOS (COMMIT)
        */
       const publicationCommitResults = await publishSovereignChronicleAction({
         pointOfInterestIdentification: pointOfInterestIdentification,
         chronicleStoragePath: audioStoragePath,
-        durationSeconds: recordingDurationSecondsMagnitude // Mapeo de integridad completado
+        durationSeconds: recordingDurationSecondsMagnitude
       });
 
       if (publicationCommitResults.success) {
-        nicepodLog("✅ [Step4] Nodo materializado. Sincronía pericial total alcanzada.");
+        nicepodLog("✅ [Step4] Nodo materializado con éxito. Sincronía pericial total alcanzada.");
         stateDispatcher({ type: 'RESET_FORGE' });
       } else {
         throw new Error(publicationCommitResults.error);
       }
     } catch (networkException) {
-      nicepodLog("🔥 [Step4] Error crítico en la publicación final.", networkException, 'error');
+      const exceptionMessage = networkException instanceof Error ? networkException.message : String(networkException);
+      nicepodLog("🔥 [Step4] Error crítico en la publicación final.", exceptionMessage, 'error');
     } finally {
       setIsPublishingProcessActive(false);
     }
@@ -157,9 +161,9 @@ export default function Step4NarrativeForge() {
    * OPCIONES DE CONFIGURACIÓN TÁCTICA (DICCIONARIOS NOMINALES)
    */
   const narrativeDepthOptions: { value: NarrativeDepth; label: string; description: string }[] = [
-    { value: 'flash', label: 'Flash', description: 'Sintético / 45s' },
-    { value: 'cronica', label: 'Crónica', description: 'Estándar / 1.5m' },
-    { value: 'inmersion', label: 'Inmersión', description: 'Profundo / 4m' }
+    { value: 'flash', label: 'Flash', description: 'Sintético / 45 Segundos' },
+    { value: 'cronica', label: 'Crónica', description: 'Estándar / 1.5 Minutos' },
+    { value: 'inmersion', label: 'Inmersión', description: 'Profundo / 4 Minutos' }
   ];
 
   const narrativeToneOptions: { value: NarrativeTone; label: string; iconComponent: React.ReactNode }[] = [
@@ -182,7 +186,7 @@ export default function Step4NarrativeForge() {
           </h3>
         </div>
         <p className="text-[10px] text-zinc-600 font-medium uppercase tracking-widest leading-relaxed">
-          Configure el ADN del relato. El Oráculo transmutará el dossier en una crónica de sabiduría.
+          Configure el ADN editorial del relato. El Oráculo transmutará el dossier técnico en una crónica de sabiduría.
         </p>
       </div>
 
@@ -204,7 +208,7 @@ export default function Step4NarrativeForge() {
               </div>
               <div className="flex flex-col">
                 <span className="text-[11px] font-black text-white uppercase tracking-widest">Relato Sintetizado</span>
-                <span className="text-[8px] text-emerald-500 font-bold uppercase tracking-widest mt-1">Iniciando fase de captura vocal</span>
+                <span className="text-[8px] text-emerald-500 font-bold uppercase tracking-widest mt-1">Iniciando fase de captura vocal soberana</span>
               </div>
             </div>
 
@@ -299,7 +303,7 @@ export default function Step4NarrativeForge() {
             <div className="flex gap-5 pt-6 pb-12">
               <Button
                 variant="outline"
-                onClick={prevStep}
+                onClick={navigateToPreviousStepAction}
                 className="w-24 h-24 rounded-[2.5rem] border-white/10 bg-transparent text-zinc-700 hover:bg-white/5 hover:text-white transition-all shadow-xl"
               >
                 <ChevronLeft size={32} />
@@ -313,7 +317,7 @@ export default function Step4NarrativeForge() {
                 {engineOperationalStatus === 'SYNTHESIZING' ? (
                   <div className="flex items-center gap-5 relative z-10">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    <span>Forjando Sabiduria...</span>
+                    <span>Forjando Sabiduría...</span>
                   </div>
                 ) : (
                   <span className="flex items-center justify-center gap-5 relative z-10 w-full">
@@ -348,12 +352,12 @@ export default function Step4NarrativeForge() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V7.1):
- * 1. Build Shield Compliance: Se resolvió el error TS2345 inyectando la propiedad 
- *    'durationSeconds' en el objeto de publicación soberana, sincronizando el 
- *    componente con la Server Action V11.0.
- * 2. Zero Abbreviations Policy: Purificación absoluta de términos (narrativeDepthOptions, 
- *    publicationCommitResults, capturedAudioBinaryBlob, recordingDurationSecondsMagnitude).
- * 3. Transaction Safety: El flujo garantiza que la magnitud acústica sea persistida 
- *    correctamente en el Metal, habilitando el cálculo preciso de reputación.
+ * NOTA TÉCNICA DEL ARCHITECT (V8.0):
+ * 1. Build Shield Compliance: Se han resuelto todos los errores TS2339 sincronizando 
+ *    el acceso a datos con 'pathsCollection' y 'uploadUrlsCollection', alineando 
+ *    el componente con las Server Actions V12.0.
+ * 2. Zero Abbreviations Policy: Purificación absoluta de términos técnicos. Se han 
+ *    sustituido acrónimos por sus descriptores industriales (ZAP).
+ * 3. Contractual Symmetry: La integración con 'executeNarrativeSynthesisAction' 
+ *    ahora utiliza los nuevos parámetros nominales exigidos por el núcleo de soberanía.
  */
