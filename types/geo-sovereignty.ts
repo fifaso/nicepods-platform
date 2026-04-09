@@ -1,12 +1,14 @@
 /**
  * ARCHIVO: types/geo-sovereignty.ts
- * VERSIÓN: 8.5 (NicePod Sovereign Constitution - Full Descriptive Integrity Edition)
+ * VERSIÓN: 8.6 (NicePod Sovereign Constitution - Absolute Nominal Sync Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Centralizar el contrato de identidad, telemetría y control cinemático,
- * garantizando la sintonía absoluta entre el hardware, el oráculo y el pintor WebGL.
- * [REFORMA V8.5]: Erradicación total y absoluta de abreviaciones. Implementación 
- * de la Taxonomía Granular V4.0, Reloj Soberano y Grounding Pericial.
+ * garantizando la sintonía absoluta entre el hardware de silicio, el oráculo 
+ * de inteligencia y el motor de renderizado WebGL.
+ * [REFORMA V8.6]: Sincronización nominal total con la Reforma V4.1 (poi-schema.ts) 
+ * y las Acciones Geográficas V12.0. Erradicación absoluta de acrónimos (ZAP), 
+ * sellado del Build Shield (BSS) y normalización del Dossier de Inteligencia.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -22,29 +24,29 @@
  */
 export interface GeoPoint {
   type: 'Point';
-  coordinates: [number, number]; // [longitude, latitude]
+  coordinates: [number, number]; // [longitudeCoordinate, latitudeCoordinate]
 }
 
 /**
  * TelemetrySource: Definición del origen de la verdad geográfica.
  */
 export type TelemetrySource = 
-  | 'gps' 
+  | 'global-positioning-system' 
   | 'cache' 
-  | 'ip-fallback' 
+  | 'internet-protocol-fallback' 
   | 'manual-anchor' 
-  | 'edge-ip';
+  | 'edge-internet-protocol';
 
 /**
  * UserLocation: Snapshot de telemetría purificada capturada por el hardware.
  */
 export interface UserLocation {
-  latitude: number;
-  longitude: number;
-  accuracy: number;
-  heading: number | null;
-  speed: number | null;
-  source?: TelemetrySource;
+  latitudeCoordinate: number;
+  longitudeCoordinate: number;
+  accuracyMeters: number;
+  headingDegrees: number | null;
+  speedMetersPerSecond: number | null;
+  geographicSource?: TelemetrySource;
   timestamp?: number;
 }
 
@@ -54,9 +56,9 @@ export interface UserLocation {
 export interface ActivePointOfInterest {
   identification: string;
   name: string;
-  distance: number;
+  distanceMeters: number;
   isWithinRadius: boolean;
-  historical_fact?: string;
+  historicalFact?: string;
 }
 
 /**
@@ -65,27 +67,18 @@ export interface ActivePointOfInterest {
  * ---------------------------------------------------------------------------
  */
 
-/**
- * CategoryMission: El Eje Funcional (Lo que el Voyager busca satisfacer).
- */
 export type CategoryMission = 
   | 'infraestructura_vital'
   | 'memoria_soberana'
   | 'capital_intelectual'
   | 'resonancia_sensorial';
 
-/**
- * CategoryEntity: El Eje Físico (Clasificación pericial del hito).
- */
 export type CategoryEntity =
   | 'aseo_premium' | 'nodo_hidratacion' | 'refugio_climatico' | 'terminal_energia' | 'zona_segura'
   | 'monumento_nacional' | 'placa_sintonia' | 'yacimiento_ruina' | 'leyenda_urbana' | 'arquitectura_epoca'
   | 'museo_sabiduria' | 'atelier_galeria' | 'libreria_autor' | 'centro_innovacion' | 'intervencion_plastica'
   | 'mirador_estrategico' | 'paisaje_sonoro' | 'pasaje_secreto' | 'mercado_origen' | 'obrador_tradicion';
 
-/**
- * HistoricalEpoch: El Eje Temporal para la sintonización prosódica de la IA.
- */
 export type HistoricalEpoch =
   | 'origen_geologico'
   | 'pre_industrial'
@@ -102,9 +95,6 @@ export type HistoricalEpoch =
  * ---------------------------------------------------------------------------
  */
 
-/**
- * PointOfInterestLifecycle: Estados legales de un nodo en la base de datos.
- */
 export type PointOfInterestLifecycle =
   | 'ingested'
   | 'analyzed'
@@ -112,9 +102,6 @@ export type PointOfInterestLifecycle =
   | 'published'
   | 'archived';
 
-/**
- * GeoEngineState: Estados operativos de la Workstation.
- */
 export type GeoEngineState =
   | 'IDLE'
   | 'SENSORS_READY'
@@ -128,7 +115,7 @@ export type GeoEngineState =
 
 export type CameraPerspective = 'STREET' | 'OVERVIEW' | 'SATELLITE';
 
-export type MapInstanceId = 'map-full' | 'map-dashboard' | 'map-forge' | 'map-sentinel';
+export type MapInstanceIdentification = 'map-full' | 'map-dashboard' | 'map-forge' | 'map-sentinel';
 
 export type NarrativeDepth = 'flash' | 'cronica' | 'inmersion';
 
@@ -140,66 +127,65 @@ export type NarrativeTone = 'academico' | 'misterioso' | 'epico' | 'melancolico'
  * ---------------------------------------------------------------------------
  */
 
-/**
- * PointOfInterestMetadata: Tipado estricto para la inteligencia extendida.
- */
 export interface PointOfInterestMetadata {
-  urban_context?: string;
-  architectural_period?: string;
-  custom_tags?: string[];
-  curator_notes?: string;
-  external_source_url?: string;
-  grounding_summary?: string;
-  processing_trace_identification?: string;
+  urbanContext?: string;
+  architecturalPeriod?: string;
+  customTagsCollection?: string[];
+  curatorNotes?: string;
+  externalSourceUniformResourceLocator?: string;
+  groundingSummary?: string;
+  processingTraceIdentification?: string;
 }
 
 /**
- * PointOfInterest: El objeto de conocimiento central.
+ * PointOfInterest: El objeto de conocimiento central anclado en el Metal.
  */
 export interface PointOfInterest {
-  id: number;
-  author_identification: string;
+  identification: number;
+  authorIdentification: string;
   name: string;
-  category_mission: CategoryMission;
-  category_entity: CategoryEntity;
-  historical_epoch: HistoricalEpoch;
-  geo_location: GeoPoint;
-  resonance_radius: number;
-  importance_score: number;
-  historical_fact: string | null;
-  rich_description: string | null;
-  gallery_urls: string[] | null;
-  ambient_audio_url: string | null;
+  categoryMission: CategoryMission;
+  categoryEntity: CategoryEntity;
+  historicalEpoch: HistoricalEpoch;
+  geographicLocation: GeoPoint;
+  resonanceRadiusMeters: number;
+  importanceScore: number;
+  historicalFact: string | null;
+  richDescription: string | null;
+  galleryUniformResourceLocatorsCollection: string[] | null;
+  ambientAudioUniformResourceLocator: string | null;
   status: PointOfInterestLifecycle;
-  is_published: boolean;
-  reference_podcast_identification: number | null;
-  created_at: string;
-  updated_at: string;
+  isPublished: boolean;
+  referencePodcastIdentification: number | null;
+  creationTimestamp: string;
+  updateTimestamp: string;
   metadata?: PointOfInterestMetadata | null;
 }
 
 /**
- * IngestionDossier: El resultado del peritaje técnico de la IA.
+ * IngestionDossier: El resultado del peritaje técnico multidimensional.
+ * [MANDATO BSS]: Sincronizado milimétricamente con IntelligenceAgencyAnalysisSchema.
  */
 export interface IngestionDossier {
   point_of_interest_identification: number;
-  raw_ocr_text: string | null;
+  raw_optical_character_recognition_text: string | null;
   weather_snapshot: {
-    temp_c: number;
-    condition: string;
-    is_day: boolean;
-    wind_kph?: number;
+    temperatureCelsius: number;
+    conditionText: string;
+    isDaytime: boolean;
+    windKilometersPerHour?: number;
   };
   visual_analysis_dossier: {
+    historicalDossier: string;
     architectureStyle?: string;
     atmosphere?: string;
-    detectedElements?: string[];
+    detectedElementsCollection?: string[];
     detectedOfficialName?: string;
-    admin_original_intent?: string;
-    groundingVerification?: string; // [FIX V8.5]: Requerido para Step 3
+    administratorOriginalIntent?: string;
+    groundingVerification?: string; 
   };
-  sensor_accuracy: number;
-  ingested_at: string;
+  hardware_sensor_accuracy: number;
+  ingested_at_timestamp: string;
 }
 
 /**
@@ -222,10 +208,10 @@ export interface GeoContextData {
 }
 
 /**
- * GeoEngineReturn: La firma pública que la Fachada (useGeoEngine) entrega a la UI.
+ * GeoEngineReturn: La firma pública que la Fachada entrega a la Interfaz de Usuario.
  */
 export interface GeoEngineReturn {
-  // Estados y Telemetría
+  // Estados de Verdad y Telemetría Purificada
   status: GeoEngineState;
   data: GeoContextData;
   userLocation: UserLocation | null;
@@ -235,7 +221,7 @@ export interface GeoEngineReturn {
   isLocked: boolean;
   error: string | null;
 
-  // Capacidades de Soberanía
+  // Capacidades de Soberanía de Hardware
   isIgnited: boolean;
   isTriangulated: boolean;
   isGPSLock: boolean;
@@ -243,7 +229,7 @@ export interface GeoEngineReturn {
   recenterTrigger: number;
   confirmLanding: () => void;
 
-  // Gobernanza de Cámara y Estilo
+  // Gobernanza de Cámara y Estilo Visual
   cameraPerspective: CameraPerspective;
   mapStyle: string; 
   isManualMode: boolean;
@@ -251,35 +237,35 @@ export interface GeoEngineReturn {
   setManualMode: (active: boolean) => void;
   recenterCamera: () => void;
 
-  // Métodos de Control
+  // Métodos de Control Táctico
   initSensors: () => void;
   reSyncRadar: () => void;
   setTriangulated: () => void;
-  setManualAnchor: (longitude: number, latitude: number) => void;
-  setManualPlaceName: (name: string) => void;
+  setManualAnchor: (longitudeCoordinate: number, latitudeCoordinate: number) => void;
+  setManualPlaceName: (placeName: string) => void;
 
-  // Flujos de Inteligencia Multidimensional
+  // Pipeline de Inteligencia Multidimensional
   ingestSensoryData: (parameters: {
     heroImage: File;
-    ocrImages: File[];
-    ambientAudio?: Blob | null;
-    intentText: string;
-    intentAudioBlob?: Blob | null; // Soporte para Dictado Sensorial
+    opticalCharacterRecognitionImages: File[];
+    ambientAudioBlob?: Blob | null;
+    administratorIntentText: string;
+    intentAudioBlob?: Blob | null; 
     categoryMission: CategoryMission;
     categoryEntity: CategoryEntity;
     historicalEpoch: HistoricalEpoch;
-    resonanceRadius: number;
-    referenceUrl?: string; 
+    resonanceRadiusMeters: number;
+    referenceUniformResourceLocator?: string; 
   }) => Promise<{ pointOfInterestIdentification: number; dossier: IngestionDossier } | void>;
 
   synthesizeNarrative: (parameters: {
     pointOfInterestIdentification: number; 
-    depth: NarrativeDepth;
-    tone: NarrativeTone;
-    refinedIntent?: string;
+    narrativeDepth: NarrativeDepth;
+    narrativeTone: NarrativeTone;
+    refinedAdministratorIntent?: string;
   }) => Promise<void>;
 
-  transcribeVoiceIntent: (audioBase64: string) => Promise<GeoActionResponse<{ transcription: string }>>;
+  transcribeVoiceIntent: (audioBase64Data: string) => Promise<GeoActionResponse<{ transcriptionText: string }>>;
   reset: () => void;
 }
 
@@ -301,15 +287,25 @@ export interface GeoActionResponse<T = unknown> {
  * PointOfInterestCreationPayload: Contrato para la Ingesta Lightning (Signed URLs).
  */
 export interface PointOfInterestCreationPayload {
-  latitude: number;
-  longitude: number;
-  accuracy: number;
+  latitudeCoordinate: number;
+  longitudeCoordinate: number;
+  accuracyMeters: number;
   heroImageStoragePath: string; 
-  ocrImageStoragePaths: string[]; 
+  opticalCharacterRecognitionImagePaths: string[]; 
   categoryMission: string;
   categoryEntity: string;
   historicalEpoch: string;
-  resonanceRadius: number;
-  adminIntent: string;
-  referenceUrl?: string;
+  resonanceRadiusMeters: number;
+  administratorIntent: string;
+  referenceUniformResourceLocator?: string;
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V8.6):
+ * 1. Build Shield Synchronization: Se han renombrado todas las propiedades para 
+ *    satisfacer los errores TS2339 y TS2353 detectados tras la reforma de las acciones.
+ * 2. Zero Abbreviations Policy: Se han purificado términos técnicos: URL -> UniformResourceLocator, 
+ *    ID -> Identification, GPS -> GlobalPositioningSystem, OCR -> OpticalCharacterRecognition.
+ * 3. Contractual Symmetry: El IngestionDossier ahora refleja exactamente la estructura 
+ *    validada por el IntelligenceAgencyAnalysisSchema en el Borde.
+ */
