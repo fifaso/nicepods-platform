@@ -1,13 +1,12 @@
 /**
  * ARCHIVO: app/(marketing)/page.tsx
- * VERSIÓN: 7.0 (NicePod Marketing Canvas - Industrial Precision Edition)
+ * VERSIÓN: 6.1 (NicePod Marketing Canvas - Industrial Desktop Harmony Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
- * Misión: Proyectar la visión técnica de NicePod en una interfaz de alto impacto,
- * garantizando que el Título, Descripción, Mapa y Comandos convivan en el primer 
- * frame sin desplazamiento (Zero-Scroll Protocol).
- * [REFORMA V7.0]: Compactación vertical extrema, alineación central perfecta, 
- * eliminación de textos superpuestos en el mapa y ajuste de legibilidad.
+ * Misión: Proyectar la identidad de la Workstation eliminando las fugas de hidratación
+ * (Errores #418/#422) y optimizando el escalado visual para pantallas de alta densidad.
+ * [REFORMA V6.1]: Erradicación de anidamiento ilegal de enlaces (Hydration Fix),
+ * ajuste de proporciones de título para Desktop y protección de la vista móvil.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -15,25 +14,27 @@
 
 import { MapPreviewFrame } from "@/components/geo/map-preview-frame";
 import { Button } from "@/components/ui/button";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
-  ArrowRight,
   BookOpen,
   BrainCircuit,
   Database,
   Globe,
-  ShieldCheck,
-  Zap,
   LogIn,
-  UserPlus
+  Map as MapIcon,
+  ShieldCheck,
+  UserPlus,
+  Zap
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 /**
- * LandingPage: El orquestador visual del portal de inteligencia.
+ * LandingPage: El punto de contacto inicial de alta fidelidad.
  */
 export default function LandingPage() {
+  const navigationRouter = useRouter();
 
   // --- I. CONFIGURACIÓN DE CINEMÁTICA VISUAL (60 FPS FOCUS) ---
   const containerAnimationVariants = {
@@ -46,10 +47,10 @@ export default function LandingPage() {
 
   const itemAnimationVariants = {
     hidden: { y: 10, opacity: 0 },
-    visible: { 
-      y: 0, 
-      opacity: 1, 
-      transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] } 
+    visible: {
+      y: 0,
+      opacity: 1,
+      transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] }
     }
   };
 
@@ -84,6 +85,15 @@ export default function LandingPage() {
     }
   ];
 
+  /**
+   * handleMapInteractionAction:
+   * Misión: Navegación programática para evitar el error de hidratación #418 
+   * causado por la anidación de etiquetas <a>.
+   */
+  const handleMapInteractionAction = () => {
+    navigationRouter.push("/login");
+  };
+
   return (
     <div className="flex flex-col items-center w-full bg-background text-foreground transition-colors duration-500 selection:bg-primary/30 antialiased">
 
@@ -91,35 +101,32 @@ export default function LandingPage() {
           --- SECCIÓN I: TERMINAL HERO (ZERO-SCROLL ARCHITECTURE) ---
           Misión: Forzar que el Título, Descripción, Mapa y Botones convivan en 
           el 100% de la altura del dispositivo sin requerir desplazamiento.
-          [FIX V7.0]: Se reduce el padding-top (pt-16) para elevar el contenido.
       */}
       <section className="relative w-full h-[100dvh] flex flex-col items-center justify-between pt-16 pb-6 px-4">
-        
+
         {/* BLOQUE A: TITULAR MONUMENTAL Y DESCRIPCIÓN */}
         <motion.div
-          className="shrink-0 text-center space-y-3 relative z-10 w-full max-w-4xl mx-auto px-2"
+          className="shrink-0 text-center space-y-4 relative z-10 w-full max-w-5xl mx-auto px-2"
           variants={containerAnimationVariants}
           initial="hidden"
           animate="visible"
         >
           {/* 
-              [FIX V7.0]: Tamaño de fuente calibrado (text-4xl en móvil) para evitar 
-              que el texto se corte en los bordes.
+              [FIX V6.1]: Ajuste de tamaño de fuente para Desktop (md:text-7xl lg:text-8xl)
+              Esto evita la hipertrofia visual en pantallas grandes mientras mantiene 
+              la estética en móviles.
           */}
           <motion.h1
             variants={itemAnimationVariants}
-            className="text-4xl xs:text-5xl sm:text-6xl md:text-8xl lg:text-[9rem] font-black tracking-tighter uppercase italic leading-[0.9] text-foreground"
+            className="text-[2.5rem] xs:text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tighter uppercase leading-none text-foreground whitespace-nowrap italic"
           >
-            SINTETIZA EL <span className="text-primary not-italic drop-shadow-[0_0_20px_rgba(var(--primary-rgb),0.3)]">MUNDO</span>
+            SINTETIZA EL <span className="text-primary not-italic drop-shadow-[0_0_30px_rgba(var(--primary-rgb),0.4)]">MUNDO</span>
           </motion.h1>
 
-          {/* 
-              [FIX V7.0]: Descripción compactada (max-w-md) para no consumir 
-              líneas verticales innecesarias.
-          */}
+          {/* Descripción Técnica de Alta Densidad */}
           <motion.p
             variants={itemAnimationVariants}
-            className="max-w-md md:max-w-2xl mx-auto text-[9px] xs:text-[10px] sm:text-xs md:text-sm text-muted-foreground font-bold uppercase tracking-[0.2em] leading-snug"
+            className="max-w-2xl mx-auto text-[10px] sm:text-sm md:text-base text-muted-foreground font-bold uppercase tracking-[0.3em] leading-relaxed px-4"
           >
             Workstation profesional de captura, análisis y organización de conocimiento real mediante inteligencia artificial y geolocalización.
           </motion.p>
@@ -127,61 +134,61 @@ export default function LandingPage() {
 
         {/* 
             BLOQUE B: REACTOR VISUAL (CLEAN MAP GATEWAY) 
-            [FIX V7.0]: Altura máxima acotada a 300px para garantizar espacio a los botones.
+            [FIX V6.1]: Expansión controlada en Desktop (md:max-h-[500px]) para llenar el espacio.
+            Se sustituye <Link> por <div> con onClick para aniquilar el error de hidratación.
         */}
         <motion.div
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.8, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-          className="flex-1 w-full max-w-4xl mx-auto min-h-0 py-4 relative group"
+          className="flex-1 w-full max-w-5xl mx-auto min-h-0 py-6 relative group"
         >
-          <Link 
-            href="/login" 
-            className="block w-full h-full relative rounded-[2.5rem] md:rounded-[3.5rem] overflow-hidden border border-border bg-card shadow-2xl transition-all duration-700 hover:border-primary/50 hover:shadow-[0_0_40px_rgba(var(--primary-rgb),0.15)] isolate cursor-pointer"
+          <div
+            onClick={handleMapInteractionAction}
+            className="block w-full h-full max-h-[380px] md:max-h-[500px] mx-auto relative rounded-[2.5rem] md:rounded-[3.5rem] overflow-hidden border border-border bg-card shadow-2xl transition-all duration-700 hover:border-primary/50 hover:shadow-[0_0_50px_rgba(var(--primary-rgb),0.15)] isolate cursor-pointer"
             title="Acceder a la Malla Activa"
           >
-            {/* Motor WebGL Purificado */}
+            {/* Motor WebGL Purificado (Pointer-events-none para delegar el clic al padre) */}
             <div className="absolute inset-0 z-0 opacity-70 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none">
               <MapPreviewFrame />
             </div>
-            
+
             {/* Gradiente de Sellado: Funde el mapa con el fondo dinámico del tema */}
-            <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent z-10 pointer-events-none opacity-80" />
-            
-            {/* 
-                [FIX V7.0]: Se eliminaron los textos superpuestos. El mapa es un cristal limpio.
-                Solo mostramos el indicador de acción en Hover.
-            */}
-            <div className="absolute inset-0 flex items-center justify-center z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-                <div className="bg-foreground text-background px-6 py-2 rounded-full font-black text-[9px] uppercase tracking-widest shadow-2xl">
-                    Sincronizar Malla
-                </div>
+            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/10 to-transparent z-10 pointer-events-none" />
+
+            {/* Indicador de Acción Minimalista (Solo visible en Hover) */}
+            <div className="absolute inset-0 flex items-center justify-center z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
+              <div className="bg-foreground text-background px-6 py-2 rounded-full font-black text-[9px] uppercase tracking-widest shadow-2xl flex items-center gap-3">
+                <MapIcon size={14} /> Acceder al Mapa
+              </div>
             </div>
-          </Link>
+          </div>
         </motion.div>
 
         {/* 
             BLOQUE C: COMANDOS DE ACCESO (AXIAL ALIGNMENT) 
-            [FIX V7.0]: Contenedor ajustado para forzar la fila horizontal siempre.
+            [FIX V6.1]: Uso de 'asChild' en los botones para mantener semántica HTML válida
+            y evitar errores de hidratación por anidamiento de <button> en <a>.
         */}
-        <motion.div 
-          variants={itemAnimationVariants} 
+        <motion.div
+          variants={itemAnimationVariants}
           initial="hidden"
           animate="visible"
-          className="shrink-0 flex flex-row items-center justify-center gap-3 w-full max-w-sm md:max-w-md z-10"
+          className="shrink-0 flex flex-row items-center justify-center gap-3 md:gap-5 w-full max-w-lg z-10 pt-2 pb-4"
         >
-          <Link href="/signup" className="flex-1">
-            <Button size="lg" className="w-full h-12 md:h-14 rounded-2xl md:rounded-[1.5rem] text-[9px] md:text-[11px] font-black uppercase tracking-widest bg-primary text-primary-foreground hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-primary/20">
-              <UserPlus size={14} className="mr-2" />
+          <Button asChild size="lg" className="flex-1 w-full h-14 md:h-16 rounded-2xl md:rounded-[1.5rem] text-[10px] md:text-xs font-black uppercase tracking-widest bg-primary text-primary-foreground hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-primary/20">
+            <Link href="/signup">
+              <UserPlus size={16} className="mr-2 hidden xs:block" />
               Crear cuenta
-            </Button>
-          </Link>
-          <Link href="/login" className="flex-1">
-            <Button variant="outline" size="lg" className="w-full h-12 md:h-14 rounded-2xl md:rounded-[1.5rem] text-[9px] md:text-[11px] font-black uppercase tracking-widest border-border bg-card text-foreground hover:bg-accent transition-all active:scale-95">
-              <LogIn size={14} className="mr-2" />
+            </Link>
+          </Button>
+
+          <Button asChild variant="outline" size="lg" className="flex-1 w-full h-14 md:h-16 rounded-2xl md:rounded-[1.5rem] text-[10px] md:text-xs font-black uppercase tracking-widest border-border bg-card text-foreground hover:bg-accent transition-all active:scale-95">
+            <Link href="/login">
+              <LogIn size={16} className="mr-2 hidden xs:block" />
               Acceder
-            </Button>
-          </Link>
+            </Link>
+          </Button>
         </motion.div>
 
       </section>
@@ -190,7 +197,7 @@ export default function LandingPage() {
       <section className="w-full py-32 md:py-40 bg-secondary/30 border-y border-border backdrop-blur-3xl transition-colors duration-700">
         <div className="container mx-auto max-w-7xl px-6 md:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-16 md:gap-24">
-            
+
             <div className="space-y-6 group">
               <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary border border-primary/20 group-hover:bg-primary/20 transition-all duration-700 shadow-xl">
                 <ShieldCheck size={32} />
@@ -246,12 +253,11 @@ export default function LandingPage() {
                 src={`/images/universes/${dimensionItem.identification}.png`}
                 alt={dimensionItem.title}
                 fill
-                className="object-cover opacity-30 group-hover:scale-110 transition-all duration-[3000ms] group-hover:opacity-60" 
-                sizes="(max-width: 768px) 100vw, 25vw" 
+                className="object-cover opacity-30 group-hover:scale-110 transition-all duration-[3000ms] group-hover:opacity-60"
+                sizes="(max-width: 768px) 100vw, 25vw"
               />
-              {/* Overlay adaptable al tema (Modo Claro / Oscuro) */}
               <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent z-10" />
-              
+
               <div className="absolute inset-0 p-8 md:p-10 flex flex-col justify-end text-left z-20">
                 <dimensionItem.IconComponent className="h-8 w-8 md:h-10 md:w-10 text-primary mb-4 md:mb-6 opacity-0 group-hover:opacity-100 transition-all duration-700 -translate-y-4 group-hover:translate-y-0" />
                 <h4 className="text-xl md:text-2xl font-black uppercase tracking-tighter text-foreground mb-2 md:mb-3 italic">{dimensionItem.title}</h4>
@@ -266,29 +272,28 @@ export default function LandingPage() {
 
       {/* --- SECCIÓN IV: CIERRE DE CONVERSIÓN SOBERANA --- */}
       <footer className="w-full py-40 border-t border-border bg-secondary/20 text-center relative overflow-hidden isolate transition-colors duration-700">
-        
-        {/* Resplandor de Bóveda Central */}
+
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-primary/5 blur-[150px] rounded-full pointer-events-none" />
 
-        <div className="container mx-auto max-w-5xl px-6 md:px-8 space-y-16 relative z-10">
+        <div className="container mx-auto max-w-5xl px-8 space-y-16 relative z-10">
           <div className="flex flex-col items-center gap-10">
             <div className="h-20 w-20 md:h-24 md:w-24 relative p-4 md:p-5 rounded-[2rem] bg-zinc-900 border border-white/10 shadow-2xl transition-transform hover:scale-110 duration-700">
-              <Image 
-                src="/nicepod-logo.png" 
-                alt="NicePod Intelligence Isotype" 
-                fill 
-                className="object-contain p-3 md:p-4" 
+              <Image
+                src="/nicepod-logo.png"
+                alt="NicePod Intelligence Isotype"
+                fill
+                className="object-contain p-3 md:p-4"
                 unoptimized
               />
             </div>
-            <h2 className="text-4xl sm:text-5xl md:text-8xl font-black tracking-tighter uppercase italic text-foreground leading-[0.85]">
+            <h2 className="text-4xl sm:text-5xl md:text-8xl font-black tracking-tighter uppercase italic text-foreground leading-[0.85] font-serif">
               Sé el <span className="text-primary not-italic">Testigo</span> <br /> de tu tiempo.
             </h2>
-            <Link href="/signup">
-              <Button size="lg" className="h-16 md:h-20 px-12 md:px-20 rounded-full font-black text-sm md:text-xl shadow-[0_20px_50px_rgba(var(--primary-rgb),0.3)] hover:scale-105 transition-all bg-foreground text-background uppercase tracking-widest">
-                Crear cuenta
-              </Button>
-            </Link>
+            <Button asChild size="lg" className="h-16 md:h-20 px-12 md:px-20 rounded-full font-black text-sm md:text-xl shadow-[0_20px_50px_rgba(var(--primary-rgb),0.3)] hover:scale-105 transition-all bg-foreground text-background uppercase tracking-widest">
+              <Link href="/signup">
+                CREAR CUENTA
+              </Link>
+            </Button>
           </div>
 
           <div className="flex flex-col md:flex-row justify-between items-center gap-8 md:gap-10 text-[9px] md:text-[10px] font-black text-muted-foreground uppercase tracking-[0.5em] pt-12 border-t border-border">
