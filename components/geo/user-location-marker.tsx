@@ -1,11 +1,15 @@
 /**
  * ARCHIVO: components/geo/user-location-marker.tsx
- * VERSIÓN: 4.0 (NicePod GO Avatar - Native PBR & Zero-Jitter Edition)
- * PROTOCOLO: MADRID RESONANCE V3.0
+ * VERSIÓN: 5.0 (NicePod GO Avatar - Native PBR & Absolute Nominal Sync Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.0
  * 
- * Misión: Representar al Voyager con escala dinámica, oclusión PBR nativa y cero Jitter.
- * [REFORMA V4.0]: Eliminación de doble-LERP y cesión de autoridad al motor WebGL.
- * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
+ * Misión: Representar la entidad física del Voyager en la Malla de Madrid con 
+ * escala dinámica, oclusión PBR nativa y cero Jitter (temblor visual).
+ * [REFORMA V5.0]: Sincronización nominal total con la Constitución V8.6. 
+ * Resolución definitiva de errores TS2339 mediante el uso de propiedades 
+ * purificadas (latitudeCoordinate, accuracyMeters, headingDegrees). 
+ * Cumplimiento absoluto de la Zero Abbreviations Policy.
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
@@ -15,60 +19,77 @@ import { useEffect, useMemo, useState } from "react";
 import { Marker, useMap } from "react-map-gl/mapbox";
 
 import { useGeoEngine } from "@/hooks/use-geo-engine";
-import { cn } from "@/lib/utils";
+import { cn, nicepodLog } from "@/lib/utils";
 import { UserLocation } from "@/types/geo-sovereignty";
 
-interface UserLocationMarkerProps {
+/**
+ * INTERFAZ: UserLocationMarkerProperties
+ */
+interface UserLocationMarkerProperties {
+  /** location: Snapshot de telemetría purificada emanada del hardware. */
   location: UserLocation;
+  /** isResonating: Indica si el Voyager está dentro de un radio de sabiduría activo. */
   isResonating: boolean;
 }
 
 /**
- * UserLocationMarker: La entidad física del Voyager en la Malla de Madrid.
+ * UserLocationMarker: El avatar pericial que representa al Voyager en el reactor visual.
  */
-export const UserLocationMarker = ({ location, isResonating }: UserLocationMarkerProps) => {
-  const { current: mapInstance } = useMap();
+export const UserLocationMarker = ({ 
+  location, 
+  isResonating 
+}: UserLocationMarkerProperties) => {
+  
+  // 1. VÍNCULO CON LA INSTANCIA DE MAPBOX
+  const { current: mapInstanceReference } = useMap();
 
-  // Consumimos la perspectiva para ajustar el alineamiento (3D vs 2D)
+  // 2. CONSUMO DE LA FACHADA SOBERANA
   const { cameraPerspective } = useGeoEngine();
 
-  // 1. ESTADO DE ZOOM TÁCTICO
-  const [currentZoom, setCurrentZoom] = useState<number>(15);
+  // 3. ESTADO DE ESCALA CINEMÁTICA
+  const [currentZoomLevel, setCurrentZoomLevel] = useState<number>(15);
 
   /**
-   * 2. SINCRO DE ZOOM
-   * Misión: Capturar la escala del visor para el algoritmo de dimensionamiento visual.
+   * EFECTO: SINCRONIZACIÓN DE ZOOM
+   * Misión: Capturar la escala del visor para el algoritmo de dimensionamiento dinámico.
    */
   useEffect(() => {
-    if (!mapInstance) return;
-    const map = mapInstance.getMap();
+    if (!mapInstanceReference) return;
+    const nativeMapInstance = mapInstanceReference.getMap();
 
-    const updateZoom = () => setCurrentZoom(map.getZoom());
-    map.on('zoom', updateZoom);
-    updateZoom();
+    const handleZoomUpdateAction = () => setCurrentZoomLevel(nativeMapInstance.getZoom());
+    
+    nativeMapInstance.on('zoom', handleZoomUpdateAction);
+    handleZoomUpdateAction();
 
     return () => {
-      map.off('zoom', updateZoom);
+      nativeMapInstance.off('zoom', handleZoomUpdateAction);
     };
-  }, [mapInstance]);
+  }, [mapInstanceReference]);
 
   /**
-   * 3. CÁLCULO DE ESCALA VISUAL
-   * Permite que el avatar mantenga proporción en la vista de pájaro y no
-   * cubra toda la calle en modo inmersivo.
+   * visualScaleFactor: 
+   * Misión: Mantener la proporción visual del avatar en diferentes niveles de altitud.
    */
-  const visualScale = useMemo(() => {
-    if (currentZoom >= 18) return 1.0;
-    if (currentZoom <= 14) return 0.6;
-    return 0.6 + (currentZoom - 14) * (0.4 / 4);
-  }, [currentZoom]);
+  const visualScaleFactor = useMemo(() => {
+    if (currentZoomLevel >= 18) return 1.0;
+    if (currentZoomLevel <= 14) return 0.6;
+    return 0.6 + (currentZoomLevel - 14) * (0.4 / 4);
+  }, [currentZoomLevel]);
 
-  if (!location.latitude || !location.longitude) return null;
+  // [BUILD SHIELD]: Validación de integridad de coordenadas antes de inyectar en el Canvas.
+  if (!location.latitudeCoordinate || !location.longitudeCoordinate) {
+    return null;
+  }
 
-  const isRescue = (location.accuracy || 0) >= 500;
-  const isStreetView = cameraPerspective === 'STREET';
+  /**
+   * isSatelliteEstimationActive: 
+   * Misión: Detectar si el hardware opera en modo de baja precisión (Rescate/IP-Fallback).
+   */
+  const isSatelliteEstimationActive = (location.accuracyMeters || 0) >= 500;
+  const isStreetPerspectiveActive = cameraPerspective === 'STREET';
 
-  const statusColorClass = isRescue
+  const statusColorThemeVariant = isSatelliteEstimationActive
     ? "zinc"
     : isResonating
       ? "emerald"
@@ -76,93 +97,93 @@ export const UserLocationMarker = ({ location, isResonating }: UserLocationMarke
 
   return (
     <Marker
-      latitude={location.latitude}
-      longitude={location.longitude}
+      latitude={location.latitudeCoordinate}
+      longitude={location.longitudeCoordinate}
       anchor="center"
-      // [V4.0]: El pitchAlignment="map" es MANDATORIO para la oclusión PBR de Mapbox v3.
-      // Proyecta el div como una textura sobre el asfalto, permitiendo que los edificios
-      // 3D lo cubran si el Voyager camina tras ellos.
-      pitchAlignment={isStreetView ? "map" : "viewport"}
-      rotationAlignment={isStreetView ? "map" : "viewport"}
-    // [V4.0]: Eliminamos el zIndex:9999 forzado. Delegamos al engine interno de Mapbox.
+      /**
+       * [PROTOCOLO V5.0]: pitchAlignment="map" es MANDATORIO para la oclusión PBR.
+       * Esto permite que el motor de Mapbox v3 oculte el avatar físicamente 
+       * cuando camina detrás de la geometría de edificios 3D.
+       */
+      pitchAlignment={isStreetPerspectiveActive ? "map" : "viewport"}
+      rotationAlignment={isStreetPerspectiveActive ? "map" : "viewport"}
     >
       <div
         className="relative flex items-center justify-center transition-transform ease-out pointer-events-none"
         style={{
-          width: `${120 * visualScale}px`,
-          height: `${120 * visualScale}px`,
-          transform: `scale(${visualScale})`
+          width: `${120 * visualScaleFactor}px`,
+          height: `${120 * visualScaleFactor}px`,
+          transform: `scale(${visualScaleFactor})`
         }}
       >
 
-        {/* I. AURA DE INCERTIDUMBRE (ACCURACY CONE) */}
+        {/* I. AURA DE INCERTIDUMBRE GEOGRÁFICA (ACCURACY CONE) */}
         <div
           className={cn(
             "absolute rounded-full transition-all duration-1000 ease-in-out border-2",
-            isRescue
+            isSatelliteEstimationActive
               ? "w-[240%] h-[240%] bg-zinc-500/5 border-zinc-500/10 blur-md"
               : "w-[100%] h-[100%] bg-primary/5 border-primary/20 blur-none"
           )}
         />
 
-        {/* II. ANILLOS DE RESONANCIA SOBERANA */}
+        {/* II. ANILLOS DE RESONANCIA SOBERANA (CONCENTRIC PULSES) */}
         <div className="absolute inset-0 flex items-center justify-center w-full h-full">
-          {[1, 2, 3].map((i) => (
+          {[1, 2, 3].map((itemIndex) => (
             <div
-              key={i}
+              key={itemIndex}
               className={cn(
                 "absolute rounded-full border opacity-0 animate-nicepod-pulse",
-                statusColorClass === "zinc" && "border-zinc-500/30 bg-zinc-500/5",
-                statusColorClass === "emerald" && "border-emerald-500/60 bg-emerald-500/10",
-                statusColorClass === "primary" && "border-primary/50 bg-primary/5"
+                statusColorThemeVariant === "zinc" && "border-zinc-500/30 bg-zinc-500/5",
+                statusColorThemeVariant === "emerald" && "border-emerald-500/60 bg-emerald-500/10",
+                statusColorThemeVariant === "primary" && "border-primary/50 bg-primary/5"
               )}
               style={{
                 width: '100%',
                 height: '100%',
-                animationDelay: `${(i - 1) * 1.3}s`,
+                animationDelay: `${(itemIndex - 1) * 1.3}s`,
               }}
             />
           ))}
         </div>
 
-        {/* III. NÚCLEO ATÓMICO (VITAL CORE) */}
+        {/* III. NÚCLEO ATÓMICO (VITAL HARDWARE CORE) */}
         <div className="relative z-10 flex items-center justify-center">
           <div className={cn(
             "absolute inset-0 blur-2xl rounded-full animate-pulse duration-[4000ms]",
-            statusColorClass === "zinc" && "bg-zinc-500/20",
-            statusColorClass === "emerald" && "bg-emerald-500/40",
-            statusColorClass === "primary" && "bg-primary/40"
+            statusColorThemeVariant === "zinc" && "bg-zinc-500/20",
+            statusColorThemeVariant === "emerald" && "bg-emerald-500/40",
+            statusColorThemeVariant === "primary" && "bg-primary/40"
           )} />
 
           <div className={cn(
             "rounded-full border-[3px] shadow-[0_0_40px_rgba(0,0,0,0.7)] flex items-center justify-center transition-all duration-1000 bg-white",
-            currentZoom > 17 ? "h-7 w-7" : "h-5 w-5",
-            statusColorClass === "zinc" ? "border-zinc-500" : (statusColorClass === "emerald" ? "border-emerald-400" : "border-primary")
+            currentZoomLevel > 17 ? "h-7 w-7" : "h-5 w-5",
+            statusColorThemeVariant === "zinc" ? "border-zinc-500" : (statusColorThemeVariant === "emerald" ? "border-emerald-400" : "border-primary")
           )}>
             <div className={cn(
               "rounded-full animate-ping",
-              currentZoom > 17 ? "h-2 w-2" : "h-1.5 w-1.5",
-              statusColorClass === "zinc" ? "bg-zinc-400" : (statusColorClass === "emerald" ? "bg-emerald-400" : "bg-primary")
+              currentZoomLevel > 17 ? "h-2 w-2" : "h-1.5 w-1.5",
+              statusColorThemeVariant === "zinc" ? "bg-zinc-400" : (statusColorThemeVariant === "emerald" ? "bg-emerald-400" : "bg-primary")
             )} />
           </div>
         </div>
 
-        {/* IV. PUNTERO DE RUMBO (COMPASS CONE) */}
-        {/* [V4.0]: Delegamos el smoothing a Framer Motion y al VAF del Telemetry Core */}
-        {location.heading !== null && (
+        {/* IV. PUNTERO DE RUMBO CINEMÁTICO (COMPASS CONE) */}
+        {location.headingDegrees !== null && (
           <motion.div
             initial={false}
-            animate={{ rotate: location.heading }}
+            animate={{ rotate: location.headingDegrees }}
             transition={{ type: "spring", stiffness: 60, damping: 20 }}
             className={cn(
               "absolute filter drop-shadow-[0_0_15px_rgba(0,0,0,0.9)] origin-bottom",
-              currentZoom > 17 ? "-top-14" : "-top-10",
-              statusColorClass === "zinc" ? "text-zinc-500" : (statusColorClass === "emerald" ? "text-emerald-400" : "text-primary")
+              currentZoomLevel > 17 ? "-top-14" : "-top-10",
+              statusColorThemeVariant === "zinc" ? "text-zinc-500" : (statusColorThemeVariant === "emerald" ? "text-emerald-400" : "text-primary")
             )}
           >
             <svg
-              width={currentZoom > 17 ? "28" : "18"}
-              height={currentZoom > 17 ? "28" : "18"}
+              width={currentZoomLevel > 17 ? "28" : "18"}
+              height={currentZoomLevel > 17 ? "28" : "18"}
               viewBox="0 0 20 20"
               fill="none"
             >
@@ -171,9 +192,9 @@ export const UserLocationMarker = ({ location, isResonating }: UserLocationMarke
           </motion.div>
         )}
 
-        {/* V. INDICADOR DE MATERIALIZACIÓN T0 */}
+        {/* V. INDICADOR DE MATERIALIZACIÓN T0 (ESTIMATION LABEL) */}
         <AnimatePresence>
-          {isRescue && currentZoom > 14 && (
+          {isSatelliteEstimationActive && currentZoomLevel > 14 && (
             <motion.div
               initial={{ opacity: 0, y: 5 }}
               animate={{ opacity: 1, y: 0 }}
@@ -183,7 +204,7 @@ export const UserLocationMarker = ({ location, isResonating }: UserLocationMarke
               <div className="bg-black/90 backdrop-blur-2xl px-4 py-2 rounded-full border border-white/10 shadow-2xl flex items-center gap-2.5">
                 <div className="h-1.5 w-1.5 rounded-full bg-zinc-500 animate-pulse" />
                 <span className="text-[7.5px] font-black uppercase tracking-[0.4em] text-zinc-300">
-                  Estimando Malla...
+                  Estimando Malla de Red...
                 </span>
               </div>
             </motion.div>
@@ -196,14 +217,12 @@ export const UserLocationMarker = ({ location, isResonating }: UserLocationMarke
 };
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V4.0):
- * 1. CPU Liberation (Zero-Jitter): Se eliminó la interpolación manual basada en 
- *    requestAnimationFrame. El avatar ahora se posiciona usando las coordenadas 
- *    purificadas que el GeoEngine emite cada 80cm, reduciendo a cero las colisiones 
- *    de renderizado detectadas en la consola ("Violation: requestAnimationFrame...").
- * 2. True PBR Occlusion: Al remover zIndex y usar pitchAlignment="map", permitimos 
- *    físicamente al motor Standard v3 que aplique su "puckOcclusion" y oculte el avatar
- *    cuando camine tras un edificio.
- * 3. Spring Compass: Framer Motion asume la labor de suavizado angular de la brújula 
- *    con una configuración de "spring" relajada, eliminando temblores.
+ * NOTA TÉCNICA DEL ARCHITECT (V5.0):
+ * 1. Build Shield Compliance: Se resolvieron los 7 errores de compilación mapeando las 
+ *    propiedades de telemetría a sus nombres industriales (latitudeCoordinate, 
+ *    longitudeCoordinate, headingDegrees, accuracyMeters).
+ * 2. Zero Abbreviations Policy: Se purificaron todas las variables internas: visualScale -> 
+ *    visualScaleFactor, i -> itemIndex, isRescue -> isSatelliteEstimationActive.
+ * 3. Physical Occlusion: Se mantiene el alineamiento 'map' para garantizar que el 
+ *    avatar sea afectado por la oclusión de edificios 3D en el modo de vista STREET.
  */
