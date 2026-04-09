@@ -322,11 +322,13 @@
 │   │   ├── poi-schema.ts
 │   │   └── social-schema.ts
 │   └── workers
-│       └── compression.worker.ts
+│       ├── compression.worker.ts
+│       └── resonance-physics.worker.ts
 ├── middleware.ts
 ├── next-env.d.ts
 ├── next.config.mjs
 ├── package.json
+├── pnpm-lock.yaml
 ├── postcss.config.mjs
 ├── posthog.ts
 ├── public
@@ -434,12 +436,10 @@
 ├── tsconfig.tsbuildinfo
 └── types
     ├── database-overrides.d.ts
-        ├── database.types.ts
-            ├── geo-sovereignty.ts
-                ├── podcast.ts
-                    ├── profile.ts
-                        ├── pulse.ts
-                            └── supabase.ts
+    ├── database.types.ts
+    ├── geo-sovereignty.ts
+    ├── podcast.ts
+    ├── profile.ts
+    └── pulse.ts
 
-                            97 directories, 345 files
-                            
+97 directories, 346 files
