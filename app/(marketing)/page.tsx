@@ -1,13 +1,13 @@
 /**
  * ARCHIVO: app/(marketing)/page.tsx
- * VERSIÓN: 6.0 (NicePod Marketing Canvas - Industrial Zero-Scroll Edition)
+ * VERSIÓN: 7.0 (NicePod Marketing Canvas - Industrial Precision Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Proyectar la visión técnica de NicePod en una interfaz de alto impacto,
- * garantizando la compatibilidad absoluta con el motor de temas (Light/Dark) y 
- * una primera vista sin desplazamiento (Zero-Scroll).
- * [REFORMA V6.0]: Compactación vertical, limpieza de overlays en el mapa, 
- * unificación tipográfica y cumplimiento estricto de la Zero Abbreviations Policy.
+ * garantizando que el Título, Descripción, Mapa y Comandos convivan en el primer 
+ * frame sin desplazamiento (Zero-Scroll Protocol).
+ * [REFORMA V7.0]: Compactación vertical extrema, alineación central perfecta, 
+ * eliminación de textos superpuestos en el mapa y ajuste de legibilidad.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -15,16 +15,17 @@
 
 import { MapPreviewFrame } from "@/components/geo/map-preview-frame";
 import { Button } from "@/components/ui/button";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
+  ArrowRight,
   BookOpen,
   BrainCircuit,
   Database,
   Globe,
-  LogIn,
   ShieldCheck,
-  UserPlus,
-  Zap
+  Zap,
+  LogIn,
+  UserPlus
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -44,7 +45,7 @@ export default function LandingPage() {
   };
 
   const itemAnimationVariants = {
-    hidden: { y: 15, opacity: 0 },
+    hidden: { y: 10, opacity: 0 },
     visible: { 
       y: 0, 
       opacity: 1, 
@@ -54,7 +55,7 @@ export default function LandingPage() {
 
   /**
    * knowledgeDimensionsCollection:
-   * Mapeo de áreas de análisis con lenguaje técnico, directo y sin abreviaturas.
+   * Mapeo de áreas de análisis con lenguaje técnico y descriptivo.
    */
   const knowledgeDimensionsCollection = [
     {
@@ -84,75 +85,100 @@ export default function LandingPage() {
   ];
 
   return (
-    <div className="flex flex-col items-center w-full bg-background text-foreground transition-colors duration-700 selection:bg-primary/30 antialiased">
+    <div className="flex flex-col items-center w-full bg-background text-foreground transition-colors duration-500 selection:bg-primary/30 antialiased">
 
       {/* 
           --- SECCIÓN I: TERMINAL HERO (ZERO-SCROLL ARCHITECTURE) ---
-          Misión: Forzar que el Título, el Mapa y los Botones convivan en 
+          Misión: Forzar que el Título, Descripción, Mapa y Botones convivan en 
           el 100% de la altura del dispositivo sin requerir desplazamiento.
+          [FIX V7.0]: Se reduce el padding-top (pt-16) para elevar el contenido.
       */}
-      <section className="relative w-full h-[100dvh] flex flex-col items-center justify-between pt-24 pb-8 px-4 sm:px-6">
+      <section className="relative w-full h-[100dvh] flex flex-col items-center justify-between pt-16 pb-6 px-4">
         
         {/* BLOQUE A: TITULAR MONUMENTAL Y DESCRIPCIÓN */}
         <motion.div
-          className="shrink-0 text-center space-y-4 relative z-10 w-full max-w-4xl mx-auto"
+          className="shrink-0 text-center space-y-3 relative z-10 w-full max-w-4xl mx-auto px-2"
           variants={containerAnimationVariants}
           initial="hidden"
           animate="visible"
         >
+          {/* 
+              [FIX V7.0]: Tamaño de fuente calibrado (text-4xl en móvil) para evitar 
+              que el texto se corte en los bordes.
+          */}
           <motion.h1
             variants={itemAnimationVariants}
-            className="text-[2.5rem] xs:text-5xl sm:text-6xl md:text-8xl lg:text-[9rem] font-black tracking-tighter uppercase leading-none text-foreground whitespace-nowrap italic"
+            className="text-4xl xs:text-5xl sm:text-6xl md:text-8xl lg:text-[9rem] font-black tracking-tighter uppercase italic leading-[0.9] text-foreground"
           >
-            SINTETIZA EL <span className="text-primary drop-shadow-[0_0_30px_rgba(var(--primary-rgb),0.4)]">MUNDO</span>
+            SINTETIZA EL <span className="text-primary not-italic drop-shadow-[0_0_20px_rgba(var(--primary-rgb),0.3)]">MUNDO</span>
           </motion.h1>
 
+          {/* 
+              [FIX V7.0]: Descripción compactada (max-w-md) para no consumir 
+              líneas verticales innecesarias.
+          */}
           <motion.p
             variants={itemAnimationVariants}
-            className="max-w-2xl mx-auto text-[9px] xs:text-[10px] sm:text-xs md:text-sm text-muted-foreground font-black uppercase tracking-[0.25em] leading-relaxed px-2"
+            className="max-w-md md:max-w-2xl mx-auto text-[9px] xs:text-[10px] sm:text-xs md:text-sm text-muted-foreground font-bold uppercase tracking-[0.2em] leading-snug"
           >
             Workstation profesional de captura, análisis y organización de conocimiento real mediante inteligencia artificial y geolocalización.
           </motion.p>
         </motion.div>
 
-        {/* BLOQUE B: REACTOR VISUAL (EL MAPA COMO GATEWAY LÍMPIDO) */}
+        {/* 
+            BLOQUE B: REACTOR VISUAL (CLEAN MAP GATEWAY) 
+            [FIX V7.0]: Altura máxima acotada a 300px para garantizar espacio a los botones.
+        */}
         <motion.div
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 1, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-          className="flex-1 w-full max-w-5xl mx-auto min-h-0 py-6 md:py-8 relative group"
+          transition={{ duration: 0.8, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+          className="flex-1 w-full max-w-4xl mx-auto min-h-0 py-4 relative group"
         >
           <Link 
             href="/login" 
-            className="block w-full h-full relative rounded-[2.5rem] md:rounded-[3.5rem] overflow-hidden border border-border bg-card shadow-2xl transition-all duration-700 hover:border-primary/50 hover:shadow-[0_0_50px_rgba(var(--primary-rgb),0.15)] isolate cursor-pointer"
+            className="block w-full h-full relative rounded-[2.5rem] md:rounded-[3.5rem] overflow-hidden border border-border bg-card shadow-2xl transition-all duration-700 hover:border-primary/50 hover:shadow-[0_0_40px_rgba(var(--primary-rgb),0.15)] isolate cursor-pointer"
             title="Acceder a la Malla Activa"
           >
-            {/* Motor WebGL (Diferido). Opacidad reducida para no abrumar la UI */}
+            {/* Motor WebGL Purificado */}
             <div className="absolute inset-0 z-0 opacity-70 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none">
               <MapPreviewFrame />
             </div>
             
             {/* Gradiente de Sellado: Funde el mapa con el fondo dinámico del tema */}
-            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/10 to-transparent z-10 pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent z-10 pointer-events-none opacity-80" />
+            
+            {/* 
+                [FIX V7.0]: Se eliminaron los textos superpuestos. El mapa es un cristal limpio.
+                Solo mostramos el indicador de acción en Hover.
+            */}
+            <div className="absolute inset-0 flex items-center justify-center z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                <div className="bg-foreground text-background px-6 py-2 rounded-full font-black text-[9px] uppercase tracking-widest shadow-2xl">
+                    Sincronizar Malla
+                </div>
+            </div>
           </Link>
         </motion.div>
 
-        {/* BLOQUE C: COMANDOS DE ACCESO (ALINEACIÓN AXIAL STRICTA) */}
+        {/* 
+            BLOQUE C: COMANDOS DE ACCESO (AXIAL ALIGNMENT) 
+            [FIX V7.0]: Contenedor ajustado para forzar la fila horizontal siempre.
+        */}
         <motion.div 
           variants={itemAnimationVariants} 
           initial="hidden"
           animate="visible"
-          className="shrink-0 flex flex-row items-center justify-center gap-3 md:gap-5 w-full max-w-lg z-10"
+          className="shrink-0 flex flex-row items-center justify-center gap-3 w-full max-w-sm md:max-w-md z-10"
         >
           <Link href="/signup" className="flex-1">
-            <Button size="lg" className="w-full h-14 md:h-16 rounded-2xl md:rounded-[1.5rem] text-[10px] md:text-xs font-black uppercase tracking-widest bg-primary text-primary-foreground hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-primary/20">
-              <UserPlus size={16} className="mr-2 hidden xs:block" />
+            <Button size="lg" className="w-full h-12 md:h-14 rounded-2xl md:rounded-[1.5rem] text-[9px] md:text-[11px] font-black uppercase tracking-widest bg-primary text-primary-foreground hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-primary/20">
+              <UserPlus size={14} className="mr-2" />
               Crear cuenta
             </Button>
           </Link>
           <Link href="/login" className="flex-1">
-            <Button variant="outline" size="lg" className="w-full h-14 md:h-16 rounded-2xl md:rounded-[1.5rem] text-[10px] md:text-xs font-black uppercase tracking-widest border-border bg-card text-foreground hover:bg-accent transition-all active:scale-95">
-              <LogIn size={16} className="mr-2 hidden xs:block" />
+            <Button variant="outline" size="lg" className="w-full h-12 md:h-14 rounded-2xl md:rounded-[1.5rem] text-[9px] md:text-[11px] font-black uppercase tracking-widest border-border bg-card text-foreground hover:bg-accent transition-all active:scale-95">
+              <LogIn size={14} className="mr-2" />
               Acceder
             </Button>
           </Link>
@@ -239,7 +265,7 @@ export default function LandingPage() {
       </section>
 
       {/* --- SECCIÓN IV: CIERRE DE CONVERSIÓN SOBERANA --- */}
-      <footer className="w-full py-32 md:py-40 border-t border-border bg-secondary/20 text-center relative overflow-hidden isolate transition-colors duration-700">
+      <footer className="w-full py-40 border-t border-border bg-secondary/20 text-center relative overflow-hidden isolate transition-colors duration-700">
         
         {/* Resplandor de Bóveda Central */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-primary/5 blur-[150px] rounded-full pointer-events-none" />
@@ -280,15 +306,3 @@ export default function LandingPage() {
     </div>
   );
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT (V6.0):
- * 1. Zero-Scroll Architecture: Se inyectó 'h-[100dvh]' al contenedor Hero y 'flex-1 min-h-0' 
- *    al contenedor del mapa. Esto fuerza a que el layout absorba el espacio disponible 
- *    sin desbordar, eliminando el scroll en el primer pantallazo móvil.
- * 2. Theme Agnostic: Se purificaron todas las clases de color harcodeadas (bg-[#010101], 
- *    text-white) reemplazándolas por tokens de diseño (bg-background, text-foreground, 
- *    bg-card) para garantizar una transición fluida al Modo Claro.
- * 3. Minimalist Gateway: Se eliminaron los textos redundantes sobre el MapPreviewFrame, 
- *    permitiendo que la cartografía hable por sí misma y actúe como un disparador directo al Login.
- */
