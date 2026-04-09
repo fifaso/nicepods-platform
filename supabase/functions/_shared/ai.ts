@@ -11,8 +11,8 @@
  */
 export const AI_MODELS = {
     PRO: "gemini-3-flash-preview",
-    FLASH: "gemini-1.5-flash",
-    LITE: "gemini-2.5-flash-lite", // [NUEVO]: Optimización de costos
+    FLASH: "gemini-3-flash-preview",
+    LITE: "gemini-3-flash-preview", // [NUEVO]: Optimización de costos
     AUDIO: "gemini-2.5-flash-preview-tts",
     EMBEDDING: "gemini-embedding-001",
     IMAGE: "gemini-2.5-flash-image"
