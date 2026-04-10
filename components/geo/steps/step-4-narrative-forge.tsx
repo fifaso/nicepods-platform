@@ -1,14 +1,14 @@
 /**
  * ARCHIVO: components/geo/steps/step-4-narrative-forge.tsx
- * VERSIÓN: 8.0 (NicePod Forge Step 4 - Sovereign Nominal & Contractual Integrity Edition)
- * PROTOCOLO: MADRID RESONANCE V4.0
+ * VERSIÓN: 9.0 (NicePod Forge Step 4 - RAM Flush & Nominal Integrity Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.2
  * 
  * Misión: Configurar el ADN editorial, sintetizar la crónica mediante el Oráculo 
  * de Inteligencia y sellar el nodo en la Malla de Madrid mediante el protocolo 
  * de publicación soberana y transmisión directa de binarios (Lightning Protocol).
- * [REFORMA V8.0]: Sincronización nominal absoluta con la Constitución V8.6 y las 
- * Acciones Geográficas V12.0. Resolución definitiva de errores TS2339 mediante 
- * el uso de 'pathsCollection' y 'uploadUrlsCollection'. Cumplimiento total de ZAP.
+ * [REFORMA V9.0]: Sincronización nominal total con la Constitución V8.6 y el 
+ * ForgeContext V6.0. Implementación de la política de limpieza de buffers 
+ * (RAM Flush) tras el éxito de la transacción. Cumplimiento absoluto de ZAP.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -49,7 +49,7 @@ import { cn, nicepodLog } from "@/lib/utils";
  */
 export default function Step4NarrativeForge() {
   
-  // 1. CONSUMO DE LA FACHADA SOBERANA Y CONTEXTO DE FORJA
+  // 1. CONSUMO DE LA FACHADA SOBERANA Y CONTEXTO DE FORJA (V6.0 SINCRO)
   const { 
     synthesizeNarrative: executeNarrativeSynthesisAction, 
     status: engineOperationalStatus,
@@ -57,17 +57,21 @@ export default function Step4NarrativeForge() {
     error: geographicIntelligenceError 
   } = useGeoEngine();
 
-  const { state: forgeState, dispatch: stateDispatcher, prevStep: navigateToPreviousStepAction } = useForge();
+  const { 
+    state: forgeState, 
+    dispatch: stateDispatcher, 
+    prevStep: navigateToPreviousStepAction 
+  } = useForge();
 
   // 2. ESTADOS LOCALES DE PROCESAMIENTO INDUSTRIAL
   const [isPublishingProcessActive, setIsPublishingProcessActive] = useState<boolean>(false);
 
   /**
-   * handleInitiateNarrativeSynthesisAction:
+   * handleInitiateNarrativeSynthesisWorkflow:
    * Misión: Despachar la orden de forja narrativa al Oráculo de Inteligencia.
-   * [SINCRO V8.0]: Adaptado a los nuevos nombres de propiedad de la Fachada V49.0.
+   * [SINCRO V9.0]: Adaptado a las propiedades nominales del ForgeState V6.0.
    */
-  const handleInitiateNarrativeSynthesisAction = async () => {
+  const handleInitiateNarrativeSynthesisWorkflow = async () => {
     const pointOfInterestIdentification = forgeState.ingestedPointOfInterestIdentification;
     
     if (!pointOfInterestIdentification) {
@@ -80,9 +84,9 @@ export default function Step4NarrativeForge() {
     try {
       await executeNarrativeSynthesisAction({
         pointOfInterestIdentification: pointOfInterestIdentification,
-        narrativeDepth: forgeState.depth,
-        narrativeTone: forgeState.tone,
-        refinedAdministratorIntent: forgeState.intentText
+        narrativeDepth: forgeState.narrativeDepth,
+        narrativeTone: forgeState.narrativeTone,
+        refinedAdministratorIntent: forgeState.administratorIntentText
       });
     } catch (hardwareException) {
       nicepodLog("🔥 [Step4] Fallo en la comunicación con el Oráculo Narrativo.", hardwareException, 'error');
@@ -90,11 +94,12 @@ export default function Step4NarrativeForge() {
   };
 
   /**
-   * handleFinalChroniclePublicationAction:
-   * Misión: Recibir el binario acústico, transmitirlo a la Bóveda y sellar el nodo en la Malla.
-   * [FIX V8.0]: Resolución de errores TS2339 sincronizando con 'pathsCollection' y 'uploadUrlsCollection'.
+   * handleFinalChroniclePublicationWorkflow:
+   * Misión: Recibir el binario acústico, transmitirlo a la Bóveda y sellar el nodo.
+   * [INTERVENCIÓN V9.0]: RAM Flush Protocol. Al finalizar, purgamos el estado para 
+   * forzar la limpieza de buffers y revocar URLs de objetos en el GeoRecorder.
    */
-  const handleFinalChroniclePublicationAction = useCallback(async (
+  const handleFinalChroniclePublicationWorkflow = useCallback(async (
     capturedAudioBinaryBlob: Blob, 
     recordingDurationSecondsMagnitude: number
   ) => {
@@ -108,21 +113,19 @@ export default function Step4NarrativeForge() {
 
     try {
       /**
-       * 1. SOLICITUD DE PASAPORTE ACÚSTICO (Protocolo Lightning V4.0)
+       * 1. SOLICITUD DE PASAPORTE ACÚSTICO (Protocolo Lightning V4.2)
        */
-      const uploadTokenResponse = await requestUploadTokensAction(['chronicle_final_master.webm']);
+      const uploadTokenResponse = await requestUploadTokensAction(['chronicle_final_master_export.webm']);
 
       if (!uploadTokenResponse.success || !uploadTokenResponse.data) {
         throw new Error(uploadTokenResponse.error || "No se pudo autorizar la subida del activo acústico final.");
       }
 
-      // [SINCRO NOMINAL V8.0]: Uso de nombres descriptivos purificados
       const audioStoragePath = uploadTokenResponse.data.pathsCollection[0];
       const audioUploadUniformResourceLocator = uploadTokenResponse.data.uploadUrlsCollection[0];
 
       /**
-       * 2. TRANSMISIÓN DIRECTA (Aislamiento de Hilo de Servidor)
-       * Misión: Evitar el desbordamiento de memoria en Vercel enviando el binario al Storage.
+       * 2. TRANSMISIÓN DIRECTA (Off-Main-Thread Transmission)
        */
       const audioUploadExecutionResults = await fetch(audioUploadUniformResourceLocator, {
         method: 'PUT',
@@ -135,7 +138,7 @@ export default function Step4NarrativeForge() {
       }
 
       /**
-       * 3. SELLADO SOBERANO EN BASE DE DATOS (COMMIT)
+       * 3. SELLADO SOBERANO EN BASE DE DATOS (COMMIT ATÓMICO)
        */
       const publicationCommitResults = await publishSovereignChronicleAction({
         pointOfInterestIdentification: pointOfInterestIdentification,
@@ -144,7 +147,10 @@ export default function Step4NarrativeForge() {
       });
 
       if (publicationCommitResults.success) {
-        nicepodLog("✅ [Step4] Nodo materializado con éxito. Sincronía pericial total alcanzada.");
+        nicepodLog("✅ [Step4] Nodo materializado con éxito. Iniciando purga de memoria táctica.");
+        
+        // [RAM FLUSH]: El reset de la forja desmonta el GeoRecorder, activando su 
+        // protocolo interno de revocation de URLs y Track Killer.
         stateDispatcher({ type: 'RESET_FORGE' });
       } else {
         throw new Error(publicationCommitResults.error);
@@ -158,15 +164,15 @@ export default function Step4NarrativeForge() {
   }, [forgeState.ingestedPointOfInterestIdentification, stateDispatcher]);
 
   /**
-   * OPCIONES DE CONFIGURACIÓN TÁCTICA (DICCIONARIOS NOMINALES)
+   * OPCIONES DE CONFIGURACIÓN TÁCTICA (DICCIONARIOS INDUSTRIALES)
    */
-  const narrativeDepthOptions: { value: NarrativeDepth; label: string; description: string }[] = [
+  const narrativeDepthOptionsCollection: { value: NarrativeDepth; label: string; description: string }[] = [
     { value: 'flash', label: 'Flash', description: 'Sintético / 45 Segundos' },
     { value: 'cronica', label: 'Crónica', description: 'Estándar / 1.5 Minutos' },
     { value: 'inmersion', label: 'Inmersión', description: 'Profundo / 4 Minutos' }
   ];
 
-  const narrativeToneOptions: { value: NarrativeTone; label: string; iconComponent: React.ReactNode }[] = [
+  const narrativeToneOptionsCollection: { value: NarrativeTone; label: string; iconComponent: React.ReactNode }[] = [
     { value: 'academico', label: 'Académico', iconComponent: <PenTool size={14} /> },
     { value: 'misterioso', label: 'Misterioso', iconComponent: <Wind size={14} /> },
     { value: 'epico', label: 'Épico', iconComponent: <Sparkles size={14} /> },
@@ -217,7 +223,7 @@ export default function Step4NarrativeForge() {
                 mode="CHRONICLE"
                 narrativeScriptContent={engineOperationalData.narrative.script}
                 isExternalProcessActive={isPublishingProcessActive}
-                onCaptureCompletionAction={handleFinalChroniclePublicationAction}
+                onCaptureCompletionAction={handleFinalChroniclePublicationWorkflow}
               />
             </div>
           </motion.div>
@@ -238,18 +244,18 @@ export default function Step4NarrativeForge() {
                 Profundidad de Peritaje Narrativo
               </label>
               <div className="grid grid-cols-3 gap-4">
-                {narrativeDepthOptions.map((depthOption) => (
+                {narrativeDepthOptionsCollection.map((depthOption) => (
                   <button
                     key={depthOption.value}
                     onClick={() => stateDispatcher({ type: 'SET_DEPTH', payload: depthOption.value })}
                     className={cn(
                       "flex flex-col items-center gap-2 p-5 rounded-2xl border transition-all duration-700 shadow-2xl",
-                      forgeState.depth === depthOption.value
+                      forgeState.narrativeDepth === depthOption.value
                         ? "bg-primary/10 border-primary/40 shadow-[0_0_30px_rgba(var(--primary-rgb),0.15)] scale-105"
                         : "bg-white/[0.02] border-white/5 text-zinc-600 hover:border-white/20"
                     )}
                   >
-                    <span className={cn("text-[11px] font-black uppercase tracking-tighter", forgeState.depth === depthOption.value ? "text-primary" : "text-zinc-500")}>
+                    <span className={cn("text-[11px] font-black uppercase tracking-tighter", forgeState.narrativeDepth === depthOption.value ? "text-primary" : "text-zinc-500")}>
                       {depthOption.label}
                     </span>
                     <span className="text-[7px] font-bold text-zinc-700 uppercase tracking-widest text-center leading-tight">
@@ -260,24 +266,24 @@ export default function Step4NarrativeForge() {
               </div>
             </div>
 
-            {/* SECTOR: FRECUENCIA (TONO) */}
+            {/* SECTOR: FRECUENCIA (TONO TÁCTICO) */}
             <div>
               <label className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-700 mb-5 block">
                 Frecuencia Narrativa Táctica
               </label>
               <div className="flex flex-wrap gap-3">
-                {narrativeToneOptions.map((toneOption) => (
+                {narrativeToneOptionsCollection.map((toneOption) => (
                   <button
                     key={toneOption.value}
                     onClick={() => stateDispatcher({ type: 'SET_TONE', payload: toneOption.value })}
                     className={cn(
                       "flex items-center gap-4 px-6 py-3.5 rounded-full border transition-all duration-500",
-                      forgeState.tone === toneOption.value
+                      forgeState.narrativeTone === toneOption.value
                         ? "bg-white text-black border-white shadow-2xl scale-110"
                         : "bg-white/[0.02] border-white/5 text-zinc-600 hover:text-zinc-300"
                     )}
                   >
-                    <span className={cn(forgeState.tone === toneOption.value ? "text-black" : "text-primary")}>
+                    <span className={cn(forgeState.narrativeTone === toneOption.value ? "text-black" : "text-primary")}>
                         {toneOption.iconComponent}
                     </span>
                     <span className="text-[10px] font-black uppercase tracking-widest">{toneOption.label}</span>
@@ -294,8 +300,8 @@ export default function Step4NarrativeForge() {
               <Textarea 
                 placeholder="Especifique directrices finales para el Agente 42..."
                 className="min-h-[120px] bg-[#050505] border-white/10 rounded-2xl p-6 text-base font-medium placeholder:text-zinc-800 focus:border-primary/40 transition-all resize-none shadow-inner text-zinc-300"
-                value={forgeState.intentText}
-                onChange={(changeEvent) => stateDispatcher({ type: 'SET_INTENT', payload: changeEvent.target.value })}
+                value={forgeState.administratorIntentText}
+                onChange={(changeEvent) => stateDispatcher({ type: 'SET_ADMINISTRATOR_INTENT', payload: changeEvent.target.value })}
               />
             </div>
 
@@ -310,7 +316,7 @@ export default function Step4NarrativeForge() {
               </Button>
               
               <Button
-                onClick={handleInitiateNarrativeSynthesisAction}
+                onClick={handleInitiateNarrativeSynthesisWorkflow}
                 disabled={engineOperationalStatus === 'SYNTHESIZING' || engineOperationalStatus === 'IDLE'}
                 className="flex-1 h-24 rounded-[2.5rem] bg-primary text-primary-foreground font-black tracking-[0.4em] uppercase text-xs shadow-[0_20px_50px_rgba(var(--primary-rgb),0.3)] group relative overflow-hidden transition-all"
               >
@@ -352,12 +358,12 @@ export default function Step4NarrativeForge() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V8.0):
- * 1. Build Shield Compliance: Se han resuelto todos los errores TS2339 sincronizando 
- *    el acceso a datos con 'pathsCollection' y 'uploadUrlsCollection', alineando 
- *    el componente con las Server Actions V12.0.
- * 2. Zero Abbreviations Policy: Purificación absoluta de términos técnicos. Se han 
- *    sustituido acrónimos por sus descriptores industriales (ZAP).
- * 3. Contractual Symmetry: La integración con 'executeNarrativeSynthesisAction' 
- *    ahora utiliza los nuevos parámetros nominales exigidos por el núcleo de soberanía.
+ * NOTA TÉCNICA DEL ARCHITECT (V9.0):
+ * 1. RAM Flush Implementation: Tras el éxito de la publicación, se despacha el reset 
+ *    del ForgeContext, lo que provoca el desmontaje destructivo del GeoRecorder y la 
+ *    consecuente liberación de memoria acústica.
+ * 2. Zero Abbreviations Policy (ZAP): Sincronización nominal total con ForgeContext V6.0 
+ *    (narrativeDepth, narrativeTone, administratorIntentText).
+ * 3. Build Shield Sovereignty: Saneamiento de las llamadas a Server Actions y hooks 
+ *    de fachada, garantizando que todos los payloads cumplan con la Constitución V8.6.
  */
