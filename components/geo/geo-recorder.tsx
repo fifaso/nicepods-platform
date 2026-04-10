@@ -1,12 +1,14 @@
 /**
  * ARCHIVO: components/geo/geo-recorder.tsx
- * VERSIÓN: 4.1 (NicePod Sovereign Acoustic Emitter - Consolidated Integrity Edition)
- * PROTOCOLO: MADRID RESONANCE V4.0
+ * VERSIÓN: 5.0 (NicePod Sovereign Acoustic Emitter - Industrial Hardware & Memory Purge Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.2
  * 
  * Misión: Proveer una interfaz de hardware puro para la captura acústica del Voyager,
- * garantizando higiene térmica, aniquilación de procesos huérfanos y privacidad.
- * [REFORMA V4.1]: Blindaje del ciclo de vida para aniquilar intervalos y pistas 
- * de audio durante el desmontaje abrupto del componente.
+ * garantizando higiene térmica, aniquilación de procesos huérfanos y privacidad absoluta
+ * mediante la desconexión física de transductores.
+ * [REFORMA V5.0]: Implementación absoluta de la Zero Abbreviations Policy (ZAP). 
+ * Refuerzo del protocolo de purga de memoria RAM acústica y aniquilación de pistas 
+ * de hardware (Track Killer) sincronizado con el ciclo de vida de React.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -42,7 +44,7 @@ export interface GeoRecorderProperties {
 }
 
 /**
- * GeoRecorder: El Centinela Acústico de la Workstation.
+ * GeoRecorder: El Centinela Acústico de la Workstation NicePod.
  */
 export function GeoRecorder({ 
   mode, 
@@ -53,7 +55,7 @@ export function GeoRecorder({
   
   const { toast } = useToast();
 
-  // --- I. MÁQUINA DE ESTADOS DE HARDWARE ---
+  // --- I. MÁQUINA DE ESTADOS DE HARDWARE (NOMINAL INTEGRITY) ---
   const [hasMicrophoneHardwarePermission, setHasMicrophoneHardwarePermission] = useState<boolean>(false);
   const [isRecordingProcessActive, setIsRecordingProcessActive] = useState<boolean>(false);
   const [isPlaybackProcessActive, setIsPlaybackProcessActive] = useState<boolean>(false);
@@ -62,22 +64,23 @@ export function GeoRecorder({
   const [capturedAudioUniformResourceLocator, setCapturedAudioUniformResourceLocator] = useState<string | null>(null);
   const [recordingDurationSeconds, setRecordingDurationSeconds] = useState<number>(0);
 
-  // --- II. REFERENCIAS DE MEMORIA Y HARDWARE (MutableRef) ---
+  // --- II. REFERENCIAS DE MEMORIA Y HARDWARE (MUTABLE REFERENCES - PILAR 4) ---
   const mediaRecorderReference = useRef<MediaRecorder | null>(null);
   const activeAudioStreamReference = useRef<MediaStream | null>(null); 
   const audioChunksCollectionReference = useRef<Blob[]>([]);
-  const timerIntervalReference = useRef<NodeJS.Timeout | null>(null);
-  const audioPlayerReference = useRef<HTMLAudioElement | null>(null);
+  const chronometerIntervalReference = useRef<NodeJS.Timeout | null>(null);
+  const audioHardwarePlayerReference = useRef<HTMLAudioElement | null>(null);
 
   /**
-   * cleanupAcousticMemory:
+   * executeAcousticMemoryPurgeWorkflow:
    * Misión: Revocar URLs de objetos y liberar buffers de audio para proteger la RAM.
+   * [PILAR 2]: Obliga al motor Webkit/Blink a vaciar el búfer síncronamente.
    */
-  const cleanupAcousticMemory = useCallback(() => {
-    if (audioPlayerReference.current) {
-      audioPlayerReference.current.pause();
-      audioPlayerReference.current.removeAttribute('src'); 
-      audioPlayerReference.current.load();
+  const executeAcousticMemoryPurgeWorkflow = useCallback(() => {
+    if (audioHardwarePlayerReference.current) {
+      audioHardwarePlayerReference.current.pause();
+      audioHardwarePlayerReference.current.removeAttribute('src'); 
+      audioHardwarePlayerReference.current.load();
     }
     
     if (capturedAudioUniformResourceLocator) {
@@ -87,10 +90,11 @@ export function GeoRecorder({
   }, [capturedAudioUniformResourceLocator]);
 
   /**
-   * terminateActiveAudioTracks (The Track Killer):
+   * executeAcousticHardwareTrackTerminationProtocol (The Track Killer):
    * Misión: Asesinar físicamente las pistas para apagar el indicador de grabación del SO.
+   * Garantiza la privacidad y el aislamiento térmico del terminal.
    */
-  const terminateActiveAudioTracks = useCallback(() => {
+  const executeAcousticHardwareTrackTerminationProtocol = useCallback(() => {
     if (activeAudioStreamReference.current) {
       activeAudioStreamReference.current.getTracks().forEach((audioTrack) => {
         audioTrack.stop();
@@ -107,18 +111,18 @@ export function GeoRecorder({
   useEffect(() => {
     return () => {
       nicepodLog(`🧹 [GeoRecorder:${mode}] Ejecutando protocolo de limpieza atómica.`);
-      terminateActiveAudioTracks();
-      cleanupAcousticMemory();
+      executeAcousticHardwareTrackTerminationProtocol();
+      executeAcousticMemoryPurgeWorkflow();
       
-      if (timerIntervalReference.current) {
-        clearInterval(timerIntervalReference.current);
+      if (chronometerIntervalReference.current) {
+        clearInterval(chronometerIntervalReference.current);
       }
     };
-  }, [cleanupAcousticMemory, terminateActiveAudioTracks, mode]);
+  }, [executeAcousticMemoryPurgeWorkflow, executeAcousticHardwareTrackTerminationProtocol, mode]);
 
   /**
-   * requestMicrophoneHardwareAuthority:
-   * Misión: Validar la disponibilidad del bus de audio.
+   * INITIALIZATION: requestMicrophoneHardwareAuthority
+   * Misión: Validar la disponibilidad del bus de audio en el dispositivo.
    */
   useEffect(() => {
     async function requestMicrophoneHardwarePermission() {
@@ -127,14 +131,14 @@ export function GeoRecorder({
       try {
         const audioHardwareStream = await navigator.mediaDevices.getUserMedia({ audio: true });
         setHasMicrophoneHardwarePermission(true);
-        // Liberación inmediata tras validación.
+        // Liberación inmediata tras validación inicial del bus.
         audioHardwareStream.getTracks().forEach((audioTrack) => audioTrack.stop());
-        nicepodLog(`🎙️ [GeoRecorder:${mode}] Autoridad acústica concedida.`);
+        nicepodLog(`🎙️ [GeoRecorder:${mode}] Autoridad acústica concedida por el sistema operativo.`);
       } catch (hardwareException) {
         nicepodLog(`🛑 [GeoRecorder:${mode}] Hardware interceptado por política de seguridad.`, hardwareException, 'error');
         toast({
           title: "Acceso Interceptado",
-          description: "Habilite el micrófono para registrar su peritaje en la Malla.",
+          description: "Habilite el micrófono en los ajustes del sitio para registrar su peritaje.",
           variant: "destructive"
         });
       }
@@ -143,10 +147,10 @@ export function GeoRecorder({
   }, [toast, mode]);
 
   /**
-   * executeIgnitionOfRecording:
-   * Misión: Abrir el flujo de captura en formato de alta fidelidad (WebM).
+   * executeAcousticCaptureIgnitionWorkflow:
+   * Misión: Abrir el flujo de captura en formato industrial de alta fidelidad (WebM).
    */
-  const executeIgnitionOfRecording = async () => {
+  const executeAcousticCaptureIgnitionWorkflow = async () => {
     if (!hasMicrophoneHardwarePermission) return;
 
     try {
@@ -170,53 +174,57 @@ export function GeoRecorder({
         setCapturedAudioBinaryBlob(finalAudioBinaryBlob);
         setCapturedAudioUniformResourceLocator(generatedUniformResourceLocator);
         
-        // Protocolo Track Killer post-captura
-        terminateActiveAudioTracks(); 
+        // Ejecución inmediata del Track Killer post-captura.
+        executeAcousticHardwareTrackTerminationProtocol(); 
       };
 
       mediaRecorderInstance.start();
       setIsRecordingProcessActive(true);
       setRecordingDurationSeconds(0);
 
-      timerIntervalReference.current = setInterval(() => {
+      chronometerIntervalReference.current = setInterval(() => {
         setRecordingDurationSeconds((previousDurationValue) => previousDurationValue + 1);
       }, 1000);
 
       nicepodLog(`⏺️ [GeoRecorder:${mode}] Captura acústica en progreso.`);
     } catch (hardwareException) {
-      nicepodLog(`🔥 [GeoRecorder:${mode}] Fallo crítico en la ignición.`, hardwareException, 'error');
-      toast({ title: "Fallo de Hardware", description: "El dispositivo no respondió al comando.", variant: "destructive" });
+      nicepodLog(`🔥 [GeoRecorder:${mode}] Fallo crítico en la ignición del bus de audio.`, hardwareException, 'error');
+      toast({ 
+        title: "Fallo de Hardware", 
+        description: "El dispositivo no respondió al comando de grabación.", 
+        variant: "destructive" 
+      });
     }
   };
 
   /**
-   * executeCeaseOfRecording:
-   * Misión: Detener la captura y liberar el reloj de telemetría.
+   * executeAcousticCaptureCessationWorkflow:
+   * Misión: Detener la captura y liberar el reloj de telemetría acústica.
    */
-  const executeCeaseOfRecording = () => {
+  const executeAcousticCaptureCessationWorkflow = () => {
     if (mediaRecorderReference.current && isRecordingProcessActive) {
       mediaRecorderReference.current.stop();
       setIsRecordingProcessActive(false);
       
-      if (timerIntervalReference.current) {
-        clearInterval(timerIntervalReference.current);
+      if (chronometerIntervalReference.current) {
+        clearInterval(chronometerIntervalReference.current);
       }
     }
   };
 
   /**
    * handleIntellectualEmissionAction:
-   * Misión: Traspasar el binario consolidado al orquestador superior.
+   * Misión: Traspasar el binario acústico consolidado al orquestador de forja superior.
    */
   const handleIntellectualEmissionAction = async () => {
     if (!capturedAudioBinaryBlob) return;
-    nicepodLog(`📡 [GeoRecorder:${mode}] Emitiendo evidencia al orquestador.`);
+    nicepodLog(`📡 [GeoRecorder:${mode}] Emitiendo evidencia acústica al orquestador.`);
     await onCaptureCompletionAction(capturedAudioBinaryBlob, recordingDurationSeconds);
   };
 
   /**
    * formatChronometryDisplay:
-   * Misión: Formatear la magnitud temporal para visualización industrial.
+   * Misión: Formatear la magnitud temporal para visualización industrial (00:00).
    */
   const formatChronometryDisplay = (totalSecondsMagnitude: number) => {
     const calculatedMinutes = Math.floor(totalSecondsMagnitude / 60);
@@ -225,13 +233,13 @@ export function GeoRecorder({
   };
 
   return (
-    <div className="flex flex-col gap-5 w-full h-full min-h-0">
+    <div className="flex flex-col gap-5 w-full h-full min-h-0 isolate">
 
       {/* I. CHASSIS DE CONTEXTO COGNITIVO */}
       {mode === 'CHRONICLE' ? (
         <div className="flex-1 bg-black/60 border border-white/5 rounded-2xl p-5 overflow-y-auto custom-scrollbar shadow-2xl backdrop-blur-xl">
           <h4 className="text-[9px] font-black uppercase tracking-[0.3em] text-zinc-500 mb-3 sticky top-0 bg-transparent py-1">
-            Narrativa de Inteligencia
+            Narrativa de Inteligencia Industrial
           </h4>
           <p className="text-xl font-medium leading-relaxed text-zinc-100 whitespace-pre-wrap font-serif antialiased selection:bg-primary/30">
             {narrativeScriptContent || "Sincronizando flujo del Oráculo..."}
@@ -247,15 +255,15 @@ export function GeoRecorder({
             Dictado Sensorial Activo
           </h3>
           <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest text-center leading-relaxed px-6">
-            Sintonice su intención. La voz será transmutada en capital intelectual.
+            Sintonice su intención cognitiva. La voz será transmutada en capital intelectual digital.
           </p>
         </div>
       )}
 
-      {/* II. CHASSIS DE COMANDO TÁCTICO */}
+      {/* II. CHASSIS DE COMANDO TÁCTICO ACÚSTICO */}
       <div className="bg-[#050505] border-t border-white/5 -mx-6 -mb-6 p-6 mt-auto backdrop-blur-3xl shadow-[0_-20px_50px_rgba(0,0,0,0.5)]">
 
-        {/* Telemetría Acústica */}
+        {/* TELEMETRÍA ACÚSTICA EN TIEMPO REAL */}
         <div className="flex justify-between items-center mb-6 px-1">
           <div className="flex items-center gap-3">
             {isRecordingProcessActive && <div className="w-2 h-2 rounded-full bg-red-500 animate-ping" />}
@@ -272,19 +280,19 @@ export function GeoRecorder({
           )}
         </div>
 
-        {/* Mallas de Acción (Botonera Táctica) */}
+        {/* MALLAS DE ACCIÓN (BOTONERA TÁCTICA) */}
         <div className="flex gap-4 h-16">
           {!capturedAudioBinaryBlob ? (
             isRecordingProcessActive ? (
               <Button
-                onClick={executeCeaseOfRecording}
+                onClick={executeAcousticCaptureCessationWorkflow}
                 className="flex-1 bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/30 transition-all rounded-2xl"
               >
                 <Square className="fill-current h-6 w-6" />
               </Button>
             ) : (
               <Button
-                onClick={executeIgnitionOfRecording}
+                onClick={executeAcousticCaptureIgnitionWorkflow}
                 disabled={!hasMicrophoneHardwarePermission || isExternalProcessActive}
                 className="flex-1 bg-white text-black hover:bg-zinc-200 rounded-2xl font-black text-[11px] tracking-[0.2em] shadow-xl uppercase transition-all"
               >
@@ -294,31 +302,31 @@ export function GeoRecorder({
             )
           ) : (
             <>
-              {/* Acción: Reinicio Pericial */}
+              {/* Acción: Reinicio Pericial (Recaptura) */}
               <Button
                 variant="outline"
                 disabled={isExternalProcessActive}
                 onClick={() => { 
-                  cleanupAcousticMemory(); 
+                  executeAcousticMemoryPurgeWorkflow(); 
                   setCapturedAudioBinaryBlob(null); 
                   setRecordingDurationSeconds(0); 
                 }}
-                className="w-16 px-0 rounded-2xl border-white/10 bg-transparent text-zinc-500 hover:bg-white/5 hover:text-white transition-all"
+                className="w-16 px-0 rounded-2xl border-white/10 bg-transparent text-zinc-500 hover:bg-white/5 hover:text-white transition-all shadow-md"
               >
                 <RotateCcw className="h-5 w-5" />
               </Button>
 
-              {/* Acción: Auditoría Acústica (Playback) */}
+              {/* Acción: Auditoría Acústica (Playback Local) */}
               <Button
                 disabled={isExternalProcessActive}
-                className="flex-1 flex gap-3 items-center justify-center bg-white/[0.03] hover:bg-white/[0.08] text-white rounded-2xl border border-white/5 transition-all"
+                className="flex-1 flex gap-3 items-center justify-center bg-white/[0.03] hover:bg-white/[0.08] text-white rounded-2xl border border-white/5 transition-all shadow-md"
                 onClick={() => {
-                  if (audioPlayerReference.current) {
+                  if (audioHardwarePlayerReference.current) {
                     if (isPlaybackProcessActive) { 
-                      audioPlayerReference.current.pause(); 
+                      audioHardwarePlayerReference.current.pause(); 
                       setIsPlaybackProcessActive(false); 
                     } else { 
-                      audioPlayerReference.current.play(); 
+                      audioHardwarePlayerReference.current.play(); 
                       setIsPlaybackProcessActive(true); 
                     }
                   }
@@ -328,7 +336,7 @@ export function GeoRecorder({
                 <span className="text-[9px] font-black uppercase tracking-[0.2em]">{isPlaybackProcessActive ? "PAUSAR" : "AUDITAR"}</span>
               </Button>
 
-              {/* Acción: Emisión de Inteligencia */}
+              {/* Acción: Emisión de Inteligencia (Commit) */}
               <Button
                 onClick={handleIntellectualEmissionAction}
                 disabled={isExternalProcessActive}
@@ -347,10 +355,10 @@ export function GeoRecorder({
           )}
         </div>
 
-        {/* Puente de Audio Hardware (Invisible) */}
+        {/* PUENTE DE AUDIO HARDWARE (INVISIBLE - DOM ISOLATION) */}
         {capturedAudioUniformResourceLocator && (
           <audio
-            ref={audioPlayerReference}
+            ref={audioHardwarePlayerReference}
             src={capturedAudioUniformResourceLocator}
             onEnded={() => setIsPlaybackProcessActive(false)}
             className="hidden"
@@ -362,10 +370,11 @@ export function GeoRecorder({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V4.1):
- * 1. Clock Integrity Seal: Se inyectó la limpieza de 'timerIntervalReference' en el bloque 
- *    de desmontaje, evitando que el reloj de grabación siga consumiendo CPU tras el cierre.
- * 2. Absolute Privacy: El 'Track Killer Protocol' se ejecuta ahora tanto al detener la 
- *    grabación como al destruir el componente, garantizando el apagado del hardware.
- * 3. Zero Abbreviations: Purificación nominal total en argumentos y variables de captura.
+ * NOTA TÉCNICA DEL ARCHITECT (V5.0):
+ * 1. Hardware Track Killer: Se garantiza la aniquilación de MediaStreamTracks tanto al detener 
+ *    la grabación como al desmontar el componente, eliminando fugas térmicas y de privacidad.
+ * 2. RAM Flush Protocol: El vaciado del búfer de audio ('removeAttribute(source)') es mandatorio 
+ *    antes de revocar la URL del objeto para liberar memoria en Safari iOS de forma inmediata.
+ * 3. Zero Abbreviations Policy (ZAP): Refactorización nominal de todas las funciones 
+ *    y referencias (chronometerIntervalReference, audioHardwarePlayerReference, etc.).
  */
