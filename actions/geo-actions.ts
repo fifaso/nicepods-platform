@@ -1,14 +1,14 @@
 /**
  * ARCHIVO: actions/geo-actions.ts
- * VERSIÓN: 13.0 (NicePod Sovereign Geo-Actions - Transactional Integrity & Exception Factory Edition)
+ * VERSIÓN: 13.1 (NicePod Sovereign Geo-Actions - Logger Integration & Transactional Integrity)
  * PROTOCOLO: MADRID RESONANCE V4.2
  * 
  * Misión: Orquestar el ciclo de vida de persistencia multidimensional con garantía 
  * de limpieza, rigor de tipos y evasión de límites de infraestructura mediante 
  * el uso de URLs Firmadas (Signed Uniform Resource Locators).
- * [REFORMA V13.0]: Implementación del "Sovereign Exception Factory" para diagnósticos 
- * industriales. Refuerzo de la atomicidad en la vinculación de activos visuales y 
- * cumplimiento absoluto de la Zero Abbreviations Policy (ZAP).
+ * [REFORMA V13.1]: Resolución definitiva del error TS2304 mediante la inyección 
+ * del utilitario de telemetría 'nicepodLog'. Refuerzo del protocolo de 
+ * excepciones y cumplimiento absoluto de la Zero Abbreviations Policy (ZAP).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -31,6 +31,9 @@ import {
   NarrativeTone
 } from "@/types/geo-sovereignty";
 
+// --- UTILIDADES INDUSTRIALES ---
+import { nicepodLog } from "@/lib/utils";
+
 /**
  * ---------------------------------------------------------------------------
  * I. FACTORÍA DE EXCEPCIONES SOBERANAS (INDUSTRIAL DIAGNOSTICS)
@@ -38,7 +41,7 @@ import {
  * Misión: Traducir errores crudos del Metal o del Borde en reportes técnicos 
  * comprensibles para la interfaz de la Workstation.
  */
-const handleOperationalException = (
+const handleOperationalExceptionAction = (
   exceptionSource: string, 
   operationalException: unknown
 ): GeoActionResponse<never> => {
@@ -46,16 +49,16 @@ const handleOperationalException = (
     ? operationalException.message 
     : String(operationalException);
   
-  console.error(`🔥 [NicePod][${exceptionSource}]:`, exceptionMessage);
+  nicepodLog(`🔥 [NicePod][${exceptionSource}]`, exceptionMessage, 'error');
 
-  // Mapeo industrial de errores conocidos
-  if (exceptionMessage.includes("PGRST116")) return { success: false, message: "FALLO_MEMORIA_METAL: Nodo no localizado.", error: exceptionMessage };
+  // Mapeo industrial de errores conocidos de base de datos y red
+  if (exceptionMessage.includes("PGRST116")) return { success: false, message: "FALLO_MEMORIA_METAL: Nodo no localizado en la Bóveda.", error: exceptionMessage };
   if (exceptionMessage.includes("42501")) return { success: false, message: "VIOLACION_POLITICA_SEGURIDAD: Acceso denegado al Metal.", error: exceptionMessage };
-  if (exceptionMessage.includes("UNAUTHORIZED")) return { success: false, message: "AUTORIDAD_INSUFICIENTE: Sesión no válida.", error: exceptionMessage };
+  if (exceptionMessage.includes("UNAUTHORIZED")) return { success: false, message: "AUTORIDAD_INSUFICIENTE: Sesión de perito no válida.", error: exceptionMessage };
 
   return { 
     success: false, 
-    message: `EXCEPCION_OPERATIVA [${exceptionSource}]: Fallo en la transacción.`, 
+    message: `EXCEPCION_OPERATIVA [${exceptionSource}]: Fallo en la transacción de forja.`, 
     error: exceptionMessage 
   };
 };
@@ -82,7 +85,7 @@ async function validateSovereignAccess() {
   const userRole = applicationMetadata.user_role || applicationMetadata.role || 'user';
 
   if (userRole !== 'admin') {
-    throw new Error("ACCESO_DENEGADO: Se requiere autoridad de nivel Administrador.");
+    throw new Error("ACCESO_DENEGADO: Se requiere autoridad de nivel Administrador para operar.");
   }
 
   return authenticatedUser;
@@ -129,7 +132,7 @@ export async function requestUploadTokensAction(
       }
     };
   } catch (operationalException: unknown) {
-    return handleOperationalException("TokenGeneration", operationalException);
+    return handleOperationalExceptionAction("TokenGeneration", operationalException);
   }
 }
 
@@ -167,7 +170,7 @@ export async function resolveLocationAction(
       data: resolutionResults.data as Record<string, unknown> 
     };
   } catch (operationalException: unknown) {
-    return handleOperationalException("GeographicResolution", operationalException);
+    return handleOperationalExceptionAction("GeographicResolution", operationalException);
   }
 }
 
@@ -199,7 +202,7 @@ export async function transcribeVoiceIntentAction(parameters: {
       data: { transcriptionText: transcriptionResults.transcriptionText }
     };
   } catch (operationalException: unknown) {
-    return handleOperationalException("SpeechToText", operationalException);
+    return handleOperationalExceptionAction("SpeechToText", operationalException);
   }
 }
 
@@ -263,7 +266,6 @@ export async function ingestIntelligenceDossierAction(
 
     /**
      * 5. SELLADO ATÓMICO DE EVIDENCIAS (ASSET LINKING)
-     * [INTERVENCIÓN A]: Vinculación de URLs públicas tras la materialización del nodo.
      */
     const { error: databaseUpdateException } = await supabaseClient
       .from('points_of_interest')
@@ -273,7 +275,7 @@ export async function ingestIntelligenceDossierAction(
       .eq('id', pointOfInterestIdentification);
 
     if (databaseUpdateException) {
-      nicepodLog("⚠️ [GeoAction] Inconsistencia en vinculación de galería. Nodo huérfano de imágenes.", databaseUpdateException.message, 'warn');
+      nicepodLog("⚠️ [GeoAction] Inconsistencia en vinculación de galería.", databaseUpdateException.message, 'warn');
       throw new Error(`DATABASE_LINKING_FAIL: ${databaseUpdateException.message}`);
     }
 
@@ -288,7 +290,7 @@ export async function ingestIntelligenceDossierAction(
     };
 
   } catch (operationalException: unknown) {
-    return handleOperationalException("IntelligenceIngestion", operationalException);
+    return handleOperationalExceptionAction("IntelligenceIngestion", operationalException);
   }
 }
 
@@ -327,7 +329,7 @@ export async function synthesizeNarrativeAction(parameters: {
       data: synthesisResults.data as Record<string, unknown> 
     };
   } catch (operationalException: unknown) {
-    return handleOperationalException("NarrativeSynthesis", operationalException);
+    return handleOperationalExceptionAction("NarrativeSynthesis", operationalException);
   }
 }
 
@@ -374,15 +376,16 @@ export async function publishSovereignChronicleAction(parameters: {
     };
 
   } catch (operationalException: unknown) {
-    return handleOperationalException("FinalPublication", operationalException);
+    return handleOperationalExceptionAction("FinalPublication", operationalException);
   }
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V13.0):
- * 1. Exception Factory: Se ha centralizado la gestión de errores mediante 'handleOperationalException', 
- *    mejorando la trazabilidad industrial y la robustez de la terminal.
- * 2. ZAP Compliance: Purificación total de la nomenclatura (fileNamesCollection, authorizedUserAuthor).
- * 3. Atomic Handshake: La ingesta asegura que el 'pointOfInterestIdentification' y los 'analysisResults' 
- *    sean validados contra esquemas estrictos antes de su retorno a la interfaz de usuario.
+ * NOTA TÉCNICA DEL ARCHITECT (V13.1):
+ * 1. Build Shield Implementation: Se ha importado 'nicepodLog' desde '@/lib/utils', 
+ *    resolviendo el error de compilación TS2304.
+ * 2. Exception Factory: El método 'handleOperationalExceptionAction' garantiza una 
+ *    respuesta unificada y descriptiva ante fallos en la capa de persistencia.
+ * 3. Zero Abbreviations Policy (ZAP): Refactorización nominal de manejadores de 
+ *    error y variables locales para cumplir con el estándar V4.2.
  */
