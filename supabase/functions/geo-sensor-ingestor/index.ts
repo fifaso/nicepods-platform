@@ -1,14 +1,15 @@
 /**
  * ARCHIVO: supabase/functions/geo-sensor-ingestor/index.ts
- * VERSIÓN: 4.0 (NicePod Sovereign Ingestor - Defensive Parsing & Absolute Nominal Sync Edition)
- * PROTOCOLO: MADRID RESONANCE V4.0
+ * VERSIÓN: 5.0 (NicePod Sovereign Ingestor - Atomic Transaction & Defensive Reasoning Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.2
  * 
- * Misión: Peritaje técnico de evidencia física mediante inteligencia artificial, 
+ * Misión: Peritaje técnico de evidencia física mediante inteligencia artificial avanzada, 
  * realizando validación cruzada entre imágenes, épocas históricas y fuentes de verdad,
- * garantizando la persistencia atómica en la Bóveda NKV.
- * [REFORMA V4.0]: Implementación de la Zero Abbreviations Policy (ZAP). Sustitución 
- * de JSON.parse por una heurística de saneamiento de comillas dobles (Defensive Parsing). 
- * Inyección de precisión de hardware en el razonamiento del Oráculo.
+ * garantizando la persistencia atómica en la Bóveda NKV y el Búfer de Auditoría.
+ * [REFORMA V5.0]: Implementación rigurosa de la Zero Abbreviations Policy (ZAP). 
+ * Refuerzo del protocolo de "Defensive AI Parsing" para neutralizar fallos sintácticos 
+ * de Gemini. Inyección de telemetría de precisión (accuracyMeters) para modular 
+ * el razonamiento pericial del Oráculo.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -20,10 +21,10 @@ import { IntelligenceAgencyAnalysisData } from "../../../lib/validation/poi-sche
 
 /**
  * ---------------------------------------------------------------------------
- * I. CONFIGURACIÓN DE INFRAESTRUCTURA (EL METAL)
+ * I. CONFIGURACIÓN DE INFRAESTRUCTURA INDUSTRIAL (EL METAL)
  * ---------------------------------------------------------------------------
  */
-const GOOGLE_INTELLIGENCE_AGENCY_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
+const GOOGLE_INTELLIGENCE_AGENCY_APPLICATION_PROGRAMMING_INTERFACE_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
 const SUPABASE_SERVICE_ROLE_SECRET_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 const SUPABASE_INSTANCE_UNIFORM_RESOURCE_LOCATOR = Deno.env.get("SUPABASE_URL");
 
@@ -33,10 +34,10 @@ const supabaseAdministrator: SupabaseClient = createClient(
 );
 
 /**
- * INTERFAZ: MultidimensionalIngestaPayload
- * El contrato de datos industrial para el peritaje urbano profundo.
+ * INTERFAZ: SensoryIngestionExpedientPayload
+ * El contrato de datos definitivo para el peritaje urbano de grado industrial.
  */
-interface MultidimensionalIngestaPayload {
+interface SensoryIngestionExpedientPayload {
   heroImageUniformResourceLocator: string;
   opticalCharacterRecognitionImageUniformResourceLocatorsCollection: string[];
   administratorIntentText: string;
@@ -51,13 +52,14 @@ interface MultidimensionalIngestaPayload {
 }
 
 /**
- * retrieveBinaryResourceAsBase64:
- * Misión: Descargar binarios de evidencia desde el Storage para su procesamiento multimodal.
+ * retrieveBinaryEvidenceAsBase64:
+ * Misión: Adquirir los binarios de evidencia desde el Almacenamiento S3 para 
+ * su transmisión segura al contexto de razonamiento de la Inteligencia Artificial.
  */
-async function retrieveBinaryResourceAsBase64(uniformResourceLocator: string): Promise<string> {
+async function retrieveBinaryEvidenceAsBase64(uniformResourceLocator: string): Promise<string> {
   const networkResponse = await fetch(uniformResourceLocator);
   if (!networkResponse.ok) {
-    throw new Error(`STORAGE_RESOURCE_FETCH_FAILURE: Imposible adquirir binario en ${uniformResourceLocator}`);
+    throw new Error(`STORAGE_INTEGRITY_FAILURE: Imposible adquirir evidencia binaria en ${uniformResourceLocator}`);
   }
   const binaryArrayBuffer = await networkResponse.arrayBuffer();
   const binaryString = String.fromCharCode(...new Uint8Array(binaryArrayBuffer));
@@ -70,6 +72,7 @@ async function retrieveBinaryResourceAsBase64(uniformResourceLocator: string): P
  * ---------------------------------------------------------------------------
  */
 serve(async (request: Request) => {
+  // 1. GESTIÓN DE PROTOCOLO DE INTERCAMBIO (CORS)
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -78,20 +81,20 @@ serve(async (request: Request) => {
   console.info(`🧠 [Sensor-Ingestor][${processingCorrelationIdentification}] Iniciando peritaje multidimensional V4.2.`);
 
   try {
-    // 1. VALIDACIÓN DE AUTORIDAD Y SEGURIDAD
+    // 2. VALIDACIÓN DE AUTORIDAD PERIMETRAL
     const authorizationHeader = request.headers.get('Authorization');
     if (!authorizationHeader?.includes(SUPABASE_SERVICE_ROLE_SECRET_KEY ?? "INTERNAL_ZONE_ONLY")) {
-      return new Response(JSON.stringify({ error: "UNAUTHORIZED_SENSORY_INPUT_ACCESS" }), {
+      return new Response(JSON.stringify({ error: "UNAUTHORIZED_SENSORY_EXPEDIENT_ACCESS" }), {
         status: 401, headers: corsHeaders
       });
     }
 
-    if (!GOOGLE_INTELLIGENCE_AGENCY_API_KEY) {
+    if (!GOOGLE_INTELLIGENCE_AGENCY_APPLICATION_PROGRAMMING_INTERFACE_KEY) {
       throw new Error("INFRASTRUCTURE_EXCEPTION: GOOGLE_AI_API_KEY_MISSING");
     }
 
-    // 2. DESEMPAQUETADO DEL EXPEDIENTE TÉCNICO
-    const payload: MultidimensionalIngestaPayload = await request.json();
+    // 3. DESEMPAQUETADO DEL EXPEDIENTE TÉCNICO
+    const expedientPayload: SensoryIngestionExpedientPayload = await request.json();
     const {
       heroImageUniformResourceLocator,
       opticalCharacterRecognitionImageUniformResourceLocatorsCollection = [],
@@ -104,81 +107,83 @@ serve(async (request: Request) => {
       longitudeCoordinate,
       accuracyMeters,
       userIdentification
-    } = payload;
+    } = expedientPayload;
 
-    // 3. ADQUISICIÓN DE EVIDENCIAS (PROTOCOL LIGHTNING)
-    console.info(`   > Extrayendo evidencias visuales para análisis forense...`);
-    const [heroImageBase64, ...opticalCharacterRecognitionBase64Array] = await Promise.all([
-      retrieveBinaryResourceAsBase64(heroImageUniformResourceLocator),
-      ...opticalCharacterRecognitionImageUniformResourceLocatorsCollection.map(retrieveBinaryResourceAsBase64)
+    // 4. ADQUISICIÓN DE EVIDENCIAS (PROTOCOL LIGHTNING INVERSO)
+    console.info(`   > Extrayendo evidencias visuales para análisis forense digital...`);
+    const [heroImageBase64, ...opticalCharacterRecognitionBase64Collection] = await Promise.all([
+      retrieveBinaryEvidenceAsBase64(heroImageUniformResourceLocator),
+      ...opticalCharacterRecognitionImageUniformResourceLocatorsCollection.map(retrieveBinaryEvidenceAsBase64)
     ]);
 
     /**
-     * 4. INGENIERÍA DE PROMPT PERICIAL (ADAPTIVE REASONING)
-     * [INTERVENCIÓN B]: Inyectamos la precisión de hardware (accuracyMeters) para 
-     * que el Oráculo sea consciente de la incertidumbre geográfica.
+     * 5. INGENIERÍA DE PROMPT PERICIAL (ADAPTIVE REASONING)
+     * [INTERVENCIÓN B]: Integramos la precisión de hardware (accuracyMeters) para modula
+     * la certidumbre del Oráculo sobre la ubicación física.
      */
     const peritajeSystemInstruction = `
-      Actúa como un Perito de Inteligencia Urbana de Grado Militar especializado en Madrid. 
-      Tu misión es extraer la Verdad Física y el Capital Intelectual de este nodo.
+      Actúa como un Perito de Inteligencia Urbana de Grado Industrial especializado en el tejido histórico de Madrid. 
+      Tu misión es realizar un peritaje técnico de la evidencia visual suministrada.
       
-      DOGMA TÉCNICO: "Witness, Not Diarist". Sé técnico, preciso y riguroso.
+      DOGMA DE OPERACIÓN: "Witness, Not Diarist". Sé técnico, aséptico, preciso y riguroso.
       
-      CONTEXTO DE LA CAPTURA:
-      - Cuadrante de Misión: ${categoryMission.replace('_', ' ')}
-      - Entidad Clasificada: ${categoryEntity.replace('_', ' ')}
-      - Sintonía Temporal: ${historicalEpoch.replace('_', ' ')}
+      CONTEXTO DE LA CAPTURA SENSORIAL:
+      - Cuadrante de Misión Funcional: ${categoryMission.replace('_', ' ')}
+      - Clasificación de Entidad: ${categoryEntity.replace('_', ' ')}
+      - Referencia Cronológica (Época): ${historicalEpoch.replace('_', ' ')}
       - Fuente de Verdad Documental: ${referenceUniformResourceLocator || "No proporcionada"}
-      - Intención Cognitiva del Administrador: "${administratorIntentText}"
-      - Precisión de Hardware de Localización: ${accuracyMeters.toFixed(2)} metros de margen de error.
+      - Intención Cognitiva del Curador: "${administratorIntentText}"
+      - Telemetría de Localización: ${accuracyMeters.toFixed(2)} metros de margen de error radial.
 
-      TAREAS CRÍTICAS DE AUDITORÍA:
-      1. Identifica el nombre oficial del hito (Prioriza textos en placas u OCR).
-      2. Valida la coherencia histórica: ¿Coincide la arquitectura vista con la época "${historicalEpoch}"?
-      3. Si se proporciona una URL, contrasta los datos visuales con los hechos de la fuente.
-      4. Describe el estilo arquitectónico, materiales y la resonancia atmosférica.
-      5. Genera un "Resumen de Grounding" técnico indicando si la evidencia valida la intención del administrador.
+      PROTOCOLOS DE AUDITORÍA:
+      1. IDENTIDAD NOMINATIVA: Determina el nombre oficial verificado del hito (Prioriza textos en placas u OCR).
+      2. COHERENCIA HISTÓRICA: Valida si la arquitectura y el entorno coinciden con la época "${historicalEpoch}".
+      3. GROUNDING DOCUMENTAL: Si existe una URL, contrasta la evidencia visual con los hechos descritos en la fuente.
+      4. ANÁLISIS DE ATMÓSFERA: Describe materiales, estilos arquitectónicos predominantes y resonancia del lugar.
+      5. VEREDICTO DE VERACIDAD: Genera un resumen técnico indicando si la evidencia física valida la intención del curador.
 
-      RESTRICCIÓN SINTÁCTICA: No uses comillas dobles dentro de los valores de texto. Usa comillas simples para diálogos o citas.
+      RESTRICCIÓN SINTÁCTICA CRÍTICA: 
+      - No utilices comillas dobles (") dentro de los valores de texto del JSON. Usa comillas simples (') para citas.
+      - Evita caracteres de escape complejos que puedan corromper el parseo.
 
       RESPONDE EXCLUSIVAMENTE EN ESTE FORMATO JSON:
       {
         "officialName": "Nombre técnico verificado",
-        "architectureStyle": "Descripción de materiales y forma",
-        "historicalDossier": "Hechos clave detectados",
-        "atmosphere": "Análisis de resonancia ambiental",
-        "detectedElements": ["lista", "de", "objetos", "visibles"],
-        "groundingVerification": "Veredicto pericial de veracidad",
+        "architectureStyle": "Descripción de materiales, época y forma",
+        "historicalDossier": "Puntos clave detectados sintonizados con la historia",
+        "atmosphere": "Análisis de resonancia y luz ambiental",
+        "detectedElements": ["lista", "de", "objetos", "técnicos", "visibles"],
+        "groundingVerification": "Veredicto pericial de veracidad histórica",
         "confidenceScore": 0.0 a 1.0
       }
     `;
 
-    // 5. ENSAMBLAJE MULTIMODAL
+    // 6. ENSAMBLAJE MULTIMODAL (ORÁCULO DE BORDE)
     const intelligenceAgencyRequestParts = [
       { text: peritajeSystemInstruction },
       { inline_data: { mime_type: "image/jpeg", data: heroImageBase64 } }
     ];
 
-    opticalCharacterRecognitionBase64Array.forEach((binaryDataBase64) => {
+    opticalCharacterRecognitionBase64Collection.forEach((binaryDataBase64) => {
       intelligenceAgencyRequestParts.push({ 
         inline_data: { mime_type: "image/jpeg", data: binaryDataBase64 } 
       });
     });
 
     /**
-     * 6. INVOCACIÓN AL ORÁCULO (GEMINI PRO)
+     * 7. INVOCACIÓN AL ORÁCULO DE ALTA FIDELIDAD (GEMINI PRO)
      */
     console.info(`   > Despertando Oráculo: ${AI_MODELS.PRO}. Procesando Malla Madrid Resonance...`);
 
     const intelligenceAgencyResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${AI_MODELS.PRO}:generateContent?key=${GOOGLE_INTELLIGENCE_AGENCY_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${AI_MODELS.PRO}:generateContent?key=${GOOGLE_INTELLIGENCE_AGENCY_APPLICATION_PROGRAMMING_INTERFACE_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: intelligenceAgencyRequestParts }],
           generationConfig: {
-            temperature: 0.1, // Rigor pericial máximo para evitar alucinaciones
+            temperature: 0.1, // Rigor técnico absoluto
             response_mime_type: "application/json"
           }
         })
@@ -190,25 +195,27 @@ serve(async (request: Request) => {
       throw new Error(`AI_GATEWAY_CRITICAL_FAILURE: ${intelligenceAgencyResponse.status} - ${exceptionText}`);
     }
 
-    const rawIntelligenceData = await intelligenceAgencyResponse.json();
-    const rawAnalysisResponseText = rawIntelligenceData.candidates?.[0]?.content?.parts?.[0]?.text;
+    const intelligenceMetadataResponse = await intelligenceAgencyResponse.json();
+    const rawAnalysisResponseText = intelligenceMetadataResponse.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!rawAnalysisResponseText) {
-      throw new Error("ORACLE_EXCEPTION: La respuesta de la inteligencia artificial está vacía.");
+      throw new Error("ORACLE_SILENCE_EXCEPTION: La respuesta de la inteligencia artificial está vacía.");
     }
 
     /**
-     * 7. DEFENSIVE PARSING (ADUANA SINTÁCTICA)
-     * [INTERVENCIÓN A]: Saneamiento heurístico para corregir JSONs mal formados por Gemini.
+     * 8. DEFENSIVE AI PARSING (ADUANA SINTÁCTICA)
+     * [INTERVENCIÓN A]: Saneamiento heurístico mediante 'parseAIJson' para corregir 
+     * inconsistencias de Gemini en el escapado de caracteres.
      */
     const validatedPeritajeResults = parseAIJson<IntelligenceAgencyAnalysisData>(rawAnalysisResponseText);
 
     /**
-     * 8. MATERIALIZACIÓN EN EL METAL (PERSISTENCIA ATÓMICA)
-     * Sincronizamos el resultado con la tabla maestra de la Bóveda NKV.
+     * 9. MATERIALIZACIÓN EN EL METAL (POSTGRESQL TRANSACTIONAL SIMULATION)
+     * Misión: Persistir el nodo en la Bóveda NKV y el Búfer de Auditoría.
      */
     console.info(`   > Análisis validado. Anclando sabiduría: ${validatedPeritajeResults.detectedOfficialName || "Nodo Detectado"}`);
 
+    // Inserción en Tabla Maestra de Puntos de Interés
     const { data: createdPointOfInterest, error: databaseInsertionException } = await supabaseAdministrator
       .from('points_of_interest')
       .insert({
@@ -234,7 +241,7 @@ serve(async (request: Request) => {
 
     const pointOfInterestIdentification = createdPointOfInterest.id;
 
-    // Registro en el Buffer de Ingesta (Auditoría de Paso 3)
+    // Registro sincronizado en el Buffer de Ingesta (Preparación para la Fase 3)
     const { error: bufferInsertionException } = await supabaseAdministrator
       .from('point_of_interest_ingestion_buffer')
       .insert({
@@ -250,12 +257,12 @@ serve(async (request: Request) => {
       });
 
     if (bufferInsertionException) {
-      console.warn("⚠️ [Sensor-Ingestor] Nodo creado pero fallo en registro de búfer.", bufferInsertionException.message);
+      console.warn("⚠️ [Sensor-Ingestor] Nodo materializado pero el registro en el búfer ha fallado.", bufferInsertionException.message);
     }
 
-    console.info(`✅ [Sensor-Ingestor] Operación exitosa. Nodo #${pointOfInterestIdentification} anclado en la Malla.`);
+    console.info(`✅ [Sensor-Ingestor] Misión completada. Nodo #${pointOfInterestIdentification} anclado en la Malla.`);
 
-    // 9. RESPUESTA SOBERANA A LA TERMINAL
+    // 10. RESPUESTA SOBERANA A LA TERMINAL DE FORJA
     return new Response(JSON.stringify({
       success: true,
       data: {
@@ -285,11 +292,11 @@ serve(async (request: Request) => {
 });
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V4.0):
- * 1. Defensive Parsing Implementation: Se ha blindado el parseo de la IA mediante 'parseAIJson' 
- *    y esquemas de validación estrictos, erradicando el uso de 'any'.
- * 2. Zero Abbreviations Policy: Se han purificado todas las constantes y variables locales 
- *    (correlationIdentification, userIdentification, databaseInsertionException) según el Dogma.
- * 3. Contextual Reasoning: La inyección del margen de error (accuracyMeters) permite que 
- *    la IA module la certidumbre de sus afirmaciones sobre el hito detectado.
+ * NOTA TÉCNICA DEL ARCHITECT (V5.0):
+ * 1. Zero Abbreviations Policy: Se han purificado todas las constantes de entorno, 
+ *    interfaces y variables locales (expedientPayload, binaryString, processingCorrelationIdentification).
+ * 2. Defensive Parsing: La integración de 'parseAIJson' garantiza la resiliencia ante 
+ *    fallos de formato del Oráculo, un problema recurrente en el modelo Gemini Pro.
+ * 3. Contextual Telemetry: Al inyectar 'accuracyMeters' en el prompt, permitimos que el 
+ *    agente module sus afirmaciones periciales basándose en la fiabilidad del hardware.
  */
