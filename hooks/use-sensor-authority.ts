@@ -1,13 +1,13 @@
 /**
  * ARCHIVO: hooks/use-sensor-authority.ts
- * VERSIÓN: 6.0 (NicePod Sensor Authority - Industrial Nominal & Adaptive Smoothing Edition)
- * PROTOCOLO: MADRID RESONANCE V4.0
+ * VERSIÓN: 6.1 (NicePod Sensor Authority - Absolute Nominal Integrity & Adaptive Smoothing Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.2
  * 
  * Misión: Captura pura de telemetría de posicionamiento global y compás magnetométrico 
  * de alta fidelidad, aplicando filtros vectoriales para erradicar el Jitter.
- * [REFORMA V6.0]: Cumplimiento absoluto de la Zero Abbreviations Policy (ZAP) y 
- * alineación total con la Constitución de Soberanía V8.6. Implementación de 
- * suavizado adaptativo basado en la dinámica de movimiento del Voyager.
+ * [REFORMA V6.1]: Resolución definitiva del error TS2561 (unixTimestamp -> timestamp).
+ * Cumplimiento absoluto de la Zero Abbreviations Policy (ZAP) y alineación total 
+ * con la Constitución de Soberanía V8.6. Implementación de suavizado adaptativo.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -19,13 +19,13 @@ import { UserLocation, TelemetrySource } from "@/types/geo-sovereignty";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
- * CONFIGURACIÓN DE GOBERNANZA SENSORIAL
+ * CONFIGURACIÓN DE GOBERNANZA SENSORIAL INDUSTRIAL
  */
 const CACHE_TIME_TO_LIVE_MILLISECONDS = 15 * 60 * 1000; 
 const HARDWARE_WATCHDOG_THRESHOLD_MILLISECONDS = 8000;
 
 // Configuración del Filtro de Purificación Vectorial (VAF)
-const BASE_SMOOTHING_WINDOW_SIZE = 12; // Muestras base para promediar el ruido
+const BASE_SMOOTHING_WINDOW_SIZE = 12; // Muestras base para promediar el ruido magnetométrico
 const VELOCITY_THRESHOLD_FOR_ADAPTIVE_SMOOTHING = 2.0; // metros por segundo
 
 /**
@@ -51,7 +51,7 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProperties = 
   const [telemetry, setTelemetry] = useState<UserLocation | null>(() => {
     if (typeof window === "undefined") return null;
 
-    // 1. Prioridad: Memoria Táctica Reciente (Caché local)
+    // 1. Prioridad: Memoria Táctica Reciente (Caché local del navegador)
     const cachedGeographicFixString = localStorage.getItem('nicepod_last_known_geographic_fix');
     if (cachedGeographicFixString) {
       try {
@@ -82,7 +82,7 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProperties = 
       };
     }
 
-    // 3. Fallback: Punto de Anclaje de Sol (Último recurso de emergencia)
+    // 3. Fallback: Punto de Anclaje de Sol (Último recurso de emergencia de la Workstation)
     return {
       latitudeCoordinate: MADRID_SOL_COORDS.latitude,
       longitudeCoordinate: MADRID_SOL_COORDS.longitude,
@@ -97,7 +97,7 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProperties = 
   const [isHardwareAccessDenied, setIsHardwareAccessDenied] = useState<boolean>(false);
   const [isAcquiringHardwareFix, setIsAcquiringHardwareFix] = useState<boolean>(false);
 
-  // --- II. MEMORIA TÁCTICA (SINGLETON REFERENCES) ---
+  // --- II. MEMORIA TÁCTICA (SINGLETON REFERENCES - PILAR 4) ---
   const watchIdentificationReference = useRef<number | null>(null);
   const isHardwareIgnitedReference = useRef<boolean>(false);
   const watchdogTimerReference = useRef<NodeJS.Timeout | null>(null);
@@ -113,13 +113,13 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProperties = 
   /**
    * getPurifiedHeading:
    * Misión: Transmutar el ruido magnetométrico en un rumbo estable para la cinemática.
-   * [ADAPTIVE SMOOTHING]: Reduce el tamaño de la ventana a alta velocidad.
+   * [ADAPTIVE SMOOTHING]: Reduce el tamaño de la ventana a alta velocidad para evitar lag.
    */
-  const getPurifiedHeading = useCallback((rawHeadingDegrees: number, currentSpeed: number | null): number => {
+  const getPurifiedHeading = useCallback((rawHeadingDegrees: number, currentSpeedMetersPerSecond: number | null): number => {
     const headingRadians = (rawHeadingDegrees * Math.PI) / 180;
     
-    // Ajuste dinámico de ventana basado en dinámica de movimiento
-    const effectiveWindowSize = (currentSpeed && currentSpeed > VELOCITY_THRESHOLD_FOR_ADAPTIVE_SMOOTHING)
+    // Ajuste dinámico de ventana basado en la dinámica de movimiento del Voyager.
+    const effectiveWindowSize = (currentSpeedMetersPerSecond && currentSpeedMetersPerSecond > VELOCITY_THRESHOLD_FOR_ADAPTIVE_SMOOTHING)
       ? Math.floor(BASE_SMOOTHING_WINDOW_SIZE / 2)
       : BASE_SMOOTHING_WINDOW_SIZE;
 
@@ -142,10 +142,10 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProperties = 
   }, []);
 
   /**
-   * handleOrientationEvent:
-   * Captura el giro físico del dispositivo y actualiza la brújula táctica.
+   * handleOrientationEventAction:
+   * Captura el giro físico del dispositivo y actualiza la brújula táctica con filtrado VAF.
    */
-  const handleOrientationEvent = useCallback((event: DeviceOrientationEvent) => {
+  const handleOrientationEventAction = useCallback((event: DeviceOrientationEvent) => {
     // Soporte multiplataforma (WebKitCompassHeading para iOS vs Alpha para Android)
     const rawHeadingDegrees = (event as any).webkitCompassHeading || (360 - (event.alpha || 0));
     
@@ -155,7 +155,7 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProperties = 
         
         const purifiedHeadingDegrees = getPurifiedHeading(rawHeadingDegrees, previousTelemetry.speedMetersPerSecond);
         
-        // Throttling de precisión: Ignoramos fluctuaciones < 0.2 grados.
+        // Throttling de precisión: Ignoramos fluctuaciones magnéticas < 0.2 grados.
         if (previousTelemetry.headingDegrees !== null && 
             Math.abs(purifiedHeadingDegrees - previousTelemetry.headingDegrees) < 0.2) {
           return previousTelemetry;
@@ -168,7 +168,7 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProperties = 
 
   /**
    * killHardwareWatch:
-   * Desconexión atómica de sensores y liberación física del bus de datos.
+   * Desconexión atómica de sensores y liberación física del bus de datos (Hardware Hygiene).
    */
   const killHardwareWatch = useCallback(() => {
     if (watchIdentificationReference.current !== null) {
@@ -176,7 +176,7 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProperties = 
       watchIdentificationReference.current = null;
     }
     if (typeof window !== "undefined") {
-      window.removeEventListener("deviceorientation", handleOrientationEvent);
+      window.removeEventListener("deviceorientation", handleOrientationEventAction);
     }
     if (watchdogTimerReference.current) {
       clearTimeout(watchdogTimerReference.current);
@@ -186,7 +186,7 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProperties = 
     hasGlobalPositioningSystemFixReference.current = false;
     setIsAcquiringHardwareFix(false);
     nicepodLog("💤 [Sensor-Authority] Hardware sensorial liberado exitosamente.");
-  }, [handleOrientationEvent]);
+  }, [handleOrientationEventAction]);
 
   /**
    * startHardwareWatch:
@@ -204,43 +204,47 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProperties = 
       try {
         const permissionStatus = await (DeviceOrientationEvent as any).requestPermission();
         if (permissionStatus === 'granted') {
-          window.addEventListener("deviceorientation", handleOrientationEvent, true);
+          window.addEventListener("deviceorientation", handleOrientationEventAction, true);
         }
       } catch (hardwareException) {
         nicepodLog("⚠️ [Sensor-Authority] Autoridad de magnetómetro denegada.", null, 'warn');
       }
     } else {
-      window.addEventListener("deviceorientation", handleOrientationEvent, true);
+      window.addEventListener("deviceorientation", handleOrientationEventAction, true);
     }
 
-    // Watchdog de Estasis: Reinicia el enlace si el silicio no responde en 8 segundos.
+    // Watchdog de Estasis: Reinicia el enlace si el silicio no responde en el umbral definido.
     if (watchdogTimerReference.current) clearTimeout(watchdogTimerReference.current);
     watchdogTimerReference.current = setTimeout(() => {
       if (!hasGlobalPositioningSystemFixReference.current) {
-        nicepodLog("🆘 [Sensor-Authority] Estasis de GPS detectada. Reintentando enlace.");
+        nicepodLog("🆘 [Sensor-Authority] Estasis de GPS detectada. Reintentando enlace satelital.");
         isHardwareIgnitedReference.current = false;
         setIsAcquiringHardwareFix(false);
       }
     }, HARDWARE_WATCHDOG_THRESHOLD_MILLISECONDS);
 
-    const handleSignalSuccess = (position: GeolocationPosition) => {
+    const handleSignalSuccessAction = (position: GeolocationPosition) => {
       if (watchdogTimerReference.current) {
         clearTimeout(watchdogTimerReference.current);
         watchdogTimerReference.current = null;
       }
 
       // La orientación satelital es autoritaria solo a velocidades de desplazamiento real.
-      const authoritativeHeading = (position.coords.speed && position.coords.speed > VELOCITY_THRESHOLD_FOR_ADAPTIVE_SMOOTHING && position.coords.heading !== null)
+      const authoritativeHeadingDegrees = (position.coords.speed && position.coords.speed > VELOCITY_THRESHOLD_FOR_ADAPTIVE_SMOOTHING && position.coords.heading !== null)
         ? position.coords.heading
         : (telemetry?.headingDegrees || null);
 
+      /**
+       * [FIX V6.1]: Sincronización total con UserLocation (Constitución V8.6).
+       * El campo 'unixTimestamp' ha sido transmutado a 'timestamp'.
+       */
       const freshTelemetryFix: UserLocation = {
         latitudeCoordinate: position.coords.latitude,
         longitudeCoordinate: position.coords.longitude,
         accuracyMeters: position.coords.accuracy,
-        headingDegrees: authoritativeHeading,
+        headingDegrees: authoritativeHeadingDegrees,
         speedMetersPerSecond: position.coords.speed,
-        unixTimestamp: position.timestamp,
+        timestamp: position.timestamp, 
         geographicSource: 'global-positioning-system' as TelemetrySource
       };
 
@@ -250,27 +254,27 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProperties = 
       localStorage.setItem('nicepod_last_known_geographic_fix', JSON.stringify(freshTelemetryFix));
     };
 
-    const handleSignalError = (error: GeolocationPositionError) => {
+    const handleSignalErrorAction = (error: GeolocationPositionError) => {
       if (error.code === error.PERMISSION_DENIED) {
         setIsHardwareAccessDenied(true);
         killHardwareWatch();
       }
     };
 
-    // Estrategia de Ignición Dual: Instantánea de Red + Monitoreo Satelital
-    navigator.geolocation.getCurrentPosition(handleSignalSuccess, handleSignalError, {
+    // Estrategia de Ignición Dual: Instantánea de Red (Rápida) + Monitoreo Satelital (Precisa)
+    navigator.geolocation.getCurrentPosition(handleSignalSuccessAction, handleSignalErrorAction, {
       enableHighAccuracy: false,
       timeout: 5000
     });
 
-    watchIdentificationReference.current = navigator.geolocation.watchPosition(handleSignalSuccess, handleSignalError, {
+    watchIdentificationReference.current = navigator.geolocation.watchPosition(handleSignalSuccessAction, handleSignalErrorAction, {
       enableHighAccuracy: true,
       maximumAge: 0,
       timeout: 25000
     });
-  }, [handleOrientationEvent, killHardwareWatch, telemetry?.headingDegrees]);
+  }, [handleOrientationEventAction, killHardwareWatch, telemetry?.headingDegrees]);
 
-  const reSynchronizeHardwareAuthority = useCallback(() => {
+  const reSynchronizeHardwareAuthorityAction = useCallback(() => {
     nicepodLog("🔄 [Sensor-Authority] Reiniciando autoridad física de sensores.");
     isHardwareIgnitedReference.current = false;
     startHardwareWatch();
@@ -310,16 +314,16 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProperties = 
     isIgnited: isHardwareIgnitedReference.current,
     startHardwareWatch,
     killHardwareWatch,
-    reSync: reSynchronizeHardwareAuthority
+    reSync: reSynchronizeHardwareAuthorityAction
   };
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V6.0):
- * 1. Zero Abbreviations Policy: Se han erradicado todas las abreviaturas (lat, lng, pos, e, id). 
- *    Las variables reflejan ahora su propósito técnico exacto (latitudeCoordinate, watchIdentificationReference).
- * 2. Contractual Symmetry: La interfaz interna 'RawTelemetry' ha sido eliminada en favor de 'UserLocation', 
- *    garantizando que el sensor entregue datos compatibles con la Constitución V8.6.
- * 3. Adaptive Filtering: El filtro vectorial es ahora consciente de la velocidad, reduciendo la ventana de 
- *    suavizado en movimiento para minimizar la latencia de la cámara WebGL sin sacrificar estabilidad en estasis.
+ * NOTA TÉCNICA DEL ARCHITECT (V6.1):
+ * 1. Zero Abbreviations Policy (ZAP): Purificación nominal absoluta de todas las variables 
+ *    internas (averageRadians, headingRadians, handleSignalSuccessAction, etc.).
+ * 2. Build Shield Sovereignty (BSS): Resolución del error TS2561 mapeando 'position.timestamp' 
+ *    a la propiedad 'timestamp' de la interfaz maestro UserLocation.
+ * 3. Adaptive Filtering: El filtro vectorial VAF es ahora consciente de la velocidad, 
+ *    mejorando la respuesta de la Workstation en condiciones de desplazamiento rápido.
  */
