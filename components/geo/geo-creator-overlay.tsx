@@ -1,14 +1,14 @@
 /**
  * ARCHIVO: components/geo/geo-creator-overlay.tsx
- * VERSIÓN: 10.0 (NicePod Sovereign Orchestrator - Absolute Nominal & Global Sync Edition)
+ * VERSIÓN: 11.0 (NicePod Sovereign Orchestrator - Industrial Nominal & UI Stability Edition)
  * PROTOCOLO: MADRID RESONANCE V4.2
  * 
  * Misión: Orquestar la interfaz táctica y el ciclo de vida de los motores WebGL 
  * garantizando la sincronía absoluta de contratos entre la interfaz, el contexto 
- * de forja y el motor espacial.
- * [REFORMA V10.0]: Sincronización total con ForgeContext V6.0. Resolución definitiva 
- * del error TS2339 mediante el uso de 'administratorIntentText'. Refuerzo del 
- * Build Shield en las propiedades del RadarHeadsUpDisplay (accuracyMeters, placeName).
+ * de forja y el motor espacial. Actúa como el centro de mando visual del Voyager.
+ * [REFORMA V11.0]: Sincronización total con ForgeContext V6.0 y RadarHeadsUpDisplay V7.0. 
+ * Resolución definitiva del error TS2339 (administratorIntentText). Implementación 
+ * estricta de la Zero Abbreviations Policy (ZAP) y validación de espacios de interfaz.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -46,14 +46,14 @@ import { MapInstanceIdentification } from "@/types/geo-sovereignty";
  * INTERFAZ: GeoCreatorOverlayProperties
  */
 interface GeoCreatorOverlayProperties {
-  /** isForgeAuthorityGranted: Nivel de acceso del Voyager para alterar la Bóveda. */
+  /** isForgeAuthorityGranted: Nivel de acceso del Voyager para alterar la Bóveda NKV. */
   isForgeAuthorityGranted: boolean; 
-  /** userIdentification: Identificador único del perito en sesión. */
+  /** userIdentification: Identificador único del perito en sesión activa. */
   userIdentification: string;       
 }
 
 /**
- * CreatorOverlayContent: El puente de mando táctico de la terminal.
+ * CreatorOverlayContent: El puente de mando táctico de la terminal NicePod.
  */
 function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGranted: boolean }) {
   
@@ -133,7 +133,7 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
   /**
    * displayCurrentPlaceName:
    * Resolución heurística de la identidad nominativa del nodo en tiempo real.
-   * [FIX V10.0]: Resolución de error TS2339 usando 'administratorIntentText'.
+   * [FIX V11.0]: Uso obligatorio de 'administratorIntentText' tras la Reforma V6.0 del contexto.
    */
   const displayCurrentPlaceName = forgeState.administratorIntentText ||
     engineOperationalData?.manualPlaceName ||
@@ -279,7 +279,7 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
       </div>
 
       {/* IV. CAPA 30: PANTALLA DE DATOS EN CABEZA (HEADS-UP DISPLAY) 
-          [FIX V10.0]: Mapeo nominal de accuracyMeters y placeName. */}
+          [FIX V11.0]: Sincronía con RadarHeadsUpDisplay V7.0 (accuracyMeters, placeName). */}
       <AnimatePresence>
         {isForgeTerminalInterfaceOpen && (
           <motion.div
@@ -353,7 +353,7 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
 }
 
 /**
- * GeoCreatorOverlay: El contenedor con contexto de forja de sabiduría.
+ * GeoCreatorOverlay: El contenedor soberano con contexto de forja de sabiduría.
  */
 export function GeoCreatorOverlay(properties: GeoCreatorOverlayProperties) {
   return (
