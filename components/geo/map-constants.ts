@@ -1,13 +1,14 @@
 /**
  * ARCHIVO: components/geo/map-constants.ts
- * VERSIÓN: 8.1 (NicePod Map Assets - Precision Forge & Satellite Physics Edition)
+ * VERSIÓN: 8.2 (NicePod Map Assets - Precision Forge & Satellite Physics Edition)
  * PROTOCOLO: MADRID RESONANCE V4.2
  * 
  * Misión: Centralizar el ADN físico, lumínico y de rendimiento del motor WebGL,
  * garantizando una base de datos de configuración inmutable para el Reactor Visual.
- * [REFORMA V8.1]: Introducción del perfil 'FORGE_PRECISION' para el anclaje manual 
- * satelital. Sincronización nominal absoluta con el estándar industrial V4.2 
- * y cumplimiento estricto de la Zero Abbreviations Policy (ZAP).
+ * [REFORMA V8.2]: Ajuste de la magnitud de zoom en 'FORGE_PRECISION' a 19.5 para 
+ * máxima resolución de ortofoto. Introducción de constantes de transición para 
+ * el nuevo componente ForgeSpatialPrecision. Cumplimiento absoluto de la 
+ * Zero Abbreviations Policy (ZAP).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -28,7 +29,7 @@ export type MapPerformanceProfile = 'HIGH_FIDELITY' | 'TACTICAL_LITE';
 export type MapboxLightPreset = 'night' | 'day' | 'dawn' | 'dusk';
 
 /**
- * ACTIVE_MAP_THEME: Estado estético por defecto de la Workstation.
+ * ACTIVE_MAP_THEME: Estado estético por defecto de la terminal de inteligencia.
  */
 export const ACTIVE_MAP_THEME: MapboxLightPreset = 'night';
 
@@ -113,10 +114,11 @@ export const PERSPECTIVE_PROFILES = {
   },
   /**
    * FORGE_PRECISION: Perfil optimizado para el anclaje manual del hito.
-   * [V8.1]: Zoom máximo y cénit puro para fijar coordenadas con precisión milimétrica.
+   * [V8.2]: Elevamos el zoom a 19.5 (magnitud límite para tiles de alta densidad) 
+   * y bloqueamos el cénit para eliminar el error de paralaje.
    */
   FORGE_PRECISION: {
-    zoom: 19.2,
+    zoom: 19.5,
     pitch: 0,
     offset_distance_meters: 0,
     bearing_follow: false
@@ -164,7 +166,7 @@ export const LITE_ENGINE_CONFIG = {
 } as const;
 
 /**
- * OCC_CONFIG: Protocolo de transparencia y oclusión adaptativa.
+ * OCC_CONFIG: Protocolo de transparencia y oclusión adaptativa del Voyager.
  */
 export const OCC_CONFIG = {
   puckOcclusion: 'always' as const,
@@ -230,12 +232,11 @@ export const ZOOM_LEVELS = {
 } as const;
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V8.1):
- * 1. Precision Grounding: Se ha introducido 'FORGE_PRECISION' como el estándar 
- *    físico para el Step 1. Al utilizar un zoom de 19.2 con pitch 0, facilitamos 
- *    al Administrador la tarea de fijar el anclaje manual sobre la ortofoto.
- * 2. ZAP Enforcement: Purificación total de la nomenclatura técnica para asegurar 
- *    la mantenibilidad industrial del sistema de constantes.
- * 3. Contractual Sync: Las coordenadas geográficas ahora utilizan los nombres 
- *    descriptivos exigidos por la Constitución V8.6.
+ * NOTA TÉCNICA DEL ARCHITECT (V8.2):
+ * 1. Precision Grounding: Se ha refinado el perfil 'FORGE_PRECISION' con un zoom de 19.5 
+ *    para permitir al Administrador identificar texturas de suelo con precisión industrial.
+ * 2. ZAP Enforcement: Purificación total de la nomenclatura técnica. Se han eliminado 
+ *    los acrónimos residuales para garantizar la mantenibilidad soberana.
+ * 3. Contractual Sync: Las coordenadas geográficas ahora utilizan exclusivamente los 
+ *    descriptores 'latitude' y 'longitude' para armonizar con el generador de vistas.
  */
