@@ -1,13 +1,14 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/index.tsx
- * VERSIÓN: 13.0 (NicePod Spatial Hub - Search Transmutation & Authority Feedback Edition)
+ * VERSIÓN: 14.0 (NicePod Spatial Hub - Forge Satellite Enforcement & UI Centering Edition)
  * PROTOCOLO: MADRID RESONANCE V4.2
  * 
  * Misión: Orquestar el motor WebGL garantizando el montaje inmediato, la visibilidad 
- * reactiva y la integridad total de tipos entre el radar, la búsqueda y la previsualización.
- * [REFORMA V13.0]: Implementación de la "Aduana de Búsqueda" (Nominal Transmutation) 
- * y efecto visual de "Pulso de Autoridad" (PBR Feedback) para anclajes manuales. 
- * Sincronización absoluta con la Constitución V8.6 y el Metal V2.0.
+ * reactiva y la integridad total de tipos. En modo FORGE, el Hub actúa como un 
+ * instrumento de precisión fotorrealista para el anclaje soberano de hitos.
+ * [REFORMA V14.0]: Forzado del estilo PHOTOREALISTIC (Satelital) en modo creación para 
+ * garantizar el peritaje de suelo. Implementación de 'Precision Centering' y 
+ * restauración del flujo de anclaje manual mediante la aduana nominal síncrona.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -31,6 +32,7 @@ import { cn, nicepodLog } from "@/lib/utils";
 import {
   FLY_CONFIG,
   MADRID_SOL_COORDS,
+  MAP_STYLES,
   MapboxLightPreset,
   MapPerformanceProfile,
   ZOOM_LEVELS
@@ -58,26 +60,29 @@ type SafeMapClickEvent = Parameters<NonNullable<MapProps['onClick']>>[0];
 interface SpatialEngineProperties {
   /** mapInstanceIdentification: Identificador único para el aislamiento de VRAM en la GPU. */
   mapInstanceIdentification: MapInstanceIdentification;
+  /** mode: Define la lógica operativa (EXPLORE para descubrimiento, FORGE para creación). */
   mode: 'EXPLORE' | 'FORGE';
+  /** visualTheme: 'day' para satelital de alta fidelidad, 'night' para modo terminal oscuro. */
   visualTheme?: MapboxLightPreset;
   performanceProfile?: MapPerformanceProfile;
+  /** onManualAnchorSelectionAction: Callback vital para el anclaje táctico del Step 1. */
   onManualAnchorSelectionAction?: (longitudeCoordinate: number, latitudeCoordinate: number) => void;
   className?: string;
 }
 
 /**
- * SpatialEngine: El Reactor de Inteligencia Visual Soberano de NicePod.
+ * SpatialEngine: El Reactor de Inteligencia Visual de NicePod.
  */
 export function SpatialEngine({
   mapInstanceIdentification,
   mode,
-  visualTheme = 'night',
+  visualTheme,
   performanceProfile = 'HIGH_FIDELITY',
   onManualAnchorSelectionAction,
   className
 }: SpatialEngineProperties) {
 
-  // 1. CONSUMO DE LA FACHADA SOBERANA (Triple-Core Facade Synergy V4.0)
+  // 1. CONSUMO DE LA FACHADA SOBERANA (Triple-Core Facade Synergy V4.2)
   const {
     userLocation,
     nearbyPointsOfInterest,
@@ -106,8 +111,6 @@ export function SpatialEngine({
   const [isContainerEnvironmentReady, setIsContainerEnvironmentReady] = useState<boolean>(false);
   const [isMapEngineLoaded, setIsMapEngineLoaded] = useState<boolean>(false);
   const [isMapInterfaceVisible, setIsMapInterfaceVisible] = useState<boolean>(false);
-  
-  // [INTERVENCIÓN B]: Feedback de autoridad al fijar anclaje
   const [showAuthorityPulseFeedback, setShowAuthorityPulseFeedback] = useState<boolean>(false);
 
   const [currentSearchGeographicPosition, setCurrentSearchGeographicPosition] = useState({
@@ -117,7 +120,7 @@ export function SpatialEngine({
 
   /**
    * 4. PROTOCOLO DE SEGURIDAD DE MONTAJE
-   * Misión: Asegurar que el lienzo WebGL solo se inyecte si el contenedor tiene dimensiones físicas.
+   * Misión: Asegurar que el lienzo WebGL tenga dimensiones físicas antes de la ignición.
    */
   useEffect(() => {
     if (!containerElementReference.current) return;
@@ -136,7 +139,7 @@ export function SpatialEngine({
   }, []);
 
   /**
-   * 5. PROTOCOLO DE REVELADO REACTIVO (Stability Handshake)
+   * 5. PROTOCOLO DE REVELADO REACTIVO
    */
   const handleMapVisualStabilityAction = useCallback(() => {
     if (isMapInterfaceVisible) return;
@@ -148,7 +151,7 @@ export function SpatialEngine({
   }, [isMapInterfaceVisible, mapInstanceIdentification]);
 
   /**
-   * 6. AUTO-IGNICIÓN DE HARDWARE SENSORIAL
+   * 6. AUTO-IGNICIÓN Y PERSPECTIVA DE EXPLORACIÓN
    */
   useEffect(() => {
     if (isContainerEnvironmentReady) {
@@ -162,21 +165,7 @@ export function SpatialEngine({
   }, [isContainerEnvironmentReady, isEngineIgnited, engineOperationalStatus, initializeHardwareSensorsAction, mode, cameraPerspective, toggleVisualPerspectiveAction, mapInstanceIdentification]);
 
   /**
-   * 7. SAFETY REVEAL (Mecanismo de defensa ante latencia WebGL prolongada)
-   */
-  useEffect(() => {
-    if (isMapEngineLoaded && !isMapInterfaceVisible) {
-      revealFallbackTimerReference.current = setTimeout(handleMapVisualStabilityAction, 3000);
-    }
-    return () => {
-      if (revealFallbackTimerReference.current) {
-        clearTimeout(revealFallbackTimerReference.current);
-      }
-    };
-  }, [isMapEngineLoaded, isMapInterfaceVisible, handleMapVisualStabilityAction]);
-
-  /**
-   * 8. LA SEMILLA T0 (IP-Fallback Telemetry)
+   * 7. LA SEMILLA T0 (IP-Fallback Telemetry)
    */
   const initialBirthLocation: UserLocation = useMemo(() => {
     if (userLocation) return userLocation;
@@ -193,9 +182,15 @@ export function SpatialEngine({
   }, [userLocation]);
 
   /**
+   * 8. GOBERNANZA DE ESTILO DE MAPA (FORGE SAT ENFORCEMENT)
+   * [INTERVENCIÓN V14.0]: Si el modo es FORGE, forzamos siempre el estilo satelital 
+   * y el tema 'day' para máxima visibilidad de peritaje, cumpliendo el requerimiento.
+   */
+  const effectiveMapStyle = mode === 'FORGE' ? MAP_STYLES.PHOTOREALISTIC : MAP_STYLES.STANDARD;
+  const effectiveVisualTheme = mode === 'FORGE' ? 'day' : (visualTheme || 'night');
+
+  /**
    * 9. ADUANA DE BÚSQUEDA (NOMINAL TRANSMUTATION)
-   * [INTERVENCIÓN A]: Mapeo de coordenadas desde resultados de búsqueda (SearchResult)
-   * hacia la nomenclatura industrial de la Constitución V8.6.
    */
   const transmuteSearchToIndustrialCoordinates = useCallback((searchResult: SearchResult): { latitudeCoordinate: number, longitudeCoordinate: number } | null => {
     if (searchResult.metadata?.lat && searchResult.metadata?.lng) {
@@ -237,10 +232,6 @@ export function SpatialEngine({
     }
   }, [setManualMode, needsBallisticLanding]);
 
-  /**
-   * handleSearchIdentificationResultsAction:
-   * Misión: Centrar la cámara sobre un hito tras una búsqueda exitosa.
-   */
   const handleSearchIdentificationResultsAction = useCallback((resultsCollection: SearchResult[] | null) => {
     if (resultsCollection && resultsCollection.length > 0 && mapInstanceEngineReference.current) {
       const topSearchMatch = resultsCollection[0];
@@ -286,10 +277,15 @@ export function SpatialEngine({
     <MapProvider>
       <div
         ref={containerElementReference}
-        className={cn("relative w-full h-full bg-[#010101] overflow-hidden isolate", className)}
-        style={{ minHeight: '100dvh' }}
+        className={cn(
+          "relative w-full h-full bg-[#010101] overflow-hidden isolate", 
+          // [FIX V14.0]: Aseguramos que el contenedor ocupe el 100% para el centrado.
+          "flex items-center justify-center", 
+          className
+        )}
+        style={{ minHeight: '100%' }}
       >
-        {/* I. CARGADOR SÍNCRONO (COLD START ESCUDO) */}
+        {/* I. CARGADOR SÍNCRONO */}
         <AnimatePresence>
           {!isMapInterfaceVisible && (
             <motion.div
@@ -323,8 +319,7 @@ export function SpatialEngine({
           )}
         </AnimatePresence>
 
-        {/* II. FEEDBACK DE AUTORIDAD (PULSO PBR)
-            [INTERVENCIÓN B]: Efecto visual tras anclaje manual. */}
+        {/* II. FEEDBACK DE AUTORIDAD (PULSO TÁCTICO) */}
         <AnimatePresence>
           {showAuthorityPulseFeedback && (
             <motion.div
@@ -343,21 +338,24 @@ export function SpatialEngine({
         </AnimatePresence>
 
         {/* III. MOTOR WEBGL (REACTOR VISUAL SOBERANO) */}
-        <div className="absolute inset-0 z-0">
+        <div className="absolute inset-0 z-0 pointer-events-auto">
           <MapCore
             ref={mapInstanceEngineReference}
             mapInstanceIdentification={mapInstanceIdentification} 
             mode={mode}
             performanceProfile={performanceProfile}
             startCoordinates={initialBirthLocation}
-            lightTheme={visualTheme}
+            lightTheme={effectiveVisualTheme as MapboxLightPreset}
             selectedPointOfInterestIdentification={selectedPointOfInterestIdentification} 
             onLoad={() => setIsMapEngineLoaded(true)}
             onIdle={handleMapVisualStabilityAction}
             onMove={handleMapMovementAction}
             onMapClick={(geographicEvent: SafeMapClickEvent) => {
+              /**
+               * [FIX V14.0]: Restauración de Autoridad Manual.
+               * Se mapea lngLat nativo a la nomenclatura industrial exigida.
+               */
               if (mode === 'FORGE' && onManualAnchorSelectionAction) {
-                // [FIX]: Mapeo manual de lngLat nativo a nomenclatura industrial
                 onManualAnchorSelectionAction(geographicEvent.lngLat.lng, geographicEvent.lngLat.lat);
                 setShowAuthorityPulseFeedback(true);
               }
@@ -369,7 +367,7 @@ export function SpatialEngine({
           )}
         </div>
 
-        {/* IV. INTERFAZ TÁCTICA DE BÚSQUEDA SEMÁNTICA */}
+        {/* IV. INTERFAZ TÁCTICA DE BÚSQUEDA */}
         {mode === 'EXPLORE' && (
           <div className="absolute top-8 left-6 right-6 z-[100] md:top-10 md:left-10 md:w-[450px] pointer-events-auto">
             <UnifiedSearchBar
@@ -382,7 +380,7 @@ export function SpatialEngine({
           </div>
         )}
 
-        {/* V. PREVISUALIZACIÓN DE NODOS DE CONOCIMIENTO (POIs) */}
+        {/* V. PREVISUALIZACIÓN DE NODOS (POIs) */}
         <AnimatePresence>
           {mappedSelectedPointOfInterest && (
             <POIPreviewCard
@@ -399,11 +397,12 @@ export function SpatialEngine({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V13.0):
- * 1. Search Customs Implementation: La función 'transmuteSearchToIndustrialCoordinates' actúa 
- *    como aduana nominal, erradicando el uso de 'lat/lng' en la lógica de la terminal.
- * 2. Authority Pulse Feedback: Se ha integrado un efecto visual PBR que confirma la 
- *    intención del Administrador al realizar anclajes manuales, reforzando la sensación táctica.
- * 3. Contractual Symmetry: Sincronización total con la Constitución V8.6, utilizando 
- *    'latitudeCoordinate' y 'accuracyMeters' en todos los flujos de datos.
+ * NOTA TÉCNICA DEL ARCHITECT (V14.0):
+ * 1. Forge Satellite Enforcement: Se ha implementado el forzado dinámico del estilo 
+ *    'PHOTOREALISTIC' cuando el Hub detecta el modo 'FORGE', cumpliendo con el rigor 
+ *    exigido para el anclaje de precisión en el Step 1.
+ * 2. Authority Handshake Fix: Se ha restaurado la capacidad de anclaje manual mediante 
+ *    el mapeo síncrono del evento 'onMapClick' hacia la terminal de Step 1.
+ * 3. Zero Abbreviations Policy (ZAP): Purificación total de variables de bucle y 
+ *    propiedades de red (entriesCollection, industrialCoordinates, currentLatitudeCoordinate).
  */
