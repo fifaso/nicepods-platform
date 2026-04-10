@@ -1,20 +1,20 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/index.tsx
- * VERSIÓN: 12.0 (NicePod Spatial Hub - Sovereign Integration & Absolute Nominal Sync Edition)
- * PROTOCOLO: MADRID RESONANCE V4.0
+ * VERSIÓN: 13.0 (NicePod Spatial Hub - Search Transmutation & Authority Feedback Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.2
  * 
  * Misión: Orquestar el motor WebGL garantizando el montaje inmediato, la visibilidad 
  * reactiva y la integridad total de tipos entre el radar, la búsqueda y la previsualización.
- * [REFORMA V12.0]: Sincronización nominal total con la Constitución V8.6 y el motor 
- * cinemático V8.0. Resolución definitiva de errores de tipos TS2322, TS2339 y TS2305. 
- * Erradicación absoluta de abreviaturas (ZAP) y sellado del Build Shield.
+ * [REFORMA V13.0]: Implementación de la "Aduana de Búsqueda" (Nominal Transmutation) 
+ * y efecto visual de "Pulso de Autoridad" (PBR Feedback) para anclajes manuales. 
+ * Sincronización absoluta con la Constitución V8.6 y el Metal V2.0.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { Compass, ShieldAlert } from "lucide-react";
+import { Compass, ShieldAlert, Target } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 // --- INFRAESTRUCTURA DE MOTOR ESPACIAL ---
@@ -106,6 +106,9 @@ export function SpatialEngine({
   const [isContainerEnvironmentReady, setIsContainerEnvironmentReady] = useState<boolean>(false);
   const [isMapEngineLoaded, setIsMapEngineLoaded] = useState<boolean>(false);
   const [isMapInterfaceVisible, setIsMapInterfaceVisible] = useState<boolean>(false);
+  
+  // [INTERVENCIÓN B]: Feedback de autoridad al fijar anclaje
+  const [showAuthorityPulseFeedback, setShowAuthorityPulseFeedback] = useState<boolean>(false);
 
   const [currentSearchGeographicPosition, setCurrentSearchGeographicPosition] = useState({
     latitudeCoordinate: MADRID_SOL_COORDS.latitude,
@@ -113,14 +116,14 @@ export function SpatialEngine({
   });
 
   /**
-   * 4. PROTOCOLO DE SEGURIDAD DE MONTAJE (Safe Environment Check)
+   * 4. PROTOCOLO DE SEGURIDAD DE MONTAJE
    * Misión: Asegurar que el lienzo WebGL solo se inyecte si el contenedor tiene dimensiones físicas.
    */
   useEffect(() => {
     if (!containerElementReference.current) return;
 
-    const resizeObserverInstance = new ResizeObserver((entries) => {
-      for (const entry of entries) {
+    const resizeObserverInstance = new ResizeObserver((entriesCollection) => {
+      for (const entry of entriesCollection) {
         if (entry.contentRect.width > 0 && entry.contentRect.height > 0) {
           setIsContainerEnvironmentReady(true);
           resizeObserverInstance.disconnect();
@@ -174,7 +177,6 @@ export function SpatialEngine({
 
   /**
    * 8. LA SEMILLA T0 (IP-Fallback Telemetry)
-   * [SINCRO V12.0]: Mapeo integral al contrato estricto UserLocation.
    */
   const initialBirthLocation: UserLocation = useMemo(() => {
     if (userLocation) return userLocation;
@@ -191,28 +193,42 @@ export function SpatialEngine({
   }, [userLocation]);
 
   /**
-   * 9. MANEJADORES DE EVENTOS CINEMÁTICOS
+   * 9. ADUANA DE BÚSQUEDA (NOMINAL TRANSMUTATION)
+   * [INTERVENCIÓN A]: Mapeo de coordenadas desde resultados de búsqueda (SearchResult)
+   * hacia la nomenclatura industrial de la Constitución V8.6.
+   */
+  const transmuteSearchToIndustrialCoordinates = useCallback((searchResult: SearchResult): { latitudeCoordinate: number, longitudeCoordinate: number } | null => {
+    if (searchResult.metadata?.lat && searchResult.metadata?.lng) {
+      return {
+        latitudeCoordinate: Number(searchResult.metadata.lat),
+        longitudeCoordinate: Number(searchResult.metadata.lng)
+      };
+    }
+    return null;
+  }, []);
+
+  /**
+   * 10. MANEJADORES DE EVENTOS CINEMÁTICOS
    */
   const handleMapMovementAction = useCallback((movementEvent: SafeMapMovementEvent) => {
-    const { latitude: currentLatitude, longitude: currentLongitude } = movementEvent.viewState;
+    const { latitude: currentLatitudeCoordinate, longitude: currentLongitudeCoordinate } = movementEvent.viewState;
 
     const movementDistanceMagnitude = calculateDistanceBetweenPoints(
-      { latitude: currentLatitude, longitude: currentLongitude },
+      { latitude: currentLatitudeCoordinate, longitude: currentLongitudeCoordinate },
       { 
         latitude: lastSearchUpdatePositionReference.current.latitudeCoordinate, 
         longitude: lastSearchUpdatePositionReference.current.longitudeCoordinate 
       }
     );
 
-    // Umbral de refresco de radar pericial: 25 metros
     if (movementDistanceMagnitude > 25) {
       setCurrentSearchGeographicPosition({ 
-        latitudeCoordinate: currentLatitude, 
-        longitudeCoordinate: currentLongitude 
+        latitudeCoordinate: currentLatitudeCoordinate, 
+        longitudeCoordinate: currentLongitudeCoordinate 
       });
       lastSearchUpdatePositionReference.current = { 
-        latitudeCoordinate: currentLatitude, 
-        longitudeCoordinate: currentLongitude 
+        latitudeCoordinate: currentLatitudeCoordinate, 
+        longitudeCoordinate: currentLongitudeCoordinate 
       };
     }
 
@@ -228,21 +244,22 @@ export function SpatialEngine({
   const handleSearchIdentificationResultsAction = useCallback((resultsCollection: SearchResult[] | null) => {
     if (resultsCollection && resultsCollection.length > 0 && mapInstanceEngineReference.current) {
       const topSearchMatch = resultsCollection[0];
-      if (topSearchMatch.metadata?.lat && topSearchMatch.metadata?.lng) {
+      const industrialCoordinates = transmuteSearchToIndustrialCoordinates(topSearchMatch);
+
+      if (industrialCoordinates) {
         setManualMode(true);
         mapInstanceEngineReference.current.flyTo({
-          center: [topSearchMatch.metadata.lng as number, topSearchMatch.metadata.lat as number],
+          center: [industrialCoordinates.longitudeCoordinate, industrialCoordinates.latitudeCoordinate],
           zoom: ZOOM_LEVELS.STREET,
           ...FLY_CONFIG
         });
       }
     }
-  }, [setManualMode]);
+  }, [setManualMode, transmuteSearchToIndustrialCoordinates]);
 
   /**
    * mappedSelectedPointOfInterest: 
    * Misión: Adaptar el objeto de la Bóveda al contrato visual de la previsualización.
-   * [SINCRO V12.0]: Uso de propiedades nominales de PointOfInterest V8.6.
    */
   const mappedSelectedPointOfInterest = useMemo(() => {
     if (!selectedPointOfInterestIdentification || !nearbyPointsOfInterest?.length) return null;
@@ -272,7 +289,7 @@ export function SpatialEngine({
         className={cn("relative w-full h-full bg-[#010101] overflow-hidden isolate", className)}
         style={{ minHeight: '100dvh' }}
       >
-        {/* CARGADOR SÍNCRONO (COLD START ESCUDO) */}
+        {/* I. CARGADOR SÍNCRONO (COLD START ESCUDO) */}
         <AnimatePresence>
           {!isMapInterfaceVisible && (
             <motion.div
@@ -306,7 +323,26 @@ export function SpatialEngine({
           )}
         </AnimatePresence>
 
-        {/* MOTOR WEBGL (REACTOR VISUAL SOBERANO) */}
+        {/* II. FEEDBACK DE AUTORIDAD (PULSO PBR)
+            [INTERVENCIÓN B]: Efecto visual tras anclaje manual. */}
+        <AnimatePresence>
+          {showAuthorityPulseFeedback && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.2 }}
+              onAnimationComplete={() => setShowAuthorityPulseFeedback(false)}
+              className="absolute inset-0 z-[150] pointer-events-none flex items-center justify-center bg-primary/5 backdrop-blur-[2px]"
+            >
+              <div className="flex flex-col items-center gap-4">
+                <Target size={48} className="text-primary animate-ping" />
+                <span className="text-[10px] font-black text-primary uppercase tracking-[0.6em]">Punto de Anclaje Fijado</span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* III. MOTOR WEBGL (REACTOR VISUAL SOBERANO) */}
         <div className="absolute inset-0 z-0">
           <MapCore
             ref={mapInstanceEngineReference}
@@ -323,6 +359,7 @@ export function SpatialEngine({
               if (mode === 'FORGE' && onManualAnchorSelectionAction) {
                 // [FIX]: Mapeo manual de lngLat nativo a nomenclatura industrial
                 onManualAnchorSelectionAction(geographicEvent.lngLat.lng, geographicEvent.lngLat.lat);
+                setShowAuthorityPulseFeedback(true);
               }
             }}
             onMarkerClick={setSelectedPointOfInterestIdentification}
@@ -332,7 +369,7 @@ export function SpatialEngine({
           )}
         </div>
 
-        {/* INTERFAZ TÁCTICA DE BÚSQUEDA SEMÁNTICA */}
+        {/* IV. INTERFAZ TÁCTICA DE BÚSQUEDA SEMÁNTICA */}
         {mode === 'EXPLORE' && (
           <div className="absolute top-8 left-6 right-6 z-[100] md:top-10 md:left-10 md:w-[450px] pointer-events-auto">
             <UnifiedSearchBar
@@ -345,7 +382,7 @@ export function SpatialEngine({
           </div>
         )}
 
-        {/* PREVISUALIZACIÓN DE NODOS DE CONOCIMIENTO (POIs) */}
+        {/* V. PREVISUALIZACIÓN DE NODOS DE CONOCIMIENTO (POIs) */}
         <AnimatePresence>
           {mappedSelectedPointOfInterest && (
             <POIPreviewCard
@@ -360,3 +397,13 @@ export function SpatialEngine({
     </MapProvider>
   );
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V13.0):
+ * 1. Search Customs Implementation: La función 'transmuteSearchToIndustrialCoordinates' actúa 
+ *    como aduana nominal, erradicando el uso de 'lat/lng' en la lógica de la terminal.
+ * 2. Authority Pulse Feedback: Se ha integrado un efecto visual PBR que confirma la 
+ *    intención del Administrador al realizar anclajes manuales, reforzando la sensación táctica.
+ * 3. Contractual Symmetry: Sincronización total con la Constitución V8.6, utilizando 
+ *    'latitudeCoordinate' y 'accuracyMeters' en todos los flujos de datos.
+ */
