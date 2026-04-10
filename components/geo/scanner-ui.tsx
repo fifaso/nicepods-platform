@@ -1,12 +1,14 @@
 /**
  * ARCHIVO: components/geo/scanner-ui.tsx
- * VERSIÓN: 2.0 (NicePod Sovereign Sequencer - Atomic Step Engine Edition)
- * PROTOCOLO: MADRID RESONANCE V3.0
+ * VERSIÓN: 3.0 (NicePod Sovereign Sequencer - Industrial Nominal Sync Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.2
  * 
  * Misión: Orquestar el flujo secuencial de la forja de capital intelectual, 
- * gestionando las transiciones entre el anclaje físico y la síntesis narrativa.
- * [FIX V2.0]: Resolución de error de importación (Named vs Default) y alineación 
- * con la arquitectura de pasos V4.0.
+ * gestionando las transiciones cinemáticas entre las fases de anclaje, 
+ * captura, auditoría y síntesis narrativa.
+ * [REFORMA V3.0]: Sincronización nominal total con ForgeContext V6.0. Resolución 
+ * definitiva del error TS2339 mediante la transición de 'isSubmitting' a 
+ * 'isSubmittingProcess'. Implementación estricta de la Zero Abbreviations Policy.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -15,21 +17,21 @@
 import { AnimatePresence, motion } from "framer-motion";
 import React from "react";
 
-// --- INFRAESTRUCTURA DE ESTADO ---
+// --- INFRAESTRUCTURA DE ESTADO SOBERANO ---
 import { useForge } from "./forge-context";
 
-// --- COMPONENTES DE FASE (STEPPER V3.0) ---
-// [REFORMA]: Importaciones sintonizadas con los nuevos estándares de exportación.
+// --- COMPONENTES DE FASE (STEPPER INDUSTRIAL V4.2) ---
 import Step1Anchoring from "./steps/step-1-anchoring";
 import Step2SensoryCapture from "./steps/step-2-sensory-capture";
 import Step3DossierReview from "./steps/step-3-dossier-review";
 import Step4NarrativeForge from "./steps/step-4-narrative-forge";
 
 /**
- * ANIMACIÓN: stepTransitionVariants
- * Define el comportamiento cinemático de los paneles al conmutar de fase.
+ * ANIMACIÓN: stepTransitionCinematicVariants
+ * Misión: Definir el comportamiento físico de los paneles al conmutar de fase,
+ * utilizando la curva de inercia industrial NicePod.
  */
-const stepTransitionVariants = {
+const stepTransitionCinematicVariants = {
   initial: { 
     opacity: 0, 
     x: 20,
@@ -37,11 +39,11 @@ const stepTransitionVariants = {
   },
   animate: { 
     opacity: 1, 
-    x: 0,
+    x: 0, 
     filter: "blur(0px)",
     transition: {
       duration: 0.5,
-      ease: [0.16, 1, 0.3, 1] // Quint Ease-Out (Industrial Standard)
+      ease: [0.16, 1, 0.3, 1] // Curva NicePod (Cubic-Bezier Industrial)
     }
   },
   exit: { 
@@ -56,18 +58,20 @@ const stepTransitionVariants = {
 };
 
 /**
- * GeoScannerUI: El Motor de Secuenciación Táctica.
+ * GeographicScannerUserInterface: El Motor de Secuenciación Táctica de la terminal.
  */
-export function GeoScannerUI() {
-  // 1. CONSUMO DE LA MÁQUINA DE ESTADOS (FSM)
+export function GeographicScannerUserInterface() {
+  
+  // 1. CONSUMO DE LA MÁQUINA DE ESTADOS FINITA (FSM)
   const { state: forgeState } = useForge();
   const { currentStep } = forgeState;
 
   /**
-   * renderActiveStep:
+   * renderActiveForgeStepAction:
    * Misión: Determinar qué fase del peritaje debe proyectarse en la terminal.
+   * [SINCRO V3.0]: Asegura que cada componente hijo reciba un entorno purificado.
    */
-  const renderActiveStep = () => {
+  const renderActiveForgeStepAction = () => {
     switch (currentStep) {
       case 'ANCHORING':
         return <Step1Anchoring />;
@@ -83,8 +87,11 @@ export function GeoScannerUI() {
         
       default:
         return (
-          <div className="flex items-center justify-center h-full text-zinc-500 font-bold uppercase tracking-widest text-[10px]">
-            Error: Fase no identificada
+          <div className="flex flex-col items-center justify-center h-full gap-4">
+            <div className="h-1 w-12 bg-red-500 rounded-full animate-pulse" />
+            <span className="text-zinc-500 font-black uppercase tracking-[0.4em] text-[10px]">
+              Fase No Identificada
+            </span>
           </div>
         );
     }
@@ -93,31 +100,31 @@ export function GeoScannerUI() {
   return (
     /**
      * [CHASIS DEL SECUENCIADOR]
-     * - 'flex-1': Ocupa todo el espacio de la terminal GeoScannerUI.
-     * - 'relative': Permite el posicionamiento absoluto de los paneles en transición.
+     * - 'flex-1': Ocupa la totalidad del espacio asignado en el orquestador padre.
+     * - 'relative': Punto de anclaje para las capas de transición absoluta.
      */
-    <div className="flex-1 relative w-full h-full flex flex-col min-h-0 overflow-hidden">
+    <div className="flex-1 relative w-full h-full flex flex-col min-h-0 overflow-hidden isolate">
       
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={currentStep}
-          variants={stepTransitionVariants}
+          variants={stepTransitionCinematicVariants}
           initial="initial"
           animate="animate"
           exit="exit"
           className="w-full h-full flex flex-col absolute inset-0"
         >
-          {renderActiveStep()}
+          {renderActiveForgeStepAction()}
         </motion.div>
       </AnimatePresence>
 
-      {/* 
-          OVERLAY DE PROTECCIÓN DE DATOS:
-          Capa invisible que bloquea interacciones accidentales durante el 
-          re-renderizado de pasos pesados.
-      */}
-      {forgeState.isSubmitting && (
-        <div className="absolute inset-0 z-[50] bg-black/5 cursor-wait pointer-events-auto" />
+      /**
+       * CAPA DE BLOQUEO DE TRANSACCIÓN (HARDWARE SHIELD):
+       * Misión: Inmovilizar la terminal durante procesos críticos de red o IA.
+       * [FIX V3.0]: Sincronización con 'isSubmittingProcess' del ForgeContext V6.0.
+       */
+      {forgeState.isSubmittingProcess && (
+        <div className="absolute inset-0 z-[500] bg-black/5 cursor-wait pointer-events-auto backdrop-blur-[1px]" />
       )}
 
     </div>
@@ -125,12 +132,11 @@ export function GeoScannerUI() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V2.0):
- * 1. Build Shield Synchronization: Se corrigieron las importaciones de los pasos 
- *    de la forja, eliminando la desincronización que bloqueaba el despliegue.
- * 2. Visual Stasis: El uso de 'AnimatePresence' con 'popLayout' o 'absolute inset-0' 
- *    dentro del secuenciador garantiza que la terminal no "vibre" ni cambie de 
- *    tamaño bruscamente durante el cambio de fase.
- * 3. Zero Abbreviations: Se ha purificado el código de términos cortos para 
- *    mantener la legibilidad industrial necesaria para el mantenimiento a largo plazo.
+ * NOTA TÉCNICA DEL ARCHITECT (V3.0):
+ * 1. Build Shield Compliance: Se extinguió el error TS2339 al actualizar la referencia del 
+ *    flag de sumisión al nuevo descriptor nominal 'isSubmittingProcess'.
+ * 2. Zero Abbreviations Policy (ZAP): El componente ha sido renombrado internamente 
+ *    para erradicar el uso del acrónimo 'UI' (User Interface -> UserInterface).
+ * 3. Layout Stability: El uso de posicionamiento absoluto en las capas de animación 
+ *    previene saltos en el eje vertical (Layout Shifts) durante las transiciones de fase.
  */
