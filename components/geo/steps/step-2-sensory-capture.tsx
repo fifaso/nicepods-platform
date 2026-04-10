@@ -1,13 +1,14 @@
 /**
  * ARCHIVO: components/geo/steps/step-2-sensory-capture.tsx
- * VERSIÓN: 8.0 (NicePod Forge Step 2 - Sovereign Sensory Lab & Absolute Nominal Sync Edition)
+ * VERSIÓN: 9.0 (NicePod Forge Step 2 - Sovereign Sensory Lab & Full Nominal Sync Edition)
  * PROTOCOLO: MADRID RESONANCE V4.2
  * 
  * Misión: Capturar la verdad física del entorno mediante evidencia visual, acústica, 
  * temporal y documental, orquestando la ingesta hacia el Oráculo de Inteligencia.
- * [REFORMA V8.0]: Implementación integral de la Zero Abbreviations Policy (ZAP). 
- * Sincronización total con ForgeContext V6.0 y la Constitución de Soberanía V8.6. 
- * Erradicación definitiva de acrónimos (OCR/URL/POI) en toda la interfaz y lógica.
+ * [REFORMA V9.0]: Sincronización nominal total con ForgeContext V6.0 y el orquestador 
+ * de la fachada V49.0. Erradicación definitiva de acrónimos (OCR/URL/POI) y 
+ * cumplimiento absoluto de la Zero Abbreviations Policy (ZAP). Validación 
+ * exhaustiva de la disponibilidad de la interfaz.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -28,7 +29,7 @@ import {
 } from "lucide-react";
 import React, { useCallback, useState, useRef, useMemo } from "react";
 
-// --- INFRAESTRUCTURA CORE V4.0 ---
+// --- INFRAESTRUCTURA CORE V4.2 ---
 import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { useForge } from "@/components/geo/forge-context";
 import { Button } from "@/components/ui/button";
@@ -58,7 +59,7 @@ const HISTORICAL_EPOCH_OPTIONS: { value: HistoricalEpoch; label: string }[] = [
  */
 export default function Step2SensoryCapture() {
   
-  // 1. CONSUMO DE LA FACHADA SOBERANA Y CONTEXTO DE FORJA (SINCRO V6.0)
+  // 1. CONSUMO DE LA FACHADA SOBERANA Y CONTEXTO DE FORJA (SINCRO V6.0 / V49.0)
   const { 
     ingestSensoryData: executeSensoryDataIngestionAction, 
     error: geographicIntelligenceError 
@@ -91,7 +92,7 @@ export default function Step2SensoryCapture() {
   /**
    * handleOpticalCharacterRecognitionImageAdditionAction:
    * Misión: Anexar pruebas secundarias al expediente (Mosaico de Inteligencia).
-   * [ZAP V8.0]: Renombrado para eliminar el acrónimo OCR.
+   * [ZAP V9.0]: Sincronizado con ForgeContext V6.0.
    */
   const handleOpticalCharacterRecognitionImageAdditionAction = useCallback((changeEvent: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFilesCollection = changeEvent.target.files;
@@ -113,8 +114,8 @@ export default function Step2SensoryCapture() {
 
   /**
    * executeSensoryIngestionWorkflow:
-   * Misión: Disparar el protocolo lightning para la transmisión y peritaje por IA.
-   * [SINCRO V8.0]: Mapeo total al contrato nominal V8.6 de GeoEngineReturn y V6.0 de ForgeContext.
+   * Misión: Disparar el protocolo lightning para la transmisión y peritaje por Inteligencia Artificial.
+   * [SINCRO V9.0]: Mapeo total al contrato industrial del ForgeContext V6.0.
    */
   const executeSensoryIngestionWorkflow = async () => {
     if (
@@ -128,7 +129,7 @@ export default function Step2SensoryCapture() {
     }
 
     setIsSensoryIngestionProcessActive(true);
-    nicepodLog("⚙️ [Step2] Iniciando protocolo de ingesta multimodal de grado industrial V4.2...");
+    nicepodLog("⚙️ [Step2] Iniciando protocolo de ingesta multimodal V4.2...");
 
     try {
       const sensoryIngestionResults = await executeSensoryDataIngestionAction({
@@ -145,7 +146,7 @@ export default function Step2SensoryCapture() {
       });
 
       if (sensoryIngestionResults) {
-        nicepodLog("✅ [Step2] Evidencia blindada en el Metal. Procediendo a Auditoría de Dossier.");
+        nicepodLog("✅ [Step2] Evidencia blindada en el Metal. Procediendo a Fase de Auditoría.");
         
         stateDispatcher({
           type: 'SET_INGESTION_RESULT',
@@ -165,7 +166,7 @@ export default function Step2SensoryCapture() {
 
   /**
    * isSensoryIngestionIntegrityValidated:
-   * Misión: Validar la completitud de la Malla antes de permitir el avance de fase.
+   * Misión: Validar la completitud de la Malla antes de permitir el avance.
    */
   const isSensoryIngestionIntegrityValidated = useMemo(() => {
     return (
@@ -399,11 +400,13 @@ export default function Step2SensoryCapture() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V8.0):
- * 1. Zero Abbreviations Policy (ZAP): Erradicación completa de acrónimos (OCR, URL, POI). 
- *    Uso de 'opticalCharacterRecognitionImages' y 'referenceUniformResourceLocator'.
+ * NOTA TÉCNICA DEL ARCHITECT (V9.0):
+ * 1. Zero Abbreviations Policy (ZAP): Erradicación completa de acrónimos (OCR, URL, POI) en 
+ *    nombres de propiedades, manejadores y lógica de estado. Uso de 
+ *    'opticalCharacterRecognitionImageFiles' y 'referenceUniformResourceLocator'.
  * 2. Contractual Sync: Sincronización total con ForgeContext V6.0 (administratorIntentText, 
- *    isSensoryIngestionProcessActive).
- * 3. UI State Precision: Todos los controles se desactivan durante el proceso de ingesta 
- *    multimodal para prevenir colisiones de estado en el Borde.
+ *    resonanceRadiusMeters) y la fachada useGeoEngine V49.0.
+ * 3. Functional Deployment: Se han validado todos los espacios de la interfaz, 
+ *    desactivando controles durante el proceso de ingesta para preservar la integridad 
+ *    del estado en el Borde.
  */
