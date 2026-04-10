@@ -1,14 +1,14 @@
 /**
  * ARCHIVO: components/geo/steps/step-1-anchoring.tsx
- * VERSIÓN: 10.0 (NicePod Forge Step 1 - Absolute Nominal Sync & Industrial UI Precision Edition)
+ * VERSIÓN: 11.0 (NicePod Forge Step 1 - High-Precision Geodetic Terminal Edition)
  * PROTOCOLO: MADRID RESONANCE V4.2
  * 
- * Misión: Gestionar el anclaje pericial milimétrico del hito urbano y forzar la 
- * clasificación taxonómica bidimensional (Cuadrante de Misión y Entidad Física).
- * [REFORMA V10.0]: Implementación absoluta de la Zero Abbreviations Policy (ZAP). 
- * Sincronización total con ForgeContext V6.0 y el SpatialEngine V14.0 (Aduana Satelital).
- * Optimización de la interfaz: centrado de lienzo, simplificación semántica del botón 
- * y restauración del flujo de autoridad manual.
+ * Misión: Gestionar el anclaje pericial milimétrico del hito urbano y obligar a la 
+ * clasificación taxonómica bidimensional (Misión y Entidad). Utiliza el reactor 
+ * de precisión ForgeSpatialPrecision para eludir el jitter del GPS.
+ * [REFORMA V11.0]: Sustitución del motor genérico por ForgeSpatialPrecision V2.0. 
+ * Implementación de la Zero Abbreviations Policy (ZAP) al 100%. Optimización 
+ * del chasis visual para centrado absoluto y coherencia industrial.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -26,7 +26,7 @@ import { cn, nicepodLog } from "@/lib/utils";
 // --- MOTORES CORE Y CONTEXTO SOBERANO V4.2 ---
 import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { useForge } from "@/components/geo/forge-context"; 
-import { SpatialEngine } from "@/components/geo/SpatialEngine";
+import { ForgeSpatialPrecision } from "@/components/geo/forge-spatial-precision";
 
 // --- SOBERANÍA DE TIPOS (CONSTITUCIÓN V8.6) ---
 import { 
@@ -37,7 +37,7 @@ import {
 
 /**
  * TAXONOMÍA SOBERANA: DICCIONARIO DE ENTIDADES TÉCNICAS INDUSTRIALES
- * Estructura jerárquica para la clasificación pericial del capital intelectual.
+ * Estructura jerárquica para la clasificación técnica del capital intelectual urbano.
  */
 const TAXONOMY_HIERARCHY: Record<CategoryMission, { entityIdentification: CategoryEntity; label: string }[]> = {
   infraestructura_vital: [
@@ -82,7 +82,7 @@ const MISSION_LABELS: Record<CategoryMission, string> = {
  */
 export default function Step1Anchoring() {
   
-  // 1. CONSUMO DE LA FACHADA SOBERANA Y CONTEXTO DE FORJA (SINCRO V6.0)
+  // 1. CONSUMO DE LA FACHADA SOBERANA Y CONTEXTO DE FORJA (V6.0 SINCRO)
   const { 
     userLocation, 
     recenterCamera: recenterVisualCameraAction, 
@@ -101,21 +101,21 @@ export default function Step1Anchoring() {
 
   /**
    * executeManualGeographicAnchorSelectionWorkflow:
-   * Misión: Capturar el desplazamiento manual y actualizar el estado nominal del hito.
-   * [SINCRO V10.0]: Mapeo exacto hacia las propiedades industriales de ForgeContext.
+   * Misión: Capturar el desplazamiento manual del reactor de precisión y actualizar el estado.
+   * [ZAP V11.0]: Mapeo nominal absoluto hacia el ForgeContext.
    */
   const executeManualGeographicAnchorSelectionWorkflow = useCallback((
     longitudeCoordinate: number, 
     latitudeCoordinate: number
   ) => {
-    nicepodLog(`📍 [Forge:Step1] Ajuste de anclaje pericial manual: [${longitudeCoordinate}, ${latitudeCoordinate}]`);
+    nicepodLog(`📍 [Forge:Step1] Ajuste de anclaje geodésico manual: [${longitudeCoordinate}, ${latitudeCoordinate}]`);
     
     stateDispatcher({
       type: 'SET_LOCATION',
       payload: {
         latitudeCoordinate: latitudeCoordinate,
         longitudeCoordinate: longitudeCoordinate,
-        accuracyMeters: 1 // Autoridad manual establecida por el Administrador
+        accuracyMeters: 1 // Autoridad de perito establecida manualmente
       }
     });
 
@@ -126,7 +126,7 @@ export default function Step1Anchoring() {
 
   /**
    * EFECTO: TelemetrySeedSynchronization
-   * Misión: Sembrar la ubicación inicial del hardware respetando el contrato purificado.
+   * Misión: Inyectar la ubicación inicial del Voyager si la memoria táctica está vacía.
    */
   useEffect(() => {
     if (userLocation && forgeState.latitudeCoordinate === null) {
@@ -146,7 +146,7 @@ export default function Step1Anchoring() {
 
   /**
    * isPayloadIntegrityValidated: 
-   * Misión: Validar la completitud de la Malla de datos antes de permitir el avance de fase.
+   * Misión: Validar la completitud del expediente antes de permitir el avance de fase.
    */
   const isPayloadIntegrityValidated = useMemo(() => {
     return (
@@ -180,36 +180,35 @@ export default function Step1Anchoring() {
         </p>
       </div>
 
-      {/* II. VISOR DE PRECISIÓN (REACTOR WEBGL SATELITAL)
-          [FIX V10.0]: Centrado del frame y forzado de vista satelital (visualTheme="day").
+      {/* II. VISOR DE PRECISIÓN GEODÉSICA (REACTOR WEBGL DEDICADO)
+          [FIX V11.0]: Sustitución del Hub genérico por ForgeSpatialPrecision para 
+          erradicar saltos de cámara y garantizar centrado absoluto.
       */}
-      <div className="shrink-0 relative h-[320px] mx-6 mb-8 rounded-[3rem] overflow-hidden border border-white/5 shadow-[0_30px_60px_rgba(0,0,0,0.6)] bg-[#020202] self-center w-[calc(100%-3rem)]">
+      <div className="shrink-0 relative h-[340px] mx-6 mb-8 rounded-[3.5rem] overflow-hidden border border-white/5 shadow-[0_40px_80px_rgba(0,0,0,0.7)] bg-[#020202] self-center w-[calc(100%-3rem)] flex items-center justify-center">
         {isMapDisplayEngineForced && (
-          <SpatialEngine
-            mapInstanceIdentification={"map-forge" as MapInstanceIdentification} 
-            mode="FORGE"
-            performanceProfile="TACTICAL_LITE" 
-            visualTheme="day" // Forzado para visibilidad de peritaje
+          <ForgeSpatialPrecision
+            mapInstanceIdentification={"map-forge-precision" as MapInstanceIdentification} 
+            initialLatitudeCoordinate={forgeState.latitudeCoordinate}
+            initialLongitudeCoordinate={forgeState.longitudeCoordinate}
             onManualAnchorSelectionAction={executeManualGeographicAnchorSelectionWorkflow}
-            className="w-full h-full"
           />
         )}
 
-        {/* Control de Recentre Visual */}
-        <div className="absolute bottom-6 right-6 z-10">
+        {/* Control de Recentre de Autoridad */}
+        <div className="absolute bottom-6 right-6 z-30">
           <Button
             size="icon"
             variant={isManualMode ? "resonance" : "glass"}
-            className="rounded-2xl shadow-2xl h-12 w-12 border-white/10"
+            className="rounded-2xl shadow-2xl h-12 w-12 border-white/10 transition-all active:scale-90"
             onClick={recenterVisualCameraAction}
           >
-            <Target size={20} className={cn(isManualMode && "animate-pulse")} />
+            <Target size={20} className={cn(isManualMode && "animate-pulse text-primary")} />
           </Button>
         </div>
 
-        {/* Telemetría en Cabeza del Visor */}
-        <div className="absolute top-6 left-6 right-6 pointer-events-none z-10">
-          <div className="bg-black/85 backdrop-blur-3xl border border-white/10 rounded-2xl px-5 py-3 flex items-center justify-between shadow-2xl">
+        {/* HUD de Telemetría Flotante */}
+        <div className="absolute top-6 left-6 right-6 pointer-events-none z-30">
+          <div className="bg-black/85 backdrop-blur-2xl border border-white/10 rounded-2xl px-5 py-3.5 flex items-center justify-between shadow-2xl">
             <div className="flex items-center gap-3">
               <MapPin size={14} className="text-primary" />
               <div className="flex flex-col">
@@ -219,15 +218,15 @@ export default function Step1Anchoring() {
               </div>
             </div>
             {isManualMode && (
-              <Badge className="bg-primary/10 text-primary border-primary/20 text-[7px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md animate-in fade-in duration-500">
-                Anclaje Manual
+              <Badge className="bg-primary/10 text-primary border-primary/20 text-[7px] font-black uppercase tracking-widest px-3 py-1 rounded-md animate-in zoom-in duration-500">
+                Fijado Manual
               </Badge>
             )}
           </div>
         </div>
       </div>
 
-      {/* III. MATRIZ DE TAXONOMÍA GRANULAR (PILAR 1) */}
+      {/* III. MATRIZ DE TAXONOMÍA GRANULAR (PERITAJE ESTRUCTURAL) */}
       <div className="px-6 flex flex-col gap-8 mb-12 flex-1">
         
         {/* SECTOR: CUADRANTE DE MISIÓN */}
@@ -297,8 +296,8 @@ export default function Step1Anchoring() {
         </AnimatePresence>
       </div>
 
-      {/* IV. CHASIS DE ACCIÓN SOBERANA (COMMIT COORDENADAS)
-          [FIX V10.0]: Etiqueta del botón simplificada según requerimiento.
+      {/* IV. CHASIS DE ACCIÓN SOBERANA (PUBLISH COORDINATES)
+          [FIX V11.0]: Semántica simplificada según directriz de diseño.
       */}
       <div className="px-6 pb-12 mt-auto shrink-0 bg-gradient-to-t from-[#020202] via-[#020202] to-transparent pt-10">
         <Button
@@ -324,11 +323,12 @@ export default function Step1Anchoring() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V10.0):
- * 1. UI Centering & Polish: Se ha ajustado el margen y radio de borde del frame del mapa (320px) 
- *    para garantizar simetría visual y un enfoque pericial en dispositivos móviles.
- * 2. Forge Satellite Enforcement: La integración con SpatialEngine V14.0 ahora garantiza que el 
- *    peritaje se realice sobre una ortofoto cenital (pitch 0, estilo fotorrealista).
- * 3. Contractual & ZAP Fix: Resolución de error en la propiedad 'onManualAnchorSelectionAction' 
- *    y simplificación de la semántica del botón final ("Fijar coordenadas").
+ * NOTA TÉCNICA DEL ARCHITECT (V11.0):
+ * 1. Decoupled Precision Framework: Se ha extirpado el uso del motor genérico en favor de 
+ *    ForgeSpatialPrecision, eliminando los saltos de cámara causados por la telemetría 
+ *    satelital compartida y asegurando un centrado absoluto en el Step 1.
+ * 2. ZAP Compliance: Purificación total de la jerarquía taxonómica (entityIdentification) 
+ *    y de los manejadores de flujo (visibilityTimerReference, executeManualGeographicAnchorSelectionWorkflow).
+ * 3. UI Structural Balance: El frame del mapa ha sido expandido y centrado mediante 
+ *    márgenes simétricos (mx-6) y flexbox, optimizando la ergonomía táctica en móviles.
  */
