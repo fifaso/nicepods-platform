@@ -1,13 +1,14 @@
 /**
  * ARCHIVO: components/geo/geo-creator-overlay.tsx
- * VERSIÓN: 9.0 (NicePod Sovereign Orchestrator - Final Nominal & Contractual Sync)
- * PROTOCOLO: MADRID RESONANCE V4.0
+ * VERSIÓN: 10.0 (NicePod Sovereign Orchestrator - Absolute Nominal & Global Sync Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.2
  * 
  * Misión: Orquestar la interfaz táctica y el ciclo de vida de los motores WebGL 
- * garantizando la sincronía absoluta de contratos entre la interfaz y el SpatialEngine.
- * [REFORMA V9.0]: Sincronización total con la Constitución V8.6 y el RadarHUD V6.0. 
- * Resolución definitiva de errores TS2322 (weather mapping) y TS2339 (accuracyMeters). 
- * Erradicación absoluta de acrónimos (ZAP) y sellado del Build Shield.
+ * garantizando la sincronía absoluta de contratos entre la interfaz, el contexto 
+ * de forja y el motor espacial.
+ * [REFORMA V10.0]: Sincronización total con ForgeContext V6.0. Resolución definitiva 
+ * del error TS2339 mediante el uso de 'administratorIntentText'. Refuerzo del 
+ * Build Shield en las propiedades del RadarHeadsUpDisplay (accuracyMeters, placeName).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -16,13 +17,11 @@
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Layers,
-  Moon,
   Navigation2,
   Plus,
   Power,
   Satellite,
   ShieldCheck,
-  Sun,
   Target,
   X
 } from "lucide-react";
@@ -32,13 +31,13 @@ import { useCallback, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn, nicepodLog } from "@/lib/utils";
 
-// --- PROVEEDORES DE ESTADO (CEREBROS NEURONALES V4.0) ---
+// --- PROVEEDORES DE ESTADO (CEREBROS NEURONALES V4.2) ---
 import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { ForgeProvider, useForge } from "./forge-context";
 
 // --- MOTORES DE VISUALIZACIÓN Y ALIASING NOMINAL ---
 import { RadarHUD as RadarHeadsUpDisplay } from "./radar-hud";
-import { GeoScannerUI as GeographicScannerUserInterface } from "./scanner-ui";
+import { GeographicScannerUserInterface } from "./scanner-ui";
 import { SpatialEngine } from "./SpatialEngine";
 import { MAP_STYLES } from "./map-constants";
 import { MapInstanceIdentification } from "@/types/geo-sovereignty";
@@ -47,16 +46,18 @@ import { MapInstanceIdentification } from "@/types/geo-sovereignty";
  * INTERFAZ: GeoCreatorOverlayProperties
  */
 interface GeoCreatorOverlayProperties {
+  /** isForgeAuthorityGranted: Nivel de acceso del Voyager para alterar la Bóveda. */
   isForgeAuthorityGranted: boolean; 
+  /** userIdentification: Identificador único del perito en sesión. */
   userIdentification: string;       
 }
 
 /**
- * CreatorOverlayContent: El puente de mando táctico de la Workstation.
+ * CreatorOverlayContent: El puente de mando táctico de la terminal.
  */
 function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGranted: boolean }) {
   
-  // 1. CONSUMO DE LA FACHADA SOBERANA (Triple-Core Facade Synergy V4.0)
+  // 1. CONSUMO DE LA FACHADA SOBERANA (Triple-Core Facade Synergy V4.2)
   const {
     status: engineOperationalStatus,
     data: engineOperationalData,
@@ -71,9 +72,10 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
     recenterCamera: recenterVisualCameraAction
   } = useGeoEngine();
 
+  // 2. CONSUMO DEL CONTEXTO DE FORJA (SINCRO V6.0)
   const { state: forgeState, dispatch: stateDispatcher } = useForge();
 
-  // 2. ESTADOS LOCALES DE INTERFAZ DESCRIPTIVOS
+  // 3. ESTADOS LOCALES DE INTERFAZ DESCRIPTIVOS
   const [isForgeTerminalInterfaceOpen, setIsForgeTerminalInterfaceOpen] = useState<boolean>(false);
 
   /**
@@ -90,7 +92,7 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
 
   /**
    * handleCameraCinematicAction: EL ALGORITMO DEL MANDO ÚNICO
-   * Misión: Gestionar la transición entre Recentrar y el Ciclo de Perspectiva Triple.
+   * Misión: Gestionar la transición entre Recentrar y el Ciclo de Perspectiva Visual.
    */
   const handleCameraCinematicAction = useCallback(() => {
     if (!userLocation) {
@@ -119,7 +121,7 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
    */
   const toggleForgeTerminalInterfaceAction = useCallback(() => {
     if (isForgeTerminalInterfaceOpen) {
-      nicepodLog("🛡️ [Orchestrator] Restaurando malla de exploración.");
+      nicepodLog("🛡️ [Orchestrator] Restaurando malla de exploración activa.");
       stateDispatcher({ type: 'RESET_FORGE' });
       setIsForgeTerminalInterfaceOpen(false);
     } else {
@@ -130,16 +132,17 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
 
   /**
    * displayCurrentPlaceName:
-   * Resolución heurística de la identidad nominativa del nodo.
+   * Resolución heurística de la identidad nominativa del nodo en tiempo real.
+   * [FIX V10.0]: Resolución de error TS2339 usando 'administratorIntentText'.
    */
-  const displayCurrentPlaceName = forgeState.intentText ||
+  const displayCurrentPlaceName = forgeState.administratorIntentText ||
     engineOperationalData?.manualPlaceName ||
     engineOperationalData?.dossier?.visual_analysis_dossier?.detectedOfficialName ||
     "Sintonía de Malla Activa";
 
   /**
    * smartButtonConfiguration:
-   * Misión: Mapear la voluntad de la interfaz según el estado del motor cinemático.
+   * Misión: Mapear la voluntad de la interfaz según el estado cinemático de la cámara.
    */
   const smartButtonConfiguration = useMemo(() => {
     if (isManualMode) {
@@ -212,7 +215,7 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
               </div>
               <h2 className="text-white font-black uppercase tracking-[0.5em] text-[10px] mb-4">Enlace Interrumpido</h2>
               <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-[0.3em] leading-relaxed mb-12">
-                Conecte el enlace sensorial para proyectar la malla urbana de la Workstation.
+                Conecte el enlace sensorial para proyectar la malla urbana de la terminal.
               </p>
               <Button
                 onClick={handleHardwareIgnitionAction}
@@ -227,7 +230,7 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
         )}
       </AnimatePresence>
 
-      {/* III. CAPA 20: DOCK DE COMANDO TÁCTICO */}
+      {/* III. CAPA 20: DOCK DE COMANDO TÁCTICO (ACTION CONTROLS) */}
       <div className="absolute top-8 right-6 md:right-8 flex flex-col gap-6 z-[200] pointer-events-none">
 
         {/* BOTÓN DE ACCESO A LA FORJA SOBERANA */}
@@ -276,7 +279,7 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
       </div>
 
       {/* IV. CAPA 30: PANTALLA DE DATOS EN CABEZA (HEADS-UP DISPLAY) 
-          [FIX V9.0]: Sincronía total con RadarHUD V6.0 y IngestionDossier V8.6. */}
+          [FIX V10.0]: Mapeo nominal de accuracyMeters y placeName. */}
       <AnimatePresence>
         {isForgeTerminalInterfaceOpen && (
           <motion.div
