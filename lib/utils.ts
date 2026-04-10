@@ -1,11 +1,16 @@
 /**
  * ARCHIVO: lib/utils.ts
- * VERSIÓN: 7.0 (NicePod Utility Core - Off-Main-Thread Shield & Silence-Guard Edition)
- * PROTOCOLO: MADRID RESONANCE V3.0
+ * VERSIÓN: 8.0 (NicePod Utility Core - Absolute Nominal Integrity & Off-Main-Thread Shield)
+ * PROTOCOLO: MADRID RESONANCE V4.2
  * 
- * Misión: Centralizar telemetría, soberanía de assets y protección absoluta del hilo principal.
- * [REFORMA V7.0]: Integración de Web Workers para compresión asíncrona JIT con Fallback Táctico.
- * Nivel de Integridad: 100% (Soberanía Total / Producción-Ready)
+ * Misión: Centralizar utilidades de telemetría, soberanía de activos, ingeniería 
+ * acústica y procesamiento de imágenes, garantizando la protección absoluta 
+ * del hilo principal (Main Thread Isolation) y la transparencia nominal.
+ * [REFORMA V8.0]: Implementación integral de la Zero Abbreviations Policy (ZAP). 
+ * Centralización de la infraestructura de almacenamiento (Storage Root). 
+ * Purificación de utilidades geoespaciales y consolidación del pipeline de 
+ * compresión Just-In-Time mediante Web Workers.
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 import { type ClassValue, clsx } from "clsx";
@@ -13,13 +18,13 @@ import { twMerge } from "tailwind-merge";
 
 /**
  * ---------------------------------------------------------------------------
- * 0. PROTOCOLO SILENCE-GUARD PRO (INTERCEPCIÓN DE BAJO NIVEL)
+ * 0. PROTOCOLO SILENCE-GUARD INDUSTRIAL (INTERCEPCIÓN DE RUIDO)
  * ---------------------------------------------------------------------------
- * Misión: Erradicar el ruido de Mapbox Standard que bloquea el Main Thread.
- * El uso de un Set o Array constante permite comparaciones de alta velocidad.
+ * Misión: Erradicar advertencias no críticas de motores externos (Mapbox) 
+ * que saturan la telemetría de desarrollo y consumen ciclos de consola.
  */
 if (typeof window !== 'undefined') {
-  const PROHIBITED_LOG_PATTERNS = [
+  const PROHIBITED_LOG_PATTERNS_COLLECTION = [
     'Ignoring unknown image variable',
     'Cutoff is currently disabled on terrain',
     'Source "mapbox-dem" already exists',
@@ -27,57 +32,58 @@ if (typeof window !== 'undefined') {
     'already exists'
   ];
 
-  const nativeConsoleWarn = console.warn;
-  console.warn = (...warnArguments: unknown[]) => {
-    const firstArg = warnArguments[0];
-    if (typeof firstArg === 'string') {
-      // Búsqueda ultrarrápida de patrones de ruido
-      const isInternalNoise = PROHIBITED_LOG_PATTERNS.some(pattern =>
-        firstArg.includes(pattern)
+  const nativeConsoleWarningAction = console.warn;
+  console.warn = (...warningArguments: unknown[]) => {
+    const firstArgument = warningArguments[0];
+    if (typeof firstArgument === 'string') {
+      const isInternalEngineNoise = PROHIBITED_LOG_PATTERNS_COLLECTION.some(pattern =>
+        firstArgument.includes(pattern)
       );
-      if (isInternalNoise) return;
+      if (isInternalEngineNoise) return;
     }
-    nativeConsoleWarn.apply(console, warnArguments);
+    nativeConsoleWarningAction.apply(console, warningArguments);
   };
 }
 
 /**
  * ---------------------------------------------------------------------------
- * I. UTILIDADES DE ESTILO (SINTAXIS SOBERANA)
+ * I. UTILIDADES DE ESTILO Y TELEMETRÍA
  * ---------------------------------------------------------------------------
  */
 
-export function cn(...classInputs: ClassValue[]) {
-  return twMerge(clsx(classInputs));
+/**
+ * cn: Fusión inteligente de clases Tailwind CSS.
+ */
+export function cn(...classInputsCollection: ClassValue[]) {
+  return twMerge(clsx(classInputsCollection));
 }
 
 /**
- * nicepodLog: Telemetría de consola optimizada.
- * [V6.5]: Los logs operan asíncronamente para no bloquear el frame de la cámara.
+ * nicepodLog: Sistema de telemetría de consola asíncrono.
+ * [MTI]: Los logs se difieren para no impactar en el frame de renderizado de la GPU.
  */
 export function nicepodLog(
-  message: string,
-  data: unknown = null,
-  severity: 'info' | 'warn' | 'error' = 'info'
+  messageText: string,
+  intelligenceMetadata: unknown = null,
+  severityLevel: 'info' | 'warn' | 'error' = 'info'
 ) {
   if (process.env.NODE_ENV !== 'production') {
-    // Deferimos el log al final del event loop para proteger los 60FPS
     setTimeout(() => {
-      const prefix = `[NicePod-V3.0]`;
-      const time = new Date().toLocaleTimeString();
+      const logPrefix = `[NicePod-V4.2]`;
+      const localTimestamp = new Date().toLocaleTimeString();
 
-      const styles = {
+      const logStylesDictionary = {
         info: 'color: #8b5cf6; font-weight: 900; background: rgba(139, 92, 246, 0.1); padding: 2px 4px; border-radius: 4px;',
         warn: 'color: #f59e0b; font-weight: 900;',
         error: 'color: #ef4444; font-weight: 900; border: 1px solid #ef4444; padding: 2px;'
       };
 
-      if (severity === 'error') {
-        console.error(`%c${prefix} 🔥 [${time}] ${message}`, styles.error, data ?? '');
-      } else if (severity === 'warn') {
-        console.warn(`%c${prefix} ⚠️ [${time}] ${message}`, styles.warn, data ?? '');
+      if (severityLevel === 'error') {
+        console.error(`%c${logPrefix} 🔥 [${localTimestamp}] ${messageText}`, logStylesDictionary.error, intelligenceMetadata ?? '');
+      } else if (severityLevel === 'warn') {
+        console.warn(`%c${logPrefix} ⚠️ [${localTimestamp}] ${messageText}`, logStylesDictionary.warn, intelligenceMetadata ?? '');
       } else {
-        console.log(`%c${prefix} 📡 [${time}] ${message}`, styles.info, data ?? '');
+        console.log(`%c${logPrefix} 📡 [${localTimestamp}] ${messageText}`, logStylesDictionary.info, intelligenceMetadata ?? '');
       }
     }, 0);
   }
@@ -89,26 +95,32 @@ export function nicepodLog(
  * ---------------------------------------------------------------------------
  */
 
-let sharedAudioContext: AudioContext | null = null;
+let sharedAudioContextInstance: AudioContext | null = null;
 
+/**
+ * getSharedAudioContextInstance: Recupera o inicializa el bus de audio global.
+ */
 export function getSharedAudioCtx() {
   if (typeof window === 'undefined') return null;
 
-  if (!sharedAudioContext) {
-    const AudioConstructor = window.AudioContext || (window as any).webkitAudioContext;
-    sharedAudioContext = new AudioConstructor();
+  if (!sharedAudioContextInstance) {
+    const AudioContextConstructor = window.AudioContext || (window as any).webkitAudioContext;
+    sharedAudioContextInstance = new AudioContextConstructor();
   }
 
-  if (sharedAudioContext.state === 'suspended') {
-    sharedAudioContext.resume();
+  if (sharedAudioContextInstance.state === 'suspended') {
+    sharedAudioContextInstance.resume();
   }
 
-  return sharedAudioContext;
+  return sharedAudioContextInstance;
 }
 
-export function cleanTextForSpeech(text: string | null | undefined): string {
-  if (!text) return "";
-  return text
+/**
+ * cleanTextForSpeech: Saneamiento de narrativa para síntesis neuronal.
+ */
+export function cleanTextForSpeech(rawNarrativeContent: string | null | undefined): string {
+  if (!rawNarrativeContent) return "";
+  return rawNarrativeContent
     .replace(/\$\$\$/g, "")
     .replace(/\[.*?\]/g, "")
     .replace(/^(Host|Narrador|Speaker\s?\d?):\s?/gim, "")
@@ -119,170 +131,195 @@ export function cleanTextForSpeech(text: string | null | undefined): string {
     .trim();
 }
 
-export function formatTime(seconds: number | undefined | null): string {
-  if (seconds === undefined || seconds === null || !isFinite(seconds) || seconds < 0) {
+/**
+ * formatTimeDuration: Transmuta segundos en formato cronométrico industrial (MM:SS).
+ */
+export function formatTime(totalSecondsMagnitude: number | undefined | null): string {
+  if (totalSecondsMagnitude === undefined || totalSecondsMagnitude === null || !isFinite(totalSecondsMagnitude) || totalSecondsMagnitude < 0) {
     return "0:00";
   }
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, "0")}`;
+  const calculatedMinutes = Math.floor(totalSecondsMagnitude / 60);
+  const calculatedSeconds = Math.floor(totalSecondsMagnitude % 60);
+  return `${calculatedMinutes}:${calculatedSeconds.toString().padStart(2, "0")}`;
 }
 
 /**
  * ---------------------------------------------------------------------------
- * III. GOBERNANZA DE ASSETS (RESILIENCIA SUPABASE)
+ * III. GOBERNANZA DE ACTIVOS (SUPABASE STORAGE)
  * ---------------------------------------------------------------------------
  */
 
-export function getSupabaseAsset(path: string | null | undefined): string | null {
-  if (!path) return null;
-  if (path.startsWith('http')) return path;
+const SUPABASE_STORAGE_PUBLIC_ROOT_URL = "https://arbojlknwilqcszuqope.supabase.co/storage/v1/object/public";
 
-  const STORAGE_ROOT = "https://arbojlknwilqcszuqope.supabase.co/storage/v1/object/public";
-  const cleanPath = path.startsWith('/') ? path.substring(1) : path;
+/**
+ * getSupabaseAssetUniformResourceLocator:
+ * Misión: Resolver la ruta física de un activo en el Almacenamiento del Metal.
+ */
+export function getSupabaseAsset(assetStoragePath: string | null | undefined): string | null {
+  if (!assetStoragePath) return null;
+  if (assetStoragePath.startsWith('http')) return assetStoragePath;
 
-  if (!cleanPath.includes('/')) {
-    return `${STORAGE_ROOT}/podcasts/${cleanPath}`;
+  const sanitizedPath = assetStoragePath.startsWith('/') ? assetStoragePath.substring(1) : assetStoragePath;
+
+  // Si el path no incluye el bucket, asumimos el bucket 'podcasts' por defecto.
+  if (!sanitizedPath.includes('/')) {
+    return `${SUPABASE_STORAGE_PUBLIC_ROOT_URL}/podcasts/${sanitizedPath}`;
   }
 
-  return `${STORAGE_ROOT}/${cleanPath}`;
+  return `${SUPABASE_STORAGE_PUBLIC_ROOT_URL}/${sanitizedPath}`;
 }
 
+/**
+ * getSafeAssetUniformResourceLocator:
+ * Misión: Garantizar una visualización válida mediante fallbacks de alta disponibilidad.
+ */
 export function getSafeAsset(
-  path: string | null | undefined,
-  type: 'avatar' | 'cover' | 'logo' = 'cover'
+  assetStoragePath: string | null | undefined,
+  assetCategoryType: 'avatar' | 'cover' | 'logo' = 'cover'
 ): string {
-  const resolved = getSupabaseAsset(path);
+  const resolvedAssetUrl = getSupabaseAsset(assetStoragePath);
 
-  const isOk = resolved &&
-    resolved.trim() !== "" &&
-    resolved.indexOf('placeholder') === -1;
+  const isResolutionValid = resolvedAssetUrl &&
+    resolvedAssetUrl.trim() !== "" &&
+    resolvedAssetUrl.indexOf('placeholder') === -1;
 
-  if (isOk) return resolved as string;
+  if (isResolutionValid) return resolvedAssetUrl as string;
 
-  const cdns = {
+  const contentDeliveryNetworkFallbacksDictionary = {
     avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=NicePodCurator",
     cover: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1000&auto=format&fit=crop",
     logo: "/nicepod-logo.png"
   };
 
-  return cdns[type] || cdns.cover;
+  return contentDeliveryNetworkFallbacksDictionary[assetCategoryType] || contentDeliveryNetworkFallbacksDictionary.cover;
 }
 
 /**
  * ---------------------------------------------------------------------------
- * IV. RIGOR GEOESPACIAL (HUD TÁCTICO)
+ * IV. RIGOR GEOESPACIAL (NOMINAL SYNC)
  * ---------------------------------------------------------------------------
  */
 
-export function formatCoordinates(lng: number, lat: number): string {
-  return `${lat.toFixed(6)}°N, ${lng.toFixed(6)}°E`;
+/**
+ * formatGeographicCoordinates: Representación técnica de un punto geodésico.
+ */
+export function formatCoordinates(longitudeCoordinate: number, latitudeCoordinate: number): string {
+  return `${latitudeCoordinate.toFixed(6)}°N, ${longitudeCoordinate.toFixed(6)}°E`;
 }
 
-export function getDistanceLabel(meters: number): string {
-  if (meters < 1000) return `${Math.round(meters)}m`;
-  return `${(meters / 1000).toFixed(1)}km`;
+/**
+ * getDistanceLabel: Métrica de proximidad para el radar de la terminal.
+ */
+export function getDistanceLabel(distanceInMeters: number): string {
+  if (distanceInMeters < 1000) return `${Math.round(distanceInMeters)}m`;
+  return `${(distanceInMeters / 1000).toFixed(1)}km`;
 }
 
 /**
  * ---------------------------------------------------------------------------
  * V. PIPELINE DE COMPRESIÓN IMAGEN JIT (HYBRID SHIELD)
  * ---------------------------------------------------------------------------
- * [MANDATO V3.0]: La compresión pesada delega a un Web Worker. Si el dispositivo
- * es legado (ej. Safari sin OffscreenCanvas), activa el fallback atómico.
  */
 
 /**
  * compressOnMainThread: 
- * El motor original de la V2.8. Actúa como paracaídas si el Worker falla.
+ * El motor de respaldo atómico si el entorno de ejecución es hostil a Web Workers.
  */
 async function compressOnMainThread(
-  file: File,
-  maxWidth: number,
-  quality: number
+  sourceImageFile: File,
+  maximumWidthPixels: number,
+  compressionQualityFactor: number
 ): Promise<Blob> {
   return new Promise((resolve) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.src = url;
+    const htmlImageElement = new Image();
+    const objectUniformResourceLocator = URL.createObjectURL(sourceImageFile);
+    htmlImageElement.src = objectUniformResourceLocator;
 
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      const canvas = document.createElement('canvas');
-      let w = img.width;
-      let h = img.height;
+    htmlImageElement.onload = () => {
+      URL.revokeObjectURL(objectUniformResourceLocator);
+      const canvasElement = document.createElement('canvas');
+      let targetWidth = htmlImageElement.width;
+      let targetHeight = htmlImageElement.height;
 
-      if (w > maxWidth) {
-        h = (maxWidth / w) * h;
-        w = maxWidth;
+      if (targetWidth > maximumWidthPixels) {
+        targetHeight = (maximumWidthPixels / targetWidth) * targetHeight;
+        targetWidth = maximumWidthPixels;
       }
 
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return resolve(file);
+      canvasElement.width = targetWidth;
+      canvasElement.height = targetHeight;
+      const canvasRenderingContext = canvasElement.getContext('2d');
+      
+      if (!canvasRenderingContext) return resolve(sourceImageFile);
 
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(img, 0, 0, w, h);
+      canvasRenderingContext.imageSmoothingEnabled = true;
+      canvasRenderingContext.imageSmoothingQuality = 'high';
+      canvasRenderingContext.drawImage(htmlImageElement, 0, 0, targetWidth, targetHeight);
 
-      canvas.toBlob((blob) => {
-        resolve(blob || file);
-      }, 'image/webp', quality);
+      canvasElement.toBlob((resultBlob) => {
+        resolve(resultBlob || sourceImageFile);
+      }, 'image/webp', compressionQualityFactor);
     };
 
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      resolve(file);
+    htmlImageElement.onerror = () => {
+      URL.revokeObjectURL(objectUniformResourceLocator);
+      resolve(sourceImageFile);
     };
   });
 }
 
 /**
  * compressNicePodImage:
- * Director de orquesta de la compresión. Desvía la carga fuera del Main Thread.
+ * Director de orquesta de la compresión asíncrona.
+ * [PILAR 4]: Desvía la carga computacional fuera del Hilo Principal.
  */
 export async function compressNicePodImage(
-  file: File,
-  maxWidth: number = 2048,
-  quality: number = 0.85
+  sourceImageFile: File,
+  maximumWidthPixels: number = 2048,
+  compressionQualityFactor: number = 0.85
 ): Promise<Blob> {
-  if (typeof window === 'undefined') return file;
+  if (typeof window === 'undefined') return sourceImageFile;
 
   // ESCUDO DE COMPATIBILIDAD (Fallback Táctico para Safari/iOS Legacy)
   if (!window.Worker || !window.OffscreenCanvas) {
-    nicepodLog("⚠️ [Compression] OffscreenCanvas no soportado. Usando Main Thread.", null, "warn");
-    return compressOnMainThread(file, maxWidth, quality);
+    nicepodLog("⚠️ [Compression] OffscreenCanvas no soportado. Delegando al Main Thread.", null, "warn");
+    return compressOnMainThread(sourceImageFile, maximumWidthPixels, compressionQualityFactor);
   }
 
   return new Promise((resolve) => {
     try {
-      // Instanciación Segura en Next.js (Webpack 5)
-      const worker = new Worker(new URL('./workers/compression.worker.ts', import.meta.url), { type: 'module' });
+      // Instanciación Segura del Trabajador (Web Worker)
+      const compressionWorkerInstance = new Worker(
+        new URL('./workers/compression.worker.ts', import.meta.url), 
+        { type: 'module' }
+      );
 
-      worker.onmessage = (e: MessageEvent) => {
-        if (e.data.success) {
-          resolve(e.data.blob);
+      compressionWorkerInstance.onmessage = (messageEvent: MessageEvent) => {
+        if (messageEvent.data.success) {
+          resolve(messageEvent.data.blob);
         } else {
-          nicepodLog("⚠️ [Worker] Fallo interno en hilo secundario. Activando paracaídas.", e.data.error, "warn");
-          resolve(compressOnMainThread(file, maxWidth, quality));
+          nicepodLog("⚠️ [Worker] Fallo interno en hilo secundario. Activando paracaídas.", messageEvent.data.error, "warn");
+          resolve(compressOnMainThread(sourceImageFile, maximumWidthPixels, compressionQualityFactor));
         }
-        // [HIGIENE DE RAM]: Destrucción física del hilo tras cumplir su misión.
-        worker.terminate();
+        // [HIGIENE DE HARDWARE]: Destrucción atómica del hilo tras la misión.
+        compressionWorkerInstance.terminate();
       };
 
-      worker.onerror = (error) => {
-        nicepodLog("🔥 [Worker] Error crítico de ejecución. Activando paracaídas.", error.message, "error");
-        resolve(compressOnMainThread(file, maxWidth, quality));
-        worker.terminate();
+      compressionWorkerInstance.onerror = (operationalException) => {
+        nicepodLog("🔥 [Worker] Error crítico de ejecución. Activando paracaídas.", operationalException.message, "error");
+        resolve(compressOnMainThread(sourceImageFile, maximumWidthPixels, compressionQualityFactor));
+        compressionWorkerInstance.terminate();
       };
 
-      // Transferencia al hilo secundario. File es Clonable por el Structured Clone Algorithm.
-      worker.postMessage({ file, maxWidth, quality });
+      compressionWorkerInstance.postMessage({ 
+        file: sourceImageFile, 
+        maxWidth: maximumWidthPixels, 
+        quality: compressionQualityFactor 
+      });
 
-    } catch (err) {
-      nicepodLog("🔥 [Worker] Imposible instanciar hilo. Activando paracaídas.", null, "error");
-      resolve(compressOnMainThread(file, maxWidth, quality));
+    } catch (operationalException) {
+      nicepodLog("🔥 [Worker] Imposible instanciar hilo secundario. Activando paracaídas.", null, "error");
+      resolve(compressOnMainThread(sourceImageFile, maximumWidthPixels, compressionQualityFactor));
     }
   });
 }
