@@ -1,12 +1,14 @@
 /**
  * ARCHIVO: components/create-flow/step-renderer.tsx
- * VERSIÓN: 4.0 (NicePod Master View Orchestrator - Hardware Sincronization Edition)
- * PROTOCOLO: MADRID RESONANCE V4.0
+ * VERSIÓN: 5.0 (NicePod Master View Orchestrator - Absolute Nominal Sync Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.2
  * 
- * Misión: Orquestar la visualización determinista de las fases de creación, 
- * garantizando la compatibilidad absoluta entre el flujo de datos y el hardware.
- * [REFORMA V4.0]: Sincronización nominal total con GeoRecorder V4.1, eliminación 
- * de errores de contrato TS2322 y cumplimiento estricto de la Zero Abbreviations Policy.
+ * Misión: Orquestar la visualización determinista de las fases de creación de capital 
+ * intelectual, garantizando la compatibilidad absoluta entre el flujo de datos 
+ * procesado y la interfaz de hardware.
+ * [REFORMA V5.0]: Resolución definitiva del error TS2305 mediante la sincronización 
+ * con GeographicScannerUserInterface V3.0. Erradicación total de abreviaturas 
+ * (ZAP) y cumplimiento estricto del Build Shield.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -14,25 +16,25 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import dynamic from 'next/dynamic';
-import React, { useMemo, useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useFormContext } from "react-hook-form";
 
-// --- INFRAESTRUCTURA DE CONTEXTO Y NAVEGACIÓN ---
-import { useCreationContext } from "./shared/context";
+// --- INFRAESTRUCTURA DE CONTEXTO Y NAVEGACIÓN SOBERANA ---
 import { useFlowNavigation } from "./hooks/use-flow-navigation";
+import { useCreationContext } from "./shared/context";
 
-// --- INFRAESTRUCTURA DE HARDWARE Y UTILIDADES ---
+// --- INFRAESTRUCTURA DE HARDWARE Y UTILIDADES INDUSTRIALES ---
 import { GeoRecorder } from "@/components/geo/geo-recorder";
-import { GeoScannerUI } from "@/components/geo/scanner-ui";
-import { nicepodLog, cn } from "@/lib/utils";
+import { GeographicScannerUserInterface } from "@/components/geo/scanner-ui";
+import { nicepodLog } from "@/lib/utils";
 
-// --- IMPORTACIONES DE PASOS: NÚCLEO ---
-import { PurposeSelectionStep } from "./steps/purpose-selection-step";
+// --- IMPORTACIONES DE PASOS: NÚCLEO (CORE STEPS) ---
 import { DnaInterviewStep } from "./steps/dna-interview-step";
-import { PulseRadarStep } from "./steps/pulse-radar-step";
 import { LocalDiscoveryStep } from "./steps/local-discovery-step";
+import { PulseRadarStep } from "./steps/pulse-radar-step";
+import { PurposeSelectionStep } from "./steps/purpose-selection-step";
 
-// --- IMPORTACIONES: FLUJOS NARRATIVOS ---
+// --- IMPORTACIONES: FLUJOS NARRATIVOS TÁCTICOS ---
 import { InspireSubStep } from "./steps/inspire-sub-step";
 import { LearnSubStep } from "./steps/learn-sub-step";
 import { LegacyStep } from "./steps/legacy-step";
@@ -50,12 +52,13 @@ import { FinalStep } from "./steps/final-step";
 import { ToneSelectionStep } from "./steps/tone-selection-step";
 
 /**
- * ScriptEditorStep: Carga diferida estratégica para optimizar el rendimiento del hilo principal.
+ * ScriptEditorStep: Carga diferida estratégica para optimizar el presupuesto 
+ * de memoria del Hilo Principal durante la carga inicial.
  */
 const ScriptEditorStep = dynamic(
   () => import('./steps/script-editor-step').then((module) => module.ScriptEditorStep),
   {
-    ssr: false,
+    ssr: false, // Server Side Rendering desactivado para este componente editorial
     loading: () => (
       <div className="h-full w-full flex flex-col items-center justify-center space-y-10 opacity-40">
         <div className="h-14 w-14 border-4 border-primary border-t-transparent rounded-full animate-spin" />
@@ -78,15 +81,15 @@ interface StepRendererProperties {
 /**
  * StepRenderer: El Reactor de Vistas Maestro para la forja de capital intelectual.
  */
-export function StepRenderer({ 
-  narrativeOptionsCollection, 
-  initialDraftsCollection 
+export function StepRenderer({
+  narrativeOptionsCollection,
+  initialDraftsCollection
 }: StepRendererProperties) {
-  
-  // 1. CONSUMO DEL CONTEXTO DE SOBERANÍA Y FORMULARIO
+
+  // 1. CONSUMO DEL CONTEXTO DE SOBERANÍA Y FORMULARIO (RHF)
   const creationContext = useCreationContext();
   const { currentFlowState } = creationContext;
-  
+
   const { watch, setValue } = useFormContext();
   const creationFormData = watch();
 
@@ -99,7 +102,7 @@ export function StepRenderer({
     currentPurpose: creationFormData.purpose
   });
 
-  const { transitionTo, activePath } = navigationAuthority;
+  const { transitionTo: executeStateTransitionAction, activePath: activePathCollection } = navigationAuthority;
 
   // 2. ESTADOS DE PROCESAMIENTO TÉCNICO
   const [isAcousticProcessingProcessActive, setIsAcousticProcessingProcessActive] = useState<boolean>(false);
@@ -109,35 +112,35 @@ export function StepRenderer({
    * Misión: Calcular y ejecutar la transición hacia el siguiente hito de la trayectoria.
    */
   const navigateToNextStepSovereignAction = useCallback(() => {
-    const currentStepIndexMagnitude = activePath.indexOf(currentFlowState);
-    
-    if (currentStepIndexMagnitude !== -1 && currentStepIndexMagnitude < activePath.length - 1) {
-      const nextStepStateDescriptor = activePath[currentStepIndexMagnitude + 1];
-      transitionTo(nextStepStateDescriptor);
+    const currentStepIndexMagnitude = activePathCollection.indexOf(currentFlowState);
+
+    if (currentStepIndexMagnitude !== -1 && currentStepIndexMagnitude < activePathCollection.length - 1) {
+      const nextStepStateDescriptor = activePathCollection[currentStepIndexMagnitude + 1];
+      executeStateTransitionAction(nextStepStateDescriptor);
     } else {
       nicepodLog("🚩 [StepRenderer] Trayectoria finalizada o estado fuera de malla.", null, 'warn');
     }
-  }, [activePath, currentFlowState, transitionTo]);
+  }, [activePathCollection, currentFlowState, executeStateTransitionAction]);
 
   /**
    * handleAcousticChronicleCaptureAction:
    * Misión: Recibir el binario acústico del hardware y disparar el sellado del dossier.
    */
   const handleAcousticChronicleCaptureAction = useCallback(async (
-    capturedAudioBinaryBlob: Blob, 
+    capturedAudioBinaryBlob: Blob,
     capturedDurationSeconds: number
   ) => {
     setIsAcousticProcessingProcessActive(true);
     nicepodLog(`🎙️ [StepRenderer] Crónica capturada exitosamente: ${capturedDurationSeconds} segundos.`);
-    
+
     try {
       setValue('final_audio_blob', capturedAudioBinaryBlob);
       setValue('final_audio_duration', capturedDurationSeconds);
-      
-      // Ejecución del salto cinemático al siguiente paso
+
+      // Ejecución del salto cinemático hacia la siguiente fase de producción.
       navigateToNextStepSovereignAction();
-    } catch (hardwareException) {
-      nicepodLog("🔥 [StepRenderer] Fallo al procesar binario acústico.", hardwareException, 'error');
+    } catch (operationalHardwareException) {
+      nicepodLog("🔥 [StepRenderer] Fallo al procesar binario acústico.", operationalHardwareException, 'error');
     } finally {
       setIsAcousticProcessingProcessActive(false);
     }
@@ -145,7 +148,8 @@ export function StepRenderer({
 
   /**
    * activeStepContentComponent:
-   * Misión: Mapeo determinista de componentes físicos según la máquina de estados.
+   * Misión: Mapeo determinista de componentes físicos según la máquina de estados finitos.
+   * [SINCRO V5.0]: Se han validado todos los despliegues de interfaz para cada hito.
    */
   const activeStepContentComponent = useMemo(() => {
     switch (currentFlowState) {
@@ -161,12 +165,16 @@ export function StepRenderer({
 
       case 'LOCAL_DISCOVERY_STEP':
         return <LocalDiscoveryStep />;
+
+      /**
+       * FASES DE ESCÁNER GEOGRÁFICO:
+       * [FIX V5.0]: Uso del componente GeographicScannerUserInterface (V3.0).
+       */
       case 'LOCAL_ANALYSIS_LOADER':
       case 'LOCAL_RESULT_STEP':
-        return <GeoScannerUI />;
-      
+        return <GeographicScannerUserInterface />;
+
       case 'GEO_RECORDER_STEP':
-        // [FIX V4.0]: Sincronía nominal absoluta con GeoRecorderProperties V4.1
         return (
           <GeoRecorder
             mode="CHRONICLE"
@@ -220,7 +228,7 @@ export function StepRenderer({
           exit={{ opacity: 0, x: -20 }}
           transition={{
             duration: 0.6,
-            ease: [0.16, 1, 0.3, 1] 
+            ease: [0.16, 1, 0.3, 1] // Curva industrial NicePod
           }}
           className="flex-1 flex flex-col min-h-0 h-full"
         >
@@ -234,12 +242,12 @@ export function StepRenderer({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V4.0):
- * 1. Build Shield Compliance: Se sincronizaron las propiedades de 'GeoRecorder' para 
- *    coincidir con el estándar industrial V4.1 (narrativeScriptContent, isExternalProcessActive),
- *    erradicando el error TS2322.
- * 2. Zero Abbreviations Policy: Purificación absoluta de nomenclatura (narrativeOptionsCollection, 
- *    isAcousticProcessingProcessActive, nextStepStateDescriptor).
- * 3. Dynamic Isolation: Se mantiene la carga diferida del editor editorial para 
- *    preservar el presupuesto de memoria RAM durante las fases de captura sensorial.
+ * NOTA TÉCNICA DEL ARCHITECT (V5.0):
+ * 1. Build Shield Sovereignty: Se resolvió el error TS2305 sincronizando la importación 
+ *    con el nuevo estándar nominal de 'GeographicScannerUserInterface'.
+ * 2. Zero Abbreviations Policy: Purificación absoluta de todos los manejadores y 
+ *    variables locales (executeStateTransitionAction, activePathCollection, etc.).
+ * 3. Functional Deployment: Se ha verificado la correspondencia entre los estados de 
+ *    la FSM y la proyección de componentes, garantizando que el flujo de creación 
+ *    geolocalizada no tenga puntos ciegos.
  */
