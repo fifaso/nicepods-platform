@@ -1,15 +1,14 @@
 /**
  * ARCHIVO: lib/utils.ts
- * VERSIÓN: 8.0 (NicePod Utility Core - Absolute Nominal Integrity & Off-Main-Thread Shield)
+ * VERSIÓN: 9.0 (NicePod Utility Core - Absolute Nominal Integrity & Off-Main-Thread Shield)
  * PROTOCOLO: MADRID RESONANCE V4.2
  * 
- * Misión: Centralizar utilidades de telemetría, soberanía de activos, ingeniería 
- * acústica y procesamiento de imágenes, garantizando la protección absoluta 
- * del hilo principal (Main Thread Isolation) y la transparencia nominal.
- * [REFORMA V8.0]: Implementación integral de la Zero Abbreviations Policy (ZAP). 
- * Centralización de la infraestructura de almacenamiento (Storage Root). 
- * Purificación de utilidades geoespaciales y consolidación del pipeline de 
- * compresión Just-In-Time mediante Web Workers.
+ * Misión: Centralizar las utilidades de telemetría industrial, soberanía de activos, 
+ * ingeniería acústica y procesamiento de imágenes, garantizando la protección absoluta 
+ * del hilo principal (Main Thread Isolation) y la transparencia nominal total.
+ * [REFORMA V9.0]: Implementación exhaustiva de la Zero Abbreviations Policy (ZAP). 
+ * Centralización del motor de resolución de activos. Purificación de utilidades 
+ * geoespaciales y consolidación del pipeline de compresión Just-In-Time.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -20,8 +19,8 @@ import { twMerge } from "tailwind-merge";
  * ---------------------------------------------------------------------------
  * 0. PROTOCOLO SILENCE-GUARD INDUSTRIAL (INTERCEPCIÓN DE RUIDO)
  * ---------------------------------------------------------------------------
- * Misión: Erradicar advertencias no críticas de motores externos (Mapbox) 
- * que saturan la telemetría de desarrollo y consumen ciclos de consola.
+ * Misión: Erradicar advertencias no críticas de motores externos (Mapbox Standard) 
+ * que saturan la telemetría de desarrollo y consumen ciclos de la terminal.
  */
 if (typeof window !== 'undefined') {
   const PROHIBITED_LOG_PATTERNS_COLLECTION = [
@@ -47,20 +46,23 @@ if (typeof window !== 'undefined') {
 
 /**
  * ---------------------------------------------------------------------------
- * I. UTILIDADES DE ESTILO Y TELEMETRÍA
+ * I. UTILIDADES DE ESTILO Y TELEMETRÍA INDUSTRIAL
  * ---------------------------------------------------------------------------
  */
 
 /**
- * cn: Fusión inteligente de clases Tailwind CSS.
+ * combineClassNames: 
+ * Misión: Fusión inteligente de clases Tailwind CSS utilizando clsx y tailwind-merge.
  */
-export function cn(...classInputsCollection: ClassValue[]) {
-  return twMerge(clsx(classInputsCollection));
+export function cn(...classNamesInputsCollection: ClassValue[]) {
+  return twMerge(clsx(classNamesInputsCollection));
 }
 
 /**
- * nicepodLog: Sistema de telemetría de consola asíncrono.
- * [MTI]: Los logs se difieren para no impactar en el frame de renderizado de la GPU.
+ * dispatchIndustrialTelemetryLog: 
+ * Misión: Sistema de telemetría de consola asíncrono para monitoreo pericial.
+ * [MTI]: Los logs se difieren al final del event loop para no impactar en 
+ * el presupuesto de 16ms del frame de renderizado.
  */
 export function nicepodLog(
   messageText: string,
@@ -69,7 +71,7 @@ export function nicepodLog(
 ) {
   if (process.env.NODE_ENV !== 'production') {
     setTimeout(() => {
-      const logPrefix = `[NicePod-V4.2]`;
+      const logIdentificationPrefix = `[NicePod-V4.2]`;
       const localTimestamp = new Date().toLocaleTimeString();
 
       const logStylesDictionary = {
@@ -79,11 +81,11 @@ export function nicepodLog(
       };
 
       if (severityLevel === 'error') {
-        console.error(`%c${logPrefix} 🔥 [${localTimestamp}] ${messageText}`, logStylesDictionary.error, intelligenceMetadata ?? '');
+        console.error(`%c${logIdentificationPrefix} 🔥 [${localTimestamp}] ${messageText}`, logStylesDictionary.error, intelligenceMetadata ?? '');
       } else if (severityLevel === 'warn') {
-        console.warn(`%c${logPrefix} ⚠️ [${localTimestamp}] ${messageText}`, logStylesDictionary.warn, intelligenceMetadata ?? '');
+        console.warn(`%c${logIdentificationPrefix} ⚠️ [${localTimestamp}] ${messageText}`, logStylesDictionary.warn, intelligenceMetadata ?? '');
       } else {
-        console.log(`%c${logPrefix} 📡 [${localTimestamp}] ${messageText}`, logStylesDictionary.info, intelligenceMetadata ?? '');
+        console.log(`%c${logIdentificationPrefix} 📡 [${localTimestamp}] ${messageText}`, logStylesDictionary.info, intelligenceMetadata ?? '');
       }
     }, 0);
   }
@@ -98,7 +100,8 @@ export function nicepodLog(
 let sharedAudioContextInstance: AudioContext | null = null;
 
 /**
- * getSharedAudioContextInstance: Recupera o inicializa el bus de audio global.
+ * getSharedAudioContextInstance: 
+ * Misión: Recuperar o inicializar el bus de audio global de la Workstation.
  */
 export function getSharedAudioCtx() {
   if (typeof window === 'undefined') return null;
@@ -116,7 +119,8 @@ export function getSharedAudioCtx() {
 }
 
 /**
- * cleanTextForSpeech: Saneamiento de narrativa para síntesis neuronal.
+ * sanitizeTextForNeuralSynthesis: 
+ * Misión: Limpieza exhaustiva de narrativa para una síntesis neuronal fluida.
  */
 export function cleanTextForSpeech(rawNarrativeContent: string | null | undefined): string {
   if (!rawNarrativeContent) return "";
@@ -132,7 +136,8 @@ export function cleanTextForSpeech(rawNarrativeContent: string | null | undefine
 }
 
 /**
- * formatTimeDuration: Transmuta segundos en formato cronométrico industrial (MM:SS).
+ * formatDurationAsChronometer: 
+ * Misión: Transmuta segundos en formato cronométrico industrial (Minutos:Segundos).
  */
 export function formatTime(totalSecondsMagnitude: number | undefined | null): string {
   if (totalSecondsMagnitude === undefined || totalSecondsMagnitude === null || !isFinite(totalSecondsMagnitude) || totalSecondsMagnitude < 0) {
@@ -145,45 +150,45 @@ export function formatTime(totalSecondsMagnitude: number | undefined | null): st
 
 /**
  * ---------------------------------------------------------------------------
- * III. GOBERNANZA DE ACTIVOS (SUPABASE STORAGE)
+ * III. GOBERNANZA DE ACTIVOS (SUPABASE STORAGE PERSISTENCE)
  * ---------------------------------------------------------------------------
  */
 
-const SUPABASE_STORAGE_PUBLIC_ROOT_URL = "https://arbojlknwilqcszuqope.supabase.co/storage/v1/object/public";
+const SUPABASE_STORAGE_PUBLIC_ROOT_UNIFORM_RESOURCE_LOCATOR = "https://arbojlknwilqcszuqope.supabase.co/storage/v1/object/public";
 
 /**
- * getSupabaseAssetUniformResourceLocator:
- * Misión: Resolver la ruta física de un activo en el Almacenamiento del Metal.
+ * resolveSupabaseStorageUniformResourceLocator:
+ * Misión: Resolver la dirección física de un activo en el Almacenamiento del Metal.
  */
 export function getSupabaseAsset(assetStoragePath: string | null | undefined): string | null {
   if (!assetStoragePath) return null;
   if (assetStoragePath.startsWith('http')) return assetStoragePath;
 
-  const sanitizedPath = assetStoragePath.startsWith('/') ? assetStoragePath.substring(1) : assetStoragePath;
+  const sanitizedAssetPath = assetStoragePath.startsWith('/') ? assetStoragePath.substring(1) : assetStoragePath;
 
-  // Si el path no incluye el bucket, asumimos el bucket 'podcasts' por defecto.
-  if (!sanitizedPath.includes('/')) {
-    return `${SUPABASE_STORAGE_PUBLIC_ROOT_URL}/podcasts/${sanitizedPath}`;
+  // Resolución por defecto hacia el cubo 'podcasts' si no se especifica jerarquía.
+  if (!sanitizedAssetPath.includes('/')) {
+    return `${SUPABASE_STORAGE_PUBLIC_ROOT_UNIFORM_RESOURCE_LOCATOR}/podcasts/${sanitizedAssetPath}`;
   }
 
-  return `${SUPABASE_STORAGE_PUBLIC_ROOT_URL}/${sanitizedPath}`;
+  return `${SUPABASE_STORAGE_PUBLIC_ROOT_UNIFORM_RESOURCE_LOCATOR}/${sanitizedAssetPath}`;
 }
 
 /**
- * getSafeAssetUniformResourceLocator:
- * Misión: Garantizar una visualización válida mediante fallbacks de alta disponibilidad.
+ * getSecureAssetWithAvailabilityFallback:
+ * Misión: Garantizar una visualización válida mediante fallbacks de alta disponibilidad (CDN).
  */
 export function getSafeAsset(
   assetStoragePath: string | null | undefined,
   assetCategoryType: 'avatar' | 'cover' | 'logo' = 'cover'
 ): string {
-  const resolvedAssetUrl = getSupabaseAsset(assetStoragePath);
+  const resolvedAssetUniformResourceLocator = getSupabaseAsset(assetStoragePath);
 
-  const isResolutionValid = resolvedAssetUrl &&
-    resolvedAssetUrl.trim() !== "" &&
-    resolvedAssetUrl.indexOf('placeholder') === -1;
+  const isResolutionIntegrityValid = resolvedAssetUniformResourceLocator &&
+    resolvedAssetUniformResourceLocator.trim() !== "" &&
+    resolvedAssetUniformResourceLocator.indexOf('placeholder') === -1;
 
-  if (isResolutionValid) return resolvedAssetUrl as string;
+  if (isResolutionIntegrityValid) return resolvedAssetUniformResourceLocator as string;
 
   const contentDeliveryNetworkFallbacksDictionary = {
     avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=NicePodCurator",
@@ -196,36 +201,40 @@ export function getSafeAsset(
 
 /**
  * ---------------------------------------------------------------------------
- * IV. RIGOR GEOESPACIAL (NOMINAL SYNC)
+ * IV. RIGOR GEOESPACIAL (NOMINAL SYNCHRONIZATION)
  * ---------------------------------------------------------------------------
  */
 
 /**
- * formatGeographicCoordinates: Representación técnica de un punto geodésico.
+ * formatGeographicPointCoordinates: 
+ * Misión: Representación técnica legible de un punto geodésico en el espacio.
  */
 export function formatCoordinates(longitudeCoordinate: number, latitudeCoordinate: number): string {
   return `${latitudeCoordinate.toFixed(6)}°N, ${longitudeCoordinate.toFixed(6)}°E`;
 }
 
 /**
- * getDistanceLabel: Métrica de proximidad para el radar de la terminal.
+ * getHumanReadableDistanceLabel: 
+ * Misión: Métrica de proximidad para el radar de la terminal (m o km).
  */
-export function getDistanceLabel(distanceInMeters: number): string {
-  if (distanceInMeters < 1000) return `${Math.round(distanceInMeters)}m`;
-  return `${(distanceInMeters / 1000).toFixed(1)}km`;
+export function getDistanceLabel(distanceInMetersMagnitude: number): string {
+  if (distanceInMetersMagnitude < 1000) {
+    return `${Math.round(distanceInMetersMagnitude)}m`;
+  }
+  return `${(distanceInMetersMagnitude / 1000).toFixed(1)}km`;
 }
 
 /**
  * ---------------------------------------------------------------------------
- * V. PIPELINE DE COMPRESIÓN IMAGEN JIT (HYBRID SHIELD)
+ * V. PIPELINE DE COMPRESIÓN IMAGEN JIT (HYBRID OFF-MAIN-THREAD)
  * ---------------------------------------------------------------------------
  */
 
 /**
- * compressOnMainThread: 
- * El motor de respaldo atómico si el entorno de ejecución es hostil a Web Workers.
+ * executeCompressionOnMainThreadFallback: 
+ * Misión: Motor de respaldo atómico si el entorno no soporta Web Workers o OffscreenCanvas.
  */
-async function compressOnMainThread(
+async function executeCompressionOnMainThreadFallback(
   sourceImageFile: File,
   maximumWidthPixels: number,
   compressionQualityFactor: number
@@ -238,23 +247,23 @@ async function compressOnMainThread(
     htmlImageElement.onload = () => {
       URL.revokeObjectURL(objectUniformResourceLocator);
       const canvasElement = document.createElement('canvas');
-      let targetWidth = htmlImageElement.width;
-      let targetHeight = htmlImageElement.height;
+      let targetWidthPixels = htmlImageElement.width;
+      let targetHeightPixels = htmlImageElement.height;
 
-      if (targetWidth > maximumWidthPixels) {
-        targetHeight = (maximumWidthPixels / targetWidth) * targetHeight;
-        targetWidth = maximumWidthPixels;
+      if (targetWidthPixels > maximumWidthPixels) {
+        targetHeightPixels = (maximumWidthPixels / targetWidthPixels) * targetHeightPixels;
+        targetWidthPixels = maximumWidthPixels;
       }
 
-      canvasElement.width = targetWidth;
-      canvasElement.height = targetHeight;
+      canvasElement.width = targetWidthPixels;
+      canvasElement.height = targetHeightPixels;
       const canvasRenderingContext = canvasElement.getContext('2d');
       
       if (!canvasRenderingContext) return resolve(sourceImageFile);
 
       canvasRenderingContext.imageSmoothingEnabled = true;
       canvasRenderingContext.imageSmoothingQuality = 'high';
-      canvasRenderingContext.drawImage(htmlImageElement, 0, 0, targetWidth, targetHeight);
+      canvasRenderingContext.drawImage(htmlImageElement, 0, 0, targetWidthPixels, targetHeightPixels);
 
       canvasElement.toBlob((resultBlob) => {
         resolve(resultBlob || sourceImageFile);
@@ -269,9 +278,9 @@ async function compressOnMainThread(
 }
 
 /**
- * compressNicePodImage:
- * Director de orquesta de la compresión asíncrona.
- * [PILAR 4]: Desvía la carga computacional fuera del Hilo Principal.
+ * executeAsynchronousImageCompression:
+ * Misión: Director de orquesta de la compresión asíncrona Just-In-Time.
+ * [PILAR 4]: Exilia la carga computacional pesada fuera del Hilo Principal.
  */
 export async function compressNicePodImage(
   sourceImageFile: File,
@@ -280,15 +289,15 @@ export async function compressNicePodImage(
 ): Promise<Blob> {
   if (typeof window === 'undefined') return sourceImageFile;
 
-  // ESCUDO DE COMPATIBILIDAD (Fallback Táctico para Safari/iOS Legacy)
+  // ESCUDO DE COMPATIBILIDAD TÁCTICA (Safari/iOS Legacy Check)
   if (!window.Worker || !window.OffscreenCanvas) {
-    nicepodLog("⚠️ [Compression] OffscreenCanvas no soportado. Delegando al Main Thread.", null, "warn");
-    return compressOnMainThread(sourceImageFile, maximumWidthPixels, compressionQualityFactor);
+    nicepodLog("⚠️ [Compression] OffscreenCanvas no detectado. Utilizando Hilo Principal.");
+    return executeCompressionOnMainThreadFallback(sourceImageFile, maximumWidthPixels, compressionQualityFactor);
   }
 
   return new Promise((resolve) => {
     try {
-      // Instanciación Segura del Trabajador (Web Worker)
+      // Instanciación Segura del Trabajador (Web Worker) utilizando Path raíz.
       const compressionWorkerInstance = new Worker(
         new URL('./workers/compression.worker.ts', import.meta.url), 
         { type: 'module' }
@@ -298,16 +307,16 @@ export async function compressNicePodImage(
         if (messageEvent.data.success) {
           resolve(messageEvent.data.blob);
         } else {
-          nicepodLog("⚠️ [Worker] Fallo interno en hilo secundario. Activando paracaídas.", messageEvent.data.error, "warn");
-          resolve(compressOnMainThread(sourceImageFile, maximumWidthPixels, compressionQualityFactor));
+          nicepodLog("⚠️ [Worker] Fallo en proceso secundario. Activando paracaídas principal.", messageEvent.data.error, "warn");
+          resolve(executeCompressionOnMainThreadFallback(sourceImageFile, maximumWidthPixels, compressionQualityFactor));
         }
-        // [HIGIENE DE HARDWARE]: Destrucción atómica del hilo tras la misión.
+        // [HIGIENE DE HARDWARE]: Destrucción atómica para liberar memoria del proceso.
         compressionWorkerInstance.terminate();
       };
 
       compressionWorkerInstance.onerror = (operationalException) => {
-        nicepodLog("🔥 [Worker] Error crítico de ejecución. Activando paracaídas.", operationalException.message, "error");
-        resolve(compressOnMainThread(sourceImageFile, maximumWidthPixels, compressionQualityFactor));
+        nicepodLog("🔥 [Worker] Error crítico de ejecución.", operationalException.message, "error");
+        resolve(executeCompressionOnMainThreadFallback(sourceImageFile, maximumWidthPixels, compressionQualityFactor));
         compressionWorkerInstance.terminate();
       };
 
@@ -318,8 +327,8 @@ export async function compressNicePodImage(
       });
 
     } catch (operationalException) {
-      nicepodLog("🔥 [Worker] Imposible instanciar hilo secundario. Activando paracaídas.", null, "error");
-      resolve(compressOnMainThread(sourceImageFile, maximumWidthPixels, compressionQualityFactor));
+      nicepodLog("🔥 [Worker] Imposible instanciar bus de datos secundario. Activando respaldo.");
+      resolve(executeCompressionOnMainThreadFallback(sourceImageFile, maximumWidthPixels, compressionQualityFactor));
     }
   });
 }
