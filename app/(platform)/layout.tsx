@@ -1,11 +1,15 @@
 /**
  * ARCHIVO: app/(platform)/layout.tsx
- * VERSIÓN: 5.1 (NicePod Platform Chassis - Forge & Resource Optimization Edition)
- * PROTOCOLO: MADRID RESONANCE V2.8
+ * VERSIÓN: 6.0 (NicePod Platform Chassis - Unified Telemetry & Resource Optimization Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.5
  * 
- * Misión: Proveer el chasis visual transparente y optimizar recursos según la ruta.
- * [REFORMA V5.1]: Aislamiento de la ruta /create para habilitar el Protocolo Clean-Slate.
- * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
+ * Misión: Proveer el chasis visual transparente y orquestar el Ciclo de Vida Global 
+ * de la telemetría, garantizando que el hardware GPS solo se active una vez 
+ * para toda la sesión de la Workstation.
+ * [REFORMA V6.0]: Integración de GeoEngineProvider como Singleton Global de 
+ * plataforma. Sincronización nominal absoluta (ZAP) y optimización de 
+ * Stacking Context para el motor WebGL.
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
@@ -13,16 +17,19 @@
 import React from "react";
 import { usePathname } from "next/navigation";
 
-// --- INFRAESTRUCTURA DE NAVEGACIÓN Y ACCESO ---
+// --- INFRAESTRUCTURA DE NAVEGACIÓN Y ACCESO SOBERANO ---
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { Navigation } from "@/components/navigation";
 
-// --- SERVICIOS DE INFRAESTRUCTURA Y PWA ---
+// --- NÚCLEO DE INTELIGENCIA Y TELEMETRÍA (SINGLETON GLOBAL) ---
+import { GeoEngineProvider } from "@/hooks/use-geo-engine";
+
+// --- SERVICIOS DE INFRAESTRUCTURA Y ESTABILIZACIÓN ---
 import { OfflineIndicator } from '@/components/system/offline-indicator';
 import { ScrollToTop } from "@/components/system/scroll-to-top";
 import { SmoothScrollWrapper } from "@/components/system/smooth-scroll-wrapper";
 
-// --- COMPONENTES DE SALIDA Y ANIMACIÓN ---
+// --- COMPONENTES DE SALIDA Y ANIMACIÓN INDUSTRIAL ---
 import { PlayerOrchestrator } from "@/components/player/player-orchestrator";
 import { PageTransition } from "@/components/system/page-transition";
 import { Toaster } from "@/components/ui/toaster";
@@ -32,51 +39,49 @@ import { cn } from "@/lib/utils";
 
 /**
  * COMPONENTE: PlatformLayout
- * El chasis soberano para la experiencia de usuario autenticado.
+ * El chasis soberano para la experiencia de inteligencia industrial.
  */
 export default function PlatformLayout({
   children
 }: {
   children: React.ReactNode
 }) {
-  const pathname = usePathname();
+  const currentUrlPathname = usePathname();
 
   /**
    * [ANÁLISIS DE ENTORNO TÁCTICO]:
-   * Identificamos si el Voyager está en zonas de alta intensidad WebGL.
-   * isMapActive: Ruta de inmersión total.
-   * isForgeActive: Ruta de creación de contenido (Terminal de Forja).
+   * Identificamos si el Voyager está en zonas de alta intensidad computacional.
    */
-  const isMapActive = pathname?.startsWith('/map');
-  const isForgeActive = pathname?.startsWith('/create');
+  const isMapInterfaceActive = currentUrlPathname?.startsWith('/map');
+  const isForgeTerminalActive = currentUrlPathname?.startsWith('/create');
   
-  // Zonas donde el layout debe ser 100% pasivo para ahorrar GPU/RAM.
-  const isHighIntensityRoute = isMapActive || isForgeActive;
+  // Zonas donde el chasis debe ser pasivo para liberar el Hilo Principal (MTI).
+  const isHighIntensityResourceRoute = isMapInterfaceActive || isForgeTerminalActive;
 
   /**
-   * [CONTENIDO CENTRAL]: 
-   * Núcleo de la interfaz con transparencia atmosférica garantizada.
+   * renderPlatformCoreContent: 
+   * Misión: Proyectar la jerarquía de componentes con transparencia atmosférica.
    */
-  const renderCoreContent = () => (
+  const renderPlatformCoreContent = () => (
     <>
       {/* 
           CAPA NAVEGACIÓN: 
-          Permanece transparente para dejar fluir la luz del BackgroundEngine.
+          Permanece sobre la malla para control global de la terminal.
       */}
       <Navigation />
 
       <main
         className={cn(
           "relative z-10 flex flex-col min-h-screen transition-all duration-500 bg-transparent",
-          // Eliminamos paddings en rutas de inmersión o creación
-          isHighIntensityRoute ? "pt-0" : "pt-[84px] md:pt-[100px]"
+          // Eliminamos paddings en rutas de inmersión para maximizar el reactor WebGL
+          isHighIntensityResourceRoute ? "pt-0" : "pt-[84px] md:pt-[100px]"
         )}
       >
         <PageTransition>
           <div
             className={cn(
               "w-full flex-grow flex flex-col bg-transparent",
-              !isHighIntensityRoute && "px-4 md:px-0"
+              !isHighIntensityResourceRoute && "px-4 md:px-0"
             )}
           >
             {children}
@@ -84,7 +89,7 @@ export default function PlatformLayout({
         </PageTransition>
       </main>
 
-      {/* Terminales de salida de audio y avisos persistentes */}
+      {/* Terminales de salida de audio persistentes y avisos de sistema */}
       <PlayerOrchestrator />
       <Toaster />
     </>
@@ -93,50 +98,48 @@ export default function PlatformLayout({
   return (
     /**
      * CAPA 1: CENTINELA DE SOBERANÍA
-     * Valida la autoridad del Voyager antes de montar el chasis.
+     * Valida la identidad del Administrador antes de despertar los sensores.
      */
     <AuthGuard>
-
+      
       {/* 
-          CAPA 2: COMPOSICIÓN CONDICIONAL DE RECURSOS
-          [MANDATO V5.1]: En rutas de Mapa o Forja, desmontamos el SmoothScrollWrapper.
-          Esto detiene los cálculos de inercia y libera el hilo principal para 
-          el motor WebGL de Mapbox v3 y el procesamiento de la IA.
+          CAPA 2: MOTOR DE TELEMETRÍA UNIFICADO (V4.5)
+          [INTERVENCIÓN ESTRATÉGICA]: Al situar el GeoEngineProvider aquí, el GPS 
+          mantiene la persistencia de la ubicación exacta entre cambios de ruta.
+          El Dashboard, el Mapa y la Forja ahora beben de la misma fuente de verdad.
       */}
-      {isHighIntensityRoute ? (
-        <div className="flex flex-col min-h-screen bg-transparent overflow-hidden isolate">
-          <OfflineIndicator />
-          {renderCoreContent()}
-        </div>
-      ) : (
-        /* 
-           Entorno Estándar (Dashboard / Perfiles):
-           Habilitamos el scroll suavizado pero manteniendo la transparencia base.
-        */
-        <SmoothScrollWrapper>
-          <div className="flex flex-col min-h-screen bg-transparent relative z-10 isolate">
+      <GeoEngineProvider>
+        
+        {/* 
+            CAPA 3: COMPOSICIÓN CONDICIONAL DE RECURSOS (HARDWARE HYGIENE)
+        */}
+        {isHighIntensityResourceRoute ? (
+          <div className="flex flex-col min-h-screen bg-transparent overflow-hidden isolate">
             <OfflineIndicator />
-            <ScrollToTop />
-            {renderCoreContent()}
+            {renderPlatformCoreContent()}
           </div>
-        </SmoothScrollWrapper>
-      )}
+        ) : (
+          <SmoothScrollWrapper>
+            <div className="flex flex-col min-h-screen bg-transparent relative z-10 isolate">
+              <OfflineIndicator />
+              <ScrollToTop />
+              {renderPlatformCoreContent()}
+            </div>
+          </SmoothScrollWrapper>
+        )}
 
+      </GeoEngineProvider>
     </AuthGuard>
   );
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V5.1):
- * 1. Resource Isolation: Al incluir 'isForgeActive' en la purga del SmoothScroll, 
- *    garantizamos que la terminal de creación no tenga interferencias de scroll 
- *    que podrían causar Layout Thrashing durante el anclaje manual del mapa.
- * 2. Visual Stacking Sovereignty: El uso de 'isolate' en los contenedores raíz 
- *    asegura que el BackgroundEngine (Z-20) se mantenga como una atmósfera 
- *    independiente, eliminando parpadeos cromáticos al navegar a la Forja.
- * 3. Atomic Unmounting: El layout ahora facilita que, al navegar a /create, 
- *    el motor de Mapbox del Dashboard sea destruido físicamente por el 
- *    GeoCreatorOverlay (V5.7), recuperando hasta 300MB de VRAM.
- * 4. Zero Regressions: Se mantiene la integridad de Navigation y PlayerOrchestrator, 
- *    asegurando que la música o crónicas no se interrumpan al iniciar la forja.
+ * NOTA TÉCNICA DEL ARCHITECT (V6.0):
+ * 1. Global Telemetry Unification: El motor 'useGeoEngine' ahora es un Singleton para toda 
+ *    la plataforma. La ubicación precisa capturada en el Dashboard es heredada por la 
+ *    Forja en milisegundos, eliminando la latencia de re-triangulación.
+ * 2. Zero Abbreviations Policy (ZAP): Refactorización total de variables de ruta 
+ *    (isMapInterfaceActive, isForgeTerminalActive, currentUrlPathname).
+ * 3. Resource Stewardship: Se preserva el aislamiento de 'SmoothScrollWrapper', liberando 
+ *    ciclos de CPU para el Reactor WebGL en rutas de alta densidad gráfica.
  */
