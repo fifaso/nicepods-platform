@@ -1,26 +1,38 @@
-// types/database-overrides.d.ts
-// VERSIÓN: 1.0 (NicePod Build Shield - PostGIS Integrity Edition)
-// Misión: Erradicar el tipo 'unknown' de las columnas geoespaciales autogeneradas por Supabase.
-// [ESTABILIZACIÓN]: Mapeo síncrono de tipos Geography y Point hacia el estándar GeoPoint.
+/**
+ * ARCHIVO: types/database-overrides.d.ts
+ * VERSIÓN: 2.0 (NicePod Build Shield - PostGIS & Multidimensional Integrity Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.2
+ * 
+ * Misión: Erradicar el tipo 'unknown' de las columnas geoespaciales y el tipo 'Json' 
+ * de los campos de inteligencia autogenerados por Supabase, forzando la integridad 
+ * del Build Shield en toda la capa de persistencia.
+ * [REFORMA V2.0]: Implementación de la Zero Abbreviations Policy (ZAP). Mapeo 
+ * síncrono de columnas 'Geography' hacia 'GeoPoint' y campos 'JSONB' hacia 
+ * contratos industriales específicos (CreationMetadataPayload, ResearchSource).
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ */
 
 import { Database as DatabaseGenerated } from './database.types';
-import { GeoPoint } from './geo-sovereignty';
+import { GeoPoint, IngestionDossier } from './geo-sovereignty';
+import { 
+  CreationMetadataPayload, 
+  ResearchSource, 
+  PodcastScript 
+} from './podcast';
 
 /**
  * ---------------------------------------------------------------------------
  * I. CONSTITUCIÓN DEL ESCUDO (TYPE AUGMENTATION)
  * ---------------------------------------------------------------------------
- * En lugar de modificar el archivo autogenerado (que se sobrescribe en cada push),
- * creamos un 'SovereignDatabase' que hereda la estructura pero 'sana' 
- * las columnas de PostGIS.
+ * Misión: Crear un 'SovereignDatabase' que hereda la estructura del Metal
+ * pero 'sana' las columnas binarias, geográficas y de inteligencia.
  */
-
 export type SovereignDatabase = DatabaseGenerated & {
   public: {
     Tables: {
       /**
        * TABLE: points_of_interest
-       * Sanamos 'geo_location' y 'embedding' (vector).
+       * Sanamos la localización PostGIS y el vector de memoria semántica.
        */
       points_of_interest: {
         Row: DatabaseGenerated['public']['Tables']['points_of_interest']['Row'] & {
@@ -39,23 +51,48 @@ export type SovereignDatabase = DatabaseGenerated & {
 
       /**
        * TABLE: micro_pods
-       * Sanamos la columna de anclaje geográfico del podcast.
+       * Sanamos los campos JSONB de inteligencia y el anclaje geográfico.
        */
       micro_pods: {
         Row: DatabaseGenerated['public']['Tables']['micro_pods']['Row'] & {
           geo_location: GeoPoint | null;
+          creation_data: CreationMetadataPayload | null;
+          sources: ResearchSource[] | null;
+          script_text: PodcastScript | null;
         };
         Insert: DatabaseGenerated['public']['Tables']['micro_pods']['Insert'] & {
           geo_location?: GeoPoint | null;
+          creation_data?: CreationMetadataPayload | null;
+          sources?: ResearchSource[] | null;
+          script_text?: PodcastScript | null;
         };
         Update: DatabaseGenerated['public']['Tables']['micro_pods']['Update'] & {
           geo_location?: GeoPoint | null;
+          creation_data?: CreationMetadataPayload | null;
+          sources?: ResearchSource[] | null;
+          script_text?: PodcastScript | null;
+        };
+      };
+
+      /**
+       * TABLE: point_of_interest_ingestion_buffer
+       * Sanamos el dossier de peritaje devuelto por el Oráculo.
+       */
+      point_of_interest_ingestion_buffer: {
+        Row: DatabaseGenerated['public']['Tables']['point_of_interest_ingestion_buffer']['Row'] & {
+          visual_analysis_dossier: IngestionDossier['visual_analysis_dossier'] | null;
+        };
+        Insert: DatabaseGenerated['public']['Tables']['point_of_interest_ingestion_buffer']['Insert'] & {
+          visual_analysis_dossier?: IngestionDossier['visual_analysis_dossier'] | null;
+        };
+        Update: DatabaseGenerated['public']['Tables']['point_of_interest_ingestion_buffer']['Update'] & {
+          visual_analysis_dossier?: IngestionDossier['visual_analysis_dossier'] | null;
         };
       };
 
       /**
        * TABLE: geo_drafts_staging
-       * Sanamos la ubicación de escaneo temporal.
+       * Sanamos la ubicación de escaneo temporal (Triangulación IP/GPS).
        */
       geo_drafts_staging: {
         Row: DatabaseGenerated['public']['Tables']['geo_drafts_staging']['Row'] & {
@@ -70,24 +107,8 @@ export type SovereignDatabase = DatabaseGenerated & {
       };
 
       /**
-       * TABLE: place_memories
-       * Sanamos la localización de la memoria urbana.
-       */
-      place_memories: {
-        Row: DatabaseGenerated['public']['Tables']['place_memories']['Row'] & {
-          geo_location: GeoPoint | null;
-        };
-        Insert: DatabaseGenerated['public']['Tables']['place_memories']['Insert'] & {
-          geo_location?: GeoPoint | null;
-        };
-        Update: DatabaseGenerated['public']['Tables']['place_memories']['Update'] & {
-          geo_location?: GeoPoint | null;
-        };
-      };
-
-      /**
        * TABLE: user_resonance_profiles
-       * Sanamos el centro geométrico de resonancia del usuario.
+       * Sanamos el centro geométrico del universo semántico del Voyager.
        */
       user_resonance_profiles: {
         Row: DatabaseGenerated['public']['Tables']['user_resonance_profiles']['Row'] & {
@@ -106,27 +127,29 @@ export type SovereignDatabase = DatabaseGenerated & {
 
 /**
  * ---------------------------------------------------------------------------
- * II. UTILIDADES DE EXTRACCIÓN SOBERANA
+ * II. UTILIDADES DE EXTRACCIÓN SOBERANA (BUILD SHIELD HELPERS)
  * ---------------------------------------------------------------------------
- * Estas versiones de 'Tables' y 'Enums' deben ser las preferidas en el código
- * de la plataforma para asegurar el cumplimiento del Build Shield.
+ * Misión: Proveer tipos derivados que respeten la sanación del Metal.
  */
 
-export type SovereignTables<T extends keyof SovereignDatabase['public']['Tables']> =
-  SovereignDatabase['public']['Tables'][T]['Row'];
-
-export type SovereignInsert<T extends keyof SovereignDatabase['public']['Tables']> =
-  SovereignDatabase['public']['Tables'][T]['Insert'];
+/**
+ * SovereignTables: Tipo de fila (Row) con integridad PostGIS y JSONB garantizada.
+ */
+export type SovereignTables<TableName extends keyof SovereignDatabase['public']['Tables']> =
+  SovereignDatabase['public']['Tables'][TableName]['Row'];
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V1.0):
- * 1. Aniquilación de 'as any': Al usar SovereignTables<'points_of_interest'>, 
- *    TypeScript sabrá que '.geo_location' tiene una propiedad '.coordinates' 
- *    que es un array [number, number].
- * 2. Soporte Vectorial: También hemos sanado la columna 'embedding', 
- *    transformándola de 'string | null' (como la lee Supabase) a 'number[] | null', 
- *    que es lo que realmente procesa el Kernel de IA.
- * 3. Mantenimiento Zero-Cost: Este archivo no necesita actualizarse cada vez 
- *    que cambie el esquema, a menos que se añada una NUEVA columna geoespacial 
- *    o vectorial en una tabla diferente.
+ * SovereignInsert: Tipo de inserción compatible con el rigor pericial de NicePod.
+ */
+export type SovereignInsert<TableName extends keyof SovereignDatabase['public']['Tables']> =
+  SovereignDatabase['public']['Tables'][TableName]['Insert'];
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V2.0):
+ * 1. Build Shield Absolute: Al usar SovereignTables<'micro_pods'>, el compilador TypeScript 
+ *    sabrá que 'sources' es un array de 'ResearchSource' y no un tipo 'Json' genérico.
+ * 2. PostGIS Native Mapping: Se ha erradicado el tipo 'unknown' de todas las columnas 
+ *    de localización, permitiendo el acceso directo a '.coordinates' [longitud, latitud].
+ * 3. ZAP Enforcement: Se han renombrado todos los parámetros genéricos (TableName) 
+ *    y se han expandido los términos en los comentarios técnicos del archivo.
  */
