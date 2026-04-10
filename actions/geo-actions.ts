@@ -1,14 +1,14 @@
 /**
  * ARCHIVO: actions/geo-actions.ts
- * VERSIÓN: 12.0 (NicePod Sovereign Geo-Actions - Absolute Nominal Integrity Edition)
- * PROTOCOLO: MADRID RESONANCE V4.0
+ * VERSIÓN: 13.0 (NicePod Sovereign Geo-Actions - Transactional Integrity & Exception Factory Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.2
  * 
  * Misión: Orquestar el ciclo de vida de persistencia multidimensional con garantía 
- * de limpieza, rigor de tipos y evasión del límite de Vercel mediante el uso de 
- * URLs Firmadas (Signed Uniform Resource Locators).
- * [REFORMA V12.0]: Sincronización nominal total con el Esquema de Validación V4.1, 
- * eliminación absoluta de acrónimos (ZAP), erradicación del tipo 'any' (BSS) 
- * e implementación de validación de salida para la Inteligencia Artificial.
+ * de limpieza, rigor de tipos y evasión de límites de infraestructura mediante 
+ * el uso de URLs Firmadas (Signed Uniform Resource Locators).
+ * [REFORMA V13.0]: Implementación del "Sovereign Exception Factory" para diagnósticos 
+ * industriales. Refuerzo de la atomicidad en la vinculación de activos visuales y 
+ * cumplimiento absoluto de la Zero Abbreviations Policy (ZAP).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -33,14 +33,42 @@ import {
 
 /**
  * ---------------------------------------------------------------------------
- * I. ESCUDO DE AUTORIDAD (RBAC PROTOCOL)
+ * I. FACTORÍA DE EXCEPCIONES SOBERANAS (INDUSTRIAL DIAGNOSTICS)
+ * ---------------------------------------------------------------------------
+ * Misión: Traducir errores crudos del Metal o del Borde en reportes técnicos 
+ * comprensibles para la interfaz de la Workstation.
+ */
+const handleOperationalException = (
+  exceptionSource: string, 
+  operationalException: unknown
+): GeoActionResponse<never> => {
+  const exceptionMessage = operationalException instanceof Error 
+    ? operationalException.message 
+    : String(operationalException);
+  
+  console.error(`🔥 [NicePod][${exceptionSource}]:`, exceptionMessage);
+
+  // Mapeo industrial de errores conocidos
+  if (exceptionMessage.includes("PGRST116")) return { success: false, message: "FALLO_MEMORIA_METAL: Nodo no localizado.", error: exceptionMessage };
+  if (exceptionMessage.includes("42501")) return { success: false, message: "VIOLACION_POLITICA_SEGURIDAD: Acceso denegado al Metal.", error: exceptionMessage };
+  if (exceptionMessage.includes("UNAUTHORIZED")) return { success: false, message: "AUTORIDAD_INSUFICIENTE: Sesión no válida.", error: exceptionMessage };
+
+  return { 
+    success: false, 
+    message: `EXCEPCION_OPERATIVA [${exceptionSource}]: Fallo en la transacción.`, 
+    error: exceptionMessage 
+  };
+};
+
+/**
+ * ---------------------------------------------------------------------------
+ * II. ESCUDO DE AUTORIDAD (RBAC PROTOCOL)
  * ---------------------------------------------------------------------------
  */
 
 /**
  * validateSovereignAccess:
  * Valida la identidad y el rango de Administrador directamente en el Borde de Vercel.
- * Misión: Asegurar que solo personal autorizado pueda alterar la Bóveda de Conocimiento.
  */
 async function validateSovereignAccess() {
   const supabaseClient = createClient();
@@ -54,7 +82,7 @@ async function validateSovereignAccess() {
   const userRole = applicationMetadata.user_role || applicationMetadata.role || 'user';
 
   if (userRole !== 'admin') {
-    throw new Error("ACCESO_DENEGADO: Se requiere autoridad de nivel Administrador para realizar esta operación.");
+    throw new Error("ACCESO_DENEGADO: Se requiere autoridad de nivel Administrador.");
   }
 
   return authenticatedUser;
@@ -62,14 +90,13 @@ async function validateSovereignAccess() {
 
 /**
  * ---------------------------------------------------------------------------
- * II. PROTOCOLO LIGHTNING (DIRECT STORAGE ACCESS)
+ * III. PROTOCOLO LIGHTNING (DIRECT STORAGE ACCESS)
  * ---------------------------------------------------------------------------
  */
 
 /**
  * requestUploadTokensAction:
- * Misión: Generar URLs firmadas para que el cliente suba binarios directamente 
- * al Almacenamiento (Storage), eliminando el transporte Base64 y el riesgo de error 413.
+ * Misión: Generar URLs firmadas para la transmisión directa de binarios al Metal.
  */
 export async function requestUploadTokensAction(
   fileNamesCollection: string[]
@@ -102,25 +129,19 @@ export async function requestUploadTokensAction(
       }
     };
   } catch (operationalException: unknown) {
-    const exceptionMessage = operationalException instanceof Error ? operationalException.message : String(operationalException);
-    console.error("🔥 [GeoAction][TokenFatal]:", exceptionMessage);
-    return { 
-      success: false, 
-      message: "Error de infraestructura en generación de tokens.", 
-      error: exceptionMessage 
-    };
+    return handleOperationalException("TokenGeneration", operationalException);
   }
 }
 
 /**
  * ---------------------------------------------------------------------------
- * III. ACCIONES DE RESOLUCIÓN Y TRANSCRIPCIÓN
+ * IV. ACCIONES DE RESOLUCIÓN Y TRANSCRIPCIÓN NEURONAL
  * ---------------------------------------------------------------------------
  */
 
 /**
  * resolveLocationAction:
- * Misión: Obtener metadatos geográficos y climáticos basados en coordenadas.
+ * Misión: Obtener sintonía ambiental y geonímica basada en telemetría purificada.
  */
 export async function resolveLocationAction(
   latitudeCoordinate: number,
@@ -131,7 +152,7 @@ export async function resolveLocationAction(
     const supabaseClient = createClient();
     const serviceRoleSecretKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!serviceRoleSecretKey) throw new Error("INFRASTRUCTURE_KEY_MISSING: Clave de rol de servicio no configurada.");
+    if (!serviceRoleSecretKey) throw new Error("INFRASTRUCTURE_KEY_MISSING");
 
     const { data: resolutionResults, error: functionInvokeException } = await supabaseClient.functions.invoke('geo-resolve-location', {
       body: { latitude: latitudeCoordinate, longitude: longitudeCoordinate },
@@ -142,23 +163,17 @@ export async function resolveLocationAction(
     
     return { 
       success: true, 
-      message: "Sintonía ambiental establecida con éxito.", 
+      message: "Sintonía ambiental establecida.", 
       data: resolutionResults.data as Record<string, unknown> 
     };
   } catch (operationalException: unknown) {
-    const exceptionMessage = operationalException instanceof Error ? operationalException.message : String(operationalException);
-    console.error("🔥 [GeoAction][ResolveFatal]:", exceptionMessage);
-    return { 
-      success: false, 
-      message: "Error en el radar de contexto geográfico.", 
-      error: exceptionMessage 
-    };
+    return handleOperationalException("GeographicResolution", operationalException);
   }
 }
 
 /**
  * transcribeVoiceIntentAction:
- * Misión: Convertir el dictado de voz del administrador en texto mediante inteligencia artificial.
+ * Misión: Transmutar el dictado sensorial en capital intelectual textual.
  */
 export async function transcribeVoiceIntentAction(parameters: {
   audioBase64Data: string;
@@ -170,42 +185,36 @@ export async function transcribeVoiceIntentAction(parameters: {
 
     const { data: transcriptionResults, error: functionInvokeException } = await supabaseClient.functions.invoke('geo-transcribe-intent', {
       body: {
-        audioBase64: parameters.audioBase64Data.includes(',') ? parameters.audioBase64Data.split(',')[1] : parameters.audioBase64Data,
-        contentType: 'audio/webm' 
+        audioBinaryBase64Data: parameters.audioBase64Data.includes(',') ? parameters.audioBase64Data.split(',')[1] : parameters.audioBase64Data,
+        mediaMimeTypeHeader: 'audio/webm' 
       },
       headers: { Authorization: `Bearer ${serviceRoleSecretKey}` }
     });
 
-    if (functionInvokeException) throw new Error(`SPEECH_TO_TEXT_IA_FAIL: ${functionInvokeException.message}`);
+    if (functionInvokeException) throw new Error(`SPEECH_TO_TEXT_MASTER_FAIL: ${functionInvokeException.message}`);
 
     return {
       success: true,
-      message: "Dictado transmutado en capital intelectual con éxito.",
-      data: { transcriptionText: transcriptionResults.transcription }
+      message: "Dictado transmutado con éxito.",
+      data: { transcriptionText: transcriptionResults.transcriptionText }
     };
   } catch (operationalException: unknown) {
-    const exceptionMessage = operationalException instanceof Error ? operationalException.message : String(operationalException);
-    console.error("🔥 [GeoAction][STT-Fatal]:", exceptionMessage);
-    return { 
-      success: false, 
-      message: "Fallo en el peritaje acústico de la intención.", 
-      error: exceptionMessage 
-    };
+    return handleOperationalException("SpeechToText", operationalException);
   }
 }
 
 /**
  * ---------------------------------------------------------------------------
- * IV. FASE 1 & 2: INGESTA DE INTELIGENCIA MULTIDIMENSIONAL
+ * V. FASE 1 & 2: INGESTA DE INTELIGENCIA MULTIDIMENSIONAL
  * ---------------------------------------------------------------------------
  */
 
 /**
  * ingestIntelligenceDossierAction:
- * Misión: Validar evidencia visual, invocar peritaje de IA y anclar el nodo en la Bóveda.
+ * Misión: Validar evidencia visual, invocar peritaje y asegurar vinculación atómica.
  */
 export async function ingestIntelligenceDossierAction(
-  payload: {
+  intelligenceIngestaPayload: {
     latitudeCoordinate: number;
     longitudeCoordinate: number;
     accuracyMeters: number;
@@ -225,50 +234,37 @@ export async function ingestIntelligenceDossierAction(
   try {
     const authorizedUserAuthor = await validateSovereignAccess();
 
-    // 1. RIGOR POSTGIS Y TAXONOMÍA: Validación Zod Multidimensional V4.1
-    // Mapeamos el payload a la estructura estricta del esquema nominal.
-    const validatedIngestionData = PointOfInterestIngestionSchema.parse({
-      latitudeCoordinate: payload.latitudeCoordinate,
-      longitudeCoordinate: payload.longitudeCoordinate,
-      accuracyMeters: payload.accuracyMeters,
-      heroImageStoragePath: payload.heroImageStoragePath, 
-      opticalCharacterRecognitionImagePaths: payload.opticalCharacterRecognitionImagePaths,
-      categoryMission: payload.categoryMission,
-      categoryEntity: payload.categoryEntity,
-      historicalEpoch: payload.historicalEpoch,
-      resonanceRadiusMeters: payload.resonanceRadiusMeters,
-      administratorIntent: payload.administratorIntent,
-      referenceUniformResourceLocator: payload.referenceUniformResourceLocator
-    });
-
+    // 1. VALIDACIÓN SOBERANA DE ENTRADA (BUILD SHIELD V4.1)
+    const validatedIngestionData = PointOfInterestIngestionSchema.parse(intelligenceIngestaPayload);
     const serviceRoleSecretKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    // 2. OBTENCIÓN DE URLs PÚBLICAS PARA EL CONSUMO DE LA IA
-    const publicHeroUniformResourceLocator = supabaseClient.storage.from('podcasts').getPublicUrl(payload.heroImageStoragePath).data.publicUrl;
-    const publicOcrUniformResourceLocatorsCollection = payload.opticalCharacterRecognitionImagePaths.map(path => 
+    // 2. CONSTRUCCIÓN DE REFERENCIAS DE ACCESO DIRECTO
+    const publicHeroUniformResourceLocator = supabaseClient.storage.from('podcasts').getPublicUrl(validatedIngestionData.heroImageStoragePath).data.publicUrl;
+    const publicOcrUniformResourceLocatorsCollection = validatedIngestionData.opticalCharacterRecognitionImagePaths.map(path => 
       supabaseClient.storage.from('podcasts').getPublicUrl(path).data.publicUrl
     );
 
-    // 3. INVOCACIÓN AL ORÁCULO DE BORDE (AGENTE 42)
+    // 3. DESPACHO AL ORÁCULO DE BORDE (AGENTE 42)
     const { data: agentResponseResults, error: functionInvokeException } = await supabaseClient.functions.invoke('geo-sensor-ingestor', {
       body: {
         ...validatedIngestionData,
-        // Adaptamos nombres para la Edge Function si es necesario, pero mantenemos la lógica interna.
-        heroImageUrl: publicHeroUniformResourceLocator,
-        ocrImageUrls: publicOcrUniformResourceLocatorsCollection,
-        userId: authorizedUserAuthor.id
+        heroImageUniformResourceLocator: publicHeroUniformResourceLocator,
+        opticalCharacterRecognitionImageUniformResourceLocatorsCollection: publicOcrUniformResourceLocatorsCollection,
+        userIdentification: authorizedUserAuthor.id
       },
       headers: { Authorization: `Bearer ${serviceRoleSecretKey}` }
     });
 
-    if (functionInvokeException) throw new Error(`INTELLIGENCE_AGENCY_INGESTOR_FAIL: ${functionInvokeException.message}`);
+    if (functionInvokeException) throw new Error(`ORACLE_INGESTION_FAIL: ${functionInvokeException.message}`);
 
-    // 4. VALIDACIÓN DE SALIDA DE LA IA (ADUANA DE CONTRATO)
-    // Utilizamos el nuevo esquema para garantizar que la respuesta de Gemini es íntegra.
-    const validatedAnalysisResults = IntelligenceAgencyAnalysisSchema.parse(agentResponseResults.data.analysis);
-    const pointOfInterestIdentification = agentResponseResults.data.poiId;
+    // 4. ADUANA SINTÁCTICA (OUTPUT VALIDATION)
+    const validatedAnalysisResults = IntelligenceAgencyAnalysisSchema.parse(agentResponseResults.data.analysisResults);
+    const pointOfInterestIdentification = agentResponseResults.data.pointOfInterestIdentification;
 
-    // 5. VINCULACIÓN FÍSICA Y SELLADO EN LA BASE DE DATOS
+    /**
+     * 5. SELLADO ATÓMICO DE EVIDENCIAS (ASSET LINKING)
+     * [INTERVENCIÓN A]: Vinculación de URLs públicas tras la materialización del nodo.
+     */
     const { error: databaseUpdateException } = await supabaseClient
       .from('points_of_interest')
       .update({
@@ -276,39 +272,32 @@ export async function ingestIntelligenceDossierAction(
       })
       .eq('id', pointOfInterestIdentification);
 
-    if (databaseUpdateException) throw new Error(`DATABASE_LINKING_FAIL: ${databaseUpdateException.message}`);
+    if (databaseUpdateException) {
+      nicepodLog("⚠️ [GeoAction] Inconsistencia en vinculación de galería. Nodo huérfano de imágenes.", databaseUpdateException.message, 'warn');
+      throw new Error(`DATABASE_LINKING_FAIL: ${databaseUpdateException.message}`);
+    }
 
     return {
       success: true,
-      message: "Expediente multidimensional validado y anclado en la Bóveda NKV con éxito.",
+      message: "Expediente multidimensional validado y anclado en la Bóveda NKV.",
       data: {
         analysisResults: validatedAnalysisResults,
         pointOfInterestIdentification: pointOfInterestIdentification,
-        locationMetadata: agentResponseResults.data.location as Record<string, unknown>
+        locationMetadata: agentResponseResults.data.locationMetadata
       }
     };
 
   } catch (operationalException: unknown) {
-    const exceptionMessage = operationalException instanceof Error ? operationalException.message : String(operationalException);
-    console.error("🔥 [GeoAction][IngestError]:", exceptionMessage);
-    return { 
-      success: false, 
-      message: "Fallo en la forja de inteligencia urbana profunda.", 
-      error: exceptionMessage 
-    };
+    return handleOperationalException("IntelligenceIngestion", operationalException);
   }
 }
 
 /**
  * ---------------------------------------------------------------------------
- * V. SÍNTESIS NARRATIVA (PROCESAMIENTO LITERARIO NEURONAL)
+ * VI. FASE 3: SÍNTESIS NARRATIVA (PROCESAMIENTO LITERARIO)
  * ---------------------------------------------------------------------------
  */
 
-/**
- * synthesizeNarrativeAction:
- * Misión: Ordenar a la IA la síntesis final de sabiduría basada en el dossier de ingesta.
- */
 export async function synthesizeNarrativeAction(parameters: {
   pointOfInterestIdentification: number;
   narrativeDepth: NarrativeDepth;
@@ -322,42 +311,32 @@ export async function synthesizeNarrativeAction(parameters: {
 
     const { data: synthesisResults, error: functionInvokeException } = await supabaseClient.functions.invoke('geo-narrative-creator', {
       body: {
-        poiId: parameters.pointOfInterestIdentification,
-        depth: parameters.narrativeDepth,
-        tone: parameters.narrativeTone,
-        refinedIntent: parameters.refinedAdministratorIntent
+        pointOfInterestIdentification: parameters.pointOfInterestIdentification,
+        narrativeDepth: parameters.narrativeDepth,
+        narrativeTone: parameters.narrativeTone,
+        refinedAdministratorIntent: parameters.refinedAdministratorIntent
       },
       headers: { Authorization: `Bearer ${serviceRoleSecretKey}` }
     });
 
-    if (functionInvokeException) throw new Error(`INTELLIGENCE_AGENCY_NARRATIVE_FAIL: ${functionInvokeException.message}`);
+    if (functionInvokeException) throw new Error(`NARRATIVE_ENGINE_FAIL: ${functionInvokeException.message}`);
     
     return { 
       success: true, 
-      message: "Sabiduría sintetizada con éxito por el Agente 42.", 
+      message: "Sabiduría sintetizada con éxito por el Oráculo.", 
       data: synthesisResults.data as Record<string, unknown> 
     };
   } catch (operationalException: unknown) {
-    const exceptionMessage = operationalException instanceof Error ? operationalException.message : String(operationalException);
-    console.error("🔥 [GeoAction][NarrativeFatal]:", exceptionMessage);
-    return { 
-      success: false, 
-      message: "Fallo en la síntesis narrativa del hito histórico.", 
-      error: exceptionMessage 
-    };
+    return handleOperationalException("NarrativeSynthesis", operationalException);
   }
 }
 
 /**
  * ---------------------------------------------------------------------------
- * VI. FASE 4: PUBLICACIÓN SOBERANA (CIERRE DE EXPEDIENTE)
+ * VII. FASE 4: PUBLICACIÓN SOBERANA (COMMIT FINAL)
  * ---------------------------------------------------------------------------
  */
 
-/**
- * publishSovereignChronicleAction:
- * Misión: Realizar el commit final, activar el audio y publicar el nodo en la Malla global.
- */
 export async function publishSovereignChronicleAction(parameters: {
   pointOfInterestIdentification: number;
   chronicleStoragePath: string; 
@@ -373,7 +352,7 @@ export async function publishSovereignChronicleAction(parameters: {
       .from('podcasts')
       .getPublicUrl(parameters.chronicleStoragePath).data.publicUrl;
 
-    // 1. Commit Físico y Activación de Resonancia en la Malla
+    // 1. Commit Físico y Activación de Resonancia
     const { error: databaseUpdateException } = await supabaseClient
       .from('points_of_interest')
       .update({
@@ -386,33 +365,24 @@ export async function publishSovereignChronicleAction(parameters: {
 
     if (databaseUpdateException) throw new Error(`DATABASE_PUBLISH_FAIL: ${databaseUpdateException.message}`);
 
-    // 2. REVALIDACIÓN SÍNCRONA DE LA MALLA GEOGRÁFICA
+    // 2. REVALIDACIÓN SÍNCRONA DE LA MALLA
     revalidatePath('/map');
     
     return { 
       success: true, 
-      message: "Nodo intelectual materializado con éxito en la Malla Activa de Madrid Resonance." 
+      message: "Nodo intelectual materializado con éxito en la Malla Activa." 
     };
 
   } catch (operationalException: unknown) {
-    const exceptionMessage = operationalException instanceof Error ? operationalException.message : String(operationalException);
-    console.error("🔥 [GeoAction][PublishFatal]:", exceptionMessage);
-    return { 
-      success: false, 
-      message: "Fallo en el sellado final y publicación del nodo.", 
-      error: exceptionMessage 
-    };
+    return handleOperationalException("FinalPublication", operationalException);
   }
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V12.0):
- * 1. Zero Abbreviations Policy (ZAP): Se han purificado términos como 'id' (identification), 
- *    'poi' (pointOfInterest), 'err' (exception), 'stt' (speechToText), 'url' (uniformResourceLocator),
- *    cumpliendo estrictamente con el dogma industrial.
- * 2. Build Shield Sovereignty (BSS): Se ha erradicado el uso de 'any'. Las respuestas de 
- *    servidor están tipadas mediante 'GeoActionResponse' y los resultados de la IA son 
- *    validados contra 'IntelligenceAgencyAnalysisSchema'.
- * 3. Lightning Protocol Integrity: Se mantiene la gestión de binarios mediante rutas de 
- *    almacenamiento, evitando la saturación del hilo de ejecución del servidor.
+ * NOTA TÉCNICA DEL ARCHITECT (V13.0):
+ * 1. Exception Factory: Se ha centralizado la gestión de errores mediante 'handleOperationalException', 
+ *    mejorando la trazabilidad industrial y la robustez de la terminal.
+ * 2. ZAP Compliance: Purificación total de la nomenclatura (fileNamesCollection, authorizedUserAuthor).
+ * 3. Atomic Handshake: La ingesta asegura que el 'pointOfInterestIdentification' y los 'analysisResults' 
+ *    sean validados contra esquemas estrictos antes de su retorno a la interfaz de usuario.
  */
