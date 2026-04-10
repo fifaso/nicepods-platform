@@ -1,14 +1,14 @@
 /**
  * ARCHIVO: hooks/geo-engine/telemetry-core.tsx
- * VERSIÓN: 3.2 (NicePod Sovereign Telemetry - Hardware Handshake & Type Safety Edition)
- * PROTOCOLO: MADRID RESONANCE V4.0
+ * VERSIÓN: 4.0 (NicePod Sovereign Telemetry Core - Final Nominal Sync & Contractual Seal)
+ * PROTOCOLO: MADRID RESONANCE V4.2
  * 
  * Misión: Gestionar la ubicación física del Voyager purificando la telemetría, 
  * garantizando la integridad del contrato de datos inicial y aplicando 
  * el protocolo de Aislamiento Térmico (Hibernación de Hardware).
- * [REFORMA V3.2]: Resolución definitiva de errores TS2322 (initialData mismatch) 
- * y TS2367 (TelemetrySource comparison). Sincronización nominal total con 
- * la Constitución de Soberanía V8.6.
+ * [REFORMA V4.0]: Sincronización nominal absoluta con la Constitución V8.6 y 
+ * use-sensor-authority V6.1. Resolución definitiva de errores TS2339 mediante 
+ * el mapeo a propiedades industriales (latitudeCoordinate, geographicSource, etc.).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -73,8 +73,7 @@ export function TelemetryProvider({
   
   /**
    * 1. CONSUMO DEL CENTINELA DE HARDWARE (NATIVO)
-   * [FIX V3.2]: Mapeo de adaptación para satisfacer la interfaz de useSensorAuthority.
-   * Se transforman las propiedades industriales a las propiedades esperadas por el hook base.
+   * [SINCRO V4.0]: El hook useSensorAuthority ya devuelve objetos de tipo UserLocation.
    */
   const {
     telemetry: rawHardwareTelemetry,
@@ -125,7 +124,7 @@ export function TelemetryProvider({
 
   /**
    * EFECTO: FILTRADO DE AUTORIDAD Y EMISIÓN CINEMÁTICA
-   * Misión: Transformar la lectura cruda de hardware en telemetría purificada.
+   * Misión: Transformar la lectura cruda de hardware en telemetría purificada para la Malla.
    */
   useEffect(() => {
     // El anclaje manual prevalece sobre la telemetría de hardware en la toma de decisiones.
@@ -136,19 +135,11 @@ export function TelemetryProvider({
 
     if (rawHardwareTelemetry) {
       /**
-       * MAPEADOR DE FUENTE DE TELEMETRÍA:
-       * [FIX V3.2]: Se elimina la comparación errónea con 'manual-anchor' en el bloque de 
-       * hardware, ya que el sensor físico nunca emitirá una fuente de tipo manual.
+       * [FIX V4.0]: Resolución de errores TS2339.
+       * Acceso directo a propiedades nominales de UserLocation (Constitution V8.6).
        */
-      let currentTelemetrySource: TelemetrySource = 'internet-protocol-fallback';
-      
-      if (rawHardwareTelemetry.source === 'gps') {
-        currentTelemetrySource = 'global-positioning-system';
-      } else if (rawHardwareTelemetry.source === 'cache') {
-        currentTelemetrySource = 'cache';
-      }
-
-      const currentHardwareAccuracyMagnitude = rawHardwareTelemetry.accuracy || 9999;
+      const currentHardwareAccuracyMagnitude = rawHardwareTelemetry.accuracyMeters || 9999;
+      const currentTelemetrySource = rawHardwareTelemetry.geographicSource;
 
       /**
        * PROTOCOLO DE SOBERANÍA:
@@ -166,11 +157,11 @@ export function TelemetryProvider({
       }
 
       const sanitizedLocation: UserLocation = {
-        latitudeCoordinate: rawHardwareTelemetry.latitude,
-        longitudeCoordinate: rawHardwareTelemetry.longitude,
+        latitudeCoordinate: rawHardwareTelemetry.latitudeCoordinate,
+        longitudeCoordinate: rawHardwareTelemetry.longitudeCoordinate,
         accuracyMeters: currentHardwareAccuracyMagnitude,
-        headingDegrees: rawHardwareTelemetry.heading,
-        speedMetersPerSecond: rawHardwareTelemetry.speed,
+        headingDegrees: rawHardwareTelemetry.headingDegrees,
+        speedMetersPerSecond: rawHardwareTelemetry.speedMetersPerSecond,
         geographicSource: currentTelemetrySource,
         timestamp: rawHardwareTelemetry.timestamp
       };
@@ -198,8 +189,7 @@ export function TelemetryProvider({
         const isHardJumpDetected = physicalMovementDistanceMagnitude > TELEPORT_THRESHOLD_METERS;
 
         /**
-         * FILTRADO CINEMÁTICO: Solo emitimos si hay cambios tangibles en el espacio 
-         * para evitar el Main Thread Thrashing.
+         * FILTRADO CINEMÁTICO: Solo emitimos si hay cambios tangibles en el espacio.
          */
         if (
           physicalMovementDistanceMagnitude > EMISSION_THRESHOLD_METERS || 
@@ -223,7 +213,7 @@ export function TelemetryProvider({
   }, [rawHardwareTelemetry, manualGeographicAnchor, isGeographicallyTriangulated]);
 
   /**
-   * API SOBERANA DE TELEMETRÍA (Contrato Final V3.2)
+   * API SOBERANA DE TELEMETRÍA (Contrato Final V4.0)
    */
   const telemetryApplicationProgrammingInterface: TelemetryCoreReturn = {
     userLocation: userGeographicLocation,
@@ -278,11 +268,11 @@ export const useGeoTelemetry = () => {
 };
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V3.2):
- * 1. Hardware Adaptability: Se resolvió el error de tipos TS2322 mapeando los datos 
- *    purificados a la interfaz propietaria del sensor (lat/lng/city).
- * 2. Logical Purity: Se corrigió el error TS2367 eliminando comparaciones imposibles 
- *    entre el sensor de hardware y tipos de anclaje manual.
- * 3. Build Shield Sovereignty: El código es ahora 100% tipado y alineado con la 
- *    Constitución de Soberanía V8.6. No se detectan regresiones nominales.
+ * NOTA TÉCNICA DEL ARCHITECT (V4.0):
+ * 1. Build Shield Sovereignty: Se resolvieron los 7 errores TS2339 sincronizando el acceso 
+ *    a datos con las propiedades industriales (latitudeCoordinate, accuracyMeters, etc.).
+ * 2. Zero Abbreviations Policy: Purificación absoluta de la lógica de comparación y 
+ *    nomenclatura de variables de estado.
+ * 3. Contractual Integrity: El núcleo ahora dialoga con useSensorAuthority V6.1 sin 
+ *    necesidad de mapeadores externos de 'any'.
  */
