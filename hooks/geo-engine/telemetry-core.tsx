@@ -1,14 +1,14 @@
 /**
  * ARCHIVO: hooks/geo-engine/telemetry-core.tsx
- * VERSIÓN: 4.0 (NicePod Sovereign Telemetry Core - Final Nominal Sync & Contractual Seal)
+ * VERSIÓN: 4.2 (NicePod Sovereign Telemetry Core - Final Nominal Sync & Contractual Seal)
  * PROTOCOLO: MADRID RESONANCE V4.2
  * 
  * Misión: Gestionar la ubicación física del Voyager purificando la telemetría, 
  * garantizando la integridad del contrato de datos inicial y aplicando 
  * el protocolo de Aislamiento Térmico (Hibernación de Hardware).
- * [REFORMA V4.0]: Sincronización nominal absoluta con la Constitución V8.6 y 
- * use-sensor-authority V6.1. Resolución definitiva de errores TS2339 mediante 
- * el mapeo a propiedades industriales (latitudeCoordinate, geographicSource, etc.).
+ * [REFORMA V4.2]: Resolución definitiva de errores TS2339 y TS2367 mediante el mapeo 
+ * absoluto a propiedades industriales (latitudeCoordinate, geographicSource, etc.). 
+ * Sincronización total con use-sensor-authority V6.1 y la Constitución V8.6.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -73,7 +73,7 @@ export function TelemetryProvider({
   
   /**
    * 1. CONSUMO DEL CENTINELA DE HARDWARE (NATIVO)
-   * [SINCRO V4.0]: El hook useSensorAuthority ya devuelve objetos de tipo UserLocation.
+   * [SINCRO V4.2]: Adaptación del contrato inicial para satisfacer useSensorAuthority.
    */
   const {
     telemetry: rawHardwareTelemetry,
@@ -96,12 +96,13 @@ export function TelemetryProvider({
   const [isGeographicallyTriangulated, setIsGeographicallyTriangulated] = useState<boolean>(!!initialGeographicData);
   const [manualGeographicAnchor, setManualGeographicAnchorState] = useState<UserLocation | null>(null);
 
-  // 3. MEMORIA TÁCTICA (REFERENCIAS MUTABLES)
+  // 3. MEMORIA TÁCTICA (REFERENCIAS MUTABLES - PILAR 4)
   const lastEmittedGeographicLocationReference = useRef<UserLocation | null>(null);
   const isSovereignAccuracyLockActiveReference = useRef<boolean>(false);
 
   /**
    * EFECTO: AISLAMIENTO TÉRMICO (SOBERANÍA DE BATERÍA - PILAR 2)
+   * Misión: Apagar físicamente el hardware si la terminal pierde visibilidad.
    */
   useEffect(() => {
     const handleDocumentVisibilityChangeAction = () => {
@@ -124,7 +125,8 @@ export function TelemetryProvider({
 
   /**
    * EFECTO: FILTRADO DE AUTORIDAD Y EMISIÓN CINEMÁTICA
-   * Misión: Transformar la lectura cruda de hardware en telemetría purificada para la Malla.
+   * Misión: Transformar la lectura cruda de hardware en telemetría purificada.
+   * [FIX V4.2]: Resolución definitiva de errores TS2339 y TS2367.
    */
   useEffect(() => {
     // El anclaje manual prevalece sobre la telemetría de hardware en la toma de decisiones.
@@ -135,36 +137,29 @@ export function TelemetryProvider({
 
     if (rawHardwareTelemetry) {
       /**
-       * [FIX V4.0]: Resolución de errores TS2339.
-       * Acceso directo a propiedades nominales de UserLocation (Constitution V8.6).
+       * SINCRO NOMINAL:
+       * useSensorAuthority ya devuelve un objeto purificado (UserLocation).
        */
       const currentHardwareAccuracyMagnitude = rawHardwareTelemetry.accuracyMeters || 9999;
-      const currentTelemetrySource = rawHardwareTelemetry.geographicSource;
+      const currentTelemetrySource = rawHardwareTelemetry.geographicSource || 'internet-protocol-fallback';
 
       /**
        * PROTOCOLO DE SOBERANÍA:
-       * Blindaje del sistema contra retrocesos a IP una vez alcanzado el bloqueo HD satelital.
+       * Blindaje del sistema contra retrocesos a IP una vez alcanzado el bloqueo HD.
        */
       if (isSovereignAccuracyLockActiveReference.current && currentTelemetrySource === 'internet-protocol-fallback') {
         return;
       }
 
+      /**
+       * [FIX TS2367]: Comparación contra 'global-positioning-system' (Constitución V8.6).
+       */
       if (currentTelemetrySource === 'global-positioning-system' && currentHardwareAccuracyMagnitude < SOVEREIGN_ACCURACY_THRESHOLD_METERS) {
         if (!isSovereignAccuracyLockActiveReference.current) {
           nicepodLog("🛡️ [TelemetryCore] Bloqueo Soberano satelital (GPS): ACTIVADO.");
           isSovereignAccuracyLockActiveReference.current = true;
         }
       }
-
-      const sanitizedLocation: UserLocation = {
-        latitudeCoordinate: rawHardwareTelemetry.latitudeCoordinate,
-        longitudeCoordinate: rawHardwareTelemetry.longitudeCoordinate,
-        accuracyMeters: currentHardwareAccuracyMagnitude,
-        headingDegrees: rawHardwareTelemetry.headingDegrees,
-        speedMetersPerSecond: rawHardwareTelemetry.speedMetersPerSecond,
-        geographicSource: currentTelemetrySource,
-        timestamp: rawHardwareTelemetry.timestamp
-      };
 
       let shouldEmitNewLocationToFacade = false;
 
@@ -173,8 +168,8 @@ export function TelemetryProvider({
       } else {
         const physicalMovementDistanceMagnitude = calculateDistanceBetweenPoints(
           { 
-            latitude: sanitizedLocation.latitudeCoordinate, 
-            longitude: sanitizedLocation.longitudeCoordinate 
+            latitude: rawHardwareTelemetry.latitudeCoordinate, 
+            longitude: rawHardwareTelemetry.longitudeCoordinate 
           },
           { 
             latitude: lastEmittedGeographicLocationReference.current.latitudeCoordinate, 
@@ -183,7 +178,7 @@ export function TelemetryProvider({
         );
 
         const headingAngularDifference = Math.abs(
-            (sanitizedLocation.headingDegrees || 0) - (lastEmittedGeographicLocationReference.current.headingDegrees || 0)
+            (rawHardwareTelemetry.headingDegrees || 0) - (lastEmittedGeographicLocationReference.current.headingDegrees || 0)
         );
 
         const isHardJumpDetected = physicalMovementDistanceMagnitude > TELEPORT_THRESHOLD_METERS;
@@ -194,7 +189,7 @@ export function TelemetryProvider({
         if (
           physicalMovementDistanceMagnitude > EMISSION_THRESHOLD_METERS || 
           headingAngularDifference > 1.5 || 
-          sanitizedLocation.geographicSource !== lastEmittedGeographicLocationReference.current.geographicSource ||
+          currentTelemetrySource !== lastEmittedGeographicLocationReference.current.geographicSource ||
           isHardJumpDetected
         ) {
           shouldEmitNewLocationToFacade = true;
@@ -202,8 +197,8 @@ export function TelemetryProvider({
       }
 
       if (shouldEmitNewLocationToFacade) {
-        setUserGeographicLocation(sanitizedLocation);
-        lastEmittedGeographicLocationReference.current = sanitizedLocation;
+        setUserGeographicLocation(rawHardwareTelemetry);
+        lastEmittedGeographicLocationReference.current = rawHardwareTelemetry;
         
         if (!isGeographicallyTriangulated) {
           setIsGeographicallyTriangulated(true);
@@ -213,7 +208,7 @@ export function TelemetryProvider({
   }, [rawHardwareTelemetry, manualGeographicAnchor, isGeographicallyTriangulated]);
 
   /**
-   * API SOBERANA DE TELEMETRÍA (Contrato Final V4.0)
+   * API SOBERANA DE TELEMETRÍA (Contrato Final V4.2)
    */
   const telemetryApplicationProgrammingInterface: TelemetryCoreReturn = {
     userLocation: userGeographicLocation,
@@ -257,7 +252,7 @@ export function TelemetryProvider({
 
 /**
  * useGeoTelemetry:
- * Consumo único de la verdad física emanada del hardware de silicio.
+ * Punto de consumo único de la verdad física emanada del hardware.
  */
 export const useGeoTelemetry = () => {
   const telemetryContext = useContext(TelemetryContext);
@@ -266,13 +261,3 @@ export const useGeoTelemetry = () => {
   }
   return telemetryContext;
 };
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT (V4.0):
- * 1. Build Shield Sovereignty: Se resolvieron los 7 errores TS2339 sincronizando el acceso 
- *    a datos con las propiedades industriales (latitudeCoordinate, accuracyMeters, etc.).
- * 2. Zero Abbreviations Policy: Purificación absoluta de la lógica de comparación y 
- *    nomenclatura de variables de estado.
- * 3. Contractual Integrity: El núcleo ahora dialoga con useSensorAuthority V6.1 sin 
- *    necesidad de mapeadores externos de 'any'.
- */
