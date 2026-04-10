@@ -1,27 +1,28 @@
 /**
  * ARCHIVO: components/geo/forge-spatial-precision.tsx
- * VERSIÓN: 2.0 (NicePod Forge Spatial Precision - Industrial Peritaje Edition)
+ * VERSIÓN: 3.0 (NicePod Forge Spatial Precision - Absolute Nominal Sync & Link Resolution)
  * PROTOCOLO: MADRID RESONANCE V4.2
  * 
  * Misión: Proveer un instrumento de peritaje geodésico de alta resolución para la 
  * Fase 1 de la forja. Este componente garantiza el aislamiento de telemetría 
  * satelital ante la interacción humana, permitiendo fijar coordenadas con 
  * precisión milimétrica sobre ortofotos fotorrealistas de alta densidad.
- * [DISEÑO SOBERANO]: Implementación de "Telemetry Hijacking" (Secuestro de cámara),
- * bloqueo de cénit absoluto, mira telescópica PBR y rejilla geodésica táctica.
+ * [REFORMA V3.0]: Resolución definitiva del error TS2304 (importación de 'cn'). 
+ * Purificación nominal de coordenadas de evento (ZAP). Implementación de 
+ * "Telemetry Hijacking" (Secuestro de cámara) y bloqueo de cénit absoluto.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
-import { Crosshair, Target, MapPin, MousePointer2, Scan } from "lucide-react";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Map, { MapRef, MapProps, MapProvider } from "react-map-gl/mapbox";
+import { AnimatePresence, motion } from "framer-motion";
+import { Crosshair, Scan } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Map, { MapProps, MapProvider, MapRef } from "react-map-gl/mapbox";
 
 // --- INFRAESTRUCTURA CORE V4.2 ---
 import { useGeoEngine } from "@/hooks/use-geo-engine";
-import { nicepodLog } from "@/lib/utils";
+import { cn, nicepodLog } from "@/lib/utils"; // [FIX]: Importación de 'cn' restaurada
 
 // --- CONSTANTES FÍSICAS Y ESTILOS ---
 import {
@@ -31,9 +32,8 @@ import {
   MAPBOX_TOKEN
 } from "./map-constants";
 
-import { 
-  MapInstanceIdentification, 
-  UserLocation 
+import {
+  MapInstanceIdentification
 } from "@/types/geo-sovereignty";
 
 /**
@@ -46,13 +46,13 @@ type SafeMapMovementEvent = Parameters<NonNullable<MapProps['onMove']>>[0];
  * INTERFAZ: ForgeSpatialPrecisionProperties
  */
 interface ForgeSpatialPrecisionProperties {
-  /** onManualAnchorSelectionAction: Callback que emite las coordenadas purificadas al contexto. */
+  /** onManualAnchorSelectionAction: Callback que emite las coordenadas purificadas al contexto de forja. */
   onManualAnchorSelectionAction: (longitudeCoordinate: number, latitudeCoordinate: number) => void;
-  /** initialLatitudeCoordinate: Semilla de posición opcional para el arranque. */
+  /** initialLatitudeCoordinate: Semilla de posición opcional para el arranque del visor. */
   initialLatitudeCoordinate?: number | null;
-  /** initialLongitudeCoordinate: Semilla de posición opcional para el arranque. */
+  /** initialLongitudeCoordinate: Semilla de posición opcional para el arranque del visor. */
   initialLongitudeCoordinate?: number | null;
-  /** mapInstanceIdentification: ID único para el aislamiento de VRAM en la GPU. */
+  /** mapInstanceIdentification: Identificador único para el aislamiento de VRAM en la GPU. */
   mapInstanceIdentification?: MapInstanceIdentification;
 }
 
@@ -65,7 +65,7 @@ export function ForgeSpatialPrecision({
   initialLongitudeCoordinate,
   mapInstanceIdentification = "map-forge-precision" as MapInstanceIdentification
 }: ForgeSpatialPrecisionProperties) {
-  
+
   // 1. CONSUMO DE LA FACHADA SOBERANA (TRIPLE-CORE SYNERGY)
   const {
     userLocation,
@@ -85,14 +85,13 @@ export function ForgeSpatialPrecision({
 
   /**
    * initialMapViewState: 
-   * Misión: Establecer el punto de nacimiento del visor. 
-   * Prioridad: Parámetros del Step 1 > Ubicación Global > Madrid Sol.
+   * Misión: Establecer el punto de nacimiento del visor geodésico. 
    */
   const initialMapViewState = useMemo(() => {
     return {
       latitude: initialLatitudeCoordinate || userLocation?.latitudeCoordinate || MADRID_SOL_COORDS.latitude,
       longitude: initialLongitudeCoordinate || userLocation?.longitudeCoordinate || MADRID_SOL_COORDS.longitude,
-      zoom: 19.5, // Resolución máxima de peritaje
+      zoom: 19.5, // Resolución máxima de peritaje urbano
       pitch: 0,
       bearing: 0
     };
@@ -101,27 +100,27 @@ export function ForgeSpatialPrecision({
   /**
    * executeManualAnchorWorkflow:
    * Misión: Capturar el clic, emitir coordenadas y secuestrar la cámara (bloqueo de GPS).
-   * [SINCRO V2.0]: Mapeo nominal inmediato de lngLat nativo a nomenclatura industrial.
+   * [ZAP V3.0]: Mapeo nominal de lngLat nativo a nomenclatura industrial.
    */
   const executeManualAnchorWorkflow = useCallback((geographicEvent: SafeMapClickEvent) => {
-    const { lng: longitudeCoordinate, lat: latitudeCoordinate } = geographicEvent.lngLat;
-    
-    nicepodLog(`📍 [Forge:Precision] Autoridad Manual ejercida en: [${longitudeCoordinate}, ${latitudeCoordinate}]`);
-    
-    // El toque humano activa el modo manual, ignorando actualizaciones automáticas del GPS
+    const { lng: clickedLongitudeCoordinate, lat: clickedLatitudeCoordinate } = geographicEvent.lngLat;
+
+    nicepodLog(`📍 [Forge:Precision] Autoridad Manual ejercida en: [${clickedLongitudeCoordinate}, ${clickedLatitudeCoordinate}]`);
+
+    // El toque humano activa el modo manual, ignorando actualizaciones automáticas del GPS global
     if (!isManualMode) {
       setManualMode(true);
     }
 
-    onManualAnchorSelectionAction(longitudeCoordinate, latitudeCoordinate);
-    
-    // Feedback háptico y visual de captura
+    onManualAnchorSelectionAction(clickedLongitudeCoordinate, clickedLatitudeCoordinate);
+
+    // Feedback visual de captura (Aura PBR)
     setIsCapturingInteraction(true);
     setTimeout(() => setIsCapturingInteraction(false), 300);
 
     // Animación de centrado de precisión sobre el punto de impacto
     mapInstanceReference.current?.flyTo({
-      center: [longitudeCoordinate, latitudeCoordinate],
+      center: [clickedLongitudeCoordinate, clickedLatitudeCoordinate],
       ...FLY_CONFIG,
       duration: 1000,
       essential: true
@@ -130,10 +129,9 @@ export function ForgeSpatialPrecision({
 
   /**
    * handleMapMovementAction:
-   * Misión: Detectar el desplazamiento manual (Pan/Zoom) para ceder la autoridad.
+   * Misión: Detectar el desplazamiento manual (Pan/Zoom) para ceder la autoridad al Administrador.
    */
   const handleMapMovementAction = useCallback((movementEvent: SafeMapMovementEvent) => {
-    // Si el movimiento es originado por un gesto humano (y no por una interpolación interna)
     if (movementEvent.originalEvent && !isInternalCinematicActiveReference.current) {
       if (!isManualMode) {
         setManualMode(true);
@@ -159,15 +157,15 @@ export function ForgeSpatialPrecision({
 
   /**
    * EFECTO: RecenterPulseSync (Command Authority)
-   * Misión: Responder al pulso de recentralización desde la fachada global.
+   * Misión: Responder al pulso de recentralización desde la fachada global de telemetría.
    */
   useEffect(() => {
     if (recenterVisualPulseTrigger > lastProcessedRecenterPulseReference.current && userLocation) {
       lastProcessedRecenterPulseReference.current = recenterVisualPulseTrigger;
-      
+
       nicepodLog("🎯 [Forge:Precision] Recuperando autoridad satelital por comando de perito.");
       setManualMode(false);
-      
+
       mapInstanceReference.current?.flyTo({
         center: [userLocation.longitudeCoordinate, userLocation.latitudeCoordinate],
         zoom: 19.5,
@@ -181,10 +179,10 @@ export function ForgeSpatialPrecision({
   return (
     <MapProvider>
       <div className="relative w-full h-full bg-[#050505] overflow-hidden isolate flex items-center justify-center rounded-[2.5rem] shadow-inner">
-        
+
         {/* REJILLA GEODÉSICA TÁCTICA (VISUAL OVERLAY) */}
-        <div className="absolute inset-0 z-10 pointer-events-none opacity-20 border-[0.5px] border-white/10" 
-             style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+        <div className="absolute inset-0 z-10 pointer-events-none opacity-20 border-[0.5px] border-white/10"
+          style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
 
         {/* MOTOR WEBGL SOBERANO (PHOTOREALISTIC CORE) */}
         <Map
@@ -198,8 +196,8 @@ export function ForgeSpatialPrecision({
           mapStyle={MAP_STYLES.PHOTOREALISTIC} // Forzado Satelital Cenital
           projection={{ name: "mercator" }}
           reuseMaps={true}
-          maxPitch={0} // Bloqueo físico de inclinación para evitar error de paralaje
-          dragRotate={false} // Desactivamos rotación para mantener el Norte como autoridad
+          maxPitch={0} // Bloqueo físico de inclinación para evitar error de paralaje geográfico
+          dragRotate={false} // Mantener el Norte como autoridad de visualización
           touchPitch={false}
           attributionControl={false}
           style={{ width: '100%', height: '100%' }}
@@ -208,8 +206,8 @@ export function ForgeSpatialPrecision({
         {/* I. MIRA TELESCÓPICA PBR (PRECISION CROSSHAIR) */}
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-20">
           <div className="relative flex items-center justify-center">
-            
-            {/* Aura de Captura (Flash al hacer clic) */}
+
+            {/* Aura de Captura (Flash de Colisión Geodésica) */}
             <AnimatePresence>
               {isCapturingInteraction && (
                 <motion.div
@@ -223,7 +221,7 @@ export function ForgeSpatialPrecision({
 
             {/* Círculo de Resonancia de la Mira */}
             <motion.div
-              animate={{ 
+              animate={{
                 scale: isManualMode ? [1, 1.05, 1] : 1,
                 opacity: isManualMode ? [0.4, 0.6, 0.4] : 0.3
               }}
@@ -234,7 +232,7 @@ export function ForgeSpatialPrecision({
               )}
             />
 
-            {/* Iconografía de Precisión */}
+            {/* Iconografía de Precisión (Targeting) */}
             <div className="relative">
               <Crosshair size={40} className={cn(
                 "transition-all duration-700",
@@ -280,18 +278,7 @@ export function ForgeSpatialPrecision({
           </AnimatePresence>
         </div>
 
-        {/* III. INDICADOR DE COORDENADAS DINÁMICAS (OPTIONAL) */}
-        {isManualMode && (
-          <div className="absolute top-6 right-6 z-30 pointer-events-none hidden md:block">
-            <div className="bg-black/80 backdrop-blur-xl border border-white/5 px-4 py-2 rounded-xl">
-               <span className="text-[8px] font-mono text-primary/80 uppercase tracking-widest">
-                  High-Precision Geodetic Link
-               </span>
-            </div>
-          </div>
-        )}
-
-        {/* IV. PANTALLA DE CARGA (SYNC SHIELD) */}
+        {/* III. PANTALLA DE CARGA (SYNC SHIELD) */}
         {!isMapEngineReady && (
           <div className="absolute inset-0 bg-[#020202] z-50 flex flex-col items-center justify-center gap-6">
             <div className="relative">
@@ -308,13 +295,12 @@ export function ForgeSpatialPrecision({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V2.0):
- * 1. Precision Centering: El componente utiliza un centrado absoluto por Flexbox y una mira 
- *    telescópica estática. La coordenada anclada es SIEMPRE la que reside bajo el Crosshair.
- * 2. Telemetry Hijacking V2: Se ha reforzado el aislamiento. Si 'isManualMode' es activo, 
- *    el motor ignora por completo los pulsos del Satélite para evitar el "Jitter" en el Step 1.
- * 3. ZAP & BSS Compliance: Se han eliminado todas las abreviaturas y se han tipado los 
- *    eventos nativos de Mapbox para garantizar la integridad del contrato industrial.
- * 4. UI Polish: Se inyectó una rejilla geodésica y un panel de estado dinámico que 
- *    informa al Administrador sobre el origen de la verdad geográfica actual.
+ * NOTA TÉCNICA DEL ARCHITECT (V3.0):
+ * 1. Build Shield Implementation: Se ha resuelto el error TS2304 mediante la importación 
+ *    absoluta del utilitario 'cn' desde '@/lib/utils', garantizando la estabilidad de clases.
+ * 2. ZAP Compliance: Se han purificado los parámetros de desestructuración de Mapbox 
+ *    (lng -> clickedLongitudeCoordinate, lat -> clickedLatitudeCoordinate), eliminando 
+ *    cualquier vestigio de abreviatura en la lógica de captura.
+ * 3. Precision Centering: El componente utiliza un sistema de mira telescópica PBR con 
+ *    feedback dinámico para informar al Administrador sobre la fuente de verdad geográfica.
  */
