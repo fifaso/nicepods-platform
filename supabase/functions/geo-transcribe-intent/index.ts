@@ -1,13 +1,15 @@
 /**
  * ARCHIVO: supabase/functions/geo-transcribe-intent/index.ts
- * VERSIÓN: 2.0 (NicePod SpeechToTextMaster - Industrial Nominal & Buffer Security Edition)
- * PROTOCOLO: MADRID RESONANCE V4.0
+ * VERSIÓN: 3.0 (NicePod SpeechToTextMaster - Industrial Nominal & Acoustic Integrity Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.2
  * 
- * Misión: Transmutación sónica de la intención del curador en capital intelectual textual,
- * utilizando modelos de lenguaje multimodal de baja latencia en el Borde.
- * [REFORMA V2.0]: Implementación absoluta de la Zero Abbreviations Policy (ZAP). 
- * Introducción del control de densidad acústica (Buffer size check) para prevenir 
- * el agotamiento de recursos. Erradicación total de acrónimos (STT).
+ * Misión: Transmutación sónica de la intención cognitiva del Administrador en capital 
+ * intelectual textual, utilizando modelos de lenguaje multimodal de baja latencia 
+ * en el Borde de la red.
+ * [REFORMA V3.0]: Elevación a Grado Industrial. Implementación rigurosa de la 
+ * Zero Abbreviations Policy (ZAP). Refuerzo del protocolo de seguridad de búfer 
+ * y gestión de excepciones sin tipos débiles (BSS). Sincronización absoluta 
+ * con la Constitución de Soberanía V8.6.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -17,30 +19,31 @@ import { corsHeaders } from "../_shared/cors.ts";
 
 /**
  * ---------------------------------------------------------------------------
- * I. CONFIGURACIÓN DE INFRAESTRUCTURA (EL METAL)
+ * I. CONFIGURACIÓN DE INFRAESTRUCTURA TÉCNICA (EL METAL)
  * ---------------------------------------------------------------------------
  */
-const GOOGLE_INTELLIGENCE_AGENCY_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
+const GOOGLE_INTELLIGENCE_AGENCY_APPLICATION_PROGRAMMING_INTERFACE_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
 const SUPABASE_SERVICE_ROLE_SECRET_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
 /**
- * UMBRALES DE SEGURIDAD OPERATIVA
+ * UMBRALES DE SEGURIDAD ACÚSTICA
+ * Misión: Prevenir el agotamiento de memoria en nodos perimetrales.
  */
-const MAXIMUM_ACOUSTIC_DENSITY_BYTES = 1048576; // 1 Megabyte (Límite para dictados tácticos)
+const MAXIMUM_PERMITTED_ACOUSTIC_DENSITY_BYTES = 1048576; // 1 Megabyte (Límite táctico)
 
 /**
  * INTERFAZ: SpeechToTextTranscriptionPayload
- * Contrato de transporte para el flujo de voz procesado por el hardware.
+ * Contrato de transporte para el flujo binario de voz capturado por el hardware.
  */
 interface SpeechToTextTranscriptionPayload {
-  /** audioBinaryBase64Data: Datos crudos del audio codificados para transporte seguro. */
+  /** audioBinaryBase64Data: Datos crudos codificados para transporte seguro en JSON. */
   audioBinaryBase64Data: string; 
-  /** mediaMimeTypeHeader: Identificador de formato capturado (ej. audio/webm). */
+  /** mediaMimeTypeHeader: Identificador de formato (ej. audio/webm; codecs=opus). */
   mediaMimeTypeHeader: string; 
 }
 
 /**
- * SpeechToTextMaster: El motor de transmutación acústica de NicePod.
+ * SpeechToTextMaster: El Centinela de Transmutación Acústica de NicePod.
  */
 serve(async (request: Request) => {
   // 1. GESTIÓN DE PROTOCOLO DE INTERCAMBIO (CORS Preflight)
@@ -49,74 +52,73 @@ serve(async (request: Request) => {
   }
 
   const processingCorrelationIdentification = crypto.randomUUID();
-  console.info(`🎙️ [SpeechToTextMaster][${processingCorrelationIdentification}] Recibiendo dictado de intención.`);
+  console.info(`🎙️ [SpeechToTextMaster][${processingCorrelationIdentification}] Iniciando transmutación de dictado.`);
 
   try {
-    // 2. VALIDACIÓN DE AUTORIDAD Y PROTOCOLO DE SEGURIDAD
+    // 2. VALIDACIÓN DE AUTORIDAD Y PROTOCOLO DE CONFIANZA
     const authorizationHeader = request.headers.get('Authorization');
     if (!authorizationHeader?.includes(SUPABASE_SERVICE_ROLE_SECRET_KEY ?? "INTERNAL_ZONE_ONLY")) {
       console.warn(`🛑 [SpeechToTextMaster][${processingCorrelationIdentification}] Intento de acceso no autorizado denegado.`);
-      return new Response(JSON.stringify({ error: "UNAUTHORIZED_TRANSCRIPTION_REQUEST" }), {
+      return new Response(JSON.stringify({ error: "UNAUTHORIZED_TRANSCRIPTION_REQUEST_ACCESS" }), {
         status: 401,
         headers: corsHeaders
       });
     }
 
-    if (!GOOGLE_INTELLIGENCE_AGENCY_API_KEY) {
+    if (!GOOGLE_INTELLIGENCE_AGENCY_APPLICATION_PROGRAMMING_INTERFACE_KEY) {
       throw new Error("INFRASTRUCTURE_EXCEPTION: GOOGLE_AI_API_KEY_MISSING");
     }
 
     // 3. DESEMPAQUETADO DEL EXPEDIENTE ACÚSTICO
-    const payload: SpeechToTextTranscriptionPayload = await request.json();
-    const { audioBinaryBase64Data, mediaMimeTypeHeader } = payload;
+    const transcriptionPayload: SpeechToTextTranscriptionPayload = await request.json();
+    const { audioBinaryBase64Data, mediaMimeTypeHeader } = transcriptionPayload;
 
     if (!audioBinaryBase64Data) {
-      throw new Error("EMPTY_AUDIO_BUFFER_EXCEPTION: El canal de voz no contiene datos procesables.");
+      throw new Error("EMPTY_AUDIO_BUFFER_EXCEPTION: El canal de voz no contiene datos binarios.");
     }
 
     /**
-     * 4. CONTROL DE DENSIDAD ACÚSTICA (BUFFER OPTIMIZATION)
-     * [INTERVENCIÓN B]: Validamos el peso del binario antes de la invocación para 
-     * preservar la latencia del Step 2.
+     * 4. CONTROL DE DENSIDAD ACÚSTICA (HARDWARE HYGIENE)
+     * Misión: Validar el peso del binario antes de la ignición del motor de IA.
      */
-    const estimatedByteSize = (audioBinaryBase64Data.length * 3) / 4;
-    if (estimatedByteSize > MAXIMUM_ACOUSTIC_DENSITY_BYTES) {
-      throw new Error(`ACOUSTIC_DENSITY_EXCEEDED: El dictado supera el límite de 1MB para interacciones en tiempo real.`);
+    const estimatedByteSizeMagnitude = (audioBinaryBase64Data.length * 3) / 4;
+    if (estimatedByteSizeMagnitude > MAXIMUM_PERMITTED_ACOUSTIC_DENSITY_BYTES) {
+      throw new Error(`ACOUSTIC_DENSITY_EXCEEDED: El dictado supera el límite de seguridad de 1MB.`);
     }
 
     /**
-     * 5. INGENIERÍA DE PROMPT: EL ESCRIBA URBANO DE MADRID
-     * Misión: Limpiar el discurso humano sin alterar la veracidad técnica del hito.
+     * 5. INGENIERÍA DE PROMPT: EL ESCRIBA URBANO DE MADRID RESONANCE
+     * Misión: Limpiar la semántica humana preservando el rigor técnico del hito.
      */
-    const escribaSystemInstruction = `
-      Actúa como el Escriba Oficial de la Workstation NicePod. 
-      Tu misión es transmutar audio capturado en la calle en capital intelectual textual limpio.
+    const escribaIndustrialSystemInstruction = `
+      Actúa como el Escriba Oficial de la terminal de inteligencia NicePod. 
+      Tu misión es transmutar audio capturado en el entorno urbano en capital intelectual textual purificado.
       
       PROTOCOLO DE EDICIÓN PERICIAL:
-      1. SANEAMIENTO: Elimina muletillas, repeticiones, titubeos y sonidos ambientales (ej. eh, mmm, estooo).
-      2. RIGOR NOMINAL: Preserva con exactitud nombres de calles, monumentos, museos y términos arquitectónicos de Madrid.
-      3. ESTRUCTURA: Genera oraciones con puntuación gramatical correcta para facilitar la lectura posterior.
-      4. SALIDA PURA: Devuelve única y exclusivamente el texto transcrito. No añadas preámbulos, confirmaciones ni saludos.
+      1. SANEAMIENTO: Elimina muletillas, repeticiones, titubeos y ruidos ambientales (ej. eh, mmm, bueno, estooo).
+      2. RIGOR NOMINAL: Preserva con exactitud nombres de calles, monumentos, coordenadas y términos arquitectónicos de Madrid.
+      3. ESTRUCTURA: Genera oraciones con puntuación gramatical técnica para asegurar la legibilidad del peritaje.
+      4. SALIDA PURA: Devuelve única y exclusivamente el texto transcrito. Prohibido añadir preámbulos, despedidas o comentarios.
     `;
 
     /**
      * 6. INVOCACIÓN AL MOTOR MULTIMODAL LITE (GEMINI FLASH LITE)
-     * Misión: Obtener la máxima velocidad de respuesta sacrificando profundidad de razonamiento innecesaria.
+     * Misión: Obtener respuesta instantánea en el Borde mediante el modelo de baja latencia.
      */
     console.info(`   > Transmitiendo binarios al motor LITE: ${AI_MODELS.LITE}...`);
 
     const intelligenceAgencyResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${AI_MODELS.LITE}:generateContent?key=${GOOGLE_INTELLIGENCE_AGENCY_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${AI_MODELS.LITE}:generateContent?key=${GOOGLE_INTELLIGENCE_AGENCY_APPLICATION_PROGRAMMING_INTERFACE_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{
             parts: [
-              { text: escribaSystemInstruction },
+              { text: escribaIndustrialSystemInstruction },
               {
                 inline_data: {
-                  // Limpieza del encabezado MIME para asegurar compatibilidad con la API de Google
+                  // Limpieza del encabezado MIME para sintonía con la API de Google
                   mime_type: mediaMimeTypeHeader.split(';')[0], 
                   data: audioBinaryBase64Data
                 }
@@ -124,7 +126,7 @@ serve(async (request: Request) => {
             ]
           }],
           generationConfig: {
-            temperature: 0.1, // Fidelidad acústica máxima
+            temperature: 0.1, // Fidelidad técnica máxima al audio original
             topP: 0.95,
             topK: 40
           }
@@ -133,20 +135,20 @@ serve(async (request: Request) => {
     );
 
     if (!intelligenceAgencyResponse.ok) {
-      const exceptionText = await intelligenceAgencyResponse.text();
-      throw new Error(`AI_GATEWAY_COMMUNICATION_FAILURE [${intelligenceAgencyResponse.status}]: ${exceptionText}`);
+      const exceptionResponseText = await intelligenceAgencyResponse.text();
+      throw new Error(`AI_GATEWAY_COMMUNICATION_FAILURE [${intelligenceAgencyResponse.status}]: ${exceptionResponseText}`);
     }
 
     const intelligenceAgencyResponseData = await intelligenceAgencyResponse.json();
     const transcriptionResultText = intelligenceAgencyResponseData.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
 
     if (!transcriptionResultText) {
-      throw new Error("ORACLE_SILENCE_EXCEPTION: El motor de inteligencia no pudo descifrar el flujo acústico.");
+      throw new Error("ORACLE_SILENCE_EXCEPTION: El motor de inteligencia no pudo decodificar el flujo acústico.");
     }
 
-    console.info(`✅ [SpeechToTextMaster][${processingCorrelationIdentification}] Transmuta exitosa.`);
+    console.info(`✅ [SpeechToTextMaster][${processingCorrelationIdentification}] Transmuta completada exitosamente.`);
 
-    // 7. RETORNO SOBERANO A LA TERMINAL
+    // 7. RESPUESTA SOBERANA A LA TERMINAL DE FORJA
     return new Response(JSON.stringify({
       success: true,
       transcriptionText: transcriptionResultText,
@@ -156,12 +158,16 @@ serve(async (request: Request) => {
       status: 200
     });
 
-  } catch (operationalHardwareException: any) {
-    console.error(`🔥 [SpeechToTextMaster-Fatal][${processingCorrelationIdentification}]:`, operationalHardwareException.message);
+  } catch (operationalHardwareException: unknown) {
+    const exceptionMessageText = operationalHardwareException instanceof Error 
+      ? operationalHardwareException.message 
+      : String(operationalHardwareException);
+
+    console.error(`🔥 [SpeechToTextMaster-Fatal][${processingCorrelationIdentification}]:`, exceptionMessageText);
 
     return new Response(JSON.stringify({
       success: false,
-      error: operationalHardwareException.message,
+      error: exceptionMessageText,
       processingCorrelationIdentification: processingCorrelationIdentification
     }), {
       status: 500,
@@ -171,11 +177,12 @@ serve(async (request: Request) => {
 });
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V2.0):
- * 1. Zero Abbreviations Policy (ZAP): Se han erradicado acrónimos (STT, ID, API, REQ, MSG) 
- *    y se han expandido todas las variables a su nomenclatura técnica completa.
- * 2. Buffer Security: La validación de tamaño de buffer protege a la Edge Function de 
- *    ataques de denegación de servicio (DoS) por carga de binarios masivos.
- * 3. Contractual Symmetry: El objeto de retorno utiliza 'transcriptionText', sincronizando 
- *    con el 'use-forge-orchestrator' V8.0 y la Constitución de Soberanía V8.6.
+ * NOTA TÉCNICA DEL ARCHITECT (V3.0):
+ * 1. Zero Abbreviations Policy (ZAP): Purificación nominal absoluta de todas las variables 
+ *    locales y constantes de entorno (estimatedByteSizeMagnitude, writeString -> no aplica aquí, 
+ *    transcriptionResultText, etc.).
+ * 2. Hardware Hygiene: La validación de densidad acústica protege el presupuesto de RAM 
+ *    del nodo de ejecución, evitando colapsos ante ráfagas de datos masivas.
+ * 3. Contractual Symmetry: Sincronización total con 'use-forge-orchestrator' V8.0 y 
+ *    la Constitución de Soberanía V8.6, utilizando el campo 'transcriptionText'.
  */
