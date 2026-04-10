@@ -1,14 +1,14 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/map-core.tsx
- * VERSIÓN: 16.0 (NicePod MapCore - Final Nominal Sync & VRAM Purge Edition)
- * PROTOCOLO: MADRID RESONANCE V4.0
+ * VERSIÓN: 17.0 (NicePod MapCore - Authority Forge & Precision Satellite Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.2
  * 
  * Misión: Reactor WebGL inmutable que gestiona la renderización de la malla 3D 
- * y la destrucción física de contextos gráficos para garantizar la estabilidad 
- * térmica del hardware y la liberación de memoria de video (VRAM).
- * [REFORMA V16.0]: Sincronización nominal absoluta con la Constitución V8.6. 
- * Resolución definitiva de errores TS2339 (UserLocation properties), TS2305 
- * (MapInstanceIdentification) y TS2322 (Contract mismatches). 
+ * y la destrucción física de contextos gráficos. En modo FORGE, actúa como un 
+ * tablero de precisión cenital para el anclaje manual de hitos.
+ * [REFORMA V17.0]: Sincronización total con la Constitución V8.6. Restauración 
+ * de la autoridad táctica mediante el evento nativo de clic. Forzado de cénit 
+ * absoluto (pitch: 0) en modo creación para eliminar distorsiones de perspectiva.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -28,7 +28,7 @@ import {
   MAP_STYLES,
   MapPerformanceProfile,
   MapboxLightPreset,
-  OCC_CONFIG, // OCCLUSION_CONFIG -> OCC_CONFIG (Internal constant)
+  OCC_CONFIG, 
   STANDARD_ENGINE_CONFIG,
   TERRAIN_CONFIG,
   getInitialViewState
@@ -53,7 +53,9 @@ type SafeMapStyleDataEvent = Parameters<NonNullable<MapNativeProperties['onStyle
  * INTERFAZ: MapCoreProperties
  */
 interface MapCoreProperties {
+  /** mapInstanceIdentification: Identificador único para el aislamiento de VRAM en la GPU. */
   mapInstanceIdentification: MapInstanceIdentification;
+  /** mode: Define si la terminal opera en exploración o creación (FORGE). */
   mode: 'EXPLORE' | 'FORGE';
   performanceProfile?: MapPerformanceProfile;
   startCoordinates: UserLocation;
@@ -85,7 +87,7 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
   selectedPointOfInterestIdentification
 }, componentForwardedReference) => {
 
-  // 1. CONSUMO DEL MOTOR SOBERANO (Triple-Core Synergy V4.0)
+  // 1. CONSUMO DEL MOTOR SOBERANO (Triple-Core Synergy V4.2)
   const {
     userLocation,
     nearbyPointsOfInterest,
@@ -104,8 +106,6 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
    * Misión: Forzar la destrucción física del contexto WebGL al desmontar el componente.
    */
   useEffect(() => {
-    // [ESTABILIZACIÓN]: Capturamos el valor actual para asegurar que la limpieza 
-    // ocurra sobre la instancia correcta del hardware gráfico.
     const currentMapEngineInstance = localMapEngineReference.current;
 
     return () => {
@@ -113,8 +113,8 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
         const nativeMapInstance = currentMapEngineInstance.getMap();
         if (nativeMapInstance) {
           nicepodLog(`🧨 [MapCore:${mapInstanceIdentification}] Iniciando purga de VRAM y aniquilación física.`);
-          nativeMapInstance.stop(); // Detiene cualquier interpolación cinemática
-          nativeMapInstance.remove(); // Destruye el motor WebGL y libera la GPU
+          nativeMapInstance.stop(); // Detiene cualquier animación cinemática
+          nativeMapInstance.remove(); // Destruye el motor y libera la memoria de video
         }
       }
     };
@@ -122,7 +122,7 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
 
   /**
    * 4. GENERACIÓN DE SEMILLA DE NACIMIENTO (INITIAL VIEW)
-   * [SINCRO V16.0]: Uso de latitudeCoordinate y longitudeCoordinate.
+   * [SINCRO V17.0]: Mapeo de coordenadas industriales.
    */
   const initialMapViewState = useMemo(() => {
     nicepodLog(`🌱 [MapCore:${mapInstanceIdentification}] Sembrando semilla WebGL inmutable.`);
@@ -141,8 +141,8 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
   }, [onLoad, mapInstanceIdentification]);
 
   /**
-   * 6. STYLE-GUARD (El Escudo PBR V16.0)
-   * Misión: Configurar dinámicamente las propiedades del motor Mapbox Standard.
+   * 6. STYLE-GUARD (El Escudo PBR V17.0)
+   * Misión: Configurar las propiedades del motor según el modo operativo.
    */
   const handleStyleDataAction = useCallback((event: SafeMapStyleDataEvent) => {
     const mapNativeInstance = event.target;
@@ -150,20 +150,20 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
         return;
     }
 
+    const isForgeModeActive = mode === 'FORGE';
     const isOverviewPerspectiveActive = cameraPerspective === 'OVERVIEW';
-    const isSatellitePerspectiveActive = cameraPerspective === 'SATELLITE';
+    const isSatellitePerspectiveActive = cameraPerspective === 'SATELLITE' || isForgeModeActive;
     const isTacticalLiteProfileActive = performanceProfile === 'TACTICAL_LITE';
     const engineTechnicalConfiguration = isTacticalLiteProfileActive ? LITE_ENGINE_CONFIG : STANDARD_ENGINE_CONFIG;
 
     if (activeEngineVisualStyle === MAP_STYLES.STANDARD) {
       try {
-        // [NOTA]: Se mantiene casting a 'any' para setConfigProperty mientras los tipos nativos se estabilizan.
         const mapboxInternalInstance = mapNativeInstance as any;
         if (mapboxInternalInstance.setConfigProperty) {
           mapboxInternalInstance.setConfigProperty('basemap', 'lightPreset', lightTheme);
-          // Oclusión del Voyager en la malla 3D
-          mapboxInternalInstance.setConfigProperty('basemap', 'puckOcclusion', 'always');
-          mapboxInternalInstance.setConfigProperty('basemap', 'showPlaceLabels', isOverviewPerspectiveActive && !isTacticalLiteProfileActive);
+          // [V17.0]: Oclusión forzada para mantener visibilidad del avatar tras edificios.
+          mapboxInternalInstance.setConfigProperty('basemap', 'puckOcclusion', OCC_CONFIG.puckOcclusion);
+          mapboxInternalInstance.setConfigProperty('basemap', 'showPlaceLabels', (isOverviewPerspectiveActive || isForgeModeActive) && !isTacticalLiteProfileActive);
           mapboxInternalInstance.setConfigProperty('basemap', 'showRoadLabels', engineTechnicalConfiguration.showRoadLabels);
           mapboxInternalInstance.setConfigProperty('basemap', 'showPointOfInterestLabels', false);
           mapboxInternalInstance.setConfigProperty('basemap', 'showTransitLabels', false);
@@ -173,7 +173,7 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
       }
     }
 
-    // Gestión de transparencia de edificios en modo Satélite o Lite
+    // Gestión de transparencia de geometría 3D
     try {
       if (mapNativeInstance.getLayer('building')) {
         const buildingOpacityTargetValue = isTacticalLiteProfileActive 
@@ -182,9 +182,9 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
         
         mapNativeInstance.setPaintProperty('building', 'fill-extrusion-opacity', buildingOpacityTargetValue);
       }
-    } catch (hardwareException) { /* Capa no disponible en este estilo */ }
+    } catch (hardwareException) { /* Capa no disponible */ }
 
-    // Inyección de terreno dinámico (Raster DEM)
+    // Inyección de terreno (Raster DEM)
     if (!mapNativeInstance.getSource(DEM_SOURCE_CONFIG.id)) {
       try {
         mapNativeInstance.addSource(DEM_SOURCE_CONFIG.id, {
@@ -198,7 +198,8 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
     try {
       const terrainPhysicalParameters = (isTacticalLiteProfileActive || isSatellitePerspectiveActive) ? LITE_TERRAIN_CONFIG : TERRAIN_CONFIG;
 
-      if (mode === 'EXPLORE') {
+      // El terreno 3D se desactiva en modo FORGE para permitir clics de precisión sobre el plano.
+      if (mode === 'EXPLORE' && !isSatellitePerspectiveActive) {
         mapNativeInstance.setTerrain({
           source: DEM_SOURCE_CONFIG.id,
           exaggeration: terrainPhysicalParameters.exaggeration
@@ -226,10 +227,11 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
       mapboxAccessToken={MAPBOX_TOKEN}
       mapStyle={activeEngineVisualStyle || MAP_STYLES.STANDARD}
       projection={{ name: "mercator" }}
-      fog={performanceProfile === 'TACTICAL_LITE' || cameraPerspective === 'SATELLITE' ? null : (FOG_CONFIG as any)}
+      // [V17.0]: Desactivamos efectos atmosféricos en modo FORGE para mayor claridad.
+      fog={mode === 'FORGE' || performanceProfile === 'TACTICAL_LITE' || cameraPerspective === 'SATELLITE' ? null : (FOG_CONFIG as any)}
       antialias={false}
       reuseMaps={true}
-      maxPitch={85}
+      maxPitch={mode === 'FORGE' ? 0 : 85} // Bloqueo de cénit absoluto en creación
       attributionControl={false}
       style={{ width: '100%', height: '100%' }}
     >
@@ -262,7 +264,6 @@ MapCore.displayName = "MapCore";
 
 /**
  * [BUILD SHIELD]: SOBERANÍA DE RENDERIZADO
- * Misión: Prevenir re-renderizados de la GPU mediante comparación estricta de propiedades.
  */
 export default memo(MapCore, (previousProperties, nextProperties) => {
   return (
