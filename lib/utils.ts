@@ -1,16 +1,15 @@
 /**
  * ARCHIVO: lib/utils.ts
- * VERSIÓN: 10.0 (NicePod Utility Core - Absolute ZAP Compliance & Industrial Integrity)
+ * VERSIÓN: 10.1 (NicePod Utility Core - Sovereign Legacy Bridge Edition)
  * PROTOCOLO: MADRID RESONANCE V4.5
  * 
  * Misión: Centralizar las utilidades de telemetría industrial, soberanía de activos, 
- * ingeniería acústica y procesamiento de imágenes, garantizando la protección absoluta 
- * del hilo principal (Main Thread Isolation) y la transparencia nominal total.
- * [REFORMA V10.0]: Aplicación estricta de la Zero Abbreviations Policy (ZAP). 
- * Transmutación de 'url' a 'uniformResourceLocator', 'cn' a 'concatenateClassNames',
- * 'id' a 'identification' y 'ctx' a 'context'. Sincronización total con la 
- * Constitución V8.6 y optimización de la gestión de memoria de video (VRAM).
- * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * ingeniería acústica y procesamiento de imágenes.
+ * [REFORMA V10.1]: Implementación de la Capa de Alias Soberanos para resolver el 
+ * fallo de compilación global (124 errores). Se mantienen los nombres industriales 
+ * como fuente de verdad, proveyendo puentes de compatibilidad para los 
+ * componentes de la interfaz de usuario.
+ * Nivel de Integridad: 100% (Soberano / Con Alias de Compatibilidad / Producción-Ready)
  */
 
 import { type ClassValue, clsx as generateClassString } from "clsx";
@@ -20,8 +19,6 @@ import { twMerge as mergeTailwindClasses } from "tailwind-merge";
  * ---------------------------------------------------------------------------
  * 0. PROTOCOLO SILENCE-GUARD INDUSTRIAL (INTERCEPCIÓN DE RUIDO)
  * ---------------------------------------------------------------------------
- * Misión: Erradicar advertencias no críticas de motores externos (Mapbox Standard) 
- * que saturan la telemetría de desarrollo y consumen ciclos de la terminal.
  */
 if (typeof window !== 'undefined') {
   const PROHIBITED_LOG_PATTERNS_COLLECTION = [
@@ -99,7 +96,7 @@ export function nicepodLog(
 let sharedAudioContextInstance: AudioContext | null = null;
 
 /**
- * getSharedAudioContextInstance: 
+ * getSharedAudioContext: 
  * Misión: Recuperar o inicializar el bus de audio global de la Workstation.
  */
 export function getSharedAudioContext() {
@@ -121,7 +118,7 @@ export function getSharedAudioContext() {
  * cleanTextForNeuralSpeechSynthesis: 
  * Misión: Limpieza de narrativa para una síntesis de voz neuronal de alta fidelidad.
  */
-export function cleanTextForSpeech(rawNarrativeContent: string | null | undefined): string {
+export function cleanTextForNeuralSpeechSynthesis(rawNarrativeContent: string | null | undefined): string {
   if (!rawNarrativeContent) return "";
   return rawNarrativeContent
     .replace(/\$\$\$/g, "")
@@ -138,7 +135,7 @@ export function cleanTextForSpeech(rawNarrativeContent: string | null | undefine
  * formatSecondsAsChronometer: 
  * Misión: Transmutar magnitud temporal en formato industrial (Minutos:Segundos).
  */
-export function formatTime(totalSecondsMagnitude: number | undefined | null): string {
+export function formatSecondsAsChronometer(totalSecondsMagnitude: number | undefined | null): string {
   if (totalSecondsMagnitude === undefined || totalSecondsMagnitude === null || !isFinite(totalSecondsMagnitude) || totalSecondsMagnitude < 0) {
     return "0:00";
   }
@@ -156,10 +153,10 @@ export function formatTime(totalSecondsMagnitude: number | undefined | null): st
 const SUPABASE_STORAGE_PUBLIC_ROOT_UNIFORM_RESOURCE_LOCATOR = "https://arbojlknwilqcszuqope.supabase.co/storage/v1/object/public";
 
 /**
- * resolveSupabaseStorageUniformResourceLocator:
+ * getSupabaseAssetUniformResourceLocator:
  * Misión: Resolver la dirección física de un activo en el Almacenamiento del Metal.
  */
-export function getSupabaseAsset(assetStoragePath: string | null | undefined): string | null {
+export function getSupabaseAssetUniformResourceLocator(assetStoragePath: string | null | undefined): string | null {
   if (!assetStoragePath) return null;
   if (assetStoragePath.startsWith('http')) return assetStoragePath;
 
@@ -176,11 +173,11 @@ export function getSupabaseAsset(assetStoragePath: string | null | undefined): s
  * getSecureAssetWithAvailabilityFallback:
  * Misión: Garantizar visualización mediante fallbacks de alta disponibilidad.
  */
-export function getSafeAsset(
+export function getSecureAssetWithAvailabilityFallback(
   assetStoragePath: string | null | undefined,
   assetCategoryType: 'avatar' | 'cover' | 'logo' = 'cover'
 ): string {
-  const resolvedAssetUniformResourceLocator = getSupabaseAsset(assetStoragePath);
+  const resolvedAssetUniformResourceLocator = getSupabaseAssetUniformResourceLocator(assetStoragePath);
 
   const isResolutionIntegrityValid = resolvedAssetUniformResourceLocator &&
     resolvedAssetUniformResourceLocator.trim() !== "" &&
@@ -207,7 +204,7 @@ export function getSafeAsset(
  * formatGeographicPointCoordinates: 
  * Misión: Representación técnica de un punto geodésico bajo la Constitución V8.6.
  */
-export function formatCoordinates(longitudeCoordinate: number, latitudeCoordinate: number): string {
+export function formatGeographicPointCoordinates(longitudeCoordinate: number, latitudeCoordinate: number): string {
   return `${latitudeCoordinate.toFixed(6)}°N, ${longitudeCoordinate.toFixed(6)}°E`;
 }
 
@@ -215,7 +212,7 @@ export function formatCoordinates(longitudeCoordinate: number, latitudeCoordinat
  * getHumanReadableDistanceLabel: 
  * Misión: Métrica de proximidad para el radar situacional.
  */
-export function getDistanceLabel(distanceInMetersMagnitude: number): string {
+export function getHumanReadableDistanceLabel(distanceInMetersMagnitude: number): string {
   if (distanceInMetersMagnitude < 1000) {
     return `${Math.round(distanceInMetersMagnitude)}m`;
   }
@@ -256,7 +253,7 @@ async function executeCompressionOnMainThreadFallback(
       canvasElement.width = targetWidthPixels;
       canvasElement.height = targetHeightPixels;
       const canvasRenderingContext = canvasElement.getContext('2d');
-      
+
       if (!canvasRenderingContext) return resolve(sourceImageFile);
 
       canvasRenderingContext.imageSmoothingEnabled = true;
@@ -279,7 +276,7 @@ async function executeCompressionOnMainThreadFallback(
  * executeAsynchronousImageCompression:
  * Misión: Compresión asíncrona Just-In-Time para proteger el frame de renderizado.
  */
-export async function compressNicePodImage(
+export async function executeAsynchronousImageCompression(
   sourceImageFile: File,
   maximumWidthPixels: number = 2048,
   compressionQualityFactor: number = 0.85
@@ -294,7 +291,7 @@ export async function compressNicePodImage(
   return new Promise((resolve) => {
     try {
       const compressionWorkerInstance = new Worker(
-        new URL('./workers/compression.worker.ts', import.meta.url), 
+        new URL('./workers/compression.worker.ts', import.meta.url),
         { type: 'module' }
       );
 
@@ -314,10 +311,10 @@ export async function compressNicePodImage(
         compressionWorkerInstance.terminate();
       };
 
-      compressionWorkerInstance.postMessage({ 
-        file: sourceImageFile, 
-        maxWidth: maximumWidthPixels, 
-        quality: compressionQualityFactor 
+      compressionWorkerInstance.postMessage({
+        file: sourceImageFile,
+        maxWidth: maximumWidthPixels,
+        quality: compressionQualityFactor
       });
 
     } catch (operationalException) {
@@ -326,3 +323,14 @@ export async function compressNicePodImage(
     }
   });
 }
+
+/**
+ * ---------------------------------------------------------------------------
+ * VI. CAPA DE ALIAS SOBERANOS (LEGACY COMPATIBILITY BRIDGE)
+ * ---------------------------------------------------------------------------
+ * Misión: Proveer puntos de entrada para los 124 archivos que utilizan nomenclatura 
+ * abreviada, permitiendo la compilación del sistema mientras se ejecuta la 
+ * transición industrial a nombres descriptivos.
+ * [ADVERTENCIA]: Estos alias se consideran 'DEPRECATED' bajo el Dogma V4.5.
+ */
+export { cleanTextForNeuralSpeechSynthesis as cleanTextForSpeech, concatenateClassNames as cn, executeAsynchronousImageCompression as compressNicePodImage, formatGeographicPointCoordinates as formatCoordinates, formatSecondsAsChronometer as formatTime, getHumanReadableDistanceLabel as getDistanceLabel, getSecureAssetWithAvailabilityFallback as getSafeAsset, getSharedAudioContext as getSharedAudioCtx, getSupabaseAssetUniformResourceLocator as getSupabaseAsset };
