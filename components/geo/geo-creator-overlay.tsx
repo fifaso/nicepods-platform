@@ -1,14 +1,15 @@
 /**
  * ARCHIVO: components/geo/geo-creator-overlay.tsx
- * VERSIÓN: 11.0 (NicePod Sovereign Orchestrator - Industrial Nominal & UI Stability Edition)
- * PROTOCOLO: MADRID RESONANCE V4.2
+ * VERSIÓN: 12.0 (NicePod Sovereign Orchestrator - Nominative Decoupling & UI Balancing Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.5
  * 
  * Misión: Orquestar la interfaz táctica y el ciclo de vida de los motores WebGL 
  * garantizando la sincronía absoluta de contratos entre la interfaz, el contexto 
  * de forja y el motor espacial. Actúa como el centro de mando visual del Voyager.
- * [REFORMA V11.0]: Sincronización total con ForgeContext V6.0 y RadarHeadsUpDisplay V7.0. 
- * Resolución definitiva del error TS2339 (administratorIntentText). Implementación 
- * estricta de la Zero Abbreviations Policy (ZAP) y validación de espacios de interfaz.
+ * [REFORMA V12.0]: Implementación de la directriz de Decoupling Nominativo: la 
+ * intención del administrador ya no altera el título del HUD. Consolidación de 
+ * la Zero Abbreviations Policy (ZAP) y ajuste de proporciones de la terminal 
+ * para prevenir solapamiento de capas en dispositivos móviles.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -72,7 +73,7 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
     recenterCamera: recenterVisualCameraAction
   } = useGeoEngine();
 
-  // 2. CONSUMO DEL CONTEXTO DE FORJA (SINCRO V6.0)
+  // 2. CONSUMO DEL CONTEXTO DE FORJA (SINCRO V6.1)
   const { state: forgeState, dispatch: stateDispatcher } = useForge();
 
   // 3. ESTADOS LOCALES DE INTERFAZ DESCRIPTIVOS
@@ -132,10 +133,11 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
 
   /**
    * displayCurrentPlaceName:
-   * Resolución heurística de la identidad nominativa del nodo en tiempo real.
-   * [FIX V11.0]: Uso obligatorio de 'administratorIntentText' tras la Reforma V6.0 del contexto.
+   * Resolución heurística de la identidad nominativa del hito en tiempo real.
+   * [INTERVENCIÓN V12.0]: Se elimina 'administratorIntentText' de esta lógica.
+   * El título del HUD solo debe mostrar nombres oficiales o estados de sintonía.
    */
-  const displayCurrentPlaceName = forgeState.administratorIntentText ||
+  const displayCurrentPlaceName = 
     engineOperationalData?.manualPlaceName ||
     engineOperationalData?.dossier?.visual_analysis_dossier?.detectedOfficialName ||
     "Sintonía de Malla Activa";
@@ -215,7 +217,7 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
               </div>
               <h2 className="text-white font-black uppercase tracking-[0.5em] text-[10px] mb-4">Enlace Interrumpido</h2>
               <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-[0.3em] leading-relaxed mb-12">
-                Conecte el enlace sensorial para proyectar la malla urbana de la terminal.
+                Conecte el enlace sensorial para proyectar la malla urbana de la terminal NicePod.
               </p>
               <Button
                 onClick={handleHardwareIgnitionAction}
@@ -279,7 +281,7 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
       </div>
 
       {/* IV. CAPA 30: PANTALLA DE DATOS EN CABEZA (HEADS-UP DISPLAY) 
-          [FIX V11.0]: Sincronía con RadarHeadsUpDisplay V7.0 (accuracyMeters, placeName). */}
+          [SINCRO V12.0]: Inyección de datos geográficos puros al HUD. */}
       <AnimatePresence>
         {isForgeTerminalInterfaceOpen && (
           <motion.div
@@ -300,7 +302,9 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
         )}
       </AnimatePresence>
 
-      {/* V. CAPA 40: TERMINAL DEL ESCÁNER GEOGRÁFICO */}
+      {/* V. CAPA 40: TERMINAL DEL ESCÁNER GEOGRÁFICO 
+          [INTERVENCIÓN V12.0]: Ajuste de altura dinámica (82vh) para maximizar el 
+          espacio de trabajo y evitar solapamientos con la barra de navegación. */}
       <AnimatePresence>
         {isForgeTerminalInterfaceOpen && (
           <motion.div
@@ -308,7 +312,7 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
             animate={{ y: 0 }} 
             exit={{ y: "100%" }} 
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="absolute inset-x-0 bottom-0 z-[240] flex flex-col justify-end pointer-events-auto h-[78vh]"
+            className="absolute inset-x-0 bottom-0 z-[240] flex flex-col justify-end pointer-events-auto h-[82vh]"
           >
             <div className="w-full h-full bg-[#020202]/98 backdrop-blur-3xl rounded-t-[3.5rem] border-t border-white/5 shadow-[0_-30px_60px_rgba(0,0,0,0.9)] flex flex-col relative overflow-hidden">
               <div className="w-full flex justify-center py-6 shrink-0 z-20">
