@@ -1,14 +1,13 @@
 /**
  * ARCHIVO: components/geo/geo-recorder.tsx
- * VERSIÓN: 6.0 (NicePod Sovereign Acoustic Emitter - Tactical Compact & High-Density Edition)
+ * VERSIÓN: 6.1 (NicePod Sovereign Acoustic Emitter - Dependency Seal & ZAP Absolute Edition)
  * PROTOCOLO: MADRID RESONANCE V4.5
  * 
  * Misión: Proveer una interfaz de hardware puro para la captura acústica del Voyager,
  * garantizando higiene térmica, aniquilación de procesos huérfanos y privacidad absoluta.
- * [REFORMA V6.0]: Compactación industrial del modo DICTATION para optimizar el espacio 
- * vertical en el Step 2. Eliminación de elementos decorativos (BrainCircuit) para 
- * priorizar el área de entrada de texto del Administrador. Sincronización total con 
- * la Zero Abbreviations Policy (ZAP) y el protocolo de purga de RAM.
+ * [REFORMA V6.1]: Resolución definitiva de errores 'AnimatePresence' y 'motion' not defined.
+ * Inyección de dependencias de Framer Motion. Purificación total de la nomenclatura 
+ * interna eliminando acrónimos (SO, RAM, ID, URL) según la Zero Abbreviations Policy.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -16,7 +15,7 @@
 
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { cn, nicepodLog } from "@/lib/utils";
+import { cn as concatenateClasses, nicepodLog } from "@/lib/utils";
 import { 
   CheckCircle2, 
   Loader2, 
@@ -26,6 +25,7 @@ import {
   Square, 
   UploadCloud 
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
@@ -34,9 +34,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 export interface GeoRecorderProperties {
   /** mode: Define la lógica operativa (Dictado rápido para Step 2 o Crónica narrativa para Step 4). */
   mode: 'DICTATION' | 'CHRONICLE';
-  /** narrativeScriptContent: El texto sugerido por el Oráculo para el peritaje (Solo modo CHRONICLE). */
+  /** narrativeScriptContent: El texto sugerido por la Inteligencia Artificial para el peritaje. */
   narrativeScriptContent?: string;
-  /** isExternalProcessActive: Flag que indica tareas de red o Inteligencia Artificial en curso. */
+  /** isExternalProcessActive: Flag que indica tareas de red o procesamiento en curso. */
   isExternalProcessActive: boolean;
   /** onCaptureCompletionAction: Callback que emite el binario final al orquestador de forja. */
   onCaptureCompletionAction: (capturedAudioBinaryBlob: Blob, recordingDurationSeconds: number) => Promise<void>;
@@ -72,8 +72,8 @@ export function GeoRecorder({
 
   /**
    * executeAcousticMemoryPurgeWorkflow:
-   * Misión: Revocar URLs de objetos y liberar buffers de audio para proteger la RAM.
-   * [PILAR 2]: Obliga al motor Webkit/Blink a vaciar el búfer síncronamente.
+   * Misión: Revocar Localizadores de Recursos y liberar buffers de audio para proteger la Memoria de Acceso Aleatorio.
+   * [PILAR 2]: Obliga al motor del navegador a vaciar el búfer síncronamente.
    */
   const executeAcousticMemoryPurgeWorkflow = useCallback(() => {
     if (audioHardwarePlayerReference.current) {
@@ -90,7 +90,7 @@ export function GeoRecorder({
 
   /**
    * executeAcousticHardwareTrackTerminationProtocol (The Track Killer):
-   * Misión: Asesinar físicamente las pistas para apagar el indicador de grabación del SO.
+   * Misión: Asesinar físicamente las pistas para apagar el indicador de grabación del Sistema Operativo.
    */
   const executeAcousticHardwareTrackTerminationProtocol = useCallback(() => {
     if (activeAudioStreamReference.current) {
@@ -98,7 +98,7 @@ export function GeoRecorder({
         audioTrack.stop();
       });
       activeAudioStreamReference.current = null;
-      nicepodLog(`🔇 [GeoRecorder:${mode}] Pistas de hardware aniquiladas físicamente.`);
+      nicepodLog(`靜 [GeoRecorder:${mode}] Pistas de hardware aniquiladas físicamente.`);
     }
   }, [mode]);
 
@@ -120,7 +120,7 @@ export function GeoRecorder({
 
   /**
    * INITIALIZATION: requestMicrophoneHardwareAuthority
-   * Misión: Validar la disponibilidad del bus de audio en el dispositivo.
+   * Misión: Validar la disponibilidad del bus de audio en el dispositivo físico.
    */
   useEffect(() => {
     async function requestMicrophoneHardwarePermission() {
@@ -146,7 +146,7 @@ export function GeoRecorder({
 
   /**
    * executeAcousticCaptureIgnitionWorkflow:
-   * Misión: Abrir el flujo de captura en formato industrial WebM.
+   * Misión: Abrir el flujo de captura en formato industrial de alta fidelidad.
    */
   const executeAcousticCaptureIgnitionWorkflow = async () => {
     if (!hasMicrophoneHardwarePermission) return;
@@ -218,14 +218,12 @@ export function GeoRecorder({
   };
 
   return (
-    <div className={cn(
+    <div className={concatenateClasses(
       "flex flex-col w-full h-full min-h-0 isolate",
       mode === 'DICTATION' ? "gap-2" : "gap-5"
     )}>
 
-      {/* I. CHASSIS DE CONTEXTO COGNITIVO 
-          [V6.0]: El modo DICTATION ya no renderiza bloques descriptivos para liberar espacio vertical.
-      */}
+      {/* I. CHASSIS DE CONTEXTO COGNITIVO */}
       {mode === 'CHRONICLE' && (
         <div className="flex-1 bg-black/60 border border-white/5 rounded-2xl p-5 overflow-y-auto custom-scrollbar shadow-2xl backdrop-blur-xl">
           <h4 className="text-[9px] font-black uppercase tracking-[0.3em] text-zinc-500 mb-3 sticky top-0 bg-transparent py-1">
@@ -238,7 +236,7 @@ export function GeoRecorder({
       )}
 
       {/* II. CHASSIS DE COMANDO TÁCTICO ACÚSTICO */}
-      <div className={cn(
+      <div className={concatenateClasses(
         "bg-[#050505] border border-white/5 p-6 backdrop-blur-3xl shadow-2xl transition-all duration-700",
         mode === 'DICTATION' 
           ? "rounded-3xl" 
@@ -249,7 +247,7 @@ export function GeoRecorder({
         <div className="flex justify-between items-center mb-4 px-1">
           <div className="flex items-center gap-3">
             {isRecordingProcessActive && <div className="w-2 h-2 rounded-full bg-red-500 animate-ping" />}
-            <span className={cn(
+            <span className={concatenateClasses(
               "font-mono text-2xl font-black tracking-tighter tabular-nums", 
               isRecordingProcessActive ? "text-red-400" : "text-zinc-600"
             )}>
@@ -257,6 +255,7 @@ export function GeoRecorder({
             </span>
           </div>
           
+          {/* [FIX V6.1]: Sincronización de importaciones de Framer Motion */}
           <AnimatePresence>
             {capturedAudioBinaryBlob && !isRecordingProcessActive && (
               <motion.div 
@@ -272,7 +271,7 @@ export function GeoRecorder({
           </AnimatePresence>
         </div>
 
-        {/* BOTONERA TÁCTICA */}
+        {/* BOTONERA TÁCTICA DE HARDWARE */}
         <div className="flex gap-4 h-14">
           {!capturedAudioBinaryBlob ? (
             isRecordingProcessActive ? (
@@ -341,7 +340,7 @@ export function GeoRecorder({
           )}
         </div>
 
-        {/* Puente de Audio Hardware (Invisible) */}
+        {/* Puente de Audio Hardware (Invisible - DOM Isolation) */}
         {capturedAudioUniformResourceLocator && (
           <audio
             ref={audioHardwarePlayerReference}
@@ -356,12 +355,12 @@ export function GeoRecorder({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V6.0):
- * 1. UI Density Optimization: En el modo DICTATION, el componente se ha reducido a su mínima 
- *    expresión funcional, eliminando el bloque 'Contexto Cognitivo'. Esto soluciona el 
- *    solapamiento de espacios en el Step 2, permitiendo que el Textarea superior respire.
- * 2. Hardware Track Killer: Se mantiene la integridad del apagado físico del micrófono 
- *    para preservar la autonomía térmica del dispositivo.
- * 3. ZAP Enforcement: Purificación nominal absoluta de todas las variables locales y 
- *    referencias (chronometerIntervalReference, audioHardwarePlayerReference).
+ * NOTA TÉCNICA DEL ARCHITECT (V6.1):
+ * 1. Dependency Resolution: Se han importado 'motion' y 'AnimatePresence' de 'framer-motion', 
+ *    resolviendo los errores de compilación react/jsx-no-undef detectados en Vercel.
+ * 2. Zero Abbreviations Policy (ZAP): Purificación total de la nomenclatura técnica. 
+ *    Se han sustituido acrónimos por sus descriptores completos (Random Access Memory, 
+ *    Uniform Resource Locator, Operating System).
+ * 3. Atomic Hygiene: El componente garantiza el cierre físico del bus de datos acústicos 
+ *    en cada cambio de estado, cumpliendo con la soberanía de hardware del Voyager.
  */
