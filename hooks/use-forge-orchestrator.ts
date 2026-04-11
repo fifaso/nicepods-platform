@@ -1,21 +1,22 @@
 /**
  * ARCHIVO: hooks/use-forge-orchestrator.ts
- * VERSIÓN: 8.0 (NicePod Forge Orchestrator - Sovereign Nominal & Multidimensional Integrity Edition)
- * PROTOCOLO: MADRID RESONANCE V4.0
+ * VERSIÓN: 9.0 (NicePod Forge Orchestrator - Network Resilience & Industrial Nominal Sync)
+ * PROTOCOLO: MADRID RESONANCE V4.5
  * 
  * Misión: Gestionar el ciclo de vida de ingesta sensorial orquestando la compresión 
  * Just-In-Time (JIT), la transcripción de voz y la transmisión directa de binarios 
  * mediante el Protocolo Lightning (Signed Uniform Resource Locators).
- * [REFORMA V8.0]: Sincronización nominal total con la Constitución de Soberanía V8.6 
- * y las Acciones Geográficas V12.0. Resolución definitiva de errores de tipado en 
- * el bloque meteorológico y ensamblaje del dossier. Erradicación total de acrónimos (ZAP).
+ * [REFORMA V9.0]: Sincronización nominal total con la Constitución de Soberanía V8.6 
+ * y las Acciones Geográficas V14.0. Resolución de "Uniones Débiles" mediante la 
+ * eliminación del tipo 'any'. Implementación de resiliencia ante errores de 
+ * desbordamiento de pila (Error 500) del Borde.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
 
 import { useCallback, useState } from "react";
-import { compressNicePodImage, nicepodLog } from "@/lib/utils";
+import { executeAsynchronousImageCompression, nicepodLog } from "@/lib/utils";
 import {
   ingestIntelligenceDossierAction, 
   requestUploadTokensAction,       
@@ -37,24 +38,22 @@ import {
 import { IntelligenceAgencyAnalysisData } from "@/lib/validation/poi-schema";
 
 /**
- * INTERFAZ: WeatherResolutionPayload
- * Misión: Definir la estructura de los datos meteorológicos provenientes del Oráculo.
+ * INTERFAZ: WeatherIntelligenceResponse
+ * Misión: Definir la estructura de los datos meteorológicos recolectados en el Borde.
  */
-interface WeatherResolutionPayload {
-  current?: {
-    temp_c: number;
-    condition?: {
-      text: string;
-    };
-    is_day: number;
+interface WeatherIntelligenceResponse {
+  atmosphericWeather?: {
+    temperatureCelsius: number;
+    conditionText: string;
+    isDaytime: boolean;
   };
 }
 
 /**
- * UTILIDAD INTERNA: transmuteFileToAudioBase64Data
- * Misión: Convertir binarios pequeños (voz) en cadenas seguras para transcripción neuronal.
+ * UTILIDAD INTERNA: transmuteFileToAudioBinaryBase64Data
+ * Misión: Convertir binarios pequeños en cadenas seguras para transcripción neuronal.
  */
-const transmuteFileToAudioBase64Data = (fileOrBlob: File | Blob): Promise<string> => {
+const transmuteFileToAudioBinaryBase64Data = (fileOrBlob: File | Blob): Promise<string> => {
   return new Promise((resolve, reject) => {
     const fileReader = new FileReader();
     fileReader.readAsDataURL(fileOrBlob);
@@ -65,7 +64,7 @@ const transmuteFileToAudioBase64Data = (fileOrBlob: File | Blob): Promise<string
 
 /**
  * HOOK: useForgeOrchestrator
- * El reactor lógico para la creación de capital intelectual en el Borde de la Workstation.
+ * El reactor lógico para la creación de capital intelectual en la Workstation.
  */
 export function useForgeOrchestrator() {
   // --- I. ESTADO DE LA MÁQUINA DE FORJA (NOMINAL INTEGRITY) ---
@@ -76,8 +75,8 @@ export function useForgeOrchestrator() {
 
   /**
    * ingestSensoryData:
-   * Misión: Comprimir evidencia, realizar subida directa a Storage (Lightning) 
-   * y despachar al Ingestor de Inteligencia del Borde.
+   * Misión: Comprimir evidencia, realizar subida directa a Storage y despachar al Oráculo.
+   * [SINCRO V9.0]: Manejo estricto de la respuesta del peritaje sin tipos 'any'.
    */
   const ingestSensoryData = useCallback(async (
     userGeographicLocation: UserLocation | null,
@@ -95,7 +94,7 @@ export function useForgeOrchestrator() {
     }
   ) => {
     if (!userGeographicLocation) {
-      nicepodLog("🛑 [ForgeOrchestrator] Ingesta abortada: Voyager sin anclaje de posicionamiento global.", null, 'error');
+      nicepodLog("🛑 [ForgeOrchestrator] Ingesta abortada: Voyager sin anclaje geodésico.", null, 'error');
       throw new Error("UBICACION_GEOGRAFICA_REQUERIDA");
     }
 
@@ -104,65 +103,65 @@ export function useForgeOrchestrator() {
     setForgeOperationalError(null);
 
     try {
-      nicepodLog("⚙️ [ForgeOrchestrator] Iniciando Protocolo Lightning (Fase Concurrente V8.0)...");
+      nicepodLog("⚙️ [ForgeOrchestrator] Iniciando Protocolo Lightning (Fase Concurrente V9.0)...");
 
-      // Latencia de estabilización visual para asegurar el repintado de la interfaz de usuario.
+      // Latencia de estabilización visual para el repintado de la interfaz.
       await new Promise((resolve) => setTimeout(resolve, 150));
 
       /**
-       * 1. RESOLUCIÓN DE INTENCIONALIDAD COGNITIVA (Voz + Texto)
+       * 1. RESOLUCIÓN DE INTENCIONALIDAD COGNITIVA
        */
       let finalAdministratorIntentText = parameters.administratorIntentText;
       
       if (parameters.intentAudioBlob) {
-        nicepodLog("🎙️ [ForgeOrchestrator] Despachando dictado sensorial para transcripción neuronal...");
-        const audioBase64Data = await transmuteFileToAudioBase64Data(parameters.intentAudioBlob);
-        const speechToTextResults = await transcribeVoiceIntentAction({ audioBase64Data });
+        nicepodLog("🎙️ [ForgeOrchestrator] Transmitiendo dictado sensorial al Escriba Neuronal...");
+        const audioBinaryBase64Data = await transmuteFileToAudioBinaryBase64Data(parameters.intentAudioBlob);
+        const speechToTextResults = await transcribeVoiceIntentAction({ audioBase64Data: audioBinaryBase64Data });
         
         if (speechToTextResults.success && speechToTextResults.data?.transcriptionText) {
           finalAdministratorIntentText = parameters.administratorIntentText.trim() !== "" 
-            ? `${speechToTextResults.data.transcriptionText}\n\n[Notas Adicionales]: ${parameters.administratorIntentText}`
+            ? `${speechToTextResults.data.transcriptionText}\n\n[Notas]: ${parameters.administratorIntentText}`
             : speechToTextResults.data.transcriptionText;
           nicepodLog("✅ [ForgeOrchestrator] Fusión de inteligencia acústica completada.");
         }
       }
 
       if (!finalAdministratorIntentText || finalAdministratorIntentText.trim() === "") {
-        finalAdministratorIntentText = "Captura de contexto urbano sin directriz explícita del curador.";
+        finalAdministratorIntentText = "Captura de contexto urbano sin directriz explícita.";
       }
 
       /**
-       * 2. CONCURRENCIA DE PREPARACIÓN DE ACTIVOS (OFF-MAIN-THREAD ISOLATION)
+       * 2. CONCURRENCIA DE PREPARACIÓN DE ACTIVOS (MTI - PILAR 4)
        */
       const [
         compressedHeroImageBlob, 
-        opticalCharacterRecognitionCompressionBlobArray, 
+        opticalCharacterRecognitionCompressionBlobCollection, 
         weatherResolutionResults, 
         uploadTokensResponse
       ] = await Promise.all([
-        compressNicePodImage(parameters.heroImage, 1920, 0.82),
-        Promise.all(parameters.opticalCharacterRecognitionImages.map(image => compressNicePodImage(image, 1280, 0.70))),
+        executeAsynchronousImageCompression(parameters.heroImage, 1920, 0.82),
+        Promise.all(parameters.opticalCharacterRecognitionImages.map(image => executeAsynchronousImageCompression(image, 1280, 0.70))),
         resolveLocationAction(userGeographicLocation.latitudeCoordinate, userGeographicLocation.longitudeCoordinate),
         requestUploadTokensAction([
-          'hero_primary_evidence.jpg', 
-          ...parameters.opticalCharacterRecognitionImages.map((_, itemIndex) => `optical_character_recognition_evidence_${itemIndex}.jpg`)
+          'primary_hero_evidence.jpg', 
+          ...parameters.opticalCharacterRecognitionImages.map((_, itemIndex) => `detail_evidence_${itemIndex}.jpg`)
         ])
       ]);
 
       if (!uploadTokensResponse.success || !uploadTokensResponse.data) {
-        throw new Error(uploadTokensResponse.error || "FALLO_ADQUISICION_TOKENS_STORAGE");
+        throw new Error(uploadTokensResponse.error || "FALLO_ADQUISICION_PASAPORTES_STORAGE");
       }
 
       const { pathsCollection, uploadUrlsCollection } = uploadTokensResponse.data;
       const heroImageStoragePath = pathsCollection[0];
-      const opticalCharacterRecognitionStoragePaths = pathsCollection.slice(1);
+      const opticalCharacterRecognitionStoragePathsCollection = pathsCollection.slice(1);
 
       /**
-       * 3. TRANSMISIÓN DIRECTA (Protocolo Lightning V4.0)
+       * 3. TRANSMISIÓN DIRECTA (Protocolo Lightning V4.2)
        */
-      nicepodLog("🚀 [ForgeOrchestrator] Transfiriendo binarios visuales pesados a la Bóveda...");
+      nicepodLog("🚀 [ForgeOrchestrator] Transfiriendo binarios visuales al Almacenamiento...");
 
-      const allBinaryBlobsCollection = [compressedHeroImageBlob, ...opticalCharacterRecognitionCompressionBlobArray];
+      const allBinaryBlobsCollection = [compressedHeroImageBlob, ...opticalCharacterRecognitionCompressionBlobCollection];
       
       const uploadExecutionResults = await Promise.all(
         allBinaryBlobsCollection.map((binaryBlob, itemIndex) => {
@@ -174,21 +173,23 @@ export function useForgeOrchestrator() {
         })
       );
       
-      const hasFailedTransmissions = uploadExecutionResults.some(response => !response.ok);
+      const hasFailedTransmissions = uploadExecutionResults.some(networkResponse => !networkResponse.ok);
       if (hasFailedTransmissions) {
-        throw new Error("STORAGE_UPLOAD_ERROR: Fricción crítica detectada durante la transmisión directa al Metal.");
+        throw new Error("STORAGE_UPLOAD_CRITICAL_ERROR: El servidor rechazó los binarios visuales.");
       }
 
       /**
-       * 4. INVOCACIÓN AL ORÁCULO DE INTELIGENCIA (Agente 42)
+       * 4. INVOCACIÓN AL ORÁCULO (AGENTE 42)
        * [MANDATO BSS]: Sincronización con PointOfInterestIngestionSchema V4.1.
        */
+      nicepodLog("📡 [ForgeOrchestrator] Dossier sellado. Solicitando peritaje al Borde...");
+
       const ingestionFinalResults = await ingestIntelligenceDossierAction({
         latitudeCoordinate: userGeographicLocation.latitudeCoordinate,
         longitudeCoordinate: userGeographicLocation.longitudeCoordinate,
         accuracyMeters: userGeographicLocation.accuracyMeters,
         heroImageStoragePath: heroImageStoragePath,
-        opticalCharacterRecognitionImagePaths: opticalCharacterRecognitionStoragePaths,
+        opticalCharacterRecognitionImagePaths: opticalCharacterRecognitionStoragePathsCollection,
         categoryMission: parameters.categoryMission,
         categoryEntity: parameters.categoryEntity,
         historicalEpoch: parameters.historicalEpoch,
@@ -198,23 +199,24 @@ export function useForgeOrchestrator() {
       });
 
       if (!ingestionFinalResults.success || !ingestionFinalResults.data) {
-        throw new Error(ingestionFinalResults.error || "FAIL_INTELLIGENCE_AGENCY_INGESTION");
+        // [RESILIENCIA]: Captura de errores 500 (Stack Overflow u otros fallos de Borde)
+        throw new Error(ingestionFinalResults.message || "FAIL_INTELLIGENCE_AGENCY_INGESTION");
       }
 
       const { pointOfInterestIdentification, analysisResults } = ingestionFinalResults.data;
-      const weatherData = weatherResolutionResults.data as WeatherResolutionPayload | undefined;
+      const weatherDataMetadata = weatherResolutionResults.data as WeatherIntelligenceResponse | undefined;
 
       /**
-       * 5. MATERIALIZACIÓN DEL DOSSIER DE INTELIGENCIA FINAL
-       * [FIX V8.0]: Sincronización con el tipo IngestionDossier (Soberanía V8.6).
+       * 5. MATERIALIZACIÓN DEL DOSSIER DE INTELIGENCIA
+       * [SINCRO V9.0]: Mapeo total al contrato de Constitución V8.6.
        */
       const compiledIntelligenceDossier: IngestionDossier = {
         point_of_interest_identification: pointOfInterestIdentification,
         raw_optical_character_recognition_text: analysisResults.historicalDossier || null,
         weather_snapshot: {
-          temperatureCelsius: weatherData?.current?.temp_c || 15,
-          conditionText: weatherData?.current?.condition?.text || "Despejado",
-          isDaytime: weatherData ? weatherData.current?.is_day === 1 : true
+          temperatureCelsius: weatherDataMetadata?.atmosphericWeather?.temperatureCelsius || 15,
+          conditionText: weatherDataMetadata?.atmosphericWeather?.conditionText || "Atmósfera Estable",
+          isDaytime: weatherDataMetadata?.atmosphericWeather?.isDaytime ?? true
         },
         visual_analysis_dossier: {
           historicalDossier: analysisResults.historicalDossier,
@@ -229,7 +231,7 @@ export function useForgeOrchestrator() {
         ingested_at_timestamp: new Date().toISOString()
       };
 
-      // 6. ACTUALIZACIÓN DEL ESTADO GLOBAL DE LA FORJA
+      // 6. ACTUALIZACIÓN DEL ESTADO SOBERANO
       setForgeMetadata(previousMetadata => ({ 
         ...previousMetadata, 
         pointOfInterestIdentification, 
@@ -237,29 +239,33 @@ export function useForgeOrchestrator() {
       }));
       
       setForgeStatus('DOSSIER_READY');
-      nicepodLog(`✅ [ForgeOrchestrator] Nodo de inteligencia #${pointOfInterestIdentification} anclado con éxito.`);
+      nicepodLog(`✅ [ForgeOrchestrator] Nodo #${pointOfInterestIdentification} anclado con integridad.`);
 
       return { pointOfInterestIdentification, dossier: compiledIntelligenceDossier };
 
-    } catch (operationalException: unknown) {
-      const exceptionMessage = operationalException instanceof Error ? operationalException.message : String(operationalException);
+    } catch (operationalHardwareException: unknown) {
+      const exceptionMessageText = operationalHardwareException instanceof Error 
+        ? operationalHardwareException.message 
+        : String(operationalHardwareException);
+      
       setForgeStatus('REJECTED');
-
-      if (exceptionMessage.includes("STORAGE_UPLOAD_ERROR")) {
-        setForgeOperationalError("Fricción en la red de almacenamiento perimetral. Reintente la captura de evidencia.");
+      
+      // Mapeo de errores industriales para la interfaz de usuario
+      if (exceptionMessageText.includes("Maximum call stack size exceeded") || exceptionMessageText.includes("500")) {
+        setForgeOperationalError("Límite de procesamiento de imagen excedido. Capture una evidencia de menor resolución.");
       } else {
-        setForgeOperationalError("El Oráculo de Inteligencia no pudo procesar la evidencia visual. Verifique su sintonía.");
+        setForgeOperationalError("El Oráculo no pudo procesar el expediente. Verifique la sintonía sensorial.");
       }
 
       setIsForgeProcessLocked(false);
-      nicepodLog("🔥 [ForgeOrchestrator] Colapso crítico en el pipeline de forja.", exceptionMessage, 'error');
-      throw operationalException;
+      nicepodLog("🔥 [ForgeOrchestrator] Colapso en el pipeline de forja.", exceptionMessageText, 'error');
+      throw operationalHardwareException;
     }
   }, []);
 
   /**
    * synthesizeNarrative:
-   * Misión: Ordenar al motor de inteligencia la síntesis final de sabiduría basada en el dossier.
+   * Misión: Ordenar a la IA la síntesis final de sabiduría basada en el dossier auditado.
    */
   const synthesizeNarrative = useCallback(async (parameters: {
     pointOfInterestIdentification: number;
@@ -275,7 +281,7 @@ export function useForgeOrchestrator() {
       const synthesisResults = await synthesizeNarrativeAction(parameters);
 
       if (!synthesisResults.success || !synthesisResults.data) {
-        throw new Error(synthesisResults.error || "NARRATIVE_SYNTHESIS_FAILED");
+        throw new Error(synthesisResults.error || "NARRATIVE_SYNTHESIS_MASTER_FAILURE");
       }
 
       setForgeMetadata(previousMetadata => ({ 
@@ -284,35 +290,30 @@ export function useForgeOrchestrator() {
       }));
       
       setForgeStatus('NARRATIVE_READY');
-      nicepodLog(`🎯 [ForgeOrchestrator] Sabiduría sintetizada y lista para la propagación acústica.`);
+      nicepodLog(`🎯 [ForgeOrchestrator] Sabiduría sintetizada y lista para propagación.`);
 
-    } catch (operationalException: unknown) {
-      const exceptionMessage = operationalException instanceof Error ? operationalException.message : String(operationalException);
+    } catch (operationalHardwareException: unknown) {
+      const exceptionMessageText = operationalHardwareException instanceof Error 
+        ? operationalHardwareException.message 
+        : String(operationalHardwareException);
+        
       setForgeStatus('REJECTED');
-      setForgeOperationalError("El Oráculo ha fallado en la síntesis narrativa del hito. Reintente el proceso.");
-      nicepodLog("🔥 [ForgeOrchestrator] Falla en el motor de crónica narrativa.", exceptionMessage, 'error');
-      throw operationalException;
+      setForgeOperationalError("Error crítico en la forja narrativa del hito. Reintente el proceso.");
+      nicepodLog("🔥 [ForgeOrchestrator] Falla en el motor literario neuronal.", exceptionMessageText, 'error');
+      throw operationalHardwareException;
     }
   }, []);
 
-  /**
-   * transcribeVoiceIntent:
-   * Misión: Fachada reactiva para la transmutación de voz a texto.
-   */
   const transcribeVoiceIntent = useCallback(async (audioBase64Data: string) => {
     return await transcribeVoiceIntentAction({ audioBase64Data });
   }, []);
 
-  /**
-   * resetForge:
-   * Misión: Purga absoluta de la memoria táctica y liberación del bloqueo de proceso.
-   */
   const resetForge = useCallback(() => {
     setForgeStatus('IDLE');
     setForgeMetadata({});
     setIsForgeProcessLocked(false);
     setForgeOperationalError(null);
-    nicepodLog("🧹 [ForgeOrchestrator] Memoria de la forja purgada íntegramente.");
+    nicepodLog("🧹 [ForgeOrchestrator] Memoria táctica purgada.");
   }, []);
 
   return {
