@@ -1,15 +1,15 @@
 /**
  * ARCHIVO: components/geo/forge-context.tsx
- * VERSIÓN: 6.2 (NicePod Forge Context - Geodetic Auto-Ingestion & Session Persistence Edition)
+ * VERSIÓN: 6.3 (NicePod Forge Context - Sovereign Geodetic Synchronization & High-Fidelity Recovery Edition)
  * PROTOCOLO: MADRID RESONANCE V4.8
  * 
  * Misión: Orquestar la memoria volátil de la terminal de forja con persistencia de alto 
  * rendimiento, garantizando la inmunidad ante la amnesia del navegador y la 
- * sincronización automática con la telemetría HD heredada de la plataforma.
- * [REFORMA V6.2]: Implementación del Protocolo de Ingesta Pasiva de Autoridad. El contexto 
- * detecta automáticamente el bloqueo de precisión satelital (High-Fidelity) del motor 
- * global para auto-poblar las coordenadas en la Fase 1, eliminando latencias de espera. 
- * Cumplimiento absoluto de la Zero Abbreviations Policy (ZAP).
+ * sincronización automática con la telemetría de alta fidelidad (SSS Protocol).
+ * [REFORMA V6.3]: Consolidación del Protocolo de Herencia Táctica. El contexto ahora 
+ * detecta y absorbe activamente el bloqueo de precisión satelital (High-Fidelity) 
+ * del motor global para auto-poblar las coordenadas en la Fase 1. Cumplimiento 
+ * absoluto de la Zero Abbreviations Policy (ZAP) y blindaje del Build Shield.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -42,18 +42,19 @@ import { nicepodLog } from "@/lib/utils";
  * ---------------------------------------------------------------------------
  */
 
-const FORGE_SESSION_SCHEMA_VERSION = "4.8";
+const FORGE_SESSION_METADATA_VERSION_IDENTIFIER = "4.8";
+const FORGE_SESSION_STORAGE_KEY_NAME = "nicepod_forge_session_metadata_v4_8";
 
 export type ForgeStepIdentification =
   | 'ANCHORING'         // Fase 1: Posicionamiento y Taxonomía.
   | 'SENSORY_CAPTURE'   // Fase 2: Captura Visual, Acústica y Temporal.
-  | 'DOSSIER_REVIEW'    // Fase 3: Auditoría Humana del Peritaje de IA.
-  | 'NARRATIVE_FORGE';  // Fase 4: Síntesis Literaria y Publicación.
+  | 'DOSSIER_REVIEW'    // Fase 3: Auditoría Humana del Peritaje de Inteligencia Artificial.
+  | 'NARRATIVE_FORGE';  // Fase 4: Síntesis Literaria y Publicación Soberana.
 
 export interface ForgeState {
   currentActiveStep: ForgeStepIdentification;
-  isSubmittingProcess: boolean;
-  isTranscribingAudio: boolean;
+  isSubmittingProcessActive: boolean;
+  isTranscribingAudioActive: boolean;
   isSessionMetadataModified: boolean; 
 
   // Fase 1: Anclaje Geodésico Industrial
@@ -64,7 +65,7 @@ export interface ForgeState {
   categoryEntity: CategoryEntity | undefined;
   resonanceRadiusMeters: number;
 
-  // Fase 2: Evidencias y Mosaico de Inteligencia
+  // Fase 2: Evidencias y Mosaico de Inteligencia Multimodal
   heroImageFile: File | null;
   opticalCharacterRecognitionImageFiles: File[];
   ambientAudioBlob: Blob | null;
@@ -85,8 +86,8 @@ export interface ForgeState {
 
 const initialState: ForgeState = {
   currentActiveStep: 'ANCHORING',
-  isSubmittingProcess: false,
-  isTranscribingAudio: false,
+  isSubmittingProcessActive: false,
+  isTranscribingAudioActive: false,
   isSessionMetadataModified: false,
   
   latitudeCoordinate: null,
@@ -114,7 +115,7 @@ const initialState: ForgeState = {
 
 /**
  * ---------------------------------------------------------------------------
- * II. REDUCER DETERMINISTA (SINTONIZADO V6.2)
+ * II. REDUCER DETERMINISTA (SINTONIZADO V6.3)
  * ---------------------------------------------------------------------------
  */
 
@@ -147,10 +148,10 @@ function forgeReducer(state: ForgeState, action: ForgeAction): ForgeState {
       return { ...state, currentActiveStep: action.payload };
 
     case 'SET_IS_SUBMITTING': 
-      return { ...state, isSubmittingProcess: action.payload };
+      return { ...state, isSubmittingProcessActive: action.payload };
 
     case 'SET_TRANSCRIBING': 
-      return { ...state, isTranscribingAudio: action.payload };
+      return { ...state, isTranscribingAudioActive: action.payload };
     
     case 'SET_LOCATION':
       return { 
@@ -222,10 +223,10 @@ function forgeReducer(state: ForgeState, action: ForgeAction): ForgeState {
     
     case 'HYDRATE_METADATA': {
       const hydratedState = { ...state, ...action.payload };
-      // [RESILIENCIA]: Si faltan evidencias binarias en RAM tras la recuperación, retrocedemos de fase.
+      // [RESILIENCIA]: Si faltan evidencias binarias en RAM tras la recuperación, retrocedemos de fase operativa.
       const isMissingCriticalIntelligenceDossier = hydratedState.currentActiveStep === 'DOSSIER_REVIEW' && !hydratedState.ingestionDossier;
       if (isMissingCriticalIntelligenceDossier) {
-        nicepodLog("⚠️ [ForgeContext] Sesión recuperada con lagunas binarias. Reajustando fase.");
+        nicepodLog("⚠️ [ForgeContext] Sesión restaurada con lagunas binarias. Reajustando a Fase de Captura.");
         hydratedState.currentActiveStep = 'SENSORY_CAPTURE';
       }
       return hydratedState;
@@ -233,7 +234,7 @@ function forgeReducer(state: ForgeState, action: ForgeAction): ForgeState {
     
     case 'RESET_FORGE': 
       if (typeof window !== 'undefined') {
-        sessionStorage.removeItem('nicepod_forge_session_metadata_v4_8');
+        sessionStorage.removeItem(FORGE_SESSION_STORAGE_KEY_NAME);
       }
       return initialState;
       
@@ -260,45 +261,46 @@ export function ForgeProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(forgeReducer, initialState);
   const debounceTimerReference = useRef<NodeJS.Timeout | null>(null);
 
-  // CONSUMO DE TELEMETRÍA GLOBAL DE PLATAFORMA (SSS PROTOCOL)
-  const { userLocation, isGPSLock } = useGeoEngine();
+  // CONSUMO DE TELEMETRÍA GLOBAL DE PLATAFORMA (SINGLE SENSORY SOURCE)
+  const { userLocation, isGPSLock: isGlobalPositioningSystemLocked } = useGeoEngine();
 
   /**
-   * 1. PROTOCOLO DE HIDRATACIÓN T0 (RESILIENCIA)
-   * Misión: Recuperar el estado de la forja desde el almacenamiento de sesión.
+   * 1. PROTOCOLO DE HIDRATACIÓN T0 (RESILIENCIA INDUSTRIAL)
+   * Misión: Recuperar el estado de la forja desde el almacenamiento de sesión persistente.
    */
   useEffect(() => {
-    const savedMetadataJsonString = sessionStorage.getItem('nicepod_forge_session_metadata_v4_8');
+    const savedMetadataJsonString = sessionStorage.getItem(FORGE_SESSION_STORAGE_KEY_NAME);
     if (savedMetadataJsonString) {
       try {
         const parsedMetadata = JSON.parse(savedMetadataJsonString);
         
         // Validación de Integridad de Esquema (Anti-Amnesia Protection)
-        if (parsedMetadata.schema_version !== FORGE_SESSION_SCHEMA_VERSION) {
-          nicepodLog("🛡️ [ForgeContext] Esquema obsoleto. Purgando caché de sesión.");
-          sessionStorage.removeItem('nicepod_forge_session_metadata_v4_8');
+        if (parsedMetadata.schema_version !== FORGE_SESSION_METADATA_VERSION_IDENTIFIER) {
+          nicepodLog("🛡️ [ForgeContext] Esquema obsoleto detectado. Purgando caché de sesión de forja.");
+          sessionStorage.removeItem(FORGE_SESSION_STORAGE_KEY_NAME);
           return;
         }
 
         dispatch({ type: 'HYDRATE_METADATA', payload: parsedMetadata });
       } catch (exception) {
-        nicepodLog("🔥 [ForgeContext] Error en materialización de sesión.", exception, 'error');
-        sessionStorage.removeItem('nicepod_forge_session_metadata_v4_8');
+        nicepodLog("🔥 [ForgeContext] Error crítico en materialización de sesión.", exception, 'error');
+        sessionStorage.removeItem(FORGE_SESSION_STORAGE_KEY_NAME);
       }
     }
   }, []);
 
   /**
-   * 2. PROTOCOLO DE HERENCIA GEODÉSICA (AUTO-INGESTION)
-   * [SINCRO V4.8]: Si el motor global ya posee precisión HD, la forja auto-puebla 
-   * las coordenadas, eliminando la latencia manual en el Step 1.
+   * 2. PROTOCOLO DE HERENCIA GEODÉSICA (INSTANT AUTO-SYNC)
+   * [INTERVENCIÓN V6.3]: Si el motor unificado de plataforma ya posee un bloqueo HD, 
+   * la forja auto-ingesta la ubicación exacta, eliminando la latencia manual en Step 1.
+   * Punto de Sinergia: Dashboard -> Forge Transition.
    */
   useEffect(() => {
     const isStepOneActive = state.currentActiveStep === 'ANCHORING';
-    const hasExistingCoordinates = state.latitudeCoordinate !== null;
+    const hasNotFixedCoordinatesYet = state.latitudeCoordinate === null;
 
-    if (isGPSLock && userLocation && isStepOneActive && !hasExistingCoordinates) {
-      nicepodLog("🛰️ [ForgeContext] Heredando telemetría de alta precisión desde el motor unificado.");
+    if (isGlobalPositioningSystemLocked && userLocation && isStepOneActive && hasNotFixedCoordinatesYet) {
+      nicepodLog("🛰️ [ForgeContext] Heredando telemetría de alta precisión (HD) desde el motor unificado.");
       dispatch({
         type: 'SET_LOCATION',
         payload: {
@@ -308,10 +310,11 @@ export function ForgeProvider({ children }: { children: React.ReactNode }) {
         }
       });
     }
-  }, [isGPSLock, userLocation, state.currentActiveStep, state.latitudeCoordinate]);
+  }, [isGlobalPositioningSystemLocked, userLocation, state.currentActiveStep, state.latitudeCoordinate]);
 
   /**
    * 3. PERSISTENCIA DE ALTO RENDIMIENTO (DEBOUNCED STORAGE SYNC)
+   * [MTI]: Sincronización diferida para proteger los 60 FPS de la terminal.
    */
   useEffect(() => {
     if (state.isSessionMetadataModified) {
@@ -321,7 +324,7 @@ export function ForgeProvider({ children }: { children: React.ReactNode }) {
       
       debounceTimerReference.current = setTimeout(() => {
         const serializableSessionMetadata = {
-          schema_version: FORGE_SESSION_SCHEMA_VERSION,
+          schema_version: FORGE_SESSION_METADATA_VERSION_IDENTIFIER,
           currentActiveStep: state.currentActiveStep,
           latitudeCoordinate: state.latitudeCoordinate,
           longitudeCoordinate: state.longitudeCoordinate,
@@ -338,22 +341,23 @@ export function ForgeProvider({ children }: { children: React.ReactNode }) {
           ingestedPointOfInterestIdentification: state.ingestedPointOfInterestIdentification,
           ingestionDossier: state.ingestionDossier
         };
-        sessionStorage.setItem('nicepod_forge_session_metadata_v4_8', JSON.stringify(serializableSessionMetadata));
+        sessionStorage.setItem(FORGE_SESSION_STORAGE_KEY_NAME, JSON.stringify(serializableSessionMetadata));
       }, 500); 
     }
   }, [state]);
 
   /**
-   * 4. GUARDIÁN DE ACTIVOS BINARIOS (HARDWARE HYGIENE)
+   * 4. GUARDIÁN DE ACTIVOS BINARIOS (ANTI-AMNESIA SHIELD)
+   * Misión: Bloquear el cierre accidental del navegador si existen evidencias en RAM.
    */
   useEffect(() => {
     const handleBeforeUnloadAction = (unloadEvent: BeforeUnloadEvent) => {
-      const hasUnsavedVolatileBinaries = !!state.heroImageFile || 
-                                         !!state.ambientAudioBlob || 
-                                         !!state.intentAudioBlob || 
-                                         state.opticalCharacterRecognitionImageFiles.length > 0;
+      const hasUnsavedVolatileBinaryEvidence = !!state.heroImageFile || 
+                                               !!state.ambientAudioBlob || 
+                                               !!state.intentAudioBlob || 
+                                               state.opticalCharacterRecognitionImageFiles.length > 0;
 
-      if (state.isSessionMetadataModified && hasUnsavedVolatileBinaries && !state.ingestedPointOfInterestIdentification) {
+      if (state.isSessionMetadataModified && hasUnsavedVolatileBinaryEvidence && !state.ingestedPointOfInterestIdentification) {
         unloadEvent.preventDefault();
         unloadEvent.returnValue = ''; 
       }
@@ -363,7 +367,7 @@ export function ForgeProvider({ children }: { children: React.ReactNode }) {
   }, [state.isSessionMetadataModified, state.heroImageFile, state.ambientAudioBlob, state.intentAudioBlob, state.opticalCharacterRecognitionImageFiles, state.ingestedPointOfInterestIdentification]);
 
   /**
-   * 5. CONTROL DE TRANSICIÓN DETERMINISTA (FSM)
+   * 5. CONTROL DE TRANSICIÓN DETERMINISTA (FINITE STATE MACHINE)
    */
   const executeNextStepTransitionAction = useCallback(() => {
     switch (state.currentActiveStep) {
@@ -383,7 +387,7 @@ export function ForgeProvider({ children }: { children: React.ReactNode }) {
         }
         break;
       default:
-        nicepodLog("🚩 [ForgeContext] Pipeline operativo de forja completado.");
+        nicepodLog("🚩 [ForgeContext] Pipeline operativo de forja completado exitosamente.");
     }
   }, [state.currentActiveStep, state.latitudeCoordinate, state.categoryMission, state.categoryEntity, state.heroImageFile, state.historicalEpoch, state.ingestionDossier]);
 
@@ -415,23 +419,22 @@ export function ForgeProvider({ children }: { children: React.ReactNode }) {
 
 /**
  * useForge:
- * Punto de consumo único para la gestión soberana del estado de creación.
+ * Punto de consumo único para la gestión soberana del estado de creación de Malla.
  */
 export function useForge() {
-  const context = useContext(ForgeContext);
-  if (context === undefined) {
+  const contextReference = useContext(ForgeContext);
+  if (contextReference === undefined) {
     throw new Error("CRITICAL_ERROR: 'useForge' debe invocarse dentro de un ForgeProvider.");
   }
-  return context;
+  return contextReference;
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V6.2):
- * 1. Geodetic Inheritance Implementation: Se ha cerrado la sinergia entre la telemetría global 
- *    y la lógica de creación. El Step 1 ahora auto-ingesta la verdad geográfica si la precisión 
- *    HD es detectada, eliminando el "lag" de entrada de datos.
- * 2. ZAP Compliance: Purificación total de la nomenclatura en el contrato de estado y 
- *    manejadores (ForgeStepIdentification, executeNextStepTransitionAction).
- * 3. Schema Evolution: El uso de FORGE_SESSION_SCHEMA_VERSION 4.8 garantiza que la 
- *    hidratación táctica sea inmune a inconsistencias estructurales del Metal.
+ * NOTA TÉCNICA DEL ARCHITECT (V6.3):
+ * 1. SSS Protocol Integration: El contexto ahora hereda pasivamente la ubicación HD del 
+ *    motor global unificado, cerrando la brecha de latencia detectada en las fases de creación.
+ * 2. ZAP Absolute Compliance: Se han purificado el 100% de los identificadores internos 
+ *    y se han expandido los nombres de almacenamiento (FORGE_SESSION_STORAGE_KEY_NAME).
+ * 3. Atomic State Recovery: El sistema de hidratación T0 garantiza la persistencia 
+ *    pericial del expediente incluso ante refrescos de página durante la Fase 3.
  */
