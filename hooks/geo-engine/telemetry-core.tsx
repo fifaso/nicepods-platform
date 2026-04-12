@@ -1,14 +1,15 @@
 /**
  * ARCHIVO: hooks/geo-engine/telemetry-core.tsx
- * VERSIÓN: 4.3 (NicePod Sovereign Telemetry Core - Geodetic Inheritance & Anti-Amnesia Edition)
- * PROTOCOLO: MADRID RESONANCE V4.5
+ * VERSIÓN: 5.0 (NicePod Sovereign Telemetry Core - Global Inheritance & Thermal Stewardship Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.8
  * 
- * Misión: Gestionar la ubicación física del Voyager purificando la telemetría y 
- * garantizando la persistencia de la "Verdad Consolidada" entre cambios de ruta.
- * [REFORMA V4.3]: Implementación del Protocolo de Herencia Táctica. El núcleo 
- * ahora recupera instantáneamente el último bloqueo de precisión (GPS) capturado 
- * por la plataforma, eliminando la latencia de re-triangulación al entrar en 
- * la terminal de forja o el mapa.
+ * Misión: Gestionar la ubicación física del Voyager purificando la telemetría, 
+ * garantizando la persistencia de la "Verdad Consolidada" entre cambios de ruta
+ * y aplicando el protocolo de Aislamiento Térmico para preservar la autonomía energética.
+ * [REFORMA V5.0]: Implementación del Protocolo de Herencia Geodésica Activa. 
+ * El núcleo se sincroniza con el Singleton de hardware global, eliminando la 
+ * latencia de re-triangulación al navegar entre el Dashboard, el Mapa y la Forja. 
+ * Cumplimiento absoluto de la Zero Abbreviations Policy (ZAP).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -23,9 +24,9 @@ import { useSensorAuthority } from "../use-sensor-authority";
 /**
  * PARÁMETROS DE GOBERNANZA INDUSTRIAL Y TERMODINÁMICA
  */
-const EMISSION_THRESHOLD_METERS = 0.8;    // Escudo contra micro-vibraciones del sensor
-const TELEPORT_THRESHOLD_METERS = 100.0;  // Detección de anomalías de salto de hardware
-const SOVEREIGN_ACCURACY_THRESHOLD_METERS = 30; // Precisión requerida para bloqueo satelital (HD)
+const EMISSION_THRESHOLD_METERS = 0.8;    // Escudo contra micro-vibraciones del hardware
+const TELEPORT_THRESHOLD_METERS = 100.0;  // Detección de anomalías de salto cuántico
+const SOVEREIGN_ACCURACY_THRESHOLD_METERS = 30; // Umbral para bloqueo satelital HD
 
 /**
  * INTERFAZ: TelemetryCoreReturn
@@ -51,6 +52,7 @@ const TelemetryContext = createContext<TelemetryCoreReturn | undefined>(undefine
 
 /**
  * INTERFAZ: InitialGeographicDataContract
+ * Contrato nominal para la materialización T0 (Middleware).
  */
 interface InitialGeographicDataContract {
   latitudeCoordinate: number; 
@@ -60,7 +62,7 @@ interface InitialGeographicDataContract {
 }
 
 /**
- * TelemetryProvider: El Reactor de Ubicación Primario Unificado de NicePod.
+ * TelemetryProvider: El Reactor de Ubicación Primario Unificado.
  */
 export function TelemetryProvider({ 
   children, 
@@ -71,9 +73,9 @@ export function TelemetryProvider({
 }) {
   
   /**
-   * 1. CONSUMO DEL CENTINELA DE HARDWARE (NATIVO)
-   * El hook useSensorAuthority gestiona la persistencia en localStorage de la última 
-   * ubicación conocida, lo que permite la hidratación instantánea al cambiar de ruta.
+   * 1. CONSUMO DEL CENTINELA DE HARDWARE (NATIVO SINGLETON)
+   * [SINCRO V5.0]: El hook useSensorAuthority gestiona la persistencia 
+   * y el estado único del chip GPS fuera del ciclo de vida de React.
    */
   const {
     telemetry: rawHardwareTelemetry,
@@ -92,9 +94,11 @@ export function TelemetryProvider({
   });
 
   // 2. ESTADOS SOBERANOS DE UBICACIÓN (NOMINAL INTEGRITY)
-  // Inicializamos con rawHardwareTelemetry si el sensor ya tiene una caché válida.
+  // Heredamos la última ubicación conocida del gestor global si existe.
   const [userGeographicLocation, setUserGeographicLocation] = useState<UserLocation | null>(rawHardwareTelemetry);
-  const [isGeographicallyTriangulated, setIsGeographicallyTriangulated] = useState<boolean>(!!initialGeographicData || !!rawHardwareTelemetry);
+  const [isGeographicallyTriangulated, setIsGeographicallyTriangulated] = useState<boolean>(
+    !!initialGeographicData || !!rawHardwareTelemetry
+  );
   const [manualGeographicAnchor, setManualGeographicAnchorState] = useState<UserLocation | null>(null);
 
   // 3. MEMORIA TÁCTICA (REFERENCIAS MUTABLES)
@@ -107,17 +111,17 @@ export function TelemetryProvider({
 
   /**
    * EFECTO: AISLAMIENTO TÉRMICO (SOBERANÍA DE BATERÍA - PILAR 2)
-   * [SINCRO V4.3]: Al estar centralizado en el layout, este efecto sobrevive a 
-   * la navegación, pero apaga el sensor si el Voyager sale del navegador.
+   * Misión: Apagar físicamente el hardware si la terminal NicePod pierde el foco visual.
+   * [MANDATO]: Al estar centralizado en el layout, este efecto es el único guardián energético.
    */
   useEffect(() => {
     const handleDocumentVisibilityChangeAction = () => {
       if (document.hidden) {
-        nicepodLog("💤 [TelemetryCore] Workstation en segundo plano. Suspendiendo hardware sensorial.");
+        nicepodLog("💤 [TelemetryCore] Terminal en segundo plano. Suspendiendo hardware sensorial.");
         terminateHardwareObservationAction();
       } else {
         if (isHardwareIgnited && !isHardwareAccessDenied) {
-          nicepodLog("⚡ [TelemetryCore] Workstation recuperada. Restaurando enlace satelital.");
+          nicepodLog("⚡ [TelemetryCore] Terminal recuperada. Restaurando enlace satelital activo.");
           startHardwareObservationAction();
         }
       }
@@ -131,11 +135,11 @@ export function TelemetryProvider({
 
   /**
    * EFECTO: FILTRADO DE AUTORIDAD Y EMISIÓN CINEMÁTICA
-   * Misión: Transformar la lectura cruda de hardware en telemetría purificada.
-   * [HERENCIA TÁCTICA]: Si rawHardwareTelemetry cambia, evaluamos su precisión.
+   * Misión: Transformar la lectura cruda del Singleton en telemetría purificada.
+   * [HERENCIA GEODÉSICA]: Evalúa si la nueva señal posee la calidad necesaria para la Malla.
    */
   useEffect(() => {
-    // El anclaje manual prevalece sobre la telemetría de hardware.
+    // El anclaje manual (Fase 1 Forge) tiene prioridad absoluta de bloqueo.
     if (manualGeographicAnchor) {
       setUserGeographicLocation(manualGeographicAnchor);
       return;
@@ -147,7 +151,8 @@ export function TelemetryProvider({
 
       /**
        * PROTOCOLO DE SOBERANÍA:
-       * Blindaje del sistema contra retrocesos a IP una vez alcanzado el bloqueo HD.
+       * Blindaje del sistema contra retrocesos a ubicaciones por IP una vez 
+       * alcanzado el bloqueo HD satelital (Sovereign Accuracy Lock).
        */
       if (isSovereignAccuracyLockActiveReference.current && currentTelemetrySource === 'internet-protocol-fallback') {
         return;
@@ -155,7 +160,7 @@ export function TelemetryProvider({
 
       if (currentTelemetrySource === 'global-positioning-system' && currentHardwareAccuracyMagnitude < SOVEREIGN_ACCURACY_THRESHOLD_METERS) {
         if (!isSovereignAccuracyLockActiveReference.current) {
-          nicepodLog("🛡️ [TelemetryCore] Bloqueo Soberano satelital (GPS) detectado en la Malla.");
+          nicepodLog("🛡️ [TelemetryCore] Bloqueo Soberano satelital (GPS) activo en la Malla global.");
           isSovereignAccuracyLockActiveReference.current = true;
         }
       }
@@ -165,6 +170,7 @@ export function TelemetryProvider({
       if (!lastEmittedGeographicLocationReference.current) {
         shouldEmitNewLocationToFacade = true;
       } else {
+        // Cálculo de desplazamiento físico real desde la última emisión.
         const physicalMovementDistanceMagnitude = calculateDistanceBetweenPoints(
           { 
             latitude: rawHardwareTelemetry.latitudeCoordinate, 
@@ -183,7 +189,8 @@ export function TelemetryProvider({
         const isHardJumpDetected = physicalMovementDistanceMagnitude > TELEPORT_THRESHOLD_METERS;
 
         /**
-         * FILTRADO CINEMÁTICO: Solo emitimos cambios tangibles para optimizar el Hilo Principal.
+         * FILTRADO CINEMÁTICO: Solo emitimos cambios tangibles para optimizar 
+         * el renderizado en el Hilo Principal (MTI).
          */
         if (
           physicalMovementDistanceMagnitude > EMISSION_THRESHOLD_METERS || 
@@ -207,7 +214,7 @@ export function TelemetryProvider({
   }, [rawHardwareTelemetry, manualGeographicAnchor, isGeographicallyTriangulated]);
 
   /**
-   * API SOBERANA DE TELEMETRÍA (Contrato Unificado V4.3)
+   * API SOBERANA DE TELEMETRÍA (Contrato Unificado V5.0)
    */
   const telemetryApplicationProgrammingInterface: TelemetryCoreReturn = {
     userLocation: userGeographicLocation,
@@ -260,3 +267,14 @@ export const useGeoTelemetry = () => {
   }
   return telemetryContext;
 };
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V5.0):
+ * 1. Geodetic Inheritance: Al integrarse con el Singleton de hardware global, este núcleo 
+ *    elimina la "amnesia geográfica" al navegar, permitiendo que la Forja y el Mapa 
+ *    nazcan con telemetría de precisión (HD) ya establecida.
+ * 2. Thermal Aisolation: El efecto de visibilidad del documento garantiza que el GPS 
+ *    solo trabaje cuando el Voyager tiene la terminal en pantalla.
+ * 3. Zero Abbreviations Policy (ZAP): Purificación nominal absoluta de todas las 
+ *    variables (physicalMovementDistanceMagnitude, currentHardwareAccuracyMagnitude).
+ */
