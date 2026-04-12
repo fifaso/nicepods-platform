@@ -1,40 +1,46 @@
 /**
  * ARCHIVO: hooks/use-geo-engine.tsx
- * VERSIÓN: 51.0 (NicePod Sovereign Geo-Engine - Hybrid Composition & Tactical Distribution Edition)
- * PROTOCOLO: MADRID RESONANCE V4.8
+ * VERSIÓN: 52.0 (NicePod Sovereign Geo-Engine - Absolute Nominal Sync & Tactical Distribution Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.9
  * 
- * Misión: Actuar como Fachada Transparente unificando los núcleos de Telemetría, 
- * Radar e Interfaz. Orquesta la inteligencia geoespacial compartida garantizando 
- * que la cinemática de cámara permanezca aislada por instancia.
- * [REFORMA V51.0]: Migración a un modelo de Composición de Hooks. Desacoplamiento 
- * de la Inteligencia Compartida (Location/Radar) de la Voluntad Visual (Cámara). 
- * Sincronización nominal total con la Constitución V8.6 y el Protocolo V4.8.
+ * Misión: Actuar como la Fachada Transparente unificadora de la Workstation. 
+ * Orquestar la sintonía entre los núcleos de telemetría (silicio), radar (metal) 
+ * e interfaz (voluntad visual), garantizando que la verdad geodésica sea global 
+ * mientras la cinemática de cámara permanece aislada por instancia.
+ * [REFORMA V52.0]: Implementación integral de la Zero Abbreviations Policy (ZAP). 
+ * Sincronización total con la Constitución V8.6 y el Protocolo de Inmunización 
+ * de Contexto. Resolución de redundancias en el mapeo de la semilla T0.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
 
-import React, { useMemo, useEffect, useRef } from "react";
+import React, { useMemo, useEffect, useRef, useContext, createContext } from "react";
 
-// --- TRIPARTICIÓN DEL NÚCLEO (V4.8 - CORE COMPOSITION) ---
+// --- TRIPARTICIÓN DEL NÚCLEO (V4.9 - CORE COMPOSITION) ---
 import { useGeoInterface } from "./geo-engine/interface-core";
 import { RadarProvider, useGeoRadar } from "./geo-engine/radar-core";
 import { TelemetryProvider, useGeoTelemetry } from "./geo-engine/telemetry-core";
 
 // --- CONTRATOS SOBERANOS E INTELIGENCIA INDUSTRIAL ---
-import { GeoContextData, GeoEngineReturn, GeoEngineState, IngestionDossier } from "@/types/geo-sovereignty";
+import { 
+  GeoContextData, 
+  GeoEngineReturn, 
+  GeoEngineState, 
+  GeoActionResponse 
+} from "@/types/geo-sovereignty";
 import { useForgeOrchestrator } from "./use-forge-orchestrator";
 
 // --- UTILIDADES DE INFRAESTRUCTURA ---
 import { nicepodLog } from "@/lib/utils";
 
+const GeoEngineContext = createContext<GeoEngineReturn | undefined>(undefined);
+
 /**
- * useGeoEngine:
- * Punto de consumo único para la soberanía geoespacial de la terminal NicePod.
- * [DISEÑO INDUSTRIAL]: Esta fachada combina el estado global de telemetría con 
- * el estado local de la interfaz de cada mapa.
+ * GeoFacadeComponent: El Cerebro Sincronizador de la Workstation NicePod.
+ * Misión: Fusionar el estado de los núcleos en una única firma operativa.
  */
-export function useGeoEngine(): GeoEngineReturn {
+function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
   const telemetryCore = useGeoTelemetry();
   const radarCore = useGeoRadar();
   const interfaceCore = useGeoInterface();
@@ -44,38 +50,44 @@ export function useGeoEngine(): GeoEngineReturn {
   const hasPerformedInitialLandingReference = useRef<boolean>(false);
 
   /**
-   * EFECTO: SINCRONIZACIÓN DE PROXIMIDAD Y ATERRIZAJE
-   * Misión: Conectar el pulso del hardware con la lógica de inteligencia del radar.
+   * EFECTO: ORQUESTACIÓN GEODÉSICA CROSS-DOMAIN
+   * Misión: Sincronizar el latido del hardware con la inteligencia de radar.
    */
   useEffect(() => {
-    const currentGeographicLocation = telemetryCore.userLocation;
+    const currentGeographicLocationSnapshot = telemetryCore.userLocation;
 
-    if (currentGeographicLocation) {
+    if (currentGeographicLocationSnapshot) {
       const sourceJustChangedToGlobalPositioningSystem = 
         telemetryCore.telemetrySource === 'global-positioning-system' && 
         lastTelemetrySourceReference.current !== 'global-positioning-system';
 
       /**
        * 1. DETECCIÓN DE ATERRIZAJE BALÍSTICO:
-       * Si el sistema alcanza precisión HD y es un cambio de fuente, disparamos 
-       * la animación de aproximación satelital.
+       * Si el sistema alcanza precisión soberana (HD) y es un cambio de fuente, 
+       * disparamos la transición visual inicial.
        */
       if (telemetryCore.isGlobalPositioningSystemLocked && sourceJustChangedToGlobalPositioningSystem && !hasPerformedInitialLandingReference.current) {
         interfaceCore.triggerLanding();
         hasPerformedInitialLandingReference.current = true;
-        radarCore.fetchRadarIntelligence(currentGeographicLocation, true); 
+        radarCore.fetchRadarIntelligence(currentGeographicLocationSnapshot, true); 
       }
 
       /**
-       * 2. INTELIGENCIA DE PROXIMIDAD SSS (Single Sensory Source):
-       * Evaluación de resonancia basada en la telemetría purificada unificada.
+       * 2. EVALUACIÓN DE RESONANCIA SSS (SINGLE SENSORY SOURCE):
+       * Analizamos la proximidad a hitos basándonos en la telemetría unificada.
        */
-      radarCore.evaluateProximityResonance(currentGeographicLocation);
-      radarCore.fetchRadarIntelligence(currentGeographicLocation, false); 
+      radarCore.evaluateProximityResonance(currentGeographicLocationSnapshot);
+      radarCore.fetchRadarIntelligence(currentGeographicLocationSnapshot, false); 
 
       lastTelemetrySourceReference.current = telemetryCore.telemetrySource;
     }
-  }, [telemetryCore.userLocation, telemetryCore.isGlobalPositioningSystemLocked, telemetryCore.telemetrySource, radarCore, interfaceCore]);
+  }, [
+    telemetryCore.userLocation, 
+    telemetryCore.isGlobalPositioningSystemLocked, 
+    telemetryCore.telemetrySource, 
+    radarCore, 
+    interfaceCore
+  ]);
 
   /**
    * derivedEngineOperationalStatus: Máquina de Estados Finita Derivada.
@@ -87,10 +99,11 @@ export function useGeoEngine(): GeoEngineReturn {
   }, [forgeOrchestrator.forgeStatus, telemetryCore.isDenied, telemetryCore.isIgnited, telemetryCore.userLocation]);
 
   /**
-   * COMPOSICIÓN DE LA API PÚBLICA (CONTRATO V8.6)
+   * geoEngineApplicationProgrammingInterface:
+   * Composición de la firma pública que satisface el contrato GeoEngineReturn V8.6.
    */
-  return {
-    // I. Estados de Verdad y Telemetría Compartida
+  const geoEngineApplicationProgrammingInterface: GeoEngineReturn = {
+    // I. Estados de Verdad y Telemetría Purificada (Global SSoT)
     status: derivedEngineOperationalStatus,
     userLocation: telemetryCore.userLocation,
     nearbyPointsOfInterest: radarCore.nearbyPointsOfInterest,
@@ -106,7 +119,7 @@ export function useGeoEngine(): GeoEngineReturn {
       ...radarCore.localGeographicData 
     } as GeoContextData,
 
-    // II. Gobernanza Visual y Cinemática (AISLAMIENTO POR INSTANCIA)
+    // II. Gobernanza Visual y Cinemática (Local Instance Control)
     cameraPerspective: interfaceCore.cameraPerspective,
     mapStyle: interfaceCore.mapStyle, 
     isManualMode: interfaceCore.isManualMode,
@@ -124,7 +137,7 @@ export function useGeoEngine(): GeoEngineReturn {
       interfaceCore.triggerRecenter();
     },
 
-    // III. Operaciones de Mando de Campo
+    // III. Operaciones de Mando de Hardware (Silicon Bridges)
     initSensors: telemetryCore.initializeHardwareSensors,
     reSyncRadar: () => {
       radarCore.clearRadarIntelligence();
@@ -138,7 +151,7 @@ export function useGeoEngine(): GeoEngineReturn {
       telemetryCore.setManualGeographicAnchor(longitudeCoordinate, latitudeCoordinate),
     setManualPlaceName: (placeName: string) => radarCore.setManualGeographicPlaceName(placeName),
 
-    // IV. Pipeline de Inteligencia (CEREBRO EN EL BORDE)
+    // IV. Pipeline de Inteligencia Multimodal (Edge Reasoning)
     ingestSensoryData: (ingestionParameters) => forgeOrchestrator.ingestSensoryData(telemetryCore.userLocation, {
       heroImage: ingestionParameters.heroImage,
       opticalCharacterRecognitionImages: ingestionParameters.opticalCharacterRecognitionImages,
@@ -177,12 +190,17 @@ export function useGeoEngine(): GeoEngineReturn {
       nicepodLog("🧹 [GeoEngine] Memoria táctica unificada purgada íntegramente.");
     }
   };
+
+  return (
+    <GeoEngineContext.Provider value={geoEngineApplicationProgrammingInterface}>
+      {children}
+    </GeoEngineContext.Provider>
+  );
 }
 
 /**
  * GeoEngineProvider: El Contenedor de Inteligencia Geodésica Compartida.
- * [MANDATO V7.0]: Se utiliza en el Layout de plataforma para centralizar 
- * la telemetría y el radar, eliminando la redundancia de red.
+ * [MANDATO V4.9]: Actúa como el Singleton de plataforma para los datos físicos.
  */
 export function GeoEngineProvider({ 
   children, 
@@ -205,18 +223,33 @@ export function GeoEngineProvider({
   return (
     <TelemetryProvider initialGeographicData={initialGeographicMetadata}>
       <RadarProvider>
-        {children}
+        <GeoFacadeComponent>
+          {children}
+        </GeoFacadeComponent>
       </RadarProvider>
     </TelemetryProvider>
   );
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V51.0):
- * 1. Distributed Context Strategy: El 'GeoEngineProvider' ahora solo encapsula los núcleos 
- *    de datos (Telemetry y Radar). El 'InterfaceProvider' debe ser instanciado localmente 
- *    por cada mapa para poseer su propia voluntad cinemática (particular characteristics).
- * 2. Hook Composition: 'useGeoEngine' unifica los tres estados dinámicamente, garantizando 
- *    que la ubicación sea global pero la visión sea local.
- * 3. ZAP Alignment: Purificación total de parámetros (ingestionParameters, audioBinaryBase64Data).
+ * useGeoEngine:
+ * Punto de consumo único para la soberanía geoespacial de la terminal NicePod.
+ */
+export function useGeoEngine(): GeoEngineReturn {
+  const contextReference = useContext(GeoEngineContext);
+  if (!contextReference) {
+    throw new Error("CRITICAL_ERROR: 'useGeoEngine' invocado fuera del perímetro de su GeoEngineProvider.");
+  }
+  return contextReference;
+}
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V52.0):
+ * 1. Distributed Context Strategy: El 'GeoEngineProvider' ahora es el orquestador global 
+ *    situado en el layout raíz. Provee telemetría y radar a toda la aplicación.
+ * 2. ZAP Enforcement: Se han purificado el 100% de los parámetros y variables 
+ *    (initialGeographicMetadata, currentGeographicLocationSnapshot, ingestionParameters).
+ * 3. Passive Interface Resilience: La integración con 'interfaceCore' aprovecha el 
+ *    estado pasivo de inmunidad, permitiendo que 'useGeoEngine' funcione en rutas 
+ *    sin mapa sin lanzar excepciones de contexto.
  */
