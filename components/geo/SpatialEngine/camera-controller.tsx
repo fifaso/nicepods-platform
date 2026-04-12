@@ -1,14 +1,15 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/camera-controller.tsx
- * VERSIÓN: 8.0 (NicePod Camera Director - Absolute Nominal Sync & Cinematic Stability)
- * PROTOCOLO: MADRID RESONANCE V4.0
+ * VERSIÓN: 9.0 (NicePod Camera Director - Priority Visibility Protocol & Hardware Hygiene Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.8
  * 
- * Misión: Gestionar la cámara WebGL con autoridad absoluta, aislamiento de perspectiva 
- * y sincronización pasiva con los gestos humanos para erradicar el Jitter visual 
- * mediante interpolación cinemática (LERP).
- * [REFORMA V8.0]: Sincronización nominal total con la Constitución V8.6. Resolución 
- * definitiva de errores TS2339 y TS2305 mediante el mapeo de coordenadas industriales 
- * (latitudeCoordinate, longitudeCoordinate). Erradicación absoluta de abreviaciones.
+ * Misión: Gestionar la cámara WebGL con autoridad absoluta mediante interpolación 
+ * cinemática (LERP), garantizando que solo las instancias visibles en el viewport 
+ * consuman recursos de GPU y CPU.
+ * [REFORMA V9.0]: Implementación del Protocolo de Prioridad por Visibilidad mediante 
+ * IntersectionObserver. Prevención de colisiones cinemáticas entre múltiples mapas 
+ * (Dashboard, Mapa, Forja) al compartir el Singleton Geodésico Global. 
+ * Cumplimiento absoluto de la Zero Abbreviations Policy (ZAP).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -25,7 +26,7 @@ import {
 } from "@/lib/geo-kinematics";
 import { nicepodLog } from "@/lib/utils";
 import { CameraPerspective, MapInstanceIdentification } from "@/types/geo-sovereignty";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useMap } from "react-map-gl/mapbox";
 import {
   FLY_CONFIG,
@@ -63,14 +64,14 @@ export function CameraController({
   forcedPerspective 
 }: CameraControllerProperties) {
   
-  // 1. VÍNCULO CON LA INSTANCIA DE MAPBOX (Consumo de Malla mediante ID Soberano)
+  // 1. VÍNCULO CON LA INSTANCIA DE MAPBOX (ID Soberano)
   const { [mapInstanceIdentification]: activeMapInstance } = useMap();
 
-  // 2. CONSUMO DE MANDO DESDE LA FACHADA SOBERANA (Triple-Core Synergy V4.0)
+  // 2. CONSUMO DE MANDO DESDE LA FACHADA SOBERANA (Singleton Global V4.8)
   const {
     userLocation,
     needsBallisticLanding,
-    recenterTrigger: recenterPulseTrigger,
+    recenterTrigger: recenterVisualPulseTrigger,
     confirmLanding: confirmAterrizajeExitosoAction,
     cameraPerspective: globalCameraPerspective,
     isManualMode,
@@ -89,6 +90,9 @@ export function CameraController({
   const lastProcessedPulseTriggerReference = useRef<number>(0);
   const lastFrameTimestampReference = useRef<number>(0);
   const animationFrameIdentificationReference = useRef<number | null>(null);
+
+  // 4. ESTADO DE VISIBILIDAD (PROTOCOLO ANTICOLISIÓN)
+  const [isInstanceVisibleInViewport, setIsInstanceVisibleInViewport] = useState<boolean>(false);
 
   /**
    * handleManualInteractionAction: EL ESCUDO DE INTERFERENCIA HUMANA
@@ -109,7 +113,7 @@ export function CameraController({
     if (isCinematicFlightActiveReference.current) {
       const nativeMapInstance = activeMapInstance?.getMap();
       if (nativeMapInstance) {
-        nativeMapInstance.stop(); // Abortar vuelo automático si el usuario interviene
+        nativeMapInstance.stop(); // Abortar vuelo automático si el usuario interviene físicamente
       }
       isCinematicFlightActiveReference.current = false;
       confirmAterrizajeExitosoAction();
@@ -119,8 +123,15 @@ export function CameraController({
   /**
    * executeKinematicPhysicsLoop: EL CORAZÓN DEL MOVIMIENTO LÍQUIDO
    * Misión: Calcular la posición de la lente en cada frame sincronizado con la GPU (MTI).
+   * [SINCRO V9.0]: Ahora respeta el flag 'isInstanceVisibleInViewport'.
    */
   const executeKinematicPhysicsLoop = useCallback((highResolutionTimestamp: number) => {
+    // Si la instancia no es visible, hibernamos el bucle para ahorrar GPU/CPU.
+    if (!isInstanceVisibleInViewport) {
+      animationFrameIdentificationReference.current = requestAnimationFrame(executeKinematicPhysicsLoop);
+      return;
+    }
+
     if (!activeMapInstance || !userLocation) {
       animationFrameIdentificationReference.current = requestAnimationFrame(executeKinematicPhysicsLoop);
       return;
@@ -139,16 +150,16 @@ export function CameraController({
     let elapsedTimeInSeconds = (highResolutionTimestamp - lastFrameTimestampReference.current) / 1000;
     lastFrameTimestampReference.current = highResolutionTimestamp;
 
-    // Limite de seguridad para evitar saltos bruscos tras pausas largas del hilo principal
+    // Límite de seguridad para evitar saltos bruscos tras suspensiones del Hilo Principal.
     if (elapsedTimeInSeconds > 0.1) {
       elapsedTimeInSeconds = 0.1;
     }
 
     // B. PROTOCOLO DE RECUPERACIÓN DE AUTORÍA (8 SEGUNDOS DE ESTASIS)
-    const currentSystemTime = Date.now();
+    const currentSystemUnixTime = Date.now();
     const isMapCurrentlyMovingByInertia = nativeMapInstance.isMoving();
 
-    if (isUserInteractingReference.current && (currentSystemTime - lastInteractionTimestampReference.current > 8000)) {
+    if (isUserInteractingReference.current && (currentSystemUnixTime - lastInteractionTimestampReference.current > 8000)) {
       if (!isMapCurrentlyMovingByInertia) {
         nicepodLog(`🦅 [CameraController:${mapInstanceIdentification}] Retomando autoridad cinemática.`);
         isUserInteractingReference.current = false;
@@ -156,7 +167,7 @@ export function CameraController({
       }
     }
 
-    // C. SINCRONIZACIÓN PASIVA DE ESTADO
+    // C. SINCRONIZACIÓN PASIVA DE ESTADO (TELEMETRY OVERRIDE)
     if (isUserInteractingReference.current || isCinematicFlightActiveReference.current || isMapCurrentlyMovingByInertia) {
       const currentMapCenterPoint = nativeMapInstance.getCenter();
       currentGeographicPositionReference.current = { 
@@ -171,11 +182,10 @@ export function CameraController({
       return;
     }
 
-    // D. DETERMINACIÓN DE PERFIL DE PERSPECTIVA (V4.0)
+    // D. DETERMINACIÓN DE PERFIL DE PERSPECTIVA
     const activePerspectiveMode = forcedPerspective || globalCameraPerspective;
     const activePerspectiveProfile = PERSPECTIVE_PROFILES[activePerspectiveMode];
 
-    // [SINCRO V8.0]: Mapeo de UserLocation (Constitución V8.6) a KinematicPosition (lib V3.0)
     const targetGeographicPosition: KinematicPosition = {
       latitude: userLocation.latitudeCoordinate,
       longitude: userLocation.longitudeCoordinate
@@ -185,18 +195,18 @@ export function CameraController({
       currentGeographicPositionReference.current = targetGeographicPosition;
     }
 
-    // 1. Evaluación de Umbrales de Estasis
-    const movementDistanceMeters = calculateDistanceBetweenPoints(currentGeographicPositionReference.current, targetGeographicPosition);
+    // 1. Evaluación de Umbrales de Estasis (Preservación de ciclos)
+    const movementDistanceMagnitudeMeters = calculateDistanceBetweenPoints(currentGeographicPositionReference.current, targetGeographicPosition);
     const targetBearingDegrees = activePerspectiveProfile.bearing_follow ? (userLocation.headingDegrees ?? currentBearingDegreesReference.current) : 0;
     
-    const bearingDeltaDegrees = Math.abs(targetBearingDegrees - currentBearingDegreesReference.current);
-    const pitchDeltaDegrees = Math.abs(currentPitchDegreesReference.current - activePerspectiveProfile.pitch);
-    const zoomDeltaValue = Math.abs(currentZoomLevelReference.current - activePerspectiveProfile.zoom);
+    const bearingDeltaMagnitudeDegrees = Math.abs(targetBearingDegrees - currentBearingDegreesReference.current);
+    const pitchDeltaMagnitudeDegrees = Math.abs(currentPitchDegreesReference.current - activePerspectiveProfile.pitch);
+    const zoomDeltaMagnitudeValue = Math.abs(currentZoomLevelReference.current - activePerspectiveProfile.zoom);
 
-    if (movementDistanceMeters < STASIS_GOVERNANCE_CONFIGURATION.DISTANCE_THRESHOLD_METERS &&
-        bearingDeltaDegrees < STASIS_GOVERNANCE_CONFIGURATION.BEARING_THRESHOLD_DEGREES &&
-        pitchDeltaDegrees < STASIS_GOVERNANCE_CONFIGURATION.PITCH_THRESHOLD_DEGREES &&
-        zoomDeltaValue < STASIS_GOVERNANCE_CONFIGURATION.ZOOM_THRESHOLD) {
+    if (movementDistanceMagnitudeMeters < STASIS_GOVERNANCE_CONFIGURATION.DISTANCE_THRESHOLD_METERS &&
+        bearingDeltaMagnitudeDegrees < STASIS_GOVERNANCE_CONFIGURATION.BEARING_THRESHOLD_DEGREES &&
+        pitchDeltaMagnitudeDegrees < STASIS_GOVERNANCE_CONFIGURATION.PITCH_THRESHOLD_DEGREES &&
+        zoomDeltaMagnitudeValue < STASIS_GOVERNANCE_CONFIGURATION.ZOOM_THRESHOLD) {
       animationFrameIdentificationReference.current = requestAnimationFrame(executeKinematicPhysicsLoop);
       return;
     }
@@ -210,7 +220,7 @@ export function CameraController({
     currentPitchDegreesReference.current = interpolateScalarValue(currentPitchDegreesReference.current, activePerspectiveProfile.pitch, adjustedSmoothingFactor);
     currentZoomLevelReference.current = interpolateScalarValue(currentZoomLevelReference.current, activePerspectiveProfile.zoom, adjustedSmoothingFactor);
 
-    // F. INYECCIÓN IMPERATIVA EN GPU
+    // F. INYECCIÓN IMPERATIVA EN GPU (LOW-LEVEL OVERRIDE)
     const cameraAnchorPosition = calculateDestinationPoint(
       currentGeographicPositionReference.current,
       -activePerspectiveProfile.offset_distance_meters,
@@ -225,14 +235,13 @@ export function CameraController({
     });
 
     animationFrameIdentificationReference.current = requestAnimationFrame(executeKinematicPhysicsLoop);
-  }, [activeMapInstance, userLocation, globalCameraPerspective, forcedPerspective, setManualMode, mapInstanceIdentification]);
+  }, [activeMapInstance, userLocation, globalCameraPerspective, forcedPerspective, setManualMode, mapInstanceIdentification, isInstanceVisibleInViewport]);
 
   /**
    * EFECTO: ORQUESTACIÓN DE VUELO BALÍSTICO POR PULSO SOBERANO
-   * Misión: Ejecutar desplazamientos rápidos de largo alcance (Recenter/Initial Landing).
    */
   useEffect(() => {
-    const isRecenterPulseTriggered = recenterPulseTrigger > lastProcessedPulseTriggerReference.current;
+    const isRecenterPulseTriggered = recenterVisualPulseTrigger > lastProcessedPulseTriggerReference.current;
 
     if ((needsBallisticLanding || isRecenterPulseTriggered) && activeMapInstance && userLocation && !isCinematicFlightActiveReference.current) {
       const nativeMapInstance = activeMapInstance.getMap();
@@ -241,14 +250,14 @@ export function CameraController({
 
       if (!nativeMapInstance.isStyleLoaded()) return;
 
-      nicepodLog(`🚀 [CameraController:${mapInstanceIdentification}] Iniciando Vuelo Soberano de posicionamiento.`);
+      nicepodLog(`🚀 [CameraController:${mapInstanceIdentification}] Iniciando Vuelo Soberano.`);
 
       isUserInteractingReference.current = false;
       if (isManualMode) setManualMode(false);
       nativeMapInstance.stop();
 
       isCinematicFlightActiveReference.current = true;
-      lastProcessedPulseTriggerReference.current = recenterPulseTrigger;
+      lastProcessedPulseTriggerReference.current = recenterVisualPulseTrigger;
 
       currentGeographicPositionReference.current = {
         latitude: userLocation.latitudeCoordinate,
@@ -276,24 +285,42 @@ export function CameraController({
         isCinematicFlightActiveReference.current = false;
       });
     }
-  }, [needsBallisticLanding, recenterPulseTrigger, activeMapInstance, userLocation, globalCameraPerspective, forcedPerspective, confirmAterrizajeExitosoAction, isManualMode, setManualMode, mapInstanceIdentification]);
+  }, [needsBallisticLanding, recenterVisualPulseTrigger, activeMapInstance, userLocation, globalCameraPerspective, forcedPerspective, confirmAterrizajeExitosoAction, isManualMode, setManualMode, mapInstanceIdentification]);
 
   /**
-   * CICLO DE VIDA: GOBERNANZA DE EVENTOS Y ANIQUILACIÓN DE BUCLE
+   * CICLO DE VIDA: GOBERNANZA DE VISIBILIDAD Y EVENTOS
+   * Misión: Activar el IntersectionObserver para silenciar mapas inactivos.
    */
   useEffect(() => {
+    const nativeMapCanvasElement = activeMapInstance?.getMap().getCanvas();
+    if (!nativeMapCanvasElement) return;
+
+    // Configuración del Centinela de Visibilidad (Priority Protocol)
+    const visibilityObserver = new IntersectionObserver((entriesCollection) => {
+      entriesCollection.forEach((entry) => {
+        setIsInstanceVisibleInViewport(entry.isIntersecting);
+        if (!entry.isIntersecting) {
+          nicepodLog(`💤 [CameraController:${mapInstanceIdentification}] Hibernando bucle cinemático (Off-Viewport).`);
+        } else {
+          nicepodLog(`⚡ [CameraController:${mapInstanceIdentification}] Reactivando bucle cinemático (In-Viewport).`);
+        }
+      });
+    }, { threshold: 0.1 });
+
+    visibilityObserver.observe(nativeMapCanvasElement);
+
+    // Bucle inicial
     animationFrameIdentificationReference.current = requestAnimationFrame(executeKinematicPhysicsLoop);
 
-    const nativeMapCanvasElement = activeMapInstance?.getMap().getCanvas();
-    if (nativeMapCanvasElement) {
-      nativeMapCanvasElement.addEventListener('mousedown', handleManualInteractionAction);
-      nativeMapCanvasElement.addEventListener('touchstart', handleManualInteractionAction, { passive: true });
-      nativeMapCanvasElement.addEventListener('touchmove', handleManualInteractionAction, { passive: true });
-      nativeMapCanvasElement.addEventListener('wheel', handleManualInteractionAction, { passive: true });
-    }
+    // Escuchadores de interacción táctica
+    nativeMapCanvasElement.addEventListener('mousedown', handleManualInteractionAction);
+    nativeMapCanvasElement.addEventListener('touchstart', handleManualInteractionAction, { passive: true });
+    nativeMapCanvasElement.addEventListener('touchmove', handleManualInteractionAction, { passive: true });
+    nativeMapCanvasElement.addEventListener('wheel', handleManualInteractionAction, { passive: true });
 
     return () => {
-      // ANIQUILACIÓN FÍSICA (PILAR 3 & 4)
+      // ANIQUILACIÓN FÍSICA (HARDWARE HYGIENE)
+      visibilityObserver.disconnect();
       if (animationFrameIdentificationReference.current) {
         cancelAnimationFrame(animationFrameIdentificationReference.current);
       }
@@ -304,16 +331,18 @@ export function CameraController({
         nativeMapCanvasElement.removeEventListener('wheel', handleManualInteractionAction);
       }
     };
-  }, [activeMapInstance, executeKinematicPhysicsLoop, handleManualInteractionAction]);
+  }, [activeMapInstance, executeKinematicPhysicsLoop, handleManualInteractionAction, mapInstanceIdentification]);
 
   return null;
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V8.0):
- * 1. Build Shield Compliance: Se han resuelto los 10 errores de tipado mapeando UserLocation 
- *    (latitudeCoordinate, longitudeCoordinate, headingDegrees) al contrato de física cinemática.
- * 2. Zero Abbreviations Policy: Purificación absoluta de nombres de variables y manejadores.
- * 3. Thread Sovereignty: El bucle de interpolación opera mediante requestAnimationFrame, 
- *    pero respeta los umbrales de estasis para minimizar la carga en el Main Thread.
+ * NOTA TÉCNICA DEL ARCHITECT (V9.0):
+ * 1. Priority Visibility Protocol: Al integrar IntersectionObserver, garantizamos que el 
+ *    mapa del Dashboard no consuma GPU cuando el Voyager está en la Forja. Esto elimina 
+ *    la advertencia de 'requestAnimationFrame handler took <N> ms' detectada en auditorías.
+ * 2. Nominal Sync: Sincronización completa con UserLocation (V8.6) y la Constitución 
+ *    geodésica industrial.
+ * 3. ZAP Enforcement: Se han purificado todas las variables de cálculo y manejadores 
+ *    (bearingDeltaMagnitudeDegrees, currentSystemUnixTime, visibilityObserver).
  */
