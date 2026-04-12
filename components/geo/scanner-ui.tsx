@@ -1,13 +1,13 @@
 /**
  * ARCHIVO: components/geo/scanner-ui.tsx
- * VERSIÓN: 3.2 (NicePod Sovereign Sequencer - Industrial Nominal Sync & FSM Edition)
- * PROTOCOLO: MADRID RESONANCE V4.5
+ * VERSIÓN: 3.3 (NicePod Sovereign Sequencer - Industrial Nominal Sync & Build Shield Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.8.1
  * 
  * Misión: Orquestar el flujo secuencial de la forja de capital intelectual, 
  * gestionando las transiciones cinemáticas entre las fases de anclaje, 
  * captura, auditoría y síntesis narrativa.
- * [REFORMA V3.2]: Resolución definitiva del error de tipo TS2339 mediante la 
- * sincronización con la propiedad 'currentActiveStep' del ForgeContext V6.1. 
+ * [REFORMA V3.3]: Resolución definitiva del error de tipo TS2339 mediante la 
+ * sincronización con la propiedad 'isSubmittingProcessActive' del ForgeContext V6.3. 
  * Eliminación absoluta de residuos nominales abreviados y blindaje de la 
  * Máquina de Estados Finita (FSM).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
@@ -21,7 +21,7 @@ import React from "react";
 // --- INFRAESTRUCTURA DE ESTADO SOBERANO ---
 import { useForge } from "./forge-context";
 
-// --- COMPONENTES DE FASE (STEPPER INDUSTRIAL V4.5) ---
+// --- COMPONENTES DE FASE (STEPPER INDUSTRIAL V4.8) ---
 import Step1Anchoring from "./steps/step-1-anchoring";
 import Step2SensoryCapture from "./steps/step-2-sensory-capture";
 import Step3DossierReview from "./steps/step-3-dossier-review";
@@ -49,7 +49,7 @@ const stepTransitionCinematicVariants = {
   },
   exit: { 
     opacity: 0, 
-    x: -20,
+    x: -20, 
     filter: "blur(10px)",
     transition: {
       duration: 0.3,
@@ -63,13 +63,12 @@ const stepTransitionCinematicVariants = {
  */
 export function GeographicScannerUserInterface() {
   
-  // 1. CONSUMO DE LA MÁQUINA DE ESTADOS FINITA (FSM)
+  // 1. CONSUMO DE LA MÁQUINA DE ESTADOS FINITA (FINITE STATE MACHINE)
   const { state: forgeState } = useForge();
   
   /**
-   * [SINCRO V3.2]: Mapeo nominal obligatorio.
-   * Se sustituye 'currentStep' por 'currentActiveStep' para cumplir con el 
-   * contrato de ForgeContext V6.1 y la Zero Abbreviations Policy.
+   * [SINCRO V3.3]: Mapeo nominal obligatorio.
+   * La propiedad 'currentActiveStep' garantiza la correspondencia con la Constitución V8.6.
    */
   const { currentActiveStep } = forgeState;
 
@@ -127,9 +126,10 @@ export function GeographicScannerUserInterface() {
       {/* 
         CAPA DE BLOQUEO DE TRANSACCIÓN (HARDWARE SHIELD):
         Misión: Inmovilizar la terminal durante procesos críticos de red o Inteligencia Artificial.
-        [MANDATO V4.5]: Sincronización con 'isSubmittingProcess' del contexto industrial.
+        [FIX V3.3]: Sincronización con 'isSubmittingProcessActive' del ForgeContext V6.3.
+        Este cambio erradica el error de compilación reportado en Vercel.
       */}
-      {forgeState.isSubmittingProcess && (
+      {forgeState.isSubmittingProcessActive && (
         <div className="absolute inset-0 z-[500] bg-black/5 cursor-wait pointer-events-auto backdrop-blur-[1px]" />
       )}
 
@@ -138,12 +138,12 @@ export function GeographicScannerUserInterface() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V3.2):
- * 1. Build Shield Compliance: Se extinguió el error TS2339 al alinear la desestructuración 
- *    con el nuevo identificador industrial 'currentActiveStep'.
- * 2. ZAP Enforcement: Se ha purificado el 100% de la nomenclatura interna, eliminando 
- *    residuos de variables como 'i', 'acc' o 'curr'.
- * 3. Atomic Animation Sync: El uso de 'key={currentActiveStep}' garantiza que el ciclo 
- *    de vida de Framer Motion esté vinculado a la identidad única de la fase, evitando 
- *    colisiones de renderizado en el Hilo Principal (MTI).
+ * NOTA TÉCNICA DEL ARCHITECT (V3.3):
+ * 1. Build Shield Compliance: Se extinguió el error TS2339 al alinear la referencia 
+ *    del estado de envío con el nuevo descriptor 'isSubmittingProcessActive'.
+ * 2. Nominal Sovereignty: La terminal de secuenciación ahora es 100% coherente con 
+ *    el protocolo de unificación geodésica V4.8.1.
+ * 3. Atomic State Guard: La capa de bloqueo impide colisiones de estado si el Administrador 
+ *    intenta interactuar con la terminal mientras el Oráculo de Inteligencia procesa 
+ *    la ingesta sensorial.
  */
