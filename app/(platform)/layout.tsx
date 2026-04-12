@@ -1,20 +1,20 @@
 /**
  * ARCHIVO: app/(platform)/layout.tsx
- * VERSIÓN: 6.0 (NicePod Platform Chassis - Unified Telemetry & Resource Optimization Edition)
- * PROTOCOLO: MADRID RESONANCE V4.5
+ * VERSIÓN: 7.0 (NicePod Platform Chassis - Global Geodetic Singleton & Seed Handshake)
+ * PROTOCOLO: MADRID RESONANCE V4.8
  * 
  * Misión: Proveer el chasis visual transparente y orquestar el Ciclo de Vida Global 
- * de la telemetría, garantizando que el hardware GPS solo se active una vez 
- * para toda la sesión de la Workstation.
- * [REFORMA V6.0]: Integración de GeoEngineProvider como Singleton Global de 
- * plataforma. Sincronización nominal absoluta (ZAP) y optimización de 
- * Stacking Context para el motor WebGL.
+ * de la telemetría, asegurando la materialización T0 mediante la semilla de red 
+ * y manteniendo el enlace satelital activo durante toda la sesión.
+ * [REFORMA V7.0]: Implementación de la elevación definitiva del GeoEngineProvider. 
+ * Recuperación de la semilla geodésica 'nicepod-geodetic-seed-t0' desde las cookies 
+ * para hidratación instantánea. Cumplimiento absoluto de la Zero Abbreviations Policy.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
 
-import React from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { usePathname } from "next/navigation";
 
 // --- INFRAESTRUCTURA DE NAVEGACIÓN Y ACCESO SOBERANO ---
@@ -34,12 +34,23 @@ import { PlayerOrchestrator } from "@/components/player/player-orchestrator";
 import { PageTransition } from "@/components/system/page-transition";
 import { Toaster } from "@/components/ui/toaster";
 
-// --- UTILIDADES DE DISEÑO ---
-import { cn } from "@/lib/utils";
+// --- UTILIDADES DE DISEÑO Y PARSEO ---
+import { concatenateClassNames } from "@/lib/utils";
+
+/**
+ * INTERFAZ: GeodeticSeedPayload
+ * Misión: Definir la estructura de la semilla T0 inyectada por el Middleware.
+ */
+interface GeodeticSeedPayload {
+  latitudeCoordinate: number;
+  longitudeCoordinate: number;
+  cityName: string;
+  geographicSource: string;
+}
 
 /**
  * COMPONENTE: PlatformLayout
- * El chasis soberano para la experiencia de inteligencia industrial.
+ * El orquestador estructural de la experiencia Voyager.
  */
 export default function PlatformLayout({
   children
@@ -47,16 +58,48 @@ export default function PlatformLayout({
   children: React.ReactNode
 }) {
   const currentUrlPathname = usePathname();
+  const [geodeticSeed, setGeodeticSeed] = useState<GeodeticSeedPayload | null>(null);
+
+  /**
+   * EFECTO: GeodeticSeedRecovery
+   * Misión: Extraer la semilla T0 de la cookie del Middleware para el Handshake inicial.
+   */
+  useEffect(() => {
+    const cookiesCollection = document.cookie.split('; ');
+    const seedCookieEntry = cookiesCollection.find(row => row.startsWith('nicepod-geodetic-seed-t0='));
+    
+    if (seedCookieEntry) {
+      try {
+        const rawJsonData = decodeURIComponent(seedCookieEntry.split('=')[1]);
+        const parsedSeed = JSON.parse(rawJsonData) as GeodeticSeedPayload;
+        setGeodeticSeed(parsedSeed);
+      } catch (exception) {
+        console.warn("⚠️ [PlatformLayout] Fallo en la des-serialización de la semilla geodésica.");
+      }
+    }
+  }, []);
 
   /**
    * [ANÁLISIS DE ENTORNO TÁCTICO]:
-   * Identificamos si el Voyager está en zonas de alta intensidad computacional.
+   * Determinamos si la ruta actual requiere aislamiento total de recursos.
    */
   const isMapInterfaceActive = currentUrlPathname?.startsWith('/map');
   const isForgeTerminalActive = currentUrlPathname?.startsWith('/create');
-  
-  // Zonas donde el chasis debe ser pasivo para liberar el Hilo Principal (MTI).
   const isHighIntensityResourceRoute = isMapInterfaceActive || isForgeTerminalActive;
+
+  /**
+   * initialGeographicData:
+   * Misión: Adaptar la semilla al contrato esperado por el GeoEngineProvider.
+   */
+  const initialGeographicData = useMemo(() => {
+    if (!geodeticSeed) return null;
+    return {
+      lat: geodeticSeed.latitudeCoordinate,
+      lng: geodeticSeed.longitudeCoordinate,
+      city: geodeticSeed.cityName,
+      source: geodeticSeed.geographicSource
+    };
+  }, [geodeticSeed]);
 
   /**
    * renderPlatformCoreContent: 
@@ -64,22 +107,17 @@ export default function PlatformLayout({
    */
   const renderPlatformCoreContent = () => (
     <>
-      {/* 
-          CAPA NAVEGACIÓN: 
-          Permanece sobre la malla para control global de la terminal.
-      */}
       <Navigation />
 
       <main
-        className={cn(
+        className={concatenateClassNames(
           "relative z-10 flex flex-col min-h-screen transition-all duration-500 bg-transparent",
-          // Eliminamos paddings en rutas de inmersión para maximizar el reactor WebGL
           isHighIntensityResourceRoute ? "pt-0" : "pt-[84px] md:pt-[100px]"
         )}
       >
         <PageTransition>
           <div
-            className={cn(
+            className={concatenateClassNames(
               "w-full flex-grow flex flex-col bg-transparent",
               !isHighIntensityResourceRoute && "px-4 md:px-0"
             )}
@@ -89,7 +127,6 @@ export default function PlatformLayout({
         </PageTransition>
       </main>
 
-      {/* Terminales de salida de audio persistentes y avisos de sistema */}
       <PlayerOrchestrator />
       <Toaster />
     </>
@@ -98,20 +135,18 @@ export default function PlatformLayout({
   return (
     /**
      * CAPA 1: CENTINELA DE SOBERANÍA
-     * Valida la identidad del Administrador antes de despertar los sensores.
      */
     <AuthGuard>
       
       {/* 
-          CAPA 2: MOTOR DE TELEMETRÍA UNIFICADO (V4.5)
-          [INTERVENCIÓN ESTRATÉGICA]: Al situar el GeoEngineProvider aquí, el GPS 
-          mantiene la persistencia de la ubicación exacta entre cambios de ruta.
-          El Dashboard, el Mapa y la Forja ahora beben de la misma fuente de verdad.
+          CAPA 2: MOTOR DE TELEMETRÍA UNIFICADO (SINGLETON GLOBAL)
+          [MANDATO V7.0]: Al residir en el layout, el motor espacial mantiene 
+          la sintonía satelital a través de toda la aplicación.
       */}
-      <GeoEngineProvider>
+      <GeoEngineProvider initialData={initialGeographicData}>
         
         {/* 
-            CAPA 3: COMPOSICIÓN CONDICIONAL DE RECURSOS (HARDWARE HYGIENE)
+            CAPA 3: COMPOSICIÓN CONDICIONAL DE RECURSOS (MAIN THREAD ISOLATION)
         */}
         {isHighIntensityResourceRoute ? (
           <div className="flex flex-col min-h-screen bg-transparent overflow-hidden isolate">
@@ -134,12 +169,11 @@ export default function PlatformLayout({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V6.0):
- * 1. Global Telemetry Unification: El motor 'useGeoEngine' ahora es un Singleton para toda 
- *    la plataforma. La ubicación precisa capturada en el Dashboard es heredada por la 
- *    Forja en milisegundos, eliminando la latencia de re-triangulación.
- * 2. Zero Abbreviations Policy (ZAP): Refactorización total de variables de ruta 
- *    (isMapInterfaceActive, isForgeTerminalActive, currentUrlPathname).
- * 3. Resource Stewardship: Se preserva el aislamiento de 'SmoothScrollWrapper', liberando 
- *    ciclos de CPU para el Reactor WebGL en rutas de alta densidad gráfica.
+ * NOTA TÉCNICA DEL ARCHITECT (V7.0):
+ * 1. Global Geodetic Singleton: El GeoEngineProvider ha sido elevado al chasis maestro. 
+ *    Cualquier dato de ubicación capturado es ahora persistente entre navegaciones.
+ * 2. T0 Materialization: Se ha implementado el Handshake con la cookie del Middleware, 
+ *    asegurando que el primer frame del mapa no nazca en una ubicación nula.
+ * 3. ZAP Enforcement: Purificación nominal total de las variables de ruta y parseo 
+ *    (isMapInterfaceActive, seedCookieEntry, GeodeticSeedPayload).
  */
