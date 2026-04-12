@@ -1,15 +1,13 @@
 /**
  * ARCHIVO: hooks/geo-engine/radar-core.tsx
- * VERSIÓN: 4.0 (NicePod Radar Core - High-Fidelity Proximity & Nominal Shield Edition)
+ * VERSIÓN: 4.1 (NicePod Radar Core - Request De-duplication & Network Lock Edition)
  * PROTOCOLO: MADRID RESONANCE V4.5
  * 
  * Misión: Evaluar el entorno geográfico y sincronizar la Bóveda de Conocimiento NKV 
- * de forma independiente a la interfaz, garantizando sintonía de proximidad milimétrica
- * y optimización de recursos de red mediante el protocolo de aborto atómico.
- * [REFORMA V4.0]: Implementación integral de la Zero Abbreviations Policy (ZAP). 
- * Sincronización total con la Constitución V8.6 y el Metal V2.0. Refuerzo del 
- * filtrado de proximidad para prevenir colisiones de hilos de red y optimización 
- * del Hilo Principal (Main Thread Isolation).
+ * de forma independiente a la interfaz, garantizando sintonía de proximidad milimétrica.
+ * [REFORMA V4.1]: Implementación del Protocolo de Bloqueo Lógico de Red (Misión 3). 
+ * Se ha introducido una referencia de control de concurrencia para erradicar las 
+ * peticiones duplicadas y cancelaciones masivas detectadas en las auditorías de red. 
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -30,39 +28,31 @@ import React, { createContext, useCallback, useContext, useRef, useState } from 
  * UMBRALES DE GOBERNANZA TÁCTICA INDUSTRIAL
  */
 const FETCH_DISTANCE_THRESHOLD_METERS = 150;
-const EVALUATION_DISTANCE_THRESHOLD_METERS = 2; // Mayor sensibilidad para peritaje de precisión
+const EVALUATION_DISTANCE_THRESHOLD_METERS = 2; 
 
 /**
  * INTERFAZ: RadarCoreReturn
  * Misión: Exponer las capacidades de inteligencia de proximidad a la Fachada Soberana.
  */
 interface RadarCoreReturn {
-  /** nearbyPointsOfInterestCollection: Colección de nodos detectados en la malla local. */
   nearbyPointsOfInterest: PointOfInterest[];
-  /** activePointOfInterest: El hito con mayor resonancia de proximidad actual. */
   activePointOfInterest: ActivePointOfInterest | null;
-  /** isRadarSearchProcessActive: Flag de estado para la sincronización con el Metal. */
   isRadarSearchProcessActive: boolean;
-  /** localGeographicData: Metadatos situacionales para la interfaz de usuario. */
   localGeographicData: { 
     isProximityConflictDetected?: boolean; 
     manualGeographicPlaceName?: string 
   };
   
-  /** fetchRadarIntelligence: Sincroniza los nodos de la Bóveda con la posición del Voyager. */
   fetchRadarIntelligence: (userLocation: UserLocation, forceRefreshAction?: boolean) => Promise<void>;
-  /** evaluateProximityResonance: Procesa el radio de acción de los nodos en el cliente. */
   evaluateProximityResonance: (userLocation: UserLocation) => void;
-  /** setManualGeographicPlaceName: Establece una identidad nominativa manual. */
   setManualGeographicPlaceName: (placeName: string) => void;
-  /** clearRadarIntelligence: Purga física de la memoria del radar. */
   clearRadarIntelligence: () => void;
 }
 
 const RadarContext = createContext<RadarCoreReturn | undefined>(undefined);
 
 /**
- * RadarProvider: El subsistema de inteligencia de proximidad unificado.
+ * RadarProvider: El subsistema de inteligencia de proximidad unificado de la plataforma.
  */
 export function RadarProvider({ children }: { children: React.ReactNode }) {
   const supabaseClient = createClient();
@@ -80,16 +70,30 @@ export function RadarProvider({ children }: { children: React.ReactNode }) {
   const lastFetchGeographicPositionReference = useRef<{ latitudeCoordinate: number, longitudeCoordinate: number } | null>(null);
   const lastEvaluationGeographicPositionReference = useRef<{ latitudeCoordinate: number, longitudeCoordinate: number } | null>(null);
   const networkAbortControllerReference = useRef<AbortController | null>(null);
+  
+  /**
+   * isRequestCurrentlyInProgressReference:
+   * [INTERVENCIÓN V4.1]: Misión: Actuar como un bloqueo lógico (Atomic Lock) para prevenir 
+   * el "Request Flooding" durante el ciclo de hidratación o ante micro-movimientos.
+   */
+  const isRequestCurrentlyInProgressReference = useRef<boolean>(false);
 
   /**
    * fetchRadarIntelligence:
    * Misión: Sincronizar los nodos de la Bóveda NKV con la malla local del dispositivo.
+   * [SINCRO V4.1]: Implementación de de-duplicación de peticiones de red.
    */
   const fetchRadarIntelligence = useCallback(async (
     userLocation: UserLocation, 
     forceRefreshAction: boolean = false
   ) => {
-    // 1. Filtro de Emisión: Evitamos peticiones redundantes si el desplazamiento es despreciable.
+    // 1. PROTOCOLO DE BLOQUEO LÓGICO: Si una petición ya está en vuelo, abortamos la redundancia.
+    if (isRequestCurrentlyInProgressReference.current && !forceRefreshAction) {
+      nicepodLog("🛡️ [RadarCore] Bloqueo de concurrencia activo. Evitando petición redundante.");
+      return;
+    }
+
+    // 2. FILTRO DE EMISIÓN POR PROXIMIDAD: Evitamos peticiones si el Voyager no se ha desplazado lo suficiente.
     if (!forceRefreshAction && lastFetchGeographicPositionReference.current) {
       const distanceFromLastFetchMagnitude = calculateDistanceBetweenPoints(
         { 
@@ -108,8 +112,9 @@ export function RadarProvider({ children }: { children: React.ReactNode }) {
     }
 
     /**
-     * 2. PROTOCOLO DE HIGIENE DE RED (ABORT ATÓMICO):
-     * Cancelamos cualquier petición pendiente para evitar el procesamiento de datos obsoletos.
+     * 3. PROTOCOLO DE HIGIENE DE RED (ABORT ATÓMICO):
+     * Mantenemos el controlador para cancelar peticiones si el componente se desmonta 
+     * o si se requiere un refresco forzado.
      */
     if (networkAbortControllerReference.current) {
       networkAbortControllerReference.current.abort();
@@ -117,11 +122,11 @@ export function RadarProvider({ children }: { children: React.ReactNode }) {
     networkAbortControllerReference.current = new AbortController();
 
     setIsRadarSearchProcessActive(true);
+    isRequestCurrentlyInProgressReference.current = true;
     
     try {
       nicepodLog(`🛰️ [RadarCore] Sincronizando Bóveda NKV (${forceRefreshAction ? 'COMANDO_FORZADO' : 'FETCH_PROXIMIDAD'})`);
       
-      // Consultamos la vista de resonancia activa optimizada por PostGIS en el Metal.
       const { data: pointOfInterestIntelligenceResults, error: supabaseDatabaseQueryException } = await supabaseClient
         .from('vw_map_resonance_active')
         .select('*')
@@ -133,7 +138,7 @@ export function RadarProvider({ children }: { children: React.ReactNode }) {
 
       /**
        * [BUILD SHIELD]: MAPEADOR DE INTEGRIDAD SOBERANA.
-       * Transmutamos la salida de la vista SQL hacia el contrato estricto de la Constitución.
+       * Sincronizado con la Constitución V8.6 y el Metal V2.0.
        */
       const sanitizedPointsCollection: PointOfInterest[] = (pointOfInterestIntelligenceResults || []).map((pointOfInterestItem: any) => ({
         identification: pointOfInterestItem.identification,
@@ -146,7 +151,7 @@ export function RadarProvider({ children }: { children: React.ReactNode }) {
         resonanceRadiusMeters: pointOfInterestItem.resonance_radius || 35,
         importanceScore: pointOfInterestItem.importance_score || 1,
         historicalFact: pointOfInterestItem.historical_fact,
-        richDescription: null, // Campo excluido del radar para optimizar ancho de banda
+        richDescription: null, 
         galleryUniformResourceLocatorsCollection: pointOfInterestItem.gallery_urls || [],
         ambientAudioUniformResourceLocator: pointOfInterestItem.ambient_audio_url || null,
         status: 'published',
@@ -167,17 +172,17 @@ export function RadarProvider({ children }: { children: React.ReactNode }) {
       };
     } catch (operationalException: any) {
       if (operationalException.name !== 'AbortError') {
-        nicepodLog("🔥 [RadarCore] Fallo crítico en comunicación con Bóveda NKV.", operationalException, 'error');
+        nicepodLog("🔥 [RadarCore] Fallo crítico en conexión con Bóveda NKV.", operationalException, 'error');
       }
     } finally {
       setIsRadarSearchProcessActive(false);
+      isRequestCurrentlyInProgressReference.current = false;
     }
   }, [supabaseClient]);
 
   /**
    * evaluateProximityResonance:
-   * Misión: Calcular en el cliente el radio de resonancia y detectar conflictos geodésicos.
-   * [MTI]: Implementación de throttling por distancia para proteger el hilo principal.
+   * Misión: Procesar en el cliente el radio de acción de los nodos.
    */
   const evaluateProximityResonance = useCallback((userLocation: UserLocation) => {
     if (nearbyPointsOfInterestCollection.length === 0) {
@@ -204,9 +209,7 @@ export function RadarProvider({ children }: { children: React.ReactNode }) {
     let closestResonancePoint: ActivePointOfInterest | null = null;
     let minimumDistanceObservedMagnitude = Infinity;
 
-    // Escaneo de la Malla Local (Complejidad O(N))
     nearbyPointsOfInterestCollection.forEach((pointOfInterestItem) => {
-      // Estándar PostGIS: [Longitud, Latitud]
       const [pointLongitudeCoordinate, pointLatitudeCoordinate] = pointOfInterestItem.geographicLocation.coordinates;
       
       const distanceToNodeMagnitude = calculateDistanceBetweenPoints(
@@ -234,11 +237,6 @@ export function RadarProvider({ children }: { children: React.ReactNode }) {
 
     setActivePointOfInterest(closestResonancePoint);
     
-    /**
-     * Conflicto de Proximidad: 
-     * Se activa si el Voyager intenta forjar un hito a menos de 10m de un hito existente,
-     * protegiendo la densidad de la Malla.
-     */
     setLocalGeographicData(previousGeographicData => ({ 
       ...previousGeographicData, 
       isProximityConflictDetected: minimumDistanceObservedMagnitude < 10 
@@ -252,7 +250,7 @@ export function RadarProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * clearRadarIntelligence:
-   * Misión: Purga física de la memoria del radar y aniquilación de hilos de red pendientes.
+   * Misión: Purga física de la memoria del radar y aniquilación de hilos de red.
    */
   const clearRadarIntelligence = useCallback(() => {
     if (networkAbortControllerReference.current) {
@@ -263,6 +261,7 @@ export function RadarProvider({ children }: { children: React.ReactNode }) {
     setLocalGeographicData({});
     lastFetchGeographicPositionReference.current = null;
     lastEvaluationGeographicPositionReference.current = null;
+    isRequestCurrentlyInProgressReference.current = false;
     nicepodLog("🧹 [RadarCore] Malla de proximidad purgada íntegramente.");
   }, []);
 
@@ -304,11 +303,12 @@ export const useGeoRadar = () => {
 };
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V4.0):
- * 1. Zero Abbreviations Policy (ZAP): Se han purificado todas las variables internas y de estado 
- *    (distanceMagnitude, operationalException, sanitizedPointsCollection, etc.).
- * 2. Contractual Symmetry: El mapeador de integridad sincroniza la vista PostGIS con el 
- *    tipo PointOfInterest V8.6, asegurando que 'authorIdentification' sea persistente.
- * 3. Network Resilience: El uso de AbortController previene condiciones de carrera 
- *    durante desplazamientos rápidos a alta velocidad del Voyager.
+ * NOTA TÉCNICA DEL ARCHITECT (V4.1):
+ * 1. Logic Locking (Mission 3): Se ha implementado 'isRequestCurrentlyInProgressReference' 
+ *    para evitar colisiones de red. Esto erradica el ruido de peticiones canceladas en el 
+ *    Dashboard y optimiza el consumo de cuota del Metal.
+ * 2. Zero Abbreviations Policy (ZAP): Purificación total de variables de bucle y estado 
+ *    (distanceFromLastFetchMagnitude, sanitizedPointsCollection, pointOfInterestItem).
+ * 3. Network Efficiency: El uso del controlador de aborto en combinación con el bloqueo 
+ *    lógico garantiza que la Workstation sea resiliente ante ráfagas de telemetría inestables.
  */
