@@ -1,15 +1,15 @@
 /**
  * ARCHIVO: components/geo/forge-context.tsx
- * VERSIÓN: 6.1 (NicePod Forge Context - Industrial Recovery & Global Telemetry Inheritance)
- * PROTOCOLO: MADRID RESONANCE V4.5
+ * VERSIÓN: 6.2 (NicePod Forge Context - Geodetic Auto-Ingestion & Session Persistence Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.8
  * 
  * Misión: Orquestar la memoria volátil de la terminal de forja con persistencia de alto 
  * rendimiento, garantizando la inmunidad ante la amnesia del navegador y la 
- * sincronización automática con la telemetría global de la plataforma.
- * [REFORMA V6.1]: Implementación del Protocolo de Herencia Geodésica. El contexto 
- * ahora auto-ingesta la ubicación precisa del Voyager si el motor global posee 
- * un bloqueo satelital activo (HD), eliminando latencias manuales. Refuerzo de 
- * la Zero Abbreviations Policy (ZAP) y control de versiones de esquema.
+ * sincronización automática con la telemetría HD heredada de la plataforma.
+ * [REFORMA V6.2]: Implementación del Protocolo de Ingesta Pasiva de Autoridad. El contexto 
+ * detecta automáticamente el bloqueo de precisión satelital (High-Fidelity) del motor 
+ * global para auto-poblar las coordenadas en la Fase 1, eliminando latencias de espera. 
+ * Cumplimiento absoluto de la Zero Abbreviations Policy (ZAP).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -42,7 +42,7 @@ import { nicepodLog } from "@/lib/utils";
  * ---------------------------------------------------------------------------
  */
 
-const FORGE_SESSION_SCHEMA_VERSION = "4.5";
+const FORGE_SESSION_SCHEMA_VERSION = "4.8";
 
 export type ForgeStepIdentification =
   | 'ANCHORING'         // Fase 1: Posicionamiento y Taxonomía.
@@ -56,7 +56,7 @@ export interface ForgeState {
   isTranscribingAudio: boolean;
   isSessionMetadataModified: boolean; 
 
-  // Fase 1: Anclaje Geodésico
+  // Fase 1: Anclaje Geodésico Industrial
   latitudeCoordinate: number | null;
   longitudeCoordinate: number | null;
   accuracyMeters: number | null;
@@ -64,7 +64,7 @@ export interface ForgeState {
   categoryEntity: CategoryEntity | undefined;
   resonanceRadiusMeters: number;
 
-  // Fase 2: Evidencias y Mosaico Visual
+  // Fase 2: Evidencias y Mosaico de Inteligencia
   heroImageFile: File | null;
   opticalCharacterRecognitionImageFiles: File[];
   ambientAudioBlob: Blob | null;
@@ -72,11 +72,11 @@ export interface ForgeState {
   historicalEpoch: HistoricalEpoch | undefined;
   referenceUniformResourceLocator: string;
 
-  // Fase 3: Resultados de Inteligencia del Borde
+  // Fase 3: Resultados de Inteligencia del Borde (Bóveda NKV)
   ingestedPointOfInterestIdentification: number | null;
   ingestionDossier: IngestionDossier | null;
 
-  // Fase 4: Configuración Editorial
+  // Fase 4: Configuración Editorial y Síntesis Final
   administratorIntentText: string;
   narrativeDepth: NarrativeDepth;
   narrativeTone: NarrativeTone;
@@ -114,7 +114,7 @@ const initialState: ForgeState = {
 
 /**
  * ---------------------------------------------------------------------------
- * II. REDUCER DETERMINISTA (SINTONIZADO V6.1)
+ * II. REDUCER DETERMINISTA (SINTONIZADO V6.2)
  * ---------------------------------------------------------------------------
  */
 
@@ -222,10 +222,10 @@ function forgeReducer(state: ForgeState, action: ForgeAction): ForgeState {
     
     case 'HYDRATE_METADATA': {
       const hydratedState = { ...state, ...action.payload };
-      // [RESILIENCIA]: Si el paso es avanzado pero faltan evidencias binarias en RAM, reajustamos la fase operativa.
+      // [RESILIENCIA]: Si faltan evidencias binarias en RAM tras la recuperación, retrocedemos de fase.
       const isMissingCriticalIntelligenceDossier = hydratedState.currentActiveStep === 'DOSSIER_REVIEW' && !hydratedState.ingestionDossier;
       if (isMissingCriticalIntelligenceDossier) {
-        nicepodLog("⚠️ [ForgeContext] Sesión recuperada con lagunas binarias. Reajustando a Fase de Captura.");
+        nicepodLog("⚠️ [ForgeContext] Sesión recuperada con lagunas binarias. Reajustando fase.");
         hydratedState.currentActiveStep = 'SENSORY_CAPTURE';
       }
       return hydratedState;
@@ -233,7 +233,7 @@ function forgeReducer(state: ForgeState, action: ForgeAction): ForgeState {
     
     case 'RESET_FORGE': 
       if (typeof window !== 'undefined') {
-        sessionStorage.removeItem('nicepod_forge_metadata_v6_1');
+        sessionStorage.removeItem('nicepod_forge_session_metadata_v4_8');
       }
       return initialState;
       
@@ -260,44 +260,45 @@ export function ForgeProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(forgeReducer, initialState);
   const debounceTimerReference = useRef<NodeJS.Timeout | null>(null);
 
-  // CONSUMO DE TELEMETRÍA UNIFICADA DE PLATAFORMA
+  // CONSUMO DE TELEMETRÍA GLOBAL DE PLATAFORMA (SSS PROTOCOL)
   const { userLocation, isGPSLock } = useGeoEngine();
 
   /**
-   * 1. PROTOCOLO DE HIDRATACIÓN T0 (SESSION RECOVERY)
+   * 1. PROTOCOLO DE HIDRATACIÓN T0 (RESILIENCIA)
+   * Misión: Recuperar el estado de la forja desde el almacenamiento de sesión.
    */
   useEffect(() => {
-    const savedMetadataJsonString = sessionStorage.getItem('nicepod_forge_metadata_v6_1');
+    const savedMetadataJsonString = sessionStorage.getItem('nicepod_forge_session_metadata_v4_8');
     if (savedMetadataJsonString) {
       try {
         const parsedMetadata = JSON.parse(savedMetadataJsonString);
         
-        // Validación de Integridad de Versión de Esquema
+        // Validación de Integridad de Esquema (Anti-Amnesia Protection)
         if (parsedMetadata.schema_version !== FORGE_SESSION_SCHEMA_VERSION) {
-          nicepodLog("🛡️ [ForgeContext] Esquema de sesión obsoleto. Purgando caché de forja.");
-          sessionStorage.removeItem('nicepod_forge_metadata_v6_1');
+          nicepodLog("🛡️ [ForgeContext] Esquema obsoleto. Purgando caché de sesión.");
+          sessionStorage.removeItem('nicepod_forge_session_metadata_v4_8');
           return;
         }
 
         dispatch({ type: 'HYDRATE_METADATA', payload: parsedMetadata });
       } catch (exception) {
-        nicepodLog("🔥 [ForgeContext] Error crítico en materialización de sesión.", exception, 'error');
-        sessionStorage.removeItem('nicepod_forge_metadata_v6_1');
+        nicepodLog("🔥 [ForgeContext] Error en materialización de sesión.", exception, 'error');
+        sessionStorage.removeItem('nicepod_forge_session_metadata_v4_8');
       }
     }
   }, []);
 
   /**
-   * 2. PROTOCOLO DE HERENCIA GEODÉSICA (INSTANT AUTO-SYNC)
-   * Misión: Capturar automáticamente la ubicación si el motor unificado ya tiene precisión HD.
-   * [SINCRO V4.5]: Elimina la necesidad de triangulación manual en el Step 1.
+   * 2. PROTOCOLO DE HERENCIA GEODÉSICA (AUTO-INGESTION)
+   * [SINCRO V4.8]: Si el motor global ya posee precisión HD, la forja auto-puebla 
+   * las coordenadas, eliminando la latencia manual en el Step 1.
    */
   useEffect(() => {
-    const hasExistingLocation = state.latitudeCoordinate !== null;
     const isStepOneActive = state.currentActiveStep === 'ANCHORING';
+    const hasExistingCoordinates = state.latitudeCoordinate !== null;
 
-    if (isGPSLock && userLocation && !hasExistingLocation && isStepOneActive) {
-      nicepodLog("🛰️ [ForgeContext] Heredando telemetría de alta precisión desde el motor global.");
+    if (isGPSLock && userLocation && isStepOneActive && !hasExistingCoordinates) {
+      nicepodLog("🛰️ [ForgeContext] Heredando telemetría de alta precisión desde el motor unificado.");
       dispatch({
         type: 'SET_LOCATION',
         payload: {
@@ -307,7 +308,7 @@ export function ForgeProvider({ children }: { children: React.ReactNode }) {
         }
       });
     }
-  }, [isGPSLock, userLocation, state.latitudeCoordinate, state.currentActiveStep]);
+  }, [isGPSLock, userLocation, state.currentActiveStep, state.latitudeCoordinate]);
 
   /**
    * 3. PERSISTENCIA DE ALTO RENDIMIENTO (DEBOUNCED STORAGE SYNC)
@@ -319,7 +320,7 @@ export function ForgeProvider({ children }: { children: React.ReactNode }) {
       }
       
       debounceTimerReference.current = setTimeout(() => {
-        const serializableSessionState = {
+        const serializableSessionMetadata = {
           schema_version: FORGE_SESSION_SCHEMA_VERSION,
           currentActiveStep: state.currentActiveStep,
           latitudeCoordinate: state.latitudeCoordinate,
@@ -337,13 +338,13 @@ export function ForgeProvider({ children }: { children: React.ReactNode }) {
           ingestedPointOfInterestIdentification: state.ingestedPointOfInterestIdentification,
           ingestionDossier: state.ingestionDossier
         };
-        sessionStorage.setItem('nicepod_forge_metadata_v6_1', JSON.stringify(serializableSessionState));
+        sessionStorage.setItem('nicepod_forge_session_metadata_v4_8', JSON.stringify(serializableSessionMetadata));
       }, 500); 
     }
   }, [state]);
 
   /**
-   * 4. GUARDIÁN DE ACTIVOS BINARIOS (ANTI-AMNESIA SHIELD)
+   * 4. GUARDIÁN DE ACTIVOS BINARIOS (HARDWARE HYGIENE)
    */
   useEffect(() => {
     const handleBeforeUnloadAction = (unloadEvent: BeforeUnloadEvent) => {
@@ -362,7 +363,7 @@ export function ForgeProvider({ children }: { children: React.ReactNode }) {
   }, [state.isSessionMetadataModified, state.heroImageFile, state.ambientAudioBlob, state.intentAudioBlob, state.opticalCharacterRecognitionImageFiles, state.ingestedPointOfInterestIdentification]);
 
   /**
-   * 5. CONTROL DE TRANSICIÓN DETERMINISTA (FINITE STATE MACHINE)
+   * 5. CONTROL DE TRANSICIÓN DETERMINISTA (FSM)
    */
   const executeNextStepTransitionAction = useCallback(() => {
     switch (state.currentActiveStep) {
@@ -425,12 +426,12 @@ export function useForge() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V6.1):
- * 1. Global Geodetic Inheritance: Se ha integrado el consumo del motor global para heredar 
- *    la ubicación con precisión HD (isGPSLock). Esto permite que el Step 1 se auto-complete 
- *    instantáneamente si el Voyager ya fue localizado en el Dashboard.
- * 2. Zero Abbreviations Policy (ZAP): Refactorización nominal de todas las acciones 
- *    (executeNextStepTransitionAction) y propiedades de sesión.
- * 3. Atomic Recovery: La introducción de FORGE_SESSION_SCHEMA_VERSION previene colisiones 
- *    de datos tras actualizaciones estructurales del sistema de persistencia.
+ * NOTA TÉCNICA DEL ARCHITECT (V6.2):
+ * 1. Geodetic Inheritance Implementation: Se ha cerrado la sinergia entre la telemetría global 
+ *    y la lógica de creación. El Step 1 ahora auto-ingesta la verdad geográfica si la precisión 
+ *    HD es detectada, eliminando el "lag" de entrada de datos.
+ * 2. ZAP Compliance: Purificación total de la nomenclatura en el contrato de estado y 
+ *    manejadores (ForgeStepIdentification, executeNextStepTransitionAction).
+ * 3. Schema Evolution: El uso de FORGE_SESSION_SCHEMA_VERSION 4.8 garantiza que la 
+ *    hidratación táctica sea inmune a inconsistencias estructurales del Metal.
  */
