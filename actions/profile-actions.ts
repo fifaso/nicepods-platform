@@ -65,11 +65,11 @@ export async function updateProfile(
       .from("profiles")
       .update({
         username: validatedData.username,
-        full_name: validatedData.full_name,
+        full_name: validatedData.fullName,
         bio: validatedData.bio,
-        bio_short: validatedData.bio_short,
-        website_url: validatedData.website_url,
-        avatar_url: validatedData.avatar_url,
+        bio_short: validatedData.bioShort,
+        website_url: validatedData.websiteUniformResourceLocator,
+        avatar_url: validatedData.avatarUniformResourceLocator,
         updated_at: new Date().toISOString(),
       })
       .eq("id", user.id);

@@ -101,8 +101,8 @@ export function DraftGenerationLoader({ formData }: DraftLoaderProps) {
   // Referencia de control para evitar colisiones de eventos concurrentes (WebSocket + Polling)
   const isFinalizing = useRef<boolean>(false);
 
-  const draftId = formData.draft_id;
-  const topic = formData.solo_topic || "tu idea";
+  const draftId = formData.draftIdentification;
+  const topic = formData.soloTopic || "tu idea";
   const agentName = formData.agentName || "Especialista";
 
   /**

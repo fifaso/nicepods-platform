@@ -51,7 +51,7 @@ export function FinalStep() {
   useEffect(() => {
     if (formData.purpose === 'local_soul') {
       setValue("agentName", "local-concierge-v1");
-      setValue("creation_mode", "situational");
+      setValue("creationMode", "situational");
     }
     if (formData.purpose === 'explore') {
       setValue("agentName", "connection-architect-v1");
@@ -78,11 +78,11 @@ export function FinalStep() {
 
   const coreTopic = useMemo(() => {
     switch (formData.purpose) {
-      case 'explore': return `${formData.link_topicA} & ${formData.link_topicB}`;
+      case 'explore': return `${formData.linkTopicA} & ${formData.linkTopicB}`;
       case 'local_soul': return formData.location?.placeName || "Anclaje Geoespacial";
-      default: return formData.solo_topic;
+      default: return formData.soloTopic;
     }
-  }, [formData.purpose, formData.link_topicA, formData.link_topicB, formData.location, formData.solo_topic]);
+  }, [formData.purpose, formData.linkTopicA, formData.linkTopicB, formData.location, formData.soloTopic]);
 
   return (
     <div className="flex flex-col h-full w-full animate-in fade-in duration-700 relative overflow-hidden bg-transparent pb-20 lg:pb-0">
@@ -128,7 +128,7 @@ export function FinalStep() {
               </div>
 
               <h3 className="text-3xl lg:text-5xl font-black text-white leading-[0.9] tracking-tighter uppercase mb-8 italic">
-                {formData.final_title || "Crónica de Conocimiento"}
+                {formData.finalTitle || "Crónica de Conocimiento"}
               </h3>
 
               <div className="relative p-6 rounded-2xl bg-black/40 border border-white/5 shadow-inner">
@@ -190,8 +190,8 @@ export function FinalStep() {
                     <p className="text-xs font-black text-white line-clamp-2 leading-tight uppercase mb-3 tracking-tight">
                       {s.title}
                     </p>
-                    <a href={s.url} target="_blank" rel="noopener noreferrer" className="text-[9px] text-zinc-500 hover:text-primary transition-colors flex items-center gap-2 font-mono truncate">
-                      <ExternalLink size={10} /> {s.url}
+                    <a href={s.uniformResourceLocator} target="_blank" rel="noopener noreferrer" className="text-[9px] text-zinc-500 hover:text-primary transition-colors flex items-center gap-2 font-mono truncate">
+                      <ExternalLink size={10} /> {s.uniformResourceLocator}
                     </a>
                   </div>
                 ))
@@ -246,7 +246,7 @@ export function FinalStep() {
                     {s.snippet && (
                       <p className="text-[10px] text-zinc-500 mb-3 italic">"{s.snippet.substring(0, 200)}..."</p>
                     )}
-                    <a href={s.url} target="_blank" className="text-[10px] text-primary flex items-center gap-2 font-bold uppercase"><ExternalLink size={12}/> Ir a la Fuente</a>
+                    <a href={s.uniformResourceLocator} target="_blank" className="text-[10px] text-primary flex items-center gap-2 font-bold uppercase"><ExternalLink size={12}/> Ir a la Fuente</a>
                   </div>
                 ))}
               </div>

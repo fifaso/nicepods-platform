@@ -73,7 +73,7 @@ export function NarrativeSelectionStep({ narrativeOptions }: NarrativeSelectionS
 
         <FormField
           control={control}
-          name="link_selectedNarrative"
+          name="linkSelectedNarrative"
           render={({ field }) => (
             <FormItem className="space-y-0">
               <FormControl>

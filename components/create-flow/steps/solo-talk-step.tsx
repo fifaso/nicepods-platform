@@ -23,11 +23,11 @@ import { Input } from "@/components/ui/input";
 
 export function SoloTalkStep() {
   const { control, setValue, watch } = useFormContext<PodcastCreationData>();
-  const motivationValue = watch('solo_motivation');
+  const motivationValue = watch('soloMotivation');
 
   /**
    * SINCRONIZACIÓN TÉCNICA:
-   * Generamos el solo_topic (ID de búsqueda) basado en la motivación.
+   * Generamos el soloTopic (ID de búsqueda) basado en la motivación.
    * Esto asegura que el Backend tenga un título semilla si el usuario no define uno.
    */
   useEffect(() => {
@@ -35,14 +35,14 @@ export function SoloTalkStep() {
       const autoTopic = motivationValue.length > 60 
         ? motivationValue.substring(0, 60) + "..." 
         : motivationValue;
-      setValue('solo_topic', autoTopic, { shouldValidate: true });
+      setValue('soloTopic', autoTopic, { shouldValidate: true });
     }
   }, [motivationValue, setValue]);
 
   const handleVoiceInput = (text: string) => {
     const currentText = motivationValue || '';
     const newText = currentText ? `${currentText} ${text}` : text;
-    setValue('solo_motivation', newText, { 
+    setValue('soloMotivation', newText, {
       shouldValidate: true, 
       shouldDirty: true 
     });
@@ -74,7 +74,7 @@ export function SoloTalkStep() {
         <div className="flex-1 flex flex-col min-h-0 bg-card/40 backdrop-blur-3xl rounded-[2rem] border border-white/10 shadow-2xl overflow-hidden relative z-10">
           <FormField
             control={control}
-            name="solo_motivation"
+            name="soloMotivation"
             render={({ field }) => (
               <FormItem className="flex-1 flex flex-col min-h-0 space-y-0">
                 <FormControl className="flex-1 min-h-0">
@@ -122,7 +122,7 @@ export function SoloTalkStep() {
       <div className="hidden">
         <FormField 
             control={control} 
-            name="solo_topic" 
+            name="soloTopic"
             render={({ field }) => <FormItem><FormControl><Input {...field} /></FormControl></FormItem>} 
         />
       </div>

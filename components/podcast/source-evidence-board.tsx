@@ -159,9 +159,9 @@ export function SourceEvidenceBoard({
                     {sourceAuthorityScore.toFixed(1)}
                   </div>
 
-                  {evidenceSourceItem.url && evidenceSourceItem.url !== "#" && (
+                  {evidenceSourceItem.uniformResourceLocator && evidenceSourceItem.uniformResourceLocator !== "#" && (
                     <a
-                      href={evidenceSourceItem.url}
+                      href={evidenceSourceItem.uniformResourceLocator}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-1.5 text-[9px] font-black text-zinc-500 hover:text-white transition-all uppercase tracking-widest"

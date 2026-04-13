@@ -145,7 +145,7 @@ export function PulseSourceCard({ signal, isSelected, onToggle }: PulseSourceCar
             <Award size={14} className="text-primary opacity-60 animate-pulse" />
           )}
           <a
-            href={signal.url}
+            href={signal.uniformResourceLocator}
             target="_blank"
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}

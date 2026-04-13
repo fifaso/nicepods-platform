@@ -115,7 +115,7 @@ export function CreationMetadata({
   
   const methodologyInputs = intelligenceMetadata.inputs || {};
   const agentNameDescriptor = intelligenceMetadata.agentName || "Arquitecto Base";
-  const discoveryContext = intelligenceMetadata.discovery_context;
+  const discoveryContext = intelligenceMetadata.discoveryContext;
 
   return (
     <div className="space-y-10 py-4 max-w-full overflow-hidden">
@@ -229,7 +229,7 @@ export function CreationMetadata({
             {intelligenceResearchSources.map((sourceItem, sourceIndex) => (
               <a
                 key={sourceIndex}
-                href={sourceItem.url}
+                href={sourceItem.uniformResourceLocator}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center justify-between p-3 rounded-xl bg-secondary/20 border border-border/30 hover:border-primary/40 hover:bg-secondary/40 transition-all group"
@@ -237,7 +237,7 @@ export function CreationMetadata({
                 <div className="min-w-0 flex-1 pr-4">
                   <p className="text-xs font-bold text-foreground/90 truncate mb-0.5">{sourceItem.title}</p>
                   <p className="text-[10px] text-muted-foreground/60 truncate font-mono uppercase tracking-tighter">
-                    {new URL(sourceItem.url).hostname}
+                    {new URL(sourceItem.uniformResourceLocator).hostname}
                   </p>
                 </div>
                 <div className="p-2 rounded-lg bg-background/50 group-hover:bg-primary/10 transition-colors">

@@ -142,18 +142,18 @@ export function TestimonialModerator({
                 <div className="flex items-center gap-5 flex-1 min-w-0">
                   <Avatar className="h-14 w-14 border-2 border-white/10 shadow-xl flex-shrink-0">
                     <AvatarImage
-                      src={getSafeAsset(t.author?.avatar_url, 'avatar')}
+                      src={getSafeAsset(t.author?.avatarUniformResourceLocator, 'avatar')}
                       className="object-cover"
                     />
                     <AvatarFallback className="bg-zinc-800 text-primary font-black text-xs">
-                      {t.author?.full_name?.charAt(0).toUpperCase() || <UserIcon size={16} />}
+                      {t.author?.fullName?.charAt(0).toUpperCase() || <UserIcon size={16} />}
                     </AvatarFallback>
                   </Avatar>
 
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <p className="font-black text-sm md:text-base uppercase tracking-tight text-white truncate">
-                        {t.author?.full_name || 'Curador Anónimo'}
+                        {t.author?.fullName || 'Curador Anónimo'}
                       </p>
                       <span className="h-1 w-1 rounded-full bg-zinc-700" />
                       <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">

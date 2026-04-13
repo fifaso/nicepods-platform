@@ -18,9 +18,9 @@ export function LegacyStep() {
   const viewportHeight = useMobileViewport(containerRef);
 
   const handleVoiceInput = (text: string) => {
-    const currentText = getValues('legacy_lesson') || '';
+    const currentText = getValues('legacyLesson') || '';
     const newText = currentText ? `${currentText}\n\n${text}` : text;
-    setValue('legacy_lesson', newText, { shouldValidate: true, shouldDirty: true });
+    setValue('legacyLesson', newText, { shouldValidate: true, shouldDirty: true });
   };
 
   return (
@@ -42,7 +42,7 @@ export function LegacyStep() {
       <div className="flex-1 flex flex-col min-h-0 relative rounded-xl overflow-hidden bg-white/50 dark:bg-black/20 border border-black/5 dark:border-white/10 backdrop-blur-md shadow-sm">
         <FormField
           control={control}
-          name="legacy_lesson"
+          name="legacyLesson"
           render={({ field }) => (
             <FormItem className="flex-1 flex flex-col w-full min-h-0 space-y-0">
               <FormControl className="flex-1 flex flex-col min-h-0">

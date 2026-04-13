@@ -35,7 +35,7 @@ export function PulseRadarStep() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const selectedIds = watch("pulse_source_ids") || [];
+  const selectedIds = watch("pulseSourceIdentifications") || [];
 
   /**
    * scanRadar: Sincronización con el motor de matching.
@@ -101,7 +101,7 @@ export function PulseRadarStep() {
       }
       current.push(id);
     }
-    setValue("pulse_source_ids", current, { shouldValidate: true });
+    setValue("pulseSourceIdentifications", current, { shouldValidate: true });
   };
 
   return (
@@ -239,7 +239,7 @@ export function PulseRadarStep() {
                           </span>
                         </div>
                         <a
-                          href={signal.url}
+                          href={signal.uniformResourceLocator}
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={(e) => e.stopPropagation()}

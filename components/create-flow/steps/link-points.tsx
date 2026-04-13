@@ -20,15 +20,15 @@ export function LinkPointsStep() {
   const [activeField, setActiveField] = useState<'A' | 'B'>('A');
 
   const handleVoiceA = (text: string) => {
-    const current = getValues('link_topicA') || '';
+    const current = getValues('linkTopicA') || '';
     const newVal = current ? `${current} ${text}` : text;
-    setValue('link_topicA', newVal, { shouldValidate: true });
+    setValue('linkTopicA', newVal, { shouldValidate: true });
   };
 
   const handleVoiceB = (text: string) => {
-    const current = getValues('link_topicB') || '';
+    const current = getValues('linkTopicB') || '';
     const newVal = current ? `${current} ${text}` : text;
-    setValue('link_topicB', newVal, { shouldValidate: true });
+    setValue('linkTopicB', newVal, { shouldValidate: true });
   };
 
   return (
@@ -65,7 +65,7 @@ export function LinkPointsStep() {
         >
             <FormField
             control={control}
-            name="link_topicA"
+            name="linkTopicA"
             render={({ field }) => (
                 <FormItem className="flex-1 flex flex-col h-full space-y-0">
                     {/* Header del Input (Siempre visible) */}
@@ -110,7 +110,7 @@ export function LinkPointsStep() {
         >
             <FormField
             control={control}
-            name="link_topicB"
+            name="linkTopicB"
             render={({ field }) => (
                 <FormItem className="flex-1 flex flex-col h-full space-y-0">
                     <div className="flex items-center justify-between px-4 py-2 bg-black/5 dark:bg-white/5">

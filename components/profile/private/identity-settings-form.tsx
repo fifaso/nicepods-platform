@@ -58,11 +58,11 @@ export function IdentitySettingsForm({ profile }: IdentitySettingsFormProps) {
   // --- ESTADO LOCAL: Memoria de Identidad ---
   // Aislamos el estado para prevenir re-renderizados costosos en el Dashboard global.
   const [formData, setFormData] = useState({
-    full_name: profile.full_name || "",
+    fullName: profile.full_name || "",
     username: profile.username || "",
     bio: profile.bio || "",
-    bio_short: profile.bio_short || "",
-    website_url: profile.website_url || ""
+    bioShort: profile.bio_short || "",
+    websiteUniformResourceLocator: profile.website_url || ""
   });
 
   /**
@@ -71,7 +71,7 @@ export function IdentitySettingsForm({ profile }: IdentitySettingsFormProps) {
    */
   const handleUpdate = useCallback(() => {
     // VALIDACIÓN DE RIGOR: El Nombre Completo es el ancla de autoridad.
-    if (formData.full_name.trim().length < 2) {
+    if (formData.fullName.trim().length < 2) {
       toast({
         title: "Integridad de Identidad",
         description: "El nombre del curador debe contener al menos 2 caracteres.",
@@ -85,11 +85,11 @@ export function IdentitySettingsForm({ profile }: IdentitySettingsFormProps) {
         // [AUDITORÍA]: Sincronización exacta con el esquema de base de datos V2.5.
         const result = await updateProfile({
           username: formData.username, // Se envía para validación aunque sea de lectura.
-          full_name: formData.full_name,
+          fullName: formData.fullName,
           bio: formData.bio,
-          bio_short: formData.bio_short,
-          website_url: formData.website_url,
-          avatar_url: profile.avatar_url // Mantenemos el actual en este flujo.
+          bioShort: formData.bioShort,
+          websiteUniformResourceLocator: formData.websiteUniformResourceLocator,
+          avatarUniformResourceLocator: profile.avatar_url // Mantenemos el actual en este flujo.
         });
 
         if (result.success) {
@@ -129,8 +129,8 @@ export function IdentitySettingsForm({ profile }: IdentitySettingsFormProps) {
               Autoridad Nominal
             </Label>
             <Input
-              value={formData.full_name}
-              onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+              value={formData.fullName}
+              onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
               placeholder="Ej: Fran Fuenzalida"
               className="bg-zinc-900/50 border-white/10 h-16 rounded-2xl font-bold text-lg focus:ring-primary shadow-inner text-white transition-all"
               disabled={isPending}
@@ -176,8 +176,8 @@ export function IdentitySettingsForm({ profile }: IdentitySettingsFormProps) {
               Eslogan de Sabiduría
             </Label>
             <Input
-              value={formData.bio_short}
-              onChange={(e) => setFormData({ ...formData, bio_short: e.target.value })}
+              value={formData.bioShort}
+              onChange={(e) => setFormData({ ...formData, bioShort: e.target.value })}
               placeholder="Ej: Especialista en Ingeniería de Audio Neuronal..."
               maxLength={60}
               className="bg-zinc-900/50 border-white/10 h-14 rounded-xl font-medium text-sm focus:ring-primary shadow-inner text-white"
@@ -208,8 +208,8 @@ export function IdentitySettingsForm({ profile }: IdentitySettingsFormProps) {
               <div className="flex items-center gap-2">
                 <Globe size={10} className="text-zinc-600" />
                 <Input
-                  value={formData.website_url}
-                  onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
+                  value={formData.websiteUniformResourceLocator}
+                  onChange={(e) => setFormData({ ...formData, websiteUniformResourceLocator: e.target.value })}
                   placeholder="https://tu-portal-de-sabiduria.com"
                   className="bg-transparent border-none p-0 h-auto text-[10px] text-zinc-500 focus-visible:ring-0 w-64"
                 />
@@ -264,7 +264,7 @@ export function IdentitySettingsForm({ profile }: IdentitySettingsFormProps) {
 
 /**
  * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Integridad de Atributos: Se ha sustituido 'display_name' por 'full_name' para
+ * 1. Integridad de Atributos: Se ha sustituido 'display_name' por 'fullName' para
  *    garantizar que el Server Action no encuentre discrepancias de esquema.
  * 2. Inmutabilidad de Handle: El campo 'username' está bloqueado (readOnly) para 
  *    proteger las relaciones semánticas en la base de datos PostgreSQL.
