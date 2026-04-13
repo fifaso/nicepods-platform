@@ -4,9 +4,9 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
-import { AI_MODELS, callGeminiMultimodal, generateEmbedding } from "@/supabase/functions/_shared/ai.ts";
-import { corsHeaders, guard } from "@/supabase/functions/_shared/guard.ts";
-import { Database } from "@/types/database.types.ts";
+import { AI_MODELS, callGeminiMultimodal, generateEmbedding } from "../_shared/ai.ts";
+import { corsHeaders, guard } from "../_shared/guard.ts";
+import { Database } from "../../../types/database.types.ts";
 
 const supabaseAdmin = createClient<Database>(
   Deno.env.get("SUPABASE_URL")!,

@@ -6,10 +6,10 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 
 // Importaciones con rutas relativas directas (Garantía de despliegue universal)
-import { extractAtomicFacts, generateEmbedding } from "@/supabase/functions/_shared/ai.ts";
-import { guard } from "@/supabase/functions/_shared/guard.ts";
-import { corsHeaders } from "@/supabase/functions/_shared/cors.ts";
-import { Database } from "@/types/database.types.ts";
+import { extractAtomicFacts, generateEmbedding } from "../_shared/ai.ts";
+import { guard } from "../_shared/guard.ts";
+import { corsHeaders } from "../_shared/cors.ts";
+import { Database } from "../../../types/database.types.ts";
 
 /**
  * INTERFACE: RefineryPayload

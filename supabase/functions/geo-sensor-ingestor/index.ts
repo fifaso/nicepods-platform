@@ -12,8 +12,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { encodeBase64 } from "https://deno.land/std@0.203.0/encoding/base64.ts"; // [MANDATORIO]
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
-import { AI_MODELS, parseAIJson } from "@/supabase/functions/_shared/ai.ts";
-import { corsHeaders } from "@/supabase/functions/_shared/cors.ts";
+import { AI_MODELS, parseAIJson } from "../_shared/ai.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
 const GOOGLE_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");

@@ -4,8 +4,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { encode as encodeBase64 } from "https://deno.land/std@0.168.0/encoding/base64.ts";
-import { guard } from "@/supabase/functions/_shared/guard.ts";
-import { corsHeaders } from "@/supabase/functions/_shared/cors.ts";
+import { guard } from "../_shared/guard.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
 // [CORRECCIÓN CRÍTICA]: Usamos la versión específica '002' en lugar del alias genérico.
 // Esto evita el error 404 y asegura soporte multimodal estable.

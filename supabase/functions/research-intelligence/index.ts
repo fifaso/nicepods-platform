@@ -7,8 +7,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 
 // Importaciones del núcleo NicePod (Estabilizadas a Nivel 1)
-import { generateEmbedding } from "@/supabase/functions/_shared/ai.ts";
-import { corsHeaders } from "@/supabase/functions/_shared/cors.ts";
+import { generateEmbedding } from "../_shared/ai.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
 /**
  * CLIENTE SUPABASE ADMIN:
