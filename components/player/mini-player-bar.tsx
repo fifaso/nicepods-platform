@@ -22,12 +22,12 @@ import { cn, formatTime, getSafeAsset } from "@/lib/utils";
  */
 export function MiniPlayerBar() {
   const {
-    currentPodcast,
-    isPlaying,
-    togglePlayPause,
-    closePodcast,
-    expandPlayer,
-    audioRef
+    currentActivePodcast: currentPodcast,
+    isAudioPlaying: isPlaying,
+    togglePlayPauseAction: togglePlayPause,
+    terminatePodcastPlayback: closePodcast,
+    expandPlayerInterface: expandPlayer,
+    audioElementReference
   } = useAudio();
 
   const { toast } = useToast();
@@ -42,7 +42,7 @@ export function MiniPlayerBar() {
    * Captura el pulso directamente del objeto de audio nativo.
    */
   useEffect(() => {
-    const audio = audioRef.current;
+    const audio = audioElementReference.current;
     if (!audio) return;
 
     const syncMetrics = () => {
@@ -57,7 +57,7 @@ export function MiniPlayerBar() {
 
     audio.addEventListener('timeupdate', syncMetrics);
     return () => audio.removeEventListener('timeupdate', syncMetrics);
-  }, [audioRef, localDuration]);
+  }, [audioElementReference, localDuration]);
 
   /**
    * 2. VALIDACIÓN DE INTEGRIDAD

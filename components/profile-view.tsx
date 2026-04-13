@@ -68,11 +68,11 @@ export function PodcastView({
 
   // 2. INTEGRACIÓN CON EL MOTOR DE AUDIO GLOBAL
   const {
-    playPodcast,
-    currentPodcast,
-    isPlaying,
-    isLoading: isAudioPlaybackLoading,
-    togglePlayPause
+    playPodcastAction,
+    currentActivePodcast,
+    isAudioPlaying,
+    isAudioLoading: isAudioPlaybackLoading,
+    togglePlayPauseAction
   } = useAudio();
 
   // 3. ESTADOS SOCIALES Y DE RESONANCIA
@@ -95,8 +95,8 @@ export function PodcastView({
   );
   
   const isCurrentPillActive = useMemo(() => 
-    currentPodcast?.id === livePodcastData.id, 
-    [currentPodcast?.id, livePodcastData.id]
+    currentActivePodcast?.id === livePodcastData.id,
+    [currentActivePodcast?.id, livePodcastData.id]
   );
 
   /**
@@ -127,11 +127,11 @@ export function PodcastView({
 
   const handlePlaybackControlAction = useCallback(() => {
     if (isCurrentPillActive) {
-      togglePlayPause();
+      togglePlayPauseAction();
     } else {
-      playPodcast(livePodcastData);
+      playPodcastAction(livePodcastData);
     }
-  }, [isCurrentPillActive, togglePlayPause, playPodcast, livePodcastData]);
+  }, [isCurrentPillActive, togglePlayPauseAction, playPodcastAction, livePodcastData]);
 
   const handleResonanceInteractionAction = useCallback(async () => {
     if (!supabaseClient || !authenticatedUser || isPlaybackProcessActive) return;
@@ -223,7 +223,7 @@ export function PodcastView({
           <ProfileAudioConsole
             audioReady={isAudioReady}
             audioLoading={isAudioPlaybackLoading}
-            isPlaying={isPlaying}
+            isPlaying={isAudioPlaying}
             isCurrentActive={isCurrentPillActive}
             likeCount={resonanceCount}
             isLiked={isLikedByVoyager}

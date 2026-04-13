@@ -41,11 +41,11 @@ interface PodcastCardProperties {
  */
 export function PodcastCard({ initialPodcastData }: PodcastCardProperties) {
   const navigationRouter = useRouter();
-  const { playPodcast, currentPodcast, isPlaying } = useAudio();
+  const { playPodcastAction, currentActivePodcast, isAudioPlaying } = useAudio();
 
   // --- I. EVALUACIÓN DE ESTADO INDUSTRIAL ---
   const isIntelligenceReady = initialPodcastData.processing_status === 'completed';
-  const isCurrentlyPlaying = currentPodcast?.id === initialPodcastData.id && isPlaying;
+  const isCurrentlyPlaying = currentActivePodcast?.id === initialPodcastData.id && isAudioPlaying;
 
   // --- II. EXTRACCIÓN DE IDENTIDAD SOBERANA ---
   const authorDisplayName = initialPodcastData.profiles?.full_name || "Creador NicePod";
@@ -87,7 +87,7 @@ export function PodcastCard({ initialPodcastData }: PodcastCardProperties) {
       return;
     }
     
-    playPodcast(initialPodcastData);
+    playPodcastAction(initialPodcastData);
   };
 
   /**

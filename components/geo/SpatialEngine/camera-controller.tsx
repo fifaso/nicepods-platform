@@ -29,9 +29,9 @@ import { CameraPerspective, MapInstanceIdentification } from "@/types/geo-sovere
 import { useCallback, useEffect, useRef } from "react";
 import { useMap } from "react-map-gl/mapbox";
 import {
-  FLY_CONFIG,
-  INITIAL_OVERVIEW_CONFIG,
-  KINEMATIC_CONFIG,
+  FLY_CONFIGURATION,
+  INITIAL_OVERVIEW_CONFIGURATION,
+  KINEMATIC_CONFIGURATION,
   PERSPECTIVE_PROFILES
 } from "../map-constants";
 
@@ -80,9 +80,9 @@ export function CameraController({
 
   // 3. MEMORIA TÁCTICA DE ALTA VELOCIDAD (REFERENCIAS MUTABLES - PILAR 4)
   const currentGeographicPositionReference = useRef<KinematicPosition | null>(null);
-  const currentBearingDegreesReference = useRef<number>(INITIAL_OVERVIEW_CONFIG.bearing);
-  const currentPitchDegreesReference = useRef<number>(INITIAL_OVERVIEW_CONFIG.pitch);
-  const currentZoomLevelReference = useRef<number>(INITIAL_OVERVIEW_CONFIG.zoom);
+  const currentBearingDegreesReference = useRef<number>(INITIAL_OVERVIEW_CONFIGURATION.bearing);
+  const currentPitchDegreesReference = useRef<number>(INITIAL_OVERVIEW_CONFIGURATION.pitch);
+  const currentZoomLevelReference = useRef<number>(INITIAL_OVERVIEW_CONFIGURATION.zoom);
 
   const isUserInteractingReference = useRef<boolean>(false);
   const isCinematicFlightActiveReference = useRef<boolean>(false);
@@ -213,7 +213,7 @@ export function CameraController({
     }
 
     // E. INTERPOLACIÓN CINEMÁTICA LERP (DELTA-TIME CORRECTED)
-    const baseSmoothingFactor = KINEMATIC_CONFIG.LERP_FACTOR;
+    const baseSmoothingFactor = KINEMATIC_CONFIGURATION.LERP_FACTOR;
     const adjustedSmoothingFactor = 1 - Math.pow(1 - baseSmoothingFactor, clampedElapsedTimeMagnitude * 60);
 
     currentGeographicPositionReference.current = interpolateCoordinates(currentGeographicPositionReference.current, targetGeographicPosition, adjustedSmoothingFactor);
@@ -270,8 +270,8 @@ export function CameraController({
         zoom: activePerspectiveProfile.zoom,
         pitch: activePerspectiveProfile.pitch,
         bearing: activePerspectiveProfile.bearing_follow ? (userLocation.headingDegrees ?? 0) : 0,
-        ...FLY_CONFIG,
-        duration: isRecenterPulseTriggered ? 1200 : FLY_CONFIG.duration
+        ...FLY_CONFIGURATION,
+        duration: isRecenterPulseTriggered ? 1200 : FLY_CONFIGURATION.duration
       });
 
       nativeMapInstance.once('moveend', () => {

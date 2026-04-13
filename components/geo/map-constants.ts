@@ -45,16 +45,16 @@ export const MAP_STYLES = {
 /**
  * MADRID_SOL_COORDINATES: Punto de anclaje geográfico base para el Voyager.
  */
-export const MADRID_SOL_COORDS = {
+export const MADRID_SOL_COORDINATES = {
   latitude: 40.4167,
   longitude: -3.7037,
 } as const;
 
 /**
- * INITIAL_OVERVIEW_CONFIG:
+ * INITIAL_OVERVIEW_CONFIGURATION:
  * Configuración cenital para el arranque en frío del reactor visual.
  */
-export const INITIAL_OVERVIEW_CONFIG = {
+export const INITIAL_OVERVIEW_CONFIGURATION = {
   zoom: 15.5,
   pitch: 0,
   bearing: 0,
@@ -69,9 +69,9 @@ export function getInitialViewState(
   longitudeCoordinate?: number
 ) {
   return {
-    latitude: latitudeCoordinate || MADRID_SOL_COORDS.latitude,
-    longitude: longitudeCoordinate || MADRID_SOL_COORDS.longitude,
-    ...INITIAL_OVERVIEW_CONFIG,
+    latitude: latitudeCoordinate || MADRID_SOL_COORDINATES.latitude,
+    longitude: longitudeCoordinate || MADRID_SOL_COORDINATES.longitude,
+    ...INITIAL_OVERVIEW_CONFIGURATION,
   };
 }
 
@@ -79,7 +79,7 @@ export function getInitialViewState(
  * KINEMATIC_CONFIGURATION: 
  * Factores de suavizado para el motor de interpolación LERP (Pilar 4).
  */
-export const KINEMATIC_CONFIG = {
+export const KINEMATIC_CONFIGURATION = {
   LERP_FACTOR: 0.10,
   MINIMUM_DISTANCE_THRESHOLD: 1.5,
   HEADING_SMOOTHING: 3.0,
@@ -144,7 +144,7 @@ export const CAMERA_PROFILES = {
 /**
  * STANDARD_ENGINE_CONFIGURATION: Perfil de Alta Fidelidad (PBR Activo).
  */
-export const STANDARD_ENGINE_CONFIG = {
+export const STANDARD_ENGINE_CONFIGURATION = {
   lightPreset: ACTIVE_MAP_THEME,
   showPointOfInterestLabels: false,
   showTransitLabels: false,
@@ -153,10 +153,10 @@ export const STANDARD_ENGINE_CONFIG = {
 } as const;
 
 /**
- * LITE_ENGINE_CONFIGURATION: 
+ * TACTICAL_LITE_ENGINE_CONFIGURATION:
  * Optimización de recursos para hardware de bajo rendimiento térmico.
  */
-export const LITE_ENGINE_CONFIG = {
+export const TACTICAL_LITE_ENGINE_CONFIGURATION = {
   lightPreset: ACTIVE_MAP_THEME,
   showPointOfInterestLabels: false,
   showTransitLabels: false,
@@ -166,9 +166,9 @@ export const LITE_ENGINE_CONFIG = {
 } as const;
 
 /**
- * OCC_CONFIG: Protocolo de transparencia y oclusión adaptativa del Voyager.
+ * OCCLUSION_CONFIGURATION: Protocolo de transparencia y oclusión adaptativa del Voyager.
  */
-export const OCC_CONFIG = {
+export const OCCLUSION_CONFIGURATION = {
   puckOcclusion: 'always' as const,
   buildingOpacity: 0.85,
 } as const;
@@ -176,7 +176,7 @@ export const OCC_CONFIG = {
 /**
  * FOG_CONFIGURATION: Parámetros atmosféricos para el horizonte WebGL.
  */
-export const FOG_CONFIG = {
+export const FOG_CONFIGURATION = {
   "range": [0.5, 6],
   "color": "#03040b",
   "horizon-blend": 0.3,
@@ -188,20 +188,20 @@ export const FOG_CONFIG = {
 /**
  * TERRAIN_CONFIGURATION: Parámetros físicos del relieve geográfico digital.
  */
-export const TERRAIN_CONFIG = {
+export const TERRAIN_CONFIGURATION = {
   source: 'mapbox-dem',
   exaggeration: 1.15
 } as const;
 
-export const LITE_TERRAIN_CONFIG = {
+export const TACTICAL_LITE_TERRAIN_CONFIGURATION = {
   source: 'mapbox-dem',
   exaggeration: 0.4
 } as const;
 
 /**
- * DEM_SOURCE_CONFIGURATION: Fuente de datos de elevación para el motor de relieve.
+ * DIGITAL_ELEVATION_MODEL_SOURCE_CONFIGURATION: Fuente de datos de elevación para el motor de relieve.
  */
-export const DEM_SOURCE_CONFIG = {
+export const DIGITAL_ELEVATION_MODEL_SOURCE_CONFIGURATION = {
   id: "mapbox-dem",
   type: "raster-dem" as const,
   url: "mapbox://mapbox.mapbox-terrain-dem-v1",
@@ -212,7 +212,7 @@ export const DEM_SOURCE_CONFIG = {
 /**
  * FLY_CONFIGURATION: Parámetros para transiciones de vuelo balístico.
  */
-export const FLY_CONFIG = {
+export const FLY_CONFIGURATION = {
   duration: 1500,
   essential: true,
   curve: 1.4,
