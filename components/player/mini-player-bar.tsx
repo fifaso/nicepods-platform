@@ -13,6 +13,7 @@ import { useEffect, useMemo, useState } from "react";
 
 // --- INFRAESTRUCTURA CORE ---
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAudio } from "@/contexts/audio-context";
 import { cn, formatTime, getSafeAsset } from "@/lib/utils";
 
@@ -164,39 +165,55 @@ export function MiniPlayerBar() {
           {/* SECCIÓN BETA: MANDOS TÁCTICOS */}
           <div className="flex items-center gap-1 md:gap-3 ml-2 z-10">
 
-            <Button
-              onClick={(e) => {
-                e.stopPropagation();
-                if (isReady) togglePlayPause();
-              }}
-              variant="ghost"
-              size="icon"
-              disabled={!isReady}
-              className={cn(
-                "h-10 w-10 md:h-12 md:w-12 rounded-full transition-all duration-300",
-                isReady
-                  ? "bg-white text-black hover:bg-primary hover:text-white shadow-lg active:scale-90"
-                  : "bg-zinc-900 text-zinc-700 opacity-20"
-              )}
-            >
-              {isPlaying && isReady ? (
-                <Pause className="h-5 w-5 fill-current" />
-              ) : (
-                <Play className="h-5 w-5 fill-current ml-0.5" />
-              )}
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (isReady) togglePlayPause();
+                  }}
+                  variant="ghost"
+                  size="icon"
+                  disabled={!isReady}
+                  aria-label={isPlaying ? "Pausar reproducción" : "Iniciar reproducción"}
+                  className={cn(
+                    "h-10 w-10 md:h-12 md:w-12 rounded-full transition-all duration-300",
+                    isReady
+                      ? "bg-white text-black hover:bg-primary hover:text-white shadow-lg active:scale-90"
+                      : "bg-zinc-900 text-zinc-700 opacity-20"
+                  )}
+                >
+                  {isPlaying && isReady ? (
+                    <Pause className="h-5 w-5 fill-current" />
+                  ) : (
+                    <Play className="h-5 w-5 fill-current ml-0.5" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-[10px] font-black uppercase tracking-widest border-white/10 bg-black/90 backdrop-blur-xl mb-2">
+                {isPlaying ? "Pausar" : "Reproducir"}
+              </TooltipContent>
+            </Tooltip>
 
-            <Button
-              onClick={(e) => {
-                e.stopPropagation();
-                closePodcast();
-              }}
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 text-zinc-600 hover:text-red-500 hover:bg-red-500/5 transition-all"
-            >
-              <X className="h-4 w-4" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    closePodcast();
+                  }}
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Cerrar reproductor"
+                  className="h-9 w-9 text-zinc-600 hover:text-red-500 hover:bg-red-500/5 transition-all"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-[10px] font-black uppercase tracking-widest border-white/10 bg-black/90 backdrop-blur-xl mb-2">
+                Cerrar
+              </TooltipContent>
+            </Tooltip>
 
           </div>
         </div>
