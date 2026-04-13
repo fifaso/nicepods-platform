@@ -8,8 +8,8 @@ import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-
 // Al importar 'generateEmbedding' desde _shared/ai.ts garantizamos que 
 // la vectorización de la búsqueda use EXACTAMENTE el mismo modelo (gemini-embedding-001)
 // que usamos para catalogar los podcasts. Esto cura la "Bóveda Ciega".
-import { generateEmbedding } from "../_shared/ai.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import { generateEmbedding } from "@/supabase/functions/_shared/ai.ts";
+import { corsHeaders } from "@/supabase/functions/_shared/cors.ts";
 
 /**
  * INTERFACE: SearchPayload
@@ -44,7 +44,7 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
-  const correlationId = req.headers.get("x-correlation-id") ?? crypto.randomUUID();
+  const correlationIdentification = req.headers.get("x-correlation-id") ?? crypto.randomUUID();
 
   try {
     // 2. PROTOCOLO DE SEGURIDAD INDUSTRIAL (Bypass Manual de CPU)
@@ -53,7 +53,7 @@ serve(async (req) => {
 
     // Verificamos que la petición viene firmada con el Service Role (desde nuestra Server Action)
     if (!authHeader?.includes(serviceKey ?? "INTERNAL_ONLY")) {
-      console.warn(`🛑 [Search-Pro-Lite][${correlationId}] Intento de acceso denegado (Unauthorized).`);
+      console.warn(`🛑 [Search-Pro-Lite][${correlationIdentification}] Intento de acceso denegado (Unauthorized).`);
       return new Response(JSON.stringify({ error: "Unauthorized access" }), {
         status: 401,
         headers: corsHeaders
@@ -80,7 +80,7 @@ serve(async (req) => {
       // ESTADO A: MODO DESCUBRIMIENTO (Sin Vector)
       // Si no hay query o estamos en modo descubrimiento, invocamos una búsqueda genérica
       // usando un vector nulo o llamando a un RPC de trending (simulado aquí buscando podcasts destacados).
-      console.info(`🌍 [Search-Pro-Lite][${correlationId}] Ejecutando modo descubrimiento geoespacial.`);
+      console.info(`🌍 [Search-Pro-Lite][${correlationIdentification}] Ejecutando modo descubrimiento geoespacial.`);
 
       const { data, error: discoveryError } = await supabaseAdmin
         .from('micro_pods')
@@ -108,12 +108,12 @@ serve(async (req) => {
 
     } else {
       // ESTADO B: MODO RADAR SEMÁNTICO HÍBRIDO
-      console.info(`🧠[Search-Pro-Lite][${correlationId}] Vectorizando intención: "${cleanQuery}"`);
+      console.info(`🧠[Search-Pro-Lite][${correlationIdentification}] Vectorizando intención: "${cleanQuery}"`);
 
       // La clave de la sanación: Usamos la función maestra de _shared/ai.ts
       const queryVector = await generateEmbedding(cleanQuery);
 
-      console.info(`🔍 [Search-Pro-Lite][${correlationId}] Invocando Motor Unificado v4 en PostgreSQL.`);
+      console.info(`🔍 [Search-Pro-Lite][${correlationIdentification}] Invocando Motor Unificado v4 en PostgreSQL.`);
 
       const { data, error: rpcError } = await supabaseAdmin.rpc("unified_search_v4", {
         p_query_text: cleanQuery,
@@ -129,7 +129,7 @@ serve(async (req) => {
       }
 
       searchResult = data || [];
-      console.info(`✅[Search-Pro-Lite][${correlationId}] Impactos localizados: ${searchResult.length}`);
+      console.info(`✅[Search-Pro-Lite][${correlationIdentification}] Impactos localizados: ${searchResult.length}`);
     }
 
     // 4. RETORNO DE INTELIGENCIA
@@ -140,11 +140,11 @@ serve(async (req) => {
 
   } catch (error: any) {
     const errorMsg = error instanceof Error ? error.message : "Desestabilización semántica desconocida";
-    console.error(`🔥[Search-Pro-Lite-Fatal][${correlationId}]:`, errorMsg);
+    console.error(`🔥[Search-Pro-Lite-Fatal][${correlationIdentification}]:`, errorMsg);
 
     return new Response(JSON.stringify({
       error: errorMsg,
-      trace_id: correlationId
+      trace_identification: correlationIdentification
     }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" }

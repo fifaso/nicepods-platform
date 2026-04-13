@@ -1,14 +1,15 @@
 // supabase/functions/pulse-matcher/index.ts
-// VERSIÓN: 1.0 (Intelligence Matcher - User DNA Sync & Weighted Discovery)
+// VERSIÓN: 1.1 (Intelligence Matcher - User DNA Sync & Weighted Discovery)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 
 // Importaciones del ecosistema NicePod
-import { corsHeaders } from "../_shared/cors.ts";
-import { guard } from "../_shared/guard.ts";
+import { corsHeaders } from "@/supabase/functions/_shared/cors.ts";
+import { guard } from "@/supabase/functions/_shared/guard.ts";
+import { Database } from "@/types/database.types.ts";
 
-const supabaseAdmin = createClient(
+const supabaseAdmin = createClient<Database>(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 );
@@ -16,12 +17,13 @@ const supabaseAdmin = createClient(
 /**
  * Interface: MatcherResult
  * Estructura de salida optimizada para el Radar visual del Frontend.
+ * [ZAP]: Se ha renombrado 'id' a 'identification' para cumplir con el protocolo nominal.
  */
 interface MatcherResult {
-  id: string;
+  identification: string;
   title: string;
   summary: string;
-  url: string;
+  uniformResourceLocator: string;
   source_name: string;
   content_type: string;
   authority_score: number;
@@ -29,80 +31,93 @@ interface MatcherResult {
   is_high_value: boolean;
 }
 
+interface PersonalisedPulseResult {
+  id: string;
+  title: string;
+  summary: string;
+  uniformResourceLocator: string;
+  source_name: string;
+  content_type: Database["public"]["Enums"]["content_category"];
+  authority_score: number;
+  similarity: number;
+}
+
 const handler = async (request: Request): Promise<Response> => {
-  const correlationId = crypto.randomUUID();
+  const correlationIdentification = crypto.randomUUID();
 
   try {
     // 1. AUTENTICACIÓN Y SEGURIDAD
     // Extraemos el usuario del JWT verificado por el Guard
-    const authHeader = request.headers.get('Authorization')!;
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(authHeader.replace("Bearer ", ""));
+    const authorizationHeader = request.headers.get('Authorization')!;
+    const { data: { user: authenticatedUser }, error: authenticationError } = await supabaseAdmin.auth.getUser(authorizationHeader.replace("Bearer ", ""));
 
-    if (authError || !user) throw new Error("No autorizado.");
+    if (authenticationError || !authenticatedUser) throw new Error("No autorizado.");
 
-    console.log(`[Pulse-Matcher][${correlationId}] Buscando señales para: ${user.id}`);
+    console.log(`[Pulse-Matcher][${correlationIdentification}] Buscando señales para: ${authenticatedUser.id}`);
 
     // 2. RECUPERACIÓN DEL ADN COGNITIVO
-    const { data: dnaData, error: dnaError } = await supabaseAdmin
+    // [METAL]: Se respetan los nombres de columna de la base de datos (user_id).
+    const { data: cognitiveDnaData, error: dnaQueryError } = await supabaseAdmin
       .from('user_interest_dna')
       .select('dna_vector, professional_profile, negative_interests')
-      .eq('user_id', user.id)
+      .eq('user_id', authenticatedUser.id)
       .single();
 
     // FALLBACK: Si el usuario no tiene ADN (usuario nuevo), usamos un vector neutro
     // o redirigimos a una búsqueda por tendencias globales.
-    if (dnaError || !dnaData) {
+    if (dnaQueryError || !cognitiveDnaData) {
       console.warn(`[Pulse-Matcher] Usuario sin ADN. Retornando tendencias globales.`);
-      return await fetchGlobalTrends(correlationId);
+      return await fetchGlobalTrends(correlationIdentification);
     }
 
     // 3. EJECUCIÓN DEL MATCHING VECTORIAL (RPC)
     // Invocamos la lógica SQL que ya definimos para máxima velocidad.
-    const { data: rawMatches, error: matchError } = await supabaseAdmin.rpc('fetch_personalized_pulse', {
-      p_user_id: user.id,
+    const { data: rawMatchCollection, error: matchingProcessError } = await supabaseAdmin.rpc('fetch_personalized_pulse', {
+      p_user_id: authenticatedUser.id,
       p_limit: 20,
       p_threshold: 0.65 // Umbral mínimo de relevancia
     });
 
-    if (matchError) throw new Error(`Fallo en base de datos: ${matchError.message}`);
+    if (matchingProcessError) throw new Error(`Fallo en base de datos: ${matchingProcessError.message}`);
 
     // 4. NORMALIZACIÓN Y RE-SCORING
     // Aquí podemos aplicar filtros finales (como los 'negative_interests')
-    const finalResults: MatcherResult[] = rawMatches
-      .filter((m: any) => {
+    const finalizedIntelligenceSignals: MatcherResult[] = (rawMatchCollection as unknown as PersonalisedPulseResult[] || [])
+      .filter((matchItem: PersonalisedPulseResult) => {
         // Filtro de intereses negativos (Ruido configurado por el usuario)
-        const isNoise = dnaData.negative_interests?.some((noise: string) =>
-          m.title.toLowerCase().includes(noise.toLowerCase()) ||
-          m.summary.toLowerCase().includes(noise.toLowerCase())
+        const isNoiseSignal = cognitiveDnaData.negative_interests?.some((noiseThreshold: string) =>
+          matchItem.title.toLowerCase().includes(noiseThreshold.toLowerCase()) ||
+          matchItem.summary.toLowerCase().includes(noiseThreshold.toLowerCase())
         );
-        return !isNoise;
+        return !isNoiseSignal;
       })
-      .map((m: any) => ({
-        id: m.id,
-        title: m.title,
-        summary: m.summary,
-        url: m.url,
-        source_name: m.source_name,
-        content_type: m.content_type,
-        authority_score: m.authority_score,
-        match_percentage: Math.round(m.similarity * 100),
-        is_high_value: m.authority_score > 8.0
+      .map((matchItem: PersonalisedPulseResult) => ({
+        identification: matchItem.id, // Mapeo nominal: id (Metal) -> identification (Crystal)
+        title: matchItem.title,
+        summary: matchItem.summary,
+        uniformResourceLocator: matchItem.uniformResourceLocator,
+        source_name: matchItem.source_name,
+        content_type: matchItem.content_type,
+        authority_score: matchItem.authority_score,
+        match_percentage: Math.round(matchItem.similarity * 100),
+        is_high_value: matchItem.authority_score > 8.0
       }));
 
-    console.log(`[Pulse-Matcher] Match completado. ${finalResults.length} señales encontradas.`);
+    console.log(`[Pulse-Matcher] Match completado. ${finalizedIntelligenceSignals.length} señales encontradas.`);
 
     return new Response(JSON.stringify({
       success: true,
-      count: finalResults.length,
-      signals: finalResults,
-      trace_id: correlationId
+      count: finalizedIntelligenceSignals.length,
+      signals: finalizedIntelligenceSignals,
+      trace_identification: correlationIdentification
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
 
-  } catch (error: any) {
-    console.error(`🔥 [Matcher-Error]:`, error.message);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  } catch (caughtError: unknown) {
+    const errorMessage = caughtError instanceof Error ? caughtError.message : "Error desconocido";
+    console.error(`🔥 [Matcher-Error]:`, errorMessage);
+    return new Response(JSON.stringify({ error: errorMessage }), { status: 500 });
   }
 };
 
@@ -110,18 +125,30 @@ const handler = async (request: Request): Promise<Response> => {
  * Función de Fallback: Tendencias Globales
  * Se activa si el usuario no ha configurado su ADN todavía.
  */
-async function fetchGlobalTrends(traceId: string) {
-  const { data: trends } = await supabaseAdmin
+async function fetchGlobalTrends(traceIdentification: string) {
+  const { data: globalTrendsCollection } = await supabaseAdmin
     .from('pulse_staging')
     .select('*')
     .order('authority_score', { ascending: false })
     .limit(20);
 
+  const mappedSignals = (globalTrendsCollection || []).map((trendItem) => ({
+    identification: trendItem.id,
+    title: trendItem.title,
+    summary: trendItem.summary,
+    uniformResourceLocator: trendItem.uniformResourceLocator,
+    source_name: trendItem.source_name,
+    content_type: trendItem.content_type,
+    authority_score: trendItem.authority_score,
+    match_percentage: 100, // Fallback estático
+    is_high_value: trendItem.authority_score > 8.0
+  }));
+
   return new Response(JSON.stringify({
     success: true,
     is_fallback: true,
-    signals: trends || [],
-    trace_id: traceId
+    signals: mappedSignals,
+    trace_identification: traceIdentification
   }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
 

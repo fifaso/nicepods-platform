@@ -5,8 +5,8 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
-import { AUDIO_CONFIG, createWavHeader } from "../_shared/ai.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import { AUDIO_CONFIG, createWavHeader } from "@/supabase/functions/_shared/ai.ts";
+import { corsHeaders } from "@/supabase/functions/_shared/cors.ts";
 
 const supabaseAdmin: SupabaseClient = createClient(
   Deno.env.get("SUPABASE_URL") ?? "",
@@ -30,7 +30,7 @@ function mixAudioBuffers(voiceBuffer: Uint8Array, ambientBuffer: Uint8Array): Ui
 async function handler(request: Request): Promise<Response> {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
-  const correlationId = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
+  const correlationIdentification = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
   let podcastId: number | null = null;
 
   try {
@@ -38,7 +38,7 @@ async function handler(request: Request): Promise<Response> {
     const { podcast_id, total_segments } = payload;
     podcastId = podcast_id;
 
-    console.info(`🧵 [Stitcher][${correlationId}] Iniciando para Pod #${podcast_id}`);
+    console.info(`🧵 [Stitcher][${correlationIdentification}] Iniciando para Pod #${podcast_id}`);
 
     // 1. Cosecha de la Malla de Segmentos
     const { data: segments } = await supabaseAdmin
@@ -63,12 +63,12 @@ async function handler(request: Request): Promise<Response> {
     }
 
     // 3. Verificación de Resonancia Ambiental (Madrid)
-    const { data: poi } = await supabaseAdmin.from('points_of_interest').select('ambient_audio_url').eq('reference_podcast_id', podcast_id).maybeSingle();
+    const { data: pointOfInterestRecord } = await supabaseAdmin.from('points_of_interest').select('ambient_audio_url').eq('reference_podcast_id', podcast_id).maybeSingle();
 
     let outputBuffer = finalVoiceBuffer;
 
-    if (poi?.ambient_audio_url) {
-      const path = poi.ambient_audio_url.split('podcasts/')[1];
+    if (pointOfInterestRecord?.ambient_audio_url) {
+      const path = pointOfInterestRecord.ambient_audio_url.split('podcasts/')[1];
       const { data: ambBlob } = await supabaseAdmin.storage.from('podcasts').download(path);
       if (ambBlob) {
         outputBuffer = mixAudioBuffers(finalVoiceBuffer, new Uint8Array(await ambBlob.arrayBuffer()));
@@ -101,7 +101,7 @@ async function handler(request: Request): Promise<Response> {
     await supabaseAdmin.from('audio_segments').delete().eq('podcast_id', podcast_id);
     // (Opcional: Borrar carpeta temp en Storage)
 
-    return new Response(JSON.stringify({ success: true, url: publicUrl }), { status: 200, headers: corsHeaders });
+    return new Response(JSON.stringify({ success: true, uniformResourceLocator: publicUrl }), { status: 200, headers: corsHeaders });
 
   } catch (error: any) {
     console.error(`🔥 [Stitcher-Fatal]:`, error.message);

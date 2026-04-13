@@ -15,8 +15,8 @@ import {
   buildPrompt,
   callGeminiImage,
   cleanTextForSpeech
-} from "../_shared/ai.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+} from "@/supabase/functions/_shared/ai.ts";
+import { corsHeaders } from "@/supabase/functions/_shared/cors.ts";
 
 /**
  * CONFIGURACIÓN DE ACTIVOS SOBERANOS
@@ -59,7 +59,7 @@ async function handler(request: Request): Promise<Response> {
     return new Response('ok', { headers: corsHeaders });
   }
 
-  const correlationId = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
+  const correlationIdentification = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
   let targetPodId: number | null = null;
 
   try {
@@ -80,7 +80,7 @@ async function handler(request: Request): Promise<Response> {
     if (!podcast_id) throw new Error("PODCAST_ID_REQUIRED");
     targetPodId = podcast_id;
 
-    console.log(`🎨 [Image-Worker][${correlationId}] Iniciando forja visual para Pod #${podcast_id}`);
+    console.log(`🎨 [Image-Worker][${correlationIdentification}] Iniciando forja visual para Pod #${podcast_id}`);
 
     // 4. CAPTURA DE CONTEXTO CREATIVO (Sincronía 360°)
     // Obtenemos los datos del podcast y las instrucciones del agente de arte simultáneamente.
@@ -93,7 +93,7 @@ async function handler(request: Request): Promise<Response> {
     if (!agentRes.data) throw new Error("ART_AGENT_NOT_CONFIGURED");
 
     const pod = podRes.data;
-    const creationData = pod.creation_data as any;
+    const creationData = pod.creation_data as unknown as Record<string, unknown>;
 
     // 5. DESTILACIÓN DEL PROMPT DE ALTA FIDELIDAD
     // Extraemos la esencia y los metadatos para un arte visual coherente.
@@ -151,7 +151,7 @@ async function handler(request: Request): Promise<Response> {
       .update({
         cover_image_url: finalImageUrl,
         image_ready: true,
-        admin_notes: imageWasGenerated ? null : `Respaldo visual activado por incidente en IA. ID: ${correlationId}`,
+        admin_notes: imageWasGenerated ? null : `Respaldo visual activado por incidente en IA. ID: ${correlationIdentification}`,
         updated_at: new Date().toISOString()
       })
       .eq('id', podcast_id);
@@ -160,28 +160,28 @@ async function handler(request: Request): Promise<Response> {
 
     return new Response(JSON.stringify({
       success: true,
-      url: finalImageUrl,
+      uniformResourceLocator: finalImageUrl,
       generated: imageWasGenerated,
-      trace_id: correlationId
+      trace_identification: correlationIdentification
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
 
   } catch (error: any) {
-    console.error(`🔥 [Image-Worker-Fatal][${correlationId}]:`, error.message);
+    console.error(`🔥 [Image-Worker-Fatal][${correlationIdentification}]:`, error.message);
 
     // [RESILIENCIA FINAL]: Garantizamos que el podcast no quede en loop eterno.
     if (targetPodId) {
       await supabaseAdmin.from('micro_pods').update({
         image_ready: true,
-        admin_notes: `Critical Art Failure: ${error.message} | ID: ${correlationId}`
+        admin_notes: `Critical Art Failure: ${error.message} | ID: ${correlationIdentification}`
       }).eq('id', targetPodId);
     }
 
     return new Response(JSON.stringify({
       error: error.message,
-      trace_id: correlationId
+      trace_identification: correlationIdentification
     }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" }

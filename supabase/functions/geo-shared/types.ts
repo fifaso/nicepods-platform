@@ -23,7 +23,7 @@ export interface DetectedPOI {
 }
 
 export interface ContextDossier {
-  trace_id: string;
+  trace_identification: string;
   timestamp: string;
   user_id: string;
   location: GeoCoordinates;

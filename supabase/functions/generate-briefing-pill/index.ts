@@ -14,8 +14,8 @@ import {
   cleanTextForSpeech,
   createWavHeader,
   parseAIJson
-} from "../_shared/ai.ts";
-import { corsHeaders, guard } from "../_shared/guard.ts";
+} from "@/supabase/functions/_shared/ai.ts";
+import { corsHeaders, guard } from "@/supabase/functions/_shared/guard.ts";
 
 const supabaseAdmin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -33,7 +33,7 @@ interface PillPayload {
 }
 
 const handler = async (request: Request): Promise<Response> => {
-  const correlationId = crypto.randomUUID();
+  const correlationIdentification = crypto.randomUUID();
 
   try {
     const payload: PillPayload = await request.json();
@@ -43,12 +43,12 @@ const handler = async (request: Request): Promise<Response> => {
       throw new Error("Se requieren fuentes seleccionadas para generar la píldora.");
     }
 
-    console.log(`[Pill-Engine][${correlationId}] Iniciando síntesis para usuario: ${user_id}`);
+    console.log(`[Pill-Engine][${correlationIdentification}] Iniciando síntesis para usuario: ${user_id}`);
 
     // 1. OBTENCIÓN DE MATERIA PRIMA (Fuentes del Búfer)
     const { data: sources, error: sourceError } = await supabaseAdmin
       .from('pulse_staging')
-      .select('title, summary, source_name, content_type, url')
+      .select('title, summary, source_name, content_type, uniformResourceLocator')
       .in('id', selected_source_ids);
 
     if (sourceError || !sources) throw new Error("No se pudieron recuperar las fuentes seleccionadas.");
@@ -102,7 +102,7 @@ const handler = async (request: Request): Promise<Response> => {
       status: 'draft', // Nace privado (Curaduría Soberana)
       processing_status: 'completed',
       creation_mode: 'pulse', // Flag para identificar píldoras en la UI
-      sources: sources.map(s => ({ title: s.title, url: s.url, origin: 'web' }))
+      sources: sources.map(s => ({ title: s.title, uniformResourceLocator: s.uniformResourceLocator, origin: 'web' }))
     }).select("id").single();
 
     if (podErr) throw podErr;
@@ -126,8 +126,8 @@ const handler = async (request: Request): Promise<Response> => {
     return new Response(JSON.stringify({
       success: true,
       podcast_id: newPod.id,
-      url: publicUrl,
-      trace_id: correlationId
+      uniformResourceLocator: publicUrl,
+      trace_identification: correlationIdentification
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (error: any) {

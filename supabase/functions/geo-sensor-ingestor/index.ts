@@ -12,8 +12,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { encodeBase64 } from "https://deno.land/std@0.203.0/encoding/base64.ts"; // [MANDATORIO]
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
-import { AI_MODELS, parseAIJson } from "../_shared/ai.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import { AI_MODELS, parseAIJson } from "@/supabase/functions/_shared/ai.ts";
+import { corsHeaders } from "@/supabase/functions/_shared/cors.ts";
 
 const GOOGLE_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -89,7 +89,7 @@ serve(async (request: Request) => {
     const rawText = result.candidates?.[0]?.content?.parts?.[0]?.text;
     const analysis = parseAIJson<any>(rawText);
 
-    const { data: poi, error: dbError } = await supabaseAdministrator
+    const { data: pointOfInterestRecord, error: dbError } = await supabaseAdministrator
       .from('points_of_interest')
       .insert({
         author_identification: userIdentification,
@@ -106,14 +106,14 @@ serve(async (request: Request) => {
     if (dbError) throw dbError;
 
     await supabaseAdministrator.from('point_of_interest_ingestion_buffer').insert({
-      point_of_interest_identification: poi.id,
+      point_of_interest_identification: pointOfInterestRecord.id,
       raw_ocr_text: analysis.historicalDossier,
       visual_analysis_dossier: { ...analysis, administrator_original_intent: administratorIntentText },
       sensor_accuracy: accuracyMeters,
       ingested_at: new Date().toISOString()
     });
 
-    return new Response(JSON.stringify({ success: true, data: { pointOfInterestIdentification: poi.id, analysisResults: analysis } }), {
+    return new Response(JSON.stringify({ success: true, data: { pointOfInterestIdentification: pointOfInterestRecord.id, analysisResults: analysis } }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200
     });
