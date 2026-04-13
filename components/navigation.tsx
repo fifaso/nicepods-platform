@@ -92,11 +92,9 @@ export function Navigation() {
 
       {/* 
           2. TERMINAL DE COMANDO MÓVIL (<1024px)
-          [ALERTA]: Requiere la elevación de MobileNav a la versión 4.0 para 
-          reconocer la propiedad 'isUserAuthenticated'.
+          [Sincronizado con MobileNavigationProperties V4.0]
       */}
       <MobileNav
-        // @ts-ignore - [TEMPORAL]: Bypass hasta que refactoricemos MobileNav en el siguiente paso.
         isUserAuthenticated={isUserAuthenticated}
         isInitialLoadingState={isInitialLoadingState}
         administratorProfile={administratorProfile}

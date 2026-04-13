@@ -1,7 +1,8 @@
 // components/navigation/shared/nav-config.ts
-// VERSIÓN: 3.0 (NicePod Navigation Master - Sovereign Expansion Edition)
+// VERSIÓN: 4.0 (NicePod Navigation Master - Sovereign Expansion Edition)
 // Misión: Configuración determinista de las arterias de navegación de la plataforma.
 // [ESTABILIZACIÓN]: Inyección de la Malla Urbana (/map) como ciudadano de primera clase.
+// [ZAP]: Erradicación absoluta de abreviaturas para cumplimiento de la Zero Abbreviations Policy.
 
 import {
   Globe,
@@ -22,10 +23,10 @@ import {
  */
 
 /**
- * INTERFAZ: NavItem
+ * INTERFAZ: NavigationItem
  * Define la estructura inmutable de un nodo de navegación en la UI.
  */
-export interface NavItem {
+export interface NavigationItem {
   label: string;
   href: string;
   icon: LucideIcon;
@@ -48,10 +49,10 @@ export interface NavItem {
  */
 
 /**
- * GUEST_NAV_ITEMS: Rutas para usuarios sin sesión activa.
+ * GUEST_NAVIGATION_ITEMS: Rutas para usuarios sin sesión activa.
  * Objetivo: Demostrar el valor de la Workstation antes de la conversión (Sign Up).
  */
-export const GUEST_NAV_ITEMS: NavItem[] = [
+export const GUEST_NAVIGATION_ITEMS: NavigationItem[] = [
   {
     label: "El Mapa", // La nueva ruta de inmersión V2.6
     href: "/map",
@@ -76,10 +77,10 @@ export const GUEST_NAV_ITEMS: NavItem[] = [
  */
 
 /**
- * USER_NAV_ITEMS: Rutas para curadores autenticados (Usuarios Free & Pro).
+ * USER_NAVIGATION_ITEMS: Rutas para curadores autenticados (Usuarios Free & Pro).
  * Objetivo: Productividad, creación y consumo de Sabiduría Urbana.
  */
-export const USER_NAV_ITEMS: NavItem[] = [
+export const USER_NAVIGATION_ITEMS: NavigationItem[] = [
   {
     label: "Comando", // Centro de operaciones aspatial
     href: "/dashboard",
@@ -110,11 +111,11 @@ export const USER_NAV_ITEMS: NavItem[] = [
  */
 
 /**
- * ADMIN_NAV_ITEMS: Herramientas exclusivas para el control de la Malla.
+ * ADMIN_NAVIGATION_ITEMS: Herramientas exclusivas para el control de la Malla.
  * [ARQUITECTURA]: Este array se usará en el futuro si decidimos crear un Panel de Control 
  * dedicado para revisar los POIs sugeridos por usuarios Pro.
  */
-export const ADMIN_NAV_ITEMS: NavItem[] = [
+export const ADMIN_NAVIGATION_ITEMS: NavigationItem[] = [
   {
     label: "Moderación",
     href: "/admin/vault",
@@ -131,8 +132,8 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
 
 /**
  * isRouteActive:
- * Algoritmo determinista para iluminar el menú de navegación (Feedback UX).
- * Evalúa si la URL del navegador coincide con el href del NavItem.
+ * Algoritmo determinista para iluminar el menú de navegación (Feedback de experiencia de usuario).
+ * Evalúa si la URL del navegador coincide con el href del NavigationItem.
  */
 export function isRouteActive(href: string, pathname: string): boolean {
   // Manejo del 'Home' genérico vs el 'Home' del usuario
@@ -144,12 +145,14 @@ export function isRouteActive(href: string, pathname: string): boolean {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V3.0):
+ * NOTA TÉCNICA DEL ARCHITECT (V4.0):
  * 1. Simetría de Dominio: Al introducir '/map' junto a '/create' y '/podcasts', 
  *    la interfaz ahora refleja fielmente el 'Cerebro Dual' del backend. El usuario 
  *    sabe que puede crear conocimiento aislado (Crear) o explorar el conocimiento 
  *    físico (Radar).
- * 2. Atributos de Extensibilidad: Se añadió 'isSovereign' al contrato 'NavItem'. 
+ * 2. Atributos de Extensibilidad: Se añadió 'isSovereign' al contrato 'NavigationItem'.
  *    En el futuro, el componente 'mobile-nav.tsx' podrá leer este flag para teñir 
  *    el botón de color rojo/ámbar si es una ruta administrativa crítica.
+ * 3. Zero Abbreviations Policy (ZAP): Refactorización nominal absoluta (NavigationItem,
+ *    GUEST_NAVIGATION_ITEMS, USER_NAVIGATION_ITEMS, ADMIN_NAVIGATION_ITEMS).
  */
