@@ -83,10 +83,10 @@ export function POIDetailView({
   linkedPodcast 
 }: PointOfInterestDetailViewProperties) {
   const router = useRouter();
-  const { playPodcast, currentPodcast, isPlaying } = useAudio();
+  const { playPodcastAction, currentActivePodcast, isAudioPlaying } = useAudio();
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
-  const isCurrentlyPlaying = currentPodcast?.id === linkedPodcast?.id && isPlaying;
+  const isCurrentlyPlaying = currentActivePodcast?.id === linkedPodcast?.id && isAudioPlaying;
 
   const configuracionVisual = useMemo(() => {
     switch (pointOfInterest.categoryMission) {
@@ -101,7 +101,7 @@ export function POIDetailView({
   const handleTuneIn = () => {
     if (linkedPodcast) {
       nicepodLog(`📻 [DetailView] Sintonizando frecuencia: ${linkedPodcast.title}`);
-      playPodcast(linkedPodcast);
+      playPodcastAction(linkedPodcast);
     }
   };
 

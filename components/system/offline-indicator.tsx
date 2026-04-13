@@ -15,7 +15,7 @@ export function OfflineIndicator() {
   const [isDismissed, setIsDismissed] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
-  const { currentPodcast } = useAudio();
+  const { currentActivePodcast } = useAudio();
 
   useEffect(() => {
     // 1. Detección inicial
@@ -57,7 +57,7 @@ export function OfflineIndicator() {
   }
 
   // Calculamos posición para no tapar el Player ni el FAB
-  const bottomClass = currentPodcast ? "bottom-32" : "bottom-24";
+  const bottomClass = currentActivePodcast ? "bottom-32" : "bottom-24";
 
   // UI PRINCIPAL: BANNER DE TRANSICIÓN
   return (

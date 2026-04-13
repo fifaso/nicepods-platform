@@ -33,14 +33,14 @@ const FullScreenPlayer = dynamic(
  * El director de orquesta que decide qué terminal de audio proyectar en el viewport.
  */
 export function PlayerOrchestrator() {
-  const { currentPodcast, isPlayerExpanded } = useAudio();
+  const { currentActivePodcast, isPlayerExpanded } = useAudio();
 
   /**
    * [GUARDIAN DE SOBERANÍA]:
    * Si no existe un podcast cargado en el contexto global, el orquestador 
    * repliega todas las interfaces para liberar espacio visual en la plataforma.
    */
-  if (!currentPodcast) {
+  if (!currentActivePodcast) {
     return null;
   }
 

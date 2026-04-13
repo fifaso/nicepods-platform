@@ -109,7 +109,7 @@ export function NotificationBell() {
   const { user, profile, supabase } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const channelRef = useRef<any>(null);
+  const realtimeChannelReference = useRef<any>(null);
 
   /**
    * markAllAsRead: Sincronización con la base de datos (RPC).
@@ -151,12 +151,12 @@ export function NotificationBell() {
     fetchInitial();
 
     // Limpieza de canales previos para evitar fugas de memoria
-    if (channelRef.current) supabase.removeChannel(channelRef.current);
+    if (realtimeChannelReference.current) supabase.removeChannel(realtimeChannelReference.current);
 
     /**
      * CANAL REALTIME: Sincronía instantánea de Bóveda
      */
-    channelRef.current = supabase.channel(`notifications:${user.id}`)
+    realtimeChannelReference.current = supabase.channel(`notifications:${user.id}`)
       .on<Notification>(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
@@ -174,7 +174,7 @@ export function NotificationBell() {
       });
 
     return () => {
-      if (channelRef.current) supabase.removeChannel(channelRef.current);
+      if (realtimeChannelReference.current) supabase.removeChannel(realtimeChannelReference.current);
     };
   }, [user, profile, supabase, fetchInitial]);
 

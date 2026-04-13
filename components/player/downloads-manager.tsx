@@ -24,7 +24,7 @@ export function DownloadsManager() {
   const [isLoading, setIsLoading] = useState(true);
 
   const { toast } = useToast();
-  const { playPodcast } = useAudio();
+  const { playPodcastAction } = useAudio();
 
   /**
    * [PROTOCOLO DE SINCRONÍA]:
@@ -181,7 +181,7 @@ export function DownloadsManager() {
               </div>
 
               <div className="flex items-center gap-1">
-                <Button size="icon" variant="ghost" className="h-9 w-9 text-primary hover:bg-primary/10" onClick={() => playPodcast(pod)}>
+                <Button size="icon" variant="ghost" className="h-9 w-9 text-primary hover:bg-primary/10" onClick={() => playPodcastAction(pod)}>
                   <PlayCircle className="h-5 w-5" />
                 </Button>
                 <Button size="icon" variant="ghost" className="h-9 w-9 text-zinc-600 hover:text-red-400 hover:bg-red-900/10" onClick={() => handleDelete(pod.id, pod.audio_url)}>

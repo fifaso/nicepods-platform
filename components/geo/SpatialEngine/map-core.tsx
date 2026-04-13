@@ -21,17 +21,17 @@ import Map, { MapRef } from 'react-map-gl/mapbox';
 
 // --- INFRAESTRUCTURA DE MALLA TÁCTICA SOBERANA ---
 import {
-  DEM_SOURCE_CONFIG,
-  FOG_CONFIG,
-  LITE_ENGINE_CONFIG,
-  LITE_TERRAIN_CONFIG,
+  DIGITAL_ELEVATION_MODEL_SOURCE_CONFIGURATION,
+  FOG_CONFIGURATION,
+  TACTICAL_LITE_ENGINE_CONFIGURATION,
+  TACTICAL_LITE_TERRAIN_CONFIGURATION,
   MAPBOX_TOKEN,
   MAP_STYLES,
   MapPerformanceProfile,
   MapboxLightPreset,
-  OCC_CONFIG, 
-  STANDARD_ENGINE_CONFIG,
-  TERRAIN_CONFIG,
+  OCCLUSION_CONFIGURATION,
+  STANDARD_ENGINE_CONFIGURATION,
+  TERRAIN_CONFIGURATION,
   getInitialViewState
 } from "../map-constants";
 
@@ -105,17 +105,21 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
   /**
    * 3. PROTOCOLO DE ANIQUILACIÓN FÍSICA (VRAM PURGE)
    * Misión: Asegurar que la GPU sea liberada inmediatamente tras el desmontaje.
+   * [THERMIC V19.0]: Forzado de remoción física para prevenir fugas de VRAM en transiciones.
    */
   useEffect(() => {
-    const currentMapEngineInstance = localMapEngineReference.current;
-
     return () => {
+      const currentMapEngineInstance = localMapEngineReference.current;
       if (currentMapEngineInstance) {
-        const nativeMapInstance = currentMapEngineInstance.getMap();
-        if (nativeMapInstance) {
-          nicepodLog(`🧨 [MapCore:${mapInstanceIdentification}] Ejecutando purga de VRAM.`);
-          nativeMapInstance.stop(); 
-          nativeMapInstance.remove(); 
+        try {
+          const nativeMapInstance = currentMapEngineInstance.getMap();
+          if (nativeMapInstance) {
+            nicepodLog(`🧨 [MapCore:${mapInstanceIdentification}] Ejecutando purga de VRAM.`);
+            nativeMapInstance.stop();
+            nativeMapInstance.remove();
+          }
+        } catch (hardwareException) {
+          nicepodLog(`⚠️ [MapCore:${mapInstanceIdentification}] Error en protocolo de aniquilación física.`, hardwareException, 'warn');
         }
       }
     };
@@ -155,7 +159,7 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
     const isOverviewPerspectiveActive = cameraPerspective === 'OVERVIEW';
     const isSatellitePerspectiveActive = cameraPerspective === 'SATELLITE' || isForgeModeActive;
     const isTacticalLiteProfileActive = performanceProfile === 'TACTICAL_LITE';
-    const engineTechnicalConfiguration = isTacticalLiteProfileActive ? LITE_ENGINE_CONFIG : STANDARD_ENGINE_CONFIG;
+    const engineTechnicalConfiguration = isTacticalLiteProfileActive ? TACTICAL_LITE_ENGINE_CONFIGURATION : STANDARD_ENGINE_CONFIGURATION;
 
     /**
      * [STYLE-GUARD]: Inyección de propiedades de mapa base.
@@ -166,7 +170,7 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
         const mapboxInternalInstance = nativeMapInstance as any;
         if (mapboxInternalInstance.setConfigProperty) {
           mapboxInternalInstance.setConfigProperty('basemap', 'lightPreset', lightTheme);
-          mapboxInternalInstance.setConfigProperty('basemap', 'puckOcclusion', OCC_CONFIG.puckOcclusion);
+          mapboxInternalInstance.setConfigProperty('basemap', 'puckOcclusion', OCCLUSION_CONFIGURATION.puckOcclusion);
           
           // Optimizamos la visibilidad de etiquetas para reducir la carga de renderizado.
           mapboxInternalInstance.setConfigProperty('basemap', 'showPlaceLabels', (isOverviewPerspectiveActive || isForgeModeActive) && !isTacticalLiteProfileActive);
@@ -183,7 +187,7 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
     try {
       if (nativeMapInstance.getLayer('building')) {
         const buildingOpacityTargetValue = isTacticalLiteProfileActive 
-          ? LITE_ENGINE_CONFIG.buildingOpacity 
+          ? TACTICAL_LITE_ENGINE_CONFIGURATION.buildingOpacity
           : (isSatellitePerspectiveActive ? 0 : 1.0);
         
         nativeMapInstance.setPaintProperty('building', 'fill-extrusion-opacity', buildingOpacityTargetValue);
@@ -191,23 +195,23 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
     } catch (hardwareException) { /* Capa no presente en el estilo actual */ }
 
     // Sincronización del motor de relieve (DEM)
-    if (!nativeMapInstance.getSource(DEM_SOURCE_CONFIG.id)) {
+    if (!nativeMapInstance.getSource(DIGITAL_ELEVATION_MODEL_SOURCE_CONFIGURATION.id)) {
       try {
-        nativeMapInstance.addSource(DEM_SOURCE_CONFIG.id, {
+        nativeMapInstance.addSource(DIGITAL_ELEVATION_MODEL_SOURCE_CONFIGURATION.id, {
           type: "raster-dem",
-          url: DEM_SOURCE_CONFIG.url,
+          url: DIGITAL_ELEVATION_MODEL_SOURCE_CONFIGURATION.url,
           tileSize: 512
         });
       } catch (hardwareException) { return; }
     }
 
     try {
-      const terrainPhysicalParameters = (isTacticalLiteProfileActive || isSatellitePerspectiveActive) ? LITE_TERRAIN_CONFIG : TERRAIN_CONFIG;
+      const terrainPhysicalParameters = (isTacticalLiteProfileActive || isSatellitePerspectiveActive) ? TACTICAL_LITE_TERRAIN_CONFIGURATION : TERRAIN_CONFIGURATION;
 
       // El terreno 3D se desactiva en modo FORGE para garantizar la precisión del clic sobre el plano.
       if (mode === 'EXPLORE' && !isSatellitePerspectiveActive) {
         nativeMapInstance.setTerrain({
-          source: DEM_SOURCE_CONFIG.id,
+          source: DIGITAL_ELEVATION_MODEL_SOURCE_CONFIGURATION.id,
           exaggeration: terrainPhysicalParameters.exaggeration
         });
       } else {
@@ -256,9 +260,9 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
       mapStyle={activeEngineVisualStyle || MAP_STYLES.STANDARD}
       projection={{ name: "mercator" }}
       // Efectos atmosféricos desactivados en modo peritaje para máxima nitidez.
-      fog={mode === 'FORGE' || performanceProfile === 'TACTICAL_LITE' || cameraPerspective === 'SATELLITE' ? null : (FOG_CONFIG as any)}
+      fog={mode === 'FORGE' || performanceProfile === 'TACTICAL_LITE' || cameraPerspective === 'SATELLITE' ? null : (FOG_CONFIGURATION as any)}
       antialias={false}
-      reuseMaps={true}
+      reuseMaps={false}
       maxPitch={mode === 'FORGE' ? 0 : 85} 
       attributionControl={false}
       style={{ width: '100%', height: '100%' }}

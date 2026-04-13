@@ -17,7 +17,7 @@ const CACHE_NAME = "supabase-media-cache";
 
 export default function OfflinePage() {
   const [downloads, setDownloads] = useState<any[]>([]);
-  const { playPodcast } = useAudio();
+  const { playPodcastAction } = useAudio();
   // Estado de montaje para evitar errores de hidratación
   const [isMounted, setIsMounted] = useState(false);
 
@@ -106,14 +106,14 @@ export default function OfflinePage() {
                                  {/* Overlay Play */}
                                  <div 
                                     className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                                    onClick={() => playPodcast(pod)}
+                                    onClick={() => playPodcastAction(pod)}
                                  >
                                     <PlayCircle className="h-8 w-8 text-white drop-shadow-md" />
                                  </div>
                             </div>
                             
                             {/* Info */}
-                            <div className="flex-1 min-w-0 py-1" onClick={() => playPodcast(pod)}>
+                            <div className="flex-1 min-w-0 py-1" onClick={() => playPodcastAction(pod)}>
                                 <h3 className="font-bold text-slate-100 truncate text-sm mb-1 leading-tight">{pod.title}</h3>
                                 <p className="text-xs text-slate-400 truncate mb-2">{pod.profiles?.full_name || 'Autor'}</p>
                                 <span className="inline-flex items-center gap-1 text-[10px] text-green-400 bg-green-950/30 px-2 py-0.5 rounded border border-green-900/50">

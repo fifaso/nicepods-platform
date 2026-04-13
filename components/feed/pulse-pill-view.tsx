@@ -81,11 +81,11 @@ export function PulsePillView({
   const { supabase: supabaseClient } = useAuth();
   const { toast } = useToast();
   const {
-    playPodcast,
-    currentPodcast,
-    isPlaying,
-    isLoading: isAudioLoading,
-    togglePlayPause,
+    playPodcastAction,
+    currentActivePodcast,
+    isAudioPlaying,
+    isAudioLoading: isAudioLoading,
+    togglePlayPauseAction,
   } = useAudio();
 
   // --- ESTADOS DE HIDRATACIÓN Y CRONOMETRÍA ---
@@ -114,8 +114,8 @@ export function PulsePillView({
   const { isOfflineAvailable, isDownloading } = useOfflineAudio(localPodcastData);
 
   const isCurrentPillActive = useMemo(() =>
-    currentPodcast?.id === localPodcastData.id,
-    [currentPodcast?.id, localPodcastData.id]
+    currentActivePodcast?.id === localPodcastData.id,
+    [currentActivePodcast?.id, localPodcastData.id]
   );
 
   /**
@@ -198,9 +198,9 @@ export function PulsePillView({
 
   const handlePlaybackControlAction = () => {
     if (isCurrentPillActive) {
-      togglePlayPause();
+      togglePlayPauseAction();
     } else {
-      playPodcast(localPodcastData);
+      playPodcastAction(localPodcastData);
     }
   };
 
@@ -304,7 +304,7 @@ export function PulsePillView({
                       >
                         {isAudioLoading && isCurrentPillActive ? (
                           <Loader2 className="h-8 w-8 animate-spin" />
-                        ) : (isPlaying && isCurrentPillActive) ? (
+                        ) : (isAudioPlaying && isCurrentPillActive) ? (
                           <div className="flex items-center gap-3">
                             <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity }} className="w-3 h-3 bg-primary rounded-full" />
                             <span className="font-black text-xl uppercase tracking-tighter">PAUSAR BRIEFING</span>
