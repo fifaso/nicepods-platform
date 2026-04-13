@@ -1,7 +1,11 @@
-// components/player/mini-player-bar.tsx
-// VERSIÓN: 5.0 (NicePod Mini-Terminal - Mobile Mastery Edition)
-// Misión: Proveer control persistente, síncrono y elegante en dispositivos móviles.
-// [ESTABILIZACIÓN]: Implementación de Sincronía por Hardware y Marquee con Mask-Fade.
+/**
+ * ARCHIVO: components/player/mini-player-bar.tsx
+ * VERSIÓN: 7.0 (NicePod Mini-Terminal - Tactical Direct-DOM Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.0
+ * PROTOCOLO: Administrative Sovereignty
+ * MISIÓN: Proveer control persistente y eficiente mediante Direct-DOM y ZAP.
+ * NIVEL DE INTEGRIDAD: HIGH
+ */
 
 "use client";
 
@@ -9,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import { Pause, Play, X, Zap } from "lucide-react";
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 
 // --- INFRAESTRUCTURA CORE ---
 import { Button } from "@/components/ui/button";
@@ -23,53 +27,64 @@ import { cn, formatTime, getSafeAsset } from "@/lib/utils";
  */
 export function MiniPlayerBar() {
   const {
-    currentActivePodcast: currentPodcast,
-    isAudioPlaying: isPlaying,
-    togglePlayPauseAction: togglePlayPause,
-    terminatePodcastPlayback: closePodcast,
-    expandPlayerInterface: expandPlayer,
+    currentActivePodcast,
+    isAudioPlaying,
+    togglePlayPauseAction,
+    terminatePodcastPlayback,
+    expandPlayerInterface,
     audioElementReference
   } = useAudio();
 
   const { toast } = useToast();
 
-  // --- TELEMETRÍA DE ALTA PRECISIÓN ---
-  const [progress, setProgress] = useState<number>(0);
-  const [localTime, setLocalTime] = useState<number>(0);
-  const [localDuration, setLocalDuration] = useState<number>(0);
+  // --- TELEMETRÍA DE ALTA PRECISIÓN (NOMINAL INTEGRITY) ---
+  const [currentPlaybackTimeSeconds, setCurrentPlaybackTimeSeconds] = useState<number>(0);
+  const [totalAudioDurationSeconds, setTotalAudioDurationSeconds] = useState<number>(0);
+
+  /**
+   * progressBarElementReference:
+   * [THERMIC V7.0]: Referencia para manipulación directa del DOM (MTI).
+   */
+  const progressBarElementReference = useRef<HTMLDivElement>(null);
 
   /**
    * 1. MOTOR DE SINCRO (Hardware Link)
    * Captura el pulso directamente del objeto de audio nativo.
    */
   useEffect(() => {
-    const audio = audioElementReference.current;
-    if (!audio) return;
+    const audioElementInstance = audioElementReference.current;
+    if (!audioElementInstance) return;
 
-    const syncMetrics = () => {
-      setLocalTime(audio.currentTime);
-      if (audio.duration && audio.duration !== localDuration) {
-        setLocalDuration(audio.duration);
+    const syncMetricsAction = () => {
+      if (document.hidden) return;
+
+      setCurrentPlaybackTimeSeconds(audioElementInstance.currentTime);
+
+      if (audioElementInstance.duration && audioElementInstance.duration !== totalAudioDurationSeconds) {
+        setTotalAudioDurationSeconds(audioElementInstance.duration);
       }
-      if (audio.duration > 0) {
-        setProgress((audio.currentTime / audio.duration) * 100);
+
+      // [MTI]: Actualización directa de la barra de progreso para evitar Forced Reflow.
+      if (progressBarElementReference.current && audioElementInstance.duration > 0) {
+        const progressPercentageValue = (audioElementInstance.currentTime / audioElementInstance.duration) * 100;
+        progressBarElementReference.current.style.width = `${progressPercentageValue}%`;
       }
     };
 
-    audio.addEventListener('timeupdate', syncMetrics);
-    return () => audio.removeEventListener('timeupdate', syncMetrics);
-  }, [audioElementReference, localDuration]);
+    audioElementInstance.addEventListener('timeupdate', syncMetricsAction);
+    return () => audioElementInstance.removeEventListener('timeupdate', syncMetricsAction);
+  }, [audioElementReference, totalAudioDurationSeconds]);
 
   /**
    * 2. VALIDACIÓN DE INTEGRIDAD
    */
-  const isReady = useMemo(() =>
-    currentPodcast?.processing_status === 'completed',
-    [currentPodcast?.processing_status]
+  const isPodcastReadyForPlayback = useMemo(() =>
+    currentActivePodcast?.processing_status === 'completed',
+    [currentActivePodcast?.processing_status]
   );
 
-  const handleContainerClick = () => {
-    if (!isReady) {
+  const handleInterfaceExpansionAction = () => {
+    if (!isPodcastReadyForPlayback) {
       toast({
         title: "Sincronía en curso",
         description: "El activo se está materializando en la malla.",
@@ -77,12 +92,12 @@ export function MiniPlayerBar() {
       });
       return;
     }
-    expandPlayer();
+    expandPlayerInterface();
   };
 
-  if (!currentPodcast) return null;
+  if (!currentActivePodcast) return null;
 
-  const authorName = currentPodcast.profiles?.full_name || "Cronista NicePod";
+  const podcastAuthorFullName = currentActivePodcast.profiles?.full_name || "Cronista NicePod";
 
   return (
     <motion.div
@@ -97,11 +112,10 @@ export function MiniPlayerBar() {
         {/* BARRA DE PROGRESO INDUSTRIAL (Incrustada) */}
         <div className="mx-8 mb-[-1px] relative z-20">
           <div className="h-[2px] w-full bg-white/5 overflow-hidden rounded-full">
-            <motion.div
-              className="h-full bg-primary"
-              initial={{ width: 0 }}
-              animate={{ width: `${progress}%` }}
-              transition={{ duration: 0.1, ease: "linear" }}
+            <div
+              ref={progressBarElementReference}
+              className="h-full bg-primary transition-[width] duration-300 ease-linear"
+              style={{ width: '0%' }}
             />
           </div>
         </div>
@@ -115,15 +129,15 @@ export function MiniPlayerBar() {
           {/* SECCIÓN ALFA: INFO & MARQUEE */}
           <div
             className="flex items-center gap-3 md:gap-4 flex-1 min-w-0 cursor-pointer z-10"
-            onClick={handleContainerClick}
+            onClick={handleInterfaceExpansionAction}
           >
             {/* MINIATURA CON ESCUDO DE INTEGRIDAD */}
             <div className={cn(
               "relative w-10 h-10 md:w-12 md:h-12 rounded-xl overflow-hidden border border-white/10 flex-shrink-0 transition-all duration-700",
-              !isReady && "grayscale opacity-30 blur-[1px]"
+              !isPodcastReadyForPlayback && "grayscale opacity-30 blur-[1px]"
             )}>
               <Image
-                src={getSafeAsset(currentPodcast.cover_image_url, 'cover')}
+                src={getSafeAsset(currentActivePodcast.cover_image_url, 'cover')}
                 alt=""
                 fill
                 sizes="48px"
@@ -135,22 +149,22 @@ export function MiniPlayerBar() {
             <div className="flex-1 min-w-0 flex flex-col justify-center">
               <div className="w-full max-w-[140px] sm:max-w-[200px] md:max-w-md overflow-hidden relative [mask-image:linear-gradient(to_right,transparent,black_10%,black_90%,transparent)]">
                 <motion.p
-                  animate={currentPodcast.title.length > 20 ? { x: [0, -100, 0] } : {}}
+                  animate={currentActivePodcast.title.length > 20 ? { x: [0, -100, 0] } : {}}
                   transition={{ repeat: Infinity, duration: 10, ease: "linear" }}
                   className="font-black text-[11px] md:text-sm text-white uppercase tracking-tight whitespace-nowrap italic"
                 >
-                  {currentPodcast.title}
+                  {currentActivePodcast.title}
                 </motion.p>
               </div>
 
               <div className="flex items-center gap-2 md:gap-3">
-                {isReady ? (
+                {isPodcastReadyForPlayback ? (
                   <>
                     <p className="text-[8px] md:text-[10px] text-zinc-500 font-bold uppercase tracking-[0.2em] truncate">
-                      {authorName}
+                      {podcastAuthorFullName}
                     </p>
                     <span className="text-[8px] font-mono text-primary/60">
-                      {formatTime(localTime)} <span className="opacity-30">/</span> {formatTime(localDuration)}
+                      {formatTime(currentPlaybackTimeSeconds)} <span className="opacity-30">/</span> {formatTime(totalAudioDurationSeconds)}
                     </span>
                   </>
                 ) : (
@@ -168,22 +182,22 @@ export function MiniPlayerBar() {
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (isReady) togglePlayPause();
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    if (isPodcastReadyForPlayback) togglePlayPauseAction();
                   }}
                   variant="ghost"
                   size="icon"
-                  disabled={!isReady}
-                  aria-label={isPlaying ? "Pausar reproducción" : "Iniciar reproducción"}
+                  disabled={!isPodcastReadyForPlayback}
+                  aria-label={isAudioPlaying ? "Pausar reproducción" : "Iniciar reproducción"}
                   className={cn(
                     "h-10 w-10 md:h-12 md:w-12 rounded-full transition-all duration-300",
-                    isReady
+                    isPodcastReadyForPlayback
                       ? "bg-white text-black hover:bg-primary hover:text-white shadow-lg active:scale-90"
                       : "bg-zinc-900 text-zinc-700 opacity-20"
                   )}
                 >
-                  {isPlaying && isReady ? (
+                  {isAudioPlaying && isPodcastReadyForPlayback ? (
                     <Pause className="h-5 w-5 fill-current" />
                   ) : (
                     <Play className="h-5 w-5 fill-current ml-0.5" />
@@ -191,16 +205,16 @@ export function MiniPlayerBar() {
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="top" className="text-[10px] font-black uppercase tracking-widest border-white/10 bg-black/90 backdrop-blur-xl mb-2">
-                {isPlaying ? "Pausar" : "Reproducir"}
+                {isAudioPlaying ? "Pausar" : "Reproducir"}
               </TooltipContent>
             </Tooltip>
 
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    closePodcast();
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    terminatePodcastPlayback();
                   }}
                   variant="ghost"
                   size="icon"
@@ -223,10 +237,14 @@ export function MiniPlayerBar() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V5.0):
- * 1. Sincronía Absoluta: Al centralizar la escucha en 'audioRef.current', la barra 
- *    de progreso se mueve con precisión de milisegundos, eliminando la sensación 
- *    de desactualización en el mini-player.
+ * NOTA TÉCNICA DEL ARCHITECT (V7.0):
+ * 1. Tactical Direct-DOM: Se ha migrado la barra de progreso a manipulación
+ *    directa del DOM (progressBarElementReference) para aniquilar el Layout Thrashing.
+ * 2. Background Thermal Isolation: Se ha inyectado un centinela de visibilidad
+ *    en el motor de sincronía para evitar re-renderizados innecesarios del
+ *    mini-player cuando la pestaña está en segundo plano.
+ * 3. Zero Abbreviations Policy: Purificación nominal absoluta de todas las
+ *    variables (isPodcastReadyForPlayback, currentPlaybackTimeSeconds, etc.).
  * 2. Visualización Marquee: El uso de '[mask-image]' permite que el texto que 
  *    se desplaza no se corte de forma abrupta, sino que se disuelva en los bordes, 
  *    elevando el diseño al estándar Spotify Premium.

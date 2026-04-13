@@ -1,13 +1,14 @@
 /**
  * ARCHIVO: contexts/audio-context.tsx
- * VERSIÓN: 7.1 (NicePod Audio Terminal - Sovereign Compatibility Edition)
+ * VERSIÓN: 8.0 (NicePod Audio Terminal - Background Thermal Isolation Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
+ * PROTOCOLO: Administrative Sovereignty
  * 
  * Misión: Motor de audio neuronal con despacho de telemetría de alta frecuencia,
  * gestionando el ciclo de vida de los activos y la higiene térmica de la RAM.
- * [REFORMA V7.1]: Implementación de Mapeo de Compatibilidad para neutralizar 
- * errores TS2339 en cascada sin sacrificar el estándar nominal V4.0.
- * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * [THERMIC V8.0]: Implementación de "Background Thermal Isolation". Suspensión
+ * de telemetría de alta frecuencia cuando el Voyager no está mirando la terminal.
+ * Nivel de Integridad: CRITICAL
  */
 
 "use client";
@@ -110,7 +111,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     const handleEndedAction = () => handleAutomaticNextAction();
 
     const handleTimeUpdateAction = () => {
-      if (!audioElementReference.current) return;
+      if (document.hidden || !audioElementReference.current) return;
       const currentPlaybackTimeSeconds = audioElementReference.current.currentTime;
       const totalPlaybackDurationSeconds = audioElementReference.current.duration || 0;
 
