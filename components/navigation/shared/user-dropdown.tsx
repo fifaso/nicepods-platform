@@ -23,6 +23,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 // --- TIPOS DE DATOS ---
 // Importamos el tipo ProfileData que definimos en la Fase 1 de la reconstrucción.
@@ -55,33 +56,40 @@ export function UserDropdown({ profile, isAdmin, onLogout }: UserDropdownProps) 
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          className="relative h-9 w-9 md:h-10 md:w-10 rounded-full p-0 hover:bg-transparent group outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
-          aria-label="Abrir menú de usuario"
-        >
-          <Avatar className="h-9 w-9 md:h-9 md:w-9 border border-white/10 group-hover:border-primary/50 transition-colors shadow-lg">
-            <AvatarImage
-              src={profile?.avatar_url || ""}
-              alt={profile?.username || "Avatar de Usuario"}
-              className="object-cover"
-            />
-            <AvatarFallback className="bg-zinc-800 text-primary font-bold text-[10px] md:text-xs">
-              {userInitials}
-            </AvatarFallback>
-          </Avatar>
-        </Button>
-      </DropdownMenuTrigger>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              className="relative h-9 w-9 md:h-10 md:w-10 rounded-full p-0 hover:bg-transparent group outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+              aria-label="Abrir menú de usuario"
+            >
+              <Avatar className="h-9 w-9 md:h-9 md:w-9 border border-white/10 group-hover:border-primary/50 transition-colors shadow-lg">
+                <AvatarImage
+                  src={profile?.avatar_url || ""}
+                  alt={profile?.username || "Avatar de Usuario"}
+                  className="object-cover"
+                />
+                <AvatarFallback className="bg-zinc-800 text-primary font-bold text-[10px] md:text-xs">
+                  {userInitials}
+                </AvatarFallback>
+              </Avatar>
+            </Button>
+          </DropdownMenuTrigger>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="text-[10px] font-black uppercase tracking-widest border-white/10 bg-black/90 backdrop-blur-xl">
+          Identification y Ajustes
+        </TooltipContent>
+      </Tooltip>
 
       <DropdownMenuContent
         align="end"
         className="w-60 p-2 rounded-2xl bg-[#0A0A0A] border-white/10 shadow-2xl text-zinc-300 mt-2 animate-in zoom-in-95 duration-200"
       >
-        {/* CABECERA DE IDENTIDAD (Tarjeta de Presentación Mini) */}
+        {/* CABECERA DE IDENTIFICATION (Tarjeta de Presentación Mini) */}
         <div className="px-3 py-2.5 bg-white/5 rounded-xl mb-1 select-none">
           <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-0.5">
-            Identidad Activa
+            Identification Activa
           </p>
           <p className="text-sm font-bold text-white truncate">
             {profile?.full_name || 'Curador Anónimo'}
@@ -98,7 +106,7 @@ export function UserDropdown({ profile, isAdmin, onLogout }: UserDropdownProps) 
           <DropdownMenuItem asChild className="rounded-lg focus:bg-white/10 cursor-pointer">
             <Link href="/profile" className="flex items-center py-2">
               <UserIcon className="mr-3 h-4 w-4 text-zinc-500" />
-              <span className="text-xs font-bold uppercase tracking-wide">Tu Identidad</span>
+              <span className="text-xs font-bold uppercase tracking-wide">Tu Identification</span>
             </Link>
           </DropdownMenuItem>
 
