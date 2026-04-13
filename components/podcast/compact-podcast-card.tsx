@@ -15,7 +15,7 @@
 import { Clock, Loader2, Pause, Play, Zap } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import React, { useMemo, useCallback } from "react";
+import React, { useMemo, useCallback, memo } from "react";
 
 // --- INFRAESTRUCTURA DE INTERFAZ (UI) ---
 import { Button } from "@/components/ui/button";
@@ -37,7 +37,7 @@ interface CompactPodcastCardProperties {
 /**
  * CompactPodcastCard: La unidad mínima de representación de capital intelectual.
  */
-export function CompactPodcastCard({ 
+export const CompactPodcastCard = memo(function CompactPodcastCard({
   initialPodcastData 
 }: CompactPodcastCardProperties) {
   
@@ -215,7 +215,7 @@ export function CompactPodcastCard({
       </div>
     </Card>
   );
-}
+});
 
 /**
  * NOTA TÉCNICA DEL ARCHITECT (V7.0):

@@ -16,7 +16,7 @@ import { Clock, Lock, Pause, Play } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import React, { useMemo } from "react";
+import React, { useMemo, memo } from "react";
 
 // --- INFRAESTRUCTURA UI ---
 import { Badge } from "@/components/ui/badge";
@@ -39,7 +39,7 @@ interface PodcastCardProperties {
 /**
  * PodcastCard: El nodo de visualización de capital intelectual.
  */
-export function PodcastCard({ initialPodcastData }: PodcastCardProperties) {
+export const PodcastCard = memo(function PodcastCard({ initialPodcastData }: PodcastCardProperties) {
   const navigationRouter = useRouter();
   const { playPodcastAction, currentActivePodcast, isAudioPlaying } = useAudio();
 
@@ -200,7 +200,7 @@ export function PodcastCard({ initialPodcastData }: PodcastCardProperties) {
       </CardContent>
     </Card>
   );
-}
+});
 
 /**
  * NOTA TÉCNICA DEL ARCHITECT (V9.0):

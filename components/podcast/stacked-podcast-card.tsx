@@ -15,6 +15,7 @@
 import { PodcastCard } from "@/components/podcast/podcast-card";
 import { PodcastWithProfile } from "@/types/podcast";
 import { MessageCircle } from "lucide-react";
+import { memo } from "react";
 
 /**
  * INTERFAZ: StackedPodcastCardProperties
@@ -29,7 +30,7 @@ interface StackedPodcastCardProperties {
 /**
  * StackedPodcastCard: El componente de visualización de profundidad pericial.
  */
-export function StackedPodcastCard({ 
+export const StackedPodcastCard = memo(function StackedPodcastCard({
   initialPodcastData, 
   narrativeReplyCollection = [] 
 }: StackedPodcastCardProperties) {
@@ -92,7 +93,7 @@ export function StackedPodcastCard({
       
     </div>
   );
-}
+});
 
 /**
  * NOTA TÉCNICA DEL ARCHITECT (V6.0):
