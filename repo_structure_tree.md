@@ -132,6 +132,7 @@
 │   │   │   ├── index.tsx
 │   │   │   └── map-core.tsx
 │   │   ├── forge-context.tsx
+│   │   ├── forge-spatial-precision.tsx
 │   │   ├── geo-creator-overlay.tsx
 │   │   ├── geo-recorder.tsx
 │   │   ├── map-constants.ts
@@ -286,6 +287,7 @@
 ├── components.json
 ├── contexts
 │   └── audio-context.tsx
+├── dev_server.log
 ├── distill_schema.py
 ├── hooks
 │   ├── geo-engine
@@ -323,6 +325,7 @@
 │   │   └── social-schema.ts
 │   └── workers
 │       ├── compression.worker.ts
+│       ├── map-data.worker.ts
 │       └── resonance-physics.worker.ts
 ├── middleware.ts
 ├── next-env.d.ts
@@ -359,6 +362,7 @@
 ├── schema_core.sql
 ├── scripts
 │   └── create-profiles-table.sql
+├── sentry.client.config.ts
 ├── sentry.edge.config.ts
 ├── sentry.server.config.ts
 ├── supabase
@@ -442,4 +446,4 @@
     ├── profile.ts
     └── pulse.ts
 
-97 directories, 346 files
+97 directories, 350 files
