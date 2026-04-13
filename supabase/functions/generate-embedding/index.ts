@@ -13,8 +13,8 @@ import {
     cleanTextForSpeech,
     generateEmbedding,
     parseAIJson
-} from "../_shared/ai.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+} from "@/supabase/functions/_shared/ai.ts";
+import { corsHeaders } from "@/supabase/functions/_shared/cors.ts";
 
 /**
  * CLIENTE SUPABASE ADMIN
@@ -42,7 +42,7 @@ async function handler(request: Request): Promise<Response> {
         return new Response('ok', { headers: corsHeaders });
     }
 
-    const correlationId = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
+    const correlationIdentification = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
     let targetPodId: number | null = null;
 
     try {
@@ -54,7 +54,7 @@ async function handler(request: Request): Promise<Response> {
         }
         targetPodId = podcast_id;
 
-        console.info(`🧠 [Cataloger-V6.0][${correlationId}] Iniciando indexación atómica para Pod #${podcast_id}`);
+        console.info(`🧠 [Cataloger-V6.0][${correlationIdentification}] Iniciando indexación atómica para Pod #${podcast_id}`);
 
         const { data: pod, error: podError } = await supabaseAdmin
             .from('micro_pods')
@@ -117,21 +117,21 @@ async function handler(request: Request): Promise<Response> {
             await supabaseAdmin.from('micro_pods').update({ embedding_ready: true }).eq('id', podcast_id);
         }
 
-        console.info(`✅ [Cataloger][${correlationId}] Misión finalizada. Vector y Categoría anclados.`);
+        console.info(`✅ [Cataloger][${correlationIdentification}] Misión finalizada. Vector y Categoría anclados.`);
 
-        return new Response(JSON.stringify({ success: true, trace_id: correlationId }), {
+        return new Response(JSON.stringify({ success: true, trace_identification: correlationIdentification }), {
             status: 200,
             headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
 
     } catch (error: any) {
-        console.error(`🔥 [Cataloger-Fatal][${correlationId}]:`, error.message);
+        console.error(`🔥 [Cataloger-Fatal][${correlationIdentification}]:`, error.message);
         if (targetPodId) {
             await supabaseAdmin.from('micro_pods').update({
-                admin_notes: `Error Crítico en Catalogación (V6.0): ${error.message} | Trazabilidad: ${correlationId}`
+                admin_notes: `Error Crítico en Catalogación (V6.0): ${error.message} | Trazabilidad: ${correlationIdentification}`
             }).eq('id', targetPodId);
         }
-        return new Response(JSON.stringify({ error: error.message, trace_id: correlationId }), {
+        return new Response(JSON.stringify({ error: error.message, trace_identification: correlationIdentification }), {
             status: 500,
             headers: { ...corsHeaders, "Content-Type": "application/json" }
         });

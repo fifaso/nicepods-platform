@@ -7,8 +7,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 import { XMLParser } from "https://esm.sh/fast-xml-parser@4.3.2";
 
-import { generateEmbedding } from "../_shared/ai.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import { generateEmbedding } from "@/supabase/functions/_shared/ai.ts";
+import { corsHeaders } from "@/supabase/functions/_shared/cors.ts";
 
 const parser = new XMLParser({ ignoreAttributes: false });
 const supabaseAdmin: SupabaseClient = createClient(
@@ -45,7 +45,7 @@ async function fetchFromArxiv(category: typeof NICEPOD_TAXONOMY[0]) {
           allResults.push({
             title: e.title.replace(/\n/g, " ").trim(),
             summary: e.summary.replace(/\n/g, " ").trim(),
-            url: e.id?.replace('/abs/', '/pdf/'),
+            uniformResourceLocator: e.id?.replace('/abs/', '/pdf/'),
             source: "arXiv",
             authority: 8.5
           });
@@ -57,27 +57,27 @@ async function fetchFromArxiv(category: typeof NICEPOD_TAXONOMY[0]) {
 }
 
 const handler = async (request: Request): Promise<Response> => {
-  const correlationId = crypto.randomUUID();
+  const correlationIdentification = crypto.randomUUID();
   const selectedCategory = NICEPOD_TAXONOMY[Math.floor(Math.random() * NICEPOD_TAXONOMY.length)];
 
-  console.log(`📡 [Harvester][${correlationId}] Cosecha permanente: ${selectedCategory.name}`);
+  console.log(`📡 [Harvester][${correlationIdentification}] Cosecha permanente: ${selectedCategory.name}`);
 
   try {
     const rawItems = await fetchFromArxiv(selectedCategory);
     let ingestedCount = 0;
 
     for (const item of rawItems) {
-      const contentHash = await generateSecureHash(item.title + item.url);
+      const contentHash = await generateSecureHash(item.title + item.uniformResourceLocator);
       const { data: exists } = await supabaseAdmin.from('pulse_staging').select('id').eq('content_hash', contentHash).maybeSingle();
       if (exists) continue;
 
       const embedding = await generateEmbedding(`${item.title} ${item.summary}`);
 
-      const { error: insertErr } = await supabaseAdmin.from('pulse_staging').insert({
+      const { error: insertError } = await supabaseAdmin.from('pulse_staging').insert({
         content_hash: contentHash,
         title: item.title,
         summary: item.summary.substring(0, 2000),
-        url: item.url,
+        uniformResourceLocator: item.uniformResourceLocator,
         source_name: item.source,
         content_type: 'paper',
         authority_score: item.authority,
@@ -88,10 +88,10 @@ const handler = async (request: Request): Promise<Response> => {
         expires_at: null // ELIMINAMOS EL TTL: Permanencia absoluta
       });
 
-      if (!insertErr) ingestedCount++;
+      if (!insertError) ingestedCount++;
     }
 
-    return new Response(JSON.stringify({ success: true, ingested: ingestedCount, trace_id: correlationId }), {
+    return new Response(JSON.stringify({ success: true, ingested: ingestedCount, trace_identification: correlationIdentification }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
   } catch (error: any) {

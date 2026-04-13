@@ -3,8 +3,8 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
-import { cleanTextForSpeech, generateEmbedding } from "../_shared/ai.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import { cleanTextForSpeech, generateEmbedding } from "@/supabase/functions/_shared/ai.ts";
+import { corsHeaders } from "@/supabase/functions/_shared/cors.ts";
 
 const supabaseAdmin = createClient(
   Deno.env.get("SUPABASE_URL") ?? "",
@@ -61,7 +61,7 @@ serve(async (req) => {
         const embeddingValues = await generateEmbedding(embeddingContext);
 
         // Persistencia
-        const { error: insertError } = await supabaseAdmin
+        const { error: insertErroror } = await supabaseAdmin
           .from('podcast_embeddings')
           .upsert({
             podcast_id: pod.id,
@@ -69,7 +69,7 @@ serve(async (req) => {
             embedding: embeddingValues
           });
 
-        if (insertError) throw insertError;
+        if (insertErroror) throw insertErroror;
         processed++;
         console.log(`✅ [Backfill] Pod #${pod.id} vectorizado (${processed}/${targets.length})`);
 

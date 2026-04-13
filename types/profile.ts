@@ -164,7 +164,7 @@ export interface ProfileActionResponse<T = unknown> {
   message: string;
   data?: T;
   errors?: Record<string, string[]>;
-  trace_id?: string;
+  trace_identification?: string;
 }
 
 /**

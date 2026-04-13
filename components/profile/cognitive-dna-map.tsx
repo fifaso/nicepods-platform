@@ -1,5 +1,6 @@
 // components/profile/cognitive-dna-map.tsx
-// VERSIÓN: 1.0 (Cognitive Map - Visual Interest Galaxy)
+// VERSIÓN: 1.1 (Cognitive Map - Visual Interest Galaxy)
+// Misión: Visualizar y recalibrar la constelación semántica de intereses del usuario con precisión nominal.
 
 "use client";
 
@@ -16,11 +17,11 @@ import {
   Target,
   Zap
 } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 
 // --- TIPOS ---
 interface DNAInterest {
-  id: string;
+  identification: string;
   label: string;
   category: 'professional' | 'personal' | 'frontier';
   relevance: number; // 0 a 1 (determina distancia al centro)
@@ -44,8 +45,8 @@ export function CognitiveDnaMap({
   // --- LÓGICA DE POSICIONAMIENTO ORBITAL ---
   // Generamos posiciones iniciales basadas en la relevancia (Gravedad)
   const nodes = useMemo(() => {
-    return interests.map((item, idx) => {
-      const angle = (idx / interests.length) * Math.PI * 2;
+    return interests.map((item, index) => {
+      const angle = (index / interests.length) * Math.PI * 2;
       const distance = (1 - item.relevance) * 150 + 50; // Más relevancia = más cerca del centro (0,0)
       return {
         ...item,
@@ -55,9 +56,9 @@ export function CognitiveDnaMap({
     });
   }, [interests]);
 
-  const handleRemoveInterest = (id: string) => {
+  const handleRemoveInterest = (identification: string) => {
     setIsUpdating(true);
-    setInterests(prev => prev.filter(i => i.id !== id));
+    setInterests(previousInterests => previousInterests.filter(interest => interest.identification !== identification));
     // Simulación de guardado en Supabase (update-user-dna)
     setTimeout(() => setIsUpdating(false), 1500);
   };
@@ -115,15 +116,15 @@ export function CognitiveDnaMap({
           <AnimatePresence>
             {nodes.map((node) => (
               <motion.div
-                key={node.id}
-                layoutId={node.id}
+                key={node.identification}
+                layoutId={node.identification}
                 drag
                 dragConstraints={containerRef}
                 dragElastic={0.2}
                 initial={{ opacity: 0, scale: 0 }}
                 animate={{ opacity: 1, scale: 1, x: node.x, y: node.y }}
                 exit={{ opacity: 0, scale: 0 }}
-                onDragStart={() => setActiveNode(node.id)}
+                onDragStart={() => setActiveNode(node.identification)}
                 onDragEnd={() => setActiveNode(null)}
                 className="absolute z-20 group/node"
               >
@@ -134,7 +135,7 @@ export function CognitiveDnaMap({
                       <div className={cn(
                         "absolute inset-0 blur-xl rounded-full transition-opacity duration-500",
                         node.category === 'professional' ? "bg-blue-500/30" : "bg-purple-500/30",
-                        activeNode === node.id ? "opacity-100" : "opacity-40"
+                        activeNode === node.identification ? "opacity-100" : "opacity-40"
                       )} />
 
                       <button
@@ -143,7 +144,7 @@ export function CognitiveDnaMap({
                           node.category === 'professional'
                             ? "bg-blue-600/10 border-blue-500/30 text-blue-200"
                             : "bg-purple-600/10 border-purple-500/30 text-purple-200",
-                          activeNode === node.id && "scale-110 shadow-2xl border-white/40 bg-primary/20 text-white"
+                          activeNode === node.identification && "scale-110 shadow-2xl border-white/40 bg-primary/20 text-white"
                         )}
                       >
                         {node.category === 'professional' ? <Zap size={12} /> : <Sparkles size={12} />}
@@ -157,9 +158,9 @@ export function CognitiveDnaMap({
                         initial={{ opacity: 0 }}
                         whileHover={{ scale: 1.2 }}
                         className="absolute -top-2 -right-2 w-6 h-6 bg-rose-600 rounded-full flex items-center justify-center text-white shadow-lg opacity-0 group-hover/node:opacity-100 transition-opacity"
-                        onClick={() => handleRemoveInterest(node.id)}
+                        onClick={() => handleRemoveInterest(node.identification)}
                       >
-                        <X size={10} strokeWidth={4} />
+                        <CloseIcon size={10} strokeWidth={4} />
                       </motion.button>
                     </div>
                   </TooltipTrigger>
@@ -200,9 +201,24 @@ export function CognitiveDnaMap({
   );
 }
 
-function X(props: any) {
+interface CloseIconProperties extends React.ComponentPropsWithoutRef<'svg'> {
+  size?: number | string;
+}
+
+function CloseIcon({ size = 24, ...componentProperties }: CloseIconProperties) {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...componentProperties}
+    >
       <path d="M18 6 6 18" /><path d="m6 6 12 12" />
     </svg>
   );

@@ -12,7 +12,7 @@
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import { corsHeaders } from "@/supabase/functions/_shared/cors.ts";
 
 /**
  * ---------------------------------------------------------------------------

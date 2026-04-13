@@ -10,7 +10,7 @@ import { corsHeaders } from "./cors.ts";
  * Provee metadatos de la ejecución al handler para su uso en logs y métricas.
  */
 export interface GuardContext {
-  correlationId: string;
+  correlationIdentification: string;
   isTrusted: boolean; // Indica si la petición viene de la infraestructura interna
   startTime: number;
 }
@@ -30,7 +30,7 @@ export const guard = (
       return new Response('ok', { status: 200, headers: corsHeaders });
     }
 
-    const correlationId = crypto.randomUUID();
+    const correlationIdentification = crypto.randomUUID();
     const startTime = performance.now();
     const authHeader = req.headers.get('Authorization') || '';
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || '';
@@ -56,7 +56,7 @@ export const guard = (
           tracesSampleRate: 0.1,
           environment: Deno.env.get("NODE_ENV") || "production",
         });
-        Sentry.setTag("correlation_id", correlationId);
+        Sentry.setTag("correlation_id", correlationIdentification);
         Sentry.setTag("is_trusted", String(isTrusted));
       }
 
@@ -81,23 +81,23 @@ export const guard = (
         const decision = await aj.protect(req);
 
         if (decision.isDenied()) {
-          console.warn(`🛑 [Security-Block][${correlationId}] Interceptado por Arcjet.`);
+          console.warn(`🛑 [Security-Block][${correlationIdentification}] Interceptado por Arcjet.`);
           return new Response(
             JSON.stringify({
               error: "Security Block",
-              trace_id: correlationId,
+              trace_identification: correlationIdentification,
               reason: decision.reason.type
             }),
             { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
       } else {
-        console.info(`⚡ [Trusted-Flow][${correlationId}] Bypass de seguridad activado para Infraestructura.`);
+        console.info(`⚡ [Trusted-Flow][${correlationIdentification}] Bypass de seguridad activado para Infraestructura.`);
       }
 
       // 5. EJECUCIÓN SOBERANA DEL HANDLER
       // Pasamos el control a la función de negocio con el contexto inyectado.
-      const response = await handler(req, { correlationId, isTrusted, startTime });
+      const response = await handler(req, { correlationIdentification, isTrusted, startTime });
 
       // 6. CIERRE Y TELEMETRÍA DE RETORNO
       const endTime = performance.now();
@@ -108,7 +108,7 @@ export const guard = (
       // Sincronía de Headers
       Object.entries(corsHeaders).forEach(([key, value]) => responseHeaders.set(key, value));
 
-      responseHeaders.set("x-correlation-id", correlationId);
+      responseHeaders.set("x-correlation-id", correlationIdentification);
       responseHeaders.set("x-execution-time", `${duration}ms`);
       responseHeaders.set("x-nicepod-status", isTrusted ? "sovereign" : "protected");
 
@@ -119,19 +119,19 @@ export const guard = (
 
     } catch (error: unknown) {
       const err = error as Error;
-      console.error(`🔥 [Guard-Fatal-Error][${correlationId}]:`, err.message);
+      console.error(`🔥 [Guard-Fatal-Error][${correlationIdentification}]:`, err.message);
 
       // Reporte de pánico a la central de errores
       if (Deno.env.get("SENTRY_DSN")) {
         const Sentry = await import("https://esm.sh/@sentry/deno@8.26.0");
-        Sentry.captureException(err, { tags: { correlation_id: correlationId } });
+        Sentry.captureException(err, { tags: { correlation_id: correlationIdentification } });
       }
 
       return new Response(
         JSON.stringify({
           error: "Internal Intelligence Failure",
           message: err.message,
-          trace_id: correlationId
+          trace_identification: correlationIdentification
         }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );

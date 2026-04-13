@@ -7,8 +7,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 
 // Importaciones del núcleo NicePod (Estabilizadas a Nivel 1)
-import { generateEmbedding } from "../_shared/ai.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import { generateEmbedding } from "@/supabase/functions/_shared/ai.ts";
+import { corsHeaders } from "@/supabase/functions/_shared/cors.ts";
 
 /**
  * CLIENTE SUPABASE ADMIN:
@@ -25,7 +25,7 @@ const handler = async (request: Request): Promise<Response> => {
         return new Response('ok', { headers: corsHeaders });
     }
 
-    const correlationId = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
+    const correlationIdentification = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
     let targetDraftId: string | null = null;
 
     try {
@@ -38,7 +38,7 @@ const handler = async (request: Request): Promise<Response> => {
         }
 
         targetDraftId = draft_id;
-        console.log(`📡 [Researcher][${correlationId}] Iniciando Misión de Inteligencia: ${topic}`);
+        console.log(`📡 [Researcher][${correlationIdentification}] Iniciando Misión de Inteligencia: ${topic}`);
 
         // 3. GENERACIÓN DE BRÚJULA SEMÁNTICA (ADN 768d)
         const queryVector = await generateEmbedding(topic);
@@ -52,14 +52,14 @@ const handler = async (request: Request): Promise<Response> => {
              */
             const { data: pulseData } = await supabaseAdmin
                 .from('pulse_staging')
-                .select('id, title, summary, url, authority_score')
+                .select('id, title, summary, uniformResourceLocator, authority_score')
                 .in('id', pulse_source_ids);
 
             finalSources = (pulseData || []).map(p => ({
                 id: p.id,
                 title: p.title || "Documento Pulse",
                 content: p.summary || "Sin resumen disponible.",
-                url: p.url || "#",
+                uniformResourceLocator: p.uniformResourceLocator || "#",
                 origin: 'pulse_selection',
                 relevance: 1.0
             }));
@@ -87,7 +87,7 @@ const handler = async (request: Request): Promise<Response> => {
                     id: v.source_id || v.id, // Adaptación a posibles cambios de RPC
                     title: v.title || "Archivo de Bóveda",
                     content: v.content || "",
-                    url: v.url || "#",
+                    uniformResourceLocator: v.uniformResourceLocator || "#",
                     origin: 'vault',
                     relevance: v.similarity || 0.85
                 })),
@@ -95,7 +95,7 @@ const handler = async (request: Request): Promise<Response> => {
                     id: p.id,
                     title: p.title || "Investigación Reciente",
                     content: p.summary || "",
-                    url: p.url || "#",
+                    uniformResourceLocator: p.uniformResourceLocator || "#",
                     origin: 'fresh_research',
                     relevance: p.similarity || 0.85
                 }))
@@ -121,7 +121,7 @@ const handler = async (request: Request): Promise<Response> => {
             // a. Registro de Backlog Cognitivo para el Harvester
             await supabaseAdmin.rpc('push_to_research_backlog', {
                 p_topic: topic,
-                p_metadata: { correlation_id: correlationId, draft_id: draft_id }
+                p_metadata: { correlation_id: correlationIdentification, draft_id: draft_id }
             });
 
             // b. Invocación a Tavily (Gasto Táctico)
@@ -141,7 +141,7 @@ const handler = async (request: Request): Promise<Response> => {
                 const webSources = (webData.results || []).map((w: any) => ({
                     title: w.title || "Fuente Web",
                     content: w.content || "",
-                    url: w.url || "#",
+                    uniformResourceLocator: w.uniformResourceLocator || "#",
                     origin: 'web',
                     relevance: w.score || 0.5
                 }));
@@ -154,12 +154,12 @@ const handler = async (request: Request): Promise<Response> => {
                         body: {
                             title: ws.title,
                             text: ws.content,
-                            url: ws.url,
+                            uniformResourceLocator: ws.uniformResourceLocator,
                             source_type: 'user_contribution',
                             is_public: true,
                             metadata: { ingested_via: 'research-intelligence', original_topic: topic }
                         },
-                        headers: { "x-correlation-id": correlationId }
+                        headers: { "x-correlation-id": correlationIdentification }
                     }).catch(() => { });
                 }
             } else {
@@ -187,7 +187,7 @@ const handler = async (request: Request): Promise<Response> => {
                 dossier_text: {
                     status: "sources_found",
                     count: safeSources.length,
-                    trace: correlationId
+                    trace: correlationIdentification
                 },
                 status: 'writing',
                 updated_at: new Date().toISOString()
@@ -208,15 +208,15 @@ const handler = async (request: Request): Promise<Response> => {
         console.log(`💾 [Researcher] Auditoría de Guardado: ${verifyData?.sources?.length || 0} fuentes confirmadas en DB.`);
 
         // Invocación al Redactor Maestro (Agente 38)
-        console.log(`✅ [Researcher][${correlationId}] Handover a Redacción.`);
+        console.log(`✅ [Researcher][${correlationIdentification}] Handover a Redacción.`);
         supabaseAdmin.functions.invoke('generate-script-draft', {
             body: { draft_id },
-            headers: { "x-correlation-id": correlationId }
+            headers: { "x-correlation-id": correlationIdentification }
         }).catch((err) => console.error(`⚠️ [Handover-Fail]: ${err.message}`));
 
         return new Response(JSON.stringify({
             success: true,
-            trace_id: correlationId,
+            trace_identification: correlationIdentification,
             sources: safeSources.length
         }), {
             status: 200,
@@ -224,18 +224,18 @@ const handler = async (request: Request): Promise<Response> => {
         });
 
     } catch (error: any) {
-        console.error(`🔥 [Researcher-Fatal][${correlationId}]:`, error.message);
+        console.error(`🔥 [Researcher-Fatal][${correlationIdentification}]:`, error.message);
 
         if (targetDraftId) {
             await supabaseAdmin.from('podcast_drafts').update({
                 status: 'failed',
-                creation_data: { last_error: error.message, trace: correlationId }
+                creation_data: { last_error: error.message, trace: correlationIdentification }
             }).eq('id', targetDraftId);
         }
 
         return new Response(JSON.stringify({
             error: error.message,
-            trace_id: correlationId
+            trace_identification: correlationIdentification
         }), {
             status: 500,
             headers: { ...corsHeaders, "Content-Type": "application/json" }

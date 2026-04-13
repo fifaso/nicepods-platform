@@ -5,8 +5,8 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
-import { AI_MODELS, buildPrompt, cleanTextForSpeech } from "../_shared/ai.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import { AI_MODELS, buildPrompt, cleanTextForSpeech } from "@/supabase/functions/_shared/ai.ts";
+import { corsHeaders } from "@/supabase/functions/_shared/cors.ts";
 
 const supabaseAdmin: SupabaseClient = createClient(
   Deno.env.get("SUPABASE_URL") ?? "",
@@ -25,7 +25,7 @@ function sovereignExtractor(text: string, tag: string): string {
 async function handler(request: Request): Promise<Response> {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
-  const correlationId = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
+  const correlationIdentification = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
   let targetDraft: any = null;
 
   try {
@@ -33,8 +33,8 @@ async function handler(request: Request): Promise<Response> {
     const { draft_id } = payload;
     if (!draft_id) throw new Error("DRAFT_ID_REQUIRED");
 
-    const { data: draft, error: fetchErr } = await supabaseAdmin.from('podcast_drafts').select('*').eq('id', draft_id).single();
-    if (fetchErr || !draft) throw new Error("DRAFT_NOT_FOUND");
+    const { data: draft, error: fetchError } = await supabaseAdmin.from('podcast_drafts').select('*').eq('id', draft_id).single();
+    if (fetchError || !draft) throw new Error("DRAFT_NOT_FOUND");
     targetDraft = draft;
 
     const cData = draft.creation_data || {};
@@ -62,11 +62,11 @@ async function handler(request: Request): Promise<Response> {
     });
 
     const apiKey = Deno.env.get("GOOGLE_AI_API_KEY");
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${AI_MODELS.PRO}:generateContent?key=${apiKey}`;
+    const uniformResourceLocator = `https://generativelanguage.googleapis.com/v1beta/models/${AI_MODELS.PRO}:generateContent?key=${apiKey}`;
 
-    console.info(`✍️ [Redactor-V41][${correlationId}] Solicitando: ${rawDuration}`);
+    console.info(`✍️ [Redactor-V41][${correlationIdentification}] Solicitando: ${rawDuration}`);
 
-    const response = await fetch(url, {
+    const response = await fetch(uniformResourceLocator, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -106,13 +106,13 @@ async function handler(request: Request): Promise<Response> {
 
     if (updateError) throw updateError;
 
-    return new Response(JSON.stringify({ success: true, trace_id: correlationId }), {
+    return new Response(JSON.stringify({ success: true, trace_identification: correlationIdentification }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
 
   } catch (error: any) {
-    console.error(`🔥 [Redactor-Fatal][${correlationId}]:`, error.message);
+    console.error(`🔥 [Redactor-Fatal][${correlationIdentification}]:`, error.message);
     if (targetDraft) {
       await supabaseAdmin.from('podcast_drafts').update({
         status: 'failed',

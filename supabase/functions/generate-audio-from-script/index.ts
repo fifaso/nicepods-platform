@@ -8,9 +8,9 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 
 // Importaciones del núcleo NicePod sincronizado
-import { AUDIO_CONFIG, callGeminiAudio, cleanTextForSpeech, createWavHeader } from "../_shared/ai.ts";
-import { corsHeaders } from "../_shared/cors.ts";
-import { generateDirectorNote } from "../_shared/vocal-director-map.ts";
+import { AUDIO_CONFIG, callGeminiAudio, cleanTextForSpeech, createWavHeader } from "@/supabase/functions/_shared/ai.ts";
+import { corsHeaders } from "@/supabase/functions/_shared/cors.ts";
+import { generateDirectorNote } from "@/supabase/functions/_shared/vocal-director-map.ts";
 
 const MAX_CHUNK_SIZE = 4000;
 const HEADER_SIZE = 44;
@@ -37,7 +37,7 @@ function extractScript(input: any): string {
 async function handler(request: Request): Promise<Response> {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
-  const correlationId = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
+  const correlationIdentification = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
   let targetPodId: number | null = null;
 
   try {
@@ -46,14 +46,14 @@ async function handler(request: Request): Promise<Response> {
     if (!podcast_id) throw new Error("ID_PODCAST_REQUERIDO");
     targetPodId = podcast_id;
 
-    console.info(`📡 [Audio-Forge-V4.1][${correlationId}] Iniciando forja para Pod #${podcast_id}`);
+    console.info(`📡 [Audio-Forge-V4.1][${correlationIdentification}] Iniciando forja para Pod #${podcast_id}`);
 
     // 1. RECUPERACIÓN DE DATOS
     const { data: pod, error: podErr } = await supabaseAdmin.from('micro_pods').select('*').eq('id', podcast_id).single();
     if (podErr || !pod) throw new Error("NODO_NO_ENCONTRADO");
 
     const cleanText = cleanTextForSpeech(extractScript(pod.script_text));
-    const inputs = (pod.creation_data as any)?.inputs || {};
+    const inputs = (pod.creation_data as unknown as Record<string, unknown>)?.inputs || {};
     const directorNote = generateDirectorNote(
       pod.creation_data?.agentName || "narrador",
       inputs.voiceGender || "Masculino",

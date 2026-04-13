@@ -4,8 +4,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { z, ZodError } from "https://deno.land/x/zod@v3.22.4/mod.ts";
-import { guard } from "../_shared/guard.ts"; // <--- INTEGRACIÓN DEL ESTÁNDAR
-import { corsHeaders } from "../_shared/cors.ts";
+import { guard } from "@/supabase/functions/_shared/guard.ts"; // <--- INTEGRACIÓN DEL ESTÁNDAR
+import { corsHeaders } from "@/supabase/functions/_shared/cors.ts";
 
 // Validación de Entrada
 const NarrativesPayloadSchema = z.object({

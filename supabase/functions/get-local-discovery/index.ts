@@ -11,7 +11,7 @@ import { getPlaceFromCoordinates } from "location";
 
 interface TavilySource {
   title: string;
-  url: string;
+  uniformResourceLocator: string;
   content: string;
 }
 
@@ -29,7 +29,7 @@ const DiscoveryPayloadSchema = z.object({
 });
 
 const handler = async (request: Request): Promise<Response> => {
-  const correlationId = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
+  const correlationIdentification = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
 
   try {
     const body = await request.json();
@@ -39,7 +39,7 @@ const handler = async (request: Request): Promise<Response> => {
     const locationData = await getPlaceFromCoordinates(latitude, longitude);
 
     // 2. INTERPRETACIÓN VISUAL
-    let detectedPoi = locationData.placeName;
+    let detectedPointOfInterest = locationData.placeName;
     let visualContext = "Vista de calle estándar.";
 
     if (image_base64) {
@@ -53,13 +53,13 @@ const handler = async (request: Request): Promise<Response> => {
         const visionPrompt = buildPrompt(agent.prompt_template, { latitude, longitude });
         const visionRes = await callGeminiMultimodal(visionPrompt, image_base64, AI_MODELS.FLASH);
         const visionData = parseAIJson(visionRes);
-        detectedPoi = visionData.detected_poi || detectedPoi;
+        detectedPointOfInterest = visionData.detected_poi || detectedPointOfInterest;
         visualContext = visionData.visual_summary || visualContext;
       }
     }
 
     // 3. INVESTIGACIÓN GROUNDED (Tavily)
-    const query = `Secretos y recomendaciones de ${lens} en ${detectedPoi}, ${locationData.cityName}`;
+    const query = `Secretos y recomendaciones de ${lens} en ${detectedPointOfInterest}, ${locationData.cityName}`;
     const tavilyRes = await fetch("https://api.tavily.com/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -79,7 +79,7 @@ const handler = async (request: Request): Promise<Response> => {
     if (!prompt) throw new Error("Configuración de Concierge no encontrada.");
 
     const finalPrompt = buildPrompt(prompt.prompt_template, {
-      detected_poi: detectedPoi,
+      detected_poi: detectedPointOfInterest,
       city: locationData.cityName,
       lens: lens,
       research_data: JSON.stringify(results),
@@ -91,14 +91,14 @@ const handler = async (request: Request): Promise<Response> => {
 
     return new Response(JSON.stringify({
       success: true,
-      trace_id: correlationId,
+      trace_identification: correlationIdentification,
       dossier,
-      sources: results.map((s: TavilySource) => ({ title: s.title, url: s.url }))
+      sources: results.map((s: TavilySource) => ({ title: s.title, uniformResourceLocator: s.uniformResourceLocator }))
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "Discovery failure";
-    console.error(`🔥 [${correlationId}] Error:`, msg);
+    console.error(`🔥 [${correlationIdentification}] Error:`, msg);
     return new Response(JSON.stringify({ success: false, error: msg }), { status: 500 });
   }
 };
