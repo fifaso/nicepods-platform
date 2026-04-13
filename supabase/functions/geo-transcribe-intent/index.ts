@@ -14,8 +14,8 @@
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { AI_MODELS } from "@/supabase/functions/_shared/ai.ts";
-import { corsHeaders } from "@/supabase/functions/_shared/cors.ts";
+import { AI_MODELS } from "../_shared/ai.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
 /**
  * ---------------------------------------------------------------------------

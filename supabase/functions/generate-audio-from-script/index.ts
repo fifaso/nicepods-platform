@@ -8,9 +8,9 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 
 // Importaciones del núcleo NicePod sincronizado
-import { AUDIO_CONFIG, callGeminiAudio, cleanTextForSpeech, createWavHeader } from "@/supabase/functions/_shared/ai.ts";
-import { corsHeaders } from "@/supabase/functions/_shared/cors.ts";
-import { generateDirectorNote } from "@/supabase/functions/_shared/vocal-director-map.ts";
+import { AUDIO_CONFIG, callGeminiAudio, cleanTextForSpeech, createWavHeader } from "../_shared/ai.ts";
+import { corsHeaders } from "../_shared/cors.ts";
+import { generateDirectorNote } from "../_shared/vocal-director-map.ts";
 
 const MAX_CHUNK_SIZE = 4000;
 const HEADER_SIZE = 44;

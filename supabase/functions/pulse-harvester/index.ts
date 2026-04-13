@@ -7,8 +7,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 import { XMLParser } from "https://esm.sh/fast-xml-parser@4.3.2";
 
-import { generateEmbedding } from "@/supabase/functions/_shared/ai.ts";
-import { corsHeaders } from "@/supabase/functions/_shared/cors.ts";
+import { generateEmbedding } from "../_shared/ai.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
 const parser = new XMLParser({ ignoreAttributes: false });
 const supabaseAdmin: SupabaseClient = createClient(

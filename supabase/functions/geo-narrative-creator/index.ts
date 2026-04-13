@@ -15,8 +15,8 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
-import { AI_MODELS, parseAIJson } from "@/supabase/functions/_shared/ai.ts";
-import { corsHeaders } from "@/supabase/functions/_shared/cors.ts";
+import { AI_MODELS, parseAIJson } from "../_shared/ai.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
 /**
  * ---------------------------------------------------------------------------

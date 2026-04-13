@@ -14,8 +14,8 @@ import {
   cleanTextForSpeech,
   createWavHeader,
   parseAIJson
-} from "@/supabase/functions/_shared/ai.ts";
-import { corsHeaders, guard } from "@/supabase/functions/_shared/guard.ts";
+} from "../_shared/ai.ts";
+import { corsHeaders, guard } from "../_shared/guard.ts";
 
 const supabaseAdmin = createClient(
   Deno.env.get("SUPABASE_URL")!,

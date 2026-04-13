@@ -8,8 +8,8 @@ import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-
 // Al importar 'generateEmbedding' desde _shared/ai.ts garantizamos que 
 // la vectorización de la búsqueda use EXACTAMENTE el mismo modelo (gemini-embedding-001)
 // que usamos para catalogar los podcasts. Esto cura la "Bóveda Ciega".
-import { generateEmbedding } from "@/supabase/functions/_shared/ai.ts";
-import { corsHeaders } from "@/supabase/functions/_shared/cors.ts";
+import { generateEmbedding } from "../_shared/ai.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
 /**
  * INTERFACE: SearchPayload

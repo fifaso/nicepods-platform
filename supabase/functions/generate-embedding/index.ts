@@ -13,8 +13,8 @@ import {
     cleanTextForSpeech,
     generateEmbedding,
     parseAIJson
-} from "@/supabase/functions/_shared/ai.ts";
-import { corsHeaders } from "@/supabase/functions/_shared/cors.ts";
+} from "../_shared/ai.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
 /**
  * CLIENTE SUPABASE ADMIN
