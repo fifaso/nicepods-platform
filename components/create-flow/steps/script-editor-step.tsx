@@ -35,9 +35,9 @@ const SourceItem = ({ source }: { source: any }) => (
             <span className="font-black text-white line-clamp-2 uppercase tracking-tighter leading-none group-hover:text-primary transition-colors">
                 {source.title || "Fuente Verificada"}
             </span>
-            {source.url && (
+            {source.uniformResourceLocator && (
                 <a
-                    href={source.url}
+                    href={source.uniformResourceLocator}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="p-1.5 bg-primary/10 rounded-lg text-primary hover:bg-primary hover:text-white transition-colors flex-shrink-0"
@@ -57,7 +57,7 @@ const SourceItem = ({ source }: { source: any }) => (
 export function ScriptEditorStep() {
     const { control, setValue, getValues, watch } = useFormContext<PodcastCreationData>();
 
-    const finalScriptFromForm = watch('final_script');
+    const finalScriptFromForm = watch('finalScript');
     const sources = watch('sources') || [];
     const [isMobileSourcesOpen, setIsMobileSourcesOpen] = useState(false);
     const lastContentRef = useRef("");
@@ -70,7 +70,7 @@ export function ScriptEditorStep() {
                 emptyEditorClass: 'is-editor-empty before:content-[attr(data-placeholder)] before:text-zinc-700 before:float-left before:pointer-events-none'
             }),
         ],
-        content: getValues('final_script') || "",
+        content: getValues('finalScript') || "",
         editorProps: {
             attributes: {
                 class: 'prose prose-invert max-w-none focus:outline-none h-full text-foreground leading-relaxed p-6 md:p-12 text-base md:text-lg',
@@ -79,7 +79,7 @@ export function ScriptEditorStep() {
         onUpdate: ({ editor }) => {
             const html = editor.getHTML();
             lastContentRef.current = html;
-            setValue('final_script', DOMPurify.sanitize(html), { shouldValidate: true, shouldDirty: true });
+            setValue('finalScript', DOMPurify.sanitize(html), { shouldValidate: true, shouldDirty: true });
         },
     });
 
@@ -105,7 +105,7 @@ export function ScriptEditorStep() {
                 </div>
 
                 <div className="w-full lg:flex-1 lg:max-w-3xl">
-                    <FormField control={control} name="final_title" render={({ field }) => (
+                    <FormField control={control} name="finalTitle" render={({ field }) => (
                         <FormItem className="space-y-0">
                             <FormControl>
                                 <Input

@@ -32,7 +32,7 @@ export function DiscoveryResultStep() {
   const { transitionTo } = useCreationContext();
 
   // Suscripción reactiva a los datos del orquestador
-  const discoveryContext = watch("discovery_context") as DiscoveryContextPayload | null;
+  const discoveryContext = watch("discoveryContext") as DiscoveryContextPayload | null;
   const sources = watch("sources") || [];
   const location = watch("location");
 
@@ -53,7 +53,7 @@ export function DiscoveryResultStep() {
    */
   const handleGenerateSpecific = (poi: LocalRecommendation) => {
     // 1. Identificamos el tema concreto
-    setValue("solo_topic", poi.name, { shouldValidate: true });
+    setValue("soloTopic", poi.name, { shouldValidate: true });
     
     // 2. Inyectamos la instrucción situacional enriquecida
     const situationalGoal = `Actúa como un guía local experto y sofisticado. 
@@ -61,7 +61,7 @@ export function DiscoveryResultStep() {
     Contexto de investigación: ${poi.description}. 
     Evita los datos obvios y céntrate en la narrativa emocional y secreta del lugar.`;
     
-    setValue("solo_motivation", situationalGoal, { shouldValidate: true });
+    setValue("soloMotivation", situationalGoal, { shouldValidate: true });
     
     // 3. Forzamos el uso del Agente Concierge para este hilo
     setValue("agentName", "local-concierge-v1", { shouldValidate: true });
@@ -172,7 +172,7 @@ export function DiscoveryResultStep() {
                 sources.map((source: ResearchSource, idx: number) => (
                     <a 
                         key={idx} 
-                        href={source.url} 
+                        href={source.uniformResourceLocator}
                         target="_blank" 
                         rel="noopener noreferrer"
                         className="flex items-center gap-2 px-4 py-2 rounded-full bg-secondary/20 border border-white/5 whitespace-nowrap hover:bg-secondary/40 hover:border-primary/20 transition-all duration-300 group"

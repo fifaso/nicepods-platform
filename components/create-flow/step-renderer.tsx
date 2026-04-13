@@ -180,7 +180,7 @@ export function StepRenderer({
         return (
           <GeoRecorder
             mode="CHRONICLE"
-            narrativeScriptContent={creationFormData.final_script}
+            narrativeScriptContent={creationFormData.finalScript}
             isExternalProcessActive={isAcousticProcessingProcessActive}
             onCaptureCompletionAction={handleAcousticChronicleCaptureAction}
           />

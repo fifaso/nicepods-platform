@@ -29,18 +29,18 @@ function hasSignificantData(data: Partial<PodcastCreationData>): boolean {
   if (!data) return false;
 
   const hasTopic = !!(
-    data.solo_topic?.trim() ||
-    data.link_topicA?.trim() ||
-    data.link_topicB?.trim() ||
-    data.question_to_answer?.trim()
+    data.soloTopic?.trim() ||
+    data.linkTopicA?.trim() ||
+    data.linkTopicB?.trim() ||
+    data.questionToAnswer?.trim()
   );
 
   const hasMotivation = !!(
-    data.solo_motivation?.trim() ||
-    data.legacy_lesson?.trim()
+    data.soloMotivation?.trim() ||
+    data.legacyLesson?.trim()
   );
 
-  const isAdvancedStep = !!data.final_script; // Si ya hay un guion generado, es crítico salvarlo.
+  const isAdvancedStep = !!data.finalScript; // Si ya hay un guion generado, es crítico salvarlo.
 
   return hasTopic || hasMotivation || isAdvancedStep;
 }

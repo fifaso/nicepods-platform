@@ -16,7 +16,7 @@ export interface PulseSignal {
   content_hash: string;
   title: string;
   summary: string;
-  url: string;
+  uniformResourceLocator: string;
   source_name: string;
   content_type: PulseCategory;
   authority_score: number; // Escala 1.0 a 10.0

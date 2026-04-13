@@ -45,12 +45,28 @@ export function useFlowActions({ transitionTo, goBack, clearDraft }: UseFlowActi
     try {
       const values = getValues();
       const isPulse = values.purpose === 'pulse';
+
+      // Mapeo de Boundary: Crystal (ZAP/camelCase) -> Metal (Legacy snake_case)
+      const legacyPayload = {
+        ...values,
+        draft_id: values.draftIdentification,
+        pulse_source_ids: isPulse ? values.pulseSourceIdentifications : undefined,
+        creation_mode: values.creationMode,
+        final_title: values.finalTitle,
+        final_script: values.finalScript
+      };
+
       const { data, error } = await supabase.functions.invoke("start-draft-process", {
-        body: { ...values, pulse_source_ids: isPulse ? values.pulse_source_ids : undefined },
+        body: legacyPayload,
       });
+
       if (error) throw new Error(error.message);
-      if (data.success && data.draft_id) {
-        setValue("draft_id", data.draft_id);
+
+      // Sincronía Nominal: Metal -> Crystal
+      const draftId = data.draftIdentification || data.draft_id;
+
+      if (data.success && draftId) {
+        setValue("draftIdentification", draftId);
         transitionTo("DRAFT_GENERATION_LOADER");
       }
     } catch (err: any) {
@@ -65,15 +81,15 @@ export function useFlowActions({ transitionTo, goBack, clearDraft }: UseFlowActi
    * [FIX]: Garantiza que las fuentes y el guion fluyan desde Supabase al formulario.
    */
   const hydrateDraftData = useCallback(async () => {
-    const draftId = getValues('draft_id');
+    const draftId = getValues('draftIdentification');
     if (!draftId) return false;
     try {
       const draft = await getDraftById(draftId);
       if (draft) {
-        setValue('final_title', draft.title, { shouldValidate: true });
+        setValue('finalTitle', draft.title, { shouldValidate: true });
         if (draft.script_text) {
           const script = draft.script_text as unknown as PodcastScript;
-          setValue('final_script', script.script_body || script.script_plain || "", { shouldValidate: true });
+          setValue('finalScript', script.script_body || script.script_plain || "", { shouldValidate: true });
         }
         if (draft.sources && Array.isArray(draft.sources)) {
           setValue('sources', draft.sources as any, { shouldValidate: true });
@@ -105,8 +121,20 @@ export function useFlowActions({ transitionTo, goBack, clearDraft }: UseFlowActi
       });
       if (error) throw new Error(error.message);
       if (data.success) {
-        setValue("discovery_context", data.dossier);
-        setValue("sources", data.sources);
+        // Sincronía Nominal: Metal ('dossier') -> Crystal ('discoveryContext')
+        const discoveryDossier = data.discoveryContext || data.dossier;
+
+        setValue("discoveryContext", discoveryDossier);
+
+        // Mapeo de Fuentes: url -> uniformResourceLocator
+        if (data.sources && Array.isArray(data.sources)) {
+          const mappedSources = data.sources.map((s: any) => ({
+            ...s,
+            uniformResourceLocator: s.uniformResourceLocator || s.url
+          }));
+          setValue("sources", mappedSources);
+        }
+
         transitionTo("LOCAL_ANALYSIS_LOADER");
       }
     } catch (err: any) {
@@ -128,7 +156,21 @@ export function useFlowActions({ transitionTo, goBack, clearDraft }: UseFlowActi
       const isLocalMode = values.purpose === 'local_soul';
       let endpoint = isPulseMode ? "generate-briefing-pill" : isLocalMode ? "geo-publish-content" : "queue-podcast-job";
 
-      const { data, error } = await supabase.functions.invoke(endpoint, { body: values });
+      // Mapeo de Boundary para Producción: Sincronía con Edge Functions legacy
+      const legacyProductionPayload = {
+        ...values,
+        draft_id: values.draftIdentification,
+        creation_mode: values.creationMode,
+        final_title: values.finalTitle,
+        final_script: values.finalScript,
+        pulse_source_ids: values.pulseSourceIdentifications,
+        sources: values.sources?.map(s => ({
+          ...s,
+          url: s.uniformResourceLocator // Retrocompatibilidad
+        }))
+      };
+
+      const { data, error } = await supabase.functions.invoke(endpoint, { body: legacyProductionPayload });
       if (error) throw new Error(error.message);
 
       const finalId = data.pod_id || data.podcast_id;

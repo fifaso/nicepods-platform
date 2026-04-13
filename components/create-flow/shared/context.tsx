@@ -47,7 +47,7 @@ export function CreationProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * updateFormData
-   * Sincroniza datos externos (como el draft_id de las Edge Functions) 
+   * Sincroniza datos externos (como el draftIdentification de las Edge Functions)
    * con el store de React Hook Form de forma segura.
    */
   const updateFormData = useCallback((data: Partial<PodcastCreationData>) => {

@@ -18,9 +18,9 @@ interface UsePulseEngineReturn {
   signals: PulseMatchResult[];
   error: string | null;
   updateDNA: (params: {
-    profile_text: string;
-    expertise_level?: number;
-    negative_interests?: string[];
+    profileText: string;
+    expertiseLevel?: number;
+    negativeInterests?: string[];
   }) => Promise<{ success: boolean; data?: any; error?: string }>;
   getRadarSignals: () => Promise<{ success: boolean; signals: PulseMatchResult[]; is_fallback: boolean }>;
   clearSignals: () => void;
@@ -49,9 +49,9 @@ export function usePulseEngine(): UsePulseEngineReturn {
    * para actualizar la tabla 'user_interest_dna' en PostgreSQL.
    */
   const updateDNA = useCallback(async (params: {
-    profile_text: string;
-    expertise_level?: number;
-    negative_interests?: string[];
+    profileText: string;
+    expertiseLevel?: number;
+    negativeInterests?: string[];
   }) => {
     // Verificación de Soberanía: Solo usuarios autenticados pueden mutar su ADN.
     if (!user || !supabase) {
@@ -65,7 +65,11 @@ export function usePulseEngine(): UsePulseEngineReturn {
       console.info("🧠 [Pulse-Engine] Sincronizando ADN Cognitivo...");
 
       const { data, error: functionError } = await supabase.functions.invoke('update-user-dna', {
-        body: params
+        body: {
+          profile_text: params.profileText,
+          expertise_level: params.expertiseLevel,
+          negative_interests: params.negativeInterests
+        }
       });
 
       if (functionError) throw new Error(functionError.message);
