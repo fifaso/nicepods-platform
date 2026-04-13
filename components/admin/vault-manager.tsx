@@ -68,7 +68,7 @@ export function VaultManager({ initialSources }: { initialSources: any[] }) {
                             </h3>
 
                             {source.url && (
-                                <a href={source.url} target="_blank" className="text-[10px] text-zinc-500 flex items-center gap-2 hover:text-primary transition-colors">
+                                <a href={source.url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-zinc-500 flex items-center gap-2 hover:text-primary transition-colors">
                                     <ExternalLink size={12} />
                                     <span className="truncate">{source.url}</span>
                                 </a>

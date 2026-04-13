@@ -246,7 +246,7 @@ export function FinalStep() {
                     {s.snippet && (
                       <p className="text-[10px] text-zinc-500 mb-3 italic">"{s.snippet.substring(0, 200)}..."</p>
                     )}
-                    <a href={s.uniformResourceLocator} target="_blank" className="text-[10px] text-primary flex items-center gap-2 font-bold uppercase"><ExternalLink size={12}/> Ir a la Fuente</a>
+                    <a href={s.uniformResourceLocator} target="_blank" rel="noopener noreferrer" className="text-[10px] text-primary flex items-center gap-2 font-bold uppercase"><ExternalLink size={12}/> Ir a la Fuente</a>
                   </div>
                 ))}
               </div>
