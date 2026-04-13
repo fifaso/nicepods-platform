@@ -1,12 +1,15 @@
 /**
  * ARCHIVO: components/geo/map-preview-frame.tsx
- * VERSIÓN: 23.0 (NicePod GO-Preview - Final Contract Alignment Edition)
- * PROTOCOLO: MADRID RESONANCE V4.0
+ * VERSIÓN: 24.0 (NicePod GO-Preview - Elastic Reveal & Zero-Wait Protocol Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.9
  * 
- * Misión: Ventana táctica de contexto cenital con aislamiento absoluto de recursos.
- * [REFORMA V23.0]: Sincronización nominal absoluta con MapCore V15.1 y 
- * CameraController V7.1. Eliminación definitiva de 'mapInstanceId' en favor de 
- * 'mapInstanceIdentification' para resolver el error TS2322 en Vercel.
+ * Misión: Ventana táctica de contexto cenital con aislamiento absoluto de recursos, 
+ * diseñada para el Dashboard central de la Workstation NicePod.
+ * [REFORMA V24.0]: Implementación del Protocolo de Revelado Elástico. Se elimina 
+ * el bloqueo secuencial de carga permitiendo que la Semilla T0 (Edge-IP) proyecte 
+ * la malla de inmediato. Integración de un Safety Timeout de 3000ms para forzar 
+ * el revelado ante latencias de GPU. Purificación absoluta de la Zero Abbreviations 
+ * Policy (ZAP) y cumplimiento del Dogma MTI.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -18,7 +21,7 @@ import Link from "next/link";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { MapProvider } from "react-map-gl/mapbox";
 
-// --- INFRAESTRUCTURA CORE V4.0 ---
+// --- INFRAESTRUCTURA CORE V4.9 ---
 import { useGeoEngine } from "@/hooks/use-geo-engine";
 import { cn, nicepodLog } from "@/lib/utils";
 
@@ -29,8 +32,8 @@ import {
 } from "./map-constants";
 
 // --- MOTORES DE RENDERIZADO Y CINEMÁTICA ---
-import MapCore from "./SpatialEngine/map-core";
 import { CameraController } from "./SpatialEngine/camera-controller";
+import MapCore from "./SpatialEngine/map-core";
 
 /**
  * MapPreviewFrame: El widget de visualización cenital del Dashboard central.
@@ -38,7 +41,7 @@ import { CameraController } from "./SpatialEngine/camera-controller";
 export const MapPreviewFrame = memo(function MapPreviewFrame() {
   const containerElementReference = useRef<HTMLDivElement>(null);
 
-  // 1. CONSUMO DE LA FACHADA SOBERANA (Triple-Core Facade V4.0)
+  // 1. CONSUMO DE LA FACHADA SOBERANA (Protocolo de Triangulación Elástica V53.0)
   const {
     userLocation,
     status: engineOperationalStatus,
@@ -46,67 +49,81 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
     setManualMode
   } = useGeoEngine();
 
-  // 2. MÁQUINA DE ESTADOS VISUAL LOCAL
+  // 2. MÁQUINA DE ESTADOS VISUAL LOCAL (RESILIENCIA TÁCTICA)
   const [isContainerEnvironmentReady, setIsContainerEnvironmentReady] = useState<boolean>(false);
   const [isMapEngineEnvironmentLoaded, setIsMapEngineEnvironmentLoaded] = useState<boolean>(false);
   const [isMapInterfaceVisible, setIsMapInterfaceVisible] = useState<boolean>(false);
-  
+
   const revealActionPerformedReference = useRef<boolean>(false);
 
   /**
    * 3. PROTOCOLO DE SEGURIDAD DE MONTAJE (Shielded Mount)
-   * Misión: Evitar el 'Forced Reflow' delegando la activación del contenedor 
-   * al ciclo de vida asíncrono de React.
+   * Misión: Evitar colisiones en el Hilo Principal delegando la ignición de la GPU.
    */
   useEffect(() => {
     const componentStabilizationTimeout = setTimeout(() => {
       setIsContainerEnvironmentReady(true);
-    }, 500); 
+    }, 300); // Latencia mínima para estabilización de DOM.
 
     return () => clearTimeout(componentStabilizationTimeout);
   }, []);
 
   /**
-   * 4. EL REVELADO SOBERANO (Framer Motion Integration)
-   * Misión: Disolver el velo de carga una vez que la GPU ha terminado el renderizado.
+   * 4. EL REVELADO SOBERANO (Elastic Map Reveal Action)
+   * Misión: Disolver el velo de carga una vez que la GPU reporta estabilidad.
    */
   const handleSovereignMapRevealAction = useCallback(() => {
-    if (revealActionPerformedReference.current) {
-        return;
-    }
-    
+    if (revealActionPerformedReference.current) return;
+
     revealActionPerformedReference.current = true;
     setIsMapInterfaceVisible(true);
-    
-    nicepodLog("✨ [MapPreview] Malla Dashboard sincronizada nominalmente.");
+    nicepodLog("✨ [MapPreview] Malla Dashboard sincronizada y visible.");
   }, []);
 
-  // Identificador único de instancia para la gobernanza de VRAM
+  /**
+   * 5. SAFETY TIMEOUT (INDUSTRIAL FAIL-SAFE)
+   * Misión: Si el evento 'onIdle' de WebGL no se dispara en 3 segundos,
+   * forzamos el revelado de la malla si el entorno ya está cargado.
+   */
+  useEffect(() => {
+    if (isContainerEnvironmentReady && isMapEngineEnvironmentLoaded && !isMapInterfaceVisible) {
+      const gracePeriodTimeout = setTimeout(() => {
+        if (!revealActionPerformedReference.current) {
+          nicepodLog("⚠️ [MapPreview] Safety Timeout ejecutado: Forzando visibilidad de malla.");
+          handleSovereignMapRevealAction();
+        }
+      }, 3000);
+
+      return () => clearTimeout(gracePeriodTimeout);
+    }
+  }, [isContainerEnvironmentReady, isMapEngineEnvironmentLoaded, isMapInterfaceVisible, handleSovereignMapRevealAction]);
+
+  // Identificador único de instancia para la gobernanza de VRAM (Hardware Hygiene)
   const currentMapInstanceIdentification = "map-dashboard";
 
   return (
     /**
-     * MapProvider local: Aislamiento total de contexto WebGL.
+     * MapProvider local: Aislamiento total de contexto WebGL (MTI).
      */
     <MapProvider>
       <motion.div
         ref={containerElementReference}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ duration: 1.2, ease: "easeOut" }}
+        transition={{ duration: 1.0, ease: "easeOut" }}
         className={cn(
           "relative w-full h-full overflow-hidden bg-[#010101] transition-all duration-700",
           "rounded-[2.5rem] md:rounded-[3rem] border border-white/5 shadow-2xl group isolate"
         )}
       >
-        <AnimatePresence>
+        <AnimatePresence mode="wait">
           {/* SMOKESCREEN: Capa de Protección Visual SSR & Loading */}
           {!isMapInterfaceVisible && (
-            <motion.div 
+            <motion.div
               key="map_loading_veil"
               initial={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 1 }}
+              exit={{ opacity: 0, scale: 1.05 }}
+              transition={{ duration: 0.8, ease: "easeInOut" }}
               className="absolute inset-0 z-[110] bg-[#020202] flex flex-col items-center justify-center space-y-8 pointer-events-auto"
             >
               {engineOperationalStatus === 'PERMISSION_DENIED' ? (
@@ -123,7 +140,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
                   <div className="text-center space-y-2">
                     <span className="text-[11px] font-black uppercase tracking-[0.4em] text-white">Sincronización Órbital</span>
                     <p className="text-[9px] font-bold uppercase tracking-[0.3em] text-primary/60 animate-pulse italic">
-                      {!isGeographicallyTriangulated ? "Mapeando Contexto..." : "Fijando Coordenadas..."}
+                      {!isGeographicallyTriangulated ? "Mapeando Contexto..." : "Sintonizando Malla..."}
                     </p>
                   </div>
                 </div>
@@ -133,9 +150,8 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
         </AnimatePresence>
 
         {/* 
-            VII. MOTOR WEBGL AISLADO (TACTICAL_LITE PROFILE)
-            [FIX V23.0]: Sincronización nominal estricta con MapCoreProperties V15.1.
-            Se utiliza 'mapInstanceIdentification' y 'selectedPointOfInterestIdentification'.
+            VII. REACTOR WEBGL AISLADO (TACTICAL_LITE PROFILE)
+            Misión: Renderizar la malla urbana con cualquier ubicación disponible (T0/WiFi/GPS).
         */}
         {isContainerEnvironmentReady && userLocation && (
           <div className={cn(
@@ -143,7 +159,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
             isMapInterfaceVisible ? "opacity-100" : "opacity-0"
           )}>
             <MapCore
-              mapInstanceIdentification={currentMapInstanceIdentification} 
+              mapInstanceIdentification={currentMapInstanceIdentification}
               mode="EXPLORE"
               performanceProfile="TACTICAL_LITE"
               startCoordinates={{
@@ -151,19 +167,19 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
                 ...INITIAL_OVERVIEW_CONFIGURATION
               }}
               lightTheme={ACTIVE_MAP_THEME}
-              selectedPointOfInterestIdentification={null} 
+              selectedPointOfInterestIdentification={null}
               onLoad={() => setIsMapEngineEnvironmentLoaded(true)}
               onIdle={handleSovereignMapRevealAction}
               onMove={() => setManualMode(true)}
-              onMapClick={() => {}}
-              onMarkerClick={() => {}}
+              onMapClick={() => { }}
+              onMarkerClick={() => { }}
             />
-            
-            {/* SOBERANÍA DE PERSPECTIVA DASHBOARD */}
+
+            {/* SOBERANÍA DE PERSPECTIVA DASHBOARD (FORCE OVERVIEW) */}
             {isMapEngineEnvironmentLoaded && (
-              <CameraController 
-                mapInstanceIdentification={currentMapInstanceIdentification} 
-                forcedPerspective="OVERVIEW" 
+              <CameraController
+                mapInstanceIdentification={currentMapInstanceIdentification}
+                forcedPerspective="OVERVIEW"
               />
             )}
           </div>
@@ -199,12 +215,14 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
   );
 });
 
+MapPreviewFrame.displayName = "MapPreviewFrame";
+
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V23.0):
- * 1. Contract Sovereignty: Se resolvió definitivamente el error TS2322 sincronizando 
- *    la propiedad 'mapInstanceIdentification' con los componentes MapCore y CameraController.
- * 2. Zero Abbreviations Policy: Purificación absoluta de la nomenclatura interna y 
- *    externa (engineOperationalStatus, isGeographicallyTriangulated, currentMapInstanceIdentification).
- * 3. Anti-Reflow Guard: El uso de 'AnimatePresence' para el velo de carga asegura que el 
- *    desmontaje del Smokescreen no provoque parpadeos en el hilo de renderizado de Mapbox.
+ * NOTA TÉCNICA DEL ARCHITECT (V24.0):
+ * 1. Zero-Wait Reveal: Se permite la renderización de 'MapCore' en cuanto 'userLocation' 
+ *    posee datos de la Semilla T0, eliminando el loop de carga en Dashboard.
+ * 2. Elastic UI Management: El velo de carga se disuelve mediante una combinación de 
+ *    eventos WebGL (onIdle) y un cronómetro de seguridad (Safety Timeout).
+ * 3. Zero Abbreviations Policy: Purificación absoluta de la nomenclatura interna:
+ *    isMapEngineEnvironmentLoaded, currentMapInstanceIdentification, handleSovereignMapRevealAction.
  */

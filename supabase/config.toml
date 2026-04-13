@@ -1,5 +1,6 @@
-# Para una referencia detallada de la configuración, visita:
-# https://supabase.com/docs/guides/local-development/cli/config
+# ARCHIVO: supabase/config.toml
+# VERSIÓN: 2.1 (NicePod Config - Edge Function Authority Edition)
+# PROTOCOLO: MADRID RESONANCE V4.9
 
 project_id = "nicepods-platform"
 
@@ -34,6 +35,17 @@ additional_redirect_urls = ["https://127.0.0.1:3000"]
 jwt_expiry = 3600
 enable_signup = true
 
-# NOTA: Las secciones [functions] y [edge_runtime] han sido eliminadas
-# ya que no son necesarias para la configuración actual y estaban causando errores.
-# La CLI utilizará su configuración por defecto, que es robusta.
+# ---------------------------------------------------------------------------
+# I. CONFIGURACIÓN DE EDGE FUNCTIONS (THE IMPORT BRIDGE)
+# ---------------------------------------------------------------------------
+# Misión: Vincular el mapa de importaciones para resolver alias como "@/".
+# [MANDATO]: Esta sección es vital para que el CLI pueda construir el grafo
+# de dependencias hacia el exterior de la carpeta /functions.
+# ---------------------------------------------------------------------------
+
+[functions]
+import_map = "./functions/deno.json"
+verify_jwt = false
+
+# NOTA TÉCNICA: Se establece 'verify_jwt' a nivel global para simplificar 
+# el despliegue, pero se recomienda activar por función en producción.
