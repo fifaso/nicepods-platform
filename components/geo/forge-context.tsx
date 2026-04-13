@@ -265,7 +265,7 @@ export function ForgeProvider({ children }: { children: React.ReactNode }) {
   const { userLocation, isGPSLock: isGlobalPositioningSystemLocked } = useGeoEngine();
 
   /**
-   * 1. PROTOCOLO DE HIDRATACIÓN T0 (RESILIENCIA INDUSTRIAL)
+   * 1. PROTOCOLO DE HIDRATACIÓN EN TIEMPO CERO (RESILIENCIA INDUSTRIAL)
    * Misión: Recuperar el estado de la forja desde el almacenamiento de sesión persistente.
    */
   useEffect(() => {
@@ -275,7 +275,7 @@ export function ForgeProvider({ children }: { children: React.ReactNode }) {
         const parsedMetadata = JSON.parse(savedMetadataJsonString);
         
         // Validación de Integridad de Esquema (Anti-Amnesia Protection)
-        if (parsedMetadata.schema_version !== FORGE_SESSION_METADATA_VERSION_IDENTIFIER) {
+        if (parsedMetadata.schemaVersionIdentifier !== FORGE_SESSION_METADATA_VERSION_IDENTIFIER) {
           nicepodLog("🛡️ [ForgeContext] Esquema obsoleto detectado. Purgando caché de sesión de forja.");
           sessionStorage.removeItem(FORGE_SESSION_STORAGE_KEY_NAME);
           return;
@@ -291,7 +291,7 @@ export function ForgeProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * 2. PROTOCOLO DE HERENCIA GEODÉSICA (INSTANT AUTO-SYNC)
-   * [INTERVENCIÓN V6.3]: Si el motor unificado de plataforma ya posee un bloqueo HD, 
+   * [INTERVENCIÓN V6.3]: Si el motor unificado de plataforma ya posee un bloqueo de alta definición,
    * la forja auto-ingesta la ubicación exacta, eliminando la latencia manual en Step 1.
    * Punto de Sinergia: Dashboard -> Forge Transition.
    */
@@ -300,7 +300,7 @@ export function ForgeProvider({ children }: { children: React.ReactNode }) {
     const hasNotFixedCoordinatesYet = state.latitudeCoordinate === null;
 
     if (isGlobalPositioningSystemLocked && userLocation && isStepOneActive && hasNotFixedCoordinatesYet) {
-      nicepodLog("🛰️ [ForgeContext] Heredando telemetría de alta precisión (HD) desde el motor unificado.");
+      nicepodLog("🛰️ [ForgeContext] Heredando telemetría de alta precisión (High-Fidelity) desde el motor unificado.");
       dispatch({
         type: 'SET_LOCATION',
         payload: {
@@ -314,7 +314,7 @@ export function ForgeProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * 3. PERSISTENCIA DE ALTO RENDIMIENTO (DEBOUNCED STORAGE SYNC)
-   * [MTI]: Sincronización diferida para proteger los 60 FPS de la terminal.
+   * [MTI]: Sincronización diferida para proteger los 60 cuadros por segundo de la terminal.
    */
   useEffect(() => {
     if (state.isSessionMetadataModified) {
@@ -324,7 +324,7 @@ export function ForgeProvider({ children }: { children: React.ReactNode }) {
       
       debounceTimerReference.current = setTimeout(() => {
         const serializableSessionMetadata = {
-          schema_version: FORGE_SESSION_METADATA_VERSION_IDENTIFIER,
+          schemaVersionIdentifier: FORGE_SESSION_METADATA_VERSION_IDENTIFIER,
           currentActiveStep: state.currentActiveStep,
           latitudeCoordinate: state.latitudeCoordinate,
           longitudeCoordinate: state.longitudeCoordinate,
@@ -348,7 +348,7 @@ export function ForgeProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * 4. GUARDIÁN DE ACTIVOS BINARIOS (ANTI-AMNESIA SHIELD)
-   * Misión: Bloquear el cierre accidental del navegador si existen evidencias en RAM.
+   * Misión: Bloquear el cierre accidental del navegador si existen evidencias en memoria de acceso aleatorio.
    */
   useEffect(() => {
     const handleBeforeUnloadAction = (unloadEvent: BeforeUnloadEvent) => {
@@ -431,10 +431,10 @@ export function useForge() {
 
 /**
  * NOTA TÉCNICA DEL ARCHITECT (V6.3):
- * 1. SSS Protocol Integration: El contexto ahora hereda pasivamente la ubicación HD del 
+ * 1. SSS Protocol Integration: El contexto ahora hereda pasivamente la ubicación de alta definición del
  *    motor global unificado, cerrando la brecha de latencia detectada en las fases de creación.
  * 2. ZAP Absolute Compliance: Se han purificado el 100% de los identificadores internos 
  *    y se han expandido los nombres de almacenamiento (FORGE_SESSION_STORAGE_KEY_NAME).
- * 3. Atomic State Recovery: El sistema de hidratación T0 garantiza la persistencia 
+ * 3. Atomic State Recovery: El sistema de hidratación en tiempo cero garantiza la persistencia
  *    pericial del expediente incluso ante refrescos de página durante la Fase 3.
  */

@@ -4,7 +4,7 @@
  * PROTOCOLO: MADRID RESONANCE V4.5
  * 
  * Misión: Gestionar el ciclo de vida de ingesta sensorial orquestando la compresión 
- * Just-In-Time (JIT), la transcripción de voz y la transmisión directa de binarios 
+ * en tiempo real (Just-In-Time), la transcripción de voz y la transmisión directa de binarios
  * mediante el Protocolo Lightning (Signed Uniform Resource Locators).
  * [REFORMA V9.0]: Sincronización nominal total con la Constitución de Soberanía V8.6 
  * y las Acciones Geográficas V14.0. Resolución de "Uniones Débiles" mediante la 
@@ -131,7 +131,7 @@ export function useForgeOrchestrator() {
       }
 
       /**
-       * 2. CONCURRENCIA DE PREPARACIÓN DE ACTIVOS (MTI - PILAR 4)
+       * 2. CONCURRENCIA DE PREPARACIÓN DE ACTIVOS (Aislamiento de Hilo Principal - PILAR 4)
        */
       const [
         compressedHeroImageBlob, 

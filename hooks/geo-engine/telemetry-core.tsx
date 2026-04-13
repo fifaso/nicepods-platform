@@ -26,7 +26,7 @@ import { useSensorAuthority } from "../use-sensor-authority";
  */
 const EMISSION_THRESHOLD_METERS = 0.8;    // Escudo contra micro-vibraciones del hardware
 const TELEPORT_THRESHOLD_METERS = 100.0;  // Detección de anomalías de salto cuántico
-const SOVEREIGN_ACCURACY_THRESHOLD_METERS = 30; // Umbral para bloqueo satelital HD
+const SOVEREIGN_ACCURACY_THRESHOLD_METERS = 30; // Umbral para bloqueo satelital de alta definición
 
 /**
  * INTERFAZ: TelemetryCoreReturn
@@ -190,7 +190,7 @@ export function TelemetryProvider({
 
         /**
          * FILTRADO CINEMÁTICO: Solo emitimos cambios tangibles para optimizar 
-         * el renderizado en el Hilo Principal (MTI).
+         * el renderizado en el Hilo Principal (Main Thread Isolation).
          */
         if (
           physicalMovementDistanceMagnitude > EMISSION_THRESHOLD_METERS || 
