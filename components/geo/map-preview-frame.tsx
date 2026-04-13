@@ -25,7 +25,7 @@ import { cn, nicepodLog } from "@/lib/utils";
 // --- ADN DE CONSTANTES SOBERANAS ---
 import {
   ACTIVE_MAP_THEME,
-  INITIAL_OVERVIEW_CONFIG
+  INITIAL_OVERVIEW_CONFIGURATION
 } from "./map-constants";
 
 // --- MOTORES DE RENDERIZADO Y CINEMÁTICA ---
@@ -148,7 +148,7 @@ export const MapPreviewFrame = memo(function MapPreviewFrame() {
               performanceProfile="TACTICAL_LITE"
               startCoordinates={{
                 ...userLocation,
-                ...INITIAL_OVERVIEW_CONFIG
+                ...INITIAL_OVERVIEW_CONFIGURATION
               }}
               lightTheme={ACTIVE_MAP_THEME}
               selectedPointOfInterestIdentification={null} 

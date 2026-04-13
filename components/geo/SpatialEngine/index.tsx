@@ -30,8 +30,8 @@ import { cn, nicepodLog } from "@/lib/utils";
 
 // --- CONSTANTES DE FÍSICA Y CONTRATOS SOBERANOS ---
 import {
-  FLY_CONFIG,
-  MADRID_SOL_COORDS,
+  FLY_CONFIGURATION,
+  MADRID_SOL_COORDINATES,
   MAP_STYLES,
   MapboxLightPreset,
   MapPerformanceProfile,
@@ -114,8 +114,8 @@ export function SpatialEngine({
   const [showAuthorityPulseFeedback, setShowAuthorityPulseFeedback] = useState<boolean>(false);
 
   const [currentSearchGeographicPosition, setCurrentSearchGeographicPosition] = useState({
-    latitudeCoordinate: MADRID_SOL_COORDS.latitude,
-    longitudeCoordinate: MADRID_SOL_COORDS.longitude,
+    latitudeCoordinate: MADRID_SOL_COORDINATES.latitude,
+    longitudeCoordinate: MADRID_SOL_COORDINATES.longitude,
   });
 
   /**
@@ -171,8 +171,8 @@ export function SpatialEngine({
     if (userLocation) return userLocation;
 
     return {
-      latitudeCoordinate: MADRID_SOL_COORDS.latitude,
-      longitudeCoordinate: MADRID_SOL_COORDS.longitude,
+      latitudeCoordinate: MADRID_SOL_COORDINATES.latitude,
+      longitudeCoordinate: MADRID_SOL_COORDINATES.longitude,
       accuracyMeters: 9999,
       headingDegrees: null,
       speedMetersPerSecond: null,
@@ -242,7 +242,7 @@ export function SpatialEngine({
         mapInstanceEngineReference.current.flyTo({
           center: [industrialCoordinates.longitudeCoordinate, industrialCoordinates.latitudeCoordinate],
           zoom: ZOOM_LEVELS.STREET,
-          ...FLY_CONFIG
+          ...FLY_CONFIGURATION
         });
       }
     }

@@ -30,8 +30,8 @@ export function usePodcastSync(initialData: PodcastWithProfile) {
   const [processingStatus, setProcessingStatus] = useState<string>(initialData.processing_status || 'pending');
 
   // --- REFERENCIAS DE CONTROL (Evitar cierres prematuros) ---
-  const channelRef = useRef<any>(null);
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const realtimeChannelReference = useRef<any>(null);
+  const pollingIntervalReference = useRef<NodeJS.Timeout | null>(null);
 
   /**
    * syncStates: Actualizador atómico para la malla de estados locales.
@@ -75,7 +75,7 @@ export function usePodcastSync(initialData: PodcastWithProfile) {
     // 2. SUSCRIPCIÓN REALTIME
     nicepodLog(`🛰️ [Realtime] Activando radar para Pod #${initialData.id}`);
 
-    channelRef.current = supabase
+    realtimeChannelReference.current = supabase
       .channel(`pod_sync_${initialData.id}`)
       .on(
         'postgres_changes',
@@ -102,7 +102,7 @@ export function usePodcastSync(initialData: PodcastWithProfile) {
 
     // 3. POLLING DE RESILIENCIA
     // Se ejecuta cada 5 segundos para cubrir fallos silenciosos de WebSocket.
-    pollIntervalRef.current = setInterval(() => {
+    pollingIntervalReference.current = setInterval(() => {
       if (isMounted) {
         fetchLatestStatus();
       }
@@ -111,13 +111,13 @@ export function usePodcastSync(initialData: PodcastWithProfile) {
     // 4. PROTOCOLO DE DESCONEXIÓN (CLEANUP)
     return () => {
       isMounted = false;
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
+      if (realtimeChannelReference.current) {
+        supabase.removeChannel(realtimeChannelReference.current);
+        realtimeChannelReference.current = null;
       }
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-        pollIntervalRef.current = null;
+      if (pollingIntervalReference.current) {
+        clearInterval(pollingIntervalReference.current);
+        pollingIntervalReference.current = null;
       }
       nicepodLog(`🔌 [Realtime] Desconectando radar del Pod #${initialData.id}`);
     };
@@ -142,5 +142,5 @@ export function usePodcastSync(initialData: PodcastWithProfile) {
  *    del componente, proporcionando una red de seguridad absoluta contra WebSockets 
  *    que se cierran inesperadamente en Vercel.
  * 3. Limpieza de Memoria: El protocolo de Cleanup ahora limpia explícitamente el 
- *    channelRef y el intervalo, asegurando que no queden procesos zombis al cambiar de vista.
+ *    realtimeChannelReference y el intervalo, asegurando que no queden procesos zombis al cambiar de vista.
  */

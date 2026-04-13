@@ -72,11 +72,11 @@ export function PodcastView({
 
   // 2. Control de Audio y Telemetría de Hardware
   const { 
-    playPodcast, 
-    currentPodcast, 
-    isPlaying, 
-    isLoading: isAudioPlaybackLoading, 
-    togglePlayPause 
+    playPodcastAction,
+    currentActivePodcast,
+    isAudioPlaying,
+    isAudioLoading: isAudioPlaybackLoading,
+    togglePlayPauseAction
   } = useAudio();
 
   // 3. Estado de Escucha para Protocolo QA (95% Threshold)
@@ -96,8 +96,8 @@ export function PodcastView({
   );
   
   const isCurrentPillActive = useMemo(() => 
-    currentPodcast?.id === livePodcastData.id, 
-    [currentPodcast?.id, livePodcastData.id]
+    currentActivePodcast?.id === livePodcastData.id,
+    [currentActivePodcast?.id, livePodcastData.id]
   );
 
   /**
@@ -143,11 +143,11 @@ export function PodcastView({
   const handlePlaybackControlAction = useCallback(() => {
     const publishedRepliesCollection = replies.filter(replyItem => replyItem.status === 'published');
     if (isCurrentPillActive) {
-      togglePlayPause();
+      togglePlayPauseAction();
     } else {
-      playPodcast(livePodcastData, publishedRepliesCollection);
+      playPodcastAction(livePodcastData, publishedRepliesCollection);
     }
-  }, [isCurrentPillActive, togglePlayPause, playPodcast, livePodcastData, replies]);
+  }, [isCurrentPillActive, togglePlayPauseAction, playPodcastAction, livePodcastData, replies]);
 
   const handleResonanceInteractionAction = useCallback(async () => {
     if (!supabaseClient || !authenticatedUser || isPlaybackInteractionActive) return;
@@ -229,7 +229,7 @@ export function PodcastView({
           <AudioConsole
             audioReady={isAudioReady}
             audioLoading={isAudioPlaybackLoading}
-            isPlaying={isPlaying}
+            isPlaying={isAudioPlaying}
             isCurrentActive={isCurrentPillActive}
             isConstructing={isIntelligenceConstructing}
             likeCount={resonanceCount}

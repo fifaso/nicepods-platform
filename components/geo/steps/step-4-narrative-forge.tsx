@@ -8,7 +8,7 @@
  * de publicación soberana y transmisión directa de binarios (Lightning Protocol).
  * [REFORMA V9.0]: Sincronización nominal total con la Constitución V8.6 y el 
  * ForgeContext V6.0. Implementación de la política de limpieza de buffers 
- * (RAM Flush) tras el éxito de la transacción. Cumplimiento absoluto de ZAP.
+ * (memoria de acceso aleatorio) tras el éxito de la transacción. Cumplimiento absoluto de la política de cero abreviaciones.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -96,8 +96,8 @@ export default function Step4NarrativeForge() {
   /**
    * handleFinalChroniclePublicationWorkflow:
    * Misión: Recibir el binario acústico, transmitirlo a la Bóveda y sellar el nodo.
-   * [INTERVENCIÓN V9.0]: RAM Flush Protocol. Al finalizar, purgamos el estado para 
-   * forzar la limpieza de buffers y revocar URLs de objetos en el GeoRecorder.
+   * [INTERVENCIÓN V9.0]: Protocolo de Purga de Memoria de Acceso Aleatorio. Al finalizar, purgamos el estado para
+   * forzar la limpieza de buffers y revocar localizadores uniformes de recursos de objetos en el GeoRecorder.
    */
   const handleFinalChroniclePublicationWorkflow = useCallback(async (
     capturedAudioBinaryBlob: Blob, 
@@ -143,7 +143,7 @@ export default function Step4NarrativeForge() {
       const publicationCommitResults = await publishSovereignChronicleAction({
         pointOfInterestIdentification: pointOfInterestIdentification,
         chronicleStoragePath: audioStoragePath,
-        durationSeconds: recordingDurationSecondsMagnitude
+        durationSeconds: Math.floor(recordingDurationSecondsMagnitude)
       });
 
       if (publicationCommitResults.success) {
@@ -362,7 +362,7 @@ export default function Step4NarrativeForge() {
  * 1. RAM Flush Implementation: Tras el éxito de la publicación, se despacha el reset 
  *    del ForgeContext, lo que provoca el desmontaje destructivo del GeoRecorder y la 
  *    consecuente liberación de memoria acústica.
- * 2. Zero Abbreviations Policy (ZAP): Sincronización nominal total con ForgeContext V6.0 
+ * 2. Zero Abbreviations Policy (Zero Abbreviations Policy): Sincronización nominal total con ForgeContext V6.0
  *    (narrativeDepth, narrativeTone, administratorIntentText).
  * 3. Build Shield Sovereignty: Saneamiento de las llamadas a Server Actions y hooks 
  *    de fachada, garantizando que todos los payloads cumplan con la Constitución V8.6.

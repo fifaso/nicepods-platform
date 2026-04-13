@@ -16,12 +16,12 @@ interface CollectionJourneyProps {
 }
 
 export function CollectionJourneyView({ collection, podcasts }: CollectionJourneyProps) {
-    const { playPodcast, currentPodcast, isPlaying } = useAudio();
+    const { playPodcastAction, currentActivePodcast, isAudioPlaying } = useAudio();
 
     const handleStartJourney = () => {
         if (podcasts.length > 0) {
             // Inicia con el primer podcast y carga todos en la cola (Queue)
-            playPodcast(podcasts[0], podcasts);
+            playPodcastAction(podcasts[0], podcasts);
         }
     };
 
@@ -80,11 +80,11 @@ export function CollectionJourneyView({ collection, podcasts }: CollectionJourne
                 <h3 className="text-xs font-black uppercase tracking-[0.3em] text-primary/60 text-center mb-8">Composición del Hilo</h3>
                 <div className="grid gap-3">
                     {podcasts.map((pod, idx) => {
-                        const isActive = currentPodcast?.id === pod.id;
+                        const isActive = currentActivePodcast?.id === pod.id;
                         return (
                             <div
                                 key={pod.id}
-                                onClick={() => playPodcast(pod, podcasts)}
+                                onClick={() => playPodcastAction(pod, podcasts)}
                                 className={cn(
                                     "group p-6 bg-white/5 border transition-all cursor-pointer rounded-[2rem] flex items-center gap-6",
                                     isActive ? "border-primary bg-primary/10 shadow-lg" : "border-white/5 hover:border-white/20 hover:bg-white/10"
@@ -95,7 +95,7 @@ export function CollectionJourneyView({ collection, podcasts }: CollectionJourne
                                 </span>
                                 <div className="relative h-16 w-16 rounded-2xl overflow-hidden shadow-xl flex-shrink-0">
                                     {pod.cover_image_url ? <Image src={pod.cover_image_url} alt="" fill className="object-cover" /> : <Mic size={24} />}
-                                    {isActive && isPlaying && (
+                                    {isActive && isAudioPlaying && (
                                         <div className="absolute inset-0 bg-primary/40 flex items-center justify-center">
                                             <div className="flex gap-1">
                                                 <div className="w-1 h-4 bg-white animate-bounce" style={{ animationDelay: '0ms' }} />

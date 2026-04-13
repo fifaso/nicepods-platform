@@ -43,15 +43,15 @@ import { ScriptViewer } from "@/components/podcast/script-viewer";
  */
 export function FullScreenPlayer() {
   const {
-    currentPodcast,
-    isPlaying,
-    isLoading: isPlaybackLoading,
-    togglePlayPause,
-    seekTo,
-    skipForward,
-    skipBackward,
-    collapsePlayer,
-    logInteractionEvent
+    currentActivePodcast: currentPodcast,
+    isAudioPlaying: isPlaying,
+    isAudioLoading: isPlaybackLoading,
+    togglePlayPauseAction: togglePlayPause,
+    seekToTimeAction: seekTo,
+    skipForwardAction: skipForward,
+    skipBackwardAction: skipBackward,
+    collapsePlayerInterface: collapsePlayer,
+    logInteractionEventAction: logInteractionEvent
   } = useAudio();
 
   const { supabase: supabaseClient, user: authenticatedUser, profile: administratorProfile } = useAuth();

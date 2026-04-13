@@ -29,6 +29,7 @@ import { CSPostHogProvider } from '@/components/providers/posthog-provider';
 import { ErrorBoundary } from "@/components/system/error-boundary";
 import { PwaLifecycle } from "@/components/system/pwa-lifecycle";
 import { ThemeProvider } from "@/components/system/theme-provider";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/use-auth";
 import { createClient } from '@/lib/supabase/server';
 import { Tables } from "@/types/database.types";
@@ -195,28 +196,30 @@ export default async function RootLayout({
               disableTransitionOnChange={true}
               storageKey="theme"
             >
-              <AuthProvider
-                initialSession={initialAuthenticationSessionData}
-                initialProfile={initialAdministratorProfileData}
-              >
-                <AudioProvider>
-                  {/* 
-                      IV. SOBERANÍA DE TELEMETRÍA GLOBAL (MADRID RESONANCE V4.8)
-                      [MANDATO ESTRATÉGICO]: El GeoEngineProvider reside en la raíz 
-                      para garantizar que la ubicación sea compartida entre Marketing, 
-                      Dashboard y la Terminal de Forja sin interrupciones.
-                  */}
-                  <GeoEngineProvider initialData={initialGeographicIntelligenceData}>
-                    <main className="min-h-screen relative flex flex-col bg-[#010101] isolate">
-                      <BackgroundEngine />
-                      
-                      <div className="relative z-10 flex flex-col flex-1 bg-transparent isolate">
-                        {children}
-                      </div>
-                    </main>
-                  </GeoEngineProvider>
-                </AudioProvider>
-              </AuthProvider>
+              <TooltipProvider>
+                <AuthProvider
+                  initialSession={initialAuthenticationSessionData}
+                  initialProfile={initialAdministratorProfileData}
+                >
+                  <AudioProvider>
+                    {/*
+                        IV. SOBERANÍA DE TELEMETRÍA GLOBAL (MADRID RESONANCE V4.8)
+                        [MANDATO ESTRATÉGICO]: El GeoEngineProvider reside en la raíz
+                        para garantizar que la ubicación sea compartida entre Marketing,
+                        Dashboard y la Terminal de Forja sin interrupciones.
+                    */}
+                    <GeoEngineProvider initialData={initialGeographicIntelligenceData}>
+                      <main className="min-h-screen relative flex flex-col bg-[#010101] isolate">
+                        <BackgroundEngine />
+
+                        <div className="relative z-10 flex flex-col flex-1 bg-transparent isolate">
+                          {children}
+                        </div>
+                      </main>
+                    </GeoEngineProvider>
+                  </AudioProvider>
+                </AuthProvider>
+              </TooltipProvider>
             </ThemeProvider>
           </ErrorBoundary>
         </CSPostHogProvider>

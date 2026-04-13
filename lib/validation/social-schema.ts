@@ -1,14 +1,18 @@
-//lib/validation/social-schema.ts
-//version: 2.5
+/**
+ * ARCHIVO: lib/validation/social-schema.ts
+ * VERSIÓN: 3.0 (NicePod Social Validation - Madrid Resonance Protocol V4.0)
+ * PROTOCOLO: MADRIdentificación RESONANCE V4.0
+ *
+ * Misión: Gobernar la integridad de las interacciones sociales y perfiles,
+ * asegurando la paridad nominal con el Metal y cumplimiento estricto de ZAP.
+ * [MANDATO]: Zero Abbreviations Policy (ZAP) y Nominal Mirroring (camelCase).
+ */
+
 import { z } from "zod";
 
 /**
  * ESQUEMA: ProfileUpdateSchema
  * Misión: Validar la actualización de la identidad soberana del curador.
- * 
- * [ESTABILIZACIÓN]: 
- * - Se elimina 'handle' y se sustituye por 'username' (Paridad con DB).
- * - Se elimina 'display_name' y se sustituye por 'full_name' (Paridad con DB).
  */
 export const ProfileUpdateSchema = z.object({
   username: z
@@ -21,7 +25,7 @@ export const ProfileUpdateSchema = z.object({
     .trim()
     .toLowerCase(),
 
-  full_name: z
+  fullName: z
     .string()
     .min(2, { message: "El nombre completo debe tener al menos 2 caracteres." })
     .max(60, { message: "El nombre completo no puede exceder los 60 caracteres." })
@@ -36,13 +40,13 @@ export const ProfileUpdateSchema = z.object({
     .optional()
     .transform((val) => val?.trim() || null),
 
-  avatar_url: z
+  avatarUniformResourceLocator: z
     .string()
     .url({ message: "La URL del avatar debe ser una dirección válida." })
     .nullable()
     .optional(),
 
-  website_url: z
+  websiteUniformResourceLocator: z
     .string()
     .url({ message: "La URL del sitio web debe ser una dirección válida." })
     .or(z.literal(""))
@@ -50,7 +54,7 @@ export const ProfileUpdateSchema = z.object({
     .optional()
     .transform((val) => (val === "" ? null : val)),
 
-  bio_short: z
+  bioShort: z
     .string()
     .max(60, { message: "La biografía corta no puede exceder los 60 caracteres." })
     .nullable()
@@ -62,8 +66,8 @@ export const ProfileUpdateSchema = z.object({
  * Misión: Validar la integridad de las reseñas sociales (Testimonios) entre curadores.
  */
 export const TestimonialSchema = z.object({
-  profile_user_id: z.string().uuid({ message: "ID de perfil inválido." }),
-  comment_text: z
+  profileUserIdentification: z.string().uuid({ message: "Identificación de perfil inválido." }),
+  commentText: z
     .string()
     .min(10, { message: "El testimonio debe tener al menos 10 caracteres." })
     .max(500, { message: "El testimonio no puede exceder los 500 caracteres." })
@@ -88,9 +92,9 @@ export const CollectionSchema = z.object({
     .nullable()
     .optional(),
 
-  is_public: z.boolean().default(true),
+  isPublic: z.boolean().default(true),
 
-  cover_image_url: z
+  coverImageUniformResourceLocator: z
     .string()
     .url({ message: "La URL de la carátula debe ser una dirección válida." })
     .nullable()
@@ -104,10 +108,3 @@ export const CollectionSchema = z.object({
 export type ProfileUpdatePayload = z.infer<typeof ProfileUpdateSchema>;
 export type TestimonialPayload = z.infer<typeof TestimonialSchema>;
 export type CollectionPayload = z.infer<typeof CollectionSchema>;
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT:
- * Este archivo establece la frontera de seguridad de NicePod V2.5. 
- * Cualquier intento de inyectar columnas obsoletas (como 'handle' o 'display_name')
- * será interceptado aquí antes de llegar a la capa de persistencia (PostgreSQL).
- */

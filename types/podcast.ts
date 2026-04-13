@@ -79,7 +79,7 @@ export interface PodcastScript {
  */
 export interface ResearchSource {
   title: string;
-  url: string;
+  uniformResourceLocator: string;
   source_name?: string;               // Origen de la autoridad de dominio
   content_type?: string;              // Taxonomía de fuente (ej: 'paper', 'report')
   summary?: string;                   // Abstract ejecutivo de la evidencia
@@ -127,7 +127,7 @@ export interface CreationMetadataPayload {
   style?: 'solo' | 'link' | 'archetype' | 'qa' | 'legacy' | 'remix' | 'local_concierge' | 'briefing';
   agentName?: string;
   creation_mode: 'standard' | 'remix' | 'situational' | 'pulse';
-  discovery_context?: DiscoveryContextPayload | null;
+  discoveryContext?: DiscoveryContextPayload | null;
   location?: {
     latitude: number;
     longitude: number;

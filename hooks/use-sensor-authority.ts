@@ -13,7 +13,7 @@
 
 "use client";
 
-import { MADRID_SOL_COORDS } from "@/components/geo/map-constants";
+import { MADRID_SOL_COORDINATES } from "@/components/geo/map-constants";
 import { nicepodLog } from "@/lib/utils";
 import { UserLocation, TelemetrySource } from "@/types/geo-sovereignty";
 import { useCallback, useEffect, useRef, useState } from "react";

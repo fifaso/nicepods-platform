@@ -10,10 +10,10 @@ import { Mic } from "lucide-react";
 import { useAudio } from "@/contexts/audio-context";
 
 export function FloatingActionButton() {
-  const { currentPodcast } = useAudio();
+  const { currentActivePodcast } = useAudio();
   
   // Si hay reproductor, subimos mucho más (bottom-32) para librar el player y su progreso
-  const bottomPosition = currentPodcast ? "bottom-32" : "bottom-6";
+  const bottomPosition = currentActivePodcast ? "bottom-32" : "bottom-6";
 
   return (
     <motion.div

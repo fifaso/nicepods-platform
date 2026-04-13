@@ -59,7 +59,7 @@ export function LocalDiscoveryStep() {
   const location = watch("location");
   const selectedLens = watch("selectedTone");
   const imageContext = watch("imageContext");
-  const manualTopic = watch("solo_topic");
+  const manualTopic = watch("soloTopic");
 
   /**
    * handleManualSearch: Geocodificación directa de intención.
@@ -168,9 +168,9 @@ export function LocalDiscoveryStep() {
 
       // [SANEAMIENTO DE DATOS]: Eliminación de 'as any'
       // Inyectamos el dossier generado por la IA en el flujo de creación.
-      setValue('discovery_context', data.dossier);
+      setValue('discoveryContext', data.dossier);
       setValue('sources', data.sources || []);
-      setValue('solo_topic', data.poi || manualTopic || "Punto de Resonancia");
+      setValue('soloTopic', data.poi || manualTopic || "Punto de Resonancia");
       
       // Establecemos la personalidad del agente situacional
       setValue('agentName', 'local-concierge-v1');
@@ -204,7 +204,7 @@ export function LocalDiscoveryStep() {
                     placeholder="Busca un hito o plaza..." 
                     className="pl-12 h-12 bg-white/5 border-white/10 rounded-xl text-base focus:border-primary/50"
                     onBlur={handleManualSearch}
-                    onChange={(e) => setValue("solo_topic", e.target.value)}
+                    onChange={(e) => setValue("soloTopic", e.target.value)}
                 />
                 {isSearching && <Loader2 className="absolute right-4 top-4 h-4 w-4 animate-spin text-primary" />}
             </div>

@@ -29,10 +29,16 @@ export const BackgroundEngine = memo(function BackgroundEngine() {
   // 1. ESCUDO DE HIDRATACIÓN (Zero-Flicker Shield)
   const [isComponentMounted, setIsComponentMounted] = useState<boolean>(false);
 
+  /**
+   * isDocumentHidden: Estado para suspender animaciones cuando la pestaña no es visible.
+   * [THERMIC V15.1]: "Silence is Performance" protocol.
+   */
+  const [isDocumentHidden, setIsDocumentHidden] = useState<boolean>(false);
+
   // 2. ANÁLISIS DE ENTORNO TÁCTICO
   // Hibernamos la atmósfera solo en el mapa para proteger el Main Thread del WebGL.
   const isGeographicInterfaceActive = currentNavigationPathname?.startsWith('/map');
-  const shouldHibernateAtmosphere = isGeographicInterfaceActive;
+  const shouldHibernateAtmosphere = isGeographicInterfaceActive || isDocumentHidden;
 
   const horizontalPointerCoordinate = useMotionValue(0);
   const verticalPointerCoordinate = useMotionValue(0);
@@ -44,6 +50,14 @@ export const BackgroundEngine = memo(function BackgroundEngine() {
   useEffect(() => {
     setIsComponentMounted(true);
 
+    const handleVisibilityChangeAction = () => {
+      setIsDocumentHidden(document.hidden);
+    };
+
+    if (typeof document !== 'undefined') {
+      document.addEventListener("visibilitychange", handleVisibilityChangeAction);
+    }
+
     const handlePointerMovementAction = (mouseEvent: MouseEvent) => {
       if (!shouldHibernateAtmosphere) {
         horizontalPointerCoordinate.set(mouseEvent.clientX);
@@ -54,7 +68,10 @@ export const BackgroundEngine = memo(function BackgroundEngine() {
     if (typeof window !== "undefined" && window.matchMedia("(pointer: fine)").matches && !shouldHibernateAtmosphere) {
       window.addEventListener("mousemove", handlePointerMovementAction);
     }
-    return () => window.removeEventListener("mousemove", handlePointerMovementAction);
+    return () => {
+      window.removeEventListener("mousemove", handlePointerMovementAction);
+      document.removeEventListener("visibilitychange", handleVisibilityChangeAction);
+    };
   }, [horizontalPointerCoordinate, verticalPointerCoordinate, shouldHibernateAtmosphere]);
 
   // [FIX V15.0]: Si no está montado, renderizamos un contenedor vacío que coincida 100% 

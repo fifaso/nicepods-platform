@@ -243,15 +243,15 @@ function TestimonialCard({ testimonialData }: TestimonialCardProperties) {
       <div className="flex items-start gap-6 mb-8">
         <div className="h-14 w-14 rounded-full bg-zinc-800 border border-white/10 overflow-hidden relative shadow-inner">
           <Image 
-            src={getSafeAsset(testimonialData.author?.avatar_url, 'avatar')} 
-            alt={testimonialData.author?.full_name || "Identidad del Curador"} 
+            src={getSafeAsset(testimonialData.author?.avatarUniformResourceLocator, 'avatar')}
+            alt={testimonialData.author?.fullName || "Identidad del Curador"}
             fill 
             className="object-cover"
           />
         </div>
         <div className="flex-1 min-w-0">
           <h5 className="text-[12px] font-black uppercase tracking-widest text-white group-hover:text-primary transition-colors truncate font-serif">
-            {testimonialData.author?.full_name || "Curador Anónimo"}
+            {testimonialData.author?.fullName || "Curador Anónimo"}
           </h5>
           <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mt-1">
             @{testimonialData.author?.username || "unnamed_voyager"}

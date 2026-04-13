@@ -26,8 +26,8 @@ import { cn, nicepodLog } from "@/lib/utils"; // [FIX]: Importación de 'cn' res
 
 // --- CONSTANTES FÍSICAS Y ESTILOS ---
 import {
-  FLY_CONFIG,
-  MADRID_SOL_COORDS,
+  FLY_CONFIGURATION,
+  MADRID_SOL_COORDINATES,
   MAP_STYLES,
   MAPBOX_TOKEN
 } from "./map-constants";
@@ -89,8 +89,8 @@ export function ForgeSpatialPrecision({
    */
   const initialMapViewState = useMemo(() => {
     return {
-      latitude: initialLatitudeCoordinate || userLocation?.latitudeCoordinate || MADRID_SOL_COORDS.latitude,
-      longitude: initialLongitudeCoordinate || userLocation?.longitudeCoordinate || MADRID_SOL_COORDS.longitude,
+      latitude: initialLatitudeCoordinate || userLocation?.latitudeCoordinate || MADRID_SOL_COORDINATES.latitude,
+      longitude: initialLongitudeCoordinate || userLocation?.longitudeCoordinate || MADRID_SOL_COORDINATES.longitude,
       zoom: 19.5, // Resolución máxima de peritaje urbano
       pitch: 0,
       bearing: 0
@@ -121,7 +121,7 @@ export function ForgeSpatialPrecision({
     // Animación de centrado de precisión sobre el punto de impacto
     mapInstanceReference.current?.flyTo({
       center: [clickedLongitudeCoordinate, clickedLatitudeCoordinate],
-      ...FLY_CONFIG,
+      ...FLY_CONFIGURATION,
       duration: 1000,
       essential: true
     });
@@ -171,7 +171,7 @@ export function ForgeSpatialPrecision({
         zoom: 19.5,
         pitch: 0,
         bearing: 0,
-        ...FLY_CONFIG
+        ...FLY_CONFIGURATION
       });
     }
   }, [recenterVisualPulseTrigger, userLocation, setManualMode]);
@@ -195,7 +195,7 @@ export function ForgeSpatialPrecision({
           mapboxAccessToken={MAPBOX_TOKEN}
           mapStyle={MAP_STYLES.PHOTOREALISTIC} // Forzado Satelital Cenital
           projection={{ name: "mercator" }}
-          reuseMaps={true}
+          reuseMaps={false}
           maxPitch={0} // Bloqueo físico de inclinación para evitar error de paralaje geográfico
           dragRotate={false} // Mantener el Norte como autoridad de visualización
           touchPitch={false}

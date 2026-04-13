@@ -132,16 +132,38 @@ export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?:
   const handleResumeDraft = (draft: any) => {
     const { purpose, agentName, inputs } = draft.creation_data;
     reset();
-    setValue("draft_id", draft.id);
+    setValue("draftIdentification", draft.id);
     if (inputs) {
-      Object.entries(inputs).forEach(([k, v]) => setValue(k as any, v, { shouldValidate: true }));
+      // Mapeo de Boundary: Convertimos los inputs del Metal (snake_case)
+      // a la soberanía del Cristal (camelCase/ZAP).
+      const inputMapping: Record<string, string> = {
+        'topic': 'soloTopic',
+        'topicA': 'linkTopicA',
+        'topicB': 'linkTopicB',
+        'motivation': 'soloMotivation',
+        'catalyst': 'linkCatalyst',
+        'goal': 'soloMotivation',
+        'duration': 'duration',
+        'narrativeDepth': 'narrativeDepth',
+        'depth': 'narrativeDepth',
+        'tone': 'selectedTone',
+        'selectedTone': 'selectedTone',
+        'voiceGender': 'voiceGender',
+        'voiceStyle': 'voiceStyle',
+        'voicePace': 'voicePace'
+      };
+
+      Object.entries(inputs).forEach(([key, value]) => {
+        const crystalKey = inputMapping[key] || key;
+        setValue(crystalKey as any, value, { shouldValidate: true });
+      });
     }
     setValue("purpose", purpose);
     setValue("agentName", agentName);
-    setValue("final_title", draft.title);
+    setValue("finalTitle", draft.title);
 
     const parsed = typeof draft.script_text === 'string' ? JSON.parse(draft.script_text) : draft.script_text;
-    setValue("final_script", parsed?.script_body || draft.script_text);
+    setValue("finalScript", parsed?.script_body || draft.script_text);
     setValue("sources", draft.sources || []);
 
     jumpToStep('SCRIPT_EDITING');

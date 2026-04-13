@@ -36,11 +36,11 @@ const getAuthorityStyle = (score: number) => {
 };
 
 export function PulsePillCard({ podcast }: PulsePillCardProps) {
-  const { playPodcast, currentPodcast, isPlaying } = useAudio();
+  const { playPodcastAction, currentActivePodcast, isAudioPlaying } = useAudio();
 
   // --- LÓGICA DE ESTADO ---
   const isReady = podcast.processing_status === 'completed';
-  const isCurrentlyPlaying = currentPodcast?.id === podcast.id && isPlaying;
+  const isCurrentlyPlaying = currentActivePodcast?.id === podcast.id && isAudioPlaying;
 
   const sources = useMemo(() => {
     return (podcast.sources as any[]) || [];
@@ -56,7 +56,7 @@ export function PulsePillCard({ podcast }: PulsePillCardProps) {
   const handlePlay = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (isReady) playPodcast(podcast);
+    if (isReady) playPodcastAction(podcast);
   };
 
   return (

@@ -15,7 +15,7 @@ import { ActionResponse } from "./profile-actions";
  * y asegurar que incluya al menos un activo sonoro válido.
  */
 const CreateCollectionWithItemsSchema = CollectionSchema.extend({
-  podIds: z
+  podcastIdentifications: z
     .array(z.number())
     .min(1, { message: "Un Hilo de Sabiduría debe contener al menos una crónica." })
 });
@@ -53,7 +53,7 @@ export async function createCollectionAction(
     };
   }
 
-  const { title, description, is_public, cover_image_url, podIds } = validationResult.data;
+  const { title, description, isPublic, coverImageUniformResourceLocator, podcastIdentifications } = validationResult.data;
 
   try {
     // 3. FASE I: INSERCIÓN DE CABECERA (Entity Creation)
@@ -63,8 +63,8 @@ export async function createCollectionAction(
         owner_id: user.id,
         title,
         description,
-        is_public,
-        cover_image_url
+        is_public: isPublic,
+        cover_image_url: coverImageUniformResourceLocator
       })
       .select('id')
       .single();
@@ -74,7 +74,7 @@ export async function createCollectionAction(
     }
 
     // 4. FASE II: VINCULACIÓN MASIVA (Bulk Insert)
-    const itemsToInsert = podIds.map((podId) => ({
+    const itemsToInsert = podcastIdentifications.map((podId) => ({
       collection_id: collection.id,
       pod_id: podId,
     }));

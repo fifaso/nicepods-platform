@@ -7,6 +7,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from 'date-fns';
@@ -109,7 +110,7 @@ export function NotificationBell() {
   const { user, profile, supabase } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const channelRef = useRef<any>(null);
+  const realtimeChannelReference = useRef<any>(null);
 
   /**
    * markAllAsRead: Sincronización con la base de datos (RPC).
@@ -151,12 +152,12 @@ export function NotificationBell() {
     fetchInitial();
 
     // Limpieza de canales previos para evitar fugas de memoria
-    if (channelRef.current) supabase.removeChannel(channelRef.current);
+    if (realtimeChannelReference.current) supabase.removeChannel(realtimeChannelReference.current);
 
     /**
      * CANAL REALTIME: Sincronía instantánea de Bóveda
      */
-    channelRef.current = supabase.channel(`notifications:${user.id}`)
+    realtimeChannelReference.current = supabase.channel(`notifications:${user.id}`)
       .on<Notification>(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
@@ -174,7 +175,7 @@ export function NotificationBell() {
       });
 
     return () => {
-      if (channelRef.current) supabase.removeChannel(channelRef.current);
+      if (realtimeChannelReference.current) supabase.removeChannel(realtimeChannelReference.current);
     };
   }, [user, profile, supabase, fetchInitial]);
 
@@ -183,19 +184,26 @@ export function NotificationBell() {
 
   return (
     <Popover onOpenChange={(open) => !open && unreadCount > 0 && markAllAsRead()}>
-      <PopoverTrigger asChild>
-        <div className="relative w-10 h-10 flex items-center justify-center">
-          <Button variant="ghost" size="icon" className="rounded-xl hover:bg-primary/5 transition-colors relative">
-            <Bell className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
-            {unreadCount > 0 && (
-              <span className="absolute top-1.5 right-1.5 flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-primary border-2 border-background"></span>
-              </span>
-            )}
-          </Button>
-        </div>
-      </PopoverTrigger>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <PopoverTrigger asChild>
+            <div className="relative w-10 h-10 flex items-center justify-center cursor-pointer">
+              <Button variant="ghost" size="icon" className="rounded-xl hover:bg-primary/5 transition-colors relative" aria-label="Notificaciones">
+                <Bell className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1.5 right-1.5 flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-primary border-2 border-background"></span>
+                  </span>
+                )}
+              </Button>
+            </div>
+          </PopoverTrigger>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="text-[10px] font-black uppercase tracking-widest border-white/10 bg-black/90 backdrop-blur-xl">
+          Notificaciones
+        </TooltipContent>
+      </Tooltip>
 
       <PopoverContent align="end" className="w-80 md:w-96 p-0 rounded-[1.5rem] shadow-2xl border-border/40 bg-background/95 backdrop-blur-xl animate-in zoom-in-95 duration-200">
         <div className="p-5 border-b border-border/40 bg-muted/20">

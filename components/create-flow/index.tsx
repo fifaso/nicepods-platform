@@ -96,7 +96,7 @@ function InnerOrchestrator({
     
     switch (currentFlowStateDescriptor) {
       case 'SOLO_TALK_INPUT': 
-        fieldsToValidateCollection = ['solo_topic', 'solo_motivation']; 
+        fieldsToValidateCollection = ['soloTopic', 'soloMotivation'];
         break;
       case 'DETAILS_STEP': 
         fieldsToValidateCollection = ['duration', 'narrativeDepth']; 
@@ -105,7 +105,7 @@ function InnerOrchestrator({
         fieldsToValidateCollection = ['agentName']; 
         break;
       case 'SCRIPT_EDITING': 
-        fieldsToValidateCollection = ['final_title', 'final_script']; 
+        fieldsToValidateCollection = ['finalTitle', 'finalScript'];
         break;
     }
 
@@ -175,11 +175,11 @@ export default function PodcastCreationOrchestrator({
       purpose: "learn",
       sources: [],
       agentName: 'narrador',
-      creation_mode: 'standard',
+      creationMode: 'standard',
       duration: 'Entre 2 y 3 minutos',
       narrativeDepth: 'Intermedia',
-      draft_id: null,
-      pulse_source_ids: [],
+      draftIdentification: null,
+      pulseSourceIdentifications: [],
     }
   });
 

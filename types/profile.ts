@@ -108,8 +108,8 @@ export interface TestimonialWithAuthor {
    */
   author: {
     id: string;
-    full_name: string | null;
-    avatar_url: string | null;
+    fullName: string | null;
+    avatarUniformResourceLocator: string | null;
     username: string;
     role: string;
   } | null;
