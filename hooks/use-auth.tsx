@@ -1,7 +1,10 @@
-// hooks/use-auth.tsx
-// VERSIÓN: 21.1 (NiceCore V2.6 - Sovereign Identity & Zero-Flicker Edition)
-// Misión: Orquestar la identidad atómica, el control de roles y la hidratación síncrona.
-// [ESTABILIZACIÓN]: Handshake T0 completo para aniquilar el flasheo de sesión en el Dashboard.
+/**
+ * ARCHIVO: hooks/use-auth.tsx
+ * VERSIÓN: 4.0 (Madrid Resonance)
+ * PROTOCOLO: Administrative Sovereignty
+ * MISIÓN: Orquestar la identidad atómica y la autoridad administrativa soberana.
+ * NIVEL DE INTEGRIDAD: CRITICAL
+ */
 
 "use client";
 
@@ -40,7 +43,7 @@ interface AuthContextType {
   user: User | null;
   profile: Profile | null;
   session: Session | null;
-  isAdmin: boolean;
+  isAdministratorAuthority: boolean;
   isAuthenticated: boolean;
   isInitialLoading: boolean; // El 'Shield' visual contra el flickering
   isProfileLoading: boolean;
@@ -227,10 +230,10 @@ export function AuthProvider({
   }, [supabase]);
 
   /**
-   * [SOBERANÍA DE RANGO]: isAdmin
+   * [SOBERANÍA DE RANGO]: isAdministratorAuthority
    * Lógica de doble validación (JWT + DB) para máxima seguridad y rapidez.
    */
-  const isAdmin = useMemo(() => {
+  const isAdministratorAuthority = useMemo(() => {
     // 1. Verificamos el rol inyectado en el JWT (Prioridad máxima para enrutamiento)
     const roleFromJWT =
       user?.app_metadata?.user_role === 'admin' ||
@@ -249,7 +252,7 @@ export function AuthProvider({
     session,
     user,
     profile,
-    isAdmin,
+    isAdministratorAuthority,
     isAuthenticated,
     isInitialLoading,
     isProfileLoading,
@@ -258,7 +261,7 @@ export function AuthProvider({
     refreshProfile,
     supabase
   }), [
-    session, user, profile, isAdmin, isAuthenticated,
+    session, user, profile, isAdministratorAuthority, isAuthenticated,
     isInitialLoading, isProfileLoading, signOut,
     resetPassword, refreshProfile, supabase
   ]);
@@ -280,15 +283,3 @@ export function useAuth() {
   }
   return context;
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT (V21.1):
- * 1. Aniquilación del Flicker: Al alinear 'isInitialLoading' con el resultado dual 
- *    del servidor (initialSession + initialProfile), el Dashboard ya no parpadea 
- *    al refrescar la página. El usuario nace con su nombre y avatar cargados.
- * 2. Estabilidad de Rango: Al priorizar los claims del JWT en 'isAdmin', 
- *    el acceso al Radar de Madrid es instantáneo, eliminando el error de 
- *    redirección 307 que sufría el Administrador.
- * 3. Sincronía del Router: 'router.refresh()' asegura que ante cualquier cambio 
- *    de sesión, las cookies y el Middleware vuelvan a alinearse al metal.
- */

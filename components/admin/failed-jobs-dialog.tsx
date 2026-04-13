@@ -1,3 +1,11 @@
+/**
+ * ARCHIVO: components/admin/failed-jobs-dialog.tsx
+ * VERSIÓN: 4.1 (Madrid Resonance)
+ * PROTOCOLO: Administrative Sovereignty
+ * MISIÓN: Auditoría de fallos en el pipeline de producción con tipado estricto.
+ * NIVEL DE INTEGRIDAD: HIGH
+ */
+
 "use client";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -5,24 +13,27 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle, XCircle, Clock } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tables } from "@/types/database.types";
 
-// Interfaz para tipado estricto y evitar errores de build
-interface FailedJob {
-  id: string;
-  created_at: string;
-  error_message: string | null;
-  job_title: string | null;
-  status: string;
+/**
+ * INTERFAZ: FailedProductionJob
+ * Definición estricta basada en el esquema Metal.
+ */
+interface FailedProductionJob extends Tables<'podcast_creation_jobs'> {
   profiles?: {
     email?: string | null;
     full_name?: string | null;
     avatar_url?: string | null;
-  } | null; // Supabase a veces devuelve null si no hay join, aunque aquí forzamos el join
+  } | null;
 }
 
-export function FailedJobsDialog({ jobs, count }: { jobs: any[], count: number }) {
-  // Casting seguro de jobs
-  const safeJobs = (jobs as FailedJob[]) || [];
+interface FailedJobsDialogProperties {
+  jobs: FailedProductionJob[];
+  count: number;
+}
+
+export function FailedJobsDialog({ jobs, count }: FailedJobsDialogProperties) {
+  const safeJobsInventory = Array.isArray(jobs) ? jobs : [];
 
   return (
     <Dialog>
@@ -49,12 +60,12 @@ export function FailedJobsDialog({ jobs, count }: { jobs: any[], count: number }
         <div className="flex-1 min-h-0 mt-4">
             <ScrollArea className="h-[400px] pr-4">
                 <div className="space-y-4">
-                    {safeJobs.length === 0 ? (
+                    {safeJobsInventory.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-8 text-slate-500">
                             <p>Sistemas nominales. No hay errores recientes.</p>
                         </div>
                     ) : (
-                        safeJobs.map((job) => (
+                        safeJobsInventory.map((job) => (
                             <div key={job.id} className="p-4 rounded-lg bg-red-950/10 border border-red-900/30 text-sm hover:bg-red-950/20 transition-colors">
                                 
                                 {/* HEADER DEL ERROR */}
@@ -70,7 +81,7 @@ export function FailedJobsDialog({ jobs, count }: { jobs: any[], count: number }
                                             <span className="text-xs font-semibold text-slate-300">
                                                 {job.profiles?.full_name || job.profiles?.email || 'Usuario Desconocido'}
                                             </span>
-                                            <span className="text-[10px] text-slate-500 font-mono">ID: {job.id.substring(0,8)}...</span>
+                                            <span className="text-[10px] text-slate-500 font-mono">ID: {String(job.id).substring(0,8)}...</span>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-1 text-[10px] text-slate-500 bg-slate-900/50 px-2 py-1 rounded-full">

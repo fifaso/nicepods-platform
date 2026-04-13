@@ -59,7 +59,7 @@ interface DashboardClientProperties {
   };
   initialProfile: Tables<'profiles'>;
   initialResonance: Tables<'user_resonance_profiles'> | null;
-  isAdministrator: boolean;
+  isAdministratorAuthority: boolean;
 }
 
 /**
@@ -93,7 +93,7 @@ export function DashboardClient({
   initialFeed,
   initialProfile,
   initialResonance,
-  isAdministrator
+  isAdministratorAuthority
 }: DashboardClientProperties) {
 
   // --- ESTADOS DE CONSOLA (RADAR SEMÁNTICO) ---
@@ -136,7 +136,7 @@ export function DashboardClient({
               <h1 className="text-3xl md:text-6xl font-black tracking-tighter uppercase italic leading-none drop-shadow-xl text-muted-foreground/80 truncate">
                 Hola, <span className="text-foreground">{userDisplayName}</span>
               </h1>
-              {isAdministrator && (
+              {isAdministratorAuthority && (
                 <div className="flex items-center gap-2 mt-1 md:mt-2 opacity-50">
                   <ShieldCheck size={12} className="text-primary" />
                   <span className="text-[9px] font-black uppercase tracking-widest text-primary">Acceso Soberano Concedido</span>

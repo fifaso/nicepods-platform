@@ -52,13 +52,13 @@ export default async function MapExplorerPage() {
   // Determinamos si el Administrador posee autoridad para mutar la malla urbana.
   const userApplicationMetadata = authenticatedUser.app_metadata || {};
   const userRoleDescriptor = userApplicationMetadata.user_role || userApplicationMetadata.role || 'user';
-  const isAdministrator = userRoleDescriptor === 'admin';
+  const isAdministratorAuthority = userRoleDescriptor === 'admin';
 
   /**
    * isForgeAuthorityGranted:
    * Define la capacidad de activar la terminal de forja en el dispositivo cliente.
    */
-  const isForgeAuthorityGranted = isAdministrator;
+  const isForgeAuthorityGranted = isAdministratorAuthority;
 
   return (
     /**
@@ -93,7 +93,7 @@ export default async function MapExplorerPage() {
 /**
  * NOTA TÉCNICA DEL ARCHITECT (V4.0):
  * 1. Zero Abbreviations Policy: Se purificaron términos como 'authError', 'user', 
- *    'id', 'isAdmin' y 'canForgeNodes', elevando el archivo al estándar industrial.
+ *    'id', 'isAdministratorAuthority' y 'canForgeNodes', elevando el archivo al estándar industrial.
  * 2. Contract Alignment: El cambio de las propiedades de GeoCreatorOverlay garantiza 
  *    que el Build Shield de Vercel valide la integridad de la transmisión de datos.
  * 3. Resource Optimization: El chequeo de sesión en el servidor evita el despliegue 

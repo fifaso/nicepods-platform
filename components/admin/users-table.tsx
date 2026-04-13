@@ -1,6 +1,10 @@
-// components/admin/users-table.tsx
-// VERSIÓN: 1.2 (Strict Admin Master - Fixed Imports & Case Sensitivity)
-// Misión: Terminal de gestión administrativa para control de usuarios y cuotas.
+/**
+ * ARCHIVO: components/admin/users-table.tsx
+ * VERSIÓN: 4.1 (Madrid Resonance)
+ * PROTOCOLO: Administrative Sovereignty
+ * MISIÓN: Terminal de gestión administrativa para control de usuarios y cuotas con trazabilidad total.
+ * NIVEL DE INTEGRIDAD: HIGH
+ */
 
 "use client";
 
@@ -32,12 +36,19 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { useCallback, useMemo, useState } from "react";
+import { Tables } from "@/types/database.types";
 
 /**
- * UserTableProps: Contrato de datos para la tabla administrativa.
+ * AdministrativeUser: Identidad enriquecida para el panel de gestión.
  */
+interface AdministrativeUser extends Tables<'profiles'> {
+  user_usage: { podcasts_created_this_month: number }[] | { podcasts_created_this_month: number } | null;
+  micro_pods: Tables<'micro_pods'>[];
+  email?: string | null; // El email viene del join o de la tabla profiles si RLS lo permite
+}
+
 interface UserTableProps {
-    users: any[];
+    users: AdministrativeUser[];
 }
 
 /**
@@ -48,13 +59,12 @@ export function UsersTable({ users }: UserTableProps) {
 
     // ESTADOS OPERATIVOS
     const [loadingUserId, setLoadingUserId] = useState<string | null>(null);
-    const [selectedUser, setSelectedUser] = useState<any | null>(null);
+    const [selectedUser, setSelectedUser] = useState<AdministrativeUser | null>(null);
     const [searchTerm, setSearchTerm] = useState<string>("");
 
     /**
      * [CONTROL LÓGICO]: filteredUsers
      * Filtra la lista de usuarios en base al término de búsqueda (Nombre, Email o Handle).
-     * Memoizado para evitar cálculos costosos en re-renders de UI.
      */
     const filteredUsers = useMemo(() => {
         const safeUsers = Array.isArray(users) ? users : [];
@@ -71,25 +81,29 @@ export function UsersTable({ users }: UserTableProps) {
     }, [users, searchTerm]);
 
     /**
-     * handleResetQuota
+     * handleResetQuotaAction
      * Invoca la Server Action para resetear los límites de un usuario específico.
      */
-    const handleResetQuota = useCallback(async (userId: string) => {
+    const handleResetQuotaAction = useCallback(async (userIdentification: string) => {
         if (!confirm("¿Confirmas el reseteo de cuota para este usuario?")) return;
 
-        setLoadingUserId(userId);
+        setLoadingUserId(userIdentification);
         try {
-            await resetUserQuota(userId);
-            toast({
-                title: "Cuota Restablecida",
-                description: "El usuario ahora puede crear nuevos podcasts.",
-                variant: "default"
-            });
-        } catch (error: any) {
-            console.error("🔥 [Admin-Error]:", error.message);
+            const resonanceResponse = await resetUserQuota(userIdentification);
+            if (resonanceResponse.success) {
+                toast({
+                    title: "Cuota Restablecida",
+                    description: "El usuario ahora puede crear nuevos podcasts.",
+                    variant: "default"
+                });
+            } else {
+                throw new Error(resonanceResponse.error);
+            }
+        } catch (governanceException: any) {
+            console.error("🔥 [Admin-Error]:", governanceException.message);
             toast({
                 title: "Error de Sistema",
-                description: "No se pudo actualizar la cuota.",
+                description: governanceException.message || "No se pudo actualizar la cuota.",
                 variant: "destructive"
             });
         } finally {
@@ -216,7 +230,7 @@ export function UsersTable({ users }: UserTableProps) {
                                                     <Button
                                                         size="icon"
                                                         variant="ghost"
-                                                        onClick={() => handleResetQuota(user.id)}
+                                                        onClick={() => handleResetQuotaAction(user.id)}
                                                         disabled={loadingUserId === user.id}
                                                         className="h-9 w-9 rounded-xl hover:bg-red-500/10 text-muted-foreground hover:text-red-500 transition-all"
                                                     >

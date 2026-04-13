@@ -1,5 +1,10 @@
-// app/(admin)/admin/page.tsx
-// VERSIÓN: 2.0 (Full Cockpit: Operations + Editorial Control)
+/**
+ * ARCHIVO: app/(platform)/(admin)/admin/page.tsx
+ * VERSIÓN: 4.0 (Madrid Resonance)
+ * PROTOCOLO: Administrative Sovereignty
+ * MISIÓN: Panel de Operaciones principal con integración de tipado soberano y trazabilidad.
+ * NIVEL DE INTEGRIDAD: CRITICAL
+ */
 
 import { 
   getAdminDashboardStats, 
@@ -17,13 +22,27 @@ import { RecentPodcastsList } from "@/components/admin/recent-podcasts-list";
 export const dynamic = 'force-dynamic';
 
 export default async function AdminPage() {
-  // Carga de datos paralela para máxima velocidad
-  const [stats, users, failedJobsList, recentPodcasts] = await Promise.all([
+  /**
+   * CARGA DE DATOS PARALELA:
+   * Sincronizamos con el contrato de SovereignAdministrativeResponse.
+   */
+  const [
+    governanceStatsResponse,
+    usersInventoryResponse,
+    failedProductionJobsResponse,
+    recentPodcastsResponse
+  ] = await Promise.all([
     getAdminDashboardStats(),
     getUsersList(),
     getRecentFailedJobs(),
     getRecentPodcasts()
   ]);
+
+  // Extracción segura de datos para la UI
+  const statistics = governanceStatsResponse.data || { userCount: 0, podCount: 0, failedJobs: 0 };
+  const usersInventory = usersInventoryResponse.data || [];
+  const failedJobsInventory = failedProductionJobsResponse.data || [];
+  const recentPodcastsInventory = recentPodcastsResponse.data || [];
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-20">
@@ -55,7 +74,7 @@ export default async function AdminPage() {
             <Users className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent className="relative z-10">
-            <div className="text-3xl font-bold">{stats.userCount}</div>
+            <div className="text-3xl font-bold">{statistics.userCount}</div>
             <p className="text-xs text-slate-500 mt-1">Miembros activos en la comunidad</p>
           </CardContent>
         </Card>
@@ -70,13 +89,13 @@ export default async function AdminPage() {
             <Activity className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent className="relative z-10">
-            <div className="text-3xl font-bold">{stats.podCount}</div>
+            <div className="text-3xl font-bold">{statistics.podCount}</div>
             <p className="text-xs text-slate-500 mt-1">Contenido histórico creado</p>
           </CardContent>
         </Card>
 
         {/* KPI: Salud/Alertas (Componente Interactivo) */}
-        <FailedJobsDialog jobs={failedJobsList} count={stats.failedJobs} />
+        <FailedJobsDialog jobs={failedJobsInventory} count={statistics.failedJobs} />
       </div>
 
       {/* 3. ZONA DE GESTIÓN (GRID ASIMÉTRICO) */}
@@ -88,7 +107,7 @@ export default async function AdminPage() {
                 <h2 className="text-xl font-bold text-white">Gestión de Usuarios</h2>
             </div>
             {/* Tabla Inteligente con Buscador y Reset */}
-            <UsersTable users={users} />
+            <UsersTable users={usersInventory} />
         </div>
 
         {/* COLUMNA DERECHA: EL PULSO EDITORIAL (1/3 del ancho) */}
@@ -100,7 +119,7 @@ export default async function AdminPage() {
             
             {/* Lista Interactiva para Curaduría (Destacar/Play) */}
             <div className="bg-slate-900/30 rounded-xl border border-slate-800 p-1">
-                <RecentPodcastsList podcasts={recentPodcasts} />
+                <RecentPodcastsList podcasts={recentPodcastsInventory} />
             </div>
         </div>
 

@@ -115,7 +115,7 @@ export function MobileNav({
           <div className="scale-105">
             <UserDropdown
               profile={administratorProfile}
-              isAdmin={isAdministratorAuthority}
+              isAdministratorAuthority={isAdministratorAuthority}
               onLogout={onAuthenticationLogoutAction}
             />
           </div>

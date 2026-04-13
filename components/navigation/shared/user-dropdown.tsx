@@ -1,5 +1,10 @@
-// components/navigation/shared/user-dropdown.tsx
-// VERSIÓN: 1.0
+/**
+ * ARCHIVO: components/navigation/shared/user-dropdown.tsx
+ * VERSIÓN: 4.0 (Madrid Resonance)
+ * PROTOCOLO: Administrative Sovereignty
+ * MISIÓN: Menú contextual de identidad soberana con soporte para autoridad administrativa.
+ * NIVEL DE INTEGRIDAD: HIGH
+ */
 
 "use client";
 
@@ -35,7 +40,7 @@ import { ProfileData } from "@/types/profile";
  */
 interface UserDropdownProps {
   profile: ProfileData | null;
-  isAdmin: boolean;
+  isAdministratorAuthority: boolean;
   onLogout: () => void;
 }
 
@@ -47,7 +52,7 @@ interface UserDropdownProps {
  * - Alineación 'end' para asegurar que no se salga de la pantalla en móviles.
  * - Iconografía consistente con el sistema Lucide.
  */
-export function UserDropdown({ profile, isAdmin, onLogout }: UserDropdownProps) {
+export function UserDropdown({ profile, isAdministratorAuthority, onLogout }: UserDropdownProps) {
 
   // Cálculo de iniciales para fallback (Resiliencia Visual)
   const userInitials = profile?.full_name
@@ -126,7 +131,7 @@ export function UserDropdown({ profile, isAdmin, onLogout }: UserDropdownProps) 
         </DropdownMenuGroup>
 
         {/* ZONA ADMINISTRATIVA (Solo si tiene rango) */}
-        {isAdmin && (
+        {isAdministratorAuthority && (
           <>
             <DropdownMenuSeparator className="bg-white/5 my-1" />
             <DropdownMenuItem asChild className="rounded-lg focus:bg-red-500/10 focus:text-red-400 text-red-500 cursor-pointer">
