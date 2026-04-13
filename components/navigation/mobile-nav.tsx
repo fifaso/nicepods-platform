@@ -22,10 +22,10 @@ import { useState } from "react";
 import { CreateButton } from "./shared/create-button";
 import { NavBrand } from "./shared/nav-brand";
 import {
-  GUEST_NAV_ITEMS,
+  GUEST_NAVIGATION_ITEMS,
   isRouteActive,
-  NavItem,
-  USER_NAV_ITEMS
+  NavigationItem,
+  USER_NAVIGATION_ITEMS
 } from "./shared/nav-config";
 import {
   glassPanelClass
@@ -33,8 +33,10 @@ import {
 import { UserDropdown } from "./shared/user-dropdown";
 
 // --- INFRAESTRUCTURA UI (NICEPOD INDUSTRIAL DESIGN) ---
+import { NotificationBell } from "@/components/system/notification-bell";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Sheet,
   SheetContent,
@@ -77,7 +79,7 @@ export function MobileNav({
    * navigationItemsCollection: 
    * Misión: Seleccionar la estrategia de navegación basada en la autoridad de la sesión.
    */
-  const navigationItemsCollection = isUserAuthenticated ? USER_NAV_ITEMS : GUEST_NAV_ITEMS;
+  const navigationItemsCollection = isUserAuthenticated ? USER_NAVIGATION_ITEMS : GUEST_NAVIGATION_ITEMS;
 
   return (
     <div className={cn(glassPanelClass, "flex md:hidden isolate")}>
@@ -96,12 +98,19 @@ export function MobileNav({
           />
         )}
 
-        {/* 2. CONTROL AMBIENTAL: THEME TOGGLE */}
+        {/* 2. SISTEMA DE NOTIFICACIONES SINCRONIZADO */}
+        {isUserAuthenticated && !isInitialLoadingState && (
+          <div className="h-10 w-10 flex items-center justify-center bg-white/5 rounded-2xl border border-white/10 hover:border-white/20 transition-all group">
+            <NotificationBell />
+          </div>
+        )}
+
+        {/* 3. CONTROL AMBIENTAL: THEME TOGGLE */}
         <div className="flex items-center justify-center h-10 w-10 rounded-2xl bg-white/5 border border-white/10 shadow-inner">
           <ThemeToggle />
         </div>
 
-        {/* 3. NODO DE IDENTIDAD: AVATAR SOBERANO */}
+        {/* 4. NODO DE IDENTIDAD: AVATAR SOBERANO */}
         {isUserAuthenticated && !isInitialLoadingState && (
           <div className="scale-105">
             <UserDropdown
@@ -112,18 +121,25 @@ export function MobileNav({
           </div>
         )}
 
-        {/* 4. NAVEGACIÓN PROFUNDA: MENÚ LATERAL (SHEET) */}
+        {/* 5. NAVEGACIÓN PROFUNDA: MENÚ LATERAL (SHEET) */}
         <Sheet open={isNavigationSheetOpen} onOpenChange={setIsNavigationSheetOpen}>
-          <SheetTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="rounded-2xl h-10 w-10 bg-white/5 border border-white/10 text-zinc-500 hover:text-white transition-all active:scale-90"
-              aria-label="Abrir terminal de navegación"
-            >
-              <Menu className="h-6 w-6" />
-            </Button>
-          </SheetTrigger>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <SheetTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-2xl h-10 w-10 bg-white/5 border border-white/10 text-zinc-500 hover:text-white transition-all active:scale-90"
+                  aria-label="Abrir terminal de navegación"
+                >
+                  <Menu className="h-6 w-6" />
+                </Button>
+              </SheetTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="text-[10px] font-black uppercase tracking-widest border-white/10 bg-black/90 backdrop-blur-xl">
+              Navegación
+            </TooltipContent>
+          </Tooltip>
 
           <SheetContent
             side="right"
@@ -150,7 +166,7 @@ export function MobileNav({
 
               {/* LISTA DE NAVEGACIÓN VERTICAL */}
               <nav className="flex flex-col space-y-4">
-                {navigationItemsCollection.map((navigationItem: NavItem) => {
+                {navigationItemsCollection.map((navigationItem: NavigationItem) => {
                   const isNavigationItemActive = isRouteActive(navigationItem.href, currentNavigationPathname);
 
                   return (

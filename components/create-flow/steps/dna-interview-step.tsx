@@ -286,8 +286,8 @@ export function DnaInterviewStep() {
     if (selectedTags.length === 0) return;
 
     const result = await updateDNA({
-      profileText: `Frecuencias: ${selectedTags.join(", ")}. Misión: ${voiceText}`,
-      expertiseLevel: 5
+      profile_text: `Frecuencias: ${selectedTags.join(", ")}. Misión: ${voiceText}`,
+      expertise_level: 5
     });
 
     if (result.success) {

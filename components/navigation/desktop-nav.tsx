@@ -21,11 +21,11 @@ import { useMemo } from "react";
 import { CreateButton } from "./shared/create-button";
 import { NavBrand } from "./shared/nav-brand";
 import {
-  ADMIN_NAV_ITEMS,
-  GUEST_NAV_ITEMS,
+  ADMIN_NAVIGATION_ITEMS,
+  GUEST_NAVIGATION_ITEMS,
   isRouteActive,
-  NavItem,
-  USER_NAV_ITEMS
+  NavigationItem,
+  USER_NAVIGATION_ITEMS
 } from "./shared/nav-config";
 import {
   glassPanelClass,
@@ -73,15 +73,15 @@ export function DesktopNav({
    */
   const navigationItemsCollection = useMemo(() => {
     if (!isUserAuthenticated) {
-        return GUEST_NAV_ITEMS;
+      return GUEST_NAVIGATION_ITEMS;
     }
 
     // Si el usuario posee autoridad administrativa, se anexan las herramientas soberanas.
     if (isAdministratorAuthority) {
-      return [...USER_NAV_ITEMS, ...ADMIN_NAV_ITEMS];
+      return [...USER_NAVIGATION_ITEMS, ...ADMIN_NAVIGATION_ITEMS];
     }
 
-    return USER_NAV_ITEMS;
+    return USER_NAVIGATION_ITEMS;
   }, [isUserAuthenticated, isAdministratorAuthority]);
 
   return (
@@ -114,7 +114,7 @@ export function DesktopNav({
           "bg-black/40 border border-white/10 shadow-2xl backdrop-blur-3xl",
           "transition-all duration-700 hover:border-white/20"
         )}>
-          {navigationItemsCollection.map((navigationItem: NavItem) => {
+          {navigationItemsCollection.map((navigationItem: NavigationItem) => {
 
             // CASO A: BOTÓN DE ACCIÓN PRIMARIA (FORJA DE CAPITAL INTELECTUAL)
             if (navigationItem.isPrimary) {
