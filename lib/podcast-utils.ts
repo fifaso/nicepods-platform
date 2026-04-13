@@ -12,26 +12,49 @@ export interface PodcastWithGenealogy extends PodcastWithProfile {
 export function groupPodcastsByThread(flatList: PodcastWithProfile[]): PodcastWithGenealogy[] {
     if (!flatList || flatList.length === 0) return [];
 
-    const list = JSON.parse(JSON.stringify(flatList)) as (PodcastWithProfile & { replies: PodcastWithProfile[] })[];
-    const parentMap = new Map<number, typeof list[0]>();
+    /**
+     * [OPTIMIZACIÓN V4.0]: Orquestación de hilos mediante mapeo lineal y O(1) lookup.
+     * Se elimina el uso de JSON.parse(JSON.stringify) para erradicar la latencia de
+     * serialización, protegiendo el Main Thread en colecciones de alta densidad.
+     */
 
-    list.forEach(pod => {
-        pod.replies = [];
-        parentMap.set(pod.id, pod);
+    // 1. Indexación y Clonación de Estructura Base
+    // Utilizamos un mapa para vinculación instantánea y evitamos mutar la entrada original.
+    const podcastIdentificationMap = new Map<number, PodcastWithGenealogy>();
+    const timestampReferenceMap = new Map<number, number>();
+
+    const podcastNodesCollection = flatList.map(podcastItem => {
+        const node: PodcastWithGenealogy = {
+            ...podcastItem,
+            replies: []
+        };
+        podcastIdentificationMap.set(node.id, node);
+        timestampReferenceMap.set(node.id, new Date(node.created_at).getTime());
+        return node;
     });
 
-    const rootPodcasts: typeof list = [];
+    const rootPodcastsCollection: PodcastWithGenealogy[] = [];
 
-    list.forEach(pod => {
-        if (pod.parent_id && parentMap.has(pod.parent_id) && pod.creation_mode !== 'pulse') {
-            const parent = parentMap.get(pod.parent_id)!;
-            parent.replies.push(pod);
+    // 2. Ensamblaje de la Topología de Hilos (Grafo de Conocimiento)
+    for (const node of podcastNodesCollection) {
+        const parentIdentification = node.parent_id;
+
+        if (parentIdentification && podcastIdentificationMap.has(parentIdentification) && node.creation_mode !== 'pulse') {
+            const parentNode = podcastIdentificationMap.get(parentIdentification)!;
+            // Inyectamos la respuesta en la colección de su progenitor semántico.
+            parentNode.replies.push(node);
         } else {
-            rootPodcasts.push(pod);
+            rootPodcastsCollection.push(node);
         }
-    });
+    }
 
-    return rootPodcasts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) as PodcastWithGenealogy[];
+    // 3. Ordenamiento Estratégico (Descendente por Tiempo de Creación)
+    // Utilizamos el mapa de referencias temporales para evitar re-parseo de strings en el sort.
+    return rootPodcastsCollection.sort((firstNode, secondNode) => {
+        const firstTimestamp = timestampReferenceMap.get(firstNode.id) || 0;
+        const secondTimestamp = timestampReferenceMap.get(secondNode.id) || 0;
+        return secondTimestamp - firstTimestamp;
+    });
 }
 
 export function segmentPodcastsByType(list: PodcastWithProfile[]) {
