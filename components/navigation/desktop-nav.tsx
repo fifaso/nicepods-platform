@@ -181,7 +181,7 @@ export function DesktopNav({
             {/* Menú Desplegable SOBERANO */}
             <UserDropdown
               profile={administratorProfile}
-              isAdmin={isAdministratorAuthority}
+              isAdministratorAuthority={isAdministratorAuthority}
               onLogout={onAuthenticationLogoutAction}
             />
           </div>

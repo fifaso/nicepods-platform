@@ -73,21 +73,21 @@ export default async function DashboardPage() {
      * 5. DETERMINACIÓN DE AUTORIDAD (RBAC PROTOCOL)
      * Verificación de rango administrativo mediante validación cruzada.
      */
-    const isAdministrator =
+    const isAdministratorAuthority =
       authenticatedUser.app_metadata?.user_role === 'admin' ||
       authenticatedUser.app_metadata?.role === 'admin' ||
       (userProfileResponse.data?.role === 'admin');
 
     /**
      * 6. DESPACHO AL CHASIS CLIENTE
-     * [FIX]: Se utiliza 'isAdministrator' para cumplir con el contrato de DashboardClient V24.0.
+     * [FIX]: Se utiliza 'isAdministratorAuthority' para cumplir con el contrato de DashboardClient V24.0.
      */
     return (
       <DashboardClient
         initialFeed={initialIntelligenceFeed}
         initialProfile={initialProfile as any}
         initialResonance={initialResonance}
-        isAdministrator={isAdministrator}
+        isAdministratorAuthority={isAdministratorAuthority}
       />
     );
 
@@ -108,7 +108,7 @@ export default async function DashboardPage() {
           role: "user"
         } as any}
         initialResonance={null}
-        isAdministrator={false}
+        isAdministratorAuthority={false}
       />
     );
   }
@@ -118,7 +118,7 @@ export default async function DashboardPage() {
  * NOTA TÉCNICA DEL ARCHITECT (V23.0):
  * 1. Zero Abbreviations Policy: Se han erradicado términos como 'user', 'error', 'feed', 'raw' 
  *    y 'id', sustituyéndolos por sus equivalentes semánticos completos.
- * 2. Contract Alignment: La sustitución de 'isAdmin' por 'isAdministrator' resuelve el 
+ * 2. Contract Alignment: La sustitución de 'isAdministratorAuthority' por 'isAdministratorAuthority' resuelve el
  *    error TS2322 detectado por el Build Shield.
  * 3. Fan-out Pipeline: Se mantiene la cosecha paralela para garantizar que el 
  *    peritaje del dashboard cargue en menos de 200ms en condiciones nominales.

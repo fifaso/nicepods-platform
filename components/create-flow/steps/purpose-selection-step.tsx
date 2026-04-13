@@ -1,5 +1,10 @@
-// components/create-flow/steps/purpose-selection-step.tsx
-// VERSIÓN: 9.0
+/**
+ * ARCHIVO: components/create-flow/steps/purpose-selection-step.tsx
+ * VERSIÓN: 4.0 (Madrid Resonance)
+ * PROTOCOLO: Administrative Sovereignty
+ * MISIÓN: Selección de propósito narrativo con restricción de autoridad administrativa.
+ * NIVEL DE INTEGRIDAD: HIGH
+ */
 
 "use client";
 
@@ -82,7 +87,7 @@ const CATEGORIES: CategoryGroup[] = [
 
 export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?: any[] }) {
   const router = useRouter();
-  const { profile, isAdmin } = useAuth(); // [SINCRO]: Consumo de rango de usuario
+  const { profile, isAdministratorAuthority } = useAuth(); // [SINCRO]: Consumo de rango de usuario
   const { setValue, reset } = useFormContext();
   const { transitionTo, jumpToStep } = useCreationContext();
   const [isPending, startTransition] = useTransition();
@@ -110,7 +115,7 @@ export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?:
    */
   const handleSelection = (item: PurposeOption) => {
     // [RBAC]: Si es GEO y el usuario no es admin, bloqueamos la acción.
-    if (item.adminOnly && !isAdmin) return;
+    if (item.adminOnly && !isAdministratorAuthority) return;
 
     if (item.id === 'local_soul') {
       startTransition(() => {
@@ -201,7 +206,7 @@ export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?:
 
               <div className="grid grid-cols-1 gap-3">
                 {cat.items.map((item) => {
-                  const isDisabled = item.adminOnly && !isAdmin;
+                  const isDisabled = item.adminOnly && !isAdministratorAuthority;
 
                   return (
                     <button

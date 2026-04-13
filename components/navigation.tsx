@@ -35,7 +35,7 @@ export function Navigation() {
   // --- I. CONSUMO DE AUTORIDAD Y ESTADO DE SESIÓN ---
   const {
     profile: rawAdministratorProfile,
-    isAdmin: isAdministratorAuthority,
+    isAdministratorAuthority: isAdministratorAuthority,
     isAuthenticated: isUserAuthenticated,
     signOut: terminateSessionAction,
     isInitialLoading: isInitialLoadingState
