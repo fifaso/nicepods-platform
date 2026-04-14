@@ -43,9 +43,7 @@ enable_signup = true
 # de dependencias hacia el exterior de la carpeta /functions.
 # ---------------------------------------------------------------------------
 
-[functions]
-import_map = "./functions/deno.json"
-verify_jwt = false
+
 
 # NOTA TÉCNICA: Se establece 'verify_jwt' a nivel global para simplificar 
 # el despliegue, pero se recomienda activar por función en producción.

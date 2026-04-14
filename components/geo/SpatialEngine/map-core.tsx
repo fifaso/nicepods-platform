@@ -1,14 +1,14 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/map-core.tsx
- * VERSIÓN: 19.0 (NicePod MapCore - Visual Layer Isolation & MTI Edition)
+ * VERSIÓN: 20.0 (NicePod MapCore - Protocol Alignment & Event Hardening Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
- * Misión: Reactor WebGL inmutable que gestiona la renderización de la malla 3D, 
- * actuando como una terminal de visualización pasiva. 
- * [REFORMA V19.0]: Implementación del 'Visual Layer Isolation'. El reactor ya 
- * no gestiona el movimiento del avatar mediante estados de React; delega la 
- * autonomía al 'UserLocationMarker' para garantizar 60 FPS estables. 
- * Sincronización absoluta con el Dogma MTI y la Zero Abbreviations Policy.
+ * Misión: Reactor WebGL inmutable que gestiona la renderización de la malla 3D. 
+ * Actúa como una terminal de visualización pasiva con aislamiento total de VRAM.
+ * [REFORMA V20.0]: Resolución definitiva del error TS2339 (StyleData target). 
+ * Se implementa el acceso directo vía referencia para la configuración del motor.
+ * Inyección de la propiedad 'onMove' para sincronización con el Hub. 
+ * Cumplimiento absoluto de la Zero Abbreviations Policy (ZAP).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -43,11 +43,13 @@ import { UserLocationMarker } from "../user-location-marker";
  */
 type MapNativeProperties = ComponentProps<typeof Map>;
 type SafeMapLoadEvent = Parameters<NonNullable<MapNativeProperties['onLoad']>>[0];
+type SafeMapMovementEvent = Parameters<NonNullable<MapNativeProperties['onMove']>>[0];
 type SafeMapClickEvent = Parameters<NonNullable<MapNativeProperties['onClick']>>[0];
 type SafeMapStyleDataEvent = Parameters<NonNullable<MapNativeProperties['onStyleData']>>[0];
 
 /**
  * INTERFAZ: MapCoreProperties
+ * Misión: Definir el contrato de entrada para el reactor visual.
  */
 interface MapCoreProperties {
   mapInstanceIdentification: MapInstanceIdentification;
@@ -57,6 +59,7 @@ interface MapCoreProperties {
   lightTheme: MapboxLightPreset;
   onLoad: (event: SafeMapLoadEvent) => void;
   onIdle: () => void;
+  onMove?: (event: SafeMapMovementEvent) => void; // [SINCRO V20.0]: Propiedad inyectada.
   onMapClick: (event: SafeMapClickEvent) => void;
   onMarkerClick: (identification: string) => void;
   selectedPointOfInterestIdentification: string | null;
@@ -73,6 +76,7 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
   lightTheme,
   onLoad,
   onIdle,
+  onMove,
   onMapClick,
   onMarkerClick,
   selectedPointOfInterestIdentification
@@ -80,14 +84,14 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
 
   // 1. CONSUMO DEL MOTOR SOBERANO (TRIPLE-CORE SYNERGY V4.9)
   const {
-    userLocation: truthStreamLocation, // Solo usado para anclaje inicial (Semilla)
+    userLocation: truthStreamLocation,
     nearbyPointsOfInterest,
     activePointOfInterest,
     cameraPerspective,
     mapStyle: activeEngineVisualStyle
   } = useGeoEngine();
 
-  // 2. REFERENCIA SOBERANA AL LIENZO WEBGL (PILAR 3)
+  // 2. REFERENCIA SOBERANA AL LIENZO WebGL (PILAR 3)
   const localMapEngineReference = useRef<MapRef>(null);
   useImperativeHandle(componentForwardedReference, () => localMapEngineReference.current as MapRef, []);
 
@@ -124,10 +128,13 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
 
   /**
    * 5. STYLE-GUARD INDUSTRIAL (WebGL HYGIENE)
+   * [FIX V20.0]: Uso de localMapEngineReference para evitar el error TS2339 de 'target'.
    */
-  const handleStyleDataAction = useCallback((styleDataEvent: SafeMapStyleDataEvent) => {
-    const nativeMapInstance = styleDataEvent.target;
-    if (!nativeMapInstance || !nativeMapInstance.isStyleLoaded()) return;
+  const handleStyleDataAction = useCallback((_styleDataEvent: SafeMapStyleDataEvent) => {
+    const nativeMapInstance = localMapEngineReference.current?.getMap();
+    if (!nativeMapInstance || !nativeMapInstance.isStyleLoaded()) {
+      return;
+    }
 
     const isForgeModeActive = mode === 'FORGE';
     const isOverviewPerspectiveActive = cameraPerspective === 'OVERVIEW';
@@ -154,8 +161,8 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
     // Gestión de capas de edificios y relieve (DEM)
     try {
       if (nativeMapInstance.getLayer('building')) {
-        const buildingOpacity = isTacticalLiteProfileActive ? 0.4 : (isSatellitePerspectiveActive ? 0 : 1.0);
-        nativeMapInstance.setPaintProperty('building', 'fill-extrusion-opacity', buildingOpacity);
+        const buildingOpacityValue = isTacticalLiteProfileActive ? 0.4 : (isSatellitePerspectiveActive ? 0 : 1.0);
+        nativeMapInstance.setPaintProperty('building', 'fill-extrusion-opacity', buildingOpacityValue);
       }
       if (!nativeMapInstance.getSource(DIGITAL_ELEVATION_MODEL_SOURCE_CONFIGURATION.id)) {
         nativeMapInstance.addSource(DIGITAL_ELEVATION_MODEL_SOURCE_CONFIGURATION.id, {
@@ -201,6 +208,7 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
       initialViewState={initialMapViewState}
       onLoad={onLoad}
       onIdle={onIdle}
+      onMove={onMove} // [SINCRO V20.0]: Conexión del bus de movimiento.
       onStyleData={handleStyleDataAction}
       onClick={onMapClick}
       mapboxAccessToken={MAPBOX_TOKEN}
@@ -215,9 +223,7 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
     >
       {/**
        * [MTI PROTOCOL]: 
-       * El marcador del Voyager ya no recibe la ubicación dinámica por props.
-       * Recibe 'initialLocation' solo para el anclaje inicial y luego opera 
-       * de forma autónoma mediante el Kinetic Signal Bus.
+       * El marcador del Voyager opera de forma autónoma mediante el Kinetic Signal Bus.
        */}
       {truthStreamLocation && (
         <UserLocationMarker
