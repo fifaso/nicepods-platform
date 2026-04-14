@@ -1,14 +1,14 @@
 /**
  * ARCHIVO: app/layout.tsx
- * VERSIÓN: 38.0 (NicePod Root Orchestrator - Absolute Nominal Sync & T0 Precision Edition)
+ * VERSIÓN: 39.0 (NicePod Root Orchestrator - Auth & Geo Contract Synchronization Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * Misión: Orquestar la infraestructura global de datos, seguridad y atmósfera. 
- * Actúa como el anfitrión soberano del motor de telemetría, asegurando que la 
- * verdad geográfica sea persistente a través de toda la aplicación.
- * [REFORMA V38.0]: Resolución definitiva del error TS2322. Sincronización nominal 
- * absoluta del objeto 'initialGeographicIntelligenceData' con el contrato 
- * del GeoEngineProvider V53.0. Erradicación total de abreviaciones (ZAP).
+ * Actúa como el anfitrión soberano de los motores de telemetría e identidad, 
+ * asegurando la persistencia de la verdad técnica a través de la Workstation.
+ * [REFORMA V39.0]: Resolución definitiva del error TS2322. Sincronización nominal 
+ * absoluta con el AuthProvider V5.1 y el GeoEngineProvider V53.0. Transmutación 
+ * de propiedades hacia descriptores industriales completos (initialAuthenticationSession).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -87,7 +87,7 @@ export const metadata: Metadata = {
 
 /**
  * COMPONENTE: RootLayout
- * El orquestador maestro de la infraestructura de NicePod.
+ * El orquestador maestro de la infraestructura distribuida de NicePod.
  */
 export default async function RootLayout({
   children
@@ -112,10 +112,6 @@ export default async function RootLayout({
   const browserCookiesStore = cookies();
   const geodeticSeedT0RawValue = browserCookiesStore.get('nicepod-geodetic-seed-t0')?.value;
 
-  /**
-   * initialGeographicIntelligenceData:
-   * [SINCRO V38.0]: Alineación nominal estricta con 'GeoEngineProvider'.
-   */
   let initialGeographicIntelligenceData: {
     latitudeCoordinate: number;
     longitudeCoordinate: number;
@@ -127,7 +123,6 @@ export default async function RootLayout({
     try {
       const parsedGeodeticSeed = JSON.parse(decodeURIComponent(geodeticSeedT0RawValue));
 
-      // Mapeamos hacia el contrato soberano sin abreviaciones.
       initialGeographicIntelligenceData = {
         latitudeCoordinate: parsedGeodeticSeed.latitudeCoordinate,
         longitudeCoordinate: parsedGeodeticSeed.longitudeCoordinate,
@@ -143,7 +138,7 @@ export default async function RootLayout({
   if (authenticatedUser) {
     /**
      * COSECHA PARALELA DE DATOS (FAN-OUT PIPELINE)
-     * Recuperamos sesión y perfil de perito de forma concurrente.
+     * Recuperamos sesión y perfil de perito de forma concurrente desde el Metal.
      */
     const [sessionQueryResponse, profileQueryResponse] = await Promise.all([
       supabaseSovereignClient.auth.getSession(),
@@ -160,14 +155,12 @@ export default async function RootLayout({
     userAuthorityRoleDescriptor = userApplicationMetadata.user_role || userApplicationMetadata.role || (initialAdministratorProfileData?.role) || 'user';
   }
 
-  const authenticationStateDescriptor = authenticatedUser ? "authenticated" : "unauthenticated";
-
   return (
     <html
       lang="es"
       suppressHydrationWarning
       className={concatenateClassNames(interFontConfiguration.variable, "bg-[#010101] dark")}
-      data-auth-state={authenticationStateDescriptor}
+      data-auth-state={authenticatedUser ? "authenticated" : "unauthenticated"}
       data-user-role={userAuthorityRoleDescriptor}
     >
       <head>
@@ -208,15 +201,18 @@ export default async function RootLayout({
               storageKey="theme"
             >
               <TooltipProvider>
+                {/* 
+                    [SINCRO V39.0]: Uso de propiedades purificadas para satisfacer 
+                    el contrato soberano del AuthProvider V5.1.
+                */}
                 <AuthProvider
-                  initialSession={initialAuthenticationSessionData}
-                  initialProfile={initialAdministratorProfileData}
+                  initialAuthenticationSession={initialAuthenticationSessionData}
+                  initialAdministratorProfile={initialAdministratorProfileData}
                 >
                   <AudioProvider>
                     {/*
                         IV. SOBERANÍA DE TELEMETRÍA GLOBAL (MADRID RESONANCE V4.9)
-                        [MANDATO V38.0]: El GeoEngineProvider recibe datos 100% tipados 
-                        bajo la Zero Abbreviations Policy.
+                        Provee ubicación persistente a través de toda la Workstation.
                     */}
                     <GeoEngineProvider initialData={initialGeographicIntelligenceData}>
                       <main className="min-h-screen relative flex flex-col bg-[#010101] isolate">
@@ -239,11 +235,11 @@ export default async function RootLayout({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V38.0):
- * 1. Build Shield Absolute: Se eliminó el error TS2322 al mapear 'lat/lng' a 
- *    'latitudeCoordinate/longitudeCoordinate' en la semilla T0.
- * 2. T0 Reliability: El uso de decodeURIComponent garantiza que la cookie sea 
- *    interpretada correctamente por el motor de Deno/Next.
- * 3. ZAP Enforcement: Purificación total de variables. No se permiten nombres 
- *    como 'initialGeoData' o 'authSession'. El código es ahora autodescriptivo.
+ * NOTA TÉCNICA DEL ARCHITECT (V39.0):
+ * 1. Auth Contract Alignment: Se resolvió el error TS2322 al renombrar las propiedades 
+ *    inyectadas en 'AuthProvider' hacia sus descriptores industriales.
+ * 2. ZAP Enforcement: Purificación nominal absoluta. Se han eliminado residuos como 
+ *    'initialSession' o 'initialProfile' en la interfaz de componentes.
+ * 3. Geodetic Integrity: El 'GeoEngineProvider' ahora recibe la semilla T0 con el 
+ *    tipado estricto que exige el motor geodésico estabilizado.
  */

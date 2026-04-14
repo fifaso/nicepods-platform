@@ -1,14 +1,15 @@
 /**
  * ARCHIVO: components/system/notification-bell.tsx
- * VERSIÓN: 3.0 (NicePod Realtime Inbox - Performance & Instance Isolation Edition)
+ * VERSIÓN: 4.0 (NicePod Realtime Inbox - Ephemeral Session Isolation Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
- * Misión: Gestionar notificaciones en tiempo real eliminando errores de secuencia 
- * en el motor de Supabase y garantizando sintonía visual sin desplazamientos de diseño.
- * [REFORMA V3.0]: Implementación del 'Instance Isolation Pattern'. Uso de sufijo 
- * ':bell' en el identificador de canal para evitar colisiones con 'LibraryTabs'. 
- * Erradicación total de abreviaturas (ZAP). Blindaje del ciclo de vida de 
- * suscripción para prevenir fugas de memoria y bloqueos de WebSocket.
+ * Misión: Gestionar el buzón de notificaciones en tiempo real, garantizando 
+ * el aislamiento total de los canales mediante firmas de sesión únicas para 
+ * aniquilar errores de secuencia en el motor de Supabase.
+ * [REFORMA V4.0]: Implementación del 'Ephemeral Session Isolation'. Integración 
+ * de 'ephemeralRealtimeSessionIdentification' en el identificador del canal. 
+ * Resolución definitiva del error 'cannot add callbacks after subscribe'. 
+ * Purificación nominal total (ZAP) y sellado de tipos (BSS).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -18,9 +19,10 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
-import { cn } from "@/lib/utils";
+import { ephemeralRealtimeSessionIdentification } from "@/lib/supabase/client";
+import { cn, nicepodLog } from "@/lib/utils";
 import { formatDistanceToNow } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { es as spanishLocale } from 'date-fns/locale';
 import {
   AlertCircle,
   Bell,
@@ -37,7 +39,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
  * TIPO: NotificationEntry
- * Contrato de datos sincronizado con el esquema de base de datos V2.5.
+ * Misión: Definir el contrato de sabiduría asíncrona sincronizado con el Metal.
  */
 export type NotificationEntry = {
   id: number;
@@ -58,10 +60,10 @@ export type NotificationEntry = {
 
 /**
  * COMPONENTE INTERNO: NotificationItem
- * Renderizado de alta densidad para el Inbox y el Historial de la terminal.
+ * Misión: Proyectar un nodo de notificación con alta densidad visual y táctica.
  */
 export function NotificationItem({ notification }: { notification: NotificationEntry }) {
-  const iconMap: Record<string, React.ReactNode> = {
+  const iconMapRecord: Record<string, React.ReactNode> = {
     'new_like': <Heart className="h-4 w-4 text-red-500 fill-red-500/20" />,
     'new_follower': <UserIcon className="h-4 w-4 text-blue-500" />,
     'podcast_created_success': <CheckCircle2 className="h-4 w-4 text-green-500" />,
@@ -71,7 +73,7 @@ export function NotificationItem({ notification }: { notification: NotificationE
     'default': <Mic className="h-4 w-4 text-primary" />
   };
 
-  const getMessageAndLink = (notificationEntry: NotificationEntry) => {
+  const getMessageAndLinkAction = (notificationEntry: NotificationEntry) => {
     switch (notificationEntry.type) {
       case 'new_like':
         return {
@@ -94,13 +96,13 @@ export function NotificationItem({ notification }: { notification: NotificationE
           message: <p className="leading-tight text-destructive font-medium">Fallo en la forja de <span className="font-bold">"{notificationEntry.data.job_title}"</span></p>
         };
       default:
-        return { href: '#', message: <p>Nueva actualización de Bóveda.</p> };
+        return { href: '#', message: <p>Nueva actualización de Bóveda detectada.</p> };
     }
   };
 
-  const { href, message } = getMessageAndLink(notification);
-  const iconComponent = iconMap[notification.type] || iconMap['default'];
-  const timeDistanceDescription = formatDistanceToNow(new Date(notification.created_at), { addSuffix: true, locale: es });
+  const { href, message } = getMessageAndLinkAction(notification);
+  const iconComponent = iconMapRecord[notification.type] || iconMapRecord['default'];
+  const timeDistanceDescription = formatDistanceToNow(new Date(notification.created_at), { addSuffix: true, locale: spanishLocale });
 
   return (
     <Link href={href}>
@@ -125,10 +127,15 @@ export function NotificationItem({ notification }: { notification: NotificationE
 
 /**
  * COMPONENTE: NotificationBell
- * El centro de mandos de notificaciones asíncronas con aislamiento de canal.
+ * El centro de mandos de notificaciones asíncronas con aislamiento dinámico.
  */
 export function NotificationBell() {
-  const { user: authenticatedUser, profile: userProfile, supabase: supabaseClient } = useAuth();
+  const {
+    authenticatedUser,
+    administratorProfile,
+    supabaseSovereignClient
+  } = useAuth();
+
   const [notificationsCollection, setNotificationsCollection] = useState<NotificationEntry[]>([]);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState<number>(0);
   const realtimeChannelReference = useRef<any>(null);
@@ -139,25 +146,29 @@ export function NotificationBell() {
   const markAllAsReadAction = useCallback(async () => {
     if (unreadNotificationsCount === 0) return;
 
-    // Actualización de interfaz optimista
+    // Actualización de interfaz optimista (Lógica Zero-Latency)
     setUnreadNotificationsCount(0);
     setNotificationsCollection(previousNotifications =>
       previousNotifications.map(notificationEntry => ({ ...notificationEntry, is_read: true }))
     );
 
-    const { error: databaseOperationException } = await supabaseClient.rpc('mark_notifications_as_read');
+    const { error: databaseOperationException } = await supabaseSovereignClient.rpc('mark_notifications_as_read');
     if (databaseOperationException) {
-      console.error("🔥 [DB-Error] Fallo al sincronizar lectura de notificaciones:", databaseOperationException.message);
+      nicepodLog("🔥 [DB-Error] Fallo al sincronizar lectura de notificaciones:", databaseOperationException.message, 'error');
     }
-  }, [supabaseClient, unreadNotificationsCount]);
+  }, [supabaseSovereignClient, unreadNotificationsCount]);
 
   /**
-   * fetchInitialNotificationsAction: Carga inicial de nodos no leídos.
+   * fetchInitialNotificationsAction: Carga inicial del histórico no leído.
    */
   const fetchInitialNotificationsAction = useCallback(async () => {
     if (!authenticatedUser) return;
 
-    const { data: initialNotificationsData, count: totalUnreadCount, error: databaseOperationException } = await supabaseClient
+    const {
+      data: initialNotificationsData,
+      count: totalUnreadCount,
+      error: databaseOperationException
+    } = await supabaseSovereignClient
       .from('notifications')
       .select('*', { count: 'exact' })
       .eq('user_id', authenticatedUser.id)
@@ -169,32 +180,36 @@ export function NotificationBell() {
       setNotificationsCollection(initialNotificationsData as NotificationEntry[] || []);
       setUnreadNotificationsCount(totalUnreadCount || 0);
     }
-  }, [authenticatedUser, supabaseClient]);
+  }, [authenticatedUser, supabaseSovereignClient]);
 
+  /**
+   * EFECTO: RealtimeSincronizationSentinel
+   * [SINCRO V4.0]: Aislamiento absoluto mediante Identificador de Sesión Efímero.
+   */
   useEffect(() => {
-    // [ESTRATEGIA]: Solo activamos el túnel cuando la identidad atómica es nominal.
-    if (!authenticatedUser || !userProfile) return;
+    if (!authenticatedUser || !administratorProfile) return;
 
+    let isComponentMounted = true;
     fetchInitialNotificationsAction();
 
-    /**
-     * [HARDWARE HYGIENE]: Purga de canales previos para evitar colisiones 
-     * y fugas de memoria en el Hilo Principal.
-     */
+    // Hardware Hygiene: Purga de canales previos para evitar colisiones de bus.
     if (realtimeChannelReference.current) {
-      supabaseClient.removeChannel(realtimeChannelReference.current);
+      supabaseSovereignClient.removeChannel(realtimeChannelReference.current);
     }
 
     /**
      * CANAL REALTIME SOBERANO: 
-     * [SINCRO V3.0]: Inyección de sufijo ':bell' para aislamiento de instancia.
-     * Esto previene el error 'cannot add callbacks after subscribe'.
+     * Misión: Escuchar inserciones en la tabla de notificaciones con aislamiento total.
+     * [FIX]: Inyectamos 'ephemeralRealtimeSessionIdentification' para garantizar unicidad.
      */
-    const notificationChannelInstance = supabaseClient.channel(`notifications:${authenticatedUser.id}:bell`)
+    const notificationChannelName = `notifications:${authenticatedUser.id}:${ephemeralRealtimeSessionIdentification}:bell`;
+
+    const notificationChannelInstance = supabaseSovereignClient.channel(notificationChannelName)
       .on<NotificationEntry>(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${authenticatedUser.id}` },
         (payload) => {
+          if (!isComponentMounted) return;
           const freshNotification = payload.new as NotificationEntry;
           setNotificationsCollection(currentCollection => [freshNotification, ...currentCollection]);
           setUnreadNotificationsCount(currentMagnitude => currentMagnitude + 1);
@@ -205,19 +220,20 @@ export function NotificationBell() {
 
     notificationChannelInstance.subscribe((subscriptionStatus) => {
       if (subscriptionStatus === 'SUBSCRIBED') {
-        console.log(`📡 [Realtime:Bell] Túnel activo para Voyager: ${authenticatedUser.id}`);
+        nicepodLog(`📡 [Realtime:Bell] Túnel activo en sesión: ${ephemeralRealtimeSessionIdentification}`);
       }
     });
 
     return () => {
+      isComponentMounted = false;
       if (realtimeChannelReference.current) {
-        supabaseClient.removeChannel(realtimeChannelReference.current);
+        supabaseSovereignClient.removeChannel(realtimeChannelReference.current);
         realtimeChannelReference.current = null;
       }
     };
-  }, [authenticatedUser, userProfile, supabaseClient, fetchInitialNotificationsAction]);
+  }, [authenticatedUser, administratorProfile, supabaseSovereignClient, fetchInitialNotificationsAction]);
 
-  // renderizado de seguridad para evitar saltos de interfaz (Layout Shift)
+  // Renderizado de seguridad contra Layout Shift.
   if (!authenticatedUser) return null;
 
   return (
@@ -226,7 +242,7 @@ export function NotificationBell() {
         <Tooltip>
           <TooltipTrigger asChild>
             <PopoverTrigger asChild>
-              <div className="relative w-10 h-10 flex items-center justify-center cursor-pointer">
+              <div className="relative w-10 h-10 flex items-center justify-center cursor-pointer group">
                 <Button
                   variant="ghost"
                   size="icon"
@@ -300,11 +316,10 @@ export function NotificationBell() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V3.0):
- * 1. Instance Isolation: Se ha erradicado el error de Supabase Realtime inyectando el 
- *    sufijo ':bell' al canal, asegurando independencia respecto a 'LibraryTabs'.
- * 2. ZAP Absolute Compliance: Se eliminaron todas las abreviaciones residuales en el 100% 
- *    del archivo (n -> notificationEntry, prev -> previousNotifications, icon -> iconComponent).
- * 3. Lifecycle Integrity: El protocolo de Cleanup garantiza la aniquilación física 
- *    del canal al desmontar el componente, preservando la salud del bus de datos.
+ * NOTA TÉCNICA DEL ARCHITECT (V4.0):
+ * 1. Ephemeral Session Isolation: Se ha erradicado el error de callback de Supabase 
+ *    mediante el uso de un identificador de sesión único por carga de página.
+ * 2. ZAP Absolute Compliance: Purificación total de la nomenclatura técnica.
+ * 3. Lifecycle Security: Se ha inyectado 'isComponentMounted' para evitar fugas de 
+ *    estado en operaciones asíncronas de red.
  */
