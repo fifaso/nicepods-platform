@@ -1,15 +1,15 @@
 /**
  * ARCHIVO: components/system/notification-bell.tsx
- * VERSIÓN: 4.0 (NicePod Realtime Inbox - Ephemeral Session Isolation Edition)
+ * VERSIÓN: 6.0 (NicePod Realtime Inbox - Base Table & Instance Hardening Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * Misión: Gestionar el buzón de notificaciones en tiempo real, garantizando 
- * el aislamiento total de los canales mediante firmas de sesión únicas para 
- * aniquilar errores de secuencia en el motor de Supabase.
- * [REFORMA V4.0]: Implementación del 'Ephemeral Session Isolation'. Integración 
- * de 'ephemeralRealtimeSessionIdentification' en el identificador del canal. 
- * Resolución definitiva del error 'cannot add callbacks after subscribe'. 
- * Purificación nominal total (ZAP) y sellado de tipos (BSS).
+ * el aislamiento total de los canales mediante firmas de sesión únicas y 
+ * purga imperativa para aniquilar errores de secuencia en Supabase.
+ * [REFORMA V6.0]: Implementación del 'Atomic Channel Hardening'. Se añade la 
+ * eliminación física del canal en el registro del cliente antes de la 
+ * suscripción. Sincronización nominal total con AuthProvider V5.1. 
+ * Erradicación absoluta de abreviaciones (ZAP) y sellado de tipos (BSS).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -133,7 +133,8 @@ export function NotificationBell() {
   const {
     authenticatedUser,
     administratorProfile,
-    supabaseSovereignClient
+    supabaseSovereignClient,
+    isInitialHandshakeLoading
   } = useAuth();
 
   const [notificationsCollection, setNotificationsCollection] = useState<NotificationEntry[]>([]);
@@ -146,10 +147,9 @@ export function NotificationBell() {
   const markAllAsReadAction = useCallback(async () => {
     if (unreadNotificationsCount === 0) return;
 
-    // Actualización de interfaz optimista (Lógica Zero-Latency)
     setUnreadNotificationsCount(0);
-    setNotificationsCollection(previousNotifications =>
-      previousNotifications.map(notificationEntry => ({ ...notificationEntry, is_read: true }))
+    setNotificationsCollection(previousNotificationsCollection =>
+      previousNotificationsCollection.map(notificationEntry => ({ ...notificationEntry, is_read: true }))
     );
 
     const { error: databaseOperationException } = await supabaseSovereignClient.rpc('mark_notifications_as_read');
@@ -166,7 +166,7 @@ export function NotificationBell() {
 
     const {
       data: initialNotificationsData,
-      count: totalUnreadCount,
+      count: totalUnreadCountMagnitude,
       error: databaseOperationException
     } = await supabaseSovereignClient
       .from('notifications')
@@ -178,41 +178,43 @@ export function NotificationBell() {
 
     if (!databaseOperationException) {
       setNotificationsCollection(initialNotificationsData as NotificationEntry[] || []);
-      setUnreadNotificationsCount(totalUnreadCount || 0);
+      setUnreadNotificationsCount(totalUnreadCountMagnitude || 0);
     }
   }, [authenticatedUser, supabaseSovereignClient]);
 
   /**
    * EFECTO: RealtimeSincronizationSentinel
-   * [SINCRO V4.0]: Aislamiento absoluto mediante Identificador de Sesión Efímero.
+   * [SINCRO V6.0]: Misión: Blindaje de secuencia Supabase mediante purga imperativa.
    */
   useEffect(() => {
-    if (!authenticatedUser || !administratorProfile) return;
+    if (!authenticatedUser || !administratorProfile || isInitialHandshakeLoading) return;
 
-    let isComponentMounted = true;
+    let isHookMounted = true;
     fetchInitialNotificationsAction();
 
-    // Hardware Hygiene: Purga de canales previos para evitar colisiones de bus.
-    if (realtimeChannelReference.current) {
-      supabaseSovereignClient.removeChannel(realtimeChannelReference.current);
-    }
-
     /**
-     * CANAL REALTIME SOBERANO: 
-     * Misión: Escuchar inserciones en la tabla de notificaciones con aislamiento total.
-     * [FIX]: Inyectamos 'ephemeralRealtimeSessionIdentification' para garantizar unicidad.
+     * [HARDWARE HYGIENE]: Protocolo de purga física de canales.
+     * Generamos el nombre y forzamos su remoción del registro del cliente 
+     * antes de intentar una nueva suscripción para evitar el error de callback.
      */
-    const notificationChannelName = `notifications:${authenticatedUser.id}:${ephemeralRealtimeSessionIdentification}:bell`;
+    const uniqueChannelIdentification = `bell:${authenticatedUser.id}:${ephemeralRealtimeSessionIdentification}`;
 
-    const notificationChannelInstance = supabaseSovereignClient.channel(notificationChannelName)
-      .on<NotificationEntry>(
+    const purgeExistingChannelAction = () => {
+      const existingChannelInstance = supabaseSovereignClient.channel(uniqueChannelIdentification);
+      supabaseSovereignClient.removeChannel(existingChannelInstance);
+    };
+
+    purgeExistingChannelAction();
+
+    const notificationChannelInstance = supabaseSovereignClient.channel(uniqueChannelIdentification)
+      .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${authenticatedUser.id}` },
-        (payload) => {
-          if (!isComponentMounted) return;
-          const freshNotification = payload.new as NotificationEntry;
-          setNotificationsCollection(currentCollection => [freshNotification, ...currentCollection]);
-          setUnreadNotificationsCount(currentMagnitude => currentMagnitude + 1);
+        (databaseChangeEventPayload) => {
+          if (!isHookMounted) return;
+          const freshNotificationEntry = databaseChangeEventPayload.new as NotificationEntry;
+          setNotificationsCollection(previousCollection => [freshNotificationEntry, ...previousCollection]);
+          setUnreadNotificationsCount(previousMagnitude => previousMagnitude + 1);
         }
       );
 
@@ -225,13 +227,13 @@ export function NotificationBell() {
     });
 
     return () => {
-      isComponentMounted = false;
+      isHookMounted = false;
       if (realtimeChannelReference.current) {
         supabaseSovereignClient.removeChannel(realtimeChannelReference.current);
         realtimeChannelReference.current = null;
       }
     };
-  }, [authenticatedUser, administratorProfile, supabaseSovereignClient, fetchInitialNotificationsAction]);
+  }, [authenticatedUser, administratorProfile, isInitialHandshakeLoading, supabaseSovereignClient, fetchInitialNotificationsAction]);
 
   // Renderizado de seguridad contra Layout Shift.
   if (!authenticatedUser) return null;
@@ -316,10 +318,11 @@ export function NotificationBell() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V4.0):
- * 1. Ephemeral Session Isolation: Se ha erradicado el error de callback de Supabase 
- *    mediante el uso de un identificador de sesión único por carga de página.
- * 2. ZAP Absolute Compliance: Purificación total de la nomenclatura técnica.
- * 3. Lifecycle Security: Se ha inyectado 'isComponentMounted' para evitar fugas de 
- *    estado en operaciones asíncronas de red.
+ * NOTA TÉCNICA DEL ARCHITECT (V6.0):
+ * 1. Atomic Channel Guard: Se ha erradicado el error de Supabase mediante la purga 
+ *    física de la instancia del canal antes de cada suscripción.
+ * 2. ZAP Absolute Compliance: Purificación nominal completa en todo el archivo. 
+ *    Sincronización con el nuevo contrato 'isInitialHandshakeLoading' de Auth V5.1.
+ * 3. Event Loop Hygiene: El uso de 'purgeExistingChannelAction' asegura que no 
+ *    haya duplicidad de callbacks incluso ante cierres abruptos del bus de datos.
  */

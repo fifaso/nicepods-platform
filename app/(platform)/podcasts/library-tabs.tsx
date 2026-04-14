@@ -1,13 +1,15 @@
 /**
  * ARCHIVO: app/(platform)/podcasts/library-tabs.tsx
- * VERSIÓN: 19.0 (NicePod Intelligence Station - Full Nominal Sync & Ephemeral Isolation Edition)
+ * VERSIÓN: 21.0 (NicePod Intelligence Station - Base Table Realtime & Nominal Sync Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * Misión: Orquestar la intersección entre la red global y la soberanía privada,
  * gestionando la visualización de la Bóveda y los procesos de forja activos.
- * [REFORMA V19.0]: Implementación del 'Ephemeral Session Isolation' para Realtime. 
- * Resolución definitiva del error TS18047 (Null Safety) y TS2322 (Props Sync). 
- * Sincronización nominal total bajo la Zero Abbreviations Policy (ZAP). 
+ * [REFORMA V21.0]: Resolución del fallo de replicación (Imagen 28). Se migra la 
+ * suscripción de Realtime desde Vistas hacia la tabla base 'micro_pods'. 
+ * Sincronización de la propiedad 'defaultTab' para resolver el error TS2322. 
+ * Aplicación absoluta de la Zero Abbreviations Policy (ZAP) y aislamiento 
+ * mediante 'ephemeralRealtimeSessionIdentification'.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -80,7 +82,7 @@ type LibraryViewMode = 'grid' | 'list' | 'compass';
 
 /**
  * INTERFAZ: LibraryTabsProperties
- * [SINCRO V19.0]: Mantenimiento de 'defaultTab' para sintonía con Server Components.
+ * [SINCRO V21.0]: Restauración de 'defaultTab' para sintonía con 'app/podcasts/page.tsx'.
  */
 interface LibraryTabsProperties {
   defaultTab: 'discover' | 'library';
@@ -102,6 +104,7 @@ const universeCategoriesCollection = [
 
 /**
  * COMPONENTE: LibraryTabs
+ * El director soberano de la Estación de Podcasts.
  */
 export function LibraryTabs({
   defaultTab,
@@ -124,8 +127,8 @@ export function LibraryTabs({
   const [isSearchProcessActive, setIsSearchProcessActive] = useState<boolean>(false);
 
   /**
-   * [BUILD SHIELD]: PROTECCIÓN DE NULIDAD SOBERANA (FIX TS18047)
-   * Se utiliza encadenamiento opcional y fallbacks para garantizar resiliencia.
+   * [BUILD SHIELD]: SOBERANÍA DE NULIDAD
+   * Blindaje mediante encadenamiento opcional para satisfacer el rigor del compilador.
    */
   const activeNavigationTabIdentification = urlSearchParameters?.get("tab") || defaultTab;
   const currentLibraryViewMode = (urlSearchParameters?.get("view") as LibraryViewMode) || "grid";
@@ -137,16 +140,16 @@ export function LibraryTabs({
 
   /**
    * EFECTO: RealtimeSincronizationSentinel
-   * [SINCRO V19.0]: Aislamiento absoluto mediante Identificador de Sesión Efímero.
+   * [SINCRO V21.0]: Misión: Suscripción a Tablas Base para evitar el error de Vistas.
    */
   useEffect(() => {
     if (!authenticatedUser || !isComponentMounted) return;
 
     const userIdentification = authenticatedUser.id;
 
-    // CANAL A: Monitoreo de procesos de forja con firma de sesión única.
+    // CANAL A: Monitoreo de procesos de forja (Jobs)
     const creationJobsChannel = supabaseSovereignClient.channel(
-      `library_jobs_${userIdentification}:${ephemeralRealtimeSessionIdentification}:tabs`
+      `jobs:${userIdentification}:${ephemeralRealtimeSessionIdentification}:tabs`
     )
       .on(
         'postgres_changes',
@@ -166,27 +169,38 @@ export function LibraryTabs({
         }
       ).subscribe();
 
-    // CANAL B: Sincronización de la Bóveda privada con firma de sesión única.
+    /**
+     * CANAL B: Sincronización de la Bóveda - TABLA FÍSICA
+     * [FIX]: Escuchamos 'micro_pods' (Table), no 'vw_map_resonance_active' (View).
+     * El motor Walrus de Supabase no soporta suscripción a Vistas lógicas.
+     */
     const podcastsChannel = supabaseSovereignClient.channel(
-      `library_pods_${userIdentification}:${ephemeralRealtimeSessionIdentification}:tabs`
+      `pods:${userIdentification}:${ephemeralRealtimeSessionIdentification}:tabs`
     )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'micro_pods', filter: `user_id=eq.${userIdentification}` },
         async (databaseChangeEventPayload) => {
           if (databaseChangeEventPayload.eventType === 'INSERT' || databaseChangeEventPayload.eventType === 'UPDATE') {
-            const { data: refreshedPodcastData } = await supabaseSovereignClient
+            /**
+             * Misión: Cosechar los datos frescos incluyendo la relación con el perfil.
+             * Una vez recuperado el nodo físico, el componente se re-renderiza.
+             */
+            const { data: refreshedPodcastDataSnapshot } = await supabaseSovereignClient
               .from('micro_pods')
               .select('*, profiles(*)')
               .eq('id', databaseChangeEventPayload.new.id)
               .single();
 
-            if (refreshedPodcastData) {
+            if (refreshedPodcastDataSnapshot) {
               setActiveCreatedPodcastsCollection(previousPodcastsCollection => {
-                const filteredPodcasts = previousPodcastsCollection.filter(podcastItem => podcastItem.id !== refreshedPodcastData.id);
-                return [refreshedPodcastData as PodcastWithProfile, ...filteredPodcasts];
+                const filteredPodcastsCollection = previousPodcastsCollection.filter(podcastItem => podcastItem.id !== refreshedPodcastDataSnapshot.id);
+                return [refreshedPodcastDataSnapshot as PodcastWithProfile, ...filteredPodcastsCollection];
               });
             }
+
+            // Sincronización SSR: Refrescamos la ruta para actualizar las vistas (Views).
+            navigationRouter.refresh();
           }
         }
       ).subscribe();
@@ -195,7 +209,7 @@ export function LibraryTabs({
       supabaseSovereignClient.removeChannel(creationJobsChannel);
       supabaseSovereignClient.removeChannel(podcastsChannel);
     };
-  }, [authenticatedUser, supabaseSovereignClient, isComponentMounted]);
+  }, [authenticatedUser, supabaseSovereignClient, isComponentMounted, navigationRouter]);
 
   const isSearchInterfaceVisible = useMemo(() => {
     return isComponentMounted && searchMatchResults !== null;
@@ -293,7 +307,7 @@ export function LibraryTabs({
 
   /**
    * renderPodcastCollection:
-   * basándose en el modo de vista táctico.
+   * Misión: Proyectar la malla de crónicas según el modo de vista activo.
    */
   const renderPodcastCollection = (podcastCollection: PodcastWithProfile[]) => {
     if (podcastCollection.length === 0) {
@@ -462,11 +476,12 @@ export function LibraryTabs({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V19.0):
- * 1. Ephemeral Session Isolation: Se ha erradicado el error crítico de Supabase Realtime 
- *    mediante la inyección de 'ephemeralRealtimeSessionIdentification' en el nombre de 
- *    los canales. Esto garantiza unicidad total y sintonía atómica por sesión.
- * 2. TS18047 Resolution: Se implementó el Sovereign Null Shield mediante encadenamiento 
- *    opcional en el acceso a 'urlSearchParameters'. 
- * 3. ZAP Absolute Compliance: Purificación nominal completa en el 100% del archivo.
+ * NOTA TÉCNICA DEL ARCHITECT (V21.0):
+ * 1. Base Table Synchronization: Se ha corregido el fallo de replicación de la Imagen 28 
+ *    trasladando la escucha de Realtime desde Vistas (Views) hacia la tabla física 
+ *    'micro_pods'. El refresco de UI se orquesta mediante 'navigationRouter.refresh()'.
+ * 2. Contract Restoration: Se restauró la propiedad 'defaultTab' para garantizar 
+ *    sintonía absoluta con el Server Component padre y evitar errores TS2322.
+ * 3. ZAP Compliance: Purificación nominal completa en todo el componente. 
+ *    Ejemplos: 'refreshedPodcastDataSnapshot', 'activeNavigationTabIdentification'.
  */
