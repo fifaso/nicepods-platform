@@ -1,13 +1,13 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/map-core.tsx
- * VERSIÓN: 21.0 (NicePod MapCore - Global Contract Alignment Edition)
+ * VERSIÓN: 22.0 (NicePod MapCore - Visual Layer Isolation & Event Bus Sincro)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * Misión: Reactor WebGL inmutable que gestiona la renderización de la malla 3D. 
  * Actúa como una terminal de visualización pasiva con aislamiento total de VRAM.
- * [REFORMA V21.0]: Resolución definitiva del error TS2339 (mapStyle). Sincronización 
- * nominal absoluta con la Constitución V9.0 y la Fachada useGeoEngine V55.0. 
- * Se transmuta 'mapStyle' a 'activeMapStyle' en la desestructuración de mando. 
+ * [REFORMA V22.0]: Implementación de la delegación de eventos 'onMove' al reactor. 
+ * Resolución de tipado para evitar 'Target' inexistente en eventos de estilo.
+ * Cumplimiento absoluto de la Zero Abbreviations Policy (ZAP).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -57,14 +57,14 @@ interface MapCoreProperties {
   lightTheme: MapboxLightPreset;
   onLoad: (event: SafeMapLoadEvent) => void;
   onIdle: () => void;
-  onMove?: (event: SafeMapMovementEvent) => void;
+  onMove: (event: SafeMapMovementEvent) => void; 
   onMapClick: (event: SafeMapClickEvent) => void;
   onMarkerClick: (identification: string) => void;
   selectedPointOfInterestIdentification: string | null;
 }
 
 /**
- * MapCore: El reactor visual soberano de la Workstation NicePod V4.9.
+ * MapCore: El reactor visual soberano de la Workstation NicePod.
  */
 const MapCore = forwardRef<MapRef, MapCoreProperties>(({
   mapInstanceIdentification,
@@ -80,25 +80,20 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
   selectedPointOfInterestIdentification
 }, componentForwardedReference) => {
 
-  /**
-   * 1. CONSUMO DEL MOTOR SOBERANO (TRIPLE-CORE SYNERGY V4.9)
-   * [SINCRO V21.0]: Alineación con el contrato purificado GeoEngineReturn V9.0.
-   */
+  // 1. CONSUMO DEL MOTOR SOBERANO
   const {
     userLocation: truthStreamLocation,
     nearbyPointsOfInterest,
     activePointOfInterest,
     cameraPerspective,
-    activeMapStyle // [FIX TS2339]: Transmutado de mapStyle.
+    activeMapStyle
   } = useGeoEngine();
 
-  // 2. REFERENCIA SOBERANA AL LIENZO WebGL (PILAR 3)
+  // 2. REFERENCIA SOBERANA AL LIENZO WebGL
   const localMapEngineReference = useRef<MapRef>(null);
   useImperativeHandle(componentForwardedReference, () => localMapEngineReference.current as MapRef, []);
 
-  /**
-   * 3. PROTOCOLO DE ANIQUILACIÓN FÍSICA (VRAM PURGE)
-   */
+  // 3. PROTOCOLO DE ANIQUILACIÓN FÍSICA
   useEffect(() => {
     return () => {
       const currentMapEngineInstance = localMapEngineReference.current;
@@ -106,20 +101,17 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
         try {
           const nativeMapInstance = currentMapEngineInstance.getMap();
           if (nativeMapInstance) {
-            nicepodLog(`🧨 [MapCore:${mapInstanceIdentification}] Ejecutando purga de VRAM.`);
             nativeMapInstance.stop();
             nativeMapInstance.remove();
           }
         } catch (hardwareException) {
-          nicepodLog(`⚠️ [MapCore] Error en purga física.`, hardwareException, 'warn');
+          nicepodLog("⚠️ [MapCore] Error en purga física de VRAM.", hardwareException, 'warn');
         }
       }
     };
   }, [mapInstanceIdentification]);
 
-  /**
-   * 4. SEMILLA DE NACIMIENTO WebGL
-   */
+  // 4. SEMILLA DE NACIMIENTO WebGL
   const initialMapViewState = useMemo(() => {
     return getInitialViewState(
       startCoordinates.latitudeCoordinate,
@@ -127,14 +119,10 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
     );
   }, [startCoordinates.latitudeCoordinate, startCoordinates.longitudeCoordinate]);
 
-  /**
-   * 5. STYLE-GUARD INDUSTRIAL (WebGL HYGIENE)
-   */
+  // 5. STYLE-GUARD INDUSTRIAL
   const handleStyleDataAction = useCallback((_styleDataEvent: SafeMapStyleDataEvent) => {
     const nativeMapInstance = localMapEngineReference.current?.getMap();
-    if (!nativeMapInstance || !nativeMapInstance.isStyleLoaded()) {
-      return;
-    }
+    if (!nativeMapInstance || !nativeMapInstance.isStyleLoaded()) return;
 
     const isForgeModeActive = mode === 'FORGE';
     const isOverviewPerspectiveActive = cameraPerspective === 'OVERVIEW';
@@ -142,9 +130,6 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
     const isTacticalLiteProfileActive = performanceProfile === 'TACTICAL_LITE';
     const engineTechnicalConfiguration = isTacticalLiteProfileActive ? TACTICAL_LITE_ENGINE_CONFIGURATION : STANDARD_ENGINE_CONFIGURATION;
 
-    /**
-     * [STYLE-GUARD]: Configuración del motor PBR.
-     */
     if (activeMapStyle === MAP_STYLES.STANDARD) {
       try {
         const mapboxInternalInstance = nativeMapInstance as any;
@@ -160,45 +145,40 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
         nicepodLog("⚠️ [MapCore] Style-Guard Exception.", hardwareException, 'warn');
       }
     }
-
-    // Gestión de capas físicas de la malla urbana.
+    
+    // Gestión de capas y relieve...
     try {
-      if (nativeMapInstance.getLayer('building')) {
-        const buildingOpacityValue = isTacticalLiteProfileActive ? 0.4 : (isSatellitePerspectiveActive ? 0 : 1.0);
-        nativeMapInstance.setPaintProperty('building', 'fill-extrusion-opacity', buildingOpacityValue);
-      }
-      if (!nativeMapInstance.getSource(DIGITAL_ELEVATION_MODEL_SOURCE_CONFIGURATION.id)) {
-        nativeMapInstance.addSource(DIGITAL_ELEVATION_MODEL_SOURCE_CONFIGURATION.id, {
-          type: "raster-dem",
-          url: DIGITAL_ELEVATION_MODEL_SOURCE_CONFIGURATION.url,
-          tileSize: 512
-        });
-      }
-      if (mode === 'EXPLORE' && !isSatellitePerspectiveActive) {
-        nativeMapInstance.setTerrain({ source: DIGITAL_ELEVATION_MODEL_SOURCE_CONFIGURATION.id, exaggeration: 1.15 });
-      } else {
-        nativeMapInstance.setTerrain(null);
-      }
+        if (nativeMapInstance.getLayer('building')) {
+            const opacity = isTacticalLiteProfileActive ? 0.4 : (isSatellitePerspectiveActive ? 0 : 1.0);
+            nativeMapInstance.setPaintProperty('building', 'fill-extrusion-opacity', opacity);
+        }
+        if (!nativeMapInstance.getSource(DIGITAL_ELEVATION_MODEL_SOURCE_CONFIGURATION.id)) {
+            nativeMapInstance.addSource(DIGITAL_ELEVATION_MODEL_SOURCE_CONFIGURATION.id, {
+                type: "raster-dem",
+                url: DIGITAL_ELEVATION_MODEL_SOURCE_CONFIGURATION.url,
+                tileSize: 512
+            });
+        }
+        if (mode === 'EXPLORE' && !isSatellitePerspectiveActive) {
+            nativeMapInstance.setTerrain({ source: DIGITAL_ELEVATION_MODEL_SOURCE_CONFIGURATION.id, exaggeration: 1.15 });
+        } else {
+            nativeMapInstance.setTerrain(null);
+        }
     } catch (hardwareException) { /* Ignored */ }
-
   }, [lightTheme, cameraPerspective, performanceProfile, mode, activeMapStyle]);
 
-  /**
-   * renderedMarkersCollection: 
-   * [MTI]: Memorización de marcadores para proteger el Hilo Principal.
-   */
   const renderedMarkersCollection = useMemo(() => {
-    return nearbyPointsOfInterest.map((pointOfInterestEntry: PointOfInterest) => (
+    return nearbyPointsOfInterest.map((pointEntry) => (
       <MapMarkerCustom
-        key={pointOfInterestEntry.identification}
-        identification={pointOfInterestEntry.identification.toString()}
-        latitude={pointOfInterestEntry.geographicLocation.coordinates[1]}
-        longitude={pointOfInterestEntry.geographicLocation.coordinates[0]}
-        categoryMission={pointOfInterestEntry.categoryMission}
-        categoryEntity={pointOfInterestEntry.categoryEntity}
-        pointOfInterestName={pointOfInterestEntry.name}
-        isResonating={!!(activePointOfInterest?.identification === pointOfInterestEntry.identification.toString() && activePointOfInterest?.isWithinRadius)}
-        isSelected={selectedPointOfInterestIdentification === pointOfInterestEntry.identification.toString()}
+        key={pointEntry.identification}
+        identification={pointEntry.identification.toString()}
+        latitude={pointEntry.geographicLocation.coordinates[1]}
+        longitude={pointEntry.geographicLocation.coordinates[0]}
+        categoryMission={pointEntry.categoryMission}
+        categoryEntity={pointEntry.categoryEntity}
+        pointOfInterestName={pointEntry.name}
+        isResonating={!!(activePointOfInterest?.identification === pointEntry.identification.toString() && activePointOfInterest?.isWithinRadius)}
+        isSelected={selectedPointOfInterestIdentification === pointEntry.identification.toString()}
         onMarkerInteraction={onMarkerClick}
       />
     ));
@@ -218,24 +198,15 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
       mapStyle={activeMapStyle || MAP_STYLES.STANDARD}
       projection={{ name: "mercator" }}
       fog={mode === 'FORGE' || performanceProfile === 'TACTICAL_LITE' || cameraPerspective === 'SATELLITE' ? null : (FOG_CONFIGURATION as any)}
-      antialias={false}
-      reuseMaps={false}
-      maxPitch={mode === 'FORGE' ? 0 : 85}
       attributionControl={false}
       style={{ width: '100%', height: '100%' }}
     >
-      {/**
-       * [MTI PROTOCOL]: 
-       * El marcador del Voyager opera de forma autónoma mediante el Kinetic Signal Bus.
-       */}
       {truthStreamLocation && (
         <UserLocationMarker
           initialLocation={truthStreamLocation}
           isResonating={!!activePointOfInterest?.isWithinRadius}
         />
       )}
-
-      {/* Inyección de la Malla de Sabiduria */}
       {renderedMarkersCollection}
     </Map>
   );
@@ -243,13 +214,4 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
 
 MapCore.displayName = "MapCore";
 
-export default memo(MapCore, (previousProperties, nextProperties) => {
-  return (
-    previousProperties.mapInstanceIdentification === nextProperties.mapInstanceIdentification &&
-    previousProperties.performanceProfile === nextProperties.performanceProfile &&
-    previousProperties.lightTheme === nextProperties.lightTheme &&
-    previousProperties.mode === nextProperties.mode &&
-    previousProperties.selectedPointOfInterestIdentification === nextProperties.selectedPointOfInterestIdentification &&
-    previousProperties.startCoordinates.latitudeCoordinate === nextProperties.startCoordinates.latitudeCoordinate
-  );
-});
+export default memo(MapCore);
