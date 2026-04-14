@@ -1,14 +1,15 @@
 /**
  * ARCHIVO: types/geo-sovereignty.ts
- * VERSIÓN: 8.6 (NicePod Sovereign Constitution - Absolute Nominal Sync Edition)
- * PROTOCOLO: MADRID RESONANCE V4.0
+ * VERSIÓN: 9.0 (NicePod Sovereign Constitution - Contract Synchronization Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.9
  * 
- * Misión: Centralizar el contrato de identidad, telemetría y control cinemático,
+ * Misión: Centralizar el contrato de identidad, telemetría y control cinemático, 
  * garantizando la sintonía absoluta entre el hardware de silicio, el oráculo 
  * de inteligencia y el motor de renderizado WebGL.
- * [REFORMA V8.6]: Sincronización nominal total con la Reforma V4.1 (poi-schema.ts) 
- * y las Acciones Geográficas V12.0. Erradicación absoluta de acrónimos (ZAP), 
- * sellado del Build Shield (BSS) y normalización del Dossier de Inteligencia.
+ * [REFORMA V9.0]: Sincronización nominal total con la Refacción Cinemática V4.9.10. 
+ * Se actualiza la interfaz 'GeoEngineReturn' para incluir el Mando Único 
+ * Contextual y nombres industriales purificados (ZAP). Sellado del 
+ * Build Shield Sovereignty (BSS).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -18,18 +19,11 @@
  * ---------------------------------------------------------------------------
  */
 
-/**
- * GeoPoint: Representación inmutable de una ubicación en el espacio esférico.
- * [MANDATO NCIS]: Longitud primero para cumplimiento con Mapbox GL JS y PostGIS.
- */
 export interface GeoPoint {
   type: 'Point';
   coordinates: [number, number]; // [longitudeCoordinate, latitudeCoordinate]
 }
 
-/**
- * TelemetrySource: Definición del origen de la verdad geográfica.
- */
 export type TelemetrySource = 
   | 'global-positioning-system' 
   | 'cache' 
@@ -37,9 +31,6 @@ export type TelemetrySource =
   | 'manual-anchor' 
   | 'edge-internet-protocol';
 
-/**
- * UserLocation: Snapshot de telemetría purificada capturada por el hardware.
- */
 export interface UserLocation {
   latitudeCoordinate: number;
   longitudeCoordinate: number;
@@ -50,9 +41,6 @@ export interface UserLocation {
   timestamp?: number;
 }
 
-/**
- * ActivePointOfInterest: Representación de un hito cercano detectado por el Radar.
- */
 export interface ActivePointOfInterest {
   identification: string;
   name: string;
@@ -63,7 +51,7 @@ export interface ActivePointOfInterest {
 
 /**
  * ---------------------------------------------------------------------------
- * II. TAXONOMÍA GRANULAR Y RELOJ SOBERANO (LA RED NEURONAL V4.0)
+ * II. TAXONOMÍA GRANULAR Y RELOJ SOBERANO
  * ---------------------------------------------------------------------------
  */
 
@@ -137,9 +125,6 @@ export interface PointOfInterestMetadata {
   processingTraceIdentification?: string;
 }
 
-/**
- * PointOfInterest: El objeto de conocimiento central anclado en el Metal.
- */
 export interface PointOfInterest {
   identification: number;
   authorIdentification: string;
@@ -162,10 +147,6 @@ export interface PointOfInterest {
   metadata?: PointOfInterestMetadata | null;
 }
 
-/**
- * IngestionDossier: El resultado del peritaje técnico multidimensional.
- * [MANDATO BSS]: Sincronizado milimétricamente con IntelligenceAgencyAnalysisSchema.
- */
 export interface IngestionDossier {
   point_of_interest_identification: number;
   raw_optical_character_recognition_text: string | null;
@@ -208,7 +189,8 @@ export interface GeoContextData {
 }
 
 /**
- * GeoEngineReturn: La firma pública que la Fachada entrega a la Interfaz de Usuario.
+ * GeoEngineReturn: La firma pública unificada de la Workstation.
+ * [SINCRO V9.0]: Actualización de descriptores industriales para resolver TS2339.
  */
 export interface GeoEngineReturn {
   // Estados de Verdad y Telemetría Purificada
@@ -226,13 +208,20 @@ export interface GeoEngineReturn {
   isTriangulated: boolean;
   isGPSLock: boolean;
   needsBallisticLanding: boolean;
-  recenterTrigger: number;
+  
+  /** recenterTriggerPulse: Contador de pulsos para la sincronía de cámara. */
+  recenterTriggerPulse: number; 
   confirmLanding: () => void;
 
   // Gobernanza de Cámara y Estilo Visual
   cameraPerspective: CameraPerspective;
-  mapStyle: string; 
-  isManualMode: boolean;
+  /** activeMapStyle: Identificador del lienzo WebGL en uso. */
+  activeMapStyle: string; 
+  /** isManualModeActive: Indica si el Voyager posee autoridad sobre la lente. */
+  isManualModeActive: boolean; 
+  
+  /** executeUnifiedCommandAction: Actuador contextual para el botón de ubicación. */
+  executeUnifiedCommandAction: () => void;
   toggleCameraPerspective: () => void;
   setManualMode: (active: boolean) => void;
   recenterCamera: () => void;
@@ -271,7 +260,7 @@ export interface GeoEngineReturn {
 
 /**
  * ---------------------------------------------------------------------------
- * VI. RESPUESTAS Y PAYLOADS DE ACCIÓN (SERVER ACTIONS CONTRACT)
+ * VI. RESPUESTAS Y PAYLOADS DE ACCIÓN
  * ---------------------------------------------------------------------------
  */
 
@@ -283,9 +272,6 @@ export interface GeoActionResponse<T = unknown> {
   trace_identification?: string;
 }
 
-/**
- * PointOfInterestCreationPayload: Contrato para la Ingesta Lightning (Signed URLs).
- */
 export interface PointOfInterestCreationPayload {
   latitudeCoordinate: number;
   longitudeCoordinate: number;
@@ -301,11 +287,11 @@ export interface PointOfInterestCreationPayload {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V8.6):
- * 1. Build Shield Synchronization: Se han renombrado todas las propiedades para 
- *    satisfacer los errores TS2339 y TS2353 detectados tras la reforma de las acciones.
- * 2. Zero Abbreviations Policy: Se han purificado términos técnicos: URL -> UniformResourceLocator, 
- *    ID -> Identification, GPS -> GlobalPositioningSystem, OCR -> OpticalCharacterRecognition.
- * 3. Contractual Symmetry: El IngestionDossier ahora refleja exactamente la estructura 
- *    validada por el IntelligenceAgencyAnalysisSchema en el Borde.
+ * NOTA TÉCNICA DEL ARCHITECT (V9.0):
+ * 1. Build Shield Restoration: Se han renombrado 'recenterTrigger' a 'recenterTriggerPulse' 
+ *    y 'isManualMode' a 'isManualModeActive' para coincidir con la lógica interna.
+ * 2. ZAP Compliance: Purificación nominal total. Se introduce 'activeMapStyle' 
+ *    y 'executeUnifiedCommandAction' en la firma pública.
+ * 3. Contractual Symmetry: Los componentes ahora pueden desestructurar las 
+ *    propiedades de 'useGeoEngine' sin disparar errores de propiedad inexistente.
  */
