@@ -1,3 +1,10 @@
+/**
+ * ARCHIVO: components/admin/vault-dashboard-client.tsx
+ * VERSIÓN: 4.1 (Madrid Resonance)
+ * PROTOCOLO: Madrid Resonance Protocol V4.0
+ * MISIÓN: Panel de control interactivo para la gestión física del índice vectorial.
+ * NIVEL DE INTEGRIDAD: HIGH
+ */
 
 // components/admin/vault-dashboard-client.tsx
 
@@ -29,81 +36,64 @@ import {
 import { Badge } from "@/components/ui/badge";
 
 // --- LÓGICA DE NEGOCIO SOBERANA ---
-import { deleteVaultSource } from "@/actions/vault-actions";
+import { deleteVaultSource, VaultKnowledgeSource } from "@/actions/vault-actions";
 import { ManualIngestionModal } from "./manual-ingestion-modal";
 import { ResonanceSimulator } from "./resonance-simulator";
 
 /**
- * INTERFAZ: VaultSource
- * Define la estructura esperada de los datos que provienen de la tabla 'knowledge_sources'
- * tras aplicar el JOIN con 'knowledge_chunks'.
+ * INTERFAZ: VaultDashboardComponentProperties
  */
-interface VaultSource {
-    id: string;
-    title: string;
-    source_type: string;
-    url?: string;
-    created_at: string;
-    knowledge_chunks?: { count: number }[];
-}
-
-/**
- * INTERFAZ: VaultDashboardProps
- * Define el contrato de entrada. Se acepta any[] en la base para mantener flexibilidad
- * con la consulta Supabase, pero se tipa internamente como VaultSource[].
- */
-interface VaultDashboardProps {
-    initialSources: any[]; 
+interface VaultDashboardComponentProperties {
+    initialSources: VaultKnowledgeSource[];
 }
 
 /**
  * COMPONENTE: VaultDashboardClient
  * El panel de control interactivo para la gestión física del índice vectorial.
  */
-export function VaultDashboardClient({ initialSources }: VaultDashboardProps) {
+export function VaultDashboardClient({ initialSources }: VaultDashboardComponentProperties) {
     const { toast } = useToast();
     
     // --- ESTADOS LOCALES ---
     const [searchTerm, setSearchTerm] = useState("");
-    const [isDeleting, setIsDeleting] = useState<string | null>(null);
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isDeletingIdentification, setIsDeletingIdentification] = useState<string | null>(null);
+    const [isModalOpenSovereignty, setIsModalOpenSovereignty] = useState(false);
 
     /**
      * MOTOR DE BÚSQUEDA LOCAL:
-     * Filtra el inventario renderizado sin necesidad de golpear la base de datos.
      */
-    const filteredSources = (initialSources as VaultSource[]).filter(src => 
-        src.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        src.source_type?.toLowerCase().includes(searchTerm.toLowerCase())
+    const filteredSourcesInventory = initialSources.filter(source =>
+        source.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        source.sourceTypeDescriptor?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     /**
-     * PROTOCOLO DE PURGA: handleDelete
-     * Elimina una fuente y desencadena la cascada que destruye sus vectores asociados.
+     * PROTOCOLO DE PURGA: handleDeleteAction
      */
-    const handleDelete = async (id: string, title: string) => {
-        if (!window.confirm(`⚠️ ADVERTENCIA CRÍTICA:\n¿Está seguro de purgar la fuente "${title}"?\nEsto eliminará permanentemente todos sus vectores del índice HNSW.`)) return;
+    const handleDeleteAction = async (sourceIdentification: string, sourceTitle: string) => {
+        if (!window.confirm(`⚠️ ADVERTENCIA CRÍTICA:\n¿Está seguro de purgar la fuente "${sourceTitle}"?\nEsto eliminará permanentemente todos sus vectores del índice HNSW.`)) return;
 
-        setIsDeleting(id);
+        setIsDeletingIdentification(sourceIdentification);
         try {
-            const response = await deleteVaultSource(id);
-            if (response.success) {
+            const administrativeResponse = await deleteVaultSource(sourceIdentification);
+            if (administrativeResponse.success) {
                 toast({
                     title: "Purga Ejecutada",
-                    description: `La fuente "${title}" ha sido erradicada de la Bóveda.`,
+                    description: `La fuente "${sourceTitle}" ha sido erradicada de la Bóveda.`,
                 });
             } else {
-                throw new Error(response.message || response.error || "Fallo en la purga.");
+                throw new Error(administrativeResponse.message || administrativeResponse.exceptionMessageInformation || "Fallo en la purga.");
             }
-        } catch (error: any) {
-            console.error("🔥 [Vault-Client-Fatal]:", error);
+        } catch (vaultException: unknown) {
+            const errorMessage = vaultException instanceof Error ? vaultException.message : "Error desconocido";
+            console.error("🔥 [Vault-Client-Fatal]:", errorMessage);
             toast({
                 title: "Error de Contención",
-                description: error.message,
+                description: errorMessage,
                 variant: "destructive"
             });
         } finally {
-            setIsDeleting(null);
+            setIsDeletingIdentification(null);
         }
     };
 
@@ -112,7 +102,6 @@ export function VaultDashboardClient({ initialSources }: VaultDashboardProps) {
             
             {/* 
                 BLOQUE I: INVENTARIO DE LA BÓVEDA (MAIN PANEL)
-                Ocupa 2/3 del espacio en pantallas grandes.
             */}
             <div className="xl:col-span-2 space-y-6">
                 
@@ -129,7 +118,7 @@ export function VaultDashboardClient({ initialSources }: VaultDashboardProps) {
                     </div>
                     
                     <Button 
-                        onClick={() => setIsModalOpen(true)}
+                        onClick={() => setIsModalOpenSovereignty(true)}
                         className="h-10 rounded-xl font-black uppercase tracking-widest text-[10px] bg-primary text-black hover:bg-primary/90 shadow-[0_0_20px_rgba(var(--primary),0.2)]"
                     >
                         <Plus className="mr-2 h-4 w-4" />
@@ -150,7 +139,7 @@ export function VaultDashboardClient({ initialSources }: VaultDashboardProps) {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {filteredSources.length === 0 ? (
+                                {filteredSourcesInventory.length === 0 ? (
                                     <TableRow className="hover:bg-transparent border-none">
                                         <TableCell colSpan={4} className="h-48 text-center">
                                             <div className="flex flex-col items-center justify-center text-zinc-500 gap-3">
@@ -160,15 +149,15 @@ export function VaultDashboardClient({ initialSources }: VaultDashboardProps) {
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    filteredSources.map((src) => (
-                                        <TableRow key={src.id} className="border-white/5 hover:bg-white/[0.02] transition-colors group">
+                                    filteredSourcesInventory.map((source) => (
+                                        <TableRow key={source.identification} className="border-white/5 hover:bg-white/[0.02] transition-colors group">
                                             <TableCell className="py-4">
                                                 <div className="flex flex-col gap-1">
-                                                    <span className="font-bold text-sm text-zinc-200 group-hover:text-primary transition-colors line-clamp-1 max-w-[300px]" title={src.title}>
-                                                        {src.title}
+                                                    <span className="font-bold text-sm text-zinc-200 group-hover:text-primary transition-colors line-clamp-1 max-w-[300px]" title={source.title}>
+                                                        {source.title}
                                                     </span>
-                                                    {src.url ? (
-                                                        <a href={src.url} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-[9px] text-zinc-600 hover:text-primary transition-colors w-max">
+                                                    {source.uniformResourceLocator ? (
+                                                        <a href={source.uniformResourceLocator} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-[9px] text-zinc-600 hover:text-primary transition-colors w-max">
                                                             <LinkIcon size={10} /> Enlace Externo
                                                         </a>
                                                     ) : (
@@ -178,8 +167,8 @@ export function VaultDashboardClient({ initialSources }: VaultDashboardProps) {
                                             </TableCell>
                                             
                                             <TableCell>
-                                                <Badge variant="outline" className={`text-[8px] uppercase tracking-widest font-black border-white/10 ${src.source_type === 'admin' ? 'text-amber-400 bg-amber-400/5 border-amber-400/20' : 'text-zinc-400'}`}>
-                                                    {src.source_type}
+                                                <Badge variant="outline" className={`text-[8px] uppercase tracking-widest font-black border-white/10 ${source.sourceTypeDescriptor === 'admin' ? 'text-amber-400 bg-amber-400/5 border-amber-400/20' : 'text-zinc-400'}`}>
+                                                    {source.sourceTypeDescriptor}
                                                 </Badge>
                                             </TableCell>
                                             
@@ -187,7 +176,7 @@ export function VaultDashboardClient({ initialSources }: VaultDashboardProps) {
                                                 <div className="flex items-center gap-2">
                                                     <Server size={12} className="text-primary/60" />
                                                     <span className="font-mono font-bold text-xs text-zinc-300">
-                                                        {src.knowledge_chunks?.[0]?.count || 0}
+                                                        {source.knowledgeChunksInventory?.[0]?.count || 0}
                                                     </span>
                                                 </div>
                                             </TableCell>
@@ -196,12 +185,12 @@ export function VaultDashboardClient({ initialSources }: VaultDashboardProps) {
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
-                                                    onClick={() => handleDelete(src.id, src.title)}
-                                                    disabled={isDeleting === src.id}
+                                                    onClick={() => handleDeleteAction(source.identification, source.title)}
+                                                    disabled={isDeletingIdentification === source.identification}
                                                     className="h-8 w-8 text-zinc-600 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
                                                     title="Purgar del Índice Vectorial"
                                                 >
-                                                    {isDeleting === src.id ? (
+                                                    {isDeletingIdentification === source.identification ? (
                                                         <div className="h-4 w-4 rounded-full border-2 border-red-500 border-t-transparent animate-spin" />
                                                     ) : (
                                                         <Trash2 size={16} />
@@ -219,7 +208,6 @@ export function VaultDashboardClient({ initialSources }: VaultDashboardProps) {
 
             {/* 
                 BLOQUE II: LABORATORIO LATERAL (SIDE PANEL)
-                Alojamiento para el Resonance Simulator.
             */}
             <div className="xl:col-span-1 space-y-6">
                 <div className="p-4 bg-zinc-900/40 border border-white/5 rounded-2xl flex items-start gap-3">
@@ -235,20 +223,10 @@ export function VaultDashboardClient({ initialSources }: VaultDashboardProps) {
 
             {/* MODAL DE INYECCIÓN (Orquestador de Refinería) */}
             <ManualIngestionModal 
-                isOpen={isModalOpen} 
-                onClose={() => setIsModalOpen(false)} 
+                isOpen={isModalOpenSovereignty}
+                onClose={() => setIsModalOpenSovereignty(false)}
             />
 
         </div>
     );
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Resiliencia TS: Al definir 'VaultSource', le enseñamos a TypeScript qué 
- *    esperar dentro de 'initialSources', eliminando alertas de propiedades no encontradas.
- * 2. Cero Pestañeos en UX: El uso de 'isDeleting === src.id' restringe el 
- *    spinner de carga exclusivamente al botón que el admin pulsó, sin bloquear el resto.
- * 3. Seguridad de Borrado: Se implementó un prompt nativo de Windows/Mac para 
- *    prevenir purgas accidentales (Fat Finger Error) en una base de datos en producción.
- */

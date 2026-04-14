@@ -1,9 +1,14 @@
-
-// app/admin/vault/page.tsx
+/**
+ * ARCHIVO: app/(platform)/(admin)/admin/vault/page.tsx
+ * VERSIÓN: 4.0 (Madrid Resonance)
+ * PROTOCOLO: Madrid Resonance Protocol V4.0
+ * MISIÓN: Punto de entrada administrativo para la gestión del Knowledge Vault (NKV).
+ * NIVEL DE INTEGRIDAD: HIGH
+ */
 
 // app/(platform)/(admin)/admin/vault/page.tsx
 
-import { listVaultSources } from "@/actions/vault-actions";
+import { listVaultSources, VaultKnowledgeSource } from "@/actions/vault-actions";
 import { VaultDashboardClient } from "@/components/admin/vault-dashboard-client";
 import { Database, Server, BrainCircuit, Activity } from "lucide-react";
 
@@ -21,20 +26,17 @@ export const dynamic = 'force-dynamic';
 export default async function VaultPage() {
   
   // 1. INVOCACIÓN DE LA ACCIÓN DE SOBERANÍA
-  // listVaultSources ahora devuelve un VaultActionResponse: { success, message, data, error }
-  const response = await listVaultSources();
+  const administrativeResponse = await listVaultSources();
   
-  // 2. EXTRACCIÓN SANEADA (El Fix para TS2339 y TS2740)
-  // Si la petición tuvo éxito y contiene data, usamos esa data. De lo contrario, array vacío.
-  // Esto garantiza que el método .reduce() y .length() jamás colapsen el servidor.
-  const sources: any[] = response.success && Array.isArray(response.data) ? response.data : [];
+  // 2. EXTRACCIÓN SANEADA (Build Shield Sovereignty)
+  const sourcesInventory: VaultKnowledgeSource[] = administrativeResponse.success && administrativeResponse.data
+    ? administrativeResponse.data
+    : [];
 
   // 3. TELEMETRÍA DE DENSIDAD (Cálculo de Chunks Atómicos)
-  // Iteramos sobre las fuentes para sumar la cantidad de vectores indexados.
-  const totalFacts = sources.reduce((acc: number, curr: any) => {
-    // La consulta SQL inyecta el conteo en un array [{count: X}]
-    const chunkCount = curr.knowledge_chunks?.[0]?.count || 0;
-    return acc + chunkCount;
+  const totalAtomicFactsCount = sourcesInventory.reduce((accumulator: number, currentSource: VaultKnowledgeSource) => {
+    const chunkCount = currentSource.knowledgeChunksInventory?.[0]?.count || 0;
+    return accumulator + chunkCount;
   }, 0);
 
   return (
@@ -42,7 +44,6 @@ export default async function VaultPage() {
       
       {/* 
           BLOQUE I: CABECERA DE MANDO
-          Título y estado de la red de inteligencia.
       */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-white/5 pb-8">
         <div>
@@ -59,14 +60,13 @@ export default async function VaultPage() {
         <div className="flex items-center gap-2 bg-primary/10 border border-primary/20 px-4 py-2 rounded-full backdrop-blur-md">
           <Activity size={12} className="text-primary animate-pulse" />
           <span className="text-[9px] font-black uppercase tracking-widest text-primary">
-            {response.success ? "Índice HNSW Estable" : "Alerta de Sincronía"}
+            {administrativeResponse.success ? "Índice HNSW Estable" : "Alerta de Sincronía"}
           </span>
         </div>
       </div>
 
       {/* 
           BLOQUE II: HUD DE TELEMETRÍA DE ALTA DENSIDAD
-          Muestra el volumen de capital intelectual almacenado.
       */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
          
@@ -80,7 +80,7 @@ export default async function VaultPage() {
               Total Fuentes Base
             </p>
             <p className="text-5xl font-black text-white leading-none tabular-nums drop-shadow-md">
-              {sources.length}
+              {sourcesInventory.length}
             </p>
          </div>
 
@@ -94,38 +94,26 @@ export default async function VaultPage() {
               Hechos Atómicos (Vectores)
             </p>
             <p className="text-5xl font-black text-white leading-none tabular-nums drop-shadow-[0_0_15px_rgba(var(--primary),0.5)]">
-              {totalFacts}
+              {totalAtomicFactsCount}
             </p>
          </div>
 
          {/* Tarjeta: Reporte de Red (Fallback Error) */}
-         {!response.success && (
+         {!administrativeResponse.success && (
            <div className="sm:col-span-2 lg:col-span-1 p-6 bg-red-950/20 border border-red-500/20 rounded-[2rem] flex flex-col justify-center">
               <p className="text-[10px] font-black uppercase tracking-[0.3em] text-red-500 mb-2">Fallo de Subsistema</p>
-              <p className="text-xs text-red-400 font-medium">{response.error || "No se pudo establecer contacto con PostgreSQL."}</p>
+              <p className="text-xs text-red-400 font-medium">{administrativeResponse.exceptionMessageInformation || "No se pudo establecer contacto con PostgreSQL."}</p>
            </div>
          )}
       </div>
       
       {/* 
           BLOQUE III: MOTOR DE GESTIÓN CLIENTE
-          Pasamos el inventario limpio (Array de sources) al componente interactivo 
-          que maneja la tabla, los borrados y la inyección manual.
       */}
       <div className="pt-6">
-        <VaultDashboardClient initialSources={sources} />
+        <VaultDashboardClient initialSources={sourcesInventory} />
       </div>
 
     </div>
   );
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Resolución TS2339/TS2740: Al aislar `const sources = response.data` garantizamos 
- *    que los métodos de Array (.reduce y .length) operen sobre el tipo correcto.
- * 2. Cero Pestañeos de Error: Si la DB falla, `sources` es `[]`, lo que previene que 
- *    el `VaultDashboardClient` reciba 'undefined' y rompa la hidratación en el cliente.
- * 3. Estética Industrial: Se añadieron iconos de lucide-react y variables de Tailwind
- *    para dar una sensación de centro de mando físico.
- */

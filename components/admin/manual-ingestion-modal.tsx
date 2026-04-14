@@ -1,5 +1,5 @@
 // components/admin/manual-ingestion-modal.tsx
-// VERSIÓN: 1.0 (NKV Ingestor - Direct Neural Feeding)
+// VERSIÓN: 4.0 (Madrid Resonance Protocol V4.0)
 
 "use client";
 
@@ -10,25 +10,37 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { BrainCircuit, Loader2, Sparkles, Send } from "lucide-react";
+import { BrainCircuit, Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
 
+/**
+ * COMPONENTE: ManualIngestionModal
+ * Misión: Inyectar conocimiento curado directamente en el Knowledge Vault.
+ */
 export function ManualIngestionModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
-    const [isPending, startTransition] = useTransition();
-    const [form, setForm] = useState({ title: "", text: "", url: "" });
+    const [isPendingSovereignty, startTransitionSovereignty] = useTransition();
+    const [knowledgeInjectionForm, setKnowledgeInjectionForm] = useState({
+        title: "",
+        text: "",
+        uniformResourceLocator: ""
+    });
 
-    const handleSubmit = () => {
-        if (!form.title || !form.text) return;
+    /**
+     * ACCIÓN: handleSubmitAction
+     */
+    const handleSubmitAction = () => {
+        if (!knowledgeInjectionForm.title || !knowledgeInjectionForm.text) return;
 
-        startTransition(async () => {
+        startTransitionSovereignty(async () => {
             try {
-                const res = await injectManualKnowledge(form);
-                if (res.success) {
+                const administrativeResponse = await injectManualKnowledge(knowledgeInjectionForm);
+                if (administrativeResponse.success) {
                     toast.success("Conocimiento inyectado exitosamente.");
-                    setForm({ title: "", text: "", url: "" });
+                    setKnowledgeInjectionForm({ title: "", text: "", uniformResourceLocator: "" });
                     onClose();
                 }
-            } catch (e) {
+            } catch (vaultException: any) {
+                console.error("🔥 [Vault-Ingestion-Fatal]:", vaultException);
                 toast.error("Fallo en la refinería neuronal.");
             }
         });
@@ -55,8 +67,8 @@ export function ManualIngestionModal({ isOpen, onClose }: { isOpen: boolean, onC
                             <Label className="text-[10px] font-black uppercase tracking-widest text-primary ml-1">Título de la Fuente</Label>
                             <Input
                                 placeholder="Ej: Principios de la Entropía Social"
-                                value={form.title}
-                                onChange={e => setForm({ ...form, title: e.target.value })}
+                                value={knowledgeInjectionForm.title}
+                                onChange={e => setKnowledgeInjectionForm({ ...knowledgeInjectionForm, title: e.target.value })}
                                 className="bg-white/5 border-white/10 h-14 rounded-2xl font-bold"
                             />
                         </div>
@@ -65,8 +77,8 @@ export function ManualIngestionModal({ isOpen, onClose }: { isOpen: boolean, onC
                             <Label className="text-[10px] font-black uppercase tracking-widest text-primary ml-1">Cuerpo del Conocimiento (Texto plano)</Label>
                             <Textarea
                                 placeholder="Pega aquí el contenido extenso..."
-                                value={form.text}
-                                onChange={e => setForm({ ...form, text: e.target.value })}
+                                value={knowledgeInjectionForm.text}
+                                onChange={e => setKnowledgeInjectionForm({ ...knowledgeInjectionForm, text: e.target.value })}
                                 className="bg-white/5 border-white/10 min-h-[250px] rounded-3xl p-6 text-sm leading-relaxed custom-scrollbar resize-none"
                             />
                         </div>
@@ -75,8 +87,8 @@ export function ManualIngestionModal({ isOpen, onClose }: { isOpen: boolean, onC
                             <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">URL de Referencia (Opcional)</Label>
                             <Input
                                 placeholder="https://..."
-                                value={form.url}
-                                onChange={e => setForm({ ...form, url: e.target.value })}
+                                value={knowledgeInjectionForm.uniformResourceLocator}
+                                onChange={e => setKnowledgeInjectionForm({ ...knowledgeInjectionForm, uniformResourceLocator: e.target.value })}
                                 className="bg-white/5 border-white/10 h-12 rounded-xl text-zinc-400 font-mono"
                             />
                         </div>
@@ -84,11 +96,11 @@ export function ManualIngestionModal({ isOpen, onClose }: { isOpen: boolean, onC
 
                     <footer className="pt-4 flex flex-col gap-4">
                         <Button
-                            onClick={handleSubmit}
-                            disabled={isPending || !form.title || form.text.length < 50}
+                            onClick={handleSubmitAction}
+                            disabled={isPendingSovereignty || !knowledgeInjectionForm.title || knowledgeInjectionForm.text.length < 50}
                             className="h-16 w-full bg-primary text-white font-black uppercase tracking-widest text-sm rounded-2xl shadow-xl shadow-primary/20 group"
                         >
-                            {isPending ? <Loader2 className="animate-spin mr-2" /> : <Send className="mr-2 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />}
+                            {isPendingSovereignty ? <Loader2 className="animate-spin mr-2" /> : <Send className="mr-2 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />}
                             INICIAR REFINERÍA NEURONAL
                         </Button>
                         <p className="text-[9px] text-center text-zinc-600 font-bold uppercase tracking-widest">
