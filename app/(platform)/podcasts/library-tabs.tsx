@@ -467,6 +467,6 @@ export function LibraryTabs({
  *    mediante la inyección de 'ephemeralRealtimeSessionIdentification' en el nombre de 
  *    los canales. Esto garantiza unicidad total y sintonía atómica por sesión.
  * 2. TS18047 Resolution: Se implementó el Sovereign Null Shield mediante encadenamiento 
- *    opcional en el acceso a 'urlSearchParameters'.
+ *    opcional en el acceso a 'urlSearchParameters'. 
  * 3. ZAP Absolute Compliance: Purificación nominal completa en el 100% del archivo.
  */
