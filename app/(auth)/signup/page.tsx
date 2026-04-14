@@ -1,120 +1,202 @@
-// app/signup/page.tsx
+/**
+ * ARCHIVE: app/(auth)/signup/page.tsx
+ * VERSION: 10.0 (NicePod Sovereign Registration - Industrial Refinement)
+ * PROTOCOLO: MADRID RESONANCE V4.0
+ * MISSION: Registration terminal for onboarding new Voyagers into the Mesh,
+ * ensuring identity integrity and event traceability.
+ * INTEGRITY LEVEL: 100% (Sovereign / Zero Abbreviations / Production-Ready)
+ */
 
-"use client"
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { useAuth } from "@/hooks/use-auth";
+"use client";
+
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, User, Mail, Lock } from "lucide-react";
+import { Lock, Loader2, Mail, User } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import posthog from "posthog-js";
+import React, { useState } from "react";
 
+/**
+ * SignUpPage: El orquestador del túnel de registro industrial.
+ */
 export default function SignUpPage() {
-  const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const { supabase } = useAuth();
-  const router = useRouter();
+  // --- I. ESTADOS DE GESTIÓN DE IDENTIDAD ---
+  const [fullUserDisplayName, setFullUserDisplayName] = useState<string>("");
+  const [emailAddress, setEmailAddress] = useState<string>("");
+  const [accessPassword, setAccessPassword] = useState<string>("");
+  const [isAuthenticationProcessActive, setIsAuthenticationProcessActive] = useState<boolean>(false);
+
+  const { supabase: supabaseClient } = useAuth();
+  const navigationRouter = useRouter();
   const { toast } = useToast();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
+  /**
+   * handleRegistrationAction:
+   * Misión: Ejecutar la creación de cuenta en el metal de Supabase Auth y registrar el evento.
+   */
+  const handleRegistrationAction = async (formEvent: React.FormEvent) => {
+    formEvent.preventDefault();
+    setIsAuthenticationProcessActive(true);
+
+    // TELEMETRÍA: Inicio de registro
+    posthog.capture('voyager_registration_initiated', {
+      method: 'email'
+    });
+
     try {
-      const { error } = await supabase.auth.signUp({
-        email: email,
-        password: password,
-        options: { data: { full_name: fullName } }
+      const { error: authenticationError } = await supabaseClient.auth.signUp({
+        email: emailAddress,
+        password: accessPassword,
+        options: {
+          data: {
+            full_name: fullUserDisplayName
+          }
+        }
       });
-      if (error) { throw error; }
-      toast({ title: "Account Created!", description: "Welcome to NicePod! Redirecting..." });
-      router.push("/create");
-    } catch (error: any) {
-      toast({ title: "Registration Failed", description: error.message, variant: "destructive" });
+
+      if (authenticationError) {
+        throw authenticationError;
+      }
+
+      // TELEMETRÍA: Registro exitoso
+      posthog.capture('voyager_registration_success');
+
+      toast({
+        title: "Cuenta Creada",
+        description: "¡Bienvenido a NicePod! Redirigiendo a la terminal de forja..."
+      });
+
+      navigationRouter.push("/create");
+
+    } catch (authenticationException: unknown) {
+      const errorObject = authenticationException as Error;
+
+      toast({
+        title: "Fallo de Registro",
+        description: errorObject.message,
+        variant: "destructive"
+      });
+
+      // TELEMETRÍA: Error de registro
+      posthog.capture('voyager_registration_failed', {
+        exceptionMessageInformation: errorObject.message
+      });
+
     } finally {
-      setIsLoading(false);
+      setIsAuthenticationProcessActive(false);
     }
   };
 
   return (
-    // Restauramos el contenedor principal con el fondo degradado
     <div className="flex min-h-screen items-center justify-center p-4 bg-gradient-to-br from-purple-500/10 via-background to-blue-500/10 dark:from-purple-900/20 dark:via-background dark:to-blue-900/20">
-      <Card className="w-full max-w-md backdrop-blur-lg bg-card/60 dark:bg-card/40 border-muted/30 shadow-2xl">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">Create an account</CardTitle>
-          <CardDescription>Your free plan will be assigned automatically.</CardDescription>
+      <Card className="w-full max-w-md backdrop-blur-lg bg-card/60 dark:bg-card/40 border-muted/30 shadow-2xl rounded-[2.5rem] overflow-hidden">
+        <CardHeader className="text-center pt-8">
+          <CardTitle className="text-3xl font-black tracking-tighter uppercase italic">Crear <span className="text-primary">Cuenta</span></CardTitle>
+          <CardDescription className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">El plan gratuito se asignará automáticamente.</CardDescription>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <CardContent className="px-6 pb-8">
+          <form onSubmit={handleRegistrationAction} className="space-y-4">
+
+            {/* CAMPO: IDENTIDAD NOMINAL */}
             <div className="space-y-2">
-              <Label htmlFor="full-name">Full Name</Label>
+              <Label htmlFor="full-name" className="text-[9px] font-black uppercase tracking-[0.2em] ml-1 opacity-70">Nombre Completo</Label>
               <div className="relative">
-                <User className="absolute left-3 top-2.5 h-5 w-5 text-muted-foreground" />
-                {/* --- CORRECCIÓN: Añadida la clase pl-10 --- */}
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input
                   id="full-name"
                   type="text"
-                  placeholder="Your Name"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className="pl-10"
+                  placeholder="Tu Nombre"
+                  value={fullUserDisplayName}
+                  onChange={(event) => setFullUserDisplayName(event.target.value)}
+                  className="pl-10 h-14 rounded-2xl bg-zinc-900/50 border-white/5 focus:ring-primary/20"
                   required
-                  disabled={isLoading}
+                  disabled={isAuthenticationProcessActive}
                 />
               </div>
             </div>
+
+            {/* CAMPO: IDENTIFICACIÓN DE RED */}
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-[9px] font-black uppercase tracking-[0.2em] ml-1 opacity-70">Correo electrónico</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-2.5 h-5 w-5 text-muted-foreground" />
-                {/* --- CORRECCIÓN: Añadida la clase pl-10 --- */}
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input
                   id="email"
                   type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10"
+                  placeholder="tu@ejemplo.com"
+                  value={emailAddress}
+                  onChange={(event) => setEmailAddress(event.target.value)}
+                  className="pl-10 h-14 rounded-2xl bg-zinc-900/50 border-white/5 focus:ring-primary/20"
                   required
-                  disabled={isLoading}
+                  disabled={isAuthenticationProcessActive}
                 />
               </div>
             </div>
+
+            {/* CAMPO: LLAVE DE ACCESO */}
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" className="text-[9px] font-black uppercase tracking-[0.2em] ml-1 opacity-70">Llave de Acceso</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-2.5 h-5 w-5 text-muted-foreground" />
-                {/* --- CORRECCIÓN: Añadida la clase pl-10 --- */}
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input
                   id="password"
                   type="password"
                   placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10"
+                  value={accessPassword}
+                  onChange={(event) => setAccessPassword(event.target.value)}
+                  className="pl-10 h-14 rounded-2xl bg-zinc-900/50 border-white/5 focus:ring-primary/20"
                   required
                   minLength={6}
-                  disabled={isLoading}
+                  disabled={isAuthenticationProcessActive}
                 />
               </div>
             </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Create account
+
+            <Button
+              type="submit"
+              className="w-full h-14 rounded-2xl font-black uppercase tracking-widest text-xs transition-all active:scale-[0.98]"
+              disabled={isAuthenticationProcessActive}
+            >
+              {isAuthenticationProcessActive ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Sincronizando...
+                </div>
+              ) : "Sincronizar Identidad"}
             </Button>
           </form>
-          <div className="mt-4 text-center text-sm">
-            Already have an account?{" "}
-            <Link href="/login" className="underline hover:text-primary">
-              Sign in
-            </Link>
+
+          <div className="mt-6 text-center">
+            <p className="text-[10px] font-bold uppercase tracking-widest opacity-50">
+              ¿Ya tienes una cuenta?{" "}
+              <Link href="/login" className="text-primary font-black hover:underline underline-offset-4">
+                Ingresar
+              </Link>
+            </p>
           </div>
         </CardContent>
       </Card>
     </div>
   );
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V10.0):
+ * 1. Zero Abbreviations Policy (ZAP): Se han purificado los estados de formulario
+ *    y los manejadores de eventos para cumplir con el dogma industrial.
+ * 2. Observability Integration: La inyección de PostHog permite el peritaje de
+ *    conversión de nuevos Voyagers en tiempo real.
+ * 3. Build Shield Sovereignty: Se utiliza 'unknown' en el catch block con tipado
+ *    seguro para cumplir con el protocolo de robustez.
+ */

@@ -1,5 +1,11 @@
-// app/forgot-password/page.tsx
-// VERSIÓN: 10.0 (Madrid Resonance - Auth Recovery & UX Polish)
+/**
+ * ARCHIVE: app/(auth)/forgot-password/page.tsx
+ * VERSION: 10.0 (NicePod Access Recovery - Industrial Refinement)
+ * PROTOCOLO: MADRID RESONANCE V4.0
+ * MISSION: Provide a secure and frictionless account recovery path,
+ * ensuring traceability of the resonance request.
+ * INTEGRITY LEVEL: 100% (Sovereign / Zero Abbreviations / Production-Ready)
+ */
 
 "use client";
 
@@ -19,56 +25,71 @@ import { useToast } from "@/hooks/use-toast";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, Loader2, Mail, Sparkles } from "lucide-react";
 import Link from "next/link";
+import posthog from "posthog-js";
 import React, { useState } from "react";
 
 /**
- * PAGE: ForgotPasswordPage
- * Misión: Proporcionar una vía de recuperación de cuenta segura y sin fricción.
- * Utiliza el motor de autenticación de Supabase para el envío de enlaces de recuperación.
+ * ForgotPasswordPage: El orquestador del túnel de recuperación de acceso.
  */
 export default function ForgotPasswordPage() {
-  const [email, setEmail] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [emailAddress, setEmailAddress] = useState<string>("");
+  const [isAuthenticationProcessActive, setIsAuthenticationProcessActive] = useState<boolean>(false);
+  const [isSubmissionSuccessful, setIsSubmissionSuccessful] = useState<boolean>(false);
 
-  // Consumimos el hook de autenticación (La interfaz se actualizará en el Archivo 3)
-  const { supabase } = useAuth();
+  const { supabase: supabaseClient } = useAuth();
   const { toast } = useToast();
 
   /**
-   * handleResetRequest
-   * Orquestador del envío del enlace de recuperación.
+   * handleResetRequestAction:
+   * Misión: Ejecutar el envío del enlace de recuperación y registrar la intención.
    */
-  const handleResetRequest = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) return;
+  const handleResetRequestAction = async (formEvent: React.FormEvent) => {
+    formEvent.preventDefault();
+    if (!emailAddress) return;
 
-    setIsLoading(true);
+    setIsAuthenticationProcessActive(true);
 
     try {
-      // Usamos el cliente de Supabase directamente para el envío de OTP/Link
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      // TELEMETRÍA: Inicio de recuperación
+      posthog.capture('voyager_recovery_requested', {
+        email_provided: true
+      });
+
+      const { error: authenticationError } = await supabaseClient.auth.resetPasswordForEmail(emailAddress, {
         redirectTo: `${window.location.origin}/auth/callback?next=/profile`,
       });
 
-      if (error) {
-        throw error;
+      if (authenticationError) {
+        throw authenticationError;
       }
 
-      setIsSubmitted(true);
+      setIsSubmissionSuccessful(true);
+
+      // TELEMETRÍA: Recuperación exitosa
+      posthog.capture('voyager_recovery_success');
+
       toast({
         title: "Enlace Enviado",
-        description: "Revisa tu bandeja de entrada para continuar.",
+        description: "Revisa tu bandeja de entrada para continuar con la sincronización.",
       });
-    } catch (err: any) {
-      console.error("[NicePod-Auth] Reset Password Error:", err.message);
+    } catch (authenticationException: unknown) {
+      const errorObject = authenticationException as Error;
+
+      console.error("🔥 [NicePod-Auth] Reset Password Error:", errorObject.message);
+
       toast({
         title: "Fallo en la solicitud",
-        description: err.message || "No pudimos procesar la recuperación en este momento.",
+        description: errorObject.message || "No pudimos procesar la recuperación en este momento.",
         variant: "destructive",
       });
+
+      // TELEMETRÍA: Error de recuperación
+      posthog.capture('voyager_recovery_failed', {
+        exceptionMessageInformation: errorObject.message
+      });
+
     } finally {
-      setIsLoading(false);
+      setIsAuthenticationProcessActive(false);
     }
   };
 
@@ -92,7 +113,7 @@ export default function ForgotPasswordPage() {
                 Recuperar <span className="text-primary">Acceso</span>
               </CardTitle>
               <CardDescription className="text-zinc-500 dark:text-zinc-400 font-medium">
-                {!isSubmitted
+                {!isSubmissionSuccessful
                   ? "Introduce tu email y te enviaremos el portal de entrada."
                   : "Hemos enviado el vínculo de resonancia a tu correo."}
               </CardDescription>
@@ -101,13 +122,13 @@ export default function ForgotPasswordPage() {
 
           <CardContent className="px-8 pb-8">
             <AnimatePresence mode="wait">
-              {!isSubmitted ? (
+              {!isSubmissionSuccessful ? (
                 <motion.form
                   key="form"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  onSubmit={handleResetRequest}
+                  onSubmit={handleResetRequestAction}
                   className="space-y-6"
                 >
                   <div className="space-y-2">
@@ -120,11 +141,11 @@ export default function ForgotPasswordPage() {
                         id="email"
                         type="email"
                         placeholder="tu@ejemplo.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        value={emailAddress}
+                        onChange={(event) => setEmailAddress(event.target.value)}
                         className="pl-12 h-14 bg-white/5 border-white/10 rounded-2xl focus:border-primary/50 transition-all text-base"
                         required
-                        disabled={isLoading}
+                        disabled={isAuthenticationProcessActive}
                       />
                     </div>
                   </div>
@@ -132,9 +153,9 @@ export default function ForgotPasswordPage() {
                   <Button
                     type="submit"
                     className="w-full h-14 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all"
-                    disabled={isLoading}
+                    disabled={isAuthenticationProcessActive}
                   >
-                    {isLoading ? (
+                    {isAuthenticationProcessActive ? (
                       <div className="flex items-center gap-2">
                         <Loader2 className="h-4 w-4 animate-spin" />
                         Sincronizando...
@@ -152,7 +173,7 @@ export default function ForgotPasswordPage() {
                   <div className="rounded-[2rem] bg-emerald-500/10 border border-emerald-500/20 p-6 text-center">
                     <p className="text-sm font-bold text-emerald-500 leading-relaxed">
                       El enlace ha sido enviado a: <br />
-                      <span className="text-white underline decoration-emerald-500/50 underline-offset-4">{email}</span>
+                      <span className="text-white underline decoration-emerald-500/50 underline-offset-4">{emailAddress}</span>
                     </p>
                   </div>
 
@@ -163,7 +184,7 @@ export default function ForgotPasswordPage() {
                     <Button
                       variant="outline"
                       className="w-full h-12 rounded-xl bg-transparent border-white/10 hover:bg-white/5 text-[10px] font-black uppercase tracking-widest"
-                      onClick={() => setIsSubmitted(false)}
+                      onClick={() => setIsSubmissionSuccessful(false)}
                     >
                       Intentar con otro correo
                     </Button>
@@ -187,3 +208,13 @@ export default function ForgotPasswordPage() {
     </div>
   );
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V10.0):
+ * 1. Zero Abbreviations Policy (ZAP): Se purificaron términos como 'email', 'isLoading',
+ *    'isSubmitted' y 'err', sustituyéndolos por sus equivalentes semánticos completos.
+ * 2. Observability Integration: Se inyectó PostHog para monitorear el flujo de
+ *    recuperación de acceso, permitiendo identificar fricciones en el embudo de login.
+ * 3. Build Shield Sovereignty: Se implementó 'unknown' en el bloque catch para
+ *    cumplir con el estándar de robustez industrial.
+ */
