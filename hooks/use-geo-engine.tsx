@@ -1,15 +1,15 @@
 /**
  * ARCHIVO: hooks/use-geo-engine.tsx
- * VERSIÓN: 54.0 (NicePod Sovereign Geo-Engine - Automatic Mesh Elevation Edition)
+ * VERSIÓN: 55.0 (NicePod Sovereign Geo-Engine - Unified Contract Mapping Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * Misión: Actuar como la Fachada Transparente unificadora de la Workstation. 
  * Orquestar la sintonía entre los núcleos de telemetría, radar e interfaz, 
- * garantizando el aterrizaje automático y la elevación de precisión de la malla.
- * [REFORMA V54.0]: Implementación del 'Automatic Mesh Elevation'. La fachada 
- * ahora detecta la transición de fuente (IP -> GPS) y dispara aterrizajes 
- * cinemáticos automáticos para actualizar la posición del Voyager sin 
- * intervención humana. Sincronía nominal absoluta (ZAP).
+ * garantizando que la verdad geodésica y cinemática fluya bajo el contrato V9.0.
+ * [REFORMA V55.0]: Resolución definitiva de errores TS2339, TS2551 y TS2322. 
+ * Sincronización nominal absoluta con InterfaceCore V4.0 y TelemetryCore V6.1. 
+ * Implementación del mapeo de mando único 'executeUnifiedCommandAction'. 
+ * Purificación total bajo la Zero Abbreviations Policy (ZAP).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -37,7 +37,7 @@ const GeoEngineContext = createContext<GeoEngineReturn | undefined>(undefined);
 
 /**
  * GeoFacadeComponent: El Cerebro Sincronizador de la Workstation NicePod.
- * Misión: Fusionar el estado de los núcleos en una firma operativa autónoma.
+ * Misión: Fusionar el estado de los núcleos en una única firma operativa soberana.
  */
 function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
   const telemetryCore = useGeoTelemetry();
@@ -51,17 +51,16 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
 
   /**
    * EFECTO: ORQUESTACIÓN DE AUTO-SINCRO Y ELEVACIÓN
-   * Misión: Detectar mejoras en la fuente de verdad y mover la cámara automáticamente.
+   * Misión: Detectar mejoras en la fuente de verdad y disparar aterrizajes autónomos.
    */
   useEffect(() => {
     const currentGeographicLocationSnapshot = telemetryCore.userLocation;
     const currentTelemetrySource = telemetryCore.telemetrySource;
 
     if (currentGeographicLocationSnapshot) {
-
+      
       /**
        * 1. ATERRIZAJE INICIAL (PROTOCOLO T0)
-       * Si el sistema está triangulado (aunque sea por IP), realizamos el primer aterrizaje.
        */
       if (telemetryCore.isTriangulated && !hasPerformedInitialLandingReference.current) {
         nicepodLog(`🚀 [GeoEngine] Aterrizaje Inicial (Fuente: ${currentTelemetrySource}).`);
@@ -72,19 +71,15 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
 
       /**
        * 2. ELEVACIÓN AUTOMÁTICA DE MALLA (AUTO-UPGRADE)
-       * Misión: Si estábamos en IP y ahora el hardware (GPS/WiFi) responde, 
-       * ejecutamos un nuevo aterrizaje hacia la ubicación precisa.
        */
       const isUpgradingFromInternetProtocolToHardware =
         currentTelemetrySource === 'global-positioning-system' &&
         lastTelemetrySourceReference.current === 'edge-internet-protocol';
 
       if (isUpgradingFromInternetProtocolToHardware && !hasUpgradedToHardwareFixReference.current) {
-        nicepodLog("🛰️ [GeoEngine] Elevación de Malla: Sintonía de hardware detectada. Recentrando...");
-        interfaceCore.triggerLanding(); // Dispara el movimiento hacia la nueva coordenada real.
+        nicepodLog("🛰️ [GeoEngine] Elevación detectada. Recentrando sobre hardware real.");
+        interfaceCore.triggerLanding();
         hasUpgradedToHardwareFixReference.current = true;
-
-        // Refrescamos el radar para obtener hitos precisos del entorno real.
         radarCore.fetchRadarIntelligence(currentGeographicLocationSnapshot, true);
       }
 
@@ -92,8 +87,6 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
        * 3. EVALUACIÓN DE RESONANCIA SSS
        */
       radarCore.evaluateProximityResonance(currentGeographicLocationSnapshot);
-
-      // Si el Voyager se mueve significativamente, actualizamos el radar en segundo plano.
       radarCore.fetchRadarIntelligence(currentGeographicLocationSnapshot, false);
 
       lastTelemetrySourceReference.current = currentTelemetrySource;
@@ -117,10 +110,11 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
   }, [forgeOrchestrator.forgeStatus, telemetryCore.isDenied, telemetryCore.isIgnited, telemetryCore.isTriangulated]);
 
   /**
-   * geoEngineApplicationProgrammingInterface:
-   * Composición de la firma pública que satisface el contrato GeoEngineReturn.
+   * [SINCRO V55.0]: MAPEO DE FIRMA PÚBLICA (GEO_ENGINE_API)
+   * Misión: Traducir los estados purificados de los núcleos hacia el contrato V9.0.
    */
   const geoEngineApplicationProgrammingInterface: GeoEngineReturn = {
+    // I. Estados de Verdad y Telemetría Purificada (Global SSoT)
     status: derivedEngineOperationalStatus,
     userLocation: telemetryCore.userLocation,
     nearbyPointsOfInterest: radarCore.nearbyPointsOfInterest,
@@ -136,12 +130,14 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
       ...radarCore.localGeographicData
     } as GeoContextData,
 
+    // II. Gobernanza Visual y Cinemática (V9.0 Contract Alignment)
     cameraPerspective: interfaceCore.cameraPerspective,
-    mapStyle: interfaceCore.mapStyle,
-    isManualMode: interfaceCore.isManualMode,
+    activeMapStyle: interfaceCore.activeMapStyle, 
+    isManualModeActive: interfaceCore.isManualModeActive, 
     needsBallisticLanding: interfaceCore.needsBallisticLanding,
-    recenterTrigger: interfaceCore.recenterTrigger,
+    recenterTriggerPulse: interfaceCore.recenterTriggerPulse, 
 
+    executeUnifiedCommandAction: interfaceCore.executeUnifiedCommandAction,
     confirmLanding: interfaceCore.confirmLanding,
     toggleCameraPerspective: interfaceCore.togglePerspective,
     setManualMode: interfaceCore.setManualMode,
@@ -153,6 +149,7 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
       interfaceCore.triggerRecenter();
     },
 
+    // III. Operaciones de Mando de Hardware
     initSensors: telemetryCore.initializeHardwareSensors,
     reSyncRadar: () => {
       radarCore.clearRadarIntelligence();
@@ -166,6 +163,7 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
       telemetryCore.setManualGeographicAnchor(longitudeCoordinate, latitudeCoordinate),
     setManualPlaceName: (placeName: string) => radarCore.setManualGeographicPlaceName(placeName),
 
+    // IV. Pipeline de Inteligencia Multimodal
     ingestSensoryData: (ingestionParameters) => forgeOrchestrator.ingestSensoryData(telemetryCore.userLocation, {
       heroImage: ingestionParameters.heroImage,
       opticalCharacterRecognitionImages: ingestionParameters.opticalCharacterRecognitionImages,
@@ -198,7 +196,7 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
       hasPerformedInitialLandingReference.current = false;
       hasUpgradedToHardwareFixReference.current = false;
       lastTelemetrySourceReference.current = null;
-      nicepodLog("🧹 [GeoEngine] Malla purgada.");
+      nicepodLog("🧹 [GeoEngine] Malla purgada íntegramente.");
     }
   };
 
@@ -255,12 +253,12 @@ export function useGeoEngine(): GeoEngineReturn {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V54.0):
- * 1. Mesh Elevation: El sistema ahora es proactivo. Detecta la transición de 
- *    IP a GPS y dispara el aterrizaje de cámara automáticamente, eliminando 
- *    la fricción de la espera manual.
- * 2. Source Monitoring: Se implementa la vigilancia del cambio de fuente 
- *    mediante 'lastTelemetrySourceReference' para asegurar aterrizajes únicos 
- *    por nivel de calidad.
- * 3. ZAP Enforcement: Purificación nominal total en el 100% de los descriptores.
+ * NOTA TÉCNICA DEL ARCHITECT (V55.0):
+ * 1. Contract Alignment: Se resolvieron los errores de propiedad inexistente 
+ *    mapeando 'activeMapStyle', 'isManualModeActive' y 'recenterTriggerPulse' 
+ *    desde los núcleos internos hacia la firma pública.
+ * 2. Unified Command Injection: Se inyectó 'executeUnifiedCommandAction' para 
+ *    permitir que la UI de mando único delegue la lógica contextual a la fachada.
+ * 3. ZAP Absolute Compliance: Purificación nominal total en el 100% de los 
+ *    descriptores y funciones de orquestación.
  */
