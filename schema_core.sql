@@ -1,3 +1,11 @@
+/**
+ * ARCHIVO: schema_core.sql
+ * VERSIÓN: 4.0
+ * PROTOCOLO: Madrid Resonance Protocol V4.0
+ * MISIÓN: Persistence Layer Hardening (The Metal)
+ * NIVEL DE INTEGRIDAD: CRITICAL
+ */
+
 -- NICEPOD V2.5: CORE ARCHITECTURE DNA (V3.0)
 -- Destilado Profesional para Sucesión AI - Grado Industrial
 
@@ -2197,6 +2205,33 @@ CREATE OR REPLACE TRIGGER "on_new_testimonial" AFTER INSERT ON "public"."profile
 CREATE OR REPLACE TRIGGER "on_playback_completed_reputation" AFTER INSERT ON "public"."playback_events" FOR EACH ROW EXECUTE FUNCTION "public"."update_curator_reputation"();
 CREATE OR REPLACE TRIGGER "on_podcast_publish" AFTER UPDATE ON "public"."micro_pods" FOR EACH ROW EXECUTE FUNCTION "public"."handle_new_podcast_publication"();
 CREATE OR REPLACE TRIGGER "on_poi_update" BEFORE UPDATE ON "public"."points_of_interest" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+CREATE OR REPLACE FUNCTION "public"."ensure_sovereign_profile_integrity"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+BEGIN
+    -- [MANDATO DE SOBERANÍA]: Solo el service_role (Sistema/Acciones de Servidor) o el superusuario
+    -- pueden modificar columnas administrativas que definen el rango y telemetría del curador.
+    IF (auth.role() <> 'service_role' AND current_user <> 'postgres') THEN
+        NEW.role := OLD.role;
+        NEW.active_creation_jobs := OLD.active_creation_jobs;
+        NEW.followers_count := OLD.followers_count;
+        NEW.following_count := OLD.following_count;
+        NEW.reputation_score := OLD.reputation_score;
+        NEW.is_verified := OLD.is_verified;
+        NEW.stripe_customer_id := OLD.stripe_customer_id;
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+ALTER FUNCTION "public"."ensure_sovereign_profile_integrity"() OWNER TO "postgres";
+
+CREATE OR REPLACE TRIGGER "trigger_ensure_profile_integrity"
+    BEFORE UPDATE ON "public"."profiles"
+    FOR EACH ROW
+    EXECUTE FUNCTION "public"."ensure_sovereign_profile_integrity"();
+
 CREATE OR REPLACE TRIGGER "on_profiles_update" BEFORE UPDATE ON "public"."profiles" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
 CREATE OR REPLACE TRIGGER "on_subscriptions_update" BEFORE UPDATE ON "public"."subscriptions" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
 CREATE OR REPLACE TRIGGER "set_root_id_trigger" BEFORE INSERT ON "public"."micro_pods" FOR EACH ROW EXECUTE FUNCTION "public"."maintain_thread_integrity"();
@@ -2285,7 +2320,7 @@ ALTER TABLE ONLY "public"."user_usage"
     ADD CONSTRAINT "user_usage_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."profiles"("id");
 CREATE POLICY "Admins can update quotas" ON "public"."user_usage" FOR UPDATE USING ("public"."is_admin"());
 CREATE POLICY "Admins manage vault" ON "public"."madrid_vault_knowledge" USING (( SELECT "public"."is_admin"() AS "is_admin"));
-CREATE POLICY "Allow authenticated users to create" ON "public"."profile_testimonials" FOR INSERT WITH CHECK (((( SELECT "auth"."uid"() AS "uid") IS NOT NULL) AND (( SELECT "auth"."uid"() AS "uid") <> "profile_user_id")));
+CREATE POLICY "AuthenticatedCurators_Can_Create_Testimonials" ON "public"."profile_testimonials" FOR INSERT WITH CHECK (((( SELECT "auth"."uid"() AS "uid") IS NOT NULL) AND (( SELECT "auth"."uid"() AS "uid") <> "profile_user_id") AND (( SELECT "auth"."uid"() AS "uid") = "author_user_id")));
 CREATE POLICY "Allow individual read access" ON "public"."subscriptions" FOR SELECT USING ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
 CREATE POLICY "Allow individual read access" ON "public"."user_resonance_profiles" FOR SELECT USING ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
 CREATE POLICY "Allow owners to delete" ON "public"."profile_testimonials" FOR DELETE USING ((( SELECT "auth"."uid"() AS "uid") = "profile_user_id"));
