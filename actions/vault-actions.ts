@@ -1,9 +1,54 @@
-//actions/vault-actions.ts
-//VERSIÓN: 2.0 (NicePod Vault Engine - Industrial Admin & NKV Standard)
+/**
+ * ARCHIVO: actions/vault-actions.ts
+ * VERSIÓN: 4.1 (Madrid Resonance)
+ * PROTOCOLO: Madrid Resonance Protocol V4.0
+ * MISIÓN: Gestión administrativa del Knowledge Vault (NKV) con tipado soberano y ZAP absoluto.
+ * NIVEL DE INTEGRIDAD: CRITICAL
+ */
+
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+
+/**
+ * INTERFAZ: VaultKnowledgeChunk
+ * Representa un fragmento de conocimiento vectorizado.
+ */
+export interface VaultKnowledgeChunk {
+    identification: string;
+    content: string;
+    creationTimestamp: string | null;
+    importanceScore: number | null;
+    sourceIdentification: string;
+    tokenCount: number | null;
+}
+
+/**
+ * INTERFAZ: VaultKnowledgeSource
+ * Representa una fuente de sabiduría en la Bóveda.
+ */
+export interface VaultKnowledgeSource {
+    identification: string;
+    title: string;
+    sourceTypeDescriptor: string;
+    uniformResourceLocator: string | null;
+    creationTimestamp: string | null;
+    isPublicSovereignty: boolean | null;
+    contentHashIdentification: string;
+    reputationScore: number | null;
+    knowledgeChunksInventory?: { count: number }[];
+}
+
+/**
+ * INTERFAZ: SemanticResonanceNode
+ * Representa un resultado de búsqueda semántica en la Bóveda.
+ */
+export interface SemanticResonanceNode {
+    content: string;
+    similarity: number;
+    title?: string;
+}
 
 /**
  * INTERFAZ: VaultActionResponse
@@ -12,23 +57,19 @@ import { revalidatePath } from "next/cache";
 export type VaultActionResponse<T = null> = {
     success: boolean;
     message: string;
-    data?: T;
-    error?: string;
+    data: T | null;
+    exceptionMessageInformation?: string;
 };
 
 /**
  * PROTOCOLO: ensureAdminAuthority
  * Misión: Validar que la petición proviene de un nodo con privilegios administrativos.
- * 
- * Este guardia realiza una doble verificación:
- * 1. Validación de Token (JWT) mediante el motor de Supabase Auth.
- * 2. Validación de Rol en la tabla 'profiles' para prevenir escalada de privilegios.
  */
 async function ensureAdminAuthority() {
     const supabase = createClient();
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
+    const { data: { user }, error: authenticationError } = await supabase.auth.getUser();
+    if (authenticationError || !user) {
         throw new Error("AUTENTICACION_REQUERIDA: Sesión no detectada.");
     }
 
@@ -42,26 +83,30 @@ async function ensureAdminAuthority() {
         throw new Error("ACCESO_RESTRINGIDO: Se requieren privilegios de administración.");
     }
 
-    return { supabase, adminId: user.id };
+    return { supabase, administratorIdentification: user.id };
 }
 
 /**
  * FUNCIÓN: listVaultSources
  * Misión: Recuperar el inventario completo de fuentes de sabiduría (NKV).
- * 
- * [OPTIMIZACIÓN]: Incluye conteo de 'knowledge_chunks' para evaluar la densidad 
- * semántica de cada entrada en la Bóveda.
  */
-export async function listVaultSources(): Promise<VaultActionResponse<any[]>> {
+export async function listVaultSources(): Promise<VaultActionResponse<VaultKnowledgeSource[]>> {
     try {
         const { supabase } = await ensureAdminAuthority();
 
         const { data, error } = await supabase
             .from("knowledge_sources")
             .select(`
-        *,
-        knowledge_chunks (count)
-      `)
+                identification:id,
+                title,
+                sourceTypeDescriptor:source_type,
+                uniformResourceLocator:url,
+                creationTimestamp:created_at,
+                isPublicSovereignty:is_public,
+                contentHashIdentification:content_hash,
+                reputationScore:reputation_score,
+                knowledgeChunksInventory:knowledge_chunks (count)
+            `)
             .order("created_at", { ascending: false });
 
         if (error) throw error;
@@ -69,14 +114,15 @@ export async function listVaultSources(): Promise<VaultActionResponse<any[]>> {
         return {
             success: true,
             message: "Inventario de Bóveda sincronizado con éxito.",
-            data: data || []
+            data: data as unknown as VaultKnowledgeSource[]
         };
-    } catch (err: any) {
-        console.error("🔥 [Vault-Action][List-Sources]:", err.message);
+    } catch (vaultException: unknown) {
+        const errorMessage = vaultException instanceof Error ? vaultException.message : "Error desconocido";
+        console.error("🔥 [Vault-Action][List-Sources]:", errorMessage);
         return {
             success: false,
             message: "Fallo al recuperar el inventario de la Bóveda.",
-            error: err.message,
+            exceptionMessageInformation: errorMessage,
             data: []
         };
     }
@@ -85,34 +131,33 @@ export async function listVaultSources(): Promise<VaultActionResponse<any[]>> {
 /**
  * FUNCIÓN: deleteVaultSource
  * Misión: Purga física y lógica de una fuente de conocimiento y sus vectores asociados.
- * 
- * [INTEGRIDAD]: Gracias al esquema PostgreSQL, la eliminación dispara un CASCADE 
- * que limpia automáticamente los 'knowledge_chunks' del índice HNSW.
  */
-export async function deleteVaultSource(sourceId: string): Promise<VaultActionResponse> {
+export async function deleteVaultSource(sourceIdentification: string): Promise<VaultActionResponse> {
     try {
         const { supabase } = await ensureAdminAuthority();
 
         const { error } = await supabase
             .from("knowledge_sources")
             .delete()
-            .eq("id", sourceId);
+            .eq("id", sourceIdentification);
 
         if (error) throw error;
 
-        // Sincronizamos la visualización administrativa tras la purga.
         revalidatePath("/admin/vault");
 
         return {
             success: true,
-            message: "Fuente y vectores asociados eliminados de la Bóveda."
+            message: "Fuente y vectores asociados eliminados de la Bóveda.",
+            data: null
         };
-    } catch (err: any) {
-        console.error("🔥 [Vault-Action][Delete-Source]:", err.message);
+    } catch (vaultException: unknown) {
+        const errorMessage = vaultException instanceof Error ? vaultException.message : "Error desconocido";
+        console.error("🔥 [Vault-Action][Delete-Source]:", errorMessage);
         return {
             success: false,
             message: "No se pudo procesar la eliminación de la fuente.",
-            error: err.message
+            exceptionMessageInformation: errorMessage,
+            data: null
         };
     }
 }
@@ -120,24 +165,20 @@ export async function deleteVaultSource(sourceId: string): Promise<VaultActionRe
 /**
  * FUNCIÓN: injectManualKnowledge
  * Misión: Inyección de inteligencia curada manualmente por el administrador.
- * 
- * [PROCESAMIENTO]: Envía el crudo a la Edge Function 'vault-refinery' para:
- * 1. Generar Hash SHA-256 (Deduplicación).
- * 2. Destilar hechos atómicos mediante IA Flash.
- * 3. Generar Embeddings de 768 dimensiones.
  */
-export async function injectManualKnowledge(payload: {
+export async function injectManualKnowledge(knowledgeInjectionPayload: {
     title: string;
     text: string;
-    url?: string;
+    uniformResourceLocator?: string;
 }): Promise<VaultActionResponse> {
     try {
         const { supabase } = await ensureAdminAuthority();
 
-        // Invocación a la Refinería de Bóveda (NKV Pipeline)
         const { data, error: functionError } = await supabase.functions.invoke('vault-refinery', {
             body: {
-                ...payload,
+                title: knowledgeInjectionPayload.title,
+                text: knowledgeInjectionPayload.text,
+                url: knowledgeInjectionPayload.uniformResourceLocator,
                 source_type: 'admin',
                 is_public: true
             }
@@ -149,14 +190,17 @@ export async function injectManualKnowledge(payload: {
 
         return {
             success: true,
-            message: "Inteligencia inyectada y vectorizada correctamente."
+            message: "Inteligencia inyectada y vectorizada correctamente.",
+            data: null
         };
-    } catch (err: any) {
-        console.error("🔥 [Vault-Action][Inject-Knowledge]:", err.message);
+    } catch (vaultException: unknown) {
+        const errorMessage = vaultException instanceof Error ? vaultException.message : "Error desconocido";
+        console.error("🔥 [Vault-Action][Inject-Knowledge]:", errorMessage);
         return {
             success: false,
             message: "La Bóveda rechazó la inyección de conocimiento.",
-            error: err.message
+            exceptionMessageInformation: errorMessage,
+            data: null
         };
     }
 }
@@ -164,22 +208,18 @@ export async function injectManualKnowledge(payload: {
 /**
  * FUNCIÓN: simulateVaultSearch
  * Misión: Laboratorio de Resonancia Semántica.
- * 
- * Permite a los administradores auditar qué fragmentos de verdad recuperaría la 
- * IA ante una consulta específica, permitiendo el ajuste de umbrales de similitud.
  */
 export async function simulateVaultSearch(
-    query: string,
-    threshold: number = 0.5
-): Promise<VaultActionResponse<any>> {
+    searchQueryTerm: string,
+    similarityThreshold: number = 0.5
+): Promise<VaultActionResponse<SemanticResonanceNode[]>> {
     try {
         const { supabase } = await ensureAdminAuthority();
 
-        // Invocamos al buscador profesional (Search Pro)
         const { data, error: searchError } = await supabase.functions.invoke('search-pro', {
             body: {
-                query,
-                match_threshold: threshold,
+                query: searchQueryTerm,
+                match_threshold: similarityThreshold,
                 match_count: 10,
                 target: 'vault_only'
             }
@@ -190,14 +230,15 @@ export async function simulateVaultSearch(
         return {
             success: true,
             message: "Simulación de búsqueda completada.",
-            data: data
+            data: data as SemanticResonanceNode[]
         };
-    } catch (err: any) {
-        console.error("🔥 [Vault-Action][Simulate-Search]:", err.message);
+    } catch (vaultException: unknown) {
+        const errorMessage = vaultException instanceof Error ? vaultException.message : "Error desconocido";
+        console.error("🔥 [Vault-Action][Simulate-Search]:", errorMessage);
         return {
             success: false,
             message: "Error en la simulación de resonancia.",
-            error: err.message,
+            exceptionMessageInformation: errorMessage,
             data: []
         };
     }
@@ -205,13 +246,11 @@ export async function simulateVaultSearch(
 
 /**
  * FUNCIÓN: getVaultMetrics
- * Misión: Telemetría de densidad informativa de NicePod V2.5.
- * 
- * Devuelve estadísticas vitales sobre la salud del NKV.
+ * Misión: Telemetría de densidad informativa de NicePod.
  */
 export async function getVaultMetrics(): Promise<VaultActionResponse<{
-    totalSources: number;
-    totalChunks: number;
+    totalSourcesCount: number;
+    totalChunksCount: number;
 }>> {
     try {
         const { supabase } = await ensureAdminAuthority();
@@ -225,26 +264,17 @@ export async function getVaultMetrics(): Promise<VaultActionResponse<{
             success: true,
             message: "Métricas de Bóveda actualizadas.",
             data: {
-                totalSources: sourcesCount.count || 0,
-                totalChunks: chunksCount.count || 0
+                totalSourcesCount: sourcesCount.count || 0,
+                totalChunksCount: chunksCount.count || 0
             }
         };
-    } catch (err: any) {
+    } catch (vaultException: unknown) {
+        const errorMessage = vaultException instanceof Error ? vaultException.message : "Error desconocido";
         return {
             success: false,
             message: "No se pudieron obtener métricas del sistema.",
-            error: err.message
+            exceptionMessageInformation: errorMessage,
+            data: null
         };
     }
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Seguridad Hermética: El uso de 'ensureAdminAuthority' en cada acción previene 
- *    ejecuciones no autorizadas desde el cliente.
- * 2. Economía Circular: La integración con 'vault-refinery' garantiza que el 
- *    conocimiento manual siga el mismo rigor de hashing y vectorización que el 
- *    conocimiento recolectado automáticamente.
- * 3. Observabilidad: Se ha añadido 'getVaultMetrics' para que el administrador 
- *    tenga una visión holística del crecimiento del capital intelectual.
- */
