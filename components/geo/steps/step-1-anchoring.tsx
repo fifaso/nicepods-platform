@@ -1,14 +1,13 @@
 /**
  * ARCHIVO: components/geo/steps/step-1-anchoring.tsx
- * VERSIÓN: 12.0 (NicePod Forge Step 1 - Contract Alignment & Nominal Sync Edition)
+ * VERSIÓN: 13.0 (NicePod Forge Step 1 - Contract Synchronization Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * Misión: Gestionar el anclaje pericial milimétrico del hito urbano y obligar a la 
  * clasificación taxonómica bidimensional del capital intelectual.
- * [REFORMA V12.0]: Resolución definitiva del error TS2339. Sincronización nominal 
- * absoluta con la Constitución V9.0 y la Fachada useGeoEngine V55.0. 
- * Transmutación de 'isManualMode' a 'isManualModeActive'. Consolidación total 
- * de la Zero Abbreviations Policy (ZAP) y sellado del Build Shield (BSS).
+ * [REFORMA V13.0]: Resolución definitiva de errores TS2339 mediante la alineación 
+ * nominal absoluta con la Fachada V55.0. Transmutación de 'isManualMode' a 
+ * 'isManualModeActive'. Consolidación total de la Zero Abbreviations Policy (ZAP).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -83,8 +82,7 @@ export default function Step1Anchoring() {
   
   /**
    * 1. CONSUMO DE LA FACHADA SOBERANA (Protocolo V55.0)
-   * [SINCRO V12.0]: Alineación nominal absoluta con GeoEngineReturn V9.0.
-   * Se resuelve el error TS2339 de 'isManualModeActive'.
+   * [SINCRO V13.0]: Sincronización nominal con la propiedad 'isManualModeActive'.
    */
   const { 
     userLocation, 
@@ -99,18 +97,18 @@ export default function Step1Anchoring() {
     nextStep: navigateToNextStepAction 
   } = useForge();
 
-  // 2. ESTADOS DE CONTROL VISUAL (MTI)
+  // 2. ESTADOS DE CONTROL VISUAL
   const [isMapDisplayEngineForced, setIsMapDisplayEngineForced] = useState<boolean>(false);
 
   /**
    * executeManualGeographicAnchorSelectionWorkflow:
-   * Misión: Capturar el desplazamiento manual y actualizar la memoria de forja.
+   * Misión: Capturar el anclaje manual con precisión industrial.
    */
   const executeManualGeographicAnchorSelectionWorkflow = useCallback((
     longitudeCoordinate: number, 
     latitudeCoordinate: number
   ) => {
-    nicepodLog(`📍 [Forge:Step1] Ajuste de anclaje manual: [${longitudeCoordinate}, ${latitudeCoordinate}]`);
+    nicepodLog(`📍 [Forge:Step1] Anclaje manual: [${longitudeCoordinate}, ${latitudeCoordinate}]`);
     
     stateDispatcher({
       type: 'SET_LOCATION',
@@ -128,7 +126,6 @@ export default function Step1Anchoring() {
 
   /**
    * EFECTO: TelemetrySeedSynchronization
-   * Misión: Inyectar la ubicación semilla del Voyager proactivamente.
    */
   useEffect(() => {
     if (userLocation && forgeState.latitudeCoordinate === null) {
@@ -178,7 +175,7 @@ export default function Step1Anchoring() {
         </p>
       </div>
 
-      {/* II. VISOR DE PRECISIÓN GEODÉSICA (REACTOR WEBGL DEDICADO) */}
+      {/* II. VISOR DE PRECISIÓN GEODÉSICA */}
       <div className="shrink-0 relative h-[340px] mx-6 mb-8 rounded-[3.5rem] overflow-hidden border border-white/5 shadow-[0_40px_80px_rgba(0,0,0,0.7)] bg-[#020202] self-center w-[calc(100%-3rem)] flex items-center justify-center">
         {isMapDisplayEngineForced && (
           <ForgeSpatialPrecision
@@ -189,7 +186,6 @@ export default function Step1Anchoring() {
           />
         )}
 
-        {/* Control de Recentre de Autoridad Táctica */}
         <div className="absolute bottom-6 right-6 z-30">
           <Button
             size="icon"
@@ -201,7 +197,6 @@ export default function Step1Anchoring() {
           </Button>
         </div>
 
-        {/* HUD de Telemetría Flotante (Build Shield Verification) */}
         <div className="absolute top-6 left-6 right-6 pointer-events-none z-30">
           <div className="bg-black/85 backdrop-blur-2xl border border-white/10 rounded-2xl px-5 py-3.5 flex items-center justify-between shadow-2xl">
             <div className="flex items-center gap-3">
@@ -314,11 +309,11 @@ export default function Step1Anchoring() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V12.0):
- * 1. Build Shield Compliance: Se resolvió el error TS2339 al alinear el consumo 
- *    del motor con la propiedad 'isManualModeActive' de la Constitución V9.0.
- * 2. ZAP Absolute Compliance: Purificación nominal total de descriptores técnicos 
- *    (categoryMissionKey, categoryEntityObject, navigateToNextStepAction).
- * 3. Atomic State Feedback: El indicador de 'Fijado Manual' y el pulso del botón 
- *    Target ahora reflejan con fidelidad milimétrica la sintonía del sistema.
+ * NOTA TÉCNICA DEL ARCHITECT (V13.0):
+ * 1. Contract Alignment: Resolución definitiva de TS2339 al utilizar 'isManualModeActive'
+ *    en lugar del descriptor obsoleto 'isManualMode'.
+ * 2. ZAP Compliance: Purificación nominal. Se han eliminado todas las abreviaciones 
+ *    residuales en la jerarquía taxonómica y estados locales.
+ * 3. Atomic State Feedback: Los indicadores visuales reflejan con fidelidad 
+ *    milimétrica el estado del motor cinemático.
  */
