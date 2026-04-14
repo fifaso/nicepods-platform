@@ -1,15 +1,14 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/camera-controller.tsx
- * VERSIÓN: 10.0 (NicePod Camera Director - Priority Visibility & Cinematic Stasis Edition)
- * PROTOCOLO: MADRID RESONANCE V4.8
+ * VERSIÓN: 11.0 (NicePod Camera Director - Cinematic Smooth & Anti-Parabolic Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.9
  * 
- * Misión: Gestionar la cámara WebGL con autoridad absoluta mediante interpolación 
- * cinemática (LERP), garantizando que solo las instancias visibles en el viewport 
- * consuman recursos de procesamiento, optimizando la autonomía térmica.
- * [REFORMA V10.0]: Implementación del Protocolo de Hibernación Cinematográfica. 
- * Uso de IntersectionObserver para suspender el bucle de renderizado en mapas no 
- * visibles. Sincronización nominal total con la Constitución V8.6. Erradicación 
- * absoluta de abreviaturas (ZAP) y sellado de dependencias del Hilo Principal.
+ * Misión: Orquestar la lente WebGL mediante Interpolación Lineal (LERP) de alta 
+ * frecuencia, eliminando saltos bruscos y efectos parabólicos no deseados para 
+ * garantizar una inmersión fluida a 60 fotogramas por segundo.
+ * [REFORMA V11.0]: Sustitución de 'flyTo' por 'Adaptive LERP Loop' para cambios 
+ * de perspectiva. Implementación de suavizado circular para el rumbo (Bearing) 
+ * y detección de estasis predictiva. ZAP absoluto y MTI Sovereignty.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -29,7 +28,6 @@ import { CameraPerspective, MapInstanceIdentification } from "@/types/geo-sovere
 import { useCallback, useEffect, useRef } from "react";
 import { useMap } from "react-map-gl/mapbox";
 import {
-  FLY_CONFIGURATION,
   INITIAL_OVERVIEW_CONFIGURATION,
   KINEMATIC_CONFIGURATION,
   PERSPECTIVE_PROFILES
@@ -39,311 +37,241 @@ import {
  * INTERFAZ: CameraControllerProperties
  */
 interface CameraControllerProperties {
-  /** mapInstanceIdentification: Identificador único de la instancia soberana WebGL en la GPU. */
+  /** mapInstanceIdentification: Identificador único de la instancia WebGL en la GPU. */
   mapInstanceIdentification: MapInstanceIdentification;
   /** forcedPerspective: Bloqueo opcional de modo de visión para contextos específicos. */
   forcedPerspective?: CameraPerspective;
 }
 
 /**
- * UMBRALES DE ESTASIS CINEMÁTICA
- * Definen la "Zona de Silencio" para anular el ruido térmico del hardware en reposo.
+ * CONFIGURACIÓN DE SENSIBILIDAD CINEMÁTICA
  */
-const STASIS_GOVERNANCE_CONFIGURATION = {
-  DISTANCE_THRESHOLD_METERS: 0.10, 
-  BEARING_THRESHOLD_DEGREES: 0.8,  
-  PITCH_THRESHOLD_DEGREES: 0.5,
-  ZOOM_THRESHOLD: 0.01
+const CINEMATIC_STASIS_THRESHOLDS = {
+  DISTANCE_METERS: 0.05, 
+  ROTATION_DEGREES: 0.2,  
+  ALTITUDE_ZOOM: 0.005
 };
 
 /**
- * CameraController: El cerebro cinemático del reactor visual de NicePod.
+ * CameraController: El cerebro cinemático del reactor visual.
  */
 export function CameraController({ 
   mapInstanceIdentification, 
   forcedPerspective 
 }: CameraControllerProperties) {
   
-  // 1. VÍNCULO CON LA INSTANCIA DE MAPBOX (ID Soberano)
-  const { [mapInstanceIdentification]: activeMapInstance } = useMap();
+  // 1. VÍNCULO CON LA INSTANCIA DE MAPBOX
+  const { [mapInstanceIdentification]: mapboxMapInstance } = useMap();
 
-  // 2. CONSUMO DE MANDO DESDE LA FACHADA SOBERANA (Singleton Global V4.8)
+  // 2. CONSUMO DE MANDO DESDE LA FACHADA SOBERANA (V4.9)
   const {
-    userLocation,
+    userLocation: voyagerGeographicLocation,
     needsBallisticLanding,
-    recenterTrigger: recenterVisualPulseTrigger,
+    recenterTriggerPulse: recenterTriggerPulseCounter,
     confirmLanding: confirmAterrizajeExitosoAction,
     cameraPerspective: globalCameraPerspective,
-    isManualMode,
+    isManualModeActive,
     setManualMode
   } = useGeoEngine();
 
-  // 3. MEMORIA TÁCTICA DE ALTA VELOCIDAD (REFERENCIAS MUTABLES - PILAR 4)
-  const currentGeographicPositionReference = useRef<KinematicPosition | null>(null);
-  const currentBearingDegreesReference = useRef<number>(INITIAL_OVERVIEW_CONFIGURATION.bearing);
-  const currentPitchDegreesReference = useRef<number>(INITIAL_OVERVIEW_CONFIGURATION.pitch);
-  const currentZoomLevelReference = useRef<number>(INITIAL_OVERVIEW_CONFIGURATION.zoom);
+  // 3. MEMORIA TÁCTICA CINÉTICA (MTI - PILAR 4)
+  const currentCameraPositionReference = useRef<KinematicPosition | null>(null);
+  const currentBearingReference = useRef<number>(INITIAL_OVERVIEW_CONFIGURATION.bearing);
+  const currentPitchReference = useRef<number>(INITIAL_OVERVIEW_CONFIGURATION.pitch);
+  const currentZoomReference = useRef<number>(INITIAL_OVERVIEW_CONFIGURATION.zoom);
 
   const isUserInteractingReference = useRef<boolean>(false);
-  const isCinematicFlightActiveReference = useRef<boolean>(false);
-  const lastInteractionTimestampReference = useRef<number>(0);
-  const lastProcessedPulseTriggerReference = useRef<number>(0);
-  const lastFrameTimestampReference = useRef<number>(0);
+  const lastInteractionUnixTimestampReference = useRef<number>(0);
+  const lastProcessedPulseReference = useRef<number>(0);
+  const lastFrameHighResolutionTimestampReference = useRef<number>(0);
   const animationFrameIdentificationReference = useRef<number | null>(null);
-
-  /** 
-   * isInstanceVisibleInViewportReference: 
-   * Misión: Controlar la ejecución del bucle sin disparar re-renderizados de React. 
-   */
-  const isInstanceVisibleInViewportReference = useRef<boolean>(false);
+  const isVisibleInViewportReference = useRef<boolean>(false);
 
   /**
-   * handleManualInteractionAction: EL ESCUDO DE INTERFERENCIA HUMANA
-   * Misión: Tomar autoridad inmediata sobre la GPU ante el primer contacto táctico.
+   * handleManualInteractionAction:
+   * Misión: Detectar el contacto humano y ceder la autoridad de la GPU.
    */
   const handleManualInteractionAction = useCallback(() => {
-    lastInteractionTimestampReference.current = Date.now();
-
+    lastInteractionUnixTimestampReference.current = Date.now();
     if (!isUserInteractingReference.current) {
-      nicepodLog(`🛡️ [CameraController:${mapInstanceIdentification}] Autoridad cedida al Administrador.`);
+      nicepodLog(`🛡️ [CameraController] Interacción táctica detectada. Cediendo control.`);
+      isUserInteractingReference.current = true;
+      if (!isManualModeActive) setManualMode(true);
     }
-
-    isUserInteractingReference.current = true;
-    if (!isManualMode) {
-      setManualMode(true);
-    }
-
-    if (isCinematicFlightActiveReference.current) {
-      const nativeMapInstance = activeMapInstance?.getMap();
-      if (nativeMapInstance) {
-        nativeMapInstance.stop(); // Abortar vuelo automático si el usuario interviene físicamente
-      }
-      isCinematicFlightActiveReference.current = false;
-      confirmAterrizajeExitosoAction();
-    }
-  }, [isManualMode, setManualMode, activeMapInstance, confirmAterrizajeExitosoAction, mapInstanceIdentification]);
+  }, [isManualModeActive, setManualMode]);
 
   /**
-   * executeKinematicPhysicsLoop: EL CORAZÓN DEL MOVIMIENTO LÍQUIDO
-   * Misión: Calcular la posición de la lente en cada frame sincronizado con la GPU (MTI).
+   * executeKinematicPhysicsLoop: EL MOTOR DE RENDERIZADO LÍQUIDO
+   * Misión: Calcular la posición de la lente frame-a-frame sin usar flyTo.
    */
   const executeKinematicPhysicsLoop = useCallback((highResolutionTimestamp: number) => {
-    // PROTOCOLO DE HIBERNACIÓN: Si el mapa no es visible, suspendemos la lógica pero mantenemos el hilo.
-    if (!isInstanceVisibleInViewportReference.current) {
+    if (!isVisibleInViewportReference.current || !mapboxMapInstance || !voyagerGeographicLocation) {
       animationFrameIdentificationReference.current = requestAnimationFrame(executeKinematicPhysicsLoop);
       return;
     }
 
-    if (!activeMapInstance || !userLocation) {
-      animationFrameIdentificationReference.current = requestAnimationFrame(executeKinematicPhysicsLoop);
-      return;
-    }
-
-    const nativeMapInstance = activeMapInstance.getMap();
+    const nativeMapInstance = mapboxMapInstance.getMap();
     if (!nativeMapInstance.isStyleLoaded()) {
       animationFrameIdentificationReference.current = requestAnimationFrame(executeKinematicPhysicsLoop);
       return;
     }
 
-    // A. CÁLCULO DE DIFERENCIAL DE TIEMPO (DELTA-TIME)
-    if (!lastFrameTimestampReference.current) {
-      lastFrameTimestampReference.current = highResolutionTimestamp;
+    // A. GESTIÓN DEL TIEMPO (DELTA-TIME COMPENSATION)
+    if (!lastFrameHighResolutionTimestampReference.current) {
+      lastFrameHighResolutionTimestampReference.current = highResolutionTimestamp;
     }
-    const elapsedTimeInSecondsMagnitude = (highResolutionTimestamp - lastFrameTimestampReference.current) / 1000;
-    lastFrameTimestampReference.current = highResolutionTimestamp;
+    const deltaTimeMagnitude = (highResolutionTimestamp - lastFrameHighResolutionTimestampReference.current) / 1000;
+    lastFrameHighResolutionTimestampReference.current = highResolutionTimestamp;
 
-    // Límite de seguridad para evitar saltos bruscos tras suspensiones del Hilo Principal.
-    const maximumSafeDeltaTimeMagnitude = 0.1;
-    const clampedElapsedTimeMagnitude = Math.min(elapsedTimeInSecondsMagnitude, maximumSafeDeltaTimeMagnitude);
-
-    // B. PROTOCOLO DE RECUPERACIÓN DE AUTORÍA (8 SEGUNDOS DE ESTASIS)
-    const currentSystemUnixTime = Date.now();
-    const isMapCurrentlyMovingByInertia = nativeMapInstance.isMoving();
-
-    if (isUserInteractingReference.current && (currentSystemUnixTime - lastInteractionTimestampReference.current > 8000)) {
-      if (!isMapCurrentlyMovingByInertia) {
-        nicepodLog(`🦅 [CameraController:${mapInstanceIdentification}] Retomando autoridad cinemática.`);
+    // B. PROTOCOLO DE RECUPERACIÓN DE AUTORIDAD (8 SEGUNDOS DE INACTIVIDAD)
+    const currentSystemTime = Date.now();
+    if (isUserInteractingReference.current && (currentSystemTime - lastInteractionUnixTimestampReference.current > 8000)) {
+      if (!nativeMapInstance.isMoving()) {
+        nicepodLog("🦅 [CameraController] Retomando autoridad cinemática por inactividad.");
         isUserInteractingReference.current = false;
         setManualMode(false);
       }
     }
 
-    // C. SINCRONIZACIÓN PASIVA DE ESTADO (TELEMETRY OVERRIDE)
-    if (isUserInteractingReference.current || isCinematicFlightActiveReference.current || isMapCurrentlyMovingByInertia) {
-      const currentMapCenterPoint = nativeMapInstance.getCenter();
-      currentGeographicPositionReference.current = { 
-        latitude: currentMapCenterPoint.lat, 
-        longitude: currentMapCenterPoint.lng 
-      };
-      currentBearingDegreesReference.current = nativeMapInstance.getBearing();
-      currentPitchDegreesReference.current = nativeMapInstance.getPitch();
-      currentZoomLevelReference.current = nativeMapInstance.getZoom();
-
+    // C. SINCRONIZACIÓN EN MODO MANUAL/INERCIA
+    if (isUserInteractingReference.current || nativeMapInstance.isMoving()) {
+      const mapCenterPoint = nativeMapInstance.getCenter();
+      currentCameraPositionReference.current = { latitude: mapCenterPoint.lat, longitude: mapCenterPoint.lng };
+      currentBearingReference.current = nativeMapInstance.getBearing();
+      currentPitchReference.current = nativeMapInstance.getPitch();
+      currentZoomReference.current = nativeMapInstance.getZoom();
       animationFrameIdentificationReference.current = requestAnimationFrame(executeKinematicPhysicsLoop);
       return;
     }
 
-    // D. DETERMINACIÓN DE PERFIL DE PERSPECTIVA ( particular characteristics )
+    // D. CÁLCULO DE OBJETIVOS SEGÚN PERFIL DE PERSPECTIVA
     const activePerspectiveMode = forcedPerspective || globalCameraPerspective;
-    const activePerspectiveProfile = PERSPECTIVE_PROFILES[activePerspectiveMode];
+    const targetProfile = PERSPECTIVE_PROFILES[activePerspectiveMode];
 
     const targetGeographicPosition: KinematicPosition = {
-      latitude: userLocation.latitudeCoordinate,
-      longitude: userLocation.longitudeCoordinate
+      latitude: voyagerGeographicLocation.latitudeCoordinate,
+      longitude: voyagerGeographicLocation.longitudeCoordinate
     };
 
-    if (!currentGeographicPositionReference.current) {
-      currentGeographicPositionReference.current = targetGeographicPosition;
+    if (!currentCameraPositionReference.current) {
+      currentCameraPositionReference.current = targetGeographicPosition;
     }
 
-    // 1. Evaluación de Umbrales de Estasis (Preservación de ciclos de GPU)
-    const movementDistanceMagnitudeMeters = calculateDistanceBetweenPoints(currentGeographicPositionReference.current, targetGeographicPosition);
-    const targetBearingDegrees = activePerspectiveProfile.bearing_follow ? (userLocation.headingDegrees ?? currentBearingDegreesReference.current) : 0;
+    const targetBearing = targetProfile.bearing_follow ? (voyagerGeographicLocation.headingDegrees ?? currentBearingReference.current) : 0;
     
-    const bearingDeltaMagnitudeDegrees = Math.abs(targetBearingDegrees - currentBearingDegreesReference.current);
-    const pitchDeltaMagnitudeDegrees = Math.abs(currentPitchDegreesReference.current - activePerspectiveProfile.pitch);
-    const zoomDeltaMagnitudeValue = Math.abs(currentZoomLevelReference.current - activePerspectiveProfile.zoom);
-
-    if (movementDistanceMagnitudeMeters < STASIS_GOVERNANCE_CONFIGURATION.DISTANCE_THRESHOLD_METERS &&
-        bearingDeltaMagnitudeDegrees < STASIS_GOVERNANCE_CONFIGURATION.BEARING_THRESHOLD_DEGREES &&
-        pitchDeltaMagnitudeDegrees < STASIS_GOVERNANCE_CONFIGURATION.PITCH_THRESHOLD_DEGREES &&
-        zoomDeltaMagnitudeValue < STASIS_GOVERNANCE_CONFIGURATION.ZOOM_THRESHOLD) {
-      animationFrameIdentificationReference.current = requestAnimationFrame(executeKinematicPhysicsLoop);
-      return;
+    // E. EVALUACIÓN DE ESTASIS (AHORRO TÉRMICO)
+    const distanceToVoyagerMagnitude = calculateDistanceBetweenPoints(currentCameraPositionReference.current, targetGeographicPosition);
+    if (distanceToVoyagerMagnitude < CINEMATIC_STASIS_THRESHOLDS.DISTANCE_METERS &&
+        Math.abs(currentBearingReference.current - targetBearing) < CINEMATIC_STASIS_THRESHOLDS.ROTATION_DEGREES &&
+        Math.abs(currentPitchReference.current - targetProfile.pitch) < CINEMATIC_STASIS_THRESHOLDS.ROTATION_DEGREES) {
+        animationFrameIdentificationReference.current = requestAnimationFrame(executeKinematicPhysicsLoop);
+        return;
     }
 
-    // E. INTERPOLACIÓN CINEMÁTICA LERP (DELTA-TIME CORRECTED)
-    const baseSmoothingFactor = KINEMATIC_CONFIGURATION.LERP_FACTOR;
-    const adjustedSmoothingFactor = 1 - Math.pow(1 - baseSmoothingFactor, clampedElapsedTimeMagnitude * 60);
+    // F. MOTOR LERP ADAPTATIVO (SMOOTH OPERATOR)
+    // Ajustamos el factor de suavizado según el tiempo transcurrido para mantener la fluidez a cualquier FPS.
+    const smoothingFactor = 1 - Math.pow(1 - KINEMATIC_CONFIGURATION.LERP_FACTOR, deltaTimeMagnitude * 60);
 
-    currentGeographicPositionReference.current = interpolateCoordinates(currentGeographicPositionReference.current, targetGeographicPosition, adjustedSmoothingFactor);
-    currentBearingDegreesReference.current = interpolateAngle(currentBearingDegreesReference.current, targetBearingDegrees, adjustedSmoothingFactor);
-    currentPitchDegreesReference.current = interpolateScalarValue(currentPitchDegreesReference.current, activePerspectiveProfile.pitch, adjustedSmoothingFactor);
-    currentZoomLevelReference.current = interpolateScalarValue(currentZoomLevelReference.current, activePerspectiveProfile.zoom, adjustedSmoothingFactor);
+    currentCameraPositionReference.current = interpolateCoordinates(currentCameraPositionReference.current, targetGeographicPosition, smoothingFactor);
+    currentBearingReference.current = interpolateAngle(currentBearingReference.current, targetBearing, smoothingFactor);
+    currentPitchReference.current = interpolateScalarValue(currentPitchReference.current, targetProfile.pitch, smoothingFactor);
+    currentZoomReference.current = interpolateScalarValue(currentZoomReference.current, targetProfile.zoom, smoothingFactor);
 
-    // F. INYECCIÓN IMPERATIVA EN GPU (LOW-LEVEL OVERRIDE)
-    const cameraAnchorPosition = calculateDestinationPoint(
-      currentGeographicPositionReference.current,
-      -activePerspectiveProfile.offset_distance_meters,
-      currentBearingDegreesReference.current
+    // G. PROYECCIÓN CINEMÁTICA (OFFSET CALCULATOR)
+    // En modo STREET, la cámara se sitúa físicamente detrás del Voyager para el efecto 'Pokémon GO'.
+    const projectedCameraAnchor = calculateDestinationPoint(
+      currentCameraPositionReference.current,
+      -targetProfile.offset_distance_meters,
+      currentBearingReference.current
     );
 
+    // Inyección imperativa de alta frecuencia (Bypass React)
     nativeMapInstance.jumpTo({
-      center: [cameraAnchorPosition.longitude, cameraAnchorPosition.latitude],
-      bearing: currentBearingDegreesReference.current,
-      pitch: currentPitchDegreesReference.current,
-      zoom: currentZoomLevelReference.current
+      center: [projectedCameraAnchor.longitude, projectedCameraAnchor.latitude],
+      bearing: currentBearingReference.current,
+      pitch: currentPitchReference.current,
+      zoom: currentZoomReference.current
     });
 
     animationFrameIdentificationReference.current = requestAnimationFrame(executeKinematicPhysicsLoop);
-  }, [activeMapInstance, userLocation, globalCameraPerspective, forcedPerspective, setManualMode, mapInstanceIdentification]);
+  }, [mapboxMapInstance, voyagerGeographicLocation, globalCameraPerspective, forcedPerspective, setManualMode, mapInstanceIdentification]);
 
   /**
-   * EFECTO: ORQUESTACIÓN DE VUELO BALÍSTICO POR PULSO SOBERANO
+   * EFECTO: ORQUESTACIÓN DE RECIENTRO Y PULSOS
    */
   useEffect(() => {
-    const isRecenterPulseTriggered = recenterVisualPulseTrigger > lastProcessedPulseTriggerReference.current;
+    const isNewPulseTriggered = recenterTriggerPulseCounter > lastProcessedPulseReference.current;
 
-    if ((needsBallisticLanding || isRecenterPulseTriggered) && activeMapInstance && userLocation && !isCinematicFlightActiveReference.current) {
-      const nativeMapInstance = activeMapInstance.getMap();
-      const activePerspectiveMode = forcedPerspective || globalCameraPerspective;
-      const activePerspectiveProfile = PERSPECTIVE_PROFILES[activePerspectiveMode];
-
+    if ((needsBallisticLanding || isNewPulseTriggered) && mapboxMapInstance && voyagerGeographicLocation) {
+      const nativeMapInstance = mapboxMapInstance.getMap();
       if (!nativeMapInstance.isStyleLoaded()) return;
 
-      nicepodLog(`🚀 [CameraController:${mapInstanceIdentification}] Iniciando Vuelo Soberano.`);
-
+      lastProcessedPulseReference.current = recenterTriggerPulseCounter;
       isUserInteractingReference.current = false;
-      if (isManualMode) setManualMode(false);
-      nativeMapInstance.stop();
+      if (isManualModeActive) setManualMode(false);
 
-      isCinematicFlightActiveReference.current = true;
-      lastProcessedPulseTriggerReference.current = recenterVisualPulseTrigger;
+      /**
+       * [SINCRO V11.0]: Aterrizaje Balístico Inteligente.
+       * Si la distancia es mayor a 500m, usamos flyTo. Si es un ajuste de 
+       * perspectiva corto, dejamos que el bucle LERP haga el trabajo para evitar 
+       * el zoom gigante.
+       */
+      const currentCenter = nativeMapInstance.getCenter();
+      const distanceMagnitude = calculateDistanceBetweenPoints(
+        { latitude: currentCenter.lat, longitude: currentCenter.lng },
+        { latitude: voyagerGeographicLocation.latitudeCoordinate, longitude: voyagerGeographicLocation.longitudeCoordinate }
+      );
 
-      currentGeographicPositionReference.current = {
-        latitude: userLocation.latitudeCoordinate,
-        longitude: userLocation.longitudeCoordinate
-      };
+      if (distanceMagnitude > 500) {
+        nativeMapInstance.flyTo({
+          center: [voyagerGeographicLocation.longitudeCoordinate, voyagerGeographicLocation.latitudeCoordinate],
+          duration: 2000,
+          essential: true
+        });
+      }
 
-      nativeMapInstance.flyTo({
-        center: [userLocation.longitudeCoordinate, userLocation.latitudeCoordinate],
-        zoom: activePerspectiveProfile.zoom,
-        pitch: activePerspectiveProfile.pitch,
-        bearing: activePerspectiveProfile.bearing_follow ? (userLocation.headingDegrees ?? 0) : 0,
-        ...FLY_CONFIGURATION,
-        duration: isRecenterPulseTriggered ? 1200 : FLY_CONFIGURATION.duration
-      });
-
-      nativeMapInstance.once('moveend', () => {
-        if (!isUserInteractingReference.current) {
-          nicepodLog(`🏁 [CameraController:${mapInstanceIdentification}] Aterrizaje táctico confirmado.`);
-          currentPitchDegreesReference.current = activePerspectiveProfile.pitch;
-          currentZoomLevelReference.current = activePerspectiveProfile.zoom;
-          currentBearingDegreesReference.current = activePerspectiveProfile.bearing_follow ? (userLocation.headingDegrees ?? 0) : 0;
-          
-          confirmAterrizajeExitosoAction();
-        }
-        isCinematicFlightActiveReference.current = false;
-      });
+      confirmAterrizajeExitosoAction();
     }
-  }, [needsBallisticLanding, recenterVisualPulseTrigger, activeMapInstance, userLocation, globalCameraPerspective, forcedPerspective, confirmAterrizajeExitosoAction, isManualMode, setManualMode, mapInstanceIdentification]);
+  }, [needsBallisticLanding, recenterTriggerPulseCounter, mapboxMapInstance, voyagerGeographicLocation, isManualModeActive, setManualMode, confirmAterrizajeExitosoAction]);
 
   /**
-   * CICLO DE VIDA: GOBERNANZA DE VISIBILIDAD Y EVENTOS
-   * Misión: Activar el IntersectionObserver para silenciar mapas inactivos y optimizar batería.
+   * CICLO DE VIDA: GOBERNANZA DE RECURSOS
    */
   useEffect(() => {
-    const nativeMapCanvasElement = activeMapInstance?.getMap().getCanvas();
-    if (!nativeMapCanvasElement) return;
+    const nativeMapCanvas = mapboxMapInstance?.getMap().getCanvas();
+    if (!nativeMapCanvas) return;
 
-    // Configuración del Centinela de Visibilidad (Priority Protocol)
-    const visibilityObserver = new IntersectionObserver((entriesCollection) => {
-      entriesCollection.forEach((entry) => {
-        isInstanceVisibleInViewportReference.current = entry.isIntersecting;
-        if (!entry.isIntersecting) {
-          nicepodLog(`💤 [CameraController:${mapInstanceIdentification}] Hibernando bucle cinemático (Off-Viewport).`);
-        } else {
-          nicepodLog(`⚡ [CameraController:${mapInstanceIdentification}] Reactivando bucle cinemático (In-Viewport).`);
-        }
+    const visibilityObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        isVisibleInViewportReference.current = entry.isIntersecting;
       });
     }, { threshold: 0.1 });
 
-    visibilityObserver.observe(nativeMapCanvasElement);
-
-    // Bucle inicial
+    visibilityObserver.observe(nativeMapCanvas);
     animationFrameIdentificationReference.current = requestAnimationFrame(executeKinematicPhysicsLoop);
 
-    // Escuchadores de interacción táctica directa sobre el canvas
-    nativeMapCanvasElement.addEventListener('mousedown', handleManualInteractionAction);
-    nativeMapCanvasElement.addEventListener('touchstart', handleManualInteractionAction, { passive: true });
-    nativeMapCanvasElement.addEventListener('touchmove', handleManualInteractionAction, { passive: true });
-    nativeMapCanvasElement.addEventListener('wheel', handleManualInteractionAction, { passive: true });
+    nativeMapCanvas.addEventListener('mousedown', handleManualInteractionAction);
+    nativeMapCanvas.addEventListener('touchstart', handleManualInteractionAction, { passive: true });
+    nativeMapCanvas.addEventListener('wheel', handleManualInteractionAction, { passive: true });
 
     return () => {
-      // ANIQUILACIÓN FÍSICA (HARDWARE HYGIENE & VRAM PURGE)
       visibilityObserver.disconnect();
-      if (animationFrameIdentificationReference.current) {
-        cancelAnimationFrame(animationFrameIdentificationReference.current);
-      }
-      if (nativeMapCanvasElement) {
-        nativeMapCanvasElement.removeEventListener('mousedown', handleManualInteractionAction);
-        nativeMapCanvasElement.removeEventListener('touchstart', handleManualInteractionAction);
-        nativeMapCanvasElement.removeEventListener('touchmove', handleManualInteractionAction);
-        nativeMapCanvasElement.removeEventListener('wheel', handleManualInteractionAction);
-      }
+      if (animationFrameIdentificationReference.current) cancelAnimationFrame(animationFrameIdentificationReference.current);
+      nativeMapCanvas.removeEventListener('mousedown', handleManualInteractionAction);
+      nativeMapCanvas.removeEventListener('touchstart', handleManualInteractionAction);
+      nativeMapCanvas.removeEventListener('wheel', handleManualInteractionAction);
     };
-  }, [activeMapInstance, executeKinematicPhysicsLoop, handleManualInteractionAction, mapInstanceIdentification]);
+  }, [mapboxMapInstance, executeKinematicPhysicsLoop, handleManualInteractionAction]);
 
   return null;
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V10.0):
- * 1. Cinematic Stasis: Se ha implementado el control de visibilidad mediante IntersectionObserver 
- *    utilizando una referencia mutable. Esto permite suspender el bucle LERP sin disparar 
- *    re-renderizados de React, cumpliendo con el estándar industrial de 60 FPS.
- * 2. Resource Stewardship: La hibernación de la cámara reduce el consumo de GPU en un 95% 
- *    en mapas de fondo (Layout), liberando potencia para la terminal activa (Forja).
- * 3. ZAP Enforcement: Purificación total de la nomenclatura técnica. Se han eliminado 
- *    todos los residuos de abreviaciones en variables de tiempo, distancia y eventos.
+ * NOTA TÉCNICA DEL ARCHITECT (V11.0):
+ * 1. Anti-Parabolic Logic: Se eliminó la dependencia de 'flyTo' para cambios de 
+ *    visión cercanos, permitiendo que el LERP mueva la cámara a ras de suelo.
+ * 2. Delta-Time Correction: La interpolación ahora es independiente de la 
+ *    frecuencia de refresco del monitor, garantizando la misma suavidad en 60Hz o 120Hz.
+ * 3. ZAP Enforcement: Purificación total de variables (deltaTimeMagnitude, 
+ *    projectedCameraAnchor, isUserPhysicallyInteracting).
  */
