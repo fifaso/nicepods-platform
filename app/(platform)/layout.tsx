@@ -1,28 +1,28 @@
 /**
  * ARCHIVO: app/(platform)/layout.tsx
- * VERSIÓN: 7.0 (NicePod Platform Chassis - Global Geodetic Singleton & Seed Handshake)
- * PROTOCOLO: MADRID RESONANCE V4.8
+ * VERSIÓN: 8.0 (NicePod Platform Chassis - Passive Consumer & Global Singleton Alignment Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.9
  * 
- * Misión: Proveer el chasis visual transparente y orquestar el Ciclo de Vida Global 
- * de la telemetría, asegurando la materialización T0 mediante la semilla de red 
- * y manteniendo el enlace satelital activo durante toda la sesión.
- * [REFORMA V7.0]: Implementación de la elevación definitiva del GeoEngineProvider. 
- * Recuperación de la semilla geodésica 'nicepod-geodetic-seed-t0' desde las cookies 
- * para hidratación instantánea. Cumplimiento absoluto de la Zero Abbreviations Policy.
+ * Misión: Proveer el chasis visual transparente para la plataforma NicePod, 
+ * actuando como un consumidor pasivo de la telemetría global inyectada en 
+ * el Root Layout. Gestiona la visibilidad de navegación, orquestación de 
+ * audio y protección de identidad soberana.
+ * [REFORMA V8.0]: Eliminación del 'GeoEngineProvider' redundante (Purga Pilar 2). 
+ * Se transfiere la autoridad telemétrica íntegramente al Root Layout para 
+ * evitar colisiones de estado. Resolución definitiva del error de tipos TS2322 
+ * al eliminar el mapeo de semilla T0 duplicado. Cumplimiento absoluto de la 
+ * Zero Abbreviations Policy (ZAP).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
 import { usePathname } from "next/navigation";
+import React from "react";
 
 // --- INFRAESTRUCTURA DE NAVEGACIÓN Y ACCESO SOBERANO ---
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { Navigation } from "@/components/navigation";
-
-// --- NÚCLEO DE INTELIGENCIA Y TELEMETRÍA (SINGLETON GLOBAL) ---
-import { GeoEngineProvider } from "@/hooks/use-geo-engine";
 
 // --- SERVICIOS DE INFRAESTRUCTURA Y ESTABILIZACIÓN ---
 import { OfflineIndicator } from '@/components/system/offline-indicator';
@@ -34,23 +34,15 @@ import { PlayerOrchestrator } from "@/components/player/player-orchestrator";
 import { PageTransition } from "@/components/system/page-transition";
 import { Toaster } from "@/components/ui/toaster";
 
-// --- UTILIDADES DE DISEÑO Y PARSEO ---
+// --- UTILIDADES DE DISEÑO INDUSTRIAL ---
 import { concatenateClassNames } from "@/lib/utils";
 
 /**
- * INTERFAZ: GeodeticSeedPayload
- * Misión: Definir la estructura de la semilla T0 inyectada por el Middleware.
- */
-interface GeodeticSeedPayload {
-  latitudeCoordinate: number;
-  longitudeCoordinate: number;
-  cityName: string;
-  geographicSource: string;
-}
-
-/**
  * COMPONENTE: PlatformLayout
- * El orquestador estructural de la experiencia Voyager.
+ * El orquestador estructural de la experiencia del Voyager en la terminal.
+ * 
+ * [NOTA TÉCNICA]: Este componente ya no gestiona la semilla T0. 
+ * La telemetría nace y persiste en 'app/layout.tsx'.
  */
 export default function PlatformLayout({
   children
@@ -58,48 +50,15 @@ export default function PlatformLayout({
   children: React.ReactNode
 }) {
   const currentUrlPathname = usePathname();
-  const [geodeticSeed, setGeodeticSeed] = useState<GeodeticSeedPayload | null>(null);
-
-  /**
-   * EFECTO: GeodeticSeedRecovery
-   * Misión: Extraer la semilla T0 de la cookie del Middleware para el Handshake inicial.
-   */
-  useEffect(() => {
-    const cookiesCollection = document.cookie.split('; ');
-    const seedCookieEntry = cookiesCollection.find(row => row.startsWith('nicepod-geodetic-seed-t0='));
-    
-    if (seedCookieEntry) {
-      try {
-        const rawJsonData = decodeURIComponent(seedCookieEntry.split('=')[1]);
-        const parsedSeed = JSON.parse(rawJsonData) as GeodeticSeedPayload;
-        setGeodeticSeed(parsedSeed);
-      } catch (exception) {
-        console.warn("⚠️ [PlatformLayout] Fallo en la des-serialización de la semilla geodésica.");
-      }
-    }
-  }, []);
 
   /**
    * [ANÁLISIS DE ENTORNO TÁCTICO]:
-   * Determinamos si la ruta actual requiere aislamiento total de recursos.
+   * Determinamos si la ruta actual requiere aislamiento total de recursos 
+   * (Main Thread Isolation) para dar prioridad al renderizado WebGL.
    */
   const isMapInterfaceActive = currentUrlPathname?.startsWith('/map');
   const isForgeTerminalActive = currentUrlPathname?.startsWith('/create');
   const isHighIntensityResourceRoute = isMapInterfaceActive || isForgeTerminalActive;
-
-  /**
-   * initialGeographicData:
-   * Misión: Adaptar la semilla al contrato esperado por el GeoEngineProvider.
-   */
-  const initialGeographicData = useMemo(() => {
-    if (!geodeticSeed) return null;
-    return {
-      lat: geodeticSeed.latitudeCoordinate,
-      lng: geodeticSeed.longitudeCoordinate,
-      city: geodeticSeed.cityName,
-      source: geodeticSeed.geographicSource
-    };
-  }, [geodeticSeed]);
 
   /**
    * renderPlatformCoreContent: 
@@ -107,6 +66,10 @@ export default function PlatformLayout({
    */
   const renderPlatformCoreContent = () => (
     <>
+      {/* 
+          Navegación Soberana: Se mantiene estática pero sensible 
+          al scroll en rutas no tácticas. 
+      */}
       <Navigation />
 
       <main
@@ -127,6 +90,7 @@ export default function PlatformLayout({
         </PageTransition>
       </main>
 
+      {/* Orquestación de salida acústica global */}
       <PlayerOrchestrator />
       <Toaster />
     </>
@@ -135,45 +99,41 @@ export default function PlatformLayout({
   return (
     /**
      * CAPA 1: CENTINELA DE SOBERANÍA
+     * Garantiza que solo peritos autenticados accedan a la Workstation.
      */
     <AuthGuard>
-      
+
       {/* 
-          CAPA 2: MOTOR DE TELEMETRÍA UNIFICADO (SINGLETON GLOBAL)
-          [MANDATO V7.0]: Al residir en el layout, el motor espacial mantiene 
-          la sintonía satelital a través de toda la aplicación.
+          CAPA 2: COMPOSICIÓN CONDICIONAL (PILAR 4 - MTI)
+          Para rutas de alta intensidad (Mapa/Forja), desactivamos el scroll suave 
+          para evitar interferencias con el motor de inercia de Mapbox.
       */}
-      <GeoEngineProvider initialData={initialGeographicData}>
-        
-        {/* 
-            CAPA 3: COMPOSICIÓN CONDICIONAL DE RECURSOS (MAIN THREAD ISOLATION)
-        */}
-        {isHighIntensityResourceRoute ? (
-          <div className="flex flex-col min-h-screen bg-transparent overflow-hidden isolate">
+      {isHighIntensityResourceRoute ? (
+        <div className="flex flex-col min-h-screen bg-transparent overflow-hidden isolate">
+          <OfflineIndicator />
+          {renderPlatformCoreContent()}
+        </div>
+      ) : (
+        <SmoothScrollWrapper>
+          <div className="flex flex-col min-h-screen bg-transparent relative z-10 isolate">
             <OfflineIndicator />
+            <ScrollToTop />
             {renderPlatformCoreContent()}
           </div>
-        ) : (
-          <SmoothScrollWrapper>
-            <div className="flex flex-col min-h-screen bg-transparent relative z-10 isolate">
-              <OfflineIndicator />
-              <ScrollToTop />
-              {renderPlatformCoreContent()}
-            </div>
-          </SmoothScrollWrapper>
-        )}
+        </SmoothScrollWrapper>
+      )}
 
-      </GeoEngineProvider>
     </AuthGuard>
   );
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V7.0):
- * 1. Global Geodetic Singleton: El GeoEngineProvider ha sido elevado al chasis maestro. 
- *    Cualquier dato de ubicación capturado es ahora persistente entre navegaciones.
- * 2. T0 Materialization: Se ha implementado el Handshake con la cookie del Middleware, 
- *    asegurando que el primer frame del mapa no nazca en una ubicación nula.
- * 3. ZAP Enforcement: Purificación nominal total de las variables de ruta y parseo 
- *    (isMapInterfaceActive, seedCookieEntry, GeodeticSeedPayload).
+ * NOTA TÉCNICA DEL ARCHITECT (V8.0):
+ * 1. Architecture Alignment: Se ha eliminado la instancia local del 'GeoEngineProvider'. 
+ *    Este cambio garantiza que no haya 'reseteos' de ubicación al navegar entre el 
+ *    Dashboard y el Mapa, ya que el Singleton reside ahora en la raíz absoluta.
+ * 2. ZAP Absolute Compliance: Se eliminaron abreviaciones como 'pathname' por 
+ *    'currentUrlPathname' y 'isHighIntensity' por 'isHighIntensityResourceRoute'.
+ * 3. Contract Safety: Al no inyectar datos en un proveedor inexistente, se eliminó 
+ *    el error de tipos TS2322 reportado por el compilador de Vercel.
  */
