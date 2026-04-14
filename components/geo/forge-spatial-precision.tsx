@@ -1,7 +1,9 @@
 /**
  * ARCHIVO: components/geo/forge-spatial-precision.tsx
- * VERSIÓN: 6.0 (NicePod Forge Spatial Precision - Contract Resolution Edition)
+ * VERSIÓN: 7.0 (NicePod Forge Spatial Precision - Build Shield Sovereignty Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
+ * MISIÓN: Proveer un instrumento de peritaje geodésico de alta resolución.
+ * NIVEL DE INTEGRIDAD: 100% (Soberano)
  * 
  * Misión: Proveer un instrumento de peritaje geodésico de alta resolución para la 
  * Fase 1 de la forja. Garantiza el aislamiento de telemetría satelital ante la 
@@ -153,7 +155,7 @@ export function ForgeSpatialPrecision({
    */
   useEffect(() => {
     if (recenterTriggerPulse > lastProcessedRecenterPulseReference.current && userLocation) {
-      lastProcessedPulseReference.current = recenterTriggerPulse;
+      lastProcessedRecenterPulseReference.current = recenterTriggerPulse;
 
       nicepodLog("🎯 [Forge:Precision] Recuperando autoridad satelital por comando.");
       setManualMode(false);

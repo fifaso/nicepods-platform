@@ -1,10 +1,10 @@
 /**
  * ARCHIVO: lib/workers/resonance-physics.worker.ts
- * VERSIÓN: 3.0 (NicePod Physics Worker - Build Shield Sovereignty Edition)
+ * VERSIÓN: 4.0 (NicePod Physics Worker - Background Thermal Isolation Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * MISIÓN: Ejecutar la simulación de fuerzas gravitatorias, repulsión semántica y
  * colisiones en un hilo secundario aislado.
- * NIVEL DE INTEGRIDAD: HIGH
+ * NIVEL DE INTEGRIDAD: HIGH (Soberano)
  * 
  * Misión: Ejecutar la simulación de fuerzas gravitatorias, repulsión semántica y 
  * colisiones en un hilo secundario aislado, garantizando que el hilo principal 
@@ -38,16 +38,16 @@ interface PhysicsNodePayload extends SimulationNodeDatum {
 }
 
 /**
- * INTERFAZ: ResonancePhysicsSimulationRequest
- * Misión: Definir el contrato de mando desde el hilo principal.
+ * TYPE: ResonancePhysicsSimulationRequest
+ * Misión: Definir el contrato de mando desde el hilo principal mediante una
+ * Unión Discriminada para garantizar el Build Shield Sovereignty (BSS).
  */
-interface ResonancePhysicsSimulationRequest {
-  action: "START_SIMULATION" | "STOP_SIMULATION" | "UPDATE_DIMENSIONS";
-  nodesCollection: PhysicsNodePayload[];
-  centerXCoordinate: number;
-  centerYCoordinate: number;
-  exclusionZoneRadius: number;
-}
+type ResonancePhysicsSimulationRequest =
+  | { action: "START_SIMULATION"; nodesCollection: PhysicsNodePayload[]; centerXCoordinate: number; centerYCoordinate: number; exclusionZoneRadius: number; }
+  | { action: "STOP_SIMULATION" }
+  | { action: "UPDATE_DIMENSIONS"; centerXCoordinate: number; centerYCoordinate: number; exclusionZoneRadius: number; }
+  | { action: "PAUSE_SIMULATION" }
+  | { action: "RESUME_SIMULATION" };
 
 /**
  * INTERFAZ: ResonancePhysicsSimulationResponse
@@ -67,21 +67,15 @@ let activeForceSimulation: Simulation<PhysicsNodePayload, undefined> | null = nu
  * El receptor de comandos de autoridad desde el hilo principal de la Workstation.
  */
 self.onmessage = (messageEvent: MessageEvent<ResonancePhysicsSimulationRequest>) => {
-  const { 
-    action, 
-    nodesCollection, 
-    centerXCoordinate, 
-    centerYCoordinate, 
-    exclusionZoneRadius 
-  } = messageEvent.data;
+  const simulationRequest = messageEvent.data;
 
-  switch (action) {
+  switch (simulationRequest.action) {
     case "START_SIMULATION":
       executeSimulationInitialization(
-        nodesCollection, 
-        centerXCoordinate, 
-        centerYCoordinate, 
-        exclusionZoneRadius
+        simulationRequest.nodesCollection,
+        simulationRequest.centerXCoordinate,
+        simulationRequest.centerYCoordinate,
+        simulationRequest.exclusionZoneRadius
       );
       break;
 
@@ -95,8 +89,20 @@ self.onmessage = (messageEvent: MessageEvent<ResonancePhysicsSimulationRequest>)
     case "UPDATE_DIMENSIONS":
       if (activeForceSimulation) {
         activeForceSimulation
-          .force("radial", forceRadial<PhysicsNodePayload>(exclusionZoneRadius, centerXCoordinate, centerYCoordinate).strength(0.6));
+          .force("radial", forceRadial<PhysicsNodePayload>(simulationRequest.exclusionZoneRadius, simulationRequest.centerXCoordinate, simulationRequest.centerYCoordinate).strength(0.6));
         activeForceSimulation.alpha(0.3).restart();
+      }
+      break;
+
+    case "PAUSE_SIMULATION":
+      if (activeForceSimulation) {
+        activeForceSimulation.stop();
+      }
+      break;
+
+    case "RESUME_SIMULATION":
+      if (activeForceSimulation) {
+        activeForceSimulation.alpha(0.1).restart();
       }
       break;
   }
