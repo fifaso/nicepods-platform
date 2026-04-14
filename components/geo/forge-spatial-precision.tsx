@@ -1,14 +1,15 @@
 /**
  * ARCHIVO: components/geo/forge-spatial-precision.tsx
- * VERSIÓN: 4.0 (NicePod Forge Spatial Precision - Event Hardening & Nominal Sync Edition)
+ * VERSIÓN: 5.0 (NicePod Forge Spatial Precision - Final Contract Alignment Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * Misión: Proveer un instrumento de peritaje geodésico de alta resolución para la 
  * Fase 1 de la forja. Garantiza el aislamiento de telemetría satelital ante la 
  * interacción humana, permitiendo fijar coordenadas con precisión milimétrica.
- * [REFORMA V4.0]: Resolución definitiva del error TS2339. Implementación de la 
- * validación segura de 'originalEvent' mediante el operador 'in'. Purificación 
- * nominal total bajo la Zero Abbreviations Policy (ZAP) y sellado de tipos (BSS).
+ * [REFORMA V5.0]: Resolución definitiva de errores TS2339 mediante la alineación 
+ * con la Constitución V9.0. Sincronización nominal de 'isManualModeActive' y 
+ * 'recenterTriggerPulse'. Purificación total bajo la Zero Abbreviations 
+ * Policy (ZAP) y sellado del Build Shield Sovereignty (BSS).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -65,12 +66,15 @@ export function ForgeSpatialPrecision({
   mapInstanceIdentification = "map-forge-precision" as MapInstanceIdentification
 }: ForgeSpatialPrecisionProperties) {
 
-  // 1. CONSUMO DE LA FACHADA SOBERANA (Triple-Core Facade Synergy V4.9)
+  /**
+   * 1. CONSUMO DE LA FACHADA SOBERANA (Protocolo V55.0)
+   * [SINCRO V5.0]: Alineación nominal con GeoEngineReturn V9.0.
+   */
   const {
     userLocation,
-    isManualMode,
+    isManualModeActive, // [FIX TS2339]: Transmutado de isManualMode.
     setManualMode,
-    recenterTrigger: recenterVisualPulseTrigger
+    recenterTriggerPulse: recenterVisualPulseTrigger // [FIX TS2339]: Transmutado de recenterTrigger.
   } = useGeoEngine();
 
   // 2. REFERENCIAS DE CONTROL TÁCTICO (PILAR 4 - MTI)
@@ -90,8 +94,8 @@ export function ForgeSpatialPrecision({
     return {
       latitude: initialLatitudeCoordinate || userLocation?.latitudeCoordinate || MADRID_SOL_COORDINATES.latitude,
       longitude: initialLongitudeCoordinate || userLocation?.longitudeCoordinate || MADRID_SOL_COORDINATES.longitude,
-      zoom: 19.5, // Resolución máxima para peritaje urbano (Límite de tileset).
-      pitch: 0,   // Cénit absoluto bloqueado.
+      zoom: 19.5, 
+      pitch: 0,
       bearing: 0
     };
   }, [initialLatitudeCoordinate, initialLongitudeCoordinate, userLocation]);
@@ -105,7 +109,7 @@ export function ForgeSpatialPrecision({
 
     nicepodLog(`📍 [Forge:Precision] Autoridad Manual en: [${clickedLongitudeCoordinate}, ${clickedLatitudeCoordinate}]`);
 
-    if (!isManualMode) {
+    if (!isManualModeActive) {
       setManualMode(true);
     }
 
@@ -120,33 +124,28 @@ export function ForgeSpatialPrecision({
       duration: 1000,
       essential: true
     });
-  }, [isManualMode, setManualMode, onManualAnchorSelectionAction]);
+  }, [isManualModeActive, setManualMode, onManualAnchorSelectionAction]);
 
   /**
    * handleMapMovementAction:
    * Misión: Detectar el desplazamiento manual para ceder la autoridad al Administrador.
    */
   const handleMapMovementAction = useCallback((movementEvent: SafeMapMovementEvent) => {
-    /**
-     * [FIX TS2339]: Verificación de propiedad segura para detectar interacción humana.
-     * Misión: Asegurar que el cambio de vista fue disparado por el usuario y no 
-     * por una cinemática interna del motor.
-     */
     const isHumanInteractionDetected = "originalEvent" in movementEvent && !!movementEvent.originalEvent;
 
     if (isHumanInteractionDetected && !isInternalCinematicActiveReference.current) {
-      if (!isManualMode) {
+      if (!isManualModeActive) {
         setManualMode(true);
       }
     }
-  }, [isManualMode, setManualMode]);
+  }, [isManualModeActive, setManualMode]);
 
   /**
    * EFECTO: TelemetryHijackingGuard
    * Misión: Sincronizar la cámara con el Voyager SOLO si no hay autoridad manual activa.
    */
   useEffect(() => {
-    if (!isManualMode && userLocation && mapInstanceReference.current) {
+    if (!isManualModeActive && userLocation && mapInstanceReference.current) {
       isInternalCinematicActiveReference.current = true;
       mapInstanceReference.current.easeTo({
         center: [userLocation.longitudeCoordinate, userLocation.latitudeCoordinate],
@@ -155,7 +154,7 @@ export function ForgeSpatialPrecision({
       });
       setTimeout(() => { isInternalCinematicActiveReference.current = false; }, 1250);
     }
-  }, [userLocation, isManualMode]);
+  }, [userLocation, isManualModeActive]);
 
   /**
    * EFECTO: RecenterPulseSync (Command Authority)
@@ -181,11 +180,9 @@ export function ForgeSpatialPrecision({
     <MapProvider>
       <div className="relative w-full h-full bg-[#050505] overflow-hidden isolate flex items-center justify-center rounded-[2.5rem] shadow-inner">
 
-        {/* REJILLA GEODÉSICA TÁCTICA (VISUAL OVERLAY) */}
         <div className="absolute inset-0 z-10 pointer-events-none opacity-20 border-[0.5px] border-white/10"
           style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
 
-        {/* MOTOR WEBGL SOBERANO (PHOTOREALISTIC CORE) */}
         <Map
           id={mapInstanceIdentification}
           ref={mapInstanceReference}
@@ -194,17 +191,17 @@ export function ForgeSpatialPrecision({
           onMove={handleMapMovementAction}
           onClick={executeManualAnchorWorkflow}
           mapboxAccessToken={MAPBOX_TOKEN}
-          mapStyle={MAP_STYLES.PHOTOREALISTIC}
+          mapStyle={MAP_STYLES.PHOTOREALISTIC} 
           projection={{ name: "mercator" }}
           reuseMaps={false}
-          maxPitch={0}
-          dragRotate={false}
+          maxPitch={0} 
+          dragRotate={false} 
           touchPitch={false}
           attributionControl={false}
           style={{ width: '100%', height: '100%' }}
         />
 
-        {/* I. MIRA TELESCÓPICA PBR (PRECISION CROSSHAIR) */}
+        {/* MIRA TELESCÓPICA PBR */}
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-20">
           <div className="relative flex items-center justify-center">
 
@@ -221,33 +218,33 @@ export function ForgeSpatialPrecision({
 
             <motion.div
               animate={{
-                scale: isManualMode ? [1, 1.05, 1] : 1,
-                opacity: isManualMode ? [0.4, 0.6, 0.4] : 0.3
+                scale: isManualModeActive ? [1, 1.05, 1] : 1,
+                opacity: isManualModeActive ? [0.4, 0.6, 0.4] : 0.3
               }}
               transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
               className={cn(
                 "absolute h-48 w-48 rounded-full border border-dashed transition-colors duration-1000",
-                isManualMode ? "border-primary/60 bg-primary/5" : "border-white/10"
+                isManualModeActive ? "border-primary/60 bg-primary/5" : "border-white/10"
               )}
             />
 
             <div className="relative">
               <Crosshair size={40} className={cn(
                 "transition-all duration-700",
-                isManualMode ? "text-primary scale-110 drop-shadow-[0_0_15px_rgba(var(--primary-rgb),0.8)]" : "text-white/20"
+                isManualModeActive ? "text-primary scale-110 drop-shadow-[0_0_15px_rgba(var(--primary-rgb),0.8)]" : "text-white/20"
               )} />
               <div className={cn(
                 "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full transition-colors duration-700 shadow-[0_0_10px_#fff]",
-                isManualMode ? "bg-primary" : "bg-white/40"
+                isManualModeActive ? "bg-primary" : "bg-white/40"
               )} />
             </div>
           </div>
         </div>
 
-        {/* II. PANEL DE ESTADO DE AUTORIDAD (NOMINAL FEEDBACK) */}
+        {/* PANEL DE ESTADO DE AUTORIDAD */}
         <div className="absolute bottom-6 left-6 z-30 pointer-events-none">
           <AnimatePresence mode="wait">
-            {isManualMode ? (
+            {isManualModeActive ? (
               <motion.div
                 key="manual_state_indicator"
                 initial={{ opacity: 0, y: 10 }}
@@ -276,7 +273,6 @@ export function ForgeSpatialPrecision({
           </AnimatePresence>
         </div>
 
-        {/* III. PANTALLA DE CARGA (SYNC SHIELD) */}
         {!isMapEngineReady && (
           <div className="absolute inset-0 bg-[#020202] z-50 flex flex-col items-center justify-center gap-6">
             <div className="relative">
@@ -293,13 +289,12 @@ export function ForgeSpatialPrecision({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V4.0):
- * 1. Event Hardening Resolution: Se eliminó el error TS2339 al utilizar el 
- *    operador 'in' para validar la existencia de 'originalEvent', garantizando 
- *    un acceso seguro a la interacción física del motor Mapbox.
+ * NOTA TÉCNICA DEL ARCHITECT (V5.0):
+ * 1. Contract Alignment: Se resolvieron los errores TS2339 al alinear la 
+ *    desestructuración con los descriptores 'isManualModeActive' y 
+ *    'recenterTriggerPulse' de la Constitución V9.0.
  * 2. ZAP Absolute Compliance: Purificación total de descriptores técnicos 
- *    (clickedLongitudeCoordinate, isHumanInteractionDetected, currentMagnitude).
- * 3. Atomic State Control: El sistema de mira telescópica y los indicadores de 
- *    estado ahora reflejan con fidelidad milimétrica la fuente de autoridad 
- *    geográfica (Manual vs Satelital).
+ *    (recenterVisualPulseTrigger, isInternalCinematicActiveReference).
+ * 3. Atomic State Control: El sistema de mira telescópica y los indicadores 
+ *    visuales ahora reflejan con fidelidad milimétrica el estado del motor.
  */
