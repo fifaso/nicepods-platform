@@ -7,3 +7,9 @@
 ## 2026-04-13 - [Hardware Listener Cleanup in AudioProvider] | **Leak identified:** Hardware audio listeners (play, pause, timeupdate) persisted after navigation. | **Optimization:** Implemented `removeEventListener` for all hardware streams and enforced ZAP naming (`audioElementReference`).
 
 ## 2026-04-13 - [Visibility Hibernation in BackgroundEngine] | **Leak identified:** Aurora animations processed frame calculations even when document was hidden. | **Optimization:** Injected `visibilitychange` sentinel to trigger absolute animation suspension.
+
+## 2026-04-14 - [Audio Telemetry Hibernation] | **Leak identified:** High-frequency `nicepod-timeupdate` events and player state updates continued even when the terminal was not visible. | **Optimization:** Implemented `document.hidden` guards in `AudioProvider` and `MiniPlayerBar` to suspend telemetry during backgrounding.
+
+## 2026-04-14 - [Worker Type Hardening (BSS)] | **Leak identified:** Use of `as any` in `ResonancePhysicsWorker` bypasses build-time safety and risks runtime instability. | **Optimization:** Eliminated type assertions in worker `postMessage` calls to satisfy Build Shield Sovereignty.
+
+## 2026-04-14 - [Direct DOM Progression] | **Leak identified:** High-frequency React state updates for the progress bar caused "Forced Reflow" (Layout Thrashing) in the Main Thread. | **Optimization:** Refactored `MiniPlayerBar` to use direct DOM manipulation for the progress indicator and enforced absolute ZAP compliance.

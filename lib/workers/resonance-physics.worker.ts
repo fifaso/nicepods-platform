@@ -1,7 +1,10 @@
 /**
  * ARCHIVO: lib/workers/resonance-physics.worker.ts
- * VERSIÓN: 2.0 (NicePod Physics Worker - High-Performance Memory Transfer Edition)
+ * VERSIÓN: 3.0 (NicePod Physics Worker - Build Shield Sovereignty Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
+ * MISIÓN: Ejecutar la simulación de fuerzas gravitatorias, repulsión semántica y
+ * colisiones en un hilo secundario aislado.
+ * NIVEL DE INTEGRIDAD: HIGH
  * 
  * Misión: Ejecutar la simulación de fuerzas gravitatorias, repulsión semántica y 
  * colisiones en un hilo secundario aislado, garantizando que el hilo principal 
@@ -158,7 +161,7 @@ function executeSimulationInitialization(
       self.postMessage({
         type: "TICK",
         positionsBuffer: positionsBuffer
-      }, [positionsBuffer.buffer] as any);
+      }, [positionsBuffer.buffer]);
     })
 
     /**
@@ -181,7 +184,7 @@ function executeSimulationInitialization(
       self.postMessage({
         type: "STABILITY_REACHED",
         positionsBuffer: finalPositionsBuffer
-      }, [finalPositionsBuffer.buffer] as any);
+      }, [finalPositionsBuffer.buffer]);
     });
 }
 
