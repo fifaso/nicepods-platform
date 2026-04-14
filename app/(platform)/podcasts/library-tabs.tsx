@@ -1,14 +1,14 @@
 /**
  * ARCHIVO: app/(platform)/podcasts/library-tabs.tsx
- * VERSIÓN: 17.0 (NicePod Intelligence Station - Sovereign Null Shield Edition)
+ * VERSIÓN: 18.0 (NicePod Intelligence Station - Realtime Instance Isolation Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * Misión: Orquestar la intersección entre la red global y la soberanía privada,
  * gestionando la visualización de la Bóveda y los procesos de forja activos.
- * [REFORMA V17.0]: Implementación del 'Sovereign Null Shield'. Resolución del 
- * error TS18047 mediante el blindaje de 'urlSearchParameters' con encadenamiento 
- * opcional y fallbacks de seguridad. Purificación total de la Zero Abbreviations 
- * Policy (ZAP) en variables de contexto y filtros.
+ * [REFORMA V18.0]: Implementación del 'Instance Isolation Pattern'. Se resuelven 
+ * los fallos de secuencia de Supabase Realtime mediante sufijos de canal únicos 
+ * (:tabs). Erradicación total de abreviaciones (ZAP) en descriptores de 
+ * iteración y mapeo. Mantenimiento del Sovereign Null Shield (V17.0).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -20,7 +20,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
-// --- INFRAESTRUCTURA DE DATOS ---
+// --- INFRAESTRUCTURA DE DATOS SOBERANOS ---
 import { groupPodcastsByThread } from "@/lib/podcast-utils";
 import { createClient } from "@/lib/supabase/client";
 import { Tables } from "@/types/database.types";
@@ -97,6 +97,10 @@ const universeCategories = [
   { key: 'narrative_and_stories', title: 'Narrativa', image: '/images/universes/narrative.png' },
 ];
 
+/**
+ * COMPONENTE: LibraryTabs
+ * El orquestador maestro de la visualización de capital intelectual.
+ */
 export function LibraryTabs({
   defaultTab,
   authenticatedUser,
@@ -110,15 +114,16 @@ export function LibraryTabs({
   const urlSearchParameters = useSearchParams();
   const currentPathname = usePathname();
 
-  const [isComponentMounted, setIsComponentMounted] = useState(false);
-  const [creationJobs, setCreationJobs] = useState<UserCreationJob[]>(initialCreationJobs);
-  const [createdPodcasts, setCreatedPodcasts] = useState<PodcastWithProfile[]>(initialCreatedPodcasts);
+  // --- I. ESTADOS DE GESTIÓN DE INTERFAZ ---
+  const [isComponentMounted, setIsComponentMounted] = useState<boolean>(false);
+  const [creationJobsCollection, setCreationJobsCollection] = useState<UserCreationJob[]>(initialCreationJobs);
+  const [createdPodcastsCollection, setCreatedPodcastsCollection] = useState<PodcastWithProfile[]>(initialCreatedPodcasts);
   const [searchMatchResults, setSearchMatchResults] = useState<SearchResult[] | null>(null);
   const [isSearchProcessActive, setIsSearchProcessActive] = useState<boolean>(false);
 
   /**
    * [BUILD SHIELD]: PROTECCIÓN DE NULIDAD SOBERANA
-   * Se utiliza encadenamiento opcional para satisfacer el error TS18047.
+   * Aplicamos encadenamiento opcional para garantizar resiliencia ante estados de URL nulos.
    */
   const activeNavigationTab = urlSearchParameters?.get("tab") || defaultTab;
   const currentLibraryViewMode = (urlSearchParameters?.get("view") as LibraryViewMode) || "grid";
@@ -130,53 +135,62 @@ export function LibraryTabs({
 
   /**
    * EFECTO: RealtimeSynchronizationSentinel
+   * [SINCRO V18.0]: Implementación de aislamiento de canales.
+   * Se añaden sufijos ':tabs' para evitar la colisión con componentes globales.
    */
   useEffect(() => {
     if (!authenticatedUser || !isComponentMounted) return;
 
     const userIdentification = authenticatedUser.id;
 
-    const creationJobsChannel = supabaseClient.channel(`library_jobs_${userIdentification}`)
+    // CANAL A: Monitoreo de procesos de forja (Jobs)
+    const creationJobsChannel = supabaseClient.channel(`library_jobs_${userIdentification}:tabs`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'podcast_creation_jobs', filter: `user_id=eq.${userIdentification}` },
         (payload) => {
           if (payload.eventType === 'INSERT') {
-            setCreationJobs(previousJobs => [payload.new as UserCreationJob, ...previousJobs]);
+            setCreationJobsCollection(previousJobs => [payload.new as UserCreationJob, ...previousJobs]);
           }
           if (payload.eventType === 'UPDATE') {
-            const updatedJob = payload.new as UserCreationJob;
-            if (updatedJob.status === 'completed') {
-              setTimeout(() => setCreationJobs(previousJobs => previousJobs.filter(jobItem => jobItem.id !== updatedJob.id)), 2000);
+            const updatedJobEntry = payload.new as UserCreationJob;
+            if (updatedJobEntry.status === 'completed') {
+              // Latencia de gracia para visualización de éxito antes de la purga de la lista de jobs.
+              setTimeout(() => setCreationJobsCollection(previousJobs => previousJobs.filter(jobItem => jobItem.id !== updatedJobEntry.id)), 2000);
             } else {
-              setCreationJobs(previousJobs => previousJobs.map(jobItem => jobItem.id === updatedJob.id ? updatedJob : jobItem));
+              setCreationJobsCollection(previousJobs => previousJobs.map(jobItem => jobItem.id === updatedJobEntry.id ? updatedJobEntry : jobItem));
             }
           }
         }
       ).subscribe();
 
-    const podcastsChannel = supabaseClient.channel(`library_pods_${userIdentification}`)
+    // CANAL B: Sincronización de la Bóveda de crónicas
+    const podcastsChannel = supabaseClient.channel(`library_pods_${userIdentification}:tabs`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'micro_pods', filter: `user_id=eq.${userIdentification}` },
         async (payload) => {
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-            const { data: refreshedPodcast } = await supabaseClient
+            const { data: refreshedPodcastData } = await supabaseClient
               .from('micro_pods')
               .select('*, profiles(*)')
               .eq('id', payload.new.id)
               .single();
 
-            if (refreshedPodcast) {
-              setCreatedPodcasts(previousPodcasts => {
-                const filteredPodcasts = previousPodcasts.filter(podcastItem => podcastItem.id !== refreshedPodcast.id);
-                return [refreshedPodcast as PodcastWithProfile, ...filteredPodcasts];
+            if (refreshedPodcastData) {
+              setCreatedPodcastsCollection(previousPodcasts => {
+                const filteredPodcasts = previousPodcasts.filter(podcastItem => podcastItem.id !== refreshedPodcastData.id);
+                return [refreshedPodcastData as PodcastWithProfile, ...filteredPodcasts];
               });
             }
           }
         }
       ).subscribe();
 
+    /**
+     * [HARDWARE HYGIENE]: Purga atómica de canales al desmontar el componente 
+     * para liberar recursos de red y evitar contextos zombis.
+     */
     return () => {
       supabaseClient.removeChannel(creationJobsChannel);
       supabaseClient.removeChannel(podcastsChannel);
@@ -189,19 +203,19 @@ export function LibraryTabs({
 
   /**
    * handleNavigationTabChange:
-   * [SINCRO V17.0]: Blindaje de nulidad en la generación de nuevos parámetros.
+   * Misión: Modificar la pestaña activa preservando la integridad de la URL.
    */
-  const handleNavigationTabChange = (targetValue: string) => {
+  const handleNavigationTabChange = (targetTabIdentification: string) => {
     const searchParametersString = urlSearchParameters?.toString() || "";
-    const updatedParameters = new URLSearchParams(searchParametersString);
-    updatedParameters.set("tab", targetValue);
+    const updatedUrlSearchParameters = new URLSearchParams(searchParametersString);
+    updatedUrlSearchParameters.set("tab", targetTabIdentification);
 
-    navigationRouter.push(`${currentPathname}?${updatedParameters.toString()}`, { scroll: false });
+    navigationRouter.push(`${currentPathname}?${updatedUrlSearchParameters.toString()}`, { scroll: false });
   };
 
   /**
    * renderSearchMatchInterface:
-   * Misión: Proyectar los resultados del Radar Semántico.
+   * Misión: Proyectar los resultados del Radar Semántico con alta fidelidad.
    */
   const renderSearchMatchInterface = () => {
     if (!searchMatchResults) return null;
@@ -218,27 +232,27 @@ export function LibraryTabs({
       );
     }
 
-    const podcastSearchMatches = searchMatchResults.filter(resultItem => resultItem.result_type === 'podcast');
-    const curatorSearchMatches = searchMatchResults.filter(resultItem => resultItem.result_type === 'user');
+    const podcastSearchMatchesCollection = searchMatchResults.filter(resultItem => resultItem.result_type === 'podcast');
+    const curatorSearchMatchesCollection = searchMatchResults.filter(resultItem => resultItem.result_type === 'user');
 
     return (
       <div className="space-y-20 animate-in slide-in-from-bottom-4 duration-1000">
-        {curatorSearchMatches.length > 0 && (
+        {curatorSearchMatchesCollection.length > 0 && (
           <section className="space-y-6">
             <h4 className="text-[10px] font-black uppercase tracking-[0.5em] text-primary/40 flex items-center gap-3">
               <UserIcon size={12} /> Curadores de la Bóveda
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-              {curatorSearchMatches.map(searchMatch => (
-                <Link key={searchMatch.id} href={`/profile/${searchMatch.subtitle.replace('@', '')}`}>
+              {curatorSearchMatchesCollection.map(searchMatchEntry => (
+                <Link key={searchMatchEntry.id} href={`/profile/${searchMatchEntry.subtitle.replace('@', '')}`}>
                   <div className="flex items-center gap-4 p-4 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-primary/40 transition-all group">
                     <Avatar className="h-12 w-12 border border-white/10 group-hover:border-primary transition-colors">
-                      <AvatarImage src={searchMatch.image_url} />
-                      <AvatarFallback className="bg-zinc-900 text-primary font-black uppercase">{searchMatch.title[0]}</AvatarFallback>
+                      <AvatarImage src={searchMatchEntry.image_url} />
+                      <AvatarFallback className="bg-zinc-900 text-primary font-black uppercase">{searchMatchEntry.title[0]}</AvatarFallback>
                     </Avatar>
                     <div className="min-w-0">
-                      <p className="font-black text-sm text-white truncate uppercase tracking-tight group-hover:text-primary transition-colors">{searchMatch.title}</p>
-                      <p className="text-[9px] font-bold text-zinc-500 tracking-widest uppercase">{searchMatch.subtitle}</p>
+                      <p className="font-black text-sm text-white truncate uppercase tracking-tight group-hover:text-primary transition-colors">{searchMatchEntry.title}</p>
+                      <p className="text-[9px] font-bold text-zinc-500 tracking-widest uppercase">{searchMatchEntry.subtitle}</p>
                     </div>
                   </div>
                 </Link>
@@ -247,23 +261,23 @@ export function LibraryTabs({
           </section>
         )}
 
-        {podcastSearchMatches.length > 0 && (
+        {podcastSearchMatchesCollection.length > 0 && (
           <section className="space-y-6">
             <h4 className="text-[10px] font-black uppercase tracking-[0.5em] text-primary/40 flex items-center gap-3">
               <Mic2 size={12} /> Resonancias Detectadas
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {podcastSearchMatches.map(searchMatch => (
-                <Link key={searchMatch.id} href={`/podcast/${searchMatch.id}`}>
+              {podcastSearchMatchesCollection.map(searchMatchEntry => (
+                <Link key={searchMatchEntry.id} href={`/podcast/${searchMatchEntry.id}`}>
                   <div className="group flex gap-6 p-6 rounded-[2.5rem] bg-white/[0.02] border border-white/5 hover:border-primary/50 transition-all h-full shadow-2xl">
                     <div className="relative h-20 w-20 flex-shrink-0 rounded-xl overflow-hidden border border-white/5 bg-black/40">
-                      <Image src={searchMatch.image_url || '/placeholder.jpg'} alt={searchMatch.title} fill className="object-cover group-hover:scale-110 transition-transform duration-1000" />
+                      <Image src={searchMatchEntry.image_url || '/placeholder.jpg'} alt={searchMatchEntry.title} fill className="object-cover group-hover:scale-110 transition-transform duration-1000" />
                     </div>
                     <div className="flex flex-col justify-center min-w-0 flex-1">
-                      <h5 className="font-black text-sm text-white line-clamp-2 uppercase tracking-tight leading-tight group-hover:text-primary transition-colors">{searchMatch.title}</h5>
+                      <h5 className="font-black text-sm text-white line-clamp-2 uppercase tracking-tight leading-tight group-hover:text-primary transition-colors">{searchMatchEntry.title}</h5>
                       <div className="mt-4">
                         <Badge className="bg-primary/10 text-primary text-[8px] font-black px-2 py-0.5 rounded-md border-none uppercase tracking-widest">
-                          {Math.round(searchMatch.similarity * 100)}% Match
+                          {Math.round(searchMatchEntry.similarity * 100)}% Match
                         </Badge>
                       </div>
                     </div>
@@ -279,7 +293,7 @@ export function LibraryTabs({
 
   /**
    * renderPodcastCollection:
-   * Misión: Visualizar el set de crónicas según el modo de vista activo.
+   * Misión: Visualizar el set de crónicas basándose en el modo de vista táctico.
    */
   const renderPodcastCollection = (podcastCollection: PodcastWithProfile[]) => {
     if (podcastCollection.length === 0) {
@@ -305,15 +319,15 @@ export function LibraryTabs({
       );
     }
 
-    const groupedPodcastThreads = groupPodcastsByThread(podcastCollection) as PodcastThread[];
+    const groupedPodcastThreadsCollection = groupPodcastsByThread(podcastCollection) as PodcastThread[];
 
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-10">
-        {groupedPodcastThreads.map((podcastThread) => (
+        {groupedPodcastThreadsCollection.map((podcastThreadItem) => (
           <StackedPodcastCard
-            key={podcastThread.id}
-            initialPodcastData={podcastThread}
-            narrativeReplyCollection={podcastThread.replies}
+            key={podcastThreadItem.id}
+            initialPodcastData={podcastThreadItem}
+            narrativeReplyCollection={podcastThreadItem.replies}
           />
         ))}
       </div>
@@ -378,13 +392,13 @@ export function LibraryTabs({
         <TabsContent value="discover" className="mt-0 space-y-16 md:space-y-24 outline-none animate-in fade-in duration-1000">
 
           <div className="flex overflow-x-auto md:grid md:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-6 pb-4 md:pb-0 snap-x snap-mandatory hide-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
-            {universeCategories.map(universeCategory => (
+            {universeCategories.map(universeCategoryItem => (
               <UniverseCard
-                key={universeCategory.key}
-                title={universeCategory.title}
-                image={universeCategory.image}
-                isActive={activeUniverseCategoryKey === universeCategory.key}
-                href={`${currentPathname}?tab=discover&universe=${universeCategory.key}`}
+                key={universeCategoryItem.key}
+                title={universeCategoryItem.title}
+                image={universeCategoryItem.image}
+                isActive={activeUniverseCategoryKey === universeCategoryItem.key}
+                href={`${currentPathname}?tab=discover&universe=${universeCategoryItem.key}`}
                 className="w-[150px] sm:w-[180px] shrink-0 snap-start md:w-auto"
               />
             ))}
@@ -396,7 +410,7 @@ export function LibraryTabs({
                 <Sparkles className="h-5 w-5 md:h-6 md:w-6 text-primary" />
               </div>
               <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter italic text-white truncate pr-4 font-serif">
-                {universeCategories.find(universeCategory => universeCategory.key === activeUniverseCategoryKey)?.title || "Resonancias"}
+                {universeCategories.find(universeCategoryItem => universeCategoryItem.key === activeUniverseCategoryKey)?.title || "Resonancias"}
               </h2>
             </div>
 
@@ -405,7 +419,7 @@ export function LibraryTabs({
         </TabsContent>
 
         <TabsContent value="library" className="mt-0 space-y-16 md:space-y-20 outline-none animate-in slide-in-from-bottom-6 duration-1000">
-          {creationJobs.length > 0 && (
+          {creationJobsCollection.length > 0 && (
             <section className="space-y-6 md:space-y-10 p-6 md:p-10 rounded-[2.5rem] md:rounded-[3.5rem] bg-primary/[0.03] border border-primary/10 shadow-2xl">
               <div className="flex items-center gap-4 md:gap-5">
                 <div className="relative shrink-0">
@@ -418,7 +432,7 @@ export function LibraryTabs({
                 </div>
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-8">
-                {creationJobs.map(jobItem => <SmartJobCard key={jobItem.id} job={jobItem} />)}
+                {creationJobsCollection.map(jobItem => <SmartJobCard key={jobItem.id} job={jobItem} />)}
               </div>
             </section>
           )}
@@ -433,12 +447,12 @@ export function LibraryTabs({
               </div>
               <div className="flex flex-col items-end shrink-0 pl-2">
                 <Badge variant="outline" className="border-white/10 text-zinc-500 font-black text-[8px] md:text-[10px] uppercase tracking-[0.2em] md:tracking-[0.3em] px-3 md:px-5 py-1.5 md:py-2 rounded-full backdrop-blur-xl">
-                  {createdPodcasts.length} NODOS
+                  {createdPodcastsCollection.length} NODOS
                 </Badge>
               </div>
             </div>
 
-            {renderPodcastCollection(createdPodcasts)}
+            {renderPodcastCollection(createdPodcastsCollection)}
           </section>
         </TabsContent>
 
@@ -448,12 +462,12 @@ export function LibraryTabs({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V17.0):
- * 1. Sovereign Null Shield: Se resolvieron los errores TS18047 aplicando encadenamiento 
- *    opcional ('?.') y fallbacks de cadena vacía en todas las interacciones con 
- *    'urlSearchParameters'.
- * 2. ZAP Compliance: Purificación de variables de mapeo (searchParametersString, 
- *    userIdentification, jobItem, podcastItem).
- * 3. Atomic Routing Resilience: La función 'handleNavigationTabChange' ahora es 
- *    inmune a estados de navegación nulos durante la transición de pestañas.
+ * NOTA TÉCNICA DEL ARCHITECT (V18.0):
+ * 1. Instance Isolation Pattern: Se ha resuelto el error crítico de secuencia de Supabase 
+ *    añadiendo el sufijo ':tabs' a los identificadores de canal. Esto evita colisiones 
+ *    con otras instancias de Realtime en la plataforma.
+ * 2. ZAP Absolute Compliance: Purificación nominal total en el 100% de los descriptores 
+ *    locales e interfaces de mapeo (creationJobsCollection, createdPodcastsCollection).
+ * 3. Contract Safety: Se mantiene el Sovereign Null Shield implementado en la V17.0 
+ *    para blindar la navegación ante estados nulos de la URL.
  */
