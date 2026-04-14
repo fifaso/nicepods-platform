@@ -1,6 +1,14 @@
 
 
 
+/**
+ * ARCHIVO: schema.sql
+ * VERSIÓN: 4.0
+ * PROTOCOLO: Madrid Resonance Protocol V4.0
+ * MISIÓN: Persistence Layer Hardening (The Metal)
+ * NIVEL DE INTEGRIDAD: CRITICAL
+ */
+
 SET statement_timeout = 0;
 SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;
@@ -3218,6 +3226,33 @@ CREATE OR REPLACE TRIGGER "on_poi_update" BEFORE UPDATE ON "public"."points_of_i
 
 
 
+CREATE OR REPLACE FUNCTION "public"."ensure_sovereign_profile_integrity"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+BEGIN
+    -- [MANDATO DE SOBERANÍA]: Solo el service_role (Sistema/Acciones de Servidor) o el superusuario
+    -- pueden modificar columnas administrativas que definen el rango y telemetría del curador.
+    IF (auth.role() <> 'service_role' AND current_user <> 'postgres') THEN
+        NEW.role := OLD.role;
+        NEW.active_creation_jobs := OLD.active_creation_jobs;
+        NEW.followers_count := OLD.followers_count;
+        NEW.following_count := OLD.following_count;
+        NEW.reputation_score := OLD.reputation_score;
+        NEW.is_verified := OLD.is_verified;
+        NEW.stripe_customer_id := OLD.stripe_customer_id;
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+ALTER FUNCTION "public"."ensure_sovereign_profile_integrity"() OWNER TO "postgres";
+
+CREATE OR REPLACE TRIGGER "trigger_ensure_profile_integrity"
+    BEFORE UPDATE ON "public"."profiles"
+    FOR EACH ROW
+    EXECUTE FUNCTION "public"."ensure_sovereign_profile_integrity"();
+
 CREATE OR REPLACE TRIGGER "on_profiles_update" BEFORE UPDATE ON "public"."profiles" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
 
 
@@ -3456,7 +3491,7 @@ CREATE POLICY "Admins manage vault" ON "public"."madrid_vault_knowledge" USING (
 
 
 
-CREATE POLICY "Allow authenticated users to create" ON "public"."profile_testimonials" FOR INSERT WITH CHECK (((( SELECT "auth"."uid"() AS "uid") IS NOT NULL) AND (( SELECT "auth"."uid"() AS "uid") <> "profile_user_id")));
+CREATE POLICY "AuthenticatedCurators_Can_Create_Testimonials" ON "public"."profile_testimonials" FOR INSERT WITH CHECK (((( SELECT "auth"."uid"() AS "uid") IS NOT NULL) AND (( SELECT "auth"."uid"() AS "uid") <> "profile_user_id") AND (( SELECT "auth"."uid"() AS "uid") = "author_user_id")));
 
 
 

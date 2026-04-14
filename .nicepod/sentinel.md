@@ -1,3 +1,11 @@
+/**
+ * ARCHIVO: .nicepod/sentinel.md
+ * VERSIÓN: 4.0
+ * PROTOCOLO: Madrid Resonance Protocol V4.0
+ * MISIÓN: Security Finding Journaling
+ * NIVEL DE INTEGRIDAD: HIGH
+ */
+
 # Sentinel Journal - Madrid Resonance Protocol V4.0
 
 ## 2025-05-22 - Nominal Mirroring & ZAP Enforcement
@@ -35,3 +43,15 @@ The following Edge Functions still operate using legacy abbreviations or `snake_
 ### Build Shield Status
 **STATUS: GREEN**
 `npx tsc --noEmit` executed successfully with 0 errors. Nominal integrity established across all axial propagation points (Forms, Actions, Hooks).
+
+## 2024-05-23 - Sovereign Profile Integrity & RLS Audit
+
+### Vulnerability Identified: Privilege Escalation (Profiles)
+- **Root Cause**: The Row Level Security policy `profiles_update_own` allows authenticated users to update all columns of their own profile record.
+- **Risk**: Malicious actors can escalate their own `role` to `'admin'`, inflate `reputation_score`, or manipulate social metrics (`followers_count`, `following_count`) via direct client-side database calls (Supabase Client).
+- **Hardening Requirement**: Implementation of a `BEFORE UPDATE` trigger to seal administrative columns from non-system modifications.
+
+### Security Finding: Missing RLS Enforcement
+- **Table**: `private.secrets`
+- **Issue**: This table lacks the `ENABLE ROW LEVEL SECURITY` instruction.
+- **Status**: Recorded for future remediation (Phase 2).
