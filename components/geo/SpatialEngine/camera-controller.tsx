@@ -1,15 +1,12 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/camera-controller.tsx
- * VERSIÓN: 13.0 (NicePod Camera Director - Imperative Signal Listener Edition)
+ * VERSIÓN: 13.1 (NicePod Camera Director - Command Bus Integration Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * Misión: Orquestar la lente WebGL mediante Interpolación Lineal (LERP) de alta 
- * frecuencia, integrando un receptor de comandos imperativos para recentrado 
- * y cambio de perspectiva con latencia cero.
- * [REFORMA V13.0]: Implementación de 'Imperative Command Listener'. El controlador 
- * ahora se suscribe al 'kineticSignalBus' para reaccionar al instante a los pulsos 
- * del actuador táctico, aniquilando la latencia de respuesta visual. 
- * Cumplimiento absoluto de la Zero Abbreviations Policy (ZAP).
+ * frecuencia, integrando el bus de comandos imperativos para recentrado.
+ * [REFORMA V13.1]: Resolución definitiva de TS2304. Sincronización del bus 
+ * de eventos con 'GEODETIC_CAMERA_COMMAND_EVENT_NAME'. Purificación total ZAP.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -76,7 +73,7 @@ export function CameraController({
     setManualMode
   } = useGeoEngine();
 
-  // --- MEMORIA TÁCTICA CINÉTICA ---
+  // MEMORIA TÁCTICA CINÉTICA (MTI - PILAR 4)
   const currentCameraPositionReference = useRef<KinematicPosition | null>(null);
   const currentBearingReference = useRef<number>(INITIAL_OVERVIEW_CONFIGURATION.bearing);
   const currentPitchReference = useRef<number>(INITIAL_OVERVIEW_CONFIGURATION.pitch);
@@ -116,15 +113,16 @@ export function CameraController({
     const deltaTimeMagnitude = (highResolutionTimestamp - lastFrameHighResolutionTimestampReference.current) / 1000;
     lastFrameHighResolutionTimestampReference.current = highResolutionTimestamp;
 
-    // Protocolo de recuperación de autoridad tras 8s de inactividad
-    if (isUserInteractingReference.current && (Date.now() - lastInteractionUnixTimestampReference.current > 8000)) {
+    // PROTOCOLO DE RECUPERACIÓN DE AUTORIDAD TRAS INACTIVIDAD
+    const currentSystemTime = Date.now();
+    if (isUserInteractingReference.current && (currentSystemTime - lastInteractionUnixTimestampReference.current > 8000)) {
       if (!nativeMapInstance.isMoving()) {
         isUserInteractingReference.current = false;
         setManualMode(false);
       }
     }
 
-    // Sincronización en modo manual
+    // SINCRONIZACIÓN EN MODO MANUAL
     if (isUserInteractingReference.current || nativeMapInstance.isMoving()) {
       const mapCenterPointSnapshot = nativeMapInstance.getCenter();
       currentCameraPositionReference.current = { latitude: mapCenterPointSnapshot.lat, longitude: mapCenterPointSnapshot.lng };
@@ -143,7 +141,7 @@ export function CameraController({
 
     const targetBearingDegrees = targetPerspectiveProfile.bearing_follow ? (voyagerGeographicLocation.headingDegrees ?? currentBearingReference.current) : 0;
     
-    // Motor LERP Adaptativo
+    // MOTOR LERP ADAPTATIVO
     const smoothingFactorMagnitude = 1 - Math.pow(1 - KINEMATIC_CONFIGURATION.LERP_FACTOR, deltaTimeMagnitude * 60);
 
     currentCameraPositionReference.current = interpolateCoordinates(currentCameraPositionReference.current, targetGeographicPosition, smoothingFactorMagnitude);
@@ -168,19 +166,18 @@ export function CameraController({
   }, [mapboxMapInstance, voyagerGeographicLocation, globalCameraPerspective, forcedPerspective, setManualMode]);
 
   /**
-   * [SINCRO V13.0]: EFECTO DE ESCUCHA IMPERATIVA
-   * Misión: Escuchar al bus de comandos de la interfaz para romper la estasis del motor LERP.
+   * [SINCRO V13.1]: ESCUCHA DEL BUS DE COMANDOS
    */
   useEffect(() => {
-    const handleImperativeCameraCommand = (event: Event) => {
+    const handleImperativeCameraCommand = () => {
         nicepodLog("🎯 [CameraController] Recibiendo comando imperativo de recentrado.");
         isUserInteractingReference.current = false;
         if (isManualModeActive) setManualMode(false);
     };
 
-    kineticSignalBus.addEventListener(GEODETIC_CAMERA_COMMAND_EVENT_NAME, handleImperativeCameraCommand);
-    return () => kineticSignalBus.removeEventListener(GEODETIC_KINETIC_SIGNAL_EVENT_NAME, handleImperativeCameraCommand);
-  }, [kineticSignalBus, isManualModeActive, setManualMode]);
+    window.addEventListener(GEODETIC_CAMERA_COMMAND_EVENT_NAME, handleImperativeCameraCommand);
+    return () => window.removeEventListener(GEODETIC_CAMERA_COMMAND_EVENT_NAME, handleImperativeCameraCommand);
+  }, [isManualModeActive, setManualMode]);
 
   useEffect(() => {
     const isNewRecenterPulseDetected = recenterTriggerPulse > lastProcessedPulseReference.current;
@@ -190,10 +187,12 @@ export function CameraController({
       if (!nativeMapInstance.isStyleLoaded()) return;
 
       lastProcessedPulseReference.current = recenterTriggerPulse;
-      nativeMapInstance.stop();
+      isUserInteractingReference.current = false;
+      if (isManualModeActive) setManualMode(false);
 
+      const currentCameraCenterPoint = nativeMapInstance.getCenter();
       const distanceToTargetMagnitude = calculateDistanceBetweenPoints(
-        { latitude: nativeMapInstance.getCenter().lat, longitude: nativeMapInstance.getCenter().lng },
+        { latitude: currentCameraCenterPoint.lat, longitude: currentCameraCenterPoint.lng },
         { latitude: voyagerGeographicLocation.latitudeCoordinate, longitude: voyagerGeographicLocation.longitudeCoordinate }
       );
 
@@ -207,7 +206,7 @@ export function CameraController({
 
       confirmAterrizajeExitosoAction();
     }
-  }, [needsBallisticLanding, recenterTriggerPulse, mapboxMapInstance, voyagerGeographicLocation, confirmAterrizajeExitosoAction]);
+  }, [needsBallisticLanding, recenterTriggerPulse, mapboxMapInstance, voyagerGeographicLocation, isManualModeActive, setManualMode, confirmAterrizajeExitosoAction]);
 
   useEffect(() => {
     const nativeMapCanvas = mapboxMapInstance?.getMap().getCanvas();
