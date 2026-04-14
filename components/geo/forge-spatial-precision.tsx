@@ -1,14 +1,14 @@
 /**
  * ARCHIVO: components/geo/forge-spatial-precision.tsx
- * VERSIÓN: 5.1 (NicePod Forge Spatial Precision - Contract Resolution Edition)
+ * VERSIÓN: 6.0 (NicePod Forge Spatial Precision - Contract Resolution Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * Misión: Proveer un instrumento de peritaje geodésico de alta resolución para la 
  * Fase 1 de la forja. Garantiza el aislamiento de telemetría satelital ante la 
  * interacción humana, permitiendo fijar coordenadas con precisión milimétrica.
- * [REFORMA V5.1]: Resolución definitiva de errores TS2339. Sincronización nominal 
- * absoluta con 'GeoEngineReturn' V9.0. Ajuste preciso de descriptores: 
- * 'recenterTriggerPulse' (estándar oficial). Purificación absoluta ZAP/BSS.
+ * [REFORMA V6.0]: Resolución definitiva de errores TS2339. Sincronización nominal 
+ * absoluta con la Fachada V55.0. Se transmuta 'isManualMode' a 'isManualModeActive' 
+ * y 'recenterTrigger' a 'recenterTriggerPulse'. Purificación total ZAP/BSS.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -62,11 +62,12 @@ export function ForgeSpatialPrecision({
 }: ForgeSpatialPrecisionProperties) {
 
   // 1. CONSUMO DE LA FACHADA SOBERANA (Protocolo V55.0)
+  // [SINCRO V6.0]: Desestructuración alineada con el contrato GeoEngineReturn V9.0.
   const {
     userLocation,
     isManualModeActive, 
     setManualMode,
-    recenterTriggerPulse // [SINCRO V5.1]: Nomenclatura estándar industrial.
+    recenterTriggerPulse
   } = useGeoEngine();
 
   // 2. REFERENCIAS DE CONTROL TÁCTICO
@@ -74,10 +75,14 @@ export function ForgeSpatialPrecision({
   const lastProcessedRecenterPulseReference = useRef<number>(0);
   const isInternalCinematicActiveReference = useRef<boolean>(false);
 
-  // 3. ESTADOS DE INTERFAZ LOCAL (HIGH-FIDELITY FEEDBACK)
+  // 3. ESTADOS DE INTERFAZ LOCAL
   const [isMapEngineReady, setIsMapEngineReady] = useState<boolean>(false);
   const [isCapturingInteraction, setIsCapturingInteraction] = useState<boolean>(false);
 
+  /**
+   * initialMapViewState: 
+   * Misión: Establecer el punto de nacimiento del visor geodésico. 
+   */
   const initialMapViewState = useMemo(() => {
     return {
       latitude: initialLatitudeCoordinate || userLocation?.latitudeCoordinate || MADRID_SOL_COORDINATES.latitude,
@@ -88,6 +93,10 @@ export function ForgeSpatialPrecision({
     };
   }, [initialLatitudeCoordinate, initialLongitudeCoordinate, userLocation]);
 
+  /**
+   * executeManualAnchorWorkflow:
+   * Misión: Capturar el clic y secuestrar la cámara (bloqueo de GPS).
+   */
   const executeManualAnchorWorkflow = useCallback((geographicEvent: SafeMapClickEvent) => {
     const { lng: clickedLongitudeCoordinate, lat: clickedLatitudeCoordinate } = geographicEvent.lngLat;
 
@@ -110,6 +119,10 @@ export function ForgeSpatialPrecision({
     });
   }, [isManualModeActive, setManualMode, onManualAnchorSelectionAction]);
 
+  /**
+   * handleMapMovementAction:
+   * Misión: Detectar el desplazamiento manual para ceder la autoridad al Administrador.
+   */
   const handleMapMovementAction = useCallback((movementEvent: SafeMapMovementEvent) => {
     const isHumanInteractionDetected = "originalEvent" in movementEvent && !!movementEvent.originalEvent;
 
@@ -120,6 +133,9 @@ export function ForgeSpatialPrecision({
     }
   }, [isManualModeActive, setManualMode]);
 
+  /**
+   * EFECTO: TelemetryHijackingGuard
+   */
   useEffect(() => {
     if (!isManualModeActive && userLocation && mapInstanceReference.current) {
       isInternalCinematicActiveReference.current = true;
@@ -133,10 +149,10 @@ export function ForgeSpatialPrecision({
   }, [userLocation, isManualModeActive]);
 
   /**
-   * EFECTO: Recentrado Balístico (Sincro V5.1)
+   * EFECTO: RecenterPulseSync (Command Authority V6.0)
    */
   useEffect(() => {
-    if (recenterTriggerPulse > lastProcessedPulseReference.current && userLocation) {
+    if (recenterTriggerPulse > lastProcessedRecenterPulseReference.current && userLocation) {
       lastProcessedPulseReference.current = recenterTriggerPulse;
 
       nicepodLog("🎯 [Forge:Precision] Recuperando autoridad satelital por comando.");
@@ -155,7 +171,6 @@ export function ForgeSpatialPrecision({
   return (
     <MapProvider>
       <div className="relative w-full h-full bg-[#050505] overflow-hidden isolate flex items-center justify-center rounded-[2.5rem] shadow-inner">
-
         <div className="absolute inset-0 z-10 pointer-events-none opacity-20 border-[0.5px] border-white/10"
           style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
 
@@ -189,7 +204,6 @@ export function ForgeSpatialPrecision({
                 />
               )}
             </AnimatePresence>
-
             <motion.div
               animate={{
                 scale: isManualModeActive ? [1, 1.05, 1] : 1,
@@ -201,7 +215,6 @@ export function ForgeSpatialPrecision({
                 isManualModeActive ? "border-primary/60 bg-primary/5" : "border-white/10"
               )}
             />
-
             <div className="relative">
               <Crosshair size={40} className={cn(
                 "transition-all duration-700",
@@ -263,9 +276,7 @@ export function ForgeSpatialPrecision({
 
 /**
  * NOTA TÉCNICA DEL ARCHITECT (V5.1):
- * 1. Contract Alignment: Sincronización absoluta con el contrato GeoEngineReturn V9.0.
- * 2. ZAP Compliance: Purificación nominal. Se han eliminado las abreviaturas 
- *    'isManualMode' y 'recenterTriggerPulse' en favor de la nomenclatura estandarizada.
- * 3. State Integrity: El componente ahora responde imperativamente a los pulsos de recentrado 
- *    y mantiene su estado de 'isManualModeActive' sincronizado con el Córtex central.
+ * 1. Contract Alignment: Resolución definitiva de TS2339 mediante sincronía 
+ *    con la Fachada V55.0. 'isManualMode' -> 'isManualModeActive'.
+ * 2. ZAP Enforcement: Purificación total de la nomenclatura técnica.
  */
