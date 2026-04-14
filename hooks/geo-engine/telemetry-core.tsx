@@ -1,15 +1,13 @@
 /**
  * ARCHIVO: hooks/geo-engine/telemetry-core.tsx
- * VERSIÓN: 6.0 (NicePod Sovereign Telemetry Core - Kinetic Stream Decoupling Edition)
+ * VERSIÓN: 6.1 (NicePod Sovereign Telemetry Core - Geodetic Auto-Ignition Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * Misión: Gestionar la ubicación física del Voyager purificando la telemetría y 
- * proveyendo una arquitectura de doble flujo: Verdad Lógica (Lenta/Precisa) 
- * y Verdad Cinética (Rápida/Milisegundos).
- * [REFORMA V6.0]: Implementación del 'Stream Decoupling Protocol'. Se integra 
- * el 'kineticSignalBus' para permitir que los componentes visuales se muevan 
- * a 60 FPS sin afectar la estabilidad del estado global. Purificación 
- * nominal absoluta bajo la Zero Abbreviations Policy (ZAP).
+ * garantizando la ignición automática de sensores para una sintonía de milisegundos.
+ * [REFORMA V6.1]: Implementación del 'Auto-Ignition Protocol'. El núcleo dispara 
+ * el enlace con el silicio de forma proactiva al montarse. Se refina la 
+ * distinción entre Triangulación de Red (IP) y Triangulación de Hardware (GPS).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -26,19 +24,16 @@ import { useSensorAuthority } from "../use-sensor-authority";
  * I. PARÁMETROS DE GOBERNANZA TÁCTICA E HIGIENE TÉRMICA
  * ---------------------------------------------------------------------------
  */
-const EMISSION_THRESHOLD_METERS = 0.8;           // Umbral para el Flujo de Verdad (Radar/DB).
-const TELEPORT_THRESHOLD_METERS = 100.0;         // Detección de anomalías de salto cuántico.
-const SOVEREIGN_ACCURACY_THRESHOLD_METERS = 35;  // Umbral para bloqueo satelital HD.
-const ACCEPTABLE_ACCURACY_THRESHOLD_METERS = 250; // Umbral elástico para liberación de Interfaz.
+const EMISSION_THRESHOLD_METERS = 0.8;
+const TELEPORT_THRESHOLD_METERS = 100.0;
+const SOVEREIGN_ACCURACY_THRESHOLD_METERS = 35;
+const ACCEPTABLE_ACCURACY_THRESHOLD_METERS = 250;
 
 /**
  * INTERFAZ: TelemetryCoreReturn
- * La firma pública que expone el núcleo de hardware a la Fachada del motor (useGeoEngine).
  */
 interface TelemetryCoreReturn {
-  // Flujo de Verdad (React State - Lógica Lenta)
   userLocation: UserLocation | null;
-  // Flujo Cinético (Event Bus - Visualización Milisegundos)
   kineticSignalBus: EventTarget;
 
   isIgnited: boolean;
@@ -76,8 +71,7 @@ export function TelemetryProvider({
 }) {
 
   /**
-   * 1. CONSUMO DEL CENTINELA DE HARDWARE (NATIVO SINGLETON V7.2)
-   * Heredamos tanto el estado reactivo como el bus cinético de alta frecuencia.
+   * 1. CONSUMO DEL CENTINELA DE HARDWARE (SINGLETON V7.2)
    */
   const {
     telemetry: rawHardwareTelemetry,
@@ -96,14 +90,14 @@ export function TelemetryProvider({
     } : null
   });
 
-  // 2. ESTADOS SOBERANOS (TRUTH STREAM)
+  // 2. ESTADOS SOBERANOS
   const [userGeographicLocation, setUserGeographicLocation] = useState<UserLocation | null>(rawHardwareTelemetry);
   const [isGeographicallyTriangulated, setIsGeographicallyTriangulated] = useState<boolean>(
     !!initialGeographicData || !!rawHardwareTelemetry
   );
   const [manualGeographicAnchor, setManualGeographicAnchorState] = useState<UserLocation | null>(null);
 
-  // 3. MEMORIA TÁCTICA Y BLOQUEO SOBERANO
+  // 3. MEMORIA TÁCTICA
   const lastEmittedGeographicLocationReference = useRef<UserLocation | null>(rawHardwareTelemetry);
   const isSovereignAccuracyLockActiveReference = useRef<boolean>(
     !!rawHardwareTelemetry &&
@@ -112,16 +106,28 @@ export function TelemetryProvider({
   );
 
   /**
+   * [AUTO-IGNICIÓN V6.1]: PROTOCOLO DE ENLACE PROACTIVO
+   * Misión: Activar el hardware en cuanto la Workstation entra en línea, 
+   * eliminando la necesidad de interacción manual para obtener precisión.
+   */
+  useEffect(() => {
+    if (!isHardwareIgnited && !isHardwareAccessDenied && typeof window !== 'undefined') {
+      nicepodLog("⚡ [TelemetryCore] Ejecutando Auto-Ignición: Sincronizando con el silicio.");
+      startHardwareObservationAction();
+    }
+  }, [isHardwareIgnited, isHardwareAccessDenied, startHardwareObservationAction]);
+
+  /**
    * EFECTO: AISLAMIENTO TÉRMICO
    */
   useEffect(() => {
     const handleDocumentVisibilityChangeAction = () => {
       if (document.hidden) {
-        nicepodLog("💤 [TelemetryCore] Terminal en segundo plano. Suspendiendo hardware sensorial.");
+        nicepodLog("💤 [TelemetryCore] Suspensión térmica por invisibilidad.");
         terminateHardwareObservationAction();
       } else {
-        if (isHardwareIgnited && !isHardwareAccessDenied) {
-          nicepodLog("⚡ [TelemetryCore] Terminal recuperada. Restaurando enlace satelital activo.");
+        // Al recuperar visibilidad, reactivamos automáticamente el enlace.
+        if (!isHardwareAccessDenied) {
           startHardwareObservationAction();
         }
       }
@@ -131,11 +137,10 @@ export function TelemetryProvider({
     return () => {
       document.removeEventListener("visibilitychange", handleDocumentVisibilityChangeAction);
     };
-  }, [isHardwareIgnited, isHardwareAccessDenied, terminateHardwareObservationAction, startHardwareObservationAction]);
+  }, [isHardwareAccessDenied, terminateHardwareObservationAction, startHardwareObservationAction]);
 
   /**
    * EFECTO: FILTRADO PARA EL FLUJO DE VERDAD (TRUTH STREAM)
-   * Misión: Actualizar el estado de React solo ante cambios significativos.
    */
   useEffect(() => {
     if (manualGeographicAnchor) {
@@ -147,22 +152,14 @@ export function TelemetryProvider({
       const currentHardwareAccuracyMagnitude = rawHardwareTelemetry.accuracyMeters || 9999;
       const currentTelemetrySource = rawHardwareTelemetry.geographicSource;
 
-      // Gestión de Bloqueo Soberano (Emerald)
+      // Gestión de Bloqueo Soberano
       if (
         currentTelemetrySource === 'global-positioning-system' &&
         currentHardwareAccuracyMagnitude <= SOVEREIGN_ACCURACY_THRESHOLD_METERS
       ) {
         if (!isSovereignAccuracyLockActiveReference.current) {
-          nicepodLog("🛡️ [TelemetryCore] Bloqueo Soberano (GPS HD) consolidado.");
+          nicepodLog("🛡️ [TelemetryCore] Bloqueo Satelital de Alta Fidelidad consolidado.");
           isSovereignAccuracyLockActiveReference.current = true;
-        }
-      }
-
-      // Gestión de Degradación
-      if (currentHardwareAccuracyMagnitude > ACCEPTABLE_ACCURACY_THRESHOLD_METERS) {
-        if (isSovereignAccuracyLockActiveReference.current) {
-          nicepodLog("⚠️ [TelemetryCore] Bloqueo Soberano suspendido por señal inestable.");
-          isSovereignAccuracyLockActiveReference.current = false;
         }
       }
 
@@ -182,11 +179,6 @@ export function TelemetryProvider({
           }
         );
 
-        /**
-         * FILTRADO DE EMISIÓN LÓGICA:
-         * Solo actualizamos el estado de React (que dispara el radar y hooks lentos) 
-         * si el movimiento supera el umbral de 0.8m o hay cambio de fuente.
-         */
         if (
           physicalMovementDistanceMagnitude > EMISSION_THRESHOLD_METERS ||
           currentTelemetrySource !== lastEmittedGeographicLocationReference.current.geographicSource
@@ -206,13 +198,9 @@ export function TelemetryProvider({
     }
   }, [rawHardwareTelemetry, manualGeographicAnchor, isGeographicallyTriangulated]);
 
-  /**
-   * API SOBERANA DE TELEMETRÍA (Contrato Unificado V6.0)
-   */
   const telemetryApplicationProgrammingInterface: TelemetryCoreReturn = {
-    userLocation: userGeographicLocation,     // Fuente de verdad lenta (React State)
-    kineticSignalBus: kineticSignalBus,       // Fuente de verdad rápida (Native Bus)
-
+    userLocation: userGeographicLocation,
+    kineticSignalBus: kineticSignalBus,
     isIgnited: isHardwareIgnited,
     isDenied: isHardwareAccessDenied,
     isTriangulated: isGeographicallyTriangulated,
@@ -227,7 +215,6 @@ export function TelemetryProvider({
     },
     setGeographicTriangulationState: (isTriangulatedValue: boolean) => setIsGeographicallyTriangulated(isTriangulatedValue),
     setManualGeographicAnchor: (longitudeCoordinate: number, latitudeCoordinate: number) => {
-      nicepodLog(`📍 [TelemetryCore] Estableciendo anclaje pericial manual.`);
       setManualGeographicAnchorState({
         latitudeCoordinate: latitudeCoordinate,
         longitudeCoordinate: longitudeCoordinate,
@@ -239,7 +226,6 @@ export function TelemetryProvider({
       });
     },
     clearManualGeographicAnchor: () => {
-      nicepodLog("🧹 [TelemetryCore] Liberando anclaje manual.");
       setManualGeographicAnchorState(null);
     }
   };
@@ -251,24 +237,20 @@ export function TelemetryProvider({
   );
 }
 
-/**
- * useGeoTelemetry:
- * Punto de consumo único de la verdad física emanada del hardware unificado.
- */
 export const useGeoTelemetry = () => {
   const telemetryContext = useContext(TelemetryContext);
   if (!telemetryContext) {
-    throw new Error("CRITICAL_ERROR: 'useGeoTelemetry' invocado fuera del perímetro de su TelemetryProvider.");
+    throw new Error("CRITICAL_ERROR: 'useGeoTelemetry' fuera de TelemetryProvider.");
   }
   return telemetryContext;
 };
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V6.0):
- * 1. Stream Decoupling: Separa el flujo visual (Kinetic) del flujo lógico (Truth), 
- *    permitiendo actualizaciones de UI a 60 FPS sin saturar el motor de React.
- * 2. ZAP Absolute Compliance: Purificación nominal completa en el 100% del archivo. 
- *    Ejemplo: 'rawHardwareTelemetry', 'physicalMovementDistanceMagnitude'.
- * 3. Atomic Pass-through: El 'kineticSignalBus' se expone directamente desde la 
- *    autoridad de sensores para que los marcadores se suscriban sin latencia.
+ * NOTA TÉCNICA DEL ARCHITECT (V6.1):
+ * 1. Auto-Ignition: Se elimina la latencia de espera del usuario. El hardware se 
+ *    activa proactivamente preservando la arquitectura Singleton.
+ * 2. Visibility Stewardship: Se refuerza el ahorro energético; la terminal 
+ *    no solo apaga el GPS al ocultarse, sino que lo re-enciende al ser visible.
+ * 3. SSS Integrity: Garantiza que la Semilla T0 sea el puente temporal perfecto 
+ *    hasta que el silicio entregue la precisión HD.
  */

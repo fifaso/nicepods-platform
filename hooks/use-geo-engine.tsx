@@ -1,16 +1,15 @@
 /**
  * ARCHIVO: hooks/use-geo-engine.tsx
- * VERSIÓN: 53.0 (NicePod Sovereign Geo-Engine - Elastic State Orchestration & ZAP Absolute Edition)
+ * VERSIÓN: 54.0 (NicePod Sovereign Geo-Engine - Automatic Mesh Elevation Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * Misión: Actuar como la Fachada Transparente unificadora de la Workstation. 
- * Orquestar la sintonía entre los núcleos de telemetría (silicio), radar (metal) 
- * e interfaz (voluntad visual), garantizando que la verdad geodésica sea global 
- * mientras la cinemática de cámara permanece aislada por instancia.
- * [REFORMA V53.0]: Integración del Protocolo de Bloqueo Elástico. Se refactoriza la 
- * máquina de estados para liberar la interfaz ('SENSORS_READY') ante cualquier 
- * triangulación válida (IP, WiFi o GPS). Purificación total de la Zero Abbreviations 
- * Policy (ZAP) en los contratos de entrada y sincronía con TelemetryCore V5.1.
+ * Orquestar la sintonía entre los núcleos de telemetría, radar e interfaz, 
+ * garantizando el aterrizaje automático y la elevación de precisión de la malla.
+ * [REFORMA V54.0]: Implementación del 'Automatic Mesh Elevation'. La fachada 
+ * ahora detecta la transición de fuente (IP -> GPS) y dispara aterrizajes 
+ * cinemáticos automáticos para actualizar la posición del Voyager sin 
+ * intervención humana. Sincronía nominal absoluta (ZAP).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -38,7 +37,7 @@ const GeoEngineContext = createContext<GeoEngineReturn | undefined>(undefined);
 
 /**
  * GeoFacadeComponent: El Cerebro Sincronizador de la Workstation NicePod.
- * Misión: Fusionar el estado de los núcleos en una única firma operativa y resiliente.
+ * Misión: Fusionar el estado de los núcleos en una firma operativa autónoma.
  */
 function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
   const telemetryCore = useGeoTelemetry();
@@ -48,38 +47,56 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
 
   const lastTelemetrySourceReference = useRef<string | null>(telemetryCore.telemetrySource);
   const hasPerformedInitialLandingReference = useRef<boolean>(false);
+  const hasUpgradedToHardwareFixReference = useRef<boolean>(false);
 
   /**
-   * EFECTO: ORQUESTACIÓN GEODÉSICA CROSS-DOMAIN
-   * Misión: Sincronizar el latido del hardware con la inteligencia de radar.
+   * EFECTO: ORQUESTACIÓN DE AUTO-SINCRO Y ELEVACIÓN
+   * Misión: Detectar mejoras en la fuente de verdad y mover la cámara automáticamente.
    */
   useEffect(() => {
     const currentGeographicLocationSnapshot = telemetryCore.userLocation;
+    const currentTelemetrySource = telemetryCore.telemetrySource;
 
     if (currentGeographicLocationSnapshot) {
+
       /**
-       * 1. DETECCIÓN DE ATERRIZAJE BALÍSTICO (RESILIENCIA V53.0):
-       * Disparamos la transición visual si el sistema está triangulado por primera vez.
-       * No esperamos a GPS HD para mostrar la malla; la Semilla T0 es suficiente 
-       * para el primer renderizado táctico del Dashboard.
+       * 1. ATERRIZAJE INICIAL (PROTOCOLO T0)
+       * Si el sistema está triangulado (aunque sea por IP), realizamos el primer aterrizaje.
        */
       if (telemetryCore.isTriangulated && !hasPerformedInitialLandingReference.current) {
-        nicepodLog("🚀 [GeoEngine] Triangulación inicial detectada. Ejecutando aterrizaje visual.");
+        nicepodLog(`🚀 [GeoEngine] Aterrizaje Inicial (Fuente: ${currentTelemetrySource}).`);
         interfaceCore.triggerLanding();
         hasPerformedInitialLandingReference.current = true;
-
-        // Carga inicial de inteligencia de proximidad.
         radarCore.fetchRadarIntelligence(currentGeographicLocationSnapshot, true);
       }
 
       /**
-       * 2. EVALUACIÓN DE RESONANCIA SSS (SINGLE SENSORY SOURCE):
-       * Analizamos la proximidad a hitos basándonos en la telemetría unificada purificada.
+       * 2. ELEVACIÓN AUTOMÁTICA DE MALLA (AUTO-UPGRADE)
+       * Misión: Si estábamos en IP y ahora el hardware (GPS/WiFi) responde, 
+       * ejecutamos un nuevo aterrizaje hacia la ubicación precisa.
+       */
+      const isUpgradingFromInternetProtocolToHardware =
+        currentTelemetrySource === 'global-positioning-system' &&
+        lastTelemetrySourceReference.current === 'edge-internet-protocol';
+
+      if (isUpgradingFromInternetProtocolToHardware && !hasUpgradedToHardwareFixReference.current) {
+        nicepodLog("🛰️ [GeoEngine] Elevación de Malla: Sintonía de hardware detectada. Recentrando...");
+        interfaceCore.triggerLanding(); // Dispara el movimiento hacia la nueva coordenada real.
+        hasUpgradedToHardwareFixReference.current = true;
+
+        // Refrescamos el radar para obtener hitos precisos del entorno real.
+        radarCore.fetchRadarIntelligence(currentGeographicLocationSnapshot, true);
+      }
+
+      /**
+       * 3. EVALUACIÓN DE RESONANCIA SSS
        */
       radarCore.evaluateProximityResonance(currentGeographicLocationSnapshot);
+
+      // Si el Voyager se mueve significativamente, actualizamos el radar en segundo plano.
       radarCore.fetchRadarIntelligence(currentGeographicLocationSnapshot, false);
 
-      lastTelemetrySourceReference.current = telemetryCore.telemetrySource;
+      lastTelemetrySourceReference.current = currentTelemetrySource;
     }
   }, [
     telemetryCore.userLocation,
@@ -90,25 +107,20 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
   ]);
 
   /**
-   * derivedEngineOperationalStatus: Máquina de Estados Finita Derivada.
-   * [SINCRO V53.0]: Se prioriza 'isTriangulated' para liberar la UI.
+   * derivedEngineOperationalStatus: Máquina de Estados Finita.
    */
   const derivedEngineOperationalStatus = useMemo((): GeoEngineState => {
     if (forgeOrchestrator.forgeStatus !== 'IDLE') return forgeOrchestrator.forgeStatus;
     if (telemetryCore.isDenied) return 'PERMISSION_DENIED';
-
-    // Si hay cualquier triangulación válida (incluyendo T0), el sistema está listo.
     if (telemetryCore.isTriangulated) return 'SENSORS_READY';
-
     return telemetryCore.isIgnited ? 'SENSORS_READY' : 'IDLE';
   }, [forgeOrchestrator.forgeStatus, telemetryCore.isDenied, telemetryCore.isIgnited, telemetryCore.isTriangulated]);
 
   /**
    * geoEngineApplicationProgrammingInterface:
-   * Composición de la firma pública que satisface el contrato GeoEngineReturn V8.6.
+   * Composición de la firma pública que satisface el contrato GeoEngineReturn.
    */
   const geoEngineApplicationProgrammingInterface: GeoEngineReturn = {
-    // I. Estados de Verdad y Telemetría Purificada (Global SSoT)
     status: derivedEngineOperationalStatus,
     userLocation: telemetryCore.userLocation,
     nearbyPointsOfInterest: radarCore.nearbyPointsOfInterest,
@@ -124,7 +136,6 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
       ...radarCore.localGeographicData
     } as GeoContextData,
 
-    // II. Gobernanza Visual y Cinemática (Local Instance Control)
     cameraPerspective: interfaceCore.cameraPerspective,
     mapStyle: interfaceCore.mapStyle,
     isManualMode: interfaceCore.isManualMode,
@@ -142,7 +153,6 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
       interfaceCore.triggerRecenter();
     },
 
-    // III. Operaciones de Mando de Hardware (Silicon Bridges)
     initSensors: telemetryCore.initializeHardwareSensors,
     reSyncRadar: () => {
       radarCore.clearRadarIntelligence();
@@ -156,7 +166,6 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
       telemetryCore.setManualGeographicAnchor(longitudeCoordinate, latitudeCoordinate),
     setManualPlaceName: (placeName: string) => radarCore.setManualGeographicPlaceName(placeName),
 
-    // IV. Pipeline de Inteligencia Multimodal (Edge Reasoning)
     ingestSensoryData: (ingestionParameters) => forgeOrchestrator.ingestSensoryData(telemetryCore.userLocation, {
       heroImage: ingestionParameters.heroImage,
       opticalCharacterRecognitionImages: ingestionParameters.opticalCharacterRecognitionImages,
@@ -179,10 +188,6 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
 
     transcribeVoiceIntent: (audioBinaryBase64Data: string) => forgeOrchestrator.transcribeVoiceIntent(audioBinaryBase64Data),
 
-    /**
-     * reset: 
-     * Misión: Purga absoluta de memoria táctica y bus de datos (Hardware Hygiene).
-     */
     reset: () => {
       telemetryCore.terminateHardwareSensors();
       telemetryCore.clearManualGeographicAnchor();
@@ -191,8 +196,9 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
       interfaceCore.resetInterface();
       forgeOrchestrator.resetForge();
       hasPerformedInitialLandingReference.current = false;
+      hasUpgradedToHardwareFixReference.current = false;
       lastTelemetrySourceReference.current = null;
-      nicepodLog("🧹 [GeoEngine] Memoria táctica unificada purgada íntegramente.");
+      nicepodLog("🧹 [GeoEngine] Malla purgada.");
     }
   };
 
@@ -205,14 +211,12 @@ function GeoFacadeComponent({ children }: { children: React.ReactNode }) {
 
 /**
  * GeoEngineProvider: El Contenedor de Inteligencia Geodésica Compartida.
- * [MANDATO V4.9]: Actúa como el Singleton de plataforma para los datos físicos.
  */
 export function GeoEngineProvider({
   children,
   initialData
 }: {
   children: React.ReactNode,
-  /** initialData: Semilla geodésica T0 inyectada por el Middleware. */
   initialData?: {
     latitudeCoordinate: number;
     longitudeCoordinate: number;
@@ -221,10 +225,6 @@ export function GeoEngineProvider({
   } | null
 }) {
 
-  /**
-   * initialGeographicMetadata: 
-   * [SINCRO V53.0]: Mapeo nominal purificado (ZAP) antes de inyectar en los núcleos.
-   */
   const initialGeographicMetadata = useMemo(() => {
     if (!initialData) return null;
     return {
@@ -246,26 +246,21 @@ export function GeoEngineProvider({
   );
 }
 
-/**
- * useGeoEngine:
- * Punto de consumo único para la soberanía geoespacial de la terminal NicePod.
- */
 export function useGeoEngine(): GeoEngineReturn {
   const contextReference = useContext(GeoEngineContext);
   if (!contextReference) {
-    throw new Error("CRITICAL_ERROR: 'useGeoEngine' invocado fuera del perímetro de su GeoEngineProvider.");
+    throw new Error("CRITICAL_ERROR: 'useGeoEngine' fuera de GeoEngineProvider.");
   }
   return contextReference;
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V53.0):
- * 1. Elastic State Machine: El estado 'SENSORS_READY' ahora se deriva directamente de 
- *    'isTriangulated'. Esto asegura que la terminal del Dashboard se desbloquee 
- *    al recibir la Semilla T0 o una señal WiFi, eliminando el loop de carga.
- * 2. ZAP Absolute Compliance: Se han eliminado las propiedades 'lat/lng' del contrato 
- *    'initialData' en favor de nombres industriales.
- * 3. Immediate Landing Protocol: Se ha modificado el efecto de orquestación para 
- *    permitir el aterrizaje visual en cuanto hay sintonía de red, mejorando 
- *    la percepción de velocidad de la Workstation.
+ * NOTA TÉCNICA DEL ARCHITECT (V54.0):
+ * 1. Mesh Elevation: El sistema ahora es proactivo. Detecta la transición de 
+ *    IP a GPS y dispara el aterrizaje de cámara automáticamente, eliminando 
+ *    la fricción de la espera manual.
+ * 2. Source Monitoring: Se implementa la vigilancia del cambio de fuente 
+ *    mediante 'lastTelemetrySourceReference' para asegurar aterrizajes únicos 
+ *    por nivel de calidad.
+ * 3. ZAP Enforcement: Purificación nominal total en el 100% de los descriptores.
  */
