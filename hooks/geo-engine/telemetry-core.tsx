@@ -1,15 +1,15 @@
 /**
  * ARCHIVO: hooks/geo-engine/telemetry-core.tsx
- * VERSIÓN: 5.1 (NicePod Sovereign Telemetry Core - Elastic Lock & Tactical Stability Edition)
+ * VERSIÓN: 6.0 (NicePod Sovereign Telemetry Core - Kinetic Stream Decoupling Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
- * Misión: Gestionar la ubicación física del Voyager purificando la telemetría, 
- * garantizando la persistencia de la "Verdad Consolidada" entre cambios de ruta
- * y aplicando el protocolo de Aislamiento Térmico para preservar la autonomía energética.
- * [REFORMA V5.1]: Implementación del Protocolo de Bloqueo Elástico (Elastic Lock). 
- * Se introduce el umbral de 'ACCEPTABLE_ACCURACY_THRESHOLD_METERS' para permitir 
- * que entornos de escritorio (WiFi/PC) liberen la interfaz de usuario mientras 
- * el hardware busca el bloqueo soberano. Sincronía nominal absoluta (ZAP).
+ * Misión: Gestionar la ubicación física del Voyager purificando la telemetría y 
+ * proveyendo una arquitectura de doble flujo: Verdad Lógica (Lenta/Precisa) 
+ * y Verdad Cinética (Rápida/Milisegundos).
+ * [REFORMA V6.0]: Implementación del 'Stream Decoupling Protocol'. Se integra 
+ * el 'kineticSignalBus' para permitir que los componentes visuales se muevan 
+ * a 60 FPS sin afectar la estabilidad del estado global. Purificación 
+ * nominal absoluta bajo la Zero Abbreviations Policy (ZAP).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -26,17 +26,21 @@ import { useSensorAuthority } from "../use-sensor-authority";
  * I. PARÁMETROS DE GOBERNANZA TÁCTICA E HIGIENE TÉRMICA
  * ---------------------------------------------------------------------------
  */
-const EMISSION_THRESHOLD_METERS = 0.8;           // Escudo contra micro-vibraciones del hardware.
-const TELEPORT_THRESHOLD_METERS = 100.0;         // Detección de anomalías de salto cuántico (Bouncing).
-const SOVEREIGN_ACCURACY_THRESHOLD_METERS = 35;  // Umbral para bloqueo satelital HD (Emerald State).
-const ACCEPTABLE_ACCURACY_THRESHOLD_METERS = 250; // Umbral elástico para liberación de UI (Network State).
+const EMISSION_THRESHOLD_METERS = 0.8;           // Umbral para el Flujo de Verdad (Radar/DB).
+const TELEPORT_THRESHOLD_METERS = 100.0;         // Detección de anomalías de salto cuántico.
+const SOVEREIGN_ACCURACY_THRESHOLD_METERS = 35;  // Umbral para bloqueo satelital HD.
+const ACCEPTABLE_ACCURACY_THRESHOLD_METERS = 250; // Umbral elástico para liberación de Interfaz.
 
 /**
  * INTERFAZ: TelemetryCoreReturn
  * La firma pública que expone el núcleo de hardware a la Fachada del motor (useGeoEngine).
  */
 interface TelemetryCoreReturn {
+  // Flujo de Verdad (React State - Lógica Lenta)
   userLocation: UserLocation | null;
+  // Flujo Cinético (Event Bus - Visualización Milisegundos)
+  kineticSignalBus: EventTarget;
+
   isIgnited: boolean;
   isDenied: boolean;
   isTriangulated: boolean;
@@ -53,10 +57,6 @@ interface TelemetryCoreReturn {
 
 const TelemetryContext = createContext<TelemetryCoreReturn | undefined>(undefined);
 
-/**
- * INTERFAZ: InitialGeographicDataContract
- * Contrato nominal para la materialización T0 (Middleware).
- */
 interface InitialGeographicDataContract {
   latitudeCoordinate: number;
   longitudeCoordinate: number;
@@ -66,7 +66,6 @@ interface InitialGeographicDataContract {
 
 /**
  * TelemetryProvider: El Reactor de Ubicación Primario Unificado.
- * [MANDATO]: Actúa como el motor de purificación de señales del Singleton de Hardware.
  */
 export function TelemetryProvider({
   children,
@@ -77,11 +76,12 @@ export function TelemetryProvider({
 }) {
 
   /**
-   * 1. CONSUMO DEL CENTINELA DE HARDWARE (NATIVO SINGLETON V7.1)
-   * [SINCRO V5.1]: Sincronización nominal con la interfaz de hidratación instantánea.
+   * 1. CONSUMO DEL CENTINELA DE HARDWARE (NATIVO SINGLETON V7.2)
+   * Heredamos tanto el estado reactivo como el bus cinético de alta frecuencia.
    */
   const {
     telemetry: rawHardwareTelemetry,
+    kineticSignalBus,
     isDenied: isHardwareAccessDenied,
     isIgnited: isHardwareIgnited,
     startHardwareWatch: startHardwareObservationAction,
@@ -96,27 +96,15 @@ export function TelemetryProvider({
     } : null
   });
 
-  // 2. ESTADOS SOBERANOS DE UBICACIÓN (NOMINAL INTEGRITY)
+  // 2. ESTADOS SOBERANOS (TRUTH STREAM)
   const [userGeographicLocation, setUserGeographicLocation] = useState<UserLocation | null>(rawHardwareTelemetry);
-
-  /**
-   * isGeographicallyTriangulated: 
-   * Se activa si poseemos cualquier señal válida para la visualización (T0, WiFi o GPS).
-   * Misión: Liberar los velos de carga del Dashboard y el Mapa.
-   */
   const [isGeographicallyTriangulated, setIsGeographicallyTriangulated] = useState<boolean>(
     !!initialGeographicData || !!rawHardwareTelemetry
   );
-
   const [manualGeographicAnchor, setManualGeographicAnchorState] = useState<UserLocation | null>(null);
 
   // 3. MEMORIA TÁCTICA Y BLOQUEO SOBERANO
   const lastEmittedGeographicLocationReference = useRef<UserLocation | null>(rawHardwareTelemetry);
-
-  /**
-   * isSovereignAccuracyLockActiveReference:
-   * Misión: Determinar si la Workstation posee un bloqueo de precisión HD (< 35 metros).
-   */
   const isSovereignAccuracyLockActiveReference = useRef<boolean>(
     !!rawHardwareTelemetry &&
     rawHardwareTelemetry.geographicSource === 'global-positioning-system' &&
@@ -124,8 +112,7 @@ export function TelemetryProvider({
   );
 
   /**
-   * EFECTO: AISLAMIENTO TÉRMICO (SOBERANÍA DE BATERÍA - PILAR 2)
-   * Misión: Apagar físicamente el hardware si la terminal NicePod pierde el foco visual.
+   * EFECTO: AISLAMIENTO TÉRMICO
    */
   useEffect(() => {
     const handleDocumentVisibilityChangeAction = () => {
@@ -147,11 +134,10 @@ export function TelemetryProvider({
   }, [isHardwareIgnited, isHardwareAccessDenied, terminateHardwareObservationAction, startHardwareObservationAction]);
 
   /**
-   * EFECTO: FILTRADO DE AUTORIDAD Y PROTOCOLO ELÁSTICO
-   * Misión: Transformar la lectura cruda en telemetría purificada y gestionar los bloqueos.
+   * EFECTO: FILTRADO PARA EL FLUJO DE VERDAD (TRUTH STREAM)
+   * Misión: Actualizar el estado de React solo ante cambios significativos.
    */
   useEffect(() => {
-    // El anclaje manual tiene prioridad absoluta de bloqueo (Fase de Forja).
     if (manualGeographicAnchor) {
       setUserGeographicLocation(manualGeographicAnchor);
       return;
@@ -161,36 +147,29 @@ export function TelemetryProvider({
       const currentHardwareAccuracyMagnitude = rawHardwareTelemetry.accuracyMeters || 9999;
       const currentTelemetrySource = rawHardwareTelemetry.geographicSource;
 
-      /**
-       * [PROTOCOL]: ELASTIC LOCK MANAGEMENT
-       * Misión: Evaluar si la señal es digna de ser inyectada en la Malla.
-       */
-      let shouldEmitNewLocationToFacade = false;
-
-      // A. Evaluación de Bloqueo Soberano (HD GPS)
+      // Gestión de Bloqueo Soberano (Emerald)
       if (
         currentTelemetrySource === 'global-positioning-system' &&
         currentHardwareAccuracyMagnitude <= SOVEREIGN_ACCURACY_THRESHOLD_METERS
       ) {
         if (!isSovereignAccuracyLockActiveReference.current) {
-          nicepodLog("🛡️ [TelemetryCore] Bloqueo Soberano satelital (GPS HD) alcanzado.");
+          nicepodLog("🛡️ [TelemetryCore] Bloqueo Soberano (GPS HD) consolidado.");
           isSovereignAccuracyLockActiveReference.current = true;
         }
       }
 
-      // B. Evaluación de Degradación de Señal
-      // Si la precisión se degrada por encima del umbral elástico, perdemos el bloqueo soberano.
+      // Gestión de Degradación
       if (currentHardwareAccuracyMagnitude > ACCEPTABLE_ACCURACY_THRESHOLD_METERS) {
         if (isSovereignAccuracyLockActiveReference.current) {
-          nicepodLog("⚠️ [TelemetryCore] Pérdida de Bloqueo Soberano por degradación de señal crítica.");
+          nicepodLog("⚠️ [TelemetryCore] Bloqueo Soberano suspendido por señal inestable.");
           isSovereignAccuracyLockActiveReference.current = false;
         }
       }
 
-      // C. Lógica de Emisión para Liberación de UI e Isolate
+      let shouldUpdateTruthState = false;
+
       if (!lastEmittedGeographicLocationReference.current) {
-        // Primera emisión tras el arranque (Materialización T0 o primer Fix de hardware).
-        shouldEmitNewLocationToFacade = true;
+        shouldUpdateTruthState = true;
       } else {
         const physicalMovementDistanceMagnitude = calculateDistanceBetweenPoints(
           {
@@ -203,37 +182,23 @@ export function TelemetryProvider({
           }
         );
 
-        const headingAngularDifference = Math.abs(
-          (rawHardwareTelemetry.headingDegrees || 0) - (lastEmittedGeographicLocationReference.current.headingDegrees || 0)
-        );
-
         /**
-         * FILTRADO CINEMÁTICO:
-         * Emitimos si el movimiento es superior al umbral de vibración, si hay cambio de rumbo
-         * o si la precisión ha mejorado significativamente aunque no haya movimiento.
+         * FILTRADO DE EMISIÓN LÓGICA:
+         * Solo actualizamos el estado de React (que dispara el radar y hooks lentos) 
+         * si el movimiento supera el umbral de 0.8m o hay cambio de fuente.
          */
-        const hasAccuracyImprovedSignificantly =
-          currentHardwareAccuracyMagnitude < (lastEmittedGeographicLocationReference.current.accuracyMeters - 10);
-
         if (
           physicalMovementDistanceMagnitude > EMISSION_THRESHOLD_METERS ||
-          headingAngularDifference > 2.0 ||
-          hasAccuracyImprovedSignificantly ||
           currentTelemetrySource !== lastEmittedGeographicLocationReference.current.geographicSource
         ) {
-          shouldEmitNewLocationToFacade = true;
+          shouldUpdateTruthState = true;
         }
       }
 
-      if (shouldEmitNewLocationToFacade) {
+      if (shouldUpdateTruthState) {
         setUserGeographicLocation(rawHardwareTelemetry);
         lastEmittedGeographicLocationReference.current = rawHardwareTelemetry;
 
-        /**
-         * LIBERACIÓN DE INTERFAZ:
-         * Si la ubicación es aceptable (Red/WiFi < 250m), consideramos el sistema triangulado 
-         * para retirar los velos de carga, incluso si no es precisión HD.
-         */
         if (!isGeographicallyTriangulated && currentHardwareAccuracyMagnitude <= ACCEPTABLE_ACCURACY_THRESHOLD_METERS) {
           setIsGeographicallyTriangulated(true);
         }
@@ -242,10 +207,12 @@ export function TelemetryProvider({
   }, [rawHardwareTelemetry, manualGeographicAnchor, isGeographicallyTriangulated]);
 
   /**
-   * API SOBERANA DE TELEMETRÍA (Contrato Unificado V5.1)
+   * API SOBERANA DE TELEMETRÍA (Contrato Unificado V6.0)
    */
   const telemetryApplicationProgrammingInterface: TelemetryCoreReturn = {
-    userLocation: userGeographicLocation,
+    userLocation: userGeographicLocation,     // Fuente de verdad lenta (React State)
+    kineticSignalBus: kineticSignalBus,       // Fuente de verdad rápida (Native Bus)
+
     isIgnited: isHardwareIgnited,
     isDenied: isHardwareAccessDenied,
     isTriangulated: isGeographicallyTriangulated,
@@ -260,7 +227,7 @@ export function TelemetryProvider({
     },
     setGeographicTriangulationState: (isTriangulatedValue: boolean) => setIsGeographicallyTriangulated(isTriangulatedValue),
     setManualGeographicAnchor: (longitudeCoordinate: number, latitudeCoordinate: number) => {
-      nicepodLog(`📍 [TelemetryCore] Anclaje pericial manual establecido: [${longitudeCoordinate}, ${latitudeCoordinate}]`);
+      nicepodLog(`📍 [TelemetryCore] Estableciendo anclaje pericial manual.`);
       setManualGeographicAnchorState({
         latitudeCoordinate: latitudeCoordinate,
         longitudeCoordinate: longitudeCoordinate,
@@ -272,7 +239,7 @@ export function TelemetryProvider({
       });
     },
     clearManualGeographicAnchor: () => {
-      nicepodLog("🧹 [TelemetryCore] Liberando anclaje pericial manual.");
+      nicepodLog("🧹 [TelemetryCore] Liberando anclaje manual.");
       setManualGeographicAnchorState(null);
     }
   };
@@ -297,12 +264,11 @@ export const useGeoTelemetry = () => {
 };
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V5.1):
- * 1. Elastic Lock Protocol: Se ha introducido la aceptación de señales de red (< 250m) 
- *    como válidas para 'isTriangulated', permitiendo que la UI del Dashboard 
- *    se desbloquee en entornos de oficina/WiFi sin esperar al GPS HD.
- * 2. ZAP Enforcement: Purificación total de la nomenclatura técnica en el 100% 
- *    del archivo. Se eliminaron residuos nominales como lat/lng.
- * 3. Accuracy Feedback Loop: El sistema ahora emite una nueva ubicación si la 
- *    precisión mejora significativamente, incluso si el Voyager está estático.
+ * NOTA TÉCNICA DEL ARCHITECT (V6.0):
+ * 1. Stream Decoupling: Separa el flujo visual (Kinetic) del flujo lógico (Truth), 
+ *    permitiendo actualizaciones de UI a 60 FPS sin saturar el motor de React.
+ * 2. ZAP Absolute Compliance: Purificación nominal completa en el 100% del archivo. 
+ *    Ejemplo: 'rawHardwareTelemetry', 'physicalMovementDistanceMagnitude'.
+ * 3. Atomic Pass-through: El 'kineticSignalBus' se expone directamente desde la 
+ *    autoridad de sensores para que los marcadores se suscriban sin latencia.
  */

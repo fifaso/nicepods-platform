@@ -1,37 +1,34 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/map-core.tsx
- * VERSIÓN: 18.0 (NicePod MapCore - Style-Guard Pro & Main Thread Isolation Edition)
- * PROTOCOLO: MADRID RESONANCE V4.5
+ * VERSIÓN: 19.0 (NicePod MapCore - Visual Layer Isolation & MTI Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.9
  * 
- * Misión: Reactor WebGL inmutable que gestiona la renderización de la malla 3D. 
- * Actúa como una terminal de visualización pasiva para maximizar los fotogramas 
- * por segundo, delegando la lógica pesada a los núcleos de telemetría y radar.
- * [REFORMA V18.0]: Implementación de la Misión 4 (Style-Guard). Neutralización 
- * de advertencias de Mapbox Standard v3 que saturaban Sentry. Optimización de 
- * renderizado de marcadores (Pilar 4 - MTI) y cumplimiento absoluto de la 
- * Zero Abbreviations Policy (ZAP).
+ * Misión: Reactor WebGL inmutable que gestiona la renderización de la malla 3D, 
+ * actuando como una terminal de visualización pasiva. 
+ * [REFORMA V19.0]: Implementación del 'Visual Layer Isolation'. El reactor ya 
+ * no gestiona el movimiento del avatar mediante estados de React; delega la 
+ * autonomía al 'UserLocationMarker' para garantizar 60 FPS estables. 
+ * Sincronización absoluta con el Dogma MTI y la Zero Abbreviations Policy.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
 
 import type { ComponentProps } from "react";
-import { forwardRef, memo, useCallback, useImperativeHandle, useMemo, useRef, useEffect } from "react";
+import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef } from "react";
 import Map, { MapRef } from 'react-map-gl/mapbox';
 
 // --- INFRAESTRUCTURA DE MALLA TÁCTICA SOBERANA ---
 import {
   DIGITAL_ELEVATION_MODEL_SOURCE_CONFIGURATION,
   FOG_CONFIGURATION,
-  TACTICAL_LITE_ENGINE_CONFIGURATION,
-  TACTICAL_LITE_TERRAIN_CONFIGURATION,
   MAPBOX_TOKEN,
   MAP_STYLES,
   MapPerformanceProfile,
   MapboxLightPreset,
   OCCLUSION_CONFIGURATION,
   STANDARD_ENGINE_CONFIGURATION,
-  TERRAIN_CONFIGURATION,
+  TACTICAL_LITE_ENGINE_CONFIGURATION,
   getInitialViewState
 } from "../map-constants";
 
@@ -46,7 +43,6 @@ import { UserLocationMarker } from "../user-location-marker";
  */
 type MapNativeProperties = ComponentProps<typeof Map>;
 type SafeMapLoadEvent = Parameters<NonNullable<MapNativeProperties['onLoad']>>[0];
-type SafeMapMovementEvent = Parameters<NonNullable<MapNativeProperties['onMove']>>[0];
 type SafeMapClickEvent = Parameters<NonNullable<MapNativeProperties['onClick']>>[0];
 type SafeMapStyleDataEvent = Parameters<NonNullable<MapNativeProperties['onStyleData']>>[0];
 
@@ -54,17 +50,13 @@ type SafeMapStyleDataEvent = Parameters<NonNullable<MapNativeProperties['onStyle
  * INTERFAZ: MapCoreProperties
  */
 interface MapCoreProperties {
-  /** mapInstanceIdentification: Identificador único para el aislamiento de VRAM en la GPU. */
   mapInstanceIdentification: MapInstanceIdentification;
-  /** mode: Define si la terminal opera en modo EXPLORE o FORGE (Creación). */
   mode: 'EXPLORE' | 'FORGE';
   performanceProfile?: MapPerformanceProfile;
   startCoordinates: UserLocation;
   lightTheme: MapboxLightPreset;
   onLoad: (event: SafeMapLoadEvent) => void;
   onIdle: () => void;
-  onMove?: (event: SafeMapMovementEvent) => void;
-  onMoveEnd?: (event: SafeMapMovementEvent) => void;
   onMapClick: (event: SafeMapClickEvent) => void;
   onMarkerClick: (identification: string) => void;
   selectedPointOfInterestIdentification: string | null;
@@ -81,31 +73,26 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
   lightTheme,
   onLoad,
   onIdle,
-  onMove,
-  onMoveEnd,
   onMapClick,
   onMarkerClick,
   selectedPointOfInterestIdentification
 }, componentForwardedReference) => {
 
-  // 1. CONSUMO DEL MOTOR SOBERANO (TRIPLE-CORE SYNERGY V4.5)
+  // 1. CONSUMO DEL MOTOR SOBERANO (TRIPLE-CORE SYNERGY V4.9)
   const {
-    userLocation,
+    userLocation: truthStreamLocation, // Solo usado para anclaje inicial (Semilla)
     nearbyPointsOfInterest,
     activePointOfInterest,
     cameraPerspective,
-    mapStyle: activeEngineVisualStyle 
+    mapStyle: activeEngineVisualStyle
   } = useGeoEngine();
 
   // 2. REFERENCIA SOBERANA AL LIENZO WEBGL (PILAR 3)
   const localMapEngineReference = useRef<MapRef>(null);
-  
   useImperativeHandle(componentForwardedReference, () => localMapEngineReference.current as MapRef, []);
 
   /**
    * 3. PROTOCOLO DE ANIQUILACIÓN FÍSICA (VRAM PURGE)
-   * Misión: Asegurar que la GPU sea liberada inmediatamente tras el desmontaje.
-   * [THERMIC V19.0]: Forzado de remoción física para prevenir fugas de VRAM en transiciones.
    */
   useEffect(() => {
     return () => {
@@ -119,7 +106,7 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
             nativeMapInstance.remove();
           }
         } catch (hardwareException) {
-          nicepodLog(`⚠️ [MapCore:${mapInstanceIdentification}] Error en protocolo de aniquilación física.`, hardwareException, 'warn');
+          nicepodLog(`⚠️ [MapCore] Error en purga física.`, hardwareException, 'warn');
         }
       }
     };
@@ -127,33 +114,20 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
 
   /**
    * 4. SEMILLA DE NACIMIENTO WebGL
-   * [SINCRO V18.0]: Coordenadas nominales purificadas.
    */
   const initialMapViewState = useMemo(() => {
-    nicepodLog(`🌱 [MapCore:${mapInstanceIdentification}] Sembrando semilla geodésica.`);
     return getInitialViewState(
       startCoordinates.latitudeCoordinate,
       startCoordinates.longitudeCoordinate
     );
-  }, [mapInstanceIdentification, startCoordinates.latitudeCoordinate, startCoordinates.longitudeCoordinate]);
+  }, [startCoordinates.latitudeCoordinate, startCoordinates.longitudeCoordinate]);
 
   /**
-   * 5. MANEJADOR DE CARGA NOMINAL (HANDSHAKE)
-   */
-  const handleMapLoadAction = useCallback((loadEvent: SafeMapLoadEvent) => {
-    nicepodLog(`🏙️ [MapCore:${mapInstanceIdentification}] Handshake WebGL exitoso.`);
-    onLoad(loadEvent);
-  }, [onLoad, mapInstanceIdentification]);
-
-  /**
-   * 6. STYLE-GUARD INDUSTRIAL (MISIÓN 4 - WebGL HYGIENE)
-   * Misión: Configurar el motor PBR y silenciar variables desconocidas del estilo Standard.
+   * 5. STYLE-GUARD INDUSTRIAL (WebGL HYGIENE)
    */
   const handleStyleDataAction = useCallback((styleDataEvent: SafeMapStyleDataEvent) => {
     const nativeMapInstance = styleDataEvent.target;
-    if (!nativeMapInstance || !nativeMapInstance.isStyleLoaded()) {
-        return;
-    }
+    if (!nativeMapInstance || !nativeMapInstance.isStyleLoaded()) return;
 
     const isForgeModeActive = mode === 'FORGE';
     const isOverviewPerspectiveActive = cameraPerspective === 'OVERVIEW';
@@ -161,72 +135,47 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
     const isTacticalLiteProfileActive = performanceProfile === 'TACTICAL_LITE';
     const engineTechnicalConfiguration = isTacticalLiteProfileActive ? TACTICAL_LITE_ENGINE_CONFIGURATION : STANDARD_ENGINE_CONFIGURATION;
 
-    /**
-     * [STYLE-GUARD]: Inyección de propiedades de mapa base.
-     * Misión: Evitar que el motor busque variables inexistentes que saturan la consola.
-     */
     if (activeEngineVisualStyle === MAP_STYLES.STANDARD) {
       try {
         const mapboxInternalInstance = nativeMapInstance as any;
         if (mapboxInternalInstance.setConfigProperty) {
           mapboxInternalInstance.setConfigProperty('basemap', 'lightPreset', lightTheme);
           mapboxInternalInstance.setConfigProperty('basemap', 'puckOcclusion', OCCLUSION_CONFIGURATION.puckOcclusion);
-          
-          // Optimizamos la visibilidad de etiquetas para reducir la carga de renderizado.
           mapboxInternalInstance.setConfigProperty('basemap', 'showPlaceLabels', (isOverviewPerspectiveActive || isForgeModeActive) && !isTacticalLiteProfileActive);
           mapboxInternalInstance.setConfigProperty('basemap', 'showRoadLabels', engineTechnicalConfiguration.showRoadLabels);
           mapboxInternalInstance.setConfigProperty('basemap', 'showPointOfInterestLabels', false);
           mapboxInternalInstance.setConfigProperty('basemap', 'showTransitLabels', false);
         }
       } catch (hardwareException) {
-        nicepodLog("⚠️ [MapCore] Style-Guard: Fallo en inyección de propiedades.", hardwareException, 'warn');
+        nicepodLog("⚠️ [MapCore] Style-Guard Exception.", hardwareException, 'warn');
       }
     }
 
-    // Gestión de transparencia dinámica de la malla de edificios.
+    // Gestión de capas de edificios y relieve (DEM)
     try {
       if (nativeMapInstance.getLayer('building')) {
-        const buildingOpacityTargetValue = isTacticalLiteProfileActive 
-          ? TACTICAL_LITE_ENGINE_CONFIGURATION.buildingOpacity
-          : (isSatellitePerspectiveActive ? 0 : 1.0);
-        
-        nativeMapInstance.setPaintProperty('building', 'fill-extrusion-opacity', buildingOpacityTargetValue);
+        const buildingOpacity = isTacticalLiteProfileActive ? 0.4 : (isSatellitePerspectiveActive ? 0 : 1.0);
+        nativeMapInstance.setPaintProperty('building', 'fill-extrusion-opacity', buildingOpacity);
       }
-    } catch (hardwareException) { /* Capa no presente en el estilo actual */ }
-
-    // Sincronización del motor de relieve (DEM)
-    if (!nativeMapInstance.getSource(DIGITAL_ELEVATION_MODEL_SOURCE_CONFIGURATION.id)) {
-      try {
+      if (!nativeMapInstance.getSource(DIGITAL_ELEVATION_MODEL_SOURCE_CONFIGURATION.id)) {
         nativeMapInstance.addSource(DIGITAL_ELEVATION_MODEL_SOURCE_CONFIGURATION.id, {
           type: "raster-dem",
           url: DIGITAL_ELEVATION_MODEL_SOURCE_CONFIGURATION.url,
           tileSize: 512
         });
-      } catch (hardwareException) { return; }
-    }
-
-    try {
-      const terrainPhysicalParameters = (isTacticalLiteProfileActive || isSatellitePerspectiveActive) ? TACTICAL_LITE_TERRAIN_CONFIGURATION : TERRAIN_CONFIGURATION;
-
-      // El terreno 3D se desactiva en modo FORGE para garantizar la precisión del clic sobre el plano.
+      }
       if (mode === 'EXPLORE' && !isSatellitePerspectiveActive) {
-        nativeMapInstance.setTerrain({
-          source: DIGITAL_ELEVATION_MODEL_SOURCE_CONFIGURATION.id,
-          exaggeration: terrainPhysicalParameters.exaggeration
-        });
+        nativeMapInstance.setTerrain({ source: DIGITAL_ELEVATION_MODEL_SOURCE_CONFIGURATION.id, exaggeration: 1.15 });
       } else {
         nativeMapInstance.setTerrain(null);
       }
-    } catch (hardwareException) {
-      nicepodLog("ℹ️ [MapCore] Gestión cinemática de relieve finalizada.");
-    }
+    } catch (hardwareException) { /* Ignored */ }
 
   }, [lightTheme, cameraPerspective, performanceProfile, mode, activeEngineVisualStyle]);
 
   /**
    * renderedMarkersCollection: 
-   * Misión: Optimizar el renderizado masivo de marcadores mediante memorización de lista.
-   * [MTI]: Previene cálculos de mapeo redundantes en el Hilo Principal.
+   * [MTI]: Memorización de marcadores de sabiduría.
    */
   const renderedMarkersCollection = useMemo(() => {
     return nearbyPointsOfInterest.map((pointOfInterestEntry: PointOfInterest) => (
@@ -250,32 +199,34 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
       id={mapInstanceIdentification}
       ref={localMapEngineReference}
       initialViewState={initialMapViewState}
-      onLoad={handleMapLoadAction}
+      onLoad={onLoad}
       onIdle={onIdle}
-      onMove={onMove}
-      onMoveEnd={onMoveEnd}
       onStyleData={handleStyleDataAction}
       onClick={onMapClick}
       mapboxAccessToken={MAPBOX_TOKEN}
       mapStyle={activeEngineVisualStyle || MAP_STYLES.STANDARD}
       projection={{ name: "mercator" }}
-      // Efectos atmosféricos desactivados en modo peritaje para máxima nitidez.
       fog={mode === 'FORGE' || performanceProfile === 'TACTICAL_LITE' || cameraPerspective === 'SATELLITE' ? null : (FOG_CONFIGURATION as any)}
       antialias={false}
       reuseMaps={false}
-      maxPitch={mode === 'FORGE' ? 0 : 85} 
+      maxPitch={mode === 'FORGE' ? 0 : 85}
       attributionControl={false}
       style={{ width: '100%', height: '100%' }}
     >
-      {/* Visualización de la entidad física del Voyager */}
-      {userLocation && (
+      {/**
+       * [MTI PROTOCOL]: 
+       * El marcador del Voyager ya no recibe la ubicación dinámica por props.
+       * Recibe 'initialLocation' solo para el anclaje inicial y luego opera 
+       * de forma autónoma mediante el Kinetic Signal Bus.
+       */}
+      {truthStreamLocation && (
         <UserLocationMarker
-          location={userLocation}
+          initialLocation={truthStreamLocation}
           isResonating={!!activePointOfInterest?.isWithinRadius}
         />
       )}
 
-      {/* Inyección de la Malla de Sabiduria (Nodos NKV) */}
+      {/* Inyección de la Malla de Sabiduria */}
       {renderedMarkersCollection}
     </Map>
   );
@@ -283,9 +234,6 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
 
 MapCore.displayName = "MapCore";
 
-/**
- * [BUILD SHIELD]: SOBERANÍA DE RENDERIZADO
- */
 export default memo(MapCore, (previousProperties, nextProperties) => {
   return (
     previousProperties.mapInstanceIdentification === nextProperties.mapInstanceIdentification &&
@@ -293,7 +241,6 @@ export default memo(MapCore, (previousProperties, nextProperties) => {
     previousProperties.lightTheme === nextProperties.lightTheme &&
     previousProperties.mode === nextProperties.mode &&
     previousProperties.selectedPointOfInterestIdentification === nextProperties.selectedPointOfInterestIdentification &&
-    // [OPTIMIZACIÓN]: Comprobación de integridad de la colección de puntos para evitar re-pintados.
     previousProperties.startCoordinates.latitudeCoordinate === nextProperties.startCoordinates.latitudeCoordinate
   );
 });

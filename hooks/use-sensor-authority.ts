@@ -1,14 +1,14 @@
 /**
  * ARCHIVO: hooks/use-sensor-authority.ts
- * VERSIÓN: 7.1 (NicePod Sensor Authority - T0 Instant Hydration & Elastic Stability Edition)
+ * VERSIÓN: 7.2 (NicePod Sensor Authority - Kinetic Signal Bus Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * Misión: Gobernar el enlace físico con el chip de posicionamiento global y el compás 
- * magnetométrico, actuando como la fuente única de verdad (SSoT) para la plataforma.
- * [REFORMA V7.1]: Implementación del Protocolo de Hidratación Instantánea. Se elimina 
- * el retardo de inicialización inyectando la Semilla T0 (Edge-IP) directamente en el 
- * estado inicial de React. Purificación absoluta de la Zero Abbreviations Policy (ZAP)
- * y blindaje del Build Shield (BSS) en las interfaces de entrada.
+ * magnetométrico, actuando como la Fuente Única de Verdad (SSoT) y proveyendo un 
+ * bus de datos de baja latencia para el renderizado cinemático a 60 FPS.
+ * [REFORMA V7.2]: Implementación del 'Kinetic Signal Bus'. Se introduce un EventTarget 
+ * en el Singleton global para emitir telemetría cruda sin disparar ciclos de vida 
+ * de React. Purificación absoluta de la Zero Abbreviations Policy (ZAP).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -22,23 +22,32 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * ---------------------------------------------------------------------------
  * I. GESTOR GLOBAL DE SILICIO (GEODETIC HARDWARE GLOBAL MANAGER)
  * ---------------------------------------------------------------------------
- * Misión: Persistir el estado del hardware fuera del árbol de componentes de React 
- * para evitar la redundancia de peticiones al Sistema Operativo y permitir la 
- * persistencia de la ubicación entre cambios de ruta.
+ * Misión: Persistir el enlace con el hardware fuera del árbol de React y 
+ * orquestar la distribución de señal multicanal (React State + Kinetic Bus).
  */
 interface GlobalHardwareState {
   activeWatchIdentification: number | null;
   lastKnownTelemetry: UserLocation | null;
   isIgnited: boolean;
-  subscribersCollection: Set<(telemetry: UserLocation) => void>;
+  /** reactSubscribersCollection: Lista de callbacks para la UI de lógica lenta. */
+  reactSubscribersCollection: Set<(telemetry: UserLocation) => void>;
+  /** kineticSignalBus: Bus nativo para telemetría de alta frecuencia (60 FPS). */
+  kineticSignalBus: EventTarget;
 }
 
 const geodeticHardwareGlobalManager: GlobalHardwareState = {
   activeWatchIdentification: null,
   lastKnownTelemetry: null,
   isIgnited: false,
-  subscribersCollection: new Set()
+  reactSubscribersCollection: new Set(),
+  kineticSignalBus: new EventTarget()
 };
+
+/**
+ * CONSTANTE: GEODETIC_KINETIC_SIGNAL_EVENT_NAME
+ * Identificador único para el evento de telemetría de alta frecuencia.
+ */
+export const GEODETIC_KINETIC_SIGNAL_EVENT_NAME = "nicepod_kinetic_telemetry_pulse";
 
 /**
  * CONFIGURACIÓN DE GOBERNANZA INDUSTRIAL
@@ -48,12 +57,7 @@ const HARDWARE_WATCHDOG_THRESHOLD_MILLISECONDS = 8000;
 const BASE_SMOOTHING_WINDOW_SIZE = 12;
 const VELOCITY_THRESHOLD_FOR_ADAPTIVE_SMOOTHING = 2.0;
 
-/**
- * INTERFAZ: SensorAuthorityProperties
- * [MANDATO ZAP]: Propiedades expandidas para cumplir con la soberanía nominal.
- */
 interface SensorAuthorityProperties {
-  /** initialData: Semilla de ubicación inyectada por el Middleware de Borde (T0). */
   initialData?: {
     latitudeCoordinate: number;
     longitudeCoordinate: number;
@@ -64,49 +68,39 @@ interface SensorAuthorityProperties {
 
 /**
  * HOOK: useSensorAuthority
- * Interfaz de software autorizada para el diálogo con los sensores físicos del dispositivo.
  */
 export function useSensorAuthority({ initialData }: SensorAuthorityProperties = {}) {
 
-  // --- I. ESTADO REACTIVO LOCAL CON HIDRATACIÓN INSTANTÁNEA ---
+  // --- I. ESTADO REACTIVO LOCAL (TRUTH STREAM - LÓGICA LENTA) ---
   const [telemetry, setTelemetry] = useState<UserLocation | null>(() => {
-    // 1. Prioridad Máxima: Telemetría ya activa en el Singleton Global (Continuidad).
     if (geodeticHardwareGlobalManager.lastKnownTelemetry) {
       return geodeticHardwareGlobalManager.lastKnownTelemetry;
     }
 
-    // 2. Prioridad Secundaria: Semilla T0 inyectada por el Middleware (Materialización Instantánea).
     if (initialData) {
       const geodeticSeed: UserLocation = {
         latitudeCoordinate: initialData.latitudeCoordinate,
         longitudeCoordinate: initialData.longitudeCoordinate,
-        accuracyMeters: 1000, // Magnitud de incertidumbre inicial para ubicación por IP.
+        accuracyMeters: 1000,
         headingDegrees: null,
         speedMetersPerSecond: null,
         geographicSource: initialData.geographicSource as TelemetrySource,
         timestamp: Date.now()
       };
-
-      // Sincronizamos el Singleton para que futuros consumidores hereden la semilla.
       geodeticHardwareGlobalManager.lastKnownTelemetry = geodeticSeed;
       return geodeticSeed;
     }
-
     return null;
   });
 
   const [isHardwareAccessDenied, setIsHardwareAccessDenied] = useState<boolean>(false);
   const [isAcquiringHardwareFix, setIsAcquiringHardwareFix] = useState<boolean>(false);
 
-  // --- II. MEMORIA TÁCTICA (MUTABLE REFERENCES - PILAR 4) ---
+  // --- II. MEMORIA TÁCTICA (MUTABLE REFERENCES) ---
   const watchdogTimerReference = useRef<NodeJS.Timeout | null>(null);
   const hasGlobalPositioningSystemFixReference = useRef<boolean>(false);
   const headingVectorHistoryReference = useRef<{ sine: number, cosine: number }[]>([]);
 
-  /**
-   * getPurifiedHeadingDegrees:
-   * Misión: Filtrado vectorial VAF (Vector Average Filter) consciente de la dinámica.
-   */
   const getPurifiedHeadingDegrees = useCallback((rawHeadingDegrees: number, currentSpeedMetersPerSecond: number | null): number => {
     const headingRadians = (rawHeadingDegrees * Math.PI) / 180;
     const effectiveWindowSize = (currentSpeedMetersPerSecond && currentSpeedMetersPerSecond > VELOCITY_THRESHOLD_FOR_ADAPTIVE_SMOOTHING)
@@ -131,10 +125,6 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProperties = 
     return (averageDegrees + 360) % 360;
   }, []);
 
-  /**
-   * killHardwareWatch:
-   * Misión: Desconexión física y liberación del bus de datos satelital (Hardware Hygiene).
-   */
   const killHardwareWatch = useCallback(() => {
     if (geodeticHardwareGlobalManager.activeWatchIdentification !== null) {
       navigator.geolocation.clearWatch(geodeticHardwareGlobalManager.activeWatchIdentification);
@@ -151,15 +141,11 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProperties = 
     nicepodLog("💤 [Sensor-Authority] Hardware liberado atómicamente.");
   }, []);
 
-  /**
-   * startHardwareWatch:
-   * Misión: Ignición única de sensores. Implementa la lógica de Singleton Geodésico.
-   */
   const startHardwareWatch = useCallback(async () => {
     if (typeof window === "undefined" || !("geolocation" in navigator)) return;
 
     if (geodeticHardwareGlobalManager.isIgnited) {
-      nicepodLog("🔌 [Sensor-Authority] Acoplamiento exitoso a instancia de hardware activa.");
+      nicepodLog("🔌 [Sensor-Authority] Acoplamiento a bus de hardware activo.");
       return;
     }
 
@@ -171,7 +157,6 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProperties = 
       if (!hasGlobalPositioningSystemFixReference.current) {
         geodeticHardwareGlobalManager.isIgnited = false;
         setIsAcquiringHardwareFix(false);
-        nicepodLog("⚠️ [Sensor-Authority] Watchdog: Latencia de hardware detectada.");
       }
     }, HARDWARE_WATCHDOG_THRESHOLD_MILLISECONDS);
 
@@ -198,8 +183,18 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProperties = 
       hasGlobalPositioningSystemFixReference.current = true;
       geodeticHardwareGlobalManager.lastKnownTelemetry = freshTelemetryFix;
 
-      // Propagación de señal a todos los suscriptores activos del Singleton.
-      geodeticHardwareGlobalManager.subscribersCollection.forEach(callback => callback(freshTelemetryFix));
+      /**
+       * [MTI]: DISTRIBUCIÓN MULTICANAL
+       * 1. Canal Cinético (Bypass): Emitimos al bus de eventos para renderizado de milisegundos.
+       */
+      geodeticHardwareGlobalManager.kineticSignalBus.dispatchEvent(
+        new CustomEvent(GEODETIC_KINETIC_SIGNAL_EVENT_NAME, { detail: freshTelemetryFix })
+      );
+
+      /**
+       * 2. Canal de Verdad (React): Notificamos a los suscriptores de estado.
+       */
+      geodeticHardwareGlobalManager.reactSubscribersCollection.forEach(callback => callback(freshTelemetryFix));
 
       setIsAcquiringHardwareFix(false);
       localStorage.setItem('nicepod_last_known_geographic_fix', JSON.stringify(freshTelemetryFix));
@@ -210,7 +205,6 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProperties = 
         setIsHardwareAccessDenied(true);
         killHardwareWatch();
       }
-      nicepodLog("🔥 [Sensor-Authority] Excepción de hardware:", operationalHardwareException.message, 'error');
     };
 
     geodeticHardwareGlobalManager.activeWatchIdentification = navigator.geolocation.watchPosition(
@@ -221,28 +215,26 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProperties = 
   }, [killHardwareWatch, getPurifiedHeadingDegrees]);
 
   /**
-   * EFECTO: SISTEMA DE SUSCRIPCIÓN GLOBAL
-   * Misión: Mantener el estado local sincronizado con el Gestor Global (SSS).
+   * EFECTO: SISTEMA DE SUSCRIPCIÓN GLOBAL (REACT)
    */
   useEffect(() => {
     const updateLocalTelemetryAction = (newTelemetry: UserLocation) => {
       setTelemetry(newTelemetry);
     };
 
-    geodeticHardwareGlobalManager.subscribersCollection.add(updateLocalTelemetryAction);
+    geodeticHardwareGlobalManager.reactSubscribersCollection.add(updateLocalTelemetryAction);
 
-    // Si el gestor global ya posee telemetría HD de otra ruta, la absorbemos.
     if (geodeticHardwareGlobalManager.lastKnownTelemetry) {
       setTelemetry(geodeticHardwareGlobalManager.lastKnownTelemetry);
     }
 
     return () => {
-      geodeticHardwareGlobalManager.subscribersCollection.delete(updateLocalTelemetryAction);
+      geodeticHardwareGlobalManager.reactSubscribersCollection.delete(updateLocalTelemetryAction);
     };
   }, []);
 
   /**
-   * EFECTO: PROTOCOLO DE HIDRATACIÓN POR CACHÉ (FALLBACK)
+   * EFECTO: PROTOCOLO DE HIDRATACIÓN POR CACHÉ
    */
   useEffect(() => {
     if (!telemetry && typeof window !== "undefined") {
@@ -264,6 +256,7 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProperties = 
 
   return {
     telemetry,
+    kineticSignalBus: geodeticHardwareGlobalManager.kineticSignalBus, // Exponemos el bus para la cinemática
     isDenied: isHardwareAccessDenied,
     isAcquiring: isAcquiringHardwareFix,
     isIgnited: geodeticHardwareGlobalManager.isIgnited,
@@ -277,11 +270,11 @@ export function useSensorAuthority({ initialData }: SensorAuthorityProperties = 
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V7.1):
- * 1. T0 Instant Hydration: Se ha modificado el 'useState' para inyectar la semilla 
- *    del Middleware en el primer frame, erradicando el loop de carga en Dashboard.
- * 2. ZAP Enforcement: Se purificó la interfaz 'initialData' eliminando lat/lng 
- *    en favor de 'latitudeCoordinate' y 'longitudeCoordinate'.
- * 3. Atomic Lock Resilience: El Singleton global ahora protege la ubicación 
- *    incluso ante micro-desconexiones del bus del GPS.
+ * NOTA TÉCNICA DEL ARCHITECT (V7.2):
+ * 1. Kinetic Signal Bus: Se ha desacoplado el renderizado del avatar del estado de React. 
+ *    El EventTarget 'kineticSignalBus' permite una comunicación de latencia cero.
+ * 2. ZAP Compliance: Purificación nominal total de las colecciones de suscriptores 
+ *    (reactSubscribersCollection) y eventos.
+ * 3. MTI Architecture: Prepara el terreno para el uso de 'requestAnimationFrame' en 
+ *    los componentes visuales que consumen la señal cruda.
  */
