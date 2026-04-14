@@ -1,13 +1,14 @@
 /**
  * ARCHIVO: hooks/geo-engine/interface-core.tsx
- * VERSIÓN: 3.0 (NicePod Sovereign Interface - Resilience & Passive State Edition)
+ * VERSIÓN: 4.0 (NicePod Sovereign Interface - Contextual Command & Cinematic Stability Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
- * Misión: Gestionar los comandos visuales, estados de cámara y estilos WebGL.
- * [REFORMA V3.0]: Implementación de Inmunización de Contexto. El hook ya no lanza 
- * excepciones críticas ante la ausencia de su proveedor; en su lugar, activa 
- * el "Passive Industrial State" para permitir que la telemetría global fluya 
- * en rutas sin mapa (Marketing/Landing) sin colapsar el sistema.
+ * Misión: Gestionar los comandos visuales, estados de cámara y estilos WebGL, 
+ * actuando como la capa de decisión para la cinemática inmersiva de la Workstation.
+ * [REFORMA V4.0]: Implementación del 'Unified Command Protocol'. El motor ahora 
+ * prioriza el recentrado geodésico sobre el cambio de perspectiva si detecta 
+ * autoridad manual activa. Purificación total bajo la Zero Abbreviations 
+ * Policy (ZAP) e inmunización de contexto industrial.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -20,15 +21,18 @@ import React, { createContext, useCallback, useContext, useState } from "react";
 
 /**
  * INTERFAZ: InterfaceCoreReturn
- * Misión: Definir la firma pública del comando visual.
+ * Misión: Definir la firma pública del comando visual soberano.
  */
 interface InterfaceCoreReturn {
   cameraPerspective: CameraPerspective;
-  mapStyle: string; 
-  isManualMode: boolean;
-  recenterTrigger: number;
+  activeMapStyle: string; 
+  isManualModeActive: boolean;
+  recenterTriggerPulse: number;
   needsBallisticLanding: boolean;
 
+  /** executeUnifiedCommandAction: El actuador inteligente para el botón de ubicación. */
+  executeUnifiedCommandAction: () => void;
+  
   togglePerspective: () => void;
   setManualMode: (isActive: boolean) => void;
   triggerRecenter: () => void;
@@ -39,14 +43,15 @@ interface InterfaceCoreReturn {
 
 /**
  * PASSIVE_INDUSTRIAL_INTERFACE_STATE:
- * Misión: Proveer un estado "No-Op" (Sin operación) para eludir el colapso del sistema.
+ * Estado inerte para rutas sin reactor visual (Marketing/Dashboard estático).
  */
 const PASSIVE_INDUSTRIAL_INTERFACE_STATE: InterfaceCoreReturn = {
   cameraPerspective: 'OVERVIEW',
-  mapStyle: MAP_STYLES.STANDARD,
-  isManualMode: false,
-  recenterTrigger: 0,
+  activeMapStyle: MAP_STYLES.STANDARD,
+  isManualModeActive: false,
+  recenterTriggerPulse: 0,
   needsBallisticLanding: false,
+  executeUnifiedCommandAction: () => {},
   togglePerspective: () => {},
   setManualMode: () => {},
   triggerRecenter: () => {},
@@ -59,68 +64,95 @@ const InterfaceContext = createContext<InterfaceCoreReturn | undefined>(undefine
 
 /**
  * InterfaceProvider: El Córtex de Mando Visual.
- * Misión: Instanciar la voluntad visual para una terminal de mapa específica.
+ * Misión: Orquestar la voluntad visual y cinemática de la terminal.
  */
 export function InterfaceProvider({ children }: { children: React.ReactNode }) {
-  // --- I. ESTADOS DE VISUALIZACIÓN SOBERANA ---
-  const [cameraPerspective, setCameraPerspective] = useState<CameraPerspective>('OVERVIEW');
-  const [mapStyle, setMapStyle] = useState<string>(MAP_STYLES.STANDARD);
   
-  // --- II. ESTADOS DE CONTROL CINEMÁTICO ---
-  const [isManualMode, setIsManualMode] = useState<boolean>(false);
-  const [recenterTrigger, setRecenterTrigger] = useState<number>(0);
+  // --- I. ESTADOS DE VISUALIZACIÓN SOBERANA (CRYSTAL LAYER) ---
+  const [cameraPerspective, setCameraPerspectiveState] = useState<CameraPerspective>('OVERVIEW');
+  const [activeMapStyle, setActiveMapStyle] = useState<string>(MAP_STYLES.STANDARD);
+  
+  // --- II. ESTADOS DE CONTROL CINEMÁTICO (KINETIC LAYER) ---
+  const [isManualModeActive, setIsManualModeActive] = useState<boolean>(false);
+  const [recenterTriggerPulse, setRecenterTriggerPulse] = useState<number>(0);
   const [needsBallisticLanding, setNeedsBallisticLanding] = useState<boolean>(false);
 
   /**
-   * togglePerspective: EL ALGORITMO DE CICLO SOBERANO
+   * triggerRecenter:
+   * Misión: Emitir un pulso de autoridad para que la cámara capture al Voyager.
+   */
+  const triggerRecenter = useCallback(() => {
+    nicepodLog("🎯 [InterfaceCore] Recentrado Balístico disparado.");
+    setIsManualModeActive(false);
+    setRecenterTriggerPulse((previousPulseValue) => previousPulseValue + 1);
+    setNeedsBallisticLanding(true);
+  }, []);
+
+  /**
+   * togglePerspective:
+   * Misión: Ciclar entre los perfiles de visión industrial de la Workstation.
    */
   const togglePerspective = useCallback(() => {
-    setCameraPerspective((currentPerspective) => {
+    setCameraPerspectiveState((currentPerspective) => {
       if (currentPerspective === 'OVERVIEW') {
         nicepodLog("🕶️ [InterfaceCore] Activando Modo STREET (Inmersión 3D).");
-        setMapStyle(MAP_STYLES.STANDARD);
+        setActiveMapStyle(MAP_STYLES.STANDARD);
         return 'STREET';
       }
 
       if (currentPerspective === 'STREET') {
         nicepodLog("🛰️ [InterfaceCore] Activando Modo SATELLITE (Fotorrealismo).");
-        setMapStyle(MAP_STYLES.PHOTOREALISTIC);
+        setActiveMapStyle(MAP_STYLES.PHOTOREALISTIC);
         return 'SATELLITE';
       }
 
       nicepodLog("🗺️ [InterfaceCore] Retornando a Modo OVERVIEW (Estratégico).");
-      setMapStyle(MAP_STYLES.STANDARD);
+      setActiveMapStyle(MAP_STYLES.STANDARD);
       return 'OVERVIEW';
     });
 
-    setRecenterTrigger((previousTriggerValue) => previousTriggerValue + 1);
+    // Cada cambio de perspectiva requiere un pulso de re-sincronía de cámara.
+    setRecenterTriggerPulse((previousPulseValue) => previousPulseValue + 1);
   }, []);
 
-  const triggerRecenter = useCallback(() => {
-    nicepodLog("🎯 [InterfaceCore] Recentrado Soberano disparado.");
-    setIsManualMode(false);
-    setRecenterTrigger((previousTriggerValue) => previousTriggerValue + 1);
-    setNeedsBallisticLanding(true);
-  }, []);
+  /**
+   * [SINCRO V4.0]: executeUnifiedCommandAction
+   * Misión: El cerebro del botón único. Decide entre recentrar o cambiar de vista.
+   * Resuelve el requerimiento de "Si no está centrado -> centrar. Si centrado -> cambiar vista".
+   */
+  const executeUnifiedCommandAction = useCallback(() => {
+    if (isManualModeActive) {
+      // Prioridad 1: Recuperar autoridad sobre el Voyager si el mapa fue movido manualmente.
+      triggerRecenter();
+    } else {
+      // Prioridad 2: Si ya está centrado, procedemos al ciclo de inmersión.
+      togglePerspective();
+    }
+  }, [isManualModeActive, triggerRecenter, togglePerspective]);
 
+  /**
+   * resetInterface:
+   * Misión: Purga absoluta de estados visuales (Hardware Hygiene).
+   */
   const resetInterface = useCallback(() => {
-    setCameraPerspective('OVERVIEW');
-    setMapStyle(MAP_STYLES.STANDARD);
-    setIsManualMode(false);
-    setRecenterTrigger(0);
+    setCameraPerspectiveState('OVERVIEW');
+    setActiveMapStyle(MAP_STYLES.STANDARD);
+    setIsManualModeActive(false);
+    setRecenterTriggerPulse(0);
     setNeedsBallisticLanding(false);
-    nicepodLog("🧹 [InterfaceCore] Estados de mando visual purificados.");
+    nicepodLog("🧹 [InterfaceCore] Memoria de mando purificada.");
   }, []);
 
   const interfaceApplicationProgrammingInterface: InterfaceCoreReturn = {
     cameraPerspective,
-    mapStyle,
-    isManualMode,
-    recenterTrigger,
+    activeMapStyle,
+    isManualModeActive,
+    recenterTriggerPulse,
     needsBallisticLanding,
+    executeUnifiedCommandAction,
     togglePerspective,
     setManualMode: (isActive) => { 
-      if (isActive !== isManualMode) setIsManualMode(isActive); 
+      if (isActive !== isManualModeActive) setIsManualModeActive(isActive); 
     },
     triggerRecenter,
     triggerLanding: () => setNeedsBallisticLanding(true),
@@ -137,16 +169,9 @@ export function InterfaceProvider({ children }: { children: React.ReactNode }) {
 
 /**
  * useGeoInterface:
- * Punto de consumo para la intención visual del Voyager.
- * [INMUNIZACIÓN V3.0]: Si el contexto es nulo, devuelve el estado pasivo industrial.
+ * Punto de acceso único para la voluntad visual de la terminal.
  */
 export const useGeoInterface = () => {
   const contextReference = useContext(InterfaceContext);
-  
-  if (!contextReference) {
-    // Retorno silencioso de estado inerte para prevenir el crash fatal reportado.
-    return PASSIVE_INDUSTRIAL_INTERFACE_STATE;
-  }
-  
-  return contextReference;
+  return contextReference || PASSIVE_INDUSTRIAL_INTERFACE_STATE;
 };
