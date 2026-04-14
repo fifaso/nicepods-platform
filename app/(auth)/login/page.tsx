@@ -1,13 +1,9 @@
 /**
- * ARCHIVO: app/(auth)/login/page.tsx
- * VERSIÓN: 9.0 (NicePod Sovereign Entry - Final Industrial Refinement)
+ * ARCHIVE: app/(auth)/login/page.tsx
+ * VERSION: 10.0 (NicePod Sovereign Entry - Industrial Traceability Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
- * 
- * Misión: Terminal de acceso optimizada para inmersión total sin desplazamiento,
- * con tipografía unificada y léxico de usuario simplificado.
- * [REFORMA V9.0]: Eliminación de scroll residual, ajuste de fuentes y purificación
- * total de etiquetas de interfaz según requerimientos de UX.
- * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * MISSION: Optimized access terminal for full immersion with unified typography and simplified user lexicon.
+ * INTEGRITY LEVEL: 100% (Sovereign / Zero Abbreviations / Production-Ready)
  */
 
 "use client";
@@ -17,7 +13,8 @@ import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import React, { useState, useCallback } from "react";
+import posthog from "posthog-js";
+import React, { useState } from "react";
 
 // --- INFRAESTRUCTURA DE COMPONENTES DE INTERFAZ (UI) ---
 import { Button } from "@/components/ui/button";
@@ -78,6 +75,11 @@ export default function LoginPage() {
       });
 
       if (authenticationError) {
+        // TELEMETRÍA: Error de acceso
+        posthog.capture('voyager_session_start_failed', {
+          exceptionMessageInformation: authenticationError.message
+        });
+
         toast({
           title: "Fallo de Autenticación",
           description: authenticationError.message,
@@ -86,6 +88,9 @@ export default function LoginPage() {
         setIsAuthenticationProcessActive(false);
         return;
       }
+
+      // TELEMETRÍA: Acceso exitoso
+      posthog.capture('voyager_session_start_success');
 
       toast({
         title: "Sincronía Exitosa",
@@ -108,6 +113,10 @@ export default function LoginPage() {
    */
   const handleGoogleSignInAction = async () => {
     setIsAuthenticationProcessActive(true);
+
+    // TELEMETRÍA: Intento de acceso OAuth
+    posthog.capture('voyager_oauth_start', { provider: 'google' });
+
     await supabaseClient.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -251,12 +260,11 @@ export default function LoginPage() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V9.0):
- * 1. Zero-Scroll Architecture: Se han ajustado los paddings (pb-2, py-5) y reducido 
- *    el tamaño del isotipo a h-14 para garantizar que la tarjeta flote íntegramente 
- *    en viewports móviles de 600px de altura sin disparar el scroll del navegador.
- * 2. Typography Alignment: Se sustituyó 'font-serif' por 'font-black' en el título 
- *    principal para unificar el lenguaje de marca industrial con el subtítulo técnico.
- * 3. Lexical Refinement: Se aplicaron los cambios de nomenclatura (Correo electrónico, 
- *    Accede con, Crear cuenta) para una UX más intuitiva y directa.
+ * NOTA TÉCNICA DEL ARCHITECT (V10.0):
+ * 1. Industrial Header Integration: Se inyectó el encabezado reglamentario con claves en inglés
+ *    (ARCHIVE, VERSION, PROTOCOLO, MISSION, INTEGRITY LEVEL).
+ * 2. Zero-Scroll Architecture: Se mantiene la geometría optimizada para viewports móviles.
+ * 3. Observability & Traceability: Se implementaron capturas de PostHog para el flujo de
+ *    autenticación (éxitos, fallos e inicio de OAuth).
+ * 4. Zero Abbreviations Policy (ZAP): Se purificó la nomenclatura de los estados de interfaz.
  */
