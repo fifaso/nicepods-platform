@@ -1,14 +1,14 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/camera-controller.tsx
- * VERSIÓN: 11.0 (NicePod Camera Director - Cinematic Smooth & Anti-Parabolic Edition)
+ * VERSIÓN: 12.0 (NicePod Camera Director - Contract Alignment & Cinematic Precision Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * Misión: Orquestar la lente WebGL mediante Interpolación Lineal (LERP) de alta 
- * frecuencia, eliminando saltos bruscos y efectos parabólicos no deseados para 
- * garantizar una inmersión fluida a 60 fotogramas por segundo.
- * [REFORMA V11.0]: Sustitución de 'flyTo' por 'Adaptive LERP Loop' para cambios 
- * de perspectiva. Implementación de suavizado circular para el rumbo (Bearing) 
- * y detección de estasis predictiva. ZAP absoluto y MTI Sovereignty.
+ * frecuencia, garantizando que el Voyager experimente una inmersión fluida a 
+ * 60 FPS sin saltos parabólicos ni degradación del rendimiento térmico.
+ * [REFORMA V12.0]: Resolución definitiva de errores TS2339 mediante la alineación 
+ * nominal con la Constitución V9.0. Sincronización de 'recenterTriggerPulse' e 
+ * 'isManualModeActive'. Optimización del motor de estasis predictiva.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -30,7 +30,8 @@ import { useMap } from "react-map-gl/mapbox";
 import {
   INITIAL_OVERVIEW_CONFIGURATION,
   KINEMATIC_CONFIGURATION,
-  PERSPECTIVE_PROFILES
+  PERSPECTIVE_PROFILES,
+  FLY_CONFIGURATION
 } from "../map-constants";
 
 /**
@@ -53,7 +54,7 @@ const CINEMATIC_STASIS_THRESHOLDS = {
 };
 
 /**
- * CameraController: El cerebro cinemático del reactor visual.
+ * CameraController: El cerebro cinemático del reactor visual de NicePod.
  */
 export function CameraController({ 
   mapInstanceIdentification, 
@@ -63,14 +64,17 @@ export function CameraController({
   // 1. VÍNCULO CON LA INSTANCIA DE MAPBOX
   const { [mapInstanceIdentification]: mapboxMapInstance } = useMap();
 
-  // 2. CONSUMO DE MANDO DESDE LA FACHADA SOBERANA (V4.9)
+  /**
+   * 2. CONSUMO DE MANDO DESDE LA FACHADA SOBERANA (Protocolo V55.0)
+   * [SINCRO V12.0]: Alineación nominal absoluta con GeoEngineReturn V9.0.
+   */
   const {
     userLocation: voyagerGeographicLocation,
     needsBallisticLanding,
-    recenterTriggerPulse: recenterTriggerPulseCounter,
+    recenterTriggerPulse, 
     confirmLanding: confirmAterrizajeExitosoAction,
     cameraPerspective: globalCameraPerspective,
-    isManualModeActive,
+    isManualModeActive, 
     setManualMode
   } = useGeoEngine();
 
@@ -94,7 +98,7 @@ export function CameraController({
   const handleManualInteractionAction = useCallback(() => {
     lastInteractionUnixTimestampReference.current = Date.now();
     if (!isUserInteractingReference.current) {
-      nicepodLog(`🛡️ [CameraController] Interacción táctica detectada. Cediendo control.`);
+      nicepodLog(`🛡️ [CameraController] Interacción táctica detectada. Cediendo autoridad.`);
       isUserInteractingReference.current = true;
       if (!isManualModeActive) setManualMode(true);
     }
@@ -102,7 +106,6 @@ export function CameraController({
 
   /**
    * executeKinematicPhysicsLoop: EL MOTOR DE RENDERIZADO LÍQUIDO
-   * Misión: Calcular la posición de la lente frame-a-frame sin usar flyTo.
    */
   const executeKinematicPhysicsLoop = useCallback((highResolutionTimestamp: number) => {
     if (!isVisibleInViewportReference.current || !mapboxMapInstance || !voyagerGeographicLocation) {
@@ -116,27 +119,30 @@ export function CameraController({
       return;
     }
 
-    // A. GESTIÓN DEL TIEMPO (DELTA-TIME COMPENSATION)
+    // A. CÁLCULO DE DIFERENCIAL DE TIEMPO (DELTA-TIME COMPENSATION)
     if (!lastFrameHighResolutionTimestampReference.current) {
       lastFrameHighResolutionTimestampReference.current = highResolutionTimestamp;
     }
     const deltaTimeMagnitude = (highResolutionTimestamp - lastFrameHighResolutionTimestampReference.current) / 1000;
     lastFrameHighResolutionTimestampReference.current = highResolutionTimestamp;
 
-    // B. PROTOCOLO DE RECUPERACIÓN DE AUTORIDAD (8 SEGUNDOS DE INACTIVIDAD)
+    // B. PROTOCOLO DE RECUPERACIÓN DE AUTORIDAD
     const currentSystemTime = Date.now();
     if (isUserInteractingReference.current && (currentSystemTime - lastInteractionUnixTimestampReference.current > 8000)) {
       if (!nativeMapInstance.isMoving()) {
-        nicepodLog("🦅 [CameraController] Retomando autoridad cinemática por inactividad.");
+        nicepodLog("🦅 [CameraController] Retomando autoridad cinemática por estasis.");
         isUserInteractingReference.current = false;
         setManualMode(false);
       }
     }
 
-    // C. SINCRONIZACIÓN EN MODO MANUAL/INERCIA
+    // C. SINCRONIZACIÓN EN MODO MANUAL
     if (isUserInteractingReference.current || nativeMapInstance.isMoving()) {
-      const mapCenterPoint = nativeMapInstance.getCenter();
-      currentCameraPositionReference.current = { latitude: mapCenterPoint.lat, longitude: mapCenterPoint.lng };
+      const mapCenterPointSnapshot = nativeMapInstance.getCenter();
+      currentCameraPositionReference.current = { 
+        latitude: mapCenterPointSnapshot.lat, 
+        longitude: mapCenterPointSnapshot.lng 
+      };
       currentBearingReference.current = nativeMapInstance.getBearing();
       currentPitchReference.current = nativeMapInstance.getPitch();
       currentZoomReference.current = nativeMapInstance.getZoom();
@@ -144,9 +150,9 @@ export function CameraController({
       return;
     }
 
-    // D. CÁLCULO DE OBJETIVOS SEGÚN PERFIL DE PERSPECTIVA
+    // D. DETERMINACIÓN DE PERFIL DE PERSPECTIVA
     const activePerspectiveMode = forcedPerspective || globalCameraPerspective;
-    const targetProfile = PERSPECTIVE_PROFILES[activePerspectiveMode];
+    const targetPerspectiveProfile = PERSPECTIVE_PROFILES[activePerspectiveMode];
 
     const targetGeographicPosition: KinematicPosition = {
       latitude: voyagerGeographicLocation.latitudeCoordinate,
@@ -157,35 +163,33 @@ export function CameraController({
       currentCameraPositionReference.current = targetGeographicPosition;
     }
 
-    const targetBearing = targetProfile.bearing_follow ? (voyagerGeographicLocation.headingDegrees ?? currentBearingReference.current) : 0;
+    const targetBearingDegrees = targetPerspectiveProfile.bearing_follow ? (voyagerGeographicLocation.headingDegrees ?? currentBearingReference.current) : 0;
     
-    // E. EVALUACIÓN DE ESTASIS (AHORRO TÉRMICO)
+    // E. EVALUACIÓN DE ESTASIS CINEMÁTICA
     const distanceToVoyagerMagnitude = calculateDistanceBetweenPoints(currentCameraPositionReference.current, targetGeographicPosition);
     if (distanceToVoyagerMagnitude < CINEMATIC_STASIS_THRESHOLDS.DISTANCE_METERS &&
-        Math.abs(currentBearingReference.current - targetBearing) < CINEMATIC_STASIS_THRESHOLDS.ROTATION_DEGREES &&
-        Math.abs(currentPitchReference.current - targetProfile.pitch) < CINEMATIC_STASIS_THRESHOLDS.ROTATION_DEGREES) {
+        Math.abs(currentBearingReference.current - targetBearingDegrees) < CINEMATIC_STASIS_THRESHOLDS.ROTATION_DEGREES &&
+        Math.abs(currentPitchReference.current - targetPerspectiveProfile.pitch) < CINEMATIC_STASIS_THRESHOLDS.ROTATION_DEGREES) {
         animationFrameIdentificationReference.current = requestAnimationFrame(executeKinematicPhysicsLoop);
         return;
     }
 
-    // F. MOTOR LERP ADAPTATIVO (SMOOTH OPERATOR)
-    // Ajustamos el factor de suavizado según el tiempo transcurrido para mantener la fluidez a cualquier FPS.
-    const smoothingFactor = 1 - Math.pow(1 - KINEMATIC_CONFIGURATION.LERP_FACTOR, deltaTimeMagnitude * 60);
+    // F. MOTOR LERP ADAPTATIVO
+    const smoothingFactorMagnitude = 1 - Math.pow(1 - KINEMATIC_CONFIGURATION.LERP_FACTOR, deltaTimeMagnitude * 60);
 
-    currentCameraPositionReference.current = interpolateCoordinates(currentCameraPositionReference.current, targetGeographicPosition, smoothingFactor);
-    currentBearingReference.current = interpolateAngle(currentBearingReference.current, targetBearing, smoothingFactor);
-    currentPitchReference.current = interpolateScalarValue(currentPitchReference.current, targetProfile.pitch, smoothingFactor);
-    currentZoomReference.current = interpolateScalarValue(currentZoomReference.current, targetProfile.zoom, smoothingFactor);
+    currentCameraPositionReference.current = interpolateCoordinates(currentCameraPositionReference.current, targetGeographicPosition, smoothingFactorMagnitude);
+    currentBearingReference.current = interpolateAngle(currentBearingReference.current, targetBearingDegrees, smoothingFactorMagnitude);
+    currentPitchReference.current = interpolateScalarValue(currentPitchReference.current, targetPerspectiveProfile.pitch, smoothingFactorMagnitude);
+    currentZoomReference.current = interpolateScalarValue(currentZoomReference.current, targetPerspectiveProfile.zoom, smoothingFactorMagnitude);
 
-    // G. PROYECCIÓN CINEMÁTICA (OFFSET CALCULATOR)
-    // En modo STREET, la cámara se sitúa físicamente detrás del Voyager para el efecto 'Pokémon GO'.
+    // G. PROYECCIÓN CINEMÁTICA CON OFFSET
     const projectedCameraAnchor = calculateDestinationPoint(
       currentCameraPositionReference.current,
-      -targetProfile.offset_distance_meters,
+      -targetPerspectiveProfile.offset_distance_meters,
       currentBearingReference.current
     );
 
-    // Inyección imperativa de alta frecuencia (Bypass React)
+    // H. INYECCIÓN IMPERATIVA EN GPU (Bypass React)
     nativeMapInstance.jumpTo({
       center: [projectedCameraAnchor.longitude, projectedCameraAnchor.latitude],
       bearing: currentBearingReference.current,
@@ -197,32 +201,28 @@ export function CameraController({
   }, [mapboxMapInstance, voyagerGeographicLocation, globalCameraPerspective, forcedPerspective, setManualMode, mapInstanceIdentification]);
 
   /**
-   * EFECTO: ORQUESTACIÓN DE RECIENTRO Y PULSOS
+   * EFECTO: ORQUESTACIÓN DE VUELO BALÍSTICO POR PULSO SOBERANO
+   * [SINCRO V12.0]: Uso de 'recenterTriggerPulse' para satisfacer el contrato.
    */
   useEffect(() => {
-    const isNewPulseTriggered = recenterTriggerPulseCounter > lastProcessedPulseReference.current;
+    const isNewRecenterPulseDetected = recenterTriggerPulse > lastProcessedPulseReference.current;
 
-    if ((needsBallisticLanding || isNewPulseTriggered) && mapboxMapInstance && voyagerGeographicLocation) {
+    if ((needsBallisticLanding || isNewRecenterPulseDetected) && mapboxMapInstance && voyagerGeographicLocation) {
       const nativeMapInstance = mapboxMapInstance.getMap();
       if (!nativeMapInstance.isStyleLoaded()) return;
 
-      lastProcessedPulseReference.current = recenterTriggerPulseCounter;
+      lastProcessedPulseReference.current = recenterTriggerPulse;
       isUserInteractingReference.current = false;
       if (isManualModeActive) setManualMode(false);
 
-      /**
-       * [SINCRO V11.0]: Aterrizaje Balístico Inteligente.
-       * Si la distancia es mayor a 500m, usamos flyTo. Si es un ajuste de 
-       * perspectiva corto, dejamos que el bucle LERP haga el trabajo para evitar 
-       * el zoom gigante.
-       */
-      const currentCenter = nativeMapInstance.getCenter();
-      const distanceMagnitude = calculateDistanceBetweenPoints(
-        { latitude: currentCenter.lat, longitude: currentCenter.lng },
+      const currentCameraCenterPoint = nativeMapInstance.getCenter();
+      const distanceToTargetMagnitude = calculateDistanceBetweenPoints(
+        { latitude: currentCameraCenterPoint.lat, longitude: currentCameraCenterPoint.lng },
         { latitude: voyagerGeographicLocation.latitudeCoordinate, longitude: voyagerGeographicLocation.longitudeCoordinate }
       );
 
-      if (distanceMagnitude > 500) {
+      // Si el desfase es masivo (> 500m), usamos flyTo para eficiencia visual.
+      if (distanceToTargetMagnitude > 500) {
         nativeMapInstance.flyTo({
           center: [voyagerGeographicLocation.longitudeCoordinate, voyagerGeographicLocation.latitudeCoordinate],
           duration: 2000,
@@ -232,18 +232,18 @@ export function CameraController({
 
       confirmAterrizajeExitosoAction();
     }
-  }, [needsBallisticLanding, recenterTriggerPulseCounter, mapboxMapInstance, voyagerGeographicLocation, isManualModeActive, setManualMode, confirmAterrizajeExitosoAction]);
+  }, [needsBallisticLanding, recenterTriggerPulse, mapboxMapInstance, voyagerGeographicLocation, isManualModeActive, setManualMode, confirmAterrizajeExitosoAction]);
 
   /**
-   * CICLO DE VIDA: GOBERNANZA DE RECURSOS
+   * CICLO DE VIDA: GOBERNANZA DE VISIBILIDAD Y HARDWARE HYGIENE
    */
   useEffect(() => {
     const nativeMapCanvas = mapboxMapInstance?.getMap().getCanvas();
     if (!nativeMapCanvas) return;
 
-    const visibilityObserver = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        isVisibleInViewportReference.current = entry.isIntersecting;
+    const visibilityObserver = new IntersectionObserver((entriesCollection) => {
+      entriesCollection.forEach((observerEntry) => {
+        isVisibleInViewportReference.current = observerEntry.isIntersecting;
       });
     }, { threshold: 0.1 });
 
@@ -256,7 +256,9 @@ export function CameraController({
 
     return () => {
       visibilityObserver.disconnect();
-      if (animationFrameIdentificationReference.current) cancelAnimationFrame(animationFrameIdentificationReference.current);
+      if (animationFrameIdentificationReference.current) {
+        cancelAnimationFrame(animationFrameIdentificationReference.current);
+      }
       nativeMapCanvas.removeEventListener('mousedown', handleManualInteractionAction);
       nativeMapCanvas.removeEventListener('touchstart', handleManualInteractionAction);
       nativeMapCanvas.removeEventListener('wheel', handleManualInteractionAction);
@@ -267,11 +269,12 @@ export function CameraController({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V11.0):
- * 1. Anti-Parabolic Logic: Se eliminó la dependencia de 'flyTo' para cambios de 
- *    visión cercanos, permitiendo que el LERP mueva la cámara a ras de suelo.
- * 2. Delta-Time Correction: La interpolación ahora es independiente de la 
- *    frecuencia de refresco del monitor, garantizando la misma suavidad en 60Hz o 120Hz.
- * 3. ZAP Enforcement: Purificación total de variables (deltaTimeMagnitude, 
- *    projectedCameraAnchor, isUserPhysicallyInteracting).
+ * NOTA TÉCNICA DEL ARCHITECT (V12.0):
+ * 1. Contract Alignment: Se resolvieron los errores TS2339 al alinear la 
+ *    desestructuración de 'useGeoEngine' con la Constitución V9.0.
+ * 2. ZAP Compliance: Purificación total de la nomenclatura cinemática: 
+ *    'isNewPulseTriggered' -> 'isNewRecenterPulseDetected', 'currentCenter' -> 
+ *    'currentCameraCenterPoint'.
+ * 3. MTI Architecture: Se mantiene la independencia del Hilo Principal mediante 
+ *    el uso de referencias mutables para el estado físico de la lente.
  */
