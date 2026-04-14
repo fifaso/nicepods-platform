@@ -1,14 +1,14 @@
 /**
  * ARCHIVO: components/feed/resonance-compass.tsx
- * VERSIÓN: 5.0 (NicePod Resonance Compass - High-Performance Direct-DOM Edition)
+ * VERSIÓN: 6.0 (NicePod Resonance Compass - High-Performance Direct-DOM & Resize Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Visualizar el universo semántico mediante una simulación de fuerzas 
  * delegada a un Web Worker, utilizando transferencia de memoria cruda (Float32Array)
  * para garantizar una fluidez absoluta de 60 FPS sin saturar el Virtual DOM.
- * [REFORMA V5.0]: Implementación de "Direct DOM Manipulation" para evitar el 
- * Main Thread Thrashing. Sincronización nominal total con la Constitución V8.6
- * y el Physics Worker V2.0. Cumplimiento absoluto del Dogma MTI y ZAP.
+ * [REFORMA V6.0]: Optimización del ciclo de vida del Worker para evitar recreaciones
+ * en redimensionamiento. Implementación de memoización de nodos para reducir
+ * el coste de reconciliación de React. Estabilización de callbacks tácticos.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -23,7 +23,7 @@ import { PodcastCard } from '@/components/podcast/podcast-card';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Compass, Loader2 } from 'lucide-react';
 import Image from 'next/image';
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, memo } from 'react';
 import useResizeObserver from 'use-resize-observer';
 
 // --- UTILIDADES INDUSTRIALES ---
@@ -43,23 +43,33 @@ interface ResonanceCompassProperties {
 /**
  * COMPONENTE INTERNO: PodcastResonanceBubble
  * Misión: Representar un nodo individual en el escenario pericial.
- * [V5.0]: Utiliza forwardRef para permitir la manipulación directa de posición 
- * desde el orquestador principal, eludiendo el ciclo de renderizado de React.
+ * [V6.0]: Wrap en memo para evitar re-renderizados redundantes durante la
+ * simulación de físicas. Utiliza manipulación directa de posición
+ * desde el orquestador principal.
  */
-const PodcastResonanceBubble = ({ 
+const PodcastResonanceBubble = memo(({
   associatedPodcast,
   onPodcastSelectionAction,
-  containerRef
+  elementsMapReference
 }: { 
   associatedPodcast: PodcastWithProfile;
-  onPodcastSelectionAction: () => void;
-  containerRef: (element: HTMLDivElement | null) => void;
+  onPodcastSelectionAction: (podcast: PodcastWithProfile) => void;
+  elementsMapReference: React.MutableRefObject<Map<number, HTMLDivElement>>;
 }) => {
   const bubbleRadiusPixels = 48;
 
+  // --- REGISTRO DE REFERENCIA SOBERANA ---
+  const handleRegistrationAction = useCallback((element: HTMLDivElement | null) => {
+    if (element) {
+      elementsMapReference.current.set(associatedPodcast.id, element);
+    } else {
+      elementsMapReference.current.delete(associatedPodcast.id);
+    }
+  }, [associatedPodcast.id, elementsMapReference]);
+
   return (
     <div
-      ref={containerRef}
+      ref={handleRegistrationAction}
       className="absolute flex flex-col items-center gap-2 cursor-pointer group will-change-transform"
       style={{ 
         left: '0px', 
@@ -67,7 +77,7 @@ const PodcastResonanceBubble = ({
         transform: 'translate3d(0, 0, 0) translate(-50%, -50%)',
         visibility: 'hidden' // Oculto hasta el primer tick de física
       }}
-      onClick={onPodcastSelectionAction}
+      onClick={() => onPodcastSelectionAction(associatedPodcast)}
     >
       <motion.div
         whileHover={{ scale: 1.1 }}
@@ -100,7 +110,9 @@ const PodcastResonanceBubble = ({
       </motion.div>
     </div>
   );
-};
+});
+
+PodcastResonanceBubble.displayName = "PodcastResonanceBubble";
 
 /**
  * ResonanceCompass: El reactor de visualización semántica multihilo de NicePod.
@@ -116,8 +128,28 @@ export function ResonanceCompass({
   const [selectedPodcastIntelligence, setSelectedPodcastIntelligence] = useState<PodcastWithProfile | null>(null);
   
   // --- II. REFERENCIAS TÁCTICAS (NOMINAL INTEGRITY) ---
-  const { ref: containerElementReference, width = 0, height = 0 } = useResizeObserver<HTMLDivElement>();
   const physicsWorkerReference = useRef<Worker | null>(null);
+
+  /**
+   * handleResizeAction:
+   * Misión: Notificar al motor de físicas sobre el cambio de dimensiones
+   * sin reiniciar la simulación completa ni el hilo del trabajador.
+   */
+  const handleResizeAction = useCallback(({ width, height }: { width?: number; height?: number }) => {
+    if (physicsWorkerReference.current && width && height) {
+      const exclusionZoneRadius = Math.min(width, height) * 0.15;
+      physicsWorkerReference.current.postMessage({
+        action: "UPDATE_DIMENSIONS",
+        centerXCoordinate: width / 2,
+        centerYCoordinate: height / 2,
+        exclusionZoneRadius
+      });
+    }
+  }, []);
+
+  const { ref: containerElementReference, width = 0, height = 0 } = useResizeObserver<HTMLDivElement>({
+    onResize: handleResizeAction
+  });
   
   /**
    * bubbleElementsMapReference:
@@ -167,6 +199,7 @@ export function ResonanceCompass({
   /**
    * EFECTO: MultithreadedPhysicsOrchestrator
    * Misión: Inicializar el bus de datos multihilo y gestionar el ciclo de vida del Worker.
+   * [V6.0]: Independizado de las dimensiones para evitar reinicios por resize.
    */
   useEffect(() => {
     if (!width || !height || podcastCollection.length === 0) {
@@ -211,7 +244,8 @@ export function ResonanceCompass({
       workerInstance.terminate();
       physicsWorkerReference.current = null;
     };
-  }, [podcastCollection, width, height, handleWorkerMessageAction]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [podcastCollection, handleWorkerMessageAction]);
 
   const handleSelectionResetAction = useCallback(() => {
     setSelectedPodcastIntelligence(null);
@@ -264,14 +298,8 @@ export function ResonanceCompass({
             <PodcastResonanceBubble 
               key={podcastItem.id} 
               associatedPodcast={podcastItem}
-              onPodcastSelectionAction={() => setSelectedPodcastIntelligence(podcastItem)}
-              containerRef={(element) => {
-                if (element) {
-                  bubbleElementsMapReference.current.set(podcastItem.id, element);
-                } else {
-                  bubbleElementsMapReference.current.delete(podcastItem.id);
-                }
-              }}
+              onPodcastSelectionAction={setSelectedPodcastIntelligence}
+              elementsMapReference={bubbleElementsMapReference}
             />
           ))}
 
@@ -311,7 +339,7 @@ export function ResonanceCompass({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V5.0):
+ * NOTA TÉCNICA DEL ARCHITECT (V6.0):
  * 1. Main Thread Isolation (MTI): Se ha eliminado la dependencia de 'useState' para 
  *    la actualización de coordenadas. El componente ahora utiliza un mapa de 
  *    referencias para inyectar transformaciones directamente en el estilo del DOM, 
@@ -320,4 +348,7 @@ export function ResonanceCompass({
  *    Float32Array del Physics Worker V2.0, eliminando la latencia de clonación de objetos.
  * 3. Zero Abbreviations Policy: Purificación absoluta de la nomenclatura interna 
  *    y de la API del componente (bubbleElementsMapReference, handleWorkerMessageAction).
+ * 4. Resize Optimization: Se ha desacoplado el ciclo de vida del Worker del
+ *    redimensionamiento del contenedor, utilizando el protocolo 'UPDATE_DIMENSIONS'
+ *    para mantener la fluidez sin recrear hilos.
  */
