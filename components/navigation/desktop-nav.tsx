@@ -1,12 +1,14 @@
 /**
  * ARCHIVO: components/navigation/desktop-nav.tsx
- * VERSIÓN: 4.0 (NicePod Desktop Command - Absolute Nominal Integrity Edition)
- * PROTOCOLO: MADRID RESONANCE V4.0
+ * VERSIÓN: 5.0 (NicePod Desktop Command - Axial Path Sanitization Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * Misión: Orquestar la navegación de escritorio de alta densidad, gestionando 
  * la autoridad administrativa y la simetría visual del centro de mando.
- * [REFORMA V4.0]: Sincronización nominal total con NavBrand V4.0, erradicación 
- * absoluta de abreviaturas y blindaje de tipos para el Build Shield.
+ * [REFORMA V5.0]: Implementación de 'Axial Path Sanitization'. Resolución del 
+ * error TS2345 mediante el blindaje de 'currentNavigationPathname' con un 
+ * fallback a hilo vacío. Aplicación integral de la Zero Abbreviations Policy 
+ * (ZAP) y sellado del Build Shield Sovereignty (BSS).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -64,8 +66,13 @@ export function DesktopNav({
   isAdministratorAuthority,
   onAuthenticationLogoutAction
 }: DesktopNavigationProperties) {
-  
-  const currentNavigationPathname = usePathname();
+
+  /**
+   * [BSS]: SANITIZACIÓN AXIAL
+   * El hook usePathname() puede devolver null. Forzamos un fallback a hilo vacío
+   * para satisfacer el contrato de la función 'isRouteActive' y eliminar el error TS2345.
+   */
+  const currentNavigationPathname = usePathname() || "";
 
   /**
    * navigationItemsCollection:
@@ -92,8 +99,7 @@ export function DesktopNav({
 
       {/* I. NÚCLEO IZQUIERDO: IDENTIDAD DE MARCA SOBERANA */}
       <div className="flex-1 flex items-center">
-        
-        {/* [FIX V4.0]: Sincronía nominal con NavBrandProperties V4.0 */}
+
         <NavBrand isUserAuthenticated={isUserAuthenticated} />
 
         {/* Indicador de Rango Administrativo */}
@@ -128,8 +134,12 @@ export function DesktopNav({
               );
             }
 
-            // CASO B: ENLACES ESTÁNDAR Y SOBERANOS
+            /**
+             * [SINCRO V5.0]: Verificación de estado activo.
+             * Se utiliza 'currentNavigationPathname' (ya sanitizado) para la comparación.
+             */
             const isNavigationItemActive = isRouteActive(navigationItem.href, currentNavigationPathname);
+            const NavigationIconComponent = navigationItem.icon;
 
             return (
               <li key={navigationItem.href}>
@@ -145,7 +155,7 @@ export function DesktopNav({
                   )}
                 >
                   <div className="flex items-center gap-3">
-                    <navigationItem.icon size={15} className={cn(
+                    <NavigationIconComponent size={15} className={cn(
                       "transition-transform duration-700",
                       isNavigationItemActive ? "text-black scale-110" : "text-zinc-700"
                     )} />
@@ -202,12 +212,12 @@ export function DesktopNav({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V4.0):
- * 1. Contract Synchronization: Se neutralizó el error TS2322 inyectando la propiedad 
- *    'isUserAuthenticated' en NavBrand, resolviendo el desfase nominal del Sprint 5.5.
- * 2. Zero Abbreviations Policy: Purificación absoluta de nomenclatura (isAdministratorAuthority, 
- *    onAuthenticationLogoutAction, navigationItemsCollection), elevando el archivo al 
- *    estándar de grado industrial de la Workstation.
- * 3. Layered Stacking: Se inyectó 'isolate' y se ajustaron los Z-Index para garantizar 
- *    que la cápsula de comando central no sufra oclusión por parte del BackgroundEngine.
+ * NOTA TÉCNICA DEL ARCHITECT (V5.0):
+ * 1. ZAP Absolute Compliance: Se eliminaron abreviaciones residuales en el mapeo de 
+ *    iconos (NavigationIconComponent) y en los descriptores de estado.
+ * 2. Build Shield Sovereignty: Se resolvió el error TS2345 garantizando que 
+ *    'currentNavigationPathname' siempre sea un hilo de texto, protegiendo 
+ *    la lógica de comparación de rutas.
+ * 3. Atomic Typing: Se refinó el uso de descriptores nominales para asegurar que 
+ *    el compilador no genere advertencias de 'Implicit Any'.
  */

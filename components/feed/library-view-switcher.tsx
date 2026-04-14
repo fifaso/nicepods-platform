@@ -1,14 +1,24 @@
-// components/library-view-switcher.tsx
-// VERSIÓN: 3.5 (Premium View Orchestrator - Transition & Memory Edition)
-// Misión: Gestionar la perspectiva del usuario con transiciones suaves y preservación de estado.
-// [ESTABILIZACIÓN]: Uso de useTransition (React 18) para evitar bloqueos del UI en listas pesadas.
+/**
+ * ARCHIVO: components/feed/library-view-switcher.tsx
+ * VERSIÓN: 4.0 (NicePod Premium View Orchestrator - Nominative Transmutation Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.9
+ * 
+ * Misión: Gestionar la perspectiva visual del Voyager mediante transiciones 
+ * suaves y preservación de estado en la cadena de consulta de la URL.
+ * [REFORMA V4.0]: Implementación de la 'Transmutación Nominal Total'. Se 
+ * resuelven los errores TS18047 mediante el blindaje de 'urlSearchParameters'. 
+ * Aplicación absoluta de la Zero Abbreviations Policy (ZAP), eliminando 
+ * términos como 'params', 'view' o 'pathname' en favor de descriptores completos.
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ */
 
 "use client";
 
-import { useTransition } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Compass, LayoutGrid, List, Loader2 } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useTransition } from "react";
 
+// --- INFRAESTRUCTURA DE INTERFAZ SOBERANA ---
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -18,58 +28,75 @@ import { cn } from "@/lib/utils";
  */
 type LibraryViewMode = 'grid' | 'list' | 'compass';
 
+/**
+ * COMPONENTE: LibraryViewSwitcher
+ * El reactor de conmutación de perspectiva de la Bóveda de Podcasts.
+ */
 export function LibraryViewSwitcher() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  
-  // React 18: Permite marcar el cambio de URL como una transición de baja prioridad
-  const [isPending, startTransition] = useTransition();
-
-  // 1. DETERMINACIÓN DEL ESTADO ACTUAL (Soberanía de URL)
-  // Utilizamos 'grid' como fallback universal si la URL está limpia.
-  const currentView = (searchParams.get('view') as LibraryViewMode) || 'grid';
+  const navigationRouter = useRouter();
+  const currentUrlPathname = usePathname();
+  const urlSearchParameters = useSearchParams();
 
   /**
-   * ACCIÓN: setView
+   * [MTI]: AISLAMIENTO DE PROCESAMIENTO
+   * Marcamos el cambio de ruta como una transición de baja prioridad para 
+   * no bloquear la interactividad del Hilo Principal en listas densas.
+   */
+  const [isTransitionProcessPending, executeSovereignTransition] = useTransition();
+
+  /**
+   * [BUILD SHIELD]: DETERMINACIÓN DEL ESTADO ACTUAL
+   * Aplicamos encadenamiento opcional para satisfacer la restricción de nulidad.
+   */
+  const currentLibraryViewMode = (urlSearchParameters?.get('view') as LibraryViewMode) || 'grid';
+
+  /**
+   * handleLibraryViewSelectionAction:
    * Orquestador que modifica la perspectiva sin destruir los filtros de búsqueda activos.
    */
-  const setView = (view: LibraryViewMode) => {
-    // Si el usuario ya está en esta vista, abortamos para ahorrar ciclos de renderizado.
-    if (view === currentView) return;
+  const handleLibraryViewSelectionAction = (targetViewMode: LibraryViewMode) => {
+    // Si la Workstation ya opera bajo este modo, abortamos la ejecución.
+    if (targetViewMode === currentLibraryViewMode) return;
 
-    // [SALTO CUÁNTICO]: Si selecciona la brújula, abandonamos la biblioteca.
-    if (view === 'compass') {
-      startTransition(() => {
-        // Mantenemos la latitud/longitud si existieran en el futuro, por ahora salto limpio.
-        router.push('/map'); 
+    // [SALTO CUÁNTICO]: Si se selecciona la brújula, el Voyager abandona la biblioteca hacia el mapa.
+    if (targetViewMode === 'compass') {
+      executeSovereignTransition(() => {
+        navigationRouter.push('/map');
       });
       return;
     }
 
-    // Construcción del nuevo estado de URL clonando el actual para preservar los filtros.
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('view', view);
+    /**
+     * [ZAP]: CONSTRUCCIÓN DE PARÁMETROS ACTUALIZADOS
+     * Clonamos el estado actual de la URL para garantizar la persistencia de filtros.
+     */
+    const searchParametersString = urlSearchParameters?.toString() || "";
+    const updatedUrlSearchParameters = new URLSearchParams(searchParametersString);
+    updatedUrlSearchParameters.set('view', targetViewMode);
 
-    startTransition(() => {
-      // scroll: false garantiza que la pantalla no salte hacia arriba al cambiar de vista.
-      router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    executeSovereignTransition(() => {
+      /**
+       * scroll: false garantiza que el dispositivo mantenga la posición 
+       * térmica del scroll al conmutar la malla de visualización.
+       */
+      const targetNavigationPath = `${currentUrlPathname}?${updatedUrlSearchParameters.toString()}`;
+      navigationRouter.push(targetNavigationPath, { scroll: false });
     });
   };
 
   return (
-    <div className="flex items-center gap-1 p-1 bg-black/40 rounded-[1.25rem] border border-white/10 backdrop-blur-2xl shadow-inner">
+    <div className="flex items-center gap-1 p-1 bg-black/40 rounded-[1.25rem] border border-white/10 backdrop-blur-2xl shadow-inner isolate">
 
       {/* --- BOTÓN: VISTA CUADRÍCULA (GRID) --- */}
       <Button
         variant="ghost"
         size="icon"
-        onClick={() => setView('grid')}
-        disabled={isPending}
+        onClick={() => handleLibraryViewSelectionAction('grid')}
+        disabled={isTransitionProcessPending}
         aria-label="Cambiar a vista de cuadrícula"
         className={cn(
           'h-10 w-10 rounded-xl transition-all duration-300 relative overflow-hidden',
-          currentView === 'grid'
+          currentLibraryViewMode === 'grid'
             ? 'bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.3)]'
             : 'text-zinc-500 hover:text-white hover:bg-white/10'
         )}
@@ -81,42 +108,42 @@ export function LibraryViewSwitcher() {
       <Button
         variant="ghost"
         size="icon"
-        onClick={() => setView('list')}
-        disabled={isPending}
+        onClick={() => handleLibraryViewSelectionAction('list')}
+        disabled={isTransitionProcessPending}
         aria-label="Cambiar a vista de lista compacta"
         className={cn(
           'h-10 w-10 rounded-xl transition-all duration-300 relative overflow-hidden',
-          currentView === 'list'
+          currentLibraryViewMode === 'list'
             ? 'bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.3)]'
             : 'text-zinc-500 hover:text-white hover:bg-white/10'
         )}
       >
-        {isPending && currentView !== 'list' && currentView !== 'grid' ? (
+        {isTransitionProcessPending && currentLibraryViewMode !== 'list' && currentLibraryViewMode !== 'grid' ? (
           <Loader2 className="h-4 w-4 animate-spin text-zinc-400 absolute" />
         ) : null}
-        <List className={cn("h-4 w-4 relative z-10", isPending && "opacity-0")} />
+        <List className={cn("h-4 w-4 relative z-10", isTransitionProcessPending && "opacity-0")} />
       </Button>
 
-      {/* DIVISOR ESTÉTICO */}
+      {/* DIVISOR ATMOSFÉRICO */}
       <div className="w-[1px] h-6 bg-white/10 mx-1 rounded-full" />
 
       {/* --- BOTÓN: RADAR GEOESPACIAL (COMPASS) --- */}
       <Button
         variant="ghost"
         size="icon"
-        onClick={() => setView('compass')}
-        disabled={isPending}
+        onClick={() => handleLibraryViewSelectionAction('compass')}
+        disabled={isTransitionProcessPending}
         aria-label="Activar radar en el mapa"
         className={cn(
           'h-10 w-10 rounded-xl transition-all duration-500 group',
-          currentView === 'compass'
-            ? 'bg-primary text-white shadow-[0_0_30px_rgba(139,92,246,0.4)]'
+          currentLibraryViewMode === 'compass'
+            ? 'bg-primary text-white shadow-[0_0_30px_rgba(var(--primary-rgb),0.4)]'
             : 'bg-primary/5 text-primary hover:bg-primary hover:text-white border border-primary/20'
         )}
       >
         <Compass className={cn(
           "h-4 w-4 transition-transform duration-700",
-          currentView === 'compass' ? "animate-pulse" : "group-hover:rotate-90"
+          currentLibraryViewMode === 'compass' ? "animate-pulse" : "group-hover:rotate-90"
         )} />
       </Button>
 
@@ -125,13 +152,13 @@ export function LibraryViewSwitcher() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Rendimiento React 18: La incorporación de 'useTransition' (isPending) asegura 
- *    que si la vista tiene cientos de tarjetas, el navegador no se congele 
- *    durante el cálculo de layout de Grid a List.
- * 2. Accesibilidad Industrial: Se han añadido etiquetas 'aria-label' a todos los 
- *    botones para cumplir con los estándares ARIA en la Workstation.
- * 3. UX de Precisión: Se deshabilita la interacción (disabled={isPending}) 
- *    mientras el Router de Next.js está calculando la nueva ruta para evitar
- *    dobles clicks accidentales que saturan el Historial del navegador.
+ * NOTA TÉCNICA DEL ARCHITECT (V4.0):
+ * 1. ZAP Absolute Compliance: Se eliminaron todas las abreviaciones. 'router' pasó a 
+ *    'navigationRouter', 'pathname' a 'currentUrlPathname', y 'params' a 
+ *    'updatedUrlSearchParameters'.
+ * 2. Build Shield Sovereignty: Se resolvió la vulnerabilidad de nulidad (TS18047) 
+ *    mediante encadenamiento opcional y el uso de 'searchParametersString' como 
+ *    puente de seguridad hacia el constructor 'URLSearchParams'.
+ * 3. Main Thread Isolation: El uso de 'executeSovereignTransition' garantiza que 
+ *    la interfaz no se congele durante la re-hidratación de la malla de podcasts.
  */

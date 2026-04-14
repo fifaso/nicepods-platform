@@ -27,20 +27,13 @@
       "node",
       "@ducanh2912/next-pwa/workbox"
     ],
-    /* --- RESOLUCIÓN DE RUTAS (REPARACIÓN PARA COMPATIBILIDAD CON MAPBOX) --- */
-    /* [REFORMA V4.1]: Se elimina 'baseUrl' para resolver la advertencia de obsolescencia en TypeScript 5.0+ */
+    /* --- RESOLUCIÓN DE RUTAS (ZERO ABBREVIATIONS ALIASING) --- */
     "paths": {
       "@/*": [
         "./*"
-      ],
-      "react-map-gl": [
-        "./node_modules/react-map-gl"
-      ],
-      "mapbox-gl": [
-        "./node_modules/mapbox-gl"
       ]
     },
-    /* --- PLUGINS DE NEXT.JS --- */
+    /* --- PLUGINS DEL MARCO DE TRABAJO --- */
     "plugins": [
       {
         "name": "next"
@@ -49,10 +42,10 @@
   },
   "include": [
     "next-env.d.ts",
+    "types/**/*.d.ts",
     "**/*.ts",
     "**/*.tsx",
-    ".next/types/**/*.ts",
-    "components/geo/mapbox-env.d.ts"
+    ".next/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

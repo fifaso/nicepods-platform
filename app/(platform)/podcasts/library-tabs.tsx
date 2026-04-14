@@ -1,12 +1,14 @@
 /**
  * ARCHIVO: app/(platform)/podcasts/library-tabs.tsx
- * VERSIÓN: 16.0 (NicePod Intelligence Station - Full Thread Sincronization)
- * PROTOCOLO: MADRID RESONANCE V4.0
+ * VERSIÓN: 17.0 (NicePod Intelligence Station - Sovereign Null Shield Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * Misión: Orquestar la intersección entre la red global y la soberanía privada,
  * gestionando la visualización de la Bóveda y los procesos de forja activos.
- * [REFORMA V16.0]: Sincronización nominal total con StackedPodcastCard V6.0,
- * eliminación de 'any' en el mapeo de hilos y blindaje del contrato de tarjetas.
+ * [REFORMA V17.0]: Implementación del 'Sovereign Null Shield'. Resolución del 
+ * error TS18047 mediante el blindaje de 'urlSearchParameters' con encadenamiento 
+ * opcional y fallbacks de seguridad. Purificación total de la Zero Abbreviations 
+ * Policy (ZAP) en variables de contexto y filtros.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -114,9 +116,13 @@ export function LibraryTabs({
   const [searchMatchResults, setSearchMatchResults] = useState<SearchResult[] | null>(null);
   const [isSearchProcessActive, setIsSearchProcessActive] = useState<boolean>(false);
 
-  const activeNavigationTab = urlSearchParameters.get("tab") || defaultTab;
-  const currentLibraryViewMode = (urlSearchParameters.get("view") as LibraryViewMode) || "grid";
-  const activeUniverseCategoryKey = urlSearchParameters.get("universe") || "most_resonant";
+  /**
+   * [BUILD SHIELD]: PROTECCIÓN DE NULIDAD SOBERANA
+   * Se utiliza encadenamiento opcional para satisfacer el error TS18047.
+   */
+  const activeNavigationTab = urlSearchParameters?.get("tab") || defaultTab;
+  const currentLibraryViewMode = (urlSearchParameters?.get("view") as LibraryViewMode) || "grid";
+  const activeUniverseCategoryKey = urlSearchParameters?.get("universe") || "most_resonant";
 
   useEffect(() => {
     setIsComponentMounted(true);
@@ -181,9 +187,15 @@ export function LibraryTabs({
     return isComponentMounted && searchMatchResults !== null;
   }, [searchMatchResults, isComponentMounted]);
 
+  /**
+   * handleNavigationTabChange:
+   * [SINCRO V17.0]: Blindaje de nulidad en la generación de nuevos parámetros.
+   */
   const handleNavigationTabChange = (targetValue: string) => {
-    const updatedParameters = new URLSearchParams(urlSearchParameters.toString());
+    const searchParametersString = urlSearchParameters?.toString() || "";
+    const updatedParameters = new URLSearchParams(searchParametersString);
     updatedParameters.set("tab", targetValue);
+
     navigationRouter.push(`${currentPathname}?${updatedParameters.toString()}`, { scroll: false });
   };
 
@@ -283,11 +295,10 @@ export function LibraryTabs({
     if (currentLibraryViewMode === 'list') {
       return (
         <div className="space-y-3 md:space-y-4">
-          {/* [FIX V16.0]: Sincronía con contrato CompactPodcastCard */}
           {podcastCollection.map(podcastItem => (
-            <CompactPodcastCard 
-                key={podcastItem.id} 
-                initialPodcastData={podcastItem} 
+            <CompactPodcastCard
+              key={podcastItem.id}
+              initialPodcastData={podcastItem}
             />
           ))}
         </div>
@@ -299,11 +310,10 @@ export function LibraryTabs({
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-10">
         {groupedPodcastThreads.map((podcastThread) => (
-          /* [FIX V16.0]: Sincronía nominal estricta con StackedPodcastCard V6.0 */
-          <StackedPodcastCard 
-            key={podcastThread.id} 
-            initialPodcastData={podcastThread} 
-            narrativeReplyCollection={podcastThread.replies} 
+          <StackedPodcastCard
+            key={podcastThread.id}
+            initialPodcastData={podcastThread}
+            narrativeReplyCollection={podcastThread.replies}
           />
         ))}
       </div>
@@ -438,10 +448,12 @@ export function LibraryTabs({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V16.0):
- * 1. Contract Synchronization: Se neutralizó el error TS2322 inyectando 'initialPodcastData' 
- *    y 'narrativeReplyCollection' en la StackedPodcastCard, alineándose con el estándar V6.0.
- * 2. Build Shield Compliance: Se eliminó el tipo 'any' en el mapeo de hilos mediante la 
- *    interfaz 'PodcastThread'.
- * 3. Zero Abbreviations Policy: Purificación absoluta de la nomenclatura interna del orquestador.
+ * NOTA TÉCNICA DEL ARCHITECT (V17.0):
+ * 1. Sovereign Null Shield: Se resolvieron los errores TS18047 aplicando encadenamiento 
+ *    opcional ('?.') y fallbacks de cadena vacía en todas las interacciones con 
+ *    'urlSearchParameters'.
+ * 2. ZAP Compliance: Purificación de variables de mapeo (searchParametersString, 
+ *    userIdentification, jobItem, podcastItem).
+ * 3. Atomic Routing Resilience: La función 'handleNavigationTabChange' ahora es 
+ *    inmune a estados de navegación nulos durante la transición de pestañas.
  */

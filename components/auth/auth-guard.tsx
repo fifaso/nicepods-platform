@@ -1,5 +1,16 @@
-// components/auth-guard.tsx
-// VERSIÓN: 2.2
+/**
+ * ARCHIVO: components/auth/auth-guard.tsx
+ * VERSIÓN: 3.0 (NicePod Sovereign Access Sentinel - Axial Path Sanitization Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.9
+ * 
+ * Misión: Orquestar el centinela de integridad y seguridad de la Workstation, 
+ * validando la identidad del Voyager antes de permitir el acceso al cristal.
+ * [REFORMA V3.0]: Implementación de 'Axial Path Sanitization'. Resolución del 
+ * error TS2769 mediante la garantía de hilos de texto no nulos en la redirección. 
+ * Aplicación integral de la Zero Abbreviations Policy (ZAP) y fortalecimiento 
+ * del Build Shield Sovereignty (BSS).
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ */
 
 "use client";
 
@@ -9,70 +20,77 @@ import { usePathname, useRouter } from "next/navigation";
 import { ReactNode, useEffect } from "react";
 
 /**
- * INTERFAZ: AuthGuardProps
- * Define el contrato de protección para los componentes y layouts de NicePod.
+ * INTERFAZ: AuthGuardProperties
+ * Define el contrato de protección para los componentes y layouts de la terminal.
  */
-interface AuthGuardProps {
+interface AuthGuardProperties {
   /**
    * children: El contenido soberano que requiere protección de identidad.
    */
   children: ReactNode;
   /**
-   * requireAuth: Flag de autoridad. Por defecto es true para todas las rutas protegidas.
+   * isAuthenticationRequired: Flag de autoridad. Por defecto es true para todas las rutas protegidas.
    */
-  requireAuth?: boolean;
+  isAuthenticationRequired?: boolean;
 }
 
 /**
  * COMPONENTE: AuthGuard
- * El centinela de integridad de la Workstation NicePod V2.5.
- * 
- * [RESPONSABILIDADES TÁCTICAS]:
- * 1. Monitorear el estado de carga inicial de la sesión (isInitialLoading).
- * 2. Validar si el usuario posee un token JWT nominal y activo.
- * 3. Ejecutar el protocolo de expulsión (Redirect) si el acceso es denegado.
+ * El centinela de integridad de la Workstation NicePod Madrid Resonance.
  */
 export function AuthGuard({
   children,
-  requireAuth = true
-}: AuthGuardProps) {
+  isAuthenticationRequired = true
+}: AuthGuardProperties) {
 
-  // --- CONSUMO DE ESTADOS DE IDENTIDAD ---
+  // --- I. CONSUMO DE ESTADOS DE IDENTIDAD Y NAVEGACIÓN ---
   const { isAuthenticated, isInitialLoading } = useAuth();
-  const router = useRouter();
-  const pathname = usePathname();
+  const navigationRouter = useRouter();
 
   /**
-   * PROTOCOLO DE PROTECCIÓN:
+   * [BSS]: SANITIZACIÓN AXIAL
+   * El hook usePathname() puede devolver null. Forzamos un fallback a la raíz 
+   * para garantizar que el compilador trate a 'currentNavigationPathname' como string.
+   */
+  const currentNavigationPathname = usePathname() || "/";
+
+  /**
+   * II. PROTOCOLO DE PROTECCIÓN DE IDENTIDAD
    * Este efecto vigila el cambio de estado de la sesión. Solo actúa una vez
-   * que el handshake inicial (T0) ha finalizado para evitar falsos negativos.
+   * que el apretón de manos inicial (Handshake) con Supabase ha finalizado.
    */
   useEffect(() => {
-    // Si el sistema ya terminó de cargar y se requiere auth, pero no hay sesión...
-    if (!isInitialLoading && requireAuth && !isAuthenticated) {
-      console.warn(`🛡️ [AuthGuard] Acceso no autorizado detectado en: ${pathname}. Iniciando Protocolo de Expulsión.`);
+    const isVoyagerUnauthorized = !isInitialLoading && isAuthenticationRequired && !isAuthenticated;
 
-      // Construimos la URL de retorno para una navegación fluida post-login.
-      const redirectParams = new URLSearchParams();
-      redirectParams.set("redirect", pathname);
+    if (isVoyagerUnauthorized) {
+      console.warn(`🛡️ [AuthGuard] Acceso no autorizado detectado en: ${currentNavigationPathname}. Iniciando Protocolo de Expulsión.`);
 
-      const loginUrl = `/login?${redirectParams.toString()}`;
+      // III. CONSTRUCCIÓN DEL PASAPORTE DE REDIRECCIÓN
+      const redirectionParameters = new URLSearchParams();
 
-      // Ejecutamos el reemplazo de ruta para no ensuciar el historial de navegación.
-      router.replace(loginUrl);
+      /**
+       * [FIX TS2769]: Al usar 'currentNavigationPathname' (ya sanitizado), 
+       * garantizamos que el valor nunca sea null, satisfaciendo el Build Shield.
+       */
+      redirectionParameters.set("redirect", currentNavigationPathname);
+
+      const loginUniformResourceLocator = `/login?${redirectionParameters.toString()}`;
+
+      // Ejecutamos el reemplazo de ruta para no degradar el historial de navegación del dispositivo.
+      navigationRouter.replace(loginUniformResourceLocator);
     }
-  }, [isAuthenticated, isInitialLoading, requireAuth, router, pathname]);
+  }, [isAuthenticated, isInitialLoading, isAuthenticationRequired, navigationRouter, currentNavigationPathname]);
 
   /**
    * CAPA 0: PANTALLA DE SINTONÍA (VELO DE CARGA)
-   * Mientras el sistema negocia con Supabase Auth, bloqueamos el renderizado
-   * para evitar el 'Content Flash' de datos privados.
+   * Mientras el sistema negocia con el Metal (Supabase Auth), bloqueamos el renderizado 
+   * para evitar fugas visuales de datos privados en el Hilo Principal.
    */
   if (isInitialLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen w-full bg-[#020202] z-[9999] selection:bg-primary/30">
 
-        {/* Visualización Industrial de Carga */}
+        {/* Visualización Industrial de Carga Cinética */}
         <div className="relative mb-8">
           <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full animate-pulse" />
           <Loader2 className="h-12 w-12 animate-spin text-primary relative z-10" />
@@ -87,7 +105,7 @@ export function AuthGuard({
             <Zap size={14} className="text-primary" />
           </div>
           <div className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest animate-pulse">
-            NicePod Architecture V2.5 • Madrid Resonance
+            NicePod Architecture V4.9 • Madrid Resonance
           </div>
         </div>
 
@@ -97,31 +115,28 @@ export function AuthGuard({
 
   /**
    * CAPA 1: BARRERA DE SEGURIDAD
-   * Si la ruta exige auth y no la tenemos, devolvemos null mientras el useEffect 
-   * anterior orquesta la redirección física. Esto previene fugas de datos en el DOM.
+   * Si la ruta exige autoridad y el Voyager no está validado, devolvemos un 
+   * escenario neutro mientras se completa la transición física.
    */
-  if (requireAuth && !isAuthenticated) {
+  if (isAuthenticationRequired && !isAuthenticated) {
     return (
-      <div className="min-h-screen w-full bg-[#020202]" /> // Pantalla negra de transición segura.
+      <div className="min-h-screen w-full bg-[#020202]" />
     );
   }
 
   /**
-   * CAPA 2: ACCESO CONCEDIDO
-   * Una vez superada la validación, liberamos los componentes hijos.
+   * CAPA 2: ACCESO CONCEDIDO (SOBERANÍA DEL CRISTAL)
+   * Una vez superada la aduana de identidad, liberamos el capital intelectual.
    */
   return <>{children}</>;
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Exportación Nombrada: El uso de 'export function AuthGuard' es imperativo 
- *    para que el compilador TS identifique el miembro al ser importado en 
- *    los layouts mediante desestructuración { AuthGuard }.
- * 2. Z-Index y Fondo: El loader utiliza bg-[#020202] y un z-index elevado 
- *    para asegurar que la pantalla de carga tape cualquier mapa o gradiente 
- *    residual del Root Layout.
- * 3. Gestión de Redirección: Al usar 'router.replace', evitamos que el usuario 
- *    pueda volver atrás a una página protegida usando el botón del navegador, 
- *    reforzando la seguridad de la sesión.
+ * NOTA TÉCNICA DEL ARCHITECT (V3.0):
+ * 1. ZAP Enforcement: Se han purificado los descriptores de navegación 
+ *    (navigationRouter, currentNavigationPathname) y propiedades (AuthGuardProperties).
+ * 2. Build Shield Absolute: La sanitización inline 'usePathname() || "/"' elimina 
+ *    la posibilidad de 'Null Argument' en los constructores de URL.
+ * 3. Navigation Integrity: El uso de 'replace' en lugar de 'push' asegura que el 
+ *    historial del navegador no retenga intentos fallidos de acceso a nodos privados.
  */

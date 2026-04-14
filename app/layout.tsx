@@ -1,14 +1,14 @@
 /**
  * ARCHIVO: app/layout.tsx
- * VERSIÓN: 37.0 (NicePod Root Orchestrator - Global Geodetic Ubiquity Edition)
- * PROTOCOLO: MADRID RESONANCE V4.8
+ * VERSIÓN: 38.0 (NicePod Root Orchestrator - Absolute Nominal Sync & T0 Precision Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * Misión: Orquestar la infraestructura global de datos, seguridad y atmósfera. 
  * Actúa como el anfitrión soberano del motor de telemetría, asegurando que la 
  * verdad geográfica sea persistente a través de toda la aplicación.
- * [REFORMA V37.0]: Elevación del GeoEngineProvider a la raíz absoluta. Sincronización 
- * con la semilla T0 del Middleware y cumplimiento estricto de la Zero Abbreviations 
- * Policy (ZAP). Sellado del Build Shield contra la asincronía de hidratación.
+ * [REFORMA V38.0]: Resolución definitiva del error TS2322. Sincronización nominal 
+ * absoluta del objeto 'initialGeographicIntelligenceData' con el contrato 
+ * del GeoEngineProvider V53.0. Erradicación total de abreviaciones (ZAP).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -111,20 +111,32 @@ export default async function RootLayout({
    */
   const browserCookiesStore = cookies();
   const geodeticSeedT0RawValue = browserCookiesStore.get('nicepod-geodetic-seed-t0')?.value;
-  let initialGeographicIntelligenceData = null;
+
+  /**
+   * initialGeographicIntelligenceData:
+   * [SINCRO V38.0]: Alineación nominal estricta con 'GeoEngineProvider'.
+   */
+  let initialGeographicIntelligenceData: {
+    latitudeCoordinate: number;
+    longitudeCoordinate: number;
+    cityName: string;
+    geographicSource: string;
+  } | null = null;
 
   if (geodeticSeedT0RawValue) {
     try {
-      const parsedGeodeticSeed = JSON.parse(geodeticSeedT0RawValue);
-      // Mapeamos hacia el contrato esperado por el GeoEngineProvider
+      const parsedGeodeticSeed = JSON.parse(decodeURIComponent(geodeticSeedT0RawValue));
+
+      // Mapeamos hacia el contrato soberano sin abreviaciones.
       initialGeographicIntelligenceData = {
-        lat: parsedGeodeticSeed.latitudeCoordinate,
-        lng: parsedGeodeticSeed.longitudeCoordinate,
-        city: parsedGeodeticSeed.cityName,
-        source: parsedGeodeticSeed.geographicSource
+        latitudeCoordinate: parsedGeodeticSeed.latitudeCoordinate,
+        longitudeCoordinate: parsedGeodeticSeed.longitudeCoordinate,
+        cityName: parsedGeodeticSeed.cityName || "Madrid Resonance",
+        geographicSource: parsedGeodeticSeed.geographicSource || "edge-internet-protocol"
       };
     } catch (parseException) {
       console.error("🔥 [RootLayout] Fallo en des-serialización de semilla geodésica:", parseException);
+      initialGeographicIntelligenceData = null;
     }
   }
 
@@ -154,7 +166,6 @@ export default async function RootLayout({
     <html
       lang="es"
       suppressHydrationWarning
-      // [FIX V37.0]: Inyección síncrona de fondo #010101 para neutralizar el parpadeo blanco.
       className={concatenateClassNames(interFontConfiguration.variable, "bg-[#010101] dark")}
       data-auth-state={authenticationStateDescriptor}
       data-user-role={userAuthorityRoleDescriptor}
@@ -192,7 +203,7 @@ export default async function RootLayout({
             <ThemeProvider
               attribute="class"
               defaultTheme="dark"
-              enableSystem={false} 
+              enableSystem={false}
               disableTransitionOnChange={true}
               storageKey="theme"
             >
@@ -203,10 +214,9 @@ export default async function RootLayout({
                 >
                   <AudioProvider>
                     {/*
-                        IV. SOBERANÍA DE TELEMETRÍA GLOBAL (MADRID RESONANCE V4.8)
-                        [MANDATO ESTRATÉGICO]: El GeoEngineProvider reside en la raíz
-                        para garantizar que la ubicación sea compartida entre Marketing,
-                        Dashboard y la Terminal de Forja sin interrupciones.
+                        IV. SOBERANÍA DE TELEMETRÍA GLOBAL (MADRID RESONANCE V4.9)
+                        [MANDATO V38.0]: El GeoEngineProvider recibe datos 100% tipados 
+                        bajo la Zero Abbreviations Policy.
                     */}
                     <GeoEngineProvider initialData={initialGeographicIntelligenceData}>
                       <main className="min-h-screen relative flex flex-col bg-[#010101] isolate">
@@ -229,11 +239,11 @@ export default async function RootLayout({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V37.0):
- * 1. Global Geodetic Singleton: La elevación de 'GeoEngineProvider' asegura que 
- *    el Voyager no pierda la triangulación al navegar de la Landing al Dashboard.
- * 2. T0 Seed Handshake: Sincronización con la cookie 'nicepod-geodetic-seed-t0' 
- *    proveyendo una materialización instantánea basada en el borde de red.
- * 3. Zero Abbreviations Policy (ZAP): Refactorización total de variables de 
- *    servidor (initialGeographicIntelligenceData, supabaseSovereignClient).
+ * NOTA TÉCNICA DEL ARCHITECT (V38.0):
+ * 1. Build Shield Absolute: Se eliminó el error TS2322 al mapear 'lat/lng' a 
+ *    'latitudeCoordinate/longitudeCoordinate' en la semilla T0.
+ * 2. T0 Reliability: El uso de decodeURIComponent garantiza que la cookie sea 
+ *    interpretada correctamente por el motor de Deno/Next.
+ * 3. ZAP Enforcement: Purificación total de variables. No se permiten nombres 
+ *    como 'initialGeoData' o 'authSession'. El código es ahora autodescriptivo.
  */
