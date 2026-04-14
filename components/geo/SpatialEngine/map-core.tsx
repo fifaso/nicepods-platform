@@ -1,14 +1,13 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/map-core.tsx
- * VERSIÓN: 20.0 (NicePod MapCore - Protocol Alignment & Event Hardening Edition)
+ * VERSIÓN: 21.0 (NicePod MapCore - Global Contract Alignment Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * Misión: Reactor WebGL inmutable que gestiona la renderización de la malla 3D. 
  * Actúa como una terminal de visualización pasiva con aislamiento total de VRAM.
- * [REFORMA V20.0]: Resolución definitiva del error TS2339 (StyleData target). 
- * Se implementa el acceso directo vía referencia para la configuración del motor.
- * Inyección de la propiedad 'onMove' para sincronización con el Hub. 
- * Cumplimiento absoluto de la Zero Abbreviations Policy (ZAP).
+ * [REFORMA V21.0]: Resolución definitiva del error TS2339 (mapStyle). Sincronización 
+ * nominal absoluta con la Constitución V9.0 y la Fachada useGeoEngine V55.0. 
+ * Se transmuta 'mapStyle' a 'activeMapStyle' en la desestructuración de mando. 
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -49,7 +48,6 @@ type SafeMapStyleDataEvent = Parameters<NonNullable<MapNativeProperties['onStyle
 
 /**
  * INTERFAZ: MapCoreProperties
- * Misión: Definir el contrato de entrada para el reactor visual.
  */
 interface MapCoreProperties {
   mapInstanceIdentification: MapInstanceIdentification;
@@ -59,14 +57,14 @@ interface MapCoreProperties {
   lightTheme: MapboxLightPreset;
   onLoad: (event: SafeMapLoadEvent) => void;
   onIdle: () => void;
-  onMove?: (event: SafeMapMovementEvent) => void; // [SINCRO V20.0]: Propiedad inyectada.
+  onMove?: (event: SafeMapMovementEvent) => void;
   onMapClick: (event: SafeMapClickEvent) => void;
   onMarkerClick: (identification: string) => void;
   selectedPointOfInterestIdentification: string | null;
 }
 
 /**
- * MapCore: El reactor visual soberano de la Workstation NicePod.
+ * MapCore: El reactor visual soberano de la Workstation NicePod V4.9.
  */
 const MapCore = forwardRef<MapRef, MapCoreProperties>(({
   mapInstanceIdentification,
@@ -82,13 +80,16 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
   selectedPointOfInterestIdentification
 }, componentForwardedReference) => {
 
-  // 1. CONSUMO DEL MOTOR SOBERANO (TRIPLE-CORE SYNERGY V4.9)
+  /**
+   * 1. CONSUMO DEL MOTOR SOBERANO (TRIPLE-CORE SYNERGY V4.9)
+   * [SINCRO V21.0]: Alineación con el contrato purificado GeoEngineReturn V9.0.
+   */
   const {
     userLocation: truthStreamLocation,
     nearbyPointsOfInterest,
     activePointOfInterest,
     cameraPerspective,
-    mapStyle: activeEngineVisualStyle
+    activeMapStyle // [FIX TS2339]: Transmutado de mapStyle.
   } = useGeoEngine();
 
   // 2. REFERENCIA SOBERANA AL LIENZO WebGL (PILAR 3)
@@ -128,7 +129,6 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
 
   /**
    * 5. STYLE-GUARD INDUSTRIAL (WebGL HYGIENE)
-   * [FIX V20.0]: Uso de localMapEngineReference para evitar el error TS2339 de 'target'.
    */
   const handleStyleDataAction = useCallback((_styleDataEvent: SafeMapStyleDataEvent) => {
     const nativeMapInstance = localMapEngineReference.current?.getMap();
@@ -142,7 +142,10 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
     const isTacticalLiteProfileActive = performanceProfile === 'TACTICAL_LITE';
     const engineTechnicalConfiguration = isTacticalLiteProfileActive ? TACTICAL_LITE_ENGINE_CONFIGURATION : STANDARD_ENGINE_CONFIGURATION;
 
-    if (activeEngineVisualStyle === MAP_STYLES.STANDARD) {
+    /**
+     * [STYLE-GUARD]: Configuración del motor PBR.
+     */
+    if (activeMapStyle === MAP_STYLES.STANDARD) {
       try {
         const mapboxInternalInstance = nativeMapInstance as any;
         if (mapboxInternalInstance.setConfigProperty) {
@@ -158,7 +161,7 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
       }
     }
 
-    // Gestión de capas de edificios y relieve (DEM)
+    // Gestión de capas físicas de la malla urbana.
     try {
       if (nativeMapInstance.getLayer('building')) {
         const buildingOpacityValue = isTacticalLiteProfileActive ? 0.4 : (isSatellitePerspectiveActive ? 0 : 1.0);
@@ -178,11 +181,11 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
       }
     } catch (hardwareException) { /* Ignored */ }
 
-  }, [lightTheme, cameraPerspective, performanceProfile, mode, activeEngineVisualStyle]);
+  }, [lightTheme, cameraPerspective, performanceProfile, mode, activeMapStyle]);
 
   /**
    * renderedMarkersCollection: 
-   * [MTI]: Memorización de marcadores de sabiduría.
+   * [MTI]: Memorización de marcadores para proteger el Hilo Principal.
    */
   const renderedMarkersCollection = useMemo(() => {
     return nearbyPointsOfInterest.map((pointOfInterestEntry: PointOfInterest) => (
@@ -208,11 +211,11 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
       initialViewState={initialMapViewState}
       onLoad={onLoad}
       onIdle={onIdle}
-      onMove={onMove} // [SINCRO V20.0]: Conexión del bus de movimiento.
+      onMove={onMove}
       onStyleData={handleStyleDataAction}
       onClick={onMapClick}
       mapboxAccessToken={MAPBOX_TOKEN}
-      mapStyle={activeEngineVisualStyle || MAP_STYLES.STANDARD}
+      mapStyle={activeMapStyle || MAP_STYLES.STANDARD}
       projection={{ name: "mercator" }}
       fog={mode === 'FORGE' || performanceProfile === 'TACTICAL_LITE' || cameraPerspective === 'SATELLITE' ? null : (FOG_CONFIGURATION as any)}
       antialias={false}
