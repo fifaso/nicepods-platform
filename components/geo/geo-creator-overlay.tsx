@@ -1,15 +1,15 @@
 /**
  * ARCHIVO: components/geo/geo-creator-overlay.tsx
- * VERSIÓN: 13.0 (NicePod Sovereign Orchestrator - Passive Sync & Auto-Ignition Edition)
+ * VERSIÓN: 14.0 (NicePod Sovereign Orchestrator - Tactical Actuator Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
- * Misión: Orquestar la interfaz táctica y el ciclo de vida de los motores WebGL 
- * garantizando sintonía total. Esta versión aniquila la necesidad de ignición 
- * manual, permitiendo que la malla urbana se proyecte de forma autónoma.
- * [REFORMA V13.0]: Implementación de 'Passive Sync Protocol'. Se elimina el 
- * velo IDLE bloqueante en favor de una carga proactiva. La terminal de forja 
- * y exploración nacen sincronizadas con la semilla T0. Purificación total 
- * bajo la Zero Abbreviations Policy (ZAP).
+ * Misión: Orquestar la interfaz táctica y el mando de control visual, permitiendo 
+ * una interacción fluida con el reactor WebGL mediante un actuador contextual 
+ * que unifica el recentrado y el ciclo de perspectivas inmersivas.
+ * [REFORMA V14.0]: Implementación del 'Tactical Actuator Protocol'. Se vincula el 
+ * botón de mando único a la lógica 'executeUnifiedCommandAction' del Córtex. 
+ * Sincronización nominal total con CameraController V11.0 e InterfaceCore V4.0. 
+ * Purificación absoluta bajo la Zero Abbreviations Policy (ZAP).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -45,20 +45,21 @@ import { SpatialEngine } from "./SpatialEngine";
 
 /**
  * INTERFAZ: GeoCreatorOverlayProperties
+ * Misión: Definir el contrato de acceso para la terminal de mando visual.
  */
 interface GeoCreatorOverlayProperties {
-  /** isForgeAuthorityGranted: Nivel de acceso para alterar la Bóveda NKV. */
+  /** isForgeAuthorityGranted: Nivel de acceso para alterar la Bóveda de Sabiduría. */
   isForgeAuthorityGranted: boolean;
-  /** userIdentification: Identificador único del perito en sesión activa. */
+  /** userIdentification: Firma única del Voyager en sesión activa. */
   userIdentification: string;
 }
 
 /**
- * CreatorOverlayContent: El puente de mando táctico autónomo.
+ * CreatorOverlayContent: El puente de mando táctico con actuador unificado.
  */
 function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGranted: boolean }) {
 
-  // 1. CONSUMO DE LA FACHADA SOBERANA (Triple-Core Auto-Sincro V4.9)
+  // 1. CONSUMO DE LA FACHADA SOBERANA (Protocolo de Mando Único V4.9)
   const {
     status: engineOperationalStatus,
     data: engineOperationalData,
@@ -68,8 +69,8 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
     isGPSLock: isGlobalPositioningSystemLocked,
     cameraPerspective,
     mapStyle: activeEngineVisualStyle,
-    isManualMode,
-    toggleCameraPerspective: toggleVisualPerspectiveAction,
+    isManualModeActive, // [SINCRO V14.0]: Nomenclatura purificada.
+    executeUnifiedCommandAction, // [SINCRO V14.0]: El cerebro del botón.
     recenterCamera: recenterVisualCameraAction
   } = useGeoEngine();
 
@@ -81,10 +82,10 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
 
   /**
    * handleManualSyncAction:
-   * Misión: Forzar un refresco de sintonía si el Voyager lo solicita.
+   * Misión: Forzar un refresco de sintonía satelital.
    */
   const handleManualSyncAction = useCallback(() => {
-    nicepodLog("⚡ [Orchestrator] Solicitando refresco de enlace satelital.");
+    nicepodLog("⚡ [Orchestrator] Solicitando refresco de enlace sensorial.");
     if (typeof window !== "undefined" && navigator.vibrate) {
       navigator.vibrate(40);
     }
@@ -92,32 +93,22 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
   }, [initializeHardwareSensorsAction]);
 
   /**
-   * handleCameraCinematicAction: EL ALGORITMO DEL MANDO ÚNICO
+   * handleUnifiedTacticalAction:
+   * Misión: Ejecutar la respuesta cinemática adecuada según el contexto geodésico.
    */
-  const handleCameraCinematicAction = useCallback(() => {
-    if (!userLocation) {
-      handleManualSyncAction();
-      return;
+  const handleUnifiedTacticalAction = useCallback(() => {
+    if (typeof window !== "undefined" && navigator.vibrate) {
+      // Diferenciamos el pulso vibratorio según si es recentrado o cambio de vista.
+      navigator.vibrate(isManualModeActive ? [15, 35] : 25);
     }
-
-    if (isManualMode) {
-      nicepodLog("🎯 [Orchestrator] Recuperando foco pericial.");
-      if (typeof window !== "undefined" && navigator.vibrate) {
-        navigator.vibrate([15, 35]);
-      }
-      recenterVisualCameraAction();
-    } else {
-      nicepodLog("🎥 [Orchestrator] Rotando ciclo de perspectiva visual.");
-      if (typeof window !== "undefined" && navigator.vibrate) {
-        navigator.vibrate(25);
-      }
-      toggleVisualPerspectiveAction();
-    }
-  }, [isManualMode, userLocation, recenterVisualCameraAction, toggleVisualPerspectiveAction, handleManualSyncAction]);
+    
+    // Delegamos la decisión al Córtex de Interfaz.
+    executeUnifiedCommandAction();
+  }, [isManualModeActive, executeUnifiedCommandAction]);
 
   const toggleForgeTerminalInterfaceAction = useCallback(() => {
     if (isForgeTerminalInterfaceOpen) {
-      nicepodLog("🛡️ [Orchestrator] Restaurando malla de exploración.");
+      nicepodLog("🛡️ [Orchestrator] Restaurando malla de exploración activa.");
       forgeStateDispatcher({ type: 'RESET_FORGE' });
       setIsForgeTerminalInterfaceOpen(false);
     } else {
@@ -131,41 +122,47 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
     engineOperationalData?.dossier?.visual_analysis_dossier?.detectedOfficialName ||
     "Sintonía de Malla Activa";
 
+  /**
+   * smartButtonConfiguration:
+   * Misión: Adaptar la iconografía y el estilo según la fase cinemática.
+   */
   const smartButtonConfiguration = useMemo(() => {
-    if (isManualMode) {
+    // Si el usuario movió el mapa, el botón muestra 'Target' para recentrar.
+    if (isManualModeActive) {
       return {
         iconComponent: <Target size={22} className="animate-pulse text-primary" />,
         visualVariant: "default" as const,
-        accessibilityLabel: "Recuperar Foco Visual"
+        accessibilityLabel: "Recuperar Foco Geodésico"
       };
     }
 
+    // Si el sistema tiene el foco, el botón cicla las perspectivas.
     switch (cameraPerspective) {
       case 'STREET':
         return {
           iconComponent: <Satellite size={22} />,
           visualVariant: "resonance" as const,
-          accessibilityLabel: "Capa Satelital Fotorrealista"
+          accessibilityLabel: "Activar Capa Satelital"
         };
       case 'SATELLITE':
         return {
           iconComponent: <Layers size={22} />,
           visualVariant: "glass" as const,
-          accessibilityLabel: "Vista Estratégica"
+          accessibilityLabel: "Retornar a Vista Estratégica"
         };
       default: // OVERVIEW
         return {
           iconComponent: <Navigation2 size={22} />,
           visualVariant: "glass" as const,
-          accessibilityLabel: "Vista Inmersiva de Campo"
+          accessibilityLabel: "Iniciar Inmersión de Campo"
         };
     }
-  }, [isManualMode, cameraPerspective]);
+  }, [isManualModeActive, cameraPerspective]);
 
   return (
     <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none flex flex-col z-[100] isolate">
 
-      {/* I. REACTOR VISUAL (SIEMPRE ACTIVO TRAS T0) */}
+      {/* I. REACTOR VISUAL (ACTIVO DESDE T0) */}
       <AnimatePresence mode="popLayout">
         {!isForgeTerminalInterfaceOpen && (
           <motion.div
@@ -186,8 +183,7 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
         )}
       </AnimatePresence>
 
-      {/* II. VELO DE RESTRICCIÓN FÍSICA (PERMISOS DENEGADOS)
-          Solo aparece si el sistema falla al obtener acceso proactivo. */}
+      {/* II. VELO DE RESTRICCIÓN FÍSICA (HARDWARE BLOCK) */}
       <AnimatePresence>
         {engineOperationalStatus === 'PERMISSION_DENIED' && (
           <motion.div
@@ -201,9 +197,9 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
                 <div className="absolute inset-0 bg-red-500/20 blur-3xl" />
                 <Lock className="h-16 w-16 text-red-500 relative z-10" />
               </div>
-              <h2 className="text-white font-black uppercase tracking-[0.5em] text-[10px] mb-4">Acceso Denegado</h2>
+              <h2 className="text-white font-black uppercase tracking-[0.5em] text-[10px] mb-4">Autoridad Denegada</h2>
               <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-[0.3em] leading-relaxed mb-12">
-                La Workstation requiere autoridad sobre los sensores para el peritaje geodésico. Habilite los permisos en su dispositivo.
+                Habilite el acceso a los sensores para proyectar la malla geodésica.
               </p>
               <Button
                 onClick={handleManualSyncAction}
@@ -217,8 +213,10 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
         )}
       </AnimatePresence>
 
-      {/* III. DOCK DE COMANDO TÁCTICO */}
+      {/* III. DOCK DE COMANDO TÁCTICO (ACTION BUTTONS) */}
       <div className="absolute top-8 right-6 md:right-8 flex flex-col gap-6 z-[200] pointer-events-none">
+        
+        {/* BOTÓN DE ACCESO A LA FORJA */}
         {isForgeAuthorityGranted && (
           <Button
             onClick={toggleForgeTerminalInterfaceAction}
@@ -228,7 +226,7 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
           >
             <AnimatePresence mode="wait">
               <motion.div
-                key={isForgeTerminalInterfaceOpen ? 'close_action' : 'open_action'}
+                key={isForgeTerminalInterfaceOpen ? 'close' : 'open'}
                 initial={{ rotate: -90, opacity: 0 }}
                 animate={{ rotate: 0, opacity: 1 }}
                 exit={{ rotate: 90, opacity: 0 }}
@@ -239,16 +237,18 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
           </Button>
         )}
 
+        {/* MANDO DE UBICACIÓN Y PERSPECTIVA (UNIFIED ACTUADOR) */}
         {!isForgeTerminalInterfaceOpen && (
           <Button
-            onClick={handleCameraCinematicAction}
+            onClick={handleUnifiedTacticalAction}
             variant={smartButtonConfiguration.visualVariant}
             size="icon"
             className="rounded-full shadow-2xl transition-all duration-500 pointer-events-auto h-14 w-14"
+            title={smartButtonConfiguration.accessibilityLabel}
           >
             <AnimatePresence mode="wait">
               <motion.div
-                key={isManualMode ? 'recenter' : cameraPerspective}
+                key={isManualModeActive ? 'recenter_icon' : cameraPerspective}
                 initial={{ scale: 0.5, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 1.5, opacity: 0 }}
@@ -304,7 +304,7 @@ function CreatorOverlayContent({ isForgeAuthorityGranted }: { isForgeAuthorityGr
         )}
       </AnimatePresence>
 
-      {/* VI. BARRA DE ESTADO: SINTONÍA SOBERANA (FEEDBACK PASIVO) */}
+      {/* VI. BARRA DE ESTADO: SINTONÍA SOBERANA */}
       {!isForgeTerminalInterfaceOpen && (
         <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-[150] pointer-events-auto">
           <button
@@ -346,11 +346,11 @@ export function GeoCreatorOverlay(componentProperties: GeoCreatorOverlayProperti
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V13.0):
- * 1. Passive Sync: Se ha eliminado el bloqueo IDLE. El sistema ahora nace con la 
- *    proyección de Madrid activa desde la semilla T0.
- * 2. Permission Shield: El velo informativo solo se activa ante una negación 
- *    física de permisos, elevando la UX al estándar industrial.
- * 3. Status Intelligence: La barra inferior ahora proporciona feedback granular 
- *    sobre la fuente de verdad (Red vs GPS HD) sin interrumpir la exploración.
+ * NOTA TÉCNICA DEL ARCHITECT (V14.0):
+ * 1. Unified Actuator: El botón de mando único ahora invoca 'executeUnifiedCommandAction', 
+ *    centralizando la decisión cinemática en el motor de interfaz.
+ * 2. Iconography Intelligence: El 'smartButtonConfiguration' reacciona al estado manual 
+ *    y a la perspectiva actual para ofrecer una UX predictiva.
+ * 3. ZAP Enforcement: Purificación nominal total. Se eliminaron abreviaciones como 
+ *    'isManualMode' (ahora 'isManualModeActive') y se refinaron los descriptores de eventos.
  */
