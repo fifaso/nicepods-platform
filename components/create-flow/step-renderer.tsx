@@ -1,14 +1,14 @@
 /**
  * ARCHIVO: components/create-flow/step-renderer.tsx
- * VERSIÓN: 7.0 (NicePod Master View Orchestrator - BSS Final Seal Edition)
+ * VERSIÓN: 8.0 (NicePod Master View Orchestrator - Industrial FSM Synchronization)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * Misión: Orquestar la visualización determinista de las fases de creación de capital 
- * intelectual, garantizando la compatibilidad absoluta entre el flujo de datos 
- * procesado, la máquina de estados finitos (FSM) y la interfaz de hardware.
- * [REFORMA V7.0]: Resolución definitiva de TS2322 (PurposeSelectionStep sync). 
- * Erradicación total de 'as any' en 'DraftGenerationLoader'. 
- * Sincronización nominal absoluta bajo la Zero Abbreviations Policy (ZAP).
+ * intelectual, garantizando la compatibilidad absoluta entre la máquina de estados 
+ * finitos (FSM) y la interfaz de hardware.
+ * [REFORMA V8.0]: Resolución definitiva de TS2678 y TS2353. Sincronización nominal 
+ * absoluta con 'FlowState' V4.0 y 'useFlowNavigation' V3.0. Aplicación integral 
+ * de la Zero Abbreviations Policy (ZAP) y Build Shield Sovereignty.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -53,19 +53,20 @@ import { DetailsStep } from "./steps/details-step";
 import { DraftGenerationLoader } from "./steps/draft-generation-loader";
 import { FinalStep } from "./steps/final-step";
 import { ToneSelectionStep } from "./steps/tone-selection-step";
+import { DiscoveryResultStep } from "./steps/discovery-result-step";
 
 /**
  * ScriptEditorStep: Carga diferida estratégica para optimizar el presupuesto 
- * de memoria del Hilo Principal (Main Thread).
+ * de memoria del Hilo Principal (MTI Isolation).
  */
 const ScriptEditorStep = dynamic(
   () => import('./steps/script-editor-step').then((module) => module.ScriptEditorStep),
   {
     ssr: false,
     loading: () => (
-      <div className="h-full w-full flex flex-col items-center justify-center space-y-10 opacity-40 isolate">
-        <div className="h-14 w-14 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-primary italic">
+      <div className="h-full w-full flex flex-col items-center justify-center space-y-12 opacity-30 isolate">
+        <div className="h-16 w-16 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+        <span className="text-[10px] font-black uppercase tracking-[0.6em] text-primary italic">
           Sincronizando Terminal Editorial...
         </span>
       </div>
@@ -77,83 +78,97 @@ const ScriptEditorStep = dynamic(
  * INTERFAZ: StepRendererProperties
  */
 interface StepRendererProperties {
+  /** narrativeOptionsCollection: Ramificaciones narrativas generadas por el Oráculo. */
   narrativeOptionsCollection: NarrativeOption[];
+  /** initialDraftsCollection: Sesiones de inteligencia recuperadas del Metal. */
   initialDraftsCollection: DraftRow[];
 }
 
 /**
- * StepRenderer: El Reactor de Vistas Maestro para la forja de capital intelectual.
+ * StepRenderer: El Reactor de Vistas Maestro de la forja.
  */
 export function StepRenderer({ 
   narrativeOptionsCollection, 
   initialDraftsCollection 
 }: StepRendererProperties) {
   
-  const creationContext = useCreationContext();
-  const { currentFlowState } = creationContext;
+  // 1. CONSUMO DEL CONTEXTO DE SOBERANÍA Y FORMULARIO
+  const creationContextReference = useCreationContext();
+  const { currentFlowState } = creationContextReference;
   
   const { watch, setValue } = useFormContext<PodcastCreationData>();
-  const creationFormData = watch();
-
-  const navigationAuthority = useFlowNavigation({
-    ...creationContext,
-    currentPurpose: creationFormData.purpose
-  });
-
-  const { transitionTo: executeStateTransitionAction, activePath: activePathCollection } = navigationAuthority;
-
-  const [isAcousticProcessingProcessActive, setIsAcousticProcessingProcessActive] = useState<boolean>(false);
+  const creationFormDataSnapshot = watch();
 
   /**
-   * navigateToNextStepSovereignAction:
+   * navigationAuthority:
+   * [SINCRO V8.0 - RESOLUCIÓN TS2353]: Uso de 'currentMissionPurposeIdentification'.
+   */
+  const navigationAuthority = useFlowNavigation({
+    currentMissionPurposeIdentification: creationFormDataSnapshot.purpose
+  });
+
+  const { 
+    transitionTo: executeStateTransitionAction, 
+    activePath: activeMasterFlowPathCollection 
+  } = navigationAuthority;
+
+  // 2. ESTADOS DE PROCESAMIENTO ACÚSTICO
+  const [isAcousticCaptureProcessActive, setIsAcousticCaptureProcessActive] = useState<boolean>(false);
+
+  /**
+   * navigateToNextPhaseSovereignAction:
    * Misión: Calcular y ejecutar la transición cinemática hacia el siguiente hito.
    */
-  const navigateToNextStepSovereignAction = useCallback(() => {
-    const currentStepIndexMagnitude = activePathCollection.indexOf(currentFlowState);
+  const navigateToNextPhaseSovereignAction = useCallback(() => {
+    const currentPhaseIndexMagnitude = activeMasterFlowPathCollection.indexOf(currentFlowState);
     
-    if (currentStepIndexMagnitude !== -1 && currentStepIndexMagnitude < activePathCollection.length - 1) {
-      const nextStepStateDescriptor = activePathCollection[currentStepIndexMagnitude + 1];
-      executeStateTransitionAction(nextStepStateDescriptor);
+    if (currentPhaseIndexMagnitude !== -1 && currentPhaseIndexMagnitude < activeMasterFlowPathCollection.length - 1) {
+      const nextPhaseFlowStateDescriptor = activeMasterFlowPathCollection[currentPhaseIndexMagnitude + 1];
+      executeStateTransitionAction(nextPhaseFlowStateDescriptor);
+    } else {
+      nicepodLog("🚩 [Step-Renderer] Trayectoria finalizada o estado fuera de malla.", null, 'warn');
     }
-  }, [activePathCollection, currentFlowState, executeStateTransitionAction]);
+  }, [activeMasterFlowPathCollection, currentFlowState, executeStateTransitionAction]);
 
   /**
    * handleAcousticChronicleCaptureAction:
-   * Misión: Recibir el binario acústico y sellar el dossier en el motor de formulario.
+   * Misión: Recibir el binario del hardware y sellar el dossier en el formulario.
    */
   const handleAcousticChronicleCaptureAction = useCallback(async (
     capturedAudioBinaryBlob: Blob, 
     capturedDurationSecondsMagnitude: number
   ) => {
-    setIsAcousticProcessingProcessActive(true);
+    setIsAcousticCaptureProcessActive(true);
+    nicepodLog(`🎙️ [Step-Renderer] Captura completada: ${capturedDurationSecondsMagnitude}s`);
     
     try {
-      // Sincronización con descriptores nominales de PodcastCreationSchema V12.0
-      // Nota: Si el esquema usa otros nombres, deben coincidir aquí.
-      setValue('userEmotionalReactionContent', 'Captura Acústica Finalizada'); 
-      
-      navigateToNextStepSovereignAction();
-    } catch (operationalHardwareException) {
-      nicepodLog("🔥 [StepRenderer] Fallo al procesar binario acústico.", operationalHardwareException, 'error');
+      // Inyección de telemetría acústica en el Cristal
+      setValue('userEmotionalReactionContent', `Voz capturada: ${capturedDurationSecondsMagnitude}s`);
+      navigateToNextPhaseSovereignAction();
+    } catch (hardwareOperationException) {
+      nicepodLog("🔥 [Step-Renderer] Fallo al procesar binario acústico.", hardwareOperationException, 'error');
     } finally {
-      setIsAcousticProcessingProcessActive(false);
+      setIsAcousticCaptureProcessActive(false);
     }
-  }, [setValue, navigateToNextStepSovereignAction]);
+  }, [setValue, navigateToNextPhaseSovereignAction]);
 
   /**
-   * activeStepContentComponent:
-   * [RESOLUCIÓN TS2322]: Alineación estricta de propiedades para PurposeSelectionStep.
+   * activeStepComponentMarkup:
+   * [SINCRO V8.0 - RESOLUCIÓN TS2678]: Mapeo determinista utilizando los 
+   * identificadores purificados de la máquina de estados industriales.
    */
-  const activeStepContentComponent = useMemo(() => {
+  const activeStepComponentMarkup = useMemo(() => {
     switch (currentFlowState) {
       case 'SELECTING_PURPOSE':
         return <PurposeSelectionStep existingDraftsCollection={initialDraftsCollection} />;
 
-      case 'DNA_CHECK':
+      case 'DEOXYRIBONUCLEIC_ACID_SYNTHTESIS_CHECK':
         return <DnaInterviewStep />;
-      case 'PULSE_RADAR':
+      
+      case 'PULSE_RADAR_SCANNER':
         return <PulseRadarStep />;
-      case 'BRIEFING_SANITIZATION':
+      
+      case 'BRIEFING_SANITIZATION_REVIEW':
         return <ScriptEditorStep />;
 
       case 'LOCAL_DISCOVERY_STEP':
@@ -161,71 +176,79 @@ export function StepRenderer({
 
       case 'LOCAL_ANALYSIS_LOADER':
       case 'LOCAL_RESULT_STEP':
-        return <GeographicScannerUserInterface />;
+        return <DiscoveryResultStep />;
       
-      case 'GEO_RECORDER_STEP':
+      case 'GEODETIC_ACUSTIC_RECORDER_STEP':
         return (
           <GeoRecorder
             mode="CHRONICLE"
-            narrativeScriptContent={creationFormData.finalScriptContent || ""}
-            isExternalProcessActive={isAcousticProcessingProcessActive}
+            narrativeScriptContent={creationFormDataSnapshot.finalScriptContent || ""}
+            isExternalProcessActive={isAcousticCaptureProcessActive}
             onCaptureCompletionAction={handleAcousticChronicleCaptureAction}
           />
         );
 
-      case 'LEARN_SUB_SELECTION': return <LearnSubStep />;
-      case 'SOLO_TALK_INPUT': return <SoloTalkStep />;
-      case 'INSPIRE_SUB_SELECTION': return <InspireSubStep />;
-      case 'LINK_POINTS_INPUT': return <LinkPointsStep />;
-      case 'NARRATIVE_SELECTION':
+      case 'LEARN_SUB_CATEGORY_SELECTION': return <LearnSubStep />;
+      case 'SOLO_TALK_INPUT_FIELD': return <SoloTalkStep />;
+      case 'INSPIRE_SUB_CATEGORY_SELECTION': return <InspireSubStep />;
+      case 'LINK_POINTS_INPUT_FORM': return <LinkPointsStep />;
+      
+      case 'NARRATIVE_SELECTION_BRANCHING':
         return <NarrativeSelectionStep narrativeOptions={narrativeOptionsCollection} />;
-      case 'LEGACY_INPUT': return <LegacyStep />;
+      
+      case 'LEGACY_LESSON_INPUT': return <LegacyStep />;
 
-      case 'DETAILS_STEP': return <DetailsStep />;
-      case 'TONE_SELECTION': return <ToneSelectionStep />;
+      case 'TECHNICAL_DETAILS_STEP': return <DetailsStep />;
+      case 'AGENT_TONE_SELECTION': return <ToneSelectionStep />;
       
       case 'DRAFT_GENERATION_LOADER':
-        // [RESOLUCIÓN BSS]: Eliminación de 'as any'. Uso de tipado estricto.
-        return <DraftGenerationLoader formData={creationFormData} />;
+        return <DraftGenerationLoader formData={creationFormDataSnapshot} />;
         
-      case 'SCRIPT_EDITING': return <ScriptEditorStep />;
-      case 'AUDIO_STUDIO_STEP': return <AudioStudio />;
-      case 'FINAL_STEP': return <FinalStep />;
+      case 'SCRIPT_EDITING_CANVAS': return <ScriptEditorStep />;
+      case 'AUDIO_STUDIO_CALIBRATION': return <AudioStudio />;
+      case 'FINAL_MANIFESTO_STEP': return <FinalStep />;
 
-      case 'QUESTION_INPUT': return <QuestionStep />;
-      case 'FREESTYLE_SELECTION': return <StyleSelectionStep />;
+      case 'SPECIFIC_QUESTION_INPUT': return <QuestionStep />;
+      case 'FREESTYLE_MODE_SELECTION': return <StyleSelectionStep />;
 
       default:
         return (
-          <div className="h-full flex flex-col items-center justify-center space-y-12 py-32 opacity-40 isolate">
-            <div className="relative h-16 w-16">
+          <div className="h-full flex flex-col items-center justify-center space-y-16 py-40 opacity-30 isolate grayscale">
+            <div className="relative h-20 w-20">
               <div className="absolute inset-0 bg-primary/20 blur-3xl animate-pulse rounded-full" />
               <div className="h-full w-full border-2 border-primary/40 border-t-primary rounded-full animate-spin" />
             </div>
-            <p className="font-black uppercase tracking-[0.8em] text-[10px] text-zinc-600 italic text-center">
+            <p className="font-black uppercase tracking-[1em] text-[10px] text-zinc-600 italic text-center">
               Sincronizando Malla de Inteligencia
             </p>
           </div>
         );
     }
-  }, [currentFlowState, creationFormData, narrativeOptionsCollection, initialDraftsCollection, isAcousticProcessingProcessActive, handleAcousticChronicleCaptureAction]);
+  }, [
+    currentFlowState, 
+    creationFormDataSnapshot, 
+    narrativeOptionsCollection, 
+    initialDraftsCollection, 
+    isAcousticCaptureProcessActive, 
+    handleAcousticChronicleCaptureAction
+  ]);
 
   return (
     <div className="relative flex-1 flex flex-col min-h-0 w-full overflow-hidden isolate">
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={currentFlowState}
-          initial={{ opacity: 0, x: 20 }}
+          initial={{ opacity: 0, x: 30 }}
           animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -20 }}
+          exit={{ opacity: 0, x: -30 }}
           transition={{
-            duration: 0.6,
+            duration: 0.7,
             ease: [0.16, 1, 0.3, 1] 
           }}
-          className="flex-1 flex flex-col min-h-0 h-full"
+          className="flex-1 flex flex-col min-h-0 h-full isolate"
         >
-          <div className="flex-1 overflow-y-auto custom-scrollbar-hide px-4 md:px-0 transition-all duration-700">
-            {activeStepContentComponent}
+          <div className="flex-1 overflow-y-auto no-scrollbar px-4 md:px-0 transition-all duration-700 isolate">
+            {activeStepComponentMarkup}
           </div>
         </motion.div>
       </AnimatePresence>
@@ -234,11 +257,13 @@ export function StepRenderer({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V7.0):
- * 1. Build Shield Absolute: Resolución del error TS2322 mediante el uso de la 
- *    propiedad 'existingDraftsCollection' en PurposeSelectionStep.
- * 2. Type Sovereignty: Erradicación de 'as any' en DraftGenerationLoader mediante 
- *    la importación y aplicación del tipo PodcastCreationData.
- * 3. ZAP Compliance: Purificación nominal total de las funciones de captura y 
- *    navegación (navigateToNextStepSovereignAction, handleAcousticChronicleCaptureAction).
+ * NOTA TÉCNICA DEL ARCHITECT (V8.0):
+ * 1. Build Shield Sovereignty: Resolución definitiva de TS2678 mediante la 
+ *    sincronización con los nuevos estados purificados (ZAP) de 'FlowState'.
+ * 2. Contract Restoration: Resolución de TS2353 mediante el uso del parámetro 
+ *    'currentMissionPurposeIdentification' en el motor de navegación.
+ * 3. Zero Abbreviations Policy (ZAP): Purificación total. 'res' -> 'Markup', 
+ *    'step' -> 'phase', 'e' -> 'event', 'data' -> 'snapshot'.
+ * 4. UX Kinematics: El incremento del desplazamiento horizontal en motion.div (x: 30) 
+ *    proporciona una sensación de avance industrial más definida durante las transiciones.
  */
