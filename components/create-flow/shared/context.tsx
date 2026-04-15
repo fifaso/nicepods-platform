@@ -1,14 +1,14 @@
 /**
  * ARCHIVO: components/create-flow/shared/context.tsx
- * VERSIÓN: 5.0 (NicePod Creation Context - Sinaptic Synchronization Edition)
+ * VERSIÓN: 6.0 (NicePod Creation Context - Industrial Sync Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
- * Misión: Actuar como el sistema nervioso central de la forja de capital intelectual, 
- * orquestando el estado de navegación, la telemetría de progreso y la sincronía 
- * de datos entre el hardware y el Oráculo de IA.
- * [REFORMA V5.0]: Sincronización absoluta con 'CreationContextType' V4.0. 
- * Resolución definitiva de errores TS2339 y TS2551 mediante el mapeo de 
- * descriptores industriales (transitionToNextStateAction, navigateBackAction).
+ * Misión: Actuar como el sistema nervioso central de la terminal de forja, 
+ * orquestando la navegación axial, la telemetría de progreso y la sincronía 
+ * de datos entre el hardware, el formulario y el Oráculo de Inteligencia.
+ * [REFORMA V6.0]: Resolución definitiva de TS2353 y TS2322. Sincronización nominal 
+ * absoluta con 'useFlowNavigation' V3.0 y 'CreationContextType' V4.0. 
+ * Aplicación integral de la Zero Abbreviations Policy (ZAP).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -22,38 +22,44 @@ import { CreationContextType } from "./types";
 
 /**
  * CreationContext
- * Misión: Punto de unión para el estado de navegación y metadatos de creación.
+ * Misión: Punto de unión soberano para el estado de navegación y metadatos.
  * Se inicializa como 'undefined' para forzar el cumplimiento del Build Shield (BSS).
  */
 export const CreationContext = createContext<CreationContextType | undefined>(undefined);
 
 /**
  * CreationProvider
- * Componente orquestador que envuelve el flujo de creación IA.
+ * Componente orquestador que envuelve la malla de creación de capital intelectual.
  */
 export function CreationProvider({ children }: { children: React.ReactNode }) {
   // Consumo del motor de formularios bajo el esquema purificado V12.0
   const { watch, setValue } = useFormContext<PodcastCreationData>();
 
   /** 
-   * currentPurposeSelection: Observamos la intención para que el motor de 
-   * navegación determine la trayectoria lógica (Master Flow Paths).
+   * currentMissionPurposeIdentification: Observamos la intención para determinar 
+   * la trayectoria lógica en el motor de navegación.
    */
-  const currentPurposeSelection = watch("purpose");
+  const currentMissionPurposeIdentification = watch("purpose");
 
-  // 1. INICIALIZACIÓN DE LA AUTORIDAD DE NAVEGACIÓN
-  const navigationAuthority = useFlowNavigation({ currentPurpose: currentPurposeSelection });
+  /**
+   * navigationSovereignAuthority:
+   * [RESOLUCIÓN TS2353]: Invocación al motor V3.0 utilizando el descriptor nominal 
+   * purificado 'currentMissionPurposeIdentification'.
+   */
+  const navigationSovereignAuthority = useFlowNavigation({ 
+    currentMissionPurposeIdentification 
+  });
 
-  // 2. ESTADOS DE PROCESAMIENTO DE INTELIGENCIA (ZAP COMPLIANT)
+  // ESTADOS DE PROCESAMIENTO DE INTELIGENCIA (ZAP COMPLIANT)
   const [isGeneratingScriptProcessActive, setIsGeneratingScriptProcessActive] = useState<boolean>(false);
 
   /**
    * updatePodcastCreationFormData:
-   * Misión: Sincronizar datos externos (IDs de borrador o peritajes del Oráculo)
-   * con el almacén central de React Hook Form de forma atómica.
+   * Misión: Sincronizar datos del Oráculo con el almacén central de React Hook Form.
+   * [ZAP]: 'data' -> 'partialFormDataPayload'.
    */
-  const updatePodcastCreationFormData = useCallback((partialFormData: Partial<PodcastCreationData>) => {
-    Object.entries(partialFormData).forEach(([fieldKey, fieldValue]) => {
+  const updatePodcastCreationFormData = useCallback((partialFormDataPayload: Partial<PodcastCreationData>) => {
+    Object.entries(partialFormDataPayload).forEach(([fieldKey, fieldValue]) => {
       setValue(fieldKey as any, fieldValue, {
         shouldValidate: true,
         shouldDirty: true,
@@ -64,32 +70,40 @@ export function CreationProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * contextValue:
-   * [RESOLUCIÓN TS2339 / TS2551]: Mapeo explícito entre la lógica interna y 
-   * el contrato industrial purificado en 'shared/types.ts'.
+   * [RESOLUCIÓN TS2322]: Mapeo explícito de las métricas de progreso hacia 
+   * el contrato industrial purificado de 'CreationContextType'.
    */
   const contextValue: CreationContextType = useMemo(() => ({
     // I. Gobernanza de Navegación Axial
-    currentFlowState: navigationAuthority.currentFlowState,
-    navigationHistoryStack: navigationAuthority.history,
+    currentFlowState: navigationSovereignAuthority.currentFlowState,
+    navigationHistoryStack: navigationSovereignAuthority.history,
     
     // II. Motores de Transición de Fase
-    transitionToNextStateAction: navigationAuthority.transitionTo,
-    jumpToStepAction: navigationAuthority.jumpToStep,
-    navigateBackAction: navigationAuthority.goBack,
+    transitionToNextStateAction: navigationSovereignAuthority.transitionTo,
+    jumpToStepAction: navigationSovereignAuthority.jumpToStep,
+    navigateBackAction: navigationSovereignAuthority.goBack,
 
     // III. Sincronía de Trayectoria Maestra
-    getMasterFlowPathCollection: () => navigationAuthority.activePath,
+    getMasterFlowPathCollection: () => navigationSovereignAuthority.activePath,
 
-    // IV. Telemetría de Progreso para el Cristal (UI)
-    creationProcessProgressMetrics: navigationAuthority.progressMetrics,
+    /**
+     * creationProcessProgressMetrics:
+     * [SINCRO V6.0]: Mapeo pericial de telemetría para el Cristal (UI).
+     */
+    creationProcessProgressMetrics: {
+      currentStepMagnitude: navigationSovereignAuthority.progressMetrics.currentStepMagnitude,
+      totalStepsMagnitude: navigationSovereignAuthority.progressMetrics.totalStepsMagnitude,
+      completionPercentageValue: navigationSovereignAuthority.progressMetrics.completionPercentageValue,
+      isInitialPhaseStatus: navigationSovereignAuthority.progressMetrics.isInitialPhaseStatus
+    },
 
-    // V. Monitoreo de Procesamiento IA
+    // IV. Monitoreo de Procesamiento IA
     isGeneratingScriptProcessActive,
     setGeneratingScriptProcessActiveStatus: setIsGeneratingScriptProcessActive,
 
-    // VI. Gestión de Datos de la Forja
+    // V. Gestión de Datos de la Forja
     updatePodcastCreationFormData,
-  }), [navigationAuthority, isGeneratingScriptProcessActive, updatePodcastCreationFormData]);
+  }), [navigationSovereignAuthority, isGeneratingScriptProcessActive, updatePodcastCreationFormData]);
 
   return (
     <CreationContext.Provider value={contextValue}>
@@ -100,8 +114,8 @@ export function CreationProvider({ children }: { children: React.ReactNode }) {
 
 /**
  * useCreationContext
- * Misión: Hook de acceso soberano para todos los sub-componentes del flujo.
- * Implementa una guardia de arquitectura para prevenir colisiones en el árbol de React.
+ * Misión: Hook de acceso soberano para los sub-componentes de la forja.
+ * Implementa una guardia de arquitectura Senior para prevenir usos huérfanos.
  */
 export const useCreationContext = () => {
   const contextReference = useContext(CreationContext);
@@ -109,7 +123,7 @@ export const useCreationContext = () => {
   if (contextReference === undefined) {
     throw new Error(
       "CRITICAL_INFRASTRUCTURE_ERROR: 'useCreationContext' invocado fuera de un 'CreationProvider'. " +
-      "La integridad de la terminal de forja ha sido comprometida."
+      "La integridad del sistema nervioso de la forja ha sido comprometida."
     );
   }
 
@@ -117,11 +131,12 @@ export const useCreationContext = () => {
 };
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V5.0):
- * 1. Build Shield Sovereignty: Se eliminaron las interfaces internas duplicadas, 
- *    centralizando la verdad en 'shared/types.ts'.
- * 2. ZAP Alignment: Purificación total de descriptores nominales. Se han 
- *    erradicado términos como 'navigation', 'data' o 'percent'.
- * 3. Error Resolution: Al mapear 'transitionToNextStateAction' desde la autoridad 
- *    de navegación, se resuelven los errores de propiedad inexistente en los pasos hijos.
+ * NOTA TÉCNICA DEL ARCHITECT (V6.0):
+ * 1. Build Shield Final Restoration: Resolución definitiva de TS2353 sincronizando 
+ *    la interfaz de entrada con 'useFlowNavigation' V3.0.
+ * 2. ZAP Absolute Compliance: Purificación total. Se han eliminado abreviaciones 
+ *    como 'navigation', 'data' o 'percent' en favor de descriptores industriales.
+ * 3. Contractual Symmetry: El mapeo explícito de 'creationProcessProgressMetrics' 
+ *    aniquila el error TS2322 al asegurar que todas las propiedades requeridas 
+ *    por el contrato industrial estén presentes y tipadas.
  */
