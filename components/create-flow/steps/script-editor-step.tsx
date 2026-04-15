@@ -1,13 +1,12 @@
 /**
  * ARCHIVO: components/create-flow/steps/script-editor-step.tsx
- * VERSIÓN: 8.0 (NicePod Script Editor - Industrial Accuracy Edition)
+ * VERSIÓN: 9.0 (NicePod Script Editor - Structural Integrity Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * Misión: Renderizar la narrativa con legibilidad industrial y sincronía absoluta 
  * con el hardware de síntesis neuronal, permitiendo la edición de alto nivel.
- * [REFORMA V8.0]: Resolución definitiva de TS2769, TS2339 y TS2322. 
- * Sincronización nominal con 'finalScriptContent' y 'sourcesCollection' V12.0. 
- * Aplicación integral de la Zero Abbreviations Policy (ZAP).
+ * [REFORMA V9.0]: Suture of missing UI imports (Badge, Input, Form) and AnimatePresence.
+ * Nominal alignment with ResearchSource V13.0 descriptors.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -15,7 +14,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useFormContext } from "react-hook-form";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Pencil,
   ExternalLink,
@@ -33,6 +32,13 @@ import Placeholder from '@tiptap/extension-placeholder';
 import { PodcastCreationData } from "@/lib/validation/podcast-schema";
 import { ResearchSource } from "@/types/podcast";
 import { classNamesUtility } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  FormField,
+  FormItem,
+  FormControl
+} from "@/components/ui/form";
 
 /**
  * INTERFAZ: SourceItemProperties
