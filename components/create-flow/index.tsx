@@ -1,14 +1,14 @@
 /**
  * ARCHIVO: components/create-flow/index.tsx
- * VERSIÓN: 55.0 (NicePod Master Orchestrator - Strict Nominal Sync Edition)
+ * VERSIÓN: 56.0 (NicePod Master Orchestrator - Industrial Actuator Sync Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * Misión: Orquestar el flujo de creación de capital intelectual, garantizando la 
  * validación técnica de cada fase y la sincronía absoluta entre el motor de 
- * formularios y la terminal de hardware.
- * [REFORMA V55.0]: Resolución definitiva de TS2339 y TS2551. 
- * Sincronización nominal con 'useFlowActions' V7.0 y 'PodcastCreationSchema' V12.0.
- * Erradicación total de tipos 'any' y cumplimiento absoluto de la ZAP.
+ * formularios, la autoridad de navegación y el chasis visual.
+ * [REFORMA V56.0]: Resolución definitiva de TS2339, TS2678 y TS2322. 
+ * Sincronización nominal absoluta con 'useFlowNavigation' V3.0 y 'LayoutShell' V7.0.
+ * Erradicación total de tipos 'any' y cumplimiento estricto de la ZAP.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -33,113 +33,117 @@ import { StepRenderer } from "./step-renderer";
  * INTERFAZ: PodcastCreationOrchestratorProperties
  */
 interface PodcastCreationOrchestratorProperties {
-  /** initialDraftsCollection: Colección de borradores existentes recuperados del Metal. */
+  /** initialDraftsCollection: Colección de sesiones recuperadas del Metal. */
   initialDraftsCollection?: DraftRow[];
 }
 
 /**
- * InnerOrchestrator: El motor interno de gestión de estados y validación por fase técnica.
+ * InnerOrchestrator: El motor de decisión y validación de fase técnica.
  */
 function InnerOrchestrator({ 
   initialDraftsCollection = [] 
 }: { 
   initialDraftsCollection: DraftRow[] 
 }) {
-  const { toast } = useToast();
+  const { toast: userNotificationToast } = useToast();
   
-  // Extraemos herramientas de gestión de formulario bajo nomenclatura industrial
+  /** Consumo de herramientas de formulario bajo tipado estricto BSS */
   const { 
     trigger: triggerFieldValidationAction, 
     watch: watchFormFieldAction, 
     reset: resetFormOrchestrationAction 
   } = useFormContext<PodcastCreationData>();
 
+  /** 
+   * [SINCRO V56.0 - RESOLUCIÓN TS2339]: 
+   * Consumo del sistema nervioso purificado (Context V5.0).
+   */
   const {
     currentFlowState,
-    transitionTo: transitionToNextStateAction,
-    goBack: navigateToPreviousStateAction,
-    progressMetrics,
-    isGeneratingScript
+    transitionToNextStateAction,
+    navigateBackAction,
+    creationProcessProgressMetrics,
+    isGeneratingScriptProcessActive
   } = useCreationContext();
 
   const currentSelectionPurposeIdentification = watchFormFieldAction("purpose");
   const [narrativeOptionsCollection, setNarrativeOptionsCollection] = useState<NarrativeOption[]>([]);
 
   /**
-   * flowActionsAuthority:
-   * [SINCRO V55.0]: Vinculación con los métodos purificados del hook V7.0.
+   * flowActionsAuthority: Actuadores de persistencia y producción (V7.0).
    */
   const flowActionsAuthority = useFlowActions({
     transitionTo: transitionToNextStateAction,
-    goBack: navigateToPreviousStateAction,
+    goBack: navigateBackAction,
     clearDraft: () => resetFormOrchestrationAction()
   });
 
-  /**
-   * currentActiveFlowPathCollection:
-   * Misión: Determinar la trayectoria lógica basándose en el propósito del curador.
-   */
+  /** Determinar la trayectoria maestra basada en la intención */
   const currentActiveFlowPathCollection = useMemo(() => {
     return MASTER_FLOW_PATHS[currentSelectionPurposeIdentification] || MASTER_FLOW_PATHS.learn;
   }, [currentSelectionPurposeIdentification]);
 
   /**
    * handleValidatedNextStepAction:
-   * Misión: Ejecutar la validación técnica del paso actual antes de permitir el avance.
-   * [SINCRO V55.0]: Se actualizan las claves de campo para coincidir con el esquema ZAP.
+   * Misión: Validar la integridad de los datos antes de la transición cinemática.
+   * [RESOLUCIÓN TS2678]: Uso de identificadores industriales purificados.
    */
   const handleValidatedNextStepAction = useCallback(async () => {
-    const currentFlowStateDescriptor = currentFlowState;
+    const currentPhaseDescriptor = currentFlowState;
     
     let fieldsToValidateCollection: (keyof PodcastCreationData)[] = [];
     
-    switch (currentFlowStateDescriptor) {
-      case 'SOLO_TALK_INPUT': 
+    // Mapeo de auditoría por hito de navegación [ZAP V12.0 Schema]
+    switch (currentPhaseDescriptor) {
+      case 'SOLO_TALK_INPUT_FIELD': 
         fieldsToValidateCollection = ['soloTopicSelection', 'soloMotivationContentText'];
         break;
-      case 'DETAILS_STEP': 
+      case 'TECHNICAL_DETAILS_STEP': 
         fieldsToValidateCollection = ['durationSelection', 'narrativeDepthLevel']; 
         break;
-      case 'TONE_SELECTION': 
+      case 'AGENT_TONE_SELECTION': 
         fieldsToValidateCollection = ['agentName']; 
         break;
-      case 'SCRIPT_EDITING': 
+      case 'SCRIPT_EDITING_CANVAS': 
         fieldsToValidateCollection = ['finalTitle', 'finalScriptContent'];
         break;
     }
 
-    const isCurrentStepValidationSuccessful = fieldsToValidateCollection.length > 0 
+    const isCurrentPhaseValidationSuccessful = fieldsToValidateCollection.length > 0 
         ? await triggerFieldValidationAction(fieldsToValidateCollection) 
         : true;
 
-    if (isCurrentStepValidationSuccessful) {
-      const currentStepIndexMagnitude = currentActiveFlowPathCollection.indexOf(currentFlowStateDescriptor);
+    if (isCurrentPhaseValidationSuccessful) {
+      const currentStepIndexMagnitude = currentActiveFlowPathCollection.indexOf(currentPhaseDescriptor);
       
       if (currentStepIndexMagnitude !== -1 && (currentStepIndexMagnitude + 1) < currentActiveFlowPathCollection.length) {
         transitionToNextStateAction(currentActiveFlowPathCollection[currentStepIndexMagnitude + 1]);
       }
     } else {
-      toast({ 
-        title: "Integridad de Datos Insuficiente", 
-        description: "Complete los campos obligatorios para continuar con la forja.",
+      userNotificationToast({ 
+        title: "Integridad Insuficiente", 
+        description: "Complete los parámetros obligatorios de esta fase para continuar.",
         variant: "destructive" 
       });
     }
-  }, [currentFlowState, triggerFieldValidationAction, toast, currentActiveFlowPathCollection, transitionToNextStateAction]);
+  }, [currentFlowState, triggerFieldValidationAction, userNotificationToast, currentActiveFlowPathCollection, transitionToNextStateAction]);
 
+  /**
+   * [RESOLUCIÓN TS2322]: Alineación de propiedades con LayoutShell V7.0.
+   */
   return (
     <LayoutShell
-      onNext={handleValidatedNextStepAction}
-      onDraft={flowActionsAuthority.generateDraft}
-      onProduce={flowActionsAuthority.handleSubmitProduction}
-      onAnalyzeLocal={flowActionsAuthority.analyzeLocalEnvironment}
-      isGenerating={isGeneratingScript || flowActionsAuthority.isGenerating}
-      isSubmitting={flowActionsAuthority.isSubmitting}
-      progress={progressMetrics}
+      onExecuteNextStepAction={handleValidatedNextStepAction}
+      onExecuteSaveDraftAction={flowActionsAuthority.generateDraft}
+      onExecuteProductionAction={flowActionsAuthority.handleSubmitProduction}
+      onExecuteLocalAnalysisAction={flowActionsAuthority.analyzeLocalEnvironment}
+      isGeneratingProcessActive={isGeneratingScriptProcessActive || flowActionsAuthority.isGenerating}
+      isSubmittingProcessActive={flowActionsAuthority.isSubmitting}
+      progressTelemetry={creationProcessProgressMetrics}
     >
       {/* 
-          [FIX V55.0]: Eliminación de 'any'. 
-          Los tipos NarrativeOption[] y DraftRow[] ahora están sincronizados.
+          [BSS Final Seal]: Eliminación de 'as any'. 
+          Los contratos de NarrativeOption[] y DraftRow[] están sincronizados.
       */}
       <StepRenderer
         narrativeOptionsCollection={narrativeOptionsCollection}
@@ -150,21 +154,21 @@ function InnerOrchestrator({
 }
 
 /**
- * PodcastCreationOrchestrator: El punto de entrada soberano para la forja de capital intelectual.
+ * PodcastCreationOrchestrator: El punto de entrada soberano para la forja.
  */
 export default function PodcastCreationOrchestrator({ 
   initialDraftsCollection = [] 
 }: PodcastCreationOrchestratorProperties) {
   
-  const [isComponentMounted, setIsComponentMounted] = useState<boolean>(false);
+  const [isComponentMountedStatus, setIsComponentMountedStatus] = useState<boolean>(false);
 
   useEffect(() => {
-    setIsComponentMounted(true);
+    setIsComponentMountedStatus(true);
   }, []);
 
   /**
    * formOrchestrationMethods:
-   * [SINCRO V55.0]: DefaultValues alineados con el esquema PodcastCreationSchema V12.0.
+   * [SINCRO V56.0]: Inicialización alineada con 'PodcastCreationSchema' V12.0.
    */
   const formOrchestrationMethods = useForm<PodcastCreationData>({
     resolver: zodResolver(PodcastCreationSchema),
@@ -181,7 +185,7 @@ export default function PodcastCreationOrchestrator({
     }
   });
 
-  if (!isComponentMounted) {
+  if (!isComponentMountedStatus) {
     return null;
   }
 
@@ -195,11 +199,11 @@ export default function PodcastCreationOrchestrator({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V55.0):
- * 1. Build Shield Compliance: Resolución de TS2339 y TS2551 mediante la alineación 
- *    con los nombres industriales 'generateDraft', 'isGenerating', etc.
- * 2. ZAP Alignment: Sincronización de 'defaultValues' y 'fieldsToValidateCollection' 
- *    con los descriptores del esquema purificado (V12.0).
- * 3. Type Safety: Se ha eliminado el uso de 'as any' en el StepRenderer, 
- *    garantizando que el flujo de datos sea íntegro desde el Metal hasta el Cristal.
+ * NOTA TÉCNICA DEL ARCHITECT (V56.0):
+ * 1. Build Shield Compliance: Resolución de TS2339 y TS2678 mediante la unificación 
+ *    de identificadores de estado con la Máquina de Estados Finitos (FSM).
+ * 2. ZAP Prop Mapping: Resolución de TS2322 mediante la actualización de los 
+ *    actuadores inyectados en el LayoutShell (onExecuteNextStepAction, etc.).
+ * 3. Type Integrity: Se garantiza que el flujo de datos sea 100% tipado, eliminando 
+ *    la fragilidad de los castings genéricos en el reactor de vistas.
  */
