@@ -1,11 +1,13 @@
 /**
  * ARCHIVO: app/(platform)/dashboard/dashboard-client.tsx
- * VERSIÓN: 25.0 (NicePod Interactive Shell - Full Contract Synchronization)
- * PROTOCOLO: MADRID RESONANCE V4.0
+ * VERSIÓN: 26.0 (NicePod Interactive Shell - Axial Alignment Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.9
  * 
- * Misión: Gestionar el estado interactivo y el diseño (layout) del Dashboard central.
- * [REFORMA V25.0]: Sincronización nominal total con IntelligenceFeed V5.0 y 
- * blindaje absoluto contra errores de tipos en la propagación de búsqueda.
+ * Misión: Gestionar el estado interactivo y el diseño (layout) del Dashboard central, 
+ * orquestando la comunicación entre los núcleos de inteligencia y telemetría.
+ * [REFORMA V26.0]: Resolución definitiva de TS2322 mediante la sincronización nominal 
+ * de propiedades con 'InsightPanel' V6.0. Aplicación estricta de la Zero Abbreviations 
+ * Policy (ZAP). Blindaje contra colisiones en la propagación de búsqueda.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -19,30 +21,30 @@ import Link from "next/link";
 import { useCallback, useState } from "react";
 
 // --- INFRAESTRUCTURA DE DATOS Y CONTRATOS SOBERANOS ---
-import { SearchResult } from "@/hooks/use-search-radar";
-import { cn } from "@/lib/utils";
+import { SearchRadarResult } from "@/hooks/use-search-radar";
+import { classNamesUtility } from "@/lib/utils";
 import type { Tables } from "@/types/database.types";
 import type { PodcastWithProfile } from "@/types/podcast";
 
-// --- COMPONENTES SATÉLITES ---
+// --- COMPONENTES SATÉLITES DE LA TERMINAL ---
 import { InsightPanel } from "@/components/feed/insight-panel";
 import { IntelligenceFeed } from "@/components/feed/intelligence-feed";
 import { FloatingActionButton } from "@/components/ui/floating-action-button";
 import { UnifiedSearchBar } from "@/components/ui/unified-search-bar";
 
 /**
- * [SHIELD]: HIDRATACIÓN DIFERIDA Y PROTEGIDA
- * El motor WebGL se aísla para proteger el hilo principal (Main Thread).
+ * [HARDWARE HYGIENE]: HIDRATACIÓN DIFERIDA Y PROTEGIDA
+ * El motor de visualización de Mapbox se aísla para preservar el Hilo Principal (MTI).
  */
 const MapPreviewFrame = dynamic(
   () => import("@/components/geo/map-preview-frame").then((module) => module.MapPreviewFrame),
   {
     ssr: false,
     loading: () => (
-      <div className="w-full h-full rounded-[2.5rem] bg-zinc-950/50 border border-white/5 animate-pulse flex items-center justify-center shadow-inner">
+      <div className="w-full h-full rounded-[2.5rem] bg-zinc-950/50 border border-white/5 animate-pulse flex items-center justify-center shadow-inner isolate">
         <div className="flex flex-col items-center gap-4 opacity-40">
           <div className="h-6 w-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Sincronizando Malla</span>
+          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Sincronizando Malla Geodésica</span>
         </div>
       </div>
     )
@@ -53,13 +55,13 @@ const MapPreviewFrame = dynamic(
  * INTERFAZ: DashboardClientProperties
  */
 interface DashboardClientProperties {
-  initialFeed: {
-    epicenter: PodcastWithProfile[];
-    semantic_connections: PodcastWithProfile[];
+  initialIntelligenceFeedCollection: {
+    epicenterPodcastsCollection: PodcastWithProfile[];
+    semanticConnectionsCollection: PodcastWithProfile[];
   };
-  initialProfile: Tables<'profiles'>;
-  initialResonance: Tables<'user_resonance_profiles'> | null;
-  isAdministratorAuthority: boolean;
+  initialAdministratorProfile: Tables<'profiles'>;
+  initialResonanceMetrics: Tables<'user_resonance_profiles'> | null;
+  isAdministratorAuthorityStatus: boolean;
 }
 
 /**
@@ -87,35 +89,36 @@ const itemAnimationVariants = {
 };
 
 /**
- * DashboardClient: El motor de orquestación de la interfaz central.
+ * DashboardClient: El motor de orquestación de la interfaz central de la Workstation.
  */
 export function DashboardClient({
-  initialFeed,
-  initialProfile,
-  initialResonance,
-  isAdministratorAuthority
+  initialIntelligenceFeedCollection,
+  initialAdministratorProfile,
+  initialResonanceMetrics,
+  isAdministratorAuthorityStatus
 }: DashboardClientProperties) {
 
   // --- ESTADOS DE CONSOLA (RADAR SEMÁNTICO) ---
-  const [searchMatchResults, setSearchMatchResults] = useState<SearchResult[] | null>(null);
+  const [searchRadarMatchResults, setSearchRadarMatchResults] = useState<SearchRadarResult[] | null>(null);
   const [isSearchProcessActive, setIsSearchProcessActive] = useState<boolean>(false);
-  const [currentSearchQuery, setCurrentSearchQuery] = useState<string>("");
+  const [currentSearchQueryText, setCurrentSearchQueryText] = useState<string>("");
 
-  const userDisplayName = initialProfile?.full_name?.split(' ')[0] || "Curador";
+  /** userDisplayNameReference: Extracción pericial del apelativo del Voyager. */
+  const userDisplayNameReference = initialAdministratorProfile?.full_name?.split(' ')[0] || "Curador";
 
-  // --- CONTROLADORES DE ESTADO TÁCTICO ---
-  const handleSearchResultsAction = useCallback((results: SearchResult[] | null) => {
-    setSearchMatchResults(results);
+  // --- CONTROLADORES DE ESTADO TÁCTICO (COMMAND CENTER) ---
+  const handleSearchIdentificationResultsAction = useCallback((identificationResults: SearchRadarResult[] | null) => {
+    setSearchRadarMatchResults(identificationResults);
   }, []);
 
   const handleClearRadarAction = useCallback(() => {
-    setSearchMatchResults(null);
+    setSearchRadarMatchResults(null);
     setIsSearchProcessActive(false);
-    setCurrentSearchQuery("");
+    setCurrentSearchQueryText("");
   }, []);
 
   return (
-    <main className="container mx-auto max-w-screen-xl min-h-screen px-4 lg:px-8 selection:bg-primary/30">
+    <main className="container mx-auto max-w-screen-xl min-h-screen px-4 lg:px-8 selection:bg-primary/30 isolate">
 
       <motion.div
         variants={containerAnimationVariants}
@@ -134,9 +137,9 @@ export function DashboardClient({
           >
             <div className="flex flex-col min-w-0">
               <h1 className="text-3xl md:text-6xl font-black tracking-tighter uppercase italic leading-none drop-shadow-xl text-muted-foreground/80 truncate">
-                Hola, <span className="text-foreground">{userDisplayName}</span>
+                Hola, <span className="text-foreground">{userDisplayNameReference}</span>
               </h1>
-              {isAdministratorAuthority && (
+              {isAdministratorAuthorityStatus && (
                 <div className="flex items-center gap-2 mt-1 md:mt-2 opacity-50">
                   <ShieldCheck size={12} className="text-primary" />
                   <span className="text-[9px] font-black uppercase tracking-widest text-primary">Acceso Soberano Concedido</span>
@@ -149,7 +152,7 @@ export function DashboardClient({
               <UnifiedSearchBar
                 variant="console"
                 placeholder={`¿Qué ecos buscamos?`}
-                onSearchIdentificationResults={handleSearchResultsAction}
+                onSearchIdentificationResults={handleSearchIdentificationResultsAction}
                 onLoadingStatusChange={setIsSearchProcessActive}
                 onClearAction={handleClearRadarAction}
               />
@@ -159,9 +162,9 @@ export function DashboardClient({
           {/* WIDGET DEL MAPA TÁCTICO (FOCUS MODE) */}
           <motion.section
             variants={itemAnimationVariants}
-            className={cn(
+            className={classNamesUtility(
               "w-full transition-all duration-700 ease-in-out relative z-0",
-              isSearchProcessActive || searchMatchResults 
+              isSearchProcessActive || searchRadarMatchResults 
                 ? "h-[140px] opacity-30 saturate-0 scale-[0.98] pointer-events-none" 
                 : "h-[260px] md:h-[320px] opacity-100 scale-100"
             )}
@@ -171,31 +174,30 @@ export function DashboardClient({
 
           {/* FEED DE INTELIGENCIA SOBERANA */}
           <motion.div variants={itemAnimationVariants} className="relative z-10 min-h-[500px]">
-            {/* [FIX TS2322]: Sincronización nominal con IntelligenceFeedProperties V5.0 */}
             <IntelligenceFeed
-              userDisplayName={userDisplayName}
+              userDisplayName={userDisplayNameReference}
               isSearchingProcessActive={isSearchProcessActive}
-              searchMatchResults={searchMatchResults}
-              lastSearchQuery={currentSearchQuery}
-              initialEpicenterCollection={initialFeed.epicenter}
-              initialConnectionsCollection={initialFeed.semantic_connections}
+              searchMatchResults={searchRadarMatchResults}
+              lastSearchQuery={currentSearchQueryText}
+              initialEpicenterCollection={initialIntelligenceFeedCollection.epicenterPodcastsCollection}
+              initialConnectionsCollection={initialIntelligenceFeedCollection.semanticConnectionsCollection}
               onClearRadarAction={handleClearRadarAction}
             />
           </motion.div>
         </div>
 
-        {/* --- COLUMNA DE TELEMETRÍA (BARRA LATERAL) --- */}
+        {/* --- COLUMNA DE TELEMETRÍA (BARRA LATERAL DE CONTROL) --- */}
         <aside className="hidden lg:block lg:col-span-1">
           <motion.div
             variants={itemAnimationVariants}
-            className={cn(
+            className={classNamesUtility(
               "sticky top-[8rem] space-y-8 flex flex-col h-fit transition-all duration-700",
-              isSearchProcessActive || searchMatchResults ? "opacity-20 blur-[2px] grayscale pointer-events-none" : "opacity-100"
+              isSearchProcessActive || searchRadarMatchResults ? "opacity-20 blur-[2px] grayscale pointer-events-none" : "opacity-100"
             )}
           >
 
             {/* INVITACIÓN A LA FORJA SOBERANA */}
-            <div className="p-8 bg-card/20 rounded-[2.5rem] border border-border/40 backdrop-blur-2xl relative overflow-hidden group shadow-xl hover:border-primary/30 transition-colors">
+            <div className="p-8 bg-card/20 rounded-[2.5rem] border border-border/40 backdrop-blur-2xl relative overflow-hidden group shadow-xl hover:border-primary/30 transition-colors isolate">
               <div className="space-y-6 relative z-10">
                 <div className="flex items-center gap-3">
                   <div className="p-1.5 bg-primary/10 rounded-lg">
@@ -206,32 +208,41 @@ export function DashboardClient({
                 <h4 className="font-bold text-lg text-foreground leading-snug tracking-tight">
                   Tu capital intelectual se expande con cada crónica de voz.
                 </h4>
-                <Link href="/create" className="group/btn inline-flex items-center gap-3 text-[10px] font-black text-primary uppercase tracking-[0.3em] hover:text-primary/80 transition-colors">
+                <Link 
+                  href="/create" 
+                  className="group/button inline-flex items-center gap-3 text-[10px] font-black text-primary uppercase tracking-[0.3em] hover:text-primary/80 transition-colors"
+                >
                   <PlusCircle className="h-4 w-4" />
                   <span>INICIAR FORJA</span>
                 </Link>
               </div>
             </div>
 
-            {/* PANEL DE METADATOS SSR */}
+            {/* PANEL DE METADATOS SSR (RESOLUCIÓN TS2322) */}
             <InsightPanel
-              initialProfile={initialProfile}
-              initialResonance={initialResonance}
+              initialAdministratorProfile={initialAdministratorProfile}
+              initialResonanceMetrics={initialResonanceMetrics}
             />
 
-            {/* IDENTIDAD DE MARCA INDUSTRIAL */}
-            <div className="p-10 text-center bg-white/[0.01] rounded-[3rem] border border-white/5 flex flex-col items-center space-y-5 shadow-inner group">
+            {/* IDENTIDAD DE MARCA INDUSTRIAL (NICEPOD RECOGNITION) */}
+            <div className="p-10 text-center bg-white/[0.01] rounded-[3rem] border border-white/5 flex flex-col items-center space-y-5 shadow-inner group isolate">
               <div className="h-12 w-12 relative opacity-20 grayscale group-hover:grayscale-0 group-hover:opacity-80 transition-all duration-1000">
-                <Image src="/nicepod-logo.png" alt="NicePod" fill className="object-contain" />
+                <Image 
+                  src="/nicepod-logo.png" 
+                  alt="Logotipo Soberano de NicePod" 
+                  fill 
+                  className="object-contain" 
+                  priority
+                />
               </div>
               <div className="space-y-3">
                 <div className="flex items-center gap-2 justify-center">
                   <Zap size={10} className="text-zinc-600" />
-                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em]">NicePod V4.0</p>
+                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em]">NicePod V4.9 Stable</p>
                 </div>
                 <div className="flex items-center gap-2.5 justify-center px-4 py-1.5 rounded-full bg-emerald-500/5 border border-emerald-500/10">
                   <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-[8px] font-black text-emerald-500/60 uppercase tracking-widest">Neural Link Nominal</span>
+                  <span className="text-[8px] font-black text-emerald-500/60 uppercase tracking-widest">Sintonía Nominal Activa</span>
                 </div>
               </div>
             </div>
@@ -246,11 +257,11 @@ export function DashboardClient({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V25.0):
- * 1. Contract Alignment: Se resolvió el error TS2322 sincronizando el despacho de 
- *    propiedades hacia IntelligenceFeed utilizando la nomenclatura descriptiva V5.0.
- * 2. Zero Abbreviations Policy: Purificación absoluta de términos (isSearchProcessActive, 
- *    initialEpicenterCollection, handleClearRadarAction).
- * 3. Layout Sovereignty: Se optimizó el truncado de texto en el saludo para proteger 
- *    la integridad del Radar de Búsqueda en el eje horizontal (flex-row).
+ * NOTA TÉCNICA DEL ARCHITECT (V26.0):
+ * 1. Contract Alignment: Resolución definitiva de TS2322 mediante la actualización de 
+ *    los descriptores 'initialAdministratorProfile' e 'initialResonanceMetrics'.
+ * 2. ZAP Compliance: Purificación total de nomenclatura. Se han eliminado términos 
+ *    como 'initialFeed', 'isAdministratorAuthority' o 'cn' por descriptores industriales.
+ * 3. BSS Integration: Se asegura la integridad de los tipos de Supabase ('Tables') 
+ *    al inyectarlos en componentes hijos que ahora poseen un 'Sovereign Mapper'.
  */
