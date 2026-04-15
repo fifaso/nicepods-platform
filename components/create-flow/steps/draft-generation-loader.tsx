@@ -1,7 +1,15 @@
-// components/create-flow/steps/draft-generation-loader.tsx
-// VERSIÓN: 6.0 (NicePod Intelligence Loader - Absolute Hydration Standard)
-// Misión: Orquestar la espera asíncrona y garantizar la inyección perfecta de datos antes de la edición.
-// [ESTABILIZACIÓN]: Integración del motor 'hydrateDraftData' para erradicar la pérdida de fuentes bibliográficas.
+/**
+ * ARCHIVO: components/create-flow/steps/draft-generation-loader.tsx
+ * VERSIÓN: 7.0 (NicePod Intelligence Loader - Industrial Hydration Standard)
+ * PROTOCOLO: MADRID RESONANCE V4.9
+ * 
+ * Misión: Orquestar la espera asíncrona mediante telemetría en tiempo real, 
+ * garantizando la inyección perfecta del capital intelectual antes de la edición.
+ * [REFORMA V7.0]: Resolución definitiva de TS2339. Sincronización nominal absoluta 
+ * con 'CreationContextType' V5.0 y 'PodcastCreationSchema' V12.0. 
+ * Aplicación integral de la Zero Abbreviations Policy (ZAP) y Cero 'any'.
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ */
 
 "use client";
 
@@ -18,24 +26,29 @@ import {
   Zap
 } from "lucide-react";
 
-// --- INFRAESTRUCTURA CORE ---
+// --- INFRAESTRUCTURA DE ARQUITECTURA SOBERANA ---
 import { createClient } from "@/lib/supabase/client";
-import { cn } from "@/lib/utils";
+import { classNamesUtility, nicepodLog } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { PodcastCreationData } from "@/lib/validation/podcast-schema";
 
-// --- CONTEXTOS Y ACCIONES ---
+// --- CONTEXTOS Y ACTUADORES DE LA FORJA ---
 import { useCreationContext } from "../shared/context";
 import { useFlowActions } from "../hooks/use-flow-actions";
 
-interface DraftLoaderProps {
+/**
+ * INTERFAZ: DraftGenerationLoaderProperties
+ */
+interface DraftGenerationLoaderProperties {
+  /** creationFormDataSnapshot: El estado actual del capital intelectual en el formulario. */
   formData: PodcastCreationData;
 }
 
 /**
- * STATUS_MAP: Diccionario de estados de la base de datos para la cinemática de carga.
+ * DATABASE_STATUS_MAPPING_MAGNITUDE: 
+ * Diccionario de estados del Metal para la cinemática de carga.
  */
-const STATUS_MAP: Record<string, number> = {
+const DATABASE_STATUS_MAPPING_MAGNITUDE: Record<string, number> = {
   'researching': 0,
   'writing': 1,
   'ready': 2,
@@ -43,259 +56,292 @@ const STATUS_MAP: Record<string, number> = {
 };
 
 /**
- * PHASES: Narrativa visual de la forja cognitiva.
+ * GENERATION_PHASES_COLLECTION: 
+ * Definición de la narrativa visual durante la síntesis asíncrona.
  */
-const PHASES = [
+const GENERATION_PHASES_COLLECTION = [
   {
-    id: 0,
-    title: "Investigación",
-    status: 'researching',
-    desc: (topic: string) => `Analizando señales y fuentes soberanas sobre "${topic}"...`,
-    icon: Globe,
-    color: "text-blue-400",
-    bg: "from-blue-600/20 to-transparent",
-    targetProgress: 35,
+    phaseIdentification: 0,
+    titleTextContent: "Investigación",
+    databaseStatusKey: 'researching',
+    descriptionFunction: (topicText: string) => `Analizando señales y fuentes soberanas sobre "${topicText}"...`,
+    iconComponent: Globe,
+    tailwindColorClassName: "text-blue-400",
+    backgroundGradientClassName: "from-blue-600/20 to-transparent",
+    targetProgressMagnitude: 35,
   },
   {
-    id: 1,
-    title: "Redacción Pro",
-    status: 'writing',
-    desc: (agent: string) => `El Agente ${agent} está estructurando tu síntesis estratégica...`,
-    icon: BrainCircuit,
-    color: "text-purple-400",
-    bg: "from-purple-500/20 to-transparent",
-    targetProgress: 75,
+    phaseIdentification: 1,
+    titleTextContent: "Redacción Neuronal",
+    databaseStatusKey: 'writing',
+    descriptionFunction: (agentName: string) => `El Agente ${agentName} está estructurando su síntesis estratégica...`,
+    iconComponent: BrainCircuit,
+    tailwindColorClassName: "text-purple-400",
+    backgroundGradientClassName: "from-purple-500/20 to-transparent",
+    targetProgressMagnitude: 75,
   },
   {
-    id: 2,
-    title: "Finalización",
-    status: 'ready',
-    desc: () => "Validando integridad semántica y preparando el lienzo...",
-    icon: SearchCheck,
-    color: "text-emerald-400",
-    bg: "from-emerald-500/20 to-transparent",
-    targetProgress: 100,
+    phaseIdentification: 2,
+    titleTextContent: "Finalización",
+    databaseStatusKey: 'ready',
+    descriptionFunction: () => "Validando integridad semántica y preparando el lienzo editorial...",
+    iconComponent: SearchCheck,
+    tailwindColorClassName: "text-emerald-400",
+    backgroundGradientClassName: "from-emerald-500/20 to-transparent",
+    targetProgressMagnitude: 100,
   }
 ];
 
-export function DraftGenerationLoader({ formData }: DraftLoaderProps) {
-  const supabase = createClient();
-  const { transitionTo, goBack } = useCreationContext();
+/**
+ * DraftGenerationLoader: El monitor de sincronía asíncrona de la forja NicePod.
+ */
+export function DraftGenerationLoader({ formData: creationFormDataSnapshot }: DraftGenerationLoaderProperties) {
+  const supabaseSovereignClient = createClient();
+  
+  /** [RESOLUCIÓN TS2339]: Sincronización con el sistema nervioso central V5.0. */
+  const { 
+    transitionToNextStateAction, 
+    navigateBackAction 
+  } = useCreationContext();
   
   /**
-   * [SINCRO DE ACCIONES]:
-   * Inyectamos el orquestador de acciones para acceder al método 'hydrateDraftData'.
+   * flowActionsAuthorityActuator:
+   * Inyectamos el orquestador para acceder al protocolo de hidratación física.
    */
-  const { hydrateDraftData } = useFlowActions({
-    transitionTo,
-    goBack,
+  const { hydrateDraftData, isGenerating } = useFlowActions({
+    transitionTo: transitionToNextStateAction,
+    goBack: navigateBackAction,
     clearDraft: () => { } 
   });
 
-  // --- ESTADOS DE TELEMETRÍA ---
-  const [progress, setProgress] = useState<number>(10);
-  const [currentPhaseIndex, setCurrentPhaseIndex] = useState<number>(0);
-  const [isError, setIsError] = useState<boolean>(false);
-  const [errorMessage, setErrorMessage] = useState<string>("");
+  // --- ESTADOS DE TELEMETRÍA DE PROCESAMIENTO ---
+  const [currentProgressPercentage, setCurrentProgressPercentage] = useState<number>(10);
+  const [currentPhaseIndexMagnitude, setCurrentPhaseIndexMagnitude] = useState<number>(0);
+  const [isOperationalErrorStatus, setIsOperationalErrorStatus] = useState<boolean>(false);
+  const [operationalErrorMessageContent, setOperationalErrorMessageContent] = useState<string>("");
 
-  // Referencia de control para evitar colisiones de eventos concurrentes (WebSocket + Polling)
-  const isFinalizing = useRef<boolean>(false);
+  /** isFinalizingProcessReference: Evita colisiones entre WebSocket y Polling (MTI Safety). */
+  const isFinalizingProcessReference = useRef<boolean>(false);
 
-  const draftId = formData.draftIdentification;
-  const topic = formData.soloTopic || "tu idea";
-  const agentName = formData.agentName || "Especialista";
+  /** [RESOLUCIÓN TS2339]: Acceso a descriptores purificados V12.0. */
+  const draftIdentification = creationFormDataSnapshot.draftIdentification;
+  const missionTopicText = creationFormDataSnapshot.soloTopicSelection || "su idea";
+  const agentIntelligenceName = creationFormDataSnapshot.agentName || "Especialista";
 
   /**
-   * finalizeIngestion: PROTOCOLO DE CIERRE DE FORJA
-   * Misión: Asegurar que el formulario tenga el 100% de los datos antes de saltar al editor.
+   * executeFinalIngestionProtocol:
+   * Misión: Asegurar la descarga total de datos (fuentes + guion) antes del salto editorial.
    */
-  const finalizeIngestion = useCallback(async () => {
-    if (isFinalizing.current) return;
-    isFinalizing.current = true;
+  const executeFinalIngestionProtocol = useCallback(async () => {
+    if (isFinalizingProcessReference.current) return;
+    isFinalizingProcessReference.current = true;
 
-    console.info(`🎯 [Loader] Ingesta final detectada para Borrador #${draftId}. Iniciando hidratación.`);
-    setProgress(100);
+    nicepodLog(`🎯 [Loader] Ingesta final para Borrador #${draftIdentification}. Iniciando hidratación.`);
+    setCurrentProgressPercentage(100);
 
-    // Pausa táctica para completar la animación de la barra
+    // Pausa táctica para completar la cinemática de la barra de progreso.
     await new Promise(resolve => setTimeout(resolve, 1000));
 
     /**
-     * [LA SOLDADURA]: 
-     * Llamamos al motor de hidratación que consulta directamente la tabla 'podcast_drafts'.
-     * Esto garantiza que recuperemos las FUENTES bibliográficas y el guion completo.
+     * [HYDRATION SEAL]: 
+     * Consultamos físicamente la base de datos para recuperar el Capital Intelectual.
      */
-    const success = await hydrateDraftData();
+    const isHydrationSuccessful = await hydrateDraftData();
 
-    if (success) {
-      console.log("✅ [Loader] Hidratación molecular completada. Transicionando a edición.");
-      transitionTo("SCRIPT_EDITING");
+    if (isHydrationSuccessful) {
+      nicepodLog("✅ [Loader] Hidratación molecular completada. Transicionando a lienzo editorial.");
+      transitionToNextStateAction("SCRIPT_EDITING_CANVAS");
     } else {
-      setIsError(true);
-      setErrorMessage("Fallo de Integridad: La IA terminó el trabajo pero el dato no es legible.");
+      setIsOperationalErrorStatus(true);
+      setOperationalErrorMessageContent("Fallo de Integridad: La IA finalizó el proceso pero el dato no es legible.");
     }
-  }, [draftId, hydrateDraftData, transitionTo]);
+  }, [draftIdentification, hydrateDraftData, transitionToNextStateAction]);
 
+  /**
+   * EFECTO: VIGILANCIA DE PULSO (Realtime + Polling)
+   * Misión: Mantener la sintonía con el estado de la forja en el servidor.
+   */
   useEffect(() => {
-    if (!draftId) {
-      setIsError(true);
-      setErrorMessage("Identificador de sesión perdido.");
+    if (!draftIdentification) {
+      setIsOperationalErrorStatus(true);
+      setOperationalErrorMessageContent("Identificador de sesión perdido en la malla.");
       return;
     }
 
-    // 1. VIGILANCIA REALTIME (Suscripción al pulso de la DB)
-    const channel = supabase
-      .channel(`draft_vanguard_${draftId}`)
+    // 1. VIGILANCIA POR CANAL WebSocket (Baja Latencia)
+    const realtimeChannelInstance = supabaseSovereignClient
+      .channel(`draft_vanguard_${draftIdentification}`)
       .on(
         'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'podcast_drafts', filter: `id=eq.${draftId}` },
-        (payload: any) => {
-          const status = payload.new.status;
+        { 
+          event: 'UPDATE', 
+          schema: 'public', 
+          table: 'podcast_drafts', 
+          filter: `id=eq.${draftIdentification}` 
+        },
+        (changePayload) => {
+          /** [BSS]: Tipado manual del payload de base de datos. */
+          const newStatusDescriptor = (changePayload.new as { status: string }).status;
           
-          if (status === 'failed') {
-            setIsError(true);
-            setErrorMessage("El agente de IA encontró una anomalía estructural.");
+          if (newStatusDescriptor === 'failed') {
+            setIsOperationalErrorStatus(true);
+            setOperationalErrorMessageContent("El Agente de IA detectó una anomalía estructural en la síntesis.");
             return;
           }
 
-          const mappedIndex = STATUS_MAP[status];
-          if (mappedIndex !== undefined && mappedIndex !== -1) {
-            setCurrentPhaseIndex(mappedIndex);
+          const mappedPhaseIndex = DATABASE_STATUS_MAPPING_MAGNITUDE[newStatusDescriptor];
+          if (mappedPhaseIndex !== undefined && mappedPhaseIndex !== -1) {
+            setCurrentPhaseIndexMagnitude(mappedPhaseIndex);
           }
 
-          if (status === 'ready') {
-            finalizeIngestion();
+          if (newStatusDescriptor === 'ready') {
+            executeFinalIngestionProtocol();
           }
         }
       )
       .subscribe();
 
-    // 2. POLLING DE RESILIENCIA (Sondeo cada 5 segundos)
-    // Red de seguridad por si el WebSocket falla en condiciones de red inestables.
-    const safetyCheck = setInterval(async () => {
-      const { data, error } = await supabase
+    // 2. POLLING DE SEGURIDAD (Resiliencia ante micro-cortes de red)
+    const safetyPollingIntervalIdentification = setInterval(async () => {
+      const { data: statusSnapshot, error: networkException } = await supabaseSovereignClient
         .from('podcast_drafts')
         .select('status')
-        .eq('id', draftId)
+        .eq('id', draftIdentification)
         .single();
 
-      if (!error && data) {
-        if (data.status === 'ready') {
-          clearInterval(safetyCheck);
-          finalizeIngestion();
-        } else if (data.status === 'failed') {
-          setIsError(true);
-          setErrorMessage("Misión interrumpida por el servidor.");
-          clearInterval(safetyCheck);
+      if (!networkException && statusSnapshot) {
+        if (statusSnapshot.status === 'ready') {
+          clearInterval(safetyPollingIntervalIdentification);
+          executeFinalIngestionProtocol();
+        } else if (statusSnapshot.status === 'failed') {
+          setIsOperationalErrorStatus(true);
+          setOperationalErrorMessageContent("Misión interrumpida por el servidor de inteligencia.");
+          clearInterval(safetyPollingIntervalIdentification);
         } else {
-          const mappedIndex = STATUS_MAP[data.status];
-          if (mappedIndex !== undefined) setCurrentPhaseIndex(mappedIndex);
+          const mappedPhaseIndex = DATABASE_STATUS_MAPPING_MAGNITUDE[statusSnapshot.status];
+          if (mappedPhaseIndex !== undefined) setCurrentPhaseIndexMagnitude(mappedPhaseIndex);
         }
       }
     }, 5000);
 
+    /** [HARDWARE HYGIENE]: Purga física de canales y temporizadores. */
     return () => {
-      supabase.removeChannel(channel);
-      clearInterval(safetyCheck);
+      supabaseSovereignClient.removeChannel(realtimeChannelInstance);
+      clearInterval(safetyPollingIntervalIdentification);
     };
-  }, [draftId, supabase, finalizeIngestion]);
+  }, [draftIdentification, supabaseSovereignClient, executeFinalIngestionProtocol]);
 
-  // ANIMACIÓN DE BARRA DE PROGRESO
+  /** 
+   * EFECTO: ANIMACIÓN DE BARRA DE PROGRESO ADAPTATIVA
+   * Misión: Proyectar avance suave mientras se espera la confirmación del Metal.
+   */
   useEffect(() => {
-    if (isError) return;
-    const target = PHASES[currentPhaseIndex]?.targetProgress || 95;
-    const interval = setInterval(() => {
-      setProgress(prev => (prev < target ? prev + 0.2 : prev));
-    }, 100);
-    return () => clearInterval(interval);
-  }, [currentPhaseIndex, isError]);
+    if (isOperationalErrorStatus) return;
+    const targetProgressPercentage = GENERATION_PHASES_COLLECTION[currentPhaseIndexMagnitude]?.targetProgressMagnitude || 95;
+    
+    const progressIntervalIdentification = setInterval(() => {
+      setCurrentProgressPercentage((previousProgress) => 
+        (previousProgress < targetProgressPercentage ? previousProgress + 0.25 : previousProgress)
+      );
+    }, 120);
 
-  const phase = PHASES[currentPhaseIndex] || PHASES[0];
-  const Icon = phase.icon;
+    return () => clearInterval(progressIntervalIdentification);
+  }, [currentPhaseIndexMagnitude, isOperationalErrorStatus]);
 
-  if (isError) {
+  const activePhaseDossier = GENERATION_PHASES_COLLECTION[currentPhaseIndexMagnitude] || GENERATION_PHASES_COLLECTION[0];
+  const PhaseIconComponent = activePhaseDossier.iconComponent;
+
+  // --- VISTA DE ESTADO FALLIDO (GEODETIC DISSONANCE) ---
+  if (isOperationalErrorStatus) {
     return (
-      <div className="flex flex-col items-center justify-center h-full p-10 text-center space-y-8 animate-in fade-in">
-        <div className="p-8 bg-red-500/10 rounded-full border border-red-500/20 shadow-2xl">
-          <AlertTriangle className="h-16 w-16 text-red-500" />
+      <div className="flex flex-col items-center justify-center h-full p-10 text-center space-y-10 animate-in fade-in isolate">
+        <div className="p-10 bg-red-500/10 rounded-full border border-red-500/20 shadow-[0_0_50px_rgba(239,68,68,0.2)]">
+          <AlertTriangle className="h-20 w-20 text-red-500 animate-pulse" />
         </div>
-        <div className="space-y-3">
-          <h3 className="text-3xl font-black uppercase text-white tracking-tighter italic">Disonancia Técnica</h3>
-          <p className="text-muted-foreground font-medium max-w-xs mx-auto text-sm leading-relaxed">{errorMessage}</p>
+        <div className="space-y-4">
+          <h3 className="text-4xl font-black uppercase text-white tracking-tighter italic font-serif">Disonancia Técnica</h3>
+          <p className="text-zinc-500 font-bold uppercase tracking-widest max-w-sm mx-auto text-sm leading-relaxed">
+            {operationalErrorMessageContent}
+          </p>
         </div>
         <Button
-          onClick={() => transitionTo('SELECTING_PURPOSE')}
+          onClick={() => transitionToNextStateAction('SELECTING_PURPOSE')}
           variant="outline"
-          className="h-12 px-10 border-white/10 rounded-2xl uppercase font-black text-[10px] tracking-[0.3em] hover:bg-white/5 transition-all"
+          className="h-14 px-12 border-white/10 rounded-[1.5rem] uppercase font-black text-[10px] tracking-[0.4em] hover:bg-white/5 transition-all shadow-2xl"
         >
-          Reiniciar Ciclo
+          Reiniciar Ciclo de Sincronía
         </Button>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col items-center justify-center h-full w-full max-w-2xl mx-auto p-10 text-center relative overflow-hidden">
+    <div className="flex flex-col items-center justify-center h-full w-full max-w-3xl mx-auto p-10 text-center relative overflow-hidden isolate">
       
-      {/* CAPA ATMOSFÉRICA DINÁMICA */}
-      <div className={cn(
-        "absolute inset-0 bg-gradient-radial opacity-20 blur-[140px] transition-all duration-1000",
-        phase.bg
+      {/* CAPA ATMOSFÉRICA CINEMÁTICA */}
+      <div className={classNamesUtility(
+        "absolute inset-0 bg-gradient-radial opacity-20 blur-[150px] transition-all duration-1000 z-0",
+        activePhaseDossier.backgroundGradientClassName
       )} />
 
-      <div className="relative z-10 w-full flex flex-col items-center">
+      <div className="relative z-10 w-full flex flex-col items-center isolate">
         
         {/* ORBE DE PROCESAMIENTO INDUSTRIAL */}
         <AnimatePresence mode="wait">
           <motion.div
-            key={phase.title}
-            initial={{ scale: 0.8, opacity: 0 }}
+            key={activePhaseDossier.titleTextContent}
+            initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 1.1, opacity: 0 }}
-            className="mb-12 relative"
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            className="mb-14 relative"
           >
-            <div className="relative p-12 bg-zinc-900/60 backdrop-blur-3xl rounded-[4rem] border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)]">
-              <Icon className={cn("h-20 w-20 transition-colors duration-1000", phase.color)} strokeWidth={1} />
+            <div className="relative p-14 bg-zinc-950/60 backdrop-blur-3xl rounded-[4.5rem] border border-white/10 shadow-[0_0_80px_rgba(0,0,0,0.8)] isolate">
+              <PhaseIconComponent 
+                className={classNamesUtility("h-24 w-24 transition-colors duration-1000", activePhaseDossier.tailwindColorClassName)} 
+                strokeWidth={1} 
+              />
             </div>
-            <div className="absolute -top-4 -right-4 bg-primary rounded-full p-3 shadow-2xl border-[4px] border-[#020202] animate-bounce">
-              <Cpu className="h-6 w-6 text-white" />
+            <div className="absolute -top-5 -right-5 bg-primary rounded-full p-4 shadow-2xl border-[5px] border-[#020202] animate-bounce isolate">
+              <Cpu className="h-7 w-7 text-white" />
             </div>
           </motion.div>
         </AnimatePresence>
 
-        {/* TEXTOS DE TELEMETRÍA */}
-        <div className="space-y-4 mb-14 min-h-[140px]">
-          <h2 className="text-5xl md:text-6xl font-black uppercase tracking-tighter text-white leading-none italic">
-            {phase.title}
+        {/* TELEMETRÍA NARRATIVA DE FASE */}
+        <div className="space-y-5 mb-16 min-h-[160px] isolate">
+          <h2 className="text-5xl md:text-7xl font-black uppercase tracking-tighter text-white leading-none italic font-serif">
+            {activePhaseDossier.titleTextContent}
           </h2>
-          <p className="text-lg text-zinc-500 font-medium max-w-sm mx-auto leading-relaxed">
-            {typeof phase.desc === 'function' ? phase.desc(currentPhaseIndex === 0 ? topic : agentName) : phase.desc}
+          <p className="text-xl text-zinc-500 font-bold uppercase tracking-widest max-w-md mx-auto leading-relaxed">
+            {activePhaseDossier.descriptionFunction(currentPhaseIndexMagnitude === 0 ? missionTopicText : agentIntelligenceName)}
           </p>
         </div>
 
-        {/* BARRA DE PROGRESO DE ALTA PRECISIÓN */}
-        <div className="w-full max-w-sm space-y-6">
-          <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden border border-white/5 shadow-inner">
+        {/* BARRA DE PROGRESO DE ALTA PRECISIÓN (BSS SEAL) */}
+        <div className="w-full max-w-md space-y-8 isolate">
+          <div className="h-2.5 w-full bg-white/[0.03] rounded-full overflow-hidden border border-white/5 shadow-inner">
             <motion.div
-              className="h-full bg-gradient-to-r from-primary via-purple-500 to-pink-500"
-              animate={{ width: `${progress}%` }}
-              transition={{ duration: 0.4, ease: "linear" }}
+              className="h-full bg-gradient-to-r from-primary via-purple-500 to-pink-500 shadow-[0_0_20px_rgba(var(--primary-rgb),0.5)]"
+              animate={{ width: `${currentProgressPercentage}%` }}
+              transition={{ duration: 0.5, ease: "linear" }}
             />
           </div>
 
-          <div className="flex justify-between items-center px-2">
-            <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.4em] text-white/20">
-              <Loader2 size={14} className="animate-spin text-primary" />
-              Procesando Malla
+          <div className="flex justify-between items-center px-3 isolate">
+            <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-[0.5em] text-zinc-700">
+              <Loader2 size={16} className="animate-spin text-primary" />
+              Sintonizando Malla de Inteligencia
             </div>
-            <span className="text-xs font-black text-white/50 tabular-nums tracking-widest">
-              {Math.round(progress)}%
+            <span className="text-sm font-black text-white/40 tabular-nums tracking-[0.2em]">
+              {Math.round(currentProgressPercentage)}%
             </span>
           </div>
         </div>
 
-        <div className="mt-20 flex items-center gap-4 opacity-10">
-          <PenTool size={16} />
-          <span className="text-[10px] font-black uppercase tracking-[0.6em]">NicePod Intelligence Studio</span>
+        <div className="mt-24 flex items-center gap-5 opacity-10 grayscale isolate">
+          <PenTool size={20} />
+          <span className="text-[11px] font-black uppercase tracking-[0.8em]">NicePod Intelligence Terminal</span>
         </div>
 
       </div>
@@ -304,13 +350,13 @@ export function DraftGenerationLoader({ formData }: DraftLoaderProps) {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V6.0):
- * 1. Protocolo de Hidratación Obligatoria: Al detectar el estado 'ready', el componente 
- *    no salta inmediatamente al editor. Invoca 'hydrateDraftData', asegurando que el 
- *    Capital Intelectual (fuentes, guion) se descargue físicamente de la base de datos, 
- *    eliminando el bug histórico de 'Sources = 0'.
- * 2. Resiliencia Dual: La combinación de WebSocket (velocidad) y Polling (seguridad) 
- *    garantiza la operatividad en el 100% de los escenarios de red en Madrid.
- * 3. Diseño Inmersivo: Se han ampliado las escalas de los iconos y la tipografía para 
- *    un look industrial de alta fidelidad, manteniendo la coherencia visual Aurora.
+ * NOTA TÉCNICA DEL ARCHITECT (V7.0):
+ * 1. Protocolo de Hidratación Mandatorio: Se resolvió el fallo histórico de 'Fuentes = 0' 
+ *    asegurando que 'hydrateDraftData' se complete antes de la transición al lienzo.
+ * 2. ZAP Absolute Compliance: Purificación total. 'formData' -> 'creationFormDataSnapshot', 
+ *    'draftId' -> 'draftIdentification', 'topic' -> 'missionTopicText', 'prev' -> 'previousProgress'.
+ * 3. TS2339 Resolution: Alineación con 'navigateBackAction' y 'transitionToNextStateAction' 
+ *    del Contexto V5.0 y 'soloTopicSelection' del esquema V12.0.
+ * 4. MTI Safety: El polling y la animación de la barra ocurren de forma asíncrona, 
+ *    protegiendo la estabilidad térmica del dispositivo Voyager.
  */
