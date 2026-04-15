@@ -1,11 +1,15 @@
 /**
  * ARCHIVO: components/navigation/shared/user-dropdown.tsx
- * VERSIÓN: 4.0 (NicePod User Dropdown - Sovereign Protocol V4.0)
- * PROTOCOLO: MADRID RESONANCE V4.0
+ * VERSIÓN: 5.0 (NicePod User Dropdown - Absolute Nominal Identity Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.9
  *
- * Misión: Proveer el acceso táctico al búnker de ajustes y perfil desde la malla global.
- * [REFORMA V4.0]: Sincronización absoluta con ProfileData V4.0 y ZAP.
- * NIVEL DE INTEGRIDAD: 100% (Soberano / ZAP Compliant / Build Shield Green)
+ * Misión: Proveer el acceso táctico al búnker de ajustes y perfil desde la malla global, 
+ * garantizando la proyección fiel de la identidad del Voyager.
+ * [REFORMA V5.0]: Sincronización absoluta con AuthProvider V5.1. Se elimina la 
+ * amnesia de identidad ("Curador Anónimo") mediante la inyección directa de 
+ * 'administratorProfile' desde el Córtex, en lugar de depender de props volátiles. 
+ * Cumplimiento estricto de la Zero Abbreviations Policy (ZAP).
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
@@ -18,7 +22,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-// --- INFRAESTRUCTURA CORE ---
+// --- INFRAESTRUCTURA CORE V4.9 ---
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -30,51 +34,65 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/use-auth";
-import { ProfileData } from "@/types/profile";
+import { getSafeAsset } from "@/lib/utils";
 
 /**
  * INTERFAZ: UserDropdownComponentProperties
+ * Misión: Mantener el contrato con los NavBars padres, aunque la inteligencia 
+ * ahora provenga directamente del Córtex.
  */
 interface UserDropdownComponentProperties {
-  profile: ProfileData | null;
-  isAdministratorAuthority?: boolean;
-  onLogout?: () => void;
+  /** onAuthenticationLogoutAction: Callback opcional para interceptar la desconexión. */
+  onAuthenticationLogoutAction?: () => void;
 }
 
 /**
  * UserDropdown: La terminal de identidad compacta en la barra de comando.
  */
 export function UserDropdown({
-  profile,
-  isAdministratorAuthority,
-  onLogout
+  onAuthenticationLogoutAction
 }: UserDropdownComponentProperties) {
-  const { signOut: signOutAction } = useAuth();
+  
+  /**
+   * 1. CONSUMO DEL CÓRTEX DE IDENTIDAD (ZAP Compliance V5.1)
+   * Extraemos la verdad absoluta del AuthProvider para evitar propiedades nulas.
+   */
+  const { 
+    administratorProfile, 
+    isAdministratorAuthority, 
+    onAuthenticationSignOutAction 
+  } = useAuth();
 
-  // Resolución táctica de iniciales para el Avatar
-  const userDisplayNameInitials = profile?.fullName
-    ? profile.fullName.substring(0, 2).toUpperCase()
-    : (profile?.username?.substring(0, 2).toUpperCase() || "NC");
+  // 2. EXTRACCIÓN DE IDENTIDAD (FALLBACK SEGURO)
+  const userDisplayNameInitials = administratorProfile?.fullName
+    ? administratorProfile.fullName.substring(0, 2).toUpperCase()
+    : (administratorProfile?.username?.substring(0, 2).toUpperCase() || "VO");
 
+  /**
+   * handleLogoutAction: Protocolo de expulsión con doble redundancia.
+   */
   const handleLogoutAction = () => {
-    if (onLogout) {
-        onLogout();
+    if (onAuthenticationLogoutAction) {
+        onAuthenticationLogoutAction();
     } else {
-        signOutAction();
+        onAuthenticationSignOutAction();
     }
   };
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="relative h-10 w-10 rounded-full border-2 border-white/5 hover:border-primary/40 transition-all duration-500 outline-none group overflow-hidden">
+        <button 
+          className="relative h-10 w-10 rounded-full border-2 border-white/5 hover:border-primary/40 transition-all duration-500 outline-none group overflow-hidden"
+          aria-label="Abrir panel de identidad"
+        >
           <Avatar className="h-full w-full">
             <AvatarImage
-              src={profile?.avatarUniformResourceLocator || ""}
-              alt={profile?.fullName || "Curador NicePod"}
+              src={getSafeAsset(administratorProfile?.avatarUniformResourceLocator, 'avatar')}
+              alt={administratorProfile?.fullName || "Voyager de NicePod"}
               className="object-cover"
             />
-            <AvatarFallback className="bg-[#050505] text-primary text-[10px] font-black tracking-widest">
+            <AvatarFallback className="bg-[#050505] text-primary text-[10px] font-black tracking-widest uppercase">
               {userDisplayNameInitials}
             </AvatarFallback>
           </Avatar>
@@ -85,10 +103,10 @@ export function UserDropdown({
         <DropdownMenuLabel className="p-4">
           <div className="flex flex-col space-y-1">
             <p className="text-xs font-black uppercase tracking-widest text-white truncate">
-              {profile?.fullName || 'Curador Anónimo'}
+              {administratorProfile?.fullName || 'Identidad en Forja'}
             </p>
             <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest truncate">
-              @{profile?.username || 'unnamed_voyager'}
+              @{administratorProfile?.username || 'unnamed_voyager'}
             </p>
           </div>
         </DropdownMenuLabel>
@@ -110,7 +128,7 @@ export function UserDropdown({
             </DropdownMenuItem>
           </Link>
 
-          {(profile?.authorityRole === 'admin' || isAdministratorAuthority) && (
+          {isAdministratorAuthority && (
             <Link href="/admin">
               <DropdownMenuItem className="p-3 rounded-xl focus:bg-primary/10 cursor-pointer group">
                 <Shield className="mr-3 h-4 w-4 text-primary animate-pulse" />
@@ -128,10 +146,22 @@ export function UserDropdown({
             className="p-3 rounded-xl focus:bg-red-500/10 cursor-pointer group"
           >
             <LogOut className="mr-3 h-4 w-4 text-red-500/60 group-hover:text-red-500 transition-colors" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-red-500/60 group-hover:text-red-500">Cerrar Canal</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-red-500/60 group-hover:text-red-500">
+              Cerrar Canal
+            </span>
           </DropdownMenuItem>
         </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V5.0):
+ * 1. Authority Decoupling: Se eliminó la dependencia de las propiedades 'profile' e 
+ *    'isAdministratorAuthority' inyectadas desde los NavBars. El componente ahora 
+ *    extrae su propia identidad desde el Singleton de Auth, garantizando la sintonía ZAP.
+ * 2. Visual Integrity: Se utiliza la función 'getSafeAsset' para prevenir errores 
+ *    de carga en la etiqueta <Image> cuando la URL del avatar es defectuosa o nula.
+ * 3. ZAP Absolute Compliance: Purificación total de la interfaz de propiedades.
+ */
