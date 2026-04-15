@@ -1,13 +1,13 @@
 /**
  * ARCHIVO: components/feed/insight-panel.tsx
- * VERSIÓN: 5.0 (NicePod Insight Panel - Sovereign Contract Alignment Edition)
+ * VERSIÓN: 6.0 (NicePod Insight Panel - Sovereign Normalization Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
- * Misión: Visualizar el estado de resonancia, el prestigio y la salud del NKV 
- * sin latencia de hidratación, orquestando la "Doble Verdad" (Servidor + Cliente).
- * [REFORMA V5.0]: Resolución definitiva de errores TS2339. Sincronización nominal 
- * absoluta con el AuthProvider V5.1 y el contrato 'ProfileData' V4.1. 
- * Purificación léxica total bajo la Zero Abbreviations Policy (ZAP).
+ * Misión: Visualizar el estado de resonancia, el prestigio y la salud de la malla 
+ * urbana sin latencia, orquestando la normalización entre datos del Metal y el Cristal.
+ * [REFORMA V6.0]: Resolución definitiva de TS2339 mediante el 'Sovereign Normalization Mapper'.
+ * Sincronización absoluta con AuthProvider V5.2 y el contrato ProfileData V4.1. 
+ * Aplicación integral de la Zero Abbreviations Policy (ZAP).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -29,16 +29,17 @@ import { useMemo } from "react";
 
 /**
  * INTERFAZ: InsightPanelProperties
- * [SINCRO V5.0]: Actualización del tipo de 'initialAdministratorProfile' 
- * para satisfacer el contrato industrial ZAP de la Workstation.
+ * Misión: Definir la entrada de datos síncronos (SSR) para evitar el flicker.
  */
 interface InsightPanelProperties {
-  initialAdministratorProfile?: ProfileData | null;
+  /** initialAdministratorProfile: Perfil inyectado desde el servidor (Metal o Cristal). */
+  initialAdministratorProfile?: ProfileData | Tables<'profiles'> | null;
+  /** initialResonanceMetrics: Telemetría de resonancia inyectada desde el servidor. */
   initialResonanceMetrics?: Tables<'user_resonance_profiles'> | null;
 }
 
 /**
- * InsightPanel: El monitor de telemetría táctica de la Malla.
+ * InsightPanel: El monitor de telemetría táctica de la Workstation.
  */
 export function InsightPanel({ 
   initialAdministratorProfile, 
@@ -46,8 +47,8 @@ export function InsightPanel({
 }: InsightPanelProperties) {
 
   /**
-   * [SINCRO V5.0]: CONSUMO DEL ESTADO CLIENTE (Auth Provider V5.1)
-   * Extraemos los descriptores industriales en lugar de las abreviaturas obsoletas.
+   * 1. CONSUMO DEL CÓRTEX DE AUTORIDAD
+   * Extraemos descriptores industriales del AuthProvider V5.2.
    */
   const { 
     administratorProfile: liveAdministratorProfile, 
@@ -56,27 +57,61 @@ export function InsightPanel({
   } = useAuth();
 
   /**
-   * [SOBERANÍA DE DATOS]: La Doble Verdad.
-   * Fusionamos la verdad inyectada en tiempo 0 (SSR) con la reactividad en vivo (Client).
-   * Misión: Evitar el 'flicker' visual durante el Handshake.
+   * 2. SOVEREIGN NORMALIZATION MAPPER
+   * Misión: Garantizar que el objeto de perfil cumpla con la interfaz ProfileData,
+   * mapeando las claves de snake_case (Metal) a camelCase (Cristal) si es necesario.
    */
-  const activeSovereignProfile = useMemo(() => {
-    return liveAdministratorProfile || initialAdministratorProfile || null;
+  const activeSovereignProfile = useMemo((): ProfileData | null => {
+    const rawProfileSource = liveAdministratorProfile || initialAdministratorProfile;
+    
+    if (!rawProfileSource) return null;
+
+    // Si ya es un objeto purificado (Cristal), lo retornamos directamente.
+    if ('reputationScoreValue' in rawProfileSource) {
+      return rawProfileSource as ProfileData;
+    }
+
+    // Si es una fila de base de datos (Metal), ejecutamos la transmutación industrial.
+    const rawMetalProfile = rawProfileSource as Tables<'profiles'>;
+    
+    return {
+      identification: rawMetalProfile.id,
+      username: rawMetalProfile.username || "voyager_anonimo",
+      fullName: rawMetalProfile.full_name,
+      avatarUniformResourceLocator: rawMetalProfile.avatar_url,
+      biographyTextContent: rawMetalProfile.bio,
+      biographyShortSummary: rawMetalProfile.bio_short,
+      websiteUniformResourceLocator: rawMetalProfile.website_url,
+      reputationScoreValue: rawMetalProfile.reputation_score || 0,
+      isVerifiedAccountStatus: rawMetalProfile.is_verified || false,
+      authorityRole: rawMetalProfile.role || "user",
+      followersCountInventory: rawMetalProfile.followers_count || 0,
+      followingCountInventory: rawMetalProfile.following_count || 0,
+      activeCreationJobsCount: rawMetalProfile.active_creation_jobs || 0,
+      creationTimestamp: rawMetalProfile.created_at,
+      updateTimestamp: rawMetalProfile.created_at, // Fallback en caso de nulidad
+    } as ProfileData;
+
   }, [liveAdministratorProfile, initialAdministratorProfile]);
 
+  /**
+   * 3. GESTIÓN DE MÉTRICAS DE RESONANCIA
+   */
   const activeResonanceProfile = useMemo(() => {
     return initialResonanceMetrics || null;
   }, [initialResonanceMetrics]);
 
   /**
-   * [ESTADO DE CARGA DEFENSIVO]:
-   * Bloqueo de renderizado si el perfil es nulo y la sincronización está en curso.
+   * 4. PROTOCOLO DE ESPERA TÉCNICA (HARDWARE HYGIENE)
+   * Bloqueo de renderizado para evitar asimetrías visuales durante la carga.
    */
-  const isWaitStateActive = !activeSovereignProfile && (isInitialHandshakeLoading || isProfileSynchronizationLoading);
+  const isWaitStateProcessActive = 
+    !activeSovereignProfile && 
+    (isInitialHandshakeLoading || isProfileSynchronizationLoading);
 
-  if (isWaitStateActive) {
+  if (isWaitStateProcessActive) {
     return (
-      <div className="space-y-6 animate-pulse">
+      <div className="space-y-6 animate-pulse isolate">
         <div className="h-44 bg-white/5 rounded-[2.5rem] border border-white/5 shadow-inner" />
         <div className="p-8 bg-card/20 rounded-[2.5rem] border border-white/5 space-y-5">
           <div className="h-2 w-28 bg-white/10 rounded-full" />
@@ -87,7 +122,7 @@ export function InsightPanel({
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in zoom-in-95 duration-700">
+    <div className="space-y-6 animate-in fade-in zoom-in-95 duration-700 isolate">
 
       {/* I. TARJETA DE SOBERANÍA SEMÁNTICA (IDENTIDAD & RANGO) */}
       <Card className="bg-primary text-white border-none shadow-2xl rounded-[2.5rem] overflow-hidden relative group isolate">
@@ -117,7 +152,7 @@ export function InsightPanel({
             <Zap size={26} className="text-yellow-300 fill-current drop-shadow-[0_0_8px_rgba(253,224,71,0.5)]" />
           </div>
 
-          {/* Métricas del Curador (Síncronas) */}
+          {/* Métricas del Curador (Sincronizadas por el Normalizer) */}
           <div className="flex items-center justify-between px-2">
             <div className="space-y-0.5">
               <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Prestigio</p>
@@ -149,7 +184,7 @@ export function InsightPanel({
 
         <CardContent className="p-8 space-y-6 relative z-10">
           {/* Visualizador de Actividad Semántica */}
-          <div className="relative h-44 w-full bg-zinc-950/50 rounded-[2rem] border border-white/5 flex flex-col items-center justify-center p-6 overflow-hidden group">
+          <div className="relative h-44 w-full bg-zinc-950/50 rounded-[2rem] border border-white/5 flex flex-col items-center justify-center p-6 overflow-hidden group shadow-inner">
             <div className="absolute inset-0 bg-gradient-to-t from-primary/10 via-transparent to-transparent opacity-60" />
 
             <BarChart3 size={36} className="text-primary/20 mb-4 group-hover:scale-110 transition-transform duration-700" />
@@ -163,7 +198,7 @@ export function InsightPanel({
               </p>
             </div>
 
-            {/* Línea de pulso cinemático */}
+            {/* Línea de pulso cinemático de red */}
             <div className="absolute bottom-0 left-0 w-full h-0.5 bg-primary/10 overflow-hidden">
               <div className="h-full w-1/4 bg-primary/60 animate-[ping_3s_linear_infinite]" />
             </div>
@@ -194,13 +229,11 @@ export function InsightPanel({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V5.0):
- * 1. Contract Sovereignty: Se resolvieron los 3 errores TS2339 al sincronizar la 
- *    desestructuración con el AuthProvider V5.1 (liveAdministratorProfile, 
- *    isInitialHandshakeLoading).
- * 2. Metal-to-Crystal Mapping: Se actualizó la interfaz de propiedades para 
- *    esperar el tipo 'ProfileData' en lugar del genérico 'Tables', garantizando 
- *    que el Dashboard pueda leer 'reputationScoreValue' sin errores.
- * 3. ZAP Enforcement: Purificación total. Se eliminaron términos obsoletos 
- *    (authProfile) por descriptores industriales (activeSovereignProfile).
+ * NOTA TÉCNICA DEL ARCHITECT (V6.0):
+ * 1. Build Shield Resolution: Se erradicó el error TS2339 mediante un mapeador 
+ *    que garantiza el cumplimiento de la interfaz 'ProfileData' antes del renderizado.
+ * 2. ZAP Compliance: Purificación nominal total. Términos como 'bio', 'url' o 'score' 
+ *    han sido transmutados a descriptores industriales en el objeto normalizado.
+ * 3. Contractual Resillience: El panel ahora es inmune a si los datos provienen de 
+ *    una fila de Supabase (snake_case) o del estado soberano de la App (camelCase).
  */
