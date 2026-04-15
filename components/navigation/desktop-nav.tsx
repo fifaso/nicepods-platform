@@ -1,14 +1,13 @@
 /**
  * ARCHIVO: components/navigation/desktop-nav.tsx
- * VERSIÓN: 5.0 (NicePod Desktop Command - Axial Path Sanitization Edition)
+ * VERSIÓN: 6.0 (NicePod Desktop Command - Axial Path Sanitization Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * Misión: Orquestar la navegación de escritorio de alta densidad, gestionando 
- * la autoridad administrativa y la simetría visual del centro de mando.
- * [REFORMA V5.0]: Implementación de 'Axial Path Sanitization'. Resolución del 
- * error TS2345 mediante el blindaje de 'currentNavigationPathname' con un 
- * fallback a hilo vacío. Aplicación integral de la Zero Abbreviations Policy 
- * (ZAP) y sellado del Build Shield Sovereignty (BSS).
+ * la autoridad administrativa y la simetría visual del centro de mando global.
+ * [REFORMA V6.0]: Resolución definitiva de TS2345 mediante el blindaje de la 
+ * ruta de navegación. Resolución de TS2322 mediante la sincronización nominal 
+ * con 'UserDropdown' V6.0. Purificación absoluta de la Zero Abbreviations Policy.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -39,20 +38,19 @@ import { UserDropdown } from "./shared/user-dropdown";
 import { NotificationBell } from "@/components/system/notification-bell";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { classNamesUtility } from "@/lib/utils";
 
 // --- CONTRATOS DE DATOS SOBERANOS ---
 import { ProfileData } from "@/types/profile";
 
 /**
  * INTERFAZ: DesktopNavigationProperties
- * Misión: Definir el contrato de identidad inyectado por el orquestador de navegación.
  */
 interface DesktopNavigationProperties {
-  isUserAuthenticated: boolean;
-  isInitialLoadingState: boolean;
+  isUserAuthenticatedStatus: boolean;
+  isInitialLoadingProcessActive: boolean;
   administratorProfile: ProfileData | null;
-  isAdministratorAuthority: boolean;
+  isAdministratorAuthorityStatus: boolean;
   onAuthenticationLogoutAction: () => void;
 }
 
@@ -60,39 +58,39 @@ interface DesktopNavigationProperties {
  * DesktopNav: El director de navegación para terminales de alta resolución.
  */
 export function DesktopNav({
-  isUserAuthenticated,
-  isInitialLoadingState,
+  isUserAuthenticatedStatus,
+  isInitialLoadingProcessActive,
   administratorProfile,
-  isAdministratorAuthority,
+  isAdministratorAuthorityStatus,
   onAuthenticationLogoutAction
 }: DesktopNavigationProperties) {
 
   /**
    * [BSS]: SANITIZACIÓN AXIAL
-   * El hook usePathname() puede devolver null. Forzamos un fallback a hilo vacío
-   * para satisfacer el contrato de la función 'isRouteActive' y eliminar el error TS2345.
+   * Misión: El hook usePathname() puede retornar null. Forzamos un fallback 
+   * a cadena vacía para aniquilar el error TS2345 en la lógica de comparación.
    */
   const currentNavigationPathname = usePathname() || "";
 
   /**
-   * navigationItemsCollection:
-   * Misión: Calcular la topología del menú según el rango de autoridad del Voyager.
+   * navigationEntriesCollection:
+   * Misión: Calcular la topología del menú basándose en la autoridad del Voyager.
    */
-  const navigationItemsCollection = useMemo(() => {
-    if (!isUserAuthenticated) {
+  const navigationEntriesCollection = useMemo(() => {
+    if (!isUserAuthenticatedStatus) {
       return GUEST_NAVIGATION_ITEMS;
     }
 
-    // Si el usuario posee autoridad administrativa, se anexan las herramientas soberanas.
-    if (isAdministratorAuthority) {
+    // Inyección de herramientas soberanas si el rango de autoridad es administrativo.
+    if (isAdministratorAuthorityStatus) {
       return [...USER_NAVIGATION_ITEMS, ...ADMIN_NAVIGATION_ITEMS];
     }
 
     return USER_NAVIGATION_ITEMS;
-  }, [isUserAuthenticated, isAdministratorAuthority]);
+  }, [isUserAuthenticatedStatus, isAdministratorAuthorityStatus]);
 
   return (
-    <div className={cn(
+    <div className={classNamesUtility(
       glassPanelClass,
       "hidden lg:flex items-center h-20 px-8 transition-all duration-1000 isolate"
     )}>
@@ -100,11 +98,11 @@ export function DesktopNav({
       {/* I. NÚCLEO IZQUIERDO: IDENTIDAD DE MARCA SOBERANA */}
       <div className="flex-1 flex items-center">
 
-        <NavBrand isUserAuthenticated={isUserAuthenticated} />
+        <NavBrand isUserAuthenticated={isUserAuthenticatedStatus} />
 
-        {/* Indicador de Rango Administrativo */}
-        {isAdministratorAuthority && !isInitialLoadingState && (
-          <div className="ml-8 flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 animate-in fade-in slide-in-from-left-4 duration-1000 shadow-sm">
+        {/* Indicador de Rango Administrativo Activo */}
+        {isAdministratorAuthorityStatus && !isInitialLoadingProcessActive && (
+          <div className="ml-8 flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 animate-in fade-in slide-in-from-left-4 duration-1000 shadow-sm isolate">
             <ShieldCheck size={12} className="text-primary" />
             <span className="text-[9px] font-black uppercase tracking-[0.2em] text-primary">
               Modo Administrador
@@ -114,18 +112,18 @@ export function DesktopNav({
       </div>
 
       {/* II. NÚCLEO CENTRAL: LA CÁPSULA DE COMANDO INTERACTIVA */}
-      <nav className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50">
-        <ul className={cn(
+      <nav className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 isolate">
+        <ul className={classNamesUtility(
           "flex items-center space-x-2 p-1.5 rounded-full",
           "bg-black/40 border border-white/10 shadow-2xl backdrop-blur-3xl",
           "transition-all duration-700 hover:border-white/20"
         )}>
-          {navigationItemsCollection.map((navigationItem: NavigationItem) => {
+          {navigationEntriesCollection.map((navigationEntryItem: NavigationItem) => {
 
-            // CASO A: BOTÓN DE ACCIÓN PRIMARIA (FORJA DE CAPITAL INTELECTUAL)
-            if (navigationItem.isPrimary) {
+            // CASO A: ACCIÓN DE FORJA PRIMARIA (CREACIÓN)
+            if (navigationEntryItem.isPrimary) {
               return (
-                <li key={navigationItem.href} className="flex items-center">
+                <li key={navigationEntryItem.href} className="flex items-center">
                   <CreateButton
                     variant="full"
                     className="h-11 px-8 rounded-full shadow-lg shadow-primary/20"
@@ -134,32 +132,32 @@ export function DesktopNav({
               );
             }
 
-            /**
-             * [SINCRO V5.0]: Verificación de estado activo.
-             * Se utiliza 'currentNavigationPathname' (ya sanitizado) para la comparación.
+            /** 
+             * [SINCRO V6.0]: Verificación de Estado Activo.
+             * Consumo de la ruta sanitizada para determinar el realce visual.
              */
-            const isNavigationItemActive = isRouteActive(navigationItem.href, currentNavigationPathname);
-            const NavigationIconComponent = navigationItem.icon;
+            const isNavigationEntryActiveStatus = isRouteActive(navigationEntryItem.href, currentNavigationPathname);
+            const NavigationIconComponent = navigationEntryItem.icon;
 
             return (
-              <li key={navigationItem.href}>
+              <li key={navigationEntryItem.href}>
                 <Link
-                  href={navigationItem.href}
-                  className={cn(
+                  href={navigationEntryItem.href}
+                  className={classNamesUtility(
                     navLinkBaseClass,
                     "h-11 px-6 flex items-center justify-center rounded-full text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-700",
-                    isNavigationItemActive
+                    isNavigationEntryActiveStatus
                       ? "bg-white text-black shadow-[0_10px_30px_rgba(255,255,255,0.2)] scale-105"
                       : "text-zinc-500 hover:text-white hover:bg-white/5",
-                    navigationItem.isSovereign && "text-amber-500/90 hover:text-amber-400"
+                    navigationEntryItem.isSovereign && "text-amber-500/90 hover:text-amber-400"
                   )}
                 >
                   <div className="flex items-center gap-3">
-                    <NavigationIconComponent size={15} className={cn(
+                    <NavigationIconComponent size={15} className={classNamesUtility(
                       "transition-transform duration-700",
-                      isNavigationItemActive ? "text-black scale-110" : "text-zinc-700"
+                      isNavigationEntryActiveStatus ? "text-black scale-110" : "text-zinc-700"
                     )} />
-                    <span>{navigationItem.label}</span>
+                    <span>{navigationEntryItem.label}</span>
                   </div>
                 </Link>
               </li>
@@ -172,27 +170,27 @@ export function DesktopNav({
       <div className="flex-1 flex items-center justify-end gap-6">
 
         {/* Control Ambiental Táctico */}
-        <div className="h-11 w-11 flex items-center justify-center bg-white/5 rounded-2xl border border-white/5 hover:border-primary/30 hover:bg-primary/5 transition-all duration-700 cursor-pointer shadow-inner group">
+        <div className="h-11 w-11 flex items-center justify-center bg-white/5 rounded-2xl border border-white/5 hover:border-primary/30 hover:bg-primary/5 transition-all duration-700 cursor-pointer shadow-inner group isolate">
           <ThemeToggle />
         </div>
 
         {/* Lógica de Identidad Atómica NicePod */}
-        {isInitialLoadingState ? (
-          <div className="h-11 w-11 flex items-center justify-center bg-zinc-950 rounded-full border border-white/5 animate-pulse">
+        {isInitialLoadingProcessActive ? (
+          <div className="h-11 w-11 flex items-center justify-center bg-zinc-950 rounded-full border border-white/5 animate-pulse isolate">
             <Loader2 className="h-5 w-5 animate-spin text-primary/40" />
           </div>
-        ) : isUserAuthenticated ? (
-          <div className="flex items-center gap-5 animate-in fade-in zoom-in-95 duration-1000">
+        ) : isUserAuthenticatedStatus ? (
+          <div className="flex items-center gap-5 animate-in fade-in zoom-in-95 duration-1000 isolate">
             {/* Sistema de Notificaciones Sincronizado */}
             <div className="h-11 w-11 flex items-center justify-center bg-white/5 rounded-2xl border border-white/5 hover:border-white/20 transition-all cursor-pointer group">
               <NotificationBell />
             </div>
 
-            {/* Menú Desplegable SOBERANO */}
+            {/* Menú Desplegable SOBERANO (RESOLUCIÓN TS2322) */}
             <UserDropdown
-              profile={administratorProfile}
-              isAdministratorAuthority={isAdministratorAuthority}
-              onLogout={onAuthenticationLogoutAction}
+              initialAdministratorProfile={administratorProfile}
+              isAdministratorAuthorityStatus={isAdministratorAuthorityStatus}
+              onAuthenticationLogoutAction={onAuthenticationLogoutAction}
             />
           </div>
         ) : (
@@ -212,12 +210,11 @@ export function DesktopNav({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V5.0):
- * 1. ZAP Absolute Compliance: Se eliminaron abreviaciones residuales en el mapeo de 
- *    iconos (NavigationIconComponent) y en los descriptores de estado.
- * 2. Build Shield Sovereignty: Se resolvió el error TS2345 garantizando que 
- *    'currentNavigationPathname' siempre sea un hilo de texto, protegiendo 
- *    la lógica de comparación de rutas.
- * 3. Atomic Typing: Se refinó el uso de descriptores nominales para asegurar que 
- *    el compilador no genere advertencias de 'Implicit Any'.
+ * NOTA TÉCNICA DEL ARCHITECT (V6.0):
+ * 1. Zero Abbreviations Policy (ZAP): Purga absoluta. 'isUserAuthenticated' -> 'isUserAuthenticatedStatus', 
+ *    'navigationItem' -> 'navigationEntryItem', 'cn' -> 'classNamesUtility'.
+ * 2. TS2345 Resolution: Sanitización imperativa de 'currentNavigationPathname' mediante 
+ *    operador de coalescencia nula, blindando la lógica de rutas.
+ * 3. Prop Sync (TS2322): Sincronización nominal con el contrato V6.0 de UserDropdown, 
+ *    utilizando 'initialAdministratorProfile' e 'isAdministratorAuthorityStatus'.
  */
