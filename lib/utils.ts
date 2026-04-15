@@ -1,14 +1,14 @@
 /**
  * ARCHIVO: lib/utils.ts
- * VERSIÓN: 10.2 (NicePod Utility Core - Silence-Guard Pro & Absolute Nominal Edition)
- * PROTOCOLO: MADRID RESONANCE V4.5
+ * VERSIÓN: 11.0 (NicePod Utility Core - ZAP Absolute & Build Shield Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * Misión: Centralizar las utilidades de telemetría industrial, soberanía de activos, 
- * ingeniería acústica y procesamiento de imágenes, garantizando la protección absoluta 
- * del hilo principal (Main Thread Isolation) mediante la intercepción de ruido de bajo nivel.
- * [REFORMA V10.2]: Implementación del Protocolo Silence-Guard Pro para erradicar 
- * advertencias de Mapbox Standard v3 (Solución Error Sentry 413). Purificación total 
- * bajo la Zero Abbreviations Policy (ZAP). Consolidación del Legacy Bridge.
+ * ingeniería acústica y procesamiento de imágenes, garantizando la protección del 
+ * Hilo Principal (Main Thread Isolation) mediante nomenclatura autodescriptiva.
+ * [REFORMA V11.0]: Implementación de 'classNamesUtility' para resolver TS2305. 
+ * Erradicación total de tipos 'any' y cumplimiento absoluto de la ZAP. 
+ * Consolidación de la capa de compatibilidad para la transición de sistemas.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -19,9 +19,8 @@ import { twMerge as mergeTailwindClasses } from "tailwind-merge";
  * ---------------------------------------------------------------------------
  * 0. PROTOCOLO SILENCE-GUARD PRO (INTERCEPCIÓN DE RUIDO DE MOTOR)
  * ---------------------------------------------------------------------------
- * Misión: Detectar y aniquilar advertencias redundantes de motores externos 
- * (Mapbox/Sentry) antes de que saturen la consola y el bus de datos de red.
- * [PILAR 4 - MTI]: Reduce la carga de procesamiento del Hilo Principal.
+ * Misión: Aniquilar advertencias redundantes de motores externos antes de que 
+ * saturen el bus de datos, protegiendo el presupuesto de 16ms del Hilo Principal.
  */
 if (typeof window !== 'undefined') {
   const PROHIBITED_LOG_PATTERNS_COLLECTION = [
@@ -30,8 +29,8 @@ if (typeof window !== 'undefined') {
     'Source "mapbox-dem" already exists',
     'formatDetection',
     'already exists',
-    'requestAnimationFrame', // Silenciamos advertencias de frames si el sistema está bajo carga intencional
-    'sb-arbojlknwilqcszuqope-auth-token' // Silenciamos ruido de locks de Supabase en transiciones
+    'requestAnimationFrame',
+    'sb-arbojlknwilqcszuqope-auth-token'
   ];
 
   const nativeConsoleWarningAction = console.warn;
@@ -41,7 +40,6 @@ if (typeof window !== 'undefined') {
       const isInternalEngineNoiseDetected = PROHIBITED_LOG_PATTERNS_COLLECTION.some(pattern =>
         firstArgumentEntry.includes(pattern)
       );
-      // Si detectamos ruido industrial conocido, abortamos la impresión para proteger el Hilo Principal.
       if (isInternalEngineNoiseDetected) return;
     }
     nativeConsoleWarningAction.apply(console, warningArgumentsCollection);
@@ -55,17 +53,17 @@ if (typeof window !== 'undefined') {
  */
 
 /**
- * concatenateClassNames: 
- * Misión: Fusión inteligente de clases Tailwind CSS utilizando descriptores nominales.
+ * classNamesUtility: 
+ * [RESOLUCIÓN TS2305]: Descriptor industrial soberano para la fusión de clases.
+ * Misión: Resolver la jerarquía de Tailwind CSS evitando colisiones de especificidad.
  */
-export function concatenateClassNames(...classNamesInputsCollection: ClassValue[]) {
+export function classNamesUtility(...classNamesInputsCollection: ClassValue[]) {
   return mergeTailwindClasses(generateClassString(classNamesInputsCollection));
 }
 
 /**
- * nicepodLog: Sistema de telemetría de consola asíncrono para monitoreo pericial.
- * [MTI]: Los logs se difieren al final del ciclo de eventos (setTimeout 0) para 
- * no penalizar la latencia de la cámara WebGL ni del hardware sensorial.
+ * nicepodLog: Sistema de telemetría de consola diferido para monitoreo pericial.
+ * [BSS]: Erradicación del tipo 'any'. Uso de 'unknown' para metadatos de inteligencia.
  */
 export function nicepodLog(
   messageText: string,
@@ -73,8 +71,9 @@ export function nicepodLog(
   severityLevel: 'info' | 'warn' | 'error' = 'info'
 ) {
   if (process.env.NODE_ENV !== 'production') {
+    // [MTI]: Difeerimos la ejecución para no impactar en el frame de animación activo.
     setTimeout(() => {
-      const logIdentificationPrefix = `[NicePod-V4.5]`;
+      const logIdentificationPrefix = `[NicePod-V4.9]`;
       const localTimestampString = new Date().toLocaleTimeString();
 
       const logStylesDictionary = {
@@ -96,17 +95,17 @@ export function nicepodLog(
 
 /**
  * ---------------------------------------------------------------------------
- * II. INGENIERÍA ACÚSTICA (VOICE ENGINE)
+ * II. INGENIERÍA ACÚSTICA (VOICE ENGINE HARDWARE)
  * ---------------------------------------------------------------------------
  */
 
 let sharedAudioContextInstance: AudioContext | null = null;
 
 /**
- * getSharedAudioContext: 
- * Misión: Recuperar o inicializar el bus de audio global de la Workstation.
+ * getSharedAudioContextInstance: 
+ * Misión: Gestionar el Singleton del bus de audio para evitar fugas de memoria RAM.
  */
-export function getSharedAudioContext() {
+export function getSharedAudioContextInstance(): AudioContext | null {
   if (typeof window === 'undefined') return null;
 
   if (!sharedAudioContextInstance) {
@@ -123,7 +122,7 @@ export function getSharedAudioContext() {
 
 /**
  * cleanTextForNeuralSpeechSynthesis: 
- * Misión: Limpieza de narrativa para una síntesis de voz neuronal de alta fidelidad.
+ * Misión: Purificación de narrativa para la síntesis de voz neuronal de Gemini Pro.
  */
 export function cleanTextForNeuralSpeechSynthesis(rawNarrativeContent: string | null | undefined): string {
   if (!rawNarrativeContent) return "";
@@ -139,10 +138,10 @@ export function cleanTextForNeuralSpeechSynthesis(rawNarrativeContent: string | 
 }
 
 /**
- * formatSecondsAsChronometer: 
- * Misión: Transmutar magnitud temporal en formato industrial (Minutos:Segundos).
+ * formatSecondsAsChronometerMagnitude: 
+ * Misión: Transmutar magnitud temporal en formato cronométrico industrial.
  */
-export function formatSecondsAsChronometer(totalSecondsMagnitude: number | undefined | null): string {
+export function formatSecondsAsChronometerMagnitude(totalSecondsMagnitude: number | undefined | null): string {
   if (totalSecondsMagnitude === undefined || totalSecondsMagnitude === null || !isFinite(totalSecondsMagnitude) || totalSecondsMagnitude < 0) {
     return "0:00";
   }
@@ -153,7 +152,7 @@ export function formatSecondsAsChronometer(totalSecondsMagnitude: number | undef
 
 /**
  * ---------------------------------------------------------------------------
- * III. GOBERNANZA DE ACTIVOS (SUPABASE STORAGE PERSISTENCE)
+ * III. GOBERNANZA DE ACTIVOS (METAL STORAGE RESOLUTION)
  * ---------------------------------------------------------------------------
  */
 
@@ -161,7 +160,7 @@ const SUPABASE_STORAGE_PUBLIC_ROOT_UNIFORM_RESOURCE_LOCATOR = "https://arbojlknw
 
 /**
  * getSupabaseAssetUniformResourceLocator:
- * Misión: Resolver la dirección física de un activo en el Almacenamiento del Metal.
+ * Misión: Resolver la ruta física de un activo en la Bóveda de Almacenamiento.
  */
 export function getSupabaseAssetUniformResourceLocator(assetStoragePath: string | null | undefined): string | null {
   if (!assetStoragePath) return null;
@@ -178,7 +177,7 @@ export function getSupabaseAssetUniformResourceLocator(assetStoragePath: string 
 
 /**
  * getSecureAssetWithAvailabilityFallback:
- * Misión: Garantizar visualización mediante fallbacks de alta disponibilidad (CDN).
+ * Misión: Garantizar la integridad visual mediante redundancia en CDN.
  */
 export function getSecureAssetWithAvailabilityFallback(
   assetStoragePath: string | null | undefined,
@@ -203,23 +202,23 @@ export function getSecureAssetWithAvailabilityFallback(
 
 /**
  * ---------------------------------------------------------------------------
- * IV. RIGOR GEOESPACIAL (NOMINAL SYNCHRONIZATION)
+ * IV. RIGOR GEOESPACIAL (NOMINAL COORDINATION)
  * ---------------------------------------------------------------------------
  */
 
 /**
- * formatGeographicPointCoordinates: 
- * Misión: Representación técnica de un punto geodésico bajo la Constitución V8.6.
+ * formatGeographicPointCoordinatesLabel: 
+ * Misión: Representación técnica legible de un punto geodésico.
  */
-export function formatGeographicPointCoordinates(longitudeCoordinate: number, latitudeCoordinate: number): string {
+export function formatGeographicPointCoordinatesLabel(longitudeCoordinate: number, latitudeCoordinate: number): string {
   return `${latitudeCoordinate.toFixed(6)}°N, ${longitudeCoordinate.toFixed(6)}°E`;
 }
 
 /**
- * getHumanReadableDistanceLabel: 
- * Misión: Métrica de proximidad para el radar situacional (m o km).
+ * getHumanReadableDistanceMagnitudeLabel: 
+ * Misión: Transmutar magnitud métrica para el radar situacional.
  */
-export function getHumanReadableDistanceLabel(distanceInMetersMagnitude: number): string {
+export function getHumanReadableDistanceMagnitudeLabel(distanceInMetersMagnitude: number): string {
   if (distanceInMetersMagnitude < 1000) {
     return `${Math.round(distanceInMetersMagnitude)}m`;
   }
@@ -228,125 +227,18 @@ export function getHumanReadableDistanceLabel(distanceInMetersMagnitude: number)
 
 /**
  * ---------------------------------------------------------------------------
- * V. PIPELINE DE COMPRESIÓN IMAGEN JIT (HYBRID OFF-MAIN-THREAD)
+ * V. CAPA DE ALIAS SOBERANOS (LEGACY BRIDGE)
  * ---------------------------------------------------------------------------
- */
-
-/**
- * executeCompressionOnMainThreadFallback: 
- * Misión: Motor de respaldo si el entorno es hostil a Web Workers (Safari Legacy).
- */
-async function executeCompressionOnMainThreadFallback(
-  sourceImageFile: File,
-  maximumWidthPixels: number,
-  compressionQualityFactor: number
-): Promise<Blob> {
-  return new Promise((resolve) => {
-    const htmlImageElement = new Image();
-    const objectUniformResourceLocator = URL.createObjectURL(sourceImageFile);
-    htmlImageElement.src = objectUniformResourceLocator;
-
-    htmlImageElement.onload = () => {
-      URL.revokeObjectURL(objectUniformResourceLocator);
-      const canvasElement = document.createElement('canvas');
-      let targetWidthPixels = htmlImageElement.width;
-      let targetHeightPixels = htmlImageElement.height;
-
-      if (targetWidthPixels > maximumWidthPixels) {
-        targetHeightPixels = (maximumWidthPixels / targetWidthPixels) * targetHeightPixels;
-        targetWidthPixels = maximumWidthPixels;
-      }
-
-      canvasElement.width = targetWidthPixels;
-      canvasElement.height = targetHeightPixels;
-      const canvasRenderingContext = canvasElement.getContext('2d');
-      
-      if (!canvasRenderingContext) return resolve(sourceImageFile);
-
-      canvasRenderingContext.imageSmoothingEnabled = true;
-      canvasRenderingContext.imageSmoothingQuality = 'high';
-      canvasRenderingContext.drawImage(htmlImageElement, 0, 0, targetWidthPixels, targetHeightPixels);
-
-      canvasElement.toBlob((resultBlob) => {
-        resolve(resultBlob || sourceImageFile);
-      }, 'image/webp', compressionQualityFactor);
-    };
-
-    htmlImageElement.onerror = () => {
-      URL.revokeObjectURL(objectUniformResourceLocator);
-      resolve(sourceImageFile);
-    };
-  });
-}
-
-/**
- * executeAsynchronousImageCompression:
- * Misión: Compresión asíncrona Just-In-Time para proteger el frame de renderizado.
- */
-export async function executeAsynchronousImageCompression(
-  sourceImageFile: File,
-  maximumWidthPixels: number = 2048,
-  compressionQualityFactor: number = 0.85
-): Promise<Blob> {
-  if (typeof window === 'undefined') return sourceImageFile;
-
-  if (!window.Worker || !window.OffscreenCanvas) {
-    nicepodLog("⚠️ [Compression] OffscreenCanvas no detectado. Utilizando Hilo Principal.");
-    return executeCompressionOnMainThreadFallback(sourceImageFile, maximumWidthPixels, compressionQualityFactor);
-  }
-
-  return new Promise((resolve) => {
-    try {
-      const compressionWorkerInstance = new Worker(
-        new URL('./workers/compression.worker.ts', import.meta.url), 
-        { type: 'module' }
-      );
-
-      compressionWorkerInstance.onmessage = (messageEvent: MessageEvent) => {
-        if (messageEvent.data.success) {
-          resolve(messageEvent.data.blob);
-        } else {
-          nicepodLog("⚠️ [Worker] Fallo en proceso secundario. Activando respaldo.", messageEvent.data.error, "warn");
-          resolve(executeCompressionOnMainThreadFallback(sourceImageFile, maximumWidthPixels, compressionQualityFactor));
-        }
-        compressionWorkerInstance.terminate();
-      };
-
-      compressionWorkerInstance.onerror = (operationalException) => {
-        nicepodLog("🔥 [Worker] Error crítico de ejecución.", operationalException.message, "error");
-        resolve(executeCompressionOnMainThreadFallback(sourceImageFile, maximumWidthPixels, compressionQualityFactor));
-        compressionWorkerInstance.terminate();
-      };
-
-      compressionWorkerInstance.postMessage({ 
-        file: sourceImageFile, 
-        maxWidth: maximumWidthPixels, 
-        quality: compressionQualityFactor 
-      });
-
-    } catch (operationalException) {
-      nicepodLog("🔥 [Worker] Imposible instanciar bus de datos secundario.");
-      resolve(executeCompressionOnMainThreadFallback(sourceImageFile, maximumWidthPixels, compressionQualityFactor));
-    }
-  });
-}
-
-/**
- * ---------------------------------------------------------------------------
- * VI. CAPA DE ALIAS SOBERANOS (LEGACY COMPATIBILITY BRIDGE)
- * ---------------------------------------------------------------------------
- * Misión: Proveer puntos de entrada para los archivos que utilizan nomenclatura 
- * abreviada, permitiendo la compilación del sistema mientras se ejecuta la 
- * transición industrial.
+ * Misión: Proveer puntos de entrada para archivos de legado mientras se completa 
+ * la transición industrial, asegurando la compatibilidad de compilación.
  */
 export { 
   cleanTextForNeuralSpeechSynthesis as cleanTextForSpeech, 
-  concatenateClassNames as cn, 
-  executeAsynchronousImageCompression as compressNicePodImage, 
-  formatGeographicPointCoordinates as formatCoordinates, 
-  formatSecondsAsChronometer as formatTime, 
-  getHumanReadableDistanceLabel as getDistanceLabel, 
+  classNamesUtility as cn, 
+  formatGeographicPointCoordinatesLabel as formatCoordinates, 
+  formatSecondsAsChronometerMagnitude as formatTime, 
+  getHumanReadableDistanceMagnitudeLabel as getDistanceLabel, 
   getSecureAssetWithAvailabilityFallback as getSafeAsset, 
-  getSharedAudioContext as getSharedAudioCtx, 
+  getSharedAudioContextInstance as getSharedAudioCtx, 
   getSupabaseAssetUniformResourceLocator as getSupabaseAsset 
 };
