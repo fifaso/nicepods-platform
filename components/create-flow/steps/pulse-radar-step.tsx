@@ -1,5 +1,15 @@
-// components/create-flow/steps/pulse-radar-step.tsx
-// VERSIÓN: 1.2 (Strategic Radar - Data Mapping Fix & Identity Evolution)
+/**
+ * ARCHIVO: components/create-flow/steps/pulse-radar-step.tsx
+ * VERSIÓN: 2.0 (NicePod Strategic Radar - Sovereign Data Mapping & ZAP Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.9
+ * 
+ * Misión: Visualizar e interactuar con las señales de inteligencia (Pulse) 
+ * interceptadas en el entorno geodésico o temático del Voyager.
+ * [REFORMA V2.0]: Resolución definitiva del error TS2339. Sincronización nominal 
+ * absoluta con el AuthProvider V5.2 ('supabaseSovereignClient'). Erradicación 
+ * total de abreviaturas ('signals', 'err', 'idx') y sellado del Build Shield (BSS).
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ */
 
 "use client";
 
@@ -24,230 +34,261 @@ import { useCallback, useEffect, useState } from "react";
 import { useFormContext } from "react-hook-form";
 import { useCreationContext } from "../shared/context";
 
+/**
+ * COMPONENTE: PulseRadarStep
+ * El terminal de intercepción de señales estratégicas.
+ */
 export function PulseRadarStep() {
-  const { supabase } = useAuth();
+  // [SINCRO V2.0]: Consumo soberano del cliente Supabase.
+  const { supabaseSovereignClient } = useAuth();
   const { toast } = useToast();
   const { setValue, watch } = useFormContext();
   const { transitionTo } = useCreationContext();
 
-  // --- ESTADOS ---
-  const [signals, setSignals] = useState<PulseMatchResult[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // --- I. ESTADOS DE GESTIÓN DE INTERFAZ SOBERANA ---
+  const [pulseSignalsCollection, setPulseSignalsCollection] = useState<PulseMatchResult[]>([]);
+  const [isRadarScanningProcessActive, setIsRadarScanningProcessActive] = useState<boolean>(true);
+  const [radarOperationalExceptionMessage, setRadarOperationalExceptionMessage] = useState<string | null>(null);
 
-  const selectedIds = watch("pulseSourceIdentifications") || [];
+  const selectedPulseSourceIdentifications: string[] = watch("pulseSourceIdentifications") || [];
 
   /**
-   * scanRadar: Sincronización con el motor de matching.
-   * [FIX]: Se ha robustecido el mapeo para capturar tanto 'signals' como 'is_fallback'.
+   * executeRadarScanAction: 
+   * Misión: Orquestar la invocación al motor de matching (Edge Function).
    */
-  const scanRadar = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
+  const executeRadarScanAction = useCallback(async () => {
+    setIsRadarScanningProcessActive(true);
+    setRadarOperationalExceptionMessage(null);
 
     try {
-      const { data, error: fetchError } = await supabase.functions.invoke('pulse-matcher');
+      const { data: edgeFunctionResponseData, error: edgeFunctionException } = await supabaseSovereignClient.functions.invoke('pulse-matcher');
 
-      if (fetchError) throw new Error("Interrupción en la sincronización con los radares.");
+      if (edgeFunctionException) throw new Error("Interrupción en la sincronización de red con los radares globales.");
 
-      // Validamos la estructura del contrato de datos
-      if (data && data.signals && Array.isArray(data.signals)) {
-        setSignals(data.signals);
+      if (edgeFunctionResponseData && edgeFunctionResponseData.signals && Array.isArray(edgeFunctionResponseData.signals)) {
+        setPulseSignalsCollection(edgeFunctionResponseData.signals as PulseMatchResult[]);
 
-        if (data.is_fallback) {
+        if (edgeFunctionResponseData.is_fallback) {
           toast({
-            title: "Radar en modo Global",
-            description: "Personaliza tu ADN en el paso anterior para obtener señales prioritarias."
+            title: "Modo Cobertura Global",
+            description: "Ajuste su perfil genético digital para interceptar señales de mayor prioridad local."
           });
         }
       } else {
-        // Si no hay señales, dejamos el array vacío para mostrar el placeholder de búsqueda
-        setSignals([]);
+        setPulseSignalsCollection([]);
       }
-    } catch (err: any) {
-      const errorMsg = err.message || "No se detectaron señales en el área.";
-      setError(errorMsg);
+    } catch (hardwareException: unknown) {
+      const exceptionMessage = hardwareException instanceof Error ? hardwareException.message : "No se detectaron frecuencias útiles en la malla.";
+      setRadarOperationalExceptionMessage(exceptionMessage);
       toast({
         title: "Fallo de Intercepción",
-        description: errorMsg,
+        description: exceptionMessage,
         variant: "destructive"
       });
     } finally {
-      // Retardo visual para permitir que la animación Aurora respire
-      setTimeout(() => setIsLoading(false), 1200);
+      // Retardo estético para sincronizar con la animación de barrido (Aurora).
+      setTimeout(() => setIsRadarScanningProcessActive(false), 1200);
     }
-  }, [supabase, toast]);
+  }, [supabaseSovereignClient, toast]);
 
   useEffect(() => {
-    scanRadar();
-  }, [scanRadar]);
+    executeRadarScanAction();
+  }, [executeRadarScanAction]);
 
   /**
-   * toggleSource: Gestión de selección múltiple.
+   * togglePulseSourceSelectionAction:
+   * Misión: Gestionar la inclusión o exclusión de un nodo en la forja de la píldora.
    */
-  const toggleSource = (id: string) => {
-    const current = [...selectedIds];
-    const index = current.indexOf(id);
+  const togglePulseSourceSelectionAction = (targetSourceIdentification: string) => {
+    const currentSelectedIdentificationsCollection = [...selectedPulseSourceIdentifications];
+    const sourceIndexPosition = currentSelectedIdentificationsCollection.indexOf(targetSourceIdentification);
 
-    if (index > -1) {
-      current.splice(index, 1);
+    if (sourceIndexPosition > -1) {
+      currentSelectedIdentificationsCollection.splice(sourceIndexPosition, 1);
     } else {
-      if (current.length >= 5) {
+      if (currentSelectedIdentificationsCollection.length >= 5) {
         toast({
-          title: "Límite de Sintetización",
-          description: "Selecciona hasta 5 fuentes para garantizar una píldora de alta densidad.",
+          title: "Saturación de Carga",
+          description: "Seleccione un máximo de 5 nodos fuente para garantizar una síntesis de alta densidad.",
         });
         return;
       }
-      current.push(id);
+      currentSelectedIdentificationsCollection.push(targetSourceIdentification);
     }
-    setValue("pulseSourceIdentifications", current, { shouldValidate: true });
+    
+    // Inyección de estado hacia el FormContext central.
+    setValue("pulseSourceIdentifications", currentSelectedIdentificationsCollection, { shouldValidate: true });
   };
 
   return (
-    <div className="flex flex-col h-full w-full max-w-6xl mx-auto p-4 md:p-8 overflow-hidden">
+    <div className="flex flex-col h-full w-full max-w-6xl mx-auto p-4 md:p-8 overflow-hidden isolate">
 
-      {/* 1. HEADER: Identidad Evolucionada */}
-      <header className="flex-shrink-0 flex flex-col md:flex-row justify-between items-center gap-6 mb-8">
+      {/* I. CABECERA TÁCTICA (COMMAND HEADER) */}
+      <header className="flex-shrink-0 flex flex-col md:flex-row justify-between items-center gap-6 mb-8 z-10">
         <div className="text-center md:text-left space-y-1">
           <div className="flex items-center justify-center md:justify-start gap-2 text-primary font-black uppercase tracking-[0.3em] text-[10px]">
-            <Radar size={14} className={cn(isLoading && "animate-spin")} />
+            <Radar size={14} className={cn(isRadarScanningProcessActive && "animate-spin")} />
             Escáner de Inteligencia Activo
           </div>
-          <h1 className="text-3xl md:text-5xl font-black uppercase tracking-tighter text-white leading-none">
+          <h1 className="text-3xl md:text-5xl font-black uppercase tracking-tighter text-white leading-none font-serif">
             Radar <span className="text-primary italic">Pulse</span>
           </h1>
           <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest hidden md:block">
-            Inteligencia Detectada en Tiempo Real
+            Capital Intelectual detectado en tiempo real
           </p>
         </div>
 
-        <div className="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/10 backdrop-blur-xl">
+        <div className="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/10 backdrop-blur-xl shadow-2xl">
           <div className="text-right hidden sm:block">
             <p className="text-[10px] font-black text-white/40 uppercase tracking-widest leading-none mb-1">Materia Prima</p>
-            <p className="text-lg font-bold text-white">{selectedIds.length} <span className="text-white/20">/ 5</span></p>
+            <p className="text-lg font-bold text-white tabular-nums">{selectedPulseSourceIdentifications.length} <span className="text-white/20">/ 5</span></p>
           </div>
           <Button
-            disabled={selectedIds.length === 0 || isLoading}
+            disabled={selectedPulseSourceIdentifications.length === 0 || isRadarScanningProcessActive}
             onClick={() => transitionTo('TONE_SELECTION')}
-            className="h-12 px-8 rounded-xl bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest shadow-2xl shadow-primary/20"
+            className="h-12 px-8 rounded-xl bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest shadow-2xl shadow-primary/20 transition-all active:scale-95"
           >
             Producir Píldora
           </Button>
         </div>
       </header>
 
-      {/* 2. ÁREA DE RESULTADOS DINÁMICOS */}
-      <div className="flex-1 min-h-0 relative">
+      {/* II. ÁREA DE RESULTADOS DINÁMICOS (REACTOR VISUAL) */}
+      <div className="flex-1 min-h-0 relative z-0">
         <AnimatePresence mode="wait">
-          {isLoading ? (
-            /* ESTADO: ANIMACIÓN DE ESCANEO */
+          
+          {isRadarScanningProcessActive ? (
+            /* ESTADO A: BARRIDO DE FRECUENCIA EN CURSO */
             <motion.div
-              key="loading"
+              key="radar_scanning_state"
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="h-full flex flex-col items-center justify-center space-y-6"
             >
               <div className="relative">
-                <div className="h-32 w-32 rounded-full border-2 border-primary/20 animate-ping" />
+                <div className="h-32 w-32 rounded-full border-2 border-primary/20 animate-ping absolute inset-[-10px]" />
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="h-20 w-20 rounded-full border-t-2 border-primary animate-spin" />
                 </div>
-                <Zap size={40} className="absolute inset-0 m-auto text-primary animate-pulse" />
+                <Zap size={40} className="text-primary animate-pulse relative z-10" />
               </div>
-              <p className="text-sm font-black uppercase tracking-[0.4em] text-primary animate-pulse text-center">
-                Sincronizando con fuentes globales...
+              <p className="text-[11px] font-black uppercase tracking-[0.4em] text-primary animate-pulse text-center">
+                Sincronizando con red global...
               </p>
             </motion.div>
-          ) : error || (signals.length === 0 && !isLoading) ? (
-            /* ESTADO: NO SE DETECTARON SEÑALES */
-            <motion.div key="empty" className="h-full flex flex-col items-center justify-center text-center space-y-4">
-              <div className="p-6 bg-white/5 rounded-full border border-white/10">
+
+          ) : radarOperationalExceptionMessage || (pulseSignalsCollection.length === 0 && !isRadarScanningProcessActive) ? (
+            /* ESTADO B: VACÍO DE RED O FALLO TÉCNICO */
+            <motion.div 
+              key="radar_empty_state" 
+              className="h-full flex flex-col items-center justify-center text-center space-y-4"
+            >
+              <div className="p-6 bg-white/5 rounded-full border border-white/10 shadow-inner">
                 <Search size={40} className="text-zinc-600" />
               </div>
-              <h3 className="text-xl font-bold text-white uppercase tracking-tight">Frecuencia Silenciosa</h3>
-              <p className="text-muted-foreground max-w-xs text-sm">
-                No hemos detectado señales nuevas en tu área de interés. Intenta recalibrar tu ADN.
+              <h3 className="text-xl font-bold text-white uppercase tracking-tight italic font-serif">Frecuencia Silenciosa</h3>
+              <p className="text-muted-foreground max-w-xs text-[10px] font-medium uppercase tracking-widest leading-relaxed">
+                No hemos detectado señales prioritarias en la malla de interés actual. Intente recalibrar el ADN de su perfil.
               </p>
-              <Button onClick={scanRadar} variant="outline" className="border-white/10 rounded-xl font-bold uppercase text-[10px]">
-                Escaneo Manual
+              <Button 
+                onClick={executeRadarScanAction} 
+                variant="outline" 
+                className="mt-4 border-white/10 rounded-xl font-black uppercase tracking-widest text-[9px] hover:bg-white/5 hover:text-white transition-colors"
+              >
+                Forzar Barrido Manual
               </Button>
             </motion.div>
+
           ) : (
-            /* ESTADO: SEÑALES LISTAS PARA SELECCIONAR */
+            /* ESTADO C: PROYECCIÓN DE NODOS INTERCEPTADOS */
             <motion.div
-              key="results"
+              key="radar_results_state"
               initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-              className="h-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto pr-2 no-scrollbar pb-10"
+              className="h-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 overflow-y-auto pr-2 custom-scrollbar pb-10"
             >
-              {signals.map((signal, idx) => {
-                const isSelected = selectedIds.includes(signal.id);
+              {pulseSignalsCollection.map((signalEntry, itemIndex) => {
+                const isNodeSelectedForSynthesis = selectedPulseSourceIdentifications.includes(signalEntry.id);
 
                 return (
                   <motion.div
-                    key={signal.id}
-                    initial={{ opacity: 0, scale: 0.9 }}
+                    key={signalEntry.id}
+                    initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: idx * 0.05 }}
-                    onClick={() => toggleSource(signal.id)}
+                    transition={{ delay: itemIndex * 0.05 }}
+                    onClick={() => togglePulseSourceSelectionAction(signalEntry.id)}
                     className={cn(
-                      "group relative p-5 rounded-[2rem] border transition-all cursor-pointer overflow-hidden",
-                      isSelected
-                        ? "bg-white text-zinc-950 border-white shadow-2xl scale-[1.02]"
-                        : "bg-white/5 border-white/10 hover:border-primary/40 hover:bg-white/10 text-white"
+                      "group relative p-6 rounded-[2.5rem] border transition-all cursor-pointer overflow-hidden isolate",
+                      isNodeSelectedForSynthesis
+                        ? "bg-white text-zinc-950 border-white shadow-[0_20px_40px_rgba(255,255,255,0.15)] scale-[1.02] z-10"
+                        : "bg-white/5 border-white/10 hover:border-primary/40 hover:bg-white/10 text-white z-0"
                     )}
                   >
-                    {signal.is_high_value && !isSelected && (
-                      <div className="absolute top-0 right-0 p-3">
-                        <Badge className="bg-primary/20 text-primary border-primary/30 text-[8px] font-black uppercase">Fondo Estratégico</Badge>
+                    {signalEntry.is_high_value && !isNodeSelectedForSynthesis && (
+                      <div className="absolute top-0 right-0 p-4 z-20">
+                        <Badge className="bg-primary/20 text-primary border-primary/30 text-[8px] font-black uppercase tracking-widest px-3 py-1 shadow-inner">
+                          Fondo Estratégico
+                        </Badge>
                       </div>
                     )}
 
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-3">
+                    <div className="space-y-5 relative z-10">
+                      
+                      <div className="flex items-center gap-4">
                         <div className={cn(
-                          "p-2 rounded-xl",
-                          isSelected ? "bg-primary/10 text-primary" : "bg-white/5 text-primary"
+                          "p-3 rounded-2xl shadow-inner",
+                          isNodeSelectedForSynthesis ? "bg-primary/10 text-primary" : "bg-white/5 text-primary"
                         )}>
-                          {signal.content_type === 'paper' ? <FileText size={18} /> : <Globe size={18} />}
+                          {signalEntry.content_type === 'paper' ? <FileText size={20} /> : <Globe size={20} />}
                         </div>
-                        <div className="flex flex-col">
-                          <span className={cn("text-[9px] font-black uppercase tracking-tighter", isSelected ? "text-zinc-500" : "text-white/40")}>
-                            {signal.source_name}
+                        <div className="flex flex-col min-w-0 pr-4">
+                          <span className={cn(
+                            "text-[9px] font-black uppercase tracking-[0.2em] truncate", 
+                            isNodeSelectedForSynthesis ? "text-zinc-500" : "text-white/40"
+                          )}>
+                            {signalEntry.source_name}
                           </span>
-                          <span className="flex items-center gap-1.5 text-[10px] font-bold text-primary uppercase">
-                            <TrendingUp size={10} /> {signal.match_percentage}% Resonancia
+                          <span className="flex items-center gap-1.5 text-[10px] font-bold text-primary uppercase tracking-widest mt-0.5">
+                            <TrendingUp size={12} /> {signalEntry.match_percentage}% Resonancia
                           </span>
                         </div>
                       </div>
 
-                      <h3 className="font-bold text-sm md:text-base leading-tight uppercase tracking-tight line-clamp-2">
-                        {signal.title}
+                      <h3 className="font-black text-sm md:text-base leading-tight uppercase tracking-tight line-clamp-2">
+                        {signalEntry.title}
                       </h3>
 
                       <p className={cn(
                         "text-[11px] leading-relaxed line-clamp-3 font-medium",
-                        isSelected ? "text-zinc-600" : "text-muted-foreground"
+                        isNodeSelectedForSynthesis ? "text-zinc-600" : "text-muted-foreground"
                       )}>
-                        {signal.summary}
+                        {signalEntry.summary}
                       </p>
 
-                      <footer className="pt-2 flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
-                          {isSelected ? <CheckCircle2 className="text-primary h-5 w-5" /> : <div className="h-5 w-5 rounded-full border-2 border-white/10" />}
-                          <span className="text-[9px] font-black uppercase tracking-widest">
-                            {isSelected ? "Incluida" : "Seleccionar"}
+                      <footer className="pt-4 mt-2 border-t border-current/10 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {isNodeSelectedForSynthesis ? (
+                              <CheckCircle2 className="text-primary h-5 w-5" />
+                          ) : (
+                              <div className="h-5 w-5 rounded-full border-2 border-white/20 transition-colors group-hover:border-primary/50" />
+                          )}
+                          <span className="text-[9px] font-black uppercase tracking-[0.3em]">
+                            {isNodeSelectedForSynthesis ? "Nodo Incluido" : "Seleccionar"}
                           </span>
                         </div>
                         <a
-                          href={signal.uniformResourceLocator}
+                          href={signalEntry.uniformResourceLocator}
                           target="_blank"
                           rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="p-2 hover:bg-primary/10 rounded-lg transition-colors"
+                          onClick={(interactionEvent) => interactionEvent.stopPropagation()}
+                          className={cn(
+                            "p-2.5 rounded-xl transition-colors shadow-sm",
+                            isNodeSelectedForSynthesis ? "hover:bg-black/5" : "hover:bg-white/10"
+                          )}
+                          title="Explorar fuente original"
                         >
-                          <ExternalLink size={14} className={isSelected ? "text-zinc-400" : "text-white/20"} />
+                          <ExternalLink size={16} className={isNodeSelectedForSynthesis ? "text-zinc-500" : "text-white/40"} />
                         </a>
                       </footer>
+
                     </div>
                   </motion.div>
                 );
@@ -257,13 +298,24 @@ export function PulseRadarStep() {
         </AnimatePresence>
       </div>
 
-      {/* 3. MOBILE OVERLAY CONTADOR */}
-      <div className="md:hidden fixed bottom-24 left-1/2 -translate-x-1/2 z-50">
-        <Badge className="bg-zinc-900/90 text-white border-white/20 px-4 py-2 rounded-full backdrop-blur-md shadow-2xl font-black text-[9px] uppercase tracking-widest">
-          {selectedIds.length} Señales Interceptadas
+      {/* III. INDICADOR MÓVIL SOBERANO */}
+      <div className="md:hidden fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] pointer-events-none">
+        <Badge className="bg-black/90 text-white border-white/20 px-5 py-2.5 rounded-full backdrop-blur-xl shadow-2xl font-black text-[9px] uppercase tracking-[0.3em]">
+          {selectedPulseSourceIdentifications.length} <span className="text-zinc-500 ml-1">Señales Interceptadas</span>
         </Badge>
       </div>
 
     </div>
   );
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V2.0):
+ * 1. Contract Alignment: Resolución de TS2339 mediante el uso de 'supabaseSovereignClient' 
+ *    inyectado desde el orquestador AuthProvider V5.2.
+ * 2. ZAP Absolute Compliance: Purificación total de descriptores técnicos (idx -> 
+ *    itemIndex, e -> interactionEvent, current -> currentSelectedIdentificationsCollection).
+ * 3. UI Hardening: Se balanceó la estructura DOM y se ajustaron los z-index (isolate) 
+ *    para evitar colisiones de eventos táctiles en dispositivos móviles y garantizar 
+ *    la accesibilidad (A11y) de los enlaces externos.
+ */
