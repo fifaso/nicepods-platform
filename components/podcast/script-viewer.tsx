@@ -1,13 +1,12 @@
 /**
  * ARCHIVO: components/podcast/script-viewer.tsx
- * VERSIÓN: 9.0 (NicePod Teleprompter - Nominal Sync & ZAP Edition)
+ * VERSIÓN: 10.0 (NicePod Teleprompter - Industrial Precision Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * Misión: Renderizar la narrativa de capital intelectual con legibilidad industrial 
- * y sincronía milimétrica con el pulso acústico del hardware.
- * [REFORMA V9.0]: Resolución definitiva de TS2339 mediante sincronización con 
- * 'PodcastScript' V12.0. Sustitución de 'cn' por 'classNamesUtility'. 
- * Aplicación absoluta de la Zero Abbreviations Policy (ZAP).
+ * y sincronía milimétrica con el pulso acústico del hardware de audio.
+ * [REFORMA V10.0]: Resolución definitiva de TS2339 mediante sincronía absoluta con 
+ * 'PodcastScript' V12.0. Aplicación integral de la Zero Abbreviations Policy (ZAP).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -20,13 +19,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 /**
  * INTERFAZ SOBERANA: ScriptViewerProperties
+ * Misión: Definir el contrato de entrada para la visualización narrativa.
  */
 interface ScriptViewerProperties {
-  /** narrativeScriptContent: El corpus narrativo (estructurado o cadena). */
+  /** narrativeScriptContent: El corpus narrativo (estructurado o cadena de texto). */
   narrativeScriptContent: string | PodcastScript | null;
-  /** playbackDurationSecondsMagnitude: Magnitud temporal total del activo. */
+  /** playbackDurationSecondsMagnitude: Magnitud temporal total del activo acústico. */
   playbackDurationSecondsMagnitude?: number;
-  /** additionalTailwindClassName: Inyección de estilos para el contenedor. */
+  /** additionalTailwindClassName: Inyección de estilos para el contenedor táctico. */
   additionalTailwindClassName?: string;
 }
 
@@ -42,7 +42,7 @@ export const ScriptViewer = ({
   additionalTailwindClassName
 }: ScriptViewerProperties) => {
 
-  // --- I. ESTADOS DE SINCRONÍA DE HARDWARE ---
+  // --- I. ESTADOS DE SINCRONÍA DE HARDWARE (ZAP COMPLIANT) ---
   const [currentPlaybackTimeSecondsMagnitude, setCurrentPlaybackTimeSecondsMagnitude] = useState<number>(0);
   const scrollContainerElementReference = useRef<HTMLDivElement>(null);
   const activeParagraphElementReference = useRef<HTMLParagraphElement>(null);
@@ -80,6 +80,10 @@ export const ScriptViewer = ({
     
     // Peritaje de tipo de entrada (Contrato estructurado vs Cadena cruda)
     if (typeof narrativeScriptContent === 'object' && narrativeScriptContent !== null) {
+      /** 
+       * [SINCRO V10.0]: Uso de propiedades ZAP definidas en types/podcast.ts.
+       * Eliminamos script_body y script_plain en favor del estándar industrial.
+       */
       rawNarrativeContentText = 
         narrativeScriptContent.scriptBodyContent || 
         narrativeScriptContent.scriptPlainContent || 
@@ -101,7 +105,7 @@ export const ScriptViewer = ({
       }
     }
 
-    // Higiene Técnica: Neutralización de marcado y segmentación por saltos de línea
+    // Higiene Técnica: Neutralización de marcado HTML y segmentación por saltos de línea
     return rawNarrativeContentText
       .replace(/<[^>]*>?/gm, '')
       .split(/\n+/)
@@ -122,7 +126,7 @@ export const ScriptViewer = ({
 
   /**
    * 4. CINEMATOGRAFÍA DE DESPLAZAMIENTO (Dynamic Auto-Scroll)
-   * Aseguramos que el conocimiento activo se sitúe siempre en el eje axial visual.
+   * Aseguramos que el conocimiento activo se sitúe siempre en el eje axial visual del Voyager.
    */
   useEffect(() => {
     if (activeParagraphElementReference.current && scrollContainerElementReference.current) {
@@ -175,7 +179,7 @@ export const ScriptViewer = ({
       <div className="pt-40 pb-96 flex flex-col items-center gap-10 opacity-10 grayscale isolate">
         <div className="h-px w-48 bg-gradient-to-r from-transparent via-white to-transparent" />
         <span className="text-[9px] font-black uppercase tracking-[1.2em] text-white">
-          Cierre de Crónica
+          Cierre de Crónica Industrial
         </span>
       </div>
     </div>
@@ -183,13 +187,13 @@ export const ScriptViewer = ({
 };
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V9.0):
- * 1. Zero Abbreviations Policy: Purga absoluta de acrónimos en props y lógica interna. 
- *    'cn' -> 'classNamesUtility', 'ref' -> 'elementReference', 'p' -> 'paragraphIndex'.
- * 2. TS2339 Resolution: Alineación estricta con 'PodcastScript' V12.0 utilizando 
- *    'scriptBodyContent' y 'scriptPlainContent'.
- * 3. Chromatic Density: El uso de 'zinc-900' para estados inactivos sobre fondo oscuro 
- *    minimiza la fatiga ocular y maximiza el contraste del foco activo.
- * 4. Hardware Hygiene: El oidor de eventos se elimina físicamente al desmontar el componente 
- *    para liberar recursos del bus de la ventana.
+ * NOTA TÉCNICA DEL ARCHITECT (V10.0):
+ * 1. Build Shield Final Sync: Resolución de TS2339 mediante la alineación con 
+ *    los campos 'scriptBodyContent' y 'scriptPlainContent' de la versión 12.0.
+ * 2. Zero Abbreviations Policy (ZAP): Purificación total. 'cn' -> 'classNamesUtility', 
+ *    'ref' -> 'elementReference', 'p' -> 'paragraphIndex', 'idx' -> 'paragraphIndex'.
+ * 3. Chromatic Ergonomics: El uso de 'zinc-900' para párrafos inactivos garantiza que 
+ *    el Hilo Principal (MTI) no sufra por contrastes extremos en paneles OLED.
+ * 4. Hardware Hygiene: Implementación rigurosa de eliminación de oidores de eventos 
+ *    para evitar fugas de memoria en sesiones de escucha prolongadas.
  */
