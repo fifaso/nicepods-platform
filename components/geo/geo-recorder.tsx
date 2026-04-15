@@ -1,7 +1,9 @@
 /**
  * ARCHIVO: components/geo/geo-recorder.tsx
- * VERSIÓN: 6.1 (NicePod Sovereign Acoustic Emitter - Dependency Seal & ZAP Absolute Edition)
+ * VERSIÓN: 7.0 (NicePod Sovereign Acoustic Emitter - Mutable Reference Capture Edition)
  * PROTOCOLO: MADRID RESONANCE V4.5
+ * MISIÓN: Proveer una interfaz de hardware puro para la captura acústica del Voyager,
+ * NIVEL DE INTEGRIDAD: 100% (Soberano)
  * 
  * Misión: Proveer una interfaz de hardware puro para la captura acústica del Voyager,
  * garantizando higiene térmica, aniquilación de procesos huérfanos y privacidad absoluta.
@@ -105,18 +107,47 @@ export function GeoRecorder({
   /**
    * EFECTO: HARDWARE_LIFECYCLE_SENTINEL
    * Misión: Garantizar que ningún proceso sensorial sobreviva al cierre del componente.
+   * [THERMIC V7.0]: Aplicación del Mutable Reference Capture Protocol.
    */
   useEffect(() => {
+    // CAPTURA DE REFERENCIAS SOBERANAS (Mutable Reference Capture Protocol)
+    const mediaRecorderInstanceSnapshot = mediaRecorderReference.current;
+    const activeAudioStreamSnapshot = activeAudioStreamReference.current;
+    const chronometerIntervalSnapshot = chronometerIntervalReference.current;
+    const audioHardwarePlayerSnapshot = audioHardwarePlayerReference.current;
+    const capturedAudioUniformResourceLocatorSnapshot = capturedAudioUniformResourceLocator;
+
     return () => {
       nicepodLog(`🧹 [GeoRecorder:${mode}] Ejecutando protocolo de limpieza atómica.`);
-      executeAcousticHardwareTrackTerminationProtocol();
-      executeAcousticMemoryPurgeWorkflow();
       
-      if (chronometerIntervalReference.current) {
-        clearInterval(chronometerIntervalReference.current);
+      // I. Aniquilación de Pistas de Hardware
+      if (activeAudioStreamSnapshot) {
+        activeAudioStreamSnapshot.getTracks().forEach((audioTrack) => audioTrack.stop());
+      }
+
+      // II. Purga de Memoria Acústica
+      if (audioHardwarePlayerSnapshot) {
+        audioHardwarePlayerSnapshot.pause();
+        audioHardwarePlayerSnapshot.removeAttribute('src');
+        audioHardwarePlayerSnapshot.load();
+      }
+
+      // III. Liberación de Recursos de Memoria (Acoustic Cortex Protocol)
+      if (capturedAudioUniformResourceLocatorSnapshot) {
+        URL.revokeObjectURL(capturedAudioUniformResourceLocatorSnapshot);
+      }
+
+      // IV. Cese de Procesos de Grabación
+      if (mediaRecorderInstanceSnapshot && mediaRecorderInstanceSnapshot.state !== 'inactive') {
+        mediaRecorderInstanceSnapshot.stop();
+      }
+
+      // V. Limpieza de Cronometría
+      if (chronometerIntervalSnapshot) {
+        clearInterval(chronometerIntervalSnapshot);
       }
     };
-  }, [executeAcousticMemoryPurgeWorkflow, executeAcousticHardwareTrackTerminationProtocol, mode]);
+  }, [mode, capturedAudioUniformResourceLocator]);
 
   /**
    * INITIALIZATION: requestMicrophoneHardwareAuthority

@@ -2,6 +2,8 @@
  * ARCHIVO: components/feed/resonance-compass.tsx
  * VERSIÓN: 7.0 (NicePod Resonance Compass - Thermal Hibernation Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
+ * MISIÓN: Visualizar el universo semántico mediante una simulación de fuerzas.
+ * NIVEL DE INTEGRIDAD: 100% (Soberano)
  * 
  * Misión: Visualizar el universo semántico mediante una simulación de fuerzas 
  * delegada a un Web Worker, utilizando transferencia de memoria cruda (Float32Array)
@@ -159,6 +161,19 @@ export function ResonanceCompass({
   const bubbleElementsMapReference = useRef<Map<number, HTMLDivElement>>(new Map());
 
   /**
+   * handleVisibilityChangeAction:
+   * Misión: Suspender el motor de físicas cuando el Voyager no está mirando la terminal.
+   * [THERMIC V7.0]: Protocolo de Aislamiento Térmico de Fondo.
+   */
+  const handleVisibilityChangeAction = useCallback(() => {
+    if (physicsWorkerReference.current) {
+      physicsWorkerReference.current.postMessage({
+        action: document.hidden ? "PAUSE_SIMULATION" : "RESUME_SIMULATION"
+      });
+    }
+  }, []);
+
+  /**
    * handleWorkerMessageAction:
    * Misión: Procesar el búfer de transferencia (Float32Array) y actualizar el DOM.
    */
@@ -199,11 +214,12 @@ export function ResonanceCompass({
   /**
    * EFECTO: MultithreadedPhysicsOrchestrator
    * Misión: Inicializar el bus de datos multihilo y gestionar el ciclo de vida del Worker.
-   * [V6.0]: Independizado de las dimensiones para evitar reinicios por resize.
+   * [V7.0]: Refactorización de la lógica de ignición para garantizar el arranque
+   * tras la obtención de dimensiones sin recrear el hilo en cada redimensionamiento.
    */
   useEffect(() => {
     if (!width || !height || podcastCollection.length === 0) {
-      setIsPhysicsEngineLoading(false);
+      if (podcastCollection.length === 0) setIsPhysicsEngineLoading(false);
       return;
     }
 
@@ -236,16 +252,20 @@ export function ResonanceCompass({
       exclusionZoneRadius
     });
 
+    // 4. Centinela de Aislamiento Térmico
+    document.addEventListener("visibilitychange", handleVisibilityChangeAction);
+
     /**
      * LIMPIEZA TÉCNICA (THE FINAL SEAL - PILAR 2)
      */
     return () => {
       nicepodLog("🧨 [ResonanceCompass] Aniquilando proceso de físicas multihilo y liberando bus de datos.");
+      document.removeEventListener("visibilitychange", handleVisibilityChangeAction);
       workerInstance.terminate();
       physicsWorkerReference.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [podcastCollection, handleWorkerMessageAction]);
+  }, [podcastCollection.length > 0, width > 0, height > 0, handleWorkerMessageAction, handleVisibilityChangeAction]);
 
   /**
    * EFECTO: ThermalHibernationController
