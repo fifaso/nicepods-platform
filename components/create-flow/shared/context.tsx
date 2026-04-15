@@ -1,6 +1,16 @@
-// components/create-flow/shared/context.tsx
-// VERSIÓN: 3.0 (Madrid Resonance - Full Contract Export & Narrative Sync)
-// Misión: Orquestador de estado y tipos para los flujos de creación IA.
+/**
+ * ARCHIVO: components/create-flow/shared/context.tsx
+ * VERSIÓN: 5.0 (NicePod Creation Context - Sinaptic Synchronization Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.9
+ * 
+ * Misión: Actuar como el sistema nervioso central de la forja de capital intelectual, 
+ * orquestando el estado de navegación, la telemetría de progreso y la sincronía 
+ * de datos entre el hardware y el Oráculo de IA.
+ * [REFORMA V5.0]: Sincronización absoluta con 'CreationContextType' V4.0. 
+ * Resolución definitiva de errores TS2339 y TS2551 mediante el mapeo de 
+ * descriptores industriales (transitionToNextStateAction, navigateBackAction).
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ */
 
 "use client";
 
@@ -11,48 +21,40 @@ import { useFlowNavigation } from "../hooks/use-flow-navigation";
 import { CreationContextType } from "./types";
 
 /**
- * [INTERFAZ DE EXPORTACIÓN]: NarrativeOption
- * [FIX]: Se exporta este tipo para resolver el error ts(2305) 
- * en el paso de selección de narrativa.
- */
-export interface NarrativeOption {
-  title: string;
-  thesis: string;
-}
-
-/**
  * CreationContext
- * Punto de unión para el estado de navegación y metadatos de creación.
- * Se inicializa como undefined para forzar el uso del Provider en el árbol.
+ * Misión: Punto de unión para el estado de navegación y metadatos de creación.
+ * Se inicializa como 'undefined' para forzar el cumplimiento del Build Shield (BSS).
  */
 export const CreationContext = createContext<CreationContextType | undefined>(undefined);
 
 /**
  * CreationProvider
- * Componente orquestador que envuelve el flujo de creación.
- * Centraliza la lógica de navegación para los flujos:
- * Pulse, Local Soul, Learn, Explore y Reflect.
+ * Componente orquestador que envuelve el flujo de creación IA.
  */
 export function CreationProvider({ children }: { children: React.ReactNode }) {
+  // Consumo del motor de formularios bajo el esquema purificado V12.0
   const { watch, setValue } = useFormContext<PodcastCreationData>();
 
-  // Observamos el propósito actual para que el motor de navegación sepa qué mapa usar
-  const currentPurpose = watch("purpose");
+  /** 
+   * currentPurposeSelection: Observamos la intención para que el motor de 
+   * navegación determine la trayectoria lógica (Master Flow Paths).
+   */
+  const currentPurposeSelection = watch("purpose");
 
-  // 1. INICIALIZACIÓN DEL SISTEMA NERVIOSO (NAVEGACIÓN)
-  const navigation = useFlowNavigation({ currentPurpose });
+  // 1. INICIALIZACIÓN DE LA AUTORIDAD DE NAVEGACIÓN
+  const navigationAuthority = useFlowNavigation({ currentPurpose: currentPurposeSelection });
 
-  // 2. ESTADOS DE PROCESAMIENTO ASÍNCRONO
-  const [isGeneratingScript, setIsGeneratingScript] = useState(false);
+  // 2. ESTADOS DE PROCESAMIENTO DE INTELIGENCIA (ZAP COMPLIANT)
+  const [isGeneratingScriptProcessActive, setIsGeneratingScriptProcessActive] = useState<boolean>(false);
 
   /**
-   * updateFormData
-   * Sincroniza datos externos (como el draftIdentification de las Edge Functions)
-   * con el store de React Hook Form de forma segura.
+   * updatePodcastCreationFormData:
+   * Misión: Sincronizar datos externos (IDs de borrador o peritajes del Oráculo)
+   * con el almacén central de React Hook Form de forma atómica.
    */
-  const updateFormData = useCallback((data: Partial<PodcastCreationData>) => {
-    Object.entries(data).forEach(([key, value]) => {
-      setValue(key as any, value, {
+  const updatePodcastCreationFormData = useCallback((partialFormData: Partial<PodcastCreationData>) => {
+    Object.entries(partialFormData).forEach(([fieldKey, fieldValue]) => {
+      setValue(fieldKey as any, fieldValue, {
         shouldValidate: true,
         shouldDirty: true,
         shouldTouch: true
@@ -61,30 +63,33 @@ export function CreationProvider({ children }: { children: React.ReactNode }) {
   }, [setValue]);
 
   /**
-   * contextValue
-   * [FIX]: Sincronización explícita con la interfaz CreationContextType.
+   * contextValue:
+   * [RESOLUCIÓN TS2339 / TS2551]: Mapeo explícito entre la lógica interna y 
+   * el contrato industrial purificado en 'shared/types.ts'.
    */
   const contextValue: CreationContextType = useMemo(() => ({
-    // Propiedades de Navegación
-    currentFlowState: navigation.currentFlowState,
-    history: navigation.history,
-    transitionTo: navigation.transitionTo,
-    jumpToStep: navigation.jumpToStep,
-    goBack: navigation.goBack,
+    // I. Gobernanza de Navegación Axial
+    currentFlowState: navigationAuthority.currentFlowState,
+    navigationHistoryStack: navigationAuthority.history,
+    
+    // II. Motores de Transición de Fase
+    transitionToNextStateAction: navigationAuthority.transitionTo,
+    jumpToStepAction: navigationAuthority.jumpToStep,
+    navigateBackAction: navigationAuthority.goBack,
 
-    // [RESOLUCIÓN ERROR ts2741]: Mapeo de la función de ruta maestra
-    getMasterPath: () => navigation.activePath,
+    // III. Sincronía de Trayectoria Maestra
+    getMasterFlowPathCollection: () => navigationAuthority.activePath,
 
-    // Métricas de progreso para el Header
-    progressMetrics: navigation.progressMetrics,
+    // IV. Telemetría de Progreso para el Cristal (UI)
+    creationProcessProgressMetrics: navigationAuthority.progressMetrics,
 
-    // Estados de Procesamiento
-    isGeneratingScript,
-    setIsGeneratingScript,
+    // V. Monitoreo de Procesamiento IA
+    isGeneratingScriptProcessActive,
+    setGeneratingScriptProcessActiveStatus: setIsGeneratingScriptProcessActive,
 
-    // Utilidades de Datos
-    updateFormData,
-  }), [navigation, isGeneratingScript, updateFormData]);
+    // VI. Gestión de Datos de la Forja
+    updatePodcastCreationFormData,
+  }), [navigationAuthority, isGeneratingScriptProcessActive, updatePodcastCreationFormData]);
 
   return (
     <CreationContext.Provider value={contextValue}>
@@ -95,18 +100,28 @@ export function CreationProvider({ children }: { children: React.ReactNode }) {
 
 /**
  * useCreationContext
- * Hook de acceso seguro para todos los sub-componentes del flujo.
- * Implementa una guardia de arquitectura Senior para prevenir usos huérfanos.
+ * Misión: Hook de acceso soberano para todos los sub-componentes del flujo.
+ * Implementa una guardia de arquitectura para prevenir colisiones en el árbol de React.
  */
 export const useCreationContext = () => {
-  const context = useContext(CreationContext);
+  const contextReference = useContext(CreationContext);
 
-  if (context === undefined) {
+  if (contextReference === undefined) {
     throw new Error(
-      "CRITICAL ARCHITECTURE ERROR: useCreationContext debe ser utilizado dentro de un CreationProvider. " +
-      "Asegúrese de que el componente raíz del flujo (index.tsx) envuelva al StepRenderer."
+      "CRITICAL_INFRASTRUCTURE_ERROR: 'useCreationContext' invocado fuera de un 'CreationProvider'. " +
+      "La integridad de la terminal de forja ha sido comprometida."
     );
   }
 
-  return context;
+  return contextReference;
 };
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V5.0):
+ * 1. Build Shield Sovereignty: Se eliminaron las interfaces internas duplicadas, 
+ *    centralizando la verdad en 'shared/types.ts'.
+ * 2. ZAP Alignment: Purificación total de descriptores nominales. Se han 
+ *    erradicado términos como 'navigation', 'data' o 'percent'.
+ * 3. Error Resolution: Al mapear 'transitionToNextStateAction' desde la autoridad 
+ *    de navegación, se resuelven los errores de propiedad inexistente en los pasos hijos.
+ */
