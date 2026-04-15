@@ -1,20 +1,25 @@
 /**
  * ARCHIVO: lib/validation/podcast-schema.ts
- * VERSIÓN: 11.0 (NicePod Schema Master - Thermal Control & Depth Edition)
- * PROTOCOLO: MADRID RESONANCE V4.0
+ * VERSIÓN: 12.0 (NicePod Schema Master - Structural Integrity & ZAP Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.9
  *
- * Misión: Gobernar la integridad de datos, sanitizar inputs y blindar el contrato de orígenes.
- * [MANDATO]: Zero Abbreviations Policy (ZAP) y Nominal Mirroring (camelCase).
+ * Misión: Gobernar la integridad de datos, sanitizar la entrada del Voyager y 
+ * blindar el contrato de orígenes para la forja de capital intelectual.
+ * [REFORMA V12.0]: Aplicación absoluta de la Zero Abbreviations Policy (ZAP). 
+ * Sincronización nominal con 'CreationMetadataPayload' V12.0. 
+ * Resolución de TS2345 mediante el sellado de valores por defecto en 'SourceSchema'.
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 import { z } from 'zod';
 
 /**
- * CAPA DE SEGURIDAD: sanitizeInput
+ * CAPA DE SEGURIDAD: sanitizeUserApplicationInput
+ * Misión: Purgar etiquetas maliciosas y normalizar el texto para el procesamiento de IA.
  */
-const sanitizeInput = (valor: string | undefined) => {
-  if (!valor) return undefined;
-  return valor
+const sanitizeUserApplicationInput = (inputValue: string | undefined) => {
+  if (!inputValue) return undefined;
+  return inputValue
     .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "")
     .replace(/<iframe\b[^>]*>([\s\S]*?)<\/iframe>/gim, "")
     .replace(/<[^>]+>/g, "")
@@ -22,75 +27,82 @@ const sanitizeInput = (valor: string | undefined) => {
 };
 
 /**
- * TIPO: safeInputString
+ * TIPO: safeSovereignInputString
+ * Validador de cadenas con protección perimetral contra desbordamiento y ataques XSS.
  */
-const safeInputString = z.string()
+const safeSovereignInputString = z.string()
   .max(15000, { message: "El contenido excede el límite de seguridad (15,000 caracteres)." })
-  .transform(sanitizeInput);
+  .transform(sanitizeUserApplicationInput);
 
 /**
  * ESQUEMA: SourceSchema
+ * [RESOLUCIÓN TS2345]: 'relevance' posee un valor por defecto obligatorio para 
+ * asegurar que el tipo inferido sea 'number' y no 'number | undefined'.
  */
 const SourceSchema = z.object({
   title: z.string().min(1, "El título de la fuente es obligatorio."),
   uniformResourceLocator: z.string().url("Dirección web no detectada o inválida."),
-  content: z.string().optional(),
-  snippet: z.string().optional(),
+  contentTextBody: z.string().optional(),
+  snippetContentText: z.string().optional(),
   origin: z.enum(['vault', 'web', 'fresh_research', 'pulse_selection']).default('web'),
-  relevance: z.number().optional().default(1.0),
+  relevance: z.number().default(1.0),
 });
 
 /**
  * ESQUEMA MAESTRO: PodcastCreationSchema
+ * Misión: El espejo contractual que rige la terminal de forja.
  */
 export const PodcastCreationSchema = z.object({
-  // --- IDENTIFICADORES Y GENEALOGÍA ---
+  // --- I. IDENTIFICADORES Y GENEALOGÍA TÉCNICA ---
   draftIdentification: z.number().optional().nullable(),
-  parentIdentification: z.number().optional().nullable(),
-  rootIdentification: z.number().optional().nullable(),
+  parentPodcastIdentification: z.number().optional().nullable(),
+  rootPodcastIdentification: z.number().optional().nullable(),
 
-  // --- IDENTIDAD DEL FLUJO ---
+  // --- II. IDENTIDAD DEL FLUJO Y MODO OPERATIVO ---
   purpose: z.enum(['learn', 'inspire', 'explore', 'reflect', 'answer', 'freestyle', 'local_soul', 'pulse']),
   creationMode: z.enum(['standard', 'remix', 'situational', 'pulse', 'geo_mode']).default('standard'),
-  style: z.enum(['solo', 'link', 'archetype', 'legacy', 'qa', 'remix', 'local_concierge', 'briefing']).optional(),
+  styleSelection: z.enum(['solo', 'link', 'archetype', 'legacy', 'qa', 'remix', 'local_concierge', 'briefing']).optional(),
 
-  // --- INTELIGENCIA Y AGENTES ---
+  // --- III. INTELIGENCIA, AGENTES Y SEGURIDAD ---
   agentName: z.string().min(1, "Selecciona un agente de inteligencia."),
-  pulseSourceIdentifications: z.array(z.string()).default([]),
-  deoxyribonucleicAcidInterview: safeInputString.optional(),
-  expertiseLevel: z.number().min(1).max(10).default(5),
-  isSovereignPublic: z.boolean().default(false),
+  pulseSourceIdentificationsCollection: z.array(z.string()).default([]),
+  deoxyribonucleicAcidInterviewContent: safeSovereignInputString.optional(),
+  expertiseLevelMagnitude: z.number().min(1).max(10).default(5),
+  isSovereignPublicStatus: z.boolean().default(false),
 
-  // --- CONTEXTO GEOESPACIAL ---
+  // --- IV. CONTEXTO GEOESPACIAL (PROTOCOLO T0) ---
   location: z.object({
-    latitude: z.number(),
-    longitude: z.number(),
-    placeName: z.string().optional(),
-    cityName: z.string().optional()
+    latitudeCoordinate: z.number(),
+    longitudeCoordinate: z.number(),
+    placeNameReference: z.string().optional(),
+    cityNameReference: z.string().optional()
   }).optional(),
-  imageContext: z.string().optional(),
-  discoveryContext: z.any().optional().nullable(),
+  visualEnvironmentalImageContext: z.string().optional(),
+  discoveryContextDossier: z.any().optional().nullable(),
 
-  // --- SEMILLAS DE CREACIÓN ---
-  soloTopic: safeInputString.optional(),
-  soloMotivation: safeInputString.optional(),
-  linkTopicA: safeInputString.optional(),
-  linkTopicB: safeInputString.optional(),
-  linkCatalyst: safeInputString.optional(),
-  linkSelectedNarrative: z.object({ title: z.string(), thesis: z.string() }).nullable().optional(),
-  legacyLesson: safeInputString.optional(),
-  questionToAnswer: safeInputString.optional(),
-  userReaction: z.string().optional(),
-  quoteContext: z.string().optional(),
+  // --- V. SEMILLAS DE CREACIÓN NARRATIVA ---
+  soloTopicSelection: safeSovereignInputString.optional(),
+  soloMotivationContentText: safeSovereignInputString.optional(),
+  linkTopicPrimary: safeSovereignInputString.optional(),
+  linkTopicSecondary: safeSovereignInputString.optional(),
+  linkCatalystElement: safeSovereignInputString.optional(),
+  linkSelectedNarrativeOption: z.object({ 
+    title: z.string(), 
+    thesis: z.string() 
+  }).nullable().optional(),
+  legacyLessonContentText: safeSovereignInputString.optional(),
+  questionToAnswerText: safeSovereignInputString.optional(),
+  userEmotionalReactionContent: z.string().optional(),
+  narrativeQuoteContextReference: z.string().optional(),
 
-  // --- ACTIVOS DE PRODUCCIÓN FINAL ---
+  // --- VI. ACTIVOS DE PRODUCCIÓN Y SÍNTESIS FINAL ---
   finalTitle: z.string().optional(),
-  finalScript: z.string().optional(),
-  sources: z.array(SourceSchema).default([]),
-  generateAudioDirectly: z.boolean().default(true),
+  finalScriptContent: z.string().optional(),
+  sourcesCollection: z.array(SourceSchema).default([]),
+  generateAudioDirectlyStatus: z.boolean().default(true),
 
-  // --- CONFIGURACIÓN TÉCNICA ---
-  duration: z.enum([
+  // --- VII. CONFIGURACIÓN TÉCNICA INDUSTRIAL ---
+  durationSelection: z.enum([
     'Menos de 1 minuto',
     'Entre 2 y 3 minutos',
     'Hasta 5 minutos'
@@ -98,42 +110,55 @@ export const PodcastCreationSchema = z.object({
     required_error: "La duración es un parámetro obligatorio para la forja."
   }),
 
-  narrativeDepth: z.enum([
+  narrativeDepthLevel: z.enum([
     'Superficial',
     'Intermedia',
     'Profunda'
   ]),
 
-  selectedTone: z.string().optional(),
+  selectedToneIdentifier: z.string().optional(),
 
-  // --- PARÁMETROS ACÚSTICOS (Gemini TTS) ---
-  voiceGender: z.enum(['Masculino', 'Femenino']).default('Masculino'),
-  voiceStyle: z.enum(['Calmado', 'Energético', 'Profesional', 'Inspirador']).default('Profesional'),
-  voicePace: z.string().default('Moderado'),
-  speakingRate: z.number().default(1.0),
+  // --- VIII. PARÁMETROS ACÚSTICOS (MOTOR NEURONAL GEMINI) ---
+  voiceGenderSelection: z.enum(['Masculino', 'Femenino']).default('Masculino'),
+  voiceStyleSelection: z.enum(['Calmado', 'Energético', 'Profesional', 'Inspirador']).default('Profesional'),
+  voicePaceSelection: z.string().default('Moderado'),
+  speakingRateMagnitude: z.number().default(1.0),
 })
-  .superRefine((data, ctx) => {
-    const contentToMeasure = data.soloMotivation || data.legacyLesson || data.deoxyribonucleicAcidInterview || "";
-    const words = contentToMeasure.trim().split(/\s+/).filter(w => w.length > 0);
+  .superRefine((data, context) => {
+    /**
+     * REGLA DE AUDITORÍA 1: SUSTANCIA INTELECTUAL MÍNIMA
+     */
+    const contentToMeasure = 
+      data.soloMotivationContentText || 
+      data.legacyLessonContentText || 
+      data.deoxyribonucleicAcidInterviewContent || "";
+      
+    const wordsCollection = contentToMeasure.trim().split(/\s+/).filter(word => word.length > 0);
 
-    if (data.purpose !== 'pulse' && words.length > 0 && words.length < 10) {
-      ctx.addIssue({
+    if (data.purpose !== 'pulse' && wordsCollection.length > 0 && wordsCollection.length < 10) {
+      context.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'Sustancia insuficiente: Desarrolla tu idea con al menos 10 palabras para iniciar la forja.',
-        path: ['soloMotivation']
+        path: ['soloMotivationContentText']
       });
     }
 
-    if (data.purpose === 'pulse' && data.pulseSourceIdentifications.length === 0) {
-      ctx.addIssue({
+    /**
+     * REGLA DE AUDITORÍA 2: VALIDACIÓN DE SEÑALES PULSE
+     */
+    if (data.purpose === 'pulse' && data.pulseSourceIdentificationsCollection.length === 0) {
+      context.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'Selecciona al menos una señal de valor en el Radar de Actualidad.',
-        path: ['pulseSourceIdentifications']
+        path: ['pulseSourceIdentificationsCollection']
       });
     }
 
+    /**
+     * REGLA DE AUDITORÍA 3: INTEGRIDAD GEODÉSICA SITUACIONAL
+     */
     if (data.purpose === 'local_soul' && !data.location) {
-      ctx.addIssue({
+      context.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'La triangulación GPS es obligatoria para establecer resonancia local.',
         path: ['location']
@@ -141,4 +166,8 @@ export const PodcastCreationSchema = z.object({
     }
   });
 
+/**
+ * EXPORTACIÓN TÉCNICA: PodcastCreationData
+ * Misión: Ingerir el tipo inferido para el Build Shield Sovereignty.
+ */
 export type PodcastCreationData = z.infer<typeof PodcastCreationSchema>;
