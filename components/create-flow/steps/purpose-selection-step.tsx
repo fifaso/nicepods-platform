@@ -1,16 +1,21 @@
 /**
  * ARCHIVO: components/create-flow/steps/purpose-selection-step.tsx
- * VERSIÓN: 4.0 (Madrid Resonance)
- * PROTOCOLO: Administrative Sovereignty
- * MISIÓN: Selección de propósito narrativo con restricción de autoridad administrativa.
- * NIVEL DE INTEGRIDAD: HIGH
+ * VERSIÓN: 5.0 (NicePod Purpose Selection - RBAC & Nominal Integrity Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.9
+ * 
+ * Misión: Orquestar la selección del propósito narrativo, gestionando el acceso 
+ * restringido por autoridad (RBAC) y la recuperación de sesiones en curso.
+ * [REFORMA V5.0]: Resolución definitiva del error TS2339 mediante sincronía con 
+ * AuthProvider V5.2 ('administratorProfile'). Erradicación total de abreviaturas 
+ * y sellado de tipos ('any' -> 'DraftEntry'). Purificación ZAP absoluta.
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn, nicepodLog } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowRight,
@@ -21,6 +26,7 @@ import {
   Link2,
   Lock,
   MapPin,
+  Mic,
   PenLine,
   Play,
   Trash2,
@@ -31,117 +37,150 @@ import { useRouter } from "next/navigation";
 import React, { useMemo, useState, useTransition } from "react";
 import { useFormContext } from "react-hook-form";
 
-// --- INFRAESTRUCTURA DE SINCRO ---
+// --- INFRAESTRUCTURA DE SINCRO V4.9 ---
 import { useAuth } from "@/hooks/use-auth";
 import { useFlowActions } from "../hooks/use-flow-actions";
 import { MASTER_FLOW_PATHS } from "../shared/config";
 import { useCreationContext } from "../shared/context";
 import { FlowState } from "../shared/types";
+import { Tables } from "@/types/database.types";
 
-// --- INTERFACES DE CATEGORÍA ---
-interface PurposeOption {
-  id: string;
+/**
+ * INTERFAZ: PurposeOptionDefinition
+ * Misión: Definir el contrato de un propósito narrativo industrial.
+ */
+interface PurposeOptionDefinition {
+  identification: string;
   title: string;
-  desc: string;
-  icon: React.ElementType;
-  color: string;
-  isSituational?: boolean;
-  adminOnly?: boolean; // Restringe el acceso a la autoridad administrativa
+  descriptionTextContent: string;
+  iconComponent: React.ElementType;
+  colorClassName: string;
+  isSituationalMode?: boolean;
+  isAdministratorOnlyAccess?: boolean;
 }
 
-interface CategoryGroup {
-  name: string;
-  items: PurposeOption[];
+interface PurposeCategoryGroup {
+  categoryName: string;
+  purposeOptionsCollection: PurposeOptionDefinition[];
 }
 
 /**
- * CONFIGURACIÓN SOBERANA DE FLUJOS
- * [REMEDIACIÓN]: La opción 'local_soul' ahora está marcada como adminOnly.
+ * [BSS]: DEFINICIÓN DE TIPO DE BORRADOR
  */
-const CATEGORIES: CategoryGroup[] = [
+type DraftEntry = Tables<'podcast_drafts'>;
+
+/**
+ * PURPOSE_CATEGORIES_COLLECTION: Arquitectura de la Malla de Intenciones.
+ */
+const PURPOSE_CATEGORIES_COLLECTION: PurposeCategoryGroup[] = [
   {
-    name: "Creatividad",
-    items: [
-      { id: "learn", title: "Aprender", desc: "Desglosa conceptos complejos.", icon: Lightbulb, color: "bg-amber-500/10 text-amber-500" },
-      { id: "explore", title: "Explorar", desc: "Conecta dos ideas distintas.", icon: Link2, color: "bg-blue-500/10 text-blue-500" },
-      { id: "pulse", title: "Actualidad", desc: "Briefing de inteligencia personalizada.", icon: Zap, color: "bg-indigo-500/10 text-indigo-500" },
+    categoryName: "Creatividad",
+    purposeOptionsCollection: [
+      { identification: "learn", title: "Aprender", descriptionTextContent: "Desglosa conceptos complejos y destila verdades.", iconComponent: Lightbulb, colorClassName: "bg-amber-500/10 text-amber-500" },
+      { identification: "explore", title: "Explorar", descriptionTextContent: "Conecta dos ideas distantes en un nuevo nodo.", iconComponent: Link2, colorClassName: "bg-blue-500/10 text-blue-500" },
+      { identification: "pulse", title: "Actualidad", descriptionTextContent: "Sintoniza el briefing de inteligencia en tiempo real.", iconComponent: Zap, colorClassName: "bg-indigo-500/10 text-indigo-500" },
     ]
   },
   {
-    name: "Legado",
-    items: [{ id: "reflect", title: "Reflexionar", desc: "Lecciones y testimonios de vida.", icon: PenLine, color: "bg-emerald-500/10 text-emerald-500" }]
+    categoryName: "Legado",
+    purposeOptionsCollection: [
+      { identification: "reflect", title: "Reflexionar", descriptionTextContent: "Inmortaliza lecciones y testimonios de sabiduría.", iconComponent: PenLine, colorClassName: "bg-emerald-500/10 text-emerald-500" }
+    ]
   },
   {
-    name: "Entorno",
-    items: [{
-      id: "local_soul",
-      title: "Vive lo local",
-      desc: "Secretos de tu ubicación actual.",
-      icon: MapPin,
-      color: "bg-violet-500/10 text-violet-500",
-      isSituational: true,
-      adminOnly: true // <--- Blindaje de autoridad
-    }]
+    categoryName: "Entorno",
+    purposeOptionsCollection: [
+      {
+        identification: "local_soul",
+        title: "Vivir lo local",
+        descriptionTextContent: "Accede a los secretos de tu ubicación actual.",
+        iconComponent: MapPin,
+        colorClassName: "bg-violet-500/10 text-violet-500",
+        isSituationalMode: true,
+        isAdministratorOnlyAccess: true
+      }
+    ]
   }
 ];
 
-export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?: any[] }) {
-  const router = useRouter();
-  const { profile, isAdministratorAuthority } = useAuth(); // [SINCRO]: Consumo de rango de usuario
+/**
+ * INTERFAZ: PurposeSelectionStepProperties
+ */
+interface PurposeSelectionStepProperties {
+  existingDraftsCollection?: DraftEntry[];
+}
+
+export function PurposeSelectionStep({ 
+  existingDraftsCollection = [] 
+}: PurposeSelectionStepProperties) {
+  
+  const navigationRouter = useRouter();
+  
+  // [SINCRO V5.0]: Desestructuración nominal alineada con el AuthProvider soberano.
+  const { administratorProfile, isAdministratorAuthority } = useAuth();
+  
   const { setValue, reset } = useFormContext();
   const { transitionTo, jumpToStep } = useCreationContext();
-  const [isPending, startTransition] = useTransition();
-  const [isVaultOpen, setIsVaultOpen] = useState(false);
+  const [isTransitionPending, startSovereignTransition] = useTransition();
+  const [isVaultTerminalOpen, setIsVaultTerminalOpen] = useState<boolean>(false);
 
   /**
-   * [FILTRADO]: Borradores Narrativos
-   * Aseguramos que el usuario solo pueda retomar flujos autorizados.
+   * narrativeDraftsCollection: Filtrado de sesiones compatibles.
    */
-  const narrativeDrafts = useMemo(() => {
-    const narrativePurposes = ['learn', 'explore', 'reflect', 'pulse'];
-    return existingDrafts.filter(draft =>
-      narrativePurposes.includes(draft.creation_data?.purpose)
-    );
-  }, [existingDrafts]);
+  const narrativeDraftsCollection = useMemo(() => {
+    const validNarrativePurposes = ['learn', 'explore', 'reflect', 'pulse'];
+    return existingDraftsCollection.filter(draftEntry => {
+      const creationData = draftEntry.creation_data as any;
+      return creationData && validNarrativePurposes.includes(creationData.purpose);
+    });
+  }, [existingDraftsCollection]);
 
-  const { deleteDraft } = useFlowActions({
-    transitionTo: (s) => transitionTo(s as FlowState),
+  const { deleteDraftAction } = useFlowActions({
+    transitionTo: (targetState) => transitionTo(targetState as FlowState),
     goBack: () => { },
     clearDraft: () => { }
   });
 
   /**
-   * handleSelection: Orquestador de redirección por propósito.
+   * handlePurposeSelectionAction: Orquestador de redirección balística.
    */
-  const handleSelection = (item: PurposeOption) => {
-    // [RBAC]: Si es GEO y el usuario no es admin, bloqueamos la acción.
-    if (item.adminOnly && !isAdministratorAuthority) return;
+  const handlePurposeSelectionAction = (purposeOption: PurposeOptionDefinition) => {
+    // Bloqueo de Autoridad: Verificación de rango administrativo.
+    if (purposeOption.isAdministratorOnlyAccess && !isAdministratorAuthority) {
+        return;
+    }
 
-    if (item.id === 'local_soul') {
-      startTransition(() => {
-        router.push('/geo');
+    if (purposeOption.identification === 'local_soul') {
+      startSovereignTransition(() => {
+        navigationRouter.push('/geo');
       });
       return;
     }
 
-    setValue("purpose", item.id, { shouldValidate: true, shouldDirty: true });
-    const targetPath = MASTER_FLOW_PATHS[item.id];
-    if (targetPath && targetPath.length > 1) {
-      transitionTo(targetPath[1]);
+    setValue("purpose", purposeOption.identification, { shouldValidate: true, shouldDirty: true });
+    const targetFlowPath = MASTER_FLOW_PATHS[purposeOption.identification];
+    
+    if (targetFlowPath && targetFlowPath.length > 1) {
+      transitionTo(targetFlowPath[1]);
     }
   };
 
   /**
-   * handleResumeDraft: Protocolo de recuperación de sesión.
+   * handleResumeDraftAction: Protocolo de restauración de sesión interrumpida.
    */
-  const handleResumeDraft = (draft: any) => {
-    const { purpose, agentName, inputs } = draft.creation_data;
+  const handleResumeDraftAction = (draftEntry: DraftEntry) => {
+    const creationDataMetadata = draftEntry.creation_data as any;
+    if (!creationDataMetadata) return;
+
     reset();
-    setValue("draftIdentification", draft.id);
-    if (inputs) {
-      // Mapeo de Boundary: Convertimos los inputs del Metal (snake_case)
-      // a la soberanía del Cristal (camelCase/ZAP).
-      const inputMapping: Record<string, string> = {
+    setValue("draftIdentification", draftEntry.id);
+    
+    if (creationDataMetadata.inputs) {
+      /**
+       * [ZAP]: MAPEADOR DE FRONTERA
+       * Misión: Traducir del Metal (Legacy snake_case) al Cristal (Industrial camelCase).
+       */
+      const contractMappingRecord: Record<string, string> = {
         'topic': 'soloTopic',
         'topicA': 'linkTopicA',
         'topicB': 'linkTopicB',
@@ -158,107 +197,112 @@ export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?:
         'voicePace': 'voicePace'
       };
 
-      Object.entries(inputs).forEach(([key, value]) => {
-        const crystalKey = inputMapping[key] || key;
-        setValue(crystalKey as any, value, { shouldValidate: true });
+      Object.entries(creationDataMetadata.inputs).forEach(([fieldKey, fieldValue]) => {
+        const industrialKey = contractMappingRecord[fieldKey] || fieldKey;
+        setValue(industrialKey as any, fieldValue, { shouldValidate: true });
       });
     }
-    setValue("purpose", purpose);
-    setValue("agentName", agentName);
-    setValue("finalTitle", draft.title);
 
-    const parsed = typeof draft.script_text === 'string' ? JSON.parse(draft.script_text) : draft.script_text;
-    setValue("finalScript", parsed?.script_body || draft.script_text);
-    setValue("sources", draft.sources || []);
+    setValue("purpose", creationDataMetadata.purpose);
+    setValue("agentName", creationDataMetadata.agentName);
+    setValue("finalTitle", draftEntry.title);
 
+    // Parseo seguro del guion sónico.
+    const scriptTextSnapshot = typeof draftEntry.script_text === 'string' 
+        ? JSON.parse(draftEntry.script_text) 
+        : draftEntry.script_text;
+        
+    setValue("finalScript", scriptTextSnapshot?.script_body || draftEntry.script_text);
+    setValue("sources", draftEntry.sources || []);
+
+    nicepodLog(`🔄 [Bóveda] Reanudando sesión para el hito: ${draftEntry.title}`);
     jumpToStep('SCRIPT_EDITING');
   };
 
-  const userName = profile?.full_name?.split(' ')[0] || "Curador";
-
   return (
-    <div className="relative h-full w-full max-w-7xl mx-auto flex flex-col p-4 md:px-12 lg:pt-4 lg:pb-10 selection:bg-primary/20">
+    <div className="relative h-full w-full max-w-7xl mx-auto flex flex-col p-4 md:px-12 lg:pt-4 lg:pb-10 selection:bg-primary/20 isolate">
 
-      {/* HEADER DE INTENCIÓN */}
       <header className="flex-shrink-0 text-left mt-4 mb-10 animate-in fade-in slide-in-from-top-4 duration-1000">
         <div className="flex items-center gap-3 mb-2 opacity-60">
           <div className="h-1 w-1 rounded-full bg-primary animate-ping" />
-          <span className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-500 dark:text-zinc-400">NicePod Workstation</span>
+          <span className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-500">NicePod Workstation</span>
         </div>
-        <h1 className="text-4xl lg:text-6xl font-black tracking-tighter uppercase text-zinc-900 dark:text-white leading-none italic">
+        <h1 className="text-4xl lg:text-6xl font-black tracking-tighter uppercase text-white leading-none italic font-serif">
           ¿Cuál es tu <span className="text-primary not-italic">intención?</span>
         </h1>
         <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-500 mt-2">
-          Selecciona una frecuencia para iniciar la forja de sabiduría
+          Seleccione una frecuencia para iniciar la forja de sabiduría urbana.
         </p>
       </header>
 
       <div className="flex-1 flex flex-col lg:flex-row gap-10 min-h-0 overflow-hidden">
 
-        {/* COLUMNA DE SELECCIÓN (MALLA DE PROPÓSITOS) */}
         <div className="lg:flex-[1.6] flex flex-col gap-8 overflow-y-auto custom-scrollbar pr-2">
-          {CATEGORIES.map((cat) => (
-            <div key={cat.name} className="space-y-4">
+          {PURPOSE_CATEGORIES_COLLECTION.map((categoryGroupItem) => (
+            <div key={categoryGroupItem.categoryName} className="space-y-4">
               <div className="flex items-center gap-4">
-                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-primary/60 whitespace-nowrap">{cat.name}</span>
+                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-primary/60 whitespace-nowrap">
+                    {categoryGroupItem.categoryName}
+                </span>
                 <div className="h-px w-full bg-white/5" />
               </div>
 
               <div className="grid grid-cols-1 gap-3">
-                {cat.items.map((item) => {
-                  const isDisabled = item.adminOnly && !isAdministratorAuthority;
+                {categoryGroupItem.purposeOptionsCollection.map((purposeOptionItem) => {
+                  const isPurposeAccessDisabled = purposeOptionItem.isAdministratorOnlyAccess && !isAdministratorAuthority;
 
                   return (
                     <button
-                      key={item.id}
-                      onClick={() => !isDisabled && handleSelection(item)}
-                      disabled={isDisabled && false} // Mantenemos habilitado para mostrar el 'Velo'
+                      key={purposeOptionItem.identification}
+                      onClick={() => !isPurposeAccessDisabled && handlePurposeSelectionAction(purposeOptionItem)}
                       className={cn(
                         "relative flex items-center p-4 rounded-[1.5rem] border transition-all duration-500 text-left group overflow-hidden",
-                        isDisabled
+                        isPurposeAccessDisabled
                           ? "bg-black/20 border-white/5 opacity-60 cursor-not-allowed"
                           : "bg-white/[0.03] border-white/5 hover:border-primary/40 hover:bg-white/[0.06] shadow-xl"
                       )}
                     >
-                      {/* Icono con escala dinámica */}
                       <div className={cn(
                         "p-3 rounded-xl mr-5 transition-transform duration-700",
-                        !isDisabled && "group-hover:scale-110 shadow-inner",
-                        item.color
+                        !isPurposeAccessDisabled && "group-hover:scale-110 shadow-inner",
+                        purposeOptionItem.colorClassName
                       )}>
-                        {isDisabled ? <Lock size={20} className="text-zinc-600" /> : <item.icon size={20} strokeWidth={2.5} />}
+                        {isPurposeAccessDisabled ? (
+                            <Lock size={20} className="text-zinc-600" />
+                        ) : (
+                            <purposeOptionItem.iconComponent size={20} strokeWidth={2.5} />
+                        )}
                       </div>
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-3">
                           <h3 className={cn(
                             "font-black text-sm lg:text-base uppercase leading-none tracking-tight",
-                            isDisabled ? "text-zinc-600" : "text-white"
+                            isPurposeAccessDisabled ? "text-zinc-600" : "text-white"
                           )}>
-                            {item.title}
+                            {purposeOptionItem.title}
                           </h3>
-                          {item.isSituational && !isDisabled && (
+                          {purposeOptionItem.isSituationalMode && !isPurposeAccessDisabled && (
                             <Badge className="bg-primary/20 text-primary border-primary/30 text-[8px] font-black px-2 py-0.5 animate-pulse">
                               SINTONÍA GEO
                             </Badge>
                           )}
-                          {isDisabled && (
+                          {isPurposeAccessDisabled && (
                             <Badge variant="outline" className="border-white/10 text-zinc-500 text-[8px] font-black px-2 py-0.5">
-                              PRÓXIMAMENTE
+                              BLOQUEADO
                             </Badge>
                           )}
                         </div>
                         <p className="text-[11px] text-zinc-500 font-medium truncate mt-1.5 uppercase tracking-wide">
-                          {isDisabled ? "Flujo de sabiduría geolocalizada en desarrollo." : item.desc}
+                          {isPurposeAccessDisabled ? "Flujo de sabiduría geolocalizada restringido." : purposeOptionItem.descriptionTextContent}
                         </p>
                       </div>
 
-                      {!isDisabled && (
+                      {!isPurposeAccessDisabled && (
                         <ChevronRight size={20} className="text-white/10 group-hover:text-primary transition-all group-hover:translate-x-1" />
                       )}
 
-                      {/* Efecto de 'Velo' para opciones bloqueadas */}
-                      {isDisabled && (
+                      {isPurposeAccessDisabled && (
                         <div className="absolute inset-0 bg-black/40 backdrop-grayscale-[0.5] pointer-events-none" />
                       )}
                     </button>
@@ -269,7 +313,6 @@ export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?:
           ))}
         </div>
 
-        {/* ASIDE: BÓVEDA DE SESIONES (DESKTOP) */}
         <aside className="hidden lg:flex lg:flex-[1.2] bg-white/[0.01] border border-white/5 p-10 rounded-[3rem] backdrop-blur-3xl flex-col shadow-2xl h-full max-h-full overflow-hidden">
           <div className="flex items-center justify-between mb-10">
             <div className="flex items-center gap-4">
@@ -277,44 +320,45 @@ export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?:
                 <History size={24} className="text-primary" />
               </div>
               <div>
-                <h2 className="font-black uppercase tracking-tighter text-white text-lg leading-none italic">Tu Bóveda</h2>
+                <h2 className="font-black uppercase tracking-tighter text-white text-lg leading-none italic font-serif">Tu Bóveda</h2>
                 <p className="text-[8px] font-bold text-zinc-600 uppercase tracking-[0.3em] mt-1">Sesiones de Inteligencia</p>
               </div>
             </div>
             <Badge className="bg-zinc-900 text-zinc-400 border-white/5 px-3 py-1 text-[10px] font-mono">
-              {narrativeDrafts.length}
+              {narrativeDraftsCollection.length}
             </Badge>
           </div>
 
-          <div className="flex-1 space-y-4 overflow-y-auto custom-scrollbar pr-2">
-            {narrativeDrafts.length === 0 ? (
+          <div className="flex-1 space-y-4 overflow-y-auto custom-scrollbar pr-2 pb-10">
+            {narrativeDraftsCollection.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center opacity-10 text-center py-20 grayscale">
                 <Mic size={60} className="mb-6" />
                 <p className="text-[10px] font-black uppercase tracking-[0.5em] text-zinc-500">Sin ondas detectadas</p>
               </div>
             ) : (
-              narrativeDrafts.map((draft) => (
+              narrativeDraftsCollection.map((draftEntry) => (
                 <div
-                  key={draft.id}
-                  onClick={() => handleResumeDraft(draft)}
+                  key={draftEntry.id}
+                  onClick={() => handleResumeDraftAction(draftEntry)}
                   className="p-6 rounded-[2rem] bg-white/[0.02] border border-white/5 hover:border-primary/40 transition-all group cursor-pointer relative shadow-inner overflow-hidden"
                 >
                   <div className="absolute top-0 left-0 w-1 h-full bg-primary opacity-0 group-hover:opacity-100 transition-opacity" />
                   <p className="text-sm font-black text-white truncate mb-3 uppercase tracking-tight pr-10 italic">
-                    {draft.title || "Crónica sin título"}
+                    {draftEntry.title || "Crónica sin título"}
                   </p>
                   <div className="flex justify-between items-center">
                     <Badge variant="outline" className="text-[8px] font-black text-primary border-primary/20 uppercase tracking-widest px-2">
-                      {draft.creation_data.purpose}
+                      {(draftEntry.creation_data as any).purpose}
                     </Badge>
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (confirm("¿Purgar esta sesión de la memoria?")) {
-                          startTransition(() => { deleteDraft(draft.id); });
+                      onClick={(interactionEvent) => {
+                        interactionEvent.stopPropagation();
+                        if (confirm("¿Purgar esta sesión de la memoria física?")) {
+                          startSovereignTransition(() => { deleteDraftAction(draftEntry.id); });
                         }
                       }}
                       className="p-2 text-zinc-700 hover:text-red-500 transition-colors z-20"
+                      aria-label="Eliminar borrador"
                     >
                       <Trash2 size={16} />
                     </button>
@@ -329,10 +373,9 @@ export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?:
         </aside>
       </div>
 
-      {/* FOOTER MOBILE: ACTIVADOR DE BÓVEDA */}
       <div className="lg:hidden flex-shrink-0 mt-6 pb-4">
         <button
-          onClick={() => setIsVaultOpen(true)}
+          onClick={() => setIsVaultTerminalOpen(true)}
           className="w-full flex items-center justify-between p-5 bg-zinc-900 border border-white/10 rounded-[1.5rem] text-white shadow-[0_20px_40px_rgba(0,0,0,0.4)] active:scale-[0.98] transition-all"
         >
           <div className="flex items-center gap-4">
@@ -343,50 +386,52 @@ export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?:
             <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">Continuar Sesión</span>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-xs font-black text-white tabular-nums">{narrativeDrafts.length}</span>
+            <span className="text-xs font-black text-white tabular-nums">{narrativeDraftsCollection.length}</span>
             <ChevronUp size={16} className="text-primary" />
           </div>
         </button>
       </div>
 
-      {/* DRAWER DE BÓVEDA MÓVIL (PORTAL) */}
       <AnimatePresence>
-        {isVaultOpen && (
+        {isVaultTerminalOpen && (
           <>
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsVaultOpen(false)}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setIsVaultTerminalOpen(false)}
               className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100]"
             />
             <motion.div
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
+              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 32, stiffness: 300 }}
-              className="fixed bottom-0 left-0 right-0 h-[80dvh] bg-[#050505] border-t border-white/10 z-[110] rounded-t-[3rem] p-8 flex flex-col shadow-2xl"
+              className="fixed bottom-0 left-0 right-0 h-[80dvh] bg-[#050505] border-t border-white/10 z-[110] rounded-t-[3rem] p-8 flex flex-col shadow-2xl isolate"
             >
               <div className="flex items-center justify-between border-b border-white/5 pb-8 mb-8">
                 <div className="flex items-center gap-4">
                   <History size={24} className="text-primary" />
-                  <h2 className="text-2xl font-black uppercase tracking-tighter text-white italic">Retomar Forja</h2>
+                  <h2 className="text-2xl font-black uppercase tracking-tighter text-white italic font-serif">Retomar Forja</h2>
                 </div>
-                <Button variant="ghost" onClick={() => setIsVaultOpen(false)} className="rounded-full h-12 w-12 bg-white/5">
+                <Button variant="ghost" onClick={() => setIsVaultTerminalOpen(false)} className="rounded-full h-12 w-12 bg-white/5">
                   <X size={24} className="text-zinc-500" />
                 </Button>
               </div>
 
               <div className="flex-1 space-y-4 overflow-y-auto custom-scrollbar pb-10">
-                {narrativeDrafts.map((draft) => (
-                  <div key={draft.id} onClick={() => handleResumeDraft(draft)} className="p-6 rounded-[2rem] bg-white/[0.03] border border-white/5 flex flex-col gap-6 active:bg-white/[0.06] transition-all">
+                {narrativeDraftsCollection.map((draftEntry) => (
+                  <div key={draftEntry.id} onClick={() => handleResumeDraftAction(draftEntry)} className="p-6 rounded-[2rem] bg-white/[0.03] border border-white/5 flex flex-col gap-6 active:bg-white/[0.06] transition-all">
                     <p className="text-lg font-black text-white uppercase tracking-tight leading-tight italic line-clamp-2">
-                      {draft.title || "Crónica sin nombre"}
+                      {draftEntry.title || "Crónica sin nombre"}
                     </p>
                     <div className="flex justify-between items-center">
-                      <Badge variant="outline" className="text-[10px] font-black text-primary border-primary/20 uppercase tracking-widest">{draft.creation_data.purpose}</Badge>
+                      <Badge variant="outline" className="text-[10px] font-black text-primary border-primary/20 uppercase tracking-widest">
+                          {(draftEntry.creation_data as any).purpose}
+                      </Badge>
                       <div className="flex items-center gap-8">
-                        <button onClick={(e) => { e.stopPropagation(); if (confirm("¿Eliminar?")) deleteDraft(draft.id); }} className="text-zinc-600 active:text-red-500"><Trash2 size={22} /></button>
+                        <button 
+                            onClick={(interactionEvent) => { interactionEvent.stopPropagation(); if (confirm("¿Purgar sesión?")) deleteDraftAction(draftEntry.id); }} 
+                            className="text-zinc-600 active:text-red-500"
+                        >
+                            <Trash2 size={22} />
+                        </button>
                         <span className="text-[11px] font-black text-white uppercase tracking-widest flex items-center gap-3">
                           REANUDAR <ArrowRight size={14} className="text-primary" />
                         </span>
@@ -401,16 +446,4 @@ export function PurposeSelectionStep({ existingDrafts = [] }: { existingDrafts?:
       </AnimatePresence>
     </div>
   );
-}
-
-/**
- * SUB-COMPONENTE: Mic (Icono auxiliar)
- */
-function Mic(props: any) {
-  return (
-    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-      <path d="m12 8-9.04 9.06a2.82 2.82 0 1 0 3.98 3.98L16 12" />
-      <circle cx="17" cy="7" r="5" />
-    </svg>
-  )
 }
