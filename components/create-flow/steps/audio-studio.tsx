@@ -1,12 +1,23 @@
-// components/create-flow/steps/audio-studio.tsx
-// VERSIÓN: 2.6 (Ultimate Mobile Polish - Zero Scroll & High-Contrast Sync)
+/**
+ * ARCHIVO: components/create-flow/steps/audio-studio.tsx
+ * VERSIÓN: 3.0 (NicePod Audio Studio - Acoustic Direction Synchronization Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.9
+ * 
+ * Misión: Proveer una consola de alta fidelidad para la calibración de parámetros 
+ * de voz neuronal, garantizando la sintonía entre el Agente de Inteligencia 
+ * y la preferencia auditiva del Voyager.
+ * [REFORMA V3.0]: Resolución definitiva de TS2769, TS2322 y TS2367. 
+ * Sincronización nominal absoluta con 'PodcastCreationSchema' V12.0. 
+ * Aplicación integral de la Zero Abbreviations Policy (ZAP).
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ */
 
 "use client";
 
 import { useFormContext } from "react-hook-form";
 import { motion, AnimatePresence } from "framer-motion";
 import { PodcastCreationData } from "@/lib/validation/podcast-schema";
-import { cn } from "@/lib/utils";
+import { classNamesUtility, nicepodLog } from "@/lib/utils";
 
 import { FormField, FormControl, FormItem, FormLabel } from "@/components/ui/form";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -16,78 +27,103 @@ import {
   Activity,
   Sparkles,
   Wand2,
-  Mic2,
   User,
   UserRound
 } from "lucide-react";
 
-// Fuente de verdad de la dirección vocal
+// Fuente de verdad de la dirección vocal (Sincronía con el Córtex)
 import { PERSONALITY_PERFECT_SETUPS, PersonalityType } from "../shared/vocal-director-map";
 
-const GENDER_OPTS = [
-  { value: "Masculino", label: "HOMBRE", icon: User },
-  { value: "Femenino", label: "MUJER", icon: UserRound }
-];
+/**
+ * VOCAL_GENDER_OPTIONS_COLLECTION: Definición de registros vocales.
+ */
+const VOCAL_GENDER_OPTIONS_COLLECTION = [
+  { valueIdentification: "Masculino", displayLabel: "HOMBRE", iconComponent: User },
+  { valueIdentification: "Femenino", displayLabel: "MUJER", iconComponent: UserRound }
+] as const;
 
-const STYLE_OPTS = [
-  { value: "Calmado", desc: "Suave y reflexivo" },
-  { value: "Energético", desc: "Vibrante y motivador" },
-  { value: "Profesional", desc: "Equilibrado y serio" },
-  { value: "Inspirador", desc: "Crescendo reflexivo" }
-];
+/**
+ * VOCAL_STYLE_OPTIONS_COLLECTION: Definición de matices emocionales.
+ */
+const VOCAL_STYLE_OPTIONS_COLLECTION = [
+  { valueIdentification: "Calmado", descriptionText: "Suave y reflexivo" },
+  { valueIdentification: "Energético", descriptionText: "Vibrante y motivador" },
+  { valueIdentification: "Profesional", descriptionText: "Equilibrado y serio" },
+  { valueIdentification: "Inspirador", descriptionText: "Crescendo narrativo" }
+] as const;
 
-const PACE_OPTS = [
-  { value: "Lento", label: "PAUSADO" },
-  { value: "Moderado", label: "NATURAL" },
-  { value: "Rápido", label: "ÁGIL" }
-];
+/**
+ * VOCAL_PACE_OPTIONS_COLLECTION: Definición de velocidades de elocución.
+ */
+const VOCAL_PACE_OPTIONS_COLLECTION = [
+  { valueIdentification: "Lento", displayLabel: "PAUSADO" },
+  { valueIdentification: "Moderado", displayLabel: "NATURAL" },
+  { valueIdentification: "Rápido", displayLabel: "ÁGIL" }
+] as const;
 
+/**
+ * AudioStudio: La terminal de calibración acústica de la forja.
+ */
 export function AudioStudio() {
+  // Consumo del motor de formularios bajo el tipado estricto BSS
   const { control, watch } = useFormContext<PodcastCreationData>();
 
-  const currentAgent = watch("agentName") as PersonalityType;
-  const currentStyle = watch("voiceStyle");
-  const currentPace = watch("voicePace");
+  /** 
+   * [SINCRO V3.0 - RESOLUCIÓN TS2769]: 
+   * Observamos descriptores industriales purificados para evitar colisiones de tipo.
+   */
+  const currentAgentPersonalityReference = watch("agentName") as PersonalityType;
+  const currentVocalStyleSelectionMagnitude = watch("voiceStyleSelection");
+  const currentVocalPaceSelectionMagnitude = watch("voicePaceSelection");
 
-  const isResonancePerfect = (() => {
-    const perfect = PERSONALITY_PERFECT_SETUPS[currentAgent];
-    if (!perfect) return false;
-    return perfect.style === currentStyle && perfect.pace === currentPace;
+  /**
+   * isAcousticResonancePerfectStatus: 
+   * Misión: Validar si el ajuste actual coincide con la calibración ideal del Agente.
+   * [RESOLUCIÓN TS2367]: Comparación de tipos escalares purificados.
+   */
+  const isAcousticResonancePerfectStatus = (() => {
+    const perfectSetupDossier = PERSONALITY_PERFECT_SETUPS[currentAgentPersonalityReference];
+    if (!perfectSetupDossier) return false;
+    
+    return (
+      perfectSetupDossier.style === currentVocalStyleSelectionMagnitude && 
+      perfectSetupDossier.pace === currentVocalPaceSelectionMagnitude
+    );
   })();
 
   return (
-    <div className="flex flex-col h-full w-full max-w-md mx-auto pt-2 pb-0 px-3 justify-start md:justify-center overflow-y-auto no-scrollbar animate-in fade-in duration-700">
+    <div className="flex flex-col h-full w-full max-w-md mx-auto pt-2 pb-0 px-4 justify-start md:justify-center overflow-y-auto custom-scrollbar animate-in fade-in duration-700 isolate">
 
-      {/* 1. HEADER COMPACTO: Reducción de márgenes para ganar espacio */}
-      <header className="text-center mb-5 shrink-0">
-        <h1 className="text-3xl md:text-5xl font-black tracking-tighter uppercase text-zinc-900 dark:text-white leading-none">
-          Estudio de <span className="text-primary italic">Voz</span>
+      {/* I. HEADER: Identidad Visual del Estudio */}
+      <header className="text-center mb-6 shrink-0">
+        <h1 className="text-3xl md:text-5xl font-black tracking-tighter uppercase text-white leading-none italic font-serif">
+          Estudio de <span className="text-primary not-italic">Voz</span>
         </h1>
 
-        <div className="flex justify-center mt-2.5">
+        <div className="flex justify-center mt-3">
           <AnimatePresence mode="wait">
-            {isResonancePerfect ? (
+            {isAcousticResonancePerfectStatus ? (
               <motion.div
-                key="perfect"
+                key="perfect-sync"
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 shadow-sm"
+                className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 shadow-xl"
               >
-                <Wand2 size={10} className="text-primary animate-pulse" />
-                <span className="text-[9px] font-black uppercase tracking-widest text-primary">
-                  Calibración Óptima
+                <Wand2 size={12} className="text-primary animate-pulse" />
+                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-primary">
+                  Calibración Óptima Sintonizada
                 </span>
               </motion.div>
             ) : (
               <motion.div
-                key="custom"
+                key="custom-calibration"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="flex items-center gap-2 px-3 py-1 opacity-30 dark:opacity-40"
+                className="flex items-center gap-2 px-4 py-1.5 opacity-40 grayscale"
               >
-                <Activity size={10} className="text-zinc-500 dark:text-white" />
-                <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500 dark:text-white">
-                  Ajuste Manual
+                <Activity size={12} className="text-white" />
+                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white">
+                  Ajuste Manual de Frecuencia
                 </span>
               </motion.div>
             )}
@@ -95,35 +131,38 @@ export function AudioStudio() {
         </div>
       </header>
 
-      {/* 2. CONSOLA DE CONFIGURACIÓN */}
-      <div className="space-y-4">
+      {/* II. CONSOLA DE CONFIGURACIÓN TÁCTICA */}
+      <div className="space-y-6 isolate">
         
-        {/* FILA 1: REGISTRO (GÉNERO) */}
+        {/* FILA 1: REGISTRO (GÉNERO VOCAL) [RESOLUCIÓN TS2322] */}
         <FormField
           control={control}
-          name="voiceGender"
+          name="voiceGenderSelection"
           render={({ field }) => (
-            <FormItem className="space-y-1.5">
-              <FormLabel className="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.2em] flex items-center gap-2 ml-1">
-                <Volume2 size={12} className="text-primary" /> Registro Vocal
+            <FormItem className="space-y-2.5">
+              <FormLabel className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em] flex items-center gap-2 ml-1">
+                <Volume2 size={14} className="text-primary" /> Registro Vocal
               </FormLabel>
               <FormControl>
                 <RadioGroup
                   onValueChange={field.onChange}
                   value={field.value}
-                  className="grid grid-cols-2 gap-2"
+                  className="grid grid-cols-2 gap-3"
                 >
-                  {GENDER_OPTS.map(opt => (
-                    <div key={opt.value} className="relative">
-                      <RadioGroupItem value={opt.value} id={`g-${opt.value}`} className="sr-only" />
-                      <label htmlFor={`g-${opt.value}`} className={cn(
-                        "flex items-center justify-center gap-2 h-11 rounded-xl cursor-pointer transition-all border font-bold text-[10px] tracking-widest",
-                        field.value === opt.value
-                          ? "bg-primary border-primary text-white shadow-md"
-                          : "bg-zinc-100/80 dark:bg-white/5 border-zinc-200 dark:border-white/10 text-zinc-500 dark:text-white/40 hover:bg-zinc-200/50 dark:hover:bg-white/10"
-                      )}>
-                        <opt.icon size={14} />
-                        {opt.label}
+                  {VOCAL_GENDER_OPTIONS_COLLECTION.map((optionItem) => (
+                    <div key={optionItem.valueIdentification} className="relative">
+                      <RadioGroupItem value={optionItem.valueIdentification} id={`gender-${optionItem.valueIdentification}`} className="sr-only" />
+                      <label 
+                        htmlFor={`gender-${optionItem.valueIdentification}`} 
+                        className={classNamesUtility(
+                          "flex items-center justify-center gap-3 h-12 rounded-2xl cursor-pointer transition-all border-2 font-black text-[10px] tracking-widest",
+                          field.value === optionItem.valueIdentification
+                            ? "bg-primary border-primary text-white shadow-lg scale-[1.02]"
+                            : "bg-white/[0.03] border-white/5 text-zinc-600 hover:border-white/10"
+                        )}
+                      >
+                        <optionItem.iconComponent size={16} />
+                        {optionItem.displayLabel}
                       </label>
                     </div>
                   ))}
@@ -133,31 +172,34 @@ export function AudioStudio() {
           )}
         />
 
-        {/* FILA 2: CADENCIA (VELOCIDAD) */}
+        {/* FILA 2: CADENCIA (VELOCIDAD DE ELOCUCIÓN) [RESOLUCIÓN TS2322] */}
         <FormField
           control={control}
-          name="voicePace"
+          name="voicePaceSelection"
           render={({ field }) => (
-            <FormItem className="space-y-1.5">
-              <FormLabel className="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.2em] flex items-center gap-2 ml-1">
-                <Gauge size={12} className="text-primary" /> Cadencia
+            <FormItem className="space-y-2.5">
+              <FormLabel className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em] flex items-center gap-2 ml-1">
+                <Gauge size={14} className="text-primary" /> Cadencia Narrativa
               </FormLabel>
               <FormControl>
                 <RadioGroup
                   onValueChange={field.onChange}
                   value={field.value}
-                  className="grid grid-cols-3 gap-2"
+                  className="grid grid-cols-3 gap-3"
                 >
-                  {PACE_OPTS.map(opt => (
-                    <div key={opt.value}>
-                      <RadioGroupItem value={opt.value} id={`p-${opt.value}`} className="sr-only" />
-                      <label htmlFor={`p-${opt.value}`} className={cn(
-                        "flex items-center justify-center h-11 rounded-xl cursor-pointer transition-all border font-black text-[9px] tracking-tighter",
-                        field.value === opt.value
-                          ? "bg-primary border-primary text-white shadow-md"
-                          : "bg-zinc-100/80 dark:bg-white/5 border-zinc-200 dark:border-white/10 text-zinc-500 dark:text-white/30"
-                      )}>
-                        {opt.label}
+                  {VOCAL_PACE_OPTIONS_COLLECTION.map((optionItem) => (
+                    <div key={optionItem.valueIdentification}>
+                      <RadioGroupItem value={optionItem.valueIdentification} id={`pace-${optionItem.valueIdentification}`} className="sr-only" />
+                      <label 
+                        htmlFor={`pace-${optionItem.valueIdentification}`} 
+                        className={classNamesUtility(
+                          "flex items-center justify-center h-12 rounded-2xl cursor-pointer transition-all border-2 font-black text-[9px] tracking-tighter",
+                          field.value === optionItem.valueIdentification
+                            ? "bg-primary border-primary text-white shadow-lg"
+                            : "bg-white/[0.03] border-white/5 text-zinc-600 hover:border-white/10"
+                        )}
+                      >
+                        {optionItem.displayLabel}
                       </label>
                     </div>
                   ))}
@@ -167,42 +209,52 @@ export function AudioStudio() {
           )}
         />
 
-        {/* SECCIÓN 3: TONO EMOCIONAL (GRID 2x2) */}
-        <div className="bg-white/40 dark:bg-black/40 backdrop-blur-3xl p-4 rounded-[2rem] border border-white/50 dark:border-white/5 shadow-xl relative overflow-hidden">
+        {/* SECCIÓN 3: TONO EMOCIONAL (MATRIZ DE RESONANCIA) [RESOLUCIÓN TS2322] */}
+        <div className="bg-[#0a0a0a] backdrop-blur-3xl p-5 rounded-[2.5rem] border border-white/10 shadow-2xl relative overflow-hidden isolate">
+          <div className="absolute inset-0 bg-primary/[0.02] pointer-events-none" />
+          
           <FormField
             control={control}
-            name="voiceStyle"
+            name="voiceStyleSelection"
             render={({ field }) => (
-              <FormItem className="space-y-4">
+              <FormItem className="space-y-5">
                 <div className="flex justify-between items-center px-1">
-                  <FormLabel className="text-[10px] font-black text-primary uppercase tracking-[0.2em] flex items-center gap-2">
-                    <Sparkles size={12} /> Tono Emocional
+                  <FormLabel className="text-[10px] font-black text-primary uppercase tracking-[0.3em] flex items-center gap-2">
+                    <Sparkles size={14} className="animate-pulse" /> Tono Emocional IA
                   </FormLabel>
                 </div>
                 
                 <FormControl>
                   <RadioGroup
-                    onValueChange={field.onChange}
+                    onValueChange={(value) => {
+                      field.onChange(value);
+                      nicepodLog(`🎙️ [Audio-Studio] Cambio de Tono detectado: ${value}`);
+                    }}
                     value={field.value}
-                    className="grid grid-cols-2 gap-2"
+                    className="grid grid-cols-2 gap-3"
                   >
-                    {STYLE_OPTS.map(opt => (
-                      <div key={opt.value}>
-                        <RadioGroupItem value={opt.value} id={`s-${opt.value}`} className="sr-only" />
-                        <label htmlFor={`s-${opt.value}`} className={cn(
-                          "flex flex-col p-3 h-20 justify-center rounded-2xl cursor-pointer transition-all border text-left",
-                          field.value === opt.value
-                            ? "bg-white text-zinc-900 border-white shadow-lg scale-[1.02]"
-                            : "bg-white/30 dark:bg-white/5 border-white/40 dark:border-white/5 text-zinc-600 dark:text-white/40"
-                        )}>
-                          <span className="font-black text-[10px] uppercase tracking-tight mb-1">{opt.value}</span>
-                          <span className={cn(
-                              "text-[8px] font-medium leading-none line-clamp-2",
-                              field.value === opt.value 
-                                ? "text-zinc-900/60" 
-                                : "text-zinc-500 dark:text-white/20"
+                    {VOCAL_STYLE_OPTIONS_COLLECTION.map((optionItem) => (
+                      <div key={optionItem.valueIdentification}>
+                        <RadioGroupItem value={optionItem.valueIdentification} id={`style-${optionItem.valueIdentification}`} className="sr-only" />
+                        <label 
+                          htmlFor={`style-${optionItem.valueIdentification}`} 
+                          className={classNamesUtility(
+                            "flex flex-col p-4 h-24 justify-center rounded-[1.5rem] cursor-pointer transition-all border-2 text-left isolate",
+                            field.value === optionItem.valueIdentification
+                              ? "bg-white text-zinc-950 border-white shadow-2xl scale-[1.03]"
+                              : "bg-white/[0.02] border-white/5 text-zinc-500 hover:bg-white/[0.04]"
+                          )}
+                        >
+                          <span className="font-black text-[10px] uppercase tracking-tight mb-1.5">
+                            {optionItem.valueIdentification}
+                          </span>
+                          <span className={classNamesUtility(
+                              "text-[8px] font-bold uppercase tracking-widest leading-tight line-clamp-2",
+                              field.value === optionItem.valueIdentification 
+                                ? "text-zinc-950/40" 
+                                : "text-zinc-700"
                           )}>
-                              {opt.desc}
+                              {optionItem.descriptionText}
                           </span>
                         </label>
                       </div>
@@ -215,7 +267,18 @@ export function AudioStudio() {
         </div>
       </div>
 
-      {/* FOOTER ELIMINADO PARA OPTIMIZAR ESPACIO VERTICAL */}
+      {/* ESPACIADOR TÁCTICO PARA EL FOOTER DEL SHELL */}
+      <div className="h-6 shrink-0" />
     </div>
   );
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V3.0):
+ * 1. Zero Abbreviations Policy (ZAP): Purificación total. 'opt' -> 'optionItem', 
+ *    'desc' -> 'descriptionText', 'val' -> 'valueIdentification'.
+ * 2. TS2322 & TS2769 Resolution: Sincronización nominal con descriptores del esquema 
+ *    V12.0 (voiceGenderSelection, voicePaceSelection, voiceStyleSelection).
+ * 3. Build Shield Sovereignty: Se eliminó el uso de 'any' implícito en las funciones 
+ *    de comparación y se selló el tipado de los RadioGroups.
+ */
