@@ -1,10 +1,9 @@
 /**
  * ARCHIVO: components/player/mini-player-bar.tsx
- * VERSIÓN: 7.0 (NicePod Mini-Terminal - Tactical Direct-DOM Edition)
+ * VERSIÓN: 8.0 (NicePod Mini-Terminal - Tactical Direct-DOM & Zero-State Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
- * PROTOCOLO: Administrative Sovereignty
  * MISIÓN: Proveer control persistente y eficiente mediante Direct-DOM y ZAP.
- * NIVEL DE INTEGRIDAD: HIGH
+ * NIVEL DE INTEGRIDAD: 100% (Soberano)
  */
 
 "use client";
@@ -13,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import { Pause, Play, X, Zap } from "lucide-react";
 import Image from "next/image";
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 // --- INFRAESTRUCTURA CORE ---
 import { Button } from "@/components/ui/button";
@@ -37,43 +36,53 @@ export function MiniPlayerBar() {
 
   const { toast } = useToast();
 
-  // --- TELEMETRÍA DE ALTA PRECISIÓN (NOMINAL INTEGRITY) ---
-  const [currentPlaybackTimeSeconds, setCurrentPlaybackTimeSeconds] = useState<number>(0);
-  const [totalAudioDurationSeconds, setTotalAudioDurationSeconds] = useState<number>(0);
-
-  /**
-   * progressBarElementReference:
-   * [THERMIC V7.0]: Referencia para manipulación directa del DOM (MTI).
-   */
+  // --- REFERENCIAS DE TELEMETRÍA (MTI - PILAR 4) ---
   const progressBarElementReference = useRef<HTMLDivElement>(null);
+  const currentTimeDisplayElementReference = useRef<HTMLSpanElement>(null);
+  const totalDurationDisplayElementReference = useRef<HTMLSpanElement>(null);
+
+  // Guardamos la duración para evitar actualizaciones innecesarias del texto de duración total
+  const lastTotalDurationSecondsReference = useRef<number>(0);
 
   /**
-   * 1. MOTOR DE SINCRO (Hardware Link)
-   * Captura el pulso directamente del objeto de audio nativo.
+   * 1. MOTOR DE SINCRO DIRECT-DOM (Hardware Link)
+   * Captura el pulso directamente del objeto de audio nativo e inyecta
+   * actualizaciones al DOM sin pasar por el estado de React.
    */
   useEffect(() => {
     const audioElementInstance = audioElementReference.current;
     if (!audioElementInstance) return;
 
     const syncMetricsAction = () => {
+      // Protocolo de Hibernación Térmica (Pilar 3)
       if (document.hidden) return;
 
-      setCurrentPlaybackTimeSeconds(audioElementInstance.currentTime);
+      const currentPlaybackTimeSeconds = audioElementInstance.currentTime;
+      const totalAudioDurationSeconds = audioElementInstance.duration || 0;
 
-      if (audioElementInstance.duration && audioElementInstance.duration !== totalAudioDurationSeconds) {
-        setTotalAudioDurationSeconds(audioElementInstance.duration);
+      // [MTI]: Actualización directa de la barra de progreso
+      if (progressBarElementReference.current && totalAudioDurationSeconds > 0) {
+        const progressPercentageValue = (currentPlaybackTimeSeconds / totalAudioDurationSeconds) * 100;
+        progressBarElementReference.current.style.width = `${progressPercentageValue}%`;
       }
 
-      // [MTI]: Actualización directa de la barra de progreso para evitar Forced Reflow.
-      if (progressBarElementReference.current && audioElementInstance.duration > 0) {
-        const progressPercentageValue = (audioElementInstance.currentTime / audioElementInstance.duration) * 100;
-        progressBarElementReference.current.style.width = `${progressPercentageValue}%`;
+      // [MTI]: Actualización directa del contador de tiempo actual
+      if (currentTimeDisplayElementReference.current) {
+        currentTimeDisplayElementReference.current.textContent = formatTime(currentPlaybackTimeSeconds);
+      }
+
+      // [MTI]: Actualización directa de la duración total (solo si cambia)
+      if (totalAudioDurationSeconds > 0 && totalAudioDurationSeconds !== lastTotalDurationSecondsReference.current) {
+        lastTotalDurationSecondsReference.current = totalAudioDurationSeconds;
+        if (totalDurationDisplayElementReference.current) {
+          totalDurationDisplayElementReference.current.textContent = formatTime(totalAudioDurationSeconds);
+        }
       }
     };
 
     audioElementInstance.addEventListener('timeupdate', syncMetricsAction);
     return () => audioElementInstance.removeEventListener('timeupdate', syncMetricsAction);
-  }, [audioElementReference, totalAudioDurationSeconds]);
+  }, [audioElementReference]);
 
   /**
    * 2. VALIDACIÓN DE INTEGRIDAD
@@ -164,7 +173,9 @@ export function MiniPlayerBar() {
                       {podcastAuthorFullName}
                     </p>
                     <span className="text-[8px] font-mono text-primary/60">
-                      {formatTime(currentPlaybackTimeSeconds)} <span className="opacity-30">/</span> {formatTime(totalAudioDurationSeconds)}
+                      <span ref={currentTimeDisplayElementReference}>00:00</span>
+                      <span className="opacity-30 mx-1">/</span>
+                      <span ref={totalDurationDisplayElementReference}>00:00</span>
                     </span>
                   </>
                 ) : (
@@ -235,20 +246,3 @@ export function MiniPlayerBar() {
     </motion.div>
   );
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT (V7.0):
- * 1. Tactical Direct-DOM: Se ha migrado la barra de progreso a manipulación
- *    directa del DOM (progressBarElementReference) para aniquilar el Layout Thrashing.
- * 2. Background Thermal Isolation: Se ha inyectado un centinela de visibilidad
- *    en el motor de sincronía para evitar re-renderizados innecesarios del
- *    mini-player cuando la pestaña está en segundo plano.
- * 3. Zero Abbreviations Policy: Purificación nominal absoluta de todas las
- *    variables (isPodcastReadyForPlayback, currentPlaybackTimeSeconds, etc.).
- * 2. Visualización Marquee: El uso de '[mask-image]' permite que el texto que 
- *    se desplaza no se corte de forma abrupta, sino que se disuelva en los bordes, 
- *    elevando el diseño al estándar Spotify Premium.
- * 3. Diseño Compacto: Se optimizaron los 'gaps' y 'paddings' para que en móviles 
- *    pequeños (como el reportado por el Comandante), los controles no empujen 
- *    el contenido fuera de la pantalla.
- */
