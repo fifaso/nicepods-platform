@@ -31,7 +31,7 @@ export type CreateCollectionPayload = z.infer<typeof CreateCollectionWithItemsSc
  * createCollectionAction: Orquestar la creación de una Bóveda Temática (Colección) vinculando crónicas existentes.
  */
 export async function createCollectionAction(
-  rawPayload: unknown
+  rawSubmissionPayload: unknown
 ): Promise<ProfileActionResponse<{ collectionIdentification: string }>> {
   const supabaseClient = createClient();
 
@@ -46,7 +46,7 @@ export async function createCollectionAction(
   }
 
   // 2. VALIDACIÓN DE INTEGRIDAD ESTRUCTURAL
-  const validationResult = CreateCollectionWithItemsSchema.safeParse(rawPayload);
+  const validationResult = CreateCollectionWithItemsSchema.safeParse(rawSubmissionPayload);
   if (!validationResult.success) {
     return {
       isOperationSuccessful: false,
@@ -153,7 +153,15 @@ export async function getMyCollections() {
 
     if (queryDatabaseExceptionInformation) throw queryDatabaseExceptionInformation;
 
-    return (collectionDatabaseResults || []).map((collectionItem: any) => ({
+    return (collectionDatabaseResults || []).map((collectionItem: {
+      id: string;
+      title: string;
+      description: string | null;
+      is_public: boolean | null;
+      cover_image_url: string | null;
+      updated_at: string;
+      collection_items: { count: number }[];
+    }) => ({
       identification: collectionItem.id,
       title: collectionItem.title,
       descriptionTextContent: collectionItem.description,
