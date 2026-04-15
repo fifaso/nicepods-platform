@@ -153,7 +153,7 @@ export function ForgeSpatialPrecision({
    */
   useEffect(() => {
     if (recenterTriggerPulse > lastProcessedRecenterPulseReference.current && userLocation) {
-      lastProcessedPulseReference.current = recenterTriggerPulse;
+      lastProcessedRecenterPulseReference.current = recenterTriggerPulse;
 
       nicepodLog("🎯 [Forge:Precision] Recuperando autoridad satelital por comando.");
       setManualMode(false);

@@ -95,8 +95,8 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
 
   // 3. PROTOCOLO DE ANIQUILACIÓN FÍSICA
   useEffect(() => {
+    const currentMapEngineInstance = localMapEngineReference.current;
     return () => {
-      const currentMapEngineInstance = localMapEngineReference.current;
       if (currentMapEngineInstance) {
         try {
           const nativeMapInstance = currentMapEngineInstance.getMap();

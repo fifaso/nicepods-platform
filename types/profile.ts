@@ -1,7 +1,10 @@
-// types/profile.ts
-// VERSIÓN: 3.1 (NicePod Sovereign Profile - NCIS Protocol Edition)
-// Misión: Centralizar la identidad del curador y sincronizar el contrato SSR-Cliente.
-// [ESTABILIZACIÓN]: Erradicación de 'any', sellado de roles y paridad total con Metal SQL.
+/**
+ * ARCHIVO: types/profile.ts
+ * VERSIÓN: 4.0 (NicePod Sovereign Profile - Sovereign Protocol V4.0)
+ * PROTOCOLO: MADRID RESONANCE V4.0
+ * MISIÓN: Centralizar la identidad del curador y sincronizar el contrato SSR-Cliente.
+ * NIVEL DE INTEGRIDAD: 100% (Soberano / ZAP Compliant / Build Shield Green)
+ */
 
 import { Database } from './database.types';
 
@@ -35,39 +38,52 @@ export type UserRole = 'user' | 'admin' | 'curator';
 /**
  * ProfileData: La fuente de verdad sobre la identidad de un usuario.
  * 
- * [ARQUITECTURA V3.1]: 
- * Se funde la estructura física de la tabla 'profiles' con las extensiones 
- * lógicas del servidor. Esta intersección aniquila los errores de 'propiedades faltantes'.
+ * [ARQUITECTURA V4.0]:
+ * Implementación total de Metal-to-Crystal Mapping. Se omiten los nombres
+ * de columna snake_case originales en favor de descriptores camelCase ZAP.
  */
-export type ProfileData = Tables<'profiles'> & {
-  // Sobreescritura de rol para tipado estricto en el frontend
-  role: UserRole | string;
+export interface ProfileData {
+  identification: string;
+  username: string;
+  fullName: string | null;
+  avatarUniformResourceLocator: string | null;
+  biographyTextContent: string | null;
+  biographyShortSummary: string | null;
+  websiteUniformResourceLocator: string | null;
+  reputationScoreValue: number;
+  isVerifiedAccountStatus: boolean;
+  authorityRole: UserRole | string;
+  followersCountInventory: number;
+  followingCountInventory: number;
+  activeCreationJobsCount: number;
+  creationTimestamp: string;
+  updateTimestamp: string;
 
   /**
-   * subscriptions: Vínculo comercial inyectado por el servidor.
+   * subscriptionDetails: Vínculo comercial inyectado por el servidor.
    * Permite determinar el acceso a funcionalidades Pro (V2.7).
    */
-  subscriptions?: {
-    id: string;
-    status: Enums<'subscription_status'> | null;
-    plans: {
-      id: number;
-      name: string | null;
-      monthly_creation_limit: number;
-      max_concurrent_drafts: number | null;
-      features: string[] | null;
+  subscriptionDetails?: {
+    identification: string;
+    subscriptionStatus: Enums<'subscription_status'> | null;
+    associatedPlan: {
+      identification: number;
+      planName: string | null;
+      monthlyCreationLimit: number;
+      maximumConcurrentDrafts: number | null;
+      featureList: string[] | null;
     } | null;
   } | null;
 
   /**
-   * user_usage: Telemetría de consumo para el Dashboard.
+   * userUsageTelemetrics: Telemetría de consumo para el Dashboard.
    */
-  user_usage?: {
-    minutes_listened_this_month: number | null;
-    podcasts_created_this_month: number | null;
-    drafts_created_this_month: number | null;
+  userUsageTelemetrics?: {
+    minutesListenedThisMonth: number | null;
+    podcastsCreatedThisMonth: number | null;
+    draftsCreatedThisMonth: number | null;
   } | null;
-};
+}
 
 /**
  * ---------------------------------------------------------------------------
@@ -79,39 +95,39 @@ export type ProfileData = Tables<'profiles'> & {
  * PublicPodcast: Snapshot de un activo de audio para visualización en perfiles.
  */
 export interface PublicPodcast {
-  id: number;
+  identification: number;
   title: string;
-  description: string | null;
-  audio_url: string | null;
-  cover_image_url: string | null;
-  created_at: string;
-  duration_seconds: number | null;
-  play_count: number;
-  like_count: number;
-  status: Enums<'podcast_status'>;
-  creation_mode: 'standard' | 'remix' | 'situational' | 'pulse' | string | null;
+  descriptionTextContent: string | null;
+  audioUniformResourceLocator: string | null;
+  coverImageUniformResourceLocator: string | null;
+  creationTimestamp: string;
+  durationInSeconds: number | null;
+  playCountTotal: number;
+  likeCountTotal: number;
+  publicationStatus: Enums<'podcast_status'>;
+  creationMode: 'standard' | 'remix' | 'situational' | 'pulse' | string | null;
 }
 
 /**
  * TestimonialWithAuthor: Validaciones sociales tipadas.
  */
 export interface TestimonialWithAuthor {
-  id: number;
-  profile_user_id: string;
-  author_user_id: string;
-  comment_text: string;
-  status: Enums<'testimonial_status'>;
-  created_at: string;
+  identification: number;
+  profileUserIdentification: string;
+  authorUserIdentification: string;
+  commentTextContent: string;
+  moderationStatus: Enums<'testimonial_status'>;
+  creationTimestamp: string;
 
   /**
    * author: Identidad delegada del emisor del testimonio.
    */
   author: {
-    id: string;
+    identification: string;
     fullName: string | null;
     avatarUniformResourceLocator: string | null;
     username: string;
-    role: string;
+    authorityRole: string;
   } | null;
 }
 
@@ -125,20 +141,20 @@ export interface TestimonialWithAuthor {
  * Collection: Agrupación soberana de conocimiento.
  */
 export interface Collection {
-  id: string;
-  owner_id: string;
+  identification: string;
+  ownerUserIdentification: string;
   title: string;
-  description: string | null;
-  is_public: boolean;
-  cover_image_url: string | null;
-  total_listened_count: number;
-  likes_count: number;
-  updated_at: string;
+  descriptionTextContent: string | null;
+  isPublicSovereignty: boolean;
+  coverImageUniformResourceLocator: string | null;
+  totalListenedCount: number;
+  likesCountTotal: number;
+  updateTimestamp: string;
 
   /**
-   * collection_items: Relación virtual para conteo de activos.
+   * collectionItems: Relación virtual para conteo de activos.
    */
-  collection_items?: {
+  collectionItems?: {
     count: number;
   }[];
 }
@@ -160,20 +176,20 @@ export type ProfileTabValue =
  * [FIX CRÍTICO]: Se sustituye 'any' por 'unknown' para cumplir con el Build Shield.
  */
 export interface ProfileActionResponse<T = unknown> {
-  success: boolean;
-  message: string;
-  data?: T;
-  errors?: Record<string, string[]>;
-  trace_identification?: string;
+  isOperationSuccessful: boolean;
+  responseStatusMessage: string;
+  payloadData?: T;
+  validationErrorMessageMap?: Record<string, string[]>;
+  traceIdentification: string;
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V3.1):
+ * NOTA TÉCNICA DEL ARCHITECT (V4.0):
  * 1. Build Shield Activo: Al usar unknown en ProfileActionResponse, obligamos 
  *    al desarrollador a realizar una validación de tipos o casting explícito 
  *    antes de usar la data, eliminando errores de runtime.
  * 2. Handshake SSR: La estructura de ProfileData garantiza que 'initialProfile' 
  *    en el Root Layout cumpla con los requisitos del 'identity-settings-form.tsx'.
- * 3. Escalabilidad: Se han incluido los campos de 'user_usage' que faltaban 
+ * 3. Escalabilidad: Se han incluido los campos de 'userUsageTelemetrics' que faltaban
  *    para permitir que el Dashboard visualice las cuotas de usuario Pro.
  */

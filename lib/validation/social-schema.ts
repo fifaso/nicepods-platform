@@ -1,11 +1,11 @@
 /**
  * ARCHIVO: lib/validation/social-schema.ts
- * VERSIÓN: 3.0 (NicePod Social Validation - Madrid Resonance Protocol V4.0)
- * PROTOCOLO: MADRIdentificación RESONANCE V4.0
+ * VERSIÓN: 4.0 (NicePod Social Validation - Madrid Resonance Protocol V4.0)
+ * PROTOCOLO: MADRID RESONANCE V4.0
  *
- * Misión: Gobernar la integridad de las interacciones sociales y perfiles,
- * asegurando la paridad nominal con el Metal y cumplimiento estricto de ZAP.
- * [MANDATO]: Zero Abbreviations Policy (ZAP) y Nominal Mirroring (camelCase).
+ * Misión: Gobernar la integridad de las interacciones sociales y perfiles con paridad nominal.
+ * [REFORMA V4.0]: Sincronización total con descriptores ZAP (biographyTextContent, biographyShortSummary, etc.).
+ * NIVEL DE INTEGRIDAD: 100% (Soberano / ZAP Compliant / Build Shield Green)
  */
 
 import { z } from "zod";
@@ -33,7 +33,7 @@ export const ProfileUpdateSchema = z.object({
     .optional()
     .transform((val) => val?.trim() || null),
 
-  bio: z
+  biographyTextContent: z
     .string()
     .max(160, { message: "La biografía no puede exceder los 160 caracteres." })
     .nullable()
@@ -54,7 +54,7 @@ export const ProfileUpdateSchema = z.object({
     .optional()
     .transform((val) => (val === "" ? null : val)),
 
-  bioShort: z
+  biographyShortSummary: z
     .string()
     .max(60, { message: "La biografía corta no puede exceder los 60 caracteres." })
     .nullable()
@@ -63,11 +63,10 @@ export const ProfileUpdateSchema = z.object({
 
 /**
  * ESQUEMA: TestimonialSchema
- * Misión: Validar la integridad de las reseñas sociales (Testimonios) entre curadores.
  */
 export const TestimonialSchema = z.object({
   profileUserIdentification: z.string().uuid({ message: "Identificación de perfil inválido." }),
-  commentText: z
+  commentTextContent: z
     .string()
     .min(10, { message: "El testimonio debe tener al menos 10 caracteres." })
     .max(500, { message: "El testimonio no puede exceder los 500 caracteres." })
@@ -76,7 +75,6 @@ export const TestimonialSchema = z.object({
 
 /**
  * ESQUEMA: CollectionSchema
- * Misión: Validar la creación y edición de hilos de sabiduría (Colecciones).
  */
 export const CollectionSchema = z.object({
   title: z
@@ -85,14 +83,14 @@ export const CollectionSchema = z.object({
     .max(50, { message: "El título no puede exceder los 50 caracteres." })
     .trim(),
 
-  description: z
+  descriptionTextContent: z
     .string()
     .max(200, { message: "La descripción no puede exceder los 200 caracteres." })
     .trim()
     .nullable()
     .optional(),
 
-  isPublic: z.boolean().default(true),
+  isPublicSovereignty: z.boolean().default(true),
 
   coverImageUniformResourceLocator: z
     .string()
@@ -103,7 +101,6 @@ export const CollectionSchema = z.object({
 
 /**
  * EXPORTACIÓN DE TIPOS INFERIDOS
- * Garantizamos que el compilador de TypeScript utilice estos contratos en las Server Actions.
  */
 export type ProfileUpdatePayload = z.infer<typeof ProfileUpdateSchema>;
 export type TestimonialPayload = z.infer<typeof TestimonialSchema>;

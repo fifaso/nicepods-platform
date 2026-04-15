@@ -1,7 +1,10 @@
-// components/profile/private-profile-dashboard.tsx
-// VERSIÓN: 2.1 (NicePod Private Dashboard - Sovereign Standard V2.6)
-// Misión: Ensamblar la central de mandos del curador con integridad atómica.
-// [ESTABILIZACIÓN]: Resolución definitiva de errores TS(2339) mediante tipado defensivo.
+/**
+ * ARCHIVO: components/profile/private-profile-dashboard.tsx
+ * VERSIÓN: 4.0 (NicePod Private Dashboard - Sovereign Protocol V4.0)
+ * PROTOCOLO: MADRID RESONANCE V4.0
+ * MISIÓN: Ensamblar la central de mandos del curador con integridad atómica y nominal absoluta.
+ * NIVEL DE INTEGRIDAD: 100% (Soberano / ZAP Compliant / Build Shield Green)
+ */
 
 "use client";
 
@@ -44,15 +47,15 @@ import { ProfileHydrationGuard } from "./profile-hydration-guard";
 import { CollectionCard } from "./shared/collection-card";
 
 /**
- * INTERFAZ: PrivateProfileDashboardProps
+ * INTERFAZ: PrivateProfileDashboardComponentProperties
  * Contrato de datos inyectados desde el servidor (Handshake SSR).
  */
-interface PrivateProfileDashboardProps {
+interface PrivateProfileDashboardComponentProperties {
   profile: ProfileData;
   podcastsCreatedThisMonth: number;
-  initialTestimonials: TestimonialWithAuthor[];
-  initialCollections: Collection[];
-  finishedPodcasts: PublicPodcast[];
+  initialTestimonialsCollection: TestimonialWithAuthor[];
+  initialCollectionsCollection: Collection[];
+  finishedPodcastsCollection: PublicPodcast[];
 }
 
 /**
@@ -61,23 +64,15 @@ interface PrivateProfileDashboardProps {
 export function PrivateProfileDashboard({
   profile,
   podcastsCreatedThisMonth,
-  initialTestimonials,
-  initialCollections,
-  finishedPodcasts
-}: PrivateProfileDashboardProps) {
+  initialTestimonialsCollection,
+  initialCollectionsCollection,
+  finishedPodcastsCollection
+}: PrivateProfileDashboardComponentProperties) {
 
-  const { signOut } = useAuth();
+  const { signOut: signOutAction } = useAuth();
 
   // Resolución segura de nombre para el Avatar
-  const userInitials = (profile.full_name || profile.username || "C").charAt(0).toUpperCase();
-
-  /**
-   * [SANEAMIENTO SOBERANO]: 
-   * Extraemos las propiedades con valores por defecto para evitar que TypeScript 
-   * marque error si la introspección de la DB falla momentáneamente.
-   */
-  const reputationScore = (profile as any).reputation_score ?? 0;
-  const isVerified = (profile as any).is_verified ?? false;
+  const userDisplayNameInitials = (profile.fullName || profile.username || "C").charAt(0).toUpperCase();
 
   return (
     <ProfileHydrationGuard>
@@ -87,7 +82,7 @@ export function PrivateProfileDashboard({
           {/* --- BLOQUE I: COLUMNA TÁCTICA (SIDEBAR) --- */}
           <aside className="w-full lg:w-[380px] flex flex-col gap-6 lg:sticky lg:top-24">
 
-            {/* FICHA DE IDENTIDAD AURORA (V2.6) */}
+            {/* FICHA DE IDENTIDAD AURORA (V4.0) */}
             <Card className="text-center overflow-hidden border-white/5 bg-zinc-900/20 backdrop-blur-3xl shadow-2xl rounded-[3rem]">
               <div className="h-32 bg-gradient-to-br from-primary/30 via-indigo-600/10 to-transparent"></div>
               <div className="px-8 pb-10 -mt-16 relative z-10">
@@ -97,11 +92,11 @@ export function PrivateProfileDashboard({
                   <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                   <Avatar className="h-full w-full border-4 border-background shadow-[0_0_50px_rgba(0,0,0,0.5)] relative z-10">
                     <AvatarImage
-                      src={getSafeAsset(profile.avatar_url, 'avatar')}
+                      src={getSafeAsset(profile.avatarUniformResourceLocator, 'avatar')}
                       className="object-cover"
                     />
                     <AvatarFallback className="text-4xl font-black bg-[#020202] text-primary">
-                      {userInitials}
+                      {userDisplayNameInitials}
                     </AvatarFallback>
                   </Avatar>
                 </div>
@@ -109,9 +104,8 @@ export function PrivateProfileDashboard({
                 {/* Datos de Identidad */}
                 <div className="space-y-4">
                   <h2 className="text-3xl font-black tracking-tighter uppercase flex items-center justify-center gap-3 text-white leading-none">
-                    {profile.full_name || profile.username}
-                    {/* [FIX TS2339]: Renderizado defensivo mediante variable saneada */}
-                    {!!isVerified && (
+                    {profile.fullName || profile.username}
+                    {!!profile.isVerifiedAccountStatus && (
                       <ShieldCheck size={22} className="text-primary fill-primary/10 drop-shadow-[0_0_10px_rgba(var(--primary),0.5)]" />
                     )}
                   </h2>
@@ -119,7 +113,7 @@ export function PrivateProfileDashboard({
                   <div className="flex items-center justify-center gap-3">
                     <div className="px-4 py-1.5 rounded-full bg-white/5 border border-white/10 flex items-center gap-3">
                       <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em] tabular-nums">
-                        {reputationScore}
+                        {profile.reputationScoreValue}
                       </span>
                       <span className="text-[8px] font-bold text-zinc-500 uppercase tracking-widest">Prestigio</span>
                     </div>
@@ -136,7 +130,7 @@ export function PrivateProfileDashboard({
                     </Button>
                   </Link>
                   <Button
-                    onClick={signOut}
+                    onClick={signOutAction}
                     variant="ghost"
                     className="w-full text-red-500/40 hover:text-red-500 hover:bg-red-500/5 font-black text-[9px] tracking-widest uppercase h-10 transition-colors"
                   >
@@ -148,12 +142,12 @@ export function PrivateProfileDashboard({
 
             {/* MONITOR DE CAPACIDAD (Suscripciones) */}
             <SubscriptionStatusCard
-              planName={profile.subscriptions?.plans?.name || "Voyager"}
-              status={profile.subscriptions?.status || "active"}
+              planName={profile.subscriptionDetails?.associatedPlan?.planName || "Voyager"}
+              status={profile.subscriptionDetails?.subscriptionStatus || "active"}
               podcastsCreated={podcastsCreatedThisMonth}
-              monthlyLimit={profile.subscriptions?.plans?.monthly_creation_limit ?? 3}
-              maxConcurrentDrafts={profile.subscriptions?.plans?.max_concurrent_drafts ?? 3}
-              features={profile.subscriptions?.plans?.features || []}
+              monthlyLimit={profile.subscriptionDetails?.associatedPlan?.monthlyCreationLimit ?? 3}
+              maxConcurrentDrafts={profile.subscriptionDetails?.associatedPlan?.maximumConcurrentDrafts ?? 3}
+              features={profile.subscriptionDetails?.associatedPlan?.featureList || []}
             />
 
           </aside>
@@ -192,18 +186,22 @@ export function PrivateProfileDashboard({
                         Colecciones curadas de sabiduría sónica.
                       </CardDescription>
                     </div>
-                    <CreateCollectionModal finishedPodcasts={finishedPodcasts} />
+                    <CreateCollectionModal finishedPodcasts={finishedPodcastsCollection.map(podcastItem => ({
+                        identification: podcastItem.identification,
+                        title: podcastItem.title,
+                        coverImageUniformResourceLocator: podcastItem.coverImageUniformResourceLocator
+                    }))} />
                   </CardHeader>
                   <CardContent className="px-10 md:px-14 pb-14">
-                    {initialCollections.length === 0 ? (
+                    {initialCollectionsCollection.length === 0 ? (
                       <div className="text-center py-28 border-2 border-dashed border-white/5 rounded-[3.5rem] bg-white/[0.01]">
                         <Layers className="h-16 w-16 mx-auto text-white/5 mb-6 animate-pulse" />
                         <p className="font-black text-muted-foreground uppercase tracking-[0.4em] text-[11px]">No hay hilos materializados</p>
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-10">
-                        {initialCollections.map((col) => (
-                          <CollectionCard key={col.id} collection={col} isOwner={true} />
+                        {initialCollectionsCollection.map((collectionItem) => (
+                          <CollectionCard key={collectionItem.identification} collection={collectionItem} isOwnerSovereignty={true} />
                         ))}
                       </div>
                     )}
@@ -218,7 +216,7 @@ export function PrivateProfileDashboard({
 
               {/* PANEL 3: MODERACIÓN SOCIAL */}
               <TabsContent value="testimonials" className="outline-none animate-in fade-in duration-700">
-                <TestimonialModerator initialTestimonials={initialTestimonials} />
+                <TestimonialModerator initialTestimonialsCollection={initialTestimonialsCollection} />
               </TabsContent>
 
               {/* PANEL 4: SINTONÍA DE IDENTIDAD (ADN) */}
@@ -245,7 +243,7 @@ export function PrivateProfileDashboard({
             <Zap size={20} className="text-primary animate-pulse" />
             <div className="h-px w-20 bg-gradient-to-l from-transparent to-zinc-500" />
           </div>
-          <p className="text-[9px] font-black uppercase tracking-[1em] text-zinc-500">NicePod Workstation V2.6</p>
+          <p className="text-[9px] font-black uppercase tracking-[1em] text-zinc-500">NicePod Workstation V4.0</p>
         </footer>
       </div>
     </ProfileHydrationGuard>
@@ -253,12 +251,10 @@ export function PrivateProfileDashboard({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V2.1):
- * 1. Tipado Defensivo: El uso de '(profile as any).reputation_score' en la línea 85 
- *    es una técnica de bypass controlado para silenciar los errores del linter 
- *    mientras el compilador termina de procesar la nueva versión de database.types.ts.
- * 2. Cero Abreviaciones: Se ha restaurado todo el cuerpo del componente, 
- *    incluyendo la lógica de signOut y la gestión de pestañas.
- * 3. Integridad Visual: Los radios de borde masivos ('rounded-[3.5rem]') aseguran 
- *    la coherencia con el lenguaje visual de la Malla Urbana.
+ * NOTA TÉCNICA DEL ARCHITECT (V4.0):
+ * 1. Eliminación de 'any': Se han erradicado los casteos de tipo laxos al garantizar
+ *    que 'ProfileData' esté completamente purificado y tipado según el Metal SQL.
+ * 2. Zero Abbreviations Policy: Cumplimiento absoluto de la norma ZAP en todas
+ *    las variables locales y propiedades del componente.
+ * 3. Axial Integrity: Sincronización total con los sub-componentes de la Bóveda.
  */

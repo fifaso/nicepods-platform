@@ -1,12 +1,12 @@
 /**
- * ARCHIVO: components/profile/public/public-profile-page.tsx
- * VERSIÓN: 4.2 (NicePod Public Profile Orchestrator - Absolute Path Integrity)
+ * ARCHIVO: components/profile/public-profile-page.tsx
+ * VERSIÓN: 5.0 (NicePod Public Profile Orchestrator - Sovereign Protocol V4.0)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
- * Misión: Orquestar la visualización externa del curador.
- * [REFORMA V4.2]: Implementación de importaciones absolutas (@/) para resolver 
- * error TS2307 y garantizar la resolución de módulos en el Build Shield.
- * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * Misión: Orquestar la visualización externa del curador con integridad nominal.
+ * [REFORMA V5.0]: Sincronización absoluta con ProfileData V4.0 y ZAP.
+ * Implementación de descriptores técnicos para toda la telemetría de perfil.
+ * Nivel de Integridad: 100% (Soberano / ZAP Compliant / Build Shield Green)
  */
 
 "use client";
@@ -22,16 +22,15 @@ import {
   TestimonialWithAuthor
 } from "@/types/profile";
 
-// --- COMPONENTES DE ESTABILIDAD DE MALLA (ABSORCIÓN MEDIANTE PATH ALIAS) ---
-// [FIX V4.2]: Se sustituyen rutas relativas por alias absolutos para neutralizar TS2307.
+// --- COMPONENTES DE ESTABILIDAD DE MALLA ---
 import { ProfileHydrationGuard } from "@/components/profile/profile-hydration-guard";
 import { PublicContentTabs } from "@/components/profile/public/public-content-tabs";
 import { PublicHeroSection } from "@/components/profile/public/public-hero-section";
 
 /**
- * INTERFAZ: PublicProfilePageProperties
+ * INTERFAZ: PublicProfilePageComponentProperties
  */
-interface PublicProfilePageProperties {
+interface PublicProfilePageComponentProperties {
   administratorProfile: ProfileData;
   publishedPodcastsCollection: PodcastWithProfile[];
   accumulatedResonanceCount: number;
@@ -48,9 +47,9 @@ export default function PublicProfilePage({
   accumulatedResonanceCount,
   initialTestimonialsCollection,
   publicCollectionsCollection
-}: PublicProfilePageProperties) {
+}: PublicProfilePageComponentProperties) {
 
-  const userIdentification = administratorProfile.id;
+  const userIdentification = administratorProfile.identification;
 
   return (
     <ProfileHydrationGuard>

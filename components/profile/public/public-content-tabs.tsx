@@ -1,13 +1,12 @@
 /**
  * ARCHIVO: components/profile/public/public-content-tabs.tsx
- * VERSIÓN: 4.0 (NicePod Content Navigation - Sovereign Industrial Standard)
+ * VERSIÓN: 5.0 (NicePod Content Navigation - Sovereign Protocol V4.0)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
- * Misión: Orquestar la navegación segmentada del perfil público, permitiendo 
- * la transición fluida entre la biblioteca, colecciones y testimonios.
- * [REFORMA V4.0]: Unificación de tipos industriales (PodcastWithProfile), 
- * resolución de error TS2322 y cumplimiento estricto de la Zero Abbreviations Policy.
- * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * Misión: Orquestar la navegación segmentada del perfil público con integridad axial.
+ * [REFORMA V5.0]: Sincronización nominal absoluta con Collection V4.0 y Testimonial V4.0.
+ * Cumplimiento estricto de la Zero Abbreviations Policy.
+ * Nivel de Integridad: 100% (Soberano / ZAP Compliant / Build Shield Green)
  */
 
 "use client";
@@ -31,7 +30,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProfilePodcastOrchestrator } from "../profile-podcast-orchestrator";
 import { CollectionCard } from "../shared/collection-card";
 
-// --- CONTRATOS DE DATOS Y TIPADO SOBERANO (V11.0) ---
+// --- CONTRATOS DE DATOS Y TIPADO SOBERANO ---
 import {
   Collection,
   ProfileData,
@@ -42,10 +41,9 @@ import { PodcastWithProfile } from "@/types/podcast";
 import { getSafeAsset } from "@/lib/utils";
 
 /**
- * INTERFAZ: PublicContentTabsProperties
- * [FIX V4.0]: Se utiliza PodcastWithProfile para garantizar la integridad técnica.
+ * INTERFAZ: PublicContentTabsComponentProperties
  */
-interface PublicContentTabsProperties {
+interface PublicContentTabsComponentProperties {
   administratorProfile: ProfileData;
   publishedPodcastsCollection: PodcastWithProfile[];
   initialTestimonialsCollection: TestimonialWithAuthor[];
@@ -60,20 +58,17 @@ export function PublicContentTabs({
   publishedPodcastsCollection,
   initialTestimonialsCollection,
   publicCollectionsCollection
-}: PublicContentTabsProperties) {
+}: PublicContentTabsComponentProperties) {
 
-  // --- GESTIÓN DE ESTADO DE NAVEGACIÓN DESCRIPTIVA ---
   const [activeProfileTab, setActiveProfileTab] = useState<ProfileTabValue>("podcasts");
 
   /**
-   * renderActiveTabContent: 
-   * Misión: Desacoplar el renderizado de cada faceta para garantizar escalabilidad.
+   * renderActiveTabContent: Misión: Desacoplar el renderizado de cada faceta.
    */
   const renderActiveTabContent = () => {
     switch (activeProfileTab) {
       case "podcasts":
         return (
-          /* [FIX V4.0]: Sincronía nominal absoluta con ProfilePodcastOrchestratorProperties V11.0 */
           <ProfilePodcastOrchestrator
             initialPodcastCollection={publishedPodcastsCollection}
             administratorProfile={administratorProfile}
@@ -87,7 +82,7 @@ export function PublicContentTabs({
             {publicCollectionsCollection.length > 0 ? (
               publicCollectionsCollection.map((collectionItem) => (
                 <CollectionCard
-                  key={collectionItem.id}
+                  key={collectionItem.identification}
                   collection={collectionItem}
                 />
               ))
@@ -107,7 +102,7 @@ export function PublicContentTabs({
             {initialTestimonialsCollection.length > 0 ? (
               initialTestimonialsCollection.map((testimonialItem) => (
                 <TestimonialCard
-                  key={testimonialItem.id}
+                  key={testimonialItem.identification}
                   testimonialData={testimonialItem}
                 />
               ))
@@ -208,13 +203,13 @@ export function PublicContentTabs({
 /**
  * SUB-COMPONENTE: EmptySectionState
  */
-interface EmptySectionStateProperties {
+interface EmptySectionStateComponentProperties {
   IconComponent: React.ElementType;
   title: string;
   description: string;
 }
 
-function EmptySectionState({ IconComponent, title, description }: EmptySectionStateProperties) {
+function EmptySectionState({ IconComponent, title, description }: EmptySectionStateComponentProperties) {
   return (
     <div className="col-span-full py-32 flex flex-col items-center text-center gap-5 bg-white/[0.01] border border-dashed border-white/5 rounded-[3rem]">
       <div className="text-zinc-800">
@@ -233,11 +228,11 @@ function EmptySectionState({ IconComponent, title, description }: EmptySectionSt
 /**
  * SUB-COMPONENTE: TestimonialCard
  */
-interface TestimonialCardProperties {
+interface TestimonialCardComponentProperties {
   testimonialData: TestimonialWithAuthor;
 }
 
-function TestimonialCard({ testimonialData }: TestimonialCardProperties) {
+function TestimonialCard({ testimonialData }: TestimonialCardComponentProperties) {
   return (
     <div className="p-8 bg-zinc-900/40 border border-white/5 rounded-[2.5rem] hover:border-primary/20 transition-all duration-700 group shadow-2xl isolate">
       <div className="flex items-start gap-6 mb-8">
@@ -262,10 +257,10 @@ function TestimonialCard({ testimonialData }: TestimonialCardProperties) {
         </div>
       </div>
       <p className="text-base leading-relaxed text-zinc-400 font-medium italic">
-        "{testimonialData.comment_text}"
+        "{testimonialData.commentTextContent}"
       </p>
       <div className="mt-8 pt-8 border-t border-white/5 text-[8px] font-black text-zinc-800 uppercase tracking-[0.5em]">
-        Validación de Autoridad: {new Date(testimonialData.created_at).toLocaleDateString()}
+        Validación de Autoridad: {new Date(testimonialData.creationTimestamp).toLocaleDateString()}
       </div>
     </div>
   );
