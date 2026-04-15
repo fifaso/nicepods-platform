@@ -1,14 +1,14 @@
 /**
  * ARCHIVO: components/create-flow/index.tsx
- * VERSIÓN: 56.0 (NicePod Master Orchestrator - Industrial Actuator Sync Edition)
+ * VERSIÓN: 57.0 (NicePod Master Orchestrator - Industrial Actuator Sync Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * Misión: Orquestar el flujo de creación de capital intelectual, garantizando la 
  * validación técnica de cada fase y la sincronía absoluta entre el motor de 
  * formularios, la autoridad de navegación y el chasis visual.
- * [REFORMA V56.0]: Resolución definitiva de TS2339, TS2678 y TS2322. 
- * Sincronización nominal absoluta con 'useFlowNavigation' V3.0 y 'LayoutShell' V7.0.
- * Erradicación total de tipos 'any' y cumplimiento estricto de la ZAP.
+ * [REFORMA V57.0]: Resolución definitiva de TS2339, TS2678 y TS2322. 
+ * Sincronización nominal absoluta con 'useFlowNavigation' V3.0, 'useFlowActions' V8.0
+ * y 'LayoutShell' V7.0. Erradicación total de tipos 'any' y cumplimiento estricto ZAP.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -33,12 +33,12 @@ import { StepRenderer } from "./step-renderer";
  * INTERFAZ: PodcastCreationOrchestratorProperties
  */
 interface PodcastCreationOrchestratorProperties {
-  /** initialDraftsCollection: Colección de sesiones recuperadas del Metal. */
+  /** initialDraftsCollection: Colección de sesiones de forja recuperadas del Metal. */
   initialDraftsCollection?: DraftRow[];
 }
 
 /**
- * InnerOrchestrator: El motor de decisión y validación de fase técnica.
+ * InnerOrchestrator: El motor de decisión y validación de fase técnica de la Forja.
  */
 function InnerOrchestrator({ 
   initialDraftsCollection = [] 
@@ -47,7 +47,7 @@ function InnerOrchestrator({
 }) {
   const { toast: userNotificationToast } = useToast();
   
-  /** Consumo de herramientas de formulario bajo tipado estricto BSS */
+  /** Consumo de herramientas de formulario bajo tipado estricto BSS (V12.0) */
   const { 
     trigger: triggerFieldValidationAction, 
     watch: watchFormFieldAction, 
@@ -55,8 +55,8 @@ function InnerOrchestrator({
   } = useFormContext<PodcastCreationData>();
 
   /** 
-   * [SINCRO V56.0 - RESOLUCIÓN TS2339]: 
-   * Consumo del sistema nervioso purificado (Context V5.0).
+   * [SINCRO V57.0 - RESOLUCIÓN TS2339]: 
+   * Consumo del sistema nervioso purificado (CreationContextType V6.0).
    */
   const {
     currentFlowState,
@@ -70,7 +70,8 @@ function InnerOrchestrator({
   const [narrativeOptionsCollection, setNarrativeOptionsCollection] = useState<NarrativeOption[]>([]);
 
   /**
-   * flowActionsAuthority: Actuadores de persistencia y producción (V7.0).
+   * flowActionsAuthority:
+   * Actuadores de persistencia y producción sincronizados con 'useFlowActions' V8.0.
    */
   const flowActionsAuthority = useFlowActions({
     transitionTo: transitionToNextStateAction,
@@ -78,22 +79,25 @@ function InnerOrchestrator({
     clearDraft: () => resetFormOrchestrationAction()
   });
 
-  /** Determinar la trayectoria maestra basada en la intención */
+  /** 
+   * currentActiveFlowPathCollection:
+   * Determinar la trayectoria maestra basada en la intención cognitiva.
+   */
   const currentActiveFlowPathCollection = useMemo(() => {
     return MASTER_FLOW_PATHS[currentSelectionPurposeIdentification] || MASTER_FLOW_PATHS.learn;
   }, [currentSelectionPurposeIdentification]);
 
   /**
    * handleValidatedNextStepAction:
-   * Misión: Validar la integridad de los datos antes de la transición cinemática.
-   * [RESOLUCIÓN TS2678]: Uso de identificadores industriales purificados.
+   * Misión: Ejecutar la validación técnica del paso actual antes de permitir el avance cinemático.
+   * [RESOLUCIÓN TS2678]: Uso de identificadores industriales purificados de 'FlowState' V4.0.
    */
   const handleValidatedNextStepAction = useCallback(async () => {
     const currentPhaseDescriptor = currentFlowState;
     
     let fieldsToValidateCollection: (keyof PodcastCreationData)[] = [];
     
-    // Mapeo de auditoría por hito de navegación [ZAP V12.0 Schema]
+    // Mapeo de auditoría por hito de navegación [ZAP V12.0 Schema Alignment]
     switch (currentPhaseDescriptor) {
       case 'SOLO_TALK_INPUT_FIELD': 
         fieldsToValidateCollection = ['soloTopicSelection', 'soloMotivationContentText'];
@@ -121,15 +125,15 @@ function InnerOrchestrator({
       }
     } else {
       userNotificationToast({ 
-        title: "Integridad Insuficiente", 
-        description: "Complete los parámetros obligatorios de esta fase para continuar.",
+        title: "Integridad de Datos Insuficiente", 
+        description: "Complete los parámetros obligatorios de esta fase para continuar con la forja.",
         variant: "destructive" 
       });
     }
   }, [currentFlowState, triggerFieldValidationAction, userNotificationToast, currentActiveFlowPathCollection, transitionToNextStateAction]);
 
   /**
-   * [RESOLUCIÓN TS2322]: Alineación de propiedades con LayoutShell V7.0.
+   * [RESOLUCIÓN TS2322]: Alineación de propiedades inyectadas hacia 'LayoutShell' V7.0.
    */
   return (
     <LayoutShell
@@ -143,7 +147,7 @@ function InnerOrchestrator({
     >
       {/* 
           [BSS Final Seal]: Eliminación de 'as any'. 
-          Los contratos de NarrativeOption[] y DraftRow[] están sincronizados.
+          Los contratos de NarrativeOption[] y DraftRow[] están 100% sincronizados.
       */}
       <StepRenderer
         narrativeOptionsCollection={narrativeOptionsCollection}
@@ -154,7 +158,7 @@ function InnerOrchestrator({
 }
 
 /**
- * PodcastCreationOrchestrator: El punto de entrada soberano para la forja.
+ * PodcastCreationOrchestrator: El punto de entrada soberano para la terminal de forja.
  */
 export default function PodcastCreationOrchestrator({ 
   initialDraftsCollection = [] 
@@ -168,7 +172,7 @@ export default function PodcastCreationOrchestrator({
 
   /**
    * formOrchestrationMethods:
-   * [SINCRO V56.0]: Inicialización alineada con 'PodcastCreationSchema' V12.0.
+   * [SINCRO V57.0]: Inicialización alineada milimétricamente con 'PodcastCreationSchema' V12.0.
    */
   const formOrchestrationMethods = useForm<PodcastCreationData>({
     resolver: zodResolver(PodcastCreationSchema),
@@ -199,11 +203,12 @@ export default function PodcastCreationOrchestrator({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V56.0):
+ * NOTA TÉCNICA DEL ARCHITECT (V57.0):
  * 1. Build Shield Compliance: Resolución de TS2339 y TS2678 mediante la unificación 
- *    de identificadores de estado con la Máquina de Estados Finitos (FSM).
+ *    de los identificadores de estado ('SOLO_TALK_INPUT_FIELD') con la Máquina de 
+ *    Estados Finitos (FSM) purificada.
  * 2. ZAP Prop Mapping: Resolución de TS2322 mediante la actualización de los 
- *    actuadores inyectados en el LayoutShell (onExecuteNextStepAction, etc.).
+ *    actuadores inyectados en el LayoutShell ('onExecuteNextStepAction', etc.).
  * 3. Type Integrity: Se garantiza que el flujo de datos sea 100% tipado, eliminando 
- *    la fragilidad de los castings genéricos en el reactor de vistas.
+ *    la fragilidad de los castings genéricos en el reactor de vistas y en la hidratación.
  */
