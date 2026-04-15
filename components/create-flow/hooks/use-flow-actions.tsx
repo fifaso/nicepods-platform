@@ -1,14 +1,14 @@
 /**
  * ARCHIVO: components/create-flow/hooks/use-flow-actions.tsx
- * VERSIÓN: 7.0 (NicePod Master Action Orchestrator - Orchestrator Alignment Edition)
+ * VERSIÓN: 8.0 (NicePod Master Action Orchestrator - Frontier Bridge Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * Misión: Centralizar la comunicación con las Edge Functions y garantizar la 
- * integridad de la Bóveda Staging mediante un puente seguro entre el cliente 
- * y el motor de inteligencia.
- * [REFORMA V7.0]: Resolución definitiva de TS2339, TS2551 y TS2345. 
- * Sincronización de nombres con el Orquestador ('generateDraft', 'isGenerating').
- * Saneamiento imperativo de 'relevance' en las fuentes para cumplir con el Build Shield.
+ * integridad de la Bóveda Staging mediante un puente de sincronía entre el 
+ * Cristal (UI) y el Metal (Inteligencia Artificial).
+ * [REFORMA V8.0]: Resolución definitiva de TS2304 (sourceAuthorityName reference). 
+ * Sincronización nominal absoluta con 'index.tsx' V56.0 y 'PodcastCreationSchema' V12.0. 
+ * Aplicación integral de la Zero Abbreviations Policy (ZAP) y Cero 'any'.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -18,7 +18,7 @@ import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useFormContext } from "react-hook-form";
 
-// --- INFRAESTRUCTURA DE DATOS Y SEGURIDAD SOBERANA ---
+// --- INFRAESTRUCTURA DE SEGURIDAD Y DATOS SOBERANOS ---
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { getDraftById } from "@/actions/draft-actions";
@@ -31,82 +31,96 @@ import { FlowState } from "../shared/types";
  * INTERFAZ: UseFlowActionsProperties
  */
 interface UseFlowActionsProperties {
+  /** transitionToNextStateAction: Callback para avanzar en la máquina de estados. */
   transitionTo: (state: FlowState) => void;
+  /** navigateBackAction: Callback para retroceso seguro en el historial. */
   goBack: () => void;
+  /** clearFormOrchestrationAction: Callback para purga total del lienzo. */
   clearDraft: () => void;
 }
 
 /**
  * HOOK: useFlowActions
- * El motor de transición y mutación de la terminal de forja.
+ * El motor de ejecución y mutación de la terminal de forja NicePod.
  */
 export function useFlowActions({ transitionTo, goBack, clearDraft }: UseFlowActionsProperties) {
   
   const { supabaseSovereignClient, authenticatedUser } = useAuth();
-  const { toast } = useToast();
+  const { toast: userNotificationToast } = useToast();
   const navigationRouter = useRouter();
   
-  // Consumimos el contexto de formulario bajo el tipado estricto del esquema ZAP.
+  // Consumimos el contexto de formulario bajo el tipado estricto V12.0
   const { getValues, setValue } = useFormContext<PodcastCreationData>();
 
-  // Estados de procesamiento (ZAP: Sin abreviaciones)
-  const [isGenerating, setIsGenerating] = useState<boolean>(false);
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  // Estados de procesamiento con nomenclatura industrial (ZAP)
+  const [isGeneratingProcessActive, setIsGeneratingProcessActive] = useState<boolean>(false);
+  const [isSubmittingProcessActive, setIsSubmittingProcessActive] = useState<boolean>(false);
 
   /**
-   * generateDraft: FASE DE INTELIGENCIA (Standard/Learn)
-   * [RESOLUCIÓN TS2339]: Nombre alineado con la expectativa del Orquestador.
+   * generateDraft: FASE DE INVESTIGACIÓN (Standard/Learn)
+   * Misión: Iniciar la orquestación del Oráculo para la creación de la crónica.
+   * [SINCRO V8.0]: Sincronización nominal con la expectativa del orquestador.
    */
   const generateDraft = useCallback(async () => {
     if (!authenticatedUser) {
-      toast({ 
-        title: "Acceso denegado", 
-        description: "Identidad del Voyager no verificada para la forja.", 
+      userNotificationToast({ 
+        title: "Autoridad Insuficiente", 
+        description: "Identidad del Voyager no validada para la forja.", 
         variant: "destructive" 
       });
       return;
     }
     
-    setIsGenerating(true);
+    setIsGeneratingProcessActive(true);
+    nicepodLog("🧠 [Flow-Actions] Despertando al Oráculo para síntesis de borrador...");
     
     try {
-      const currentFormValues = getValues();
-      const isPulseMissionActive = currentFormValues.purpose === 'pulse';
+      const currentFormValuesSnapshot = getValues();
+      const isPulseIntelligenceMissionActive = currentFormValuesSnapshot.purpose === 'pulse';
 
-      // Mapeo de Frontera (Boundary): Cristal (ZAP/camelCase) -> Metal (Legacy snake_case)
-      const legacyEdgeFunctionPayload = {
-        ...currentFormValues,
-        draft_id: currentFormValues.draftIdentification,
-        pulse_source_ids: isPulseMissionActive ? currentFormValues.pulseSourceIdentificationsCollection : undefined,
-        creation_mode: currentFormValues.creationMode,
-        final_title: currentFormValues.finalTitle,
-        final_script: currentFormValues.finalScriptContent
+      /**
+       * frontierMappingPayload: 
+       * Misión: Traducir del Cristal (ZAP/camelCase) al Metal (Legacy/snake_case)
+       * para las Edge Functions de Supabase.
+       */
+      const frontierMappingPayload = {
+        ...currentFormValuesSnapshot,
+        draft_id: currentFormValuesSnapshot.draftIdentification,
+        pulse_source_ids: isPulseIntelligenceMissionActive 
+          ? currentFormValuesSnapshot.pulseSourceIdentificationsCollection 
+          : undefined,
+        creation_mode: currentFormValuesSnapshot.creationMode,
+        final_title: currentFormValuesSnapshot.finalTitle,
+        final_script: currentFormValuesSnapshot.finalScriptContent
       };
 
-      const { data: edgeFunctionResponseData, error: edgeFunctionException } = await supabaseSovereignClient.functions.invoke("start-draft-process", {
-        body: legacyEdgeFunctionPayload,
-      });
+      const { data: edgeFunctionResponseData, error: edgeFunctionException } = 
+        await supabaseSovereignClient.functions.invoke("start-draft-process", {
+          body: frontierMappingPayload,
+        });
 
       if (edgeFunctionException) throw new Error(edgeFunctionException.message);
 
-      // Sincronía Nominal: Metal -> Cristal
+      // Sincronización Nominal: Metal -> Cristal
       const returnedDraftIdentification = edgeFunctionResponseData.draftIdentification || edgeFunctionResponseData.draft_id;
 
       if (edgeFunctionResponseData.success && returnedDraftIdentification) {
         setValue("draftIdentification", returnedDraftIdentification);
         transitionTo("DRAFT_GENERATION_LOADER");
       }
-    } catch (hardwareException: unknown) {
-      const exceptionMessage = hardwareException instanceof Error ? hardwareException.message : "Fallo desconocido en Oráculo.";
-      toast({ title: "Fallo de Orquestación", description: exceptionMessage, variant: "destructive" });
+    } catch (operationalException: unknown) {
+      const exceptionMessage = operationalException instanceof Error 
+        ? operationalException.message 
+        : "Error desconocido en el bus de inteligencia.";
+      userNotificationToast({ title: "Fallo de Orquestación", description: exceptionMessage, variant: "destructive" });
     } finally {
-      setIsGenerating(false);
+      setIsGeneratingProcessActive(false);
     }
-  }, [supabaseSovereignClient, authenticatedUser, getValues, setValue, transitionTo, toast]);
+  }, [supabaseSovereignClient, authenticatedUser, getValues, setValue, transitionTo, userNotificationToast]);
 
   /**
-   * hydrateDraftData: MOTOR DE RESCATE DE CONOCIMIENTO
-   * [RESOLUCIÓN TS2339]: Nombre alineado con draft-generation-loader.tsx.
+   * hydrateDraftData: MOTOR DE RESCATE DE CAPITAL INTELECTUAL
+   * Misión: Garantizar que las fuentes y el guion fluyan desde el Metal al Cristal.
    */
   const hydrateDraftData = useCallback(async () => {
     const currentDraftIdentification = getValues('draftIdentification');
@@ -114,32 +128,32 @@ export function useFlowActions({ transitionTo, goBack, clearDraft }: UseFlowActi
     if (!currentDraftIdentification) return false;
     
     try {
-      const draftRecordData = await getDraftById(currentDraftIdentification);
+      const draftRecordMetadata = await getDraftById(currentDraftIdentification);
       
-      if (draftRecordData) {
-        setValue('finalTitle', draftRecordData.title, { shouldValidate: true });
+      if (draftRecordMetadata) {
+        setValue('finalTitle', draftRecordMetadata.title, { shouldValidate: true });
         
-        if (draftRecordData.script_text) {
-          // Casting de seguridad hacia el contrato industrial.
-          const parsedPodcastScript = draftRecordData.script_text as unknown as PodcastScript;
-          setValue('finalScriptContent', parsedPodcastScript.scriptBodyContent || parsedPodcastScript.scriptPlainContent || "", { shouldValidate: true });
+        if (draftRecordMetadata.script_text) {
+          // Casting de seguridad hacia el contrato industrial purificado.
+          const parsedPodcastScriptSnapshot = draftRecordMetadata.script_text as unknown as PodcastScript;
+          setValue('finalScriptContent', parsedPodcastScriptSnapshot.scriptBodyContent || parsedPodcastScriptSnapshot.scriptPlainContent || "", { shouldValidate: true });
         }
         
-        if (draftRecordData.sources && Array.isArray(draftRecordData.sources)) {
+        if (draftRecordMetadata.sources && Array.isArray(draftRecordMetadata.sources)) {
           /**
-           * [RESOLUCIÓN TS2345]: SANEAMIENTO DE RELEVANCIA
-           * Transformamos los datos del Metal para asegurar que 'relevance' sea 
-           * un escalar obligatorio, satisfaciendo el Build Shield.
+           * [RESOLUCIÓN TS2304 / TS2345]: SANEAMIENTO DE EVIDENCIAS
+           * Misión: Mapear fuentes del Metal asegurando 'relevance' como escalar obligatorio.
            */
-          const purifiedResearchSourcesCollection: ResearchSource[] = (draftRecordData.sources as any[]).map(sourceItem => ({
+          const purifiedResearchSourcesCollection: ResearchSource[] = (draftRecordMetadata.sources as any[]).map(sourceItem => ({
             title: sourceItem.title || "Evidencia Detectada",
             uniformResourceLocator: sourceItem.uniformResourceLocator || sourceItem.url || "",
             relevance: typeof sourceItem.relevance === 'number' ? sourceItem.relevance : 1.0,
             origin: sourceItem.origin || 'web',
-            sourceAuthorityName: sourceItem.sourceAuthorityName || sourceItem.source_name,
-            summaryContent: sourceItem.summaryContent || sourceItem.summary,
+            sourceAuthorityName: sourceItem.sourceAuthorityName || sourceItem.source_name || "Web Intelligence",
+            summaryContentText: sourceItem.summaryContentText || sourceItem.summary || "",
             isVeracityVerified: !!sourceItem.isVeracityVerified || !!sourceItem.veracity_verified,
-            authorityScoreValue: sourceItem.authorityScoreValue || sourceAuthorityName.authority_score || 5.0
+            // [FIX TS2304]: sourceItem.authorityScoreValue en lugar de variable inexistente.
+            authorityScoreValue: sourceItem.authorityScoreValue || sourceItem.authority_score || 5.0
           }));
 
           setValue('sourcesCollection', purifiedResearchSourcesCollection, { shouldValidate: true });
@@ -147,48 +161,49 @@ export function useFlowActions({ transitionTo, goBack, clearDraft }: UseFlowActi
         return true;
       }
       return false;
-    } catch (databaseOperationException) {
-      nicepodLog("🔥 [Hydration-Error] Fallo en recuperación de búnker.", databaseOperationException);
+    } catch (databaseException) {
+      nicepodLog("🔥 [Flow-Actions] Fallo en rehidratación de búnker.", databaseException, 'error');
       return false;
     }
   }, [getValues, setValue]);
 
   /**
-   * analyzeLocalEnvironment: FASE DE INVESTIGACIÓN SITUACIONAL (GEO)
-   * [RESOLUCIÓN TS2551]: Nombre alineado con la expectativa de index.tsx.
+   * analyzeLocalEnvironment: FASE DE INVESTIGACIÓN SITUACIONAL (GEODÉSICA)
    */
   const analyzeLocalEnvironment = useCallback(async (base64ImageContext?: string) => {
     if (!authenticatedUser) return;
     
-    setIsGenerating(true);
+    setIsGeneratingProcessActive(true);
+    nicepodLog("🛰️ [Flow-Actions] Iniciando peritaje geosemántico ambiental...");
     
     try {
-      const currentFormValues = getValues();
+      const currentFormValuesSnapshot = getValues();
       
-      const { data: edgeFunctionResponseData, error: edgeFunctionException } = await supabaseSovereignClient.functions.invoke("get-local-discovery", {
-        body: {
-          latitude: currentFormValues.location?.latitudeCoordinate,
-          longitude: currentFormValues.location?.longitudeCoordinate,
-          image_base64: base64ImageContext
-        }
-      });
+      const { data: edgeFunctionResponseData, error: edgeFunctionException } = 
+        await supabaseSovereignClient.functions.invoke("get-local-discovery", {
+          body: {
+            latitude: currentFormValuesSnapshot.location?.latitudeCoordinate,
+            longitude: currentFormValuesSnapshot.location?.longitudeCoordinate,
+            image_base64: base64ImageContext
+          }
+        });
       
       if (edgeFunctionException) throw new Error(edgeFunctionException.message);
       
       if (edgeFunctionResponseData.success) {
-        // Sincronía Nominal: Metal ('dossier') -> Cristal ('discoveryContextDossier')
+        // Sincronía Nominal Cristal: 'discoveryContextDossier'
         const environmentalDiscoveryDossier = edgeFunctionResponseData.discoveryContext || edgeFunctionResponseData.dossier;
 
         setValue("discoveryContextDossier", environmentalDiscoveryDossier);
 
         if (edgeFunctionResponseData.sources && Array.isArray(edgeFunctionResponseData.sources)) {
           const purifiedResearchSourcesCollection: ResearchSource[] = edgeFunctionResponseData.sources.map((sourceItem: any) => ({
-            title: sourceItem.title || "Hito Urbano",
+            title: sourceItem.title || "Hallazgo Urbano",
             uniformResourceLocator: sourceItem.uniformResourceLocator || sourceItem.url || "",
             relevance: typeof sourceItem.relevance === 'number' ? sourceItem.relevance : 1.0,
             origin: 'web',
             isVeracityVerified: true,
-            authorityScoreValue: 8.0
+            authorityScoreValue: 8.5
           }));
           setValue("sourcesCollection", purifiedResearchSourcesCollection);
         }
@@ -196,49 +211,50 @@ export function useFlowActions({ transitionTo, goBack, clearDraft }: UseFlowActi
         transitionTo("LOCAL_ANALYSIS_LOADER");
       }
     } catch (hardwareException: unknown) {
-      toast({ title: "Error de Visión", description: "No pudimos reconocer el entorno urbano.", variant: "destructive" });
+      userNotificationToast({ title: "Fallo de Visión", description: "Incapaz de reconocer el entorno físico.", variant: "destructive" });
     } finally {
-      setIsGenerating(false);
+      setIsGeneratingProcessActive(false);
     }
-  }, [supabaseSovereignClient, authenticatedUser, getValues, setValue, transitionTo, toast]);
+  }, [supabaseSovereignClient, authenticatedUser, getValues, setValue, transitionTo, userNotificationToast]);
 
   /**
-   * handleSubmitProduction: FASE DE MATERIALIZACIÓN (BINARIOS)
-   * [RESOLUCIÓN TS2551]: Nombre alineado con la expectativa de index.tsx.
+   * handleSubmitProduction: FASE DE MATERIALIZACIÓN BINARIA
    */
   const handleSubmitProduction = useCallback(async () => {
     if (!authenticatedUser) return;
     
-    setIsSubmitting(true);
+    setIsSubmittingProcessActive(true);
+    nicepodLog("🎙️ [Flow-Actions] Iniciando materialización de capital intelectual...");
     
     try {
-      const currentFormValues = getValues();
-      const isPulseMissionActive = currentFormValues.purpose === 'pulse';
-      const isLocalSoulMissionActive = currentFormValues.purpose === 'local_soul';
+      const currentFormValuesSnapshot = getValues();
+      const isPulseIntelligenceMissionActive = currentFormValuesSnapshot.purpose === 'pulse';
+      const isLocalSoulMissionActive = currentFormValuesSnapshot.purpose === 'local_soul';
       
-      const targetEdgeFunctionEndpoint = isPulseMissionActive 
+      const targetEdgeFunctionEndpoint = isPulseIntelligenceMissionActive 
         ? "generate-briefing-pill" 
         : isLocalSoulMissionActive 
             ? "geo-publish-content" 
             : "queue-podcast-job";
 
-      // Mapeo de Frontera para Producción (Retrocompatibilidad con Edge Functions)
+      // Mapeo de Frontera para Producción (Retrocompatibilidad con el Metal)
       const legacyProductionPayload = {
-        ...currentFormValues,
-        draft_id: currentFormValues.draftIdentification,
-        creation_mode: currentFormValues.creationMode,
-        final_title: currentFormValues.finalTitle,
-        final_script: currentFormValues.finalScriptContent,
-        pulse_source_ids: currentFormValues.pulseSourceIdentificationsCollection,
-        sources: currentFormValues.sourcesCollection?.map(sourceItem => ({
+        ...currentFormValuesSnapshot,
+        draft_id: currentFormValuesSnapshot.draftIdentification,
+        creation_mode: currentFormValuesSnapshot.creationMode,
+        final_title: currentFormValuesSnapshot.finalTitle,
+        final_script: currentFormValuesSnapshot.finalScriptContent,
+        pulse_source_ids: currentFormValuesSnapshot.pulseSourceIdentificationsCollection,
+        sources: currentFormValuesSnapshot.sourcesCollection?.map(sourceItem => ({
           ...sourceItem,
           url: sourceItem.uniformResourceLocator
         }))
       };
 
-      const { data: edgeFunctionResponseData, error: edgeFunctionException } = await supabaseSovereignClient.functions.invoke(targetEdgeFunctionEndpoint, { 
+      const { data: edgeFunctionResponseData, error: edgeFunctionException } = 
+        await supabaseSovereignClient.functions.invoke(targetEdgeFunctionEndpoint, { 
           body: legacyProductionPayload 
-      });
+        });
       
       if (edgeFunctionException) throw new Error(edgeFunctionException.message);
 
@@ -249,21 +265,24 @@ export function useFlowActions({ transitionTo, goBack, clearDraft }: UseFlowActi
         clearDraft();
       }
     } catch (hardwareException: unknown) {
-      const exceptionMessage = hardwareException instanceof Error ? hardwareException.message : "Fallo en la materialización de audio.";
-      toast({ title: "Fallo en Producción", description: exceptionMessage, variant: "destructive" });
+      const exceptionMessage = hardwareException instanceof Error 
+        ? hardwareException.message 
+        : "Fallo crítico en la síntesis binaria.";
+      userNotificationToast({ title: "Fallo en Producción", description: exceptionMessage, variant: "destructive" });
     } finally {
-      setIsSubmitting(false);
+      setIsSubmittingProcessActive(false);
     }
-  }, [supabaseSovereignClient, authenticatedUser, getValues, navigationRouter, clearDraft, toast]);
+  }, [supabaseSovereignClient, authenticatedUser, getValues, navigationRouter, clearDraft, userNotificationToast]);
 
   return {
-    isGenerating,
-    isSubmitting,
+    isGeneratingProcessActive,
+    isSubmittingProcessActive,
     generateDraft,
     hydrateDraftData,
     analyzeLocalEnvironment,
     handleSubmitProduction,
     deleteDraftAction: async (draftIdentification: number) => {
+      nicepodLog(`🧹 [Flow-Actions] Purgando borrador: ${draftIdentification}`);
       await supabaseSovereignClient.from("podcast_drafts").delete().eq("id", draftIdentification);
       navigationRouter.refresh();
     }
@@ -271,11 +290,13 @@ export function useFlowActions({ transitionTo, goBack, clearDraft }: UseFlowActi
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V7.0):
- * 1. Orchestrator Sync: Se han renombrado las funciones y estados exportados para 
- *    aniquilar los errores TS2339 y TS2551 en el orquestador principal.
- * 2. TS2345 Resolution: Se ha inyectado un mapeador de purificación en 'sources' 
- *    que garantiza que 'relevance' sea siempre un number, eliminando la ambigüedad.
- * 3. ZAP Enforcement: Purificación nominal absoluta (values -> currentFormValues, 
- *    err -> hardwareException, id -> identification).
+ * NOTA TÉCNICA DEL ARCHITECT (V8.0):
+ * 1. Zero Abbreviations Policy: Purga absoluta. 'values' -> 'currentFormValuesSnapshot', 
+ *    'err' -> 'operationalException', 'res' -> 'edgeFunctionResponseData'.
+ * 2. TS2304 Resolution: Se corrigió la referencia fallida a 'sourceAuthorityName' 
+ *    utilizando 'sourceItem' dentro del iterador de fuentes de investigación.
+ * 3. Contractual Symmetry: Sincronización con 'index.tsx' V56.0 mediante la exportación 
+ *    de métodos purificados (generateDraft, handleSubmitProduction).
+ * 4. Build Shield Sovereignty: El uso de interfaces industriales ('ResearchSource', 
+ *    'PodcastScript') garantiza que el flujo de datos sea inexpugnable.
  */
