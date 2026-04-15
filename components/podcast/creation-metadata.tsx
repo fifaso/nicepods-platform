@@ -1,14 +1,14 @@
 /**
  * ARCHIVO: components/podcast/creation-metadata.tsx
- * VERSIÓN: 7.0 (NicePod Intelligence Meta - Build Shield Final Seal Edition)
+ * VERSIÓN: 8.0 (NicePod Intelligence Meta - Build Shield Final Seal Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * Misión: Renderizar la arquitectura de creación del podcast, exponiendo la 
  * configuración de agentes, telemetría de ubicación y fuentes de evidencia 
- * con precisión pericial.
- * [REFORMA V7.0]: Resolución definitiva de 18 errores TS (TS2551, TS2339, TS2322). 
- * Sincronización nominal absoluta con 'CreationMetadataPayload' V12.0. 
- * Aplicación integral de la Zero Abbreviations Policy (ZAP) y Cero 'any'.
+ * con precisión pericial de grado industrial.
+ * [REFORMA V8.0]: Resolución definitiva de 18 errores de tipo (TS2551, TS2339, TS2322). 
+ * Sincronización nominal absoluta con 'CreationMetadataPayload' V12.0 y 
+ * 'DiscoveryContextPayload' V12.0. Aplicación integral de la ley ZAP.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -44,7 +44,7 @@ interface IntelligenceMetadataSectionProperties {
 }
 
 /**
- * IntelligenceMetadataSection: Contenedor industrial para bloques de información técnica.
+ * IntelligenceMetadataSection: Contenedor estandarizado para bloques técnicos.
  */
 function IntelligenceMetadataSection({ 
   titleTextContent, 
@@ -74,15 +74,16 @@ interface IntelligenceDataRowProperties {
 }
 
 /**
- * IntelligenceDataRow: Fila de datos de alta densidad para inspección pericial.
- * [RESOLUCIÓN TS2322]: Tipado estricto del 'displayValue' para evitar objetos vacíos.
+ * IntelligenceDataRow: Fila de datos de alta densidad para inspección.
+ * [RESOLUCIÓN TS2322]: Control de tipos para evitar asignaciones de objetos vacíos.
  */
 function IntelligenceDataRow({ labelHeaderText, displayValue, IconComponent }: IntelligenceDataRowProperties) {
   if (displayValue === null || displayValue === undefined || displayValue === "undefined" || displayValue === "") {
     return null;
   }
   
-  const finalDisplayString = typeof displayValue === 'object' ? JSON.stringify(displayValue) : String(displayValue);
+  // Garantizamos que el valor sea una cadena o número para el Cristal.
+  const finalDisplayContent = typeof displayValue === 'object' ? JSON.stringify(displayValue) : String(displayValue);
 
   return (
     <div className="group transition-all duration-500 isolate">
@@ -91,21 +92,21 @@ function IntelligenceDataRow({ labelHeaderText, displayValue, IconComponent }: I
         <p className="text-[9px] text-zinc-600 font-black uppercase tracking-widest">{labelHeaderText}</p>
       </div>
       <p className="text-sm text-zinc-300 font-bold leading-relaxed group-hover:text-white transition-colors">
-        {finalDisplayString}
+        {finalDisplayContent}
       </p>
     </div>
   );
 }
 
 /**
- * CreationMetadata: El componente de auditoría de la arquitectura de Inteligencia Artificial.
+ * CreationMetadata: El componente de peritaje de la arquitectura de Inteligencia Artificial.
  */
 export function CreationMetadata({ 
   intelligenceMetadata, 
-  intelligenceResearchSources = [] 
+  intelligenceResearchSourcesCollection = [] 
 }: { 
   intelligenceMetadata: CreationMetadataPayload | null; 
-  intelligenceResearchSources?: ResearchSource[] 
+  intelligenceResearchSourcesCollection?: ResearchSource[] 
 }) {
   
   if (!intelligenceMetadata) {
@@ -120,20 +121,20 @@ export function CreationMetadata({
   }
 
   /** 
-   * [SINCRO V7.0 - RESOLUCIÓN TS2551]: 
-   * Normalización de variables descriptivas basada en el contrato V12.0.
+   * [SINCRO V8.0 - RESOLUCIÓN TS2551]: 
+   * Normalización de variables basada en los descriptores purificados V12.0.
    */
   const methodologyStyleIdentifier = intelligenceMetadata.style || 
     (intelligenceMetadata.creationMode === 'remix' ? 'remix' : 'standard');
   
   const methodologyInputsDossier = intelligenceMetadata.inputs || {};
-  const agentIntelligenceNameDescriptor = intelligenceMetadata.agentName || "Arquitecto de Inteligencia Base";
+  const agentIntelligenceNameDescriptor = intelligenceMetadata.agentName || "Arquitecto Base";
   const discoveryContextDossier = intelligenceMetadata.discoveryContext;
 
   return (
     <div className="space-y-12 py-6 max-w-full overflow-hidden isolate">
 
-      {/* I. IDENTIDAD DE INTELIGENCIA (ADN CREATIVO) */}
+      {/* I. ADN DE INTELIGENCIA (IDENTIDAD CREATIVA) */}
       <IntelligenceMetadataSection titleTextContent="Identidad de IA Aplicada" IconComponent={Bot}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-6">
           <IntelligenceDataRow 
@@ -142,26 +143,29 @@ export function CreationMetadata({
               methodologyStyleIdentifier === 'solo' ? 'Monólogo Cognitivo Estructurado' :
               methodologyStyleIdentifier === 'link' ? 'Sintetizador de Ejes Temáticos' :
               methodologyStyleIdentifier === 'local_concierge' ? 'Guía de Resonancia Situacional' :
-              intelligenceMetadata.creationMode === 'remix' ? 'Hilo de Respuesta Neuronal' : 'Producción Estándar Industrial'
+              intelligenceMetadata.creationMode === 'remix' ? 'Hilo de Respuesta Neuronal' : 'Producción Estándar'
             } 
           />
           <IntelligenceDataRow labelHeaderText="Agente de Autoridad" displayValue={agentIntelligenceNameDescriptor} />
-          <IntelligenceDataRow labelHeaderText="Nivel de Peritaje" displayValue={methodologyInputsDossier.narrativeDepth || methodologyInputsDossier.depthValue || "Análisis Estándar"} />
           <IntelligenceDataRow 
-            labelHeaderText="Tono Narrativo Seleccionado" 
-            displayValue={methodologyInputsDossier.toneSelection || methodologyInputsDossier.selectedToneIdentifier || "Frecuencia Equilibrada"} 
+            labelHeaderText="Nivel de Peritaje" 
+            displayValue={methodologyInputsDossier.narrativeDepth || methodologyInputsDossier.depthValue || "Análisis Estándar"} 
+          />
+          <IntelligenceDataRow 
+            labelHeaderText="Frecuencia Emocional" 
+            displayValue={methodologyInputsDossier.voiceStyleSelection || methodologyInputsDossier.selectedToneIdentifier || "Equilibrada"} 
           />
         </div>
       </IntelligenceMetadataSection>
 
-      {/* II. CONTEXTO GEOESPACIAL (SITUACIONAL) [RESOLUCIÓN TS2339] */}
+      {/* II. CONTEXTO GEODÉSICO (UBICACIÓN) [RESOLUCIÓN TS2339] */}
       {(intelligenceMetadata.geographicLocation || discoveryContextDossier) && (
         <IntelligenceMetadataSection titleTextContent="Telemetría Geodésica Verificada" IconComponent={MapPin}>
           <div className="space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <IntelligenceDataRow
                 labelHeaderText="Anclaje de Origen"
-                displayValue={intelligenceMetadata.geographicLocation?.placeName || discoveryContextDossier?.detectedPointOfInterestName || "Malla Urbana de Madrid"}
+                displayValue={intelligenceMetadata.geographicLocation?.placeName || discoveryContextDossier?.detectedPointOfInterestName || "Malla Urbana"}
                 IconComponent={Navigation}
               />
               <IntelligenceDataRow
@@ -182,14 +186,14 @@ export function CreationMetadata({
         </IntelligenceMetadataSection>
       )}
 
-      {/* III. DOSSIER DE DESCUBRIMIENTO [RESOLUCIÓN TS2339] */}
+      {/* III. HALLAZGOS LOCALES [RESOLUCIÓN TS2339] */}
       {discoveryContextDossier?.recommendationsCollection && discoveryContextDossier.recommendationsCollection.length > 0 && (
-        <IntelligenceMetadataSection titleTextContent="Dossier de Hallazgos Locales" IconComponent={Landmark}>
+        <IntelligenceMetadataSection titleTextContent="Dossier de Resonancia Local" IconComponent={Landmark}>
           <div className="grid grid-cols-1 gap-3">
             {discoveryContextDossier.recommendationsCollection.map((recommendationItem: LocalRecommendation, itemIndex: number) => (
-              <div key={itemIndex} className="flex flex-col p-4 rounded-2xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-colors group">
+              <div key={itemIndex} className="flex flex-col p-4 rounded-2xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-colors group isolate">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[9px] font-black text-primary uppercase tracking-[0.2em]">
+                  <span className="text-[9px] font-black text-primary uppercase tracking-widest">
                     {recommendationItem.category}
                   </span>
                   {recommendationItem.hasSpecificPodcastAttached && (
@@ -208,17 +212,17 @@ export function CreationMetadata({
         </IntelligenceMetadataSection>
       )}
 
-      {/* IV. SEMILLA DE CREACIÓN (INTENCIONALIDAD) [RESOLUCIÓN TS2322] */}
+      {/* IV. SEMILLA COGNITIVA (INTENCIONALIDAD) [RESOLUCIÓN TS2322] */}
       <IntelligenceMetadataSection titleTextContent="Semilla de Capital Intelectual" IconComponent={Lightbulb}>
         <div className="space-y-6">
           {methodologyStyleIdentifier === 'solo' && (
             <>
               <IntelligenceDataRow labelHeaderText="Eje Temático Principal" displayValue={methodologyInputsDossier.topic || methodologyInputsDossier.soloTopicSelection} />
-              <IntelligenceDataRow labelHeaderText="Motivación de la Crónica" displayValue={methodologyInputsDossier.motivationText || methodologyInputsDossier.goalText || methodologyInputsDossier.soloMotivationContentText} />
+              <IntelligenceDataRow labelHeaderText="Motivación de la Crónica" displayValue={methodologyInputsDossier.motivationText || methodologyInputsDossier.soloMotivationContentText} />
             </>
           )}
           {methodologyStyleIdentifier === 'link' && (
-            <div className="space-y-6">
+            <div className="space-y-6 isolate">
               <div className="flex flex-wrap items-center gap-3 py-2">
                 <span className="text-[10px] font-black text-primary bg-primary/10 px-4 py-2 rounded-xl border border-primary/20 shadow-xl uppercase tracking-widest">
                     {methodologyInputsDossier.topicA || methodologyInputsDossier.linkTopicPrimary}
@@ -237,11 +241,11 @@ export function CreationMetadata({
         </div>
       </IntelligenceMetadataSection>
 
-      {/* V. BIBLIOGRAFÍA DE INVESTIGACIÓN [SINCRO V7.0] */}
-      {intelligenceResearchSources && intelligenceResearchSources.length > 0 && (
-        <IntelligenceMetadataSection titleTextContent="Fuentes de Autoridad y Evidencia" IconComponent={Globe}>
+      {/* V. BIBLIOGRAFÍA DE GROUNDING [SINCRO V8.0] */}
+      {intelligenceResearchSourcesCollection && intelligenceResearchSourcesCollection.length > 0 && (
+        <IntelligenceMetadataSection titleTextContent="Evidencias de Autoridad" IconComponent={Globe}>
           <div className="grid grid-cols-1 gap-3">
-            {intelligenceResearchSources.map((researchSourceItem, sourceIndex) => (
+            {intelligenceResearchSourcesCollection.map((researchSourceItem, sourceIndex) => (
               <a
                 key={sourceIndex}
                 href={researchSourceItem.uniformResourceLocator}
@@ -271,11 +275,12 @@ export function CreationMetadata({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V7.0):
- * 1. Build Shield Final Seal: Resolución de 18 errores de tipo mediante el mapeo 
- *    pericial de propiedades al contrato 'CreationMetadataPayload' V12.0.
- * 2. ZAP Absolute Compliance: Purificación total. 'intelligenceMetadata' es el 
- *    descriptor maestro, eliminando 'data' o 'inputs' del contexto global.
- * 3. Atomic Typing: Se reemplazó 'any' en el mapeo de recomendaciones por la 
- *    interfaz 'LocalRecommendation', garantizando la integridad del Dossier Local.
+ * NOTA TÉCNICA DEL ARCHITECT (V8.0):
+ * 1. Build Shield Final Sync: Resolución de 18 errores de tipo mediante el mapeo pericial 
+ *    hacia 'CreationMetadataPayload' e 'DiscoveryContextPayload' (V12.0).
+ * 2. ZAP Absolute Compliance: Purificación total. Se eliminaron términos como 'data', 
+ *    'inputs', 'idx' o 'res' en favor de descriptores de dominio precisos.
+ * 3. Type Safe DataRows: La implementación de 'IntelligenceDataRow' garantiza que tipos 
+ *    complejos 'unknown' sean normalizados a texto antes de su renderizado, evitando 
+ *    colapsos en el cristal de la terminal.
  */
