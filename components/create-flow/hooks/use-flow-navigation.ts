@@ -1,122 +1,163 @@
-// components/create-flow/hooks/use-flow-navigation.ts
-// VERSIÓN: 2.0 (Master Navigation - Multi-Flow Logic & Async Progress Sync)
+/**
+ * ARCHIVO: components/create-flow/hooks/use-flow-navigation.ts
+ * VERSIÓN: 3.0 (NicePod Master Navigation - FSM Industrial Synchronization)
+ * PROTOCOLO: MADRID RESONANCE V4.9
+ * 
+ * Misión: Gobernar la Máquina de Estados Finitos (FSM) que guía al Voyager a través 
+ * de la malla de creación, gestionando el historial de navegación y la telemetría.
+ * [REFORMA V3.0]: Resolución definitiva de TS2322 y TS2678. Sincronización nominal 
+ * absoluta con 'FlowState' V4.0. Aplicación integral de la Zero Abbreviations 
+ * Policy (ZAP) y Build Shield Sovereignty.
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ */
 
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
 import { MASTER_FLOW_PATHS } from "../shared/config";
 import { FlowState } from "../shared/types";
+import { nicepodLog } from "@/lib/utils";
 
-interface UseFlowNavigationProps {
-  currentPurpose: string;
+/**
+ * INTERFAZ: UseFlowNavigationProperties
+ */
+interface UseFlowNavigationProperties {
+  currentMissionPurposeIdentification: string;
 }
 
 /**
- * useFlowNavigation
- * El motor que gobierna el movimiento del usuario a través de la Malla de Creación.
- * Implementa una Máquina de Estados Finitos (FSM) con gestión de historial.
+ * useFlowNavigation: El motor de propulsión de estados de la terminal NicePod.
  */
-export function useFlowNavigation({ currentPurpose }: UseFlowNavigationProps) {
-  // Estado inicial: Siempre comenzamos en la selección de intención
-  const [currentFlowState, setCurrentFlowState] = useState<FlowState>('SELECTING_PURPOSE');
+export function useFlowNavigation({ 
+  currentMissionPurposeIdentification 
+}: UseFlowNavigationProperties) {
+  
+  // I. ESTADO DE POSICIONAMIENTO EN LA MALLA
+  const [currentFlowStateDescriptor, setCurrentFlowStateDescriptor] = useState<FlowState>('SELECTING_PURPOSE');
 
-  // Historial: Stack de navegación para el botón 'ATRÁS'
-  const [history, setHistory] = useState<FlowState[]>(['SELECTING_PURPOSE']);
-
-  /**
-   * activePath
-   * Recupera el mapa de ruta específico para la intención actual.
-   * Fallback: 'learn' (Ruta por defecto del sistema).
-   */
-  const activePath = useMemo(() => {
-    // [SISTEMA]: Mapeo de compatibilidad para flujos legacy
-    const purpose = currentPurpose === 'answer' ? 'pulse' : currentPurpose;
-    return MASTER_FLOW_PATHS[purpose] || MASTER_FLOW_PATHS.learn;
-  }, [currentPurpose]);
+  // II. HISTORIAL TÁCTICO: Stack de navegación para el protocolo de retroceso
+  const [navigationHistoryStack, setNavigationHistoryStack] = useState<FlowState[]>(['SELECTING_PURPOSE']);
 
   /**
-   * transitionTo
-   * Mueve al usuario a un nuevo estado y lo registra en el historial.
+   * activeMasterFlowPathCollection:
+   * Misión: Recuperar la genealogía de pasos específica para la intención actual.
+   * [SINCRO V3.0]: Mapeo de compatibilidad para intenciones semánticas.
    */
-  const transitionTo = useCallback((state: FlowState) => {
-    setHistory((prev) => [...prev, state]);
-    setCurrentFlowState(state);
+  const activeMasterFlowPathCollection = useMemo((): FlowState[] => {
+    const purposeIdentification = currentMissionPurposeIdentification === 'answer' 
+      ? 'pulse' 
+      : currentMissionPurposeIdentification;
+      
+    return MASTER_FLOW_PATHS[purposeIdentification] || MASTER_FLOW_PATHS.learn;
+  }, [currentMissionPurposeIdentification]);
+
+  /**
+   * transitionToNextStateAction:
+   * Misión: Mover al Voyager a una nueva fase técnica y registrarla en el Metal.
+   */
+  const transitionToNextStateAction = useCallback((targetState: FlowState) => {
+    nicepodLog(`🛰️ [Navigation] Transición de fase detectada: ${targetState}`);
+    setNavigationHistoryStack((previousHistoryStack) => [...previousHistoryStack, targetState]);
+    setCurrentFlowStateDescriptor(targetState);
   }, []);
 
   /**
-   * jumpToStep
-   * Realiza un salto cuántico en el flujo (usado para reanudar borradores).
-   * Reconstruye el historial previo para asegurar que el botón 'ATRÁS' funcione.
+   * jumpToStepAction:
+   * Misión: Realizar un salto atómico en el flujo (Rehidratación de Bóveda).
+   * Reconstruye la genealogía previa para asegurar la integridad del retroceso.
    */
-  const jumpToStep = useCallback((targetState: FlowState) => {
-    const path = MASTER_FLOW_PATHS[currentPurpose] || MASTER_FLOW_PATHS.learn;
-    const targetIndex = path.indexOf(targetState);
+  const jumpToStepAction = useCallback((targetState: FlowState) => {
+    const activePath = MASTER_FLOW_PATHS[currentMissionPurposeIdentification] || MASTER_FLOW_PATHS.learn;
+    const targetPhaseIndexMagnitude = activePath.indexOf(targetState);
 
-    if (targetIndex !== -1) {
-      // Reconstrucción atómica del historial
-      const syntheticHistory = path.slice(0, targetIndex + 1);
-      setHistory(syntheticHistory);
-      setCurrentFlowState(targetState);
+    if (targetPhaseIndexMagnitude !== -1) {
+      nicepodLog(`⚡ [Navigation] Salto atómico ejecutado hacia: ${targetState}`);
+      // Reconstrucción atómica del historial: [Inicio ... Objetivo]
+      const syntheticHistoryStack = activePath.slice(0, targetPhaseIndexMagnitude + 1);
+      setNavigationHistoryStack(syntheticHistoryStack);
+      setCurrentFlowStateDescriptor(targetState);
     }
-  }, [currentPurpose]);
+  }, [currentMissionPurposeIdentification]);
 
   /**
-   * goBack
-   * Retrocede un paso en el historial y sincroniza el estado actual.
+   * navigateBackAction:
+   * Misión: Retroceder un paso en el historial y sincronizar el hardware visual.
    */
-  const goBack = useCallback(() => {
-    setHistory((prev) => {
-      if (prev.length <= 1) return prev;
-      const newHistory = [...prev];
-      newHistory.pop();
-      const lastStep = newHistory[newHistory.length - 1];
-      setCurrentFlowState(lastStep);
-      return newHistory;
+  const navigateBackAction = useCallback(() => {
+    setNavigationHistoryStack((previousHistoryStack) => {
+      if (previousHistoryStack.length <= 1) return previousHistoryStack;
+      
+      const updatedHistoryStack = [...previousHistoryStack];
+      updatedHistoryStack.pop();
+      
+      const previousStateDescriptor = updatedHistoryStack[updatedHistoryStack.length - 1];
+      setCurrentFlowStateDescriptor(previousStateDescriptor);
+      
+      nicepodLog(`🔙 [Navigation] Retroceso a fase: ${previousStateDescriptor}`);
+      return updatedHistoryStack;
     });
   }, []);
 
   /**
-   * progressMetrics
-   * Calcula el estado de avance porcentual para la UI.
-   * [ESTRATEGIA]: Filtra los estados de "Carga" para que el usuario perciba
-   * el progreso solo en los pasos donde él tiene el control.
+   * creationProcessProgressMetrics:
+   * Misión: Calcular la magnitud de avance porcentual para el HUD de la terminal.
+   * [SINCRO V3.0]: Resolución de TS2322 mediante el uso de estados purificados.
    */
-  const progressMetrics = useMemo(() => {
-    // 1. Definimos los hitos que cuentan para la barra de progreso
-    const excludeFromProgress: FlowState[] = [
+  const creationProcessProgressMetrics = useMemo(() => {
+    // 1. Filtro de fase: Excluimos estados de carga del cálculo de avance percibido.
+    const nonProgressStatesCollection: FlowState[] = [
       'SELECTING_PURPOSE',
       'DRAFT_GENERATION_LOADER',
       'LOCAL_ANALYSIS_LOADER'
     ];
 
-    const visibleSteps = activePath.filter(s => !excludeFromProgress.includes(s));
+    const visibleStepsCollection = activeMasterFlowPathCollection.filter(
+      (flowState) => !nonProgressStatesCollection.includes(flowState)
+    );
 
-    // 2. Determinamos el estado efectivo para el cálculo
-    // Si estamos en un loader, el progreso visual se mantiene en el paso anterior
-    let effectiveState = currentFlowState;
-    if (currentFlowState === 'DRAFT_GENERATION_LOADER') effectiveState = 'DETAILS_STEP';
-    if (currentFlowState === 'LOCAL_ANALYSIS_LOADER') effectiveState = 'LOCAL_DISCOVERY_STEP';
+    /**
+     * effectiveOperationalStateDescriptor: 
+     * Misión: Mantener el progreso visual durante las transiciones asíncronas.
+     * [RESOLUCIÓN TS2322]: Alineación con descriptores industriales V12.0.
+     */
+    let effectiveOperationalStateDescriptor: FlowState = currentFlowStateDescriptor;
+    
+    if (currentFlowStateDescriptor === 'DRAFT_GENERATION_LOADER') {
+      effectiveOperationalStateDescriptor = 'TECHNICAL_DETAILS_STEP';
+    }
+    if (currentFlowStateDescriptor === 'LOCAL_ANALYSIS_LOADER') {
+      effectiveOperationalStateDescriptor = 'LOCAL_DISCOVERY_STEP';
+    }
 
-    const currentIndex = visibleSteps.indexOf(effectiveState);
+    const currentStepIndexMagnitude = visibleStepsCollection.indexOf(effectiveOperationalStateDescriptor);
 
-    // 3. Retorno de métricas para el Header
     return {
-      step: currentIndex !== -1 ? currentIndex + 1 : 1,
-      total: visibleSteps.length,
-      percent: currentIndex !== -1
-        ? Math.round(((currentIndex + 1) / visibleSteps.length) * 100)
+      currentStepMagnitude: currentStepIndexMagnitude !== -1 ? currentStepIndexMagnitude + 1 : 1,
+      totalStepsMagnitude: visibleStepsCollection.length,
+      completionPercentageValue: currentStepIndexMagnitude !== -1
+        ? Math.round(((currentStepIndexMagnitude + 1) / visibleStepsCollection.length) * 100)
         : 0,
-      isInitial: currentFlowState === 'SELECTING_PURPOSE'
+      isInitialPhaseStatus: currentFlowStateDescriptor === 'SELECTING_PURPOSE'
     };
-  }, [currentFlowState, activePath]);
+  }, [currentFlowStateDescriptor, activeMasterFlowPathCollection]);
 
   return {
-    currentFlowState,
-    history,
-    activePath,
-    transitionTo,
-    jumpToStep,
-    goBack,
-    progressMetrics
+    currentFlowState: currentFlowStateDescriptor,
+    history: navigationHistoryStack,
+    activePath: activeMasterFlowPathCollection,
+    transitionTo: transitionToNextStateAction,
+    jumpToStep: jumpToStepAction,
+    goBack: navigateBackAction,
+    progressMetrics: creationProcessProgressMetrics
   };
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V3.0):
+ * 1. Zero Abbreviations Policy (ZAP): Purga absoluta de términos. 'id' -> 'identification', 
+ *    'prev' -> 'previousHistoryStack', 'step' -> 'magnitude', 's' -> 'flowState'.
+ * 2. TS2322 Resolution: Se han sustituido los literales 'DETAILS_STEP' por los 
+ *    nombres industriales correctos definidos en 'shared/types.ts'.
+ * 3. BSS Sovereignty: El motor de navegación ahora garantiza que el estado actual 
+ *    siempre pertenezca al conjunto de estados válidos de 'FlowState'.
+ */
