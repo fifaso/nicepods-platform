@@ -192,7 +192,7 @@ export function CuratorAside({
             */}
             <CreationMetadata 
                 intelligenceMetadata={artificialIntelligenceCreationData} 
-                intelligenceResearchSources={intelligenceResearchSources} 
+                intelligenceResearchSourcesCollection={intelligenceResearchSources}
             />
           </div>
 

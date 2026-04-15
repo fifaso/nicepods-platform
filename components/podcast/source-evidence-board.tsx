@@ -34,7 +34,9 @@ import { ResearchSource } from "@/types/podcast";
  */
 interface SourceEvidenceBoardProperties {
   /** intelligenceEvidenceSourcesCollection: Colección de fuentes bibliográficas verificadas. */
-  intelligenceEvidenceSourcesCollection: ResearchSource[];
+  intelligenceEvidenceSourcesCollection?: ResearchSource[];
+  /** intelligenceEvidenceSources: Propiedad legacy para compatibilidad con el Cristal. */
+  intelligenceEvidenceSources?: ResearchSource[];
   /** additionalTailwindClassName: Inyección de estilos adicionales para el contenedor. */
   additionalTailwindClassName?: string;
 }
@@ -58,11 +60,17 @@ const getAuthorityAtmosphereStyleAction = (authorityScoreValue: number) => {
  */
 export function SourceEvidenceBoard({ 
   intelligenceEvidenceSourcesCollection = [], 
+  intelligenceEvidenceSources = [],
   additionalTailwindClassName 
 }: SourceEvidenceBoardProperties) {
   
+  // Reconciliación de colecciones para asegurar compatibilidad con el ruteo legacy.
+  const finalEvidenceSourcesCollection = intelligenceEvidenceSourcesCollection.length > 0
+    ? intelligenceEvidenceSourcesCollection
+    : intelligenceEvidenceSources;
+
   // Protocolo de Hibernación Visual si la colección es nula o vacía (MTI Hygiene).
-  if (intelligenceEvidenceSourcesCollection.length === 0) {
+  if (finalEvidenceSourcesCollection.length === 0) {
     return null;
   }
 
@@ -85,13 +93,13 @@ export function SourceEvidenceBoard({
           </div>
         </div>
         <Badge variant="outline" className="border-white/5 text-primary font-mono text-[10px] bg-white/[0.02] px-4 py-1 rounded-lg">
-          {intelligenceEvidenceSourcesCollection.length} REFERENCIAS SINTONIZADAS
+          {finalEvidenceSourcesCollection.length} REFERENCIAS SINTONIZADAS
         </Badge>
       </div>
 
       {/* II. MALLA DE FUENTES Y RECURSOS (INDUSTRIAL GRID) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 isolate">
-        {intelligenceEvidenceSourcesCollection.map((evidenceSourceItem, sourceItemIndex) => {
+        {finalEvidenceSourcesCollection.map((evidenceSourceItem, sourceItemIndex) => {
           
           /**
            * [SINCRO V4.0 - RESOLUCIÓN TS2551 / TS2339]: 
