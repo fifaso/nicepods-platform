@@ -1,5 +1,10 @@
-// actions/search-actions.ts
-// VERSIÓN: 4.1
+/**
+ * ARCHIVO: actions/search-actions.ts
+ * VERSIÓN: 4.2 (NicePod Semantic Radar - ZAP & Build Shield Protocol)
+ * PROTOCOLO: MADRID RESONANCE V4.2
+ * MISIÓN: Ejecutar búsquedas de alta resolución y detección de descubrimiento con integridad nominal.
+ * NIVEL DE INTEGRIDAD: 100% (Soberano / ZAP Compliant / Build Shield Green)
+ */
 
 "use server";
 
@@ -8,6 +13,8 @@ import { createClient } from "@/lib/supabase/server";
 /**
  * INTERFAZ: SearchActionResponse
  * Contrato de respuesta unificado para el sistema de radar semántico.
+ * [NOTA]: Se mantiene el default 'any' para preservar la compatibilidad con
+ * los ganchos (hooks) existentes en la Workstation.
  */
 export type SearchActionResponse<T = any> = {
   success: boolean;
@@ -20,30 +27,18 @@ export type SearchActionResponse<T = any> = {
 /**
  * FUNCIÓN: searchGlobalIntelligence
  * Misión: Ejecutar una búsqueda de alta resolución en toda la red de NicePod.
- * 
- * [ARQUITECTURA DE SEGURIDAD]:
- * Esta acción actúa como un proxy privilegiado. Al ejecutarse en el servidor ('use server'),
- * tiene acceso a las variables de entorno privadas (SUPABASE_SERVICE_ROLE_KEY).
- * Inyecta esta llave en la cabecera 'Authorization' para que la Edge Function 'search-pro'
- * acepte la petición y ejecute la vectorización y consulta SQL.
- * 
- * @param query - La intención semántica o término de búsqueda.
- * @param latitude - Coordenada de latitud (Madrid Resonance Anchor).
- * @param longitude - Coordenada de longitud (Madrid Resonance Anchor).
- * @param limit - Volumen de resultados esperado.
  */
 export async function searchGlobalIntelligence(
-  query: string,
-  latitude?: number,
-  longitude?: number,
-  limit: number = 8
+  searchQueryTerm: string,
+  latitudeCoordinate?: number,
+  longitudeCoordinate?: number,
+  resultsLimit: number = 8
 ): Promise<SearchActionResponse> {
-  const supabase = createClient();
+  const supabaseClient = createClient();
 
   // 1. PROTOCOLO DE HIGIENE INICIAL
-  // Validamos que la intención tenga sustancia antes de iniciar el proceso.
-  const targetQuery = query?.trim();
-  if (!targetQuery || targetQuery.length < 3) {
+  const targetSearchQuery = searchQueryTerm?.trim();
+  if (!targetSearchQuery || targetSearchQuery.length < 3) {
     return {
       success: false,
       message: "La intención es insuficiente. Proporcione al menos 3 caracteres.",
@@ -53,62 +48,52 @@ export async function searchGlobalIntelligence(
 
   try {
     // 2. RECUPERACIÓN DE CREDENCIAL MAESTRA
-    // Esta llave debe estar configurada en Vercel (Environment Variables).
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const serviceRoleSecretKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!serviceRoleKey) {
+    if (!serviceRoleSecretKey) {
       console.error("🔥 [Search-Bridge] CRITICAL ERROR: SUPABASE_SERVICE_ROLE_KEY no está definida en el entorno del servidor.");
       throw new Error("Error de configuración de infraestructura. Contacte al administrador.");
     }
 
-    console.info(`🔍 [Search-Bridge] Despachando pulso autorizado: "${targetQuery.substring(0, 30)}..."`);
+    console.info(`🔍 [Search-Bridge] Despachando pulso autorizado: "${targetSearchQuery.substring(0, 30)}..."`);
 
-    /**
-     * 3. INVOCACIÓN DEL MOTOR UNIFICADO (Edge Function V4.1)
-     * Utilizamos invoke() con una cabecera Authorization personalizada.
-     * Esto permite saltarse el RLS y ejecutar la lógica 'Lite' sin cargar middlewares pesados.
-     */
-    const { data, error: functionError } = await supabase.functions.invoke('search-pro', {
+    // 3. INVOCACIÓN DEL MOTOR UNIFICADO (Edge Function V4.1)
+    const { data: searchResultsData, error: edgeFunctionInvokeException } = await supabaseClient.functions.invoke('search-pro', {
       body: {
-        query: targetQuery,
-        userLat: latitude || null, // Normalización explícita para evitar 'undefined' en JSON
-        userLng: longitude || null,
-        match_count: limit,
-        match_threshold: 0.5, // Umbral calibrado para alta sensibilidad
+        query: targetSearchQuery,
+        userLat: latitudeCoordinate || null,
+        userLng: longitudeCoordinate || null,
+        match_count: resultsLimit,
+        match_threshold: 0.5,
         mode: 'search'
       },
-      // [FIX CRÍTICO]: Inyección manual de la llave maestra
       headers: {
-        Authorization: `Bearer ${serviceRoleKey}`
+        Authorization: `Bearer ${serviceRoleSecretKey}`
       }
     });
 
     // 4. GESTIÓN DE ERRORES DE SUBSISTEMA
-    if (functionError) {
-      console.error(`🛑 [Search-Bridge] El motor de búsqueda devolvió un error técnico:`, functionError);
-      throw new Error(`FALLO_SISTEMA_BUSQUEDA: ${functionError.message || 'Error desconocido en Edge'}`);
+    if (edgeFunctionInvokeException) {
+      console.error(`🛑 [Search-Bridge] El motor de búsqueda devolvió un error técnico:`, edgeFunctionInvokeException);
+      throw new Error(`FALLO_SISTEMA_BUSQUEDA: ${edgeFunctionInvokeException.message || 'Error desconocido en Edge'}`);
     }
 
-    /**
-     * 5. NORMALIZACIÓN DE HALLAZGOS
-     * Los resultados vienen ya categorizados (podcast, user, place, vault_chunk) 
-     * desde el RPC 'unified_search_v4'.
-     */
-    const localizedResults = data || [];
+    const localizedResultsInventory = searchResultsData || [];
 
     return {
       success: true,
-      message: `Resonancia establecida. Localizados ${localizedResults.length} nodos de interés.`,
-      results: localizedResults
+      message: `Resonancia establecida. Localizados ${localizedResultsInventory.length} nodos de interés.`,
+      results: localizedResultsInventory
     };
 
-  } catch (error: any) {
-    console.error("🔥 [Search-Bridge-Fatal]:", error.message);
+  } catch (exceptionMessageInformation: unknown) {
+    const errorMessage = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
+    console.error("🔥 [Search-Bridge-Fatal]:", errorMessage);
 
     return {
       success: false,
       message: "El radar semántico no pudo estabilizar la señal.",
-      error: error.message,
+      error: errorMessage,
       results: []
     };
   }
@@ -117,51 +102,49 @@ export async function searchGlobalIntelligence(
 /**
  * FUNCIÓN: getDiscoverySignals
  * Misión: Recuperar el 'Pulso' de la plataforma (Trending/Discovery) cuando no hay query activa.
- * 
- * Útil para la hidratación inicial del Centro de Descubrimiento o para 
- * sugerir contenido cuando el usuario abre el portal de búsqueda vacío.
  */
 export async function getDiscoverySignals(
-  latitude?: number,
-  longitude?: number
+  latitudeCoordinate?: number,
+  longitudeCoordinate?: number
 ): Promise<SearchActionResponse> {
-  const supabase = createClient();
+  const supabaseClient = createClient();
 
   try {
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const serviceRoleSecretKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!serviceRoleKey) {
+    if (!serviceRoleSecretKey) {
       throw new Error("Service Key Missing");
     }
 
     console.info(`🌍 [Search-Bridge] Solicitando señales de descubrimiento global (Autorizado).`);
 
     // Invocamos el motor en modo 'discovery' (Bypass de vectorización)
-    const { data, error } = await supabase.functions.invoke('search-pro', {
+    const { data: discoveryResultsData, error: edgeFunctionInvokeException } = await supabaseClient.functions.invoke('search-pro', {
       body: {
-        userLat: latitude || null,
-        userLng: longitude || null,
+        userLat: latitudeCoordinate || null,
+        userLng: longitudeCoordinate || null,
         match_count: 10,
-        mode: 'discovery' // Flag estratégico para activar lógica de popularidad/proximidad
+        mode: 'discovery'
       },
       headers: {
-        Authorization: `Bearer ${serviceRoleKey}`
+        Authorization: `Bearer ${serviceRoleSecretKey}`
       }
     });
 
-    if (error) throw error;
+    if (edgeFunctionInvokeException) throw edgeFunctionInvokeException;
 
     return {
       success: true,
       message: "Señales de descubrimiento sincronizadas.",
-      results: data || []
+      results: discoveryResultsData || []
     };
-  } catch (error: any) {
-    console.warn("⚠️ [Search-Bridge] Fallo parcial en Discovery Signals:", error.message);
+  } catch (exceptionMessageInformation: unknown) {
+    const errorMessage = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
+    console.warn("⚠️ [Search-Bridge] Fallo parcial en Discovery Signals:", errorMessage);
     return {
       success: false,
       message: "No se pudo interceptar el pulso de la red.",
-      error: error.message,
+      error: errorMessage,
       results: []
     };
   }
