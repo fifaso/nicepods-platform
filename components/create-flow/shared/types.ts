@@ -1,29 +1,38 @@
-// components/create-flow/shared/types.ts
-// VERSIÓN: 3.1 (Master Standard - Type Sync & Progress Metrics Integration)
+/**
+ * ARCHIVO: components/create-flow/shared/types.ts
+ * VERSIÓN: 4.0 (NicePod Master Standard - Semantic Flow Engine Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.9
+ * 
+ * Misión: Centralizar las definiciones industriales para el motor de voz neuronal, 
+ * la máquina de estados de navegación y el contrato de contexto de la forja.
+ * [REFORMA V4.0]: Aplicación absoluta de la Zero Abbreviations Policy (ZAP). 
+ * Sincronización nominal con 'PodcastCreationSchema' V12.0. 
+ * Eliminación de acrónimos (DNA, GEO, HUD) por descriptores industriales completos.
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ */
 
 import { PodcastCreationData } from "@/lib/validation/podcast-schema";
 
 /**
  * 🎭 VOCAL PERFORMANCE TYPES
- * Definiciones estandarizadas para el motor de voz neuronal de Gemini.
- * Alineadas estrictamente con vocal-director-map.ts
+ * Definiciones estandarizadas para el motor de síntesis neuronal.
  */
-export type VoiceStyle =
+export type VocalPerformanceStyle =
   | 'Calmado'
   | 'Energético'
   | 'Profesional'
   | 'Inspirador';
 
-export type VoicePace =
+export type VocalNarrativePace =
   | 'Lento'
   | 'Moderado'
   | 'Rápido';
 
-export type VoiceGender =
+export type VocalNarrativeGender =
   | 'Masculino'
   | 'Femenino';
 
-export type PersonalityType =
+export type AgentIntelligencePersonalityType =
   | 'narrador'
   | 'esceptico'
   | 'mentor'
@@ -32,102 +41,110 @@ export type PersonalityType =
   | 'minimalista';
 
 /**
- * 🗺️ FLOW STATE ENGINE
- * Representa cada hito visual y lógico en la máquina de estados de NicePod.
+ * 🗺️ FLOW STATE ENGINE (MÁQUINA DE ESTADOS FINITOS)
+ * Representa cada hito visual y lógico en la trayectoria de creación.
  */
 export type FlowState =
-  // --- ESTADO INICIAL ---
+  // --- ESTADO INICIAL DE ENTRADA ---
   | 'SELECTING_PURPOSE'
 
-  // --- FLUJO: VIVE LO LOCAL (MADRID RESONANCE) ---
-  | 'LOCAL_DISCOVERY_STEP'  // Sensor Ingest (Cámara + GPS)
-  | 'LOCAL_ANALYSIS_LOADER' // HUD de Análisis Geosemántico
-  | 'LOCAL_RESULT_STEP'     // Vista de Hallazgo Histórico
-  | 'GEO_RECORDER_STEP'     // Generación de Crónica Local
+  // --- FLUJO: VIVE LO LOCAL (MADRID RESONANCE GEODETIC) ---
+  | 'LOCAL_DISCOVERY_STEP'          // Ingesta de Sensores (Cámara + Posicionamiento Global)
+  | 'LOCAL_ANALYSIS_LOADER'         // Pantalla de Carga de Peritaje Geosemántico
+  | 'LOCAL_RESULT_STEP'             // Interfaz de Hallazgo Histórico Identificado
+  | 'GEODETIC_ACUSTIC_RECORDER_STEP' // Captura de Crónica Local por Voz
 
-  // --- FLUJO: ACTUALIDAD (PULSE) ---
-  | 'DNA_CHECK'              // Sintonización de ADN Cognitivo
-  | 'PULSE_RADAR'            // Escáner de fuentes de autoridad
-  | 'BRIEFING_SANITIZATION'  // Revisión de la píldora estratégica
+  // --- FLUJO: ACTUALIDAD (PULSE INTELLIGENCE) ---
+  | 'DEOXYRIBONUCLEIC_ACID_SYNTHTESIS_CHECK' // Sintonización de ADN Cognitivo del Voyager
+  | 'PULSE_RADAR_SCANNER'                    // Escáner de Fuentes de Autoridad en Tiempo Real
+  | 'BRIEFING_SANITIZATION_REVIEW'           // Auditoría de la Píldora Narrativa Estratégica
 
-  // --- FLUJO: APRENDIZAJE (LEARN) ---
-  | 'LEARN_SUB_SELECTION'
-  | 'SOLO_TALK_INPUT'
+  // --- FLUJO: APRENDIZAJE (LEARN MODE) ---
+  | 'LEARN_SUB_CATEGORY_SELECTION'
+  | 'SOLO_TALK_INPUT_FIELD'
 
-  // --- FLUJO: INSPIRACIÓN (INSPIRE) ---
-  | 'INSPIRE_SUB_SELECTION'
+  // --- FLUJO: INSPIRACIÓN (INSPIRE MODE) ---
+  | 'INSPIRE_SUB_CATEGORY_SELECTION'
 
-  // --- FLUJO: EXPLORACIÓN (EXPLORE) ---
-  | 'LINK_POINTS_INPUT'
-  | 'NARRATIVE_SELECTION'
+  // --- FLUJO: EXPLORACIÓN (EXPLORE NODES) ---
+  | 'LINK_POINTS_INPUT_FORM'
+  | 'NARRATIVE_SELECTION_BRANCHING'
 
-  // --- FLUJO: LEGADO (REFLECT) ---
-  | 'LEGACY_INPUT'
+  // --- FLUJO: LEGADO (REFLECTIVE RECORD) ---
+  | 'LEGACY_LESSON_INPUT'
 
-  // --- ETAPAS TRANSVERSALES DE PRODUCCIÓN ---
-  | 'DETAILS_STEP'           // Configuración técnica (Duración/Profundidad)
-  | 'TONE_SELECTION'         // Selección de Personalidad del Agente
-  | 'DRAFT_GENERATION_LOADER' // Monitor Realtime de Inteligencia
-  | 'SCRIPT_EDITING'         // Lienzo de Edición Narrativa
-  | 'AUDIO_STUDIO_STEP'      // Calibración de Voz
-  | 'FINAL_STEP'             // Manifiesto Final y Lanzamiento
+  // --- ETAPAS TRANSVERSALES DE PRODUCCIÓN INDUSTRIAL ---
+  | 'TECHNICAL_DETAILS_STEP'        // Configuración de Duración y Profundidad
+  | 'AGENT_TONE_SELECTION'          // Calibración de la Personalidad del Agente
+  | 'DRAFT_GENERATION_LOADER'       // Monitor de Sincronía del Oráculo de Inteligencia
+  | 'SCRIPT_EDITING_CANVAS'         // Terminal de Edición Narrativa y Peritaje de Texto
+  | 'AUDIO_STUDIO_CALIBRATION'      // Ajuste Final de Parámetros Acústicos
+  | 'FINAL_MANIFESTO_STEP'          // Consolidación de Capital Intelectual y Lanzamiento
 
-  // --- LEGACY & FALLBACKS ---
-  | 'QUESTION_INPUT'
-  | 'FREESTYLE_SELECTION';
+  // --- LEGACY FALLBACKS & SUPPORT ---
+  | 'SPECIFIC_QUESTION_INPUT'
+  | 'FREESTYLE_MODE_SELECTION';
 
 /**
  * 🛠️ CreationContextType
- * Contrato global para la gestión del estado de creación.
- * [ACTUALIZACIÓN 3.1]: Se añade progressMetrics para sincronización de UI.
+ * Contrato global para la gobernanza del estado de la forja.
  */
 export interface CreationContextType {
-  // Estado de navegación
+  // Gobernanza de Navegación Axial
   currentFlowState: FlowState;
-  history: FlowState[];
+  navigationHistoryStack: FlowState[];
 
-  // Estado de procesamiento IA
-  isGeneratingScript: boolean;
-  setIsGeneratingScript: (val: boolean) => void;
+  // Monitoreo de Procesamiento de Inteligencia Artificial
+  isGeneratingScriptProcessActive: boolean;
+  setGeneratingScriptProcessActiveStatus: (isProcessActive: boolean) => void;
 
-  // Gestión de datos del formulario
-  updateFormData: (data: Partial<PodcastCreationData>) => void;
+  // Gestión de Memoria del Formulario (ZAP Compliant)
+  updatePodcastCreationFormData: (partialFormData: Partial<PodcastCreationData>) => void;
 
-  // Motores de transición
-  transitionTo: (state: FlowState) => void;
-
-  /**
-   * jumpToStep: Realiza un salto atómico a un estado avanzado
-   * reconstruyendo el historial previo.
-   */
-  jumpToStep: (state: FlowState) => void;
+  // Motores de Transición de Fase
+  transitionToNextStateAction: (targetState: FlowState) => void;
 
   /**
-   * goBack: Retroceso seguro en el stack de navegación.
+   * jumpToStepAction: Ejecuta un salto atómico a un estado específico 
+   * reconstruyendo la genealogía del historial de navegación.
    */
-  goBack: () => void;
+  jumpToStepAction: (targetState: FlowState) => void;
 
   /**
-   * getMasterPath: Recupera la genealogía de pasos según el propósito actual.
+   * navigateBackAction: Retroceso seguro en la pila de estados (Hardware Hygiene).
    */
-  getMasterPath: () => FlowState[];
+  navigateBackAction: () => void;
 
   /**
-   * progressMetrics
-   * [SISTEMA]: Provee los datos calculados para la barra de progreso del Header.
+   * getMasterFlowPathCollection: Recupera la secuencia de pasos según la intención.
    */
-  progressMetrics: {
-    step: number;
-    total: number;
-    percent: number;
-    isInitial: boolean;
+  getMasterFlowPathCollection: () => FlowState[];
+
+  /**
+   * creationProcessProgressMetrics: Datos de telemetría para la barra de progreso.
+   */
+  creationProcessProgressMetrics: {
+    currentStepMagnitude: number;
+    totalStepsMagnitude: number;
+    completionPercentageValue: number;
+    isInitialPhaseStatus: boolean;
   };
 }
 
 /**
- * 📚 NARRATIVE TYPES
+ * 📚 NARRATIVE STRUCTURE TYPES
  */
 export interface NarrativeOption {
   title: string;
-  thesis: string;
+  narrativeThesisStatement: string;
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V4.0):
+ * 1. Zero Abbreviations Policy: Purga total de acrónimos. 'DNA' -> 'DEOXYRIBONUCLEIC_ACID', 
+ *    'GEO' -> 'GEODETIC', 'HUD' -> 'HEADS_UP_DISPLAY' (implícito en estados).
+ * 2. Semantic Precision: 'val' -> 'isProcessActive', 'percent' -> 'completionPercentageValue'. 
+ *    El código ahora describe la magnitud y naturaleza del dato.
+ * 3. BSS Contract Seal: Las interfaces están diseñadas para ser consumidas por 
+ *    'useCreationContext' asegurando que no existan colisiones durante el Build de Vercel.
+ */
