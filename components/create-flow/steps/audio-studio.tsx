@@ -1,13 +1,13 @@
 /**
  * ARCHIVO: components/create-flow/steps/audio-studio.tsx
- * VERSIÓN: 3.0 (NicePod Audio Studio - Acoustic Direction Synchronization Edition)
+ * VERSIÓN: 4.0 (NicePod Audio Studio - Acoustic Direction Synchronization Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * Misión: Proveer una consola de alta fidelidad para la calibración de parámetros 
  * de voz neuronal, garantizando la sintonía entre el Agente de Inteligencia 
  * y la preferencia auditiva del Voyager.
- * [REFORMA V3.0]: Resolución definitiva de TS2769, TS2322 y TS2367. 
- * Sincronización nominal absoluta con 'PodcastCreationSchema' V12.0. 
+ * [REFORMA V4.0]: Resolución definitiva de TS2769, TS2322 y TS2367. 
+ * Sincronización nominal absoluta con 'PodcastCreationSchema' V12.0 (voiceStyleSelection, voicePaceSelection).
  * Aplicación integral de la Zero Abbreviations Policy (ZAP).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
@@ -35,7 +35,7 @@ import {
 import { PERSONALITY_PERFECT_SETUPS, PersonalityType } from "../shared/vocal-director-map";
 
 /**
- * VOCAL_GENDER_OPTIONS_COLLECTION: Definición de registros vocales.
+ * VOCAL_GENDER_OPTIONS_COLLECTION: Definición de registros vocales industriales.
  */
 const VOCAL_GENDER_OPTIONS_COLLECTION = [
   { valueIdentification: "Masculino", displayLabel: "HOMBRE", iconComponent: User },
@@ -46,10 +46,10 @@ const VOCAL_GENDER_OPTIONS_COLLECTION = [
  * VOCAL_STYLE_OPTIONS_COLLECTION: Definición de matices emocionales.
  */
 const VOCAL_STYLE_OPTIONS_COLLECTION = [
-  { valueIdentification: "Calmado", descriptionText: "Suave y reflexivo" },
-  { valueIdentification: "Energético", descriptionText: "Vibrante y motivador" },
-  { valueIdentification: "Profesional", descriptionText: "Equilibrado y serio" },
-  { valueIdentification: "Inspirador", descriptionText: "Crescendo narrativo" }
+  { valueIdentification: "Calmado", descriptionContentText: "Suave y reflexivo" },
+  { valueIdentification: "Energético", descriptionContentText: "Vibrante y motivador" },
+  { valueIdentification: "Profesional", descriptionContentText: "Equilibrado y serio" },
+  { valueIdentification: "Inspirador", descriptionContentText: "Crescendo narrativo" }
 ] as const;
 
 /**
@@ -66,10 +66,10 @@ const VOCAL_PACE_OPTIONS_COLLECTION = [
  */
 export function AudioStudio() {
   // Consumo del motor de formularios bajo el tipado estricto BSS
-  const { control, watch } = useFormContext<PodcastCreationData>();
+  const { control, watch, setValue } = useFormContext<PodcastCreationData>();
 
   /** 
-   * [SINCRO V3.0 - RESOLUCIÓN TS2769]: 
+   * [SINCRO V4.0 - RESOLUCIÓN TS2769]: 
    * Observamos descriptores industriales purificados para evitar colisiones de tipo.
    */
   const currentAgentPersonalityReference = watch("agentName") as PersonalityType;
@@ -81,7 +81,7 @@ export function AudioStudio() {
    * Misión: Validar si el ajuste actual coincide con la calibración ideal del Agente.
    * [RESOLUCIÓN TS2367]: Comparación de tipos escalares purificados.
    */
-  const isAcousticResonancePerfectStatus = (() => {
+  const isAcousticResonancePerfectStatus = useMemo(() => {
     const perfectSetupDossier = PERSONALITY_PERFECT_SETUPS[currentAgentPersonalityReference];
     if (!perfectSetupDossier) return false;
     
@@ -89,25 +89,25 @@ export function AudioStudio() {
       perfectSetupDossier.style === currentVocalStyleSelectionMagnitude && 
       perfectSetupDossier.pace === currentVocalPaceSelectionMagnitude
     );
-  })();
+  }, [currentAgentPersonalityReference, currentVocalStyleSelectionMagnitude, currentVocalPaceSelectionMagnitude]);
 
   return (
-    <div className="flex flex-col h-full w-full max-w-md mx-auto pt-2 pb-0 px-4 justify-start md:justify-center overflow-y-auto custom-scrollbar animate-in fade-in duration-700 isolate">
+    <div className="flex flex-col h-full w-full max-w-md mx-auto pt-2 pb-0 px-4 justify-start md:justify-center overflow-y-auto custom-scrollbar-hide animate-in fade-in duration-700 isolate">
 
       {/* I. HEADER: Identidad Visual del Estudio */}
-      <header className="text-center mb-6 shrink-0">
+      <header className="text-center mb-6 shrink-0 isolate">
         <h1 className="text-3xl md:text-5xl font-black tracking-tighter uppercase text-white leading-none italic font-serif">
           Estudio de <span className="text-primary not-italic">Voz</span>
         </h1>
 
-        <div className="flex justify-center mt-3">
+        <div className="flex justify-center mt-3 isolate">
           <AnimatePresence mode="wait">
             {isAcousticResonancePerfectStatus ? (
               <motion.div
                 key="perfect-sync"
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 shadow-xl"
+                className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 shadow-xl isolate"
               >
                 <Wand2 size={12} className="text-primary animate-pulse" />
                 <span className="text-[9px] font-black uppercase tracking-[0.2em] text-primary">
@@ -119,7 +119,7 @@ export function AudioStudio() {
                 key="custom-calibration"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="flex items-center gap-2 px-4 py-1.5 opacity-40 grayscale"
+                className="flex items-center gap-2 px-4 py-1.5 opacity-40 grayscale isolate"
               >
                 <Activity size={12} className="text-white" />
                 <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white">
@@ -139,18 +139,18 @@ export function AudioStudio() {
           control={control}
           name="voiceGenderSelection"
           render={({ field }) => (
-            <FormItem className="space-y-2.5">
+            <FormItem className="space-y-2.5 isolate">
               <FormLabel className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em] flex items-center gap-2 ml-1">
                 <Volume2 size={14} className="text-primary" /> Registro Vocal
               </FormLabel>
               <FormControl>
                 <RadioGroup
                   onValueChange={field.onChange}
-                  value={field.value}
+                  value={field.value || undefined}
                   className="grid grid-cols-2 gap-3"
                 >
                   {VOCAL_GENDER_OPTIONS_COLLECTION.map((optionItem) => (
-                    <div key={optionItem.valueIdentification} className="relative">
+                    <div key={optionItem.valueIdentification} className="relative isolate">
                       <RadioGroupItem value={optionItem.valueIdentification} id={`gender-${optionItem.valueIdentification}`} className="sr-only" />
                       <label 
                         htmlFor={`gender-${optionItem.valueIdentification}`} 
@@ -172,19 +172,19 @@ export function AudioStudio() {
           )}
         />
 
-        {/* FILA 2: CADENCIA (VELOCIDAD DE ELOCUCIÓN) [RESOLUCIÓN TS2322] */}
+        {/* FILA 2: CADENCIA (VELOCIDAD) [RESOLUCIÓN TS2322] */}
         <FormField
           control={control}
           name="voicePaceSelection"
           render={({ field }) => (
-            <FormItem className="space-y-2.5">
+            <FormItem className="space-y-2.5 isolate">
               <FormLabel className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em] flex items-center gap-2 ml-1">
                 <Gauge size={14} className="text-primary" /> Cadencia Narrativa
               </FormLabel>
               <FormControl>
                 <RadioGroup
                   onValueChange={field.onChange}
-                  value={field.value}
+                  value={field.value || undefined}
                   className="grid grid-cols-3 gap-3"
                 >
                   {VOCAL_PACE_OPTIONS_COLLECTION.map((optionItem) => (
@@ -211,13 +211,13 @@ export function AudioStudio() {
 
         {/* SECCIÓN 3: TONO EMOCIONAL (MATRIZ DE RESONANCIA) [RESOLUCIÓN TS2322] */}
         <div className="bg-[#0a0a0a] backdrop-blur-3xl p-5 rounded-[2.5rem] border border-white/10 shadow-2xl relative overflow-hidden isolate">
-          <div className="absolute inset-0 bg-primary/[0.02] pointer-events-none" />
+          <div className="absolute inset-0 bg-primary/[0.02] pointer-events-none z-0" />
           
           <FormField
             control={control}
             name="voiceStyleSelection"
             render={({ field }) => (
-              <FormItem className="space-y-5">
+              <FormItem className="space-y-5 relative z-10 isolate">
                 <div className="flex justify-between items-center px-1">
                   <FormLabel className="text-[10px] font-black text-primary uppercase tracking-[0.3em] flex items-center gap-2">
                     <Sparkles size={14} className="animate-pulse" /> Tono Emocional IA
@@ -230,7 +230,7 @@ export function AudioStudio() {
                       field.onChange(value);
                       nicepodLog(`🎙️ [Audio-Studio] Cambio de Tono detectado: ${value}`);
                     }}
-                    value={field.value}
+                    value={field.value || undefined}
                     className="grid grid-cols-2 gap-3"
                   >
                     {VOCAL_STYLE_OPTIONS_COLLECTION.map((optionItem) => (
@@ -254,7 +254,7 @@ export function AudioStudio() {
                                 ? "text-zinc-950/40" 
                                 : "text-zinc-700"
                           )}>
-                              {optionItem.descriptionText}
+                              {optionItem.descriptionContentText}
                           </span>
                         </label>
                       </div>
@@ -267,18 +267,18 @@ export function AudioStudio() {
         </div>
       </div>
 
-      {/* ESPACIADOR TÁCTICO PARA EL FOOTER DEL SHELL */}
+      {/* ESPACIADOR TÁCTICO */}
       <div className="h-6 shrink-0" />
     </div>
   );
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V3.0):
- * 1. Zero Abbreviations Policy (ZAP): Purificación total. 'opt' -> 'optionItem', 
- *    'desc' -> 'descriptionText', 'val' -> 'valueIdentification'.
- * 2. TS2322 & TS2769 Resolution: Sincronización nominal con descriptores del esquema 
- *    V12.0 (voiceGenderSelection, voicePaceSelection, voiceStyleSelection).
- * 3. Build Shield Sovereignty: Se eliminó el uso de 'any' implícito en las funciones 
- *    de comparación y se selló el tipado de los RadioGroups.
+ * NOTA TÉCNICA DEL ARCHITECT (V4.0):
+ * 1. Build Shield Sovereignty: Resolución de TS2769 y TS2322 mediante el mapeo 
+ *    absoluto con 'voiceStyleSelection' y 'voicePaceSelection' del esquema V12.0.
+ * 2. Zero Abbreviations Policy (ZAP): Purificación total. 'opt' -> 'optionItem', 
+ *    'desc' -> 'descriptionContentText'.
+ * 3. Hardware Hygiene: El uso de 'RadioGroup' con valores controlados y fallback a 
+ *    'undefined' asegura la integridad del estado en el Hilo Principal (MTI).
  */
