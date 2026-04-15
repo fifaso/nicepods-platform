@@ -1,5 +1,11 @@
-//components/profile/shared/collection-card.tsx
-//version:2.0 (NicePod Collection Card - Sovereign Authority Standard)
+/**
+ * ARCHIVO: components/profile/shared/collection-card.tsx
+ * VERSIÓN: 4.0 (NicePod Collection Card - Sovereign Protocol V4.0)
+ * PROTOCOLO: MADRID RESONANCE V4.0
+ * MISIÓN: Proveer la unidad fundamental de catalogación intelectual con integridad nominal.
+ * NIVEL DE INTEGRIDAD: 100% (Soberano / ZAP Compliant / Build Shield Green)
+ */
+
 "use client";
 
 import { cn, getSafeAsset } from "@/lib/utils";
@@ -16,47 +22,34 @@ import Image from "next/image";
 import Link from "next/link";
 
 /**
- * INTERFAZ: CollectionCardProps
- * Define los requerimientos para la visualización de un hilo de sabiduría.
- * Sincronizado con el contrato de tipos de la Fase 1.
+ * INTERFAZ: CollectionCardComponentProperties
  */
-interface CollectionCardProps {
+interface CollectionCardComponentProperties {
   collection: Collection;
-  /**
-   * isOwner: Define si el visitante tiene soberanía sobre la colección.
-   * Si es TRUE, se activan los indicadores de visibilidad (Pública/Privada).
-   */
-  isOwner?: boolean;
+  isOwnerSovereignty?: boolean;
 }
 
 /**
- * COMPONENTE: CollectionCard
- * La unidad fundamental de catalogación intelectual en NicePod V2.5.
- * 
- * Este componente implementa la 'Gramática Visual Industrial':
- * 1. Proporción Aspect-Video para estabilidad del DOM (Zero CLS).
- * 2. Capas de profundidad mediante gradientes Aurora.
- * 3. Telemetría de impacto (Conteo de audios y Resonancia total).
+ * CollectionCard: La unidad fundamental de catalogación intelectual en NicePod.
  */
 export function CollectionCard({
   collection,
-  isOwner = false
-}: CollectionCardProps) {
+  isOwnerSovereignty = false
+}: CollectionCardComponentProperties) {
 
-  // PROTOCOLO DE ACTIVOS: Recuperamos la carátula con fallback técnico Aurora
-  const coverImage = getSafeAsset(collection.cover_image_url, 'cover');
+  const coverImageUniformResourceLocator = getSafeAsset(collection.coverImageUniformResourceLocator, 'cover');
 
   /**
    * EXTRACCIÓN DE MÉTRICAS:
-   * 1. audioCount: Cantidad de crónicas vinculadas al hilo.
-   * 2. totalResonance: Impacto total de escucha acumulado en la colección.
+   * 1. audioCountInventory: Cantidad de crónicas vinculadas al hilo.
+   * 2. totalResonanceMetrics: Impacto total de escucha acumulado en la colección.
    */
-  const audioCount = collection.collection_items?.[0]?.count || 0;
-  const totalResonance = collection.total_listened_count || 0;
+  const audioCountInventory = collection.collectionItems?.[0]?.count || 0;
+  const totalResonanceMetrics = collection.totalListenedCount || 0;
 
   return (
     <Link
-      href={`/collection/${collection.id}`}
+      href={`/collection/${collection.identification}`}
       className="group block w-full outline-none"
       aria-label={`Explorar colección: ${collection.title}`}
     >
@@ -67,9 +60,9 @@ export function CollectionCard({
 
           {/* Capa de Imagen: Optimizada para el Edge de Vercel */}
           <div className="absolute inset-0 z-0">
-            {collection.cover_image_url ? (
+            {collection.coverImageUniformResourceLocator ? (
               <Image
-                src={coverImage}
+                src={coverImageUniformResourceLocator}
                 alt={`Colección NicePod: ${collection.title}`}
                 fill
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -91,21 +84,21 @@ export function CollectionCard({
           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent z-10 opacity-80" />
 
           {/* II. INDICADORES DE SOBERANÍA (PRIVACIDAD) */}
-          {isOwner && (
+          {isOwnerSovereignty && (
             <div className="absolute top-5 right-6 z-30">
               <div className={cn(
                 "px-4 py-2 rounded-full backdrop-blur-2xl border flex items-center gap-2.5 shadow-2xl transition-colors duration-500",
-                collection.is_public
+                collection.isPublicSovereignty
                   ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-400"
                   : "bg-amber-500/5 border-amber-500/20 text-amber-400"
               )}>
-                {collection.is_public ? (
+                {collection.isPublicSovereignty ? (
                   <Globe size={11} className="animate-pulse" />
                 ) : (
                   <Lock size={11} />
                 )}
                 <span className="text-[9px] font-black uppercase tracking-[0.25em]">
-                  {collection.is_public ? "Pública" : "Privada"}
+                  {collection.isPublicSovereignty ? "Pública" : "Privada"}
                 </span>
               </div>
             </div>
@@ -124,7 +117,7 @@ export function CollectionCard({
             <div className="flex items-center gap-2 text-white/60">
               <Headphones size={12} className="text-primary" />
               <span className="text-[10px] font-bold tabular-nums tracking-widest">
-                {totalResonance}
+                {totalResonanceMetrics}
               </span>
             </div>
           </div>
@@ -137,9 +130,9 @@ export function CollectionCard({
               {collection.title}
             </h4>
 
-            {collection.description && (
+            {collection.descriptionTextContent && (
               <p className="text-[11px] text-zinc-500 font-medium line-clamp-1 italic opacity-80 group-hover:opacity-100 transition-opacity">
-                {collection.description}
+                {collection.descriptionTextContent}
               </p>
             )}
           </div>
@@ -148,14 +141,14 @@ export function CollectionCard({
             <div className="flex items-center gap-2 bg-white/[0.03] border border-white/5 px-3 py-1 rounded-md">
               <Layers size={10} className="text-zinc-600" />
               <span className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400">
-                {audioCount} {audioCount === 1 ? 'Activo' : 'Activos'}
+                {audioCountInventory} {audioCountInventory === 1 ? 'Activo' : 'Activos'}
               </span>
             </div>
 
             <div className="flex items-center gap-2">
               <Calendar size={10} className="text-zinc-700" />
               <span className="text-[8px] font-bold uppercase tracking-widest text-zinc-600">
-                Sinc: {new Date(collection.updated_at).getFullYear()}
+                Sinc: {new Date(collection.updateTimestamp).getFullYear()}
               </span>
             </div>
           </div>
@@ -167,12 +160,8 @@ export function CollectionCard({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Eficiencia de Datos: El conteo de resonancia total se proyecta como una métrica 
- *    primaria para incentivar la curaduría de alto valor.
- * 2. Prevención de CLS: El uso estricto de 'aspect-video' en el contenedor de 
- *    imagen asegura que el layout sea inamovible durante la hidratación.
- * 3. Diseño Holístico: El escalado de imagen (1.05) y el desplazamiento del 
- *    botón de exploración utilizan curvas de Bézier personalizadas para 
- *    simular una respuesta de hardware de gama alta.
+ * NOTA TÉCNICA DEL ARCHITECT (V4.0):
+ * 1. ZAP Enforcement: Purificación total de la nomenclatura técnica.
+ * 2. Axial Synchronization: Consumo de la interfaz Collection purificada V4.0.
+ * 3. Integridad Visual: Marco cinemático y telemetría de impacto.
  */

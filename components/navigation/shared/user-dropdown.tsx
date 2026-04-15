@@ -1,158 +1,136 @@
 /**
  * ARCHIVO: components/navigation/shared/user-dropdown.tsx
- * VERSIÓN: 4.0 (Madrid Resonance)
- * PROTOCOLO: Administrative Sovereignty
- * MISIÓN: Menú contextual de identidad soberana con soporte para autoridad administrativa.
- * NIVEL DE INTEGRIDAD: HIGH
+ * VERSIÓN: 4.0 (NicePod User Dropdown - Sovereign Protocol V4.0)
+ * PROTOCOLO: MADRID RESONANCE V4.0
+ *
+ * Misión: Proveer el acceso táctico al búnker de ajustes y perfil desde la malla global.
+ * [REFORMA V4.0]: Sincronización absoluta con ProfileData V4.0 y ZAP.
+ * NIVEL DE INTEGRIDAD: 100% (Soberano / ZAP Compliant / Build Shield Green)
  */
 
 "use client";
 
 import {
-  LayoutDashboard,
   LogOut,
   Settings,
-  ShieldCheck,
+  Shield,
   User as UserIcon
 } from "lucide-react";
 import Link from "next/link";
 
-// --- INFRAESTRUCTURA UI ---
+// --- INFRAESTRUCTURA CORE ---
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-
-// --- TIPOS DE DATOS ---
-// Importamos el tipo ProfileData que definimos en la Fase 1 de la reconstrucción.
+import { useAuth } from "@/hooks/use-auth";
 import { ProfileData } from "@/types/profile";
 
 /**
- * INTERFAZ: UserDropdownProps
- * Contrato de datos necesarios para renderizar la identidad del curador.
+ * INTERFAZ: UserDropdownComponentProperties
  */
-interface UserDropdownProps {
+interface UserDropdownComponentProperties {
   profile: ProfileData | null;
-  isAdministratorAuthority: boolean;
-  onLogout: () => void;
+  isAdministratorAuthority?: boolean;
+  onLogout?: () => void;
 }
 
 /**
- * COMPONENTE: UserDropdown
- * El menú contextual de identidad soberana.
- * 
- * [UX]:
- * - Alineación 'end' para asegurar que no se salga de la pantalla en móviles.
- * - Iconografía consistente con el sistema Lucide.
+ * UserDropdown: La terminal de identidad compacta en la barra de comando.
  */
-export function UserDropdown({ profile, isAdministratorAuthority, onLogout }: UserDropdownProps) {
+export function UserDropdown({
+  profile,
+  isAdministratorAuthority,
+  onLogout
+}: UserDropdownComponentProperties) {
+  const { signOut: signOutAction } = useAuth();
 
-  // Cálculo de iniciales para fallback (Resiliencia Visual)
-  const userInitials = profile?.full_name
-    ? profile.full_name.substring(0, 2).toUpperCase()
-    : "NP";
+  // Resolución táctica de iniciales para el Avatar
+  const userDisplayNameInitials = profile?.fullName
+    ? profile.fullName.substring(0, 2).toUpperCase()
+    : (profile?.username?.substring(0, 2).toUpperCase() || "NC");
+
+  const handleLogoutAction = () => {
+    if (onLogout) {
+        onLogout();
+    } else {
+        signOutAction();
+    }
+  };
 
   return (
     <DropdownMenu>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              className="relative h-9 w-9 md:h-10 md:w-10 rounded-full p-0 hover:bg-transparent group outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
-              aria-label="Abrir menú de usuario"
-            >
-              <Avatar className="h-9 w-9 md:h-9 md:w-9 border border-white/10 group-hover:border-primary/50 transition-colors shadow-lg">
-                <AvatarImage
-                  src={profile?.avatar_url || ""}
-                  alt={profile?.username || "Avatar de Usuario"}
-                  className="object-cover"
-                />
-                <AvatarFallback className="bg-zinc-800 text-primary font-bold text-[10px] md:text-xs">
-                  {userInitials}
-                </AvatarFallback>
-              </Avatar>
-            </Button>
-          </DropdownMenuTrigger>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" className="text-[10px] font-black uppercase tracking-widest border-white/10 bg-black/90 backdrop-blur-xl">
-          Identification y Ajustes
-        </TooltipContent>
-      </Tooltip>
+      <DropdownMenuTrigger asChild>
+        <button className="relative h-10 w-10 rounded-full border-2 border-white/5 hover:border-primary/40 transition-all duration-500 outline-none group overflow-hidden">
+          <Avatar className="h-full w-full">
+            <AvatarImage
+              src={profile?.avatarUniformResourceLocator || ""}
+              alt={profile?.fullName || "Curador NicePod"}
+              className="object-cover"
+            />
+            <AvatarFallback className="bg-[#050505] text-primary text-[10px] font-black tracking-widest">
+              {userDisplayNameInitials}
+            </AvatarFallback>
+          </Avatar>
+        </button>
+      </DropdownMenuTrigger>
 
-      <DropdownMenuContent
-        align="end"
-        className="w-60 p-2 rounded-2xl bg-[#0A0A0A] border-white/10 shadow-2xl text-zinc-300 mt-2 animate-in zoom-in-95 duration-200"
-      >
-        {/* CABECERA DE IDENTIFICATION (Tarjeta de Presentación Mini) */}
-        <div className="px-3 py-2.5 bg-white/5 rounded-xl mb-1 select-none">
-          <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-0.5">
-            Identification Activa
-          </p>
-          <p className="text-sm font-bold text-white truncate">
-            {profile?.full_name || 'Curador Anónimo'}
-          </p>
-          <p className="text-[10px] font-mono text-primary/80 truncate">
-            @{profile?.username || 'user'}
-          </p>
-        </div>
+      <DropdownMenuContent className="w-64 mt-2 bg-[#0a0a0a]/95 backdrop-blur-2xl border-white/5 rounded-[1.5rem] shadow-2xl p-2" align="end">
+        <DropdownMenuLabel className="p-4">
+          <div className="flex flex-col space-y-1">
+            <p className="text-xs font-black uppercase tracking-widest text-white truncate">
+              {profile?.fullName || 'Curador Anónimo'}
+            </p>
+            <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest truncate">
+              @{profile?.username || 'unnamed_voyager'}
+            </p>
+          </div>
+        </DropdownMenuLabel>
 
-        <DropdownMenuSeparator className="bg-white/5 my-1" />
+        <DropdownMenuSeparator className="bg-white/5" />
 
-        {/* GRUPO DE ACCIONES PRINCIPALES */}
-        <DropdownMenuGroup>
-          <DropdownMenuItem asChild className="rounded-lg focus:bg-white/10 cursor-pointer">
-            <Link href="/profile" className="flex items-center py-2">
-              <UserIcon className="mr-3 h-4 w-4 text-zinc-500" />
-              <span className="text-xs font-bold uppercase tracking-wide">Tu Identification</span>
+        <DropdownMenuGroup className="p-1">
+          <Link href="/profile">
+            <DropdownMenuItem className="p-3 rounded-xl focus:bg-white/5 cursor-pointer group">
+              <UserIcon className="mr-3 h-4 w-4 text-zinc-500 group-hover:text-primary transition-colors" />
+              <span className="text-[10px] font-black uppercase tracking-widest">Mi Búnker</span>
+            </DropdownMenuItem>
+          </Link>
+
+          <Link href="/profile?tab=settings">
+            <DropdownMenuItem className="p-3 rounded-xl focus:bg-white/5 cursor-pointer group">
+              <Settings className="mr-3 h-4 w-4 text-zinc-500 group-hover:text-primary transition-colors" />
+              <span className="text-[10px] font-black uppercase tracking-widest">Ajustes ADN</span>
+            </DropdownMenuItem>
+          </Link>
+
+          {(profile?.authorityRole === 'admin' || isAdministratorAuthority) && (
+            <Link href="/admin">
+              <DropdownMenuItem className="p-3 rounded-xl focus:bg-primary/10 cursor-pointer group">
+                <Shield className="mr-3 h-4 w-4 text-primary animate-pulse" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-primary">Comando Central</span>
+              </DropdownMenuItem>
             </Link>
-          </DropdownMenuItem>
-
-          <DropdownMenuItem asChild className="rounded-lg focus:bg-white/10 cursor-pointer">
-            <Link href="/dashboard" className="flex items-center py-2">
-              <LayoutDashboard className="mr-3 h-4 w-4 text-zinc-500" />
-              <span className="text-xs font-bold uppercase tracking-wide">Workstation</span>
-            </Link>
-          </DropdownMenuItem>
-
-          <DropdownMenuItem asChild className="rounded-lg focus:bg-white/10 cursor-pointer">
-            <Link href="/profile?tab=settings" className="flex items-center py-2">
-              <Settings className="mr-3 h-4 w-4 text-zinc-500" />
-              <span className="text-xs font-bold uppercase tracking-wide">Ajustes</span>
-            </Link>
-          </DropdownMenuItem>
+          )}
         </DropdownMenuGroup>
 
-        {/* ZONA ADMINISTRATIVA (Solo si tiene rango) */}
-        {isAdministratorAuthority && (
-          <>
-            <DropdownMenuSeparator className="bg-white/5 my-1" />
-            <DropdownMenuItem asChild className="rounded-lg focus:bg-red-500/10 focus:text-red-400 text-red-500 cursor-pointer">
-              <Link href="/admin" className="flex items-center py-2">
-                <ShieldCheck className="mr-3 h-4 w-4" />
-                <span className="text-xs font-black uppercase tracking-wide">Admin Control</span>
-              </Link>
-            </DropdownMenuItem>
-          </>
-        )}
+        <DropdownMenuSeparator className="bg-white/5" />
 
-        <DropdownMenuSeparator className="bg-white/5 my-1" />
-
-        {/* ACCIÓN DE SALIDA */}
-        <DropdownMenuItem
-          onClick={onLogout}
-          className="rounded-lg focus:bg-red-950/30 focus:text-red-400 text-zinc-500 cursor-pointer py-2 group/logout"
-        >
-          <LogOut className="mr-3 h-4 w-4 group-focus/logout:text-red-400 transition-colors" />
-          <span className="text-xs font-bold uppercase tracking-wide">Cerrar Sesión</span>
-        </DropdownMenuItem>
+        <div className="p-1">
+          <DropdownMenuItem
+            onClick={handleLogoutAction}
+            className="p-3 rounded-xl focus:bg-red-500/10 cursor-pointer group"
+          >
+            <LogOut className="mr-3 h-4 w-4 text-red-500/60 group-hover:text-red-500 transition-colors" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-red-500/60 group-hover:text-red-500">Cerrar Canal</span>
+          </DropdownMenuItem>
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );

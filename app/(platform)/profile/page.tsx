@@ -14,21 +14,18 @@ import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 
 // --- NUEVAS IMPORTACIONES MODULARES ---
-// Importamos el orquestador de cliente que ensambla los sub-módulos del Dashboard.
 import { PrivateProfileDashboard } from '@/components/profile/private-profile-dashboard';
 
-// --- CONTRATOS DE DATOS (NIVEL 1) ---
+// --- CONTRATOS DE DATOS SOBERANOS ---
 import {
   Collection,
   ProfileData,
+  PublicPodcast,
   TestimonialWithAuthor
 } from '@/types/profile';
 
 /**
  * [CONFIGURACIÓN DE RED]: force-dynamic
- * El perfil privado gestiona cuotas de creación y estados de suscripción que cambian 
- * dinámicamente. Forzamos la consulta a la Bóveda en cada petición para evitar 
- * que el usuario vea límites de uso desactualizados.
  */
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -39,7 +36,7 @@ export const revalidate = 0;
 export const metadata: Metadata = {
   title: "Búnker de Sabiduría | NicePod Intelligence",
   description: "Centro de mandos operativo y gestión de soberanía de datos personales.",
-  robots: { index: false, follow: false }, // Privacidad absoluta para áreas de gestión.
+  robots: { index: false, follow: false },
 };
 
 /**
@@ -73,7 +70,6 @@ export default async function PrivateProfileRoute() {
   await posthogSovereignClient.shutdown();
 
   // 2. COSECHA DE INTELIGENCIA 360° (Parallel Fetching)
-  // Recuperamos todos los dominios de datos en un único ciclo de I/O concurrente para minimizar el TTFB.
   const [
     profileIntelligenceQueryResponse,
     usageMetricsQueryResponse,
@@ -86,13 +82,14 @@ export default async function PrivateProfileRoute() {
       .from('profiles')
       .select(`
             *,
-            subscriptions (
-                status,
-                plans (
-                    name,
-                    monthly_creation_limit,
-                    max_concurrent_drafts,
-                    features
+            subscriptionDetails:subscriptions (
+                subscriptionStatus:status,
+                associatedPlan:plans (
+                    identification:id,
+                    planName:name,
+                    monthlyCreationLimit:monthly_creation_limit,
+                    maximumConcurrentDrafts:max_concurrent_drafts,
+                    featureList:features
                 )
             )
         `)
@@ -117,8 +114,11 @@ export default async function PrivateProfileRoute() {
             profile_user_id,
             author_user_id,
             author:author_user_id (
+                id,
                 full_name,
-                avatar_url
+                avatar_url,
+                username,
+                role
             )
         `)
       .eq('profile_user_id', authenticatedUser.id)
@@ -146,7 +146,9 @@ export default async function PrivateProfileRoute() {
               duration_seconds,
               like_count,
               play_count,
-              status
+              status,
+              creation_mode,
+              created_at
           )
       `)
       .eq('user_id', authenticatedUser.id)
@@ -155,28 +157,93 @@ export default async function PrivateProfileRoute() {
   ]);
 
   // 3. PROTOCOLO DE SEGURIDAD ANTE FALLO DE DATOS
-  if (profileIntelligenceQueryResponse.error || !profileIntelligenceQueryResponse.data) {
-    console.error("🔥 [NicePod-Bunker-Error]:", profileIntelligenceQueryResponse.error?.message);
-    redirect('/login'); // Fallback de seguridad si el perfil es inaccesible.
+  if (profileDatabaseResponse.error || !profileDatabaseResponse.data) {
+    console.error("🔥 [NicePod-Bunker-Error]:", profileDatabaseResponse.error?.message);
+    redirect('/login');
   }
 
-  // 4. LIMPIEZA BINARIA DE LA BÓVEDA (NKV Sync)
-  // Un usuario puede completar un audio varias veces; generamos una lista única de IDs.
-  const rawVaultIntelligenceData = vaultIntelligenceQueryResponse.data || [];
-  const uniqueFinishedPodcastsCollection = Array.from(
+  const profileRow = profileDatabaseResponse.data;
+
+  // 4. METAL-TO-CRYSTAL MAPPING (Nominal Purification)
+  const purifiedProfileData: ProfileData = {
+    identification: profileRow.id,
+    username: profileRow.username,
+    fullName: profileRow.full_name,
+    avatarUniformResourceLocator: profileRow.avatar_url,
+    biographyTextContent: profileRow.bio,
+    biographyShortSummary: profileRow.bio_short,
+    websiteUniformResourceLocator: profileRow.website_url,
+    reputationScoreValue: profileRow.reputation_score || 0,
+    isVerifiedAccountStatus: profileRow.is_verified || false,
+    authorityRole: profileRow.role,
+    followersCountInventory: profileRow.followers_count || 0,
+    followingCountInventory: profileRow.following_count || 0,
+    activeCreationJobsCount: profileRow.active_creation_jobs || 0,
+    creationTimestamp: profileRow.created_at,
+    updateTimestamp: profileRow.updated_at,
+    subscriptionDetails: profileRow.subscriptionDetails as any,
+    userUsageTelemetrics: usageDatabaseResponse.data ? {
+        minutesListenedThisMonth: usageDatabaseResponse.data.minutes_listened_this_month,
+        podcastsCreatedThisMonth: usageDatabaseResponse.data.podcasts_created_this_month,
+        draftsCreatedThisMonth: usageDatabaseResponse.data.drafts_created_this_month,
+    } : undefined
+  };
+
+  const purifiedTestimonialsCollection: TestimonialWithAuthor[] = (testimonialsDatabaseResponse.data || []).map((testimonialItem: any) => ({
+    identification: testimonialItem.id,
+    profileUserIdentification: testimonialItem.profile_user_id,
+    authorUserIdentification: testimonialItem.author_user_id,
+    commentTextContent: testimonialItem.comment_text,
+    moderationStatus: testimonialItem.status,
+    creationTimestamp: testimonialItem.created_at,
+    author: testimonialItem.author ? {
+      identification: testimonialItem.author.id,
+      fullName: testimonialItem.author.full_name,
+      avatarUniformResourceLocator: testimonialItem.author.avatar_url,
+      username: testimonialItem.author.username,
+      authorityRole: testimonialItem.author.role
+    } : null
+  }));
+
+  const purifiedCollectionsCollection: Collection[] = (collectionsDatabaseResponse.data || []).map((collectionItem: any) => ({
+    identification: collectionItem.id,
+    ownerUserIdentification: collectionItem.owner_id,
+    title: collectionItem.title,
+    descriptionTextContent: collectionItem.description,
+    isPublicSovereignty: collectionItem.is_public,
+    coverImageUniformResourceLocator: collectionItem.cover_image_url,
+    totalListenedCount: collectionItem.total_listened_count || 0,
+    likesCountTotal: collectionItem.likes_count || 0,
+    updateTimestamp: collectionItem.updated_at,
+    collectionItems: collectionItem.collection_items
+  }));
+
+  // 5. LIMPIEZA BINARIA DE LA BÓVEDA (NKV Sync)
+  const rawVaultDataCollection = vaultDatabaseResponse.data || [];
+  const uniqueFinishedPodcastsCollection: PublicPodcast[] = Array.from(
     new Map(
-      rawVaultIntelligenceData
-        .map(playbackEvent => playbackEvent.micro_pods)
-        .filter((podcast): podcast is any => podcast !== null)
-        .map(podcast => [podcast.id, podcast])
+      rawVaultDataCollection
+        .map((vaultItem: any) => vaultItem.micro_pods)
+        .filter((podcastRow: any) => podcastRow !== null)
+        .map((podcastRow: any) => [
+            podcastRow.id,
+            {
+                identification: podcastRow.id,
+                title: podcastRow.title,
+                descriptionTextContent: podcastRow.description,
+                audioUniformResourceLocator: podcastRow.audio_url,
+                coverImageUniformResourceLocator: podcastRow.cover_image_url,
+                creationTimestamp: podcastRow.created_at,
+                durationInSeconds: podcastRow.duration_seconds,
+                playCountTotal: podcastRow.play_count || 0,
+                likeCountTotal: podcastRow.like_count || 0,
+                publicationStatus: podcastRow.status,
+                creationMode: podcastRow.creation_mode
+            } as PublicPodcast
+        ])
     ).values()
   );
 
-  /**
-   * 5. ENTREGA DE CONTROL AL DASHBOARD (Cliente)
-   * Inyectamos el ID del perfil como 'key' para garantizar un re-montaje limpio 
-   * y evitar errores de reconciliación de React entre sesiones.
-   */
   return (
     <main className="min-h-screen bg-transparent animate-in fade-in duration-1000">
       <PrivateProfileDashboard

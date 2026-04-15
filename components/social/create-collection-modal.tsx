@@ -1,6 +1,10 @@
-// components/social/create-collection-modal.tsx
-// VERSIÓN: 1.2 (Social Collection Architect - Next Image Optimized & Zero Warning)
-// Misión: Gestionar la creación de hilos de conocimiento con alto rendimiento visual.
+/**
+ * ARCHIVO: components/social/create-collection-modal.tsx
+ * VERSIÓN: 3.0 (NicePod Social Collection Architect - Sovereign Protocol V4.0)
+ * PROTOCOLO: MADRID RESONANCE V4.0
+ * MISIÓN: Gestionar la creación de hilos de conocimiento con integridad nominal y ZAP.
+ * NIVEL DE INTEGRIDAD: 100% (Soberano / ZAP Compliant / Build Shield Green)
+ */
 
 "use client";
 
@@ -32,75 +36,82 @@ import { toast } from "sonner";
  * PodcastSummary: Contrato de datos para los audios disponibles para coleccionar.
  */
 interface PodcastSummary {
-  id: number;
+  identification: number;
   title: string;
-  cover_image_url: string | null;
+  coverImageUniformResourceLocator: string | null;
 }
 
 /**
  * CreateCollectionModal: Terminal de forja para nuevos hilos públicos/privados.
  */
+interface CreateCollectionModalComponentProperties {
+  finishedPodcasts: PodcastSummary[];
+}
+
 export function CreateCollectionModal({
   finishedPodcasts
-}: {
-  finishedPodcasts: PodcastSummary[]
-}) {
+}: CreateCollectionModalComponentProperties) {
   // --- ESTADOS DE CONTROL ---
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [step, setStep] = useState<number>(1);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   // --- ESTADO DEL FORMULARIO ---
-  const [form, setForm] = useState({
+  const [collectionCreationForm, setCollectionCreationForm] = useState({
     title: "",
-    description: "",
-    selectedIds: [] as number[]
+    descriptionTextContent: "",
+    selectedPodcastsIdentificationList: [] as number[]
   });
 
   /**
-   * handleCreate
+   * handleCollectionCreationAction
    * Ejecuta la Server Action para persistir la colección en la base de datos.
    */
-  const handleCreate = useCallback(async () => {
-    if (form.selectedIds.length === 0) {
+  const handleCollectionCreationAction = useCallback(async () => {
+    if (collectionCreationForm.selectedPodcastsIdentificationList.length === 0) {
       toast.error("Selecciona al menos un podcast para tu hilo.");
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const response = await createCollectionAction(form);
+      const response = await createCollectionAction({
+        title: collectionCreationForm.title,
+        descriptionTextContent: collectionCreationForm.descriptionTextContent,
+        isPublicSovereignty: true, // Default sovereignty
+        podcastIdentifications: collectionCreationForm.selectedPodcastsIdentificationList
+      });
 
-      if (response.success) {
+      if (response.isOperationSuccessful) {
         setIsOpen(false);
         setStep(1);
-        setForm({ title: "", description: "", selectedIds: [] });
-        toast.success(response.message);
+        setCollectionCreationForm({ title: "", descriptionTextContent: "", selectedPodcastsIdentificationList: [] });
+        toast.success(response.responseStatusMessage);
       } else {
-        toast.error(response.message);
+        toast.error(response.responseStatusMessage);
       }
-    } catch (error: any) {
-      console.error("🔥 [Collection-Modal-Error]:", error.message);
+    } catch (exceptionMessageInformation: unknown) {
+      const errorMessage = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
+      console.error("🔥 [Collection-Modal-Error]:", errorMessage);
       toast.error("Error crítico al crear la colección.");
     } finally {
       setIsSubmitting(false);
     }
-  }, [form]);
+  }, [collectionCreationForm]);
 
   /**
-   * togglePod
-   * Gestiona la selección y deselección atómica de audios en el array de IDs.
+   * togglePodcastSelectionAction
    */
-  const togglePod = useCallback((id: number) => {
-    setForm((prevForm) => {
-      const isSelected = prevForm.selectedIds.includes(id);
-      const newSelectedIds = isSelected
-        ? prevForm.selectedIds.filter((existingId) => existingId !== id)
-        : [...prevForm.selectedIds, id];
+  const togglePodcastSelectionAction = useCallback((podcastIdentification: number) => {
+    setCollectionCreationForm((previousForm) => {
+      const isSelected = previousForm.selectedPodcastsIdentificationList.includes(podcastIdentification);
+      const newSelectedPodcastsIdentificationList = isSelected
+        ? previousForm.selectedPodcastsIdentificationList.filter((existingIdentification) => existingIdentification !== podcastIdentification)
+        : [...previousForm.selectedPodcastsIdentificationList, podcastIdentification];
 
       return {
-        ...prevForm,
-        selectedIds: newSelectedIds
+        ...previousForm,
+        selectedPodcastsIdentificationList: newSelectedPodcastsIdentificationList
       };
     });
   }, []);
@@ -109,7 +120,7 @@ export function CreateCollectionModal({
     <Dialog open={isOpen} onOpenChange={(openStatus) => {
       setIsOpen(openStatus);
       if (!openStatus) {
-        setStep(1); // Reset de paso al cerrar
+        setStep(1);
       }
     }}>
       <DialogTrigger asChild>
@@ -127,7 +138,6 @@ export function CreateCollectionModal({
           </DialogTitle>
         </DialogHeader>
 
-        {/* PASO 1: DEFINICIÓN NARRATIVA */}
         {step === 1 ? (
           <div className="p-8 pt-2 space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
             <div className="space-y-3">
@@ -135,8 +145,8 @@ export function CreateCollectionModal({
               <Input
                 placeholder="Ej: Crónicas de la Gran Vía"
                 className="bg-white/5 border-white/10 h-14 font-bold text-lg rounded-2xl focus:ring-primary/20"
-                value={form.title}
-                onChange={(event) => setForm({ ...form, title: event.target.value })}
+                value={collectionCreationForm.title}
+                onChange={(event) => setCollectionCreationForm({ ...collectionCreationForm, title: event.target.value })}
               />
             </div>
 
@@ -148,13 +158,13 @@ export function CreateCollectionModal({
               <textarea
                 placeholder="¿Qué hilo conductor une estos audios? Explica por qué esta colección es valiosa..."
                 className="w-full min-h-[140px] bg-white/5 border-white/10 rounded-2xl p-5 text-sm font-medium resize-none focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                value={form.description}
-                onChange={(event) => setForm({ ...form, description: event.target.value })}
+                value={collectionCreationForm.descriptionTextContent}
+                onChange={(event) => setCollectionCreationForm({ ...collectionCreationForm, descriptionTextContent: event.target.value })}
               />
             </div>
 
             <Button
-              disabled={form.title.length < 3 || form.description.length < 10}
+              disabled={collectionCreationForm.title.length < 3 || collectionCreationForm.descriptionTextContent.length < 10}
               className="w-full h-16 font-black text-lg uppercase tracking-tighter rounded-2xl shadow-xl shadow-primary/10 transition-transform active:scale-95"
               onClick={() => setStep(2)}
             >
@@ -162,7 +172,6 @@ export function CreateCollectionModal({
             </Button>
           </div>
         ) : (
-          /* PASO 2: SELECCIÓN DE ACTIVOS (Optimizado) */
           <div className="p-8 pt-2 space-y-6 animate-in fade-in slide-in-from-left-4 duration-500">
             <div className="flex items-center gap-2 px-1 text-zinc-500">
               <Info size={14} />
@@ -177,13 +186,13 @@ export function CreateCollectionModal({
                     <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">No hay podcasts listos aún</p>
                   </div>
                 ) : (
-                  finishedPodcasts.map((pod) => {
-                    const isSelected = form.selectedIds.includes(pod.id);
+                  finishedPodcasts.map((podcastItem) => {
+                    const isSelected = collectionCreationForm.selectedPodcastsIdentificationList.includes(podcastItem.identification);
                     return (
                       <button
-                        key={pod.id}
+                        key={podcastItem.identification}
                         type="button"
-                        onClick={() => togglePod(pod.id)}
+                        onClick={() => togglePodcastSelectionAction(podcastItem.identification)}
                         className={cn(
                           "flex items-center gap-5 p-4 rounded-3xl border transition-all text-left group relative",
                           isSelected
@@ -193,8 +202,8 @@ export function CreateCollectionModal({
                       >
                         <div className="relative h-16 w-16 rounded-2xl overflow-hidden bg-zinc-800 flex-shrink-0 shadow-inner">
                           <Image
-                            src={getSafeAsset(pod.cover_image_url, 'cover')}
-                            alt={pod.title}
+                            src={getSafeAsset(podcastItem.coverImageUniformResourceLocator, 'cover')}
+                            alt={podcastItem.title}
                             fill
                             sizes="64px"
                             className={cn(
@@ -209,7 +218,7 @@ export function CreateCollectionModal({
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-black text-sm uppercase tracking-tight truncate leading-tight mb-1">{pod.title}</p>
+                          <p className="font-black text-sm uppercase tracking-tight truncate leading-tight mb-1">{podcastItem.title}</p>
                           <p className="text-[9px] text-primary font-black uppercase tracking-[0.2em] opacity-60">Status: Verificado</p>
                         </div>
                       </button>
@@ -228,9 +237,9 @@ export function CreateCollectionModal({
                 ATRÁS
               </Button>
               <Button
-                disabled={form.selectedIds.length === 0 || isSubmitting}
+                disabled={collectionCreationForm.selectedPodcastsIdentificationList.length === 0 || isSubmitting}
                 className="flex-[2] h-14 rounded-2xl font-black text-lg uppercase tracking-tighter shadow-2xl shadow-primary/20 group"
-                onClick={handleCreate}
+                onClick={handleCollectionCreationAction}
               >
                 {isSubmitting ? (
                   <Loader2 className="animate-spin h-6 w-6" />

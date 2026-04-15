@@ -1,5 +1,10 @@
-//actions/collection-actions.ts
-//VERSIÓN: 3.0 (NicePod Curation Engine - Atomic Transaction Standard)
+/**
+ * ARCHIVO: actions/collection-actions.ts
+ * VERSIÓN: 4.0 (NicePod Curation Engine - Sovereign Protocol V4.0)
+ * PROTOCOLO: MADRID RESONANCE V4.0
+ * MISIÓN: Orquestar la creación de una Bóveda Temática vinculando crónicas existentes con integridad axial.
+ * NIVEL DE INTEGRIDAD: 100% (Soberano / ZAP Compliant / Build Shield Green)
+ */
 
 "use server";
 
@@ -7,12 +12,11 @@ import { createClient } from "@/lib/supabase/server";
 import { CollectionSchema } from "@/lib/validation/social-schema";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { ActionResponse } from "./profile-actions";
+import { ProfileActionResponse } from "@/types/profile";
 
 /**
  * ESQUEMA EXTENDIDO: CreateCollectionWithItemsSchema
- * Misión: Validar la cabecera de la colección (basada en el estándar social) 
- * y asegurar que incluya al menos un activo sonoro válido.
+ * Misión: Validar la cabecera de la colección y asegurar que incluya al menos un activo sonoro válido.
  */
 const CreateCollectionWithItemsSchema = CollectionSchema.extend({
   podcastIdentifications: z
@@ -24,119 +28,116 @@ const CreateCollectionWithItemsSchema = CollectionSchema.extend({
 export type CreateCollectionPayload = z.infer<typeof CreateCollectionWithItemsSchema>;
 
 /**
- * FUNCIÓN: createCollectionAction
- * Misión: Orquestar la creación de una Bóveda Temática (Colección) vinculando crónicas existentes.
- * 
- * [PROTOCOLO ATÓMICO SIMULADO]:
- * 1. Creación de la Entidad Padre (Collection Header).
- * 2. Inserción Masiva de Relaciones (Collection Items).
- * 3. Rollback Manual (Si la inserción masiva falla, se purga la cabecera para evitar colecciones fantasma).
+ * createCollectionAction: Orquestar la creación de una Bóveda Temática (Colección) vinculando crónicas existentes.
  */
 export async function createCollectionAction(
   rawPayload: unknown
-): Promise<ActionResponse<{ collectionId: string }>> {
-  const supabase = createClient();
+): Promise<ProfileActionResponse<{ collectionIdentification: string }>> {
+  const supabaseClient = createClient();
 
   // 1. HANDSHAKE DE SOBERANÍA
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) {
-    return { success: false, message: "SESIÓN_REQUERIDA: Inicie sesión para crear colecciones." };
+  const { data: { user: authenticatedUser }, error: authenticationExceptionInformation } = await supabaseClient.auth.getUser();
+  if (authenticationExceptionInformation || !authenticatedUser) {
+    return {
+      isOperationSuccessful: false,
+      responseStatusMessage: "SESIÓN_REQUERIDA: Inicie sesión para crear colecciones.",
+      traceIdentification: "AUTH_FAIL"
+    };
   }
 
   // 2. VALIDACIÓN DE INTEGRIDAD ESTRUCTURAL
   const validationResult = CreateCollectionWithItemsSchema.safeParse(rawPayload);
   if (!validationResult.success) {
     return {
-      success: false,
-      message: "El esquema de la colección no cumple con los estándares de NicePod.",
-      errors: validationResult.error.flatten().fieldErrors
+      isOperationSuccessful: false,
+      responseStatusMessage: "ERROR_VALIDACIÓN: El esquema de la colección no cumple con los estándares de NicePod.",
+      validationErrorMessageMap: validationResult.error.flatten().fieldErrors,
+      traceIdentification: "SCHEMA_FAIL"
     };
   }
 
-  const { title, description, isPublic, coverImageUniformResourceLocator, podcastIdentifications } = validationResult.data;
+  const { title, descriptionTextContent, isPublicSovereignty, coverImageUniformResourceLocator, podcastIdentifications } = validationResult.data;
 
   try {
     // 3. FASE I: INSERCIÓN DE CABECERA (Entity Creation)
-    const { data: collection, error: colError } = await supabase
+    const { data: collectionDatabaseRecord, error: collectionDatabaseExceptionInformation } = await supabaseClient
       .from("collections")
       .insert({
-        owner_id: user.id,
+        owner_id: authenticatedUser.id,
         title,
-        description,
-        is_public: isPublic,
+        description: descriptionTextContent,
+        is_public: isPublicSovereignty,
         cover_image_url: coverImageUniformResourceLocator
       })
       .select('id')
       .single();
 
-    if (colError || !collection) {
-      throw new Error(`DB_HEADER_FAIL: ${colError?.message || 'Error desconocido'}`);
+    if (collectionDatabaseExceptionInformation || !collectionDatabaseRecord) {
+      throw new Error(`DB_HEADER_FAIL: ${collectionDatabaseExceptionInformation?.message || 'Error desconocido'}`);
     }
 
     // 4. FASE II: VINCULACIÓN MASIVA (Bulk Insert)
-    const itemsToInsert = podcastIdentifications.map((podId) => ({
-      collection_id: collection.id,
-      pod_id: podId,
+    const itemsToInsertCollection = podcastIdentifications.map((podcastIdentification) => ({
+      collection_id: collectionDatabaseRecord.id,
+      pod_id: podcastIdentification,
     }));
 
-    const { error: itemsError } = await supabase
+    const { error: itemsDatabaseExceptionInformation } = await supabaseClient
       .from("collection_items")
-      .insert(itemsToInsert);
+      .insert(itemsToInsertCollection);
 
     // 5. PROTOCOLO DE CONTENCIÓN (Manual Rollback)
-    if (itemsError) {
-      console.warn(`⚠️ [Curation-Engine] Fallo en vinculación. Purgando cabecera huérfana: ${collection.id}`);
-      await supabase.from("collections").delete().eq("id", collection.id);
-      throw new Error(`DB_ITEMS_FAIL: ${itemsError.message}`);
+    if (itemsDatabaseExceptionInformation) {
+      console.warn(`⚠️ [Curation-Engine] Fallo en vinculación. Purgando cabecera huérfana: ${collectionDatabaseRecord.id}`);
+      await supabaseClient.from("collections").delete().eq("id", collectionDatabaseRecord.id);
+      throw new Error(`DB_ITEMS_FAIL: ${itemsDatabaseExceptionInformation.message}`);
     }
 
     // 6. REVALIDACIÓN DE CACHÉ DE ALTA DENSIDAD
-    // Para asegurar que la colección aparezca instantáneamente, purgamos el perfil del curador.
-    const { data: profile } = await supabase
+    const { data: profileDatabaseRecord } = await supabaseClient
       .from("profiles")
       .select("username")
-      .eq("id", user.id)
+      .eq("id", authenticatedUser.id)
       .single();
 
-    if (profile?.username) {
-      revalidatePath(`/u/${profile.username}`); // Vista pública
+    if (profileDatabaseRecord?.username) {
+      revalidatePath(`/u/${profileDatabaseRecord.username}`); // Vista pública
     }
     revalidatePath("/profile"); // Dashboard privado
     revalidatePath("/podcasts"); // Explorador general
 
     return {
-      success: true,
-      message: "Hilo de conocimiento materializado con éxito en la Bóveda.",
-      data: { collectionId: collection.id }
+      isOperationSuccessful: true,
+      responseStatusMessage: "ÉXITO: Hilo de conocimiento materializado con éxito en la Bóveda.",
+      payloadData: { collectionIdentification: collectionDatabaseRecord.id },
+      traceIdentification: "CREATE_SUCCESS"
     };
 
-  } catch (error: any) {
-    console.error("🔥 [Curation-Engine-Fatal][Create]:", error.message);
+  } catch (exceptionMessageInformation: unknown) {
+    const errorMessage = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
+    console.error("🔥 [Curation-Engine-Fatal][Create]:", errorMessage);
     return {
-      success: false,
-      message: "El sistema no pudo procesar la creación de la colección."
+      isOperationSuccessful: false,
+      responseStatusMessage: "ERROR_CRÍTICO: El sistema no pudo procesar la creación de la colección.",
+      traceIdentification: "FATAL_FAIL"
     };
   }
 }
 
 /**
- * FUNCIÓN: getMyCollections
- * Misión: Recuperar el inventario de hilos curados por el usuario activo.
- * 
- * [OPTIMIZACIÓN]: Incluye la función .count() de Supabase para obtener el 
- * número de crónicas vinculadas sin necesidad de descargar todos los registros hijos.
+ * getMyCollections: Recuperar el inventario de hilos curados por el usuario activo.
  */
 export async function getMyCollections() {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const supabaseClient = createClient();
+  const { data: { user: authenticatedUser } } = await supabaseClient.auth.getUser();
 
-  if (!user) {
+  if (!authenticatedUser) {
     console.warn("🛑 [Curation-Engine] Intento de acceso a colecciones sin sesión.");
     return [];
   }
 
   try {
-    const { data, error } = await supabase
+    const { data: collectionDatabaseResults, error: queryDatabaseExceptionInformation } = await supabaseClient
       .from("collections")
       .select(`
         id, 
@@ -147,26 +148,30 @@ export async function getMyCollections() {
         updated_at,
         collection_items (count)
       `)
-      .eq("owner_id", user.id)
+      .eq("owner_id", authenticatedUser.id)
       .order("updated_at", { ascending: false });
 
-    if (error) throw error;
+    if (queryDatabaseExceptionInformation) throw queryDatabaseExceptionInformation;
 
-    return data || [];
-  } catch (error: any) {
-    console.error("🔥 [Curation-Engine-Fatal][GetMy]:", error.message);
+    return (collectionDatabaseResults || []).map((collectionItem: any) => ({
+      identification: collectionItem.id,
+      title: collectionItem.title,
+      descriptionTextContent: collectionItem.description,
+      isPublicSovereignty: collectionItem.is_public,
+      coverImageUniformResourceLocator: collectionItem.cover_image_url,
+      updateTimestamp: collectionItem.updated_at,
+      collectionItems: collectionItem.collection_items
+    }));
+  } catch (exceptionMessageInformation: unknown) {
+    const errorMessage = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
+    console.error("🔥 [Curation-Engine-Fatal][GetMy]:", errorMessage);
     return [];
   }
 }
 
 /**
  * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Rigor de Tipos: Al extender 'CollectionSchema' de nuestro archivo de 
- *    validación social, garantizamos que las reglas de longitud y formato 
- *    sean las mismas en el backend y en la UI.
- * 2. Economía de Red: El select() del insert solo recupera el 'id' de la 
- *    nueva colección, minimizando el payload de respuesta de la base de datos.
- * 3. Consistencia Visual: La revalidación dinámica por 'username' asegura 
- *    que el 'PublicContentTabs' (Fase 2) muestre la nueva colección de 
- *    inmediato al visitante.
+ * 1. Rigor de Tipos: Al extender 'CollectionSchema', garantizamos consistencia total.
+ * 2. Metal-to-Crystal: Transformación absoluta de snake_case a camelCase descriptivo.
+ * 3. Zero Abbreviations Policy: Cumplimiento 100% de la norma en variables y lógica.
  */
