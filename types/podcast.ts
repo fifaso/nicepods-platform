@@ -1,13 +1,13 @@
 /**
  * ARCHIVO: types/podcast.ts
- * VERSIÓN: 12.0 (NicePod Intelligence Station - Build Shield Sovereignty Edition)
+ * VERSIÓN: 13.0 (NicePod Intelligence Station - Nominal Sovereignty Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * Misión: Centralizar la tipificación de activos, estados y fuentes de investigación 
  * bajo el Dogma Técnico Inmutable. Garantiza que el compilador sea la ley.
- * [REFORMA V12.0]: Resolución definitiva de TS2345. Sincronización absoluta de 
- * 'ResearchSource' con el esquema de validación. Purificación ZAP total de 
- * descriptores nominales y contratos JSONB.
+ * [REFORMA V13.0]: Nominal alignment of ResearchSource properties (snippetContentText,
+ * summaryContentText) under ZAP. Optionality for authority metadata to ensure
+ * validation schema compatibility.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -83,11 +83,11 @@ export interface ResearchSource {
   uniformResourceLocator: string;
   sourceAuthorityName?: string;             // Origen de la autoridad de dominio
   sourceContentType?: string;               // Taxonomía de fuente (ej: 'paper', 'report')
-  summaryContent?: string;                  // Abstract ejecutivo de la evidencia
-  snippetContent?: string;                  // Fragmento clave detectado por el Oráculo
+  summaryContentText?: string;              // Abstract ejecutivo de la evidencia
+  snippetContentText?: string;              // Fragmento clave detectado por el Oráculo
   fullContentText?: string;                 // Extracción profunda del documento
-  authorityScoreValue: number | null;       // Nivel de confianza pericial (0.0 - 10.0)
-  isVeracityVerified: boolean;              // Bandera de integridad cruzada
+  authorityScoreValue?: number | null;      // Nivel de confianza pericial (0.0 - 10.0)
+  isVeracityVerified?: boolean;             // Bandera de integridad cruzada
   relevance: number;                        // Relevancia contextual (TS2345 RESOLVED)
   origin: 'vault' | 'web' | 'fresh_research' | 'pulse_selection';
 }
