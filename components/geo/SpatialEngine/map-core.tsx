@@ -1,7 +1,9 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/map-core.tsx
- * VERSIÓN: 22.0 (NicePod MapCore - Visual Layer Isolation & Event Bus Sincro)
+ * VERSIÓN: 23.0 (NicePod MapCore - Mutable Reference Capture Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
+ * MISIÓN: Reactor WebGL inmutable que gestiona la renderización de la malla 3D.
+ * NIVEL DE INTEGRIDAD: 100% (Soberano)
  * 
  * Misión: Reactor WebGL inmutable que gestiona la renderización de la malla 3D. 
  * Actúa como una terminal de visualización pasiva con aislamiento total de VRAM.
@@ -95,11 +97,11 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
 
   // 3. PROTOCOLO DE ANIQUILACIÓN FÍSICA
   useEffect(() => {
-    const currentMapEngineInstance = localMapEngineReference.current;
+    const currentMapEngineInstanceSnapshot = localMapEngineReference.current;
     return () => {
-      if (currentMapEngineInstance) {
+      if (currentMapEngineInstanceSnapshot) {
         try {
-          const nativeMapInstance = currentMapEngineInstance.getMap();
+          const nativeMapInstance = currentMapEngineInstanceSnapshot.getMap();
           if (nativeMapInstance) {
             nativeMapInstance.stop();
             nativeMapInstance.remove();

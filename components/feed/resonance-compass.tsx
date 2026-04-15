@@ -1,14 +1,16 @@
 /**
  * ARCHIVO: components/feed/resonance-compass.tsx
- * VERSIÓN: 6.0 (NicePod Resonance Compass - High-Performance Direct-DOM & Resize Edition)
+ * VERSIÓN: 7.0 (NicePod Resonance Compass - Thermal Hibernation Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
+ * MISIÓN: Visualizar el universo semántico mediante una simulación de fuerzas.
+ * NIVEL DE INTEGRIDAD: 100% (Soberano)
  * 
  * Misión: Visualizar el universo semántico mediante una simulación de fuerzas 
  * delegada a un Web Worker, utilizando transferencia de memoria cruda (Float32Array)
  * para garantizar una fluidez absoluta de 60 FPS sin saturar el Virtual DOM.
- * [REFORMA V6.0]: Optimización del ciclo de vida del Worker para evitar recreaciones
- * en redimensionamiento. Implementación de memoización de nodos para reducir
- * el coste de reconciliación de React. Estabilización de callbacks tácticos.
+ * [REFORMA V7.0]: Implementación de la política 'Silence is Performance' mediante
+ * hibernación térmica. La simulación se detiene automáticamente cuando la pestaña
+ * no es visible para ahorrar CPU y energía.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -159,6 +161,19 @@ export function ResonanceCompass({
   const bubbleElementsMapReference = useRef<Map<number, HTMLDivElement>>(new Map());
 
   /**
+   * handleVisibilityChangeAction:
+   * Misión: Suspender el motor de físicas cuando el Voyager no está mirando la terminal.
+   * [THERMIC V7.0]: Protocolo de Aislamiento Térmico de Fondo.
+   */
+  const handleVisibilityChangeAction = useCallback(() => {
+    if (physicsWorkerReference.current) {
+      physicsWorkerReference.current.postMessage({
+        action: document.hidden ? "PAUSE_SIMULATION" : "RESUME_SIMULATION"
+      });
+    }
+  }, []);
+
+  /**
    * handleWorkerMessageAction:
    * Misión: Procesar el búfer de transferencia (Float32Array) y actualizar el DOM.
    */
@@ -199,11 +214,12 @@ export function ResonanceCompass({
   /**
    * EFECTO: MultithreadedPhysicsOrchestrator
    * Misión: Inicializar el bus de datos multihilo y gestionar el ciclo de vida del Worker.
-   * [V6.0]: Independizado de las dimensiones para evitar reinicios por resize.
+   * [V7.0]: Refactorización de la lógica de ignición para garantizar el arranque
+   * tras la obtención de dimensiones sin recrear el hilo en cada redimensionamiento.
    */
   useEffect(() => {
     if (!width || !height || podcastCollection.length === 0) {
-      setIsPhysicsEngineLoading(false);
+      if (podcastCollection.length === 0) setIsPhysicsEngineLoading(false);
       return;
     }
 
@@ -236,16 +252,45 @@ export function ResonanceCompass({
       exclusionZoneRadius
     });
 
+    // 4. Centinela de Aislamiento Térmico
+    document.addEventListener("visibilitychange", handleVisibilityChangeAction);
+
     /**
      * LIMPIEZA TÉCNICA (THE FINAL SEAL - PILAR 2)
      */
     return () => {
       nicepodLog("🧨 [ResonanceCompass] Aniquilando proceso de físicas multihilo y liberando bus de datos.");
+      document.removeEventListener("visibilitychange", handleVisibilityChangeAction);
       workerInstance.terminate();
       physicsWorkerReference.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [podcastCollection, handleWorkerMessageAction]);
+  }, [podcastCollection.length > 0, width > 0, height > 0, handleWorkerMessageAction, handleVisibilityChangeAction]);
+
+  /**
+   * EFECTO: ThermalHibernationController
+   * Misión: Implementar la política 'Silence is Performance' suspendiendo la
+   * simulación cuando el usuario no está visualizando la interfaz.
+   */
+  useEffect(() => {
+    const handleVisibilityChangeAction = () => {
+      if (!physicsWorkerReference.current) return;
+
+      if (document.hidden) {
+        nicepodLog("💤 [ResonanceCompass] Entrando en modo de hibernación térmica (Pestaña Oculta).");
+        physicsWorkerReference.current.postMessage({ action: "PAUSE_SIMULATION" });
+      } else {
+        nicepodLog("⚡ [ResonanceCompass] Restaurando simulación desde hibernación (Pestaña Visible).");
+        physicsWorkerReference.current.postMessage({ action: "RESUME_SIMULATION" });
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChangeAction);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChangeAction);
+    };
+  }, []);
 
   const handleSelectionResetAction = useCallback(() => {
     setSelectedPodcastIntelligence(null);
@@ -351,4 +396,6 @@ export function ResonanceCompass({
  * 4. Resize Optimization: Se ha desacoplado el ciclo de vida del Worker del
  *    redimensionamiento del contenedor, utilizando el protocolo 'UPDATE_DIMENSIONS'
  *    para mantener la fluidez sin recrear hilos.
+ * 5. Thermal Hibernation: Suspensión automática del motor de físicas mediante
+ *    'visibilitychange' para preservar recursos energéticos y ciclos de CPU.
  */
