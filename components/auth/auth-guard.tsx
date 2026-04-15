@@ -1,14 +1,14 @@
 /**
  * ARCHIVO: components/auth/auth-guard.tsx
- * VERSIÓN: 3.0 (NicePod Sovereign Access Sentinel - Axial Path Sanitization Edition)
+ * VERSIÓN: 4.0 (NicePod Sovereign Access Sentinel - Full ZAP Alignment Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * Misión: Orquestar el centinela de integridad y seguridad de la Workstation, 
  * validando la identidad del Voyager antes de permitir el acceso al cristal.
- * [REFORMA V3.0]: Implementación de 'Axial Path Sanitization'. Resolución del 
- * error TS2769 mediante la garantía de hilos de texto no nulos en la redirección. 
- * Aplicación integral de la Zero Abbreviations Policy (ZAP) y fortalecimiento 
- * del Build Shield Sovereignty (BSS).
+ * [REFORMA V4.0]: Transmutación nominal absoluta. Se han sustituido los alias de 
+ * legado ('isAuthenticated', 'isInitialLoading') por los descriptores industriales 
+ * soberanos ('isUserAuthenticated', 'isInitialHandshakeLoading') en sincronía con 
+ * AuthProvider V5.1, erradicando los errores TS2339.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -44,7 +44,11 @@ export function AuthGuard({
 }: AuthGuardProperties) {
 
   // --- I. CONSUMO DE ESTADOS DE IDENTIDAD Y NAVEGACIÓN ---
-  const { isAuthenticated, isInitialLoading } = useAuth();
+  /**
+   * [SINCRO V4.0]: Desestructuración alineada con el núcleo soberano del AuthProvider.
+   * Se descartan los alias de legado.
+   */
+  const { isUserAuthenticated, isInitialHandshakeLoading } = useAuth();
   const navigationRouter = useRouter();
 
   /**
@@ -60,7 +64,7 @@ export function AuthGuard({
    * que el apretón de manos inicial (Handshake) con Supabase ha finalizado.
    */
   useEffect(() => {
-    const isVoyagerUnauthorized = !isInitialLoading && isAuthenticationRequired && !isAuthenticated;
+    const isVoyagerUnauthorized = !isInitialHandshakeLoading && isAuthenticationRequired && !isUserAuthenticated;
 
     if (isVoyagerUnauthorized) {
       console.warn(`🛡️ [AuthGuard] Acceso no autorizado detectado en: ${currentNavigationPathname}. Iniciando Protocolo de Expulsión.`);
@@ -79,14 +83,14 @@ export function AuthGuard({
       // Ejecutamos el reemplazo de ruta para no degradar el historial de navegación del dispositivo.
       navigationRouter.replace(loginUniformResourceLocator);
     }
-  }, [isAuthenticated, isInitialLoading, isAuthenticationRequired, navigationRouter, currentNavigationPathname]);
+  }, [isUserAuthenticated, isInitialHandshakeLoading, isAuthenticationRequired, navigationRouter, currentNavigationPathname]);
 
   /**
    * CAPA 0: PANTALLA DE SINTONÍA (VELO DE CARGA)
    * Mientras el sistema negocia con el Metal (Supabase Auth), bloqueamos el renderizado 
    * para evitar fugas visuales de datos privados en el Hilo Principal.
    */
-  if (isInitialLoading) {
+  if (isInitialHandshakeLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen w-full bg-[#020202] z-[9999] selection:bg-primary/30">
 
@@ -118,7 +122,7 @@ export function AuthGuard({
    * Si la ruta exige autoridad y el Voyager no está validado, devolvemos un 
    * escenario neutro mientras se completa la transición física.
    */
-  if (isAuthenticationRequired && !isAuthenticated) {
+  if (isAuthenticationRequired && !isUserAuthenticated) {
     return (
       <div className="min-h-screen w-full bg-[#020202]" />
     );
@@ -132,11 +136,10 @@ export function AuthGuard({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V3.0):
- * 1. ZAP Enforcement: Se han purificado los descriptores de navegación 
- *    (navigationRouter, currentNavigationPathname) y propiedades (AuthGuardProperties).
- * 2. Build Shield Absolute: La sanitización inline 'usePathname() || "/"' elimina 
- *    la posibilidad de 'Null Argument' en los constructores de URL.
- * 3. Navigation Integrity: El uso de 'replace' en lugar de 'push' asegura que el 
+ * NOTA TÉCNICA DEL ARCHITECT (V4.0):
+ * 1. Contract Alignment: Se resolvieron los errores TS2339 al utilizar 
+ *    'isUserAuthenticated' e 'isInitialHandshakeLoading', alineando el 
+ *    componente con el núcleo de identidad V5.1.
+ * 2. Navigation Integrity: El uso de 'replace' en lugar de 'push' asegura que el 
  *    historial del navegador no retenga intentos fallidos de acceso a nodos privados.
  */
