@@ -35,10 +35,10 @@ export function Navigation() {
   // --- I. CONSUMO DE AUTORIDAD Y ESTADO DE SESIÓN ---
   const {
     profile: rawAdministratorProfile,
-    isAdministratorAuthority: isAdministratorAuthority,
-    isAuthenticated: isUserAuthenticated,
+    isAdministratorAuthority: isAdministratorAuthorityStatus,
+    isAuthenticated: isUserAuthenticatedStatus,
     signOut: terminateSessionAction,
-    isInitialLoading: isInitialLoadingState
+    isInitialLoading: isInitialLoadingProcessActive
   } = useAuth();
 
   /**
@@ -66,10 +66,10 @@ export function Navigation() {
   }, [terminateSessionAction, navigationRouter]);
 
   /**
-   * administratorProfile:
+   * userProfileData:
    * Misión: Validar y tipar la estructura de identidad recolectada del Metal.
    */
-  const administratorProfile = rawAdministratorProfile as ProfileData | null;
+  const userProfileData = rawAdministratorProfile as ProfileData | null;
 
   return (
     /**
@@ -83,10 +83,10 @@ export function Navigation() {
           [Sincronizado con DesktopNavigationProperties V4.0]
       */}
       <DesktopNav
-        isUserAuthenticated={isUserAuthenticated}
-        isInitialLoadingState={isInitialLoadingState}
-        administratorProfile={administratorProfile}
-        isAdministratorAuthority={isAdministratorAuthority}
+        isUserAuthenticatedStatus={isUserAuthenticatedStatus}
+        isInitialLoadingProcessActive={isInitialLoadingProcessActive}
+        administratorProfile={userProfileData}
+        isAdministratorAuthorityStatus={isAdministratorAuthorityStatus}
         onAuthenticationLogoutAction={handleAuthenticationLogoutAction}
       />
 
@@ -95,10 +95,10 @@ export function Navigation() {
           [Sincronizado con MobileNavigationProperties V4.0]
       */}
       <MobileNav
-        isUserAuthenticated={isUserAuthenticated}
-        isInitialLoadingState={isInitialLoadingState}
-        administratorProfile={administratorProfile}
-        isAdministratorAuthority={isAdministratorAuthority}
+        isUserAuthenticatedStatus={isUserAuthenticatedStatus}
+        isInitialLoadingProcessActive={isInitialLoadingProcessActive}
+        userProfileData={userProfileData}
+        isAdministratorAuthorityStatus={isAdministratorAuthorityStatus}
         onAuthenticationLogoutAction={handleAuthenticationLogoutAction}
       />
 

@@ -56,10 +56,10 @@ import { ProfileData } from "@/types/profile";
  * Misión: Definir los activos necesarios para la orquestación móvil inyectados por el Master Navigator.
  */
 interface MobileNavigationProperties {
-  isUserAuthenticated: boolean;
-  isInitialLoadingState: boolean;
-  administratorProfile: ProfileData | null;
-  isAdministratorAuthority: boolean;
+  isUserAuthenticatedStatus: boolean;
+  isInitialLoadingProcessActive: boolean;
+  userProfileData: ProfileData | null;
+  isAdministratorAuthorityStatus: boolean;
   onAuthenticationLogoutAction: () => void;
 }
 
@@ -67,10 +67,10 @@ interface MobileNavigationProperties {
  * MobileNav: El motor de interacción táctica para el Voyager en movilidad.
  */
 export function MobileNav({
-  isUserAuthenticated,
-  isInitialLoadingState,
-  administratorProfile,
-  isAdministratorAuthority,
+  isUserAuthenticatedStatus,
+  isInitialLoadingProcessActive,
+  userProfileData,
+  isAdministratorAuthorityStatus,
   onAuthenticationLogoutAction
 }: MobileNavigationProperties) {
 
@@ -87,19 +87,19 @@ export function MobileNav({
    * navigationItemsCollection: 
    * Misión: Seleccionar la estrategia de navegación basada en la autoridad de la sesión.
    */
-  const navigationItemsCollection = isUserAuthenticated ? USER_NAVIGATION_ITEMS : GUEST_NAVIGATION_ITEMS;
+  const navigationItemsCollection = isUserAuthenticatedStatus ? USER_NAVIGATION_ITEMS : GUEST_NAVIGATION_ITEMS;
 
   return (
     <div className={cn(glassPanelClass, "flex md:hidden isolate")}>
 
       {/* I. NÚCLEO DE MARCA (IZQUIERDA) */}
-      <NavBrand isUserAuthenticated={isUserAuthenticated} />
+      <NavBrand isUserAuthenticated={isUserAuthenticatedStatus} />
 
       {/* II. CENTRO DE CONTROL TÁCTICO (DERECHA) */}
       <div className="flex items-center gap-2.5 sm:gap-4">
 
         {/* 1. ACCIÓN PRIMARIA: CREACIÓN DE CAPITAL INTELECTUAL */}
-        {isUserAuthenticated && !isInitialLoadingState && (
+        {isUserAuthenticatedStatus && !isInitialLoadingProcessActive && (
           <CreateButton
             variant="full"
             className="h-10 px-4 scale-95 origin-right shadow-lg shadow-primary/10"
@@ -107,7 +107,7 @@ export function MobileNav({
         )}
 
         {/* 2. SISTEMA DE NOTIFICACIONES SINCRONIZADO */}
-        {isUserAuthenticated && !isInitialLoadingState && (
+        {isUserAuthenticatedStatus && !isInitialLoadingProcessActive && (
           <div className="h-10 w-10 flex items-center justify-center bg-white/5 rounded-2xl border border-white/10 hover:border-white/20 transition-all group">
             <NotificationBell />
           </div>
@@ -119,12 +119,12 @@ export function MobileNav({
         </div>
 
         {/* 4. NODO DE IDENTIDAD: AVATAR SOBERANO */}
-        {isUserAuthenticated && !isInitialLoadingState && (
+        {isUserAuthenticatedStatus && !isInitialLoadingProcessActive && (
           <div className="scale-105">
             <UserDropdown
-              profile={administratorProfile}
-              isAdministratorAuthority={isAdministratorAuthority}
-              onLogout={onAuthenticationLogoutAction}
+              initialAdministratorProfile={userProfileData}
+              isAdministratorAuthorityStatus={isAdministratorAuthorityStatus}
+              onAuthenticationLogoutAction={onAuthenticationLogoutAction}
             />
           </div>
         )}
@@ -213,7 +213,7 @@ export function MobileNav({
 
               {/* FOOTER DEL MENÚ: PROTOCOLO DE SALIDA */}
               <div className="mt-auto pt-10 border-t border-white/5 space-y-4">
-                {isUserAuthenticated ? (
+                {isUserAuthenticatedStatus ? (
                   <Button
                     variant="ghost"
                     onClick={() => {

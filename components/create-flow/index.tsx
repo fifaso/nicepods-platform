@@ -141,8 +141,8 @@ function InnerOrchestrator({
       onExecuteSaveDraftAction={flowActionsAuthority.generateDraft}
       onExecuteProductionAction={flowActionsAuthority.handleSubmitProduction}
       onExecuteLocalAnalysisAction={flowActionsAuthority.analyzeLocalEnvironment}
-      isGeneratingProcessActive={isGeneratingScriptProcessActive || flowActionsAuthority.isGenerating}
-      isSubmittingProcessActive={flowActionsAuthority.isSubmitting}
+      isGeneratingProcessActive={isGeneratingScriptProcessActive || flowActionsAuthority.isGeneratingProcessActive}
+      isSubmittingProcessActive={flowActionsAuthority.isSubmittingProcessActive}
       progressTelemetry={creationProcessProgressMetrics}
     >
       {/* 
