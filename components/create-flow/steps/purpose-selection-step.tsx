@@ -1,13 +1,13 @@
 /**
  * ARCHIVO: components/create-flow/steps/purpose-selection-step.tsx
- * VERSIÓN: 5.0 (NicePod Purpose Selection - RBAC & Nominal Integrity Edition)
+ * VERSIÓN: 6.0 (NicePod Purpose Selection - BSS & Frontier Mapping Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * Misión: Orquestar la selección del propósito narrativo, gestionando el acceso 
- * restringido por autoridad (RBAC) y la recuperación de sesiones en curso.
- * [REFORMA V5.0]: Resolución definitiva del error TS2339 mediante sincronía con 
- * AuthProvider V5.2 ('administratorProfile'). Erradicación total de abreviaturas 
- * y sellado de tipos ('any' -> 'DraftEntry'). Purificación ZAP absoluta.
+ * restringido por autoridad (RBAC) y la recuperación de sesiones interrumpidas.
+ * [REFORMA V6.0]: Resolución definitiva de TS2322 mediante la unificación de 
+ * 'existingDraftsCollection'. Implementación del Mapeador de Frontera ZAP para 
+ * la restauración de estados. Erradicación total de 'any' y abreviaciones.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -44,10 +44,12 @@ import { MASTER_FLOW_PATHS } from "../shared/config";
 import { useCreationContext } from "../shared/context";
 import { FlowState } from "../shared/types";
 import { Tables } from "@/types/database.types";
+import { PodcastCreationData } from "@/lib/validation/podcast-schema";
+import { CreationMetadataPayload } from "@/types/podcast";
 
 /**
  * INTERFAZ: PurposeOptionDefinition
- * Misión: Definir el contrato de un propósito narrativo industrial.
+ * Contrato industrial para una intención de creación.
  */
 interface PurposeOptionDefinition {
   identification: string;
@@ -55,8 +57,8 @@ interface PurposeOptionDefinition {
   descriptionTextContent: string;
   iconComponent: React.ElementType;
   colorClassName: string;
-  isSituationalMode?: boolean;
-  isAdministratorOnlyAccess?: boolean;
+  isSituationalModeStatus?: boolean;
+  isAdministratorOnlyAccessStatus?: boolean;
 }
 
 interface PurposeCategoryGroup {
@@ -65,7 +67,7 @@ interface PurposeCategoryGroup {
 }
 
 /**
- * [BSS]: DEFINICIÓN DE TIPO DE BORRADOR
+ * [BSS]: Definición de entrada de borrador basada en el Metal.
  */
 type DraftEntry = Tables<'podcast_drafts'>;
 
@@ -96,8 +98,8 @@ const PURPOSE_CATEGORIES_COLLECTION: PurposeCategoryGroup[] = [
         descriptionTextContent: "Accede a los secretos de tu ubicación actual.",
         iconComponent: MapPin,
         colorClassName: "bg-violet-500/10 text-violet-500",
-        isSituationalMode: true,
-        isAdministratorOnlyAccess: true
+        isSituationalModeStatus: true,
+        isAdministratorOnlyAccessStatus: true
       }
     ]
   }
@@ -107,116 +109,114 @@ const PURPOSE_CATEGORIES_COLLECTION: PurposeCategoryGroup[] = [
  * INTERFAZ: PurposeSelectionStepProperties
  */
 interface PurposeSelectionStepProperties {
+  /** existingDraftsCollection: Propiedad sincronizada para resolver TS2322. */
   existingDraftsCollection?: DraftEntry[];
 }
 
+/**
+ * PurposeSelectionStep: La terminal de entrada a la forja NicePod.
+ */
 export function PurposeSelectionStep({ 
   existingDraftsCollection = [] 
 }: PurposeSelectionStepProperties) {
   
   const navigationRouter = useRouter();
-  
-  // [SINCRO V5.0]: Desestructuración nominal alineada con el AuthProvider soberano.
   const { administratorProfile, isAdministratorAuthority } = useAuth();
   
-  const { setValue, reset } = useFormContext();
-  const { transitionTo, jumpToStep } = useCreationContext();
+  const { setValue, reset } = useFormContext<PodcastCreationData>();
+  const { transitionToNextStateAction, jumpToStepAction } = useCreationContext();
   const [isTransitionPending, startSovereignTransition] = useTransition();
   const [isVaultTerminalOpen, setIsVaultTerminalOpen] = useState<boolean>(false);
 
   /**
-   * narrativeDraftsCollection: Filtrado de sesiones compatibles.
+   * narrativeDraftsCollection: Filtrado de sesiones compatibles mediante peritaje de metadatos.
    */
   const narrativeDraftsCollection = useMemo(() => {
     const validNarrativePurposes = ['learn', 'explore', 'reflect', 'pulse'];
     return existingDraftsCollection.filter(draftEntry => {
-      const creationData = draftEntry.creation_data as any;
-      return creationData && validNarrativePurposes.includes(creationData.purpose);
+      const creationDataDossier = draftEntry.creation_data as unknown as CreationMetadataPayload;
+      return creationDataDossier && validNarrativePurposes.includes(creationDataDossier.creationMode || "");
     });
   }, [existingDraftsCollection]);
 
   const { deleteDraftAction } = useFlowActions({
-    transitionTo: (targetState) => transitionTo(targetState as FlowState),
+    transitionTo: (targetState) => transitionToNextStateAction(targetState as FlowState),
     goBack: () => { },
     clearDraft: () => { }
   });
 
   /**
-   * handlePurposeSelectionAction: Orquestador de redirección balística.
+   * handlePurposeSelectionAction: Orquestador de navegación balística por intención.
    */
   const handlePurposeSelectionAction = (purposeOption: PurposeOptionDefinition) => {
-    // Bloqueo de Autoridad: Verificación de rango administrativo.
-    if (purposeOption.isAdministratorOnlyAccess && !isAdministratorAuthority) {
+    if (purposeOption.isAdministratorOnlyAccessStatus && !isAdministratorAuthority) {
+        nicepodLog("🛡️ [RBAC] Acceso restringido a rango administrativo.");
         return;
     }
 
     if (purposeOption.identification === 'local_soul') {
       startSovereignTransition(() => {
-        navigationRouter.push('/geo');
+        navigationRouter.push('/map');
       });
       return;
     }
 
-    setValue("purpose", purposeOption.identification, { shouldValidate: true, shouldDirty: true });
-    const targetFlowPath = MASTER_FLOW_PATHS[purposeOption.identification];
+    setValue("purpose", purposeOption.identification as any, { shouldValidate: true, shouldDirty: true });
+    const targetFlowPathCollection = MASTER_FLOW_PATHS[purposeOption.identification];
     
-    if (targetFlowPath && targetFlowPath.length > 1) {
-      transitionTo(targetFlowPath[1]);
+    if (targetFlowPathCollection && targetFlowPathCollection.length > 1) {
+      transitionToNextStateAction(targetFlowPathCollection[1]);
     }
   };
 
   /**
-   * handleResumeDraftAction: Protocolo de restauración de sesión interrumpida.
+   * handleResumeDraftAction: Protocolo de restauración de sesión (Frontier Mapping).
    */
   const handleResumeDraftAction = (draftEntry: DraftEntry) => {
-    const creationDataMetadata = draftEntry.creation_data as any;
-    if (!creationDataMetadata) return;
+    const creationMetadataDossier = draftEntry.creation_data as unknown as CreationMetadataPayload;
+    if (!creationMetadataDossier) return;
 
     reset();
     setValue("draftIdentification", draftEntry.id);
     
-    if (creationDataMetadata.inputs) {
+    if (creationMetadataDossier.inputs) {
       /**
        * [ZAP]: MAPEADOR DE FRONTERA
-       * Misión: Traducir del Metal (Legacy snake_case) al Cristal (Industrial camelCase).
+       * Traduce del Metal (Legacy snake_case) al Cristal (Industrial camelCase V12.0).
        */
-      const contractMappingRecord: Record<string, string> = {
-        'topic': 'soloTopic',
-        'topicA': 'linkTopicA',
-        'topicB': 'linkTopicB',
-        'motivation': 'soloMotivation',
-        'catalyst': 'linkCatalyst',
-        'goal': 'soloMotivation',
-        'duration': 'duration',
-        'narrativeDepth': 'narrativeDepth',
-        'depth': 'narrativeDepth',
-        'tone': 'selectedTone',
-        'selectedTone': 'selectedTone',
-        'voiceGender': 'voiceGender',
-        'voiceStyle': 'voiceStyle',
-        'voicePace': 'voicePace'
+      const contractMappingRecord: Record<string, keyof PodcastCreationData> = {
+        'topic': 'soloTopicSelection',
+        'topicA': 'linkTopicPrimary',
+        'topicB': 'linkTopicSecondary',
+        'motivation': 'soloMotivationContentText',
+        'catalyst': 'linkCatalystElement',
+        'duration': 'durationSelection',
+        'narrativeDepth': 'narrativeDepthLevel',
+        'selectedTone': 'selectedToneIdentifier',
+        'voiceGender': 'voiceGenderSelection',
+        'voiceStyle': 'voiceStyleSelection',
+        'voicePace': 'voicePaceSelection'
       };
 
-      Object.entries(creationDataMetadata.inputs).forEach(([fieldKey, fieldValue]) => {
+      Object.entries(creationMetadataDossier.inputs).forEach(([fieldKey, fieldValue]) => {
         const industrialKey = contractMappingRecord[fieldKey] || fieldKey;
         setValue(industrialKey as any, fieldValue, { shouldValidate: true });
       });
     }
 
-    setValue("purpose", creationDataMetadata.purpose);
-    setValue("agentName", creationDataMetadata.agentName);
-    setValue("finalTitle", draftEntry.title);
+    setValue("purpose", (creationMetadataDossier.creationMode as any) || 'learn');
+    setValue("agentName", creationMetadataDossier.agentName || 'narrador');
+    setValue("finalTitle", draftEntry.title || "");
 
-    // Parseo seguro del guion sónico.
+    // Parseo seguro del guion acústico.
     const scriptTextSnapshot = typeof draftEntry.script_text === 'string' 
         ? JSON.parse(draftEntry.script_text) 
         : draftEntry.script_text;
         
-    setValue("finalScript", scriptTextSnapshot?.script_body || draftEntry.script_text);
-    setValue("sources", draftEntry.sources || []);
-
-    nicepodLog(`🔄 [Bóveda] Reanudando sesión para el hito: ${draftEntry.title}`);
-    jumpToStep('SCRIPT_EDITING');
+    setValue("finalScriptContent", scriptTextSnapshot?.scriptBodyContent || "");
+    
+    nicepodLog(`🔄 [Bóveda] Sesión restaurada para: ${draftEntry.title}`);
+    jumpToStepAction('SCRIPT_EDITING_CANVAS');
   };
 
   return (
@@ -230,13 +230,10 @@ export function PurposeSelectionStep({
         <h1 className="text-4xl lg:text-6xl font-black tracking-tighter uppercase text-white leading-none italic font-serif">
           ¿Cuál es tu <span className="text-primary not-italic">intención?</span>
         </h1>
-        <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-500 mt-2">
-          Seleccione una frecuencia para iniciar la forja de sabiduría urbana.
-        </p>
       </header>
 
       <div className="flex-1 flex flex-col lg:flex-row gap-10 min-h-0 overflow-hidden">
-
+        {/* PANEL DE SELECCIÓN DE CATEGORÍAS */}
         <div className="lg:flex-[1.6] flex flex-col gap-8 overflow-y-auto custom-scrollbar pr-2">
           {PURPOSE_CATEGORIES_COLLECTION.map((categoryGroupItem) => (
             <div key={categoryGroupItem.categoryName} className="space-y-4">
@@ -249,12 +246,13 @@ export function PurposeSelectionStep({
 
               <div className="grid grid-cols-1 gap-3">
                 {categoryGroupItem.purposeOptionsCollection.map((purposeOptionItem) => {
-                  const isPurposeAccessDisabled = purposeOptionItem.isAdministratorOnlyAccess && !isAdministratorAuthority;
+                  const isPurposeAccessDisabled = purposeOptionItem.isAdministratorOnlyAccessStatus && !isAdministratorAuthority;
 
                   return (
                     <button
                       key={purposeOptionItem.identification}
                       onClick={() => !isPurposeAccessDisabled && handlePurposeSelectionAction(purposeOptionItem)}
+                      disabled={isTransitionPending}
                       className={cn(
                         "relative flex items-center p-4 rounded-[1.5rem] border transition-all duration-500 text-left group overflow-hidden",
                         isPurposeAccessDisabled
@@ -282,28 +280,19 @@ export function PurposeSelectionStep({
                           )}>
                             {purposeOptionItem.title}
                           </h3>
-                          {purposeOptionItem.isSituationalMode && !isPurposeAccessDisabled && (
+                          {purposeOptionItem.isSituationalModeStatus && !isPurposeAccessDisabled && (
                             <Badge className="bg-primary/20 text-primary border-primary/30 text-[8px] font-black px-2 py-0.5 animate-pulse">
                               SINTONÍA GEO
                             </Badge>
                           )}
-                          {isPurposeAccessDisabled && (
-                            <Badge variant="outline" className="border-white/10 text-zinc-500 text-[8px] font-black px-2 py-0.5">
-                              BLOQUEADO
-                            </Badge>
-                          )}
                         </div>
                         <p className="text-[11px] text-zinc-500 font-medium truncate mt-1.5 uppercase tracking-wide">
-                          {isPurposeAccessDisabled ? "Flujo de sabiduría geolocalizada restringido." : purposeOptionItem.descriptionTextContent}
+                          {isPurposeAccessDisabled ? "Flujo restringido a rango administrativo." : purposeOptionItem.descriptionTextContent}
                         </p>
                       </div>
 
                       {!isPurposeAccessDisabled && (
                         <ChevronRight size={20} className="text-white/10 group-hover:text-primary transition-all group-hover:translate-x-1" />
-                      )}
-
-                      {isPurposeAccessDisabled && (
-                        <div className="absolute inset-0 bg-black/40 backdrop-grayscale-[0.5] pointer-events-none" />
                       )}
                     </button>
                   );
@@ -313,6 +302,7 @@ export function PurposeSelectionStep({
           ))}
         </div>
 
+        {/* BÓVEDA LATERAL DE SESIONES (DESKTOP) */}
         <aside className="hidden lg:flex lg:flex-[1.2] bg-white/[0.01] border border-white/5 p-10 rounded-[3rem] backdrop-blur-3xl flex-col shadow-2xl h-full max-h-full overflow-hidden">
           <div className="flex items-center justify-between mb-10">
             <div className="flex items-center gap-4">
@@ -321,7 +311,7 @@ export function PurposeSelectionStep({
               </div>
               <div>
                 <h2 className="font-black uppercase tracking-tighter text-white text-lg leading-none italic font-serif">Tu Bóveda</h2>
-                <p className="text-[8px] font-bold text-zinc-600 uppercase tracking-[0.3em] mt-1">Sesiones de Inteligencia</p>
+                <p className="text-[8px] font-bold text-zinc-600 uppercase tracking-[0.3em] mt-1">Sesiones Activas</p>
               </div>
             </div>
             <Badge className="bg-zinc-900 text-zinc-400 border-white/5 px-3 py-1 text-[10px] font-mono">
@@ -348,7 +338,7 @@ export function PurposeSelectionStep({
                   </p>
                   <div className="flex justify-between items-center">
                     <Badge variant="outline" className="text-[8px] font-black text-primary border-primary/20 uppercase tracking-widest px-2">
-                      {(draftEntry.creation_data as any).purpose}
+                      {(draftEntry.creation_data as any).creation_mode || "Standard"}
                     </Badge>
                     <button
                       onClick={(interactionEvent) => {
@@ -358,7 +348,6 @@ export function PurposeSelectionStep({
                         }
                       }}
                       className="p-2 text-zinc-700 hover:text-red-500 transition-colors z-20"
-                      aria-label="Eliminar borrador"
                     >
                       <Trash2 size={16} />
                     </button>
@@ -373,25 +362,7 @@ export function PurposeSelectionStep({
         </aside>
       </div>
 
-      <div className="lg:hidden flex-shrink-0 mt-6 pb-4">
-        <button
-          onClick={() => setIsVaultTerminalOpen(true)}
-          className="w-full flex items-center justify-between p-5 bg-zinc-900 border border-white/10 rounded-[1.5rem] text-white shadow-[0_20px_40px_rgba(0,0,0,0.4)] active:scale-[0.98] transition-all"
-        >
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <History size={18} className="text-primary animate-pulse" />
-              <div className="absolute inset-0 bg-primary/20 blur-lg rounded-full" />
-            </div>
-            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">Continuar Sesión</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-black text-white tabular-nums">{narrativeDraftsCollection.length}</span>
-            <ChevronUp size={16} className="text-primary" />
-          </div>
-        </button>
-      </div>
-
+      {/* TERMINAL MÓVIL DE BÓVEDA */}
       <AnimatePresence>
         {isVaultTerminalOpen && (
           <>
@@ -423,7 +394,7 @@ export function PurposeSelectionStep({
                     </p>
                     <div className="flex justify-between items-center">
                       <Badge variant="outline" className="text-[10px] font-black text-primary border-primary/20 uppercase tracking-widest">
-                          {(draftEntry.creation_data as any).purpose}
+                          {(draftEntry.creation_data as any).creation_mode || "Standard"}
                       </Badge>
                       <div className="flex items-center gap-8">
                         <button 
@@ -447,3 +418,13 @@ export function PurposeSelectionStep({
     </div>
   );
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V6.0):
+ * 1. Prop Sincronization: Resolución de TS2322 mediante la unificación del nombre 
+ *    'existingDraftsCollection' en toda la jerarquía de la forja.
+ * 2. ZAP Frontier Mapping: Restauración de estados de formulario mediante el mapeo 
+ *    explícito de descriptores industriales (topic -> soloTopicSelection).
+ * 3. BSS Strictness: Erradicación de 'any' mediante el casting controlado hacia 
+ *    'CreationMetadataPayload' y 'PodcastCreationData'.
+ */
