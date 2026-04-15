@@ -1,195 +1,224 @@
-// hooks/use-search-radar.ts
-// VERSIÓN: 4.0 (NicePod Search Intelligence - Stability & Hydration Master)
-// Misión: Núcleo reactivo del descubrimiento con discriminación de estado nulo.
-// [ESTABILIZACIÓN]: Cambio de inicialización de resultados de [] a null para evitar colapsos de hidratación.
+/**
+ * ARCHIVO: hooks/use-search-radar.ts
+ * VERSIÓN: 5.0 (NicePod Search Intelligence - Industrial Radar Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.9
+ * 
+ * Misión: Orquestar el descubrimiento semántico reactivo mediante la base de 
+ * datos vectorial, gestionando la persistencia de la memoria táctica local.
+ * [REFORMA V5.0]: Resolución definitiva de TS2724 (SearchRadarResult Export). 
+ * Aplicación absoluta de la Zero Abbreviations Policy (ZAP). Blindaje del 
+ * Build Shield Sovereignty (BSS) eliminando tipos 'any'.
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ */
 
 "use client";
 
-import { SearchActionResponse, searchGlobalIntelligence } from "@/actions/search-actions";
+import { 
+  SearchActionResponse, 
+  searchGlobalIntelligence 
+} from "@/actions/search-actions";
 import { useCallback, useEffect, useState } from "react";
+import { nicepodLog } from "@/lib/utils";
 
 /**
- * TIPO: SearchResult
- * Define la estructura unificada de los nodos semánticos (Podcasts, Usuarios, Bóveda, Lugares).
+ * TIPO: SearchRadarResultCategory
+ * Taxonomía de los nodos de inteligencia recuperables por el radar.
  */
-export type SearchResult = {
-  result_type: 'podcast' | 'user' | 'vault_chunk' | 'place';
-  id: string;
-  title: string;
-  subtitle: string;
-  image_url?: string;
-  similarity: number;
-  geo_distance?: number;
-  metadata?: {
-    author?: string;
-    duration?: number;
-    mode?: string;
-    reputation?: number;
-    category?: string;
-    source_url?: string;
-    lat?: number;
-    lng?: number;
-  };
+export type SearchRadarResultCategory = 
+  | 'podcast' 
+  | 'user' 
+  | 'vault_chunk' 
+  | 'place';
+
+/**
+ * TIPO: SearchRadarResultMetadata
+ * Dossier de metadatos técnicos para la discriminación visual del resultado.
+ */
+export type SearchRadarResultMetadata = {
+  authorDisplayName?: string;
+  playbackDurationSeconds?: number;
+  creationMode?: string;
+  reputationScoreMagnitude?: number;
+  categoryMission?: string;
+  sourceUniformResourceLocator?: string;
+  latitudeCoordinate?: number;
+  longitudeCoordinate?: number;
 };
 
 /**
- * INTERFAZ: UseSearchRadarOptions
+ * TIPO: SearchRadarResult
+ * [RESOLUCIÓN TS2724]: Exportación nominal alineada con el Dashboard.
+ * Define la estructura unificada de los nodos semánticos en la terminal.
  */
-interface UseSearchRadarOptions {
-  limit?: number;
-  latitude?: number;
-  longitude?: number;
+export type SearchRadarResult = {
+  resultCategoryType: SearchRadarResultCategory;
+  identification: string;
+  titleTextContent: string;
+  subtitleContentText: string;
+  imageUniformResourceLocator?: string;
+  semanticSimilarityMagnitude: number;
+  geographicDistanceMagnitude?: number;
+  intellectualMetadata?: SearchRadarResultMetadata;
+};
+
+/**
+ * INTERFAZ: UseSearchRadarIntelligenceOptions
+ */
+interface UseSearchRadarIntelligenceOptions {
+  resultsLimitMagnitude?: number;
+  latitudeCoordinate?: number;
+  longitudeCoordinate?: number;
 }
 
 /**
- * HOOK: useSearchRadar
- * Orquestador de la búsqueda semántica y la persistencia de memoria local.
+ * HOOK: useSearchRadarIntelligence
+ * El motor reactivo de descubrimiento para la Workstation NicePod.
  */
-export function useSearchRadar(options: UseSearchRadarOptions = {}) {
+export function useSearchRadarIntelligence(options: UseSearchRadarIntelligenceOptions = {}) {
   const {
-    limit = 30,
-    latitude,
-    longitude
+    resultsLimitMagnitude = 30,
+    latitudeCoordinate,
+    longitudeCoordinate
   } = options;
 
-  // --- ESTADOS DE LA CONSOLA ---
-  const [query, setQuery] = useState<string>("");
+  // --- I. ESTADOS DE LA CONSOLA TÁCTICA (ZAP COMPLIANT) ---
+  const [currentSearchQueryText, setCurrentSearchQueryText] = useState<string>("");
 
   /**
-   * [FIX CRÍTICO V4.0]: results se inicializa en null.
-   * - null: El radar está apagado (Estado inicial/Reposo).
-   * - []: El radar se activó pero no detectó resonancia (Frecuencia no detectada).
-   * - [data]: El radar detectó nodos semánticos activos.
+   * searchRadarResultsCollection: Inicialización en 'null' para control de hidratación.
+   * - null: Radar en reposo (Estado Inicial).
+   * - []: Radar activo con frecuencia cero (Sin Resonancia).
+   * - [SearchRadarResult]: Radar con detección de nodos semánticos.
    */
-  const [results, setResults] = useState<SearchResult[] | null>(null);
+  const [searchRadarResultsCollection, setSearchRadarResultsCollection] = useState<SearchRadarResult[] | null>(null);
 
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const [isSearchProcessActive, setIsSearchProcessActive] = useState<boolean>(false);
+  const [operationalHardwareException, setOperationalHardwareException] = useState<string | null>(null);
 
-  // --- ESTADO DE LA MEMORIA (HISTORIAL) ---
-  const [history, setHistory] = useState<string[]>([]);
+  // --- II. ESTADO DE LA MEMORIA TÁCTICA (HISTORIAL) ---
+  const [searchHistoryCollection, setSearchHistoryCollection] = useState<string[]>([]);
+  const TACTICAL_HISTORY_STORAGE_KEY = "nicepod_tactical_search_history_v12";
 
   /**
-   * PROTOCOLO INICIAL: loadRadarHistory
-   * Carga el historial de búsqueda desde el almacenamiento local persistente.
+   * loadTacticalSearchHistoryAction:
+   * Misión: Recuperar el historial desde el Metal del dispositivo al arrancar.
    */
   useEffect(() => {
-    const savedHistory = localStorage.getItem("nicepod_radar_history_v4");
-    if (savedHistory) {
+    const serializedHistory = localStorage.getItem(TACTICAL_HISTORY_STORAGE_KEY);
+    if (serializedHistory) {
       try {
-        const parsed = JSON.parse(savedHistory);
-        setHistory(Array.isArray(parsed) ? parsed.slice(0, 6) : []);
-      } catch (err) {
-        console.warn("⚠️ [SearchRadar] Historial local corrupto. Ejecutando purga de sector.");
-        localStorage.removeItem("nicepod_radar_history_v4");
+        const parsedHistory = JSON.parse(serializedHistory);
+        setSearchHistoryCollection(Array.isArray(parsedHistory) ? parsedHistory.slice(0, 6) : []);
+      } catch (hardwareException) {
+        nicepodLog("⚠️ [Search-Radar] Historial corrupto. Ejecutando purga.", hardwareException, 'warn');
+        localStorage.removeItem(TACTICAL_HISTORY_STORAGE_KEY);
       }
     }
   }, []);
 
   /**
-   * ACCIÓN: saveToHistory
-   * Persiste términos de búsqueda validados en el dispositivo.
+   * saveSearchQueryToHistoryAction:
+   * Misión: Persistir términos validados protegiendo la cuota de almacenamiento.
    */
-  const saveToHistory = useCallback((term: string) => {
-    const cleanTerm = term.trim();
-    if (cleanTerm.length < 3) return;
+  const saveSearchQueryToHistoryAction = useCallback((queryText: string) => {
+    const cleanQueryText = queryText.trim();
+    if (cleanQueryText.length < 3) return;
 
-    setHistory((prev) => {
-      const filtered = prev.filter((item) => item.toLowerCase() !== cleanTerm.toLowerCase());
-      const newHistory = [cleanTerm, ...filtered].slice(0, 6);
-      localStorage.setItem("nicepod_radar_history_v4", JSON.stringify(newHistory));
-      return newHistory;
+    setSearchHistoryCollection((previousHistoryState) => {
+      const filteredHistory = previousHistoryState.filter(
+        (item) => item.toLowerCase() !== cleanQueryText.toLowerCase()
+      );
+      const updatedHistory = [cleanQueryText, ...filteredHistory].slice(0, 6);
+      localStorage.setItem(TACTICAL_HISTORY_STORAGE_KEY, JSON.stringify(updatedHistory));
+      return updatedHistory;
     });
   }, []);
 
   /**
-   * ACCIÓN CORE: performSearch
-   * Disparo físico del radar hacia la base de datos vectorial (pgvector).
+   * executeSearchRadarAction:
+   * Misión: Disparo físico del radar hacia la base de datos vectorial (pgvector).
+   * [BSS]: Erradicación de 'any' mediante el uso de 'unknown' y tipado estricto de respuesta.
    */
-  const performSearch = useCallback(async (searchTerm: string) => {
-    const target = searchTerm.trim();
+  const executeSearchRadarAction = useCallback(async (searchQueryText: string) => {
+    const sanitizedTargetText = searchQueryText.trim();
 
-    if (target.length < 3) {
-      setError("Se requieren al menos 3 caracteres para activar el radar.");
+    if (sanitizedTargetText.length < 3) {
+      setOperationalHardwareException("Se requieren al menos 3 caracteres para activar el radar.");
       return;
     }
 
-    setIsLoading(true);
-    setError(null);
+    setIsSearchProcessActive(true);
+    setOperationalHardwareException(null);
 
     try {
       // Invocación al Server Action (Soberanía del Dato)
-      const response: SearchActionResponse<SearchResult[]> = await searchGlobalIntelligence(
-        target,
-        latitude,
-        longitude,
-        limit
+      const actionResponse: SearchActionResponse<SearchRadarResult[]> = await searchGlobalIntelligence(
+        sanitizedTargetText,
+        latitudeCoordinate,
+        longitudeCoordinate,
+        resultsLimitMagnitude
       );
 
-      if (response.success) {
-        /**
-         * [LOGICA DE RESILIENCIA]:
-         * Si no hay resultados, inyectamos un array vacío [].
-         * Esto dispara la interfaz de 'Sin Resonancia' en el cliente.
-         */
-        setResults(response.results || []);
-        saveToHistory(target);
+      if (actionResponse.success) {
+        setSearchRadarResultsCollection(actionResponse.results || []);
+        saveSearchQueryToHistoryAction(sanitizedTargetText);
       } else {
-        setError(response.message || "Fallo en la estabilización de la señal.");
-        setResults([]); // Tratamos el error de señal como ausencia de resultados
+        setOperationalHardwareException(actionResponse.message || "Fallo en la estabilización de señal.");
+        setSearchRadarResultsCollection([]); 
       }
-    } catch (err: any) {
-      console.error("🔥 [SearchRadar-Fatal]:", err.message);
-      setError("Error crítico de infraestructura.");
-      setResults([]);
+    } catch (hardwareException: unknown) {
+      const exceptionMessage = hardwareException instanceof Error ? hardwareException.message : "Fallo de infraestructura.";
+      nicepodLog("🔥 [Search-Radar-Fatal]", exceptionMessage, 'error');
+      setOperationalHardwareException(exceptionMessage);
+      setSearchRadarResultsCollection([]);
     } finally {
-      setIsLoading(false);
+      setIsSearchProcessActive(false);
     }
-  }, [latitude, longitude, limit, saveToHistory]);
+  }, [latitudeCoordinate, longitudeCoordinate, resultsLimitMagnitude, saveSearchQueryToHistoryAction]);
 
   /**
-   * ACCIÓN DE SANEAMIENTO: clearRadar
-   * Retorna el radar al estado de nulidad absoluta (Fase de Reposo).
+   * clearSearchRadarAction:
+   * Misión: Retornar el radar a la fase de reposo absoluto.
    */
-  const clearRadar = useCallback(() => {
-    setQuery("");
-    setResults(null); // [FIX]: Reset a null para que la UI recupere la biblioteca.
-    setError(null);
-    setIsLoading(false);
+  const clearSearchRadarAction = useCallback(() => {
+    setCurrentSearchQueryText("");
+    setSearchRadarResultsCollection(null);
+    setOperationalHardwareException(null);
+    setIsSearchProcessActive(false);
   }, []);
 
   /**
-   * ACCIÓN DE CURADURÍA: removeTermFromHistory
+   * removeSearchTermFromHistoryAction:
+   * Misión: Eliminación quirúrgica de un nodo del historial local.
    */
-  const removeTermFromHistory = useCallback((term: string) => {
-    setHistory((prev) => {
-      const newHistory = prev.filter(t => t !== term);
-      localStorage.setItem("nicepod_radar_history_v4", JSON.stringify(newHistory));
-      return newHistory;
+  const removeSearchTermFromHistoryAction = useCallback((termToRemove: string) => {
+    setSearchHistoryCollection((previousHistoryState) => {
+      const updatedHistory = previousHistoryState.filter(term => term !== termToRemove);
+      localStorage.setItem(TACTICAL_HISTORY_STORAGE_KEY, JSON.stringify(updatedHistory));
+      return updatedHistory;
     });
   }, []);
 
   return {
-    query,
-    results,
-    isLoading,
-    error,
-    history,
-    setQuery,
-    performSearch,
-    clearRadar,
-    saveToHistory,
-    removeTermFromHistory
+    currentSearchQueryText,
+    searchRadarResultsCollection,
+    isSearchProcessActive,
+    operationalHardwareException,
+    searchHistoryCollection,
+    setCurrentSearchQueryText,
+    executeSearchRadarAction,
+    clearSearchRadarAction,
+    saveSearchQueryToHistoryAction,
+    removeSearchTermFromHistoryAction
   };
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (Refinería V4.0):
- * 1. Estabilidad de Pestañas: El cambio de [] a null en 'results' es lo que evita 
- *    que 'LibraryTabs' desmonte el componente 'TabsList' durante el montaje inicial, 
- *    eliminando el error de Radix UI.
- * 2. Predictibilidad: El radar ahora tiene tres estados claros: Invisible (null), 
- *    Buscando (isLoading) y Resultado (Array).
- * 3. Protección de Memoria: El historial se limita estrictamente en cada inserción
- *    para evitar el desbordamiento del localStorage.
+ * NOTA TÉCNICA DEL ARCHITECT (V5.0):
+ * 1. Zero Abbreviations Policy (ZAP): Purga absoluta. 'id' -> 'identification', 
+ *    'lat' -> 'latitudeCoordinate', 'lng' -> 'longitudeCoordinate', 'res' -> 'results'.
+ * 2. TS2724 Resolution: Se renombró el tipo a 'SearchRadarResult' para satisfacer la 
+ *    importación del DashboardClient, sellando la comunicación entre capas.
+ * 3. BSS Contract Seal: Se definió 'SearchRadarResultMetadata' con precisión industrial 
+ *    para evitar el uso de objetos genéricos en la UI del radar.
  */
