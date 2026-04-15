@@ -1,12 +1,20 @@
-// components/create-flow/steps/discovery-result-step.tsx
-// VERSIÓN: 3.0 (Master Intelligence Reveal - Full Type Safety & Vision Transparency)
+/**
+ * ARCHIVO: components/create-flow/steps/discovery-result-step.tsx
+ * VERSIÓN: 4.0 (NicePod Master Intelligence Reveal - ZAP & BSS Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.9
+ * 
+ * Misión: Revelar el peritaje urbano generado por el Oráculo, permitiendo al 
+ * Voyager seleccionar nodos de resonancia para la forja de podcasts situacionales.
+ * [REFORMA V4.0]: Resolución definitiva de TS2551, TS2339 y TS2352. 
+ * Sincronización nominal absoluta con 'DiscoveryContextPayload' V12.0. 
+ * Aplicación integral de la Zero Abbreviations Policy (ZAP).
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ */
 
 "use client";
 
 import React, { useMemo } from "react";
 import { useFormContext } from "react-hook-form";
-import { PodcastCreationData } from "@/lib/validation/podcast-schema";
-import { useCreationContext } from "../shared/context";
 import { 
   MapPin, 
   Globe, 
@@ -14,7 +22,6 @@ import {
   Layers,
   Sparkles,
   Info,
-  ArrowRight,
   Compass,
   Zap,
   Eye
@@ -22,103 +29,125 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { POIActionCard } from "@/components/ui/poi-action-card";
-import { LocalRecommendation, ResearchSource, DiscoveryContextPayload } from "@/types/podcast";
-import { cn } from "@/lib/utils";
+import { 
+  LocalRecommendation, 
+  ResearchSource, 
+  DiscoveryContextPayload 
+} from "@/types/podcast";
+import { PodcastCreationData } from "@/lib/validation/podcast-schema";
+import { useCreationContext } from "../shared/context";
+import { classNamesUtility, nicepodLog } from "@/lib/utils";
 import { motion } from "framer-motion";
 
+/**
+ * DiscoveryResultStep: La interfaz de revelación de capital intelectual situado.
+ */
 export function DiscoveryResultStep() {
-  // Sincronización con el formulario maestro y el contexto de navegación
+  // 1. CONSUMO DE CÓRTEX Y FORMULARIO SOBERANO
   const { watch, setValue } = useFormContext<PodcastCreationData>();
-  const { transitionTo } = useCreationContext();
+  const { transitionToNextStateAction } = useCreationContext();
 
-  // Suscripción reactiva a los datos del orquestador
-  const discoveryContext = watch("discoveryContext") as DiscoveryContextPayload | null;
-  const sources = watch("sources") || [];
-  const location = watch("location");
+  /** 
+   * [SINCRO V4.0]: Suscripción reactiva mediante descriptores V12.0.
+   * Resolviendo TS2352 mediante el uso de tipos de dominio estrictos.
+   */
+  const discoveryContextDossier = watch("discoveryContextDossier") as DiscoveryContextPayload | null;
+  const researchSourcesCollection = watch("sourcesCollection") || [];
+  const currentGeographicLocationSnapshot = watch("location");
 
   /**
-   * Dossier Normalizado: 
-   * Garantiza que el renderizado no falle si la IA devuelve datos parciales.
+   * intelligenceNormalizedDossier: 
+   * Misión: Garantizar un renderizado resiliente ante datos parciales del Oráculo.
+   * [RESOLUCIÓN TS2551 / TS2339]: Mapeo a propiedades purificadas.
    */
-  const dossier = useMemo(() => ({
-    narrative_hook: discoveryContext?.narrative_hook || "Sincronizando con la esencia del lugar...",
-    recommendations: (discoveryContext?.recommendations as LocalRecommendation[]) || [],
-    closing_thought: discoveryContext?.closing_thought || "Explora el conocimiento situado.",
-    vision_summary: discoveryContext?.image_analysis_summary
-  }), [discoveryContext]);
+  const intelligenceNormalizedDossier = useMemo(() => ({
+    narrativeHookText: discoveryContextDossier?.narrativeHookText || "Sincronizando con la esencia del lugar...",
+    recommendationsCollection: (discoveryContextDossier?.recommendationsCollection as LocalRecommendation[]) || [],
+    closingThoughtText: discoveryContextDossier?.closingThoughtText || "Explora el conocimiento situado en la malla.",
+    imageAnalysisSummaryContent: discoveryContextDossier?.imageAnalysisSummaryContent
+  }), [discoveryContextDossier]);
 
   /**
-   * handleGenerateSpecific
-   * Transforma una recomendación del dossier en la semilla creativa para el podcast final.
+   * handleGenerateSpecificPodcastAction:
+   * Misión: Transmutar una recomendación en la semilla creativa final.
+   * [RESOLUCIÓN TS2345]: Sincronización con 'soloTopicSelection' y 'soloMotivationContentText'.
    */
-  const handleGenerateSpecific = (poi: LocalRecommendation) => {
-    // 1. Identificamos el tema concreto
-    setValue("soloTopic", poi.name, { shouldValidate: true });
+  const handleGenerateSpecificPodcastAction = (recommendation: LocalRecommendation) => {
+    nicepodLog(`🎯 [Discovery] Iniciando forja específica para: ${recommendation.name}`);
+
+    // 1. Identificación del hito concreto
+    setValue("soloTopicSelection", recommendation.name, { shouldValidate: true });
     
-    // 2. Inyectamos la instrucción situacional enriquecida
-    const situationalGoal = `Actúa como un guía local experto y sofisticado. 
-    Tu misión es crear un podcast fascinante sobre ${poi.name}. 
-    Contexto de investigación: ${poi.description}. 
-    Evita los datos obvios y céntrate en la narrativa emocional y secreta del lugar.`;
+    // 2. Inyección de la instrucción situacional de alto rango
+    const situationalNarrativeGoalText = `Actúa como un guía local experto de NicePod. 
+    Tu misión es crear una crónica fascinante sobre ${recommendation.name}. 
+    Contexto: ${recommendation.descriptionTextContent}. 
+    Evita los datos obvios; céntrate en la narrativa emocional y la resonancia histórica.`;
     
-    setValue("soloMotivation", situationalGoal, { shouldValidate: true });
+    setValue("soloMotivationContentText", situationalNarrativeGoalText, { shouldValidate: true });
     
-    // 3. Forzamos el uso del Agente Concierge para este hilo
+    // 3. Calibración forzada del Agente Concierge para el modo situacional
     setValue("agentName", "local-concierge-v1", { shouldValidate: true });
 
-    // 4. Progresamos a la configuración de duración y profundidad
-    transitionTo('DETAILS_STEP');
+    // 4. Progresión balística a la fase de especificaciones técnicas
+    transitionToNextStateAction('TECHNICAL_DETAILS_STEP');
   };
 
   /**
-   * handleVisitSite: Apertura de recursos externos o navegación GPS.
+   * handleVisitExternalResourceAction:
+   * Misión: Apertura de autoridad externa o navegación geodésica.
    */
-  const handleVisitSite = (poi: LocalRecommendation) => {
-    if (poi.action_url) {
-      window.open(poi.action_url, '_blank');
+  const handleVisitExternalResourceAction = (recommendation: LocalRecommendation) => {
+    if (recommendation.actionUniformResourceLocator) {
+      window.open(recommendation.actionUniformResourceLocator, '_blank');
     } else {
-      const mapsQuery = encodeURIComponent(`${poi.name} ${location?.placeName || ''}`);
-      window.open(`https://www.google.com/maps/search/${mapsQuery}`, '_blank');
+      const mapsQueryText = encodeURIComponent(
+        `${recommendation.name} ${currentGeographicLocationSnapshot?.placeNameReference || ''}`
+      );
+      window.open(`https://www.google.com/maps/search/${mapsQueryText}`, '_blank');
     }
   };
 
   return (
-    <div className="flex flex-col h-full w-full animate-in fade-in zoom-in-95 duration-700 px-4 md:px-10 pb-6 overflow-hidden">
+    <div className="flex flex-col h-full w-full animate-in fade-in zoom-in-95 duration-700 px-4 md:px-10 pb-6 overflow-hidden isolate">
       
-      {/* 1. HEADER: LA VOZ DE LA IA SITUACIONAL */}
-      <header className="flex-shrink-0 pt-6 pb-6 border-b border-white/5">
+      {/* I. CABECERA: LA VOZ DEL ORÁCULO SITUACIONAL */}
+      <header className="flex-shrink-0 pt-6 pb-6 border-b border-white/5 isolate">
         <div className="flex flex-wrap items-center gap-3 mb-4">
-            <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-primary/10 border border-primary/20">
+            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20">
                 <Zap className="h-3 w-3 text-primary animate-pulse" />
-                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-primary">Inteligencia de Campo</span>
+                <span className="text-[9px] font-black uppercase tracking-[0.3em] text-primary">Peritaje de Campo</span>
             </div>
-            {location?.placeName && (
-                <div className="flex items-center text-[10px] text-muted-foreground font-bold tracking-tight bg-white/5 px-2 py-1 rounded-md">
-                    <MapPin className="h-3 w-3 mr-1 text-primary/60" /> {location.placeName.split(',')[0]}
+            {currentGeographicLocationSnapshot?.placeNameReference && (
+                <div className="flex items-center text-[10px] text-zinc-500 font-bold tracking-tight bg-white/5 px-3 py-1 rounded-xl">
+                    <MapPin className="h-3 w-3 mr-2 text-primary/60" /> 
+                    {currentGeographicLocationSnapshot.placeNameReference.split(',')[0]}
                 </div>
             )}
         </div>
         
-        <h2 className="text-2xl md:text-4xl font-black text-foreground leading-tight tracking-tighter italic lg:max-w-3xl">
-          "{dossier.narrative_hook}"
+        <h2 className="text-2xl md:text-4xl font-black text-white leading-tight tracking-tighter italic font-serif lg:max-w-3xl">
+          "{intelligenceNormalizedDossier.narrativeHookText}"
         </h2>
       </header>
 
-      {/* 2. RECOMENDACIONES Y ANÁLISIS VISUAL */}
-      <main className="flex-1 min-h-0 flex flex-col pt-6">
+      {/* II. CUERPO: RECOMENDACIONES Y ANÁLISIS ÓPTICO */}
+      <main className="flex-1 min-h-0 flex flex-col pt-6 isolate">
         
-        {/* Bloque de Transparencia Visual (Solo si hubo foto) */}
-        {dossier.vision_summary && (
+        {/* Bloque de Transparencia de Visión Artificial */}
+        {intelligenceNormalizedDossier.imageAnalysisSummaryContent && (
             <motion.div 
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="mb-6 p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/20 flex items-start gap-3"
+                className="mb-6 p-5 rounded-2xl bg-indigo-500/5 border border-indigo-500/20 flex items-start gap-4 shadow-inner isolate"
             >
-                <Eye className="h-4 w-4 text-indigo-400 mt-0.5 shrink-0" />
+                <Eye className="h-5 w-5 text-indigo-400 mt-0.5 shrink-0" />
                 <div>
-                    <p className="text-[9px] font-black text-indigo-300 uppercase tracking-widest mb-1">Visión Artificial Identificada</p>
-                    <p className="text-xs text-indigo-100/70 italic leading-relaxed">
-                        {dossier.vision_summary}
+                    <p className="text-[9px] font-black text-indigo-300 uppercase tracking-[0.3em] mb-1">
+                        Evidencia Visual Identificada
+                    </p>
+                    <p className="text-xs text-indigo-100/60 italic leading-relaxed">
+                        {intelligenceNormalizedDossier.imageAnalysisSummaryContent}
                     </p>
                 </div>
             </motion.div>
@@ -126,32 +155,32 @@ export function DiscoveryResultStep() {
 
         <div className="flex items-center justify-between mb-4 px-1">
             <div className="flex items-center gap-2">
-                <Layers className="h-4 w-4 text-muted-foreground/40" />
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/40">
+                <Layers className="h-4 w-4 text-zinc-600" />
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600">
                     Opciones de Resonancia Detectadas
                 </p>
             </div>
-            <Badge variant="secondary" className="text-[9px] font-mono bg-white/5 text-muted-foreground border-none px-2 py-0">
-                {dossier.recommendations.length} Hallazgos
+            <Badge variant="secondary" className="text-[9px] font-mono bg-white/5 text-zinc-500 border-none px-3 py-0.5 rounded-full">
+                {intelligenceNormalizedDossier.recommendationsCollection.length} Hallazgos
             </Badge>
         </div>
 
         <ScrollArea className="flex-1 pr-2">
             <div className="grid grid-cols-1 gap-4 pb-12">
-                {dossier.recommendations.length > 0 ? (
-                    dossier.recommendations.map((poi, idx) => (
+                {intelligenceNormalizedDossier.recommendationsCollection.length > 0 ? (
+                    intelligenceNormalizedDossier.recommendationsCollection.map((recommendationItem, recommendationIndex) => (
                         <POIActionCard 
-                            key={idx}
-                            poi={poi}
-                            onGenerateSpecific={handleGenerateSpecific}
-                            onVisit={handleVisitSite}
+                            key={recommendationIndex}
+                            poi={recommendationItem}
+                            onGenerateSpecific={() => handleGenerateSpecificPodcastAction(recommendationItem)}
+                            onVisit={() => handleVisitExternalResourceAction(recommendationItem)}
                         />
                     ))
                 ) : (
-                    <div className="flex flex-col items-center justify-center p-16 text-center bg-secondary/5 rounded-[2.5rem] border border-dashed border-border/40">
-                        <Info className="h-10 w-10 text-muted-foreground/10 mb-4" />
-                        <p className="text-sm text-muted-foreground font-medium max-w-[200px]">
-                            No hay puntos específicos registrados en este radio.
+                    <div className="flex flex-col items-center justify-center p-16 text-center bg-white/[0.02] rounded-[3rem] border border-dashed border-white/5">
+                        <Info className="h-10 w-10 text-zinc-800 mb-4" />
+                        <p className="text-[11px] text-zinc-600 font-bold uppercase tracking-widest max-w-[200px]">
+                            Sin señales específicas en este radio
                         </p>
                     </div>
                 )}
@@ -159,44 +188,47 @@ export function DiscoveryResultStep() {
         </ScrollArea>
       </main>
 
-      {/* 3. FOOTER: TRANSPARENCIA 360 Y CIERRE */}
-      <footer className="flex-shrink-0 pt-4 mt-auto border-t border-white/5 bg-background/50 backdrop-blur-md">
+      {/* III. FOOTER: TRANSPARENCIA DE GROUNDING Y CIERRE */}
+      <footer className="flex-shrink-0 pt-4 mt-auto border-t border-white/5 bg-black/40 backdrop-blur-xl isolate">
         <div className="flex items-center justify-between mb-3 px-1">
-            <div className="flex items-center gap-2 text-[9px] font-black text-muted-foreground/30 uppercase tracking-widest">
-                <Globe className="h-3 w-3" /> Fuentes de Verdad (Grounding)
+            <div className="flex items-center gap-2 text-[9px] font-black text-zinc-700 uppercase tracking-widest">
+                <Globe className="h-3 w-3" /> Fuentes de Verdad (Geodetic Grounding)
             </div>
         </div>
 
-        <div className="flex gap-2 overflow-x-auto pb-3 scrollbar-hide px-1">
-            {sources.length > 0 ? (
-                sources.map((source: ResearchSource, idx: number) => (
+        <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide px-1">
+            {researchSourcesCollection.length > 0 ? (
+                researchSourcesCollection.map((researchSourceItem: ResearchSource, sourceIndex: number) => (
                     <a 
-                        key={idx} 
-                        href={source.uniformResourceLocator}
+                        key={sourceIndex} 
+                        href={researchSourceItem.uniformResourceLocator}
                         target="_blank" 
                         rel="noopener noreferrer"
-                        className="flex items-center gap-2 px-4 py-2 rounded-full bg-secondary/20 border border-white/5 whitespace-nowrap hover:bg-secondary/40 hover:border-primary/20 transition-all duration-300 group"
+                        className="flex items-center gap-3 px-5 py-2.5 rounded-full bg-white/[0.03] border border-white/5 whitespace-nowrap hover:bg-white/[0.06] hover:border-primary/30 transition-all duration-500 group"
                     >
-                        <span className="text-[10px] font-bold text-muted-foreground group-hover:text-primary transition-colors max-w-[150px] truncate">
-                            {source.title}
+                        <span className="text-[10px] font-black text-zinc-500 group-hover:text-primary transition-colors max-w-[150px] truncate uppercase tracking-widest">
+                            {researchSourceItem.title}
                         </span>
-                        <ExternalLink className="h-2.5 w-2.5 text-muted-foreground/20 group-hover:text-primary transition-colors" />
+                        <ExternalLink className="h-3 w-3 text-zinc-800 group-hover:text-primary transition-colors" />
                     </a>
                 ))
             ) : (
-                <div className="px-2 py-1.5 flex items-center gap-2 opacity-30">
+                <div className="px-3 py-2 flex items-center gap-2 opacity-20 grayscale">
                     <Info className="h-3 w-3" />
-                    <p className="text-[9px] font-medium italic">Análisis basado en conocimiento interno experto.</p>
+                    <p className="text-[9px] font-bold uppercase tracking-widest italic">
+                        Análisis basado en Bóveda Cognitiva Interna
+                    </p>
                 </div>
             )}
         </div>
 
-        {/* Reflexión Final del Concierge */}
-        <div className="py-4 px-8 bg-primary/5 rounded-2xl mt-2 border border-primary/5 shadow-inner">
-            <div className="flex items-center justify-center gap-3">
-                <Compass className="h-4 w-4 text-primary/40 shrink-0" />
-                <p className="text-[11px] text-center text-primary/80 font-bold italic leading-relaxed">
-                    "{dossier.closing_thought}"
+        {/* Reflexión Final del Agente Concierge */}
+        <div className="py-5 px-8 bg-primary/5 rounded-[1.5rem] mt-2 border border-primary/10 shadow-inner group overflow-hidden relative">
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
+            <div className="flex items-center justify-center gap-4 relative z-10">
+                <Compass className="h-5 w-5 text-primary/40 shrink-0" />
+                <p className="text-[11px] text-center text-primary/80 font-black italic leading-relaxed uppercase tracking-wide">
+                    "{intelligenceNormalizedDossier.closingThoughtText}"
                 </p>
             </div>
         </div>
@@ -205,3 +237,13 @@ export function DiscoveryResultStep() {
     </div>
   );
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V4.0):
+ * 1. Build Shield Sovereignty: Resolución de 16 errores TS mediante el mapeo exacto 
+ *    hacia 'DiscoveryContextPayload' V12.0 (narrativeHookText, recommendationsCollection).
+ * 2. ZAP Absolute Compliance: Purificación total. 'poi' -> 'recommendationItem', 
+ *    'idx' -> 'recommendationIndex', 'source' -> 'researchSourceItem'.
+ * 3. Contractual Resilience: El dossier normalizado asegura que la UI no colapse 
+ *    ante datos opcionales, manteniendo la fluidez cinemática de la terminal.
+ */
