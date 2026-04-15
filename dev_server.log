@@ -1,0 +1,268 @@
+
+> nicepod-platform@1.0.0 dev /app
+> next dev
+
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3000
+  - Experiments (use with caution):
+    · instrumentationHook
+
+ ✓ Starting...
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+ ○ (pwa) PWA support is disabled.
+[@sentry/nextjs] DEPRECATION WARNING: It is recommended renaming your `sentry.client.config.ts` file, or moving its content to `instrumentation-client.ts`. When using Turbopack `sentry.client.config.ts` will no longer work. Read more about the `instrumentation-client.ts` file: https://nextjs.org/docs/app/api-reference/file-conventions/instrumentation-client
+ ○ Compiling /instrumentation ...
+ ✓ Compiled /instrumentation in 22.3s (1135 modules)
+ ✓ Ready in 25.3s
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 2.9s (809 modules)
+ ⨯ Error: Your project's URL and Key are required to create a Supabase client!
+
+Check your Supabase project's API settings to find these values
+
+https://supabase.com/dashboard/project/_/settings/api
+    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
+    at createServerClient (webpack-internal:///(middleware)/./node_modules/@supabase/ssr/dist/module/createServerClient.js:13:15)
+    at Object.middleware$1 (webpack-internal:///(middleware)/./middleware.ts:72:102)
+    at mechanism.type (webpack-internal:///(middleware)/./node_modules/@sentry/nextjs/build/esm/common/wrapMiddlewareWithSentry.js:99:36)
+    at handleCallbackErrors (webpack-internal:///(middleware)/./node_modules/@sentry/core/build/esm/utils/handleCallbackErrors.js:34:26)
+    at eval (webpack-internal:///(middleware)/./node_modules/@sentry/nextjs/build/esm/common/wrapMiddlewareWithSentry.js:98:86)
+    at eval (webpack-internal:///(instrument)/./node_modules/@sentry/vercel-edge/build/esm/index.js:3287:15)
+    at handleCallbackErrors (webpack-internal:///(instrument)/./node_modules/@sentry/core/build/esm/utils/handleCallbackErrors.js:34:26)
+    at eval (webpack-internal:///(instrument)/./node_modules/@sentry/vercel-edge/build/esm/index.js:3286:81)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_hooks:91:14)
+    at SentryContextManager.with (webpack-internal:///(instrument)/./node_modules/@sentry/vercel-edge/build/esm/index.js:5123:36)
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 4.3s (1365 modules)
+ GET / 404 in 13ms
+ ○ Compiling /_not-found ...
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⨯ Error: Your project's URL and Key are required to create a Supabase client!
+
+Check your Supabase project's API settings to find these values
+
+https://supabase.com/dashboard/project/_/settings/api
+    at <unknown> (https://supabase.com/dashboard/project/_/settings/api)
+    at createServerClient (webpack-internal:///(middleware)/./node_modules/@supabase/ssr/dist/module/createServerClient.js:13:15)
+    at Object.middleware$1 (webpack-internal:///(middleware)/./middleware.ts:72:102)
+    at mechanism.type (webpack-internal:///(middleware)/./node_modules/@sentry/nextjs/build/esm/common/wrapMiddlewareWithSentry.js:99:36)
+    at handleCallbackErrors (webpack-internal:///(middleware)/./node_modules/@sentry/core/build/esm/utils/handleCallbackErrors.js:34:26)
+    at eval (webpack-internal:///(middleware)/./node_modules/@sentry/nextjs/build/esm/common/wrapMiddlewareWithSentry.js:98:86)
+    at eval (webpack-internal:///(instrument)/./node_modules/@sentry/vercel-edge/build/esm/index.js:3287:15)
+    at handleCallbackErrors (webpack-internal:///(instrument)/./node_modules/@sentry/core/build/esm/utils/handleCallbackErrors.js:34:26)
+    at eval (webpack-internal:///(instrument)/./node_modules/@sentry/vercel-edge/build/esm/index.js:3286:81)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_hooks:91:14)
+    at SentryContextManager.with (webpack-internal:///(instrument)/./node_modules/@sentry/vercel-edge/build/esm/index.js:5123:36)
+
+warn - The class `duration-[1500ms]` is ambiguous and matches multiple utilities.
+warn - If this is content and not a class, replace it with `duration-&lsqb;1500ms&rsqb;` to silence this warning.
+
+warn - The class `duration-[2000ms]` is ambiguous and matches multiple utilities.
+warn - If this is content and not a class, replace it with `duration-&lsqb;2000ms&rsqb;` to silence this warning.
+
+warn - The class `duration-[3000ms]` is ambiguous and matches multiple utilities.
+warn - If this is content and not a class, replace it with `duration-&lsqb;3000ms&rsqb;` to silence this warning.
+
+warn - The class `duration-[4000ms]` is ambiguous and matches multiple utilities.
+warn - If this is content and not a class, replace it with `duration-&lsqb;4000ms&rsqb;` to silence this warning.
+
+warn - The class `ease-[0.16,1,0.3,1]` is ambiguous and matches multiple utilities.
+warn - If this is content and not a class, replace it with `ease-&lsqb;0.16,1,0.3,1&rsqb;` to silence this warning.
+
+warn - The class `ease-[cubic-bezier(0.16,1,0.3,1)]` is ambiguous and matches multiple utilities.
+warn - If this is content and not a class, replace it with `ease-&lsqb;cubic-bezier(0.16,1,0.3,1)&rsqb;` to silence this warning.
+ ✓ Compiled /_not-found in 25.4s (4867 modules)
+ ⨯ Error [ERR_HTTP_HEADERS_SENT]: Cannot append headers after they are sent to the client
+    at ServerResponse.appendHeader (node:_http_outgoing:758:11)
+digest: "3795729352"
+ ⨯ Error: Your project's URL and Key are required to create a Supabase client!
+
+Check your Supabase project's API settings to find these values
+
+https://supabase.com/dashboard/project/_/settings/api
+    at createClient (./lib/supabase/server.ts:19:77)
+    at RootLayout (./app/layout.tsx:98:106)
+    at Object.apply (./app/layout.tsx:333:10)
+    at stringify (<anonymous>)
+digest: "3837695712"
+ ⨯ Error: Your project's URL and Key are required to create a Supabase client!
+
+Check your Supabase project's API settings to find these values
+
+https://supabase.com/dashboard/project/_/settings/api
+    at createClient (./lib/supabase/server.ts:19:77)
+    at RootLayout (./app/layout.tsx:98:106)
+    at Object.apply (./app/layout.tsx:333:10)
+    at stringify (<anonymous>)
+digest: "3837695712"
+ ✓ Compiled in 2.4s (1653 modules)
+ ✓ Compiled in 833ms (1653 modules)
+ ✓ Compiled in 907ms (1653 modules)
+ ✓ Compiled in 1076ms (1653 modules)
+ ✓ Compiled in 732ms (1653 modules)
+ ✓ Compiled in 694ms (1653 modules)
+ ✓ Compiled in 632ms (1653 modules)
+ ✓ Compiled in 622ms (1653 modules)
+ ✓ Compiled in 645ms (1653 modules)
+ ✓ Compiled in 648ms (1653 modules)
+ ✓ Compiled in 874ms (1653 modules)
+ ✓ Compiled in 915ms (1653 modules)
+ ✓ Compiled in 978ms (1653 modules)
+ ✓ Compiled in 1172ms (1653 modules)
+ ✓ Compiled in 767ms (1653 modules)
+ ✓ Compiled in 1155ms (1653 modules)
+ ✓ Compiled in 1131ms (1653 modules)
+ ✓ Compiled in 1122ms (1653 modules)
+ ✓ Compiled in 964ms (1653 modules)
+ ✓ Compiled in 1113ms (1653 modules)
+ ✓ Compiled in 835ms (1653 modules)
+ ✓ Compiled in 1091ms (1653 modules)
+ ✓ Compiled in 1042ms (1653 modules)
+ ✓ Compiled in 1186ms (1653 modules)
+ ✓ Compiled in 697ms (1653 modules)
+ ✓ Compiled in 657ms (1653 modules)
+ ✓ Compiled in 640ms (1653 modules)
+ ✓ Compiled in 638ms (1653 modules)
+ ✓ Compiled in 653ms (1653 modules)
+ ✓ Compiled in 720ms (1653 modules)
+ ✓ Compiled in 874ms (1653 modules)
+ ✓ Compiled in 792ms (1653 modules)
+ ✓ Compiled in 928ms (1653 modules)
+ ✓ Compiled in 1212ms (1653 modules)
+ ✓ Compiled in 738ms (1653 modules)
+ ✓ Compiled in 728ms (1653 modules)
+ ✓ Compiled in 690ms (1653 modules)
+ ✓ Compiled in 673ms (1653 modules)
+ ✓ Compiled in 684ms (1653 modules)
+ ✓ Compiled in 670ms (1653 modules)
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (184kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (139kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (215kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+ ✓ Compiled in 2.2s (1653 modules)
+ ✓ Compiled in 1015ms (1653 modules)
+ ✓ Compiled in 720ms (1653 modules)
+ ✓ Compiled in 680ms (1653 modules)
+ ✓ Compiled in 663ms (1653 modules)
+ ✓ Compiled in 631ms (1653 modules)
+ ✓ Compiled in 622ms (1653 modules)
+ ✓ Compiled in 617ms (1653 modules)
+ ✓ Compiled in 647ms (1653 modules)
+ ✓ Compiled in 688ms (1653 modules)
+ ✓ Compiled in 705ms (1653 modules)
+ ✓ Compiled in 1049ms (1653 modules)
+ ✓ Compiled in 679ms (1653 modules)
+ ✓ Compiled in 639ms (1653 modules)
+ ✓ Compiled in 606ms (1653 modules)
+ ✓ Compiled in 627ms (1653 modules)
+ ✓ Compiled in 632ms (1653 modules)
+ ✓ Compiled in 605ms (1653 modules)
+ ✓ Compiled in 622ms (1653 modules)
+ ✓ Compiled in 619ms (1653 modules)
+ ✓ Compiled in 621ms (1653 modules)
+ ✓ Compiled in 1135ms (1653 modules)
+ ✓ Compiled in 664ms (1653 modules)
+ ✓ Compiled in 645ms (1653 modules)
+ ✓ Compiled in 617ms (1653 modules)
+ ✓ Compiled in 636ms (1653 modules)
+ ✓ Compiled in 609ms (1653 modules)
+ ✓ Compiled in 610ms (1653 modules)
+ ✓ Compiled in 608ms (1653 modules)
+ ✓ Compiled in 611ms (1653 modules)
+ ✓ Compiled in 632ms (1653 modules)
+ ✓ Compiled in 1080ms (1653 modules)
+ ✓ Compiled in 689ms (1653 modules)
+ ✓ Compiled in 689ms (1653 modules)
+ ✓ Compiled in 725ms (1653 modules)
+ ✓ Compiled in 712ms (1653 modules)
+ ✓ Compiled in 690ms (1653 modules)
+ ✓ Compiled in 686ms (1653 modules)
+ ✓ Compiled in 654ms (1653 modules)
+ ✓ Compiled in 663ms (1653 modules)
+ ✓ Compiled in 718ms (1653 modules)
+ ✓ Compiled in 934ms (1653 modules)
+ ✓ Compiled in 740ms (1653 modules)
+ ✓ Compiled in 731ms (1653 modules)
+ ✓ Compiled in 712ms (1653 modules)
+ ✓ Compiled in 679ms (1653 modules)
+ ✓ Compiled in 691ms (1653 modules)
+ ✓ Compiled in 692ms (1653 modules)
+ ✓ Compiled in 680ms (1653 modules)
+ ✓ Compiled in 666ms (1653 modules)
+ ✓ Compiled in 1119ms (1653 modules)
+ ✓ Compiled in 791ms (1653 modules)
+ ✓ Compiled in 728ms (1653 modules)
+ ✓ Compiled in 707ms (1653 modules)
+ ✓ Compiled in 695ms (1653 modules)
+ ✓ Compiled in 673ms (1653 modules)
+ ✓ Compiled in 663ms (1653 modules)
+ ✓ Compiled in 661ms (1653 modules)
+ ✓ Compiled in 690ms (1653 modules)
+ ✓ Compiled in 723ms (1653 modules)
+ ✓ Compiled in 1112ms (1653 modules)
+ ✓ Compiled in 726ms (1653 modules)
+ ✓ Compiled in 3.3s (1653 modules)
+ ✓ Compiled in 2.1s (1653 modules)
+ ✓ Compiled in 704ms (1653 modules)
+ ✓ Compiled in 679ms (1653 modules)
+ ✓ Compiled in 596ms (1653 modules)
+ ✓ Compiled in 642ms (1653 modules)
+ ✓ Compiled in 615ms (1653 modules)
+ ✓ Compiled in 612ms (1653 modules)
+ ✓ Compiled in 617ms (1653 modules)
+ ✓ Compiled in 622ms (1653 modules)
+ ✓ Compiled in 815ms (1653 modules)
+ ✓ Compiled in 853ms (1653 modules)
+ ✓ Compiled in 682ms (1653 modules)
+ ✓ Compiled in 656ms (1653 modules)
+ ✓ Compiled in 629ms (1653 modules)
+ ✓ Compiled in 607ms (1653 modules)
+ ✓ Compiled in 585ms (1653 modules)
+ ✓ Compiled in 598ms (1653 modules)
+ ✓ Compiled in 616ms (1653 modules)
+ ✓ Compiled in 583ms (1653 modules)
+ ✓ Compiled in 699ms (1653 modules)
+ ✓ Compiled in 1019ms (1653 modules)
+ ✓ Compiled in 686ms (1653 modules)
+ ✓ Compiled in 656ms (1653 modules)
+ ✓ Compiled in 615ms (1653 modules)
+ ✓ Compiled in 624ms (1653 modules)
+ ✓ Compiled in 615ms (1653 modules)
+ ✓ Compiled in 617ms (1653 modules)
+ ✓ Compiled in 617ms (1653 modules)
+ ✓ Compiled in 624ms (1653 modules)
+ ✓ Compiled in 655ms (1653 modules)
+ ✓ Compiled in 988ms (1653 modules)
+ ✓ Compiled in 685ms (1653 modules)
+ ✓ Compiled in 646ms (1653 modules)
+ ✓ Compiled in 613ms (1653 modules)
+ ✓ Compiled in 614ms (1653 modules)
+ ✓ Compiled in 617ms (1653 modules)
+ ✓ Compiled in 605ms (1653 modules)
+ ✓ Compiled in 596ms (1653 modules)
+ ✓ Compiled in 604ms (1653 modules)
+ ✓ Compiled in 652ms (1653 modules)
+ ✓ Compiled in 1098ms (1653 modules)
+ ✓ Compiled in 674ms (1653 modules)
+ ✓ Compiled in 663ms (1653 modules)
+ ✓ Compiled in 636ms (1653 modules)
+ ✓ Compiled in 652ms (1653 modules)
+ ✓ Compiled in 633ms (1653 modules)
+ ✓ Compiled in 615ms (1653 modules)
+ ✓ Compiled in 628ms (1653 modules)
+ ✓ Compiled in 610ms (1653 modules)
+ ✓ Compiled in 648ms (1653 modules)
+ ✓ Compiled in 1059ms (1653 modules)
+ ✓ Compiled in 699ms (1653 modules)
+ ✓ Compiled in 657ms (1653 modules)
+ ✓ Compiled in 628ms (1653 modules)
+ ✓ Compiled in 593ms (1653 modules)
+ ✓ Compiled in 603ms (1653 modules)
+ ✓ Compiled in 607ms (1653 modules)
+ ✓ Compiled in 604ms (1653 modules)
+ ✓ Compiled in 601ms (1653 modules)
+ ✓ Compiled in 631ms (1653 modules)
+ ✓ Compiled in 980ms (1653 modules)

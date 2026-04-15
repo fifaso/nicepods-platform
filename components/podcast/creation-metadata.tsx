@@ -74,6 +74,31 @@ interface IntelligenceDataRowProperties {
 }
 
 /**
+ * transformMetadataUnknownToDisplayValueAction:
+ * Misión: Mapear y transformar valores 'unknown' del Metal a tipos seguros del Cristal.
+ * [MANDATO ESTRATEGA]: Erradicación de la deriva de 'unknown'.
+ */
+function transformMetadataUnknownToDisplayValueAction(unknownValue: unknown): string | number | null | undefined {
+  if (unknownValue === null || unknownValue === undefined) {
+    return undefined;
+  }
+
+  if (typeof unknownValue === 'string' || typeof unknownValue === 'number') {
+    return unknownValue;
+  }
+
+  if (typeof unknownValue === 'object') {
+    // Si es un objeto vacío, lo tratamos como nulo para el Cristal.
+    if (Object.keys(unknownValue as object).length === 0) {
+      return undefined;
+    }
+    return JSON.stringify(unknownValue);
+  }
+
+  return String(unknownValue);
+}
+
+/**
  * IntelligenceDataRow: Fila de datos de alta densidad para inspección.
  * [RESOLUCIÓN TS2322]: Control de tipos para evitar asignaciones de objetos vacíos.
  */
@@ -82,9 +107,6 @@ function IntelligenceDataRow({ labelHeaderText, displayValue, IconComponent }: I
     return null;
   }
   
-  // Garantizamos que el valor sea una cadena o número para el Cristal.
-  const finalDisplayContent = typeof displayValue === 'object' ? JSON.stringify(displayValue) : String(displayValue);
-
   return (
     <div className="group transition-all duration-500 isolate">
       <div className="flex items-center gap-2 mb-1">
@@ -92,7 +114,7 @@ function IntelligenceDataRow({ labelHeaderText, displayValue, IconComponent }: I
         <p className="text-[9px] text-zinc-600 font-black uppercase tracking-widest">{labelHeaderText}</p>
       </div>
       <p className="text-sm text-zinc-300 font-bold leading-relaxed group-hover:text-white transition-colors">
-        {finalDisplayContent}
+        {displayValue}
       </p>
     </div>
   );
@@ -103,10 +125,12 @@ function IntelligenceDataRow({ labelHeaderText, displayValue, IconComponent }: I
  */
 export function CreationMetadata({ 
   intelligenceMetadata, 
-  intelligenceResearchSourcesCollection = [] 
+  intelligenceResearchSourcesCollection = [],
+  intelligenceResearchSources = []
 }: { 
   intelligenceMetadata: CreationMetadataPayload | null; 
-  intelligenceResearchSourcesCollection?: ResearchSource[] 
+  intelligenceResearchSourcesCollection?: ResearchSource[];
+  intelligenceResearchSources?: ResearchSource[];
 }) {
   
   if (!intelligenceMetadata) {
@@ -149,11 +173,11 @@ export function CreationMetadata({
           <IntelligenceDataRow labelHeaderText="Agente de Autoridad" displayValue={agentIntelligenceNameDescriptor} />
           <IntelligenceDataRow 
             labelHeaderText="Nivel de Peritaje" 
-            displayValue={methodologyInputsDossier.narrativeDepth || methodologyInputsDossier.depthValue || "Análisis Estándar"} 
+            displayValue={transformMetadataUnknownToDisplayValueAction(methodologyInputsDossier.narrativeDepth || methodologyInputsDossier.depthValue || "Análisis Estándar")}
           />
           <IntelligenceDataRow 
             labelHeaderText="Frecuencia Emocional" 
-            displayValue={methodologyInputsDossier.voiceStyleSelection || methodologyInputsDossier.selectedToneIdentifier || "Equilibrada"} 
+            displayValue={transformMetadataUnknownToDisplayValueAction(methodologyInputsDossier.voiceStyleSelection || methodologyInputsDossier.selectedToneIdentifier || "Equilibrada")}
           />
         </div>
       </IntelligenceMetadataSection>
@@ -217,22 +241,22 @@ export function CreationMetadata({
         <div className="space-y-6">
           {methodologyStyleIdentifier === 'solo' && (
             <>
-              <IntelligenceDataRow labelHeaderText="Eje Temático Principal" displayValue={methodologyInputsDossier.topic || methodologyInputsDossier.soloTopicSelection} />
-              <IntelligenceDataRow labelHeaderText="Motivación de la Crónica" displayValue={methodologyInputsDossier.motivationText || methodologyInputsDossier.soloMotivationContentText} />
+              <IntelligenceDataRow labelHeaderText="Eje Temático Principal" displayValue={transformMetadataUnknownToDisplayValueAction(methodologyInputsDossier.topic || methodologyInputsDossier.soloTopicSelection)} />
+              <IntelligenceDataRow labelHeaderText="Motivación de la Crónica" displayValue={transformMetadataUnknownToDisplayValueAction(methodologyInputsDossier.motivationText || methodologyInputsDossier.soloMotivationContentText)} />
             </>
           )}
           {methodologyStyleIdentifier === 'link' && (
             <div className="space-y-6 isolate">
               <div className="flex flex-wrap items-center gap-3 py-2">
                 <span className="text-[10px] font-black text-primary bg-primary/10 px-4 py-2 rounded-xl border border-primary/20 shadow-xl uppercase tracking-widest">
-                    {methodologyInputsDossier.topicA || methodologyInputsDossier.linkTopicPrimary}
+                    {String(methodologyInputsDossier.topicA || methodologyInputsDossier.linkTopicPrimary || "")}
                 </span>
                 <ChevronRight className="h-5 w-5 text-zinc-800" />
                 <span className="text-[10px] font-black text-primary bg-primary/10 px-4 py-2 rounded-xl border border-primary/20 shadow-xl uppercase tracking-widest">
-                    {methodologyInputsDossier.topicB || methodologyInputsDossier.linkTopicSecondary}
+                    {String(methodologyInputsDossier.topicB || methodologyInputsDossier.linkTopicSecondary || "")}
                 </span>
               </div>
-              <IntelligenceDataRow labelHeaderText="Catalizador de Síntesis" displayValue={methodologyInputsDossier.catalyst || methodologyInputsDossier.linkCatalystElement} />
+              <IntelligenceDataRow labelHeaderText="Catalizador de Síntesis" displayValue={transformMetadataUnknownToDisplayValueAction(methodologyInputsDossier.catalyst || methodologyInputsDossier.linkCatalystElement)} />
             </div>
           )}
           {intelligenceMetadata.creationMode === 'remix' && (
@@ -242,10 +266,15 @@ export function CreationMetadata({
       </IntelligenceMetadataSection>
 
       {/* V. BIBLIOGRAFÍA DE GROUNDING [SINCRO V8.0] */}
-      {intelligenceResearchSourcesCollection && intelligenceResearchSourcesCollection.length > 0 && (
-        <IntelligenceMetadataSection titleTextContent="Evidencias de Autoridad" IconComponent={Globe}>
-          <div className="grid grid-cols-1 gap-3">
-            {intelligenceResearchSourcesCollection.map((researchSourceItem, sourceIndex) => (
+      {(() => {
+        const finalResearchSourcesCollection = intelligenceResearchSourcesCollection.length > 0
+          ? intelligenceResearchSourcesCollection
+          : intelligenceResearchSources;
+
+        return finalResearchSourcesCollection.length > 0 && (
+          <IntelligenceMetadataSection titleTextContent="Evidencias de Autoridad" IconComponent={Globe}>
+            <div className="grid grid-cols-1 gap-3">
+              {finalResearchSourcesCollection.map((researchSourceItem, sourceIndex) => (
               <a
                 key={sourceIndex}
                 href={researchSourceItem.uniformResourceLocator}
@@ -265,10 +294,11 @@ export function CreationMetadata({
                   <ExternalLink className="h-4 w-4 text-zinc-700 group-hover:text-primary shrink-0" />
                 </div>
               </a>
-            ))}
-          </div>
-        </IntelligenceMetadataSection>
-      )}
+              ))}
+            </div>
+          </IntelligenceMetadataSection>
+        );
+      })()}
 
     </div>
   );

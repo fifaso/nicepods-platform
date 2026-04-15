@@ -248,9 +248,9 @@ export function FullScreenPlayer() {
               <div className="h-full w-full">
                 {/* [FIX V31.0]: Sincronización nominal total con ScriptViewer properties */}
                 <ScriptViewer 
-                  narrativeScriptContent={currentPodcast.script_text} 
-                  playbackDurationSeconds={currentPodcast.duration_seconds || totalAudioDurationSeconds}
-                  className="px-8 md:px-16" 
+                  narrativeScriptContent={currentPodcast?.script_text}
+                  playbackDurationSecondsMagnitude={currentPodcast?.duration_seconds || totalAudioDurationSeconds}
+                  additionalTailwindClassName="px-8 md:px-16"
                 />
               </div>
 
@@ -265,7 +265,7 @@ export function FullScreenPlayer() {
             <div className="max-w-4xl mx-auto w-full space-y-6">
               <Slider 
                 value={[currentPlaybackTimeSeconds]} 
-                max={currentPodcast.duration_seconds || totalAudioDurationSeconds || 100} 
+                max={currentPodcast?.duration_seconds || totalAudioDurationSeconds || 100}
                 step={0.1} 
                 onValueChange={handleTimelineAdjustmentAction} 
                 className="cursor-pointer" 
@@ -276,7 +276,7 @@ export function FullScreenPlayer() {
                 </span>
                 <div className="h-[1px] flex-1 mx-10 bg-white/10" />
                 <span className="text-zinc-600 tabular-nums">
-                  {formatTime(currentPodcast.duration_seconds || totalAudioDurationSeconds)}
+                  {formatTime(currentPodcast?.duration_seconds || totalAudioDurationSeconds)}
                 </span>
               </div>
             </div>
