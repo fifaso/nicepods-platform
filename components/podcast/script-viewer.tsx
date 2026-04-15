@@ -1,19 +1,20 @@
 /**
  * ARCHIVO: components/podcast/script-viewer.tsx
- * VERSIÓN: 8.0 (NicePod Teleprompter - High-Contrast Industrial Edition)
- * PROTOCOLO: MADRID RESONANCE V4.0
+ * VERSIÓN: 9.0 (NicePod Teleprompter - Nominal Sync & ZAP Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.9
  * 
- * Misión: Renderizar la narrativa con legibilidad de grado industrial y 
- * sincronía milimétrica con el hardware de audio.
- * [REFORMA V8.0]: Sincronización nominal absoluta, erradicación de abreviaturas 
- * y optimización de la cinematografía de desplazamiento (Auto-Scroll).
+ * Misión: Renderizar la narrativa de capital intelectual con legibilidad industrial 
+ * y sincronía milimétrica con el pulso acústico del hardware.
+ * [REFORMA V9.0]: Resolución definitiva de TS2339 mediante sincronización con 
+ * 'PodcastScript' V12.0. Sustitución de 'cn' por 'classNamesUtility'. 
+ * Aplicación absoluta de la Zero Abbreviations Policy (ZAP).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
 
 import { calculateActiveParagraphIndex } from "@/lib/podcast-utils";
-import { cn } from "@/lib/utils";
+import { classNamesUtility } from "@/lib/utils";
 import { PodcastScript } from "@/types/podcast";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -21,80 +22,87 @@ import { useEffect, useMemo, useRef, useState } from "react";
  * INTERFAZ SOBERANA: ScriptViewerProperties
  */
 interface ScriptViewerProperties {
-  /** narrativeScriptContent: El corpus narrativo en formato estructurado o cadena de texto. */
+  /** narrativeScriptContent: El corpus narrativo (estructurado o cadena). */
   narrativeScriptContent: string | PodcastScript | null;
-  /** playbackDurationSeconds: Magnitud temporal total del activo acústico. */
-  playbackDurationSeconds?: number;
-  /** className: Inyección de estilos adicionales para el contenedor táctico. */
-  className?: string;
+  /** playbackDurationSecondsMagnitude: Magnitud temporal total del activo. */
+  playbackDurationSecondsMagnitude?: number;
+  /** additionalTailwindClassName: Inyección de estilos para el contenedor. */
+  additionalTailwindClassName?: string;
 }
 
 /**
- * ScriptViewer: El motor de visualización y seguimiento de capital intelectual.
+ * ScriptViewer: El motor de visualización y seguimiento de narrativa industrial.
  * 
- * Utiliza el bus de eventos 'nicepod-timeupdate' para garantizar una 
- * fluidez de 60 fotogramas por segundo en la actualización del foco narrativo.
+ * Consume el bus de eventos 'nicepod-timeupdate' para garantizar el foco 
+ * cinemático a 60 FPS sobre el párrafo activo.
  */
 export const ScriptViewer = ({
   narrativeScriptContent,
-  playbackDurationSeconds = 0,
-  className
+  playbackDurationSecondsMagnitude = 0,
+  additionalTailwindClassName
 }: ScriptViewerProperties) => {
 
   // --- I. ESTADOS DE SINCRONÍA DE HARDWARE ---
-  const [currentPlaybackTimeSeconds, setCurrentPlaybackTimeSeconds] = useState<number>(0);
-  const scrollContainerReference = useRef<HTMLDivElement>(null);
-  const activeParagraphReference = useRef<HTMLParagraphElement>(null);
+  const [currentPlaybackTimeSecondsMagnitude, setCurrentPlaybackTimeSecondsMagnitude] = useState<number>(0);
+  const scrollContainerElementReference = useRef<HTMLDivElement>(null);
+  const activeParagraphElementReference = useRef<HTMLParagraphElement>(null);
 
   /**
-   * 1. PROTOCOLO DE SINTONÍA DEL PULSO (Hardware Listener)
-   * Capturamos la telemetría emitida por el AudioProvider para orquestar 
-   * el movimiento del visor en tiempo real.
+   * 1. PROTOCOLO DE SINTONÍA DEL PULSO (Hardware Telemetry Listener)
+   * Capturamos la telemetría acústica para orquestar el visor en tiempo real.
    */
   useEffect(() => {
-    const handleHardwarePlaybackSynchronization = (event: Event) => {
-      const customEvent = event as CustomEvent<{ currentTime: number; duration: number }>;
-      if (customEvent.detail) {
-        setCurrentPlaybackTimeSeconds(customEvent.detail.currentTime);
+    const handleHardwarePlaybackSynchronizationAction = (synchronizationEvent: Event) => {
+      const customTelemetryEvent = synchronizationEvent as CustomEvent<{ currentTime: number; duration: number }>;
+      if (customTelemetryEvent.detail) {
+        setCurrentPlaybackTimeSecondsMagnitude(customTelemetryEvent.detail.currentTime);
       }
     };
 
-    window.addEventListener('nicepod-timeupdate', handleHardwarePlaybackSynchronization as EventListener);
+    window.addEventListener('nicepod-timeupdate', handleHardwarePlaybackSynchronizationAction as EventListener);
+    
     return () => {
-      window.removeEventListener('nicepod-timeupdate', handleHardwarePlaybackSynchronization as EventListener);
+      window.removeEventListener('nicepod-timeupdate', handleHardwarePlaybackSynchronizationAction as EventListener);
     };
   }, []);
 
   /**
    * 2. REFINERÍA NARRATIVA (Normalización de la Bóveda NKV)
-   * Procesa la entrada polimórfica y la fragmenta en bloques de sabiduría atómicos.
+   * Procesa la entrada polimórfica y fragmenta la sabiduría en bloques atómicos.
+   * [RESOLUCIÓN TS2339]: Sincronización con descriptores nominales V12.0.
    */
-  const narrativeParagraphs = useMemo(() => {
+  const narrativeParagraphsCollection = useMemo(() => {
     if (!narrativeScriptContent) {
       return [];
     }
 
-    let rawNarrativeBody = "";
+    let rawNarrativeContentText = "";
     
-    // Gestión de tipos de entrada (Objeto estructurado vs Cadena serializada)
+    // Peritaje de tipo de entrada (Contrato estructurado vs Cadena cruda)
     if (typeof narrativeScriptContent === 'object' && narrativeScriptContent !== null) {
-      rawNarrativeBody = narrativeScriptContent.script_body || narrativeScriptContent.script_plain || "";
+      rawNarrativeContentText = 
+        narrativeScriptContent.scriptBodyContent || 
+        narrativeScriptContent.scriptPlainContent || 
+        "";
     } else {
-      // Intento de recuperación heurística si el dato arriba como cadena JSON
+      // Intento de recuperación heurística si el dato arriba como cadena JSON serializada
       if (narrativeScriptContent.trim().startsWith('{')) {
         try {
-          const parsedContent = JSON.parse(narrativeScriptContent);
-          rawNarrativeBody = parsedContent.script_body || parsedContent.text || narrativeScriptContent;
-        } catch (exception) {
-          rawNarrativeBody = narrativeScriptContent;
+          const parsedNarrativeContent = JSON.parse(narrativeScriptContent);
+          rawNarrativeContentText = 
+            parsedNarrativeContent.scriptBodyContent || 
+            parsedNarrativeContent.legacyText || 
+            narrativeScriptContent;
+        } catch (parsingException) {
+          rawNarrativeContentText = narrativeScriptContent;
         }
       } else {
-        rawNarrativeBody = narrativeScriptContent;
+        rawNarrativeContentText = narrativeScriptContent;
       }
     }
 
-    // Higiene técnica: Neutralización de HTML residual y segmentación por saltos de línea.
-    return rawNarrativeBody
+    // Higiene Técnica: Neutralización de marcado y segmentación por saltos de línea
+    return rawNarrativeContentText
       .replace(/<[^>]*>?/gm, '')
       .split(/\n+/)
       .filter((paragraphText) => paragraphText.trim().length > 0);
@@ -102,35 +110,33 @@ export const ScriptViewer = ({
 
   /**
    * 3. CÁLCULO DE POSICIONAMIENTO SEMÁNTICO
-   * Determinamos el índice del párrafo que debe poseer el foco visual 
-   * basándonos en la relación tiempo/longitud.
+   * Determinamos el índice de foco basándonos en la telemetría temporal.
    */
   const currentActiveParagraphIndex = useMemo(() => {
     return calculateActiveParagraphIndex(
-      currentPlaybackTimeSeconds, 
-      playbackDurationSeconds, 
-      narrativeParagraphs.length
+      currentPlaybackTimeSecondsMagnitude, 
+      playbackDurationSecondsMagnitude, 
+      narrativeParagraphsCollection.length
     );
-  }, [currentPlaybackTimeSeconds, playbackDurationSeconds, narrativeParagraphs.length]);
+  }, [currentPlaybackTimeSecondsMagnitude, playbackDurationSecondsMagnitude, narrativeParagraphsCollection.length]);
 
   /**
    * 4. CINEMATOGRAFÍA DE DESPLAZAMIENTO (Dynamic Auto-Scroll)
-   * Aseguramos que el conocimiento activo se sitúe siempre en el 
-   * centro del campo visual del Voyager.
+   * Aseguramos que el conocimiento activo se sitúe siempre en el eje axial visual.
    */
   useEffect(() => {
-    if (activeParagraphReference.current && scrollContainerReference.current) {
-      activeParagraphReference.current.scrollIntoView({
+    if (activeParagraphElementReference.current && scrollContainerElementReference.current) {
+      activeParagraphElementReference.current.scrollIntoView({
         behavior: 'smooth',
         block: 'center',
       });
     }
   }, [currentActiveParagraphIndex]);
 
-  // --- VISTA DE ESTADO DEFENSIVO ---
-  if (narrativeParagraphs.length === 0) {
+  // --- VISTA DE ESTADO DEFENSIVO (SYNCHRONIZING) ---
+  if (narrativeParagraphsCollection.length === 0) {
     return (
-      <div className="h-full w-full flex items-center justify-center opacity-40 animate-pulse">
+      <div className="h-full w-full flex items-center justify-center opacity-30 animate-pulse isolate">
         <span className="text-[10px] font-black uppercase tracking-[0.6em] italic text-zinc-500">
           Sincronizando Registro Narrativo...
         </span>
@@ -140,36 +146,36 @@ export const ScriptViewer = ({
 
   return (
     <div
-      ref={scrollContainerReference}
-      className={cn(
-        "h-full w-full overflow-y-auto no-scrollbar space-y-12 md:space-y-20 py-40 px-6",
-        className
+      ref={scrollContainerElementReference}
+      className={classNamesUtility(
+        "h-full w-full overflow-y-auto no-scrollbar space-y-14 md:space-y-24 py-48 px-8 isolate",
+        additionalTailwindClassName
       )}
     >
-      {narrativeParagraphs.map((paragraphContent, paragraphIndex) => {
-        const isParagraphActive = paragraphIndex === currentActiveParagraphIndex;
+      {narrativeParagraphsCollection.map((paragraphContentText, paragraphIndex) => {
+        const isParagraphActiveStatus = paragraphIndex === currentActiveParagraphIndex;
 
         return (
           <p
             key={paragraphIndex}
-            ref={isParagraphActive ? activeParagraphReference : null}
-            className={cn(
-              "text-xl md:text-5xl font-black leading-[1.1] tracking-tighter transition-all duration-1000 ease-out",
-              isParagraphActive
-                ? "text-white opacity-100 scale-105 drop-shadow-[0_0_30px_rgba(255,255,255,0.2)]"
-                : "text-zinc-800 opacity-30 scale-100" 
+            ref={isParagraphActiveStatus ? activeParagraphElementReference : null}
+            className={classNamesUtility(
+              "text-xl md:text-5xl font-black leading-[1.15] tracking-tighter transition-all duration-1000 ease-out isolate",
+              isParagraphActiveStatus
+                ? "text-white opacity-100 scale-105 drop-shadow-[0_0_40px_rgba(255,255,255,0.15)]"
+                : "text-zinc-900 opacity-20 scale-100" 
             )}
           >
-            {paragraphContent}
+            {paragraphContentText}
           </p>
         );
       })}
 
-      {/* PROTOCOLO DE CIERRE VISUAL SOBERANO */}
-      <div className="pt-32 pb-80 flex flex-col items-center gap-8 opacity-20">
-        <div className="h-px w-32 bg-gradient-to-r from-transparent via-white to-transparent" />
-        <span className="text-[10px] font-black uppercase tracking-[1em] text-white">
-          Fin de la Crónica
+      {/* PROTOCOLO DE FINALIZACIÓN VISUAL (SINK) */}
+      <div className="pt-40 pb-96 flex flex-col items-center gap-10 opacity-10 grayscale isolate">
+        <div className="h-px w-48 bg-gradient-to-r from-transparent via-white to-transparent" />
+        <span className="text-[9px] font-black uppercase tracking-[1.2em] text-white">
+          Cierre de Crónica
         </span>
       </div>
     </div>
@@ -177,13 +183,13 @@ export const ScriptViewer = ({
 };
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V8.0):
- * 1. Zero Abbreviations Policy: Se han erradicado términos como 'Props', 'currentTime', 'duration', 
- *    'ref', 'rawBody', 'p' e 'index'.
- * 2. Visual Ergonomics: Se aumentó el espaciado vertical (padding-y-40 y margin-bottom-80) para 
- *    garantizar que el Voyager nunca lea en los extremos físicos de la pantalla.
- * 3. Chromatic Density: El uso de 'zinc-800' para párrafos inactivos asegura que la atención 
- *    permanezca en el dato activo (blanco puro) sin generar fatiga visual por contraste extremo.
- * 4. Performance Guard: El filtrado de párrafos ocurre en el hilo secundario de 'useMemo', 
- *    protegiendo el Main Thread de bloqueos por procesamiento de texto denso.
+ * NOTA TÉCNICA DEL ARCHITECT (V9.0):
+ * 1. Zero Abbreviations Policy: Purga absoluta de acrónimos en props y lógica interna. 
+ *    'cn' -> 'classNamesUtility', 'ref' -> 'elementReference', 'p' -> 'paragraphIndex'.
+ * 2. TS2339 Resolution: Alineación estricta con 'PodcastScript' V12.0 utilizando 
+ *    'scriptBodyContent' y 'scriptPlainContent'.
+ * 3. Chromatic Density: El uso de 'zinc-900' para estados inactivos sobre fondo oscuro 
+ *    minimiza la fatiga ocular y maximiza el contraste del foco activo.
+ * 4. Hardware Hygiene: El oidor de eventos se elimina físicamente al desmontar el componente 
+ *    para liberar recursos del bus de la ventana.
  */
