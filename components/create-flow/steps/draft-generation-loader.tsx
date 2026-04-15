@@ -108,7 +108,7 @@ export function DraftGenerationLoader({ formData: creationFormDataSnapshot }: Dr
    * flowActionsAuthorityActuator:
    * Inyectamos el orquestador para acceder al protocolo de hidratación física.
    */
-  const { hydrateDraftData, isGenerating } = useFlowActions({
+  const { hydrateDraftData, isGeneratingProcessActive } = useFlowActions({
     transitionTo: transitionToNextStateAction,
     goBack: navigateBackAction,
     clearDraft: () => { } 

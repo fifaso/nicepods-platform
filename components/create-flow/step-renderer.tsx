@@ -89,7 +89,7 @@ export function StepRenderer({
   });
 
   const { 
-    transitionToNextStateAction, 
+    transitionTo: transitionToNextStateAction,
     activePath: activeMasterFlowPathCollection 
   } = navigationAuthority;
 
@@ -119,7 +119,7 @@ export function StepRenderer({
 
   const activeStepComponentMarkup = useMemo(() => {
     switch (currentFlowState) {
-      case 'SELECTING_PURPOSE': return <PurposeSelectionStep existingDraftsCollection={initialDraftsCollection} />;
+      case 'SELECTING_PURPOSE': return <PurposeSelectionStep existingDraftsCollection={initialDraftsCollection as any} />;
       case 'DEOXYRIBONUCLEIC_ACID_SYNTHTESIS_CHECK': return <DnaInterviewStep />;
       case 'PULSE_RADAR_SCANNER': return <PulseRadarStep />;
       case 'BRIEFING_SANITIZATION_REVIEW': return <ScriptEditorStep />;

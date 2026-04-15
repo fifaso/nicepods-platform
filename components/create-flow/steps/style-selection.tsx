@@ -77,24 +77,29 @@ export function StyleSelectionStep() {
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-grow isolate">
-        {STYLE_OPTIONS_COLLECTION.map((optionItem) => (
-          <SelectionCard
-            key={optionItem.valueIdentification}
-            icon={optionItem.iconComponent}
-            title={optionItem.displayLabelText}
-            description={optionItem.descriptionContentText}
-            isSelected={selectedStyleSelectionValue === optionItem.valueIdentification}
-            /** 
-             * [RESOLUCIÓN TS2367]: Mapeo industrial de clic. 
-             * Se purifica el tipo de entrada para asegurar compatibilidad con el esquema.
-             */
-            onClick={optionItem.isOptionDisabledStatus ? undefined : () => 
-              setValue('styleSelection', optionItem.valueIdentification as "solo" | "link" | "archetype", { shouldValidate: true })
-            }
-            badgeText={optionItem.badgeText}
-            disabled={optionItem.isOptionDisabledStatus}
-          />
-        ))}
+        {STYLE_OPTIONS_COLLECTION.map((optionItem) => {
+          const isOptionDisabledStatus = 'isOptionDisabledStatus' in optionItem ? optionItem.isOptionDisabledStatus : false;
+          const badgeText = 'badgeText' in optionItem ? optionItem.badgeText : undefined;
+
+          return (
+            <SelectionCard
+              key={optionItem.valueIdentification}
+              icon={<optionItem.iconComponent className="h-6 w-6" />}
+              title={optionItem.displayLabelText}
+              description={optionItem.descriptionContentText}
+              isSelected={selectedStyleSelectionValue === optionItem.valueIdentification}
+              /**
+               * [RESOLUCIÓN TS2367]: Mapeo industrial de clic.
+               * Se purifica el tipo de entrada para asegurar compatibilidad con el esquema.
+               */
+              onClick={isOptionDisabledStatus ? () => {} : () =>
+                setValue('styleSelection', optionItem.valueIdentification as "solo" | "link" | "archetype", { shouldValidate: true })
+              }
+              badgeText={badgeText}
+              disabled={isOptionDisabledStatus}
+            />
+          );
+        })}
       </div>
       
       {/* ESPACIADOR TÁCTICO */}
