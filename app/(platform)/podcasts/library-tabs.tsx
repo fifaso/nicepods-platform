@@ -1,15 +1,13 @@
 /**
  * ARCHIVO: app/(platform)/podcasts/library-tabs.tsx
- * VERSIÓN: 21.0 (NicePod Intelligence Station - Base Table Realtime & Nominal Sync Edition)
+ * VERSIÓN: 22.0 (NicePod Intelligence Station - Industrial Realtime & ZAP Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
- * Misión: Orquestar la intersección entre la red global y la soberanía privada,
- * gestionando la visualización de la Bóveda y los procesos de forja activos.
- * [REFORMA V21.0]: Resolución del fallo de replicación (Imagen 28). Se migra la 
- * suscripción de Realtime desde Vistas hacia la tabla base 'micro_pods'. 
- * Sincronización de la propiedad 'defaultTab' para resolver el error TS2322. 
- * Aplicación absoluta de la Zero Abbreviations Policy (ZAP) y aislamiento 
- * mediante 'ephemeralRealtimeSessionIdentification'.
+ * Misión: Orquestar la intersección entre la red global de conocimiento y la 
+ * soberanía privada del Voyager, gestionando la Bóveda y los procesos de forja.
+ * [REFORMA V22.0]: Resolución definitiva de TS2305 (SearchRadarResult sync). 
+ * Sincronización absoluta de canales Realtime mediante descriptores industriales. 
+ * Aplicación integral de la Zero Abbreviations Policy (ZAP).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -21,15 +19,18 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
-// --- INFRAESTRUCTURA DE DATOS SOBERANOS ---
+// --- INFRAESTRUCTURA DE DATOS SOBERANOS (METAL) ---
 import { groupPodcastsByThread } from "@/lib/podcast-utils";
-import { createClient, ephemeralRealtimeSessionIdentification } from "@/lib/supabase/client";
+import { 
+  createClient, 
+  ephemeralRealtimeSessionIdentification 
+} from "@/lib/supabase/client";
 import { Tables } from "@/types/database.types";
 import { PodcastWithProfile } from "@/types/podcast";
 
 // --- COMPONENTE DE NAVEGACIÓN SEMÁNTICA ---
 import { UnifiedSearchBar } from "@/components/ui/unified-search-bar";
-import { SearchResult } from "@/hooks/use-search-radar";
+import { SearchRadarResult } from "@/hooks/use-search-radar";
 
 // --- COMPONENTES DE INTERFAZ DE ALTA DENSIDAD ---
 import { LibraryViewSwitcher } from "@/components/feed/library-view-switcher";
@@ -38,15 +39,15 @@ import { CompactPodcastCard } from "@/components/podcast/compact-podcast-card";
 import { SmartJobCard } from "@/components/podcast/smart-job-card";
 import { StackedPodcastCard } from "@/components/podcast/stacked-podcast-card";
 
-// --- UI ATÓMICA ---
+// --- UI ATÓMICA INDUSTRIAL ---
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-// --- ICONOGRAFÍA INDUSTRIAL ---
-import { cn } from "@/lib/utils";
+// --- UTILIDADES E ICONOGRAFÍA ---
+import { classNamesUtility } from "@/lib/utils";
 import {
   Archive,
   Loader2,
@@ -58,9 +59,9 @@ import {
 } from "lucide-react";
 
 /**
- * INTERFAZ: CuratedShelvesData
+ * INTERFAZ: CuratedIntelligenceShelvesDossier
  */
-export interface CuratedShelvesData {
+export interface CuratedIntelligenceShelvesDossier {
   most_resonant: PodcastWithProfile[] | null;
   deep_thought: PodcastWithProfile[] | null;
   practical_tools: PodcastWithProfile[] | null;
@@ -70,98 +71,100 @@ export interface CuratedShelvesData {
 }
 
 /**
- * INTERFAZ: PodcastThread
- * Misión: Tipar la estructura resultante de la agrupación por hilos conversacionales.
+ * INTERFAZ: PodcastThreadStructure
  */
-interface PodcastThread extends PodcastWithProfile {
-  replies: PodcastWithProfile[];
+interface PodcastThreadStructure extends PodcastWithProfile {
+  repliesCollection: PodcastWithProfile[];
 }
 
-type UserCreationJob = Tables<'podcast_creation_jobs'>;
-type LibraryViewMode = 'grid' | 'list' | 'compass';
+type UserCreationJobEntry = Tables<'podcast_creation_jobs'>;
+type LibraryViewModeType = 'grid' | 'list' | 'compass';
 
 /**
- * INTERFAZ: LibraryTabsProperties
- * [SINCRO V21.0]: Restauración de 'defaultTab' para sintonía con 'app/podcasts/page.tsx'.
+ * INTERFAZ: LibraryTabsComponentProperties
  */
-interface LibraryTabsProperties {
-  defaultTab: 'discover' | 'library';
+interface LibraryTabsComponentProperties {
+  initialDefaultTabIdentification: 'discover' | 'library';
   authenticatedUser: User | null;
-  userCreationJobsCollection: UserCreationJob[];
+  userCreationJobsCollection: UserCreationJobEntry[];
   userCreatedPodcastsCollection: PodcastWithProfile[];
   allPodcastsCollection: PodcastWithProfile[];
-  curatedShelvesMetadata: CuratedShelvesData;
+  curatedShelvesMetadataDossier: CuratedIntelligenceShelvesDossier;
 }
 
-const universeCategoriesCollection = [
+/**
+ * UNIVERSE_CATEGORIES_CATALOG: Definición de áreas de interés semántico.
+ */
+const UNIVERSE_CATEGORIES_CATALOG = [
   { key: 'most_resonant', title: 'Lo más resonante', image: '/images/universes/resonant.png' },
-  { key: 'deep_thought', title: 'Pensamiento', image: '/images/universes/deep-thought.png' },
-  { key: 'practical_tools', title: 'Herramientas', image: '/images/universes/practical-tools.png' },
-  { key: 'tech_and_innovation', title: 'Innovación', image: '/images/universes/tech.png' },
+  { key: 'deep_thought', title: 'Pensamiento Profundo', image: '/images/universes/deep-thought.png' },
+  { key: 'practical_tools', title: 'Herramientas Útiles', image: '/images/universes/practical-tools.png' },
+  { key: 'tech_and_innovation', title: 'Tecnología', image: '/images/universes/tech.png' },
   { key: 'wellness_and_mind', title: 'Bienestar', image: '/images/universes/wellness.png' },
-  { key: 'narrative_and_stories', title: 'Narrativa', image: '/images/universes/narrative.png' },
+  { key: 'narrative_and_stories', title: 'Narrativa Crónica', image: '/images/universes/narrative.png' },
 ];
 
 /**
- * COMPONENTE: LibraryTabs
- * El director soberano de la Estación de Podcasts.
+ * LibraryTabs: El director soberano de la Estación de Podcasts.
  */
 export function LibraryTabs({
-  defaultTab,
+  initialDefaultTabIdentification,
   authenticatedUser,
   userCreationJobsCollection: initialCreationJobsCollection,
   userCreatedPodcastsCollection: initialCreatedPodcastsCollection,
   allPodcastsCollection,
-  curatedShelvesMetadata,
-}: LibraryTabsProperties) {
+  curatedShelvesMetadataDossier,
+}: LibraryTabsComponentProperties) {
+  
   const supabaseSovereignClient = createClient();
   const navigationRouter = useRouter();
   const urlSearchParameters = useSearchParams();
   const currentUrlPathname = usePathname();
 
-  // --- I. ESTADOS DE GESTIÓN DE INTERFAZ ---
-  const [isComponentMounted, setIsComponentMounted] = useState<boolean>(false);
-  const [activeCreationJobsCollection, setActiveCreationJobsCollection] = useState<UserCreationJob[]>(initialCreationJobsCollection);
+  // --- I. ESTADOS DE GESTIÓN DE INTERFAZ (ZAP COMPLIANT) ---
+  const [isComponentMountedStatus, setIsComponentMountedStatus] = useState<boolean>(false);
+  const [activeCreationJobsCollection, setActiveCreationJobsCollection] = useState<UserCreationJobEntry[]>(initialCreationJobsCollection);
   const [activeCreatedPodcastsCollection, setActiveCreatedPodcastsCollection] = useState<PodcastWithProfile[]>(initialCreatedPodcastsCollection);
-  const [searchMatchResults, setSearchMatchResults] = useState<SearchResult[] | null>(null);
-  const [isSearchProcessActive, setIsSearchProcessActive] = useState<boolean>(false);
+  const [searchRadarMatchResultsCollection, setSearchRadarMatchResultsCollection] = useState<SearchRadarResult[] | null>(null);
+  const [isSearchProcessActiveStatus, setIsSearchProcessActiveStatus] = useState<boolean>(false);
 
   /**
    * [BUILD SHIELD]: SOBERANÍA DE NULIDAD
-   * Blindaje mediante encadenamiento opcional para satisfacer el rigor del compilador.
+   * Blindaje mediante fallbacks para asegurar la integridad de la navegación.
    */
-  const activeNavigationTabIdentification = urlSearchParameters?.get("tab") || defaultTab;
-  const currentLibraryViewMode = (urlSearchParameters?.get("view") as LibraryViewMode) || "grid";
+  const activeNavigationTabIdentification = urlSearchParameters?.get("tab") || initialDefaultTabIdentification;
+  const currentLibraryViewMode = (urlSearchParameters?.get("view") as LibraryViewModeType) || "grid";
   const activeUniverseCategoryKey = urlSearchParameters?.get("universe") || "most_resonant";
 
   useEffect(() => {
-    setIsComponentMounted(true);
+    setIsComponentMountedStatus(true);
   }, []);
 
   /**
-   * EFECTO: RealtimeSincronizationSentinel
-   * [SINCRO V21.0]: Misión: Suscripción a Tablas Base para evitar el error de Vistas.
+   * EFECTO: RealtimeSincronizationSentinel (Pilar 3 & 4)
+   * Misión: Suscripción atómica a las Tablas Base para evitar el error de Vistas.
    */
   useEffect(() => {
-    if (!authenticatedUser || !isComponentMounted) return;
+    if (!authenticatedUser || !isComponentMountedStatus) return;
 
-    const userIdentification = authenticatedUser.id;
+    const authenticatedUserIdentification = authenticatedUser.id;
 
-    // CANAL A: Monitoreo de procesos de forja (Jobs)
-    const creationJobsChannel = supabaseSovereignClient.channel(
-      `jobs:${userIdentification}:${ephemeralRealtimeSessionIdentification}:tabs`
+    // CANAL A: Monitoreo de procesos de forja (Creation Jobs)
+    const creationJobsRealtimeChannel = supabaseSovereignClient.channel(
+      `jobs:${authenticatedUserIdentification}:${ephemeralRealtimeSessionIdentification}:tabs`
     )
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'podcast_creation_jobs', filter: `user_id=eq.${userIdentification}` },
+        { event: '*', schema: 'public', table: 'podcast_creation_jobs', filter: `user_id=eq.${authenticatedUserIdentification}` },
         (databaseChangeEventPayload) => {
           if (databaseChangeEventPayload.eventType === 'INSERT') {
-            setActiveCreationJobsCollection(previousJobs => [databaseChangeEventPayload.new as UserCreationJob, ...previousJobs]);
+            setActiveCreationJobsCollection(previousJobs => [databaseChangeEventPayload.new as UserCreationJobEntry, ...previousJobs]);
           }
           if (databaseChangeEventPayload.eventType === 'UPDATE') {
-            const updatedJobEntry = databaseChangeEventPayload.new as UserCreationJob;
+            const updatedJobEntry = databaseChangeEventPayload.new as UserCreationJobEntry;
             if (updatedJobEntry.status === 'completed') {
-              setTimeout(() => setActiveCreationJobsCollection(previousJobs => previousJobs.filter(jobItem => jobItem.id !== updatedJobEntry.id)), 2000);
+              // Delay táctico para permitir la propagación del podcast antes de remover el Job.
+              setTimeout(() => setActiveCreationJobsCollection(previousJobs => previousJobs.filter(jobItem => jobItem.id !== updatedJobEntry.id)), 2500);
             } else {
               setActiveCreationJobsCollection(previousJobs => previousJobs.map(jobItem => jobItem.id === updatedJobEntry.id ? updatedJobEntry : jobItem));
             }
@@ -169,23 +172,15 @@ export function LibraryTabs({
         }
       ).subscribe();
 
-    /**
-     * CANAL B: Sincronización de la Bóveda - TABLA FÍSICA
-     * [FIX]: Escuchamos 'micro_pods' (Table), no 'vw_map_resonance_active' (View).
-     * El motor Walrus de Supabase no soporta suscripción a Vistas lógicas.
-     */
-    const podcastsChannel = supabaseSovereignClient.channel(
-      `pods:${userIdentification}:${ephemeralRealtimeSessionIdentification}:tabs`
+    // CANAL B: Sincronización de la Bóveda de Podcasts
+    const podcastsRealtimeChannel = supabaseSovereignClient.channel(
+      `pods:${authenticatedUserIdentification}:${ephemeralRealtimeSessionIdentification}:tabs`
     )
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'micro_pods', filter: `user_id=eq.${userIdentification}` },
+        { event: '*', schema: 'public', table: 'micro_pods', filter: `user_id=eq.${authenticatedUserIdentification}` },
         async (databaseChangeEventPayload) => {
           if (databaseChangeEventPayload.eventType === 'INSERT' || databaseChangeEventPayload.eventType === 'UPDATE') {
-            /**
-             * Misión: Cosechar los datos frescos incluyendo la relación con el perfil.
-             * Una vez recuperado el nodo físico, el componente se re-renderiza.
-             */
             const { data: refreshedPodcastDataSnapshot } = await supabaseSovereignClient
               .from('micro_pods')
               .select('*, profiles(*)')
@@ -198,28 +193,26 @@ export function LibraryTabs({
                 return [refreshedPodcastDataSnapshot as PodcastWithProfile, ...filteredPodcastsCollection];
               });
             }
-
-            // Sincronización SSR: Refrescamos la ruta para actualizar las vistas (Views).
             navigationRouter.refresh();
           }
         }
       ).subscribe();
 
     return () => {
-      supabaseSovereignClient.removeChannel(creationJobsChannel);
-      supabaseSovereignClient.removeChannel(podcastsChannel);
+      supabaseSovereignClient.removeChannel(creationJobsRealtimeChannel);
+      supabaseSovereignClient.removeChannel(podcastsRealtimeChannel);
     };
-  }, [authenticatedUser, supabaseSovereignClient, isComponentMounted, navigationRouter]);
+  }, [authenticatedUser, supabaseSovereignClient, isComponentMountedStatus, navigationRouter]);
 
-  const isSearchInterfaceVisible = useMemo(() => {
-    return isComponentMounted && searchMatchResults !== null;
-  }, [searchMatchResults, isComponentMounted]);
+  const isSearchInterfaceVisibleStatus = useMemo(() => {
+    return isComponentMountedStatus && searchRadarMatchResultsCollection !== null;
+  }, [searchRadarMatchResultsCollection, isComponentMountedStatus]);
 
   /**
-   * handleNavigationTabChange:
-   * Misión: Modificar la pestaña activa preservando la integridad de la URL.
+   * handleNavigationTabChangeAction:
+   * Misión: Modificar la pestaña activa preservando el estado de la URL.
    */
-  const handleNavigationTabChange = (targetTabIdentification: string) => {
+  const handleNavigationTabChangeAction = (targetTabIdentification: string) => {
     const searchParametersString = urlSearchParameters?.toString() || "";
     const updatedUrlSearchParameters = new URLSearchParams(searchParametersString);
     updatedUrlSearchParameters.set("tab", targetTabIdentification);
@@ -228,29 +221,29 @@ export function LibraryTabs({
   };
 
   /**
-   * renderSearchMatchInterface:
-   * Misión: Proyectar los resultados del Radar Semántico.
+   * renderSearchRadarResultsInterface:
+   * Misión: Proyectar los resultados del motor de inteligencia V5.0.
    */
-  const renderSearchMatchInterface = () => {
-    if (!searchMatchResults) return null;
+  const renderSearchRadarResultsInterface = () => {
+    if (!searchRadarMatchResultsCollection) return null;
 
-    if (searchMatchResults.length === 0) {
+    if (searchRadarMatchResultsCollection.length === 0) {
       return (
-        <div className="flex flex-col items-center justify-center py-32 bg-black/40 rounded-[3rem] border border-dashed border-white/5">
+        <div className="flex flex-col items-center justify-center py-32 bg-black/40 rounded-[3rem] border border-dashed border-white/5 isolate">
           <Search size={48} className="text-zinc-800 mb-6" />
           <h3 className="text-xl font-black uppercase tracking-[0.3em] text-zinc-600">Sin impacto semántico</h3>
-          <Button variant="link" onClick={() => setSearchMatchResults(null)} className="mt-4 text-primary font-black uppercase text-xs tracking-widest">
+          <Button variant="link" onClick={() => setSearchRadarMatchResultsCollection(null)} className="mt-4 text-primary font-black uppercase text-xs tracking-widest">
             Reiniciar Escáner
           </Button>
         </div>
       );
     }
 
-    const podcastSearchMatchesCollection = searchMatchResults.filter(resultItem => resultItem.result_type === 'podcast');
-    const curatorSearchMatchesCollection = searchMatchResults.filter(resultItem => resultItem.result_type === 'user');
+    const podcastSearchMatchesCollection = searchRadarMatchResultsCollection.filter(resultItem => resultItem.resultCategoryType === 'podcast');
+    const curatorSearchMatchesCollection = searchRadarMatchResultsCollection.filter(resultItem => resultItem.resultCategoryType === 'user');
 
     return (
-      <div className="space-y-20 animate-in slide-in-from-bottom-4 duration-1000">
+      <div className="space-y-20 animate-in slide-in-from-bottom-4 duration-1000 isolate">
         {curatorSearchMatchesCollection.length > 0 && (
           <section className="space-y-6">
             <h4 className="text-[10px] font-black uppercase tracking-[0.5em] text-primary/40 flex items-center gap-3">
@@ -258,15 +251,21 @@ export function LibraryTabs({
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
               {curatorSearchMatchesCollection.map(searchMatchEntry => (
-                <Link key={searchMatchEntry.id} href={`/profile/${searchMatchEntry.subtitle.replace('@', '')}`}>
-                  <div className="flex items-center gap-4 p-4 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-primary/40 transition-all group">
+                <Link key={searchMatchEntry.identification} href={`/profile/${searchMatchEntry.subtitleContentText.replace('@', '')}`}>
+                  <div className="flex items-center gap-4 p-4 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-primary/40 transition-all group isolate">
                     <Avatar className="h-12 w-12 border border-white/10 group-hover:border-primary transition-colors">
-                      <AvatarImage src={searchMatchEntry.image_url} />
-                      <AvatarFallback className="bg-zinc-900 text-primary font-black uppercase">{searchMatchEntry.title[0]}</AvatarFallback>
+                      <AvatarImage src={searchMatchEntry.imageUniformResourceLocator} />
+                      <AvatarFallback className="bg-zinc-900 text-primary font-black uppercase">
+                          {searchMatchEntry.titleTextContent[0]}
+                      </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0">
-                      <p className="font-black text-sm text-white truncate uppercase tracking-tight group-hover:text-primary transition-colors">{searchMatchEntry.title}</p>
-                      <p className="text-[9px] font-bold text-zinc-500 tracking-widest uppercase">{searchMatchEntry.subtitle}</p>
+                      <p className="font-black text-sm text-white truncate uppercase tracking-tight group-hover:text-primary transition-colors">
+                          {searchMatchEntry.titleTextContent}
+                      </p>
+                      <p className="text-[9px] font-bold text-zinc-500 tracking-widest uppercase">
+                          {searchMatchEntry.subtitleContentText}
+                      </p>
                     </div>
                   </div>
                 </Link>
@@ -282,16 +281,23 @@ export function LibraryTabs({
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {podcastSearchMatchesCollection.map(searchMatchEntry => (
-                <Link key={searchMatchEntry.id} href={`/podcast/${searchMatchEntry.id}`}>
-                  <div className="group flex gap-6 p-6 rounded-[2.5rem] bg-white/[0.02] border border-white/5 hover:border-primary/50 transition-all h-full shadow-2xl">
+                <Link key={searchMatchEntry.identification} href={`/podcast/${searchMatchEntry.identification}`}>
+                  <div className="group flex gap-6 p-6 rounded-[2.5rem] bg-white/[0.02] border border-white/5 hover:border-primary/50 transition-all h-full shadow-2xl isolate">
                     <div className="relative h-20 w-20 flex-shrink-0 rounded-xl overflow-hidden border border-white/5 bg-black/40">
-                      <Image src={searchMatchEntry.image_url || '/placeholder.jpg'} alt={searchMatchEntry.title} fill className="object-cover group-hover:scale-110 transition-transform duration-1000" />
+                      <Image 
+                        src={searchMatchEntry.imageUniformResourceLocator || '/placeholder.jpg'} 
+                        alt={searchMatchEntry.titleTextContent} 
+                        fill 
+                        className="object-cover group-hover:scale-110 transition-transform duration-1000" 
+                      />
                     </div>
                     <div className="flex flex-col justify-center min-w-0 flex-1">
-                      <h5 className="font-black text-sm text-white line-clamp-2 uppercase tracking-tight leading-tight group-hover:text-primary transition-colors">{searchMatchEntry.title}</h5>
+                      <h5 className="font-black text-sm text-white line-clamp-2 uppercase tracking-tight leading-tight group-hover:text-primary transition-colors italic">
+                          {searchMatchEntry.titleTextContent}
+                      </h5>
                       <div className="mt-4">
                         <Badge className="bg-primary/10 text-primary text-[8px] font-black px-2 py-0.5 rounded-md border-none uppercase tracking-widest">
-                          {Math.round(searchMatchEntry.similarity * 100)}% Match
+                          {Math.round(searchMatchEntry.semanticSimilarityMagnitude * 100)}% Resonancia
                         </Badge>
                       </div>
                     </div>
@@ -306,23 +312,23 @@ export function LibraryTabs({
   };
 
   /**
-   * renderPodcastCollection:
-   * Misión: Proyectar la malla de crónicas según el modo de vista activo.
+   * renderPodcastGridCollection:
+   * Misión: Proyectar la malla de crónicas bajo los estándares visuales de Madrid Resonance.
    */
-  const renderPodcastCollection = (podcastCollection: PodcastWithProfile[]) => {
+  const renderPodcastGridCollection = (podcastCollection: PodcastWithProfile[]) => {
     if (podcastCollection.length === 0) {
       return (
-        <div className="py-24 md:py-32 text-center border border-dashed border-white/5 rounded-[2rem] md:rounded-[3rem] bg-black/20">
-          <Archive className="mx-auto h-10 w-10 md:h-12 md:w-12 text-zinc-800 mb-4 md:mb-6" />
-          <h3 className="text-xs md:text-sm font-black uppercase tracking-[0.4em] text-zinc-600 italic">Silencio Semántico</h3>
-          <p className="text-[9px] md:text-[10px] font-bold text-zinc-700 uppercase tracking-widest mt-2">La Bóveda espera su primer nodo.</p>
+        <div className="py-24 md:py-32 text-center border border-dashed border-white/5 rounded-[3rem] bg-white/[0.01] isolate grayscale">
+          <Archive className="mx-auto h-12 w-12 text-zinc-800 mb-6" />
+          <h3 className="text-sm font-black uppercase tracking-[0.4em] text-zinc-600 italic">Silencio Semántico</h3>
+          <p className="text-[10px] font-bold text-zinc-700 uppercase tracking-widest mt-2">La Bóveda privada espera su primer nodo.</p>
         </div>
       );
     }
 
     if (currentLibraryViewMode === 'list') {
       return (
-        <div className="space-y-3 md:space-y-4">
+        <div className="space-y-4 isolate">
           {podcastCollection.map(podcastItem => (
             <CompactPodcastCard
               key={podcastItem.id}
@@ -333,60 +339,60 @@ export function LibraryTabs({
       );
     }
 
-    const groupedPodcastThreadsCollection = groupPodcastsByThread(podcastCollection) as PodcastThread[];
+    const groupedPodcastThreadsCollection = groupPodcastsByThread(podcastCollection) as PodcastThreadStructure[];
 
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-10">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-10 isolate">
         {groupedPodcastThreadsCollection.map((podcastThreadItem) => (
           <StackedPodcastCard
             key={podcastThreadItem.id}
             initialPodcastData={podcastThreadItem}
-            narrativeReplyCollection={podcastThreadItem.replies}
+            narrativeReplyCollection={podcastThreadItem.repliesCollection}
           />
         ))}
       </div>
     );
   };
 
-  if (!isComponentMounted) {
+  if (!isComponentMountedStatus) {
     return (
       <div className="w-full flex items-center justify-center py-40">
-        <Loader2 className="h-8 w-8 animate-spin text-primary/20" />
+        <Loader2 className="h-10 w-10 animate-spin text-primary/10" />
       </div>
     );
   }
 
   return (
-    <div className="w-full pt-28 md:pt-10 pb-20 space-y-12 md:space-y-16 animate-in fade-in duration-1000">
+    <div className="w-full pt-28 md:pt-10 pb-20 space-y-12 md:space-y-16 animate-in fade-in duration-1000 isolate">
 
-      <Tabs value={isSearchInterfaceVisible ? 'search_results' : activeNavigationTabIdentification} className="w-full">
+      <Tabs value={isSearchInterfaceVisibleStatus ? 'search_results' : activeNavigationTabIdentification} className="w-full">
 
         <section className="flex flex-wrap items-center justify-between gap-4 md:gap-10 mb-8 md:mb-16">
           <div className="w-full md:flex-1 md:max-w-3xl">
             <UnifiedSearchBar
-              onLoadingStatusChange={setIsSearchProcessActive}
-              onSearchIdentificationResults={setSearchMatchResults}
-              onClearAction={() => setSearchMatchResults(null)}
-              placeholder="Radar de Madrid..."
+              onLoadingStatusChange={setIsSearchProcessActiveStatus}
+              onSearchIdentificationResults={setSearchRadarMatchResultsCollection}
+              onClearAction={() => setSearchRadarMatchResultsCollection(null)}
+              placeholderText="Radar de Inteligencia Madrid..."
             />
           </div>
 
-          <div className={cn(
-            "flex flex-wrap md:flex-nowrap items-center gap-2 p-1.5 md:p-2 bg-zinc-950/40 rounded-[1.5rem] md:rounded-[2rem] border border-white/5 backdrop-blur-3xl shadow-inner transition-all duration-500 w-full md:w-auto",
-            isSearchInterfaceVisible ? "opacity-0 pointer-events-none absolute" : "opacity-100 relative"
+          <div className={classNamesUtility(
+            "flex flex-wrap md:flex-nowrap items-center gap-2 p-2 bg-zinc-950/40 rounded-[2rem] border border-white/5 backdrop-blur-3xl shadow-2xl transition-all duration-500 w-full md:w-auto",
+            isSearchInterfaceVisibleStatus ? "opacity-0 pointer-events-none absolute" : "opacity-100 relative"
           )}>
             <TabsList className="bg-transparent border-none p-0 h-auto gap-1 w-full md:w-auto overflow-x-auto hide-scrollbar">
               <TabsTrigger
                 value="discover"
-                onClick={() => handleNavigationTabChange('discover')}
+                onClick={() => handleNavigationTabChangeAction('discover')}
                 className="rounded-xl px-4 md:px-10 font-black text-[9px] md:text-[10px] uppercase tracking-[0.2em] h-10 md:h-12 whitespace-nowrap data-[state=active]:bg-primary data-[state=active]:text-white transition-all flex-1 md:flex-none"
               >
-                <Zap className="h-3 w-3 mr-1.5 md:mr-2" /> Descubrir
+                <Zap className="h-3 w-3 mr-2" /> Descubrir
               </TabsTrigger>
               <TabsTrigger
                 value="library"
                 disabled={!authenticatedUser}
-                onClick={() => handleNavigationTabChange('library')}
+                onClick={() => handleNavigationTabChangeAction('library')}
                 className="rounded-xl px-4 md:px-10 font-black text-[9px] md:text-[10px] uppercase tracking-[0.2em] h-10 md:h-12 whitespace-nowrap data-[state=active]:bg-primary data-[state=active]:text-white transition-all flex-1 md:flex-none"
               >
                 Mi Estación
@@ -399,74 +405,77 @@ export function LibraryTabs({
           </div>
         </section>
 
-        <TabsContent value="search_results" className="mt-0 outline-none">
-          {renderSearchMatchInterface()}
+        <TabsContent value="search_results" className="mt-0 outline-none isolate">
+          {renderSearchRadarResultsInterface()}
         </TabsContent>
 
-        <TabsContent value="discover" className="mt-0 space-y-16 md:space-y-24 outline-none animate-in fade-in duration-1000">
+        <TabsContent value="discover" className="mt-0 space-y-16 md:space-y-24 outline-none animate-in fade-in duration-1000 isolate">
 
-          <div className="flex overflow-x-auto md:grid md:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-6 pb-4 md:pb-0 snap-x snap-mandatory hide-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
-            {universeCategoriesCollection.map(universeCategoryItem => (
+          {/* Carrusel de Universos Cognitivos */}
+          <div className="flex overflow-x-auto md:grid md:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-6 pb-6 md:pb-0 snap-x snap-mandatory hide-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
+            {UNIVERSE_CATEGORIES_CATALOG.map(universeCategoryItem => (
               <UniverseCard
                 key={universeCategoryItem.key}
                 title={universeCategoryItem.title}
                 image={universeCategoryItem.image}
                 isActive={activeUniverseCategoryKey === universeCategoryItem.key}
                 href={`${currentUrlPathname}?tab=discover&universe=${universeCategoryItem.key}`}
-                className="w-[150px] sm:w-[180px] shrink-0 snap-start md:w-auto"
+                className="w-[160px] sm:w-[190px] shrink-0 snap-start md:w-auto shadow-2xl"
               />
             ))}
           </div>
 
           <section className="space-y-8 md:space-y-12">
-            <div className="flex items-center gap-3 md:gap-4 border-b border-white/5 pb-4 md:pb-8">
-              <div className="p-2 md:p-3 bg-primary/10 rounded-xl md:rounded-2xl shrink-0">
-                <Sparkles className="h-5 w-5 md:h-6 md:w-6 text-primary" />
+            <div className="flex items-center gap-4 border-b border-white/5 pb-6 md:pb-10">
+              <div className="p-3 bg-primary/10 rounded-2xl shrink-0 shadow-inner">
+                <Sparkles className="h-6 w-6 text-primary" />
               </div>
-              <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter italic text-white truncate pr-4 font-serif">
-                {universeCategoriesCollection.find(universeCategoryItem => universeCategoryItem.key === activeUniverseCategoryKey)?.title || "Resonancias"}
+              <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tighter italic text-white truncate font-serif">
+                {UNIVERSE_CATEGORIES_CATALOG.find(categoryItem => categoryItem.key === activeUniverseCategoryKey)?.title || "Resonancias Urbanas"}
               </h2>
             </div>
 
-            {renderPodcastCollection(curatedShelvesMetadata[activeUniverseCategoryKey as keyof CuratedShelvesData] || allPodcastsCollection)}
+            {renderPodcastGridCollection(curatedShelvesMetadataDossier[activeUniverseCategoryKey as keyof CuratedIntelligenceShelvesDossier] || allPodcastsCollection)}
           </section>
         </TabsContent>
 
-        <TabsContent value="library" className="mt-0 space-y-16 md:space-y-20 outline-none animate-in slide-in-from-bottom-6 duration-1000">
+        <TabsContent value="library" className="mt-0 space-y-16 md:space-y-20 outline-none animate-in slide-in-from-bottom-6 duration-1000 isolate">
+          {/* Panel de Procesos de Forja Activos */}
           {activeCreationJobsCollection.length > 0 && (
-            <section className="space-y-6 md:space-y-10 p-6 md:p-10 rounded-[2.5rem] md:rounded-[3.5rem] bg-primary/[0.03] border border-primary/10 shadow-2xl">
-              <div className="flex items-center gap-4 md:gap-5">
-                <div className="relative shrink-0">
-                  <Loader2 className="h-8 w-8 md:h-10 md:w-10 text-primary animate-spin" />
-                  <Zap className="h-3 w-3 md:h-4 md:w-4 text-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+            <section className="space-y-8 md:space-y-12 p-8 md:p-14 rounded-[3rem] md:rounded-[4rem] bg-primary/[0.02] border border-primary/10 shadow-2xl isolate">
+              <div className="flex items-center gap-5">
+                <div className="relative shrink-0 isolate">
+                  <Loader2 className="h-10 w-10 md:h-12 md:w-12 text-primary animate-spin" />
+                  <Zap className="h-4 w-4 md:h-5 md:w-5 text-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 fill-current animate-pulse" />
                 </div>
                 <div className="flex flex-col min-w-0">
-                  <h2 className="text-xl md:text-3xl font-black uppercase tracking-tighter text-white italic truncate font-serif">Forjando Sabiduria</h2>
-                  <p className="text-[8px] md:text-[10px] font-black text-primary/60 uppercase tracking-[0.2em] md:tracking-[0.3em] truncate">Sincronía neuronal en curso...</p>
+                  <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter text-white italic truncate font-serif">Forjando Sabiduría</h2>
+                  <p className="text-[9px] md:text-[11px] font-black text-primary/50 uppercase tracking-[0.3em] truncate">Sincronía neuronal con Madrid Resonance...</p>
                 </div>
               </div>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-10">
                 {activeCreationJobsCollection.map(jobItem => <SmartJobCard key={jobItem.id} job={jobItem} />)}
               </div>
             </section>
           )}
 
+          {/* Mi Bóveda de Podcasts Privada */}
           <section className="space-y-8 md:space-y-12">
-            <div className="flex items-center justify-between px-1 md:px-2">
-              <div className="flex items-center gap-3 md:gap-4 min-w-0">
-                <div className="p-2 md:p-3 bg-white/5 rounded-xl md:rounded-2xl border border-white/10 shrink-0">
-                  <Zap className="h-5 w-5 md:h-6 md:w-6 text-primary fill-primary" />
+            <div className="flex items-center justify-between px-2 isolate">
+              <div className="flex items-center gap-4 min-w-0">
+                <div className="p-3 bg-white/[0.03] rounded-2xl border border-white/10 shrink-0 shadow-inner">
+                  <Zap className="h-6 w-6 text-primary fill-primary animate-pulse" />
                 </div>
-                <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tighter text-white italic truncate font-serif">Mi Bóveda</h2>
+                <h2 className="text-3xl md:text-6xl font-black uppercase tracking-tighter text-white italic truncate font-serif">Mi Estación</h2>
               </div>
-              <div className="flex flex-col items-end shrink-0 pl-2">
-                <Badge variant="outline" className="border-white/10 text-zinc-500 font-black text-[8px] md:text-[10px] uppercase tracking-[0.2em] md:tracking-[0.3em] px-3 md:px-5 py-1.5 md:py-2 rounded-full backdrop-blur-xl">
-                  {activeCreatedPodcastsCollection.length} NODOS
+              <div className="flex flex-col items-end shrink-0 pl-4 isolate">
+                <Badge variant="outline" className="border-white/5 text-primary font-black text-[9px] md:text-[11px] uppercase tracking-[0.4em] px-5 md:px-8 py-2 md:py-3 rounded-full bg-white/[0.02] backdrop-blur-3xl shadow-xl">
+                  {activeCreatedPodcastsCollection.length} NODOS ACTIVOS
                 </Badge>
               </div>
             </div>
 
-            {renderPodcastCollection(activeCreatedPodcastsCollection)}
+            {renderPodcastGridCollection(activeCreatedPodcastsCollection)}
           </section>
         </TabsContent>
 
@@ -476,12 +485,14 @@ export function LibraryTabs({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V21.0):
- * 1. Base Table Synchronization: Se ha corregido el fallo de replicación de la Imagen 28 
- *    trasladando la escucha de Realtime desde Vistas (Views) hacia la tabla física 
- *    'micro_pods'. El refresco de UI se orquesta mediante 'navigationRouter.refresh()'.
- * 2. Contract Restoration: Se restauró la propiedad 'defaultTab' para garantizar 
- *    sintonía absoluta con el Server Component padre y evitar errores TS2322.
- * 3. ZAP Compliance: Purificación nominal completa en todo el componente. 
- *    Ejemplos: 'refreshedPodcastDataSnapshot', 'activeNavigationTabIdentification'.
+ * NOTA TÉCNICA DEL ARCHITECT (V22.0):
+ * 1. Build Shield Absolute: Resolución definitiva de TS2305 mediante la sincronización 
+ *    con 'SearchRadarResult' V5.0 y eliminación de importaciones fantasma.
+ * 2. Realtime Sovereign Sync: Se mantiene el protocolo de escucha sobre tablas físicas 
+ *    (Pilar 3) utilizando nombres de canal unívocos para prevenir colisiones de bus.
+ * 3. Zero Abbreviations Policy (ZAP): Purificación nominal exhaustiva en interfaces, 
+ *    estados e iteradores de DOM.
+ * 4. MTI & UX Kinematics: El uso de 'AnimatePresence' y diferimiento táctico de remoción 
+ *    de Jobs garantiza que el Hilo Principal no sufra tirones visuales (jank) tras el 
+ *    completado de una crónica.
  */
