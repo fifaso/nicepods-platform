@@ -42,11 +42,11 @@ interface PhysicsNodePayload extends SimulationNodeDatum {
  * Misión: Definir el contrato de mando desde el hilo principal.
  */
 interface ResonancePhysicsSimulationRequest {
-  action: "START_SIMULATION" | "STOP_SIMULATION" | "UPDATE_DIMENSIONS";
-  nodesCollection: PhysicsNodePayload[];
-  centerXCoordinate: number;
-  centerYCoordinate: number;
-  exclusionZoneRadius: number;
+  action: "START_SIMULATION" | "STOP_SIMULATION" | "UPDATE_DIMENSIONS" | "PAUSE_SIMULATION" | "RESUME_SIMULATION";
+  nodesCollection?: PhysicsNodePayload[];
+  centerXCoordinate?: number;
+  centerYCoordinate?: number;
+  exclusionZoneRadius?: number;
 }
 
 /**
@@ -93,9 +93,21 @@ self.onmessage = (messageEvent: MessageEvent<ResonancePhysicsSimulationRequest>)
       break;
 
     case "UPDATE_DIMENSIONS":
-      if (activeForceSimulation) {
+      if (activeForceSimulation && exclusionZoneRadius !== undefined && centerXCoordinate !== undefined && centerYCoordinate !== undefined) {
         activeForceSimulation
           .force("radial", forceRadial<PhysicsNodePayload>(exclusionZoneRadius, centerXCoordinate, centerYCoordinate).strength(0.6));
+        activeForceSimulation.alpha(0.3).restart();
+      }
+      break;
+
+    case "PAUSE_SIMULATION":
+      if (activeForceSimulation) {
+        activeForceSimulation.stop();
+      }
+      break;
+
+    case "RESUME_SIMULATION":
+      if (activeForceSimulation) {
         activeForceSimulation.alpha(0.3).restart();
       }
       break;
@@ -107,11 +119,15 @@ self.onmessage = (messageEvent: MessageEvent<ResonancePhysicsSimulationRequest>)
  * Misión: Configurar y arrancar el motor de fuerzas de alta fidelidad con transferencia de memoria.
  */
 function executeSimulationInitialization(
-  initialNodesCollection: PhysicsNodePayload[],
-  centerXCoordinate: number,
-  centerYCoordinate: number,
-  exclusionZoneRadius: number
+  initialNodesCollection: PhysicsNodePayload[] | undefined,
+  centerXCoordinate: number | undefined,
+  centerYCoordinate: number | undefined,
+  exclusionZoneRadius: number | undefined
 ) {
+  if (!initialNodesCollection || centerXCoordinate === undefined || centerYCoordinate === undefined || exclusionZoneRadius === undefined) {
+    return;
+  }
+
   // Purga de simulación previa para evitar colisiones de hilos y fugas de CPU.
   if (activeForceSimulation) {
     activeForceSimulation.stop();
