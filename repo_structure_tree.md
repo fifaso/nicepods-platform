@@ -12,12 +12,15 @@
 │   │   ├── auth
 │   │   │   └── callback
 │   │   ├── forgot-password
+│   │   │   ├── layout.tsx
 │   │   │   └── page.tsx
 │   │   ├── layout.tsx
 │   │   ├── login
+│   │   │   ├── layout.tsx
 │   │   │   ├── loading.tsx
 │   │   │   └── page.tsx
 │   │   └── signup
+│   │       ├── layout.tsx
 │   │       └── page.tsx
 │   ├── (marketing)
 │   │   ├── layout.tsx
@@ -287,13 +290,13 @@
 ├── components.json
 ├── contexts
 │   └── audio-context.tsx
-├── dev_server.log
 ├── distill_schema.py
 ├── hooks
 │   ├── geo-engine
 │   │   ├── interface-core.tsx
 │   │   ├── radar-core.tsx
-│   │   └── telemetry-core.tsx
+│   │   ├── telemetry-core.tsx
+│   │   └── use-kinetic-avatar-projection.ts
 │   ├── use-auth.tsx
 │   ├── use-debounce.ts
 │   ├── use-forge-orchestrator.ts
@@ -439,6 +442,7 @@
 ├── tsconfig.json
 ├── tsconfig.tsbuildinfo
 └── types
+    ├── ambient-modules.d.ts
     ├── database-overrides.d.ts
     ├── database.types.ts
     ├── geo-sovereignty.ts
@@ -446,4 +450,4 @@
     ├── profile.ts
     └── pulse.ts
 
-97 directories, 350 files
+97 directories, 354 files
