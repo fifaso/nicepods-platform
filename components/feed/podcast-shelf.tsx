@@ -15,7 +15,7 @@
 
 import { StackedPodcastCard } from "@/components/podcast/stacked-podcast-card";
 import { Button } from "@/components/ui/button";
-import { groupPodcastsByThreadCollection } from "@/lib/podcast-utils";
+import { groupPodcastsByThread } from "@/lib/podcast-utils";
 import { PodcastWithGenealogy, PodcastWithProfile } from "@/types/podcast";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -49,11 +49,11 @@ export function PodcastShelf({
 
   /**
    * groupedPodcastThreadsCollection: 
-   * [RESOLUCIÓN TS2305]: Uso de la función purificada 'groupPodcastsByThreadCollection'.
+   * [RESOLUCIÓN TS2305]: Uso de la función purificada 'groupPodcastsByThread'.
    * Misión: Organizar la colección por hilos para mantener la arquitectura social.
    */
   const groupedPodcastThreadsCollection = useMemo((): PodcastWithGenealogy[] => {
-    return groupPodcastsByThreadCollection(initialPodcastCollection);
+    return groupPodcastsByThread(initialPodcastCollection);
   }, [initialPodcastCollection]);
 
   /**
@@ -134,7 +134,7 @@ export function PodcastShelf({
       >
         {groupedPodcastThreadsCollection.map((podcastThreadItem) => (
           <div
-            key={podcastThreadItem.id}
+            key={podcastThreadItem.identification}
             className="min-w-[300px] md:min-w-[400px] snap-start"
           >
             <StackedPodcastCard
@@ -151,7 +151,7 @@ export function PodcastShelf({
 /**
  * NOTA TÉCNICA DEL ARCHITECT (V4.0):
  * 1. Build Shield Absolute: Resolución definitiva de TS2305 mediante la sincronía 
- *    con el nuevo nombre industrial de la utilidad de agrupación.
+ *    con el nuevo nombre industrial 'groupPodcastsByThread' de la utilidad de agrupación.
  * 2. ZAP Absolute Compliance: Purificación total. 'shelfTitle' -> 'shelfTitleTextContent', 
  *    'scrollContainerReference' -> 'horizontalScrollContainerReference', 'idx' -> 'itemIndex'.
  * 3. Type Integrity: Se utiliza 'PodcastWithGenealogy' importado directamente 
