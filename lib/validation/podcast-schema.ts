@@ -171,3 +171,36 @@ export const PodcastCreationSchema = z.object({
  * Misión: Ingerir el tipo inferido para el Build Shield Sovereignty.
  */
 export type PodcastCreationData = z.infer<typeof PodcastCreationSchema>;
+
+/**
+ * ESQUEMA: SovereignPodcastSchema
+ * Misión: Validar la integridad de la entidad Podcast tras la transformación soberana.
+ */
+export const SovereignPodcastSchema = z.object({
+  identification: z.number(),
+  authorUserIdentification: z.string(),
+  title: z.string(),
+  description: z.string().nullable(),
+  audio_url: z.string().nullable(),
+  cover_image_url: z.string().nullable(),
+  duration_seconds: z.number().nullable(),
+  created_at: z.string(),
+  status: z.string(),
+
+  // CAMPOS ZAP (CRISTAL)
+  artificialIntelligenceTagsCollection: z.array(z.string()).nullable(),
+  geographicLocationPoint: z.object({
+    type: z.literal('Point'),
+    coordinates: z.tuple([z.number(), z.number()])
+  }).nullable(),
+  podcastScriptDossier: z.object({
+    scriptBodyContent: z.string(),
+    scriptPlainContent: z.string(),
+    legacyText: z.string().optional()
+  }).nullable(),
+
+  // CAMPOS METAL (BACKWARD COMPATIBILITY)
+  ai_tags: z.array(z.string()).nullable(),
+  geo_location: z.any().nullable(),
+  script_text: z.any().nullable(),
+});
