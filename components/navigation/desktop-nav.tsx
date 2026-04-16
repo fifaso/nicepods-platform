@@ -1,14 +1,14 @@
 /**
- * ARCHIVO: components/navigation/desktop-nav.tsx
- * VERSIÓN: 6.0 (NicePod Desktop Command - Axial Path Sanitization Edition)
+ * ARCHIVE: components/navigation/desktop-nav.tsx
+ * VERSION: 6.0 (NicePod Desktop Command - Axial Path Sanitization Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
- * Misión: Orquestar la navegación de escritorio de alta densidad, gestionando 
+ * MISSION: Orquestar la navegación de escritorio de alta densidad, gestionando
  * la autoridad administrativa y la simetría visual del centro de mando global.
  * [REFORMA V6.0]: Resolución definitiva de TS2345 mediante el blindaje de la 
  * ruta de navegación. Resolución de TS2322 mediante la sincronización nominal 
  * con 'UserDropdown' V6.0. Purificación absoluta de la Zero Abbreviations Policy.
- * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * INTEGRITY LEVEL: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
@@ -67,14 +67,14 @@ export function DesktopNav({
 
   /**
    * [BSS]: SANITIZACIÓN AXIAL
-   * Misión: El hook usePathname() puede retornar null. Forzamos un fallback 
+   * MISSION: El hook usePathname() puede retornar null. Forzamos un fallback
    * a cadena vacía para aniquilar el error TS2345 en la lógica de comparación.
    */
   const currentNavigationPathname = usePathname() || "";
 
   /**
    * navigationEntriesCollection:
-   * Misión: Calcular la topología del menú basándose en la autoridad del Voyager.
+   * MISSION: Calcular la topología del menú basándose en la autoridad del Voyager.
    */
   const navigationEntriesCollection = useMemo(() => {
     if (!isUserAuthenticatedStatus) {
@@ -98,7 +98,7 @@ export function DesktopNav({
       {/* I. NÚCLEO IZQUIERDO: IDENTIDAD DE MARCA SOBERANA */}
       <div className="flex-1 flex items-center">
 
-        <NavBrand isUserAuthenticated={isUserAuthenticatedStatus} />
+        <NavBrand isUserAuthenticatedStatus={isUserAuthenticatedStatus} />
 
         {/* Indicador de Rango Administrativo Activo */}
         {isAdministratorAuthorityStatus && !isInitialLoadingProcessActive && (
@@ -125,8 +125,8 @@ export function DesktopNav({
               return (
                 <li key={navigationEntryItem.href} className="flex items-center">
                   <CreateButton
-                    variant="full"
-                    className="h-11 px-8 rounded-full shadow-lg shadow-primary/20"
+                    variantType="full"
+                    additionalTailwindClassName="h-11 px-8 rounded-full shadow-lg shadow-primary/20"
                   />
                 </li>
               );

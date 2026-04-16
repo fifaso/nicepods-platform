@@ -1,18 +1,18 @@
 /**
- * ARCHIVO: types/ambient-modules.d.ts
- * VERSIÓN: 1.1 (NicePod Ambient Declarations - Static Asset Shield Edition)
+ * ARCHIVE: types/ambient-modules.d.ts
+ * VERSION: 1.1 (NicePod Ambient Declarations - Static Asset Shield Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
- * Misión: Declarar explícitamente los contratos para módulos no ejecutables 
+ * MISSION: Declarar explícitamente los contratos para módulos no ejecutables
  * (Cascading Style Sheets, Imágenes, Scalable Vector Graphics), permitiendo 
  * importaciones de efectos secundarios sin violar el rigor del Build Shield 
  * Sovereignty (BSS).
- * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * INTEGRITY LEVEL: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 /**
  * DECLARACIÓN: Cascading Style Sheets (Estilos)
- * Misión: Permitir importaciones de hojas de estilo globales y modulares.
+ * MISSION: Permitir importaciones de hojas de estilo globales y modulares.
  */
 declare module "*.css" {
   const cascadingStyleSheetContent: { [styleClassName: string]: string };

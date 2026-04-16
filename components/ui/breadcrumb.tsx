@@ -1,28 +1,29 @@
+/** ARCHIVE: components/ui/breadcrumb.tsx VERSION: 1.0 PROTOCOLO: MADRID RESONANCE V4.9 MISSION: UI Component INTEGRITY LEVEL: 100% */
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { ChevronRight, MoreHorizontal } from "lucide-react"
 
-import { cn } from "@/lib/utils"
+import { classNamesUtility } from "@/lib/utils"
 
 const Breadcrumb = React.forwardRef<
   HTMLElement,
   React.ComponentPropsWithoutRef<"nav"> & {
     separator?: React.ReactNode
   }
->(({ ...props }, ref) => <nav ref={ref} aria-label="breadcrumb" {...props} />)
+>(({ ...componentProperties }, elementReference) => <nav ref={elementReference} aria-label="breadcrumb" {...componentProperties} />)
 Breadcrumb.displayName = "Breadcrumb"
 
 const BreadcrumbList = React.forwardRef<
   HTMLOListElement,
   React.ComponentPropsWithoutRef<"ol">
->(({ className, ...props }, ref) => (
+>(({ className, ...componentProperties }, elementReference) => (
   <ol
-    ref={ref}
-    className={cn(
+    ref={elementReference}
+    className={classNamesUtility(
       "flex flex-wrap items-center gap-1.5 break-words text-sm text-muted-foreground sm:gap-2.5",
       className
     )}
-    {...props}
+    {...componentProperties}
   />
 ))
 BreadcrumbList.displayName = "BreadcrumbList"
@@ -30,11 +31,11 @@ BreadcrumbList.displayName = "BreadcrumbList"
 const BreadcrumbItem = React.forwardRef<
   HTMLLIElement,
   React.ComponentPropsWithoutRef<"li">
->(({ className, ...props }, ref) => (
+>(({ className, ...componentProperties }, elementReference) => (
   <li
-    ref={ref}
-    className={cn("inline-flex items-center gap-1.5", className)}
-    {...props}
+    ref={elementReference}
+    className={classNamesUtility("inline-flex items-center gap-1.5", className)}
+    {...componentProperties}
   />
 ))
 BreadcrumbItem.displayName = "BreadcrumbItem"
@@ -44,14 +45,14 @@ const BreadcrumbLink = React.forwardRef<
   React.ComponentPropsWithoutRef<"a"> & {
     asChild?: boolean
   }
->(({ asChild, className, ...props }, ref) => {
+>(({ asChild, className, ...componentProperties }, elementReference) => {
   const Comp = asChild ? Slot : "a"
 
   return (
     <Comp
-      ref={ref}
-      className={cn("transition-colors hover:text-foreground", className)}
-      {...props}
+      ref={elementReference}
+      className={classNamesUtility("transition-colors hover:text-foreground", className)}
+      {...componentProperties}
     />
   )
 })
@@ -60,14 +61,14 @@ BreadcrumbLink.displayName = "BreadcrumbLink"
 const BreadcrumbPage = React.forwardRef<
   HTMLSpanElement,
   React.ComponentPropsWithoutRef<"span">
->(({ className, ...props }, ref) => (
+>(({ className, ...componentProperties }, elementReference) => (
   <span
-    ref={ref}
+    ref={elementReference}
     role="link"
     aria-disabled="true"
     aria-current="page"
-    className={cn("font-normal text-foreground", className)}
-    {...props}
+    className={classNamesUtility("font-normal text-foreground", className)}
+    {...componentProperties}
   />
 ))
 BreadcrumbPage.displayName = "BreadcrumbPage"
@@ -75,13 +76,13 @@ BreadcrumbPage.displayName = "BreadcrumbPage"
 const BreadcrumbSeparator = ({
   children,
   className,
-  ...props
+  ...componentProperties
 }: React.ComponentProps<"li">) => (
   <li
     role="presentation"
     aria-hidden="true"
-    className={cn("[&>svg]:w-3.5 [&>svg]:h-3.5", className)}
-    {...props}
+    className={classNamesUtility("[&>svg]:w-3.5 [&>svg]:h-3.5", className)}
+    {...componentProperties}
   >
     {children ?? <ChevronRight />}
   </li>
@@ -90,13 +91,13 @@ BreadcrumbSeparator.displayName = "BreadcrumbSeparator"
 
 const BreadcrumbEllipsis = ({
   className,
-  ...props
+  ...componentProperties
 }: React.ComponentProps<"span">) => (
   <span
     role="presentation"
     aria-hidden="true"
-    className={cn("flex h-9 w-9 items-center justify-center", className)}
-    {...props}
+    className={classNamesUtility("flex h-9 w-9 items-center justify-center", className)}
+    {...componentProperties}
   >
     <MoreHorizontal className="h-4 w-4" />
     <span className="sr-only">More</span>

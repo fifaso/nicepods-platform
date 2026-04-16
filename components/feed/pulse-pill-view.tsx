@@ -106,7 +106,7 @@ export function PulsePillView({
   // --- LÓGICA DE INTEGRIDAD Y AUTORÍA ---
   const isIntelligenceConstructing = localPodcastData.processing_status !== 'completed' && localPodcastData.processing_status !== 'failed';
   const isSynthesisFailed = localPodcastData.processing_status === 'failed';
-  const isAdministratorOwner = authenticatedUser?.id === localPodcastData.user_id;
+  const isAdministratorOwner = authenticatedUser?.id === localPodcastData.authorUserIdentification;
 
   const hasUpdatedDatabaseReference = useRef<boolean>(false);
 
@@ -208,7 +208,7 @@ export function PulsePillView({
     if (!supabaseClient || !authenticatedUser || isInteractionProcessActive) return;
     setIsInteractionProcessActive(true);
 
-    const podcastIdentification = localPodcastData.id;
+    const podcastIdentification = localPodcastData.identification;
     const userIdentification = authenticatedUser.id;
 
     try {
@@ -227,8 +227,9 @@ export function PulsePillView({
           podcast_id: podcastIdentification
         });
       }
-    } catch (exception: any) {
-        nicepodLog("🔥 [Pulse-Pill-Interaction-Fatal]:", exception.message, 'error');
+    } catch (exception: unknown) {
+        const exceptionMessageInformation = exception instanceof Error ? exception.message : "Hardware Error";
+        nicepodLog("🔥 [Pulse-Pill-Interaction-Fatal]:", exceptionMessageInformation, 'error');
     } finally {
         setIsInteractionProcessActive(false);
     }

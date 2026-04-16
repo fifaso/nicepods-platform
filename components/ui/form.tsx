@@ -12,7 +12,7 @@ import {
   useFormContext,
 } from "react-hook-form"
 
-import { cn } from "@/lib/utils"
+import { classNamesUtility } from "@/lib/utils"
 import { Label } from "@/components/ui/label"
 
 const Form = FormProvider
@@ -32,11 +32,11 @@ const FormField = <
   TFieldValues extends FieldValues = FieldValues,
   TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>
 >({
-  ...props
+  ...componentProperties
 }: ControllerProps<TFieldValues, TName>) => {
   return (
-    <FormFieldContext.Provider value={{ name: props.name }}>
-      <Controller {...props} />
+    <FormFieldContext.Provider value={{ name: componentProperties.name }}>
+      <Controller {...componentProperties} />
     </FormFieldContext.Provider>
   )
 }
@@ -75,12 +75,12 @@ const FormItemContext = React.createContext<FormItemContextValue>(
 const FormItem = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => {
+>(({ className, ...componentProperties }, elementReference) => {
   const id = React.useId()
 
   return (
     <FormItemContext.Provider value={{ id }}>
-      <div ref={ref} className={cn("space-y-2", className)} {...props} />
+      <div ref={elementReference} className={classNamesUtility("space-y-2", className)} {...componentProperties} />
     </FormItemContext.Provider>
   )
 })
@@ -89,15 +89,15 @@ FormItem.displayName = "FormItem"
 const FormLabel = React.forwardRef<
   React.ElementRef<typeof LabelPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof LabelPrimitive.Root>
->(({ className, ...props }, ref) => {
+>(({ className, ...componentProperties }, elementReference) => {
   const { error, formItemId } = useFormField()
 
   return (
     <Label
-      ref={ref}
-      className={cn(error && "text-destructive", className)}
+      ref={elementReference}
+      className={classNamesUtility(error && "text-destructive", className)}
       htmlFor={formItemId}
-      {...props}
+      {...componentProperties}
     />
   )
 })
@@ -106,12 +106,12 @@ FormLabel.displayName = "FormLabel"
 const FormControl = React.forwardRef<
   React.ElementRef<typeof Slot>,
   React.ComponentPropsWithoutRef<typeof Slot>
->(({ ...props }, ref) => {
+>(({ ...componentProperties }, elementReference) => {
   const { error, formItemId, formDescriptionId, formMessageId } = useFormField()
 
   return (
     <Slot
-      ref={ref}
+      ref={elementReference}
       id={formItemId}
       aria-describedby={
         !error
@@ -119,7 +119,7 @@ const FormControl = React.forwardRef<
           : `${formDescriptionId} ${formMessageId}`
       }
       aria-invalid={!!error}
-      {...props}
+      {...componentProperties}
     />
   )
 })
@@ -128,15 +128,15 @@ FormControl.displayName = "FormControl"
 const FormDescription = React.forwardRef<
   HTMLParagraphElement,
   React.HTMLAttributes<HTMLParagraphElement>
->(({ className, ...props }, ref) => {
+>(({ className, ...componentProperties }, elementReference) => {
   const { formDescriptionId } = useFormField()
 
   return (
     <p
-      ref={ref}
+      ref={elementReference}
       id={formDescriptionId}
-      className={cn("text-sm text-muted-foreground", className)}
-      {...props}
+      className={classNamesUtility("text-sm text-muted-foreground", className)}
+      {...componentProperties}
     />
   )
 })
@@ -145,7 +145,7 @@ FormDescription.displayName = "FormDescription"
 const FormMessage = React.forwardRef<
   HTMLParagraphElement,
   React.HTMLAttributes<HTMLParagraphElement>
->(({ className, children, ...props }, ref) => {
+>(({ className, children, ...componentProperties }, elementReference) => {
   const { error, formMessageId } = useFormField()
   const body = error ? String(error?.message) : children
 
@@ -155,10 +155,10 @@ const FormMessage = React.forwardRef<
 
   return (
     <p
-      ref={ref}
+      ref={elementReference}
       id={formMessageId}
-      className={cn("text-sm font-medium text-destructive", className)}
-      {...props}
+      className={classNamesUtility("text-sm font-medium text-destructive", className)}
+      {...componentProperties}
     >
       {body}
     </p>

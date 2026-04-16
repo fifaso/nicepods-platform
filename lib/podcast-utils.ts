@@ -34,8 +34,8 @@ export function groupPodcastsByThread(flatList: PodcastWithProfile[]): PodcastWi
             repliesCollection: [],
             replies: []
         };
-        podcastIdentificationMap.set(node.id, node);
-        timestampReferenceMap.set(node.id, new Date(node.created_at).getTime());
+        podcastIdentificationMap.set(node.identification, node);
+        timestampReferenceMap.set(node.identification, new Date(node.created_at).getTime());
         return node;
     });
 
@@ -43,7 +43,7 @@ export function groupPodcastsByThread(flatList: PodcastWithProfile[]): PodcastWi
 
     // 2. Ensamblaje de la Topología de Hilos (Grafo de Conocimiento)
     for (const node of podcastNodesCollection) {
-        const parentIdentification = node.parent_id;
+        const parentIdentification = node.parentPodcastIdentification;
 
         if (parentIdentification && podcastIdentificationMap.has(parentIdentification) && node.creation_mode !== 'pulse') {
             const parentNode = podcastIdentificationMap.get(parentIdentification)!;
@@ -58,8 +58,8 @@ export function groupPodcastsByThread(flatList: PodcastWithProfile[]): PodcastWi
     // 3. Ordenamiento Estratégico (Descendente por Tiempo de Creación)
     // Utilizamos el mapa de referencias temporales para evitar re-parseo de strings en el sort.
     return rootPodcastsCollection.sort((firstNode, secondNode) => {
-        const firstTimestamp = timestampReferenceMap.get(firstNode.id) || 0;
-        const secondTimestamp = timestampReferenceMap.get(secondNode.id) || 0;
+        const firstTimestamp = timestampReferenceMap.get(firstNode.identification) || 0;
+        const secondTimestamp = timestampReferenceMap.get(secondNode.identification) || 0;
         return secondTimestamp - firstTimestamp;
     });
 }
@@ -73,8 +73,8 @@ export function segmentPodcastsByType(list: PodcastWithProfile[]) {
 
 export function sortPodcastsByStrategicValue(pills: PodcastWithGenealogy[]): PodcastWithGenealogy[] {
     return pills.sort((a, b) => {
-        const scoreA = a.authority_score || 0;
-        const scoreB = b.authority_score || 0;
+        const scoreA = a.authorityScoreValue || 0;
+        const scoreB = b.authorityScoreValue || 0;
         if (scoreA !== scoreB) return scoreB - scoreA;
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });

@@ -86,11 +86,11 @@ export function IntelligenceFeed({
 
   // --- 1. SANEAMIENTO DE DATOS (DATA HYGIENE) ---
   const safeEpicenterCollection = useMemo(() => {
-    return initialEpicenterCollection.filter((podcastItem) => podcastItem.id);
+    return initialEpicenterCollection.filter((podcastItem) => podcastItem.identification);
   }, [initialEpicenterCollection]);
 
   const safeConnectionsCollection = useMemo(() => {
-    return initialConnectionsCollection.filter((podcastItem) => podcastItem.id);
+    return initialConnectionsCollection.filter((podcastItem) => podcastItem.identification);
   }, [initialConnectionsCollection]);
 
   // --- 2. GESTIÓN DE ESTADOS DE HIDRATACIÓN ---
@@ -200,8 +200,8 @@ export function IntelligenceFeed({
           <div className="flex items-center justify-between border-b border-white/5 pb-8 px-2">
             <div className="flex items-center gap-5">
               <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 relative shadow-2xl">
-                <Loader2 className={cn("h-6 w-6 text-primary absolute", isSearchingProcessActive ? "animate-spin opacity-100" : "opacity-0")} />
-                <Search className={cn("h-6 w-6 text-primary transition-opacity duration-300", isSearchingProcessActive ? "opacity-0" : "opacity-100")} />
+                <Loader2 className={classNamesUtility("h-6 w-6 text-primary absolute", isSearchingProcessActive ? "animate-spin opacity-100" : "opacity-0")} />
+                <Search className={classNamesUtility("h-6 w-6 text-primary transition-opacity duration-300", isSearchingProcessActive ? "opacity-0" : "opacity-100")} />
               </div>
               <div className="space-y-1">
                 <h2 className="text-2xl font-black uppercase tracking-tighter text-white leading-none">

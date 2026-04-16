@@ -1,10 +1,11 @@
+/** ARCHIVE: components/ui/pulse-source-card.tsx VERSION: 1.0 PROTOCOLO: MADRID RESONANCE V4.9 MISSION: UI Component INTEGRITY LEVEL: 100% */
 // components/create-flow/ui/pulse-source-card.tsx
 // VERSIÓN: 1.0 (Atomic Intelligence Dossier - High Authority UI)
 
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { classNamesUtility } from "@/lib/utils";
 import { PulseMatchResult } from "@/types/pulse";
 import { motion } from "framer-motion";
 import {
@@ -54,7 +55,7 @@ export function PulseSourceCard({ signal, isSelected, onToggle }: PulseSourceCar
       animate={{ opacity: 1, y: 0 }}
       whileHover={{ y: -4 }}
       onClick={() => onToggle(signal.id)}
-      className={cn(
+      className={classNamesUtility(
         "relative flex flex-col p-5 rounded-[2rem] border transition-all duration-300 cursor-pointer group overflow-hidden",
         isSelected
           ? "bg-white dark:bg-zinc-900 border-primary shadow-2xl scale-[1.02]"
@@ -70,12 +71,12 @@ export function PulseSourceCard({ signal, isSelected, onToggle }: PulseSourceCar
       <header className="relative z-10 flex justify-between items-start mb-4">
         <div className="flex items-center gap-3">
           {/* La Gema de Autoridad */}
-          <div className={cn(
+          <div className={classNamesUtility(
             "w-2.5 h-2.5 rounded-full",
             visuals.color,
             visuals.glow
           )} />
-          <span className={cn(
+          <span className={classNamesUtility(
             "text-[9px] font-black uppercase tracking-[0.2em]",
             isSelected ? "text-primary" : "text-white/40"
           )}>
@@ -83,7 +84,7 @@ export function PulseSourceCard({ signal, isSelected, onToggle }: PulseSourceCar
           </span>
         </div>
 
-        <Badge variant="outline" className={cn(
+        <Badge variant="outline" className={classNamesUtility(
           "h-6 px-2.5 rounded-full border-none font-bold text-[10px] flex gap-1.5",
           isSelected ? "bg-primary text-white" : "bg-primary/10 text-primary"
         )}>
@@ -95,13 +96,13 @@ export function PulseSourceCard({ signal, isSelected, onToggle }: PulseSourceCar
       {/* 3. TÍTULO Y TIPO */}
       <div className="relative z-10 space-y-2 mb-4">
         <div className="flex gap-3">
-          <div className={cn(
+          <div className={classNamesUtility(
             "p-2 rounded-xl flex-shrink-0",
             isSelected ? "bg-primary/10 text-primary" : "bg-white/5 text-white/60"
           )}>
             {signal.content_type === 'paper' ? <FileText size={18} /> : <Globe size={18} />}
           </div>
-          <h3 className={cn(
+          <h3 className={classNamesUtility(
             "font-black text-sm md:text-base leading-tight uppercase tracking-tight line-clamp-2",
             isSelected ? "text-zinc-900 dark:text-white" : "text-white"
           )}>
@@ -111,11 +112,11 @@ export function PulseSourceCard({ signal, isSelected, onToggle }: PulseSourceCar
       </div>
 
       {/* 4. ABSTRACT IA: Caja de Inteligencia */}
-      <div className={cn(
+      <div className={classNamesUtility(
         "relative z-10 p-4 rounded-2xl mb-4 transition-colors",
         isSelected ? "bg-zinc-100 dark:bg-black/40" : "bg-black/20"
       )}>
-        <p className={cn(
+        <p className={classNamesUtility(
           "text-[11px] leading-relaxed line-clamp-3 font-medium",
           isSelected ? "text-zinc-600 dark:text-zinc-400" : "text-muted-foreground"
         )}>
@@ -126,13 +127,13 @@ export function PulseSourceCard({ signal, isSelected, onToggle }: PulseSourceCar
       {/* 5. FOOTER: ACCIONES Y STATUS */}
       <footer className="relative z-10 mt-auto pt-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className={cn(
+          <div className={classNamesUtility(
             "w-6 h-6 rounded-full flex items-center justify-center border transition-all duration-500",
             isSelected ? "bg-primary border-primary" : "border-white/10 bg-white/5"
           )}>
             {isSelected && <Check size={14} className="text-white" />}
           </div>
-          <span className={cn(
+          <span className={classNamesUtility(
             "text-[10px] font-black uppercase tracking-widest",
             isSelected ? "text-primary" : "text-white/20"
           )}>

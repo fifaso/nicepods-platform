@@ -1,6 +1,6 @@
 /**
  * ARCHIVO: components/ui/poi-action-card.tsx
- * VERSIÓN: 2.0 (NicePod POI Action Card - Industrial Geodetic Edition)
+ * VERSIÓN: 2.1 (NicePod POI Action Card - Industrial Geodetic Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * Misión: Visualizar una unidad de valor situada (POI), permitiendo la transición 
@@ -116,6 +116,11 @@ export function POIActionCard({
   onVisit,
   isGenerationProcessActiveStatus = false
 }: PointOfInterestActionCardProperties) {
+
+  if (!pointOfInterestRecommendation) {
+    nicepodLog("⚠️ [POIActionCard] Intento de renderizado sin hito pericial.", null, "warn");
+    return null;
+  }
 
   // Resolución de atmósfera visual basada en categoría
   const categoryAestheticConfiguration = 

@@ -1,15 +1,15 @@
 /**
- * ARCHIVO: components/geo/steps/step-2-sensory-capture.tsx
- * VERSIÓN: 10.0 (NicePod Forge Step 2 - Sensory Lab UI Optimization & Industrial Layout Edition)
+ * ARCHIVE: components/geo/steps/step-2-sensory-capture.tsx
+ * VERSION: 10.0 (NicePod Forge Step 2 - Sensory Lab UI Optimization & Industrial Layout Edition)
  * PROTOCOLO: MADRID RESONANCE V4.5
  * 
- * Misión: Capturar la verdad física del entorno mediante evidencia visual, acústica, 
+ * MISSION: Capturar la verdad física del entorno mediante evidencia visual, acústica,
  * temporal y documental, orquestando la ingesta hacia el Oráculo de Inteligencia.
  * [REFORMA V10.0]: Reconstrucción total del layout para erradicar el solapamiento 
  * de componentes. Implementación de footer fijo de alta visibilidad. Integración 
  * del GeoRecorder Compacto V6.0 y expansión del área de peritaje textual. 
  * Cumplimiento absoluto de la Zero Abbreviations Policy (ZAP).
- * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * INTEGRITY LEVEL: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
@@ -37,7 +37,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { GeoRecorder } from "@/components/geo/geo-recorder";
-import { cn, nicepodLog } from "@/lib/utils";
+import { classNamesUtility, nicepodLog } from "@/lib/utils";
 import { HistoricalEpoch } from "@/types/geo-sovereignty";
 
 /**
@@ -79,7 +79,7 @@ export default function Step2SensoryCapture() {
 
   /**
    * handleHeroImageSelectionAction:
-   * Misión: Validar y asignar la imagen de autoridad principal del hito urbano.
+   * MISSION: Validar y asignar la imagen de autoridad principal del hito urbano.
    */
   const handleHeroImageSelectionAction = useCallback((changeEvent: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = changeEvent.target.files?.[0];
@@ -91,7 +91,7 @@ export default function Step2SensoryCapture() {
 
   /**
    * handleOpticalCharacterRecognitionImageAdditionAction:
-   * Misión: Anexar pruebas secundarias al expediente (Mosaico de Inteligencia).
+   * MISSION: Anexar pruebas secundarias al expediente (Mosaico de Inteligencia).
    */
   const handleOpticalCharacterRecognitionImageAdditionAction = useCallback((changeEvent: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFilesCollection = changeEvent.target.files;
@@ -104,7 +104,7 @@ export default function Step2SensoryCapture() {
 
   /**
    * handleVoiceIntentCaptureAction:
-   * Misión: Recibir el binario acústico y alojarlo en el contexto como instrucción cognitiva.
+   * MISSION: Recibir el binario acústico y alojarlo en el contexto como instrucción cognitiva.
    */
   const handleVoiceIntentCaptureAction = useCallback(async (capturedAudioBinaryBlob: Blob, recordingDurationSeconds: number) => {
     nicepodLog(`🎙️ [Step2] Dictado sensorial capturado: ${recordingDurationSeconds} segundos.`);
@@ -113,7 +113,7 @@ export default function Step2SensoryCapture() {
 
   /**
    * executeSensoryIngestionWorkflow:
-   * Misión: Disparar el protocolo lightning para la transmisión y peritaje por Inteligencia Artificial.
+   * MISSION: Disparar el protocolo lightning para la transmisión y peritaje por Inteligencia Artificial.
    */
   const executeSensoryIngestionWorkflow = async () => {
     if (
@@ -164,7 +164,7 @@ export default function Step2SensoryCapture() {
 
   /**
    * isSensoryIngestionIntegrityValidated:
-   * Misión: Validar la completitud de la Malla antes de permitir el avance.
+   * MISSION: Validar la completitud de la Malla antes de permitir el avance.
    */
   const isSensoryIngestionIntegrityValidated = useMemo(() => {
     return (
@@ -195,7 +195,7 @@ export default function Step2SensoryCapture() {
         <div className="space-y-6">
           <div 
             onClick={() => !isSensoryIngestionProcessActive && heroImageInputElementReference.current?.click()}
-            className={cn(
+            className={classNamesUtility(
               "relative aspect-video rounded-[3rem] border-2 border-dashed transition-all duration-700 cursor-pointer overflow-hidden flex flex-col items-center justify-center gap-5 shadow-2xl",
               forgeState.heroImageFile 
                 ? "border-primary/40 bg-primary/5 shadow-[0_0_40px_rgba(var(--primary-rgb),0.1)]" 
@@ -269,7 +269,7 @@ export default function Step2SensoryCapture() {
                 key={historicalEpochItem.value}
                 onClick={() => stateDispatcher({ type: 'SET_EPOCH', payload: historicalEpochItem.value })}
                 disabled={isSensoryIngestionProcessActive}
-                className={cn(
+                className={classNamesUtility(
                   "shrink-0 snap-start px-6 py-4 rounded-2xl border transition-all duration-700 flex flex-col items-center justify-center min-w-[120px] shadow-xl",
                   forgeState.historicalEpoch === historicalEpochItem.value
                     ? "bg-primary text-black border-primary shadow-[0_10px_30px_rgba(var(--primary-rgb),0.3)] scale-105"

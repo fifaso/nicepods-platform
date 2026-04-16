@@ -132,7 +132,7 @@ export function LinkPointsStep() {
                         activeFieldIdentification === 'PRIMARY' ? "max-h-24 opacity-100" : "max-h-0 opacity-0 p-0 border-0"
                     )}>
                         <VoiceInput 
-                          onTextGenerated={handleAcousticInputPrimaryAction} 
+                          onTextGeneratedAction={handleAcousticInputPrimaryAction}
                           className="w-full h-12 bg-white/5 border-white/5" 
                         />
                     </div>
@@ -184,7 +184,7 @@ export function LinkPointsStep() {
                         activeFieldIdentification === 'SECONDARY' ? "max-h-24 opacity-100" : "max-h-0 opacity-0 p-0 border-0"
                     )}>
                         <VoiceInput 
-                          onTextGenerated={handleAcousticInputSecondaryAction} 
+                          onTextGeneratedAction={handleAcousticInputSecondaryAction}
                           className="w-full h-12 bg-white/5 border-white/5" 
                         />
                     </div>

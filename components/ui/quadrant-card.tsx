@@ -1,3 +1,4 @@
+/** ARCHIVE: components/ui/quadrant-card.tsx VERSION: 1.0 PROTOCOLO: MADRID RESONANCE V4.9 MISSION: UI Component INTEGRITY LEVEL: 100% */
 // components/ui/quadrant-card.tsx
 // Una tarjeta interactiva y animada para representar las categorías de descubrimiento.
 

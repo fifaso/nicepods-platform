@@ -119,7 +119,7 @@ export function QuestionStep() {
               <div className="flex-shrink-0 p-6 md:p-10 bg-black/40 border-t border-white/5 backdrop-blur-md z-10 shadow-inner">
                  <div className="max-w-2xl mx-auto space-y-4">
                     <VoiceInput 
-                        onTextGenerated={handleAcousticVoiceTranscriptionAction} 
+                        onTextGeneratedAction={handleAcousticVoiceTranscriptionAction}
                         className="w-full h-16 rounded-2xl bg-white/5 border-white/5 hover:border-primary/20 transition-all shadow-2xl" 
                     />
                     <FormMessage className="text-center text-[10px] font-black uppercase tracking-widest text-red-500 italic" />

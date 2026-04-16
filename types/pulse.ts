@@ -1,78 +1,91 @@
-// types/pulse.ts
-// VERSIÓN: 1.0 (Pulse Intelligence Types - DNA, Signals & Matching)
+/**
+ * ARCHIVE: types/pulse.ts
+ * VERSION: 2.0 (Pulse Intelligence Types - DNA, Signals & Matching)
+ * PROTOCOLO: MADRID RESONANCE V4.9
+ * MISSION: Define the data structures for the Pulse Intelligence engine,
+ * including signal processing, cognitive DNA mapping, and radar telemetry.
+ * INTEGRITY LEVEL: 100% (Soberano / No abbreviations / Production-Ready)
+ */
 
 /**
- * 🏷️ CATEGORÍAS DE AUTORIDAD NICEPOD
- * Sincronizado con el Enum 'content_category' de la base de datos.
+ * PulseCategory: Authority taxonomies for NicePod knowledge units.
  */
 export type PulseCategory = 'paper' | 'report' | 'news' | 'analysis' | 'trend';
 
 /**
- * 🛰️ PULSE SIGNAL
- * Representa una unidad de conocimiento crudo en el búfer (pulse_staging).
+ * PulseSignal: Represents a raw intelligence unit in the staging buffer.
  */
 export interface PulseSignal {
+  identification: string;
+  /** id: Fallback for axial compatibility. */
   id: string;
-  content_hash: string;
+  contentHashIdentification: string;
+  titleTextContent: string;
+  /** title: Fallback for axial compatibility. */
   title: string;
+  summaryContentText: string;
+  /** summary: Fallback for axial compatibility. */
   summary: string;
   uniformResourceLocator: string;
+  sourceAuthorityName: string;
+  /** source_name: Fallback for axial compatibility. */
   source_name: string;
+  sourceContentType: PulseCategory;
+  /** content_type: Fallback for axial compatibility. */
   content_type: PulseCategory;
-  authority_score: number; // Escala 1.0 a 10.0
-  veracity_verified: boolean;
-  is_high_value: boolean;
-  created_at: string;
-  expires_at: string;
+  authorityScoreValue: number;
+  /** authority_score: Fallback for axial compatibility. */
+  authority_score: number;
+  isVeracityVerified: boolean;
+  isHighValueSovereignty: boolean;
+  creationTimestamp: string;
+  expirationTimestamp: string;
 }
 
 /**
- * 🎯 PULSE MATCH RESULT
- * Resultado procesado por el 'pulse-matcher'. 
- * Incluye la métrica de relevancia para el usuario específico.
+ * PulseMatchResult: Processed outcome from the pulse-matcher.
  */
 export interface PulseMatchResult extends PulseSignal {
-  similarity: number;       // Valor decimal (0 a 1)
-  match_percentage: number; // Valor entero (0 a 100) para visualización
-  relevance_label: 'Prioritario' | 'Relevante' | 'Exploratorio';
+  semanticSimilarityMagnitude: number;
+  matchPercentageMagnitude: number;
+  /** match_percentage: Fallback for axial compatibility. */
+  match_percentage: number;
+  relevanceLabel: 'Prioritario' | 'Relevante' | 'Exploratorio';
 }
 
 /**
- * 🧠 USER COGNITIVE DNA
- * Representa la matriz de intereses e inteligencia del usuario.
+ * UserCognitiveDNA: Represents the user interest and intelligence matrix.
  */
 export interface UserCognitiveDNA {
-  user_id: string;
-  dna_vector: number[];        // Vector de 768 dimensiones (Text-embedding-004)
-  professional_profile: string; // Resumen de la "Entrevista IA"
-  negative_interests: string[]; // Conceptos marcados como "Ruido"
-  expertise_level: number;     // Escala 1-10 para profundidad narrativa
-  last_updated: string;
-  total_pulses_generated: number;
+  userIdentification: string;
+  dnaVectorCollection: number[];        // 768-dimension vector
+  professionalProfileSummary: string;
+  negativeInterestsCollection: string[];
+  expertiseLevelMagnitude: number;      // Scale 1-10
+  lastUpdateTimestamp: string;
+  totalPulsesGeneratedCount: number;
 }
 
 /**
- * 📡 RADAR INTERFACE STATE
- * Tipos para la gestión de estado del componente PulseRadarStep.
+ * PulseRadarState: State management for the Pulse Radar component.
  */
 export interface PulseRadarState {
-  signals: PulseMatchResult[];
-  selectedIds: string[];
-  isLoading: boolean;
-  isScanning: boolean; // Estado específico para la animación del radar
-  error: string | null;
-  lastScanAt: string | null;
+  signalsCollection: PulseMatchResult[];
+  selectedIdentificationsCollection: string[];
+  isProcessingActive: boolean;
+  isScanningProcessActive: boolean;
+  exceptionMessageInformation: string | null;
+  lastScanTimestamp: string | null;
 }
 
 /**
- * 📊 DNA MAP NODE
- * Estructura para renderizar los intereses en el mapa de calor interactivo.
+ * DNAMapNode: Structure for rendering interests in the interactive heat map.
  */
 export interface DNAMapNode {
-  id: string;
+  identification: string;
   label: string;
-  weight: number; // Define el tamaño visual del nodo
-  x: number;      // Posición en el plano 2D de Framer Motion
-  y: number;
-  category: 'professional' | 'personal' | 'noise';
+  weightMagnitude: number;
+  xCoordinate: number;
+  yCoordinate: number;
+  nodeCategory: 'professional' | 'personal' | 'noise';
 }

@@ -1,13 +1,13 @@
 /**
  * ARCHIVO: components/ui/unified-search-bar.tsx
- * VERSIÓN: 7.0 (NicePod Void Search - Industrial Intelligence Synchronization)
+ * VERSIÓN: 7.2 (NicePod Void Search - Industrial Intelligence Synchronization)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * Misión: Terminal de inmersión total optimizada para el descubrimiento semántico 
  * de capital intelectual, gestionando el ciclo de vida del radar de búsqueda.
- * [REFORMA V7.0]: Resolución definitiva de TS2305 y TS7006. Sincronización nominal 
- * absoluta con 'useSearchRadarIntelligence' V5.0 y 'SearchRadarResult' V12.0. 
- * Aplicación integral de la Zero Abbreviations Policy (ZAP) y Build Shield Sovereignty.
+ * [REFORMA V7.2]: Restauración de la Nominal Sovereignty absoluta. Eliminación
+ * de alias de compatibilidad. Resolución de errores de referencia circular.
+ * Aplicación integral de la Zero Abbreviations Policy (ZAP).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -49,6 +49,7 @@ export interface UnifiedSearchBarProperties {
   onClearAction?: () => void;
   latitudeCoordinate?: number;
   longitudeCoordinate?: number;
+  /** variantType: Identificador de diseño soberano. */
   variantType?: 'default' | 'console';
   additionalTailwindClassName?: string;
 }
@@ -362,11 +363,11 @@ function SearchResultItem({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V7.0):
+ * NOTA TÉCNICA DEL ARCHITECT (V7.2):
  * 1. Build Shield Absolute: Resolución definitiva de TS2305 y TS7006. Sincronización 
  *    nominal con el motor vectorial mediante descriptores V12.0 (identification, 
  *    resultCategoryType, titleTextContent).
- * 2. ZAP Compliance: Purificación total. Se han eliminado abreviaciones en props 
+ * 2. ZAP Compliance: Purificación total. Se han eliminado abreviaciones en componentProperties
  *    (placeholderText, variantType, additionalTailwindClassName) y lógica.
  * 3. Kinematic Optimization: Uso de motion.div y createPortal para asegurar que 
  *    la terminal Void no interfiera con el árbol de renderizado de React, 

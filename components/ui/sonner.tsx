@@ -1,3 +1,4 @@
+/** ARCHIVE: components/ui/sonner.tsx VERSION: 1.0 PROTOCOLO: MADRID RESONANCE V4.9 MISSION: UI Component INTEGRITY LEVEL: 100% */
 "use client"
 
 import { useTheme } from "next-themes"
@@ -5,7 +6,7 @@ import { Toaster as Sonner } from "sonner"
 
 type ToasterProps = React.ComponentProps<typeof Sonner>
 
-const Toaster = ({ ...props }: ToasterProps) => {
+const Toaster = ({ ...componentProperties }: ToasterProps) => {
   const { theme = "system" } = useTheme()
 
   return (
@@ -23,7 +24,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
             "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
         },
       }}
-      {...props}
+      {...componentProperties}
     />
   )
 }
