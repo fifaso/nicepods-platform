@@ -1,13 +1,11 @@
 /**
  * ARCHIVO: components/navigation.tsx
- * VERSIÓN: 21.1 (NicePod Navigation Master - Absolute Contract Sync Edition)
- * PROTOCOLO: MADRID RESONANCE V4.0
- * 
- * Misión: Orquestar la infraestructura de navegación global, vinculando la 
- * autoridad del usuario con las interfaces especializadas de escritorio y móvil.
- * [REFORMA V21.1]: Sincronización nominal total y preparación para la elevación 
- * de MobileNav al estándar industrial V4.0.
- * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * VERSIÓN: 5.1 (Madrid Resonance)
+ * PROTOCOLO: Nominal Sovereignty
+ * MISIÓN: Orquestar la infraestructura de navegación global de la Workstation.
+ * [REFORMA V5.1]: Aplicación integral de la Zero Abbreviations Policy (ZAP).
+ * Sincronización nominal absoluta entre terminales Desktop y Mobile.
+ * NIVEL DE INTEGRIDAD: 100%
  */
 
 "use client";
@@ -34,7 +32,7 @@ export function Navigation() {
 
   // --- I. CONSUMO DE AUTORIDAD Y ESTADO DE SESIÓN ---
   const {
-    profile: rawAdministratorProfile,
+    profile: rawAdministratorProfileObject,
     isAdministratorAuthority: isAdministratorAuthorityStatus,
     isAuthenticated: isUserAuthenticatedStatus,
     signOut: terminateSessionAction,
@@ -57,7 +55,7 @@ export function Navigation() {
        * de servidor (SSR) detecten la transición al estado 'unauthenticated'.
        */
       navigationRouter.refresh();
-    } catch (authenticationException) {
+    } catch (authenticationException: unknown) {
       console.error(
         "🔥 [Navigation-Fatal] Error crítico durante la terminación de sesión:", 
         authenticationException
@@ -66,10 +64,10 @@ export function Navigation() {
   }, [terminateSessionAction, navigationRouter]);
 
   /**
-   * userProfileData:
+   * userProfileDataSnapshot:
    * Misión: Validar y tipar la estructura de identidad recolectada del Metal.
    */
-  const userProfileData = rawAdministratorProfile as ProfileData | null;
+  const userProfileDataSnapshot = rawAdministratorProfileObject as ProfileData | null;
 
   return (
     /**
@@ -80,24 +78,24 @@ export function Navigation() {
 
       {/* 
           1. TERMINAL DE COMANDO DE ESCRITORIO (>1024px)
-          [Sincronizado con DesktopNavigationProperties V4.0]
+          [Sincronizado con DesktopNavigationComponentProperties V5.1]
       */}
       <DesktopNav
         isUserAuthenticatedStatus={isUserAuthenticatedStatus}
         isInitialLoadingProcessActive={isInitialLoadingProcessActive}
-        administratorProfile={userProfileData}
+        administratorProfile={userProfileDataSnapshot}
         isAdministratorAuthorityStatus={isAdministratorAuthorityStatus}
         onAuthenticationLogoutAction={handleAuthenticationLogoutAction}
       />
 
       {/* 
           2. TERMINAL DE COMANDO MÓVIL (<1024px)
-          [Sincronizado con MobileNavigationProperties V4.0]
+          [Sincronizado con MobileNavigationComponentProperties V5.1]
       */}
       <MobileNav
         isUserAuthenticatedStatus={isUserAuthenticatedStatus}
         isInitialLoadingProcessActive={isInitialLoadingProcessActive}
-        userProfileData={userProfileData}
+        userProfileDataSnapshot={userProfileDataSnapshot}
         isAdministratorAuthorityStatus={isAdministratorAuthorityStatus}
         onAuthenticationLogoutAction={handleAuthenticationLogoutAction}
       />
