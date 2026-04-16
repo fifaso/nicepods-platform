@@ -1,15 +1,9 @@
 /**
  * ARCHIVO: lib/workers/resonance-physics.worker.ts
- * VERSIÓN: 4.1 (NicePod Physics Worker - Atomic Scope & Transferable Data Edition)
+ * VERSIÓN: 4.2
  * PROTOCOLO: MADRID RESONANCE V4.9
- * 
- * Misión: Ejecutar la simulación de fuerzas gravitatorias, repulsión semántica y 
- * colisiones en un hilo secundario aislado, garantizando que el hilo principal 
- * mantenga una fluidez constante de 60 FPS.
- * [REFORMA V4.1]: Resolución definitiva de errores TS2304 mediante la desestructuración 
- * correcta del payload de solicitud dentro del Worker. Purificación absoluta de la 
- * Zero Abbreviations Policy (ZAP). Blindaje contra fugas de memoria.
- * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * MISIÓN: Ejecutar la simulación de fuerzas gravitatorias con blindaje BSS y objetos transferibles.
+ * NIVEL DE INTEGRIDAD: 100%
  */
 
 import {
@@ -140,7 +134,7 @@ function executeSimulationInitialization(
       self.postMessage({
         type: "TICK",
         positionsBuffer: positionsBuffer
-      }, [positionsBuffer.buffer] as any);
+      }, [positionsBuffer.buffer]);
     })
 
     .on("end", () => {
@@ -159,7 +153,7 @@ function executeSimulationInitialization(
       self.postMessage({
         type: "STABILITY_REACHED",
         positionsBuffer: finalPositionsBuffer
-      }, [finalPositionsBuffer.buffer] as any);
+      }, [finalPositionsBuffer.buffer]);
     });
 }
 

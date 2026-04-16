@@ -1,16 +1,30 @@
 /**
  * ARCHIVO: lib/workers/map-data.worker.ts
- * VERSIÓN: 1.0 (NicePod Map Data Worker - Computational Exile Edition)
+ * VERSIÓN: 1.1
  * PROTOCOLO: MADRID RESONANCE V4.5
- * 
- * Misión: Realizar el procesamiento, mapeo e integridad de datos de los nodos 
- * de la Bóveda NKV en un hilo secundario aislado, garantizando que el Hilo Principal 
- * (Main Thread) permanezca libre para el renderizado WebGL a 60 FPS.
- * [DISEÑO SOBERANO]: Implementación de la Ley MTI (Main Thread Isolation). Este 
- * trabajador transmuta los registros crudos de PostgreSQL/PostGIS hacia el 
- * contrato estricto de la Constitución de Soberanía V8.6.
- * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * MISIÓN: Procesamiento de nodos NKV en hilo secundario con integridad BSS.
+ * NIVEL DE INTEGRIDAD: 100%
  */
+
+interface DatabasePointRecord {
+  identification: number;
+  author_identification?: string;
+  point_of_interest_name?: string;
+  category_mission?: string;
+  category_entity?: string;
+  historical_epoch?: string;
+  geo_location: GeoPoint;
+  resonance_radius?: number;
+  importance_score?: number;
+  historical_fact?: string;
+  gallery_urls?: string[];
+  ambient_audio_url?: string;
+  reference_podcast_id?: number;
+  created_at?: string;
+  updated_at?: string;
+  external_reference_url?: string;
+  grounding_analysis_summary?: string;
+}
 
 import { 
   PointOfInterest, 
@@ -28,7 +42,7 @@ import {
 interface MapDataWorkerRequest {
   action: "PROCESS_VAULT_POINTS";
   /** databaseRecordsCollection: El conjunto de datos crudos extraídos directamente del Metal. */
-  databaseRecordsCollection: any[];
+  databaseRecordsCollection: DatabasePointRecord[];
 }
 
 /**
@@ -81,25 +95,25 @@ self.onmessage = (messageEvent: MessageEvent<MapDataWorkerRequest>) => {
  * [MTI]: Esta lógica O(N) se ejecuta fuera del hilo de la interfaz de usuario.
  */
 function executeDataTransformationWorkflow(
-  rawDatabaseCollection: any[]
+  rawDatabaseCollection: DatabasePointRecord[]
 ): PointOfInterest[] {
   /**
    * Mapeador de Integridad Industrial:
    * Realizamos la transmutación de nombres de columna de base de datos (Snake Case) 
    * hacia propiedades de interfaz (Camel Case) y validamos la geometría PostGIS.
    */
-  return rawDatabaseCollection.map((recordItem): PointOfInterest => {
+  return rawDatabaseCollection.map((recordItem: any): PointOfInterest => {
     // Extracción y validación de la localización geodésica
-    const geographicLocationReference = recordItem.geo_location as GeoPoint;
+    const geographicLocationReference = (recordItem['geo_location'] as any) as GeoPoint;
     
     // Sincronización nominal con la Constitución V8.6
     return {
       identification: Number(recordItem.identification),
-      authorIdentification: recordItem.author_identification || "NICEPOD_SYSTEM_AUTHORITY",
-      name: recordItem.point_of_interest_name || "Nodo de Sabiduría No Identificado",
-      categoryMission: recordItem.category_mission as CategoryMission,
-      categoryEntity: recordItem.category_entity as CategoryEntity,
-      historicalEpoch: recordItem.historical_epoch as HistoricalEpoch,
+      authorIdentification: ((recordItem['author_identification'] as any) as string) || "NICEPOD_SYSTEM_AUTHORITY",
+      name: ((recordItem['point_of_interest_name'] as any) as string) || "Nodo de Sabiduría No Identificado",
+      categoryMission: (recordItem['category_mission'] as any) as CategoryMission,
+      categoryEntity: (recordItem['category_entity'] as any) as CategoryEntity,
+      historicalEpoch: (recordItem['historical_epoch'] as any) as HistoricalEpoch,
       geographicLocation: {
         type: 'Point',
         coordinates: [
@@ -107,20 +121,20 @@ function executeDataTransformationWorkflow(
           geographicLocationReference.coordinates[1]  // Latitude
         ]
       },
-      resonanceRadiusMeters: Number(recordItem.resonance_radius || 35),
-      importanceScore: Number(recordItem.importance_score || 1),
-      historicalFact: recordItem.historical_fact || null,
+      resonanceRadiusMeters: Number((recordItem['resonance_radius'] as any) || 35),
+      importanceScore: Number((recordItem['importance_score'] as any) || 1),
+      historicalFact: ((recordItem['historical_fact'] as any) as string) || null,
       richDescription: null, // Excluido del radar para optimizar la transferencia de memoria
-      galleryUniformResourceLocatorsCollection: recordItem.gallery_urls || [],
-      ambientAudioUniformResourceLocator: recordItem.ambient_audio_url || null,
+      galleryUniformResourceLocatorsCollection: ((recordItem['gallery_urls'] as any) as string[]) || [],
+      ambientAudioUniformResourceLocator: ((recordItem['ambient_audio_url'] as any) as string) || null,
       status: 'published' as PointOfInterestLifecycle,
       isPublished: true,
-      referencePodcastIdentification: recordItem.reference_podcast_id || null,
-      creationTimestamp: recordItem.created_at || new Date().toISOString(),
-      updateTimestamp: recordItem.updated_at || new Date().toISOString(),
+      referencePodcastIdentification: ((recordItem['reference_podcast_id'] as any) as number) || null,
+      creationTimestamp: ((recordItem['created_at'] as any) as string) || new Date().toISOString(),
+      updateTimestamp: ((recordItem['updated_at'] as any) as string) || new Date().toISOString(),
       metadata: {
-        externalSourceUniformResourceLocator: recordItem.external_reference_url,
-        groundingSummary: recordItem.grounding_analysis_summary
+        externalSourceUniformResourceLocator: (recordItem['external_reference_url'] as any) as string,
+        groundingSummary: (recordItem['grounding_analysis_summary'] as any) as string
       }
     };
   });
