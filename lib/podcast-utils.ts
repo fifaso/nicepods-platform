@@ -1,14 +1,14 @@
 /**
  * ARCHIVO: lib/podcast-utils.ts
- * VERSIÓN: 5.1 (NicePod Intelligence Engine Utils - Dual Lens Synchronization Edition)
+ * VERSIÓN: 6.0 (NicePod Intelligence Engine Utils - Legacy Bridge & Industrial Sync)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * Misión: Proveer algoritmos matemáticos y lógicos de alto rendimiento para 
  * la estructuración de la malla social, el cálculo cinemático y el peritaje 
  * de capital intelectual, garantizando la protección del Hilo Principal (MTI).
- * [REFORMA V5.1]: Resolución definitiva de TS2352. Implementación del Protocolo 
- * 'Dual Lens Casting' para sincronizar la herencia de 'PodcastWithProfile' con 
- * la columna relacional 'parent_id' del Metal sin violar el Build Shield.
+ * [REFORMA V6.0]: Resolución definitiva del fallo de compilación 'ELIFECYCLE'. 
+ * Implementación de la Capa de Compatibilidad para exportaciones de legado.
+ * Sincronización absoluta con el Metal y el Cristal bajo el Dogma ZAP.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -38,9 +38,9 @@ export function groupPodcastsByThreadCollection(flatPodcastCollection: PodcastWi
 
     const podcastNodesCollection = flatPodcastCollection.map(podcastItem => {
         /**
-         * [RESOLUCIÓN TS2352 - FIX V5.1]: Dual Lens Casting.
-         * Forzamos al compilador a aceptar que el objeto base de la BD (que viaja en runtime)
-         * posee la columna relacional, pasando por 'unknown' para evitar el error de solapamiento.
+         * [BSS]: Dual Lens Casting.
+         * Forzamos al compilador a aceptar que el objeto posee la columna relacional, 
+         * pasando por 'unknown' para evitar el error de solapamiento TS2352.
          */
         const genealogicalNode = {
             ...podcastItem,
@@ -110,8 +110,7 @@ export function segmentPodcastsByTaxonomyCollection(podcastCollection: PodcastWi
  */
 export function sortPodcastsByStrategicValueAction(podcastCollection: PodcastWithGenealogy[]): PodcastWithGenealogy[] {
     return podcastCollection.sort((firstPodcastItem, secondPodcastItem) => {
-        // En ausencia de una métrica de importancia explícita en el MVP de Podcasts,
-        // utilizamos la reputación del curador como proxy de autoridad del nodo.
+        // Utilizamos la reputación del curador como proxy de autoridad del nodo.
         const firstPodcastAuthorityScoreMagnitude = firstPodcastItem.profiles?.reputation_score || 0;
         const secondPodcastAuthorityScoreMagnitude = secondPodcastItem.profiles?.reputation_score || 0;
 
@@ -119,7 +118,6 @@ export function sortPodcastsByStrategicValueAction(podcastCollection: PodcastWit
             return secondPodcastAuthorityScoreMagnitude - firstPodcastAuthorityScoreMagnitude;
         }
 
-        // Empate de Autoridad: Desempate por frescura temporal (LIFO)
         return new Date(secondPodcastItem.created_at).getTime() - new Date(firstPodcastItem.created_at).getTime();
     });
 }
@@ -138,8 +136,6 @@ export function getPodcastExpertiseLevelLabel(expertiseLevelMagnitude: number): 
 /**
  * calculateActiveParagraphIndex:
  * Misión: Sincronización de Teleprompter Cinematográfico.
- * Calcula qué párrafo debe estar iluminado basándose en el porcentaje de avance 
- * del audio, asumiendo una elocución constante por parte de la IA Neuronal.
  */
 export function calculateActiveParagraphIndex(
     currentPlaybackTimeSecondsMagnitude: number,
@@ -150,16 +146,25 @@ export function calculateActiveParagraphIndex(
         return -1;
     }
 
-    // Prevención de fin de archivo: Si el audio terminó, iluminamos el último nodo.
     if (currentPlaybackTimeSecondsMagnitude >= totalPlaybackDurationSecondsMagnitude - 1) {
         return totalNarrativeParagraphsCountMagnitude - 1;
     }
 
     const playbackProgressPercentageValue = currentPlaybackTimeSecondsMagnitude / totalPlaybackDurationSecondsMagnitude;
-
-    // Mapeo lineal: Proyección del porcentaje de audio sobre la longitud de los párrafos.
     const estimatedParagraphIndexMagnitude = Math.floor(playbackProgressPercentageValue * totalNarrativeParagraphsCountMagnitude);
 
-    // Guardia de seguridad para evitar desbordamientos del array visual.
     return Math.min(Math.max(0, estimatedParagraphIndexMagnitude), totalNarrativeParagraphsCountMagnitude - 1);
 }
+
+/**
+ * ---------------------------------------------------------------------------
+ * VI. CAPA DE ALIAS SOBERANOS (LEGACY COMPATIBILITY BRIDGE)
+ * ---------------------------------------------------------------------------
+ * Misión: Resolver los errores de importación TS2305 en la plataforma mientras 
+ * se completa la transición nominal hacia descriptores industriales.
+ */
+export {
+    getPodcastExpertiseLevelLabel as getPodcastLevelLabel, groupPodcastsByThreadCollection as groupPodcastsByThread,
+    segmentPodcastsByTaxonomyCollection as segmentPodcastsByType,
+    sortPodcastsByStrategicValueAction as sortPodcastsByStrategicValue
+};
