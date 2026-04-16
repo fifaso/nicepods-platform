@@ -12,14 +12,14 @@
 "use client";
 
 import {
-    Activity,
-    BookOpen,
-    BrainCircuit,
-    Loader2,
-    Mic,
-    Search,
-    Sparkles,
-    Zap
+  Activity,
+  BookOpen,
+  BrainCircuit,
+  Loader2,
+  Mic,
+  Search,
+  Sparkles,
+  Zap
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
@@ -28,7 +28,7 @@ import { useEffect, useMemo, useState } from "react";
 
 // --- INFRAESTRUCTURA DE DATOS Y CONTRATOS SOBERANOS ---
 import { SearchRadarResult } from "@/hooks/use-search-radar";
-import { cn } from "@/lib/utils";
+import { classNamesUtility } from "@/lib/utils";
 import { PodcastWithProfile } from "@/types/podcast";
 
 // --- COMPONENTES UI ---
@@ -39,49 +39,49 @@ import { Button } from "@/components/ui/button";
  * [SHIELD]: CARGA DIFERIDA DE ESTANTES (PodcastShelf)
  */
 const PodcastShelf = dynamic(
-    () => import("@/components/feed/podcast-shelf").then((module) => module.PodcastShelf),
-    {
-        ssr: true,
-        loading: () => (
-            <div className="w-full h-48 bg-white/[0.01] rounded-[2.5rem] border border-dashed border-white/5 flex items-center justify-center animate-pulse">
-                <span className="text-[9px] font-black uppercase tracking-[0.4em] text-white/10 italic">
-                    Sincronizando Frecuencia de Bóveda...
-                </span>
-            </div>
-        )
-    }
+  () => import("@/components/feed/podcast-shelf").then((module) => module.PodcastShelf),
+  {
+    ssr: true,
+    loading: () => (
+      <div className="w-full h-48 bg-white/[0.01] rounded-[2.5rem] border border-dashed border-white/5 flex items-center justify-center animate-pulse">
+        <span className="text-[9px] font-black uppercase tracking-[0.4em] text-white/10 italic">
+          Sincronizando Frecuencia de Bóveda...
+        </span>
+      </div>
+    )
+  }
 );
 
 /**
  * INTERFAZ: IntelligenceFeedProperties
  */
 interface IntelligenceFeedProperties {
-    userDisplayName: string;
-    isSearchingProcessActive: boolean;
-    searchMatchResults: SearchRadarResult[] | null;
-    lastSearchQuery: string;
-    initialEpicenterCollection: PodcastWithProfile[];
-    initialConnectionsCollection: PodcastWithProfile[];
-    onClearRadarAction: () => void;
+  userDisplayName: string;
+  isSearchingProcessActive: boolean;
+  searchMatchResults: SearchRadarResult[] | null;
+  lastSearchQuery: string;
+  initialEpicenterCollection: PodcastWithProfile[];
+  initialConnectionsCollection: PodcastWithProfile[];
+  onClearRadarAction: () => void;
 }
 
 const discoveryHubCategories = [
-    { key: "deep_thought", title: "Pensamiento", image: "/images/universes/deep-thought.png", href: "/podcasts?tab=discover&universe=deep_thought" },
-    { key: "practical_tools", title: "Práctico", image: "/images/universes/practical-tools.png", href: "/podcasts?tab=discover&universe=practical_tools" },
-    { key: "tech_and_innovation", title: "Tecnología", image: "/images/universes/tech.png", href: "/podcasts?tab=discover&universe=tech_and_innovation" },
-    { key: "narrative_and_stories", title: "Narrativa", image: "/images/universes/narrative.png", href: "/podcasts?tab=discover&universe=narrative_and_stories" },
+  { key: "deep_thought", title: "Pensamiento", image: "/images/universes/deep-thought.png", href: "/podcasts?tab=discover&universe=deep_thought" },
+  { key: "practical_tools", title: "Práctico", image: "/images/universes/practical-tools.png", href: "/podcasts?tab=discover&universe=practical_tools" },
+  { key: "tech_and_innovation", title: "Tecnología", image: "/images/universes/tech.png", href: "/podcasts?tab=discover&universe=tech_and_innovation" },
+  { key: "narrative_and_stories", title: "Narrativa", image: "/images/universes/narrative.png", href: "/podcasts?tab=discover&universe=narrative_and_stories" },
 ];
 
 /**
  * IntelligenceFeed: El bus de datos táctico de la identidad digital.
  */
 export function IntelligenceFeed({
-    isSearchingProcessActive,
-    searchMatchResults,
-    lastSearchQuery,
-    initialEpicenterCollection,
-    initialConnectionsCollection,
-    onClearRadarAction
+  isSearchingProcessActive,
+  searchMatchResults,
+  lastSearchQuery,
+  initialEpicenterCollection,
+  initialConnectionsCollection,
+  onClearRadarAction
 }: IntelligenceFeedProperties) {
 
   // --- 1. SANEAMIENTO DE DATOS (DATA HYGIENE) ---
@@ -106,6 +106,7 @@ export function IntelligenceFeed({
     return <div className="min-h-[500px]" />;
   }
 
+  classNamesUtility("h-6 w-6 text-primary absolute", isSearchingProcessActive ? "animate-spin opacity-100" : "opacity-0")
   return (
     <div className="w-full space-y-12 selection:bg-primary/20">
 
@@ -130,8 +131,8 @@ export function IntelligenceFeed({
 
             <div className="flex overflow-x-auto pb-6 gap-6 lg:grid lg:grid-cols-4 snap-x hide-scrollbar -mx-4 px-4 lg:mx-0 lg:px-0">
               {discoveryHubCategories.map((discoveryCategory) => (
-                <div 
-                  key={discoveryCategory.key} 
+                <div
+                  key={discoveryCategory.key}
                   className="min-w-[160px] w-[48%] lg:w-auto snap-start flex-shrink-0 transition-all hover:scale-[1.02] active:scale-95"
                 >
                   <UniverseCard {...discoveryCategory} isActive={false} />
