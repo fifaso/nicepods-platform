@@ -504,7 +504,7 @@ export function DnaInterviewStep() {
               </div>
             ) : (
               <div className="space-y-12 isolate">
-                <VoiceInput onTextGeneratedAction={handleFinalizeDnaSincronizationAction} className="max-w-md mx-auto shadow-2xl" />
+                <VoiceInput onTextGenerated={handleFinalizeDnaSincronizationAction} className="max-w-md mx-auto shadow-2xl" />
                 <Button 
                   variant="ghost" 
                   onClick={() => setCurrentInterviewPhase('SEMANTIC_BLOOM_SELECTION')} 

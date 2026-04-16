@@ -1,4 +1,3 @@
-/** ARCHIVE: components/ui/selection-card.tsx VERSION: 1.0 PROTOCOLO: MADRID RESONANCE V4.9 MISSION: UI Component INTEGRITY LEVEL: 100% */
 // components/ui/selection-card.tsx
 // VERSIÓN POTENCIADA: Ahora acepta y aplica una prop 'className' externa.
 

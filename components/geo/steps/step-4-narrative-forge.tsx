@@ -1,15 +1,15 @@
 /**
- * ARCHIVE: components/geo/steps/step-4-narrative-forge.tsx
- * VERSION: 9.0 (NicePod Forge Step 4 - RAM Flush & Nominal Integrity Edition)
+ * ARCHIVO: components/geo/steps/step-4-narrative-forge.tsx
+ * VERSIÓN: 9.0 (NicePod Forge Step 4 - RAM Flush & Nominal Integrity Edition)
  * PROTOCOLO: MADRID RESONANCE V4.2
  * 
- * MISSION: Configurar el ADN editorial, sintetizar la crónica mediante el Oráculo
+ * Misión: Configurar el ADN editorial, sintetizar la crónica mediante el Oráculo
  * de Inteligencia y sellar el nodo en la Malla de Madrid mediante el protocolo 
  * de publicación soberana y transmisión directa de binarios (Lightning Protocol).
  * [REFORMA V9.0]: Sincronización nominal total con la Constitución V8.6 y el 
  * ForgeContext V6.0. Implementación de la política de limpieza de buffers 
  * (memoria de acceso aleatorio) tras el éxito de la transacción. Cumplimiento absoluto de la política de cero abreviaciones.
- * INTEGRITY LEVEL: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
@@ -68,7 +68,7 @@ export default function Step4NarrativeForge() {
 
   /**
    * handleInitiateNarrativeSynthesisWorkflow:
-   * MISSION: Despachar la orden de forja narrativa al Oráculo de Inteligencia.
+   * Misión: Despachar la orden de forja narrativa al Oráculo de Inteligencia.
    * [SINCRO V9.0]: Adaptado a las propiedades nominales del ForgeState V6.0.
    */
   const handleInitiateNarrativeSynthesisWorkflow = async () => {
@@ -95,7 +95,7 @@ export default function Step4NarrativeForge() {
 
   /**
    * handleFinalChroniclePublicationWorkflow:
-   * MISSION: Recibir el binario acústico, transmitirlo a la Bóveda y sellar el nodo.
+   * Misión: Recibir el binario acústico, transmitirlo a la Bóveda y sellar el nodo.
    * [INTERVENCIÓN V9.0]: Protocolo de Purga de Memoria de Acceso Aleatorio. Al finalizar, purgamos el estado para
    * forzar la limpieza de buffers y revocar localizadores uniformes de recursos de objetos en el GeoRecorder.
    */
@@ -200,7 +200,7 @@ export default function Step4NarrativeForge() {
         {engineOperationalStatus === 'NARRATIVE_READY' && engineOperationalData?.narrative ? (
           /**
            * ESTADO: NARRATIVA SINTETIZADA
-           * MISSION: Proyectar la Grabadora Universal para el sellado acústico soberano.
+           * Misión: Proyectar la Grabadora Universal para el sellado acústico soberano.
            */
           <motion.div 
             key="recording_session_interface"

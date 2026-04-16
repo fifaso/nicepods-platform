@@ -152,7 +152,7 @@ export default async function PodcastDisplayPage({ params: routeParameters }: Po
       initialPodcastData={typeValidatedPodcast}
       authenticatedUser={authenticatedUser}
       initialIsLikedStatus={initialIsLikedStatus}
-      replies={typeValidatedReplies}
+      repliesCollection={typeValidatedReplies}
     />
   );
 }

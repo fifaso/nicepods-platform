@@ -1,14 +1,13 @@
 /**
- * ARCHIVO: components/create-flow/steps/pulse-radar-step.tsx
- * VERSIÓN: 4.0 (NicePod Strategic Radar - Industrial Synchronization Edition)
+ * ARCHIVE: components/create-flow/steps/pulse-radar-step.tsx
+ * VERSION: 4.1 (NicePod Strategic Radar - Industrial Synchronization Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
- * Misión: Visualizar e interactuar con las señales de inteligencia (Pulse) 
+ * MISSION: Visualizar e interactuar con las señales de inteligencia (Pulse)
  * interceptadas por el Oráculo, permitiendo la curaduría de materia prima cognitiva.
- * [REFORMA V4.0]: Resolución definitiva de TS2339. Sincronización nominal absoluta 
- * con 'CreationContextType' V5.0 y 'PodcastCreationSchema' V12.0. 
- * Aplicación integral de la Zero Abbreviations Policy (ZAP).
- * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * [REFORMA V4.1]: Absolute nominal sovereignty. Full synchronization with ZAP and
+ * MRP V4.9. Restoration of the Build Shield with strict type alignment.
+ * INTEGRITY LEVEL: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
@@ -47,10 +46,6 @@ export function PulseRadarStep() {
   // Consumo del motor de formularios bajo tipado estricto V12.0
   const { setValue, watch } = useFormContext<PodcastCreationData>();
   
-  /** 
-   * [RESOLUCIÓN TS2339]: Sincronización con los actuadores del Contexto V5.0. 
-   * Usamos el descriptor purificado 'transitionToNextStateAction'.
-   */
   const { 
     transitionToNextStateAction, 
     creationProcessProgressMetrics 
@@ -61,7 +56,6 @@ export function PulseRadarStep() {
   const [isRadarScanningProcessActiveStatus, setIsRadarScanningProcessActiveStatus] = useState<boolean>(true);
   const [radarOperationalExceptionMessageContent, setRadarOperationalExceptionMessageContent] = useState<string | null>(null);
 
-  /** [SINCRO V12.0]: Observación del campo purificado 'pulseSourceIdentificationsCollection'. */
   const selectedPulseSourceIdentificationsCollection: string[] = watch("pulseSourceIdentificationsCollection") || [];
 
   /**
@@ -128,7 +122,6 @@ export function PulseRadarStep() {
       updatedSelectedIdentificationsCollection.push(targetSourceIdentificationValue);
     }
     
-    // Inyección de estado hacia el esquema ZAP V12.0.
     setValue("pulseSourceIdentificationsCollection", updatedSelectedIdentificationsCollection, { shouldValidate: true });
   };
 
@@ -180,16 +173,25 @@ export function PulseRadarStep() {
              <motion.div key="radar_results_state" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 overflow-y-auto pr-4 custom-scrollbar pb-20 isolate">
               {pulseSignalsCollection.map((signalEntryItem, itemIndexMagnitude) => (
                  <motion.div 
-                    key={signalEntryItem.id} 
-                    onClick={() => handlePulseSourceSelectionToggleAction(signalEntryItem.id)}
+                    key={signalEntryItem.identification}
+                    onClick={() => handlePulseSourceSelectionToggleAction(signalEntryItem.identification)}
                     className={classNamesUtility(
                         "group relative p-6 rounded-[2rem] border transition-all cursor-pointer shadow-xl",
-                        selectedPulseSourceIdentificationsCollection.includes(signalEntryItem.id) 
+                        selectedPulseSourceIdentificationsCollection.includes(signalEntryItem.identification)
                             ? "bg-white text-zinc-950 border-white scale-[1.02]" 
                             : "bg-[#0a0a0a]/60 border-white/5 hover:border-primary/40 text-white"
                     )}
                  >
-                    <h3 className="font-black text-sm uppercase tracking-tight">{signalEntryItem.title}</h3>
+                    <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                            {signalEntryItem.isHighValueSovereignty && <Zap size={14} className="text-amber-500 fill-current" />}
+                            <span className="text-[10px] font-black uppercase tracking-widest">{signalEntryItem.sourceAuthorityName}</span>
+                        </div>
+                        <Badge variant="outline" className="text-[9px] border-zinc-800 text-zinc-500">
+                            {signalEntryItem.matchPercentageMagnitude}% Match
+                        </Badge>
+                    </div>
+                    <h3 className="font-black text-sm uppercase tracking-tight">{signalEntryItem.titleTextContent}</h3>
                  </motion.div>
               ))}
             </motion.div>
@@ -199,11 +201,3 @@ export function PulseRadarStep() {
     </div>
   );
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT (V4.0):
- * 1. Build Shield Final: Resolución de TS2339 mediante la alineación total con 
- *    el Contexto V5.0 y la purga de abreviaciones ZAP.
- * 2. Kinematic Isolation: El uso de Framer Motion asegura que la proyección de nodos 
- *    sea fluida sin impactar en el Hilo Principal (MTI).
- */

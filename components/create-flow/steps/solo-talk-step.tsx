@@ -127,7 +127,7 @@ export function SoloTalkStep() {
                 <div className="p-6 bg-zinc-900/40 border-t border-white/5 backdrop-blur-md">
                    <div className="flex flex-col gap-4">
                       <VoiceInput 
-                            onTextGeneratedAction={(transcribedTextContent: string) => setValue("soloTopicSelection", transcribedTextContent)}
+                        onTextGenerated={handleVoiceInputTranscribedAction}
                         className="w-full h-14 rounded-2xl bg-white/5 border-white/5 hover:border-primary/20 transition-all shadow-inner"
                       />
                       

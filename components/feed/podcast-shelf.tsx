@@ -14,7 +14,7 @@
 
 import { StackedPodcastCard } from "@/components/podcast/stacked-podcast-card";
 import { Button } from "@/components/ui/button";
-import { groupPodcastsByThread } from "@/lib/podcast-utils";
+import { organizePodcastsByConversationThreadTopology } from "@/lib/podcast-utils";
 import { PodcastWithProfile } from "@/types/podcast";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useRef, useState, useMemo } from "react";
@@ -55,7 +55,7 @@ export function PodcastShelf({
    * Misión: Organizar la colección por hilos para mantener la arquitectura social.
    */
   const groupedPodcastThreads = useMemo(() => {
-    return groupPodcastsByThread(initialPodcastCollection) as PodcastThread[];
+    return organizePodcastsByConversationThreadTopology(initialPodcastCollection) as PodcastThread[];
   }, [initialPodcastCollection]);
 
   /**

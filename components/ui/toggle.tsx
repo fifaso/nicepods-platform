@@ -1,4 +1,3 @@
-/** ARCHIVE: components/ui/toggle.tsx VERSION: 1.0 PROTOCOLO: MADRID RESONANCE V4.9 MISSION: UI Component INTEGRITY LEVEL: 100% */
 "use client"
 
 import * as React from "react"
@@ -33,11 +32,11 @@ const Toggle = React.forwardRef<
   React.ElementRef<typeof TogglePrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof TogglePrimitive.Root> &
     VariantProps<typeof toggleVariants>
->(({ className, variant, size, ...componentProperties }, elementReference) => (
+>(({ className, variant, size, ...props }, ref) => (
   <TogglePrimitive.Root
-    ref={elementReference}
+    ref={ref}
     className={classNamesUtility(toggleVariants({ variant, size, className }))}
-    {...componentProperties}
+    {...props}
   />
 ))
 

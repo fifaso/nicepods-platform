@@ -2,9 +2,9 @@
  * ARCHIVE: components/navigation/shared/create-button.tsx
  * VERSION: 3.0 (NicePod Forge Trigger - Acoustic Action Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
- * MISSION: Provide the primary trigger for knowledge synthesis, ensuring mechanical
- * feedback and industrial-grade User Experience.
- * INTEGRITY LEVEL: 100% (Sovereign / No abbreviations / Production-Ready)
+ * MISSION: Provide the primary trigger for knowledge synthesis, ensuring absolute
+ * nominal sovereignty and industrial-grade User Experience.
+ * INTEGRITY LEVEL: 100% (Soberano / No abbreviations / Production-Ready)
  */
 
 "use client";
@@ -90,10 +90,3 @@ export function CreateButton({
     </Link>
   );
 }
-
-/**
- * TECHNICAL NOTE FROM ARCHITECT (V3.0):
- * 1. ZAP Compliance: Purified properties (variantType, additionalTailwindClassName).
- * 2. Visual Fidelity: Maintained high-contrast Aurora gradients and mechanical animations.
- * 3. Header Integrity: Standard NicePod technical header added.
- */

@@ -1,4 +1,3 @@
-/** ARCHIVE: components/ui/drawer.tsx VERSION: 1.0 PROTOCOLO: MADRID RESONANCE V4.9 MISSION: UI Component INTEGRITY LEVEL: 100% */
 "use client"
 
 import * as React from "react"
@@ -8,11 +7,11 @@ import { classNamesUtility } from "@/lib/utils"
 
 const Drawer = ({
   shouldScaleBackground = true,
-  ...componentProperties
+  ...props
 }: React.ComponentProps<typeof DrawerPrimitive.Root>) => (
   <DrawerPrimitive.Root
     shouldScaleBackground={shouldScaleBackground}
-    {...componentProperties}
+    {...props}
   />
 )
 Drawer.displayName = "Drawer"
@@ -26,11 +25,11 @@ const DrawerClose = DrawerPrimitive.Close
 const DrawerOverlay = React.forwardRef<
   React.ElementRef<typeof DrawerPrimitive.Overlay>,
   React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Overlay>
->(({ className, ...componentProperties }, elementReference) => (
+>(({ className, ...props }, ref) => (
   <DrawerPrimitive.Overlay
-    ref={elementReference}
+    ref={ref}
     className={classNamesUtility("fixed inset-0 z-50 bg-black/80", className)}
-    {...componentProperties}
+    {...props}
   />
 ))
 DrawerOverlay.displayName = DrawerPrimitive.Overlay.displayName
@@ -38,16 +37,16 @@ DrawerOverlay.displayName = DrawerPrimitive.Overlay.displayName
 const DrawerContent = React.forwardRef<
   React.ElementRef<typeof DrawerPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Content>
->(({ className, children, ...componentProperties }, elementReference) => (
+>(({ className, children, ...props }, ref) => (
   <DrawerPortal>
     <DrawerOverlay />
     <DrawerPrimitive.Content
-      ref={elementReference}
+      ref={ref}
       className={classNamesUtility(
         "fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-[10px] border bg-background",
         className
       )}
-      {...componentProperties}
+      {...props}
     >
       <div className="mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted" />
       {children}
@@ -58,22 +57,22 @@ DrawerContent.displayName = "DrawerContent"
 
 const DrawerHeader = ({
   className,
-  ...componentProperties
+  ...props
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={classNamesUtility("grid gap-1.5 p-4 text-center sm:text-left", className)}
-    {...componentProperties}
+    {...props}
   />
 )
 DrawerHeader.displayName = "DrawerHeader"
 
 const DrawerFooter = ({
   className,
-  ...componentProperties
+  ...props
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={classNamesUtility("mt-auto flex flex-col gap-2 p-4", className)}
-    {...componentProperties}
+    {...props}
   />
 )
 DrawerFooter.displayName = "DrawerFooter"
@@ -81,14 +80,14 @@ DrawerFooter.displayName = "DrawerFooter"
 const DrawerTitle = React.forwardRef<
   React.ElementRef<typeof DrawerPrimitive.Title>,
   React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Title>
->(({ className, ...componentProperties }, elementReference) => (
+>(({ className, ...props }, ref) => (
   <DrawerPrimitive.Title
-    ref={elementReference}
+    ref={ref}
     className={classNamesUtility(
       "text-lg font-semibold leading-none tracking-tight",
       className
     )}
-    {...componentProperties}
+    {...props}
   />
 ))
 DrawerTitle.displayName = DrawerPrimitive.Title.displayName
@@ -96,11 +95,11 @@ DrawerTitle.displayName = DrawerPrimitive.Title.displayName
 const DrawerDescription = React.forwardRef<
   React.ElementRef<typeof DrawerPrimitive.Description>,
   React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Description>
->(({ className, ...componentProperties }, elementReference) => (
+>(({ className, ...props }, ref) => (
   <DrawerPrimitive.Description
-    ref={elementReference}
+    ref={ref}
     className={classNamesUtility("text-sm text-muted-foreground", className)}
-    {...componentProperties}
+    {...props}
   />
 ))
 DrawerDescription.displayName = DrawerPrimitive.Description.displayName

@@ -1,4 +1,3 @@
-/** ARCHIVE: components/ui/badge.tsx VERSION: 1.0 PROTOCOLO: MADRID RESONANCE V4.9 MISSION: UI Component INTEGRITY LEVEL: 100% */
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 
@@ -28,9 +27,9 @@ export interface BadgeProps
   extends React.HTMLAttributes<HTMLDivElement>,
     VariantProps<typeof badgeVariants> {}
 
-function Badge({ className, variant, ...componentProperties }: BadgeProps) {
+function Badge({ className, variant, ...props }: BadgeProps) {
   return (
-    <div className={classNamesUtility(badgeVariants({ variant }), className)} {...componentProperties} />
+    <div className={classNamesUtility(badgeVariants({ variant }), className)} {...props} />
   )
 }
 

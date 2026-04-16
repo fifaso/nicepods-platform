@@ -17,12 +17,3 @@
 ## 2026-04-15 - [Background Thermal Isolation in ResonanceCompass] | **Leak identified:** D3-force simulation in Web Worker continues to consume CPU cycles even when the Voyager is not looking at the Compass. | **Optimization:** Implemented `PAUSE_SIMULATION` and `RESUME_SIMULATION` protocols in `ResonancePhysicsWorker` and injected `visibilitychange` sentinel in `ResonanceCompass`.
 
 ## 2026-04-15 - [Mutable Reference Capture in GeoRecorder] | **Leak identified:** Potential Null Reference Exceptions and zombie hardware tracks if refs are mutated during the unmounting phase. | **Optimization:** Applied the Mutable Reference Capture Protocol in `GeoRecorder` to ensure atomic destruction of `MediaRecorder`, `MediaStream`, and `Interval` resources.
-
-## 2026-04-16 - [BSS & ZAP Audit] | **Leak identified:** Multiple BSS violations (use of `any` and un-guarded `catch` blocks) and ZAP violations (abbreviations) detected in SpatialEngine, RadarCore, and Web Workers. | **Optimization:** Initiated surgical removal of `any` types and nominal purification of worker scripts.
-
-## 2026-04-16 - [Orchestration Feedback] | **Build Blockers detected:** Detected type mismatches outside the Thermic domain due to ZAP alignment.
-- **UnifiedSearchBar:** Out-of-domain callers in Dashboard and SpatialEngine are still passing `variant` instead of the mandated `variantType`.
-- **Podcast Library:** `PodcastWithGenealogy` to `PodcastThreadStructure` conversion mismatch in `library-tabs.tsx`.
-- **Create Flow:** Missing `useMemo` in `audio-studio.tsx` and property `poi` mismatch in `discovery-result-step.tsx`.
-- **Global Utils:** `getHumanReadableDistanceMagnitudeLabel` is missing in `@/lib/utils`.
-- **Action Items:** These require intervention from Purifier 🏛️ or Strategist 🧠 to achieve a global green build.

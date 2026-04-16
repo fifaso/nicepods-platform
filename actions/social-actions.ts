@@ -1,6 +1,6 @@
 /**
  * ARCHIVO: actions/social-actions.ts
- * VERSIÓN: 3.1 (NicePod Social Interactions - Sovereign Protocol V4.0)
+ * VERSIÓN: 3.0 (NicePod Social Interactions - Sovereign Protocol V4.0)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * MISIÓN: Gestionar el flujo de seguidores e interacciones entre curadores con integridad nominal.
  * NIVEL DE INTEGRIDAD: 100% (Soberano / ZAP Compliant / Build Shield Green)
@@ -30,9 +30,7 @@ export async function followUserAction(
     };
   }
 
-  const authenticatedUserIdentification = authenticatedUser.id;
-
-  if (authenticatedUserIdentification === targetUserIdentification) {
+  if (authenticatedUser.id === targetUserIdentification) {
     return {
       isOperationSuccessful: false,
       responseStatusMessage: "AUTOSEGUIMIENTO_PROHIBIDO: No puedes seguir tu propia identidad.",
@@ -45,7 +43,7 @@ export async function followUserAction(
     const { data: followerDatabaseRecord } = await supabaseClient
       .from('followers')
       .select('*')
-      .eq('follower_id', authenticatedUserIdentification)
+      .eq('follower_id', authenticatedUser.id)
       .eq('following_id', targetUserIdentification)
       .maybeSingle();
 
@@ -54,7 +52,7 @@ export async function followUserAction(
       const { error: deleteDatabaseExceptionInformation } = await supabaseClient
         .from('followers')
         .delete()
-        .eq('follower_id', authenticatedUserIdentification)
+        .eq('follower_id', authenticatedUser.id)
         .eq('following_id', targetUserIdentification);
 
       if (deleteDatabaseExceptionInformation) throw deleteDatabaseExceptionInformation;
@@ -71,7 +69,7 @@ export async function followUserAction(
       const { error: insertDatabaseExceptionInformation } = await supabaseClient
         .from('followers')
         .insert({
-          follower_id: authenticatedUserIdentification,
+          follower_id: authenticatedUser.id,
           following_id: targetUserIdentification
         });
 
@@ -113,13 +111,11 @@ export async function toggleLikeAction(
     };
   }
 
-  const authenticatedUserIdentification = authenticatedUser.id;
-
   try {
     const { data: likeDatabaseRecord } = await supabaseClient
       .from('likes')
       .select('*')
-      .eq('user_id', authenticatedUserIdentification)
+      .eq('user_id', authenticatedUser.id)
       .eq('podcast_id', podcastIdentification)
       .maybeSingle();
 
@@ -127,7 +123,7 @@ export async function toggleLikeAction(
       const { error: deleteDatabaseExceptionInformation } = await supabaseClient
         .from('likes')
         .delete()
-        .eq('user_id', authenticatedUserIdentification)
+        .eq('user_id', authenticatedUser.id)
         .eq('podcast_id', podcastIdentification);
 
       if (deleteDatabaseExceptionInformation) throw deleteDatabaseExceptionInformation;
@@ -142,7 +138,7 @@ export async function toggleLikeAction(
       const { error: insertDatabaseExceptionInformation } = await supabaseClient
         .from('likes')
         .insert({
-          user_id: authenticatedUserIdentification,
+          user_id: authenticatedUser.id,
           podcast_id: podcastIdentification
         });
 

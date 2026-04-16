@@ -367,7 +367,7 @@ function SearchResultItem({
  * 1. Build Shield Absolute: Resolución definitiva de TS2305 y TS7006. Sincronización 
  *    nominal con el motor vectorial mediante descriptores V12.0 (identification, 
  *    resultCategoryType, titleTextContent).
- * 2. ZAP Compliance: Purificación total. Se han eliminado abreviaciones en componentProperties
+ * 2. ZAP Compliance: Purificación total. Se han eliminado abreviaciones en props
  *    (placeholderText, variantType, additionalTailwindClassName) y lógica.
  * 3. Kinematic Optimization: Uso de motion.div y createPortal para asegurar que 
  *    la terminal Void no interfiera con el árbol de renderizado de React, 

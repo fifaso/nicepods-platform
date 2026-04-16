@@ -1,9 +1,11 @@
 /**
  * ARCHIVO: lib/workers/compression.worker.ts
- * VERSIÓN: 1.1
+ * VERSIÓN: 1.0 (NicePod Offscreen Engine - Asynchronous Pixel Core Edition)
  * PROTOCOLO: MADRID RESONANCE V3.0
- * MISIÓN: Ejecución de compresión de imágenes fuera del hilo principal con cumplimiento ZAP.
- * NIVEL DE INTEGRIDAD: 100%
+ *
+ * Misión: Ejecutar la compresión matemática de activos visuales fuera del Main Thread.
+ * [ESTABILIZACIÓN]: Uso de OffscreenCanvas y createImageBitmap para evitar DOM Blocking.
+ * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
  */
 
 /// <reference lib="webworker" />
@@ -22,8 +24,8 @@ interface CompressionPayload {
  * Event Listener del Worker
  * Se ejecuta de forma aislada cada vez que el Orquestador le envía un paquete.
  */
-self.onmessage = async (messageEvent: MessageEvent<CompressionPayload>) => {
-  const { file, maxWidth, quality } = messageEvent.data;
+self.onmessage = async (e: MessageEvent<CompressionPayload>) => {
+  const { file, maxWidth, quality } = e.data;
 
   try {
     /**
@@ -50,18 +52,18 @@ self.onmessage = async (messageEvent: MessageEvent<CompressionPayload>) => {
      * Este lienzo existe exclusivamente en la VRAM/RAM asignada al Worker.
      */
     const offscreen = new OffscreenCanvas(targetWidth, targetHeight);
-    const renderingContext = offscreen.getContext('2d');
+    const ctx = offscreen.getContext('2d');
 
-    if (!renderingContext) {
+    if (!ctx) {
       throw new Error("UNSUPPORTED_OFFSCREEN_CONTEXT: Fallo al adquirir motor 2D en Worker.");
     }
 
     // Configuración de Alta Fidelidad para peritaje de OCR
-    renderingContext.imageSmoothingEnabled = true;
-    renderingContext.imageSmoothingQuality = 'high';
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
 
     // Dibujado escalar
-    renderingContext.drawImage(bitmap, 0, 0, targetWidth, targetHeight);
+    ctx.drawImage(bitmap, 0, 0, targetWidth, targetHeight);
 
     /**
      * 4. COMPRESIÓN FÍSICA (Transmutación a WebP)
@@ -84,11 +86,11 @@ self.onmessage = async (messageEvent: MessageEvent<CompressionPayload>) => {
     // Higiene de RAM: Liberar memoria del bitmap original explícitamente.
     bitmap.close();
 
-  } catch (operationalException: unknown) {
+  } catch (error: any) {
     // Si algo falla, avisamos al Main Thread para que active su "Paracaídas de Fallback".
     self.postMessage({
       success: false,
-      exceptionMessageInformation: (operationalException instanceof Error) ? operationalException.message : "WORKER_COMPRESSION_FAILURE"
+      error: error.message || "WORKER_COMPRESSION_FAILURE"
     });
   }
 };

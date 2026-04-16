@@ -1,14 +1,14 @@
 /**
- * ARCHIVE: components/geo/steps/step-1-anchoring.tsx
- * VERSION: 13.0 (NicePod Forge Step 1 - Contract Synchronization Edition)
+ * ARCHIVO: components/geo/steps/step-1-anchoring.tsx
+ * VERSIÓN: 13.0 (NicePod Forge Step 1 - Contract Synchronization Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
- * MISSION: Gestionar el anclaje pericial milimétrico del hito urbano y obligar a la
+ * Misión: Gestionar el anclaje pericial milimétrico del hito urbano y obligar a la
  * clasificación taxonómica bidimensional del capital intelectual.
  * [REFORMA V13.0]: Resolución definitiva de errores TS2339 mediante la alineación 
  * nominal absoluta con la Fachada V55.0. Transmutación de 'isManualMode' a 
  * 'isManualModeActive'. Consolidación total de la Zero Abbreviations Policy (ZAP).
- * INTEGRITY LEVEL: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
@@ -102,7 +102,7 @@ export default function Step1Anchoring() {
 
   /**
    * executeManualGeographicAnchorSelectionWorkflow:
-   * MISSION: Capturar el anclaje manual con precisión industrial.
+   * Misión: Capturar el anclaje manual con precisión industrial.
    */
   const executeManualGeographicAnchorSelectionWorkflow = useCallback((
     longitudeCoordinate: number, 

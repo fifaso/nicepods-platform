@@ -1,4 +1,3 @@
-/** ARCHIVE: components/ui/progress.tsx VERSION: 1.0 PROTOCOLO: MADRID RESONANCE V4.9 MISSION: UI Component INTEGRITY LEVEL: 100% */
 "use client"
 
 import * as React from "react"
@@ -9,11 +8,11 @@ import { classNamesUtility } from "@/lib/utils"
 const Progress = React.forwardRef<
   React.ElementRef<typeof ProgressPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof ProgressPrimitive.Root>
->(({ className, value, ...componentProperties }, elementReference) => (
+>(({ className, value, ...props }, ref) => (
   <ProgressPrimitive.Root
-    ref={elementReference}
+    ref={ref}
     className={classNamesUtility("relative h-4 w-full overflow-hidden rounded-full bg-secondary", className)}
-    {...componentProperties}
+    {...props}
   >
     <ProgressPrimitive.Indicator
       className="h-full w-full flex-1 bg-primary transition-all"

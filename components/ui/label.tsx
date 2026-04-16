@@ -1,4 +1,3 @@
-/** ARCHIVE: components/ui/label.tsx VERSION: 1.0 PROTOCOLO: MADRID RESONANCE V4.9 MISSION: UI Component INTEGRITY LEVEL: 100% */
 "use client"
 
 import * as React from "react"
@@ -11,8 +10,8 @@ const labelVariants = cva("text-sm font-medium leading-none peer-disabled:cursor
 const Label = React.forwardRef<
   React.ElementRef<typeof LabelPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof LabelPrimitive.Root> & VariantProps<typeof labelVariants>
->(({ className, ...componentProperties }, elementReference) => (
-  <LabelPrimitive.Root ref={elementReference} className={classNamesUtility(labelVariants(), className)} {...componentProperties} />
+>(({ className, ...props }, ref) => (
+  <LabelPrimitive.Root ref={ref} className={classNamesUtility(labelVariants(), className)} {...props} />
 ))
 Label.displayName = LabelPrimitive.Root.displayName
 

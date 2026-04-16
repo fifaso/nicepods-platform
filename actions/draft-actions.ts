@@ -1,10 +1,7 @@
-/**
- * ARCHIVO: actions/draft-actions.ts
- * VERSIÓN: 4.1 (NicePod V2.6 - Universal Knowledge Engine)
- * PROTOCOLO: MADRID RESONANCE V4.0
- * MISIÓN: Gestionar el ciclo de vida de borradores para conocimiento aspatial.
- * NIVEL DE INTEGRIDAD: 100% (Soberano / ZAP Compliant / Build Shield Green)
- */
+// actions/draft-actions.ts
+// VERSIÓN: 4.0 (NicePod V2.6 - Universal Knowledge Engine)
+// Misión: Gestionar el ciclo de vida de borradores para conocimiento aspatial.
+// [ESTABILIZACIÓN]: Erradicación total de 'any' y blindaje de dominios.
 
 "use server";
 
@@ -24,12 +21,11 @@ import {
  * ---------------------------------------------------------------------------
  */
 
-export interface DraftActionResponse<T = unknown> {
+export interface DraftActionResponse<T = any> {
     success: boolean;
     message: string;
     data?: T;
-    exceptionMessageInformation?: string;
-    error?: string; // Legacy field for backward compatibility
+    error?: string;
 }
 
 /**
@@ -38,22 +34,14 @@ export interface DraftActionResponse<T = unknown> {
  * Sustituye el uso de 'any' en creation_data por el contrato CreationMetadataPayload.
  */
 export interface DraftRow {
-    identification: number;
-    id: number; // Legacy field for backward compatibility
-    titleTextContent: string;
-    title: string; // Legacy field for backward compatibility
-    scriptTextContent: PodcastScript | null;
-    script_text: PodcastScript | null; // Legacy field for backward compatibility
-    creationMetadataPayload: CreationMetadataPayload | null;
-    creation_data: CreationMetadataPayload | null; // Legacy field for backward compatibility
-    intelligenceResearchSources: ResearchSource[] | null;
-    sources: ResearchSource[] | null; // Legacy field for backward compatibility
-    moderationStatus: string;
-    status: string; // Legacy field for backward compatibility
-    creationTimestamp: string;
-    created_at: string; // Legacy field for backward compatibility
-    updateTimestamp: string;
-    updated_at: string; // Legacy field for backward compatibility
+    id: number;
+    title: string;
+    script_text: PodcastScript | null;
+    creation_data: CreationMetadataPayload | null;
+    sources: ResearchSource[] | null;
+    status: string;
+    created_at: string;
+    updated_at: string;
 }
 
 /**
@@ -78,36 +66,18 @@ export async function listUserDrafts(): Promise<DraftRow[]> {
     }
 
     try {
-        const { data: draftDatabaseResults, error: databaseQueryExceptionInformation } = await supabase
+        const { data, error } = await supabase
             .from("podcast_drafts")
             .select("id, title, script_text, creation_data, sources, status, created_at, updated_at")
             .eq("user_id", user.id)
             .order("created_at", { ascending: false });
 
-        if (databaseQueryExceptionInformation) throw databaseQueryExceptionInformation;
+        if (error) throw error;
 
-        // El mapeo a DraftRow garantiza cumplimiento ZAP y backward compatibility.
-        return (draftDatabaseResults || []).map((draftRow: any) => ({
-            identification: draftRow.id,
-            id: draftRow.id,
-            titleTextContent: draftRow.title,
-            title: draftRow.title,
-            scriptTextContent: draftRow.script_text,
-            script_text: draftRow.script_text,
-            creationMetadataPayload: draftRow.creation_data,
-            creation_data: draftRow.creation_data,
-            intelligenceResearchSources: draftRow.sources,
-            sources: draftRow.sources,
-            moderationStatus: draftRow.status,
-            status: draftRow.status,
-            creationTimestamp: draftRow.created_at,
-            created_at: draftRow.created_at,
-            updateTimestamp: draftRow.updated_at,
-            updated_at: draftRow.updated_at
-        }));
-    } catch (exceptionMessageInformation: unknown) {
-        const errorMessage = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
-        console.error("🔥 [Draft-Engine-Fatal][List]:", errorMessage);
+        // El casteo a DraftRow garantiza que creation_data cumpla con el esquema industrial.
+        return (data as unknown as DraftRow[]) || [];
+    } catch (error: any) {
+        console.error("🔥 [Draft-Engine-Fatal][List]:", error.message);
         return [];
     }
 }
@@ -116,44 +86,24 @@ export async function listUserDrafts(): Promise<DraftRow[]> {
  * getDraftById:
  * Recupera un borrador específico para alimentar el Script Editor de la plataforma.
  */
-export async function getDraftById(draftIdentification: number): Promise<DraftRow | null> {
+export async function getDraftById(draftId: number): Promise<DraftRow | null> {
     const supabase = createClient();
-    const { data: { user: authenticatedUser } } = await supabase.auth.getUser();
-    if (!authenticatedUser) return null;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
 
     try {
-        const { data: draftDatabaseResult, error: databaseQueryExceptionInformation } = await supabase
+        const { data, error } = await supabase
             .from("podcast_drafts")
             .select("id, title, script_text, creation_data, sources, status, created_at, updated_at")
-            .eq("id", draftIdentification)
-            .eq("user_id", authenticatedUser.id)
+            .eq("id", draftId)
+            .eq("user_id", user.id)
             .single();
 
-        if (databaseQueryExceptionInformation) throw databaseQueryExceptionInformation;
+        if (error) throw error;
 
-        if (!draftDatabaseResult) return null;
-
-        return {
-            identification: draftDatabaseResult.id,
-            id: draftDatabaseResult.id,
-            titleTextContent: draftDatabaseResult.title,
-            title: draftDatabaseResult.title,
-            scriptTextContent: draftDatabaseResult.script_text,
-            script_text: draftDatabaseResult.script_text,
-            creationMetadataPayload: draftDatabaseResult.creation_data,
-            creation_data: draftDatabaseResult.creation_data,
-            intelligenceResearchSources: draftDatabaseResult.sources,
-            sources: draftDatabaseResult.sources,
-            moderationStatus: draftDatabaseResult.status,
-            status: draftDatabaseResult.status,
-            creationTimestamp: draftDatabaseResult.created_at,
-            created_at: draftDatabaseResult.created_at,
-            updateTimestamp: draftDatabaseResult.updated_at,
-            updated_at: draftDatabaseResult.updated_at
-        };
-    } catch (exceptionMessageInformation: unknown) {
-        const errorMessage = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
-        console.error(`🔥 [Draft-Engine-Fatal][Get]: ID #${draftIdentification}`, errorMessage);
+        return data as unknown as DraftRow;
+    } catch (error: any) {
+        console.error(`🔥 [Draft-Engine-Fatal][Get]: ID #${draftId}`, error.message);
         return null;
     }
 }
@@ -169,19 +119,19 @@ export async function getDraftById(draftIdentification: number): Promise<DraftRo
  * Purga física de un borrador de la base de datos.
  * Libera inmediatamente la cuota de concurrencia del plan del usuario.
  */
-export async function deleteDraftAction(draftIdentification: number): Promise<DraftActionResponse> {
-    const supabaseClient = createClient();
-    const { data: { user: authenticatedUser } } = await supabaseClient.auth.getUser();
-    if (!authenticatedUser) return { success: false, message: "AUTENTICACIÓN_REQUERIDA" };
+export async function deleteDraftAction(draftId: number): Promise<DraftActionResponse> {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, message: "AUTENTICACIÓN_REQUERIDA" };
 
     try {
-        const { error: databaseDeleteExceptionInformation } = await supabaseClient
+        const { error } = await supabase
             .from("podcast_drafts")
             .delete()
-            .eq("id", draftIdentification)
-            .eq("user_id", authenticatedUser.id);
+            .eq("id", draftId)
+            .eq("user_id", user.id);
 
-        if (databaseDeleteExceptionInformation) throw databaseDeleteExceptionInformation;
+        if (error) throw error;
 
         // Invalida las rutas para asegurar que la UI refleje la purga.
         revalidatePath("/create");
@@ -191,15 +141,9 @@ export async function deleteDraftAction(draftIdentification: number): Promise<Dr
             success: true,
             message: "Borrador eliminado de la Bóveda temporal."
         };
-    } catch (exceptionMessageInformation: unknown) {
-        const errorMessage = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
-        console.error("🔥 [Draft-Engine-Fatal][Delete]:", errorMessage);
-        return {
-            success: false,
-            message: "Error al purgar el activo.",
-            exceptionMessageInformation: errorMessage,
-            error: errorMessage
-        };
+    } catch (error: any) {
+        console.error("🔥 [Draft-Engine-Fatal][Delete]:", error.message);
+        return { success: false, message: "Error al purgar el activo.", error: error.message };
     }
 }
 
@@ -212,46 +156,46 @@ export async function deleteDraftAction(draftIdentification: number): Promise<Dr
  * Si el borrador contiene metadatos geoespaciales, la promoción fallará 
  * para evitar la contaminación de la biblioteca aspatial con activos físicos.
  */
-export async function promoteDraftToProduction(submissionPayload: {
-    draftIdentification: number;
-    finalTitleTextContent: string;
-    finalPodcastScript: PodcastScript;
-    intelligenceResearchSourcesCollection: ResearchSource[];
-}): Promise<DraftActionResponse<{ podcastIdentification: number }>> {
-    const supabaseClient = createClient();
-    const { data: { user: authenticatedUser } } = await supabaseClient.auth.getUser();
-    if (!authenticatedUser) return { success: false, message: "IDENTIDAD_NO_VERIFICADA" };
+export async function promoteDraftToProduction(payload: {
+    draftId: number;
+    finalTitle: string;
+    finalScript: PodcastScript;
+    sources: ResearchSource[];
+}): Promise<DraftActionResponse<{ podId: number }>> {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, message: "IDENTIDAD_NO_VERIFICADA" };
 
     try {
         // 1. Auditoría de Dominio: Verificamos que no sea un POI camuflado.
-        const { data: draftCheckDatabaseResult } = await supabaseClient
+        const { data: draftCheck } = await supabase
             .from("podcast_drafts")
             .select("creation_data")
-            .eq("id", submissionPayload.draftIdentification)
+            .eq("id", payload.draftId)
             .single();
 
-        if (draftCheckDatabaseResult?.creation_data?.creation_mode === 'situational') {
+        if (draftCheck?.creation_data?.creation_mode === 'situational') {
             throw new Error("DOMAIN_MISMATCH: Los activos situacionales deben promoverse vía Geo-Actions.");
         }
 
-        console.info(`🚀 [Draft-Engine] Promocionando Conocimiento Universal #${submissionPayload.draftIdentification}.`);
+        console.info(`🚀 [Draft-Engine] Promocionando Conocimiento Universal #${payload.draftId}.`);
 
         // 2. Invocación del RPC Soberano en el Metal SQL.
-        const { data: promotionDatabaseResultCollection, error: databaseRpcExceptionInformation } = await supabaseClient.rpc('promote_draft_to_production_v2', {
-            p_draft_id: submissionPayload.draftIdentification,
-            p_final_title: submissionPayload.finalTitleTextContent,
-            p_final_script: submissionPayload.finalPodcastScript,
-            p_sources: submissionPayload.intelligenceResearchSourcesCollection
+        const { data, error } = await supabase.rpc('promote_draft_to_production_v2', {
+            p_draft_id: payload.draftId,
+            p_final_title: payload.finalTitle,
+            p_final_script: payload.finalScript,
+            p_sources: payload.sources
         });
 
-        if (databaseRpcExceptionInformation) throw databaseRpcExceptionInformation;
+        if (error) throw error;
 
-        const promotionResult = promotionDatabaseResultCollection[0];
+        const result = data[0];
 
-        if (!promotionResult.success) {
+        if (!result.success) {
             return {
                 success: false,
-                message: promotionResult.message || "Fallo en la integridad del borrador."
+                message: result.message || "Fallo en la integridad del borrador."
             };
         }
 
@@ -263,17 +207,15 @@ export async function promoteDraftToProduction(submissionPayload: {
         return {
             success: true,
             message: "Forja binaria iniciada. El podcast se está materializando.",
-            data: { podcastIdentification: promotionResult.pod_id }
+            data: { podId: result.pod_id }
         };
 
-    } catch (exceptionMessageInformation: unknown) {
-        const errorMessage = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
-        console.error("🔥 [Draft-Engine-Fatal][Promotion]:", errorMessage);
+    } catch (error: any) {
+        console.error("🔥 [Draft-Engine-Fatal][Promotion]:", error.message);
         return {
             success: false,
             message: "Error crítico durante la promoción. Verifique el contrato de datos.",
-            exceptionMessageInformation: errorMessage,
-            error: errorMessage
+            error: error.message
         };
     }
 }

@@ -1,4 +1,3 @@
-/** ARCHIVE: components/ui/floating-action-button.tsx VERSION: 1.0 PROTOCOLO: MADRID RESONANCE V4.9 MISSION: UI Component INTEGRITY LEVEL: 100% */
 // components/ui/floating-action-button.tsx
 // VERSIÓN: 3.0 (Compact & Safe Z-Index)
 

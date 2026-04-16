@@ -1,15 +1,15 @@
 /**
- * ARCHIVE: components/geo/steps/step-3-dossier-review.tsx
- * VERSION: 9.0 (NicePod Forge Step 3 - Industrial Peritaje & UI Layout Refinement Edition)
+ * ARCHIVO: components/geo/steps/step-3-dossier-review.tsx
+ * VERSIÓN: 9.0 (NicePod Forge Step 3 - Industrial Peritaje & UI Layout Refinement Edition)
  * PROTOCOLO: MADRID RESONANCE V4.5
  * 
- * MISSION: Permitir al Administrador auditar el peritaje técnico generado por el
+ * Misión: Permitir al Administrador auditar el peritaje técnico generado por el
  * Oráculo de Inteligencia, validando la "Verdad Física" y el "Grounding" entre 
  * evidencias visuales, sintonía temporal y fuentes externas de autoridad.
  * [REFORMA V9.0]: Sincronización nominal total con la Constitución V8.6 y el 
  * ForgeContext V6.1. Implementación de Footer fijo de alta visibilidad para 
  * evitar solapamientos. Purificación absoluta de la Zero Abbreviations Policy (ZAP).
- * INTEGRITY LEVEL: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
@@ -62,7 +62,7 @@ export default function Step3DossierReview() {
 
   /**
    * executeManualNominativeAuthorityOverrideAction:
-   * MISSION: Sobrescribir la identidad detectada por la Inteligencia Artificial con la autoridad humana.
+   * Misión: Sobrescribir la identidad detectada por la Inteligencia Artificial con la autoridad humana.
    * [SINCRO V9.0]: Alineación con el nuevo contrato nominal del Dossier V8.6.
    */
   const executeManualNominativeAuthorityOverrideAction = useCallback(() => {
@@ -90,7 +90,7 @@ export default function Step3DossierReview() {
 
   /**
    * executeFinalAuditValidationWorkflow:
-   * MISSION: Sellar el peritaje y avanzar a la fase de síntesis narrativa.
+   * Misión: Sellar el peritaje y avanzar a la fase de síntesis narrativa.
    */
   const executeFinalAuditValidationWorkflow = () => {
     nicepodLog("🎯 [Step3] Peritaje multidimensional validado por el Administrador.");

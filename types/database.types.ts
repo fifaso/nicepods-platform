@@ -1,4 +1,3 @@
-/** ARCHIVE: types/database.types.ts VERSION: 1.0 PROTOCOLO: MADRID RESONANCE V4.9 MISSION: Database Schema INTEGRITY LEVEL: 100% */
 export type Json =
   | string
   | number

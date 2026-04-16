@@ -1,16 +1,16 @@
 /**
- * ARCHIVE: types/geo-sovereignty.ts
- * VERSION: 9.0 (NicePod Sovereign Constitution - Contract Synchronization Edition)
+ * ARCHIVO: types/geo-sovereignty.ts
+ * VERSIÓN: 9.0 (NicePod Sovereign Constitution - Contract Synchronization Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
- * MISSION: Centralizar el contrato de identidad, telemetría y control cinemático,
+ * Misión: Centralizar el contrato de identidad, telemetría y control cinemático,
  * garantizando la sintonía absoluta entre el hardware de silicio, el oráculo 
  * de inteligencia y el motor de renderizado WebGL.
  * [REFORMA V9.0]: Sincronización nominal total con la Refacción Cinemática V4.9.10. 
  * Se actualiza la interfaz 'GeoEngineReturn' para incluir el Mando Único 
  * Contextual y nombres industriales purificados (ZAP). Sellado del 
  * Build Shield Sovereignty (BSS).
- * INTEGRITY LEVEL: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 /**

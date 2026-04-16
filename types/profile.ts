@@ -1,14 +1,14 @@
 /**
- * ARCHIVE: types/profile.ts
- * VERSION: 4.2 (NicePod Sovereign Profile - Strict Metal-to-Crystal Contract Edition)
+ * ARCHIVO: types/profile.ts
+ * VERSIÓN: 4.2 (NicePod Sovereign Profile - Strict Metal-to-Crystal Contract Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
- * MISSION: Centralizar el contrato de identidad del Voyager, garantizando la
+ * Misión: Centralizar el contrato de identidad del Voyager, garantizando la
  * integridad de tipos entre el Metal (Base de Datos) y el Cristal (Interfaz).
  * [REFORMA V4.1]: Implementación de 'id' como propiedad de respaldo necesaria para 
  * la compatibilidad con el SDK de Supabase, manteniendo 'identification' como 
  * descriptor industrial soberano.
- * INTEGRITY LEVEL: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 import { Database } from './database.types';

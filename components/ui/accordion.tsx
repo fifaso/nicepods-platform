@@ -1,4 +1,3 @@
-/** ARCHIVE: components/ui/accordion.tsx VERSION: 1.0 PROTOCOLO: MADRID RESONANCE V4.9 MISSION: UI Component INTEGRITY LEVEL: 100% */
 "use client"
 
 import * as React from "react"
@@ -12,11 +11,11 @@ const Accordion = AccordionPrimitive.Root
 const AccordionItem = React.forwardRef<
   React.ElementRef<typeof AccordionPrimitive.Item>,
   React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Item>
->(({ className, ...componentProperties }, elementReference) => (
+>(({ className, ...props }, ref) => (
   <AccordionPrimitive.Item
-    ref={elementReference}
+    ref={ref}
     className={classNamesUtility("border-b", className)}
-    {...componentProperties}
+    {...props}
   />
 ))
 AccordionItem.displayName = "AccordionItem"
@@ -24,15 +23,15 @@ AccordionItem.displayName = "AccordionItem"
 const AccordionTrigger = React.forwardRef<
   React.ElementRef<typeof AccordionPrimitive.Trigger>,
   React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Trigger>
->(({ className, children, ...componentProperties }, elementReference) => (
+>(({ className, children, ...props }, ref) => (
   <AccordionPrimitive.Header className="flex">
     <AccordionPrimitive.Trigger
-      ref={elementReference}
+      ref={ref}
       className={classNamesUtility(
         "flex flex-1 items-center justify-between py-4 font-medium transition-all hover:underline [&[data-state=open]>svg]:rotate-180",
         className
       )}
-      {...componentProperties}
+      {...props}
     >
       {children}
       <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
@@ -44,11 +43,11 @@ AccordionTrigger.displayName = AccordionPrimitive.Trigger.displayName
 const AccordionContent = React.forwardRef<
   React.ElementRef<typeof AccordionPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Content>
->(({ className, children, ...componentProperties }, elementReference) => (
+>(({ className, children, ...props }, ref) => (
   <AccordionPrimitive.Content
-    ref={elementReference}
+    ref={ref}
     className="overflow-hidden text-sm transition-all data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down"
-    {...componentProperties}
+    {...props}
   >
     <div className={classNamesUtility("pb-4 pt-0", className)}>{children}</div>
   </AccordionPrimitive.Content>

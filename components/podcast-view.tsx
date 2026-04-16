@@ -1,13 +1,13 @@
 /**
- * ARCHIVO: components/podcast-view.tsx
- * VERSIÓN: 34.0 (NicePod Interactive Stage - Industrial Integrity Edition)
- * PROTOCOLO: MADRID RESONANCE V4.0
+ * ARCHIVE: components/podcast-view.tsx
+ * VERSION: 35.0 (NicePod Interactive Stage - Industrial Integrity Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.9
  * 
- * Misión: Director de escena que orquesta el ciclo de vida del podcast desde la Forja 
+ * MISSION: Director de escena que orquesta el ciclo de vida del podcast desde la Forja
  * hasta la Liberación, garantizando la sintonía entre el hardware y la Bóveda NKV.
- * [REFORMA V34.0]: Resolución de incompatibilidad de tipos en metadatos de IA (TS2322) 
- * y sincronía absoluta de nulabilidad con el perfil del administrador.
- * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * [REFORMA V35.0]: Absolute nominal sovereignty. Full synchronization with ZAP and
+ * MRP V4.9. Restoration of the Build Shield with strict type guarding.
+ * INTEGRITY LEVEL: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
@@ -27,7 +27,7 @@ import { useOfflineAudio } from '@/hooks/use-offline-audio';
 import { usePodcastSync } from '@/hooks/use-podcast-sync';
 
 // --- UTILIDADES Y CONTRATOS SOBERANOS ---
-import { nicepodLog, cn, formatTime } from "@/lib/utils";
+import { nicepodLog, classNamesUtility, formatTime } from "@/lib/utils";
 import { PodcastWithProfile, CreationMetadataPayload } from '@/types/podcast';
 
 // --- COMPONENTES SATÉLITE ---
@@ -38,13 +38,13 @@ import { IntegrityShield } from './podcast/integrity-shield';
 import { MediaStage } from './podcast/media-stage';
 
 /**
- * INTERFAZ: PodcastViewProperties
+ * INTERFACE: PodcastViewComponentProperties
  */
-interface PodcastViewProperties {
+interface PodcastViewComponentProperties {
   initialPodcastData: PodcastWithProfile;
   authenticatedUser: User | null;
   initialIsLikedStatus: boolean;
-  replies?: PodcastWithProfile[];
+  repliesCollection?: PodcastWithProfile[];
 }
 
 /**
@@ -54,8 +54,8 @@ export function PodcastView({
   initialPodcastData,
   authenticatedUser,
   initialIsLikedStatus,
-  replies = []
-}: PodcastViewProperties) {
+  repliesCollection = []
+}: PodcastViewComponentProperties) {
 
   const { supabase: supabaseClient } = useAuth();
   const navigationRouter = useRouter();
@@ -96,8 +96,8 @@ export function PodcastView({
   );
   
   const isCurrentPillActive = useMemo(() => 
-    currentActivePodcast?.id === livePodcastData.id,
-    [currentActivePodcast?.id, livePodcastData.id]
+    currentActivePodcast?.identification === livePodcastData.identification,
+    [currentActivePodcast?.identification, livePodcastData.identification]
   );
 
   /**
@@ -122,7 +122,6 @@ export function PodcastView({
   /**
    * mappedAdministratorProfile:
    * Misión: Sincronizar el perfil del administrador con el contrato del CuratorAside.
-   * [FIX V34.0]: Se mantiene la nulabilidad original del Metal para evitar el error TS2322.
    */
   const mappedAdministratorProfile = useMemo(() => {
     if (!livePodcastData.profiles) {
@@ -141,13 +140,13 @@ export function PodcastView({
   // --- MANEJADORES DE ACCIÓN SOBERANA ---
 
   const handlePlaybackControlAction = useCallback(() => {
-    const publishedRepliesCollection = replies.filter(replyItem => replyItem.status === 'published');
+    const publishedRepliesCollection = repliesCollection.filter(replyItem => replyItem.status === 'published');
     if (isCurrentPillActive) {
       togglePlayPauseAction();
     } else {
       playPodcastAction(livePodcastData, publishedRepliesCollection);
     }
-  }, [isCurrentPillActive, togglePlayPauseAction, playPodcastAction, livePodcastData, replies]);
+  }, [isCurrentPillActive, togglePlayPauseAction, playPodcastAction, livePodcastData, repliesCollection]);
 
   const handleResonanceInteractionAction = useCallback(async () => {
     if (!supabaseClient || !authenticatedUser || isPlaybackInteractionActive) return;
@@ -156,14 +155,20 @@ export function PodcastView({
       if (isLikedByVoyager) {
         setIsLikedByVoyager(false);
         setResonanceCount(previousCount => Math.max(0, previousCount - 1));
-        await supabaseClient.from('likes').delete().match({ user_id: authenticatedUser.id, podcast_id: livePodcastData.identification });
+        await supabaseClient.from('likes').delete().match({
+            user_id: authenticatedUser.id,
+            podcast_id: livePodcastData.identification
+        });
       } else {
         setIsLikedByVoyager(true);
         setResonanceCount(previousCount => previousCount + 1);
-        await supabaseClient.from('likes').insert({ user_id: authenticatedUser.id, podcast_id: livePodcastData.identification });
+        await supabaseClient.from('likes').insert({
+            user_id: authenticatedUser.id,
+            podcast_id: livePodcastData.identification
+        });
       }
     } catch (hardwareException: unknown) {
-      const exceptionMessageInformation = hardwareException instanceof Error ? hardwareException.message : "Hardware Error";
+      const exceptionMessageInformation = hardwareException instanceof Error ? hardwareException.message : 'Hardware Error';
       nicepodLog("🔥 [Social-Action] Error en resonancia:", exceptionMessageInformation, 'error');
     } finally {
       setIsPlaybackInteractionActive(false);
@@ -243,13 +248,11 @@ export function PodcastView({
             onDownload={() => isOfflineAvailable ? removeFromOffline() : downloadForOffline()}
           />
 
-          {/* [FIX V34.0]: Alineación absoluta de contratos nominales para CuratorAside */}
           <CuratorAside
             administratorProfile={mappedAdministratorProfile}
             creationDateString={livePodcastData.created_at}
             playbackDurationSeconds={livePodcastData.duration_seconds || 0}
             geographicPlaceName={livePodcastData.place_name || null}
-            // Mapeo directo al tipo soberano CreationMetadataPayload
             artificialIntelligenceCreationData={livePodcastData.creation_data as CreationMetadataPayload | null}
             intelligenceResearchSources={livePodcastData.sources || []}
             isIntelligenceConstructing={isIntelligenceConstructing}
@@ -264,13 +267,3 @@ export function PodcastView({
     </main>
   );
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT (V34.0):
- * 1. Contract Sovereignty: Se eliminó el casting genérico 'Record<string, unknown>' sustituyéndolo 
- *    por 'CreationMetadataPayload', resolviendo el error TS2322 en la línea 252.
- * 2. Metal-to-Prop Synchronization: El perfil del administrador mantiene la nulabilidad (null) 
- *    procedente del metal para satisfacer la interfaz del CuratorAside V1.5.
- * 3. Zero Abbreviations Policy: Se purificó la lógica interna del orquestador, asegurando que cada 
- *    proceso táctico sea autodescriptivo.
- */

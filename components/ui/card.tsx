@@ -1,4 +1,3 @@
-/** ARCHIVE: components/ui/card.tsx VERSION: 1.0 PROTOCOLO: MADRID RESONANCE V4.9 MISSION: UI Component INTEGRITY LEVEL: 100% */
 import * as React from "react"
 
 import { classNamesUtility } from "@/lib/utils"
@@ -6,14 +5,14 @@ import { classNamesUtility } from "@/lib/utils"
 const Card = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
->(({ className, ...componentProperties }, elementReference) => (
+>(({ className, ...props }, ref) => (
   <div
-    ref={elementReference}
+    ref={ref}
     className={classNamesUtility(
       "rounded-lg border bg-card text-card-foreground shadow-sm",
       className
     )}
-    {...componentProperties}
+    {...props}
   />
 ))
 Card.displayName = "Card"
@@ -21,11 +20,11 @@ Card.displayName = "Card"
 const CardHeader = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
->(({ className, ...componentProperties }, elementReference) => (
+>(({ className, ...props }, ref) => (
   <div
-    ref={elementReference}
+    ref={ref}
     className={classNamesUtility("flex flex-col space-y-1.5 p-6", className)}
-    {...componentProperties}
+    {...props}
   />
 ))
 CardHeader.displayName = "CardHeader"
@@ -33,14 +32,14 @@ CardHeader.displayName = "CardHeader"
 const CardTitle = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
->(({ className, ...componentProperties }, elementReference) => (
+>(({ className, ...props }, ref) => (
   <div
-    ref={elementReference}
+    ref={ref}
     className={classNamesUtility(
       "text-2xl font-semibold leading-none tracking-tight",
       className
     )}
-    {...componentProperties}
+    {...props}
   />
 ))
 CardTitle.displayName = "CardTitle"
@@ -48,11 +47,11 @@ CardTitle.displayName = "CardTitle"
 const CardDescription = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
->(({ className, ...componentProperties }, elementReference) => (
+>(({ className, ...props }, ref) => (
   <div
-    ref={elementReference}
+    ref={ref}
     className={classNamesUtility("text-sm text-muted-foreground", className)}
-    {...componentProperties}
+    {...props}
   />
 ))
 CardDescription.displayName = "CardDescription"
@@ -60,19 +59,19 @@ CardDescription.displayName = "CardDescription"
 const CardContent = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
->(({ className, ...componentProperties }, elementReference) => (
-  <div ref={elementReference} className={classNamesUtility("p-6 pt-0", className)} {...componentProperties} />
+>(({ className, ...props }, ref) => (
+  <div ref={ref} className={classNamesUtility("p-6 pt-0", className)} {...props} />
 ))
 CardContent.displayName = "CardContent"
 
 const CardFooter = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
->(({ className, ...componentProperties }, elementReference) => (
+>(({ className, ...props }, ref) => (
   <div
-    ref={elementReference}
+    ref={ref}
     className={classNamesUtility("flex items-center p-6 pt-0", className)}
-    {...componentProperties}
+    {...props}
   />
 ))
 CardFooter.displayName = "CardFooter"

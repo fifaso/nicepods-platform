@@ -1,15 +1,15 @@
 /**
- * ARCHIVE: types/database-overrides.d.ts
- * VERSION: 2.0 (NicePod Build Shield - PostGIS & Multidimensional Integrity Edition)
+ * ARCHIVO: types/database-overrides.d.ts
+ * VERSIÓN: 2.0 (NicePod Build Shield - PostGIS & Multidimensional Integrity Edition)
  * PROTOCOLO: MADRID RESONANCE V4.2
  * 
- * MISSION: Erradicar el tipo 'unknown' de las columnas geoespaciales y el tipo 'Json'
+ * Misión: Erradicar el tipo 'unknown' de las columnas geoespaciales y el tipo 'Json'
  * de los campos de inteligencia autogenerados por Supabase, forzando la integridad 
  * del Build Shield en toda la capa de persistencia.
  * [REFORMA V2.0]: Implementación de la Zero Abbreviations Policy (ZAP). Mapeo 
  * síncrono de columnas 'Geography' hacia 'GeoPoint' y campos 'JSONB' hacia 
  * contratos industriales específicos (CreationMetadataPayload, ResearchSource).
- * INTEGRITY LEVEL: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 import { Database as DatabaseGenerated } from './database.types';
@@ -24,7 +24,7 @@ import {
  * ---------------------------------------------------------------------------
  * I. CONSTITUCIÓN DEL ESCUDO (TYPE AUGMENTATION)
  * ---------------------------------------------------------------------------
- * MISSION: Crear un 'SovereignDatabase' que hereda la estructura del Metal
+ * Misión: Crear un 'SovereignDatabase' que hereda la estructura del Metal
  * pero 'sana' las columnas binarias, geográficas y de inteligencia.
  */
 export type SovereignDatabase = DatabaseGenerated & {
@@ -129,7 +129,7 @@ export type SovereignDatabase = DatabaseGenerated & {
  * ---------------------------------------------------------------------------
  * II. UTILIDADES DE EXTRACCIÓN SOBERANA (BUILD SHIELD HELPERS)
  * ---------------------------------------------------------------------------
- * MISSION: Proveer tipos derivados que respeten la sanación del Metal.
+ * Misión: Proveer tipos derivados que respeten la sanación del Metal.
  */
 
 /**

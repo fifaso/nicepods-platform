@@ -11,7 +11,7 @@ export const AuroraCard = ({
   children, 
   className, 
   gradient = false,
-  ...componentProperties
+  ...props
 }: AuroraCardProps) => {
   return (
     <motion.div
@@ -26,7 +26,7 @@ export const AuroraCard = ({
         gradient && "before:absolute before:inset-0 before:bg-gradient-to-br before:from-violet-500/5 before:to-transparent before:pointer-events-none",
         className
       )}
-      {...componentProperties}
+      {...props}
     >
       {children}
     </motion.div>

@@ -1,4 +1,3 @@
-/** ARCHIVE: components/ui/slider.tsx VERSION: 1.0 PROTOCOLO: MADRID RESONANCE V4.9 MISSION: UI Component INTEGRITY LEVEL: 100% */
 // components/ui/slider.tsx
 // VERSIÓN: 2.0 (NicePod Industrial Style - Precision Audio Slider)
 // Misión: Proveer un control de tiempo fluido con estética Glassmorphism.
@@ -13,14 +12,14 @@ import { classNamesUtility } from "@/lib/utils"
 const Slider = React.forwardRef<
   React.ElementRef<typeof SliderPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root>
->(({ className, ...componentProperties }, elementReference) => (
+>(({ className, ...props }, ref) => (
   <SliderPrimitive.Root
-    ref={elementReference}
+    ref={ref}
     className={classNamesUtility(
       "relative flex w-full touch-none select-none items-center group cursor-pointer",
       className
     )}
-    {...componentProperties}
+    {...props}
   >
     {/* PISTA BASE: Más fina y oscura para destacar el progreso */}
     <SliderPrimitive.Track className="relative h-1.5 w-full grow overflow-hidden rounded-full bg-white/10 backdrop-blur-md">

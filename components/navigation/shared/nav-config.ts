@@ -1,10 +1,10 @@
 /**
  * ARCHIVE: components/navigation/shared/nav-config.ts
- * VERSION: 5.0 (NicePod Navigation Master - Sovereign Expansion Edition)
+ * VERSION: 6.0 (NicePod Navigation Master - Gold Standard ZAP Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
- * MISSION: Deterministic configuration of navigation arteries, ensuring nominal
- * sovereignty and industrial-grade routing logic.
- * INTEGRITY LEVEL: 100% (Sovereign / No abbreviations / Production-Ready)
+ * MISSION: Deterministic configuration of navigation arteries, ensuring absolute
+ * nominal sovereignty and industrial-grade routing logic.
+ * INTEGRITY LEVEL: 100% (Soberano / No abbreviations / Production-Ready)
  */
 
 import {
@@ -29,19 +29,22 @@ import {
  * Defines the immutable structure of a navigation node in the User Interface.
  */
 export interface NavigationItem {
-  label: string;
-  href: string;
-  icon: LucideIcon;
+  /** displayLabelText: The descriptive text visible to the Voyager. */
+  displayLabelText: string;
+  /** navigationTargetUrl: The physical destination path in the application. */
+  navigationTargetUrl: string;
+  /** iconComponent: The Lucide icon reactor for visual representation. */
+  iconComponent: LucideIcon;
   /**
-   * isPrimary: If true, the rendered component applies the highlighted
+   * isPrimaryActionStatus: If true, the rendered component applies the highlighted
    * Aurora style (e.g., background gradients or pulse animations).
    */
-  isPrimary?: boolean;
+  isPrimaryActionStatus?: boolean;
   /**
-   * isSovereign: If true, this link must be rendered with "Privileged Zone"
+   * isSovereignStatus: If true, this link must be rendered with "Privileged Zone"
    * visual indicators (e.g., a lock or a distinctive color).
    */
-  isSovereign?: boolean;
+  isSovereignStatus?: boolean;
 }
 
 /**
@@ -55,19 +58,19 @@ export interface NavigationItem {
  */
 export const GUEST_NAVIGATION_ITEMS: NavigationItem[] = [
   {
-    label: "El Mapa",
-    href: "/map",
-    icon: MapIcon
+    displayLabelText: "El Mapa",
+    navigationTargetUrl: "/map",
+    iconComponent: MapIcon
   },
   {
-    label: "Biblioteca",
-    href: "/podcasts",
-    icon: Globe
+    displayLabelText: "Biblioteca",
+    navigationTargetUrl: "/podcasts",
+    iconComponent: Globe
   },
   {
-    label: "Planes",
-    href: "/pricing",
-    icon: Zap
+    displayLabelText: "Planes",
+    navigationTargetUrl: "/pricing",
+    iconComponent: Zap
   }
 ];
 
@@ -82,25 +85,25 @@ export const GUEST_NAVIGATION_ITEMS: NavigationItem[] = [
  */
 export const USER_NAVIGATION_ITEMS: NavigationItem[] = [
   {
-    label: "Comando",
-    href: "/dashboard",
-    icon: LayoutDashboard
+    displayLabelText: "Comando",
+    navigationTargetUrl: "/dashboard",
+    iconComponent: LayoutDashboard
   },
   {
-    label: "Radar",
-    href: "/map",
-    icon: MapIcon
+    displayLabelText: "Radar",
+    navigationTargetUrl: "/map",
+    iconComponent: MapIcon
   },
   {
-    label: "Crear",
-    href: "/create",
-    icon: Mic,
-    isPrimary: true
+    displayLabelText: "Crear",
+    navigationTargetUrl: "/create",
+    iconComponent: Mic,
+    isPrimaryActionStatus: true
   },
   {
-    label: "Sabiduría",
-    href: "/podcasts",
-    icon: Sparkles
+    displayLabelText: "Sabiduría",
+    navigationTargetUrl: "/podcasts",
+    iconComponent: Sparkles
   }
 ];
 
@@ -115,10 +118,10 @@ export const USER_NAVIGATION_ITEMS: NavigationItem[] = [
  */
 export const ADMIN_NAVIGATION_ITEMS: NavigationItem[] = [
   {
-    label: "Moderación",
-    href: "/admin/vault",
-    icon: ShieldCheck,
-    isSovereign: true
+    displayLabelText: "Moderación",
+    navigationTargetUrl: "/admin/vault",
+    iconComponent: ShieldCheck,
+    isSovereignStatus: true
   }
 ];
 
@@ -131,18 +134,19 @@ export const ADMIN_NAVIGATION_ITEMS: NavigationItem[] = [
 /**
  * isRouteActive:
  * Deterministic algorithm to illuminate the navigation menu.
- * Evaluates if the browser URL matches the NavigationItem href.
+ * Evaluates if the browser URL matches the navigationTargetUrl.
  */
-export function isRouteActive(href: string, currentPathname: string): boolean {
-  if (href === '/dashboard' && currentPathname === '/') return true;
-  if (href === '/' && currentPathname !== '/') return false;
+export function isRouteActive(navigationTargetUrl: string, currentPathname: string): boolean {
+  if (navigationTargetUrl === '/dashboard' && currentPathname === '/') return true;
+  if (navigationTargetUrl === '/' && currentPathname !== '/') return false;
 
-  return currentPathname === href || currentPathname?.startsWith(`${href}/`);
+  return currentPathname === navigationTargetUrl || currentPathname?.startsWith(`${navigationTargetUrl}/`);
 }
 
 /**
- * TECHNICAL NOTE FROM ARCHITECT (V5.0):
- * 1. Nominal Sovereignty: Implementation of the Zero Abbreviations Policy (ZAP).
- * 2. Build Shield: Strict typing for all navigation constants and logic.
- * 3. Header Integrity: Standard NicePod technical header added.
+ * TECHNICAL NOTE FROM ARCHITECT (V6.0):
+ * 1. Nominal Sovereignty: Implementation of the Zero Abbreviations Policy (ZAP)
+ *    at the architectural level (NavigationItem properties).
+ * 2. Gold Standard: Every property and variable is now a full technical descriptor.
+ * 3. Header Integrity: Standard NicePod technical header confirmed.
  */

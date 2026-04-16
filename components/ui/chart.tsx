@@ -1,4 +1,3 @@
-/** ARCHIVE: components/ui/chart.tsx VERSION: 1.0 PROTOCOLO: MADRID RESONANCE V4.9 MISSION: UI Component INTEGRITY LEVEL: 100% */
 "use client"
 
 import * as React from "react"
@@ -43,20 +42,20 @@ const ChartContainer = React.forwardRef<
       typeof RechartsPrimitive.ResponsiveContainer
     >["children"]
   }
->(({ id, className, children, config, ...componentProperties }, elementReference) => {
-  const uniqueIdentification = React.useId()
-  const chartId = `chart-${id || uniqueIdentification.replace(/:/g, "")}`
+>(({ id, className, children, config, ...props }, ref) => {
+  const uniqueId = React.useId()
+  const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`
 
   return (
     <ChartContext.Provider value={{ config }}>
       <div
         data-chart={chartId}
-        ref={elementReference}
+        ref={ref}
         className={classNamesUtility(
           "flex aspect-video justify-center text-xs [&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground [&_.recharts-cartesian-grid_line[stroke='#ccc']]:stroke-border/50 [&_.recharts-curve.recharts-tooltip-cursor]:stroke-border [&_.recharts-dot[stroke='#fff']]:stroke-transparent [&_.recharts-layer]:outline-none [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border [&_.recharts-radial-bar-background-sector]:fill-muted [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-muted [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-sector]:outline-none [&_.recharts-surface]:outline-none",
           className
         )}
-        {...componentProperties}
+        {...props}
       >
         <ChartStyle id={chartId} config={config} />
         <RechartsPrimitive.ResponsiveContainer>
@@ -130,7 +129,7 @@ const ChartTooltipContent = React.forwardRef<
       nameKey,
       labelKey,
     },
-    elementReference
+    ref
   ) => {
     const { config } = useChart()
 
@@ -178,7 +177,7 @@ const ChartTooltipContent = React.forwardRef<
 
     return (
       <div
-        ref={elementReference}
+        ref={ref}
         className={classNamesUtility(
           "grid min-w-[8rem] items-start gap-1.5 rounded-lg border border-border/50 bg-background px-2.5 py-1.5 text-xs shadow-xl",
           className
@@ -269,7 +268,7 @@ const ChartLegendContent = React.forwardRef<
 >(
   (
     { className, hideIcon = false, payload, verticalAlign = "bottom", nameKey },
-    elementReference
+    ref
   ) => {
     const { config } = useChart()
 
@@ -279,7 +278,7 @@ const ChartLegendContent = React.forwardRef<
 
     return (
       <div
-        ref={elementReference}
+        ref={ref}
         className={classNamesUtility(
           "flex items-center justify-center gap-4",
           verticalAlign === "top" ? "pb-3" : "pt-3",

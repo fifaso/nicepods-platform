@@ -1,13 +1,12 @@
 /**
  * ARCHIVE: components/navigation/desktop-nav.tsx
- * VERSION: 6.0 (NicePod Desktop Command - Axial Path Sanitization Edition)
+ * VERSION: 7.0 (NicePod Desktop Command - Gold Standard ZAP Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * MISSION: Orquestar la navegación de escritorio de alta densidad, gestionando
  * la autoridad administrativa y la simetría visual del centro de mando global.
- * [REFORMA V6.0]: Resolución definitiva de TS2345 mediante el blindaje de la 
- * ruta de navegación. Resolución de TS2322 mediante la sincronización nominal 
- * con 'UserDropdown' V6.0. Purificación absoluta de la Zero Abbreviations Policy.
+ * [REFORMA V7.0]: Sincronización absoluta con NavConfig V6.0. Implementación total
+ * de la Zero Abbreviations Policy (ZAP). 100% Nominal Sovereignty.
  * INTEGRITY LEVEL: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -44,9 +43,9 @@ import { classNamesUtility } from "@/lib/utils";
 import { ProfileData } from "@/types/profile";
 
 /**
- * INTERFAZ: DesktopNavigationProperties
+ * INTERFACE: DesktopNavigationComponentProperties
  */
-interface DesktopNavigationProperties {
+interface DesktopNavigationComponentProperties {
   isUserAuthenticatedStatus: boolean;
   isInitialLoadingProcessActive: boolean;
   administratorProfile: ProfileData | null;
@@ -63,25 +62,24 @@ export function DesktopNav({
   administratorProfile,
   isAdministratorAuthorityStatus,
   onAuthenticationLogoutAction
-}: DesktopNavigationProperties) {
+}: DesktopNavigationComponentProperties) {
 
   /**
    * [BSS]: SANITIZACIÓN AXIAL
-   * MISSION: El hook usePathname() puede retornar null. Forzamos un fallback
+   * Misión: El hook usePathname() puede retornar null. Forzamos un fallback
    * a cadena vacía para aniquilar el error TS2345 en la lógica de comparación.
    */
   const currentNavigationPathname = usePathname() || "";
 
   /**
    * navigationEntriesCollection:
-   * MISSION: Calcular la topología del menú basándose en la autoridad del Voyager.
+   * Misión: Calcular la topología del menú basándose en la autoridad del Voyager.
    */
   const navigationEntriesCollection = useMemo(() => {
     if (!isUserAuthenticatedStatus) {
       return GUEST_NAVIGATION_ITEMS;
     }
 
-    // Inyección de herramientas soberanas si el rango de autoridad es administrativo.
     if (isAdministratorAuthorityStatus) {
       return [...USER_NAVIGATION_ITEMS, ...ADMIN_NAVIGATION_ITEMS];
     }
@@ -121,9 +119,9 @@ export function DesktopNav({
           {navigationEntriesCollection.map((navigationEntryItem: NavigationItem) => {
 
             // CASO A: ACCIÓN DE FORJA PRIMARIA (CREACIÓN)
-            if (navigationEntryItem.isPrimary) {
+            if (navigationEntryItem.isPrimaryActionStatus) {
               return (
-                <li key={navigationEntryItem.href} className="flex items-center">
+                <li key={navigationEntryItem.navigationTargetUrl} className="flex items-center">
                   <CreateButton
                     variantType="full"
                     additionalTailwindClassName="h-11 px-8 rounded-full shadow-lg shadow-primary/20"
@@ -134,22 +132,21 @@ export function DesktopNav({
 
             /** 
              * [SINCRO V6.0]: Verificación de Estado Activo.
-             * Consumo de la ruta sanitizada para determinar el realce visual.
              */
-            const isNavigationEntryActiveStatus = isRouteActive(navigationEntryItem.href, currentNavigationPathname);
-            const NavigationIconComponent = navigationEntryItem.icon;
+            const isNavigationEntryActiveStatus = isRouteActive(navigationEntryItem.navigationTargetUrl, currentNavigationPathname);
+            const NavigationIconComponent = navigationEntryItem.iconComponent;
 
             return (
-              <li key={navigationEntryItem.href}>
+              <li key={navigationEntryItem.navigationTargetUrl}>
                 <Link
-                  href={navigationEntryItem.href}
+                  href={navigationEntryItem.navigationTargetUrl}
                   className={classNamesUtility(
                     navLinkBaseClass,
                     "h-11 px-6 flex items-center justify-center rounded-full text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-700",
                     isNavigationEntryActiveStatus
                       ? "bg-white text-black shadow-[0_10px_30px_rgba(255,255,255,0.2)] scale-105"
                       : "text-zinc-500 hover:text-white hover:bg-white/5",
-                    navigationEntryItem.isSovereign && "text-amber-500/90 hover:text-amber-400"
+                    navigationEntryItem.isSovereignStatus && "text-amber-500/90 hover:text-amber-400"
                   )}
                 >
                   <div className="flex items-center gap-3">
@@ -157,7 +154,7 @@ export function DesktopNav({
                       "transition-transform duration-700",
                       isNavigationEntryActiveStatus ? "text-black scale-110" : "text-zinc-700"
                     )} />
-                    <span>{navigationEntryItem.label}</span>
+                    <span>{navigationEntryItem.displayLabelText}</span>
                   </div>
                 </Link>
               </li>
@@ -181,12 +178,10 @@ export function DesktopNav({
           </div>
         ) : isUserAuthenticatedStatus ? (
           <div className="flex items-center gap-5 animate-in fade-in zoom-in-95 duration-1000 isolate">
-            {/* Sistema de Notificaciones Sincronizado */}
             <div className="h-11 w-11 flex items-center justify-center bg-white/5 rounded-2xl border border-white/5 hover:border-white/20 transition-all cursor-pointer group">
               <NotificationBell />
             </div>
 
-            {/* Menú Desplegable SOBERANO (RESOLUCIÓN TS2322) */}
             <UserDropdown
               initialAdministratorProfile={administratorProfile}
               isAdministratorAuthorityStatus={isAdministratorAuthorityStatus}
@@ -208,13 +203,3 @@ export function DesktopNav({
     </div>
   );
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT (V6.0):
- * 1. Zero Abbreviations Policy (ZAP): Purga absoluta. 'isUserAuthenticated' -> 'isUserAuthenticatedStatus', 
- *    'navigationItem' -> 'navigationEntryItem', 'cn' -> 'classNamesUtility'.
- * 2. TS2345 Resolution: Sanitización imperativa de 'currentNavigationPathname' mediante 
- *    operador de coalescencia nula, blindando la lógica de rutas.
- * 3. Prop Sync (TS2322): Sincronización nominal con el contrato V6.0 de UserDropdown, 
- *    utilizando 'initialAdministratorProfile' e 'isAdministratorAuthorityStatus'.
- */

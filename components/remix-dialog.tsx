@@ -146,7 +146,7 @@ export function RemixDialog({ isOpen, onOpenChange, parentPodcast, quoteContext,
                         </div>
                     ) : (
                         <VoiceInput 
-                            onTextGeneratedAction={setReactionText}
+                            onTextGenerated={setReactionText}
                             className="w-full"
                         />
                     )}

@@ -1,4 +1,3 @@
-/** ARCHIVE: components/ui/alert.tsx VERSION: 1.0 PROTOCOLO: MADRID RESONANCE V4.9 MISSION: UI Component INTEGRITY LEVEL: 100% */
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 
@@ -23,12 +22,12 @@ const alertVariants = cva(
 const Alert = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & VariantProps<typeof alertVariants>
->(({ className, variant, ...componentProperties }, elementReference) => (
+>(({ className, variant, ...props }, ref) => (
   <div
-    ref={elementReference}
+    ref={ref}
     role="alert"
     className={classNamesUtility(alertVariants({ variant }), className)}
-    {...componentProperties}
+    {...props}
   />
 ))
 Alert.displayName = "Alert"
@@ -36,11 +35,11 @@ Alert.displayName = "Alert"
 const AlertTitle = React.forwardRef<
   HTMLParagraphElement,
   React.HTMLAttributes<HTMLHeadingElement>
->(({ className, ...componentProperties }, elementReference) => (
+>(({ className, ...props }, ref) => (
   <h5
-    ref={elementReference}
+    ref={ref}
     className={classNamesUtility("mb-1 font-medium leading-none tracking-tight", className)}
-    {...componentProperties}
+    {...props}
   />
 ))
 AlertTitle.displayName = "AlertTitle"
@@ -48,11 +47,11 @@ AlertTitle.displayName = "AlertTitle"
 const AlertDescription = React.forwardRef<
   HTMLParagraphElement,
   React.HTMLAttributes<HTMLParagraphElement>
->(({ className, ...componentProperties }, elementReference) => (
+>(({ className, ...props }, ref) => (
   <div
-    ref={elementReference}
+    ref={ref}
     className={classNamesUtility("text-sm [&_p]:leading-relaxed", className)}
-    {...componentProperties}
+    {...props}
   />
 ))
 AlertDescription.displayName = "AlertDescription"

@@ -1,12 +1,3 @@
-/**
- * ARCHIVE: components/ui/calendar.tsx
- * VERSION: 1.1 (NicePod UI Kit - Tactical Calendar Edition)
- * PROTOCOLO: MADRID RESONANCE V4.9
- * MISSION: Provide a high-fidelity date picker component based on react-day-picker,
- * ensuring nominal sovereignty and industrial-grade User Experience.
- * INTEGRITY LEVEL: 100% (Soberano / No abbreviations / Production-Ready)
- */
-
 'use client'
 
 import * as React from 'react'
@@ -20,13 +11,6 @@ import { DayButton, DayPicker, getDefaultClassNames } from 'react-day-picker'
 import { classNamesUtility } from '@/lib/utils'
 import { Button, buttonVariants } from '@/components/ui/button'
 
-/**
- * INTERFACE: CalendarComponentProperties
- */
-export type CalendarComponentProperties = React.ComponentProps<typeof DayPicker> & {
-  buttonVariant?: React.ComponentProps<typeof Button>['variant']
-}
-
 function Calendar({
   className,
   classNames,
@@ -35,8 +19,10 @@ function Calendar({
   buttonVariant = 'ghost',
   formatters,
   components,
-  ...componentProperties
-}: CalendarComponentProperties) {
+  ...props
+}: React.ComponentProps<typeof DayPicker> & {
+  buttonVariant?: React.ComponentProps<typeof Button>['variant']
+}) {
   const defaultClassNames = getDefaultClassNames()
 
   return (
@@ -139,20 +125,20 @@ function Calendar({
         ...classNames,
       }}
       components={{
-        Root: ({ className, rootRef, ...rootProperties }) => {
+        Root: ({ className, rootRef, ...props }) => {
           return (
             <div
               data-slot="calendar"
               ref={rootRef}
               className={classNamesUtility(className)}
-              {...rootProperties}
+              {...props}
             />
           )
         },
-        Chevron: ({ className, orientation, ...chevronProperties }) => {
+        Chevron: ({ className, orientation, ...props }) => {
           if (orientation === 'left') {
             return (
-              <ChevronLeftIcon className={classNamesUtility('size-4', className)} {...chevronProperties} />
+              <ChevronLeftIcon className={classNamesUtility('size-4', className)} {...props} />
             )
           }
 
@@ -160,19 +146,19 @@ function Calendar({
             return (
               <ChevronRightIcon
                 className={classNamesUtility('size-4', className)}
-                {...chevronProperties}
+                {...props}
               />
             )
           }
 
           return (
-            <ChevronDownIcon className={classNamesUtility('size-4', className)} {...chevronProperties} />
+            <ChevronDownIcon className={classNamesUtility('size-4', className)} {...props} />
           )
         },
         DayButton: CalendarDayButton,
-        WeekNumber: ({ children, ...weekNumberProperties }) => {
+        WeekNumber: ({ children, ...props }) => {
           return (
-            <td {...weekNumberProperties}>
+            <td {...props}>
               <div className="flex size-[--cell-size] items-center justify-center text-center">
                 {children}
               </div>
@@ -181,7 +167,7 @@ function Calendar({
         },
         ...components,
       }}
-      {...componentProperties}
+      {...props}
     />
   )
 }
@@ -190,20 +176,18 @@ function CalendarDayButton({
   className,
   day,
   modifiers,
-  ...dayButtonProperties
+  ...props
 }: React.ComponentProps<typeof DayButton>) {
   const defaultClassNames = getDefaultClassNames()
 
-  const elementReference = React.useRef<HTMLButtonElement>(null)
+  const ref = React.useRef<HTMLButtonElement>(null)
   React.useEffect(() => {
-    if (modifiers.focused) {
-        elementReference.current?.focus()
-    }
+    if (modifiers.focused) ref.current?.focus()
   }, [modifiers.focused])
 
   return (
     <Button
-      ref={elementReference}
+      ref={ref}
       variant="ghost"
       size="icon"
       data-day={day.date.toLocaleDateString()}
@@ -221,7 +205,7 @@ function CalendarDayButton({
         defaultClassNames.day,
         className
       )}
-      {...dayButtonProperties}
+      {...props}
     />
   )
 }

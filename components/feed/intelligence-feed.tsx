@@ -1,11 +1,12 @@
 /**
  * ARCHIVO: components/feed/intelligence-feed.tsx
- * VERSIÓN: 6.0 (NiceCore V4.0 - Sovereign Intelligence Flow - Bolt Optimized)
+ * VERSIÓN: 5.0 (NiceCore V4.0 - Sovereign Intelligence Flow)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Orquestar el flujo de capital intelectual inyectado por el servidor,
  * gestionando la transición entre la frecuencia base y el radar semántico.
- * [REFORMA V6.0]: Sincronización nominal total con SearchRadarResult (ZAP).
+ * [REFORMA V5.0]: Sincronización nominal con PodcastShelf V3.0, erradicación
+ * absoluta de abreviaturas y blindaje de tipos (Zero-Any).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -24,11 +25,11 @@ import {
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 
 // --- INFRAESTRUCTURA DE DATOS Y CONTRATOS SOBERANOS ---
 import { SearchRadarResult } from "@/hooks/use-search-radar";
-import { cn } from "@/lib/utils";
+import { classNamesUtility } from "@/lib/utils";
 import { PodcastWithProfile } from "@/types/podcast";
 
 // --- COMPONENTES UI ---
@@ -37,6 +38,8 @@ import { Button } from "@/components/ui/button";
 
 /**
  * [SHIELD]: CARGA DIFERIDA DE ESTANTES (PodcastShelf)
+ * El motor se mantiene dinámico para optimizar el hilo principal,
+ * sincronizado con el contrato de propiedades V3.0.
  */
 const PodcastShelf = dynamic(
     () => import("@/components/feed/podcast-shelf").then((module) => module.PodcastShelf),
@@ -76,6 +79,7 @@ const discoveryHubCategories = [
  * IntelligenceFeed: El bus de datos táctico de la identidad digital.
  */
 export function IntelligenceFeed({
+    userDisplayName,
     isSearchingProcessActive,
     searchMatchResults,
     lastSearchQuery,
@@ -152,6 +156,7 @@ export function IntelligenceFeed({
               </div>
 
               {safeEpicenterCollection.length > 0 ? (
+                /* [FIX V5.0]: Sincronización nominal con PodcastShelfProperties V3.0 */
                 <PodcastShelf
                   shelfTitle="Tu Epicentro"
                   initialPodcastCollection={safeEpicenterCollection}
@@ -184,6 +189,7 @@ export function IntelligenceFeed({
                     Conexiones de Resonancia
                   </h2>
                 </div>
+                {/* [FIX V5.0]: Sincronización nominal con PodcastShelfProperties V3.0 */}
                 <PodcastShelf
                   shelfTitle="Conexiones Inesperadas"
                   initialPodcastCollection={safeConnectionsCollection}
@@ -257,3 +263,13 @@ export function IntelligenceFeed({
     </div>
   );
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V5.0):
+ * 1. Contract Synchronization: El cambio de 'title' a 'shelfTitle' y de 'podcasts' a
+ *    'initialPodcastCollection' resuelve los errores TS2322 reportados en las líneas 166 y 199.
+ * 2. Zero Abbreviations Policy: Purificación total de la nomenclatura (initialEpicenterCollection,
+ *    searchMatchResults, searchResultItem, latitude/longitude).
+ * 3. Metal Alignment: Se eliminó el uso de 'any' en las propiedades de entrada,
+ *    garantizando que el flujo desde el servidor sea validado por el Build Shield.
+ */

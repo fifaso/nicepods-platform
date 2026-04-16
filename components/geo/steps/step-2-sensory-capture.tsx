@@ -1,15 +1,15 @@
 /**
- * ARCHIVE: components/geo/steps/step-2-sensory-capture.tsx
- * VERSION: 10.0 (NicePod Forge Step 2 - Sensory Lab UI Optimization & Industrial Layout Edition)
+ * ARCHIVO: components/geo/steps/step-2-sensory-capture.tsx
+ * VERSIÓN: 10.0 (NicePod Forge Step 2 - Sensory Lab UI Optimization & Industrial Layout Edition)
  * PROTOCOLO: MADRID RESONANCE V4.5
  * 
- * MISSION: Capturar la verdad física del entorno mediante evidencia visual, acústica,
+ * Misión: Capturar la verdad física del entorno mediante evidencia visual, acústica,
  * temporal y documental, orquestando la ingesta hacia el Oráculo de Inteligencia.
  * [REFORMA V10.0]: Reconstrucción total del layout para erradicar el solapamiento 
  * de componentes. Implementación de footer fijo de alta visibilidad. Integración 
  * del GeoRecorder Compacto V6.0 y expansión del área de peritaje textual. 
  * Cumplimiento absoluto de la Zero Abbreviations Policy (ZAP).
- * INTEGRITY LEVEL: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
@@ -79,7 +79,7 @@ export default function Step2SensoryCapture() {
 
   /**
    * handleHeroImageSelectionAction:
-   * MISSION: Validar y asignar la imagen de autoridad principal del hito urbano.
+   * Misión: Validar y asignar la imagen de autoridad principal del hito urbano.
    */
   const handleHeroImageSelectionAction = useCallback((changeEvent: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = changeEvent.target.files?.[0];
@@ -91,7 +91,7 @@ export default function Step2SensoryCapture() {
 
   /**
    * handleOpticalCharacterRecognitionImageAdditionAction:
-   * MISSION: Anexar pruebas secundarias al expediente (Mosaico de Inteligencia).
+   * Misión: Anexar pruebas secundarias al expediente (Mosaico de Inteligencia).
    */
   const handleOpticalCharacterRecognitionImageAdditionAction = useCallback((changeEvent: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFilesCollection = changeEvent.target.files;
@@ -104,7 +104,7 @@ export default function Step2SensoryCapture() {
 
   /**
    * handleVoiceIntentCaptureAction:
-   * MISSION: Recibir el binario acústico y alojarlo en el contexto como instrucción cognitiva.
+   * Misión: Recibir el binario acústico y alojarlo en el contexto como instrucción cognitiva.
    */
   const handleVoiceIntentCaptureAction = useCallback(async (capturedAudioBinaryBlob: Blob, recordingDurationSeconds: number) => {
     nicepodLog(`🎙️ [Step2] Dictado sensorial capturado: ${recordingDurationSeconds} segundos.`);
@@ -113,7 +113,7 @@ export default function Step2SensoryCapture() {
 
   /**
    * executeSensoryIngestionWorkflow:
-   * MISSION: Disparar el protocolo lightning para la transmisión y peritaje por Inteligencia Artificial.
+   * Misión: Disparar el protocolo lightning para la transmisión y peritaje por Inteligencia Artificial.
    */
   const executeSensoryIngestionWorkflow = async () => {
     if (
@@ -164,7 +164,7 @@ export default function Step2SensoryCapture() {
 
   /**
    * isSensoryIngestionIntegrityValidated:
-   * MISSION: Validar la completitud de la Malla antes de permitir el avance.
+   * Misión: Validar la completitud de la Malla antes de permitir el avance.
    */
   const isSensoryIngestionIntegrityValidated = useMemo(() => {
     return (

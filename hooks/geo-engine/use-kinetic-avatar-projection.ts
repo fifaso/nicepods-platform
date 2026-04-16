@@ -1,9 +1,15 @@
 /**
  * ARCHIVO: hooks/geo-engine/use-kinetic-avatar-projection.ts
- * VERSIÓN: 2.2
+ * VERSIÓN: 2.1 (NicePod Sovereign Kinetic Motor - Full Namespace Resolution Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
- * MISIÓN: Orquestar el bucle de animación cinemática con captura de referencias y cumplimiento ZAP.
- * NIVEL DE INTEGRIDAD: 100%
+ *
+ * Misión: Orquestar el bucle de animación de alta frecuencia para la proyección
+ * del Voyager en el cristal, garantizando una fluidez de 60 FPS mediante
+ * manipulación directa del DOM e interpolación cinemática.
+ * [REFORMA V2.1]: Resolución definitiva de la colisión de espacios de nombres
+ * (TS2694) mediante la importación modular total. Sincronización absoluta con
+ * el 'Kinetic Signal Bus' y el 'Hardware Watchdog'.
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
@@ -141,10 +147,9 @@ export function useKineticAvatarProjection({
      * [HARDWARE HYGIENE]: Purga atómica de procesos al desmontar.
      */
     return () => {
-      const currentAnimationFrameIdentification = animationFrameIdentificationReference.current;
       nicepodLog("🔋 [KineticMotor] Liberando recursos de animación y bus de eventos.");
       kineticSignalBus.removeEventListener(GEODETIC_KINETIC_SIGNAL_EVENT_NAME, handleIncomingKineticPulse);
-      cancelAnimationFrame(currentAnimationFrameIdentification);
+      cancelAnimationFrame(animationFrameIdentificationReference.current);
     };
   }, [mapNativeInstance, kineticSignalBus, avatarContainerReference, smoothingFactorMagnitude]);
 

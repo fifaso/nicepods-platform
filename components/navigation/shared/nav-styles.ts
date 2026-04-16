@@ -1,16 +1,15 @@
-/**
- * ARCHIVE: components/navigation/shared/nav-styles.ts
- * VERSION: 3.0 (NicePod Navigation Styles - Tactical & Industrial Edition)
- * PROTOCOLO: MADRID RESONANCE V4.9
- * MISSION: Centralize User Interface style definitions for navigation components,
- * ensuring visual ADN consistency and hardware-accelerated performance.
- * INTEGRITY LEVEL: 100% (Sovereign / No abbreviations / Production-Ready)
- */
+// components/navigation/shared/nav-styles.ts
+// VERSIÓN: 2.1
 
 import { classNamesUtility } from "@/lib/utils";
 
 /**
- * STYLE: MASTER HEADER CONTAINER
+ * ESTILO: HEADER MAESTRO (Contenedor Externo)
+ *
+ * [ARQUITECTURA]:
+ * - fixed top-0: Posicionamiento absoluto para visibilidad persistente.
+ * - z-[100]: Prioridad máxima sobre capas geoespaciales y modales.
+ * - animate-in: Entrada cinemática suavizada.
  */
 export const headerContainerClass = classNamesUtility(
   "fixed top-0 left-0 right-0 z-[100] w-full p-3 md:p-5",
@@ -18,7 +17,12 @@ export const headerContainerClass = classNamesUtility(
 );
 
 /**
- * STYLE: GLASS PANEL (The Navigation Frame)
+ * ESTILO: PANEL DE VIDRIO (El Bastidor de Navegación)
+ *
+ * [RE-CALIBRACIÓN DE LUJO]:
+ * - bg-black/60: Translucidez equilibrada para permitir el sangrado del fondo Aurora.
+ * - backdrop-blur-2xl: El estándar de NicePod para profundidad esmerilada.
+ * - rounded-[2rem]: Radio de curvatura industrial consistente.
  */
 export const glassPanelClass = classNamesUtility(
   "relative max-w-screen-xl mx-auto flex items-center justify-between",
@@ -29,7 +33,11 @@ export const glassPanelClass = classNamesUtility(
 );
 
 /**
- * STYLE: AURORA BUTTON (Forge Action)
+ * ESTILO: BOTÓN AURORA (Acción de Forja)
+ *
+ * [REFINAMIENTO]:
+ * - h-10 md:h-12: Altura calibrada para alineación perfecta con botones de texto.
+ * - hover:shadow: Aumento de la dispersión de luz en hover para efecto de 'activación'.
  */
 export const auroraButtonClass = classNamesUtility(
   "bg-gradient-to-r from-indigo-600 via-primary to-fuchsia-600",
@@ -40,28 +48,38 @@ export const auroraButtonClass = classNamesUtility(
 );
 
 /**
- * STYLE: NAVIGATION LINKS (Micro-Typography)
+ * ESTILO: ENLACES DE NAVEGACIÓN (Micro-Tipografía)
+ *
+ * [ESTÁNDAR DE LUJO]:
+ * - text-[10px]: Reducción de tamaño para aumentar la elegancia y el aire visual.
+ * - tracking-[0.3em]: Espaciado entre letras expansivo, típico de interfaces profesionales.
+ * - transition-all duration-300: Curva de respuesta suave al tacto.
  */
 export const navLinkBaseClass = classNamesUtility(
   "rounded-full px-7 py-2.5 text-[10px] font-black uppercase tracking-[0.3em] transition-all duration-300 block outline-none"
 );
 
 /**
- * ACTIVE STATE STYLE
+ * ESTADO ACTIVO: La Pieza Resonante.
+ * - bg-white/90: Blanco con ligera transparencia para evitar el aspecto de 'plástico sólido'.
+ * - shadow-white/10: Brillo periférico sutil.
  */
 export const navLinkActiveClass = classNamesUtility(
   "bg-white/95 text-black shadow-lg shadow-white/5"
 );
 
 /**
- * INACTIVE STATE STYLE
+ * ESTADO INACTIVO: La Sutileza del Fondo.
+ * - text-zinc-500: Color base neutro para no competir con la marca o el botón activo.
+ * - hover:text-white: Revelación progresiva al interactuar.
  */
 export const navLinkInactiveClass = classNamesUtility(
   "text-zinc-500 hover:text-white hover:bg-white/5"
 );
 
 /**
- * STYLE: MOBILE ACTION CAPSULE
+ * ESTILO: CÁPSULA DE ACCIÓN MÓVIL
+ * Sincronización perfecta con el diseño de mano.
  */
 export const mobileCreateButtonClass = classNamesUtility(
   auroraButtonClass,
@@ -70,8 +88,10 @@ export const mobileCreateButtonClass = classNamesUtility(
 );
 
 /**
- * TECHNICAL NOTE FROM ARCHITECT (V3.0):
- * 1. ZAP Compliance: Replaced 'cn' with 'classNamesUtility'.
- * 2. Visual ADN: Maintained high-fidelity cinematic transitions.
- * 3. Header Integrity: Standardized Technical Header applied.
+ * NOTA TÉCNICA DEL ARCHITECT:
+ * El cambio más significativo es el aumento del 'tracking' a 0.3em. Esto expande
+ * visualmente la palabra sin ocupar más espacio de masa, creando una sensación
+ * de precisión y limpieza. El uso de blancos al 95% (bg-white/95) en el estado
+ * activo permite que el color del fondo Aurora 'ensucie' mínimamente el botón,
+ * integrándolo orgánicamente en la atmósfera de la página.
  */

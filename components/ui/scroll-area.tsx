@@ -1,4 +1,3 @@
-/** ARCHIVE: components/ui/scroll-area.tsx VERSION: 1.0 PROTOCOLO: MADRID RESONANCE V4.9 MISSION: UI Component INTEGRITY LEVEL: 100% */
 "use client"
 
 import * as React from "react"
@@ -9,11 +8,11 @@ import { classNamesUtility } from "@/lib/utils"
 const ScrollArea = React.forwardRef<
   React.ElementRef<typeof ScrollAreaPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof ScrollAreaPrimitive.Root>
->(({ className, children, ...componentProperties }, elementReference) => (
+>(({ className, children, ...props }, ref) => (
   <ScrollAreaPrimitive.Root
-    ref={elementReference}
+    ref={ref}
     className={classNamesUtility("relative overflow-hidden", className)}
-    {...componentProperties}
+    {...props}
   >
     <ScrollAreaPrimitive.Viewport className="h-full w-full rounded-[inherit]">
       {children}
@@ -27,9 +26,9 @@ ScrollArea.displayName = ScrollAreaPrimitive.Root.displayName
 const ScrollBar = React.forwardRef<
   React.ElementRef<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>,
   React.ComponentPropsWithoutRef<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>
->(({ className, orientation = "vertical", ...componentProperties }, elementReference) => (
+>(({ className, orientation = "vertical", ...props }, ref) => (
   <ScrollAreaPrimitive.ScrollAreaScrollbar
-    ref={elementReference}
+    ref={ref}
     orientation={orientation}
     className={classNamesUtility(
       "flex touch-none select-none transition-colors",
@@ -39,7 +38,7 @@ const ScrollBar = React.forwardRef<
         "h-2.5 flex-col border-t border-t-transparent p-[1px]",
       className
     )}
-    {...componentProperties}
+    {...props}
   >
     <ScrollAreaPrimitive.ScrollAreaThumb className="relative flex-1 rounded-full bg-border" />
   </ScrollAreaPrimitive.ScrollAreaScrollbar>

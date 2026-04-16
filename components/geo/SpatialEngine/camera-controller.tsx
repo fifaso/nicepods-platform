@@ -1,9 +1,13 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/camera-controller.tsx
- * VERSIÓN: 14.0
+ * VERSIÓN: 13.1 (NicePod Camera Director - Command Bus Integration Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
- * MISIÓN: Orquestar la lente WebGL con aislamiento térmico y captura de referencias.
- * NIVEL DE INTEGRIDAD: 100%
+ *
+ * Misión: Orquestar la lente WebGL mediante Interpolación Lineal (LERP) de alta
+ * frecuencia, integrando el bus de comandos imperativos para recentrado.
+ * [REFORMA V13.1]: Resolución definitiva de TS2304. Sincronización del bus
+ * de eventos con 'GEODETIC_CAMERA_COMMAND_EVENT_NAME'. Purificación total ZAP.
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
@@ -92,7 +96,7 @@ export function CameraController({
    * executeKinematicPhysicsLoop: EL MOTOR DE RENDERIZADO LÍQUIDO
    */
   const executeKinematicPhysicsLoop = useCallback((highResolutionTimestamp: number) => {
-    if (!isVisibleInViewportReference.current || !mapboxMapInstance || !voyagerGeographicLocation || document.hidden) {
+    if (!isVisibleInViewportReference.current || !mapboxMapInstance || !voyagerGeographicLocation) {
       animationFrameIdentificationReference.current = requestAnimationFrame(executeKinematicPhysicsLoop);
       return;
     }
@@ -220,9 +224,8 @@ export function CameraController({
     nativeMapCanvas.addEventListener('wheel', handleManualInteractionAction, { passive: true });
 
     return () => {
-      const currentAnimationFrameIdentification = animationFrameIdentificationReference.current;
       visibilityObserver.disconnect();
-      if (currentAnimationFrameIdentification) cancelAnimationFrame(currentAnimationFrameIdentification);
+      if (animationFrameIdentificationReference.current) cancelAnimationFrame(animationFrameIdentificationReference.current);
       nativeMapCanvas.removeEventListener('mousedown', handleManualInteractionAction);
       nativeMapCanvas.removeEventListener('touchstart', handleManualInteractionAction);
       nativeMapCanvas.removeEventListener('wheel', handleManualInteractionAction);

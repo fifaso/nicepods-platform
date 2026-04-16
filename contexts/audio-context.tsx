@@ -1,6 +1,6 @@
 /**
  * ARCHIVO: contexts/audio-context.tsx
- * VERSIÓN: 9.0
+ * VERSIÓN: 8.0 (NicePod Audio Terminal - Background Thermal Isolation Edition)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * PROTOCOLO: Administrative Sovereignty
  * 
@@ -80,7 +80,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         podcast_id: currentActivePodcast.id,
         event_type: interactionType
       });
-    } catch (exception: unknown) {
+    } catch (exception) {
         nicepodLog("⚠️ [AudioEngine] Error de telemetría social.", exception, 'warn');
     }
   }, [authenticatedUser, currentActivePodcast, supabaseClient]);
@@ -194,11 +194,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
             audioInstance.pause();
         }
       } else {
-        // [WebKit Defeat Protocol]: Purga síncrona de búfer antes de la nueva carga.
-        audioInstance.pause();
-        audioInstance.removeAttribute('src');
-        audioInstance.load();
-
         setCurrentActivePodcast(targetPodcast);
         audioInstance.src = targetPodcast.audio_url;
         await audioInstance.play();

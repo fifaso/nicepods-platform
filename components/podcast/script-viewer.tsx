@@ -12,7 +12,7 @@
 
 "use client";
 
-import { calculateActiveParagraphIndex } from "@/lib/podcast-utils";
+import { computeActiveNarrativeParagraphIndex } from "@/lib/podcast-utils";
 import { classNamesUtility } from "@/lib/utils";
 import { PodcastScript } from "@/types/podcast";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -117,7 +117,7 @@ export const ScriptViewer = ({
    * Determinamos el índice de foco basándonos en la telemetría temporal.
    */
   const currentActiveParagraphIndex = useMemo(() => {
-    return calculateActiveParagraphIndex(
+    return computeActiveNarrativeParagraphIndex(
       currentPlaybackTimeSecondsMagnitude, 
       playbackDurationSecondsMagnitude, 
       narrativeParagraphsCollection.length

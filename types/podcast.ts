@@ -1,14 +1,14 @@
 /**
- * ARCHIVE: types/podcast.ts
- * VERSION: 13.1 (NicePod Intelligence Station - Nominal Sovereignty Edition)
+ * ARCHIVO: types/podcast.ts
+ * VERSIÓN: 13.1 (NicePod Intelligence Station - Nominal Sovereignty Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
- * MISSION: Centralizar la tipificación de activos, estados y fuentes de investigación
+ * Misión: Centralizar la tipificación de activos, estados y fuentes de investigación
  * bajo el Dogma Técnico Inmutable. Garantiza que el compilador sea la ley.
  * [REFORMA V13.0]: Nominal alignment of ResearchSource properties (snippetContentText,
  * summaryContentText) under ZAP. Optionality for authority metadata to ensure
  * validation schema compatibility.
- * INTEGRITY LEVEL: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 import { Database } from './database.types';
@@ -37,7 +37,7 @@ export interface GeoLocation {
 
 /**
  * PointOfInterestRow
- * MISSION: Asegurar compatibilidad estricta con la bóveda de capital intelectual.
+ * Misión: Asegurar compatibilidad estricta con la bóveda de capital intelectual.
  */
 export type PointOfInterestRow = "points_of_interest" extends keyof Database['public']['Tables']
   ? Tables<"points_of_interest">

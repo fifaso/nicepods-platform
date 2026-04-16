@@ -20,7 +20,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 // --- INFRAESTRUCTURA DE DATOS SOBERANOS (METAL) ---
-import { groupPodcastsByThread } from "@/lib/podcast-utils";
+import { organizePodcastsByConversationThreadTopology } from "@/lib/podcast-utils";
 import { 
   createClient, 
   ephemeralRealtimeSessionIdentification 
@@ -339,7 +339,7 @@ export function LibraryTabs({
       );
     }
 
-    const groupedPodcastThreadsCollection = groupPodcastsByThread(podcastCollection) as PodcastThreadStructure[];
+    const groupedPodcastThreadsCollection = organizePodcastsByConversationThreadTopology(podcastCollection) as PodcastThreadStructure[];
 
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-10 isolate">
