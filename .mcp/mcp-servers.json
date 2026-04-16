@@ -1,20 +1,23 @@
 {
+  "$schema": "./config.schema.json",
   "mcpServersCollection": [
     {
       "name": "supabase-mcp-server",
       "type": "external",
+      "status": "active",
       "config": {
-        "supabaseUniformResourceLocator": "PLACEHOLDER_SUPABASE_URL",
-        "supabaseServiceRoleKey": "PLACEHOLDER_SUPABASE_SERVICE_ROLE_KEY"
+        "supabaseUniformResourceLocator": "${SUPABASE_UNIFORM_RESOURCE_LOCATOR}",
+        "supabaseServiceRoleKey": "${SUPABASE_SERVICE_ROLE_KEY}"
       }
     },
     {
       "name": "github-mcp-server",
       "type": "external",
+      "status": "active",
       "config": {
-        "githubPersonalAccessToken": "PLACEHOLDER_GITHUB_TOKEN",
-        "repositoryOwnerName": "PLACEHOLDER_REPO_OWNER",
-        "repositoryName": "PLACEHOLDER_REPO_NAME"
+        "githubPersonalAccessToken": "${GITHUB_PERSONAL_ACCESS_TOKEN}",
+        "repositoryOwnerName": "${GITHUB_REPOSITORY_OWNER}",
+        "repositoryName": "${GITHUB_REPOSITORY_NAME}"
       }
     }
   ]

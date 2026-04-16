@@ -1,31 +1,49 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Model Context Protocol Server Configuration Schema",
-  "description": "Schema for validating MCP server configurations within the NicePod infrastructure.",
+  "title": "NicePod MCP Configuration Schema",
+  "description": "Schema for validating Model Context Protocol server configurations within the Madrid Resonance Protocol.",
   "type": "object",
+  "required": [
+    "mcpServersCollection"
+  ],
   "properties": {
     "mcpServersCollection": {
       "type": "array",
+      "minItems": 1,
       "items": {
         "type": "object",
-        "required": ["name", "type", "config"],
+        "required": [
+          "name",
+          "type",
+          "config"
+        ],
         "properties": {
           "name": {
             "type": "string",
-            "description": "The unique name of the MCP server."
+            "pattern": "^[a-z0-9-]+-mcp-server$"
           },
           "type": {
             "type": "string",
-            "enum": ["builtin", "external"],
-            "description": "The classification type of the server."
+            "enum": [
+              "builtin",
+              "external"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "maintenance",
+              "disabled"
+            ],
+            "default": "active"
           },
           "config": {
             "type": "object",
-            "description": "Configuration parameters for the specific MCP server."
+            "additionalProperties": true
           }
         }
       }
     }
-  },
-  "required": ["mcpServersCollection"]
+  }
 }
