@@ -150,8 +150,8 @@ export function DashboardClient({
             {/* RADAR DE BÚSQUEDA INTERACTIVO */}
             <div className="shrink-0 z-50">
               <UnifiedSearchBar
-                variant="console"
-                placeholder={`¿Qué ecos buscamos?`}
+                variantType="console"
+                placeholderText={`¿Qué ecos buscamos?`}
                 onSearchIdentificationResults={handleSearchIdentificationResultsAction}
                 onLoadingStatusChange={setIsSearchProcessActive}
                 onClearAction={handleClearRadarAction}
