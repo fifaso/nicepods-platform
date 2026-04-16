@@ -1,0 +1,21 @@
+{
+  "mcpServersCollection": [
+    {
+      "name": "supabase-mcp-server",
+      "type": "external",
+      "config": {
+        "supabaseUniformResourceLocator": "PLACEHOLDER_SUPABASE_URL",
+        "supabaseServiceRoleKey": "PLACEHOLDER_SUPABASE_SERVICE_ROLE_KEY"
+      }
+    },
+    {
+      "name": "github-mcp-server",
+      "type": "external",
+      "config": {
+        "githubPersonalAccessToken": "PLACEHOLDER_GITHUB_TOKEN",
+        "repositoryOwnerName": "PLACEHOLDER_REPO_OWNER",
+        "repositoryName": "PLACEHOLDER_REPO_NAME"
+      }
+    }
+  ]
+}
