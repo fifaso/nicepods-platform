@@ -84,3 +84,28 @@ The following Edge Functions still operate using legacy abbreviations or `snake_
 1. Refactor axial Edge Functions to implement the `guard` perimeter.
 2. Formalize SQL Hardening Report for `private.secrets` and ingestion buffers.
 3. Validate Build Shield integrity post-refactor.
+- **Issue**: CRITICAL: Table lacks the `ENABLE ROW LEVEL SECURITY` instruction.
+- **Status**: Recorded for hardening.
+
+### Security Finding: Missing Row Level Security Policies
+- **Table**: `public.ai_usage_logs`
+- **Issue**: RLS is enabled but no policies are defined. Default behavior blocks all non-admin access.
+- **Status**: Recorded for policy implementation.
+
+- **Table**: `public.point_of_interest_ingestion_buffer`
+- **Issue**: RLS is enabled but no policies are defined. Access restricted to superusers only.
+- **Status**: Recorded for administrative policy implementation.
+
+### Security Finding: Edge Function Identity Verification Breach
+- **Function**: `vault-refinery`
+- **Issue**: CRITICAL: Lacks internal authority verification. Any authenticated user could potentially trigger knowledge refinery processes if the URL is known.
+- **Status**: Remediation in progress (Phase 2).
+
+### Security Finding: Build Shield Breaches (External Domains)
+The following pre-existing TypeScript errors were identified during the security audit phase. These files are out-of-domain for Sentinel and remain untouched to preserve the Build Shield:
+- `app/(platform)/dashboard/dashboard-client.tsx`: Property 'variant' does not exist on type 'UnifiedSearchBarProperties'.
+- `app/(platform)/podcasts/library-tabs.tsx`: Type mismatch between 'PodcastWithGenealogy' and 'PodcastThreadStructure'.
+- `components/create-flow/steps/audio-studio.tsx`: 'useMemo' not found (missing import).
+- `components/create-flow/steps/discovery-result-step.tsx`: Property 'poi' does not exist on 'PointOfInterestActionCardProperties'.
+- `components/feed/intelligence-feed.tsx` & `components/geo/SpatialEngine/index.tsx`: 'SearchResult' missing in '@/hooks/use-search-radar'.
+- `components/ui/poi-action-card.tsx`: 'getHumanReadableDistanceMagnitudeLabel' missing in '@/lib/utils'.

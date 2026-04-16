@@ -1,8 +1,8 @@
 /**
  * ARCHIVO: supabase/functions/search-pro/index.ts
- * VERSIÓN: 5.0
- * PROTOCOLO: Madrid Resonance Protocol V4.0
- * MISIÓN: Hybrid Semantic Radar with Perimeter Security.
+ * VERSIÓN: 4.2
+ * PROTOCOLO: MADRID RESONANCE V4.0
+ * MISIÓN: Ejecución táctica de búsqueda semántica y descubrimiento con integridad nominal.
  * NIVEL DE INTEGRIDAD: 100%
  */
 
@@ -11,6 +11,13 @@ import { generateEmbedding } from "../_shared/ai.ts";
 import { guard, GuardContext } from "../_shared/guard.ts";
 
 interface SearchPayload {
+  searchQueryTerm?: string;
+  latitudeCoordinate?: number;
+  longitudeCoordinate?: number;
+  matchThresholdMagnitude?: number;
+  matchResultsLimit?: number;
+  executionMode?: 'search' | 'trending' | 'discovery';
+  // Legacy fields for backward compatibility with existing Server Actions if any
   query?: string;
   userLat?: number;
   userLng?: number;
@@ -37,32 +44,39 @@ const handler = async (request: Request, context: GuardContext): Promise<Respons
       });
     }
 
-    const payload: SearchPayload = await request.json();
+    // 3. RECEPCIÓN Y SANEAMIENTO DEL PAYLOAD
+    const submissionPayload: SearchPayload = await req.json();
     const {
-      query = "",
-      userLat,
-      userLng,
-      match_threshold = 0.18,
-      match_count = 20,
-      mode = 'search'
-    } = payload;
+      searchQueryTerm = submissionPayload.query || "",
+      latitudeCoordinate = submissionPayload.userLat,
+      longitudeCoordinate = submissionPayload.userLng,
+      matchThresholdMagnitude = submissionPayload.match_threshold || 0.18, // Umbral optimizado para alta sensibilidad
+      matchResultsLimit = submissionPayload.match_count || 20,
+      executionMode = submissionPayload.mode || 'search'
+    } = submissionPayload;
 
-    const cleanQuery = query.trim();
-    let searchResult;
+    const cleanedSearchQueryTerm = searchQueryTerm.trim();
+    let searchResultsCollection;
 
-    if (mode === 'trending' || mode === 'discovery' || cleanQuery.length < 3) {
-      console.info(`🌍 [Search-Pro][${correlationIdentification}] Discovery mode activated.`);
+    // --- BIFURCACIÓN DE FLUJO (Discovery vs Resonancia) ---
 
-      const { data, error: discoveryError } = await supabaseAdmin
+    if (executionMode === 'trending' || executionMode === 'discovery' || cleanedSearchQueryTerm.length < 3) {
+      // ESTADO A: MODO DESCUBRIMIENTO (Sin Vector)
+      // Si no hay query o estamos en modo descubrimiento, invocamos una búsqueda genérica
+      // usando un vector nulo o llamando a un RPC de trending (simulado aquí buscando podcasts destacados).
+      console.info(`🌍 [Search-Pro-Lite][${correlationIdentification}] Ejecutando modo descubrimiento geoespacial.`);
+
+      const { data: discoveryDatabaseResults, error: discoveryDatabaseExceptionInformation } = await supabaseAdmin
         .from('micro_pods')
         .select('*, profiles(username, full_name, avatar_url, reputation_score)')
         .eq('status', 'published')
         .order('play_count', { ascending: false })
-        .limit(match_count);
+        .limit(matchResultsLimit);
 
-      if (discoveryError) throw new Error(`DISCOVERY_FAIL: ${discoveryError.message}`);
+      if (discoveryDatabaseExceptionInformation) throw new Error(`DISCOVERY_FAIL: ${discoveryDatabaseExceptionInformation.message}`);
 
-      searchResult = (data || []).map(pod => ({
+      // Normalización para simular el tipo de respuesta unificada
+      searchResultsCollection = (discoveryDatabaseResults || []).map(pod => ({
         result_type: 'podcast',
         id: pod.id,
         title: pod.title,
@@ -77,31 +91,48 @@ const handler = async (request: Request, context: GuardContext): Promise<Respons
       }));
 
     } else {
-      console.info(`🧠 [Search-Pro][${correlationIdentification}] Vectorizing intent: "${cleanQuery}"`);
-      const queryVector = await generateEmbedding(cleanQuery);
+      // ESTADO B: MODO RADAR SEMÁNTICO HÍBRIDO
+      console.info(`🧠[Search-Pro-Lite][${correlationIdentification}] Vectorizando intención: "${cleanedSearchQueryTerm}"`);
 
-      const { data, error: rpcError } = await supabaseAdmin.rpc("unified_search_v4", {
-        p_query_text: cleanQuery,
+      // La clave de la sanación: Usamos la función maestra de _shared/ai.ts
+      const queryVector = await generateEmbedding(cleanedSearchQueryTerm);
+
+      console.info(`🔍 [Search-Pro-Lite][${correlationIdentification}] Invocando Motor Unificado v4 en PostgreSQL.`);
+
+      const { data: hybridDatabaseResults, error: databaseRpcExceptionInformation } = await supabaseAdmin.rpc("unified_search_v4", {
+        p_query_text: cleanedSearchQueryTerm,
         p_query_embedding: queryVector,
-        p_match_threshold: match_threshold,
-        p_match_count: match_count,
-        p_user_lat: userLat,
-        p_user_lng: userLng
+        p_match_threshold: matchThresholdMagnitude,
+        p_match_count: matchResultsLimit,
+        p_user_lat: latitudeCoordinate,
+        p_user_lng: longitudeCoordinate
       });
 
-      if (rpcError) throw new Error(`RPC_HYBRID_FAIL: ${rpcError.message}`);
+      if (databaseRpcExceptionInformation) {
+        throw new Error(`RPC_HYBRID_FAIL: ${databaseRpcExceptionInformation.message}`);
+      }
 
-      searchResult = data || [];
+      searchResultsCollection = hybridDatabaseResults || [];
+      console.info(`✅[Search-Pro-Lite][${correlationIdentification}] Impactos localizados: ${searchResultsCollection.length}`);
     }
 
-    return new Response(JSON.stringify(searchResult), {
+    // 4. RETORNO DE INTELIGENCIA
+    return new Response(JSON.stringify(searchResultsCollection), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
 
-  } catch (exceptionMessageInformation: any) {
-    console.error(`🔥 [Search-Pro-Fatal][${correlationIdentification}]:`, exceptionMessageInformation.message);
-    throw exceptionMessageInformation;
+  } catch (exceptionMessageInformation: unknown) {
+    const errorMessage = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Desestabilización semántica desconocida";
+    console.error(`🔥[Search-Pro-Lite-Fatal][${correlationIdentification}]:`, errorMessage);
+
+    return new Response(JSON.stringify({
+      error: errorMessage,
+      trace_identification: correlationIdentification
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
   }
 };
 
