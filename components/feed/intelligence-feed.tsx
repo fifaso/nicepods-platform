@@ -1,12 +1,11 @@
 /**
  * ARCHIVO: components/feed/intelligence-feed.tsx
- * VERSIÓN: 5.0 (NiceCore V4.0 - Sovereign Intelligence Flow)
+ * VERSIÓN: 6.0 (NiceCore V4.0 - Sovereign Intelligence Flow - Bolt Optimized)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * 
  * Misión: Orquestar el flujo de capital intelectual inyectado por el servidor,
  * gestionando la transición entre la frecuencia base y el radar semántico.
- * [REFORMA V5.0]: Sincronización nominal con PodcastShelf V3.0, erradicación 
- * absoluta de abreviaturas y blindaje de tipos (Zero-Any).
+ * [REFORMA V6.0]: Sincronización nominal total con SearchRadarResult (ZAP).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -25,10 +24,10 @@ import {
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 // --- INFRAESTRUCTURA DE DATOS Y CONTRATOS SOBERANOS ---
-import { SearchResult } from "@/hooks/use-search-radar";
+import { SearchRadarResult } from "@/hooks/use-search-radar";
 import { cn } from "@/lib/utils";
 import { PodcastWithProfile } from "@/types/podcast";
 
@@ -38,8 +37,6 @@ import { Button } from "@/components/ui/button";
 
 /**
  * [SHIELD]: CARGA DIFERIDA DE ESTANTES (PodcastShelf)
- * El motor se mantiene dinámico para optimizar el hilo principal, 
- * sincronizado con el contrato de propiedades V3.0.
  */
 const PodcastShelf = dynamic(
     () => import("@/components/feed/podcast-shelf").then((module) => module.PodcastShelf),
@@ -61,7 +58,7 @@ const PodcastShelf = dynamic(
 interface IntelligenceFeedProperties {
     userDisplayName: string;
     isSearchingProcessActive: boolean;
-    searchMatchResults: SearchResult[] | null;
+    searchMatchResults: SearchRadarResult[] | null;
     lastSearchQuery: string;
     initialEpicenterCollection: PodcastWithProfile[];
     initialConnectionsCollection: PodcastWithProfile[];
@@ -79,7 +76,6 @@ const discoveryHubCategories = [
  * IntelligenceFeed: El bus de datos táctico de la identidad digital.
  */
 export function IntelligenceFeed({
-    userDisplayName,
     isSearchingProcessActive,
     searchMatchResults,
     lastSearchQuery,
@@ -156,7 +152,6 @@ export function IntelligenceFeed({
               </div>
 
               {safeEpicenterCollection.length > 0 ? (
-                /* [FIX V5.0]: Sincronización nominal con PodcastShelfProperties V3.0 */
                 <PodcastShelf
                   shelfTitle="Tu Epicentro"
                   initialPodcastCollection={safeEpicenterCollection}
@@ -189,7 +184,6 @@ export function IntelligenceFeed({
                     Conexiones de Resonancia
                   </h2>
                 </div>
-                {/* [FIX V5.0]: Sincronización nominal con PodcastShelfProperties V3.0 */}
                 <PodcastShelf
                   shelfTitle="Conexiones Inesperadas"
                   initialPodcastCollection={safeConnectionsCollection}
@@ -236,22 +230,22 @@ export function IntelligenceFeed({
             <div className="grid grid-cols-1 gap-4">
               {searchMatchResults && searchMatchResults.map((searchResultItem) => (
                 <Link
-                  key={searchResultItem.id}
-                  href={searchResultItem.result_type === 'podcast' ? `/podcast/${searchResultItem.id}` :
-                    searchResultItem.result_type === 'place' ? `/map?latitude=${searchResultItem.metadata?.lat}&longitude=${searchResultItem.metadata?.lng}` : '#'}
+                  key={searchResultItem.identification}
+                  href={searchResultItem.resultCategoryType === 'podcast' ? `/podcast/${searchResultItem.identification}` :
+                    searchResultItem.resultCategoryType === 'place' ? `/map?latitude=${searchResultItem.intellectualMetadata?.latitudeCoordinate}&longitude=${searchResultItem.intellectualMetadata?.longitudeCoordinate}` : '#'}
                   className="block group transition-all active:scale-[0.99] outline-none"
                 >
                   <div className="p-5 rounded-[2.5rem] border transition-all flex items-center gap-6 bg-white/[0.02] border-white/5 hover:border-primary/40 hover:bg-white/[0.04]">
                     <div className="h-16 w-16 rounded-2xl bg-zinc-900 flex-shrink-0 relative overflow-hidden border border-white/10 shadow-inner">
-                      {searchResultItem.image_url ? (
-                        <Image src={searchResultItem.image_url} alt={searchResultItem.title} fill className="object-cover" unoptimized />
+                      {searchResultItem.imageUniformResourceLocator ? (
+                        <Image src={searchResultItem.imageUniformResourceLocator} alt={searchResultItem.titleTextContent} fill className="object-cover" unoptimized />
                       ) : (
                         <BookOpen className="text-primary/40 h-7 w-7 m-auto" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-black text-sm text-white truncate uppercase tracking-tight font-serif italic">{searchResultItem.title}</p>
-                      <p className="text-[10px] font-bold text-zinc-600 truncate uppercase tracking-widest mt-1">{searchResultItem.subtitle}</p>
+                      <p className="font-black text-sm text-white truncate uppercase tracking-tight font-serif italic">{searchResultItem.titleTextContent}</p>
+                      <p className="text-[10px] font-bold text-zinc-600 truncate uppercase tracking-widest mt-1">{searchResultItem.subtitleContentText}</p>
                     </div>
                   </div>
                 </Link>
@@ -263,13 +257,3 @@ export function IntelligenceFeed({
     </div>
   );
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT (V5.0):
- * 1. Contract Synchronization: El cambio de 'title' a 'shelfTitle' y de 'podcasts' a 
- *    'initialPodcastCollection' resuelve los errores TS2322 reportados en las líneas 166 y 199.
- * 2. Zero Abbreviations Policy: Purificación total de la nomenclatura (initialEpicenterCollection, 
- *    searchMatchResults, searchResultItem, latitude/longitude).
- * 3. Metal Alignment: Se eliminó el uso de 'any' en las propiedades de entrada, 
- *    garantizando que el flujo desde el servidor sea validado por el Build Shield.
- */

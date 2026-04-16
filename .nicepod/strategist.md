@@ -1,18 +1,19 @@
-# Strategist 🧠: Architectural Journal
+/** ARCHIVO: .nicepod/strategist.md VERSIÓN: 1.0 PROTOCOLO: STRATEGIST OBSERVATIONS MISIÓN: Registro de Hallazgos Fuera de Dominio NIVEL DE INTEGRIDAD: 100% */
 
-## Vision
-To orchestrate a seamless, high-performance, and secure intelligence flow within the NicePod Workstation, adhering to the Zero Abbreviations Policy (ZAP).
+# Strategist Observations Log - Bolt ⚡
 
-## Execution Record
+## [2024-05-23] Build Bottlenecks Detected (Out of Domain)
 
-### Phase 1: Logic Audit (2024-05-22)
-- [x] Initial audit of `actions/`.
-- [x] Detected pre-existing build errors in `app/(platform)/profile/page.tsx` and `lib/workers/resonance-physics.worker.ts`.
-- [x] Identifying non-ZAP compliant identifiers in `actions/collection-actions.ts` and `actions/search-actions.ts`.
+### Pre-existing Errors in components/
+- **components/create-flow/steps/audio-studio.tsx**: error TS2304: Cannot find name 'useMemo'.
+- **components/create-flow/steps/discovery-result-step.tsx**: Property 'poi' does not exist on type 'IntrinsicAttributes & PointOfInterestActionCardProperties'.
+- **components/geo/SpatialEngine/index.tsx**:
+    - Module '"@/hooks/use-search-radar"' has no exported member 'SearchResult'. (Renamed to 'SearchRadarResult' in V5.0).
+    - Property 'variant' does not exist on type 'IntrinsicAttributes & UnifiedSearchBarProperties'. (Renamed to 'variantType' in V7.0).
 
-### Observations
-- `actions/collection-actions.ts`: Used `id`, `any`.
-- `actions/search-actions.ts`: Used `query`, `latitude`, `longitude`, `limit`, `any`.
+### Pre-existing Errors in app/
+- **app/(platform)/dashboard/dashboard-client.tsx**: Property 'variant' does not exist on type 'IntrinsicAttributes & UnifiedSearchBarProperties'. (Renamed to 'variantType' in V7.0).
+- **app/(platform)/podcasts/library-tabs.tsx**: Property 'repliesCollection' is missing in type 'PodcastWithGenealogy'.
 
 ### Phase 2: Surgical Refactoring
 - [x] Refactor `actions/collection-actions.ts`: Applied ZAP to internal variables (e.g., `rawPayload` -> `rawSubmissionPayload`). Eradicated `any` in `getMyCollections` by providing an explicit inline interface for the database response.
