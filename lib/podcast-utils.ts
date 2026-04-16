@@ -24,12 +24,12 @@ type TopologicalPodcastNode = PodcastWithGenealogy & {
 };
 
 /**
- * groupPodcastsByThreadCollection:
+ * groupPodcastsByThread:
  * Misión: Orquestar hilos conversacionales mediante mapeo lineal (O(n) lookup), 
  * evitando la latencia de recursión y protegiendo el Main Thread en 
  * colecciones de alta densidad.
  */
-export function groupPodcastsByThreadCollection(flatPodcastCollection: PodcastWithProfile[]): PodcastWithGenealogy[] {
+export function groupPodcastsByThread(flatPodcastCollection: PodcastWithProfile[]): PodcastWithGenealogy[] {
     if (!flatPodcastCollection || flatPodcastCollection.length === 0) return [];
 
     // 1. Indexación y Clonación de Estructura Base (Zero Mutation)
@@ -47,8 +47,8 @@ export function groupPodcastsByThreadCollection(flatPodcastCollection: PodcastWi
             repliesCollection: [],
         } as unknown as TopologicalPodcastNode;
 
-        podcastIdentificationMap.set(genealogicalNode.id, genealogicalNode);
-        timestampReferenceMap.set(genealogicalNode.id, new Date(genealogicalNode.created_at).getTime());
+        podcastIdentificationMap.set(genealogicalNode.identification, genealogicalNode);
+        timestampReferenceMap.set(genealogicalNode.identification, new Date(genealogicalNode.creationTimestamp).getTime());
 
         return genealogicalNode;
     });
@@ -65,7 +65,7 @@ export function groupPodcastsByThreadCollection(flatPodcastCollection: PodcastWi
             parentPodcastIdentification !== null &&
             parentPodcastIdentification !== undefined &&
             podcastIdentificationMap.has(parentPodcastIdentification) &&
-            genealogicalNode.creation_data?.creationMode !== 'pulse';
+            genealogicalNode.creationMetadataDossier?.creationMode !== 'pulse';
 
         if (isResponseToExistingPodcastStatus) {
             const parentNodeReference = podcastIdentificationMap.get(parentPodcastIdentification)!;
@@ -83,8 +83,8 @@ export function groupPodcastsByThreadCollection(flatPodcastCollection: PodcastWi
 
     // 3. Ordenamiento Estratégico (Descendente por Tiempo de Creación)
     return rootPodcastsCollection.sort((firstNodeItem, secondNodeItem) => {
-        const firstTimestampMagnitude = timestampReferenceMap.get(firstNodeItem.id) || 0;
-        const secondTimestampMagnitude = timestampReferenceMap.get(secondNodeItem.id) || 0;
+        const firstTimestampMagnitude = timestampReferenceMap.get(firstNodeItem.identification) || 0;
+        const secondTimestampMagnitude = timestampReferenceMap.get(secondNodeItem.identification) || 0;
         return secondTimestampMagnitude - firstTimestampMagnitude; // LIFO (Last In, First Out)
     });
 }
@@ -96,10 +96,10 @@ export function groupPodcastsByThreadCollection(flatPodcastCollection: PodcastWi
 export function segmentPodcastsByTaxonomyCollection(podcastCollection: PodcastWithProfile[]) {
     return {
         narrativeChroniclesCollection: podcastCollection.filter(
-            podcastItem => podcastItem.creation_data?.creationMode !== 'pulse'
+            podcastItem => podcastItem.creationMetadataDossier?.creationMode !== 'pulse'
         ),
         strategicPillsCollection: podcastCollection.filter(
-            podcastItem => podcastItem.creation_data?.creationMode === 'pulse'
+            podcastItem => podcastItem.creationMetadataDossier?.creationMode === 'pulse'
         )
     };
 }
@@ -118,7 +118,7 @@ export function sortPodcastsByStrategicValueAction(podcastCollection: PodcastWit
             return secondPodcastAuthorityScoreMagnitude - firstPodcastAuthorityScoreMagnitude;
         }
 
-        return new Date(secondPodcastItem.created_at).getTime() - new Date(firstPodcastItem.created_at).getTime();
+        return new Date(secondPodcastItem.creationTimestamp).getTime() - new Date(firstPodcastItem.creationTimestamp).getTime();
     });
 }
 
@@ -164,7 +164,7 @@ export function calculateActiveParagraphIndex(
  * se completa la transición nominal hacia descriptores industriales.
  */
 export {
-    getPodcastExpertiseLevelLabel as getPodcastLevelLabel, groupPodcastsByThreadCollection as groupPodcastsByThread,
+    getPodcastExpertiseLevelLabel as getPodcastLevelLabel,
     segmentPodcastsByTaxonomyCollection as segmentPodcastsByType,
     sortPodcastsByStrategicValueAction as sortPodcastsByStrategicValue
 };
