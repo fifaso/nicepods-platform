@@ -25,3 +25,6 @@
 ### Domain: hooks/geo-engine/
 - **use-kinetic-avatar-projection.ts**:
     - **Status**: Currently optimal. Direct-DOM and RequestAnimationFrame implementation verified.
+
+## [2024-05-23] Thermal Validation Confirmation
+- **ResonanceCompass**: Verified that the `visibilitychange` protocol correctly dispatches `PAUSE_SIMULATION` to the Web Worker. The Worker's `tick` loop is physically stopped via `activeForceSimulation.stop()`, ensuring zero CPU cycles are dedicated to physics calculations when the terminal is in 'hidden' state. This eliminates background thermal leakage.
