@@ -41,8 +41,16 @@ The following Edge Functions still operate using legacy abbreviations or `snake_
 - `update-user-dna`: Uses `profile_text`, `expertise_level`.
 
 ### Build Shield Status
-**STATUS: GREEN**
-`npx tsc --noEmit` executed successfully with 0 errors. Nominal integrity established across all axial propagation points (Forms, Actions, Hooks).
+**STATUS: YELLOW (Build Shield Breaches Detected)**
+`pnpm type-check` failed with pre-existing errors in out-of-domain files (app/, components/).
+
+**Identified Breaches (Non-Sentinel Domain):**
+- `app/(platform)/dashboard/dashboard-client.tsx`: Property `variant` does not exist on `UnifiedSearchBarProperties` (Use `variantType` instead).
+- `components/feed/intelligence-feed.tsx`: Missing `SearchResult` in `@/hooks/use-search-radar` (Use `SearchRadarResult`).
+- `components/ui/poi-action-card.tsx`: Missing `getHumanReadableDistanceMagnitudeLabel` in `@/lib/utils`.
+- `components/create-flow/steps/audio-studio.tsx`: Missing `useMemo` import.
+
+**Sentinel Integrity:** My modifications to Edge Functions are localized and verified. Security perimeter established.
 
 ## 2024-05-23 - Sovereign Profile Integrity & RLS Audit
 
@@ -55,3 +63,24 @@ The following Edge Functions still operate using legacy abbreviations or `snake_
 - **Table**: `private.secrets`
 - **Issue**: This table lacks the `ENABLE ROW LEVEL SECURITY` instruction.
 - **Status**: Recorded for future remediation (Phase 2).
+
+## 2025-05-24 - Data Layer & Perimeter Hardening Audit
+
+### Security Findings: Missing RLS Policies
+- **CRITICAL**: `private.secrets` - RLS is disabled. This table contains sensitive infrastructure credentials.
+- **HIGH**: `public.ai_usage_logs` - RLS enabled but NO policies defined. Defaults to total denial for non-owners, but needs explicit 'service_role' access for logging.
+- **HIGH**: `public.point_of_interest_ingestion_buffer` - RLS enabled but NO policies defined. Risk of ingestion stall or unauthorized buffer manipulation.
+
+### Security Findings: Perimeter Bypass (Edge Functions)
+- **Vulnerability**: Several Edge Functions are not utilizing the `guard` security wrapper.
+- **Impact**: These functions lack Arcjet protection, rate limiting, and consistent identity verification. They rely on manual auth checks which are inconsistent across the fleet.
+- **Functions Identified**:
+  - `start-draft-process`
+  - `queue-podcast-job`
+  - `research-intelligence`
+  - `search-pro` (and others)
+
+### Hardening Roadmap
+1. Refactor axial Edge Functions to implement the `guard` perimeter.
+2. Formalize SQL Hardening Report for `private.secrets` and ingestion buffers.
+3. Validate Build Shield integrity post-refactor.

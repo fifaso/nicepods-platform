@@ -1,58 +1,65 @@
-// supabase/functions/queue-podcast-job/index.ts
-// VERSIÓN: 18.0 (Zero-CPU Promotion Engine - Production Ready)
+/**
+ * ARCHIVO: supabase/functions/queue-podcast-job/index.ts
+ * VERSIÓN: 19.0
+ * PROTOCOLO: Madrid Resonance Protocol V4.0
+ * MISIÓN: Zero-CPU Promotion Engine with Perimeter Security.
+ * NIVEL DE INTEGRIDAD: 100%
+ */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
+import { guard, GuardContext } from "../_shared/guard.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
-
+const handler = async (request: Request, context: GuardContext): Promise<Response> => {
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) throw new Error("Acceso denegado.");
+    const authorizationHeader = request.headers.get('Authorization');
+    if (!authorizationHeader) {
+      return new Response(JSON.stringify({ error: "Acceso denegado: Identidad no verificada." }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
 
-    const supabase = createClient(
+    const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: authHeader } } }
+      { global: { headers: { Authorization: authorizationHeader } } }
     );
 
-    const { draft_id, final_title, final_script, sources } = await req.json();
+    const { draft_id, final_title, final_script, sources } = await request.json();
 
-    /**
-     * [CORE]: Delegamos la promoción y borrado al motor SQL.
-     * Esto reduce el tiempo de CPU a prácticamente cero en la Edge Function.
-     */
-    const { data, error } = await supabase.rpc('promote_draft_to_production_v2', {
+    const { data: rpcResultData, error: rpcExceptionInformation } = await supabaseClient.rpc('promote_draft_to_production_v2', {
       p_draft_id: draft_id,
       p_final_title: final_title,
       p_final_script: final_script,
       p_sources: sources || []
     });
 
-    if (error || !data || data.length === 0) throw new Error(error?.message || "Falla en promoción SQL");
+    if (rpcExceptionInformation || !rpcResultData || rpcResultData.length === 0) {
+      throw new Error(rpcExceptionInformation?.message || "Falla en promoción SQL");
+    }
 
-    const result = data[0];
-    if (!result.success) throw new Error(result.message);
+    const result = rpcResultData[0];
+    if (!result.success) {
+      return new Response(JSON.stringify({ success: false, message: result.message }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
 
     return new Response(JSON.stringify({
       success: true,
       pod_id: result.pod_id,
-      message: "Contenido enviado a la forja multimedia."
+      message: "Contenido enviado a la forja multimedia.",
+      trace_identification: context.correlationIdentification
     }), {
       status: 202,
-      headers: { ...corsHeaders, "Content-Type": "application/json" }
+      headers: { "Content-Type": "application/json" }
     });
 
-  } catch (err: any) {
-    console.error("🔥 queue-podcast-job fatal:", err.message);
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" }
-    });
+  } catch (exceptionMessageInformation: any) {
+    console.error(`🔥 [queue-podcast-job-Fatal][${context.correlationIdentification}]:`, exceptionMessageInformation.message);
+    throw exceptionMessageInformation;
   }
-});
+};
+
+Deno.serve(guard(handler));
