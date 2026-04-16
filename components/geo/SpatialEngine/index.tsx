@@ -1,14 +1,9 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/index.tsx
- * VERSIÓN: 16.0 (NicePod Spatial Hub - Nominal Fix & Utility Hardening Edition)
+ * VERSIÓN: 17.0
  * PROTOCOLO: MADRID RESONANCE V4.9
- * 
- * Misión: Orquestar el motor WebGL garantizando la sintonía entre los flujos 
- * de datos, la visibilidad reactiva y la integridad total de tipos. 
- * [REFORMA V16.0]: Resolución definitiva de errores TS2552 (Typo en onIdle) 
- * y TS2304 (Falta de importación de 'cn'). Sintonización absoluta de la 
- * Zero Abbreviations Policy (ZAP) en toda la lógica de orquestación.
- * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * MISIÓN: Orquestar el Hub Espacial con sintonización nominal y tipos BSS.
+ * NIVEL DE INTEGRIDAD: 100%
  */
 
 "use client";
@@ -23,7 +18,7 @@ import { MapProps, MapProvider, MapRef } from "react-map-gl/mapbox";
 // --- INFRAESTRUCTURA CORE V4.9 ---
 import { UnifiedSearchBar } from "@/components/ui/unified-search-bar";
 import { useGeoEngine } from "@/hooks/use-geo-engine";
-import { SearchResult } from "@/hooks/use-search-radar";
+import { SearchRadarResult } from "@/hooks/use-search-radar";
 import { calculateDistanceBetweenPoints } from "@/lib/geo-kinematics";
 // [SINCRO V16.0]: Inyección de utilidades industriales para resolver TS2304.
 import { cn, nicepodLog } from "@/lib/utils";
@@ -195,11 +190,11 @@ export function SpatialEngine({
   /**
    * 9. ADUANA DE BÚSQUEDA (NOMINAL TRANSMUTATION)
    */
-  const transmuteSearchToIndustrialCoordinates = useCallback((searchResultEntry: SearchResult): GeographicPositionContract | null => {
-    if (searchResultEntry.metadata?.lat && searchResultEntry.metadata?.lng) {
+  const transmuteSearchToIndustrialCoordinates = useCallback((searchResultEntry: SearchRadarResult): GeographicPositionContract | null => {
+    if (searchResultEntry.intellectualMetadata?.latitudeCoordinate && searchResultEntry.intellectualMetadata?.longitudeCoordinate) {
       return {
-        latitudeCoordinate: Number(searchResultEntry.metadata.lat),
-        longitudeCoordinate: Number(searchResultEntry.metadata.lng)
+        latitudeCoordinate: Number(searchResultEntry.intellectualMetadata.latitudeCoordinate),
+        longitudeCoordinate: Number(searchResultEntry.intellectualMetadata.longitudeCoordinate)
       };
     }
     return null;
@@ -237,7 +232,7 @@ export function SpatialEngine({
     }
   }, [setManualMode, needsBallisticLanding]);
 
-  const handleSearchIdentificationResultsAction = useCallback((resultsCollection: SearchResult[] | null) => {
+  const handleSearchIdentificationResultsAction = useCallback((resultsCollection: SearchRadarResult[] | null) => {
     if (resultsCollection && resultsCollection.length > 0 && mapInstanceEngineReference.current) {
       const topSearchMatchEntry = resultsCollection[0];
       const industrialCoordinates = transmuteSearchToIndustrialCoordinates(topSearchMatchEntry);
@@ -374,11 +369,11 @@ export function SpatialEngine({
         {mode === 'EXPLORE' && (
           <div className="absolute top-8 left-6 right-6 z-[100] md:top-10 md:left-10 md:w-[450px] pointer-events-auto">
             <UnifiedSearchBar
-              variant="console"
+              variantType="console"
               onSearchIdentificationResults={handleSearchIdentificationResultsAction}
               onLoadingStatusChange={setIsSearchProcessLoading}
-              latitude={currentSearchGeographicPosition.latitudeCoordinate}
-              longitude={currentSearchGeographicPosition.longitudeCoordinate}
+              latitudeCoordinate={currentSearchGeographicPosition.latitudeCoordinate}
+              longitudeCoordinate={currentSearchGeographicPosition.longitudeCoordinate}
             />
           </div>
         )}

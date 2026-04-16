@@ -1,8 +1,8 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/map-core.tsx
- * VERSIÓN: 23.0 (NicePod MapCore - Mutable Reference Capture Edition)
+ * VERSIÓN: 24.0
  * PROTOCOLO: MADRID RESONANCE V4.9
- * MISIÓN: Reactor WebGL inmutable que gestiona la renderización de la malla 3D.
+ * MISIÓN: Reactor WebGL inmutable que gestiona la renderización de la malla 3D con aniquilación atómica.
  * NIVEL DE INTEGRIDAD: 100% (Soberano)
  * 
  * Misión: Reactor WebGL inmutable que gestiona la renderización de la malla 3D. 
@@ -18,6 +18,7 @@
 import type { ComponentProps } from "react";
 import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef } from "react";
 import Map, { MapRef } from 'react-map-gl/mapbox';
+import type { Map as MapNativeInstance, FogSpecification } from 'mapbox-gl';
 
 // --- INFRAESTRUCTURA DE MALLA TÁCTICA SOBERANA ---
 import {
@@ -106,7 +107,7 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
             nativeMapInstance.stop();
             nativeMapInstance.remove();
           }
-        } catch (hardwareException) {
+        } catch (hardwareException: unknown) {
           nicepodLog("⚠️ [MapCore] Error en purga física de VRAM.", hardwareException, 'warn');
         }
       }
@@ -134,7 +135,7 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
 
     if (activeMapStyle === MAP_STYLES.STANDARD) {
       try {
-        const mapboxInternalInstance = nativeMapInstance as any;
+        const mapboxInternalInstance = nativeMapInstance as MapNativeInstance;
         if (mapboxInternalInstance.setConfigProperty) {
           mapboxInternalInstance.setConfigProperty('basemap', 'lightPreset', lightTheme);
           mapboxInternalInstance.setConfigProperty('basemap', 'puckOcclusion', OCCLUSION_CONFIGURATION.puckOcclusion);
@@ -143,7 +144,7 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
           mapboxInternalInstance.setConfigProperty('basemap', 'showPointOfInterestLabels', false);
           mapboxInternalInstance.setConfigProperty('basemap', 'showTransitLabels', false);
         }
-      } catch (hardwareException) {
+      } catch (hardwareException: unknown) {
         nicepodLog("⚠️ [MapCore] Style-Guard Exception.", hardwareException, 'warn');
       }
     }
@@ -166,7 +167,7 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
         } else {
             nativeMapInstance.setTerrain(null);
         }
-    } catch (hardwareException) { /* Ignored */ }
+    } catch (hardwareException: unknown) { /* Ignored */ }
   }, [lightTheme, cameraPerspective, performanceProfile, mode, activeMapStyle]);
 
   const renderedMarkersCollection = useMemo(() => {
@@ -199,7 +200,7 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
       mapboxAccessToken={MAPBOX_TOKEN}
       mapStyle={activeMapStyle || MAP_STYLES.STANDARD}
       projection={{ name: "mercator" }}
-      fog={mode === 'FORGE' || performanceProfile === 'TACTICAL_LITE' || cameraPerspective === 'SATELLITE' ? null : (FOG_CONFIGURATION as any)}
+      fog={mode === 'FORGE' || performanceProfile === 'TACTICAL_LITE' || cameraPerspective === 'SATELLITE' ? undefined : (FOG_CONFIGURATION as unknown as FogSpecification)}
       attributionControl={false}
       style={{ width: '100%', height: '100%' }}
     >

@@ -1,14 +1,9 @@
 /**
  * ARCHIVO: hooks/geo-engine/radar-core.tsx
- * VERSIÓN: 4.1 (NicePod Radar Core - Request De-duplication & Network Lock Edition)
+ * VERSIÓN: 4.2
  * PROTOCOLO: MADRID RESONANCE V4.5
- * 
- * Misión: Evaluar el entorno geográfico y sincronizar la Bóveda de Conocimiento NKV 
- * de forma independiente a la interfaz, garantizando sintonía de proximidad milimétrica.
- * [REFORMA V4.1]: Implementación del Protocolo de Bloqueo Lógico de Red (Misión 3). 
- * Se ha introducido una referencia de control de concurrencia para erradicar las 
- * peticiones duplicadas y cancelaciones masivas detectadas en las auditorías de red. 
- * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * MISIÓN: Sincronizar la Bóveda de Conocimiento NKV con blindaje BSS.
+ * NIVEL DE INTEGRIDAD: 100%
  */
 
 "use client";
@@ -140,27 +135,27 @@ export function RadarProvider({ children }: { children: React.ReactNode }) {
        * [BUILD SHIELD]: MAPEADOR DE INTEGRIDAD SOBERANA.
        * Sincronizado con la Constitución V8.6 y el Metal V2.0.
        */
-      const sanitizedPointsCollection: PointOfInterest[] = (pointOfInterestIntelligenceResults || []).map((pointOfInterestItem: any) => ({
-        identification: pointOfInterestItem.identification,
-        authorIdentification: pointOfInterestItem.author_identification || "NICEPOD_SYSTEM_AUTHORITY",
-        name: pointOfInterestItem.point_of_interest_name || "Nodo No Identificado",
-        categoryMission: pointOfInterestItem.category_mission,
-        categoryEntity: pointOfInterestItem.category_entity,
-        historicalEpoch: pointOfInterestItem.historical_epoch,
+      const sanitizedPointsCollection: PointOfInterest[] = (pointOfInterestIntelligenceResults || []).map((pointOfInterestItem: Record<string, unknown>) => ({
+        identification: pointOfInterestItem.identification as number,
+        authorIdentification: (pointOfInterestItem.author_identification as string) || "NICEPOD_SYSTEM_AUTHORITY",
+        name: (pointOfInterestItem.point_of_interest_name as string) || "Nodo No Identificado",
+        categoryMission: pointOfInterestItem.category_mission as import('@/types/geo-sovereignty').CategoryMission,
+        categoryEntity: pointOfInterestItem.category_entity as import('@/types/geo-sovereignty').CategoryEntity,
+        historicalEpoch: pointOfInterestItem.historical_epoch as import('@/types/geo-sovereignty').HistoricalEpoch,
         geographicLocation: pointOfInterestItem.geo_location as GeoPoint,
-        resonanceRadiusMeters: pointOfInterestItem.resonance_radius || 35,
-        importanceScore: pointOfInterestItem.importance_score || 1,
-        historicalFact: pointOfInterestItem.historical_fact,
+        resonanceRadiusMeters: (pointOfInterestItem.resonance_radius as number) || 35,
+        importanceScore: (pointOfInterestItem.importance_score as number) || 1,
+        historicalFact: pointOfInterestItem.historical_fact as string,
         richDescription: null, 
-        galleryUniformResourceLocatorsCollection: pointOfInterestItem.gallery_urls || [],
-        ambientAudioUniformResourceLocator: pointOfInterestItem.ambient_audio_url || null,
+        galleryUniformResourceLocatorsCollection: (pointOfInterestItem.gallery_urls as string[]) || [],
+        ambientAudioUniformResourceLocator: (pointOfInterestItem.ambient_audio_url as string) || null,
         status: 'published',
         isPublished: true,
-        referencePodcastIdentification: pointOfInterestItem.reference_podcast_id || null,
+        referencePodcastIdentification: (pointOfInterestItem.reference_podcast_id as number) || null,
         creationTimestamp: new Date().toISOString(),
         updateTimestamp: new Date().toISOString(),
         metadata: {
-            externalSourceUniformResourceLocator: pointOfInterestItem.external_reference_url
+            externalSourceUniformResourceLocator: pointOfInterestItem.external_reference_url as string
         }
       }));
 
@@ -170,9 +165,9 @@ export function RadarProvider({ children }: { children: React.ReactNode }) {
         latitudeCoordinate: userLocation.latitudeCoordinate, 
         longitudeCoordinate: userLocation.longitudeCoordinate 
       };
-    } catch (operationalException: any) {
-      if (operationalException.name !== 'AbortError') {
-        nicepodLog("🔥 [RadarCore] Fallo crítico en conexión con Bóveda NKV.", operationalException, 'error');
+    } catch (operationalException: unknown) {
+      if (!(operationalException instanceof Error && operationalException.name === 'AbortError')) {
+        nicepodLog("🔥 [RadarCore] Fallo crítico en conexión con Bóveda NKV.", (operationalException instanceof Error) ? operationalException : String(operationalException), 'error');
       }
     } finally {
       setIsRadarSearchProcessActive(false);
