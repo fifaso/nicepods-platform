@@ -7,7 +7,7 @@ import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-
 
 // Importaciones con rutas relativas directas (Garantía de despliegue universal)
 import { extractAtomicFacts, generateEmbedding } from "../_shared/ai.ts";
-import { guard } from "../_shared/guard.ts";
+import { guard, GuardContext } from "../_shared/guard.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { Database } from "../../../types/database.types.ts";
 
@@ -32,12 +32,36 @@ const supabaseAdmin: SupabaseClient<Database> = createClient<Database>(
 /**
  * handler: Orquestador del proceso de refinería.
  */
-const handler = async (request: Request): Promise<Response> => {
-    const correlationIdentification = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
+const handler = async (request: Request, context: GuardContext): Promise<Response> => {
+    const correlationIdentification = context.correlationIdentification;
 
     console.log(`[NKV-Refinery][${correlationIdentification}] Iniciando proceso de ingesta...`);
 
     try {
+        // 0. PROTOCOLO DE AUTORIDAD (Zero Trust Architecture)
+        if (!context.isTrusted) {
+            // Si no es tráfico de infraestructura, debemos verificar la identidad y el rol del administrador
+            const authorizationHeader = request.headers.get('Authorization');
+            if (!authorizationHeader) throw new Error("AUTORIDAD_REQUERIDA: No se detectó token de autorización.");
+
+            const { data: { user: authenticatedUser }, error: authenticationError } = await supabaseAdmin.auth.getUser(authorizationHeader.replace("Bearer ", ""));
+            if (authenticationError || !authenticatedUser) throw new Error("SESION_INVALIDA: El token de acceso ha expirado o es inválido.");
+
+            const { data: administratorProfile, error: profileQueryError } = await supabaseAdmin
+                .from('profiles')
+                .select('role')
+                .eq('id', authenticatedUser.id)
+                .single();
+
+            if (profileQueryError || administratorProfile?.role !== 'admin') {
+                throw new Error("ACCESO_DENEGADO: Se requiere autoridad de nivel Administrador para refinar la Bóveda.");
+            }
+
+            console.log(`[NKV-Refinery][${correlationIdentification}] Autoridad confirmada para el Administrador: ${authenticatedUser.id}`);
+        } else {
+            console.info(`[NKV-Refinery][${correlationIdentification}] Ejecución confiable iniciada (Infrastructure Flow).`);
+        }
+
         // 1. VALIDACIÓN DE ENTRADA
         const refinementPayload: RefineryPayload = await request.json();
         const {

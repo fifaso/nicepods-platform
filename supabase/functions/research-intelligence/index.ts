@@ -1,14 +1,14 @@
-// supabase/functions/research-intelligence/index.ts
-// VERSIÓN: 3.4 (Omni-Intelligence Sovereign - Strict Serialization Edition)
-// Misión: Investigar temas con profundidad técnica, priorizando el NKV y activando la Economía Circular.
-// [ESTABILIZACIÓN]: Serialización forzada de JSONB para erradicar la fuga silenciosa de fuentes (Sources = 0).
+/**
+ * ARCHIVO: supabase/functions/research-intelligence/index.ts
+ * VERSIÓN: 4.0
+ * PROTOCOLO: Madrid Resonance Protocol V4.0
+ * MISIÓN: Omni-Intelligence Sovereign with Perimeter Security.
+ * NIVEL DE INTEGRIDAD: 100%
+ */
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
-
-// Importaciones del núcleo NicePod (Estabilizadas a Nivel 1)
 import { generateEmbedding } from "../_shared/ai.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import { guard, GuardContext } from "../_shared/guard.ts";
 
 /**
  * CLIENTE SUPABASE ADMIN:
@@ -19,17 +19,11 @@ const supabaseAdmin: SupabaseClient = createClient(
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
 );
 
-const handler = async (request: Request): Promise<Response> => {
-    // 1. GESTIÓN DE PROTOCOLO DE RED (CORS)
-    if (request.method === 'OPTIONS') {
-        return new Response('ok', { headers: corsHeaders });
-    }
-
-    const correlationIdentification = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
+const handler = async (request: Request, context: GuardContext): Promise<Response> => {
+    const correlationIdentification = context.correlationIdentification;
     let targetDraftId: string | null = null;
 
     try {
-        // 2. RECEPCIÓN DE SOLICITUD
         const payload = await request.json();
         const { draft_id, topic, is_pulse, pulse_source_ids } = payload;
 
@@ -38,18 +32,38 @@ const handler = async (request: Request): Promise<Response> => {
         }
 
         targetDraftId = draft_id;
-        console.log(`📡 [Researcher][${correlationIdentification}] Iniciando Misión de Inteligencia: ${topic}`);
+        console.info(`📡 [Researcher][${correlationIdentification}] Iniciando Misión de Inteligencia: ${topic}`);
 
-        // 3. GENERACIÓN DE BRÚJULA SEMÁNTICA (ADN 768d)
+        // VALIDACIÓN DE PROPIEDAD: Aunque usamos Service Role, verificamos que el borrador pertenezca al usuario si no es una petición interna.
+        if (!context.isTrusted) {
+            const authorizationHeader = request.headers.get('Authorization');
+            if (!authorizationHeader) throw new Error("AUTH_REQUIRED");
+
+            const tempClient = createClient(
+                Deno.env.get("SUPABASE_URL") ?? "",
+                Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+                { global: { headers: { Authorization: authorizationHeader } } }
+            );
+
+            const { data: { user: authenticatedUser } } = await tempClient.auth.getUser();
+            if (!authenticatedUser) throw new Error("INVALID_SESSION");
+
+            const { data: ownershipCheck, error: ownershipError } = await supabaseAdmin
+                .from('podcast_drafts')
+                .select('user_id')
+                .eq('id', draft_id)
+                .single();
+
+            if (ownershipError || ownershipCheck.user_id !== authenticatedUser.id) {
+                throw new Error("FORBIDDEN_ACCESS: No tiene autoridad sobre este borrador.");
+            }
+        }
+
         const queryVector = await generateEmbedding(topic);
 
         let finalSources: any[] = [];
 
-        // 4. BÚSQUEDA ESCALONADA DE INTELIGENCIA SOBERANA
         if (is_pulse && pulse_source_ids?.length > 0) {
-            /**
-             * CASO PULSE: El usuario seleccionó papers específicos del radar.
-             */
             const { data: pulseData } = await supabaseAdmin
                 .from('pulse_staging')
                 .select('id, title, summary, uniformResourceLocator, authority_score')
@@ -64,27 +78,21 @@ const handler = async (request: Request): Promise<Response> => {
                 relevance: 1.0
             }));
         } else {
-            /**
-             * CASO ESTÁNDAR: Búsqueda Híbrida en Bóvedas NicePod
-             */
-            // Capa A: Hechos Atómicos validados (Bóveda Permanente)
             const { data: vaultFacts } = await supabaseAdmin.rpc('search_knowledge_vault', {
                 query_embedding: queryVector,
                 match_threshold: 0.82,
                 match_count: 5
             });
 
-            // Capa B: Biblioteca de Papers (Staging del Harvester)
             const { data: freshPapers } = await supabaseAdmin.rpc('search_pulse_staging', {
                 query_embedding: queryVector,
                 match_threshold: 0.80,
                 match_count: 5
             });
 
-            // Consolidación de fuentes internas (Sanitizadas)
             finalSources = [
                 ...(vaultFacts || []).map((v: any) => ({
-                    id: v.source_id || v.id, // Adaptación a posibles cambios de RPC
+                    id: v.source_id || v.id,
                     title: v.title || "Archivo de Bóveda",
                     content: v.content || "",
                     uniformResourceLocator: v.uniformResourceLocator || "#",
@@ -102,29 +110,21 @@ const handler = async (request: Request): Promise<Response> => {
             ];
         }
 
-        // 5. TELEMETRÍA DE USO (Incrementar valor de los papers)
         const paperIds = finalSources
             .filter(s => s.origin === 'fresh_research' || s.origin === 'pulse_selection')
             .map(s => s.id)
-            .filter(Boolean); // Prevenir nulos
+            .filter(Boolean);
 
         if (paperIds.length > 0) {
-            console.log(`📈 [Researcher] Registrando uso de ${paperIds.length} papers.`);
             await supabaseAdmin.rpc('increment_paper_usage', { p_ids: paperIds });
         }
 
-        // 6. JUICIO DE SUFICIENCIA Y ECONOMÍA CIRCULAR
-        // Si no hay suficiente autoridad interna (NKV), procedemos al rescate externo.
         if (finalSources.length < 3) {
-            console.log(`⚠️ [Researcher] Laguna de conocimiento. Activando rescate externo (Tavily).`);
-
-            // a. Registro de Backlog Cognitivo para el Harvester
             await supabaseAdmin.rpc('push_to_research_backlog', {
                 p_topic: topic,
                 p_metadata: { correlation_id: correlationIdentification, draft_id: draft_id }
             });
 
-            // b. Invocación a Tavily (Gasto Táctico)
             const webRes = await fetch("https://api.tavily.com/search", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -148,7 +148,6 @@ const handler = async (request: Request): Promise<Response> => {
 
                 finalSources = [...finalSources, ...webSources];
 
-                // c. ECONOMÍA CIRCULAR: Capitalizar las fuentes web en el NKV Permanente
                 for (const ws of webSources) {
                     supabaseAdmin.functions.invoke('vault-refinery', {
                         body: {
@@ -162,8 +161,6 @@ const handler = async (request: Request): Promise<Response> => {
                         headers: { "x-correlation-id": correlationIdentification }
                     }).catch(() => { });
                 }
-            } else {
-                console.warn(`🔴 [Researcher] Fallo en API externa de investigación (Tavily).`);
             }
         }
 
@@ -171,19 +168,12 @@ const handler = async (request: Request): Promise<Response> => {
             throw new Error("RECURSOS_NO_ENCONTRADOS: El sistema no pudo validar el tema en ninguna fuente.");
         }
 
-        /**
-         * [FIX CRÍTICO]: SERIALIZACIÓN ESTRICTA
-         * Supabase/PostgreSQL puede fallar silenciosamente al guardar arrays de objetos en columnas JSONB
-         * si existen propiedades 'undefined' o proxys de Deno. Al convertir a JSON string y luego a objeto,
-         * garantizamos un objeto plano (Plain Object) 100% compatible con JSONB.
-         */
         const safeSources = JSON.parse(JSON.stringify(finalSources));
 
-        // 7. PERSISTENCIA DE DOSSIER Y RELEVO A REDACCIÓN (FASE III)
         const { error: updateErr } = await supabaseAdmin
             .from('podcast_drafts')
             .update({
-                sources: safeSources, // Objeto serializado y seguro
+                sources: safeSources,
                 dossier_text: {
                     status: "sources_found",
                     count: safeSources.length,
@@ -194,21 +184,8 @@ const handler = async (request: Request): Promise<Response> => {
             })
             .eq('id', draft_id);
 
-        if (updateErr) {
-            throw new Error(`DATABASE_UPDATE_FAIL: ${updateErr.message}`);
-        }
+        if (updateErr) throw new Error(`DATABASE_UPDATE_FAIL: ${updateErr.message}`);
 
-        // [TELEMETRÍA DE SEGURIDAD]: Verificamos que la BD haya guardado las fuentes
-        const { data: verifyData } = await supabaseAdmin
-            .from('podcast_drafts')
-            .select('sources')
-            .eq('id', draft_id)
-            .single();
-
-        console.log(`💾 [Researcher] Auditoría de Guardado: ${verifyData?.sources?.length || 0} fuentes confirmadas en DB.`);
-
-        // Invocación al Redactor Maestro (Agente 38)
-        console.log(`✅ [Researcher][${correlationIdentification}] Handover a Redacción.`);
         supabaseAdmin.functions.invoke('generate-script-draft', {
             body: { draft_id },
             headers: { "x-correlation-id": correlationIdentification }
@@ -220,7 +197,7 @@ const handler = async (request: Request): Promise<Response> => {
             sources: safeSources.length
         }), {
             status: 200,
-            headers: { ...corsHeaders, "Content-Type": "application/json" }
+            headers: { "Content-Type": "application/json" }
         });
 
     } catch (error: any) {
@@ -233,14 +210,8 @@ const handler = async (request: Request): Promise<Response> => {
             }).eq('id', targetDraftId);
         }
 
-        return new Response(JSON.stringify({
-            error: error.message,
-            trace_identification: correlationIdentification
-        }), {
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" }
-        });
+        throw error;
     }
-}
+};
 
-serve(handler);
+Deno.serve(guard(handler));

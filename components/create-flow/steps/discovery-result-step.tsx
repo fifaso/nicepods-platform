@@ -173,9 +173,9 @@ export function DiscoveryResultStep() {
                     intelligenceNormalizedDossier.recommendationsCollection.map((recommendationItem, recommendationIndex) => (
                         <POIActionCard 
                             key={recommendationIndex}
-                            pointOfInterestRecommendation={recommendationItem}
-                            onExecuteSpecificGenerationAction={() => handleGenerateSpecificPodcastAction(recommendationItem)}
-                            onExecuteVisitAction={() => handleVisitExternalResourceAction(recommendationItem)}
+                            pointOfInterest={recommendationItem}
+                            onGenerateSpecific={() => handleGenerateSpecificPodcastAction(recommendationItem)}
+                            onVisit={() => handleVisitExternalResourceAction(recommendationItem)}
                         />
                     ))
                 ) : (

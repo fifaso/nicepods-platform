@@ -1,14 +1,9 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/index.tsx
- * VERSIÓN: 16.0 (NicePod Spatial Hub - Nominal Fix & Utility Hardening Edition)
+ * VERSIÓN: 17.0
  * PROTOCOLO: MADRID RESONANCE V4.9
- * 
- * Misión: Orquestar el motor WebGL garantizando la sintonía entre los flujos 
- * de datos, la visibilidad reactiva y la integridad total de tipos. 
- * [REFORMA V16.0]: Resolución definitiva de errores TS2552 (Typo en onIdle) 
- * y TS2304 (Falta de importación de 'cn'). Sintonización absoluta de la 
- * Zero Abbreviations Policy (ZAP) en toda la lógica de orquestación.
- * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * MISIÓN: Orquestar el Hub Espacial con sintonización nominal y tipos BSS.
+ * NIVEL DE INTEGRIDAD: 100%
  */
 
 "use client";

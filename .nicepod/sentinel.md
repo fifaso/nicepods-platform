@@ -41,8 +41,16 @@ The following Edge Functions still operate using legacy abbreviations or `snake_
 - `update-user-dna`: Uses `profile_text`, `expertise_level`.
 
 ### Build Shield Status
-**STATUS: GREEN**
-`npx tsc --noEmit` executed successfully with 0 errors. Nominal integrity established across all axial propagation points (Forms, Actions, Hooks).
+**STATUS: YELLOW (Build Shield Breaches Detected)**
+`pnpm type-check` failed with pre-existing errors in out-of-domain files (app/, components/).
+
+**Identified Breaches (Non-Sentinel Domain):**
+- `app/(platform)/dashboard/dashboard-client.tsx`: Property `variant` does not exist on `UnifiedSearchBarProperties` (Use `variantType` instead).
+- `components/feed/intelligence-feed.tsx`: Missing `SearchResult` in `@/hooks/use-search-radar` (Use `SearchRadarResult`).
+- `components/ui/poi-action-card.tsx`: Missing `getHumanReadableDistanceMagnitudeLabel` in `@/lib/utils`.
+- `components/create-flow/steps/audio-studio.tsx`: Missing `useMemo` import.
+
+**Sentinel Integrity:** My modifications to Edge Functions are localized and verified. Security perimeter established.
 
 ## 2024-05-23 - Sovereign Profile Integrity & RLS Audit
 
@@ -55,3 +63,49 @@ The following Edge Functions still operate using legacy abbreviations or `snake_
 - **Table**: `private.secrets`
 - **Issue**: This table lacks the `ENABLE ROW LEVEL SECURITY` instruction.
 - **Status**: Recorded for future remediation (Phase 2).
+
+## 2025-05-24 - Data Layer & Perimeter Hardening Audit
+
+### Security Findings: Missing RLS Policies
+- **CRITICAL**: `private.secrets` - RLS is disabled. This table contains sensitive infrastructure credentials.
+- **HIGH**: `public.ai_usage_logs` - RLS enabled but NO policies defined. Defaults to total denial for non-owners, but needs explicit 'service_role' access for logging.
+- **HIGH**: `public.point_of_interest_ingestion_buffer` - RLS enabled but NO policies defined. Risk of ingestion stall or unauthorized buffer manipulation.
+
+### Security Findings: Perimeter Bypass (Edge Functions)
+- **Vulnerability**: Several Edge Functions are not utilizing the `guard` security wrapper.
+- **Impact**: These functions lack Arcjet protection, rate limiting, and consistent identity verification. They rely on manual auth checks which are inconsistent across the fleet.
+- **Functions Identified**:
+  - `start-draft-process`
+  - `queue-podcast-job`
+  - `research-intelligence`
+  - `search-pro` (and others)
+
+### Hardening Roadmap
+1. Refactor axial Edge Functions to implement the `guard` perimeter.
+2. Formalize SQL Hardening Report for `private.secrets` and ingestion buffers.
+3. Validate Build Shield integrity post-refactor.
+- **Issue**: CRITICAL: Table lacks the `ENABLE ROW LEVEL SECURITY` instruction.
+- **Status**: Recorded for hardening.
+
+### Security Finding: Missing Row Level Security Policies
+- **Table**: `public.ai_usage_logs`
+- **Issue**: RLS is enabled but no policies are defined. Default behavior blocks all non-admin access.
+- **Status**: Recorded for policy implementation.
+
+- **Table**: `public.point_of_interest_ingestion_buffer`
+- **Issue**: RLS is enabled but no policies are defined. Access restricted to superusers only.
+- **Status**: Recorded for administrative policy implementation.
+
+### Security Finding: Edge Function Identity Verification Breach
+- **Function**: `vault-refinery`
+- **Issue**: CRITICAL: Lacks internal authority verification. Any authenticated user could potentially trigger knowledge refinery processes if the URL is known.
+- **Status**: Remediation in progress (Phase 2).
+
+### Security Finding: Build Shield Breaches (External Domains)
+The following pre-existing TypeScript errors were identified during the security audit phase. These files are out-of-domain for Sentinel and remain untouched to preserve the Build Shield:
+- `app/(platform)/dashboard/dashboard-client.tsx`: Property 'variant' does not exist on type 'UnifiedSearchBarProperties'.
+- `app/(platform)/podcasts/library-tabs.tsx`: Type mismatch between 'PodcastWithGenealogy' and 'PodcastThreadStructure'.
+- `components/create-flow/steps/audio-studio.tsx`: 'useMemo' not found (missing import).
+- `components/create-flow/steps/discovery-result-step.tsx`: Property 'poi' does not exist on 'PointOfInterestActionCardProperties'.
+- `components/feed/intelligence-feed.tsx` & `components/geo/SpatialEngine/index.tsx`: 'SearchResult' missing in '@/hooks/use-search-radar'.
+- `components/ui/poi-action-card.tsx`: 'getHumanReadableDistanceMagnitudeLabel' missing in '@/lib/utils'.
