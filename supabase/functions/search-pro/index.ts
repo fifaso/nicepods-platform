@@ -6,20 +6,10 @@
  * NIVEL DE INTEGRIDAD: 100%
  */
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
-
-// --- INFRAESTRUCTURA DE INTELIGENCIA UNIFICADA ---
-// Al importar 'generateEmbedding' desde _shared/ai.ts garantizamos que 
-// la vectorización de la búsqueda use EXACTAMENTE el mismo modelo (gemini-embedding-001)
-// que usamos para catalogar los podcasts. Esto cura la "Bóveda Ciega".
 import { generateEmbedding } from "../_shared/ai.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import { guard, GuardContext } from "../_shared/guard.ts";
 
-/**
- * INTERFACE: SearchPayload
- * Define la estructura de entrada esperada desde la Server Action.
- */
 interface SearchPayload {
   searchQueryTerm?: string;
   latitudeCoordinate?: number;
@@ -36,39 +26,21 @@ interface SearchPayload {
   mode?: 'search' | 'trending' | 'discovery';
 }
 
-/**
- * CLIENTE SUPABASE ADMIN
- * Declarado fuera del handler para maximizar la velocidad en invocaciones 'calientes'.
- */
 const supabaseAdmin: SupabaseClient = createClient(
   Deno.env.get("SUPABASE_URL") ?? "",
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
 );
 
-/**
- * handler: Ejecución táctica (Lite). 
- * Se ha retirado el wrapper guard() para evitar exceder el tiempo de CPU, 
- * implementando en su lugar una validación de autorización directa.
- */
-serve(async (req) => {
-  // 1. GESTIÓN DE CORS (Respuesta en 0ms)
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
-
-  const correlationIdentification = req.headers.get("x-correlation-id") ?? crypto.randomUUID();
+const handler = async (request: Request, context: GuardContext): Promise<Response> => {
+  const correlationIdentification = context.correlationIdentification;
 
   try {
-    // 2. PROTOCOLO DE SEGURIDAD INDUSTRIAL (Bypass Manual de CPU)
-    const authHeader = req.headers.get('Authorization');
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
-    // Verificamos que la petición viene firmada con el Service Role (desde nuestra Server Action)
-    if (!authHeader?.includes(serviceKey ?? "INTERNAL_ONLY")) {
-      console.warn(`🛑 [Search-Pro-Lite][${correlationIdentification}] Intento de acceso denegado (Unauthorized).`);
-      return new Response(JSON.stringify({ error: "Unauthorized access" }), {
-        status: 401,
-        headers: corsHeaders
+    // PROTOCOLO DE SEGURIDAD: Solo permitimos acceso interno (Trusted Zone) para búsqueda pro.
+    if (!context.isTrusted) {
+      console.warn(`🛑 [Search-Pro][${correlationIdentification}] Intento de acceso externo bloqueado.`);
+      return new Response(JSON.stringify({ error: "Unauthorized: Internal infrastructure only." }), {
+        status: 403,
+        headers: { "Content-Type": "application/json" }
       });
     }
 
@@ -110,7 +82,7 @@ serve(async (req) => {
         title: pod.title,
         subtitle: pod.profiles?.full_name || 'Curador',
         image_url: pod.cover_image_url,
-        similarity: 1.0, // Match de popularidad
+        similarity: 1.0,
         geo_distance: null,
         metadata: {
           author: pod.profiles?.username,
@@ -147,7 +119,7 @@ serve(async (req) => {
     // 4. RETORNO DE INTELIGENCIA
     return new Response(JSON.stringify(searchResultsCollection), {
       status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
     });
 
   } catch (exceptionMessageInformation: unknown) {
@@ -162,4 +134,6 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
   }
-});
+};
+
+Deno.serve(guard(handler));

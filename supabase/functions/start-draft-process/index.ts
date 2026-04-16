@@ -1,61 +1,48 @@
-// supabase/functions/start-draft-process/index.ts
-// VERSIÓN: 2.0 (Ultra-Light Receptionist - Database Powered)
+/**
+ * ARCHIVO: supabase/functions/start-draft-process/index.ts
+ * VERSIÓN: 3.0
+ * PROTOCOLO: Madrid Resonance Protocol V4.0
+ * MISIÓN: Receptionist for new podcast drafts with Perimeter Security.
+ * NIVEL DE INTEGRIDAD: 100%
+ */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
+import { guard, GuardContext } from "../_shared/guard.ts";
 
-/**
- * [SISTEMA]: Cabeceras CORS aisladas para evitar carga de archivos compartidos pesados.
- */
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-Deno.serve(async (req) => {
-  // 1. Manejo de Preflight (OPTIONS) - Respuesta en <1ms
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
-
+const handler = async (request: Request, context: GuardContext): Promise<Response> => {
   try {
-    // 2. Capturar el Token de Autorización del Usuario
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) throw new Error("Acceso no autorizado: Falta Bearer Token.");
+    const authorizationHeader = request.headers.get('Authorization');
+    if (!authorizationHeader) {
+      return new Response(JSON.stringify({ error: "Acceso no autorizado: Falta Bearer Token." }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
 
-    // 3. Inicialización del cliente Supabase Ligero
-    // Usamos el Token del usuario para que el motor SQL reconozca su identidad vía auth.uid()
-    const supabase = createClient(
+    const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? "",
       {
         global: {
-          headers: { Authorization: authHeader },
+          headers: { Authorization: authorizationHeader },
         },
       }
     );
 
-    // 4. Procesamiento del Payload
-    const payload = await req.json();
+    const payload = await request.json();
 
-    /**
-     * [CORE ESTRATÉGICO]: Delegación Atómica
-     * Invocamos al procedimiento SQL 'init_draft_process_v2'.
-     * Este único paso valida cuotas, extrae el título y crea el registro.
-     */
-    const { data, error } = await supabase.rpc('init_draft_process_v2', {
+    const { data: rpcResultData, error: rpcExceptionInformation } = await supabaseClient.rpc('init_draft_process_v2', {
       p_payload: payload
     });
 
-    if (error) throw new Error(`Fallo en el motor de base de datos: ${error.message}`);
+    if (rpcExceptionInformation) throw new Error(`DATABASE_FAIL: ${rpcExceptionInformation.message}`);
 
-    // Supabase devuelve el resultado de una tabla de retorno como un array
-    const result = data && data[0];
+    const result = rpcResultData && rpcResultData[0];
 
     if (!result) {
-      throw new Error("No se recibió respuesta del orquestador de admisión.");
+      throw new Error("EMPTY_ORCHESTRATOR_RESPONSE");
     }
 
-    // 5. Validación de Negocio (Cuotas/Planes)
     if (!result.allowed) {
       return new Response(
         JSON.stringify({
@@ -64,42 +51,30 @@ Deno.serve(async (req) => {
         }),
         {
           status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
+          headers: { "Content-Type": "application/json" }
         }
       );
     }
 
-    /**
-     * [ÉXITO]: El registro ha sido creado en 'podcast_drafts'.
-     * El Database Trigger 'tr_on_draft_created' ahora disparará automáticamente
-     * la función de investigación de forma asíncrona en el servidor.
-     */
-    console.log(`✅ Borrador iniciado con éxito. ID: ${result.draft_id}`);
+    console.info(`✅ [start-draft-process][${context.correlationIdentification}] Draft initiated: ${result.draft_id}`);
 
     return new Response(
       JSON.stringify({
         success: true,
         draft_id: result.draft_id,
-        message: "Misión aceptada. Iniciando fase de investigación profunda."
+        message: "Misión aceptada. Iniciando fase de investigación profunda.",
+        trace_identification: context.correlationIdentification
       }),
       {
-        status: 202, // Accepted: El proceso continúa en el fondo
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
+        status: 202,
+        headers: { "Content-Type": "application/json" }
       }
     );
 
-  } catch (err: any) {
-    console.error("🔥 [start-draft-process-Fatal]:", err.message);
-
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: err.message
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      }
-    );
+  } catch (exceptionMessageInformation: any) {
+    console.error(`🔥 [start-draft-process-Fatal][${context.correlationIdentification}]:`, exceptionMessageInformation.message);
+    throw exceptionMessageInformation;
   }
-});
+};
+
+Deno.serve(guard(handler));
