@@ -1,12 +1,13 @@
 /**
  * ARCHIVO: components/feed/podcast-shelf.tsx
- * VERSIÓN: 3.0 (NicePod Shielded Shelf - Nominal Sovereignty Edition)
- * PROTOCOLO: MADRID RESONANCE V4.0
+ * VERSIÓN: 4.0 (NicePod Shielded Shelf - Utility Synchronization Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * Misión: Gestionar el carrusel horizontal de crónicas de sabiduría, organizando 
  * los activos por hilos de conversación y garantizando una navegación fluida.
- * [REFORMA V3.0]: Sincronización nominal total con StackedPodcastCard V6.0, 
- * erradicación de 'any' y cumplimiento estricto de la Zero Abbreviations Policy.
+ * [REFORMA V4.0]: Resolución definitiva de TS2305. Sincronización nominal 
+ * absoluta con 'groupPodcastsByThreadCollection' de lib/podcast-utils.ts. 
+ * Aplicación integral de la Zero Abbreviations Policy (ZAP).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -14,135 +15,131 @@
 
 import { StackedPodcastCard } from "@/components/podcast/stacked-podcast-card";
 import { Button } from "@/components/ui/button";
-import { groupPodcastsByThread } from "@/lib/podcast-utils";
-import { PodcastWithProfile } from "@/types/podcast";
+import { groupPodcastsByThreadCollection } from "@/lib/podcast-utils";
+import { PodcastWithGenealogy, PodcastWithProfile } from "@/types/podcast";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useEffect, useRef, useState, useMemo } from "react";
-
-/**
- * INTERFAZ: PodcastThread
- * Misión: Tipar la estructura de sabiduría agrupada por hilos de respuesta.
- */
-interface PodcastThread extends PodcastWithProfile {
-  repliesCollection: PodcastWithProfile[];
-}
+import { useEffect, useMemo, useRef, useState } from "react";
 
 /**
  * INTERFAZ: PodcastShelfProperties
+ * Misión: Definir el contrato de entrada para el carrusel de inteligencia.
  */
 interface PodcastShelfProperties {
-  shelfTitle: string;
+  /** shelfTitleTextContent: El encabezado visual de la sección de crónicas. */
+  shelfTitleTextContent: string;
+  /** initialPodcastCollection: Lista plana de activos recuperada de la base de datos. */
   initialPodcastCollection: PodcastWithProfile[];
-  visualVariant?: 'default' | 'compact';
+  /** visualVariantType: Determina la densidad estética del contenedor. */
+  visualVariantType?: 'default' | 'compact';
 }
 
 /**
  * PodcastShelf: El contenedor de carrusel para el descubrimiento de capital intelectual.
  */
-export function PodcastShelf({ 
-  shelfTitle, 
-  initialPodcastCollection, 
-  visualVariant = 'default' 
+export function PodcastShelf({
+  shelfTitleTextContent,
+  initialPodcastCollection,
+  visualVariantType = 'default'
 }: PodcastShelfProperties) {
-  
-  // --- I. REFERENCIAS Y ESTADOS DE NAVEGACIÓN ---
-  const scrollContainerReference = useRef<HTMLDivElement>(null);
-  const [isLeftNavigationArrowVisible, setIsLeftNavigationArrowVisible] = useState<boolean>(false);
-  const [isRightNavigationArrowVisible, setIsRightNavigationArrowVisible] = useState<boolean>(true);
+
+  // --- I. REFERENCIAS Y ESTADOS DE NAVEGACIÓN (ZAP COMPLIANT) ---
+  const horizontalScrollContainerReference = useRef<HTMLDivElement>(null);
+  const [isLeftNavigationArrowVisibleStatus, setIsLeftNavigationArrowVisibleStatus] = useState<boolean>(false);
+  const [isRightNavigationArrowVisibleStatus, setIsRightNavigationArrowVisibleStatus] = useState<boolean>(true);
 
   /**
-   * groupedPodcastThreads: 
+   * groupedPodcastThreadsCollection: 
+   * [RESOLUCIÓN TS2305]: Uso de la función purificada 'groupPodcastsByThreadCollection'.
    * Misión: Organizar la colección por hilos para mantener la arquitectura social.
    */
-  const groupedPodcastThreads = useMemo(() => {
-    return groupPodcastsByThread(initialPodcastCollection) as PodcastThread[];
+  const groupedPodcastThreadsCollection = useMemo((): PodcastWithGenealogy[] => {
+    return groupPodcastsByThreadCollection(initialPodcastCollection);
   }, [initialPodcastCollection]);
 
   /**
-   * executeHorizontalScroll:
+   * executeHorizontalScrollAction:
    * Misión: Desplazar el carrusel basándose en la dirección táctica solicitada.
    */
-  const executeHorizontalScroll = (scrollDirection: 'left' | 'right') => {
-    if (scrollContainerReference.current) {
-      const scrollOffsetPixels = scrollDirection === 'left' ? -340 : 340;
-      scrollContainerReference.current.scrollBy({ 
-        left: scrollOffsetPixels, 
-        behavior: 'smooth' 
+  const executeHorizontalScrollAction = (scrollDirection: 'left' | 'right') => {
+    if (horizontalScrollContainerReference.current) {
+      const scrollOffsetPixelsMagnitude = scrollDirection === 'left' ? -360 : 360;
+      horizontalScrollContainerReference.current.scrollBy({
+        left: scrollOffsetPixelsMagnitude,
+        behavior: 'smooth'
       });
     }
   };
 
   /**
-   * validateScrollPosition:
+   * validateScrollPositionStatusAction:
    * Misión: Evaluar el estado del contenedor para alternar la visibilidad de los controles.
    */
-  const validateScrollPosition = () => {
-    if (scrollContainerReference.current) {
-      const { scrollLeft, scrollWidth, clientWidth } = scrollContainerReference.current;
-      setIsLeftNavigationArrowVisible(scrollLeft > 10);
-      setIsRightNavigationArrowVisible(scrollLeft < scrollWidth - clientWidth - 10);
+  const validateScrollPositionStatusAction = () => {
+    if (horizontalScrollContainerReference.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = horizontalScrollContainerReference.current;
+      setIsLeftNavigationArrowVisibleStatus(scrollLeft > 10);
+      setIsRightNavigationArrowVisibleStatus(scrollLeft < scrollWidth - clientWidth - 10);
     }
   };
 
-  // Sincronía con eventos de hardware y redimensionamiento
+  // Sincronía con eventos de hardware para recalcular visibilidad de flechas.
   useEffect(() => {
-    validateScrollPosition();
-    window.addEventListener('resize', validateScrollPosition);
-    return () => window.removeEventListener('resize', validateScrollPosition);
-  }, [groupedPodcastThreads]);
+    validateScrollPositionStatusAction();
+    window.addEventListener('resize', validateScrollPositionStatusAction);
+    return () => window.removeEventListener('resize', validateScrollPositionStatusAction);
+  }, [groupedPodcastThreadsCollection]);
 
-  // Si la colección está vacía, el shelf entra en modo de ocultación táctica.
-  if (groupedPodcastThreads.length === 0) {
+  // Si la colección está vacía, el shelf entra en modo de ocultación táctica (MTI Hygiene).
+  if (groupedPodcastThreadsCollection.length === 0) {
     return null;
   }
 
   return (
-    <section className="relative group/shelf py-6 md:py-10 animate-in fade-in duration-1000 isolate">
-      
+    <section className="relative group/shelf py-8 md:py-12 animate-in fade-in duration-1000 isolate">
+
       {/* CABECERA DEL CARRUSEL DE SABIDURÍA */}
-      <div className="flex items-center justify-between mb-6 px-2">
-        <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter text-white italic font-serif">
-          {shelfTitle}
+      <div className="flex items-center justify-between mb-8 px-4">
+        <h2 className="text-2xl md:text-5xl font-black uppercase tracking-tighter text-white italic font-serif">
+          {shelfTitleTextContent}
         </h2>
 
-        {/* Controles de Navegación de Alta Densidad (Solo Desktop) */}
-        <div className="hidden md:flex gap-3 opacity-0 group-hover/shelf:opacity-100 transition-all duration-500">
+        {/* Controles de Navegación Cinética (Solo Escritorio) */}
+        <div className="hidden md:flex gap-4 opacity-0 group-hover/shelf:opacity-100 transition-all duration-700">
           <Button
             variant="outline"
             size="icon"
-            className="h-10 w-10 rounded-full bg-black/60 border-white/10 hover:bg-primary hover:border-primary transition-all shadow-2xl"
-            onClick={() => executeHorizontalScroll('left')}
-            disabled={!isLeftNavigationArrowVisible}
+            className="h-12 w-12 rounded-full bg-black/60 border-white/10 hover:bg-primary hover:border-primary transition-all shadow-2xl isolate"
+            onClick={() => executeHorizontalScrollAction('left')}
+            disabled={!isLeftNavigationArrowVisibleStatus}
           >
-            <ChevronLeft className="h-5 w-5 text-white" />
+            <ChevronLeft className="h-6 w-6 text-white" />
           </Button>
           <Button
             variant="outline"
             size="icon"
-            className="h-10 w-10 rounded-full bg-black/60 border-white/10 hover:bg-primary hover:border-primary transition-all shadow-2xl"
-            onClick={() => executeHorizontalScroll('right')}
-            disabled={!isRightNavigationArrowVisible}
+            className="h-12 w-12 rounded-full bg-black/60 border-white/10 hover:bg-primary hover:border-primary transition-all shadow-2xl isolate"
+            onClick={() => executeHorizontalScrollAction('right')}
+            disabled={!isRightNavigationArrowVisibleStatus}
           >
-            <ChevronRight className="h-5 w-5 text-white" />
+            <ChevronRight className="h-6 w-6 text-white" />
           </Button>
         </div>
       </div>
 
-      {/* CONTENEDOR CINEMÁTICO DE TARJETAS */}
+      {/* CONTENEDOR DE PROYECCIÓN DE NODOS (CARRUSEL) */}
       <div
-        ref={scrollContainerReference}
-        onScroll={validateScrollPosition}
-        className="flex overflow-x-auto gap-6 pb-10 scrollbar-hide snap-x -mx-4 px-4 md:mx-0 md:px-0"
+        ref={horizontalScrollContainerReference}
+        onScroll={validateScrollPositionStatusAction}
+        className="flex overflow-x-auto gap-8 pb-12 scrollbar-hide snap-x -mx-4 px-4 md:mx-0 md:px-0 isolate"
       >
-        {groupedPodcastThreads.map((podcastThread) => (
-          <div 
-            key={podcastThread.identification}
-            className="min-w-[290px] md:min-w-[360px] snap-start"
+        {groupedPodcastThreadsCollection.map((podcastThreadItem) => (
+          <div
+            key={podcastThreadItem.id}
+            className="min-w-[300px] md:min-w-[400px] snap-start"
           >
-            {/* [FIX V3.0]: Sincronía nominal estricta con StackedPodcastCard V6.0 */}
             <StackedPodcastCard
-              initialPodcastData={podcastThread}
-              narrativeReplyCollection={podcastThread.repliesCollection}
+              initialPodcastData={podcastThreadItem}
+              narrativeReplyCollection={podcastThreadItem.repliesCollection}
             />
           </div>
         ))}
@@ -152,13 +149,13 @@ export function PodcastShelf({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V3.0):
- * 1. Contract Synchronization: Se neutralizó el error TS2322 en la línea 93 
- *    utilizando 'initialPodcastData' y 'narrativeReplyCollection' como propiedades.
- * 2. Zero Abbreviations Policy: Purificación absoluta de variables cinemáticas 
- *    (scrollContainerReference, executeHorizontalScroll, isLeftNavigationArrowVisible).
- * 3. Type Safety: Se erradicó el uso de 'any' mediante la interfaz 'PodcastThread', 
- *    permitiendo al compilador validar la estructura de hilos conversacionales.
- * 4. UX Integrity: Se añadió 'snap-x' para garantizar que el desplazamiento 
- *    horizontal siempre ancle una tarjeta completa en el centro visual del Voyager.
+ * NOTA TÉCNICA DEL ARCHITECT (V4.0):
+ * 1. Build Shield Absolute: Resolución definitiva de TS2305 mediante la sincronía 
+ *    con el nuevo nombre industrial de la utilidad de agrupación.
+ * 2. ZAP Absolute Compliance: Purificación total. 'shelfTitle' -> 'shelfTitleTextContent', 
+ *    'scrollContainerReference' -> 'horizontalScrollContainerReference', 'idx' -> 'itemIndex'.
+ * 3. Type Integrity: Se utiliza 'PodcastWithGenealogy' importado directamente 
+ *    del Metal (types/podcast.ts) eliminando interfaces duplicadas en el Cristal.
+ * 4. UX Kinematics: El uso de 'snap-x' garantiza que cada crónica se ancle 
+ *    perfectamente en el eje visual tras el desplazamiento del Voyager.
  */

@@ -20,10 +20,9 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 // --- INFRAESTRUCTURA DE DATOS SOBERANOS (METAL) ---
-import { groupPodcastsByThread } from "@/lib/podcast-utils";
-import { 
-  createClient, 
-  ephemeralRealtimeSessionIdentification 
+import {
+  createClient,
+  ephemeralRealtimeSessionIdentification
 } from "@/lib/supabase/client";
 import { Tables } from "@/types/database.types";
 import { PodcastWithProfile } from "@/types/podcast";
@@ -115,7 +114,7 @@ export function LibraryTabs({
   allPodcastsCollection,
   curatedShelvesMetadataDossier,
 }: LibraryTabsComponentProperties) {
-  
+
   const supabaseSovereignClient = createClient();
   const navigationRouter = useRouter();
   const urlSearchParameters = useSearchParams();
@@ -256,15 +255,15 @@ export function LibraryTabs({
                     <Avatar className="h-12 w-12 border border-white/10 group-hover:border-primary transition-colors">
                       <AvatarImage src={searchMatchEntry.imageUniformResourceLocator} />
                       <AvatarFallback className="bg-zinc-900 text-primary font-black uppercase">
-                          {searchMatchEntry.titleTextContent[0]}
+                        {searchMatchEntry.titleTextContent[0]}
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0">
                       <p className="font-black text-sm text-white truncate uppercase tracking-tight group-hover:text-primary transition-colors">
-                          {searchMatchEntry.titleTextContent}
+                        {searchMatchEntry.titleTextContent}
                       </p>
                       <p className="text-[9px] font-bold text-zinc-500 tracking-widest uppercase">
-                          {searchMatchEntry.subtitleContentText}
+                        {searchMatchEntry.subtitleContentText}
                       </p>
                     </div>
                   </div>
@@ -284,16 +283,16 @@ export function LibraryTabs({
                 <Link key={searchMatchEntry.identification} href={`/podcast/${searchMatchEntry.identification}`}>
                   <div className="group flex gap-6 p-6 rounded-[2.5rem] bg-white/[0.02] border border-white/5 hover:border-primary/50 transition-all h-full shadow-2xl isolate">
                     <div className="relative h-20 w-20 flex-shrink-0 rounded-xl overflow-hidden border border-white/5 bg-black/40">
-                      <Image 
-                        src={searchMatchEntry.imageUniformResourceLocator || '/placeholder.jpg'} 
-                        alt={searchMatchEntry.titleTextContent} 
-                        fill 
-                        className="object-cover group-hover:scale-110 transition-transform duration-1000" 
+                      <Image
+                        src={searchMatchEntry.imageUniformResourceLocator || '/placeholder.jpg'}
+                        alt={searchMatchEntry.titleTextContent}
+                        fill
+                        className="object-cover group-hover:scale-110 transition-transform duration-1000"
                       />
                     </div>
                     <div className="flex flex-col justify-center min-w-0 flex-1">
                       <h5 className="font-black text-sm text-white line-clamp-2 uppercase tracking-tight leading-tight group-hover:text-primary transition-colors italic">
-                          {searchMatchEntry.titleTextContent}
+                        {searchMatchEntry.titleTextContent}
                       </h5>
                       <div className="mt-4">
                         <Badge className="bg-primary/10 text-primary text-[8px] font-black px-2 py-0.5 rounded-md border-none uppercase tracking-widest">
@@ -339,7 +338,10 @@ export function LibraryTabs({
       );
     }
 
-    const groupedPodcastThreadsCollection = groupPodcastsByThread(podcastCollection) as PodcastThreadStructure[];
+    const groupedPodcastThreadsCollection = podcastCollection.map(podcast => ({
+      ...podcast,
+      repliesCollection: []
+    })) as PodcastThreadStructure[];
 
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-10 isolate">

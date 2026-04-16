@@ -1,13 +1,13 @@
 /**
  * ARCHIVO: app/(platform)/dashboard/dashboard-client.tsx
- * VERSIÓN: 26.0 (NicePod Interactive Shell - Axial Alignment Edition)
+ * VERSIÓN: 28.0 (NicePod Interactive Shell - Absolute Industrial Seal)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * Misión: Gestionar el estado interactivo y el diseño (layout) del Dashboard central, 
  * orquestando la comunicación entre los núcleos de inteligencia y telemetría.
- * [REFORMA V26.0]: Resolución definitiva de TS2322 mediante la sincronización nominal 
- * de propiedades con 'InsightPanel' V6.0. Aplicación estricta de la Zero Abbreviations 
- * Policy (ZAP). Blindaje contra colisiones en la propagación de búsqueda.
+ * [REFORMA V28.0]: Resolución definitiva de TS2322 mediante la sincronización 
+ * con 'UnifiedSearchBar' V7.0 (variantType) e 'IntelligenceFeed' V7.0. 
+ * Aplicación integral de la Zero Abbreviations Policy (ZAP). 
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -44,7 +44,9 @@ const MapPreviewFrame = dynamic(
       <div className="w-full h-full rounded-[2.5rem] bg-zinc-950/50 border border-white/5 animate-pulse flex items-center justify-center shadow-inner isolate">
         <div className="flex flex-col items-center gap-4 opacity-40">
           <div className="h-6 w-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Sincronizando Malla Geodésica</span>
+          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">
+            Sincronizando Malla Geodésica
+          </span>
         </div>
       </div>
     )
@@ -65,7 +67,7 @@ interface DashboardClientProperties {
 }
 
 /**
- * COREOGRAFÍA DE ENTRADA (Framer Motion Industrial Standard)
+ * COREOGRAFÍA DE ENTRADA (NicePod Industrial Motion Standard)
  */
 const containerAnimationVariants = {
   hidden: { opacity: 0 },
@@ -99,8 +101,8 @@ export function DashboardClient({
 }: DashboardClientProperties) {
 
   // --- ESTADOS DE CONSOLA (RADAR SEMÁNTICO) ---
-  const [searchRadarMatchResults, setSearchRadarMatchResults] = useState<SearchRadarResult[] | null>(null);
-  const [isSearchProcessActive, setIsSearchProcessActive] = useState<boolean>(false);
+  const [searchRadarResultsCollection, setSearchRadarResultsCollection] = useState<SearchRadarResult[] | null>(null);
+  const [isSearchProcessActiveStatus, setIsSearchProcessActiveStatus] = useState<boolean>(false);
   const [currentSearchQueryText, setCurrentSearchQueryText] = useState<string>("");
 
   /** userDisplayNameReference: Extracción pericial del apelativo del Voyager. */
@@ -108,12 +110,12 @@ export function DashboardClient({
 
   // --- CONTROLADORES DE ESTADO TÁCTICO (COMMAND CENTER) ---
   const handleSearchIdentificationResultsAction = useCallback((identificationResults: SearchRadarResult[] | null) => {
-    setSearchRadarMatchResults(identificationResults);
+    setSearchRadarResultsCollection(identificationResults);
   }, []);
 
   const handleClearRadarAction = useCallback(() => {
-    setSearchRadarMatchResults(null);
-    setIsSearchProcessActive(false);
+    setSearchRadarResultsCollection(null);
+    setIsSearchProcessActiveStatus(false);
     setCurrentSearchQueryText("");
   }, []);
 
@@ -131,13 +133,13 @@ export function DashboardClient({
         <div className="lg:col-span-3 space-y-10 md:space-y-14">
 
           {/* CABECERA SOBERANA (ALINEACIÓN AXIAL) */}
-          <motion.header 
-            variants={itemAnimationVariants} 
+          <motion.header
+            variants={itemAnimationVariants}
             className="w-full flex flex-row items-center justify-between z-40 gap-6"
           >
             <div className="flex flex-col min-w-0">
-              <h1 className="text-3xl md:text-6xl font-black tracking-tighter uppercase italic leading-none drop-shadow-xl text-muted-foreground/80 truncate">
-                Hola, <span className="text-foreground">{userDisplayNameReference}</span>
+              <h1 className="text-3xl md:text-6xl font-black tracking-tighter uppercase italic leading-none drop-shadow-xl text-muted-foreground/80 truncate font-serif">
+                Hola, <span className="text-foreground not-italic">{userDisplayNameReference}</span>
               </h1>
               {isAdministratorAuthorityStatus && (
                 <div className="flex items-center gap-2 mt-1 md:mt-2 opacity-50">
@@ -147,13 +149,14 @@ export function DashboardClient({
               )}
             </div>
 
-            {/* RADAR DE BÚSQUEDA INTERACTIVO */}
+            {/* RADAR DE BÚSQUEDA INTERACTIVO [SINCRO V28.0] */}
             <div className="shrink-0 z-50">
               <UnifiedSearchBar
+                /** [RESOLUCIÓN TS2322]: Alineación con UnifiedSearchBar V7.0 */
                 variantType="console"
                 placeholderText={`¿Qué ecos buscamos?`}
                 onSearchIdentificationResults={handleSearchIdentificationResultsAction}
-                onLoadingStatusChange={setIsSearchProcessActive}
+                onLoadingStatusChange={setIsSearchProcessActiveStatus}
                 onClearAction={handleClearRadarAction}
               />
             </div>
@@ -164,24 +167,25 @@ export function DashboardClient({
             variants={itemAnimationVariants}
             className={classNamesUtility(
               "w-full transition-all duration-700 ease-in-out relative z-0",
-              isSearchProcessActive || searchRadarMatchResults 
-                ? "h-[140px] opacity-30 saturate-0 scale-[0.98] pointer-events-none" 
+              isSearchProcessActiveStatus || searchRadarResultsCollection
+                ? "h-[140px] opacity-30 saturate-0 scale-[0.98] pointer-events-none"
                 : "h-[260px] md:h-[320px] opacity-100 scale-100"
             )}
           >
             <MapPreviewFrame />
           </motion.section>
 
-          {/* FEED DE INTELIGENCIA SOBERANA */}
+          {/* FEED DE INTELIGENCIA SOBERANA [SINCRO V28.0] */}
           <motion.div variants={itemAnimationVariants} className="relative z-10 min-h-[500px]">
             <IntelligenceFeed
-              userDisplayName={userDisplayNameReference}
-              isSearchingProcessActive={isSearchProcessActive}
-              searchMatchResults={searchRadarMatchResults}
-              lastSearchQuery={currentSearchQueryText}
-              initialEpicenterCollection={initialIntelligenceFeedCollection.epicenterPodcastsCollection}
+              /** [RESOLUCIÓN TS2322]: Alineación con IntelligenceFeed V7.0 */
+              userDisplayNameReference={userDisplayNameReference}
+              isSearchingProcessActiveStatus={isSearchProcessActiveStatus}
+              searchRadarResultsCollection={searchRadarResultsCollection}
+              lastSearchQueryText={currentSearchQueryText}
+              initialEpicenterPodcastsCollection={initialIntelligenceFeedCollection.epicenterPodcastsCollection}
               initialConnectionsCollection={initialIntelligenceFeedCollection.semanticConnectionsCollection}
-              onClearRadarAction={handleClearRadarAction}
+              onClearSearchRadarAction={handleClearRadarAction}
             />
           </motion.div>
         </div>
@@ -192,24 +196,24 @@ export function DashboardClient({
             variants={itemAnimationVariants}
             className={classNamesUtility(
               "sticky top-[8rem] space-y-8 flex flex-col h-fit transition-all duration-700",
-              isSearchProcessActive || searchRadarMatchResults ? "opacity-20 blur-[2px] grayscale pointer-events-none" : "opacity-100"
+              isSearchProcessActiveStatus || searchRadarResultsCollection ? "opacity-20 blur-[2px] grayscale pointer-events-none" : "opacity-100"
             )}
           >
 
             {/* INVITACIÓN A LA FORJA SOBERANA */}
-            <div className="p-8 bg-card/20 rounded-[2.5rem] border border-border/40 backdrop-blur-2xl relative overflow-hidden group shadow-xl hover:border-primary/30 transition-colors isolate">
+            <div className="p-8 bg-[#0a0a0a]/60 rounded-[2.5rem] border border-white/5 backdrop-blur-2xl relative overflow-hidden group shadow-xl hover:border-primary/30 transition-colors isolate">
               <div className="space-y-6 relative z-10">
                 <div className="flex items-center gap-3">
                   <div className="p-1.5 bg-primary/10 rounded-lg">
                     <Terminal size={14} className="text-primary" />
                   </div>
-                  <p className="text-[9px] font-black uppercase tracking-[0.4em] text-muted-foreground">Soberanía de Datos</p>
+                  <p className="text-[9px] font-black uppercase tracking-[0.4em] text-zinc-500">Soberanía de Datos</p>
                 </div>
-                <h4 className="font-bold text-lg text-foreground leading-snug tracking-tight">
-                  Tu capital intelectual se expande con cada crónica de voz.
+                <h4 className="font-bold text-lg text-white leading-snug tracking-tight">
+                  Su capital intelectual se expande con cada crónica de voz.
                 </h4>
-                <Link 
-                  href="/create" 
+                <Link
+                  href="/create"
                   className="group/button inline-flex items-center gap-3 text-[10px] font-black text-primary uppercase tracking-[0.3em] hover:text-primary/80 transition-colors"
                 >
                   <PlusCircle className="h-4 w-4" />
@@ -218,7 +222,7 @@ export function DashboardClient({
               </div>
             </div>
 
-            {/* PANEL DE METADATOS SSR (RESOLUCIÓN TS2322) */}
+            {/* PANEL DE METADATOS SSR */}
             <InsightPanel
               initialAdministratorProfile={initialAdministratorProfile}
               initialResonanceMetrics={initialResonanceMetrics}
@@ -227,11 +231,11 @@ export function DashboardClient({
             {/* IDENTIDAD DE MARCA INDUSTRIAL (NICEPOD RECOGNITION) */}
             <div className="p-10 text-center bg-white/[0.01] rounded-[3rem] border border-white/5 flex flex-col items-center space-y-5 shadow-inner group isolate">
               <div className="h-12 w-12 relative opacity-20 grayscale group-hover:grayscale-0 group-hover:opacity-80 transition-all duration-1000">
-                <Image 
-                  src="/nicepod-logo.png" 
-                  alt="Logotipo Soberano de NicePod" 
-                  fill 
-                  className="object-contain" 
+                <Image
+                  src="/nicepod-logo.png"
+                  alt="Logotipo Soberano de NicePod"
+                  fill
+                  className="object-contain"
                   priority
                 />
               </div>
@@ -257,11 +261,12 @@ export function DashboardClient({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V26.0):
- * 1. Contract Alignment: Resolución definitiva de TS2322 mediante la actualización de 
- *    los descriptores 'initialAdministratorProfile' e 'initialResonanceMetrics'.
- * 2. ZAP Compliance: Purificación total de nomenclatura. Se han eliminado términos 
- *    como 'initialFeed', 'isAdministratorAuthority' o 'cn' por descriptores industriales.
- * 3. BSS Integration: Se asegura la integridad de los tipos de Supabase ('Tables') 
- *    al inyectarlos en componentes hijos que ahora poseen un 'Sovereign Mapper'.
+ * NOTA TÉCNICA DEL ARCHITECT (V28.0):
+ * 1. Build Shield Sovereignty: Resolución definitiva de TS2322 mediante la 
+ *    alineación con los descriptores industriales 'variantType' y 
+ *    'userDisplayNameReference' de los componentes hijos V7.0.
+ * 2. ZAP Compliance: Purificación total de nomenclatura. Se eliminaron abreviaciones 
+ *    residuales en estados y callbacks para garantizar la legibilidad técnica.
+ * 3. Atomic Handover: Se asegura que el despacho de datos del servidor ('initialAdministratorProfile') 
+ *    fluya sin colisiones de tipado hacia el 'InsightPanel' normalizado.
  */
