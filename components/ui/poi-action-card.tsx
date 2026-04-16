@@ -16,7 +16,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { classNamesUtility, getHumanReadableDistanceMagnitudeLabel } from "@/lib/utils";
+import { classNamesUtility } from "@/lib/utils";
 import { LocalRecommendation } from "@/types/podcast";
 import { motion } from "framer-motion";
 import {
@@ -81,15 +81,28 @@ const POINT_OF_INTEREST_CATEGORY_CONFIGURATION: Record<string, PointOfInterestCa
 };
 
 /**
+ * getHumanReadableDistanceMagnitudeLabel:
+ * Misión: Transmutar una magnitud métrica en un descriptor legible para el Voyager.
+ * [RESOLUCIÓN TS2305]: Implementación local para asegurar la soberanía del componente.
+ */
+function getHumanReadableDistanceMagnitudeLabel(distanceInMeters: number): string {
+  if (distanceInMeters < 1000) {
+    return `${Math.round(distanceInMeters)}m`;
+  }
+  const distanceInKilometers = distanceInMeters / 1000;
+  return `${distanceInKilometers.toFixed(1)}km`;
+}
+
+/**
  * INTERFAZ: PointOfInterestActionCardProperties
  */
 interface PointOfInterestActionCardProperties {
-  /** pointOfInterestRecommendation: El objeto de hallazgo situado bajo contrato V12.0. */
-  pointOfInterestRecommendation: LocalRecommendation;
-  /** onExecuteSpecificGenerationAction: Callback para iniciar la forja centrada en el hito. */
-  onExecuteSpecificGenerationAction: (recommendation: LocalRecommendation) => void;
-  /** onExecuteVisitAction: Callback opcional para navegación geodésica o recursos externos. */
-  onExecuteVisitAction?: (recommendation: LocalRecommendation) => void;
+  /** pointOfInterest: El objeto de hallazgo situado bajo contrato V12.0. */
+  pointOfInterest: LocalRecommendation;
+  /** onGenerateSpecific: Callback para iniciar la forja centrada en el hito. */
+  onGenerateSpecific: (recommendation: LocalRecommendation) => void;
+  /** onVisit: Callback opcional para navegación geodésica o recursos externos. */
+  onVisit?: (recommendation: LocalRecommendation) => void;
   /** isGenerationProcessActiveStatus: Indica si el Oráculo está sintetizando para este nodo. */
   isGenerationProcessActiveStatus?: boolean;
 }
@@ -98,15 +111,15 @@ interface PointOfInterestActionCardProperties {
  * POIActionCard: La unidad interactiva de descubrimiento situada.
  */
 export function POIActionCard({
-  pointOfInterestRecommendation,
-  onExecuteSpecificGenerationAction,
-  onExecuteVisitAction,
+  pointOfInterest,
+  onGenerateSpecific,
+  onVisit,
   isGenerationProcessActiveStatus = false
 }: PointOfInterestActionCardProperties) {
 
   // Resolución de atmósfera visual basada en categoría
   const categoryAestheticConfiguration = 
-    POINT_OF_INTEREST_CATEGORY_CONFIGURATION[pointOfInterestRecommendation.category] || 
+    POINT_OF_INTEREST_CATEGORY_CONFIGURATION[pointOfInterest.category] ||
     POINT_OF_INTEREST_CATEGORY_CONFIGURATION.secret;
 
   const CategoryIconComponent = categoryAestheticConfiguration.iconComponent;
@@ -138,10 +151,10 @@ export function POIActionCard({
               </Badge>
               
               {/* [RESOLUCIÓN TS2551]: Sincronización con 'distanceInMeters' */}
-              {pointOfInterestRecommendation.distanceInMeters && (
+              {pointOfInterest.distanceInMeters && (
                 <div className="flex items-center text-[10px] font-mono text-zinc-500 tracking-tighter">
                   <Navigation className="h-2.5 w-2.5 mr-1.5 text-zinc-700" />
-                  {getHumanReadableDistanceMagnitudeLabel(pointOfInterestRecommendation.distanceInMeters)}
+                  {getHumanReadableDistanceMagnitudeLabel(pointOfInterest.distanceInMeters)}
                 </div>
               )}
             </div>
@@ -149,11 +162,11 @@ export function POIActionCard({
             {/* II. IDENTIDAD DEL HITO: Nombre y Peritaje */}
             <div className="space-y-2">
               <h3 className="text-base font-black text-white uppercase tracking-tight group-hover:text-primary transition-colors leading-tight">
-                {pointOfInterestRecommendation.name}
+                {pointOfInterest.name}
               </h3>
               {/* [RESOLUCIÓN TS2339]: Sincronización con 'descriptionTextContent' */}
               <p className="text-xs text-zinc-500 font-medium leading-relaxed line-clamp-2 italic">
-                {pointOfInterestRecommendation.descriptionTextContent}
+                {pointOfInterest.descriptionTextContent}
               </p>
             </div>
 
@@ -162,25 +175,25 @@ export function POIActionCard({
 
               {/* ACTUADOR PRINCIPAL: FORJA DE CONOCIMIENTO */}
               <Button
-                onClick={() => onExecuteSpecificGenerationAction(pointOfInterestRecommendation)}
+                onClick={() => onGenerateSpecific(pointOfInterest)}
                 disabled={isGenerationProcessActiveStatus}
                 className={classNamesUtility(
                   "col-span-4 h-12 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-xl border-none",
-                  pointOfInterestRecommendation.hasSpecificPodcastAttached
+                  pointOfInterest.hasSpecificPodcastAttached
                     ? "bg-emerald-600 hover:bg-emerald-700 text-white"
                     : "bg-primary text-white hover:bg-primary/90 shadow-primary/20"
                 )}
               >
                 {isGenerationProcessActiveStatus ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : pointOfInterestRecommendation.hasSpecificPodcastAttached ? (
+                ) : pointOfInterest.hasSpecificPodcastAttached ? (
                   <PlayCircle className="h-4 w-4 mr-2 fill-current" />
                 ) : (
                   <Wand2 className="h-4 w-4 mr-2" />
                 )}
                 
                 {/* [RESOLUCIÓN TS2339]: Sincronización con 'hasSpecificPodcastAttached' */}
-                {pointOfInterestRecommendation.hasSpecificPodcastAttached 
+                {pointOfInterest.hasSpecificPodcastAttached
                   ? "SINTONIZAR NICEPOD" 
                   : "FORJAR CRÓNICA PROFUNDA"
                 }
@@ -190,7 +203,7 @@ export function POIActionCard({
               <Button
                 variant="secondary"
                 size="icon"
-                onClick={() => onExecuteVisitAction?.(pointOfInterestRecommendation)}
+                onClick={() => onVisit?.(pointOfInterest)}
                 className="h-12 w-full rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-zinc-500 hover:text-white transition-all shadow-inner"
                 aria-label="Ubicar en Mapa Táctico"
               >
