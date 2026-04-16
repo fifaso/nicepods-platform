@@ -1,8 +1,8 @@
 /**
  * ARCHIVO: components/feed/resonance-compass.tsx
- * VERSIÓN: 8.0 (NicePod Resonance Compass - Sovereign Thermal Shield Edition)
- * PROTOCOLO: MADRID RESONANCE V4.0
- * MISIÓN: Visualizar el universo semántico mediante una simulación de fuerzas.
+ * VERSIÓN: 5.1 (Madrid Resonance)
+ * PROTOCOLO: Thermal Isolation
+ * MISIÓN: Visualizar el universo semántico mediante una simulación de fuerzas multihilo.
  * NIVEL DE INTEGRIDAD: 100% (Soberano)
  */
 
@@ -164,6 +164,15 @@ export function ResonanceCompass({
             bubbleElement.style.visibility = 'visible';
           }
         }
+      }
+
+      // [MTI]: Devolver el búfer al trabajador para su reutilización
+      // Se realiza AL FINAL del procesamiento local para evitar errores de búfer desprendido.
+      if (physicsWorkerReference.current && type === "TICK") {
+        physicsWorkerReference.current.postMessage({
+            action: "RETURN_BUFFER",
+            positionsBuffer: positionsBuffer
+        }, { transfer: [positionsBuffer.buffer] });
       }
 
       if (type === "STABILITY_REACHED") {

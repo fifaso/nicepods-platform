@@ -1,8 +1,8 @@
 /**
  * ARCHIVO: lib/workers/resonance-physics.worker.ts
- * VERSIÓN: 5.0 (NicePod Physics Worker - Sovereign Memory Protocol Edition)
- * PROTOCOLO: MADRID RESONANCE V4.9
- * MISIÓN: Ejecutar la simulación de fuerzas gravitatorias en un hilo secundario aislado.
+ * VERSIÓN: 5.1 (Madrid Resonance)
+ * PROTOCOLO: Thermal Isolation
+ * MISIÓN: Ejecutar la simulación de fuerzas gravitatorias en un hilo secundario con Reutilización de Búfer.
  * NIVEL DE INTEGRIDAD: 100% (Soberano)
  */
 
@@ -34,10 +34,12 @@ type ResonancePhysicsSimulationRequest =
   | { action: "STOP_SIMULATION" }
   | { action: "UPDATE_DIMENSIONS"; centerXCoordinate: number; centerYCoordinate: number; exclusionZoneRadius: number; }
   | { action: "PAUSE_SIMULATION" }
-  | { action: "RESUME_SIMULATION" };
+  | { action: "RESUME_SIMULATION" }
+  | { action: "RETURN_BUFFER"; positionsBuffer: Float32Array; };
 
 // --- I. ESTADO GLOBAL DEL TRABAJADOR ---
 let activeForceSimulation: Simulation<PhysicsNodePayload, undefined> | null = null;
+let availableBuffersCollection: Float32Array[] = [];
 
 /**
  * self.onmessage:
@@ -48,6 +50,7 @@ self.onmessage = (messageEvent: MessageEvent<ResonancePhysicsSimulationRequest>)
 
   switch (simulationRequest.action) {
     case "START_SIMULATION":
+      availableBuffersCollection = []; // Reset de búferes ante nueva colección
       executeSimulationInitialization(
         simulationRequest.nodesCollection,
         simulationRequest.centerXCoordinate,
@@ -61,6 +64,7 @@ self.onmessage = (messageEvent: MessageEvent<ResonancePhysicsSimulationRequest>)
         activeForceSimulation.stop();
         activeForceSimulation = null;
       }
+      availableBuffersCollection = [];
       break;
 
     case "UPDATE_DIMENSIONS":
@@ -85,6 +89,10 @@ self.onmessage = (messageEvent: MessageEvent<ResonancePhysicsSimulationRequest>)
       if (activeForceSimulation) {
         activeForceSimulation.alpha(0.1).restart();
       }
+      break;
+
+    case "RETURN_BUFFER":
+      availableBuffersCollection.push(simulationRequest.positionsBuffer);
       break;
   }
 };
@@ -111,7 +119,16 @@ function executeSimulationInitialization(
 
     .on("tick", () => {
       const nodesCount = nodesCollection.length;
-      const positionsBuffer = new Float32Array(nodesCount * 3);
+      const bufferSizeRequired = nodesCount * 3;
+
+      let positionsBuffer: Float32Array;
+
+      // [MTI]: Estrategia de Reutilización de Búfer (Double/Triple Buffering)
+      if (availableBuffersCollection.length > 0) {
+        positionsBuffer = availableBuffersCollection.pop()!;
+      } else {
+        positionsBuffer = new Float32Array(bufferSizeRequired);
+      }
 
       for (let itemIndex = 0; itemIndex < nodesCount; itemIndex++) {
         const currentNode = nodesCollection[itemIndex];

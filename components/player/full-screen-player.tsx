@@ -1,13 +1,9 @@
 /**
  * ARCHIVO: components/player/full-screen-player.tsx
- * VERSIÓN: 31.0 (NicePod Studio - High Contrast & Absolute Nominal Integrity)
- * PROTOCOLO: MADRID RESONANCE V4.0
- * 
- * Misión: Orquestar la inmersión total del Voyager, garantizando legibilidad industrial,
- * sincronía milimétrica con el hardware de audio y persistencia de resonancia.
- * [REFORMA V31.0]: Sincronización nominal total con ScriptViewer V8.0, erradicación 
- * absoluta de abreviaturas y cumplimiento del Dogma Técnico NicePod.
- * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * VERSIÓN: 5.1 (Madrid Resonance)
+ * PROTOCOLO: Thermal Isolation
+ * MISIÓN: Orquestar la inmersión total del Voyager con Direct-DOM para telemetría de alta frecuencia.
+ * NIVEL DE INTEGRIDAD: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
@@ -27,7 +23,7 @@ import {
   Volume2
 } from "lucide-react";
 import Image from "next/image";
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 
 // --- INFRAESTRUCTURA CORE NICEPOD ---
 import { Button } from "@/components/ui/button";
@@ -57,25 +53,43 @@ export function FullScreenPlayer() {
   const { supabase: supabaseClient, user: authenticatedUser, profile: administratorProfile } = useAuth();
   const { toast } = useToast();
 
-  // --- REFERENCIAS DE TELEMETRÍA DE HARDWARE ---
+  // --- REFERENCIAS DE TELEMETRÍA DE HARDWARE (MTI) ---
   const [currentPlaybackTimeSeconds, setCurrentPlaybackTimeSeconds] = useState<number>(0);
   const [totalAudioDurationSeconds, setTotalAudioDurationSeconds] = useState<number>(0);
   const [isLikedByVoyager, setIsLikedByVoyager] = useState<boolean>(false);
   const [isInteractionProcessActive, setIsInteractionProcessActive] = useState<boolean>(false);
 
+  // Referencias para actualización Direct-DOM
+  const currentTimeDisplayElementReference = useRef<HTMLSpanElement>(null);
+  const totalDurationDisplayElementReference = useRef<HTMLSpanElement>(null);
+  const lastKnownDurationSecondsReference = useRef<number>(0);
+
   /**
    * 1. PROTOCOLO DE SINCRONÍA POR HARDWARE (60 FPS)
-   * Capturamos la telemetría emitida por el AudioProvider para actualizar 
-   * el deslizador (Slider) sin penalizar el rendimiento del hilo principal.
+   * [MTI]: Actualización directa de contadores para evitar re-renders masivos del Slider y Chasis.
    */
   useEffect(() => {
     const handleHardwarePulseSynchronization = (event: Event) => {
       const customEvent = event as CustomEvent<{ currentTime: number; duration: number }>;
       const { currentTime, duration } = customEvent.detail;
       
-      setCurrentPlaybackTimeSeconds(currentTime);
-      if (duration > 0 && duration !== totalAudioDurationSeconds) {
+      // 1. Actualización Direct-DOM de contadores numéricos
+      if (currentTimeDisplayElementReference.current) {
+        currentTimeDisplayElementReference.current.textContent = formatTime(currentTime);
+      }
+
+      if (duration > 0 && duration !== lastKnownDurationSecondsReference.current) {
+        lastKnownDurationSecondsReference.current = duration;
+        if (totalDurationDisplayElementReference.current) {
+          totalDurationDisplayElementReference.current.textContent = formatTime(duration);
+        }
         setTotalAudioDurationSeconds(duration);
+      }
+
+      // 2. Actualización de estado sincronizada (Throttle implícito por nicepod-timeupdate ~250ms)
+      // Solo actualizamos el estado si el componente es visible para alimentar el Slider.
+      if (!document.hidden) {
+        setCurrentPlaybackTimeSeconds(currentTime);
       }
     };
 
@@ -83,7 +97,7 @@ export function FullScreenPlayer() {
     return () => {
       window.removeEventListener('nicepod-timeupdate', handleHardwarePulseSynchronization as EventListener);
     };
-  }, [totalAudioDurationSeconds]);
+  }, []);
 
   /**
    * 2. VERIFICACIÓN DE RESONANCIA EN BÓVEDA
@@ -149,9 +163,9 @@ export function FullScreenPlayer() {
           className: "bg-primary text-white border-none font-black uppercase tracking-widest text-[10px]" 
         });
       }
-    } catch (exception: any) {
+    } catch (exception: unknown) {
       setIsLikedByVoyager(originalResonanceState); // Reversión de estado (Rollback)
-      nicepodLog("🔥 [Resonance-Fail]:", exception.message, 'error');
+      nicepodLog("🔥 [Resonance-Fail]:", exception instanceof Error ? exception.message : String(exception), 'error');
     } finally {
       setIsInteractionProcessActive(false);
     }
@@ -272,11 +286,11 @@ export function FullScreenPlayer() {
               />
               <div className="flex justify-between items-center text-[11px] font-black font-mono tracking-[0.4em] uppercase px-1">
                 <span className="text-primary tabular-nums">
-                  {formatTime(currentPlaybackTimeSeconds)}
+                  <span ref={currentTimeDisplayElementReference}>{formatTime(currentPlaybackTimeSeconds)}</span>
                 </span>
                 <div className="h-[1px] flex-1 mx-10 bg-white/10" />
                 <span className="text-zinc-600 tabular-nums">
-                  {formatTime(currentPodcast?.duration_seconds || totalAudioDurationSeconds)}
+                  <span ref={totalDurationDisplayElementReference}>{formatTime(currentPodcast?.duration_seconds || totalAudioDurationSeconds)}</span>
                 </span>
               </div>
             </div>
