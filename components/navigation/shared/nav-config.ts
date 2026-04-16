@@ -1,60 +1,61 @@
-// components/navigation/shared/nav-config.ts
-// VERSIÓN: 4.0 (NicePod Navigation Master - Sovereign Expansion Edition)
-// Misión: Configuración determinista de las arterias de navegación de la plataforma.
-// [ESTABILIZACIÓN]: Inyección de la Malla Urbana (/map) como ciudadano de primera clase.
-// [ZAP]: Erradicación absoluta de abreviaturas para cumplimiento de la Zero Abbreviations Policy.
+/**
+ * ARCHIVE: components/navigation/shared/nav-config.ts
+ * VERSION: 5.0 (NicePod Navigation Master - Sovereign Expansion Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.9
+ * MISSION: Deterministic configuration of navigation arteries, ensuring nominal
+ * sovereignty and industrial-grade routing logic.
+ * INTEGRITY LEVEL: 100% (Sovereign / No abbreviations / Production-Ready)
+ */
 
 import {
   Globe,
   LayoutDashboard,
   LucideIcon,
-  Map as MapIcon, // Icono para la Malla Urbana
+  Map as MapIcon,
   Mic,
-  ShieldCheck // Icono para futuras herramientas de moderación
-  ,
+  ShieldCheck,
   Sparkles,
   Zap
 } from "lucide-react";
 
 /**
  * ---------------------------------------------------------------------------
- * I. CONTRATOS DE TIPADO (BUILD SHIELD)
+ * I. TYPE CONTRACTS (BUILD SHIELD)
  * ---------------------------------------------------------------------------
  */
 
 /**
- * INTERFAZ: NavigationItem
- * Define la estructura inmutable de un nodo de navegación en la UI.
+ * INTERFACE: NavigationItem
+ * Defines the immutable structure of a navigation node in the User Interface.
  */
 export interface NavigationItem {
   label: string;
   href: string;
   icon: LucideIcon;
   /**
-   * isPrimary: Si es true, el componente renderizado aplicará el estilo Aurora 
-   * destacado (ej. gradientes de fondo o animaciones de pulso).
+   * isPrimary: If true, the rendered component applies the highlighted
+   * Aurora style (e.g., background gradients or pulse animations).
    */
   isPrimary?: boolean;
   /**
-   * isSovereign: Si es true, este enlace debe ser renderizado con indicadores 
-   * visuales de "Zona Privilegiada" (ej. un candado o un color distintivo).
+   * isSovereign: If true, this link must be rendered with "Privileged Zone"
+   * visual indicators (e.g., a lock or a distinctive color).
    */
   isSovereign?: boolean;
 }
 
 /**
  * ---------------------------------------------------------------------------
- * II. TOPOLOGÍA DE ACCESO PÚBLICO (GUEST MODE)
+ * II. PUBLIC ACCESS TOPOLOGY (GUEST MODE)
  * ---------------------------------------------------------------------------
  */
 
 /**
- * GUEST_NAVIGATION_ITEMS: Rutas para usuarios sin sesión activa.
- * Objetivo: Demostrar el valor de la Workstation antes de la conversión (Sign Up).
+ * GUEST_NAVIGATION_ITEMS: Routes for users without an active session.
  */
 export const GUEST_NAVIGATION_ITEMS: NavigationItem[] = [
   {
-    label: "El Mapa", // La nueva ruta de inmersión V2.6
+    label: "El Mapa",
     href: "/map",
     icon: MapIcon
   },
@@ -72,33 +73,32 @@ export const GUEST_NAVIGATION_ITEMS: NavigationItem[] = [
 
 /**
  * ---------------------------------------------------------------------------
- * III. TOPOLOGÍA OPERATIVA (USER MODE)
+ * III. OPERATIONAL TOPOLOGY (USER MODE)
  * ---------------------------------------------------------------------------
  */
 
 /**
- * USER_NAVIGATION_ITEMS: Rutas para curadores autenticados (Usuarios Free & Pro).
- * Objetivo: Productividad, creación y consumo de Sabiduría Urbana.
+ * USER_NAVIGATION_ITEMS: Routes for authenticated curators.
  */
 export const USER_NAVIGATION_ITEMS: NavigationItem[] = [
   {
-    label: "Comando", // Centro de operaciones aspatial
+    label: "Comando",
     href: "/dashboard",
     icon: LayoutDashboard
   },
   {
-    label: "Radar", // [NUEVO NODO V2.6]: La Malla Urbana Soberana
+    label: "Radar",
     href: "/map",
     icon: MapIcon
   },
   {
-    label: "Crear", // Flujo de conocimiento aspatial (Borradores estándar)
+    label: "Crear",
     href: "/create",
     icon: Mic,
-    isPrimary: true // Tratamiento visual destacado en Desktop/Mobile
+    isPrimary: true
   },
   {
-    label: "Sabiduría", // El feed global de podcasts
+    label: "Sabiduría",
     href: "/podcasts",
     icon: Sparkles
   }
@@ -106,14 +106,12 @@ export const USER_NAVIGATION_ITEMS: NavigationItem[] = [
 
 /**
  * ---------------------------------------------------------------------------
- * IV. TOPOLOGÍA SOBERANA (ADMIN MODE - PREPARACIÓN V2.7)
+ * IV. SOVEREIGN TOPOLOGY (ADMIN MODE)
  * ---------------------------------------------------------------------------
  */
 
 /**
- * ADMIN_NAVIGATION_ITEMS: Herramientas exclusivas para el control de la Malla.
- * [ARQUITECTURA]: Este array se usará en el futuro si decidimos crear un Panel de Control 
- * dedicado para revisar los POIs sugeridos por usuarios Pro.
+ * ADMIN_NAVIGATION_ITEMS: Exclusive tools for Urban Mesh control.
  */
 export const ADMIN_NAVIGATION_ITEMS: NavigationItem[] = [
   {
@@ -126,33 +124,25 @@ export const ADMIN_NAVIGATION_ITEMS: NavigationItem[] = [
 
 /**
  * ---------------------------------------------------------------------------
- * V. LÓGICA SENSORIAL (ACTIVE STATE EVALUATION)
+ * V. SENSORY LOGIC (ACTIVE STATE EVALUATION)
  * ---------------------------------------------------------------------------
  */
 
 /**
  * isRouteActive:
- * Algoritmo determinista para iluminar el menú de navegación (Feedback de experiencia de usuario).
- * Evalúa si la URL del navegador coincide con el href del NavigationItem.
+ * Deterministic algorithm to illuminate the navigation menu.
+ * Evaluates if the browser URL matches the NavigationItem href.
  */
-export function isRouteActive(href: string, pathname: string): boolean {
-  // Manejo del 'Home' genérico vs el 'Home' del usuario
-  if (href === '/dashboard' && pathname === '/') return true;
-  if (href === '/' && pathname !== '/') return false;
+export function isRouteActive(href: string, currentPathname: string): boolean {
+  if (href === '/dashboard' && currentPathname === '/') return true;
+  if (href === '/' && currentPathname !== '/') return false;
 
-  // Condición de anidamiento (ej. '/map' activa '/map/poi/123')
-  return pathname === href || pathname?.startsWith(`${href}/`);
+  return currentPathname === href || currentPathname?.startsWith(`${href}/`);
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V4.0):
- * 1. Simetría de Dominio: Al introducir '/map' junto a '/create' y '/podcasts', 
- *    la interfaz ahora refleja fielmente el 'Cerebro Dual' del backend. El usuario 
- *    sabe que puede crear conocimiento aislado (Crear) o explorar el conocimiento 
- *    físico (Radar).
- * 2. Atributos de Extensibilidad: Se añadió 'isSovereign' al contrato 'NavigationItem'.
- *    En el futuro, el componente 'mobile-nav.tsx' podrá leer este flag para teñir 
- *    el botón de color rojo/ámbar si es una ruta administrativa crítica.
- * 3. Zero Abbreviations Policy (ZAP): Refactorización nominal absoluta (NavigationItem,
- *    GUEST_NAVIGATION_ITEMS, USER_NAVIGATION_ITEMS, ADMIN_NAVIGATION_ITEMS).
+ * TECHNICAL NOTE FROM ARCHITECT (V5.0):
+ * 1. Nominal Sovereignty: Implementation of the Zero Abbreviations Policy (ZAP).
+ * 2. Build Shield: Strict typing for all navigation constants and logic.
+ * 3. Header Integrity: Standard NicePod technical header added.
  */

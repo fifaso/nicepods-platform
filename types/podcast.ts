@@ -1,14 +1,14 @@
 /**
- * ARCHIVO: types/podcast.ts
- * VERSIÓN: 13.0 (NicePod Intelligence Station - Nominal Sovereignty Edition)
+ * ARCHIVE: types/podcast.ts
+ * VERSION: 13.1 (NicePod Intelligence Station - Nominal Sovereignty Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
- * Misión: Centralizar la tipificación de activos, estados y fuentes de investigación 
+ * MISSION: Centralizar la tipificación de activos, estados y fuentes de investigación
  * bajo el Dogma Técnico Inmutable. Garantiza que el compilador sea la ley.
  * [REFORMA V13.0]: Nominal alignment of ResearchSource properties (snippetContentText,
  * summaryContentText) under ZAP. Optionality for authority metadata to ensure
  * validation schema compatibility.
- * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * INTEGRITY LEVEL: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 import { Database } from './database.types';
@@ -37,7 +37,7 @@ export interface GeoLocation {
 
 /**
  * PointOfInterestRow
- * Misión: Asegurar compatibilidad estricta con la bóveda de capital intelectual.
+ * MISSION: Asegurar compatibilidad estricta con la bóveda de capital intelectual.
  */
 export type PointOfInterestRow = "points_of_interest" extends keyof Database['public']['Tables']
   ? Tables<"points_of_interest">
@@ -158,7 +158,16 @@ export interface CreationMetadataPayload {
  * TIPO MAESTRO: PodcastWithProfile
  * Objeto de datos unificado para toda la Workstation NicePod.
  */
-export type PodcastWithProfile = Omit<PodcastRow, 'creation_data' | 'sources' | 'script_text' | 'ai_tags' | 'user_tags' | 'geo_location'> & {
+export type PodcastWithProfile = Omit<PodcastRow, 'id' | 'user_id' | 'parent_id' | 'creation_data' | 'sources' | 'script_text' | 'ai_tags' | 'user_tags' | 'geo_location'> & {
+  /** identification: Identificador unívoco del podcast (ZAP). */
+  identification: number;
+  /** id: Fallback de compatibilidad axial para utilidades de legado. */
+  id: number;
+  /** authorUserIdentification: Referencia al Voyager creador (ZAP). */
+  authorUserIdentification: string;
+  /** parentPodcastIdentification: Referencia al hito progenitor en hilos (ZAP). */
+  parentPodcastIdentification: number | null;
+
   // Estado de Integridad Multimedia y Acústica
   isAudioReady: boolean;
   isImageReady: boolean;

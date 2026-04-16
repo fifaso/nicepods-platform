@@ -24,7 +24,7 @@ import { useEffect, useRef, useState, useMemo } from "react";
  * Misión: Tipar la estructura de sabiduría agrupada por hilos de respuesta.
  */
 interface PodcastThread extends PodcastWithProfile {
-  replies: PodcastWithProfile[];
+  repliesCollection: PodcastWithProfile[];
 }
 
 /**
@@ -136,13 +136,13 @@ export function PodcastShelf({
       >
         {groupedPodcastThreads.map((podcastThread) => (
           <div 
-            key={podcastThread.id} 
+            key={podcastThread.identification}
             className="min-w-[290px] md:min-w-[360px] snap-start"
           >
             {/* [FIX V3.0]: Sincronía nominal estricta con StackedPodcastCard V6.0 */}
             <StackedPodcastCard
               initialPodcastData={podcastThread}
-              narrativeReplyCollection={podcastThread.replies}
+              narrativeReplyCollection={podcastThread.repliesCollection}
             />
           </div>
         ))}

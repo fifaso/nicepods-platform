@@ -1,14 +1,14 @@
 /**
- * ARCHIVO: components/geo/steps/step-1-anchoring.tsx
- * VERSIÓN: 13.0 (NicePod Forge Step 1 - Contract Synchronization Edition)
+ * ARCHIVE: components/geo/steps/step-1-anchoring.tsx
+ * VERSION: 13.0 (NicePod Forge Step 1 - Contract Synchronization Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
- * Misión: Gestionar el anclaje pericial milimétrico del hito urbano y obligar a la 
+ * MISSION: Gestionar el anclaje pericial milimétrico del hito urbano y obligar a la
  * clasificación taxonómica bidimensional del capital intelectual.
  * [REFORMA V13.0]: Resolución definitiva de errores TS2339 mediante la alineación 
  * nominal absoluta con la Fachada V55.0. Transmutación de 'isManualMode' a 
  * 'isManualModeActive'. Consolidación total de la Zero Abbreviations Policy (ZAP).
- * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * INTEGRITY LEVEL: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
@@ -20,7 +20,7 @@ import { useCallback, useEffect, useState, useMemo } from "react";
 // --- INFRAESTRUCTURA DE COMPONENTES UI ---
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { cn, nicepodLog } from "@/lib/utils";
+import { classNamesUtility, nicepodLog } from "@/lib/utils";
 
 // --- MOTORES CORE Y CONTEXTO SOBERANO V4.9 ---
 import { useGeoEngine } from "@/hooks/use-geo-engine";
@@ -102,7 +102,7 @@ export default function Step1Anchoring() {
 
   /**
    * executeManualGeographicAnchorSelectionWorkflow:
-   * Misión: Capturar el anclaje manual con precisión industrial.
+   * MISSION: Capturar el anclaje manual con precisión industrial.
    */
   const executeManualGeographicAnchorSelectionWorkflow = useCallback((
     longitudeCoordinate: number, 
@@ -193,7 +193,7 @@ export default function Step1Anchoring() {
             className="rounded-2xl shadow-2xl h-12 w-12 border-white/10 transition-all active:scale-90"
             onClick={recenterVisualCameraAction}
           >
-            <Target size={20} className={cn(isManualModeActive && "animate-pulse text-primary")} />
+            <Target size={20} className={classNamesUtility(isManualModeActive && "animate-pulse text-primary")} />
           </Button>
         </div>
 
@@ -231,7 +231,7 @@ export default function Step1Anchoring() {
                   stateDispatcher({ type: 'SET_MISSION', payload: categoryMissionKey });
                   stateDispatcher({ type: 'SET_ENTITY', payload: undefined as unknown as CategoryEntity }); 
                 }}
-                className={cn(
+                className={classNamesUtility(
                   "px-5 py-4 rounded-xl border transition-all duration-500 text-left flex justify-between items-center group",
                   forgeState.categoryMission === categoryMissionKey
                     ? "bg-white text-black border-white shadow-2xl scale-[1.03] z-10"
@@ -266,7 +266,7 @@ export default function Step1Anchoring() {
                   <button
                     key={categoryEntityObject.entityIdentification}
                     onClick={() => stateDispatcher({ type: 'SET_ENTITY', payload: categoryEntityObject.entityIdentification })}
-                    className={cn(
+                    className={classNamesUtility(
                       "px-5 py-2.5 rounded-full border transition-all duration-500",
                       forgeState.categoryEntity === categoryEntityObject.entityIdentification
                         ? "bg-primary/20 border-primary text-primary shadow-lg scale-110"

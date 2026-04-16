@@ -1,7 +1,8 @@
+/** ARCHIVE: components/ui/alert.tsx VERSION: 1.0 PROTOCOLO: MADRID RESONANCE V4.9 MISSION: UI Component INTEGRITY LEVEL: 100% */
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 
-import { cn } from "@/lib/utils"
+import { classNamesUtility } from "@/lib/utils"
 
 const alertVariants = cva(
   "relative w-full rounded-lg border p-4 [&>svg~*]:pl-7 [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-foreground",
@@ -22,12 +23,12 @@ const alertVariants = cva(
 const Alert = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & VariantProps<typeof alertVariants>
->(({ className, variant, ...props }, ref) => (
+>(({ className, variant, ...componentProperties }, elementReference) => (
   <div
-    ref={ref}
+    ref={elementReference}
     role="alert"
-    className={cn(alertVariants({ variant }), className)}
-    {...props}
+    className={classNamesUtility(alertVariants({ variant }), className)}
+    {...componentProperties}
   />
 ))
 Alert.displayName = "Alert"
@@ -35,11 +36,11 @@ Alert.displayName = "Alert"
 const AlertTitle = React.forwardRef<
   HTMLParagraphElement,
   React.HTMLAttributes<HTMLHeadingElement>
->(({ className, ...props }, ref) => (
+>(({ className, ...componentProperties }, elementReference) => (
   <h5
-    ref={ref}
-    className={cn("mb-1 font-medium leading-none tracking-tight", className)}
-    {...props}
+    ref={elementReference}
+    className={classNamesUtility("mb-1 font-medium leading-none tracking-tight", className)}
+    {...componentProperties}
   />
 ))
 AlertTitle.displayName = "AlertTitle"
@@ -47,11 +48,11 @@ AlertTitle.displayName = "AlertTitle"
 const AlertDescription = React.forwardRef<
   HTMLParagraphElement,
   React.HTMLAttributes<HTMLParagraphElement>
->(({ className, ...props }, ref) => (
+>(({ className, ...componentProperties }, elementReference) => (
   <div
-    ref={ref}
-    className={cn("text-sm [&_p]:leading-relaxed", className)}
-    {...props}
+    ref={elementReference}
+    className={classNamesUtility("text-sm [&_p]:leading-relaxed", className)}
+    {...componentProperties}
   />
 ))
 AlertDescription.displayName = "AlertDescription"

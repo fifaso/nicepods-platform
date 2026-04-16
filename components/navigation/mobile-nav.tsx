@@ -1,15 +1,15 @@
 /**
- * ARCHIVO: components/navigation/mobile-nav.tsx
- * VERSIÓN: 5.0 (NicePod Mobile Command - Axial Path Sanitization Edition)
+ * ARCHIVE: components/navigation/mobile-nav.tsx
+ * VERSION: 5.0 (NicePod Mobile Command - Axial Path Sanitization Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
- * Misión: Especialista en interacción táctil y renderizado de alta densidad para 
+ * MISSION: Especialista en interacción táctil y renderizado de alta densidad para
  * dispositivos móviles, gestionando el acceso a la Bóveda y la autoridad del usuario.
  * [REFORMA V5.0]: Implementación de 'Axial Path Sanitization'. Resolución del 
  * error TS2345 mediante la garantía de hilos de texto definidos en la comparación 
  * de rutas. Purificación total de la Zero Abbreviations Policy (ZAP) y blindaje 
  * del Build Shield Sovereignty (BSS).
- * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * INTEGRITY LEVEL: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
@@ -53,7 +53,7 @@ import { ProfileData } from "@/types/profile";
 
 /**
  * INTERFAZ: MobileNavigationProperties
- * Misión: Definir los activos necesarios para la orquestación móvil inyectados por el Master Navigator.
+ * MISSION: Definir los activos necesarios para la orquestación móvil inyectados por el Master Navigator.
  */
 interface MobileNavigationProperties {
   isUserAuthenticatedStatus: boolean;
@@ -85,7 +85,7 @@ export function MobileNav({
 
   /**
    * navigationItemsCollection: 
-   * Misión: Seleccionar la estrategia de navegación basada en la autoridad de la sesión.
+   * MISSION: Seleccionar la estrategia de navegación basada en la autoridad de la sesión.
    */
   const navigationItemsCollection = isUserAuthenticatedStatus ? USER_NAVIGATION_ITEMS : GUEST_NAVIGATION_ITEMS;
 
@@ -93,7 +93,7 @@ export function MobileNav({
     <div className={cn(glassPanelClass, "flex md:hidden isolate")}>
 
       {/* I. NÚCLEO DE MARCA (IZQUIERDA) */}
-      <NavBrand isUserAuthenticated={isUserAuthenticatedStatus} />
+      <NavBrand isUserAuthenticatedStatus={isUserAuthenticatedStatus} />
 
       {/* II. CENTRO DE CONTROL TÁCTICO (DERECHA) */}
       <div className="flex items-center gap-2.5 sm:gap-4">
@@ -101,8 +101,8 @@ export function MobileNav({
         {/* 1. ACCIÓN PRIMARIA: CREACIÓN DE CAPITAL INTELECTUAL */}
         {isUserAuthenticatedStatus && !isInitialLoadingProcessActive && (
           <CreateButton
-            variant="full"
-            className="h-10 px-4 scale-95 origin-right shadow-lg shadow-primary/10"
+            variantType="full"
+            additionalTailwindClassName="h-10 px-4 scale-95 origin-right shadow-lg shadow-primary/10"
           />
         )}
 

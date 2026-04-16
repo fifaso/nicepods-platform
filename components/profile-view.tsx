@@ -90,8 +90,8 @@ export function PodcastView({
 
   // --- DERIVACIONES TÁCTICAS SOBERANAS ---
   const isAdministratorOwner = useMemo(() => 
-    authenticatedUser?.id === livePodcastData.user_id, 
-    [authenticatedUser?.id, livePodcastData.user_id]
+    authenticatedUser?.id === livePodcastData.authorUserIdentification,
+    [authenticatedUser?.id, livePodcastData.authorUserIdentification]
   );
   
   const isCurrentPillActive = useMemo(() => 

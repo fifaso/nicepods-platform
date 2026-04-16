@@ -28,8 +28,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useState, useCallback } from "react";
 
 // --- INFRAESTRUCTURA DE DATOS Y CONTRATOS SOBERANOS ---
-import { SearchResult } from "@/hooks/use-search-radar";
-import { cn } from "@/lib/utils";
+import { SearchRadarResult } from "@/hooks/use-search-radar";
+import { classNamesUtility } from "@/lib/utils";
 import { PodcastWithProfile } from "@/types/podcast";
 
 // --- COMPONENTES UI ---
@@ -61,7 +61,7 @@ const PodcastShelf = dynamic(
 interface IntelligenceFeedProperties {
     userDisplayName: string;
     isSearchingProcessActive: boolean;
-    searchMatchResults: SearchResult[] | null;
+    searchMatchResults: SearchRadarResult[] | null;
     lastSearchQuery: string;
     initialEpicenterCollection: PodcastWithProfile[];
     initialConnectionsCollection: PodcastWithProfile[];
@@ -90,11 +90,11 @@ export function IntelligenceFeed({
 
   // --- 1. SANEAMIENTO DE DATOS (DATA HYGIENE) ---
   const safeEpicenterCollection = useMemo(() => {
-    return initialEpicenterCollection.filter((podcastItem) => podcastItem.id);
+    return initialEpicenterCollection.filter((podcastItem) => podcastItem.identification);
   }, [initialEpicenterCollection]);
 
   const safeConnectionsCollection = useMemo(() => {
-    return initialConnectionsCollection.filter((podcastItem) => podcastItem.id);
+    return initialConnectionsCollection.filter((podcastItem) => podcastItem.identification);
   }, [initialConnectionsCollection]);
 
   // --- 2. GESTIÓN DE ESTADOS DE HIDRATACIÓN ---
@@ -206,8 +206,8 @@ export function IntelligenceFeed({
           <div className="flex items-center justify-between border-b border-white/5 pb-8 px-2">
             <div className="flex items-center gap-5">
               <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 relative shadow-2xl">
-                <Loader2 className={cn("h-6 w-6 text-primary absolute", isSearchingProcessActive ? "animate-spin opacity-100" : "opacity-0")} />
-                <Search className={cn("h-6 w-6 text-primary transition-opacity duration-300", isSearchingProcessActive ? "opacity-0" : "opacity-100")} />
+                <Loader2 className={classNamesUtility("h-6 w-6 text-primary absolute", isSearchingProcessActive ? "animate-spin opacity-100" : "opacity-0")} />
+                <Search className={classNamesUtility("h-6 w-6 text-primary transition-opacity duration-300", isSearchingProcessActive ? "opacity-0" : "opacity-100")} />
               </div>
               <div className="space-y-1">
                 <h2 className="text-2xl font-black uppercase tracking-tighter text-white leading-none">
@@ -236,22 +236,22 @@ export function IntelligenceFeed({
             <div className="grid grid-cols-1 gap-4">
               {searchMatchResults && searchMatchResults.map((searchResultItem) => (
                 <Link
-                  key={searchResultItem.id}
-                  href={searchResultItem.result_type === 'podcast' ? `/podcast/${searchResultItem.id}` :
-                    searchResultItem.result_type === 'place' ? `/map?latitude=${searchResultItem.metadata?.lat}&longitude=${searchResultItem.metadata?.lng}` : '#'}
+                  key={searchResultItem.identification}
+                  href={searchResultItem.resultCategoryType === 'podcast' ? `/podcast/${searchResultItem.identification}` :
+                    searchResultItem.resultCategoryType === 'place' ? `/map?latitude=${searchResultItem.intellectualMetadata?.latitudeCoordinate}&longitude=${searchResultItem.intellectualMetadata?.longitudeCoordinate}` : '#'}
                   className="block group transition-all active:scale-[0.99] outline-none"
                 >
                   <div className="p-5 rounded-[2.5rem] border transition-all flex items-center gap-6 bg-white/[0.02] border-white/5 hover:border-primary/40 hover:bg-white/[0.04]">
                     <div className="h-16 w-16 rounded-2xl bg-zinc-900 flex-shrink-0 relative overflow-hidden border border-white/10 shadow-inner">
-                      {searchResultItem.image_url ? (
-                        <Image src={searchResultItem.image_url} alt={searchResultItem.title} fill className="object-cover" unoptimized />
+                      {searchResultItem.imageUniformResourceLocator ? (
+                        <Image src={searchResultItem.imageUniformResourceLocator} alt={searchResultItem.titleTextContent} fill className="object-cover" unoptimized />
                       ) : (
                         <BookOpen className="text-primary/40 h-7 w-7 m-auto" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-black text-sm text-white truncate uppercase tracking-tight font-serif italic">{searchResultItem.title}</p>
-                      <p className="text-[10px] font-bold text-zinc-600 truncate uppercase tracking-widest mt-1">{searchResultItem.subtitle}</p>
+                      <p className="font-black text-sm text-white truncate uppercase tracking-tight font-serif italic">{searchResultItem.titleTextContent}</p>
+                      <p className="text-[10px] font-bold text-zinc-600 truncate uppercase tracking-widest mt-1">{searchResultItem.subtitleContentText}</p>
                     </div>
                   </div>
                 </Link>

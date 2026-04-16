@@ -1,3 +1,4 @@
+/** ARCHIVE: components/ui/sheet.tsx VERSION: 1.0 PROTOCOLO: MADRID RESONANCE V4.9 MISSION: UI Component INTEGRITY LEVEL: 100% */
 "use client"
 
 import * as React from "react"
@@ -5,7 +6,7 @@ import * as SheetPrimitive from "@radix-ui/react-dialog"
 import { cva, type VariantProps } from "class-variance-authority"
 import { X } from "lucide-react"
 
-import { cn } from "@/lib/utils"
+import { classNamesUtility } from "@/lib/utils"
 
 const Sheet = SheetPrimitive.Root
 
@@ -18,14 +19,14 @@ const SheetPortal = SheetPrimitive.Portal
 const SheetOverlay = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Overlay>,
   React.ComponentPropsWithoutRef<typeof SheetPrimitive.Overlay>
->(({ className, ...props }, ref) => (
+>(({ className, ...componentProperties }, elementReference) => (
   <SheetPrimitive.Overlay
-    className={cn(
+    className={classNamesUtility(
       "fixed inset-0 z-50 bg-black/80  data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className
     )}
-    {...props}
-    ref={ref}
+    {...componentProperties}
+    ref={elementReference}
   />
 ))
 SheetOverlay.displayName = SheetPrimitive.Overlay.displayName
@@ -56,13 +57,13 @@ interface SheetContentProps
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   SheetContentProps
->(({ side = "right", className, children, ...props }, ref) => (
+>(({ side = "right", className, children, ...componentProperties }, elementReference) => (
   <SheetPortal>
     <SheetOverlay />
     <SheetPrimitive.Content
-      ref={ref}
-      className={cn(sheetVariants({ side }), className)}
-      {...props}
+      ref={elementReference}
+      className={classNamesUtility(sheetVariants({ side }), className)}
+      {...componentProperties}
     >
       {children}
       <SheetPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary">
@@ -76,28 +77,28 @@ SheetContent.displayName = SheetPrimitive.Content.displayName
 
 const SheetHeader = ({
   className,
-  ...props
+  ...componentProperties
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
-    className={cn(
+    className={classNamesUtility(
       "flex flex-col space-y-2 text-center sm:text-left",
       className
     )}
-    {...props}
+    {...componentProperties}
   />
 )
 SheetHeader.displayName = "SheetHeader"
 
 const SheetFooter = ({
   className,
-  ...props
+  ...componentProperties
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
-    className={cn(
+    className={classNamesUtility(
       "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
       className
     )}
-    {...props}
+    {...componentProperties}
   />
 )
 SheetFooter.displayName = "SheetFooter"
@@ -105,11 +106,11 @@ SheetFooter.displayName = "SheetFooter"
 const SheetTitle = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Title>,
   React.ComponentPropsWithoutRef<typeof SheetPrimitive.Title>
->(({ className, ...props }, ref) => (
+>(({ className, ...componentProperties }, elementReference) => (
   <SheetPrimitive.Title
-    ref={ref}
-    className={cn("text-lg font-semibold text-foreground", className)}
-    {...props}
+    ref={elementReference}
+    className={classNamesUtility("text-lg font-semibold text-foreground", className)}
+    {...componentProperties}
   />
 ))
 SheetTitle.displayName = SheetPrimitive.Title.displayName
@@ -117,11 +118,11 @@ SheetTitle.displayName = SheetPrimitive.Title.displayName
 const SheetDescription = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Description>,
   React.ComponentPropsWithoutRef<typeof SheetPrimitive.Description>
->(({ className, ...props }, ref) => (
+>(({ className, ...componentProperties }, elementReference) => (
   <SheetPrimitive.Description
-    ref={ref}
-    className={cn("text-sm text-muted-foreground", className)}
-    {...props}
+    ref={elementReference}
+    className={classNamesUtility("text-sm text-muted-foreground", className)}
+    {...componentProperties}
   />
 ))
 SheetDescription.displayName = SheetPrimitive.Description.displayName

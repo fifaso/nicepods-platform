@@ -1,15 +1,15 @@
 /**
- * ARCHIVO: components/geo/steps/step-4-narrative-forge.tsx
- * VERSIÓN: 9.0 (NicePod Forge Step 4 - RAM Flush & Nominal Integrity Edition)
+ * ARCHIVE: components/geo/steps/step-4-narrative-forge.tsx
+ * VERSION: 9.0 (NicePod Forge Step 4 - RAM Flush & Nominal Integrity Edition)
  * PROTOCOLO: MADRID RESONANCE V4.2
  * 
- * Misión: Configurar el ADN editorial, sintetizar la crónica mediante el Oráculo 
+ * MISSION: Configurar el ADN editorial, sintetizar la crónica mediante el Oráculo
  * de Inteligencia y sellar el nodo en la Malla de Madrid mediante el protocolo 
  * de publicación soberana y transmisión directa de binarios (Lightning Protocol).
  * [REFORMA V9.0]: Sincronización nominal total con la Constitución V8.6 y el 
  * ForgeContext V6.0. Implementación de la política de limpieza de buffers 
  * (memoria de acceso aleatorio) tras el éxito de la transacción. Cumplimiento absoluto de la política de cero abreviaciones.
- * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * INTEGRITY LEVEL: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
 "use client";
@@ -42,7 +42,7 @@ import {
   NarrativeDepth, 
   NarrativeTone 
 } from "@/types/geo-sovereignty";
-import { cn, nicepodLog } from "@/lib/utils";
+import { classNamesUtility, nicepodLog } from "@/lib/utils";
 
 /**
  * Step4NarrativeForge: La fase final de transmutación intelectual y publicación pericial.
@@ -68,7 +68,7 @@ export default function Step4NarrativeForge() {
 
   /**
    * handleInitiateNarrativeSynthesisWorkflow:
-   * Misión: Despachar la orden de forja narrativa al Oráculo de Inteligencia.
+   * MISSION: Despachar la orden de forja narrativa al Oráculo de Inteligencia.
    * [SINCRO V9.0]: Adaptado a las propiedades nominales del ForgeState V6.0.
    */
   const handleInitiateNarrativeSynthesisWorkflow = async () => {
@@ -95,7 +95,7 @@ export default function Step4NarrativeForge() {
 
   /**
    * handleFinalChroniclePublicationWorkflow:
-   * Misión: Recibir el binario acústico, transmitirlo a la Bóveda y sellar el nodo.
+   * MISSION: Recibir el binario acústico, transmitirlo a la Bóveda y sellar el nodo.
    * [INTERVENCIÓN V9.0]: Protocolo de Purga de Memoria de Acceso Aleatorio. Al finalizar, purgamos el estado para
    * forzar la limpieza de buffers y revocar localizadores uniformes de recursos de objetos en el GeoRecorder.
    */
@@ -200,7 +200,7 @@ export default function Step4NarrativeForge() {
         {engineOperationalStatus === 'NARRATIVE_READY' && engineOperationalData?.narrative ? (
           /**
            * ESTADO: NARRATIVA SINTETIZADA
-           * Misión: Proyectar la Grabadora Universal para el sellado acústico soberano.
+           * MISSION: Proyectar la Grabadora Universal para el sellado acústico soberano.
            */
           <motion.div 
             key="recording_session_interface"
@@ -248,14 +248,14 @@ export default function Step4NarrativeForge() {
                   <button
                     key={depthOption.value}
                     onClick={() => stateDispatcher({ type: 'SET_DEPTH', payload: depthOption.value })}
-                    className={cn(
+                    className={classNamesUtility(
                       "flex flex-col items-center gap-2 p-5 rounded-2xl border transition-all duration-700 shadow-2xl",
                       forgeState.narrativeDepth === depthOption.value
                         ? "bg-primary/10 border-primary/40 shadow-[0_0_30px_rgba(var(--primary-rgb),0.15)] scale-105"
                         : "bg-white/[0.02] border-white/5 text-zinc-600 hover:border-white/20"
                     )}
                   >
-                    <span className={cn("text-[11px] font-black uppercase tracking-tighter", forgeState.narrativeDepth === depthOption.value ? "text-primary" : "text-zinc-500")}>
+                    <span className={classNamesUtility("text-[11px] font-black uppercase tracking-tighter", forgeState.narrativeDepth === depthOption.value ? "text-primary" : "text-zinc-500")}>
                       {depthOption.label}
                     </span>
                     <span className="text-[7px] font-bold text-zinc-700 uppercase tracking-widest text-center leading-tight">
@@ -276,14 +276,14 @@ export default function Step4NarrativeForge() {
                   <button
                     key={toneOption.value}
                     onClick={() => stateDispatcher({ type: 'SET_TONE', payload: toneOption.value })}
-                    className={cn(
+                    className={classNamesUtility(
                       "flex items-center gap-4 px-6 py-3.5 rounded-full border transition-all duration-500",
                       forgeState.narrativeTone === toneOption.value
                         ? "bg-white text-black border-white shadow-2xl scale-110"
                         : "bg-white/[0.02] border-white/5 text-zinc-600 hover:text-zinc-300"
                     )}
                   >
-                    <span className={cn(forgeState.narrativeTone === toneOption.value ? "text-black" : "text-primary")}>
+                    <span className={classNamesUtility(forgeState.narrativeTone === toneOption.value ? "text-black" : "text-primary")}>
                         {toneOption.iconComponent}
                     </span>
                     <span className="text-[10px] font-black uppercase tracking-widest">{toneOption.label}</span>

@@ -1,7 +1,7 @@
 /**
- * ARCHIVO: components/navigation/shared/nav-brand.tsx
- * VERSIÓN: 4.0 (NicePod Static Asset Shield - Sovereign Branding Edition)
- * PROTOCOLO: MADRID RESONANCE V4.0
+ * ARCHIVE: components/navigation/shared/nav-brand.tsx
+ * VERSION: 4.1 (NicePod Static Asset Shield - Sovereign Branding Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * Misión: Proveer el ancla de identidad visual con eficiencia de red absoluta, 
  * garantizando la carga instantánea del isotipo y la navegación soberana.
@@ -15,24 +15,23 @@ import Image from "next/image";
 import Link from "next/link";
 
 /**
- * INTERFAZ: NavBrandProperties
- * Misión: Definir la configuración técnica del átomo de marca.
+ * INTERFACE: NavBrandComponentProperties
  */
-interface NavBrandProperties {
-  /** isUserAuthenticated: Determina si el destino es el Dashboard o el Punto de Entrada Global. */
-  isUserAuthenticated: boolean;
+interface NavBrandComponentProperties {
+  /** isUserAuthenticatedStatus: Determines if the destination is the Dashboard or the Global Entry Point. */
+  isUserAuthenticatedStatus: boolean;
 }
 
 /**
- * NavBrand: El componente de identidad y acceso soberano de NicePod.
+ * NavBrand: The identity and sovereign access component of NicePod.
  */
-export function NavBrand({ isUserAuthenticated }: NavBrandProperties) {
+export function NavBrand({ isUserAuthenticatedStatus }: NavBrandComponentProperties) {
   
   /**
    * navigationTargetUniformResourceLocator:
-   * Misión: Definir el destino táctico de navegación basándose en el estado de autoridad.
+   * Mission: Define the tactical navigation destination based on authority status.
    */
-  const navigationTargetUniformResourceLocator = isUserAuthenticated ? "/dashboard" : "/";
+  const navigationTargetUniformResourceLocator = isUserAuthenticatedStatus ? "/dashboard" : "/";
 
   return (
     <div className="flex items-center justify-start isolate">

@@ -1,30 +1,26 @@
-// components/navigation/shared/nav-styles.ts
-// VERSIÓN: 2.1
+/**
+ * ARCHIVE: components/navigation/shared/nav-styles.ts
+ * VERSION: 3.0 (NicePod Navigation Styles - Tactical & Industrial Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.9
+ * MISSION: Centralize User Interface style definitions for navigation components,
+ * ensuring visual ADN consistency and hardware-accelerated performance.
+ * INTEGRITY LEVEL: 100% (Sovereign / No abbreviations / Production-Ready)
+ */
 
-import { cn } from "@/lib/utils";
+import { classNamesUtility } from "@/lib/utils";
 
 /**
- * ESTILO: HEADER MAESTRO (Contenedor Externo)
- * 
- * [ARQUITECTURA]:
- * - fixed top-0: Posicionamiento absoluto para visibilidad persistente.
- * - z-[100]: Prioridad máxima sobre capas geoespaciales y modales.
- * - animate-in: Entrada cinemática suavizada.
+ * STYLE: MASTER HEADER CONTAINER
  */
-export const headerContainerClass = cn(
+export const headerContainerClass = classNamesUtility(
   "fixed top-0 left-0 right-0 z-[100] w-full p-3 md:p-5",
   "animate-in fade-in slide-in-from-top-2 duration-1000 ease-[0.16, 1, 0.3, 1]"
 );
 
 /**
- * ESTILO: PANEL DE VIDRIO (El Bastidor de Navegación)
- * 
- * [RE-CALIBRACIÓN DE LUJO]:
- * - bg-black/60: Translucidez equilibrada para permitir el sangrado del fondo Aurora.
- * - backdrop-blur-2xl: El estándar de NicePod para profundidad esmerilada.
- * - rounded-[2rem]: Radio de curvatura industrial consistente.
+ * STYLE: GLASS PANEL (The Navigation Frame)
  */
-export const glassPanelClass = cn(
+export const glassPanelClass = classNamesUtility(
   "relative max-w-screen-xl mx-auto flex items-center justify-between",
   "rounded-[2.5rem] border border-white/10 bg-black/60 shadow-2xl",
   "backdrop-blur-2xl supports-[backdrop-filter]:bg-black/40",
@@ -33,13 +29,9 @@ export const glassPanelClass = cn(
 );
 
 /**
- * ESTILO: BOTÓN AURORA (Acción de Forja)
- * 
- * [REFINAMIENTO]:
- * - h-10 md:h-12: Altura calibrada para alineación perfecta con botones de texto.
- * - hover:shadow: Aumento de la dispersión de luz en hover para efecto de 'activación'.
+ * STYLE: AURORA BUTTON (Forge Action)
  */
-export const auroraButtonClass = cn(
+export const auroraButtonClass = classNamesUtility(
   "bg-gradient-to-r from-indigo-600 via-primary to-fuchsia-600",
   "text-white border border-white/20 shadow-lg shadow-primary/20",
   "transition-all duration-500 ease-[0.16, 1, 0.3, 1] active:scale-95",
@@ -48,50 +40,38 @@ export const auroraButtonClass = cn(
 );
 
 /**
- * ESTILO: ENLACES DE NAVEGACIÓN (Micro-Tipografía)
- * 
- * [ESTÁNDAR DE LUJO]:
- * - text-[10px]: Reducción de tamaño para aumentar la elegancia y el aire visual.
- * - tracking-[0.3em]: Espaciado entre letras expansivo, típico de interfaces profesionales.
- * - transition-all duration-300: Curva de respuesta suave al tacto.
+ * STYLE: NAVIGATION LINKS (Micro-Typography)
  */
-export const navLinkBaseClass = cn(
+export const navLinkBaseClass = classNamesUtility(
   "rounded-full px-7 py-2.5 text-[10px] font-black uppercase tracking-[0.3em] transition-all duration-300 block outline-none"
 );
 
 /**
- * ESTADO ACTIVO: La Pieza Resonante.
- * - bg-white/90: Blanco con ligera transparencia para evitar el aspecto de 'plástico sólido'.
- * - shadow-white/10: Brillo periférico sutil.
+ * ACTIVE STATE STYLE
  */
-export const navLinkActiveClass = cn(
+export const navLinkActiveClass = classNamesUtility(
   "bg-white/95 text-black shadow-lg shadow-white/5"
 );
 
 /**
- * ESTADO INACTIVO: La Sutileza del Fondo.
- * - text-zinc-500: Color base neutro para no competir con la marca o el botón activo.
- * - hover:text-white: Revelación progresiva al interactuar.
+ * INACTIVE STATE STYLE
  */
-export const navLinkInactiveClass = cn(
+export const navLinkInactiveClass = classNamesUtility(
   "text-zinc-500 hover:text-white hover:bg-white/5"
 );
 
 /**
- * ESTILO: CÁPSULA DE ACCIÓN MÓVIL
- * Sincronización perfecta con el diseño de mano.
+ * STYLE: MOBILE ACTION CAPSULE
  */
-export const mobileCreateButtonClass = cn(
+export const mobileCreateButtonClass = classNamesUtility(
   auroraButtonClass,
   "h-10 px-5 rounded-2xl flex items-center justify-center gap-2",
   "font-black text-[9px] uppercase tracking-[0.25em]"
 );
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT:
- * El cambio más significativo es el aumento del 'tracking' a 0.3em. Esto expande 
- * visualmente la palabra sin ocupar más espacio de masa, creando una sensación 
- * de precisión y limpieza. El uso de blancos al 95% (bg-white/95) en el estado 
- * activo permite que el color del fondo Aurora 'ensucie' mínimamente el botón, 
- * integrándolo orgánicamente en la atmósfera de la página.
+ * TECHNICAL NOTE FROM ARCHITECT (V3.0):
+ * 1. ZAP Compliance: Replaced 'cn' with 'classNamesUtility'.
+ * 2. Visual ADN: Maintained high-fidelity cinematic transitions.
+ * 3. Header Integrity: Standardized Technical Header applied.
  */

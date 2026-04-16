@@ -91,8 +91,8 @@ export function PodcastView({
   const { isOfflineAvailable, isDownloading, downloadForOffline, removeFromOffline } = useOfflineAudio(livePodcastData);
 
   const isAdministratorOwner = useMemo(() => 
-    authenticatedUser?.id === livePodcastData.user_id, 
-    [authenticatedUser?.id, livePodcastData.user_id]
+    authenticatedUser?.id === livePodcastData.authorUserIdentification,
+    [authenticatedUser?.id, livePodcastData.authorUserIdentification]
   );
   
   const isCurrentPillActive = useMemo(() => 
@@ -156,33 +156,34 @@ export function PodcastView({
       if (isLikedByVoyager) {
         setIsLikedByVoyager(false);
         setResonanceCount(previousCount => Math.max(0, previousCount - 1));
-        await supabaseClient.from('likes').delete().match({ user_id: authenticatedUser.id, podcast_id: livePodcastData.id });
+        await supabaseClient.from('likes').delete().match({ user_id: authenticatedUser.id, podcast_id: livePodcastData.identification });
       } else {
         setIsLikedByVoyager(true);
         setResonanceCount(previousCount => previousCount + 1);
-        await supabaseClient.from('likes').insert({ user_id: authenticatedUser.id, podcast_id: livePodcastData.id });
+        await supabaseClient.from('likes').insert({ user_id: authenticatedUser.id, podcast_id: livePodcastData.identification });
       }
-    } catch (exception: any) {
-      nicepodLog("🔥 [Social-Action] Error en resonancia:", exception.message, 'error');
+    } catch (hardwareException: unknown) {
+      const exceptionMessageInformation = hardwareException instanceof Error ? hardwareException.message : "Hardware Error";
+      nicepodLog("🔥 [Social-Action] Error en resonancia:", exceptionMessageInformation, 'error');
     } finally {
       setIsPlaybackInteractionActive(false);
     }
-  }, [supabaseClient, authenticatedUser, isLikedByVoyager, isPlaybackInteractionActive, livePodcastData.id]);
+  }, [supabaseClient, authenticatedUser, isLikedByVoyager, isPlaybackInteractionActive, livePodcastData.identification]);
 
   const handleSovereignPublishAction = useCallback(async () => {
     if (!supabaseClient) return;
-    nicepodLog(`🚀 [Orchestrator] Liberando Pod #${livePodcastData.id} a la red pública.`);
+    nicepodLog(`🚀 [Orchestrator] Liberando Pod #${livePodcastData.identification} a la red pública.`);
 
     const { error: databaseUpdateError } = await supabaseClient
       .from('micro_pods')
       .update({ status: 'published', published_at: new Date().toISOString() })
-      .eq('id', livePodcastData.id);
+      .eq('id', livePodcastData.identification);
 
     if (!databaseUpdateError) {
       toast({ title: "Bóveda Actualizada", description: "La crónica ha sido integrada en la red global." });
       navigationRouter.refresh();
     }
-  }, [supabaseClient, livePodcastData.id, toast, navigationRouter]);
+  }, [supabaseClient, livePodcastData.identification, toast, navigationRouter]);
 
   return (
     <main className="container mx-auto max-w-screen-xl py-6 md:py-10 px-4 md:px-8 w-full animate-in fade-in duration-1000 selection:bg-primary/20">

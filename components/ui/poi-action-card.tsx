@@ -1,6 +1,6 @@
 /**
  * ARCHIVO: components/ui/poi-action-card.tsx
- * VERSIÓN: 2.0 (NicePod POI Action Card - Industrial Geodetic Edition)
+ * VERSIÓN: 2.1 (NicePod POI Action Card - Industrial Geodetic Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * Misión: Visualizar una unidad de valor situada (POI), permitiendo la transición 
@@ -16,7 +16,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { classNamesUtility, getHumanReadableDistanceMagnitudeLabel } from "@/lib/utils";
+import { classNamesUtility, nicepodLog } from "@/lib/utils";
 import { LocalRecommendation } from "@/types/podcast";
 import { motion } from "framer-motion";
 import {
@@ -81,6 +81,19 @@ const POINT_OF_INTEREST_CATEGORY_CONFIGURATION: Record<string, PointOfInterestCa
 };
 
 /**
+ * getHumanReadableDistanceMagnitudeLabel:
+ * [RESTITUCIÓN SOBERANA]: Utilidad geodésica local para preservar el Build Shield.
+ * Misión: Transmutar magnitud de distancia en metros a etiqueta legible.
+ */
+function getHumanReadableDistanceMagnitudeLabel(distanceMeters: number): string {
+  if (distanceMeters < 1000) {
+    return `${Math.round(distanceMeters)}m`;
+  }
+  const distanceKilometers = distanceMeters / 1000;
+  return `${distanceKilometers.toFixed(1)}km`;
+}
+
+/**
  * INTERFAZ: PointOfInterestActionCardProperties
  */
 interface PointOfInterestActionCardProperties {
@@ -103,6 +116,11 @@ export function POIActionCard({
   onExecuteVisitAction,
   isGenerationProcessActiveStatus = false
 }: PointOfInterestActionCardProperties) {
+
+  if (!pointOfInterestRecommendation) {
+    nicepodLog("⚠️ [POIActionCard] Intento de renderizado sin hito pericial.", null, "warn");
+    return null;
+  }
 
   // Resolución de atmósfera visual basada en categoría
   const categoryAestheticConfiguration = 

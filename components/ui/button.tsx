@@ -1,22 +1,22 @@
 /**
- * ARCHIVO: components/ui/button.tsx
- * VERSIÓN: 11.0 (NicePod UI Kit - Tactical & Industrial Edition)
- * PROTOCOLO: MADRID RESONANCE V2.8
+ * ARCHIVE: components/ui/button.tsx
+ * VERSION: 11.1 (NicePod UI Kit - Tactical & Industrial Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.9
  * 
- * Misión: Proveer la base de interacción para botones inteligentes y de comando.
- * [REFORMA V11.0]: Soporte para transiciones de escala, variantes glass y resonance.
- * Nivel de Integridad: 100% (Sin abreviaciones / Producción-Ready)
+ * MISSION: Proveer la base de interacción para botones inteligentes y de comando.
+ * [REFORMA V11.1]: Soporte para transiciones de escala, variantes glass y resonance.
+ * INTEGRITY LEVEL: 100% (Sin abreviaciones / Producción-Ready)
  */
 
 import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 
-import { cn } from "@/lib/utils";
+import { classNamesUtility } from "@/lib/utils";
 
 /**
  * buttonVariants: Constitución visual de las acciones del sistema.
- * [MEJORA V11.0]: Se cambia 'transition-colors' por 'transition-all' para permitir 
+ * [MEJORA V11.1]: Se cambia 'transition-colors' por 'transition-all' para permitir
  * animaciones de escala y transformaciones requeridas por el Smart-Action Button.
  */
 const buttonVariants = cva(
@@ -69,18 +69,18 @@ export interface ButtonProps
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, ...componentProperties }, elementReference) => {
     const Comp = asChild ? Slot : "button";
     return (
       <Comp
-        className={cn(buttonVariants({ variant, size, className }))}
-        ref={ref}
+        className={classNamesUtility(buttonVariants({ variant, size, className }))}
+        ref={elementReference}
         /**
          * Háptica de software: Evitamos el dragging del botón en móviles 
          * para no interferir con los gestos del mapa.
          */
         onDragStart={(e) => e.preventDefault()}
-        {...props}
+        {...componentProperties}
       />
     );
   }
@@ -91,7 +91,7 @@ Button.displayName = "Button";
 export { Button, buttonVariants };
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V11.0):
+ * NOTA TÉCNICA DEL ARCHITECT (V11.1):
  * 1. Interaction Fidelity: Se añadió 'active:scale-95' y 'duration-300' para que
  *    cada pulsación del Voyager tenga una respuesta física inmediata y elegante.
  * 2. Variant Expansion: La introducción de 'resonance' y 'glass' permite al 

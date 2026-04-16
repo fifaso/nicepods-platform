@@ -1,3 +1,4 @@
+/** ARCHIVE: components/ui/selection-card.tsx VERSION: 1.0 PROTOCOLO: MADRID RESONANCE V4.9 MISSION: UI Component INTEGRITY LEVEL: 100% */
 // components/ui/selection-card.tsx
 // VERSIÓN POTENCIADA: Ahora acepta y aplica una prop 'className' externa.
 
@@ -5,7 +6,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { classNamesUtility } from "@/lib/utils";
 
 interface SelectionCardProps {
   icon: React.ReactNode;
@@ -22,8 +23,8 @@ export function SelectionCard({ icon, title, description, isSelected, onClick, b
   return (
     <Card
       onClick={disabled ? undefined : onClick}
-      // [CAMBIO QUIRÚRGICO #2]: Se utiliza `cn()` para fusionar de forma segura las clases internas con la 'className' externa.
-      className={cn(
+      // [CAMBIO QUIRÚRGICO #2]: Se utiliza `classNamesUtility()` para fusionar de forma segura las clases internas con la 'className' externa.
+      className={classNamesUtility(
         "transition-all duration-200 relative group h-full flex flex-col",
         isSelected
           ? "border-primary ring-2 ring-primary/50 shadow-lg"
@@ -38,7 +39,7 @@ export function SelectionCard({ icon, title, description, isSelected, onClick, b
         <Badge variant="secondary" className="absolute -top-2 -right-2">{badgeText}</Badge>
       )}
       <CardContent className="p-4 flex flex-col items-center justify-center text-center flex-grow">
-        <div className={cn("mb-3 text-primary", !disabled && "transition-transform duration-300 group-hover:scale-110")}>
+        <div className={classNamesUtility("mb-3 text-primary", !disabled && "transition-transform duration-300 group-hover:scale-110")}>
           {icon}
         </div>
         <h3 className="font-semibold text-base mb-1">{title}</h3>
