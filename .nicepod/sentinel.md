@@ -52,6 +52,20 @@ The following Edge Functions still operate using legacy abbreviations or `snake_
 
 **Sentinel Integrity:** My modifications to Edge Functions are localized and verified. Security perimeter established.
 
+## 2025-05-25 - Vault Hardening & Zero Trust Enforcement
+
+### Mission Summary
+Hardening of the infrastructure vault following the critical finding from the MCP Activation Protocol V5.0.
+
+### Security Finding: `private.secrets` RLS Breach
+- **Status**: [UNSECURED] -> [REMEDIATION PROPOSED]
+- **Risk**: Table lacks Row Level Security, allowing potential unauthorized access to sensitive infrastructure credentials.
+- **Action Taken**: Materialized `VAULT_HARDENING.sql` and generated a comprehensive Security Issue report for the human architect.
+
+### Sovereign Requirement
+- Implementation of the `Internal_Service_Access` policy.
+- Total revocation of privileges for `public`, `authenticated`, and `anon` roles.
+
 ## 2024-05-23 - Sovereign Profile Integrity & RLS Audit
 
 ### Vulnerability Identified: Privilege Escalation (Profiles)
