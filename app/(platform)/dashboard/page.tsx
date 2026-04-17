@@ -1,14 +1,9 @@
 /**
  * ARCHIVO: app/(platform)/dashboard/page.tsx
- * VERSIÓN: 24.0 (NiceCore V4.9 - Hardened Sovereign SSR & ZAP Edition)
- * PROTOCOLO: MADRID RESONANCE V4.9
- * 
- * Misión: Cosecha de inteligencia blindada y orquestación de datos en el servidor, 
- * garantizando la sintonía absoluta entre el Metal (Base de Datos) y el Cristal.
- * [REFORMA V24.0]: Resolución definitiva de TS2322 mediante la alineación nominal 
- * absoluta con 'DashboardClient' V26.0. Aplicación integral de la Zero 
- * Abbreviations Policy (ZAP). Blindaje total contra tipos 'any'.
- * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * VERSIÓN: 5.1 (Madrid Resonance)
+ * PROTOCOLO: Intellectual Capital & Traceability
+ * MISIÓN: Cosecha de inteligencia blindada y orquestación de datos en el servidor con trazabilidad industrial.
+ * NIVEL DE INTEGRIDAD: 100%
  */
 
 import { createClient } from "@/lib/supabase/server";
@@ -40,6 +35,8 @@ export default async function DashboardPage() {
   }
 
   const authenticatedUserIdentification = authenticatedUser.id;
+
+  nicepodLog(`🛰️ [Dashboard] Iniciando Handshake T0 para: ${authenticatedUserIdentification.substring(0, 8)}`);
 
   try {
     /**

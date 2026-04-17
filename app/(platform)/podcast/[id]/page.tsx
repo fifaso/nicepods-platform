@@ -1,12 +1,9 @@
 /**
  * ARCHIVO: app/(platform)/podcast/[id]/page.tsx
- * VERSIÓN: 8.0 (NicePod View Orchestrator - Nominal Integrity Edition)
- * PROTOCOLO: MADRID RESONANCE V4.0
- * 
- * Misión: Punto de entrada de servidor para la visualización inmersiva de crónicas.
- * [REFORMA V8.0]: Sincronización nominal total con PulsePillView V1.3 y 
- * cumplimiento estricto de la Zero Abbreviations Policy.
- * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * VERSIÓN: 5.1 (Madrid Resonance)
+ * PROTOCOLO: Intellectual Capital & Traceability
+ * MISIÓN: Punto de entrada de servidor para la visualización inmersiva de crónicas con SEO industrial.
+ * NIVEL DE INTEGRIDAD: 100%
  */
 
 import { PodcastView } from "@/components/podcast-view";
@@ -44,7 +41,7 @@ export async function generateMetadata({ params: routeParameters }: PodcastPageP
     .single();
 
   if (!pointOfKnowledge) {
-    return { title: "Punto de Sabiduria no localizado | NicePod" };
+    return { title: "Punto de Sabiduría No Localizado | NicePod Intelligence" };
   }
 
   const openGraphImageUniformResourceLocator = pointOfKnowledge.cover_image_url || 
@@ -52,7 +49,7 @@ export async function generateMetadata({ params: routeParameters }: PodcastPageP
 
   return {
     title: `${pointOfKnowledge.title} | NicePod Intelligence`,
-    description: pointOfKnowledge.description || "Escucha esta crónica de sabiduria generada en NicePod.",
+    description: pointOfKnowledge.description || "Escucha esta Crónica de Sabiduría generada en la Workstation de NicePod.",
     openGraph: {
       title: pointOfKnowledge.title,
       description: pointOfKnowledge.description || '',

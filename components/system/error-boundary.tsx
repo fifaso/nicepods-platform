@@ -1,6 +1,15 @@
+/**
+ * ARCHIVO: components/system/error-boundary.tsx
+ * VERSIÓN: 5.1 (Madrid Resonance)
+ * PROTOCOLO: Intellectual Capital & Traceability
+ * MISIÓN: Captura pericial de excepciones en el árbol de componentes para prevenir el colapso total.
+ * NIVEL DE INTEGRIDAD: 100%
+ */
+
 "use client"
 
 import React from "react"
+import { nicepodLog } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AlertTriangle, RefreshCw } from "lucide-react"
@@ -27,7 +36,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error("Error caught by boundary:", error, errorInfo)
+    nicepodLog("🔥 [ErrorBoundary] Error crítico detectado en la jerarquía de componentes.", { error, errorInfo }, 'error');
     this.setState({ error, errorInfo })
   }
 

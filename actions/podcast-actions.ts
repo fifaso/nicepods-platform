@@ -1,9 +1,9 @@
 /**
  * ARCHIVO: actions/podcast-actions.ts
- * VERSIÓN: 1.0 (NicePod Podcast Orchestration - Sovereign Protocol V5.1)
- * PROTOCOLO: MADRID RESONANCE V5.1
- * MISIÓN: Sincronización del Flujo de Datos: Metal-to-Crystal Mapping.
- * NIVEL DE INTEGRIDAD: 100% (Sovereign / ZAP Compliant / Build Shield Green)
+ * VERSIÓN: 5.1 (Madrid Resonance)
+ * PROTOCOLO: Intellectual Capital & Traceability
+ * MISIÓN: Sincronización del Flujo de Datos (Metal-to-Crystal Mapping) y endurecimiento de la trazabilidad.
+ * NIVEL DE INTEGRIDAD: 100%
  */
 
 "use server";
@@ -14,6 +14,7 @@ import {
   GeoLocation,
   PodcastScript
 } from "@/types/podcast";
+import { nicepodLog } from "@/lib/utils";
 
 /**
  * INTERFAZ: SovereignPodcast
@@ -78,7 +79,7 @@ export async function getPublishedPodcastsAction(resultLimitMagnitude: number = 
 
   } catch (exceptionMessageInformation: unknown) {
     const errorMessage = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
-    console.error("🔥 [Podcast-Action-Fatal][GetPublished]:", errorMessage);
+    nicepodLog("🔥 [Podcast-Action-Fatal][GetPublished]:", errorMessage, 'error');
     return [];
   }
 }
@@ -108,7 +109,7 @@ export async function getUserPodcastsAction(): Promise<SovereignPodcast[]> {
 
   } catch (exceptionMessageInformation: unknown) {
     const errorMessage = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
-    console.error("🔥 [Podcast-Action-Fatal][GetUserPodcasts]:", errorMessage);
+    nicepodLog("🔥 [Podcast-Action-Fatal][GetUserPodcasts]:", errorMessage, 'error');
     return [];
   }
 }
