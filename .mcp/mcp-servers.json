@@ -5,23 +5,23 @@
       "name": "supabase-mcp-server",
       "type": "external",
       "config": {
-        "supabaseUniformResourceLocator": "${SUPABASE_UNIFORM_RESOURCE_LOCATOR}",
-        "supabaseServiceRoleKey": "${SUPABASE_SERVICE_ROLE_KEY}"
+        "supabaseUniformResourceLocator": "process.env.SUPABASE_URL",
+        "supabaseServiceRoleKey": "process.env.SUPABASE_SERVICE_ROLE_KEY"
       }
     },
     {
       "name": "vercel-mcp-server",
       "type": "external",
       "config": {
-        "vercelPersonalAccessToken": "${VERCEL_PERSONAL_ACCESS_TOKEN}",
-        "vercelProjectIdentification": "${VERCEL_PROJECT_IDENTIFICATION}"
+        "vercelPersonalAccessToken": "process.env.VERCEL_API_TOKEN",
+        "vercelProjectIdentification": "process.env.VERCEL_PROJECT_ID"
       }
     },
     {
       "name": "linear-mcp-server",
       "type": "external",
       "config": {
-        "linearPersonalApiKey": "${LINEAR_API_KEY}"
+        "linearPersonalApiKey": "process.env.LINEAR_API_KEY"
       }
     },
     {
@@ -30,8 +30,8 @@
       "config": {
         "command": "npx",
         "args": [
-          "-y",
-          "@playwright/mcp@latest"
+          "playwright",
+          "test"
         ]
       }
     }
