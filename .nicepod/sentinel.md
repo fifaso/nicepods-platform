@@ -1,12 +1,12 @@
 /**
  * ARCHIVO: .nicepod/sentinel.md
- * VERSIÓN: 4.0
- * PROTOCOLO: Madrid Resonance Protocol V4.0
+ * VERSIÓN: 5.1
+ * PROTOCOLO: Madrid Resonance Protocol V5.1
  * MISIÓN: Security Finding Journaling
  * NIVEL DE INTEGRIDAD: HIGH
  */
 
-# Sentinel Journal - Madrid Resonance Protocol V4.0
+# Sentinel Journal - Madrid Resonance Protocol V5.1
 
 ## 2025-05-22 - Nominal Mirroring & ZAP Enforcement
 
@@ -51,6 +51,28 @@ The following Edge Functions still operate using legacy abbreviations or `snake_
 - `components/create-flow/steps/audio-studio.tsx`: Missing `useMemo` import.
 
 **Sentinel Integrity:** My modifications to Edge Functions are localized and verified. Security perimeter established.
+
+## 2025-05-26 - Critical RLS Remediation & Perimeter Hardening
+
+### Mission Summary
+Execution of the security hardening plan for the Infrastructure Vault and logging perimeter. Resolution of the `search-pro` execution bug.
+
+### Vulnerabilities Remedied
+- **CRITICAL**: `private.secrets` - RLS was disabled. **Remediation**: Materialized `SECURITY_HARDENING_MADRID_V5.sql` with `ENABLE ROW LEVEL SECURITY` and `Internal_Service_Access` policy restricted to `service_role`.
+- **HIGH**: `public.ai_usage_logs` & `public.point_of_interest_ingestion_buffer` - RLS was enabled but NO policies were defined (Total denial). **Remediation**: Defined granular policies for `service_role` (System) and `admin` roles.
+- **BUG FIX**: `supabase/functions/search-pro/index.ts` - Found `req.json()` instead of `request.json()`, causing execution failure. **Remediation**: Fixed variable reference.
+
+### Zero Abbreviations Policy (ZAP) Enforcement
+- Eradicated all `any` types in `start-draft-process` and `queue-podcast-job` error handlers.
+- Refactored internal variables in SQL policies to full technical descriptors (e.g., `Internal_Service_Access`).
+
+### Build Shield Status
+**STATUS: YELLOW (Pre-existing breaches persist in external domains)**
+- Verified integrity of axial Edge Functions.
+- `npx tsc --noEmit` performed to validate system contracts.
+
+### Sovereign Requirement
+- Human execution of `SECURITY_HARDENING_MADRID_V5.sql` is mandatory to seal the Metal.
 
 ## 2025-05-25 - Vault Hardening & Zero Trust Enforcement
 

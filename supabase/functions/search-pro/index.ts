@@ -45,7 +45,7 @@ const handler = async (request: Request, context: GuardContext): Promise<Respons
     }
 
     // 3. RECEPCIÓN Y SANEAMIENTO DEL PAYLOAD
-    const submissionPayload: SearchPayload = await req.json();
+    const submissionPayload: SearchPayload = await request.json();
     const {
       searchQueryTerm = submissionPayload.query || "",
       latitudeCoordinate = submissionPayload.userLat,
