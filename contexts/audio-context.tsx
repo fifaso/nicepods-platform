@@ -1,13 +1,13 @@
 /**
  * ARCHIVO: contexts/audio-context.tsx
- * VERSIÓN: 10.0
- * PROTOCOLO: MADRID RESONANCE V4.0
- * PROTOCOLO: Administrative Sovereignty
- * MISIÓN: Motor de audio neuronal con despacho de telemetría de alta frecuencia,
- * gestionando el ciclo de vida de los activos y la higiene térmica de la RAM.
- * [THERMIC V9.0]: Reforzamiento ZAP y Mutable Reference Capture Protocol.
- * Suspensión de telemetría de alta frecuencia bajo Page Visibility API.
- * NIVEL DE INTEGRIDAD: 100% (Soberano)
+ * VERSIÓN: 11.0 (Madrid Resonance - Sovereign Edition)
+ * PROTOCOLO: MADRID RESONANCE V7.0
+ *
+ * MISIÓN: Motor de audio neuronal con despacho de telemetría de alta frecuencia.
+ * [REFORMA V11.0]: Sincronización axial completa con el contrato purificado V7.0.
+ * Eliminación de fugas snake_case y alineación absoluta con la Doctrina ZAP.
+ *
+ * NIVEL DE INTEGRIDAD: 100% (Soberanía Nominal V7.0)
  */
 
 "use client";
@@ -21,10 +21,10 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 
 /**
  * INTERFAZ: AudioContextProperties
- * Misión: Definir el contrato público incluyendo firmas industriales y aliases de compatibilidad.
+ * Misión: Definir el contrato público incluyendo firmas industriales.
  */
 export interface AudioContextProperties {
-  // --- FIRMA INDUSTRIAL V4.0 ---
+  // --- FIRMA INDUSTRIAL V7.0 ---
   currentActivePodcast: PodcastWithProfile | null;
   playbackQueue: PodcastWithProfile[];
   isAudioPlayingStatus: boolean;
@@ -83,7 +83,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     try {
       await supabaseClient.from('playback_events').insert({
         user_id: authenticatedUser.id,
-        podcast_id: currentActivePodcast.id,
+        podcast_id: currentActivePodcast.identification,
         event_type: interactionType
       });
     } catch (exception: unknown) {
@@ -93,7 +93,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
 
   const handleAutomaticNextAction = useCallback(() => {
     if (playbackQueue.length > 0 && currentActivePodcast) {
-      const activePodcastIndex = playbackQueue.findIndex(podcastItem => podcastItem.id === currentActivePodcast.id);
+      const activePodcastIndex = playbackQueue.findIndex(podcastItem => podcastItem.identification === currentActivePodcast.identification);
       if (activePodcastIndex !== -1 && activePodcastIndex < playbackQueue.length - 1) {
         playPodcastAction(playbackQueue[activePodcastIndex + 1]);
         return;
@@ -105,7 +105,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * 1. PROTOCOLO DE INICIALIZACIÓN DE HARDWARE
-   * [THERMIC V7.2]: Implementación de aniquilación atómica de oyentes de hardware.
    */
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -184,7 +183,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     const audioInstance = audioElementReference.current;
     if (!audioInstance) return;
 
-    if (!targetPodcast.audio_url) {
+    if (!targetPodcast.audioUniformResourceLocator) {
       toast({ variant: "destructive", title: "Nodo Incompleto", description: "Audio en proceso de forja." });
       return;
     }
@@ -194,22 +193,21 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      if (currentActivePodcast?.id === targetPodcast.id) {
+      if (currentActivePodcast?.identification === targetPodcast.identification) {
         if (audioInstance.paused) {
             await audioInstance.play();
         } else {
             audioInstance.pause();
         }
       } else {
-        // [WebKit Defeat Protocol]: Purga síncrona de búfer antes de la nueva carga.
         audioInstance.pause();
         audioInstance.removeAttribute('src');
         audioInstance.load();
 
         setCurrentActivePodcast(targetPodcast);
-        audioInstance.src = targetPodcast.audio_url;
+        audioInstance.src = targetPodcast.audioUniformResourceLocator;
         await audioInstance.play();
-        supabaseClient.rpc('increment_play_count', { podcast_id: targetPodcast.id }).then();
+        supabaseClient.rpc('increment_play_count', { podcast_id: targetPodcast.identification }).then();
       }
     } catch (exception: unknown) {
       const errorObject = exception as Error;
@@ -245,24 +243,17 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  /**
-   * API SOBERANA (NOMINAL INTEGRITY)
-   * Misión: Proveer el contrato V4.0 puro sin residuos de abreviaturas.
-   */
   const contextValue: AudioContextProperties = useMemo(() => ({
-    // Datos Industriales V4.0
     currentActivePodcast,
     playbackQueue,
     isAudioPlayingStatus,
     isAudioLoadingStatus,
     audioElementReference,
 
-    // Aliases @deprecated
     isAudioPlaying: isAudioPlayingStatus,
     isAudioLoading: isAudioLoadingStatus,
     isPlayerExpanded: isPlayerInterfaceExpandedStatus,
     
-    // Acciones Industriales V4.0
     playPodcastAction,
     logInteractionEventAction,
     terminatePodcastPlayback,

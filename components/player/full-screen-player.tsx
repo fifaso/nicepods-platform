@@ -1,13 +1,13 @@
 /**
  * ARCHIVO: components/player/full-screen-player.tsx
- * VERSIÓN: 31.0 (NicePod Studio - High Contrast & Absolute Nominal Integrity)
- * PROTOCOLO: MADRID RESONANCE V4.0
+ * VERSIÓN: 32.0 (Madrid Resonance - Sovereign Edition)
+ * PROTOCOLO: MADRID RESONANCE V7.0
  * 
- * Misión: Orquestar la inmersión total del Voyager, garantizando legibilidad industrial,
- * sincronía milimétrica con el hardware de audio y persistencia de resonancia.
- * [REFORMA V31.0]: Sincronización nominal total con ScriptViewer V8.0, erradicación 
- * absoluta de abreviaturas y cumplimiento del Dogma Técnico NicePod.
- * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * Misión: Orquestar la inmersión total del Voyager.
+ * [REFORMA V32.0]: Sincronización axial completa con el contrato purificado V7.0.
+ * Eliminación de fugas snake_case y alineación absoluta con la Doctrina ZAP.
+ *
+ * Nivel de Integridad: 100% (Soberanía Nominal V7.0)
  */
 
 "use client";
@@ -44,8 +44,8 @@ import { ScriptViewer } from "@/components/podcast/script-viewer";
 export function FullScreenPlayer() {
   const {
     currentActivePodcast: currentPodcast,
-    isAudioPlaying: isPlaying,
-    isAudioLoading: isPlaybackLoading,
+    isAudioPlayingStatus: isPlaying,
+    isAudioLoadingStatus: isPlaybackLoading,
     togglePlayPauseAction: togglePlayPause,
     seekToTimeAction: seekTo,
     skipForwardAction: skipForward,
@@ -65,8 +65,6 @@ export function FullScreenPlayer() {
 
   /**
    * 1. PROTOCOLO DE SINCRONÍA POR HARDWARE (60 FPS)
-   * Capturamos la telemetría emitida por el AudioProvider para actualizar 
-   * el deslizador (Slider) sin penalizar el rendimiento del hilo principal.
    */
   useEffect(() => {
     const handleHardwarePulseSynchronization = (event: Event) => {
@@ -89,7 +87,7 @@ export function FullScreenPlayer() {
    * 2. VERIFICACIÓN DE RESONANCIA EN BÓVEDA
    */
   useEffect(() => {
-    if (!authenticatedUser || !currentPodcast?.id) {
+    if (!authenticatedUser || !currentPodcast?.identification) {
       return;
     }
 
@@ -98,7 +96,7 @@ export function FullScreenPlayer() {
         const { data: resonanceData } = await supabaseClient
           .from('likes')
           .select('id')
-          .match({ user_id: authenticatedUser.id, podcast_id: currentPodcast.id })
+          .match({ user_id: authenticatedUser.id, podcast_id: currentPodcast.identification })
           .maybeSingle();
         
         setIsLikedByVoyager(!!resonanceData);
@@ -108,7 +106,7 @@ export function FullScreenPlayer() {
     };
     
     checkResonanceStatus();
-  }, [authenticatedUser, currentPodcast?.id, supabaseClient]);
+  }, [authenticatedUser, currentPodcast?.identification, supabaseClient]);
 
   if (!currentPodcast) {
     return null;
@@ -123,7 +121,7 @@ export function FullScreenPlayer() {
   };
 
   const handleResonanceInteractionAction = async () => {
-    if (!authenticatedUser || !currentPodcast?.id || isInteractionProcessActive) {
+    if (!authenticatedUser || !currentPodcast?.identification || isInteractionProcessActive) {
       return;
     }
 
@@ -136,11 +134,11 @@ export function FullScreenPlayer() {
         await supabaseClient
           .from('likes')
           .delete()
-          .match({ user_id: authenticatedUser.id, podcast_id: currentPodcast.id });
+          .match({ user_id: authenticatedUser.id, podcast_id: currentPodcast.identification });
       } else {
         await supabaseClient
           .from('likes')
-          .insert({ user_id: authenticatedUser.id, podcast_id: currentPodcast.id });
+          .insert({ user_id: authenticatedUser.id, podcast_id: currentPodcast.identification });
         
         await logInteractionEvent('liked');
         
@@ -158,11 +156,11 @@ export function FullScreenPlayer() {
   };
 
   const handleKnowledgeSharingAction = async () => {
-    const resourceUniformResourceLocator = `${window.location.origin}/podcast/${currentPodcast.id}`;
+    const resourceUniformResourceLocator = `${window.location.origin}/podcast/${currentPodcast.identification}`;
     try {
       if (navigator.share) {
         await navigator.share({ 
-          title: currentPodcast.title, 
+          title: currentPodcast.titleTextContent,
           url: resourceUniformResourceLocator 
         });
         await logInteractionEvent('shared');
@@ -175,8 +173,8 @@ export function FullScreenPlayer() {
     }
   };
 
-  const coverImageUniformResourceLocator = getSafeAsset(currentPodcast.cover_image_url, 'cover');
-  const authorDisplayName = currentPodcast.profiles?.full_name || administratorProfile?.full_name || "Cronista Soberano";
+  const coverImageUniformResourceLocator = getSafeAsset(currentPodcast.coverImageUniformResourceLocator, 'cover');
+  const authorDisplayName = currentPodcast.profiles?.fullName || administratorProfile?.full_name || "Cronista Soberano";
 
   return (
     <AnimatePresence>
@@ -187,14 +185,12 @@ export function FullScreenPlayer() {
         transition={{ type: "spring", damping: 30, stiffness: 200 }}
         className="fixed inset-0 z-[200] bg-[#020202] flex flex-col overflow-hidden selection:bg-primary/30"
       >
-        {/* ATMÓSFERA AURORA (CALIBRACIÓN DE CONTRASTE INDUSTRIAL) */}
         <div className="absolute inset-0 pointer-events-none opacity-20 overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-primary/20 via-transparent to-indigo-950/30 blur-[150px]" />
         </div>
 
         <div className="relative z-10 flex flex-col h-full w-full max-w-screen-2xl mx-auto">
           
-          {/* --- ZONA 1: CABECERA (MANDO Y CONTROL SOBERANO) --- */}
           <header className="flex items-center justify-between p-6 md:p-10 flex-shrink-0">
             <Button 
               onClick={collapsePlayer} 
@@ -210,7 +206,7 @@ export function FullScreenPlayer() {
                 Sincronía Nominal Activa
               </span>
               <h2 className="max-w-[240px] md:max-w-xl font-black text-xs md:text-sm text-zinc-400 uppercase tracking-widest truncate italic font-serif">
-                {currentPodcast.title}
+                {currentPodcast.titleTextContent}
               </h2>
             </div>
 
@@ -219,16 +215,14 @@ export function FullScreenPlayer() {
             </div>
           </header>
 
-          {/* --- ZONA 2: ESCENARIO DE PERITAJE (ALTA FIDELIDAD) --- */}
           <main className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-8 md:gap-16 px-6 md:px-14 items-center overflow-hidden">
             
-            {/* COLUMNA IZQUIERDA: EVIDENCIA VISUAL (5 COLS) */}
             <div className="hidden lg:flex lg:col-span-5 flex-col items-center justify-center space-y-12">
               <motion.div 
                 whileHover={{ scale: 1.02 }}
                 className="relative w-full max-w-sm aspect-square shadow-[0_50px_100px_rgba(0,0,0,0.9)] rounded-[3rem] overflow-hidden border-2 border-white/10"
               >
-                <Image src={coverImageUniformResourceLocator} alt={currentPodcast.title} fill className="object-cover" priority />
+                <Image src={coverImageUniformResourceLocator} alt={currentPodcast.titleTextContent} fill className="object-cover" priority />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
               </motion.div>
               
@@ -240,16 +234,13 @@ export function FullScreenPlayer() {
               </div>
             </div>
 
-            {/* COLUMNA DERECHA: CÁMARA NARRATIVA (7 COLS) */}
             <div className="lg:col-span-7 h-full w-full bg-[#080808] rounded-[3.5rem] border border-white/10 relative overflow-hidden shadow-[inset_0_0_100px_rgba(0,0,0,0.8)]">
-              {/* Máscaras de fundido para el Teleprompter Industrial */}
               <div className="absolute top-0 inset-x-0 h-32 bg-gradient-to-b from-[#080808] to-transparent z-20 pointer-events-none" />
               
               <div className="h-full w-full">
-                {/* [FIX V31.0]: Sincronización nominal total con ScriptViewer properties */}
                 <ScriptViewer 
-                  narrativeScriptContent={currentPodcast?.script_text}
-                  playbackDurationSecondsMagnitude={currentPodcast?.duration_seconds || totalAudioDurationSeconds}
+                  narrativeScriptContent={currentPodcast?.podcastScriptDossier as any}
+                  playbackDurationSecondsMagnitude={currentPodcast?.playbackDurationSecondsTotal || totalAudioDurationSeconds}
                   additionalTailwindClassName="px-8 md:px-16"
                 />
               </div>
@@ -258,14 +249,12 @@ export function FullScreenPlayer() {
             </div>
           </main>
 
-          {/* --- ZONA 3: DOCK DE TELEMETRÍA (FOOTER) --- */}
           <footer className="p-8 md:p-12 space-y-10 flex-shrink-0">
             
-            {/* BARRA DE PROGRESO DE GRADO INDUSTRIAL */}
             <div className="max-w-4xl mx-auto w-full space-y-6">
               <Slider 
                 value={[currentPlaybackTimeSeconds]} 
-                max={currentPodcast?.duration_seconds || totalAudioDurationSeconds || 100}
+                max={currentPodcast?.playbackDurationSecondsTotal || totalAudioDurationSeconds || 100}
                 step={0.1} 
                 onValueChange={handleTimelineAdjustmentAction} 
                 className="cursor-pointer" 
@@ -276,12 +265,11 @@ export function FullScreenPlayer() {
                 </span>
                 <div className="h-[1px] flex-1 mx-10 bg-white/10" />
                 <span className="text-zinc-600 tabular-nums">
-                  {formatTime(currentPodcast?.duration_seconds || totalAudioDurationSeconds)}
+                  {formatTime(currentPodcast?.playbackDurationSecondsTotal || totalAudioDurationSeconds)}
                 </span>
               </div>
             </div>
 
-            {/* MANDOS TÁCTICOS DE REPRODUCCIÓN */}
             <div className="flex items-center justify-between max-w-4xl mx-auto w-full">
               
               <Button 
@@ -344,7 +332,6 @@ export function FullScreenPlayer() {
               </div>
             </div>
 
-            {/* CRÉDITOS DE AUTORÍA SOBERANA */}
             <div className="flex justify-center items-center gap-6 opacity-30 pb-2">
                <div className="h-[1px] w-12 bg-white/20" />
                <span className="text-[9px] font-black uppercase tracking-[0.5em] text-zinc-400 italic">
@@ -359,13 +346,3 @@ export function FullScreenPlayer() {
     </AnimatePresence>
   );
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT (V31.0):
- * 1. Contract Synchronization: Se neutralizó el error TS2322 inyectando 'narrativeScriptContent' 
- *    y 'playbackDurationSeconds' en el ScriptViewer, alineándose con el estándar V8.0.
- * 2. Zero Abbreviations Policy: Purificación absoluta de términos (isPlaybackLoading, 
- *    isLikedByVoyager, currentPlaybackTimeSeconds, exception).
- * 3. High Fidelity UI: El uso de fondos sólidos en la columna de lectura garantiza que no 
- *    exista degradación del capital intelectual ante cambios en la portada del podcast.
- */

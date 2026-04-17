@@ -1,5 +1,14 @@
-// components/pulse-pill-card.tsx
-// VERSIÓN: 1.0 (Pulse Identity Card - Strategic Intelligence UI)
+/**
+ * ARCHIVO: components/feed/pulse-pill-card.tsx
+ * VERSIÓN: 2.0 (Madrid Resonance - Sovereign Edition)
+ * PROTOCOLO: MADRID RESONANCE V7.0
+ *
+ * Misión: Renderizar la unidad mínima de inteligencia estratégica (Pulse).
+ * [REFORMA V2.0]: Sincronización axial completa con el contrato purificado V7.0.
+ * Eliminación de fugas snake_case y alineación absoluta con la Doctrina ZAP.
+ *
+ * Nivel de Integridad: 100% (Soberanía Nominal V7.0)
+ */
 
 "use client";
 
@@ -21,126 +30,122 @@ import {
 import Link from "next/link";
 import React, { useMemo } from "react";
 
-interface PulsePillCardProps {
-  podcast: PodcastWithProfile;
+/**
+ * INTERFAZ: PulsePillCardComponentProperties
+ */
+interface PulsePillCardComponentProperties {
+  podcastSnapshot: PodcastWithProfile;
 }
 
 /**
- * getAuthorityStyle
+ * getAuthorityStyleAction:
  * Sincroniza el color de la señal con el estándar de veracidad NicePod.
  */
-const getAuthorityStyle = (score: number) => {
-  if (score >= 9.0) return "bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]";
-  if (score >= 7.0) return "bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.4)]";
+const getAuthorityStyleAction = (authorityScoreMagnitude: number) => {
+  if (authorityScoreMagnitude >= 9.0) return "bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]";
+  if (authorityScoreMagnitude >= 7.0) return "bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.4)]";
   return "bg-primary shadow-[0_0_10px_rgba(var(--primary),0.4)]";
 };
 
-export function PulsePillCard({ podcast }: PulsePillCardProps) {
-  const { playPodcastAction, currentActivePodcast, isAudioPlaying } = useAudio();
+export function PulsePillCard({ podcastSnapshot }: PulsePillCardComponentProperties) {
+  const { playPodcastAction, currentActivePodcast, isAudioPlayingStatus } = useAudio();
 
-  // --- LÓGICA DE ESTADO ---
-  const isReady = podcast.processing_status === 'completed';
-  const isCurrentlyPlaying = currentActivePodcast?.id === podcast.id && isAudioPlaying;
+  // --- I. EVALUACIÓN DE ESTADO ---
+  const isIntelligenceReadyStatus = podcastSnapshot.intelligenceProcessingStatus === 'completed';
+  const isCurrentlyPlayingStatus = currentActivePodcast?.identification === podcastSnapshot.identification && isAudioPlayingStatus;
 
-  const sources = useMemo(() => {
-    return (podcast.sources as any[]) || [];
-  }, [podcast.sources]);
+  const intelligenceSourcesCollection = useMemo(() => {
+    return podcastSnapshot.intelligenceSourcesCollection || [];
+  }, [podcastSnapshot.intelligenceSourcesCollection]);
 
-  // Calculamos el score promedio de autoridad para la gema de la tarjeta
-  const avgAuthority = useMemo(() => {
-    if (sources.length === 0) return 5.0;
-    const sum = sources.reduce((acc, s) => acc + (s.authority_score || 7.0), 0);
-    return sum / sources.length;
-  }, [sources]);
+  // Calculamos la magnitud promedio de autoridad para la gema de la tarjeta.
+  const averageAuthorityMagnitude = useMemo(() => {
+    if (intelligenceSourcesCollection.length === 0) return 5.0;
+    const scoreSumMagnitude = intelligenceSourcesCollection.reduce((accumulatorValue, sourceItem) => accumulatorValue + (sourceItem.authorityScoreValue || 7.0), 0);
+    return scoreSumMagnitude / intelligenceSourcesCollection.length;
+  }, [intelligenceSourcesCollection]);
 
-  const handlePlay = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (isReady) playPodcastAction(podcast);
+  const handlePlaybackToggleAction = (mouseEvent: React.MouseEvent) => {
+    mouseEvent.preventDefault();
+    mouseEvent.stopPropagation();
+    if (isIntelligenceReadyStatus) playPodcastAction(podcastSnapshot);
   };
 
   return (
     <Link
-      href={`/podcast/${podcast.id}`}
+      href={`/podcast/${podcastSnapshot.identification}`}
       className={cn(
         "group block transition-all duration-500",
-        !isReady && "cursor-wait"
+        !isIntelligenceReadyStatus && "cursor-wait"
       )}
     >
-      <Card className="relative overflow-hidden aspect-[4/5] bg-slate-950 border-white/5 hover:border-primary/40 transition-all rounded-[2.5rem] shadow-2xl">
+      <Card className="relative overflow-hidden aspect-[4/5] bg-slate-900 border-white/5 hover:border-primary/40 transition-all rounded-[2.5rem] shadow-2xl">
 
-        {/* 1. CAPA DE FONDO: Gradiente Atmosférico */}
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-black z-0" />
 
-        {/* Decoración técnica */}
         <div className="absolute top-0 right-0 p-6 opacity-[0.03] text-white group-hover:scale-110 transition-transform duration-1000 z-0">
           <BrainCircuit size={100} />
         </div>
 
-        {/* 2. CONTENIDO PRINCIPAL */}
         <CardContent className="relative h-full flex flex-col p-6 justify-between z-10">
 
-          {/* HEADER: Siglas de Fuentes y Gema */}
           <div className="flex justify-between items-start">
             <div className="flex flex-wrap gap-1.5 max-w-[70%]">
-              {sources.slice(0, 3).map((s, i) => (
-                <div key={i} className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-[7px] font-black text-white/60 uppercase tracking-tighter">
-                  {s.source_name?.substring(0, 3) || 'SRC'}
+              {intelligenceSourcesCollection.slice(0, 3).map((sourceItem, sourceIndexMagnitude) => (
+                <div key={sourceIndexMagnitude} className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-[7px] font-black text-white/60 uppercase tracking-tighter">
+                  {sourceItem.sourceAuthorityName?.substring(0, 3) || 'SRC'}
                 </div>
               ))}
-              {sources.length > 3 && <span className="text-[7px] text-white/20 font-bold">+{sources.length - 3}</span>}
+              {intelligenceSourcesCollection.length > 3 && <span className="text-[7px] text-white/20 font-bold">+{intelligenceSourcesCollection.length - 3}</span>}
             </div>
 
             <div className="flex items-center gap-2">
-              <div className={cn("w-2 h-2 rounded-full", getAuthorityStyle(avgAuthority))} />
+              <div className={cn("w-2 h-2 rounded-full", getAuthorityStyleAction(averageAuthorityMagnitude))} />
               <Badge className="bg-aurora animate-aurora text-white border-none text-[8px] font-black px-2 py-0">PULSE</Badge>
             </div>
           </div>
 
-          {/* CUERPO: Título e Insight */}
           <div className="space-y-3 mt-4">
             <div className="flex items-center gap-2 text-primary opacity-60">
               <BookOpen size={12} />
               <span className="text-[8px] font-black uppercase tracking-[0.2em]">Strategic Briefing</span>
             </div>
             <h3 className="text-lg md:text-xl font-black uppercase tracking-tighter leading-[1.1] text-white group-hover:text-primary transition-colors line-clamp-3">
-              {podcast.title}
+              {podcastSnapshot.titleTextContent}
             </h3>
             <p className="text-[10px] text-muted-foreground font-medium line-clamp-3 leading-relaxed italic opacity-80">
-              {podcast.description || "Analizando señales de mercado y avances de frontera..."}
+              {podcastSnapshot.descriptionTextContent || "Analizando señales de mercado y avances de frontera..."}
             </p>
           </div>
 
-          {/* FOOTER: Métricas y Play */}
           <div className="flex items-center justify-between pt-4 border-t border-white/5 mt-auto">
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1 text-[9px] font-black text-white/30 uppercase">
-                <Clock size={12} /> {podcast.duration_seconds ? formatTime(podcast.duration_seconds) : '2:00'}
+                <Clock size={12} /> {podcastSnapshot.playbackDurationSecondsTotal ? formatTime(podcastSnapshot.playbackDurationSecondsTotal) : '2:00'}
               </div>
               <div className="flex items-center gap-1 text-[9px] font-black text-blue-400/60 uppercase">
-                <Globe size={12} /> {sources.length} FUENTES
+                <Globe size={12} /> {intelligenceSourcesCollection.length} FUENTES
               </div>
             </div>
 
             <Button
-              onClick={handlePlay}
-              disabled={!isReady}
+              onClick={handlePlaybackToggleAction}
+              disabled={!isIntelligenceReadyStatus}
               size="icon"
               className={cn(
                 "h-10 w-10 rounded-full transition-all border-none shadow-xl",
-                isReady
+                isIntelligenceReadyStatus
                   ? "bg-white text-black hover:bg-primary hover:text-white"
                   : "bg-white/5 text-white/10 opacity-20"
               )}
             >
-              {isCurrentlyPlaying ? <Pause size={16} /> : <Play size={16} className="ml-0.5 fill-current" />}
+              {isCurrentlyPlayingStatus ? <Pause size={16} /> : <Play size={16} className="ml-0.5 fill-current" />}
             </Button>
           </div>
 
         </CardContent>
 
-        {/* 3. SHIELD: BLOQUEO DE CONSTRUCCIÓN */}
-        {!isReady && (
+        {!isIntelligenceReadyStatus && (
           <div className="absolute inset-0 z-50 bg-black/40 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500">
             <div className="p-3 bg-zinc-950/80 rounded-2xl border border-white/10 shadow-2xl">
               <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto mb-2" />

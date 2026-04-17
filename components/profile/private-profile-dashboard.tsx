@@ -47,7 +47,7 @@ import { TestimonialModerator } from "./private/testimonial-moderator";
 import { ProfileHydrationGuard } from "./profile-hydration-guard";
 import { CollectionCard } from "./shared/collection-card";
 // [FIX V6.1]: Restauración de la importación crítica (TS2304)
-import { DownloadsManager } from "@/components/player/downloads-manager";
+import { OfflineDownloadsAdministrativeManager as DownloadsManager } from "@/components/player/offline-downloads-administrative-manager";
 
 /**
  * INTERFAZ: PrivateProfileDashboardComponentProperties
