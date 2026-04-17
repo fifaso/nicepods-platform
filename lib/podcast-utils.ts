@@ -1,14 +1,13 @@
 /**
  * ARCHIVO: lib/podcast-utils.ts
- * VERSIÓN: 6.0 (NicePod Intelligence Engine Utils - Legacy Bridge & Industrial Sync)
+ * VERSIÓN: 6.1 (NicePod Intelligence Engine Utils - Legacy Bridge & Industrial Sync)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * 
  * Misión: Proveer algoritmos matemáticos y lógicos de alto rendimiento para 
  * la estructuración de la malla social, el cálculo cinemático y el peritaje 
  * de capital intelectual, garantizando la protección del Hilo Principal (MTI).
- * [REFORMA V6.0]: Resolución definitiva del fallo de compilación 'ELIFECYCLE'. 
- * Implementación de la Capa de Compatibilidad para exportaciones de legado.
- * Sincronización absoluta con el Metal y el Cristal bajo el Dogma ZAP.
+ * [REFORMA V6.1]: Sincronización nominal absoluta (ZAP). Refactorización de
+ * descriptores de nodos para alineación con el Grafo de Conocimiento Soberano.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -36,55 +35,55 @@ export function groupPodcastsByThread(flatPodcastCollection: PodcastWithProfile[
     const podcastIdentificationMap = new Map<number, TopologicalPodcastNode>();
     const timestampReferenceMap = new Map<number, number>();
 
-    const podcastNodesCollection = flatPodcastCollection.map(podcastItem => {
+    const genealogicalPodcastNodesCollection = flatPodcastCollection.map(podcastSnapshotInstance => {
         /**
          * [BSS]: Dual Lens Casting.
          * Forzamos al compilador a aceptar que el objeto posee la columna relacional, 
          * pasando por 'unknown' para evitar el error de solapamiento TS2352.
          */
-        const genealogicalNode = {
-            ...podcastItem,
+        const topologicalPodcastNodeInstance = {
+            ...podcastSnapshotInstance,
             repliesCollection: [],
         } as unknown as TopologicalPodcastNode;
 
-        podcastIdentificationMap.set(genealogicalNode.identification, genealogicalNode);
-        timestampReferenceMap.set(genealogicalNode.identification, new Date(genealogicalNode.creationTimestamp).getTime());
+        podcastIdentificationMap.set(topologicalPodcastNodeInstance.identification, topologicalPodcastNodeInstance);
+        timestampReferenceMap.set(topologicalPodcastNodeInstance.identification, new Date(topologicalPodcastNodeInstance.creationTimestamp).getTime());
 
-        return genealogicalNode;
+        return topologicalPodcastNodeInstance;
     });
 
     const rootPodcastsCollection: PodcastWithGenealogy[] = [];
 
     // 2. Ensamblaje de la Topología de Hilos (Grafo de Conocimiento)
-    for (const genealogicalNode of podcastNodesCollection) {
+    for (const topologicalPodcastNodeInstance of genealogicalPodcastNodesCollection) {
 
         // Accedemos al descriptor físico validado por el Lente Topológico.
-        const parentPodcastIdentification = genealogicalNode.parent_id;
+        const parentPodcastIdentification = topologicalPodcastNodeInstance.parent_id;
 
         const isResponseToExistingPodcastStatus =
             parentPodcastIdentification !== null &&
             parentPodcastIdentification !== undefined &&
             podcastIdentificationMap.has(parentPodcastIdentification) &&
-            genealogicalNode.creationMetadataDossier?.creationMode !== 'pulse';
+            topologicalPodcastNodeInstance.creationMetadataDossier?.creationMode !== 'pulse';
 
         if (isResponseToExistingPodcastStatus) {
-            const parentNodeReference = podcastIdentificationMap.get(parentPodcastIdentification)!;
+            const parentTopologicalNodeReference = podcastIdentificationMap.get(parentPodcastIdentification)!;
 
             // Inyectamos la respuesta en la colección de su progenitor semántico.
-            if (!parentNodeReference.repliesCollection) {
-                parentNodeReference.repliesCollection = [];
+            if (!parentTopologicalNodeReference.repliesCollection) {
+                parentTopologicalNodeReference.repliesCollection = [];
             }
-            parentNodeReference.repliesCollection.push(genealogicalNode);
+            parentTopologicalNodeReference.repliesCollection.push(topologicalPodcastNodeInstance);
 
         } else {
-            rootPodcastsCollection.push(genealogicalNode);
+            rootPodcastsCollection.push(topologicalPodcastNodeInstance);
         }
     }
 
     // 3. Ordenamiento Estratégico (Descendente por Tiempo de Creación)
-    return rootPodcastsCollection.sort((firstNodeItem, secondNodeItem) => {
-        const firstTimestampMagnitude = timestampReferenceMap.get(firstNodeItem.identification) || 0;
-        const secondTimestampMagnitude = timestampReferenceMap.get(secondNodeItem.identification) || 0;
+    return rootPodcastsCollection.sort((firstTopologicalNodeSnapshot, secondTopologicalNodeSnapshot) => {
+        const firstTimestampMagnitude = timestampReferenceMap.get(firstTopologicalNodeSnapshot.identification) || 0;
+        const secondTimestampMagnitude = timestampReferenceMap.get(secondTopologicalNodeSnapshot.identification) || 0;
         return secondTimestampMagnitude - firstTimestampMagnitude; // LIFO (Last In, First Out)
     });
 }

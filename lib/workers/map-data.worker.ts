@@ -1,9 +1,10 @@
 /**
  * ARCHIVO: lib/workers/map-data.worker.ts
- * VERSIÓN: 1.1
+ * VERSIÓN: 1.2
  * PROTOCOLO: MADRID RESONANCE V4.5
  * MISIÓN: Procesamiento de nodos NKV en hilo secundario con integridad BSS.
- * NIVEL DE INTEGRIDAD: 100%
+ * [THERMIC V1.0]: Erradicación de tipos 'any' y reforzamiento de soberanía de tipos.
+ * NIVEL DE INTEGRIDAD: 100% (Soberano)
  */
 
 interface DatabasePointRecord {
@@ -102,18 +103,18 @@ function executeDataTransformationWorkflow(
    * Realizamos la transmutación de nombres de columna de base de datos (Snake Case) 
    * hacia propiedades de interfaz (Camel Case) y validamos la geometría PostGIS.
    */
-  return rawDatabaseCollection.map((recordItem: any): PointOfInterest => {
+  return rawDatabaseCollection.map((recordItem: DatabasePointRecord): PointOfInterest => {
     // Extracción y validación de la localización geodésica
-    const geographicLocationReference = (recordItem['geo_location'] as any) as GeoPoint;
+    const geographicLocationReference = recordItem.geo_location;
     
     // Sincronización nominal con la Constitución V8.6
     return {
       identification: Number(recordItem.identification),
-      authorIdentification: ((recordItem['author_identification'] as any) as string) || "NICEPOD_SYSTEM_AUTHORITY",
-      name: ((recordItem['point_of_interest_name'] as any) as string) || "Nodo de Sabiduría No Identificado",
-      categoryMission: (recordItem['category_mission'] as any) as CategoryMission,
-      categoryEntity: (recordItem['category_entity'] as any) as CategoryEntity,
-      historicalEpoch: (recordItem['historical_epoch'] as any) as HistoricalEpoch,
+      authorIdentification: recordItem.author_identification || "NICEPOD_SYSTEM_AUTHORITY",
+      name: recordItem.point_of_interest_name || "Nodo de Sabiduría No Identificado",
+      categoryMission: recordItem.category_mission as CategoryMission,
+      categoryEntity: recordItem.category_entity as CategoryEntity,
+      historicalEpoch: recordItem.historical_epoch as HistoricalEpoch,
       geographicLocation: {
         type: 'Point',
         coordinates: [
@@ -121,20 +122,20 @@ function executeDataTransformationWorkflow(
           geographicLocationReference.coordinates[1]  // Latitude
         ]
       },
-      resonanceRadiusMeters: Number((recordItem['resonance_radius'] as any) || 35),
-      importanceScore: Number((recordItem['importance_score'] as any) || 1),
-      historicalFact: ((recordItem['historical_fact'] as any) as string) || null,
+      resonanceRadiusMeters: Number(recordItem.resonance_radius || 35),
+      importanceScore: Number(recordItem.importance_score || 1),
+      historicalFact: recordItem.historical_fact || null,
       richDescription: null, // Excluido del radar para optimizar la transferencia de memoria
-      galleryUniformResourceLocatorsCollection: ((recordItem['gallery_urls'] as any) as string[]) || [],
-      ambientAudioUniformResourceLocator: ((recordItem['ambient_audio_url'] as any) as string) || null,
+      galleryUniformResourceLocatorsCollection: recordItem.gallery_urls || [],
+      ambientAudioUniformResourceLocator: recordItem.ambient_audio_url || null,
       status: 'published' as PointOfInterestLifecycle,
       isPublished: true,
-      referencePodcastIdentification: ((recordItem['reference_podcast_id'] as any) as number) || null,
-      creationTimestamp: ((recordItem['created_at'] as any) as string) || new Date().toISOString(),
-      updateTimestamp: ((recordItem['updated_at'] as any) as string) || new Date().toISOString(),
+      referencePodcastIdentification: recordItem.reference_podcast_id || null,
+      creationTimestamp: recordItem.created_at || new Date().toISOString(),
+      updateTimestamp: recordItem.updated_at || new Date().toISOString(),
       metadata: {
-        externalSourceUniformResourceLocator: (recordItem['external_reference_url'] as any) as string,
-        groundingSummary: (recordItem['grounding_analysis_summary'] as any) as string
+        externalSourceUniformResourceLocator: recordItem.external_reference_url || "",
+        groundingSummary: recordItem.grounding_analysis_summary || ""
       }
     };
   });

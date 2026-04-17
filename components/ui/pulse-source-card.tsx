@@ -1,6 +1,12 @@
-/** ARCHIVE: components/ui/pulse-source-card.tsx VERSION: 1.0 PROTOCOLO: MADRID RESONANCE V4.9 MISSION: UI Component INTEGRITY LEVEL: 100% */
-// components/create-flow/ui/pulse-source-card.tsx
-// VERSIÓN: 1.0 (Atomic Intelligence Dossier - High Authority UI)
+/**
+ * ARCHIVO: components/ui/pulse-source-card.tsx
+ * VERSIÓN: 5.1 (Madrid Resonance)
+ * PROTOCOLO: Nominal Sovereignty
+ * MISIÓN: Visualizar un nodo de inteligencia (Pulse) con tipado industrial.
+ * [REFORMA V5.1]: Aplicación integral de la Zero Abbreviations Policy (ZAP).
+ * Sincronización con el contrato purificado de 'PulseMatchResult'.
+ * NIVEL DE INTEGRIDAD: 100%
+ */
 
 "use client";
 
@@ -17,36 +23,47 @@ import {
   TrendingUp
 } from "lucide-react";
 
-interface PulseSourceCardProps {
-  signal: PulseMatchResult;
-  isSelected: boolean;
-  onToggle: (id: string) => void;
+/**
+ * INTERFAZ: PulseSourceCardComponentProperties
+ */
+interface PulseSourceCardComponentProperties {
+  pulseSignalSnapshot: PulseMatchResult;
+  isSourceSelectedStatus: boolean;
+  onSourceToggleAction: (identification: string) => void;
 }
 
 /**
- * getAuthorityVisuals
- * Determina el color y brillo de la "Gema" según el score de la IA.
+ * getAuthorityVisualsDictionary:
+ * Misión: Determinar la atmósfera visual basada en la magnitud de autoridad.
  */
-const getAuthorityVisuals = (score: number) => {
-  if (score >= 9.0) return {
-    color: "bg-emerald-500",
-    glow: "shadow-[0_0_15px_rgba(16,185,129,0.5)]",
-    label: "Máxima Autoridad"
+const getAuthorityVisualsDictionary = (authorityScoreMagnitude: number) => {
+  if (authorityScoreMagnitude >= 9.0) return {
+    colorClassName: "bg-emerald-500",
+    glowClassName: "shadow-[0_0_15px_rgba(16,185,129,0.5)]",
+    displayLabel: "Máxima Autoridad"
   };
-  if (score >= 7.0) return {
-    color: "bg-amber-500",
-    glow: "shadow-[0_0_15px_rgba(245,158,11,0.4)]",
-    label: "Alta Autoridad"
+  if (authorityScoreMagnitude >= 7.0) return {
+    colorClassName: "bg-amber-500",
+    glowClassName: "shadow-[0_0_15px_rgba(245,158,11,0.4)]",
+    displayLabel: "Alta Autoridad"
   };
   return {
-    color: "bg-indigo-500",
-    glow: "shadow-[0_0_10px_rgba(99,102,241,0.3)]",
-    label: "Señal Verificada"
+    colorClassName: "bg-indigo-500",
+    glowClassName: "shadow-[0_0_10px_rgba(99,102,241,0.3)]",
+    displayLabel: "Señal Verificada"
   };
 };
 
-export function PulseSourceCard({ signal, isSelected, onToggle }: PulseSourceCardProps) {
-  const visuals = getAuthorityVisuals(signal.authority_score);
+/**
+ * PulseSourceCard: La proyección visual de un activo de conocimiento proactivo.
+ */
+export function PulseSourceCard({
+  pulseSignalSnapshot,
+  isSourceSelectedStatus,
+  onSourceToggleAction
+}: PulseSourceCardComponentProperties) {
+
+  const visualsAestheticConfiguration = getAuthorityVisualsDictionary(pulseSignalSnapshot.authorityScoreValue);
 
   return (
     <motion.div
@@ -54,16 +71,16 @@ export function PulseSourceCard({ signal, isSelected, onToggle }: PulseSourceCar
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       whileHover={{ y: -4 }}
-      onClick={() => onToggle(signal.id)}
+      onClick={() => onSourceToggleAction(pulseSignalSnapshot.identification)}
       className={classNamesUtility(
         "relative flex flex-col p-5 rounded-[2rem] border transition-all duration-300 cursor-pointer group overflow-hidden",
-        isSelected
+        isSourceSelectedStatus
           ? "bg-white dark:bg-zinc-900 border-primary shadow-2xl scale-[1.02]"
           : "bg-white/5 border-white/10 hover:border-primary/40 hover:bg-white/10"
       )}
     >
       {/* 1. LAYER DE FONDO: EFECTO AURORA (Solo en selección) */}
-      {isSelected && (
+      {isSourceSelectedStatus && (
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-50" />
       )}
 
@@ -73,23 +90,23 @@ export function PulseSourceCard({ signal, isSelected, onToggle }: PulseSourceCar
           {/* La Gema de Autoridad */}
           <div className={classNamesUtility(
             "w-2.5 h-2.5 rounded-full",
-            visuals.color,
-            visuals.glow
+            visualsAestheticConfiguration.colorClassName,
+            visualsAestheticConfiguration.glowClassName
           )} />
           <span className={classNamesUtility(
             "text-[9px] font-black uppercase tracking-[0.2em]",
-            isSelected ? "text-primary" : "text-white/40"
+            isSourceSelectedStatus ? "text-primary" : "text-white/40"
           )}>
-            {signal.source_name}
+            {pulseSignalSnapshot.sourceAuthorityName}
           </span>
         </div>
 
         <Badge variant="outline" className={classNamesUtility(
           "h-6 px-2.5 rounded-full border-none font-bold text-[10px] flex gap-1.5",
-          isSelected ? "bg-primary text-white" : "bg-primary/10 text-primary"
+          isSourceSelectedStatus ? "bg-primary text-white" : "bg-primary/10 text-primary"
         )}>
           <TrendingUp size={10} />
-          {signal.match_percentage}% Match
+          {pulseSignalSnapshot.matchPercentageMagnitude}% Match
         </Badge>
       </header>
 
@@ -98,15 +115,15 @@ export function PulseSourceCard({ signal, isSelected, onToggle }: PulseSourceCar
         <div className="flex gap-3">
           <div className={classNamesUtility(
             "p-2 rounded-xl flex-shrink-0",
-            isSelected ? "bg-primary/10 text-primary" : "bg-white/5 text-white/60"
+            isSourceSelectedStatus ? "bg-primary/10 text-primary" : "bg-white/5 text-white/60"
           )}>
-            {signal.content_type === 'paper' ? <FileText size={18} /> : <Globe size={18} />}
+            {pulseSignalSnapshot.sourceContentType === 'paper' ? <FileText size={18} /> : <Globe size={18} />}
           </div>
           <h3 className={classNamesUtility(
             "font-black text-sm md:text-base leading-tight uppercase tracking-tight line-clamp-2",
-            isSelected ? "text-zinc-900 dark:text-white" : "text-white"
+            isSourceSelectedStatus ? "text-zinc-900 dark:text-white" : "text-white"
           )}>
-            {signal.title}
+            {pulseSignalSnapshot.titleTextContent}
           </h3>
         </div>
       </div>
@@ -114,13 +131,13 @@ export function PulseSourceCard({ signal, isSelected, onToggle }: PulseSourceCar
       {/* 4. ABSTRACT IA: Caja de Inteligencia */}
       <div className={classNamesUtility(
         "relative z-10 p-4 rounded-2xl mb-4 transition-colors",
-        isSelected ? "bg-zinc-100 dark:bg-black/40" : "bg-black/20"
+        isSourceSelectedStatus ? "bg-zinc-100 dark:bg-black/40" : "bg-black/20"
       )}>
         <p className={classNamesUtility(
           "text-[11px] leading-relaxed line-clamp-3 font-medium",
-          isSelected ? "text-zinc-600 dark:text-zinc-400" : "text-muted-foreground"
+          isSourceSelectedStatus ? "text-zinc-600 dark:text-zinc-400" : "text-muted-foreground"
         )}>
-          {signal.summary}
+          {pulseSignalSnapshot.summaryContentText}
         </p>
       </div>
 
@@ -129,27 +146,27 @@ export function PulseSourceCard({ signal, isSelected, onToggle }: PulseSourceCar
         <div className="flex items-center gap-2">
           <div className={classNamesUtility(
             "w-6 h-6 rounded-full flex items-center justify-center border transition-all duration-500",
-            isSelected ? "bg-primary border-primary" : "border-white/10 bg-white/5"
+            isSourceSelectedStatus ? "bg-primary border-primary" : "border-white/10 bg-white/5"
           )}>
-            {isSelected && <Check size={14} className="text-white" />}
+            {isSourceSelectedStatus && <Check size={14} className="text-white" />}
           </div>
           <span className={classNamesUtility(
             "text-[10px] font-black uppercase tracking-widest",
-            isSelected ? "text-primary" : "text-white/20"
+            isSourceSelectedStatus ? "text-primary" : "text-white/20"
           )}>
-            {isSelected ? "Seleccionada" : "Incluir"}
+            {isSourceSelectedStatus ? "Seleccionada" : "Incluir"}
           </span>
         </div>
 
         <div className="flex items-center gap-3">
-          {signal.authority_score >= 8.5 && (
+          {pulseSignalSnapshot.authorityScoreValue >= 8.5 && (
             <Award size={14} className="text-primary opacity-60 animate-pulse" />
           )}
           <a
-            href={signal.uniformResourceLocator}
+            href={pulseSignalSnapshot.uniformResourceLocator}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(inputEvent) => inputEvent.stopPropagation()}
             className="p-2 rounded-lg hover:bg-primary/10 transition-colors group/link"
           >
             <ExternalLink size={14} className="text-white/20 group-hover/link:text-primary" />
@@ -158,7 +175,7 @@ export function PulseSourceCard({ signal, isSelected, onToggle }: PulseSourceCar
       </footer>
 
       {/* Indicador visual de "Alta Autoridad" en el borde */}
-      {signal.authority_score >= 9.0 && (
+      {pulseSignalSnapshot.authorityScoreValue >= 9.0 && (
         <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500/0 via-emerald-500/40 to-emerald-500/0" />
       )}
     </motion.div>

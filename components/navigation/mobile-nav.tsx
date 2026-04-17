@@ -1,15 +1,11 @@
 /**
- * ARCHIVE: components/navigation/mobile-nav.tsx
- * VERSION: 5.0 (NicePod Mobile Command - Axial Path Sanitization Edition)
- * PROTOCOLO: MADRID RESONANCE V4.9
- * 
- * MISSION: Especialista en interacción táctil y renderizado de alta densidad para
- * dispositivos móviles, gestionando el acceso a la Bóveda y la autoridad del usuario.
- * [REFORMA V5.0]: Implementación de 'Axial Path Sanitization'. Resolución del 
- * error TS2345 mediante la garantía de hilos de texto definidos en la comparación 
- * de rutas. Purificación total de la Zero Abbreviations Policy (ZAP) y blindaje 
- * del Build Shield Sovereignty (BSS).
- * INTEGRITY LEVEL: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * ARCHIVO: components/navigation/mobile-nav.tsx
+ * VERSIÓN: 5.1 (Madrid Resonance)
+ * PROTOCOLO: Nominal Sovereignty
+ * MISIÓN: Orquestación de mando móvil con tipado industrial y nominalidad soberana.
+ * [REFORMA V5.1]: Aplicación integral de la Zero Abbreviations Policy (ZAP).
+ * Transmutación de 'cn' a 'classNamesUtility' y purificación de interfaces.
+ * NIVEL DE INTEGRIDAD: 100%
  */
 
 "use client";
@@ -46,19 +42,19 @@ import {
   SheetTrigger
 } from "@/components/ui/sheet";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
+import { classNamesUtility } from "@/lib/utils";
 
 // --- CONTRATOS DE DATOS SOBERANOS ---
 import { ProfileData } from "@/types/profile";
 
 /**
- * INTERFAZ: MobileNavigationProperties
+ * INTERFAZ: MobileNavigationComponentProperties
  * MISSION: Definir los activos necesarios para la orquestación móvil inyectados por el Master Navigator.
  */
-interface MobileNavigationProperties {
+interface MobileNavigationComponentProperties {
   isUserAuthenticatedStatus: boolean;
   isInitialLoadingProcessActive: boolean;
-  userProfileData: ProfileData | null;
+  userProfileDataSnapshot: ProfileData | null;
   isAdministratorAuthorityStatus: boolean;
   onAuthenticationLogoutAction: () => void;
 }
@@ -69,10 +65,10 @@ interface MobileNavigationProperties {
 export function MobileNav({
   isUserAuthenticatedStatus,
   isInitialLoadingProcessActive,
-  userProfileData,
+  userProfileDataSnapshot,
   isAdministratorAuthorityStatus,
   onAuthenticationLogoutAction
-}: MobileNavigationProperties) {
+}: MobileNavigationComponentProperties) {
 
   /**
    * [BSS]: SANITIZACIÓN AXIAL
@@ -81,7 +77,7 @@ export function MobileNav({
    */
   const currentNavigationPathname = usePathname() || "";
 
-  const [isNavigationSheetOpen, setIsNavigationSheetOpen] = useState<boolean>(false);
+  const [isNavigationSheetOpenStatus, setIsNavigationSheetOpenStatus] = useState<boolean>(false);
 
   /**
    * navigationItemsCollection: 
@@ -90,7 +86,7 @@ export function MobileNav({
   const navigationItemsCollection = isUserAuthenticatedStatus ? USER_NAVIGATION_ITEMS : GUEST_NAVIGATION_ITEMS;
 
   return (
-    <div className={cn(glassPanelClass, "flex md:hidden isolate")}>
+    <div className={classNamesUtility(glassPanelClass, "flex md:hidden isolate")}>
 
       {/* I. NÚCLEO DE MARCA (IZQUIERDA) */}
       <NavBrand isUserAuthenticatedStatus={isUserAuthenticatedStatus} />
@@ -122,7 +118,7 @@ export function MobileNav({
         {isUserAuthenticatedStatus && !isInitialLoadingProcessActive && (
           <div className="scale-105">
             <UserDropdown
-              initialAdministratorProfile={userProfileData}
+              initialAdministratorProfile={userProfileDataSnapshot}
               isAdministratorAuthorityStatus={isAdministratorAuthorityStatus}
               onAuthenticationLogoutAction={onAuthenticationLogoutAction}
             />
@@ -130,7 +126,7 @@ export function MobileNav({
         )}
 
         {/* 5. NAVEGACIÓN PROFUNDA: MENÚ LATERAL (SHEET) */}
-        <Sheet open={isNavigationSheetOpen} onOpenChange={setIsNavigationSheetOpen}>
+        <Sheet open={isNavigationSheetOpenStatus} onOpenChange={setIsNavigationSheetOpenStatus}>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -176,35 +172,35 @@ export function MobileNav({
 
               {/* LISTA DE NAVEGACIÓN VERTICAL */}
               <nav className="flex flex-col space-y-4">
-                {navigationItemsCollection.map((navigationItem: NavigationItem) => {
+                {navigationItemsCollection.map((navigationEntryItem: NavigationItem) => {
                   /**
-                   * [SINCRO V5.0]: Verificación de estado activo.
+                   * [SINCRO V5.1]: Verificación de estado activo.
                    * Se utiliza 'currentNavigationPathname' (ya sanitizado) para la comparación.
                    */
-                  const isNavigationItemActive = isRouteActive(navigationItem.href, currentNavigationPathname);
-                  const NavigationIconComponent = navigationItem.icon;
+                  const isNavigationEntryActiveStatus = isRouteActive(navigationEntryItem.href, currentNavigationPathname);
+                  const NavigationIconComponent = navigationEntryItem.icon;
 
                   return (
                     <Link
-                      key={navigationItem.href}
-                      href={navigationItem.href}
-                      onClick={() => setIsNavigationSheetOpen(false)}
+                      key={navigationEntryItem.href}
+                      href={navigationEntryItem.href}
+                      onClick={() => setIsNavigationSheetOpenStatus(false)}
                       className="group"
                     >
                       <Button
                         variant="ghost"
-                        className={cn(
+                        className={classNamesUtility(
                           "w-full justify-between text-[11px] h-16 rounded-2xl font-black px-6 uppercase tracking-[0.2em] transition-all duration-500",
-                          isNavigationItemActive
+                          isNavigationEntryActiveStatus
                             ? "bg-white text-black shadow-2xl scale-[1.02]"
                             : "text-zinc-500 hover:text-white hover:bg-white/5 border border-transparent"
                         )}
                       >
                         <div className="flex items-center gap-4">
-                          <NavigationIconComponent className={cn("h-5 w-5", isNavigationItemActive ? "text-black" : "text-zinc-700 group-hover:text-primary")} />
-                          {navigationItem.label}
+                          <NavigationIconComponent className={classNamesUtility("h-5 w-5", isNavigationEntryActiveStatus ? "text-black" : "text-zinc-700 group-hover:text-primary")} />
+                          {navigationEntryItem.label}
                         </div>
-                        <ChevronRight className={cn("h-4 w-4 opacity-0 group-hover:opacity-100 transition-all", isNavigationItemActive && "text-black opacity-30")} />
+                        <ChevronRight className={classNamesUtility("h-4 w-4 opacity-0 group-hover:opacity-100 transition-all", isNavigationEntryActiveStatus && "text-black opacity-30")} />
                       </Button>
                     </Link>
                   );
@@ -218,7 +214,7 @@ export function MobileNav({
                     variant="ghost"
                     onClick={() => {
                       onAuthenticationLogoutAction();
-                      setIsNavigationSheetOpen(false);
+                      setIsNavigationSheetOpenStatus(false);
                     }}
                     className="w-full justify-start text-[10px] h-14 rounded-2xl font-black text-red-500/80 hover:bg-red-500/10 hover:text-red-500 uppercase tracking-widest transition-all border border-red-500/5"
                   >
@@ -226,7 +222,7 @@ export function MobileNav({
                     Desconectar Nodo
                   </Button>
                 ) : (
-                  <Link href="/login" onClick={() => setIsNavigationSheetOpen(false)}>
+                  <Link href="/login" onClick={() => setIsNavigationSheetOpenStatus(false)}>
                     <Button className="w-full h-14 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] bg-white text-black hover:bg-zinc-200 transition-all shadow-xl">
                       Iniciar Frecuencia
                     </Button>
@@ -234,7 +230,7 @@ export function MobileNav({
                 )}
 
                 <p className="text-center text-[7px] font-bold text-zinc-800 uppercase tracking-[0.4em] pt-6 italic">
-                  NicePod Workstation V4.9 • Madrid Resonance
+                  NicePod Workstation V5.1 • Madrid Resonance
                 </p>
               </div>
 
@@ -248,11 +244,11 @@ export function MobileNav({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V5.0):
+ * NOTA TÉCNICA DEL ARCHITECT (V5.1):
  * 1. ZAP Absolute Compliance: Purificación total de descriptores técnicos 
  *    (NavigationIconComponent, currentNavigationPathname, onAuthenticationLogoutAction).
  * 2. Build Shield Sovereignty: Se erradicó el error TS2345 mediante el fallback 
  *    inmune a nulos en la captura del pathname.
- * 3. Mobile Performance: Se optimizó el renderizado de la capa 'isolate' para 
- *    evitar parpadeos de VRAM durante la animación de apertura del menú lateral.
+ * 3. Nominal Sincronization: Transmutación de 'cn' a 'classNamesUtility' para
+ *    eliminar abreviaciones estructurales.
  */

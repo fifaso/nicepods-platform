@@ -1,9 +1,10 @@
 /**
  * ARCHIVO: components/geo/SpatialEngine/index.tsx
- * VERSIÓN: 17.0
+ * VERSIÓN: 18.0
  * PROTOCOLO: MADRID RESONANCE V4.9
  * MISIÓN: Orquestar el Hub Espacial con sintonización nominal y tipos BSS.
- * NIVEL DE INTEGRIDAD: 100%
+ * [THERMIC V1.0]: Reforzamiento ZAP en estados locales de interfaz.
+ * NIVEL DE INTEGRIDAD: 100% (Soberano)
  */
 
 "use client";
@@ -109,9 +110,9 @@ export function SpatialEngine({
 
   // 3. ESTADOS DE INTERFAZ DE ALTA DENSIDAD
   const [selectedPointOfInterestIdentification, setSelectedPointOfInterestIdentification] = useState<string | null>(null);
-  const [isSearchProcessLoading, setIsSearchProcessLoading] = useState<boolean>(false);
+  const [isSearchProcessLoadingStatus, setIsSearchProcessLoadingStatus] = useState<boolean>(false);
   const [isContainerEnvironmentReady, setIsContainerEnvironmentReady] = useState<boolean>(false);
-  const [isMapEngineLoaded, setIsMapEngineLoaded] = useState<boolean>(false);
+  const [isMapEngineLoadedStatus, setIsMapEngineLoadedStatus] = useState<boolean>(false);
   const [isMapInterfaceVisible, setIsMapInterfaceVisible] = useState<boolean>(false);
   const [showAuthorityPulseFeedback, setShowAuthorityPulseFeedback] = useState<boolean>(false);
 
@@ -348,7 +349,7 @@ export function SpatialEngine({
             startCoordinates={initialBirthLocation}
             lightTheme={effectiveVisualTheme as MapboxLightPreset}
             selectedPointOfInterestIdentification={selectedPointOfInterestIdentification}
-            onLoad={() => setIsMapEngineLoaded(true)}
+            onLoad={() => setIsMapEngineLoadedStatus(true)}
             // [FIX V16.0]: Corregido typo nominal para resolver TS2552.
             onIdle={handleMapVisualStabilityAction}
             onMove={handleMapMovementAction}
@@ -360,7 +361,7 @@ export function SpatialEngine({
             }}
             onMarkerClick={setSelectedPointOfInterestIdentification}
           />
-          {isMapEngineLoaded && (
+          {isMapEngineLoadedStatus && (
             <CameraController mapInstanceIdentification={mapInstanceIdentification} />
           )}
         </div>
@@ -371,7 +372,7 @@ export function SpatialEngine({
             <UnifiedSearchBar
               variantType="console"
               onSearchIdentificationResults={handleSearchIdentificationResultsAction}
-              onLoadingStatusChange={setIsSearchProcessLoading}
+              onLoadingStatusChange={setIsSearchProcessLoadingStatus}
               latitudeCoordinate={currentSearchGeographicPosition.latitudeCoordinate}
               longitudeCoordinate={currentSearchGeographicPosition.longitudeCoordinate}
             />
