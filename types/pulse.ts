@@ -1,10 +1,11 @@
 /**
- * ARCHIVE: types/pulse.ts
- * VERSION: 2.0 (Pulse Intelligence Types - DNA, Signals & Matching)
- * PROTOCOLO: MADRID RESONANCE V4.9
- * MISSION: Define the data structures for the Pulse Intelligence engine,
- * including signal processing, cognitive DNA mapping, and radar telemetry.
- * INTEGRITY LEVEL: 100% (Soberano / No abbreviations / Production-Ready)
+ * ARCHIVO: types/pulse.ts
+ * VERSIÓN: 5.2 (Madrid Resonance)
+ * PROTOCOLO: Nominal Sovereignty
+ * MISIÓN: Sellar el contrato de inteligencia proactiva y ADN cognitivo.
+ * [REFORMA V5.2]: Restauración de la Axial Integrity mediante la inclusión
+ * de alias depreciados en 'PulseRadarState'. Consolidación total ZAP.
+ * NIVEL DE INTEGRIDAD: 100%
  */
 
 /**
@@ -16,26 +17,40 @@ export type PulseCategory = 'paper' | 'report' | 'news' | 'analysis' | 'trend';
  * PulseSignal: Represents a raw intelligence unit in the staging buffer.
  */
 export interface PulseSignal {
+  /** identification: Descriptor industrial soberano del nodo. */
   identification: string;
-  /** id: Fallback for axial compatibility. */
+  /** @deprecated Utilizar 'identification' */
   id: string;
+
   contentHashIdentification: string;
+
+  /** titleTextContent: Descriptor nominal del activo de conocimiento. */
   titleTextContent: string;
-  /** title: Fallback for axial compatibility. */
+  /** @deprecated Utilizar 'titleTextContent' */
   title: string;
+
+  /** summaryContentText: Resumen ejecutivo generado por el Oráculo. */
   summaryContentText: string;
-  /** summary: Fallback for axial compatibility. */
+  /** @deprecated Utilizar 'summaryContentText' */
   summary: string;
+
   uniformResourceLocator: string;
+
+  /** sourceAuthorityName: Autoridad emisora de la señal. */
   sourceAuthorityName: string;
-  /** source_name: Fallback for axial compatibility. */
+  /** @deprecated Utilizar 'sourceAuthorityName' */
   source_name: string;
+
+  /** sourceContentType: Taxonomía de la fuente. */
   sourceContentType: PulseCategory;
-  /** content_type: Fallback for axial compatibility. */
+  /** @deprecated Utilizar 'sourceContentType' */
   content_type: PulseCategory;
+
+  /** authorityScoreValue: Magnitud de veracidad calculada (0.0 - 10.0). */
   authorityScoreValue: number;
-  /** authority_score: Fallback for axial compatibility. */
+  /** @deprecated Utilizar 'authorityScoreValue' */
   authority_score: number;
+
   isVeracityVerified: boolean;
   isHighValueSovereignty: boolean;
   creationTimestamp: string;
@@ -47,9 +62,12 @@ export interface PulseSignal {
  */
 export interface PulseMatchResult extends PulseSignal {
   semanticSimilarityMagnitude: number;
+
+  /** matchPercentageMagnitude: Grado de resonancia con el ADN del Voyager. */
   matchPercentageMagnitude: number;
-  /** match_percentage: Fallback for axial compatibility. */
+  /** @deprecated Utilizar 'matchPercentageMagnitude' */
   match_percentage: number;
+
   relevanceLabel: 'Prioritario' | 'Relevante' | 'Exploratorio';
 }
 
@@ -72,8 +90,15 @@ export interface UserCognitiveDNA {
 export interface PulseRadarState {
   signalsCollection: PulseMatchResult[];
   selectedIdentificationsCollection: string[];
+
+  isProcessingActiveStatus: boolean;
+  /** @deprecated Utilizar 'isProcessingActiveStatus' */
   isProcessingActive: boolean;
+
+  isScanningProcessActiveStatus: boolean;
+  /** @deprecated Utilizar 'isScanningProcessActiveStatus' */
   isScanningProcessActive: boolean;
+
   exceptionMessageInformation: string | null;
   lastScanTimestamp: string | null;
 }
