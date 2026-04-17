@@ -1,8 +1,8 @@
 /**
  * ARCHIVO: actions/draft-actions.ts
- * VERSIÓN: 4.1 (NicePod V2.6 - Universal Knowledge Engine)
+ * VERSIÓN: 4.2 (NicePod V2.6 - Universal Knowledge Engine)
  * PROTOCOLO: MADRID RESONANCE V4.0
- * MISIÓN: Gestionar el ciclo de vida de borradores para conocimiento aspatial.
+ * MISIÓN: Gestionar el ciclo de vida de borradores para conocimiento aspatial con integridad nominal.
  * NIVEL DE INTEGRIDAD: 100% (Soberano / ZAP Compliant / Build Shield Green)
  */
 
@@ -30,6 +30,21 @@ export interface DraftActionResponse<T = unknown> {
     data?: T;
     exceptionMessageInformation?: string;
     error?: string; // Legacy field for backward compatibility
+}
+
+/**
+ * INTERFAZ: DraftDatabaseRow
+ * Representa la estructura cruda proveniente del Metal (Base de Datos).
+ */
+export interface DraftDatabaseRow {
+    id: number;
+    title: string;
+    script_text: PodcastScript | null;
+    creation_data: CreationMetadataPayload | null;
+    sources: ResearchSource[] | null;
+    status: string;
+    created_at: string;
+    updated_at: string;
 }
 
 /**
@@ -68,42 +83,42 @@ export interface DraftRow {
  * Solo devuelve activos del dominio de Conocimiento Universal.
  */
 export async function listUserDrafts(): Promise<DraftRow[]> {
-    const supabase = createClient();
+    const supabaseSovereignClient = createClient();
 
     // 1. Handshake de Identidad SSR
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
+    const { data: { user: authenticatedUserSnapshot }, error: authenticationHardwareExceptionInformation } = await supabaseSovereignClient.auth.getUser();
+    if (authenticationHardwareExceptionInformation || !authenticatedUserSnapshot) {
         console.error("🛑 [Draft-Engine] Acceso denegado: Sesión no válida.");
         return [];
     }
 
     try {
-        const { data: draftDatabaseResults, error: databaseQueryExceptionInformation } = await supabase
+        const { data: podcastDraftDatabaseResultsCollection, error: databaseQueryExceptionInformation } = await supabaseSovereignClient
             .from("podcast_drafts")
             .select("id, title, script_text, creation_data, sources, status, created_at, updated_at")
-            .eq("user_id", user.id)
+            .eq("user_id", authenticatedUserSnapshot.id)
             .order("created_at", { ascending: false });
 
         if (databaseQueryExceptionInformation) throw databaseQueryExceptionInformation;
 
         // El mapeo a DraftRow garantiza cumplimiento ZAP y backward compatibility.
-        return (draftDatabaseResults || []).map((draftRow: any) => ({
-            identification: draftRow.id,
-            id: draftRow.id,
-            titleTextContent: draftRow.title,
-            title: draftRow.title,
-            scriptTextContent: draftRow.script_text,
-            script_text: draftRow.script_text,
-            creationMetadataPayload: draftRow.creation_data,
-            creation_data: draftRow.creation_data,
-            intelligenceResearchSources: draftRow.sources,
-            sources: draftRow.sources,
-            moderationStatus: draftRow.status,
-            status: draftRow.status,
-            creationTimestamp: draftRow.created_at,
-            created_at: draftRow.created_at,
-            updateTimestamp: draftRow.updated_at,
-            updated_at: draftRow.updated_at
+        return (podcastDraftDatabaseResultsCollection || []).map((podcastDraftDatabaseRowSnapshot: DraftDatabaseRow) => ({
+            identification: podcastDraftDatabaseRowSnapshot.id,
+            id: podcastDraftDatabaseRowSnapshot.id,
+            titleTextContent: podcastDraftDatabaseRowSnapshot.title,
+            title: podcastDraftDatabaseRowSnapshot.title,
+            scriptTextContent: podcastDraftDatabaseRowSnapshot.script_text,
+            script_text: podcastDraftDatabaseRowSnapshot.script_text,
+            creationMetadataPayload: podcastDraftDatabaseRowSnapshot.creation_data,
+            creation_data: podcastDraftDatabaseRowSnapshot.creation_data,
+            intelligenceResearchSources: podcastDraftDatabaseRowSnapshot.sources,
+            sources: podcastDraftDatabaseRowSnapshot.sources,
+            moderationStatus: podcastDraftDatabaseRowSnapshot.status,
+            status: podcastDraftDatabaseRowSnapshot.status,
+            creationTimestamp: podcastDraftDatabaseRowSnapshot.created_at,
+            created_at: podcastDraftDatabaseRowSnapshot.created_at,
+            updateTimestamp: podcastDraftDatabaseRowSnapshot.updated_at,
+            updated_at: podcastDraftDatabaseRowSnapshot.updated_at
         }));
     } catch (exceptionMessageInformation: unknown) {
         const errorMessage = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
@@ -117,39 +132,39 @@ export async function listUserDrafts(): Promise<DraftRow[]> {
  * Recupera un borrador específico para alimentar el Script Editor de la plataforma.
  */
 export async function getDraftById(draftIdentification: number): Promise<DraftRow | null> {
-    const supabase = createClient();
-    const { data: { user: authenticatedUser } } = await supabase.auth.getUser();
-    if (!authenticatedUser) return null;
+    const supabaseSovereignClient = createClient();
+    const { data: { user: authenticatedUserSnapshot } } = await supabaseSovereignClient.auth.getUser();
+    if (!authenticatedUserSnapshot) return null;
 
     try {
-        const { data: draftDatabaseResult, error: databaseQueryExceptionInformation } = await supabase
+        const { data: podcastDraftDatabaseResultSnapshot, error: databaseQueryExceptionInformation } = await supabaseSovereignClient
             .from("podcast_drafts")
             .select("id, title, script_text, creation_data, sources, status, created_at, updated_at")
             .eq("id", draftIdentification)
-            .eq("user_id", authenticatedUser.id)
+            .eq("user_id", authenticatedUserSnapshot.id)
             .single();
 
         if (databaseQueryExceptionInformation) throw databaseQueryExceptionInformation;
 
-        if (!draftDatabaseResult) return null;
+        if (!podcastDraftDatabaseResultSnapshot) return null;
 
         return {
-            identification: draftDatabaseResult.id,
-            id: draftDatabaseResult.id,
-            titleTextContent: draftDatabaseResult.title,
-            title: draftDatabaseResult.title,
-            scriptTextContent: draftDatabaseResult.script_text,
-            script_text: draftDatabaseResult.script_text,
-            creationMetadataPayload: draftDatabaseResult.creation_data,
-            creation_data: draftDatabaseResult.creation_data,
-            intelligenceResearchSources: draftDatabaseResult.sources,
-            sources: draftDatabaseResult.sources,
-            moderationStatus: draftDatabaseResult.status,
-            status: draftDatabaseResult.status,
-            creationTimestamp: draftDatabaseResult.created_at,
-            created_at: draftDatabaseResult.created_at,
-            updateTimestamp: draftDatabaseResult.updated_at,
-            updated_at: draftDatabaseResult.updated_at
+            identification: podcastDraftDatabaseResultSnapshot.id,
+            id: podcastDraftDatabaseResultSnapshot.id,
+            titleTextContent: podcastDraftDatabaseResultSnapshot.title,
+            title: podcastDraftDatabaseResultSnapshot.title,
+            scriptTextContent: podcastDraftDatabaseResultSnapshot.script_text,
+            script_text: podcastDraftDatabaseResultSnapshot.script_text,
+            creationMetadataPayload: podcastDraftDatabaseResultSnapshot.creation_data,
+            creation_data: podcastDraftDatabaseResultSnapshot.creation_data,
+            intelligenceResearchSources: podcastDraftDatabaseResultSnapshot.sources,
+            sources: podcastDraftDatabaseResultSnapshot.sources,
+            moderationStatus: podcastDraftDatabaseResultSnapshot.status,
+            status: podcastDraftDatabaseResultSnapshot.status,
+            creationTimestamp: podcastDraftDatabaseResultSnapshot.created_at,
+            created_at: podcastDraftDatabaseResultSnapshot.created_at,
+            updateTimestamp: podcastDraftDatabaseResultSnapshot.updated_at,
+            updated_at: podcastDraftDatabaseResultSnapshot.updated_at
         };
     } catch (exceptionMessageInformation: unknown) {
         const errorMessage = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
@@ -170,16 +185,16 @@ export async function getDraftById(draftIdentification: number): Promise<DraftRo
  * Libera inmediatamente la cuota de concurrencia del plan del usuario.
  */
 export async function deleteDraftAction(draftIdentification: number): Promise<DraftActionResponse> {
-    const supabaseClient = createClient();
-    const { data: { user: authenticatedUser } } = await supabaseClient.auth.getUser();
-    if (!authenticatedUser) return { success: false, message: "AUTENTICACIÓN_REQUERIDA" };
+    const supabaseSovereignClient = createClient();
+    const { data: { user: authenticatedUserSnapshot } } = await supabaseSovereignClient.auth.getUser();
+    if (!authenticatedUserSnapshot) return { success: false, message: "AUTENTICACIÓN_REQUERIDA" };
 
     try {
-        const { error: databaseDeleteExceptionInformation } = await supabaseClient
+        const { error: databaseDeleteExceptionInformation } = await supabaseSovereignClient
             .from("podcast_drafts")
             .delete()
             .eq("id", draftIdentification)
-            .eq("user_id", authenticatedUser.id);
+            .eq("user_id", authenticatedUserSnapshot.id);
 
         if (databaseDeleteExceptionInformation) throw databaseDeleteExceptionInformation;
 
@@ -218,26 +233,26 @@ export async function promoteDraftToProduction(submissionPayload: {
     finalPodcastScript: PodcastScript;
     intelligenceResearchSourcesCollection: ResearchSource[];
 }): Promise<DraftActionResponse<{ podcastIdentification: number }>> {
-    const supabaseClient = createClient();
-    const { data: { user: authenticatedUser } } = await supabaseClient.auth.getUser();
-    if (!authenticatedUser) return { success: false, message: "IDENTIDAD_NO_VERIFICADA" };
+    const supabaseSovereignClient = createClient();
+    const { data: { user: authenticatedUserSnapshot } } = await supabaseSovereignClient.auth.getUser();
+    if (!authenticatedUserSnapshot) return { success: false, message: "IDENTIDAD_NO_VERIFICADA" };
 
     try {
         // 1. Auditoría de Dominio: Verificamos que no sea un POI camuflado.
-        const { data: draftCheckDatabaseResult } = await supabaseClient
+        const { data: draftExistenceVerificationSnapshot } = await supabaseSovereignClient
             .from("podcast_drafts")
             .select("creation_data")
             .eq("id", submissionPayload.draftIdentification)
             .single();
 
-        if (draftCheckDatabaseResult?.creation_data?.creation_mode === 'situational') {
+        if (draftExistenceVerificationSnapshot?.creation_data?.creation_mode === 'situational') {
             throw new Error("DOMAIN_MISMATCH: Los activos situacionales deben promoverse vía Geo-Actions.");
         }
 
         console.info(`🚀 [Draft-Engine] Promocionando Conocimiento Universal #${submissionPayload.draftIdentification}.`);
 
         // 2. Invocación del RPC Soberano en el Metal SQL.
-        const { data: promotionDatabaseResultCollection, error: databaseRpcExceptionInformation } = await supabaseClient.rpc('promote_draft_to_production_v2', {
+        const { data: promotionDatabaseResultCollection, error: databaseRpcExceptionInformation } = await supabaseSovereignClient.rpc('promote_draft_to_production_v2', {
             p_draft_id: submissionPayload.draftIdentification,
             p_final_title: submissionPayload.finalTitleTextContent,
             p_final_script: submissionPayload.finalPodcastScript,
