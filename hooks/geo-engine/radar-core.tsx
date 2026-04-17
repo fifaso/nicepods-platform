@@ -3,7 +3,8 @@
  * VERSIÓN: 4.2
  * PROTOCOLO: MADRID RESONANCE V4.5
  * MISIÓN: Sincronizar la Bóveda de Conocimiento NKV con blindaje BSS.
- * NIVEL DE INTEGRIDAD: 100%
+ * [THERMIC V1.0]: Implementación de MRCP para controladores de aborto y purificación ZAP.
+ * NIVEL DE INTEGRIDAD: 100% (Soberano)
  */
 
 "use client";
@@ -111,8 +112,9 @@ export function RadarProvider({ children }: { children: React.ReactNode }) {
      * Mantenemos el controlador para cancelar peticiones si el componente se desmonta 
      * o si se requiere un refresco forzado.
      */
-    if (networkAbortControllerReference.current) {
-      networkAbortControllerReference.current.abort();
+    const networkAbortControllerInstanceSnapshot = networkAbortControllerReference.current;
+    if (networkAbortControllerInstanceSnapshot) {
+      networkAbortControllerInstanceSnapshot.abort();
     }
     networkAbortControllerReference.current = new AbortController();
 
@@ -248,8 +250,9 @@ export function RadarProvider({ children }: { children: React.ReactNode }) {
    * Misión: Purga física de la memoria del radar y aniquilación de hilos de red.
    */
   const clearRadarIntelligence = useCallback(() => {
-    if (networkAbortControllerReference.current) {
-      networkAbortControllerReference.current.abort();
+    const networkAbortControllerInstanceSnapshot = networkAbortControllerReference.current;
+    if (networkAbortControllerInstanceSnapshot) {
+      networkAbortControllerInstanceSnapshot.abort();
     }
     setNearbyPointsOfInterestCollection([]);
     setActivePointOfInterest(null);

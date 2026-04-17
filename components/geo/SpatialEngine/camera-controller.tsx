@@ -3,7 +3,8 @@
  * VERSIÓN: 14.0
  * PROTOCOLO: MADRID RESONANCE V4.9
  * MISIÓN: Orquestar la lente WebGL con aislamiento térmico y captura de referencias.
- * NIVEL DE INTEGRIDAD: 100%
+ * [THERMIC V1.0]: Sincronización nominal ZAP y captura de referencias para aniquilación de cuadros.
+ * NIVEL DE INTEGRIDAD: 100% (Soberano)
  */
 
 "use client";
@@ -110,8 +111,8 @@ export function CameraController({
     lastFrameHighResolutionTimestampReference.current = highResolutionTimestamp;
 
     // PROTOCOLO DE RECUPERACIÓN DE AUTORIDAD TRAS INACTIVIDAD
-    const currentSystemTime = Date.now();
-    if (isUserInteractingReference.current && (currentSystemTime - lastInteractionUnixTimestampReference.current > 8000)) {
+    const currentSystemUnixTimestampMagnitude = Date.now();
+    if (isUserInteractingReference.current && (currentSystemUnixTimestampMagnitude - lastInteractionUnixTimestampReference.current > 8000)) {
       if (!nativeMapInstance.isMoving()) {
         isUserInteractingReference.current = false;
         setManualMode(false);
@@ -205,7 +206,8 @@ export function CameraController({
   }, [needsBallisticLanding, recenterTriggerPulse, mapboxMapInstance, voyagerGeographicLocation, isManualModeActive, setManualMode, confirmAterrizajeExitosoAction]);
 
   useEffect(() => {
-    const nativeMapCanvas = mapboxMapInstance?.getMap().getCanvas();
+    const mapboxMapInstanceSnapshot = mapboxMapInstance;
+    const nativeMapCanvas = mapboxMapInstanceSnapshot?.getMap().getCanvas();
     if (!nativeMapCanvas) return;
 
     const visibilityObserver = new IntersectionObserver((entries) => {
@@ -220,9 +222,9 @@ export function CameraController({
     nativeMapCanvas.addEventListener('wheel', handleManualInteractionAction, { passive: true });
 
     return () => {
-      const currentAnimationFrameIdentification = animationFrameIdentificationReference.current;
+      const currentAnimationFrameIdentificationSnapshot = animationFrameIdentificationReference.current;
       visibilityObserver.disconnect();
-      if (currentAnimationFrameIdentification) cancelAnimationFrame(currentAnimationFrameIdentification);
+      if (currentAnimationFrameIdentificationSnapshot) cancelAnimationFrame(currentAnimationFrameIdentificationSnapshot);
       nativeMapCanvas.removeEventListener('mousedown', handleManualInteractionAction);
       nativeMapCanvas.removeEventListener('touchstart', handleManualInteractionAction);
       nativeMapCanvas.removeEventListener('wheel', handleManualInteractionAction);
