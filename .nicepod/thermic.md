@@ -1,28 +1,37 @@
-# 🔋 THERMIC'S JOURNAL - Resource & Thermal Management
+# NicePod Workstation: Thermic Audit Report (Refined)
 
-## 2026-04-13 - [Initial Thermal Audit] | **Leak identified:** Multiple components lacking atomic cleanup and visibility guards. | **Optimization:** Initiated Workstation-wide Annihilation Protocols.
+## 🔋 Mission: Energetic Efficiency & Resource Sovereignty
+**Status:** Deep Audit Completed. corrective Phase Initiated.
 
-## 2026-04-13 - [VRAM Annihilation in MapCore] | **Leak identified:** Mapbox instance reuse kept VRAM occupied after component unmount. | **Optimization:** Disabled `reuseMaps` and implemented atomic `remove()` protocol in the cleanup effect across all Mapbox implementations.
+### 🧊 Zombie Process Annihilation & Hardware Protocols
 
-## 2026-04-13 - [Hardware Listener Cleanup in AudioProvider] | **Leak identified:** Hardware audio listeners (play, pause, timeupdate) persisted after navigation. | **Optimization:** Implemented `removeEventListener` for all hardware streams and enforced ZAP naming (`audioElementReference`).
+1. **Acoustic Cortex (Audio Engine):**
+   - **Reactor:** `contexts/audio-context.tsx`
+   - **Status:** PARTIALLY COMPLIANT. ⚠️
+   - **Issue:** While the WebKit Defeat Protocol is implemented in `useEffect` and `terminatePodcastPlayback`, it lacks the "Mutable Reference Capture Protocol" for the audio element reference in all callbacks and effects to ensure atomic safety.
+   - **Requirement:** Ensure `audioElementReference.current` is captured locally.
 
-## 2026-04-13 - [Visibility Hibernation in BackgroundEngine] | **Leak identified:** Aurora animations processed frame calculations even when document was hidden. | **Optimization:** Injected `visibilitychange` sentinel to trigger absolute animation suspension.
+2. **Visual Engine (Mapbox GL):**
+   - **Reactor:** `components/geo/SpatialEngine/map-core.tsx`
+   - **Status:** COMPLIANT. 🛡️
+   - **Note:** Atomic annihilation `nativeMapInstance.remove()` is correctly implemented in cleanup.
 
-## 2026-04-14 - [Audio Telemetry Hibernation] | **Leak identified:** High-frequency `nicepod-timeupdate` events and player state updates continued even when the terminal was not visible. | **Optimization:** Implemented `document.hidden` guards in `AudioProvider` and `MiniPlayerBar` to suspend telemetry during backgrounding.
+3. **Kinetic Projection:**
+   - **Reactor:** `components/geo/SpatialEngine/camera-controller.tsx` & `hooks/geo-engine/use-kinetic-avatar-projection.ts`
+   - **Status:** COMPLIANT. 🛡️
+   - **Note:** `document.hidden` guards are active in animation loops.
 
-## 2026-04-14 - [Worker Type Hardening (BSS)] | **Leak identified:** Use of `as any` in `ResonancePhysicsWorker` bypasses build-time safety and risks runtime instability. | **Optimization:** Eliminated type assertions in worker `postMessage` calls to satisfy Build Shield Sovereignty.
+### 🛡️ Build Shield Breaches (External Domain Observation)
 
-## 2026-04-14 - [Direct DOM Progression] | **Leak identified:** High-frequency React state updates for the progress bar caused "Forced Reflow" (Layout Thrashing) in the Main Thread. | **Optimization:** Refactored `MiniPlayerBar` to use direct DOM manipulation for the progress indicator and enforced absolute ZAP compliance.
+1. **File:** `components/geo/geo-recorder.tsx`
+   - **Observation:** Outside Thermic authority. Implements WebKit Defeat Protocol and physical track termination. Human architect should ensure Technical Headers are maintained.
 
-## 2026-04-15 - [Background Thermal Isolation in ResonanceCompass] | **Leak identified:** D3-force simulation in Web Worker continues to consume CPU cycles even when the Voyager is not looking at the Compass. | **Optimization:** Implemented `PAUSE_SIMULATION` and `RESUME_SIMULATION` protocols in `ResonancePhysicsWorker` and injected `visibilitychange` sentinel in `ResonanceCompass`.
+### 🎯 Corrective Roadmap
 
-## 2026-04-15 - [Mutable Reference Capture in GeoRecorder] | **Leak identified:** Potential Null Reference Exceptions and zombie hardware tracks if refs are mutated during the unmounting phase. | **Optimization:** Applied the Mutable Reference Capture Protocol in `GeoRecorder` to ensure atomic destruction of `MediaRecorder`, `MediaStream`, and `Interval` resources.
+1. **Integrity Headers:** Inject/Update NicePod Technical Headers in all modified domain files.
+2. **Ref Reference Capture:** Implement local constant capture for all `useRef` usages within `useEffect` cleanups and high-frequency callbacks.
+3. **ZAP Refinement:** Apply ZAP consistently. Rename booleans with `Status` or `Active` suffixes where appropriate (e.g., `isAudioPlayingStatus`, `isAudioLoadingStatus`).
+4. **Thermal Isolation:** Double-check all high-frequency telemetry for `document.hidden` compliance.
 
-## 2026-04-16 - [BSS & ZAP Audit] | **Leak identified:** Multiple BSS violations (use of `any` and un-guarded `catch` blocks) and ZAP violations (abbreviations) detected in SpatialEngine, RadarCore, and Web Workers. | **Optimization:** Initiated surgical removal of `any` types and nominal purification of worker scripts.
-
-## 2026-04-16 - [Orchestration Feedback] | **Build Blockers detected:** Detected type mismatches outside the Thermic domain due to ZAP alignment.
-- **UnifiedSearchBar:** Out-of-domain callers in Dashboard and SpatialEngine are still passing `variant` instead of the mandated `variantType`.
-- **Podcast Library:** `PodcastWithGenealogy` to `PodcastThreadStructure` conversion mismatch in `library-tabs.tsx`.
-- **Create Flow:** Missing `useMemo` in `audio-studio.tsx` and property `poi` mismatch in `discovery-result-step.tsx`.
-- **Global Utils:** `getHumanReadableDistanceMagnitudeLabel` is missing in `@/lib/utils`.
-- **Action Items:** These require intervention from Purifier 🏛️ or Strategist 🧠 to achieve a global green build.
+---
+*A Voyager with a hot device is a Voyager who abandons the mission. Keep the Workstation cool, silent, and eternal.*
