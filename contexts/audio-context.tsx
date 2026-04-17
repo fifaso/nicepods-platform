@@ -1,14 +1,13 @@
 /**
  * ARCHIVO: contexts/audio-context.tsx
- * VERSIÓN: 9.0
+ * VERSIÓN: 10.0
  * PROTOCOLO: MADRID RESONANCE V4.0
  * PROTOCOLO: Administrative Sovereignty
- * 
- * Misión: Motor de audio neuronal con despacho de telemetría de alta frecuencia,
+ * MISIÓN: Motor de audio neuronal con despacho de telemetría de alta frecuencia,
  * gestionando el ciclo de vida de los activos y la higiene térmica de la RAM.
- * [THERMIC V8.0]: Implementación de "Background Thermal Isolation". Suspensión
- * de telemetría de alta frecuencia cuando el Voyager no está mirando la terminal.
- * Nivel de Integridad: CRITICAL
+ * [THERMIC V9.0]: Reforzamiento ZAP y Mutable Reference Capture Protocol.
+ * Suspensión de telemetría de alta frecuencia bajo Page Visibility API.
+ * NIVEL DE INTEGRIDAD: 100% (Soberano)
  */
 
 "use client";
@@ -28,9 +27,14 @@ export interface AudioContextProperties {
   // --- FIRMA INDUSTRIAL V4.0 ---
   currentActivePodcast: PodcastWithProfile | null;
   playbackQueue: PodcastWithProfile[];
-  isAudioPlaying: boolean;
-  isAudioLoading: boolean;
+  isAudioPlayingStatus: boolean;
+  isAudioLoadingStatus: boolean;
   audioElementReference: React.MutableRefObject<HTMLAudioElement | null>;
+
+  /** @deprecated Use isAudioPlayingStatus instead. */
+  isAudioPlaying: boolean;
+  /** @deprecated Use isAudioLoadingStatus instead. */
+  isAudioLoading: boolean;
   
   // --- MÉTODOS DE ACCIÓN SOBERANA ---
   playPodcastAction: (podcast: PodcastWithProfile, playlist?: PodcastWithProfile[]) => Promise<void>;
@@ -42,6 +46,8 @@ export interface AudioContextProperties {
   logInteractionEventAction: (interactionType: 'completed_playback' | 'liked' | 'shared') => Promise<void>;
   
   // --- INTERFAZ DE USUARIO ---
+  isPlayerInterfaceExpandedStatus: boolean;
+  /** @deprecated Use isPlayerInterfaceExpandedStatus instead. */
   isPlayerExpanded: boolean;
   expandPlayerInterface: () => void;
   collapsePlayerInterface: () => void;
@@ -60,9 +66,9 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   // --- ESTADOS DE GESTIÓN INTERNOS ---
   const [currentActivePodcast, setCurrentActivePodcast] = useState<PodcastWithProfile | null>(null);
   const [playbackQueue, setPlaybackQueue] = useState<PodcastWithProfile[]>([]);
-  const [isAudioPlaying, setIsAudioPlaying] = useState<boolean>(false);
-  const [isAudioLoading, setIsAudioLoading] = useState<boolean>(false);
-  const [isPlayerExpanded, setIsPlayerExpanded] = useState<boolean>(false);
+  const [isAudioPlayingStatus, setIsAudioPlayingStatus] = useState<boolean>(false);
+  const [isAudioLoadingStatus, setIsAudioLoadingStatus] = useState<boolean>(false);
+  const [isPlayerInterfaceExpandedStatus, setIsPlayerInterfaceExpandedStatus] = useState<boolean>(false);
 
   // --- REFERENCIAS DE HARDWARE ---
   const audioElementReference = useRef<HTMLAudioElement | null>(null);
@@ -93,7 +99,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         return;
       }
     }
-    setIsAudioPlaying(false);
+    setIsAudioPlayingStatus(false);
     logInteractionEventAction('completed_playback');
   }, [playbackQueue, currentActivePodcast, logInteractionEventAction]);
 
@@ -104,16 +110,17 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const handlePlayAction = () => setIsAudioPlaying(true);
-    const handlePauseAction = () => setIsAudioPlaying(false);
-    const handleLoadStartAction = () => setIsAudioLoading(true);
-    const handleCanPlayAction = () => setIsAudioLoading(false);
+    const handlePlayAction = () => setIsAudioPlayingStatus(true);
+    const handlePauseAction = () => setIsAudioPlayingStatus(false);
+    const handleLoadStartAction = () => setIsAudioLoadingStatus(true);
+    const handleCanPlayAction = () => setIsAudioLoadingStatus(false);
     const handleEndedAction = () => handleAutomaticNextAction();
 
     const handleTimeUpdateAction = () => {
-      if (document.hidden || !audioElementReference.current) return;
-      const currentPlaybackTimeSeconds = audioElementReference.current.currentTime;
-      const totalPlaybackDurationSeconds = audioElementReference.current.duration || 0;
+      const audioElementInstance = audioElementReference.current;
+      if (document.hidden || !audioElementInstance) return;
+      const currentPlaybackTimeSeconds = audioElementInstance.currentTime;
+      const totalPlaybackDurationSeconds = audioElementInstance.duration || 0;
 
       window.dispatchEvent(new CustomEvent('nicepod-timeupdate', {
         detail: {
@@ -125,7 +132,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     };
 
     const handleErrorAction = (event: Event) => {
-      setIsAudioLoading(false);
+      setIsAudioLoadingStatus(false);
       const errorTarget = event.target as HTMLAudioElement;
       if (!activePodcastReference.current) return;
 
@@ -213,15 +220,29 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   }, [currentActivePodcast, supabaseClient, toast]);
 
   const terminatePodcastPlayback = useCallback(() => {
-    if (audioElementReference.current) {
-      audioElementReference.current.pause();
-      audioElementReference.current.removeAttribute("src");
-      audioElementReference.current.load();
+    const audioElementInstance = audioElementReference.current;
+    if (audioElementInstance) {
+      audioElementInstance.pause();
+      audioElementInstance.removeAttribute("src");
+      audioElementInstance.load();
     }
     setCurrentActivePodcast(null);
     setPlaybackQueue([]);
-    setIsPlayerExpanded(false);
+    setIsPlayerInterfaceExpandedStatus(false);
     nicepodLog("🧹 [AudioEngine] Memoria purgada.");
+  }, []);
+
+  const togglePlayPauseAction = useCallback(() => {
+    const audioElementInstance = audioElementReference.current;
+    if (audioElementInstance) {
+      if (audioElementInstance.paused) {
+        audioElementInstance.play().catch((hardwareException: unknown) => {
+          nicepodLog("⚠️ [AudioEngine] Error en reproducción manual.", hardwareException, 'warn');
+        });
+      } else {
+        audioElementInstance.pause();
+      }
+    }
   }, []);
 
   /**
@@ -232,26 +253,37 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     // Datos Industriales V4.0
     currentActivePodcast,
     playbackQueue,
-    isAudioPlaying,
-    isAudioLoading,
+    isAudioPlayingStatus,
+    isAudioLoadingStatus,
     audioElementReference,
+
+    // Aliases @deprecated
+    isAudioPlaying: isAudioPlayingStatus,
+    isAudioLoading: isAudioLoadingStatus,
+    isPlayerExpanded: isPlayerInterfaceExpandedStatus,
     
     // Acciones Industriales V4.0
     playPodcastAction,
     logInteractionEventAction,
     terminatePodcastPlayback,
-    togglePlayPauseAction: () => {
-      const audioInstance = audioElementReference.current;
-      if (audioInstance) audioInstance.paused ? audioInstance.play().catch(() => {}) : audioInstance.pause();
+    togglePlayPauseAction,
+    seekToTimeAction: (targetTimeSeconds: number) => {
+      const audioElementInstance = audioElementReference.current;
+      if (audioElementInstance) audioElementInstance.currentTime = targetTimeSeconds;
     },
-    seekToTimeAction: (seconds: number) => { if (audioElementReference.current) audioElementReference.current.currentTime = seconds; },
-    skipForwardAction: (seconds = 15) => { if (audioElementReference.current) audioElementReference.current.currentTime += seconds; },
-    skipBackwardAction: (seconds = 15) => { if (audioElementReference.current) audioElementReference.current.currentTime -= seconds; },
+    skipForwardAction: (skipSeconds = 15) => {
+      const audioElementInstance = audioElementReference.current;
+      if (audioElementInstance) audioElementInstance.currentTime += skipSeconds;
+    },
+    skipBackwardAction: (skipSeconds = 15) => {
+      const audioElementInstance = audioElementReference.current;
+      if (audioElementInstance) audioElementInstance.currentTime -= skipSeconds;
+    },
     
-    isPlayerExpanded,
-    expandPlayerInterface: () => setIsPlayerExpanded(true),
-    collapsePlayerInterface: () => setIsPlayerExpanded(false),
-  }), [currentActivePodcast, playbackQueue, isAudioPlaying, isAudioLoading, isPlayerExpanded, logInteractionEventAction, playPodcastAction, terminatePodcastPlayback]);
+    isPlayerInterfaceExpandedStatus,
+    expandPlayerInterface: () => setIsPlayerInterfaceExpandedStatus(true),
+    collapsePlayerInterface: () => setIsPlayerInterfaceExpandedStatus(false),
+  }), [currentActivePodcast, playbackQueue, isAudioPlayingStatus, isAudioLoadingStatus, isPlayerInterfaceExpandedStatus, logInteractionEventAction, playPodcastAction, terminatePodcastPlayback, togglePlayPauseAction]);
 
   return <AudioContext.Provider value={contextValue}>{children}</AudioContext.Provider>;
 }

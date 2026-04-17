@@ -1,9 +1,9 @@
 /**
  * ARCHIVO: actions/vault-actions.ts
- * VERSIÓN: 4.1 (Madrid Resonance)
+ * VERSIÓN: 4.2 (Madrid Resonance - Sovereign Protocol V4.2)
  * PROTOCOLO: Madrid Resonance Protocol V4.0
  * MISIÓN: Gestión administrativa del Knowledge Vault (NKV) con tipado soberano y ZAP absoluto.
- * NIVEL DE INTEGRIDAD: CRITICAL
+ * NIVEL DE INTEGRIDAD: CRITICAL (100% ZAP / BSS Green)
  */
 
 "use server";
@@ -66,24 +66,24 @@ export type VaultActionResponse<T = null> = {
  * Misión: Validar que la petición proviene de un nodo con privilegios administrativos.
  */
 async function ensureAdminAuthority() {
-    const supabase = createClient();
+    const supabaseSovereignClient = createClient();
 
-    const { data: { user }, error: authenticationError } = await supabase.auth.getUser();
-    if (authenticationError || !user) {
+    const { data: { user: authenticatedAdministratorSnapshot }, error: authenticationHardwareExceptionInformation } = await supabaseSovereignClient.auth.getUser();
+    if (authenticationHardwareExceptionInformation || !authenticatedAdministratorSnapshot) {
         throw new Error("AUTENTICACION_REQUERIDA: Sesión no detectada.");
     }
 
-    const { data: profile, error: profileError } = await supabase
+    const { data: administratorProfileSnapshot, error: administratorProfileHardwareExceptionInformation } = await supabaseSovereignClient
         .from('profiles')
         .select('role')
-        .eq('id', user.id)
+        .eq('id', authenticatedAdministratorSnapshot.id)
         .single();
 
-    if (profileError || profile?.role !== 'admin') {
+    if (administratorProfileHardwareExceptionInformation || administratorProfileSnapshot?.role !== 'admin') {
         throw new Error("ACCESO_RESTRINGIDO: Se requieren privilegios de administración.");
     }
 
-    return { supabase, administratorIdentification: user.id };
+    return { supabaseSovereignClient, administratorIdentification: authenticatedAdministratorSnapshot.id };
 }
 
 /**
@@ -92,9 +92,9 @@ async function ensureAdminAuthority() {
  */
 export async function listVaultSources(): Promise<VaultActionResponse<VaultKnowledgeSource[]>> {
     try {
-        const { supabase } = await ensureAdminAuthority();
+        const { supabaseSovereignClient } = await ensureAdminAuthority();
 
-        const { data, error } = await supabase
+        const { data: knowledgeSourcesDatabaseResultsCollection, error: databaseQueryHardwareExceptionInformation } = await supabaseSovereignClient
             .from("knowledge_sources")
             .select(`
                 identification:id,
@@ -109,12 +109,12 @@ export async function listVaultSources(): Promise<VaultActionResponse<VaultKnowl
             `)
             .order("created_at", { ascending: false });
 
-        if (error) throw error;
+        if (databaseQueryHardwareExceptionInformation) throw databaseQueryHardwareExceptionInformation;
 
         return {
             success: true,
             message: "Inventario de Bóveda sincronizado con éxito.",
-            data: data as unknown as VaultKnowledgeSource[]
+            data: knowledgeSourcesDatabaseResultsCollection as unknown as VaultKnowledgeSource[]
         };
     } catch (vaultException: unknown) {
         const errorMessage = vaultException instanceof Error ? vaultException.message : "Error desconocido";
@@ -134,14 +134,14 @@ export async function listVaultSources(): Promise<VaultActionResponse<VaultKnowl
  */
 export async function deleteVaultSource(sourceIdentification: string): Promise<VaultActionResponse> {
     try {
-        const { supabase } = await ensureAdminAuthority();
+        const { supabaseSovereignClient } = await ensureAdminAuthority();
 
-        const { error } = await supabase
+        const { error: databaseDeleteHardwareExceptionInformation } = await supabaseSovereignClient
             .from("knowledge_sources")
             .delete()
             .eq("id", sourceIdentification);
 
-        if (error) throw error;
+        if (databaseDeleteHardwareExceptionInformation) throw databaseDeleteHardwareExceptionInformation;
 
         revalidatePath("/admin/vault");
 
@@ -172,9 +172,9 @@ export async function injectManualKnowledge(knowledgeInjectionPayload: {
     uniformResourceLocator?: string;
 }): Promise<VaultActionResponse> {
     try {
-        const { supabase } = await ensureAdminAuthority();
+        const { supabaseSovereignClient } = await ensureAdminAuthority();
 
-        const { data, error: functionError } = await supabase.functions.invoke('vault-refinery', {
+        const { error: edgeFunctionInvokeHardwareExceptionInformation } = await supabaseSovereignClient.functions.invoke('vault-refinery', {
             body: {
                 title: knowledgeInjectionPayload.title,
                 text: knowledgeInjectionPayload.text,
@@ -184,7 +184,7 @@ export async function injectManualKnowledge(knowledgeInjectionPayload: {
             }
         });
 
-        if (functionError) throw new Error(functionError.message || "Error en el pipeline de refinería.");
+        if (edgeFunctionInvokeHardwareExceptionInformation) throw new Error(edgeFunctionInvokeHardwareExceptionInformation.message || "Error en el pipeline de refinería.");
 
         revalidatePath("/admin/vault");
 
@@ -194,7 +194,7 @@ export async function injectManualKnowledge(knowledgeInjectionPayload: {
             data: null
         };
     } catch (vaultException: unknown) {
-        const errorMessage = vaultException instanceof Error ? vaultException.message : "Error desconocido";
+        const errorMessage = vaultException instanceof Error ? vaultException.message : String(vaultException);
         console.error("🔥 [Vault-Action][Inject-Knowledge]:", errorMessage);
         return {
             success: false,
@@ -211,26 +211,26 @@ export async function injectManualKnowledge(knowledgeInjectionPayload: {
  */
 export async function simulateVaultSearch(
     searchQueryTerm: string,
-    similarityThreshold: number = 0.5
+    similarityThresholdMagnitude: number = 0.5
 ): Promise<VaultActionResponse<SemanticResonanceNode[]>> {
     try {
-        const { supabase } = await ensureAdminAuthority();
+        const { supabaseSovereignClient } = await ensureAdminAuthority();
 
-        const { data, error: searchError } = await supabase.functions.invoke('search-pro', {
+        const { data: resonanceResultsData, error: searchHardwareExceptionInformation } = await supabaseSovereignClient.functions.invoke('search-pro', {
             body: {
                 query: searchQueryTerm,
-                match_threshold: similarityThreshold,
+                match_threshold: similarityThresholdMagnitude,
                 match_count: 10,
                 target: 'vault_only'
             }
         });
 
-        if (searchError) throw searchError;
+        if (searchHardwareExceptionInformation) throw searchHardwareExceptionInformation;
 
         return {
             success: true,
             message: "Simulación de búsqueda completada.",
-            data: data as SemanticResonanceNode[]
+            data: resonanceResultsData as SemanticResonanceNode[]
         };
     } catch (vaultException: unknown) {
         const errorMessage = vaultException instanceof Error ? vaultException.message : "Error desconocido";
@@ -253,19 +253,19 @@ export async function getVaultMetrics(): Promise<VaultActionResponse<{
     totalChunksCount: number;
 }>> {
     try {
-        const { supabase } = await ensureAdminAuthority();
+        const { supabaseSovereignClient } = await ensureAdminAuthority();
 
-        const [sourcesCount, chunksCount] = await Promise.all([
-            supabase.from('knowledge_sources').select('*', { count: 'exact', head: true }),
-            supabase.from('knowledge_chunks').select('*', { count: 'exact', head: true })
+        const [sourcesCountResultsSnapshot, chunksCountResultsSnapshot] = await Promise.all([
+            supabaseSovereignClient.from('knowledge_sources').select('*', { count: 'exact', head: true }),
+            supabaseSovereignClient.from('knowledge_chunks').select('*', { count: 'exact', head: true })
         ]);
 
         return {
             success: true,
             message: "Métricas de Bóveda actualizadas.",
             data: {
-                totalSourcesCount: sourcesCount.count || 0,
-                totalChunksCount: chunksCount.count || 0
+                totalSourcesCount: sourcesCountResultsSnapshot.count || 0,
+                totalChunksCount: chunksCountResultsSnapshot.count || 0
             }
         };
     } catch (vaultException: unknown) {

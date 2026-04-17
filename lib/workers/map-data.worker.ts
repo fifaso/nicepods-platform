@@ -3,7 +3,7 @@
  * VERSIÓN: 5.1 (Madrid Resonance)
  * PROTOCOLO: Thermal Isolation
  * MISIÓN: Procesamiento de nodos NKV en hilo secundario con integridad BSS y ZAP.
- * NIVEL DE INTEGRIDAD: 100%
+ * NIVEL DE INTEGRIDAD: 100% (Soberano)
  */
 
 import {
