@@ -1,7 +1,10 @@
-// components/theme-provider.tsx
-// VERSIÓN: 7.0 (NicePod Atmospheric Shield - Zero-Flicker & Hydration Mastery)
-// Misión: Orquestar la atmósfera visual (Amanecer/Nebulosa) eliminando el destello de carga inicial.
-// [ESTABILIZACIÓN]: Eliminación del bloqueo 'mounted' para permitir sincronía total con el script de layout.tsx.
+/**
+ * ARCHIVO: components/system/theme-provider.tsx
+ * VERSIÓN: 5.1 (Madrid Resonance)
+ * PROTOCOLO: Intellectual Capital & Traceability
+ * MISIÓN: Orquestación de la atmósfera visual eliminando el destello de carga inicial.
+ * NIVEL DE INTEGRIDAD: 100%
+ */
 
 "use client";
 

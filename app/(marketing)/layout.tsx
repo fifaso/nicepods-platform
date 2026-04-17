@@ -1,7 +1,10 @@
-// app/(marketing)/layout.tsx
-// VERSIÓN: 2.0 (NiceCore V2.6 - Global Sensory Anchor & Marketing Parity Edition)
-// Misión: Orquestar el bastidor de la landing page con soporte total para la Malla WebGL.
-// [ESTABILIZACIÓN]: Inyección de GeoEngineProvider para prevenir colapsos de contexto en modo Invitado.
+/**
+ * ARCHIVO: app/(marketing)/layout.tsx
+ * VERSIÓN: 5.1 (Madrid Resonance)
+ * PROTOCOLO: Intellectual Capital & Traceability
+ * MISIÓN: Orquestación del bastidor de la landing page con soporte total para la Malla WebGL.
+ * NIVEL DE INTEGRIDAD: 100%
+ */
 
 import React from "react";
 

@@ -1,15 +1,9 @@
 /**
  * ARCHIVO: app/layout.tsx
- * VERSIÓN: 39.0 (NicePod Root Orchestrator - Auth & Geo Contract Synchronization Edition)
- * PROTOCOLO: MADRID RESONANCE V4.9
- * 
- * Misión: Orquestar la infraestructura global de datos, seguridad y atmósfera. 
- * Actúa como el anfitrión soberano de los motores de telemetría e identidad, 
- * asegurando la persistencia de la verdad técnica a través de la Workstation.
- * [REFORMA V39.0]: Resolución definitiva del error TS2322. Sincronización nominal 
- * absoluta con el AuthProvider V5.1 y el GeoEngineProvider V53.0. Transmutación 
- * de propiedades hacia descriptores industriales completos (initialAuthenticationSession).
- * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * VERSIÓN: 5.1 (Madrid Resonance)
+ * PROTOCOLO: Intellectual Capital & Traceability
+ * MISIÓN: Orquestación de la infraestructura global de datos, seguridad y atmósfera con SEO industrial.
+ * NIVEL DE INTEGRIDAD: 100%
  */
 
 import type { Metadata, Viewport } from "next";
@@ -67,7 +61,7 @@ export const metadata: Metadata = {
     default: "NicePod | Witness, Not Diarist",
     template: "%s | NicePod Intelligence"
   },
-  description: "Workstation de inteligencia industrial para la captura de capital intelectual urbano.",
+  description: "Workstation de Inteligencia Industrial para la captura y síntesis de Capital Intelectual Urbano.",
   manifest: "/manifest.json",
   formatDetection: {
     telephone: false,

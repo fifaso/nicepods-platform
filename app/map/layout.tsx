@@ -1,7 +1,10 @@
-// app/map/layout.tsx
-// VERSIÓN: 3.0 (NicePod Map Layout - Seamless Immersive Hub)
-// Misión: Proveer el chasis visual y la aduana de seguridad para el mapa de pantalla completa.
-// [ESTABILIZACIÓN]: Extirpación del AudioProvider redundante para consolidar la persistencia desde la Raíz.
+/**
+ * ARCHIVO: app/map/layout.tsx
+ * VERSIÓN: 5.1 (Madrid Resonance)
+ * PROTOCOLO: Intellectual Capital & Traceability
+ * MISIÓN: Provisión del chasis visual y la aduana de seguridad para el mapa de pantalla completa.
+ * NIVEL DE INTEGRIDAD: 100%
+ */
 
 import React from "react";
 import { AuthGuard } from "@/components/auth/auth-guard";

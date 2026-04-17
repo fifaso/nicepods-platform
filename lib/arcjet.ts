@@ -1,4 +1,11 @@
-// lib/arcjet.ts
+/**
+ * ARCHIVO: lib/arcjet.ts
+ * VERSIÓN: 5.1 (Madrid Resonance)
+ * PROTOCOLO: Intellectual Capital & Traceability
+ * MISIÓN: Configuración del escudo de seguridad perimetral contra bots y saturación.
+ * NIVEL DE INTEGRIDAD: 100%
+ */
+
 import arcjet, { detectBot, tokenBucket } from "@arcjet/next";
 
 // Definición centralizada de reglas

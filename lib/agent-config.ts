@@ -1,4 +1,10 @@
-// lib/agent-config.ts
+/**
+ * ARCHIVO: lib/agent-config.ts
+ * VERSIÓN: 5.1 (Madrid Resonance)
+ * PROTOCOLO: Intellectual Capital & Traceability
+ * MISIÓN: Definición centralizada de las opciones de agentes de síntesis neuronal.
+ * NIVEL DE INTEGRIDAD: 100%
+ */
 
 export type AgentOption = {
   value: string; // Este es el 'agent_name' de nuestra base de datos

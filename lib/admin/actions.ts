@@ -1,9 +1,9 @@
 /**
  * ARCHIVO: lib/admin/actions.ts
- * VERSIÓN: 4.0 (Madrid Resonance)
- * PROTOCOLO: Administrative Sovereignty
- * MISIÓN: Consolidación del núcleo administrativo con tipado soberano y trazabilidad total.
- * NIVEL DE INTEGRIDAD: CRITICAL
+ * VERSIÓN: 5.1 (Madrid Resonance)
+ * PROTOCOLO: Intellectual Capital & Traceability
+ * MISIÓN: Consolidación del núcleo administrativo con tipado soberano y trazabilidad industrial total.
+ * NIVEL DE INTEGRIDAD: 100%
  */
 
 "use server";
@@ -12,6 +12,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
 import { Database } from '@/types/database.types';
+import { nicepodLog } from '@/lib/utils';
 
 /**
  * INTERFAZ: SovereignAdministrativeResponse
@@ -49,7 +50,11 @@ function getAdministratorServiceRoleClient(): SupabaseClient<Database> {
 
 /**
  * ensureAdministratorAuthority:
- * Valida la identidad y el rango del solicitante antes de permitir mutaciones.
+ * [POR QUÉ]: Protocolo de seguridad de Grado Industrial para validar la autoridad administrativa.
+ * [CÓMO]: Utiliza el Handshake de identidad de Supabase y cruza la referencia con el perfil
+ * de autoridad en la base de datos (Metal). Si se valida el rango 'admin', se instancia
+ * un cliente con privilegios de Service Role para realizar el bypass de Row Level Security (RLS)
+ * garantizando la soberanía de las mutaciones administrativas.
  */
 async function ensureAdministratorAuthority() {
   const supabase = createServerClient();
@@ -105,7 +110,7 @@ export async function getAdminDashboardStats(): Promise<SovereignAdministrativeR
       }
     };
   } catch (governanceException: any) {
-    console.error("🔥 [Admin-Action][Stats]:", governanceException.message);
+    nicepodLog("🔥 [Admin-Action][Stats]:", governanceException.message, 'error');
     return {
       success: false,
       message: "Fallo al recuperar estadísticas del Dashboard.",
@@ -141,7 +146,7 @@ export async function getUsersList(): Promise<SovereignAdministrativeResponse<an
       data: administratorUsersInventory || []
     };
   } catch (governanceException: any) {
-    console.error("🔥 [Admin-Action][Users-List]:", governanceException.message);
+    nicepodLog("🔥 [Admin-Action][Users-List]:", governanceException.message, 'error');
     return {
       success: false,
       message: "Error al sincronizar el inventario de usuarios.",
@@ -176,7 +181,7 @@ export async function getRecentPodcasts(): Promise<SovereignAdministrativeRespon
       data: recentPodcastsInventory || []
     };
   } catch (governanceException: any) {
-    console.error("🔥 [Admin-Action][Recent-Pods]:", governanceException.message);
+    nicepodLog("🔥 [Admin-Action][Recent-Pods]:", governanceException.message, 'error');
     return {
       success: false,
       message: "No se pudo recuperar el pulso editorial.",
@@ -212,7 +217,7 @@ export async function getRecentFailedJobs(): Promise<SovereignAdministrativeResp
       data: failedProductionJobs || []
     };
   } catch (governanceException: any) {
-    console.error("🔥 [Admin-Action][Failed-Jobs]:", governanceException.message);
+    nicepodLog("🔥 [Admin-Action][Failed-Jobs]:", governanceException.message, 'error');
     return {
       success: false,
       message: "Error en la recuperación de logs de fallo.",
@@ -250,7 +255,7 @@ export async function resetUserQuota(userIdentification: string): Promise<Sovere
       data: null
     };
   } catch (governanceException: any) {
-    console.error("🔥 [Admin-Action][Reset-Quota]:", governanceException.message);
+    nicepodLog("🔥 [Admin-Action][Reset-Quota]:", governanceException.message, 'error');
     return {
       success: false,
       message: "Fallo al restablecer la cuota del usuario.",
@@ -286,7 +291,7 @@ export async function toggleFeaturedStatus(
       data: null
     };
   } catch (governanceException: any) {
-    console.error("🔥 [Admin-Action][Toggle-Featured]:", governanceException.message);
+    nicepodLog("🔥 [Admin-Action][Toggle-Featured]:", governanceException.message, 'error');
     return {
       success: false,
       message: "No se pudo actualizar el estado destacado del podcast.",
