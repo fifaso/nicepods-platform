@@ -1,16 +1,14 @@
 /**
- * ARCHIVE: types/podcast.ts
- * VERSION: 14.1 (Purifier Sovereign Edition)
- * PROTOCOLO: MADRID RESONANCE V5.1
- * 
- * MISSION: Sincronización de Soberanía de la Entidad Podcast.
- * Purificación del Crystal mediante la erradicación de fugas snake_case
- * y alineación con el Dogma Técnico ZAP.
- * [REFORMA V14.1]: Restauración de interfaces auxiliares (LocalRecommendation,
- * DiscoveryContextPayload) para mantener el Build Shield.
+ * ARCHIVO: types/podcast.ts
+ * VERSIÓN: 5.1 (Madrid Resonance)
+ * PROTOCOLO: Nominal Sovereignty
+ * MISIÓN: Sincronización de Soberanía de la Entidad Podcast.
+ * Purificación del Crystal mediante la erradicación de fugas snake_case,
+ * eliminación de tipos 'any' y alineación con el Dogma Técnico ZAP.
+ * NIVEL DE INTEGRIDAD: 100%
  */
 
-import { Database } from './database.types';
+import { Database, Json } from './database.types';
 
 export type Tables<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row'];
 export type Enums<T extends keyof Database['public']['Enums']> = Database['public']['Enums'][T];
@@ -97,7 +95,7 @@ export interface CreationMetadataPayload {
     voiceStyleSelection?: 'Calmado' | 'Energético' | 'Profesional' | 'Inspirador' | string;
     voicePaceSelection?: string;
     imageBase64Reference?: string;
-    [key: string]: any;
+    [key: string]: Json | undefined;
   };
   userReactionContent?: string;
   quoteContextReference?: string;
@@ -148,15 +146,15 @@ export type PodcastWithProfile = Omit<PodcastRow,
   /** @deprecated Utilizar 'creationTimestamp' */
   created_at: string;
   /** @deprecated Utilizar 'creationMetadataDossier' */
-  creation_data: any;
+  creation_data: CreationMetadataPayload | null;
   /** @deprecated Utilizar 'intelligenceSourcesCollection' */
-  sources: any;
+  sources: ResearchSource[] | null;
   /** @deprecated Utilizar 'podcastScriptDossier' */
-  script_text: any;
+  script_text: PodcastScript | null;
   /** @deprecated Utilizar 'artificialIntelligenceTagsCollection' */
-  ai_tags: any;
+  ai_tags: string[] | null;
   /** @deprecated Utilizar 'geographicLocationPoint' */
-  geo_location: any;
+  geo_location: GeoLocation | null;
   /** @deprecated Utilizar 'isAudioReady' */
   audio_ready: boolean;
   /** @deprecated Utilizar 'isImageReady' */
@@ -168,12 +166,22 @@ export type PodcastWithProfile = Omit<PodcastRow,
 
   // --- PERFIL DE AUTORIDAD ---
   profiles: {
+    /** @deprecated Utilizar 'fullName' */
     full_name: string | null;
+    fullName: string | null;
+    /** @deprecated Utilizar 'avatarUniformResourceLocator' */
     avatar_url: string | null;
+    avatarUniformResourceLocator: string | null;
     username: string;
+    /** @deprecated Utilizar 'reputationScoreValue' */
     reputation_score: number | null;
+    reputationScoreValue: number | null;
+    /** @deprecated Utilizar 'isVerifiedAccountStatus' */
     is_verified: boolean | null;
+    isVerifiedAccountStatus: boolean | null;
+    /** @deprecated Utilizar 'authorityRole' */
     role: string | null;
+    authorityRole: string | null;
   } | null;
 };
 
