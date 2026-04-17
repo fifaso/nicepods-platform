@@ -5,8 +5,8 @@
   "description": "NicePod Workstation - Sovereign Closed-Loop Ecosystem",
   "author": "NicePod Intelligence Unit",
   "engines": {
-    "node": ">=20.0.0",
-    "pnpm": ">=9.0.0"
+    "node": "22.x",
+    "pnpm": "10.x"
   },
   "scripts": {
     "dev": "next dev",
