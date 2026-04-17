@@ -71,8 +71,9 @@ const handler = async (request: Request, context: GuardContext): Promise<Respons
       }
     );
 
-  } catch (exceptionMessageInformation: any) {
-    console.error(`🔥 [start-draft-process-Fatal][${context.correlationIdentification}]:`, exceptionMessageInformation.message);
+  } catch (exceptionMessageInformation: unknown) {
+    const errorMessage = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
+    console.error(`🔥 [start-draft-process-Fatal][${context.correlationIdentification}]:`, errorMessage);
     throw exceptionMessageInformation;
   }
 };

@@ -56,8 +56,9 @@ const handler = async (request: Request, context: GuardContext): Promise<Respons
       headers: { "Content-Type": "application/json" }
     });
 
-  } catch (exceptionMessageInformation: any) {
-    console.error(`🔥 [queue-podcast-job-Fatal][${context.correlationIdentification}]:`, exceptionMessageInformation.message);
+  } catch (exceptionMessageInformation: unknown) {
+    const errorMessage = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
+    console.error(`🔥 [queue-podcast-job-Fatal][${context.correlationIdentification}]:`, errorMessage);
     throw exceptionMessageInformation;
   }
 };
