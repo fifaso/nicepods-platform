@@ -230,7 +230,7 @@ export default async function RootLayout({
 
 /**
  * NOTA TÉCNICA DEL ARCHITECT (V39.0):
- * 1. Auth Contract Alignment: Se resolvió el error TS2322 al renombrar las propiedades 
+ * 1. Auth Contract Alignment:  Se resolvió el error TS2322 al renombrar las propiedades 
  *    inyectadas en 'AuthProvider' hacia sus descriptores industriales.
  * 2. ZAP Enforcement: Purificación nominal absoluta. Se han eliminado residuos como 
  *    'initialSession' o 'initialProfile' en la interfaz de componentes.
