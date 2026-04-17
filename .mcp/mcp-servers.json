@@ -4,20 +4,35 @@
     {
       "name": "supabase-mcp-server",
       "type": "external",
-      "status": "active",
       "config": {
         "supabaseUniformResourceLocator": "${SUPABASE_UNIFORM_RESOURCE_LOCATOR}",
         "supabaseServiceRoleKey": "${SUPABASE_SERVICE_ROLE_KEY}"
       }
     },
     {
-      "name": "github-mcp-server",
+      "name": "vercel-mcp-server",
       "type": "external",
-      "status": "active",
       "config": {
-        "githubPersonalAccessToken": "${GITHUB_PERSONAL_ACCESS_TOKEN}",
-        "repositoryOwnerName": "${GITHUB_REPOSITORY_OWNER}",
-        "repositoryName": "${GITHUB_REPOSITORY_NAME}"
+        "vercelPersonalAccessToken": "${VERCEL_PERSONAL_ACCESS_TOKEN}",
+        "vercelProjectIdentification": "${VERCEL_PROJECT_IDENTIFICATION}"
+      }
+    },
+    {
+      "name": "linear-mcp-server",
+      "type": "external",
+      "config": {
+        "linearPersonalApiKey": "${LINEAR_API_KEY}"
+      }
+    },
+    {
+      "name": "playwright-mcp-server",
+      "type": "local",
+      "config": {
+        "command": "npx",
+        "args": [
+          "-y",
+          "@playwright/mcp@latest"
+        ]
       }
     }
   ]

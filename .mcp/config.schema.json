@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "NicePod MCP Configuration Schema",
-  "description": "Schema for validating Model Context Protocol server configurations within the Madrid Resonance Protocol.",
+  "description": "Schema for validating Model Context Protocol server configurations.",
   "type": "object",
   "required": [
     "mcpServersCollection"
@@ -9,7 +9,6 @@
   "properties": {
     "mcpServersCollection": {
       "type": "array",
-      "minItems": 1,
       "items": {
         "type": "object",
         "required": [
@@ -19,23 +18,18 @@
         ],
         "properties": {
           "name": {
-            "type": "string",
-            "pattern": "^[a-z0-9-]+-mcp-server$"
+            "type": "string"
           },
           "type": {
             "type": "string",
             "enum": [
               "builtin",
-              "external"
+              "external",
+              "local"
             ]
           },
           "status": {
             "type": "string",
-            "enum": [
-              "active",
-              "maintenance",
-              "disabled"
-            ],
             "default": "active"
           },
           "config": {
