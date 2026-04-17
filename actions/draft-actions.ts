@@ -1,7 +1,7 @@
 /**
  * ARCHIVO: actions/draft-actions.ts
- * VERSIÓN: 8.0 (Madrid Resonance - Sovereign Edition)
- * PROTOCOLO: MADRID RESONANCE V8.0
+ * VERSIÓN: 4.2 (NicePod V2.6 - Universal Knowledge Engine)
+ * PROTOCOLO: MADRID RESONANCE V4.0
  * MISIÓN: Gestionar el ciclo de vida de borradores para conocimiento aspatial con integridad nominal.
  * NIVEL DE INTEGRIDAD: 100% (Soberano / ZAP Compliant / Build Shield Green)
  */
@@ -121,8 +121,8 @@ export async function listUserDrafts(): Promise<DraftRow[]> {
             updated_at: podcastDraftDatabaseRowSnapshot.updated_at
         }));
     } catch (exceptionMessageInformation: unknown) {
-        const exceptionMessageInformationText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
-        console.error("🔥 [Draft-Engine-Fatal][List]:", exceptionMessageInformationText);
+        const errorMessage = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
+        console.error("🔥 [Draft-Engine-Fatal][List]:", errorMessage);
         return [];
     }
 }
@@ -167,8 +167,8 @@ export async function getDraftById(draftIdentification: number): Promise<DraftRo
             updated_at: podcastDraftDatabaseResultSnapshot.updated_at
         };
     } catch (exceptionMessageInformation: unknown) {
-        const exceptionMessageInformationText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
-        console.error(`🔥 [Draft-Engine-Fatal][Get]: ID #${draftIdentification}`, exceptionMessageInformationText);
+        const errorMessage = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
+        console.error(`🔥 [Draft-Engine-Fatal][Get]: ID #${draftIdentification}`, errorMessage);
         return null;
     }
 }
@@ -207,13 +207,13 @@ export async function deleteDraftAction(draftIdentification: number): Promise<Dr
             message: "Borrador eliminado de la Bóveda temporal."
         };
     } catch (exceptionMessageInformation: unknown) {
-        const exceptionMessageInformationText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
-        console.error("🔥 [Draft-Engine-Fatal][Delete]:", exceptionMessageInformationText);
+        const errorMessage = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
+        console.error("🔥 [Draft-Engine-Fatal][Delete]:", errorMessage);
         return {
             success: false,
             message: "Error al purgar el activo.",
-            exceptionMessageInformation: exceptionMessageInformationText,
-            error: exceptionMessageInformationText
+            exceptionMessageInformation: errorMessage,
+            error: errorMessage
         };
     }
 }
@@ -282,13 +282,13 @@ export async function promoteDraftToProduction(submissionPayload: {
         };
 
     } catch (exceptionMessageInformation: unknown) {
-        const exceptionMessageInformationText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
-        console.error("🔥 [Draft-Engine-Fatal][Promotion]:", exceptionMessageInformationText);
+        const errorMessage = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
+        console.error("🔥 [Draft-Engine-Fatal][Promotion]:", errorMessage);
         return {
             success: false,
             message: "Error crítico durante la promoción. Verifique el contrato de datos.",
-            exceptionMessageInformation: exceptionMessageInformationText,
-            error: exceptionMessageInformationText
+            exceptionMessageInformation: errorMessage,
+            error: errorMessage
         };
     }
 }

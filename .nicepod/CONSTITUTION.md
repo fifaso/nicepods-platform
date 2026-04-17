@@ -1,62 +1,69 @@
 /**
  * ARCHIVO: .nicepod/CONSTITUTION.md
- * VERSIÓN: 8.0 (Madrid Resonance - Omnisovereign Edition)
- * PROTOCOLO: TOTAL REPOSITORY GOVERNANCE & CLOSED-LOOP
- * MISIÓN: Blindaje, Evolución Autónoma y Hermeticidad del Ecosistema NicePod
- * NIVEL DE INTEGRIDAD: 100% (CRÍTICO - AUTO-EVOLUTIVO)
+ * VERSIÓN: 6.0 (Madrid Resonance - Sovereign Edition)
+ * PROTOCOLO: REPOSITORY GOVERNANCE
+ * MISIÓN: Establecer las Leyes Inmutables para la Evolución Autónoma de NicePod
+ * NIVEL DE INTEGRIDAD: 100% (CRÍTICO)
  */
 
-# ⚖️ CONSTITUCIÓN TÉCNICA SOBERANA DE NICEPOD (v8.0)
+# ⚖️ CONSTITUCIÓN TÉCNICA DE NICEPOD
 
-## PREÁMBULO
-Esta Constitución constituye la Ley Suprema de la Workstation. Define el marco operativo para la convivencia entre la Inteligencia Humana y la Inteligencia Artificial. El sistema se declara **Hermético**, **Idempotente** y **Autoconsciente**.
-
----
-
-## ARTÍCULO I: SOBERANÍA NOMINAL (DOCTRINA ZAP 2.0)
-1.1 **Prohibición de Siglas**: Se prohíbe cualquier identificador menor a 4 caracteres que no sea una palabra completa. 
-    - *Mandato*: `id` → `identification`, `lat` → `latitudeCoordinate`, `err` → `hardwareException`.
-1.2 **Narrativa Técnica**: El código debe ser auto-documentado. Un nombre debe expresar **Qué es**, **Para qué sirve** y **De dónde viene**.
+## INTRODUCCIÓN Y ALCANCE
+Esta Constitución es el documento de autoridad suprema del repositorio `nicepods-platform`. Define los estándares de ingeniería innegociables para cualquier agente (IA o Humano). El incumplimiento de cualquier artículo anula la validez de un Pull Request.
 
 ---
 
-## ARTÍCULO II: BLINDAJE DE ESTABILIDAD (DOCTRINA BSS)
-2.1 **Build Shield Sovereignty**: `npx tsc --noEmit` es el juez supremo. Ningún código con errores de tipo será aceptado.
-2.2 **Erradicación de Fugas**: Prohibido el uso de `any`, `@ts-ignore` o casting inseguro. 
-2.3 **Aislamiento de Terceros**: Cualquier librería externa debe ser consumida a través de una interfaz de "Aislamiento de Tipo" (Wrapper) para evitar que cambios externos contaminen el Crystal.
+## ARTÍCULO I: LA DOCTRINA ZAP (ZERO ABBREVIATIONS POLICY)
+*Soberanía Nominal y Claridad Semántica*
+
+1.1 **Prohibición de Abreviaturas**: Queda estrictamente prohibido el uso de nombres de variables, funciones, interfaces o archivos abreviados.
+    - *Incorrecto*: `id`, `err`, `ctx`, `props`, `val`, `req`, `res`.
+    - *Correcto*: `identification`, `hardwareException`, `executionContent`, `componentProperties`, `sourceValue`, `clientRequest`, `serverResponse`.
+1.2 **Narrativa Técnica**: El código debe leerse como literatura técnica. El nombre de un objeto debe describir su propósito y su procedencia.
+    - *Ejemplo*: `podcastEpisodeAudioStreamBuffer` en lugar de `audioBuf`.
+1.3 **Soberanía del Idioma**: El código fuente (identificadores) será en Inglés Técnico, pero los comentarios de encabezado y documentación de arquitectura se mantendrán en Español (Madrid Resonance Protocol).
 
 ---
 
-## ARTÍCULO III: SOBERANÍA HERMÉTICA Y SEGURIDAD
-3.1 **Hermeticidad de Recursos**: Queda terminantemente prohibido el uso de URLs, scripts, CDNs o repositorios externos no autorizados explícitamente en `.mcp/mcp-servers.json`.
-3.2 **Gestión de Secretos**: Los secretos nunca deben tocar el sistema de archivos de Git. Toda credencial debe ser inyectada exclusivamente vía `process.env`.
-3.3 **Zero Trust Infra**: Todo cambio en el Metal (Database) requiere una política de RLS (Row Level Security) explícita y restrictiva.
+## ARTÍCULO II: LA DOCTRINA BSS (BUILD SHIELD SOVEREIGNTY)
+*Estabilidad Blindada y Tipado Estricto*
+
+2.1 **Cero Tolerancia a Errores**: El comando `npx tsc --noEmit` debe retornar 0 errores. Ningún agente puede ignorar un error de tipo bajo el pretexto de funcionalidad.
+2.2 **Erradicación del 'Any'**: El uso del tipo `any` se considera una fractura de seguridad. Si un dato procede de una fuente externa incierta, se debe usar `unknown` seguido de un *Type Guard* defensivo.
+2.3 **Contratos Sólidos**: Todas las funciones y Server Actions deben tener tipos de entrada y salida explícitamente definidos. Se prohíbe el tipado implícito en la lógica de negocio.
 
 ---
 
-## ARTÍCULO IV: GOBERNANZA DEL BUCLE CERRADO (AUTO-EVOLUCIÓN)
-4.1 **Soberanía de Linear (The Brain)**: Ningún commit existe sin un Ticket de Linear. El agente debe mover el ticket a "Done" solo tras el éxito del nodo VISION.
-4.2 **Recursividad de Mejora**: Los agentes tienen el deber constitucional de proponer mejoras a sus propios prompts o a esta Constitución mediante tickets en Linear si detectan ineficiencias.
-4.3 **Visión de Usuario (Playwright)**: La funcionalidad real prima sobre la sintáctica. Ninguna tarea se considera finalizada sin un reporte exitoso de Playwright.
+## ARTÍCULO III: INTEGRIDAD AXIAL (THE METAL-CRYSTAL SYNC)
+*Sincronización Total de Infraestructura*
+
+3.1 **Sincronización de Ejes**: Un cambio en el Metal (Database/Supabase) exige una actualización inmediata y atómica en el Crystal (Frontend/TypeScript).
+3.2 **Mapeo de Transformación**: Los campos en `snake_case` procedentes de PostgreSQL DEBEN ser transformados a `camelCase` mediante una capa de servicio o mapeo antes de llegar a los componentes de la UI.
+3.3 **Validación de Realidad (MCP)**: Antes de refactorizar un tipo, el agente está obligado a consultar el esquema real mediante el servidor MCP para asegurar que la "verdad" de la base de datos es la que rige el código.
 
 ---
 
-## ARTÍCULO V: RESILIENCIA Y ATOMICIDAD (DIS & DSE)
-5.1 **Idempotencia (DIS)**: Toda mutación en el Metal debe ser segura frente a reintentos. Se exige el uso de `ON CONFLICT` y validaciones de unicidad.
-5.2 **Blindaje de Efectos Laterales (DSE)**: Una mejora en un módulo no debe afectar a terceros. Si una función `util` es compartida, el agente debe duplicarla y especializarla antes de modificarla si existe riesgo axial.
-5.3 **Sincronización Atómica**: Los cambios que afecten al Metal y al Crystal deben realizarse en un único Pull Request para mantener la Integridad Axial.
+## ARTÍCULO IV: LA DOCTRINA DIS (DETERMINISTIC IDEMPOTENCY)
+*Resiliencia ante Reintentos y Consistencia de Datos*
+
+4.1 **Mutaciones Seguras**: Toda operación de escritura (INSERT, UPDATE) debe ser diseñada para ser ejecutada múltiples veces sin alterar el resultado final.
+4.2 **Lógica de Conflictos**: Se deben utilizar clausulas `ON CONFLICT` en PostgreSQL y validaciones de "Unique Identification" en el código antes de procesar pagos, crear registros o disparar eventos de IA.
+4.3 **Estado Atómico**: Si una operación requiere múltiples cambios (ej: crear podcast + debitar créditos), debe ser tratada como una transacción atómica. Si un paso falla, el sistema debe volver al estado original.
 
 ---
 
-## ARTÍCULO VI: MAYORDOMÍA DE RECURSOS (ANTI-FATIGA)
-6.1 **Ley de Batching**: Un agente tiene prohibido modificar más de **5 archivos** en una sola sesión de trabajo.
-6.2 **Journaling de Estado**: Todo agente debe dejar una "caja negra" en `.nicepod/[agente].md` explicando el razonamiento lógico de su intervención antes de cerrar la sesión.
+## ARTÍCULO V: LA DOCTRINA DSE (ZERO SIDE-EFFECT SHIELDING)
+*Blindaje de Módulos y Aislamiento de Efectos*
+
+5.1 **Funciones Puras**: Se dará prioridad a la lógica funcional y pura. Una función no debe modificar datos fuera de su alcance (scope).
+5.2 **Especialización por Cambio**: Si un agente necesita modificar una utilidad compartida que afecta a más de un módulo, la regla es: **"Si no puedes probarlo en todos, duplícalo y especialízalo"**. Esto evita que una mejora en el *Player* rompa el *Feed*.
+5.3 **Validación Visual (Vision Barrier)**: Todo cambio en componentes críticos debe ser validado visualmente mediante tests de Playwright. Si el test visual falla, la modificación se considera inválida.
 
 ---
 
 ## PROTOCOLO DE APLICACIÓN (ENFORCEMENT)
-1. **Aceptación de Soberanía**: Al iniciar, el agente debe declarar: *"He leído la Constitución v8.0. Entorno Hermético y Bucle Cerrado validados"*.
-2. **Pena de Reversión**: Cualquier infracción a los Artículos I, III o VI resultará en la reversión automática de la rama de trabajo.
-3. **Rollback Determinista**: Si el nodo ETHER (Vercel) reporta un fallo de build, el agente responsable debe revertir sus cambios localmente antes de intentar una nueva solución.
+1. **Lectura Obligatoria**: Al inicio de cada sesión, el agente debe declarar: *"He leído y acepto la Constitución Técnica de NicePod v6.0"*.
+2. **Auditoría de PR**: Cada Pull Request generado por una IA debe autoevaluarse frente a estas 5 leyes en su descripción.
+3. **Rollback Automático**: Si tras una ejecución el Build Shield (BSS) se rompe, el agente tiene la orden de revertir inmediatamente los cambios (`git checkout .`).
 
-"La técnica es el fundamento de la libertad. Programa con rigor, construye para la eternidad."
+"La técnica es el fundamento de la soberanía. Programa con rigor, construye para la eternidad."

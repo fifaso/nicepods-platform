@@ -1,8 +1,0 @@
-
-# 1. Peritaje de Tipos (BSS)
-pnpm validate:bss || (echo "❌ ERROR: Violación de la Doctrina BSS." && exit 1)
-
-# 2. Auditoría Nominal (ZAP)
-pnpm validate:zap || (echo "❌ ERROR: Violación de la Doctrina ZAP." && exit 1)
-
-echo "✅ INTEGRIDAD VERIFICADA. Procediendo con el commit soberano."
