@@ -1,9 +1,9 @@
 /**
  * ARCHIVO: actions/podcast-actions.ts
- * VERSIÓN: 5.1 (Madrid Resonance)
+ * VERSIÓN: 8.0 (Madrid Resonance - Sovereign Edition)
  * PROTOCOLO: Intellectual Capital & Traceability
  * MISIÓN: Sincronización del Flujo de Datos (Metal-to-Crystal Mapping) y endurecimiento de la trazabilidad.
- * NIVEL DE INTEGRIDAD: 100%
+ * NIVEL DE INTEGRIDAD: 100% (Soberano)
  */
 
 "use server";
@@ -78,8 +78,8 @@ export async function getPublishedPodcastsAction(resultLimitMagnitude: number = 
     );
 
   } catch (exceptionMessageInformation: unknown) {
-    const errorMessage = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
-    nicepodLog("🔥 [Podcast-Action-Fatal][GetPublished]:", errorMessage, 'error');
+    const exceptionMessageInformationText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
+    nicepodLog("🔥 [Podcast-Action-Fatal][GetPublished]:", exceptionMessageInformationText, 'error');
     return [];
   }
 }
@@ -91,14 +91,21 @@ export async function getPublishedPodcastsAction(resultLimitMagnitude: number = 
 export async function getUserPodcastsAction(): Promise<SovereignPodcast[]> {
   const supabaseSovereignClient = createClient();
 
-  const { data: { user: authenticatedUser } } = await supabaseSovereignClient.auth.getUser();
-  if (!authenticatedUser) return [];
+  // 1. Handshake de Identidad SSR (DOCTRINA DIS)
+  const { data: { user: authenticatedUserSnapshot }, error: authenticationHardwareExceptionInformation } = await supabaseSovereignClient.auth.getUser();
+
+  if (authenticationHardwareExceptionInformation || !authenticatedUserSnapshot) {
+    nicepodLog("🛑 [Podcast-Engine] Acceso denegado: Sesión no válida.", "AUTHENTICATION_REQUIRED", 'error');
+    return [];
+  }
+
+  const authenticatedUserIdentification = authenticatedUserSnapshot.id;
 
   try {
     const { data: userPodcastsDatabaseResults, error: queryHardwareExceptionInformation } = await supabaseSovereignClient
       .from('micro_pods')
       .select('*, profiles(*)')
-      .eq('user_id', authenticatedUser.id)
+      .eq('user_id', authenticatedUserIdentification)
       .order('created_at', { ascending: false });
 
     if (queryHardwareExceptionInformation) throw queryHardwareExceptionInformation;
@@ -108,8 +115,8 @@ export async function getUserPodcastsAction(): Promise<SovereignPodcast[]> {
     );
 
   } catch (exceptionMessageInformation: unknown) {
-    const errorMessage = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
-    nicepodLog("🔥 [Podcast-Action-Fatal][GetUserPodcasts]:", errorMessage, 'error');
+    const exceptionMessageInformationText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
+    nicepodLog("🔥 [Podcast-Action-Fatal][GetUserPodcasts]:", exceptionMessageInformationText, 'error');
     return [];
   }
 }
