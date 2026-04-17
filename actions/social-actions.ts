@@ -1,6 +1,6 @@
 /**
  * ARCHIVO: actions/social-actions.ts
- * VERSIÓN: 3.1 (NicePod Social Interactions - Sovereign Protocol V4.0)
+ * VERSIÓN: 3.2 (NicePod Social Interactions - Sovereign Protocol V4.2)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * MISIÓN: Gestionar el flujo de seguidores e interacciones entre curadores con integridad nominal.
  * NIVEL DE INTEGRIDAD: 100% (Soberano / ZAP Compliant / Build Shield Green)
@@ -18,11 +18,11 @@ import { ProfileActionResponse } from "@/types/profile";
 export async function followUserAction(
   targetUserIdentification: string
 ): Promise<ProfileActionResponse<{ isFollowingSovereignty: boolean }>> {
-  const supabaseClient = createClient();
+  const supabaseSovereignClient = createClient();
 
   // 1. HANDSHAKE DE SOBERANÍA
-  const { data: { user: authenticatedUser }, error: authenticationExceptionInformation } = await supabaseClient.auth.getUser();
-  if (authenticationExceptionInformation || !authenticatedUser) {
+  const { data: { user: authenticatedUserSnapshot }, error: authenticationHardwareExceptionInformation } = await supabaseSovereignClient.auth.getUser();
+  if (authenticationHardwareExceptionInformation || !authenticatedUserSnapshot) {
     return {
       isOperationSuccessful: false,
       responseStatusMessage: "SESIÓN_REQUERIDA: Inicie sesión para seguir a otros curadores.",
@@ -30,7 +30,7 @@ export async function followUserAction(
     };
   }
 
-  const authenticatedUserIdentification = authenticatedUser.id;
+  const authenticatedUserIdentification = authenticatedUserSnapshot.id;
 
   if (authenticatedUserIdentification === targetUserIdentification) {
     return {
@@ -42,16 +42,16 @@ export async function followUserAction(
 
   try {
     // 2. VERIFICACIÓN DE ESTADO ACTUAL
-    const { data: followerDatabaseRecord } = await supabaseClient
+    const { data: followerRelationshipDatabaseRecordSnapshot } = await supabaseSovereignClient
       .from('followers')
       .select('*')
       .eq('follower_id', authenticatedUserIdentification)
       .eq('following_id', targetUserIdentification)
       .maybeSingle();
 
-    if (followerDatabaseRecord) {
+    if (followerRelationshipDatabaseRecordSnapshot) {
       // 3. ACCIÓN: DEJAR DE SEGUIR (Unfollow)
-      const { error: deleteDatabaseExceptionInformation } = await supabaseClient
+      const { error: deleteDatabaseExceptionInformation } = await supabaseSovereignClient
         .from('followers')
         .delete()
         .eq('follower_id', authenticatedUserIdentification)
@@ -68,7 +68,7 @@ export async function followUserAction(
       };
     } else {
       // 4. ACCIÓN: SEGUIR (Follow)
-      const { error: insertDatabaseExceptionInformation } = await supabaseClient
+      const { error: insertDatabaseExceptionInformation } = await supabaseSovereignClient
         .from('followers')
         .insert({
           follower_id: authenticatedUserIdentification,
@@ -102,10 +102,10 @@ export async function followUserAction(
 export async function toggleLikeAction(
   podcastIdentification: number
 ): Promise<ProfileActionResponse<{ isResonatingWithLike: boolean }>> {
-  const supabaseClient = createClient();
+  const supabaseSovereignClient = createClient();
 
-  const { data: { user: authenticatedUser }, error: authenticationExceptionInformation } = await supabaseClient.auth.getUser();
-  if (authenticationExceptionInformation || !authenticatedUser) {
+  const { data: { user: authenticatedUserSnapshot }, error: authenticationHardwareExceptionInformation } = await supabaseSovereignClient.auth.getUser();
+  if (authenticationHardwareExceptionInformation || !authenticatedUserSnapshot) {
     return {
       isOperationSuccessful: false,
       responseStatusMessage: "Inicie sesión para interactuar.",
@@ -113,18 +113,18 @@ export async function toggleLikeAction(
     };
   }
 
-  const authenticatedUserIdentification = authenticatedUser.id;
+  const authenticatedUserIdentification = authenticatedUserSnapshot.id;
 
   try {
-    const { data: likeDatabaseRecord } = await supabaseClient
+    const { data: likeResonanceDatabaseRecordSnapshot } = await supabaseSovereignClient
       .from('likes')
       .select('*')
       .eq('user_id', authenticatedUserIdentification)
       .eq('podcast_id', podcastIdentification)
       .maybeSingle();
 
-    if (likeDatabaseRecord) {
-      const { error: deleteDatabaseExceptionInformation } = await supabaseClient
+    if (likeResonanceDatabaseRecordSnapshot) {
+      const { error: deleteDatabaseExceptionInformation } = await supabaseSovereignClient
         .from('likes')
         .delete()
         .eq('user_id', authenticatedUserIdentification)
@@ -139,7 +139,7 @@ export async function toggleLikeAction(
         traceIdentification: "UNLIKE_SUCCESS"
       };
     } else {
-      const { error: insertDatabaseExceptionInformation } = await supabaseClient
+      const { error: insertDatabaseExceptionInformation } = await supabaseSovereignClient
         .from('likes')
         .insert({
           user_id: authenticatedUserIdentification,

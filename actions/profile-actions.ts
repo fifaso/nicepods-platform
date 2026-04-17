@@ -1,6 +1,6 @@
 /**
  * ARCHIVO: actions/profile-actions.ts
- * VERSIÓN: 4.0 (NicePod Profile Management - Sovereign Protocol V4.0)
+ * VERSIÓN: 4.1 (NicePod Profile Management - Sovereign Protocol V4.1)
  * PROTOCOLO: MADRID RESONANCE V4.0
  * MISIÓN: Gestionar las mutaciones de identidad del curador con integridad axial y nominal.
  * NIVEL DE INTEGRIDAD: 100% (Soberano / ZAP Compliant / Build Shield Green)
@@ -22,12 +22,12 @@ import { ProfileActionResponse } from "@/types/profile";
 export async function updateProfile(
   updatePayload: ProfileUpdatePayload
 ): Promise<ProfileActionResponse> {
-  const supabaseClient = createClient();
+  const supabaseSovereignClient = createClient();
 
   // 1. PROTOCOLO DE AUTORIDAD
-  const { data: { user: authenticatedUser }, error: authenticationExceptionInformation } = await supabaseClient.auth.getUser();
+  const { data: { user: authenticatedUserSnapshot }, error: authenticationHardwareExceptionInformation } = await supabaseSovereignClient.auth.getUser();
 
-  if (authenticationExceptionInformation || !authenticatedUser) {
+  if (authenticationHardwareExceptionInformation || !authenticatedUserSnapshot) {
     return {
       isOperationSuccessful: false,
       responseStatusMessage: "SESIÓN_REQUERIDA: Sesión expirada o no autorizada. Por favor, re-inicie sesión.",
@@ -51,7 +51,7 @@ export async function updateProfile(
 
   try {
     // 3. EJECUCIÓN DE PERSISTENCIA ATÓMICA
-    const { error: updateDatabaseExceptionInformation } = await supabaseClient
+    const { error: updateDatabaseExceptionInformation } = await supabaseSovereignClient
       .from("profiles")
       .update({
         username: validatedProfileData.username,
@@ -62,7 +62,7 @@ export async function updateProfile(
         avatar_url: validatedProfileData.avatarUniformResourceLocator,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", authenticatedUser.id);
+      .eq("id", authenticatedUserSnapshot.id);
 
     if (updateDatabaseExceptionInformation) {
       if (updateDatabaseExceptionInformation.code === '23505') {
@@ -101,9 +101,9 @@ export async function updateProfile(
  * getProfileByUsername: Recuperar la ficha técnica pública de un curador basada en su handle.
  */
 export async function getProfileByUsername(targetUsernameIdentification: string) {
-  const supabaseClient = createClient();
+  const supabaseSovereignClient = createClient();
 
-  const { data: profileDatabaseRow, error: queryDatabaseExceptionInformation } = await supabaseClient
+  const { data: profileDatabaseRowSnapshot, error: queryDatabaseExceptionInformation } = await supabaseSovereignClient
     .from('profiles')
     .select(`
       id, 
@@ -125,27 +125,27 @@ export async function getProfileByUsername(targetUsernameIdentification: string)
     .eq("username", targetUsernameIdentification)
     .single();
 
-  if (queryDatabaseExceptionInformation || !profileDatabaseRow) {
+  if (queryDatabaseExceptionInformation || !profileDatabaseRowSnapshot) {
     console.warn(`⚠️ [NicePod-Vault] Perfil no localizado: @${targetUsernameIdentification}`);
     return null;
   }
 
   return {
-    identification: profileDatabaseRow.id,
-    username: profileDatabaseRow.username,
-    fullName: profileDatabaseRow.full_name,
-    avatarUniformResourceLocator: profileDatabaseRow.avatar_url,
-    biographyTextContent: profileDatabaseRow.bio,
-    biographyShortSummary: profileDatabaseRow.bio_short,
-    websiteUniformResourceLocator: profileDatabaseRow.website_url,
-    reputationScoreValue: profileDatabaseRow.reputation_score || 0,
-    isVerifiedAccountStatus: profileDatabaseRow.is_verified || false,
-    authorityRole: profileDatabaseRow.role,
-    followersCountInventory: profileDatabaseRow.followers_count || 0,
-    followingCountInventory: profileDatabaseRow.following_count || 0,
-    activeCreationJobsCount: profileDatabaseRow.active_creation_jobs || 0,
-    creationTimestamp: profileDatabaseRow.created_at,
-    updateTimestamp: profileDatabaseRow.updated_at
+    identification: profileDatabaseRowSnapshot.id,
+    username: profileDatabaseRowSnapshot.username,
+    fullName: profileDatabaseRowSnapshot.full_name,
+    avatarUniformResourceLocator: profileDatabaseRowSnapshot.avatar_url,
+    biographyTextContent: profileDatabaseRowSnapshot.bio,
+    biographyShortSummary: profileDatabaseRowSnapshot.bio_short,
+    websiteUniformResourceLocator: profileDatabaseRowSnapshot.website_url,
+    reputationScoreValue: profileDatabaseRowSnapshot.reputation_score || 0,
+    isVerifiedAccountStatus: profileDatabaseRowSnapshot.is_verified || false,
+    authorityRole: profileDatabaseRowSnapshot.role,
+    followersCountInventory: profileDatabaseRowSnapshot.followers_count || 0,
+    followingCountInventory: profileDatabaseRowSnapshot.following_count || 0,
+    activeCreationJobsCount: profileDatabaseRowSnapshot.active_creation_jobs || 0,
+    creationTimestamp: profileDatabaseRowSnapshot.created_at,
+    updateTimestamp: profileDatabaseRowSnapshot.updated_at
   };
 }
 
@@ -153,31 +153,31 @@ export async function getProfileByUsername(targetUsernameIdentification: string)
  * getProfileById: Recuperación directa por ID de sistema.
  */
 export async function getProfileById(userIdentification: string) {
-  const supabaseClient = createClient();
+  const supabaseSovereignClient = createClient();
 
-  const { data: profileDatabaseRow, error: queryDatabaseExceptionInformation } = await supabaseClient
+  const { data: profileDatabaseRowSnapshot, error: queryDatabaseExceptionInformation } = await supabaseSovereignClient
     .from("profiles")
     .select("*")
     .eq("id", userIdentification)
     .single();
 
-  if (queryDatabaseExceptionInformation || !profileDatabaseRow) return null;
+  if (queryDatabaseExceptionInformation || !profileDatabaseRowSnapshot) return null;
 
   return {
-    identification: profileDatabaseRow.id,
-    username: profileDatabaseRow.username,
-    fullName: profileDatabaseRow.full_name,
-    avatarUniformResourceLocator: profileDatabaseRow.avatar_url,
-    biographyTextContent: profileDatabaseRow.bio,
-    biographyShortSummary: profileDatabaseRow.bio_short,
-    websiteUniformResourceLocator: profileDatabaseRow.website_url,
-    reputationScoreValue: profileDatabaseRow.reputation_score || 0,
-    isVerifiedAccountStatus: profileDatabaseRow.is_verified || false,
-    authorityRole: profileDatabaseRow.role,
-    followersCountInventory: profileDatabaseRow.followers_count || 0,
-    followingCountInventory: profileDatabaseRow.following_count || 0,
-    activeCreationJobsCount: profileDatabaseRow.active_creation_jobs || 0,
-    creationTimestamp: profileDatabaseRow.created_at,
-    updateTimestamp: profileDatabaseRow.updated_at
+    identification: profileDatabaseRowSnapshot.id,
+    username: profileDatabaseRowSnapshot.username,
+    fullName: profileDatabaseRowSnapshot.full_name,
+    avatarUniformResourceLocator: profileDatabaseRowSnapshot.avatar_url,
+    biographyTextContent: profileDatabaseRowSnapshot.bio,
+    biographyShortSummary: profileDatabaseRowSnapshot.bio_short,
+    websiteUniformResourceLocator: profileDatabaseRowSnapshot.website_url,
+    reputationScoreValue: profileDatabaseRowSnapshot.reputation_score || 0,
+    isVerifiedAccountStatus: profileDatabaseRowSnapshot.is_verified || false,
+    authorityRole: profileDatabaseRowSnapshot.role,
+    followersCountInventory: profileDatabaseRowSnapshot.followers_count || 0,
+    followingCountInventory: profileDatabaseRowSnapshot.following_count || 0,
+    activeCreationJobsCount: profileDatabaseRowSnapshot.active_creation_jobs || 0,
+    creationTimestamp: profileDatabaseRowSnapshot.created_at,
+    updateTimestamp: profileDatabaseRowSnapshot.updated_at
   };
 }
