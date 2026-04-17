@@ -3,7 +3,7 @@
  * VERSIÓN: 8.0 (Madrid Resonance - Sovereign Edition)
  * PROTOCOLO: Intellectual Capital & Traceability
  * MISIÓN: Sincronización del Flujo de Datos (Metal-to-Crystal Mapping) y endurecimiento de la trazabilidad.
- * NIVEL DE INTEGRIDAD: 100% (Scribe Audit)
+ * NIVEL DE INTEGRIDAD: 100% (Soberano)
  */
 
 "use server";
@@ -44,8 +44,8 @@ export async function getPublishedPodcastsAction(resultLimitMagnitude: number = 
     );
 
   } catch (exceptionMessageInformation: unknown) {
-    const errorMessageTextContent = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "HardwareException Indeterminada";
-    nicepodLog("🔥 [Podcast-Action-Fatal][GetPublished]: Colapso del flujo de recuperación.", { errorMessageTextContent }, 'error');
+    const exceptionMessageInformationText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
+    nicepodLog("🔥 [Podcast-Action-Fatal][GetPublished]:", exceptionMessageInformationText, 'error');
     return [];
   }
 }
@@ -56,6 +56,16 @@ export async function getPublishedPodcastsAction(resultLimitMagnitude: number = 
  */
 export async function getUserPodcastsAction(): Promise<PodcastWithProfile[]> {
   const supabaseSovereignClient = createClient();
+
+  // 1. Handshake de Identidad SSR (DOCTRINA DIS)
+  const { data: { user: authenticatedUserSnapshot }, error: authenticationHardwareExceptionInformation } = await supabaseSovereignClient.auth.getUser();
+
+  if (authenticationHardwareExceptionInformation || !authenticatedUserSnapshot) {
+    nicepodLog("🛑 [Podcast-Engine] Acceso denegado: Sesión no válida.", "AUTHENTICATION_REQUIRED", 'error');
+    return [];
+  }
+
+  const authenticatedUserIdentification = authenticatedUserSnapshot.id;
 
   try {
     const { data: { user: authenticatedUserSnapshot }, error: authHardwareExceptionInformation } = await supabaseSovereignClient.auth.getUser();
@@ -68,7 +78,7 @@ export async function getUserPodcastsAction(): Promise<PodcastWithProfile[]> {
     const { data: userPodcastsDatabaseResults, error: queryHardwareExceptionInformation } = await supabaseSovereignClient
       .from('micro_pods')
       .select('*, profiles(*)')
-      .eq('user_id', authenticatedUserSnapshot.id)
+      .eq('user_id', authenticatedUserIdentification)
       .order('created_at', { ascending: false });
 
     if (queryHardwareExceptionInformation) {
@@ -85,8 +95,8 @@ export async function getUserPodcastsAction(): Promise<PodcastWithProfile[]> {
     );
 
   } catch (exceptionMessageInformation: unknown) {
-    const errorMessageTextContent = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "HardwareException Indeterminada";
-    nicepodLog("🔥 [Podcast-Action-Fatal][GetUser]: Colapso del flujo de inventario.", { errorMessageTextContent }, 'error');
+    const exceptionMessageInformationText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
+    nicepodLog("🔥 [Podcast-Action-Fatal][GetUserPodcasts]:", exceptionMessageInformationText, 'error');
     return [];
   }
 }
