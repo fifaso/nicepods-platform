@@ -1,66 +1,26 @@
 /**
  * ARCHIVO: actions/podcast-actions.ts
- * VERSIÓN: 5.1 (Madrid Resonance)
- * PROTOCOLO: Intellectual Capital & Traceability
- * MISIÓN: Sincronización del Flujo de Datos (Metal-to-Crystal Mapping) y endurecimiento de la trazabilidad.
- * NIVEL DE INTEGRIDAD: 100%
+ * VERSIÓN: 7.0 (Madrid Resonance - Sovereign Edition)
+ * PROTOCOLO: MADRID RESONANCE V7.0
+ *
+ * MISIÓN: Sincronización del Flujo de Datos (Metal-to-Crystal Mapping) mediante
+ * el uso del Mapeador Soberano Centralizado.
+ *
+ * NIVEL DE INTEGRIDAD: 100% (Soberanía Nominal V7.0)
  */
 
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import {
-  PodcastWithProfile,
-  GeoLocation,
-  PodcastScript
-} from "@/types/podcast";
+import { PodcastWithProfile } from "@/types/podcast";
 import { nicepodLog } from "@/lib/utils";
-
-/**
- * INTERFAZ: SovereignPodcast
- * Misión: Representación soberana de un podcast con nomenclatura ZAP absoluta.
- * Incluye mapeo de campos del Metal (DB) hacia el Cristal (UI).
- */
-export interface SovereignPodcast extends PodcastWithProfile {
-  // --- CAMPOS SOBERANOS (ZAP) ---
-  /** artificialIntelligenceTagsCollection: Etiquetas generadas por inteligencia artificial (ZAP de ai_tags). */
-  artificialIntelligenceTagsCollection: string[] | null;
-  /** geographicLocationPoint: Punto geográfico de resonancia (ZAP de geo_location). */
-  geographicLocationPoint: GeoLocation | null;
-  /** podcastScriptDossier: Cuerpo narrativo y técnico de la crónica (ZAP de script_text). */
-  podcastScriptDossier: PodcastScript | null;
-
-  // --- ALIAS DE COMPATIBILIDAD (AXIAL INTEGRITY) ---
-  // Mantenemos los nombres originales de la DB para no romper componentes existentes.
-  ai_tags: string[] | null;
-  geo_location: GeoLocation | null;
-  script_text: PodcastScript | null;
-}
-
-/**
- * transformPodcastMetalToCrystal:
- * Misión: Purificar la entidad cruda de la base de datos y elevarla al estándar soberano.
- */
-export function transformPodcastMetalToCrystal(rawPodcastItem: PodcastWithProfile): SovereignPodcast {
-  return {
-    ...rawPodcastItem,
-    // Mapeo ZAP (Crystal)
-    artificialIntelligenceTagsCollection: rawPodcastItem.ai_tags,
-    geographicLocationPoint: rawPodcastItem.geo_location,
-    podcastScriptDossier: rawPodcastItem.script_text,
-
-    // Mantenimiento de Alias (Metal/Axial)
-    ai_tags: rawPodcastItem.ai_tags,
-    geo_location: rawPodcastItem.geo_location,
-    script_text: rawPodcastItem.script_text
-  };
-}
+import { mapDatabasePodcastToSovereignPodcast } from "@/lib/podcast-utils";
 
 /**
  * getPublishedPodcastsAction:
  * Misión: Recuperar las crónicas públicas de la malla con transformación soberana.
  */
-export async function getPublishedPodcastsAction(resultLimitMagnitude: number = 50): Promise<SovereignPodcast[]> {
+export async function getPublishedPodcastsAction(resultLimitMagnitude: number = 50): Promise<PodcastWithProfile[]> {
   const supabaseSovereignClient = createClient();
 
   try {
@@ -73,8 +33,8 @@ export async function getPublishedPodcastsAction(resultLimitMagnitude: number = 
 
     if (queryHardwareExceptionInformation) throw queryHardwareExceptionInformation;
 
-    return (publishedPodcastsDatabaseResults || []).map((podcastItem) =>
-      transformPodcastMetalToCrystal(podcastItem as unknown as PodcastWithProfile)
+    return (publishedPodcastsDatabaseResults || []).map((podcastRow) =>
+      mapDatabasePodcastToSovereignPodcast(podcastRow)
     );
 
   } catch (exceptionMessageInformation: unknown) {
@@ -88,7 +48,7 @@ export async function getPublishedPodcastsAction(resultLimitMagnitude: number = 
  * getUserPodcastsAction:
  * Misión: Recuperar el inventario de crónicas del Voyager autenticado.
  */
-export async function getUserPodcastsAction(): Promise<SovereignPodcast[]> {
+export async function getUserPodcastsAction(): Promise<PodcastWithProfile[]> {
   const supabaseSovereignClient = createClient();
 
   const { data: { user: authenticatedUser } } = await supabaseSovereignClient.auth.getUser();
@@ -103,8 +63,8 @@ export async function getUserPodcastsAction(): Promise<SovereignPodcast[]> {
 
     if (queryHardwareExceptionInformation) throw queryHardwareExceptionInformation;
 
-    return (userPodcastsDatabaseResults || []).map((podcastItem) =>
-      transformPodcastMetalToCrystal(podcastItem as unknown as PodcastWithProfile)
+    return (userPodcastsDatabaseResults || []).map((podcastRow) =>
+      mapDatabasePodcastToSovereignPodcast(podcastRow)
     );
 
   } catch (exceptionMessageInformation: unknown) {

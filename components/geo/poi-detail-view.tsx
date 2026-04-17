@@ -1,12 +1,13 @@
 /**
  * ARCHIVO: components/geo/poi-detail-view.tsx
- * VERSIÓN: 4.1 (NicePod Sovereign Detail View - Industrial Integrity Edition)
- * PROTOCOLO: MADRID RESONANCE V4.0
+ * VERSIÓN: 5.0 (Madrid Resonance - Sovereign Edition)
+ * PROTOCOLO: MADRID RESONANCE V7.0
  * 
  * Misión: Proyectar el dossier de inteligencia urbana en su totalidad.
- * [REFORMA V4.1]: Integración del Resumen de Grounding (IA Validation),
- * sincronía total con la Bóveda NKV y blindaje nominal absoluto.
- * Nivel de Integridad: 100% (Build Shield Activo / Sin abreviaciones)
+ * [REFORMA V5.0]: Sincronización axial completa con el contrato purificado V7.0.
+ * Eliminación de fugas snake_case y alineación absoluta con la Doctrina ZAP.
+ *
+ * Nivel de Integridad: 100% (Soberanía Nominal V7.0)
  */
 
 "use client";
@@ -36,7 +37,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn, getSafeAsset, formatTime, nicepodLog } from "@/lib/utils";
 import { useAudio } from "@/contexts/audio-context";
 
-// --- SOBERANÍA DE TIPOS (V8.5) ---
+// --- SOBERANÍA DE TIPOS ---
 import { 
   CategoryMission, 
   CategoryEntity, 
@@ -58,14 +59,14 @@ interface PointOfInterestDetailViewProperties {
     richDescription: string | null;
     galleryUniformResourceLocators: string[];
     externalReferenceUniformResourceLocator?: string | null;
-    groundingAnalysisSummary?: string | null; // [NUEVO]: Verificación del Agente 42
+    groundingAnalysisSummary?: string | null;
     referencePodcastIdentification: number | null;
   };
   linkedPodcast: PodcastWithProfile | null;
 }
 
 /**
- * TRADUCCIÓN DE ÉPOCAS (RELOJ SOBERANO)
+ * TRADUCCIÓN DE ÉPOCAS
  */
 const EPOCH_LABELS: Record<HistoricalEpoch, string> = {
   origen_geologico: "Origen Geológico",
@@ -83,10 +84,10 @@ export function POIDetailView({
   linkedPodcast 
 }: PointOfInterestDetailViewProperties) {
   const router = useRouter();
-  const { playPodcastAction, currentActivePodcast, isAudioPlaying } = useAudio();
+  const { playPodcastAction, currentActivePodcast, isAudioPlayingStatus } = useAudio();
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
-  const isCurrentlyPlaying = currentActivePodcast?.id === linkedPodcast?.id && isAudioPlaying;
+  const isCurrentlyPlaying = currentActivePodcast?.identification === linkedPodcast?.identification && isAudioPlayingStatus;
 
   const configuracionVisual = useMemo(() => {
     switch (pointOfInterest.categoryMission) {
@@ -100,7 +101,7 @@ export function POIDetailView({
 
   const handleTuneIn = () => {
     if (linkedPodcast) {
-      nicepodLog(`📻 [DetailView] Sintonizando frecuencia: ${linkedPodcast.title}`);
+      nicepodLog(`📻 [DetailView] Sintonizando frecuencia: ${linkedPodcast.titleTextContent}`);
       playPodcastAction(linkedPodcast);
     }
   };
@@ -108,7 +109,6 @@ export function POIDetailView({
   return (
     <div className="min-h-screen bg-[#010101] text-zinc-400 pb-40 selection:bg-primary/30 antialiased selection:text-white">
       
-      {/* 1. CABECERA TÁCTICA */}
       <header className="fixed top-0 left-0 right-0 z-50 p-6 flex justify-between items-center bg-gradient-to-b from-black via-black/40 to-transparent backdrop-blur-[2px]">
         <Button 
           variant="ghost" 
@@ -125,7 +125,6 @@ export function POIDetailView({
         </div>
       </header>
 
-      {/* 2. ESCENARIO MONUMENTAL */}
       <section className="relative w-full h-[60vh] md:h-[75vh] overflow-hidden bg-black">
         <AnimatePresence mode="wait">
           <motion.div
@@ -166,25 +165,24 @@ export function POIDetailView({
         </div>
       </section>
 
-      {/* 3. CONSOLA ACÚSTICA */}
       <section className="max-w-5xl mx-auto px-6 -mt-16 relative z-30">
         <div className="p-8 rounded-[2.5rem] bg-[#0A0A0A] border border-white/10 backdrop-blur-3xl shadow-2xl flex flex-col md:flex-row items-center justify-between gap-8">
           
           <div className="flex items-center gap-6">
             <div className="relative h-20 w-20 rounded-[1.5rem] overflow-hidden border border-white/10 bg-zinc-900 shrink-0">
-               {linkedPodcast?.cover_image_url && (
-                 <Image src={linkedPodcast.cover_image_url} alt="" fill className="object-cover opacity-60" />
+               {linkedPodcast?.coverImageUniformResourceLocator && (
+                 <Image src={linkedPodcast.coverImageUniformResourceLocator} alt="" fill className="object-cover opacity-60" />
                )}
                <Zap size={24} className={cn("absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2", configuracionVisual.primary, "animate-pulse")} />
             </div>
             <div className="space-y-1">
               <span className={cn("text-[9px] font-black uppercase tracking-[0.4em]", configuracionVisual.primary)}>Frecuencia de Sabiduría</span>
               <h4 className="text-white font-black text-xl uppercase tracking-tight italic">
-                {linkedPodcast?.title || "Procesando Eco Sonoro..."}
+                {linkedPodcast?.titleTextContent || "Procesando Eco Sonoro..."}
               </h4>
               <div className="flex items-center gap-3 text-zinc-500 text-[10px] font-bold uppercase tracking-widest">
                  <Clock size={12} className="opacity-40" />
-                 <span>{linkedPodcast?.duration_seconds ? formatTime(linkedPodcast.duration_seconds) : 'PENDIENTE'}</span>
+                 <span>{linkedPodcast?.playbackDurationSecondsTotal ? formatTime(linkedPodcast.playbackDurationSecondsTotal) : 'PENDIENTE'}</span>
               </div>
             </div>
           </div>
@@ -202,10 +200,8 @@ export function POIDetailView({
         </div>
       </section>
 
-      {/* 4. CUERPO DE PERITAJE */}
       <section className="max-w-5xl mx-auto px-6 mt-20 space-y-24">
         
-        {/* Grounding Verification Block (EL CEREBRO) */}
         {pointOfInterest.groundingAnalysisSummary && (
             <motion.div 
                 initial={{ opacity: 0, y: 20 }}
@@ -240,7 +236,6 @@ export function POIDetailView({
                 </p>
              </div>
 
-             {/* Knowledge Bridge */}
              {pointOfInterest.externalReferenceUniformResourceLocator && (
                <div className="pt-6">
                  <a 
@@ -259,7 +254,6 @@ export function POIDetailView({
              )}
           </div>
 
-          {/* Sidebar Táctico */}
           <aside className="space-y-10">
              <div className="p-8 rounded-3xl bg-white/[0.02] border border-white/5 space-y-8">
                 <div className="space-y-4">
@@ -290,7 +284,6 @@ export function POIDetailView({
           </aside>
         </div>
 
-        {/* Evidencia Fotorrealista */}
         {pointOfInterest.galleryUniformResourceLocators.length > 1 && (
           <div className="pt-20 border-t border-white/5">
              <div className="flex justify-between items-center mb-10">

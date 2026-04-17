@@ -35,7 +35,8 @@ import { SearchRadarResult } from "@/hooks/use-search-radar";
 import { LibraryViewSwitcher } from "@/components/feed/library-view-switcher";
 import { UniverseCard } from "@/components/feed/universe-card";
 import { CompactPodcastCard } from "@/components/podcast/compact-podcast-card";
-import { SmartJobCard } from "@/components/podcast/smart-job-card";
+import { mapDatabasePodcastToSovereignPodcast } from "@/lib/podcast-utils";
+import { IntelligentCreationJobAdministrativeCard as SmartJobCard } from "@/components/podcast/intelligent-creation-job-administrative-card";
 import { StackedPodcastCard } from "@/components/podcast/stacked-podcast-card";
 
 // --- UI ATÓMICA INDUSTRIAL ---
@@ -188,8 +189,8 @@ export function LibraryTabs({
 
             if (refreshedPodcastDataSnapshot) {
               setActiveCreatedPodcastsCollection(previousPodcastsCollection => {
-                const filteredPodcastsCollection = previousPodcastsCollection.filter(podcastItem => podcastItem.id !== refreshedPodcastDataSnapshot.id);
-                return [refreshedPodcastDataSnapshot as PodcastWithProfile, ...filteredPodcastsCollection];
+                const filteredPodcastsCollection = previousPodcastsCollection.filter(podcastItem => podcastItem.identification !== refreshedPodcastDataSnapshot.identification);
+                return [mapDatabasePodcastToSovereignPodcast(refreshedPodcastDataSnapshot), ...filteredPodcastsCollection];
               });
             }
             navigationRouter.refresh();
@@ -330,7 +331,7 @@ export function LibraryTabs({
         <div className="space-y-4 isolate">
           {podcastCollection.map(podcastItem => (
             <CompactPodcastCard
-              key={podcastItem.id}
+              key={podcastItem.identification}
               initialPodcastData={podcastItem}
             />
           ))}
@@ -347,7 +348,7 @@ export function LibraryTabs({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-10 isolate">
         {groupedPodcastThreadsCollection.map((podcastThreadItem) => (
           <StackedPodcastCard
-            key={podcastThreadItem.id}
+            key={podcastThreadItem.identification}
             initialPodcastData={podcastThreadItem}
             narrativeReplyCollection={podcastThreadItem.repliesCollection}
           />
@@ -456,7 +457,7 @@ export function LibraryTabs({
                 </div>
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-10">
-                {activeCreationJobsCollection.map(jobItem => <SmartJobCard key={jobItem.id} job={jobItem} />)}
+                {activeCreationJobsCollection.map(jobItem => <SmartJobCard key={jobItem.id} jobSnapshot={jobItem} />)}
               </div>
             </section>
           )}

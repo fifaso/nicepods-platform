@@ -1,13 +1,13 @@
 /**
  * ARCHIVO: components/profile/profile-podcast-orchestrator.tsx
- * VERSIÓN: 11.0 (NicePod Profile Orchestrator - Nominal Integrity Edition)
- * PROTOCOLO: MADRID RESONANCE V4.0
+ * VERSIÓN: 12.0 (Madrid Resonance - Sovereign Edition)
+ * PROTOCOLO: MADRID RESONANCE V7.0
  * 
- * Misión: Gestionar el renderizado y filtrado de la biblioteca de crónicas del curador,
- * garantizando una exploración fluida del capital intelectual acumulado.
- * [REFORMA V11.0]: Sincronización nominal con PodcastCard V9.0, erradicación de 'any' 
- * y cumplimiento estricto de la Zero Abbreviations Policy.
- * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * Misión: Gestionar el renderizado y filtrado de la biblioteca de crónicas.
+ * [REFORMA V12.0]: Sincronización axial completa con el contrato purificado V7.0.
+ * Eliminación de fugas snake_case y alineación absoluta con la Doctrina ZAP.
+ *
+ * Nivel de Integridad: 100% (Soberanía Nominal V7.0)
  */
 
 "use client";
@@ -33,14 +33,10 @@ import { PodcastWithProfile } from "@/types/podcast";
 
 /**
  * INTERFAZ: ProfilePodcastOrchestratorProperties
- * Misión: Definir el contrato de entrada para la orquestación de la biblioteca.
  */
 interface ProfilePodcastOrchestratorProperties {
-  /** initialPodcastCollection: Datos recolectados en el servidor para carga instantánea. */
   initialPodcastCollection: PodcastWithProfile[];
-  /** administratorProfile: Identidad soberana del curador dueño de la biblioteca. */
   administratorProfile: ProfileData;
-  /** isAdministratorOwner: Define si el visitante actual posee autoridad de gestión. */
   isAdministratorOwner: boolean;
 }
 
@@ -61,15 +57,14 @@ export function ProfilePodcastOrchestrator({
 
   /**
    * filteredPodcastCollection: 
-   * Misión: Ejecutar el filtrado semántico local para optimizar el acceso al dato.
    */
   const filteredPodcastCollection = useMemo(() => {
     return initialPodcastCollection.filter((podcastItem) => {
       const matchesSearchCriteria =
-        podcastItem.title.toLowerCase().includes(searchIntelligenceQuery.toLowerCase()) ||
-        (podcastItem.description?.toLowerCase().includes(searchIntelligenceQuery.toLowerCase()) ?? false);
+        podcastItem.titleTextContent.toLowerCase().includes(searchIntelligenceQuery.toLowerCase()) ||
+        (podcastItem.descriptionTextContent?.toLowerCase().includes(searchIntelligenceQuery.toLowerCase()) ?? false);
 
-      const matchesCategoryFilter = activeCategoryFilter === "all" || podcastItem.creation_mode === activeCategoryFilter;
+      const matchesCategoryFilter = activeCategoryFilter === "all" || podcastItem.creationMetadataDossier?.creationMode === activeCategoryFilter;
 
       return matchesSearchCriteria && matchesCategoryFilter;
     });
@@ -77,7 +72,6 @@ export function ProfilePodcastOrchestrator({
 
   /**
    * renderEmptyLibraryState:
-   * Misión: Proyectar una interfaz de vacío semántico cuando no hay activos.
    */
   const renderEmptyLibraryState = () => (
     <motion.div
@@ -111,15 +105,14 @@ export function ProfilePodcastOrchestrator({
   return (
     <div className="w-full space-y-12">
 
-      {/* BLOQUE I: BARRA DE COMANDO DE BIBLIOTECA */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="relative flex-1 max-w-md group">
           <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-600 group-focus-within:text-primary transition-colors" />
-          <Input
+          <input
             placeholder="BUSCAR EN EL ARCHIVO DE VOZ..."
             value={searchIntelligenceQuery}
             onChange={(inputChangeEvent) => setSearchIntelligenceQuery(inputChangeEvent.target.value)}
-            className="pl-14 h-14 bg-white/[0.03] border-white/5 rounded-2xl text-[10px] font-black tracking-[0.2em] focus:ring-primary/20 placeholder:text-zinc-800 uppercase"
+            className="flex h-14 w-full border-white/5 px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 pl-14 bg-white/[0.03] rounded-2xl text-[10px] font-black tracking-[0.2em] focus:ring-primary/20 placeholder:text-zinc-800 uppercase"
           />
         </div>
 
@@ -142,7 +135,6 @@ export function ProfilePodcastOrchestrator({
         </div>
       </div>
 
-      {/* BLOQUE II: MALLA DE CRÓNICAS (DYNAMIC GRID) */}
       <AnimatePresence mode="popLayout">
         {filteredPodcastCollection.length > 0 ? (
           <motion.div
@@ -151,14 +143,13 @@ export function ProfilePodcastOrchestrator({
           >
             {filteredPodcastCollection.map((podcastItem) => (
               <motion.div
-                key={podcastItem.id}
+                key={podcastItem.identification}
                 layout
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.98 }}
                 transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
               >
-                {/* [FIX V11.0]: Sincronización nominal absoluta con PodcastCard V9.0 */}
                 <PodcastCard initialPodcastData={podcastItem} />
               </motion.div>
             ))}
@@ -166,7 +157,6 @@ export function ProfilePodcastOrchestrator({
         ) : renderEmptyLibraryState()}
       </AnimatePresence>
 
-      {/* BLOQUE III: TELEMETRÍA DE INTEGRIDAD */}
       <div className="flex items-center justify-between pt-12 border-t border-white/5 opacity-40">
         <div className="flex items-center gap-4 text-[8px] font-black uppercase tracking-[0.4em] text-zinc-600">
           <Clock className="h-3 w-3 text-primary" />
@@ -180,15 +170,3 @@ export function ProfilePodcastOrchestrator({
     </div>
   );
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT (V11.0):
- * 1. Contract Synchronization: Se neutralizó el error TS2322 en la línea 169 
- *    inyectando 'initialPodcastData' en lugar de 'podcast'.
- * 2. Zero Abbreviations Policy: Purificación absoluta de nombres de variables 
- *    (searchIntelligenceQuery, activeCategoryFilter, inputChangeEvent).
- * 3. Type Safety: Se eliminó el casting 'as any' en la invocación de PodcastCard, 
- *    confiando en la integridad del contrato PodcastWithProfile.
- * 4. Router Integrity: Se sustituyó 'window.location' por el hook 'useRouter' 
- *    para respetar el flujo de navegación de Next.js.
- */

@@ -1,9 +1,13 @@
 /**
  * ARCHIVO: components/admin/failed-jobs-dialog.tsx
- * VERSIÓN: 4.1 (Madrid Resonance)
- * PROTOCOLO: Administrative Sovereignty
- * MISIÓN: Auditoría de fallos en el pipeline de producción con tipado estricto.
- * NIVEL DE INTEGRIDAD: HIGH
+ * VERSIÓN: 5.0 (Madrid Resonance - Sovereign Edition)
+ * PROTOCOLO: MADRID RESONANCE V7.0
+ *
+ * Misión: Auditoría de fallos en el pipeline de producción.
+ * [REFORMA V5.0]: Sincronización axial completa con el contrato purificado V7.0.
+ * Eliminación de fugas snake_case y alineación absoluta con la Doctrina ZAP.
+ *
+ * Nivel de Integridad: 100% (Soberanía Nominal V7.0)
  */
 
 "use client";
@@ -13,27 +17,30 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle, XCircle, Clock } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Tables } from "@/types/database.types";
 
 /**
- * INTERFAZ: FailedProductionJob
- * Definición estricta basada en el esquema Metal.
+ * FailedProductionJobSnapshot
  */
-interface FailedProductionJob extends Tables<'podcast_creation_jobs'> {
-  profiles?: {
-    email?: string | null;
-    full_name?: string | null;
-    avatar_url?: string | null;
+export interface FailedProductionJobSnapshot {
+  identification: number;
+  creationTimestamp: string;
+  exceptionMessageInformation: string | null;
+  jobTitleTextContent: string | null;
+  operationalStatus: string;
+  authorProfile?: {
+    emailAddress?: string | null;
+    fullName?: string | null;
+    avatarUniformResourceLocator?: string | null;
   } | null;
 }
 
-interface FailedJobsDialogProperties {
-  jobs: FailedProductionJob[];
-  count: number;
+interface FailedJobsDialogComponentProperties {
+  jobsCollection: FailedProductionJobSnapshot[];
+  failedJobsCountTotal: number;
 }
 
-export function FailedJobsDialog({ jobs, count }: FailedJobsDialogProperties) {
-  const safeJobsInventory = Array.isArray(jobs) ? jobs : [];
+export function FailedJobsDialog({ jobsCollection, failedJobsCountTotal }: FailedJobsDialogComponentProperties) {
+  const safeJobsInventory = Array.isArray(jobsCollection) ? jobsCollection : [];
 
   return (
     <Dialog>
@@ -44,7 +51,7 @@ export function FailedJobsDialog({ jobs, count }: FailedJobsDialogProperties) {
             <AlertTriangle className="h-4 w-4 text-red-500 animate-pulse" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-400">{count}</div>
+            <div className="text-2xl font-bold text-red-400">{failedJobsCountTotal}</div>
             <p className="text-xs text-slate-500">Jobs fallidos (Clic para auditar)</p>
           </CardContent>
         </Card>
@@ -65,38 +72,36 @@ export function FailedJobsDialog({ jobs, count }: FailedJobsDialogProperties) {
                             <p>Sistemas nominales. No hay errores recientes.</p>
                         </div>
                     ) : (
-                        safeJobsInventory.map((job) => (
-                            <div key={job.id} className="p-4 rounded-lg bg-red-950/10 border border-red-900/30 text-sm hover:bg-red-950/20 transition-colors">
+                        safeJobsInventory.map((jobItem) => (
+                            <div key={jobItem.identification} className="p-4 rounded-lg bg-red-950/10 border border-red-900/30 text-sm hover:bg-red-950/20 transition-colors">
                                 
-                                {/* HEADER DEL ERROR */}
                                 <div className="flex justify-between items-start mb-3">
                                     <div className="flex items-center gap-2">
                                         <Avatar className="h-6 w-6 border border-red-900/50">
-                                            <AvatarImage src={job.profiles?.avatar_url || ''} />
+                                            <AvatarImage src={jobItem.authorProfile?.avatarUniformResourceLocator || ''} />
                                             <AvatarFallback className="text-[9px] bg-red-900 text-red-200">
-                                                {job.profiles?.email?.substring(0,2).toUpperCase() || '??'}
+                                                {jobItem.authorProfile?.emailAddress?.substring(0,2).toUpperCase() || '??'}
                                             </AvatarFallback>
                                         </Avatar>
                                         <div className="flex flex-col">
                                             <span className="text-xs font-semibold text-slate-300">
-                                                {job.profiles?.full_name || job.profiles?.email || 'Usuario Desconocido'}
+                                                {jobItem.authorProfile?.fullName || jobItem.authorProfile?.emailAddress || 'Usuario Desconocido'}
                                             </span>
-                                            <span className="text-[10px] text-slate-500 font-mono">ID: {String(job.id).substring(0,8)}...</span>
+                                            <span className="text-[10px] text-slate-500 font-mono">ID: {String(jobItem.identification).substring(0,8)}...</span>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-1 text-[10px] text-slate-500 bg-slate-900/50 px-2 py-1 rounded-full">
                                         <Clock className="h-3 w-3" />
-                                        {new Date(job.created_at).toLocaleString()}
+                                        {new Date(jobItem.creationTimestamp).toLocaleString()}
                                     </div>
                                 </div>
 
-                                {/* CUERPO DEL ERROR */}
                                 <div className="space-y-2">
                                     <p className="font-medium text-red-300 text-xs uppercase tracking-wider">
-                                        Contexto: {job.job_title || 'Proceso interno'}
+                                        Contexto: {jobItem.jobTitleTextContent || 'Proceso interno'}
                                     </p>
                                     <div className="bg-black/40 p-3 rounded border border-red-900/20 font-mono text-xs text-red-200/80 break-words whitespace-pre-wrap max-h-32 overflow-y-auto">
-                                        {job.error_message || 'Error no especificado.'}
+                                        {jobItem.exceptionMessageInformation || 'Error no especificado.'}
                                     </div>
                                 </div>
                             </div>

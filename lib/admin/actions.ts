@@ -1,9 +1,13 @@
 /**
  * ARCHIVO: lib/admin/actions.ts
- * VERSIÓN: 5.1 (Madrid Resonance)
- * PROTOCOLO: Intellectual Capital & Traceability
- * MISIÓN: Consolidación del núcleo administrativo con tipado soberano y trazabilidad industrial total.
- * NIVEL DE INTEGRIDAD: 100%
+ * VERSIÓN: 7.0 (Madrid Resonance - Sovereign Edition)
+ * PROTOCOLO: MADRID RESONANCE V7.0
+ *
+ * MISIÓN: Consolidación del núcleo administrativo con tipado soberano.
+ * [REFORMA V7.0]: Sincronización axial completa con el contrato purificado V7.0.
+ * Eliminación de fugas snake_case y alineación absoluta con la Doctrina ZAP.
+ *
+ * NIVEL DE INTEGRIDAD: 100% (Soberanía Nominal V7.0)
  */
 
 "use server";
@@ -19,19 +23,13 @@ import { nicepodLog } from '@/lib/utils';
  * Contrato universal para respuestas de operaciones gubernamentales.
  */
 export type SovereignAdministrativeResponse<T = null> = {
-  success: boolean;
-  message: string;
-  data: T | null;
-  error?: string;
-  trace_identification?: string;
+  isOperationSuccessful: boolean;
+  responseStatusMessage: string;
+  payloadData: T | null;
+  exceptionMessageInformation?: string;
+  traceIdentification?: string;
 };
 
-// --- INFRAESTRUCTURA SEGURA ---
-
-/**
- * getAdministratorServiceRoleClient:
- * Inicialización de un cliente con privilegios de Service Role para bypass de RLS.
- */
 function getAdministratorServiceRoleClient(): SupabaseClient<Database> {
   const uniformResourceLocator = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -48,14 +46,6 @@ function getAdministratorServiceRoleClient(): SupabaseClient<Database> {
   });
 }
 
-/**
- * ensureAdministratorAuthority:
- * [POR QUÉ]: Protocolo de seguridad de Grado Industrial para validar la autoridad administrativa.
- * [CÓMO]: Utiliza el Handshake de identidad de Supabase y cruza la referencia con el perfil
- * de autoridad en la base de datos (Metal). Si se valida el rango 'admin', se instancia
- * un cliente con privilegios de Service Role para realizar el bypass de Row Level Security (RLS)
- * garantizando la soberanía de las mutaciones administrativas.
- */
 async function ensureAdministratorAuthority() {
   const supabase = createServerClient();
 
@@ -78,16 +68,10 @@ async function ensureAdministratorAuthority() {
   return { administratorUser: user, administratorServiceRoleClient };
 }
 
-// --- LECTURA DE DATOS (DASHBOARD) ---
-
-/**
- * getAdminDashboardStats:
- * Recupera los KPIs vitales del ecosistema NicePod.
- */
 export async function getAdminDashboardStats(): Promise<SovereignAdministrativeResponse<{
-  userCount: number;
-  podCount: number;
-  failedJobs: number;
+  userCountTotal: number;
+  podcastCountTotal: number;
+  failedJobsCountTotal: number;
 }>> {
   try {
     const { administratorServiceRoleClient } = await ensureAdministratorAuthority();
@@ -101,29 +85,25 @@ export async function getAdminDashboardStats(): Promise<SovereignAdministrativeR
     ]);
 
     return {
-      success: true,
-      message: "Estadísticas de gobernanza sincronizadas.",
-      data: {
-        userCount: userCountRequest.count || 0,
-        podCount: podcastCountRequest.count || 0,
-        failedJobs: failedJobsCountRequest.count || 0
+      isOperationSuccessful: true,
+      responseStatusMessage: "Estadísticas de gobernanza sincronizadas.",
+      payloadData: {
+        userCountTotal: userCountRequest.count || 0,
+        podcastCountTotal: podcastCountRequest.count || 0,
+        failedJobsCountTotal: failedJobsCountRequest.count || 0
       }
     };
   } catch (governanceException: any) {
     nicepodLog("🔥 [Admin-Action][Stats]:", governanceException.message, 'error');
     return {
-      success: false,
-      message: "Fallo al recuperar estadísticas del Dashboard.",
-      error: governanceException.message,
-      data: { userCount: 0, podCount: 0, failedJobs: 0 }
+      isOperationSuccessful: false,
+      responseStatusMessage: "Fallo al recuperar estadísticas del Dashboard.",
+      exceptionMessageInformation: governanceException.message,
+      payloadData: { userCountTotal: 0, podcastCountTotal: 0, failedJobsCountTotal: 0 }
     };
   }
 }
 
-/**
- * getUsersList:
- * Recupera el inventario de curadores con telemetría de uso.
- */
 export async function getUsersList(): Promise<SovereignAdministrativeResponse<any[]>> {
   try {
     const { administratorServiceRoleClient } = await ensureAdministratorAuthority();
@@ -133,7 +113,7 @@ export async function getUsersList(): Promise<SovereignAdministrativeResponse<an
       .select(`
         id, full_name, email, avatar_url, role, created_at,
         user_usage ( podcasts_created_this_month ),
-        micro_pods ( id, title, status, created_at, audio_url )
+        micro_pods ( * )
       `)
       .order('created_at', { ascending: false })
       .limit(50);
@@ -141,25 +121,21 @@ export async function getUsersList(): Promise<SovereignAdministrativeResponse<an
     if (fetchError) throw fetchError;
 
     return {
-      success: true,
-      message: "Censo de usuarios recuperado con éxito.",
-      data: administratorUsersInventory || []
+      isOperationSuccessful: true,
+      responseStatusMessage: "Censo de usuarios recuperado con éxito.",
+      payloadData: administratorUsersInventory || []
     };
   } catch (governanceException: any) {
     nicepodLog("🔥 [Admin-Action][Users-List]:", governanceException.message, 'error');
     return {
-      success: false,
-      message: "Error al sincronizar el inventario de usuarios.",
-      error: governanceException.message,
-      data: []
+      isOperationSuccessful: false,
+      responseStatusMessage: "Error al sincronizar el inventario de usuarios.",
+      exceptionMessageInformation: governanceException.message,
+      payloadData: []
     };
   }
 }
 
-/**
- * getRecentPodcasts:
- * Recupera las crónicas más recientes para auditoría editorial.
- */
 export async function getRecentPodcasts(): Promise<SovereignAdministrativeResponse<any[]>> {
   try {
     const { administratorServiceRoleClient } = await ensureAdministratorAuthority();
@@ -167,8 +143,8 @@ export async function getRecentPodcasts(): Promise<SovereignAdministrativeRespon
     const { data: recentPodcastsInventory, error: fetchError } = await administratorServiceRoleClient
       .from('micro_pods')
       .select(`
-          id, title, status, created_at, audio_url, is_featured,
-          profiles ( full_name, email, avatar_url )
+          *,
+          profiles ( * )
       `)
       .order('created_at', { ascending: false })
       .limit(10);
@@ -176,25 +152,21 @@ export async function getRecentPodcasts(): Promise<SovereignAdministrativeRespon
     if (fetchError) throw fetchError;
 
     return {
-      success: true,
-      message: "Pulso editorial sincronizado.",
-      data: recentPodcastsInventory || []
+      isOperationSuccessful: true,
+      responseStatusMessage: "Pulso editorial sincronizado.",
+      payloadData: recentPodcastsInventory || []
     };
   } catch (governanceException: any) {
     nicepodLog("🔥 [Admin-Action][Recent-Pods]:", governanceException.message, 'error');
     return {
-      success: false,
-      message: "No se pudo recuperar el pulso editorial.",
-      error: governanceException.message,
-      data: []
+      isOperationSuccessful: false,
+      responseStatusMessage: "No se pudo recuperar el pulso editorial.",
+      exceptionMessageInformation: governanceException.message,
+      payloadData: []
     };
   }
 }
 
-/**
- * getRecentFailedJobs:
- * Auditoría de fallos en el pipeline de producción.
- */
 export async function getRecentFailedJobs(): Promise<SovereignAdministrativeResponse<any[]>> {
   try {
     const { administratorServiceRoleClient } = await ensureAdministratorAuthority();
@@ -212,27 +184,21 @@ export async function getRecentFailedJobs(): Promise<SovereignAdministrativeResp
     if (fetchError) throw fetchError;
 
     return {
-      success: true,
-      message: "Auditoría de fallos completada.",
-      data: failedProductionJobs || []
+      isOperationSuccessful: true,
+      responseStatusMessage: "Auditoría de fallos completada.",
+      payloadData: failedProductionJobs || []
     };
   } catch (governanceException: any) {
     nicepodLog("🔥 [Admin-Action][Failed-Jobs]:", governanceException.message, 'error');
     return {
-      success: false,
-      message: "Error en la recuperación de logs de fallo.",
-      error: governanceException.message,
-      data: []
+      isOperationSuccessful: false,
+      responseStatusMessage: "Error en la recuperación de logs de fallo.",
+      exceptionMessageInformation: governanceException.message,
+      payloadData: []
     };
   }
 }
 
-// --- ACCIONES DE GESTIÓN (MUTACIONES) ---
-
-/**
- * resetUserQuota:
- * Restablece la capacidad de producción de un usuario.
- */
 export async function resetUserQuota(userIdentification: string): Promise<SovereignAdministrativeResponse> {
   try {
     const { administratorServiceRoleClient } = await ensureAdministratorAuthority();
@@ -250,25 +216,21 @@ export async function resetUserQuota(userIdentification: string): Promise<Sovere
     revalidatePath('/admin');
 
     return {
-      success: true,
-      message: "Cuota de producción restablecida correctamente.",
-      data: null
+      isOperationSuccessful: true,
+      responseStatusMessage: "Cuota de producción restablecida correctamente.",
+      payloadData: null
     };
   } catch (governanceException: any) {
     nicepodLog("🔥 [Admin-Action][Reset-Quota]:", governanceException.message, 'error');
     return {
-      success: false,
-      message: "Fallo al restablecer la cuota del usuario.",
-      error: governanceException.message,
-      data: null
+      isOperationSuccessful: false,
+      responseStatusMessage: "Fallo al restablecer la cuota del usuario.",
+      exceptionMessageInformation: governanceException.message,
+      payloadData: null
     };
   }
 }
 
-/**
- * toggleFeaturedStatus:
- * Modifica el estado de visibilidad destacada de un activo.
- */
 export async function toggleFeaturedStatus(
   podcastIdentification: number,
   currentFeaturedStatus: boolean
@@ -286,17 +248,17 @@ export async function toggleFeaturedStatus(
     revalidatePath('/admin');
 
     return {
-      success: true,
-      message: "Estado de destaque editorial actualizado.",
-      data: null
+      isOperationSuccessful: true,
+      responseStatusMessage: "Estado de destaque editorial actualizado.",
+      payloadData: null
     };
   } catch (governanceException: any) {
     nicepodLog("🔥 [Admin-Action][Toggle-Featured]:", governanceException.message, 'error');
     return {
-      success: false,
-      message: "No se pudo actualizar el estado destacado del podcast.",
-      error: governanceException.message,
-      data: null
+      isOperationSuccessful: false,
+      responseStatusMessage: "No se pudo actualizar el estado destacado del podcast.",
+      exceptionMessageInformation: governanceException.message,
+      payloadData: null
     };
   }
 }

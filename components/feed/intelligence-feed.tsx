@@ -1,13 +1,13 @@
 /**
  * ARCHIVO: components/feed/intelligence-feed.tsx
- * VERSIÓN: 7.0 (NiceCore V4.9 - Sovereign Intelligence Flow - Industrial Sync)
- * PROTOCOLO: MADRID RESONANCE V4.9
+ * VERSIÓN: 8.0 (Madrid Resonance - Sovereign Edition)
+ * PROTOCOLO: MADRID RESONANCE V7.0
  * 
- * Misión: Orquestar el flujo de capital intelectual inyectado por el servidor, 
- * gestionando la transición entre la frecuencia base y el radar semántico.
- * [REFORMA V7.0]: Resolución definitiva de TS2322 mediante la sincronización 
- * con 'PodcastShelf' V4.0. Aplicación integral de la Zero Abbreviations Policy.
- * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
+ * Misión: Orquestar el flujo de capital intelectual.
+ * [REFORMA V8.0]: Sincronización axial completa con el contrato purificado V7.0.
+ * Eliminación de fugas snake_case y alineación absoluta con la Doctrina ZAP.
+ *
+ * Nivel de Integridad: 100% (Soberanía Nominal V7.0)
  */
 
 "use client";
@@ -38,7 +38,6 @@ import { Button } from "@/components/ui/button";
 
 /**
  * [HARDWARE HYGIENE]: CARGA DIFERIDA DE ESTANTES (PodcastShelf)
- * El componente se hidrata de forma diferida para preservar el Main Thread.
  */
 const PodcastShelf = dynamic(
   () => import("@/components/feed/podcast-shelf").then((module) => module.PodcastShelf),
@@ -68,8 +67,7 @@ interface IntelligenceFeedProperties {
 }
 
 /**
- * DISCOVERY_HUB_CATEGORIES_COLLECTION:
- * Misión: Definir los puntos de entrada a los universos semánticos.
+ * DISCOVERY_HUB_CATEGORIES_COLLECTION
  */
 const DISCOVERY_HUB_CATEGORIES_COLLECTION = [
   { key: "deep_thought", title: "Pensamiento", image: "/images/universes/deep-thought.png", href: "/podcasts?tab=discover&universe=deep_thought" },
@@ -90,13 +88,13 @@ export function IntelligenceFeed({
   onClearSearchRadarAction
 }: IntelligenceFeedProperties) {
 
-  // --- 1. SANEAMIENTO DE DATOS (DATA HYGIENE) ---
+  // --- 1. SANEAMIENTO DE DATOS ---
   const safeEpicenterPodcastsCollection = useMemo(() => {
-    return initialEpicenterPodcastsCollection.filter((podcastItem) => podcastItem.id);
+    return initialEpicenterPodcastsCollection.filter((podcastItem) => podcastItem.identification);
   }, [initialEpicenterPodcastsCollection]);
 
   const safeConnectionsPodcastsCollection = useMemo(() => {
-    return initialConnectionsCollection.filter((podcastItem) => podcastItem.id);
+    return initialConnectionsCollection.filter((podcastItem) => podcastItem.identification);
   }, [initialConnectionsCollection]);
 
   // --- 2. GESTIÓN DE ESTADOS DE HIDRATACIÓN ---
@@ -116,10 +114,8 @@ export function IntelligenceFeed({
     <div className="w-full space-y-12 selection:bg-primary/20 isolate">
 
       {isRadarInterfaceIdleStatus ? (
-        /* --- ESTADO A: FRECUENCIA BASE (VISTA SOBERANA) --- */
         <div className="space-y-16 animate-in fade-in duration-1000 isolate">
 
-          {/* SECTOR I: DIMENSIONES DE CONOCIMIENTO */}
           <section className="isolate">
             <div className="flex items-center justify-between mb-10 px-1">
               <div className="flex items-center gap-3">
@@ -148,7 +144,6 @@ export function IntelligenceFeed({
 
           <div className="space-y-16 isolate">
 
-            {/* --- ESTANTE 1: EPICENTRO CREATIVO --- */}
             <div className="relative group isolate">
               <div className="flex items-center gap-3 mb-6 px-4 border-l-2 border-primary">
                 <Zap size={18} className="text-primary fill-current shadow-primary" />
@@ -159,7 +154,6 @@ export function IntelligenceFeed({
 
               {safeEpicenterPodcastsCollection.length > 0 ? (
                 <PodcastShelf
-                  /** [RESOLUCIÓN TS2322]: Alineación con PodcastShelf V4.0 */
                   shelfTitleTextContent="Tu Epicentro"
                   initialPodcastCollection={safeEpicenterPodcastsCollection}
                   visualVariantType="compact"
@@ -182,7 +176,6 @@ export function IntelligenceFeed({
               )}
             </div>
 
-            {/* --- ESTANTE 2: CONEXIONES DE RESONANCIA --- */}
             {safeConnectionsPodcastsCollection.length > 0 && (
               <div className="relative group isolate">
                 <div className="flex items-center gap-3 mb-6 px-4 border-l-2 border-purple-600">
@@ -192,7 +185,6 @@ export function IntelligenceFeed({
                   </h2>
                 </div>
                 <PodcastShelf
-                  /** [RESOLUCIÓN TS2322]: Alineación con PodcastShelf V4.0 */
                   shelfTitleTextContent="Resonancias Inesperadas"
                   initialPodcastCollection={safeConnectionsPodcastsCollection}
                   visualVariantType="compact"
@@ -203,7 +195,6 @@ export function IntelligenceFeed({
           </div>
         </div>
       ) : (
-        /* --- ESTADO B: CONSOLA DE ANÁLISIS (RADAR SEMÁNTICO ACTIVO) --- */
         <div className="space-y-10 animate-in fade-in slide-in-from-bottom-6 duration-700 pb-24 isolate">
           <div className="flex items-center justify-between border-b border-white/5 pb-8 px-2 isolate">
             <div className="flex items-center gap-5">
@@ -275,13 +266,3 @@ export function IntelligenceFeed({
     </div>
   );
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT (V7.0):
- * 1. Build Shield Sovereignty: Resolución definitiva de TS2322 mediante la alineación 
- *    con 'shelfTitleTextContent' e 'initialPodcastCollection' del componente PodcastShelf.
- * 2. ZAP Absolute Compliance: Purificación nominal completa. Se han erradicado términos 
- *    como 'feed', 'res', 'idx', 'query', 'cn'.
- * 3. MTI Isolation: El uso de 'useMemo' para las colecciones seguras evita que el 
- *    filtrado de datos colapse el Hilo Principal en cada re-renderizado del Dashboard.
- */

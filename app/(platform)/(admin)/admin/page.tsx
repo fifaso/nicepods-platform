@@ -1,9 +1,13 @@
 /**
  * ARCHIVO: app/(platform)/(admin)/admin/page.tsx
- * VERSIÓN: 4.0 (Madrid Resonance)
- * PROTOCOLO: Administrative Sovereignty
- * MISIÓN: Panel de Operaciones principal con integración de tipado soberano y trazabilidad.
- * NIVEL DE INTEGRIDAD: CRITICAL
+ * VERSIÓN: 6.0 (Madrid Resonance - Sovereign Edition)
+ * PROTOCOLO: MADRID RESONANCE V7.0
+ *
+ * Misión: Panel de Operaciones principal con integración de tipado soberano.
+ * [REFORMA V6.0]: Sincronización axial completa con el contrato purificado V7.0.
+ * Eliminación de fugas snake_case y alineación absoluta con la Doctrina ZAP.
+ *
+ * NIVEL DE INTEGRIDAD: 100% (Soberanía Nominal V7.0)
  */
 
 import { 
@@ -12,20 +16,16 @@ import {
   getRecentFailedJobs, 
   getRecentPodcasts 
 } from "@/lib/admin/actions";
-import { UsersTable } from "@/components/admin/users-table";
+import { UserManagementAdministrativeTable } from "@/components/admin/user-management-administrative-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Activity, Users } from "lucide-react";
-import { FailedJobsDialog } from "@/components/admin/failed-jobs-dialog";
+import { FailedJobsDialog, type FailedProductionJobSnapshot } from "@/components/admin/failed-jobs-dialog";
 import { RecentPodcastsList } from "@/components/admin/recent-podcasts-list";
+import { mapDatabasePodcastToSovereignPodcast } from "@/lib/podcast-utils";
 
-// Forzar renderizado dinámico para ver datos frescos siempre
 export const dynamic = 'force-dynamic';
 
 export default async function AdminPage() {
-  /**
-   * CARGA DE DATOS PARALELA:
-   * Sincronizamos con el contrato de SovereignAdministrativeResponse.
-   */
   const [
     governanceStatsResponse,
     usersInventoryResponse,
@@ -38,16 +38,45 @@ export default async function AdminPage() {
     getRecentPodcasts()
   ]);
 
-  // Extracción segura de datos para la UI
-  const statistics = governanceStatsResponse.data || { userCount: 0, podCount: 0, failedJobs: 0 };
-  const usersInventory = usersInventoryResponse.data || [];
-  const failedJobsInventory = failedProductionJobsResponse.data || [];
-  const recentPodcastsInventory = recentPodcastsResponse.data || [];
+  const statistics = governanceStatsResponse.payloadData || { userCountTotal: 0, podcastCountTotal: 0, failedJobsCountTotal: 0 };
+
+  // Mapeo Soberano de los Inventarios
+  const usersCollection = (usersInventoryResponse.payloadData || []).map((userRow: any) => ({
+    ...userRow,
+    identification: userRow.id,
+    fullName: userRow.full_name,
+    avatarUniformResourceLocator: userRow.avatar_url,
+    reputationScoreValue: userRow.reputation_score,
+    isVerifiedAccountStatus: userRow.is_verified,
+    authorityRole: userRow.role,
+    creationTimestamp: userRow.created_at,
+    emailAddress: userRow.email,
+    userUsageTelemetrics: userRow.user_usage ? {
+        podcastsCreatedThisMonth: Array.isArray(userRow.user_usage)
+            ? userRow.user_usage[0]?.podcasts_created_this_month
+            : userRow.user_usage.podcasts_created_this_month
+    } : undefined,
+    podcastsCollection: (userRow.micro_pods || []).map((podRow: any) => mapDatabasePodcastToSovereignPodcast(podRow))
+  }));
+
+  const recentPodcastsCollection = (recentPodcastsResponse.payloadData || []).map((podRow: any) => mapDatabasePodcastToSovereignPodcast(podRow));
+
+  const failedJobsCollection: FailedProductionJobSnapshot[] = (failedProductionJobsResponse.payloadData || []).map((jobRow: any) => ({
+    identification: jobRow.id,
+    creationTimestamp: jobRow.created_at,
+    exceptionMessageInformation: jobRow.error_message,
+    jobTitleTextContent: jobRow.job_title,
+    operationalStatus: jobRow.status,
+    authorProfile: jobRow.profiles ? {
+        emailAddress: jobRow.profiles.email,
+        fullName: jobRow.profiles.full_name,
+        avatarUniformResourceLocator: jobRow.profiles.avatar_url
+    } : null
+  }));
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-20">
       
-      {/* 1. HEADER ESTRATÉGICO */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
             <h1 className="text-3xl font-bold text-white mb-1">Panel de Operaciones</h1>
@@ -56,15 +85,13 @@ export default async function AdminPage() {
         <div className="flex items-center gap-2">
             <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.2)]">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>
-                Sistema Operativo
+                Sistema Operativo V7.0
             </span>
         </div>
       </div>
 
-      {/* 2. TARJETAS KPI (SIGNOS VITALES) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         
-        {/* KPI: Usuarios */}
         <Card className="bg-slate-900 border-slate-800 text-slate-200 shadow-lg relative overflow-hidden">
           <div className="absolute top-0 right-0 p-4 opacity-10">
             <Users className="w-24 h-24 text-blue-500" />
@@ -74,12 +101,11 @@ export default async function AdminPage() {
             <Users className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent className="relative z-10">
-            <div className="text-3xl font-bold">{statistics.userCount}</div>
+            <div className="text-3xl font-bold">{statistics.userCountTotal}</div>
             <p className="text-xs text-slate-500 mt-1">Miembros activos en la comunidad</p>
           </CardContent>
         </Card>
 
-        {/* KPI: Producción */}
         <Card className="bg-slate-900 border-slate-800 text-slate-200 shadow-lg relative overflow-hidden">
            <div className="absolute top-0 right-0 p-4 opacity-10">
             <Activity className="w-24 h-24 text-green-500" />
@@ -89,37 +115,31 @@ export default async function AdminPage() {
             <Activity className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent className="relative z-10">
-            <div className="text-3xl font-bold">{statistics.podCount}</div>
+            <div className="text-3xl font-bold">{statistics.podcastCountTotal}</div>
             <p className="text-xs text-slate-500 mt-1">Contenido histórico creado</p>
           </CardContent>
         </Card>
 
-        {/* KPI: Salud/Alertas (Componente Interactivo) */}
-        <FailedJobsDialog jobs={failedJobsInventory} count={statistics.failedJobs} />
+        <FailedJobsDialog jobsCollection={failedJobsCollection} failedJobsCountTotal={statistics.failedJobsCountTotal} />
       </div>
 
-      {/* 3. ZONA DE GESTIÓN (GRID ASIMÉTRICO) */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
         
-        {/* COLUMNA IZQUIERDA: CRM DE USUARIOS (2/3 del ancho) */}
         <div className="xl:col-span-2 space-y-4">
             <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold text-white">Gestión de Usuarios</h2>
             </div>
-            {/* Tabla Inteligente con Buscador y Reset */}
-            <UsersTable users={usersInventory} />
+            <UserManagementAdministrativeTable usersCollection={usersCollection} />
         </div>
 
-        {/* COLUMNA DERECHA: EL PULSO EDITORIAL (1/3 del ancho) */}
         <div className="space-y-4">
             <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold text-white">El Pulso</h2>
                 <span className="text-xs text-slate-500">Últimas 10 creaciones</span>
             </div>
             
-            {/* Lista Interactiva para Curaduría (Destacar/Play) */}
             <div className="bg-slate-900/30 rounded-xl border border-slate-800 p-1">
-                <RecentPodcastsList podcasts={recentPodcastsInventory} />
+                <RecentPodcastsList podcastsCollection={recentPodcastsCollection} />
             </div>
         </div>
 
