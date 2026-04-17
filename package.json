@@ -1,17 +1,31 @@
 {
   "name": "nicepod-platform",
-  "version": "1.0.0",
+  "version": "8.0.0",
   "private": true,
+  "description": "NicePod Workstation - Sovereign Closed-Loop Ecosystem",
+  "author": "NicePod Intelligence Unit",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
     "start": "next start",
+    "build": "next build",
+    "prepare": "husky",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
-    "unused-check": "pnpm exec knip",
-    "security-check": "pnpm audit",
-    "health-check": "pnpm type-check && pnpm lint && pnpm security-check",
-    "nuclear-clean": "rm -rf .next node_modules pnpm-lock.yaml && pnpm install"
+    "validate:bss": "pnpm type-check",
+    "validate:zap": "pnpm lint",
+    "validate:vision": "playwright test",
+    "validate:vision:ui": "playwright test --ui",
+    "validate:security": "pnpm audit",
+    "validate:unused": "pnpm exec knip",
+    "sovereign:check": "pnpm validate:bss && pnpm validate:zap && pnpm validate:security",
+    "sovereign:build": "pnpm sovereign:check && pnpm build",
+    "sovereign:clean": "rm -rf .next node_modules pnpm-lock.yaml && pnpm install",
+    "infra:handshake": "node .mcp/scripts/handshake.js",
+    "infra:sentry:debug": "sentry-cli info"
   },
   "dependencies": {
     "@arcjet/ip": "1.0.0-beta.15",
@@ -86,6 +100,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.50.1",
     "@types/d3": "^7.4.3",
     "@types/node": "^22.10.1",
     "@types/react": "^18.3.27",
@@ -96,6 +111,7 @@
     "eslint-config-next": "14.2.15",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
+    "husky": "^9.1.7",
     "knip": "^5.82.1",
     "postcss": "^8.5.1",
     "supabase": "^2.66.0",

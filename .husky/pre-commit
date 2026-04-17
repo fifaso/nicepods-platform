@@ -1,0 +1,14 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+echo "🏛️  NICEPOD SOVEREIGN SHIELD: Validando cumplimiento de la Constitución v8.0..."
+
+# 1. Validación de Estabilidad (Doctrina BSS)
+echo "🔍 Ejecutando Peritaje de Tipos (BSS)..."
+pnpm validate:bss || (echo "❌ ERROR: Violación de la Doctrina BSS. El código tiene errores de TypeScript." && exit 1)
+
+# 2. Validación Nominal (Doctrina ZAP)
+echo "🔍 Ejecutando Auditoría Nominal (ZAP)..."
+pnpm validate:zap || (echo "❌ ERROR: Violación de la Doctrina ZAP. Revisa la nomenclatura." && exit 1)
+
+echo "✅ INTEGRIDAD VERIFICADA. Procediendo con el commit soberano."
