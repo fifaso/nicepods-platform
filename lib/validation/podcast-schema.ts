@@ -1,7 +1,7 @@
 /**
  * ARCHIVO: lib/validation/podcast-schema.ts
  * VERSIÓN: 12.0 (NicePod Schema Master - Structural Integrity & ZAP Edition)
- * PROTOCOLO: MADRID RESONANCE V4.9
+ * PROTOCOLO: MADRID RESONANCE V8.0
  *
  * Misión: Gobernar la integridad de datos, sanitizar la entrada del Voyager y 
  * blindar el contrato de orígenes para la forja de capital intelectual.
@@ -49,6 +49,47 @@ const SourceSchema = z.object({
 });
 
 /**
+ * ESQUEMA: LocalRecommendationSchema
+ */
+const LocalRecommendationSchema = z.object({
+  name: z.string(),
+  category: z.string(),
+  descriptionTextContent: z.string(),
+  hasSpecificPodcastAttached: z.boolean(),
+  linkedPodcastIdentification: z.union([z.string(), z.number()]).optional(),
+  actionUniformResourceLocator: z.string().url().optional(),
+  distanceInMeters: z.number().optional()
+});
+
+/**
+ * ESQUEMA: DiscoveryContextDossierSchema
+ */
+const DiscoveryContextDossierSchema = z.object({
+  narrativeHookText: z.string(),
+  recommendationsCollection: z.array(LocalRecommendationSchema),
+  closingThoughtText: z.string(),
+  detectedPointOfInterestName: z.string().optional(),
+  imageAnalysisSummaryContent: z.string().optional()
+});
+
+/**
+ * ESQUEMA: GeoLocationSchema
+ */
+const GeoLocationSchema = z.object({
+  type: z.literal('Point'),
+  coordinates: z.tuple([z.number(), z.number()])
+});
+
+/**
+ * ESQUEMA: PodcastScriptDossierSchema
+ */
+const PodcastScriptDossierSchema = z.object({
+  scriptBodyContent: z.string(),
+  scriptPlainContent: z.string(),
+  legacyText: z.string().optional()
+});
+
+/**
  * ESQUEMA MAESTRO: PodcastCreationSchema
  * Misión: El espejo contractual que rige la terminal de forja.
  */
@@ -78,7 +119,7 @@ export const PodcastCreationSchema = z.object({
     cityNameReference: z.string().optional()
   }).optional(),
   visualEnvironmentalImageContext: z.string().optional(),
-  discoveryContextDossier: z.any().optional().nullable(),
+  discoveryContextDossier: DiscoveryContextDossierSchema.optional().nullable(),
 
   // --- V. SEMILLAS DE CREACIÓN NARRATIVA ---
   soloTopicSelection: safeSovereignInputString.optional(),
@@ -189,15 +230,8 @@ export const SovereignPodcastSchema = z.object({
 
   // CAMPOS ZAP (CRISTAL)
   artificialIntelligenceTagsCollection: z.array(z.string()).nullable(),
-  geographicLocationPoint: z.object({
-    type: z.literal('Point'),
-    coordinates: z.tuple([z.number(), z.number()])
-  }).nullable(),
-  podcastScriptDossier: z.object({
-    scriptBodyContent: z.string(),
-    scriptPlainContent: z.string(),
-    legacyText: z.string().optional()
-  }).nullable(),
+  geographicLocationPoint: GeoLocationSchema.nullable(),
+  podcastScriptDossier: PodcastScriptDossierSchema.nullable(),
 
   // CAMPOS METAL (BACKWARD COMPATIBILITY)
   ai_tags: z.array(z.string()).nullable(),

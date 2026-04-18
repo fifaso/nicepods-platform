@@ -38,11 +38,9 @@ export async function createCollectionAction(
 ): Promise<ProfileActionResponse<{ collectionIdentification: string }>> {
   const supabaseSovereignClient = createClient();
 
-  // 1. HANDSHAKE DE SOBERANÍA (DOCTRINA DIS)
-  const { data: { user: authenticatedUserSnapshot }, error: authenticationHardwareExceptionInformation } = await supabaseSovereignClient.auth.getUser();
-
-  if (authenticationHardwareExceptionInformation || !authenticatedUserSnapshot) {
-    nicepodLog("🛑 [Curation-Engine] Acceso denegado: Identidad no verificada.");
+  // 1. HANDSHAKE DE SOBERANÍA (DIS DOCTRINE)
+  const { data: { user: authenticatedUserSnapshot }, error: authenticationExceptionInformation } = await supabaseClient.auth.getUser();
+  if (authenticationExceptionInformation || !authenticatedUserSnapshot) {
     return {
       isOperationSuccessful: false,
       responseStatusMessage: "SESIÓN_REQUERIDA: Inicie sesión para crear colecciones.",
@@ -77,7 +75,7 @@ export async function createCollectionAction(
       .from("collections")
       .insert({
         owner_id: authenticatedUserIdentification,
-        title: title,
+        title,
         description: descriptionTextContent,
         is_public: isPublicSovereignty,
         cover_image_url: coverImageUniformResourceLocator
@@ -143,12 +141,12 @@ export async function createCollectionAction(
  * getMyCollections:
  * Recuperar el inventario de hilos curados por el Voyager activo.
  */
-export async function getMyCollections(): Promise<Collection[]> {
-  const supabaseSovereignClient = createClient();
-  const { data: { user: authenticatedUserSnapshot } } = await supabaseSovereignClient.auth.getUser();
+export async function getMyCollections() {
+  const supabaseClient = createClient();
+  const { data: { user: authenticatedUserSnapshot } } = await supabaseClient.auth.getUser();
 
   if (!authenticatedUserSnapshot) {
-    nicepodLog("🛑 [Curation-Engine] Intento de acceso a colecciones sin sesión.");
+    console.warn("🛑 [Curation-Engine] Intento de acceso a colecciones sin sesión.");
     return [];
   }
 

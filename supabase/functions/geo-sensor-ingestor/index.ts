@@ -6,9 +6,10 @@
  * NIVEL DE INTEGRIDAD: 100%
  */
 
-import { encodeBase64 } from "https://deno.land/std@0.203.0/encoding/base64.ts";
+import { encodeBase64 } from "https://deno.land/std@0.203.0/encoding/base64.ts"; // [MANDATORIO]
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 import { AI_MODELS, parseAIJson } from "../_shared/ai.ts";
+import { guard, GuardContext } from "../_shared/guard.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { guard, GuardContext } from "../_shared/guard.ts";
 
@@ -33,15 +34,38 @@ async function retrieveBinaryEvidenceAsBase64(uniformResourceLocator: string): P
 }
 
 /**
- * executeSensorIngestionHandler:
- * Orquestador de peritaje de inteligencia urbana con protección perimetral.
+ * executeSovereignIngestionHandler:
+ * Misión: Orquestar el peritaje técnico de evidencia física con blindaje perimetral.
  */
-const executeSensorIngestionHandler = async (incomingRequest: Request, context: GuardContext): Promise<Response> => {
-  const correlationIdentification = context.correlationIdentification;
-  console.info(`🧠 [Sensor-Ingestor][${correlationIdentification}] Iniciando peritaje binario seguro.`);
+const executeSovereignIngestionHandler = async (request: Request, context: GuardContext): Promise<Response> => {
+  const processingCorrelationIdentification = context.correlationIdentification;
+  console.info(`🧠 [Sensor-Ingestor][${processingCorrelationIdentification}] Iniciando peritaje binario seguro.`);
 
   try {
-    const expedientPayload = await incomingRequest.json();
+    // 0. PROTOCOLO DE AUTORIDAD (Zero Trust Architecture)
+    if (!context.isTrusted) {
+      const authorizationHeader = request.headers.get('Authorization');
+      if (!authorizationHeader) throw new Error("AUTORIDAD_REQUERIDA: No se detectó token de autorización.");
+
+      const { data: { user: authenticatedUser }, error: authenticationError } = await supabaseAdministrator.auth.getUser(authorizationHeader.replace("Bearer ", ""));
+      if (authenticationError || !authenticatedUser) throw new Error("SESION_INVALIDA: El token de acceso ha expirado o es inválido.");
+
+      const { data: administratorProfile, error: profileQueryError } = await supabaseAdministrator
+          .from('profiles')
+          .select('role')
+          .eq('id', authenticatedUser.id)
+          .single();
+
+      if (profileQueryError || administratorProfile?.role !== 'admin') {
+          throw new Error("ACCESO_DENEGADO: Se requiere autoridad de nivel Administrador para ingestar evidencia.");
+      }
+
+      console.log(`[Sensor-Ingestor][${processingCorrelationIdentification}] Autoridad confirmada para el Administrador: ${authenticatedUser.id}`);
+    } else {
+      console.info(`[Sensor-Ingestor][${processingCorrelationIdentification}] Ejecución confiable iniciada (Infrastructure Flow).`);
+    }
+
+    const expedientPayload = await request.json();
     const {
       heroImageUniformResourceLocator,
       opticalCharacterRecognitionImageUniformResourceLocatorsCollection = [],
@@ -129,14 +153,14 @@ const executeSensorIngestionHandler = async (incomingRequest: Request, context: 
       status: 200
     });
 
-  } catch (hardwareException: unknown) {
-    const exceptionMessageText = hardwareException instanceof Error ? hardwareException.message : "Error desconocido";
-    console.error(`🔥 [Sensor-Ingestor-Fatal][${correlationIdentification}]:`, exceptionMessageText);
+  } catch (exceptionMessageInformation: unknown) {
+    const errorMessage = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido en peritaje";
+    console.error(`🔥 [Sensor-Ingestor-Fatal][${processingCorrelationIdentification}]:`, errorMessage);
 
     return new Response(JSON.stringify({
       success: false,
-      error: exceptionMessageText,
-      trace_identification: correlationIdentification
+      error: errorMessage,
+      trace_identification: processingCorrelationIdentification
     }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
@@ -144,4 +168,4 @@ const executeSensorIngestionHandler = async (incomingRequest: Request, context: 
   }
 };
 
-Deno.serve(guard(executeSensorIngestionHandler));
+Deno.serve(guard(executeSovereignIngestionHandler));

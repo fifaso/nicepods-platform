@@ -5,9 +5,10 @@
  *
  * MISIÓN: Motor de audio neuronal con despacho de telemetría de alta frecuencia.
  * [REFORMA V11.0]: Sincronización axial completa con el contrato purificado V7.0.
+ * [THERMIC V1.0]: Implementación del Protocolo de Captura de Referencia Mutable (MRCP) y aniquilación de WebKit.
  * Eliminación de fugas snake_case y alineación absoluta con la Doctrina ZAP.
  *
- * NIVEL DE INTEGRIDAD: 100% (Soberanía Nominal V7.0)
+ * NIVEL DE INTEGRIDAD: 100% (Soberanía Nominal V8.0)
  */
 
 "use client";
@@ -65,7 +66,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
 
   // --- ESTADOS DE GESTIÓN INTERNOS ---
   const [currentActivePodcast, setCurrentActivePodcast] = useState<PodcastWithProfile | null>(null);
-  const [playbackQueue, setPlaybackQueue] = useState<PodcastWithProfile[]>([]);
+  const [playbackQueueCollection, setPlaybackQueueCollection] = useState<PodcastWithProfile[]>([]);
   const [isAudioPlayingStatus, setIsAudioPlayingStatus] = useState<boolean>(false);
   const [isAudioLoadingStatus, setIsAudioLoadingStatus] = useState<boolean>(false);
   const [isPlayerInterfaceExpandedStatus, setIsPlayerInterfaceExpandedStatus] = useState<boolean>(false);
@@ -91,17 +92,55 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     }
   }, [authenticatedUser, currentActivePodcast, supabaseClient]);
 
+  const playPodcastAction = useCallback(async (targetPodcast: PodcastWithProfile, targetPlaylist: PodcastWithProfile[] = []) => {
+    const audioInstance = audioElementReference.current;
+    if (!audioInstance) return;
+
+    if (!targetPodcast.audioUniformResourceLocator) {
+      toast({ variant: "destructive", title: "Nodo Incompleto", description: "Audio en proceso de forja." });
+      return;
+    }
+
+    if (targetPlaylist.length > 0) {
+        setPlaybackQueueCollection(targetPlaylist);
+    }
+
+    try {
+      if (currentActivePodcast?.identification === targetPodcast.identification) {
+        if (audioInstance.paused) {
+            await audioInstance.play();
+        } else {
+            audioInstance.pause();
+        }
+      } else {
+        audioInstance.pause();
+        audioInstance.removeAttribute('src');
+        audioInstance.load();
+
+        setCurrentActivePodcast(targetPodcast);
+        audioInstance.src = targetPodcast.audioUniformResourceLocator;
+        await audioInstance.play();
+        supabaseClient.rpc('increment_play_count', { podcast_id: targetPodcast.identification }).then();
+      }
+    } catch (exception: unknown) {
+      const errorObject = exception as Error;
+      if (errorObject.name === 'NotAllowedError') {
+        toast({ title: "Hardware Bloqueado", description: "Interacción manual requerida por el navegador." });
+      }
+    }
+  }, [currentActivePodcast, supabaseClient, toast]);
+
   const handleAutomaticNextAction = useCallback(() => {
-    if (playbackQueue.length > 0 && currentActivePodcast) {
-      const activePodcastIndex = playbackQueue.findIndex(podcastItem => podcastItem.identification === currentActivePodcast.identification);
-      if (activePodcastIndex !== -1 && activePodcastIndex < playbackQueue.length - 1) {
-        playPodcastAction(playbackQueue[activePodcastIndex + 1]);
+    if (playbackQueueCollection.length > 0 && currentActivePodcast) {
+      const activePodcastIndexMagnitude = playbackQueueCollection.findIndex(podcastItem => podcastItem.identification === currentActivePodcast.identification);
+      if (activePodcastIndexMagnitude !== -1 && activePodcastIndexMagnitude < playbackQueueCollection.length - 1) {
+        playPodcastAction(playbackQueueCollection[activePodcastIndexMagnitude + 1]);
         return;
       }
     }
     setIsAudioPlayingStatus(false);
     logInteractionEventAction('completed_playback');
-  }, [playbackQueue, currentActivePodcast, logInteractionEventAction]);
+  }, [playbackQueueCollection, currentActivePodcast, logInteractionEventAction, playPodcastAction]);
 
   /**
    * 1. PROTOCOLO DE INICIALIZACIÓN DE HARDWARE
@@ -151,101 +190,64 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       audioElementReference.current = audioInstance;
     }
 
-    const currentAudioInstance = audioElementReference.current;
-    if (currentAudioInstance) {
-      currentAudioInstance.addEventListener("play", handlePlayAction);
-      currentAudioInstance.addEventListener("pause", handlePauseAction);
-      currentAudioInstance.addEventListener("loadstart", handleLoadStartAction);
-      currentAudioInstance.addEventListener("canplay", handleCanPlayAction);
-      currentAudioInstance.addEventListener("ended", handleEndedAction);
-      currentAudioInstance.addEventListener("timeupdate", handleTimeUpdateAction);
-      currentAudioInstance.addEventListener("error", handleErrorAction);
+    const currentAudioInstanceSnapshot = audioElementReference.current;
+    if (currentAudioInstanceSnapshot) {
+      currentAudioInstanceSnapshot.addEventListener("play", handlePlayAction);
+      currentAudioInstanceSnapshot.addEventListener("pause", handlePauseAction);
+      currentAudioInstanceSnapshot.addEventListener("loadstart", handleLoadStartAction);
+      currentAudioInstanceSnapshot.addEventListener("canplay", handleCanPlayAction);
+      currentAudioInstanceSnapshot.addEventListener("ended", handleEndedAction);
+      currentAudioInstanceSnapshot.addEventListener("timeupdate", handleTimeUpdateAction);
+      currentAudioInstanceSnapshot.addEventListener("error", handleErrorAction);
     }
 
     return () => {
-      if (currentAudioInstance) {
-        currentAudioInstance.removeEventListener("play", handlePlayAction);
-        currentAudioInstance.removeEventListener("pause", handlePauseAction);
-        currentAudioInstance.removeEventListener("loadstart", handleLoadStartAction);
-        currentAudioInstance.removeEventListener("canplay", handleCanPlayAction);
-        currentAudioInstance.removeEventListener("ended", handleEndedAction);
-        currentAudioInstance.removeEventListener("timeupdate", handleTimeUpdateAction);
-        currentAudioInstance.removeEventListener("error", handleErrorAction);
+      if (currentAudioInstanceSnapshot) {
+        currentAudioInstanceSnapshot.removeEventListener("play", handlePlayAction);
+        currentAudioInstanceSnapshot.removeEventListener("pause", handlePauseAction);
+        currentAudioInstanceSnapshot.removeEventListener("loadstart", handleLoadStartAction);
+        currentAudioInstanceSnapshot.removeEventListener("canplay", handleCanPlayAction);
+        currentAudioInstanceSnapshot.removeEventListener("ended", handleEndedAction);
+        currentAudioInstanceSnapshot.removeEventListener("timeupdate", handleTimeUpdateAction);
+        currentAudioInstanceSnapshot.removeEventListener("error", handleErrorAction);
 
-        currentAudioInstance.pause();
-        currentAudioInstance.removeAttribute("src");
-        currentAudioInstance.load();
+        currentAudioInstanceSnapshot.pause();
+        currentAudioInstanceSnapshot.removeAttribute("src");
+        currentAudioInstanceSnapshot.load();
       }
     };
   }, [toast, handleAutomaticNextAction]);
 
-  const playPodcastAction = useCallback(async (targetPodcast: PodcastWithProfile, targetPlaylist: PodcastWithProfile[] = []) => {
-    const audioInstance = audioElementReference.current;
-    if (!audioInstance) return;
-
-    if (!targetPodcast.audioUniformResourceLocator) {
-      toast({ variant: "destructive", title: "Nodo Incompleto", description: "Audio en proceso de forja." });
-      return;
-    }
-
-    if (targetPlaylist.length > 0) {
-        setPlaybackQueue(targetPlaylist);
-    }
-
-    try {
-      if (currentActivePodcast?.identification === targetPodcast.identification) {
-        if (audioInstance.paused) {
-            await audioInstance.play();
-        } else {
-            audioInstance.pause();
-        }
-      } else {
-        audioInstance.pause();
-        audioInstance.removeAttribute('src');
-        audioInstance.load();
-
-        setCurrentActivePodcast(targetPodcast);
-        audioInstance.src = targetPodcast.audioUniformResourceLocator;
-        await audioInstance.play();
-        supabaseClient.rpc('increment_play_count', { podcast_id: targetPodcast.identification }).then();
-      }
-    } catch (exception: unknown) {
-      const errorObject = exception as Error;
-      if (errorObject.name === 'NotAllowedError') {
-        toast({ title: "Hardware Bloqueado", description: "Interacción manual requerida por el navegador." });
-      }
-    }
-  }, [currentActivePodcast, supabaseClient, toast]);
 
   const terminatePodcastPlayback = useCallback(() => {
-    const audioElementInstance = audioElementReference.current;
-    if (audioElementInstance) {
-      audioElementInstance.pause();
-      audioElementInstance.removeAttribute("src");
-      audioElementInstance.load();
+    const audioElementInstanceSnapshot = audioElementReference.current;
+    if (audioElementInstanceSnapshot) {
+      audioElementInstanceSnapshot.pause();
+      audioElementInstanceSnapshot.removeAttribute("src");
+      audioElementInstanceSnapshot.load();
     }
     setCurrentActivePodcast(null);
-    setPlaybackQueue([]);
+    setPlaybackQueueCollection([]);
     setIsPlayerInterfaceExpandedStatus(false);
     nicepodLog("🧹 [AudioEngine] Memoria purgada.");
   }, []);
 
   const togglePlayPauseAction = useCallback(() => {
-    const audioElementInstance = audioElementReference.current;
-    if (audioElementInstance) {
-      if (audioElementInstance.paused) {
-        audioElementInstance.play().catch((hardwareException: unknown) => {
+    const audioElementInstanceSnapshot = audioElementReference.current;
+    if (audioElementInstanceSnapshot) {
+      if (audioElementInstanceSnapshot.paused) {
+        audioElementInstanceSnapshot.play().catch((hardwareException: unknown) => {
           nicepodLog("⚠️ [AudioEngine] Error en reproducción manual.", hardwareException, 'warn');
         });
       } else {
-        audioElementInstance.pause();
+        audioElementInstanceSnapshot.pause();
       }
     }
   }, []);
 
   const contextValue: AudioContextProperties = useMemo(() => ({
     currentActivePodcast,
-    playbackQueue,
+    playbackQueue: playbackQueueCollection,
     isAudioPlayingStatus,
     isAudioLoadingStatus,
     audioElementReference,
@@ -274,7 +276,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     isPlayerInterfaceExpandedStatus,
     expandPlayerInterface: () => setIsPlayerInterfaceExpandedStatus(true),
     collapsePlayerInterface: () => setIsPlayerInterfaceExpandedStatus(false),
-  }), [currentActivePodcast, playbackQueue, isAudioPlayingStatus, isAudioLoadingStatus, isPlayerInterfaceExpandedStatus, logInteractionEventAction, playPodcastAction, terminatePodcastPlayback, togglePlayPauseAction]);
+  }), [currentActivePodcast, playbackQueueCollection, isAudioPlayingStatus, isAudioLoadingStatus, isPlayerInterfaceExpandedStatus, logInteractionEventAction, playPodcastAction, terminatePodcastPlayback, togglePlayPauseAction]);
 
   return <AudioContext.Provider value={contextValue}>{children}</AudioContext.Provider>;
 }

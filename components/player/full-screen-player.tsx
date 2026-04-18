@@ -1,13 +1,12 @@
 /**
  * ARCHIVO: components/player/full-screen-player.tsx
- * VERSIÓN: 32.0 (Madrid Resonance - Sovereign Edition)
- * PROTOCOLO: MADRID RESONANCE V7.0
+ * VERSIÓN: 33.0 (Madrid Resonance - Sovereign Edition)
+ * PROTOCOLO: Thermal Isolation & Direct-DOM
  * 
- * Misión: Orquestar la inmersión total del Voyager.
- * [REFORMA V32.0]: Sincronización axial completa con el contrato purificado V7.0.
- * Eliminación de fugas snake_case y alineación absoluta con la Doctrina ZAP.
+ * Misión: Orquestar la inmersión total del Voyager con telemetría de alto rendimiento.
+ * [REFORMA 33.0]: Migración de métricas de tiempo a Direct-DOM para eliminar re-renders a 60 FPS.
  *
- * Nivel de Integridad: 100% (Soberanía Nominal V7.0)
+ * Nivel de Integridad: 100% (Soberanía Nominal V8.0)
  */
 
 "use client";
@@ -27,7 +26,7 @@ import {
   Volume2
 } from "lucide-react";
 import Image from "next/image";
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 
 // --- INFRAESTRUCTURA CORE NICEPOD ---
 import { Button } from "@/components/ui/button";
@@ -43,127 +42,149 @@ import { ScriptViewer } from "@/components/podcast/script-viewer";
  */
 export function FullScreenPlayer() {
   const {
-    currentActivePodcast: currentPodcast,
-    isAudioPlayingStatus: isPlaying,
-    isAudioLoadingStatus: isPlaybackLoading,
-    togglePlayPauseAction: togglePlayPause,
-    seekToTimeAction: seekTo,
-    skipForwardAction: skipForward,
-    skipBackwardAction: skipBackward,
-    collapsePlayerInterface: collapsePlayer,
-    logInteractionEventAction: logInteractionEvent
+    currentActivePodcast: currentActivePodcastSnapshot,
+    isAudioPlayingStatus,
+    isAudioLoadingStatus,
+    togglePlayPauseAction,
+    seekToTimeAction,
+    skipForwardAction,
+    skipBackwardAction,
+    collapsePlayerInterface,
+    logInteractionEventAction
   } = useAudio();
 
   const { supabase: supabaseClient, user: authenticatedUser, profile: administratorProfile } = useAuth();
   const { toast } = useToast();
 
-  // --- REFERENCIAS DE TELEMETRÍA DE HARDWARE ---
-  const [currentPlaybackTimeSeconds, setCurrentPlaybackTimeSeconds] = useState<number>(0);
-  const [totalAudioDurationSeconds, setTotalAudioDurationSeconds] = useState<number>(0);
-  const [isLikedByVoyager, setIsLikedByVoyager] = useState<boolean>(false);
-  const [isInteractionProcessActive, setIsInteractionProcessActive] = useState<boolean>(false);
+  // --- REFERENCIAS DE TELEMETRÍA DE HARDWARE (MTI) ---
+  const currentTimeDisplayElementReference = useRef<HTMLSpanElement>(null);
+  const totalDurationDisplayElementReference = useRef<HTMLSpanElement>(null);
+  const timelineSliderValueReference = useRef<number>(0);
+
+  const [isLikedByVoyagerStatus, setIsLikedByVoyagerStatus] = useState<boolean>(false);
+  const [isInteractionProcessActiveStatus, setIsInteractionProcessActiveStatus] = useState<boolean>(false);
+
+  // Mantenemos este estado solo para el Slider de Radix que es controlado,
+  // pero minimizamos su impacto no usándolo para los textos.
+  const [playbackProgressSecondsMagnitude, setPlaybackProgressSecondsMagnitude] = useState<number>(0);
+  const [totalAudioDurationSecondsMagnitude, setTotalAudioDurationSecondsMagnitude] = useState<number>(0);
 
   /**
-   * 1. PROTOCOLO DE SINCRONÍA POR HARDWARE (60 FPS)
+   * 1. PROTOCOLO DE SINCRONÍA POR HARDWARE (60 FPS - Direct DOM)
    */
   useEffect(() => {
     const handleHardwarePulseSynchronization = (event: Event) => {
+      if (document.hidden) return;
+
       const customEvent = event as CustomEvent<{ currentTime: number; duration: number }>;
       const { currentTime, duration } = customEvent.detail;
       
-      setCurrentPlaybackTimeSeconds(currentTime);
-      if (duration > 0 && duration !== totalAudioDurationSeconds) {
-        setTotalAudioDurationSeconds(duration);
+      // Actualización Direct-DOM de etiquetas de texto
+      if (currentTimeDisplayElementReference.current) {
+        currentTimeDisplayElementReference.current.textContent = formatTime(currentTime);
       }
+
+      if (duration > 0 && duration !== totalAudioDurationSecondsMagnitude) {
+        setTotalAudioDurationSecondsMagnitude(duration);
+        if (totalDurationDisplayElementReference.current) {
+          totalDurationDisplayElementReference.current.textContent = formatTime(duration);
+        }
+      }
+
+      // Sincronización del Slider (React State para el componente de UI)
+      // Nota: Si el slider causara lag, se podría reemplazar por un input range nativo con Direct-DOM
+      setPlaybackProgressSecondsMagnitude(currentTime);
+      timelineSliderValueReference.current = currentTime;
     };
 
     window.addEventListener('nicepod-timeupdate', handleHardwarePulseSynchronization as EventListener);
+
     return () => {
       window.removeEventListener('nicepod-timeupdate', handleHardwarePulseSynchronization as EventListener);
     };
-  }, [totalAudioDurationSeconds]);
+  }, [totalAudioDurationSecondsMagnitude]);
 
   /**
    * 2. VERIFICACIÓN DE RESONANCIA EN BÓVEDA
    */
   useEffect(() => {
-    if (!authenticatedUser || !currentPodcast?.identification) {
+    if (!authenticatedUser || !currentActivePodcastSnapshot?.identification) {
       return;
     }
 
-    const checkResonanceStatus = async () => {
+    const checkResonanceStatusAction = async () => {
       try {
-        const { data: resonanceData } = await supabaseClient
+        const { data: resonanceDataSnapshot } = await supabaseClient
           .from('likes')
           .select('id')
-          .match({ user_id: authenticatedUser.id, podcast_id: currentPodcast.identification })
+          .match({ user_id: authenticatedUser.id, podcast_id: currentActivePodcastSnapshot.identification })
           .maybeSingle();
         
-        setIsLikedByVoyager(!!resonanceData);
-      } catch (exception) {
+        setIsLikedByVoyagerStatus(!!resonanceDataSnapshot);
+      } catch (exception: unknown) {
         nicepodLog("Falla en verificación de Bóveda NKV", exception, 'error');
       }
     };
     
-    checkResonanceStatus();
-  }, [authenticatedUser, currentPodcast?.identification, supabaseClient]);
+    checkResonanceStatusAction();
+  }, [authenticatedUser, currentActivePodcastSnapshot?.identification, supabaseClient]);
 
-  if (!currentPodcast) {
+  if (!currentActivePodcastSnapshot) {
     return null;
   }
 
   // --- MANEJADORES DE ACCIÓN TÁCTICA ---
 
   const handleTimelineAdjustmentAction = (value: number[]) => {
-    const targetTimeSeconds = value[0];
-    setCurrentPlaybackTimeSeconds(targetTimeSeconds);
-    seekTo(targetTimeSeconds);
+    const targetTimeSecondsMagnitude = value[0];
+    setPlaybackProgressSecondsMagnitude(targetTimeSecondsMagnitude);
+    seekToTimeAction(targetTimeSecondsMagnitude);
   };
 
   const handleResonanceInteractionAction = async () => {
-    if (!authenticatedUser || !currentPodcast?.identification || isInteractionProcessActive) {
+    if (!authenticatedUser || !currentActivePodcastSnapshot?.identification || isInteractionProcessActiveStatus) {
       return;
     }
 
-    setIsInteractionProcessActive(true);
-    const originalResonanceState = isLikedByVoyager;
-    setIsLikedByVoyager(!originalResonanceState); // Actualización optimista de UI
+    setIsInteractionProcessActiveStatus(true);
+    const originalResonanceStateStatus = isLikedByVoyagerStatus;
+    setIsLikedByVoyagerStatus(!originalResonanceStateStatus); // Actualización optimista de UI
 
     try {
-      if (originalResonanceState) {
+      if (originalResonanceStateStatus) {
         await supabaseClient
           .from('likes')
           .delete()
-          .match({ user_id: authenticatedUser.id, podcast_id: currentPodcast.identification });
+          .match({ user_id: authenticatedUser.id, podcast_id: currentActivePodcastSnapshot.identification });
       } else {
         await supabaseClient
           .from('likes')
-          .insert({ user_id: authenticatedUser.id, podcast_id: currentPodcast.identification });
+          .insert({ user_id: authenticatedUser.id, podcast_id: currentActivePodcastSnapshot.identification });
         
-        await logInteractionEvent('liked');
+        await logInteractionEventAction('liked');
         
         toast({ 
           title: "Resonancia Registrada", 
           className: "bg-primary text-white border-none font-black uppercase tracking-widest text-[10px]" 
         });
       }
-    } catch (exception: any) {
-      setIsLikedByVoyager(originalResonanceState); // Reversión de estado (Rollback)
-      nicepodLog("🔥 [Resonance-Fail]:", exception.message, 'error');
+    } catch (exception: unknown) {
+      setIsLikedByVoyagerStatus(originalResonanceStateStatus); // Reversión de estado (Rollback)
+      nicepodLog("🔥 [Resonance-Fail]:", exception, 'error');
     } finally {
-      setIsInteractionProcessActive(false);
+      setIsInteractionProcessActiveStatus(false);
     }
   };
 
   const handleKnowledgeSharingAction = async () => {
-    const resourceUniformResourceLocator = `${window.location.origin}/podcast/${currentPodcast.identification}`;
+    const resourceUniformResourceLocator = `${window.location.origin}/podcast/${currentActivePodcastSnapshot.identification}`;
     try {
       if (navigator.share) {
         await navigator.share({ 
-          title: currentPodcast.titleTextContent,
+          title: currentActivePodcastSnapshot.titleTextContent,
           url: resourceUniformResourceLocator 
         });
-        await logInteractionEvent('shared');
+        await logInteractionEventAction('shared');
       } else {
         await navigator.clipboard.writeText(resourceUniformResourceLocator);
         toast({ title: "Enlace copiado al sector de memoria." });
@@ -173,8 +194,8 @@ export function FullScreenPlayer() {
     }
   };
 
-  const coverImageUniformResourceLocator = getSafeAsset(currentPodcast.coverImageUniformResourceLocator, 'cover');
-  const authorDisplayName = currentPodcast.profiles?.fullName || administratorProfile?.full_name || "Cronista Soberano";
+  const coverImageUniformResourceLocator = getSafeAsset(currentActivePodcastSnapshot.coverImageUniformResourceLocator, 'cover');
+  const authorDisplayNameText = currentActivePodcastSnapshot.profiles?.fullName || administratorProfile?.full_name || "Cronista Soberano";
 
   return (
     <AnimatePresence>
@@ -193,7 +214,7 @@ export function FullScreenPlayer() {
           
           <header className="flex items-center justify-between p-6 md:p-10 flex-shrink-0">
             <Button 
-              onClick={collapsePlayer} 
+              onClick={collapsePlayerInterface}
               variant="ghost" 
               size="icon" 
               className="text-zinc-500 hover:text-white hover:bg-white/5 rounded-full h-14 w-14 transition-all"
@@ -206,7 +227,7 @@ export function FullScreenPlayer() {
                 Sincronía Nominal Activa
               </span>
               <h2 className="max-w-[240px] md:max-w-xl font-black text-xs md:text-sm text-zinc-400 uppercase tracking-widest truncate italic font-serif">
-                {currentPodcast.titleTextContent}
+                {currentActivePodcastSnapshot.titleTextContent}
               </h2>
             </div>
 
@@ -222,7 +243,7 @@ export function FullScreenPlayer() {
                 whileHover={{ scale: 1.02 }}
                 className="relative w-full max-w-sm aspect-square shadow-[0_50px_100px_rgba(0,0,0,0.9)] rounded-[3rem] overflow-hidden border-2 border-white/10"
               >
-                <Image src={coverImageUniformResourceLocator} alt={currentPodcast.titleTextContent} fill className="object-cover" priority />
+                <Image src={coverImageUniformResourceLocator} alt={currentActivePodcastSnapshot.titleTextContent} fill className="object-cover" priority />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
               </motion.div>
               
@@ -239,8 +260,8 @@ export function FullScreenPlayer() {
               
               <div className="h-full w-full">
                 <ScriptViewer 
-                  narrativeScriptContent={currentPodcast?.podcastScriptDossier as any}
-                  playbackDurationSecondsMagnitude={currentPodcast?.playbackDurationSecondsTotal || totalAudioDurationSeconds}
+                  narrativeScriptContent={currentActivePodcastSnapshot?.podcastScriptDossier ?? null}
+                  playbackDurationSecondsMagnitude={currentActivePodcastSnapshot?.playbackDurationSecondsTotal || totalAudioDurationSecondsMagnitude}
                   additionalTailwindClassName="px-8 md:px-16"
                 />
               </div>
@@ -253,19 +274,19 @@ export function FullScreenPlayer() {
             
             <div className="max-w-4xl mx-auto w-full space-y-6">
               <Slider 
-                value={[currentPlaybackTimeSeconds]} 
-                max={currentPodcast?.playbackDurationSecondsTotal || totalAudioDurationSeconds || 100}
+                value={[playbackProgressSecondsMagnitude]}
+                max={currentActivePodcastSnapshot?.playbackDurationSecondsTotal || totalAudioDurationSecondsMagnitude || 100}
                 step={0.1} 
                 onValueChange={handleTimelineAdjustmentAction} 
                 className="cursor-pointer" 
               />
               <div className="flex justify-between items-center text-[11px] font-black font-mono tracking-[0.4em] uppercase px-1">
                 <span className="text-primary tabular-nums">
-                  {formatTime(currentPlaybackTimeSeconds)}
+                  <span ref={currentTimeDisplayElementReference}>00:00</span>
                 </span>
                 <div className="h-[1px] flex-1 mx-10 bg-white/10" />
                 <span className="text-zinc-600 tabular-nums">
-                  {formatTime(currentPodcast?.playbackDurationSecondsTotal || totalAudioDurationSeconds)}
+                  <span ref={totalDurationDisplayElementReference}>00:00</span>
                 </span>
               </div>
             </div>
@@ -277,15 +298,15 @@ export function FullScreenPlayer() {
                 variant="ghost" 
                 className={cn(
                   "h-14 w-14 rounded-2xl border transition-all duration-500 active:scale-90", 
-                  isLikedByVoyager ? "bg-red-500/10 border-red-500/30 text-red-500 shadow-[0_0_30px_rgba(239,68,68,0.2)]" : "bg-white/5 border-white/5 text-zinc-600 hover:text-white"
+                  isLikedByVoyagerStatus ? "bg-red-500/10 border-red-500/30 text-red-500 shadow-[0_0_30px_rgba(239,68,68,0.2)]" : "bg-white/5 border-white/5 text-zinc-600 hover:text-white"
                 )}
               >
-                <Heart className={cn("h-6 w-6 transition-all duration-700", isLikedByVoyager && "fill-current scale-110")} />
+                <Heart className={cn("h-6 w-6 transition-all duration-700", isLikedByVoyagerStatus && "fill-current scale-110")} />
               </Button>
 
               <div className="flex items-center gap-6 md:gap-14">
                 <Button 
-                  onClick={() => skipBackward(15)} 
+                  onClick={() => skipBackwardAction(15)}
                   variant="ghost" 
                   className="text-zinc-600 hover:text-white transition-all scale-125 active:scale-95"
                 >
@@ -293,13 +314,13 @@ export function FullScreenPlayer() {
                 </Button>
 
                 <Button 
-                  onClick={togglePlayPause} 
-                  disabled={isPlaybackLoading}
+                  onClick={togglePlayPauseAction}
+                  disabled={isAudioLoadingStatus}
                   className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-white text-black hover:bg-primary hover:text-white hover:scale-105 active:scale-95 transition-all shadow-[0_0_50px_rgba(255,255,255,0.15)]"
                 >
-                  {isPlaybackLoading ? (
+                  {isAudioLoadingStatus ? (
                     <Loader2 className="h-10 w-10 animate-spin" />
-                  ) : isPlaying ? (
+                  ) : isAudioPlayingStatus ? (
                     <Pause className="h-12 w-12 fill-current" />
                   ) : (
                     <Play className="h-12 w-12 fill-current ml-2" />
@@ -307,7 +328,7 @@ export function FullScreenPlayer() {
                 </Button>
 
                 <Button 
-                  onClick={() => skipForward(15)} 
+                  onClick={() => skipForwardAction(15)}
                   variant="ghost" 
                   className="text-zinc-600 hover:text-white transition-all scale-125 active:scale-95"
                 >
@@ -335,7 +356,7 @@ export function FullScreenPlayer() {
             <div className="flex justify-center items-center gap-6 opacity-30 pb-2">
                <div className="h-[1px] w-12 bg-white/20" />
                <span className="text-[9px] font-black uppercase tracking-[0.5em] text-zinc-400 italic">
-                 Cronista: {authorDisplayName}
+                 Cronista: {authorDisplayNameText}
                </span>
                <div className="h-[1px] w-12 bg-white/20" />
             </div>

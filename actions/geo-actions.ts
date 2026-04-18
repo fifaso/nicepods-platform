@@ -211,20 +211,25 @@ export async function ingestIntelligenceDossierAction(
 
   try {
     const authorizedUserAuthorSnapshot = await validateSovereignAccessAuthority();
-    const validatedIngestionDataSnapshot = PointOfInterestIngestionSchema.parse(intelligenceIngestaPayloadSnapshot);
+    const authenticatedUserIdentification = authorizedUserAuthorSnapshot.id;
+
+    // 1. VALIDACIÓN SOBERANA DE ENTRADA (BUILD SHIELD V4.1)
+    const validatedIngestionData = PointOfInterestIngestionSchema.parse(intelligenceIngestaPayload);
     const serviceRoleSecretKeyContent = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    const publicHeroUniformResourceLocator = supabaseSovereignClient.storage.from('podcasts').getPublicUrl(validatedIngestionDataSnapshot.heroImageStoragePath).data.publicUrl;
-    const publicOpticalCharacterRecognitionUniformResourceLocatorsCollection = validatedIngestionDataSnapshot.opticalCharacterRecognitionImagePaths.map(path =>
+    // 2. CONSTRUCCIÓN DE REFERENCIAS DE ACCESO DIRECTO PARA LA IA
+    const publicHeroUniformResourceLocator = supabaseSovereignClient.storage.from('podcasts').getPublicUrl(validatedIngestionData.heroImageStoragePath).data.publicUrl;
+    const publicOpticalCharacterRecognitionUniformResourceLocatorsCollection = validatedIngestionData.opticalCharacterRecognitionImagePaths.map(path => 
       supabaseSovereignClient.storage.from('podcasts').getPublicUrl(path).data.publicUrl
     );
 
-    const { data: agentResponseResultsSnapshot, error: edgeFunctionInvokeHardwareException } = await supabaseSovereignClient.functions.invoke('geo-sensor-ingestor', {
+    // 3. DESPACHO AL ORÁCULO DE BORDE (AGENTE 42)
+    const { data: agentResponseResults, error: edgeFunctionInvokeException } = await supabaseSovereignClient.functions.invoke('geo-sensor-ingestor', {
       body: {
         ...validatedIngestionDataSnapshot,
         heroImageUniformResourceLocator: publicHeroUniformResourceLocator,
         opticalCharacterRecognitionImageUniformResourceLocatorsCollection: publicOpticalCharacterRecognitionUniformResourceLocatorsCollection,
-        authenticatedUserIdentification: authorizedUserAuthorSnapshot.id
+        userIdentification: authenticatedUserIdentification
       },
       headers: { Authorization: `Bearer ${serviceRoleSecretKeyContent}` }
     });
@@ -234,7 +239,12 @@ export async function ingestIntelligenceDossierAction(
     const validatedAnalysisResultsSnapshot = IntelligenceAgencyAnalysisSchema.parse(agentResponseResultsSnapshot.data.analysisResults);
     const pointOfInterestIdentification = agentResponseResultsSnapshot.data.pointOfInterestIdentification;
 
-    const { error: databaseUpdateHardwareException } = await supabaseSovereignClient
+    /**
+     * 5. VINCULACIÓN ATÓMICA DE EVIDENCIAS (ASSET LINKING)
+     * [INTERVENCIÓN V14.0]: Garantiza que el nodo en la base de datos posea las URLs 
+     * públicas definitivas antes de cerrar la transacción de ingesta.
+     */
+    const { error: databaseUpdateException } = await supabaseSovereignClient
       .from('points_of_interest')
       .update({
         gallery_urls: [publicHeroUniformResourceLocator, ...publicOpticalCharacterRecognitionUniformResourceLocatorsCollection]
@@ -309,13 +319,15 @@ export async function publishSovereignChronicleAction(parametersSnapshot: {
   const supabaseSovereignClient = createClient();
 
   try {
-    await validateSovereignAccessAuthority();
+    const authorizedUserAuthorSnapshot = await validateSovereignAccessAuthority();
+    const authenticatedUserIdentification = authorizedUserAuthorSnapshot.id;
 
     const publicAudioUniformResourceLocator = supabaseSovereignClient.storage
       .from('podcasts')
       .getPublicUrl(parametersSnapshot.chronicleStoragePath).data.publicUrl;
 
-    const { error: databaseUpdateHardwareException } = await supabaseSovereignClient
+    // 1. Commit Físico y Activación de Resonancia en la Bóveda
+    const { error: databaseUpdateException } = await supabaseSovereignClient
       .from('points_of_interest')
       .update({
         ambient_audio_url: publicAudioUniformResourceLocator, 

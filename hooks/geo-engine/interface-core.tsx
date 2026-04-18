@@ -8,6 +8,7 @@
  * [REFORMA V4.1]: Implementación del 'Imperative Command Protocol'. Se introduce 
  * la emisión de eventos nativos para despertar al CameraController sin latencia 
  * de React. Resolución del fallo de 'botón inerte'. Purificación nominal total (ZAP).
+ * [THERMIC V1.0]: Sincronización nominal ZAP de mandos e interfaces.
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
 
@@ -54,7 +55,7 @@ const PASSIVE_INDUSTRIAL_INTERFACE_STATE: InterfaceCoreReturn = {
   needsBallisticLanding: false,
   executeUnifiedCommandAction: () => {},
   togglePerspective: () => {},
-  setManualMode: () => {},
+  setManualMode: (_isManualModeActiveStatus: boolean) => {},
   triggerRecenter: () => {},
   triggerLanding: () => {},
   confirmLanding: () => {},
@@ -82,10 +83,10 @@ export function InterfaceProvider({ children }: { children: React.ReactNode }) {
    * Misión: Emitir una orden física al bus del navegador para despertar al motor de cámara.
    * [MTI]: Bypass de React para comunicación de latencia cero.
    */
-  const dispatchImperativeCameraCommand = useCallback((commandIdentification: string) => {
+  const dispatchImperativeCameraCommand = useCallback((commandIdentificationString: string) => {
     if (typeof window === 'undefined') return;
     window.dispatchEvent(new CustomEvent(GEODETIC_CAMERA_COMMAND_EVENT_NAME, { 
-      detail: { command: commandIdentification } 
+      detail: { command: commandIdentificationString }
     }));
   }, []);
 
@@ -167,8 +168,8 @@ export function InterfaceProvider({ children }: { children: React.ReactNode }) {
     needsBallisticLanding,
     executeUnifiedCommandAction,
     togglePerspective,
-    setManualMode: (isActiveValue) => { 
-      if (isActiveValue !== isManualModeActive) setIsManualModeActive(isActiveValue); 
+    setManualMode: (isManualModeActiveStatus) => {
+      if (isManualModeActiveStatus !== isManualModeActive) setIsManualModeActive(isManualModeActiveStatus);
     },
     triggerRecenter,
     triggerLanding: () => setNeedsBallisticLanding(true),
