@@ -1,13 +1,12 @@
 /**
  * ARCHIVO: components/feed/resonance-compass.tsx
- * VERSIÓN: 9.0 (Madrid Resonance - Sovereign Edition)
- * PROTOCOLO: MADRID RESONANCE V7.0
+ * VERSIÓN: 9.1 (Madrid Resonance - Sovereign Edition)
+ * PROTOCOLO: Thermal Isolation & Memory Recirculation
  *
- * Misión: Visualizar el universo semántica mediante una simulación de fuerzas multihilo.
- * [REFORMA V9.0]: Sincronización axial completa con el contrato purificado V7.0.
- * Eliminación de fugas snake_case y alineación absoluta con la Doctrina ZAP.
+ * Misión: Visualizar el universo semántico mediante una simulación de fuerzas multihilo con reciclaje de memoria.
+ * [REFORMA 9.1]: Implementación de Protocolo de Retorno de Buffer y MRCP.
  *
- * Nivel de Integridad: 100% (Soberanía Nominal V7.0)
+ * Nivel de Integridad: 100% (Soberanía Nominal V8.0)
  */
 
 "use client";
@@ -116,8 +115,8 @@ export function ResonanceCompass({
 }: ResonanceCompassProperties) {
   
   // --- I. ESTADOS DE GESTIÓN DE INTERFAZ ---
-  const [isPhysicsEngineLoading, setIsPhysicsEngineLoading] = useState<boolean>(true);
-  const [selectedPodcastIntelligence, setSelectedPodcastIntelligence] = useState<PodcastWithProfile | null>(null);
+  const [isPhysicsEngineLoadingStatus, setIsPhysicsEngineLoadingStatus] = useState<boolean>(true);
+  const [selectedPodcastIntelligenceSnapshot, setSelectedPodcastIntelligenceSnapshot] = useState<PodcastWithProfile | null>(null);
   
   // --- II. REFERENCIAS TÁCTICAS ---
   const physicsWorkerReference = useRef<Worker | null>(null);
@@ -125,12 +124,12 @@ export function ResonanceCompass({
 
   const handleResizeAction = useCallback(({ width, height }: { width?: number; height?: number }) => {
     if (physicsWorkerReference.current && width && height) {
-      const exclusionZoneRadius = Math.min(width, height) * 0.15;
+      const exclusionZoneRadiusMagnitude = Math.min(width, height) * 0.15;
       physicsWorkerReference.current.postMessage({
         action: "UPDATE_DIMENSIONS",
         centerXCoordinate: width / 2,
         centerYCoordinate: height / 2,
-        exclusionZoneRadius
+        exclusionZoneRadius: exclusionZoneRadiusMagnitude
       });
     }
   }, []);
@@ -143,9 +142,9 @@ export function ResonanceCompass({
     const { type, positionsBuffer } = messageEvent.data as { type: string, positionsBuffer: Float32Array };
 
     if (type === "TICK" || type === "STABILITY_REACHED") {
-      const nodesCount = positionsBuffer.length / 3;
+      const nodesCountMagnitude = positionsBuffer.length / 3;
       
-      for (let itemIndex = 0; itemIndex < nodesCount; itemIndex++) {
+      for (let itemIndex = 0; itemIndex < nodesCountMagnitude; itemIndex++) {
         const offsetIndex = itemIndex * 3;
         const nodeIdentification = positionsBuffer[offsetIndex];
         const horizontalCoordinate = positionsBuffer[offsetIndex + 1];
@@ -162,21 +161,17 @@ export function ResonanceCompass({
       }
 
       if (type === "STABILITY_REACHED") {
-        setIsPhysicsEngineLoading(false);
+        setIsPhysicsEngineLoadingStatus(false);
         nicepodLog("🏁 [ResonanceCompass] Estabilidad cinemática por transferencia de memoria alcanzada.");
       }
-    }
-  }, []);
 
-  const handleVisibilityChangeAction = useCallback(() => {
-    if (!physicsWorkerReference.current) return;
-
-    if (document.hidden) {
-      nicepodLog("💤 [ResonanceCompass] Entrando en modo de hibernación térmica.");
-      physicsWorkerReference.current.postMessage({ action: "PAUSE_SIMULATION" });
-    } else {
-      nicepodLog("⚡ [ResonanceCompass] Restaurando simulación.");
-      physicsWorkerReference.current.postMessage({ action: "RESUME_SIMULATION" });
+      // [RETURN_BUFFER Protocol]: Recircular memoria hacia el Worker para evitar GC pressure.
+      if (physicsWorkerReference.current) {
+        physicsWorkerReference.current.postMessage({
+          action: "RETURN_BUFFER",
+          positionsBuffer
+        }, { transfer: [positionsBuffer.buffer] });
+      }
     }
   }, []);
 
@@ -184,19 +179,19 @@ export function ResonanceCompass({
    * EFECTO: MultithreadedPhysicsOrchestrator
    */
   useEffect(() => {
-    const hasDimensions = (width ?? 0) > 0 && (height ?? 0) > 0;
-    const hasData = podcastCollection.length > 0;
+    const hasDimensionsStatus = (width ?? 0) > 0 && (height ?? 0) > 0;
+    const hasDataStatus = podcastCollection.length > 0;
 
-    if (!hasDimensions || !hasData) {
-      if (!hasData) setIsPhysicsEngineLoading(false);
+    if (!hasDimensionsStatus || !hasDataStatus) {
+      if (!hasDataStatus) setIsPhysicsEngineLoadingStatus(false);
       return;
     }
 
-    setIsPhysicsEngineLoading(true);
+    setIsPhysicsEngineLoadingStatus(true);
 
-    const centerXCoordinate = (width ?? 0) / 2;
-    const centerYCoordinate = (height ?? 0) / 2;
-    const exclusionZoneRadius = Math.min((width ?? 0), (height ?? 0)) * 0.15;
+    const centerXCoordinateMagnitude = (width ?? 0) / 2;
+    const centerYCoordinateMagnitude = (height ?? 0) / 2;
+    const exclusionZoneRadiusMagnitude = Math.min((width ?? 0), (height ?? 0)) * 0.15;
 
     const workerInstance = new Worker(
       new URL('@/lib/workers/resonance-physics.worker.ts', import.meta.url)
@@ -206,30 +201,48 @@ export function ResonanceCompass({
 
     const initialNodesCollection = podcastCollection.map((podcastItem) => ({
       identification: podcastItem.identification,
-      x: centerXCoordinate + (Math.random() - 0.5) * 100,
-      y: centerYCoordinate + (Math.random() - 0.5) * 100
+      x: centerXCoordinateMagnitude + (Math.random() - 0.5) * 100,
+      y: centerYCoordinateMagnitude + (Math.random() - 0.5) * 100
     }));
 
     workerInstance.postMessage({
       action: "START_SIMULATION",
       nodesCollection: initialNodesCollection,
-      centerXCoordinate,
-      centerYCoordinate,
-      exclusionZoneRadius
+      centerXCoordinate: centerXCoordinateMagnitude,
+      centerYCoordinate: centerYCoordinateMagnitude,
+      exclusionZoneRadius: exclusionZoneRadiusMagnitude
     });
+
+    // Centralización de Hibernación Térmica
+    const handleVisibilityChangeAction = () => {
+      if (!workerInstance) return;
+
+      if (document.hidden) {
+        nicepodLog("💤 [ResonanceCompass] Entrando en modo de hibernación térmica.");
+        workerInstance.postMessage({ action: "PAUSE_SIMULATION" });
+      } else {
+        nicepodLog("⚡ [ResonanceCompass] Restaurando simulación.");
+        workerInstance.postMessage({ action: "RESUME_SIMULATION" });
+      }
+    };
 
     document.addEventListener("visibilitychange", handleVisibilityChangeAction);
 
     return () => {
+      // [MRCP]: Captura de referencia mutable para aniquilación atómica
+      const capturedWorkerInstance = physicsWorkerReference.current;
       nicepodLog("🧨 [ResonanceCompass] Aniquilando proceso de físicas multihilo.");
       document.removeEventListener("visibilitychange", handleVisibilityChangeAction);
-      workerInstance.terminate();
+
+      if (capturedWorkerInstance) {
+        capturedWorkerInstance.terminate();
+      }
       physicsWorkerReference.current = null;
     };
-  }, [podcastCollection, width, height, handleWorkerMessageAction, handleVisibilityChangeAction]);
+  }, [podcastCollection, width, height, handleWorkerMessageAction]);
 
   const handleSelectionResetAction = useCallback(() => {
-    setSelectedPodcastIntelligence(null);
+    setSelectedPodcastIntelligenceSnapshot(null);
   }, []);
 
   return (
@@ -238,7 +251,7 @@ export function ResonanceCompass({
       className="relative w-full aspect-video max-h-[70vh] max-w-6xl mx-auto bg-gradient-to-br from-zinc-950 to-zinc-900 rounded-[3rem] overflow-hidden shadow-[0_50px_100px_rgba(0,0,0,0.5)] border border-white/5 isolate"
     >
       <AnimatePresence>
-        {isPhysicsEngineLoading && (
+        {isPhysicsEngineLoadingStatus && (
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="absolute inset-0 flex flex-col items-center justify-center gap-6 bg-black/60 backdrop-blur-xl z-50"
@@ -252,7 +265,7 @@ export function ResonanceCompass({
         )}
       </AnimatePresence>
 
-      {!isPhysicsEngineLoading && podcastCollection.length === 0 && (
+      {!isPhysicsEngineLoadingStatus && podcastCollection.length === 0 && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-5">
           <Compass className="w-12 h-12 text-zinc-800" />
           <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-600 max-w-xs text-center">
@@ -274,13 +287,13 @@ export function ResonanceCompass({
             <PodcastResonanceBubble 
               key={podcastItem.identification}
               associatedPodcast={podcastItem}
-              onPodcastSelectionAction={setSelectedPodcastIntelligence}
+              onPodcastSelectionAction={setSelectedPodcastIntelligenceSnapshot}
               elementsMapReference={bubbleElementsMapReference}
             />
           ))}
 
           <AnimatePresence>
-            {selectedPodcastIntelligence && (
+            {selectedPodcastIntelligenceSnapshot && (
               <motion.div
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 className="absolute inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-6 z-[60]"
@@ -293,7 +306,7 @@ export function ResonanceCompass({
                   className="w-full max-w-md"
                   onClick={(interactionEvent) => interactionEvent.stopPropagation()}
                 >
-                  <PodcastCard initialPodcastData={selectedPodcastIntelligence} />
+                  <PodcastCard initialPodcastData={selectedPodcastIntelligenceSnapshot} />
                   
                   <div className="mt-10 flex justify-center">
                     <button 

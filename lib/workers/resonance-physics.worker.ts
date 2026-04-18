@@ -35,10 +35,12 @@ type ResonancePhysicsSimulationRequest =
   | { action: "STOP_SIMULATION" }
   | { action: "UPDATE_DIMENSIONS"; centerXCoordinate: number; centerYCoordinate: number; exclusionZoneRadius: number; }
   | { action: "PAUSE_SIMULATION" }
-  | { action: "RESUME_SIMULATION" };
+  | { action: "RESUME_SIMULATION" }
+  | { action: "RETURN_BUFFER"; positionsBuffer: Float32Array; };
 
 // --- I. ESTADO GLOBAL DEL TRABAJADOR ---
 let activeForceSimulation: Simulation<PhysicsNodePayload, undefined> | null = null;
+let recycledPositionsBufferInstance: Float32Array | null = null;
 
 /**
  * self.onmessage:
@@ -86,6 +88,10 @@ self.onmessage = (messageEvent: MessageEvent<ResonancePhysicsSimulationRequest>)
       if (activeForceSimulation) {
         activeForceSimulation.alpha(0.1).restart();
       }
+      break;
+
+    case "RETURN_BUFFER":
+      recycledPositionsBufferInstance = simulationRequest.positionsBuffer;
       break;
   }
 };
