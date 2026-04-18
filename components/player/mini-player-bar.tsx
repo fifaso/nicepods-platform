@@ -21,11 +21,11 @@ import { useEffect, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAudio } from "@/contexts/audio-context";
-import { cn, formatTime, getSafeAsset } from "@/lib/utils";
+import { cn, formatTime, getSafeAsset, nicepodLog } from "@/lib/utils";
 
 /**
  * COMPONENTE: MiniPlayerBar
- * La interfaz de mando compacta para la red de Madrid Resonance.
+ * La UserInterface de mando compacta para la red de Madrid Resonance.
  */
 export function MiniPlayerBar() {
   const {
@@ -39,7 +39,7 @@ export function MiniPlayerBar() {
 
   const { toast } = useToast();
 
-  // --- REFERENCIAS DE TELEMETRÍA (MTI) ---
+  // --- REFERENCIAS DE TELEMETRÍA (Main Thread Isolation) ---
   const progressBarElementReference = useRef<HTMLDivElement>(null);
   const currentTimeDisplayElementReference = useRef<HTMLSpanElement>(null);
   const totalDurationDisplayElementReference = useRef<HTMLSpanElement>(null);
@@ -47,10 +47,10 @@ export function MiniPlayerBar() {
   const lastTotalDurationSecondsReference = useRef<number>(0);
 
   /**
-   * 1. MOTOR DE SINCRO DIRECT-DOM
+   * 1. MOTOR DE SINCRO DIRECT-DocumentObjectModel
    */
   useEffect(() => {
-    // [MRCP]: Captura local de la referencia mutable para integridad en el desmontaje
+    // [MutableReferenceCaptureProtocol]: Captura local de la referencia mutable para integridad en el desmontaje
     const capturedAudioElementInstance = audioElementReference.current;
     if (!capturedAudioElementInstance) return;
 
@@ -61,8 +61,8 @@ export function MiniPlayerBar() {
       const totalAudioDurationSeconds = capturedAudioElementInstance.duration || 0;
 
       if (progressBarElementReference.current && totalAudioDurationSeconds > 0) {
-        const progressPercentageMagnitude = (currentPlaybackTimeSeconds / totalAudioDurationSeconds) * 100;
-        progressBarElementReference.current.style.width = `${progressPercentageMagnitude}%`;
+        const progressPercentageMagnitude = (currentPlaybackTimeSeconds / totalAudioDurationSeconds);
+        progressBarElementReference.current.style.transform = `scaleX(${progressPercentageMagnitude})`;
       }
 
       if (currentTimeDisplayElementReference.current) {
@@ -124,8 +124,8 @@ export function MiniPlayerBar() {
           <div className="h-[2px] w-full bg-white/5 overflow-hidden rounded-full">
             <div
               ref={progressBarElementReference}
-              className="h-full bg-primary transition-[width] duration-300 ease-linear"
-              style={{ width: '0%' }}
+              className="h-full bg-primary origin-left"
+              style={{ transform: 'scaleX(0)' }}
             />
           </div>
         </div>
