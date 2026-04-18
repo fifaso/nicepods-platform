@@ -1,13 +1,21 @@
 /**
  * ARCHIVO: lib/mappers/podcast-mapper.ts
- * VERSIÓN: 8.2 (Madrid Resonance - Sovereign Edition)
+ * VERSIÓN: 8.3 (Madrid Resonance - Sovereign Edition)
  * PROTOCOLO: METAL-TO-CRYSTAL DATA PURIFICATION
  * MISIÓN: Transmutación de registros crudos (Supabase) hacia entidades soberanas (Crystal).
- * [CORRECCIÓN V8.2]: Alineación absoluta con la interfaz PodcastWithProfile V16.0 (ZAP/BSS).
- * NIVEL DE INTEGRIDAD: 100% (Scribe Documented)
+ * [REFORMA V8.3]: Erradicación total de 'any' y alineación con BSS.
+ * NIVEL DE INTEGRIDAD: 100% (Strategist Verified)
  */
 
-import { PodcastWithProfile } from "@/types/podcast";
+import {
+    PodcastWithProfile,
+    PodcastRow,
+    ProfileRow,
+    CreationMetadataPayload,
+    ResearchSource,
+    PodcastScript,
+    GeoLocation
+} from "@/types/podcast";
 import { nicepodLog } from "@/lib/utils";
 
 /**
@@ -22,7 +30,7 @@ import { nicepodLog } from "@/lib/utils";
  * @returns Entidad Podcast purificada lista para el consumo en la plataforma.
  */
 export function transformPodcastMetalToCrystal(
-  rawDatabaseRecord: any // Usamos any temporalmente para el casting desde la respuesta de Supabase select(*)
+  rawDatabaseRecord: PodcastRow & { profiles?: ProfileRow | null }
 ): PodcastWithProfile {
 
   // 1. Auditoría de Identidad (Traceability)
@@ -43,7 +51,6 @@ export function transformPodcastMetalToCrystal(
   }
 
   // 2. Transmutación Soberana (ZAP Alignment)
-  // El casting final garantiza que el objeto cumpla con la interfaz PodcastWithProfile.
   const sovereignPodcastInstance: PodcastWithProfile = {
     // --- IDENTIDAD SOBERANA (ZAP) ---
     identification: rawDatabaseRecord.id,
@@ -56,8 +63,8 @@ export function transformPodcastMetalToCrystal(
 
     // --- METADATA Y CONTENIDO (ZAP) ---
     titleTextContent: rawDatabaseRecord.title || "Crónica Sin Título",
-    descriptionTextContent: rawDatabaseRecord.description,
-    contentCategory: rawDatabaseRecord.category,
+    descriptionTextContent: rawDatabaseRecord.description || null,
+    contentCategory: rawDatabaseRecord.category || null,
     publicationStatus: rawDatabaseRecord.status,
     intelligenceProcessingStatus: rawDatabaseRecord.processing_status,
 
@@ -76,13 +83,13 @@ export function transformPodcastMetalToCrystal(
     currentAudioSegmentsCount: rawDatabaseRecord.current_audio_segments,
 
     // --- ANALÍTICA Y RENDIMIENTO ---
-    playCountTotal: rawDatabaseRecord.play_count || 0,
-    likeCountTotal: rawDatabaseRecord.like_count || 0,
+    playCountTotal: Number(rawDatabaseRecord.play_count),
+    likeCountTotal: Number(rawDatabaseRecord.like_count),
 
     // --- DOSSIERS DE INTELIGENCIA (CRISTAL) ---
-    creationMetadataDossier: rawDatabaseRecord.creation_data,
-    intelligenceSourcesCollection: rawDatabaseRecord.sources,
-    podcastScriptDossier: rawDatabaseRecord.script_text,
+    creationMetadataDossier: rawDatabaseRecord.creation_data as unknown as CreationMetadataPayload,
+    intelligenceSourcesCollection: rawDatabaseRecord.sources as unknown as ResearchSource[],
+    podcastScriptDossier: rawDatabaseRecord.script_text as unknown as PodcastScript,
     artificialIntelligenceTagsCollection: rawDatabaseRecord.ai_tags,
     userDefinedTagsCollection: rawDatabaseRecord.user_tags,
     artificialIntelligenceSummaryContent: rawDatabaseRecord.ai_summary,
@@ -91,22 +98,35 @@ export function transformPodcastMetalToCrystal(
 
     // --- EXTENSIONES GEODÉSICAS ---
     placeNameReference: rawDatabaseRecord.place_name,
-    geographicLocationPoint: rawDatabaseRecord.geo_location,
+    geographicLocationPoint: rawDatabaseRecord.geo_location as unknown as GeoLocation,
     quoteContextReference: rawDatabaseRecord.quote_context,
-    quoteTimestampMagnitude: rawDatabaseRecord.quote_timestamp,
+    quoteTimestampMagnitude: rawDatabaseRecord.quote_timestamp ? Number(rawDatabaseRecord.quote_timestamp) : null,
 
     // --- NOTAS ADMINISTRATIVAS ---
     administrativeNotesContent: rawDatabaseRecord.admin_notes,
     isReviewedByUserStatus: rawDatabaseRecord.reviewed_by_user,
 
     // --- PERFIL DE AUTORIDAD ---
-    profiles: rawDatabaseRecord.profiles || null,
+    profiles: rawDatabaseRecord.profiles ? {
+        fullName: rawDatabaseRecord.profiles.full_name,
+        avatarUniformResourceLocator: rawDatabaseRecord.profiles.avatar_url,
+        username: rawDatabaseRecord.profiles.username,
+        reputationScoreValue: rawDatabaseRecord.profiles.reputation_score,
+        isVerifiedAccountStatus: rawDatabaseRecord.profiles.is_verified,
+        authorityRole: rawDatabaseRecord.profiles.role,
+        // Fallbacks SSR
+        full_name: rawDatabaseRecord.profiles.full_name,
+        avatar_url: rawDatabaseRecord.profiles.avatar_url,
+        reputation_score: rawDatabaseRecord.profiles.reputation_score,
+        is_verified: rawDatabaseRecord.profiles.is_verified,
+        role: rawDatabaseRecord.profiles.role
+    } : null,
 
     // --- COMPATIBILIDAD AXIAL (LEGACY FALLBACKS / DEPRECATED) ---
     id: rawDatabaseRecord.id,
     user_id: rawDatabaseRecord.user_id,
     parent_id: rawDatabaseRecord.parent_id,
-    title: rawDatabaseRecord.title || "Crónica Sin Título",
+    title: rawDatabaseRecord.title,
     description: rawDatabaseRecord.description,
     status: rawDatabaseRecord.status,
     processing_status: rawDatabaseRecord.processing_status,
@@ -114,20 +134,20 @@ export function transformPodcastMetalToCrystal(
     cover_image_url: rawDatabaseRecord.cover_image_url,
     duration_seconds: rawDatabaseRecord.duration_seconds,
     created_at: rawDatabaseRecord.created_at,
-    like_count: rawDatabaseRecord.like_count || 0,
-    play_count: rawDatabaseRecord.play_count || 0,
-    creation_data: rawDatabaseRecord.creation_data,
-    sources: rawDatabaseRecord.sources,
-    script_text: rawDatabaseRecord.script_text,
+    like_count: Number(rawDatabaseRecord.like_count),
+    play_count: Number(rawDatabaseRecord.play_count),
+    creation_data: rawDatabaseRecord.creation_data as unknown as CreationMetadataPayload,
+    sources: rawDatabaseRecord.sources as unknown as ResearchSource[],
+    script_text: rawDatabaseRecord.script_text as unknown as PodcastScript,
     ai_tags: rawDatabaseRecord.ai_tags,
-    geo_location: rawDatabaseRecord.geo_location,
+    geo_location: rawDatabaseRecord.geo_location as unknown as GeoLocation,
     audio_ready: rawDatabaseRecord.audio_ready ?? false,
     image_ready: rawDatabaseRecord.image_ready ?? false,
     user_tags: rawDatabaseRecord.user_tags,
     place_name: rawDatabaseRecord.place_name,
     is_featured: rawDatabaseRecord.is_featured,
     reviewed_by_user: rawDatabaseRecord.reviewed_by_user,
-    creation_mode: rawDatabaseRecord.creation_mode,
+    creation_mode: rawDatabaseRecord.creation_mode as unknown as CreationMetadataPayload['creationMode']
   };
 
   return sovereignPodcastInstance;

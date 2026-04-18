@@ -10,7 +10,7 @@
  * NIVEL DE INTEGRIDAD: 100% (Soberanía Nominal V7.0)
  */
 
-import { Database } from './database.types';
+import { Database, Json } from './database.types';
 
 export type Tables<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row'];
 export type Enums<T extends keyof Database['public']['Enums']> = Database['public']['Enums'][T];
@@ -96,7 +96,7 @@ export interface CreationMetadataPayload {
     voiceStyleSelection?: 'Calmado' | 'Energético' | 'Profesional' | 'Inspirador' | string;
     voicePaceSelection?: string;
     imageBase64Reference?: string;
-    [key: string]: any;
+    [key: string]: Json | undefined;
   };
   userReactionContent?: string;
   quoteContextReference?: string;

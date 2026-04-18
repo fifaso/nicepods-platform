@@ -8,6 +8,7 @@
  * sea tratada como una fuente de verdad inmediata para el arranque.
  * [REFORMA V6.3]: Resolución definitiva del error TS2339 (Type Never). Se ha 
  * simplificado la lógica de triangulación eliminando redundancias booleanas. 
+ * [THERMIC V1.0]: Refuerzo de aislamiento térmico y soberanía nominal (ZAP).
  * Sincronización nominal absoluta (ZAP) y sellado de integridad del 
  * Build Shield Sovereignty (BSS).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
@@ -96,12 +97,12 @@ export function TelemetryProvider({
   const [userGeographicLocation, setUserGeographicLocation] = useState<UserLocation | null>(rawHardwareTelemetry);
 
   /**
-   * isGeographicallyTriangulated: 
+   * isGeographicallyTriangulatedStatus:
    * [FIX V6.3]: Resolución de error 'type never'. 
    * Misión: El sistema se considera triangulado si existe una Semilla T0 
    * o si el hardware (GPS/Caché) ya ha entregado un objeto de telemetría válido.
    */
-  const [isGeographicallyTriangulated, setIsGeographicallyTriangulated] = useState<boolean>(
+  const [isGeographicallyTriangulatedStatus, setIsGeographicallyTriangulatedStatus] = useState<boolean>(
     !!initialGeographicData || !!rawHardwareTelemetry
   );
 
@@ -194,19 +195,19 @@ export function TelemetryProvider({
         setUserGeographicLocation(rawHardwareTelemetry);
         lastEmittedGeographicLocationReference.current = rawHardwareTelemetry;
 
-        if (!isGeographicallyTriangulated && currentHardwareAccuracyMagnitude <= ACCEPTABLE_ACCURACY_THRESHOLD_METERS) {
-          setIsGeographicallyTriangulated(true);
+        if (!isGeographicallyTriangulatedStatus && currentHardwareAccuracyMagnitude <= ACCEPTABLE_ACCURACY_THRESHOLD_METERS) {
+          setIsGeographicallyTriangulatedStatus(true);
         }
       }
     }
-  }, [rawHardwareTelemetry, manualGeographicAnchor, isGeographicallyTriangulated]);
+  }, [rawHardwareTelemetry, manualGeographicAnchor, isGeographicallyTriangulatedStatus]);
 
   const telemetryApplicationProgrammingInterface: TelemetryCoreReturn = {
     userLocation: userGeographicLocation,
     kineticSignalBus: kineticSignalBus,
     isIgnited: isHardwareIgnited,
     isDenied: isHardwareAccessDenied,
-    isTriangulated: isGeographicallyTriangulated,
+    isTriangulated: isGeographicallyTriangulatedStatus,
     isGlobalPositioningSystemLocked: isSovereignAccuracyLockActiveReference.current,
     telemetrySource: userGeographicLocation?.geographicSource || null,
 
@@ -217,7 +218,7 @@ export function TelemetryProvider({
       localStorage.removeItem("nicepod_tactical_geodetic_snapshot");
       reSynchronizeHardwareAction();
     },
-    setGeographicTriangulationState: (isTriangulatedValue: boolean) => setIsGeographicallyTriangulated(isTriangulatedValue),
+    setGeographicTriangulationState: (isTriangulatedValue: boolean) => setIsGeographicallyTriangulatedStatus(isTriangulatedValue),
     setManualGeographicAnchor: (longitudeCoordinate: number, latitudeCoordinate: number) => {
       setManualGeographicAnchorState({
         latitudeCoordinate: latitudeCoordinate,

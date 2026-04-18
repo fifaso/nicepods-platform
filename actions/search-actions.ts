@@ -32,9 +32,9 @@ export async function searchGlobalIntelligence(
   searchQueryTerm: string,
   latitudeCoordinate?: number,
   longitudeCoordinate?: number,
-  resultsLimit: number = 8
+  resultsLimitMagnitude: number = 8
 ): Promise<SearchActionResponse> {
-  const supabaseClient = createClient();
+  const supabaseSovereignClient = createClient();
 
   // 1. PROTOCOLO DE HIGIENE INICIAL
   const targetSearchQuery = searchQueryTerm?.trim();
@@ -58,12 +58,12 @@ export async function searchGlobalIntelligence(
     console.info(`🔍 [Search-Bridge] Despachando pulso autorizado: "${targetSearchQuery.substring(0, 30)}..."`);
 
     // 3. INVOCACIÓN DEL MOTOR UNIFICADO (Edge Function V4.1)
-    const { data: searchResultsData, error: edgeFunctionInvokeException } = await supabaseClient.functions.invoke('search-pro', {
+    const { data: searchResultsData, error: edgeFunctionInvokeException } = await supabaseSovereignClient.functions.invoke('search-pro', {
       body: {
         query: targetSearchQuery,
         userLat: latitudeCoordinate || null,
         userLng: longitudeCoordinate || null,
-        match_count: resultsLimit,
+        match_count: resultsLimitMagnitude,
         match_threshold: 0.5,
         mode: 'search'
       },
@@ -107,19 +107,19 @@ export async function getDiscoverySignals(
   latitudeCoordinate?: number,
   longitudeCoordinate?: number
 ): Promise<SearchActionResponse> {
-  const supabaseClient = createClient();
+  const supabaseSovereignClient = createClient();
 
   try {
-    const serviceRoleSecretKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const serviceRoleSecretKeyContent = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!serviceRoleSecretKey) {
-      throw new Error("Service Key Missing");
+    if (!serviceRoleSecretKeyContent) {
+      throw new Error("FALLO_INFRAESTRUCTURA: Service Key no detectada.");
     }
 
     console.info(`🌍 [Search-Bridge] Solicitando señales de descubrimiento global (Autorizado).`);
 
     // Invocamos el motor en modo 'discovery' (Bypass de vectorización)
-    const { data: discoveryResultsData, error: edgeFunctionInvokeException } = await supabaseClient.functions.invoke('search-pro', {
+    const { data: discoveryResultsData, error: edgeFunctionInvokeException } = await supabaseSovereignClient.functions.invoke('search-pro', {
       body: {
         userLat: latitudeCoordinate || null,
         userLng: longitudeCoordinate || null,
@@ -127,7 +127,7 @@ export async function getDiscoverySignals(
         mode: 'discovery'
       },
       headers: {
-        Authorization: `Bearer ${serviceRoleSecretKey}`
+        Authorization: `Bearer ${serviceRoleSecretKeyContent}`
       }
     });
 

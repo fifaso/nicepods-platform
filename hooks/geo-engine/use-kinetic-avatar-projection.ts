@@ -3,7 +3,8 @@
  * VERSIÓN: 2.2
  * PROTOCOLO: MADRID RESONANCE V4.9
  * MISIÓN: Orquestar el bucle de animación cinemática con captura de referencias y cumplimiento ZAP.
- * NIVEL DE INTEGRIDAD: 100%
+ * [THERMIC V1.0]: Implementación de MRCP para aniquilación de cuadros de animación.
+ * NIVEL DE INTEGRIDAD: 100% (Soberano)
  */
 
 "use client";
@@ -141,10 +142,12 @@ export function useKineticAvatarProjection({
      * [HARDWARE HYGIENE]: Purga atómica de procesos al desmontar.
      */
     return () => {
-      const currentAnimationFrameIdentification = animationFrameIdentificationReference.current;
+      const currentAnimationFrameIdentificationSnapshot = animationFrameIdentificationReference.current;
       nicepodLog("🔋 [KineticMotor] Liberando recursos de animación y bus de eventos.");
       kineticSignalBus.removeEventListener(GEODETIC_KINETIC_SIGNAL_EVENT_NAME, handleIncomingKineticPulse);
-      cancelAnimationFrame(currentAnimationFrameIdentification);
+      if (currentAnimationFrameIdentificationSnapshot) {
+        cancelAnimationFrame(currentAnimationFrameIdentificationSnapshot);
+      }
     };
   }, [mapNativeInstance, kineticSignalBus, avatarContainerReference, smoothingFactorMagnitude]);
 

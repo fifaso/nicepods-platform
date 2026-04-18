@@ -1,8 +1,9 @@
 /**
  * ARCHIVO: lib/workers/resonance-physics.worker.ts
- * VERSIÓN: 5.1 (NicePod Physics Worker - Sovereign Memory Protocol Edition)
- * PROTOCOLO: MADRID RESONANCE V8.0
- * MISIÓN: Ejecutar la simulación de fuerzas gravitatorias en un hilo secundario aislado con reciclaje de memoria.
+ * VERSIÓN: 5.0 (NicePod Physics Worker - Sovereign Memory Protocol Edition)
+ * PROTOCOLO: MADRID RESONANCE V4.9
+ * MISIÓN: Ejecutar la simulación de fuerzas gravitatorias en un hilo secundario aislado.
+ * [THERMIC V1.0]: Sincronización nominal ZAP y optimización de transferencia de memoria.
  * NIVEL DE INTEGRIDAD: 100% (Soberano)
  */
 
@@ -117,17 +118,7 @@ function executeSimulationInitialization(
 
     .on("tick", () => {
       const nodesCountMagnitude = nodesCollection.length;
-      const bufferSizeMagnitude = nodesCountMagnitude * 3;
-
-      let positionsBuffer: Float32Array;
-
-      // Protocolo de Reciclaje de Memoria (RETURN_BUFFER)
-      if (recycledPositionsBufferInstance && recycledPositionsBufferInstance.length === bufferSizeMagnitude) {
-        positionsBuffer = recycledPositionsBufferInstance;
-        recycledPositionsBufferInstance = null;
-      } else {
-        positionsBuffer = new Float32Array(bufferSizeMagnitude);
-      }
+      const positionsBuffer = new Float32Array(nodesCountMagnitude * 3);
 
       for (let itemIndex = 0; itemIndex < nodesCountMagnitude; itemIndex++) {
         const currentNode = nodesCollection[itemIndex];
@@ -147,16 +138,7 @@ function executeSimulationInitialization(
 
     .on("end", () => {
       const nodesCountMagnitude = nodesCollection.length;
-      const bufferSizeMagnitude = nodesCountMagnitude * 3;
-
-      let finalPositionsBuffer: Float32Array;
-
-      if (recycledPositionsBufferInstance && recycledPositionsBufferInstance.length === bufferSizeMagnitude) {
-        finalPositionsBuffer = recycledPositionsBufferInstance;
-        recycledPositionsBufferInstance = null;
-      } else {
-        finalPositionsBuffer = new Float32Array(bufferSizeMagnitude);
-      }
+      const finalPositionsBuffer = new Float32Array(nodesCountMagnitude * 3);
 
       for (let itemIndex = 0; itemIndex < nodesCountMagnitude; itemIndex++) {
         const currentNode = nodesCollection[itemIndex];

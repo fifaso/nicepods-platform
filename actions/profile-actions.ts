@@ -24,7 +24,7 @@ export async function updateProfile(
 ): Promise<ProfileActionResponse> {
   const supabaseSovereignClient = createClient();
 
-  // 1. PROTOCOLO DE AUTORIDAD
+  // 1. PROTOCOLO DE AUTORIDAD (DIS DOCTRINE)
   const { data: { user: authenticatedUserSnapshot }, error: authenticationHardwareExceptionInformation } = await supabaseSovereignClient.auth.getUser();
 
   if (authenticationHardwareExceptionInformation || !authenticatedUserSnapshot) {

@@ -9,10 +9,10 @@
  * binarios de alta resolución (4K+) sin desbordamiento de memoria.
  */
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { encodeBase64 } from "https://deno.land/std@0.203.0/encoding/base64.ts"; // [MANDATORIO]
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 import { AI_MODELS, parseAIJson } from "../_shared/ai.ts";
+import { guard, GuardContext } from "../_shared/guard.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 const GOOGLE_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
@@ -34,13 +34,38 @@ async function retrieveBinaryEvidenceAsBase64(uniformResourceLocator: string): P
   return encodeBase64(new Uint8Array(binaryArrayBuffer));
 }
 
-serve(async (request: Request) => {
-  if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
-
-  const processingCorrelationIdentification = crypto.randomUUID();
+/**
+ * executeSovereignIngestionHandler:
+ * Misión: Orquestar el peritaje técnico de evidencia física con blindaje perimetral.
+ */
+const executeSovereignIngestionHandler = async (request: Request, context: GuardContext): Promise<Response> => {
+  const processingCorrelationIdentification = context.correlationIdentification;
   console.info(`🧠 [Sensor-Ingestor][${processingCorrelationIdentification}] Iniciando peritaje binario seguro.`);
 
   try {
+    // 0. PROTOCOLO DE AUTORIDAD (Zero Trust Architecture)
+    if (!context.isTrusted) {
+      const authorizationHeader = request.headers.get('Authorization');
+      if (!authorizationHeader) throw new Error("AUTORIDAD_REQUERIDA: No se detectó token de autorización.");
+
+      const { data: { user: authenticatedUser }, error: authenticationError } = await supabaseAdministrator.auth.getUser(authorizationHeader.replace("Bearer ", ""));
+      if (authenticationError || !authenticatedUser) throw new Error("SESION_INVALIDA: El token de acceso ha expirado o es inválido.");
+
+      const { data: administratorProfile, error: profileQueryError } = await supabaseAdministrator
+          .from('profiles')
+          .select('role')
+          .eq('id', authenticatedUser.id)
+          .single();
+
+      if (profileQueryError || administratorProfile?.role !== 'admin') {
+          throw new Error("ACCESO_DENEGADO: Se requiere autoridad de nivel Administrador para ingestar evidencia.");
+      }
+
+      console.log(`[Sensor-Ingestor][${processingCorrelationIdentification}] Autoridad confirmada para el Administrador: ${authenticatedUser.id}`);
+    } else {
+      console.info(`[Sensor-Ingestor][${processingCorrelationIdentification}] Ejecución confiable iniciada (Infrastructure Flow).`);
+    }
+
     const expedientPayload = await request.json();
     const {
       heroImageUniformResourceLocator,
@@ -118,11 +143,19 @@ serve(async (request: Request) => {
       status: 200
     });
 
-  } catch (hardwareException: any) {
-    console.error(`🔥 [Fatal][${processingCorrelationIdentification}]:`, hardwareException.message);
-    return new Response(JSON.stringify({ success: false, error: hardwareException.message }), {
+  } catch (exceptionMessageInformation: unknown) {
+    const errorMessage = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido en peritaje";
+    console.error(`🔥 [Sensor-Ingestor-Fatal][${processingCorrelationIdentification}]:`, errorMessage);
+
+    return new Response(JSON.stringify({
+      success: false,
+      error: errorMessage,
+      trace_identification: processingCorrelationIdentification
+    }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
   }
-});
+};
+
+Deno.serve(guard(executeSovereignIngestionHandler));
