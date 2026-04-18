@@ -1,8 +1,8 @@
 /**
  * ARCHIVO: lib/workers/resonance-physics.worker.ts
- * VERSIÓN: 5.0 (NicePod Physics Worker - Sovereign Memory Protocol Edition)
- * PROTOCOLO: MADRID RESONANCE V4.9
- * MISIÓN: Ejecutar la simulación de fuerzas gravitatorias en un hilo secundario aislado.
+ * VERSIÓN: 5.1 (NicePod Physics Worker - Sovereign Memory Protocol Edition)
+ * PROTOCOLO: MADRID RESONANCE V8.0
+ * MISIÓN: Ejecutar la simulación de fuerzas gravitatorias en un hilo secundario aislado con reciclaje de memoria.
  * NIVEL DE INTEGRIDAD: 100% (Soberano)
  */
 
@@ -34,10 +34,12 @@ type ResonancePhysicsSimulationRequest =
   | { action: "STOP_SIMULATION" }
   | { action: "UPDATE_DIMENSIONS"; centerXCoordinate: number; centerYCoordinate: number; exclusionZoneRadius: number; }
   | { action: "PAUSE_SIMULATION" }
-  | { action: "RESUME_SIMULATION" };
+  | { action: "RESUME_SIMULATION" }
+  | { action: "RETURN_BUFFER"; positionsBuffer: Float32Array; };
 
 // --- I. ESTADO GLOBAL DEL TRABAJADOR ---
 let activeForceSimulation: Simulation<PhysicsNodePayload, undefined> | null = null;
+let recycledPositionsBufferInstance: Float32Array | null = null;
 
 /**
  * self.onmessage:
@@ -86,6 +88,10 @@ self.onmessage = (messageEvent: MessageEvent<ResonancePhysicsSimulationRequest>)
         activeForceSimulation.alpha(0.1).restart();
       }
       break;
+
+    case "RETURN_BUFFER":
+      recycledPositionsBufferInstance = simulationRequest.positionsBuffer;
+      break;
   }
 };
 
@@ -110,10 +116,20 @@ function executeSimulationInitialization(
     .alphaDecay(0.022)
 
     .on("tick", () => {
-      const nodesCount = nodesCollection.length;
-      const positionsBuffer = new Float32Array(nodesCount * 3);
+      const nodesCountMagnitude = nodesCollection.length;
+      const bufferSizeMagnitude = nodesCountMagnitude * 3;
 
-      for (let itemIndex = 0; itemIndex < nodesCount; itemIndex++) {
+      let positionsBuffer: Float32Array;
+
+      // Protocolo de Reciclaje de Memoria (RETURN_BUFFER)
+      if (recycledPositionsBufferInstance && recycledPositionsBufferInstance.length === bufferSizeMagnitude) {
+        positionsBuffer = recycledPositionsBufferInstance;
+        recycledPositionsBufferInstance = null;
+      } else {
+        positionsBuffer = new Float32Array(bufferSizeMagnitude);
+      }
+
+      for (let itemIndex = 0; itemIndex < nodesCountMagnitude; itemIndex++) {
         const currentNode = nodesCollection[itemIndex];
         const offsetIndex = itemIndex * 3;
 
@@ -130,10 +146,19 @@ function executeSimulationInitialization(
     })
 
     .on("end", () => {
-      const nodesCount = nodesCollection.length;
-      const finalPositionsBuffer = new Float32Array(nodesCount * 3);
+      const nodesCountMagnitude = nodesCollection.length;
+      const bufferSizeMagnitude = nodesCountMagnitude * 3;
 
-      for (let itemIndex = 0; itemIndex < nodesCount; itemIndex++) {
+      let finalPositionsBuffer: Float32Array;
+
+      if (recycledPositionsBufferInstance && recycledPositionsBufferInstance.length === bufferSizeMagnitude) {
+        finalPositionsBuffer = recycledPositionsBufferInstance;
+        recycledPositionsBufferInstance = null;
+      } else {
+        finalPositionsBuffer = new Float32Array(bufferSizeMagnitude);
+      }
+
+      for (let itemIndex = 0; itemIndex < nodesCountMagnitude; itemIndex++) {
         const currentNode = nodesCollection[itemIndex];
         const offsetIndex = itemIndex * 3;
 

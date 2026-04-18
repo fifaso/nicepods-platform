@@ -1,13 +1,12 @@
 /**
  * ARCHIVO: components/player/mini-player-bar.tsx
- * VERSIÓN: 9.0 (Madrid Resonance - Sovereign Edition)
- * PROTOCOLO: MADRID RESONANCE V7.0
+ * VERSIÓN: 9.1 (Madrid Resonance - Sovereign Edition)
+ * PROTOCOLO: Thermal Isolation & MRCP
  *
  * MISIÓN: Proveer control persistente y eficiente mediante Direct-DOM y ZAP.
- * [REFORMA V9.0]: Sincronización axial completa con el contrato purificado V7.0.
- * Eliminación de fugas snake_case y alineación absoluta con la Doctrina ZAP.
+ * [REFORMA 9.1]: Implementación de Mutable Reference Capture Protocol (MRCP).
  *
- * NIVEL DE INTEGRIDAD: 100% (Soberanía Nominal V7.0)
+ * NIVEL DE INTEGRIDAD: 100% (Soberanía Nominal V8.0)
  */
 
 "use client";
@@ -51,18 +50,19 @@ export function MiniPlayerBar() {
    * 1. MOTOR DE SINCRO DIRECT-DOM
    */
   useEffect(() => {
-    const audioElementInstance = audioElementReference.current;
-    if (!audioElementInstance) return;
+    // [MRCP]: Captura local de la referencia mutable para integridad en el desmontaje
+    const capturedAudioElementInstance = audioElementReference.current;
+    if (!capturedAudioElementInstance) return;
 
     const syncMetricsAction = () => {
       if (document.hidden) return;
 
-      const currentPlaybackTimeSeconds = audioElementInstance.currentTime;
-      const totalAudioDurationSeconds = audioElementInstance.duration || 0;
+      const currentPlaybackTimeSeconds = capturedAudioElementInstance.currentTime;
+      const totalAudioDurationSeconds = capturedAudioElementInstance.duration || 0;
 
       if (progressBarElementReference.current && totalAudioDurationSeconds > 0) {
-        const progressPercentageValue = (currentPlaybackTimeSeconds / totalAudioDurationSeconds) * 100;
-        progressBarElementReference.current.style.width = `${progressPercentageValue}%`;
+        const progressPercentageMagnitude = (currentPlaybackTimeSeconds / totalAudioDurationSeconds) * 100;
+        progressBarElementReference.current.style.width = `${progressPercentageMagnitude}%`;
       }
 
       if (currentTimeDisplayElementReference.current) {
@@ -77,20 +77,25 @@ export function MiniPlayerBar() {
       }
     };
 
-    audioElementInstance.addEventListener('timeupdate', syncMetricsAction);
-    return () => audioElementInstance.removeEventListener('timeupdate', syncMetricsAction);
+    capturedAudioElementInstance.addEventListener('timeupdate', syncMetricsAction);
+
+    return () => {
+      if (capturedAudioElementInstance) {
+        capturedAudioElementInstance.removeEventListener('timeupdate', syncMetricsAction);
+      }
+    };
   }, [audioElementReference]);
 
   /**
    * 2. VALIDACIÓN DE INTEGRIDAD
    */
-  const isPodcastReadyForPlayback = useMemo(() =>
+  const isPodcastReadyForPlaybackStatus = useMemo(() =>
     currentActivePodcast?.intelligenceProcessingStatus === 'completed',
     [currentActivePodcast?.intelligenceProcessingStatus]
   );
 
   const handleInterfaceExpansionAction = () => {
-    if (!isPodcastReadyForPlayback) {
+    if (!isPodcastReadyForPlaybackStatus) {
       toast({
         title: "Sincronía en curso",
         description: "El activo se está materializando en la malla.",
@@ -135,7 +140,7 @@ export function MiniPlayerBar() {
           >
             <div className={cn(
               "relative w-10 h-10 md:w-12 md:h-12 rounded-xl overflow-hidden border border-white/10 flex-shrink-0 transition-all duration-700",
-              !isPodcastReadyForPlayback && "grayscale opacity-30 blur-[1px]"
+              !isPodcastReadyForPlaybackStatus && "grayscale opacity-30 blur-[1px]"
             )}>
               <Image
                 src={getSafeAsset(currentActivePodcast.coverImageUniformResourceLocator, 'cover')}
@@ -158,7 +163,7 @@ export function MiniPlayerBar() {
               </div>
 
               <div className="flex items-center gap-2 md:gap-3">
-                {isPodcastReadyForPlayback ? (
+                {isPodcastReadyForPlaybackStatus ? (
                   <>
                     <p className="text-[8px] md:text-[10px] text-zinc-500 font-bold uppercase tracking-[0.2em] truncate">
                       {podcastAuthorFullName}
@@ -185,20 +190,20 @@ export function MiniPlayerBar() {
                 <Button
                   onClick={(event) => {
                     event.stopPropagation();
-                    if (isPodcastReadyForPlayback) togglePlayPauseAction();
+                    if (isPodcastReadyForPlaybackStatus) togglePlayPauseAction();
                   }}
                   variant="ghost"
                   size="icon"
-                  disabled={!isPodcastReadyForPlayback}
+                  disabled={!isPodcastReadyForPlaybackStatus}
                   aria-label={isAudioPlayingStatus ? "Pausar reproducción" : "Iniciar reproducción"}
                   className={cn(
                     "h-10 w-10 md:h-12 md:w-12 rounded-full transition-all duration-300",
-                    isPodcastReadyForPlayback
+                    isPodcastReadyForPlaybackStatus
                       ? "bg-white text-black hover:bg-primary hover:text-white shadow-lg active:scale-90"
                       : "bg-zinc-900 text-zinc-700 opacity-20"
                   )}
                 >
-                  {isAudioPlayingStatus && isPodcastReadyForPlayback ? (
+                  {isAudioPlayingStatus && isPodcastReadyForPlaybackStatus ? (
                     <Pause className="h-5 w-5 fill-current" />
                   ) : (
                     <Play className="h-5 w-5 fill-current ml-0.5" />
