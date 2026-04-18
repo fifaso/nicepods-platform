@@ -3,7 +3,8 @@
  * VERSIÓN: 1.1
  * PROTOCOLO: MADRID RESONANCE V3.0
  * MISIÓN: Ejecución de compresión de imágenes fuera del hilo principal con cumplimiento ZAP.
- * NIVEL DE INTEGRIDAD: 100%
+ * [THERMIC V1.0]: Refuerzo de higiene de RAM y soberanía nominal (ZAP).
+ * NIVEL DE INTEGRIDAD: 100% (Soberano)
  */
 
 /// <reference lib="webworker" />
@@ -23,7 +24,7 @@ interface CompressionPayload {
  * Se ejecuta de forma aislada cada vez que el Orquestador le envía un paquete.
  */
 self.onmessage = async (messageEvent: MessageEvent<CompressionPayload>) => {
-  const { file, maxWidth, quality } = messageEvent.data;
+  const { file, maxWidth, quality: compressionQualityFactor } = messageEvent.data;
 
   try {
     /**
@@ -69,7 +70,7 @@ self.onmessage = async (messageEvent: MessageEvent<CompressionPayload>) => {
      */
     const compressedBlob = await offscreen.convertToBlob({
       type: 'image/webp',
-      quality: quality
+      quality: compressionQualityFactor
     });
 
     /**

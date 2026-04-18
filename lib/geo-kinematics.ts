@@ -8,6 +8,7 @@
  * algoritmos de interpolación optimizados.
  * [REFORMA V4.0]: Optimización de carga trigonométrica. Implementación de 
  * 'Scope Pre-calculation' para reducir el uso de CPU en bucles de animación. 
+ * [THERMIC V1.0]: Purificación nominal ZAP de constantes y descriptores matemáticos.
  * Cumplimiento total de la Zero Abbreviations Policy (ZAP).
  * Nivel de Integridad: 100% (Soberano / Sin abreviaciones / Producción-Ready)
  */
@@ -24,7 +25,7 @@ export interface KinematicPosition {
 /**
  * CONSTANTES GEODÉSICAS INDUSTRIALES
  */
-const EARTH_RADIUS_METERS = 6371000;
+const EARTH_RADIUS_GEODETIC_METERS = 6371000;
 const DEGREES_TO_RADIANS_CONVERSION_FACTOR = Math.PI / 180;
 const RADIANS_TO_DEGREES_CONVERSION_FACTOR = 180 / Math.PI;
 
@@ -125,7 +126,7 @@ export function calculateDistanceBetweenPoints(
     Math.sqrt(1 - haversineMathematicalFactor)
   );
 
-  return EARTH_RADIUS_METERS * haversineCentralAngle;
+  return EARTH_RADIUS_GEODETIC_METERS * haversineCentralAngle;
 }
 
 /**
@@ -137,7 +138,7 @@ export function calculateDestinationPoint(
   distanceMeters: number,
   bearingDegrees: number
 ): KinematicPosition {
-  const angularDistanceRadians = distanceMeters / EARTH_RADIUS_METERS;
+  const angularDistanceRadians = distanceMeters / EARTH_RADIUS_GEODETIC_METERS;
 
   const originLatitudeRadians = originPosition.latitude * DEGREES_TO_RADIANS_CONVERSION_FACTOR;
   const originLongitudeRadians = originPosition.longitude * DEGREES_TO_RADIANS_CONVERSION_FACTOR;

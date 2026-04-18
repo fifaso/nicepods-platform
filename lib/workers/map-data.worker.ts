@@ -3,7 +3,7 @@
  * VERSIÓN: 1.2
  * PROTOCOLO: MADRID RESONANCE V4.5
  * MISIÓN: Procesamiento de nodos NKV en hilo secundario con integridad BSS.
- * [THERMIC V1.0]: Erradicación de tipos 'any' y reforzamiento de soberanía de tipos.
+ * [THERMIC V1.0]: Erradicación de tipos 'any', reforzamiento de soberanía de tipos y ZAP.
  * NIVEL DE INTEGRIDAD: 100% (Soberano)
  */
 
@@ -96,14 +96,14 @@ self.onmessage = (messageEvent: MessageEvent<MapDataWorkerRequest>) => {
  * [MTI]: Esta lógica O(N) se ejecuta fuera del hilo de la interfaz de usuario.
  */
 function executeDataTransformationWorkflow(
-  rawDatabaseCollection: DatabasePointRecord[]
+  rawDatabaseRecordsCollection: DatabasePointRecord[]
 ): PointOfInterest[] {
   /**
    * Mapeador de Integridad Industrial:
    * Realizamos la transmutación de nombres de columna de base de datos (Snake Case) 
    * hacia propiedades de interfaz (Camel Case) y validamos la geometría PostGIS.
    */
-  return rawDatabaseCollection.map((recordItem: DatabasePointRecord): PointOfInterest => {
+  return rawDatabaseRecordsCollection.map((recordItem: DatabasePointRecord): PointOfInterest => {
     // Extracción y validación de la localización geodésica
     const geographicLocationReference = recordItem.geo_location;
     

@@ -3,6 +3,7 @@
  * VERSIÓN: 24.0
  * PROTOCOLO: MADRID RESONANCE V4.9
  * MISIÓN: Reactor WebGL inmutable que gestiona la renderización de la malla 3D con aniquilación atómica.
+ * [THERMIC V1.0]: Refuerzo de la Zero Abbreviations Policy (ZAP) y aniquilación de VRAM.
  * NIVEL DE INTEGRIDAD: 100% (Soberano)
  * 
  * Misión: Reactor WebGL inmutable que gestiona la renderización de la malla 3D. 
@@ -152,8 +153,8 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
     // Gestión de capas y relieve...
     try {
         if (nativeMapInstance.getLayer('building')) {
-            const opacity = isTacticalLiteProfileActive ? 0.4 : (isSatellitePerspectiveActive ? 0 : 1.0);
-            nativeMapInstance.setPaintProperty('building', 'fill-extrusion-opacity', opacity);
+            const opacityMagnitude = isTacticalLiteProfileActive ? 0.4 : (isSatellitePerspectiveActive ? 0 : 1.0);
+            nativeMapInstance.setPaintProperty('building', 'fill-extrusion-opacity', opacityMagnitude);
         }
         if (!nativeMapInstance.getSource(DIGITAL_ELEVATION_MODEL_SOURCE_CONFIGURATION.id)) {
             nativeMapInstance.addSource(DIGITAL_ELEVATION_MODEL_SOURCE_CONFIGURATION.id, {

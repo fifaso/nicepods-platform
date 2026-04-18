@@ -3,6 +3,7 @@
  * VERSIÓN: 5.0 (NicePod Physics Worker - Sovereign Memory Protocol Edition)
  * PROTOCOLO: MADRID RESONANCE V4.9
  * MISIÓN: Ejecutar la simulación de fuerzas gravitatorias en un hilo secundario aislado.
+ * [THERMIC V1.0]: Sincronización nominal ZAP y optimización de transferencia de memoria.
  * NIVEL DE INTEGRIDAD: 100% (Soberano)
  */
 
@@ -110,10 +111,10 @@ function executeSimulationInitialization(
     .alphaDecay(0.022)
 
     .on("tick", () => {
-      const nodesCount = nodesCollection.length;
-      const positionsBuffer = new Float32Array(nodesCount * 3);
+      const nodesCountMagnitude = nodesCollection.length;
+      const positionsBuffer = new Float32Array(nodesCountMagnitude * 3);
 
-      for (let itemIndex = 0; itemIndex < nodesCount; itemIndex++) {
+      for (let itemIndex = 0; itemIndex < nodesCountMagnitude; itemIndex++) {
         const currentNode = nodesCollection[itemIndex];
         const offsetIndex = itemIndex * 3;
 
@@ -130,10 +131,10 @@ function executeSimulationInitialization(
     })
 
     .on("end", () => {
-      const nodesCount = nodesCollection.length;
-      const finalPositionsBuffer = new Float32Array(nodesCount * 3);
+      const nodesCountMagnitude = nodesCollection.length;
+      const finalPositionsBuffer = new Float32Array(nodesCountMagnitude * 3);
 
-      for (let itemIndex = 0; itemIndex < nodesCount; itemIndex++) {
+      for (let itemIndex = 0; itemIndex < nodesCountMagnitude; itemIndex++) {
         const currentNode = nodesCollection[itemIndex];
         const offsetIndex = itemIndex * 3;
 
