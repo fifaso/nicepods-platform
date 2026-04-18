@@ -169,65 +169,7 @@ export interface PodcastWithProfile {
     reputationScoreValue: number | null;
     isVerifiedAccountStatus: boolean | null;
     authorityRole: string | null;
-    // Fallbacks para perfiles SSR
-    full_name?: string | null;
-    avatar_url?: string | null;
-    reputation_score?: number | null;
-    is_verified?: boolean | null;
-    role?: string | null;
   } | null;
-
-  // --- ALIAS DE COMPATIBILIDAD (AXIAL INTEGRITY - @deprecated) ---
-  /** @deprecated Use identification */
-  id: number;
-  /** @deprecated Use authorUserIdentification */
-  user_id: string;
-  /** @deprecated Use parentPodcastIdentification */
-  parent_id: number | null;
-  /** @deprecated Use titleTextContent */
-  title: string;
-  /** @deprecated Use descriptionTextContent */
-  description: string | null;
-  /** @deprecated Use publicationStatus */
-  status: PodcastStatus;
-  /** @deprecated Use intelligenceProcessingStatus */
-  processing_status: ProcessingStatus;
-  /** @deprecated Use audioUniformResourceLocator */
-  audio_url: string | null;
-  /** @deprecated Use coverImageUniformResourceLocator */
-  cover_image_url: string | null;
-  /** @deprecated Use playbackDurationSecondsTotal */
-  duration_seconds: number | null;
-  /** @deprecated Use creationTimestamp */
-  created_at: string;
-  /** @deprecated Use likeCountTotal */
-  like_count: number;
-  /** @deprecated Use playCountTotal */
-  play_count: number;
-  /** @deprecated Use creationMetadataDossier */
-  creation_data: any;
-  /** @deprecated Use intelligenceSourcesCollection */
-  sources: any;
-  /** @deprecated Use podcastScriptDossier */
-  script_text: any;
-  /** @deprecated Use artificialIntelligenceTagsCollection */
-  ai_tags: any;
-  /** @deprecated Use geographicLocationPoint */
-  geo_location: any;
-  /** @deprecated Use isAudioReady */
-  audio_ready: boolean;
-  /** @deprecated Use isImageReady */
-  image_ready: boolean;
-  /** @deprecated Use userDefinedTagsCollection */
-  user_tags: string[] | null;
-  /** @deprecated Use placeNameReference */
-  place_name: string | null;
-  /** @deprecated Use isFeaturedContentStatus */
-  is_featured: boolean | null;
-  /** @deprecated Use isReviewedByUserStatus */
-  reviewed_by_user: boolean | null;
-  /** @deprecated Use creationMetadataDossier?.creationMode */
-  creation_mode: any;
 }
 
 export type PodcastWithGenealogy = PodcastWithProfile & {
