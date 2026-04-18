@@ -1,6 +1,6 @@
 /**
  * ARCHIVO: app/(platform)/dashboard/page.tsx
- * VERSIÓN: 5.1 (Madrid Resonance)
+ * VERSIÓN: 5.2 (Madrid Resonance)
  * PROTOCOLO: Intellectual Capital & Traceability
  * MISIÓN: Cosecha de inteligencia blindada y orquestación de datos en el servidor con trazabilidad industrial.
  * NIVEL DE INTEGRIDAD: 100%
@@ -14,7 +14,7 @@ import { nicepodLog } from "@/lib/utils";
 
 /**
  * DashboardPage: El orquestador de datos de alto nivel en el servidor.
- * Misión: Ejecutar el Handshake T0 y la cosecha de capital intelectual previa.
+ * Misión: Ejecutar el Handshake T0 y la cosecha de capital intelectual previa con peritaje industrial.
  */
 export default async function DashboardPage() {
   // 1. INSTANCIACIÓN DEL PUENTE DE RED SOBERANO (SUPABASE SERVER)
@@ -25,16 +25,17 @@ export default async function DashboardPage() {
    * Validamos la autoridad del Voyager directamente en el metal del servidor.
    */
   const { 
-    data: { user: authenticatedUser }, 
-    error: authenticationHardwareException 
+    data: { user: authenticatedUserSnapshot },
+    error: authenticationHardwareExceptionInformation
   } = await supabaseSovereignClient.auth.getUser();
 
-  // Si la identidad es nula o el hardware de red falla, expulsión inmediata por seguridad.
-  if (authenticationHardwareException || !authenticatedUser) {
+  // Si la identidad es nula o el hardware de red falla, expulsión inmediata por seguridad de la Malla.
+  if (authenticationHardwareExceptionInformation || !authenticatedUserSnapshot) {
+    nicepodLog("🛑 [Dashboard] Acceso denegado: Fallo en el Handshake de identidad.", authenticationHardwareExceptionInformation, 'error');
     redirect("/login");
   }
 
-  const authenticatedUserIdentification = authenticatedUser.id;
+  const authenticatedUserIdentification = authenticatedUserSnapshot.id;
 
   nicepodLog(`🛰️ [Dashboard] Iniciando Handshake T0 para: ${authenticatedUserIdentification.substring(0, 8)}`);
 
@@ -62,29 +63,25 @@ export default async function DashboardPage() {
      * 4. BARRERA DE PROTECCIÓN Y SANEAMIENTO (DATA HYGIENE)
      */
 
-    // A. Saneamiento del Feed de Inteligencia [RESOLUCIÓN TS2322]
-    const rawIntelligenceFeedData = discoveryFeedNetworkResponse.data || { epicenter: [], semantic_connections: [] };
+    // A. Saneamiento del Feed de Inteligencia (Crystal Alignment)
+    const rawIntelligenceFeedDataSnapshot = discoveryFeedNetworkResponse.data || { epicenter: [], semantic_connections: [] };
     
     const initialIntelligenceFeedCollection = {
-      epicenterPodcastsCollection: Array.isArray(rawIntelligenceFeedData.epicenter) 
-        ? rawIntelligenceFeedData.epicenter 
+      epicenterPodcastsCollection: Array.isArray(rawIntelligenceFeedDataSnapshot.epicenter)
+        ? rawIntelligenceFeedDataSnapshot.epicenter
         : [],
-      semanticConnectionsCollection: Array.isArray(rawIntelligenceFeedData.semantic_connections) 
-        ? rawIntelligenceFeedData.semantic_connections 
+      semanticConnectionsCollection: Array.isArray(rawIntelligenceFeedDataSnapshot.semantic_connections)
+        ? rawIntelligenceFeedDataSnapshot.semantic_connections
         : []
     };
 
-    // B. Saneamiento del Perfil de Autoridad [BUILD SHIELD SOVEREIGNTY]
-    /** 
-     * initialAdministratorProfile: Se garantiza el tipado mediante Tables<'profiles'>
-     * evitando el uso de 'any' durante el despacho hacia el Cristal.
-     */
+    // B. Saneamiento del Perfil de Autoridad (Build Shield Sovereignty)
     const initialAdministratorProfile: Tables<'profiles'> = userProfileDatabaseResponse.data || {
       id: authenticatedUserIdentification,
-      full_name: authenticatedUser.user_metadata?.full_name || "Voyager NicePod",
-      username: authenticatedUser.user_metadata?.user_name || "curador_identidad",
-      role: (authenticatedUser.app_metadata?.user_role as string) || 'user',
-      avatar_url: authenticatedUser.user_metadata?.avatar_url || null,
+      full_name: authenticatedUserSnapshot.user_metadata?.full_name || "Voyager NicePod",
+      username: authenticatedUserSnapshot.user_metadata?.user_name || "curador_identidad",
+      role: (authenticatedUserSnapshot.app_metadata?.user_role as string) || 'user',
+      avatar_url: authenticatedUserSnapshot.user_metadata?.avatar_url || null,
       bio: null,
       bio_short: null,
       website_url: null,
@@ -98,26 +95,25 @@ export default async function DashboardPage() {
     };
 
     // C. Saneamiento de Resonancia Geodésica
-    const initialResonanceMetrics = resonanceMetricsDatabaseResponse.data || null;
+    const initialResonanceMetricsSnapshot = resonanceMetricsDatabaseResponse.data || null;
 
     /**
      * 5. DETERMINACIÓN DE AUTORIDAD (RBAC PROTOCOL)
      * Verificación de rango administrativo mediante validación de tokens y base de datos.
      */
     const isAdministratorAuthorityStatus =
-      authenticatedUser.app_metadata?.user_role === 'admin' ||
-      authenticatedUser.app_metadata?.role === 'admin' ||
+      authenticatedUserSnapshot.app_metadata?.user_role === 'admin' ||
+      authenticatedUserSnapshot.app_metadata?.role === 'admin' ||
       (userProfileDatabaseResponse.data?.role === 'admin');
 
     /**
      * 6. DESPACHO AL CHASIS CLIENTE (HANDOVER)
-     * [RESOLUCIÓN FINAL TS2322]: Alineación absoluta de descriptores nominales.
      */
     return (
       <DashboardClient
         initialIntelligenceFeedCollection={initialIntelligenceFeedCollection}
         initialAdministratorProfile={initialAdministratorProfile}
-        initialResonanceMetrics={initialResonanceMetrics}
+        initialResonanceMetrics={initialResonanceMetricsSnapshot}
         isAdministratorAuthorityStatus={isAdministratorAuthorityStatus}
       />
     );
@@ -127,11 +123,11 @@ export default async function DashboardPage() {
      * 7. PROTOCOLO DE GESTIÓN DE PÁNICO (EMERGENCY FALLBACK)
      * Garantizamos que el Voyager acceda a la terminal incluso ante colapsos de red.
      */
-    const exceptionMessage = criticalSystemException instanceof Error 
+    const exceptionMessageText = criticalSystemException instanceof Error
       ? criticalSystemException.message 
       : "Fallo desconocido en la cosecha T0.";
     
-    console.error("🔥 [Dashboard-Fatal-Exception]:", exceptionMessage);
+    nicepodLog("🔥 [Dashboard-Fatal-Exception]:", exceptionMessageText, 'error');
 
     return (
       <DashboardClient
@@ -155,11 +151,8 @@ export default async function DashboardPage() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V24.0):
- * 1. Zero Abbreviations Policy (ZAP): Purificación total. 'res' -> 'Response', 
- *    'err' -> 'HardwareException', 'id' -> 'Identification', 'feed' -> 'IntelligenceFeedCollection'.
- * 2. TS2322 Resolution: Sincronización milimétrica del objeto de propiedades enviado 
- *    al 'DashboardClient', eliminando la amnesia nominal del servidor.
- * 3. BSS Contract Seal: Se ha eliminado el casting 'as any' en la entrega del perfil, 
- *    utilizando una estructura de fallback que satisface el tipo 'Tables<'profiles'>'.
+ * NOTA TÉCNICA DEL ARCHITECT (V5.2):
+ * 1. Industrial Traceability: Sustitución de console.error por nicepodLog en la barrera de pánico del Dashboard.
+ * 2. ZAP Absolute Compliance: Purificación nominal de variables de servidor ('res' -> 'Response', 'feed' -> 'IntelligenceFeedCollection').
+ * 3. BSS Contract Seal: Saneamiento exhaustivo del Perfil de Autoridad para evitar filtraciones de 'any'.
  */

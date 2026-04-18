@@ -1,8 +1,8 @@
 /**
  * ARCHIVO: actions/vault-actions.ts
- * VERSIÓN: 4.2 (Madrid Resonance - Sovereign Protocol V4.2)
- * PROTOCOLO: Madrid Resonance Protocol V4.0
- * MISIÓN: Gestión administrativa del Knowledge Vault (NKV) con tipado soberano y ZAP absoluto.
+ * VERSIÓN: 4.3 (Madrid Resonance - Sovereign Edition)
+ * PROTOCOLO: MADRID RESONANCE V8.0
+ * MISIÓN: Gestión administrativa del Knowledge Vault (NKV) con tipado soberano y trazabilidad industrial absoluta.
  * NIVEL DE INTEGRIDAD: CRITICAL (100% ZAP / BSS Green)
  */
 
@@ -10,6 +10,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { nicepodLog } from "@/lib/utils";
 
 /**
  * INTERFAZ: VaultKnowledgeChunk
@@ -26,7 +27,7 @@ export interface VaultKnowledgeChunk {
 
 /**
  * INTERFAZ: VaultKnowledgeSource
- * Representa una fuente de sabiduría en la Bóveda.
+ * Representa una fuente de sabiduría en la Bóveda NKV.
  */
 export interface VaultKnowledgeSource {
     identification: string;
@@ -63,13 +64,14 @@ export type VaultActionResponse<T = null> = {
 
 /**
  * PROTOCOLO: ensureAdminAuthority
- * Misión: Validar que la petición proviene de un nodo con privilegios administrativos.
+ * Misión: Validar que la petición proviene de un nodo con privilegios de administrador soberano.
  */
 async function ensureAdminAuthority() {
     const supabaseSovereignClient = createClient();
 
     const { data: { user: authenticatedAdministratorSnapshot }, error: authenticationHardwareExceptionInformation } = await supabaseSovereignClient.auth.getUser();
     if (authenticationHardwareExceptionInformation || !authenticatedAdministratorSnapshot) {
+        nicepodLog("🛑 [Vault-Engine] Acceso denegado: Sesión administrativa no detectada.", "AUTHENTICATION_REQUIRED", 'error');
         throw new Error("AUTENTICACION_REQUERIDA: Sesión no detectada.");
     }
 
@@ -80,6 +82,7 @@ async function ensureAdminAuthority() {
         .single();
 
     if (administratorProfileHardwareExceptionInformation || administratorProfileSnapshot?.role !== 'admin') {
+        nicepodLog(`🛑 [Vault-Engine] Intento de acceso administrativo no autorizado por: ${authenticatedAdministratorSnapshot.id}`, "UNAUTHORIZED_ADMIN_ACCESS", 'error');
         throw new Error("ACCESO_RESTRINGIDO: Se requieren privilegios de administración.");
     }
 
@@ -111,18 +114,20 @@ export async function listVaultSources(): Promise<VaultActionResponse<VaultKnowl
 
         if (databaseQueryHardwareExceptionInformation) throw databaseQueryHardwareExceptionInformation;
 
+        nicepodLog(`🛰️ [Vault] Sincronización de inventario exitosa: ${knowledgeSourcesDatabaseResultsCollection?.length} fuentes localizadas.`);
+
         return {
             success: true,
             message: "Inventario de Bóveda sincronizado con éxito.",
             data: knowledgeSourcesDatabaseResultsCollection as unknown as VaultKnowledgeSource[]
         };
-    } catch (vaultException: unknown) {
-        const errorMessage = vaultException instanceof Error ? vaultException.message : "Error desconocido";
-        console.error("🔥 [Vault-Action][List-Sources]:", errorMessage);
+    } catch (vaultCriticalException: unknown) {
+        const exceptionMessageText = vaultCriticalException instanceof Error ? vaultCriticalException.message : "Error desconocido";
+        nicepodLog("🔥 [Vault-Action][List-Sources-Fatal]:", exceptionMessageText, 'error');
         return {
             success: false,
-            message: "Fallo al recuperar el inventario de la Bóveda.",
-            exceptionMessageInformation: errorMessage,
+            message: "Fallo al recuperar el inventario de la Bóveda NKV.",
+            exceptionMessageInformation: exceptionMessageText,
             data: []
         };
     }
@@ -134,7 +139,7 @@ export async function listVaultSources(): Promise<VaultActionResponse<VaultKnowl
  */
 export async function deleteVaultSource(sourceIdentification: string): Promise<VaultActionResponse> {
     try {
-        const { supabaseSovereignClient } = await ensureAdminAuthority();
+        const { supabaseSovereignClient, administratorIdentification } = await ensureAdminAuthority();
 
         const { error: databaseDeleteHardwareExceptionInformation } = await supabaseSovereignClient
             .from("knowledge_sources")
@@ -143,20 +148,22 @@ export async function deleteVaultSource(sourceIdentification: string): Promise<V
 
         if (databaseDeleteHardwareExceptionInformation) throw databaseDeleteHardwareExceptionInformation;
 
+        nicepodLog(`🗑️ [Vault] Fuente #${sourceIdentification} purgada por Administrador: ${administratorIdentification.substring(0, 8)}`);
+
         revalidatePath("/admin/vault");
 
         return {
             success: true,
-            message: "Fuente y vectores asociados eliminados de la Bóveda.",
+            message: "Fuente y vectores asociados eliminados de la Bóveda NKV.",
             data: null
         };
-    } catch (vaultException: unknown) {
-        const errorMessage = vaultException instanceof Error ? vaultException.message : "Error desconocido";
-        console.error("🔥 [Vault-Action][Delete-Source]:", errorMessage);
+    } catch (vaultCriticalException: unknown) {
+        const exceptionMessageText = vaultCriticalException instanceof Error ? vaultCriticalException.message : "Error desconocido";
+        nicepodLog("🔥 [Vault-Action][Delete-Source-Fatal]:", exceptionMessageText, 'error');
         return {
             success: false,
-            message: "No se pudo procesar la eliminación de la fuente.",
-            exceptionMessageInformation: errorMessage,
+            message: "No se pudo procesar la eliminación de la fuente solicitada.",
+            exceptionMessageInformation: exceptionMessageText,
             data: null
         };
     }
@@ -164,7 +171,7 @@ export async function deleteVaultSource(sourceIdentification: string): Promise<V
 
 /**
  * FUNCIÓN: injectManualKnowledge
- * Misión: Inyección de inteligencia curada manualmente por el administrador.
+ * Misión: Inyección de inteligencia curada manualmente por el administrador soberano.
  */
 export async function injectManualKnowledge(knowledgeInjectionPayload: {
     title: string;
@@ -172,7 +179,9 @@ export async function injectManualKnowledge(knowledgeInjectionPayload: {
     uniformResourceLocator?: string;
 }): Promise<VaultActionResponse> {
     try {
-        const { supabaseSovereignClient } = await ensureAdminAuthority();
+        const { supabaseSovereignClient, administratorIdentification } = await ensureAdminAuthority();
+
+        nicepodLog(`🧠 [Vault] Iniciando inyección manual de inteligencia: "${knowledgeInjectionPayload.title}"`);
 
         const { error: edgeFunctionInvokeHardwareExceptionInformation } = await supabaseSovereignClient.functions.invoke('vault-refinery', {
             body: {
@@ -186,20 +195,22 @@ export async function injectManualKnowledge(knowledgeInjectionPayload: {
 
         if (edgeFunctionInvokeHardwareExceptionInformation) throw new Error(edgeFunctionInvokeHardwareExceptionInformation.message || "Error en el pipeline de refinería.");
 
+        nicepodLog(`✅ [Vault] Inyección completada con éxito por: ${administratorIdentification.substring(0, 8)}`);
+
         revalidatePath("/admin/vault");
 
         return {
             success: true,
-            message: "Inteligencia inyectada y vectorizada correctamente.",
+            message: "Inteligencia inyectada y vectorizada correctamente en el NKV.",
             data: null
         };
-    } catch (vaultException: unknown) {
-        const errorMessage = vaultException instanceof Error ? vaultException.message : String(vaultException);
-        console.error("🔥 [Vault-Action][Inject-Knowledge]:", errorMessage);
+    } catch (vaultCriticalException: unknown) {
+        const exceptionMessageText = vaultCriticalException instanceof Error ? vaultCriticalException.message : String(vaultCriticalException);
+        nicepodLog("🔥 [Vault-Action][Inject-Knowledge-Fatal]:", exceptionMessageText, 'error');
         return {
             success: false,
-            message: "La Bóveda rechazó la inyección de conocimiento.",
-            exceptionMessageInformation: errorMessage,
+            message: "La Bóveda rechazó la inyección de conocimiento manual.",
+            exceptionMessageInformation: exceptionMessageText,
             data: null
         };
     }
@@ -207,18 +218,18 @@ export async function injectManualKnowledge(knowledgeInjectionPayload: {
 
 /**
  * FUNCIÓN: simulateVaultSearch
- * Misión: Laboratorio de Resonancia Semántica.
+ * Misión: Laboratorio de Resonancia Semántica para administradores.
  */
 export async function simulateVaultSearch(
-    searchQueryTerm: string,
+    searchQueryTermTextContent: string,
     similarityThresholdMagnitude: number = 0.5
 ): Promise<VaultActionResponse<SemanticResonanceNode[]>> {
     try {
         const { supabaseSovereignClient } = await ensureAdminAuthority();
 
-        const { data: resonanceResultsData, error: searchHardwareExceptionInformation } = await supabaseSovereignClient.functions.invoke('search-pro', {
+        const { data: resonanceResultsCollection, error: searchHardwareExceptionInformation } = await supabaseSovereignClient.functions.invoke('search-pro', {
             body: {
-                query: searchQueryTerm,
+                query: searchQueryTermTextContent,
                 match_threshold: similarityThresholdMagnitude,
                 match_count: 10,
                 target: 'vault_only'
@@ -229,16 +240,16 @@ export async function simulateVaultSearch(
 
         return {
             success: true,
-            message: "Simulación de búsqueda completada.",
-            data: resonanceResultsData as SemanticResonanceNode[]
+            message: "Simulación de búsqueda semántica completada.",
+            data: resonanceResultsCollection as SemanticResonanceNode[]
         };
-    } catch (vaultException: unknown) {
-        const errorMessage = vaultException instanceof Error ? vaultException.message : "Error desconocido";
-        console.error("🔥 [Vault-Action][Simulate-Search]:", errorMessage);
+    } catch (vaultCriticalException: unknown) {
+        const exceptionMessageText = vaultCriticalException instanceof Error ? vaultCriticalException.message : "Error desconocido";
+        nicepodLog("🔥 [Vault-Action][Simulate-Search-Fatal]:", exceptionMessageText, 'error');
         return {
             success: false,
-            message: "Error en la simulación de resonancia.",
-            exceptionMessageInformation: errorMessage,
+            message: "Error en la simulación de resonancia semántica.",
+            exceptionMessageInformation: exceptionMessageText,
             data: []
         };
     }
@@ -246,11 +257,11 @@ export async function simulateVaultSearch(
 
 /**
  * FUNCIÓN: getVaultMetrics
- * Misión: Telemetría de densidad informativa de NicePod.
+ * Misión: Telemetría de densidad informativa de la Workstation NicePod.
  */
 export async function getVaultMetrics(): Promise<VaultActionResponse<{
-    totalSourcesCount: number;
-    totalChunksCount: number;
+    totalSourcesCountMagnitude: number;
+    totalChunksCountMagnitude: number;
 }>> {
     try {
         const { supabaseSovereignClient } = await ensureAdminAuthority();
@@ -262,19 +273,27 @@ export async function getVaultMetrics(): Promise<VaultActionResponse<{
 
         return {
             success: true,
-            message: "Métricas de Bóveda actualizadas.",
+            message: "Métricas de Bóveda NKV actualizadas con éxito.",
             data: {
-                totalSourcesCount: sourcesCountResultsSnapshot.count || 0,
-                totalChunksCount: chunksCountResultsSnapshot.count || 0
+                totalSourcesCountMagnitude: sourcesCountResultsSnapshot.count || 0,
+                totalChunksCountMagnitude: chunksCountResultsSnapshot.count || 0
             }
         };
-    } catch (vaultException: unknown) {
-        const errorMessage = vaultException instanceof Error ? vaultException.message : "Error desconocido";
+    } catch (vaultCriticalException: unknown) {
+        const exceptionMessageText = vaultCriticalException instanceof Error ? vaultCriticalException.message : "Error desconocido";
+        nicepodLog("🔥 [Vault-Action][Metrics-Fatal]:", exceptionMessageText, 'error');
         return {
             success: false,
-            message: "No se pudieron obtener métricas del sistema.",
-            exceptionMessageInformation: errorMessage,
+            message: "No se pudieron obtener métricas del sistema NKV.",
+            exceptionMessageInformation: exceptionMessageText,
             data: null
         };
     }
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V4.3):
+ * 1. Industrial Traceability: Integración profunda de 'nicepodLog' para el monitoreo administrativo de la Bóveda NKV.
+ * 2. ZAP Absolute Compliance: Purificación de nomenclatura en interfaces y parámetros ('count' -> 'countMagnitude', 'query' -> 'searchQueryTermTextContent').
+ * 3. Robust Authentication: Verificación de rango 'admin' forzada en el servidor para todas las operaciones NKV.
+ */

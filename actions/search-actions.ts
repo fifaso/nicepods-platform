@@ -1,20 +1,19 @@
 /**
  * ARCHIVO: actions/search-actions.ts
- * VERSIÓN: 4.2 (NicePod Semantic Radar - ZAP & Build Shield Protocol)
- * PROTOCOLO: MADRID RESONANCE V4.2
- * MISIÓN: Ejecutar búsquedas de alta resolución y detección de descubrimiento con integridad nominal.
+ * VERSIÓN: 4.3 (NicePod Semantic Radar - Sovereign Edition)
+ * PROTOCOLO: MADRID RESONANCE V8.0
+ * MISIÓN: Ejecutar búsquedas de alta resolución y detección de descubrimiento con integridad nominal y trazabilidad industrial.
  * NIVEL DE INTEGRIDAD: 100% (Soberano / ZAP Compliant / Build Shield Green)
  */
 
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { nicepodLog } from "@/lib/utils";
 
 /**
  * INTERFAZ: SearchActionResponse
  * Contrato de respuesta unificado para el sistema de radar semántico.
- * [NOTA]: Se mantiene el default 'any' para preservar la compatibilidad con
- * los ganchos (hooks) existentes en la Workstation.
  */
 export type SearchActionResponse<T = any> = {
   success: boolean;
@@ -32,13 +31,13 @@ export async function searchGlobalIntelligence(
   searchQueryTerm: string,
   latitudeCoordinate?: number,
   longitudeCoordinate?: number,
-  resultsLimit: number = 8
+  resultsLimitMagnitude: number = 8
 ): Promise<SearchActionResponse> {
-  const supabaseClient = createClient();
+  const supabaseSovereignClient = createClient();
 
   // 1. PROTOCOLO DE HIGIENE INICIAL
-  const targetSearchQuery = searchQueryTerm?.trim();
-  if (!targetSearchQuery || targetSearchQuery.length < 3) {
+  const targetSearchQueryTextContent = searchQueryTerm?.trim();
+  if (!targetSearchQueryTextContent || targetSearchQueryTextContent.length < 3) {
     return {
       success: false,
       message: "La intención es insuficiente. Proporcione al menos 3 caracteres.",
@@ -48,37 +47,37 @@ export async function searchGlobalIntelligence(
 
   try {
     // 2. RECUPERACIÓN DE CREDENCIAL MAESTRA
-    const serviceRoleSecretKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const serviceRoleSecretKeyContent = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!serviceRoleSecretKey) {
-      console.error("🔥 [Search-Bridge] CRITICAL ERROR: SUPABASE_SERVICE_ROLE_KEY no está definida en el entorno del servidor.");
+    if (!serviceRoleSecretKeyContent) {
+      nicepodLog("🔥 [Search-Bridge] CRITICAL ERROR: SUPABASE_SERVICE_ROLE_KEY no detectada.", null, 'error');
       throw new Error("Error de configuración de infraestructura. Contacte al administrador.");
     }
 
-    console.info(`🔍 [Search-Bridge] Despachando pulso autorizado: "${targetSearchQuery.substring(0, 30)}..."`);
+    nicepodLog(`🔍 [Search-Bridge] Despachando pulso autorizado: "${targetSearchQueryTextContent.substring(0, 30)}..."`);
 
-    // 3. INVOCACIÓN DEL MOTOR UNIFICADO (Edge Function V4.1)
-    const { data: searchResultsData, error: edgeFunctionInvokeException } = await supabaseClient.functions.invoke('search-pro', {
+    // 3. INVOCACIÓN DEL MOTOR UNIFICADO (Edge Function V4.3)
+    const { data: searchResultsCollection, error: edgeFunctionInvokeHardwareExceptionInformation } = await supabaseSovereignClient.functions.invoke('search-pro', {
       body: {
-        query: targetSearchQuery,
+        query: targetSearchQueryTextContent,
         userLat: latitudeCoordinate || null,
         userLng: longitudeCoordinate || null,
-        match_count: resultsLimit,
+        match_count: resultsLimitMagnitude,
         match_threshold: 0.5,
         mode: 'search'
       },
       headers: {
-        Authorization: `Bearer ${serviceRoleSecretKey}`
+        Authorization: `Bearer ${serviceRoleSecretKeyContent}`
       }
     });
 
     // 4. GESTIÓN DE ERRORES DE SUBSISTEMA
-    if (edgeFunctionInvokeException) {
-      console.error(`🛑 [Search-Bridge] El motor de búsqueda devolvió un error técnico:`, edgeFunctionInvokeException);
-      throw new Error(`FALLO_SISTEMA_BUSQUEDA: ${edgeFunctionInvokeException.message || 'Error desconocido en Edge'}`);
+    if (edgeFunctionInvokeHardwareExceptionInformation) {
+      nicepodLog("🛑 [Search-Bridge] El motor de búsqueda reportó anomalía técnica.", edgeFunctionInvokeHardwareExceptionInformation, 'error');
+      throw new Error(`FALLO_SISTEMA_BUSQUEDA: ${edgeFunctionInvokeHardwareExceptionInformation.message || 'Error desconocido en Edge'}`);
     }
 
-    const localizedResultsInventory = searchResultsData || [];
+    const localizedResultsInventory = searchResultsCollection || [];
 
     return {
       success: true,
@@ -87,13 +86,13 @@ export async function searchGlobalIntelligence(
     };
 
   } catch (exceptionMessageInformation: unknown) {
-    const errorMessage = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
-    console.error("🔥 [Search-Bridge-Fatal]:", errorMessage);
+    const exceptionMessageInformationText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
+    nicepodLog("🔥 [Search-Bridge-Fatal]:", exceptionMessageInformationText, 'error');
 
     return {
       success: false,
       message: "El radar semántico no pudo estabilizar la señal.",
-      error: errorMessage,
+      error: exceptionMessageInformationText,
       results: []
     };
   }
@@ -107,19 +106,19 @@ export async function getDiscoverySignals(
   latitudeCoordinate?: number,
   longitudeCoordinate?: number
 ): Promise<SearchActionResponse> {
-  const supabaseClient = createClient();
+  const supabaseSovereignClient = createClient();
 
   try {
-    const serviceRoleSecretKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const serviceRoleSecretKeyContent = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!serviceRoleSecretKey) {
-      throw new Error("Service Key Missing");
+    if (!serviceRoleSecretKeyContent) {
+      throw new Error("Service Role Key Missing");
     }
 
-    console.info(`🌍 [Search-Bridge] Solicitando señales de descubrimiento global (Autorizado).`);
+    nicepodLog("🌍 [Search-Bridge] Solicitando señales de descubrimiento global (Handshake Autorizado).");
 
     // Invocamos el motor en modo 'discovery' (Bypass de vectorización)
-    const { data: discoveryResultsData, error: edgeFunctionInvokeException } = await supabaseClient.functions.invoke('search-pro', {
+    const { data: discoveryResultsCollection, error: edgeFunctionInvokeHardwareExceptionInformation } = await supabaseSovereignClient.functions.invoke('search-pro', {
       body: {
         userLat: latitudeCoordinate || null,
         userLng: longitudeCoordinate || null,
@@ -127,36 +126,32 @@ export async function getDiscoverySignals(
         mode: 'discovery'
       },
       headers: {
-        Authorization: `Bearer ${serviceRoleSecretKey}`
+        Authorization: `Bearer ${serviceRoleSecretKeyContent}`
       }
     });
 
-    if (edgeFunctionInvokeException) throw edgeFunctionInvokeException;
+    if (edgeFunctionInvokeHardwareExceptionInformation) throw edgeFunctionInvokeHardwareExceptionInformation;
 
     return {
       success: true,
-      message: "Señales de descubrimiento sincronizadas.",
-      results: discoveryResultsData || []
+      message: "Señales de descubrimiento sincronizadas con éxito.",
+      results: discoveryResultsCollection || []
     };
   } catch (exceptionMessageInformation: unknown) {
-    const errorMessage = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
-    console.warn("⚠️ [Search-Bridge] Fallo parcial en Discovery Signals:", errorMessage);
+    const exceptionMessageInformationText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
+    nicepodLog("⚠️ [Search-Bridge] Fallo parcial en Discovery Signals:", exceptionMessageInformationText, 'warn');
     return {
       success: false,
-      message: "No se pudo interceptar el pulso de la red.",
-      error: errorMessage,
+      message: "No se pudo interceptar el pulso de la red de descubrimiento.",
+      error: exceptionMessageInformationText,
       results: []
     };
   }
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Seguridad Server-Side: Esta acción es la única autorizada para portar la 
- *    SERVICE_ROLE_KEY. Al ejecutarse en el servidor de Next.js, la llave nunca 
- *    se filtra al cliente.
- * 2. Autenticación Edge: La cabecera 'Authorization: Bearer KEY' es el estándar 
- *    que nuestra función 'search-pro' verifica manualmente en su línea 40.
- * 3. Resiliencia: Si la llave falta en Vercel, el error es capturado y logueado 
- *    claramente, evitando comportamientos zombis.
+ * NOTA TÉCNICA DEL ARCHITECT (V4.3):
+ * 1. Industrial Observability: Sustitución de console.error por nicepodLog para integración con el peritaje industrial de la Workstation.
+ * 2. ZAP Compliance: Purificación de nomenclatura de variables ('resultsLimit' -> 'resultsLimitMagnitude', 'serviceRoleSecretKey' -> 'serviceRoleSecretKeyContent').
+ * 3. Infrastructure Safety: Centralización de la gestión de secretos del servidor para evitar fugas al Cristal.
  */

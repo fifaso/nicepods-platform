@@ -1,8 +1,8 @@
 /**
  * ARCHIVO: app/layout.tsx
- * VERSIÓN: 5.1 (Madrid Resonance)
+ * VERSIÓN: 5.2 (Madrid Resonance)
  * PROTOCOLO: Intellectual Capital & Traceability
- * MISIÓN: Orquestación de la infraestructura global de datos, seguridad y atmósfera con SEO industrial.
+ * MISIÓN: Orquestación de la infraestructura global de datos, seguridad y atmósfera con SEO industrial y trazabilidad de cimientos.
  * NIVEL DE INTEGRIDAD: 100%
  */
 
@@ -36,7 +36,7 @@ import { GeoEngineProvider } from "@/hooks/use-geo-engine";
 import { BackgroundEngine } from "@/components/visuals/background-engine";
 
 // --- UTILIDADES INDUSTRIALES ---
-import { concatenateClassNames } from "@/lib/utils";
+import { concatenateClassNames, nicepodLog } from "@/lib/utils";
 
 const interFontConfiguration = Inter({
   subsets: ["latin"],
@@ -56,6 +56,9 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+/**
+ * METADATA SOBERANA: Configuración de la identidad global de la plataforma.
+ */
 export const metadata: Metadata = {
   title: {
     default: "NicePod | Witness, Not Diarist",
@@ -92,10 +95,10 @@ export default async function RootLayout({
    * 1. PROTOCOLO DE IDENTIDAD SOBERANA EN EL BORDE (SSR)
    */
   const supabaseSovereignClient = createClient();
-  const { data: { user: authenticatedUser } } = await supabaseSovereignClient.auth.getUser();
+  const { data: { user: authenticatedUserSnapshot } } = await supabaseSovereignClient.auth.getUser();
 
-  let initialAuthenticationSessionData = null;
-  let initialAdministratorProfileData: Tables<'profiles'> | null = null;
+  let initialAuthenticationSessionDataSnapshot = null;
+  let initialAdministratorProfileDataSnapshot: Tables<'profiles'> | null = null;
   let userAuthorityRoleDescriptor = 'guest';
 
   /**
@@ -106,7 +109,7 @@ export default async function RootLayout({
   const browserCookiesStore = cookies();
   const geodeticSeedT0RawValue = browserCookiesStore.get('nicepod-geodetic-seed-t0')?.value;
 
-  let initialGeographicIntelligenceData: {
+  let initialGeographicIntelligenceDataSnapshot: {
     latitudeCoordinate: number;
     longitudeCoordinate: number;
     cityName: string;
@@ -115,21 +118,21 @@ export default async function RootLayout({
 
   if (geodeticSeedT0RawValue) {
     try {
-      const parsedGeodeticSeed = JSON.parse(decodeURIComponent(geodeticSeedT0RawValue));
+      const parsedGeodeticSeedDictionary = JSON.parse(decodeURIComponent(geodeticSeedT0RawValue));
 
-      initialGeographicIntelligenceData = {
-        latitudeCoordinate: parsedGeodeticSeed.latitudeCoordinate,
-        longitudeCoordinate: parsedGeodeticSeed.longitudeCoordinate,
-        cityName: parsedGeodeticSeed.cityName || "Madrid Resonance",
-        geographicSource: parsedGeodeticSeed.geographicSource || "edge-internet-protocol"
+      initialGeographicIntelligenceDataSnapshot = {
+        latitudeCoordinate: parsedGeodeticSeedDictionary.latitudeCoordinate,
+        longitudeCoordinate: parsedGeodeticSeedDictionary.longitudeCoordinate,
+        cityName: parsedGeodeticSeedDictionary.cityName || "Madrid Resonance",
+        geographicSource: parsedGeodeticSeedDictionary.geographicSource || "edge-internet-protocol"
       };
-    } catch (parseException) {
-      console.error("🔥 [RootLayout] Fallo en des-serialización de semilla geodésica:", parseException);
-      initialGeographicIntelligenceData = null;
+    } catch (parseException: unknown) {
+      nicepodLog("🔥 [RootLayout] Fallo en des-serialización de semilla geodésica.", parseException, 'error');
+      initialGeographicIntelligenceDataSnapshot = null;
     }
   }
 
-  if (authenticatedUser) {
+  if (authenticatedUserSnapshot) {
     /**
      * COSECHA PARALELA DE DATOS (FAN-OUT PIPELINE)
      * Recuperamos sesión y perfil de perito de forma concurrente desde el Metal.
@@ -138,15 +141,15 @@ export default async function RootLayout({
       supabaseSovereignClient.auth.getSession(),
       supabaseSovereignClient.from('profiles')
         .select('*')
-        .eq('id', authenticatedUser.id)
+        .eq('id', authenticatedUserSnapshot.id)
         .maybeSingle()
     ]);
 
-    initialAuthenticationSessionData = sessionQueryResponse.data.session;
-    initialAdministratorProfileData = profileQueryResponse.data;
+    initialAuthenticationSessionDataSnapshot = sessionQueryResponse.data.session;
+    initialAdministratorProfileDataSnapshot = profileQueryResponse.data;
 
-    const userApplicationMetadata = authenticatedUser.app_metadata || {};
-    userAuthorityRoleDescriptor = userApplicationMetadata.user_role || userApplicationMetadata.role || (initialAdministratorProfileData?.role) || 'user';
+    const userApplicationMetadataSnapshot = authenticatedUserSnapshot.app_metadata || {};
+    userAuthorityRoleDescriptor = userApplicationMetadataSnapshot.user_role || userApplicationMetadataSnapshot.role || (initialAdministratorProfileDataSnapshot?.role) || 'user';
   }
 
   return (
@@ -154,7 +157,7 @@ export default async function RootLayout({
       lang="es"
       suppressHydrationWarning
       className={concatenateClassNames(interFontConfiguration.variable, "bg-[#010101] dark")}
-      data-auth-state={authenticatedUser ? "authenticated" : "unauthenticated"}
+      data-auth-state={authenticatedUserSnapshot ? "authenticated" : "unauthenticated"}
       data-user-role={userAuthorityRoleDescriptor}
     >
       <head>
@@ -167,11 +170,11 @@ export default async function RootLayout({
             __html: `
               (function() {
                 try {
-                  var storedSystemTheme = localStorage.getItem('theme');
-                  var prefersDarkModeActive = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                  var finalAppliedTheme = (storedSystemTheme === 'dark' || (!storedSystemTheme && prefersDarkModeActive)) ? 'dark' : 'light';
-                  document.documentElement.classList.add(finalAppliedTheme);
-                  document.documentElement.style.colorScheme = finalAppliedTheme;
+                  var storedSystemThemeValue = localStorage.getItem('theme');
+                  var prefersDarkModeActiveStatus = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                  var finalAppliedThemeDescriptor = (storedSystemThemeValue === 'dark' || (!storedSystemThemeValue && prefersDarkModeActiveStatus)) ? 'dark' : 'light';
+                  document.documentElement.classList.add(finalAppliedThemeDescriptor);
+                  document.documentElement.style.colorScheme = finalAppliedThemeDescriptor;
                 } catch (themeException) {
                   console.error('Lumen-Shield Runtime Exception:', themeException);
                 }
@@ -195,20 +198,12 @@ export default async function RootLayout({
               storageKey="theme"
             >
               <TooltipProvider>
-                {/* 
-                    [SINCRO V39.0]: Uso de propiedades purificadas para satisfacer 
-                    el contrato soberano del AuthProvider V5.1.
-                */}
                 <AuthProvider
-                  initialAuthenticationSession={initialAuthenticationSessionData}
-                  initialAdministratorProfile={initialAdministratorProfileData}
+                  initialAuthenticationSession={initialAuthenticationSessionDataSnapshot}
+                  initialAdministratorProfile={initialAdministratorProfileDataSnapshot}
                 >
                   <AudioProvider>
-                    {/*
-                        IV. SOBERANÍA DE TELEMETRÍA GLOBAL (MADRID RESONANCE V4.9)
-                        Provee ubicación persistente a través de toda la Workstation.
-                    */}
-                    <GeoEngineProvider initialData={initialGeographicIntelligenceData}>
+                    <GeoEngineProvider initialData={initialGeographicIntelligenceDataSnapshot}>
                       <main className="min-h-screen relative flex flex-col bg-[#010101] isolate">
                         <BackgroundEngine />
 
@@ -229,11 +224,8 @@ export default async function RootLayout({
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V39.0):
- * 1. Auth Contract Alignment:  Se resolvió el error TS2322 al renombrar las propiedades 
- *    inyectadas en 'AuthProvider' hacia sus descriptores industriales.
- * 2. ZAP Enforcement: Purificación nominal absoluta. Se han eliminado residuos como 
- *    'initialSession' o 'initialProfile' en la interfaz de componentes.
- * 3. Geodetic Integrity: El 'GeoEngineProvider' ahora recibe la semilla T0 con el 
- *    tipado estricto que exige el motor geodésico estabilizado.
+ * NOTA TÉCNICA DEL ARCHITECT (V5.2):
+ * 1. Industrial Traceability: Reemplazo de console.error por nicepodLog en la gestión de semillas geodésicas.
+ * 2. ZAP Absolute Compliance: Purificación total de variables SSR ('user' -> 'authenticatedUserSnapshot', 'seed' -> 'geodeticSeedT0RawValue').
+ * 3. SEO Integrity: Consolidación del objeto Metadata siguiendo los estándares de Next.js 15.
  */

@@ -1,8 +1,8 @@
 /**
  * ARCHIVO: actions/draft-actions.ts
- * VERSIÓN: 8.0 (Madrid Resonance - Sovereign Edition)
+ * VERSIÓN: 8.1 (Madrid Resonance - Sovereign Edition)
  * PROTOCOLO: MADRID RESONANCE V8.0
- * MISIÓN: Gestionar el ciclo de vida de borradores para conocimiento aspatial con integridad nominal.
+ * MISIÓN: Gestionar el ciclo de vida de borradores para conocimiento aspatial con integridad nominal y trazabilidad industrial.
  * NIVEL DE INTEGRIDAD: 100% (Soberano / ZAP Compliant / Build Shield Green)
  */
 
@@ -10,6 +10,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { nicepodLog } from "@/lib/utils";
 
 // --- CONTRATOS DE INTEGRIDAD SOBERANA ---
 import {
@@ -50,7 +51,6 @@ export interface DraftDatabaseRow {
 /**
  * INTERFAZ: DraftRow
  * Define estrictamente la estructura de salida de la tabla 'podcast_drafts'.
- * Sustituye el uso de 'any' en creation_data por el contrato CreationMetadataPayload.
  */
 export interface DraftRow {
     identification: number;
@@ -80,7 +80,6 @@ export interface DraftRow {
 /**
  * listUserDrafts:
  * Recupera el inventario de misiones de investigación en curso del usuario.
- * Solo devuelve activos del dominio de Conocimiento Universal.
  */
 export async function listUserDrafts(): Promise<DraftRow[]> {
     const supabaseSovereignClient = createClient();
@@ -88,7 +87,7 @@ export async function listUserDrafts(): Promise<DraftRow[]> {
     // 1. Handshake de Identidad SSR
     const { data: { user: authenticatedUserSnapshot }, error: authenticationHardwareExceptionInformation } = await supabaseSovereignClient.auth.getUser();
     if (authenticationHardwareExceptionInformation || !authenticatedUserSnapshot) {
-        console.error("🛑 [Draft-Engine] Acceso denegado: Sesión no válida.");
+        nicepodLog("🛑 [Draft-Engine] Acceso denegado: Sesión no válida.", "AUTHENTICATION_REQUIRED", 'error');
         return [];
     }
 
@@ -101,7 +100,6 @@ export async function listUserDrafts(): Promise<DraftRow[]> {
 
         if (databaseQueryExceptionInformation) throw databaseQueryExceptionInformation;
 
-        // El mapeo a DraftRow garantiza cumplimiento ZAP y backward compatibility.
         return (podcastDraftDatabaseResultsCollection || []).map((podcastDraftDatabaseRowSnapshot: DraftDatabaseRow) => ({
             identification: podcastDraftDatabaseRowSnapshot.id,
             id: podcastDraftDatabaseRowSnapshot.id,
@@ -122,7 +120,7 @@ export async function listUserDrafts(): Promise<DraftRow[]> {
         }));
     } catch (exceptionMessageInformation: unknown) {
         const exceptionMessageInformationText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
-        console.error("🔥 [Draft-Engine-Fatal][List]:", exceptionMessageInformationText);
+        nicepodLog("🔥 [Draft-Engine-Fatal][List]:", exceptionMessageInformationText, 'error');
         return [];
     }
 }
@@ -168,7 +166,7 @@ export async function getDraftById(draftIdentification: number): Promise<DraftRo
         };
     } catch (exceptionMessageInformation: unknown) {
         const exceptionMessageInformationText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
-        console.error(`🔥 [Draft-Engine-Fatal][Get]: ID #${draftIdentification}`, exceptionMessageInformationText);
+        nicepodLog(`🔥 [Draft-Engine-Fatal][Get]: ID #${draftIdentification}`, exceptionMessageInformationText, 'error');
         return null;
     }
 }
@@ -182,7 +180,6 @@ export async function getDraftById(draftIdentification: number): Promise<DraftRo
 /**
  * deleteDraftAction:
  * Purga física de un borrador de la base de datos.
- * Libera inmediatamente la cuota de concurrencia del plan del usuario.
  */
 export async function deleteDraftAction(draftIdentification: number): Promise<DraftActionResponse> {
     const supabaseSovereignClient = createClient();
@@ -198,7 +195,6 @@ export async function deleteDraftAction(draftIdentification: number): Promise<Dr
 
         if (databaseDeleteExceptionInformation) throw databaseDeleteExceptionInformation;
 
-        // Invalida las rutas para asegurar que la UI refleje la purga.
         revalidatePath("/create");
         revalidatePath("/dashboard");
 
@@ -208,7 +204,7 @@ export async function deleteDraftAction(draftIdentification: number): Promise<Dr
         };
     } catch (exceptionMessageInformation: unknown) {
         const exceptionMessageInformationText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
-        console.error("🔥 [Draft-Engine-Fatal][Delete]:", exceptionMessageInformationText);
+        nicepodLog("🔥 [Draft-Engine-Fatal][Delete]:", exceptionMessageInformationText, 'error');
         return {
             success: false,
             message: "Error al purgar el activo.",
@@ -221,11 +217,6 @@ export async function deleteDraftAction(draftIdentification: number): Promise<Dr
 /**
  * promoteDraftToProduction:
  * Ejecuta el Salto Atómico de 'Borrador' a 'Podcast en Producción'.
- * 
- * [PROTOCOLO SOBERANO V2.6]:
- * Esta acción es estrictamente para la tabla 'micro_pods'.
- * Si el borrador contiene metadatos geoespaciales, la promoción fallará 
- * para evitar la contaminación de la biblioteca aspatial con activos físicos.
  */
 export async function promoteDraftToProduction(submissionPayload: {
     draftIdentification: number;
@@ -238,7 +229,6 @@ export async function promoteDraftToProduction(submissionPayload: {
     if (!authenticatedUserSnapshot) return { success: false, message: "IDENTIDAD_NO_VERIFICADA" };
 
     try {
-        // 1. Auditoría de Dominio: Verificamos que no sea un POI camuflado.
         const { data: draftExistenceVerificationSnapshot } = await supabaseSovereignClient
             .from("podcast_drafts")
             .select("creation_data")
@@ -249,9 +239,6 @@ export async function promoteDraftToProduction(submissionPayload: {
             throw new Error("DOMAIN_MISMATCH: Los activos situacionales deben promoverse vía Geo-Actions.");
         }
 
-        console.info(`🚀 [Draft-Engine] Promocionando Conocimiento Universal #${submissionPayload.draftIdentification}.`);
-
-        // 2. Invocación del RPC Soberano en el Metal SQL.
         const { data: promotionDatabaseResultCollection, error: databaseRpcExceptionInformation } = await supabaseSovereignClient.rpc('promote_draft_to_production_v2', {
             p_draft_id: submissionPayload.draftIdentification,
             p_final_title: submissionPayload.finalTitleTextContent,
@@ -270,7 +257,6 @@ export async function promoteDraftToProduction(submissionPayload: {
             };
         }
 
-        // 3. Sincronización de Universos Visuales.
         revalidatePath("/podcasts");
         revalidatePath("/dashboard");
         revalidatePath("/create");
@@ -283,7 +269,7 @@ export async function promoteDraftToProduction(submissionPayload: {
 
     } catch (exceptionMessageInformation: unknown) {
         const exceptionMessageInformationText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
-        console.error("🔥 [Draft-Engine-Fatal][Promotion]:", exceptionMessageInformationText);
+        nicepodLog("🔥 [Draft-Engine-Fatal][Promotion]:", exceptionMessageInformationText, 'error');
         return {
             success: false,
             message: "Error crítico durante la promoción. Verifique el contrato de datos.",
@@ -294,13 +280,8 @@ export async function promoteDraftToProduction(submissionPayload: {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Especialización de Dominio: El chequeo 'DOMAIN_MISMATCH' garantiza que la 
- *    biblioteca de podcasts universal no se ensucie con datos de GPS crudos, 
- *    manteniendo la especialización dictada por el Comandante.
- * 2. Cero 'any': La integración de 'CreationMetadataPayload' permite que el IDE 
- *    ofrezca autocompletado en los inputs de motivación y tono, eliminando 
- *    errores de escritura en el frontend.
- * 3. Trazabilidad: Se mantiene el registro de 'podId' en la respuesta exitosa 
- *    para permitir redirecciones instantáneas tras la promoción ("Zero-Wait").
+ * NOTA TÉCNICA DEL ARCHITECT (V8.1):
+ * 1. Industrial Traceability: Reemplazo de console.error por nicepodLog en todos los bloques catch para peritaje industrial.
+ * 2. ZAP Absolute Compliance: Purificación nominal exhaustiva en logs y respuestas.
+ * 3. Security: Handshake de identidad SSR obligatorio para todas las mutaciones.
  */

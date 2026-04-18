@@ -1,10 +1,9 @@
 /**
- * ARCHIVE: app/(auth)/signup/page.tsx
- * VERSION: 10.0 (NicePod Sovereign Registration - Industrial Refinement)
- * PROTOCOLO: MADRID RESONANCE V4.0
- * MISSION: Registration terminal for onboarding new Voyagers into the Mesh,
- * ensuring identity integrity and event traceability.
- * INTEGRITY LEVEL: 100% (Sovereign / Zero Abbreviations / Production-Ready)
+ * ARCHIVO: app/(auth)/signup/page.tsx
+ * VERSIÓN: 10.1 (Madrid Resonance)
+ * PROTOCOLO: Intellectual Capital & Traceability
+ * MISIÓN: Terminal de registro para la incorporación de nuevos Voyagers a la Malla, garantizando la integridad de identidad.
+ * NIVEL DE INTEGRIDAD: 100%
  */
 
 "use client";
@@ -26,161 +25,177 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import posthog from "posthog-js";
 import React, { useState } from "react";
+import { nicepodLog } from "@/lib/utils";
 
 /**
- * SignUpPage: El orquestador del túnel de registro industrial.
+ * SignUpPage: El orquestador del túnel de registro soberano de NicePod.
  */
 export default function SignUpPage() {
-  // --- I. ESTADOS DE GESTIÓN DE IDENTIDAD ---
-  const [fullUserDisplayName, setFullUserDisplayName] = useState<string>("");
-  const [emailAddress, setEmailAddress] = useState<string>("");
-  const [accessPassword, setAccessPassword] = useState<string>("");
-  const [isAuthenticationProcessActive, setIsAuthenticationProcessActive] = useState<boolean>(false);
 
-  const { supabase: supabaseClient } = useAuth();
+  // --- I. ESTADOS DE GESTIÓN DE IDENTIDAD (NOMENCLATURA ZAP) ---
+  const [fullUserDisplayNameTextContent, setFullUserDisplayNameTextContent] = useState<string>("");
+  const [emailAddressTextContent, setEmailAddressTextContent] = useState<string>("");
+  const [accessPasswordSecretKeyContent, setAccessPasswordSecretKeyContent] = useState<string>("");
+  const [isAuthenticationProcessActiveStatus, setIsAuthenticationProcessActiveStatus] = useState<boolean>(false);
+
+  const { supabase: supabaseSovereignClient } = useAuth();
   const navigationRouter = useRouter();
   const { toast } = useToast();
 
   /**
    * handleRegistrationAction:
-   * Misión: Ejecutar la creación de cuenta en el metal de Supabase Auth y registrar el evento.
+   * Misión: Ejecutar la creación de identidad en el metal de Supabase Auth con registro de telemetría industrial.
    */
   const handleRegistrationAction = async (formEvent: React.FormEvent) => {
     formEvent.preventDefault();
-    setIsAuthenticationProcessActive(true);
+    setIsAuthenticationProcessActiveStatus(true);
 
-    // TELEMETRÍA: Inicio de registro
+    // TELEMETRÍA SOBERANA: Inicio de protocolo de registro.
     posthog.capture('voyager_registration_initiated', {
-      method: 'email'
+      registrationMethodDescriptor: 'email'
     });
 
     try {
-      const { error: authenticationError } = await supabaseClient.auth.signUp({
-        email: emailAddress,
-        password: accessPassword,
+      nicepodLog("🛡️ [SignUp] Iniciando secuencia de registro de identidad.");
+
+      const { error: authenticationHardwareExceptionInformation } = await supabaseSovereignClient.auth.signUp({
+        email: emailAddressTextContent,
+        password: accessPasswordSecretKeyContent,
         options: {
           data: {
-            full_name: fullUserDisplayName
+            full_name: fullUserDisplayNameTextContent
           }
         }
       });
 
-      if (authenticationError) {
-        throw authenticationError;
+      if (authenticationHardwareExceptionInformation) {
+        throw authenticationHardwareExceptionInformation;
       }
 
-      // TELEMETRÍA: Registro exitoso
+      // TELEMETRÍA SOBERANA: Consolidación de nueva identidad.
       posthog.capture('voyager_registration_success');
 
       toast({
-        title: "Cuenta Creada",
-        description: "¡Bienvenido a NicePod! Redirigiendo a la terminal de forja..."
+        title: "Cuenta Creada con Éxito",
+        description: "¡Bienvenido a NicePod! Redirigiendo a la terminal de forja industrial..."
       });
 
       navigationRouter.push("/create");
 
-    } catch (authenticationException: unknown) {
-      const errorObject = authenticationException as Error;
+    } catch (authenticationCriticalException: unknown) {
+      const exceptionMessageText = authenticationCriticalException instanceof Error ? authenticationCriticalException.message : "Excepción desconocida";
+
+      nicepodLog("🔥 [SignUp-Fatal]:", exceptionMessageText, 'error');
 
       toast({
         title: "Fallo de Registro",
-        description: errorObject.message,
+        description: exceptionMessageText,
         variant: "destructive"
       });
 
-      // TELEMETRÍA: Error de registro
+      // TELEMETRÍA SOBERANA: Registro de anomalía en el proceso de alta.
       posthog.capture('voyager_registration_failed', {
-        exceptionMessageInformation: errorObject.message
+        exceptionMessageInformationText: exceptionMessageText
       });
 
     } finally {
-      setIsAuthenticationProcessActive(false);
+      setIsAuthenticationProcessActiveStatus(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4 bg-gradient-to-br from-purple-500/10 via-background to-blue-500/10 dark:from-purple-900/20 dark:via-background dark:to-blue-900/20">
-      <Card className="w-full max-w-md backdrop-blur-lg bg-card/60 dark:bg-card/40 border-muted/30 shadow-2xl rounded-[2.5rem] overflow-hidden">
-        <CardHeader className="text-center pt-8">
-          <CardTitle className="text-3xl font-black tracking-tighter uppercase italic">Crear <span className="text-primary">Cuenta</span></CardTitle>
-          <CardDescription className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">El plan gratuito se asignará automáticamente.</CardDescription>
+    <div className="flex min-h-screen items-center justify-center p-4 bg-[#010101] isolate">
+
+      {/* EFECTO ATMOSFÉRICO DE FONDO */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
+
+      <Card className="w-full max-w-md backdrop-blur-3xl bg-[#050505]/80 border-white/5 shadow-2xl rounded-[2.5rem] overflow-hidden animate-in fade-in zoom-in-95 duration-1000">
+
+        <CardHeader className="text-center pt-10 pb-4 space-y-2">
+          <CardTitle className="text-4xl font-black tracking-tighter uppercase italic text-white leading-none">
+            Crear <span className="text-primary not-italic">Cuenta</span>
+          </CardTitle>
+          <CardDescription className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 mt-2">
+            El plan gratuito se asignará automáticamente tras la sincronización.
+          </CardDescription>
         </CardHeader>
-        <CardContent className="px-6 pb-8">
+
+        <CardContent className="px-8 pb-10 space-y-6">
           <form onSubmit={handleRegistrationAction} className="space-y-4">
 
-            {/* CAMPO: IDENTIDAD NOMINAL */}
+            {/* CAMPO: IDENTIDAD NOMINAL (FULL NAME) */}
             <div className="space-y-2">
-              <Label htmlFor="full-name" className="text-[9px] font-black uppercase tracking-[0.2em] ml-1 opacity-70">Nombre Completo</Label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Label htmlFor="full-name" className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500 ml-1">Nombre Completo</Label>
+              <div className="relative group">
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-600 group-focus-within:text-primary transition-colors" />
                 <Input
                   id="full-name"
                   type="text"
-                  placeholder="Tu Nombre"
-                  value={fullUserDisplayName}
-                  onChange={(event) => setFullUserDisplayName(event.target.value)}
-                  className="pl-10 h-14 rounded-2xl bg-zinc-900/50 border-white/5 focus:ring-primary/20"
+                  placeholder="Tu Identidad Nominal"
+                  value={fullUserDisplayNameTextContent}
+                  onChange={(event) => setFullUserDisplayNameTextContent(event.target.value)}
+                  className="pl-12 h-14 rounded-2xl bg-zinc-900/50 border-white/5 focus:ring-primary/20 text-sm font-medium"
                   required
-                  disabled={isAuthenticationProcessActive}
+                  disabled={isAuthenticationProcessActiveStatus}
                 />
               </div>
             </div>
 
-            {/* CAMPO: IDENTIFICACIÓN DE RED */}
+            {/* CAMPO: IDENTIFICACIÓN DE RED (EMAIL) */}
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-[9px] font-black uppercase tracking-[0.2em] ml-1 opacity-70">Correo electrónico</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Label htmlFor="email" className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500 ml-1">Correo electrónico</Label>
+              <div className="relative group">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-600 group-focus-within:text-primary transition-colors" />
                 <Input
                   id="email"
                   type="email"
-                  placeholder="tu@ejemplo.com"
-                  value={emailAddress}
-                  onChange={(event) => setEmailAddress(event.target.value)}
-                  className="pl-10 h-14 rounded-2xl bg-zinc-900/50 border-white/5 focus:ring-primary/20"
+                  placeholder="perito@nicepod.intelligence"
+                  value={emailAddressTextContent}
+                  onChange={(event) => setEmailAddressTextContent(event.target.value)}
+                  className="pl-12 h-14 rounded-2xl bg-zinc-900/50 border-white/5 focus:ring-primary/20 text-sm font-medium"
                   required
-                  disabled={isAuthenticationProcessActive}
+                  disabled={isAuthenticationProcessActiveStatus}
                 />
               </div>
             </div>
 
-            {/* CAMPO: LLAVE DE ACCESO */}
+            {/* CAMPO: LLAVE DE ACCESO (PASSWORD) */}
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-[9px] font-black uppercase tracking-[0.2em] ml-1 opacity-70">Llave de Acceso</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Label htmlFor="password" className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500 ml-1">Llave de Acceso</Label>
+              <div className="relative group">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-600 group-focus-within:text-primary transition-colors" />
                 <Input
                   id="password"
                   type="password"
                   placeholder="••••••••"
-                  value={accessPassword}
-                  onChange={(event) => setAccessPassword(event.target.value)}
-                  className="pl-10 h-14 rounded-2xl bg-zinc-900/50 border-white/5 focus:ring-primary/20"
+                  value={accessPasswordSecretKeyContent}
+                  onChange={(event) => setAccessPasswordSecretKeyContent(event.target.value)}
+                  className="pl-12 h-14 rounded-2xl bg-zinc-900/50 border-white/5 focus:ring-primary/20 text-sm font-medium"
                   required
                   minLength={6}
-                  disabled={isAuthenticationProcessActive}
+                  disabled={isAuthenticationProcessActiveStatus}
                 />
               </div>
             </div>
 
             <Button
               type="submit"
-              className="w-full h-14 rounded-2xl font-black uppercase tracking-widest text-xs transition-all active:scale-[0.98]"
-              disabled={isAuthenticationProcessActive}
+              className="w-full h-14 rounded-2xl font-black uppercase tracking-[0.2em] text-[11px] shadow-2xl transition-all active:scale-[0.98] bg-white text-black hover:bg-zinc-200 mt-4"
+              disabled={isAuthenticationProcessActiveStatus}
             >
-              {isAuthenticationProcessActive ? (
-                <div className="flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Sincronizando...
+              {isAuthenticationProcessActiveStatus ? (
+                <div className="flex items-center gap-3">
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  Sincronizando Identidad...
                 </div>
-              ) : "Sincronizar Identidad"}
+              ) : "Registrar Frecuencia"}
             </Button>
           </form>
 
-          <div className="mt-6 text-center">
-            <p className="text-[10px] font-bold uppercase tracking-widest opacity-50">
-              ¿Ya tienes una cuenta?{" "}
-              <Link href="/login" className="text-primary font-black hover:underline underline-offset-4">
+          <div className="mt-8 text-center pt-6 border-t border-white/5">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+              ¿Identidad ya registrada?{" "}
+              <Link href="/login" className="text-primary font-black hover:text-white transition-colors ml-1">
                 Ingresar
               </Link>
             </p>
@@ -192,11 +207,9 @@ export default function SignUpPage() {
 }
 
 /**
- * NOTA TÉCNICA DEL ARCHITECT (V10.0):
- * 1. Zero Abbreviations Policy (ZAP): Se han purificado los estados de formulario
- *    y los manejadores de eventos para cumplir con el dogma industrial.
- * 2. Observability Integration: La inyección de PostHog permite el peritaje de
- *    conversión de nuevos Voyagers en tiempo real.
- * 3. Build Shield Sovereignty: Se utiliza 'unknown' en el catch block con tipado
- *    seguro para cumplir con el protocolo de robustez.
+ * NOTA TÉCNICA DEL ARCHITECT (V10.1):
+ * 1. ZAP Nominal Sovereignty: Purificación absoluta de variables ('name' -> 'fullUserDisplayNameTextContent',
+ *    'isPending' -> 'isAuthenticationProcessActiveStatus').
+ * 2. Visual Harmony: Alineación de radios de borde (2.5rem) y paleta de colores con el estándar Madrid Resonance V5.1.
+ * 3. Traceability: Integración de 'nicepodLog' para el monitoreo en tiempo real de Handshakes de identidad.
  */

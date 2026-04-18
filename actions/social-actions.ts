@@ -1,8 +1,8 @@
 /**
  * ARCHIVO: actions/social-actions.ts
- * VERSIÓN: 3.2 (NicePod Social Interactions - Sovereign Protocol V4.2)
- * PROTOCOLO: MADRID RESONANCE V4.0
- * MISIÓN: Gestionar el flujo de seguidores e interacciones entre curadores con integridad nominal.
+ * VERSIÓN: 3.3 (Madrid Resonance - Sovereign Edition)
+ * PROTOCOLO: MADRID RESONANCE V8.0
+ * MISIÓN: Gestionar el flujo de seguidores e interacciones entre curadores con integridad nominal y trazabilidad industrial.
  * NIVEL DE INTEGRIDAD: 100% (Soberano / ZAP Compliant / Build Shield Green)
  */
 
@@ -11,6 +11,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { ProfileActionResponse } from "@/types/profile";
+import { nicepodLog } from "@/lib/utils";
 
 /**
  * followUserAction: Misión: Establecer o revocar un vínculo de seguimiento entre curadores.
@@ -23,6 +24,7 @@ export async function followUserAction(
   // 1. HANDSHAKE DE SOBERANÍA
   const { data: { user: authenticatedUserSnapshot }, error: authenticationHardwareExceptionInformation } = await supabaseSovereignClient.auth.getUser();
   if (authenticationHardwareExceptionInformation || !authenticatedUserSnapshot) {
+    nicepodLog("🛑 [Social-Engine] Acceso denegado: Sesión no válida para protocolo de seguimiento.", "AUTHENTICATION_REQUIRED", 'error');
     return {
       isOperationSuccessful: false,
       responseStatusMessage: "SESIÓN_REQUERIDA: Inicie sesión para seguir a otros curadores.",
@@ -60,6 +62,7 @@ export async function followUserAction(
       if (deleteDatabaseExceptionInformation) throw deleteDatabaseExceptionInformation;
 
       revalidatePath(`/profile/${targetUserIdentification}`);
+      nicepodLog(`🛰️ [Social] Vínculo revocado entre ${authenticatedUserIdentification.substring(0, 8)} y ${targetUserIdentification.substring(0, 8)}`);
       return {
         isOperationSuccessful: true,
         responseStatusMessage: "Vínculo revocado con éxito.",
@@ -78,6 +81,7 @@ export async function followUserAction(
       if (insertDatabaseExceptionInformation) throw insertDatabaseExceptionInformation;
 
       revalidatePath(`/profile/${targetUserIdentification}`);
+      nicepodLog(`🛰️ [Social] Vínculo de sabiduría establecido entre ${authenticatedUserIdentification.substring(0, 8)} y ${targetUserIdentification.substring(0, 8)}`);
       return {
         isOperationSuccessful: true,
         responseStatusMessage: "Vínculo de sabiduría establecido.",
@@ -86,8 +90,8 @@ export async function followUserAction(
       };
     }
   } catch (exceptionMessageInformation: unknown) {
-    const errorMessage = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
-    console.error("🔥 [Social-Action-Error][Follow]:", errorMessage);
+    const exceptionMessageInformationText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
+    nicepodLog("🔥 [Social-Action-Error][Follow]:", exceptionMessageInformationText, 'error');
     return {
       isOperationSuccessful: false,
       responseStatusMessage: "Fallo crítico en la sincronía social.",
@@ -106,6 +110,7 @@ export async function toggleLikeAction(
 
   const { data: { user: authenticatedUserSnapshot }, error: authenticationHardwareExceptionInformation } = await supabaseSovereignClient.auth.getUser();
   if (authenticationHardwareExceptionInformation || !authenticatedUserSnapshot) {
+    nicepodLog("🛑 [Social-Engine] Acceso denegado para protocolo de resonancia.", "AUTHENTICATION_REQUIRED", 'error');
     return {
       isOperationSuccessful: false,
       responseStatusMessage: "Inicie sesión para interactuar.",
@@ -132,6 +137,7 @@ export async function toggleLikeAction(
 
       if (deleteDatabaseExceptionInformation) throw deleteDatabaseExceptionInformation;
 
+      nicepodLog(`🛰️ [Social] Resonancia retirada de Crónica #${podcastIdentification} por ${authenticatedUserIdentification.substring(0, 8)}`);
       return {
         isOperationSuccessful: true,
         responseStatusMessage: "Resonancia retirada.",
@@ -148,6 +154,7 @@ export async function toggleLikeAction(
 
       if (insertDatabaseExceptionInformation) throw insertDatabaseExceptionInformation;
 
+      nicepodLog(`🛰️ [Social] Resonancia registrada en Crónica #${podcastIdentification} por ${authenticatedUserIdentification.substring(0, 8)}`);
       return {
         isOperationSuccessful: true,
         responseStatusMessage: "Resonancia registrada.",
@@ -156,8 +163,8 @@ export async function toggleLikeAction(
       };
     }
   } catch (exceptionMessageInformation: unknown) {
-    const errorMessage = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
-    console.error("🔥 [Social-Action-Error][Like]:", errorMessage);
+    const exceptionMessageInformationText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
+    nicepodLog("🔥 [Social-Action-Error][Like]:", exceptionMessageInformationText, 'error');
     return {
       isOperationSuccessful: false,
       responseStatusMessage: "Error al procesar resonancia.",
@@ -165,3 +172,10 @@ export async function toggleLikeAction(
     };
   }
 }
+
+/**
+ * NOTA TÉCNICA DEL ARCHITECT (V3.3):
+ * 1. Industrial Traceability: Integración de 'nicepodLog' para el peritaje de interacciones sociales.
+ * 2. ZAP Absolute Compliance: Purificación nominal total en la lógica de logs.
+ * 3. Security: Handshake de identidad SSR mandatorio para preservar la integridad de los vínculos.
+ */
