@@ -118,11 +118,11 @@ export default function Step4NarrativeForge() {
       const uploadTokenResponse = await requestUploadTokensAction(['chronicle_final_master_export.webm']);
 
       if (!uploadTokenResponse.success || !uploadTokenResponse.data) {
-        throw new Error(uploadTokenResponse.error || "No se pudo autorizar la subida del activo acústico final.");
+        throw new Error(uploadTokenResponse.exceptionInformation || "No se pudo autorizar la subida del activo acústico final.");
       }
 
-      const audioStoragePath = uploadTokenResponse.data.pathsCollection[0];
-      const audioUploadUniformResourceLocator = uploadTokenResponse.data.uploadUrlsCollection[0];
+      const audioStoragePath = uploadTokenResponse.data.storagePathsCollection[0];
+      const audioUploadUniformResourceLocator = uploadTokenResponse.data.uploadUniformResourceLocatorsCollection[0];
 
       /**
        * 2. TRANSMISIÓN DIRECTA (Off-Main-Thread Transmission)
@@ -153,7 +153,7 @@ export default function Step4NarrativeForge() {
         // protocolo interno de revocation de URLs y Track Killer.
         stateDispatcher({ type: 'RESET_FORGE' });
       } else {
-        throw new Error(publicationCommitResults.error);
+        throw new Error(publicationCommitResults.exceptionInformation);
       }
     } catch (networkException) {
       const exceptionMessage = networkException instanceof Error ? networkException.message : String(networkException);

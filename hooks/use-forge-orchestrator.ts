@@ -115,13 +115,13 @@ export function useForgeOrchestrator() {
       
       if (parameters.intentAudioBlob) {
         nicepodLog("🎙️ [ForgeOrchestrator] Transmitiendo dictado sensorial al Escriba Neuronal...");
-        const audioBinaryBase64Data = await transmuteFileToAudioBinaryBase64Data(parameters.intentAudioBlob);
-        const speechToTextResults = await transcribeVoiceIntentAction({ audioBase64Data: audioBinaryBase64Data });
+        const audioBinaryBase64DataContent = await transmuteFileToAudioBinaryBase64Data(parameters.intentAudioBlob);
+        const speechToTextResults = await transcribeVoiceIntentAction({ audioBase64DataContent: audioBinaryBase64DataContent });
         
-        if (speechToTextResults.success && speechToTextResults.data?.transcriptionText) {
+        if (speechToTextResults.success && speechToTextResults.data?.transcriptionTextContent) {
           finalAdministratorIntentText = parameters.administratorIntentText.trim() !== "" 
-            ? `${speechToTextResults.data.transcriptionText}\n\n[Notas]: ${parameters.administratorIntentText}`
-            : speechToTextResults.data.transcriptionText;
+            ? `${speechToTextResults.data.transcriptionTextContent}\n\n[Notas]: ${parameters.administratorIntentText}`
+            : speechToTextResults.data.transcriptionTextContent;
           nicepodLog("✅ [ForgeOrchestrator] Fusión de inteligencia acústica completada.");
         }
       }
@@ -149,12 +149,16 @@ export function useForgeOrchestrator() {
       ]);
 
       if (!uploadTokensResponse.success || !uploadTokensResponse.data) {
-        throw new Error(uploadTokensResponse.error || "FALLO_ADQUISICION_PASAPORTES_STORAGE");
+        throw new Error(uploadTokensResponse.exceptionInformation || "FALLO_ADQUISICION_PASAPORTES_STORAGE");
       }
 
-      const { pathsCollection, uploadUrlsCollection } = uploadTokensResponse.data;
-      const heroImageStoragePath = pathsCollection[0];
-      const opticalCharacterRecognitionStoragePathsCollection = pathsCollection.slice(1);
+      const {
+        storagePathsCollection,
+        uploadUniformResourceLocatorsCollection
+      } = uploadTokensResponse.data;
+
+      const heroImageStoragePath = storagePathsCollection[0];
+      const opticalCharacterRecognitionStoragePathsCollection = storagePathsCollection.slice(1);
 
       /**
        * 3. TRANSMISIÓN DIRECTA (Protocolo Lightning V4.2)
@@ -165,7 +169,7 @@ export function useForgeOrchestrator() {
       
       const uploadExecutionResults = await Promise.all(
         allBinaryBlobsCollection.map((binaryBlob, itemIndex) => {
-          return fetch(uploadUrlsCollection[itemIndex], {
+          return fetch(uploadUniformResourceLocatorsCollection[itemIndex], {
             method: 'PUT',
             body: binaryBlob,
             headers: { 'Content-Type': 'image/jpeg' }
@@ -281,7 +285,7 @@ export function useForgeOrchestrator() {
       const synthesisResults = await synthesizeNarrativeAction(parameters);
 
       if (!synthesisResults.success || !synthesisResults.data) {
-        throw new Error(synthesisResults.error || "NARRATIVE_SYNTHESIS_MASTER_FAILURE");
+        throw new Error(synthesisResults.exceptionInformation || "NARRATIVE_SYNTHESIS_MASTER_FAILURE");
       }
 
       setForgeMetadata(previousMetadata => ({ 
@@ -304,8 +308,8 @@ export function useForgeOrchestrator() {
     }
   }, []);
 
-  const transcribeVoiceIntent = useCallback(async (audioBase64Data: string) => {
-    return await transcribeVoiceIntentAction({ audioBase64Data });
+  const transcribeVoiceIntent = useCallback(async (audioBase64DataContent: string) => {
+    return await transcribeVoiceIntentAction({ audioBase64DataContent });
   }, []);
 
   const resetForge = useCallback(() => {

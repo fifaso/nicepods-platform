@@ -46,19 +46,19 @@ const executeOperationalExceptionHandlingAction = (
   nicepodLog(`🔥 [NicePod][${exceptionSourceDescriptor}]`, exceptionMessageText, 'error');
 
   if (exceptionMessageText.includes("PGRST116")) {
-    return { success: false, message: "FALLO_MEMORIA_METAL: El nodo solicitado no existe.", error: exceptionMessageText };
+    return { success: false, message: "FALLO_MEMORIA_METAL: El nodo solicitado no existe.", exceptionInformation: exceptionMessageText };
   }
   if (exceptionMessageText.includes("42501")) {
-    return { success: false, message: "VIOLACION_POLITICA_SEGURIDAD: Acceso denegado al Metal.", error: exceptionMessageText };
+    return { success: false, message: "VIOLACION_POLITICA_SEGURIDAD: Acceso denegado al Metal.", exceptionInformation: exceptionMessageText };
   }
   if (exceptionMessageText.includes("UNAUTHORIZED")) {
-    return { success: false, message: "AUTORIDAD_INSUFICIENTE: La sesión del perito es inválida.", error: exceptionMessageText };
+    return { success: false, message: "AUTORIDAD_INSUFICIENTE: La sesión del perito es inválida.", exceptionInformation: exceptionMessageText };
   }
 
   return { 
     success: false, 
     message: `EXCEPCION_OPERATIVA [${exceptionSourceDescriptor}]: Error crítico en la transacción.`, 
-    error: exceptionMessageText 
+    exceptionInformation: exceptionMessageText
   };
 };
 
@@ -86,19 +86,22 @@ async function validateSovereignAccessAuthority() {
 
 /**
  * requestUploadTokensAction:
- * Misión: Generar URLs firmadas para la transmisión directa de binarios al Metal.
+ * Misión: Generar pasaportes de transmisión (URLs firmadas) para la subida directa
+ * de binarios al Metal con soberanía nominal absoluta.
  */
 export async function requestUploadTokensAction(
   fileNamesCollection: string[]
-): Promise<GeoActionResponse<{ pathsCollection: string[], uploadUrlsCollection: string[] }>> {
+): Promise<GeoActionResponse<{ storagePathsCollection: string[], uploadUniformResourceLocatorsCollection: string[] }>> {
   try {
     const authorizedUserAuthorSnapshot = await validateSovereignAccessAuthority();
     const supabaseSovereignClient = createClient();
     const currentUnixTimestampMagnitude = Date.now();
 
+    const authenticatedUserIdentification = authorizedUserAuthorSnapshot.id;
+
     const uploadTokensCollection = await Promise.all(
       fileNamesCollection.map(async (fileNameContent) => {
-        const fileStoragePathContent = `point-of-interest-evidence/${authorizedUserAuthorSnapshot.id}/${currentUnixTimestampMagnitude}_${fileNameContent}`;
+        const fileStoragePathContent = `point-of-interest-evidence/${authenticatedUserIdentification}/${currentUnixTimestampMagnitude}_${fileNameContent}`;
         const { data: signedUploadDataSnapshot, error: storageHardwareException } = await supabaseSovereignClient.storage
           .from('podcasts')
           .createSignedUploadUrl(fileStoragePathContent);
@@ -106,7 +109,10 @@ export async function requestUploadTokensAction(
         if (storageHardwareException || !signedUploadDataSnapshot) {
           throw new Error(`FALLO_FIRMA_TOKEN: No se pudo autorizar la subida de ${fileNameContent}`);
         }
-        return { path: fileStoragePathContent, url: signedUploadDataSnapshot.signedUrl };
+        return {
+          storagePathContent: fileStoragePathContent,
+          uploadUniformResourceLocator: signedUploadDataSnapshot.signedUrl
+        };
       })
     );
 
@@ -114,8 +120,8 @@ export async function requestUploadTokensAction(
       success: true,
       message: "Pasaportes de subida directa generados con éxito.",
       data: {
-        pathsCollection: uploadTokensCollection.map(token => token.path),
-        uploadUrlsCollection: uploadTokensCollection.map(token => token.url)
+        storagePathsCollection: uploadTokensCollection.map(token => token.storagePathContent),
+        uploadUniformResourceLocatorsCollection: uploadTokensCollection.map(token => token.uploadUniformResourceLocator)
       }
     };
   } catch (operationalException: unknown) {
@@ -160,8 +166,8 @@ export async function resolveLocationAction(
  * Misión: Transmutar el dictado sensorial en capital intelectual textual.
  */
 export async function transcribeVoiceIntentAction(parametersSnapshot: {
-  audioBase64Data: string;
-}): Promise<GeoActionResponse<{ transcriptionText: string }>> {
+  audioBase64DataContent: string;
+}): Promise<GeoActionResponse<{ transcriptionTextContent: string }>> {
   try {
     await validateSovereignAccessAuthority();
     const supabaseSovereignClient = createClient();
@@ -169,7 +175,9 @@ export async function transcribeVoiceIntentAction(parametersSnapshot: {
 
     const { data: transcriptionResultsSnapshot, error: edgeFunctionInvokeHardwareException } = await supabaseSovereignClient.functions.invoke('geo-transcribe-intent', {
       body: {
-        audioBinaryBase64Data: parametersSnapshot.audioBase64Data.includes(',') ? parametersSnapshot.audioBase64Data.split(',')[1] : parametersSnapshot.audioBase64Data,
+        audioBinaryBase64Data: parametersSnapshot.audioBase64DataContent.includes(',')
+          ? parametersSnapshot.audioBase64DataContent.split(',')[1]
+          : parametersSnapshot.audioBase64DataContent,
         mediaMimeTypeHeader: 'audio/webm' 
       },
       headers: { Authorization: `Bearer ${serviceRoleSecretKeyContent}` }
@@ -180,7 +188,7 @@ export async function transcribeVoiceIntentAction(parametersSnapshot: {
     return {
       success: true,
       message: "Dictado transmutado con éxito por el Escriba Neuronal.",
-      data: { transcriptionText: transcriptionResultsSnapshot.transcriptionText }
+      data: { transcriptionTextContent: transcriptionResultsSnapshot.transcriptionTextContent || transcriptionResultsSnapshot.transcriptionText }
     };
   } catch (operationalException: unknown) {
     return executeOperationalExceptionHandlingAction("AcousticTranscriptionFlow", operationalException);
@@ -229,7 +237,7 @@ export async function ingestIntelligenceDossierAction(
         ...validatedIngestionDataSnapshot,
         heroImageUniformResourceLocator: publicHeroUniformResourceLocator,
         opticalCharacterRecognitionImageUniformResourceLocatorsCollection: publicOpticalCharacterRecognitionUniformResourceLocatorsCollection,
-        userIdentification: authenticatedUserIdentification
+        authenticatedUserIdentification: authenticatedUserIdentification
       },
       headers: { Authorization: `Bearer ${serviceRoleSecretKeyContent}` }
     });
@@ -251,7 +259,9 @@ export async function ingestIntelligenceDossierAction(
       })
       .eq('id', pointOfInterestIdentification);
 
-    if (databaseUpdateHardwareException) throw new Error(`DATABASE_LINKING_FAILURE: ${databaseUpdateHardwareException.message}`);
+    if (databaseUpdateHardwareException) {
+      throw new Error(`DATABASE_LINKING_FAILURE: ${databaseUpdateHardwareException.message}`);
+    }
 
     return {
       success: true,
@@ -337,7 +347,9 @@ export async function publishSovereignChronicleAction(parametersSnapshot: {
       })
       .eq('id', parametersSnapshot.pointOfInterestIdentification);
 
-    if (databaseUpdateHardwareException) throw new Error(`DATABASE_PUBLISH_FAILURE: ${databaseUpdateHardwareException.message}`);
+    if (databaseUpdateHardwareException) {
+      throw new Error(`DATABASE_PUBLISH_FAILURE: ${databaseUpdateHardwareException.message}`);
+    }
 
     revalidatePath('/map');
     
