@@ -1,8 +1,8 @@
 /**
  * ARCHIVO: supabase/functions/research-intelligence/index.ts
- * VERSIÓN: 4.0
- * PROTOCOLO: Madrid Resonance Protocol V4.0
- * MISIÓN: Omni-Intelligence Sovereign with Perimeter Security.
+ * VERSIÓN: 5.0
+ * PROTOCOLO: Madrid Resonance Protocol V8.0
+ * MISIÓN: Omni-Intelligence Sovereign with Perimeter Guard and ZAP compliance.
  * NIVEL DE INTEGRIDAD: 100%
  */
 
@@ -14,7 +14,7 @@ import { guard, GuardContext } from "../_shared/guard.ts";
  * CLIENTE SUPABASE ADMIN:
  * Persistente para maximizar la velocidad de respuesta en el Edge.
  */
-const supabaseAdmin: SupabaseClient = createClient(
+const supabaseSovereignAdmin: SupabaseClient = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
 );
@@ -43,7 +43,7 @@ const executeResearchIntelligenceOrchestrator = async (request: Request, context
         targetDraftIdentification = draftIdentification;
         console.info(`📡 [Researcher][${correlationIdentification}] Iniciando Misión de Inteligencia: ${researchTopicContent}`);
 
-        // VALIDACIÓN DE PROPIEDAD: Aunque usamos Service Role, verificamos que el borrador pertenezca al usuario si no es una petición interna.
+        // VALIDACIÓN DE PROPIEDAD: DOCTRINA DIS
         if (!context.isTrusted) {
             const authorizationHeader = request.headers.get('Authorization');
             if (!authorizationHeader) throw new Error("AUTORIZACION_REQUERIDA: No se detectó token de acceso.");
@@ -87,45 +87,49 @@ const executeResearchIntelligenceOrchestrator = async (request: Request, context
                 relevance: 1.0
             }));
         } else {
-            const { data: vaultFacts } = await supabaseAdmin.rpc('search_knowledge_vault', {
-                query_embedding: queryVector,
-                match_threshold: 0.82,
-                match_count: 5
-            });
+            const [
+                { data: vaultFactsResults },
+                { data: freshResearchResults }
+            ] = await Promise.all([
+                supabaseSovereignAdmin.rpc('search_knowledge_vault', {
+                    query_embedding: queryVectorData,
+                    match_threshold: 0.82,
+                    match_count: 5
+                }),
+                supabaseSovereignAdmin.rpc('search_pulse_staging', {
+                    query_embedding: queryVectorData,
+                    match_threshold: 0.80,
+                    match_count: 5
+                })
+            ]);
 
-            const { data: freshPapers } = await supabaseAdmin.rpc('search_pulse_staging', {
-                query_embedding: queryVector,
-                match_threshold: 0.80,
-                match_count: 5
-            });
-
-            finalSources = [
-                ...(vaultFacts || []).map((v: any) => ({
-                    id: v.source_id || v.id,
-                    title: v.title || "Archivo de Bóveda",
-                    content: v.content || "",
-                    uniformResourceLocator: v.uniformResourceLocator || "#",
-                    origin: 'vault',
-                    relevance: v.similarity || 0.85
+            finalIntelligenceSourcesCollection = [
+                ...(vaultFactsResults || []).map((vaultItem: any) => ({
+                    identification: vaultItem.source_id || vaultItem.id,
+                    titleTextContent: vaultItem.title || "Archivo de Bóveda",
+                    summaryTextContent: vaultItem.content || "",
+                    uniformResourceLocator: vaultItem.url || "#",
+                    originDescriptor: 'vault',
+                    relevanceMagnitude: vaultItem.similarity || 0.85
                 })),
-                ...(freshPapers || []).map((p: any) => ({
-                    id: p.id,
-                    title: p.title || "Investigación Reciente",
-                    content: p.summary || "",
-                    uniformResourceLocator: p.uniformResourceLocator || "#",
-                    origin: 'fresh_research',
-                    relevance: p.similarity || 0.85
+                ...(freshResearchResults || []).map((researchItem: any) => ({
+                    identification: researchItem.id,
+                    titleTextContent: researchItem.title || "Investigación Reciente",
+                    summaryTextContent: researchItem.summary || "",
+                    uniformResourceLocator: researchItem.url || "#",
+                    originDescriptor: 'fresh_research',
+                    relevanceMagnitude: researchItem.similarity || 0.85
                 }))
             ];
         }
 
-        const paperIds = finalSources
-            .filter(s => s.origin === 'fresh_research' || s.origin === 'pulse_selection')
-            .map(s => s.id)
+        const paperIdentificationsCollection = finalIntelligenceSourcesCollection
+            .filter(source => source.originDescriptor === 'fresh_research' || source.originDescriptor === 'pulse_selection')
+            .map(source => source.identification)
             .filter(Boolean);
 
-        if (paperIds.length > 0) {
-            await supabaseAdmin.rpc('increment_paper_usage', { p_ids: paperIds });
+        if (paperIdentificationsCollection.length > 0) {
+            await supabaseSovereignAdmin.rpc('increment_paper_usage', { p_ids: paperIdentificationsCollection });
         }
 
         if (finalIntelligenceSourcesCollection.length < 3) {

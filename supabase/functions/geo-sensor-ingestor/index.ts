@@ -1,12 +1,9 @@
 /**
  * ARCHIVO: supabase/functions/geo-sensor-ingestor/index.ts
- * VERSIÓN: 6.1 (NicePod Sovereign Ingestor - Binary Stream Safety Edition)
- * PROTOCOLO: MADRID RESONANCE V4.5
- * 
- * Misión: Peritaje técnico de evidencia física mediante IA.
- * [REFORMA V6.1]: Solución definitiva al error 'Maximum call stack size exceeded'.
- * Implementación de codificación mediante buffer nativo (std/base64) para manejar 
- * binarios de alta resolución (4K+) sin desbordamiento de memoria.
+ * VERSIÓN: 7.0 (NicePod Sovereign Ingestor - Perimeter Guard Edition)
+ * PROTOCOLO: MADRID RESONANCE V8.0
+ * MISIÓN: Peritaje técnico de evidencia física mediante IA con Blindaje Guard.
+ * NIVEL DE INTEGRIDAD: 100%
  */
 
 import { encodeBase64 } from "https://deno.land/std@0.203.0/encoding/base64.ts"; // [MANDATORIO]
@@ -14,23 +11,25 @@ import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-
 import { AI_MODELS, parseAIJson } from "../_shared/ai.ts";
 import { guard, GuardContext } from "../_shared/guard.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { guard, GuardContext } from "../_shared/guard.ts";
 
-const GOOGLE_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
-const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 
-const supabaseAdministrator: SupabaseClient = createClient(SUPABASE_URL ?? "", SERVICE_ROLE_KEY ?? "");
+const supabaseAdministrator: SupabaseClient = createClient(
+  SUPABASE_URL ?? "",
+  SUPABASE_SERVICE_ROLE_KEY ?? ""
+);
 
 /**
  * retrieveBinaryEvidenceAsBase64:
- * [FIX V6.1]: Uso de encodeBase64 de la librería estándar de Deno.
- * Evita el operador spread (...) que colapsa la pila en archivos grandes.
+ * Misión: Recuperar binarios desde Storage y codificarlos para el Oráculo IA.
  */
 async function retrieveBinaryEvidenceAsBase64(uniformResourceLocator: string): Promise<string> {
   const networkResponse = await fetch(uniformResourceLocator);
   if (!networkResponse.ok) throw new Error(`STORAGE_FETCH_FAILURE: ${uniformResourceLocator}`);
   const binaryArrayBuffer = await networkResponse.arrayBuffer();
-  // Codificación segura de alto rendimiento
   return encodeBase64(new Uint8Array(binaryArrayBuffer));
 }
 
@@ -74,14 +73,18 @@ const executeSovereignIngestionHandler = async (request: Request, context: Guard
       categoryMission,
       categoryEntity,
       historicalEpoch,
-      referenceUniformResourceLocator,
       latitudeCoordinate,
       longitudeCoordinate,
       accuracyMeters,
-      userIdentification
+      authenticatedUserIdentification
     } = expedientPayload;
 
-    // EXTRACCIÓN BINARIA SEGURA (PILLAR 4 - MTI)
+    // VALIDACIÓN DE IDENTIDAD SOBERANA
+    if (!context.isTrusted && !authenticatedUserIdentification) {
+       throw new Error("IDENTITY_VERIFICATION_FAILED: Falta identificador de usuario.");
+    }
+
+    // EXTRACCIÓN BINARIA SEGURA
     const [heroBase64, ...opticalBase64Collection] = await Promise.all([
       retrieveBinaryEvidenceAsBase64(heroImageUniformResourceLocator),
       ...opticalCharacterRecognitionImageUniformResourceLocatorsCollection.map(retrieveBinaryEvidenceAsBase64)
@@ -89,56 +92,63 @@ const executeSovereignIngestionHandler = async (request: Request, context: Guard
 
     const systemInstruction = `Actúa como Perito de Inteligencia Urbana. Responde solo en JSON. Misión: ${categoryMission}, Entidad: ${categoryEntity}, Época: ${historicalEpoch}.`;
 
-    const geminiParts = [
+    const geminiPartsCollection = [
       { text: systemInstruction },
       { inline_data: { mime_type: "image/jpeg", data: heroBase64 } }
     ];
 
-    opticalBase64Collection.forEach(data => {
-      geminiParts.push({ inline_data: { mime_type: "image/jpeg", data } });
+    opticalBase64Collection.forEach(binaryData => {
+      geminiPartsCollection.push({ inline_data: { mime_type: "image/jpeg", data: binaryData } });
     });
 
     const intelligenceResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${AI_MODELS.PRO}:generateContent?key=${GOOGLE_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${AI_MODELS.PRO}:generateContent?key=${GOOGLE_AI_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{ parts: geminiParts }],
+          contents: [{ parts: geminiPartsCollection }],
           generationConfig: { temperature: 0.1, response_mime_type: "application/json" }
         })
       }
     );
 
-    const result = await intelligenceResponse.json();
-    const rawText = result.candidates?.[0]?.content?.parts?.[0]?.text;
-    const analysis = parseAIJson<any>(rawText);
+    const resultData = await intelligenceResponse.json();
+    const rawAnalysisText = resultData.candidates?.[0]?.content?.parts?.[0]?.text;
+    const analysisResultsDossier = parseAIJson<any>(rawAnalysisText);
 
-    const { data: pointOfInterestRecord, error: dbError } = await supabaseAdministrator
+    const { data: pointOfInterestRecord, error: databaseHardwareException } = await supabaseAdministrator
       .from('points_of_interest')
       .insert({
-        author_identification: userIdentification,
-        name: analysis.officialName || "Nodo Detectado",
+        author_identification: authenticatedUserIdentification,
+        name: analysisResultsDossier.officialName || "Nodo Detectado",
         category_mission: categoryMission,
         category_entity: categoryEntity,
         historical_epoch: historicalEpoch,
         geo_location: `POINT(${longitudeCoordinate} ${latitudeCoordinate})`,
         status: 'ingested',
-        metadata: { grounding_summary: analysis.groundingVerification }
+        metadata: { grounding_summary: analysisResultsDossier.groundingVerification }
       })
       .select('id').single();
 
-    if (dbError) throw dbError;
+    if (databaseHardwareException) throw databaseHardwareException;
 
     await supabaseAdministrator.from('point_of_interest_ingestion_buffer').insert({
       point_of_interest_identification: pointOfInterestRecord.id,
-      raw_ocr_text: analysis.historicalDossier,
-      visual_analysis_dossier: { ...analysis, administrator_original_intent: administratorIntentText },
+      raw_ocr_text: analysisResultsDossier.historicalDossier,
+      visual_analysis_dossier: { ...analysisResultsDossier, administrator_original_intent: administratorIntentText },
       sensor_accuracy: accuracyMeters,
       ingested_at: new Date().toISOString()
     });
 
-    return new Response(JSON.stringify({ success: true, data: { pointOfInterestIdentification: pointOfInterestRecord.id, analysisResults: analysis } }), {
+    return new Response(JSON.stringify({
+      success: true,
+      data: {
+        pointOfInterestIdentification: pointOfInterestRecord.id,
+        analysisResults: analysisResultsDossier
+      },
+      trace_identification: correlationIdentification
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200
     });

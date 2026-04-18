@@ -23,8 +23,7 @@ import { nicepodLog } from "@/lib/utils";
  *
  * @description
  * Esta función constituye el puente de soberanía entre el Metal (Base de Datos)
- * y el Crystal (Interfaz de Usuario). Su complejidad radica en la reconciliación
- * de la nomenclatura técnica industrial (ZAP) con el esquema físico de Supabase.
+ * y el Crystal (Interfaz de Usuario).
  *
  * @param rawDatabaseRecord Registro crudo proveniente de la tabla 'micro_pods'.
  * @returns Entidad Podcast purificada lista para el consumo en la plataforma.
@@ -37,14 +36,6 @@ export function transformPodcastMetalToCrystal(
   if (!rawDatabaseRecord.id) {
     nicepodLog(
       "⚠️ [Mapper-Warning][Podcast]: Detección de registro sin Identificación Primaria.",
-      { recordIdentification: rawDatabaseRecord.id },
-      'warn'
-    );
-  }
-
-  if (!rawDatabaseRecord.user_id) {
-    nicepodLog(
-      "⚠️ [Mapper-Warning][Podcast]: Detección de registro huérfano (Missing authorUserIdentification).",
       { recordIdentification: rawDatabaseRecord.id },
       'warn'
     );
@@ -81,6 +72,7 @@ export function transformPodcastMetalToCrystal(
     audioAssemblyStatus: rawDatabaseRecord.audio_assembly_status,
     totalAudioSegmentsCount: rawDatabaseRecord.total_audio_segments,
     currentAudioSegmentsCount: rawDatabaseRecord.current_audio_segments,
+    isFeaturedContentStatus: rawDatabaseRecord.is_featured,
 
     // --- ANALÍTICA Y RENDIMIENTO ---
     playCountTotal: Number(rawDatabaseRecord.play_count),

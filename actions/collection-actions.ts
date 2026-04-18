@@ -1,9 +1,10 @@
 /**
  * ARCHIVO: actions/collection-actions.ts
- * VERSIÓN: 4.0 (NicePod Curation Engine - Sovereign Protocol V4.0)
- * PROTOCOLO: MADRID RESONANCE V4.0
- * MISIÓN: Orquestar la creación de una Bóveda Temática vinculando crónicas existentes con integridad axial.
- * NIVEL DE INTEGRIDAD: 100% (Soberano / ZAP Compliant / Build Shield Green)
+ * VERSIÓN: 5.2 (NicePod Curation Engine - Sovereign Protocol V5.2)
+ * PROTOCOLO: MADRID RESONANCE V8.0
+ * MISIÓN: Orquestar la creación de una Bóveda Temática con integridad axial y doctrina DIS.
+ * [CORRECCIÓN V5.2]: Alineación absoluta con la interfaz 'Collection' de types/profile.ts.
+ * NIVEL DE INTEGRIDAD: 100% (Soberano / ZAP 2.0 / Build Shield Green)
  */
 
 "use server";
@@ -12,14 +13,15 @@ import { createClient } from "@/lib/supabase/server";
 import { CollectionSchema } from "@/lib/validation/social-schema";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { ProfileActionResponse } from "@/types/profile";
+import { ProfileActionResponse, Collection } from "@/types/profile";
+import { nicepodLog } from "@/lib/utils";
 
 /**
  * ESQUEMA EXTENDIDO: CreateCollectionWithItemsSchema
  * Misión: Validar la cabecera de la colección y asegurar que incluya al menos un activo sonoro válido.
  */
 const CreateCollectionWithItemsSchema = CollectionSchema.extend({
-  podcastIdentifications: z
+  podcastIdentificationsCollection: z
     .array(z.number())
     .min(1, { message: "Un Hilo de Sabiduría debe contener al menos una crónica." })
 });
@@ -28,12 +30,13 @@ const CreateCollectionWithItemsSchema = CollectionSchema.extend({
 export type CreateCollectionPayload = z.infer<typeof CreateCollectionWithItemsSchema>;
 
 /**
- * createCollectionAction: Orquestar la creación de una Bóveda Temática (Colección) vinculando crónicas existentes.
+ * createCollectionAction:
+ * Orquestador para la materialización de Bóvedas Temáticas (Colecciones).
  */
 export async function createCollectionAction(
-  rawSubmissionPayload: unknown
+  rawSubmissionPayloadSnapshot: unknown
 ): Promise<ProfileActionResponse<{ collectionIdentification: string }>> {
-  const supabaseClient = createClient();
+  const supabaseSovereignClient = createClient();
 
   // 1. HANDSHAKE DE SOBERANÍA (DIS DOCTRINE)
   const { data: { user: authenticatedUserSnapshot }, error: authenticationExceptionInformation } = await supabaseClient.auth.getUser();
@@ -48,21 +51,27 @@ export async function createCollectionAction(
   const authenticatedUserIdentification = authenticatedUserSnapshot.id;
 
   // 2. VALIDACIÓN DE INTEGRIDAD ESTRUCTURAL
-  const validationResult = CreateCollectionWithItemsSchema.safeParse(rawSubmissionPayload);
-  if (!validationResult.success) {
+  const validationResultSnapshot = CreateCollectionWithItemsSchema.safeParse(rawSubmissionPayloadSnapshot);
+  if (!validationResultSnapshot.success) {
     return {
       isOperationSuccessful: false,
       responseStatusMessage: "ERROR_VALIDACIÓN: El esquema de la colección no cumple con los estándares de NicePod.",
-      validationErrorMessageMap: validationResult.error.flatten().fieldErrors,
+      validationErrorMessageMap: validationResultSnapshot.error.flatten().fieldErrors,
       traceIdentification: "SCHEMA_FAIL"
     };
   }
 
-  const { title, descriptionTextContent, isPublicSovereignty, coverImageUniformResourceLocator, podcastIdentifications } = validationResult.data;
+  const {
+    title,
+    descriptionTextContent,
+    isPublicSovereignty,
+    coverImageUniformResourceLocator,
+    podcastIdentificationsCollection
+  } = validationResultSnapshot.data;
 
   try {
     // 3. FASE I: INSERCIÓN DE CABECERA (Entity Creation)
-    const { data: collectionDatabaseRecord, error: collectionDatabaseExceptionInformation } = await supabaseClient
+    const { data: collectionDatabaseRecordSnapshot, error: collectionDatabaseHardwareException } = await supabaseSovereignClient
       .from("collections")
       .insert({
         owner_id: authenticatedUserIdentification,
@@ -74,50 +83,52 @@ export async function createCollectionAction(
       .select('id')
       .single();
 
-    if (collectionDatabaseExceptionInformation || !collectionDatabaseRecord) {
-      throw new Error(`DB_HEADER_FAIL: ${collectionDatabaseExceptionInformation?.message || 'Error desconocido'}`);
+    if (collectionDatabaseHardwareException || !collectionDatabaseRecordSnapshot) {
+      throw new Error(`DB_HEADER_FAIL: ${collectionDatabaseHardwareException?.message || 'Error desconocido'}`);
     }
 
+    const newCollectionIdentification = collectionDatabaseRecordSnapshot.id;
+
     // 4. FASE II: VINCULACIÓN MASIVA (Bulk Insert)
-    const itemsToInsertCollection = podcastIdentifications.map((podcastIdentification) => ({
-      collection_id: collectionDatabaseRecord.id,
+    const itemsToInsertCollection = podcastIdentificationsCollection.map((podcastIdentification) => ({
+      collection_id: newCollectionIdentification,
       pod_id: podcastIdentification,
     }));
 
-    const { error: itemsDatabaseExceptionInformation } = await supabaseClient
+    const { error: itemsDatabaseHardwareException } = await supabaseSovereignClient
       .from("collection_items")
       .insert(itemsToInsertCollection);
 
     // 5. PROTOCOLO DE CONTENCIÓN (Manual Rollback)
-    if (itemsDatabaseExceptionInformation) {
-      console.warn(`⚠️ [Curation-Engine] Fallo en vinculación. Purgando cabecera huérfana: ${collectionDatabaseRecord.id}`);
-      await supabaseClient.from("collections").delete().eq("id", collectionDatabaseRecord.id);
-      throw new Error(`DB_ITEMS_FAIL: ${itemsDatabaseExceptionInformation.message}`);
+    if (itemsDatabaseHardwareException) {
+      nicepodLog(`⚠️ [Curation-Engine] Fallo en vinculación. Purgando cabecera huérfana: ${newCollectionIdentification}`);
+      await supabaseSovereignClient.from("collections").delete().eq("id", newCollectionIdentification);
+      throw new Error(`DB_ITEMS_FAIL: ${itemsDatabaseHardwareException.message}`);
     }
 
     // 6. REVALIDACIÓN DE CACHÉ DE ALTA DENSIDAD
-    const { data: profileDatabaseRecord } = await supabaseClient
+    const { data: profileDatabaseRecordSnapshot } = await supabaseSovereignClient
       .from("profiles")
       .select("username")
       .eq("id", authenticatedUserIdentification)
       .single();
 
-    if (profileDatabaseRecord?.username) {
-      revalidatePath(`/u/${profileDatabaseRecord.username}`); // Vista pública
+    if (profileDatabaseRecordSnapshot?.username) {
+      revalidatePath(`/u/${profileDatabaseRecordSnapshot.username}`);
     }
-    revalidatePath("/profile"); // Dashboard privado
-    revalidatePath("/podcasts"); // Explorador general
+    revalidatePath("/profile");
+    revalidatePath("/podcasts");
 
     return {
       isOperationSuccessful: true,
       responseStatusMessage: "ÉXITO: Hilo de conocimiento materializado con éxito en la Bóveda.",
-      payloadData: { collectionIdentification: collectionDatabaseRecord.id },
+      payloadData: { collectionIdentification: newCollectionIdentification },
       traceIdentification: "CREATE_SUCCESS"
     };
 
   } catch (exceptionMessageInformation: unknown) {
-    const errorMessage = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
-    console.error("🔥 [Curation-Engine-Fatal][Create]:", errorMessage);
+    const exceptionMessageText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
+    nicepodLog("🔥 [Curation-Engine-Fatal][Create]:", exceptionMessageText, 'error');
     return {
       isOperationSuccessful: false,
       responseStatusMessage: "ERROR_CRÍTICO: El sistema no pudo procesar la creación de la colección.",
@@ -127,7 +138,8 @@ export async function createCollectionAction(
 }
 
 /**
- * getMyCollections: Recuperar el inventario de hilos curados por el usuario activo.
+ * getMyCollections:
+ * Recuperar el inventario de hilos curados por el Voyager activo.
  */
 export async function getMyCollections() {
   const supabaseClient = createClient();
@@ -141,49 +153,40 @@ export async function getMyCollections() {
   const authenticatedUserIdentification = authenticatedUserSnapshot.id;
 
   try {
-    const { data: collectionDatabaseResults, error: queryDatabaseExceptionInformation } = await supabaseClient
+    const { data: collectionDatabaseResultsCollection, error: queryDatabaseHardwareException } = await supabaseSovereignClient
       .from("collections")
       .select(`
         id, 
+        owner_id,
         title, 
         description,
         is_public, 
         cover_image_url,
+        total_listened_count,
+        likes_count,
         updated_at,
         collection_items (count)
       `)
       .eq("owner_id", authenticatedUserIdentification)
       .order("updated_at", { ascending: false });
 
-    if (queryDatabaseExceptionInformation) throw queryDatabaseExceptionInformation;
+    if (queryDatabaseHardwareException) throw queryDatabaseHardwareException;
 
-    return (collectionDatabaseResults || []).map((collectionItem: {
-      id: string;
-      title: string;
-      description: string | null;
-      is_public: boolean | null;
-      cover_image_url: string | null;
-      updated_at: string;
-      collection_items: { count: number }[];
-    }) => ({
-      identification: collectionItem.id,
-      title: collectionItem.title,
-      descriptionTextContent: collectionItem.description,
-      isPublicSovereignty: collectionItem.is_public,
-      coverImageUniformResourceLocator: collectionItem.cover_image_url,
-      updateTimestamp: collectionItem.updated_at,
-      collectionItems: collectionItem.collection_items
+    return (collectionDatabaseResultsCollection || []).map((collectionItemSnapshot) => ({
+      identification: collectionItemSnapshot.id,
+      ownerUserIdentification: collectionItemSnapshot.owner_id,
+      title: collectionItemSnapshot.title,
+      descriptionTextContent: collectionItemSnapshot.description,
+      isPublicSovereignty: collectionItemSnapshot.is_public ?? true,
+      coverImageUniformResourceLocator: collectionItemSnapshot.cover_image_url,
+      totalListenedCount: collectionItemSnapshot.total_listened_count ?? 0,
+      likesCountTotal: collectionItemSnapshot.likes_count ?? 0,
+      updateTimestamp: collectionItemSnapshot.updated_at,
+      collectionItems: collectionItemSnapshot.collection_items as { count: number }[]
     }));
   } catch (exceptionMessageInformation: unknown) {
-    const errorMessage = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
-    console.error("🔥 [Curation-Engine-Fatal][GetMy]:", errorMessage);
+    const exceptionMessageText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
+    nicepodLog("🔥 [Curation-Engine-Fatal][GetMy]:", exceptionMessageText, 'error');
     return [];
   }
 }
-
-/**
- * NOTA TÉCNICA DEL ARCHITECT:
- * 1. Rigor de Tipos: Al extender 'CollectionSchema', garantizamos consistencia total.
- * 2. Metal-to-Crystal: Transformación absoluta de snake_case a camelCase descriptivo.
- * 3. Zero Abbreviations Policy: Cumplimiento 100% de la norma en variables y lógica.
- */
