@@ -94,7 +94,7 @@ export async function getAdminDashboardStats(): Promise<SovereignAdministrativeR
       }
     };
   } catch (governanceException: any) {
-    nicepodLog("🔥 [Admin-Action][Stats]:", governanceException.message, 'error');
+    nicepodLog("🔥 [Admin-Action][Stats]:", governanceException.message, 'exceptionInformation');
     return {
       isOperationSuccessful: false,
       responseStatusMessage: "Fallo al recuperar estadísticas del Dashboard.",
@@ -126,7 +126,7 @@ export async function getUsersList(): Promise<SovereignAdministrativeResponse<an
       payloadData: administratorUsersInventory || []
     };
   } catch (governanceException: any) {
-    nicepodLog("🔥 [Admin-Action][Users-List]:", governanceException.message, 'error');
+    nicepodLog("🔥 [Admin-Action][Users-List]:", governanceException.message, 'exceptionInformation');
     return {
       isOperationSuccessful: false,
       responseStatusMessage: "Error al sincronizar el inventario de usuarios.",
@@ -157,7 +157,7 @@ export async function getRecentPodcasts(): Promise<SovereignAdministrativeRespon
       payloadData: recentPodcastsInventory || []
     };
   } catch (governanceException: any) {
-    nicepodLog("🔥 [Admin-Action][Recent-Pods]:", governanceException.message, 'error');
+    nicepodLog("🔥 [Admin-Action][Recent-Pods]:", governanceException.message, 'exceptionInformation');
     return {
       isOperationSuccessful: false,
       responseStatusMessage: "No se pudo recuperar el pulso editorial.",
@@ -189,7 +189,7 @@ export async function getRecentFailedJobs(): Promise<SovereignAdministrativeResp
       payloadData: failedProductionJobs || []
     };
   } catch (governanceException: any) {
-    nicepodLog("🔥 [Admin-Action][Failed-Jobs]:", governanceException.message, 'error');
+    nicepodLog("🔥 [Admin-Action][Failed-Jobs]:", governanceException.message, 'exceptionInformation');
     return {
       isOperationSuccessful: false,
       responseStatusMessage: "Error en la recuperación de logs de fallo.",
@@ -221,7 +221,7 @@ export async function resetUserQuota(userIdentification: string): Promise<Sovere
       payloadData: null
     };
   } catch (governanceException: any) {
-    nicepodLog("🔥 [Admin-Action][Reset-Quota]:", governanceException.message, 'error');
+    nicepodLog("🔥 [Admin-Action][Reset-Quota]:", governanceException.message, 'exceptionInformation');
     return {
       isOperationSuccessful: false,
       responseStatusMessage: "Fallo al restablecer la cuota del usuario.",
@@ -253,7 +253,7 @@ export async function toggleFeaturedStatus(
       payloadData: null
     };
   } catch (governanceException: any) {
-    nicepodLog("🔥 [Admin-Action][Toggle-Featured]:", governanceException.message, 'error');
+    nicepodLog("🔥 [Admin-Action][Toggle-Featured]:", governanceException.message, 'exceptionInformation');
     return {
       isOperationSuccessful: false,
       responseStatusMessage: "No se pudo actualizar el estado destacado del podcast.",

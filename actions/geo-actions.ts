@@ -43,7 +43,7 @@ const executeOperationalExceptionHandlingAction = (
     ? operationalException.message 
     : String(operationalException);
   
-  nicepodLog(`🔥 [NicePod][${exceptionSourceDescriptor}]`, exceptionMessageText, 'error');
+  nicepodLog(`🔥 [NicePod][${exceptionSourceDescriptor}]`, exceptionMessageText, 'exceptionInformation');
 
   if (exceptionMessageText.includes("PGRST116")) {
     return { success: false, message: "FALLO_MEMORIA_METAL: El nodo solicitado no existe.", exceptionInformation: exceptionMessageText };

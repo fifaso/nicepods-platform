@@ -109,7 +109,7 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
             nativeMapInstance.remove();
           }
         } catch (hardwareException: unknown) {
-          nicepodLog("⚠️ [MapCore] Error en purga física de VRAM.", hardwareException, 'warn');
+          nicepodLog("⚠️ [MapCore] Error en purga física de VRAM.", hardwareException, 'warning');
         }
       }
     };
@@ -146,7 +146,7 @@ const MapCore = forwardRef<MapRef, MapCoreProperties>(({
           mapboxInternalInstance.setConfigProperty('basemap', 'showTransitLabels', false);
         }
       } catch (hardwareException: unknown) {
-        nicepodLog("⚠️ [MapCore] Style-Guard Exception.", hardwareException, 'warn');
+        nicepodLog("⚠️ [MapCore] Style-Guard Exception.", hardwareException, 'warning');
       }
     }
     

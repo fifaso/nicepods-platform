@@ -366,7 +366,7 @@ BEGIN
 EXCEPTION WHEN OTHERS THEN
     -- Fallo silencioso para el usuario: El sistema sigue operando.
     RAISE WARNING 'ASYNC_DISPATCH_FAIL: %', SQLERRM;
-    RETURN jsonb_build_object('status', 'error', 'message', SQLERRM);
+    RETURN jsonb_build_object('status', 'exceptionInformation', 'message', SQLERRM);
 END;
 $$;
 CREATE OR REPLACE FUNCTION "public"."fetch_personalized_pulse"("p_user_id" "uuid", "p_limit" integer DEFAULT 20, "p_threshold" double precision DEFAULT 0.7) RETURNS TABLE("id" "uuid", "title" "text", "summary" "text", "url" "text", "source_name" "text", "content_type" "public"."content_category", "authority_score" double precision, "similarity" double precision)

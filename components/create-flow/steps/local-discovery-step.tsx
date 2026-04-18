@@ -105,7 +105,7 @@ export function LocalDiscoveryStep() {
         toast({ title: "Vacío de Red", description: "No logramos triangular esa ubicación.", variant: "destructive" });
       }
     } catch (hardwareException) {
-      nicepodLog("🔥 [Discovery] Fallo en servicio de geocodificación.", hardwareException, 'error');
+      nicepodLog("🔥 [Discovery] Fallo en servicio de geocodificación.", hardwareException, 'exceptionInformation');
     } finally {
       setIsGeocodingSearchProcessActive(false);
     }
@@ -138,7 +138,7 @@ export function LocalDiscoveryStep() {
         toast({ title: "Bloqueo Satelital", description: "Coordenadas integradas al expediente." });
       },
       (hardwareOperationException) => {
-        nicepodLog("⚠️ [Discovery] Error de GPS Hardware.", hardwareOperationException.message, 'warn');
+        nicepodLog("⚠️ [Discovery] Error de GPS Hardware.", hardwareOperationException.message, 'warning');
         setIsGeolocationProcessActive(false);
         toast({ title: "Fallo de Triangulación", description: "Active la autoridad del GPS.", variant: "destructive" });
       },

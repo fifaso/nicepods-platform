@@ -164,7 +164,7 @@ export function GeoRecorder({
         audioHardwareStream.getTracks().forEach((audioTrack) => audioTrack.stop());
         nicepodLog(`🎙️ [GeoRecorder:${mode}] Autoridad acústica validada.`);
       } catch (hardwareException) {
-        nicepodLog(`🛑 [GeoRecorder:${mode}] Acceso denegado al hardware.`, hardwareException, 'error');
+        nicepodLog(`🛑 [GeoRecorder:${mode}] Acceso denegado al hardware.`, hardwareException, 'exceptionInformation');
         toast({
           title: "Acceso Interceptado",
           description: "Habilite el micrófono para registrar su peritaje acústico.",
@@ -216,7 +216,7 @@ export function GeoRecorder({
 
       nicepodLog(`⏺️ [GeoRecorder:${mode}] Captura acústica en progreso.`);
     } catch (hardwareException) {
-      nicepodLog(`🔥 [GeoRecorder:${mode}] Fallo crítico en la ignición.`, hardwareException, 'error');
+      nicepodLog(`🔥 [GeoRecorder:${mode}] Fallo crítico en la ignición.`, hardwareException, 'exceptionInformation');
       toast({ title: "Fallo de Hardware", description: "El dispositivo no respondió.", variant: "destructive" });
     }
   };

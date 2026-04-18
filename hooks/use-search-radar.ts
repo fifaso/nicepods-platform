@@ -110,7 +110,7 @@ export function useSearchRadarIntelligence(options: UseSearchRadarIntelligenceOp
         const parsedHistory = JSON.parse(serializedHistory);
         setSearchHistoryCollection(Array.isArray(parsedHistory) ? parsedHistory.slice(0, 6) : []);
       } catch (hardwareException) {
-        nicepodLog("⚠️ [Search-Radar] Historial corrupto. Ejecutando purga.", hardwareException, 'warn');
+        nicepodLog("⚠️ [Search-Radar] Historial corrupto. Ejecutando purga.", hardwareException, 'warning');
         localStorage.removeItem(TACTICAL_HISTORY_STORAGE_KEY);
       }
     }
@@ -168,7 +168,7 @@ export function useSearchRadarIntelligence(options: UseSearchRadarIntelligenceOp
       }
     } catch (hardwareException: unknown) {
       const exceptionMessage = hardwareException instanceof Error ? hardwareException.message : "Fallo de infraestructura.";
-      nicepodLog("🔥 [Search-Radar-Fatal]", exceptionMessage, 'error');
+      nicepodLog("🔥 [Search-Radar-Fatal]", exceptionMessage, 'exceptionInformation');
       setOperationalHardwareException(exceptionMessage);
       setSearchRadarResultsCollection([]);
     } finally {

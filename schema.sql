@@ -612,7 +612,7 @@ BEGIN
 EXCEPTION WHEN OTHERS THEN
     -- Fallo silencioso para el usuario: El sistema sigue operando.
     RAISE WARNING 'ASYNC_DISPATCH_FAIL: %', SQLERRM;
-    RETURN jsonb_build_object('status', 'error', 'message', SQLERRM);
+    RETURN jsonb_build_object('status', 'exceptionInformation', 'message', SQLERRM);
 END;
 $$;
 

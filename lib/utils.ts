@@ -69,7 +69,7 @@ export const classNamesUtility = concatenateClassNames;
 export function nicepodLog(
   messageContentText: string,
   intelligenceMetadataSnapshot: unknown = null,
-  severityLevel: 'info' | 'warn' | 'error' = 'info'
+  severityLevel: 'information' | 'warning' | 'exceptionInformation' = 'information'
 ) {
   if (process.env.NODE_ENV !== 'production') {
     setTimeout(() => {
@@ -77,17 +77,17 @@ export function nicepodLog(
       const localTimestampString = new Date().toLocaleTimeString();
 
       const logStylesDictionary = {
-        info: 'color: #8b5cf6; font-weight: 900; background: rgba(139, 92, 246, 0.1); padding: 2px 4px; border-radius: 4px;',
-        warn: 'color: #f59e0b; font-weight: 900;',
-        error: 'color: #ef4444; font-weight: 900; border: 1px solid #ef4444; padding: 2px;'
+        information: 'color: #8b5cf6; font-weight: 900; background: rgba(139, 92, 246, 0.1); padding: 2px 4px; border-radius: 4px;',
+        warning: 'color: #f59e0b; font-weight: 900;',
+        exceptionInformation: 'color: #ef4444; font-weight: 900; border: 1px solid #ef4444; padding: 2px;'
       };
 
-      if (severityLevel === 'error') {
-        console.error(`%c${logIdentificationPrefix} 🔥 [${localTimestampString}] ${messageContentText}`, logStylesDictionary.error, intelligenceMetadataSnapshot ?? '');
-      } else if (severityLevel === 'warn') {
-        console.warn(`%c${logIdentificationPrefix} ⚠️ [${localTimestampString}] ${messageContentText}`, logStylesDictionary.warn, intelligenceMetadataSnapshot ?? '');
+      if (severityLevel === 'exceptionInformation') {
+        console.error(`%c${logIdentificationPrefix} 🔥 [${localTimestampString}] ${messageContentText}`, logStylesDictionary.exceptionInformation, intelligenceMetadataSnapshot ?? '');
+      } else if (severityLevel === 'warning') {
+        console.warn(`%c${logIdentificationPrefix} ⚠️ [${localTimestampString}] ${messageContentText}`, logStylesDictionary.warning, intelligenceMetadataSnapshot ?? '');
       } else {
-        console.log(`%c${logIdentificationPrefix} 📡 [${localTimestampString}] ${messageContentText}`, logStylesDictionary.info, intelligenceMetadataSnapshot ?? '');
+        console.log(`%c${logIdentificationPrefix} 📡 [${localTimestampString}] ${messageContentText}`, logStylesDictionary.information, intelligenceMetadataSnapshot ?? '');
       }
     }, 0);
   }
@@ -243,14 +243,14 @@ export async function executeAsynchronousImageCompression(
         if (messageEvent.data.success) {
           resolve(messageEvent.data.blob);
         } else {
-          nicepodLog("⚠️ [Worker] Fallo en proceso secundario.", messageEvent.data.error, "warn");
+          nicepodLog("⚠️ [Worker] Fallo en proceso secundario.", messageEvent.data.error, "warning");
           resolve(sourceImageFile);
         }
         compressionWorkerInstance.terminate();
       };
 
       compressionWorkerInstance.onerror = (operationalException) => {
-        nicepodLog("🔥 [Worker] Error crítico de ejecución.", operationalException.message, "error");
+        nicepodLog("🔥 [Worker] Error crítico de ejecución.", operationalException.message, "exceptionInformation");
         resolve(sourceImageFile);
         compressionWorkerInstance.terminate();
       };

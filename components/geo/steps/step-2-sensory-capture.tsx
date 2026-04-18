@@ -122,7 +122,7 @@ export default function Step2SensoryCapture() {
       !forgeState.categoryMission || 
       !forgeState.categoryEntity
     ) {
-      nicepodLog("🛑 [Step2] Ingesta bloqueada: Dimensiones periciales incompletas.", null, "warn");
+      nicepodLog("🛑 [Step2] Ingesta bloqueada: Dimensiones periciales incompletas.", null, "warning");
       return;
     }
 
@@ -156,7 +156,7 @@ export default function Step2SensoryCapture() {
         navigateToNextStepAction();
       }
     } catch (operationalHardwareException) {
-      nicepodLog("🔥 [Step2] Fallo crítico durante la ingesta de inteligencia.", operationalHardwareException, 'error');
+      nicepodLog("🔥 [Step2] Fallo crítico durante la ingesta de inteligencia.", operationalHardwareException, 'exceptionInformation');
     } finally {
       setIsSensoryIngestionProcessActive(false);
     }

@@ -139,7 +139,7 @@ export function usePersistentIndustrialFormAuthority(
       if (onPersistentDataDiscoveredCallback) onPersistentDataDiscoveredCallback();
 
     } catch (hardwareException: unknown) {
-      nicepodLog("⚠️ [Persistence] Error crítico en lectura de Caja Negra.", hardwareException, "warn");
+      nicepodLog("⚠️ [Persistence] Error crítico en lectura de Caja Negra.", hardwareException, "warning");
       localStorage.removeItem(TACTICAL_DRAFT_STORAGE_KEY_IDENTIFICATION);
     }
   }, [onPersistentDataDiscoveredCallback]);
@@ -217,7 +217,7 @@ export function usePersistentIndustrialFormAuthority(
         JSON.stringify(dossierToSavePayload)
       );
     } catch (storageException: unknown) {
-      nicepodLog("🔥 [Persistence] Cuota de disco local saturada.", storageException, "error");
+      nicepodLog("🔥 [Persistence] Cuota de disco local saturada.", storageException, "exceptionInformation");
     }
 
   }, [debouncedFormDataPayload, currentFlowStepDescriptor, navigationHistoryStack, pendingDossierToRestore]);

@@ -121,7 +121,7 @@ export function POIActionCard({
    * Validación estricta de nulidad asegurando la congruencia de los descriptores locales.
    */
   if (!pointOfInterestRecommendation) {
-    nicepodLog("⚠️ [POIActionCard] Abortando renderizado: Ingesta nula o asimétrica.", null, "warn");
+    nicepodLog("⚠️ [POIActionCard] Abortando renderizado: Ingesta nula o asimétrica.", null, "warning");
     return null;
   }
 

@@ -178,7 +178,7 @@ export function PulsePillView({ initialPodcastData }: PulsePillViewComponentProp
         await supabaseClient.from('likes').insert({ user_id: userIdentification, podcast_id: podcastIdentification });
       }
     } catch (hardwareException) {
-      nicepodLog("🔥 [PulseView] Resonance error", hardwareException, 'error');
+      nicepodLog("🔥 [PulseView] Resonance error", hardwareException, 'exceptionInformation');
     } finally {
       setIsInteractionProcessActive(false);
     }

@@ -94,7 +94,7 @@ export function useForgeOrchestrator() {
     }
   ) => {
     if (!userGeographicLocation) {
-      nicepodLog("🛑 [ForgeOrchestrator] Ingesta abortada: Voyager sin anclaje geodésico.", null, 'error');
+      nicepodLog("🛑 [ForgeOrchestrator] Ingesta abortada: Voyager sin anclaje geodésico.", null, 'exceptionInformation');
       throw new Error("UBICACION_GEOGRAFICA_REQUERIDA");
     }
 
@@ -262,7 +262,7 @@ export function useForgeOrchestrator() {
       }
 
       setIsForgeProcessLocked(false);
-      nicepodLog("🔥 [ForgeOrchestrator] Colapso en el pipeline de forja.", exceptionMessageText, 'error');
+      nicepodLog("🔥 [ForgeOrchestrator] Colapso en el pipeline de forja.", exceptionMessageText, 'exceptionInformation');
       throw operationalHardwareException;
     }
   }, []);
@@ -303,7 +303,7 @@ export function useForgeOrchestrator() {
         
       setForgeStatus('REJECTED');
       setForgeOperationalError("Error crítico en la forja narrativa del hito. Reintente el proceso.");
-      nicepodLog("🔥 [ForgeOrchestrator] Falla en el motor literario neuronal.", exceptionMessageText, 'error');
+      nicepodLog("🔥 [ForgeOrchestrator] Falla en el motor literario neuronal.", exceptionMessageText, 'exceptionInformation');
       throw operationalHardwareException;
     }
   }, []);

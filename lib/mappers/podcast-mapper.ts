@@ -37,7 +37,7 @@ export function transformPodcastMetalToCrystal(
     nicepodLog(
       "⚠️ [Mapper-Warning][Podcast]: Detección de registro sin Identificación Primaria.",
       { recordIdentification: rawDatabaseRecord.id },
-      'warn'
+      'warning'
     );
   }
 
