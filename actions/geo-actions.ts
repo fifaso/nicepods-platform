@@ -1,11 +1,11 @@
 /**
  * ARCHIVO: actions/geo-actions.ts
- * VERSIÓN: 16.1 (NicePod Sovereign Geo-Actions - Axial Compatibility Edition)
+ * VERSIÓN: 8.0 (NicePod Sovereign Geo-Actions - Madrid Resonance V8.0)
  * PROTOCOLO: MADRID RESONANCE V8.0
  * 
  * Misión: Orquestar el ciclo de vida de persistencia multidimensional con garantía 
  * de limpieza, rigor de tipos y soberanía nominal (ZAP).
- * [CORRECCIÓN V16.1]: Restauración de compatibilidad para parámetros de UI.
+ * [CORRECCIÓN V8.0]: Reparación de Integridad Axial y Soberanía Nominal (ZAP 2.0).
  * NIVEL DE INTEGRIDAD: 100% (Soberano / DIS Doctrine / Build Shield Green)
  */
 
@@ -214,17 +214,17 @@ export async function ingestIntelligenceDossierAction(
     const authenticatedUserIdentification = authorizedUserAuthorSnapshot.id;
 
     // 1. VALIDACIÓN SOBERANA DE ENTRADA (BUILD SHIELD V4.1)
-    const validatedIngestionData = PointOfInterestIngestionSchema.parse(intelligenceIngestaPayload);
+    const validatedIngestionDataSnapshot = PointOfInterestIngestionSchema.parse(intelligenceIngestaPayloadSnapshot);
     const serviceRoleSecretKeyContent = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     // 2. CONSTRUCCIÓN DE REFERENCIAS DE ACCESO DIRECTO PARA LA IA
-    const publicHeroUniformResourceLocator = supabaseSovereignClient.storage.from('podcasts').getPublicUrl(validatedIngestionData.heroImageStoragePath).data.publicUrl;
-    const publicOpticalCharacterRecognitionUniformResourceLocatorsCollection = validatedIngestionData.opticalCharacterRecognitionImagePaths.map(path => 
+    const publicHeroUniformResourceLocator = supabaseSovereignClient.storage.from('podcasts').getPublicUrl(validatedIngestionDataSnapshot.heroImageStoragePath).data.publicUrl;
+    const publicOpticalCharacterRecognitionUniformResourceLocatorsCollection = validatedIngestionDataSnapshot.opticalCharacterRecognitionImagePaths.map(path =>
       supabaseSovereignClient.storage.from('podcasts').getPublicUrl(path).data.publicUrl
     );
 
     // 3. DESPACHO AL ORÁCULO DE BORDE (AGENTE 42)
-    const { data: agentResponseResults, error: edgeFunctionInvokeException } = await supabaseSovereignClient.functions.invoke('geo-sensor-ingestor', {
+    const { data: agentResponseResultsSnapshot, error: edgeFunctionInvokeHardwareException } = await supabaseSovereignClient.functions.invoke('geo-sensor-ingestor', {
       body: {
         ...validatedIngestionDataSnapshot,
         heroImageUniformResourceLocator: publicHeroUniformResourceLocator,
@@ -244,7 +244,7 @@ export async function ingestIntelligenceDossierAction(
      * [INTERVENCIÓN V14.0]: Garantiza que el nodo en la base de datos posea las URLs 
      * públicas definitivas antes de cerrar la transacción de ingesta.
      */
-    const { error: databaseUpdateException } = await supabaseSovereignClient
+    const { error: databaseUpdateHardwareException } = await supabaseSovereignClient
       .from('points_of_interest')
       .update({
         gallery_urls: [publicHeroUniformResourceLocator, ...publicOpticalCharacterRecognitionUniformResourceLocatorsCollection]
@@ -327,7 +327,7 @@ export async function publishSovereignChronicleAction(parametersSnapshot: {
       .getPublicUrl(parametersSnapshot.chronicleStoragePath).data.publicUrl;
 
     // 1. Commit Físico y Activación de Resonancia en la Bóveda
-    const { error: databaseUpdateException } = await supabaseSovereignClient
+    const { error: databaseUpdateHardwareException } = await supabaseSovereignClient
       .from('points_of_interest')
       .update({
         ambient_audio_url: publicAudioUniformResourceLocator, 

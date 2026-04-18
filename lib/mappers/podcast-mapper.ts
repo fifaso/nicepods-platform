@@ -72,7 +72,6 @@ export function transformPodcastMetalToCrystal(
     audioAssemblyStatus: rawDatabaseRecord.audio_assembly_status,
     totalAudioSegmentsCount: rawDatabaseRecord.total_audio_segments,
     currentAudioSegmentsCount: rawDatabaseRecord.current_audio_segments,
-    isFeaturedContentStatus: rawDatabaseRecord.is_featured,
 
     // --- ANALÍTICA Y RENDIMIENTO ---
     playCountTotal: Number(rawDatabaseRecord.play_count),

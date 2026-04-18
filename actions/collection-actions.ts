@@ -1,9 +1,9 @@
 /**
  * ARCHIVO: actions/collection-actions.ts
- * VERSIÓN: 5.2 (NicePod Curation Engine - Sovereign Protocol V5.2)
+ * VERSIÓN: 8.0 (NicePod Curation Engine - Madrid Resonance V8.0)
  * PROTOCOLO: MADRID RESONANCE V8.0
  * MISIÓN: Orquestar la creación de una Bóveda Temática con integridad axial y doctrina DIS.
- * [CORRECCIÓN V5.2]: Alineación absoluta con la interfaz 'Collection' de types/profile.ts.
+ * [CORRECCIÓN V8.0]: Reparación de Integridad Axial y Soberanía Nominal (ZAP 2.0).
  * NIVEL DE INTEGRIDAD: 100% (Soberano / ZAP 2.0 / Build Shield Green)
  */
 
@@ -39,7 +39,7 @@ export async function createCollectionAction(
   const supabaseSovereignClient = createClient();
 
   // 1. HANDSHAKE DE SOBERANÍA (DIS DOCTRINE)
-  const { data: { user: authenticatedUserSnapshot }, error: authenticationExceptionInformation } = await supabaseClient.auth.getUser();
+  const { data: { user: authenticatedUserSnapshot }, error: authenticationExceptionInformation } = await supabaseSovereignClient.auth.getUser();
   if (authenticationExceptionInformation || !authenticatedUserSnapshot) {
     return {
       isOperationSuccessful: false,
@@ -142,8 +142,8 @@ export async function createCollectionAction(
  * Recuperar el inventario de hilos curados por el Voyager activo.
  */
 export async function getMyCollections() {
-  const supabaseClient = createClient();
-  const { data: { user: authenticatedUserSnapshot } } = await supabaseClient.auth.getUser();
+  const supabaseSovereignClient = createClient();
+  const { data: { user: authenticatedUserSnapshot } } = await supabaseSovereignClient.auth.getUser();
 
   if (!authenticatedUserSnapshot) {
     console.warn("🛑 [Curation-Engine] Intento de acceso a colecciones sin sesión.");
@@ -172,7 +172,9 @@ export async function getMyCollections() {
 
     if (queryDatabaseHardwareException) throw queryDatabaseHardwareException;
 
-    return (collectionDatabaseResultsCollection || []).map((collectionItemSnapshot) => ({
+    const typedCollectionDatabaseResultsCollection = collectionDatabaseResultsCollection as unknown as (Collection & { id: string, owner_id: string, description: string, is_public: boolean, cover_image_url: string, total_listened_count: number, likes_count: number, updated_at: string, collection_items: { count: number }[] })[];
+
+    return (typedCollectionDatabaseResultsCollection || []).map((collectionItemSnapshot) => ({
       identification: collectionItemSnapshot.id,
       ownerUserIdentification: collectionItemSnapshot.owner_id,
       title: collectionItemSnapshot.title,
@@ -182,7 +184,7 @@ export async function getMyCollections() {
       totalListenedCount: collectionItemSnapshot.total_listened_count ?? 0,
       likesCountTotal: collectionItemSnapshot.likes_count ?? 0,
       updateTimestamp: collectionItemSnapshot.updated_at,
-      collectionItems: collectionItemSnapshot.collection_items as { count: number }[]
+      collectionItems: collectionItemSnapshot.collection_items
     }));
   } catch (exceptionMessageInformation: unknown) {
     const exceptionMessageText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
