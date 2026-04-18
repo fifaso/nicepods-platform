@@ -154,7 +154,7 @@ export function NotificationBell() {
 
     const { error: databaseOperationException } = await supabaseSovereignClient.rpc('mark_notifications_as_read');
     if (databaseOperationException) {
-      nicepodLog("🔥 [DB-Error] Fallo al sincronizar lectura de notificaciones:", databaseOperationException.message, 'error');
+      nicepodLog("🔥 [DB-Error] Fallo al sincronizar lectura de notificaciones:", databaseOperationException.message, 'exceptionInformation');
     }
   }, [supabaseSovereignClient, unreadNotificationsCount]);
 

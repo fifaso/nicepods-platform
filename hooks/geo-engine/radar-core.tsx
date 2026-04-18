@@ -169,7 +169,7 @@ export function RadarProvider({ children }: { children: React.ReactNode }) {
       };
     } catch (operationalException: unknown) {
       if (!(operationalException instanceof Error && operationalException.name === 'AbortError')) {
-        nicepodLog("🔥 [RadarCore] Fallo crítico en conexión con Bóveda NKV.", (operationalException instanceof Error) ? operationalException : String(operationalException), 'error');
+        nicepodLog("🔥 [RadarCore] Fallo crítico en conexión con Bóveda NKV.", (operationalException instanceof Error) ? operationalException : String(operationalException), 'exceptionInformation');
       }
     } finally {
       setIsRadarSearchProcessActive(false);

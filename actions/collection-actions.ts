@@ -128,7 +128,7 @@ export async function createCollectionAction(
 
   } catch (exceptionMessageInformation: unknown) {
     const exceptionMessageText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
-    nicepodLog("🔥 [Curation-Engine-Fatal][Create]:", exceptionMessageText, 'error');
+    nicepodLog("🔥 [Curation-Engine-Fatal][Create]:", exceptionMessageText, 'exceptionInformation');
     return {
       isOperationSuccessful: false,
       responseStatusMessage: "ERROR_CRÍTICO: El sistema no pudo procesar la creación de la colección.",
@@ -188,7 +188,7 @@ export async function getMyCollections() {
     }));
   } catch (exceptionMessageInformation: unknown) {
     const exceptionMessageText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
-    nicepodLog("🔥 [Curation-Engine-Fatal][GetMy]:", exceptionMessageText, 'error');
+    nicepodLog("🔥 [Curation-Engine-Fatal][GetMy]:", exceptionMessageText, 'exceptionInformation');
     return [];
   }
 }

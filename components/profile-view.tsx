@@ -148,7 +148,7 @@ export function PodcastView({
         await supabaseClient.from('likes').insert({ user_id: authenticatedUser.id, podcast_id: podcastIdentification });
       }
     } catch (exception: any) {
-      nicepodLog("🔥 [Profile-Like-Fatal]:", exception.message, 'error');
+      nicepodLog("🔥 [Profile-Like-Fatal]:", exception.message, 'exceptionInformation');
     } finally {
       setIsPlaybackProcessActive(false);
     }

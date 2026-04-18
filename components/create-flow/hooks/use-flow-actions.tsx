@@ -162,7 +162,7 @@ export function useFlowActions({ transitionTo, goBack, clearDraft }: UseFlowActi
       }
       return false;
     } catch (databaseException) {
-      nicepodLog("🔥 [Flow-Actions] Fallo en rehidratación de búnker.", databaseException, 'error');
+      nicepodLog("🔥 [Flow-Actions] Fallo en rehidratación de búnker.", databaseException, 'exceptionInformation');
       return false;
     }
   }, [getValues, setValue]);

@@ -75,7 +75,7 @@ export default function Step4NarrativeForge() {
     const pointOfInterestIdentification = forgeState.ingestedPointOfInterestIdentification;
     
     if (!pointOfInterestIdentification) {
-      nicepodLog("🛑 [Step4] Abortando: Identificación de hito no localizada en la memoria táctica.", null, 'error');
+      nicepodLog("🛑 [Step4] Abortando: Identificación de hito no localizada en la memoria táctica.", null, 'exceptionInformation');
       return;
     }
 
@@ -89,7 +89,7 @@ export default function Step4NarrativeForge() {
         refinedAdministratorIntent: forgeState.administratorIntentText
       });
     } catch (hardwareException) {
-      nicepodLog("🔥 [Step4] Fallo en la comunicación con el Oráculo Narrativo.", hardwareException, 'error');
+      nicepodLog("🔥 [Step4] Fallo en la comunicación con el Oráculo Narrativo.", hardwareException, 'exceptionInformation');
     }
   };
 
@@ -157,7 +157,7 @@ export default function Step4NarrativeForge() {
       }
     } catch (networkException) {
       const exceptionMessage = networkException instanceof Error ? networkException.message : String(networkException);
-      nicepodLog("🔥 [Step4] Error crítico en la publicación final.", exceptionMessage, 'error');
+      nicepodLog("🔥 [Step4] Error crítico en la publicación final.", exceptionMessage, 'exceptionInformation');
     } finally {
       setIsPublishingProcessActive(false);
     }

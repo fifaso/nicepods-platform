@@ -163,7 +163,7 @@ export function PodcastView({
       }
     } catch (hardwareException: unknown) {
       const exceptionMessageInformation = hardwareException instanceof Error ? hardwareException.message : "Hardware Error";
-      nicepodLog("🔥 [Social-Action] Error en resonancia:", exceptionMessageInformation, 'error');
+      nicepodLog("🔥 [Social-Action] Error en resonancia:", exceptionMessageInformation, 'exceptionInformation');
     } finally {
       setIsPlaybackInteractionActive(false);
     }

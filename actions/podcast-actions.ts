@@ -13,7 +13,7 @@ import {
   PodcastWithProfile,
 } from "@/types/podcast";
 import { nicepodLog } from "@/lib/utils";
-import { transformPodcastMetalToCrystal } from "@/lib/mappers/podcast-mapper";
+import { transformDatabasePodcastRecordToSovereignEntity } from "@/lib/mappers/podcast-sovereign-mapper";
 
 /**
  * getPublishedPodcastsAction:
@@ -34,18 +34,24 @@ export async function getPublishedPodcastsAction(resultLimitMagnitude: number = 
       nicepodLog(
         "🔥 [Podcast-Action-Error][GetPublished]: Excepción de Hardware en Consulta.",
         { exceptionMessageInformationText: queryHardwareExceptionInformation.message },
-        'error'
+        'exceptionInformation'
       );
       throw queryHardwareExceptionInformation;
     }
 
+    // Auditoría de Transformación (Traceability Protocol)
+    nicepodLog(
+      "🔄 [Podcast-Action][GetPublished]: Iniciando transmutación soberana de registros.",
+      { collectionCountMagnitude: (publishedPodcastsDatabaseResults || []).length }
+    );
+
     return (publishedPodcastsDatabaseResults || []).map((podcastItem) =>
-      transformPodcastMetalToCrystal(podcastItem)
+      transformDatabasePodcastRecordToSovereignEntity(podcastItem)
     );
 
   } catch (exceptionMessageInformation: unknown) {
     const exceptionMessageInformationText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
-    nicepodLog("🔥 [Podcast-Action-Fatal][GetPublished]:", exceptionMessageInformationText, 'error');
+    nicepodLog("🔥 [Podcast-Action-Fatal][GetPublished]:", exceptionMessageInformationText, 'exceptionInformation');
     return [];
   }
 }
@@ -61,7 +67,7 @@ export async function getUserPodcastsAction(): Promise<PodcastWithProfile[]> {
   const { data: { user: authenticatedUserSnapshot }, error: authenticationHardwareExceptionInformation } = await supabaseSovereignClient.auth.getUser();
 
   if (authenticationHardwareExceptionInformation || !authenticatedUserSnapshot) {
-    nicepodLog("🛑 [Podcast-Engine] Acceso denegado: Sesión no válida.", "AUTHENTICATION_REQUIRED", 'error');
+    nicepodLog("🛑 [Podcast-Engine] Acceso denegado: Sesión no válida.", "AUTHENTICATION_REQUIRED", 'exceptionInformation');
     return [];
   }
 
@@ -78,18 +84,24 @@ export async function getUserPodcastsAction(): Promise<PodcastWithProfile[]> {
        nicepodLog(
         "🔥 [Podcast-Action-Error][GetUser]: Excepción de Hardware en Consulta de Inventario.",
         { exceptionMessageInformationText: queryHardwareExceptionInformation.message },
-        'error'
+        'exceptionInformation'
       );
       throw queryHardwareExceptionInformation;
     }
 
+    // Auditoría de Transformación (Traceability Protocol)
+    nicepodLog(
+      "🔄 [Podcast-Action][GetUser]: Iniciando transmutación soberana de inventario.",
+      { collectionCountMagnitude: (userPodcastsDatabaseResults || []).length }
+    );
+
     return (userPodcastsDatabaseResults || []).map((podcastItem) =>
-      transformPodcastMetalToCrystal(podcastItem)
+      transformDatabasePodcastRecordToSovereignEntity(podcastItem)
     );
 
   } catch (exceptionMessageInformation: unknown) {
     const exceptionMessageInformationText = exceptionMessageInformation instanceof Error ? exceptionMessageInformation.message : "Error desconocido";
-    nicepodLog("🔥 [Podcast-Action-Fatal][GetUserPodcasts]:", exceptionMessageInformationText, 'error');
+    nicepodLog("🔥 [Podcast-Action-Fatal][GetUserPodcasts]:", exceptionMessageInformationText, 'exceptionInformation');
     return [];
   }
 }

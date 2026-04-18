@@ -36,7 +36,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    nicepodLog("🔥 [ErrorBoundary] Error crítico detectado en la jerarquía de componentes.", { error, errorInfo }, 'error');
+    nicepodLog("🔥 [ErrorBoundary] Error crítico detectado en la jerarquía de componentes.", { error, errorInfo }, 'exceptionInformation');
     this.setState({ error, errorInfo })
   }
 

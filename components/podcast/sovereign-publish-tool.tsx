@@ -97,7 +97,7 @@ export function SovereignPublishTool({
       }
 
     } catch (exception: any) {
-      nicepodLog("🔥 [SovereignTool-Fatal] Error en liberación:", exception.message, 'error');
+      nicepodLog("🔥 [SovereignTool-Fatal] Error en liberación:", exception.message, 'exceptionInformation');
       
       toast({
         title: "Error de Publicación",

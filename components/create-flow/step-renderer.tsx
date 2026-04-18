@@ -111,7 +111,7 @@ export function StepRenderer({
       setValue('userEmotionalReactionContent', `Captura Acústica: ${capturedDurationSecondsMagnitude}s`);
       navigateToNextPhaseSovereignAction();
     } catch (operationalHardwareException) {
-      nicepodLog("🔥 [StepRenderer] Fallo acústico.", operationalHardwareException, 'error');
+      nicepodLog("🔥 [StepRenderer] Fallo acústico.", operationalHardwareException, 'exceptionInformation');
     } finally {
       setIsAcousticCaptureProcessActive(false);
     }

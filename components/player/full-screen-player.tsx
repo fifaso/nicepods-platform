@@ -122,7 +122,7 @@ export function FullScreenPlayer() {
         
         setIsLikedByVoyagerStatus(!!resonanceDataSnapshot);
       } catch (exception: unknown) {
-        nicepodLog("Falla en verificación de Bóveda NKV", exception, 'error');
+        nicepodLog("Falla en verificación de Bóveda NKV", exception, 'exceptionInformation');
       }
     };
     
@@ -170,7 +170,7 @@ export function FullScreenPlayer() {
       }
     } catch (exception: unknown) {
       setIsLikedByVoyagerStatus(originalResonanceStateStatus); // Reversión de estado (Rollback)
-      nicepodLog("🔥 [Resonance-Fail]:", exception, 'error');
+      nicepodLog("🔥 [Resonance-Fail]:", exception, 'exceptionInformation');
     } finally {
       setIsInteractionProcessActiveStatus(false);
     }

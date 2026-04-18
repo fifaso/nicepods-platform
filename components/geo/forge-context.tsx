@@ -283,7 +283,7 @@ export function ForgeProvider({ children }: { children: React.ReactNode }) {
 
         dispatch({ type: 'HYDRATE_METADATA', payload: parsedMetadata });
       } catch (exception) {
-        nicepodLog("🔥 [ForgeContext] Error crítico en materialización de sesión.", exception, 'error');
+        nicepodLog("🔥 [ForgeContext] Error crítico en materialización de sesión.", exception, 'exceptionInformation');
         sessionStorage.removeItem(FORGE_SESSION_STORAGE_KEY_NAME);
       }
     }

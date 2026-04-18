@@ -88,7 +88,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         event_type: interactionType
       });
     } catch (exception: unknown) {
-        nicepodLog("⚠️ [AudioEngine] Error de telemetría social.", exception, 'warn');
+        nicepodLog("⚠️ [AudioEngine] Error de telemetría social.", exception, 'warning');
     }
   }, [authenticatedUser, currentActivePodcast, supabaseClient]);
 
@@ -175,7 +175,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       if (!activePodcastReference.current) return;
 
       if (errorTarget.error && errorTarget.src && errorTarget.src !== window.location.href) {
-        nicepodLog("🔥 [AudioEngine] Falla de enlace acústico.", errorTarget.error, 'error');
+        nicepodLog("🔥 [AudioEngine] Falla de enlace acústico.", errorTarget.error, 'exceptionInformation');
         toast({
           variant: "destructive",
           title: "Frecuencia Inestable",
@@ -198,7 +198,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       currentAudioInstanceSnapshot.addEventListener("canplay", handleCanPlayAction);
       currentAudioInstanceSnapshot.addEventListener("ended", handleEndedAction);
       currentAudioInstanceSnapshot.addEventListener("timeupdate", handleTimeUpdateAction);
-      currentAudioInstanceSnapshot.addEventListener("error", handleErrorAction);
+      currentAudioInstanceSnapshot.addEventListener("exceptionInformation", handleErrorAction);
     }
 
     return () => {
@@ -209,7 +209,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         currentAudioInstanceSnapshot.removeEventListener("canplay", handleCanPlayAction);
         currentAudioInstanceSnapshot.removeEventListener("ended", handleEndedAction);
         currentAudioInstanceSnapshot.removeEventListener("timeupdate", handleTimeUpdateAction);
-        currentAudioInstanceSnapshot.removeEventListener("error", handleErrorAction);
+        currentAudioInstanceSnapshot.removeEventListener("exceptionInformation", handleErrorAction);
 
         currentAudioInstanceSnapshot.pause();
         currentAudioInstanceSnapshot.removeAttribute("src");
@@ -237,7 +237,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     if (audioElementInstanceSnapshot) {
       if (audioElementInstanceSnapshot.paused) {
         audioElementInstanceSnapshot.play().catch((hardwareException: unknown) => {
-          nicepodLog("⚠️ [AudioEngine] Error en reproducción manual.", hardwareException, 'warn');
+          nicepodLog("⚠️ [AudioEngine] Error en reproducción manual.", hardwareException, 'warning');
         });
       } else {
         audioElementInstanceSnapshot.pause();

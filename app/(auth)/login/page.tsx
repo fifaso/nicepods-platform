@@ -102,7 +102,7 @@ export default function LoginPage() {
 
     } catch (authenticationException: unknown) {
       const errorObject = authenticationException as Error;
-      nicepodLog("🔥 [Login-Fatal]:", errorObject.message, 'error');
+      nicepodLog("🔥 [Login-Fatal]:", errorObject.message, 'exceptionInformation');
       setIsAuthenticationProcessActive(false);
     }
   };
