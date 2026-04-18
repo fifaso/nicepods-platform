@@ -1,8 +1,19 @@
-/** ARCHIVE: components/ui/card.tsx VERSION: 1.0 PROTOCOLO: MADRID RESONANCE V4.9 MISSION: UI Component INTEGRITY LEVEL: 100% */
+/**
+ * ARCHIVO: components/ui/card.tsx
+ * VERSIÓN: 5.1 (Madrid Resonance)
+ * PROTOCOLO: Nominal Sovereignty
+ * MISIÓN: Contenedor estructural para la organización de capital intelectual (Crystal Layer).
+ * [REFORMA V5.1]: Implementación de la Zero Abbreviations Policy (ZAP).
+ * NIVEL DE INTEGRIDAD: 100%
+ */
+
 import * as React from "react"
 
 import { classNamesUtility } from "@/lib/utils"
 
+/**
+ * Card: El átomo contenedor base con elevación y bordes suaves.
+ */
 const Card = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
@@ -18,6 +29,9 @@ const Card = React.forwardRef<
 ))
 Card.displayName = "Card"
 
+/**
+ * CardHeader: Sección superior para títulos y metadatos del contenedor.
+ */
 const CardHeader = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
@@ -30,6 +44,9 @@ const CardHeader = React.forwardRef<
 ))
 CardHeader.displayName = "CardHeader"
 
+/**
+ * CardTitle: Descriptor nominal primario del contenido de la tarjeta.
+ */
 const CardTitle = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
@@ -45,6 +62,9 @@ const CardTitle = React.forwardRef<
 ))
 CardTitle.displayName = "CardTitle"
 
+/**
+ * CardDescription: Contexto secundario y explicativo para el Voyager.
+ */
 const CardDescription = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
@@ -57,6 +77,9 @@ const CardDescription = React.forwardRef<
 ))
 CardDescription.displayName = "CardDescription"
 
+/**
+ * CardContent: El cuerpo principal de datos y acciones del contenedor.
+ */
 const CardContent = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
@@ -65,6 +88,9 @@ const CardContent = React.forwardRef<
 ))
 CardContent.displayName = "CardContent"
 
+/**
+ * CardFooter: Sección inferior para acciones primarias y cierres tácticos.
+ */
 const CardFooter = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
